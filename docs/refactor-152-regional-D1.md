@@ -64,7 +64,10 @@ older implementation checkpoints and must be read with their later evidence.
    and after each of two committed final acknowledgements. Nine process replacements
    preserve exact activation replay, fresh acknowledgement proofs, signing and
    home-only installation/cleanup; no further Router material execution occurs.
-   Router-role restart and crashes during transactions remain open.
+   The same matrix now also passes with all five local role Workers restarting
+   at each checkpoint: nine supervisor generations advance over retained D1/DO
+   storage, and all linked devices still sign. Crashes during transactions
+   remain open.
    Regional protocol acceptance now covers real elapsed
    expiry of unclaimed and prepared links in all three homes: repeated foreign
    polling, approval rejection, home-only terminal cleanup and refusal to recreate
@@ -117,8 +120,10 @@ older implementation checkpoints and must be read with their later evidence.
    consumed-code error also pass. The mixed-wallet case now also restarts the
    Gateway/Console process and D1 runtime after each passkey recovery commit,
    reopening the same four databases before replay. All three recovered wallets
-   unlock and sign again after the third restart. Router restart and interruption
-   during transactions remain open. Added Email OTP methods now
+   unlock and sign again after the third restart. The case also passes with all
+   five local role Workers restarting at every recovery checkpoint, preserving
+   their existing D1/DO stores. Interruption during transactions remains open.
+   Added Email OTP methods now
    pass addition, duplicate-add refusal, lock/reload, unlock and both-family
    signing through foreign ingress for every home. Revocation persists only at
    home, the SDK refuses the revoked method, and the original passkey still signs.
@@ -133,9 +138,11 @@ older implementation checkpoints and must be read with their later evidence.
    passes an orderly Gateway/Console process restart after finalization commits:
    a fresh process reopens the four persisted databases before client replay, then
    unlock, signing and consumed-code rejection still pass in all three homes.
-   Router roles remain running during this check. Other recovery origins,
-   Router restart, crashes during transactions and remaining
-   shared credential/identity reconciliation still need composed acceptance.
+   The same three-home Google matrix now passes with all five local role Workers
+   restarting after finalization as well, preserving exact replay, unlock,
+   concurrent signing and consumed-code rejection. Other recovery origins,
+   crashes during transactions and remaining shared credential/identity
+   reconciliation still need composed acceptance.
    Method finalization and revocation
    reply loss now pass at every home: both mutations replay the exact request and
    committed result through foreign ingress, with one added method and one revocation.

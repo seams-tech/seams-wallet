@@ -5455,3 +5455,104 @@ are under `.artifacts/r152/link-restart-recovery-check-20261004/`. SHA-256:
 
 The runner and acceptance changes are committed in private `seams-monorepo`
 revision `af2361a`.
+
+
+### October 4: recovery and linked-device replay after local role Worker restarts
+
+The local role supervisor now accepts a controlled `SIGUSR2` restart. It stops
+its five owned Worker process groups, reuses their runtime configuration and
+D1/DO persistence directories, waits for endpoints and the Router keyset, then
+atomically publishes a new readiness generation with worker PIDs. Identity
+initialization, migrations and tenant provisioning do not run during restart.
+The private browser driver verifies that the supervisor is unchanged, its
+generation advances exactly once and all five Worker PIDs are new. Gateway/Console
+also restarts and reopens its same four D1 databases at each checkpoint.
+
+The concurrent three-wallet passkey recovery case passed **1 case in 2.1 minutes**.
+US/WEUR/APAC wallets retain distinct homes through travel, unlock, both key exports
+and interrupted recovery. Each committed recovery is followed by a full restart
+before the lost response and client reset/replay. Supervisor generations advance
+1→2→3→4. All three recovered wallets unlock and sign NEAR/Tempo after the final
+restart; exact finalization replay, consumed-code refusal and home-only authorities
+remain verified.
+
+The linked-device matrix passed **3 cases in 2.3 minutes**, covering US→WEUR,
+WEUR→APAC and APAC→US. Each case loses the original Router execution answer and
+replays that reservation. Gateway/Console and all five role Workers then restart
+after activation (200), first final acknowledgement (204), and acknowledgement
+replay (204), before each reply is concealed. Across nine restart cycles the
+supervisor advances from generation 1 to 10. Exact activation replay, identical
+acknowledgement bodies with fresh proofs, NEAR/Tempo signing, one home-only linked
+installation, removed transient/sealed records and retained terminal receipts all
+pass. Shared routing and proof nonces stay in Console. Replacement Gateway
+processes observe no additional source-preserving Router execution.
+
+The first linked run completed its US signing/persistence assertions but failed
+while closing the Gateway: a background browser request entered during teardown.
+This was classified as `environment_or_infrastructure_failure`. The driver now
+closes request admission before draining and stopping the child. The original
+failure remains under private `.artifacts/r152/linked-role-restart-20261004/`;
+the complete passing matrix uses a fresh directory below. No production Wallet
+behavior was changed for this teardown failure.
+
+Private evidence directories and SHA-256 receipts:
+
+| Scenario | Directory under `.artifacts/r152/` | Receipt | SHA-256 |
+| --- | --- | --- | --- |
+| Mixed passkey | `role-restart-20261004/mixed-homes` | `mixed-home-evidence.json` | `8eb28b58458ea8d9c33082fb2d2cdf03c7b1a964d28d32a844f78d555ddce528` |
+| Mixed passkey | `role-restart-20261004/mixed-homes` | `restart-evidence.json` | `b0917d7dd2b21b7c82dcfa03391caa8975d0ff7bc343ea21d0a4272826fb62fd` |
+| US | `linked-role-restart-rerun-20261004/US` | `regional-real-evidence.json` | `65dfe218f647db218727e7cedb8f01a23d155dad9f283f47cfe0dc31191a0de9` |
+| US | `linked-role-restart-rerun-20261004/US` | `restart-evidence.json` | `ccf20db385e2a782c143d08e935ebc39bd2ac1f3fff543ba0a15ac4a902391e1` |
+| WEUR | `linked-role-restart-rerun-20261004/WEUR` | `regional-real-evidence.json` | `a1eebb7807ed553a92a3f38c1b4d69ec3154ed308606e072573147b0587ed7dd` |
+| WEUR | `linked-role-restart-rerun-20261004/WEUR` | `restart-evidence.json` | `023a804a52e4a235fef998afea00fad31a836edbeb3c20f4485a213f11e1c816` |
+| APAC | `linked-role-restart-rerun-20261004/APAC` | `regional-real-evidence.json` | `ee4b1129ea4dbf680964b15e8625bc2b72ac8656018b601f40fb998b42047f81` |
+| APAC | `linked-role-restart-rerun-20261004/APAC` | `restart-evidence.json` | `5ffd1453173f6492f4bc65637edceec1c3f827b941e54d47bf6487d9f7b58f95` |
+
+Reproduce from the private checkout, selecting one matrix at a time because they
+share local ports. Use a fresh artifact directory for each run:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_INTENDED_SKIP_BUILD=1 SEAMS_INTENDED_PERSIST_TRACE=1 \
+SEAMS_INTENDED_TRACE_DIR=.artifacts/r152/role-restart-repeat/lifecycle \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/role-restart-repeat \
+node tests/scripts/run-regional-real.mjs --grep 'linked signing' --max-failures=1
+```
+
+Select `--grep 'three real wallets'` for mixed passkey recovery. Omit
+`SEAMS_INTENDED_SKIP_BUILD` when the public candidate has not been built. Public
+supervisor implementation: `384886d5`; private driver and instructions: `4241782`.
+ESLint, source formatting, Node syntax and public bloat checks passed; logs remain
+under the mixed-passkey evidence directory and public
+`.artifacts/r152/role-restart-bloat-20261004.log`.
+
+These measurements cover controlled process replacement after commit with one
+shared local role stack. They do not establish recovery from a crash during a
+transaction, independent geographic Router placement or hosted latency. Those
+acceptance gates, the final ownership audit and regional cutover remain open.
+No deployment or release occurred; 0.8.0 remains held.
+
+
+The Google Email OTP recovery matrix subsequently passed **3 cases in 2.2 minutes**
+with the same full restart driver. Home/ingress pairs are US→APAC, WEUR→US and
+APAC→WEUR. Each finalization commits before Gateway/Console and all five role
+Workers restart. The lost reply/client runtime reset is followed by exact replay
+and journal cleanup, then consumed-code rejection and successful unlock,
+NEAR/concurrent Tempo-Arc signing and budget-exhaustion checks. Each home retains
+one wallet, three signers and two active authorities; Console retains one shared
+Google identity locator and foreign signer databases retain no wallet custody.
+The three receipts prove supervisor generations 1→2→3→4 and five new Worker PIDs
+at each checkpoint. Across all passing scenarios in this checkpoint there are
+**15 full restart cycles: 15 Gateway replacements and 75 role Worker replacements**.
+
+Private directory: `.artifacts/r152/google-role-restart-20261004/`. SHA-256:
+
+| Home | `recovery-evidence.json` | `restart-evidence.json` |
+| --- | --- | --- |
+| US | `de15ab453f5626800ef97d291742ee2b278096a1802487246da678f608000294` | `c00252e61426baadad9fc9870404a19784d05a3ba41fe39b1c759e37f0b4a08f` |
+| WEUR | `af70d4dafc4c68b2f1823e6a80ed7efdb9a839e204df8b00229b0ea642f161f9` | `10ab6d40f9e499bd73f507e84ba1bb9dab8a2066b90e0ccdd5b0d044feb5b33d` |
+| APAC | `7325d5b2b35527713742e731810c4b0f5adee61fd9ea3069f662f3e344d1f4a1` | `7b9c7020561dce6d5eac32ec7a5b053bf14797ef6ab1e01614128e658ed38e82` |
+
+Reproduce with `--grep 'interrupted Google Email OTP'` and fresh trace/artifact
+directories. The existing configured Google test token was refreshed before the
+run. Its value and OTPs are excluded from the evidence receipts.

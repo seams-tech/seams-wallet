@@ -1782,3 +1782,30 @@ execution. Nine orderly Gateway/Console replacements passed in the three-case
 matrix. See private `.artifacts/r152/link-process-restart-20261004/` per-home
 `regional-real-evidence.json` and `restart-evidence.json`. Router-role restart,
 crashes during transactions and hosted regional execution remain open.
+
+
+### October 4: retained wallet state across local role Worker restarts
+
+The mixed-wallet passkey recovery case and all three linked-device browser cases
+now restart Gateway/Console plus all five local role Workers after their recorded
+commits. The role supervisor replaces its owned process groups over existing D1/DO
+storage, without reinitializing identity, migrations or tenant provisioning. Each
+receipt verifies an incremented supervisor generation and five new Worker PIDs.
+
+Three successive mixed-wallet recovery restarts preserve US/WEUR/APAC homes,
+exact finalization replay and consumed-code rejection. Every recovered wallet
+unlocks and signs NEAR/Tempo after the last restart. Nine linked-device restart
+cycles preserve activation/acknowledgement replay, home-only installation,
+cleanup, shared Console routing/nonces and subsequent NEAR/Tempo signing.
+
+Evidence is under private `.artifacts/r152/role-restart-20261004/` and
+`.artifacts/r152/linked-role-restart-rerun-20261004/`. These are controlled
+restarts after commit of one shared local role stack. Transaction crashes,
+separately placed regional roles and hosted travel latency remain open.
+
+The three-home Google Email OTP recovery matrix also passes with Gateway/Console
+and all five role Workers restarting after finalization: exact replay, journal
+cleanup, unlock, NEAR/concurrent Tempo-Arc signing, budget exhaustion and
+consumed-code rejection. Console retains one shared identity locator per case;
+wallet custody remains only at home. Receipts are under private
+`.artifacts/r152/google-role-restart-20261004/google-recovery-<home>/`.
