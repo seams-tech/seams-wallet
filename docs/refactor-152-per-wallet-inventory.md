@@ -1748,3 +1748,18 @@ successful old-process exit alongside `recovery-evidence.json` in private
 Router roles remain running. This closes the orderly Gateway/Console restart case
 for Google recovery after commit; linked-device restart, other recovery origins,
 Router restart and crashes during transactions remain separate acceptance work.
+
+### October 4: mixed-wallet passkey recovery across successive process restarts
+
+Three wallets register concurrently under one exact tenant scope with distinct
+US/WEUR/APAC homes. Each passkey recovery commits through foreign ingress, then
+Gateway/Console and its D1 runtime stop and reopen in a new process before the
+lost-response/client-reset replay. Three successive process replacements pass;
+every recovered wallet also unlocks and signs NEAR/Tempo after the final restart.
+
+Home-only registration/recovery authorities, no foreign custody copies, exact
+finalization replay and consumed-code rejection remain verified. The process
+receipt checks the chain of old/new PIDs against recovery ingress order. Private
+artifacts are under `.artifacts/r152/passkey-process-restart-20261004/mixed-homes/`.
+This covers orderly Gateway/Console restarts after commit for passkey recovery;
+linked-device restart, Router restart and transaction crashes remain open.

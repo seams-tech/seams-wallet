@@ -4376,7 +4376,6 @@ state wins before protocol parsing; it does not execute cryptographic material.
 Real contribution execution and final installation across separate regional homes
 remain open. No deployment or release occurred.
 
-
 ## October 3: regional export-root relay checkpoint
 
 The composed regional linking E2E now registers an X25519 recipient through APAC,
@@ -5348,3 +5347,54 @@ Temporary D1 state is deleted on completion; receipts contain no bearer credenti
 or material payloads. Router roles stay running. Linked-device restart, other
 recovery origins, Router restart, crashes during transactions and hosted execution
 remain open. No deployment or release occurred.
+
+### October 4: mixed-wallet passkey recovery across three process restarts
+
+The concurrent-registration/travel/recovery browser scenario passed in **1.9
+minutes** with an orderly Gateway/Console and D1-runtime restart after each of its
+three passkey recovery commits. Registrations overlap for **6.574 seconds** under
+one exact tenant namespace, while Console records distinct US/WEUR/APAC homes.
+Each recovery goes through foreign ingress (US→APAC, WEUR→US, APAC→WEUR), loses
+the committed finalization reply and resets the client runtime before exact replay.
+
+The existing journal, travel, unlock, Ed25519/ECDSA export, signing and additive
+authority checks pass. After the third process replacement, **all three recovered
+wallets unlock and sign NEAR/Tempo again**. Each ingress records finalization
+statuses `[200, 200]`; each fresh reservation with the consumed recovery code is
+rejected with HTTP 401 / `recovery_code_used`. Custody rows remain home-only with
+one wallet and two active authorities per home; no foreign copies appear.
+
+The restart receipt verifies three successful old-process exits, distinct new
+PIDs, and continuity from each new PID to the following restart's old PID. All
+four D1 databases are reopened from the same persisted directory, without rerunning
+migrations. Router roles remain running. The shared process runner now dispatches
+explicit Google-recovery and mixed-home verification commands and writes the
+applicable home/ingress routes into its receipt.
+
+Private artifacts: `.artifacts/r152/passkey-process-restart-20261004/`, containing
+`protocol.log`, `lint.log`, `format.log`, lifecycle traces and these receipts:
+
+- `mixed-homes/mixed-home-evidence.json`: SHA-256
+  `4263908ae1086d054db0983b0c6196c9d6a47a28718e1e382998cf99753cfc84`.
+- `mixed-homes/restart-evidence.json`: SHA-256
+  `9fc42f53eab18b961c7e9df89cc1d5be65ab69b80276846ba589cced30079109`.
+
+Reproduce using the private regional runner's `--grep 'three real wallets'` with
+the candidate, trace and artifact settings above and a fresh output directory.
+The measured durations include local browser/protocol work; they provide no hosted
+geographic latency estimate. No production fix, deployment or release was needed.
+Linked-device restart, other founding factors, Router restart and crashes during
+transactions remain separate acceptance work.
+
+The US-home/APAC-ingress Google recovery restart case also passed with the shared
+runner in **56.6 seconds**. Its protocol log, trace and receipts are under private
+`.artifacts/r152/passkey-restart-google-check-20261004/`. Receipt hashes:
+
+- `google-recovery-US/recovery-evidence.json`:
+  `313e84bbbeb34d1c19931e94d310192f4259fa7c523df0729b131179b6cc2d04`.
+- `google-recovery-US/restart-evidence.json`:
+  `7a5a42fe16daeff60832a140a0be626d50cfad97a87e687891c16a82d626cfa2`.
+
+ESLint, formatting and the public bloat check passed. Bloat output is retained at
+public `.artifacts/r152/passkey-process-restart-bloat-20261004.log`. The tests and
+runner extension are committed in private `seams-monorepo` revision `fbfb7fe`.

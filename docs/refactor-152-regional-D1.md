@@ -109,8 +109,11 @@ older implementation checkpoints and must be read with their later evidence.
    Lost passkey-recovery finalization replies now pass for all three homes:
    the client journal survives runtime reset, replays the same operation and
    target, and clears after acknowledgement. Both-family signing and the browser's
-   consumed-code error also pass. This covers client runtime reset; passkey recovery
-   server-process restart and other interruption stages remain open. Added Email OTP methods now
+   consumed-code error also pass. The mixed-wallet case now also restarts the
+   Gateway/Console process and D1 runtime after each passkey recovery commit,
+   reopening the same four databases before replay. All three recovered wallets
+   unlock and sign again after the third restart. Router restart and interruption
+   during transactions remain open. Added Email OTP methods now
    pass addition, duplicate-add refusal, lock/reload, unlock and both-family
    signing through foreign ingress for every home. Revocation persists only at
    home, the SDK refuses the revoked method, and the original passkey still signs.
