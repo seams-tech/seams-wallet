@@ -292,6 +292,11 @@ role RPC and cross-authority contract has a final owner and failure behavior.
   US/APAC, and replay the same credential/session without rereading or replanning.
   Source session, method and authority use D1; signer protocol material and source
   contribution planning remain controlled fixtures.
+- [x] Replace the local credential scenario's controlled source reader with the
+  production D1 reader. Read matching owner session, auth method, authority and
+  signer at WEUR. A missing signer rejects before planning and releases the
+  reservation; inserting the parser-valid synthetic signer permits registration
+  and exact retry. Real custody execution and contribution planning remain open.
 - [ ] Complete successful target credential persistence, source contribution, committed package
   delivery and authority installation through hosted regional entry points,
   including acknowledgement loss and cleanup. Replace controlled source metadata

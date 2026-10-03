@@ -4001,3 +4001,38 @@ Receipt: `.artifacts/r152/target-commit-20261003/regional-session-routing-eviden
 SHA-256: `ce564e431b5e20607717982ce384b49d83a1c400dae0143438d22fa9bd4e70c0`.
 Regional E2E, focused private ESLint and public `pnpm report:bloat --check` passed;
 logs are copied alongside the receipt. No deployment/publication; 0.8.0 remains held.
+
+### October 3: production source reader in regional credential registration
+
+The regional credential scenario now uses `createD1LinkedDeviceVerifiedLinkSourceReaderV1`
+with production D1 session, auth-method, authority and wallet stores. The owner fixture
+uses a matching Ed25519 key identity and material activation. Its synthetic signer is
+constructed with the production signer builder, validated by the persistence parser,
+and inserted through `D1WalletStore.putSigner`.
+
+Before insertion, signed APAC credential HTTP reaches WEUR and fails on the missing
+signer, before contribution planning; the durable reservation is released. After
+insertion, registration succeeds and exact retry returns unchanged credential/session
+without another source read or plan. Home-only credential persistence still passes.
+This removes the handwritten source verification path from the scenario.
+
+The registration capability material is synthetic. The source-contribution planner
+remains controlled; a real custody ceremony, source-child resolution/contribution,
+package delivery and activation still require composed acceptance. No production
+behavior changed and no geographic latency measurement was added.
+
+Validation: regional E2E, focused private ESLint and public `pnpm report:bloat --check`
+passed. The first attempt encountered a harness `bs58` bundling interop failure;
+the fixture now imports the encoder natively. Production code was unchanged.
+
+Reproduce from `seams-monorepo`:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/source-read-20261003 \
+node tests/e2e/regional-session-routing.e2e.mjs
+```
+
+Receipt: `.artifacts/r152/source-read-20261003/regional-session-routing-evidence.json`.
+SHA-256: `3060f9d22c6e21f3859a8af1b5f0d7ef55eab702b9a69d09a4072503134705ea`.
+Logs are alongside the receipt. No deployment or publication; 0.8.0 remains held.

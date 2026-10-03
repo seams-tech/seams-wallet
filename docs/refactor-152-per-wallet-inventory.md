@@ -1288,3 +1288,22 @@ This closes local credential commit/retry composition. The fixture does not exer
 the production source signer resolver or cryptographic contribution planner. Replace
 those controlled boundaries with actual owner material before claiming full device
 linking acceptance; contribution, package delivery and authority activation remain open.
+
+### October 3: production source reader in regional credential registration
+
+The regional credential scenario now uses `createD1LinkedDeviceVerifiedLinkSourceReaderV1`
+with production D1 session, auth-method, authority and wallet stores. The owner fixture
+uses a matching Ed25519 key identity and material activation. Its synthetic signer is
+constructed with the production signer builder, validated by the persistence parser,
+and inserted through `D1WalletStore.putSigner`.
+
+Before insertion, signed APAC credential HTTP reaches WEUR and fails on the missing
+signer, before contribution planning; the durable reservation is released. After
+insertion, registration succeeds and exact retry returns unchanged credential/session
+without another source read or plan. Home-only credential persistence still passes.
+This removes the handwritten source verification path from the scenario.
+
+The registration capability material is synthetic. The source-contribution planner
+remains controlled; a real custody ceremony, source-child resolution/contribution,
+package delivery and activation still require composed acceptance. No production
+behavior changed and no geographic latency measurement was added.
