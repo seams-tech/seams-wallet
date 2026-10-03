@@ -175,7 +175,12 @@ role RPC and cross-authority contract has a final owner and failure behavior.
   credentials through one authorization path; restrict publication to the wallet's
   admitted home writer. Local three-region Worker/D1 verification covers exchange
   races, method retirement, cross-wallet rejection and directory outages.
-- [ ] Finish routing for passkey/external-identity/recovery/delivery locators, direct Yao
+- [x] Dispatch direct Yao registration admission/execute by the directory's
+  ceremony identity before opening regional state. Recheck the receiving home,
+  reject session/ceremony wallet disagreement, and return explicit 503 on directory
+  outage. Three-region local E2E covers both reserved and established ceremonies;
+  protocol proof verification remains in the existing receiving handlers.
+- [ ] Finish routing for passkey/external-identity/recovery/delivery locators, direct Yao recovery/export
   and Wallet Runtime operations, deferred work, expiry reconciliation and deliberate
   fresh attempts. Remove the remaining single-D1 deployment assumptions only after
   their regional resource-proof replacements are installed.

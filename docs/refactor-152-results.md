@@ -3071,3 +3071,55 @@ token is returned and a fresh exchange is required; the parent session survives.
 There is no cross-D1 transaction. Expired locator metadata remains routable; only
 home-local authorization can permit use. See the inventory checkpoint for the
 remaining identity/lifecycle and hosted acceptance work. Release 0.8.0 stays held.
+
+### October 3: direct Yao registration continuation routing
+
+The private Gateway now resolves `/router-ab/ed25519/yao/registration/admit` from
+`scope.lifecycle_id` and `/router-ab/ed25519/yao/registration/execute` from
+`binding.lifecycle.lifecycle_id`. Both use the existing Console ceremony index
+before regional service construction, including requests with the initial
+registration credential. A supplied Wallet Session must name the same wallet as
+the ceremony. The receiving Gateway repeats home resolution and rejects an
+incorrect binding instead of forwarding again. Full request/proof validation
+continues in the existing public registration handlers; the routing locator alone
+confers no authority. No wire format or authorization policy changed.
+
+The three-home directory E2E passed in 9.4s. Its controlled application/continuation
+fixture records 12 effects (admit and execute, before and after establishment,
+for each home) exclusively in the assigned D1. Malformed, unknown and cancelled
+ceremonies, unavailable targets, misdirected bindings and a directory outage are
+rejected before fixture effects. The production session-authorization composition
+also passed, including six session/ceremony wallet disagreement rejections.
+Candidate-backed TypeScript and focused lint pass. This verifies routing and local
+composition; it does not execute Yao cryptography or measure hosted latency.
+
+Direct Yao recovery/export routing, shared identity/recovery/delivery indexes,
+Runtime/deferred enforcement, terminal expiry/fresh attempts, remaining cleanup
+and hosted acceptance remain open. Release 0.8.0 remains held; no remote changes.
+
+Repeat from the private repository:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+pnpm --dir tests exec playwright test -c playwright.relayer.config.ts \
+  relayer/wallet-home-directory.e2e.test.ts --reporter=line
+
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/direct-registration-routing-20261003/session \
+node tests/e2e/regional-session-routing.e2e.mjs
+```
+
+Use the established Playwright output directory for Worker startup, then retain
+`wallet-home-evidence.json` with the logs in the checkpoint directory. A custom
+output directory outside the test workspace was rejected by workerd before any
+assertion; the normal output location passed without production changes.
+
+Retained evidence: `.artifacts/r152/direct-registration-routing-20261003/`.
+
+| Receipt | SHA-256 |
+| --- | --- |
+| `wallet-home-evidence.json` | `c823428edd8cf8c707cad44e4501d6869d4e8b64d9fe2fac8b3b30a7ea29f10f` |
+| `session/regional-session-routing-evidence.json` | `0b99a92b16f6a3566df789af84867c6e3d34da0cd5217a6c98fe638a7388d634` |
+
+Receipts include bundled production-source hashes. The earlier session-routing
+receipt is preserved in its original directory. No new geographic timing is claimed.

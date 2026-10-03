@@ -784,3 +784,28 @@ direct Yao, Runtime and deferred home enforcement; expiry/fresh-attempt handling
 verified regional allocations and service-target bootstrap; hosted concurrency and
 travel acceptance. The replacement remains incomplete and 0.8.0 remains held.
 No hosted deployment, reset, publication or geographic measurement occurred.
+
+### October 3: direct Yao registration continuation routing
+
+The private Gateway now resolves `/router-ab/ed25519/yao/registration/admit` from
+`scope.lifecycle_id` and `/router-ab/ed25519/yao/registration/execute` from
+`binding.lifecycle.lifecycle_id`. Both use the existing Console ceremony index
+before regional service construction, including requests with the initial
+registration credential. A supplied Wallet Session must name the same wallet as
+the ceremony. The receiving Gateway repeats home resolution and rejects an
+incorrect binding instead of forwarding again. Full request/proof validation
+continues in the existing public registration handlers; the routing locator alone
+confers no authority. No wire format or authorization policy changed.
+
+The three-home directory E2E passed in 9.4s. Its controlled application/continuation
+fixture records 12 effects (admit and execute, before and after establishment,
+for each home) exclusively in the assigned D1. Malformed, unknown and cancelled
+ceremonies, unavailable targets, misdirected bindings and a directory outage are
+rejected before fixture effects. The production session-authorization composition
+also passed, including six session/ceremony wallet disagreement rejections.
+Candidate-backed TypeScript and focused lint pass. This verifies routing and local
+composition; it does not execute Yao cryptography or measure hosted latency.
+
+Direct Yao recovery/export routing, shared identity/recovery/delivery indexes,
+Runtime/deferred enforcement, terminal expiry/fresh attempts, remaining cleanup
+and hosted acceptance remain open. Release 0.8.0 remains held; no remote changes.
