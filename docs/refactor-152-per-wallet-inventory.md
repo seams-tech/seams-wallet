@@ -1537,3 +1537,16 @@ and pauses a second issuance across cancellation, leaving no grant rows afterwar
 Session/approval/planning, HTTP and D1 handling are production code; OTP verification
 and challenge delivery are controlled. Actual email delivery and full regional
 Email OTP factor installation remain acceptance work.
+
+
+### October 3: real-protocol installation cleanup baseline
+
+The existing real local lost-execution/activation-response contract now reads D1
+after linked-device NEAR/Tempo signing. It proves zero rows for the link in sessions,
+transcripts, target credentials/reservations, Email OTP grants, export-root transfers,
+proof nonces and authority allocations. One authority installation remains, credential
+delivery is cleanup_complete, its sealed envelope is removed, and acknowledgement
+and cleanup receipts remain. A repeatable JSON artifact contains counts and metadata.
+No secret material is copied into the evidence. Three-region installation remains
+open: the current private regional fixture still uses synthetic founding-owner
+material and has no production installation port wired to real Router roles.

@@ -4600,3 +4600,40 @@ Use the existing isolated intended runner with the freshly built server and
 Full regional cryptographic linking/activation/cleanup, lifecycle/ownership
 acceptance and hosted regional verification remain open. No deployment or release
 occurred.
+
+
+## October 3: real-protocol installation cleanup baseline
+
+Extended the existing isolated local Worker contract for lost execution and
+activation replies with durable cleanup assertions after linked-device NEAR/Tempo
+signatures. This uses the real cryptographic protocol and fresh D1. The test passed
+in 37.0 seconds including setup, then completed revocation and continued owner
+signing. This is a test duration, not an operation/geographic latency measurement.
+
+D1 evidence for the linked session:
+
+- Zero rows in sessions, transcripts, target credentials, target-commit reservations,
+  Email OTP grants, export-root transfers, proof nonces and authority allocations.
+- One retained authority installation.
+- Credential delivery lifecycle `cleanup_complete`, cleanup state `complete`.
+- Sealed credential envelope removed; cleanup and acknowledgement receipts retained.
+
+The read-only SQLite locator was extracted from the existing presign E2E into a
+shared local-Gateway helper. Both suites use it; no duplicate locator or production
+code path was introduced. Intended-contract type checking and bloat checks passed.
+No production defect was observed in this cleanup check.
+
+Public artifact:
+`.artifacts/r152/installation-cleanup-20261003/traces/linked-device-cleanup.json`.
+SHA-256: `1d1ee0f29b65dfdebc68c4674c13f4312e8a598a86590c1cc0644a360590e666`.
+The adjacent device traces and parent `protocol.log`, `types.log`, `bloat.log` retain
+verification evidence. Playwright also attaches the JSON to the test result.
+Reproduce with the existing isolated intended runner, the freshly built server,
+`SEAMS_INTENDED_PERSIST_TRACE=1`, this trace directory, and
+`a second device links with a passkey, signs NEAR and Tempo, and is revoked`.
+
+This closes local durable cleanup verification. It does not prove three-region
+isolation or the hosted Console path. Next: supply real registration material to
+the regional harness, wire production installation to the home Router roles, and
+repeat receipt/acknowledgement retries and cleanup assertions across all regional
+signer databases. No deployment or release occurred.

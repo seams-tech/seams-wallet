@@ -1,3 +1,4 @@
+import { verifyLinkedDeviceCleanup } from './linked-device-cleanup-evidence';
 import {
   expect,
   type Response,
@@ -120,7 +121,7 @@ class LinkedSigningMeasurements {
 test('a second device links with a passkey, signs NEAR and Tempo, and is revoked', async ({
   harness,
   browser,
-}) => {
+}, testInfo) => {
   await harness.registerPasskeyWallet();
   /* Linking pins the source signer manifest, so the NEAR signer must exist
      before Device 1 approves; otherwise Device 2 would join without it. */
@@ -150,6 +151,7 @@ test('a second device links with a passkey, signs NEAR and Tempo, and is revoked
      had, and the signatures recover to the wallet's registered keys. */
   await device2.signNearTransaction('post_device_link');
   await device2.signTempoTransaction('post_device_link');
+  await verifyLinkedDeviceCleanup(testInfo);
 
   await harness.revokeLinkedDeviceWithOwnerPasskey();
   await device2.assertRevokedDeviceCannotSign();

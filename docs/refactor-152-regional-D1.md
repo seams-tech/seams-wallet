@@ -49,6 +49,13 @@ older implementation checkpoints and must be read with their later evidence.
    activation and cleanup. Prove final state exists only at the assigned home,
    including lost responses and restart. Real local protocol contracts already
    pass; they do not prove separate regional database isolation.
+   The real local lost-response contract now also asserts complete D1 cleanup:
+   eight transient tables empty, sealed delivery removed, installation and
+   acknowledgement receipts retained. The next regional integration steps are:
+   replace synthetic founding-owner material with real registration output; wire
+   the production installation/reservation/activation composition to home Router
+   roles; then run receipt/acknowledgement retries through foreign ingress and
+   assert final/temporary state across all three signer databases.
    Regional export-root relay delivery/replay/conflict and home-only D1 persistence
    now pass (October 3 export-root relay receipt in the results document). Terminal
    relay admission and preparation-to-recipient binding are fixed and verified.
