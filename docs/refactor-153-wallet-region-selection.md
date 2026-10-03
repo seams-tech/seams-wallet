@@ -1,12 +1,70 @@
 # Refactor 153: owner-controlled wallet region selection
 
-Status: implementation plan draft, October 2, 2026. Binding and local transfer
-validation support the approach; R152 integration, complete signing handover,
-crash fencing, and hosted placement remain acceptance gates.
+Status: implementation started, October 3, 2026. The private directory control
+plane is implemented. Backend state transfer, writer fencing, owner API, client
+reconciliation, settings, and hosted placement remain unfinished.
 
 [Initial backend relocation validation](refactor-153-backend-relocation-validation.md)
 records the Cloudflare capabilities, current storage hazards, local probe
 results, and remaining hosted checks.
+
+## October 3 implementation checkpoint
+
+Private implementation: `72ce0f6` on `seams-monorepo/dev`.
+
+Private Console migration `0070_wallet_relocations.sql` and
+`walletPlacement/relocation{,Store}.ts` add:
+
+- A required ownership generation, durable relocation journal, and one pending
+  move per wallet. Wallet and founding-registration identities remain immutable.
+- Atomic admission with the wallet directory paused in the same D1 transaction.
+  Home, credential, and lifecycle lookups reject paused placement; home-owned
+  shared locator publications and linked-device claims also respect the pause.
+- Canonical request replay, destination/request conflicts, stale-generation
+  rejection, and a five-minute interval between admissions. Selecting an active
+  current home performs no transfer and incurs no cooldown. An unfinished move
+  stays paused and resumes through its existing journal; cancellation is pending.
+- Conditional progress through freezing, copying, verified, cutover, and completed.
+  Source-fence and destination-verification receipts are required before cutover.
+  Cutover updates home and generation atomically; an exact retry reads the original
+  committed outcome after a lost reply. Receipts and completed history are immutable.
+- Boundary parsers and type fixtures for request/receipt identity, illegal phase
+  combinations, required generations, and broad-spread forgery.
+
+This is a **trusted control-plane storage primitive**. It is not exposed as an
+owner or operator HTTP move endpoint. The directory cannot establish that a role
+has stopped writing from a digest alone: real role receipt producers, quiescence,
+transfer/import, and destination activation must be wired before enabling moves.
+Owner authentication, current permissions, expiry/revocation, and fresh-auth policy
+remain API integration work. Linked owner devices have distinct authority IDs;
+the founding-registration authority is preserved metadata, not the relocation
+eligibility rule. The journal records the actual initiating authority.
+
+The new composed directory E2E uses two Workers and persistent local D1. It exercises
+competing requests, lost admission/cutover replies, process restart, receipt replay,
+cooldown boundaries, a later return move at a fresh generation, and isolation from
+an unrelated wallet. Existing registration/regional-directory acceptance remains
+green. Its participant receipts are synthetic; it makes no backend transfer,
+authorization, signing, or single-writer fencing claim. Repeatable evidence is in
+the private `.artifacts/r153/directory-implementation/` checkpoint.
+Two E2Es passed in 6.7 seconds; candidate-backed TypeScript, focused lint, and
+public bloat checks passed. Directory receipt SHA-256:
+`f13201c216ecfadf69336c8d6f07142642a1b29e879cf3dfa0cce7bdfc7c7e36`.
+
+Repeat the relocation-directory scenario from the private repository:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+pnpm --dir tests exec playwright test -c playwright.relayer.config.ts \
+  relayer/wallet-relocation-directory.e2e.test.ts --reporter=line
+```
+
+R152's [state ownership baseline](refactor-152-state-ownership.md) now identifies
+specific unresolved prerequisites: selectors for ordinary operation history and
+opaque records, complete DO/Container ownership, internal/deferred write fencing,
+and composed linked-device installation. These prevent enabling a general transfer
+and cutover today. Continue independent implementation against this journal; close
+those ownership and execution contracts before connecting an executable move.
 
 ## Intent
 
@@ -218,7 +276,7 @@ keyed custody deployments, and live MPC-session transfer stay outside this scope
 
 ### 1. Directory authority, move admission, and regional execution
 
-- [ ] Extend the existing Console wallet directory with persistent ownership
+- [x] Extend the existing Console wallet directory with persistent ownership
   generation, one active move, progress/recovery state, and wallet-wide cooldown.
   Preserve immutable wallet and founding-registration identities. Replace the
   blanket immutable-home rule with changes permitted only by a verified move.
