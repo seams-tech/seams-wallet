@@ -4949,3 +4949,36 @@ Private artifacts:
 Reproduce via the private `tests/scripts/run-regional-real.mjs --grep 'three real wallets'`
 runner with the built public candidate and a fresh artifact directory. Candidate
 type checking, ESLint and public bloat checks passed. No deployment or release.
+
+### October 4: real passkey recovery through foreign ingress
+
+The coexisting-wallet scenario now clears each owner's browser storage and uses
+a recovery code to establish a new passkey authority through foreign ingress.
+All three homes passed in 1.6 minutes for the full scenario, including prior
+travel, lock/reload, unlock, exports and signing. Recovered owners then verified
+NEAR/Tempo signatures against the registered wallet identities.
+
+Console still has three established home assignments in one exact tenant scope.
+Each home retains one wallet and active `wallet_registration` and `wallet_recovery`
+authorities for its wallet; the other signer stores contain neither authority nor
+that wallet's signer records. Every foreign ingress forwarded recovery preparation
+and finalization successfully. No production defect was found in this scenario.
+
+Private commit: `c9d7e8a`. Artifact:
+`.artifacts/r152/mixed-home-recovery-20261004/mixed-homes/mixed-home-evidence.json`;
+SHA-256 `3cac01199ff35a98d4b968c08f424cc5d00aa9b4ae404a5c8a6b1bb34df98cf8`.
+The parent `protocol.log` records the passing run. These are sequential operations
+with three coexisting wallets and one shared local Router stack; server-process
+restart, recovery interruption and hosted regional infrastructure remain separate
+acceptance checks. No deployment or release occurred.
+
+The extended consumed-code scenario also passed (1.7 minutes). After all three
+recoveries, each foreign ingress received a new preparation using its owner's
+consumed code and a fresh reservation ID. All returned HTTP 401 with
+`recovery_code_used`. The recovery code/request is retained only in test memory;
+the saved receipt records status/code and route metadata. This avoids the public
+harness's direct API replay, which would bypass this private regional composition.
+
+Extended artifact:
+`.artifacts/r152/mixed-home-recovery-reuse-20261004/mixed-homes/mixed-home-evidence.json`;
+SHA-256 `429cf675ac5725c88488b87cbd7874937621f47d6f597c79c07b9fff5330ca40`. Private ESLint and public bloat checks passed.

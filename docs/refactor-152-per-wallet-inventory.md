@@ -1632,3 +1632,13 @@ signer state. These fresh-proof requests cannot rely on a Wallet Session bearer
 locator. The common dispatcher retains session/body mismatch rejection and the
 home handler retains full proof validation. Real mixed-home passkey exports now
 pass through foreign ingress for all three homes, followed by both-family signing.
+
+### October 4: recovery authority placement and spent-code rejection
+
+Fresh-browser passkey recovery now passes for three coexisting wallet homes through
+foreign ingress. Each home retains one active registration authority and one active
+recovery authority for its wallet; foreign signer stores retain neither. Subsequent
+NEAR/Tempo signatures verify against the original registered identities. A fresh
+reservation using each consumed code returns `401 recovery_code_used` after routing
+through foreign ingress. The receipt stores no recovery code. Interrupted recovery,
+server-process restart and other recovery factors remain separate gates.

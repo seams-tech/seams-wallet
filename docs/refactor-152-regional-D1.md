@@ -96,8 +96,13 @@ older implementation checkpoints and must be read with their later evidence.
    now coexist under one tenant namespace with US/WEUR/APAC homes. Locked-page
    reload, passkey unlock, Ed25519/ECDSA export and NEAR/Tempo signing through
    foreign ingress pass without changing those homes. ECDSA fresh step-up and
-   explicit export now resolve the home from their wallet identity. Other factors,
-   recovery and method changes remain open in this composition. Exercise browser
+   explicit export now resolve the home from their wallet identity. Fresh-browser
+   code recovery into a passkey authority and subsequent both-family signing now
+   pass for all three homes, with registration/recovery authorities only at home.
+   A new reservation using each consumed code is refused through foreign ingress
+   with `recovery_code_used`.
+   Other factors, recovery interruption and method changes remain open in this
+   composition. Exercise browser
    proofs and shared credential/identity claims through commit, failure and replay.
 3. Finish the ownership/entry-point audit and retirement audit: unresolved mixed
    records, internal/deferred effects, cross-authority reconciliation, stale
