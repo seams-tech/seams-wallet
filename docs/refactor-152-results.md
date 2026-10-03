@@ -4174,3 +4174,39 @@ Logs are alongside the receipt. Owner protocol material and target preparation
 remain controlled; real contribution execution, package delivery and final
 installation remain open R152 acceptance work. Relocation fencing remains R153
 work. No hosted deployment, release or new latency measurement occurred.
+
+### October 3: downstream linked-device owner binding
+
+The regional acceptance flow now fetches persisted source contribution preparation
+through US, WEUR and APAC; every successful request resolves to WEUR and returns
+the same durable preparation. A foreign wallet's supplied Wallet Session is already
+rejected by regional dispatch with 403 `wallet_session_scope_mismatch`.
+
+The direct SDK handler had a separate ownership gap: after authentication accepted
+a different wallet, preparation GET returned HTTP 200 with the claimed wallet's
+preparation. Classified as `production_regression` against the existing per-wallet
+owner-binding contract. The shared owner-session helper now checks the durable
+claim and returns the existing 401 `unauthorized` denial. This also runs before
+source execution and export-root transfer handlers. Duplicate checks in cancellation
+and Email OTP base-factor handlers were removed; approval retains the same shared
+predicate for its separate path.
+
+The E2E reproduces the preparation disclosure before the fix, then verifies both
+Gateway and direct-handler rejection for preparation and execution entry points,
+plus unchanged durable session state. Owner authentication is controlled in this
+scenario to exercise downstream ownership independently. It does not execute the
+cryptographic contribution or install the linked device.
+
+Regional E2E, Wallet Server type-check/build, focused private ESLint and public
+bloat check passed. Reproduce from the private repository:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/source-owner-20261003 \
+node tests/e2e/regional-session-routing.e2e.mjs
+```
+
+Receipt: `.artifacts/r152/source-owner-20261003/regional-session-routing-evidence.json`.
+SHA-256 `848914c654a198ca36aa9608f28b5f2b0af57bcebb63b4895e0b9933e8e49c25`. Before/after and verification logs are alongside the receipt.
+Contribution execution, package delivery and final installation remain open R152
+acceptance work. No hosted deployment, release or new latency measurement occurred.

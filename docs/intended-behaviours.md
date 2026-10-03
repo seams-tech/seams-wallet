@@ -1108,6 +1108,9 @@ Claimed polling, approval, target preparation, credential/contribution, Email OT
 receipt, cancellation and export-root requests route to the assigned wallet home.
 A supplied Wallet Session must belong to that wallet. The directory grants routing
 authority only; home handlers verify each owner/device request and transition.
+Owner-session handlers independently compare the authenticated wallet with the
+durable claim before returning contribution preparation, invoking source execution,
+or accessing export-root transfers, including when called without regional dispatch.
 Full linked-device installation remains a hosted acceptance gate.
 
 ### Linked-device target preparation concurrency

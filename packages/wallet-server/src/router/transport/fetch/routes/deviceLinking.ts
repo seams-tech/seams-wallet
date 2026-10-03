@@ -511,7 +511,7 @@ async function handleApproval(
     const session = await service.sessionService.getSessionV1({ linkSessionId, nowMs });
     if (!session) return notFoundResponse();
     const ownerMismatch = requireOwnerMatchesClaimedWallet(authentication.owner, session);
-    if (ownerMismatch) return ownerMismatch;
+    if (ownerMismatch) return authDeniedResponse(ownerMismatch);
     if (authentication.owner.walletId !== approval.walletId) {
       return authDeniedResponse({
         kind: 'denied',
@@ -880,8 +880,6 @@ async function handleEmailOtpBaseFactor(
   const authenticated = await authenticateOwnerForSession(ctx, service, linkSessionId, nowMs);
   if (authenticated.kind !== 'authorized') return ownerSessionResponse(authenticated);
   const session = authenticated.session;
-  const ownerMismatch = requireOwnerMatchesClaimedWallet(authenticated.owner, session);
-  if (ownerMismatch) return ownerMismatch;
   if (
     session.state.state !== 'claimed' ||
     session.qrPayload.targetFactor.kind !== 'email_otp' ||
@@ -922,8 +920,6 @@ async function handleOwnerCancel(
   if (authenticated.kind !== 'authorized') return ownerSessionResponse(authenticated);
   parseBoundary(() => parseOwnerCancelRequest(authenticated.body));
   const session = authenticated.session;
-  const ownerMismatch = requireOwnerMatchesClaimedWallet(authenticated.owner, session);
-  if (ownerMismatch) return ownerMismatch;
   if (session.state.state === 'cancelled') {
     return sessionProjectionResponse(session, 'replayed');
   }
@@ -1342,6 +1338,8 @@ async function authenticateOwnerForSession(
   const session = await service.sessionService.getSessionV1({ linkSessionId, nowMs });
   if (!session) return { kind: 'not_found' };
   validateOwnerRequestBinding(authentication.binding, ctx, bodyDigestB64u, nowMs);
+  const ownerMismatch = requireOwnerMatchesClaimedWallet(authentication.owner, session);
+  if (ownerMismatch) return ownerMismatch;
   return {
     kind: 'authorized',
     body: authentication.body,
@@ -1857,25 +1855,18 @@ function ownerSessionResponse(
   return context.kind === 'denied' ? authDeniedResponse(context) : notFoundResponse();
 }
 
-/**
- * The one owner-to-session binding, shared by every owner route on a claimed
- * session. It runs before any state is disclosed: an authenticated owner of a
- * DIFFERENT wallet must get the same denial for every state, not a projection
- * or an invalid-state body. An unclaimed session has no wallet to bind to yet,
- * so the caller's state checks answer instead.
- */
 function requireOwnerMatchesClaimedWallet(
   owner: LinkedDeviceOwnerAuthorizationContextV1,
   session: LinkedDeviceSessionRecordV1,
-): Response | null {
+): DeviceLinkingAuthDeniedV1 | null {
   const claimWalletId = session.claimTranscript?.value.walletId;
   if (claimWalletId === undefined) return null;
   if (owner.walletId === claimWalletId) return null;
-  return authDeniedResponse({
+  return {
     kind: 'denied',
     code: 'unauthorized',
     message: 'owner session does not match link wallet',
-  });
+  };
 }
 
 /**

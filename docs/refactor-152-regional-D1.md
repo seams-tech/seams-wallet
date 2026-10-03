@@ -1334,3 +1334,16 @@ Owner protocol material and target preparation remain controlled fixtures. Real
 contribution execution, package delivery and final linked-device activation remain
 R152 acceptance work. Relocation fencing belongs to R153 and is outside this
 R152 continuation. See [results](refactor-152-results.md) for receipt and command.
+
+### October 3: owner binding at linked-device home handlers
+
+The shared owner-session handler now compares the authenticated wallet with the
+session's durable claim before exposing source preparation, invoking source
+execution or accessing export-root transfers. Redundant per-route checks were
+removed. Regional dispatch already rejected foreign Wallet Sessions; the direct
+handler previously returned preparation data to an authenticated different wallet.
+
+The regional E2E covers preparation retrieval through all three ingress regions,
+Gateway scope rejection and direct-handler rejection after controlled owner
+authentication. Contribution execution and final installation remain open.
+See [results](refactor-152-results.md) for the evidence and verification scope.
