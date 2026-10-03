@@ -1113,3 +1113,14 @@ resolver scenario now uses this shared store. This is local composition evidence
 provider proof is controlled and discovery forwarding remains unfinished. Apply
 Console migration 0059 before any candidate deployment. No deployment or publication
 occurred; 0.8.0 remains held.
+
+### October 3: Google discovery checkpoint
+
+Existing shared Google identities now select their wallet home for login without
+an explicit wallet ID. The extracted proof verifier is also used by existing OIDC
+login/recovery verification; routing performs no identity mutation. Three-region
+composition uses real RSA signatures with controlled JWKS, and checks audience,
+expiry, tampering, session conflicts, missing homes, outages and second-hop denial.
+This closes linked Google login discovery routing only. New-account offers,
+credential uniqueness, limits, linking, internal/deferred routing and hosted
+acceptance still gate 0.8.0. No deployment or publication occurred.

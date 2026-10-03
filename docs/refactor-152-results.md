@@ -3351,3 +3351,33 @@ node tests/e2e/regional-session-routing.e2e.mjs
 Receipt: `.artifacts/r152/shared-identity-20261003/regional-session-routing-evidence.json`.
 SHA-256: `e3d84414010902fcb62f17edc2412f896fbc8129762825451d75f971945b5048`.
 No deployment, reset or package publication occurred.
+
+### October 3: verified Google discovery across homes
+
+All three wallet homes were reached from foreign ingress using Google login
+without a wallet ID. The scenario now runs production RSA signature and claims
+validation with fixture JWKS, shared Console identity lookup, home dispatch and
+regional enrollment resolution. Tampered, expired and wrong-audience tokens were
+rejected before an unavailable identity authority could be queried. Cross-wallet
+sessions, second hops, missing home assignments and Console outages failed closed.
+A removed enrollment reported a stale identity mapping without starting registration.
+Existing explicit-wallet and broader regional routing scenarios also passed.
+
+SDK build, public/private type checks, focused private lint, bloat check and the
+persistent-directory E2E passed. Initial validation caught an overly narrow token
+input type in the extracted boundary; it was corrected before the successful runs.
+JWKS and enrollment ciphertext are fixtures; this is not a live Google login or
+hosted latency measurement. New-account registration coordination remains open.
+
+Repeat from `seams-monorepo`:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/google-discovery-20261003 \
+node tests/e2e/regional-session-routing.e2e.mjs
+```
+
+Receipt: `.artifacts/r152/google-discovery-20261003/regional-session-routing-evidence.json`.
+SHA-256: `1dfba966d8ee32344e7ccca66c65395b26578f5d1cc6e96f4af183dc84fbfba0`.
+The same directory retains `wallet-home-evidence.json`, build and bloat logs.
+No deployment or release occurred. 0.8.0 remains held.

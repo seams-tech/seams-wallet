@@ -45,7 +45,9 @@ The earlier measurements do not close that acceptance gate or justify release.
   authenticated Console authority, retaining the existing D1 claim/move rules.
 - [x] Verify competing regional claims, tenant isolation and outage behavior in
   repeatable three-region composition; keep regional identity stores unused.
-- [ ] Forward discovery after provider proof verification to the discovered home.
+- [x] Forward Google login discovery with an existing shared identity after provider
+  proof verification to its home; verify signature/claims before lookup and recheck
+  at the receiving Gateway. New-account registration coordination remains open.
 - [ ] Share registration offers, passkey credential uniqueness and rate limits;
   finish linked-device coordination and internal/deferred enforcement.
 

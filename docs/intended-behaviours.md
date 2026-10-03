@@ -964,3 +964,13 @@ regions. An unavailable authority fails the operation without a regional fallbac
 Provider proofs are verified before identity-dependent authentication; wallet
 placement remains per wallet. Private regional composition covers storage and
 scope isolation; verified-provider discovery forwarding remains an R152 gate.
+
+### Google discovery and wallet homes
+
+A Google login without an explicit wallet selection verifies its provider proof
+before looking up the shared identity mapping. An existing mapping routes to the
+wallet's assigned home, including when the request arrives in another region.
+Invalid proof, a missing home for a linked identity, conflicting Wallet Session,
+or unavailable authority cannot select a regional fallback. The receiving Gateway
+rechecks ownership and cannot forward a second time. Registration of identities
+without an existing mapping remains a separate R152 acceptance gate.

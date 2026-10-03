@@ -967,3 +967,15 @@ here; enrollment/proof state stays regional. Service failures propagate without
 regional fallback. Standalone SDK deployments retain their configured local D1
 store. Runtime/internal entry enforcement, provider forwarding, shared offers,
 credential uniqueness and rate limits remain open.
+
+### October 3: verified Google discovery routing
+
+For `/auth/google/verify` login without `wallet_id`, Gateway parses the request and
+runs the existing Google RS256 signature/issuer/audience/expiry checks through the
+shared read-only `verifyGoogleOidcToken` function. It resolves
+`wallet:google:<verified subject>` in Console, then the wallet home. Both ingress
+and receiving Gateway apply the same lookup; the receiving endpoint refuses a
+second hop. A linked identity with no live home fails closed. No matching identity
+continues to the existing registration/discovery handler; shared offers and removal
+of remaining local pre-wallet discovery assumptions remain required. Explicit-wallet
+login still validates the provider against the selected enrollment at home.

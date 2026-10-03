@@ -244,3 +244,6 @@ export type { WalletLifecycleRoutingPublisher } from './authorization/lifecycleR
 
 export { D1IdentityStore } from './core/d1IdentityStore';
 export type { IdentityStore } from './core/IdentityStore';
+
+export { verifyGoogleOidcToken } from './router/cloudflare/d1/oidc/googleOidcToken';
+export { parseGoogleLoginVerifyRequest } from './router/auth/authRequestValidation';

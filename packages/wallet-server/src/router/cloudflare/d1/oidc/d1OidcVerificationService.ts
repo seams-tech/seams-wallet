@@ -9,12 +9,7 @@ import {
   verifyGithubOAuthCodeWithIdentityStore,
 } from '../../../../core/authService/githubOAuth';
 import type { GithubOAuthConfig } from '../../../../core/types';
-import {
-  CloudflareD1OidcJwksCache,
-  parseRs256JwtForVerification,
-  validateGoogleIdTokenClaims,
-  verifyRs256JwtSignature,
-} from './d1OidcBoundary';
+import { verifyGoogleOidcToken } from './googleOidcToken';
 
 type VerifyGoogleLoginInput = Parameters<RouterApiIdentityService['verifyGoogleLogin']>[0];
 type VerifyGoogleLoginResult = Awaited<ReturnType<RouterApiIdentityService['verifyGoogleLogin']>>;
@@ -36,7 +31,6 @@ export class CloudflareD1OidcVerificationService {
   private readonly githubOAuth: GithubOAuthConfig | undefined;
   private readonly identityStore: IdentityStore;
   private readonly linkIdentity: OidcIdentityLinker;
-  private readonly oidcJwksCache = new CloudflareD1OidcJwksCache();
 
   constructor(input: {
     readonly googleOidcClientId: string | undefined;
@@ -89,45 +83,10 @@ export class CloudflareD1OidcVerificationService {
     linkIdentity: boolean,
   ): Promise<VerifyGoogleLoginResult> {
     try {
-      const clientId = toOptionalTrimmedString(this.googleOidcClientId);
-      if (!clientId) {
-        return failedVerification('not_configured', 'Google OIDC is not configured on this Worker');
-      }
-      const idToken = toOptionalTrimmedString(input.idToken ?? input.id_token);
-      if (!idToken) {
-        return failedVerification('invalid_body', 'id_token is required');
-      }
-      const subtle = globalThis.crypto?.subtle;
-      if (!subtle) {
-        return failedVerification(
-          'unsupported',
-          'WebCrypto (crypto.subtle) is unavailable in this runtime',
-        );
-      }
-
-      const parsed = parseRs256JwtForVerification({
-        token: idToken,
-        tokenLabel: 'id_token',
-      });
-      if (!parsed.ok) return parsed;
-      const jwt = parsed.jwt;
-
-      const jwks = await this.oidcJwksCache.getGoogleJwks();
-      const jwk = jwks.keysByKid.get(jwt.kid);
-      if (!jwk) {
-        return failedVerification('unknown_kid', 'Unknown Google key id (kid)');
-      }
-
-      const signature = await verifyRs256JwtSignature({
-        subtle,
-        jwt,
-        jwk,
-        tokenLabel: 'id_token',
-        invalidSignatureMessage: 'Invalid Google id_token signature',
-      });
-      if (!signature.ok) return signature;
-
-      const claims = validateGoogleIdTokenClaims({ payload: jwt.payload, clientId });
+      const claims = await verifyGoogleOidcToken(
+        this.googleOidcClientId,
+        input.idToken ?? input.id_token,
+      );
       if (!claims.ok) return claims;
       const providerSubject = `google:${claims.sub}`;
       const userId = linkIdentity
