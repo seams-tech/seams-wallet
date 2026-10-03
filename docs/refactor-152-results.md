@@ -4210,3 +4210,48 @@ Receipt: `.artifacts/r152/source-owner-20261003/regional-session-routing-evidenc
 SHA-256 `848914c654a198ca36aa9608f28b5f2b0af57bcebb63b4895e0b9933e8e49c25`. Before/after and verification logs are alongside the receipt.
 Contribution execution, package delivery and final installation remain open R152
 acceptance work. No hosted deployment, release or new latency measurement occurred.
+
+### October 3: real local source execution, installation and retry acceptance
+
+Source commit: `7176944b4fcb636316ab7676e76e8903310d1c47`. The public Wallet's
+existing browser contracts ran against freshly provisioned local Cloudflare
+Workers, D1, and all five real MPC role Workers. External chain RPC behavior is
+controlled by the intended-behaviour harness; cryptographic source contribution,
+package transfer, authority installation and signature verification execute.
+
+| Contract | Result | Whole-run elapsed |
+| --- | --- | --- |
+| A linked device links a third device; Device 3 signs NEAR and Tempo and exports both keys; earlier devices still sign | Passed twice; all three device traces retained on repeat | 43.0 seconds with the built artifacts |
+| Lose the Router's contribution-execution reply and the target's activation reply; verify exact replay, linked-device signatures, revocation and continued owner signing | Passed; both device traces retained | 34.5 seconds with the built artifacts |
+
+The first chain run took 9.4 minutes including a complete SDK and five-role build.
+These durations include fresh local provisioning and browser setup. They are not
+signing/installation latency measurements and are not comparable to the London or
+Tokyo hosted figures. All five retained device traces report zero lifecycle
+violations. Retry traces explicitly record reservation replay and authority replay.
+The public bloat check passed.
+
+Reproduce from `seams-wallet`; run the chain with builds first. The trace destination
+may be any absolute directory dedicated to that run:
+
+```sh
+SEAMS_INTENDED_PERSIST_TRACE=1 \
+SEAMS_INTENDED_TRACE_DIR=/Users/pta/Dev/rust/seams-wallet/.artifacts/r152/linked-protocol-20261003/chain-traces \
+node tests/scripts/run-wallet-intended-isolated.mjs -- \
+  e2e/intended-behaviours/passkey.device-linking.contract.test.ts \
+  --grep 'a linked device links a third device, which signs NEAR and Tempo and exports both keys'
+
+SEAMS_INTENDED_SKIP_BUILD=1 SEAMS_INTENDED_PERSIST_TRACE=1 \
+SEAMS_INTENDED_TRACE_DIR=/Users/pta/Dev/rust/seams-wallet/.artifacts/r152/linked-protocol-20261003/retry-traces \
+node tests/scripts/run-wallet-intended-isolated.mjs -- \
+  e2e/intended-behaviours/passkey.device-linking.contract.test.ts \
+  --grep 'a second device links with a passkey, signs NEAR and Tempo, and is revoked'
+```
+
+Receipt: public `.artifacts/r152/linked-protocol-20261003/evidence.json`.
+SHA-256 `86ec2506e53b9b41b1ebd80716c456640d558d84e8d9d0296e4d57d0238c913a`.
+It records source identity, WASM/shim hashes, test source hashes and hashes for
+logs and device traces. This establishes local protocol and retry acceptance.
+It does not establish complete installation across separate regional D1 homes:
+production Console authentication, regional final-state/cleanup isolation and
+hosted candidate acceptance remain open. No deployment or release occurred.

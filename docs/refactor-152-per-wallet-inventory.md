@@ -1403,3 +1403,20 @@ The regional E2E covers preparation retrieval through all three ingress regions,
 Gateway scope rejection and direct-handler rejection after controlled owner
 authentication. Contribution execution and final installation remain open.
 See [results](refactor-152-results.md) for the evidence and verification scope.
+
+### October 3: real local linked-device protocol acceptance
+
+- [x] Run the existing real-Worker three-device contract: Device 2 links Device 3;
+  Device 3 signs NEAR/Tempo and exports both keys; earlier devices still sign.
+- [x] Run the lost-response contract: contribution execution replays the same
+  reservation; activation replays the same receipt/result; the linked device signs
+  both curves, revocation blocks it, and the owner continues signing.
+- [x] Retain five device traces with zero lifecycle violations, logs and build hashes.
+- [ ] Complete the same installation through production Console authentication and
+  three regional D1 homes; verify final state and cleanup only at the assigned home.
+- [ ] Repeat the completed flow on the hosted candidate before release acceptance.
+
+These contracts use real local MPC Workers and fresh D1 state. Regional fixtures
+remain separate evidence; their controlled source/authentication is not replaced by
+these standalone runs. No new geographic latency measurement or deployment.
+See [results](refactor-152-results.md) for commands, timings and the receipt.
