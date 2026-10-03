@@ -4912,3 +4912,40 @@ No production defect was found. Private ESLint and public bloat checks passed.
 Extended artifact:
 `.artifacts/r152/mixed-home-unlock-20261004/mixed-homes/mixed-home-evidence.json`;
 SHA-256 `4a5fe4732e07468a25b916b123510bc642e44ac33b4f5153f6aa457481dd9600`. The parent `protocol.log` records the passing run.
+
+### October 4: mixed-home key export and ECDSA lifecycle routing fix
+
+Extending the mixed-home travel/unlock scenario to export exposed a production
+routing gap. Ed25519 export succeeded, but ECDSA operation step-up executed against
+the foreign Gateway's signer store and returned HTTP 403, `not_found`, with
+`ECDSA material activation is not active for this wallet`. Fresh authorization
+requests had no Wallet Session bearer locator and were absent from wallet-body
+lifecycle routing.
+
+The existing lifecycle dispatcher now resolves ECDSA operation step-up from
+`operation.wallet_id` and explicit export from `request.lifecycle.account_id`.
+It preserves Wallet Session/body scope checks; the receiving home handler validates
+the full protocol and proof. No compatibility or fallback path was introduced.
+
+The fixed mixed-home scenario passed in 1.3 minutes: three real owners coexist in
+one namespace, travel, lock/reload, unlock with passkeys, export both key families,
+and verify NEAR/Tempo signatures afterward. All three ingress Gateways recorded
+HTTP 200 forwarding for Ed25519 admit/execute and ECDSA step-up/export. Wallet,
+signer and authority rows remain exclusively at each assigned home.
+
+The export checks use the public SDK's exact-lane export UI and validate the
+expected wallet/account and lifecycle events. They do not independently extract
+and compare the displayed private key. The safe receipt contains routing and
+placement metadata, with no exported material. A shared local Router stack remains
+in use; these are whole-test times, not geographic latency measurements.
+
+Private artifacts:
+- `.artifacts/r152/mixed-home-export-20261004/`: failing log and `before/trace.zip`.
+- `.artifacts/r152/mixed-home-export-fixed-20261004/`: passing log, candidate type
+  check, regional routing log and `mixed-homes/mixed-home-evidence.json`.
+- Receipt SHA-256: `d53091d3cdee673f5dd9f7ffb808913b51a4f684b1abbef76cbd9befc5e3ae3f`.
+- `.artifacts/r152/export-routing-20261004/`: passing existing regional routing E2E.
+
+Reproduce via the private `tests/scripts/run-regional-real.mjs --grep 'three real wallets'`
+runner with the built public candidate and a fresh artifact directory. Candidate
+type checking, ESLint and public bloat checks passed. No deployment or release.

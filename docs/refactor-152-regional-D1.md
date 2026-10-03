@@ -94,9 +94,10 @@ older implementation checkpoints and must be read with their later evidence.
 2. Close full lifecycle acceptance and terminal reconciliation for registration,
    discovery/unlock, recovery, export and add/revoke methods. Multiple real wallets
    now coexist under one tenant namespace with US/WEUR/APAC homes. Locked-page
-   reload, passkey unlock and NEAR/Tempo signing through foreign ingress pass
-   without changing those homes. Other factors, recovery, export and method
-   changes remain open in this composition. Exercise browser
+   reload, passkey unlock, Ed25519/ECDSA export and NEAR/Tempo signing through
+   foreign ingress pass without changing those homes. ECDSA fresh step-up and
+   explicit export now resolve the home from their wallet identity. Other factors,
+   recovery and method changes remain open in this composition. Exercise browser
    proofs and shared credential/identity claims through commit, failure and replay.
 3. Finish the ownership/entry-point audit and retirement audit: unresolved mixed
    records, internal/deferred effects, cross-authority reconciliation, stale

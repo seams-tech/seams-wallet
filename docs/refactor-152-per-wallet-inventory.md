@@ -1623,3 +1623,12 @@ row, three signer rows and one owner authority only at its assigned home. No
 foreign copies appear and the first registration does not determine later homes.
 The test uses sequential registration and one local Router stack; concurrent
 registration and server restart remain separate acceptance scenarios.
+
+### October 4: ECDSA fresh export entry points
+
+ECDSA operation step-up uses `operation.wallet_id`; explicit export uses
+`request.lifecycle.account_id` to select the immutable wallet home before accessing
+signer state. These fresh-proof requests cannot rely on a Wallet Session bearer
+locator. The common dispatcher retains session/body mismatch rejection and the
+home handler retains full proof validation. Real mixed-home passkey exports now
+pass through foreign ingress for all three homes, followed by both-family signing.
