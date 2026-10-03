@@ -3819,3 +3819,28 @@ authorization and downstream device action execution are controlled; full hosted
 approval/delivery/authority installation is still open. Retained shared snapshots
 and import receipts require deliberate scoped reset handling. Terminal registration
 reconciliation and remaining internal/deferred routing remain release gates.
+
+### 2026-10-03 — signed linked-device HTTP travel and creation retry
+
+The regional composition now uses real Ed25519 signed HTTP creation, polling and
+cancellation requests. It creates through US, reads unclaimed state through APAC,
+claims at WEUR, and polls/cancels through APAC while execution reaches WEUR.
+
+This exposed a production regression: after cancellation, a creation retry through
+US returned the frozen shared `claimed` snapshot. Creation POST dispatch now resolves
+the QR session locator, and the SDK reads current home state for claimed bootstrap
+records. The repeated scenario passes: the retry returns `cancelled` from WEUR;
+after local cleanup, a fresh signed creation retry returns 409 and polling returns
+404. The durable import receipt remains in place. The broader regional suite also
+passes with these real HTTP handlers enabled for this scenario.
+
+Receipt: private `.artifacts/r152/link-http-20261003/regional-session-routing-evidence.json`.
+SHA-256: `d160945e32f8109ad31437b9b61e8d2b077bb7c22a5223da1ee56bbc22d17ab0`.
+Repeat in `seams-monorepo` after building the SDK candidate:
+`SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/link-http-20261003 node tests/e2e/regional-session-routing.e2e.mjs`.
+SDK build, Wallet state type fixtures, private candidate TypeScript check, focused
+ESLint and bloat ratchet passed. Validation logs are retained beside the receipt.
+
+Owner claim authorization is controlled. Approval, delivery and authority installation
+are still outside this scenario. This local composition provides no geographic
+latency measurement and does not close the hosted acceptance gate or release 0.8.0.

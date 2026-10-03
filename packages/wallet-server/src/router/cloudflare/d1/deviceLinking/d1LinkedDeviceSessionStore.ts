@@ -121,6 +121,12 @@ export class D1LinkedDeviceSessionStoreV1 implements LinkedDeviceSessionStoreV1 
       if (!existing) throw new Error('Bootstrap creation returned no session');
       if (!linkedDeviceQrPayloadsEqualV1(existing.qrPayload, normalized.qrPayload))
         return conflictResult(1, existing);
+      if (existing.state.state === 'claimed') {
+        // The bootstrap snapshot freezes at claim; the assigned home owns subsequent state.
+        const current = await this.getSessionV1(normalized.linkSessionId);
+        if (!current) return conflictResult(1, null);
+        return { outcome: 'replayed', record: current };
+      }
       return { outcome: 'applied', record: existing };
     }
     let insertError: unknown;

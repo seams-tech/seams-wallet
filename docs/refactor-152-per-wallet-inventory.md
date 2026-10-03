@@ -1195,3 +1195,16 @@ competing owners, foreign-writer rejection, claim/cancel contention, shared batc
 rollback, outages and lost acknowledgements, failed import retry and cleanup without
 resurrection. Owner authorization and downstream device actions remain controlled;
 full approval/delivery/authority installation remains an acceptance gate.
+
+### October 3: signed HTTP creation retries after claim
+
+Creation POSTs now extract the QR link-session locator before regional dispatch.
+Once a shared claim binds that locator, creation retries reach the wallet home.
+The SDK resolves the home session instead of returning the frozen shared claim
+snapshot. A cancelled session remains cancelled; a cleaned-up session returns
+conflict while its surviving import receipt prevents resurrection.
+
+The three-home E2E now exercises real signed HTTP creation, polling and target
+cancellation through regional Worker dispatch. It demonstrated the stale `claimed`
+response after cancellation before the fix. Owner claim authorization remains
+controlled, and approval/delivery/authority installation remains open.

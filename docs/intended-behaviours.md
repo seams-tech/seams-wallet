@@ -1086,7 +1086,9 @@ Standalone deployments use their configured local nonce authority.
 
 Unclaimed hosted QR sessions live in one tenant-scoped Console authority. Creation
 and polling through different regional Gateways see the same record. An exact
-creation retry preserves the existing state. Claim and preclaim cancellation or
+creation retry preserves the existing state. After claim, creation retries resolve
+to the assigned home and return current session state; a cleaned-up session returns
+a conflict without replaying the frozen shared claim snapshot. Claim and preclaim cancellation or
 expiry race at this authority; only one terminal bootstrap transition succeeds.
 
 After owner authorization and QR validation, claiming atomically binds the session

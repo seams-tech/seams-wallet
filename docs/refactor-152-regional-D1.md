@@ -268,10 +268,12 @@ role RPC and cross-authority contract has a final owner and failure behavior.
 - [x] Resolve wallet-less linked-device QR creation and polling through shared
   pre-wallet coordination. Atomically claim and bind the session to its owner's
   home; import session/transcript/receipt together and retain the receipt through
-  cleanup. Three-home local composition covers races, rollback and retry.
+  cleanup. Three-home local composition covers races, rollback and retry. Signed
+  HTTP creation/polling/cancellation includes travel and creation retries after
+  cancellation or cleanup; retries resolve current state at the assigned home.
 - [ ] Verify complete linked-device approval, delivery and authority installation
   through hosted regional entry points, including terminal cleanup and retries.
-  Current composition controls owner authorization and device action execution.
+  Current composition controls owner authorization and post-claim installation.
 - [ ] Finish routing for passkey/external-identity/delivery locators and Wallet
   Runtime operations, deferred work, expiry reconciliation and deliberate
   fresh attempts. Remove the remaining single-D1 deployment assumptions only after
