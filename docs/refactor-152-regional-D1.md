@@ -1241,3 +1241,15 @@ Next remains canonical regional configuration and generated service bindings,
 then complete-set operator proof collection. The CLI still selects one configured
 resource. Shared locators, internal/deferred enforcement, expiry/fresh attempts and
 hosted/travel acceptance follow. Deployment and 0.8.0 remain held.
+
+
+### R153 dependency: state ownership closure
+
+The [revision 1 state ownership baseline](refactor-152-state-ownership.md) enumerates
+all 56 effective signer tables and shared Console placement state. It freezes the
+schema snapshot and ownership obligations; blocked selectors remain explicit and
+prevent a general relocation copy. R152 still owns internal Runtime mixed-home
+identity reads, deferred writer fencing, opaque credential reconciliation and full
+linked-device contribution/installation acceptance. Do not mark these closed from
+Gateway routing or target-credential registration alone. R153 changes are separate
+from the frozen baseline and must preserve these ownership constraints.

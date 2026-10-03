@@ -2,7 +2,9 @@
 
 Date: October 2, 2026. This inventory supplements the
 [replacement checklist](refactor-152-regional-D1.md#authoritative-replacement-phase-per-wallet-regional-homes).
-It records the current schema and known ownership seams. Route-by-route and
+The current frozen schema/ownership baseline for R153 is
+[state ownership revision 1](refactor-152-state-ownership.md). The entries below
+are chronological implementation evidence. This inventory records known ownership seams. Route-by-route and
 cross-authority reconciliation review remains in progress; this is not a completed
 partition proof or permission to enable regional routing.
 
