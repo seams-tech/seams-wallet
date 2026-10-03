@@ -980,3 +980,37 @@ credential/recovery/session locators, direct Yao and Runtime routing, internal a
 deferred enforcement, expiry reconciliation, and hosted concurrency/travel tests.
 The existing update command requires pre-existing service-binding targets. No
 hosted deployment or new geographic latency result; the 0.8.0 release remains held.
+
+### October 3: opaque session and exchange routing
+
+Console migration 0055 adds a tenant-scoped digest-to-wallet index. Gateway hashes
+opaque primary/hosted credentials and exchange codes, resolves their wallet home,
+and forwards through the existing fixed regional binding. Explicit wallet paths
+must agree with the session wallet. Unknown credentials return 401; directory
+outages return 503. The home-local authorization store still owns validity,
+expiry, exchange consumption and revocation.
+
+Only an admitted writer at the wallet's physical home can publish a locator.
+Primary credentials (including linked-device activation) now share one preparation
+path. Direct credential and exchange locators publish before local persistence;
+a failed local commit can leave an inert locator. Hosted child credentials publish
+after successful home-local exchange consumption and before returning the token.
+If that publication fails, the caller receives no token and needs a fresh exchange;
+the parent session remains usable. This is fail-closed ordering across two D1s,
+with no distributed atomicity claim. Expired locators remain routable so the home
+can apply current lifecycle rules; expiry metadata alone grants no authority.
+
+The three-region Worker/D1 scenario passes with 12 digest-only locators. It checks
+remote ingress, one winning concurrent exchange redemption, wrong-home publication,
+wallet/token disagreement, publication outage, retirement of primary and child
+credentials, and continued access by a second device of the same wallet. It uses
+the production authorization preparation and local commit statements used by linked
+devices; the complete device-linking ceremony is outside this test. Three existing
+directory/challenge/activation E2Es also pass (25.3s). SDK build, public and
+candidate-backed private type checks, focused lint and public bloat checks pass.
+
+Remaining: passkey/external-identity/recovery/delivery lookup and shared uniqueness;
+direct Yao, Runtime and deferred home enforcement; expiry/fresh-attempt handling;
+verified regional allocations and service-target bootstrap; hosted concurrency and
+travel acceptance. The replacement remains incomplete and 0.8.0 remains held.
+No hosted deployment, reset, publication or geographic measurement occurred.

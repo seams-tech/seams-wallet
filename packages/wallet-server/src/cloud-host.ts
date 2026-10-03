@@ -222,3 +222,9 @@ export {
 } from './router/domains/walletRegistration/walletRegistrationReservation';
 
 export type { WalletRegistrationSetupDispatcher } from './router/framework/registrationSetupDispatch';
+
+export type {
+  WalletSessionLocatorPublication,
+  WalletSessionRoutingPublisher,
+} from './authorization/sessionRouting';
+export { digestOpaqueValue } from './authorization/service';

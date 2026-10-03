@@ -170,7 +170,12 @@ role RPC and cross-authority contract has a final owner and failure behavior.
   while preserving the managed browser credential. Reuse-only calls stay read-only;
   root/credential failures release unfinished cutovers, and a lost committed
   activation reply preserves the active key. See the October 3 renewal checkpoint.
-- [ ] Finish routing for shared credential/recovery/session locators, direct Yao
+- [x] Route opaque primary/hosted session credentials and exchange redemption
+  through a scoped digest-to-wallet Console index. Publish direct and linked-device
+  credentials through one authorization path; restrict publication to the wallet's
+  admitted home writer. Local three-region Worker/D1 verification covers exchange
+  races, method retirement, cross-wallet rejection and directory outages.
+- [ ] Finish routing for passkey/external-identity/recovery/delivery locators, direct Yao
   and Wallet Runtime operations, deferred work, expiry reconciliation and deliberate
   fresh attempts. Remove the remaining single-D1 deployment assumptions only after
   their regional resource-proof replacements are installed.

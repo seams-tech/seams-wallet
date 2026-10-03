@@ -3018,3 +3018,56 @@ update order assumes targets already exist and does not bootstrap mutual service
 bindings. Shared identity/session/recovery routing, internal/deferred enforcement,
 expiry reconciliation and hosted travel/concurrency tests remain open. No remote
 deployment, schema reset or package publication occurred; 0.8.0 remains held.
+
+### October 3: opaque session and exchange routing evidence
+
+The local three-region scenario passes using production authorization services,
+Console directory handlers, regional dispatch, Worker transports and four separate
+D1 databases. It verifies 12 digest-only locator rows, cross-region primary and
+hosted credential routing, exactly one concurrent exchange winner, wrong-home
+publication rejection, wallet/token mismatch rejection, publication failure before
+local exchange commit, method retirement invalidating primary/child credentials,
+and another device's session retaining access at the same wallet home. Unknown
+credentials return 401 and a directory outage returns 503.
+
+The fixture controls tenant writer admission and seeds canonical authority/auth
+method records. Linked-device credential preparation and its local persistence
+statements are exercised; complete browser registration, device installation,
+signing execution and hosted geographic latency are outside this scenario.
+Three existing directory/challenge/activation E2Es also pass in **25.3s**. SDK build,
+public and candidate-backed private type checks, focused lint and bloat checks pass.
+
+Repeat from the private repository:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+node tests/e2e/regional-session-routing.e2e.mjs
+
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+pnpm --dir tests exec playwright test -c playwright.relayer.config.ts \
+  relayer/wallet-home-directory.e2e.test.ts \
+  relayer/tenant-home-challenge.e2e.test.ts \
+  relayer/tenant-deployment-binding.e2e.test.ts --reporter=line
+```
+
+Evidence: `.artifacts/r152/session-routing-20261003/`, including logs, candidate
+TypeScript configuration, bundled production source and
+`regional-session-routing-evidence.json`. Receipt SHA-256:
+`4046e52174715aff31d8ac19545db4adc4f7d4bbff32c518326c96fe2d36398f`.
+The receipt includes the production bundle hash and contains no plaintext tokens.
+
+Static statement counts for this added index: a successful lookup uses one joined
+SELECT; new primary/exchange publication uses one conditional INSERT; hosted-child
+publication uses one source lookup and one INSERT. These exclude writer admission,
+existing local authorization statements and retry/conflict checks. Remote ingress
+and the receiving Gateway each perform their own lookup. These are code-derived
+counts, not measurements of total unlock/signing calls or network latency. The
+planned operation-by-operation D1 budget analysis remains open.
+
+Primary/exchange publication precedes local persistence; an unsuccessful local
+commit can leave an inert locator. Child publication follows successful local
+exchange consumption, before returning its token. If publication fails, no child
+token is returned and a fresh exchange is required; the parent session survives.
+There is no cross-D1 transaction. Expired locator metadata remains routable; only
+home-local authorization can permit use. See the inventory checkpoint for the
+remaining identity/lifecycle and hosted acceptance work. Release 0.8.0 stays held.

@@ -1,3 +1,4 @@
+import type { WalletSessionRoutingPublisher } from './sessionRouting';
 import type { D1EcdsaAdmissionPolicyRead } from '../router/cloudflare/d1/signingAdmission/d1RouterAbNormalSigningAdmissionStore';
 import type { EcdsaMaterialRead } from '../core/d1EcdsaSignerRead';
 import type { D1PreparedStatementLike } from '../storage/tenantRoute';
@@ -245,6 +246,7 @@ export type AuthorizedOperationMaterialScope = EcdsaMaterialActivationScope & {
 };
 
 export type AuthorizationServicePorts = {
+  readonly sessionRouting?: WalletSessionRoutingPublisher;
   readonly policy: CapabilityPolicyPort;
   readonly sessions: AuthorizationSessionPort;
   readonly evidence: AuthorizationEvidencePort;
@@ -318,6 +320,13 @@ export class AuthorizationService {
       `hwx_${secureRandomBase64Url(18, 'hosted-wallet Seams session exchange identifiers')}`,
       parseHostedWalletSessionExchangeCodeId,
     );
+    const codeHash = await digestOpaqueValue(exchangeCode);
+    await this.ports.sessionRouting?.publish({
+      kind: 'exchange',
+      digest: codeHash,
+      walletId: input.authorization.session.walletId,
+      expiresAtMs,
+    });
     await this.ports.sessions.putIssuedHostedWalletSeamsSessionExchange({
       kind: 'issued_hosted_wallet_session_exchange_v2',
       tenantId: input.authorization.session.tenantId,
@@ -329,7 +338,7 @@ export class AuthorizationService {
       walletId: input.authorization.session.walletId,
       authorityId: input.authorization.session.authorityId,
       walletAuthMethodId: input.authorization.session.walletAuthMethodId,
-      codeHash: await digestOpaqueValue(exchangeCode),
+      codeHash,
       nonceDigest: await digestOpaqueValue(nonce),
       appOrigin: input.appOrigin,
       walletOrigin: input.walletOrigin,
@@ -360,16 +369,23 @@ export class AuthorizationService {
     const hostedCredentialId = parseHostedWalletSessionCredentialId(
       `hcr_${secureRandomBase64Url(18, 'hosted-wallet child credential identifiers')}`,
     );
+    const codeHash = await digestOpaqueValue(input.exchangeCode);
+    const tokenHash = await digestOpaqueValue(hostedCredentialToken);
     const persisted = await this.ports.sessions.redeemHostedWalletSeamsSessionExchange({
-      codeHash: await digestOpaqueValue(input.exchangeCode),
+      codeHash,
       nonceDigest: await digestOpaqueValue(input.nonce),
       appOrigin: input.appOrigin,
       walletOrigin: input.walletOrigin,
-      tokenHash: await digestOpaqueValue(hostedCredentialToken),
+      tokenHash,
       hostedCredentialId,
       redeemedAtMs: input.redeemedAtMs,
     });
     if (persisted.kind !== 'redeemed') return persisted;
+    await this.ports.sessionRouting?.publish({
+      kind: 'exchanged_credential',
+      digest: tokenHash,
+      exchangeDigest: codeHash,
+    });
     const operationCredential = parseHostedWalletSessionOperationCredentialV1({
       kind: 'opaque_hosted_wallet_session_operation_credential_v1',
       token: hostedCredentialToken,
@@ -480,17 +496,8 @@ export class AuthorizationService {
       return directV2AlreadyCommitted(prepared.session, alreadyCommitted.session, replayMode);
     }
 
-    const token = `wst_${secureRandomBase64Url(32, 'direct V2 Wallet Session operation credentials')}`;
-    const operationCredential = parseWalletSessionOperationCredentialV1({
-      kind: 'opaque_wallet_session_operation_credential_v1',
-      token,
-      walletSessionId: prepared.session.walletSessionId,
-    });
-    const persisted = buildPersistedActiveWalletSessionAuthorizationV2({
-      session: prepared.session,
-      quota: prepared.quota,
-      primaryOperationCredentialDigestB64u: await digestOpaqueValue(token),
-    });
+    const { persisted, operationCredential } =
+      await this.prepareDirectWalletSessionCredential(prepared);
     const commit = await this.ports.grants.commitDirectReplayableWalletSessionAuthorizationV2({
       persisted,
     });
@@ -503,6 +510,27 @@ export class AuthorizationService {
       quota: prepared.quota,
       operationCredential,
     };
+  }
+
+  async prepareDirectWalletSessionCredential(prepared: PreparedWalletSessionAuthorizationV2) {
+    const token = `wst_${secureRandomBase64Url(32, 'direct V2 Wallet Session operation credentials')}`;
+    const operationCredential = parseWalletSessionOperationCredentialV1({
+      kind: 'opaque_wallet_session_operation_credential_v1',
+      token,
+      walletSessionId: prepared.session.walletSessionId,
+    });
+    const persisted = buildPersistedActiveWalletSessionAuthorizationV2({
+      session: prepared.session,
+      quota: prepared.quota,
+      primaryOperationCredentialDigestB64u: await digestOpaqueValue(token),
+    });
+    await this.ports.sessionRouting?.publish({
+      kind: 'credential',
+      digest: persisted.primaryOperationCredentialDigestB64u,
+      walletId: prepared.session.walletId,
+      expiresAtMs: prepared.session.expiresAtMs,
+    });
+    return { persisted, operationCredential };
   }
 
   async refreshWalletSessionAuthorizationV2AuthorityProjection(input: {

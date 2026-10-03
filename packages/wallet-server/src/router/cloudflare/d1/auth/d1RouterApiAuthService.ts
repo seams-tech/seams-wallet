@@ -62,9 +62,9 @@ import type {
   DirectV2IssueResult,
   IssuedWalletSessionAuthorizationV2,
 } from '../../../../authorization/domain';
-import { AuthorizationService } from '../../../../authorization/service';
-import { capabilityPolicyPort } from '../../../../authorization/capabilityPolicy';
-import { CloudflareD1AuthorizationStore } from '../authorization/d1AuthorizationStore';
+import type { AuthorizationService } from '../../../../authorization/service';
+import { createD1AuthorizationAssembly } from './d1AuthorizationAssembly';
+import type { CloudflareD1AuthorizationStore } from '../authorization/d1AuthorizationStore';
 import { parseTenantId } from '@shared/authorization/capabilityKinds';
 import { CloudflareD1RegistrationCeremonyIntentStore } from '../registration/d1RegistrationCeremonyStore';
 import { sha256BytesPortable, toRecordValue } from './d1RouterApiAuthBoundary';
@@ -1520,25 +1520,20 @@ function createCloudflareD1RouterApiAuthAssembly(
     undefined,
     linkedDeviceEd25519AuthorityReaderSlot,
   );
-  const authorizationStore = new CloudflareD1AuthorizationStore({
-    database: options.database,
-    namespace: options.namespace,
-    walletSignerScope: {
+  const { authorizationStore, authorizationService } = createD1AuthorizationAssembly(
+    {
+      database: options.database,
       namespace: options.namespace,
-      orgId: options.orgId,
-      projectId: options.projectId,
-      envId: options.envId,
+      walletSignerScope: {
+        namespace: options.namespace,
+        orgId: options.orgId,
+        projectId: options.projectId,
+        envId: options.envId,
+      },
+      getLinkedDeviceAuthorityReader: getLinkedDeviceEd25519AuthorityReader,
     },
-    getLinkedDeviceAuthorityReader: getLinkedDeviceEd25519AuthorityReader,
-  });
-  const authorizationService = new AuthorizationService({
-    policy: capabilityPolicyPort,
-    sessions: authorizationStore,
-    evidence: authorizationStore,
-    grants: authorizationStore,
-    authorizedOperations: authorizationStore,
-    audit: authorizationStore,
-  });
+    options.sessionRouting,
+  );
   const googleEmailOtpRegistrationAttempts = new CloudflareD1GoogleEmailOtpRegistrationAttemptStore(
     {
       prepare,

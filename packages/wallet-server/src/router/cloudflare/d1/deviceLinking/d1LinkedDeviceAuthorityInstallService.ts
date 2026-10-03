@@ -111,10 +111,7 @@ import {
 } from '@shared/device-linking/sourceContribution';
 import type { LinkedDeviceEcdsaSourcePreservingActivationReceiptV1 } from '@shared/device-linking/sourceContribution';
 import { parseLocalAuthorityActivationFinalAckV1 } from '@shared/device-linking/authorityActivation';
-import {
-  computeWalletSessionInstallationReceiptDigestB64u,
-  computeWalletSessionOperationCredentialDigestB64u,
-} from '@shared/device-linking/digests';
+import { computeWalletSessionInstallationReceiptDigestB64u } from '@shared/device-linking/digests';
 import type {
   D1DatabaseLike,
   D1PreparedStatementLike,
@@ -143,7 +140,6 @@ import type {
   IssueWalletSessionAuthorizationV2Input,
 } from '../../../../authorization/service';
 import {
-  buildPersistedActiveWalletSessionAuthorizationV2,
   walletSessionAuthorizationV2RecordsEqual,
   type PersistedActiveWalletSessionAuthorizationV2,
   type IssuedWalletSessionAuthorizationV2,
@@ -230,7 +226,9 @@ export type D1LinkedDeviceAuthorityInstallServiceOptionsV1 = {
   readonly materialActivation: OrdinaryInactiveSignerMaterialActivationPortV1;
   readonly authorizationService: Pick<
     AuthorizationService,
-    'prepareWalletSessionAuthorizationV2' | 'readWalletSessionAuthorizationV2ByMint'
+    | 'prepareWalletSessionAuthorizationV2'
+    | 'readWalletSessionAuthorizationV2ByMint'
+    | 'prepareDirectWalletSessionCredential'
   >;
   readonly authorizationStore: {
     prepareDirectWalletSessionAuthorizationV2Statements(
@@ -694,20 +692,14 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
             receipt.installedAtMs,
           ),
         );
-      const operationCredential = {
-        kind: 'opaque_wallet_session_operation_credential_v1' as const,
-        token: `wst_${secureRandomBase64Url(32, 'linked-device Wallet Session operation credential')}`,
-        walletSessionId: preparedWalletSession.session.walletSessionId,
-      };
-      const credentialDigestB64u =
-        await computeWalletSessionOperationCredentialDigestB64u(operationCredential);
+      const { operationCredential, persisted } =
+        await this.options.authorizationService.prepareDirectWalletSessionCredential(
+          preparedWalletSession,
+        );
+      const credentialDigestB64u = persisted.primaryOperationCredentialDigestB64u;
       const walletSessionStatements =
         this.options.authorizationStore.prepareDirectWalletSessionAuthorizationV2Statements(
-          buildPersistedActiveWalletSessionAuthorizationV2({
-            session: preparedWalletSession.session,
-            quota: preparedWalletSession.quota,
-            primaryOperationCredentialDigestB64u: credentialDigestB64u,
-          }),
+          persisted,
         );
       const installationReceiptDigestB64u =
         await computeWalletSessionInstallationReceiptDigestB64u(receipt);
