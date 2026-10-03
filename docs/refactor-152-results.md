@@ -5086,3 +5086,30 @@ run. One shared local Router stack remains in use. These durations are whole-tes
 times, with no hosted geographic latency claim. Reply loss during method changes,
 server restart, live email delivery and other recovery factors remain open.
 No deployment or release occurred.
+
+### October 4: regional method finalization and revocation reply loss
+
+The added Email OTP matrix now drops the first successful method-finalization
+reply and the first successful revocation reply after their home commits. All
+three home/foreign-ingress pairs passed in **2.2 minutes**. For each mutation,
+the SDK made exactly two attempts with the identical request and proof; the retry
+received the identical committed response. The existing checks still prove one
+added method, subsequent revocation, home-only state, Email OTP signing before
+revocation and passkey signing afterward. No production change was required.
+
+Private commit: `8f16ba0`. Artifacts under private
+`.artifacts/r152/regional-method-replay-20261004/` retain `protocol.log`, `lint.log`,
+lifecycle traces and per-home active/revoked receipts. The receipts include attempt
+and lost-reply counts; request/proof and response payloads are compared in memory.
+Revoked receipt SHA-256:
+
+- US: `a00ca98c305d108953f4f335bd8322551fa4d2bf459f40fb4eba27191b0eef19`.
+- WEUR: `d838503499d7a3ed3a9e82de0c2ac19d08f4f518c62d3b3999e2b6844384b908`.
+- APAC: `ded48c3661cf5d50f48b17f1b20fbc68593843878c742531a5188aafb05bba70`.
+
+Reproduce with the private regional runner's `--grep 'adds, uses and revokes'`
+selection and a fresh artifact directory, using the same built public candidate
+and Google test token as the normal lifecycle run. ESLint and the public bloat
+check passed. This uses one shared local Router role stack and the development
+OTP outbox. Server-process restart, failed-commit races and hosted placement
+remain separate checks. No deployment or release occurred.

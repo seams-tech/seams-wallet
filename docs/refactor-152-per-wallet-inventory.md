@@ -1669,3 +1669,9 @@ Development outbox requests use `walletId` for home resolution, just like challe
 and factor-release requests. The receiving Gateway still verifies the Google
 proof and configured development mode. Production email delivery, method-change
 reply-loss/restart and terminal shared-identity reconciliation remain separate.
+
+The subsequent reply-loss matrix now proves both method finalization and revocation
+replay at all three homes. Each first response is dropped after its HTTP 200 commit;
+the retry carries the identical request/proof and receives the identical committed
+result. Finalization leaves one added method, revocation leaves that method revoked,
+and foreign signer stores remain empty. Method-change server restart remains open.

@@ -110,8 +110,10 @@ older implementation checkpoints and must be read with their later evidence.
    signing through foreign ingress for every home. Revocation persists only at
    home, the SDK refuses the revoked method, and the original passkey still signs.
    The development OTP outbox now routes to the issuing home. Other recovery
-   factors, method-change reply loss/restart and remaining shared credential/identity
-   reconciliation still need composed acceptance.
+   factors, method-change restart and remaining shared credential/identity
+   reconciliation still need composed acceptance. Method finalization and revocation
+   reply loss now pass at every home: both mutations replay the exact request and
+   committed result through foreign ingress, with one added method and one revocation.
 3. Finish the ownership/entry-point audit and retirement audit: unresolved mixed
    records, internal/deferred effects, cross-authority reconciliation, stale
    deployment behavior and surviving namespace-placement assumptions. Keep R153
