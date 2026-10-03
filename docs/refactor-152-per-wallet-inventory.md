@@ -1489,3 +1489,15 @@ wallet key, epoch, application binding and registered key. Recipient/package GET
 and POST reject cancelled, expired and failed-before-commit session snapshots.
 Regional cancellation and the real local linking/signing/revocation flow pass.
 Concurrent terminal reconciliation and full regional activation remain open.
+
+
+### October 3: cancellation cannot recreate export-root relay rows
+
+The recipient INSERT now selects from the scoped session only in approved/live
+states, in the same D1 statement. Terminal state changes and relay deletion already
+share a D1 transaction. A delayed recipient write therefore cannot recreate the
+row after cancellation commits. Package submission updates an existing row and
+cannot recreate a deleted row. The composed US/APAC-to-WEUR scenario pauses both
+requests after route admission, cancels, resumes them, and verifies conflicts and
+zero relay rows. Remaining terminal writers and full activation cleanup remain
+separate acceptance work.

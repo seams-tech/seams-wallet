@@ -36,13 +36,19 @@ export class D1LinkedDeviceEd25519ExportRootStoreV1
     readonly recipient: LinkedDeviceEd25519ExportRootRecipientV1;
   }): Promise<LinkedDeviceEd25519ExportRootWriteResultV1> {
     const recipient = input.recipient;
+    // Terminal transitions delete relay rows atomically; late inserts must check that same state.
     const inserted = await this.database
       .prepare(
         `INSERT OR IGNORE INTO ${TRANSFER_TABLE} (
            namespace, org_id, project_id, env_id, link_session_id,
            wallet_id, enrollment_id, device_id, state, transfer_alg,
            recipient_public_key_b64u, recipient_json, registered_at_ms
-         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'recipient_registered', ?9, ?10, ?11, ?12)`,
+         ) SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'recipient_registered', ?9, ?10, ?11, ?12
+           FROM linked_device_sessions
+          WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
+            AND link_session_id = ?5
+            AND state IN ('awaiting_target_factor', 'awaiting_source_contribution',
+                          'provisioning', 'authority_pending_local_install', 'active')`,
       )
       .bind(
         ...scopeValues(this.scope),

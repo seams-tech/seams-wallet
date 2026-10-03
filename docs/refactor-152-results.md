@@ -4438,3 +4438,41 @@ Run the existing isolated intended-behavior runner with the freshly built server
 and the case `a second device links with a passkey, signs NEAR and Tempo, and is revoked`.
 Full regional cryptographic execution/installation, concurrency reconciliation and
 hosted acceptance remain open. No deployment or release occurred.
+
+
+## October 3: admitted export-root writes versus cancellation
+
+A deterministic regional race reproduced a production regression: after the
+recipient request had passed HTTP authentication and preparation checks, cancellation
+committed its terminal state and deleted the relay row. Resuming the request then
+inserted a new row and returned 200 `applied`.
+
+Recipient insertion now uses `INSERT ... SELECT` from the scoped session restricted
+to approved/live states. This checks durable session state in the same SQL statement
+as insertion, without adding a D1 roundtrip. Terminal transition and scoped cleanup
+already share one D1 transaction: insertion either precedes cleanup and is removed,
+or follows the transition and creates nothing. Package submission updates existing
+rows and cannot recreate a deleted transfer.
+
+The composed E2E pauses authenticated recipient and package requests from US/APAC
+at the relay port, cancels through APAC at WEUR, then releases both to the real D1
+store. Both return 409, and the transfer row remains absent. Normal relay delivery,
+exact retry, binding conflicts and home-only persistence still pass. The barrier
+has a 15-second admission timeout and releases waiting calls in `finally`.
+
+Verification: regional E2E, Wallet Server build/type compilation, focused ESLint,
+and public bloat check passed. The real local Worker lost-execution/activation-reply
+contract also passed: linked-device NEAR/Tempo signatures, revocation and continued
+owner signing, in 38.9 seconds including setup. This is not geographic latency.
+
+Private receipt: `.artifacts/r152/export-root-cancel-race-20261003/regional-session-routing-evidence.json`.
+SHA-256: `268afaeb9816f61aec64e81f84557ff421909cc60d3a6072c2e950aacb5b0df6`.
+Before/after, build, lint and bloat logs are adjacent. Reproduce with the regional
+E2E command from prior checkpoints, using this artifact directory.
+Public protocol log and traces: `.artifacts/r152/export-root-cancel-race-20261003/`.
+The reproduction uses the existing isolated intended runner and the freshly built
+server with `a second device links with a passkey, signs NEAR and Tempo, and is revoked`.
+
+This closes the demonstrated relay cancellation race. Other terminal writers,
+full regional cryptographic installation/activation and hosted acceptance remain
+open. No deployment or release occurred.

@@ -1118,7 +1118,9 @@ Export-root recipient/package reads and writes also reject those terminal states
 with 409 before parsing or accessing relay data. Recipient registration must match
 the persisted target preparation's wallet, enrollment, device, factor, wallet key,
 revocation epoch, application binding and registered public key. A signed request
-with different binding facts receives 400 without creating a relay record.
+with different binding facts receives 400 without creating a relay record. Recipient
+insertion checks current session state atomically in D1: a request admitted before
+cancellation cannot recreate the relay record after terminal cleanup commits.
 Full linked-device installation remains a hosted acceptance gate.
 
 ### Linked-device target preparation concurrency
