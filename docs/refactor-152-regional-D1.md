@@ -1288,3 +1288,35 @@ directory outage and successful home-routed requests. Regional identity payloads
 remain controlled. This closes direct identity-read home enforcement; signed-delegate
 and control operations, in-flight relocation fencing, deferred work and full linked
 device installation remain open. No deployment or release occurred.
+
+### October 3: Runtime ownership audit and deferred continuation routing
+
+The remaining Runtime operations were traced to their effects:
+
+| Operation | Ownership and consequence |
+| --- | --- |
+| Wallet identities | Wallet-scoped D1 reads; Console fan-out and direct Runtime home guard are implemented. |
+| Signed delegate execution | `CloudflareD1SignedDelegateExecutor.execute` uses configured tenant relayer credentials and NEAR RPC to submit an already-signed delegate. It does not claim wallet signing quota or mutate wallet signer rows. Keep tenant relayer execution separate from wallet-home admission; relayer nonce/submission safety is its existing service responsibility. |
+| Relayer account | Returns configured tenant relayer identity; no wallet selector or wallet-local mutation. |
+| Tenant-root control | Enumerated control operations forward to MPC Router, control-plane or deriver bindings under internal service authentication. These are tenant-owned creation/refresh/restore/recovery operations; a signing-root identifier is not a wallet ownership key. |
+| Deployment resource proof/inspection | Local resource identity/readiness, independent of any wallet. |
+
+Removed an unreachable `/wallets/register/setup` admission branch from the private
+Runtime Worker. Its downstream handler serves internal Runtime/control operations;
+registration setup is a Gateway responsibility. No registration support was removed.
+
+Production NEAR admission and provisioning already call
+`admitRegistrationReservationHome` before protocol work or side-effect claims. The
+regional E2E now covers both `/wallets/register/near-admission` and
+`/wallets/register/near-provisioning` across all nine ingress/home pairs (18 cases),
+repeat home selection, conflicting Wallet Sessions, unknown/malformed ceremonies
+and directory outages. Protocol execution is deliberately disabled in this routing
+scenario; it does not prove deferred commit behavior.
+
+Remaining fence gap: `ed25519_yao_lifecycle.rs` launches Deriver B execution with
+`context.wait_until` after capturing the admitted pair/root scope. The current
+routing check does not establish a relocation-generation check at the eventual
+material/effect commit. R152/R153 must coordinate a current-owner write fence at that
+boundary and at pending NEAR side-effect commits before relocation is enabled.
+This audit is not exhaustive proof of every refill/DO/Container effect. Full
+linked-device source contribution, package delivery and activation remain open.
