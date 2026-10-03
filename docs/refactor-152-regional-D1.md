@@ -271,9 +271,14 @@ role RPC and cross-authority contract has a final owner and failure behavior.
   cleanup. Three-home local composition covers races, rollback and retry. Signed
   HTTP creation/polling/cancellation includes travel and creation retries after
   cancellation or cleanup; retries resolve current state at the assigned home.
-- [ ] Verify complete linked-device approval, delivery and authority installation
-  through hosted regional entry points, including terminal cleanup and retries.
-  Current composition controls owner authorization and post-claim installation.
+- [x] Verify owner approval persistence and signed approval polling through regional
+  HTTP entry points. Production claim/approval rules run with controlled source
+  metadata and owner HTTP authentication. Check home-only persistence, replay,
+  changed-transcript conflict, invalid signature and terminal cancellation.
+- [ ] Verify target credential preparation, source contribution, committed package
+  delivery and authority installation through hosted regional entry points,
+  including acknowledgement loss and cleanup. Replace controlled source metadata
+  and owner HTTP authentication in the final composed acceptance run.
 - [ ] Finish routing for passkey/external-identity/delivery locators and Wallet
   Runtime operations, deferred work, expiry reconciliation and deliberate
   fresh attempts. Remove the remaining single-D1 deployment assumptions only after

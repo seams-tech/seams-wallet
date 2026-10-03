@@ -1208,3 +1208,22 @@ The three-home E2E now exercises real signed HTTP creation, polling and target
 cancellation through regional Worker dispatch. It demonstrated the stale `claimed`
 response after cancellation before the fix. Owner claim authorization remains
 controlled, and approval/delivery/authority installation remains open.
+
+### October 3: approval persistence and signed approval polling
+
+The regional HTTP scenario now uses the production owner authorization provider for
+claim/approval rules. Its source manifest comes from the existing coherent wallet
+authority fixture; source-metadata lookup and owner HTTP authentication remain
+controlled. Approval POSTs forwarded to WEUR persist one approval transcript there
+and none in US/APAC. Exact retries succeed, changed approvals conflict, and a
+different wallet's session is rejected at dispatch. Signed approval polling returns
+the canonical wire approval. Invalid signatures fail without consuming the valid
+request's nonce. Cancelled sessions return invalid-state instead of approval.
+
+No production change was required by these checks. This verifies approval transcript
+delivery, not committed signer-package delivery. The next boundary is target factor
+preparation/registration, source contribution and committed package installation;
+its dependencies are `targetCredential`, `sourceContributionRouter` and
+`installationReceipt` on the existing D1 route-service composition. Final acceptance
+must use real owner authentication and source metadata and complete installation,
+acknowledgement-loss retry and cleanup.

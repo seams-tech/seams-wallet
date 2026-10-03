@@ -3844,3 +3844,37 @@ ESLint and bloat ratchet passed. Validation logs are retained beside the receipt
 Owner claim authorization is controlled. Approval, delivery and authority installation
 are still outside this scenario. This local composition provides no geographic
 latency measurement and does not close the hosted acceptance gate or release 0.8.0.
+
+### 2026-10-03 — regional approval persistence and signed delivery
+
+Extended the three-home HTTP scenario past claim into owner approval and target
+approval polling. The production owner claim/approval provider runs against source
+metadata from the coherent wallet-authority fixture. Owner HTTP authentication and
+source-metadata lookup are controlled; device request signatures are real Ed25519.
+
+Verified:
+
+- Approval submitted through APAC executes at WEUR; only WEUR has its transcript.
+- Exact approval replay through US succeeds without a second transcript.
+- A changed approval conflicts (409); another wallet's session fails dispatch (403).
+- A valid signed GET returns the canonical wire approval through another region.
+- An invalid signature fails (401); the unmodified request with that nonce succeeds.
+- After target cancellation, approval polling returns invalid-state (409).
+- Existing creation retry and cleanup checks continue to pass after approval.
+
+No production defect was found in these checks. An initial in-memory comparison was
+corrected to compare wire JSON because TypeScript permission brands are not serialized.
+Focused ESLint, the complete regional composition E2E and the public bloat check passed.
+No production source or shared domain type changed in this checkpoint.
+
+Receipt: private `.artifacts/r152/link-approval-20261003/regional-session-routing-evidence.json`.
+SHA-256: `4e894abf8a85781d241418cb77f18a4a01b56344d70f535257437794c3a80a7f`.
+Repeat in `seams-monorepo` using the built SDK candidate:
+`SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/link-approval-20261003 node tests/e2e/regional-session-routing.e2e.mjs`.
+Logs are retained beside the receipt.
+
+This covers approval-transcript delivery. Target credential preparation, source
+contribution, committed signer-package delivery and authority installation remain
+open. Final composed acceptance must replace controlled owner authentication/source
+metadata and verify acknowledgement-loss recovery and cleanup. No geographic latency
+was measured, no infrastructure was deployed, and release 0.8.0 remains held.
