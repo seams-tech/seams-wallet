@@ -3675,3 +3675,41 @@ SHA-256: `9e43c120d4d0be50665757da7ba0372533c244e21adbe402cae108504c315b09`.
 Build/bloat and local contract logs are retained alongside it. No deployment or
 release occurred. Terminal claim reconciliation, linked-device bootstrap,
 internal/deferred enforcement and hosted acceptance remain release gates.
+
+### October 3: real regional discovery signatures and retained-claim revocation
+
+The regional composition now uses generated P-256 keys, persisted COSE public keys,
+and the SDK's real WebAuthn verifier for sync. Each home verifies known-wallet and
+wallet-less discovery from another ingress. Concurrent submission still has exactly
+one successful consumer. Nine invalid-proof cases (signature, signed origin and
+challenge in each region) fail without exposing wallet identity and consume their
+challenge. Three additional cases revoke the home auth method after challenge
+issuance: the shared claim still resolves, but a correctly signed assertion fails
+with `unknown_credential`.
+
+The authenticator/method and credential binding are seeded through shared factories
+and production persistence statements. The signer manifest remains a fixture; the
+adapter supplies expected origin directly because Miniflare rejects external Origin
+headers before reaching the Worker. The test invokes the sync verification service,
+so browser header handling, discovery session bootstrap, signer provisioning and
+full hosted custody flows remain acceptance gates. No geographic timing is measured.
+
+A test expectation was corrected: a cryptographically invalid signature returns
+`not_verified`; malformed/mismatched assertions may return `invalid_assertion`.
+Local concurrent response streams also intermittently became unusable when held
+until both fetches completed. The harness now reads each response as it arrives,
+while both requests remain concurrent. No production behavior was changed to fix
+these test failures.
+
+Repeat from seams-monorepo:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/discovery-signature-20261003 \
+node tests/e2e/regional-session-routing.e2e.mjs
+```
+
+Receipt: `.artifacts/r152/discovery-signature-20261003/regional-session-routing-evidence.json`.
+SHA-256: `26ea633e41e701fccc637cbf3275d513330b0c5f232bd3b526e9242f2d0e6def`. Two consecutive final runs passed; focused ESLint,
+`git diff --check` and public `pnpm report:bloat --check` passed. Logs are retained
+alongside the receipt. No deployment or release.

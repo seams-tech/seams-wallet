@@ -81,7 +81,11 @@ The earlier measurements do not close that acceptance gate or justify release.
   must read its committed binding and active method and verify WebAuthn before
   returning wallet discovery. Do not duplicate regional active-method state into a
   second shared publication index; this avoids a stale cross-database auth projection.
-- [ ] Verify full hosted WebAuthn discovery against the shared challenge authority.
+- [x] Verify real ES256 discovery proofs through shared challenges and three regional
+  D1 stores, including forged signatures, wrong origins/challenges and revocation
+  after challenge issuance while the shared claim remains.
+- [ ] Verify full hosted browser WebAuthn discovery and session bootstrap against
+  the shared challenge authority; composed verifier acceptance does not close this gate.
 - [ ] Complete terminal claim reconciliation;
   exercise all four full lifecycle flows against shared authority.
 - [ ] Finish linked-device coordination, inventory other cross-wallet limits and

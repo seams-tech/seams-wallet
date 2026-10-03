@@ -1106,3 +1106,30 @@ cross-database publication/revocation races. A claim never authenticates by itse
 Creation retries cannot overwrite records or revive consumed challenges. Full hosted
 WebAuthn acceptance and terminal claim reconciliation remain open. Include shared
 sync challenges in scoped test resets and operational expired-row cleanup.
+
+### October 3: discovery proof acceptance boundary
+
+The regional composition now generates P-256 credentials and authenticates discovery
+with the SDK's real ES256 verifier. The same public key is persisted in the regional
+authenticator and active method. Known-wallet and wallet-less proofs resolve to the
+correct home; shared single-use consumption admits one concurrent winner. Signature,
+signed-origin and challenge mismatches fail without returning a wallet identity.
+Revoking a local auth method after challenge issuance rejects its valid proof even
+while the immutable shared claim continues to resolve the home.
+
+The fixture supplies expected origin directly because Miniflare's transport rejects
+external Origin headers. It also supplies the signer manifest and invokes the sync
+verification service through a test handler. Full browser headers, signer-manifest
+persistence, discovery session bootstrap and custody installation remain unverified
+in this composition. These are explicit hosted acceptance tasks.
+
+Next implementation boundaries remain linked-device pre-wallet coordination and
+terminal claim reconciliation. Linked-device session creation, target proof nonces,
+claim CAS and transcript publication must have one shared authority before ownership
+is known. Once owner authorization binds a wallet, target credential installation,
+source contribution, delivery and receipts must execute at that wallet's home.
+Moving only the session table would split its CAS guards and transcript transactions;
+adding a route locator alone cannot solve creation/polling before the owner is known.
+Terminal cleanup similarly requires a durable home-side outcome receipt: deleting a
+ceremony before shared cancellation loses replay state, while cancelling first can
+abandon committed work. Retain claims until that protocol is implemented and tested.
