@@ -620,7 +620,7 @@ they do not create an effective legacy ownership path.
 
 | Surviving source or configuration | Replacement or deletion |
 | --- | --- |
-| Private shared `tenant-deployment/index.ts`, server `tenantDeployment/{types,runtimeBinding,provisioning,d1,homeVerification}.ts` | Replace singular binding `home`/hash and one-resource activation with an admitted regional resource set; retain version and provider proof for each backend. |
+| Private shared `tenant-deployment/index.ts`, server `tenantDeployment/{types,runtimeBinding,provisioning,d1,resourceVerification}.ts` | Binding/hash and activation now use a verified resource set (private `af96653`). Finish regional readiness and operator version renewal; retain exact version/resource proof for each backend. |
 | Private `d1GatewayWorker`, `d1WalletRuntimeWorker`, `d1ConsoleStagingWorker`, `d1LocalDevWorker`, and `render-d1-gateway-config.mjs` | Remove the assumption that `SEAMS_D1_HOME_ACCOUNT_ID` and `SEAMS_D1_HOME_DATABASE_ID` identify the home of every wallet in a tenant. A regional backend may still bind its own `SIGNER_DB` resource after admission. |
 | Private `deployment/wallet-system/targets.json`, `scripts/deploy-backend.mjs`, generated Wrangler config and smoke scripts | Render and verify US, WEUR and APAC resource/backend bindings; remove singular `signerD1` assumptions after the regional set replaces them. Do not commit locally rendered secrets or IDs. |
 | Public `hosted-wallet-gateway.ts`, Cloudflare runtime env and local hosted adapter | Resolve wallet ownership before selecting the regional `SIGNER_DB`; remove direct single-database composition for wallet-scoped paths. |
@@ -661,3 +661,30 @@ Next structural changes are the deployment binding/decoder's single `home`,
 provider challenge verification over the complete regional backend set, and the
 configuration renderer. Those checks must continue rejecting stale/unproven writers
 throughout the replacement. No regional deployment has been activated by this checkpoint.
+
+### October 3 resource-set activation checkpoint
+
+`TenantDeploymentBindingV1.resources` replaces its singular `home`; the exact-key
+decoder accepts the new shape only and the revision hashes its canonical resource
+set. `TenantResourceVerificationV1` replaces the former home-named proof. Activation
+requires a nonempty proof set covering every resource with distinct Gateway/Runtime
+names and versions. Runtime and placement-service requests carry role, version,
+account and database; Console verifies the exact tuple. A configured catalog with
+an unverified resource returns 503 before any wallet-home reservation.
+
+Console migration 0054 clears old active pointers and fails pending cutovers for
+restart, preserves activation history and consumed challenges, removes singular
+activation columns, and consumes each proof through a transactionally coupled
+challenge table. A partial replay cannot advance the active pointer. No hosted
+migration was run. The migration E2E starts with an existing single-resource
+activation and unfinished cutover, then exercises the replacement.
+
+Remaining concrete deployment edits: canonical target schema and renderer,
+US/WEUR/APAC Worker/runtime service bindings, complete-set operator provider and
+runtime challenges, regional readiness inspection, and explicit version renewal.
+The provisioner currently reuses a matching tenant/surface binding before examining
+new writer proofs; the orchestration replacement must renew changed writer versions
+while preserving its browser credential. The one-resource operator collector now
+sends an array but remains unable to satisfy the hosted three-resource catalog.
+These paths must be completed before deployment. Shared lookup authorities,
+internal/deferred wallet enforcement and terminal expiry reconciliation remain open.

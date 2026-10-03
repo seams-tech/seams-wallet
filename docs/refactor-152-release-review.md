@@ -847,3 +847,66 @@ The singular deployment `home`, activation proof and renderer still need the
 regional-set replacement. Shared locators, internal/deferred enforcement, expiry
 reconciliation and composed hosted verification also remain. Nothing was deployed
 or published; private package pins remain 0.7.3 and release 0.8.0 remains held.
+
+## October 3: verified resource-set activation checkpoint
+
+Private implementation: `af96653` on `dev`. The binding and its revision now identify
+canonical `resources`, and activation persists one resource-verification set. Every
+resource requires fresh Gateway/Runtime evidence; duplicate writer versions/names,
+incomplete sets and reused challenges reject the whole activation. Runtime admission
+matches the exact role/version/account/database tuple. Console requires its regional
+catalog to match the active resource set before permitting wallet-home operations.
+There is no singular binding/proof compatibility decoder.
+
+Console migration 0054 retires old active pointers and pending cutovers for fresh
+activation, preserves historical activation records and consumed challenge IDs, and
+removes singular activation columns. A challenge-consumption failure rolls back the
+whole activation, including pointer changes. The local migration rehearsal starts
+with an existing activation and unfinished cutover and verifies those outcomes.
+The migration has not been applied to hosted infrastructure.
+
+The final three focused E2Es passed in **18.9s total**:
+
+- Binding admission: three physical resources, six Gateway/Runtime versions, partial
+  and duplicate proof rejection through both service and SQL paths, wrong-resource
+  claims, partially reused challenge rollback, and completed-activation replay.
+- Resource challenges: independent physical D1 proofs, stale writers, expiry and
+  cleanup after a lost response. An altered regional catalog cannot reserve a wallet.
+  The CLI challenges one resource; the other two activation proofs in this fixture
+  use controlled provider evidence. This is not a deployed three-region proof run.
+- Wallet directory and forwarding: regional concurrency, replay/travel, immutable
+  reservations and terminal reconciliation continue passing.
+
+Candidate-backed affected server compilation, all private type fixtures and both
+activation/challenge E2E source checks passed, as did focused lint and the public
+bloat check. A broader experimental test compilation exposed existing directory-test
+DOM/Worker type conflicts, raw allocation fixtures and a retired `sqliteD1` import.
+It did not pass; its diagnostics are retained separately. No new unit tests were
+added. Changed retained fixtures reflect the new required resource/proof fields.
+
+Reproduce in `seams-monorepo`:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+  pnpm --dir tests exec playwright test -c playwright.relayer.config.ts \
+  relayer/tenant-deployment-binding.e2e.test.ts \
+  relayer/tenant-home-challenge.e2e.test.ts \
+  relayer/wallet-home-directory.e2e.test.ts --reporter=line
+```
+
+Private receipts and compiler/lint logs:
+`.artifacts/r152/resource-set-activation-20261003/`. Receipt SHA-256 values:
+
+| Receipt | SHA-256 |
+| --- | --- |
+| `console-binding-evidence.json` | `39daf889f0c7ea448cb88ab333dae6d22d9e846e35c28bc533c3bf75bde5b5a6` |
+| `runtime-resource-challenge-evidence.json` | `33a48e77c89858aeccbbce58ab9ba72039bda7b884d76f87396a2a8a097a3c5d` |
+| `wallet-home-evidence.json` | `a597f9d13740b2b777adefb798d1184354e3ef0a094a9d9c383eb2dca14af439` |
+
+These are local correctness results, with no new geographic latency measurements.
+Remaining deployment work: regional target configuration/rendering, proof collection
+for all backends, readiness inspection across regions, and admission renewal when
+serving versions change. Shared credential/recovery/token locators, internal/Runtime/
+deferred enforcement, expiry/fresh attempts and composed hosted/travel acceptance
+also remain. No infrastructure was deployed or reset, and no package was published.
+Private pins remain 0.7.3; release 0.8.0 remains held.

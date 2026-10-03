@@ -51,7 +51,7 @@ changing the placement architecture.
 | --- | --- | --- |
 | Private `tenantDeployment/namespaceHome.ts`, `service.ts`, `d1.ts` (under `packages/wallet-console-server-ts/src/`) | Replace namespace-to-database reservation with a wallet home directory keyed by authenticated tenant scope and canonical wallet identity. | Delete `NamespaceD1HomeV1`, namespace assignment APIs and their single-home enforcement. Keep namespace only where it scopes identity/auth, never as the placement owner. |
 | Private `packages/wallet-console-server-ts/migrations/d1-console/0047_namespace_d1_homes.sql` through `0050_tenant_deployment_home_verification.sql` | Inventory every trigger, index and activation-column dependency on namespace home. Separate deployment resource verification from wallet ownership. | Remove obsolete tables/triggers/columns from the final effective schema through the repository's schema-reset/migration procedure. No obsolete schema retained for compatibility. Preserve unrelated activation invariants. |
-| Private `packages/wallet-console-shared-ts/src/tenant-deployment/index.ts`; server `tenantDeployment/{types,runtimeBinding,homeVerification}.ts` | A deployment may serve many wallet homes. Binding hashes and writer admission must identify permitted regional resources/versions independently of each wallet's assignment. | Delete the singular deployment `home` contract and namespace-home hash/admission assumptions; rebuild canonical factories and type fixtures. |
+| Private `packages/wallet-console-shared-ts/src/tenant-deployment/index.ts`; server `tenantDeployment/{types,runtimeBinding,resourceVerification}.ts` | A deployment may serve many wallet homes. Binding hashes and writer admission must identify permitted regional resources/versions independently of each wallet's assignment. | Delete the singular deployment `home` contract and namespace-home hash/admission assumptions; rebuild canonical factories and type fixtures. |
 | Private `tenantDeployment/{resourceChallenge,productionReadiness,runtimeInspection}.ts`; `scripts/{verify-tenant-d1-bindings,tenant-resource-challenge}.mjs` | Reuse provider UUID inspection, live database challenge and serving-version verification for each regional backend. | Proof means “this regional backend reaches this resource”, never “every wallet in the namespace lives here”. Resource challenge storage and endpoints now use resource terminology; regional-set activation remains open. |
 | Private `tenantDeployment/{homeAdoption,provisioning,automationRoute}.ts`; `scripts/tenant-cutover.mjs` | Separate deploying/admitting a regional backend from assigning a new wallet. | Delete old-home adoption endpoints, request types, command modes and persistence decoders; retain unrelated authenticated deployment control. |
 | Private `router/cloudflare/{d1GatewayWorker,d1WalletRuntimeWorker,d1ConsoleStagingWorker,d1LocalDevWorker}.ts` | Resolve wallet home through trusted authority, dispatch once to that region, and require the regional execution context before wallet-local reads/writes. Local mode uses the same contract with one configured resource. | No namespace-default database, no second combined hosted path, no acceptance of a browser-chosen database/region. Already removed combined entrypoints stay deleted. |
@@ -144,9 +144,16 @@ role RPC and cross-authority contract has a final owner and failure behavior.
   before ceremony cleanup; reconcile lost completion replies. Persist definitive
   cancellation before deletion; reject cancelled continuation. Established setup
   replay never recreates a deleted mutable ceremony.
-- [ ] Activate/render the regional backend resource and writer set. The current
-  deployment binding still describes one physical D1; the new service bindings
-  and named receiving entrypoint are not yet rendered for a hosted cutover.
+- [x] Replace the single-resource binding and activation store with a canonical
+  resource set and one fresh proof per resource. Admit exact role/version/resource
+  writers; atomically reject partial proofs, duplicate writers and reused challenges.
+  Migration 0054 removes singular activation columns and requires fresh activation.
+  Console refuses wallet reservations against an unverified regional catalog.
+- [ ] Finish regional deployment orchestration: render the catalog, all Gateway/
+  Runtime bindings and named receiving entrypoints; collect proofs for the complete
+  set; inspect readiness across all resources; renew admission for changed serving
+  versions while preserving the current browser credential. The existing operator
+  collector still checks one resource and cannot activate the hosted regional set.
 - [ ] Finish routing for shared credential/recovery/session locators, direct Yao
   and Wallet Runtime operations, deferred work, expiry reconciliation and deliberate
   fresh attempts. Remove the remaining single-D1 deployment assumptions only after
@@ -1026,3 +1033,13 @@ Remaining implementation order: regional deployment-set admission/rendering; sha
 credential, recovery and opaque-token locators; direct/internal/deferred home
 checks; expiry reconciliation and fresh attempts; composed regional and hosted
 travel verification. Release 0.8.0 remains held. See the release review for evidence.
+
+### October 3: verified resource-set activation
+
+Private commit `af96653` replaces the singular binding and activation contract.
+Three-resource/six-writer admission, rejection and migration behavior pass local
+Worker/D1 E2Es. Remaining deployment work is orchestration/rendering and version
+renewal, followed by shared locators, internal/deferred enforcement, expiry and
+fresh-attempt reconciliation, and composed hosted/travel acceptance. The final
+three focused E2Es passed in 18.9s, a local test duration. See the release review
+for precise evidence and limits; this does not enable deployment or release.
