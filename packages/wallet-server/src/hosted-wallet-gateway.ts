@@ -172,6 +172,7 @@ export interface HostedWalletGatewayDependenciesV1 {
   readonly registrationSetupDispatcher?: CloudflareD1RouterApiAuthServiceOptions['registrationSetupDispatcher'];
   readonly registrationAuthority?: CloudflareD1RouterApiAuthServiceOptions['registrationAuthority'];
   readonly credentialClaims?: CloudflareD1RouterApiAuthServiceOptions['credentialClaims'];
+  readonly linkedDeviceProofNonces?: CloudflareD1RouterApiAuthServiceOptions['linkedDeviceProofNonces'];
   readonly syncChallenges?: CloudflareD1RouterApiAuthServiceOptions['syncChallenges'];
   readonly emailOtpDeliveryProvider?: CloudflareD1RouterApiAuthServiceOptions['emailOtpDeliveryProvider'];
   /** Host loader for the signer WASM; defaults to the Workers module import. */
@@ -491,6 +492,7 @@ async function createStagingRouterApiAuthComposition(
     registrationAuthority: dependencies.registrationAuthority,
     credentialClaims: dependencies.credentialClaims,
     syncChallenges: dependencies.syncChallenges,
+    linkedDeviceProofNonces: dependencies.linkedDeviceProofNonces,
     registrationSetupDispatcher: dependencies.registrationSetupDispatcher,
     namespace: scope.namespace,
     orgId: scope.orgId,

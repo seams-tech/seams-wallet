@@ -1133,3 +1133,23 @@ adding a route locator alone cannot solve creation/polling before the owner is k
 Terminal cleanup similarly requires a durable home-side outcome receipt: deleting a
 ceremony before shared cancellation loses replay state, while cancelling first can
 abandon committed work. Retain claims until that protocol is implemented and tested.
+
+### October 3: shared linked-device proof nonces
+
+The hosted Gateway injects `LinkedDeviceRequestProofNonceStoreV1` through its existing
+composition options. Console migration 0067 stores the existing scoped nonce schema;
+its authenticated `device-proof-nonce` command reuses the SDK's D1 boundary parser and
+store. The core proof verifier validates the signature before calling this port.
+Nonce input is normalized at the D1 boundary; no parallel Console nonce validation or
+storage implementation was introduced. Bounded expiry pruning remains in that store.
+
+All hosted device proof checks now share this authority, including wallet-less create
+and later device-authenticated requests. Shared failures are typed unavailable
+results, mapped to HTTP 503. Standalone composition retains its single local store.
+Regional nonce deletion during local session cleanup cannot release shared nonces;
+shared expiry pruning owns them. Include the new Console table in scoped reset plans.
+
+Remaining linked-device work: shared QR creation/polling/cancellation and an immutable
+owner-authorized home handoff with crash-safe local installation. No session or
+transcript CAS was moved by this change. The existing regional session stores still
+require replacement for those wallet-less entry points before hosted release.

@@ -1,7 +1,7 @@
 import { parseLinkDeviceSessionId, type LinkDeviceSessionId } from '@shared/signing-lanes/ids';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
-import { requireCanonicalString } from '@shared/utils/validation';
+import { isObject, requireCanonicalString } from '@shared/utils/validation';
 import type { D1DatabaseLike } from '../../../../storage/tenantRoute';
 import { d1ChangedRows } from '../../../../storage/d1Sql';
 import type { LinkedDeviceRequestProofNonceStoreV1 } from '../../../../core/deviceLinking/requestProof';
@@ -42,22 +42,10 @@ export class D1LinkedDeviceRequestProofNonceStoreV1 implements LinkedDeviceReque
     this.scope = normalizeScope(options.scope);
   }
 
-  async consumeRequestProofNonceV1(input: {
-    readonly linkSessionId: LinkDeviceSessionId;
-    readonly requestNonceB64u: string;
-    readonly proofDigestB64u: DigestB64u;
-    readonly issuedAtMs: number;
-    readonly expiresAtMs: number;
-    readonly consumedAtMs: number;
-  }): Promise<{ readonly outcome: 'consumed' } | { readonly outcome: 'already_used' }> {
-    const normalized = parseNonceRecord({
-      linkSessionId: input.linkSessionId,
-      requestNonceB64u: input.requestNonceB64u,
-      proofDigestB64u: input.proofDigestB64u,
-      issuedAtMs: input.issuedAtMs,
-      expiresAtMs: input.expiresAtMs,
-      consumedAtMs: input.consumedAtMs,
-    });
+  async consumeRequestProofNonceV1(
+    input: unknown,
+  ): Promise<{ readonly outcome: 'consumed' } | { readonly outcome: 'already_used' }> {
+    const normalized = parseNonceRecord(input);
     // Every proof request gets one bounded cleanup pass; no unbounded maintenance query runs.
     await this.pruneExpiredNoncesV1(normalized.consumedAtMs);
     try {
@@ -134,14 +122,8 @@ export class D1LinkedDeviceRequestProofNonceStoreV1 implements LinkedDeviceReque
   }
 }
 
-function parseNonceRecord(raw: {
-  readonly linkSessionId: LinkDeviceSessionId;
-  readonly requestNonceB64u: string;
-  readonly proofDigestB64u: DigestB64u;
-  readonly issuedAtMs: number;
-  readonly expiresAtMs: number;
-  readonly consumedAtMs: number;
-}): LinkedDeviceRequestProofNonceRecordV1 {
+function parseNonceRecord(raw: unknown): LinkedDeviceRequestProofNonceRecordV1 {
+  if (!isObject(raw)) throw new Error('Invalid device request nonce');
   const linkSessionId = parseSessionId(raw.linkSessionId);
   const requestNonceB64u = parseFixedB64u(raw.requestNonceB64u, 'requestNonceB64u');
   const proofDigestB64u = parseDigest(raw.proofDigestB64u, 'proofDigestB64u');

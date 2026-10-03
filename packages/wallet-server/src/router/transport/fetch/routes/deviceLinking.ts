@@ -99,7 +99,7 @@ const DEVICE_LINKING_REQUEST_PROOF_HEADER_V1 = LINKED_DEVICE_REQUEST_PROOF_HEADE
 
 export type DeviceLinkingAuthDeniedV1 = {
   readonly kind: 'denied';
-  readonly code: 'unauthorized' | 'expired' | 'invalid' | 'replayed';
+  readonly code: 'unauthorized' | 'expired' | 'invalid' | 'replayed' | 'unavailable';
   readonly message: string;
 };
 
@@ -1908,6 +1908,9 @@ async function requireSelectedEmailOtpBaseFactorV1(
 }
 
 function authDeniedResponse(result: DeviceLinkingAuthDeniedV1): Response {
+  if (result.code === 'unavailable') {
+    return json({ ok: false, code: result.code, message: result.message }, { status: 503 });
+  }
   return json(
     { ok: false, outcome: 'unauthorized', code: result.code, message: result.message },
     { status: result.code === 'expired' ? 410 : 401 },

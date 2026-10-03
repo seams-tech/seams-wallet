@@ -43,14 +43,14 @@ export type LinkedDeviceRequestProofNonceStoreV1 = {
     readonly issuedAtMs: number;
     readonly expiresAtMs: number;
     readonly consumedAtMs: number;
-  }): Promise<{ readonly outcome: 'consumed' } | { readonly outcome: 'already_used' }>;
+  }): Promise<{ readonly outcome: 'consumed' | 'already_used' | 'unavailable' }>;
 };
 
 type LinkedDeviceRequestProofVerificationResultV1 =
   | { readonly kind: 'authorized' }
   | {
       readonly kind: 'denied';
-      readonly code: 'invalid' | 'expired' | 'replayed';
+      readonly code: 'invalid' | 'expired' | 'replayed' | 'unavailable';
       readonly message: string;
     };
 
@@ -104,6 +104,13 @@ export class LinkedDeviceRequestProofVerifierV1 {
         expiresAtMs: input.proof.expiresAtMs,
         consumedAtMs: input.nowMs,
       });
+      if (consumed.outcome === 'unavailable') {
+        return {
+          kind: 'denied',
+          code: 'unavailable',
+          message: 'Device request proof authority is unavailable',
+        };
+      }
       if (consumed.outcome === 'already_used') {
         return {
           kind: 'denied',

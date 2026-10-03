@@ -606,6 +606,7 @@ function createD1LinkedDeviceComposition(input: {
         authorityInstall.acknowledgeLocalAuthorityActivationV1.bind(authorityInstall),
     };
     deviceLinking = createD1LinkedDeviceRouteServiceV1({
+      proofNonces: input.options.linkedDeviceProofNonces,
       database: input.options.database,
       scope,
       ownerAuthorization: ownerAuthorizationProvider.ownerAuthorization,

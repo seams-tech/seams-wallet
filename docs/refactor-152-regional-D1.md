@@ -88,7 +88,11 @@ The earlier measurements do not close that acceptance gate or justify release.
   the shared challenge authority; composed verifier acceptance does not close this gate.
 - [ ] Complete terminal claim reconciliation;
   exercise all four full lifecycle flows against shared authority.
-- [ ] Finish linked-device coordination, inventory other cross-wallet limits and
+- [x] Share linked-device request-proof nonce consumption across hosted Gateways;
+  verify real signatures, regional replay contention, lost acknowledgements,
+  project isolation, expiry and explicit HTTP 503 on authority outage.
+- [ ] Finish linked-device QR creation/polling and immutable owner-home handoff;
+  nonce sharing alone does not coordinate session state. Inventory other cross-wallet limits and
   complete internal/deferred enforcement.
 
 This checkpoint is a prerequisite to discovery routing. It does not close the

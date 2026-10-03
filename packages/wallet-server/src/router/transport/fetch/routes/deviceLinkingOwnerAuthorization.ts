@@ -484,8 +484,9 @@ function methodNotAllowedResponse(): Response {
 }
 
 function authDeniedResponse(
-  value: Extract<OwnerValidationResultV1, { readonly kind: 'denied' }>,
+  value: DeviceLinkingAuthDeniedV1,
 ): Response {
-  const status = value.code === 'expired' ? 401 : value.code === 'invalid' ? 403 : 401;
+  if (value.code === 'unavailable') return jsonFailure(503, value.code, value.message);
+  const status = value.code === 'invalid' ? 403 : 401;
   return jsonFailure(status, value.code, value.message);
 }

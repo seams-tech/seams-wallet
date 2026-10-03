@@ -7,7 +7,10 @@ import type {
   DeviceLinkingOwnerRequestInputV1,
   DeviceLinkingRouteServiceV1,
 } from '../../../../router/transport/fetch/routes/deviceLinking';
-import { LinkedDeviceRequestProofVerifierV1 } from '../../../../core/deviceLinking/requestProof';
+import {
+  type LinkedDeviceRequestProofNonceStoreV1,
+  LinkedDeviceRequestProofVerifierV1,
+} from '../../../../core/deviceLinking/requestProof';
 import type { LinkedDeviceOwnerAuthorizationPortV1 } from '../../../../core/deviceLinking/linkedDeviceSession';
 import { readJson } from '../../../../router/framework/http';
 import { D1LinkedDeviceEd25519ExportRootStoreV1 } from './d1LinkedDeviceEd25519ExportRootStore';
@@ -19,6 +22,7 @@ import {
 } from './d1LinkedDeviceSessionStore';
 
 export type D1LinkedDeviceRouteServiceOptionsV1 = {
+  readonly proofNonces?: LinkedDeviceRequestProofNonceStoreV1;
   readonly database: D1DatabaseLike;
   readonly scope: D1LinkedDeviceSessionScopeV1;
   readonly ownerAuthorization: LinkedDeviceOwnerAuthorizationPortV1;
@@ -36,10 +40,12 @@ export function createD1LinkedDeviceRouteServiceV1(
   options: D1LinkedDeviceRouteServiceOptionsV1,
 ): DeviceLinkingRouteServiceV1 {
   const nowV1 = options.nowV1 ?? Date.now;
-  const proofNonceStore = new D1LinkedDeviceRequestProofNonceStoreV1({
-    database: options.database,
-    scope: options.scope,
-  });
+  const proofNonceStore =
+    options.proofNonces ??
+    new D1LinkedDeviceRequestProofNonceStoreV1({
+      database: options.database,
+      scope: options.scope,
+    });
   const proofVerifier = new LinkedDeviceRequestProofVerifierV1({ nonceStore: proofNonceStore });
   const sessionStore = new D1LinkedDeviceSessionStoreV1({
     database: options.database,

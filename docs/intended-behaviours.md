@@ -1071,3 +1071,16 @@ A consumed challenge cannot be recreated by a creation retry. Expired challenges
 cannot resolve or be consumed. An exact creation retry is idempotent while the
 challenge is live. Directory outages return a typed unavailable result and never
 fall back to regional challenge state. Standalone sync retains its local store.
+
+### Hosted linked-device request-proof replay authority
+
+Hosted Gateways consume linked-device request-proof nonces through one authenticated,
+tenant-scoped Console authority. A valid signed request may be accepted once across
+regional Gateways. Invalid signatures and expired proofs are rejected before nonce
+consumption. Shared authority unavailability returns HTTP 503; it must never fall
+back to a regional nonce store. A lost acknowledgement after consumption requires a
+fresh signed request with a fresh nonce. Separate project scopes remain independent.
+Standalone deployments use their configured local nonce authority.
+
+This rule covers proof replay protection. Hosted wallet-less QR session coordination
+and immutable transfer to the owner's wallet home remain R152 implementation gates.

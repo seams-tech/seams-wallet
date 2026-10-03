@@ -3713,3 +3713,34 @@ Receipt: `.artifacts/r152/discovery-signature-20261003/regional-session-routing-
 SHA-256: `26ea633e41e701fccc637cbf3275d513330b0c5f232bd3b526e9242f2d0e6def`. Two consecutive final runs passed; focused ESLint,
 `git diff --check` and public `pnpm report:bloat --check` passed. Logs are retained
 alongside the receipt. No deployment or release.
+
+### October 3: linked-device nonce authority across regions
+
+Migration 0067 and matched SDK composition move hosted request-proof nonce consumption
+to Console. The regional composition verifies real Ed25519 device proofs through the
+production route-service verifier. Three concurrent Gateways produce one authorized
+result and two replay denials; subsequent replay fails everywhere. Invalid signatures
+consume no nonce, expired proofs fail, project scopes are isolated, and regional nonce
+tables stay empty. Authority outage fails closed; the actual create route returns
+HTTP 503. After recovery a previously unconsumed proof succeeds. An acknowledgement
+lost after consumption returns unavailable, and retry at another Gateway returns replay.
+
+The initial client adapter incorrectly attempted to parse an already decoded transport
+response. Candidate type-check and the new scenario caught it; the adapter now reads
+the transport's parsed body. SDK build, private candidate type-check, wallet domain
+state type-check, focused lint and bloat check passed. The complete regional composition
+passed, including the prior discovery, recovery, identity, limits and session checks.
+
+Repeat from seams-monorepo:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/device-proof-nonces-20261003 \
+node tests/e2e/regional-session-routing.e2e.mjs
+```
+
+Receipt: `.artifacts/r152/device-proof-nonces-20261003/regional-session-routing-evidence.json`.
+SHA-256: `8bd68eae85b49e655b45358165f5a0b3c7dff9db369fd060d693e9bf3ec103bb`. Validation logs are retained alongside it.
+This proves shared proof replay protection, not shared QR-session coordination,
+owner-home handoff, device installation or geographic latency. Those remain open.
+No deployment or release occurred.

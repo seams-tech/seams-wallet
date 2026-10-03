@@ -264,3 +264,6 @@ export { parseWebAuthnSyncChallengeRecord } from './router/cloudflare/d1/webauth
 export { webAuthnCredentialIdB64uFromCredential } from './router/auth/webAuthnCredentialCodecs';
 
 export type { SyncChallengeFailure } from './core/WebAuthnSyncChallengeStore';
+
+export type { LinkedDeviceRequestProofNonceStoreV1 } from './core/deviceLinking/requestProof';
+export { D1LinkedDeviceRequestProofNonceStoreV1 } from './router/cloudflare/d1/deviceLinking/d1LinkedDeviceRequestProofNonceStore';
