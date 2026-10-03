@@ -52,6 +52,12 @@ Confirmed source-level causes:
 - `assembly/configureBrowserIndexedDB.ts` already selects `disabled` persistence
   for the application in iframe mode. Constructing signing-store adapters in the
   application does not establish a second durable signing database there.
+- Worker files are split, but host warmup crosses signer boundaries:
+  `walletIframe/host/context.ts` calls `prewarm({ workers: true })` when creating
+  the runtime, and `core/signingEngine/workerManager/workerTransport.ts` then
+  creates every `SIGNER_WORKER_KINDS` entry. NEAR, EVM, and Tempo worker startup
+  initializes their WASM. This is a confirmed broad loading path; actual
+  per-operation transfer savings still require browser measurement.
 
 These findings establish code and setup overlap. They do not establish that
 workers execute twice or that secret material exists in both origins. Capture
@@ -115,6 +121,7 @@ plan findings, not claims of newly demonstrated production vulnerabilities.
 | P2 | The storage-migration step could imply moving secrets between origins even though iframe-mode application persistence is already disabled. | Inventory actual supported stored records first. Preserve wallet origin, RP identity, database names, and schemas by default. No secret-copy migration through the parent. If supported historical state genuinely needs relocation, specify the boundary migration and recovery implications separately before deleting access paths. |
 | P2 | Several iframe tests use `tests/wallet-iframe/harness.ts`, which generates a stub host. Passing these cannot demonstrate removal of the real duplicate runtime. | Keep those tests for transport behavior; use packed production client assets and the real emitted wallet host for the bundle/network acceptance scenario. Verify application execution contexts create no signing workers. Include the existing real auth/recovery/device/export contracts. |
 | P2 | A 100 KiB static entry target can hide a large router fetched immediately. A long scenario can also obscure a worse first signing experience. | Report root import, mounted provider, idle/prewarm, auth, first sign, and repeat sign separately, with cumulative app+iframe+worker totals. Report the complete client closure as well as static bytes. Set measured per-phase latency and transfer acceptance limits after the baseline, before implementation; a missed target remains an explicit deviation. |
+| P2 | Host initialization prewarms all signer worker kinds, and several immediately load WASM. Separate worker files therefore do not guarantee signer-specific downloads. | Complete the targeted worker-loading workstream in step 4. Select dependencies using the actual operation, signer, and auth method; preserve shared custody dependencies and verify NEAR-only, EVM-only, and mixed-wallet flows. |
 
 Before implementation step 2, complete a member-level dispatch audit against
 `publicApi/types.ts`, the public `SeamsWeb` methods, and package exports. For each
@@ -143,6 +150,7 @@ listed module. Keep the inventory here; do not add a second manifest or generato
 | WebAuthn bridge | `client/transport/webauthn-bridge.ts`, `core/signingEngine/webauthnAuth/{credentials/helpers,fallbacks/safari-fallbacks}.ts` | Retain supported browser behavior; isolate bridge dependencies and verify credential origin/RP and cancellation behavior. |
 | Hosted handoff and external auth | `client/router.ts`, `host/hostedWalletSeamsSession.ts`, `host/auth-menu/`, `host/handlers/authMenu.ts`, React `HostedSeamsAuthMenu/` | Preserve origin-bound single-use handoff, wallet-host primary credential, hosted credential redemption, callback correlation, and host-owned OTP/continuation. |
 | Restore and startup work | `SeamsWeb.ts` startup methods, `operations/registration/pendingRegistrationRecovery.ts`, `operations/recovery/walletRecoveryCommit.ts`, `host/restoredSessionPresignaturePrefill.ts`, `operations/devices/` | Move orchestration to one host owner; preserve restart replay, exact-session prefill, acknowledgements, and idempotency. |
+| Worker selection and WASM initialization | `core/signingEngine/workerManager/{SignerWorkerManager,workerTransport}.ts`, `workerManager/workers/`, `core/signingEngine/assembly/warmup.ts`, `SeamsWeb/assembly/browserWorkerWarmupPolicy.ts`, `host/registrationPreparationPreload.ts` | Remove blanket worker startup; retain targeted preparation and on-demand loading, accurate readiness, shared initialization, and safe worker lifetime. |
 | Durable stores and preferences | `core/indexedDB/`, `core/signingEngine/session/userPreferences.ts`, `publicApi/preferences.ts`, `host/handlers/preferences.ts` | Keep durable signing state at wallet origin; retain only supported display projection at application origin; inventory storage before migrations. |
 | Transaction review and surfaces | `publicApi/transactionReview.ts`, `walletIframe/client/transactionReviewReservation.ts`, `walletIframe/client/{surface,overlay}/`, `walletIframe/shared/transactionReview.ts`, `react/transactionReview/`, `core/signingEngine/uiConfirm/transactionReviewAdmission.ts` | Preserve review reservation/admission, operation binding, parent UI, host confirmation, and surface completion on cancel/error. |
 | Broadcast, receipts, and public RPC | `operations/tempo/{executeEvmFamilyTransaction,feeTokenPreference}.ts`, `publicApi/{near,tempo,evm}.ts`, `core/rpcClients/{near,evm}/` | Keep supported caller-side network operations separate from custody/signing; preserve nonce reporting, verification, and custom RPC behavior. |
@@ -318,8 +326,8 @@ operation path without exposing host construction to application callers.
   auth closure and remove shared imports that unnecessarily retain signing,
   export, recovery, or device-link execution.
 - Load chain-specific execution and worker/WASM assets when the selected
-  operation requires them. Preserve intentional prewarming and measure its
-  latency/transfer tradeoff explicitly.
+  operation requires them. Replace blanket worker warmup with the targeted
+  preparation below and measure its latency/transfer tradeoff explicitly.
 - Verify Rolldown output and package export paths for root, React, runtime, and
   hosted static assets. A dynamically imported module must have no other eager
   path into the same consumer graph.
@@ -329,6 +337,83 @@ operation path without exposing host construction to application callers.
 
 Deliverable: smaller observed wallet operation payloads with valid static asset
 paths and unchanged supported runtime behavior.
+
+#### Required workstream: targeted worker and WASM loading
+
+This work fixes the broad warmup path in addition to the application/host split.
+It does not require repartitioning the cryptographic binaries or adding a public
+loading option. Keep the operation dependency inventory in this document and
+derive production behavior from existing typed requests and selected capabilities.
+
+- [ ] **Map actual dependencies before editing warmup.** Trace every worker
+  creation, readiness wait, WASM fetch/init, and preparation call through
+  `SeamsWeb.prewarm`, host creation, `BrowserSigningSurface`, the warmup assembly,
+  `SignerWorkerManager`, and `WorkerTransport`. Include confirmation/session/export
+  workers outside `SIGNER_WORKER_KINDS`, registration preparation, Email OTP Yao,
+  restored-session presignature prefill, and pending-operation replay. Record
+  required assets by operation, signer set, and auth method, with the call site
+  that justifies each dependency.
+- [ ] **Remove unconditional all-worker prewarm.** Replace the host's generic
+  worker startup with preparation for the selected operation. Remove the
+  `prewarmWorkers()` loop over all worker kinds and obsolete broad readiness
+  waits/callers. A fresh idle host with no selected operation or pending resume
+  must not create signer/custody workers solely because its runtime was created.
+  Configuring several chains alone must not trigger every chain's workers.
+- [ ] **Keep first-use initialization authoritative.** Each operation must await
+  the workers/WASM it needs even when prewarming never ran or failed. Coalesce
+  concurrent initialization using the existing worker and WASM promise caches;
+  permit recovery from a failed initialization. Audit worker-ready signals that
+  currently swallow WASM errors: a ready thread must not be mistaken for
+  successfully initialized crypto. Keep best-effort preparation failure separate
+  from the operation's explicit failure result.
+- [ ] **Make preparation follow the selected flow.** Audit
+  `registrationPreparationPreload.ts`, `prewarmEcdsaRegistrationCrypto`,
+  `prewarmEmailOtpYao`, and eager/idle provider hooks. Start required preparation
+  while the user interacts with the selected auth/confirmation surface, preserving
+  browser user activation. A generic menu open must not preload all chains.
+  Define how existing public `prewarm` options map to this behavior; update the
+  intended-behavior spec, examples, and contracts for any observable change.
+- [ ] **Preserve shared ceremony requirements.** Registration and recovery can
+  require the custody ceremony module, which links both curve protocols. Select
+  assets by the actual ceremony and signer set rather than by chain name alone.
+  Ordinary NEAR signing must not warm unrelated EVM/Tempo workers; ordinary EVM
+  signing must not warm unrelated NEAR/Tempo workers. Record any genuine shared
+  dependency explicitly. Do not split custody proofs or alter protocol behavior
+  to satisfy a download assertion.
+- [ ] **Preserve worker lifetime and operation isolation.** Reuse initialized
+  workers when switching chains; create newly needed workers on demand. Cancelled
+  preparation must not terminate a worker used by another operation or discard
+  presignature state. Preserve existing cleanup, disposal, worker-origin changes,
+  and retry semantics. Do not add eviction policies or another worker registry.
+- [ ] **Verify assets and compression separately.** For each scenario report
+  fetched worker JS, WASM URLs, decoded bytes, and actual encoded transfer.
+  Identify aliases so inventory totals cannot be confused with observed loads.
+  Verify production WASM compression and caching; fix demonstrated delivery
+  problems within existing hosting configuration. Only propose binary/dependency
+  trimming after required-module measurements show an additional concrete issue.
+- [ ] **Prove selective loading in real E2E flows.** Extend the production-browser
+  evidence scenario with the matrix below. Capture worker creation plus actual
+  requests across the application, host, and worker contexts. Re-run with warm
+  caches and record first-auth, first-sign, and repeat-sign latency. Add behavioral
+  assertions only where existing coverage has a gap; add no unit/source-text tests.
+
+| Scenario | Required evidence |
+| --- | --- |
+| Fresh signed-out mount, idle, and generic auth menu | No speculative all-signer startup; distinguish UI assets from signer/custody assets. Use a clean profile with no pending recovery/registration work. |
+| NEAR-only passkey wallet: cold unlock, sign, reload, sign | Required NEAR/auth assets load and signing succeeds; unrelated EVM/Tempo workers and their WASM remain unfetched. |
+| EVM-only wallet: cold unlock, sign/broadcast, reload, sign | Required EVM/auth assets load; unrelated NEAR/Tempo workers and WASM remain unfetched. Include pending/absent NEAR account behavior. |
+| Tempo-only wallet: unlock and sign/broadcast | Required Tempo/auth dependencies are recorded; no speculative NEAR or unrelated EVM execution startup. |
+| Email OTP authentication and signing | Selected factor's required modules load; no passkey fallback or unrelated signer warmup. |
+| Multi-signer registration and recovery | Shared custody assets load when required; all configured signer results and post-recovery signing remain correct. |
+| Export and device linking | Deferred dependencies load when used; fresh export authorization and source/target activation still succeed. |
+| Existing multi-chain wallet: NEAR then EVM, cancelled preparation, retry | Additional workers load on demand and are reused; cancellation/retry does not corrupt another operation or presignature state. |
+
+Define each scenario's allowed worker/WASM set from the audited production flow
+before changing loading behavior. Use those sets in behavioral network/worker
+assertions, allowing shared modules only with a documented operation dependency.
+Keep the full inventory size separate from each measured load. Compare the same
+operation before/after; do not claim a saving by omitting a required feature or
+delaying its download beyond the measurement window.
 
 ### 5. Update consumers, documentation, and release inputs
 
@@ -395,6 +480,11 @@ Acceptance criteria:
    concrete environment blockers without weakening supported invariants.
 6. Obsolete composition, mode switches, and dead helpers are deleted. The client
    and host each have a single understandable construction path.
+7. Blanket signer-worker warmup is removed. The worker-loading scenario matrix
+   passes with real production assets, required first-use initialization, and
+   operation-specific downloads. Record reductions in worker/WASM transfer and
+   first-sign latency separately from application-JavaScript savings; evaluate
+   latency against the limits established before implementation.
 
 Relevant existing commands, run from `seams-wallet`:
 
