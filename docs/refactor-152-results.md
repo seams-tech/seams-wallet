@@ -3408,3 +3408,34 @@ node tests/e2e/regional-session-routing.e2e.mjs
 Receipt: `.artifacts/r152/shared-offers-20261003/regional-session-routing-evidence.json`.
 SHA-256: `01624443caa9428a6038d0a8b57d3e79ef11cb8ed36592fc9fbc7448c0abf9b4`.
 No deployment, reset or release occurred; 0.8.0 remains held.
+
+### October 3: competing Google offer candidates
+
+US and WEUR raced different candidates from the same shared offer. Exactly one
+claim succeeded. APAC repeated the winning candidate/intent successfully and
+rejected another intent. A stale record could not rewrite the chosen wallet, a
+claimed offer could not be abandoned for restart, and the previously abandoned
+offer rejected a late claim. Existing offer creation/retry and regional routing
+scenarios also passed.
+
+SDK build, public/private TypeScript, focused private lint, bloat check and the
+persistent wallet-home directory E2E passed. The new type fixture rejects a claim
+without an intent digest; its error annotation was corrected after TypeScript
+reported the expected error on the nested input line.
+
+The claims run through production Console/store SQL. The full auth-method/custody
+ceremony is not executed by this scenario; proof-to-claim integration is code-reviewed.
+Identity publication and offer completion remain separate operations for the next
+review. No hosted latency claim, deployment or release is made.
+
+Repeat from `seams-monorepo`:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/candidate-claims-20261003 \
+node tests/e2e/regional-session-routing.e2e.mjs
+```
+
+Receipt: `.artifacts/r152/candidate-claims-20261003/regional-session-routing-evidence.json`.
+SHA-256: `6fe601824cf0c1762dfe3e7a0c57c7bc0958d90f090e23a89dd5851a33e37154`.
+The directory also retains build/bloat logs and `wallet-home-evidence.json`.

@@ -51,8 +51,11 @@ The earlier measurements do not close that acceptance gate or justify release.
 - [x] Store hosted Google registration offers in authenticated Console authority;
   atomic creation reuses one live offer across regions. Verify retries, sequential
   restart, scope rejection, outages and stale writes after abandonment.
-- [ ] Complete candidate-selection and registration-completion concurrency review,
-  including races with restart, expiry and final home reservation.
+- [x] Claim one candidate and verified registration-intent digest atomically across
+  regions. Reject competing candidates/intents, stale selection writes and restart
+  after a claim; allow identical retries. Remove mutable selection helpers.
+- [ ] Complete registration-completion concurrency review, including shared identity
+  publication versus offer finalization, expiry and final home reservation.
 - [ ] Share passkey credential uniqueness and rate limits; finish linked-device
   coordination and internal/deferred enforcement.
 

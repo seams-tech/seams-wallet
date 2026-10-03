@@ -146,6 +146,27 @@ export class CloudflareD1GoogleEmailOtpRegistrationAttemptStore {
     return Boolean(row);
   }
 
+  async claimCandidate(input: {
+    readonly attemptId: string;
+    readonly candidateId: string;
+    readonly walletId: string;
+    readonly intentDigest: string;
+  }): Promise<RegistrationCandidateClaimResult> {
+    const changes = d1MutationChanges(
+      await emailOtpRegistrationAttemptRows
+        .claimCandidate(this.prepare, { ...input, nowMs: Date.now() })
+        .run(),
+    );
+    return changes === 1
+      ? { ok: true }
+      : {
+          ok: false,
+          code: 'registration_candidate_unavailable',
+          message:
+            'Registration offer is unavailable or already claimed by another candidate or intent',
+        };
+  }
+
   async read(attemptId: string): Promise<GoogleEmailOtpRegistrationAttemptRecord | null> {
     const row = await emailOtpRegistrationAttemptRows
       .select(this.prepare, attemptId)
@@ -173,3 +194,11 @@ export type GoogleEmailOtpRegistrationAttemptStore = Pick<
   CloudflareD1GoogleEmailOtpRegistrationAttemptStore,
   keyof CloudflareD1GoogleEmailOtpRegistrationAttemptStore
 >;
+
+export type RegistrationCandidateClaimResult =
+  | { readonly ok: true; readonly code?: never; readonly message?: never }
+  | {
+      readonly ok: false;
+      readonly code: 'registration_candidate_unavailable';
+      readonly message: string;
+    };

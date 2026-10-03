@@ -237,23 +237,6 @@ export function googleEmailOtpRegistrationOfferForResponse(
   };
 }
 
-export function pendingGoogleEmailOtpRegistrationAttemptWithSelectedCandidate(input: {
-  readonly record: PendingGoogleEmailOtpRegistrationAttemptRecord;
-  readonly candidate: GoogleEmailOtpRegistrationOfferCandidateRecord;
-  readonly updatedAtMs: number;
-}): PendingGoogleEmailOtpRegistrationAttemptRecord {
-  return pendingRegistrationAttemptRecord(
-    {
-      ...input.record,
-      walletId: input.candidate.walletId,
-      selectedCandidateId: input.candidate.candidateId,
-      collisionCounter: input.candidate.collisionCounter,
-      updatedAtMs: input.updatedAtMs,
-    },
-    input.record,
-  );
-}
-
 export function abandonedGoogleEmailOtpRegistrationAttemptRecord(input: {
   readonly record: PendingGoogleEmailOtpRegistrationAttemptRecord;
   readonly failureCode: 'owner_proof_binding_replaced' | 'offer_restarted_by_user';
@@ -363,19 +346,6 @@ function registrationAttemptRecord<
     expiresAtMs: fields.expiresAtMs,
     ...(fields.runtimePolicyScope ? { runtimePolicyScope: fields.runtimePolicyScope } : {}),
   };
-}
-
-/** Rebuilds a pending attempt from changed fields, keeping its state. */
-function pendingRegistrationAttemptRecord(
-  fields: GoogleEmailOtpRegistrationAttemptParseFields,
-  record: PendingGoogleEmailOtpRegistrationAttemptRecord,
-): PendingGoogleEmailOtpRegistrationAttemptRecord {
-  return record.state === 'started'
-    ? registrationAttemptRecord(fields, { state: 'started' })
-    : registrationAttemptRecord(fields, {
-        state: 'key_finalized',
-        finalizedPublicKey: record.finalizedPublicKey,
-      });
 }
 
 function terminalGoogleEmailOtpRegistrationAttemptRecord(input: {

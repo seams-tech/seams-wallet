@@ -997,3 +997,19 @@ state. Sequential restart abandons the old offer and later regional retries reus
 the replacement. Candidate selection, concurrent restart/completion, expiry and
 reservation reconciliation still need full acceptance; this checkpoint establishes
 shared storage and concurrent creation, not the whole registration lifecycle.
+
+### October 3: candidate claim boundary
+
+Signer migration 0043 and Console migration 0061 add a persistence-only
+`selection_digest` claim. `claimCandidate` atomically verifies live pending state,
+candidate membership and wallet identity, then binds the selected candidate to the
+verified registration-intent digest. The auth-method service calls it after proof,
+runtime-scope and duplicate-method checks and before returning authority. A repeated
+identical claim succeeds; another candidate or intent is rejected. Generic pending
+updates must preserve the selection, and cannot abandon a claimed offer. The old
+candidate-rewrite builder was deleted.
+
+The three-region composition races different candidates through the shared store;
+it does not execute the full custody ceremony. Shared identity publication and
+offer completion still need atomicity/reconciliation review, including expiry and
+home reservation. Do not count candidate claim storage as completed registration.

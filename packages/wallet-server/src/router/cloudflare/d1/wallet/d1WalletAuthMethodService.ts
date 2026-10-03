@@ -89,7 +89,6 @@ import { parseWalletIdForIntent } from '../registration/d1RegistrationCeremonyRe
 import type { GoogleEmailOtpRegistrationAttemptStore } from '../emailOtp/d1GoogleEmailOtpRegistrationAttemptStore';
 import {
   expiredGoogleEmailOtpRegistrationAttemptRecord,
-  pendingGoogleEmailOtpRegistrationAttemptWithSelectedCandidate,
 } from '../emailOtp/d1GoogleEmailOtpRegistrationRecords';
 import { runtimePolicyScopeKey } from '../../../../core/EmailOtpRecords';
 import { toRecordValue } from '../auth/d1RouterApiAuthBoundary';
@@ -3085,19 +3084,6 @@ export class CloudflareD1WalletAuthMethodService {
         };
       }
       if (
-        attempt.walletId !== selectedOfferCandidate.walletId ||
-        attempt.selectedCandidateId !== selectedOfferCandidate.candidateId ||
-        attempt.collisionCounter !== selectedOfferCandidate.collisionCounter
-      ) {
-        await this.googleEmailOtpRegistrationAttempts.put(
-          pendingGoogleEmailOtpRegistrationAttemptWithSelectedCandidate({
-            record: attempt,
-            candidate: selectedOfferCandidate,
-            updatedAtMs: Date.now(),
-          }),
-        );
-      }
-      if (
         runtimePolicyScopeKey(attempt.runtimePolicyScope) !==
         runtimePolicyScopeKeyForRegistrationIntent(input.intent.runtimePolicyScope)
       ) {
@@ -3130,6 +3116,13 @@ export class CloudflareD1WalletAuthMethodService {
           message: 'Email OTP auth method is already registered',
         };
       }
+      const claimed = await this.googleEmailOtpRegistrationAttempts.claimCandidate({
+        attemptId: attempt.attemptId,
+        candidateId: selectedOfferCandidate.candidateId,
+        walletId: finalWalletId,
+        intentDigest: input.expectedDigestB64u,
+      });
+      if (!claimed.ok) return claimed;
       return {
         ok: true,
         authority: {

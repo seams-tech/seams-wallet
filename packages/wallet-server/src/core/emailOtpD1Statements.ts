@@ -302,7 +302,11 @@ export const emailOtpRegistrationAttemptRows = {
         wallet_id, state, owner_proof_binding_digest, runtime_org_id, runtime_policy_key,
         offer_wallet_ids_json, record_json, created_at_ms, updated_at_ms, expires_at_ms
       ) AS (VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?))
-      INSERT INTO email_otp_registration_attempts
+      INSERT INTO email_otp_registration_attempts (
+        namespace, org_id, project_id, env_id, attempt_id, provider_subject, email,
+        wallet_id, state, owner_proof_binding_digest, runtime_org_id, runtime_policy_key,
+        offer_wallet_ids_json, record_json, created_at_ms, updated_at_ms, expires_at_ms
+      )
       SELECT * FROM candidate
       WHERE NOT EXISTS (
         SELECT 1 FROM email_otp_registration_attempts existing
@@ -321,6 +325,58 @@ export const emailOtpRegistrationAttemptRows = {
       registrationAttemptValues(record),
     ),
 
+  claimCandidate: (
+    prepare: ScopedD1Prepare,
+    input: {
+      readonly attemptId: string;
+      readonly candidateId: string;
+      readonly walletId: string;
+      readonly intentDigest: string;
+      readonly nowMs: number;
+    },
+  ) =>
+    prepare(
+      `WITH scope AS (SELECT ? AS namespace, ? AS org_id, ? AS project_id, ? AS env_id)
+    UPDATE email_otp_registration_attempts
+    SET wallet_id = ?, selection_digest = ?,
+      record_json = json_set(record_json,
+        '$.walletId', ?, '$.selectedCandidateId', ?,
+        '$.collisionCounter', (
+          SELECT json_extract(value, '$.collisionCounter')
+          FROM json_each(record_json, '$.offerCandidates')
+          WHERE json_extract(value, '$.candidateId') = ?
+        ), '$.updatedAtMs', MAX(updated_at_ms, ?)),
+      updated_at_ms = MAX(updated_at_ms, ?)
+    WHERE namespace = (SELECT namespace FROM scope)
+      AND org_id = (SELECT org_id FROM scope)
+      AND project_id = (SELECT project_id FROM scope)
+      AND env_id = (SELECT env_id FROM scope)
+      AND attempt_id = ? AND state IN ('started', 'key_finalized') AND expires_at_ms > ?
+      AND EXISTS (
+        SELECT 1 FROM json_each(record_json, '$.offerCandidates')
+        WHERE json_extract(value, '$.candidateId') = ? AND json_extract(value, '$.walletId') = ?
+      )
+      AND (selection_digest IS NULL OR (
+        selection_digest = ? AND wallet_id = ? AND json_extract(record_json, '$.selectedCandidateId') = ?
+      ))`,
+      [
+        input.walletId,
+        input.intentDigest,
+        input.walletId,
+        input.candidateId,
+        input.candidateId,
+        input.nowMs,
+        input.nowMs,
+        input.attemptId,
+        input.nowMs,
+        input.candidateId,
+        input.walletId,
+        input.intentDigest,
+        input.walletId,
+        input.candidateId,
+      ],
+    ),
+
   updatePending: (prepare: ScopedD1Prepare, record: GoogleEmailOtpRegistrationAttemptRecord) =>
     prepare(
       `WITH scope AS (SELECT ? AS namespace, ? AS org_id, ? AS project_id, ? AS env_id)
@@ -332,7 +388,10 @@ export const emailOtpRegistrationAttemptRows = {
         AND env_id = (SELECT env_id FROM scope)
         AND attempt_id = ?
         AND state IN ('started', 'key_finalized')
+        AND wallet_id = ?
+        AND json_extract(record_json, '$.selectedCandidateId') = ?
         AND NOT (state = 'key_finalized' AND ? = 'started')
+        AND (? <> 'abandoned' OR selection_digest IS NULL)
         AND updated_at_ms <= ?`,
       [
         record.walletId,
@@ -340,6 +399,9 @@ export const emailOtpRegistrationAttemptRows = {
         JSON.stringify(record),
         record.updatedAtMs,
         record.attemptId,
+        record.walletId,
+        record.selectedCandidateId,
+        record.state,
         record.state,
         record.updatedAtMs,
       ],

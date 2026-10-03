@@ -985,3 +985,13 @@ update cannot revive a terminal or deleted offer, or downgrade finalized state.
 Authority failures and mismatched runtime-policy scopes reject the operation.
 Private regional composition covers these guarantees; candidate selection and
 registration-completion concurrency remain R152 acceptance gates.
+
+### Google registration candidate claims
+
+After proof and scope validation, issuing registration authority claims one offer
+candidate for the verified registration-intent digest. Identical retries reuse
+that claim. A different candidate or intent cannot reuse the offer; stale writes
+cannot change its selected wallet. Restart is permitted before candidate claim and
+is rejected after the claim. Missing, terminal or expired offers cannot be claimed.
+Shared-store concurrency is covered by private regional composition; full ceremony
+completion and expiry/home reconciliation remain separate acceptance gates.

@@ -1134,3 +1134,13 @@ removed read-refresh writes and replaced lifecycle upserts with pending-only
 updates; stale writes cannot restore an abandoned offer. Candidate selection and
 completion/restart races remain release gates, alongside shared credential/limit
 authority, linking, internal/deferred routing and hosted acceptance. 0.8.0 stays held.
+
+### October 3: candidate claim checkpoint
+
+Review found mutable candidate selection could authorize competing wallets from
+one offer. Selection now atomically binds one candidate and verified intent digest;
+identical retries succeed. The E2E composition verifies one racing winner, another
+intent's rejection, stale selection-write rejection, abandoned-offer rejection,
+and inability to restart a claimed offer. Apply signer 0043 / Console 0061 before
+candidate deployment. Registration completion, identity publication, expiry/home
+reconciliation and the other R152 gates remain open; 0.8.0 stays held.
