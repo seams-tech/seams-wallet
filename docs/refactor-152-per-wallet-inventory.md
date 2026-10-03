@@ -1241,3 +1241,18 @@ calls at WEUR with a controlled planner generating independent canonical passkey
 preparations. It verifies one home row, identical responses/retries and rejection
 of recipient changes. Preparation HTTP authentication, actual target WebAuthn
 registration, source contribution and final installation remain open.
+
+### October 3: preparation HTTP authentication
+
+The regional scenario now supplies production route definitions and Console's
+publishable-key adapter/service to target-preparation HTTP requests. Keys use
+in-memory storage; their creation, hashing and origin/environment authentication
+execute production code. The scenario uses a valid `regional:dev` environment ID.
+Miniflare routes explicitly admit the two test Origin hosts so its local proxy
+reaches the product policy checks.
+
+Signed requests from APAC reach WEUR. Missing/invalid keys return 401; missing or
+blocked origins and a different environment return 403. An authenticated request
+returns the durable preparation, while a changed recipient returns 409. Requests
+do not allocate more preparations. Source planning remains controlled, and target
+WebAuthn registration, source contribution and final installation are still open.

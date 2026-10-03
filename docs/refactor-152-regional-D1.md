@@ -278,8 +278,12 @@ role RPC and cross-authority contract has a final owner and failure behavior.
 - [x] Verify concurrent target-preparation persistence at the selected home: two
   fresh planner results converge on one preparation, exact retry is stable and a
   changed recipient conflicts. This uses the production D1 provider with a
-  controlled planner after regional HTTP approval; preparation HTTP auth is open.
-- [ ] Verify target credential preparation, source contribution, committed package
+  controlled planner after regional HTTP approval.
+- [x] Verify signed target-preparation HTTP dispatch with production Console
+  publishable-key authentication backed by the in-memory key store. Missing/invalid
+  keys, missing/blocked origins and mismatched environments fail; accepted APAC
+  requests replay the WEUR preparation and recipient changes return 409.
+- [ ] Verify actual target WebAuthn registration, source contribution, committed package
   delivery and authority installation through hosted regional entry points,
   including acknowledgement loss and cleanup. Replace controlled source metadata
   and owner HTTP authentication in the final composed acceptance run.

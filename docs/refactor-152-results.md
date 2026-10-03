@@ -3908,3 +3908,34 @@ called directly after HTTP approval. Preparation HTTP authentication, real targe
 WebAuthn registration, source contribution, committed package delivery and final
 installation remain open. No geographic latency was measured. Release 0.8.0 remains
 held; no infrastructure was deployed.
+
+### 2026-10-03 — target-preparation HTTP authentication and regional replay
+
+Extended target preparation from direct provider calls to signed HTTP requests
+through the regional Worker entry point. Console's production publishable-key
+service and adapter create/hash/authenticate a key in an in-memory store; device
+request signatures, route definitions, HTTP checks, home dispatch and D1 persistence
+execute their production paths. Source planning remains controlled.
+
+The complete regional composition passes. An accepted APAC request executes at WEUR
+and returns the existing preparation. Missing/invalid publishable keys return 401;
+missing/blocked origins and a mismatched environment return 403. A changed delivery
+recipient returns 409. The planner still runs only twice for the original concurrency
+scenario; subsequent HTTP requests create no additional preparation rows.
+
+Receipt: private `.artifacts/r152/target-http-20261003/regional-session-routing-evidence.json`.
+SHA-256: `305e5fef5624bfbf777632bbcb79d8545f9722d45fe5d200b35964232313fadd`.
+Repeat in `seams-monorepo` using the built SDK candidate:
+`SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/target-http-20261003 node tests/e2e/regional-session-routing.e2e.mjs`.
+Focused ESLint and the public bloat ratchet passed. Logs are retained beside the
+receipt. No production source or shared domain type changed.
+
+Harness corrections: the environment now uses a valid `regional:dev` identifier
+instead of `test`; explicit Worker routes admit both test Origin hosts through
+Miniflare's local proxy so the product authentication policy receives the requests.
+These were fixture/infrastructure failures, not production authentication defects.
+
+This checkpoint does not verify real target WebAuthn registration, source
+contribution, committed package delivery or authority installation. Console key
+storage is in-memory, and hosted transport/latency acceptance remains open.
+No deployment or release was performed; 0.8.0 remains held.
