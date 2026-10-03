@@ -931,3 +931,27 @@ This closes challenge-based passkey entry routing, not global credential/provide
 uniqueness, provider discovery or full hosted unlock acceptance. Shared identity,
 pre-wallet linked-device coordination, internal/deferred home enforcement, terminal
 reconciliation/cleanup and hosted lifecycle/travel verification remain open.
+
+### October 3: explicitly selected Google login
+
+`/auth/google/verify` with `account_mode: login` and `wallet_id` now resolves that
+wallet's scoped home before constructing regional services. Invalid selections and
+register-mode selections are rejected; directory outages and conflicting Wallet
+Sessions fail closed. Provider token verification remains in the home handler.
+Requests without `wallet_id` retain their separate discovery/registration path,
+whose shared authority remains unfinished.
+
+Review found `resolveLoginSession` could fall back from a mismatched selected
+wallet to another locally linked/discovered wallet, or to registration after a
+miss. It now returns the precise `wallet_identity_mismatch` failure, with required
+selected-wallet and verified-provider fields. The new branch rejects registration
+fields and mismatched mode/code combinations in type fixtures. An explicit
+selection never silently changes wallet identity.
+
+The three-home composition uses the production request parser, resolver, D1
+identity store and D1 enrollment store. Valid selections succeed through foreign
+ingress; another valid account/wallet in the same home cannot substitute for the
+selection. Missing enrollment fails without registration; session conflicts and
+outages are rejected. Google token verification and enrollment ciphertext are
+controlled fixtures. Shared provider/credential uniqueness, discovery, linking,
+internal/deferred enforcement, terminal cleanup and hosted acceptance remain open.

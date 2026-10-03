@@ -199,6 +199,10 @@ role RPC and cross-authority contract has a final owner and failure behavior.
   factor-release requests by their wallet ID. Verify real challenge creation and
   one-use consumption across homes; signature/provider execution remains open.
   Require canonical auth paths so path aliases cannot bypass home dispatch.
+- [x] Route explicit-wallet Google login to the selected home. A missing or
+  mismatched selected enrollment fails without switching wallets or creating a
+  registration offer. Three-home composition exercises the production resolver
+  and D1 enrollment/identity stores; Google token verification is controlled.
 - [ ] Resolve wallet-less linked-device QR creation and polling through shared
   pre-wallet coordination, then bind the approved session to its owner's home.
   Inventory atomic claims, approval, delivery and terminal cleanup before moving stores.

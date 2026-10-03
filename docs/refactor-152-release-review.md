@@ -1093,3 +1093,13 @@ noncanonical auth paths bypassing exact-path dispatch. SDK build, type checks,
 focused lint, bloat and directory E2E pass; the results doc records the receipt.
 Global credential/provider uniqueness, discovery, linking, internal/deferred work,
 terminal cleanup and hosted acceptance remain release gates. 0.8.0 stays held.
+
+### October 3: selected Google login checkpoint
+
+Explicit Google wallet selection now determines home dispatch. Review found and
+fixed a resolver fallback that could select another wallet or enter registration
+when that selection failed. The failure has a precise domain branch and type
+fixtures. Three-region composition passes with production resolver/D1 stores and
+controlled Google proof verification. Build, type checks and focused lint pass.
+Provider discovery/global uniqueness, linked-device coordination, internal/deferred
+routing, terminal cleanup and hosted acceptance remain open; 0.8.0 stays held.

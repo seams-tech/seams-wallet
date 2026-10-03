@@ -3295,3 +3295,33 @@ Receipt: `.artifacts/r152/authentication-routing-20261003/regional-session-routi
 SHA-256: `4ec89bbd3fc1695f5ba80e7e11eb9788e9e54e358e31306812210dbc8543ae03`.
 The receipt includes the tested bundle hash and challenge observations. No deployment,
 reset or publication occurred. Release 0.8.0 remains held.
+
+### October 3: selected Google wallet composition
+
+All three explicit-wallet Google login cases reached their assigned homes from
+foreign ingress. The real session resolver and D1 enrollment/identity stores
+returned the selected wallet. An alternate valid account with a linked wallet in
+the same D1 returned `wallet_identity_mismatch` without changing that link. Deleting
+the selected enrollment produced the same failure instead of starting registration.
+Conflicting Wallet Sessions, register-mode selections and directory outages failed
+closed. Existing regional authentication, recovery, lifecycle and session scenarios
+also passed.
+
+SDK build, public/private TypeScript and focused lint passed. The initial public
+TypeScript failure identified an incomplete generic error result; a precise
+failure branch and invalid-state fixtures fixed it. Google token verification is
+controlled, enrollment ciphertext is synthetic, and this scenario makes no full
+provider, registration-discovery or hosted latency claim.
+
+Repeat from `seams-monorepo`:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/google-login-routing-20261003 \
+node tests/e2e/regional-session-routing.e2e.mjs
+```
+
+Receipt: `.artifacts/r152/google-login-routing-20261003/regional-session-routing-evidence.json`.
+SHA-256: `582a34070d6bd7be50398dc13fd3ef1edec00309455638c8ff16879600aa7e80`.
+The receipt includes the production bundle hash and selected-wallet observations.
+No deployment, reset or package publication occurred. 0.8.0 remains held.

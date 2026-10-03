@@ -533,6 +533,18 @@ type GoogleEmailOtpResolutionResult =
     }
   | {
       readonly ok: false;
+      readonly mode: 'wallet_identity_mismatch';
+      readonly code: 'wallet_identity_mismatch';
+      readonly walletId: string;
+      readonly providerSubject: string;
+      readonly message: string;
+      readonly offer?: never;
+      readonly registrationAttemptId?: never;
+      readonly expiresAtMs?: never;
+      readonly hasEmailOtpEnrollment?: never;
+    }
+  | {
+      readonly ok: false;
       readonly mode: 'wallet_id_collision' | 'registration_incomplete' | 'stale_identity_mapping';
       readonly code: 'wallet_id_collision' | 'registration_incomplete' | 'stale_identity_mapping';
       readonly walletId?: string;

@@ -422,6 +422,14 @@ export class CloudflareD1GoogleEmailOtpSessionResolver {
           hasEmailOtpEnrollment: true,
         };
       }
+      return {
+        ok: false,
+        mode: 'wallet_identity_mismatch',
+        code: 'wallet_identity_mismatch',
+        walletId: input.loginWalletId,
+        providerSubject: input.providerSubject,
+        message: 'The selected wallet does not match the verified Google account',
+      };
     }
     if (input.linkedWalletId) {
       const enrollment = await this.readActiveEnrollment({

@@ -252,6 +252,17 @@ CTA belong to the wallet origin.
 - The candidate's private regional composition contract verifies lookup, publication,
   races and failure responses. Full hosted Yao execution remains a release gate.
 
+### Explicit-wallet Google login
+
+- A Google login request carrying `wallet_id` selects that exact wallet and routes
+  to its home. The verified account must match its enrollment. A mismatch or
+  missing enrollment returns `wallet_identity_mismatch`; it cannot fall back to a
+  linked/discovered wallet or start registration. A supplied Wallet Session must
+  agree with the selected wallet.
+- Registration requests cannot carry a login wallet selection. Discovery without
+  a selected wallet remains a separate flow and requires shared provider authority
+  before regional release acceptance.
+
 ### Passkey authentication
 
 Expected behaviour:
