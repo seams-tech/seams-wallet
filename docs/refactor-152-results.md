@@ -4763,3 +4763,50 @@ regional lost-response/restart and transient cleanup assertions, independently
 placed Router stacks, and hosted acceptance remain open. Node forwarding bindings
 compose production handlers; they do not reproduce Cloudflare's network placement.
 No deployment or release occurred.
+
+### October 4: all-home real protocol and signer cleanup matrix
+
+The real composition now covers US home/WEUR linked-device ingress, WEUR home/APAC
+ingress and APAC home/US ingress. All three cases passed in 2.1 minutes total.
+Each registers a real wallet, installs a linked device and verifies NEAR/Tempo
+signing. Every case asserts exactly one wallet, three signers, two authorities and
+one installation at its home, with zero rows in those tables at the other homes.
+
+Cleanup assertions require zero rows in all seven signer workflow tables at all
+three homes: sessions, transcripts, target credentials, target-commit reservations,
+Email OTP grants, export-root transfers and authority allocations. The home retains
+exactly one delivery marked `cleanup_complete`/`complete`, with its sealed envelope
+removed and both cleanup and acknowledgement receipts retained. Foreign databases
+retain no delivery. Shared Console bootstrap/nonce retention is a separate check.
+
+Private implementation commit: `ac41118`. Artifacts:
+`.artifacts/r152/regional-matrix-20261004/`, with `protocol.log` and a
+`regional-real-evidence.json` in each home subdirectory. SHA-256:
+
+- US: `74d1e77e2ec1ec7b162ad730062d8f402042fe9907445f1117391bf4b35e38b5`.
+- WEUR: `4fecd618acf8ded96ade856cdfb02eb58219b3aab9dcf2fb8fcf83598c8aad9f`.
+- APAC: `9b60ac2dbe12b653ee1a0cc58ec543f2384fab66f8dcb6a3119fb6074422645e`.
+
+Each case has isolated Console/signer databases; this is an all-home matrix, not a
+simultaneous multiple-wallet namespace scenario. The local Router role stack is
+shared. Whole-suite duration does not establish geographic performance.
+
+The foreign-ingress lost-reply matrix also passed for all three homes (1.8 minutes
+whole-suite time). Each case discarded two successful HTTP 204 final acknowledgement
+responses after production cleanup, observed three identical acknowledgement bodies
+with three distinct device proofs, then verified NEAR/Tempo signing and the same
+exact home-only durable counts and cleanup assertions. The third reply completed
+browser linking; no duplicate installation appeared. This verifies response loss,
+not process restart. No production change was needed for this extension.
+
+Lost-reply artifacts: `.artifacts/r152/regional-lost-acks-20261004/`, with per-home
+`regional-real-evidence.json` receipts and `protocol.log`. SHA-256:
+
+- US: `9858368489d09ab0b969d0b43d9338a9877ea1c9666ce4d84aed635a8006fd69`.
+- WEUR: `39ffdbdd6808d85ef8ededc07f9f531af90a1a7926058da650c9b46bcd7b8ce9`.
+- APAC: `bcc3eb725ccd65e945976d633106a04f4361c7646831ac248891e788b7f260ce`.
+
+Reproduce from the private repository using `tests/scripts/run-regional-real.mjs`,
+setting `SEAMS_WALLET_SERVER_CANDIDATE` to the built public package and
+`SEAMS_TEST_ARTIFACT_DIR` to a fresh directory. The current matrix includes the
+lost replies. ESLint and the public bloat check passed. No deployment or release.

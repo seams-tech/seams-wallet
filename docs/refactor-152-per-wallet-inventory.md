@@ -1593,3 +1593,13 @@ Registration admission distinguishes the authenticated runtime environment key
 (`dev`) from the placement scope's full environment ID (`local-smoke-project:dev`).
 The Gateway supplies its validated deployment mode's key; ownership continues to
 use the full ID. Comparing those two representations had rejected valid setup.
+
+### October 4: all-home signer cleanup ownership
+
+Real linking now verifies US/WEUR/APAC homes, each through a foreign linked-device
+ingress. Each home retains exactly one wallet, three signers, two authorities and
+one installation; other signer databases contain none. After acknowledgement,
+seven transient signer workflow tables are empty everywhere. Only the home keeps
+the completed delivery, with its envelope removed and both completion receipts
+retained. This evidence covers signer cleanup. Console bootstrap and nonce
+retention, process restart and separately placed Router roles remain distinct gates.

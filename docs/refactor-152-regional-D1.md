@@ -48,10 +48,14 @@ older implementation checkpoints and must be read with their later evidence.
    Router-role verification. The October 4 composed browser E2E now uses real
    registration output, production Console placement and Gateway handlers, three
    isolated signer D1 databases and one shared local Router role stack. WEUR
-   registration followed by APAC-ingress linking and NEAR/Tempo signing passes;
-   wallet, signer, authority and installation rows exist only in WEUR. Repeat for
-   US/APAC homes, add lost-response/restart cases and assert transient cleanup
-   across all stores. Actual regional Router placement remains unverified.
+   registration followed by APAC-ingress linking and NEAR/Tempo signing passes.
+   The matrix now also passes for US home/WEUR ingress and APAC home/US ingress.
+   Exact wallet/signer/authority/installation counts exist only at each home; seven
+   signer workflow tables are empty after linking, sealed delivery is removed and
+   completion receipts remain only at home. Two lost final acknowledgement replies
+   through foreign ingress now pass for every home: exact replay, fresh proofs,
+   successful signing and no duplicate installation. Process restart, earlier
+   protocol response loss and shared Console retention remain to verify. Actual regional Router placement remains unverified.
    Local protocol contracts already prove response-loss cleanup; carry those
    assertions into this regional composition rather than infer them from signing.
    The real registration boundary is now checked before that local linking test:
