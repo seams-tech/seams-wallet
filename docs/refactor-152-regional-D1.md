@@ -265,9 +265,13 @@ role RPC and cross-authority contract has a final owner and failure behavior.
   mismatched selected enrollment fails without switching wallets or creating a
   registration offer. Three-home composition exercises the production resolver
   and D1 enrollment/identity stores; Google token verification is controlled.
-- [ ] Resolve wallet-less linked-device QR creation and polling through shared
-  pre-wallet coordination, then bind the approved session to its owner's home.
-  Inventory atomic claims, approval, delivery and terminal cleanup before moving stores.
+- [x] Resolve wallet-less linked-device QR creation and polling through shared
+  pre-wallet coordination. Atomically claim and bind the session to its owner's
+  home; import session/transcript/receipt together and retain the receipt through
+  cleanup. Three-home local composition covers races, rollback and retry.
+- [ ] Verify complete linked-device approval, delivery and authority installation
+  through hosted regional entry points, including terminal cleanup and retries.
+  Current composition controls owner authorization and device action execution.
 - [ ] Finish routing for passkey/external-identity/delivery locators and Wallet
   Runtime operations, deferred work, expiry reconciliation and deliberate
   fresh attempts. Remove the remaining single-D1 deployment assumptions only after

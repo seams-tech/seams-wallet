@@ -1,3 +1,4 @@
+import type { LinkedDeviceBootstrapResult } from '../../packages/wallet-server/src/core/deviceLinking/linkedDeviceBootstrap';
 import type { LinkedDeviceSessionServiceResultV1 } from '../../packages/wallet-server/src/core/deviceLinking/linkedDeviceSession';
 import type { LinkedDeviceSessionRecordV1 } from '../../packages/wallet-server/src/core/deviceLinking/linkedDeviceSessionRecord';
 
@@ -18,3 +19,11 @@ const failedSpread: LinkedDeviceSessionServiceResultV1 = {
   record,
 };
 void [conflictWithRecord, failedSpread];
+
+// @ts-expect-error Failed bootstrap reads cannot carry accepted session state.
+const bootstrapFailure: LinkedDeviceBootstrapResult = {
+  ok: false,
+  code: 'home_unavailable',
+  record,
+};
+void bootstrapFailure;

@@ -3780,3 +3780,42 @@ node tests/e2e/regional-session-routing.e2e.mjs
 Receipt: `.artifacts/r152/link-home-20261003/regional-session-routing-evidence.json`.
 SHA-256: `2595666d3ada210b4c2c9f893979e02cdf487baa4f68c66294cc4c29c37f52a3`. Logs are retained alongside it.
 No deployment or release occurred.
+
+### 2026-10-03 — shared linked-device QR bootstrap and regional import
+
+Implemented Console migration 0069 (shared QR bootstrap) and signer migration 0044
+(durable import receipts). Shared claim and immutable wallet-home publication now
+commit atomically. The home installs session, transcript and receipt atomically;
+receipts survive ordinary session cleanup. The prior independent linked-device
+publication path was removed.
+
+Three-home local Worker/D1 composition passed:
+
+- QR creation and polling across US, WEUR and APAC with zero unclaimed regional rows.
+- Three competing owners produce one committed regional claim.
+- Shared claim update failure rolls back the home route; a subsequent retry succeeds.
+- Shared outage, lost shared acknowledgement, failed local import and lost local
+  acknowledgement recover without duplicate claims.
+- Foreign homes cannot import the claimed snapshot; separate projects cannot read it.
+- Unclaimed cancellation is shared, claim/cancel contention has one consistent winner,
+  and claimed cancellation retains the home binding.
+- Removing local session/transcript rows while retaining the import receipt prevents
+  a later read from resurrecting the shared claim snapshot.
+- Existing traveling continuation routes and real request-proof nonce scenarios pass.
+
+Receipt: private checkout
+`.artifacts/r152/bootstrap-20261003/regional-session-routing-evidence.json`.
+SHA-256: `3127a53c304179650f8dc42152cd86bcd256423c69fe4fb45bc1bb45767acea2`.
+Repeat with `SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/bootstrap-20261003 node tests/e2e/regional-session-routing.e2e.mjs`
+in `seams-monorepo`, after building the SDK candidate.
+
+Validation: SDK build, Wallet state type fixtures, private candidate TypeScript
+check, focused private ESLint, and bloat ratchet all passed. Logs are retained with
+the local receipt. One test-fixture cleanup order was corrected to respect transcript
+foreign keys; one verification launch was repeated after its SDK build completed.
+
+This is local composition, without geographic latency measurements. Owner
+authorization and downstream device action execution are controlled; full hosted
+approval/delivery/authority installation is still open. Retained shared snapshots
+and import receipts require deliberate scoped reset handling. Terminal registration
+reconciliation and remaining internal/deferred routing remain release gates.

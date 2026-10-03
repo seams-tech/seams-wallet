@@ -1082,22 +1082,28 @@ back to a regional nonce store. A lost acknowledgement after consumption require
 fresh signed request with a fresh nonce. Separate project scopes remain independent.
 Standalone deployments use their configured local nonce authority.
 
-This rule covers proof replay protection. Hosted wallet-less QR session coordination
-and immutable transfer to the owner's wallet home remain R152 implementation gates.
+### Hosted linked-device bootstrap and claim home
 
-### Hosted linked-device claim home
+Unclaimed hosted QR sessions live in one tenant-scoped Console authority. Creation
+and polling through different regional Gateways see the same record. An exact
+creation retry preserves the existing state. Claim and preclaim cancellation or
+expiry race at this authority; only one terminal bootstrap transition succeeds.
 
-After owner authorization and validation of the existing QR record, claiming a link
-session must bind its identifier to the owner's wallet in the shared lifecycle
-directory before the regional session/transcript commit. Competing wallets cannot
-rebind it. Publication conflict returns 409; publication outage returns 503 without
-committing a local claim. A lost publication acknowledgement permits an identical
-owner retry. Cancellation retains the binding, preventing identifier reuse for a
-different wallet. The directory grants routing authority only; home handlers still
-verify each owner/device request and lifecycle transition.
+After owner authorization and QR validation, claiming atomically binds the session
+identifier to the owner's wallet and commits the winning claim snapshot. Competing
+wallets cannot rebind it. Conflict returns 409; authority unavailability returns 503.
+Generic lifecycle publication cannot create a linked-device binding. Cancellation
+before claim leaves no binding; cancellation after claim retains the binding.
 
-Claimed session polling, approval, target preparation, credential/contribution,
-Email OTP, receipt, cancellation and export-root requests route to that wallet home.
-A supplied Wallet Session must belong to the same wallet. Shared unclaimed QR state
-and crash-safe installation at the selected home remain required before hosted
-linking is release-ready; region-local unclaimed records do not satisfy that gate.
+The admitted home imports the winning session, claim transcript and durable import
+receipt in one local transaction. A failed import can be retried. Lost replies from
+either authority can be retried without creating a second claim. The import receipt
+survives session cleanup so a delayed read cannot recreate a deleted session.
+A different regional writer cannot import the claimed snapshot. Standalone
+composition uses its configured local session store.
+
+Claimed polling, approval, target preparation, credential/contribution, Email OTP,
+receipt, cancellation and export-root requests route to the assigned wallet home.
+A supplied Wallet Session must belong to that wallet. The directory grants routing
+authority only; home handlers verify each owner/device request and transition.
+Full linked-device installation remains a hosted acceptance gate.

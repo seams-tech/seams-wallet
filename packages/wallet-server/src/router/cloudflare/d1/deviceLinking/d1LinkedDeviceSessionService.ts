@@ -1,4 +1,3 @@
-import type { WalletLifecycleRoutingPublisher } from '../../../../authorization/lifecycleRouting';
 import type {
   LinkedDeviceOwnerAuthorizationPortV1,
   LinkedDeviceSessionServiceV1,
@@ -7,7 +6,6 @@ import { LinkedDeviceSessionServiceV1 as CoreLinkedDeviceSessionServiceV1 } from
 import type { D1LinkedDeviceSessionStoreV1 } from './d1LinkedDeviceSessionStore';
 
 export type D1LinkedDeviceSessionServiceOptionsV1 = {
-  readonly lifecycleRouting?: WalletLifecycleRoutingPublisher;
   readonly sessionStore: D1LinkedDeviceSessionStoreV1;
   readonly ownerAuthorization: LinkedDeviceOwnerAuthorizationPortV1;
 };
@@ -22,7 +20,6 @@ export function createD1LinkedDeviceSessionServiceV1(
 ): D1LinkedDeviceSessionServiceCompositionV1 {
   const sessionService = new CoreLinkedDeviceSessionServiceV1({
     store: options.sessionStore,
-    lifecycleRouting: options.lifecycleRouting,
     authorization: options.ownerAuthorization,
   });
   return { sessionService, sessionStore: options.sessionStore };

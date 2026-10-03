@@ -1179,3 +1179,19 @@ cleanup so shared bootstrap state cannot resurrect a deleted local session. Reso
 claim/cancel races in shared authority and retain enough state for replay after
 publication or local commit reply loss. No shared-to-local import was introduced in
 this checkpoint.
+
+### October 3: shared QR and atomic home import
+
+This replaces the preceding separate publication/local-claim sequence. Console
+migration 0069 owns unclaimed QR snapshots and their claimed/cancelled/expired
+bootstrap outcomes. Claim publishes the immutable linked-device route and winning
+snapshot in one D1 batch. Generic lifecycle publication rejects linked-device IDs.
+The assigned regional writer imports session, transcript and migration 0044 import
+receipt in one batch. Receipts survive regional session cleanup; shared terminal
+snapshots remain retained. Scoped operational resets must account for both tables.
+
+Three-home local composition verifies shared reads without regional QR rows,
+competing owners, foreign-writer rejection, claim/cancel contention, shared batch
+rollback, outages and lost acknowledgements, failed import retry and cleanup without
+resurrection. Owner authorization and downstream device actions remain controlled;
+full approval/delivery/authority installation remains an acceptance gate.

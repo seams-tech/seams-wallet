@@ -1,3 +1,4 @@
+import type { LinkedDeviceBootstrapStore } from '../../../../core/deviceLinking/linkedDeviceBootstrap';
 import type { LinkedDeviceRequestProofNonceStoreV1 } from '../../../../core/deviceLinking/requestProof';
 import type { WebAuthnSyncChallengeStore } from '../../../../core/WebAuthnSyncChallengeStore';
 import type { PasskeyCredentialClaims } from '../../../../core/passkeyCredentialClaims';
@@ -158,6 +159,7 @@ export interface CloudflareD1RouterApiAuthServiceOptions {
   readonly identityStore?: IdentityStore;
   readonly emailOtpRateLimitCounter?: EmailOtpRateLimitCounter;
   readonly credentialClaims?: PasskeyCredentialClaims;
+  readonly linkedDeviceBootstrap?: LinkedDeviceBootstrapStore;
   readonly linkedDeviceProofNonces?: LinkedDeviceRequestProofNonceStoreV1;
   readonly syncChallenges?: WebAuthnSyncChallengeStore;
   readonly googleRegistrationAttempts?: GoogleEmailOtpRegistrationAttemptStore;
@@ -355,6 +357,7 @@ export function normalizeD1RouterApiAuthOptions(
     credentialClaims: input.credentialClaims,
     syncChallenges: input.syncChallenges,
     linkedDeviceProofNonces: input.linkedDeviceProofNonces,
+    linkedDeviceBootstrap: input.linkedDeviceBootstrap,
     googleRegistrationAttempts: input.googleRegistrationAttempts,
     sessionRouting: input.sessionRouting,
     recoveryRouting: input.recoveryRouting,

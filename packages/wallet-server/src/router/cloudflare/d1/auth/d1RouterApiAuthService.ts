@@ -530,6 +530,7 @@ function createD1LinkedDeviceComposition(input: {
       });
     }
     const sessionStore = new D1LinkedDeviceSessionStoreV1({
+      bootstrap: input.options.linkedDeviceBootstrap,
       database: input.options.database,
       scope,
       now: nowV1,
@@ -554,7 +555,6 @@ function createD1LinkedDeviceComposition(input: {
     });
     ownerAuthorizationRoute = ownerAuthorizationProvider.ownerAuthorizationRoute;
     const sessionComposition = createD1LinkedDeviceSessionServiceV1({
-      lifecycleRouting: input.options.lifecycleRouting,
       sessionStore,
       ownerAuthorization: ownerAuthorizationProvider.ownerAuthorization,
     });
@@ -607,7 +607,7 @@ function createD1LinkedDeviceComposition(input: {
         authorityInstall.acknowledgeLocalAuthorityActivationV1.bind(authorityInstall),
     };
     deviceLinking = createD1LinkedDeviceRouteServiceV1({
-      lifecycleRouting: input.options.lifecycleRouting,
+      bootstrap: input.options.linkedDeviceBootstrap,
       proofNonces: input.options.linkedDeviceProofNonces,
       database: input.options.database,
       scope,

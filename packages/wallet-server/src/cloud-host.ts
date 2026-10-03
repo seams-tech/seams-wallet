@@ -250,7 +250,11 @@ export { parseGoogleLoginVerifyRequest } from './router/auth/authRequestValidati
 
 export { CloudflareD1GoogleEmailOtpRegistrationAttemptStore } from './router/cloudflare/d1/emailOtp/d1GoogleEmailOtpRegistrationAttemptStore';
 export type { GoogleEmailOtpRegistrationAttemptStore } from './router/cloudflare/d1/emailOtp/d1GoogleEmailOtpRegistrationAttemptStore';
-export { parseGoogleEmailOtpRegistrationAttemptRecord, parseGoogleEmailOtpRegistrationOfferCandidates, requireRuntimePolicyScope } from './router/cloudflare/d1/emailOtp/d1GoogleEmailOtpRegistrationRecords';
+export {
+  parseGoogleEmailOtpRegistrationAttemptRecord,
+  parseGoogleEmailOtpRegistrationOfferCandidates,
+  requireRuntimePolicyScope,
+} from './router/cloudflare/d1/emailOtp/d1GoogleEmailOtpRegistrationRecords';
 export { prepareD1TenantStatement } from './core/d1TenantStore';
 
 export { D1EmailOtpRateLimitCounter } from './router/cloudflare/d1/emailOtp/d1EmailOtpRateLimitStore';
@@ -258,7 +262,10 @@ export type { EmailOtpRateLimitCounter } from './router/cloudflare/d1/emailOtp/d
 
 export type { PasskeyCredentialClaims } from './core/passkeyCredentialClaims';
 
-export type { WebAuthnSyncChallengeStore, WebAuthnSyncChallengeRecord } from './core/WebAuthnSyncChallengeStore';
+export type {
+  WebAuthnSyncChallengeStore,
+  WebAuthnSyncChallengeRecord,
+} from './core/WebAuthnSyncChallengeStore';
 export { parseWebAuthnSyncChallengeRecord } from './router/cloudflare/d1/webauthn/d1WebAuthnRecords';
 
 export { webAuthnCredentialIdB64uFromCredential } from './router/auth/webAuthnCredentialCodecs';
@@ -267,3 +274,11 @@ export type { SyncChallengeFailure } from './core/WebAuthnSyncChallengeStore';
 
 export type { LinkedDeviceRequestProofNonceStoreV1 } from './core/deviceLinking/requestProof';
 export { D1LinkedDeviceRequestProofNonceStoreV1 } from './router/cloudflare/d1/deviceLinking/d1LinkedDeviceRequestProofNonceStore';
+
+export type {
+  LinkedDeviceBootstrapStore,
+  LinkedDeviceBootstrapResult,
+} from './core/deviceLinking/linkedDeviceBootstrap';
+export { parseLinkedDeviceSessionRecordV1 } from './core/deviceLinking/linkedDeviceSessionRecord';
+export type { LinkedDeviceSessionRecordV1 } from './core/deviceLinking/linkedDeviceSessionRecord';
+export { computeLinkedDeviceSessionClaimDigestV1 } from '@shared/device-linking/digests';

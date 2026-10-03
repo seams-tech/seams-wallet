@@ -1,3 +1,4 @@
+import { linkedDeviceBootstrapFailure } from '../../../../core/deviceLinking/linkedDeviceBootstrap';
 import type {
   ActiveWalletSessionV1,
   ActivateInstalledAuthorityResultV1 as WireActivateInstalledAuthorityResultV1,
@@ -388,6 +389,8 @@ export async function handleDeviceLinking(ctx: FetchRouterApiContext): Promise<R
         return assertNever(action);
     }
   } catch (error: unknown) {
+    const bootstrapFailure = linkedDeviceBootstrapFailure(error);
+    if (bootstrapFailure) return sessionResultResponse({ outcome: bootstrapFailure, message: 'Linked-device bootstrap authority failed' });
     if (error instanceof DeviceLinkingInputError) return invalidInputResponse(error.message);
     return json({ ok: false, code: 'internal', message: errorMessage(error) }, { status: 500 });
   }

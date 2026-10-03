@@ -1,4 +1,8 @@
 import {
+  requireLinkedDeviceBootstrapRecord,
+  type LinkedDeviceBootstrapStore,
+} from '../../../../core/deviceLinking/linkedDeviceBootstrap';
+import {
   computeLinkedDeviceApprovalDigestV1,
   computeLinkedDeviceSessionClaimDigestV1,
 } from '@shared/device-linking/digests';
@@ -50,6 +54,7 @@ import type { D1TenantScope } from '../../../../core/d1TenantStore';
 export type D1LinkedDeviceSessionScopeV1 = D1TenantScope;
 
 export type D1LinkedDeviceSessionStoreOptionsV1 = {
+  readonly bootstrap?: LinkedDeviceBootstrapStore;
   readonly database: D1DatabaseLike;
   readonly scope: D1LinkedDeviceSessionScopeV1;
   readonly now?: () => number;
@@ -94,10 +99,12 @@ type D1LinkedDeviceSessionStateCasV1 = D1LinkedDeviceSessionMutationV1 & {
 };
 
 export class D1LinkedDeviceSessionStoreV1 implements LinkedDeviceSessionStoreV1 {
+  private readonly bootstrap: LinkedDeviceBootstrapStore | undefined;
   private readonly database: D1DatabaseLike;
   private readonly scope: D1LinkedDeviceSessionScopeV1;
 
   constructor(options: D1LinkedDeviceSessionStoreOptionsV1) {
+    this.bootstrap = options.bootstrap;
     this.database = options.database;
     this.scope = normalizeScope(options.scope);
   }
@@ -109,20 +116,16 @@ export class D1LinkedDeviceSessionStoreV1 implements LinkedDeviceSessionStoreV1 
     if (normalized.state.state !== 'displaying_qr' || normalized.revision !== 1) {
       return invalidStateResult(normalized);
     }
+    if (this.bootstrap) {
+      const existing = requireLinkedDeviceBootstrapRecord(await this.bootstrap.create(normalized));
+      if (!existing) throw new Error('Bootstrap creation returned no session');
+      if (!linkedDeviceQrPayloadsEqualV1(existing.qrPayload, normalized.qrPayload))
+        return conflictResult(1, existing);
+      return { outcome: 'applied', record: existing };
+    }
     let insertError: unknown;
     try {
-      const result = await this.database
-        .prepare(
-          `INSERT INTO ${SESSION_TABLE} (
-             namespace, org_id, project_id, env_id, link_session_id,
-             link_public_key_b64u, device_public_key_b64u, state, record_json,
-             revision, expires_at_ms, claim_expires_at_ms, claim_digest_b64u,
-             approval_digest_b64u, authority_id, package_set_digest_b64u,
-             created_at_ms, updated_at_ms
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        )
-        .bind(...scopeValues(this.scope), ...sessionColumnValues(normalized))
-        .run();
+      const result = await this.sessionInsertStatement(normalized).run();
       if (d1ChangedRows(result) === 1) return { outcome: 'applied', record: normalized };
     } catch (error: unknown) {
       insertError = error;
@@ -139,6 +142,80 @@ export class D1LinkedDeviceSessionStoreV1 implements LinkedDeviceSessionStoreV1 
   }
 
   async getSessionV1(
+    linkSessionId: LinkDeviceSessionId,
+  ): Promise<LinkedDeviceSessionRecordV1 | null> {
+    const local = await this.readLocalSession(linkSessionId);
+    if (local || !this.bootstrap) return local;
+    const imported = await this.database
+      .prepare(
+        `SELECT 1 AS imported FROM linked_device_bootstrap_imports
+      WHERE namespace = ? AND org_id = ? AND project_id = ? AND env_id = ? AND link_session_id = ?`,
+      )
+      .bind(...scopeValues(this.scope), String(linkSessionId))
+      .first();
+    if (imported) return null;
+    const record = requireLinkedDeviceBootstrapRecord(await this.bootstrap.read(linkSessionId));
+    if (!record || record.state.state !== 'claimed') return record;
+    return this.importClaimedSession(record);
+  }
+
+  private sessionInsertStatement(normalized: LinkedDeviceSessionRecordV1): D1PreparedStatementLike {
+    return this.database
+      .prepare(
+        `INSERT INTO ${SESSION_TABLE} (
+             namespace, org_id, project_id, env_id, link_session_id,
+             link_public_key_b64u, device_public_key_b64u, state, record_json,
+             revision, expires_at_ms, claim_expires_at_ms, claim_digest_b64u,
+             approval_digest_b64u, authority_id, package_set_digest_b64u,
+             created_at_ms, updated_at_ms
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .bind(...scopeValues(this.scope), ...sessionColumnValues(normalized));
+  }
+
+  private async importClaimedSession(
+    record: LinkedDeviceSessionRecordV1,
+  ): Promise<LinkedDeviceSessionRecordV1> {
+    if (record.state.state !== 'claimed' || !record.claimTranscript || record.revision !== 2)
+      throw new Error('Invalid bootstrap claim');
+    const transcript = record.claimTranscript;
+    if ((await computeLinkedDeviceSessionClaimDigestV1(transcript.value)) !== transcript.digestB64u)
+      throw new Error('Invalid bootstrap claim digest');
+    try {
+      await this.database.batch([
+        this.sessionInsertStatement(record),
+        this.database
+          .prepare(
+            `INSERT INTO linked_device_session_transcripts
+          (namespace, org_id, project_id, env_id, link_session_id, transcript_kind, digest_b64u, transcript_json, created_at_ms)
+          VALUES (?, ?, ?, ?, ?, 'claim', ?, ?, ?)`,
+          )
+          .bind(
+            ...scopeValues(this.scope),
+            record.linkSessionId,
+            transcript.digestB64u,
+            JSON.stringify(transcript.value),
+            record.updatedAtMs,
+          ),
+        this.database
+          .prepare(
+            `INSERT INTO linked_device_bootstrap_imports
+          (namespace, org_id, project_id, env_id, link_session_id) VALUES (?, ?, ?, ?, ?)`,
+          )
+          .bind(...scopeValues(this.scope), record.linkSessionId),
+      ]);
+    } catch (error) {
+      const raced = await this.readLocalSession(record.linkSessionId);
+      if (raced && claimTranscriptMatchesDigest(raced, transcript.digestB64u)) return raced;
+      throw Object.assign(
+        new Error('Linked-device claim import is unavailable', { cause: error }),
+        { code: 'home_unavailable' },
+      );
+    }
+    return record;
+  }
+
+  private async readLocalSession(
     linkSessionId: LinkDeviceSessionId,
   ): Promise<LinkedDeviceSessionRecordV1 | null> {
     const row = await this.database
@@ -283,6 +360,24 @@ export class D1LinkedDeviceSessionStoreV1 implements LinkedDeviceSessionStoreV1 
     readonly nextRecord: LinkedDeviceSessionRecordV1;
     readonly nowMs: number;
   }): Promise<LinkedDeviceSessionMutationResultV1> {
+    if (this.bootstrap) {
+      const selected = requireLinkedDeviceBootstrapRecord(
+        await this.bootstrap.claim(input.nextRecord),
+      );
+      if (selected?.state.state !== 'claimed' || !selected.claimTranscript) {
+        throw Object.assign(new Error('Bootstrap claim returned invalid state'), {
+          code: 'home_unavailable',
+        });
+      }
+      const current = await this.readLocalSession(input.linkSessionId);
+      if (current)
+        return claimTranscriptMatchesDigest(current, selected.claimTranscript.digestB64u)
+          ? { outcome: 'replayed', record: current }
+          : conflictResult(input.expectedRevision, current);
+      const imported = await this.getSessionV1(input.linkSessionId);
+      if (!imported) return conflictResult(input.expectedRevision, null);
+      return { outcome: 'applied', record: imported };
+    }
     const current = await this.getSessionV1(input.linkSessionId);
     if (!current) return conflictResult(input.expectedRevision, null);
     if (claimTranscriptMatchesDigest(current, input.claimDigestB64u))
@@ -514,6 +609,14 @@ export class D1LinkedDeviceSessionStoreV1 implements LinkedDeviceSessionStoreV1 
     readonly nextRecord: LinkedDeviceSessionRecordV1;
     readonly nowMs: number;
   }): Promise<LinkedDeviceSessionMutationResultV1> {
+    if (this.bootstrap && !(await this.readLocalSession(input.linkSessionId))) {
+      const record = requireLinkedDeviceBootstrapRecord(
+        await this.bootstrap.finish(input.nextRecord),
+      );
+      if (!record) return conflictResult(input.expectedRevision, null);
+      return { outcome: 'applied', record };
+    }
+
     return this.applyTerminalStateCas({
       ...sessionMutationFieldsV1(input),
       expectedStates: PRECOMMIT_STATES,
@@ -528,6 +631,14 @@ export class D1LinkedDeviceSessionStoreV1 implements LinkedDeviceSessionStoreV1 
     readonly nextRecord: LinkedDeviceSessionRecordV1;
     readonly nowMs: number;
   }): Promise<LinkedDeviceSessionMutationResultV1> {
+    if (this.bootstrap && !(await this.readLocalSession(input.linkSessionId))) {
+      const record = requireLinkedDeviceBootstrapRecord(
+        await this.bootstrap.finish(input.nextRecord),
+      );
+      if (!record) return conflictResult(input.expectedRevision, null);
+      return { outcome: 'applied', record };
+    }
+
     const current = await this.getSessionV1(input.linkSessionId);
     if (!current) return conflictResult(input.expectedRevision, null);
     if (current.state.state === 'expired') return { outcome: 'replayed', record: current };

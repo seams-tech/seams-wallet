@@ -1,7 +1,4 @@
-import {
-  WalletLifecycleLocator,
-  type WalletLifecycleRoutingPublisher,
-} from '../../authorization/lifecycleRouting';
+import { linkedDeviceBootstrapFailure } from './linkedDeviceBootstrap';
 import type { DelegatedWalletAuthorityV1 } from '@shared/authorization/delegatedAuthority';
 import type {
   LinkPrecommitFailureV1,
@@ -226,19 +223,22 @@ export type LinkedDeviceSessionStoreV1 = {
   }): Promise<LinkedDeviceSessionMutationResultV1>;
 };
 
-export type LinkedDeviceSessionServiceResultV1 =
-  | LinkedDeviceSessionMutationResultV1
+type LinkedDeviceSessionFailureV1 =
   | {
       readonly outcome: 'home_conflict' | 'home_unavailable';
       readonly message: string;
       readonly record?: never;
     }
-  | { readonly outcome: 'invalid_input'; readonly message: string }
+  | { readonly outcome: 'invalid_input'; readonly message: string };
+
+export type LinkedDeviceSessionServiceResultV1 =
+  | LinkedDeviceSessionMutationResultV1
+  | LinkedDeviceSessionFailureV1
   | { readonly outcome: 'unauthorized'; readonly code: string; readonly message: string };
 
 type LinkedDeviceTargetCredentialMutationResultV1 =
   | LinkedDeviceSessionMutationResultV1
-  | { readonly outcome: 'invalid_input'; readonly message: string };
+  | LinkedDeviceSessionFailureV1;
 
 type LinkedDeviceSessionCreateInputV1 = {
   readonly payload: QrLinkedDeviceSessionPayloadV5;
@@ -321,16 +321,13 @@ type LinkedDeviceSessionActivationInputV1 = {
 };
 
 export class LinkedDeviceSessionServiceV1 {
-  private readonly lifecycleRouting: WalletLifecycleRoutingPublisher | null;
   private readonly store: LinkedDeviceSessionStoreV1;
   private readonly authorization: LinkedDeviceOwnerAuthorizationPortV1;
 
   constructor(input: {
-    readonly lifecycleRouting?: WalletLifecycleRoutingPublisher;
     readonly store: LinkedDeviceSessionStoreV1;
     readonly authorization: LinkedDeviceOwnerAuthorizationPortV1;
   }) {
-    this.lifecycleRouting = input.lifecycleRouting ?? null;
     this.store = input.store;
     this.authorization = input.authorization;
   }
@@ -348,7 +345,7 @@ export class LinkedDeviceSessionServiceV1 {
         buildUnclaimedSessionRecordV1(payload, nowMs),
       );
     } catch (error: unknown) {
-      return invalidInputResult(error);
+      return sessionFailureResult(error);
     }
   }
 
@@ -396,10 +393,6 @@ export class LinkedDeviceSessionServiceV1 {
         revision: existing.revision + 1,
         updatedAtMs: nowMs,
       });
-      if (this.lifecycleRouting) {
-        const publication = await publishClaimHome(this.lifecycleRouting, claim);
-        if (publication) return publication;
-      }
       return await this.store.claimSessionV1({
         linkSessionId: payload.linkSessionId,
         expectedRevision: existing.revision,
@@ -409,7 +402,7 @@ export class LinkedDeviceSessionServiceV1 {
         nowMs,
       });
     } catch (error: unknown) {
-      return invalidInputResult(error);
+      return sessionFailureResult(error);
     }
   }
 
@@ -472,7 +465,7 @@ export class LinkedDeviceSessionServiceV1 {
         nowMs,
       });
     } catch (error: unknown) {
-      return invalidInputResult(error);
+      return sessionFailureResult(error);
     }
   }
 
@@ -508,7 +501,7 @@ export class LinkedDeviceSessionServiceV1 {
         nowMs,
       });
     } catch (error: unknown) {
-      return invalidInputResult(error);
+      return sessionFailureResult(error);
     }
   }
 
@@ -571,7 +564,7 @@ export class LinkedDeviceSessionServiceV1 {
         nowMs,
       });
     } catch (error: unknown) {
-      return invalidInputResult(error);
+      return sessionFailureResult(error);
     }
   }
 
@@ -608,7 +601,7 @@ export class LinkedDeviceSessionServiceV1 {
         nowMs,
       });
     } catch (error: unknown) {
-      return invalidInputResult(error);
+      return sessionFailureResult(error);
     }
   }
 
@@ -642,7 +635,7 @@ export class LinkedDeviceSessionServiceV1 {
         nowMs,
       });
     } catch (error: unknown) {
-      return invalidInputResult(error);
+      return sessionFailureResult(error);
     }
   }
 
@@ -686,7 +679,7 @@ export class LinkedDeviceSessionServiceV1 {
         nowMs,
       });
     } catch (error: unknown) {
-      return invalidInputResult(error);
+      return sessionFailureResult(error);
     }
   }
 
@@ -718,7 +711,7 @@ export class LinkedDeviceSessionServiceV1 {
         nowMs,
       });
     } catch (error: unknown) {
-      return invalidInputResult(error);
+      return sessionFailureResult(error);
     }
   }
 
@@ -742,7 +735,7 @@ export class LinkedDeviceSessionServiceV1 {
         nowMs,
       });
     } catch (error: unknown) {
-      return invalidInputResult(error);
+      return sessionFailureResult(error);
     }
   }
 
@@ -769,7 +762,7 @@ export class LinkedDeviceSessionServiceV1 {
         nowMs,
       });
     } catch (error: unknown) {
-      return invalidInputResult(error);
+      return sessionFailureResult(error);
     }
   }
 
@@ -799,7 +792,7 @@ export class LinkedDeviceSessionServiceV1 {
         nowMs,
       });
     } catch (error: unknown) {
-      return invalidInputResult(error);
+      return sessionFailureResult(error);
     }
   }
 
@@ -954,10 +947,13 @@ function normalizeSessionReadInput(
   };
 }
 
-function invalidInputResult(error: unknown): {
-  readonly outcome: 'invalid_input';
-  readonly message: string;
-} {
+function sessionFailureResult(error: unknown): LinkedDeviceSessionFailureV1 {
+  const failure = linkedDeviceBootstrapFailure(error);
+  if (failure)
+    return {
+      outcome: failure,
+      message: 'Linked-device bootstrap authority is unavailable or conflicting',
+    };
   return {
     outcome: 'invalid_input',
     message:
@@ -970,24 +966,4 @@ function unauthorizedResult(
   message: string,
 ): { readonly outcome: 'unauthorized'; readonly code: string; readonly message: string } {
   return { outcome: 'unauthorized', code, message };
-}
-
-async function publishClaimHome(
-  publisher: WalletLifecycleRoutingPublisher,
-  claim: LinkedDeviceSessionClaimV1,
-): Promise<{
-  readonly outcome: 'home_conflict' | 'home_unavailable';
-  readonly message: string;
-} | null> {
-  try {
-    const result = await publisher.publishLifecycle({
-      walletId: claim.walletId,
-      locator: WalletLifecycleLocator.parse({ kind: 'linked_device', value: claim.linkSessionId }),
-    });
-    return result.ok
-      ? null
-      : { outcome: 'home_conflict', message: 'Link session belongs to another wallet home' };
-  } catch {
-    return { outcome: 'home_unavailable', message: 'Link session home authority is unavailable' };
-  }
 }
