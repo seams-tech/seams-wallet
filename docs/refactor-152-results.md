@@ -4855,3 +4855,27 @@ followed by signing, cleanup, linked-device revocation, rejected revoked signing
 and continued owner signing. Evidence: `.artifacts/r152/activation-retry-public-20261004/`
 and its adjacent log. This public run uses one local database; regional Router
 execution replay remains the next composed acceptance check.
+
+### October 4: regional Router execution replay with later reply losses
+
+The private matrix now reuses the public real Router execution fault controller.
+It discards the first successful source-preserving execution answer and requires
+an identical request marked for replay to return the same reservation. Each case
+also loses one activation reply and two final acknowledgement replies afterward.
+All US/WEUR/APAC home cases passed in 1.8 minutes total, including both-family
+signing, exact home-only installation counts, signer cleanup and shared Console
+routing/proof retention. No additional production change was required.
+
+Artifacts: `.artifacts/r152/regional-execution-replay-20261004/`, with `protocol.log`
+and per-home `regional-real-evidence.json`. SHA-256:
+
+- US: `47318661be9e5abbadae0a97b34f9a1c2e6b0fcbdb3aceed5d6b26cdd53cf5c2`.
+- WEUR: `41ce102ca9a0b049f420d99fa2f9f31569ee0d18591c8231330262daa2606483`.
+- APAC: `a685c911f96aeea5d0fbe055418bf91386f9604f26d8633f567ef0e049158553`.
+
+Reproduce with the private `tests/scripts/run-regional-real.mjs` runner and a fresh
+`SEAMS_TEST_ARTIFACT_DIR`. The checked-in matrix includes all three fault stages.
+Private lint and public bloat checks passed. This verifies protocol replay across
+three signer databases with one shared real local Router stack. Process restart,
+shared retention expiry, simultaneous mixed-home wallets and hosted geographic
+placement remain separate gates. No deployment or release occurred.

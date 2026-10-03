@@ -58,8 +58,10 @@ older implementation checkpoints and must be read with their later evidence.
    loss and two final-response losses now pass after giving acknowledgement its
    own bounded retry budget. Shared bootstrap/route retention and scoped final
    proof nonces are verified in Console; signer nonce tables remain empty.
-   Process restart, Router execution response loss in the regional composition,
-   and expiry pruning remain open. Actual regional Router placement is unverified.
+   Real Router execution response loss also passes in this composition, replaying
+   the same reservation before activation and acknowledgement losses. Process
+   restart and expiry pruning remain open. Actual regional Router placement is
+   unverified.
    Local protocol contracts already prove response-loss cleanup; carry those
    assertions into this regional composition rather than infer them from signing.
    The real registration boundary is now checked before that local linking test:
@@ -81,8 +83,8 @@ older implementation checkpoints and must be read with their later evidence.
    relay admission and preparation-to-recipient binding are fixed and verified.
    The admitted recipient/package write versus cancellation race also passes;
    recipient insertion now checks live session state atomically in D1. Full
-   regional failure/restart acceptance, remaining terminal reconciliation and
-   activation cleanup remain open.
+   regional restart acceptance and remaining terminal reconciliation remain open;
+   normal and response-loss activation cleanup now pass in the real matrix.
    Delayed target-preparation insertion after cancellation is also fixed: the
    insert requires the current session to be awaiting its target factor. The
    target-commit reservation and Email OTP grant insertion checks now pass their
@@ -90,7 +92,8 @@ older implementation checkpoints and must be read with their later evidence.
    Email OTP verification uses a controlled verifier in this regional scenario;
    live email delivery and complete regional factor installation remain open.
 2. Close full lifecycle acceptance and terminal reconciliation for registration,
-   discovery/unlock, recovery, export and add/revoke methods. Exercise browser
+   discovery/unlock, recovery, export and add/revoke methods, including multiple
+   real wallets sharing a namespace with different homes. Exercise browser
    proofs and shared credential/identity claims through commit, failure and replay.
 3. Finish the ownership/entry-point audit and retirement audit: unresolved mixed
    records, internal/deferred effects, cross-authority reconciliation, stale
