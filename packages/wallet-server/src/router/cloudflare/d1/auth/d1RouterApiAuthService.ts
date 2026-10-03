@@ -27,7 +27,6 @@ import {
   type WalletExecutionLaneProjectionResult,
   type WalletExecutionLaneProjectionSource,
 } from '../../../../core/signingLanes/WalletExecutionLaneProjection';
-import { D1IdentityStore } from '../../../../core/d1IdentityStore';
 import type { IdentityStore, LinkIdentityResult } from '../../../../core/IdentityStore';
 import type { D1PreparedStatementLike } from '../../../../storage/tenantRoute';
 import { normalizeLogger } from '../../../../core/logger';
@@ -65,6 +64,7 @@ import type {
 import type { AuthorizationService } from '../../../../authorization/service';
 import {
   createD1AuthorizationAssembly,
+  createD1IdentityStore,
   createD1WebAuthnAssembly,
   createD1WalletCustodyStore,
 } from './d1AuthorizationAssembly';
@@ -1508,14 +1508,7 @@ function createCloudflareD1RouterApiAuthAssembly(
     options,
   );
 
-  const identityStore = new D1IdentityStore({
-    database: options.database,
-    namespace: options.namespace,
-    orgId: options.orgId,
-    projectId: options.projectId,
-    envId: options.envId,
-    ensureSchema: false,
-  });
+  const identityStore = createD1IdentityStore(options);
   const linkIdentity = linkD1Identity.bind(undefined, identityStore);
   const linkedDeviceEd25519AuthorityReaderSlot: LinkedDeviceEd25519AuthorityReaderSlot = {
     current: null,

@@ -954,3 +954,13 @@ Key export follows the user's confirmation UI preference: modal or drawer. The
 `none` preference displays exported keys in a modal. An explicit export variant
 overrides the preference. Parent iframe geometry and the key viewer use the same
 resolved variant; closing either presentation disposes the displayed key material.
+
+### Hosted external identity authority
+
+Hosted Gateway identity links share one authority within authenticated tenant
+scope. Competing regions cannot claim the same provider subject for different
+wallets. Existing explicit sole-identity move and unlink rules apply across
+regions. An unavailable authority fails the operation without a regional fallback.
+Provider proofs are verified before identity-dependent authentication; wallet
+placement remains per wallet. Private regional composition covers storage and
+scope isolation; verified-provider discovery forwarding remains an R152 gate.

@@ -3325,3 +3325,29 @@ Receipt: `.artifacts/r152/google-login-routing-20261003/regional-session-routing
 SHA-256: `582a34070d6bd7be50398dc13fd3ef1edec00309455638c8ff16879600aa7e80`.
 The receipt includes the production bundle hash and selected-wallet observations.
 No deployment, reset or package publication occurred. 0.8.0 remains held.
+
+### October 3: shared identity composition
+
+The three regional clients competed for one provider subject: exactly one claim
+won, and all regions read the winner. Another authenticated project independently
+claimed the same subject without affecting the first project. Same-owner retry,
+sole-identity move restrictions, unlink and owner-bound cleanup passed. Authority
+outages rejected reads and writes; regional identity tables remained empty. The
+existing Google selected-wallet scenario also passed using the shared authority.
+
+SDK build, public/private TypeScript, focused private lint and public bloat check
+passed. The persistent wallet-home directory E2E also passed (one scenario); its
+receipt is retained beside this run as `wallet-home-evidence.json`. Writer admission and Google proof verification are controlled fixtures;
+this measures neither hosted latency nor completed discovery/registration routing.
+
+Repeat from `seams-monorepo`:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/shared-identity-20261003 \
+node tests/e2e/regional-session-routing.e2e.mjs
+```
+
+Receipt: `.artifacts/r152/shared-identity-20261003/regional-session-routing-evidence.json`.
+SHA-256: `e3d84414010902fcb62f17edc2412f896fbc8129762825451d75f971945b5048`.
+No deployment, reset or package publication occurred.

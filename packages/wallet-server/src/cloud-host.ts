@@ -241,3 +241,6 @@ export { parseWalletRecoveryOperationId } from '@shared/utils/domainIds';
 
 export { WalletLifecycleLocator } from './authorization/lifecycleRouting';
 export type { WalletLifecycleRoutingPublisher } from './authorization/lifecycleRouting';
+
+export { D1IdentityStore } from './core/d1IdentityStore';
+export type { IdentityStore } from './core/IdentityStore';

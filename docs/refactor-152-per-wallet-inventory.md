@@ -955,3 +955,15 @@ selection. Missing enrollment fails without registration; session conflicts and
 outages are rejected. Google token verification and enrollment ciphertext are
 controlled fixtures. Shared provider/credential uniqueness, discovery, linking,
 internal/deferred enforcement, terminal cleanup and hosted acceptance remain open.
+
+### October 3: shared identity authority
+
+Hosted Gateway auth composition injects `WalletHomeServiceClient` as its
+`IdentityStore`. Console `/identity` operations reuse `D1IdentityStore` and the
+`0059_wallet_shared_identity.sql` schema. Tenant scope comes from admitted writer
+context, never the submitted command. Claims may precede wallet reservation;
+provider proof remains the caller's responsibility. Only identity metadata lives
+here; enrollment/proof state stays regional. Service failures propagate without
+regional fallback. Standalone SDK deployments retain their configured local D1
+store. Runtime/internal entry enforcement, provider forwarding, shared offers,
+credential uniqueness and rate limits remain open.

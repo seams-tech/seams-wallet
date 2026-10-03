@@ -1,3 +1,4 @@
+import { D1IdentityStore } from '../../../../core/d1IdentityStore';
 import {
   CloudflareD1WebAuthnAuthService,
   type D1WebAuthnWalletManifestSource,
@@ -65,4 +66,16 @@ export function createD1WebAuthnAssembly(
     lifecycleRouting: options.lifecycleRouting,
   });
   return { webAuthnStore, webAuthnAuthService };
+}
+
+export function createD1IdentityStore(options: NormalizedCloudflareD1RouterApiAuthServiceOptions) {
+  if (options.identityStore) return options.identityStore;
+  return new D1IdentityStore({
+    database: options.database,
+    namespace: options.namespace,
+    orgId: options.orgId,
+    projectId: options.projectId,
+    envId: options.envId,
+    ensureSchema: false,
+  });
 }

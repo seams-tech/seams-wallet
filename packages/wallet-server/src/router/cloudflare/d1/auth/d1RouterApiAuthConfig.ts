@@ -1,3 +1,4 @@
+import type { IdentityStore } from '../../../../core/IdentityStore';
 import type { WalletLifecycleRoutingPublisher } from '../../../../authorization/lifecycleRouting';
 import type { WalletRecoveryRoutingPublisher } from '../../../../authorization/recoveryRouting';
 import type { WalletSessionRoutingPublisher } from '../../../../authorization/sessionRouting';
@@ -149,6 +150,7 @@ export type CloudflareD1GithubOAuthConfig = {
 };
 
 export interface CloudflareD1RouterApiAuthServiceOptions {
+  readonly identityStore?: IdentityStore;
   readonly sessionRouting?: WalletSessionRoutingPublisher;
   readonly lifecycleRouting?: WalletLifecycleRoutingPublisher;
   readonly recoveryRouting?: WalletRecoveryRoutingPublisher;
@@ -338,6 +340,7 @@ export function normalizeD1RouterApiAuthOptions(
   }
   return {
     database: input.database,
+    identityStore: input.identityStore,
     sessionRouting: input.sessionRouting,
     recoveryRouting: input.recoveryRouting,
     lifecycleRouting: input.lifecycleRouting,

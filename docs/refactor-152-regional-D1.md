@@ -39,6 +39,19 @@ separate. R6 must measure the completed hosted route across wallet homes and
 travel locations with frozen sources, explicit call budgets and retained failures.
 The earlier measurements do not close that acceptance gate or justify release.
 
+### October 3 checkpoint: shared external identities
+
+- [x] Route hosted Gateway identity lookup, claim, list, unlink and cleanup through
+  authenticated Console authority, retaining the existing D1 claim/move rules.
+- [x] Verify competing regional claims, tenant isolation and outage behavior in
+  repeatable three-region composition; keep regional identity stores unused.
+- [ ] Forward discovery after provider proof verification to the discovered home.
+- [ ] Share registration offers, passkey credential uniqueness and rate limits;
+  finish linked-device coordination and internal/deferred enforcement.
+
+This checkpoint is a prerequisite to discovery routing. It does not close the
+replacement phase. Hosted acceptance and release 0.8.0 remain pending.
+
 ### R0. Inventory before implementation
 
 The following source inventory was inspected on October 2. `private` means

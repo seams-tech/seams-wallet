@@ -1103,3 +1103,13 @@ fixtures. Three-region composition passes with production resolver/D1 stores and
 controlled Google proof verification. Build, type checks and focused lint pass.
 Provider discovery/global uniqueness, linked-device coordination, internal/deferred
 routing, terminal cleanup and hosted acceptance remain open; 0.8.0 stays held.
+
+### October 3: shared identity checkpoint
+
+Hosted Gateway identity operations now use Console authority. Three-region
+composition verifies one competing-claim winner, common reads, project isolation,
+existing move/unlink restrictions and fail-closed outages. The production Google
+resolver scenario now uses this shared store. This is local composition evidence;
+provider proof is controlled and discovery forwarding remains unfinished. Apply
+Console migration 0059 before any candidate deployment. No deployment or publication
+occurred; 0.8.0 remains held.
