@@ -151,8 +151,12 @@ role RPC and cross-authority contract has a final owner and failure behavior.
   Console refuses wallet reservations against an unverified regional catalog.
 - [ ] Finish regional deployment orchestration: render the catalog, all Gateway/
   Runtime bindings and named receiving entrypoints; collect proofs for the complete
-  set; inspect readiness across all resources. The existing operator
+  set. The existing operator
   collector still checks one resource and cannot activate the hosted regional set.
+- [x] Inspect readiness across the exact admitted resource set. Hosted Console uses
+  US/WEUR/APAC Runtime clients, each bound to its expected physical resource;
+  aggregate all wallet/ceremony counts and fail if any region cannot be inspected.
+  Regional service-binding generation remains part of deployment orchestration.
 - [x] Explicit protected activation renews admission for changed serving versions
   while preserving the managed browser credential. Reuse-only calls stay read-only;
   root/credential failures release unfinished cutovers, and a lost committed
@@ -1065,3 +1069,20 @@ activation-reply cleanup. Evidence and scope limits are in the results document.
 Regional configuration, complete-set proof collection and regional readiness still
 come next; shared locators, internal/deferred enforcement, expiry/fresh attempts
 and composed hosted/travel verification remain. No deployment or release occurred.
+
+### October 3: regional readiness checkpoint
+
+Private implementation commit: `0c4b923` on `seams-monorepo/dev`.
+
+Hosted readiness now inspects every resource through explicit US/WEUR/APAC Runtime
+bindings and verifies each response's resource identity. The composed E2E uses three
+actual Runtime Workers and separate local D1s; it blocks renewal for an APAC live
+ceremony or outage and verifies aggregate counts and cross-resource rejection.
+Three focused E2Es passed in 45.5s. Evidence and fixture limits are recorded in
+`refactor-152-results.md` under the matching checkpoint.
+
+Next: canonical regional target configuration, generated Gateway/Runtime service
+bindings and complete-set operator proof collection. The renderer does not yet emit
+the required regional Runtime bindings. Shared locators, internal/deferred home
+checks, expiry/fresh attempts and composed hosted/travel verification follow.
+No deployment or release occurred; 0.8.0 remains held.

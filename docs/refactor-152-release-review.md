@@ -932,3 +932,19 @@ This closes provisioner renewal only. Regional configuration/rendering, all-back
 operator proof collection, regional readiness, shared locators, internal/deferred
 home enforcement, expiry/fresh attempts and composed hosted/travel acceptance remain.
 No deployment, hosted reset or package publication occurred; 0.8.0 remains held.
+
+### October 3: regional Runtime readiness
+
+Completed resource-bound inspection across US/WEUR/APAC and exact candidate-resource
+coverage. Three production Runtime Workers on separate local D1s aggregate 3 source
+wallets, 6 target wallets and one live APAC ceremony. That ceremony and an APAC outage
+each block renewal; recovery allows retry. Wrong-resource responses and incomplete
+coverage fail. The three focused E2Es passed in 45.5s; targeted compilation and lint
+passed. See the matching results checkpoint for reproduction and fixture limitations.
+
+Receipt: `.artifacts/r152/regional-readiness-20261003/deployment-renewal-evidence.json`;
+SHA-256 `260c7e54fcc321810376e150bd85fe2b977631ba6d85950e8e979ca3c956c3bc`.
+The current renderer still lacks the regional Runtime bindings required by this
+composition. Regional configuration and complete-set operator proofs remain next,
+followed by shared locators, internal/deferred enforcement, expiry and composed
+hosted/travel acceptance. No deployment or publication occurred; 0.8.0 remains held.

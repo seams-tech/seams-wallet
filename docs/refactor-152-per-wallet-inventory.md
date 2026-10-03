@@ -620,7 +620,7 @@ they do not create an effective legacy ownership path.
 
 | Surviving source or configuration | Replacement or deletion |
 | --- | --- |
-| Private shared `tenant-deployment/index.ts`, server `tenantDeployment/{types,runtimeBinding,provisioning,d1,resourceVerification}.ts` | Binding/hash and activation now use a verified resource set (private `af96653`); explicit activation also renews writer admission while preserving the managed browser key. Finish regional readiness and complete-set operator proof collection; retain exact version/resource proof for each backend. |
+| Private shared `tenant-deployment/index.ts`, server `tenantDeployment/{types,runtimeBinding,provisioning,d1,resourceVerification}.ts` | Binding/hash and activation use a verified resource set (private `af96653`); explicit activation renews writer admission while preserving the managed browser key. Regional readiness now aggregates resource-bound Runtime inspections. Finish regional configuration and complete-set operator proof collection; retain exact version/resource proof for each backend. |
 | Private `d1GatewayWorker`, `d1WalletRuntimeWorker`, `d1ConsoleStagingWorker`, `d1LocalDevWorker`, and `render-d1-gateway-config.mjs` | Remove the assumption that `SEAMS_D1_HOME_ACCOUNT_ID` and `SEAMS_D1_HOME_DATABASE_ID` identify the home of every wallet in a tenant. A regional backend may still bind its own `SIGNER_DB` resource after admission. |
 | Private `deployment/wallet-system/targets.json`, `scripts/deploy-backend.mjs`, generated Wrangler config and smoke scripts | Render and verify US, WEUR and APAC resource/backend bindings; remove singular `signerD1` assumptions after the regional set replaces them. Do not commit locally rendered secrets or IDs. |
 | Public `hosted-wallet-gateway.ts`, Cloudflare runtime env and local hosted adapter | Resolve wallet ownership before selecting the regional `SIGNER_DB`; remove direct single-database composition for wallet-scoped paths. |
@@ -701,3 +701,20 @@ revocation, preserving a committed activation if its reply was lost. The compose
 D1 renewal E2E verifies replacement writer admission and these failure paths.
 This closes provisioner renewal only; the regional renderer, complete-set operator
 collector and multi-region readiness composition remain open.
+
+### October 3 regional-readiness checkpoint
+
+`runtimeInspection.ts` binds local and remote inspectors to explicit physical
+resources. Its composite rejects duplicate resources, aggregates all regional
+counts, and propagates any inspection failure. `productionReadiness.ts` requires
+exact resource-set coverage before issuing readiness evidence. Hosted Console
+constructs three regional clients from its validated catalog; the local host
+retains one explicitly identified local resource. Runtime inspection responses
+include their resource identity and reject another namespace.
+
+The renewal E2E now uses three production Runtime Workers with separate D1s. APAC
+live-ceremony and outage faults prevent activation; the old pointer survives and
+retry succeeds after recovery. Runtime cross-wiring and incomplete coverage fail.
+Configuration generation and complete-set provider/runtime challenge collection
+remain open. The new regional bindings are required by Console composition and
+must be rendered before hosted deployment. Remaining wallet-path work is unchanged.

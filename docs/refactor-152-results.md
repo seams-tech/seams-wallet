@@ -2860,3 +2860,52 @@ authenticates the real persisted browser key; it does not perform a wallet cerem
 Regional Runtime readiness aggregation is still outstanding. No geographical latency
 was measured and no infrastructure was deployed or reset. Regional rendering and
 complete-set proof collection remain next; release 0.8.0 remains held.
+
+### October 3: regional Runtime readiness
+
+Private implementation commit: `0c4b923` on `seams-monorepo/dev`.
+
+Readiness now requires the inspector's canonical resource set to match the candidate
+binding exactly. Hosted Console composes `WALLET_RUNTIME_US`, `WALLET_RUNTIME_WEUR`
+and `WALLET_RUNTIME_APAC`; each private Runtime inspection reports its physical
+resource, which its client verifies. Namespace mismatches, invalid counts, stale
+binding acknowledgments and resource mismatches fail. Runtime calls have a 15-second
+timeout. Aggregation sums source wallets, target wallets and live ceremonies over
+all resources; an unavailable region prevents readiness.
+
+The existing renewal E2E now runs three production Runtime Workers against three
+separate, fully migrated local signer D1 databases. Persisted occupancy fixtures
+produce **3 source wallets, 6 target wallets and 1 live APAC ceremony**; the expired
+WEUR ceremony is excluded. The APAC ceremony blocks renewal, as does an APAC transport
+503 after the ceremony is cleared. Clearing both allows renewal with the same
+browser credential. A cross-wired Runtime resource and incomplete inspector/candidate
+coverage are rejected. Previous six-writer replacement, partial-proof, root outage,
+revoked-key and lost-activation-reply assertions continue passing.
+
+The binding, renewal/readiness and challenge E2Es passed: **3 tests in 45.5s**.
+Candidate-backed server/type-fixture compilation including the changed E2Es/helpers
+and focused lint passed. Existing unit fixtures were adapted to required resource
+arguments; no unit tests were added or run. Earlier broad-suite limitations remain.
+
+Reproduce from `seams-monorepo`:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+  pnpm --dir tests exec playwright test -c playwright.relayer.config.ts \
+  relayer/tenant-deployment-binding.e2e.test.ts \
+  relayer/tenant-deployment-renewal.e2e.test.ts \
+  relayer/tenant-home-challenge.e2e.test.ts --reporter=line
+```
+
+Private evidence: `.artifacts/r152/regional-readiness-20261003/deployment-renewal-evidence.json`.
+SHA-256: `260c7e54fcc321810376e150bd85fe2b977631ba6d85950e8e979ca3c956c3bc`.
+The same directory retains compiler/lint/test logs, compiler configuration and receipt
+index. These are local correctness measurements. Occupancy rows, provider evidence,
+Router responses and the authenticated HTTP canary are fixtures; no wallet custody
+ceremony or geographic latency is measured.
+
+Remaining deployment work is canonical regional configuration and binding generation,
+plus complete-set operator proof collection. The current renderer does not emit the
+required regional Runtime bindings; this checkpoint is not deployable by itself.
+Shared locators, internal/deferred enforcement, expiry/fresh attempts and composed
+hosted/travel acceptance remain. No deployment, reset or package publication occurred.
