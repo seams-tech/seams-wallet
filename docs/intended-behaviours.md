@@ -995,3 +995,16 @@ cannot change its selected wallet. Restart is permitted before candidate claim a
 is rejected after the claim. Missing, terminal or expired offers cannot be claimed.
 Shared-store concurrency is covered by private regional composition; full ceremony
 completion and expiry/home reconciliation remain separate acceptance gates.
+
+### Google registration completion
+
+Registration completion atomically publishes the claimed wallet's provider link
+and marks its offer active within the identity authority. Failure rolls back both
+writes. Completion requires a live claimed offer; a conflicting multi-identity
+owner prevents publication. Concurrent and later acknowledgements succeed only
+while the active offer and identity link match the requested wallet. Pending-offer
+expiry cleanup preserves completed offers for acknowledgement retry. Generic
+record updates cannot bypass this transaction to activate an offer.
+
+Regional custody persistence and shared completion still require R152 interrupted
+registration/home-reservation acceptance before release.

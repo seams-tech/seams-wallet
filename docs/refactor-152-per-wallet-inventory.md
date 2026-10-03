@@ -1013,3 +1013,22 @@ The three-region composition races different candidates through the shared store
 it does not execute the full custody ceremony. Shared identity publication and
 offer completion still need atomicity/reconciliation review, including expiry and
 home reservation. Do not count candidate claim storage as completed registration.
+
+### October 3: atomic offer completion and identity publication
+
+`GoogleEmailOtpRegistrationAttemptStore.complete` owns a D1 batch containing
+conditional identity publication, offer activation and acknowledgement lookup.
+All statements use authenticated tenant scope and the claimed wallet. Publication
+requires a live pending offer with a candidate claim. Existing same-owner links
+and sole-identity moves retain the prior policy; an old owner with other identities
+blocks completion. The resolver delegates completion to this store, so hosted
+execution uses Console and standalone execution uses signer D1. Removed the old
+sequential link/put path and its unused active/failed record builders.
+
+Generic offer updates cannot mark an offer active. Completed offers survive the
+pending-offer expiry cleanup, allowing acknowledgement retry after a lost response.
+A retry requires the active offer and its matching identity link; it cannot move a
+link that changed after completion. Regional enrollment/custody persistence still
+precedes the shared transaction and requires interrupted-flow reconciliation with
+home reservation and expiry. This change closes the two shared writes, not that
+cross-database boundary.

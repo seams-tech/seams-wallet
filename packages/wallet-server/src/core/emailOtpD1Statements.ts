@@ -392,6 +392,7 @@ export const emailOtpRegistrationAttemptRows = {
         AND json_extract(record_json, '$.selectedCandidateId') = ?
         AND NOT (state = 'key_finalized' AND ? = 'started')
         AND (? <> 'abandoned' OR selection_digest IS NULL)
+        AND ? <> 'active'
         AND updated_at_ms <= ?`,
       [
         record.walletId,
@@ -401,6 +402,7 @@ export const emailOtpRegistrationAttemptRows = {
         record.attemptId,
         record.walletId,
         record.selectedCandidateId,
+        record.state,
         record.state,
         record.state,
         record.updatedAtMs,
@@ -456,6 +458,7 @@ export const emailOtpRegistrationAttemptRows = {
           AND org_id = ?
           AND project_id = ?
           AND env_id = ?
+          AND state <> 'active'
           AND (expires_at_ms <= ? OR state = 'expired')`,
       [nowMs],
     ),

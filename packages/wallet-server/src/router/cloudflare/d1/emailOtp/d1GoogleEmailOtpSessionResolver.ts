@@ -31,9 +31,7 @@ import {
 } from '../identity/d1IdentityRecords';
 import {
   abandonedGoogleEmailOtpRegistrationAttemptRecord,
-  activeGoogleEmailOtpRegistrationAttemptRecord,
   expiredGoogleEmailOtpRegistrationAttemptRecord,
-  failedGoogleEmailOtpRegistrationAttemptWithCode,
   googleEmailOtpRegistrationOfferForResponse,
   requireRuntimePolicyScope,
 } from './d1GoogleEmailOtpRegistrationRecords';
@@ -276,54 +274,7 @@ export class CloudflareD1GoogleEmailOtpSessionResolver {
         walletId.code === 'missing' ? 'Missing walletId' : 'Invalid walletId',
       );
     }
-    const attempt = await this.registrationAttempts.read(registrationAttemptId);
-    if (!attempt) {
-      return failure(
-        'registration_incomplete',
-        'Google Email OTP registration attempt expired or was not found',
-      );
-    }
-    if (attempt.expiresAtMs <= Date.now()) {
-      await this.registrationAttempts.put(
-        expiredGoogleEmailOtpRegistrationAttemptRecord({
-          record: attempt,
-          updatedAtMs: Date.now(),
-        }),
-      );
-      return failure('registration_incomplete', 'Google Email OTP registration attempt expired');
-    }
-    if (walletId.value !== attempt.walletId) {
-      return failure('wallet_identity_mismatch', 'registrationAttemptId does not match walletId');
-    }
-    if (attempt.state === 'active') return { ok: true };
-    if (attempt.state !== 'started' && attempt.state !== 'key_finalized') {
-      return failure(
-        'registration_incomplete',
-        'Google Email OTP registration attempt is no longer active',
-      );
-    }
-    const linked = await this.linkIdentity({
-      userId: attempt.walletId,
-      subject: `wallet:${attempt.providerSubject}`,
-      allowMoveIfSoleIdentity: true,
-    });
-    if (!linked.ok) {
-      await this.registrationAttempts.put(
-        failedGoogleEmailOtpRegistrationAttemptWithCode({
-          record: attempt,
-          failureCode: linked.code,
-          updatedAtMs: Date.now(),
-        }),
-      );
-      return failure(linked.code, linked.message);
-    }
-    await this.registrationAttempts.put(
-      activeGoogleEmailOtpRegistrationAttemptRecord({
-        record: attempt,
-        updatedAtMs: Date.now(),
-      }),
-    );
-    return { ok: true };
+    return this.registrationAttempts.complete({ attemptId: registrationAttemptId, walletId: walletId.value });
   }
 
   async validateRegistrationCandidateWallet(

@@ -3439,3 +3439,32 @@ node tests/e2e/regional-session-routing.e2e.mjs
 Receipt: `.artifacts/r152/candidate-claims-20261003/regional-session-routing-evidence.json`.
 SHA-256: `6fe601824cf0c1762dfe3e7a0c57c7bc0958d90f090e23a89dd5851a33e37154`.
 The directory also retains build/bloat logs and `wallet-home-evidence.json`.
+
+### October 3: atomic shared registration completion
+
+The regional composition rejected completion of an unclaimed offer and an identity
+move from an owner with another linked factor. After removing that factor, an
+injected D1 trigger failure during offer activation rolled back the preceding
+identity move: the old owner and pending offer were preserved. US and APAC then
+completed concurrently; both acknowledged the same active offer and new identity
+owner. Cleanup beyond the offer expiry retained completion acknowledgement.
+Wrong-wallet completion and stale pending writes failed.
+
+SDK build, public/private TypeScript, focused private lint, bloat and persistent
+wallet-home directory E2E passed. The type fixture's missing-digest error remains
+rejected after updating its annotation location for the expanded command union.
+This verifies the production resolver/shared store transaction with controlled
+regional composition, not the regional custody commit or hosted crash recovery.
+
+Repeat from `seams-monorepo`:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/registration-completion-20261003 \
+node tests/e2e/regional-session-routing.e2e.mjs
+```
+
+Receipt: `.artifacts/r152/registration-completion-20261003/regional-session-routing-evidence.json`.
+SHA-256: `9a7125c2b3d11dbd5e89bf6efba7764b209977a6a645f181d4e77074be7259b0`.
+The directory retains build/bloat logs and `wallet-home-evidence.json`.
+No deployment, reset or release occurred.

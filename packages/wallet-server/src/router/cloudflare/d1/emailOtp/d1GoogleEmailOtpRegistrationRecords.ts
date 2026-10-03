@@ -58,21 +58,6 @@ export function requireRuntimePolicyScope(input: unknown): RuntimePolicyScope {
   );
 }
 
-export function activeGoogleEmailOtpRegistrationAttemptRecord(input: {
-  readonly record: PendingGoogleEmailOtpRegistrationAttemptRecord;
-  readonly updatedAtMs: number;
-}): GoogleEmailOtpRegistrationAttemptRecord {
-  const terminal = terminalGoogleEmailOtpRegistrationAttemptRecord({
-    fields: { ...input.record, updatedAtMs: input.updatedAtMs },
-    state: 'active',
-    ...(input.record.state === 'key_finalized'
-      ? { finalizedPublicKey: input.record.finalizedPublicKey }
-      : {}),
-  });
-  if (!terminal) throw new Error('Failed to build active Google Email OTP registration attempt');
-  return terminal;
-}
-
 export function expiredGoogleEmailOtpRegistrationAttemptRecord(input: {
   readonly record: GoogleEmailOtpRegistrationAttemptRecord;
   readonly updatedAtMs: number;
@@ -88,23 +73,6 @@ export function expiredGoogleEmailOtpRegistrationAttemptRecord(input: {
       : {}),
   });
   if (!terminal) throw new Error('Failed to build expired Google Email OTP registration attempt');
-  return terminal;
-}
-
-export function failedGoogleEmailOtpRegistrationAttemptWithCode(input: {
-  readonly record: PendingGoogleEmailOtpRegistrationAttemptRecord;
-  readonly failureCode: string;
-  readonly updatedAtMs: number;
-}): GoogleEmailOtpRegistrationAttemptRecord {
-  const terminal = terminalGoogleEmailOtpRegistrationAttemptRecord({
-    fields: { ...input.record, updatedAtMs: input.updatedAtMs },
-    state: 'failed',
-    failureCode: input.failureCode,
-    ...(input.record.state === 'key_finalized'
-      ? { finalizedPublicKey: input.record.finalizedPublicKey }
-      : {}),
-  });
-  if (!terminal) throw new Error('Failed to build failed Google Email OTP registration attempt');
   return terminal;
 }
 

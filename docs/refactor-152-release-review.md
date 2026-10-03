@@ -1144,3 +1144,14 @@ intent's rejection, stale selection-write rejection, abandoned-offer rejection,
 and inability to restart a claimed offer. Apply signer 0043 / Console 0061 before
 candidate deployment. Registration completion, identity publication, expiry/home
 reconciliation and the other R152 gates remain open; 0.8.0 stays held.
+
+### October 3: registration completion checkpoint
+
+Shared identity publication and offer activation now commit in one D1 transaction.
+Composition injects failure at offer activation and verifies rollback of the prior
+identity move, then verifies successful concurrent completion and retry after
+pending-offer cleanup. Unclaimed/wrong-wallet completion and forbidden identity
+moves fail. Build, types, focused lint, bloat and regional composition pass.
+The regional custody commit/shared-completion boundary and home/expiry reconciliation
+remain open, as do credential/limit authority, linking, internal routing and hosted
+acceptance. No deployment or release occurred; 0.8.0 remains held.

@@ -90,6 +90,7 @@ export function createD1GoogleRegistrationAttempts(
     options.googleRegistrationAttempts ??
     new CloudflareD1GoogleEmailOtpRegistrationAttemptStore({
       prepare,
+      batch: options.database.batch.bind(options.database),
       orgId: options.orgId,
     })
   );

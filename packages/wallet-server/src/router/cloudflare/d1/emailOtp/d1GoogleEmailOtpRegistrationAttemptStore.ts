@@ -1,3 +1,5 @@
+import { completeGoogleRegistration } from './d1GoogleRegistrationCompletion';
+import type { D1DatabaseLike } from '../../../../storage/tenantRoute';
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
@@ -24,10 +26,20 @@ import {
 export class CloudflareD1GoogleEmailOtpRegistrationAttemptStore {
   private readonly prepare: ScopedD1Prepare;
   private readonly orgId: string;
+  private readonly batch: D1DatabaseLike['batch'];
 
-  constructor(input: { readonly prepare: ScopedD1Prepare; readonly orgId: string }) {
+  constructor(input: {
+    readonly prepare: ScopedD1Prepare;
+    readonly orgId: string;
+    readonly batch: D1DatabaseLike['batch'];
+  }) {
     this.prepare = input.prepare;
     this.orgId = input.orgId;
+    this.batch = input.batch;
+  }
+
+  complete(input: { readonly attemptId: string; readonly walletId: string }) {
+    return completeGoogleRegistration(this.prepare, this.batch, input);
   }
 
   async cleanupExpired(nowMs: number): Promise<number> {

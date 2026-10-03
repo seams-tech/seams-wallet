@@ -54,8 +54,11 @@ The earlier measurements do not close that acceptance gate or justify release.
 - [x] Claim one candidate and verified registration-intent digest atomically across
   regions. Reject competing candidates/intents, stale selection writes and restart
   after a claim; allow identical retries. Remove mutable selection helpers.
-- [ ] Complete registration-completion concurrency review, including shared identity
-  publication versus offer finalization, expiry and final home reservation.
+- [x] Publish the Google registration identity and activate its claimed offer in
+  one D1 transaction. Verify rollback, concurrent acknowledgement, identity-move
+  restrictions, and retry after pending-offer expiry cleanup.
+- [ ] Reconcile regional custody commit with shared completion, expired claims and
+  final home reservation; verify interrupted/resumed registration end to end.
 - [ ] Share passkey credential uniqueness and rate limits; finish linked-device
   coordination and internal/deferred enforcement.
 
