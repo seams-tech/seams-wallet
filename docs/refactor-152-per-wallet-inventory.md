@@ -1273,3 +1273,18 @@ supply a coherent source-authority reader and source-contribution preparation pl
 then verify the `registered`/`awaiting_source_contribution` transition and replay before
 committed package delivery and final installation. Browser-generated registration is
 real; the source authority and cryptographic provisioning remain outside this run.
+
+### October 3: successful target credential commit and retry
+
+The regional browser scenario now continues past the deliberate source failure.
+It reads the existing owner session, method and authority from WEUR D1, supplies
+controlled signer protocol material/contribution preparations, and sends the real
+WebAuthn credential through APAC. The production credential provider persists the
+registered target and the route advances the session to `awaiting_source_contribution`.
+US and APAC have no target credential row. Exact retry reports `replayed`, returns
+identical credential contents and session, and performs no second source read or plan.
+
+This closes local credential commit/retry composition. The fixture does not exercise
+the production source signer resolver or cryptographic contribution planner. Replace
+those controlled boundaries with actual owner material before claiming full device
+linking acceptance; contribution, package delivery and authority activation remain open.

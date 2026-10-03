@@ -3968,3 +3968,36 @@ planning must be composed next to verify `registered` and
 `awaiting_source_contribution`, followed by package delivery and authority activation.
 The virtual authenticator does not establish hardware-authenticator compatibility.
 No geographic latency was measured; no deployment or release occurred. 0.8.0 remains held.
+
+### October 3: browser target credential commit at its home
+
+The local three-home Worker/D1 composition now continues from a genuine Chromium
+virtual-authenticator registration through signed APAC credential HTTP into WEUR.
+After the existing failed-source/released-reservation checks, it verifies:
+
+- Successful credential persistence (`registered`) only in WEUR.
+- Session advancement to `awaiting_source_contribution`.
+- Exact retry returns `replayed` at both response levels, identical credential
+  contents and unchanged session; source read and contribution plan each run once.
+- US and APAC contain no target credential row for this link session.
+
+The fixture reads owner session, auth method and authority from D1. Source signer
+protocol material and contribution planning are controlled fixtures using canonical
+public builders/parsers. Production source signer resolution, real contribution,
+committed package delivery and final authority installation remain open. This run
+provides local correctness evidence, with no new geographic latency measurement.
+No production defect was demonstrated; test composition and outcome assertions were
+corrected without changing production behavior.
+
+Reproduce from `seams-monorepo`:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/target-commit-20261003 \
+node tests/e2e/regional-session-routing.e2e.mjs
+```
+
+Receipt: `.artifacts/r152/target-commit-20261003/regional-session-routing-evidence.json`.
+SHA-256: `ce564e431b5e20607717982ce384b49d83a1c400dae0143438d22fa9bd4e70c0`.
+Regional E2E, focused private ESLint and public `pnpm report:bloat --check` passed;
+logs are copied alongside the receipt. No deployment/publication; 0.8.0 remains held.

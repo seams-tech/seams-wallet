@@ -287,6 +287,11 @@ role RPC and cross-authority contract has a final owner and failure behavior.
   target verifier and signed credential HTTP at the home. Reject altered challenges
   and changed configuration; source lookup failure leaves the preparation unregistered,
   releases its commit reservation and permits a fresh-proof retry.
+- [x] Verify local signed target-credential persistence at WEUR with a real browser
+  response: advance to `awaiting_source_contribution`, persist no target row at
+  US/APAC, and replay the same credential/session without rereading or replanning.
+  Source session, method and authority use D1; signer protocol material and source
+  contribution planning remain controlled fixtures.
 - [ ] Complete successful target credential persistence, source contribution, committed package
   delivery and authority installation through hosted regional entry points,
   including acknowledgement loss and cleanup. Replace controlled source metadata
