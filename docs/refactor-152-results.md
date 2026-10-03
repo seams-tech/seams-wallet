@@ -4668,3 +4668,58 @@ integration requires real registration and matching live home Router roles,
 production installation/reservation/activation, and foreign-ingress receipt and
 acknowledgement retries with three-database assertions. No deployment or release
 occurred.
+
+## October 4: lost final acknowledgement replies
+
+Added final-acknowledgement response loss to the real-protocol installation E2E.
+The unfixed SDK stalled after the server had committed cleanup: a lost activation
+reply had already entered delivery retry, and a subsequent lost acknowledgement
+was logged without completing linking. Inspection also found that pending-ack
+replay returned without completing local authenticated state and the success event.
+This was classified as a production regression. The retained failing trace shows
+both connection resets and the delivery error; the stuck run was interrupted
+(exit 130), rather than reported as a completed failing test.
+
+The SDK now retains local activation completion until acknowledgement succeeds,
+retries the exact acknowledgement with a fresh device proof, and shares completion
+between the initial path and pending-ack replay. It preserves the existing durable
+pending acknowledgement and clears in-memory completion with flow cleanup/reset.
+
+Two isolated real Worker/D1 contracts passed:
+
+| Scenario | Result | Whole-test duration |
+| --- | --- | --- |
+| Lost Router execution reply, activation reply, and one final acknowledgement reply | Two successful acknowledgement responses; first intentionally discarded | 36.6s |
+| Lost Router execution reply and two final acknowledgement replies | Three successful acknowledgement responses; first two intentionally discarded; pending-completion path finishes | 37.8s |
+
+Both scenarios then verified NEAR and Tempo signatures, durable cleanup, linked
+device revocation, rejection of revoked-device signing and continued owner signing.
+These are test durations, not geographic or individual-operation latencies.
+SDK build, intended-contract type checking and bloat checks passed.
+
+The first fixed run exposed a valid cleanup assertion needing update: fresh
+post-cleanup acknowledgement proofs retain short-lived nonce replay guards. The
+test now requires precisely the observed retry nonces, while requiring zero rows
+in the seven transient workflow tables, a removed sealed envelope, complete cleanup,
+and retained installation/acknowledgement receipts. No nonce protection was removed.
+
+Artifacts retain the run's October 3 start-date directory:
+`.artifacts/r152/lost-acknowledgement-20261003/`.
+`before/` and `before.log` retain the unfixed trace; `combined-before-fixture-update/`
+retains the initial fixed run that found the nonce assertion issue. Passing evidence
+is under `combined/` and `repeated/`, with adjacent logs and build/types/bloat logs.
+SHA-256 of each `linked-device-lost-acknowledgement.json`:
+
+- Combined: `8b287346eee04cccbc6cf001f83dcbd8c9612b44cf4e6ac9f2cbc59b5cdc8f8a`.
+- Repeated: `304a91e26171fe148817c1262fe9591501baeb4582062067b30c3828005fb320`.
+
+Reproduce with the isolated intended runner against
+`passkey.device-linking.contract.test.ts`, selecting either named case:
+`a second device links with a passkey, signs NEAR and Tempo, and is revoked` or
+`a second device completes linking after two lost cleanup acknowledgement replies`.
+Enable trace persistence and select separate artifact directories as above.
+
+This closes local final-acknowledgement response-loss verification. Process restart,
+three-region cryptographic installation and hosted acceptance remain open. The
+regional harness still requires real registration and matching live Router roles.
+No deployment or release occurred.

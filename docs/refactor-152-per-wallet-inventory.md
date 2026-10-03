@@ -1565,3 +1565,17 @@ Regional integration must preserve this complete source and its matching live
 Router role state. Copying an isolated signer row or reusing synthetic authority
 material cannot establish this prerequisite. This check does not move records or
 close regional installation acceptance.
+
+### October 4: final acknowledgement replay ownership
+
+The target retains in-memory activation completion until acknowledgement succeeds;
+its persisted pending acknowledgement remains the durable recovery record. Exact
+acknowledgement retries use fresh device proofs and the server's retained cleanup
+receipt after the transient session is deleted. Successful replay must also finish
+the browser's authenticated state and linking success event.
+
+Post-cleanup device-proof retries create new `linked_device_request_proof_nonces`
+records. Those short-lived replay guards remain until expiry; they are distinct
+from the workflow records removed by the first acknowledgement. The local cleanup
+E2E checks their exact identities against observed retry proofs. Regional runs must
+account for shared nonce ownership separately from signer-D1 workflow cleanup.

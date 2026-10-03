@@ -62,6 +62,13 @@ older implementation checkpoints and must be read with their later evidence.
    metadata receipt records the actual scope and bindings; it contains no material
    payload or bearer credential. This establishes the source prerequisite, while
    replacing the regional harness fixture and wiring its Router roles remain open.
+   Lost final acknowledgement replies exposed a local completion bug: the SDK
+   could leave linking unfinished after server cleanup. The target now retains
+   local completion state, retries the exact acknowledgement with a fresh proof,
+   and finishes authenticated state and the success event after acknowledgement.
+   Cleanup verification distinguishes removed workflow records from short-lived
+   proof nonces created by post-cleanup retries. See the October 4 lost-final-reply
+   checkpoint in the results document for validation and remaining scope.
    Regional export-root relay delivery/replay/conflict and home-only D1 persistence
    now pass (October 3 export-root relay receipt in the results document). Terminal
    relay admission and preparation-to-recipient binding are fixed and verified.

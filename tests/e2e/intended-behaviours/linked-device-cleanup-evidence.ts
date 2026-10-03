@@ -1,9 +1,13 @@
 import { expect, type TestInfo } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { requireNonEmptyString } from '@shared/utils/validation';
 import { isolatedGatewayDatabasePath, type NodeSqliteModule } from './local-gateway-database';
 
-export async function verifyLinkedDeviceCleanup(testInfo: TestInfo): Promise<void> {
+export async function verifyLinkedDeviceCleanup(
+  testInfo: TestInfo,
+  expectedRetainedProofNonces: readonly string[],
+): Promise<void> {
   const sqliteModule: string = 'node:sqlite';
   const { DatabaseSync } = (await import(sqliteModule)) as NodeSqliteModule;
   const database = new DatabaseSync(await isolatedGatewayDatabasePath(), { readOnly: true });
@@ -32,7 +36,6 @@ export async function verifyLinkedDeviceCleanup(testInfo: TestInfo): Promise<voi
       'linked_device_target_commit_reservations',
       'linked_device_email_otp_grants',
       'linked_device_ed25519_export_root_transfers',
-      'linked_device_request_proof_nonces',
       'linked_device_authority_allocations',
     ]) {
       const rows = database.prepare(
@@ -43,6 +46,11 @@ export async function verifyLinkedDeviceCleanup(testInfo: TestInfo): Promise<voi
       remaining[table] = count;
       expect(count, table).toBe(0);
     }
+    // A fresh acknowledgement after cleanup retains its nonce until proof expiry.
+    const retainedNonces = database.prepare(
+      'SELECT request_nonce_b64u FROM linked_device_request_proof_nonces WHERE link_session_id = ?',
+    ).all(linkSessionId).map(readNonce);
+    expect(retainedNonces.sort()).toEqual([...expectedRetainedProofNonces].sort());
     const installations = database.prepare(
       'SELECT count(*) AS count FROM linked_device_authority_installations WHERE link_session_id = ?',
     ).all(linkSessionId);
@@ -52,8 +60,9 @@ export async function verifyLinkedDeviceCleanup(testInfo: TestInfo): Promise<voi
       host: process.env.SEAMS_INTENDED_WALLET_HOST ?? 'cloudflare',
       delivery,
       remaining,
+      retainedAcknowledgementProofNonces: retainedNonces.length,
       retainedInstallations: 1,
-      scope: 'Fresh local real-protocol installation after lost execution/activation responses and both-curve signing; regional isolation remains a separate gate.',
+      scope: 'Fresh local real-protocol installation with controlled lost replies and both-curve signing; regional isolation remains a separate gate.',
     }, null, 2);
     await testInfo.attach('linked-device-cleanup', { body: evidence, contentType: 'application/json' });
     const traceDirectory = process.env.SEAMS_INTENDED_TRACE_DIR;
@@ -64,4 +73,8 @@ export async function verifyLinkedDeviceCleanup(testInfo: TestInfo): Promise<voi
   } finally {
     database.close();
   }
+}
+
+function readNonce(row: Record<string, unknown>): string {
+  return requireNonEmptyString(row.request_nonce_b64u, 'proof nonce');
 }

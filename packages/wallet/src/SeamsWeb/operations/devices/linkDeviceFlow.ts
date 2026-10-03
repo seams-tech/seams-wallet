@@ -60,6 +60,7 @@ import {
   buildPasskeyEnvelopeFactor,
 } from '@shared/passkey-custody';
 import type { PasskeyEnvelopeId } from '@shared/utils/domainIds';
+import type { DeviceId } from '@shared/authorization/capabilityKinds';
 import { activateLinkedDeviceSignerRuntimesAfterLink } from '../auth/login';
 import {
   buildDevice2QrSessionPayloadV1,
@@ -105,7 +106,14 @@ import {
   zeroizeLiveBytes,
 } from './linkDeviceTargetActivation';
 
+type PendingLinkedActivationCompletion = {
+  readonly walletSession: ActiveWalletSessionV1;
+  readonly deviceId: DeviceId;
+  readonly runEpoch: number;
+};
+
 export class LinkDeviceFlow {
+  private pendingActivationCompletion: PendingLinkedActivationCompletion | null = null;
   private readonly options: StartDevice2LinkingFlowArgs;
   private readonly ports: Device2LinkingFlowPortsV1;
   private readonly getAuthenticationContext: GetLinkedDeviceAuthenticationContext | null;
@@ -1415,15 +1423,6 @@ export class LinkDeviceFlow {
     if (!registration || registration.walletId !== walletSession.walletId) {
       throw new Error('linked-device activation identity is unavailable');
     }
-    const activeSession: DeviceLinkingSession = {
-      ...session,
-      state: {
-        state: 'active',
-        deviceId: state.deviceId,
-        authorityId: walletSession.authorityId,
-        activatedAtMs: walletSession.issuedAtMs,
-      },
-    };
     /* Activation can complete from any delivery-state event; the transport may
        still deliver the remaining queued transitions afterwards. Those events
        must acknowledge the finished activation instead of re-entering it
@@ -1479,8 +1478,33 @@ export class LinkDeviceFlow {
     await this.ports.authorityInstallation.persistPendingActivationAcknowledgementV1({
       acknowledgement,
     });
+    const completion = { walletSession, deviceId: state.deviceId, runEpoch };
+    this.pendingActivationCompletion = completion;
     await this.sendActivationAcknowledgementV1(acknowledgement);
-    this.session = activeSession;
+    await this.completeAcknowledgedActivationV1(completion);
+  }
+
+  private async completeAcknowledgedActivationV1(
+    completion: PendingLinkedActivationCompletion,
+  ): Promise<void> {
+    this.assertCurrentRun(completion.runEpoch);
+    const { walletSession } = completion;
+    const session = this.requireSessionV1();
+    const registration = this.targetCredentialRegistrationResult;
+    const authenticationContext = this.getAuthenticationContext?.();
+    if (!registration || !authenticationContext) {
+      throw new Error('linked-device activation completion is unavailable');
+    }
+    this.session = {
+      linkSessionId: session.linkSessionId,
+      qrData: session.qrData,
+      state: {
+        state: 'active',
+        deviceId: completion.deviceId,
+        authorityId: walletSession.authorityId,
+        activatedAtMs: walletSession.issuedAtMs,
+      },
+    };
     authenticationContext.signingEngine.setWalletAuthenticated(
       linkedDeviceWalletAuthenticationState(walletSession, registration),
     );
@@ -1718,7 +1742,12 @@ export class LinkDeviceFlow {
     ) {
       throw new Error('pending linked-device acknowledgement identity is inconsistent');
     }
+    const completion = this.pendingActivationCompletion;
+    if (!completion || completion.walletSession.authorizationId !== pending.authorizationId) {
+      throw new Error('pending linked-device activation completion is unavailable');
+    }
     await this.sendActivationAcknowledgementV1(pending);
+    await this.completeAcknowledgedActivationV1(completion);
     return true;
   }
 
@@ -1730,9 +1759,14 @@ export class LinkDeviceFlow {
        tick reads the deleted session as a spurious not_found. The durable
        pending acknowledgement keeps replay possible without it. */
     await this.closeSessionSubscriptionV1();
-    await this.requireAuthenticatedTransport().acknowledgeLocalAuthorityActivationV1({
-      acknowledgement,
-    });
+    const transport = this.requireAuthenticatedTransport();
+    try {
+      await transport.acknowledgeLocalAuthorityActivationV1({ acknowledgement });
+    } catch (error: unknown) {
+      if (classifyLinkedDeviceDeliveryFailureV1(error)) throw error;
+      // Cleanup may already have committed. Retry its exact receipt with a fresh proof.
+      await transport.acknowledgeLocalAuthorityActivationV1({ acknowledgement });
+    }
     await this.ports.authorityInstallation.clearPendingActivationAcknowledgementV1({
       authorityId: acknowledgement.authorityId,
     });
@@ -1800,6 +1834,7 @@ export class LinkDeviceFlow {
   }
 
   private clearRunActivationStateV1(): void {
+    this.pendingActivationCompletion = null;
     this.clearTargetCredentialActivationState();
     this.clearEmailOtpTargetActivationState();
     this.resealedExportRoot = null;

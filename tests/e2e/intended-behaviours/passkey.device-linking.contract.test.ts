@@ -1,5 +1,6 @@
 import { verifyLinkedDeviceCleanup } from './linked-device-cleanup-evidence';
 import { verifyRegisteredLinkSource } from './linked-device-source-evidence';
+import { LostLinkedAcknowledgement } from './linked-device-acknowledgement-fault';
 import {
   expect,
   type Response,
@@ -119,48 +120,71 @@ class LinkedSigningMeasurements {
  * virtual authenticator. There is no camera; Device 1 receives the QR payload
  * exactly as Device 2 produced it.
  */
-test('a second device links with a passkey, signs NEAR and Tempo, and is revoked', async ({
-  harness,
-  browser,
-}, testInfo) => {
-  await harness.registerPasskeyWallet();
-  /* Linking pins the source signer manifest, so the NEAR signer must exist
-     before Device 1 approves; otherwise Device 2 would join without it. */
-  await harness.awaitNearReady();
+for (const scenario of [
+  {
+    name: 'a second device links with a passkey, signs NEAR and Tempo, and is revoked',
+    loseActivation: true,
+    lostAcknowledgements: 1,
+  },
+  {
+    name: 'a second device completes linking after two lost cleanup acknowledgement replies',
+    loseActivation: false,
+    lostAcknowledgements: 2,
+  },
+] as const) {
+  test(scenario.name, async ({
+    harness,
+    browser,
+  }, testInfo) => {
+    await harness.registerPasskeyWallet();
+    /* Linking pins the source signer manifest, so the NEAR signer must exist
+       before Device 1 approves; otherwise Device 2 would join without it. */
+    await harness.awaitNearReady();
 
-  await verifyRegisteredLinkSource(testInfo);
+    await verifyRegisteredLinkSource(testInfo);
 
-  const device2 = await harness.openLinkedDevice(browser);
-  /* The Router runs Device 2's target registration and reserves its
-     material, but the Gateway loses the Router's answer. The Gateway's retry
-     is marked as the Router's replay, and the Router answers it from that run
-     with the same reservation, running nothing again. */
-  const lostExecute = await harness.loseLinkExecuteRouterResponseOnce();
-  /* Device 2's activation reaches the Gateway, which activates its authority
-     and both curves' material, but the answer is lost. Device 2's own retry
-     must get that same activation: linking still lists exactly one device,
-     and the signing below uses the one set of material. */
-  const lostActivation = await device2.loseLinkedActivationResponseOnce();
-  try {
-    await harness.linkDeviceWithPasskey(device2);
-  } finally {
-    await lostActivation.release();
-    await lostExecute.release();
-  }
-  lostExecute.assertReplayed();
-  lostActivation.assertReplayed();
+    const contexts = browser.contexts();
+    const device2 = await harness.openLinkedDevice(browser);
+    const lostAcknowledgement = new LostLinkedAcknowledgement(
+      newlyOpenedContext(browser, contexts),
+      scenario.lostAcknowledgements,
+    );
+    await lostAcknowledgement.arm();
+    /* The Router runs Device 2's target registration and reserves its
+       material, but the Gateway loses the Router's answer. The Gateway's retry
+       is marked as the Router's replay, and the Router answers it from that run
+       with the same reservation, running nothing again. */
+    const lostExecute = await harness.loseLinkExecuteRouterResponseOnce();
+    /* Device 2's activation reaches the Gateway, which activates its authority
+       and both curves' material, but the answer is lost. Device 2's own retry
+       must get that same activation: linking still lists exactly one device,
+       and the signing below uses the one set of material. */
+    const lostActivation = scenario.loseActivation
+      ? await device2.loseLinkedActivationResponseOnce()
+      : null;
+    try {
+      await harness.linkDeviceWithPasskey(device2);
+    } finally {
+      await lostAcknowledgement.release();
+      await lostActivation?.release();
+      await lostExecute.release();
+    }
+    lostExecute.assertReplayed();
+    lostActivation?.assertReplayed();
+    await lostAcknowledgement.verify(testInfo);
 
-  /* Device 2's own session signs every signer family the source authority
-     had, and the signatures recover to the wallet's registered keys. */
-  await device2.signNearTransaction('post_device_link');
-  await device2.signTempoTransaction('post_device_link');
-  await verifyLinkedDeviceCleanup(testInfo);
+    /* Device 2's own session signs every signer family the source authority
+       had, and the signatures recover to the wallet's registered keys. */
+    await device2.signNearTransaction('post_device_link');
+    await device2.signTempoTransaction('post_device_link');
+    await verifyLinkedDeviceCleanup(testInfo, lostAcknowledgement.retainedProofNonces());
 
-  await harness.revokeLinkedDeviceWithOwnerPasskey();
-  await device2.assertRevokedDeviceCannotSign();
-  /* Revocation retires only Device 2's authority; Device 1 keeps signing. */
-  await harness.signTempoTransaction('post_registration');
-});
+    await harness.revokeLinkedDeviceWithOwnerPasskey();
+    await device2.assertRevokedDeviceCannotSign();
+    /* Revocation retires only Device 2's authority; Device 1 keeps signing. */
+    await harness.signTempoTransaction('post_registration');
+  });
+}
 
 /**
  * A linked device holds full owner authority, including linking. On a wallet

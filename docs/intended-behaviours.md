@@ -822,6 +822,10 @@ Expected behaviour:
 - Device inventory is derived from active wallet authorities with
   device-link provenance and their exact auth methods. A completed link
   session is temporary workflow state and is deleted after acknowledgement.
+- Losing the final acknowledgement reply after server cleanup preserves the local
+  activation completion. The target retries the exact acknowledgement with a fresh
+  device proof and completes its authenticated state and success event without
+  repeating signer installation or target-factor activation.
 - A Passkey card displays server-derived authenticator metadata when it is
   available. An Email OTP card displays `Email OTP` and makes no browser,
   operating-system, provider, transport, sync, or hardware claim.
