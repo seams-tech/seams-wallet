@@ -5398,3 +5398,60 @@ runner in **56.6 seconds**. Its protocol log, trace and receipts are under priva
 ESLint, formatting and the public bloat check passed. Bloat output is retained at
 public `.artifacts/r152/passkey-process-restart-bloat-20261004.log`. The tests and
 runner extension are committed in private `seams-monorepo` revision `fbfb7fe`.
+
+### October 4: linked-device activation and acknowledgement across process restarts
+
+The linked-device browser matrix passed **3 cases in 1.8 minutes**. Home/ingress
+pairs are US→WEUR, WEUR→APAC and APAC→US. Each case first proves that a lost Router
+execution answer replays the same reservation, then restarts Gateway/Console and
+its D1 runtime after each of three commits: activation (HTTP 200), first final
+acknowledgement (HTTP 204), and its replay (HTTP 204). Each committed reply is
+concealed until the replacement process has reopened the same four databases.
+
+Across **nine process replacements**, every old process exits successfully and
+the PID chain advances. Activation has exactly two attempts with an identical
+receipt and active response. Final acknowledgement has exactly three attempts,
+the same body, three fresh device proofs and three HTTP 204 results. The linked
+device then signs NEAR and Tempo successfully.
+
+Each home retains one wallet, three signers, two authorities and exactly one
+linked-device installation. Foreign signer databases contain none of those rows.
+Transient workflow rows are removed, the sealed delivery is cleared, and cleanup
+and acknowledgement receipts remain at home. Shared bootstrap routing and final
+proof nonces remain in Console; signer nonce tables are empty. Fresh Gateway
+processes observe no further source-preserving Router execution. The existing
+fault recorder names that untouched state `router_execute_not_observed`; the
+receipt records it for each replacement after the original proved Router replay.
+
+The driver preserves only test observations, fault counters and prior Router
+replay evidence across restarts. Production handlers and bindings reload from D1.
+No production fix was required. These are orderly Gateway/Console restarts after
+commit; Router roles remain running, with crashes during transactions and hosted
+regional placement still outside this evidence.
+
+Private artifacts: `.artifacts/r152/link-process-restart-20261004/`, containing
+protocol/lint/format logs, lifecycle traces and per-home receipts. SHA-256:
+
+| Home | `regional-real-evidence.json` | `restart-evidence.json` |
+| --- | --- | --- |
+| US | `a932e449b1309f2680424132bc1663bc05ce0662137f0f6028d9be3e5facc7cf` | `ce512c35bf1b4fb80cca6116692bebfe24a0d50f0560dabdadba31a77ef5929a` |
+| WEUR | `d5f112f1bc35d2e9296b742556c1af3123bfa82732f61651b9481e3fae61a442` | `f2d1edda3512f3c862b15e772dd90b8c582c160ec5d5c806713a18483436a25c` |
+| APAC | `08c41ce359329fe3aee6e1b636a1840a5a60f2df164def5aa1beafa6fd14ea5e` | `46bfb49130efe9ae2b361950affc76d62f0b9d5471dfbe7593065db9c4fa08d6` |
+
+Reproduce with the private regional runner's `--grep 'linked signing'`, using the
+candidate/trace/artifact settings above and a fresh output directory. ESLint,
+formatting and public bloat checks passed. Bloat output is retained at public
+`.artifacts/r152/link-process-restart-bloat-20261004.log`. No deployment or release occurred.
+
+The concurrent three-wallet passkey recovery scenario also passed with this
+runner in **1.9 minutes**, retaining its three recovery restarts and signing with
+every wallet after the final replacement. Its private logs, traces and receipts
+are under `.artifacts/r152/link-restart-recovery-check-20261004/`. SHA-256:
+
+- `mixed-homes/mixed-home-evidence.json`:
+  `00d1eadb7de7591cd5c234575c59fdcf3a1b171374ca871eb1de1c2e0da5aca9`.
+- `mixed-homes/restart-evidence.json`:
+  `eaf93716470c05a4bc8c18a9116f610e3def790227723bfc35defc83fda433dc`.
+
+The runner and acceptance changes are committed in private `seams-monorepo`
+revision `af2361a`.

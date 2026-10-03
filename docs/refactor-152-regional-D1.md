@@ -59,8 +59,13 @@ older implementation checkpoints and must be read with their later evidence.
    own bounded retry budget. Shared bootstrap/route retention and scoped final
    proof nonces are verified in Console; signer nonce tables remain empty.
    Real Router execution response loss also passes in this composition, replaying
-   the same reservation before activation and acknowledgement losses. Process
-   restart remains open. Regional protocol acceptance now covers real elapsed
+   the same reservation before activation and acknowledgement losses. All three
+   homes now also pass Gateway/Console and D1-runtime restart after activation
+   and after each of two committed final acknowledgements. Nine process replacements
+   preserve exact activation replay, fresh acknowledgement proofs, signing and
+   home-only installation/cleanup; no further Router material execution occurs.
+   Router-role restart and crashes during transactions remain open.
+   Regional protocol acceptance now covers real elapsed
    expiry of unclaimed and prepared links in all three homes: repeated foreign
    polling, approval rejection, home-only terminal cleanup and refusal to recreate
    a pruned link with renewed QR timestamps. Shared proof nonce expiry pruning also
@@ -87,7 +92,7 @@ older implementation checkpoints and must be read with their later evidence.
    relay admission and preparation-to-recipient binding are fixed and verified.
    The admitted recipient/package write versus cancellation race also passes;
    recipient insertion now checks live session state atomically in D1. Full
-   regional restart acceptance and remaining terminal reconciliation remain open;
+   regional Router restart acceptance and remaining terminal reconciliation remain open;
    normal and response-loss activation cleanup now pass in the real matrix.
    Delayed target-preparation insertion after cancellation is also fixed: the
    insert requires the current session to be awaiting its target factor. The

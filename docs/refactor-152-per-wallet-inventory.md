@@ -1763,3 +1763,22 @@ receipt checks the chain of old/new PIDs against recovery ingress order. Private
 artifacts are under `.artifacts/r152/passkey-process-restart-20261004/mixed-homes/`.
 This covers orderly Gateway/Console restarts after commit for passkey recovery;
 linked-device restart, Router restart and transaction crashes remain open.
+
+### October 4: linked-device activation and cleanup across Gateway restarts
+
+US/WEUR/APAC linked-device browser cases now each stop Gateway/Console and its D1
+runtime after one committed activation and two committed final acknowledgements.
+Each replacement reopens the same four databases. The driver retains test fault
+counters, request observations and Router replay evidence; production handlers
+reload from D1. Original activation contents and acknowledgement bodies replay
+exactly, with three distinct final-acknowledgement proofs per home.
+
+Linked devices then sign NEAR/Tempo. Each home contains one installation, two
+authorities and three signers; foreign signer databases remain empty. Workflow
+records are removed, sealed delivery is cleared, and final receipts remain only
+at home. Shared routing/nonces stay in Console. The pre-activation Router replay
+uses the same reservation; subsequent processes observe no further source-material
+execution. Nine orderly Gateway/Console replacements passed in the three-case
+matrix. See private `.artifacts/r152/link-process-restart-20261004/` per-home
+`regional-real-evidence.json` and `restart-evidence.json`. Router-role restart,
+crashes during transactions and hosted regional execution remain open.
