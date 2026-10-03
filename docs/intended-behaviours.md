@@ -1114,6 +1114,11 @@ or accessing export-root transfers, including when called without regional dispa
 Source preparation and execution reject cancelled, expired and failed-before-commit
 links with 409 `invalid_state` before preparation lookup or Router dispatch. A
 terminal link must not appear to be waiting for preparation with a 204 response.
+Export-root recipient/package reads and writes also reject those terminal states
+with 409 before parsing or accessing relay data. Recipient registration must match
+the persisted target preparation's wallet, enrollment, device, factor, wallet key,
+revocation epoch, application binding and registered public key. A signed request
+with different binding facts receives 400 without creating a relay record.
 Full linked-device installation remains a hosted acceptance gate.
 
 ### Linked-device target preparation concurrency

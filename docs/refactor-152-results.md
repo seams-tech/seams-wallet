@@ -4400,3 +4400,41 @@ The adjacent `e2e.log` and `lint.log` retain verification output. Reproduce with
 SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/export-root-relay-20261003
 node tests/e2e/regional-session-routing.e2e.mjs` from the private checkout.
 No deployment, release or geographic latency measurement occurred.
+
+
+## October 3: export-root terminal and preparation guards
+
+Two regional E2E failures demonstrated production regressions: cancelled recipient
+polling returned 204, and a signed recipient POST naming another wallet returned
+200. The latter could occupy the one-recipient relay row with incompatible facts;
+this test does not demonstrate disclosure of secret material.
+
+All four relay operations now reject cancelled, expired and failed-before-commit
+session snapshots with 409 `invalid_state` before parsing/accessing relay data.
+Recipient writes compare the persisted preparation's wallet, enrollment, device,
+factor, wallet key, revocation epoch, application binding digest and registered
+public key. Mismatches return 400 before inserting a row. Exact replay and changed
+recipient-key/package conflicts retain their previous behavior. Existing response
+projection/builders were extracted from the oversized route file without a second
+implementation or compatibility path.
+
+The regional E2E passes all eight binding mutations, all four relay operations
+after cancellation through US/APAC, valid delivery/replay, home-only storage and
+an absent relay row after cancellation and late rejected requests. This proves
+sequential terminal admission/cleanup; simultaneous cancellation/write races remain
+part of terminal reconciliation. Fixture ciphertext still limits regional evidence
+to the relay. The real local Worker contract for lost execution/activation replies,
+linked-device NEAR/Tempo signing, revocation and continued owner signing passed in
+36.0 seconds including setup. This duration is not an operation latency measurement.
+Wallet Server build/type compilation, focused ESLint and bloat checks passed.
+
+Private receipt: `.artifacts/r152/export-root-guards-20261003/regional-session-routing-evidence.json`.
+SHA-256: `ed28746bc5fb1f9b9bf9d3c0aa5eee1c650678390970a44ff1b11a9cc2be0ace`.
+Before/after E2E, lint, build and bloat logs are adjacent. Reproduce using the same
+regional E2E command as the preceding checkpoint with this artifact directory.
+Public real-protocol log and device traces:
+`.artifacts/r152/export-root-guards-20261003/`.
+Run the existing isolated intended-behavior runner with the freshly built server
+and the case `a second device links with a passkey, signs NEAR and Tempo, and is revoked`.
+Full regional cryptographic execution/installation, concurrency reconciliation and
+hosted acceptance remain open. No deployment or release occurred.

@@ -1,9 +1,19 @@
+import {
+  authDeniedResponse,
+  invalidStateResponse,
+  projectSession,
+  sessionProjectionResponse,
+  targetCredentialResultResponse,
+  exportRootWriteResponse,
+  invalidInputResponse,
+  notSupportedResponse,
+  notFoundResponse,
+  methodNotAllowedResponse,
+} from './deviceLinkingResponses';
 import { linkedDeviceBootstrapFailure } from '../../../../core/deviceLinking/linkedDeviceBootstrap';
 import type {
   ActiveWalletSessionV1,
   ActivateInstalledAuthorityResultV1 as WireActivateInstalledAuthorityResultV1,
-  LinkSessionProjectionV1,
-  LinkSessionStateV1,
   LinkedDeviceApprovalV1,
   LinkedDeviceApprovedTargetFactorV1,
   LinkedDeviceEmailOtpChallengeResendRequestV1,
@@ -22,10 +32,7 @@ import type {
   QrLinkedDeviceSessionPayloadV5,
   VerifiedLinkInputV1,
 } from '@shared/device-linking/contracts';
-import {
-  assertNeverLinkSessionStateV1,
-  isLinkSessionTerminalFailureV1,
-} from '@shared/device-linking/contracts';
+import { isLinkSessionTerminalFailureV1 } from '@shared/device-linking/contracts';
 import type { LinkedDeviceActivationCleanupReceiptV1 } from '@shared/device-linking/walletSessionCredentialDelivery';
 import type { CommittedAuthorityPackagesV1 } from '@shared/device-linking/committedSignerPackages';
 import {
@@ -1001,6 +1008,8 @@ async function handleExportRootRecipient(
   if (ctx.method === 'GET') {
     const owner = await authenticateOwnerForSession(ctx, service, sessionId, nowMs);
     if (owner.kind !== 'authorized') return ownerSessionResponse(owner);
+    if (isLinkSessionTerminalFailureV1(owner.session.state))
+      return invalidStateResponse(owner.session);
     const transfer = await port.readTransferV1(sessionId);
     return transfer
       ? json(transfer.recipient, { status: 200 })
@@ -1010,11 +1019,36 @@ async function handleExportRootRecipient(
   const authenticated = await authenticateDeviceForSession(ctx, service, rawLinkSessionId, nowMs);
   if (authenticated.kind === 'denied') return authDeniedResponse(authenticated);
   if (authenticated.kind === 'not_found') return notFoundResponse();
+  if (isLinkSessionTerminalFailureV1(authenticated.session.state))
+    return invalidStateResponse(authenticated.session);
   const recipient = parseBoundary(() =>
     parseLinkedDeviceEd25519ExportRootRecipientV1(authenticated.body),
   );
   if (recipient.linkSessionId !== authenticated.linkSessionId)
     return invalidInputResponse('link session id does not match route');
+  const session = authenticated.session;
+  const preparation = await readTargetPreparation(
+    service,
+    session,
+    requireApproval(session),
+    { access: 'replay_only' },
+    nowMs,
+  );
+  if (preparation.kind === 'conflict') return invalidStateResponse(session);
+  const facts = preparation.ed25519ExportRoot;
+  if (
+    !facts ||
+    recipient.walletId !== preparation.walletId ||
+    recipient.enrollmentId !== preparation.enrollmentId ||
+    recipient.deviceId !== preparation.deviceId ||
+    recipient.targetFactor.kind !== preparation.targetFactor.kind ||
+    recipient.walletKeyId !== facts.walletKeyId ||
+    recipient.revocationEpoch !== facts.revocationEpoch ||
+    recipient.applicationBindingDigestB64u !== facts.applicationBindingDigestB64u ||
+    recipient.registeredPublicKeyB64u !== facts.registeredPublicKeyB64u
+  ) {
+    return invalidInputResponse('export-root recipient does not match target preparation');
+  }
   return exportRootWriteResponse(await port.registerRecipientV1({ recipient }));
 }
 
@@ -1032,6 +1066,8 @@ async function handleExportRootPackage(
     const authenticated = await authenticateDeviceForSession(ctx, service, rawLinkSessionId, nowMs);
     if (authenticated.kind === 'denied') return authDeniedResponse(authenticated);
     if (authenticated.kind === 'not_found') return notFoundResponse();
+    if (isLinkSessionTerminalFailureV1(authenticated.session.state))
+      return invalidStateResponse(authenticated.session);
     const transfer = await port.readTransferV1(sessionId);
     return transfer?.state === 'sealed'
       ? json(transfer.package, { status: 200 })
@@ -1040,6 +1076,8 @@ async function handleExportRootPackage(
   if (ctx.method !== 'POST') return methodNotAllowedResponse();
   const owner = await authenticateOwnerForSession(ctx, service, sessionId, nowMs);
   if (owner.kind !== 'authorized') return ownerSessionResponse(owner);
+  if (isLinkSessionTerminalFailureV1(owner.session.state))
+    return invalidStateResponse(owner.session);
   const submission = parseBoundary(() =>
     parseLinkedDeviceEd25519ExportRootSubmissionV1(owner.body),
   );
@@ -1677,70 +1715,6 @@ async function authenticateTargetPasskeyOriginV1(
   return { ok: true, expectedOrigin };
 }
 
-function projectLinkSessionStateV1(state: LinkSessionStateV1): LinkSessionStateV1 {
-  switch (state.state) {
-    case 'displaying_qr':
-      return { state: 'displaying_qr' };
-    case 'claimed':
-    case 'awaiting_target_factor':
-    case 'awaiting_source_contribution':
-    case 'provisioning':
-      return { state: state.state, deviceId: state.deviceId };
-    case 'authority_pending_local_install':
-      return {
-        state: 'authority_pending_local_install',
-        deviceId: state.deviceId,
-        authorityId: state.authorityId,
-        packageSetDigestB64u: state.packageSetDigestB64u,
-      };
-    case 'active':
-      return {
-        state: 'active',
-        deviceId: state.deviceId,
-        authorityId: state.authorityId,
-        activatedAtMs: state.activatedAtMs,
-      };
-    case 'failed_before_commit':
-      return { state: 'failed_before_commit', error: state.error };
-    case 'cancelled':
-      return { state: 'cancelled', cancelledAtMs: state.cancelledAtMs };
-    case 'expired':
-      return { state: 'expired', expiredAtMs: state.expiredAtMs };
-    default:
-      return assertNeverLinkSessionStateV1(state);
-  }
-}
-
-function projectSession(record: LinkedDeviceSessionRecordV1): LinkSessionProjectionV1 {
-  return {
-    kind: 'linked_device_session_projection_v1',
-    linkSessionId: record.linkSessionId,
-    qrPayload: record.qrPayload,
-    revision: record.revision,
-    createdAtMs: record.createdAtMs,
-    updatedAtMs: record.updatedAtMs,
-    state: projectLinkSessionStateV1(record.state),
-  };
-}
-
-function sessionProjectionResponse(
-  record: LinkedDeviceSessionRecordV1,
-  outcome: 'applied' | 'replayed',
-): Response {
-  return json({ ok: true, outcome, session: projectSession(record) }, { status: 200 });
-}
-
-function targetCredentialResultResponse(
-  record: LinkedDeviceSessionRecordV1,
-  outcome: 'applied' | 'replayed',
-  targetCredential: LinkedDeviceTargetCredentialRegistrationResultV1,
-): Response {
-  return json(
-    { ok: true, outcome, targetCredential, session: projectSession(record) },
-    { status: 200 },
-  );
-}
-
 function claimResultResponse(result: LinkedDeviceSessionServiceResultV1): Response {
   if (result.outcome !== 'applied' && result.outcome !== 'replayed')
     return sessionResultResponse(result);
@@ -1831,30 +1805,6 @@ function sessionResultResponse(result: LinkedDeviceSessionServiceResultV1): Resp
   }
 }
 
-function invalidStateResponse(record: LinkedDeviceSessionRecordV1): Response {
-  return json(
-    {
-      ok: false,
-      outcome: 'invalid_state',
-      state: record.state.state,
-      session: projectSession(record),
-    },
-    { status: 409 },
-  );
-}
-
-function exportRootWriteResponse(result: {
-  readonly outcome: 'applied' | 'replayed' | 'conflict';
-  readonly reason?: string;
-}): Response {
-  return result.outcome === 'conflict'
-    ? json(
-        { ok: false, code: result.reason ?? 'conflict', message: 'export-root relay conflict' },
-        { status: 409 },
-      )
-    : json({ ok: true, outcome: result.outcome }, { status: 200 });
-}
-
 function ownerSessionResponse(
   context: Exclude<AuthenticatedOwnerForSession, { readonly kind: 'authorized' }>,
 ): Response {
@@ -1905,41 +1855,6 @@ async function requireSelectedEmailOtpBaseFactorV1(
     });
   }
   return null;
-}
-
-function authDeniedResponse(result: DeviceLinkingAuthDeniedV1): Response {
-  if (result.code === 'unavailable') {
-    return json({ ok: false, code: result.code, message: result.message }, { status: 503 });
-  }
-  return json(
-    { ok: false, outcome: 'unauthorized', code: result.code, message: result.message },
-    { status: result.code === 'expired' ? 410 : 401 },
-  );
-}
-
-function invalidInputResponse(message: string): Response {
-  return json(
-    { ok: false, outcome: 'invalid_input', code: 'invalid_input', message },
-    { status: 400 },
-  );
-}
-
-function notSupportedResponse(message = 'Device linking is not configured'): Response {
-  return json({ ok: false, code: 'not_supported', message }, { status: 501 });
-}
-
-function notFoundResponse(): Response {
-  return json(
-    { ok: false, code: 'not_found', message: 'Linked-device session not found' },
-    { status: 404 },
-  );
-}
-
-function methodNotAllowedResponse(): Response {
-  return json(
-    { ok: false, code: 'method_not_allowed', message: 'Method is not allowed' },
-    { status: 405 },
-  );
 }
 
 function parseCreateRequest(raw: unknown): DeviceLinkingCreateRequestV1 {

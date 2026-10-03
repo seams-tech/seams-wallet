@@ -1479,3 +1479,13 @@ with exact replay, conflicting replacements and signed delivery verified. The ro
 exists only in WEUR. See the export-root relay checkpoint in the results document.
 Opaque fixture ciphertext limits this evidence to transport/persistence. Terminal
 relay handling, preparation binding and complete installation cleanup remain open.
+
+
+### October 3: relay admission and preparation binding
+
+Recipient registration now compares persisted target preparation facts before its
+first write. The regional E2E rejects changed wallet, device, enrollment, factor,
+wallet key, epoch, application binding and registered key. Recipient/package GET
+and POST reject cancelled, expired and failed-before-commit session snapshots.
+Regional cancellation and the real local linking/signing/revocation flow pass.
+Concurrent terminal reconciliation and full regional activation remain open.
