@@ -4036,3 +4036,34 @@ node tests/e2e/regional-session-routing.e2e.mjs
 Receipt: `.artifacts/r152/source-read-20261003/regional-session-routing-evidence.json`.
 SHA-256: `3060f9d22c6e21f3859a8af1b5f0d7ef55eab702b9a69d09a4072503134705ea`.
 Logs are alongside the receipt. No deployment or publication; 0.8.0 remains held.
+
+### October 3: Console mixed-home wallet identity reads
+
+Console's hosted wallet balance reader now resolves every wallet through the shared
+home directory before issuing identity reads. It groups selectors by US/WEUR/APAC,
+sends one request per home, deduplicates selectors within that request, and returns
+results in caller order. Missing/non-established homes and regional HTTP failures
+reject the read; unrequested or duplicate response identities are rejected. The
+existing Runtime contract still omits wallets without both chain identities.
+
+The regional E2E uses the production directory, regional resolver and HTTP client
+across three Worker transports. It checks mixed homes, duplicate inputs, missing
+homes, a failed region, foreign/duplicate response identities and incomplete wallets.
+Regional response payloads are controlled fixtures. This closes Console caller
+routing; direct Runtime entry enforcement, relocation races/write fencing and
+signed-delegate ownership remain separate gates. No hosted deployment occurred.
+
+Evidence: private `.artifacts/r152/runtime-identities-20261003/regional-session-routing-evidence.json`.
+SHA-256 `3ec1cfb8ab18edccf46ecb387cedd46d6f467ff8c1082b57d9ba3ca1573d98bb`.
+Reproduce from the private repository:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/runtime-identities-20261003 \
+node tests/e2e/regional-session-routing.e2e.mjs
+```
+
+Regional E2E, focused ESLint and public bloat checks passed. The broad candidate
+type-check encountered errors in the concurrent R153 `wallet-relocation.typecheck.ts`
+fixture (unused directive and rejected branch combination); that work was preserved.
+The focused candidate type-check of the changed Console entrypoint and resolver passed.
