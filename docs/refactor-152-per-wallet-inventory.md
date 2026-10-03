@@ -1654,3 +1654,18 @@ Each wallet still has exactly two active authorities, both only at home; replay
 adds no duplicate authority. Both-family signing and consumed-code rejection pass.
 This validates client continuity and regional replay ownership with the real local
 Router stack. Server-process restart, expiry and other recovery factors remain open.
+
+### October 4: added Email OTP methods and revocation
+
+Real passkey wallets in US/WEUR/APAC now add an Email OTP method through a foreign
+ingress, unlock and sign with it, then revoke it with the founding passkey. The
+same registration authority remains active; the added method changes from active
+to revoked only in its home's `wallet_auth_methods`. Foreign signer databases
+contain neither method nor authority, and their `identity_links` remain empty.
+The SDK refuses a revoked-method unlock before sending its proof; the founding
+passkey continues to sign both families.
+
+Development outbox requests use `walletId` for home resolution, just like challenge
+and factor-release requests. The receiving Gateway still verifies the Google
+proof and configured development mode. Production email delivery, method-change
+reply-loss/restart and terminal shared-identity reconciliation remain separate.

@@ -5039,3 +5039,50 @@ in **34.6 seconds**. Its log and persisted lifecycle trace are under the public
 `.artifacts/r152/recovery-replay-default-20261004/` directory. Public intended-test
 type checking, private ESLint and the public bloat check passed. The extracted
 finalization-fault helper reduces the oversized harness from 8,989 to 8,961 lines.
+
+### October 4: regional Email OTP addition, unlock and revocation
+
+The new real-browser matrix passed **three cases in 2.2 minutes**: US home with
+WEUR ingress, WEUR home with APAC ingress, and APAC home with US ingress. Each
+case registers a passkey wallet, travels to foreign ingress, adds Email OTP,
+refuses duplicate addition, locks/reloads, unlocks using the added method and
+verifies NEAR/Tempo signatures. The founding passkey then revokes the method;
+the SDK refuses to submit an unlock using it, and the passkey again signs both
+families. Each case has its own isolated Console and three signer databases.
+
+The first run demonstrated a routing defect, classified `production_regression`
+for the supported development outbox endpoint. Challenge creation wrote the OTP
+at the US home, while WEUR ingress read its own empty outbox and returned HTTP
+404 (`Email OTP outbox entry was not found`). Home routing now extracts the
+request's wallet identity for `/wallet/email-otp/dev/otp-outbox`. Google proof and
+development-mode validation remain in the home handler. The test composition also
+passes its configured Google client ID to the production regional dispatcher.
+
+After addition, exactly one active passkey and one active Email OTP method share
+the original active registration authority at home. After revocation, only the
+Email OTP method is revoked. Foreign signer databases contain neither method nor
+authority and retain no shared identity links. The safe receipts contain these
+states and forwarding metadata, without OTPs, tokens or material payloads.
+
+Private commits: `37996a3` (routing fix), `3302413` (browser acceptance and receipts).
+Artifacts: private `.artifacts/r152/regional-method-lifecycle-20261004/`, including
+the failing `before/` log/trace, passing `protocol.log`, per-case lifecycle traces,
+and `methods-<home>/method-{active,revoked}-evidence.json`. Revoked receipt SHA-256:
+
+- US: `b91e1716faf9e1d2ae6fb526ddc7875787962d74c32833ed6950b1250a68c29f`.
+- WEUR: `7a062d479af46a330539c3f02bc4b5b6a84a77b58a2e669f830358dadf362eb1`.
+- APAC: `cb0954300be984e641c53ee6d966c82ab06c4560f5bdf00c94bd36ac85d20b5d`.
+
+Reproduce with `tests/scripts/run-regional-real.mjs --grep 'adds, uses and revokes'`
+and the same candidate/artifact/trace variables as the recovery case above. The
+public `tests/scripts/ensure-intended-google-token.mjs` refreshes the configured
+test service account's Google ID token when necessary. This run used a real
+Google-signed token and the local development OTP outbox; it sent no email.
+
+Existing regional session/routing acceptance, candidate type checking, ESLint and
+public bloat checks passed. Routing evidence is under private
+`.artifacts/r152/method-routing-20261004/`; validation logs accompany the browser
+run. One shared local Router stack remains in use. These durations are whole-test
+times, with no hosted geographic latency claim. Reply loss during method changes,
+server restart, live email delivery and other recovery factors remain open.
+No deployment or release occurred.

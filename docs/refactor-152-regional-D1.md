@@ -105,9 +105,13 @@ older implementation checkpoints and must be read with their later evidence.
    the client journal survives runtime reset, replays the same operation and
    target, and clears after acknowledgement. Both-family signing and the browser's
    consumed-code error also pass. This covers client runtime reset; server-process
-   restart, other interruption stages, other factors and method changes remain
-   open in this composition. Exercise browser proofs and shared credential/identity
-   claims through the remaining commit, failure and replay paths.
+   restart and other interruption stages remain open. Added Email OTP methods now
+   pass addition, duplicate-add refusal, lock/reload, unlock and both-family
+   signing through foreign ingress for every home. Revocation persists only at
+   home, the SDK refuses the revoked method, and the original passkey still signs.
+   The development OTP outbox now routes to the issuing home. Other recovery
+   factors, method-change reply loss/restart and remaining shared credential/identity
+   reconciliation still need composed acceptance.
 3. Finish the ownership/entry-point audit and retirement audit: unresolved mixed
    records, internal/deferred effects, cross-authority reconciliation, stale
    deployment behavior and surviving namespace-placement assumptions. Keep R153
