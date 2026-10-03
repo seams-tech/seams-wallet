@@ -1,4 +1,8 @@
 import {
+  intendedIndexedDbModulePath,
+  readPendingWalletRecoveryCommitIdentitiesInBrowser,
+} from './recovery-journal';
+import {
   concealFirstRecoveryFinalizationResponse,
   createRecoveryFinalizationResponseLoss,
   failFirstRecoveryFinalization,
@@ -48,7 +52,6 @@ import {
 } from '@shared/utils/routerAbEd25519Yao';
 import type { WalletRecoveryTargetV1 } from '@shared/wallet-recovery/walletRecoveryTarget';
 import { createHash, randomUUID } from 'node:crypto';
-import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
@@ -275,39 +278,6 @@ const ROUTER_AB_WALLET_RECOVERY_PREPARE_PATH = '/wallets/recovery/prepare';
 const ROUTER_AB_WALLET_RECOVERY_FINALIZE_PATH = '/wallets/recovery/finalize';
 const ROUTER_AB_WALLET_RECOVERY_GOOGLE_EMAIL_OTP_FINALIZE_PATH =
   '/wallets/recovery/google-email-otp/finalize';
-
-type PendingWalletRecoveryCommitIdentity = {
-  readonly walletId: string;
-  readonly recoveryOperationId: string;
-  readonly stage: string;
-};
-
-function intendedIndexedDbModulePath(appUrl: string): string {
-  const configured = String(process.env.SEAMS_REPO_ROOT || '').trim();
-  const cwd = process.cwd();
-  const repoRoot =
-    configured || (existsSync(path.join(cwd, 'packages/wallet')) ? cwd : path.resolve(cwd, '..'));
-  return `${new URL(appUrl).origin}/@fs/${path.join(
-    repoRoot,
-    'packages/wallet/dist/esm/core/indexedDB/index.js',
-  )}`;
-}
-
-async function readPendingWalletRecoveryCommitIdentitiesInBrowser(input: {
-  readonly modulePath: string;
-}): Promise<readonly PendingWalletRecoveryCommitIdentity[]> {
-  const { IndexedDBManager } = await import(input.modulePath);
-  const records: readonly {
-    readonly walletId: unknown;
-    readonly recoveryOperationId: unknown;
-    readonly stage: unknown;
-  }[] = await IndexedDBManager.listPendingWalletRecoveryCommits();
-  return records.map((record) => ({
-    walletId: String(record.walletId),
-    recoveryOperationId: String(record.recoveryOperationId),
-    stage: String(record.stage),
-  }));
-}
 
 type RecoveryRequestKind = 'finalize' | 'replay';
 
@@ -3432,12 +3402,14 @@ export class IntendedBehaviourHarness {
     this.recordService('fresh-browser Google Email OTP recovery completed through normal login');
   }
 
-  async recoverGoogleEmailOtpWalletAfterLostFinalizationResponse(): Promise<void> {
+  async recoverGoogleEmailOtpWalletAfterLostFinalizationResponse(
+    commitFinalization: CommitRecoveryFinalization = fetchRecoveryFinalizationStatus,
+  ): Promise<void> {
     this.recordStage('recover_google_email_otp_wallet_after_lost_finalization_response');
     requireUsableIntendedGoogleIdToken(this.config);
     const action = recoveryActionForTarget('google_email_otp');
     const { registration, recoveryCode } = await this.beginFreshBrowserRecovery({ action });
-    const finalizeFailure = createRecoveryFinalizationResponseLoss();
+    const finalizeFailure = createRecoveryFinalizationResponseLoss(commitFinalization);
     const finalizationCapture = createRecoveryRequestCapture({
       kind: 'finalize',
       path: ROUTER_AB_WALLET_RECOVERY_GOOGLE_EMAIL_OTP_FINALIZE_PATH,

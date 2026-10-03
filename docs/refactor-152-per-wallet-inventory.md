@@ -1687,3 +1687,9 @@ tables remain empty. Preparation, Google/OTP proof verification, factor release
 and finalization all forward to home. Refresh, both-family signing and consumed-code
 rejection pass. Google recovery response loss/restart and other founding factors
 remain separate checks.
+
+The subsequent Google recovery interruption matrix now verifies one committed
+finalization and one replay per home. The pending client journal survives runtime
+reset and clears only after replay succeeds. Existing exact operation/target
+checks, home-only authority counts and the single shared Google locator still
+pass. Server-process restart and other founding factors remain separate checks.

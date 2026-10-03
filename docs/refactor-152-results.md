@@ -5153,3 +5153,43 @@ sequentially with separate Console stores. Concurrent signing is local protocol
 evidence; hosted cross-region concurrency and geographic latency remain open.
 ESLint and public bloat checks passed. Google recovery response loss, server restart
 and other founding factors remain separate gates. No deployment or release.
+
+### October 4: interrupted regional Google recovery and client journal replay
+
+The Google Email OTP recovery matrix now conceals the first successful finalization
+reply after commit, resets the client runtime while preserving storage, and resumes
+from the pending journal. All three home/foreign-ingress pairs passed in **1.9
+minutes**. The journal is present before and after reset, replay retains the same
+wallet/operation/target identities, and the journal clears after HTTP 200 replay.
+The recovered Email OTP method unlocks and signs NEAR/Tempo; both the browser UI
+and fresh-reservation probes identify the consumed recovery code.
+
+Each ingress records exactly two successful server finalizations: the masked
+commit and its replay. The final state remains one wallet, three signers and two
+active authorities at home, no foreign custody rows and exactly one shared Google
+identity locator. The public harness reuses the same injectable commit transport
+as passkey recovery; its journal reader was extracted, reducing the oversized
+harness from 8,961 to 8,933 lines. No production change was required.
+
+Private artifacts: `.artifacts/r152/google-recovery-replay-20261004/`, containing
+`protocol.log`, `lint.log`, per-owner lifecycle traces and
+`google-recovery-<home>/recovery-evidence.json`. Receipt SHA-256:
+
+- US: `b61427968812c450d727dc448ebcd35a48755d1d0179ddce7ba4673b8fc227c0`.
+- WEUR: `da4b1072637a22d73fc6be68135d84869d56ef52511f2bcc04e3637d18ca0ac8`.
+- APAC: `216cbd136f5b71b30f58c7a993c3e0265164086efcdf69bffd57329cf4f889d6`.
+
+Reproduce with the private regional runner's `--grep 'interrupted Google Email OTP'`
+selection and the candidate/token/artifact settings above. Public intended-test
+type checking, ESLint and bloat checks passed. These are local protocol checks
+using real Google proof verification, the development outbox and one shared Router
+stack. Server-process restart, other founding factors and hosted regional failure
+tests remain open. No deployment or release occurred.
+
+The existing public default-transport Google recovery replay contract also passed
+in **34.7 seconds**. Its log and lifecycle trace are in the public
+`.artifacts/r152/google-recovery-replay-20261004/` directory. The first attempt
+was rejected by the isolated runner's stricter token-lifetime requirement and
+stalled in teardown; its owned processes were stopped and its log/trace retained.
+Classified `environment_or_infrastructure_failure`, it was rerun using the existing
+`--require-google-token` option to refresh the test credential before startup.

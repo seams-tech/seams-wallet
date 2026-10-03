@@ -112,9 +112,12 @@ older implementation checkpoints and must be read with their later evidence.
    The development OTP outbox now routes to the issuing home. Fresh-browser
    recovery from passkey custody into Google Email OTP now passes for every home,
    including NEAR/concurrent Tempo-Arc signing after refresh, one shared Google
-   identity locator and consumed-code rejection. Other recovery origins and Google
-   recovery interruption, method-change restart and remaining shared credential/identity
-   reconciliation still need composed acceptance. Method finalization and revocation
+   identity locator and consumed-code rejection. Google recovery now also survives
+   a lost committed finalization reply and client runtime reset at every home,
+   with exact operation replay, journal cleanup and no duplicate authority or
+   identity locator. Other recovery origins, server-process restart and remaining
+   shared credential/identity reconciliation still need composed acceptance.
+   Method finalization and revocation
    reply loss now pass at every home: both mutations replay the exact request and
    committed result through foreign ingress, with one added method and one revocation.
 3. Finish the ownership/entry-point audit and retirement audit: unresolved mixed
