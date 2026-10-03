@@ -153,6 +153,10 @@ role RPC and cross-authority contract has a final owner and failure behavior.
   Runtime bindings and named receiving entrypoints; collect proofs for the complete
   set. The existing operator
   collector still checks one resource and cannot activate the hosted regional set.
+- [x] Route protected runtime resource challenges through the catalog to the exact
+  regional Gateway/Runtime pair. Require a validated resource in every request;
+  reject foreign namespaces, unlisted resources and cross-resource proofs. One
+  Console verifies all three regions in the composed local Worker/D1 E2E.
 - [x] Inspect readiness across the exact admitted resource set. Hosted Console uses
   US/WEUR/APAC Runtime clients, each bound to its expected physical resource;
   aggregate all wallet/ceremony counts and fail if any region cannot be inspected.
@@ -1086,3 +1090,18 @@ bindings and complete-set operator proof collection. The renderer does not yet e
 the required regional Runtime bindings. Shared locators, internal/deferred home
 checks, expiry/fresh attempts and composed hosted/travel verification follow.
 No deployment or release occurred; 0.8.0 remains held.
+
+### October 3: regional challenge selection
+
+Private implementation commit: `51ddb3b` on `seams-monorepo/dev`.
+
+One Console now challenges any exact resource in its regional catalog through the
+corresponding fixed Gateway/Runtime bindings. Required resource identity replaces
+Console's former single-D1 challenge selection. Three local D1s and six actual
+writer versions pass the expanded E2E; unknown/cross-resource/foreign-namespace
+requests fail. Three focused E2Es passed in 21.6s; see the matching results checkpoint.
+
+Next remains canonical regional configuration and generated service bindings,
+then complete-set operator proof collection. The CLI still selects one configured
+resource. Shared locators, internal/deferred enforcement, expiry/fresh attempts and
+hosted/travel acceptance follow. Deployment and 0.8.0 remain held.

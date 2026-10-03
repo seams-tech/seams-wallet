@@ -718,3 +718,18 @@ retry succeeds after recovery. Runtime cross-wiring and incomplete coverage fail
 Configuration generation and complete-set provider/runtime challenge collection
 remain open. The new regional bindings are required by Console composition and
 must be rendered before hosted deployment. Remaining wallet-path work is unchanged.
+
+### October 3 regional-challenge checkpoint
+
+`resourceChallenge.ts` requires a parsed resource identity on protected requests,
+checks namespace and catalog membership, and selects the exact regional writer
+pair. Console no longer selects challenges using `SEAMS_D1_HOME_*` or singular
+`WALLET_GATEWAY`; its composition requires all three Gateway and Runtime bindings.
+The operator sends the explicit resource, and provider checkpoint output uses
+`resource`. Type fixtures reject omitted or spread-forged resource identities.
+
+The composed challenge E2E uses one Console for all three local resources and checks
+cross-resource, unlisted-resource and foreign-namespace rejection. Canonical target
+schema/rendering and complete-set CLI collection are still pending; no replacement
+region UUIDs were invented or provisioned. Existing shared/control Runtime routing
+and the remaining wallet-path work still require completion.

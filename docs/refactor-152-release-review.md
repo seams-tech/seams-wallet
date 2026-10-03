@@ -948,3 +948,18 @@ The current renderer still lacks the regional Runtime bindings required by this
 composition. Regional configuration and complete-set operator proofs remain next,
 followed by shared locators, internal/deferred enforcement, expiry and composed
 hosted/travel acceptance. No deployment or publication occurred; 0.8.0 remains held.
+
+### October 3: regional resource-challenge routing
+
+Console now selects the catalog's exact Gateway/Runtime pair from a required
+validated challenge resource. The singular Console D1-home fields and Gateway
+challenge binding are removed. One Console verifies three separate local D1s and
+six writer versions; foreign, unlisted and cross-resource requests fail. Three
+focused E2Es passed in 21.6s; targeted compilation, lint and formatting passed.
+
+Evidence and reproduction are in the matching results checkpoint. Receipt SHA-256:
+`1bb4eb9351821bdcbf28a54ff64bea656498706ce73ad3a632434e444c0d7ab9` under
+`.artifacts/r152/regional-resource-challenges-20261003/`. Provider/OIDC evidence is
+controlled. Regional target generation and complete-set operator proof collection
+remain incomplete; the CLI still selects one configured resource. No deployment,
+reset or publication occurred. Release 0.8.0 remains held.

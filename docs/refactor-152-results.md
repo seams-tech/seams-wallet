@@ -2909,3 +2909,46 @@ plus complete-set operator proof collection. The current renderer does not emit 
 required regional Runtime bindings; this checkpoint is not deployable by itself.
 Shared locators, internal/deferred enforcement, expiry/fresh attempts and composed
 hosted/travel acceptance remain. No deployment, reset or package publication occurred.
+
+### October 3: regional resource-challenge routing
+
+Private implementation commit: `51ddb3b` on `seams-monorepo/dev`.
+
+The protected Console challenge request now requires `resource` alongside lane,
+challenge ID and expected proof. After OIDC verification and boundary parsing,
+Console matches the resource's namespace/account/database against its configured
+catalog and selects the corresponding fixed Gateway/Runtime service pair. Both
+writers must answer the same fresh challenge at the requested resource. Unlisted
+resources, foreign namespaces, stale/missing versions and cross-resource proofs
+fail. Console's singular Gateway challenge binding and D1-home environment fields
+were removed; operator requests now send their resource explicitly. Provider-only
+receipts also call this identity `resource`.
+
+The challenge E2E now uses **one Console, three physical local signer D1s and six
+Gateway/Runtime writer versions**. All three resources obtain independent runtime
+checkpoints from the same Console. Swapping a challenge's resource, selecting an
+unlisted resource or changing its namespace is rejected. Existing authentication,
+expiry, provider-rollout, lost-insert-reply cleanup, activation and stale-writer
+checks continue passing. The activation-store, provider-verification and expanded
+challenge E2Es passed: **3 tests in 21.6s**. Targeted candidate-backed compilation,
+type fixtures, lint and formatting passed.
+
+Reproduce in `seams-monorepo`:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+  pnpm --dir tests exec playwright test -c playwright.relayer.config.ts \
+  relayer/tenant-deployment-binding.e2e.test.ts \
+  relayer/tenant-d1-provider-bindings.e2e.test.ts \
+  relayer/tenant-home-challenge.e2e.test.ts --reporter=line
+```
+
+Receipt: `.artifacts/r152/regional-resource-challenges-20261003/runtime-resource-challenge-evidence.json`.
+SHA-256: `1bb4eb9351821bdcbf28a54ff64bea656498706ce73ad3a632434e444c0d7ab9`.
+The directory also retains logs, compiler configuration and a receipt index.
+This is local correctness evidence with controlled provider/OIDC fixtures. The CLI
+still collects the lane's single configured resource; its activation fixture uses
+controlled provider proofs for the other resources. This does not establish a
+complete-set hosted operator run or geographic latency. Canonical regional target
+configuration, generated regional bindings and complete-set operator collection
+remain next. No deployment, hosted reset or package publication occurred.
