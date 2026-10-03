@@ -186,6 +186,15 @@ role RPC and cross-authority contract has a final owner and failure behavior.
   directory home. Keep code validity/consumption and custody CAS at that home;
   reject foreign claims and fail closed on shared authority outages. Local E2E
   exercises actual custody registration/rotation stores with canonical fixtures.
+- [x] Route direct Yao recovery bootstrap/admission/status and export admission
+  by their explicit wallet identity, including cross-wallet session rejection.
+  Three-home Worker/D1 composition passes; protocol execution is controlled.
+- [ ] Route direct Yao recovery execute/activate and export execute by an
+  authoritative lifecycle-to-wallet assignment published after verified admission.
+  These bindings carry opaque lifecycle IDs; never treat account IDs as wallet IDs.
+- [ ] Resolve wallet-less linked-device QR creation and polling through shared
+  pre-wallet coordination, then bind the approved session to its owner's home.
+  Inventory atomic claims, approval, delivery and terminal cleanup before moving stores.
 - [ ] Finish routing for passkey/external-identity/delivery locators, direct Yao recovery/export
   and Wallet Runtime operations, deferred work, expiry reconciliation and deliberate
   fresh attempts. Remove the remaining single-D1 deployment assumptions only after

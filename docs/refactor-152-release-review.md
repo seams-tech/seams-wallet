@@ -1059,3 +1059,15 @@ local commit or retired code; it never grants authorization or restores material
 Remaining: passkey/provider/delivery lookup, direct Yao recovery/export,
 internal/deferred home enforcement, terminal/fresh-attempt handling, cleanup and
 hosted acceptance.
+
+### October 3: direct Yao entry checkpoint
+
+Recovery bootstrap/admission/status and export admission now use wallet identity
+for home dispatch, with session conflict and directory-outage enforcement. The
+three-home local composition, candidate TypeScript and focused lint pass; the final
+protocol handler is controlled, so this does not close Yao lifecycle acceptance.
+Recovery execute/activate and export execute still require lifecycle routing.
+Linked-device QR sessions start without a wallet: shared pre-wallet coordination
+and owner-approved home binding remain explicit inventory/implementation work.
+Other shared identity, internal/deferred, expiry/cleanup and hosted acceptance gates
+remain open. Release 0.8.0 stays held.

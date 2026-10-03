@@ -3195,3 +3195,32 @@ precedes prepared-operation exposure. On publication failure the new explicit
 routing error maps to HTTP 503, while the ordinary reservation timeout remains in
 force. There is no distributed commit. See the inventory checkpoint for ownership,
 reset coverage and remaining direct Yao/internal/shared-identity work.
+
+### October 3: direct Yao wallet-identity entry routing
+
+Local production Gateway dispatch and Console directory composition passed for
+four entry routes across all three homes (12 route/home combinations). Every
+request entered through a foreign region. Requests without a Wallet Session and
+with the matching session reached the assigned home. Conflicting sessions returned
+403; malformed wallet identities 400; unknown wallets 404; directory outages 503.
+The existing recovery, session exchange, collision, retirement and publication
+failure scenarios also passed. Candidate-backed private TypeScript and focused lint
+passed. No public runtime code changed in this checkpoint.
+
+The terminal Yao handler is a controlled 422 response identifying its region.
+This receipt proves routing, not valid Yao proofs, execution, provider behavior or
+hosted latency. Recovery execute/activate and export execute remain unimplemented
+for opaque-lifecycle routing without a routable Wallet Session.
+
+Repeat from `seams-monorepo`:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/yao-entry-routing-20261003 \
+node tests/e2e/regional-session-routing.e2e.mjs
+```
+
+Receipt: `.artifacts/r152/yao-entry-routing-20261003/regional-session-routing-evidence.json`.
+SHA-256: `1d2058207f4a74d5d6a7cceaca30072cb3809556f778483a43a2524900dbb0aa`.
+The receipt includes the production bundle hash and per-route regional observations.
+Earlier evidence is preserved. No deployment, reset or release occurred.

@@ -845,3 +845,32 @@ and home-local absent/retired codes use the generic recovery-code refusal. Home
 proof verification remains authoritative. Direct Yao recovery/export lifecycle IDs
 are a separate remaining lookup seam, as are passkey/provider uniqueness, delivery,
 internal/deferred enforcement, expiry/fresh attempts and hosted acceptance.
+
+### October 3: direct Yao entry routing and linked-device seam
+
+The Gateway resolves four direct POST entry points before constructing regional
+services. Recovery bootstrap uses `walletId`; recovery admission uses
+`application_binding.wallet_id`; recovery status uses
+`admission.application_binding.wallet_id`; export admission uses
+`protocol.application_binding.wallet_id`. All use the existing scoped wallet
+home directory. A supplied Wallet Session must resolve to the same wallet.
+Invalid identities return 400, unknown/cancelled assignments 404, directory
+outages 503. Full protocol and authorization validation stays in the home handler.
+No protocol payload, persistence schema or authorization grant changed.
+
+Remaining direct continuations are recovery execute/activate
+(`binding.lifecycle.lifecycle_id`) and export execute
+(`protocol.binding.ceremony.lifecycle.lifecycle_id`). Their opaque lifecycle IDs
+need authenticated publication and immutable wallet ownership before exposure;
+replays, publication outages, lifecycle expiry and execution must agree. Neither
+NEAR `account_id` nor caller-provided region is a wallet-home authority.
+
+Linked-device inventory finding: `createUnclaimedSessionV1` persists a
+`displaying_qr` record before the owner wallet is known. The QR payload supplies a
+link-session ID and target-device proof, so a wallet-home index cannot route this
+initial step. Required follow-up inventory/design covers shared pre-wallet creation,
+polling and claim coordination; owner approval's immutable session-to-wallet binding;
+subsequent target preparation, credentials, contributions, factor delivery, export
+packages and receipts at that home; and cancellation/expiry on both sides. Preserve
+existing proof and atomic state-transition invariants. No temporary namespace-home
+fallback or initial-device-location wallet assignment was introduced.
