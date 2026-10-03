@@ -924,7 +924,10 @@ export class D1LinkedDeviceTargetCredentialProviderV1 implements DeviceLinkingTa
         `INSERT OR IGNORE INTO ${TARGET_COMMIT_RESERVATION_TABLE} (
            namespace, org_id, project_id, env_id, link_session_id,
            registration_digest_b64u, state, reserved_at_ms
-         ) VALUES (?, ?, ?, ?, ?, ?, 'reserved', ?)`,
+         ) SELECT ?1, ?2, ?3, ?4, ?5, ?6, 'reserved', ?7
+           FROM linked_device_sessions
+          WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
+            AND link_session_id = ?5 AND state = 'awaiting_target_factor'`,
       )
       .bind(
         ...scopeValues(this.scope),
@@ -935,7 +938,9 @@ export class D1LinkedDeviceTargetCredentialProviderV1 implements DeviceLinkingTa
       .run();
     if (d1ChangedRows(result) === 1) return { outcome: 'acquired' };
     const row = await this.readCommitReservationV1(input.linkSessionId);
-    if (!row) return await this.reserveCommitV1(input);
+    if (!row) {
+      throw new Error('linked-device session no longer accepts target credential registration');
+    }
     if (row.registrationDigestB64u !== input.registrationDigestB64u) {
       throw new Error(
         'linked-device target credential conflicts with its durable commit reservation',

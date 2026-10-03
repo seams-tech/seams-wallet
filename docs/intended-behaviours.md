@@ -1134,3 +1134,7 @@ same preparation without allocating another durable challenge. Preparation
 insertion checks the current session state atomically in D1. A planner admitted
 before cancellation cannot recreate preparation after terminal cleanup commits;
 it returns a conflict and leaves the target-credential table empty.
+Target-credential commit reservation acquisition also checks current session state
+atomically. An admitted registration cannot acquire a new reservation after
+cancellation. If no reservation remains, registration returns a recoverable failure
+without recursively retrying acquisition or entering verification/source work.

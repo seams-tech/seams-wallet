@@ -4518,3 +4518,45 @@ Next terminal-writer checks are target-commit reservations and Email OTP grants.
 Their insert paths require controlled cancellation/replay verification. Full
 regional activation/cleanup, lifecycle acceptance and hosted verification remain
 open. No deployment or release occurred.
+
+
+## October 3: target-commit acquisition versus cancellation
+
+A production registration carrying real browser WebAuthn evidence was paused at
+its reservation INSERT. Another request completed registration and the regional
+flow reached cancellation. Resuming the admitted request after cleanup inserted
+one new reservation row. This is a production regression even though subsequent
+registration error handling can remove the row.
+
+Acquisition now selects from the scoped session only in `awaiting_target_factor`,
+checking state and inserting in one D1 statement. Missing reservation readback
+ends the attempt through the existing `invalid_input` registration result instead
+of recursively reacquiring. No extra D1 roundtrip or compatibility path was added.
+
+The composed regional E2E passes: the delayed INSERT reports zero changed rows
+and registration returns the expected recoverable failure. Existing preparation,
+relay, binding, replay and cancellation scenarios remain green. The delayed
+registration enters the production provider directly; a bounded D1 wrapper pauses
+only the reservation INSERT and delegates the actual SQL. The surrounding lifecycle
+and cancellation travel through regional HTTP. Harness cleanup drains paused work
+before Miniflare disposal; the first diagnostic run exposed a teardown error that
+obscured its assertion, so the corrected harness reproduced the production failure
+before the fix.
+
+Wallet Server build/type compilation, focused ESLint and bloat checks passed.
+The real local Worker lost-execution/activation-reply contract also passed, including
+linked-device NEAR/Tempo signing, revocation and continued owner signing, in 36.7
+seconds including setup. This duration is not geographic latency.
+
+Private receipt: `.artifacts/r152/target-reservation-cancel-20261003/regional-session-routing-evidence.json`.
+SHA-256: `2c18e7a9454512ae2aeb5c014cdb9f8a4e46f2b5928e36c1f2d13138f488afc4`.
+Before/after E2E, build, lint and bloat logs are adjacent. Reproduce using the regional
+E2E command from preceding checkpoints with this artifact directory.
+Public real-protocol log and traces:
+`.artifacts/r152/target-reservation-cancel-20261003/`.
+Use the existing isolated intended runner with the freshly built server and
+`a second device links with a passkey, signs NEAR and Tempo, and is revoked`.
+
+Email OTP grant insertion remains the next terminal-writer check. Full regional
+cryptographic activation/cleanup, lifecycle/ownership acceptance and hosted regional
+verification remain open. No deployment or release occurred.

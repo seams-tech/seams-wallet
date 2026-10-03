@@ -1513,3 +1513,15 @@ was added. A controlled regional scenario starts a production planner before
 another preparation wins, completes target registration and relay delivery, then
 cancels before releasing the delayed result. Target-commit reservation and Email
 OTP grant insertion still require their own terminal-race verification.
+
+
+### October 3: target-commit reservations versus cancellation
+
+Acquisition in `linked_device_target_commit_reservations` now selects from the
+scoped session only while it is `awaiting_target_factor`. A delayed registration
+cannot insert after terminal cleanup. Missing reservation readback ends the attempt
+through the existing registration failure result, replacing recursive acquisition.
+The regional scenario pauses the production INSERT for a real browser registration,
+cancels through regional HTTP, and resumes it with zero inserted rows. The barrier
+enters the production provider directly and delegates all D1 operations. Email OTP
+grant issuance and full regional activation/cleanup remain open.
