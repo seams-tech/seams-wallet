@@ -194,6 +194,11 @@ role RPC and cross-authority contract has a final owner and failure behavior.
   and before backend admission; reject conflicts and outages before continuation
   exposure. Three-home local E2E verifies nine continuation/home combinations,
   races, retry and failures; full Yao execution remains a hosted acceptance gate.
+- [x] Route passkey login/unlock challenge creation by wallet identity and
+  verification by the published challenge ID. Route Email OTP unlock/challenge/
+  factor-release requests by their wallet ID. Verify real challenge creation and
+  one-use consumption across homes; signature/provider execution remains open.
+  Require canonical auth paths so path aliases cannot bypass home dispatch.
 - [ ] Resolve wallet-less linked-device QR creation and polling through shared
   pre-wallet coordination, then bind the approved session to its owner's home.
   Inventory atomic claims, approval, delivery and terminal cleanup before moving stores.

@@ -903,3 +903,31 @@ publish. Scoped reset must include `wallet_routes` with homes and session locato
 Remaining: shared passkey/provider uniqueness and lookup, pre-wallet linked-device
 coordination and approved delivery, internal/deferred home enforcement, terminal
 expiry/fresh attempts, cleanup and full hosted acceptance. Release 0.8.0 stays held.
+
+### October 3: passkey challenge and explicit-wallet authentication routing
+
+The Gateway now resolves `/auth/passkey/options` from `user_id`, passkey
+`/wallet/unlock/challenge` from `userId`, and both corresponding verification
+routes from the opaque challenge ID. Email OTP unlock challenge/verify plus
+`/wallet/email-otp/challenge` and `factor-release` resolve the supplied `walletId`.
+Any Wallet Session and any supplied wallet ID must agree with the resolved home.
+Existing home-local proof, active-method, enrollment, expiry and consumption checks
+remain authoritative.
+
+The actual D1 WebAuthn service publishes a `passkey_challenge` locator after finding
+an active credential and before writing/exposing its local login challenge.
+Migration 0058 adds this kind to the existing immutable `wallet_routes` index,
+preserving all claims and leaving no parallel table or compatibility endpoint.
+Publication conflicts return 409; outages return 503 through both public challenge
+handlers. A later local-write failure may leave inert metadata, which grants no
+authority. Consumed/expired challenges retain their home route and fail in the local
+store. Route retention/cleanup remains part of terminal-state work.
+
+Review found the public auth parser accepted repeated/trailing slashes while home
+dispatch used exact paths. It now requires canonical paths; the regional E2E checks
+both aliases return 404 without creating challenges. No alias fallback remains.
+
+This closes challenge-based passkey entry routing, not global credential/provider
+uniqueness, provider discovery or full hosted unlock acceptance. Shared identity,
+pre-wallet linked-device coordination, internal/deferred home enforcement, terminal
+reconciliation/cleanup and hosted lifecycle/travel verification remain open.

@@ -1005,6 +1005,12 @@ export async function handleWalletUnlockChallengeRoute(input: {
           ttlMs: body.ttlMs,
         });
 
+  if (!result.ok && result.code === 'wallet_home_unavailable') {
+    return { status: 503, body: { ...result, unlockBackend } };
+  }
+  if (!result.ok && result.code === 'wallet_home_conflict') {
+    return { status: 409, body: { ...result, unlockBackend } };
+  }
   return {
     status: result.ok ? 200 : result.code === 'internal' ? 500 : 400,
     body: {

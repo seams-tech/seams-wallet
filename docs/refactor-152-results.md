@@ -3261,3 +3261,37 @@ latency or complete D1-call budgets.
 No infrastructure deployment, reset or package publication occurred. Remaining
 shared-identity, linking, internal/deferred and terminal cleanup work still blocks
 per-wallet completion and release 0.8.0.
+
+### October 3: authentication challenge regional composition
+
+The three-region Worker/D1 scenario passed six passkey challenge flows: both auth
+and unlock endpoints for US, WEUR and APAC homes. Production challenge handlers and
+the actual D1 WebAuthn service selected the correct home-local credential. After
+traveling to another ingress, concurrent verification-fixture requests consumed the
+actual home-local challenge exactly once. Conflicting sessions, conflicting body
+wallets and directory outages did not consume it. Failed home publication returned
+503 through the actual handlers and left no local challenge. Challenge bytes were
+absent from directory metadata.
+
+Twelve Email OTP wallet-identity routing cases reached their homes with controlled
+terminal execution. Six noncanonical auth-path requests returned 404. Existing
+session, recovery and Yao routing scenarios remain green. SDK build, public/private
+TypeScript, focused private lint and public bloat checks pass. Persistent directory
+E2E passed in 4.6s. One introduced TypeScript failure was fixed by narrowing the
+challenge result to its failure branch before reading its error code.
+
+WebAuthn signature verification, full unlock/session issuance, Email OTP delivery
+and provider verification are outside this fixture. No hosted latency was measured.
+
+Repeat from `seams-monorepo`:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/authentication-routing-20261003 \
+node tests/e2e/regional-session-routing.e2e.mjs
+```
+
+Receipt: `.artifacts/r152/authentication-routing-20261003/regional-session-routing-evidence.json`.
+SHA-256: `4ec89bbd3fc1695f5ba80e7e11eb9788e9e54e358e31306812210dbc8543ae03`.
+The receipt includes the tested bundle hash and challenge observations. No deployment,
+reset or publication occurred. Release 0.8.0 remains held.

@@ -1,3 +1,7 @@
+import {
+  WalletLifecycleLocator,
+  type WalletLifecycleRoutingPublisher,
+} from '../../../../authorization/lifecycleRouting';
 import { parseWebAuthnRpId, type WalletId } from '@shared/utils/domainIds';
 import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
@@ -88,15 +92,18 @@ function errorMessage(error: unknown): string {
 }
 
 export class CloudflareD1WebAuthnAuthService {
+  private readonly lifecycleRouting: WalletLifecycleRoutingPublisher | undefined;
   private readonly webAuthnStore: CloudflareD1WebAuthnStore;
   private readonly walletManifestSource: D1WebAuthnWalletManifestSource;
   private readonly walletAuthMethodStore: D1WalletAuthMethodStore;
 
   constructor(input: {
+    readonly lifecycleRouting?: WalletLifecycleRoutingPublisher;
     readonly webAuthnStore: CloudflareD1WebAuthnStore;
     readonly walletManifestSource: D1WebAuthnWalletManifestSource;
     readonly walletAuthMethodStore: D1WalletAuthMethodStore;
   }) {
+    this.lifecycleRouting = input.lifecycleRouting;
     this.webAuthnStore = input.webAuthnStore;
     this.walletManifestSource = input.walletManifestSource;
     this.walletAuthMethodStore = input.walletAuthMethodStore;
@@ -203,6 +210,20 @@ export class CloudflareD1WebAuthnAuthService {
         createdAtMs,
         expiresAtMs,
       };
+
+      if (this.lifecycleRouting) {
+        try {
+          const published = await this.lifecycleRouting.publishLifecycle({
+            walletId: userId.value,
+            locator: WalletLifecycleLocator.parse({ kind: 'passkey_challenge', value: challengeId }),
+          });
+          if (!published.ok) {
+            return failure('wallet_home_conflict', 'Passkey challenge home conflicts');
+          }
+        } catch {
+          return failure('wallet_home_unavailable', 'Passkey challenge home is unavailable');
+        }
+      }
 
       await this.webAuthnStore.writeChallenge({
         challengeId,

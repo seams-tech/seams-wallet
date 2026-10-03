@@ -148,26 +148,21 @@ function parseOptionalPositiveInteger(
   return { ok: true, value: Math.floor(value) };
 }
 
-function parseAuthProviderAction(input: {
-  provider: unknown;
-  action: unknown;
-}): AuthProviderActionRoute | null {
-  const provider = toOptionalTrimmedString(input.provider);
-  const action = toOptionalTrimmedString(input.action);
-  if (provider === 'passkey' && action === 'options') return { kind: 'passkey_options' };
-  if (provider === 'passkey' && action === 'verify') return { kind: 'passkey_verify' };
-  if (provider === 'google' && action === 'options') return { kind: 'google_options' };
-  if (provider === 'google' && action === 'verify') return { kind: 'google_verify' };
-  if (provider === 'github' && action === 'options') return { kind: 'github_options' };
-  return null;
-}
-
 export function parseAuthProviderActionPath(pathname: string): AuthProviderActionRoute | null {
-  const parts = String(pathname || '')
-    .split('/')
-    .filter(Boolean);
-  if (parts.length !== 3 || parts[0] !== 'auth') return null;
-  return parseAuthProviderAction({ provider: parts[1], action: parts[2] });
+  switch (pathname) {
+    case '/auth/passkey/options':
+      return { kind: 'passkey_options' };
+    case '/auth/passkey/verify':
+      return { kind: 'passkey_verify' };
+    case '/auth/google/options':
+      return { kind: 'google_options' };
+    case '/auth/google/verify':
+      return { kind: 'google_verify' };
+    case '/auth/github/options':
+      return { kind: 'github_options' };
+    default:
+      return null;
+  }
 }
 
 export function parsePasskeyLoginOptionsRequest(

@@ -479,6 +479,7 @@ async function createStagingRouterApiAuthComposition(
     database: env.SIGNER_DB,
     sessionRouting: dependencies.sessionRouting,
     recoveryRouting: dependencies.recoveryRouting,
+    lifecycleRouting: dependencies.lifecycleRouting,
     registrationAuthority: dependencies.registrationAuthority,
     registrationSetupDispatcher: dependencies.registrationSetupDispatcher,
     namespace: scope.namespace,

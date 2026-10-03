@@ -256,6 +256,15 @@ CTA belong to the wallet origin.
 
 Expected behaviour:
 
+- Hosted passkey login/unlock challenge creation resolves the selected wallet's
+  home. Before exposing the challenge, the home publishes its immutable scoped
+  challenge-ID route. Verification resolves that route and still requires the
+  normal home-local WebAuthn proof and single-use challenge checks.
+- A conflicting supplied wallet/session fails before consuming the challenge.
+  Home-publication failure returns 409 for conflict or 503 for unavailability,
+  without writing a local challenge. Auth provider routes require their canonical
+  paths; repeated and trailing slash aliases are unsupported.
+
 - Registration prompts for one passkey credential creation.
 - The newly created passkey credential is bound to the wallet and stored as a
   passkey auth method.

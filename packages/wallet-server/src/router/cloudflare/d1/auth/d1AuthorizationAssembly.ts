@@ -1,3 +1,9 @@
+import {
+  CloudflareD1WebAuthnAuthService,
+  type D1WebAuthnWalletManifestSource,
+} from '../webauthn/d1WebAuthnAuthService';
+import { CloudflareD1WebAuthnStore } from '../webauthn/d1WebAuthnStore';
+import type { D1WalletAuthMethodStore } from '../../../../core/d1WalletAuthMethodStore';
 import { CloudflareD1WalletCustodyCommitStore } from '../passkeyCustody/d1WalletCustodyCommitStore';
 import type { NormalizedCloudflareD1RouterApiAuthServiceOptions } from './d1RouterApiAuthConfig';
 import { AuthorizationService } from '../../../../authorization/service';
@@ -38,4 +44,25 @@ export function createD1WalletCustodyStore(
     },
     recoveryRouting: options.recoveryRouting,
   });
+}
+
+export function createD1WebAuthnAssembly(
+  options: NormalizedCloudflareD1RouterApiAuthServiceOptions,
+  walletAuthMethodStore: D1WalletAuthMethodStore,
+  walletManifestSource: D1WebAuthnWalletManifestSource,
+) {
+  const webAuthnStore = new CloudflareD1WebAuthnStore({
+    database: options.database,
+    namespace: options.namespace,
+    orgId: options.orgId,
+    projectId: options.projectId,
+    envId: options.envId,
+  });
+  const webAuthnAuthService = new CloudflareD1WebAuthnAuthService({
+    webAuthnStore,
+    walletAuthMethodStore,
+    walletManifestSource,
+    lifecycleRouting: options.lifecycleRouting,
+  });
+  return { webAuthnStore, webAuthnAuthService };
 }

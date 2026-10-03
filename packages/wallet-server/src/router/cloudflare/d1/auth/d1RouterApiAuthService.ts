@@ -65,6 +65,7 @@ import type {
 import type { AuthorizationService } from '../../../../authorization/service';
 import {
   createD1AuthorizationAssembly,
+  createD1WebAuthnAssembly,
   createD1WalletCustodyStore,
 } from './d1AuthorizationAssembly';
 import type { CloudflareD1AuthorizationStore } from '../authorization/d1AuthorizationStore';
@@ -1544,20 +1545,11 @@ function createCloudflareD1RouterApiAuthAssembly(
     },
   );
   const nearPublicKeys = new CloudflareD1NearPublicKeyStore({ prepare });
-  const webAuthnStore = new CloudflareD1WebAuthnStore({
-    database: options.database,
-    namespace: options.namespace,
-    orgId: options.orgId,
-    projectId: options.projectId,
-    envId: options.envId,
-  });
-  const webAuthnAuthService = new CloudflareD1WebAuthnAuthService({
-    webAuthnStore,
+  const { webAuthnStore, webAuthnAuthService } = createD1WebAuthnAssembly(
+    options,
     walletAuthMethodStore,
-    walletManifestSource: {
-      getEd25519KeyManifestBySlot: readD1Ed25519KeyManifestBySlot.bind(undefined, walletStore),
-    },
-  });
+    { getEd25519KeyManifestBySlot: readD1Ed25519KeyManifestBySlot.bind(undefined, walletStore) },
+  );
   const emailOtpChallenges = new CloudflareD1EmailOtpChallengeStore({
     database: options.database,
     namespace: options.namespace,

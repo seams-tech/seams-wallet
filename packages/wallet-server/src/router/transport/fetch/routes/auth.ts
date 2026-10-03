@@ -186,6 +186,8 @@ export async function handleAuth(ctx: FetchRouterApiContext): Promise<Response |
       const parsed = parsePasskeyLoginOptionsRequest(await readJson(ctx.request));
       if (!parsed.ok) return json(parsed.body, { status: parsed.status });
       const result = await ctx.service.webAuthn.createWebAuthnLoginOptions(parsed.request);
+      if (result.code === 'wallet_home_unavailable') return json(result, { status: 503 });
+      if (result.code === 'wallet_home_conflict') return json(result, { status: 409 });
       return json(result, { status: result.ok ? 200 : result.code === 'internal' ? 500 : 400 });
     }
     case 'passkey_verify': {

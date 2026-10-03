@@ -1082,3 +1082,14 @@ focused lint, bloat and persistent directory E2E pass. See the results checkpoin
 for the receipt and controlled-authorization/execution limits. Shared identity,
 linked-device coordination, internal/deferred enforcement, terminal cleanup and
 hosted acceptance remain open. Release 0.8.0 remains held.
+
+### October 3: authentication routing checkpoint
+
+Passkey challenge creation and challenge-ID continuation routing now use wallet
+homes. Email OTP requests carrying an explicit wallet use the same home directory.
+The production challenge creation/store composition passes across all three homes;
+full signatures and unlock remain unverified by this fixture. Review found and fixed
+noncanonical auth paths bypassing exact-path dispatch. SDK build, type checks,
+focused lint, bloat and directory E2E pass; the results doc records the receipt.
+Global credential/provider uniqueness, discovery, linking, internal/deferred work,
+terminal cleanup and hosted acceptance remain release gates. 0.8.0 stays held.

@@ -6,7 +6,7 @@ import type { RouterAbEd25519YaoRecoveryAdmissionRequestV1 } from '@shared/utils
 export class WalletLifecycleLocator {
   readonly #validated = true;
   private constructor(
-    readonly kind: 'yao_recovery' | 'yao_export',
+    readonly kind: 'yao_recovery' | 'yao_export' | 'passkey_challenge',
     readonly value: string,
   ) {
     Object.freeze(this);
@@ -22,9 +22,17 @@ export class WalletLifecycleLocator {
     const record = requireRecord(raw, 'lifecycle locator');
     if (
       Object.keys(record).length !== 2 ||
-      (record.kind !== 'yao_recovery' && record.kind !== 'yao_export')
+      (record.kind !== 'yao_recovery' &&
+        record.kind !== 'yao_export' &&
+        record.kind !== 'passkey_challenge')
     ) {
       throw new Error('Invalid lifecycle locator');
+    }
+    if (
+      record.kind === 'passkey_challenge' &&
+      (typeof record.value !== 'string' || !/^[A-Za-z0-9_-]{22}$/u.test(record.value))
+    ) {
+      throw new Error('Invalid passkey challenge locator');
     }
     return new WalletLifecycleLocator(
       record.kind,
@@ -51,7 +59,7 @@ type PublicationResult =
 
 export async function publishWalletLifecycleHome(
   publisher: WalletLifecycleRoutingPublisher | null,
-  kind: WalletLifecycleLocator['kind'],
+  kind: 'yao_recovery' | 'yao_export',
   admission: Pick<RouterAbEd25519YaoRecoveryAdmissionRequestV1, 'scope' | 'application_binding'>,
 ): Promise<PublicationResult> {
   if (!publisher) return { ok: true };
