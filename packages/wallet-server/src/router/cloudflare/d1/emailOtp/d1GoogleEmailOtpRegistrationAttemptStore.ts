@@ -128,7 +128,7 @@ export class CloudflareD1GoogleEmailOtpRegistrationAttemptStore {
     const parsed = parseGoogleEmailOtpRegistrationAttemptRow(row);
     if (!parsed) {
       const malformedAttemptId = toOptionalTrimmedString(row?.attempt_id);
-      if (malformedAttemptId) await this.delete(malformedAttemptId);
+      if (malformedAttemptId) await this.deleteMalformedUnclaimed(malformedAttemptId);
       return null;
     }
     if (!registrationAttemptMatchesStartedScope(parsed, scope)) return null;
@@ -151,7 +151,7 @@ export class CloudflareD1GoogleEmailOtpRegistrationAttemptStore {
       const parsed = parseGoogleEmailOtpRegistrationAttemptRow(row);
       if (!parsed) {
         const malformedAttemptId = toOptionalTrimmedString(row.attempt_id);
-        if (malformedAttemptId) await this.delete(malformedAttemptId);
+        if (malformedAttemptId) await this.deleteMalformedUnclaimed(malformedAttemptId);
         continue;
       }
       if (!registrationAttemptMatchesReplacementScope(parsed, input)) continue;
@@ -214,8 +214,8 @@ export class CloudflareD1GoogleEmailOtpRegistrationAttemptStore {
     if (changed !== 1) throw new Error('Registration offer is no longer pending or has changed');
   }
 
-  async delete(attemptId: string): Promise<void> {
-    await emailOtpRegistrationAttemptRows.delete(this.prepare, attemptId).run();
+  private async deleteMalformedUnclaimed(attemptId: string): Promise<void> {
+    await emailOtpRegistrationAttemptRows.deleteUnclaimed(this.prepare, attemptId).run();
   }
 }
 

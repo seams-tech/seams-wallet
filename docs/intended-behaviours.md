@@ -1017,3 +1017,10 @@ verified registration-intent digest. Hosted completion also requires the assigne
 home writer and a non-cancelled home assignment. Normal offer completion still
 rejects an expired pending offer. Full interrupted registration and authoritative
 terminal cleanup remain R152 acceptance gates.
+
+### Claimed-offer cleanup boundaries
+
+Shared offer authority exposes no unrestricted delete operation. Automatic
+malformed-record cleanup removes only unclaimed offers. An expired pending claim
+continues to occupy its offered wallet identities until authoritative reconciliation,
+so ordinary allocation cannot treat it as abandoned merely because time elapsed.

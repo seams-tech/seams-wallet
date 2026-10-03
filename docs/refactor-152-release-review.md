@@ -1165,3 +1165,12 @@ The composition verifies retained-claim completion against a real directory
 reservation. It simulates the interruption boundary rather than executing the full
 regional custody ceremony. Terminal cleanup and complete crash/replay acceptance
 remain open, along with other R152 gates. No deployment or release occurred.
+
+### October 3: cleanup bypass removed
+
+Review found the shared offer API still exposed unrestricted deletion. That command
+and public store method are removed; private malformed-record cleanup cannot delete
+claims. Expired claimed wallets remain occupied during allocation checks. Shared
+composition verifies rejection of the removed command followed by successful
+intent/home-bound completion. Terminal reconciliation and the other R152 gates remain
+open; no deployment or release occurred.

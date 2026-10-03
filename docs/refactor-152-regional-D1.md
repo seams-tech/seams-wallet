@@ -60,6 +60,8 @@ The earlier measurements do not close that acceptance gate or justify release.
 - [x] Preserve candidate claims through offer expiry and accept committed-wallet
   completion only for the original intent; hosted completion requires the assigned
   home writer. Verify rejection of ordinary expired completion and foreign writers.
+- [x] Remove unrestricted shared-offer deletion, restrict malformed-record cleanup
+  to unclaimed rows, and keep expired claimed wallets visible to allocation checks.
 - [ ] Verify the complete regional commit/crash/replay path and reconcile terminal
   claims with wallet-home reservations. Retained claims need authoritative cleanup;
   time-based expiry alone must not discard possible committed work.

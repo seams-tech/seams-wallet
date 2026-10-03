@@ -473,7 +473,7 @@ export const emailOtpRegistrationAttemptRows = {
           AND project_id = ?
           AND env_id = ?
           AND state IN ('started', 'key_finalized')
-          AND expires_at_ms > ?
+          AND (expires_at_ms > ? OR selection_digest IS NOT NULL)
           AND (
             wallet_id = ?
             OR EXISTS (
@@ -486,14 +486,15 @@ export const emailOtpRegistrationAttemptRows = {
       [nowMs, walletId, walletId],
     ),
 
-  delete: (prepare: ScopedD1Prepare, attemptId: string) =>
+  deleteUnclaimed: (prepare: ScopedD1Prepare, attemptId: string) =>
     prepare(
       `DELETE FROM email_otp_registration_attempts
         WHERE namespace = ?
           AND org_id = ?
           AND project_id = ?
           AND env_id = ?
-          AND attempt_id = ?`,
+          AND attempt_id = ?
+          AND selection_digest IS NULL`,
       [attemptId],
     ),
 };

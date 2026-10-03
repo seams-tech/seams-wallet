@@ -1048,3 +1048,11 @@ Fresh creation cannot replace the same scoped claimed attempt merely because its
 offer expiry elapsed. Retention prevents losing possible committed work. The full
 regional commit/crash/replay route and authoritative terminal claim/home-reservation
 cleanup are still acceptance gates; retention is not a completed cleanup policy.
+
+### October 3: claimed-offer deletion audit
+
+Removed the public/shared `delete` operation from the registration-offer store,
+command union and service handler. Malformed-record cleanup is private and its
+SQL deletes only unclaimed rows. Wallet-allocation checks treat a pending candidate
+claim as occupied after offer expiry. This closes ordinary cleanup bypasses;
+authoritative cleanup after a terminal home/custody decision remains unfinished.

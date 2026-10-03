@@ -3499,3 +3499,26 @@ Receipt: `.artifacts/r152/interrupted-registration-20261003/regional-session-rou
 SHA-256: `2b23e1166dae2e09d2b788304f8ca70af8d83b8e4fc1a7ea673cb1f4b44dd1cc`.
 Build/bloat logs and `wallet-home-evidence.json` are retained alongside it.
 No deployment, reset or release occurred.
+
+### October 3: claimed-offer cleanup boundary
+
+The regional composition verified that an expired pending claim still occupies its
+wallet, the removed shared delete command is rejected, and the offer remains
+available for original-intent/home-writer completion. Existing transaction rollback,
+concurrent candidate/offer and regional routing scenarios passed. A type fixture
+also rejects construction of the deleted command.
+
+SDK build, public/private type checks, focused private lint and bloat checks passed.
+No full custody crash or authoritative terminal cleanup is claimed by this run.
+
+Repeat from `seams-monorepo`:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/claim-cleanup-20261003 \
+node tests/e2e/regional-session-routing.e2e.mjs
+```
+
+Receipt: `.artifacts/r152/claim-cleanup-20261003/regional-session-routing-evidence.json`.
+SHA-256: `76f27251f169d2034fe74df7baec3a5b97596d0fa69f12ad5324c8e22fc53192`.
+Build/bloat logs are retained alongside it. No deployment or release occurred.
