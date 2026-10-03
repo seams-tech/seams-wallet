@@ -124,7 +124,7 @@ for (const scenario of [
   {
     name: 'a second device links with a passkey, signs NEAR and Tempo, and is revoked',
     loseActivation: true,
-    lostAcknowledgements: 1,
+    lostAcknowledgements: 2,
   },
   {
     name: 'a second device completes linking after two lost cleanup acknowledgement replies',

@@ -1760,12 +1760,17 @@ export class LinkDeviceFlow {
        pending acknowledgement keeps replay possible without it. */
     await this.closeSessionSubscriptionV1();
     const transport = this.requireAuthenticatedTransport();
-    try {
-      await transport.acknowledgeLocalAuthorityActivationV1({ acknowledgement });
-    } catch (error: unknown) {
-      if (classifyLinkedDeviceDeliveryFailureV1(error)) throw error;
-      // Cleanup may already have committed. Retry its exact receipt with a fresh proof.
-      await transport.acknowledgeLocalAuthorityActivationV1({ acknowledgement });
+    // Cleanup stops polling, so acknowledgement retries need their own bounded budget.
+    const maximumAttempts = 3;
+    for (let attempt = 1; attempt <= maximumAttempts; attempt += 1) {
+      try {
+        await transport.acknowledgeLocalAuthorityActivationV1({ acknowledgement });
+        break;
+      } catch (error: unknown) {
+        if (classifyLinkedDeviceDeliveryFailureV1(error) || attempt === maximumAttempts) {
+          throw error;
+        }
+      }
     }
     await this.ports.authorityInstallation.clearPendingActivationAcknowledgementV1({
       authorityId: acknowledgement.authorityId,

@@ -54,8 +54,12 @@ older implementation checkpoints and must be read with their later evidence.
    signer workflow tables are empty after linking, sealed delivery is removed and
    completion receipts remain only at home. Two lost final acknowledgement replies
    through foreign ingress now pass for every home: exact replay, fresh proofs,
-   successful signing and no duplicate installation. Process restart, earlier
-   protocol response loss and shared Console retention remain to verify. Actual regional Router placement remains unverified.
+   successful signing and no duplicate installation. Combined activation-response
+   loss and two final-response losses now pass after giving acknowledgement its
+   own bounded retry budget. Shared bootstrap/route retention and scoped final
+   proof nonces are verified in Console; signer nonce tables remain empty.
+   Process restart, Router execution response loss in the regional composition,
+   and expiry pruning remain open. Actual regional Router placement is unverified.
    Local protocol contracts already prove response-loss cleanup; carry those
    assertions into this regional composition rather than infer them from signing.
    The real registration boundary is now checked before that local linking test:

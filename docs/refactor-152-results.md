@@ -4810,3 +4810,48 @@ Reproduce from the private repository using `tests/scripts/run-regional-real.mjs
 setting `SEAMS_WALLET_SERVER_CANDIDATE` to the built public package and
 `SEAMS_TEST_ARTIFACT_DIR` to a fresh directory. The current matrix includes the
 lost replies. ESLint and the public bloat check passed. No deployment or release.
+
+### October 4: combined activation/acknowledgement loss and shared Console retention
+
+The regional matrix exposed a production regression: after activation replay used
+its outer recovery path, two lost final acknowledgement replies exhausted that
+same recovery path. Cleanup had committed and polling was closed, leaving the
+browser unfinished. The failing trace records a lost activation response, its
+successful replay, then two lost acknowledgement replies with no completion.
+The first case failed; the remaining run was interrupted (exit 130).
+
+Final acknowledgement now owns a bounded three-attempt budget, with the exact
+acknowledgement and a fresh device proof on each attempt. Terminal recovery errors
+still stop retries immediately. The normative lifecycle contract and existing
+public scenario now require combined activation loss and two lost final replies.
+
+All three regional home/foreign-ingress cases passed against the rebuilt SDK in
+1.9 minutes total. Each activation retried the identical installation receipt and
+received the identical active authority/session. Each final acknowledgement had
+three successful server responses, with the first two deliberately discarded.
+NEAR/Tempo signing, exact home-only durable counts and signer cleanup passed.
+
+Shared-state assertions also passed: exactly one claimed bootstrap joins its
+retained linked-device route to the assigned wallet home; all three final-proof
+nonces remain in Console under the full authenticated scope with valid expiry
+bounds. Every signer database has zero proof-nonce rows. This establishes current
+retention/ownership; expiry pruning and restart are separate checks.
+
+Private artifacts: `.artifacts/r152/regional-activation-20261004/` retains the
+unfixed log and `before/trace.zip`; `.artifacts/r152/regional-activation-fixed-20261004/`
+contains the passing log and per-home evidence. SHA-256 of each passing receipt:
+
+- US: `be37fae016f1bd434ee4b6d13667059c308aacc28e62bf44a3721f838bbf0c0c`.
+- WEUR: `e0c9e57a6bc2ed8aa9b2d7f63368ecde4b374c8f1f659cb5440afe224b9c980c`.
+- APAC: `a8e3b9038dc0ba32c3fcc9a249e6504f42c320541e6cf7dd92719a7f0a0ef204`.
+
+SDK build, intended-contract type checking, private ESLint and public bloat checks
+passed. The scenario still shares one local Router stack and supplies no geographic
+latency evidence. No deployment or release occurred.
+
+The updated public intended contract also passed (36.6 seconds): lost Router
+execution response, lost activation response and two lost acknowledgement replies,
+followed by signing, cleanup, linked-device revocation, rejected revoked signing
+and continued owner signing. Evidence: `.artifacts/r152/activation-retry-public-20261004/`
+and its adjacent log. This public run uses one local database; regional Router
+execution replay remains the next composed acceptance check.

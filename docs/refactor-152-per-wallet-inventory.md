@@ -1603,3 +1603,13 @@ seven transient signer workflow tables are empty everywhere. Only the home keeps
 the completed delivery, with its envelope removed and both completion receipts
 retained. This evidence covers signer cleanup. Console bootstrap and nonce
 retention, process restart and separately placed Router roles remain distinct gates.
+
+### October 4: shared retention after combined response loss
+
+The real three-home matrix now checks one claimed bootstrap and its linked-device
+route join the assigned home after completion. Final acknowledgement proof nonces
+remain in Console under the full namespace/org/project/environment scope, while
+all three signer nonce tables are empty. Retention is intentional until expiry;
+pruning and process restart remain open. Activation replay returns the same active
+authority/session. Final acknowledgement owns three bounded attempts independently
+of that activation replay, avoiding exhaustion of a shared outer recovery path.

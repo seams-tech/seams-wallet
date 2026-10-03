@@ -825,7 +825,10 @@ Expected behaviour:
 - Losing the final acknowledgement reply after server cleanup preserves the local
   activation completion. The target retries the exact acknowledgement with a fresh
   device proof and completes its authenticated state and success event without
-  repeating signer installation or target-factor activation.
+  repeating signer installation or target-factor activation. Final acknowledgement
+  has up to three attempts with fresh proofs, independently of an earlier
+  activation-response retry; two lost final replies must still complete after
+  activation itself was replayed.
 - A Passkey card displays server-derived authenticator metadata when it is
   available. An Email OTP card displays `Email OTP` and makes no browser,
   operating-system, provider, transport, sync, or hardware claim.
