@@ -261,6 +261,10 @@ export class CloudflareD1GoogleEmailOtpSessionResolver {
     });
   }
 
+  completeCommittedRegistrationAttempt(input: { readonly registrationAttemptId: string; readonly walletId: string; readonly intentDigest: string }) {
+    return this.registrationAttempts.completeCommitted({ attemptId: input.registrationAttemptId, walletId: input.walletId, intentDigest: input.intentDigest });
+  }
+
   async completeRegistrationAttempt(input: {
     readonly registrationAttemptId?: unknown;
     readonly walletId?: unknown;

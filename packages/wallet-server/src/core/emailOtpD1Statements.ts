@@ -320,7 +320,7 @@ export const emailOtpRegistrationAttemptRows = {
           AND existing.runtime_org_id = candidate.runtime_org_id
           AND existing.runtime_policy_key = candidate.runtime_policy_key
           AND existing.state IN ('started', 'key_finalized')
-          AND existing.expires_at_ms > candidate.created_at_ms
+          AND (existing.expires_at_ms > candidate.created_at_ms OR existing.selection_digest IS NOT NULL)
       )`,
       registrationAttemptValues(record),
     ),
@@ -391,7 +391,7 @@ export const emailOtpRegistrationAttemptRows = {
         AND wallet_id = ?
         AND json_extract(record_json, '$.selectedCandidateId') = ?
         AND NOT (state = 'key_finalized' AND ? = 'started')
-        AND (? <> 'abandoned' OR selection_digest IS NULL)
+        AND (? NOT IN ('abandoned', 'expired') OR selection_digest IS NULL)
         AND ? <> 'active'
         AND updated_at_ms <= ?`,
       [
@@ -458,7 +458,7 @@ export const emailOtpRegistrationAttemptRows = {
           AND org_id = ?
           AND project_id = ?
           AND env_id = ?
-          AND state <> 'active'
+          AND state <> 'active' AND selection_digest IS NULL
           AND (expires_at_ms <= ? OR state = 'expired')`,
       [nowMs],
     ),

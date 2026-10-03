@@ -3468,3 +3468,34 @@ Receipt: `.artifacts/r152/registration-completion-20261003/regional-session-rout
 SHA-256: `9a7125c2b3d11dbd5e89bf6efba7764b209977a6a645f181d4e77074be7259b0`.
 The directory retains build/bloat logs and `wallet-home-evidence.json`.
 No deployment, reset or release occurred.
+
+### October 3: retained claims and home-bound committed completion
+
+The composition expired a claimed offer and ran pending cleanup. The claim remained,
+and ordinary completion failed. Committed completion rejected a missing home,
+a foreign APAC writer and an incorrect intent. After reserving the wallet in US,
+concurrent US completion with the original intent succeeded. The active offer and
+identity link matched; subsequent acknowledgement survived cleanup. Existing atomic
+rollback, candidate contention and regional routing scenarios passed as well.
+
+SDK build, public/private type checks, focused private lint, bloat and persistent
+wallet-home directory E2E passed. Two fixture errors were corrected: reservation ID
+prefixes and the recovery scenario's call to the ordinary completion method. Their
+production validators correctly rejected the inputs.
+
+This simulates the outage/expiry boundary through production resolver, Console and
+D1 with a real home reservation. It does not execute a full regional custody crash
+or prove terminal cleanup. Retained claims require authoritative reconciliation.
+
+Repeat from `seams-monorepo`:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/interrupted-registration-20261003 \
+node tests/e2e/regional-session-routing.e2e.mjs
+```
+
+Receipt: `.artifacts/r152/interrupted-registration-20261003/regional-session-routing-evidence.json`.
+SHA-256: `2b23e1166dae2e09d2b788304f8ca70af8d83b8e4fc1a7ea673cb1f4b44dd1cc`.
+Build/bloat logs and `wallet-home-evidence.json` are retained alongside it.
+No deployment, reset or release occurred.

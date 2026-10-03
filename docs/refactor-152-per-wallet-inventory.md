@@ -1032,3 +1032,19 @@ link that changed after completion. Regional enrollment/custody persistence stil
 precedes the shared transaction and requires interrupted-flow reconciliation with
 home reservation and expiry. This change closes the two shared writes, not that
 cross-database boundary.
+
+### October 3: completion after offer expiry
+
+The post-wallet-commit finalizer now passes the authority's original registration
+intent digest through `completeCommittedRegistrationAttempt`. The shared completion
+transaction checks that digest against the candidate claim instead of the offer's
+pre-registration expiry. Console additionally requires a non-cancelled wallet-home
+assignment matching the authenticated writer resource. Ordinary offer completion
+retains its live-expiry check. A completed acknowledgement on the committed path
+also checks the original digest.
+
+Cleanup retains claimed records, and generic pending writes cannot expire them.
+Fresh creation cannot replace the same scoped claimed attempt merely because its
+offer expiry elapsed. Retention prevents losing possible committed work. The full
+regional commit/crash/replay route and authoritative terminal claim/home-reservation
+cleanup are still acceptance gates; retention is not a completed cleanup policy.

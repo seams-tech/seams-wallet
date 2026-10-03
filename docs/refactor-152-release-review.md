@@ -1155,3 +1155,13 @@ moves fail. Build, types, focused lint, bloat and regional composition pass.
 The regional custody commit/shared-completion boundary and home/expiry reconciliation
 remain open, as do credential/limit authority, linking, internal routing and hosted
 acceptance. No deployment or release occurred; 0.8.0 remains held.
+
+### October 3: expired-claim reconciliation checkpoint
+
+The post-wallet-commit completion path now binds the original intent and, in hosted
+composition, its assigned home writer. Expired claims survive pending cleanup;
+ordinary expired completion, missing homes, foreign writers and wrong intents fail.
+The composition verifies retained-claim completion against a real directory
+reservation. It simulates the interruption boundary rather than executing the full
+regional custody ceremony. Terminal cleanup and complete crash/replay acceptance
+remain open, along with other R152 gates. No deployment or release occurred.

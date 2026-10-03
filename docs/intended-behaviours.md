@@ -1008,3 +1008,12 @@ record updates cannot bypass this transaction to activate an offer.
 
 Regional custody persistence and shared completion still require R152 interrupted
 registration/home-reservation acceptance before release.
+
+### Resuming shared completion after a wallet commit
+
+A claimed offer is retained when its offer expiry elapses so cleanup cannot erase
+possible committed wallet work. Post-commit completion requires the original
+verified registration-intent digest. Hosted completion also requires the assigned
+home writer and a non-cancelled home assignment. Normal offer completion still
+rejects an expired pending offer. Full interrupted registration and authoritative
+terminal cleanup remain R152 acceptance gates.

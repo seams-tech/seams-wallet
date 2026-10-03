@@ -57,8 +57,12 @@ The earlier measurements do not close that acceptance gate or justify release.
 - [x] Publish the Google registration identity and activate its claimed offer in
   one D1 transaction. Verify rollback, concurrent acknowledgement, identity-move
   restrictions, and retry after pending-offer expiry cleanup.
-- [ ] Reconcile regional custody commit with shared completion, expired claims and
-  final home reservation; verify interrupted/resumed registration end to end.
+- [x] Preserve candidate claims through offer expiry and accept committed-wallet
+  completion only for the original intent; hosted completion requires the assigned
+  home writer. Verify rejection of ordinary expired completion and foreign writers.
+- [ ] Verify the complete regional commit/crash/replay path and reconcile terminal
+  claims with wallet-home reservations. Retained claims need authoritative cleanup;
+  time-based expiry alone must not discard possible committed work.
 - [ ] Share passkey credential uniqueness and rate limits; finish linked-device
   coordination and internal/deferred enforcement.
 

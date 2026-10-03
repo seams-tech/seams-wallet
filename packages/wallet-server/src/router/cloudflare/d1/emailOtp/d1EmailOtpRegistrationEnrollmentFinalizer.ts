@@ -156,8 +156,9 @@ export class CloudflareD1EmailOtpRegistrationEnrollmentFinalizer {
           case 'otp_challenge':
             return { ok: true };
           case 'google_sso_registration':
-            return await this.googleEmailOtpSessions.completeRegistrationAttempt({
+            return await this.googleEmailOtpSessions.completeCommittedRegistrationAttempt({
               registrationAttemptId: input.authority.googleEmailOtpRegistrationAttemptId,
+              intentDigest: input.authority.registrationIntentDigestB64u,
               walletId: input.walletId,
             });
         }

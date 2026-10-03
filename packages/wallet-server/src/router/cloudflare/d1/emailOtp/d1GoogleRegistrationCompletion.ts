@@ -8,18 +8,38 @@ export type GoogleRegistrationCompletionResult =
 const PENDING_OFFER = `SELECT * FROM email_otp_registration_attempts
   WHERE namespace = ? AND org_id = ? AND project_id = ? AND env_id = ?
     AND attempt_id = ? AND wallet_id = ? AND selection_digest IS NOT NULL
-    AND state IN ('started', 'key_finalized') AND expires_at_ms > ?`;
+    AND state IN ('started', 'key_finalized')`;
 
 export async function completeGoogleRegistration(
   prepare: ScopedD1Prepare,
   batch: D1DatabaseLike['batch'],
-  input: { readonly attemptId: string; readonly walletId: string },
+  input:
+    | {
+        readonly kind: 'live_offer';
+        readonly attemptId: string;
+        readonly walletId: string;
+        readonly intentDigest?: never;
+      }
+    | {
+        readonly kind: 'committed_wallet';
+        readonly attemptId: string;
+        readonly walletId: string;
+        readonly intentDigest: string;
+      },
 ): Promise<GoogleRegistrationCompletionResult> {
   const nowMs = Date.now();
-  const scopeValues = [input.attemptId, input.walletId, nowMs];
+  const eligibility =
+    input.kind === 'live_offer'
+      ? `${PENDING_OFFER} AND expires_at_ms > ?`
+      : `${PENDING_OFFER} AND selection_digest = ?`;
+  const scopeValues = [
+    input.attemptId,
+    input.walletId,
+    input.kind === 'live_offer' ? nowMs : input.intentDigest,
+  ];
   const results = await batch<D1ResultLike<{ readonly completed: number }>>([
     prepare(
-      `WITH offer AS (${PENDING_OFFER})
+      `WITH offer AS (${eligibility})
       INSERT INTO identity_links (
         namespace, org_id, project_id, env_id, subject, user_id, record_json,
         created_at_ms, updated_at_ms
@@ -44,7 +64,7 @@ export async function completeGoogleRegistration(
       [...scopeValues, nowMs, nowMs, nowMs, nowMs],
     ),
     prepare(
-      `WITH offer AS (${PENDING_OFFER})
+      `WITH offer AS (${eligibility})
       UPDATE email_otp_registration_attempts AS attempt
       SET state = 'active', updated_at_ms = MAX(updated_at_ms, ?),
         record_json = json_set(record_json, '$.state', 'active', '$.updatedAtMs', MAX(updated_at_ms, ?))
@@ -64,8 +84,11 @@ export async function completeGoogleRegistration(
         AND link.subject = 'wallet:' || offer.provider_subject AND link.user_id = offer.wallet_id
       WHERE offer.namespace = ? AND offer.org_id = ? AND offer.project_id = ? AND offer.env_id = ?
         AND offer.attempt_id = ? AND offer.wallet_id = ?
-        AND offer.selection_digest IS NOT NULL AND offer.state = 'active'`,
-      [input.attemptId, input.walletId],
+        AND offer.selection_digest IS NOT NULL AND offer.state = 'active'
+        ${input.kind === 'committed_wallet' ? 'AND offer.selection_digest = ?' : ''}`,
+      input.kind === 'committed_wallet'
+        ? [input.attemptId, input.walletId, input.intentDigest]
+        : [input.attemptId, input.walletId],
     ),
   ]);
   if (results.some(batchFailed)) throw new Error('Registration completion transaction failed');
