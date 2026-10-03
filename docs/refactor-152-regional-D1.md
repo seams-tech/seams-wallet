@@ -283,7 +283,11 @@ role RPC and cross-authority contract has a final owner and failure behavior.
   publishable-key authentication backed by the in-memory key store. Missing/invalid
   keys, missing/blocked origins and mismatched environments fail; accepted APAC
   requests replay the WEUR preparation and recipient changes return 409.
-- [ ] Verify actual target WebAuthn registration, source contribution, committed package
+- [x] Verify a Chromium virtual-authenticator registration with the production
+  target verifier and signed credential HTTP at the home. Reject altered challenges
+  and changed configuration; source lookup failure leaves the preparation unregistered,
+  releases its commit reservation and permits a fresh-proof retry.
+- [ ] Complete successful target credential persistence, source contribution, committed package
   delivery and authority installation through hosted regional entry points,
   including acknowledgement loss and cleanup. Replace controlled source metadata
   and owner HTTP authentication in the final composed acceptance run.

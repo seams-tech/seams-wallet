@@ -3939,3 +3939,32 @@ This checkpoint does not verify real target WebAuthn registration, source
 contribution, committed package delivery or authority installation. Console key
 storage is in-memory, and hosted transport/latency acceptance remains open.
 No deployment or release was performed; 0.8.0 remains held.
+
+### 2026-10-03 — browser target WebAuthn verification and failure retry
+
+Chromium with a CTAP2 virtual authenticator creates a real registration response at
+`https://wallet.test` from the persisted preparation. The production target WebAuthn
+verifier accepts the response and its credential ID, rejects an altered challenge,
+and rejects a changed expected configuration.
+
+The same response travels in a signed credential POST through APAC to WEUR. A
+controlled source reader deliberately throws after target-factor verification.
+The request fails without registering the credential: the target remains `prepared`
+and its commit reservation is released. An invalid-challenge HTTP request never
+reaches source lookup. Two valid fresh-proof attempts both reach the source reader
+and leave no reservation, demonstrating retry after the failure. No production defect
+was found in this checkpoint.
+
+The complete regional composition E2E, focused ESLint and public bloat ratchet pass.
+Receipt: private `.artifacts/r152/target-webauthn-20261003/regional-session-routing-evidence.json`.
+SHA-256: `39728e8c4475f3aa4b891dc86da23b39c2b8f6d5d0c14fe9a26eeb72a552205c`.
+Repeat in `seams-monorepo` with the built SDK candidate and installed Playwright Chromium:
+`SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/target-webauthn-20261003 node tests/e2e/regional-session-routing.e2e.mjs`.
+Logs are retained beside the receipt. No production source or domain types changed.
+
+This proves browser response verification and fail-closed credential persistence,
+not successful registration. Coherent source-authority reads and source-contribution
+planning must be composed next to verify `registered` and
+`awaiting_source_contribution`, followed by package delivery and authority activation.
+The virtual authenticator does not establish hardware-authenticator compatibility.
+No geographic latency was measured; no deployment or release occurred. 0.8.0 remains held.

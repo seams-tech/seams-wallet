@@ -1256,3 +1256,20 @@ blocked origins and a different environment return 403. An authenticated request
 returns the durable preparation, while a changed recipient returns 409. Requests
 do not allocate more preparations. Source planning remains controlled, and target
 WebAuthn registration, source contribution and final installation are still open.
+
+### October 3: browser target verification and source-failure rollback
+
+The regional E2E now creates a real registration response with Chromium's virtual
+authenticator at `https://wallet.test`. The target verifier accepts it and rejects an
+altered challenge or changed expected configuration. A signed credential POST from
+APAC executes at WEUR. The source-reader fixture deliberately fails after successful
+factor verification: the target row stays `prepared`, commit reservations are released,
+and a fresh signed retry reaches source lookup again. Invalid challenge requests do
+not reach source lookup.
+
+This closes browser-response verification and failure/retry coverage at the credential
+HTTP boundary. It does not complete credential persistence: the next composition must
+supply a coherent source-authority reader and source-contribution preparation planner,
+then verify the `registered`/`awaiting_source_contribution` transition and replay before
+committed package delivery and final installation. Browser-generated registration is
+real; the source authority and cryptographic provisioning remain outside this run.
