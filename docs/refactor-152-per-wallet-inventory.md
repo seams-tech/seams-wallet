@@ -1420,3 +1420,18 @@ These contracts use real local MPC Workers and fresh D1 state. Regional fixtures
 remain separate evidence; their controlled source/authentication is not replaced by
 these standalone runs. No new geographic latency measurement or deployment.
 See [results](refactor-152-results.md) for commands, timings and the receipt.
+
+### October 3: regional owner authentication uses production D1 readers
+
+The regional linked-device scenario now uses the production owner bearer
+authenticator and active/exhausted session readers. The token-comparison fixture
+was deleted. Approval and source-preparation reads validate durable session,
+authority, method and capability state. A foreign wallet authenticated against its
+own real home is still rejected by the downstream claimed-wallet guard; Gateway
+scope rejection also passes across all three ingress regions.
+
+Regional E2E, focused lint and public bloat checks passed. Private receipt:
+`.artifacts/r152/owner-auth-20261003/regional-session-routing-evidence.json`;
+SHA-256 `05438478f525d73d86435b7c67405daff993ebb813410741b7676bf1c0ba4460`.
+Approval source facts and target preparation remain controlled; regional protocol
+execution and final installation remain open. No deployment or release.

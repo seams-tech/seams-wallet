@@ -4255,3 +4255,18 @@ logs and device traces. This establishes local protocol and retry acceptance.
 It does not establish complete installation across separate regional D1 homes:
 production Console authentication, regional final-state/cleanup isolation and
 hosted candidate acceptance remain open. No deployment or release occurred.
+
+### October 3: regional owner authentication uses production D1 readers
+
+The regional linked-device scenario now uses the production owner bearer
+authenticator and active/exhausted session readers. The token-comparison fixture
+was deleted. Approval and source-preparation reads validate durable session,
+authority, method and capability state. A foreign wallet authenticated against its
+own real home is still rejected by the downstream claimed-wallet guard; Gateway
+scope rejection also passes across all three ingress regions.
+
+Regional E2E, focused lint and public bloat checks passed. Private receipt:
+`.artifacts/r152/owner-auth-20261003/regional-session-routing-evidence.json`;
+SHA-256 `05438478f525d73d86435b7c67405daff993ebb813410741b7676bf1c0ba4460`.
+Approval source facts and target preparation remain controlled; regional protocol
+execution and final installation remain open. No deployment or release.
