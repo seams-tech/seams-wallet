@@ -39,6 +39,31 @@ separate. R6 must measure the completed hosted route across wallet homes and
 travel locations with frozen sources, explicit call budgets and retained failures.
 The earlier measurements do not close that acceptance gate or justify release.
 
+### Current remaining R152 work (October 3)
+
+This list summarizes the remaining gates; chronological checkboxes below retain
+older implementation checkpoints and must be read with their later evidence.
+
+1. Complete the regional linked-device flow after source preparation: real
+   contribution execution, export-root/package delivery, installation receipts,
+   activation and cleanup. Prove final state exists only at the assigned home,
+   including lost responses and restart. Real local protocol contracts already
+   pass; they do not prove separate regional database isolation.
+2. Close full lifecycle acceptance and terminal reconciliation for registration,
+   discovery/unlock, recovery, export and add/revoke methods. Exercise browser
+   proofs and shared credential/identity claims through commit, failure and replay.
+3. Finish the ownership/entry-point audit and retirement audit: unresolved mixed
+   records, internal/deferred effects, cross-authority reconciliation, stale
+   deployment behavior and surviving namespace-placement assumptions. Keep R153
+   relocation and its generation fencing outside this R152 continuation.
+4. Complete regional provisioning/activation and the scoped disposable-wallet
+   reset/cutover review, then verify the actual US/WEUR/APAC bindings and resources.
+5. Run hosted concurrency, outage and travel tests with frozen builds; retain
+   signatures, actual served regions, D1 calls and latency distributions. Keep the
+   deferred per-flow D1 call-budget task visible; do not infer gains from emulators.
+6. Complete candidate/package/deletion checks and hosted acceptance, then release
+   and consume 0.8.0. Release remains held until the required gates pass.
+
 ### October 3 checkpoint: shared external identities
 
 - [x] Route hosted Gateway identity lookup, claim, list, unlink and cleanup through
@@ -1389,3 +1414,17 @@ the signer at WEUR allows approval, registration and replay to complete through
 the existing regional scenario. The target planner and owner protocol material
 remain controlled; real regional installation remains open. See the
 [results](refactor-152-results.md) for the receipt and verification limits.
+
+### October 3: production target planner and authenticated claim HTTP
+
+Deleted the handwritten target preparation fixture. The existing production
+planner now generates challenges, target method IDs, export-root preparation and
+recipient requirements; the fixture only synchronizes concurrent entry. Two plans
+converge on one durable preparation, changed recipients conflict, and browser
+registration succeeds. The initial claim now travels through authenticated HTTP
+from APAC to WEUR and replays identically through US, replacing the direct service
+call with a manufactured owner context in this composed scenario.
+
+Regional E2Es, focused lint and public bloat checks passed. Real owner protocol
+material and complete regional installation remain open; see
+[results](refactor-152-results.md) for receipts and reproduction.

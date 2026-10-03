@@ -1445,3 +1445,17 @@ the signer at WEUR allows approval, registration and replay to complete through
 the existing regional scenario. The target planner and owner protocol material
 remain controlled; real regional installation remains open. See the
 [results](refactor-152-results.md) for the receipt and verification limits.
+
+### October 3: production target planner and authenticated claim HTTP
+
+Deleted the handwritten target preparation fixture. The existing production
+planner now generates challenges, target method IDs, export-root preparation and
+recipient requirements; the fixture only synchronizes concurrent entry. Two plans
+converge on one durable preparation, changed recipients conflict, and browser
+registration succeeds. The initial claim now travels through authenticated HTTP
+from APAC to WEUR and replays identically through US, replacing the direct service
+call with a manufactured owner context in this composed scenario.
+
+Regional E2Es, focused lint and public bloat checks passed. Real owner protocol
+material and complete regional installation remain open; see
+[results](refactor-152-results.md) for receipts and reproduction.

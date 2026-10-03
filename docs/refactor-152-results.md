@@ -4299,3 +4299,40 @@ claim context and target preparation planner are still fixtures; complete region
 source execution, package delivery and authority installation remain open. The
 separate real local protocol contracts do not establish regional final-state
 isolation. No deployment, release or new latency measurement occurred.
+
+### October 3: production target planning and HTTP claim acceptance
+
+The regional preparation race now delegates to `D1LinkedDeviceTargetPlannerV1`
+through the production owner/source resolver. Removed 56 net lines of handwritten
+preparation construction and unused bundle exports. The concurrency wrapper only
+holds both calls at a barrier. Two independently generated plans converge on one
+D1 preparation; replay returns that preparation, a changed delivery recipient
+conflicts, US/APAC hold no target row, and real Chromium WebAuthn registration
+succeeds using the production challenge and PRF configuration.
+
+The composed session's initial claim now uses the production owner authenticator
+and HTTP claim route: APAC ingress dispatches to WEUR, then US ingress replays the
+identical durable claim. This removes the direct claim-service shortcut and
+manufactured claim owner context from this scenario. Existing approval, preparation,
+credential, source-read, cancellation and no-resurrection checks pass afterward.
+
+Both regional runs, focused ESLint and public bloat checks passed. Private receipts:
+
+- `.artifacts/r152/target-planner-20261003/regional-session-routing-evidence.json`:
+  SHA-256 `73f365f859a81aa12fcfeb18acb4c3d24284f372408e8c97bcf33a64f5fed49f`.
+- `.artifacts/r152/claim-http-20261003/regional-session-routing-evidence.json`:
+  SHA-256 `7885b546470c676e3434cb7e1e794890da8d5d282a52794d44459135c45bd6df`.
+
+Reproduce the complete current flow from the private repository:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/claim-http-20261003 \
+node tests/e2e/regional-session-routing.e2e.mjs
+```
+
+The regional scenario still starts from synthetic owner protocol material and uses
+in-memory Console publishable-key storage. Real source execution, package delivery,
+authority activation and post-installation cleanup across regional databases remain
+open. Cancellation cleanup is covered; installation cleanup is a separate gate.
+No deployment, release or new hosted latency measurement occurred.
