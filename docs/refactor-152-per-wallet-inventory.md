@@ -874,3 +874,32 @@ subsequent target preparation, credentials, contributions, factor delivery, expo
 packages and receipts at that home; and cancellation/expiry on both sides. Preserve
 existing proof and atomic state-transition invariants. No temporary namespace-home
 fallback or initial-device-location wallet assignment was introduced.
+
+### October 3: opaque Yao lifecycle routing
+
+Recovery execute/activate now extract `binding.lifecycle.lifecycle_id`; export
+execute extracts `protocol.binding.ceremony.lifecycle.lifecycle_id`. The Gateway
+resolves the scoped operation-kind/ID before constructing regional services, checks
+any Wallet Session against the same wallet, and repeats lookup at the receiving
+home. Unknown routes return 404, malformed IDs 400, conflicts 403 and lookup outages
+503. The home still owns full protocol authorization, expiry and one-use state.
+
+The public recovery handler publishes after successful authorization and admission
+preparation, before the prepared claim is committed or backend admission runs.
+The export handler publishes after its existing atomic authorization commit and
+before backend admission. Publication conflicts return 409 `wallet_home_conflict`;
+outages return 503 `wallet_home_unavailable`. An export publication failure can leave
+an authorized local record; its existing exact-request replay handles retry. There
+is no cross-D1 transaction. A later local/backend failure can leave inert route
+metadata; the locator alone grants no authority and is never reassigned.
+
+Console migration 0057 consolidates recovery code/operation and Yao lifecycle
+locators into `wallet_routes`, preserving existing claims and dropping the former
+`wallet_recovery_routes` table and its triggers. The single immutable store and
+service endpoints replace the recovery-only implementation; no compatibility
+endpoint remains. Only the admitted writer at the wallet's physical home can
+publish. Scoped reset must include `wallet_routes` with homes and session locators.
+
+Remaining: shared passkey/provider uniqueness and lookup, pre-wallet linked-device
+coordination and approved delivery, internal/deferred home enforcement, terminal
+expiry/fresh attempts, cleanup and full hosted acceptance. Release 0.8.0 stays held.

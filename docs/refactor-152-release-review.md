@@ -1071,3 +1071,14 @@ Linked-device QR sessions start without a wallet: shared pre-wallet coordination
 and owner-approved home binding remain explicit inventory/implementation work.
 Other shared identity, internal/deferred, expiry/cleanup and hosted acceptance gates
 remain open. Release 0.8.0 stays held.
+
+### October 3: opaque lifecycle continuation checkpoint
+
+Recovery execute/activate and export execute now use scoped immutable lifecycle
+locators. Authorized home publication precedes backend admission; outages/conflicts
+are explicit. The generalized route store replaces the recovery-only table and
+endpoints. Local regional composition, SDK build, public/private type checks,
+focused lint, bloat and persistent directory E2E pass. See the results checkpoint
+for the receipt and controlled-authorization/execution limits. Shared identity,
+linked-device coordination, internal/deferred enforcement, terminal cleanup and
+hosted acceptance remain open. Release 0.8.0 remains held.

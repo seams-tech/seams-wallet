@@ -238,3 +238,6 @@ export {
   deriveRecoveryCodeLocatorV1FromBytes,
 } from '@shared/wallet-recovery/recoveryCodeLocator';
 export { parseWalletRecoveryOperationId } from '@shared/utils/domainIds';
+
+export { WalletLifecycleLocator } from './authorization/lifecycleRouting';
+export type { WalletLifecycleRoutingPublisher } from './authorization/lifecycleRouting';

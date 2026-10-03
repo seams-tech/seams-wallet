@@ -3224,3 +3224,40 @@ Receipt: `.artifacts/r152/yao-entry-routing-20261003/regional-session-routing-ev
 SHA-256: `1d2058207f4a74d5d6a7cceaca30072cb3809556f778483a43a2524900dbb0aa`.
 The receipt includes the production bundle hash and per-route regional observations.
 Earlier evidence is preserved. No deployment, reset or release occurred.
+
+### October 3: lifecycle locator continuation composition
+
+The local three-region Worker/D1 scenario passed all nine continuation/home
+combinations: recovery execute and activate, plus export execute for US, WEUR and
+APAC wallets. The production publication helper, Console service/index and Gateway
+dispatch were exercised. Identical retries succeeded, competing wallets had exactly
+one claim winner, wrong physical writers and conflicting sessions were rejected,
+and directory outages prevented publication and routing. Operation kinds retain
+separate ID spaces. Direct SQL mutation was rejected; the retired table is absent.
+The existing entry, session/exchange and recovery rotation/collision scenarios pass.
+
+SDK build, public/private TypeScript (including locator construction fixtures),
+focused private lint and public bloat checks pass. The persistent wallet-directory
+E2E passed in 4.5s. Admission authorization and the terminal Yao handler in the
+regional scenario are controlled; no full cryptographic execution, hosted latency,
+provider verification or production rollout is claimed.
+
+Repeat in `seams-monorepo`:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/lifecycle-routing-20261003 \
+node tests/e2e/regional-session-routing.e2e.mjs
+```
+
+Receipt: `.artifacts/r152/lifecycle-routing-20261003/regional-session-routing-evidence.json`.
+SHA-256: `aa90355b518486b051499522389f1fc62cd89cb208ec15ca6ee05b4beb6fec77`.
+The receipt records the tested bundle hash and regional observations. Publication
+uses the existing conditional INSERT plus ownership-verification SELECT; lookup is
+one joined SELECT, excluding writer admission. Foreign ingress and receiving home
+each resolve the locator. These are static operation counts, not measured hosted
+latency or complete D1-call budgets.
+
+No infrastructure deployment, reset or package publication occurred. Remaining
+shared-identity, linking, internal/deferred and terminal cleanup work still blocks
+per-wallet completion and release 0.8.0.

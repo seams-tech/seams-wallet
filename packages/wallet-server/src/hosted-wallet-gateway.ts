@@ -1,3 +1,4 @@
+import type { WalletLifecycleRoutingPublisher } from './authorization/lifecycleRouting';
 import { decodeTenantRootIdentityWireV1 } from '@shared/tenant-root';
 import { resolveRuntimeTenantRootLineage } from './cloud-host';
 import { parseD1JsonColumn, type D1DatabaseLike, type D1Row } from './cloud-host';
@@ -163,6 +164,7 @@ export interface CloudflareD1GatewayEnv extends CloudflareD1GatewayBaseEnv {
 
 export interface HostedWalletGatewayDependenciesV1 {
   readonly sessionRouting?: CloudflareD1RouterApiAuthServiceOptions['sessionRouting'];
+  readonly lifecycleRouting?: WalletLifecycleRoutingPublisher;
   readonly recoveryRouting?: CloudflareD1RouterApiAuthServiceOptions['recoveryRouting'];
   readonly registrationSetupDispatcher?: CloudflareD1RouterApiAuthServiceOptions['registrationSetupDispatcher'];
   readonly registrationAuthority?: CloudflareD1RouterApiAuthServiceOptions['registrationAuthority'];
@@ -1193,6 +1195,7 @@ async function handlePartitionedD1Operation(
     case 'recovery_status':
       return await handleRouterAbEd25519YaoRecoveryRequestScopedCloudflareV1({
         request,
+        lifecycleRouting: dependencies.lifecycleRouting,
         ...createStagingRecoveryRequestScopedDependencies(
           env,
           tenantRootCustodyLineage,
@@ -1215,6 +1218,7 @@ async function handlePartitionedD1Operation(
       );
       return await handleRouterAbEd25519YaoExportRequestScopedCloudflareV1({
         request,
+        lifecycleRouting: dependencies.lifecycleRouting,
         ...createStagingExportRequestScopedDependencies(env, service, tenantRootCustodyLineage),
       });
     }

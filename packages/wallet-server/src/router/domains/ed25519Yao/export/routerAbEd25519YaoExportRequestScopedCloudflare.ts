@@ -1,3 +1,7 @@
+import {
+  publishWalletLifecycleHome,
+  type WalletLifecycleRoutingPublisher,
+} from '../../../../authorization/lifecycleRouting';
 import { base64UrlEncode } from '@shared/utils/encoders';
 import { alphabetizeStringify, sha256BytesUtf8 } from '@shared/utils/digests';
 import {
@@ -62,6 +66,7 @@ type TraceResolution =
   | { readonly ok: false; readonly message: string };
 
 export type RouterAbEd25519YaoExportRequestScopedCloudflareInputV1 = {
+  readonly lifecycleRouting?: WalletLifecycleRoutingPublisher;
   readonly request: Request;
   readonly store: RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1;
   readonly backend: RouterAbEd25519YaoExportBackend;
@@ -268,6 +273,12 @@ async function handleAdmissionRequest(
   }
   const admission = await runAuthorization(context, parsed, expectedOrigin);
   if (!admission.ok) return exportResponse(admission);
+  const published = await publishWalletLifecycleHome(
+    context.input.lifecycleRouting ?? null,
+    'yao_export',
+    parsed.protocol,
+  );
+  if (!published.ok) return exportResponse(published);
   const result = await runAdmission(context, parsed.protocol, admission.authorizationIdentity);
   if (result.ok) {
     return json(

@@ -1,4 +1,8 @@
 import {
+  publishWalletLifecycleHome,
+  type WalletLifecycleRoutingPublisher,
+} from '../../../../authorization/lifecycleRouting';
+import {
   parseRouterAbEd25519YaoRecoveryActivationExecuteRequestV1,
   parseRouterAbEd25519YaoRecoveryActivationRequestV1,
   parseRouterAbEd25519YaoRecoveryAdmissionRequestV1,
@@ -99,6 +103,7 @@ type TraceResolution =
   | { readonly ok: false; readonly message: string };
 
 export type RouterAbEd25519YaoRecoveryRequestScopedCloudflareInputV1 = {
+  readonly lifecycleRouting?: WalletLifecycleRoutingPublisher;
   readonly request: Request;
   readonly store: RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1;
   readonly backend: RouterAbEd25519YaoRecoveryBackend;
@@ -141,6 +146,14 @@ class RecoveryAdmissionRequestRun {
       await this.context.input.backend.resolveRecoveryDispatchRoot(this.request),
       Date.now(),
     );
+    if (prepared.kind !== 'failed') {
+      const published = await publishWalletLifecycleHome(
+        this.context.input.lifecycleRouting ?? null,
+        'yao_recovery',
+        this.request,
+      );
+      if (!published.ok) return { kind: 'rejected', value: published };
+    }
     switch (prepared.kind) {
       case 'claimed':
         return { kind: 'claimed', state, claim: prepared.claim };

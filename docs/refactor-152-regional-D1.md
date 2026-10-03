@@ -189,14 +189,16 @@ role RPC and cross-authority contract has a final owner and failure behavior.
 - [x] Route direct Yao recovery bootstrap/admission/status and export admission
   by their explicit wallet identity, including cross-wallet session rejection.
   Three-home Worker/D1 composition passes; protocol execution is controlled.
-- [ ] Route direct Yao recovery execute/activate and export execute by an
-  authoritative lifecycle-to-wallet assignment published after verified admission.
-  These bindings carry opaque lifecycle IDs; never treat account IDs as wallet IDs.
+- [x] Route direct Yao recovery execute/activate and export execute by immutable,
+  scoped lifecycle-to-wallet assignments. Publish after admission authorization
+  and before backend admission; reject conflicts and outages before continuation
+  exposure. Three-home local E2E verifies nine continuation/home combinations,
+  races, retry and failures; full Yao execution remains a hosted acceptance gate.
 - [ ] Resolve wallet-less linked-device QR creation and polling through shared
   pre-wallet coordination, then bind the approved session to its owner's home.
   Inventory atomic claims, approval, delivery and terminal cleanup before moving stores.
-- [ ] Finish routing for passkey/external-identity/delivery locators, direct Yao recovery/export
-  and Wallet Runtime operations, deferred work, expiry reconciliation and deliberate
+- [ ] Finish routing for passkey/external-identity/delivery locators and Wallet
+  Runtime operations, deferred work, expiry reconciliation and deliberate
   fresh attempts. Remove the remaining single-D1 deployment assumptions only after
   their regional resource-proof replacements are installed.
 - [x] Remove Console's namespace reservation gate, historical home-adoption

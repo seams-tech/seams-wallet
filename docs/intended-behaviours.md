@@ -236,6 +236,22 @@ CTA belong to the wallet origin.
   Shared identity routing, deployment-set activation, expiry reconciliation and
   explicit fresh attempts remain release gates.
 
+### Hosted recovery/export lifecycle routing
+
+- Direct Yao recovery and export entry requests resolve the scoped wallet home.
+  Opaque recovery execute/activate and export execute requests resolve an immutable
+  lifecycle route within that tenant and operation kind. A Wallet Session, when
+  supplied, must belong to the same wallet. Receiving Gateways recheck the home.
+- The admitted home writer publishes lifecycle ownership after authorization and
+  before backend admission. Identical publication retries preserve ownership;
+  another wallet or physical writer cannot take over a claimed lifecycle.
+- Publication failure returns an explicit conflict or temporary-unavailable result.
+  Routing metadata grants no authority: proof, expiry, revocation and one-use state
+  remain enforced at the wallet home. Metadata left after a failed local commit
+  remains inert and cannot be reassigned to another wallet.
+- The candidate's private regional composition contract verifies lookup, publication,
+  races and failure responses. Full hosted Yao execution remains a release gate.
+
 ### Passkey authentication
 
 Expected behaviour:
