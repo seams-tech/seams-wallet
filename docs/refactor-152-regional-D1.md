@@ -275,6 +275,10 @@ role RPC and cross-authority contract has a final owner and failure behavior.
   HTTP entry points. Production claim/approval rules run with controlled source
   metadata and owner HTTP authentication. Check home-only persistence, replay,
   changed-transcript conflict, invalid signature and terminal cancellation.
+- [x] Verify concurrent target-preparation persistence at the selected home: two
+  fresh planner results converge on one preparation, exact retry is stable and a
+  changed recipient conflicts. This uses the production D1 provider with a
+  controlled planner after regional HTTP approval; preparation HTTP auth is open.
 - [ ] Verify target credential preparation, source contribution, committed package
   delivery and authority installation through hosted regional entry points,
   including acknowledgement loss and cleanup. Replace controlled source metadata

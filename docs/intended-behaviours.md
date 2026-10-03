@@ -1109,3 +1109,12 @@ receipt, cancellation and export-root requests route to the assigned wallet home
 A supplied Wallet Session must belong to that wallet. The directory grants routing
 authority only; home handlers verify each owner/device request and transition.
 Full linked-device installation remains a hosted acceptance gate.
+
+### Linked-device target preparation concurrency
+
+Concurrent target-preparation requests for the same approved session and delivery
+recipient converge on one durable preparation. Fresh planner challenges and
+auth-method IDs from losing insert attempts do not make an identical request fail.
+Each response validates the persisted winner against the approved session; a
+different delivery recipient returns a conflict. Subsequent retries return that
+same preparation without allocating another durable challenge.

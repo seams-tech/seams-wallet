@@ -3878,3 +3878,33 @@ contribution, committed signer-package delivery and authority installation remai
 open. Final composed acceptance must replace controlled owner authentication/source
 metadata and verify acknowledgement-loss recovery and cleanup. No geographic latency
 was measured, no infrastructure was deployed, and release 0.8.0 remains held.
+
+### 2026-10-03 — concurrent target preparation at the home
+
+After regional HTTP approval, two concurrent calls to the production D1 target
+credential provider used a controlled planner to generate independent canonical
+passkey preparations for the same recipient. Before the fix, one succeeded and the
+other threw `linked-device target preparation conflicts with its durable replay`.
+This was a production regression: randomized challenges from a losing insert were
+mistaken for incompatible requests.
+
+The provider now validates the persisted winner against the approved session and
+recipient on both existing-row and concurrent-insert paths. The repeated scenario
+passes: two successful identical responses, one WEUR preparation row, no US/APAC
+preparation rows, stable subsequent replay and a typed conflict for another
+recipient. The complete regional composition E2E also passes.
+
+Receipt: private `.artifacts/r152/target-preparation-20261003/regional-session-routing-evidence.json`.
+SHA-256: `6fb0c130c0a2b140780aa006b0f23cd03367a5cbfaf9dac457177e72b16cf09e`.
+Repeat in `seams-monorepo` after building the SDK candidate:
+`SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/target-preparation-20261003 node tests/e2e/regional-session-routing.e2e.mjs`.
+SDK build, Wallet state TypeScript checks, focused private ESLint and the public
+bloat ratchet passed. Logs are retained beside the receipt.
+
+The first fixture run was rejected because registration options omitted the second
+required algorithm; the fixture was corrected to the current production contract
+before reproducing the race. The planner is controlled, and target preparation is
+called directly after HTTP approval. Preparation HTTP authentication, real target
+WebAuthn registration, source contribution, committed package delivery and final
+installation remain open. No geographic latency was measured. Release 0.8.0 remains
+held; no infrastructure was deployed.

@@ -1227,3 +1227,17 @@ its dependencies are `targetCredential`, `sourceContributionRouter` and
 `installationReceipt` on the existing D1 route-service composition. Final acceptance
 must use real owner authentication and source metadata and complete installation,
 acknowledgement-loss retry and cleanup.
+
+### October 3: target-preparation concurrent replay
+
+The production target credential provider compared the losing planner's newly
+allocated challenge digest against the stored winner and threw on a valid concurrent
+request. Both existing-row and insert-race paths now validate and return the stored
+preparation through the same replay check. A different recipient remains a typed
+conflict. No challenge or recipient is overwritten.
+
+The regional scenario reaches approved state via HTTP, then races two provider
+calls at WEUR with a controlled planner generating independent canonical passkey
+preparations. It verifies one home row, identical responses/retries and rejection
+of recipient changes. Preparation HTTP authentication, actual target WebAuthn
+registration, source contribution and final installation remain open.

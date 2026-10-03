@@ -420,20 +420,7 @@ export class D1LinkedDeviceTargetCredentialProviderV1 implements DeviceLinkingTa
     >,
   ): Promise<LinkedDeviceTargetPreparationResultV1> {
     const persisted = await this.readV1(input.session.linkSessionId);
-    if (persisted) {
-      assertPreparationMatchesSession(persisted.preparation, input.session, input.approval);
-      if (
-        input.access === 'create_or_replay' &&
-        input.deliveryRecipientPublicKey65B64u !==
-          persisted.preparation.deliveryRecipientPublicKey65B64u
-      ) {
-        return {
-          kind: 'conflict',
-          message: 'linked-device target preparation recipient conflicts with its durable replay',
-        };
-      }
-      return persisted.preparation;
-    }
+    if (persisted) return replayTargetPreparation(persisted.preparation, input);
     if (input.session.state.state !== 'awaiting_target_factor') {
       throw new Error('linked-device target preparation is unavailable in this session state');
     }
@@ -471,10 +458,8 @@ export class D1LinkedDeviceTargetCredentialProviderV1 implements DeviceLinkingTa
       .run();
     const stored = await this.readV1(input.session.linkSessionId);
     if (!stored) throw new Error('linked-device target preparation did not persist');
-    if (stored.preparationDigestB64u !== preparationDigestB64u) {
-      throw new Error('linked-device target preparation conflicts with its durable replay');
-    }
-    return stored.preparation;
+    // Concurrent planners allocate different challenges; the persisted winner owns the session.
+    return replayTargetPreparation(stored.preparation, input);
   }
 
   async registerTargetCredentialV1(input: {
@@ -1192,6 +1177,23 @@ async function assertRegistrationReplay(
     throw new Error('linked-device target credential conflicts with its durable record');
   }
   await assertRegistrationValueReplay(persisted.registration.value, registration);
+}
+
+function replayTargetPreparation(
+  preparation: LinkedDeviceTargetPreparationV1,
+  input: Parameters<DeviceLinkingTargetCredentialProviderV1['getTargetPreparationV1']>[0],
+): LinkedDeviceTargetPreparationResultV1 {
+  assertPreparationMatchesSession(preparation, input.session, input.approval);
+  if (
+    input.access === 'create_or_replay' &&
+    input.deliveryRecipientPublicKey65B64u !== preparation.deliveryRecipientPublicKey65B64u
+  ) {
+    return {
+      kind: 'conflict',
+      message: 'linked-device target preparation recipient conflicts with its durable replay',
+    };
+  }
+  return preparation;
 }
 
 function assertPreparationMatchesSession(
