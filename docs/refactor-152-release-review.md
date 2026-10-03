@@ -910,3 +910,25 @@ serving versions change. Shared credential/recovery/token locators, internal/Run
 deferred enforcement, expiry/fresh attempts and composed hosted/travel acceptance
 also remain. No infrastructure was deployed or reset, and no package was published.
 Private pins remain 0.7.3; release 0.8.0 remains held.
+
+### October 3: deployment admission renewal
+
+The provisioner now honors explicit activation for unchanged tenant/surface bindings,
+validates all resource proofs, and preserves the existing managed browser key.
+Root/credential failures terminate unfinished cutovers. Cleanup checks durable
+activation state before revocation, so a lost committed reply preserves the key.
+
+The composed renewal E2E admits six new writer versions and rejects six old ones,
+rejects incomplete proofs, retries after a root-service outage, rejects a revoked
+key twice without leaving the lane stuck, and preserves a committed activation
+when its reply is lost. The final fault-inclusive scenario passed in 8.7s; the
+preceding three-test activation/challenge/renewal run passed in 23.9s. Focused lint
+and candidate-backed server/type-fixture/E2E compilation passed. Full evidence,
+reproduction and fixture limits are in `refactor-152-results.md`, October 3 renewal.
+
+Receipt SHA-256: `d8b232d65474ddeed1431fd2340453b0ca60494ad99f64b09dd4f98d42f1139b`;
+private location: `.artifacts/r152/deployment-renewal-20261003/`.
+This closes provisioner renewal only. Regional configuration/rendering, all-backend
+operator proof collection, regional readiness, shared locators, internal/deferred
+home enforcement, expiry/fresh attempts and composed hosted/travel acceptance remain.
+No deployment, hosted reset or package publication occurred; 0.8.0 remains held.

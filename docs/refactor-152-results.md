@@ -2813,3 +2813,50 @@ serving versions change. Shared credential/recovery/token locators, internal/Run
 deferred enforcement, expiry/fresh attempts and composed hosted/travel acceptance
 also remain. No infrastructure was deployed or reset, and no package was published.
 Private pins remain 0.7.3; release 0.8.0 remains held.
+
+### October 3: deployment admission renewal
+
+Private implementation commit: `20eb4aa` on `seams-monorepo/dev`.
+
+The Console provisioner now renews exact writer-version admission on explicit
+protected activation even when the tenant and URLs are unchanged. It keeps the
+managed browser key, validates every resource proof, rechecks readiness, and runs
+the registration canary after successful activation. Reuse-only onboarding leaves
+the activation unchanged.
+
+The new composed E2E uses production Console provisioning, key authentication,
+root-state parsing, readiness, activation and audit services against migrated
+local Miniflare D1 databases. It demonstrates:
+
+- Six new Gateway/Runtime versions admitted; all six previous versions rejected.
+- One browser credential retained across activation renewal; no silent key rotation.
+- An incomplete resource-proof set rejected before activation.
+- A Router status 503 leaves the existing activation usable; retry succeeds.
+- Two attempts with a revoked credential fail and release the lane, without minting
+  replacement credentials or moving the active pointer.
+- A committed initial activation whose reply is lost retains its newly created key;
+  subsequent reuse and renewal succeed.
+
+The activation, challenge and renewal E2Es passed together in **23.9s**. After adding
+the lost-activation-reply fault, the final renewal scenario passed in **8.7s**.
+These durations describe local test execution. Candidate-backed server/type-fixture
+compilation including the new E2E/helper and focused lint passed. Earlier documented
+broad-suite limitations remain; this does not claim a full private-repository check.
+
+Reproduce from `seams-monorepo`:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+  pnpm --dir tests exec playwright test -c playwright.relayer.config.ts \
+  relayer/tenant-deployment-renewal.e2e.test.ts --reporter=line
+```
+
+Retained receipt: `.artifacts/r152/deployment-renewal-20261003/deployment-renewal-evidence.json`.
+SHA-256: `d8b232d65474ddeed1431fd2340453b0ca60494ad99f64b09dd4f98d42f1139b`.
+Compiler/lint logs and the receipt index are in the same private artifact directory.
+
+Provider proofs and Router status are controlled fixtures. The HTTP canary fixture
+authenticates the real persisted browser key; it does not perform a wallet ceremony.
+Regional Runtime readiness aggregation is still outstanding. No geographical latency
+was measured and no infrastructure was deployed or reset. Regional rendering and
+complete-set proof collection remain next; release 0.8.0 remains held.

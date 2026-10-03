@@ -151,9 +151,12 @@ role RPC and cross-authority contract has a final owner and failure behavior.
   Console refuses wallet reservations against an unverified regional catalog.
 - [ ] Finish regional deployment orchestration: render the catalog, all Gateway/
   Runtime bindings and named receiving entrypoints; collect proofs for the complete
-  set; inspect readiness across all resources; renew admission for changed serving
-  versions while preserving the current browser credential. The existing operator
+  set; inspect readiness across all resources. The existing operator
   collector still checks one resource and cannot activate the hosted regional set.
+- [x] Explicit protected activation renews admission for changed serving versions
+  while preserving the managed browser credential. Reuse-only calls stay read-only;
+  root/credential failures release unfinished cutovers, and a lost committed
+  activation reply preserves the active key. See the October 3 renewal checkpoint.
 - [ ] Finish routing for shared credential/recovery/session locators, direct Yao
   and Wallet Runtime operations, deferred work, expiry reconciliation and deliberate
   fresh attempts. Remove the remaining single-D1 deployment assumptions only after
@@ -1043,3 +1046,22 @@ renewal, followed by shared locators, internal/deferred enforcement, expiry and
 fresh-attempt reconciliation, and composed hosted/travel acceptance. The final
 three focused E2Es passed in 18.9s, a local test duration. See the release review
 for precise evidence and limits; this does not enable deployment or release.
+
+### October 3: deployment admission renewal
+
+Private implementation commit: `20eb4aa` on `seams-monorepo/dev`.
+
+Explicit protected activation now validates the complete resource-proof set even
+when tenant identity and public surfaces match the active binding. It creates a
+new activation and admits its exact writer versions while preserving the existing
+managed browser credential. `reuse_active` remains a read-only lookup. Root and
+credential failures terminate unfinished cutovers; a committed activation with a
+lost reply keeps its active credential.
+
+The composed local renewal E2E verifies six replacement writers, rejection of six
+previous versions, incomplete-proof rejection, a root-service outage followed by
+successful retry, repeated revoked-key rejection without a stuck lane, and lost
+activation-reply cleanup. Evidence and scope limits are in the results document.
+Regional configuration, complete-set proof collection and regional readiness still
+come next; shared locators, internal/deferred enforcement, expiry/fresh attempts
+and composed hosted/travel verification remain. No deployment or release occurred.

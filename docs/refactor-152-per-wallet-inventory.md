@@ -620,7 +620,7 @@ they do not create an effective legacy ownership path.
 
 | Surviving source or configuration | Replacement or deletion |
 | --- | --- |
-| Private shared `tenant-deployment/index.ts`, server `tenantDeployment/{types,runtimeBinding,provisioning,d1,resourceVerification}.ts` | Binding/hash and activation now use a verified resource set (private `af96653`). Finish regional readiness and operator version renewal; retain exact version/resource proof for each backend. |
+| Private shared `tenant-deployment/index.ts`, server `tenantDeployment/{types,runtimeBinding,provisioning,d1,resourceVerification}.ts` | Binding/hash and activation now use a verified resource set (private `af96653`); explicit activation also renews writer admission while preserving the managed browser key. Finish regional readiness and complete-set operator proof collection; retain exact version/resource proof for each backend. |
 | Private `d1GatewayWorker`, `d1WalletRuntimeWorker`, `d1ConsoleStagingWorker`, `d1LocalDevWorker`, and `render-d1-gateway-config.mjs` | Remove the assumption that `SEAMS_D1_HOME_ACCOUNT_ID` and `SEAMS_D1_HOME_DATABASE_ID` identify the home of every wallet in a tenant. A regional backend may still bind its own `SIGNER_DB` resource after admission. |
 | Private `deployment/wallet-system/targets.json`, `scripts/deploy-backend.mjs`, generated Wrangler config and smoke scripts | Render and verify US, WEUR and APAC resource/backend bindings; remove singular `signerD1` assumptions after the regional set replaces them. Do not commit locally rendered secrets or IDs. |
 | Public `hosted-wallet-gateway.ts`, Cloudflare runtime env and local hosted adapter | Resolve wallet ownership before selecting the regional `SIGNER_DB`; remove direct single-database composition for wallet-scoped paths. |
@@ -681,10 +681,23 @@ activation and unfinished cutover, then exercises the replacement.
 
 Remaining concrete deployment edits: canonical target schema and renderer,
 US/WEUR/APAC Worker/runtime service bindings, complete-set operator provider and
-runtime challenges, regional readiness inspection, and explicit version renewal.
-The provisioner currently reuses a matching tenant/surface binding before examining
-new writer proofs; the orchestration replacement must renew changed writer versions
-while preserving its browser credential. The one-resource operator collector now
+runtime challenges, and regional readiness inspection. Explicit version renewal
+was completed in the following October 3 checkpoint. The one-resource operator collector now
 sends an array but remains unable to satisfy the hosted three-resource catalog.
 These paths must be completed before deployment. Shared lookup authorities,
 internal/deferred wallet enforcement and terminal expiry reconciliation remain open.
+
+### October 3 admission-renewal checkpoint
+
+`tenantDeployment/provisioning.ts` now distinguishes the explicit operator
+activation path from reuse-only onboarding. Matching tenant/surface bindings no
+longer skip new proof validation. Managed-key renewals authenticate and adopt the
+current credential, then run candidate/readiness/activation/canary processing.
+An explicitly configured adopted credential still follows its configured policy.
+
+Failure cleanup covers tenant-root and credential resolution as well as readiness.
+It records the actual failing phase and consults durable cutover state before
+revocation, preserving a committed activation if its reply was lost. The composed
+D1 renewal E2E verifies replacement writer admission and these failure paths.
+This closes provisioner renewal only; the regional renderer, complete-set operator
+collector and multi-region readiness composition remain open.
