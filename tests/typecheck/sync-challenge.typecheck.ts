@@ -25,9 +25,9 @@ const failedSpread: Consumed = {
 };
 // @ts-expect-error Consumption success must explicitly distinguish absent and present records.
 const missingRecord: Consumed = { ok: true };
-// @ts-expect-error Creation success cannot also report failure.
 const conflictingCreation: Created = {
   ok: true,
+  // @ts-expect-error Creation success cannot also report failure.
   code: 'wallet_home_unavailable',
   message: 'Unavailable',
 };

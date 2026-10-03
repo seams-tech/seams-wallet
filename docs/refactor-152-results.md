@@ -3744,3 +3744,39 @@ SHA-256: `8bd68eae85b49e655b45358165f5a0b3c7dff9db369fd060d693e9bf3ec103bb`. Val
 This proves shared proof replay protection, not shared QR-session coordination,
 owner-home handoff, device installation or geographic latency. Those remain open.
 No deployment or release occurred.
+
+### October 3: linked-session claim ownership and continuation routing
+
+The production claim service now reserves the link-session lifecycle home before
+local claim CAS. Three-region composition verifies denied owner authorization cannot
+publish, authority outage cannot commit a local claim, a lost publication reply can
+be retried, and cancelled sessions retain their original binding. Three competing
+owners with the same seeded QR produce one applied claim, two home conflicts and
+exactly one regional committed claim. Traveling continuation routes and conflicting
+Wallet Sessions are checked across all three homes, including nested Email OTP and
+source-contribution execution. Project-scoped lookups remain isolated.
+
+This composition controls owner authorization, seeds the QR in regional stores and
+uses controlled device-action execution. It does not prove shared unclaimed QR
+coordination, full owner authentication, target installation, bootstrap transfer,
+terminal claim reconciliation or hosted geographic latency.
+
+Review fixed nested route matching and a new failure-variant narrowing error. The
+explicit type-check file list omitted the earlier sync-challenge fixture; it now
+includes that fixture and the new link-home failure fixture. Their error directives
+were aligned with the compiler's property-level diagnostics. Earlier reports of the
+sync fixture being covered by `type-check:wallet-state` were too broad; this run
+actually includes it. SDK build, private candidate type-check, domain type fixtures,
+focused lint, bloat check and the full regional composition passed.
+
+Repeat from seams-monorepo:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/link-home-20261003 \
+node tests/e2e/regional-session-routing.e2e.mjs
+```
+
+Receipt: `.artifacts/r152/link-home-20261003/regional-session-routing-evidence.json`.
+SHA-256: `2595666d3ada210b4c2c9f893979e02cdf487baa4f68c66294cc4c29c37f52a3`. Logs are retained alongside it.
+No deployment or release occurred.

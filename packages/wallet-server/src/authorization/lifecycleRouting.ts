@@ -1,3 +1,4 @@
+import { parseLinkDeviceSessionId } from '@shared/signing-lanes/ids';
 import { parseWalletId, type WalletId } from '@shared/utils/domainIds';
 import { requireVisibleIdentifier } from '@shared/utils/routerAbEd25519YaoDigests';
 import { requireRecord } from '@shared/utils/validation';
@@ -6,7 +7,7 @@ import type { RouterAbEd25519YaoRecoveryAdmissionRequestV1 } from '@shared/utils
 export class WalletLifecycleLocator {
   readonly #validated = true;
   private constructor(
-    readonly kind: 'yao_recovery' | 'yao_export' | 'passkey_challenge',
+    readonly kind: 'yao_recovery' | 'yao_export' | 'passkey_challenge' | 'linked_device',
     readonly value: string,
   ) {
     Object.freeze(this);
@@ -24,7 +25,8 @@ export class WalletLifecycleLocator {
       Object.keys(record).length !== 2 ||
       (record.kind !== 'yao_recovery' &&
         record.kind !== 'yao_export' &&
-        record.kind !== 'passkey_challenge')
+        record.kind !== 'passkey_challenge' &&
+        record.kind !== 'linked_device')
     ) {
       throw new Error('Invalid lifecycle locator');
     }
@@ -33,6 +35,11 @@ export class WalletLifecycleLocator {
       (typeof record.value !== 'string' || !/^[A-Za-z0-9_-]{22}$/u.test(record.value))
     ) {
       throw new Error('Invalid passkey challenge locator');
+    }
+    if (record.kind === 'linked_device') {
+      const parsed = parseLinkDeviceSessionId(record.value);
+      if (!parsed.ok) throw new Error(parsed.error.message);
+      return new WalletLifecycleLocator('linked_device', parsed.value);
     }
     return new WalletLifecycleLocator(
       record.kind,

@@ -91,7 +91,10 @@ The earlier measurements do not close that acceptance gate or justify release.
 - [x] Share linked-device request-proof nonce consumption across hosted Gateways;
   verify real signatures, regional replay contention, lost acknowledgements,
   project isolation, expiry and explicit HTTP 503 on authority outage.
-- [ ] Finish linked-device QR creation/polling and immutable owner-home handoff;
+- [x] Publish immutable link-session ownership after owner authorization and before
+  the regional claim CAS. Route claimed device continuations, including nested
+  Email OTP/source execution, to that home; verify races and lost publication replies.
+- [ ] Finish shared linked-device QR creation/polling and crash-safe home installation;
   nonce sharing alone does not coordinate session state. Inventory other cross-wallet limits and
   complete internal/deferred enforcement.
 

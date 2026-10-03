@@ -554,6 +554,7 @@ function createD1LinkedDeviceComposition(input: {
     });
     ownerAuthorizationRoute = ownerAuthorizationProvider.ownerAuthorizationRoute;
     const sessionComposition = createD1LinkedDeviceSessionServiceV1({
+      lifecycleRouting: input.options.lifecycleRouting,
       sessionStore,
       ownerAuthorization: ownerAuthorizationProvider.ownerAuthorization,
     });
@@ -606,6 +607,7 @@ function createD1LinkedDeviceComposition(input: {
         authorityInstall.acknowledgeLocalAuthorityActivationV1.bind(authorityInstall),
     };
     deviceLinking = createD1LinkedDeviceRouteServiceV1({
+      lifecycleRouting: input.options.lifecycleRouting,
       proofNonces: input.options.linkedDeviceProofNonces,
       database: input.options.database,
       scope,

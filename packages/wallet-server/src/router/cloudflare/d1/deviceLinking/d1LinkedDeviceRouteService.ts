@@ -1,3 +1,4 @@
+import type { WalletLifecycleRoutingPublisher } from '../../../../authorization/lifecycleRouting';
 import { parseLinkDeviceSessionId, type LinkDeviceSessionId } from '@shared/signing-lanes/ids';
 import type { D1DatabaseLike } from '../../../../storage/tenantRoute';
 import type {
@@ -22,6 +23,7 @@ import {
 } from './d1LinkedDeviceSessionStore';
 
 export type D1LinkedDeviceRouteServiceOptionsV1 = {
+  readonly lifecycleRouting?: WalletLifecycleRoutingPublisher;
   readonly proofNonces?: LinkedDeviceRequestProofNonceStoreV1;
   readonly database: D1DatabaseLike;
   readonly scope: D1LinkedDeviceSessionScopeV1;
@@ -54,6 +56,7 @@ export function createD1LinkedDeviceRouteServiceV1(
   });
   const { sessionService } = createD1LinkedDeviceSessionServiceV1({
     sessionStore,
+    lifecycleRouting: options.lifecycleRouting,
     ownerAuthorization: options.ownerAuthorization,
   });
 

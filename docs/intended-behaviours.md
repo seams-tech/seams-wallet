@@ -1084,3 +1084,20 @@ Standalone deployments use their configured local nonce authority.
 
 This rule covers proof replay protection. Hosted wallet-less QR session coordination
 and immutable transfer to the owner's wallet home remain R152 implementation gates.
+
+### Hosted linked-device claim home
+
+After owner authorization and validation of the existing QR record, claiming a link
+session must bind its identifier to the owner's wallet in the shared lifecycle
+directory before the regional session/transcript commit. Competing wallets cannot
+rebind it. Publication conflict returns 409; publication outage returns 503 without
+committing a local claim. A lost publication acknowledgement permits an identical
+owner retry. Cancellation retains the binding, preventing identifier reuse for a
+different wallet. The directory grants routing authority only; home handlers still
+verify each owner/device request and lifecycle transition.
+
+Claimed session polling, approval, target preparation, credential/contribution,
+Email OTP, receipt, cancellation and export-root requests route to that wallet home.
+A supplied Wallet Session must belong to the same wallet. Shared unclaimed QR state
+and crash-safe installation at the selected home remain required before hosted
+linking is release-ready; region-local unclaimed records do not satisfy that gate.

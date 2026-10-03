@@ -1153,3 +1153,29 @@ Remaining linked-device work: shared QR creation/polling/cancellation and an imm
 owner-authorized home handoff with crash-safe local installation. No session or
 transcript CAS was moved by this change. The existing regional session stores still
 require replacement for those wallet-less entry points before hosted release.
+
+### October 3: claimed linked-device home binding
+
+`LinkedDeviceSessionServiceV1.claimSessionV1` publishes a `linked_device` lifecycle
+locator after owner authorization, QR/claim validation and next-record construction,
+before calling the existing regional session/transcript CAS. Both D1 service
+compositions receive the existing lifecycle publisher. Console migration 0068 extends
+the immutable route-kind constraint; no parallel session-routing table was added.
+The shared authority admits only the writer assigned to the selected wallet home.
+
+Gateway dispatch extracts the canonical link-session ID from all session subpaths,
+including nested Email OTP challenge/resend/verify and source-contribution execute.
+An existing locator routes device-only requests to the home; an owner token for
+another wallet fails 403. Missing locators retain the existing owner-session routing
+for the initial claim. This does not solve region-local QR creation/polling.
+Cancellation retains the locator. A lost publication reply leaves the local QR
+unclaimed and an exact retry can complete the claim. Concurrent owners can commit
+only the wallet admitted by the immutable shared route.
+
+Shared QR creation, polling and cancellation remain open. Full handoff must install
+the winning QR/claim snapshot at the home with a durable local import receipt in the
+same transaction as its session/transcript writes. A receipt must survive session
+cleanup so shared bootstrap state cannot resurrect a deleted local session. Resolve
+claim/cancel races in shared authority and retain enough state for replay after
+publication or local commit reply loss. No shared-to-local import was introduced in
+this checkpoint.

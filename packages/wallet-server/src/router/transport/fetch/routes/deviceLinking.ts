@@ -1767,6 +1767,10 @@ function approvalResultResponse(result: LinkedDeviceSessionServiceResultV1): Res
 
 function sessionResultResponse(result: LinkedDeviceSessionServiceResultV1): Response {
   switch (result.outcome) {
+    case 'home_conflict':
+      return json({ ok: false, code: 'wallet_home_conflict', message: result.message }, { status: 409 });
+    case 'home_unavailable':
+      return json({ ok: false, code: 'wallet_home_unavailable', message: result.message }, { status: 503 });
     case 'applied':
     case 'replayed':
       return sessionProjectionResponse(result.record, result.outcome);
