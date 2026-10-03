@@ -4138,3 +4138,39 @@ node tests/e2e/regional-session-routing.e2e.mjs
 Receipt: `.artifacts/r152/deferred-routing-20261003/regional-session-routing-evidence.json`.
 SHA-256 `9993e89f314bf667c5ef232da3e348d8ac4a0c5cdae78ca6814cce0fb2d84d1c`.
 Logs are alongside the receipt. No hosted deployment, release or new latency measurement.
+
+### October 3: production linked-device source preparation
+
+The regional scenario now composes the production D1 source-child reader, owner
+metadata reader, owner authorization resolver, owner execution-lane projection and
+source contribution preparation planner. This replaces the handwritten planner
+that assembled synthetic source/target bindings. The source is a persisted
+synthetic founding-owner Ed25519 signer; installed-linked-source lookup is excluded
+by asserting founding-owner provenance.
+
+A Chromium WebAuthn credential submitted through APAC commits at WEUR. Missing
+source signer material rejects before planning and releases the reservation. The
+successful request persists the credential and preparation; a fresh-proof retry
+returns the identical result without replanning. US and APAC hold no target
+credential row. The existing regional routing, conflict and outage scenarios also
+pass.
+
+The first run exposed an E2E bundling failure: bundled CommonJS `bs58` interop made
+`encode` unavailable during owner-lane validation. Keeping `bs58` as a native Node
+import fixes that environment failure. No production validation was relaxed.
+
+Verification: regional E2E, focused ESLint and public bloat check passed. Reproduce
+from the private repository:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/source-plan-20261003 \
+node tests/e2e/regional-session-routing.e2e.mjs
+```
+
+Receipt: `.artifacts/r152/source-plan-20261003/regional-session-routing-evidence.json`.
+SHA-256 `8a6cd012542e0be764b3aec35e53df7bde0f4d1c7b59e5b165bbe03ff5cdfc82`.
+Logs are alongside the receipt. Owner protocol material and target preparation
+remain controlled; real contribution execution, package delivery and final
+installation remain open R152 acceptance work. Relocation fencing remains R153
+work. No hosted deployment, release or new latency measurement occurred.

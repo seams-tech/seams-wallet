@@ -1320,3 +1320,17 @@ material/effect commit. R152/R153 must coordinate a current-owner write fence at
 boundary and at pending NEAR side-effect commits before relocation is enabled.
 This audit is not exhaustive proof of every refill/DO/Container effect. Full
 linked-device source contribution, package delivery and activation remain open.
+
+### October 3: production linked-device source preparation
+
+The regional E2E now uses production source-child resolution, durable owner
+metadata, owner-lane projection and contribution preparation. The handwritten
+contribution planner was deleted. A real browser credential submitted through
+APAC commits at WEUR; a fresh-proof retry replays the stored preparation without
+replanning. Missing source material rejects before planning, and US/APAC receive
+no target credential rows.
+
+Owner protocol material and target preparation remain controlled fixtures. Real
+contribution execution, package delivery and final linked-device activation remain
+R152 acceptance work. Relocation fencing belongs to R153 and is outside this
+R152 continuation. See [results](refactor-152-results.md) for receipt and command.
