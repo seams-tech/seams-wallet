@@ -1,3 +1,11 @@
+import {
+  concealFirstRecoveryFinalizationResponse,
+  createRecoveryFinalizationResponseLoss,
+  failFirstRecoveryFinalization,
+  fetchRecoveryFinalizationStatus,
+  type CommitRecoveryFinalization,
+  type RecoveryFinalizeFailure,
+} from './recovery-finalization-fault';
 import { IntendedActionTiming } from './signing-timing-evidence';
 import { parseExactWalletSessionStatusResponse } from '../../../packages/wallet/src/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import {
@@ -8,6 +16,7 @@ import {
   expect,
   test as base,
   type APIRequestContext,
+  type APIResponse,
   type Browser,
   type BrowserContext,
   type CDPSession,
@@ -1155,6 +1164,13 @@ function ignoreNearDemoStatusReadError(): null {
   return null;
 }
 
+type IntendedGatewayRequests = {
+  get: APIRequestContext['get'];
+  post(url: string, options?: Parameters<APIRequestContext['post']>[1]): Promise<
+    Pick<APIResponse, 'status' | 'ok' | 'text' | 'json'>
+  >;
+};
+
 export class IntendedBehaviourHarness {
   readonly flow: IntendedLifecycleFlow;
 
@@ -1166,7 +1182,7 @@ export class IntendedBehaviourHarness {
 
   private readonly page: Page;
 
-  private readonly request: APIRequestContext;
+  private readonly request: IntendedGatewayRequests;
 
   private readonly networkMode: 'managed_local' | 'external_staging';
 
@@ -1257,7 +1273,7 @@ export class IntendedBehaviourHarness {
     flow: IntendedLifecycleFlow;
     networkMode: 'managed_local' | 'external_staging';
     page: Page;
-    request: APIRequestContext;
+    request: IntendedGatewayRequests;
   }) {
     this.context = args.context;
     this.flow = args.flow;
@@ -3329,11 +3345,13 @@ export class IntendedBehaviourHarness {
     );
   }
 
-  async recoverPasskeyWalletAfterLostFinalizationResponse(): Promise<void> {
+  async recoverPasskeyWalletAfterLostFinalizationResponse(
+    commitFinalization: CommitRecoveryFinalization = fetchRecoveryFinalizationStatus,
+  ): Promise<void> {
     this.recordStage('recover_passkey_wallet_after_lost_finalization_response');
     const action = recoveryActionForTarget('passkey');
     const { registration, recoveryCode } = await this.beginFreshBrowserRecovery({ action });
-    const finalizeFailure: RecoveryFinalizeFailure = { injected: false };
+    const finalizeFailure = createRecoveryFinalizationResponseLoss(commitFinalization);
     const finalizationCapture = createRecoveryRequestCapture({
       kind: 'finalize',
       path: ROUTER_AB_WALLET_RECOVERY_FINALIZE_PATH,
@@ -3419,7 +3437,7 @@ export class IntendedBehaviourHarness {
     requireUsableIntendedGoogleIdToken(this.config);
     const action = recoveryActionForTarget('google_email_otp');
     const { registration, recoveryCode } = await this.beginFreshBrowserRecovery({ action });
-    const finalizeFailure: RecoveryFinalizeFailure = { injected: false };
+    const finalizeFailure = createRecoveryFinalizationResponseLoss();
     const finalizationCapture = createRecoveryRequestCapture({
       kind: 'finalize',
       path: ROUTER_AB_WALLET_RECOVERY_GOOGLE_EMAIL_OTP_FINALIZE_PATH,
@@ -5590,7 +5608,7 @@ function scheduleServiceReadinessRetry(resolve: () => void): void {
 }
 
 async function assertHttpOk(
-  request: APIRequestContext,
+  request: Pick<APIRequestContext, 'get'>,
   url: string,
   label: string,
   headers: Record<string, string> = {},
@@ -8206,7 +8224,7 @@ async function holdRecoveryReplayUntilReleased(
   route: Route,
 ): Promise<void> {
   await gate.released;
-  await route.continue();
+  await route.fallback();
 }
 
 async function fillHostedRecoveryCode(
@@ -8258,52 +8276,6 @@ function captureRecoveryPrepareReservation(
   if (new URL(request.url()).pathname !== ROUTER_AB_WALLET_RECOVERY_PREPARE_PATH) return;
   const body = request.postDataJSON() as { readonly reservationId?: unknown };
   if (typeof body.reservationId === 'string') capture.reservationIds.push(body.reservationId);
-}
-
-type RecoveryFinalizeFailure = { injected: boolean };
-
-async function failFirstRecoveryFinalization(
-  failure: RecoveryFinalizeFailure,
-  route: Route,
-): Promise<void> {
-  if (failure.injected) {
-    await route.continue();
-    return;
-  }
-  failure.injected = true;
-  await route.fulfill({
-    status: 503,
-    contentType: 'application/json',
-    body: JSON.stringify({ ok: false, code: 'temporary_failure' }),
-  });
-}
-
-async function concealFirstRecoveryFinalizationResponse(
-  failure: RecoveryFinalizeFailure,
-  route: Route,
-): Promise<void> {
-  /* The lost-response contract needs exactly one committed finalization.
-     The flag flips before the server round-trip so a concurrent or
-     straggling duplicate submission is refused without reaching the server
-     instead of committing the operation the replay is expected to find. */
-  if (failure.injected) {
-    await route.fulfill({
-      status: 503,
-      contentType: 'application/json',
-      body: JSON.stringify({ ok: false, code: 'response_lost' }),
-    });
-    return;
-  }
-  failure.injected = true;
-  const committed = await route.fetch();
-  if (committed.status() !== 200) {
-    throw new Error(`Recovery finalization failed before response loss: ${committed.status()}`);
-  }
-  await route.fulfill({
-    status: 503,
-    contentType: 'application/json',
-    body: JSON.stringify({ ok: false, code: 'response_lost' }),
-  });
 }
 
 async function driveHostedPasskeyRecovery(page: Page, recoveryCode: string): Promise<void> {

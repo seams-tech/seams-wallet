@@ -1642,3 +1642,15 @@ NEAR/Tempo signatures verify against the original registered identities. A fresh
 reservation using each consumed code returns `401 recovery_code_used` after routing
 through foreign ingress. The receipt stores no recovery code. Interrupted recovery,
 server-process restart and other recovery factors remain separate gates.
+
+### October 4: committed recovery replay after client runtime reset
+
+The regional mixed-home scenario now loses each successful passkey-recovery
+finalization response after the home commits it. The browser's pending recovery
+commit persists across a runtime reset with the same wallet, operation and target
+identities, then clears after successful replay. Each foreign ingress observes
+exactly two successful server finalizations: the masked commit and its replay.
+Each wallet still has exactly two active authorities, both only at home; replay
+adds no duplicate authority. Both-family signing and consumed-code rejection pass.
+This validates client continuity and regional replay ownership with the real local
+Router stack. Server-process restart, expiry and other recovery factors remain open.

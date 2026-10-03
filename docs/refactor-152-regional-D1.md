@@ -101,9 +101,13 @@ older implementation checkpoints and must be read with their later evidence.
    pass for all three homes, with registration/recovery authorities only at home.
    A new reservation using each consumed code is refused through foreign ingress
    with `recovery_code_used`.
-   Other factors, recovery interruption and method changes remain open in this
-   composition. Exercise browser
-   proofs and shared credential/identity claims through commit, failure and replay.
+   Lost passkey-recovery finalization replies now pass for all three homes:
+   the client journal survives runtime reset, replays the same operation and
+   target, and clears after acknowledgement. Both-family signing and the browser's
+   consumed-code error also pass. This covers client runtime reset; server-process
+   restart, other interruption stages, other factors and method changes remain
+   open in this composition. Exercise browser proofs and shared credential/identity
+   claims through the remaining commit, failure and replay paths.
 3. Finish the ownership/entry-point audit and retirement audit: unresolved mixed
    records, internal/deferred effects, cross-authority reconciliation, stale
    deployment behavior and surviving namespace-placement assumptions. Keep R153

@@ -4982,3 +4982,60 @@ harness's direct API replay, which would bypass this private regional compositio
 Extended artifact:
 `.artifacts/r152/mixed-home-recovery-reuse-20261004/mixed-homes/mixed-home-evidence.json`;
 SHA-256 `429cf675ac5725c88488b87cbd7874937621f47d6f597c79c07b9fff5330ca40`. Private ESLint and public bloat checks passed.
+
+### October 4: regional recovery finalization loss and durable client replay
+
+The mixed-home scenario now commits each passkey recovery at its assigned home,
+conceals the successful finalization response with HTTP 503, and resets the client
+runtime while preserving browser storage. The existing public lifecycle contract
+checks that the pending journal is present before and after reset, that replay
+retains the operation and target identities, and that the journal clears only
+after a successful response. It then unlocks, verifies NEAR/Tempo signatures and
+checks the consumed-code error in both the server response and browser UI.
+
+All three coexisting wallet homes passed in **2.3 minutes** for the entire scenario,
+including travel, lock/reload, unlock and both-family export. Each foreign ingress
+observed exactly two HTTP 200 server finalizations: the concealed commit and its
+replay. Every wallet retained one wallet row and exactly two active authorities
+(registration and recovery) at its home, with no wallet/signer/authority copies in
+foreign stores. All fresh-reservation code-reuse probes returned
+`401 recovery_code_used`.
+
+No production defect was demonstrated. Test transport now sends the committed
+fault request and direct API probes through the same regional Gateway composition;
+the replay gate falls through to the context's regional handler. Two failed setup
+runs were classified `valid_test_needs_update`: the cross-repository harness needed
+its existing repository-root setting, and duplicate warm-signing assertions were
+removed after the public helper had already verified signing and closed the page
+following its consumed-code UI check. Those failures and traces are retained.
+
+Private commit: `a2900d9`. Private artifacts under
+`.artifacts/r152/regional-recovery-replay-20261004/`:
+
+- `mixed-homes/mixed-home-evidence.json`, SHA-256
+  `b455e79931f82402d03fdfb06edf72a3ee80a4c4779a07d34d7f7b06dc17768d`.
+- `lifecycle/*-owner-trace.json`: per-owner journal transitions and lifecycle checks.
+- `protocol.log`, `lint.log`, and the failed `before/` and `before-signing/` runs.
+
+Reproduce from the private repository with a built public candidate:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_INTENDED_SKIP_BUILD=1 \
+SEAMS_INTENDED_PERSIST_TRACE=1 \
+SEAMS_INTENDED_TRACE_DIR=.artifacts/r152/regional-recovery-replay-repeat/lifecycle \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/regional-recovery-replay-repeat \
+node tests/scripts/run-regional-real.mjs --grep 'three real wallets' --max-failures=1
+```
+
+This proves client runtime reset and committed recovery replay through three local
+signer databases sharing one real Router role stack. Server-process restart,
+other interruption stages and recovery factors, and hosted geographic latency
+remain separate gates. No deployment or release occurred.
+
+The existing public `a committed Passkey recovery survives a lost finalization
+response and runtime reset` contract also passed with its default HTTP transport
+in **34.6 seconds**. Its log and persisted lifecycle trace are under the public
+`.artifacts/r152/recovery-replay-default-20261004/` directory. Public intended-test
+type checking, private ESLint and the public bloat check passed. The extracted
+finalization-fault helper reduces the oversized harness from 8,989 to 8,961 lines.
