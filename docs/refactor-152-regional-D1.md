@@ -92,8 +92,11 @@ older implementation checkpoints and must be read with their later evidence.
    Email OTP verification uses a controlled verifier in this regional scenario;
    live email delivery and complete regional factor installation remain open.
 2. Close full lifecycle acceptance and terminal reconciliation for registration,
-   discovery/unlock, recovery, export and add/revoke methods, including multiple
-   real wallets sharing a namespace with different homes. Exercise browser
+   discovery/unlock, recovery, export and add/revoke methods. Multiple real wallets
+   now coexist under one tenant namespace with US/WEUR/APAC homes. Locked-page
+   reload, passkey unlock and NEAR/Tempo signing through foreign ingress pass
+   without changing those homes. Other factors, recovery, export and method
+   changes remain open in this composition. Exercise browser
    proofs and shared credential/identity claims through commit, failure and replay.
 3. Finish the ownership/entry-point audit and retirement audit: unresolved mixed
    records, internal/deferred effects, cross-authority reconciliation, stale

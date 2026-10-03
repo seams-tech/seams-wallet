@@ -4879,3 +4879,36 @@ Private lint and public bloat checks passed. This verifies protocol replay acros
 three signer databases with one shared real local Router stack. Process restart,
 shared retention expiry, simultaneous mixed-home wallets and hosted geographic
 placement remain separate gates. No deployment or release occurred.
+
+### October 4: real mixed-home wallets in one namespace
+
+The private composition now keeps three independently registered wallets alive
+in the same Console database and three signer databases. Registration ingress
+selects US, WEUR and APAC homes respectively. After all registrations, the owners
+sign NEAR and Tempo through APAC, US and WEUR ingress respectively.
+
+The case passed in 1.2 minutes. Console contains exactly three established homes
+under one namespace/org/project/full-environment scope; each maps to its expected
+catalog database. Each wallet has one wallet row, three signer rows and one owner
+authority at its own home, with zero rows for that wallet in the other two stores.
+This verifies later users can receive different homes from the first user while
+all wallets coexist. Registration is sequential; this does not claim concurrent
+registration-race coverage.
+
+Private commit: `3b4a463`. Artifact:
+`.artifacts/r152/mixed-homes-20261004/mixed-homes/mixed-home-evidence.json`;
+SHA-256 `0575bbf41fc1bb08c65c2e950ec560d390b78a63fa188e755305f19f436e5c3d`.
+The adjacent parent `protocol.log` retains the test result. The case reuses one
+local Router role stack and controlled regional ingress, so it provides no hosted
+geographic latency evidence. No deployment or release occurred.
+
+The extended case also passed in 1.2 minutes: all three owners travel to foreign
+ingress, lock, reload the page while remaining locked, perform passkey unlock,
+and verify NEAR/Tempo signatures. The same three home assignments and home-only
+wallet/signer/authority rows remain afterward. This exercises real unlock proofs
+and session re-establishment, not server-process restart or simultaneous requests.
+No production defect was found. Private ESLint and public bloat checks passed.
+
+Extended artifact:
+`.artifacts/r152/mixed-home-unlock-20261004/mixed-homes/mixed-home-evidence.json`;
+SHA-256 `4a5fe4732e07468a25b916b123510bc642e44ac33b4f5153f6aa457481dd9600`. The parent `protocol.log` records the passing run.

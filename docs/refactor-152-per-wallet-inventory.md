@@ -1613,3 +1613,13 @@ all three signer nonce tables are empty. Retention is intentional until expiry;
 pruning and process restart remain open. Activation replay returns the same active
 authority/session. Final acknowledgement owns three bounded attempts independently
 of that activation replay, avoiding exhaustion of a shared outer recovery path.
+
+### October 4: coexisting wallet homes after travel and unlock
+
+Three independently registered wallets now coexist under the same exact Console
+scope with US, WEUR and APAC home assignments. Foreign-ingress signing passes both
+before and after lock/page-reload/passkey-unlock. Each wallet retains one wallet
+row, three signer rows and one owner authority only at its assigned home. No
+foreign copies appear and the first registration does not determine later homes.
+The test uses sequential registration and one local Router stack; concurrent
+registration and server restart remain separate acceptance scenarios.
