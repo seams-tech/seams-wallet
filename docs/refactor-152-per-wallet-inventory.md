@@ -1693,3 +1693,20 @@ finalization and one replay per home. The pending client journal survives runtim
 reset and clears only after replay succeeds. Existing exact operation/target
 checks, home-only authority counts and the single shared Google locator still
 pass. Server-process restart and other founding factors remain separate checks.
+
+### October 4: concurrent registration in one tenant namespace
+
+The mixed-home browser case now starts all three registrations together. Their
+client call intervals overlap for 6.802 seconds, and Console retains distinct
+established US/WEUR/APAC homes in the same namespace/org/project/environment.
+The subsequent travel, unlock, exports, signing and interrupted passkey recoveries
+retain those homes and home-only custody records. This checks overlapping real
+registration lifecycles with local D1 and shared Router roles. Duplicate-identity
+contention, controlled transaction interleavings, crash and hosted placement tests
+remain separate gates.
+
+The Google response-loss matrix also passed with subsequent NEAR and concurrent
+Tempo/Arc signing plus budget-exhaustion checks retained (three homes, 2.2 minutes).
+Every finalization still has exactly one commit and one replay, with one shared
+Google identity locator and custody rows confined to the wallet home. Receipts are
+under private `.artifacts/r152/google-replay-concurrent-signing-20261004/`.

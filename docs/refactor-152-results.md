@@ -5193,3 +5193,55 @@ was rejected by the isolated runner's stricter token-lifetime requirement and
 stalled in teardown; its owned processes were stopped and its log/trace retained.
 Classified `environment_or_infrastructure_failure`, it was rerun using the existing
 `--require-google-token` option to refresh the test credential before startup.
+
+### October 4: concurrent real registration across wallet homes
+
+The mixed-home scenario now initializes three independent browser contexts, then
+starts their passkey registrations concurrently. All three client calls overlap
+for **6.802 seconds** before the first completes. Observed call durations were
+US 7.024 s, WEUR 7.086 s and APAC 6.802 s. These include local browser interaction
+and protocol work; they are not hosted geographic latency measurements.
+
+The complete case passed in **1.7 minutes**, including all owners' subsequent
+foreign-ingress lock/reload, passkey unlock, both-family export and signing,
+recovery finalization response loss, client runtime reset and exact replay.
+Console contains exactly three established homes in one exact tenant scope;
+each wallet's custody rows remain only in its assigned signer database.
+
+Artifact: private
+`.artifacts/r152/concurrent-homes-20261004/mixed-homes/mixed-home-evidence.json`,
+SHA-256 `71d8ed3d104b53c80b8566c2a645ee2aaec2e523e852dd8acd790e4a11454200`.
+The receipt records registration start/completion times and asserts overlap; its
+parent directory retains `protocol.log`, `lint.log` and per-owner lifecycle traces.
+Reproduce with the private regional runner's `--grep 'three real wallets'` selection
+and a fresh artifact directory. No production change was needed.
+
+This exercises overlapping real registration lifecycles with three local signer
+databases and one shared Router role stack. It does not force a particular D1
+transaction interleaving or cover duplicate identity contention, process crashes
+or hosted regional concurrency. Those acceptance gates remain open.
+
+### October 4: interrupted Google recovery with concurrent signing retained
+
+The extended Google recovery matrix passed **3 cases in 2.2 minutes**. Following
+lost-finalization-response replay, client runtime reset and consumed-code rejection,
+each recovered Email OTP method unlocks again and signs NEAR plus concurrent
+Tempo/Arc. The existing budget-exhaustion assertion remains enabled. Every home
+again records finalization statuses `[200, 200]`, one shared Google identity
+locator and home-only custody records. ESLint passed for the final private changes.
+
+Private artifacts: `.artifacts/r152/google-replay-concurrent-signing-20261004/`,
+with protocol/lint logs, lifecycle traces and per-home recovery receipts. SHA-256:
+
+- US: `b17c7a99a2c1c18a384791d252cd7b3d460024b058842a872e23a4028fb9d674`.
+- WEUR: `99e12cbeed4a9d21a27774a927f0c28fbfb0a5a2b439d16444d2d1730aad686e`.
+- APAC: `d184a93e3269f984129644b1af405a1972ecb1cea3628f279c91e2e94afc73a0`.
+
+Reproduce using `--grep 'interrupted Google Email OTP'` and the same regional
+runner settings as the base matrix above. This extends the local composed
+acceptance evidence; server-process restart and hosted regional execution remain
+separate gates.
+
+The concurrent-registration and extended Google-recovery cases are committed in
+private `seams-monorepo` revision `79eca94`; the injectable public recovery harness
+and extracted journal reader are in `seams-wallet` revision `8907386d`.

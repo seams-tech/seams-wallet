@@ -93,7 +93,8 @@ older implementation checkpoints and must be read with their later evidence.
    live email delivery and complete regional factor installation remain open.
 2. Close full lifecycle acceptance and terminal reconciliation for registration,
    discovery/unlock, recovery, export and add/revoke methods. Multiple real wallets
-   now coexist under one tenant namespace with US/WEUR/APAC homes. Locked-page
+   now register concurrently and coexist under one tenant namespace with US/WEUR/APAC
+   homes; the three client registration calls overlap before any completes. Locked-page
    reload, passkey unlock, Ed25519/ECDSA export and NEAR/Tempo signing through
    foreign ingress pass without changing those homes. ECDSA fresh step-up and
    explicit export now resolve the home from their wallet identity. Fresh-browser
@@ -111,11 +112,13 @@ older implementation checkpoints and must be read with their later evidence.
    home, the SDK refuses the revoked method, and the original passkey still signs.
    The development OTP outbox now routes to the issuing home. Fresh-browser
    recovery from passkey custody into Google Email OTP now passes for every home,
-   including NEAR/concurrent Tempo-Arc signing after refresh, one shared Google
+   including NEAR/concurrent Tempo-Arc signing after unlock, one shared Google
    identity locator and consumed-code rejection. Google recovery now also survives
    a lost committed finalization reply and client runtime reset at every home,
    with exact operation replay, journal cleanup and no duplicate authority or
-   identity locator. Other recovery origins, server-process restart and remaining
+   identity locator. The interrupted-recovery matrix also retains subsequent
+   concurrent Tempo/Arc signing and budget-exhaustion checks. Other recovery origins,
+   server-process restart and remaining
    shared credential/identity reconciliation still need composed acceptance.
    Method finalization and revocation
    reply loss now pass at every home: both mutations replay the exact request and
