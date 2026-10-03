@@ -3583,5 +3583,13 @@ node tests/e2e/regional-session-routing.e2e.mjs
 ```
 
 Receipt: `.artifacts/r152/passkey-claims-20261003/regional-session-routing-evidence.json`.
-SHA-256: `b89d74347cf9a4a9ceea8a1a9c185a2934c2d7ef1888c5d06378f4f5170e84fa`.
+SHA-256: `b7e6a6e7816e7cde11aba376a4bffb0630bc2bacc0a70bbb28a6bf76f4110ab8`.
 Build/bloat logs are retained alongside it. No deployment or release occurred.
+
+Additional acceptance for this checkpoint: `pnpm --dir tests test:intended:representative`
+passed all 13 isolated passkey registration contracts, including signing beyond
+pool capacity, lost Router reply retry, deferred provisioning and held NEAR
+admission/execution. Intended-contract type checking passed as part of that command.
+These are local standalone lifecycle tests; they do not close hosted shared-authority
+crash/replay acceptance. The log, generated evidence summary and emitted JSON
+artifacts are retained in the same `passkey-claims-20261003` evidence directory.
