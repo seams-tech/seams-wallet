@@ -24,7 +24,7 @@ import type {
 } from '../../../framework/authServicePort';
 import type { CloudflareD1EmailOtpEnrollmentStore } from './d1EmailOtpEnrollmentStore';
 import type { CloudflareD1EmailOtpRateLimitStore } from './d1EmailOtpRateLimitStore';
-import type { CloudflareD1GoogleEmailOtpRegistrationAttemptStore } from './d1GoogleEmailOtpRegistrationAttemptStore';
+import type { GoogleEmailOtpRegistrationAttemptStore } from './d1GoogleEmailOtpRegistrationAttemptStore';
 import {
   googleEmailOtpStaleIdentityMapping,
   hasDifferentWalletIdentitySubject,
@@ -82,7 +82,7 @@ export class CloudflareD1GoogleEmailOtpSessionResolver {
   private readonly identityStore: IdentityStore;
   private readonly linkIdentity: GoogleEmailOtpIdentityLinker;
   private readonly production: boolean;
-  private readonly registrationAttempts: CloudflareD1GoogleEmailOtpRegistrationAttemptStore;
+  private readonly registrationAttempts: GoogleEmailOtpRegistrationAttemptStore;
 
   constructor(input: {
     readonly emailOtpEnrollments: CloudflareD1EmailOtpEnrollmentStore;
@@ -90,7 +90,7 @@ export class CloudflareD1GoogleEmailOtpSessionResolver {
     readonly identityStore: IdentityStore;
     readonly linkIdentity: GoogleEmailOtpIdentityLinker;
     readonly production: boolean;
-    readonly registrationAttempts: CloudflareD1GoogleEmailOtpRegistrationAttemptStore;
+    readonly registrationAttempts: GoogleEmailOtpRegistrationAttemptStore;
   }) {
     this.emailOtpEnrollments = input.emailOtpEnrollments;
     this.emailOtpRateLimits = input.emailOtpRateLimits;

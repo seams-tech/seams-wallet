@@ -974,3 +974,14 @@ Invalid proof, a missing home for a linked identity, conflicting Wallet Session,
 or unavailable authority cannot select a regional fallback. The receiving Gateway
 rechecks ownership and cannot forward a second time. Registration of identities
 without an existing mapping remains a separate R152 acceptance gate.
+
+### Shared Google registration offers
+
+Concurrent hosted offer requests for the same provider, email, owner-proof binding
+and runtime scope reuse one pending attempt, wallet identity and candidate list
+across regions. Regional retries read the same authority. An explicit restart
+abandons the current offer; subsequent retries use its replacement. A delayed
+update cannot revive a terminal or deleted offer, or downgrade finalized state.
+Authority failures and mismatched runtime-policy scopes reject the operation.
+Private regional composition covers these guarantees; candidate selection and
+registration-completion concurrency remain R152 acceptance gates.

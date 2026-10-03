@@ -1124,3 +1124,13 @@ expiry, tampering, session conflicts, missing homes, outages and second-hop deni
 This closes linked Google login discovery routing only. New-account offers,
 credential uniqueness, limits, linking, internal/deferred routing and hosted
 acceptance still gate 0.8.0. No deployment or publication occurred.
+
+### October 3: shared Google offers checkpoint
+
+Hosted offer storage now uses Console authority (migration 0060). Concurrent
+US/WEUR/APAC creation returns one attempt and candidate list; sequential restart,
+regional retries, policy-scope rejection and outage handling pass. Review also
+removed read-refresh writes and replaced lifecycle upserts with pending-only
+updates; stale writes cannot restore an abandoned offer. Candidate selection and
+completion/restart races remain release gates, alongside shared credential/limit
+authority, linking, internal/deferred routing and hosted acceptance. 0.8.0 stays held.

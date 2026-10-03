@@ -108,7 +108,7 @@ export function failedGoogleEmailOtpRegistrationAttemptWithCode(input: {
   return terminal;
 }
 
-function parseGoogleEmailOtpRegistrationAttemptRecord(
+export function parseGoogleEmailOtpRegistrationAttemptRecord(
   input: unknown,
 ): GoogleEmailOtpRegistrationAttemptRecord | null {
   const record = parseJsonObject(input);
@@ -237,13 +237,6 @@ export function googleEmailOtpRegistrationOfferForResponse(
   };
 }
 
-export function pendingGoogleEmailOtpRegistrationAttemptWithUpdatedAt(
-  record: PendingGoogleEmailOtpRegistrationAttemptRecord,
-  updatedAtMs: number,
-): PendingGoogleEmailOtpRegistrationAttemptRecord {
-  return pendingRegistrationAttemptRecord({ ...record, updatedAtMs }, record);
-}
-
 export function pendingGoogleEmailOtpRegistrationAttemptWithSelectedCandidate(input: {
   readonly record: PendingGoogleEmailOtpRegistrationAttemptRecord;
   readonly candidate: GoogleEmailOtpRegistrationOfferCandidateRecord;
@@ -301,7 +294,7 @@ function parseGoogleEmailOtpRegistrationOfferCandidate(
   return { candidateId, walletId, collisionCounter };
 }
 
-function parseGoogleEmailOtpRegistrationOfferCandidates(
+export function parseGoogleEmailOtpRegistrationOfferCandidates(
   input: unknown,
 ): NonEmptyGoogleEmailOtpRegistrationOfferCandidates | null {
   if (!Array.isArray(input)) return null;

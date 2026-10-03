@@ -18,7 +18,6 @@ import { d1MutationChanges } from '../auth/d1RouterApiAuthBoundary';
 import {
   abandonedGoogleEmailOtpRegistrationAttemptRecord,
   parseGoogleEmailOtpRegistrationAttemptRow,
-  pendingGoogleEmailOtpRegistrationAttemptWithUpdatedAt,
   type D1EmailOtpRegistrationAttemptRow,
 } from './d1GoogleEmailOtpRegistrationRecords';
 
@@ -72,8 +71,16 @@ export class CloudflareD1GoogleEmailOtpRegistrationAttemptStore {
       expiresAtMs: nowMs + 30 * 60_000,
       runtimePolicyScope: input.runtimePolicyScope,
     };
-    await this.put(attempt);
-    return attempt;
+    await emailOtpRegistrationAttemptRows.insertPendingIfAbsent(this.prepare, attempt).run();
+    const winner = await this.findStarted({
+      providerSubject: input.providerSubject,
+      email: input.email,
+      orgId: this.orgId,
+      ownerProofBindingDigest: input.ownerProofBindingDigest,
+      runtimePolicyScope: input.runtimePolicyScope,
+    });
+    if (!winner) throw new Error('Registration offer changed during creation; retry the request');
+    return winner;
   }
 
   async findStarted(input: {
@@ -96,9 +103,7 @@ export class CloudflareD1GoogleEmailOtpRegistrationAttemptStore {
       return null;
     }
     if (!registrationAttemptMatchesStartedScope(parsed, scope)) return null;
-    const refreshed = pendingGoogleEmailOtpRegistrationAttemptWithUpdatedAt(parsed, nowMs);
-    await this.put(refreshed);
-    return refreshed;
+    return parsed;
   }
 
   async abandonStartedExceptBinding(input: {
@@ -153,10 +158,18 @@ export class CloudflareD1GoogleEmailOtpRegistrationAttemptStore {
     if (record.runtimePolicyScope?.orgId !== this.orgId) {
       throw new Error('Google Email OTP registration attempt org scope mismatch');
     }
-    await emailOtpRegistrationAttemptRows.upsert(this.prepare, record).run();
+    const changed = d1MutationChanges(
+      await emailOtpRegistrationAttemptRows.updatePending(this.prepare, record).run(),
+    );
+    if (changed !== 1) throw new Error('Registration offer is no longer pending or has changed');
   }
 
   async delete(attemptId: string): Promise<void> {
     await emailOtpRegistrationAttemptRows.delete(this.prepare, attemptId).run();
   }
 }
+
+export type GoogleEmailOtpRegistrationAttemptStore = Pick<
+  CloudflareD1GoogleEmailOtpRegistrationAttemptStore,
+  keyof CloudflareD1GoogleEmailOtpRegistrationAttemptStore
+>;

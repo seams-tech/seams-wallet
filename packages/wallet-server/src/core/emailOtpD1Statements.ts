@@ -292,56 +292,56 @@ const PENDING_ATTEMPTS_SQL = `SELECT record_json, expires_at_ms, updated_at_ms, 
 
 /** Statements on `email_otp_registration_attempts`. */
 export const emailOtpRegistrationAttemptRows = {
-  upsert: (prepare: ScopedD1Prepare, record: GoogleEmailOtpRegistrationAttemptRecord) =>
+  insertPendingIfAbsent: (
+    prepare: ScopedD1Prepare,
+    record: GoogleEmailOtpRegistrationAttemptRecord,
+  ) =>
     prepare(
-      `INSERT INTO email_otp_registration_attempts (
-        namespace,
-        org_id,
-        project_id,
-        env_id,
-        attempt_id,
-        provider_subject,
-        email,
-        wallet_id,
-        state,
-        owner_proof_binding_digest,
-        runtime_org_id,
-        runtime_policy_key,
-        offer_wallet_ids_json,
-        record_json,
-        created_at_ms,
-        updated_at_ms,
-        expires_at_ms
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT (namespace, org_id, project_id, env_id, attempt_id)
-      DO UPDATE SET
-        provider_subject = EXCLUDED.provider_subject,
-        email = EXCLUDED.email,
-        wallet_id = EXCLUDED.wallet_id,
-        state = EXCLUDED.state,
-        owner_proof_binding_digest = EXCLUDED.owner_proof_binding_digest,
-        runtime_org_id = EXCLUDED.runtime_org_id,
-        runtime_policy_key = EXCLUDED.runtime_policy_key,
-        offer_wallet_ids_json = EXCLUDED.offer_wallet_ids_json,
-        record_json = EXCLUDED.record_json,
-        created_at_ms = EXCLUDED.created_at_ms,
-        updated_at_ms = EXCLUDED.updated_at_ms,
-        expires_at_ms = EXCLUDED.expires_at_ms`,
+      `WITH candidate (
+        namespace, org_id, project_id, env_id, attempt_id, provider_subject, email,
+        wallet_id, state, owner_proof_binding_digest, runtime_org_id, runtime_policy_key,
+        offer_wallet_ids_json, record_json, created_at_ms, updated_at_ms, expires_at_ms
+      ) AS (VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?))
+      INSERT INTO email_otp_registration_attempts
+      SELECT * FROM candidate
+      WHERE NOT EXISTS (
+        SELECT 1 FROM email_otp_registration_attempts existing
+        WHERE existing.namespace = candidate.namespace
+          AND existing.org_id = candidate.org_id
+          AND existing.project_id = candidate.project_id
+          AND existing.env_id = candidate.env_id
+          AND existing.provider_subject = candidate.provider_subject
+          AND existing.email = candidate.email
+          AND existing.owner_proof_binding_digest = candidate.owner_proof_binding_digest
+          AND existing.runtime_org_id = candidate.runtime_org_id
+          AND existing.runtime_policy_key = candidate.runtime_policy_key
+          AND existing.state IN ('started', 'key_finalized')
+          AND existing.expires_at_ms > candidate.created_at_ms
+      )`,
+      registrationAttemptValues(record),
+    ),
+
+  updatePending: (prepare: ScopedD1Prepare, record: GoogleEmailOtpRegistrationAttemptRecord) =>
+    prepare(
+      `WITH scope AS (SELECT ? AS namespace, ? AS org_id, ? AS project_id, ? AS env_id)
+      UPDATE email_otp_registration_attempts
+      SET wallet_id = ?, state = ?, record_json = ?, updated_at_ms = ?
+      WHERE namespace = (SELECT namespace FROM scope)
+        AND org_id = (SELECT org_id FROM scope)
+        AND project_id = (SELECT project_id FROM scope)
+        AND env_id = (SELECT env_id FROM scope)
+        AND attempt_id = ?
+        AND state IN ('started', 'key_finalized')
+        AND NOT (state = 'key_finalized' AND ? = 'started')
+        AND updated_at_ms <= ?`,
       [
-        record.attemptId,
-        record.providerSubject,
-        record.email,
         record.walletId,
         record.state,
-        record.ownerProofBindingDigest,
-        record.runtimePolicyScope?.orgId || '',
-        runtimePolicyScopeKey(record.runtimePolicyScope),
-        offerWalletIdsJson(record.offerCandidates),
         JSON.stringify(record),
-        record.createdAtMs,
         record.updatedAtMs,
-        record.expiresAtMs,
+        record.attemptId,
+        record.state,
+        record.updatedAtMs,
       ],
     ),
 
@@ -432,3 +432,23 @@ export const emailOtpRegistrationAttemptRows = {
       [attemptId],
     ),
 };
+
+function registrationAttemptValues(
+  record: GoogleEmailOtpRegistrationAttemptRecord,
+): readonly unknown[] {
+  return [
+    record.attemptId,
+    record.providerSubject,
+    record.email,
+    record.walletId,
+    record.state,
+    record.ownerProofBindingDigest,
+    record.runtimePolicyScope?.orgId || '',
+    runtimePolicyScopeKey(record.runtimePolicyScope),
+    offerWalletIdsJson(record.offerCandidates),
+    JSON.stringify(record),
+    record.createdAtMs,
+    record.updatedAtMs,
+    record.expiresAtMs,
+  ];
+}

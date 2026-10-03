@@ -14,7 +14,7 @@ import type { CloudflareD1EmailOtpChallengeStore } from './d1EmailOtpChallengeSt
 import type { CloudflareD1EmailOtpChallengeVerifier } from './d1EmailOtpChallengeVerifier';
 import type { CloudflareD1EmailOtpGrantStore } from './d1EmailOtpGrantStore';
 import type { CloudflareD1EmailOtpRegistrationEnrollmentFinalizer } from './d1EmailOtpRegistrationEnrollmentFinalizer';
-import type { CloudflareD1GoogleEmailOtpRegistrationAttemptStore } from './d1GoogleEmailOtpRegistrationAttemptStore';
+import type { GoogleEmailOtpRegistrationAttemptStore } from './d1GoogleEmailOtpRegistrationAttemptStore';
 
 type CreateEmailOtpChallengeInput = Parameters<
   RouterApiEmailOtpRouteService['createEmailOtpChallenge']
@@ -64,7 +64,7 @@ export class CloudflareD1EmailOtpChallengeService {
   private readonly grantTtlMs: number;
   private readonly grants: CloudflareD1EmailOtpGrantStore;
   private readonly issuer: CloudflareD1EmailOtpChallengeIssuer;
-  private readonly registrationAttempts: CloudflareD1GoogleEmailOtpRegistrationAttemptStore;
+  private readonly registrationAttempts: GoogleEmailOtpRegistrationAttemptStore;
   private readonly verifier: CloudflareD1EmailOtpChallengeVerifier;
 
   constructor(input: {
@@ -74,7 +74,7 @@ export class CloudflareD1EmailOtpChallengeService {
     readonly grantTtlMs: number;
     readonly grants: CloudflareD1EmailOtpGrantStore;
     readonly issuer: CloudflareD1EmailOtpChallengeIssuer;
-    readonly registrationAttempts: CloudflareD1GoogleEmailOtpRegistrationAttemptStore;
+    readonly registrationAttempts: GoogleEmailOtpRegistrationAttemptStore;
     readonly verifier: CloudflareD1EmailOtpChallengeVerifier;
   }) {
     this.challenges = input.challenges;

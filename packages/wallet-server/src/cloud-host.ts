@@ -247,3 +247,8 @@ export type { IdentityStore } from './core/IdentityStore';
 
 export { verifyGoogleOidcToken } from './router/cloudflare/d1/oidc/googleOidcToken';
 export { parseGoogleLoginVerifyRequest } from './router/auth/authRequestValidation';
+
+export { CloudflareD1GoogleEmailOtpRegistrationAttemptStore } from './router/cloudflare/d1/emailOtp/d1GoogleEmailOtpRegistrationAttemptStore';
+export type { GoogleEmailOtpRegistrationAttemptStore } from './router/cloudflare/d1/emailOtp/d1GoogleEmailOtpRegistrationAttemptStore';
+export { parseGoogleEmailOtpRegistrationAttemptRecord, parseGoogleEmailOtpRegistrationOfferCandidates, requireRuntimePolicyScope } from './router/cloudflare/d1/emailOtp/d1GoogleEmailOtpRegistrationRecords';
+export { prepareD1TenantStatement } from './core/d1TenantStore';

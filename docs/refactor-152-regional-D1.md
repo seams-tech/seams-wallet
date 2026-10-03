@@ -48,8 +48,13 @@ The earlier measurements do not close that acceptance gate or justify release.
 - [x] Forward Google login discovery with an existing shared identity after provider
   proof verification to its home; verify signature/claims before lookup and recheck
   at the receiving Gateway. New-account registration coordination remains open.
-- [ ] Share registration offers, passkey credential uniqueness and rate limits;
-  finish linked-device coordination and internal/deferred enforcement.
+- [x] Store hosted Google registration offers in authenticated Console authority;
+  atomic creation reuses one live offer across regions. Verify retries, sequential
+  restart, scope rejection, outages and stale writes after abandonment.
+- [ ] Complete candidate-selection and registration-completion concurrency review,
+  including races with restart, expiry and final home reservation.
+- [ ] Share passkey credential uniqueness and rate limits; finish linked-device
+  coordination and internal/deferred enforcement.
 
 This checkpoint is a prerequisite to discovery routing. It does not close the
 replacement phase. Hosted acceptance and release 0.8.0 remain pending.

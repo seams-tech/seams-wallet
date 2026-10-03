@@ -86,7 +86,7 @@ import { CloudflareD1EmailOtpChallengeVerifier } from '../emailOtp/d1EmailOtpCha
 import type { CloudflareD1EmailOtpRegistrationEnrollmentFinalizer } from '../emailOtp/d1EmailOtpRegistrationEnrollmentFinalizer';
 import { CloudflareD1RegistrationCeremonyIntentStore } from '../registration/d1RegistrationCeremonyStore';
 import { parseWalletIdForIntent } from '../registration/d1RegistrationCeremonyRecords';
-import type { CloudflareD1GoogleEmailOtpRegistrationAttemptStore } from '../emailOtp/d1GoogleEmailOtpRegistrationAttemptStore';
+import type { GoogleEmailOtpRegistrationAttemptStore } from '../emailOtp/d1GoogleEmailOtpRegistrationAttemptStore';
 import {
   expiredGoogleEmailOtpRegistrationAttemptRecord,
   pendingGoogleEmailOtpRegistrationAttemptWithSelectedCandidate,
@@ -562,7 +562,7 @@ export class CloudflareD1WalletAuthMethodService {
   private readonly emailOtpEnrollmentFinalizer: CloudflareD1EmailOtpRegistrationEnrollmentFinalizer;
   private readonly getRegistrationCeremonyIntentStore: RegistrationCeremonyStoreProvider;
   private readonly getWalletAuthMethodStore: WalletAuthMethodStoreProvider;
-  private readonly googleEmailOtpRegistrationAttempts: CloudflareD1GoogleEmailOtpRegistrationAttemptStore;
+  private readonly googleEmailOtpRegistrationAttempts: GoogleEmailOtpRegistrationAttemptStore;
   private readonly passkeyCustodyEnvelopes: CloudflareD1PasskeyCustodyEnvelopeStore;
   private readonly sha256Bytes: Sha256Bytes;
   private readonly webAuthnStore: CloudflareD1WebAuthnStore;
@@ -581,7 +581,7 @@ export class CloudflareD1WalletAuthMethodService {
     readonly emailOtpEnrollmentFinalizer: CloudflareD1EmailOtpRegistrationEnrollmentFinalizer;
     readonly getRegistrationCeremonyIntentStore: RegistrationCeremonyStoreProvider;
     readonly getWalletAuthMethodStore: WalletAuthMethodStoreProvider;
-    readonly googleEmailOtpRegistrationAttempts: CloudflareD1GoogleEmailOtpRegistrationAttemptStore;
+    readonly googleEmailOtpRegistrationAttempts: GoogleEmailOtpRegistrationAttemptStore;
     readonly passkeyCustodyEnvelopes: CloudflareD1PasskeyCustodyEnvelopeStore;
     readonly sha256Bytes: Sha256Bytes;
     readonly webAuthnStore: CloudflareD1WebAuthnStore;

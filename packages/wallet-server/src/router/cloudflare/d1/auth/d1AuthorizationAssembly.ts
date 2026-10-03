@@ -1,3 +1,5 @@
+import { CloudflareD1GoogleEmailOtpRegistrationAttemptStore } from '../emailOtp/d1GoogleEmailOtpRegistrationAttemptStore';
+import type { ScopedD1Prepare } from '../../../../core/emailOtpD1Statements';
 import { D1IdentityStore } from '../../../../core/d1IdentityStore';
 import {
   CloudflareD1WebAuthnAuthService,
@@ -78,4 +80,17 @@ export function createD1IdentityStore(options: NormalizedCloudflareD1RouterApiAu
     envId: options.envId,
     ensureSchema: false,
   });
+}
+
+export function createD1GoogleRegistrationAttempts(
+  options: NormalizedCloudflareD1RouterApiAuthServiceOptions,
+  prepare: ScopedD1Prepare,
+) {
+  return (
+    options.googleRegistrationAttempts ??
+    new CloudflareD1GoogleEmailOtpRegistrationAttemptStore({
+      prepare,
+      orgId: options.orgId,
+    })
+  );
 }

@@ -1,3 +1,4 @@
+import type { GoogleEmailOtpRegistrationAttemptStore } from '../emailOtp/d1GoogleEmailOtpRegistrationAttemptStore';
 import type { IdentityStore } from '../../../../core/IdentityStore';
 import type { WalletLifecycleRoutingPublisher } from '../../../../authorization/lifecycleRouting';
 import type { WalletRecoveryRoutingPublisher } from '../../../../authorization/recoveryRouting';
@@ -151,6 +152,7 @@ export type CloudflareD1GithubOAuthConfig = {
 
 export interface CloudflareD1RouterApiAuthServiceOptions {
   readonly identityStore?: IdentityStore;
+  readonly googleRegistrationAttempts?: GoogleEmailOtpRegistrationAttemptStore;
   readonly sessionRouting?: WalletSessionRoutingPublisher;
   readonly lifecycleRouting?: WalletLifecycleRoutingPublisher;
   readonly recoveryRouting?: WalletRecoveryRoutingPublisher;
@@ -341,6 +343,7 @@ export function normalizeD1RouterApiAuthOptions(
   return {
     database: input.database,
     identityStore: input.identityStore,
+    googleRegistrationAttempts: input.googleRegistrationAttempts,
     sessionRouting: input.sessionRouting,
     recoveryRouting: input.recoveryRouting,
     lifecycleRouting: input.lifecycleRouting,

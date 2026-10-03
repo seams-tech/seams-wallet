@@ -3381,3 +3381,30 @@ Receipt: `.artifacts/r152/google-discovery-20261003/regional-session-routing-evi
 SHA-256: `1dfba966d8ee32344e7ccca66c65395b26578f5d1cc6e96f4af183dc84fbfba0`.
 The same directory retains `wallet-home-evidence.json`, build and bloat logs.
 No deployment or release occurred. 0.8.0 remains held.
+
+### October 3: shared Google registration offers
+
+Concurrent requests through US, WEUR and APAC returned identical attempt IDs,
+wallet IDs and candidate lists. Every region retried and read the same Console
+record while regional offer tables stayed empty. A restart from APAC abandoned
+the original; WEUR reused its replacement. A delayed write of the original pending
+record was rejected and the record remained abandoned. Wrong-project policy and
+Console outages rejected operations without regional fallback.
+
+SDK build, public/private TypeScript, focused private lint and bloat checks passed.
+The persistent wallet-home directory E2E also passed; `wallet-home-evidence.json`
+is retained beside the composition receipt. This extends the production resolver/Console/D1 composition, with fixture JWKS
+and synthetic enrollment ciphertext. It does not verify candidate selection,
+registration-completion races, live Google access or hosted latency.
+
+Repeat from `seams-monorepo`:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/shared-offers-20261003 \
+node tests/e2e/regional-session-routing.e2e.mjs
+```
+
+Receipt: `.artifacts/r152/shared-offers-20261003/regional-session-routing-evidence.json`.
+SHA-256: `01624443caa9428a6038d0a8b57d3e79ef11cb8ed36592fc9fbc7448c0abf9b4`.
+No deployment, reset or release occurred; 0.8.0 remains held.

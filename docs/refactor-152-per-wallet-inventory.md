@@ -979,3 +979,21 @@ second hop. A linked identity with no live home fails closed. No matching identi
 continues to the existing registration/discovery handler; shared offers and removal
 of remaining local pre-wallet discovery assumptions remain required. Explicit-wallet
 login still validates the provider against the selected enrollment at home.
+
+### October 3: shared Google offer store
+
+Hosted Gateway composition supplies `RegistrationOfferClient` to the resolver,
+challenge service and auth-method service through the registration-attempt store
+port. `/registration-offer` uses Console migration 0060 and the existing D1 store;
+commands and records are parsed at the service boundary and runtime policy must
+match the admitted tenant's org/project/environment. No regional fallback occurs.
+Standalone deployments continue to use their local D1 implementation.
+
+Creation atomically inserts only if the same provider/email/owner-proof/runtime
+scope has no live pending offer, then returns the winning offer. Reading a started
+offer no longer rewrites its timestamp. Updates target existing pending records;
+they cannot insert deleted records, revive terminal records or downgrade finalized
+state. Sequential restart abandons the old offer and later regional retries reuse
+the replacement. Candidate selection, concurrent restart/completion, expiry and
+reservation reconciliation still need full acceptance; this checkpoint establishes
+shared storage and concurrent creation, not the whole registration lifecycle.

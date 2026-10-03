@@ -65,6 +65,7 @@ import type { AuthorizationService } from '../../../../authorization/service';
 import {
   createD1AuthorizationAssembly,
   createD1IdentityStore,
+  createD1GoogleRegistrationAttempts,
   createD1WebAuthnAssembly,
   createD1WalletCustodyStore,
 } from './d1AuthorizationAssembly';
@@ -86,7 +87,6 @@ import { CloudflareD1EmailOtpChallengeVerifier } from '../emailOtp/d1EmailOtpCha
 import { CloudflareD1EmailOtpChallengeIssuer } from '../emailOtp/d1EmailOtpChallengeIssuer';
 import { CloudflareD1EmailOtpChallengeService } from '../emailOtp/d1EmailOtpChallengeService';
 import { CloudflareD1EmailOtpRecoveryService } from '../emailOtp/d1EmailOtpRecoveryService';
-import { CloudflareD1GoogleEmailOtpRegistrationAttemptStore } from '../emailOtp/d1GoogleEmailOtpRegistrationAttemptStore';
 import { CloudflareD1GoogleEmailOtpSessionResolver } from '../emailOtp/d1GoogleEmailOtpSessionResolver';
 import { CloudflareD1IdentityService } from '../identity/d1IdentityService';
 import { CloudflareD1OidcVerificationService } from '../oidc/d1OidcVerificationService';
@@ -1531,12 +1531,7 @@ function createCloudflareD1RouterApiAuthAssembly(
     },
     options.sessionRouting,
   );
-  const googleEmailOtpRegistrationAttempts = new CloudflareD1GoogleEmailOtpRegistrationAttemptStore(
-    {
-      prepare,
-      orgId: options.orgId,
-    },
-  );
+  const googleEmailOtpRegistrationAttempts = createD1GoogleRegistrationAttempts(options, prepare);
   const nearPublicKeys = new CloudflareD1NearPublicKeyStore({ prepare });
   const { webAuthnStore, webAuthnAuthService } = createD1WebAuthnAssembly(
     options,
