@@ -56,6 +56,10 @@ older implementation checkpoints and must be read with their later evidence.
    recipient insertion now checks live session state atomically in D1. Full
    regional cryptographic installation, remaining terminal reconciliation and
    activation cleanup remain open.
+   Delayed target-preparation insertion after cancellation is also fixed: the
+   insert requires the current session to be awaiting its target factor. Next
+   terminal-writer checks are target-commit reservations and Email OTP grants;
+   their insert paths still need controlled cancellation/replay verification.
 2. Close full lifecycle acceptance and terminal reconciliation for registration,
    discovery/unlock, recovery, export and add/revoke methods. Exercise browser
    proofs and shared credential/identity claims through commit, failure and replay.

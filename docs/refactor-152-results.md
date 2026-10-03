@@ -4476,3 +4476,45 @@ server with `a second device links with a passkey, signs NEAR and Tempo, and is 
 This closes the demonstrated relay cancellation race. Other terminal writers,
 full regional cryptographic installation/activation and hosted acceptance remain
 open. No deployment or release occurred.
+
+
+## October 3: delayed target preparation versus cancellation
+
+A controlled race reproduced another production regression: one production target
+planner paused before persistence while another request created preparation and
+completed browser registration and relay delivery. After cancellation removed the
+session's scoped rows, the delayed planner resumed, recreated target preparation
+and returned success.
+
+The preparation INSERT now selects from the scoped session only in
+`awaiting_target_factor`, atomically checking state and inserting. If the row is
+absent afterward, the provider returns its existing conflict variant. This adds no
+D1 roundtrip. Existing concurrent-winner replay and changed-recipient conflicts
+remain covered. Cancellation and scoped-row removal already commit together.
+
+The regional E2E now passes with the delayed plan returning conflict and zero
+`linked_device_target_credentials` rows after cancellation. The delayed request
+enters the production provider directly; its production planner is paused by a
+bounded fixture. The surrounding claim/approval, registration, relay and cancellation
+use the regional HTTP composition. This evidence does not claim a hosted race or
+regional cryptographic installation.
+
+Validation passed: regional E2E, Wallet Server build/type compilation, focused
+ESLint and bloat check. The real local Worker lost-execution/activation-reply
+contract also passed, including linked-device NEAR/Tempo signing, revocation and
+continued owner signing, in 38.7 seconds including setup. This is not geographic
+latency.
+
+Private receipt: `.artifacts/r152/target-preparation-cancel-20261003/regional-session-routing-evidence.json`.
+SHA-256: `0d6f9f923759b3e1923a0a3dab462dc1336a6fc5fdd0937ba8e0f39b0796b17a`.
+Before/after E2E, lint, build and bloat logs are adjacent. Reproduce with the regional
+E2E command in earlier checkpoints, using this artifact directory.
+Public real-protocol log and device traces:
+`.artifacts/r152/target-preparation-cancel-20261003/`.
+Use the existing isolated intended runner with the freshly built server and
+`a second device links with a passkey, signs NEAR and Tempo, and is revoked`.
+
+Next terminal-writer checks are target-commit reservations and Email OTP grants.
+Their insert paths require controlled cancellation/replay verification. Full
+regional activation/cleanup, lifecycle acceptance and hosted verification remain
+open. No deployment or release occurred.

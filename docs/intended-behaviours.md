@@ -1130,4 +1130,7 @@ recipient converge on one durable preparation. Fresh planner challenges and
 auth-method IDs from losing insert attempts do not make an identical request fail.
 Each response validates the persisted winner against the approved session; a
 different delivery recipient returns a conflict. Subsequent retries return that
-same preparation without allocating another durable challenge.
+same preparation without allocating another durable challenge. Preparation
+insertion checks the current session state atomically in D1. A planner admitted
+before cancellation cannot recreate preparation after terminal cleanup commits;
+it returns a conflict and leaves the target-credential table empty.

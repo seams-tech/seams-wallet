@@ -441,7 +441,10 @@ export class D1LinkedDeviceTargetCredentialProviderV1 implements DeviceLinkingTa
            namespace, org_id, project_id, env_id, link_session_id,
            wallet_id, enrollment_id, device_id, state, target_factor,
            preparation_digest_b64u, preparation_json, prepared_at_ms, expires_at_ms
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'prepared', ?, ?, ?, ?, ?)`,
+         ) SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'prepared', ?9, ?10, ?11, ?12, ?13
+           FROM linked_device_sessions
+          WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
+            AND link_session_id = ?5 AND state = 'awaiting_target_factor'`,
       )
       .bind(
         ...scopeValues(this.scope),
@@ -457,7 +460,12 @@ export class D1LinkedDeviceTargetCredentialProviderV1 implements DeviceLinkingTa
       )
       .run();
     const stored = await this.readV1(input.session.linkSessionId);
-    if (!stored) throw new Error('linked-device target preparation did not persist');
+    if (!stored) {
+      return {
+        kind: 'conflict',
+        message: 'linked-device session no longer accepts target preparation',
+      };
+    }
     // Concurrent planners allocate different challenges; the persisted winner owns the session.
     return replayTargetPreparation(stored.preparation, input);
   }

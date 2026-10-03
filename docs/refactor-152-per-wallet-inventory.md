@@ -1501,3 +1501,15 @@ cannot recreate a deleted row. The composed US/APAC-to-WEUR scenario pauses both
 requests after route admission, cancels, resumes them, and verifies conflicts and
 zero relay rows. Remaining terminal writers and full activation cleanup remain
 separate acceptance work.
+
+
+### October 3: target preparation versus terminal cleanup
+
+Target preparation creation now conditionally inserts from the scoped session
+only while it is `awaiting_target_factor`. A delayed planner cannot recreate the
+`linked_device_target_credentials` row after cancellation commits; the provider
+returns its existing conflict variant. No extra D1 query or compatibility path
+was added. A controlled regional scenario starts a production planner before
+another preparation wins, completes target registration and relay delivery, then
+cancels before releasing the delayed result. Target-commit reservation and Email
+OTP grant insertion still require their own terminal-race verification.
