@@ -4336,3 +4336,42 @@ in-memory Console publishable-key storage. Real source execution, package delive
 authority activation and post-installation cleanup across regional databases remain
 open. Cancellation cleanup is covered; installation cleanup is a separate gate.
 No deployment, release or new hosted latency measurement occurred.
+
+### October 3: cancelled source polling and execution
+
+A late owner preparation GET after device cancellation returned 204. Cancellation
+had already removed the preparation, so this was a lifecycle-response regression,
+not demonstrated material disclosure. The response could leave a polling client
+waiting for preparation that would never arrive. The regional E2E reproduced the
+204 before the fix.
+
+Both source endpoints now reject cancelled, expired and failed-before-commit
+sessions with 409 `invalid_state`, using an exhaustive predicate over domain state.
+The check runs after owner authentication and before preparation lookup, request
+parsing or Router dispatch. Existing live-state behavior is preserved. Removed the
+redundant `readJsonBody` wrapper while keeping the route file from growing.
+
+Verification passed:
+
+- Regional E2E: normal claim/approval/registration/source reads still pass; cancelled
+  preparation GET and execute POST reject through US and APAC ingress at WEUR.
+- Wallet Server type-check/build, focused private lint and public bloat check.
+- Real local Worker lost-response contract: exact execution/activation replay,
+  linked-device NEAR/Tempo signatures, revocation and continued owner signing.
+  Passed in 39.1 seconds including local setup; both retained device traces have
+  zero lifecycle violations. This is not a geographic latency measurement.
+
+Private receipt: `.artifacts/r152/source-terminal-20261003/regional-session-routing-evidence.json`.
+SHA-256 `cfd7f4c0d28e694fb2b9d6ca0fd26d26cebbc580cc1a5de1e3ab463f3ad8d67f`. Before/after, build, type, lint and bloat logs are adjacent.
+Public protocol log/traces: `.artifacts/r152/source-terminal-20261003/`.
+Reproduce the regional scenario using `SEAMS_WALLET_SERVER_CANDIDATE` and
+`SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/source-terminal-20261003` with the existing
+`node tests/e2e/regional-session-routing.e2e.mjs` command in the private repo.
+The public protocol case is `a second device links with a passkey, signs NEAR and
+Tempo, and is revoked` in `passkey.device-linking.contract.test.ts`, run with the
+existing isolated Wallet runner and the freshly built artifacts.
+
+The regional execution rejection uses an invalid empty body to verify terminal
+state wins before protocol parsing; it does not execute cryptographic material.
+Real contribution execution and final installation across separate regional homes
+remain open. No deployment or release occurred.

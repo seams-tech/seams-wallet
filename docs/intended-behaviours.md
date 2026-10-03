@@ -1111,6 +1111,9 @@ authority only; home handlers verify each owner/device request and transition.
 Owner-session handlers independently compare the authenticated wallet with the
 durable claim before returning contribution preparation, invoking source execution,
 or accessing export-root transfers, including when called without regional dispatch.
+Source preparation and execution reject cancelled, expired and failed-before-commit
+links with 409 `invalid_state` before preparation lookup or Router dispatch. A
+terminal link must not appear to be waiting for preparation with a 204 response.
 Full linked-device installation remains a hosted acceptance gate.
 
 ### Linked-device target preparation concurrency

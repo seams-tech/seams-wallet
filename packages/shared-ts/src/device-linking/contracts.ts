@@ -894,6 +894,25 @@ export type LocalAuthorityActivationFinalAckV1 = {
   readonly acknowledgedAtMs: number;
 };
 
+export function isLinkSessionTerminalFailureV1(state: LinkSessionStateV1): boolean {
+  switch (state.state) {
+    case 'failed_before_commit':
+    case 'cancelled':
+    case 'expired':
+      return true;
+    case 'displaying_qr':
+    case 'claimed':
+    case 'awaiting_target_factor':
+    case 'awaiting_source_contribution':
+    case 'provisioning':
+    case 'authority_pending_local_install':
+    case 'active':
+      return false;
+    default:
+      return assertNeverLinkSessionStateV1(state);
+  }
+}
+
 export function assertNeverLinkSessionStateV1(value: never): never {
   throw new Error(`[LinkSessionStateV1] unsupported state: ${String(value)}`);
 }

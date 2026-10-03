@@ -1459,3 +1459,13 @@ call with a manufactured owner context in this composed scenario.
 Regional E2Es, focused lint and public bloat checks passed. Real owner protocol
 material and complete regional installation remain open; see
 [results](refactor-152-results.md) for receipts and reproduction.
+
+### October 3: terminal source requests stop explicitly
+
+The regional cancellation scenario exposed preparation polling returning 204 after
+cancellation. Source preparation and execution now return 409 `invalid_state` for
+cancelled, expired or failed-before-commit sessions, before looking up preparation
+or dispatching the Router. The exhaustive shared state predicate preserves active
+and in-progress retry behavior. Regional cancellation checks and the real local
+lost-execution/activation-response contract pass. Complete installation across
+regional databases remains open; see the results document for evidence.

@@ -22,7 +22,10 @@ import type {
   QrLinkedDeviceSessionPayloadV5,
   VerifiedLinkInputV1,
 } from '@shared/device-linking/contracts';
-import { assertNeverLinkSessionStateV1 } from '@shared/device-linking/contracts';
+import {
+  assertNeverLinkSessionStateV1,
+  isLinkSessionTerminalFailureV1,
+} from '@shared/device-linking/contracts';
 import type { LinkedDeviceActivationCleanupReceiptV1 } from '@shared/device-linking/walletSessionCredentialDelivery';
 import type { CommittedAuthorityPackagesV1 } from '@shared/device-linking/committedSignerPackages';
 import {
@@ -403,7 +406,7 @@ async function handleCreate(
 ): Promise<Response> {
   if (ctx.method !== 'POST') return methodNotAllowedResponse();
   const bodyDigestB64u = await requestBodyDigest(ctx.request);
-  const rawBody = await readJsonBody(ctx.request);
+  const rawBody = await readJson(ctx.request);
   const body = parseBoundary(() => parseCreateRequest(rawBody));
   const keyDigest = await computeDevicePublicKeyDigestB64u(body.payload.devicePublicKeyB64u);
   const proof = parseBoundary(() => parseRequestProofHeader(ctx.request));
@@ -658,6 +661,9 @@ async function handleSourceContributionPreparation(
   const linkSessionId = parseSessionId(rawLinkSessionId);
   const owner = await authenticateOwnerForSession(ctx, service, linkSessionId, nowMs);
   if (owner.kind !== 'authorized') return ownerSessionResponse(owner);
+  if (isLinkSessionTerminalFailureV1(owner.session.state)) {
+    return invalidStateResponse(owner.session);
+  }
   if (ctx.method !== 'GET') return methodNotAllowedResponse();
   const preparation = owner.session.sourceContributionPreparation;
   if (!preparation) return new Response(null, { status: 204 });
@@ -743,10 +749,7 @@ async function handleSourceContribution(
   );
 }
 
-/**
- * A precommit failure's reason is a single token. The installer's message
- * keeps its words, joined, so the session still says what failed.
- */
+// Preserve the installer message in the single-token failure reason.
 function precommitFailureReasonV1(message: string): string {
   const token = message
     .trim()
@@ -765,6 +768,9 @@ async function handleSourceContributionExecute(
   const linkSessionId = parseSessionId(rawLinkSessionId);
   const owner = await authenticateOwnerForSession(ctx, service, linkSessionId, nowMs);
   if (owner.kind !== 'authorized') return ownerSessionResponse(owner);
+  if (isLinkSessionTerminalFailureV1(owner.session.state)) {
+    return invalidStateResponse(owner.session);
+  }
   const router = service.sourceContributionRouter;
   if (!router) return notSupportedResponse('Ed25519 source-preserving linking is not configured');
   const preparation = requireEd25519SourceContributionPreparation(owner.session);
@@ -1054,7 +1060,7 @@ async function handleReceipt(
     return notSupportedResponse('Installation receipt is not configured');
   if (ctx.method !== 'POST') return methodNotAllowedResponse();
   const linkSessionId = parseSessionId(rawLinkSessionId);
-  const rawBody = await readJsonBody(ctx.request.clone());
+  const rawBody = await readJson(ctx.request.clone());
   if (isFinalActivationAcknowledgement(rawBody)) {
     const acknowledgement = parseBoundary(() =>
       parseLocalAuthorityActivationFinalAckV1(rawBody),
@@ -1869,11 +1875,7 @@ function requireOwnerMatchesClaimedWallet(
   };
 }
 
-/**
- * Approval-time revalidation of the selected Email OTP base method. The same
- * eligibility question the dedicated base-factor route answers, asked once
- * more with the id the approval names, so the two paths cannot drift.
- */
+// Reuse base-factor eligibility checks when approval names the selected method.
 async function requireSelectedEmailOtpBaseFactorV1(
   service: DeviceLinkingRouteServiceV1,
   session: LinkedDeviceSessionRecordV1,
@@ -2048,10 +2050,6 @@ function parseB64uBytes(raw: unknown, field: string): Uint8Array {
   if (bytes.length === 0 || base64UrlEncode(bytes) !== raw)
     throw new Error(`${field} is not canonical base64url`);
   return bytes;
-}
-
-async function readJsonBody(request: Request): Promise<unknown> {
-  return await readJson(request);
 }
 
 function parseBoundary<T>(parse: () => T): T {
