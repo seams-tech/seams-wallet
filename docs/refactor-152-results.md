@@ -4270,3 +4270,32 @@ Regional E2E, focused lint and public bloat checks passed. Private receipt:
 SHA-256 `05438478f525d73d86435b7c67405daff993ebb813410741b7676bf1c0ba4460`.
 Approval source facts and target preparation remain controlled; regional protocol
 execution and final installation remain open. No deployment or release.
+
+### October 3: approval rehydrates its source facts from home D1
+
+The regional HTTP approval flow now shares the production verified source reader
+and owner metadata provider used by contribution preparation. Deleted the fixture
+that supplied a hard-coded signer manifest, custody manifest digest and authority
+digest. Missing signer material returns 401 and leaves the session claimed with
+no approval transcript. Once the signer is inserted at WEUR, approval succeeds;
+its cross-region replay, durable target registration and source-preparation replay
+all pass. Approval and target credential rows remain absent from the other homes.
+
+Verification: regional E2E, focused ESLint and public bloat check passed. Receipt:
+private `.artifacts/r152/approval-source-20261003/regional-session-routing-evidence.json`.
+SHA-256 `2ac315bbe595f706dd48fcd0d2aca4453f068463170890573d71b0e79b423642`. Logs are alongside the receipt.
+Reproduce from the private repository:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/approval-source-20261003 \
+node tests/e2e/regional-session-routing.e2e.mjs
+```
+
+The missing-signer assertion now belongs at approval, the earliest production
+boundary that needs those facts. Controlled source-outage reservation-release
+coverage at target registration remains. Owner protocol material, the initial
+claim context and target preparation planner are still fixtures; complete regional
+source execution, package delivery and authority installation remain open. The
+separate real local protocol contracts do not establish regional final-state
+isolation. No deployment, release or new latency measurement occurred.

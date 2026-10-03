@@ -1435,3 +1435,13 @@ Regional E2E, focused lint and public bloat checks passed. Private receipt:
 SHA-256 `05438478f525d73d86435b7c67405daff993ebb813410741b7676bf1c0ba4460`.
 Approval source facts and target preparation remain controlled; regional protocol
 execution and final installation remain open. No deployment or release.
+
+### October 3: regional approval source facts use D1
+
+Removed the hard-coded approval signer manifest and custody digest. Approval now
+uses the production verified source reader and metadata provider against home D1.
+Missing signer material rejects approval and leaves the claim unapproved. Inserting
+the signer at WEUR allows approval, registration and replay to complete through
+the existing regional scenario. The target planner and owner protocol material
+remain controlled; real regional installation remains open. See the
+[results](refactor-152-results.md) for the receipt and verification limits.
