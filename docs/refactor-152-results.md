@@ -2952,3 +2952,69 @@ controlled provider proofs for the other resources. This does not establish a
 complete-set hosted operator run or geographic latency. Canonical regional target
 configuration, generated regional bindings and complete-set operator collection
 remain next. No deployment, hosted reset or package publication occurred.
+
+### October 3: regional configuration and complete-set operator collection
+
+The canonical Gateway deployment schema is now version 5: explicit US/WEUR/APAC
+resources, an ingress region, and an allocated/pending signer-D1 branch. The
+existing APAC resource IDs and public ingress names remain configured. US/WEUR
+allocations remain pending in each lane; no new live UUIDs or allocations were
+invented. These are configured placement hints, not a new provider locality
+measurement. Schema 4 and singular signer-resource configuration are rejected.
+
+The renderer requires `--region US|WEUR|APAC` for Gateway and Wallet Runtime and
+renders one shared Console. All seven configurations receive the catalog; Console
+receives six regional bindings, Gateways receive three named `WalletHomeGateway`
+bindings, and each regional writer pair binds its own signer D1 with matching
+placement. Only the ingress Gateway receives the public custom domain. Existing
+shared/control Runtime calls retain the ingress Runtime pending their routing
+refactor. Pending allocations block rendering, deployment preflight and proof
+collection. Migration/deployment commands iterate all three signer resources and
+writer pairs while retaining packaged migration fingerprint checks.
+
+The operator now returns three fresh resource checkpoints. It checks serving
+versions and physical bindings for all six writers before challenges, rechecks the
+complete set after challenges, rejects any drift/expiry, and passes the full proof
+array to protected activation. Every challenge is cleaned up, including an INSERT
+that commits before its response is lost. A third-region lost-response scenario
+verifies zero challenge rows remain in all three databases. The composed D1
+activation test uses all three actual CLI-collected proofs; synthetic extra-region
+activation proofs were removed.
+
+Four focused E2Es passed in **22.6s**, covering seven rendered configurations,
+pending-allocation refusal, provider binding failures/rollout drift, local
+Worker/D1 challenges and complete-set activation. Targeted candidate-backed
+TypeScript, lint and formatting checks passed. Ten existing deployment-target
+behavior checks passed; an unrelated source-text guard expecting SES workflow
+secrets still fails against the current Resend workflow and was left unchanged.
+The old single-region placement test was replaced by the regional rendering E2E.
+
+Repeat from the private repository:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+pnpm --dir tests exec playwright test -c playwright.relayer.config.ts \
+  relayer/regional-deployment-config.e2e.test.ts \
+  relayer/tenant-d1-provider-bindings.e2e.test.ts \
+  relayer/tenant-deployment-binding.e2e.test.ts \
+  relayer/tenant-home-challenge.e2e.test.ts --reporter=line
+```
+
+Evidence is retained in the private repository under
+`.artifacts/r152/regional-deployment-set-20261003/`, including command logs,
+`tsconfig.json`, deployment plan, receipts and `receipt-index.json`:
+
+| Receipt | SHA-256 |
+| --- | --- |
+| `regional-deployment-config-evidence.json` | `062787fae71a892ba7fe84849aa090c86ecc470ff164fde6f601ede3e6c1f9f6` |
+| `runtime-resource-challenge-evidence.json` | `88288f58f26b2e1ac5dcfa2e5a6888eff273315d32d26332a910e80811605bab` |
+| `combined-home-checkpoint.json` | `a6914728dd3e29eabd5ef647c35732f240b8342d124e7beb7f335218c5a840f9` |
+
+Provider HTTP and resource allocations are controlled test fixtures. These results
+prove local composition and operator behavior; no hosted timing was measured.
+Before hosted rollout, allocate/verify US and WEUR resources, bootstrap the new
+service-binding targets, and inspect the frozen deployment plan. The ordinary
+update order assumes targets already exist and does not bootstrap mutual service
+bindings. Shared identity/session/recovery routing, internal/deferred enforcement,
+expiry reconciliation and hosted travel/concurrency tests remain open. No remote
+deployment, schema reset or package publication occurred; 0.8.0 remains held.

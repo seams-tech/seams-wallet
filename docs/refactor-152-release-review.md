@@ -963,3 +963,20 @@ Evidence and reproduction are in the matching results checkpoint. Receipt SHA-25
 controlled. Regional target generation and complete-set operator proof collection
 remain incomplete; the CLI still selects one configured resource. No deployment,
 reset or publication occurred. Release 0.8.0 remains held.
+
+### October 3 regional deployment checkpoint
+
+Schema 5 now models US/WEUR/APAC resources directly. Canonical APAC IDs remain;
+US/WEUR allocations are explicitly pending. Rendering supplies seven Worker
+configurations, the catalog and regional bindings; migration/deployment commands
+iterate the regional set. The operator collects all three proofs and rechecks all
+six serving writers before activation. Four focused E2Es passed in 22.6s, including
+third-region lost-response cleanup; targeted TypeScript/lint passed. Full details,
+repeat command and receipt hashes are in `refactor-152-results.md` under
+“regional configuration and complete-set operator collection”.
+
+Remaining: verified regional allocations and service-target bootstrap, shared
+credential/recovery/session locators, direct Yao and Runtime routing, internal and
+deferred enforcement, expiry reconciliation, and hosted concurrency/travel tests.
+The existing update command requires pre-existing service-binding targets. No
+hosted deployment or new geographic latency result; the 0.8.0 release remains held.

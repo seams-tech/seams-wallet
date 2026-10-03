@@ -149,10 +149,15 @@ role RPC and cross-authority contract has a final owner and failure behavior.
   writers; atomically reject partial proofs, duplicate writers and reused challenges.
   Migration 0054 removes singular activation columns and requires fresh activation.
   Console refuses wallet reservations against an unverified regional catalog.
-- [ ] Finish regional deployment orchestration: render the catalog, all Gateway/
-  Runtime bindings and named receiving entrypoints; collect proofs for the complete
-  set. The existing operator
-  collector still checks one resource and cannot activate the hosted regional set.
+- [x] Replace singular deployment configuration with an explicit three-region
+  resource map. Render the catalog, all Gateway/Runtime bindings and named receiving
+  entrypoints; collect and activate with three proofs after stable complete-set
+  provider checks. The local CLI/Worker/D1 E2E verifies all six writers and cleanup
+  after a lost third-region response (October 3 regional deployment checkpoint).
+- [ ] Supply verified US/WEUR allocations and bootstrap new regional service
+  targets before hosted rollout. Canonical schema 5 records pending allocations
+  explicitly; rendering/preflight/collection refuse incomplete resources. The
+  ordinary deployment update order assumes service-binding targets already exist.
 - [x] Route protected runtime resource challenges through the catalog to the exact
   regional Gateway/Runtime pair. Require a validated resource in every request;
   reject foreign namespaces, unlisted resources and cross-resource proofs. One
