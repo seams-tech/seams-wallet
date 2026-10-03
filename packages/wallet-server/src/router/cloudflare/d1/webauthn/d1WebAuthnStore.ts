@@ -1,3 +1,4 @@
+import type { WebAuthnSyncChallengeStore } from '../../../../core/WebAuthnSyncChallengeStore';
 import {
   reservePasskeyCredential,
   type PasskeyCredentialClaims,
@@ -79,11 +80,13 @@ export function prepareD1WebAuthnAuthenticatorInsertStatement(
 }
 
 export class CloudflareD1WebAuthnStore {
+  private readonly syncChallenges: WebAuthnSyncChallengeStore | undefined;
   private readonly database: D1DatabaseLike;
   private readonly scope: D1TenantScope;
   private readonly credentialClaims: PasskeyCredentialClaims | undefined;
 
   constructor(input: {
+    readonly syncChallenges?: WebAuthnSyncChallengeStore;
     readonly credentialClaims?: PasskeyCredentialClaims;
     readonly database: D1DatabaseLike;
     readonly namespace: string;
@@ -92,6 +95,7 @@ export class CloudflareD1WebAuthnStore {
     readonly envId: string;
   }) {
     this.credentialClaims = input.credentialClaims;
+    this.syncChallenges = input.syncChallenges;
     this.database = input.database;
     this.scope = {
       namespace: input.namespace,
@@ -110,8 +114,14 @@ export class CloudflareD1WebAuthnStore {
       | WebAuthnRecoveryRegistrationChallengeRecord;
     readonly createdAtMs: number;
     readonly expiresAtMs: number;
-  }): Promise<void> {
+  }): ReturnType<WebAuthnSyncChallengeStore['create']> {
+    if (input.challengeKind === 'sync' && this.syncChallenges) {
+      const record = parseWebAuthnSyncChallengeRecord(input.record);
+      if (!record) throw new Error('Invalid sync challenge');
+      return this.syncChallenges.create(record);
+    }
     await webAuthnChallengeRows.upsert(this.prepare, input).run();
+    return { ok: true };
   }
 
   async consumeLoginChallenge(challengeId: string): Promise<WebAuthnLoginChallengeRecord | null> {
@@ -122,12 +132,16 @@ export class CloudflareD1WebAuthnStore {
     return parseWebAuthnLoginChallengeRecord(row?.record_json);
   }
 
-  async consumeSyncChallenge(challengeId: string): Promise<WebAuthnSyncChallengeRecord | null> {
+  async consumeSyncChallenge(
+    challengeId: string,
+    credentialIdB64u: string,
+  ): ReturnType<WebAuthnSyncChallengeStore['consume']> {
+    if (this.syncChallenges) return this.syncChallenges.consume({ challengeId, credentialIdB64u });
     const row = await this.consumeChallenge({
       challengeId,
       challengeKind: 'sync',
     });
-    return parseWebAuthnSyncChallengeRecord(row?.record_json);
+    return { ok: true, record: parseWebAuthnSyncChallengeRecord(row?.record_json) };
   }
 
   async readRecoveryRegistrationChallenge(

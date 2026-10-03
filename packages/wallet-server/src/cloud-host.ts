@@ -257,3 +257,10 @@ export { D1EmailOtpRateLimitCounter } from './router/cloudflare/d1/emailOtp/d1Em
 export type { EmailOtpRateLimitCounter } from './router/cloudflare/d1/emailOtp/d1EmailOtpRateLimitStore';
 
 export type { PasskeyCredentialClaims } from './core/passkeyCredentialClaims';
+
+export type { WebAuthnSyncChallengeStore, WebAuthnSyncChallengeRecord } from './core/WebAuthnSyncChallengeStore';
+export { parseWebAuthnSyncChallengeRecord } from './router/cloudflare/d1/webauthn/d1WebAuthnRecords';
+
+export { webAuthnCredentialIdB64uFromCredential } from './router/auth/webAuthnCredentialCodecs';
+
+export type { SyncChallengeFailure } from './core/WebAuthnSyncChallengeStore';

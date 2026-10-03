@@ -291,18 +291,6 @@ export class CloudflareD1WebAuthnAuthService {
         }
       }
 
-      if (this.lifecycleRouting) {
-        if (!expectedUserId) {
-          return failure('wallet_home_unavailable', 'Hosted credential discovery is unavailable');
-        }
-        const publication = await publishPasskeyChallengeHome(
-          this.lifecycleRouting,
-          expectedUserId,
-          challengeId,
-        );
-        if (!publication.ok) return publication;
-      }
-
       const record: WebAuthnSyncChallengeRecord = {
         version: 'webauthn_sync_challenge_v1',
         challengeId,
@@ -312,7 +300,7 @@ export class CloudflareD1WebAuthnAuthService {
         createdAtMs,
         expiresAtMs,
       };
-      await this.webAuthnStore.writeChallenge({
+      const stored = await this.webAuthnStore.writeChallenge({
         challengeId,
         challengeKind: 'sync',
         record,
@@ -320,6 +308,7 @@ export class CloudflareD1WebAuthnAuthService {
         expiresAtMs,
       });
 
+      if (!stored.ok) return stored;
       return {
         ok: true,
         challengeId,
@@ -601,13 +590,6 @@ export class CloudflareD1WebAuthnAuthService {
     try {
       const challengeId = toOptionalTrimmedString(input.challengeId ?? input.challenge_id);
       if (!challengeId) return failure('invalid_body', 'Missing challengeId');
-      const challenge = await this.webAuthnStore.consumeSyncChallenge(challengeId);
-      if (!challenge) {
-        return failedVerification(
-          'challenge_expired_or_invalid',
-          'Sync challenge expired or invalid',
-        );
-      }
       const credential = parseWebAuthnAuthenticationCredential(input.webauthn_authentication);
       if (!credential) {
         return failedVerification('invalid_body', 'Missing webauthn_authentication');
@@ -615,6 +597,18 @@ export class CloudflareD1WebAuthnAuthService {
       const credentialId = webAuthnCredentialIdB64uFromCredential(credential);
       if (!credentialId.ok) {
         return failedVerification(credentialId.code, credentialId.message);
+      }
+      const consumed = await this.webAuthnStore.consumeSyncChallenge(
+        challengeId,
+        credentialId.credentialIdB64u,
+      );
+      if (!consumed.ok) return failedVerification(consumed.code, consumed.message);
+      const challenge = consumed.record;
+      if (!challenge) {
+        return failedVerification(
+          'challenge_expired_or_invalid',
+          'Sync challenge expired or invalid',
+        );
       }
       const syncBinding = webAuthnSyncCredentialBinding(
         await this.webAuthnStore.readBindingByCredential({

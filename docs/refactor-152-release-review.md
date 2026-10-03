@@ -1199,3 +1199,12 @@ sync joined the regional challenge/travel/conflict/outage composition. Persisten
 home-directory E2E also passed. Retained claims cannot be cancelled without further
 reconciliation. Wallet-less hosted sync explicitly returns unavailable; credential
 discovery and authoritative terminal reconciliation remain release blockers.
+
+### October 3: discovery routing checkpoint
+
+Wallet-less sync routing is implemented with shared single-use challenges and
+home-authoritative verification. The temporary unavailable branch is removed.
+Three-region travel, replay, expiry, scope, outage and uncommitted-binding rejection
+checks passed. One local real-browser unlock/export/signing contract passed.
+Successful regional WebAuthn verification remains controlled in composition; full
+hosted discovery is still an acceptance gate. SDK 0.8.0 remains on hold.

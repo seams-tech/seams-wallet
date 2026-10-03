@@ -213,7 +213,7 @@ releasing an index entry. The exact service contracts remain an open inventory i
 | Invariant | Present atomic owner | Target owner and transaction boundary |
 | --- | --- | --- |
 | Wallet ID and registration-operation uniqueness | Console reservation admission plus one regional signer D1 setup snapshot | Console wallet directory commits wallet/home/setup identity before Router preparation. A regional ceremony uses that allocation only. |
-| Passkey credential uniqueness and discoverability | Signer D1 `webauthn_credential_bindings`; local `webauthn_authenticators` tracks counters | Console reserves tenant + RP + credential and resolves it to a wallet; wallet home commits the method and counter. Publish the shared locator only after a verified regional receipt. |
+| Passkey credential uniqueness and discoverability | Signer D1 `webauthn_credential_bindings`; local `webauthn_authenticators` tracks counters | Console reserves tenant + RP + credential and routes the proof to its wallet home. The home commits the method and counter and verifies active local state and WebAuthn before discovery; no shared active-method copy is published. |
 | Google/provider subject and Email OTP offer selection | Signer D1 `identity_links`, `email_otp_registration_attempts` and enrollment rows | Shared identity authority owns subject-to-wallet links and offer candidates. The selected wallet is reserved once; regional enrollment remains wallet-local. Preserve supported multiple-wallet discovery. |
 | IP, user, wallet, provider and organization Email OTP limits | Signer D1 `email_otp_rate_limits`; `consume` walks each generated key sequentially | Keep every rate key in one shared authority during the cutover, including wallet-keyed counters. Challenge/grant state stays at home; region count cannot multiply an allowance. Define retry identity before changing consumption semantics. |
 | Project signing policy and wallet-scoped abuse decision | Signer D1 `router_ab_normal_signing_admission_records`; a SQL read joins `project_policy` and wallet-keyed `abuse` records to a session | Shared authority owns current project policy. The wallet home owns its wallet-keyed abuse decision and claims one session operation and quota. A policy admission must carry exact scope, decision/version and expiry into the local claim. |
@@ -1088,3 +1088,21 @@ endpoint. Reconciliation remains required to close an uncertain regional outcome
 and `/sync-account/verify` by shared challenge locator. Production sync challenge
 creation publishes the locator before storing/returning the local challenge.
 Wallet-less hosted sync fails explicitly until shared discovery is completed.
+
+### October 3: shared sync discovery authority
+
+This supersedes the earlier wallet-less sync rejection checkpoint and the proposed
+active-credential publication index. Console `wallet_sync_challenges` holds scoped,
+expiring challenges and consumption tombstones. SDK sync storage uses the injected
+shared port; known-wallet sync no longer writes a redundant local challenge or
+publishes a generic lifecycle locator. Login/unlock locators remain unchanged.
+
+Discovery routes by RP + credential claim within the challenge scope. Console
+consumption requires the assigned home writer, a live home and matching expected
+wallet when supplied. The home verifier checks committed binding, active auth method
+and WebAuthn. This preserves one authoritative active-method state and avoids
+cross-database publication/revocation races. A claim never authenticates by itself.
+
+Creation retries cannot overwrite records or revive consumed challenges. Full hosted
+WebAuthn acceptance and terminal claim reconciliation remain open. Include shared
+sync challenges in scoped test resets and operational expired-row cleanup.

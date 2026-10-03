@@ -3633,3 +3633,45 @@ No deployment or release occurred.
 Final HTTP review: the production sync-account options handler now maps home
 unavailability to 503 and a home conflict to 409. The regional composition exercises
 that handler directly; signature verification remains controlled as stated above.
+
+### October 3: wallet-less passkey discovery routing
+
+Migration 0066 adds shared sync challenges. The matched SDK injects the shared
+create/consume port and uses typed failure results across package bundles. This
+replaces the temporary wallet-less 503 guard and regional sync challenge writes.
+Immutable credential claims route verification; committed binding/active-method
+and WebAuthn checks remain at the home. No duplicate active-binding publication
+index was introduced.
+
+Three-region composition passed known-wallet and wallet-less travel routing,
+concurrent single consumption, foreign-writer rejection, consumed-record recreation
+rejection, exact creation retries, expiry, project isolation and outage behavior.
+The real verifier rejected claimed credentials with no committed local binding.
+Signature verification for successful regional discovery remains controlled, so
+full hosted WebAuthn acceptance remains open. Existing terminal/ownership, recovery,
+Google identity, rate-limit and session composition checks also passed.
+
+A stale fixture reused one credential across three wallets. It now uses the shared
+factory's explicit credential identity input. Review also found cross-bundle error
+class identity broke 503 handling; the implementation now uses Result-style unions.
+Static fixtures reject failure records carrying proof state and contradictory results.
+
+SDK build, public/private candidate type checks, domain-state type fixtures, focused
+private lint and bloat check passed. The existing local contract “passkey unlock
+restores immediate export and shared-budget signing” passed in 33.5 seconds with
+cached unchanged Rust/WASM builds. It is standalone lifecycle evidence, separate
+from regional composition.
+
+Repeat regional composition from seams-monorepo:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/passkey-discovery-20261003 \
+node tests/e2e/regional-session-routing.e2e.mjs
+```
+
+Receipt: `.artifacts/r152/passkey-discovery-20261003/regional-session-routing-evidence.json`.
+SHA-256: `9e43c120d4d0be50665757da7ba0372533c244e21adbe402cae108504c315b09`.
+Build/bloat and local contract logs are retained alongside it. No deployment or
+release occurred. Terminal claim reconciliation, linked-device bootstrap,
+internal/deferred enforcement and hosted acceptance remain release gates.

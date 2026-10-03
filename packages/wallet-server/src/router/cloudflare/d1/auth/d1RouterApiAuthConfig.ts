@@ -1,3 +1,4 @@
+import type { WebAuthnSyncChallengeStore } from '../../../../core/WebAuthnSyncChallengeStore';
 import type { PasskeyCredentialClaims } from '../../../../core/passkeyCredentialClaims';
 import type { EmailOtpRateLimitCounter } from '../emailOtp/d1EmailOtpRateLimitStore';
 import type { GoogleEmailOtpRegistrationAttemptStore } from '../emailOtp/d1GoogleEmailOtpRegistrationAttemptStore';
@@ -156,6 +157,7 @@ export interface CloudflareD1RouterApiAuthServiceOptions {
   readonly identityStore?: IdentityStore;
   readonly emailOtpRateLimitCounter?: EmailOtpRateLimitCounter;
   readonly credentialClaims?: PasskeyCredentialClaims;
+  readonly syncChallenges?: WebAuthnSyncChallengeStore;
   readonly googleRegistrationAttempts?: GoogleEmailOtpRegistrationAttemptStore;
   readonly sessionRouting?: WalletSessionRoutingPublisher;
   readonly lifecycleRouting?: WalletLifecycleRoutingPublisher;
@@ -349,6 +351,7 @@ export function normalizeD1RouterApiAuthOptions(
     identityStore: input.identityStore,
     emailOtpRateLimitCounter: input.emailOtpRateLimitCounter,
     credentialClaims: input.credentialClaims,
+    syncChallenges: input.syncChallenges,
     googleRegistrationAttempts: input.googleRegistrationAttempts,
     sessionRouting: input.sessionRouting,
     recoveryRouting: input.recoveryRouting,

@@ -1059,10 +1059,15 @@ a cancelled home cannot later accept a claim. The original owner may retry or
 establish the retained home. Releasing retained claims requires authoritative
 regional reconciliation, which remains a hosted release gate.
 
-Hosted account sync with an explicit account ID creates its challenge at that
-wallet's home and publishes the opaque challenge locator before returning it.
-Verification arriving elsewhere resolves that locator and executes at the same
-home. Directory failure must leave the challenge unconsumed. Hosted wallet-less
-sync currently returns an explicit unavailable error until shared credential
-discovery is implemented; it must not search whichever regional database received
-its request. Standalone discovery retains its single-database behavior.
+Hosted account sync stores its single-use challenge in shared tenant authority.
+Known-wallet options retain the wallet scope; wallet-less options omit a credential
+allow-list. Verification resolves the credential claim within the challenge RP and
+tenant to its immutable wallet home. Only that home's writer may consume the
+challenge. Claims provide routing only: the home verifier must find a committed
+binding and active auth method and verify WebAuthn before returning wallet identity
+or session authority. An uncommitted claim cannot authenticate.
+
+A consumed challenge cannot be recreated by a creation retry. Expired challenges
+cannot resolve or be consumed. An exact creation retry is idempotent while the
+challenge is live. Directory outages return a typed unavailable result and never
+fall back to regional challenge state. Standalone sync retains its local store.

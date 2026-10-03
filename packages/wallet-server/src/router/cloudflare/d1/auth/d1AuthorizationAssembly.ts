@@ -57,6 +57,7 @@ export function createD1WebAuthnAssembly(
   walletManifestSource: D1WebAuthnWalletManifestSource,
 ) {
   const webAuthnStore = new CloudflareD1WebAuthnStore({
+    syncChallenges: options.syncChallenges,
     credentialClaims: options.credentialClaims,
     database: options.database,
     namespace: options.namespace,
