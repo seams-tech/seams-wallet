@@ -11,6 +11,7 @@ import {
   type LinkedDeviceEmailOtpGrantRecordV1,
 } from '../../../../core/deviceLinking/linkedDeviceEmailOtpGrant';
 import type { D1DatabaseLike, D1PreparedStatementLike } from '../../../../storage/tenantRoute';
+import { d1ChangedRows } from '../../../../storage/d1Sql';
 import {
   SESSION_CAS_GUARD_SQL,
   type D1LinkedDeviceSessionScopeV1,
@@ -30,12 +31,15 @@ export class D1LinkedDeviceEmailOtpGrantStoreV1 {
     this.scope = input.scope;
   }
 
-  async issueV1(record: LinkedDeviceEmailOtpGrantRecordV1): Promise<void> {
+  async issueV1(record: LinkedDeviceEmailOtpGrantRecordV1): Promise<
+    | { readonly kind: 'issued' }
+    | { readonly kind: 'refused'; readonly code: 'link_session_inactive'; readonly message: string }
+  > {
     const parsed = parseLinkedDeviceEmailOtpGrantRecordV1(record);
     if (parsed.state.kind !== 'issued') {
       throw new Error('a linked-device email OTP grant is only ever inserted as issued');
     }
-    await this.database
+    const issued = await this.database
       .prepare(
         `INSERT INTO ${GRANT_TABLE} (
            namespace, org_id, project_id, env_id, grant_id,
@@ -46,7 +50,11 @@ export class D1LinkedDeviceEmailOtpGrantStoreV1 {
            base_wallet_auth_method_id, linked_owner_auth_method_id,
            authority_digest_b64u, challenge_id, state, record_json,
            issued_at_ms, expires_at_ms, consumed_at_ms
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'email_otp', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'issued', ?, ?, ?, NULL)`,
+         ) SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 'email_otp',
+                  ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, 'issued', ?21, ?22, ?23, NULL
+             FROM linked_device_sessions
+            WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
+              AND link_session_id = ?8 AND state = 'awaiting_target_factor'`,
       )
       .bind(
         ...scopeValues(this.scope),
@@ -71,6 +79,12 @@ export class D1LinkedDeviceEmailOtpGrantStoreV1 {
         parsed.expiresAtMs,
       )
       .run();
+    if (d1ChangedRows(issued) === 1) return { kind: 'issued' };
+    return {
+      kind: 'refused',
+      code: 'link_session_inactive',
+      message: 'linked-device session no longer accepts Email OTP grants',
+    };
   }
 
   async readByIdV1(grantId: string): Promise<LinkedDeviceEmailOtpGrantRecordV1 | null> {

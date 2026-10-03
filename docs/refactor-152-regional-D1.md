@@ -57,10 +57,11 @@ older implementation checkpoints and must be read with their later evidence.
    regional cryptographic installation, remaining terminal reconciliation and
    activation cleanup remain open.
    Delayed target-preparation insertion after cancellation is also fixed: the
-   insert requires the current session to be awaiting its target factor. Next
-   terminal-writer check is Email OTP grant insertion. Target-commit reservation
-   acquisition now checks current session state atomically; its admitted-write
-   cancellation race passes without reacquisition or downstream source work.
+   insert requires the current session to be awaiting its target factor. The
+   target-commit reservation and Email OTP grant insertion checks now pass their
+   controlled cancellation races. Both check current session state atomically.
+   Email OTP verification uses a controlled verifier in this regional scenario;
+   live email delivery and complete regional factor installation remain open.
 2. Close full lifecycle acceptance and terminal reconciliation for registration,
    discovery/unlock, recovery, export and add/revoke methods. Exercise browser
    proofs and shared credential/identity claims through commit, failure and replay.

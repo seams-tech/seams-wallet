@@ -370,7 +370,8 @@ export class D1LinkedDeviceEmailOtpTargetFactorV1 implements DeviceLinkingEmailO
     if (!sealed.ok) {
       return { kind: 'refused', code: sealed.code, message: sealed.message };
     }
-    await this.options.grants.issueV1(grantRecord);
+    const issued = await this.options.grants.issueV1(grantRecord);
+    if (issued.kind === 'refused') return issued;
     return {
       kind: 'verified',
       grant: {
@@ -486,7 +487,8 @@ export class D1LinkedDeviceEmailOtpTargetFactorV1 implements DeviceLinkingEmailO
       issuedAtMs,
       expiresAtMs,
     });
-    await this.options.grants.issueV1(grantRecord);
+    const issued = await this.options.grants.issueV1(grantRecord);
+    if (issued.kind === 'refused') return issued;
     return {
       kind: 'verified',
       grant: {

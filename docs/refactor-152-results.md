@@ -4560,3 +4560,43 @@ Use the existing isolated intended runner with the freshly built server and
 Email OTP grant insertion remains the next terminal-writer check. Full regional
 cryptographic activation/cleanup, lifecycle/ownership acceptance and hosted regional
 verification remain open. No deployment or release occurred.
+
+
+## October 3: Email OTP grant issuance versus cancellation
+
+A regional new-enrollment scenario reproduced a production regression: verification
+paused immediately before grant persistence, cancellation committed, then the delayed
+write inserted a grant and the HTTP verifier returned 200 with a bearer token.
+
+Grant insertion now checks the scoped session is `awaiting_target_factor` within
+the same SQL statement. The store returns an explicit issued/refused union; both
+new- and existing-enrollment verification propagate refusal before returning a
+grant. The refused race returns 403 through the existing provider response mapping.
+No extra D1 roundtrip or compatibility path was added.
+
+The regional E2E passes: production session creation/claim/approval and target
+planning lead to a grant via signed verification HTTP; one D1 consumption succeeds,
+a second fails transactionally; a subsequent issuance paused across cancellation
+is refused, with zero grant rows afterward in US, WEUR and APAC. OTP verification
+and challenge delivery are controlled fixtures, so this is evidence for regional
+grant handling, single-use consumption and cancellation, not real email delivery
+or complete Email OTP installation. The exercised enrollment is new enrollment;
+the existing-enrollment branch shares the store and propagates the same refusal.
+
+Wallet Server build/type compilation, focused ESLint and bloat checks passed.
+The real local Worker lost-execution/activation-reply contract also passed with
+linked-device NEAR/Tempo signing, revocation and continued owner signing in 36.2
+seconds including setup. This duration is not geographic latency.
+
+Private receipt: `.artifacts/r152/email-grant-cancel-20261003/regional-session-routing-evidence.json`.
+SHA-256: `339b8f6578aef6ff4d2a7c1280d9948a76e9e4812feb2d68e6ce6b25e7e32fae`.
+Before/after E2E, build, lint and bloat logs are adjacent. Reproduce using the regional
+E2E command from preceding checkpoints with this artifact directory, after the
+Wallet Server build completes (the harness consumes its built cloud-host entry).
+Public real-protocol log and traces: `.artifacts/r152/email-grant-cancel-20261003/`.
+Use the existing isolated intended runner with the freshly built server and
+`a second device links with a passkey, signs NEAR and Tempo, and is revoked`.
+
+Full regional cryptographic linking/activation/cleanup, lifecycle/ownership
+acceptance and hosted regional verification remain open. No deployment or release
+occurred.

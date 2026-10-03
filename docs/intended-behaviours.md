@@ -1138,3 +1138,7 @@ Target-credential commit reservation acquisition also checks current session sta
 atomically. An admitted registration cannot acquire a new reservation after
 cancellation. If no reservation remains, registration returns a recoverable failure
 without recursively retrying acquisition or entering verification/source work.
+Email OTP grant issuance likewise checks the current session state in its INSERT.
+If cancellation commits first, verification returns a refusal without a grant token.
+Both new- and existing-enrollment verification propagate that refusal. Grant
+consumption remains a single-use transactional state change.

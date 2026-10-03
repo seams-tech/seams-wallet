@@ -1525,3 +1525,15 @@ The regional scenario pauses the production INSERT for a real browser registrati
 cancels through regional HTTP, and resumes it with zero inserted rows. The barrier
 enters the production provider directly and delegates all D1 operations. Email OTP
 grant issuance and full regional activation/cleanup remain open.
+
+
+### October 3: Email OTP grant issuance versus cancellation
+
+`linked_device_email_otp_grants` issuance now selects from the scoped session only
+while it is `awaiting_target_factor`. The store returns an explicit issued/refused
+result; new- and existing-enrollment verification propagate refusal before returning
+a bearer grant. The regional new-enrollment scenario verifies single-use consumption
+and pauses a second issuance across cancellation, leaving no grant rows afterward.
+Session/approval/planning, HTTP and D1 handling are production code; OTP verification
+and challenge delivery are controlled. Actual email delivery and full regional
+Email OTP factor installation remain acceptance work.
