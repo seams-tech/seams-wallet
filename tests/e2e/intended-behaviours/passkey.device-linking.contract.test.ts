@@ -1,4 +1,5 @@
 import { verifyLinkedDeviceCleanup } from './linked-device-cleanup-evidence';
+import { verifyRegisteredLinkSource } from './linked-device-source-evidence';
 import {
   expect,
   type Response,
@@ -126,6 +127,8 @@ test('a second device links with a passkey, signs NEAR and Tempo, and is revoked
   /* Linking pins the source signer manifest, so the NEAR signer must exist
      before Device 1 approves; otherwise Device 2 would join without it. */
   await harness.awaitNearReady();
+
+  await verifyRegisteredLinkSource(testInfo);
 
   const device2 = await harness.openLinkedDevice(browser);
   /* The Router runs Device 2's target registration and reserves its

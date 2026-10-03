@@ -1550,3 +1550,18 @@ and cleanup receipts remain. A repeatable JSON artifact contains counts and meta
 No secret material is copied into the evidence. Three-region installation remains
 open: the current private regional fixture still uses synthetic founding-owner
 material and has no production installation port wired to real Router roles.
+
+### October 3: real registration source boundary
+
+Before linking, the local real-protocol contract now resolves the registered owner
+through `createD1LinkedDeviceVerifiedLinkSourceReaderV1` against its live D1. The
+source includes a current Wallet Session authorization, active auth method and
+registration authority, and matching Ed25519/ECDSA signer identities and material
+activations. Scoped production stores read the actual registration namespace,
+organization, project and environment. The JSON evidence records only scope,
+wallet/authority identifiers, family, digests and revocation epoch.
+
+Regional integration must preserve this complete source and its matching live
+Router role state. Copying an isolated signer row or reusing synthetic authority
+material cannot establish this prerequisite. This check does not move records or
+close regional installation acceptance.

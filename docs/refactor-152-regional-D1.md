@@ -56,6 +56,12 @@ older implementation checkpoints and must be read with their later evidence.
    the production installation/reservation/activation composition to home Router
    roles; then run receipt/acknowledgement retries through foreign ingress and
    assert final/temporary state across all three signer databases.
+   The real registration boundary is now checked before that local linking test:
+   production readers resolve the live Wallet Session, active auth method,
+   registration authority and both signer families directly from D1. Its safe
+   metadata receipt records the actual scope and bindings; it contains no material
+   payload or bearer credential. This establishes the source prerequisite, while
+   replacing the regional harness fixture and wiring its Router roles remain open.
    Regional export-root relay delivery/replay/conflict and home-only D1 persistence
    now pass (October 3 export-root relay receipt in the results document). Terminal
    relay admission and preparation-to-recipient binding are fixed and verified.

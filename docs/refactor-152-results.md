@@ -4637,3 +4637,34 @@ isolation or the hosted Console path. Next: supply real registration material to
 the regional harness, wire production installation to the home Router roles, and
 repeat receipt/acknowledgement retries and cleanup assertions across all regional
 signer databases. No deployment or release occurred.
+
+## October 3: real registration source validation
+
+The existing real-protocol lost-response linking contract now verifies its owner
+source before opening device 2. Read-only access to the live isolated Gateway D1
+uses the production SQLite adapter, authorization/auth-method/authority/signer
+stores, and `createD1LinkedDeviceVerifiedLinkSourceReaderV1`. Both signer families
+resolve from the real registration, with `wallet_registration` provenance and the
+complete two-family signer manifest. No synthetic source records are supplied to
+this check.
+
+The full contract passed in 36.4 seconds, including linking with lost execution and
+activation replies, NEAR/Tempo signatures, durable cleanup, revocation and continued
+owner signing. This duration is not a geographic or individual-operation latency.
+Intended-contract type checking and the bloat check passed. No production defect
+was observed; this change adds source-boundary evidence to the existing E2E.
+
+Public artifact:
+`.artifacts/r152/registered-source-20261003/traces/registered-link-source.json`.
+SHA-256: `ea50609a970e9cc574843802a5f643311b5c07fc6a6262a434cc0cc9bdf8d742`.
+The receipt contains scope, public identifiers, digests and epoch; it excludes
+bearer credentials and material payloads. The same directory retains cleanup and
+device traces; the parent contains `protocol.log`, `types.log` and `bloat.log`.
+Reproduce with the isolated intended runner and the lost-response linking contract
+named in the preceding checkpoint, selecting this trace directory.
+
+The regional harness still uses synthetic founding-owner material. Its remaining
+integration requires real registration and matching live home Router roles,
+production installation/reservation/activation, and foreign-ingress receipt and
+acknowledgement retries with three-database assertions. No deployment or release
+occurred.
