@@ -109,8 +109,11 @@ older implementation checkpoints and must be read with their later evidence.
    pass addition, duplicate-add refusal, lock/reload, unlock and both-family
    signing through foreign ingress for every home. Revocation persists only at
    home, the SDK refuses the revoked method, and the original passkey still signs.
-   The development OTP outbox now routes to the issuing home. Other recovery
-   factors, method-change restart and remaining shared credential/identity
+   The development OTP outbox now routes to the issuing home. Fresh-browser
+   recovery from passkey custody into Google Email OTP now passes for every home,
+   including NEAR/concurrent Tempo-Arc signing after refresh, one shared Google
+   identity locator and consumed-code rejection. Other recovery origins and Google
+   recovery interruption, method-change restart and remaining shared credential/identity
    reconciliation still need composed acceptance. Method finalization and revocation
    reply loss now pass at every home: both mutations replay the exact request and
    committed result through foreign ingress, with one added method and one revocation.

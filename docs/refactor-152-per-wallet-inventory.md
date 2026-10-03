@@ -1675,3 +1675,15 @@ replay at all three homes. Each first response is dropped after its HTTP 200 com
 the retry carries the identical request/proof and receives the identical committed
 result. Finalization leaves one added method, revocation leaves that method revoked,
 and foreign signer stores remain empty. Method-change server restart remains open.
+
+### October 4: Google Email OTP recovery ownership
+
+Passkey-founded wallets now recover through foreign ingress into Google Email OTP
+at US/WEUR/APAC homes. The original passkey method stays active on its registration
+authority; the new Email OTP method belongs to a distinct active recovery authority.
+All three signer rows and both authorities remain only at home. Console retains
+exactly one Google identity locator for the recovered wallet, while signer identity
+tables remain empty. Preparation, Google/OTP proof verification, factor release
+and finalization all forward to home. Refresh, both-family signing and consumed-code
+rejection pass. Google recovery response loss/restart and other founding factors
+remain separate checks.

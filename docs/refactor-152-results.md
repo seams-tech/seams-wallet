@@ -5113,3 +5113,43 @@ and Google test token as the normal lifecycle run. ESLint and the public bloat
 check passed. This uses one shared local Router role stack and the development
 OTP outbox. Server-process restart, failed-commit races and hosted placement
 remain separate checks. No deployment or release occurred.
+
+### October 4: regional Google Email OTP recovery from passkey custody
+
+Three real browser cases passed in **2.6 minutes**: US→APAC, WEUR→US and APAC→WEUR
+(home→recovery ingress). Each registers a passkey wallet, clears browser storage,
+and establishes a new Google Email OTP authority using its recovery code. After
+refresh, NEAR signs and Tempo/Arc sign concurrently; the harness verifies the
+signatures and authoritative shared budget exhaustion through regional transport.
+
+Each home retains one wallet, three signer records and exactly two active
+authorities: the original registration authority with its passkey and a recovery
+authority with Email OTP. Foreign signer stores contain no corresponding wallet,
+signer or authority rows. Console contains exactly one Google identity locator
+for the wallet; all signer `identity_links` tables remain empty. Each recovery
+entry point forwards successfully, and a fresh reservation using the consumed
+code returns `401 recovery_code_used`.
+
+The initial run completed recovery and signing, then failed the budget assertion
+because the harness's direct API query bypassed regional composition. Classified
+`valid_test_needs_update`, it was corrected by reusing the existing regional
+request adapter for the harness. No production change was required.
+
+Private commit: `859d418`. Artifacts under private
+`.artifacts/r152/regional-google-recovery-20261004/` include the failed `before/`
+log/trace, passing `protocol.log`, `lint.log`, lifecycle traces and
+`google-recovery-<home>/recovery-evidence.json`. Receipt SHA-256:
+
+- US: `9653472b8b8e8b13ee804e86190e0a9061a8732f1eb326a1b54b0a8c34c2760d`.
+- WEUR: `168e217f8152b3aac3ea2cfb9ccd508b6064bff816564b4d3b0adebaeb19aa3a`.
+- APAC: `fafc28b218dbba40b3077eb63940c123120b9d4fc9f0c5beebebc7e8eea08f56`.
+
+Reproduce with the private regional runner's
+`--grep 'recovers with Google Email OTP'` selection, a built public candidate,
+fresh artifact/trace directories and a usable intended Google token as described
+above. This uses real Google token verification, the development OTP outbox,
+three local signer databases and one shared Router role stack. Cases run
+sequentially with separate Console stores. Concurrent signing is local protocol
+evidence; hosted cross-region concurrency and geographic latency remain open.
+ESLint and public bloat checks passed. Google recovery response loss, server restart
+and other founding factors remain separate gates. No deployment or release.
