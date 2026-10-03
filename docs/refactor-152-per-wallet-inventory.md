@@ -809,3 +809,39 @@ composition; it does not execute Yao cryptography or measure hosted latency.
 Direct Yao recovery/export routing, shared identity/recovery/delivery indexes,
 Runtime/deferred enforcement, terminal expiry/fresh attempts, remaining cleanup
 and hosted acceptance remain open. Release 0.8.0 remains held; no remote changes.
+
+### October 3: recovery code and operation routing
+
+Console migration 0056 owns immutable, tenant-scoped `wallet_recovery_routes`:
+`code` contains the existing contextual recovery-code digest; `operation` contains
+the server-issued recovery operation ID. Neither stores a recovery code, custody
+secret, envelope, factor proof or credential. Publication requires the admitted
+writer at the wallet's exact physical home. A conflicting code anywhere in a
+submitted set prevents all new claims in that set. Identical retries are accepted.
+
+The public custody commit store publishes code routes before registration and
+rotation's existing local atomic batches. Successful publication followed by a
+failed local CAS can leave inert metadata. Rotation/consumption removes or changes
+home-local usable material; shared lookup metadata alone cannot make a code usable.
+Old route entries remain bound to their original wallet. A scoped disposable-data
+reset must include this table alongside homes and session locators. No legacy
+namespace routing or migration fallback was added.
+
+Preparation publishes its operation ID after reserving the code and before exposing
+the prepared operation. A publication outage returns a distinct `routing_unavailable`
+result, rendered as HTTP 503 `wallet_home_unavailable`. An interrupted attempt can
+retain its existing local hold until the reservation timeout; this change adds no
+cross-D1 transaction or rollback. Subsequent local attempt/proof checks remain
+mandatory even when a shared operation route exists.
+
+| Route | Home lookup |
+| --- | --- |
+| `/wallets/recovery/prepare` | Decode transiently, derive the existing contextual digest, zero the decoded bytes, resolve shared code route |
+| `/wallets/recovery/finalize`, `google/verify`, `email-otp/verify`, `email-otp/release`, `google-email-otp/finalize` | Shared recovery operation ID; reject a supplied wallet ID that differs |
+| `/wallets/recovery/read`, `rotate`, `acknowledge-backup` | Scoped wallet ID from the request body |
+
+An accompanying session must resolve to the same wallet. Unknown recovery lookup
+and home-local absent/retired codes use the generic recovery-code refusal. Home
+proof verification remains authoritative. Direct Yao recovery/export lifecycle IDs
+are a separate remaining lookup seam, as are passkey/provider uniqueness, delivery,
+internal/deferred enforcement, expiry/fresh attempts and hosted acceptance.

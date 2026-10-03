@@ -63,7 +63,10 @@ import type {
   IssuedWalletSessionAuthorizationV2,
 } from '../../../../authorization/domain';
 import type { AuthorizationService } from '../../../../authorization/service';
-import { createD1AuthorizationAssembly } from './d1AuthorizationAssembly';
+import {
+  createD1AuthorizationAssembly,
+  createD1WalletCustodyStore,
+} from './d1AuthorizationAssembly';
 import type { CloudflareD1AuthorizationStore } from '../authorization/d1AuthorizationStore';
 import { parseTenantId } from '@shared/authorization/capabilityKinds';
 import { CloudflareD1RegistrationCeremonyIntentStore } from '../registration/d1RegistrationCeremonyStore';
@@ -108,7 +111,7 @@ import {
 import { parseWalletRegistrationSessionCommitReceiptV2 } from '../registration/walletRegistrationSessionCommitReceipt';
 import { CloudflareD1WalletRegistrationCommitStore } from '../registration/d1WalletRegistrationCommitStore';
 import { CloudflareD1Ed25519YaoLifecycleDecisionStoreV1 } from '../ed25519Yao/d1Ed25519YaoLifecycleDecisionStore';
-import { CloudflareD1WalletCustodyCommitStore } from '../passkeyCustody/d1WalletCustodyCommitStore';
+import type { CloudflareD1WalletCustodyCommitStore } from '../passkeyCustody/d1WalletCustodyCommitStore';
 import { CloudflareD1PasskeyCustodyEnvelopeStore } from '../passkeyCustody/d1PasskeyCustodyEnvelopeStore';
 import { createD1PasskeyCustodyRouteService } from '../passkeyCustody/d1PasskeyCustodyRouteService';
 import { CloudflareD1WalletRecoveryGoogleEmailOtpAttemptStore } from '../passkeyCustody/d1WalletRecoveryGoogleEmailOtpAttemptStore';
@@ -1689,15 +1692,7 @@ function createCloudflareD1RouterApiAuthAssembly(
     projectId: options.projectId,
     envId: options.envId,
   });
-  const walletCustodyCommitStore = new CloudflareD1WalletCustodyCommitStore({
-    database: options.database,
-    scope: {
-      namespace: options.namespace,
-      orgId: options.orgId,
-      projectId: options.projectId,
-      envId: options.envId,
-    },
-  });
+  const walletCustodyCommitStore = createD1WalletCustodyStore(options);
   const signedDelegateExecutor = new CloudflareD1SignedDelegateExecutor(options);
   const walletRegistrations = new CloudflareD1WalletRegistrationService({
     registrationAuthority: options.registrationAuthority ?? null,

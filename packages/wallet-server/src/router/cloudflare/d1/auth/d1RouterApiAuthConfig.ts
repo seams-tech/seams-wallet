@@ -1,3 +1,4 @@
+import type { WalletRecoveryRoutingPublisher } from '../../../../authorization/recoveryRouting';
 import type { WalletSessionRoutingPublisher } from '../../../../authorization/sessionRouting';
 import type { WalletRegistrationSetupDispatcher } from '../../../framework/registrationSetupDispatch';
 import type { WalletRegistrationReservationAuthority } from '../../../domains/walletRegistration/walletRegistrationReservation';
@@ -148,6 +149,7 @@ export type CloudflareD1GithubOAuthConfig = {
 
 export interface CloudflareD1RouterApiAuthServiceOptions {
   readonly sessionRouting?: WalletSessionRoutingPublisher;
+  readonly recoveryRouting?: WalletRecoveryRoutingPublisher;
   readonly registrationSetupDispatcher?: WalletRegistrationSetupDispatcher;
   readonly registrationAuthority?: WalletRegistrationReservationAuthority;
   readonly database: D1DatabaseLike;
@@ -335,6 +337,7 @@ export function normalizeD1RouterApiAuthOptions(
   return {
     database: input.database,
     sessionRouting: input.sessionRouting,
+    recoveryRouting: input.recoveryRouting,
     registrationAuthority: input.registrationAuthority,
     registrationSetupDispatcher: input.registrationSetupDispatcher,
     namespace: requireD1RouterApiAuthScopeString(input.namespace, 'namespace'),

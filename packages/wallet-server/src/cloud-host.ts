@@ -228,3 +228,13 @@ export type {
   WalletSessionRoutingPublisher,
 } from './authorization/sessionRouting';
 export { digestOpaqueValue } from './authorization/service';
+
+export type {
+  WalletRecoveryRoutingPublication,
+  WalletRecoveryRoutingPublisher,
+} from './authorization/recoveryRouting';
+export {
+  parseRecoveryCodeLocatorV1,
+  deriveRecoveryCodeLocatorV1FromBytes,
+} from '@shared/wallet-recovery/recoveryCodeLocator';
+export { parseWalletRecoveryOperationId } from '@shared/utils/domainIds';

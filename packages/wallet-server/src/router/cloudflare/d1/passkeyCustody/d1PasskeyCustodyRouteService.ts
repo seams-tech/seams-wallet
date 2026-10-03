@@ -590,6 +590,12 @@ type WalletRecoveryRoutePreparationResult =
       readonly registration?: never;
     })
   | Exclude<WalletRecoveryPreparationResult, { readonly kind: 'prepared' }>
+  | {
+      readonly kind: 'routing_unavailable';
+      readonly walletId?: never;
+      readonly recoveryOperationId?: never;
+      readonly registration?: never;
+    }
   | { readonly kind: 'manifest_unavailable'; readonly reason: string }
   | { readonly kind: 'registration_unavailable'; readonly reason: string };
 
@@ -1178,6 +1184,14 @@ async function prepareRecoveryForRoute(
     reservationTtlMs: RECOVERY_RESERVATION_TTL_MS,
   });
   if (prepared.kind !== 'prepared') return prepared;
+  try {
+    await assembly.walletCustodyCommits.publishRecoveryOperation(
+      walletId,
+      targetIdentity.recoveryOperationId,
+    );
+  } catch {
+    return { kind: 'routing_unavailable' };
+  }
   try {
     const manifest = await resolveWalletRecoveryKeyManifestV1({
       registry: assembly.walletStore,

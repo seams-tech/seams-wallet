@@ -180,7 +180,13 @@ role RPC and cross-authority contract has a final owner and failure behavior.
   reject session/ceremony wallet disagreement, and return explicit 503 on directory
   outage. Three-region local E2E covers both reserved and established ceremonies;
   protocol proof verification remains in the existing receiving handlers.
-- [ ] Finish routing for passkey/external-identity/recovery/delivery locators, direct Yao recovery/export
+- [x] Publish scoped recovery-code digests before custody registration/rotation
+  commits and recovery operation IDs before returning preparation. Route recovery
+  preparation, five operation continuations and three administration routes to the
+  directory home. Keep code validity/consumption and custody CAS at that home;
+  reject foreign claims and fail closed on shared authority outages. Local E2E
+  exercises actual custody registration/rotation stores with canonical fixtures.
+- [ ] Finish routing for passkey/external-identity/delivery locators, direct Yao recovery/export
   and Wallet Runtime operations, deferred work, expiry reconciliation and deliberate
   fresh attempts. Remove the remaining single-D1 deployment assumptions only after
   their regional resource-proof replacements are installed.

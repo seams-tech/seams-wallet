@@ -3123,3 +3123,75 @@ Retained evidence: `.artifacts/r152/direct-registration-routing-20261003/`.
 
 Receipts include bundled production-source hashes. The earlier session-routing
 receipt is preserved in its original directory. No new geographic timing is claimed.
+
+### October 3: recovery routing and custody publication
+
+The production session-routing composition now includes recovery with three home
+D1s and one Console D1. Each home registers a canonical ten-code custody fixture
+through `CloudflareD1WalletCustodyCommitStore.commitRegistration`, then rotates it
+through the actual CAS store. Synthetic ciphertext is deliberately never decrypted;
+this test owns persistence/routing and does not claim custody-ceremony verification.
+
+Verified outcomes:
+
+- Three code-only preparations routed from foreign ingress to the correct home.
+- Fifteen operation continuations and nine administration requests used that home.
+- Directory outages prevented registration/rotation commits; old local state stayed
+  readable. Identical registration publication retries remained idempotent.
+- Competing wallets claiming the same digest had exactly one winner. A mixed set
+  with a conflicting code inserted none of its fresh claims. Wrong-home writers
+  and wallet/session disagreement were rejected.
+- Rotated code digests still selected their original home, whose actual locator
+  store rejected the old code. Unknown and retired code responses matched.
+- Recovery codes were absent from Console route rows. Existing session/exchange,
+  linked-device, retirement and direct-registration scope scenarios still passed.
+
+The operation fixture invokes the production operation publisher; its remaining
+attempt/proof checks are controlled. It does not execute browser recovery, Yao,
+provider identity verification or geographic travel. SDK build, public/private
+candidate type checks (including invalid-state fixtures), lint and bloat checks
+passed. Directory and resource-challenge E2Es passed in the broader composition
+run; deployment-binding initially resolved the old installed package, then passed
+in **5.2s** after its Worker bundler adopted the existing candidate-alias pattern.
+The initial recovery fixture's byte length was corrected to the production constant.
+
+Static added directory cost: one joined SELECT per lookup; a complete ten-code
+publication is one service request and two D1 statements (conditional set INSERT,
+then ownership verification). Operation publication uses the same two statements.
+These exclude existing writer admission and all home-local work. A remote request
+is looked up at ingress and again at the receiving Gateway. No hosted timing or
+whole-operation D1 budget is inferred from these counts.
+
+Repeat from the private repository:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/recovery-routing-20261003/session \
+node tests/e2e/regional-session-routing.e2e.mjs
+
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+pnpm --dir tests exec playwright test -c playwright.relayer.config.ts \
+  --tsconfig=/Users/pta/Dev/rust/seams-monorepo/.artifacts/r152/recovery-routing-20261003/tsconfig.playwright.json \
+  relayer/wallet-home-directory.e2e.test.ts \
+  relayer/tenant-home-challenge.e2e.test.ts \
+  relayer/tenant-deployment-binding.e2e.test.ts --reporter=line
+```
+
+Retained evidence: `.artifacts/r152/recovery-routing-20261003/`, including logs,
+`tsconfig.json`, `tsconfig.playwright.json`, the production bundle and receipts.
+The Playwright configuration copies `tests/tsconfig.playwright.json`, sets its
+baseUrl to the absolute tests directory and adds a cloud-host path to the exact
+candidate's `dist/esm/cloud-host.js`; this aligns Node imports with Worker bundles
+while private dependencies still pin 0.7.3. It changes no installed package.
+
+Session/recovery receipt: `session/regional-session-routing-evidence.json`;
+SHA-256 `e0049be9472103d6b256fb1e62b8c1cd3ca2bae470ec5a5402346172c716c104`.
+Its production bundle hash identifies the tested code. Earlier receipts remain
+in their original directories. No deployment, schema reset or publication occurred.
+
+Code-route publication precedes the local custody batch; local failure can leave
+inert metadata. Operation publication follows the existing code reservation and
+precedes prepared-operation exposure. On publication failure the new explicit
+routing error maps to HTTP 503, while the ordinary reservation timeout remains in
+force. There is no distributed commit. See the inventory checkpoint for ownership,
+reset coverage and remaining direct Yao/internal/shared-identity work.

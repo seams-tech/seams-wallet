@@ -1039,3 +1039,23 @@ composition; it does not execute Yao cryptography or measure hosted latency.
 Direct Yao recovery/export routing, shared identity/recovery/delivery indexes,
 Runtime/deferred enforcement, terminal expiry/fresh attempts, remaining cleanup
 and hosted acceptance remain open. Release 0.8.0 remains held; no remote changes.
+
+### October 3: recovery routing checkpoint
+
+Recovery code and operation metadata now route nine public recovery endpoints to
+the wallet home. Actual custody registration/rotation stores publish code claims
+before their local commits. Three-region local composition verifies cross-region
+routing, collision races, replay, rotations and publication outages. Full custody
+cryptography and recovery ceremonies remain outside this controlled fixture.
+SDK build, public/private candidate type checks, focused lint and bloat checks pass.
+Directory and resource-challenge E2Es pass; the deployment-binding E2E passes after
+updating its candidate alias (5.2s). Receipts and repeat commands are in the matching
+results checkpoint. No hosted rollout or latency result; 0.8.0 remains held.
+
+The review also changed recovery operation-publication errors from a generic
+preparation conflict to an explicit HTTP 503. An interrupted preparation retains
+its normal local reservation timeout. Shared routing metadata can outlive a failed
+local commit or retired code; it never grants authorization or restores material.
+Remaining: passkey/provider/delivery lookup, direct Yao recovery/export,
+internal/deferred home enforcement, terminal/fresh-attempt handling, cleanup and
+hosted acceptance.

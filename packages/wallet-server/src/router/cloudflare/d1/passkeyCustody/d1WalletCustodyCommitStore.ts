@@ -1,3 +1,5 @@
+import type { WalletRecoveryRoutingPublisher } from '../../../../authorization/recoveryRouting';
+import type { WalletRecoveryOperationId } from '@shared/utils/domainIds';
 import {
   parseWalletRecoveryBackupAcknowledgementV1,
   type WalletRecoveryBackupAcknowledgementV1,
@@ -166,6 +168,7 @@ type WalletCustodyCommitRecord =
   | WalletRecoveryBackupAcknowledgementV1;
 
 type CloudflareD1WalletCustodyCommitStoreOptions = {
+  readonly recoveryRouting?: WalletRecoveryRoutingPublisher;
   readonly database: D1DatabaseLike;
   readonly scope: CloudflareD1VersionedJsonRecordScopeV1;
   readonly walletAuthMethodStore?: D1WalletAuthMethodStore;
@@ -362,6 +365,7 @@ function isRecoveryCodeLocatorCollision(error: unknown): boolean {
 }
 
 export class CloudflareD1WalletCustodyCommitStore {
+  private readonly recoveryRouting: WalletRecoveryRoutingPublisher | undefined;
   private readonly database: D1DatabaseLike;
   private readonly scope: CloudflareD1VersionedJsonRecordScopeV1;
   private readonly records: CloudflareD1VersionedJsonRecordStore<WalletCustodyCommitRecord>;
@@ -369,6 +373,7 @@ export class CloudflareD1WalletCustodyCommitStore {
   private readonly walletAuthorityStore: Pick<D1WalletAuthorityStore, 'readById'>;
 
   constructor(options: CloudflareD1WalletCustodyCommitStoreOptions) {
+    this.recoveryRouting = options.recoveryRouting;
     this.database = options.database;
     this.scope = options.scope;
     this.walletAuthMethodStore =
@@ -393,6 +398,32 @@ export class CloudflareD1WalletCustodyCommitStore {
       parse: parseRecordOrNull,
       keyPrefix: PASSKEY_ENVELOPE_KEY_PREFIX,
     });
+  }
+
+  async publishRecoveryOperation(
+    walletId: WalletId,
+    operationId: WalletRecoveryOperationId,
+  ): Promise<void> {
+    const result = await this.recoveryRouting?.publishRecovery({
+      kind: 'operation',
+      walletId,
+      operationId,
+    });
+    if (result && !result.ok) throw new Error('Recovery operation routing conflicts');
+  }
+
+  private async claimRecoveryCodeRoutes(
+    walletId: WalletId,
+    records: readonly WalletRecoveryCodeLocatorRecord[],
+  ): Promise<boolean> {
+    if (!this.recoveryRouting) return true;
+    const locators: RecoveryCodeLocatorV1[] = [];
+    for (const record of records) {
+      if (record.walletId !== walletId) throw new Error('Recovery code routing wallet differs');
+      locators.push(record.locatorB64u);
+    }
+    const result = await this.recoveryRouting.publishRecovery({ kind: 'codes', walletId, locators });
+    return result.ok;
   }
 
   async readRecoveryCodeLocator(
@@ -783,6 +814,11 @@ export class CloudflareD1WalletCustodyCommitStore {
   ): Promise<WalletCustodyRegistrationCommitResult> {
     const inconsistency = commitInconsistency(commit);
     if (inconsistency !== null) return { kind: 'inconsistent', reason: inconsistency };
+    if (
+      !(await this.claimRecoveryCodeRoutes(commit.recoverySet.walletId, commit.recoveryCodeLocators))
+    ) {
+      return { kind: 'inconsistent', reason: 'recovery code locator already exists' };
+    }
 
     const envelopeKey = passkeyCustodyEnvelopeRecordKey(
       passkeyCustodyEnvelopeLocatorOf(commit.envelope),
@@ -961,6 +997,9 @@ export class CloudflareD1WalletCustodyCommitStore {
   }): Promise<
     { kind: 'stored'; storeVersion: string } | { kind: 'conflict' } | { kind: 'collision' }
   > {
+    if (!(await this.claimRecoveryCodeRoutes(input.record.walletId, input.recoveryCodeLocators))) {
+      return { kind: 'collision' };
+    }
     const acknowledgementKey = walletRecoveryBackupAcknowledgementRecordKey(input.record.walletId);
     const existingAcknowledgement = await this.records.read(acknowledgementKey);
     const mutations = [

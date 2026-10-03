@@ -163,6 +163,7 @@ export interface CloudflareD1GatewayEnv extends CloudflareD1GatewayBaseEnv {
 
 export interface HostedWalletGatewayDependenciesV1 {
   readonly sessionRouting?: CloudflareD1RouterApiAuthServiceOptions['sessionRouting'];
+  readonly recoveryRouting?: CloudflareD1RouterApiAuthServiceOptions['recoveryRouting'];
   readonly registrationSetupDispatcher?: CloudflareD1RouterApiAuthServiceOptions['registrationSetupDispatcher'];
   readonly registrationAuthority?: CloudflareD1RouterApiAuthServiceOptions['registrationAuthority'];
   readonly emailOtpDeliveryProvider?: CloudflareD1RouterApiAuthServiceOptions['emailOtpDeliveryProvider'];
@@ -475,6 +476,7 @@ async function createStagingRouterApiAuthComposition(
   const service = createCloudflareD1RouterApiAuthService({
     database: env.SIGNER_DB,
     sessionRouting: dependencies.sessionRouting,
+    recoveryRouting: dependencies.recoveryRouting,
     registrationAuthority: dependencies.registrationAuthority,
     registrationSetupDispatcher: dependencies.registrationSetupDispatcher,
     namespace: scope.namespace,

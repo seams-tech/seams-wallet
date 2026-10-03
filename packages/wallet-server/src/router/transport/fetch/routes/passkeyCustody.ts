@@ -1003,6 +1003,12 @@ export async function handleWalletRecoveryPrepare(
           'recovery_code_used',
           'that recovery code has already been used',
         );
+      case 'routing_unavailable':
+        return routeErrorResponse(
+          503,
+          'wallet_home_unavailable',
+          'Wallet recovery routing is temporarily unavailable',
+        );
       case 'manifest_unavailable':
       case 'registration_unavailable':
         return routeErrorResponse(
