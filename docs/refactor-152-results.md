@@ -4723,3 +4723,43 @@ This closes local final-acknowledgement response-loss verification. Process rest
 three-region cryptographic installation and hosted acceptance remain open. The
 regional harness still requires real registration and matching live Router roles.
 No deployment or release occurred.
+
+### October 4: real browser registration and linking across three signer D1 stores
+
+The private `tests/scripts/run-regional-real.mjs` runner composes the existing real
+Wallet browser/protocol harness with production Console placement and Gateway
+handlers, three isolated signer databases, and one shared local Router role stack.
+No synthetic founding-owner material is injected. A WEUR registration followed by
+an APAC-ingress linked device completes installation and NEAR/Tempo signing.
+
+| Durable table | US | WEUR home | APAC |
+| --- | ---: | ---: | ---: |
+| wallets | 0 | 1 | 0 |
+| wallet_signers | 0 | 3 | 0 |
+| wallet_authorities | 0 | 2 | 0 |
+| linked_device_authority_installations | 0 | 1 | 0 |
+
+The first passing run took 50.9 seconds; the final run with forwarding receipts
+and setup-only dispatcher injection took 50.1 seconds. These are whole-test times,
+not regional latency measurements. The existing regional routing E2E also passed;
+focused candidate type checking, ESLint and public bloat checks passed.
+
+This uncovered a production registration rejection: runtime authorization uses an
+environment key (`dev`), whereas wallet placement uses the full environment ID
+(`local-smoke-project:dev`). Admission now compares the runtime key with the
+Gateway's trusted deployment-mode key and preserves the full ownership scope.
+The installed private SDK predates the candidate interface; type checking used
+explicit public candidate paths. It does not establish published-package readiness.
+
+Private artifacts: `.artifacts/r152/regional-real-20261004/` contains `protocol.log`,
+`regional-real-evidence.json`, `regional-routing.log`, traces and candidate type-check
+logs. The final evidence SHA-256 is
+`c5b4333e5d318d9bcbbdb4b978f6ed746c05d6770937e5a4d6873199f8d796ca`.
+Regional routing evidence is under `.artifacts/r152/regional-env-key-20261004/`.
+Reproduce with the command in the private `tests/README.md` real regional section.
+
+This closes the first real cryptographic home-isolation scenario. Other homes,
+regional lost-response/restart and transient cleanup assertions, independently
+placed Router stacks, and hosted acceptance remain open. Node forwarding bindings
+compose production handlers; they do not reproduce Cloudflare's network placement.
+No deployment or release occurred.

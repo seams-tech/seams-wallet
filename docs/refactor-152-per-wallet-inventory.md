@@ -1579,3 +1579,17 @@ records. Those short-lived replay guards remain until expiry; they are distinct
 from the workflow records removed by the first acknowledgement. The local cleanup
 E2E checks their exact identities against observed retry proofs. Regional runs must
 account for shared nonce ownership separately from signer-D1 workflow cleanup.
+
+### October 4: real registration across regional signer stores
+
+The private composed browser E2E now registers a real WEUR wallet and installs a
+linked device entering through APAC. NEAR and Tempo signing complete. Durable
+counts are WEUR: one wallet, three signers, two authorities, one installation;
+US and APAC contain zero rows in all four tables. This uses matching real local
+Router state shared by the three Gateways; independent Router placement and
+regional transient/restart cleanup remain open.
+
+Registration admission distinguishes the authenticated runtime environment key
+(`dev`) from the placement scope's full environment ID (`local-smoke-project:dev`).
+The Gateway supplies its validated deployment mode's key; ownership continues to
+use the full ID. Comparing those two representations had rejected valid setup.

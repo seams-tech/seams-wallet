@@ -39,29 +39,28 @@ separate. R6 must measure the completed hosted route across wallet homes and
 travel locations with frozen sources, explicit call budgets and retained failures.
 The earlier measurements do not close that acceptance gate or justify release.
 
-### Current remaining R152 work (October 3)
+### Current remaining R152 work (October 4)
 
 This list summarizes the remaining gates; chronological checkboxes below retain
 older implementation checkpoints and must be read with their later evidence.
 
-1. Complete the regional linked-device flow after source preparation: real
-   contribution execution, export-root/package delivery, installation receipts,
-   activation and cleanup. Prove final state exists only at the assigned home,
-   including lost responses and restart. Real local protocol contracts already
-   pass; they do not prove separate regional database isolation.
-   The real local lost-response contract now also asserts complete D1 cleanup:
-   eight transient tables empty, sealed delivery removed, installation and
-   acknowledgement receipts retained. The next regional integration steps are:
-   replace synthetic founding-owner material with real registration output; wire
-   the production installation/reservation/activation composition to home Router
-   roles; then run receipt/acknowledgement retries through foreign ingress and
-   assert final/temporary state across all three signer databases.
+1. Complete regional linked-device failure/restart acceptance and separately placed
+   Router-role verification. The October 4 composed browser E2E now uses real
+   registration output, production Console placement and Gateway handlers, three
+   isolated signer D1 databases and one shared local Router role stack. WEUR
+   registration followed by APAC-ingress linking and NEAR/Tempo signing passes;
+   wallet, signer, authority and installation rows exist only in WEUR. Repeat for
+   US/APAC homes, add lost-response/restart cases and assert transient cleanup
+   across all stores. Actual regional Router placement remains unverified.
+   Local protocol contracts already prove response-loss cleanup; carry those
+   assertions into this regional composition rather than infer them from signing.
    The real registration boundary is now checked before that local linking test:
    production readers resolve the live Wallet Session, active auth method,
    registration authority and both signer families directly from D1. Its safe
    metadata receipt records the actual scope and bindings; it contains no material
    payload or bearer credential. This establishes the source prerequisite, while
-   replacing the regional harness fixture and wiring its Router roles remain open.
+   the composed browser scenario now consumes that real source and matching local
+   Router state. Separately placed regional Router stacks remain open.
    Lost final acknowledgement replies exposed a local completion bug: the SDK
    could leave linking unfinished after server cleanup. The target now retains
    local completion state, retries the exact acknowledgement with a fresh proof,
@@ -74,7 +73,7 @@ older implementation checkpoints and must be read with their later evidence.
    relay admission and preparation-to-recipient binding are fixed and verified.
    The admitted recipient/package write versus cancellation race also passes;
    recipient insertion now checks live session state atomically in D1. Full
-   regional cryptographic installation, remaining terminal reconciliation and
+   regional failure/restart acceptance, remaining terminal reconciliation and
    activation cleanup remain open.
    Delayed target-preparation insertion after cancellation is also fixed: the
    insert requires the current session to be awaiting its target factor. The
