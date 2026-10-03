@@ -32,7 +32,15 @@ import { issueSyncAccountBootstrapV1 } from './syncAccountBootstrap';
 
 function syncAccountResponseStatus(result: { ok: boolean; verified?: boolean; code?: string }) {
   if (result.ok && result.verified) return 200;
-  switch (result.code) {
+  return syncAccountFailureStatus(result.code);
+}
+
+function syncAccountFailureStatus(code: string | undefined): number {
+  switch (code) {
+    case 'wallet_home_unavailable':
+      return 503;
+    case 'wallet_home_conflict':
+      return 409;
     case 'internal':
       return 500;
     // The credential is valid and the request is well formed; the wallet's
@@ -72,7 +80,7 @@ export async function handleSyncAccount(ctx: FetchRouterApiContext): Promise<Res
     const parsed = parseSyncAccountOptionsRequest(body);
     if (!parsed.ok) return json(parsed.body, { status: parsed.status });
     const result = await ctx.service.webAuthn.createWebAuthnSyncAccountOptions(parsed.request);
-    return json(result, { status: result.ok ? 200 : result.code === 'internal' ? 500 : 400 });
+    return json(result, { status: result.ok ? 200 : syncAccountFailureStatus(result.code) });
   }
 
   if (ctx.pathname === '/sync-account/verify') {

@@ -1191,3 +1191,11 @@ Three-region binding composition passed contention, interruption/retry, foreign
 writer and outage checks. Claims alone cannot authenticate. Committed discovery
 publication and terminal reconciliation remain open; this checkpoint does not
 close full ceremony acceptance or permit SDK 0.8.0 release.
+
+### October 3: terminal and account-sync follow-up
+
+Nine terminal-home ordering/race cases passed across the three regions, and account
+sync joined the regional challenge/travel/conflict/outage composition. Persistent
+home-directory E2E also passed. Retained claims cannot be cancelled without further
+reconciliation. Wallet-less hosted sync explicitly returns unavailable; credential
+discovery and authoritative terminal reconciliation remain release blockers.

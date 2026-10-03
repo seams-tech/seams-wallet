@@ -3593,3 +3593,43 @@ admission/execution. Intended-contract type checking passed as part of that comm
 These are local standalone lifecycle tests; they do not close hosted shared-authority
 crash/replay acceptance. The log, generated evidence summary and emitted JSON
 artifacts are retained in the same `passkey-claims-20261003` evidence directory.
+
+### October 3: terminal claim protection and account-sync routing
+
+Found and closed two regional gaps: cancellation could close a reserved home after
+its passkey claim (whose regional commit might already exist), and sync-account
+routes bypassed home dispatch. Console migration 0065 guards claimed homes against
+cancellation. The directory CAS returns 409 for this conflict. Claim insertion
+already requires a live home, so concurrent claim/cancel operations serialize.
+
+Regional composition passed nine terminal-home cases across US/WEUR/APAC:
+claim-first blocks cancellation and permits establishment, cancellation-first
+rejects the claim, and concurrent claim/cancel cannot both succeed. Existing
+credential ownership contention and interrupted-write retry checks also passed.
+Known-wallet account-sync options and verification joined login/unlock coverage:
+traveling verification consumes once at home, foreign wallet/session conflicts
+are rejected, outages do not consume challenges, and failed publication leaves
+no local challenge. Wallet-less hosted sync returns explicit 503
+`wallet_discovery_unavailable`; full discovery is still unimplemented.
+
+SDK build, public/private candidate type checks, focused private lint, bloat check
+and persistent home-directory E2E passed. Full WebAuthn verification in the regional
+composition remains controlled. This run does not prove regional custody crash
+reconciliation or hosted latency and does not close those release gates.
+
+Repeat from seams-monorepo:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/passkey-terminal-sync-20261003 \
+node tests/e2e/regional-session-routing.e2e.mjs
+```
+
+Receipt: `.artifacts/r152/passkey-terminal-sync-20261003/regional-session-routing-evidence.json`.
+SHA-256: `30c6738f1b71449170fde3717b03e4c7fe49a029a5ce0ec5f436607f3095df63`.
+Build/bloat logs and the persistent home-directory receipt are retained alongside it.
+No deployment or release occurred.
+
+Final HTTP review: the production sync-account options handler now maps home
+unavailability to 503 and a home conflict to 409. The regional composition exercises
+that handler directly; signature verification remains controlled as stated above.

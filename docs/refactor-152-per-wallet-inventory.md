@@ -1078,3 +1078,13 @@ regional binding, counter and authority records stay transactional with custody.
 Claims survive ambiguous regional failure and confer no authentication authority.
 Publication/discovery and terminal reconciliation remain open, as do full lifecycle
 acceptance runs exercising the shared authority at each of these four call sites.
+
+### October 3 terminal/sync follow-up
+
+Console home cancellation now excludes wallets with retained passkey claims, with
+migration 0065 enforcing the same boundary at D1. There is no unsafe claim-release
+endpoint. Reconciliation remains required to close an uncertain regional outcome.
+`authenticationDispatch` now covers `/sync-account/options` by explicit account ID
+and `/sync-account/verify` by shared challenge locator. Production sync challenge
+creation publishes the locator before storing/returning the local challenge.
+Wallet-less hosted sync fails explicitly until shared discovery is completed.

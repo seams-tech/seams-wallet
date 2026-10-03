@@ -72,6 +72,10 @@ The earlier measurements do not close that acceptance gate or justify release.
 - [x] Reserve tenant + RP + passkey credential ownership in Console before regional
   registration, add-method, recovery and linked-device binding writes. Verify
   cross-region contention, retained reservation retry and foreign-writer rejection.
+- [x] Reject cancellation once a passkey claim exists and serialize claim/cancel
+  races; allow the original owner to establish the retained home.
+- [x] Route known-wallet account sync options and traveling verification through
+  shared passkey challenge locators; reject hosted wallet-less discovery explicitly.
 - [ ] Complete credential publication/discovery and terminal claim reconciliation;
   exercise all four full lifecycle flows against shared authority.
 - [ ] Finish linked-device coordination, inventory other cross-wallet limits and

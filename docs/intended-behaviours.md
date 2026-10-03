@@ -1049,3 +1049,20 @@ A claim alone grants no authentication or custody authority. Local authenticator
 method and custody state must still commit and pass their existing checks. Claims
 survive uncertain regional outcomes and have no automatic expiry or reassignment;
 terminal reconciliation and committed discovery publication remain release gates.
+
+### Claimed passkey homes and account sync
+
+A reserved home with a passkey ownership claim cannot be cancelled by the ordinary
+terminal-completion operation. Shared authority cannot infer whether its regional
+binding write committed. Claim insertion and cancellation are mutually exclusive;
+a cancelled home cannot later accept a claim. The original owner may retry or
+establish the retained home. Releasing retained claims requires authoritative
+regional reconciliation, which remains a hosted release gate.
+
+Hosted account sync with an explicit account ID creates its challenge at that
+wallet's home and publishes the opaque challenge locator before returning it.
+Verification arriving elsewhere resolves that locator and executes at the same
+home. Directory failure must leave the challenge unconsumed. Hosted wallet-less
+sync currently returns an explicit unavailable error until shared credential
+discovery is implemented; it must not search whichever regional database received
+its request. Standalone discovery retains its single-database behavior.

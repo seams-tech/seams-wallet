@@ -211,19 +211,12 @@ export class CloudflareD1WebAuthnAuthService {
         expiresAtMs,
       };
 
-      if (this.lifecycleRouting) {
-        try {
-          const published = await this.lifecycleRouting.publishLifecycle({
-            walletId: userId.value,
-            locator: WalletLifecycleLocator.parse({ kind: 'passkey_challenge', value: challengeId }),
-          });
-          if (!published.ok) {
-            return failure('wallet_home_conflict', 'Passkey challenge home conflicts');
-          }
-        } catch {
-          return failure('wallet_home_unavailable', 'Passkey challenge home is unavailable');
-        }
-      }
+      const publication = await publishPasskeyChallengeHome(
+        this.lifecycleRouting,
+        userId.value,
+        challengeId,
+      );
+      if (!publication.ok) return publication;
 
       await this.webAuthnStore.writeChallenge({
         challengeId,
@@ -296,6 +289,18 @@ export class CloudflareD1WebAuthnAuthService {
             'Wallet has no registered active passkey credential',
           );
         }
+      }
+
+      if (this.lifecycleRouting) {
+        if (!expectedUserId) {
+          return failure('wallet_home_unavailable', 'Hosted credential discovery is unavailable');
+        }
+        const publication = await publishPasskeyChallengeHome(
+          this.lifecycleRouting,
+          expectedUserId,
+          challengeId,
+        );
+        if (!publication.ok) return publication;
       }
 
       const record: WebAuthnSyncChallengeRecord = {
@@ -759,4 +764,22 @@ function compareAuthenticatorSlots(
   right: NonNullable<ListWebAuthnAuthenticatorsResult['authenticators']>[number],
 ): number {
   return (Number(left.signerSlot || 0) || 0) - (Number(right.signerSlot || 0) || 0);
+}
+
+async function publishPasskeyChallengeHome(
+  publisher: WalletLifecycleRoutingPublisher | undefined,
+  walletId: WalletId,
+  challengeId: string,
+) {
+  if (!publisher) return { ok: true } as const;
+  try {
+    const published = await publisher.publishLifecycle({
+      walletId,
+      locator: WalletLifecycleLocator.parse({ kind: 'passkey_challenge', value: challengeId }),
+    });
+    if (!published.ok) return failure('wallet_home_conflict', 'Passkey challenge home conflicts');
+    return { ok: true } as const;
+  } catch {
+    return failure('wallet_home_unavailable', 'Passkey challenge home is unavailable');
+  }
 }
