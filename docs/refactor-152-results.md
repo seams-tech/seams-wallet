@@ -4067,3 +4067,29 @@ Regional E2E, focused ESLint and public bloat checks passed. The broad candidate
 type-check encountered errors in the concurrent R153 `wallet-relocation.typecheck.ts`
 fixture (unused directive and rejected branch combination); that work was preserved.
 The focused candidate type-check of the changed Console entrypoint and resolver passed.
+
+### October 3: direct Runtime identity home guard
+
+The Runtime identity endpoint now parses the request once, checks its active tenant
+scope and resolves every wallet through the authenticated Console home client before
+calling the existing D1 identity reader. Missing/non-established homes return 404,
+wrong homes 409, foreign scope 403, invalid batches 400 and directory failure 503.
+The local-first/remote-second case rejects the whole batch before a local read.
+
+The regional E2E uses the production guard and Runtime-role home client across three
+Worker transports; identity read payloads remain controlled. This proves admission
+and routing, not real signer identity extraction, relocation fencing or hosted
+latency. Other Runtime operations and deferred writes remain separate work.
+
+SDK build, focused private candidate type-check, lint, regional E2E and public bloat
+check passed. Reproduce from the private repository:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/runtime-home-20261003 \
+node tests/e2e/regional-session-routing.e2e.mjs
+```
+
+Receipt: `.artifacts/r152/runtime-home-20261003/regional-session-routing-evidence.json`.
+SHA-256 `39213ea6f33376613b13685af8f7415d32a61b7e09ae1b82499162df77915911`.
+Build/type/lint/E2E/bloat logs are alongside the receipt. No deployment or release.

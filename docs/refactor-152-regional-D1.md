@@ -1269,3 +1269,22 @@ homes, a failed region, foreign/duplicate response identities and incomplete wal
 Regional response payloads are controlled fixtures. This closes Console caller
 routing; direct Runtime entry enforcement, relocation races/write fencing and
 signed-delegate ownership remain separate gates. No hosted deployment occurred.
+
+### October 3: direct Runtime identity home enforcement
+
+The private Wallet Runtime now handles its internal identity endpoint through a
+home guard before the signer read. The boundary parses once, checks the active
+tenant scope, resolves every wallet using the authenticated Console home client,
+and compares the assigned account/database with the local resource. Unknown or
+non-established homes return 404, wrong homes 409, scope mismatch 403, invalid input
+400 and directory failure 503. A rejected batch never invokes the local reader.
+The guard reuses the existing production D1 identity reader, now exported by the
+hosted gateway module. The request body is not reparsed by the generic handler.
+
+The three-Worker regional E2E composes this production guard with a Wallet Runtime
+writer-authenticated home client. It verifies mixed-home rejection including a
+local-first/remote-second batch, missing homes, tenant mismatch, malformed batches,
+directory outage and successful home-routed requests. Regional identity payloads
+remain controlled. This closes direct identity-read home enforcement; signed-delegate
+and control operations, in-flight relocation fencing, deferred work and full linked
+device installation remain open. No deployment or release occurred.

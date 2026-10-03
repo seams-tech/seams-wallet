@@ -812,7 +812,7 @@ function isJsonRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value));
 }
 
-async function readWalletRuntimeIdentities(
+export async function readWalletRuntimeIdentities(
   env: CloudflareD1GatewayEnv,
   input: WalletRuntimeWalletIdentityRequest,
 ): Promise<WalletRuntimeWalletIdentitiesResult> {
