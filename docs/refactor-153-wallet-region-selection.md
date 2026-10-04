@@ -21,6 +21,12 @@ checkpoints record historical evidence; they do not override this contract.
 The ownership input is R152 revision 13. This review adds design requirements
 and acceptance gates without claiming a working transfer implementation.
 
+Lifecycle decision: every admitted region change ends all existing signing
+sessions and invalidates all usable presignatures across every device. Transfer
+durable wallet material and retired history. After activation, each device
+authenticates again and creates fresh sessions and presignatures on demand.
+Session continuity, sealed-session restoration, and pool restoration are excluded.
+
 | Gap found | Required detail added below |
 | --- | --- |
 | State selection and disposal were scattered across the plan. | Classify transferred, invalidated, shared, and device-local state. Give each resource one transfer owner. |
@@ -240,9 +246,14 @@ This phase establishes the relocation operation used when an owner accepts
 
 ### User-requested pause and progress
 
-The owner accepts a temporary pause when confirming a region change. Optimize
-for a short interruption, with a few seconds as a measurement target. Network
-partitions, unresolved operations, or recovery can extend the pause. Promise no
+The owner accepts a temporary pause and fresh authentication on every device
+when confirming a region change. Show this consequence before admission:
+
+> Moving your wallet ends signing sessions on all devices. After the move,
+> unlock your wallet again to sign.
+
+Optimize for a short interruption, with a few seconds as a measurement target.
+Network partitions, unresolved operations, or recovery can extend the pause. Promise no
 fixed completion time before hosted measurements establish the normal duration.
 
 After submission, show a blocking progress view while resolving admission and
@@ -261,8 +272,9 @@ percentage from the phase count. Show **Reconnecting to check progress** when th
 client loses contact. Show a recovery message when the journal reports a blocked
 stage; an indefinite loading indicator must not conceal a known failure.
 
-Resume ordinary actions after verified destination activation and client placement
-reconciliation. Source cleanup may continue afterward under the durable journal.
+After verified destination activation and client placement reconciliation, show
+the ordinary unlock flow. Require fresh authentication before protected actions.
+Source cleanup may continue afterward under the durable journal.
 Keep another relocation disabled until cleanup completes. Distinguish wallet
 readiness from completion of all move stages.
 
@@ -275,18 +287,17 @@ readiness from completion of all move stages.
 - Existing wallets will be deleted before rollout. Exclude existing-wallet
   migration, backfills, legacy formats, and compatibility paths. Relocation must
   still preserve wallets created after that reset.
-- Preserve wallet keys and addresses, device permissions and revocations, quotas,
-  and operation identities/results across a move. Offline devices should resume
-  through the new home when they reconnect.
+- Preserve wallet keys and addresses, device permissions and revocations,
+  historical quota accounting, and operation identities/results across a move.
+  End all signing sessions. Offline devices authenticate again in the new home.
 - At most one home may authorize wallet writes, including during crashes, stale
   routing, and retries. One-use signing material must remain single-use.
 - Ownership changes at one directory commit after source fencing and destination
   verification. Each participant persists its transfer progress for exact retries.
   The copy itself can span several transactions while both homes reject new work.
-- Existing presignatures may be invalidated and regenerated after relocation.
-  Preserve durable signing material and identities, consumed-material history,
-  and operation results. Uninterrupted access to a ready presignature pool is
-  not required.
+- Invalidate every usable presignature before the snapshot. Preserve durable
+  signing material and identities, consumed-material history, and operation
+  results. Start the destination with no usable sessions or presignatures.
 - Shared tenant policy, identity uniqueness, and shared custody authorities retain
   their ownership boundaries. Determine which wallet-owned resources move.
 - Region-change detection and notifications belong to R154. Owners choose each move.
@@ -297,8 +308,8 @@ readiness from completion of all move stages.
   destination objects are required, and how placement can be measured.
 - Which D1, Router, Deriver, and SigningWorker state must follow the wallet, and
   whether the resulting topology materially improves end-to-end latency.
-- Verify the binding-preserving transfer described below with actual signing,
-  sealed-session restoration, and an offline device reconnecting after cutover.
+- Verify the binding-preserving transfer with actual signing after fresh
+  authentication, rejection of saved old sessions, and an offline device reconnect.
 - Validate the move contract's owner-proof and regional eligibility enforcement
   through the actual admission path.
 - Measure interruption under the paused protocol; the contract promises durable
@@ -316,20 +327,23 @@ and device identity intact?
 the same logical custody and authorization deployment.** Geography, D1 database
 ID, and Cloudflare physical DO ID are absent from the material bindings examined.
 The production authorization service accepted existing credentials against copied
-records in an independent local D1 database. Complete signing and browser
-continuity after a move still need an assembled E2E demonstration.
+records in an independent local D1 database. That probe establishes a binding fact.
+The selected lifecycle deliberately retires those sessions before copying.
+Fresh authentication and signing after relocation still require assembled E2E evidence.
 
 Adopt these constraints for the relocation design:
 
 - Preserve wallet IDs, keys/addresses, authority and device IDs, factors,
-  credential digests, session IDs, permissions, quota, and replay history.
+  permissions, and replay history. Retain old session IDs, credential digests,
+  and quota rows as retired history. New sessions receive fresh identities.
 - Preserve material activation references, activation epochs, signing-root
   metadata, revocation epochs, logical role/server IDs, signer-set identity, and
   the logical object names authenticated by stored ciphertext. A new placement
   generation is separate metadata; moving home does not rotate those identities.
 - Preserve each role's encryption keys and versions, recipient/peer identity,
   and authenticated environment labels. Preserve the Gateway's server-seal
-  secret and required key versions for Email OTP and sealed-session continuity.
+  secret and required key versions for durable Email OTP/custody material.
+  Old sealed signing sessions remain unusable even if their ciphertext can open.
   Provision each destination only with its own role's material and keys.
 - Keep the public relayer URL, wallet/app origins, and passkey RP identity stable.
   Regional routing happens behind them. Client presign storage includes the
@@ -341,9 +355,10 @@ Adopt these constraints for the relocation design:
 
 No inspected binding requires an owner seed, device re-enrollment, new wallet
 keys, or a new custody ceremony solely for this physical move. An offline
-device should retain its durable signing material and credentials, subject to
-their existing expiry and revocation rules, discard invalidated presignatures,
-and resume through the stable endpoint.
+device retains its enrollment and durable signing material. It discards old
+signing credentials, sealed signing sessions, and presignatures when it reconnects.
+It authenticates again through the stable endpoint. Prove that existing linked
+devices can obtain fresh sessions without re-enrollment before enabling relocation.
 
 The local probe copied two devices' authority/session records and a hosted
 credential. Both devices retained exact authorization state; wrong scope and
@@ -359,21 +374,54 @@ work is the transfer/import and fencing operation, role/key provisioning, shared
 authority reconciliation, and an E2E move with both signing curves and an
 offline device. The current code does not yet implement that handover.
 
-## Presignature invalidation and relocation frequency
+## Session retirement, presignature invalidation, and relocation frequency
 
-The owner accepts discarding existing presignatures and regenerating them after
-a move. This lets the paused transfer resume with empty usable pools. Account
-for in-flight operations first; preserve claimed/consumed identities, terminal
-failures, replay records, quotas, and completed results. A lost signing response
-must still return its original result on an exact retry.
+Use one lifecycle for every move:
+
+1. Pause ordinary wallet actions and settle already-admitted operations.
+2. Retire every signing session and invalidate every usable presignature.
+3. Copy and verify durable wallet state and the resulting inactive history.
+4. Switch ownership and activate the destination with empty usable session/pool state.
+5. Each device authenticates again and prepares fresh material when needed.
+
+Retirement covers primary and hosted signing credentials, outstanding exchange
+codes, linked-device session grants/deliveries, and saved or sealed session restore.
+All signing and session-issuance paths must reject the retired parent session.
+Do not revoke device enrollment, factor registration, durable signing material,
+or wallet recovery configuration.
+Use existing session retirement transitions after admitted effects settle.
+Do not invent successful completion for an uncertain operation.
+
+Here, signing sessions are authorization grants and live protocol work. Durable
+Deriver pair material can use `session` in storage names. Classify it by ownership
+and lifecycle before selecting records for retirement or transfer.
+
+Retain claimed/consumed identities, terminal failures, replay records, quota
+accounting, and completed results. Existing operation/audit selectors depend on
+session parents, so copy those retired parents through the historical restore path.
+Delete usable presignature secrets through supported burn transitions, while
+keeping their tombstones. Do not add history compaction or archive routing.
+
+A lost signing response remains recoverable after fresh authentication. Authorize
+reading the original outcome separately from permission to execute new work.
+Match its original operation identity and request digest. Never rebind the old
+operation to a fresh session or spend quota again to retrieve its result.
+An unresolved outcome blocks freeze; session revocation cannot erase an effect.
+
+New sessions follow ordinary issuance rules with new IDs and allowances.
+Old remaining allowances stay retired. Wallet/tenant limits, usage accounting,
+device permissions, revocations, and relocation cooldowns do not reset.
+Require fresh factor/device authentication after activation. Never use an old
+sealed session, retired credential, or relocation approval to mint a new session.
 
 Fence both signing and presignature admission at the source. A delayed refill
 must not publish old material after invalidation or into the destination.
 Reject stale cached presignatures at the server even if an offline device has
 not yet learned about the move. On reconnect, each device reconciles placement,
-discards obsolete cache entries, and obtains fresh paired material through the
-normal client/server protocol. The transfer does not wait for every device to
-refill; measure the extra latency of the first subsequent signature.
+discards obsolete sessions and cache entries, authenticates again, and obtains
+fresh paired material through the normal client/server protocol. The transfer
+does not wait for every device to refill. Measure the extra latency of the first
+subsequent signature.
 
 Current pool retirement only accepts key/activation retirement reasons, and
 client pool generations are local memory. Add an explicit pool invalidation
@@ -408,7 +456,7 @@ services. Target the completed feature for Wallet SDK/server 0.9.0.
 | R152 placement and runtime | Authoritative wallet scope/home/generation, ordinary execution, authentication, signing, persistence and replay. Writers enforce current execution authority locally. |
 | Relocation module | Owner admission, eligibility, cooldown, journal, retries, orchestration, evidence collection, cutover and progress. It invokes narrowly typed participant operations through existing authenticated transports. |
 | Participant adapters in existing services | Prepare inactive resources, freeze/drain, invalidate presignatures, extract/import, verify, activate and clean up the participant's own state. Produce durable receipts. Each service owns its selectors, record decoding, storage transactions and effect fences. |
-| SDK/settings | Submit a region choice and show safe progress; reconcile placement and presignature caches. No orchestration or custody-store knowledge. |
+| SDK/settings | Confirm wallet-wide session retirement, submit a region choice, and show progress. Reconcile placement, discard old sessions/pools, and use ordinary unlock and refill. No orchestration or custody-store knowledge. |
 | R154 notifications | Observe region changes and suggest a destination. Open the existing settings flow for owner confirmation and fresh proof. |
 
 Ordinary signing and wallet flows depend on a small ownership/execution guard.
@@ -443,7 +491,8 @@ with the coordinator stopped and restarted.
 
 Implement a **paused, role-preserving transfer** first: prepare inactive regional
 resources, pause wallet mutations, settle in-flight work, invalidate usable
-presignatures, copy and verify wallet state, then switch ownership and resume.
+sessions and presignatures, copy and verify durable wallet state and history,
+then switch ownership. Fresh authentication and refill happen after activation.
 Measure pause duration before adding online pre-copy or delta replication.
 Keep wallet key derivation, custody ceremonies, and device enrollment intact.
 
@@ -507,6 +556,8 @@ Region observations and notification actions cannot authorize relocation.
   reply can replay the same approval without spending another factor proof.
   Use scoped authorization/replay persistence with explicit wallet ownership;
   include the approval in the selected wallet's retained operation history.
+  Record the initiating credential's bounded, move-only read authorization with
+  this approval, as defined below. It cannot authorize a signing operation.
 - The source transaction and Console admission are separate commits. Before
   Console admission, there is no relocation pause or transfer. A lost admission
   reply is resolved by reading the journal; an unused expired approval authorizes
@@ -527,7 +578,7 @@ Use the stable Gateway origin and existing wallet authentication boundary:
 | --- | --- |
 | Read placement: `GET /wallet/placement/v1?walletId=…` | Authenticated wallet access returns active home and generation, or the pending move's safe progress. Resolve deployment scope from the authenticated boundary. |
 | Admit: `POST /wallet/placement/v1/relocations` | Body requires `walletId`, `moveId`, `destinationRegion`, `expectedGeneration` and `sourceProof`. Verify the factor proof for a new admission; an exact replay does not consume it again. Resolve the initiating authority from authentication and the destination resources from the catalog. Reuse the journal's `wmove_` identity and canonical request digest. |
-| Read move: `GET /wallet/placement/v1/relocations/{moveId}?walletId=…` | Any currently authorized full-owner device of that wallet may read progress. The initiating authority in the journal remains immutable. A move ID is never a bearer credential. |
+| Read move: `GET /wallet/placement/v1/relocations/{moveId}?walletId=…` | The initiating device uses its move-only read authorization during transfer. After activation, any freshly authenticated full-owner device may read progress. The initiating authority stays immutable. A move ID is never a bearer credential. |
 
 Parse once into precise internal identities and phase-specific types. Keep proof
 bytes, request nonces and refreshed session tokens outside the canonical move
@@ -544,28 +595,42 @@ unsupported destination, unavailable authority, unestablished wallet, stale
 generation, request conflict and another move in progress. Never turn an unknown
 admission outcome into a second move ID automatically.
 
-After ordinary request authentication, look up an existing move before fresh-proof,
-cooldown or current-catalog admission checks. An exact retry returns its recorded
-progress/result even after cutover, proof expiry or catalog changes; it does not
-re-consume the factor proof. Reusing its ID with a different canonical request
-returns `request_conflict`. Another owner device uses the status operation to
-observe/recover the admitted move; it does not rewrite the initiating authority.
+Authenticate ordinary access or move-only read access first. Look up an existing
+move before fresh-proof, cooldown, or current-catalog admission checks.
+An exact retry returns its recorded progress/result even after cutover, proof
+expiry, or catalog changes. It does not re-consume the factor proof.
+Reusing its ID with a different canonical request
+returns `request_conflict`. Move-only access can only read an existing matching
+move or replay its exact admitted request. It cannot authorize a new admission.
+Another device never rewrites the initiating authority.
 Status and authenticated admission replay remain reachable while ordinary wallet
 mutations are paused. These reads must not issue credentials or mutate copied
 authorization/counter state; use the shared request-proof authority where needed.
 
-The status resolver must bypass the ordinary paused-home rejection only for
-authenticated placement/status reads and exact admission replay. Verify existing
-unexpired credentials against the source before cutover and the imported
-destination records afterward. Preserve origin, authority, expiry, and shared
-request-proof checks. Never refresh a session, redeem an exchange, increment a
-copied counter, or issue a credential to make status polling work.
+Keep progress authentication separate from signing-session validity. At approval,
+record the initiating credential digest, request/origin binding, authority, exact
+move scope, and original expiry. Reuse that credential only as proof of the
+recorded move-only read authorization. Do not create another token or extend its
+lifetime. Model this access separately from an active Wallet Session so ordinary
+authorization code cannot accept it for signing, unlock, export, or new admission.
+The client removes the credential from its signing state. Only the progress view
+may retain its move-only access under the existing credential storage/lock rules.
+
+The status resolver permits only safe placement/progress reads for that move and
+exact admission replay. Preserve credential proof, origin, expiry, authority
+revocation, and shared request-proof checks. Use the pinned approval at the source
+before cutover and its verified copy afterward. Retirement caused by this move
+does not remove its separate read authorization. Other revocations still deny
+access. Never refresh a session, redeem an exchange, increment a copied counter,
+or issue a credential to make status polling work.
 
 If locking or expiry removes the caller's usable credentials, return an
 authentication failure and let the server continue the move. The UI may show a
 generic connection/authentication message without exposing private progress.
-Normal unlock resumes after destination activation. Persist only the move locator
-needed for reconnect; it grants no authority. Polling never starts work or resets
+Other devices can show a generic unavailable/locked state until normal unlock
+resumes after destination activation. Keep only the move locator and the existing
+credential under its ordinary storage/lock rules; do not retain it past local lock
+for polling. The locator grants no authority. Polling never starts work or resets
 retry budgets.
 
 ### Cooldown, concurrency and cancellation
@@ -580,8 +645,9 @@ retry budgets.
   admitted time survives retries, restarts and cleanup.
 - Selecting the active home at the current generation is `unchanged`: no pause,
   journal admission, cooldown extension, transfer or refill. This is a placement
-  read/no-op; it does not reserve a move ID. If placement subsequently changes, a
-  retry with that stale generation is rejected. During a pending move, selecting
+  read/no-op. It does not retire sessions or reserve a move ID. If placement
+  subsequently changes, a retry with that stale generation is rejected.
+  During a pending move, selecting
   its source is a conflicting request, not cancellation.
 - The owner can cancel the settings interaction before submitting the admission
   request. Once submitted, closing the UI or aborting HTTP does not cancel server
@@ -602,7 +668,7 @@ root-share and signing-root epochs remain unchanged.
 
 | Phase | Writable home and required transition evidence |
 | --- | --- |
-| `freezing` | Pause new wallet mutations. Drain or reconcile admitted work at every participant, invalidate usable presignatures, and seal the frozen snapshot and manifest. Destination ordinary execution stays disabled. Persist authenticated source-fence evidence bound to that manifest before advancing. |
+| `freezing` | Pause new wallet mutations. Drain or reconcile admitted work at every participant. Retire all signing sessions, invalidate usable presignatures, and seal the frozen snapshot and manifest. Destination ordinary execution stays disabled. Persist authenticated source-fence evidence bound to that manifest before advancing. |
 | `copying` | Neither home admits ordinary writes. The source snapshot is immutable. Import bounded chunks into inactive destination resources, preserving exact records and durable chunk acknowledgements. Source invalidation is already complete. |
 | `verified` | Both homes remain closed to ordinary writes. Required destination receipt binds the exact frozen source manifest, restored records and logical identities to destination resources at `g + 1`; all participant checks passed. |
 | `cutover` | One Console transaction CASes the expected paused source, move and receipts to destination `g + 1`. Destination admission remains closed until activation evidence is durable. Persist activation before source cleanup; an activated destination stays usable during cleanup retries. Source `g` stays retired. |
@@ -626,12 +692,13 @@ transfer treatment; it does not replace those selectors.
 | State | Treatment |
 | --- | --- |
 | Wallet identity, signer activations, authorities, auth methods, revocations, and passkey counters | Copy exact wallet-owned records, including inactive and revoked branches. Preserve identity and authority relationships. |
-| Sessions, credentials, exchange history, quotas, operation evidence, audits, and results | Copy exact values and replay identities. Retain expired parents and exhausted quotas required by history. Do not authorize or charge an operation during restore. |
+| Signing sessions, credentials, hosted exchanges, and linked session deliveries | Retire before the snapshot. Copy required rows as inactive history, preserving IDs, bindings, and retirement decisions. Reject all old signing, exchange, refresh, and session-restore paths. |
+| Quotas, operation evidence, audits, and results | Copy exact accounting and replay identities, with required retired/expired parents and exhausted quotas. Do not authorize or charge an operation during restore. New sessions never reactivate old allowances. |
 | Custody envelopes, recovery sets, ceremony records, and linked-device installations/delivery receipts | Copy the complete wallet-owned state through its existing role boundary. Preserve ciphertext bindings and completed or abandoned lifecycle history. |
 | Deriver pair records and SigningWorker durable material, activation, retirement, and effect records | Transfer from each source role to the same destination role. Preserve logical identities, encryption context, epochs, and one-use history. |
 | Ready/reserved presignatures and live protocol sessions | Settle admitted effects first. Safely terminate remaining preparation and invalidate usable material before the snapshot. Preserve burned/consumed identities. Never import a live lock or session as fresh authority. |
 | Shared Console identity/policy/billing records and shared tenant custody | Keep their current authority. Reconcile physical references through the committed placement. Do not clone shared derivation secrets or rewind shared revocation state. |
-| Device-local credentials, custody secrets, and material | Keep them on the device. Reconcile placement and discard obsolete presignatures on reconnect. Do not require every device online. |
+| Device-local custody secrets, enrollment, and durable signing material | Keep them on the device. Discard old signing credentials, sealed sessions, and presignatures on reconnect. Authenticate again and refill on demand. Do not require every device online. |
 
 Assign each physical store or selected record set to exactly one of the seven
 participants. Other participants may reference its digest; they must not import
@@ -656,9 +723,11 @@ Complete these steps in order within `freezing`:
 2. Drain those operations through their original identities. Reconcile submitted
    external effects and lost replies. A timeout, lease expiry, or absent response
    cannot establish that an effect did not occur.
-3. Terminate unused preparation through the protocol's supported cleanup and burn
-   rules. Prevent delayed refill, WebSocket, alarm, and background callbacks from
-   publishing new material. Preserve exact results and consumption history.
+3. Retire every signing session through existing lifecycle transitions. Close
+   hosted exchange, linked delivery, refresh, and sealed-session restore paths.
+   Terminate unused preparation through supported cleanup and burn rules. Prevent
+   delayed refill, WebSocket, alarm, and background callbacks from publishing
+   new material. Preserve exact results and consumption history.
 4. Confirm every participant reached quiescence: no admitted operation can still
    change the selected snapshot. Settle pending lifecycle decisions or preserve
    them as inert historical records with a defined replay result. If a record
@@ -752,9 +821,10 @@ Prove the precise trigger changes with the production store before wiring cutove
 
 Each destination role reads restored records through its production parsers and
 decryptors. Check required key versions, ciphertext bindings, parent relationships,
-terminal results, and absence of usable old presignatures. Recompute counts and
-digests from stored rows, rather than echoing incoming hashes. Verification must
-have no signing, credential, quota, or external side effects.
+terminal results, and absence of usable old sessions or presignatures. Verify
+that no hosted exchange or linked delivery can revive a retired session.
+Recompute counts and digests from stored rows, rather than echoing incoming hashes.
+Verification must have no signing, credential, quota, or external side effects.
 
 Persist each verification receipt with the closed local import gate. Aggregate
 only receipts from authenticated, pinned participants for the same manifest.
@@ -775,8 +845,10 @@ participant is ready. Ordinary requests, direct role calls, and deferred work
 must carry or resolve authenticated evidence of both cutover and activation.
 Open admission only under that execution authority. Revalidate current shared
 policy and retirement state; a frozen snapshot cannot revive retired material.
-An empty presignature pool is valid readiness. Refill through normal authorized
-protocols after activation, without waiting for offline devices.
+Readiness requires all imported signing sessions retired and no usable old
+presignatures. Do not issue sessions or refill pools inside the relocation job.
+After activation, devices use ordinary fresh authentication and authorized refill
+on demand. Neither step delays backend activation or waits for offline devices.
 
 Use durable regional activation evidence during ordinary execution. Relocation
 readiness must not add a Console roundtrip to every signature. Local generation
@@ -793,8 +865,9 @@ the existing five phases and stage retry budget. Do not add an independent
 After activation, the destination can change normally. Retries verify the stored
 activation/import receipts, without comparing the live destination to the old
 snapshot or re-importing it. Client caches reconcile the authoritative generation
-before resuming signing. Old presignatures remain invalid even for a device that
-missed every notification.
+before fresh authentication and signing. Old sessions and presignatures remain
+invalid even for a device that missed every notification. Client deletion alone
+never establishes revocation; every server admission path enforces it.
 
 Cleanup removes only the source wallet subset, obsolete alarms, and temporary
 transfer payloads after the activation receipt is durable. Preserve retirement
@@ -846,7 +919,7 @@ The accepted UI pause does not remove any source-fence or verification requireme
 | After admission, before cutover | Keep new wallet mutations paused. Resume the recorded stage after transient failure, within its retry budget. |
 | Cutover response is lost | Read the authoritative decision. Keep actions blocked while ownership is unknown. Never reactivate the source based on a timeout. |
 | After cutover, before destination activation | Resume destination activation. The source remains retired. |
-| After activation, during source cleanup | Allow reconciled clients to use the destination. Retry cleanup and block another relocation until completion. |
+| After activation, during source cleanup | Allow reconciled clients to authenticate again and use the destination. Retry cleanup and block another relocation until completion. |
 | Retry budget exhausted or evidence conflicts | Report the blocked stage. Repair and resume through the existing internal recovery action. Preserve the phase's execution restrictions. |
 
 Do not add a source-reactivation or rollback path. After cutover, returning to
@@ -909,14 +982,16 @@ cooldown and receipt envelopes. Extend those same modules during implementation:
    `authorityId` currently proves no authorization. Pin the complete resource set.
 2. Serve authenticated status/replay during the pause. Preserve the implemented
    exact-replay ordering before new-admission catalog validation. Keep no-op and
-   conflict behavior distinct.
+   conflict behavior distinct. Add the bounded move-only read authorization to
+   the existing approval and keep it separate from active signing authority.
 3. Produce real source/destination manifests and authenticate participant evidence.
    The journal now requires manifest-bound activation/cleanup receipt envelopes
    before `complete`; production evidence producers remain to be connected.
    Synthetic directory-test receipts remain directory-only evidence.
 4. Connect the persisted execution status/retry budgets to the coordinator and
    enforce every effect fence. Keep recovery commands internal; do not add a public
-   cancellation endpoint.
+   cancellation endpoint. Retire all sessions and invalidate pools before sealing
+   the snapshot. Prove fresh-session issuance for retained device enrollments.
 5. Persist activation independently from cleanup in `cutover`. Update domain
    branches, journal guards, readiness responses, and readers together. Migrate
    only at the persistence boundary under the supported disposable-wallet reset.
@@ -963,6 +1038,7 @@ cooldown and receipt envelopes. Extend those same modules during implementation:
   phase combinations, forged execution contexts, broad spreads, and unsafe casts.
   Include activation without a receipt, cleanup before activation, and chunk
   commands with mismatched wallet, resource, generation, or manifest identities.
+  Reject move-only read access wherever an active signing session is required.
 
 ### 1. Directory authority, move admission, and regional execution
 
@@ -973,7 +1049,7 @@ cooldown and receipt envelopes. Extend those same modules during implementation:
 - [ ] Admit moves through the authenticated owner path and configured region
   catalog. Persist the move before transfer effects. Bind retries to the same
   canonical request; changed destinations/requests conflict. Selecting the
-  current home performs no transfer or presignature regeneration.
+  current home performs no transfer, session retirement, or presignature regeneration.
 - [ ] Carry the admitted home/generation through the existing regional service
   graph. Require authority at every mutation boundary, including direct/internal
   requests, recovery, linking, revocation, quota changes, refills, jobs, and alarms.
@@ -983,7 +1059,7 @@ cooldown and receipt envelopes. Extend those same modules during implementation:
   and independent activation persistence. Preserve stage budgets across chunk
   progress, restart, and UI polling.
 
-### 2. Destination preparation, source quiescence, and pool invalidation
+### 2. Destination preparation, source quiescence, and session/pool retirement
 
 - [ ] Select verified regional D1 resources and fresh physical per-role DO
   identities. Apply intended location hints on first creation. Keep logical
@@ -995,6 +1071,9 @@ cooldown and receipt envelopes. Extend those same modules during implementation:
 - [ ] Fence Router, Deriver A/B, SigningWorker, and presign session/deferred paths.
   Keep role-local material with its existing role. Include shared tenant-root
   admission/retirement references in the cutover contract.
+- [ ] Retire all devices' signing sessions after admitted effects settle. Reject
+  old primary/hosted credentials, exchange codes, linked credential deliveries,
+  refresh, and saved/sealed-session restore. Keep device/factor enrollment active.
 - [ ] Add explicit presignature invalidation independent of key/activation
   retirement. Burn usable secrets while preserving claimed/consumed identities,
   tombstones, request bindings, and terminal results. Account for both wallet SQL
@@ -1002,13 +1081,15 @@ cooldown and receipt envelopes. Extend those same modules during implementation:
 - [ ] Reject delayed source rounds and pool admissions. An in-flight refill whose
   identity was never stored must not repopulate a pool after invalidation.
 - [ ] Seal the common manifest only after every participant is quiescent and
-  invalidation is complete. Keep snapshot bytes stable through retries and expiry.
+  session retirement and pool invalidation are complete. Keep snapshot bytes
+  stable through retries and expiry.
 
 ### 3. Exact state transfer and destination verification
 
 - [ ] Extract the wallet-owned subset from the frozen R152 inventory. Preserve
   indirect records, dependency order, exact bytes, integer precision, nulls,
-  expiry times, revisions, revocations, quota, and completed/replayed outcomes.
+  expiry times, revisions, retirement decisions, historical quota accounting,
+  and completed/replayed outcomes. Import no usable old signing sessions or pools.
 - [ ] Implement bounded, authenticated same-role chunks. Atomically commit each
   local import and acknowledgement. Prove exact replay, conflict rejection, mixed
   partition isolation, and rejection of late imports after the gate closes.
@@ -1031,28 +1112,31 @@ cooldown and receipt envelopes. Extend those same modules during implementation:
   destination verification are durable. Activate destination writes only after
   confirming that authoritative outcome and every participant's readiness.
   Persist activation before cleanup; every obsolete generation stays fenced.
-- [ ] Resume through stable public endpoints. Completed retries retain original
-  operation IDs and results; expired or revoked credentials retain their normal
-  semantics. Relocation alone does not issue replacement device identities.
+- [ ] Use stable public endpoints for fresh authentication after activation.
+  New sessions have fresh IDs; old grants remain retired. Authorize retrieval of
+  an original operation result without changing its identity or spending quota.
+  Prove linked devices can obtain fresh sessions without replacement enrollment.
 - [ ] Reconcile authoritative placement before using durable or resident client
-  presignatures. Cancel stale refill work, discard obsolete caches across tabs
-  and reloads, and refill through the normal client/server protocol on demand.
-  Offline devices resume independently, without holding the move open.
+  presignatures. Cancel stale refill work and clear old sessions, credentials,
+  sealed-session restores, and pool caches across tabs and reloads. Authenticate
+  again before ordinary refill. Offline devices resume independently.
 - [ ] Add Wallet region to the existing settings surface. Show actual home,
   selected region, pending progress, temporary mutation pause, recoverable failure,
-  and cooldown retry time. Expose supported regions and eligible owner controls;
-  Region-change notifications remain R154's follow-up.
+  cooldown retry time, and fresh authentication on all devices. Expose supported
+  regions and eligible owner controls. Region-change notifications remain
+  R154's follow-up.
 - [ ] Implement the blocking progress view and reconnect behavior above. Preserve
-  local lock and status access. Resume ordinary actions only after destination
-  activation and client reconciliation; show blocked recovery states explicitly.
-- [ ] Delete obsolete source wallet state after verification while retaining the
-  authority fence and move outcome needed for cleanup/retry. Failed cleanup is
+  local lock and bounded move-only status access. Show ordinary unlock after
+  destination activation and client reconciliation. Show blocked recovery explicitly.
+- [ ] Delete obsolete source wallet state after destination activation. Retain
+  the authority fence and move outcome needed for cleanup/retry. Failed cleanup is
   resumable and cannot reopen the source. A later move back uses fresh resources.
 
 ### 5. Integration, measured suitability, and completion
 
 - [ ] Pass the E2E matrix below, including real ECDSA/Ed25519 signing and both
-  passkey and Email OTP sealed-session continuity where supported.
+  passkey and Email OTP fresh authentication where supported. Reject old sealed
+  signing sessions and delayed linked credential deliveries.
 - [ ] Validate actual hosted resources/placement and measure pause duration,
   first-signature refill delay, subsequent signing latency, transfer bytes,
   regeneration compute, and interference with an unrelated wallet.
@@ -1105,13 +1189,14 @@ fixtures wherever they express these scenarios.
 | Scenario | Required evidence |
 | --- | --- |
 | Owner authorization and destination admission | Reject unauthenticated, insufficient-permission, expired/revoked, wrong-tenant/wallet, stale-generation, and unsupported-resource requests before transfer effects. An unavailable directory or unverified destination fails closed without a fallback write. |
-| Paused WEUR → APAC move with two owner devices | Real signatures for both curves before/after; unchanged addresses, wallet/device/material identities, credentials, quota, and completed results. Keep device two offline through cutover, then reconnect, invalidate its cached pool, refill, and sign. |
-| In-flight work and stale preparation | Lose a finalize response after its effect; retry after relocation returns the original result with one quota use/effect. Interrupt presigning, delay a terminal refill/admission until after cutover, and restore an old client cache after reload; obsolete material never becomes usable. |
+| Paused WEUR → APAC move with two owner devices | Real signatures for both curves before/after. Preserve addresses, wallet/device/material identities, permissions, historical accounting, and completed results. Reject every old signing credential, exchange, and sealed-session restore. Keep device two offline through cutover, then authenticate it again without re-enrollment, obtain a new session, refill, and sign. Exercise passkey and Email OTP entrypoints where supported. |
+| In-flight work and stale preparation | Lose a finalize response after its effect. After relocation and fresh authentication, retrieve the original result under its original identity with one quota use/effect. Interrupt presigning, delay refill/admission and linked credential delivery until after cutover, and restore an old client cache after reload. No old grant or material becomes usable. |
 | D1 historical restore and isolation | Restore consumed exchanges, expired parents, exhausted quotas, and reconciled operation history through the scoped import context. Crash before and after a chunk commit, lose its acknowledgement, and replay it. Preserve audit/quota exactly and leave no restore context enabled. Keep a second wallet active in the same database and enforce its ordinary triggers throughout. |
-| Frozen snapshot and destination proof | Delay a refill through freeze, then restart source roles and run overdue alarms. Snapshot digests must remain stable. Transfer binary values, NULL, and maximum supported integers. Reject altered chunks, omitted collections, wrong encryption context, and extra selected records before cutover. Verify ciphertext through production role readers. |
-| Late import and independent activation | Lose activation acknowledgement, restart the coordinator, and fail source cleanup. Preserve the committed activation receipt and allow reconciled destination signing. Replay an old chunk after those new writes: return its stored acknowledgement without overwriting live state. An unknown chunk remains rejected. |
+| Frozen snapshot and destination proof | Delay a refill through freeze, then restart source roles and run overdue alarms. Seal the snapshot only after all signing sessions are retired and all usable presignatures are invalidated. Snapshot digests must remain stable. Transfer binary values, NULL, and maximum supported integers. Reject altered chunks, omitted collections, wrong encryption context, and extra selected records before cutover. Verify ciphertext through production role readers. |
+| Late import and independent activation | Lose activation acknowledgement, restart the coordinator, and fail source cleanup. Preserve the committed activation receipt. Allow fresh authentication and destination signing while cleanup retries. Replay an old chunk after those new writes: return its stored acknowledgement without overwriting live state. An unknown chunk remains rejected. |
 | Crash at every handover boundary | Crash during each role fence, extraction/import, destination verification, around directory CAS with a lost reply, and during cleanup. Restart both sides and send old direct requests/jobs/alarms. Prove at most one writer and one effect/material consumption. |
-| Blocking progress and network recovery | Confirm a move, lose the admission reply, and attempt actions from two devices. Interrupt transfer and status connectivity, reload the browser, and resume the same journal. Verify truthful progress, local lock, read-only status authentication, and server rejection of paused mutations. Expired credentials must not trigger refresh or reveal progress. After activation, unlock normally and sign while cleanup retries; another move remains blocked. |
+| Blocking progress and network recovery | Confirm a move, lose the admission reply, and attempt actions from two devices. Interrupt transfer and status connectivity, reload the browser, and resume the same journal. The initiator's bounded move-only access survives signing-session retirement and permits only that move's status/exact replay. Reject wrong move, origin, expired credentials, and all signing/mutation attempts with this access. Lock clears the credential normally. After activation, authenticate again and sign while cleanup retries; another move remains blocked. |
+| Fresh-session accounting and same-home no-op | Exhaust an old session's allowance, relocate, and obtain a new session under normal issuance rules. Preserve old claims/results and wallet/tenant limits. No old exchange, quota, or credential is revived. Selecting the current home causes no session retirement, pool invalidation, or new allowance. |
 | Concurrent coordinators and blocked recovery | Run two coordinators against one running attempt and duplicate participant commands. Restart during import, exhaust retries, and invoke authenticated recovery after repair. Preserve command identities, manifest, committed chunks, and allowance history. Reject stale advancement and resource retargeting. Polling cannot reset the budget. |
 | Shared authority changes and repeated moves | Retire/refresh tenant-root state or revoke authority during a move, keep another wallet active, move back to the old region using fresh resources, and attempt isolated restoration of a pre-move snapshot. Shared policy/limits stay authoritative and old state cannot resume writes. |
 | Conflicting owner requests and cost guard | Race two devices/destinations, issue duplicate/same-home requests, cross the five-minute boundary, and retry failed stages. One active move, no duplicate regeneration/charges, and authoritative retry timing. R154 must later exercise this same admission guard. |

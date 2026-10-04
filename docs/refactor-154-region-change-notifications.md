@@ -46,8 +46,9 @@ Use the actual region names. Describe a possible improvement without claiming
 that the observation measures latency or guarantees faster signing.
 
 The review action opens R153 settings with the suggested destination selected.
-Show the current home, destination, wallet-wide effect, and temporary pause before
-confirmation. Require R153's fresh operation-bound owner proof for admission.
+Show the current home, destination, temporary pause, and session retirement on
+every device before confirmation. Explain that each device must authenticate
+again after the move. Require R153's fresh operation-bound owner proof for admission.
 Opening the notification or settings grants no authority to move the wallet.
 After submission, use R153's blocking progress view and recovery behavior. Region
 notifications do not create a separate loading, cancellation, or retry flow.
@@ -62,8 +63,9 @@ reconcile current placement and eligibility through the existing R153 flow.
 - R153 owns transfer, fencing, verification, cutover, recovery, and cleanup.
 - All owner-confirmed moves use R153's five-minute admission limit and one pending
   move per wallet. Notification checks do not consume that limit.
-- A move affects every device. Offline devices reconcile placement and refresh
-  invalidated presignatures through R153 when they reconnect.
+- A move ends signing sessions on every device and invalidates all usable
+  presignatures. Offline devices reconcile placement, discard old sessions/pools,
+  authenticate again, and prepare fresh material through R153 when needed.
 - Automatic moves, standing consent, travel prediction, device-location voting,
   and benefit-scoring policies are outside this scope.
 - Preserve R153's clean wallet reset and identity-preservation requirements.
@@ -77,7 +79,8 @@ Use composed browser E2Es and retain repeatable evidence:
   reach its original home. Show the correct suggestion without changing placement.
   Dismiss it, reload, and verify that the same suggestion stays dismissed.
 - Review the suggestion, confirm with the required owner proof, and complete a
-  real R153 move. Verify signing and an offline second device's reconciliation.
+  real R153 move. Reject old sessions on both devices. Verify fresh authentication
+  and signing, including an offline second device without re-enrollment.
 - Exercise lock during a failed probe, unsupported regions, a pending move, and
   another device changing placement before confirmation. Preserve lock behavior
   and R153's stale-generation, eligibility, and admission checks.

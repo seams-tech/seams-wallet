@@ -3,6 +3,14 @@
 Status: initial platform, source, and local-runtime validation, October 2, 2026.
 Hosted placement and complete wallet relocation remain unverified.
 
+October 5 lifecycle decision: R153 retires all signing sessions and invalidates
+all usable presignatures before transfer. Devices authenticate again after
+activation. Credential-continuity probes below remain historical binding evidence;
+they do not specify the selected product behavior. Preserve required session,
+quota, and operation rows as inactive history. The current
+[R153 contract](refactor-153-wallet-region-selection.md#session-retirement-presignature-invalidation-and-relocation-frequency)
+defines the implementation and acceptance requirements.
+
 The material and authorization bindings examined permit a role-preserving
 server-side transfer with stable logical identities and keys. The storage
 primitives can copy wallet data, and the production authorization service accepts
@@ -308,7 +316,8 @@ This verifies the authorization/storage boundary with fixture device authorities
 It does not execute MPC signing, browser unlock, WebAuthn, a real linked-device
 enrollment, or a geographically distributed/fenced handover. Crypto portability
 in this section is established from the actual binding contracts; assembled
-signing and offline-browser continuity remain release gates.
+signing after fresh authentication and offline-device reconciliation remain
+release gates under the selected lifecycle.
 
 ## Presignature invalidation and compute limits
 
@@ -365,10 +374,10 @@ presignature invalidation, regeneration after a move, or geographic placement.
 | Serialization | Preserve BLOBs, nulls, Unicode, integer precision, and exact signed/ciphertext bytes. The probe preserves an integer above JavaScript's safe range by transporting it as decimal text. Its JSON KV example covers JSON-compatible values only. |
 | Alarms and expiry | Alarms can run at least once and retry; deleting an alarm does not stop an already-running handler. Source handlers need the same authority fence. Preserve deadlines without extending grants, and explicitly decide which work should resume at the destination. [Alarms](https://developers.cloudflare.com/durable-objects/api/alarms/), [storage](https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/). |
 | Cleanup and restore | `deleteAll()` erases the retirement marker too; with the tested compatibility date it also removes the alarm. Retain an authoritative fence that survives cleanup, restart, and restoring an old snapshot. Backup retention makes immediate erasure a separate claim. [Storage](https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/), [D1 retention](https://developers.cloudflare.com/d1/platform/limits/). |
-| Offline devices and cached routes | Preserve wallet keys/addresses, device authority, revocations, session semantics, and operation IDs. A stale device must rediscover the current home before an effect and discard invalidated presignatures. Refill paired material when that device participates again. Verify token/key configuration, credential lookup before wallet resolution, and any endpoint identity bindings. |
+| Offline devices and cached routes | Preserve wallet keys/addresses, device authority, revocations, historical accounting, and operation IDs. Retire all signing sessions. A stale device must rediscover the current home, discard old credentials/sealed sessions/presignatures, and authenticate again. Refill paired material when that device participates. Verify rejection of every old grant and fresh-session issuance without re-enrollment. |
 | Shared load and limits | Bound transfer pages and transactions. D1 has statement/parameter/row limits and a 30-second query limit; each database serializes queries. DOs also impose object-size and CPU limits. Measure pause duration and interference with unrelated wallets. [D1 limits](https://developers.cloudflare.com/d1/platform/limits/), [DO limits](https://developers.cloudflare.com/durable-objects/platform/limits/). |
 | Transport and permissions | Restrict export/import to the authenticated move, wallet, role, destination, and expected generation. Reject another tenant's data and stale/repeated commands. Avoid ciphertext or secret dumps in evidence logs. Cross-account bindings and custody configurations require separate eligibility checks. |
-| Repeated moves | Serialize competing device requests and enforce the proposed wallet-wide five-minute admission interval across manual and automatic mode. Bound failed attempts and deduplicate the same move's retries/refills. Moving back to a previous region must not reactivate its old state. Preserve monotonic ownership through cleanup, cancellation, and later moves. |
+| Repeated moves | Serialize competing device requests and enforce the wallet-wide five-minute admission interval across settings and notification entrypoints. Bound failed attempts and deduplicate retries. Moving back requires a completed move followed by a new relocation. Preserve monotonic ownership through cleanup and later moves. There is no cancellation or rollback after admission. |
 | Actual benefit | Verify destination D1 placement evidence and role-object routing separately from ingress Worker location. Measure the full signing path, including retained shared authorities, from representative regions. Successful copying alone says nothing about latency improvement. |
 
 ## Executed checks
@@ -399,10 +408,10 @@ storage scenario, except the explicitly identified schema census.
    from representative client regions. Do not infer DO location from the ingress
    request's colo. Verify actual account/binding access and data round trips.
 3. **Demonstrate an actual wallet move with a brief pause.** Preserve role and
-   wallet identities; cover ECDSA and Ed25519, invalidated ready pools and
-   preserved consumed-material history, completed retries, session quota,
-   revoked factors, and an offline owner device. Verify signatures and unchanged
-   addresses after transfer. Include
+   wallet identities. Cover ECDSA and Ed25519, retired signing sessions, invalidated
+   pools, consumed-material history, completed retries, historical quota accounting,
+   revoked factors, and an offline owner device. Verify fresh authentication,
+   signatures, and unchanged addresses after transfer. Include
    interrupted presigning, stale cache restoration after a browser restart,
    delayed refill completion, and fresh paired regeneration on reconnect.
    Reconcile all claim/import-trigger cases.
