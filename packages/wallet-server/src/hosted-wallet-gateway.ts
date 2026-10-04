@@ -113,7 +113,6 @@ export interface CloudflareD1GatewayBaseEnv
   readonly GITHUB_OAUTH_CLIENT_ID?: string;
   readonly GITHUB_OAUTH_CLIENT_SECRET?: string;
   readonly GITHUB_OAUTH_CALLBACK_URL?: string;
-  readonly ACCOUNT_ID_DERIVATION_SECRET?: string;
   readonly SIGNING_WORKER_ID?: string;
   readonly ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET?: string;
   readonly ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET?: string;
@@ -512,7 +511,6 @@ async function createStagingRouterApiAuthComposition(
     ),
     googleOidcClientId: readEnvString(env, 'GOOGLE_OIDC_CLIENT_ID'),
     githubOAuth: stagingGithubOAuthConfig(env),
-    accountIdDerivationSecret: requireEnvString(env, 'ACCOUNT_ID_DERIVATION_SECRET'),
     emailOtpServerSeal: stagingEmailOtpServerSealConfig(env),
     emailOtpDeliveryMode: readEnvString(env, 'EMAIL_OTP_DELIVERY_MODE'),
     emailOtpRuntimeProfile: readEnvString(env, 'EMAIL_OTP_RUNTIME_PROFILE'),

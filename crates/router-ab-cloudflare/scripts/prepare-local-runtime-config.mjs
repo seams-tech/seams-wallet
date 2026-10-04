@@ -102,7 +102,6 @@ export function prepareLocalHostedWalletGatewayConfig(input) {
   const gatewayToSigningWorkerPresignAuthSecret =
     readOrCreateLocalGatewayToSigningWorkerPresignAuthSecret(localEnvRoot);
   const secretValues = {
-    ACCOUNT_ID_DERIVATION_SECRET: localSecret(internalAuthSecret, 'account-id-derivation'),
     GOOGLE_OIDC_CLIENT_ID: optionalText(input.googleOidcClientId),
     HOSTED_WALLET_ORIGINS: appOrigins.join(','),
     LINKED_DEVICE_TARGET_DESCRIPTOR_HMAC_SECRET: localSecret(

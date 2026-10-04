@@ -1253,10 +1253,7 @@ function createCloudflareD1RouterApiAuthAssembly(
     registrationAttempts: googleEmailOtpRegistrationAttempts,
   });
   const identityService = new CloudflareD1IdentityService({
-    accountIdDerivationSecret: options.accountIdDerivationSecret,
     identityStore,
-    relayerAccount: options.relayerAccount,
-    resolveGoogleEmailOtpSession: googleEmailOtpSessions.resolve.bind(googleEmailOtpSessions),
   });
   const oidcVerification = new CloudflareD1OidcVerificationService({
     googleOidcClientId: options.googleOidcClientId,
@@ -2079,9 +2076,6 @@ function createD1IdentityRouteService(
     listIdentities: assembly.identityService.listIdentities.bind(assembly.identityService),
     resolveGoogleEmailOtpSession: assembly.googleEmailOtpSessions.resolve.bind(
       assembly.googleEmailOtpSessions,
-    ),
-    resolveOidcWalletId: assembly.identityService.resolveOidcWalletId.bind(
-      assembly.identityService,
     ),
     unlinkIdentity: assembly.identityService.unlinkIdentity.bind(assembly.identityService),
     verifyGoogleLogin: assembly.oidcVerification.verifyGoogleLogin.bind(assembly.oidcVerification),

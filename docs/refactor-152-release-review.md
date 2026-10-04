@@ -2,6 +2,17 @@
 
 ## Current release gate — October 4
 
+Follow-up: the unused OIDC account-name derivation service and
+`ACCOUNT_ID_DERIVATION_SECRET` requirement have been removed from runtime options,
+public ports, deployment generation/preflight, and local fixtures. Registration
+uses the existing random server allocation path. Server type-check/build, bloat
+check and private type-check against the fresh packed candidate pass. The existing
+US Email OTP-founded recovery scenario through APAC passes in 1.2 minutes,
+including lost finalization reply, Gateway restart, signing and both key exports.
+Private evidence: `.artifacts/r152/remove-account-id-secret-20261004/`.
+The earlier expired Google-token attempt was an environment failure; refreshing
+the token and repeating the unchanged scenario passed.
+
 Candidate implementation: `55c446c9`, with the ownership closure in `9c1c7b8e`.
 Per-wallet home routing, exact ownership accounting, deferred context and local
 credential/linked-device reconciliation are implemented. Three-home real browser

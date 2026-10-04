@@ -100,43 +100,16 @@ n6378056-gmail-com-1776502017920.w3a-relayer.testnet
 u_<sha256(email)>.<relayer_root_account>
 ```
 
-Hosted accounts use deterministic HMAC-generated readable slugs:
-
-```text
-brisk-maple-k7q9yh.w3a-relayer.testnet
-```
-
-Derivation:
-
-```ts
-context = [
-  'near_account_slug_v1',
-  projectId,
-  envId,
-  authProvider,
-  providerSubject ?? verifiedEmail,
-].join('\0');
-
-seed = HMAC_SHA256(ACCOUNT_ID_DERIVATION_SECRET, context);
-```
-
-Recommended account-id format:
-
-```ts
-slug = `${adjective}-${noun}-${suffix}`;
-accountId = `${slug}.${relayerRootAccount}`;
-```
+Hosted registration allocates a fresh random readable wallet ID through
+`createServerAllocatedWalletId()`. Identity mappings are persisted by the
+registration flow; an email or provider subject does not determine the wallet ID.
 
 Rules:
 
-1. Hosted account ID generation is owned by the server.
-2. Client-provided hosted Email OTP account IDs are ignored or rejected.
-3. The public account ID contains no raw email substring.
-4. Plain email hashes are forbidden.
-5. `ACCOUNT_ID_DERIVATION_SECRET` lives only in server-side secret storage.
-6. Rotation is versioned with a new slug context, for example
-   `near_account_slug_v2`.
-7. Verified email remains private account metadata.
+1. Hosted wallet ID allocation is owned by the server.
+2. The registration authority validates the selected candidate and reservation.
+3. Public IDs contain no raw email substring or plain email hash.
+4. Verified email remains private account metadata.
 
 ### Registration Rerolls
 

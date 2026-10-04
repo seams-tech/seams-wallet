@@ -182,7 +182,6 @@ export interface CloudflareD1RouterApiAuthServiceOptions {
   readonly implicitNearAccountTestFundingEnabled?: boolean | string;
   readonly googleOidcClientId?: string;
   readonly githubOAuth?: CloudflareD1GithubOAuthConfig;
-  readonly accountIdDerivationSecret?: string;
   readonly emailOtpServerSeal?: CloudflareD1EmailOtpServerSealConfig;
   readonly emailOtpDeliveryMode?: string;
   readonly emailOtpRuntimeProfile?: string;
@@ -269,7 +268,6 @@ export type NormalizedCloudflareD1RouterApiAuthServiceOptions = Omit<
   | 'accountInitialBalance'
   | 'implicitNearAccountTestFundingEnabled'
   | 'googleOidcClientId'
-  | 'accountIdDerivationSecret'
   | 'emailOtpServerSeal'
   | 'emailOtpDeliveryMode'
   | 'emailOtpRuntimeProfile'
@@ -301,7 +299,6 @@ export type NormalizedCloudflareD1RouterApiAuthServiceOptions = Omit<
   readonly implicitNearAccountTestFundingEnabled: boolean;
   readonly googleOidcClientId?: string;
   readonly githubOAuth?: CloudflareD1GithubOAuthConfig;
-  readonly accountIdDerivationSecret?: string;
   readonly emailOtp: EmailOtpRuntimeConfig;
   readonly emailOtpServerSeal: EmailOtpServerSealRuntimeConfig;
   readonly routerAbEcdsaPresignRuntime?: RouterAbEcdsaPresignRuntime | null;
@@ -384,7 +381,6 @@ export function normalizeD1RouterApiAuthOptions(
     ),
     googleOidcClientId: toOptionalTrimmedString(input.googleOidcClientId),
     githubOAuth,
-    accountIdDerivationSecret: toOptionalTrimmedString(input.accountIdDerivationSecret),
     emailOtp: normalizeEmailOtpConfig(input),
     emailOtpServerSeal: normalizeEmailOtpServerSealConfig(input),
     routerAbEcdsaPresignRuntime: input.routerAbEcdsaPresignRuntime,

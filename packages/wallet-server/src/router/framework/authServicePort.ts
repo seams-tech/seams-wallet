@@ -901,17 +901,6 @@ type RouterApiMethodTypes = {
     };
     readonly result: GoogleEmailOtpResolutionResult;
   };
-  resolveOidcWalletId: {
-    readonly input: {
-      readonly providerSubject?: string;
-      readonly sub?: string;
-      readonly email?: string;
-      readonly accountMode?: unknown;
-      readonly runtimePolicyScope?: ThresholdRuntimePolicyScope;
-      readonly restartRegistrationOffer?: unknown;
-    };
-    readonly result: string;
-  };
   revokeWalletAuthMethodWithFreshProof: {
     readonly input: RevokeWalletAuthMethodWithFreshProofCommand;
     readonly result: RevokeWalletAuthMethodWithFreshProofResult;
@@ -1526,9 +1515,6 @@ export interface RouterApiIdentityService {
   resolveGoogleEmailOtpSession(
     input: RouterApiMethodTypes['resolveGoogleEmailOtpSession']['input'],
   ): Promise<RouterApiMethodTypes['resolveGoogleEmailOtpSession']['result']>;
-  resolveOidcWalletId(
-    input: RouterApiMethodTypes['resolveOidcWalletId']['input'],
-  ): Promise<RouterApiMethodTypes['resolveOidcWalletId']['result']>;
   unlinkIdentity(
     input: RouterApiMethodTypes['unlinkIdentity']['input'],
   ): Promise<RouterApiMethodTypes['unlinkIdentity']['result']>;

@@ -42,7 +42,6 @@
       "secrets": {
         "required": [
           "BENCHMARK_WALLET_DEPLOYMENT_JSON",
-          "ACCOUNT_ID_DERIVATION_SECRET",
           "LINKED_DEVICE_TARGET_DESCRIPTOR_HMAC_SECRET",
           "RELAY_SESSION_HMAC_SECRET",
           "ROUTER_AB_CEREMONY_JWT_PRIVATE_JWK",
@@ -94,7 +93,6 @@
       "secrets": {
         "required": [
           "BENCHMARK_WALLET_DEPLOYMENT_JSON",
-          "ACCOUNT_ID_DERIVATION_SECRET",
           "LINKED_DEVICE_TARGET_DESCRIPTOR_HMAC_SECRET",
           "RELAY_SESSION_HMAC_SECRET",
           "ROUTER_AB_CEREMONY_JWT_PRIVATE_JWK",
