@@ -1,4 +1,4 @@
-import type { AuthCapability } from '@/SeamsWeb/signingSurface/types';
+import type { AuthCapability, RegistrationCapability } from '@/SeamsWeb/signingSurface/types';
 
 export type WalletSessionCommands = Pick<
   AuthCapability,
@@ -10,3 +10,19 @@ export type WalletSessionCommands = Pick<
   | 'hasPasskeyCredential'
   | 'prefillRouterAbEcdsaDerivationPresignaturePool'
 >;
+
+export type EmailOtpCommandGroups = {
+  auth: Pick<
+    AuthCapability,
+    | 'requestEmailOtpChallenge'
+    | 'requestEmailOtpSigningSessionChallenge'
+    | 'refreshEmailOtpSigningSession'
+    | 'loginWithEmailOtpEcdsaCapability'
+    | 'unlockAddedEmailOtpWallet'
+    | 'beginGoogleEmailOtpWalletAuth'
+  >;
+  registration: Pick<
+    RegistrationCapability,
+    'requestEmailOtpEnrollmentChallenge' | 'enrollEmailOtp'
+  >;
+};

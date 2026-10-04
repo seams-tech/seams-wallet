@@ -580,3 +580,41 @@ its existing sanitized status and race evidence remains enabled. Reproduce with:
 ```sh
 SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.unlock.contract.test.ts e2e/intended-behaviours/passkey.registration.assets.contract.test.ts
 ```
+
+### Email OTP command ownership
+
+`walletIframe/client/emailOtpCommands.ts` owns Email OTP challenge/enrollment
+transport, unlock and refresh dispatch, Google authentication dispatch, and
+application progress callbacks. `walletIframe/host/createEmailOtpCommands.ts`
+owns provider and authority resolution, custody restoration, enrollment,
+authorization activation, and runtime postconditions. It receives the existing
+host context and registration/session commands without constructing `SeamsWeb`.
+Shared event and timing helpers live in `walletIframe/shared/emailOtpLifecycle.ts`.
+The replaced mixed methods were removed from `SeamsWeb.ts`.
+
+The standalone application command graph contains twelve pure modules and no
+custody execution, worker orchestration, or IndexedDB implementation. Its bundle
+and metafile are retained under `.artifacts/r170-email-split/`. The main facade
+still imports both command factories and constructs the runtime; this extraction
+does not yet satisfy the public-client dependency gate.
+
+Validation: production build, Wallet/intended/state type checks, and the bloat
+gate pass. Six production-browser cases pass: the four Email OTP unlock contracts
+and both factor-addition directions. These cover registration, signing across
+NEAR/Tempo/Arc, refresh, export, interrupted export retry, delayed NEAR registration,
+factor revocation, and unlock with an added factor.
+
+The first factor run found an outdated test expectation. Selected-wallet Google
+verification returns `wallet_identity_mismatch` after revocation removes the
+wallet's enrollment. The test now checks the request's exact `wallet_id` and the
+current refusal. It retains the checks that forbid OTP challenge and unlock
+dispatch after refusal. Production behavior did not change for this correction.
+Export scenarios disable raw trace, screenshot, and video capture.
+
+The sanitized result receipt, source hashes, dependency graph, and reproduction
+commands are in `.artifacts/r170-email-split/verification.json`. After a fresh
+production build, reproduce the six cases with:
+
+```sh
+SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/email-otp.unlock.contract.test.ts e2e/intended-behaviours/email-otp.add-passkey.contract.test.ts e2e/intended-behaviours/passkey.add-email-otp.contract.test.ts
+```
