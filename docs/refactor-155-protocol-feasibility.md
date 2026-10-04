@@ -1,8 +1,9 @@
 # R155: regional signing protocol feasibility
 
-Status: first source and executable checks, October 5, 2026. Supports further
-implementation design for [R155](refactor-155-regional-wallet-signing.md).
-Complete regional device installation remains unverified.
+Status: protocol checks and an independent-store execution experiment, October 5,
+2026. Current authorization cannot safely serve replicated role stores. Complete
+regional device installation remains unverified. [R155](refactor-155-regional-wallet-signing.md)
+requires an execution-assignment implementation and a resolved live-permission contract.
 
 ## Finding
 
@@ -26,6 +27,12 @@ Copying role data alone does not create independent regional authorization.
 
 The evidence supports cryptographic feasibility. It does not close R155's complete
 wallet-and-device installation gate or supersede R153/R154.
+
+The new process experiment demonstrates why the assignment is required. The same
+Gateway authorization produced two valid Ed25519 signatures through independent
+stores. Both regions retained their own result through restart. This is a failure
+of the proposed copy-only topology under the R155 contract. The existing R152
+topology assigns one wallet home and does not promise this replicated behavior.
 
 ## ECDSA findings
 
@@ -178,6 +185,105 @@ Keep tenant custody authority explicit when creating those stacks. Reuse browser
 and fault fixtures, then add the R155 observations from the
 [bounded gate](refactor-155-regional-wallet-signing.md#bounded-feasibility-gate).
 No composed R155 result or new browser execution is claimed by this assessment.
+
+## Independent-store execution experiment
+
+The [process scenario](../crates/router-ab-dev/tests/support/regional_execution.rs)
+uses the existing VM adapters and their production Router/SigningWorker handlers.
+It registers an Ed25519 wallet through real Deriver A/B processes. It then stops
+the fixture and copies it into a separate temporary directory.
+
+The snapshot contains no prepared signing nonces. Both installations preserve the
+same logical role identities and test keys. Each starts its own Router, Deriver A,
+Deriver B, and SigningWorker process. Each process uses its installation's own stores.
+This fixture copy is not a supported wallet installation API. It also copies
+fixture tenant state, whose lifecycle is outside this experiment.
+
+The scenario then performs these actions:
+
+1. Submit the same preparation and Gateway authorization concurrently to both Routers.
+2. Verify that each region creates different fresh server commitments.
+3. Complete signing in the source and drop its successful HTTP response through a fault proxy.
+4. Complete the same authorized operation in the destination with its independently prepared material.
+5. Restart the source and recover its exact lost result.
+6. Verify both signatures against the same public key and transaction digest.
+7. Restart all eight role processes and verify that each region replays its own exact result.
+
+**Observed: two distinct valid signatures and one completed signing record in each
+store, from one Gateway-shaped authorization.** The role checks bind logical
+SigningWorker identity and operation identity. Their durable claims belong to each
+local store. They do not bind authorization to one physical executor.
+
+This is a negative feasibility observation. The scenario passes when it reproduces
+the limitation. It does not pass the R155 duplicate-execution gate. The driver acts
+as the Gateway and supplies the client contributions. It does not establish a
+Gateway exploit, two SDK devices, ECDSA process installation, global quota behavior,
+revocation, recovery, Cloudflare storage behavior, or geographic latency.
+
+Run from `seams-wallet`:
+
+```sh
+cargo test --offline --locked --manifest-path crates/router-ab-dev/Cargo.toml --test local_worker_http regional_execution::independent_role_stores_require_executor_bound_authorization -- --exact
+```
+
+The final run passed in 4.42 seconds, excluding compilation. Its artifact is
+`.artifacts/r155/independent-execution/evidence.json`. It contains the source
+revision, runner hash, public key, unsigned transaction, verified signatures,
+fault observations, and scope limits. It contains no role secrets.
+The sibling `checkpoint.json` records source hashes and verification results.
+Both retained signatures also passed independent verification with Node/OpenSSL.
+Execution artifact SHA-256: `de3f3bd567d76999d3c7fca7cb3fa6f6ee940aa143806faccaf006ae1284f577`.
+
+Extend the existing authorized-operation journal with one durable physical
+executor assignment. Bind forwarded authority and local material claims to that
+assignment. Enforce it at each effect boundary before enabling independent stores.
+Update this scenario to require rejection at the other executor when that path exists.
+
+## Live permission and measurement findings
+
+The current [durable ECDSA contract](intended-behaviours.md#durable-ecdsa-preprocessing)
+requires six dependent HTTP exchanges for owner preprocessing. Every exchange
+retains live authorization. An expired or retired session cannot continue refill.
+Prepare, finalize, and completed replay evaluate live policy. Material retirement
+or replacement before admission rejects the request.
+
+`executeEcdsaPoolFillRoute` invokes `authorizeEcdsaPoolFill` for initialization and
+each step. Reusable-session authorization reads the current session and resolves
+the active material before forwarding to SigningWorker.
+[Pool-fill routes](../packages/wallet-server/src/router/transport/fetch/routes/thresholdEcdsa.ts),
+[session validation](../packages/wallet-server/src/router/auth/commonRouterUtils.ts).
+
+R155's proposed rule allows already admitted work to finish after revocation.
+That rule changes existing behavior. It cannot replace the live checks without
+an explicit contract decision. Preserving the current rule can require global
+checks during regional preparation and finalization. Measure those calls before
+claiming a latency improvement. A local permission cache needs a defined revocation
+barrier before it can preserve the current rule.
+
+The retained private R152 geographic traces contain 24 signing windows. Of those,
+22 include presignature refill traffic. Each window also includes session checks
+and signing requests. Refill can run in the background, so its presence alone
+does not prove that it delayed the signature.
+
+Those traces use one local browser with HTTP forwarding through regional probes.
+Their browser elapsed times include that extra hop. Each regional group has only
+three or six observations. They provide neither a clean warm-signing baseline nor
+a preparation CPU, storage, or monetary cost measurement. They contain no R155 execution.
+
+Retained reanalysis in `seams-monorepo`:
+
+```sh
+python3 .artifacts/r155/baseline-review/reproduce.py
+```
+
+The sibling `evidence.json` records input hashes, scope limits, per-region sample
+counts, observed request counts, and browser-window median/range. The source inputs
+are the October 4 R152 `hosted-regional-probe` and `hosted-regional-apac` artifacts.
+No new hosted calls or deployments were made for this reanalysis.
+
+The next implementation depends on the live-permission decision. Then complete
+executor assignment, safe material installation, and device pool selection before
+running the two-device scenario. Adoption remains deferred. R153/R154 remain available.
 
 ## Executed evidence and reproduction
 

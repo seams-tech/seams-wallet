@@ -1,7 +1,8 @@
 # Refactor 155: one permission authority with regional wallet signing
 
-Status: first protocol feasibility checks passed, October 5, 2026. Complete
-regional device installation and product integration remain open. No runtime
+Status: protocol checks passed, October 5, 2026. An independent-store experiment
+reproduced duplicate execution with current logical-role authorization. Complete
+regional device installation and product integration remain open. No production
 implementation. This is a candidate replacement for
 [R153](refactor-153-wallet-region-selection.md) and
 [R154](refactor-154-automatic-wallet-relocation.md).
@@ -11,6 +12,8 @@ source review and executed evidence. Both protocols signed the same wallet keys
 with independent regional sessions and unchanged owner client shares. Existing
 device credentials also passed a separate production authorization-store probe.
 These checks do not establish a composed multi-region device installation.
+The new execution experiment and live-permission review identify the next blockers.
+R155 remains a candidate until those contracts and the geographic evidence pass.
 
 ## Intent
 
@@ -122,10 +125,12 @@ sequenceDiagram
   and evidence that another execution is safe. Never refund an uncertain claim blindly.
 
 The proposed device-revocation rule blocks new permits after revocation commits.
-Previously admitted operations may finish. Confirm that this matches the intended
-wallet contract. Stronger cancellation needs further coordination. Recovery and
-key retirement must define separate barriers for in-flight operations and regional
-material before reporting completion.
+Previously admitted operations may finish under that proposal. This differs from
+the current [ECDSA contract](intended-behaviours.md#durable-ecdsa-preprocessing), which
+retains live checks during preprocessing, finalization, and replay. The decision
+between these rules is open. Preserve the existing contract until a change is
+explicitly accepted. Recovery and key retirement need separate barriers for
+in-flight operations and regional material before reporting completion.
 
 The operation journal cannot make an external blockchain effect part of its local
 transaction. Preserve existing broadcast, nonce, sponsorship, and result-replay
@@ -212,8 +217,8 @@ transfer probes do not establish simultaneous regional execution.
 | --- | --- | --- |
 | 1. Protocol and binding review | Preserve keys and client shares. Identify activation, lane, recipient, epoch, seal, tenant-root, and exclusive-resource constraints. | Local protocol checks passed. Product constraints are recorded. |
 | 2. Composed regional execution | Install both devices through production lifecycle paths. Sign both protocols through separate regional roles and stores. Preserve wallet keys, credentials, permissions, and role separation. | Open. The existing browser harness shares its signing-role stack. |
-| 3. Failure and lifecycle behavior | Execute the scenario matrix below through the composed path. Enforce assignment at every participating role and deferred writer. | Open. Separate protocol and authorization probes cannot close this stage. |
-| 4. Geography and preparation | Measure the complete signing path and material preparation under the comparison below. | Open. Local execution times cannot establish geographic benefit. |
+| 3. Failure and lifecycle behavior | Execute the scenario matrix below through the composed path. Enforce assignment at every participating role and deferred writer. | Current copy-only candidate fails: two independent stores execute one authorization. Lost-result and restart observations are retained. Full R155 checks remain open. |
+| 4. Geography and preparation | Measure the complete signing path and material preparation under the comparison below. | Open. R152 trace review found refill traffic in 22 of 24 windows. No R155 geographic or cost result exists. |
 | 5. Decision | Record pass, fail, or blocked for each stage. Accept R155 only when all required evidence supports adoption. | Pending. R153/R154 remain the fallback. |
 
 First inspect the protocol bindings and current source. Record exact revisions,

@@ -1,4 +1,7 @@
 use base64::Engine;
+
+#[path = "support/regional_execution.rs"]
+mod regional_execution;
 use router_ab_cloudflare::{
     CloudflareEd25519YaoPairExecuteRequestV1, CloudflareEd25519YaoPairLookupRequestV1,
     CloudflareRouterEd25519AcceptedAuthorizedOperationV1,
