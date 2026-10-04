@@ -5,7 +5,7 @@ plane is implemented. Backend state transfer, writer fencing, owner API, client
 reconciliation, settings, and hosted placement remain unfinished.
 
 Architecture decision, October 5, 2026: retain one active wallet home and use
-[R154](refactor-154-automatic-wallet-relocation.md) for automatic relocation.
+[R154](refactor-154-region-change-notifications.md) to suggest owner-confirmed moves.
 Owners mainly use one region and occasionally travel. The priority is local
 permission and signing calls after relocation. Verify actual placement and shared
 dependencies before claiming a signing path without cross-region calls.
@@ -219,9 +219,8 @@ The setting applies to the whole wallet and all of the owner's devices. Show the
 current home separately from a requested move and its progress. A selected region
 remains the wallet's preference until the owner changes it.
 
-This phase establishes the relocation operation that
-[R154's automatic placement policy](refactor-154-automatic-wallet-relocation.md)
-will later invoke.
+This phase establishes the relocation operation used when an owner accepts
+[R154's region-change suggestion](refactor-154-region-change-notifications.md).
 
 ## Working assumptions and boundaries
 
@@ -243,7 +242,7 @@ will later invoke.
   not required.
 - Shared tenant policy, identity uniqueness, and shared custody authorities retain
   their ownership boundaries. Determine which wallet-owned resources move.
-- Automatic movement detection and placement decisions belong to R154.
+- Region-change detection and notifications belong to R154. Owners choose each move.
 
 ## Implementation decisions and validation still open
 
@@ -338,7 +337,7 @@ See the [follow-up source validation](refactor-153-backend-relocation-validation
 
 Use a **five-minute minimum between wallet relocation admissions** to
 limit repeated regeneration. Enforce it server-side across all owner devices and
-both manual and automatic requests, alongside one move in progress per wallet.
+both settings and notification entrypoints. Allow one move in progress per wallet.
 Keep this limit with the authoritative placement state so a move cannot reset it.
 Selecting the current home is a no-op for transfer; retrying the same move resumes
 its recorded outcome without scheduling another regeneration. Failed attempts
@@ -363,7 +362,7 @@ services. Target the completed feature for Wallet SDK/server 0.9.0.
 | Relocation module | Owner admission, eligibility, cooldown, journal, retries, orchestration, evidence collection, cutover and progress. It invokes narrowly typed participant operations through existing authenticated transports. |
 | Participant adapters in existing services | Prepare inactive resources, freeze/drain, invalidate presignatures, extract/import, verify, activate and clean up the participant's own state. Produce durable receipts. Each service owns its selectors, record decoding, storage transactions and effect fences. |
 | SDK/settings | Submit a region choice and show safe progress; reconcile placement and presignature caches. No orchestration or custody-store knowledge. |
-| R154 policy | Decide when to request the same relocation operation under its future standing-consent contract. No second transfer or fencing implementation. |
+| R154 notifications | Observe region changes and suggest a destination. Open the existing settings flow for owner confirmation and fresh proof. |
 
 Ordinary signing and wallet flows depend on a small ownership/execution guard.
 They must not import the relocation coordinator or branch on its copy/retry/cleanup
@@ -435,8 +434,8 @@ These are implementation decisions for the first manual relocation operation.
 The existing directory journal implements a subset; the gaps at the end of this
 section are implementation work, not additional product decisions. The ownership
 input is R152 revision 12. No endpoint is enabled by this contract update.
-R154 must define standing-consent authorization before automatic policy can invoke
-this same orchestration; the manual contract does not grant that permission.
+R154 suggestions use the same owner confirmation and fresh-proof requirements.
+Region observations and notification actions cannot authorize relocation.
 
 ### Owner authorization and destination eligibility
 
@@ -516,7 +515,7 @@ authorization/counter state; use the shared request-proof authority where needed
 - Admission atomically journals the move and pauses new wallet mutations. Console
   is authoritative for time, current generation, one pending move and the cooldown.
   Require at least 300,000 ms since the previous admitted move, across all devices
-  and future automatic requests. A move still pending blocks another regardless
+  and entrypoints. A move still pending blocks another regardless
   of elapsed time. An admission that later encounters failure still counts.
 - Reject preflight/auth failures before admission without charging this cooldown.
   Use the existing authentication/rate limits for rejected requests. The original
@@ -745,7 +744,7 @@ cooldown and two receipt envelopes. Extend those same modules during implementat
 - [ ] Add Wallet region to the existing settings surface. Show actual home,
   selected region, pending progress, temporary mutation pause, recoverable failure,
   and cooldown retry time. Expose supported regions and eligible owner controls;
-  Automatic mode remains R154's follow-up.
+  Region-change notifications remain R154's follow-up.
 - [ ] Delete obsolete source wallet state after verification while retaining the
   authority fence and move outcome needed for cleanup/retry. Failed cleanup is
   resumable and cannot reopen the source. A later move back uses fresh resources.

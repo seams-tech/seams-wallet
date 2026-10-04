@@ -347,9 +347,9 @@ Five minutes is a proposed rate limit, without measured compute-cost evidence.
 It permits up to twelve new relocation admissions per hour per wallet, so normal
 bounded pool depth, per-move deduplication, and demand-driven device refill still
 matter. Measure compute per refill, number of active device pools, retry work,
-and the first signing delay before settling that interval. R154's sustained-move
-policy needs its own observation and benefit thresholds; the shared minimum
-does not establish a useful automatic relocation cadence.
+and the first signing delay before settling that interval. R154 suggests a move
+after observing a different region. The owner decides whether to relocate;
+the shared minimum also applies to moves opened through a notification.
 
 Both existing storage and authorization transfer probes passed again during
 this follow-up and refreshed their repeatable artifacts. They continue to
@@ -429,5 +429,5 @@ No hosted resources or wallet data were changed in this investigation.
 R153 is therefore a cross-cutting backend change before it is a region selector.
 The smallest candidate is a paused, role-preserving copy with explicit fencing
 and exact replay preservation. Live delta replication can wait for measurements
-showing that a paused copy is insufficient. R154 can remain a small policy layer
-over the same relocation operation once these gates pass.
+showing that a paused copy is insufficient. R154 adds region-change notifications
+that open the same owner-confirmed relocation flow once these gates pass.
