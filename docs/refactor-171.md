@@ -26,6 +26,10 @@ worker preparation, export selection, and synchronization internally.
 
 ## Relationship to R170 and R153
 
+Implementation order: **R152 → R170/R171 → R153 → slim R154**.
+Complete R170/R171 as one coordinated stage against R152's fixed-home behavior.
+Pass both plans' acceptance gates before resuming R153 implementation.
+
 [R170](refactor-170.md) owns separating application/host execution, config and
 state boundaries, targeted worker loading, and bundle/network acceptance. This
 plan owns the complete public naming/export migration and consumer updates.
@@ -38,9 +42,10 @@ Do not build temporary renamed wrappers around the mixed runtime or maintain two
 implementations. Perform final API extraction with R170's composition cutover;
 inventory and documentation preparation can start beforehand.
 
-Coordinate session cleanup, durable presign invalidation, and refill fencing with
-R153. Preserve its placement generation and exact session binding. Naming changes
-must not reset or bypass those contracts.
+Preserve exact session binding, R152 home routing, and existing material validity
+checks. R153 later adds relocation generations, backend fences, and wallet-wide
+session/pool retirement using the completed host lifecycle. R171 does not depend
+on those future mechanisms or add temporary relocation APIs.
 
 ## Target application calls
 
@@ -124,11 +129,13 @@ preserves durable presignatures and performs authorization retirement, volatile
 material cleanup, and stale-work fencing, per R170. Keep credentials, wallet
 records, and recovery material. Preserve exact-wallet cleanup under concurrent
 unlock; attempt required cleanup and report failures. Retained presignatures
-grant no active signing authority: validate authority and placement/generation
-before reuse after unlock. Session expiry requires reauthorization and must not
-by itself delete otherwise-valid durable presignatures. Keep independent material
-invalidation and consumption rules intact. Do not broaden a local lock into a global device
-revocation or a durable-pool purge.
+grant no active signing authority: validate authority, R152 fixed-home placement,
+and material state before reuse after unlock. Session expiry requires reauthorization
+and must not by itself delete otherwise-valid durable presignatures.
+Keep independent material invalidation and consumption rules intact.
+Do not broaden a local lock into a global device revocation or a durable-pool
+purge. R153 later adds relocation invalidation and
+fresh authentication on every device as a distinct lifecycle.
 
 A user can lock, return a month later, and use still-valid durable presignatures
 for the first transaction after unlock without waiting for replenishment. Elapsed
@@ -395,7 +402,8 @@ a declaration-level pass before declaring the migration complete.
   move, or intentional behavior change; record unresolved contract differences.
 - [ ] Close email/registration/action consolidation gates and returned-flow API
   inventory. Confirm behavior of `syncAccount` and external receipt completion.
-- [ ] Integrate session/lifecycle names and unified lock with R170/R153 ownership.
+- [ ] Integrate session/lifecycle names and unified lock with R170 host ownership
+  and R152 fixed-home behavior.
   Implement SDK-owned account lookup and preserve injected RPC behavior.
 - [ ] Rename chain, registration, recovery, device, key, preference, and hosted UI
   methods at their real implementation boundary. Remove old aliases/callers in
@@ -418,7 +426,8 @@ classify failures against intended behavior before repairs.
   combinations and exercise removed public names without production casts.
 - Real-host E2E: register a mixed wallet, await NEAR provisioning, lock/unlock,
   switch the rendered wallet during pending work, and sign on NEAR and EVM/Tempo.
-  Verify bound identities, review, receipt results, and old-generation exclusion.
+  Verify bound identities, review, receipt results, and stale client-connection
+  response exclusion. R153 later verifies wallet ownership generations and moves.
 - Email custom/hosted flows: code failure, resend/cancel, step-up, and successful
   completion preserve purpose and authority. Cover consolidated registration
   paths and custom UI callers before deleting their old APIs.

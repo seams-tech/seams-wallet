@@ -2,9 +2,11 @@
 
 Audited October 4, 2026. Companion to [the refactor plan](refactor-170.md).
 This records current implementation and proposed ownership. It changes no
-runtime behavior. R152/R153 continue to own placement, replay, persistent state,
-presignature invalidation, and settings changes; refresh this inventory after
-their integration before moving those implementations.
+runtime behavior. Follow **R152 → R170/R171 → R153 → slim R154**.
+Use completed R152 fixed-home behavior while extracting client/host ownership
+and final public APIs. Refresh this inventory against the current implementation
+before moving each member. Future relocation fences, invalidation, and settings
+belong to R153 and do not block the R170/R171 cutover.
 
 ## Reproduce bundle measurements
 
@@ -144,7 +146,7 @@ inventory rather than a session download. Identical WASM groups are SHA-256
 matches across `dist/workers/*.wasm`; separate URLs remain separate assets.
 No aliases are removed or assumed to share a download cache.
 
-Freshness is diagnostic while R152/R153 are modifying shared build inputs.
+Freshness is diagnostic while R170/R171 modify shared build inputs.
 Retain stale-output measurements as exploratory evidence with their hashes.
 Rebuild and establish the release baseline after the active work is integrated;
 the current manifest does not record whether the source build was production.
@@ -197,14 +199,14 @@ remove that dependency overlap while retaining these distinctions.
 | --- | --- | --- |
 | `auth.unlock`, `lock`, `logout` | `walletIframe/client/sessionCommands.ts` → router equivalents | H: `host/handlers/auth.ts`; retain exact session, progress, error, and logout cleanup semantics. |
 | `auth.getWalletSession`, `getRecentUnlocks`, `hasPasskeyCredential` | `walletIframe/client/sessionCommands.ts` → router queries; session read can also prefetch blockheight | H auth queries; preserve authentication versus app-identity distinction. Recent-unlock fallback behavior needs explicit review before removing local paths. |
-| `auth.prefillRouterAbEcdsaDerivationPresignaturePool` | `walletIframe/client/sessionCommands.ts` → router prefill | H: session/presignature preparation; R153 overlap. |
+| `auth.prefillRouterAbEcdsaDerivationPresignaturePool` | `walletIframe/client/sessionCommands.ts` → router prefill | H: session/presignature preparation with current R152 checks. R153 adds relocation fencing later. |
 | `auth.requestEmailOtpChallenge`, `requestEmailOtpSigningSessionChallenge`, `refreshEmailOtpSigningSession` | `SeamsWeb` domain methods → matching router requests | H: `host/handlers/emailOtp.ts`; challenge purpose and session scope remain distinct. |
 | `auth.loginWithEmailOtpEcdsaCapability`, `unlockAddedEmailOtpWallet` | Domain → login/unlock-added router methods | H: Email OTP handler and selected factor activation. |
 | `auth.beginGoogleEmailOtpWalletAuth` | Domain → router flow proxy | C proxy for H flow, including resend/reroll/submit/complete/cancel; callbacks and terminal results remain correlated to the flow. |
 | `registration.registerWallet`, `registerWithEmailOtp`, `registerPasskey` | `createPublicApi.ts` delegates to `client/registrationCommands.ts`; passkey builds registration input | H registration via `PM_REGISTER_WALLET`; preserve selected auth method and signer set. `registerWithEmailOtp` currently aliases `registerWallet`. |
 | `registration.addWalletSigner`, `addPasskey`, `addEmailOtp`, `revokeAuthMethod` | `client/registrationCommands.ts` → matching router messages | H registration/auth-method handlers; preserve exact authorization and effect/retry semantics. |
 | `registration.requestEmailOtpEnrollmentChallenge`, `enrollEmailOtp` | Domain → enrollment router requests | H Email OTP enrollment. |
-| `registration.resumePendingEcdsaRegistration`, `getNearProvisioningState` | `client/registrationCommands.ts` → resume/provisioning router requests | H registration state/replay; R152/R153 overlap. |
+| `registration.resumePendingEcdsaRegistration`, `getNearProvisioningState` | `client/registrationCommands.ts` → resume/provisioning router requests | H registration state/replay. Preserve the completed R152 ownership contract. |
 | `registration.onNearProvisioningStateChanged`, `awaitNearReady` | Lifecycle subscription; `publicApi/awaitNearReady.ts` combines read and subscription | C observation of H state, with timeout and disposal; pending NEAR must not invalidate an EVM-ready wallet. |
 | `near.registerNearWallet`, `evm.registerEvmWallet` | Capability builds registration input → router `registerWallet` | H unified registration; C retains public argument/result adaptation. |
 | `near.fundImplicitNearAccountForTesting` | `publicApi/near.ts` → router test-funding request | H NEAR handler; preserve test-only scope. |
@@ -477,7 +479,7 @@ presignature storage and lock invalidation behavior are unchanged in this patch.
 | Registration surface preparation | `host/runtimeLoader.ts` → `registrationPreparationPreload.ts` | Imports NEAR preparation and ECDSA/Tempo signing engines. JS reachability must be measured separately from WASM fetches. |
 | ECDSA registration preparation | `prewarmEcdsaRegistrationCrypto` → derivation-worker request | Initializes crypto while awaiting authentication; must follow selected ceremony. |
 | Email OTP Yao preparation | `prewarmEmailOtpYao` → Email OTP worker dispatch | Can initialize Ed25519 Yao explicitly; keep factor/operation selection. |
-| Restored-session prefill and startup replay | `host/restoredSessionPresignaturePrefill.ts`, `SeamsWeb` startup replay, device acknowledgement domains | Existing authorized/resumable work may justify loading after page startup; active R152/R153 ownership. |
+| Restored-session prefill and startup replay | `host/restoredSessionPresignaturePrefill.ts`, `SeamsWeb` startup replay, device acknowledgement domains | Existing authorized/resumable work may justify loading after page startup. Preserve R152 fixed-home checks. R153 adds relocation handling later. |
 | Confirmation/session/export manager startup | Confirmation and passkey MPC managers outside `WorkerTransport` | Must be included in browser evidence; changing only the eight-kind loop cannot prove zero unrelated workers. |
 
 ### Operation-to-dependency audit
@@ -490,7 +492,7 @@ presignature storage and lock invalidation behavior are unchanged in this patch.
 | Email OTP unlock/sign | Email OTP runtime plus selected lane's crypto and seal helpers | A NEAR flow may use a binary named EVM crypto for shared helper functions; do not forbid URLs solely by filename. |
 | Registration/recovery | Custody ceremony plus selected signer-set dependencies | Both protocol families are linked into the shared ceremony binary; separate optional worker downloads from necessary shared binary code. |
 | Key export | Selected lane, fresh factor authorization, export worker/viewer, Yao or ECDSA export dependencies | No ordinary warm-signing authority substitution; observe per-lane loads. |
-| Device linking | Source contribution, recipient worker, selected target factor, activation/seal dependencies | Both browser contexts and acknowledgement retry; placement/material changes belong to R152/R153. |
+| Device linking | Source contribution, recipient worker, selected target factor, activation/seal dependencies | Both browser contexts and acknowledgement retry. Preserve R152 placement/material semantics. R153 adds relocation later. |
 
 These rows are source-based dependency families, not final network allowlists.
 Use the real production host to establish exact sets before enforcing absence of

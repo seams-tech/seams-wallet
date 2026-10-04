@@ -3,6 +3,12 @@
 Status: intent draft, revised October 5, 2026. Depends on a validated
 [R153 relocation operation](refactor-153-wallet-region-selection.md).
 
+Implementation order: **R152 → R170/R171 → R153 → slim R154**.
+Begin this implementation after R153's manual relocation acceptance passes.
+Reuse the completed SDK/host lifecycle and R153 settings, progress, and recovery.
+This stage adds region observations and suggestions only. It adds no automatic
+relocation, scheduler, or separate transfer protocol.
+
 ## Intent
 
 Detect when the owner's current network region differs from the active wallet

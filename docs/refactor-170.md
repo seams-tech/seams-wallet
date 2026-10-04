@@ -9,10 +9,17 @@ record current dispatch, worker startup, shared crypto dependencies, and remaini
 semantic decisions. Consumer reporting now supports retained temporary bundles;
 the host report identifies identical WASM aliases. Runtime behavior is unchanged.
 
+Implementation order: **R152 → R170/R171 → R153 → slim R154**.
 R152 is complete, including published 0.8.0 releases and Console integration
-evidence. R170 can begin. R153 placement relocation can proceed concurrently;
-coordinate shared client/session files and integrate its settled placement and
-presign invalidation contracts before changing affected worker lifecycle behavior.
+evidence. Complete R170 and R171 together against that fixed-home behavior before
+resuming R153 implementation. R170 owns client/host composition and lifecycle.
+R171 owns final public names and consumer migration within the same cutover.
+Their existing acceptance gates must pass before the R153 handoff.
+
+R153 later adds relocation ownership generations, backend writer fences, and
+wallet-wide session/pool retirement. Those features are not prerequisites for
+R170/R171 completion. Preserve existing authorization and material checks without
+adding placeholder relocation APIs or a second lifecycle implementation.
 
 Implementation checkpoint, October 4: fresh production assets and a packed
 baseline are recorded in the [production receipt](evidence/refactor-170-production-baseline-20261004.json).
@@ -290,13 +297,14 @@ intent. Keep wallet records, credentials, and recovery material intact.
 
 Preserving durable presignatures avoids unnecessary replenishment after lock.
 Retained material grants no active signing authority: a subsequent unlock must
-validate authority and R153 placement/generation before reuse. Session expiry
-requires reauthorization and does not itself expire otherwise-valid durable
-presignatures. Preserve independent material invalidation for relocation,
-revocation, or consumption; lock itself must
-not delete the durable pool. Coordinate refill fencing with R153. Update the
-normative spec and behavioral contracts for removal of logout, including cleanup
-failure, repeated lock, concurrent unlock, restart, durable-pool retention, and
+validate authority, R152 fixed-home placement, and current material state before
+reuse. Session expiry requires reauthorization and does not itself expire
+otherwise-valid durable presignatures. Preserve existing material invalidation
+and consumption checks.
+Ordinary lock must not delete the durable pool. R153 later extends these checks
+for relocation and adds wallet-wide invalidation as a separate operation.
+Update the normative spec and behavioral contracts for removal of logout, including
+cleanup failure, repeated lock, concurrent unlock, restart, durable-pool retention, and
 signing rejection while locked. Audit every old logout and exact-session lock caller
 before deleting paths; preserve exact-session targeting. Removing or changing
 wire handlers follows the protocol-version rules below.
@@ -484,6 +492,9 @@ results to the existing exact wallet/session identity as well, because a wallet
 can change within one connection. Failed initialization can be retried explicitly;
 disposal is terminal for that instance and rejects pending client requests.
 
+This generation belongs to the client connection. It does not provide R153's
+future wallet ownership generation or backend write fencing.
+
 React rerenders/remounts reuse the provider-owned client through the existing
 ownership mechanism. Effect cleanup releases subscriptions; the actual owner
 disposes the client when released or replaced. Configuration replacement must
@@ -499,7 +510,7 @@ execution failed. Durable host recovery is owned separately from transport retry
 | --- | --- |
 | Pending registration/recovery reconciliation | Host lifecycle after durable state is available |
 | Linked-device acknowledgement retry | Host device lifecycle |
-| Restored-session presign prefill | Host session lifecycle after authority and R153 placement validation |
+| Restored-session presign prefill | Host session lifecycle after authority, R152 fixed-home placement, and current material validation |
 | Preference/session projection | Connection bootstrap and subsequent host events |
 | Signing worker initialization | First operation requiring that dependency, plus approved flow-specific preparation |
 
@@ -623,6 +634,10 @@ consumer/release acceptance remain unfinished. See `refactor-170-inventory.md`
 for implementation and verification checkpoints.
 
 ## Implementation sequence
+
+Complete this sequence together with R171's naming and consumer migration.
+Validate the resulting client/host pair against R152 before R153 implementation
+resumes. Relocation fault tests belong to the subsequent R153 stage.
 
 Keep the first cutover focused on dependency ownership and preserved behavior.
 Moving the shared constructor wholesale into a host class can remove application

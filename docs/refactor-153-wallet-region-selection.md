@@ -4,6 +4,30 @@ Status: implementation started, October 3, 2026. The private directory control
 plane is implemented. Backend state transfer, writer fencing, owner API, client
 reconciliation, settings, and hosted placement remain unfinished.
 
+## Implementation order and prerequisites
+
+Follow **R152 → R170/R171 → R153 → slim R154**.
+
+1. R152 supplies the completed fixed-home routing and state ownership baseline.
+2. Complete [R170](refactor-170.md) and [R171](refactor-171.md) together, including
+   their real-host lifecycle, public API, consumer, and performance acceptance gates.
+3. Resume R153 on that completed client/host composition. Preserve the existing
+   relocation journal and evidence. Implement and validate the manual move first.
+4. Implement [slim R154](refactor-154-region-change-notifications.md) only after
+   R153 acceptance passes. It adds region observations and owner-confirmed suggestions.
+
+This sequence supersedes earlier checkpoint instructions to resume R153 directly
+after R152. R170/R171 use R152's fixed-home checks and do not depend on relocation.
+R153 reuses their host-owned session cleanup, typed commands, session events,
+fresh unlock, and on-demand worker preparation. Add relocation handling to those
+owners without rebuilding the SDK composition or introducing another lifecycle.
+
+Ordinary lock preserves valid durable presignatures. Relocation retires sessions
+and invalidates usable presignatures across all devices. Client connection
+generations and wallet ownership generations remain separate concepts.
+
+## Architecture decision
+
 Architecture decision, October 5, 2026: retain one active wallet home and use
 [R154](refactor-154-region-change-notifications.md) to suggest owner-confirmed moves.
 Owners mainly use one region and occasionally travel. The priority is local
@@ -226,9 +250,10 @@ pnpm --dir tests exec playwright test -c playwright.relayer.config.ts \
 The retained R152 hosted proxy measurements describe backend travel; native
 full-browser latency and calls outside home Gateway `SIGNER_DB` are outside those
 measurements. This handoff check did not deploy infrastructure or enable relocation.
-Continue with owner approval and authenticated placement/status access, then real
-participant evidence, source fencing and data transfer against the published
-baseline. The existing journal remains an internal storage primitive.
+After R170/R171 acceptance, continue with owner approval and authenticated
+placement/status access, then real participant evidence, source fencing, and data
+transfer. Consume the completed SDK/host composition while preserving R152's
+ownership contract. The existing journal remains an internal storage primitive.
 
 ## Intent
 
@@ -445,7 +470,7 @@ use bounded normal demand rather than eagerly warming every offline device.
 
 ### Modular relocation layer
 
-R153 is a relocation module composed on top of the R152 wallet runtime. Use
+R153 extends R152 placement through the completed R170/R171 SDK and host. Use
 explicit typed dependencies and the existing application composition points. Keep
 the orchestration in the current `walletPlacement/relocation*` modules and adjacent
 coordinator code; keep storage and cryptographic operations inside their owning
@@ -1005,6 +1030,9 @@ cooldown and receipt envelopes. Extend those same modules during implementation:
 
 ### 0. Settle the contracts before parallel implementation
 
+- [ ] Close R170/R171 acceptance first. Record the completed source revisions,
+  matched client/host artifacts, and consumer validation. Map SDK/settings work
+  to the established host lifecycle and final public API before implementing it.
 - [x] Define eligible full-owner authority, authentication freshness and compatible
   custody constraints. Actual regional configuration verification remains part of
   admission implementation. Only an established wallet may move; registration
