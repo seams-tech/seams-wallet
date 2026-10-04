@@ -2,6 +2,11 @@
 
 ## Current release gate — October 4
 
+Candidate `174cd48396e6a6d5760752c6fe5e3c64ed2a9a97` is pushed to `dev`.
+Exact-candidate validation was dispatched as Wallet run `37196611261` and
+Cloudflare MPC run `37196612989`. Their results are pending; previous green
+checkpoints do not cover this candidate. No release workflow was dispatched.
+
 Latest correction: public `66bc50b2` rejects retired/expired preprocessing sessions
 as invalid. A controlled hosted replay of a pre-unlock refill after lock/reload
 and a fresh unlock reproduced HTTP 503 `wallet_session_unavailable`; the reader

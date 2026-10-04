@@ -5817,6 +5817,55 @@ a batch may execute multiple SQL statements and produce many index writes.
 | Recovery-code rotation | Unmeasured total | Measure proof + envelope-set commit + locator reconciliation | Keep old-code invalidation and replacement coordinated; no period with an acknowledged unusable replacement. |
 | Background material refill | Unmeasured total | Budget per completed usable item and per failed attempt | Count role-private D1, DO storage, reservations, completion/replay and cleanup separately. Amortize per batch only after recording its yield. |
 
+### Current per-wallet lifecycle trace, October 4
+
+The existing three-home real-browser scenario passed with D1 tracing added to
+its home Gateway handler. It registers three wallets concurrently, travels to a
+foreign ingress, unlocks, exports both key families, signs, and performs passkey
+recovery with a lost finalization reply and Gateway restarts. Sources: public
+`174cd483` (runtime correction `66bc50b2`) and the private regional-real harness.
+The run completed in 22.5 minutes including isolated runtime builds.
+
+Counts were identical for US, WEUR and APAC, one sample per flow per home:
+
+| Measured browser operation window | Gateway POSTs | D1 calls | SQL statement descriptors | Write-bearing calls | Initial tracking ceiling |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Passkey unlock | 5 | 35 | 42 | 5 | 35; proposed challenge-join target 34 |
+| Ed25519 export | 6 | 30 | 46 | 7 | 30 pending full authorization-path audit |
+| ECDSA export with step-up | 4 | 18 | 20 | 4 | 18 pending full authorization-path audit |
+| Tempo owner signature | 4 | 9 | 10 | 2 | 9 for this complete observed window |
+| Passkey recovery with lost reply, restart and harness checks | 30 | **at least 148** | **at least 185** | **at least 19** | No total ceiling from incomplete telemetry |
+
+These count `SIGNER_DB` operations inside `handleSplitGatewayRequest`, excluding
+Console, custody-role storage and fixture API requests. Explicitly tagged
+background refill and requests started before the window are excluded. Other
+requests remain unclassified; their presence does not prove a critical-path
+dependency. All traced responses reported zero pending/dropped D1 observations.
+The deliberately lost recovery finalization response has no D1 header, so its
+work is missing. Recovery includes post-recovery checks and consumed-code
+rejection; 148 is not a happy-path ceremony total. Preserve these limitations
+when comparing with earlier cohorts.
+
+Endpoint breakdown explains the larger window counts: unlock challenge **3** +
+verify **26** still totals **29**, with three session-status reads adding **6**.
+Ed25519 export is status **6** + bootstrap **4** + admit **15** + execute **5**.
+ECDSA export is status **4** + step-up **9** + export **5**. Tempo signing is
+status **4** + prepare **2** + finalize **3**; the prepare/finalize core remains
+**5**, matching the historical boundary. These measurements therefore do not
+establish a regression from the older, narrower 29-call unlock or five-call
+signing measurements.
+
+Use the measured values as initial ceilings for these exact windows. The
+challenge join remains the justified first reduction. Export reductions require
+mapping the measured reads to fresh authority/proof checks before choosing a
+smaller target; endpoint subtotals are not theoretical minimums. Query reduction
+remains deferred as requested.
+
+Private evidence: `.artifacts/r152/lifecycle-d1-current-20261004/`, with
+`lifecycle-d1-calls.json`, `summary.json`, the mixed-home persistence/restart
+receipts and the retained run log. This is local behavior/count evidence;
+emulator durations and placement labels are not hosted network latency.
+
 Source-audited subflow floors (October 4) make the unmeasured totals more concrete:
 
 - **Google/OTP recovery attempt coordination: at least 7 D1 calls on the linear
