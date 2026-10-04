@@ -1,13 +1,13 @@
 # R152 state ownership baseline for R153
 
-Revision 1 — October 3, 2026.
+Revision 2 — October 4, 2026.
 
 This freezes the **schema inventory and ownership obligations**, not a copy-ready
 relocation implementation. R153 must fail closed for unresolved ownership below.
 A table with a `wallet_id` column is not necessarily regional, and a table without
 one is not necessarily shared. No namespace-wide copy is safe.
 
-Source revisions: Wallet `126766e11b7301fd398c5edbfc3dbe9c0e4d9c6c`, private
+Original schema baseline source revisions: Wallet `126766e11b7301fd398c5edbfc3dbe9c0e4d9c6c`, private
 Console `09e28d6661e19f32ccccf6c64e2cfd803026edbe`. Signer migrations through
 `0044_linked_device_bootstrap_imports.sql`; Console through
 `0069_linked_device_bootstrap.sql`. Concurrent R153 changes to `home.ts` and migration
@@ -66,13 +66,33 @@ for the baseline, grouped only where the selector and obligations agree.
 | `webauthn_challenges` | Mixed lifecycle: shared sync challenges use Console. Local login/unlock/registration challenge records require kind-specific parsed wallet/ceremony ownership and shared challenge routes. Block unknown kinds and unresolved pre-wallet challenges. |
 | `webauthn_credential_bindings` | Regional credential projection: select credentials belonging to selected wallet auth methods; Console `wallet_passkey_claims` is the shared uniqueness/routing authority. Local bindings are not authority to reassign a credential. |
 | `registration_ceremony_records` | Blocked selector: use parsed `record_scope`/record identity and Console ceremony/setup allocation; preserve preparation, activation and deferred continuation state. See opaque-record inventory below. |
-| `router_ab_yao_capability_replacements` | Blocked selector: resolve operation ID to the wallet's lifecycle; copy old/new capability decisions and replay fingerprints together. No direct wallet column. |
+| `router_ab_yao_capability_replacements` | Wallet: migration 0045 requires exact scoped `wallet_id`. Copy old/new capability decisions and replay fingerprints together, including terminal receipts after lifecycle cleanup. Retries verify the same wallet. |
 | `router_ab_yao_versioned_json_records` | Mixed, blocked selector: classify by supported prefix and parsed record ownership. Includes custody/recovery secrets and replay state; never copy all namespace rows or omit the table. |
 | `router_ab_normal_signing_admission_records` | Mixed, blocked split: project policy is shared; wallet abuse/quota/operation decisions need exact key-kind ownership. Existing SQL joins must be replaced or preserved under one authoritative transaction. |
 | `identity_links`, `email_otp_registration_attempts`, `email_otp_rate_limits`, `linked_device_request_proof_nonces` | Hosted shared authority is Console. Do not relocate or independently reset/consume these signer-schema copies. Verify every hosted caller uses the injected shared service; table existence also supports self-hosted composition. |
 | `vault_proxy_secrets` | Shared tenant/vault/item state, no wallet ownership. Excluded from wallet relocation. |
 | `deployment_resource_challenges` | Resource-local deployment proof, excluded; the destination must prove its own identity. |
 | `lane_cas_guard`, `linked_device_session_cas_guard`, `registration_ceremony_cas_guard`, `router_ab_yao_versioned_json_cas_guard`, `wallet_authority_cas_guard` | Schema guard tables, excluded from row copy. Destination migrations install them and their triggers. |
+
+## Capability replacement ownership (revision 2)
+
+Migration `0045_wallet_owned_capability_receipts.sql` adds required wallet ownership
+by replacing the empty receipt table. Existing unowned receipts cause migration to
+stop before dropping the table; the disposable-wallet reset must precede it. There
+is no inference, legacy reader, nullable owner or compatibility fallback.
+
+The exact selector is `(namespace, org_id, project_id, env_id, wallet_id)`, indexed
+by `capability_replacements_wallet`. The operation primary key remains scoped by
+namespace/organization/project/environment so reusing an operation ID for a different
+wallet is a conflict. The persistence service rejects previous/next capabilities
+with different wallet IDs before any mutation and checks receipt ownership on replay.
+
+Verification: Wallet `.artifacts/r152/wallet-owned-receipts-20261004/verify.py`
+reapplies all 45 signer migrations and produces `evidence.json`: exact two-wallet
+selection, rejection of an empty owner, rejection of populated unowned-table upgrade
+without receipt loss, and SQLite integrity `ok`. Wallet-server type checking passes.
+This closes this receipt selector; it does not claim the remaining opaque selectors
+or relocation execution are complete.
 
 ## Shared Console records
 

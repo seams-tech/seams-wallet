@@ -34,6 +34,7 @@ const CAPABILITY_REPLACEMENT_SCHEMA_SQL = `
     org_id TEXT NOT NULL,
     project_id TEXT NOT NULL,
     env_id TEXT NOT NULL,
+    wallet_id TEXT NOT NULL CHECK (length(wallet_id) > 0),
     operation_id TEXT NOT NULL,
     operation_fingerprint TEXT NOT NULL,
     previous_capability_binding_json TEXT NOT NULL,
@@ -49,9 +50,10 @@ const CAPABILITY_REPLACEMENT_SCHEMA_SQL = `
 `;
 
 type CapabilityReplacementReceiptRow = {
-  readonly operation_fingerprint?: unknown;
-  readonly previous_capability_binding_json?: unknown;
-  readonly next_capability_binding_json?: unknown;
+  readonly wallet_id: unknown;
+  readonly operation_fingerprint: unknown;
+  readonly previous_capability_binding_json: unknown;
+  readonly next_capability_binding_json: unknown;
 };
 
 type RecordJsonRow = {
@@ -171,6 +173,17 @@ export class CloudflareD1RouterAbEd25519YaoCapabilityPersistence implements Rout
   }): Promise<RouterAbEd25519YaoCapabilityPersistenceResultV1> {
     const operation = validateReplacementOperation(input.operation);
     if (!operation.ok) return operation.failure;
+    const application = activeCapabilityApplication(input.next);
+    const walletId = parseWalletId(application.wallet_id);
+    if (!walletId.ok) {
+      return persistenceFailure('invalid_wallet', 'promoted Yao capability wallet ID is invalid');
+    }
+    if (activeCapabilityApplication(input.previous).wallet_id !== walletId.value) {
+      return persistenceFailure(
+        'identity_mismatch',
+        'capability replacement crosses wallet ownership',
+      );
+    }
     await this.ensureSchema();
     const existingReceipt = await this.readReceipt(operation.value.operationId);
     const receiptMatch = matchReceipt(existingReceipt, operation.value, input);
@@ -184,11 +197,6 @@ export class CloudflareD1RouterAbEd25519YaoCapabilityPersistence implements Rout
       );
     }
 
-    const application = activeCapabilityApplication(input.next);
-    const walletId = parseWalletId(application.wallet_id);
-    if (!walletId.ok) {
-      return persistenceFailure('invalid_wallet', 'promoted Yao capability wallet ID is invalid');
-    }
     const signer = await this.walletStore.getEd25519SignerBySlot({
       walletId: walletId.value,
       signerSlot: application.key_creation_signer_slot,
@@ -288,19 +296,21 @@ export class CloudflareD1RouterAbEd25519YaoCapabilityPersistence implements Rout
             org_id,
             project_id,
             env_id,
+            wallet_id,
             operation_id,
             operation_fingerprint,
             previous_capability_binding_json,
             next_capability_binding_json,
             created_at_ms
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .bind(
           this.scope.namespace,
           this.scope.orgId,
           this.scope.projectId,
           this.scope.envId,
+          walletId.value,
           operation.value.operationId,
           operation.value.operationFingerprint,
           previousBindingJson,
@@ -511,7 +521,7 @@ export class CloudflareD1RouterAbEd25519YaoCapabilityPersistence implements Rout
   private async readReceipt(operationId: string): Promise<CapabilityReplacementReceiptRow | null> {
     return await this.database
       .prepare(
-        `SELECT operation_fingerprint,
+        `SELECT wallet_id, operation_fingerprint,
                 previous_capability_binding_json,
                 next_capability_binding_json
            FROM ${ROUTER_AB_ED25519_YAO_CAPABILITY_REPLACEMENT_TABLE_V1}
@@ -585,7 +595,8 @@ function matchReceipt(
   },
 ): 'missing' | 'match' | 'conflict' {
   if (!receipt) return 'missing';
-  return receipt.operation_fingerprint === operation.operationFingerprint &&
+  return receipt.wallet_id === activeCapabilityApplication(input.next).wallet_id &&
+    receipt.operation_fingerprint === operation.operationFingerprint &&
     receipt.previous_capability_binding_json ===
       JSON.stringify(input.previous.activeCapabilityBinding) &&
     receipt.next_capability_binding_json === JSON.stringify(input.next.activeCapabilityBinding)
