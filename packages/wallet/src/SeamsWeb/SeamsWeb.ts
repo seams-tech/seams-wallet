@@ -9,7 +9,6 @@ import { MinimalNearClient, type NearClient } from '@/core/rpcClients/near/NearC
 import { requestWalletCustodyEmailOtpChallenge } from '@/core/rpcClients/relayer/walletRecoveryRotate';
 import type { SigningEngineExportKeypairWithUIInput } from '@/core/signingEngine/flows/recovery/public';
 import { configuredThresholdEcdsaChainTargets } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import type { SdkLifecycleEventListener } from '@/core/types/sdkSentEvents';
 import type {
   AppearanceConfig,
   AppearanceConfigInput,
@@ -23,7 +22,7 @@ import {
   resolvePasskeyRegistrationAccountProvisioning,
 } from '@/SeamsWeb/operations/registration/registrationSignerSet';
 import { createApplicationPublicApi } from '@/SeamsWeb/publicApi';
-import type { ConfigCapability } from '@/SeamsWeb/publicApi/types';
+import type { AuthMenuCapability, ConfigCapability, EventsCapability } from '@/SeamsWeb/publicApi/types';
 import { resolveConfiguredChainTarget } from '@/SeamsWeb/publicApi/chainTargets';
 import type {
   AuthCapability,
@@ -64,11 +63,6 @@ import {
 } from '@/SeamsWeb/walletIframe/shared/facadeBoundary';
 import type {
   HostedAuthMenuDemoEmailOtpDelivery,
-  HostedAuthMenuExternalAuthRequest,
-  HostedAuthMenuExternalAuthResolutionInput,
-  HostedAuthMenuOpenRequest,
-  HostedAuthMenuOutcome,
-  HostedAuthMenuSessionId,
   PreferencesChangedPayload,
 } from '@/SeamsWeb/walletIframe/shared/messages';
 import { createServerAllocatedWalletId, walletIdFromString } from '@shared/utils/registrationIds';
@@ -83,6 +77,8 @@ export class SeamsWeb {
   readonly configs: SeamsClientConfig;
   private appearance: AppearanceConfig;
   readonly config: ConfigCapability;
+  readonly events: EventsCapability;
+  readonly authMenu: AuthMenuCapability;
   private readonly walletIframe: WalletIframeCoordinator;
   readonly recovery: RecoveryCapability;
   readonly devices: DevicesCapability;
@@ -115,6 +111,19 @@ export class SeamsWeb {
       userPreferences: userPreferences,
       getAppearance: this.getAppearance.bind(this),
     });
+    this.events = {
+      subscribe: this.walletIframe.onSdkLifecycleEvent.bind(this.walletIframe),
+    };
+    this.authMenu = {
+      open: this.walletIframe.openHostedAuthMenu.bind(this.walletIframe),
+      cancel: this.walletIframe.cancelHostedAuthMenu.bind(this.walletIframe),
+      onExternalAuthRequest: this.walletIframe.onHostedAuthMenuExternalAuthRequest.bind(
+        this.walletIframe,
+      ),
+      resolveExternalAuth: this.walletIframe.resolveHostedAuthMenuExternalAuth.bind(
+        this.walletIframe,
+      ),
+    };
     const preferences = createApplicationPreferences(userPreferences, this.walletIframe);
     this.disposePreferences = preferences.dispose;
     const deviceDomain = createApplicationDeviceCommands(this.walletIframe);
@@ -187,29 +196,10 @@ export class SeamsWeb {
   async getWalletIframeExactSessionState(): Promise<WalletIframeExactSessionState> {
     return await this.walletIframe.getExactSessionState();
   }
-  async openHostedAuthMenu(
-    request: HostedAuthMenuOpenRequest,
-    anchorElement?: HTMLElement,
-  ): Promise<HostedAuthMenuOutcome> {
-    return await this.walletIframe.openHostedAuthMenu(request, anchorElement);
-  }
-  async cancelHostedAuthMenu(args: { authMenuSessionId: HostedAuthMenuSessionId }): Promise<void> {
-    await this.walletIframe.cancelHostedAuthMenu(args);
-  }
-  onHostedAuthMenuExternalAuthRequest(
-    listener: (request: HostedAuthMenuExternalAuthRequest) => void,
-  ): () => void {
-    return this.walletIframe.onHostedAuthMenuExternalAuthRequest(listener);
-  }
   onHostedAuthMenuDemoEmailOtpDelivery(
     listener: (delivery: HostedAuthMenuDemoEmailOtpDelivery) => void,
   ): () => void {
     return this.walletIframe.onHostedAuthMenuDemoEmailOtpDelivery(listener);
-  }
-  async resolveHostedAuthMenuExternalAuth(
-    resolution: HostedAuthMenuExternalAuthResolutionInput,
-  ): Promise<void> {
-    await this.walletIframe.resolveHostedAuthMenuExternalAuth(resolution);
   }
   async lockWalletIframeExactSession(
     identity: WalletIframeExactSessionIdentityInput,
@@ -231,10 +221,6 @@ export class SeamsWeb {
     listener: (status: { isLoggedIn: boolean; walletId: string | null }) => void,
   ): () => void {
     return this.walletIframe.onLoginStatusChanged(listener);
-  }
-  /** Subscribe to typed lifecycle events emitted by the wallet boundary. */
-  onSdkLifecycleEvent(listener: SdkLifecycleEventListener): () => void {
-    return this.walletIframe.onSdkLifecycleEvent(listener);
   }
   /** Subscribe to wallet-host preference updates. */
   onWalletIframePreferencesChanged(
@@ -329,7 +315,7 @@ export class SeamsWeb {
   private onNearProvisioningStateChanged(
     listener: Parameters<RegistrationCapability['onNearProvisioningStateChanged']>[0],
   ): () => void {
-    return this.onSdkLifecycleEvent(deliverNearProvisioningStateChanged.bind(null, listener));
+    return this.events.subscribe(deliverNearProvisioningStateChanged.bind(null, listener));
   }
 
   private getEmailOtpUnlockPrewarmRecord(): EmailOtpUnlockPrewarmRecord {

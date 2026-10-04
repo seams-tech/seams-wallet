@@ -1,7 +1,8 @@
 # Simplify the public Wallet SDK API
 
 Status: implementation in progress, 2026-10-05.
-Configuration namespace migrated locally; publication and deployment remain pending.
+Configuration, event subscriptions, and public hosted auth-menu operations migrated
+locally; publication and deployment remain pending.
 
 ## Objective
 
@@ -396,6 +397,11 @@ a declaration-level pass before declaring the migration complete.
   options. No broad lifecycle spreads, domain casts, or repeated raw validation.
 
 ## Implementation sequence
+
+- [x] Move general subscriptions to `events.subscribe` and public hosted UI calls
+  to `authMenu.open`, `cancel`, `onExternalAuthRequest`, and `resolveExternalAuth`.
+  Remove their old application methods and migrate React and acceptance callers.
+  The demo OTP callback still requires internalization.
 
 - [x] Move theme, appearance, and chain-target helpers to `seams.config`. Remove
   the four old top-level methods and migrate React, examples, and public docs.

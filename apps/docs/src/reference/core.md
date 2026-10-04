@@ -17,6 +17,8 @@ import { SeamsWeb, type SeamsConfigsInput } from '@seams/wallet';
 
 | Capability     | Responsibility                                                               |
 | -------------- | ---------------------------------------------------------------------------- |
+| `events`       | Subscribe to SDK lifecycle events.                                          |
+| `authMenu`     | Open, cancel, and supply external authentication for hosted auth UI.         |
 | `config`       | Update appearance and select configured chain targets.                       |
 | `registration` | Register a wallet, add a signer, await NEAR provisioning.                    |
 | `auth`         | Unlock, lock, restore, and inspect wallet sessions.                          |

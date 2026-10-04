@@ -19,11 +19,7 @@ import type { HostedAuthMenuExternalAuthBroker, HostedSeamsAuthMenuProps } from 
 
 type HostedAuthMenuBridge = Pick<
   SeamsWeb,
-  | 'openHostedAuthMenu'
-  | 'cancelHostedAuthMenu'
-  | 'onHostedAuthMenuExternalAuthRequest'
-  | 'onHostedAuthMenuDemoEmailOtpDelivery'
-  | 'resolveHostedAuthMenuExternalAuth'
+  'authMenu' | 'onHostedAuthMenuDemoEmailOtpDelivery'
 >;
 
 type OutcomeRef = React.MutableRefObject<HostedSeamsAuthMenuProps['onOutcome']>;
@@ -233,7 +229,7 @@ class HostedAuthMenuSessionController {
     if (this.isActive) return;
     this.isActive = true;
     this.anchorElement.style.setProperty('--seams-auth-menu-placeholder-opacity', '1');
-    this.unsubscribeExternalAuthRequest = this.seams.onHostedAuthMenuExternalAuthRequest(
+    this.unsubscribeExternalAuthRequest = this.seams.authMenu.onExternalAuthRequest(
       this.handleExternalAuthRequestBound,
     );
     this.unsubscribeDemoEmailOtp = this.seams.onHostedAuthMenuDemoEmailOtpDelivery(
@@ -252,8 +248,8 @@ class HostedAuthMenuSessionController {
     this.unsubscribeDemoEmailOtp = null;
     this.externalAuthRequestIds.clear();
     if (this.hasOpenRequest) {
-      void this.seams
-        .cancelHostedAuthMenu({ authMenuSessionId: this.authMenuSessionId })
+      void this.seams.authMenu
+        .cancel({ authMenuSessionId: this.authMenuSessionId })
         .catch(() => {});
     }
   }
@@ -281,7 +277,7 @@ class HostedAuthMenuSessionController {
 
     try {
       this.hasOpenRequest = true;
-      const outcome = await this.seams.openHostedAuthMenu(request, this.anchorElement);
+      const outcome = await this.seams.authMenu.open(request, this.anchorElement);
       if (outcome.authMenuSessionId !== this.authMenuSessionId) {
         if (!this.isActive) return;
         this.emitFailure(
@@ -336,7 +332,7 @@ class HostedAuthMenuSessionController {
     }
 
     try {
-      await this.seams.resolveHostedAuthMenuExternalAuth({
+      await this.seams.authMenu.resolveExternalAuth({
         kind: 'hosted_auth_menu_external_auth_resolution_v1',
         authMenuSessionId: this.authMenuSessionId,
         externalAuthRequestId: requestId,

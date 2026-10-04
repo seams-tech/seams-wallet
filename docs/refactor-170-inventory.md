@@ -1270,3 +1270,29 @@ Nine browser cases and one production refresh/signing/step-up/export case pass.
 Build, types, external declarations, runtime boundaries, and the bloat gate pass.
 Production source adds 56 lines and removes 47, net +9; the public contract
 comments and React namespace binding account for the small increase.
+
+
+### Event and hosted auth-menu namespaces checkpoint
+
+The application client binds `events.subscribe` and the four public `authMenu`
+operations directly to its existing coordinator. It deletes the replaced
+top-level forwarding methods. The React hosted menu and intended application
+use the new names. Type fixtures preserve wallet-owned request identity and
+reject the five removed methods. The explicit host/runtime and internal router
+retain their own execution and transport methods.
+
+The demo OTP delivery callback remains pending internalization into demo/test
+integration. It was not added to the ordinary `authMenu` capability.
+Connection migration also remains open: router readiness becomes true after
+transport setup, before initial session/preference reconciliation. Coordinator
+ready subscriptions created before a router exists are currently discarded.
+Replace these behaviors with the accepted connection lifecycle before exposing
+`connection.getState` and `connection.onChange`; a simple rename is insufficient.
+
+Verification is recorded in `evidence/refactor-170-event-auth-menu-api-20261005.json`.
+
+Fourteen browser cases and two production authentication cases pass. Build,
+types, external declarations, runtime entry boundaries, and bloat checks pass.
+Production source adds 48 lines and removes 42, net +6; type fixtures,
+tests, and documentation are excluded. New capability declarations and bindings
+replace the old forwarding methods.

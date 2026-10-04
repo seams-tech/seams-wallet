@@ -1,3 +1,11 @@
+import type { SdkLifecycleEventListener } from '@/core/types/sdkSentEvents';
+import type {
+  HostedAuthMenuOpenRequest,
+  HostedAuthMenuOutcome,
+  HostedAuthMenuSessionId,
+  HostedAuthMenuExternalAuthRequest,
+  HostedAuthMenuExternalAuthResolutionInput,
+} from '@/SeamsWeb/walletIframe/shared/messages';
 import type {
   NearAccountRef,
   TempoChainTarget,
@@ -130,6 +138,20 @@ import type {
   RegisterWalletInput,
 } from '@shared/utils/registrationAuthMethodInput';
 import type { ExclusiveUnion } from '@shared/utils/variant';
+
+export interface EventsCapability {
+  subscribe(listener: SdkLifecycleEventListener): () => void;
+}
+
+export interface AuthMenuCapability {
+  open(
+    request: HostedAuthMenuOpenRequest,
+    anchorElement?: HTMLElement,
+  ): Promise<HostedAuthMenuOutcome>;
+  cancel(args: { authMenuSessionId: HostedAuthMenuSessionId }): Promise<void>;
+  onExternalAuthRequest(listener: (request: HostedAuthMenuExternalAuthRequest) => void): () => void;
+  resolveExternalAuth(resolution: HostedAuthMenuExternalAuthResolutionInput): Promise<void>;
+}
 
 export interface ConfigCapability {
   setTheme(theme: ThemeMode): void;

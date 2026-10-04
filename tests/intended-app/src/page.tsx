@@ -573,7 +573,7 @@ async function resolveIntendedGoogleExternalAuth(
   idToken: string,
   request: HostedAuthMenuExternalAuthRequest,
 ): Promise<void> {
-  await seams.resolveHostedAuthMenuExternalAuth({
+  await seams.authMenu.resolveExternalAuth({
     kind: 'hosted_auth_menu_external_auth_resolution_v1',
     authMenuSessionId: request.authMenuSessionId,
     externalAuthRequestId: request.externalAuthRequestId,
@@ -1824,7 +1824,7 @@ class IntendedPageController {
         '[data-testid="intended-unlock-passkey"]',
       );
       if (!anchorElement) throw new Error('Passkey unlock anchor is unavailable');
-      const outcome = await this.seams.openHostedAuthMenu(
+      const outcome = await this.seams.authMenu.open(
         buildHostedAuthMenuOpenRequest({
           authMenuSessionId,
           initialMode: 'login',
@@ -1864,7 +1864,7 @@ class IntendedPageController {
         '[data-testid="intended-sync-passkey"]',
       );
       if (!anchorElement) throw new Error('Passkey sync anchor is unavailable');
-      const outcome = await this.seams.openHostedAuthMenu(
+      const outcome = await this.seams.authMenu.open(
         buildHostedAuthMenuOpenRequest({
           authMenuSessionId,
           initialMode: 'login',
@@ -1922,7 +1922,7 @@ class IntendedPageController {
         '[data-testid="intended-recover-passkey"]',
       );
       if (!anchorElement) throw new Error('Passkey recovery anchor is unavailable');
-      const outcome = await this.seams.openHostedAuthMenu(
+      const outcome = await this.seams.authMenu.open(
         buildHostedAuthMenuOpenRequest({
           authMenuSessionId,
           initialMode: 'login',
@@ -1977,12 +1977,12 @@ class IntendedPageController {
       );
       if (!anchorElement) throw new Error('Google Email OTP recovery anchor is unavailable');
       const idToken = requireGoogleIdToken(this.googleIdToken);
-      const unsubscribeExternalAuth = this.seams.onHostedAuthMenuExternalAuthRequest(
+      const unsubscribeExternalAuth = this.seams.authMenu.onExternalAuthRequest(
         resolveIntendedGoogleExternalAuth.bind(null, this.seams, idToken),
       );
       let outcome: HostedAuthMenuOutcome;
       try {
-        outcome = await this.seams.openHostedAuthMenu(
+        outcome = await this.seams.authMenu.open(
           buildHostedAuthMenuOpenRequest({
             authMenuSessionId,
             initialMode: 'login',
@@ -2526,12 +2526,12 @@ class IntendedPageController {
     const anchorElement = document.querySelector<HTMLElement>(`[data-testid="${anchorTestId}"]`);
     if (!anchorElement) throw new Error('Google Email OTP unlock anchor is unavailable');
     const idToken = requireGoogleIdToken(this.googleIdToken);
-    const unsubscribeExternalAuth = this.seams.onHostedAuthMenuExternalAuthRequest(
+    const unsubscribeExternalAuth = this.seams.authMenu.onExternalAuthRequest(
       resolveIntendedGoogleExternalAuth.bind(null, this.seams, idToken),
     );
     let outcome: HostedAuthMenuOutcome;
     try {
-      outcome = await this.seams.openHostedAuthMenu(
+      outcome = await this.seams.authMenu.open(
         buildHostedAuthMenuOpenRequest({
           authMenuSessionId,
           initialMode: 'login',
