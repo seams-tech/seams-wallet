@@ -762,10 +762,10 @@ function parseUserPreferences(
   value: unknown,
 ): NonNullable<Extract<WalletSessionAppIdentity, { kind: 'resolved' }>['userData']>['preferences'] {
   const record = requireRecordCopy(value, 'Wallet Session user preferences');
-  if (typeof record.useRelayer !== 'boolean') {
+  if (record.useRelayer !== undefined && typeof record.useRelayer !== 'boolean') {
     throw new Error('Wallet Session user preferences useRelayer is invalid');
   }
-  if (record.useNetwork !== 'testnet' && record.useNetwork !== 'mainnet') {
+  if (record.useNetwork !== undefined && record.useNetwork !== 'testnet' && record.useNetwork !== 'mainnet') {
     throw new Error('Wallet Session user preferences useNetwork is invalid');
   }
   const confirmation = requireRecordCopy(
@@ -790,8 +790,8 @@ function parseUserPreferences(
           'confirmationConfig.autoProceedDelay',
         );
   return {
-    useRelayer: record.useRelayer,
-    useNetwork: record.useNetwork,
+    ...(record.useRelayer === undefined ? {} : { useRelayer: record.useRelayer }),
+    ...(record.useNetwork === undefined ? {} : { useNetwork: record.useNetwork }),
     confirmationConfig: {
       uiMode: confirmation.uiMode,
       behavior: confirmation.behavior,

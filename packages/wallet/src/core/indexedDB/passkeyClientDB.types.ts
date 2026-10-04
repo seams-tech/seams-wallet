@@ -38,8 +38,8 @@ export interface PasskeyCredentialRecord {
 }
 
 export interface UserPreferences {
-  useRelayer: boolean;
-  useNetwork: 'testnet' | 'mainnet';
+  useRelayer?: boolean;
+  useNetwork?: 'testnet' | 'mainnet';
   confirmationConfig: ConfirmationConfig;
   // User preferences can be extended here as needed
 }

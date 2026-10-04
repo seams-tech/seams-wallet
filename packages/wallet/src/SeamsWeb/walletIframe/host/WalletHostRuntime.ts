@@ -1,3 +1,4 @@
+import type { UserPreferencesManager } from '@/core/signingEngine/session/userPreferences';
 import { syncAccount } from '@/SeamsWeb/operations/recovery/syncAccount';
 import { createWalletHostNearCommands } from '@/SeamsWeb/walletIframe/host/createNearCommands';
 import { createWalletHostEvmFamilyCommands } from '@/SeamsWeb/walletIframe/host/createEvmFamilyCommands';
@@ -146,7 +147,11 @@ export class WalletHostRuntime {
   readonly recovery: RecoveryCapability;
   readonly devices: DevicesCapability;
   readonly keys: KeyExportCapability;
-  readonly preferences: PreferencesCapability;
+  readonly preferences: Omit<
+    PreferencesCapability,
+    'setConfirmationConfig' | 'setConfirmBehavior'
+  > &
+    Pick<UserPreferencesManager, 'setConfirmationConfig' | 'setConfirmBehavior'>;
   readonly auth: AuthCapability;
   readonly registration: RegistrationCapability;
   readonly near: NearSignerCapability;
@@ -200,6 +205,16 @@ export class WalletHostRuntime {
       resumePendingAcknowledgements:
         this.resumePendingAcknowledgementsAfterExactUnlockV1.bind(this),
     });
+    const hostPreferences = {
+      flush: flushHostPreferenceProjection,
+      setCurrentWallet: userPreferences.setCurrentWallet.bind(userPreferences),
+      getCurrentWalletId: userPreferences.getCurrentWalletId.bind(userPreferences),
+      onConfirmationConfigChange: userPreferences.onConfirmationConfigChange.bind(userPreferences),
+      onCurrentWalletChange: userPreferences.onCurrentWalletChange.bind(userPreferences),
+      setConfirmBehavior: userPreferences.setConfirmBehavior.bind(userPreferences),
+      setConfirmationConfig: userPreferences.setConfirmationConfig.bind(userPreferences),
+      getConfirmationConfig: userPreferences.getConfirmationConfig.bind(userPreferences),
+    };
     const publicApi = createPublicApi({
       createNearCommands: createWalletHostNearCommands.bind(null, this.getContext.bind(this)),
       createEvmFamilyCommands: createWalletHostEvmFamilyCommands.bind(
@@ -208,17 +223,7 @@ export class WalletHostRuntime {
       ),
       nearClient: this.nearClient,
       configs: this.configs,
-      preferences: {
-        flush: flushHostPreferenceProjection,
-        setCurrentWallet: userPreferences.setCurrentWallet.bind(userPreferences),
-        getCurrentWalletId: userPreferences.getCurrentWalletId.bind(userPreferences),
-        onConfirmationConfigChange:
-          userPreferences.onConfirmationConfigChange.bind(userPreferences),
-        onCurrentWalletChange: userPreferences.onCurrentWalletChange.bind(userPreferences),
-        setConfirmBehavior: userPreferences.setConfirmBehavior.bind(userPreferences),
-        setConfirmationConfig: userPreferences.setConfirmationConfig.bind(userPreferences),
-        getConfirmationConfig: userPreferences.getConfirmationConfig.bind(userPreferences),
-      },
+      preferences: hostPreferences,
       auth: {
         ...sessionCommands,
         ...emailOtpCommands.auth,
@@ -246,7 +251,7 @@ export class WalletHostRuntime {
         exportKeypairWithUI: this.exportKeypairWithUIDomain.bind(this),
       },
     });
-    this.preferences = publicApi.preferences;
+    this.preferences = hostPreferences;
     this.auth = publicApi.auth;
     this.registration = publicApi.registration;
     this.recovery = publicApi.recovery;

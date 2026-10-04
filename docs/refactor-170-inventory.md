@@ -996,3 +996,45 @@ initial bootstrap snapshot. Two production cases pass: Email OTP lifecycle and
 passkey refresh with warm signing, step-up, and export. This checkpoint adds 60
 and removes 39 production lines, net +21. Evidence and sanitized receipts are in
 `evidence/refactor-170-preference-revisions-20261005.json`.
+
+
+### Durable preference acknowledgement checkpoint
+
+The host preference handlers await writes through the owning manager. Removed the
+handler's duplicate IndexedDB read/merge and the manager's unused application mirror
+method. Manager writes capture their wallet at invocation, execute in order, merge
+against that wallet's stored values, and publish confirmed values after storage
+succeeds. Successful acknowledgements include the current wallet-bound revision
+snapshot. The client parses read/write responses through one ordering path, so
+an acknowledgement that precedes its event still supplies the current layout.
+Failures reach the existing application rollback/flush path. A missing
+wallet row is an explicit error; the storage adapter now returns its actual result.
+
+Preference loads carry a manager revision and wallet identity. Selection, newer
+reads, writes, deletion, and disposal invalidate earlier reads. Selecting another
+wallet publishes defaults before loading that wallet's stored values. A completed
+write to a previously selected wallet updates its storage without changing the
+current wallet's projection. Observer errors cannot turn a committed write into a
+reported storage failure.
+
+The first-save audit found that records without preferences are valid, but a
+confirmation-only write produced a record rejected by required unrelated network
+and relayer settings. These are optional configuration values in both persistence
+and session-message parsing. Existing values are retained and validated; no network
+or relay choice is invented for a new wallet. Confirmation settings remain required.
+
+The browser scenario uses the actual manager and preference handlers, a real
+cross-origin router, and real IndexedDB. Its test store adapter delays reads and
+writes and injects one storage failure. It verifies late reads, first save,
+acknowledgement timing, wallet switching during a write, retained values after
+failure, and a later successful write. This scoped host harness does not substitute
+for production lifecycle coverage or the remaining full protocol acceptance.
+
+
+Nineteen selected browser cases and two final-source production lifecycle cases
+pass. The earlier production attempt passed three cases before a retryable NEAR
+fetch failure; the final refresh/export rerun passed. Build, types, declarations,
+runtime boundaries, and the bloat gate pass. Package validation and sanitized
+receipts are recorded in `evidence/refactor-170-preference-durability-20261005.json`.
+This task adds 138 and removes 123 production lines, net +15. Session revision
+ordering and execution-configuration replacement fencing remain unfinished.

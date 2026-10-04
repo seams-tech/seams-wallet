@@ -1,3 +1,4 @@
+import type { Variant } from '@shared/utils/variant';
 import { replaceWalletHostAppearance, type WalletHostConfig } from '../shared/configuration';
 import { resolveRuntimeAppearance } from '../shared/facadeBoundary';
 import {
@@ -4058,7 +4059,7 @@ export class WalletIframeRouter {
     behavior: 'requireClick' | 'skipClick',
     walletId?: string | null,
   ): Promise<void> {
-    await this.post<void>({
+    await this.requestPreferences({
       type: 'PM_SET_CONFIRM_BEHAVIOR',
       payload: { behavior, ...(walletId ? { walletId } : {}) },
     });
@@ -4068,21 +4069,26 @@ export class WalletIframeRouter {
     config: Partial<ConfirmationConfig>,
     walletId?: string | null,
   ): Promise<void> {
-    await this.post<void>({
+    await this.requestPreferences({
       type: 'PM_SET_CONFIRMATION_CONFIG',
       payload: { config, ...(walletId ? { walletId } : {}) },
     });
-    if (config.uiMode === 'none' || config.uiMode === 'modal' || config.uiMode === 'drawer') {
-      this.mirroredConfirmationUiMode = config.uiMode;
-    }
   }
 
   async getConfirmationConfig(): Promise<ConfirmationConfig> {
+    return this.requestPreferences({ type: 'PM_GET_CONFIRMATION_CONFIG' });
+  }
+
+  private async requestPreferences(request: Variant<
+    ParentToChildEnvelope,
+    'type',
+    'PM_GET_CONFIRMATION_CONFIG' | 'PM_SET_CONFIRMATION_CONFIG' | 'PM_SET_CONFIRM_BEHAVIOR'
+  >): Promise<ConfirmationConfig> {
     if (!this.state.ready || !this.state.port) await this.init();
     const connectionId = this.state.connectionId;
-    const res = await this.post<unknown>({ type: 'PM_GET_CONFIRMATION_CONFIG' });
+    const res = await this.post<unknown>(request);
     if (this.state.connectionId !== connectionId) {
-      throw new Error('Wallet iframe connection changed during preference read');
+      throw new Error('Wallet iframe connection changed during preference request');
     }
     const snapshot = parseClientPreferencesChangedPayload(res.result);
     if (!snapshot) throw new Error('Invalid wallet preference snapshot');

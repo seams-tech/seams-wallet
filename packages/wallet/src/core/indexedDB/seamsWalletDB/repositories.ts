@@ -1661,8 +1661,8 @@ function parseStoredProfilePreferences(value: unknown): UserPreferences | null |
   const useNetwork: unknown = Reflect.get(value, 'useNetwork');
   const confirmationConfig: unknown = Reflect.get(value, 'confirmationConfig');
   if (
-    typeof useRelayer !== 'boolean' ||
-    (useNetwork !== 'testnet' && useNetwork !== 'mainnet') ||
+    (useRelayer !== undefined && typeof useRelayer !== 'boolean') ||
+    (useNetwork !== undefined && useNetwork !== 'testnet' && useNetwork !== 'mainnet') ||
     confirmationConfig === null ||
     typeof confirmationConfig !== 'object' ||
     Array.isArray(confirmationConfig)
@@ -1688,8 +1688,8 @@ function parseStoredProfilePreferences(value: unknown): UserPreferences | null |
     return null;
   }
   return {
-    useRelayer,
-    useNetwork,
+    ...(useRelayer === undefined ? {} : { useRelayer }),
+    ...(useNetwork === undefined ? {} : { useNetwork }),
     confirmationConfig: {
       uiMode,
       behavior,

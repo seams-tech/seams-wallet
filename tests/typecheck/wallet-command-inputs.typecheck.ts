@@ -107,3 +107,8 @@ const timestampedPreferences: PreferencesChangedPayload = { walletId: null, conf
 const unboundPreferences: PreferencesChangedPayload = { revision: 1, confirmationConfig: preferences.getConfirmationConfig() };
 void timestampedPreferences;
 void unboundPreferences;
+
+
+declare const walletHostRuntime: WalletHostRuntime;
+const persistedPreferenceWrite: Promise<void> = walletHostRuntime.preferences.setConfirmationConfig({ uiMode: 'drawer' });
+void persistedPreferenceWrite;

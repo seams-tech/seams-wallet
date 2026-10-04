@@ -223,6 +223,25 @@ The SDK owns transient read retry and RPC handling. The browser contract is
 - Primary and hosted operation credentials are opaque. Client code must not decode
   identity, budget, expiry, authority, or signing claims from them.
 
+## Wallet preferences
+
+Preference writes keep the wallet selected when the write starts. A wallet change
+during storage work cannot redirect that write or apply its result to another
+wallet. The host acknowledges wallet-bound writes after IndexedDB commits them.
+Successful acknowledgements include the current wallet-bound preference snapshot
+and revision, so immediate UI actions do not depend on event delivery timing.
+Storage failures reject the request and leave the confirmed values unchanged.
+Application `preferences.flush()` reports those failures through its existing queue.
+
+A wallet's first confirmation preference write must produce a readable record.
+Network and relayer choices are optional configuration values; preserve them when
+present and validate their values. Confirmation preferences remain required when
+a preference record exists. Preferences for no selected wallet remain in memory.
+
+A delayed preference read cannot overwrite a later wallet selection, a newer read,
+a committed write, or disposed state. Selecting another wallet resets the display
+to default preferences until that wallet's stored preferences arrive.
+
 ## Hosted Auth Menu Entry Point
 
 The application resolves wallet configuration before sending it to the wallet

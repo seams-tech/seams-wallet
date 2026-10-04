@@ -15,7 +15,7 @@ export type UserPreferencesStorePort = ProfileLastSelectionPort & {
   updateWalletPreferences: (args: {
     walletId: WalletId;
     preferences: Partial<UserPreferences>;
-  }) => Promise<unknown>;
+  }) => Promise<UserPreferences | null>;
 };
 
 type UserPreferencesManagerDeps = {
@@ -61,11 +61,15 @@ async function resolveWalletIdForLastSelectedProfile(args: {
 }
 
 export class UserPreferencesManager {
-  private confirmationConfigChangeListeners: Set<(config: ConfirmationConfig) => void> =
-    new Set();
+  private confirmationConfigChangeListeners: Set<(config: ConfirmationConfig) => void> = new Set();
   private currentWalletChangeListeners: Set<(walletId: WalletId | null) => void> = new Set();
 
-  private currentWalletId: WalletId | undefined;
+  private currentWalletId: WalletId | null = null;
+  private lifecycle: { kind: 'active'; revision: number } | { kind: 'disposed' } = {
+    kind: 'active',
+    revision: 0,
+  };
+  private writeQueue: Promise<void> = Promise.resolve();
   private confirmationConfig: ConfirmationConfig = DEFAULT_CONFIRMATION_CONFIG;
   private unsubscribeFromIndexedDB?: () => void;
 
@@ -90,7 +94,9 @@ export class UserPreferencesManager {
   private notifyConfirmationConfigChange(config: ConfirmationConfig): void {
     if (this.confirmationConfigChangeListeners.size === 0) return;
     for (const listener of this.confirmationConfigChangeListeners) {
-      listener(config);
+      try {
+        listener(config);
+      } catch {}
     }
   }
 
@@ -107,7 +113,7 @@ export class UserPreferencesManager {
     config?: Partial<ConfirmationConfig> | null,
   ): Partial<ConfirmationConfig> {
     if (!config) return {};
-    const { uiMode, behavior, autoProceedDelay } = config as ConfirmationConfig;
+    const { uiMode, behavior, autoProceedDelay } = config;
     const next: Partial<ConfirmationConfig> = {};
     if (uiMode != null) next.uiMode = uiMode;
     if (behavior != null) next.behavior = behavior;
@@ -151,14 +157,18 @@ export class UserPreferencesManager {
         break;
       case 'user-deleted':
         if (this.currentWalletId && String(event.accountId) === String(this.currentWalletId)) {
-          this.currentWalletId = undefined;
+          this.invalidateReads();
+          this.currentWalletId = null;
           this.confirmationConfig = DEFAULT_CONFIRMATION_CONFIG;
+          this.notifyCurrentWalletChange(null);
+          this.notifyConfirmationConfigChange(this.confirmationConfig);
         }
         break;
     }
   }
 
   destroy(): void {
+    this.lifecycle = { kind: 'disposed' };
     if (this.unsubscribeFromIndexedDB) {
       this.unsubscribeFromIndexedDB();
       this.unsubscribeFromIndexedDB = undefined;
@@ -168,43 +178,21 @@ export class UserPreferencesManager {
   }
 
   getCurrentWalletId(): WalletId | null {
-    return this.currentWalletId ?? null;
+    return this.currentWalletId;
   }
 
   getConfirmationConfig(): ConfirmationConfig {
     return this.confirmationConfig;
   }
 
-  applyWalletHostConfirmationConfig(
-    args:
-      | {
-          walletId?: WalletId | null;
-          confirmationConfig: ConfirmationConfig;
-        }
-      | undefined,
-  ): void {
-    const walletId = args?.walletId;
-    const confirmationConfig = args?.confirmationConfig ?? DEFAULT_CONFIRMATION_CONFIG;
-    const sanitized = this.sanitizeConfirmationConfig(confirmationConfig);
-    const next = this.mergeConfirmationConfig(DEFAULT_CONFIRMATION_CONFIG, sanitized);
-
-    if (walletId) {
-      const prev = this.currentWalletId;
-      this.currentWalletId = walletId;
-      if (!prev || String(prev) !== String(walletId)) {
-        this.notifyCurrentWalletChange(walletId);
-      }
-    }
-
-    this.confirmationConfig = next;
-    this.notifyConfirmationConfigChange(this.confirmationConfig);
-  }
-
   setCurrentWallet(walletId: WalletId): void {
-    const prev = this.currentWalletId;
+    this.invalidateReads();
+    const previous = this.currentWalletId;
     this.currentWalletId = walletId;
-    if (!prev || String(prev) !== String(walletId)) {
+    if (previous !== walletId) {
+      this.confirmationConfig = DEFAULT_CONFIRMATION_CONFIG;
       this.notifyCurrentWalletChange(walletId);
+      this.notifyConfirmationConfigChange(this.confirmationConfig);
     }
     if (!this.deps.store.isDisabled()) {
       void this.loadSettingsForWallet(walletId).catch(() => undefined);
@@ -219,21 +207,30 @@ export class UserPreferencesManager {
     }
   }
 
-  private applyStoredPreferences(
-    preferences: { confirmationConfig?: ConfirmationConfig } | undefined,
-  ): void {
-    if (!preferences?.confirmationConfig) return;
-    const sanitized = this.sanitizeConfirmationConfig(preferences.confirmationConfig);
-    this.confirmationConfig = this.mergeConfirmationConfig(this.confirmationConfig, sanitized);
-    this.notifyConfirmationConfigChange(this.confirmationConfig);
+  private assertActive(): void {
+    if (this.lifecycle.kind === 'disposed') throw new Error('Wallet preferences are disposed');
+  }
+
+  private invalidateReads(): number {
+    if (this.lifecycle.kind === 'disposed') throw new Error('Wallet preferences are disposed');
+    return ++this.lifecycle.revision;
   }
 
   private async loadSettingsForWallet(walletId: WalletId): Promise<void> {
     if (this.deps.store.isDisabled()) return;
-    const preferences = await this.deps.store
-      .getWalletPreferences(walletId)
-      .catch(() => undefined);
-    this.applyStoredPreferences(preferences);
+    const revision = this.invalidateReads();
+    const preferences = await this.deps.store.getWalletPreferences(walletId);
+    if (
+      this.lifecycle.kind !== 'active' ||
+      this.lifecycle.revision !== revision ||
+      this.currentWalletId !== walletId
+    )
+      return;
+    this.confirmationConfig = this.mergeConfirmationConfig(
+      DEFAULT_CONFIRMATION_CONFIG,
+      this.sanitizeConfirmationConfig(preferences.confirmationConfig),
+    );
+    this.notifyConfirmationConfigChange(this.confirmationConfig);
   }
 
   async reloadUserSettings(): Promise<void> {
@@ -242,23 +239,52 @@ export class UserPreferencesManager {
     await this.loadSettingsForWallet(walletId);
   }
 
-  setConfirmBehavior(behavior: 'requireClick' | 'skipClick'): void {
-    this.confirmationConfig = this.mergeConfirmationConfig(this.confirmationConfig, { behavior });
-    this.notifyConfirmationConfigChange(this.confirmationConfig);
-    void this.saveUserSettings();
+  setConfirmBehavior(behavior: 'requireClick' | 'skipClick'): Promise<void> {
+    return this.setConfirmationConfig({ behavior });
   }
 
-  setConfirmationConfig(config: Partial<ConfirmationConfig>, opts?: { persist?: boolean }): void {
-    const sanitized = this.sanitizeConfirmationConfig(config);
-    this.confirmationConfig = this.mergeConfirmationConfig(this.confirmationConfig, sanitized);
-    this.notifyConfirmationConfigChange(this.confirmationConfig);
-    if (opts?.persist !== false) {
-      void this.saveUserSettings();
+  setConfirmationConfig(config: Partial<ConfirmationConfig>): Promise<void> {
+    this.invalidateReads();
+    const walletId = this.currentWalletId;
+    const patch = this.sanitizeConfirmationConfig(config);
+    const write = this.writeQueue.then(this.commitConfirmationConfig.bind(this, walletId, patch));
+    this.writeQueue = write.then(settledPreferenceWrite, settledPreferenceWrite);
+    return write;
+  }
+
+  private async commitConfirmationConfig(
+    walletId: WalletId | null,
+    patch: Partial<ConfirmationConfig>,
+  ): Promise<void> {
+    this.assertActive();
+    let base = this.confirmationConfig;
+    if (walletId !== null) {
+      if (this.deps.store.isDisabled()) throw new Error('Wallet preference storage is unavailable');
+      const stored = await this.deps.store.getWalletPreferences(walletId);
+      base = this.mergeConfirmationConfig(
+        DEFAULT_CONFIRMATION_CONFIG,
+        this.sanitizeConfirmationConfig(stored.confirmationConfig),
+      );
+    }
+    const next = this.mergeConfirmationConfig(base, patch);
+    if (walletId !== null) {
+      this.assertActive();
+      const persisted = await this.deps.store.updateWalletPreferences({
+        walletId,
+        preferences: { confirmationConfig: next },
+      });
+      if (persisted === null) throw new Error('Wallet preference target does not exist');
+    }
+    if (this.lifecycle.kind === 'active' && this.currentWalletId === walletId) {
+      this.invalidateReads();
+      this.confirmationConfig = next;
+      this.notifyConfirmationConfigChange(next);
     }
   }
 
   async loadUserSettings(): Promise<void> {
     if (this.deps.store.isDisabled()) return;
+    const revision = this.invalidateReads();
     const last = await getLastSelectedNearAccount(this.deps.store).catch(() => null);
     if (!last) {
       console.debug('[SigningEngine]: No last user found, using default settings');
@@ -272,28 +298,13 @@ export class UserPreferencesManager {
       console.debug('[SigningEngine]: Last profile has no wallet-bound signer metadata');
       return;
     }
+    if (this.lifecycle.kind !== 'active' || this.lifecycle.revision !== revision) return;
     this.currentWalletId = walletId;
-    await this.loadSettingsForWallet(this.currentWalletId);
-  }
-
-  async saveUserSettings(): Promise<void> {
-    try {
-      const walletId = this.currentWalletId ?? undefined;
-      if (!walletId) {
-        console.warn(
-          '[UserPreferences]: No current wallet set; keeping confirmation config in memory only',
-        );
-        return;
-      }
-
-      await this.deps.store.updateWalletPreferences({
-        walletId,
-        preferences: {
-          confirmationConfig: this.confirmationConfig,
-        },
-      });
-    } catch (error) {
-      console.warn('[SigningEngine]: Failed to save user settings:', error);
-    }
+    this.confirmationConfig = DEFAULT_CONFIRMATION_CONFIG;
+    this.notifyCurrentWalletChange(walletId);
+    this.notifyConfirmationConfigChange(this.confirmationConfig);
+    await this.loadSettingsForWallet(walletId);
   }
 }
+
+function settledPreferenceWrite(): void {}

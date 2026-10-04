@@ -36,7 +36,7 @@ window.preferenceSnapshot = () => ({ pending: pendingPreferences.length, writes:
 window.answerPreference = function(ok) {
   const message = pendingPreferences.shift();
   if (!message) throw new Error('No preference write pending');
-  if (ok) postResult(message.requestId, undefined);
+  if (ok) postResult(message.requestId, { walletId: message.payload.walletId ?? null, revision: ++preferenceRevision, confirmationConfig: { behavior: 'requireClick', uiMode: 'modal', autoProceedDelay: 0, ...message.payload.config } });
   else adoptedPort.postMessage({ type: 'ERROR', requestId: message.requestId, payload: { code: 'preference_refused', message: 'Preference refused' } });
 };
 window.pushPreference = function() {

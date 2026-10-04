@@ -106,7 +106,7 @@ const PREFERENCES_PUSH_STUB = `
         if (type === 'PM_SET_CONFIRMATION_CONFIG') {
           const config = message?.payload?.config || {};
           confirmationConfig = { ...confirmationConfig, ...config };
-          respond(requestId, undefined);
+          respond(requestId, { walletId, revision: ++revision, confirmationConfig });
           pushPreferencesChanged();
           return;
         }

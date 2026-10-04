@@ -63,6 +63,7 @@ export const buildWalletServiceHtml = (options: WalletServiceHtmlOptions = {}): 
     console.log('[wallet-stub] script booted with config', CONFIG);
     let adoptedPort = null;
     let exactSessionState = CONFIG.exactSessionState;
+    let basePreferenceSnapshot = { walletId: null, revision: 0, confirmationConfig: { uiMode: 'modal', behavior: 'requireClick', autoProceedDelay: 0 } };
     const pendingRequests = new Map();
 
     function postResult(requestId, result) {
@@ -106,9 +107,19 @@ export const buildWalletServiceHtml = (options: WalletServiceHtmlOptions = {}): 
             return;
           }
 
+          if (type === 'PM_SET_CONFIRMATION_CONFIG' || type === 'PM_SET_CONFIRM_BEHAVIOR') {
+            basePreferenceSnapshot = {
+              walletId: event.data.payload?.walletId ?? basePreferenceSnapshot.walletId,
+              revision: basePreferenceSnapshot.revision + 1,
+              confirmationConfig: { ...basePreferenceSnapshot.confirmationConfig, ...event.data.payload?.config, ...(event.data.payload?.behavior ? { behavior: event.data.payload.behavior } : {}) },
+            };
+            postResult(requestId, basePreferenceSnapshot);
+            return;
+          }
+
           if (type === 'PM_GET_CONFIRMATION_CONFIG') {
             try {
-              postResult(requestId, { walletId: null, revision: 0, confirmationConfig: { uiMode: 'modal', behavior: 'requireClick', autoProceedDelay: 0 } });
+              postResult(requestId, basePreferenceSnapshot);
             } catch (err) {
               console.error('Failed to respond to PM_GET_CONFIRMATION_CONFIG', err);
             }
