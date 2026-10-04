@@ -350,3 +350,113 @@ test('session and expiry events outrank delayed reads and retain a newer unlock'
     JSON.stringify({ eventWon, expiryWon, afterOldEvents }, null, 2),
   );
 });
+
+const richSessionScript = `
+const richAdopt = adoptPort;
+let heldRich = null;
+let holdRich = false;
+let richRequests = 0;
+let richAuthenticated = true;
+function richSessionMessage(receive, event) {
+  const message = event.data;
+  if (message.type !== 'PM_GET_WALLET_SESSION') return receive(event);
+  richRequests++;
+  const walletId = message.payload?.walletId ?? currentWallet;
+  // Raw wire responses exercise the production session parser.
+  const result = {
+    appIdentity: { kind: 'resolved', walletId, nearAccountId: walletId,
+      nearOperationalPublicKey: null, userData: null, authMethods: [],
+      thresholdEcdsaEthereumAddress: null, thresholdEcdsaPublicKeyB64u: null },
+    authentication: richAuthenticated ? { kind: 'authenticated', walletId, authMethod: 'passkey' } : { kind: 'signed_out' },
+    capabilityProjection: { kind: 'not_requested' }, nonceDiagnostics: null,
+  };
+  if (holdRich) {
+    holdRich = false;
+    heldRich = { requestId: message.requestId, result };
+  } else postResult(message.requestId, result);
+}
+function richAdoptPort(port) {
+  richAdopt(port);
+  adoptedPort.onmessage = richSessionMessage.bind(null, adoptedPort.onmessage);
+}
+adoptPort = richAdoptPort;
+window.holdRich = function() { holdRich = true; };
+window.richState = function() { return { held: heldRich !== null, requests: richRequests }; };
+window.releaseRich = function() { const held = heldRich; heldRich = null; postResult(held.requestId, held.result); };
+window.lockRich = function() { richAuthenticated = false; publishSessionProjection({ kind: 'wallet_locked' }, currentWallet); };
+`;
+
+function beginRichRead(walletId: string | null): void {
+  const probe = (window as any).sessionProbe;
+  probe.read = probe.router.getWalletSession(walletId ?? undefined).then(readSucceeded, readFailed);
+}
+
+function holdRich(): void {
+  (window as any).holdRich();
+}
+
+function releaseRich(): void {
+  (window as any).releaseRich();
+}
+
+function richState(): unknown {
+  return (window as any).richState();
+}
+
+function lockRich(): void {
+  (window as any).lockRich();
+}
+
+test('rich session reads reconcile selection and authority changes while preserving explicit wallet queries', async ({
+  page,
+}, info) => {
+  await setupBasicPasskeyTest(page, { skipSeamsWebInit: true });
+  await registerWalletServiceRoute(
+    page,
+    buildWalletServiceHtml({ extraScript: hostScript + richSessionScript }),
+    '**://wallet.example.localhost/wallet-service*',
+  );
+  await page.addScriptTag({
+    content: [recordLoginStatus, readSucceeded, readFailed, readClient].map(String).join('\n'),
+  });
+  await page.evaluate(initializeClient);
+  const frame = page.frames().find(walletFrame)!;
+  await frame.evaluate(holdRich);
+  await page.evaluate(beginRichRead, null);
+  await expect.poll(frame.evaluate.bind(frame, richState)).toMatchObject({ held: true });
+  await frame.evaluate(selectWallet, 'bob.testnet');
+  await expect
+    .poll(page.evaluate.bind(page, readClient))
+    .toMatchObject({ state: { walletId: 'bob.testnet' } });
+  await frame.evaluate(releaseRich);
+  const selected = await page.evaluate(finishRead);
+  expect(selected).toMatchObject({
+    kind: 'resolved',
+    state: { authentication: { walletId: 'bob.testnet' } },
+  });
+
+  await frame.evaluate(holdRich);
+  await page.evaluate(beginRichRead, 'alice.testnet');
+  await expect.poll(frame.evaluate.bind(frame, richState)).toMatchObject({ held: true });
+  await frame.evaluate(lockRich);
+  await expect
+    .poll(page.evaluate.bind(page, readClient))
+    .toMatchObject({ state: { kind: 'wallet_locked' } });
+  await frame.evaluate(releaseRich);
+  const explicit = await page.evaluate(finishRead);
+  expect(explicit).toMatchObject({
+    kind: 'resolved',
+    state: { appIdentity: { walletId: 'alice.testnet' }, authentication: { kind: 'signed_out' } },
+  });
+
+  await frame.evaluate(holdRich);
+  await page.evaluate(beginRichRead, null);
+  await expect.poll(frame.evaluate.bind(frame, richState)).toMatchObject({ held: true });
+  await page.evaluate(disposeClient);
+  const disposed = await page.evaluate(finishRead);
+  expect(disposed).toMatchObject({ kind: 'rejected' });
+  await writeFile(
+    info.outputPath('rich-session-ordering.json'),
+    JSON.stringify({ selected, explicit, disposed }, null, 2),
+  );
+});

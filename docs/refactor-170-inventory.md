@@ -1385,3 +1385,30 @@ pattern because the production output no longer exports its internal constructor
 Evidence is recorded in `evidence/refactor-170-auth-api-20261005.json`.
 `auth.onSessionChange`, remaining public auth consolidation, demo callback
 internalization, worker optimization, and complete R170 acceptance remain open.
+
+### Session subscription prerequisite: rich-read ordering
+
+The `auth.onSessionChange` audit found that exact-session snapshots reject stale
+observations, while rich `auth.getSession` responses did not recheck the client
+selection or observation revision. A delayed rich response could therefore expose
+an earlier wallet or authority state to a future public subscription.
+
+The rich read now captures the connection identity and retries if the observed
+selection generation or session revision changes before its response arrives.
+Current-wallet reads follow current selection. Explicit-wallet reads keep their
+requested identity across retries. A changed connection or disposed router
+rejects the read. Concurrent same-generation reads still share their in-flight
+promise; completed responses are not cached.
+
+This covers changes the client has observed. It does not claim an atomic snapshot
+of all stores or prevent a host change after a completed read. The public
+subscription still needs to deliver the full `WalletSession`, suppress superseded
+asynchronous deliveries, handle connection replacement and disposal, and replace
+the old boolean login callback and React read-back path. Its implementation remains
+open. Do not rename the boolean callback and call the public state contract done.
+
+Verification passes 15 browser cases and two production cases (delayed restoration
+and refresh with signing, step-up, and export). Production build, wallet/browser
+types, and bloat checks pass. Production TypeScript adds 19 lines and removes five,
+net +14. The browser scenario adds 110 test lines and emits an ordering artifact.
+Evidence: `evidence/refactor-170-session-read-ordering-20261005.json`.

@@ -3528,11 +3528,25 @@ export class WalletIframeRouter {
   }
 
   private async readWalletSession(expectedWalletId: string | undefined): Promise<WalletSession> {
-    const res = await this.post<unknown>({
-      type: 'PM_GET_WALLET_SESSION',
-      payload: expectedWalletId ? { walletId: expectedWalletId } : undefined,
-    });
-    return parseWalletSessionFromBoundary(res.result, expectedWalletId);
+    const connectionId = this.state.connectionId;
+    for (;;) {
+      const selectionGeneration = this.sessionSelectionGeneration;
+      const observationRevision = this.sessionObservationRevision;
+      const res = await this.post<unknown>({
+        type: 'PM_GET_WALLET_SESSION',
+        payload: expectedWalletId ? { walletId: expectedWalletId } : undefined,
+      });
+      if (this.disposed || this.state.connectionId !== connectionId) {
+        throw new Error('Wallet iframe connection changed during session request');
+      }
+      if (
+        selectionGeneration !== this.sessionSelectionGeneration ||
+        observationRevision !== this.sessionObservationRevision
+      ) {
+        continue;
+      }
+      return parseWalletSessionFromBoundary(res.result, expectedWalletId);
+    }
   }
 
   async requestEmailOtpChallenge(payload: {
