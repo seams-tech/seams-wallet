@@ -613,7 +613,9 @@ command inputs require resolved wallet and chain/account identities.
 Device linking and account sync also have explicit application and host owners.
 The shared public API no longer requires a signing engine or constructs a host
 execution domain. The public-client dependency gate remains open: the application
-constructor and coordinator still retain execution infrastructure and preferences. Preference
+constructor and coordinator still retain execution infrastructure. Application
+preference display state is now memory-only; the host retains durable preferences.
+Acknowledged preference synchronization and failure-before-signing remain pending. Preference
 synchronization, protocol ordering, complete selective-loading evidence, and
 consumer/release acceptance remain unfinished. See `refactor-170-inventory.md`
 for implementation and verification checkpoints.

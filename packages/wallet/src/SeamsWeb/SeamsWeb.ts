@@ -1,3 +1,5 @@
+import { ClientPreferenceState } from '@/SeamsWeb/walletIframe/client/preferenceState';
+import { createApplicationPreferences } from '@/SeamsWeb/walletIframe/client/preferences';
 import { createApplicationDeviceCommands } from '@/SeamsWeb/walletIframe/client/deviceCommands';
 import { createApplicationNearCommands } from '@/SeamsWeb/walletIframe/client/nearCommands';
 import { createApplicationEvmFamilyCommands } from '@/SeamsWeb/walletIframe/client/evmFamilyCommands';
@@ -89,6 +91,7 @@ import { createServerAllocatedWalletId, walletIdFromString } from '@shared/utils
  * with flexible event-based callbacks for custom UX implementation
  */
 export class SeamsWeb {
+  private readonly preferenceState = new ClientPreferenceState();
   private readonly signingEngine: SeamsWebSigningSurface;
   private readonly nearClient: NearClient;
   readonly configs: SeamsConfigsReadonly;
@@ -129,7 +132,7 @@ export class SeamsWeb {
     try {
       this.signingEngine.setAppearance(this.appearance);
     } catch {}
-    const userPreferences = this.signingEngine.getUserPreferences();
+    const userPreferences = this.preferenceState;
     this.walletIframe = new WalletIframeCoordinator({
       configs: this.configs,
       signingEngine: this.signingEngine,
@@ -148,7 +151,7 @@ export class SeamsWeb {
       createEvmFamilyCommands: createApplicationEvmFamilyCommands.bind(null, this.walletIframe),
       nearClient: this.nearClient,
       configs: this.configs,
-      userPreferences,
+      preferences: createApplicationPreferences(userPreferences, this.walletIframe),
       getWalletIframe: this.getWalletIframe.bind(this),
       auth: {
         ...sessionCommands,
@@ -263,6 +266,7 @@ export class SeamsWeb {
     };
   }
   dispose(): void {
+    this.preferenceState.dispose();
     this.walletIframe.dispose();
     this.signingEngine.dispose();
   }

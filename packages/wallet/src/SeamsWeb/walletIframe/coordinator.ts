@@ -1,4 +1,4 @@
-import type { UserPreferencesManager } from '@/core/signingEngine/session/userPreferences';
+import type { PreferenceState } from './client/preferenceState';
 import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { AppearanceConfig, SeamsConfigsReadonly } from '@/core/types/seams';
 import type { WalletIframeRouter } from '@/SeamsWeb/walletIframe/client/router';
@@ -43,7 +43,7 @@ function walletOriginHostname(walletOrigin: string): string {
 interface WalletIframeCoordinatorDeps {
   configs: SeamsConfigsReadonly;
   signingEngine: WalletIframeWarmupSurface;
-  userPreferences: UserPreferencesManager;
+  userPreferences: PreferenceState;
   getAppearance: () => AppearanceConfig;
 }
 
@@ -54,7 +54,7 @@ interface WalletIframeCoordinatorDeps {
 export class WalletIframeCoordinator {
   private readonly configs: SeamsConfigsReadonly;
   private readonly signingEngine: WalletIframeWarmupSurface;
-  private readonly userPreferences: UserPreferencesManager;
+  private readonly userPreferences: PreferenceState;
   private readonly getAppearance: () => AppearanceConfig;
 
   private iframeRouter: WalletIframeRouter | null = null;

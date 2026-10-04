@@ -221,7 +221,16 @@ export class WalletHostRuntime {
       ),
       nearClient: this.nearClient,
       configs: this.configs,
-      userPreferences,
+      preferences: {
+        setCurrentWallet: userPreferences.setCurrentWallet.bind(userPreferences),
+        getCurrentWalletId: userPreferences.getCurrentWalletId.bind(userPreferences),
+        onConfirmationConfigChange:
+          userPreferences.onConfirmationConfigChange.bind(userPreferences),
+        onCurrentWalletChange: userPreferences.onCurrentWalletChange.bind(userPreferences),
+        setConfirmBehavior: userPreferences.setConfirmBehavior.bind(userPreferences),
+        setConfirmationConfig: userPreferences.setConfirmationConfig.bind(userPreferences),
+        getConfirmationConfig: userPreferences.getConfirmationConfig.bind(userPreferences),
+      },
       getWalletIframe: this.getWalletIframe.bind(this),
       auth: {
         ...sessionCommands,

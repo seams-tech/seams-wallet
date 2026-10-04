@@ -714,3 +714,26 @@ and third-device linking with signing/export/revocation, and empty-storage resto
 The restore case uses the hosted auth flow; separate acceptance of the public
 `recovery.syncAccount` transport remains pending. Sanitized results and source hashes
 are in `evidence/refactor-170-device-commands-20261005.json`.
+
+### Application preference state separation
+
+The application now constructs `ClientPreferenceState` for synchronous display
+state. The coordinator consumes the narrow `PreferenceState` contract. The host
+continues to bind its durable preference manager directly. Shared public API
+construction accepts the completed preference capability and no longer selects
+application versus host preference behavior.
+
+Application preference writes now live in `walletIframe/client/preferences.ts`.
+The existing ordered dispatch and captured wallet target remain intact. Background
+rejections are handled. A bundle graph of the client preference modules contains
+only those two modules and the existing confirmation defaults/types module.
+
+This checkpoint does not complete preference synchronization. Confirmed state plus
+pending patches, rollback, `flush()`, retained failure reporting, revision ordering,
+and waiting before signing remain required. `SeamsWeb` still constructs a signing
+runtime for other remaining dependencies.
+
+The production build, Wallet/state type checks, and bloat gate passed. Five
+preference browser cases and two production unlock/refresh lifecycle cases passed.
+Source hashes and sanitized results are in
+`evidence/refactor-170-preference-state-20261005.json`.

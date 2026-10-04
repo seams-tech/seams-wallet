@@ -1,5 +1,4 @@
 import type { NearClient } from '@/core/rpcClients/near/NearClient';
-import type { UserPreferencesManager } from '@/core/signingEngine/session/userPreferences';
 import type { SeamsConfigsReadonly } from '@/core/types/seams';
 import { awaitNearReady } from '@/SeamsWeb/publicApi/awaitNearReady';
 import {
@@ -13,7 +12,6 @@ import {
   type KeyExportDomainMethods,
 } from '@/SeamsWeb/publicApi/keyExport';
 import { createNearSignerCapability } from '@/SeamsWeb/publicApi/near';
-import { createPreferencesCapability } from '@/SeamsWeb/publicApi/preferences';
 import { createTempoSignerCapability } from '@/SeamsWeb/publicApi/tempo';
 import type {
   AuthCapability,
@@ -78,7 +76,7 @@ type PublicApiDependencies = {
   createEvmFamilyCommands: CreateEvmFamilyCommands;
   nearClient: NearClient;
   configs: SeamsConfigsReadonly;
-  userPreferences: UserPreferencesManager;
+  preferences: PreferencesCapability;
   getWalletIframe: () => WalletIframeCoordinator;
   auth: AuthCapability;
   registration: RegistrationCapabilityDomainMethods;
@@ -122,10 +120,7 @@ export function createPublicApi(deps: PublicApiDependencies): SeamsWebPublicApi 
       onWalletIframePreferencesChanged: (listener): (() => void) =>
         deps.getWalletIframe().onPreferencesChanged(listener),
     },
-    preferences: createPreferencesCapability({
-      userPreferences: deps.userPreferences,
-      getWalletIframe: deps.getWalletIframe,
-    }),
+    preferences: deps.preferences,
     auth,
     registration: {
       resumePendingEcdsaRegistration: deps.registration.resumePendingEcdsaRegistration,
