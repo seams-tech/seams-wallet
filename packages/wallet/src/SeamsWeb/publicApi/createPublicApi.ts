@@ -66,15 +66,19 @@ export interface WalletIframeControlCapability {
   ): () => void;
 }
 
-export type RegistrationCapabilityDomainMethods = {
-  resumePendingEcdsaRegistration: RegistrationCapability['resumePendingEcdsaRegistration'];
-  getNearProvisioningState: RegistrationCapability['getNearProvisioningState'];
+export type WalletRegistrationCommands = Pick<
+  RegistrationCapability,
+  | 'registerWallet'
+  | 'getNearProvisioningState'
+  | 'resumePendingEcdsaRegistration'
+  | 'addWalletSigner'
+  | 'addPasskey'
+  | 'revokeAuthMethod'
+  | 'addEmailOtp'
+>;
+
+export type RegistrationCapabilityDomainMethods = WalletRegistrationCommands & {
   onNearProvisioningStateChanged: RegistrationCapability['onNearProvisioningStateChanged'];
-  addWalletSigner: RegistrationCapability['addWalletSigner'];
-  addPasskey: RegistrationCapability['addPasskey'];
-  addEmailOtp: RegistrationCapability['addEmailOtp'];
-  revokeAuthMethod: RegistrationCapability['revokeAuthMethod'];
-  registerWallet: RegistrationCapability['registerWallet'];
   registerPasskey: RegistrationCapability['registerPasskey'];
   requestEmailOtpEnrollmentChallenge: RegistrationCapability['requestEmailOtpEnrollmentChallenge'];
   enrollEmailOtp: RegistrationCapability['enrollEmailOtp'];

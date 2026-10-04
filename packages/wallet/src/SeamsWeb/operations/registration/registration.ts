@@ -289,9 +289,7 @@ import {
 // Re-exported so this module's public surface is unchanged by the move.
 export {
   REGISTRATION_TIMING_LABEL,
-  WALLET_IFRAME_TRANSPORT_TIMING_LABEL,
   emitRegistrationTimingSpan,
-  isRegistrationBenchmarkDiagnosticsEnabled,
   parseYaoServerTimingBuckets,
   recordStrictEcdsaServerTimingBuckets,
 } from './registrationTiming';

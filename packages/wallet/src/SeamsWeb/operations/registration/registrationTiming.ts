@@ -9,8 +9,7 @@
  * a timing branch — it is a timing helper, not a general utility.
  */
 
-import { isRegistrationBenchmarkDiagnosticsEnabled } from '@/core/signingEngine/walletCustody/ceremonyDriver';
-export { isRegistrationBenchmarkDiagnosticsEnabled } from '@/core/signingEngine/walletCustody/ceremonyDriver';
+import { isRegistrationBenchmarkDiagnosticsEnabled } from '@/core/diagnostics/registration';
 import { isObject } from '@shared/utils/validation';
 import type {
   RegistrationHooksOptions,
@@ -161,9 +160,6 @@ export function parseYaoServerTimingBuckets(
   }
   return parsed;
 }
-
-export const WALLET_IFRAME_TRANSPORT_TIMING_LABEL =
-  '[Registration] wallet iframe transport timing summary';
 
 export function emitNearRegistrationTiming(input: {
   ceremonyId: string;

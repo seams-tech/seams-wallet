@@ -201,10 +201,10 @@ remove that dependency overlap while retaining these distinctions.
 | `auth.requestEmailOtpChallenge`, `requestEmailOtpSigningSessionChallenge`, `refreshEmailOtpSigningSession` | `SeamsWeb` domain methods → matching router requests | H: `host/handlers/emailOtp.ts`; challenge purpose and session scope remain distinct. |
 | `auth.loginWithEmailOtpEcdsaCapability`, `unlockAddedEmailOtpWallet` | Domain → login/unlock-added router methods | H: Email OTP handler and selected factor activation. |
 | `auth.beginGoogleEmailOtpWalletAuth` | Domain → router flow proxy | C proxy for H flow, including resend/reroll/submit/complete/cancel; callbacks and terminal results remain correlated to the flow. |
-| `registration.registerWallet`, `registerWithEmailOtp`, `registerPasskey` | `createPublicApi.ts` aliases/delegates to `SeamsWeb` domain; passkey builds registration input | H registration via `PM_REGISTER_WALLET`; preserve selected auth method and signer set. `registerWithEmailOtp` currently aliases `registerWallet`. |
-| `registration.addWalletSigner`, `addPasskey`, `addEmailOtp`, `revokeAuthMethod` | Domain → matching router messages | H registration/auth-method handlers; preserve exact authorization and effect/retry semantics. |
+| `registration.registerWallet`, `registerWithEmailOtp`, `registerPasskey` | `createPublicApi.ts` delegates to `client/registrationCommands.ts`; passkey builds registration input | H registration via `PM_REGISTER_WALLET`; preserve selected auth method and signer set. `registerWithEmailOtp` currently aliases `registerWallet`. |
+| `registration.addWalletSigner`, `addPasskey`, `addEmailOtp`, `revokeAuthMethod` | `client/registrationCommands.ts` → matching router messages | H registration/auth-method handlers; preserve exact authorization and effect/retry semantics. |
 | `registration.requestEmailOtpEnrollmentChallenge`, `enrollEmailOtp` | Domain → enrollment router requests | H Email OTP enrollment. |
-| `registration.resumePendingEcdsaRegistration`, `getNearProvisioningState` | Domain → resume/provisioning router requests | H registration state/replay; R152/R153 overlap. |
+| `registration.resumePendingEcdsaRegistration`, `getNearProvisioningState` | `client/registrationCommands.ts` → resume/provisioning router requests | H registration state/replay; R152/R153 overlap. |
 | `registration.onNearProvisioningStateChanged`, `awaitNearReady` | Lifecycle subscription; `publicApi/awaitNearReady.ts` combines read and subscription | C observation of H state, with timeout and disposal; pending NEAR must not invalidate an EVM-ready wallet. |
 | `near.registerNearWallet`, `evm.registerEvmWallet` | Capability builds registration input → router `registerWallet` | H unified registration; C retains public argument/result adaptation. |
 | `near.fundImplicitNearAccountForTesting` | `publicApi/near.ts` → router test-funding request | H NEAR handler; preserve test-only scope. |
@@ -507,3 +507,42 @@ includes both NEAR names but does not include every alias in its sum. Several
 workers can also initialize the same WASM URL in separate execution contexts;
 network cache reuse and compilation/instantiation cost are separate measurements.
 No binary or alias should be deleted without auditing all emitted URL consumers.
+
+### Host composition extraction checkpoint
+
+The mixed facade now selects registration commands at construction:
+`walletIframe/client/registrationCommands.ts` owns dispatch, application callbacks,
+and the post-registration session refresh. `walletIframe/host/createRegistrationCommands.ts`
+owns registration, signer/factor addition, revocation, provisioning reads, and
+registration replay through the existing `RegistrationWebContext`. Neither command
+factory imports or instantiates `SeamsWeb`. Their old mixed methods were removed.
+
+The application command module's standalone esbuild input graph contains eight
+modules: the command module, the registration diagnostics flag, shared normalization,
+validation, errors and domain IDs, chain config, and chain-target identifiers.
+It contains no worker, custody implementation, or IndexedDB modules. The local
+bundle and metafile are retained under `.artifacts/r170-registration-split/`.
+The diagnostics flag moved out of the custody driver so reading it cannot pull
+custody execution into an application module.
+
+`walletIframe/host/createDeviceDomain.ts` also owns host device composition.
+`SeamsWeb` still constructs the signing runtime and selects both host factories;
+`host/context.ts` still constructs `SeamsWeb`. The host composition cutover,
+application-only facade, and full public-client dependency gate remain open.
+
+Validation of the registration extraction: Wallet type checking, intended-test
+and wallet-state type checking, the production build, and the bloat gate pass.
+Nine production-browser contracts pass: the two asset scenarios, all four
+single-signer-family factor-addition matrix cases, the passkey-to-Email-OTP
+addition/revocation flow, and the Ed25519 and ECDSA add-signer contracts. The ECDSA
+case includes a lost finalize response and NEAR/Tempo/Arc signing after unlock.
+The first factor-addition attempt was an environment failure (expired Google
+token); the repository's token-refresh command restored the configured credential
+and the rerun passed. Retained result summaries are in
+`.artifacts/r170-registration-split/verification.json`.
+
+Reproduce the factor and signer cases with a fresh production build:
+
+```sh
+SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/auth-method-addition.matrix.contract.test.ts e2e/intended-behaviours/passkey.add-email-otp.contract.test.ts e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts --grep 'gains|a passkey wallet can add|public ECDSA add-signer|public Ed25519 Yao add-signer'
+```

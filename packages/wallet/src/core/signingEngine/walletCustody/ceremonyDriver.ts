@@ -1,3 +1,4 @@
+import { isRegistrationBenchmarkDiagnosticsEnabled } from '@/core/diagnostics/registration';
 import { secureRandomId } from '@shared/utils/secureRandomId';
 import type { WalletCustodyCeremonyCommitPayload } from '@shared/passkey-custody';
 import type { WalletCustodyCeremonyWorkerOperationMap } from '../workerManager/workerTypes';
@@ -254,10 +255,6 @@ function assertEvmCompletionMatchesCommit(
   if (preActivation.clientRootPublicKey33B64u !== completion.activation.clientRootPublicKey33B64u) {
     throw new Error('EVM custody activation changed the client root public key');
   }
-}
-
-export function isRegistrationBenchmarkDiagnosticsEnabled(): boolean {
-  return Reflect.get(globalThis, '__SEAMS_REGISTRATION_BENCHMARK_DIAGNOSTICS') === true;
 }
 
 export function recordWalletCustodyTiming(

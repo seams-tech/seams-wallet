@@ -1,23 +1,11 @@
 import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import { BrowserSigningSurface } from '@/SeamsWeb/signingSurface/BrowserSigningSurface';
 import type { ExactWalletSessionAuthorization } from '@/core/signingEngine/session/persistence/walletSessionAuthorizationProjection';
-import {
-  addWalletSigner as addWalletSignerWithUnifiedCeremony,
-  isRegistrationBenchmarkDiagnosticsEnabled,
-  registerWallet as registerWalletWithUnifiedCeremony,
-  WALLET_IFRAME_TRANSPORT_TIMING_LABEL,
-} from '@/SeamsWeb/operations/registration/registration';
-import {
-  resumePendingNearRegistrations,
-  resumePendingEcdsaRegistrationFromStoredCommit,
-} from '@/SeamsWeb/operations/registration/pendingRegistrationRecovery';
+import { resumePendingNearRegistrations } from '@/SeamsWeb/operations/registration/pendingRegistrationRecovery';
 import {
   resumePendingWalletRecoveries,
   type WalletRecoveryResumeResult,
 } from '@/SeamsWeb/operations/recovery/walletRecoveryCommit';
-import { addPasskeyWalletAuthMethod } from '@/SeamsWeb/operations/authMethods/passkey/addPasskey';
-import { revokeWalletAuthMethodOperation } from '@/SeamsWeb/operations/authMethods/revokeAuthMethod';
-import { addEmailOtpWalletAuthMethod } from '@/SeamsWeb/operations/authMethods/emailOtp/addEmailOtp';
 import { MinimalNearClient, type NearClient } from '@/core/rpcClients/near/NearClient';
 import type {
   RegistrationResult,
@@ -43,8 +31,6 @@ import {
   RegistrationEventPhase,
   UnlockEventPhase,
 } from '@/core/types/sdkSentEvents';
-import { readNearProvisioningState } from '@/core/signingEngine/flows/registration/nearProvisioningRegistry';
-import { cloneAuthenticatorOptions } from '@/core/types/authenticatorOptions';
 import { IndexedDBManager } from '@/core/indexedDB';
 import type {
   HostedAuthMenuExternalAuthRequest,
@@ -100,6 +86,8 @@ import {
   type DevicesCapabilityDomainMethods,
   type WalletIframeControlCapability,
 } from './publicApi';
+import { createApplicationRegistrationCommands } from './walletIframe/client/registrationCommands';
+import { createWalletHostRegistrationCommands } from './walletIframe/host/createRegistrationCommands';
 import { createWalletHostDeviceDomain } from './walletIframe/host/createDeviceDomain';
 import type {
   AuthCapability,
@@ -887,17 +875,22 @@ export class SeamsWeb {
       userPreferences: userPreferences,
       getAppearance: () => this.appearance,
     });
-    const deviceDomainMode = resolveSeamsWebRuntimeMode(internalOptions);
-    const deviceDomain = deviceDomainMode === 'wallet_host'
-      ? createWalletHostDeviceDomain({ configs: this.configs, signingEngine: browserSigningSurface })
-      : createApplicationDeviceDomain(this.walletIframe);
+    const runtimeMode = resolveSeamsWebRuntimeMode(internalOptions);
+    const deviceDomain =
+      runtimeMode === 'wallet_host'
+        ? createWalletHostDeviceDomain({ configs: this.configs, signingEngine: browserSigningSurface })
+        : createApplicationDeviceDomain(this.walletIframe);
     this.deviceLinkingDispose = deviceDomain.dispose;
     this.resumePendingAcknowledgementsV1 = deviceDomain.resumePendingAcknowledgementsV1;
     this.lifecycleEventSource = resolveSeamsWebLifecycleEventSource({
-      mode: resolveSeamsWebRuntimeMode(internalOptions),
+      mode: runtimeMode,
       signingEngine: this.signingEngine,
       walletIframe: this.walletIframe,
     });
+    const registrationCommands =
+      runtimeMode === 'wallet_host'
+        ? createWalletHostRegistrationCommands(this.getContext.bind(this))
+        : createApplicationRegistrationCommands(this.walletIframe);
     const publicApi = createPublicApi({
       signingEngine: this.signingEngine,
       nearClient: this.nearClient,
@@ -920,19 +913,12 @@ export class SeamsWeb {
           await this.beginGoogleEmailOtpWalletAuthDomain(args),
       },
       registration: {
-        resumePendingEcdsaRegistration: async (args) =>
-          await this.resumePendingEcdsaRegistrationDomain(args),
-        getNearProvisioningState: async (args) => await this.getNearProvisioningStateDomain(args),
+        ...registrationCommands,
         onNearProvisioningStateChanged: (listener) =>
           subscribeToSeamsWebLifecycleEvents(
             this.lifecycleEventSource,
             deliverNearProvisioningStateChanged.bind(null, listener),
           ),
-        addWalletSigner: async (args) => await this.registerWalletSignerDomain(args),
-        addPasskey: async (args) => await this.addPasskeyDomain(args),
-        addEmailOtp: async (args) => await this.addEmailOtpDomain(args),
-        revokeAuthMethod: async (args) => await this.revokeAuthMethodDomain(args),
-        registerWallet: async (args) => await this.registerWalletDomain(args),
         registerPasskey: async (options) => await this.registerPasskeyDomain(options),
         requestEmailOtpEnrollmentChallenge: async (args) =>
           await this.requestEmailOtpEnrollmentChallengeDomain(args),
@@ -1239,183 +1225,6 @@ export class SeamsWeb {
     }
   }
 
-  private emitWalletIframeTransportTimingSummary(input: {
-    operation: 'registerWallet' | 'registerPasskey';
-    walletId: string | null;
-  }): void {
-    if (!isRegistrationBenchmarkDiagnosticsEnabled()) return;
-    const diagnostics = this.walletIframe.getTransportDiagnosticsSnapshot();
-    if (!diagnostics) return;
-    const { kind: transportKind, ...timings } = diagnostics;
-    console.info(WALLET_IFRAME_TRANSPORT_TIMING_LABEL, {
-      kind: 'wallet_iframe_registration_transport_timing_v1',
-      operation: input.operation,
-      walletId: input.walletId,
-      transportKind,
-      ...timings,
-    });
-  }
-
-  ///////////////////////////////////////
-  // === Registration and Login ===
-  ///////////////////////////////////////
-
-  private async registerWalletDomain(
-    args: Parameters<RegistrationCapability['registerWallet']>[0],
-  ): Promise<RegistrationResult> {
-    if (this.walletIframe.shouldUseWalletIframe()) {
-      try {
-        const walletRouterId =
-          args.wallet.kind === 'provided' ? String(args.wallet.walletId) : undefined;
-        const router = await this.walletIframe.requireRouter(walletRouterId);
-        this.emitWalletIframeTransportTimingSummary({
-          operation: 'registerWallet',
-          walletId: walletRouterId ?? null,
-        });
-        const res = await router.registerWallet(args);
-        const registeredWalletId = res.success ? String(res.walletId || '').trim() : '';
-        if (registeredWalletId) {
-          void (async () => {
-            try {
-              await this.initWalletIframe(registeredWalletId);
-            } catch {}
-          })();
-        }
-        await args.options?.afterCall?.(true, res);
-        return res;
-      } catch (error: unknown) {
-        const e = toError(error);
-        await args.options?.onError?.(e);
-        await args.options?.afterCall?.(false);
-        throw e;
-      }
-    }
-    return await registerWalletWithUnifiedCeremony({
-      context: this.getContext(),
-      authMethod: args.authMethod,
-      wallet: args.wallet,
-      signerSelection: args.signerSelection,
-      options: args.options || {},
-      authenticatorOptions: cloneAuthenticatorOptions(this.configs.webauthn.authenticatorOptions),
-    });
-  }
-
-  private async getNearProvisioningStateDomain(
-    args: Parameters<RegistrationCapability['getNearProvisioningState']>[0],
-  ): ReturnType<RegistrationCapability['getNearProvisioningState']> {
-    const walletId = toWalletId(args.walletId);
-    if (this.walletIframe.shouldUseWalletIframe()) {
-      const router = await this.walletIframe.requireRouter(String(walletId));
-      return await router.getNearProvisioningState({ walletId });
-    }
-    const live = readNearProvisioningState(walletId);
-    if (live) return live;
-    return await this.getContext().signingEngine.getWalletNearProvisioningState(walletId);
-  }
-
-  private async resumePendingEcdsaRegistrationDomain(
-    args: Parameters<RegistrationCapability['resumePendingEcdsaRegistration']>[0],
-  ): ReturnType<RegistrationCapability['resumePendingEcdsaRegistration']> {
-    if (this.walletIframe.shouldUseWalletIframe()) {
-      const router = await this.walletIframe.requireRouter(String(args.walletId));
-      return await router.resumePendingEcdsaRegistration(args);
-    }
-    const relayerUrl = String(this.configs.network.relayer?.url || '').trim();
-    if (!relayerUrl) throw new Error('pending ECDSA registration recovery requires a relayer URL');
-    return await resumePendingEcdsaRegistrationFromStoredCommit({
-      relayerUrl,
-      request: args,
-      signingSurface: this.signingEngine,
-    });
-  }
-
-  private async registerWalletSignerDomain(
-    args: Parameters<RegistrationCapability['addWalletSigner']>[0],
-  ): Promise<RegistrationResult> {
-    if (this.walletIframe.shouldUseWalletIframe()) {
-      try {
-        const router = await this.walletIframe.requireRouter(String(args.walletId || ''));
-        const res = await router.addWalletSigner(args);
-        await args.options?.afterCall?.(true, res);
-        return res;
-      } catch (error: unknown) {
-        const e = toError(error);
-        await args.options?.onError?.(e);
-        await args.options?.afterCall?.(false);
-        throw e;
-      }
-    }
-    return await addWalletSignerWithUnifiedCeremony({
-      context: this.getContext(),
-      walletId: args.walletId,
-      rpId: args.rpId,
-      signerSelection: args.signerSelection,
-      options: args.options || {},
-    });
-  }
-
-  private async addPasskeyDomain(
-    args: Parameters<RegistrationCapability['addPasskey']>[0],
-  ): Promise<Awaited<ReturnType<RegistrationCapability['addPasskey']>>> {
-    if (this.walletIframe.shouldUseWalletIframe()) {
-      try {
-        const router = await this.walletIframe.requireRouter(String(args.walletId || ''));
-        const result = await router.addPasskey(args);
-        await args.options?.afterCall?.(true, result);
-        return result;
-      } catch (error: unknown) {
-        const normalized = toError(error);
-        await args.options?.onError?.(normalized);
-        await args.options?.afterCall?.(false);
-        throw normalized;
-      }
-    }
-    return await addPasskeyWalletAuthMethod({
-      context: this.getContext(),
-      walletId: args.walletId,
-      rpId: args.rpId,
-      options: args.options,
-    });
-  }
-
-  private async revokeAuthMethodDomain(
-    args: Parameters<RegistrationCapability['revokeAuthMethod']>[0],
-  ): Promise<Awaited<ReturnType<RegistrationCapability['revokeAuthMethod']>>> {
-    if (this.walletIframe.shouldUseWalletIframe()) {
-      const router = await this.walletIframe.requireRouter(String(args.walletId || ''));
-      return await router.revokeAuthMethod(args);
-    }
-    return await revokeWalletAuthMethodOperation({
-      context: this.getContext(),
-      walletId: args.walletId,
-      walletAuthMethodId: args.walletAuthMethodId,
-    });
-  }
-
-  private async addEmailOtpDomain(
-    args: Parameters<RegistrationCapability['addEmailOtp']>[0],
-  ): Promise<Awaited<ReturnType<RegistrationCapability['addEmailOtp']>>> {
-    if (this.walletIframe.shouldUseWalletIframe()) {
-      try {
-        const router = await this.walletIframe.requireRouter(String(args.walletId || ''));
-        const result = await router.addEmailOtp(args);
-        await args.options?.afterCall?.(true, result);
-        return result;
-      } catch (error: unknown) {
-        const normalized = toError(error);
-        await args.options?.onError?.(normalized);
-        await args.options?.afterCall?.(false);
-        throw normalized;
-      }
-    }
-    return await addEmailOtpWalletAuthMethod({
-      context: this.getContext(),
-      walletId: args.walletId,
-      emailAddress: args.emailAddress,
-      options: args.options,
-    });
-  }
-
   private async registerPasskeyDomain(
     options: Parameters<RegistrationCapability['registerPasskey']>[0] = {},
   ): Promise<RegistrationResult> {
@@ -1438,7 +1247,7 @@ export class SeamsWeb {
       wallet: resolvedWallet,
       preference: provisioningPreference,
     });
-    return await this.registerWalletDomain({
+    return await this.registration.registerWallet({
       wallet: resolvedWallet,
       authMethod: { kind: 'passkey', rpId },
       signerSelection: buildNearWalletRegistrationSignerSetSelection({
@@ -1913,7 +1722,7 @@ export class SeamsWeb {
         resolveGoogleEmailOtpProvider: this.resolveGoogleEmailOtpProviderDomain.bind(this),
         requestEmailOtpChallenge: this.requestEmailOtpChallengeDomain.bind(this),
         prewarmEmailOtpYao: this.prewarmEmailOtpYaoDomain.bind(this),
-        registerWallet: this.registerWalletDomain.bind(this),
+        registerWallet: this.registration.registerWallet,
         loginWithEmailOtpEcdsaCapability: this.loginWithEmailOtpEcdsaCapabilityDomain.bind(this),
         loginWithEmailOtpEd25519YaoCapability:
           this.loginWithEmailOtpEd25519YaoCapabilityDomain.bind(this),
