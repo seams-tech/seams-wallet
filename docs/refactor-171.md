@@ -398,6 +398,12 @@ a declaration-level pass before declaring the migration complete.
 
 ## Implementation sequence
 
+- [x] Keep `auth.lock` as the sole public session-ending operation. Remove
+  `auth.logout`, its wire request, and its unused durable-pool deletion path.
+  Rename session reads to `auth.getSession` and passkey queries to `auth.hasPasskey`.
+  Migrate React's context/auth hook and retain existing result contracts.
+  Session subscription and other auth consolidation work remain open.
+
 - [x] Introduce `connection.connect`, `getState`, `onChange`, and `dispose` at the
   coordinator lifecycle boundary. Remove old readiness/init/disposal calls and
   React readiness polling. Connection failure, retry, reconciliation, and disposal

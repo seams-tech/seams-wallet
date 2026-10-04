@@ -1,0 +1,125 @@
+import { expect, type Page, type TestInfo } from '@playwright/test';
+import { writeFile } from 'node:fs/promises';
+import type { IntendedBehaviourHarness } from './harness';
+import { walletFrame } from './session-restore-lock';
+
+// Read record identifiers only. No sealed or plaintext signing material leaves the wallet origin.
+class DurablePresignatureProbe {
+  static read(walletId: string): Promise<string[]> {
+    return new Promise(DurablePresignatureProbe.open.bind(null, walletId));
+  }
+
+  static open(
+    walletId: string,
+    resolve: (keys: string[]) => void,
+    reject: (error: unknown) => void,
+  ): void {
+    const request = indexedDB.open('seams_wallet');
+    request.onsuccess = DurablePresignatureProbe.opened.bind(
+      null,
+      walletId,
+      request,
+      resolve,
+      reject,
+    );
+    request.onerror = DurablePresignatureProbe.failed.bind(null, request, reject);
+  }
+
+  static failed(request: IDBRequest, reject: (error: unknown) => void): void {
+    reject(request.error);
+  }
+
+  static opened(
+    walletId: string,
+    request: IDBOpenDBRequest,
+    resolve: (keys: string[]) => void,
+    reject: (error: unknown) => void,
+  ): void {
+    const database = request.result;
+    const transaction = database.transaction('ecdsa_client_presignatures', 'readonly');
+    const keys = transaction
+      .objectStore('ecdsa_client_presignatures')
+      .index('wallet_id')
+      .getAllKeys(walletId);
+    keys.onsuccess = DurablePresignatureProbe.keysRead.bind(null, database, keys, resolve, reject);
+    keys.onerror = DurablePresignatureProbe.readFailed.bind(null, database, keys, reject);
+  }
+
+  static readFailed(
+    database: IDBDatabase,
+    request: IDBRequest,
+    reject: (error: unknown) => void,
+  ): void {
+    database.close();
+    reject(request.error);
+  }
+
+  static keysRead(
+    database: IDBDatabase,
+    request: IDBRequest<IDBValidKey[]>,
+    resolve: (keys: string[]) => void,
+    reject: (error: unknown) => void,
+  ): void {
+    database.close();
+    const keys: string[] = [];
+    for (const key of request.result) {
+      if (typeof key !== 'string') {
+        reject(new Error('Durable presignature key is not a string'));
+        return;
+      }
+      keys.push(key);
+    }
+    resolve(keys.sort());
+  }
+}
+
+async function readPresignatureIds(page: Page, walletId: string): Promise<string[]> {
+  const frame = await walletFrame(page);
+  return await frame.evaluate(
+    ({ source, walletId }) => {
+      const probe = eval(`(${source})`) as typeof DurablePresignatureProbe;
+      return probe.read(walletId);
+    },
+    { source: DurablePresignatureProbe.toString(), walletId },
+  );
+}
+
+export async function verifyLockPreservesPresignatures(
+  { harness, page }: { harness: IntendedBehaviourHarness; page: Page },
+  testInfo: TestInfo,
+): Promise<void> {
+  testInfo.setTimeout(180_000);
+  await harness.registerPasskeyWallet();
+  await harness.awaitNearReady();
+  await expect
+    .poll(readPresignatureCount.bind(null, page, harness.walletId), { timeout: 30_000 })
+    .toBeGreaterThan(0);
+  const before = await readPresignatureIds(page, harness.walletId);
+  await harness.lockWallet();
+  await harness.assertWalletLocked();
+  const locked = await readPresignatureIds(page, harness.walletId);
+  expect(locked).toEqual(expect.arrayContaining(before));
+  await harness.unlockPasskeyWallet();
+  const unlocked = await readPresignatureIds(page, harness.walletId);
+  expect(unlocked).toEqual(expect.arrayContaining(before));
+  await harness.signTempoTransaction('post_unlock');
+  await writeFile(
+    testInfo.outputPath('lock-presignature-retention.json'),
+    JSON.stringify(
+      {
+        beforeLock: before.length,
+        whileLocked: locked.length,
+        afterUnlock: unlocked.length,
+        allOriginalRecordsRetained: true,
+        postUnlockTempoSigning: 'passed',
+        scope: 'Immediate lock and fresh unlock; the separate 30-day return gate remains open.',
+      },
+      null,
+      2,
+    ),
+  );
+}
+
+async function readPresignatureCount(page: Page, walletId: string): Promise<number> {
+  return (await readPresignatureIds(page, walletId)).length;
+}

@@ -762,10 +762,9 @@ export type GoogleEmailOtpWalletAuthStartInput = GoogleEmailOtpWalletAuthStartBa
 export interface AuthCapability {
   unlock(walletId: string, options?: LoginHooksOptions): Promise<LoginAndCreateSessionResult>;
   lock(): Promise<void>;
-  logout(): Promise<void>;
-  getWalletSession(walletId?: string): Promise<WalletSession>;
+  getSession(walletId?: string): Promise<WalletSession>;
   getRecentUnlocks(): Promise<GetRecentUnlocksResult>;
-  hasPasskeyCredential(walletId: string): Promise<boolean>;
+  hasPasskey(walletId: string): Promise<boolean>;
   prefillRouterAbEcdsaDerivationPresignaturePool(args: {
     walletSession: WalletSessionRef;
     chainTarget: ThresholdEcdsaChainTarget;

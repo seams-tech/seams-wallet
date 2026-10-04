@@ -1777,7 +1777,7 @@ export type UnlockedEd25519ExportRootLinkingCapabilityV1 =
   UnlockedWalletEd25519ExportRootCapabilityV1 | UnlockedLinkedDeviceEd25519ClientRootCapabilityV1;
 
 /**
- * What a destroy call invalidates. Lock and logout destroy by wallet, session
+ * What a destroy call invalidates. Lock destroys by wallet, session
  * retirement or replacement by Wallet Session, failed activation by capability
  * handle, and worker reset or page teardown destroys all.
  */
@@ -2004,7 +2004,7 @@ export interface WalletCustodyCeremonyWorkerOperationMap {
     result: UnlockedEd25519ExportRootLinkingCapabilityV1;
   };
   /**
-   * Destroys unlocked Ed25519 export-root capabilities. Wired into lock, logout,
+   * Destroys unlocked Ed25519 export-root capabilities. Wired into lock,
    * wallet switch, Wallet Session retirement or replacement, expiry, failed
    * activation, and page teardown; `all` is the worker-reset scope.
    */

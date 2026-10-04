@@ -13,11 +13,10 @@ import type {
   WalletSession,
 } from '@/core/types/seams';
 import {
-  getWalletSession as getWalletSessionCore,
+  getWalletSession as getSessionCore,
   getRecentUnlocks as getRecentUnlocksCore,
   unlockResolvedWalletSubjectSet as unlockCoreWithSubjectSet,
   lock as lockCore,
-  logout as logoutCore,
 } from '@/SeamsWeb/operations/auth/login';
 import { IndexedDBManager } from '@/core/indexedDB';
 import type { LocalWalletAuthMethodRecordV2 } from '@/core/indexedDB/passkeyClientDB.types';
@@ -44,10 +43,9 @@ export function createWalletHostSessionCommands(
   return {
     unlock: unlock.bind(null, getContext),
     lock: lock.bind(null, getContext),
-    logout: logout.bind(null, getContext),
-    getWalletSession: getWalletSession.bind(null, getContext),
+    getSession: getSession.bind(null, getContext),
     getRecentUnlocks: getRecentUnlocks.bind(null, getContext),
-    hasPasskeyCredential: hasPasskeyCredential,
+    hasPasskey: hasPasskey,
     prefillRouterAbEcdsaDerivationPresignaturePool: prefillForRequest.bind(null, getContext),
   };
 }
@@ -146,18 +144,14 @@ async function lock(getContext: () => WalletHostAuthContext): Promise<void> {
   await lockCore(getContext());
 }
 
-async function logout(getContext: () => WalletHostAuthContext): Promise<void> {
-  await logoutCore(getContext());
-}
-
-async function getWalletSession(
+async function getSession(
   getContext: () => WalletHostAuthContext,
   walletId?: string,
 ): Promise<WalletSession> {
-  return await getWalletSessionCore(getContext(), walletId);
+  return await getSessionCore(getContext(), walletId);
 }
 
-async function hasPasskeyCredential(walletId: string): Promise<boolean> {
+async function hasPasskey(walletId: string): Promise<boolean> {
   const resolvedWalletId = String(walletId || '').trim();
   if (!resolvedWalletId) return false;
 

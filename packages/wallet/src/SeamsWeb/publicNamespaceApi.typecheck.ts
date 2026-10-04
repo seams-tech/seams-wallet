@@ -31,7 +31,7 @@ void seams.registration.enrollEmailOtp({
 });
 
 void seams.auth.unlock('alice.testnet');
-void seams.auth.getWalletSession('alice.testnet');
+void seams.auth.getSession('alice.testnet');
 
 void seams.near.signNEP413Message({
   walletSession,

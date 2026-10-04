@@ -3901,14 +3901,6 @@ export class WalletIframeRouter {
     return { ok: true, result: undefined };
   }
 
-  async logout(): Promise<PostResult<void>> {
-    this.invalidateReviews();
-    await this.post<void>({ type: 'PM_LOGOUT' });
-    this.exactSessionState = { kind: 'wallet_locked' };
-    this.emitLoginStatusChanged({ isLoggedIn: false, walletId: null });
-    return { ok: true, result: undefined };
-  }
-
   async lockExactSession(
     expected: WalletIframeExactSessionIdentity,
   ): Promise<WalletIframeExactSessionLockResult> {

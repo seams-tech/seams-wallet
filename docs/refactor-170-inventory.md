@@ -1342,3 +1342,46 @@ cases. Build, types, declarations, bundle boundaries, and bloat checks pass.
 Production TypeScript adds 290 lines and removes 280, net +10. This excludes
 type fixtures, tests, Markdown, and evidence artifacts. The connection state and
 interruption handling replace polling, duplicate startup, and forwarding paths.
+
+
+### Auth reads and unified lock checkpoint
+
+The public SDK exposes `auth.getSession`, `auth.hasPasskey`, and `auth.lock`.
+`getRecentUnlocks` retains its accepted name. React context and `useWalletAuth`
+expose `getSession`. Replaced public names have no aliases. Redundant React
+forwarding closures are deleted; bound capability methods remain bound.
+Session reads no longer trigger a blockheight prefetch.
+
+The old logout implementation, `PM_LOGOUT` request, host handler, and application
+forwarders are removed. The logout-only signing-engine facade and bulk durable
+pool deletion method are also removed. Existing lock still attempts generation
+fencing, authorization retirement, conditional authentication cleanup, and
+volatile material cleanup. Material retirement, expiry, atomic claim, and
+consumption retain their independent persistence paths.
+
+The logout unit suite is classified `obsolete_test_or_fixture` because it tests
+the deleted operation and destructive behavior. The durable IndexedDB suite
+retains sealing, tamper rejection, atomic claim, capacity, and 30-day storage
+restoration coverage; only bulk-delete assertions are removed. The production
+lock scenario reads record IDs only, verifies their retention across lock and
+fresh unlock, then signs a Tempo transaction. It emits a sanitized count-based
+artifact. This immediate lifecycle check does not close the full 30-day return
+and latency gate.
+
+Private Console and site consumers remain pinned to the published API. Both
+`apps/wallet-console` and `apps/seams-site` still call `auth.getWalletSession` in
+`src/flows/demo/hooks/useDemoThresholdAccountState.ts:45` and
+`src/flows/demo/hooks/useDemoNearActions.tsx:192`. Migrate those four calls with
+the exact new package release.
+
+Final-source verification passes 24 browser cases and the production retention
+case. Four broader production lifecycle cases passed before the final internal
+export and browser-fixture cleanup. Build, types, declarations, and runtime
+bundle checks pass. Production TypeScript adds 38 lines and removes 145, net
+−107; tests, type fixtures, documentation, and evidence are counted separately.
+The storage fixture now bundles its internal probe through the existing esbuild
+pattern because the production output no longer exports its internal constructor.
+
+Evidence is recorded in `evidence/refactor-170-auth-api-20261005.json`.
+`auth.onSessionChange`, remaining public auth consolidation, demo callback
+internalization, worker optimization, and complete R170 acceptance remain open.

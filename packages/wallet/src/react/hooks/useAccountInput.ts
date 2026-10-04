@@ -262,7 +262,7 @@ export function useAccountInput({
           const ready = await awaitWalletIframeIfNeeded();
           if (!ready || seams.connection.getState().kind !== 'ready') return;
         }
-        const passkeyExists = await seams.auth.hasPasskeyCredential(candidateWalletId);
+        const passkeyExists = await seams.auth.hasPasskey(candidateWalletId);
         setState((prevState) => {
           if (checkId !== passkeyCredentialExistsCheckIdRef.current) return prevState;
           if (!passkeyExists) return { ...prevState, passkeyCredentialExists: false };

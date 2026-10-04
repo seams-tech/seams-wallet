@@ -240,13 +240,6 @@ export function useSeamsWithSdkFlow(args: {
           return {
             ...auth,
             unlock: loginWithSdkFlow,
-            lock: () => auth.lock(),
-            getWalletSession: (...args: Parameters<AuthCapability['getWalletSession']>) =>
-              auth.getWalletSession(...args),
-            hasPasskeyCredential: (...args: Parameters<AuthCapability['hasPasskeyCredential']>) =>
-              auth.hasPasskeyCredential(...args),
-            getRecentUnlocks: (...args: Parameters<AuthCapability['getRecentUnlocks']>) =>
-              auth.getRecentUnlocks(...args),
           };
         }
 

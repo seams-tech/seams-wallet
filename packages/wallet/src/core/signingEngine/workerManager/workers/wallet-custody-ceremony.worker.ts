@@ -1009,7 +1009,7 @@ function requireResealedEnvelopeResult(value: unknown): {
   };
 }
 
-/** Lock, logout, session retirement, expiry, failed activation, teardown. */
+/** Lock, session retirement, expiry, failed activation, teardown. */
 function destroyUnlockedWalletEd25519ExportRootCapabilities(
   request: DestroyUnlockedCustodyCapabilitiesRequest,
 ): unknown {

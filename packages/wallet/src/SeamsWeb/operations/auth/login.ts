@@ -35,7 +35,6 @@ import type {
 import { toAccountId, type AccountId } from '@/core/types/accountIds';
 import type { WebAuthnAuthenticationCredential } from '@/core/types';
 import type { WorkerOperationContext } from '@/core/signingEngine/workerManager/executeWorkerOperation';
-import type { EcdsaClientPresignCleanupTarget } from '@/core/signingEngine/workerManager/ecdsaPresignLifecycle';
 import type { EcdsaCapabilitySelector } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestRecords';
 import {
   resolveManagedRuntimeScopeBootstrap,
@@ -8077,12 +8076,6 @@ export type LockOperationContext = {
   };
 };
 
-export type LogoutOperationContext = {
-  signingEngine: LockOperationContext['signingEngine'] & {
-    deleteDurableEcdsaPresignatures(target: EcdsaClientPresignCleanupTarget): Promise<number>;
-  };
-};
-
 export async function lock(context: LockOperationContext): Promise<void> {
   const { signingEngine } = context;
   const authentication = signingEngine.readWalletAuthenticationState();
@@ -8128,31 +8121,6 @@ export async function lock(context: LockOperationContext): Promise<void> {
   } catch (error: unknown) {
     if (!failed) {
       failure = error;
-      failed = true;
-    }
-  }
-  if (failed) throw failure;
-}
-
-export async function logout(context: LogoutOperationContext): Promise<void> {
-  const authentication = context.signingEngine.readWalletAuthenticationState();
-  const cleanupTarget: Extract<EcdsaClientPresignCleanupTarget, { kind: 'wallet' }> | null =
-    authentication.kind === 'authenticated'
-      ? { kind: 'wallet', walletId: authentication.walletId }
-      : null;
-  let failure: unknown;
-  let failed = false;
-  try {
-    await lock(context);
-  } catch (error: unknown) {
-    failure = error;
-    failed = true;
-  }
-  if (cleanupTarget) {
-    try {
-      await context.signingEngine.deleteDurableEcdsaPresignatures(cleanupTarget);
-    } catch (error: unknown) {
-      if (!failed) failure = error;
       failed = true;
     }
   }

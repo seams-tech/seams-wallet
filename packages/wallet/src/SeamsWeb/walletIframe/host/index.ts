@@ -265,7 +265,6 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
       }
       if (
         req.type === 'PM_LOCK' ||
-        req.type === 'PM_LOGOUT' ||
         req.type === 'PM_LOCK_EXACT_WALLET_SESSION'
       ) {
         cancelTransactionReviews(

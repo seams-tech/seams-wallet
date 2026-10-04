@@ -208,7 +208,7 @@ export interface SeamsConfigsInput {
   /**
    * Email OTP signing-session policy.
    *
-   * - `session`: recover once after OTP and keep warm signing material in memory until expiry/logout.
+   * - `session`: recover once after OTP and keep warm signing material in memory until expiry or lock.
    * - `per_operation`: recover on demand, use once, and discard immediately after the operation.
    */
   emailOtpAuthPolicy?: EmailOtpAuthPolicy;

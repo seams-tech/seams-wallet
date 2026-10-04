@@ -204,7 +204,7 @@ export class WalletHostRuntime {
       getContext: this.getContext.bind(this),
       getPrewarmRecord: this.getEmailOtpUnlockPrewarmRecord.bind(this),
       registerWallet: registrationCommands.registerWallet,
-      getWalletSession: sessionCommands.getWalletSession,
+      getWalletSession: sessionCommands.getSession,
       resumePendingAcknowledgements:
         this.resumePendingAcknowledgementsAfterExactUnlockV1.bind(this),
     });

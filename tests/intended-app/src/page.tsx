@@ -1213,7 +1213,7 @@ class IntendedPageController {
   readWalletLockStateForIntendedTest = async (): Promise<{
     authenticationKind: WalletSession['authentication']['kind'];
   }> => {
-    const session = await this.seams.auth.getWalletSession(this.walletId);
+    const session = await this.seams.auth.getSession(this.walletId);
     return { authenticationKind: session.authentication.kind };
   };
 
@@ -1538,7 +1538,7 @@ class IntendedPageController {
     try {
       const walletId = this.walletId;
       if (!walletId) throw new Error('revoke requires a registered wallet');
-      const session = await this.seams.auth.getWalletSession(walletId);
+      const session = await this.seams.auth.getSession(walletId);
       if (session.appIdentity.kind !== 'resolved') {
         throw new Error(`revoke wallet identity is ${session.appIdentity.kind}`);
       }
@@ -1597,7 +1597,7 @@ class IntendedPageController {
       intendedEmailOtpChallengeSubjectOverride = emailAddress;
       /* Read before locking: the unlock names the exact method it opens, and
          once the wallet is locked there is no session left to ask. */
-      const openSession = await this.seams.auth.getWalletSession(walletId);
+      const openSession = await this.seams.auth.getSession(walletId);
       if (openSession.appIdentity.kind !== 'resolved') {
         throw new Error(`added email-code unlock identity is ${openSession.appIdentity.kind}`);
       }
@@ -1612,7 +1612,7 @@ class IntendedPageController {
       await this.seams.auth.lock();
       await this.unlockEmailOtpWalletWithHostedMenu('intended-unlock-added-email-otp');
       await this.refreshLoginState(walletId);
-      const unlockedSession = await this.seams.auth.getWalletSession(walletId);
+      const unlockedSession = await this.seams.auth.getSession(walletId);
       this.dispatch({
         kind: 'action_succeeded',
         action,
@@ -1772,7 +1772,7 @@ class IntendedPageController {
         registration: this.seams.registration,
         walletId: this.walletId,
       });
-      const session = await this.seams.auth.getWalletSession(this.walletId);
+      const session = await this.seams.auth.getSession(this.walletId);
       if (session.appIdentity.kind !== 'resolved') {
         throw new Error(`NEAR readiness wallet identity is ${session.appIdentity.kind}`);
       }
@@ -1844,7 +1844,7 @@ class IntendedPageController {
       }
       /* Which credential the session names is the point of an added method -
          the family alone cannot tell it from the method that added it. */
-      const unlockedSession = await this.seams.auth.getWalletSession(this.walletId);
+      const unlockedSession = await this.seams.auth.getSession(this.walletId);
       const summary = assertPasskeyUnlockSucceeded(unlockedSession, this.walletId);
       this.dispatch({ kind: 'action_succeeded', action, result: summary });
     } catch (error) {
@@ -1882,7 +1882,7 @@ class IntendedPageController {
       if (String(outcome.walletId) !== this.walletId) {
         throw new Error(`Passkey sync wallet mismatch: ${String(outcome.walletId)}`);
       }
-      const session = await this.seams.auth.getWalletSession(String(outcome.walletId));
+      const session = await this.seams.auth.getSession(String(outcome.walletId));
       if (session.appIdentity.kind !== 'resolved') {
         throw new Error(`Passkey sync wallet identity is ${session.appIdentity.kind}`);
       }
@@ -2181,7 +2181,7 @@ class IntendedPageController {
         throw new Error(`Device 2 linked wallet ${active.walletId}; expected ${this.walletId}`);
       }
       await this.refreshLoginState(active.walletId);
-      const session = await this.seams.auth.getWalletSession(active.walletId);
+      const session = await this.seams.auth.getSession(active.walletId);
       if (session.appIdentity.kind !== 'resolved') {
         throw new Error(`Linked wallet identity is ${session.appIdentity.kind}`);
       }
@@ -2552,7 +2552,7 @@ class IntendedPageController {
     if (String(outcome.walletId) !== this.walletId || outcome.method !== 'google_email_otp') {
       throw new Error('Google Email OTP unlock returned the wrong wallet or auth method');
     }
-    const session = await this.seams.auth.getWalletSession(this.walletId);
+    const session = await this.seams.auth.getSession(this.walletId);
     return assertEmailOtpUnlockSucceeded({
       result: { walletId: String(outcome.walletId), session },
       expectedWalletId: this.walletId,

@@ -230,7 +230,7 @@ export interface SeamsContextType {
   // Wallet iframe connectivity (true when service client handshake completes)
   walletIframeConnected: boolean;
 
-  getWalletSession: (walletId?: string) => Promise<WalletSession>;
+  getSession: (walletId?: string) => Promise<WalletSession>;
   refreshLoginState: (walletId?: string) => Promise<void>;
 
   // Account input management

@@ -65,7 +65,6 @@ import {
   ECDSA_CLIENT_PRESIGNATURE_CAPACITY,
   MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS,
 } from '@/core/config/presignatures';
-import { type EcdsaClientPresignCleanupTarget } from '@/core/signingEngine/workerManager/ecdsaPresignLifecycle';
 import {
   MANIFEST_RECORD_VERSION,
   MANIFEST_STORE,
@@ -131,7 +130,6 @@ import {
   parsePresignatureTimestamp,
   rawRecordId,
   supportsStrictIndexedDbDurability,
-  deleteCursorRows,
   readAvailableClientPresignatureRows,
   parseSealedAvailableClientPresignatureRow,
   metadataFromPresignatureRow,
@@ -929,27 +927,6 @@ export class IndexedDbEcdsaCapabilityManifestStore {
       if (equalEcdsaClientPresignPoolIdentity(row.pool_identity, poolIdentity)) {
         await store.delete(recordId);
       }
-    });
-  }
-
-  async deleteClientPresignatures(target: EcdsaClientPresignCleanupTarget): Promise<number> {
-    return await this.manager.runTransaction([PRESIGNATURE_STORE], 'readwrite', async (context) => {
-      const store = context.store(PRESIGNATURE_STORE);
-      let deletedCount = 0;
-      switch (target.kind) {
-        case 'wallet': {
-          const walletId = String(target.walletId).trim();
-          if (!walletId) throw new Error('ECDSA durable presignature wallet id is required');
-          deletedCount = await deleteCursorRows(
-            await store.index(SEAMS_WALLET_INDEXES.walletId).openCursor(walletId),
-          );
-          break;
-        }
-        case 'all':
-          deletedCount = await deleteCursorRows(await store.openCursor());
-          break;
-      }
-      return deletedCount;
     });
   }
 

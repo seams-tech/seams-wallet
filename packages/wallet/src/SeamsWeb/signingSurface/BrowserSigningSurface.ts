@@ -108,7 +108,6 @@ import type {
   EmailOtpEd25519YaoActiveCapabilityDescriptorV1,
 } from '@/core/signingEngine/workerManager/workerTypes';
 import type { WorkerOperationContext } from '@/core/signingEngine/workerManager/executeWorkerOperation';
-import type { EcdsaClientPresignCleanupTarget } from '@/core/signingEngine/workerManager/ecdsaPresignLifecycle';
 import { IndexedDbEcdsaCapabilityManifestStore } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
 import {
   importWalletCustodyEcdsaContinuity,
@@ -6813,10 +6812,6 @@ export class BrowserSigningSurface {
         this.volatileWarmSigningMaterialCleanupInFlight = null;
       }
     }
-  }
-
-  async deleteDurableEcdsaPresignatures(target: EcdsaClientPresignCleanupTarget): Promise<number> {
-    return await new IndexedDbEcdsaCapabilityManifestStore().deleteClientPresignatures(target);
   }
 
   private async clearVolatileWarmSigningMaterialInternal(walletId?: WalletId): Promise<void> {

@@ -61,7 +61,7 @@ async function applyWalletIframeSession(args: {
   walletId: string;
   setLoginState: Dispatch<SetStateAction<LoginState>>;
 }): Promise<void> {
-  const session = await args.seams.auth.getWalletSession(args.walletId);
+  const session = await args.seams.auth.getSession(args.walletId);
   if (args.lifecycle.cancelled || args.lifecycle.revision !== args.revision) return;
   if (session.authentication.kind === 'authenticated' && session.appIdentity.kind !== 'resolved') {
     return;

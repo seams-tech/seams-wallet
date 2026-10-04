@@ -38,7 +38,6 @@ type AuthWalletRequestType =
   | 'PM_RESOLVE_AUTH_MENU_EXTERNAL_AUTH'
   | 'PM_UNLOCK'
   | 'PM_LOCK'
-  | 'PM_LOGOUT'
   | 'PM_LOCK_EXACT_WALLET_SESSION'
   | 'PM_GET_WALLET_SESSION'
   | 'PM_GET_EXACT_WALLET_SESSION_STATE'
@@ -226,7 +225,6 @@ export function routeWalletHostRequest(request: ParentToChildEnvelope): WalletHo
     }
     case 'PM_UNLOCK':
     case 'PM_LOCK':
-    case 'PM_LOGOUT':
     case 'PM_LOCK_EXACT_WALLET_SESSION':
     case 'PM_GET_WALLET_SESSION':
     case 'PM_GET_EXACT_WALLET_SESSION_STATE':

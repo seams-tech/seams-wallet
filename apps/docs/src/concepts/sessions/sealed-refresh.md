@@ -16,7 +16,7 @@ server-side signing-session state.
 
 1. Store sealed refresh records in the wallet iframe origin.
 2. Bind records to exact material activation and the browser-session marker.
-3. Delete records on logout, lock, account switch, revocation, expiry, and
+3. Delete records on lock, account switch, revocation, expiry, and
    remaining-use exhaustion.
 4. Restore only transaction signing capability.
 5. Require fresh operation auth for export, linked-device creation, key

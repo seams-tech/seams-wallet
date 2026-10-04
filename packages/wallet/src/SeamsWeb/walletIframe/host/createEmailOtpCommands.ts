@@ -261,7 +261,7 @@ type HostEmailOtpDependencies = {
   getContext: () => SeamsWebContext;
   getPrewarmRecord: () => EmailOtpUnlockPrewarmRecord;
   registerWallet: RegistrationCapability['registerWallet'];
-  getWalletSession: AuthCapability['getWalletSession'];
+  getWalletSession: AuthCapability['getSession'];
   resumePendingAcknowledgements: () => void;
 };
 

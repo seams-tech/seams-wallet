@@ -190,7 +190,7 @@ type DeletableCursor = {
   continue(): Promise<DeletableCursor | null>;
 };
 
-export async function deleteCursorRows(
+async function deleteCursorRows(
   cursor: DeletableCursor | null,
   limit = Number.POSITIVE_INFINITY,
 ): Promise<number> {

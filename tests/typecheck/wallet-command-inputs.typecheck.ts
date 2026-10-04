@@ -187,3 +187,13 @@ applicationClient.dispose();
 
 // @ts-expect-error Host preference events are internal; use preferences subscriptions.
 applicationClient.onWalletIframePreferencesChanged(() => {});
+
+applicationClient.auth.getSession();
+applicationClient.auth.hasPasskey('wallet-1');
+applicationClient.auth.lock();
+// @ts-expect-error Lock is the sole session-ending public operation.
+applicationClient.auth.logout();
+// @ts-expect-error Session reads use getSession.
+applicationClient.auth.getWalletSession();
+// @ts-expect-error Passkey queries use hasPasskey.
+applicationClient.auth.hasPasskeyCredential('wallet-1');

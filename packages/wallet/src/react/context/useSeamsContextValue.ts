@@ -156,9 +156,9 @@ export function useSeamsContextValue(args: {
     [seams],
   );
 
-  const getWalletSession: SeamsContextType['getWalletSession'] = useCallback(
+  const getSession: SeamsContextType['getSession'] = useCallback(
     (walletId?: string) => {
-      return seams.auth.getWalletSession(walletId);
+      return seams.auth.getSession(walletId);
     },
     [seams],
   );
@@ -196,7 +196,7 @@ export function useSeamsContextValue(args: {
       executeAction,
       signNEP413Message,
       signDelegateAction,
-      getWalletSession,
+      getSession,
       refreshLoginState,
       loginState,
       walletIframeConnected,
@@ -224,7 +224,7 @@ export function useSeamsContextValue(args: {
       executeAction,
       signNEP413Message,
       signDelegateAction,
-      getWalletSession,
+      getSession,
       refreshLoginState,
       loginState,
       walletIframeConnected,

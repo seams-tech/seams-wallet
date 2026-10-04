@@ -5,7 +5,7 @@ export type EmailOtpRegistrationNearProvisioning =
   | { readonly status: 'near_failed_retryable' };
 
 type WalletSessionReader<Session> = {
-  getWalletSession(walletId: string): Promise<Session>;
+  getSession(walletId: string): Promise<Session>;
 };
 
 /**
@@ -19,5 +19,5 @@ export async function resolveEmailOtpRegistrationSession<Session>(args: {
   readonly auth: WalletSessionReader<Session>;
 }): Promise<Session> {
   if (args.nearProvisioning?.status !== 'near_ready') return args.completedSession;
-  return await args.auth.getWalletSession(args.walletId);
+  return await args.auth.getSession(args.walletId);
 }

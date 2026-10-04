@@ -164,6 +164,10 @@ The SDK owns transient read retry and RPC handling. The browser contract is
   up to 90 days, subject to material retirement and revocation. Session expiry
   alone does not invalidate the retained material. Operation-scoped preparation
   remains bounded to its exact operation.
+- The public `auth.lock()` retires session authority and clears volatile material,
+  while retaining otherwise-valid durable presignatures. A later unlock requires
+  fresh authorization before retained entries can sign. The SDK exposes no
+  separate logout operation that deletes those entries.
 - Target five available entries per exact client pool identity. Restore and refill
   any deficit while the client can execute with an unexpired, unrevoked session
   scoped to the wallet and active material. Refill after every consumption,
@@ -171,7 +175,7 @@ The SDK owns transient read retry and RPC handling. The browser contract is
   cross-tab claim rules.
 - Preprocessing requires no remaining signing uses and consumes no signing quota.
   Actual signing retains its quota checks. Stop refill on expiry, revocation,
-  logout, or material invalidation; resume transient failures with bounded backoff.
+  lock, or material invalidation; resume transient failures with bounded backoff.
   Generation cannot continue while the browser is closed.
 - A returning user with an unchanged activation and an available persisted entry
   must restore it after a page or worker restart and reach signing without any

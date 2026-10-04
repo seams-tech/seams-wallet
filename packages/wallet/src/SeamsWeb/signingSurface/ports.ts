@@ -149,7 +149,6 @@ import type { WebAuthnAllowCredential } from '@/core/signingEngine/webauthnAuth/
 import type { RegistrationCredentialConfirmationPayload } from '@/core/signingEngine/workerManager/validation';
 import type { WebAuthnAuthenticationCredential } from '@/core/types';
 import type { WorkerOperationContext } from '@/core/signingEngine/workerManager/executeWorkerOperation';
-import type { EcdsaClientPresignCleanupTarget } from '@/core/signingEngine/workerManager/ecdsaPresignLifecycle';
 import type {
   WarmSessionSealAndPersistResult,
   WarmSessionSealTransportInput,
@@ -375,7 +374,7 @@ export interface Ed25519YaoCapabilityActivationSurface {
  * Establish runs during successful owner registration and ordinary unlock,
  * where the passkey factor is already being presented, and only after the
  * owner Wallet Session named in the input is active. Destroy runs at lock,
- * logout, wallet switch, session retirement, and expiry. The linking flow only
+ * lock, wallet switch, session retirement, and expiry. The linking flow only
  * ever reads; it never establishes and never prompts.
  */
 export interface UnlockedEd25519ExportRootCapabilitySurface {
@@ -725,7 +724,6 @@ export type RecentUnlocksSigningSurface = Pick<
 
 export interface EcdsaSessionControlSurface {
   clearVolatileWarmSigningMaterial(walletId?: EcdsaWalletId): Promise<void>;
-  deleteDurableEcdsaPresignatures(target: EcdsaClientPresignCleanupTarget): Promise<number>;
   clearThresholdEcdsaSigningQueue(): void;
 }
 

@@ -11,10 +11,9 @@ export function createApplicationSessionCommands(
   return {
     unlock: unlock.bind(null, walletIframe),
     lock: lock.bind(null, walletIframe),
-    logout: logout.bind(null, walletIframe),
-    getWalletSession: getWalletSession.bind(null, walletIframe),
+    getSession: getSession.bind(null, walletIframe),
     getRecentUnlocks: getRecentUnlocks.bind(null, walletIframe),
-    hasPasskeyCredential: hasPasskeyCredential.bind(null, walletIframe),
+    hasPasskey: hasPasskey.bind(null, walletIframe),
     prefillRouterAbEcdsaDerivationPresignaturePool: prefillPresignatures.bind(null, walletIframe),
   };
 }
@@ -52,24 +51,15 @@ async function lock(walletIframe: SessionIframe): Promise<void> {
   await router.lock();
 }
 
-async function logout(walletIframe: SessionIframe): Promise<void> {
-  const router = await walletIframe.requireRouter();
-  await router.logout();
-}
-
-async function getWalletSession(
+async function getSession(
   walletIframe: SessionIframe,
   walletId?: string,
-): ReturnType<WalletSessionCommands['getWalletSession']> {
+): ReturnType<WalletSessionCommands['getSession']> {
   const router = await walletIframe.requireRouter();
-  const session = await router.getWalletSession(walletId);
-  try {
-    await router.prefetchBlockheight();
-  } catch {}
-  return session;
+  return await router.getWalletSession(walletId);
 }
 
-async function hasPasskeyCredential(
+async function hasPasskey(
   walletIframe: SessionIframe,
   walletId: string,
 ): Promise<boolean> {

@@ -101,6 +101,20 @@ The main entrypoint includes:
 - device-linking and NEP-413 result types.
 - hosted auth-menu request builders and boundary-safe message types.
 
+## Session calls
+
+```ts
+await seams.auth.unlock(walletId);
+const session = await seams.auth.getSession();
+const hasPasskey = await seams.auth.hasPasskey(walletId);
+const recent = await seams.auth.getRecentUnlocks();
+await seams.auth.lock();
+```
+
+Lock retires signing authority and clears volatile material. It retains valid
+stored presignatures for a later authorized unlock. React's `useWalletAuth()`
+and context also expose `getSession`.
+
 ## Lifecycle rule
 
 Keep the `walletId` from a successful registration or login result. It is the stable

@@ -4,10 +4,9 @@ export type WalletSessionCommands = Pick<
   AuthCapability,
   | 'unlock'
   | 'lock'
-  | 'logout'
-  | 'getWalletSession'
+  | 'getSession'
   | 'getRecentUnlocks'
-  | 'hasPasskeyCredential'
+  | 'hasPasskey'
   | 'prefillRouterAbEcdsaDerivationPresignaturePool'
 >;
 

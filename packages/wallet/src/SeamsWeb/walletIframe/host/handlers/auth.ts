@@ -129,13 +129,6 @@ export function createAuthWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
       respondOk(deps, req.requestId);
     },
 
-    PM_LOGOUT: async (req: Req<'PM_LOGOUT'>) => {
-      const pm = deps.getWalletRuntime();
-      clearHostedWalletSessions();
-      await pm.auth.logout();
-      respondOk(deps, req.requestId);
-    },
-
     PM_LOCK_EXACT_WALLET_SESSION: async (req: Req<'PM_LOCK_EXACT_WALLET_SESSION'>) => {
       const pm = deps.getWalletRuntime();
       const expected = parseWalletIframeExactSessionIdentity(req.payload);
@@ -158,7 +151,7 @@ export function createAuthWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
     PM_GET_WALLET_SESSION: async (req: Req<'PM_GET_WALLET_SESSION'>) => {
       const pm = deps.getWalletRuntime();
       const walletId = walletSessionRequestWalletId(pm, req.payload);
-      const result: WalletSession = await pm.auth.getWalletSession(walletId);
+      const result: WalletSession = await pm.auth.getSession(walletId);
       respondOkResult(deps, req.requestId, result);
     },
 

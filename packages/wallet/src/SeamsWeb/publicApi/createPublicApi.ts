@@ -75,7 +75,7 @@ export function createPublicApi(deps: PublicApiDependencies): SeamsWebPublicApi 
   // Defaults for calls that do not name a wallet come from the authenticated
   // session, never from the `preferences` current-wallet mirror.
   const currentWallet: CurrentWalletResolver = createCurrentWalletResolver({
-    getWalletSession: auth.getWalletSession,
+    getWalletSession: auth.getSession,
   });
   const signingDeps = {
     createNearCommands: deps.createNearCommands,
@@ -132,7 +132,7 @@ export function createApplicationPublicApi(
 ): SeamsWebPublicApi {
   const api = createPublicApi(deps);
   const currentWallet = createCurrentWalletResolver({
-    getWalletSession: deps.auth.getWalletSession,
+    getWalletSession: deps.auth.getSession,
   });
   registerTransactionReviewBridge(api.near, {
     getWalletIframe: deps.getWalletIframe,

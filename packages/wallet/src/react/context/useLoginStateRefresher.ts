@@ -81,7 +81,7 @@ export function useLoginStateRefresher(args: {
           return;
         }
 
-        const session = await seams.auth.getWalletSession(exactWalletId);
+        const session = await seams.auth.getSession(exactWalletId);
         if (
           session.authentication.kind === 'authenticated' &&
           session.appIdentity.kind !== 'resolved'

@@ -342,7 +342,7 @@ export function createDeviceLinkWalletIframeHandlers(deps: HandlerDeps): Handler
     PM_HAS_PASSKEY: async (req: Req<'PM_HAS_PASSKEY'>) => {
       const pm = deps.getWalletRuntime();
       const { walletId } = req.payload!;
-      const result = await pm.auth.hasPasskeyCredential(walletId);
+      const result = await pm.auth.hasPasskey(walletId);
       respondOkResult(deps, req.requestId, result);
     },
 
