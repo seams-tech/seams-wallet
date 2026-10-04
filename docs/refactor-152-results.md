@@ -5948,3 +5948,45 @@ applications and zero probe Durable Object namespaces.
 This closes hosted concurrent regional registration and the WEUR-home backend
 travel cohort. The Phase 5 APAC-home mirror and native browser/individual D1
 latency accounting remain unproven by this run. No 0.8.0 package was published.
+
+### October 4: APAC-home hosted travel mirror
+
+Private test revision `bb1adcd`, using SDK `0c536cd4`, passed in **3.0 minutes**.
+Three registrations overlapped for **11.677 seconds**; the final authoritative
+directory records assign their respective homes to WEUR, US and APAC. Physical
+probe locations were Madrid `mad01`, Chicago `ord16` and Hong Kong `hkg12`.
+The APAC wallet verified **12 Tempo travel signatures** in the order
+APAC → WEUR → US → APAC, followed by the NEAR/concurrent Tempo/Arc budget check.
+
+| Client location, same APAC wallet | Samples | Median prepare + execute | Observed range |
+| --- | ---: | ---: | ---: |
+| Hong Kong | 6 | 1.789s | 1.695–1.869s |
+| Madrid | 3 | 2.194s | 2.169–2.253s |
+| Chicago | 3 | 2.184s | 2.158–2.206s |
+
+The remote-client median penalty in this cohort was approximately **0.40s** for
+the two signing requests combined. These are regional Container measurements;
+they exclude the browser-to-probe hop and do not isolate D1 latency. Browser
+unlock elapsed times through the proxy were 4.128s, 6.917s, 6.890s and 4.718s in
+cohort order; they include the extra proxy hop and are not native travel timings.
+
+Four background refill step requests returned HTTP 503 with code
+`wallet_session_unavailable`. Every measured signing prepare/execute returned
+200. The code narrows the failure category; its underlying cause remains open.
+The failed first attempt retained an identity-endpoint HTTP 500 before travel;
+bounded retries were added only to that read-only probe health request.
+
+The before-directory snapshot belongs to the failed attempt's wallets. Therefore
+this run proves the final home assignment but provides no matching before/after
+record comparison. The earlier WEUR cohort retains that comparison.
+
+Private evidence: `.artifacts/r152/hosted-regional-apac-20261004/`, including
+`regional-travel-apac.json`, `summary.json`, `run.log`, `source.json`, final
+directory rows, traces, failed-attempt evidence and `SHA256SUMS`. The probe stop
+endpoint returned 403 during cleanup; the Worker and all three Container
+applications were then deleted through Wrangler. Follow-up inventories confirmed
+zero probe applications and zero probe DO namespaces.
+
+The APAC backend travel mirror is complete. Native full-browser travel timing,
+individual D1 attribution, the refill failure investigation and release gates
+remain open. No package was published by this measurement.

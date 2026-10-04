@@ -1625,7 +1625,11 @@ Next gates: hosted regional acceptance, D1-call targets, final cleanup review,
 - [x] Verify hosted concurrent Madrid/Chicago/Tokyo registration and a fixed
   WEUR wallet signing through all three regional clients; retain scope and
   background refill failures in the results.
-- [ ] Complete the APAC-home travel mirror and remaining Phase 5 measurement scope.
+- [x] Complete the APAC-home backend travel mirror: 12 verified signatures,
+  with Hong Kong/Madrid/Chicago signing-request medians of 1.789s/2.194s/2.184s.
+  Record the proxy scope and final-directory-only evidence limitation.
+- [ ] Resolve the observed background refill `wallet_session_unavailable` 503s
+  and complete remaining Phase 5 native-browser/D1 measurement scope.
 
 Private evidence: `.artifacts/r152/hosted-candidate-20261004/`, including
 `deployment-readiness.json`, dry-run build and preflight logs. Public packed
