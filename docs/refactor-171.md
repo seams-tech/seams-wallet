@@ -20,8 +20,9 @@ worker preparation, export selection, and synchronization internally.
   does not authorize combining different proofs, sessions, or signing protocols.
 - Group session and authentication calls under `auth`, appearance/chain helpers
   under `config`, and chain operations under `near`, `evm`, and `tempo`. Keep
-  connection lifecycle at the top level. Do not add another facade or duplicate
-  hook family.
+  connection lifecycle under `connection` and general event subscriptions under
+  `events`. Expose no top-level instance methods. Do not add another facade or
+  duplicate hook family.
 
 ## Relationship to R170 and R153
 
@@ -52,10 +53,10 @@ pass required identities and precise branch-specific types into core functions.
 const config = defineSeamsConfig({ ... });
 const seams = new SeamsWeb(config);
 
-await seams.connect();
-seams.getConnectionState();
-const stopConnection = seams.onConnectionChange(listener);
-const stopEvents = seams.onEvent(eventListener);
+await seams.connection.connect();
+seams.connection.getState();
+const stopConnection = seams.connection.onChange(listener);
+const stopEvents = seams.events.subscribe(eventListener);
 
 await seams.auth.unlock(walletId);
 await seams.auth.lock();
@@ -68,7 +69,7 @@ seams.config.setTheme("dark");
 seams.config.setAppearance({ ... });
 seams.config.chainTarget("ethereum");
 seams.config.configuredChainTargets();
-seams.dispose();
+seams.connection.dispose();
 ```
 
 `connect` establishes transport and reconciles initial public state. It does not
@@ -76,11 +77,16 @@ authenticate or initialize every signer. `dispose` releases the client and its
 owned resources; `lock` ends the wallet session. Session/connection subscriptions
 return unsubscribe functions and obey R170's snapshot/generation rules.
 
-The top level has five methods: `connect`, `getConnectionState`,
-`onConnectionChange`, `onEvent`, and `dispose`. Namespaces are `auth`, `config`,
+The top level contains namespaces only: `connection`, `events`, `auth`, `config`,
 `registration`, `near`, `evm`, `tempo`, `recovery`, `devices`, `keys`,
-`preferences`, and `authMenu`. There are no duplicate top-level session or config
-helper aliases. `config` groups operations, while constructor input and the
+`preferences`, and `authMenu`. There are no top-level method aliases.
+`connection.dispose()` is terminal for the entire client: it cancels pending
+client requests and releases all client-owned subscriptions and resources. It
+does not lock the wallet or delete durable presignatures. It is broader than
+disconnecting a transport; preserve this complete cleanup contract and update
+React ownership cleanup to call it. `events.subscribe` returns an unsubscribe
+function and retains the existing lifecycle event contract.
+`config` groups operations, while constructor input and the
 existing read-only `configs` snapshot remain separate concepts; audit supported
 snapshot consumers before changing that property. Add no generic config setter
 or new mutable configuration source.
@@ -101,15 +107,15 @@ uses, not deletion based solely on absence of repository callers.
 | `auth.getWalletSession` | `seams.auth.getSession` |
 | `auth.getRecentUnlocks` | `seams.auth.getRecentUnlocks` |
 | `auth.hasPasskeyCredential` | `seams.auth.hasPasskey` |
-| `initWalletIframe` | `seams.connect` |
-| `isWalletIframeReady` | Read discriminated `seams.getConnectionState()` |
-| `onWalletIframeReady` | `seams.onConnectionChange` |
+| `initWalletIframe` | `seams.connection.connect` |
+| `isWalletIframeReady` | Read discriminated `seams.connection.getState()` |
+| `onWalletIframeReady` | `seams.connection.onChange` |
 | `onWalletIframeLoginStatusChanged` | `seams.auth.onSessionChange` |
-| `onSdkLifecycleEvent` | `seams.onEvent` |
+| `onSdkLifecycleEvent` | `seams.events.subscribe` |
 | `onWalletIframePreferencesChanged` | Internal reconciliation feeding public preference subscriptions |
 | `setTheme`, `setAppearance` | `config.setTheme`, `config.setAppearance` |
 | `chainTarget`, `configuredChainTargets` | `config.chainTarget`, `config.configuredChainTargets` |
-| `dispose` | Keep |
+| `dispose` | `connection.dispose`; full-client terminal cleanup |
 | `prewarm`, `prefetchBlockheight` | Internal connection/operation preparation |
 
 The existing logout adds wallet-scoped durable ECDSA presignature deletion to
