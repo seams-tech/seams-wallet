@@ -1,10 +1,7 @@
-import { __isWalletIframeHostMode } from '@/core/browser/walletIframe/host-mode';
 import type { UserPreferencesManager } from '@/core/signingEngine/session/userPreferences';
-import type { SeamsConfigsReadonly } from '@/core/types/seams';
 import { onEmbeddedBaseChange, resolveWorkerBaseOrigin } from '@/core/walletRuntimePaths';
 
 type InitializeBrowserSigningRuntimeArgs = {
-  config: SeamsConfigsReadonly;
   userPreferencesManager: Pick<UserPreferencesManager, 'initFromIndexedDB'>;
   getWorkerBaseOrigin: () => string;
   setWorkerBaseOrigin: (origin: string) => void;
@@ -26,9 +23,5 @@ export function initializeBrowserSigningRuntime(args: InitializeBrowserSigningRu
     });
   }
 
-  const shouldAvoidAppOriginIndexedDB =
-    args.config.wallet.mode === 'iframe' && !__isWalletIframeHostMode();
-  if (!shouldAvoidAppOriginIndexedDB) {
-    void args.userPreferencesManager.initFromIndexedDB().catch(() => undefined);
-  }
+  void args.userPreferencesManager.initFromIndexedDB().catch(() => undefined);
 }

@@ -137,7 +137,7 @@ export type CreateSigningEnginePortsArgs = {
   getWalletSessionStatus: (args: SigningSessionStatusCheck) => Promise<SigningSessionStatus | null>;
   signerWorkerManager: SignerWorkerManager;
   getWorkerBaseOrigin: () => string;
-  workerWarmupPolicy: WorkerResourceWarmupDeps['workerWarmupPolicy'];
+  shouldPrewarmUiConfirmUi: WorkerResourceWarmupDeps['shouldPrewarmUiConfirmUi'];
   getTheme: () => ThemeMode;
   signTempo: SigningEngineConveniencePorts['signTempo'];
   activateAuthenticatedWalletState: WorkerResourceWarmupDeps['activateAuthenticatedWalletState'];
@@ -206,7 +206,7 @@ export function createWorkerResourceWarmupDepsFactory(
     store: runtimeDeps.warmupStore,
     nearClient: args.nearClient,
     nonceCoordinator: args.nonceCoordinator,
-    workerWarmupPolicy: args.workerWarmupPolicy,
+    shouldPrewarmUiConfirmUi: args.shouldPrewarmUiConfirmUi,
     prewarmUiConfirmUi: async () => {
       await Promise.all([
         args.touchConfirm.initialize(),

@@ -2681,7 +2681,7 @@ export class BrowserSigningSurface {
       thresholdEcdsaSigningQueueByKey: this.thresholdEcdsaSigningQueueByKey,
       thresholdEd25519CommitQueueByKey: this.thresholdEd25519CommitQueueByKey,
       getWorkerBaseOrigin: () => this.workerBaseOrigin,
-      workerWarmupPolicy: deps.workerWarmupPolicy,
+      shouldPrewarmUiConfirmUi: deps.shouldPrewarmUiConfirmUi,
       getTheme: () => this.appearance.theme.mode,
       ensureSealedRefreshStartupParity: () => this.ensureSealedRefreshStartupParity(),
       resolveOwnerLaneScope: (walletId) => this.resolveSelectedOwnerLaneScope(walletId),
@@ -2728,7 +2728,6 @@ export class BrowserSigningSurface {
     });
 
     deps.initializeRuntime({
-      config: this.seamsWebConfigs,
       userPreferencesManager: this.userPreferencesManager,
       getWorkerBaseOrigin: () => this.workerBaseOrigin,
       setWorkerBaseOrigin: (origin: string) => {

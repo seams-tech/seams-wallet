@@ -73,7 +73,7 @@ import type {
   UiConfirmRuntimeBridgePort,
 } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 import type { WarmSigningPorts } from '@/core/signingEngine/assembly/ports/warmSigning';
-import type { WorkerResourceWarmupPolicy } from '@/core/signingEngine/assembly/warmup';
+import type { UiConfirmPrewarmPredicate } from '@/core/signingEngine/assembly/warmup';
 import type { SeamsConfigsReadonly, ThemeMode } from '@/core/types/seams';
 import * as registrationPublic from '@/core/signingEngine/flows/registration/public';
 import type { Ed25519YaoPublicCapabilityReferenceStorePort } from '@/core/signingEngine/threshold/ed25519/yaoPublicCapabilityReferences';
@@ -1298,7 +1298,7 @@ type BrowserSigningSurfaceEnginePortsArgs = {
   thresholdEcdsaSigningQueueByKey: ThresholdEcdsaSigningQueueByKey;
   thresholdEd25519CommitQueueByKey: ThresholdEd25519CommitQueueByKey;
   getWorkerBaseOrigin: () => string;
-  workerWarmupPolicy: WorkerResourceWarmupPolicy;
+  shouldPrewarmUiConfirmUi: UiConfirmPrewarmPredicate;
   getTheme: () => ThemeMode;
   ensureSealedRefreshStartupParity: () => Promise<void>;
   resolveOwnerLaneScope: (walletId: string) => Promise<OwnerLaneScope>;
@@ -1345,7 +1345,7 @@ export function createBrowserSigningSurfaceEnginePorts(
     resolveOwnerLaneScope: args.resolveOwnerLaneScope,
     signerWorkerManager: args.signerWorkerManager,
     getWorkerBaseOrigin: args.getWorkerBaseOrigin,
-    workerWarmupPolicy: args.workerWarmupPolicy,
+    shouldPrewarmUiConfirmUi: args.shouldPrewarmUiConfirmUi,
     getTheme: args.getTheme,
     signTempo: (signArgs) =>
       signEvmFamilyOperation(args.getEnginePorts().tempoSigningDeps, signArgs),

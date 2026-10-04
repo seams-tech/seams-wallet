@@ -38,7 +38,6 @@ import type {
   ThemeMode,
 } from '@/core/types/seams';
 import type { ConfirmationConfig } from '@/core/types/signer-worker';
-import { resolveBrowserWorkerWarmupPolicy } from '@/SeamsWeb/assembly/browserWorkerWarmupPolicy';
 import { createBrowserSigningRuntime } from '@/SeamsWeb/assembly/createBrowserSigningRuntime';
 import { createBrowserSigningStores } from '@/SeamsWeb/assembly/createBrowserSigningStores';
 import { initializeBrowserSigningRuntime } from '@/SeamsWeb/assembly/initializeBrowserSigningRuntime';
@@ -175,7 +174,7 @@ export class WalletHostRuntime {
         browserSigningStores.ed25519YaoPublicCapabilityReferences,
       createRuntime: createBrowserSigningRuntime,
       initializeRuntime: initializeBrowserSigningRuntime,
-      workerWarmupPolicy: resolveBrowserWorkerWarmupPolicy(this.configs),
+      shouldPrewarmUiConfirmUi: shouldPrewarmBrowserUi,
     });
     this.signingEngine = browserSigningSurface;
     this.appearance = this.configs.ui.appearance;
@@ -596,3 +595,9 @@ export class WalletHostRuntime {
 }
 
 async function flushHostPreferenceProjection(): Promise<void> {}
+
+function shouldPrewarmBrowserUi(workerBaseOrigin: string): boolean {
+  if (typeof window === 'undefined' || typeof window.Worker === 'undefined') return false;
+  if (workerBaseOrigin && workerBaseOrigin !== window.location.origin) return false;
+  return true;
+}

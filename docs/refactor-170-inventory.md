@@ -478,7 +478,7 @@ presignature storage and lock invalidation behavior are unchanged in this patch.
 | --- | --- | --- |
 | Host first runtime construction | `SeamsWeb/walletIframe/host/context.ts` | Generic prewarm call removed; fresh signed-out construction creates no workers in production E2E. |
 | Generic signer warmup | Former `prewarmWorkers()` path through warmup assembly/manager/transport | Deleted, including its readiness waits and unused timing field. Requests initialize selected workers through `getOrCreateWorker`. |
-| Application iframe-mode warmup policy | `SeamsWeb/assembly/browserWorkerWarmupPolicy.ts` | Disables local worker warmup in the application realm; host same-origin policy enables it. |
+| Host UI preparation predicate | `walletIframe/host/WalletHostRuntime.ts:shouldPrewarmBrowserUi` | The application owns no signing surface. The host supplies a same-origin browser predicate directly; the disabled app policy and its module are deleted. |
 | Registration surface preparation | `host/runtimeLoader.ts` → `registrationPreparationPreload.ts` | Imports NEAR preparation and ECDSA/Tempo signing engines. JS reachability must be measured separately from WASM fetches. |
 | ECDSA registration preparation | `prewarmEcdsaRegistrationCrypto` → derivation-worker request | Initializes crypto while awaiting authentication; must follow selected ceremony. |
 | Email OTP Yao preparation | `prewarmEmailOtpYao` → Email OTP worker dispatch | Can initialize Ed25519 Yao explicitly; keep factor/operation selection. |
@@ -840,3 +840,23 @@ then treats it as explicit registration input and requires a publishable key. Th
 probe uses explicit registration credentials to test the supported configured path.
 Resolve this signing-only construction gap in the client/host config split; do not
 add an empty-key exception or a compatibility fallback.
+
+
+### Host initialization cleanup checkpoint
+
+`WalletHostRuntime` is the only production caller of browser signing-runtime
+initialization and the browser UI-preparation policy. The application constructor
+no longer reaches either path. Removed their application-mode branches, the unused
+configuration input to initialization, the disabled-policy module, its policy tag,
+and the single-method wrapper object. The host now passes the UI preparation
+predicate directly through assembly and restores its preferences from wallet-origin
+IndexedDB. Same-origin and browser Worker availability checks remain unchanged.
+
+This removes 53 net production lines. Other global host-mode callers still require
+an ownership audit. Normalized client/host configuration and protocol revision
+ordering remain unfinished; this cleanup does not close either acceptance gate.
+
+Production build, Wallet/state types, runtime entry boundaries, and the bloat gate
+pass. Two production browser cases pass: signed-out cold/warm startup and reload
+with warm signing, one-use step-up, and export. Sanitized evidence is recorded in
+`evidence/refactor-170-host-initialization-cleanup-20261005.json`.

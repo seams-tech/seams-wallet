@@ -14,24 +14,14 @@ export type WorkerResourceWarmupStorePort = ProfileAccountContextPort &
     getLastProfileState: () => Promise<LastProfileState | null>;
   };
 
-type WorkerResourceWarmupPredicate = (workerBaseOrigin: string) => boolean;
-
-export type WorkerResourceWarmupPolicy =
-  | {
-      kind: 'local_worker_warmup_disabled';
-      shouldPrewarmUiConfirmUi: WorkerResourceWarmupPredicate;
-    }
-  | {
-      kind: 'local_worker_warmup_enabled';
-      shouldPrewarmUiConfirmUi: WorkerResourceWarmupPredicate;
-    };
+export type UiConfirmPrewarmPredicate = (workerBaseOrigin: string) => boolean;
 
 export type WorkerResourceWarmupDeps = {
   workerBaseOrigin: string;
   store: WorkerResourceWarmupStorePort;
   nearClient: NearClient;
   nonceCoordinator: Pick<NonceCoordinator, 'prefetchNearContext'>;
-  workerWarmupPolicy: WorkerResourceWarmupPolicy;
+  shouldPrewarmUiConfirmUi: UiConfirmPrewarmPredicate;
   prewarmUiConfirmUi: () => Promise<void>;
   activateAuthenticatedWalletState: (args: {
     walletId: WalletId;
@@ -58,10 +48,6 @@ export type WorkerResourceWarmupAccountContext =
       kind: 'near_account_bound';
       account: NearAccountBinding;
 };
-
-function shouldPrewarmUiConfirmUi(deps: WorkerResourceWarmupDeps): boolean {
-  return deps.workerWarmupPolicy.shouldPrewarmUiConfirmUi(deps.workerBaseOrigin);
-}
 
 function roundWarmupDurationMs(startedAt: number): number {
   return Math.max(0, Math.round(performance.now() - startedAt));
@@ -130,7 +116,7 @@ export async function warmCriticalResources(
       })
     : 0;
 
-  const uiConfirmPrewarmMs = shouldPrewarmUiConfirmUi(deps)
+  const uiConfirmPrewarmMs = deps.shouldPrewarmUiConfirmUi(deps.workerBaseOrigin)
     ? await measureBestEffortWarmupStep(deps.prewarmUiConfirmUi)
     : 0;
 
