@@ -651,7 +651,7 @@ const INTENDED_MAX_FEE_PER_GAS = 1n;
 const INTENDED_EVM_GAS_LIMIT = 21_000n;
 
 function intendedRegistrationRpId() {
-  const parsed = parseWebAuthnRpId(globalThis.location.hostname);
+  const parsed = parseWebAuthnRpId(new URL(import.meta.env.VITE_WALLET_ORIGIN).hostname);
   if (!parsed.ok) {
     throw new Error(parsed.error.message);
   }

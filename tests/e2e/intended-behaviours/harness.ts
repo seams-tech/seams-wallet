@@ -1154,7 +1154,7 @@ export class IntendedBehaviourHarness {
 
   private readonly request: IntendedGatewayRequests;
 
-  private readonly networkMode: 'managed_local' | 'external_staging';
+  private readonly networkMode: 'managed_local' | 'external_staging' | 'hosted_product';
 
   private readonly config: IntendedHarnessConfig;
 
@@ -1241,7 +1241,7 @@ export class IntendedBehaviourHarness {
   constructor(args: {
     context: BrowserContext;
     flow: IntendedLifecycleFlow;
-    networkMode: 'managed_local' | 'external_staging';
+    networkMode: 'managed_local' | 'external_staging' | 'hosted_product';
     page: Page;
     request: IntendedGatewayRequests;
   }) {
