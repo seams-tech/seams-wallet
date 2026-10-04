@@ -605,8 +605,13 @@ Registration, session, and Email OTP commands have separate application and host
 owners. The application facade no longer selects host factories or starts durable
 registration/recovery replay.
 
-The public-client dependency gate remains open. Shared signer factories and the
-coordinator still require execution infrastructure in the application. Preference
+NEAR, EVM, and Tempo signer factories now receive explicit application or host
+commands. Public factories retain subject selection and transaction broadcasting.
+Application commands own iframe transport; host commands own execution. The
+command inputs require resolved wallet and chain/account identities.
+
+The public-client dependency gate remains open. Device linking, account sync, and
+the coordinator still retain execution infrastructure in the application. Preference
 synchronization, protocol ordering, complete selective-loading evidence, and
 consumer/release acceptance remain unfinished. See `refactor-170-inventory.md`
 for implementation and verification checkpoints.

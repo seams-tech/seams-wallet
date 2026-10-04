@@ -1,6 +1,7 @@
 {
   "extends": "./tsconfig.wallet-intended.json",
   "include": [
+    "typecheck/wallet-command-inputs.typecheck.ts",
     "typecheck/linked-device-home.typecheck.ts",
     "typecheck/sync-challenge.typecheck.ts",
     "typecheck/registration-setup.typecheck.ts",

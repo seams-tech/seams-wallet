@@ -280,7 +280,7 @@ import { joinNormalizedUrl, stripTrailingSlashes } from '@shared/utils/normalize
 import { needsExplicitActivation } from '@/utils/deviceDetection';
 import type { AuthenticatorOptions } from '@/core/types/authenticatorOptions';
 import { type ConfirmationConfig } from '@/core/types/signer-worker';
-import type { SignNEP413MessageResult } from '@/SeamsWeb/operations/near';
+import type { SignNEP413MessageResult } from '@/SeamsWeb/operations/near/signNEP413';
 import { PASSKEY_MANAGER_DEFAULT_CONFIGS } from '@/core/config/defaultConfigs';
 import { cloneResolvedChainConfig } from '@/core/config/chains';
 import type { WalletEmailOtpLoginOperation } from '@shared/utils/emailOtpDomain';

@@ -24,7 +24,7 @@ function resolveNearRegistrationAccountProvisioning(
 }
 
 export function buildNearWalletRegistrationArgs(
-  context: NearSigningWebContext,
+  context: Pick<NearSigningWebContext, 'configs'>,
   args: Parameters<NearSignerCapability['registerNearWallet']>[0],
 ): NearWalletRegistrationArgs {
   if (!args.authMethod) {
@@ -58,8 +58,3 @@ export function buildNearWalletRegistrationArgs(
     options: args.options || {},
   };
 }
-
-export { signDelegateAction } from './delegateAction';
-export { sendDelegateActionViaRelayer, delegateRelayerAuthFromConfigs } from './delegateAction';
-export type { DelegateRelayerAuth } from './delegateAction';
-export type { SignNEP413MessageParams, SignNEP413MessageResult } from './signNEP413';

@@ -1,3 +1,5 @@
+import { createApplicationNearCommands } from '@/SeamsWeb/walletIframe/client/nearCommands';
+import { createApplicationEvmFamilyCommands } from '@/SeamsWeb/walletIframe/client/evmFamilyCommands';
 import { resolvePrimaryNearRpcUrl } from '@/core/config/chains';
 import { buildConfigsFromEnv } from '@/core/config/defaultConfigs';
 import { IndexedDBManager } from '@/core/indexedDB';
@@ -150,6 +152,8 @@ export class SeamsWeb {
       this.getEmailOtpUnlockPrewarmRecord.bind(this),
     );
     const publicApi = createPublicApi({
+      createNearCommands: createApplicationNearCommands.bind(null, this.walletIframe, this.configs),
+      createEvmFamilyCommands: createApplicationEvmFamilyCommands.bind(null, this.walletIframe),
       signingEngine: this.signingEngine,
       nearClient: this.nearClient,
       configs: this.configs,

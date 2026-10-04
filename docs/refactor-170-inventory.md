@@ -639,11 +639,19 @@ methods were removed.
 normalization, appearance resolution, and provisioning-event filter. It contains
 no execution composition. Each facade binds its callbacks to named methods.
 
-The remaining composition work is explicit: shared signer factories and the
-coordinator still depend on a signing surface and execution-owned preferences.
-The application still constructs that infrastructure. The host also still
-constructs the coordinator for these shared factories. Removing those dependencies
-is required before the public-client dependency gate can pass.
+NEAR, EVM, and Tempo factories now receive explicit commands from the application
+or host constructor. Application commands own iframe requests and callbacks. Host
+commands own signing, registration, nonce reporting, and persistence access.
+Ordinary and reviewed calls use the same factories with explicit dispatch state.
+The NEAR registration-input and delegate-relay modules no longer import execution.
+
+A browser bundle graph of the three public signer factories and two application
+command modules contains 41 inputs, with no IndexedDB, custody, or worker-manager
+modules. The graph is `.artifacts/r170-signer-commands/commands-metafile.json`.
+This proves the signer boundary only. Device linking, account sync, preferences,
+and the coordinator still retain execution dependencies. Both constructors still
+create signing infrastructure. Removing those dependencies remains necessary
+for the full public-client dependency gate.
 
 Consumer measurement after this change uses the same named exports, Bun production
 minification, and per-file compression as the baseline. The build freshness check
@@ -667,3 +675,14 @@ The checked-in receipt is
 hashes, test results, measurement settings, and reproduction commands. Local
 browser asset evidence and the signed-out trace are under
 `.artifacts/r170-host-composition/`.
+
+### Signer command verification
+
+The signer extraction passed a fresh production build, Wallet and intended-app
+type checks, domain-state type fixtures, and the bloat gate. Ten production
+browser cases cover Email OTP registration/unlock, EVM signing while NEAR is
+held, cross-tab lock/restore races, export, shared-budget signing, refresh,
+empty-storage restoration, and interrupted-unlock retry. Six Chromium review
+cases cover reserved approval, callbacks, cancellation, session replacement,
+and disposal during signing. Sanitized results and source hashes are recorded
+in `evidence/refactor-170-signer-commands-20261005.json`.

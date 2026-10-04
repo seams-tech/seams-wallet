@@ -1,3 +1,5 @@
+import { createWalletHostNearCommands } from '@/SeamsWeb/walletIframe/host/createNearCommands';
+import { createWalletHostEvmFamilyCommands } from '@/SeamsWeb/walletIframe/host/createEvmFamilyCommands';
 import { resolvePrimaryNearRpcUrl } from '@/core/config/chains';
 import { buildConfigsFromEnv } from '@/core/config/defaultConfigs';
 import { IndexedDBManager } from '@/core/indexedDB';
@@ -210,6 +212,11 @@ export class WalletHostRuntime {
         this.resumePendingAcknowledgementsAfterExactUnlockV1.bind(this),
     });
     const publicApi = createPublicApi({
+      createNearCommands: createWalletHostNearCommands.bind(null, this.getContext.bind(this)),
+      createEvmFamilyCommands: createWalletHostEvmFamilyCommands.bind(
+        null,
+        this.getContext.bind(this),
+      ),
       signingEngine: this.signingEngine,
       nearClient: this.nearClient,
       configs: this.configs,
