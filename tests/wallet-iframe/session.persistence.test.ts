@@ -56,8 +56,11 @@ export async function run() {
   const store = SEAMS_WALLET_STORES.walletSessionAuthorizations;
   const alphaKey = alpha.operationCredential.walletSessionId;
   const original = await db.get(store, alphaKey);
+  const beforeRead = seamsWalletDB.getWalletAuthorityRevision();
   const initial = await walletSessionAuthorizations.readExactWithOperationCredential(scope(alpha));
+  const afterRead = seamsWalletDB.getWalletAuthorityRevision();
   const updated = await refresh(alpha);
+  const afterRefresh = seamsWalletDB.getWalletAuthorityRevision();
 
   // Put malformed raw boundary data after a valid row in index order.
   const corruptKey = 'zzzz-corrupt-session';
@@ -90,12 +93,16 @@ export async function run() {
   const validSurvivedReplacement = await db.get(store, alphaKey) !== undefined;
   const legacySurvivedReplacement = await db.get(store, legacyKey) !== undefined;
 
+  const afterAborts = seamsWalletDB.getWalletAuthorityRevision();
   await db.delete(store, corruptKey);
   const recovered = await walletSessionAuthorizations.readExactActiveForWallet(scope(alpha));
+  const afterPrune = seamsWalletDB.getWalletAuthorityRevision();
   const legacyPruned = await db.get(store, legacyKey) === undefined;
   await walletSessionAuthorizations.clearWallet(alpha.activeWalletSession.walletId);
   const cleared = await walletSessionAuthorizations.readExact(alphaKey);
+  const beforeStaleRefresh = seamsWalletDB.getWalletAuthorityRevision();
   const staleRefresh = await refresh(alpha);
+  const afterStaleRefresh = seamsWalletDB.getWalletAuthorityRevision();
   const otherWallet = await walletSessionAuthorizations.readExactWithOperationCredential(scope(beta));
   const retired = await retire(beta);
   const retiredRead = await walletSessionAuthorizations.readExact(beta.operationCredential.walletSessionId);
@@ -108,6 +115,13 @@ export async function run() {
   seamsWalletDB.setDisabled(false);
 
   return {
+    revisions: {
+      unchangedRead: afterRead === beforeRead,
+      committedRefresh: afterRefresh === afterRead + 1,
+      abortedWrites: afterAborts === afterRefresh,
+      legacyPrune: afterPrune === afterAborts + 1,
+      staleRefresh: afterStaleRefresh === beforeStaleRefresh,
+    },
     initial: initial.kind,
     updated,
     corruptRead: corruptRead.kind,
@@ -161,6 +175,13 @@ test('session transactions roll back corruption and retire exact credentials dur
   );
   const receipt = await page.evaluate(runPersistenceScenario);
   expect(receipt).toEqual({
+    revisions: {
+      unchangedRead: true,
+      committedRefresh: true,
+      abortedWrites: true,
+      legacyPrune: true,
+      staleRefresh: true,
+    },
     initial: 'found',
     updated: 'updated',
     corruptRead: 'corrupt',

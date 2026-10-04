@@ -308,6 +308,21 @@ async function readWalletIframeSessionObservation(
   });
 }
 
+export type WalletIframeExactSessionSnapshot = {
+  readonly revision: number;
+  readonly state: WalletIframeExactSessionState;
+};
+
+export function parseWalletIframeExactSessionSnapshot(
+  value: unknown,
+): WalletIframeExactSessionSnapshot {
+  const record = requireRecordCopy(value, 'Wallet iframe exact session snapshot');
+  return {
+    revision: requireNonNegativeSafeInteger(record.revision, 'Wallet session revision'),
+    state: parseWalletIframeExactSessionState(record.state),
+  };
+}
+
 export function parseWalletIframeExactSessionState(value: unknown): WalletIframeExactSessionState {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error('Wallet iframe exact session state must be an object');

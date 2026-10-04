@@ -642,22 +642,23 @@ remains unfinished. Preference
 snapshots and events now carry wallet-bound revisions; delayed snapshots cannot
 replace newer events. Host preference reads now fence stale hydration, and writes
 acknowledge durable storage. Host execution replacement now rejects pending runtime
-requests and fences callbacks from the retired generation. Session revisions and
-consumer ownership verification across replacement remain open.
+requests and fences callbacks from the retired generation. Session event revisions
+and consumer ownership verification across replacement remain open.
 
 The host no longer reapplies an existing wallet selection during a session read.
 Saved-wallet restoration now yields to selection changes made during its lookup,
 including removal back to no selection. Three browser cases cover this ordering,
 with production Email OTP and passkey refresh/sign/export acceptance also passing.
-This closes the restoration side effect only; session-result revisions remain open.
+This closes the restoration side effect; session snapshot revisions are implemented
+in the later checkpoint below.
 See `evidence/refactor-170-session-selection-20261005.json`.
 
 Client session reads now retry against the current wallet after an observed
 selection change. Connection closure clears the cached session and fences delayed
 session-read responses. Disposal prevents reinitialization. Session notifications
 no longer reapply a result after another asynchronous boundary. These client
-guards preserve selection and connection lifetime; host authority revisions remain
-open. See `evidence/refactor-170-session-client-20261005.json`.
+guards preserve selection and connection lifetime. The later snapshot checkpoint
+adds local authority revisions. See `evidence/refactor-170-session-client-20261005.json`.
 
 Host execution generations now cover requests waiting for runtime code and requests
 already executing. Replacement rejects them, clears cached handler ownership, and
@@ -693,7 +694,19 @@ Seven browser cases and four production lifecycle cases pass. The change removes
 29 production source lines net. Revision notifications and session envelopes remain
 open. Evidence: `evidence/refactor-170-session-transactions-20261005.json`.
 
-The fresh production root-client static closure measures 66,386 bytes gzip
+Session snapshots now include a host-issued observation revision. The host retries
+reads interrupted by a local authority commit or selection change, and checks
+again immediately before publication. The client ignores older same-wallet
+snapshots. Six authority stores advance the local revision only after committed
+writes; ordinary reads and aborted transactions leave it unchanged. Shared cursor
+deletion paths now use tracked store deletion. Type fixtures require the snapshot
+fields and preserve the captured revision. Session event revisions, remote-tab
+notifications, and the remaining lifecycle acceptance matrix stay open. All 65
+browser cases and four production lifecycle cases pass. This step adds 127
+production lines net. Evidence: `evidence/refactor-170-authority-revisions-20261005.json`.
+
+At the recorded bundle checkpoint, the production root-client static closure measured
+66,386 bytes gzip
 (64.8 KiB), compared with 739,640 bytes at baseline: a 91.0% reduction. Including
 its lazy router, it measures 93,551 bytes gzip (91.4 KiB). The provider measures
 73,281 bytes static and 103,213 bytes reachable gzip, excluding React peers.

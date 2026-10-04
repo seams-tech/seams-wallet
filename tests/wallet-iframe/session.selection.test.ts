@@ -15,6 +15,17 @@ let releaseInventory = null;
 let inventoryReads = 0;
 let selectionEvents = [];
 let selectionDatabase;
+let selectionSdk;
+let originalAuthorityRead;
+let authorityReads = 0;
+let heldAuthority = null;
+function holdAuthority(resolve) { heldAuthority = resolve; }
+async function readSelectedAuthority(walletId) {
+  authorityReads++;
+  const result = await originalAuthorityRead(walletId);
+  if (authorityReads === 2) await new Promise(holdAuthority);
+  return result;
+}
 function holdInventory(resolve) { releaseInventory = resolve; }
 async function getRecentUnlocks() {
   inventoryReads++;
@@ -33,9 +44,15 @@ function readSelectionPreferences() {
 async function initializeSelection() {
   const sdk = await import('/__session-selection.js');
   sdk.configureIndexedDB({ mode: 'wallet' });
+  selectionSdk = sdk;
   selectionDatabase = sdk.IndexedDBManager;
   selectionManager = new sdk.UserPreferencesManager({ store: sdk.IndexedDBManager });
   selectionManager.onCurrentWalletChange(recordSelection);
+  if (window.holdAuthorityObservation) {
+    selectionManager.setCurrentWallet('alice.testnet');
+    originalAuthorityRead = selectionDatabase.resolveSelectedWalletAuthority.bind(selectionDatabase);
+    selectionDatabase.resolveSelectedWalletAuthority = readSelectedAuthority;
+  }
   selectionRuntime = {
     preferences: selectionManager,
     auth: { getRecentUnlocks },
@@ -71,6 +88,14 @@ window.selectionState = function() {
 };
 window.selectBob = function() { selectionManager.setCurrentWallet('bob.testnet'); };
 window.deleteBob = async function() { await selectionDatabase.deleteProfileData('bob.testnet', { eventAccountId: 'bob.testnet' }); };
+window.authorityObservationState = function() { return { held: heldAuthority !== null, reads: authorityReads }; };
+window.commitMissingAuthority = async function() {
+  const fixture = await selectionSdk.buildEmailOtpEcdsaWalletSessionFixture({
+    label: 'host-authority-observation', walletId: 'alice.testnet', expiresAtMs: 10000,
+  });
+  await selectionDatabase.persistFoundingWalletAuthority({ authority: fixture.authority, authMethod: fixture.authMethod });
+};
+window.releaseAuthorityObservation = function() { const release = heldAuthority; heldAuthority = null; release(); };
 window.releaseInventory = function() { const release = releaseInventory; releaseInventory = null; release(); };
 `;
 
@@ -116,7 +141,7 @@ function walletFrame(frame: { url(): string }): boolean {
   return frame.url().startsWith('https://wallet.example.localhost/wallet-service');
 }
 
-for (const selectionChange of ['none', 'select', 'delete'] as const) {
+for (const selectionChange of ['none', 'select', 'delete', 'authority'] as const) {
   test(`session bootstrap with selection change: ${selectionChange}`, async ({ page }, info) => {
     const root = path.resolve(import.meta.dirname, '../..');
     const bundle = await build({
@@ -124,6 +149,7 @@ for (const selectionChange of ['none', 'select', 'delete'] as const) {
         contents: `
           export { UserPreferencesManager } from './packages/wallet/src/core/signingEngine/session/userPreferences.ts';
           export { IndexedDBManager, configureIndexedDB } from './packages/wallet/src/core/indexedDB/index.ts';
+          export { buildEmailOtpEcdsaWalletSessionFixture } from './tests/unit/helpers/linkedDeviceManagement.fixtures.ts';
           export { createAuthWalletIframeHandlers } from './packages/wallet/src/SeamsWeb/walletIframe/host/handlers/auth.ts';
         `,
         resolveDir: root,
@@ -142,12 +168,34 @@ for (const selectionChange of ['none', 'select', 'delete'] as const) {
     );
     await registerWalletServiceRoute(
       page,
-      buildWalletServiceHtml({ extraScript: hostScript }),
+      buildWalletServiceHtml({
+        extraScript:
+          `window.holdAuthorityObservation = ${selectionChange === 'authority'};\n` + hostScript,
+      }),
       '**://wallet.example.localhost/wallet-service*',
     );
     const frameReady = page.waitForEvent('framenavigated', { predicate: walletFrame });
     await page.evaluate(beginClient);
     const frame = await frameReady;
+    if (selectionChange === 'authority') {
+      await expect
+        .poll(frame.evaluate.bind(frame, readAuthorityObservation))
+        .toMatchObject({ held: true });
+      await frame.evaluate(commitMissingAuthority);
+      await frame.evaluate(releaseAuthorityObservation);
+      await expect.poll(page.evaluate.bind(page, finishClient)).toMatchObject({
+        kind: 'wallet_unlocked_without_signing_session',
+        walletId: 'alice.testnet',
+        reason: 'absent',
+      });
+      const session = await page.evaluate(finishClient);
+      const observation = await frame.evaluate(readAuthorityObservation);
+      await writeFile(
+        info.outputPath('authority-observation.json'),
+        JSON.stringify({ session, observation }, null, 2),
+      );
+      return;
+    }
     await expect
       .poll(frame.evaluate.bind(frame, readSelection))
       .toMatchObject({ inventoryHeld: true });
@@ -178,4 +226,16 @@ for (const selectionChange of ['none', 'select', 'delete'] as const) {
       JSON.stringify({ session, selection }, null, 2),
     );
   });
+}
+
+function readAuthorityObservation(): unknown {
+  return (window as any).authorityObservationState();
+}
+
+function commitMissingAuthority(): Promise<void> {
+  return (window as any).commitMissingAuthority();
+}
+
+function releaseAuthorityObservation(): void {
+  (window as any).releaseAuthorityObservation();
 }

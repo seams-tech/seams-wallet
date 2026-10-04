@@ -378,6 +378,42 @@ operation credentials. The six authority-race browser cases and four production
 lifecycle cases also pass. Evidence:
 `evidence/refactor-170-session-transactions-20261005.json`.
 
+Session snapshots now carry `{ revision, state }` in the unreleased 3.0.0
+protocol. The host assigns the observation revision before asynchronous work.
+The client accepts only newer snapshots within its current connection and returns
+the current projection when an older response arrives. Selection and connection
+generation checks still run before accepting that snapshot.
+
+The database manager tracks writes to the six stores used by exact-session
+authority reads: authorities, auth methods, selections, session credentials,
+authority signer material, and authority export roots. It advances a local
+revision after a transaction with a tracked write commits. Ordinary reads,
+aborted writes, and superseded compare-and-update operations do not advance it.
+An identical `put` or an empty `clear` still counts as a committed write. The
+revision is conservative; it does not compare record contents.
+
+The host captures that local revision and observes selection changes before its
+read. A change causes another capture, with a limit of three attempts. Repeated
+changes reject the request. Selection removal produces a fresh locked projection
+without restoring the saved wallet again. The final revision check and response
+publication share the same synchronous continuation.
+
+The two authority deletion paths that used cursors now delete through the shared
+store helper. Current authority mutations use the tracked store operations within
+`runTransaction`. This revision does not observe raw database writes or another
+tab's manager. Keep persisted identity checks and compare-and-update protection.
+
+Browser evidence covers a delayed missing-authority result across a real authority
+commit, reversed same-wallet snapshot delivery, revision behavior on commit and
+abort, selection removal, and disposal. The snapshot envelope also has type
+fixtures for missing fields and mutation of its captured revision.
+
+Session events and expiry notifications still lack the paired revision envelope.
+The same-wallet expiry, revocation, activation-event, and reconnect acceptance
+matrix remains open. Do not treat snapshot ordering as completion of that gate.
+The final run passes 65 browser cases and four production lifecycle cases.
+Evidence: `evidence/refactor-170-authority-revisions-20261005.json`.
+
 The existing SDK lifecycle stream reports session expiry and NEAR provisioning.
 It does not report every activation, lock, recovery, or revocation.
 The preference manager suppresses ordinary same-wallet selection notifications.
@@ -390,12 +426,12 @@ comment; it is a source-line count, not a statement-count reduction.
 
 Implementation order for the remaining gate:
 
-1. Cover the persisted mutation boundaries above, including direct transactions
-   and partial commits. Keep notifications internal and free of credentials.
+1. Connect the implemented local commit revision to session event publication.
+   Cover partial commits and keep event payloads free of credentials.
 2. Pair that invalidation with host selection, expiry, and execution changes.
    Capture a revision before asynchronous reads. Re-read when it changes.
-3. Add the shared revision envelope to snapshots and session events. Validate it
-   once at the message boundary and reject older values on the client.
+3. Extend the implemented snapshot revision envelope to session events. Validate
+   events once at the boundary and order them against pending snapshots.
 4. Exercise same-wallet unlock, expiry during a read, revocation, authority
    extension, reversed response delivery, reconnect, and disposal through the
    real host transport. Preserve the existing cross-tab production race checks.

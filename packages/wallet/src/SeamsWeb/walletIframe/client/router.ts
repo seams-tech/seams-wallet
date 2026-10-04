@@ -287,7 +287,7 @@ import { buildPMUnlockPayload } from '../shared/unlockOptions';
 import type { WalletId } from '@shared/utils/domainIds';
 import {
   parseWalletIframeExactSessionLockResult,
-  parseWalletIframeExactSessionState,
+  parseWalletIframeExactSessionSnapshot,
   parseWalletSessionFromBoundary,
   WalletIframeSessionExpiredRequestError,
   type WalletIframeExactSessionIdentity,
@@ -1572,6 +1572,7 @@ export class WalletIframeRouter {
   private readonly expiredSigningSessionsByWallet = new Map<WalletId, Set<WalletSessionId>>();
   private exactSessionState: WalletIframeExactSessionState | null = null;
   private sessionSelectionGeneration = 0;
+  private sessionObservationRevision = -1;
   private lastPreferencesChangedPayload: PreferencesChangedPayload | null = null;
   private mirroredConfirmationUiMode: RequestConfirmationUiMode | null = null;
   private progressBus: OnEventsProgressBus;
@@ -2690,6 +2691,7 @@ export class WalletIframeRouter {
     this.updateSurfaceViewportListeners();
     if (this.state.connectionId === connectionId) {
       this.exactSessionState = null;
+      this.sessionObservationRevision = -1;
       this.lastPreferencesChangedPayload = null;
       this.mirroredConfirmationUiMode = null;
       this.state.connectionId = null;
@@ -2836,6 +2838,7 @@ export class WalletIframeRouter {
       this.lastPreferencesChangedPayload = null;
       this.mirroredConfirmationUiMode = null;
       this.exactSessionState = null;
+      this.sessionObservationRevision = -1;
       this.state.connectionId = connectionId;
       this.state.port.onmessage = (event) => this.onPortMessage(event, connectionId);
       this.state.port.start?.();
@@ -3037,9 +3040,13 @@ export class WalletIframeRouter {
         requestedWallet = { kind: 'current' };
         continue;
       }
-      const state = parseWalletIframeExactSessionState(response.result);
-      this.updateReviewSession(state);
-      this.exactSessionState = state;
+      const snapshot = parseWalletIframeExactSessionSnapshot(response.result);
+      if (snapshot.revision > this.sessionObservationRevision) {
+        this.sessionObservationRevision = snapshot.revision;
+        this.updateReviewSession(snapshot.state);
+        this.exactSessionState = snapshot.state;
+      }
+      const state = this.getMirroredExactSessionState();
       if (emitLoginStatus) {
         this.emitLoginStatusChanged(walletIframeLoginStatusFromExactSession(state));
       }

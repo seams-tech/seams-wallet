@@ -266,12 +266,15 @@ const EMAIL_OTP_REGISTRATION_SESSION_SCRIPT = String.raw`
           if (data.type === 'PM_GET_EXACT_WALLET_SESSION_STATE') {
             captureEmailOtpRequest(data.type);
             postResult(requestId, {
-              kind: 'wallet_unlocked_without_signing_session',
-              walletId: 'alice.testnet',
-              authorizationId: 'wallet-session-authorization-router-fixture',
-              walletSessionId: 'wallet-session-router-fixture',
-              authMethod: 'email_otp',
-              reason: 'not_found',
+              revision: ++sessionObservationRevision,
+              state: {
+                kind: 'wallet_unlocked_without_signing_session',
+                walletId: 'alice.testnet',
+                authorizationId: 'wallet-session-authorization-router-fixture',
+                walletSessionId: 'wallet-session-router-fixture',
+                authMethod: 'email_otp',
+                reason: 'not_found',
+              },
             });
             return;
           }

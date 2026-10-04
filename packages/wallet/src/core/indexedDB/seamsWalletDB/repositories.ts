@@ -1201,10 +1201,9 @@ async function deleteRowsByIndex(args: {
   indexName: string;
   key: IDBValidKey | IDBKeyRange;
 }): Promise<void> {
-  let cursor = await args.store.index(args.indexName).openCursor(args.key);
-  while (cursor) {
-    await cursor.delete();
-    cursor = await cursor.continue();
+  const keys = await args.store.index(args.indexName).getAllKeys(args.key);
+  for (const key of keys) {
+    await args.store.delete(key);
   }
 }
 
@@ -8426,13 +8425,11 @@ export class SeamsWalletRepositories {
       'readwrite',
       async (ctx) => {
         const store = ctx.store(SEAMS_WALLET_STORES.walletAuthMethods);
-        let cursor = await store
-          .index(SEAMS_WALLET_INDEXES.walletIdKind)
-          .openCursor(IDBKeyRange.only([normalizedProfileId, 'passkey']));
-        while (cursor) {
-          await cursor.delete();
-          cursor = await cursor.continue();
-        }
+        await deleteRowsByIndex({
+          store,
+          indexName: SEAMS_WALLET_INDEXES.walletIdKind,
+          key: IDBKeyRange.only([normalizedProfileId, 'passkey']),
+        });
       },
     );
   }

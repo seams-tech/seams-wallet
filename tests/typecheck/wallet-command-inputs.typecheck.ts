@@ -125,3 +125,21 @@ declare const capturedRuntimeRequest: WalletHostRuntimeRequest;
 capturedRuntimeRequest.executionGeneration = capturedRuntimeRequest.state.executionGeneration;
 void unboundRuntimeRequest;
 void unversionedRuntimeState;
+
+import type {
+  WalletIframeExactSessionSnapshot,
+  WalletIframeExactSessionState,
+} from '../../packages/wallet/src/SeamsWeb/walletIframe/shared/exactSessionState';
+declare const observedSession: WalletIframeExactSessionState;
+// @ts-expect-error Session snapshots require a host-issued revision.
+const unversionedSession: WalletIframeExactSessionSnapshot = { state: observedSession };
+// @ts-expect-error A revision cannot replace the required session projection.
+const missingSessionProjection: WalletIframeExactSessionSnapshot = { revision: 1 };
+declare const sessionSnapshot: WalletIframeExactSessionSnapshot;
+// @ts-expect-error An observation cannot adopt another revision after capture.
+sessionSnapshot.revision = 2;
+// @ts-expect-error Broad spreads cannot remove the required revision.
+const optionalSessionRevision: WalletIframeExactSessionSnapshot = { ...sessionSnapshot, revision: undefined };
+void unversionedSession;
+void missingSessionProjection;
+void optionalSessionRevision;

@@ -252,6 +252,13 @@ the application's session projection. A closed connection clears that projection
 Delayed session-read responses cannot repopulate it. Router disposal is terminal;
 initializing a disposed router rejects the call.
 
+Within a live connection, session snapshots carry a host-issued observation
+revision. The application ignores snapshots older than the last accepted revision.
+The host recaptures a read when a local authority commit or selection change occurs
+during that read. It checks again immediately before publishing the response.
+Selection removal returns a fresh locked projection. Repeated changes exhaust
+three attempts and reject the read instead of publishing an unstable observation.
+
 Clearing a wallet's persisted session credentials reads and deletes its keys in
 one transaction. It preserves other wallets' credentials. A corrupt session read
 or failed replacement rolls back any earlier deletions in that transaction.

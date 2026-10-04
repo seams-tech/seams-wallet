@@ -9,6 +9,7 @@ import {
   type WalletIframeExactSessionReadDependencies,
   type WalletIframeExactSessionStatus,
   type WalletIframeExactSessionState,
+  type WalletIframeExactSessionSnapshot,
 } from '../../shared/exactSessionState';
 import {
   reconcileWalletIframeExactSessions,
@@ -27,6 +28,7 @@ import {
 import { createHostedAuthMenuHandlers } from './authMenu';
 import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { IndexedDBManager } from '@/core/indexedDB';
+import { seamsWalletDB } from '@/core/indexedDB/singletons';
 import { walletSessionAuthorizations } from '@/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
 import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 
@@ -195,6 +197,49 @@ async function resolveExactWalletSessionState(
   );
 }
 
+let sessionObservationRevision = 0;
+
+async function respondWithExactWalletSession(
+  deps: HandlerDeps,
+  pm: ReturnType<HandlerDeps['getWalletRuntime']>,
+  req: Req<'PM_GET_EXACT_WALLET_SESSION_STATE'>,
+  payload: PMGetExactWalletSessionStatePayload,
+): Promise<void> {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const revision = ++sessionObservationRevision;
+    const authorityRevision = seamsWalletDB.getWalletAuthorityRevision();
+    const selection = { changed: false };
+    const unsubscribe = pm.preferences.onCurrentWalletChange(
+      markWalletSelectionChanged.bind(null, selection),
+    );
+    try {
+      const state = await resolveExactWalletSessionState(pm, payload);
+      if (selection.changed && pm.preferences.getCurrentWalletId() === null) {
+        const snapshot: WalletIframeExactSessionSnapshot = {
+          revision: ++sessionObservationRevision,
+          state: { kind: 'wallet_locked' },
+        };
+        respondOkResult(deps, req.requestId, snapshot);
+        return;
+      }
+      if (selection.changed || authorityRevision !== seamsWalletDB.getWalletAuthorityRevision()) {
+        continue;
+      }
+      const snapshot: WalletIframeExactSessionSnapshot = { revision, state };
+      respondOkResult(deps, req.requestId, snapshot);
+      if (payload.authenticationRead === 'restore') {
+        void pm
+          .prefillRestoredWalletSession(state)
+          .catch(reportRestoredSessionPresignaturePrefillFailure);
+      }
+      return;
+    } finally {
+      unsubscribe();
+    }
+  }
+  throw new Error('Wallet authority changed repeatedly during session observation');
+}
+
 function reportRestoredSessionPresignaturePrefillFailure(error: unknown): void {
   console.warn('[WalletIframeHost] Restored-session presignature prefill failed:', error);
 }
@@ -270,13 +315,7 @@ export function createAuthWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
       ) {
         throw new Error('Wallet iframe exact session read mode is invalid');
       }
-      const state = await resolveExactWalletSessionState(pm, payload);
-      if (payload.authenticationRead === 'restore') {
-        void pm.prefillRestoredWalletSession(state).catch(
-          reportRestoredSessionPresignaturePrefillFailure,
-        );
-      }
-      respondOkResult(deps, req.requestId, state);
+      await respondWithExactWalletSession(deps, pm, req, payload);
     },
 
     PM_GET_RECENT_UNLOCKS: async (req: Req<'PM_GET_RECENT_UNLOCKS'>) => {
