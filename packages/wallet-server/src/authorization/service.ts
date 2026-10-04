@@ -93,6 +93,7 @@ export interface AuthorizationSessionPort {
   ): Promise<void>;
   redeemHostedWalletSeamsSessionExchange(
     input: RedeemHostedWalletSeamsSessionExchangeV2Input,
+    publishCredentialLocator?: () => Promise<void>,
   ): Promise<PersistedHostedWalletSeamsSessionExchangeV2Result>;
   readHostedWalletSessionOperationCredentialV2(input: {
     readonly tenantId: TenantId;
@@ -371,21 +372,23 @@ export class AuthorizationService {
     );
     const codeHash = await digestOpaqueValue(input.exchangeCode);
     const tokenHash = await digestOpaqueValue(hostedCredentialToken);
-    const persisted = await this.ports.sessions.redeemHostedWalletSeamsSessionExchange({
-      codeHash,
-      nonceDigest: await digestOpaqueValue(input.nonce),
-      appOrigin: input.appOrigin,
-      walletOrigin: input.walletOrigin,
-      tokenHash,
-      hostedCredentialId,
-      redeemedAtMs: input.redeemedAtMs,
-    });
+    const persisted = await this.ports.sessions.redeemHostedWalletSeamsSessionExchange(
+      {
+        codeHash,
+        nonceDigest: await digestOpaqueValue(input.nonce),
+        appOrigin: input.appOrigin,
+        walletOrigin: input.walletOrigin,
+        tokenHash,
+        hostedCredentialId,
+        redeemedAtMs: input.redeemedAtMs,
+      },
+      this.ports.sessionRouting?.publish.bind(this.ports.sessionRouting, {
+        kind: 'exchanged_credential',
+        digest: tokenHash,
+        exchangeDigest: codeHash,
+      }),
+    );
     if (persisted.kind !== 'redeemed') return persisted;
-    await this.ports.sessionRouting?.publish({
-      kind: 'exchanged_credential',
-      digest: tokenHash,
-      exchangeDigest: codeHash,
-    });
     const operationCredential = parseHostedWalletSessionOperationCredentialV1({
       kind: 'opaque_hosted_wallet_session_operation_credential_v1',
       token: hostedCredentialToken,

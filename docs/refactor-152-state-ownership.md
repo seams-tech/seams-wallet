@@ -1,6 +1,6 @@
 # R152 state ownership baseline for R153
 
-Revision 12 — October 4, 2026.
+Revision 13 — October 4, 2026.
 
 This freezes the **schema inventory and ownership obligations**, not a copy-ready
 relocation implementation. R153 must fail closed for unresolved ownership below.
@@ -431,12 +431,14 @@ when sources have not changed; the successful run rebuilt its candidate.
   direct reads. Signed-delegate execution and relayer/root controls remain
   tenant-owned. See the subsequent Runtime evidence in the per-wallet inventory;
   the original revision-1 statement that this dispatch was absent is superseded.
-- [ ] Deferred work: complete the inventory of persisted continuations, alarms,
-  refills and background writes, and verify they retain their admitted fixed-home
-  context. R153 owns relocation write fences and queued-before-move cutover tests.
-- [ ] Credential locators: complete issuance/consumption/revocation reconciliation
-  for all opaque credentials, challenge kinds and delivery acknowledgements;
-  ensure wrong-home or unavailable-directory paths fail before local mutation.
+- [x] Deferred fixed-home execution: ceremony continuations resolve the retained
+  home; role background execution captures the admitted environment/pair/root;
+  presign alarms act on their owning object. Routing failure checks and real
+  installation/recovery/refill execution pass. R153 owns cutover fences.
+- [x] Credential reconciliation: issuance, exchange consumption, revocation,
+  challenge replay and linked delivery acknowledgements pass. Locator publication
+  precedes one-use exchange consumption; wrong-home/directory failures do not
+  consume local state. Retained routing metadata confers no authorization.
 - [x] Local regional linked-device installation: production source resolution and
   protocol execution, lost execution/activation/acknowledgement replies, complete
   installation and cleanup pass across US/WEUR/APAC with Gateway and role restarts.
@@ -732,3 +734,54 @@ activation and acknowledgement replies, Gateway/role restarts, installation and
 cleanup all passed. Earlier registration/recovery/export evidence covers ordinary
 session and step-up selectors. This closes ownership accounting; it does not claim
 that R153's export/import/cutover implementation exists or has passed testing.
+
+
+### Deferred execution verification — October 4
+
+The regional dispatch suite covers 18 combinations of three homes, three ingress
+regions and two registration continuations (`near-admission`, `near-provisioning`).
+Retries keep the ceremony home; conflicting sessions, unknown/malformed ceremonies
+and directory outages are rejected. This scenario disables protocol execution;
+actual provisioning is covered by registration/awaitNearReady in the real regional
+browser matrices and the sponsored-NEAR uncertain-effect replay evidence.
+
+Source review covers the actual asynchronous role boundary:
+`ed25519_yao_lifecycle.rs` moves the validated pair/root/runtime and original `Env`
+into `wait_until`; its error completion uses that captured environment and pair
+scope. Presign `set_alarm` runs against the same object's storage and clears its
+owner session/authority; completed linked records retain the ownership described
+above. Refill requests retain the authenticated wallet scope and persist in its
+wallet/private role store. Gateway Node/Worker wait-until adapters introduce no
+location selection. Scheduled prewarm is tenant-scoped and does not own a wallet.
+This closes fixed-home execution accounting; it does not establish relocation
+fencing or recovery from arbitrary mid-transaction crashes.
+
+Baseline reconciliation receipt before the exchange fix:
+private `.artifacts/r152/reconciliation-20261004/regional-session-routing-evidence.json`,
+SHA-256 `fa671be914e0cd8982a5ed90127c9be3eac93644a8a72a4594bb267427cb1c57`.
+
+
+### Credential reconciliation closure — October 4
+
+The full regional Worker/D1 suite passes with production routing and authorization
+stores. Direct and exchange credentials publish their home locator before local
+issuance. Child exchange redemption now validates its persisted exchange, publishes
+the new child locator, then runs the existing atomic consume/insert transaction.
+An unavailable directory therefore preserves the one-use exchange. Concurrent
+redemptions can publish two routing entries but only one local credential; the
+loser's locator has no authority and shares the exchange expiry. Unknown/invalid
+exchanges are rejected before child publication.
+
+The existing scenario now injects the child-publication outage in each home,
+asserts `consumed_at_ms` remains NULL, restores the directory and races redemption.
+All three homes produce one winner. It also verifies wrong-home publication,
+primary/child retirement, independent linked-device credentials, unknown bearer
+rejection, 503 directory outages, passkey challenge publication/consumption/replay,
+revoked discovery, shared nonce replay, terminal linking cleanup and stale grant
+writes. Real browser recovery and installation/restart receipts cover the actual
+credential consumers and lost delivery acknowledgements.
+
+Receipt: private
+`.artifacts/r152/exchange-reconciliation-20261004/regional-session-routing-evidence.json`,
+SHA-256 `90709910ef9698e6b8781f98d3dc40f87355c9edd18fe67045a7f070c8f3430a`.
+This is local multi-Worker evidence; hosted candidate acceptance remains required.

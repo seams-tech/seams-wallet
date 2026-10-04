@@ -677,11 +677,14 @@ export class CloudflareD1AuthorizationStore
 
   async redeemHostedWalletSeamsSessionExchange(
     input: RedeemHostedWalletSeamsSessionExchangeV2Input,
+    publishCredentialLocator?: () => Promise<void>,
   ): Promise<PersistedHostedWalletSeamsSessionExchangeV2Result> {
     const current = await this.readHostedWalletExchangeV2(input.codeHash);
     const rejected = classifyHostedWalletExchangeV2(current, input);
     if (rejected) return rejected;
     if (!current) throw new Error('hosted-wallet exchange disappeared');
+    // Publish after validation and before consuming the one-use exchange.
+    await publishCredentialLocator?.();
     try {
       const insertCredential = this.database
         .prepare(

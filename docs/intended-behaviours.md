@@ -185,6 +185,11 @@ CTA belong to the wallet origin.
   `registerWallet()`, `addWalletSigner()`, and `unlock()` confirmation surfaces
   unchanged.
 
+- Hosted exchange redemption publishes the child's home locator before consuming
+  the validated one-use exchange. A directory publication failure leaves the
+  exchange usable for retry. Concurrent redemption still produces one credential;
+  an unused locator never grants authorization.
+
 ## Registration
 
 ### Wallet-management protocol

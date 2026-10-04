@@ -1587,3 +1587,15 @@ complete or handing off to R153:
 
 The source-accounting contract is complete. R153 owns executable transfer,
 relocation fences and cutover validation. Other R152 acceptance gates still apply.
+
+
+### October 4: reconciliation and fixed-home deferred execution
+
+- [x] Close credential issuance/consumption/revocation and delivery reconciliation;
+  fix child-locator publication ordering so an outage preserves one-use redemption.
+- [x] Verify fixed-home continuations and retained background/alarm ownership.
+- [x] Run the existing full regional Worker/D1 suite with the added outage/retry
+  assertion. Evidence and scope are in the ownership contract and results.
+
+Next gates: hosted regional acceptance, D1-call targets, final cleanup review,
+0.8.0 publication and the authorized R153 handoff.

@@ -5751,3 +5751,43 @@ and the public candidate; repeat the public isolated runner with
 | APAC | `a02c2f2fa098e12066b1e4a92c543b813698d34f017350b48ccfd1543558ae0d` |
 
 No hosted deployment or publication occurred. Credential reconciliation, full deferred-execution verification, hosted acceptance, D1-call targets and final release/review gates remain separate R152 work.
+
+
+### October 4: credential reconciliation and deferred execution closure
+
+The existing full regional routing suite passed against three Workers and four
+SQLite-backed D1 stores. Review found that hosted exchange redemption consumed its
+code before child-locator publication. A directory error could strand the redeemed
+credential. The fix publishes after exchange validation and before the atomic
+consume/insert, using the existing read and publication calls. No D1 roundtrip was
+added. Invalid exchanges retain their existing rejection behavior.
+
+The extended scenario forces publication failure for each valid exchange, verifies
+its consumption timestamp remains NULL, then restores the directory and races two
+redemptions. Exactly one wins per home. There are 15 digest-only locators: three
+losing attempts leave routing metadata without local credentials. Home-local
+validation remains the sole credential authority. Existing revocation, wrong-home,
+challenge replay, directory-outage and linked-delivery checks also pass.
+
+Deferred verification includes all 18 home/ingress/registration-continuation
+combinations, with stable retries and refusal on conflicting/missing/unavailable
+homes. Protocol execution is controlled in that scenario; real browser matrices
+and sponsored-NEAR replay separately cover effects. Source review confirms the
+Deriver B continuation captures its original environment/pair/root; presign alarms
+retain object ownership and tenant prewarm stays tenant-owned. Relocation fences
+remain R153 work.
+
+Build, server type-check, verifier ESLint and bloat checks pass. Public logs:
+`.artifacts/r152/exchange-reconciliation-20261004/`. Private receipt at the same
+relative directory: `regional-session-routing-evidence.json`, SHA-256
+`90709910ef9698e6b8781f98d3dc40f87355c9edd18fe67045a7f070c8f3430a`.
+Reproduce from the private checkout:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/exchange-reconciliation-repeat \
+node tests/e2e/regional-session-routing.e2e.mjs
+```
+
+No hosted deployment or release occurred. Hosted regional acceptance, D1-call
+budgets and the final review/release/handoff gates remain.
