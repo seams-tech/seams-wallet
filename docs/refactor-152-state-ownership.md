@@ -65,7 +65,7 @@ for the baseline, grouped only where the selector and obligations agree.
 | `webauthn_authenticators` | Wallet counter state: resolve RP/credential through scoped wallet auth methods and bindings. Do not infer wallet from `user_id`; preserve counters. |
 | `webauthn_challenges` | Mixed lifecycle: shared sync challenges use Console. Local login/unlock/registration challenge records require kind-specific parsed wallet/ceremony ownership and shared challenge routes. Block unknown kinds and unresolved pre-wallet challenges. |
 | `webauthn_credential_bindings` | Regional credential projection: select credentials belonging to selected wallet auth methods; Console `wallet_passkey_claims` is the shared uniqueness/routing authority. Local bindings are not authority to reassign a credential. |
-| `registration_ceremony_records` | Blocked selector: use parsed `record_scope`/record identity and Console ceremony/setup allocation; preserve preparation, activation and deferred continuation state. See opaque-record inventory below. |
+| `registration_ceremony_records` | Wallet: exact tenant scope, supported record scope and parsed wallet identity from the selector table below. Preserve setup snapshots, claims and terminal replies independently of surviving ceremony parents. |
 | `router_ab_yao_capability_replacements` | Wallet: migration 0045 requires exact scoped `wallet_id`. Copy old/new capability decisions and replay fingerprints together, including terminal receipts after lifecycle cleanup. Retries verify the same wallet. |
 | `router_ab_yao_versioned_json_records` | Mixed, blocked selector: classify by supported prefix and parsed record ownership. Includes custody/recovery secrets and replay state; never copy all namespace rows or omit the table. |
 | `router_ab_normal_signing_admission_records` | Mixed, blocked split: project policy is shared; wallet abuse/quota/operation decisions need exact key-kind ownership. Existing SQL joins must be replaced or preserved under one authoritative transaction. |
@@ -73,6 +73,31 @@ for the baseline, grouped only where the selector and obligations agree.
 | `vault_proxy_secrets` | Shared tenant/vault/item state, no wallet ownership. Excluded from wallet relocation. |
 | `deployment_resource_challenges` | Resource-local deployment proof, excluded; the destination must prove its own identity. |
 | `lane_cas_guard`, `linked_device_session_cas_guard`, `registration_ceremony_cas_guard`, `router_ab_yao_versioned_json_cas_guard`, `wallet_authority_cas_guard` | Schema guard tables, excluded from row copy. Destination migrations install them and their triggers. |
+
+## Authorization operation selection
+
+Start with the wallet's fully scoped `wallet_session_authorizations_v2` rows and
+its `verified_wallet_operation_evidence_sets` rows under the validated tenant ID.
+Resolve operation ownership by its authorization discriminant:
+
+- `authorization_source_kind = 'authorization_grant'`: exact join on
+  `(namespace, tenant_id, authorization_id)` to the selected session set. For a
+  consuming operation, require its `quota_id` to match the session quota; include
+  that quota by `(namespace, tenant_id, quota_id, wallet_session_id)`.
+- `authorization_source_kind = 'verified_step_up'`: exact join on
+  `(namespace, tenant_id, evidence_set_digest)` to the selected evidence set.
+- Linked operations additionally require `linked_wallet_id` and their linked
+  organization/project/environment to agree with the selected wallet. That field
+  is a consistency check, not the selector for ordinary owner operations.
+
+Select audit rows by `(namespace, tenant_id, authorized_operation_id)` from the
+selected operations and verify their fingerprint and authorization identity agree.
+Retain pending and completed operations, result bodies, audits, expired/retired
+sessions, evidence and exhausted quotas together. Public active-session readers
+are unsuitable for this extraction. A missing parent or conflicting ownership
+stops extraction; the current schema does not independently encode full wallet
+ownership on operation/audit rows. Proving parent retention across every lifecycle
+cleanup remains necessary before declaring this selector closed.
 
 ## Capability replacement ownership (revision 2)
 
@@ -117,11 +142,33 @@ The placement-sensitive subset is:
 
 ## Opaque-record and deferred-work inventory
 
-The registration intent store uses `gateway-registration:` over the partitioned
-`registration_ceremony_records` table. Its `record_scope` and `record_id` must be
-interpreted by the ceremony store, including child records and preparation state.
-The standalone `local-registration-authority:` belongs to self-hosted registration
-admission; Console-backed hosted admission is separate.
+The hosted registration store uses the literal `gateway-registration:` prefix on
+`record_id`. Select the exact namespace/organization/project/environment first,
+then dispatch by `record_scope` and parse `record_json` with the corresponding
+`parseD1Stored…` function in `d1RegistrationCeremonyRecords.ts`:
+
+| `record_scope` | Parser suffix | Exact owner after parsing |
+| --- | --- | --- |
+| `setup-ceremony`, `ceremony` | `WalletRegistrationCeremony` | `intent.walletId` |
+| `add-signer-intent` | `AddSignerIntent` | `intent.walletId` |
+| `add-auth-method-intent` | `AddAuthMethodIntent` | `intent.walletId` |
+| `add-signer` | `WalletAddSignerCeremony` | `intent.walletId` |
+| `add-auth-method` | `WalletAddAuthMethodCeremony` | `intent.walletId` |
+| `add-signer-finalize-replay`, `add-signer-finalize-claim` | `WalletAddSignerFinalizeReplay` | `response.walletId` |
+| `add-auth-method-finalize-replay` | `WalletAddAuthMethodFinalizeReplay` | `response.walletId` |
+
+The store encodes the parsed domain value directly. Retain its full record ID,
+version, expiry and JSON, including expired rows. Do not use public getter methods
+for extraction: several deliberately hide expired records. Select both finalize
+replay and claim rows even after their source ceremony is consumed. Validate each
+record's ID using the construction in `d1RegistrationCeremonyStore.ts`; the
+add-signer replay has a composite ID built by `addSignerFinalizeReplayKey`.
+
+`local-registration-authority:` is the standalone host's authority and must be
+absent from a hosted extraction. Its `setup-reservation` payload contains
+`reservation.walletId`; `setup-ceremony-index` and `setup-terminal` contain
+`walletId`. Hosted admission keeps that authority in Console. Unknown prefixes,
+record scopes or invalid parsed records stop extraction.
 
 The production composition places registration side-effect records in
 `router_ab_yao_versioned_json_records` under `router-ab-yao-sponsored-account:`,
@@ -138,20 +185,116 @@ rule. This prefix list is a starting boundary inventory, **not** an
 exhaustive approved extraction registry. Unknown prefixes block a move until their
 owning store and exact selector are accounted for.
 
+Registration activation and NEAR-provisioning effects have durable shared
+ownership even after local ceremony cleanup: select the wallet's Console
+`wallet_homes.ceremony_id`, then the exact keys
+`wallet-registration-activate:registration-activate:<ceremonyId>:<idempotencyKey>`
+and `wallet-registration-near-provisioning:near-provisioning:<ceremonyId>:<idempotencyKey>`.
+Use the complete server-allocated ceremony ID and its separator; never a partial
+wallet-ID match. Validate records using their existing side-effect parsers. Their
+prepared authority/device/auth-method IDs must agree with the shared allocation;
+completed receipts must agree with the wallet. Retain claims as well as completions,
+including the request/prepared fingerprints and replay receipts.
+
+The `wallet-add-signer-start:` payload retains
+`prepared.storedIntent.intent.walletId` in both claim and completion variants.
+Parse with `parseD1WalletAddSignerStartSideEffectRecord` before selecting that owner.
+The finalize and sponsored-account prefixes still need complete terminal ownership
+accounting; a failed response alone need not contain a wallet ID.
+
+The custody and Google recovery prefixes have these concrete selectors. Always
+apply all four tenant scope columns before interpreting the key:
+
+| Prefix | Exact selection and validation |
+| --- | --- |
+| `passkey-envelope:` with a JSON-array suffix | Decode the complete array emitted by `passkeyCustodyEnvelopeRecordKey`; its first element is the wallet ID. Validate the payload with `parsePasskeyCustodyEnvelopeRecord` and require its `walletId` to agree. Retain every factor/envelope branch and revoked state. |
+| `passkey-envelope:recovery-set:` | Exact suffix is the wallet ID, built by `walletRecoveryEnvelopeSetRecordKey`; validate the recovery-set payload and matching wallet. |
+| `passkey-envelope:wallet-recovery-backup-ack/` | Exact suffix is the wallet ID, built by `walletRecoveryBackupAcknowledgementRecordKey`; retain backup acknowledgement with its recovery set. |
+| `passkey-credential-activity:` | Decode the JSON array `[walletId, envelopeId]` emitted by `activityRecordKey`; validate the matching activity payload. |
+| `wallet-recovery-google-email-otp:` | Parse with `parseWalletRecoveryGoogleEmailOtpAttemptRecord`; select its required `walletId`, including completed attempts. Check the full key against `walletRecoveryGoogleEmailOtpAttemptKey(recoveryOperationId)`. |
+
+Use unfiltered persisted rows for this accounting, including expiries, versions,
+revocations and terminal decisions. User-facing list methods can cap results or
+filter retired material. These selectors close the listed prefixes only; the
+side-effect prefixes and default `router-ab-yao:` still need their exact extraction
+contract completed.
+
 Gateway dispatch already recognizes registration `near-admission` and
 `near-provisioning` continuations by ceremony allocation. That routing alone does
 not prove an in-flight deferred write is fenced across home changes. Scheduled
 Router prewarm uses tenant deployment scope before a wallet exists; it must remain
 tenant-owned, with no attempt to derive a wallet from a root or capability ID.
 
+## Wallet DO and pending execution ownership
+
+The current Rust source uses wallet Durable Objects plus role-private D1. These
+are separate persistence authorities from signer D1. Object identity includes the
+regional binding/namespace as well as the name; identical names in different
+regional namespaces do not refer to the same object.
+
+| Authority | Wallet selector and retained state |
+| --- | --- |
+| `DERIVER_A_WALLET_DO` | `DeriverAWalletOwnerV1`: organization, project, environment, wallet. Name is `deriver-a-wallet-` plus SHA-256 of domain `seams/deriver-a/wallet-do/v1` and serialized owner. Retain `wallet_owner`, all `yao_pair_sessions` revisions/ciphertexts/lifecycle/claimed state and `yao_pair_admission_fences`. Root rotation does not change the object name. |
+| `DERIVER_B_WALLET_DO` | `DeriverBWalletOwnerV1`: same four owner dimensions; wallet comes from validated `pair_binding.binding().lifecycle.account_id`. Domain/name use `deriver-b`. Retain `wallet_owner`, pair sessions (including expiry and root digest), and admission fences. |
+| `SIGNING_WORKER_WALLET_DO` | `CloudflareSigningWorkerWalletScopeV1`: organization, project, project environment, wallet. Name is `signing-worker-wallet-` plus domain-separated SHA-256 (`seams/signing-worker/wallet-do/v1`) of serialized scope. Retain the eight tables listed below together. |
+| `SIGNING_WORKER_PRESIGN_SESSION_DO` | Per-presign execution authority. Durable `owner-presign-authority` pins the request; subsequent steps compare the complete authority. Live owner/linked cryptographic sessions are in memory. Completed linked presignatures have durable session/server-key indexes and consumption semantics. These require separate accounting from the wallet DO. |
+
+The SigningWorker wallet tables are `wallet_registrations`,
+`wallet_retired_activations`, `wallet_linked_ed25519`, `wallet_round1`,
+`wallet_ecdsa_pool`, `wallet_ecdsa_effects`, `wallet_ecdsa_activations`, and
+`wallet_linked_ecdsa` (eight tables; harness fault tables are excluded).
+Preserve round-one prepared/claimed/completed state, pool versions, activation
+retirement, effect authorization uniqueness, request digests and terminal answers.
+Pending pool material is single-use cryptographic state; it cannot be regenerated
+under an already-consumed identity or treated as an ordinary cache.
+
+Pending execution rules verified against source:
+
+- Deriver B's `ed25519_yao_lifecycle.rs` background WebSocket execution captures its
+  original `Env`, role runtime, validated pair binding and tenant-root context.
+  Before scheduling, the claimed pair/root are checked against the admitted scope.
+  Its failure completion uses that same wallet pair scope and captured environment.
+  There is no location-based re-selection after scheduling.
+- Presign expiry alarms clear the owner in-memory session and its durable authority
+  claim. The authority identity includes immutable expiry. A move must account for
+  these alarms and linked completion records separately; copying D1 cannot transfer
+  a live protocol session.
+- Registration NEAR admission/provisioning continuations resolve the ceremony's
+  fixed home before claiming their persisted effect. The 30-second resumable effect
+  lease is retry coordination, not permission to execute at another home.
+- Tenant-root rotation/recovery and tenant prewarm are tenant-owned. Their records
+  and root-use admissions are not wallet material simply because a wallet caused
+  an admission. Wallet pair fences and role-private root-use claims must both be
+  settled before retiring a running pair.
+
+R152 supplies fixed-home execution. R153 must drain or fence these writers before
+snapshot/cutover and abort/restart live protocols with fresh identities where they
+cannot be transferred. Existing `wait_until` capture is not a relocation fence.
+The tracked Cloudflare role configs contain Workers/DO bindings; no Container
+application is declared there. An October 4 read-only Wrangler inventory of account
+`ba924da36f2ffc3839e8d323000b66b4` returned 11 applications, including the three
+`r150-bench-20260925-probe-probe{enam,weur,apac}` applications. These correspond to
+the regional Playwright probe in `tests/r150-hosted/probe/worker.mjs`: its DO is named
+`probe`, forwards browser attempts, and does not write authoritative wallet records.
+Probe browser state and results are experiment artifacts, excluded from wallet
+relocation. Eight unrelated applications were excluded from this task. No Container
+was stopped or changed. The sanitized receipt is
+`.artifacts/r152/wallet-owned-receipts-20261004/wallet-container-accounting.json`.
+This account inventory does not prove deployed role Worker versions match current
+source; that remains part of the regional deployment verification.
+
+Source anchors: `durable_object/deriver_a_pair.rs`, `deriver_b_pair.rs`,
+`signing_worker_wallet.rs`, `ecdsa_presign_live_session.rs`, `durable_object/mod.rs`,
+`signing_worker/wallet_ecdsa_store.rs`, and `ed25519_yao_lifecycle.rs` under
+`crates/router-ab-cloudflare/src`.
+
 ## Closure gates owned by R152
 
-- [ ] Internal Wallet Runtime: `d1WalletRuntimeWorker.ts` binds the local resource
-  and calls `handleSplitGatewayWalletRuntimeRequest` without wallet-home dispatch.
-  `getWalletIdentities` accepts up to ten wallet selectors and reads local signer
-  rows. Partition by authoritative home and merge verified results, including
-  mixed-home batches; test remote and missing homes without silent omissions.
-  Audit signed-delegate/control operations separately for their actual ownership.
+- [x] Internal Wallet Runtime routing: `regionalWalletIdentities.ts` partitions
+  identity batches by authoritative wallet home; the Runtime rejects wrong-home
+  direct reads. Signed-delegate execution and relayer/root controls remain
+  tenant-owned. See the subsequent Runtime evidence in the per-wallet inventory;
+  the original revision-1 statement that this dispatch was absent is superseded.
 - [ ] Deferred work: inventory each persisted continuation, alarm, refill and
   background write; require a current home/write fence before effect commit.
   Prove queued-before-move work cannot mutate a retired home.
