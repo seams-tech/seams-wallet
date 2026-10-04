@@ -21,14 +21,16 @@ const originalFetch = globalThis.fetch;
 function hold(resolve) { held = resolve; }
 async function statusFetch(input, init) {
   if (String(input) !== 'https://relay.example.test/wallet/session/status') return originalFetch(input, init);
+  const request = JSON.parse(init.body);
+  const authorization = await walletSessionAuthorizations.readExact(request.walletSessionId);
   if (holdNext) {
     holdNext = false;
     await new Promise(hold);
   }
   return new Response(JSON.stringify({
-    ok: true, status: 'active', walletSessionId: fixture.operationCredential.walletSessionId,
-    quotaId: fixture.activeWalletSession.quotaId, authorization: fixture.activeWalletSession,
-    expiresAtMs: fixture.activeWalletSession.expiresAtMs, remainingUses: 10, quotaLifecycle: 'active',
+    ok: true, status: 'active', walletSessionId: request.walletSessionId,
+    quotaId: request.quotaId, authorization,
+    expiresAtMs: authorization.expiresAtMs, remainingUses: 10, quotaLifecycle: 'active',
   }), { status: 200, headers: { 'Content-Type': 'application/json' } });
 }
 function post(message) { messages.push(message); }
@@ -48,13 +50,22 @@ export async function start() {
   await walletSessionAuthorizations.writeExactWithOperationCredential({
     record: fixture.activeWalletSession, operationCredential: fixture.operationCredential,
   });
+  createObserver();
+  beginRead();
+}
+export async function join() {
+  configureIndexedDB({ mode: 'wallet' });
+  fixture = await buildEmailOtpEcdsaWalletSessionFixture({
+    label: 'session-events', walletId: 'wallet:session-events', expiresAtMs: Date.now() + 60000,
+  });
+}
+function createObserver() {
   const preferences = new UserPreferencesManager({ store: IndexedDBManager });
   preferences.setCurrentWallet(fixture.authority.walletId);
   globalThis.fetch = statusFetch;
   observer = new WalletHostSessionObserver({
     preferences, configs: { network: { relayer: { url: 'https://relay.example.test' } } },
   }, post, expired);
-  beginRead();
 }
 export function state() { return { held: held !== null, messages }; }
 export function expire() {
@@ -84,6 +95,7 @@ export async function unlock() {
     record: fixture.activeWalletSession, operationCredential: fixture.operationCredential,
   });
 }
+export function currentSessionId() { return fixture.operationCredential.walletSessionId; }
 export function beginDisposalRead() { holdNext = true; beginRead(); }
 export async function dispose() {
   observer.dispose();
@@ -133,11 +145,9 @@ function disposeObserver(): Promise<{ result: unknown; count: number; messages: 
   return (window as any).sessionEvents.dispose();
 }
 
-test('host session events preserve expiry across delayed status and stop after disposal', async ({
-  page,
-}, info) => {
+async function buildObserverProbe() {
   const root = path.resolve(import.meta.dirname, '../..');
-  const bundle = await build({
+  return await build({
     stdin: { contents: probeSource, resolveDir: root },
     bundle: true,
     write: false,
@@ -146,6 +156,35 @@ test('host session events preserve expiry across delayed status and stop after d
     target: 'es2022',
     tsconfig: path.join(root, 'packages/wallet/tsconfig.json'),
   });
+}
+
+async function joinObserver(): Promise<void> {
+  const probePath = '/__session-events.js';
+  const probe = await import(probePath);
+  (window as any).sessionEvents = probe;
+  await probe.join();
+}
+
+function readLastSession(): unknown {
+  const messages = (window as any).sessionEvents.state().messages;
+  return messages.filter((message: { type: string }) => message.type === 'SESSION_CHANGED').at(-1)
+    ?.payload.state;
+}
+
+function readLastQuery(): unknown {
+  const messages = (window as any).sessionEvents.state().messages;
+  return messages.filter((message: { type: string }) => message.type === 'QUERY').at(-1)?.payload
+    .state;
+}
+
+function readFixtureSessionId(): string {
+  return (window as any).sessionEvents.currentSessionId();
+}
+
+test('host session events preserve expiry across delayed status and stop after disposal', async ({
+  page,
+}, info) => {
+  const bundle = await buildObserverProbe();
   await setupBasicPasskeyTest(page, { skipSeamsWebInit: true });
   await page.route('**/__session-events.js', serveProbe.bind(null, bundle.outputFiles[0]!.text));
   await page.evaluate(startObserver);
@@ -205,4 +244,38 @@ test('host session events preserve expiry across delayed status and stop after d
     info.outputPath('host-session-events.json'),
     JSON.stringify({ afterExpiry, disposed }, null, 2),
   );
+});
+
+test('another tab locks and unlocks the observed wallet while an older status read is held', async ({
+  page,
+}, info) => {
+  const other = await page.context().newPage();
+  const bundle = await buildObserverProbe();
+  try {
+    await setupBasicPasskeyTest(page, { skipSeamsWebInit: true });
+    await setupBasicPasskeyTest(other, { skipSeamsWebInit: true });
+    await page.route('**/__session-events.js', serveProbe.bind(null, bundle.outputFiles[0]!.text));
+    await other.route('**/__session-events.js', serveProbe.bind(null, bundle.outputFiles[0]!.text));
+    await page.evaluate(startObserver);
+    await expect.poll(page.evaluate.bind(page, readObserver)).toMatchObject({ held: true });
+    await other.evaluate(joinObserver);
+    await other.evaluate(lockObserver);
+    await expect.poll(page.evaluate.bind(page, readLastSession)).toEqual({ kind: 'wallet_locked' });
+    expect(await page.evaluate(releaseObserver)).toEqual({ kind: 'resolved' });
+    expect(await page.evaluate(readLastQuery)).toEqual({ kind: 'wallet_locked' });
+    const locked = await page.evaluate(readObserver);
+    await other.evaluate(unlockObserver);
+    const sessionId = await other.evaluate(readFixtureSessionId);
+    await expect.poll(page.evaluate.bind(page, readLastSession)).toMatchObject({
+      kind: 'active_session',
+      walletSessionId: sessionId,
+    });
+    const renewed = await page.evaluate(readObserver);
+    await writeFile(
+      info.outputPath('cross-tab-session-events.json'),
+      JSON.stringify({ locked, renewed }, null, 2),
+    );
+  } finally {
+    await other.close();
+  }
 });

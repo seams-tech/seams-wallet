@@ -277,6 +277,16 @@ A known expiry remains expired when a delayed status response reports that same
 session as active. A replacement session has its own identity and can become active.
 Disposing or replacing the host observer stops its subscriptions and publication.
 
+Committed authority changes notify other contexts through a database-scoped browser
+broadcast channel. The notification contains no wallet identity, credential, or
+session projection. A receiver advances its own observation revision and rereads
+persisted authority. It never accepts authentication state from the notification.
+Received notifications are not broadcast again. The final listener's removal closes
+the receiving channel. Database changes and disabling persistence retire that
+channel. Explicit reads retain their persisted-authority checks if browser broadcast
+channels are unavailable. Cross-context delivery is limited to the browser's shared
+broadcast scope; it does not synchronize independent database partitions.
+
 Current-state reads never restore a saved selection. Bootstrap can restore it once.
 If selection changes during bootstrap, the client retries as a current-state read.
 This prevents selection removal from starting another saved-wallet lookup.

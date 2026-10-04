@@ -116,28 +116,80 @@ function walletTransactionStore(
 
 function ignoreAbortedWalletTransaction(): void {}
 
+function openWalletAuthorityChannel(dbName: string): BroadcastChannel | null {
+  if (typeof BroadcastChannel === 'undefined') return null;
+  try {
+    return new BroadcastChannel(`seams-wallet-authority:${dbName}`);
+  } catch (error) {
+    console.warn('[SeamsWalletDBManager] Authority notifications are unavailable:', error);
+    return null;
+  }
+}
+
 export class SeamsWalletDBManager {
   private config: SeamsWalletDBConfig;
   private dbPromise: Promise<IDBPDatabase> | null = null;
   private disabled = false;
   private walletAuthorityRevision = 0;
+  private walletAuthorityChannel: BroadcastChannel | null = null;
   private readonly walletAuthorityListeners = new Set<() => void>();
 
   onWalletAuthorityChange(listener: () => void): () => void {
     this.walletAuthorityListeners.add(listener);
+    this.connectWalletAuthorityChannel();
     return this.removeWalletAuthorityListener.bind(this, listener);
   }
 
   private removeWalletAuthorityListener(listener: () => void): void {
     this.walletAuthorityListeners.delete(listener);
+    if (this.walletAuthorityListeners.size === 0) this.closeWalletAuthorityChannel();
   }
 
   getWalletAuthorityRevision(): number {
     return this.walletAuthorityRevision;
   }
 
-  private publishWalletAuthorityCommit(writes: WalletAuthorityTransactionWrites): void {
+  private publishWalletAuthorityCommit(
+    writes: WalletAuthorityTransactionWrites,
+    dbName: string,
+  ): void {
     if (!writes.changed) return;
+    if (dbName === this.config.dbName) this.invalidateWalletAuthority();
+    const channel = dbName === this.config.dbName ? this.walletAuthorityChannel : null;
+    const publisher = channel ?? openWalletAuthorityChannel(dbName);
+    if (!publisher) return;
+    try {
+      publisher.postMessage('authority_committed');
+    } catch (error) {
+      console.warn('[SeamsWalletDBManager] Authority notification failed:', error);
+    } finally {
+      if (publisher !== channel) publisher.close();
+    }
+  }
+
+  private connectWalletAuthorityChannel(): void {
+    if (this.disabled || this.walletAuthorityChannel || this.walletAuthorityListeners.size === 0)
+      return;
+    const channel = openWalletAuthorityChannel(this.config.dbName);
+    if (!channel) return;
+    channel.onmessage = this.receiveWalletAuthorityCommit.bind(this, channel);
+    this.walletAuthorityChannel = channel;
+  }
+
+  private closeWalletAuthorityChannel(): void {
+    this.walletAuthorityChannel?.close();
+    this.walletAuthorityChannel = null;
+  }
+
+  private receiveWalletAuthorityCommit(
+    channel: BroadcastChannel,
+    event: MessageEvent<unknown>,
+  ): void {
+    if (channel !== this.walletAuthorityChannel || event.data !== 'authority_committed') return;
+    this.invalidateWalletAuthority();
+  }
+
+  private invalidateWalletAuthority(): void {
     this.walletAuthorityRevision += 1;
     for (const listener of Array.from(this.walletAuthorityListeners)) {
       try {
@@ -157,12 +209,20 @@ export class SeamsWalletDBManager {
   setDbName(dbName: typeof SEAMS_WALLET_DB_NAME | `seams_test_wallet_${string}`): void {
     if (this.config.dbName === dbName) return;
     this.close();
+    this.closeWalletAuthorityChannel();
     this.config = { ...this.config, dbName };
+    this.connectWalletAuthorityChannel();
+    this.invalidateWalletAuthority();
   }
 
   setDisabled(disabled: boolean): void {
     this.disabled = disabled;
-    if (disabled) this.close();
+    if (disabled) {
+      this.close();
+      this.closeWalletAuthorityChannel();
+    } else {
+      this.connectWalletAuthorityChannel();
+    }
   }
 
   isDisabled(): boolean {
@@ -254,7 +314,7 @@ export class SeamsWalletDBManager {
       store: walletTransactionStore.bind(null, tx, writes),
     };
     void tx.done
-      .then(this.publishWalletAuthorityCommit.bind(this, writes))
+      .then(this.publishWalletAuthorityCommit.bind(this, writes, db.name))
       .catch(ignoreAbortedWalletTransaction);
     try {
       return await withTimeout(

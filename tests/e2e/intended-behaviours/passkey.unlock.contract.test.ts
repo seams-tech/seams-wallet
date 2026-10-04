@@ -10,10 +10,12 @@ import path from 'node:path';
 import { WalletSessionStatusEvidence } from './walletSessionStatusEvidence';
 import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
 import { verifyFreshUnlockWins, verifyLockWins } from './session-restore-lock';
+import { verifyPassiveWalletLock } from './session-passive-lock';
 
 // Export flows retain sanitized evidence instead of secret-bearing DOM or network captures.
 test.use({ trace: 'off', screenshot: 'off', video: 'off' });
 
+test('locking a wallet updates an idle tab without a session query', verifyPassiveWalletLock);
 test('a cross-tab lock prevents delayed restoration from recreating its credential', verifyLockWins);
 test('a fresh unlock survives a delayed restoration response from another tab', verifyFreshUnlockWins);
 

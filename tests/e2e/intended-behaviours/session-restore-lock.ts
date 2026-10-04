@@ -170,7 +170,7 @@ function resolveGatePoll(resolve: () => void): void {
   setTimeout(resolve, 10);
 }
 
-async function walletFrame(page: Page): Promise<Frame> {
+export async function walletFrame(page: Page): Promise<Frame> {
   const iframe = page.locator('iframe[src*="/wallet-service"]').last();
   await iframe.waitFor({ state: 'attached' });
   const handle = await iframe.elementHandle();

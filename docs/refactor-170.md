@@ -725,8 +725,18 @@ React state after passkey unlock. All 74 browser cases and four production lifec
 cases pass, including automatic provider state and the unchanged three-read limit.
 This step adds 550 production lines and removes 190, for a net increase of 360.
 Evidence: `evidence/refactor-170-session-events-20261005.json`.
-Passive cross-tab notifications, full revocation/activation and reconnect acceptance,
-and network/latency measurements remain open.
+Database-scoped broadcast notifications now invalidate passive session observers in
+other contexts. They carry only a commit marker; each receiver rereads IndexedDB and
+uses its own observation revisions. Listener removal closes the channel, and database
+replacement or disabled persistence retires it. A browser scenario holds an older
+status read while another tab locks and then unlocks the wallet. A production
+idle-tab scenario verifies that lock reaches the React UI through a host event,
+without another client session query. All 24 targeted browser cases and five
+production lifecycle cases pass. This step adds 63 production lines and removes
+three, for a net increase of 60. Evidence:
+`evidence/refactor-170-cross-tab-session-20261005.json`. Full revocation/activation and
+reconnect acceptance, cross-browser delivery, and network/latency measurements remain
+open.
 
 At the recorded bundle checkpoint, the production root-client static closure measured
 66,386 bytes gzip

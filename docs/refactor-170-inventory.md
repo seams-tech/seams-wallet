@@ -348,7 +348,7 @@ It does not prove that revision tracking is implemented.
 | Expiry and quota status | `core/signingEngine/session/SigningSessionCoordinator.ts`, `SeamsWeb/walletIframe/shared/exactSessionState.ts`, and `SeamsWeb/walletIframe/host/context.ts` | Recheck the deadline before publication. Order an expiry event against pending active responses. Remote status can change without a local write. |
 | Execution configuration replacement | `SeamsWeb/walletIframe/host/index.ts`, `context.ts`, and `runtimeContext.ts` | Retain execution-generation cancellation. Retire the old runtime's session observations and subscriptions. Appearance changes preserve execution. |
 | Connection restart and disposal | Host connection state and `SeamsWeb/walletIframe/client/router.ts` | Scope revisions to the live connection. Reject old-port results and reset the projection revision when the connection changes. |
-| Other wallet tabs | The same IndexedDB repositories in another context | Local callbacks cannot establish cross-tab ordering. Retain persisted authority checks and transactional compare-and-update. Test a delayed response across another tab's lock and fresh unlock. |
+| Other wallet tabs | The same IndexedDB repositories in another context; `seamsWalletDB/manager.ts` broadcasts a database-scoped commit marker | Receivers invalidate and reread local persistence. Keep persisted authority checks and transactional compare-and-update. The browser scenario covers passive lock and fresh unlock during a delayed read; production UI acceptance is recorded separately. |
 
 The current `IndexedDBEvent` union only reports user updates, preference updates,
 and user deletion. It does not report authority or session commits.
@@ -434,9 +434,17 @@ regression; the existing three-read limit remains unchanged. All 74 browser case
 and four production lifecycle cases pass, including automatic provider state after
 unlock. The receipt and source hashes are recorded in
 `evidence/refactor-170-session-events-20261005.json`. End-to-end traffic and latency measurements remain
-part of the worker/network acceptance phase. Local events do not notify another
-tab's manager. Passive cross-tab notification, full revocation/activation acceptance,
-and reconnect acceptance remain open; do not close the full ordering gate yet.
+part of the worker/network acceptance phase. Database-scoped broadcast channels now
+notify other contexts after committed authority writes. A receiver rereads persisted
+state and does not broadcast the notification again. The message contains only a
+commit marker. Listener removal, database replacement, and disabling persistence
+retire receiving channels. The browser scenario covers another tab locking during a
+held status read, followed by a fresh unlock. The production idle-tab check verifies
+a new host event and a locked React UI while the client session-query count stays
+at four. All 24 targeted browser cases and five production lifecycle cases pass.
+Evidence: `evidence/refactor-170-cross-tab-session-20261005.json`.
+Full revocation/activation, reconnect and cross-browser delivery acceptance remain
+open; do not close the full ordering gate yet.
 The earlier snapshot-only checkpoint passed 65 browser cases and four production
 lifecycle cases. The event-observer change needs its own final acceptance evidence.
 Evidence: `evidence/refactor-170-authority-revisions-20261005.json`.
@@ -457,8 +465,9 @@ Implementation order for the remaining gate:
    revocation and activation paths. Keep event payloads free of credentials.
 2. Pair that invalidation with host selection, expiry, and execution changes.
    Capture a revision before asynchronous reads. Re-read when it changes.
-3. Verify event and snapshot ordering across reconnect and passive cross-tab
-   changes. The paired wire envelope is implemented.
+3. Verify event and snapshot ordering across reconnect and other supported browsers.
+   Passive cross-tab lock and fresh unlock now have Chromium evidence. The paired
+   wire envelope is implemented.
 4. Exercise same-wallet unlock, expiry during a read, revocation, authority
    extension, reversed response delivery, reconnect, and disposal through the
    real host transport. Preserve the existing cross-tab production race checks.
