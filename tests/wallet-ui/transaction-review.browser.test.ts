@@ -28,14 +28,23 @@ const session = {
 
 const hostScript = `
   const reviewRequests = new Map();
+  basePreferenceSnapshot = {
+    walletId: 'review.testnet',
+    confirmationConfig: basePreferenceSnapshot.confirmationConfig,
+    revision: 0,
+  };
   window.reviewClosedReceipts = [];
   window.reviewPostActivity = (requestId, payload) => adoptedPort.postMessage({
     type: 'TRANSACTION_ACTIVITY', requestId, payload,
   });
-  window.reviewPushPreferences = confirmationConfig => adoptedPort.postMessage({
-    type: 'PREFERENCES_CHANGED',
-    payload: { walletId: 'review.testnet', confirmationConfig, updatedAt: Date.now() },
-  });
+  window.reviewPushPreferences = confirmationConfig => {
+    basePreferenceSnapshot = {
+      walletId: 'review.testnet',
+      confirmationConfig,
+      revision: basePreferenceSnapshot.revision + 1,
+    };
+    adoptedPort.postMessage({ type: 'PREFERENCES_CHANGED', payload: basePreferenceSnapshot });
+  };
   function postReviewMessage(message) {
     if (window.reviewRetainReceipt && message.type === 'PM_RESULT') {
       window.reviewPostActivity(message.requestId, 'expanded');
