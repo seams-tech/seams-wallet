@@ -4,6 +4,12 @@ Status: implementation started, October 3, 2026. The private directory control
 plane is implemented. Backend state transfer, writer fencing, owner API, client
 reconciliation, settings, and hosted placement remain unfinished.
 
+Architecture review, October 5, 2026:
+[R155](refactor-155-regional-wallet-signing.md) evaluates one permission authority
+with independent regional signing deployments. If its validation and adoption
+criteria pass, it will supersede R153 and R154. This plan retains the existing
+implementation record and single-home alternative until that decision.
+
 [Initial backend relocation validation](refactor-153-backend-relocation-validation.md)
 records the Cloudflare capabilities, current storage hazards, local probe
 results, and remaining hosted checks.

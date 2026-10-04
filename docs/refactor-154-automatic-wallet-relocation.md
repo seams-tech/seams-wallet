@@ -3,6 +3,12 @@
 Status: intent draft, October 2, 2026. Depends on a validated
 [R153 relocation operation](refactor-153-wallet-region-selection.md).
 
+Architecture review, October 5, 2026:
+[R155](refactor-155-regional-wallet-signing.md) evaluates automatic selection of
+a ready signing deployment while one permission authority retains wallet decisions.
+If its validation and adoption criteria pass, it will supersede R153 and R154.
+This plan remains the single-home alternative until that decision.
+
 ## Intent
 
 Extend Wallet region settings so the owner can choose **Automatic** or explicitly
