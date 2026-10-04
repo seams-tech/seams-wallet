@@ -1551,6 +1551,20 @@ regional databases remains open; see the results document for evidence.
 The remaining ownership, linked-device and hosted acceptance gates still apply.
 
 
+### Final implementation review and cleanup
+
+After the remaining R152 implementation is complete, and before declaring R152
+complete or handing off to R153:
+
+- [ ] Review the implementation across Wallet and Console for correctness,
+  ownership gaps, failure/retry handling, unnecessary complexity and legacy paths.
+- [ ] Record actionable findings and fix them; remove obsolete symbols, duplicate
+  paths, unused helpers and compatibility code superseded by per-wallet homes.
+  Keep the review scoped to R152 and preserve unrelated concurrent work.
+- [ ] Run relevant behavioral/type verification and the bloat check after fixes,
+  commit the completed cleanup on `dev`, and document evidence and any remaining
+  concrete limitations. No new abstraction or test suite solely for this review.
+
 ### Completion handoff
 
 - [ ] Once R152 is complete, send the user-authorized go-ahead to the Codex chat
