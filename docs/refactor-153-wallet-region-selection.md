@@ -68,6 +68,9 @@ those ownership and execution contracts before connecting an executable move.
 
 ## October 4 readiness review
 
+This is the earlier readiness checkpoint. The revision-12 ownership handoff below
+supersedes its open selector and material-accounting findings.
+
 Reviewed public revision `e10c1eaa` and private revision `561b0b9`. R152 now provides
 enough verified local composition to resume R153 implementation. Its final
 ownership audit and hosted acceptance remain open. Executable relocation remains
@@ -108,6 +111,34 @@ unowned-table upgrade without receipt loss, and SQLite integrity `ok`. This clos
 the capability receipt selector only; remaining ownership selectors and material
 accounting stay with R152, while relocation generations and effect fences stay
 with R153. This review did not rerun type checking or the migration verification.
+
+## October 4 ownership handoff: revision 12
+
+Public `9c1c7b8e` and private `7720793` close the ownership dependency through
+[R152 ownership revision 12](refactor-152-state-ownership.md). R153 can implement
+extraction/import and role fencing against this contract. The earlier open signer
+selectors and DO/Container material accounting are closed.
+
+The contract covers pending and terminal role-private records, pools,
+reservations, presign indexes and replay claims. Linked signing ownership resolves
+through the actual Wallet Session and device-link authority. Migration 0048 removes
+14 obsolete operation/audit columns and names the retained scope `owner_scope_*`.
+Transfer must preserve exact operation/result identities and reject ambiguous
+records using the contract's scoped selectors and validated parent joins.
+
+The retained evidence records all 48 signer migrations with integrity `ok` and
+three-region linked installation/restart acceptance. Each wallet retained two
+linked signing operations only at home; correct-owner reads succeeded and
+foreign-wallet reads failed. This review checked all three regional receipt hashes
+against the committed results; it did not rerun the scenarios.
+
+Credential reconciliation, complete deferred fixed-home execution verification,
+hosted acceptance and R152's final review/release remain open. They are separate
+from the closed ownership dependency and must remain visible during integration.
+R153 owns generations, source quiescence, effect fences, historical import,
+presignature invalidation, cutover and relocation acceptance. Implement these now
+against revision 12; enable an executable move only after the relevant execution
+contracts and real relocation acceptance pass.
 
 ## Intent
 
@@ -262,13 +293,14 @@ historical-state restoration, and device cache reconciliation. This assessment
 depends on the assembled signing/fault tests; successful row copying alone does
 not establish safe relocation.
 
-R152 supplies implemented home routing and verified local composition. Exact
-transfer ownership and execution coverage remain dependencies. Before integrating
-an executable move:
+R152 supplies implemented home routing, verified local composition and the closed
+revision-12 ownership contract. Execution coverage remains an integration
+dependency. Before integrating an executable move:
 
 - [x] Freeze R152's [wallet/shared ownership inventory](refactor-152-state-ownership.md),
-  accounting for 56 signer and 84 shared Console tables. This freezes the inventory
-  snapshot; blocked selectors and incomplete DO/Container ownership remain open.
+  with revision 12 closing signer selectors and DO/Container/role-private material
+  accounting. The original inventory counted 56 signer and 84 shared Console
+  tables; apply subsequent schema changes through signer migration 0048.
   Shared identity bindings should continue resolving to the same wallet through
   the updated directory.
 - [ ] Establish R152's trusted wallet-home execution context across Gateway,
