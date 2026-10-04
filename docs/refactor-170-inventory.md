@@ -157,7 +157,8 @@ remove that dependency overlap while retaining these distinctions.
 No missing whole operation family was demonstrated by this source audit. That
 does not prove complete semantic equivalence. The October 4
 [accepted API and lifecycle decisions](refactor-170.md#accepted-api-and-lifecycle-decisions)
-specify narrow RPC access, synchronous preference projection with rollback/flush,
+specify SDK-owned account queries with internal RPC handling, synchronous
+preference projection with rollback/flush,
 separate configuration, startup ownership, reconnect behavior, and conditional
 protocol revisions. These are implementation decisions, not completed verification.
 Before extraction, finish the member/custom-RPC/config audits, multi-step callback

@@ -233,13 +233,26 @@ while removing execution internals from the application API. Examples are propos
 shapes, omit unrelated fields, and reuse existing domain types in implementation.
 They are not evidence of completed code or a new parallel contract layer.
 
-### Narrow RPC access replaces application `getContext()`
+### SDK-owned account queries replace application `getContext()`
 
 - Remove `getContext()` from the application client. Update application, React,
   example, documentation, and private Console consumers in the same change set.
-- Expose the configured `NearClient` through `readonly nearClient`; preserve
-  constructor injection and existing RPC defaults. Update `useAccountInput` to
-  use it. Keep the standalone `useNearClient` adapter supported.
+- Keep the configured `NearClient` internal; preserve constructor injection and
+  existing RPC defaults. Do not add a public `nearClient` accessor as a replacement
+  for `getContext()`.
+- Add `seams.near.accountExists(accountId)` to the existing NEAR capability.
+  Account-input hooks consume this SDK-owned query. Application code never imports
+  or calls `checkNearAccountExistsBestEffort`, constructs an RPC adapter for this
+  task, or coordinates its fallback behavior. Keep any necessary RPC/fallback
+  implementation internal and shared by the capability and SDK hooks.
+- Validate account input at the public boundary. A successful lookup returns a
+  boolean; an unavailable/failed lookup must remain distinguishable from a
+  confirmed absent account through the SDK's existing error conventions. Audit
+  the current best-effort helper before reuse, and document/test any required
+  change to its failure semantics. Account-input UI owns presentation of pending
+  or failed checks, with the SDK hook managing stale asynchronous results.
+- Keep the existing standalone `useNearClient` adapter supported for explicit
+  advanced RPC usage; ordinary account queries do not require it.
 - Retain injected function-bearing clients in the application realm. The host
   constructs its own RPC dependency from host configuration; do not serialize
   an injected object across postMessage.
@@ -248,10 +261,7 @@ They are not evidence of completed code or a new parallel contract layer.
   Delete obsolete context access paths without a compatibility shim.
 
 ```ts
-const exists = await checkNearAccountExistsBestEffort(
-  seams.nearClient,
-  accountId,
-);
+const exists = await seams.near.accountExists(accountId);
 
 type HostedAuthDependencies = {
   signingEngine: SigningEngine;
@@ -263,10 +273,12 @@ function createHostedAuthController(
 ): HostedAuthController;
 ```
 
-Tradeoff: the accessor retains coupling to the existing RPC interface but avoids
-duplicating it with a new convenience-method family. Audit every injected-client
-use before cutover, including explicit-runtime callers. Removing `getContext()`
-is a public declaration change and belongs in release/migration documentation.
+Tradeoff: one domain query adds a small supported API surface and keeps RPC
+implementation details inside the SDK. Limit additions to demonstrated caller
+needs; do not create a parallel RPC-method family. Audit every injected-client
+use before cutover, including explicit-runtime callers, and verify that the query
+uses the injected client. Removing `getContext()` and adding the account query
+are public declaration changes and belong in release/migration documentation.
 
 ### Synchronous preferences with acknowledged synchronization
 
@@ -465,7 +477,7 @@ RPC caller audit, config-field mapping, snapshot-ordering proof/version decision
 browser/RP matrix, and phase-specific browser baseline before claiming the upfront
 gates closed. Update the inventory's unresolved-work notes as evidence lands.
 Ordinary auth/signing calls remain familiar; explicitly document removal of
-`getContext()`, narrow RPC access, and preference synchronization changes.
+`getContext()`, SDK-owned account queries, and preference synchronization changes.
 
 ## Scope and constraints
 
