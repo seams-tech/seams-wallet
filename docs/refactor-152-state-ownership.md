@@ -1,6 +1,6 @@
 # R152 state ownership baseline for R153
 
-Revision 3 — October 4, 2026.
+Revision 4 — October 4, 2026.
 
 This freezes the **schema inventory and ownership obligations**, not a copy-ready
 relocation implementation. R153 must fail closed for unresolved ownership below.
@@ -52,7 +52,7 @@ for the baseline, grouped only where the selector and obligations agree.
 | `wallet_auth_method_revocation_replays` | Wallet: exact scoped `wallet_id`; retain committed answers and proof digests. |
 | `wallet_ecdsa_pending_session_activations`, `wallet_recovery_code_locators`, `yao_lifecycle_decisions` | Wallet: exact scoped `wallet_id`; preserve pending/terminal lifecycle decisions and recovery uniqueness. Shared routing entries remain in Console. |
 | `email_otp_auth_states`, `email_otp_unlock_challenges`, `email_otp_wallet_enrollments` | Wallet: exact scoped `wallet_id`; provider subject alone is not unique wallet ownership. |
-| `email_otp_challenges`, `email_otp_grants` | Mixed lifecycle: wallet-bound records belong with their wallet; pre-wallet records require explicit challenge/registration ownership. Block unresolved/pre-wallet rows; retain challenge/grant/registration-consumption atomicity. |
+| `email_otp_challenges`, `email_otp_grants` | Wallet: exact `(namespace, org_id, project_id, env_id, wallet_id)`. Both tables require a nonempty wallet ID matching parsed JSON. Registration challenges carry the candidate wallet ID before activation; shared registration offers remain in Console. Retain challenge/grant/registration-consumption atomicity and the verification receipt described below. |
 | `wallet_session_authorizations_v2`, `wallet_session_hosted_credentials_v2`, `wallet_session_hosted_exchange_codes_v2` | Wallet: exact scoped `wallet_id`; preserve issuance, retirement, redemption and parent-child lifecycle triggers. |
 | `authorization_wallet_session_quotas` | Wallet child: join the selected session's namespace, tenant, quota and session IDs; preserve remaining uses and retirement. |
 | `authorized_operations`, `authorized_operation_audit_events` | Blocked selector: derive all ordinary and linked authorization branches through exact parent authorization/evidence/quota identities. `linked_wallet_id` covers only the linked branch. Preserve replay/result and audit state atomically with quota claims. |
@@ -163,6 +163,26 @@ for extraction: several deliberately hide expired records. Select both finalize
 replay and claim rows even after their source ceremony is consumed. Validate each
 record's ID using the construction in `d1RegistrationCeremonyStore.ts`; the
 add-signer replay has a composite ID built by `addSignerFinalizeReplayKey`.
+
+Email OTP registration verification also writes `registration_ceremony_records`
+under `record_scope = 'email-otp-registration-verification-v1'`. Its `record_id`
+is the complete challenge ID, **without** `gateway-registration:`. Parse with
+`parseEmailOtpRegistrationVerificationReceiptV1` in `d1EmailOtpRecords.ts`; the
+exact owner is `verified.walletId`, within all four tenant scope columns. Require
+`verified.challengeId` to equal the record ID and `verified.orgId` to match the
+organization. Preserve the request fingerprint, version and expiry. Challenge
+consumption and receipt creation share one guarded D1 batch; the receipt remains
+selectable after its challenge is deleted. An extraction must read expired rows
+without using `readRegistrationVerificationReceipt`, which can prune them.
+
+Email OTP challenge/grant extraction uses the stored `wallet_id` and the existing
+`parseCurrentEmailOtpChallengeRow` / `parseCurrentEmailOtpGrantRow` boundary parsers
+in `EmailOtpRecords.ts`; require parsed ownership to agree with that column.
+A provider subject or `user_id` cannot replace the wallet selector. The effective
+challenge schema (migration 0027) and grant schema (0001) require nonempty wallet
+ownership and JSON agreement. Unactivated registration state remains with its
+candidate wallet; it is never reassigned by matching a provider subject. A row
+whose wallet allocation cannot be resolved must block extraction.
 
 `local-registration-authority:` is the standalone host's authority and must be
 absent from a hosted extraction. Its `setup-reservation` payload contains
@@ -330,9 +350,9 @@ when sources have not changed; the successful run rebuilt its candidate.
   direct reads. Signed-delegate execution and relayer/root controls remain
   tenant-owned. See the subsequent Runtime evidence in the per-wallet inventory;
   the original revision-1 statement that this dispatch was absent is superseded.
-- [ ] Deferred work: inventory each persisted continuation, alarm, refill and
-  background write; require a current home/write fence before effect commit.
-  Prove queued-before-move work cannot mutate a retired home.
+- [ ] Deferred work: complete the inventory of persisted continuations, alarms,
+  refills and background writes, and verify they retain their admitted fixed-home
+  context. R153 owns relocation write fences and queued-before-move cutover tests.
 - [ ] Credential locators: complete issuance/consumption/revocation reconciliation
   for all opaque credentials, challenge kinds and delivery acknowledgements;
   ensure wrong-home or unavailable-directory paths fail before local mutation.
@@ -389,3 +409,27 @@ Evidence: Wallet `.artifacts/r152/sponsored-owner-20261004/evidence.json` and
 `e2e.log`. Build, type fixtures and bloat checks passed. Initial harness failures
 were test bundling and RPC-stub schema/method mismatches, corrected against the
 existing decoder and client without changing production validation.
+
+### Email OTP selector audit — October 4
+
+The regional recovery E2E passed in 1.1 minutes for a US Email-OTP-founded wallet
+recovering through APAC after a lost finalization response and Gateway restart,
+then unlocking and signing NEAR plus concurrent EVM transactions. Its expanded
+receipt found one auth-state row and one enrollment in US, none in WEUR/APAC,
+and no remaining challenge, grant or unlock-challenge rows in any region. Six
+retained authorization-grant operations and their audit ownership checks passed.
+
+The verification-receipt selector above is established by the production writer,
+parser and transactional consumption path. This run retained no verification
+receipt and does not provide behavioral coverage of that branch or pending OTP
+row extraction. The evidence helper now recognizes that scope when present,
+validates it with the production parser and checks that its challenge was consumed.
+No production behavior or schema change was required for these selectors.
+
+Private artifact:
+`.artifacts/r152/email-ownership-20261004/google-recovery-email_otp-US/recovery-evidence.json`,
+SHA-256 `060b1ebd167b1457c8d61fd8c1b7ae3d3b6cdf41e71765e9ff5ff6727577dcb1`.
+Reproduce with the regional recovery command above and
+`SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/email-ownership-20261004`.
+The first attempt stopped before registration on an expired Google token; the
+standard token refresh and rerun succeeded. ESLint, diff and bloat checks passed.
