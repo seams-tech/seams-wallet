@@ -237,6 +237,194 @@
         "Network capture still incomplete; combine with static-serving transfer evidence or improve target attachment before setting acceptance totals.",
         "Target startup pauses add instrumentation overhead; hold instrumentation constant for before/after latency comparisons."
       ]
+    },
+    "staticServerObservations": {
+      "status": "static_body_transfer_and_cold_warm_signed_out_scenarios_passed",
+      "accounting": "Server response write/end byte counts after preview gzip; excludes HTTP/TLS framing. All wallet-origin records checked against retained file bytes or gzip level 6; 304 bodies verified zero. Browser counters overlap and must not be added. HTTP cache enabled only in signed-out scenario; auth scenario harness routing disables it.",
+      "scenarios": [
+        {
+          "scenario": "signed-out",
+          "runtimeSourceRevision": "822dfb30fe4b025c0c88cdfeb46225bc8c082c30",
+          "runnerRevision": "e108dbe52c8f9809ac675c7617018bc20945e1e5",
+          "runnerWorkingTree": "Static server counters, cache scenario, safe trace and evidence retention pending commit",
+          "artifactPath": ".artifacts/r170-baseline/signed-out-static-transfers.json",
+          "reportSha256": "a8d76685e7a923e526bda98dd886cff9a2bd12e28bc08602489f2d6839558af6",
+          "cachePolicy": "enabled",
+          "totalsByOrigin": [
+            {
+              "origin": "http://localhost:4201",
+              "requests": 100,
+              "encodedBodyBytes": 834505,
+              "workerScriptRequests": 0,
+              "workerScriptEncodedBodyBytes": 0,
+              "statuses": {
+                "200": 50,
+                "304": 50
+              }
+            },
+            {
+              "origin": "http://localhost:4202",
+              "requests": 236,
+              "encodedBodyBytes": 2563734,
+              "workerScriptRequests": 22,
+              "workerScriptEncodedBodyBytes": 187841,
+              "statuses": {
+                "200": 118,
+                "304": 118
+              }
+            }
+          ],
+          "phases": [
+            {
+              "name": "initialization",
+              "durationMs": 23.541416000000027,
+              "staticBodyBytes": 0,
+              "requests": 0
+            },
+            {
+              "name": "cold-signed-out-mount-idle",
+              "durationMs": 2827.706791,
+              "staticBodyBytes": 3398239,
+              "requests": 168
+            },
+            {
+              "name": "cold-generic-menu",
+              "durationMs": 2077.79825,
+              "staticBodyBytes": 0,
+              "requests": 0
+            },
+            {
+              "name": "warm-signed-out-mount-idle",
+              "durationMs": 2680.9431670000004,
+              "staticBodyBytes": 0,
+              "requests": 168
+            },
+            {
+              "name": "warm-generic-menu",
+              "durationMs": 2122.7081660000003,
+              "staticBodyBytes": 0,
+              "requests": 0
+            },
+            {
+              "name": "completed",
+              "durationMs": 90.94475000000057,
+              "staticBodyBytes": 0,
+              "requests": 0
+            }
+          ],
+          "walletFileSizesVerified": 236,
+          "walletFileSizeMismatches": 0,
+          "workerCreationsByPhase": {
+            "cold-signed-out-mount-idle": 11,
+            "warm-signed-out-mount-idle": 11
+          }
+        },
+        {
+          "scenario": "registration",
+          "runtimeSourceRevision": "822dfb30fe4b025c0c88cdfeb46225bc8c082c30",
+          "runnerRevision": "e108dbe52c8f9809ac675c7617018bc20945e1e5",
+          "runnerWorkingTree": "Static server counters, cache scenario, safe trace and evidence retention pending commit",
+          "artifactPath": ".artifacts/r170-baseline/registration-static-transfers.json",
+          "reportSha256": "385b094b7a925a1f657e2ee844ccaff1d701dfa654347cd53c1c54cd5a836395",
+          "cachePolicy": "disabled_by_routing",
+          "totalsByOrigin": [
+            {
+              "origin": "http://localhost:4201",
+              "requests": 100,
+              "encodedBodyBytes": 1669002,
+              "workerScriptRequests": 0,
+              "workerScriptEncodedBodyBytes": 0,
+              "statuses": {
+                "200": 100
+              }
+            },
+            {
+              "origin": "http://localhost:4202",
+              "requests": 249,
+              "encodedBodyBytes": 9362732,
+              "workerScriptRequests": 25,
+              "workerScriptEncodedBodyBytes": 442628,
+              "statuses": {
+                "200": 249
+              }
+            }
+          ],
+          "phases": [
+            {
+              "name": "initialization",
+              "durationMs": 377.43566699999997,
+              "staticBodyBytes": 0,
+              "requests": 0
+            },
+            {
+              "name": "register",
+              "durationMs": 1949.7577910000002,
+              "staticBodyBytes": 5086156,
+              "requests": 172
+            },
+            {
+              "name": "first-near-sign",
+              "durationMs": 720.9955839999998,
+              "staticBodyBytes": 0,
+              "requests": 0
+            },
+            {
+              "name": "first-evm-sign",
+              "durationMs": 788.1374579999997,
+              "staticBodyBytes": 1550,
+              "requests": 1
+            },
+            {
+              "name": "lock",
+              "durationMs": 14.434708000000683,
+              "staticBodyBytes": 0,
+              "requests": 0
+            },
+            {
+              "name": "unlock",
+              "durationMs": 703.6825830000007,
+              "staticBodyBytes": 5940755,
+              "requests": 174
+            },
+            {
+              "name": "repeat-near-sign",
+              "durationMs": 697.7047089999996,
+              "staticBodyBytes": 0,
+              "requests": 0
+            },
+            {
+              "name": "repeat-evm-sign",
+              "durationMs": 752.1554999999998,
+              "staticBodyBytes": 3273,
+              "requests": 2
+            },
+            {
+              "name": "completed",
+              "durationMs": 2.163292000000183,
+              "staticBodyBytes": 0,
+              "requests": 0
+            }
+          ],
+          "walletFileSizesVerified": 249,
+          "walletFileSizeMismatches": 0,
+          "workerCreationsByPhase": {
+            "register": 11,
+            "unlock": 13,
+            "repeat-evm-sign": 1
+          }
+        }
+      ],
+      "trace": {
+        "path": ".artifacts/r170-baseline/signed-out-trace.zip",
+        "sha256": "7d06f6d96cc5a858b1aceb8b3ec9fdc4ff6a19485564a5652c0fd65898f64177",
+        "scope": "Fresh signed-out mount/idle/menu and warm revisit only; no credential operations"
+      },
+      "remaining": [
+        "Signer-specific loading matrix",
+        "Authenticated warm HTTP-cache scenario",
+        "Decoded worker bodies and complete target attribution",
+        "Repeated per-phase latency comparison at cutover"
+      ]
     }
   }
 }

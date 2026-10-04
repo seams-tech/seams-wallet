@@ -16,10 +16,11 @@ presign invalidation contracts before changing affected worker lifecycle behavio
 
 Implementation checkpoint, October 4: fresh production assets and a packed
 baseline are recorded in the [production receipt](evidence/refactor-170-production-baseline-20261004.json).
-The production-browser registration/sign/lock/unlock scenario passes, but its
-initial collector lacks 23 worker-script response measurements and the harness
-disables HTTP caching. These are partial measurements; the network acceptance
-gate remains open. `near.accountExists` and its public browser contract are
+The production-browser registration/sign/lock/unlock scenario passes. October 5
+server-side static-body counters close the initial collector's missing worker
+script byte measurements; a separate cache-enabled signed-out mount/menu scenario
+and safe trace also pass. The inventory records phase-specific latency limits.
+Authenticated warm-cache and signer-specific evidence remain open. `near.accountExists` and its public browser contract are
 implemented; account-input UI no longer reaches through execution context for
 RPC reads. Host/client composition and targeted worker loading are still pending.
 
@@ -104,7 +105,7 @@ Wallet origin
 | Application config, iframe mount/dispose, request correlation, public state subscriptions | Application client |
 | Application transaction review and display preferences | Application UI, with existing host admission checks |
 | Public RPC reads and existing application-side transaction broadcast/finality handling | Application client, loaded with the operation that uses it |
-| Required parent WebAuthn bridge and external-provider callbacks | Application browser adapter, preserving existing origin and activation contracts |
+| Iframe permission delegation and external-provider callbacks | Application browser adapter; credential operations run on the wallet origin |
 | Wallet session projection, signing persistence, worker lifecycle | Wallet host; authorization, quota, expiry, and revocation remain server-authoritative |
 | Custody ceremonies, signer setup, signing, recovery, key-export execution | Wallet host and its workers |
 | Wire contracts and pure public value types | Dependency-light shared boundary modules |
@@ -131,7 +132,7 @@ plan findings, not claims of newly demonstrated production vulnerabilities.
 
 | Priority | Gap and source evidence | Required resolution |
 | --- | --- | --- |
-| P1 | Parent WebAuthn execution is real: `client/transport/webauthn-bridge.ts` calls `navigator.credentials.create/get` and serializes PRF outputs. A blanket rule that all auth code belongs in the iframe would delete a browser adapter or make an unsupported secret-isolation claim. | Preserve the existing supported bridge while extracting its minimal serialization/constants from execution modules. Establish which current browser/RP configurations use it and test those. Hosted auth-menu ceremonies must retain the wallet-origin CTA required by `docs/intended-behaviours.md`. Any bridge retirement or change to PRF exposure is a separate explicit behavior/security decision. |
+| P1 | R152 commit `f312be27` deleted the parent WebAuthn bridge and parent fallback. `walletOriginWebAuthn.ts` executes credentials on the wallet origin and returns an explicit unavailable error for unsupported registration contexts. | Preserve wallet-origin credential execution, RP selection, iframe permission delegation, cancellation, and the hosted-menu CTA. Do not restore the retired bridge or parent PRF forwarding. Verify the current supported browser/RP paths against the intended contracts; Chromium evidence alone does not prove Safari support. |
 | P1 | `SeamsWeb.getContext()` exposes the signing engine and `nearClient`; `useAccountInput` uses its RPC client. Host surface binding and restored-session prefill are also methods on the public class. | Split by actual caller: give host callers internal host methods, update application RPC callers to the existing narrow public/client API, and remove the execution-bearing context from the application surface. Preserve supported custom `NearClient` behavior for application reads; a function-bearing object cannot be sent through postMessage. Record declaration changes and every affected consumer before deletion. |
 | P1 | Preference getters/setters are synchronous, setters optimistically update a local mirror, and writes are queued to the host in `publicApi/preferences.ts`. `setCurrentWallet` is display selection rather than authentication. | Keep a small client preference projection with the existing synchronous contract for this refactor. Specify defaults before connection, ordered writes, wallet-bound updates, host snapshot/event reconciliation, and disposal. Preserve existing error semantics unless deliberately changing the spec and callers. Never use this projection to authorize or implicitly select a signing subject. |
 | P1 | `publicApi/tempo.ts` runs `operations/tempo/executeEvmFamilyTransaction.ts` in the caller, including broadcast, receipt checks, and nonce-lifecycle reports. Transaction review spans the parent and host. | Preserve existing broadcast ownership and return/error semantics. Keep its execution-independent client helper lazy with the operation, while signing and nonce authority remain at their existing enforcement points. Audit NEAR send/delegate paths separately. Preserve review reservation, payload binding, expiration, cancellation, and host admission; moving broadcast into the iframe would require its own protocol and behavior change. |
@@ -167,7 +168,7 @@ listed module. Keep the inventory here; do not add a second manifest or generato
 | Config and mode ownership | `core/config/{defineConfig,defaultConfigs,configBuilder,configHelpers}.ts`, `core/types/seams.ts`, `core/browser/walletIframe/host-mode.ts`, `assembly/configureBrowserIndexedDB.ts` | Normalize once per boundary; separate client/host internal state and retire construction switches. Preserve supported public config. |
 | Transport and iframe lifecycle | `walletIframe/coordinator.ts`, `assembly/createWalletIframeRouter.ts`, `walletIframe/client/router.ts`, `client/transport/` | Remove signing surface dependency; preserve connection, handshake, request queue, timeout, reconnect, disposal, and errors. |
 | Shared wire/value boundary | `walletIframe/shared/{messages,exactSessionState,exactSessionReconciliation,transactionReview,unlockOptions}.ts`, `walletIframe/sanitization.ts`, `boundary/walletRefs.ts`, relevant shared-ts value helpers | Audit actual runtime closure and parsers. Keep serialization and identities lightweight; update both protocol ends together. |
-| WebAuthn bridge | `client/transport/webauthn-bridge.ts`, `core/signingEngine/webauthnAuth/{credentials/helpers,fallbacks/safari-fallbacks}.ts` | Retain supported browser behavior; isolate bridge dependencies and verify credential origin/RP and cancellation behavior. |
+| Wallet-origin WebAuthn | `client/transport/iframe-transport-dom.ts`, `core/platform/browser/createBrowserPlatformRuntime.ts`, `core/signingEngine/webauthnAuth/walletOriginWebAuthn.ts`, host auth-menu and device-link flows | Preserve iframe permissions, wallet-origin credential execution, RP selection, user activation, and cancellation. Parent bridge/fallback files were deleted by R152. |
 | Hosted handoff and external auth | `client/router.ts`, `host/hostedWalletSeamsSession.ts`, `host/auth-menu/`, `host/handlers/authMenu.ts`, React `HostedSeamsAuthMenu/` | Preserve origin-bound single-use handoff, wallet-host primary credential, hosted credential redemption, callback correlation, and host-owned OTP/continuation. |
 | Restore and startup work | `SeamsWeb.ts` startup methods, `operations/registration/pendingRegistrationRecovery.ts`, `operations/recovery/walletRecoveryCommit.ts`, `host/restoredSessionPresignaturePrefill.ts`, `operations/devices/` | Move orchestration to one host owner; preserve restart replay, exact-session prefill, acknowledgements, and idempotency. |
 | Worker selection and WASM initialization | `core/signingEngine/workerManager/{SignerWorkerManager,workerTransport}.ts`, `workerManager/workers/`, `core/signingEngine/assembly/warmup.ts`, `SeamsWeb/assembly/browserWorkerWarmupPolicy.ts`, `host/registrationPreparationPreload.ts` | Remove blanket worker startup; retain targeted preparation and on-demand loading, accurate readiness, shared initialization, and safe worker lifetime. |
@@ -537,6 +538,14 @@ add a compatibility fallback. Preserve protocol 2.0.0 only if its contract remai
 compatible. Verify an event concurrent with snapshot capture and stale events
 arriving after reconnect.
 
+The current-source audit in [the inventory](refactor-170-inventory.md#snapshot-ordering-and-protocol-decision)
+found wallet-unbound preference snapshots and asynchronous session reads without
+within-connection freshness ordering. The cutover therefore requires protocol
+**3.0.0**, paired revision envelopes and preference acknowledgements. Update the
+existing manifest/version and skew checks with both endpoints; keep the current
+2.0.0 runtime unchanged until that implementation lands. The audit specifies
+stale-capture rejection and the host transitions whose revisions need coverage.
+
 ### Preserve transaction and browser-adapter ownership
 
 Keep current application transaction review, broadcast, receipt handling, and
@@ -545,10 +554,11 @@ the operation. The host retains signing and its existing authority checks.
 Preserve reservation/payload binding, expiration, cancellation, return values,
 and error semantics; audit NEAR send/delegate paths independently.
 
-Preserve the supported parent WebAuthn bridge and its minimal serialization and
-constants. Keep wallet-origin hosted-menu CTA behavior. Record and verify actual
-browser/RP support; do not claim that all credential execution or PRF handling
-occurs inside the iframe.
+Preserve wallet-origin credential execution and hosted-menu CTA behavior from
+R152. The parent delegates iframe permissions and handles external-provider
+callbacks; it no longer executes a credential/PRF bridge. Record and verify
+current browser/RP support, including explicit unavailable outcomes. Preserve
+the explicit runtime entry's browser adapter separately from the hosted client.
 
 Tradeoff: moving these responsibilities into the iframe might further reduce
 application code, but would expand this refactor into a transaction-protocol and

@@ -1,4 +1,6 @@
-import type { BrowserContext, Page, TestInfo } from '@playwright/test';
+import { expect, type BrowserContext, type Page, type TestInfo } from '@playwright/test';
+import { mkdir } from 'node:fs/promises';
+import path from 'node:path';
 import { intendedTest, type IntendedBehaviourHarness } from './harness';
 import { WalletAssetEvidence } from './wallet-asset-evidence';
 
@@ -33,6 +35,7 @@ async function measureWalletAssets({
   assets: WalletAssetEvidence;
 }): Promise<void> {
   test.skip(process.env.SEAMS_INTENDED_PRODUCTION !== '1', 'Requires production app assets');
+  assets.setCachePolicy('disabled_by_routing');
   assets.setPhase('register');
   await harness.registerPasskeyWallet();
   await harness.awaitNearReady();
@@ -54,4 +57,63 @@ async function measureWalletAssets({
 test(
   'production wallet records asset traffic across registration, signing, and unlock',
   measureWalletAssets,
+);
+
+async function observeSignedOutMount(page: Page): Promise<void> {
+  await page.goto('/__intended-e2e', { waitUntil: 'networkidle' });
+  await expect(page.getByTestId('intended-e2e-page')).toHaveAttribute(
+    'data-login-state',
+    'logged_out',
+  );
+  await page
+    .frameLocator('iframe.seams-wallet-overlay')
+    .locator('body')
+    .waitFor({ state: 'attached' });
+  // A fixed observation window includes the provider's idle preparation.
+  await page.waitForTimeout(2_000);
+}
+
+async function observeGenericMenu(page: Page): Promise<void> {
+  await page.getByTestId('asset-open-auth-menu').click();
+  await expect(
+    page.frameLocator('iframe.seams-wallet-overlay').locator('[data-auth-menu-primary]').first(),
+  ).toBeVisible();
+  await page.waitForTimeout(2_000);
+}
+
+async function measureSignedOutAssets(
+  { page, assets }: { page: Page; assets: WalletAssetEvidence },
+  testInfo: TestInfo,
+): Promise<void> {
+  test.skip(process.env.SEAMS_INTENDED_PRODUCTION !== '1', 'Requires production app assets');
+  assets.setCachePolicy('enabled');
+  const tracePath = path.resolve(
+    testInfo.config.rootDir,
+    '../.artifacts/wallet-assets/signed-out-trace.zip',
+  );
+  await mkdir(path.dirname(tracePath), { recursive: true });
+  await page.context().tracing.start({ screenshots: true, snapshots: true, sources: true });
+  try {
+    assets.setPhase('cold-signed-out-mount-idle');
+    await observeSignedOutMount(page);
+    assets.setPhase('cold-generic-menu');
+    await observeGenericMenu(page);
+    await page.goto('about:blank');
+    assets.setPhase('warm-signed-out-mount-idle');
+    await observeSignedOutMount(page);
+    assets.setPhase('warm-generic-menu');
+    await observeGenericMenu(page);
+    assets.setPhase('completed');
+  } finally {
+    await page.context().tracing.stop({ path: tracePath });
+    await testInfo.attach('signed-out-trace.zip', {
+      path: tracePath,
+      contentType: 'application/zip',
+    });
+  }
+}
+
+test(
+  'production signed-out mount and menu record cold and warm cache traffic',
+  measureSignedOutAssets,
 );

@@ -5,6 +5,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { WalletAssetNetworkEvidence } from './wallet-asset-network-evidence';
+import { isObject } from '../../../packages/shared-ts/src/utils/validation';
 
 type AssetEvidence = {
   phase: string;
@@ -41,15 +42,24 @@ function requestRealm(request: Request): string {
 export class WalletAssetEvidence {
   private phase = 'initialization';
   private phaseStart = performance.now();
+  private phaseStartedAtMs = Date.now();
+  private cachePolicy: 'unverified' | 'enabled' | 'disabled_by_routing' = 'unverified';
   private readonly assets: AssetEvidence[] = [];
   private readonly workers: WorkerEvidence[] = [];
-  private readonly phases: { name: string; durationMs: number }[] = [];
+  private readonly phases: { name: string; startedAtMs: number; durationMs: number }[] = [];
   private readonly pending = new Set<Promise<void>>();
   private readonly failures: string[] = [];
   private readonly pageListeners = new Map<Page, (worker: Worker) => void>();
   private readonly requestListener = this.onRequestFinished.bind(this);
   private readonly pageListener = this.onPage.bind(this);
   private network: WalletAssetNetworkEvidence | null = null;
+  private readonly serverOrigins =
+    process.env.SEAMS_INTENDED_PRODUCTION === '1'
+      ? [
+          process.env.SEAMS_INTENDED_APP_URL ?? 'http://localhost:4201',
+          process.env.SEAMS_INTENDED_WALLET_ORIGIN ?? 'http://localhost:4202',
+        ]
+      : [];
 
   constructor(private readonly context: BrowserContext) {
     context.on('requestfinished', this.requestListener);
@@ -58,6 +68,7 @@ export class WalletAssetEvidence {
   }
 
   async observeNetwork(page: Page): Promise<void> {
+    await Promise.all(this.serverOrigins.map(resetServerTransfers));
     this.network = await WalletAssetNetworkEvidence.start(page, this.getPhase.bind(this));
   }
 
@@ -65,10 +76,19 @@ export class WalletAssetEvidence {
     return this.phase;
   }
 
+  setCachePolicy(policy: 'enabled' | 'disabled_by_routing'): void {
+    this.cachePolicy = policy;
+  }
+
   setPhase(name: string): void {
-    this.phases.push({ name: this.phase, durationMs: performance.now() - this.phaseStart });
+    this.phases.push({
+      name: this.phase,
+      startedAtMs: this.phaseStartedAtMs,
+      durationMs: performance.now() - this.phaseStart,
+    });
     this.phase = name;
     this.phaseStart = performance.now();
+    this.phaseStartedAtMs = Date.now();
   }
 
   private onPage(page: Page): void {
@@ -118,9 +138,14 @@ export class WalletAssetEvidence {
     this.context.off('requestfinished', this.requestListener);
     this.context.off('page', this.pageListener);
     for (const [page, listener] of this.pageListeners) page.off('worker', listener);
-    this.phases.push({ name: this.phase, durationMs: performance.now() - this.phaseStart });
+    this.phases.push({
+      name: this.phase,
+      startedAtMs: this.phaseStartedAtMs,
+      durationMs: performance.now() - this.phaseStart,
+    });
     await Promise.all(this.pending);
     const network = this.network ? await this.network.finish() : null;
+    const serverTransfers = await Promise.all(this.serverOrigins.map(readServerTransfers));
     const report = {
       revision: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
       productionApp: process.env.SEAMS_INTENDED_PRODUCTION === '1',
@@ -131,8 +156,7 @@ export class WalletAssetEvidence {
           'Request completion phase; concurrent requests may cross phase boundaries',
         bytes:
           'Encoded response body and HTTP response headers counted separately; decoded bodies where available',
-        cache:
-          'Intended harness request routing disables HTTP cache; repeat phases measure warm runtime only',
+        cache: this.cachePolicy,
         omissions:
           'No claim of complete worker-target network coverage; no service-worker or socket accounting',
         privacy:
@@ -143,6 +167,7 @@ export class WalletAssetEvidence {
       workers: this.workers,
       failures: this.failures,
       network,
+      serverTransfers,
       totals: {
         encodedBodyBytes: this.assets.reduce(sumEncodedBytes, 0),
         responseHeaderBytes: this.assets.reduce(sumHeaderBytes, 0),
@@ -151,8 +176,16 @@ export class WalletAssetEvidence {
       },
     };
     const artifact = testInfo.outputPath('wallet-assets.json');
+    const retainedArtifact = path.resolve(
+      testInfo.config.rootDir,
+      '../.artifacts/wallet-assets',
+      `${testInfo.title.replace(/[^a-z0-9]+/giu, '-').toLowerCase()}.json`,
+    );
+    const body = JSON.stringify(report, null, 2);
     await mkdir(path.dirname(artifact), { recursive: true });
-    await writeFile(artifact, JSON.stringify(report, null, 2));
+    await writeFile(artifact, body);
+    await mkdir(path.dirname(retainedArtifact), { recursive: true });
+    await writeFile(retainedArtifact, body);
     await testInfo.attach('wallet-assets.json', {
       path: artifact,
       contentType: 'application/json',
@@ -197,4 +230,48 @@ function sumDecodedBytes(total: number, asset: AssetEvidence): number {
 
 function hasUnknownBody(asset: AssetEvidence): boolean {
   return asset.decodedBodyBytes === null;
+}
+
+async function resetServerTransfers(origin: string): Promise<void> {
+  const response = await fetch(new URL('/__asset-transfers', origin), { method: 'DELETE' });
+  if (response.status !== 204) throw new Error('Could not reset static asset transfer evidence');
+}
+
+async function readServerTransfers(origin: string) {
+  const response = await fetch(new URL('/__asset-transfers', origin));
+  if (!response.ok) throw new Error('Could not read static asset transfer evidence');
+  const raw: unknown = await response.json();
+  if (!Array.isArray(raw)) throw new Error('Invalid static asset transfer evidence');
+  return {
+    origin,
+    accounting:
+      'Encoded static response body bytes submitted by the isolated preview server after compression. ' +
+      'Includes worker scripts absent from CDP completion events. Excludes HTTP/TLS framing. ' +
+      'Cache hits that never reach the server transfer zero server bytes. ' +
+      'Do not add to overlapping browser totals. Closed responses are incomplete transfers.',
+    transfers: raw.map(parseServerTransfer),
+  };
+}
+
+function parseServerTransfer(raw: unknown) {
+  if (
+    !isObject(raw) ||
+    typeof raw.pathname !== 'string' ||
+    typeof raw.startedAtMs !== 'number' ||
+    typeof raw.finishedAtMs !== 'number' ||
+    typeof raw.status !== 'number' ||
+    typeof raw.contentEncoding !== 'string' ||
+    typeof raw.encodedBodyBytes !== 'number' ||
+    (raw.completion !== 'finished' && raw.completion !== 'closed')
+  )
+    throw new Error('Invalid static asset transfer');
+  return {
+    pathname: raw.pathname,
+    startedAtMs: raw.startedAtMs,
+    finishedAtMs: raw.finishedAtMs,
+    status: raw.status,
+    contentEncoding: raw.contentEncoding,
+    encodedBodyBytes: raw.encodedBodyBytes,
+    completion: raw.completion,
+  };
 }

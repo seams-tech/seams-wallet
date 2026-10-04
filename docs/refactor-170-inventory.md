@@ -62,6 +62,52 @@ enable observation; keep this instrumentation identical for latency comparisons.
 The next measurement task is complete script-transfer evidence, followed by the
 cache-enabled mount/menu and signer-specific scenarios.
 
+### Complete static-body counters and cache baseline
+
+October 5 follow-up: the production preview servers now count static response
+body writes after compression. Both real-browser scenarios pass, and all 485
+wallet-origin response records across them match the retained asset files' raw
+or gzip-level-6 sizes, including zero-body 304 responses. This closes the missing
+worker-script **encoded body** measurements. HTTP/TLS framing remains separate;
+CDP/browser observations overlap these server counters and must not be summed.
+The earlier browser `responseBodySize` values include HTTP/1 chunk framing for
+gzip responses, explaining their small excess over the server body counts.
+
+| Scenario | Application encoded bodies | Wallet encoded bodies | Worker scripts included in wallet total |
+| --- | ---: | ---: | ---: |
+| Register, NEAR/EVM sign, lock/unlock, repeat signs; cache disabled by harness | 1,669,002 B | 9,362,732 B | 25 responses, 442,628 B |
+| Fresh signed-out mount/idle/menu | 834,505 B | 2,563,734 B | 11 responses, 187,841 B |
+| Same-profile signed-out revisit/menu | 0 B; 50 revalidations | 0 B; 118 revalidations | 11 revalidations; workers still instantiated |
+
+Both signed-out menu phases add no requests after mount; broad startup already
+fetched the dependencies. Each mount creates 11 workers. The two-second idle/menu
+observation windows are intentional measurement windows and are included in phase
+durations. The retained signed-out trace contains no credential operation.
+
+Latest per-scenario reports survive isolated-run output cleanup under
+`.artifacts/wallet-assets/`; the immutable baseline copies and safe trace are
+under `.artifacts/r170-baseline/`. The production receipt records hashes, phases,
+file-size cross-check counts, and scenario inputs. The intended app now includes
+an explicit generic-menu button; compare this same app against the post-refactor
+package. The auth scenario keeps traces/screenshots/video disabled.
+
+Before/after latency acceptance: run each compared scenario three times with the
+same local services, CPU/network settings, compression, observer, and cache policy.
+For register, unlock, first NEAR/EVM sign and repeat signs, the post-change median
+may exceed the paired baseline median by at most `max(100 ms, 20%)`. Apply the
+same limit to mount/menu after subtracting their fixed two-second observation
+windows. This allows local scheduling variation without accepting a large
+first-operation delay. Any excess requires investigation and an explicit plan
+deviation; a transfer saving alone does not satisfy this gate. Latest observed
+registration/unlock were 1,950/704 ms; first NEAR/EVM signs 721/788 ms; repeat signs
+698/752 ms. These single-run values are reference observations, not medians.
+
+Remaining evidence: authenticated warm HTTP-cache behavior, decoded worker bodies
+and complete execution-target attribution, the signer/factor scenario matrix,
+and paired repeated latency acceptance. The full baseline gate remains open
+until those scoped requirements have their evidence; static transfer accounting
+and cold/warm signed-out coverage no longer depend on worker CDP completion events.
+
 From `seams-wallet`, with existing SDK outputs and installed dependencies:
 
 ```sh
@@ -229,6 +275,78 @@ transport review, snapshot-ordering proof, browser/RP evidence, and matching
 client/host version decision. No new protocol messages were introduced by this
 inventory work.
 
+## Snapshot ordering and protocol decision
+
+The existing messages do not prove the accepted bootstrap contract:
+
+- `coordinator.ts:init` saves `exactState`, awaits `getConfirmationConfig`, then
+  associates the response with the saved wallet. A selected-wallet event can
+  arrive during that await. `PM_GET_CONFIRMATION_CONFIG` returns only the config,
+  so the client cannot establish which wallet the snapshot describes.
+- `host/runtimeContext.ts:ensureHostSeamsWeb` emits full preference values with
+  `walletId` and `updatedAt: Date.now()`. Millisecond timestamps can collide and
+  the preference query returns no corresponding revision. They cannot order
+  bootstrap snapshots against events.
+- `client/router.ts:refreshExactSessionState` awaits an asynchronous host read,
+  then directly overwrites the session/review mirror. Preference changes launch
+  further exact reads through `handlePreferencesChanged`; their completion order
+  can differ from request order. A connection id fences port messages, but does
+  not establish freshness between reads within one connection.
+- The host exact-session read reconciles persisted authority and calls remote
+  session status before returning. Port FIFO alone cannot order those async
+  state captures against a concurrent lock, unlock, expiry, or wallet selection.
+
+Decision: the cutover will use **protocol 3.0.0**, updating the existing protocol
+constant, asset manifest, paired endpoints, skew tests, and release instructions
+in the same change. Current implementation remains 2.0.0 until that paired change
+lands. Mandatory wallet-bound/versioned snapshots, preference acknowledgement
+semantics, and the retired logout command must not be silently deployed under
+the old handshake. No old-host fallback or dual protocol is introduced.
+
+Use host-issued monotonic revisions for the existing preference and session
+projection streams, scoped to the live host connection. Preference snapshots and
+full-state events carry the same wallet identity and revision. Preserve local
+pending patches over confirmed state; an older snapshot cannot overwrite a newer
+event. Retain exact wallet/session bindings and client connection generations.
+
+For session reads, record the host state revision before asynchronous work and
+check it again before publishing. A concurrent authority/selection change makes
+that capture stale; reconcile the current state again instead of assigning a new
+revision to an old result. Enumerate revision-changing host transitions during
+implementation: selection, successful activation, lock, expiry, revocation,
+restore, and execution-config replacement. A client read started for a previous
+selection must never change the current selection. Connection restart invalidates
+all prior revisions and results. Do not use display diagnostics as the source of
+these transitions.
+
+The existing exact-session/lifecycle types remain the domain values. Add the
+small revision envelope at their shared message boundary; do not create a second
+authorization model. Cover event-during-bootstrap, out-of-order exact reads,
+wallet switch during a read/write, reconnect, and disposal in browser E2E.
+A complete source-to-transition audit and those behavioral checks are required
+before declaring the ordering gate verified.
+
+## WebAuthn ownership after R152
+
+The former parent bridge is absent from the current source. Commit `f312be27`
+deleted `client/transport/webauthn-bridge.ts` and the parent fallback, updated
+`docs/intended-behaviours.md`, and moved linked-device credential execution to
+the wallet origin. The earlier plan's bridge-preservation finding is superseded
+by this integrated behavior; it is not a remaining extraction task.
+
+| Path | Current owner and invariant | Verification scope |
+| --- | --- | --- |
+| Hosted auth menu registration/unlock | `host/auth-menu/{session,passkey}.ts`; credential call starts from wallet-origin CTA activation. | Existing intended passkey registration/unlock contracts; production baseline already exercises Chromium on distinct application/wallet origins. |
+| Credential execution and unavailable contexts | `core/signingEngine/webauthnAuth/walletOriginWebAuthn.ts`; single credential attempt, abort signal preserved, explicit wallet-origin-unavailable error for create ancestor/focus failures. | Keep current intended behavior; do not reintroduce parent retries. Real Safari/browser support requires its own existing browser evidence. |
+| Device-link target activation | `core/signingEngine/walletCustody/passkeyLink.ts` and browser platform adapter; wallet-origin registration after target activation. | Existing device-link intended contracts with source/target contexts and post-link signing. |
+| RP selection | Coordinator uses explicit `rpIdOverride`, otherwise wallet origin hostname; host credential paths consume resolved RP. | Preserve configured RP and browser domain/ROR checks. Test override separately from default-origin flow. |
+| Parent iframe permissions | `client/transport/iframe-transport-dom.ts` delegates create/get to wallet origin. | Preserve allow attributes and transport origin checks during extraction. No credentials or PRF output are returned through a parent WebAuthn bridge. |
+| Explicit runtime browser adapter | `core/platform/browser/createBrowserPlatformRuntime.ts` executes credentials through its own runtime port. | Keep explicit runtime support; the application iframe-client graph must exclude this execution implementation. |
+
+This is an ownership audit, not a new cross-browser support claim. The
+registration asset scenario's Chromium evidence does not close the device-link,
+RP-override, cancellation, or Safari verification gates.
+
 ## Configuration boundary audit
 
 Source chain: `core/config/defineConfig.ts` → `configBuilder.ts` →
@@ -256,7 +374,7 @@ not permission to delete persisted presignatures.
 | `routerAb` | Validates enabled/disabled normal-signing branch and required worker id; forwarded; host replaces when supplied. | Host signing policy; reset. Preserve the discriminated branch. |
 | `routerAbEcdsaDerivationPresignaturePool` | Validates enabled, depth, low-watermark, concurrency, timeout against existing bounds; forwarded; host replaces when supplied. | Host background refill policy; reset. Neither config reconstruction nor cosmetic updates authorize durable-pool deletion. |
 | `provisioningDefaults` | Copies the configured/default EVM and Tempo policies; forwarded; host replaces when supplied. | Host registration/signing setup, with existing per-call signer overrides; reset. |
-| `authenticatorOptions` | Whole input object or defaults; assembly clones the supported options; forwarded and retained when omitted. | Required parent WebAuthn adapter and host ceremonies; reset. Preserve RP/origin and activation contracts. |
+| `authenticatorOptions` | Whole input object or defaults; assembly clones the supported options; forwarded and retained when omitted. | Host ceremonies and wallet-origin browser adapter; reset. Preserve RP/origin and activation contracts. |
 | `iframeWallet.walletOrigin` | Required nonempty for public construction; used for iframe transport/origin checks. Host sanitizer forces empty to admit the current direct branch. | Client-only required origin. Delete host empty-string/mode workaround when separate construction lands. |
 | `iframeWallet.walletServicePath` | Trimmed nonempty override/default, then `/wallet-service`; used by router transport. | Client-only endpoint. Host needs no nested service path. |
 | `iframeWallet.sdkBasePath` | Trimmed nonempty override/default, then `/sdk`; router resolves it against wallet origin and sends `assetsBaseUrl`. Host accepts same-origin URL only, otherwise `/sdk/`. | Client URL construction and host asset resolution. Asset-base changes currently preserve warm execution state. Verify worker URL changes and disposal separately. |

@@ -1,6 +1,8 @@
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv } from 'vite';
+import type { PreviewServer } from 'vite';
+import { createAssetTransferEvidenceMiddleware } from './asset-transfer-evidence';
 
 export default defineConfig(({ mode }) => {
   const workspaceRoot = fileURLToPath(new URL('../..', import.meta.url));
@@ -70,9 +72,8 @@ function intendedWalletOriginPlugin(walletAssetHost: boolean) {
     configureServer(server: { middlewares: { use: (handler: WalletOriginMiddleware) => void } }) {
       server.middlewares.use(createWalletOriginMiddleware(walletAssetHost));
     },
-    configurePreviewServer(server: {
-      middlewares: { use: (handler: WalletOriginMiddleware) => void };
-    }) {
+    configurePreviewServer(server: PreviewServer) {
+      server.middlewares.use(createAssetTransferEvidenceMiddleware());
       server.middlewares.use(createWalletOriginMiddleware(walletAssetHost));
     },
   };
