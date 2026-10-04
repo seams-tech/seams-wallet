@@ -64,9 +64,9 @@ const PINNED_OWNER_WALLET = `
     WHERE session.namespace = operation.namespace
       AND session.tenant_id = operation.tenant_id
       AND session.authorization_id = operation.authorization_id
-      AND session.org_id = operation.linked_scope_org_id
-      AND session.project_id = operation.linked_scope_project_id
-      AND session.env_id = operation.linked_scope_env_id
+      AND session.org_id = operation.owner_scope_org_id
+      AND session.project_id = operation.owner_scope_project_id
+      AND session.env_id = operation.owner_scope_env_id
     LIMIT 1)
   END AS pinned_owner_wallet_id`;
 
@@ -134,9 +134,9 @@ export function prepareAuthorizedOperationAdmissionRead(input: {
                    AND auth_method.wallet_id = session.wallet_id
                    AND auth_method.wallet_authority_id = session.authority_id
                  WHERE session.namespace = operation.namespace
-                   AND session.org_id = operation.linked_scope_org_id
-                   AND session.project_id = operation.linked_scope_project_id
-                   AND session.env_id = operation.linked_scope_env_id
+                   AND session.org_id = operation.owner_scope_org_id
+                   AND session.project_id = operation.owner_scope_project_id
+                   AND session.env_id = operation.owner_scope_env_id
                    AND session.org_id = ? AND session.project_id = ? AND session.env_id = ?
                    AND session.tenant_id = operation.tenant_id
                    AND session.authorization_id = operation.authorization_id
@@ -232,13 +232,6 @@ export function prepareAuthorizedOperationInsert(input: {
     material?.materialActivation.key_binding ?? null,
     material?.materialActivation.lifecycle_binding ?? null,
     material?.materialActivation.signing_worker ?? null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
     source.kind === 'authorization_grant' ? walletSignerScope.orgId : null,
     source.kind === 'authorization_grant' ? walletSignerScope.projectId : null,
     source.kind === 'authorization_grant' ? walletSignerScope.envId : null,
@@ -268,13 +261,11 @@ export function prepareAuthorizedOperationInsert(input: {
           material_activation_id, material_activation_capability,
           material_activation_owner, material_activation_key_binding,
           material_activation_lifecycle_binding, material_activation_signing_worker,
-          linked_wallet_id, linked_enrollment_id, linked_device_id,
-          linked_wallet_key_id, linked_lane_id, linked_lane_share_epoch,
-          linked_revocation_epoch, linked_scope_org_id, linked_scope_project_id,
-          linked_scope_env_id
+          owner_scope_org_id, owner_scope_project_id,
+          owner_scope_env_id
         ) SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                   'claimed', 'pending', NULL, NULL, NULL, NULL, ?, NULL, ?,
-                  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                  ?, ?, ?, ?, ?, ?, ?, ?
            WHERE (${condition.sql}) AND (${absence.sql})`,
   ).bind(...values, ...condition.bindings, ...absence.bindings);
 }

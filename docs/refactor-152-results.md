@@ -5709,3 +5709,45 @@ E2E log, build, type-check and bloat logs). No hosted migration/deployment or re
 occurred. This closes one obsolete selector; the remaining authorization linked
 branch, credential reconciliation, deferred/DO accounting, linked installation and
 hosted regional gates remain open.
+
+
+### October 4: ownership closure and removal of linked-operation leftovers
+
+Migration 0048 removes seven unused linked identity columns from each of operations
+and audits, and renames the retained session scope columns to `owner_scope_*`.
+The live writer already stored NULL in all seven retired fields. Linked-device
+signing uses an ordinary Wallet Session whose exact authority has `device_link`
+provenance. The old ownership checklist incorrectly treated those obsolete fields
+as a live linked branch; the first new assertion exposed that stale assumption.
+The verifier now joins the actual session and authority without fixture fallback.
+
+The updated **three-region linked-device matrix passed in 2.4 minutes**. Every home
+retained two linked signing operations; exact owner reads succeeded and foreign
+wallet reads failed for each. Other homes contained none. Production installation,
+lost execution/activation/acknowledgement replies, Gateway/role restarts and final
+cleanup remain verified. The owner passkey unlock/export/signing/step-up contract
+also passed in **35.2 seconds** after migration 0048. All 48 signer migrations have
+SQLite integrity `ok`; retired linked columns are absent. Build, TypeScript,
+private verifier ESLint and bloat checks passed.
+
+Ownership revision 12 closes signer selectors and completes the DO/role-private
+inventory, including pending records and tombstones. Each Deriver has 13 role D1
+tables (tenant-root obligations plus wallet pair state); SigningWorker has eight.
+The document gives exact decrypted-record owners, parent joins and key agreement
+rules for every class. It includes completed presign indexes, all reservation
+variants, pool states and replay claims. Transfer/fencing remains R153 work.
+
+Public evidence: `.artifacts/r152/ownership-closure-20261004/` (`evidence.json`,
+`role-tables.json`, build/type-check/bloat and step-up logs). Private evidence:
+`.artifacts/r152/ownership-closure-20261004/` (regional E2E log and receipts).
+Repeat the private regional runner with `--grep 'linked signing' --max-failures=1`
+and the public candidate; repeat the public isolated runner with
+`passkey.unlock.contract.test.ts --grep 'passkey unlock restores immediate'`.
+
+| Home | Regional receipt SHA-256 |
+| --- | --- |
+| US | `3da6f2930e1069de536af08c7546dc775f671e3754477160da31e7efbb8152ed` |
+| WEUR | `20c2d8c4fa3946b8715cd5e6f655a18f01840a74057fcf0c1b0151b3c88852a3` |
+| APAC | `a02c2f2fa098e12066b1e4a92c543b813698d34f017350b48ccfd1543558ae0d` |
+
+No hosted deployment or publication occurred. Credential reconciliation, full deferred-execution verification, hosted acceptance, D1-call targets and final release/review gates remain separate R152 work.

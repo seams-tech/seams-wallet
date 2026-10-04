@@ -1,6 +1,6 @@
 # R152 state ownership baseline for R153
 
-Revision 10 — October 4, 2026.
+Revision 12 — October 4, 2026.
 
 This freezes the **schema inventory and ownership obligations**, not a copy-ready
 relocation implementation. R153 must fail closed for unresolved ownership below.
@@ -55,7 +55,7 @@ for the baseline, grouped only where the selector and obligations agree.
 | `email_otp_challenges`, `email_otp_grants` | Wallet: exact `(namespace, org_id, project_id, env_id, wallet_id)`. Both tables require a nonempty wallet ID matching parsed JSON. Registration challenges carry the candidate wallet ID before activation; shared registration offers remain in Console. Retain challenge/grant/registration-consumption atomicity and the verification receipt described below. |
 | `wallet_session_authorizations_v2`, `wallet_session_hosted_credentials_v2`, `wallet_session_hosted_exchange_codes_v2` | Wallet: exact scoped `wallet_id`; preserve issuance, retirement, redemption and parent-child lifecycle triggers. |
 | `authorization_wallet_session_quotas` | Wallet child: join the selected session's namespace, tenant, quota and session IDs; preserve remaining uses and retirement. |
-| `authorized_operations`, `authorized_operation_audit_events` | Blocked selector: derive all ordinary and linked authorization branches through exact parent authorization/evidence/quota identities. `linked_wallet_id` covers only the linked branch. Preserve replay/result and audit state atomically with quota claims. |
+| `authorized_operations`, `authorized_operation_audit_events` | Select through exact parent session/evidence/quota identities described below. Linked-device sessions use the same selector and join their `device_link` authority. Preserve replay/result and audit state atomically with quota claims. |
 | `verified_owner_proof_consumptions`, `verified_wallet_operation_evidence_sets` | Wallet: scoped wallet identity plus tenant; retain consumed proofs and evidence used by operations. |
 | `lane_enrollments`, `lane_protocol_operations`, `lane_product_epochs`, `lane_effect_journal` | Wallet: exact scoped `wallet_id`; keep enrollment, operation, epoch and durable effects together. Drain/fence in-progress protocol effects. |
 | `lane_locks`, `lane_receipts` | Wallet children: join scoped selected enrollment/operation IDs; do not transfer a live lock as fresh ownership. Preserve replay receipts. |
@@ -122,9 +122,11 @@ Resolve operation ownership by its authorization discriminant:
   that quota by `(namespace, tenant_id, quota_id, wallet_session_id)`.
 - `authorization_source_kind = 'verified_step_up'`: exact join on
   `(namespace, tenant_id, evidence_set_digest)` to the selected evidence set.
-- Linked operations additionally require `linked_wallet_id` and their linked
-  organization/project/environment to agree with the selected wallet. That field
-  is a consistency check, not the selector for ordinary owner operations.
+- Linked-device operations use the same session join. Join its authority by exact
+  namespace/organization/project/environment/authority ID and wallet ID;
+  `provenance_kind = device_link` identifies linked-device provenance. Migration 0048 removes the seven unused linked identity columns from operations
+  and audits. Required session scope joins use `owner_scope_org_id`,
+  `owner_scope_project_id`, and `owner_scope_env_id`.
 
 Select audit rows by `(namespace, tenant_id, authorized_operation_id)` from the
 selected operations and verify their fingerprint and authorization identity agree.
@@ -134,8 +136,8 @@ are unsuitable for this extraction. A missing parent or conflicting ownership
 stops extraction; the current schema does not independently encode full wallet
 ownership on operation/audit rows. Current runtime cleanup retains session and evidence parents: session retirement
 updates lifecycle timestamps; hosted-credential cleanup removes exchange codes and
-orphaned credentials, without deleting these ownership parents. Linked-operation
-coverage remains part of the full linked-device acceptance gate.
+orphaned credentials, without deleting these ownership parents. The three-region linked installation/restart matrix verifies this session/authority
+join and correct-wallet acceptance/wrong-wallet rejection for linked signing.
 
 ## Capability replacement ownership (revision 2)
 
@@ -435,15 +437,17 @@ when sources have not changed; the successful run rebuilt its candidate.
 - [ ] Credential locators: complete issuance/consumption/revocation reconciliation
   for all opaque credentials, challenge kinds and delivery acknowledgements;
   ensure wrong-home or unavailable-directory paths fail before local mutation.
-- [ ] Linked-device installation: replace controlled contribution planning with
-  production source-child resolution and protocol execution. Verify committed
-  packages, lost replies, local-install acknowledgement, active authority/session,
-  cancellation and cleanup across ingress regions. Current source-read E2E stops
-  at `awaiting_source_contribution` and uses synthetic owner material.
-- [ ] Resolve every blocked row selector above, prove complete selection with a
-  medium/hard composed wallet lifecycle and retain a repeatable receipt.
-- [ ] Account for wallet-scoped DO/Container material, including refill pools,
-  reservations and operation replay. D1 row transfer cannot stand in for this.
+- [x] Local regional linked-device installation: production source resolution and
+  protocol execution, lost execution/activation/acknowledgement replies, complete
+  installation and cleanup pass across US/WEUR/APAC with Gateway and role restarts.
+  Hosted acceptance remains separate. Evidence: linked-ownership-20261004.
+- [x] Close signer row ownership selectors. Registration/recovery/export and the
+  linked installation/restart matrix verify real retained state and exact operation
+  owners. Selectors include pending/terminal variants by their persisted identity;
+  executable copying and exhaustive relocation fault coverage belong to R153.
+- [x] Account for wallet-scoped DO/Container and role-private material, including
+  refill pools, reservations and operation replay. See the complete role-store
+  classification below. Live protocol state must be drained/aborted by R153.
 
 Until these gates close, R153 may implement its state machine against this baseline,
 but must not enable a general relocation copy/cutover path. This document does not
@@ -662,3 +666,69 @@ E2E passed in 38.9 seconds: registration, unlock, Ed25519/ECDSA export, NEAR sig
 concurrent Tempo/Arc signing and step-up. Build, TypeScript, Console readiness-file
 ESLint and bloat checks passed. Evidence: public
 `.artifacts/r152/near-key-retirement-20261004/{schema.json,e2e.log,build.log,typecheck.log,bloat.log}`.
+
+
+## Role-private ownership closure (revision 12)
+
+Use the physical role deployment and its admitted tenant/environment binding as the
+outer scope for every selector. Decrypt with the existing role cipher and validate
+with the current Rust record decoder before selecting a record. Ciphertext, digest
+keys and root identifiers alone are insufficient wallet selectors. Preserve row
+versions and regenerate storage keys from the validated identity; conflicting
+identities stop extraction. No new parallel ownership index is required.
+
+The effective role migrations contain exactly 13 tables for each Deriver and eight
+for SigningWorker. The full table lists are retained in public
+`.artifacts/r152/ownership-closure-20261004/role-tables.json`.
+
+| Role-private state | Exact ownership contract |
+| --- | --- |
+| Both Derivers: `yao_pair_sessions` | Decode the role-encrypted pair state, use its validated pair binding's `lifecycle.account_id`, and compare session/pair digest to the row key. Include prepared/starting/running/completed/burned/expired records. With wallet DO storage, select the exact wallet object and its pinned `wallet_owner`; retain pair fences even when pair material has expired. |
+| Both Derivers: all `tenant_root_*` tables | Tenant-owned; exclude from wallet copies. This includes shares, replay/CAS records, creation tombstones, refresh/restore/recovery state and source retirement. Root-use admissions remain obligations of that tenant-root epoch. Match wallet DO pair obligations through `pair_object_name` plus role/attempt kind/key; preserve admitted/claimed/settled/cancelled status. An ECDSA root-use admission is an epoch/operation obligation, not wallet secret material. R153 must settle/drain these obligations before retiring source execution. |
+| `signing_worker_activations` | Validated decrypted activation's `active_signing_worker_state().account_id`; require its material handle and generated active key to agree with the row. |
+| `signing_worker_activation_revocation_fences` | Exact `active-signing-worker/<account_id>/<activation_id>/<server_id>` identity; include every selected wallet's retirement fence even after activation material deletion. Use the production key format with validated identities, never substring wallet matching. |
+| `signing_worker_round1` | Decrypted `CloudflareSigningWorkerRound1RecordV1.active_signing_worker_state.account_id`; retain admitted digests, expiry and nonce consumption semantics. Reconstruct its exact storage key from the record. |
+| `signing_worker_ecdsa_pool` | Decrypted `CloudflareSigningWorkerEcdsaPoolLifecycleRecordV1.scope.wallet_id`; retain every lifecycle variant, reservation/claim, version, expiry and burned/consumed tombstone. Material absence does not remove ownership. |
+| `signing_worker_lane_material` | Decrypted `CloudflareSigningWorkerLaneMaterialRecordV1.identity.wallet_id`; verify operation key, activation ID, key/lane/epoch and identity digest against the row. Include pending and terminal lifecycle variants. |
+| `signing_worker_effect_claims` | Parse the persisted authorization, join its authorized-operation ID/fingerprint to the selected home operation/session/evidence set. Require exact operation key and request digest. Retain pending claims independently of terminal responses; the runtime has no claim-deletion path. |
+| `signing_worker_terminal_responses` | Exact `operation_key` and `request_digest_hex` join to the retained effect claim. Normal effect keys also encode validated wallet and activation; linked ECDSA keys encode enrollment, so resolve that enrollment through the selected wallet's retained authority/lane records. A missing claim/owner stops extraction. Never infer owner from a response body. |
+| `signing_worker_secret_states`: `ed25519_yao_lifecycle` | Decode `SigningWorkerYaoDurableStateV1`; registration-staged, active and recovery-staged variants retain binding/material with `lifecycle.account_id`. Check both active and staged recovery ownership and the stable-context key. |
+| `signing_worker_secret_states`: `ed25519_yao_reservations` | Decode `SigningWorkerYaoReservationStateV1`. Inactive/activating/active delivery bindings retain the wallet; revoked/deactivating variants retain the full ceremony binding. Recompute the reservation key from its material activation. |
+| `signing_worker_secret_states`: `ecdsa_inactive_reservations` | Decode `EcdsaReservationStateV1`. Every ordinary and source-preserving variant retains `material_activation.material_owner`; require agreement with registration or source/target activation bindings. Revoked/deactivating records retain this identity after material destruction. Recompute the family-specific reservation key. |
+
+Unknown secret-state purposes are rejected. Sources: `signing_worker/private_d1.rs`,
+`signing_worker/lane_private_d1.rs`, `ecdsa_pool_lifecycle.rs`,
+`ordinary_inactive_signer_material.rs`, `ed25519_yao_signing_worker.rs`,
+`tenant_root_role_d1.rs` and the role migrations.
+
+### Presign DO state and pending work
+
+Owner presign state is selected by `owner-presign-authority.wallet_scope()` (both
+owner-session and step-up variants), including organization/project/environment
+and wallet. Linked live sessions retain `scope.wallet_id` and the active signing
+state; these must agree. Completed linked records under
+`linked-ecdsa-presign-session/v1/` and `linked-ecdsa-presignature/v1/` retain
+`record.active_signing_worker_state.account_id` and a complete response whose
+prepared scope contains `wallet_id`; check agreement and include both indexes.
+Retain consumed/terminal answers and expiry semantics. Session IDs and their
+hashed storage suffixes are lookup identities, not wallet ownership.
+
+The exact wallet DO selectors and eight wallet tables above cover refill pools,
+activation/revocation, reservations, effects and replay state. In-memory protocol
+sessions cannot be exported as completed material. R153 must drain or abort them
+and ensure alarms/background completions cannot write across cutover. The current
+fixed-home background capture remains an R152 guarantee; relocation fences are
+R153 implementation. Probe Containers hold browser experiment state only, as
+recorded in the existing Container inventory; no wallet custody Container exists
+in the tracked deployment configuration.
+
+### Closure evidence
+
+The cleaned-schema regional linked-device matrix passed all three homes in 2.4
+minutes. Each home retained two linked signing operations, selected through exact
+session/authority joins; the production reader accepted the owner and rejected a
+foreign wallet for each operation. Foreign D1s retained none. Lost execution,
+activation and acknowledgement replies, Gateway/role restarts, installation and
+cleanup all passed. Earlier registration/recovery/export evidence covers ordinary
+session and step-up selectors. This closes ownership accounting; it does not claim
+that R153's export/import/cutover implementation exists or has passed testing.

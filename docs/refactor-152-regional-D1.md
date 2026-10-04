@@ -1481,8 +1481,9 @@ See [results](refactor-152-results.md) for the evidence and verification scope.
   reservation; activation replays the same receipt/result; the linked device signs
   both curves, revocation blocks it, and the owner continues signing.
 - [x] Retain five device traces with zero lifecycle violations, logs and build hashes.
-- [ ] Complete the same installation through production Console authentication and
+- [x] Complete the same installation through production Console authentication and
   three regional D1 homes; verify final state and cleanup only at the assigned home.
+  Confirmed by the October 4 process/role-restart matrices and linked ownership run.
 - [ ] Repeat the completed flow on the hosted candidate before release acceptance.
 
 These contracts use real local MPC Workers and fresh D1 state. Regional fixtures
@@ -1573,3 +1574,16 @@ complete or handing off to R153:
   Include the final ownership contract, commits and verification evidence.
   Authorization recorded October 4, 2026; send only after the R152 completion gates
   close. Relocation generations, transfer execution and writer fencing remain R153.
+
+
+### October 4: ownership closure
+
+- [x] Close ordinary, step-up and linked-operation ownership through retained exact
+  session/evidence/authority joins; remove obsolete linked identity columns in 0048.
+- [x] Complete wallet DO and role-private storage accounting, including pending
+  pools, reservations, pair state, replay records and tenant-root obligations.
+- [x] Verify the cleaned schema through the three-home installation/restart matrix
+  and owner/step-up lifecycle. See revision 12 of the ownership contract and results.
+
+The source-accounting contract is complete. R153 owns executable transfer,
+relocation fences and cutover validation. Other R152 acceptance gates still apply.

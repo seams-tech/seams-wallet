@@ -2383,10 +2383,10 @@ export class CloudflareD1AuthorizationStore
       throw new Error('Pinned owner Wallet Session scope is unavailable');
     }
     return {
-      orgId: requireString(row.linked_scope_org_id, 'operation.ownerScope.orgId'),
-      projectId: requireString(row.linked_scope_project_id, 'operation.ownerScope.projectId'),
+      orgId: requireString(row.owner_scope_org_id, 'operation.ownerScope.orgId'),
+      projectId: requireString(row.owner_scope_project_id, 'operation.ownerScope.projectId'),
       projectEnvironmentId: requireString(
-        row.linked_scope_env_id,
+        row.owner_scope_env_id,
         'operation.ownerScope.projectEnvironmentId',
       ),
     };
@@ -2820,9 +2820,9 @@ function authorizedOperationReplayMismatch(input: {
   }
   if (input.incoming.authorization.kind === 'authorization_grant') {
     if (
-      input.existing.linked_scope_org_id !== input.scope.orgId ||
-      input.existing.linked_scope_project_id !== input.scope.projectId ||
-      input.existing.linked_scope_env_id !== input.scope.envId
+      input.existing.owner_scope_org_id !== input.scope.orgId ||
+      input.existing.owner_scope_project_id !== input.scope.projectId ||
+      input.existing.owner_scope_env_id !== input.scope.envId
     ) {
       return { kind: 'authorization_grant_rejected' };
     }
