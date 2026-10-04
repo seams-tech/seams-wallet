@@ -228,10 +228,55 @@ if preserving current supported behavior requires a material scope change.
 
 ## Accepted API and lifecycle decisions
 
-These decisions preserve ordinary application authentication and signing calls
-while removing execution internals from the application API. Examples are proposed
+These decisions simplify application authentication calls and preserve signing
+contracts while removing execution internals from the application API. Examples are proposed
 shapes, omit unrelated fields, and reuse existing domain types in implementation.
 They are not evidence of completed code or a new parallel contract layer.
+
+### Flat session API with one lock operation
+
+Expose routine wallet session operations directly on `SeamsWeb`:
+
+```ts
+await seams.unlock(walletId);
+await seams.lock();
+
+await seams.getSession();
+await seams.getRecentUnlocks();
+await seams.hasPasskey(walletId);
+
+const unsubscribe = seams.onSessionChange(listener);
+```
+
+- Replace the corresponding `seams.auth` methods; remove `logout` and old method
+  names without aliases. Internal auth composition may remain private. This
+  decision does not flatten all registration, chain, or specialized auth flows.
+- `getSession` returns the existing precise session states. Preserve supported
+  explicit-wallet queries and exact identity binding at the boundary.
+- `hasPasskey` retains the supported credential-lookup meaning; it does not
+  promise an authenticator will successfully perform a future assertion.
+- `onSessionChange` publishes the reconciled public session state and returns an
+  unsubscribe function. Use the snapshot/event ordering rules below.
+- Update React bindings, examples, docs, and Console consumers together. Hooks
+  expose the same operation names as the client.
+
+Current `logout` in `operations/auth/login.ts` calls `lock` and additionally
+deletes wallet-scoped durable ECDSA presignatures. The unified `lock` includes
+that cleanup, as well as retiring active session authorization, clearing current
+authentication, fencing stale work, and clearing volatile signing material.
+Capture the exact cleanup wallet before clearing authentication; an overlapping
+unlock for another wallet must not be cleared by stale completion. Attempt all
+required cleanup and surface failures, preserving the existing failure-handling
+intent. Keep wallet records, credentials, and recovery material intact.
+
+Tradeoff: clearing durable presignatures can require replenishment on the next
+unlock. A single complete lock contract removes a hidden application decision.
+Coordinate pool invalidation and refill fencing with R153. Update the normative
+spec and behavioral contracts for this intentional change, including cleanup
+failure, repeated lock, concurrent unlock, and restart after lock. Measure the
+next-unlock/first-sign cost. Audit every old logout and exact-session lock caller
+before deleting paths; preserve exact-session targeting. Removing or changing
+wire handlers follows the protocol-version rules below.
 
 ### SDK-owned account queries replace application `getContext()`
 
@@ -476,8 +521,9 @@ The choices above settle direction. Complete the member dispatch audit, injected
 RPC caller audit, config-field mapping, snapshot-ordering proof/version decision,
 browser/RP matrix, and phase-specific browser baseline before claiming the upfront
 gates closed. Update the inventory's unresolved-work notes as evidence lands.
-Ordinary auth/signing calls remain familiar; explicitly document removal of
-`getContext()`, SDK-owned account queries, and preference synchronization changes.
+Signing calls retain their supported contracts; explicitly document the flat
+session API and unified lock, removal of `getContext()`, SDK-owned account
+queries, and preference synchronization changes.
 
 ## Scope and constraints
 
