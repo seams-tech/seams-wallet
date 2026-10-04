@@ -5846,3 +5846,31 @@ Source review: `d1WebAuthnAuthService.createWebAuthnLoginOptions`,
 Historical sources: this document's “Remaining write and read boundaries”,
 post-mint-read hosted verification, and “Controlled workload” sections. Current
 local reconciliation evidence is recorded in the preceding October 4 entries.
+
+
+## October 4: activated staging and hosted candidate lifecycle
+
+Staging activation run `37190424277` attempt 4 passed resource verification,
+registration canary, activation and readiness. Deployment fixes `731249c` and
+`7b88624` provision all three dedicated runtime authentication credentials.
+
+The composed browser test in private `tests/e2e/hosted-product/` passed in 25.2s
+against real staging Gateway, Console, custody roles and chain endpoints. Candidate
+SDK assets were served locally under the configured staging origins. Registration
+included NEAR plus Tempo/Arc, followed by lock/reload, unlock, ECDSA export and
+verified Tempo signing. No backend stubs were installed.
+
+| Operation | One Tokyo browser sample |
+| --- | ---: |
+| Registration, including NEAR readiness | 11.15s |
+| Unlock | 3.80s |
+| ECDSA export | 4.36s |
+| Verified ECDSA signing | 4.28s |
+
+Durations include browser automation and are not medians or same-wallet travel
+measurements. The window observed 42 Gateway POSTs, including background work,
+with no HTTP errors; HTTP counts do not establish D1 counts. D1 telemetry remained
+unavailable. Evidence: private `.artifacts/r152/hosted-product-20261004/lifecycle.json`
+and `run.log`; rerun instructions accompany the test. Regional travel/concurrency,
+remaining hosted fault cases and release stay open. See the release review for the
+partial-target unlock finding from an earlier probe.

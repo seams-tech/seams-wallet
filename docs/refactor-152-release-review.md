@@ -34,6 +34,34 @@ uploads. The credentials were installed across receiving roles and all regional
 Gateway/Runtime pairs; custody keys were preserved. GitHub activation run
 `37190424277`, attempt 4, passed on October 4: OIDC admission, regional resource
 verification, registration canary, tenant activation and readiness checks succeeded.
+Hosted browser acceptance subsequently found the Router-to-SigningWorker ECDSA
+credential was also absent. Private commit `7b88624` completes deployment wiring
+for all three dedicated runtime credentials. Both receiving roles were redeployed.
+A real hosted ECDSA-only registration then passed setup, response, activation and
+session checks (one sample, 7.09 seconds including browser automation). This is
+functional evidence, not a regional latency distribution.
+
+The full mixed-wallet hosted lifecycle then passed in 25.2 seconds: registration,
+NEAR readiness, lock/reload, passkey unlock, ECDSA export and signature verification.
+One Tokyo browser sample measured registration 11.15s, unlock 3.80s, export 4.36s
+and signing 4.28s, including browser automation. Its 42 observed Gateway POSTs had
+no HTTP errors. These are HTTP requests, not D1 calls; D1 counts were not exposed.
+Regional concurrency, same-wallet travel and the remaining hosted lifecycle fault
+cases are still open.
+
+A preliminary probe registered only Tempo while configuring Tempo plus Arc for
+unlock. Unlock authentication succeeded, but warm-up discarded its context when
+Arc was missing and the auth menu did not finish. Registration and post-failure
+IndexedDB metadata were identical: material was retained. The accepted probe
+provisions both configured targets. Partial-target unlock and terminal auth-menu
+error propagation remain findings to resolve before claiming those cases work.
+
+The hosted fixture uses the configured wallet origin for its RP ID (public
+`f8415eea`); the previous application-host assumption was masked by local hosts.
+Private `d1fe7ac` adds repeatable hosted lifecycle execution and request evidence.
+Candidate frontend assets are served locally under staging origins; all Gateway,
+Console and custody calls reach deployed services.
+
 These deployment checks do not establish successful hosted wallet lifecycles.
 No npm publication has occurred. Evidence is retained privately under
 `.artifacts/r152/staging-reset-20261004/`.
