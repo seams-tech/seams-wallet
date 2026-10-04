@@ -39,130 +39,53 @@ separate. R6 must measure the completed hosted route across wallet homes and
 travel locations with frozen sources, explicit call budgets and retained failures.
 The earlier measurements do not close that acceptance gate or justify release.
 
-### Current remaining R152 work (October 4)
+### Current closure and remaining gates (October 4)
 
-This list summarizes the remaining gates; chronological checkboxes below retain
-older implementation checkpoints and must be read with their later evidence.
+This summary supersedes the chronological open-work lists below. Those lists
+record earlier checkpoints; they are not additional completion requirements.
 
-1. Complete regional linked-device failure/restart acceptance and separately placed
-   Router-role verification. The October 4 composed browser E2E now uses real
-   registration output, production Console placement and Gateway handlers, three
-   isolated signer D1 databases and one shared local Router role stack. WEUR
-   registration followed by APAC-ingress linking and NEAR/Tempo signing passes.
-   The matrix now also passes for US home/WEUR ingress and APAC home/US ingress.
-   Exact wallet/signer/authority/installation counts exist only at each home; seven
-   signer workflow tables are empty after linking, sealed delivery is removed and
-   completion receipts remain only at home. Two lost final acknowledgement replies
-   through foreign ingress now pass for every home: exact replay, fresh proofs,
-   successful signing and no duplicate installation. Combined activation-response
-   loss and two final-response losses now pass after giving acknowledgement its
-   own bounded retry budget. Shared bootstrap/route retention and scoped final
-   proof nonces are verified in Console; signer nonce tables remain empty.
-   Real Router execution response loss also passes in this composition, replaying
-   the same reservation before activation and acknowledgement losses. All three
-   homes now also pass Gateway/Console and D1-runtime restart after activation
-   and after each of two committed final acknowledgements. Nine process replacements
-   preserve exact activation replay, fresh acknowledgement proofs, signing and
-   home-only installation/cleanup; no further Router material execution occurs.
-   The same matrix now also passes with all five local role Workers restarting
-   at each checkpoint: nine supervisor generations advance over retained D1/DO
-   storage, and all linked devices still sign. Crashes during transactions
-   remain open.
-   Regional protocol acceptance now covers real elapsed
-   expiry of unclaimed and prepared links in all three homes: repeated foreign
-   polling, approval rejection, home-only terminal cleanup and refusal to recreate
-   a pruned link with renewed QR timestamps. Shared proof nonce expiry pruning also
-   passes while fresh replay guards remain. These checks use synthetic owner signer
-   material; browser expiry and actual regional Router placement remain unverified.
-   Local protocol contracts already prove response-loss cleanup; carry those
-   assertions into this regional composition rather than infer them from signing.
-   The real registration boundary is now checked before that local linking test:
-   production readers resolve the live Wallet Session, active auth method,
-   registration authority and both signer families directly from D1. Its safe
-   metadata receipt records the actual scope and bindings; it contains no material
-   payload or bearer credential. This establishes the source prerequisite, while
-   the composed browser scenario now consumes that real source and matching local
-   Router state. Separately placed regional Router stacks remain open.
-   Lost final acknowledgement replies exposed a local completion bug: the SDK
-   could leave linking unfinished after server cleanup. The target now retains
-   local completion state, retries the exact acknowledgement with a fresh proof,
-   and finishes authenticated state and the success event after acknowledgement.
-   Cleanup verification distinguishes removed workflow records from short-lived
-   proof nonces created by post-cleanup retries. See the October 4 lost-final-reply
-   checkpoint in the results document for validation and remaining scope.
-   Regional export-root relay delivery/replay/conflict and home-only D1 persistence
-   now pass (October 3 export-root relay receipt in the results document). Terminal
-   relay admission and preparation-to-recipient binding are fixed and verified.
-   The admitted recipient/package write versus cancellation race also passes;
-   recipient insertion now checks live session state atomically in D1. Full
-   regional Router restart acceptance and remaining terminal reconciliation remain open;
-   normal and response-loss activation cleanup now pass in the real matrix.
-   Delayed target-preparation insertion after cancellation is also fixed: the
-   insert requires the current session to be awaiting its target factor. The
-   target-commit reservation and Email OTP grant insertion checks now pass their
-   controlled cancellation races. Both check current session state atomically.
-   Email OTP verification uses a controlled verifier in this regional scenario;
-   live email delivery and complete regional factor installation remain open.
-2. Close full lifecycle acceptance and terminal reconciliation for registration,
-   discovery/unlock, recovery, export and add/revoke methods. Multiple real wallets
-   now register concurrently and coexist under one tenant namespace with US/WEUR/APAC
-   homes; the three client registration calls overlap before any completes. Locked-page
-   reload, passkey unlock, Ed25519/ECDSA export and NEAR/Tempo signing through
-   foreign ingress pass without changing those homes. ECDSA fresh step-up and
-   explicit export now resolve the home from their wallet identity. Fresh-browser
-   code recovery into a passkey authority and subsequent both-family signing now
-   pass for all three homes, with registration/recovery authorities only at home.
-   A new reservation using each consumed code is refused through foreign ingress
-   with `recovery_code_used`.
-   Lost passkey-recovery finalization replies now pass for all three homes:
-   the client journal survives runtime reset, replays the same operation and
-   target, and clears after acknowledgement. Both-family signing and the browser's
-   consumed-code error also pass. The mixed-wallet case now also restarts the
-   Gateway/Console process and D1 runtime after each passkey recovery commit,
-   reopening the same four databases before replay. All three recovered wallets
-   unlock and sign again after the third restart. The case also passes with all
-   five local role Workers restarting at every recovery checkpoint, preserving
-   their existing D1/DO stores. Interruption during transactions remains open.
-   Added Email OTP methods now
-   pass addition, duplicate-add refusal, lock/reload, unlock and both-family
-   signing through foreign ingress for every home. Revocation persists only at
-   home, the SDK refuses the revoked method, and the original passkey still signs.
-   The development OTP outbox now routes to the issuing home. Fresh-browser
-   recovery from passkey custody into Google Email OTP now passes for every home,
-   including NEAR/concurrent Tempo-Arc signing after unlock, one shared Google
-   identity locator and consumed-code rejection. Google recovery now also survives
-   a lost committed finalization reply and client runtime reset at every home,
-   with exact operation replay, journal cleanup and no duplicate authority or
-   identity locator. The interrupted-recovery matrix also retains subsequent
-   concurrent Tempo/Arc signing and budget-exhaustion checks. Google recovery also
-   passes an orderly Gateway/Console process restart after finalization commits:
-   a fresh process reopens the four persisted databases before client replay, then
-   unlock, signing and consumed-code rejection still pass in all three homes.
-   The same three-home Google matrix now passes with all five local role Workers
-   restarting after finalization as well, preserving exact replay, unlock,
-   concurrent signing and consumed-code rejection. Other recovery origins,
-   crashes during transactions and remaining shared credential/identity
-   reconciliation still need composed acceptance. Email OTP-founded wallets now
-   also pass registration and interrupted Google recovery in all three homes,
-   retaining the original authority and one shared active offer/identity locator
-   across full local-stack restart. This exposed and fixed shared-offer validation
-   comparing the runtime environment key with the deployment environment ID;
-   ownership continues to use the full deployment ID. Combined-factor founders
-   and other recovery-target combinations remain open.
-   Method finalization and revocation
-   reply loss now pass at every home: both mutations replay the exact request and
-   committed result through foreign ingress, with one added method and one revocation.
-3. Finish the ownership/entry-point audit and retirement audit: unresolved mixed
-   records, internal/deferred effects, cross-authority reconciliation, stale
-   deployment behavior and surviving namespace-placement assumptions. Keep R153
-   relocation and its generation fencing outside this R152 continuation.
-4. Complete regional provisioning/activation and the scoped disposable-wallet
-   reset/cutover review, then verify the actual US/WEUR/APAC bindings and resources.
-5. Run hosted concurrency, outage and travel tests with frozen builds; retain
-   signatures, actual served regions, D1 calls and latency distributions. Keep the
-   deferred per-flow D1 call-budget task visible; do not infer gains from emulators.
-6. Complete candidate/package/deletion checks and hosted acceptance, then release
-   and consume 0.8.0. Release remains held until the required gates pass.
+**Implemented and verified:**
+
+- Per-wallet US/WEUR/APAC homes, bounded regional forwarding and home-bound
+  lifecycle routing. Concurrent hosted registrations under one namespace selected
+  independent homes. WEUR and APAC wallets signed while traveling through all
+  three ingress regions; the WEUR cohort retains exact before/after home records.
+- Exact wallet selectors and ownership inventory revision 13, including pending
+  role/DO state, refill pools, reservations and replay records. Deferred execution
+  retains its fixed-home context. See [the ownership contract](refactor-152-state-ownership.md).
+- Credential publication/consumption ordering, regional reconciliation and
+  linked-device installation with lost replies, acknowledgements, activation,
+  cancellation and cleanup. Three-home composition includes process restarts;
+  hosted linking includes activation and acknowledgement response loss, signing,
+  revocation and owner continuity.
+- Staging reset, regenerated credentials, regional resource proofs and activation.
+  `ACCOUNT_ID_DERIVATION_SECRET` and its unused service were removed. The corrected
+  retired-session refill response is deployed and verified against staging.
+- D1 call accounting for unlock, both exports, signing and interrupted recovery.
+  Counts and their scope are recorded in [the results](refactor-152-results.md).
+  Optimization remains the explicitly deferred follow-up; no unsupported minimum
+  or complete happy-path recovery count is claimed.
+- Published 0.7.3 transport rejection/reload into candidate assets, packed package
+  checks and focused routing/legacy-path review.
+
+**Remaining critical work:**
+
+1. Finish Wallet and MPC candidate CI. Two MPC attempts failed during local Worker
+   startup in different E2Es; both exact tests passed locally. The diagnostic run
+   retains role logs so a further failure can be corrected from concrete evidence.
+2. Resolve any demonstrated validation issue, record final source identities and
+   review the final release diff. No runtime failure may be waived as a fixture
+   issue without examining its invariant.
+3. Publish and verify both 0.8.0 npm packages, consume the exact release in Console,
+   and send the authorized completion handoff to R153.
+
+**Evidence limits:** regional proxy measurements establish backend travel latency,
+not native full-browser travel latency or individual hosted D1 time. D1 lifecycle
+counts cover home Gateway `SIGNER_DB`, excluding Console and role-private stores.
+Interrupted recovery loses one traced response, so its count is a lower bound.
+Process restart tests do not prove arbitrary crashes during transactions. These
+limitations remain explicit; the historical checklists must not be marked wholly
+verified. Release validation is still pending.
 
 ### October 3 checkpoint: shared external identities
 

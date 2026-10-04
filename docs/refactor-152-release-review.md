@@ -10,9 +10,12 @@ checkpoints do not cover this candidate. No release workflow was dispatched.
 The first MPC run passed adapter, entrypoint and startup checks. One VM E2E
 exited before its local Worker health check; no protocol assertion failed.
 The exact unchanged test passed locally in 6.57s and emitted its cleanup receipt.
-The failed CI job was retried at the same revision (attempt 2); its result remains
-pending. Do not turn that startup failure into a protocol or fixture change
-without further evidence.
+Attempt 2 failed during Worker startup in a different VM E2E, also before any
+protocol assertion. That exact test passed locally in 0.71s. Diagnostic revision
+`85b3d670` reports PID, URL and child exit status and retains role stderr logs on
+CI failure. MPC run `37199113815` validates that revision; its result is pending.
+Do not turn these startup failures into protocol or fixture changes without
+further evidence.
 
 Hosted published-client cutover verification passed in **18.9s** (private
 `adb0d61`). The actual npm 0.7.3 registration transport, loaded in Chromium at
@@ -70,7 +73,8 @@ prepare/execute medians were 3.733s / 3.544s / 3.455s, measured at the proxy
 Containers, excluding the local-to-proxy hop. Four background refill 503s remain
 unclassified; foreground signing passed. Temporary infrastructure was removed.
 See the latest [results](refactor-152-results.md#october-4-hosted-regional-registration-and-weur-wallet-travel).
-The APAC-home mirror, remaining measurement/review gates and release remain open.
+The subsequent APAC mirror is complete. Measurement limitations remain explicit;
+final CI and release are pending.
 
 
 Follow-up: the unused OIDC account-name derivation service and
