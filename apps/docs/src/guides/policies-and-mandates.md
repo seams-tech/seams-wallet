@@ -5,9 +5,9 @@ description: Bind Seams signing and delegated authority to typed intent, scope, 
 
 # Policies and mandates
 
-Start with [Signing](/examples/signing), then add policy checks around the
-typed request. A policy decides whether an exact subject may perform an exact
-operation. A mandate records authority granted to a delegated actor.
+Start with [Signing](/examples/signing). Then add policy checks around the typed
+request. A policy decides whether an exact subject may perform an exact operation. A
+mandate records authority granted to a delegated actor.
 
 ## Describe one operation
 
@@ -21,7 +21,8 @@ request identity, and any amount or budget the policy evaluates. Avoid generic
 2. Resolve the exact wallet session and signing subject.
 3. Evaluate scope, freshness, budget, revocation, and step-up requirements.
 4. Present the operation in human-readable form.
-5. Sign and record the resulting decision and receipt.
+5. Sign the operation.
+6. Record the resulting decision and receipt.
 
 Policy denial is a supported outcome. Explain the failing constraint and the
 available recovery action without exposing private policy inputs.

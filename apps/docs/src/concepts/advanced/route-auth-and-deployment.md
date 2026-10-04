@@ -5,14 +5,19 @@ description: Protect Router, worker, wallet-session, and deployment routes with 
 
 # Route auth and deployment
 
-Router routes, private worker routes, wallet-session routes, and deployment
-roles use separate auth boundaries.
+Router routes, private worker routes, wallet-session routes, and deployment roles each
+have their own authentication requirements.
 
 ## Public Router boundary
 
-Public signing routes should require Wallet Session bearer authority, strict
-request-body parsing, origin policy, replay checks, quota checks, and signing
-budget admission before private worker fanout.
+Before dispatching work to private workers, public signing routes should require:
+
+- Wallet Session bearer authority.
+- Strict request-body parsing.
+- Origin policy checks.
+- Replay checks.
+- Quota checks.
+- Signing budget admission.
 
 ## Private Worker boundary
 
@@ -30,9 +35,9 @@ SigningWorker as distinct runtime roles:
 | Same account | Selected P0 production, staging, local parity, and benchmarks | Service Binding WebSocket | Separate Worker runtimes under one shared account control plane. |
 | Separate accounts | Deferred stronger-operator experiment | Public WebSocket in the measured checkpoint | Independent A and B administration can strengthen the control-plane boundary after its open reliability and latency gates pass. |
 
-The deployment profile is selected before startup. Client requests cannot
-choose the topology. Same-account deployment retains isolation against a
-runtime compromise confined to one Worker while the account control plane
-remains honest. Its P0 claim excludes shared-account administrator compromise.
-The measured separate-account checkpoint missed the current p95 objective and
-remains a deferred profile.
+The deployment profile is selected before startup. Client requests cannot choose the
+topology. Same-account deployment retains isolation against a runtime compromise
+confined to one Worker while the account control plane remains honest. Its P0 claim
+excludes shared-account administrator compromise. The measured separate-account
+deployment missed the current p95 latency target. This target measures the time within
+which 95% of requests finish. The profile remains deferred.

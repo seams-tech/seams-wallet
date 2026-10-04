@@ -5,15 +5,16 @@ description: Separate application login, wallet authority, signing budget, and d
 
 # Auth planes
 
-Seams keeps login, wallet authority, signing budget, and delegated execution
-separate. A route or operation should belong to one primary auth plane.
+Seams keeps login, wallet authority, signing budget, and delegated execution separate.
+Each route or operation should belong to one primary auth plane: a boundary for one kind
+of authority.
 
 | Plane                | Purpose                                                      |
 | -------------------- | ------------------------------------------------------------ |
 | App session          | Proves the user is logged into the app or identity provider. |
 | Wallet Session       | Admits reusable wallet-user operations.                      |
 | Threshold session    | Identifies curve-specific protocol state and signing material. |
-| Wallet Session quota | Carries TTL and remaining-use budget for reusable signing.   |
+| Wallet Session quota | Defines the expiry and remaining uses for reusable signing.   |
 | Capability grant     | Authorizes one exact operation and capability use.           |
 | Delegation grant     | Policy and audit object for delegated execution.             |
 | API credential       | Machine credential for scoped project or server routes.      |

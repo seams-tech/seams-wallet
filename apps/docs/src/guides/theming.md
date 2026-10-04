@@ -5,9 +5,9 @@ description: Apply one semantic color and shape system to app-owned React compon
 
 # Theming wallet surfaces
 
-Start with [UI customization](/examples/ui-customization). Seams renders UI in
-two places: React components on the application origin and protected surfaces
-on the wallet origin. Give both the same semantic palette and shape vocabulary.
+Start with [UI customization](/examples/ui-customization). Seams renders UI in two
+places: React components on the application origin and protected surfaces on the wallet
+origin. Use the same color roles and shape settings in both places.
 
 ## Apply a theme
 

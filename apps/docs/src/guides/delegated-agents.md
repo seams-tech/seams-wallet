@@ -18,14 +18,14 @@ a product example. Give each agent an independent subject and signing lane.
 1. Authenticate the owner with fresh user presence.
 2. Describe allowed operations, targets, budgets, expiry, revocation, and
    human-approval rules in plain language and typed policy data.
-3. Use an independent agent identity and verify the grant receipt.
-4. Route each agent operation through the same admission and audit boundary as
-   normal signing.
+3. Assign the agent an independent identity.
+4. Verify the grant receipt.
+5. Route each agent operation through the same admission and audit boundary as normal signing.
 
-Never copy a user's passkey, session token, private key, or unrestricted API
-credential into an agent. The owner wallet remains the payer; the agent's
-identity proves who requested the operation. Revoke a compromised agent lane
-independently from the owner wallet.
+Never copy a user's passkey, session token, private key, or unrestricted API credential
+into an agent. The owner wallet remains the payer. The agent's identity proves who
+requested the operation. Revoke a compromised agent lane independently from the owner
+wallet.
 
 Read [delegated agents](/concepts/delegation/delegated-agents) for the security
 model.

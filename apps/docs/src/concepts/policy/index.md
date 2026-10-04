@@ -5,8 +5,8 @@ description: Decide whether a proved actor may perform a specific typed intent u
 
 # Policy
 
-The policy layer decides whether a proved actor may perform a specific intent
-right now.
+The policy layer decides whether an actor with verified proof may perform a specific
+action right now.
 
 ```text
 proof + mandate + typed intent + policy epoch + budget + revocation state

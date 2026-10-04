@@ -30,6 +30,6 @@ Which intent did they approve?
 Can that authority still be used right now?
 ```
 
-Proofs feed policy. Policy gates execution. Wallet signatures, payments, agent
-tool calls, and merchant API calls happen only after the relevant proof and
-policy checks pass.
+Policy evaluates proofs before it permits execution. Wallet signatures, payments, agent
+tool calls, and merchant API calls happen only after the relevant proof and policy
+checks pass.

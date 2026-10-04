@@ -17,8 +17,8 @@ A Wallet Session quota is a bounded reusable allowance. An
 authorizationGrantRef + walletSessionId + quotaId + authorizedOperationId + thresholdSessionId
 ```
 
-The wallet id alone is insufficient. The threshold session id alone is
-insufficient. Transaction signing needs the exact lane and authorized operation.
+Neither the wallet ID nor the threshold session ID alone permits signing. Transaction
+signing needs the exact lane and authorized operation.
 
 The identities have distinct roles:
 
@@ -34,11 +34,11 @@ exact reusable authorization/Wallet Session/quota or verified step-up evidence.
 
 ## Expiry and step-up
 
-When the selected lane’s reusable quota is exhausted or expired, transaction
-signing can request fresh authentication with that same method. The resulting
-step-up evidence authorizes the exact operation; it does not replenish the old
-quota or authorize another lane. An explicit unlock can create a fresh reusable
-allowance. Export and device enrollment require their own fresh authorization.
+When the selected lane’s reusable quota is exhausted or expired, transaction signing can
+request fresh authentication with that same method. The resulting step-up evidence
+authorizes the exact operation. It does not replenish the old quota or authorize another
+lane. An explicit unlock can create a fresh reusable allowance. Export and device
+enrollment require their own fresh authorization.
 
 ## Readiness states
 
@@ -59,12 +59,11 @@ current session binding before the lane becomes sign-ready.
 
 ## Operation admission
 
-Operation admission happens before signing. It validates the wallet, lane,
-authorization source, threshold session, and applicable Wallet Session quota,
-then records the exact operation fingerprint. The stable fingerprint covers the
-capability and operation digests; it excludes rotating authorization, quota,
-session, and runtime identities. Existing fingerprints replay without consuming
-quota again.
+Operation admission happens before signing. It validates the wallet, lane, authorization
+source, threshold session, and applicable Wallet Session quota. It then records the
+exact operation fingerprint. The stable fingerprint covers the capability and operation
+digests. It excludes rotating authorization, quota, session, and runtime identities.
+Existing fingerprints replay without consuming quota again.
 
 Rejected requests should fail before any private Deriver or SigningWorker work
 happens.

@@ -5,9 +5,9 @@ description: Production guidance for hosting Seams wallet surfaces, protecting o
 
 # Deploy and operate
 
-Production integration has two surfaces: the product application and the
-isolated wallet runtime. Deploy each from reviewed artifacts, give each its own
-origin and security policy, and keep custody-role secrets out of the browser.
+Production integration has two parts: the product application and the isolated wallet
+runtime. Deploy each from reviewed artifacts. Give each its own origin and security
+policy. Keep custody-role secrets out of the browser.
 
 Use this section to prepare a release:
 

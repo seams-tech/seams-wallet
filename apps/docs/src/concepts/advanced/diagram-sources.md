@@ -5,9 +5,8 @@ description: Reuse the Mermaid sources behind Seams architecture, custody, deleg
 
 # Diagram sources
 
-Architecture diagrams render in docs with Mermaid code blocks. Source copies
-live under `/diagrams/` so the same diagrams can be reused in issues, plans,
-and external materials.
+The docs render architecture diagrams from Mermaid code blocks. Source copies in
+`/diagrams/` let you reuse them in issues, plans, and external materials.
 
 | Diagram                              | Purpose                                                                                   |
 | ------------------------------------ | ----------------------------------------------------------------------------------------- |

@@ -16,8 +16,8 @@ Status checked October 4, 2026:
 | Capability | Status | Scope |
 | --- | --- | --- |
 | Wallet browser and server SDKs | Published as 0.8.0 | Wallet lifecycle, signing, fixed per-wallet regional routing, and ownership contracts |
-| Managed tenant-root backup and refresh | Implemented in Wallet Server | Role-private D1 shares and separate R2 backups; verify custody and refresh policy in the deployed environment |
-| Tenant-controlled root recovery | CLI launcher published as 0.6.0; native assets unavailable at the public release URL | Dashboard approval, holder-key custody, and an approved empty destination are also required |
+| Managed tenant-root backup and refresh | Implemented in Wallet Server | Role-private D1 shares and separate R2 backups. Verify custody and refresh policy in the deployed environment. |
+| Tenant-controlled root recovery | CLI launcher published as 0.6.0. Native assets unavailable at the public release URL. | Dashboard approval, holder-key custody, and an approved empty destination are also required |
 | Wallet/deployment portability | Planned | Wallet inventory, signing-participant handoff, destination provisioning, and explicit cutover |
 | Owner-selected or automatic wallet-region relocation | Planned | 0.8.0 retains a fixed home across devices and travel |
 
@@ -45,22 +45,22 @@ rotation with fresh administrative step-up, durable progress, and R120's
 one-successful-refresh-per-hour policy. Check the deployed policy and scheduler
 before relying on either.
 
-The recovery checkpoint adds tenant-controlled recipient keys and a dedicated
-recovery sharing, independent of current operational epochs. It produces
-separate encrypted A/B packages and a signed public manifest. Routine
-operational refresh therefore does not require another tenant download.
+The recovery design adds tenant-controlled recipient keys and a separate set of recovery
+shares. These shares are independent of current operational epochs. It produces separate
+encrypted A/B packages and a signed public manifest. Routine operational refresh
+therefore does not require another tenant download.
 
-Recovery private keys stay outside the hosted dashboard and Console. The native
-CLI handles one role per invocation, opening that package locally and resealing
-it to the destination role's one-use import key. Restore requires an empty,
-already provisioned destination, preserves the exact logical tenant-root
-identity, assigns a fresh custody lineage, and forward-refreshes before
-activation.
+Recovery private keys stay outside the hosted dashboard and Console. Each native CLI
+invocation handles one role. It opens that role's package locally and reseals it to the
+destination role's one-use import key. Restore requires an empty destination that is
+already provisioned. It preserves the exact logical tenant-root identity and assigns a
+fresh custody lineage. Before activation, it refreshes the operational shares for that
+destination.
 
-Browser download issuance is distinguished from a CLI-verified durable
-file write. Tenant-held recovery copies cannot be revoked by deleting the
-service's copies. Individually destructible recovery-set retention keys are a
-separate requirement from the current shared A/B managed-backup KMS versions.
+Starting a browser download does not prove the file was saved. The CLI verifies that it
+wrote the file durably. Tenant-held recovery copies cannot be revoked by deleting the
+service's copies. Individually destructible recovery-set retention keys are a separate
+requirement from the current shared A/B managed-backup KMS versions.
 
 ## Wallet/deployment portability — planned
 
@@ -79,10 +79,9 @@ and tenant derivation-root shares. R121's A/B recovery packages remain separate
 artifacts with exact identity binding. R122's destination identity mapping must
 not become a root-recovery rebinding option.
 
-Running the code in customer infrastructure and migrating existing managed
-wallets are distinct operating paths. Development deployments do not establish
-the isolation, import, continuity, or cutover guarantees of the planned
-production portability product.
+Running the code on customer infrastructure is separate from migrating existing managed
+wallets. Development deployments do not establish the isolation, import, continuity, or
+cutover guarantees of the planned production portability product.
 
 ## Wallet-user recovery
 

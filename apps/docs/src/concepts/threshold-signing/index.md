@@ -18,10 +18,10 @@ steps. The wallet key is not reconstructed for ordinary signatures.
 holder-side share + admitted server-side share -> signature
 ```
 
-Router decides whether the operation may reach signing. SigningWorker
-participates only after Router admission. Ed25519 Streaming Yao and ECDSA
-threshold-PRF derivation appear in lifecycle ceremonies; normal signing spends
-the already-derived shares and presignature state.
+Router decides whether the operation may reach signing. SigningWorker participates only
+after Router admission. Ed25519 Streaming Yao and ECDSA threshold-PRF derivation run
+during lifecycle ceremonies. Normal signing uses the shares and presignature state
+prepared earlier.
 
 ## Session identity versus signing authority
 
@@ -39,10 +39,10 @@ authorized operation determines whether the operation may execute.
 
 ## Material readiness
 
-Worker-owned material is not sign-ready just because a persisted record mentions
-it. Browser workers are runtime-local, so material must be loaded and validated
-against the current authorization source, authorized operation, threshold
-session, signing root, Router A/B scope, and worker identity.
+A saved record does not prove that a worker has usable signing material. Each browser
+worker must load and validate its material for the current operation. Validation covers
+the authorization source, authorized operation, threshold session, signing root, Router
+A/B scope, and worker identity.
 
 The practical states are:
 

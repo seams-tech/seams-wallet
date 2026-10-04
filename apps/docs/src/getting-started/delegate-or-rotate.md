@@ -5,8 +5,8 @@ description: Link another device, export a key, or restore a wallet account thro
 
 # Add devices, export, and recover
 
-Use these flows after your first wallet can sign. Each operation
-has its own authorization and result; keep it separate from normal signing.
+Use these flows after your first wallet can sign. Each operation has its own
+authorization and result. Handle each operation separately from normal signing.
 
 ## Link another device
 
@@ -15,26 +15,24 @@ and approves the new device.
 
 <<< ../examples/device-linking.tsx
 
-`ShowQRCode` owns the Device 2 side end to end: it starts the link session,
-displays the code, and cancels an abandoned session on close. `useDeviceLinking`
-runs the Device 1 side and reports progress through `onEvent` and failures
-through `onError`. Request a fresh code instead of reusing an old QR payload.
+On Device 2, `ShowQRCode` starts the link session and displays the code. It cancels an
+abandoned session when closed. On Device 1, `useDeviceLinking` reports progress through
+`onEvent` and failures through `onError`. Request a fresh code for each attempt.
 
 ## Export a key
 
-`exportKeypair` resolves the exact export lane and opens the wallet-origin
-export viewer in one call, from a freshly authorized action.
+Call `exportKeypair` from a freshly authorized action. It selects the exact export lane
+and opens the export viewer on the wallet origin.
 
 <<< ../examples/export-wallet.ts
 
-Ed25519 export uses the wallet's NEAR account; ECDSA export names a configured
-chain. Both default to the signed-in wallet — pass `walletSession`,
-`nearAccount`, or `chainTarget` to name an exact one.
+Ed25519 export uses the wallet's NEAR account. ECDSA export names a configured chain.
+Both default to the signed-in wallet. Pass `walletSession`, `nearAccount`, or
+`chainTarget` to select the exact wallet, account, or chain.
 
-Check the outcome: `relink_required` means this device has no canonical owner
-binding, so route the person through device linking rather than showing a
-generic error. Use `resolveExactKeyExportLane` and `exportKeypairWithUI`
-directly when you want to check export availability before opening the viewer.
+Check the outcome. `relink_required` means this device has no canonical owner binding.
+Ask the user to link the device. Use `resolveExactKeyExportLane` and
+`exportKeypairWithUI` directly to check export availability before opening the viewer.
 
 Key material is displayed inside the wallet-origin viewer. The app receives an
 outcome, such as `exported`, without the private key. Keep export content out of
@@ -45,9 +43,9 @@ logs, URLs, and analytics.
 Synchronize the wallet record when your recovery flow needs to restore its
 wallet-scoped account identity.
 
-`syncAccount` synchronizes a known wallet's account state. Recovery-code entry
-and new-factor verification belong to the hosted wallet menu; see
-[wallet-user recovery](/concepts/custody/recovery-and-export#recovery).
+`syncAccount` synchronizes a known wallet's account state. Recovery-code entry and
+new-factor verification belong to the hosted wallet menu. See [wallet-user
+recovery](/concepts/custody/recovery-and-export#recovery).
 
 <<< ../examples/recovery.ts
 

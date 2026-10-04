@@ -5,15 +5,15 @@ description: Represent delegated authority with a scoped, expiring, revocable ma
 
 # Mandates
 
-A mandate is the authority object for delegated action.
+A mandate records what a delegated actor may do.
 
 ```text
 This subject may perform this class of action, under this policy, until this
 expiry, within this budget, against this exact intent shape.
 ```
 
-Mandates are the bridge between user approval and agent execution. They should
-be scoped, typed, revocable, and auditable.
+Mandates connect user approval to agent execution. Each mandate should have a defined
+scope and typed fields. It should support revocation and an audit trail.
 
 ## Core fields
 

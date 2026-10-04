@@ -5,9 +5,9 @@ description: Register a passkey wallet and handle ready, pending, and failed res
 
 # Create a wallet
 
-Call `registerPasskey` from a user-initiated action. The SDK opens the passkey
-prompt, reports progress, and returns a discriminated result that tells you
-which capability is ready.
+Call `registerPasskey` in response to a user action, such as a button click. The SDK
+opens the passkey prompt and reports progress. It returns a result whose branch
+identifies the available capability.
 
 ## Register a passkey wallet
 
@@ -17,16 +17,15 @@ here](/).
 
 <<< ../examples/registration.tsx
 
-The example treats `result.success` as the only gate and logs the branch
-`kind`. Read branch-specific fields, such as a NEAR provisioning state, only
-after checking the branch.
+The example checks `result.success` before logging the result's `kind`. Check the result
+branch before reading its fields, such as the NEAR provisioning state.
 
 ## Read the result
 
 - `wallet_registered` means the wallet and its returned capabilities are ready.
 - `ecdsa_wallet_registered_near_pending` means the EVM-family capability is
   ready while NEAR provisioning is pending or retryable. This branch carries no
-  NEAR account id — await `seams.registration.awaitNearReady({ walletId })`
+  NEAR account ID. Await `seams.registration.awaitNearReady({ walletId })`
   before signing NEAR.
 - `near_wallet_registered_pending` means NEAR provisioning still needs to
   reach a ready state before you read a NEAR account.
@@ -34,16 +33,15 @@ after checking the branch.
 - `success: false` contains the error text to show or log for the current
   attempt.
 
-The returned `walletId` is the stable wallet identifier used by signing,
-session provisioning, and every other wallet-scoped operation. Keep it with your application account record;
-never store passkey or holder secrets in application state.
+The returned `walletId` is the stable wallet identifier used by signing, session
+provisioning, and every other operation on that wallet. Store it with your application
+account record. Never store passkey or holder secrets in application state.
 
 ## If registration stops
 
-Passkey cancellation ends the current attempt. Let the person start a new
-attempt from the same button. A retryable NEAR provisioning result keeps the
-wallet identity, so check provisioning before offering a retry instead of
-registering a second wallet:
+Passkey cancellation ends the current attempt. Let the person start a new attempt from
+the same button. A retryable NEAR provisioning result preserves the wallet identity.
+Check provisioning before offering a retry. Do not register a second wallet:
 
 - `seams.registration.awaitNearReady({ walletId })` waits for provisioning to
   settle and resolves with `near_ready`, `near_failed_retryable`, or

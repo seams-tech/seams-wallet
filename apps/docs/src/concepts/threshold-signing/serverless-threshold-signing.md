@@ -5,10 +5,9 @@ description: Deploy self-hostable threshold wallet roles to serverless infrastru
 
 # Serverless threshold signing
 
-Seams provides self-hostable threshold embedded wallets that deploy to
-Cloudflare. It uses threshold signing and hidden-share derivation. Normal
-signing produces signature shares; no single runtime needs to assemble the
-canonical private key.
+Seams provides self-hostable threshold embedded wallets that deploy to Cloudflare. It
+uses threshold signing and hidden-share derivation. Normal signing produces signature
+shares. No single runtime needs to assemble the canonical private key.
 
 ## Signing boundary
 
@@ -32,9 +31,9 @@ Ed25519 material is produced by Streaming Yao between Deriver A and Deriver B.
 ECDSA material uses strict threshold-PRF derivation and additive scalar shares.
 Each role receives only the output it is allowed to use:
 
-- client and browser workers receive holder-side signing material or handles;
-- Router receives public routing and policy state;
-- Deriver roles receive role-local protocol state;
+- client and browser workers receive holder-side signing material or handles.
+- Router receives public routing and policy state.
+- Deriver roles receive role-local protocol state.
 - SigningWorker receives activated server-side signing material and one-use
   presignature state.
 
@@ -45,24 +44,24 @@ the same threshold-signing model.
 
 ## Cloudflare-native self-hosting
 
-Seams is self-hostable and serverless-friendly. Teams can run split roles on
-Cloudflare Workers, Durable Objects, regional D1, and Rust compute in Containers.
-These services have separate request, storage, and compute charges; regional
-placement does not make their usage free.
+Seams is self-hostable and serverless-friendly. Teams can run split roles on Cloudflare
+Workers, Durable Objects, regional D1, and Rust compute in Containers. These services
+have separate request, storage, and compute charges. Regional placement does not make
+their usage free.
 
 That gives teams a practical path from prototype to production:
 
 - use the selected same-account P0 deployment for production, staging, local
-  parity, and benchmarks;
-- keep Router, Deriver, and SigningWorker roles separated;
-- scale Worker routing and wallet-owned DO/Container compute on demand;
+  parity, and benchmarks.
+- keep Router, Deriver, and SigningWorker roles separated.
+- scale Worker routing and wallet-owned DO/Container compute on demand.
 - preserve the same wallet architecture as operational isolation increases.
 
-Small teams can test the model without standing up bespoke infrastructure.
-Larger deployments can add private bindings, isolated workers, dedicated
-storage, TEEs, and stricter release controls around the same protocol shape.
-Independently administered Deriver accounts remain a stronger deferred profile
-until their reconnect reliability and tail-latency gates pass.
+Small teams can test the model using these managed services. Larger deployments can add
+private bindings, isolated workers, dedicated storage, TEEs, and stricter release
+controls around the same protocol shape. Independently administered Deriver accounts
+remain a stronger deferred profile until their reconnect reliability and tail-latency
+gates pass.
 
 Deployable runtime artifacts and development examples are available separately
 from the planned production portability product. R122 will add the customer
@@ -70,11 +69,10 @@ deployment compiler, wallet import, continuity verification, and explicit
 cutover. A development deployment does not establish those migration guarantees
 or independent A/B administrative isolation.
 
-R120's managed tenant-root backups also do not constitute a portable wallet
-inventory. R121 first adds tenant-controlled recovery of the exact root;
-R122 owns wallet/deployment migration. See
-[recovery and portability](/deploy-and-operate/recovery-and-portability) for
-current availability.
+R120's managed tenant-root backups also do not constitute a portable wallet inventory.
+R121 adds tenant-controlled recovery of the exact root. R122 covers wallet and
+deployment migration. See [recovery and
+portability](/deploy-and-operate/recovery-and-portability) for current availability.
 
 Read next:
 

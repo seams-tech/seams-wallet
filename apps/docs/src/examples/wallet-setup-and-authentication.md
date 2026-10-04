@@ -5,8 +5,8 @@ description: Configure the Seams provider, register a wallet with a passkey, unl
 
 # Wallet setup and authentication
 
-Use this path when adding Seams to a new app. Configure the provider once,
-register a wallet, and create a wallet session before signing.
+Use this example when adding Seams to a new app. Configure the provider once. Register a
+wallet. Create a wallet session before signing.
 
 ## Prerequisites
 
@@ -19,12 +19,11 @@ Place `SeamsWebProvider` above the components that call `useSeams`.
 
 <<< ./setup.tsx
 
-`seamsTestnetConfig` takes the three values a wallet cannot start without and
-defaults the rest — wallet service path, SDK base path, relayer account, and
-chain RPC and explorer URLs. The example reads `VITE_WALLET_ORIGIN`,
-`VITE_RELAYER_URL`, and `VITE_SEAMS_PUBLISHABLE_KEY` from the app environment;
-use your own values in each deployment, and `defineSeamsConfig` when you are not
-on testnet.
+`seamsTestnetConfig` requires the wallet origin, relayer URL, and publishable key. It
+supplies defaults for the wallet service path, SDK base path, relayer account, and chain
+RPC and explorer URLs. The example reads `VITE_WALLET_ORIGIN`, `VITE_RELAYER_URL`, and
+`VITE_SEAMS_PUBLISHABLE_KEY` from the app environment. Use your own values in each
+deployment. Use `defineSeamsConfig` for networks other than testnet.
 
 ## Register with a passkey
 
@@ -34,8 +33,8 @@ your own registration screen.
 <<< ./registration.tsx
 
 `RegistrationResult` is a typed union. A successful registration can be ready
-immediately or can report pending NEAR provisioning; keep the branch handling
-before reading a chain-specific capability. For the pending branch, await
+immediately or report pending NEAR provisioning. Check the result branch before reading
+a chain-specific capability. For the pending branch, await
 `seams.registration.awaitNearReady({ walletId })` rather than polling
 `getNearProvisioningState` yourself.
 

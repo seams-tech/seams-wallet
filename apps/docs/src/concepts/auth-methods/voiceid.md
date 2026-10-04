@@ -11,9 +11,9 @@ expose VoiceID enrollment or authentication APIs.
 VoiceID is an owner-presence signal. Threshold signing and policy are the
 signing controls.
 
-VoiceID verifies an enrolled speaker, spoken command, device context,
-freshness, and policy constraints. It can issue a short-lived authorization
-result that gates a specific signing continuation.
+VoiceID verifies an enrolled speaker, spoken command, device context, freshness, and
+policy constraints. It can issue a short-lived authorization result that permits one
+specific signing flow to continue.
 
 VoiceID is an authorization signal for a specific flow. It is not a wallet
 private key, signing secret, recovery secret, account credential, or standalone
@@ -36,14 +36,15 @@ SDK transaction request
 Direct capability grants are appropriate only for low-risk, one-use, intent-bound
 actions.
 
-Riskier tasks should use VoiceID as the first check, then require passkey, Email
-OTP, phone/watch, or another step-up method before export, recovery, new device
-enrollment, high-value signing, new-recipient signing, or anomalous sessions.
+Riskier tasks should use VoiceID as the first check. They should then require a passkey,
+Email OTP, phone, watch, or another method for fresh authentication. This applies before
+export, recovery, new device enrollment, high-value signing, signing for a new
+recipient, or unusual sessions.
 
 ## Requirements
 
 1. Voice matching is separated from phrase or intent transcription.
 2. The spoken command binds to the same `intentDigest` as the transaction.
-3. Device binding is required for the tenable security model.
+3. The security model requires binding the proof to a device.
 4. Voice templates and raw audio need explicit retention rules.
 5. High-risk flows require step-up authentication.

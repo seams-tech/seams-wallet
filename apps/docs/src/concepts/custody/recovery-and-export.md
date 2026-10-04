@@ -5,8 +5,8 @@ description: Compare recovery, key export, and the fresh authorization each high
 
 # Recovery and export
 
-Recovery and export prove that the user can regain control or leave the system
-while ordinary signing remains share-based.
+Recovery lets the user regain access. Export lets the user take their keys out of the
+system. Ordinary signing continues to use shares.
 
 The flows below concern a wallet user's access and keys. Managed tenant-root
 restore, tenant-controlled root recovery, and planned deployment
@@ -33,16 +33,15 @@ export path.
 
 ## Recovery
 
-The hosted wallet menu accepts an unused wallet recovery code and lets the
-owner choose a new Passkey or Google sign-in with Email OTP. Either target can
-recover a Passkey-only, Email-only, or mixed-method wallet. The code authorizes
-recovery; the new method must also complete its own factor verification.
+The hosted wallet menu accepts an unused wallet recovery code and lets the owner choose
+a new Passkey or Google sign-in with Email OTP. Either target can recover a
+Passkey-only, Email-only, or mixed-method wallet. The code authorizes recovery. The new
+method must also complete its own factor verification.
 
-Finalization verifies the stored key manifest, preserves the wallet’s public
-keys and addresses, and atomically consumes one code while adding the new
-method and device authority. Existing methods, linked devices, and Wallet
-Sessions remain active. Recovery adds access; revoking compromised access is a
-separate action.
+Finalization verifies the stored key manifest and preserves the wallet’s public keys and
+addresses. It consumes one code and adds the new method and device authority in one
+atomic operation. Existing methods, linked devices, and Wallet Sessions remain active.
+Recovery adds access. Revoking compromised access is a separate action.
 
 Recovery completion then uses normal login through the new method to create a
 fresh Wallet Session. Cancellation before finalization leaves the code usable

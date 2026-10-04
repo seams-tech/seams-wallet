@@ -5,9 +5,8 @@ description: Start with a working Seams wallet, then add signing, recovery, devi
 
 # Examples
 
-These examples are short paths you can copy into an application. Start with
-the provider setup, register or unlock a wallet, then choose the operation your
-product needs.
+You can copy these examples into an application. Configure the provider first. Then
+register or unlock a wallet. Choose the operation your product needs.
 
 ## Prerequisites
 
@@ -20,13 +19,13 @@ pnpm add @seams/wallet@0.8.0
 
 <<< ./setup.tsx
 
-The examples target release **0.8.0**. The setup configures NEAR and Tempo
-testnets; the Ethereum Sepolia example requires adding that chain as shown in
-the [signing guide](/examples/signing#execute-an-evm-family-transaction).
+The examples target release **0.8.0**. The setup configures NEAR and Tempo testnets. The
+Ethereum Sepolia example requires adding that chain as shown in the [signing
+guide](/examples/signing#execute-an-evm-family-transaction).
 
-The setup example keeps the provider at the application boundary. Render your
-wallet UI inside `SeamsWebProvider`, then pass the `seams` instance and the
-wallet identity into the operation examples.
+The setup example keeps the provider at the application boundary. Render your wallet UI
+inside `SeamsWebProvider`. Pass the `seams` instance and wallet identity into the
+operation examples.
 
 ## Choose an example
 

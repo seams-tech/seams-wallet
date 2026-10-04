@@ -42,9 +42,9 @@ seams-wallet release verify \
   --artifact ./seams-wallet-aarch64-apple-darwin
 ```
 
-The launcher pins release-signing trust. Recovery authority belongs to the
-deployment. On a device that has not connected to that deployment, run the
-dashboard's trust command from the extracted recovery folder:
+The launcher fixes which signing authority it trusts for releases. The deployment
+supplies recovery authority separately. On a device that has not connected to that
+deployment, run the dashboard's trust command from the extracted recovery folder:
 
 ```bash
 seams-wallet derivation-root trust connect \
@@ -86,16 +86,16 @@ For signature-only verification that does not open a holder package, run:
 seams-wallet derivation-root backup verify --role deriver-a
 ```
 
-Offline verification reports `cryptographically_valid_offline`. Supplying a
-valid signed trust snapshot can report `valid_at_trust_snapshot`; a current
-online revocation check can report `current_trust_confirmed`. Signature,
-certificate, role-authorization, and `invalidBefore` failures have no override.
+Offline verification reports `cryptographically_valid_offline`. Supplying a valid signed
+trust snapshot can report `valid_at_trust_snapshot`. A current online revocation check
+can report `current_trust_confirmed`. Signature, certificate, role-authorization, and
+`invalidBefore` failures have no override.
 
 ## Enroll recovery keys
 
-Use the role-specific setup command shown by the dashboard. It creates or
-reuses a local encrypted key file, opens browser approval for that exact public
-key, and proves local key control without uploading the private key:
+Use the role-specific setup command shown by the dashboard. It creates or reuses a local
+encrypted key file. It opens browser approval for that exact public key. It proves local
+key control without uploading the private key:
 
 ```bash
 seams-wallet derivation-root recovery-key setup \
@@ -123,9 +123,9 @@ seams-wallet derivation-root backup kit \
   --output ./seams-recovery.zip
 ```
 
-The CLI verifies the packages and keys before writing the ZIP. An optional
-password encrypts its entries with AES-256; extract it with a compatible tool
-before using the restore commands. Keys and the password remain in the terminal.
+The CLI verifies the packages and keys before writing the ZIP. An optional password
+encrypts its entries with AES-256. Extract the ZIP with a compatible tool before using
+the restore commands. Keys and the password remain in the terminal.
 
 Use the CLI download path when the service must record that a backup reached
 disk and verified successfully:
@@ -160,10 +160,10 @@ seams-wallet derivation-root restore \
   --environment YOUR_ENVIRONMENT
 ```
 
-The other holder uses `--role deriver-b` and their own key. The CLI verifies
-the artifacts, registers the manifest, opens one role package locally, reseals
-that share to the destination's one-use import key, and uploads only the sealed
-envelope. It never writes the opened share to disk.
+The other holder uses `--role deriver-b` and their own key. The CLI verifies the
+artifacts and registers the manifest. It opens one role package locally. It then reseals
+that share to the destination's one-use import key and uploads only the sealed envelope.
+It never writes the opened share to disk.
 
 Keep the generated `.restore-*` session and encrypted-envelope files until the
 restore completes. Repeating the same command resumes a lost response without
@@ -184,10 +184,10 @@ seams-wallet derivation-root restore activate \
   --environment YOUR_ENVIRONMENT
 ```
 
-Activation verifies the stable root commitment, refreshes the operational
-shares into the destination's custody lineage, destroys imported shares and
-one-use keys, and consumes bootstrap access. Reuse the same private session
-file after an interrupted activation; delete it after completion.
+Activation verifies the stable root commitment. It refreshes the operational shares into
+the destination's custody lineage. It then destroys imported shares and one-use keys and
+consumes bootstrap access. Reuse the same private session file after an interrupted
+activation. Delete it after completion.
 
 ## Recovery boundaries
 

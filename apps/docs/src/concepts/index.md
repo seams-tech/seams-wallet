@@ -5,10 +5,10 @@ description: Learn the architecture, custody, authentication, policy, session, d
 
 # Concepts
 
-Seams is wallet, credential, and policy infrastructure for applications that
-provision persistent wallets for users or shopping agents. It helps those
-applications prove who is acting, bind what they approved to a typed intent,
-enforce policy before execution, and preserve an audit trail afterward.
+Seams is wallet, credential, and policy infrastructure for applications that provision
+persistent wallets for users or shopping agents. It helps applications prove who is
+acting and record what they approved as a typed intent. Applications enforce policy
+before execution and retain an audit trail afterward.
 
 ```text
 Prove who is acting.
@@ -16,18 +16,18 @@ Prove what they approved.
 Enforce what they can do.
 ```
 
-Wallet signing is the first execution surface. The same model extends to payment
-rails, merchant APIs, marketplace APIs, agent tools, and delegated device
-actions.
+Wallet signing is the first way this model executes an approved action. The same model
+extends to payment rails, merchant APIs, marketplace APIs, agent tools, and delegated
+device actions.
 
 The primary use cases are [platform wallets](/use-cases/platform-wallets),
 [shopping wallet apps](/use-cases/shopping-wallet-apps), and [shopping
 agents](/use-cases/ecommerce-agents). Seams provides self-hostable threshold
 wallet infrastructure that deploys to Cloudflare.
 
-The 0.8.0 SDK ships wallet lifecycle and signing. VoiceID, delegated-agent
-issuance, virtual cards, and region relocation are product direction; their
-concept pages do not imply a released API.
+The 0.8.0 SDK ships wallet lifecycle and signing. VoiceID, delegated-agent issuance,
+virtual cards, and region relocation are planned capabilities. Their concept pages do
+not imply a released API.
 
 ## System layers
 
@@ -41,7 +41,7 @@ concept pages do not imply a released API.
 
 ## Reading order
 
-1. [Architecture](/concepts/architecture) for the source-of-truth component map.
+1. [Architecture](/concepts/architecture) for the main component map.
 2. [Wallet Infrastructure Comparison](/concepts/wallet-infrastructure-comparison) for deployment and cost tradeoffs.
 3. [Policy](/concepts/policy/) for mandates, proofs, and authorization.
 4. [Custody](/concepts/custody/) for who can hold or open key material.

@@ -10,13 +10,13 @@ see recovery and export. Recovery restores authorized access. Export reveals
 key material. Rotation changes a signer, custody share, or wallet key version.
 Keep these operations separate in UI, policy, audit, and result handling.
 
-This guide concerns wallet-user operations. Tenant administrators manage a
-separate derivation-root lifecycle: refreshing A/B operational shares preserves
-the effective tenant root and wallet identities. R120 implements that server
-path. Administrative recovery requires the configured dashboard, recovery
-custody, and a usable signed native CLI release. SDK 0.8.0 publication alone
-does not establish those paths. See [recovery and portability](/deploy-and-operate/recovery-and-portability)
-for their availability and the later R122 migration boundary.
+This guide concerns wallet-user operations. Tenant administrators manage a separate
+derivation-root lifecycle. Refreshing A/B operational shares preserves the effective
+tenant root and wallet identities. R120 implements that server path. Administrative
+recovery requires the configured dashboard, recovery custody, and a usable signed native
+CLI release. SDK 0.8.0 publication alone does not establish those paths. See [recovery
+and portability](/deploy-and-operate/recovery-and-portability) for their availability
+and the later R122 migration boundary.
 
 ## Safety checklist
 
@@ -30,8 +30,8 @@ for their availability and the later R122 migration boundary.
 Code recovery adds a new method while preserving existing methods, linked
 devices, and Wallet Sessions. It does not revoke compromised access automatically.
 
-Keep export viewers on the wallet origin and minimize key exposure. Rotation
-that preserves the wallet address needs explicit parity checks; rekeying can
+Keep export viewers on the wallet origin. Minimize key exposure. Rotation that preserves
+the wallet address requires checks that the address remains unchanged. Rekeying can
 intentionally create a new address.
 
 Continue with [recovery and export](/concepts/custody/recovery-and-export) and

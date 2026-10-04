@@ -5,15 +5,15 @@ description: Distinguish signer rotation, custody-share refresh, envelope rewrap
 
 # Key rotation
 
-Rotation covers several different operations. They should not be collapsed into
-one vague "rotate keys" action.
+Rotation covers several operations with different effects. Name the specific operation
+when describing a change.
 
 ## Taxonomy
 
 | Operation                        | What changes                                      | Address changes |
 | -------------------------------- | ------------------------------------------------- | --------------- |
 | Envelope rewrap                  | Encryption around the same plaintext share.       | No              |
-| Tenant-root operational-share refresh | Deriver A/B shares and their epoch; the effective tenant derivation root stays fixed. | No |
+| Tenant-root operational-share refresh | Deriver A/B shares and their epoch change. The effective tenant derivation root stays fixed. | No |
 | Server internal custody rotation | How the same effective server share is protected. | No              |
 | Lane share refresh               | Holder share and server share for one lane.       | No              |
 | Delegated lane revocation        | Lane status and server-share admission.           | No              |
@@ -29,12 +29,12 @@ threshold-PRF path.
 
 ### Tenant-root operational shares
 
-Each tenant has its own randomly generated server-side derivation root, shared
-between Deriver A and Deriver B. Refresh replaces those two shares and advances
-their epoch while preserving the effective root and its public commitment.
-Existing ECDSA addresses and Ed25519 public keys remain unchanged. Normal
-signing uses already-provisioned signing material; it does not require this
-refresh ceremony. New derivation ceremonies may be briefly fenced.
+Each tenant has its own randomly generated server-side derivation root, shared between
+Deriver A and Deriver B. Refresh replaces those two shares and advances their epoch
+while preserving the effective root and its public commitment. Existing ECDSA addresses
+and Ed25519 public keys remain unchanged. Normal signing uses already-provisioned
+signing material. It does not require this refresh ceremony. New derivation ceremonies
+may be briefly blocked.
 
 Wallet Server implements one successful manual refresh per tenant per rolling
 hour, with durable operation replay and a server-computed retry time. Verify
@@ -58,7 +58,7 @@ delta = h_old - h_new
 s_new = s_old + delta
 ```
 
-The new lane epoch activates only after parity verification:
+The new lane epoch activates only after verifying that the public key remains unchanged:
 
 ```text
 H_new + S_new == existing wallet public key

@@ -5,9 +5,9 @@ description: Link another device, synchronize wallet recovery, and export Ed2551
 
 # Advanced wallet operations
 
-These operations change access or disclose key material. Start each one from a
-fresh user action, keep progress visible, and retain the returned identity or
-receipt for your audit trail.
+These operations change access or disclose key material. Start each one from a fresh
+user action. Keep progress visible. Retain the returned identity or receipt for your
+audit trail.
 
 ## Prerequisites
 
@@ -22,18 +22,17 @@ that code and approves the request with fresh authentication.
 
 <<< ./device-linking.tsx
 
-`ShowQRCode` owns the Device 2 cycle end to end — starting the session,
-displaying the code, and cancelling an abandoned one on close. Expire abandoned
-QR sessions and show the device name after success so it can be recognized and
-revoked later.
+On Device 2, `ShowQRCode` starts the session and displays the code. It cancels an
+abandoned session when closed. Expire abandoned QR sessions. After success, show the
+device name so the user can recognize and revoke it later.
 
 ## Recover a wallet account
 
 Call recovery synchronization with the wallet id from the account record.
 
-This synchronizes account state for a known wallet. The hosted wallet menu
-handles recovery-code entry and the new-factor ceremony; see
-[wallet-user recovery](/concepts/custody/recovery-and-export#recovery).
+This synchronizes account state for a known wallet. The hosted wallet menu handles
+recovery-code entry and verification of the new authentication method. See [wallet-user
+recovery](/concepts/custody/recovery-and-export#recovery).
 
 <<< ./recovery.ts
 
@@ -47,14 +46,13 @@ export viewer in one call.
 
 <<< ./export-wallet.ts
 
-`exportNearKey` exports the Ed25519 lane for the wallet's NEAR account;
-`exportEvmKey` exports the ECDSA lane for a configured chain. Both default to
-the authenticated wallet and receive progress through `KeyExportFlowEvent`.
+`exportNearKey` exports the Ed25519 lane for the wallet's NEAR account. `exportEvmKey`
+exports the ECDSA lane for a configured chain. Both default to the authenticated wallet
+and receive progress through `KeyExportFlowEvent`.
 
-Check the outcome: `relink_required` means this device has no canonical owner
-binding, so route the person through device linking rather than showing a
-generic error. `resolveExactKeyExportLane` and `exportKeypairWithUI` remain
-available when you want to check export availability before opening the viewer.
+Check the outcome. `relink_required` means this device has no canonical owner binding.
+Ask the user to link the device. `resolveExactKeyExportLane` and `exportKeypairWithUI`
+remain available when you want to check export availability before opening the viewer.
 
 ## Expected result
 
@@ -68,8 +66,7 @@ available when you want to check export availability before opening the viewer.
   old QR payload.
 - Recovery can return a failure result. Keep the existing account state until
   synchronization succeeds.
-- Export can return `relink_required` instead of opening the viewer. That is a
-  handled outcome, not an error: send the person through device linking.
+- Export can return `relink_required` instead of opening the viewer. Handle this outcome by asking the user to link the device.
 - Export authorization and viewer errors should end the current disclosure
   attempt. Ask for fresh authentication before another export.
 

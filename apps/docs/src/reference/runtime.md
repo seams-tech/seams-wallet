@@ -12,19 +12,20 @@ The entrypoint exports `createSigningRuntime`,
 `createSigningRuntimeStatePorts`, and types for the runtime configuration,
 services, state ports, UI dependencies, and warm-session UI ports.
 
-Platform responsibilities are explicit through ports for:
+The runtime receives platform services through ports: interfaces your host implements.
+These cover:
 
-- authentication;
-- time and randomness;
-- HTTP transport;
-- durable records and secure secrets;
-- signer cryptography;
+- authentication.
+- time and randomness.
+- HTTP transport.
+- durable records and secure secrets.
+- signer cryptography.
 - runtime-specific UI.
 
-Choose one `RuntimePortsKind` and provide the complete matching `RuntimePorts`
-branch. Validate raw host data before constructing those ports. A custom runtime
-also owns secure storage, cancellation, lifecycle restoration, and user-presence
-semantics, so use the browser SDK unless those responsibilities are deliberate.
+Choose one `RuntimePortsKind` and provide the complete matching `RuntimePorts` branch.
+Validate raw host data before constructing those ports. A custom runtime also manages
+secure storage, cancellation, lifecycle restoration, and checks for user presence. Use
+the browser SDK unless you intend to manage these responsibilities.
 
 Read [architecture](/concepts/architecture) and [origin and iframe
 boundaries](/deploy-and-operate/security-boundaries) first.

@@ -5,14 +5,13 @@ description: Protect Seams wallet origins with exact message origins, CSP, WebAu
 
 # Origin, iframe, and request boundaries
 
-Treat the application origin, wallet origin, gateway, and custody roles as
-separate principals. Each boundary validates and normalizes its own external
-input once.
+Treat the application origin, wallet origin, gateway, and custody roles as separate
+security identities. Each validates and normalizes its own external input once.
 
 ## Browser boundary
 
 - Use HTTPS outside local development.
-- Allow exact application origins; avoid wildcard credentialed CORS.
+- Allow exact application origins. Avoid wildcard credentialed CORS.
 - Validate every iframe message origin, source window, protocol version, and
   session identity.
 - Execute WebAuthn on the wallet origin, with an RP ID valid for that origin.
@@ -26,10 +25,10 @@ to the application `frame-src`. On the wallet origin, restrict scripts,
 connections, workers, images, styles, and framing ancestors to the assets and
 origins required by the deployed release. Avoid unsafe script exceptions.
 
-The SDK iframe delegates `publickey-credentials-create` and
-`publickey-credentials-get` to the wallet origin. Ensure the application's
-Permissions Policy permits that delegation and verify registration and unlock
-in supported browsers. The SDK does not fall back to application-origin prompts.
+The SDK iframe delegates `publickey-credentials-create` and `publickey-credentials-get`
+to the wallet origin. Ensure the application's Permissions Policy permits that
+delegation. Verify registration and unlock in supported browsers. The SDK does not fall
+back to application-origin prompts.
 
 ## Service requests
 

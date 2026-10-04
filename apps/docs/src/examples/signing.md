@@ -5,9 +5,9 @@ description: Sign a NEAR transaction, a NEP-413 message, or an EVM-family transa
 
 # Signing
 
-Signing calls resolve the authenticated wallet on their own; name an exact
-wallet or chain when your application handles more than one. The snippets below
-keep progress events visible so your UI can show what the signer is doing.
+Signing calls resolve the authenticated wallet automatically. Name an exact wallet or
+chain when your application handles more than one. The snippets below keep progress
+events visible so your UI can show what the signer is doing.
 
 ## Prerequisites
 
@@ -15,10 +15,9 @@ You need a configured `SeamsWebProvider` and a signed-in wallet. See [wallet
 setup and authentication](/examples/wallet-setup-and-authentication) if the
 wallet is still locked.
 
-There is no unlock step before signing: every request opens the wallet
-confirmation and the user approves that transaction. `unlock` provisions a
-signing session when your product needs a burst of signatures without a prompt
-for each one.
+Signing does not require a separate unlock step. Each request opens the wallet
+confirmation so the user can approve that transaction. `unlock` provisions a signing
+session when your product needs a burst of signatures without a prompt for each one.
 
 <<< ./unlock.ts
 
@@ -29,9 +28,9 @@ waits for `EXECUTED_OPTIMISTIC`.
 
 <<< ./near-signing.tsx
 
-The button resolves after the configured execution status. `useWallet` returns
-`near` as `null` until the wallet has a NEAR account, so the single check before
-the button renders is a type guard rather than a convention.
+The button resolves after the configured execution status. `useWallet` returns `near` as
+`null` until the wallet has a NEAR account. The type guard before the button prevents
+signing without that account.
 
 ## Sign a NEP-413 message
 
@@ -51,7 +50,7 @@ you support.
 The default `seamsTestnetConfig` selects NEAR and Tempo. To run the Ethereum
 Sepolia example, configure it explicitly before creating the provider:
 
-```ts
+```ts [Partial example]
 import { defineSeamsConfig } from '@seams/wallet/react';
 
 const config = defineSeamsConfig({
@@ -90,8 +89,7 @@ indicator and keep the final operation identity for reconciliation.
   draft intent so the person can review and retry it.
 - An expired or exhausted wallet session needs a fresh unlock before retrying.
 - A signing or RPC failure should remain attached to the operation being
-  attempted; avoid submitting a second transaction until the first hash or
-  nonce state is reconciled.
+  attempted. Wait until the first transaction hash or nonce state is reconciled before submitting a second transaction.
 - Validate chain ids, recipients, fees, and account references in your app
   before calling the SDK.
 

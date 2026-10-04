@@ -5,8 +5,8 @@ description: Separate derivation and signing custody across independently admini
 
 # Router A/B
 
-Router A/B is the split-server architecture for derivation-time custody,
-SigningWorker activation, and normal signing admission.
+Router A/B separates server roles for key derivation, SigningWorker activation, and
+admission of normal signing requests.
 
 ## Roles
 
@@ -59,11 +59,11 @@ thresholdSessionId + worker material -> may participate in threshold signing
 both validated together -> sign-ready
 ```
 
-The Router owns Wallet Session verification, atomic operation admission/quota consumption, replay,
-and request admission. The browser worker owns holder-side signing material. The
-SigningWorker owns server-side signing material. A public signing route should
-only be called after the SDK has selected a lane whose current browser worker
-material is runtime-validated for the same Router A/B scope and authorized operation.
+The Router owns Wallet Session verification, atomic operation admission/quota
+consumption, replay, and request admission. The browser worker owns holder-side signing
+material. The SigningWorker owns server-side signing material. Before calling a public
+signing route, the SDK should select a lane with validated material in the current
+browser worker. That material must match the Router A/B scope and authorized operation.
 
 State names used by the SDK:
 

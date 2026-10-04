@@ -13,8 +13,7 @@ import { SeamsWeb, type SeamsConfigsInput } from '@seams/wallet';
 
 ## Primary surface
 
-`SeamsWeb` is the browser client. Its capability groups keep lifecycle inputs
-explicit:
+`SeamsWeb` is the browser client. Its methods are organized by capability:
 
 | Capability     | Responsibility                                                               |
 | -------------- | ---------------------------------------------------------------------------- |
@@ -27,11 +26,10 @@ explicit:
 | `devices`      | Start, approve, and inspect linked-device flows.                             |
 | `keys`         | Run freshly authorized export flows.                                         |
 
-`evm` and `tempo` mirror each other — `signTransaction`, `executeTransaction`,
-and an `advanced` group for post-broadcast lifecycle reporting. They stay
-separate because the envelopes differ: a Tempo transaction is EIP-2718 and its
-signed result carries `senderHashHex`, an EVM transaction is EIP-1559 and
-carries `txHashHex`.
+`evm` and `tempo` both provide `signTransaction`, `executeTransaction`, and an
+`advanced` group for reporting after broadcast. Their transaction formats differ. Tempo
+uses EIP-2718 and returns `senderHashHex` in its signed result. EVM uses EIP-1559 and
+returns `txHashHex`.
 
 ## Naming the subject and the chain
 
@@ -44,8 +42,7 @@ chain it targets:
 - Omit `nearAccount` and NEAR calls resolve the authenticated wallet's account.
   A bare account id is accepted.
 - `chainTarget` accepts a configured network slug such as `'tempo-testnet'`.
-  It is required for EVM-family signing and export. Resolution requires exactly
-  one configured match; an ambiguous selector throws an error naming the matches.
+  It is required for EVM-family signing and export. Resolution requires exactly one configured match. An ambiguous selector throws an error naming the matches.
 
 The exact-reference builders (`walletSessionRefFromSession`,
 `nearAccountRefFromAccountId`, `thresholdEcdsaChainTargetFromConfig`) are
@@ -55,30 +52,30 @@ exported from this entrypoint and from `@seams/wallet/react`.
 
 The main entrypoint includes:
 
-- `SeamsWeb`, `PASSKEY_MANAGER_DEFAULT_CONFIGS`, and `buildConfigsFromEnv`;
+- `SeamsWeb`, `PASSKEY_MANAGER_DEFAULT_CONFIGS`, and `buildConfigsFromEnv`.
 - `defineSeamsConfig` and `seamsTestnetConfig`, which take the values an
-  application must supply and default the rest;
+  application must supply and default the rest.
 - the boundary reference builders and their types (`WalletSessionRef`,
-  `NearAccountRef`, `ThresholdEcdsaChainTarget`, `WalletId`);
+  `NearAccountRef`, `ThresholdEcdsaChainTarget`, `WalletId`).
 - action builders — `functionCall`, `transfer`, `stake`, `addKey`,
-  `deleteKey`, `deleteAccount`, `createAccount`, `deployContract`;
-- `logWalletEvents`, a ready-made `onEvent` handler;
-- registration intent and signer-selection types;
+  `deleteKey`, `deleteAccount`, `createAccount`, `deployContract`.
+- `logWalletEvents`, a ready-made `onEvent` handler.
+- registration intent and signer-selection types.
 - `RegistrationResult`, `LoginResult`, `LoginAndCreateSessionResult`,
-  `WalletSession`, and `ActionResult`;
-- account and action types, including `toAccountId` and `ActionType`;
-- wallet-flow event constructors, phases, and event unions;
-- Google email-OTP wallet-auth flow types;
-- device-linking and NEP-413 result types;
+  `WalletSession`, and `ActionResult`.
+- account and action types, including `toAccountId` and `ActionType`.
+- wallet-flow event constructors, phases, and event unions.
+- Google email-OTP wallet-auth flow types.
+- device-linking and NEP-413 result types.
 - hosted auth-menu request builders and boundary-safe message types.
 
 ## Lifecycle rule
 
-Obtain a successful registration or login result and retain its `walletId` —
-that is the stable identifier every later operation uses. Signing calls resolve
-the authenticated wallet on their own; name one explicitly when your application
-holds more than one at a time. Treat every public result as a discriminated
-union and handle all branches.
+Keep the `walletId` from a successful registration or login result. It is the stable
+identifier for later operations. Signing calls resolve the authenticated wallet
+automatically. Name the wallet explicitly when your application manages several wallets.
+Check the discriminator in each public result, such as `kind` or `success`. Handle every
+result branch.
 
 Continue with [results and recoverable errors](/reference/results-and-errors) or
 follow the [first-signing guide](/getting-started/sign-with-policy).

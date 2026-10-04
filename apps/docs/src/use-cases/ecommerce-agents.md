@@ -5,9 +5,9 @@ description: Give shopping agents a constrained wallet or payment credential for
 
 # Shopping agents
 
-A shopping agent purchases from ecommerce stores that have no Seams or agent
-integration. Seams gives it a narrow mandate and a wallet or payment credential
-that can execute only within the approved purchase boundary.
+A shopping agent buys from ecommerce stores without requiring a Seams or agent
+integration. Seams gives it a narrow mandate and a wallet or payment credential. That
+credential permits purchases only within the approved limits.
 
 ## Example mandate
 

@@ -24,15 +24,15 @@ server share and one-use presignature state.
 Tempo, Arc, Ethereum, and future EVM-family targets share one threshold owner
 address for the same wallet, RP, signing root, and key version.
 
-Concrete chain targets may partition sessions, budgets, nonce lanes, and
-transaction serialization. They cannot partition the persistent ECDSA key or
-the displayed owner address.
+Different chain targets may have separate sessions, budgets, nonce lanes, and
+transaction formats. They must use the same persistent ECDSA key and displayed owner
+address.
 
 ## Normal signing
 
-Normal ECDSA signing uses Router admission plus SigningWorker participation.
-Deriver A and Deriver B remain outside the signing hot path. Pool refill and
-normal signing use strict Router A/B routes and one-use presignature state.
+Normal ECDSA signing uses Router admission plus SigningWorker participation. Normal
+signing does not call Deriver A or Deriver B. Pool refill and normal signing use strict
+Router A/B routes and one-use presignature state.
 
 ## Execute an EVM-family transaction
 

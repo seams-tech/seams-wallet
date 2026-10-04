@@ -5,9 +5,8 @@ description: Task-focused guidance for the boundaries around Seams wallet integr
 
 # Guides
 
-Start with a runnable example, then use a guide for the decisions and safety
-checks around that flow. Guides keep the application boundary clear without
-repeating the full SDK reference.
+Start with a runnable example. Then use a guide to choose settings and check the flow
+before release. Each guide explains the application's responsibilities.
 
 ## Start with an example
 
@@ -18,7 +17,7 @@ repeating the full SDK reference.
 - [Advanced wallet operations](/examples/advanced-wallet-operations): link a
   device, recover a wallet, or export a key.
 - [UI customization](/examples/ui-customization): keep app-owned and
-  wallet-owned surfaces in sync.
+  wallet-owned UI consistent.
 
 ## Keep building
 

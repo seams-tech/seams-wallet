@@ -44,8 +44,8 @@ review: {
 }
 ```
 
-Here, `PurchaseReview` and `quote` belong to your application. Return JSX from
-the synchronous callback; place hooks inside the returned component.
+Here, `PurchaseReview` and `quote` belong to your application. Return JSX from the
+synchronous callback. Place hooks inside the returned component.
 
 The SDK supplies the dialog, backdrop, and focus management. Supply content and
 buttons without another dialog or focus trap.
@@ -65,15 +65,15 @@ transaction has a deadline.
 - `{ kind: 'expires_at', atMs: quote.expiresAtMs }`: use the quote's deadline as
   a positive safe-integer Unix timestamp in **milliseconds**.
 
-Expiry prevents approval and additional signatures. It cannot undo a signature
-already started. Refresh an expired quote and make a new call; changing an
-existing quote does not update the captured transaction. Use contract deadlines
-and slippage limits for transaction-level economic guarantees.
+Expiry prevents approval and additional signatures. It cannot undo a signature already
+started. Refresh an expired quote. Make a new call with that quote. Changing an existing
+quote does not update the captured transaction. Use contract deadlines and slippage
+limits for transaction-level economic guarantees.
 
 ## Runnable NEAR example
 
-Render this button beneath the host with a signed-in NEAR account. It sends a
-zero-value self-transfer; gas fees apply. Use a testnet wallet to try it.
+Render this button beneath the host with a signed-in NEAR account. It sends a zero-value
+self-transfer. Gas fees apply. Use a testnet wallet to try it.
 
 <<< ../examples/transaction-review.tsx
 
@@ -91,23 +91,23 @@ as in the example to override incompatible saved preferences. Automatic approval
 delays are unsupported. Core SDK calls, message signing, export, and authentication
 do not accept this React review API.
 
-The SDK captures transaction inputs and confirmation settings when called. The
-returned promise and lifecycle callbacks retain the method's existing meaning;
-Continue alone does not resolve the transaction. Calls queue with other wallet
-transactions. Cancelling or unmounting the caller or host invalidates queued and
-pre-signing work. After signing starts, the call preserves the wallet's actual result.
+The SDK captures transaction inputs and confirmation settings when called. The returned
+promise and lifecycle callbacks retain the method's existing meaning. Continue alone
+does not resolve the transaction. Calls queue with other wallet transactions. Cancelling
+or unmounting the caller or host invalidates queued and pre-signing work. After signing
+starts, the call preserves the wallet's actual result.
 
 ## Errors and styling
 
-Before dispatch, review failures reject with `TransactionReviewError` and invoke
-no signing callbacks. This also applies to `executeAction`; after dispatch, its
-normal `success: false` result remains possible. Existing connection and router
-errors retain their types.
+Before dispatch, review failures reject with `TransactionReviewError` and invoke no
+signing callbacks. This also applies to `executeAction`. After dispatch, its normal
+`success: false` result remains possible. Existing connection and router errors retain
+their types.
 
 | `TransactionReviewError.code` | Meaning |
 | --- | --- |
 | `cancelled` | The review was cancelled. |
-| `review_expired` | The deadline passed; obtain a fresh quote and retry. |
+| `review_expired` | The deadline passed. Obtain a fresh quote before retrying. |
 | `review_invalid_input` | The review configuration or transaction input is invalid. |
 | `review_host_unavailable` | A usable review host is missing. |
 | `review_owner_disposed` | The caller or host was disposed. |
@@ -121,8 +121,8 @@ but the portal changes DOM ancestry: ancestor selectors, inherited CSS variables
 and CSS-in-JS insertion targets may need adjustment. SDK light/dark and shape
 tokens remain available. Your content must satisfy your application's CSP.
 
-Wallet approval includes **Back to review** when opened from an application review.
-Back preserves the review component's local state and the original quote deadline.
-Continue resumes the same pending approval without dispatching another transaction.
-The shared modal resizes and crossfades in both directions. Back is available until
-wallet approval is submitted; changing transaction inputs requires a new call.
+Wallet approval includes **Back to review** when opened from an application review. Back
+preserves the review component's local state and the original quote deadline. Continue
+resumes the same pending approval without dispatching another transaction. The shared
+modal resizes and crossfades in both directions. Back is available until wallet approval
+is submitted. Changing transaction inputs requires a new call.

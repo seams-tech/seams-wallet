@@ -5,9 +5,8 @@ description: Restore sealed signing material after interruption without weakenin
 
 # Sealed refresh
 
-Sealed refresh restores sealed signing material after accidental
-iframe or page reload, while keeping signing material out of browser storage in
-plaintext.
+Sealed refresh restores encrypted signing material after an accidental iframe or page
+reload. It keeps plaintext signing material out of browser storage.
 
 The persisted artifact is a sealed session secret stored in wallet-origin
 IndexedDB. It is useful only with live server participation and valid

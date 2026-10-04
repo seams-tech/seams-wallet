@@ -5,14 +5,13 @@ description: Sign NEAR, NEP-413, or EVM-family requests with exact references an
 
 # Sign with policy
 
-Every request names the subject that authorizes it and the chain it targets.
-Omit the subject to resolve the signed-in wallet. EVM-family calls require a
-`chainTarget` naming a configured chain. Name the wallet explicitly when your
-product manages more than one wallet at a time.
-No unlock step is required: every request opens the wallet confirmation, and
-the user approves that transaction with the wallet's auth method. The examples
-below use `useWallet` for buttons and the `SeamsWeb` client for standalone
-signing calls.
+Every request names the subject that authorizes it and the chain it targets. Omit the
+subject to resolve the signed-in wallet. EVM-family calls require a `chainTarget` naming
+a configured chain. Name the wallet explicitly when your product manages more than one
+wallet at a time. No unlock step is required. Every request opens the wallet
+confirmation. The user approves that transaction with the wallet's authentication
+method. The examples below use `useWallet` for buttons and the `SeamsWeb` client for
+standalone signing calls.
 
 ## NEAR transaction
 
@@ -21,46 +20,41 @@ Replace the receiver, action, and execution status with values from your app.
 
 <<< ../examples/near-signing.tsx
 
-`near` from `useWallet()` is `null` until the wallet has a NEAR account, so the
-check next to the sign button is a type guard — a request cannot
-start without one. For an exact subject, call `seams.near.signAndSendTransaction`
-with `walletSession` and `nearAccount` built from
-`walletSessionRefFromSession` and `nearAccountRefFromAccountId`.
+`near` from `useWallet()` is `null` until the wallet has a NEAR account. The check next
+to the sign button prevents requests before that account exists. For an exact subject,
+call `seams.near.signAndSendTransaction` with `walletSession` and `nearAccount` built
+from `walletSessionRefFromSession` and `nearAccountRefFromAccountId`.
 
 ## EVM-family transaction
 
-`seams.evm` signs EIP-1559 transactions; `seams.tempo` signs Tempo's EIP-2718
-typed transactions. The two mirror each other — `signTransaction`,
-`executeTransaction`, and an `advanced` group — and stay separate because the
-envelopes and the signed results differ: `seams.evm` yields `txHashHex`,
-`seams.tempo` yields `senderHashHex`.
+`seams.evm` signs EIP-1559 transactions. `seams.tempo` signs Tempo's EIP-2718 typed
+transactions. Both provide `signTransaction`, `executeTransaction`, and an `advanced`
+group. Their transaction formats and signed results differ. `seams.evm` returns
+`txHashHex`. `seams.tempo` returns `senderHashHex`.
 
-Build the transaction with your EVM utilities, then name the chain: a configured
-network slug like `'ethereum-sepolia'` resolves to exactly one configured chain,
-and a selector matching two throws and names both rather than picking one.
-`seams.chainTarget(selector)` resolves the same value up front, and an exact
-chain target is still accepted.
+Build the transaction with your EVM utilities. Select the chain with a configured
+network slug, such as `'ethereum-sepolia'`. The selector must match exactly one chain.
+If it matches two chains, the SDK throws an error that names both. Call
+`seams.chainTarget(selector)` to resolve the target before signing. You can also pass an
+exact chain target.
 
 <<< ../examples/evm-signing.ts
 
-The example targets Ethereum Sepolia and uses placeholder transaction values.
-Add it to your configured chains before calling this helper; see the
-[chain configuration example](/examples/signing#execute-an-evm-family-transaction).
-Replace the chain, recipient, fees, and data before sending a real transaction.
-`tx.chainId` is filled in from the chain target, and the RPC endpoint comes from
-the chain you configured — neither is repeated on the call. A successful call
-returns the transaction hash.
+The example targets Ethereum Sepolia and uses placeholder transaction values. Add it to
+your configured chains before calling this helper. See the [chain configuration
+example](/examples/signing#execute-an-evm-family-transaction). Replace the chain,
+recipient, fees, and data before sending a real transaction. The SDK sets `tx.chainId`
+from the chain target. It uses the RPC endpoint from your chain configuration. You do
+not repeat either value on the call. A successful call returns the transaction hash.
 
-Use `signTransaction` when your application broadcasts the payload itself; the
-post-broadcast reporting lives on `seams.evm.advanced` and
-`seams.tempo.advanced`.
+Use `signTransaction` when your application broadcasts the payload itself. Report the
+broadcast through `seams.evm.advanced` and `seams.tempo.advanced`.
 
 ## Sign with less friction
 
-Per-transaction approval is the right default while you integrate. When your
-product needs a burst of signatures without prompting for each one, provision
-a signing session with `unlock`: read [wallet sessions and signing
-lanes](/guides/wallet-sessions-and-signing-lanes).
+Use per-transaction approval while you integrate. To allow several signatures without a
+prompt for each one, create a signing session with `unlock`. Read [wallet sessions and
+signing lanes](/guides/wallet-sessions-and-signing-lanes).
 
 ## Handle cancellation and retries
 
@@ -69,7 +63,7 @@ lanes](/guides/wallet-sessions-and-signing-lanes).
 - If broadcast status is uncertain, reconcile the transaction or nonce before
   submitting another request.
 - Keep the `onEvent` callback attached while you build progress UI or audit
-  logs; each canonical example shows the same event shape.
+  logs. Each canonical example shows the same event shape.
 
 ## Continue
 

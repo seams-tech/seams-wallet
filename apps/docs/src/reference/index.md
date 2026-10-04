@@ -5,10 +5,9 @@ description: Choose the supported Seams SDK entrypoint for browser, React, thres
 
 # SDK reference
 
-This reference describes **@seams/wallet 0.8.0**. The Seams package exposes a
-small set of intentional entrypoints. Start with the
-main browser surface or React surface. Reach for the lower-level entrypoints only
-when your integration owns the corresponding runtime or protocol responsibility.
+This reference describes **@seams/wallet 0.8.0**. The Seams package provides a small set
+of public import paths. Start with the browser or React API. Use lower-level import
+paths only when your integration manages the corresponding runtime or protocol.
 
 | Import path                                    | Use it for                                                                                                    |
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |

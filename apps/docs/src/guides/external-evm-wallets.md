@@ -5,9 +5,9 @@ description: Connect MetaMask, Rabby, or Phantom EVM accounts without importing 
 
 # External EVM wallets
 
-`@seams/wallet` can connect an existing MetaMask, Rabby, or Phantom EVM account
-without importing its key material. The application chooses a discovered
-provider; the wallet extension owns account permission and every approval prompt.
+`@seams/wallet` can connect an existing MetaMask, Rabby, or Phantom EVM account without
+importing its key material. The application chooses a discovered provider. The wallet
+extension owns account permission and every approval prompt.
 
 The connector is host-side and does not require a Seams Wallet Session. For
 framework-independent use, import `ExternalEvmController` from
@@ -67,42 +67,46 @@ export function ExternalWalletSection() {
 }
 ```
 
-The controller discovers announced providers with EIP-6963. It also checks
-Phantom's documented `window.phantom.ethereum` namespace because the extension
-may omit its EIP-6963 announcement. It never selects the shared
-`window.ethereum` provider. Every selected provider is called through EIP-1193.
-The controller handles account, chain, and disconnect events and returns typed
-recoverable failures for rejection, unsupported methods or networks, malformed
-provider responses, stale connections, and unknown transaction outcome.
+The controller discovers announced providers with EIP-6963. It also checks Phantom's
+documented `window.phantom.ethereum` namespace because the extension may omit its
+EIP-6963 announcement. It never selects the shared `window.ethereum` provider. Every
+selected provider is called through EIP-1193. The controller handles account, chain, and
+disconnect events. It returns typed, recoverable failures for rejected requests,
+unsupported methods or networks, malformed provider responses, stale connections, and
+unknown transaction outcomes.
 
 The first release supports desktop EVM extensions, configured chain switching,
-`personal_sign`, EIP-712 `eth_signTypedData_v4`, ordinary
-`eth_sendTransaction`, and receipt observation through the configured RPC URL.
-Configure each chain with its numeric EVM chain ID, display name, and an HTTPS
-or HTTP JSON-RPC endpoint. The RPC endpoint is used only to verify a submitted
-transaction; the wallet provider remains responsible for signing and broadcast.
+`personal_sign`, EIP-712 `eth_signTypedData_v4`, ordinary `eth_sendTransaction`, and
+receipt observation through the configured RPC URL. Configure each chain with its
+numeric EVM chain ID, display name, and an HTTPS or HTTP JSON-RPC endpoint. The
+controller uses the RPC endpoint only to verify a submitted transaction. The wallet
+provider handles signing and broadcast.
 
 Use `connection` as the exact account and chain snapshot for an operation. If its
 identity is stale after an account or chain event, the controller returns
-`connection_changed`; read the new snapshot and ask the user to retry. A returned
-transaction hash is submitted evidence. If the provider fails after dispatch,
-the controller returns `submission_unknown` and does not resend automatically.
+`connection_changed`. Read the new snapshot. Ask the user to retry. A returned
+transaction hash is evidence of submission. If the provider fails after dispatch, the
+controller returns `submission_unknown` and does not resend automatically.
 
-Disconnect clears this application's provider listeners and local state. It does
-not revoke the site's permission in MetaMask, Rabby, or Phantom; the user manages
-that permission in the external wallet.
+Disconnect clears this application's provider listeners and local state. It does not
+revoke the site's permission in MetaMask, Rabby, or Phantom. The user manages that
+permission in the external wallet.
 
 ## Extension smoke check
 
-Before releasing a host that depends on this connector, run the Console Lite
-example in a clean desktop browser profile with MetaMask, Rabby, and Phantom EVM
-enabled one at a time, then repeat with the installed extensions together. Record
-the browser and extension versions. For each wallet, verify provider discovery,
-explicit wallet selection, account selection, a configured network switch,
-message signing, typed-data signing, and a testnet transaction. Reject each
-approval once, disconnect locally, and confirm that a later attempt starts a
-fresh request. When a provider loses transport after a transaction request,
-confirm the UI shows an unknown outcome and does not resend automatically.
+Before releasing an application that uses this connector, check the Console Lite
+example:
+
+1. Run it in a clean desktop browser profile with MetaMask, Rabby, and Phantom EVM enabled one at a time.
+2. Repeat with all installed extensions enabled together.
+3. Record the browser and extension versions.
+4. For each wallet, check provider discovery, explicit wallet selection, account selection, and a configured network switch.
+5. Check message signing, typed-data signing, and a testnet transaction.
+6. Reject each approval once.
+7. Disconnect locally.
+8. Check that a later attempt starts a fresh request.
+9. Disconnect the provider transport after a transaction request.
+10. Check that the UI shows an unknown outcome and does not resend automatically.
 
 External accounts are separate from Seams custody and authentication. Connecting
 one does not sign a user into Seams, create a Wallet Session, or authorize a Seams

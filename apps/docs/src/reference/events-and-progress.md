@@ -14,20 +14,20 @@ messages and steps, and the `isWalletFlowEvent` boundary guard.
 
 ## Event contract
 
-`WalletFlowEvent` uses version `2`. Each event identifies its flow, `flowId`,
-phase, status, step, and display message. Step numbers are ordinals within one
-flow; mutually exclusive branches can share a step. Use the exported phase
-enums and constructors instead of maintaining a separate phase-to-step table.
-Failure and cancellation phases have step `0`.
+`WalletFlowEvent` uses version `2`. Each event identifies its flow, `flowId`, phase,
+status, step, and display message. Step numbers indicate order within one flow. Mutually
+exclusive branches can share a step. Use the exported phase enums and constructors
+instead of maintaining a separate phase-to-step table. Failure and cancellation phases
+have step `0`.
 
 When supplied, `interaction.overlay` explicitly requests `show`, `hide`, or
 `none`. Do not infer overlay visibility from a phase name or message. Event
 constructors default failed and cancelled events to a hidden overlay when no
 interaction is supplied. The wallet iframe owns the interactive surface.
 
-Keep messages suitable for display. Public progress should describe meaningful
-user-visible work; worker microsteps belong in internal diagnostics. The
-current SDK event types define the supported flows and payloads.
+Keep messages suitable for display. Public progress should describe meaningful work that
+the user can see. Keep detailed worker steps in internal diagnostics. The current SDK
+event types define the supported flows and payloads.
 
 ## Rendering guidance
 

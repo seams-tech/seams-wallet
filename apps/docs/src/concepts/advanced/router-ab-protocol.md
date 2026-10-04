@@ -5,21 +5,15 @@ description: Follow Router A/B transcript binding, role separation, derivation, 
 
 # Router A/B protocol
 
-Router A/B protocol details include transcript binding, role-specific
-envelopes, replay digests, Deriver identity, SigningWorker identity, output
-package binding, and activation receipts.
-
-The public concepts docs should keep these details out of the first
-architecture page. This page is the place for readers who need protocol-level
-evidence.
-
-Keep the architecture page focused on roles, material boundaries, and operation
-paths. Put transcript fields, envelope formats, activation receipts, and
-deployment assertions here.
+Router A/B binds each request and response to its participants, operation, and key
+material. This page covers protocol requirements: transcript binding, role-specific
+envelopes, replay digests, participant identities, output packages, and activation
+receipts. Read [architecture](/concepts/architecture) first for roles, secret-material
+boundaries, and operation paths.
 
 ## Protocol invariants
 
-1. Router request context is bound before role envelopes are decrypted.
+1. The protocol binds Router request context before decrypting role envelopes.
 2. Deriver A and Deriver B receive role-specific encrypted envelopes.
 3. SigningWorker activation is bound to selected worker identity and key epoch.
 4. Replay digests and idempotency state prevent request reuse.

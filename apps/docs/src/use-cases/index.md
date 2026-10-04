@@ -5,9 +5,9 @@ description: Provision platform wallets, build shopping wallet apps, and give sh
 
 # Use cases
 
-Seams is for products that need a persistent wallet for each user or shopping
-agent. The wallet holds value or assets across sessions and provides the
-authentication, recovery, policy, and audit boundary for repeated activity.
+Seams is for products that need a persistent wallet for each user or shopping agent. The
+wallet holds value or assets across sessions. It provides authentication, recovery,
+policy controls, and audit records for repeated activity.
 
 - [Platform wallets](/use-cases/platform-wallets) — provision wallets for users
   of marketplaces, trading platforms, games, payout products, and other
@@ -18,11 +18,10 @@ authentication, recovery, policy, and audit boundary for repeated activity.
 - [Shopping agents](/use-cases/ecommerce-agents) — give an agent a narrow,
   expiring purchase mandate for unrelated ecommerce stores.
 
-An ordinary store that only needs to collect one payment is a weak fit for
-per-shopper wallet provisioning. It can accept a transfer from the shopper's
-existing wallet. The platform-wallet use case begins when users maintain
-balances, assets, payouts, rewards, or repeated transaction authority inside
-the product.
+A store collecting a single payment usually does not need to create a wallet for each
+shopper. It can accept a transfer from the shopper's existing wallet. The
+platform-wallet use case begins when users maintain balances, assets, payouts, rewards,
+or repeated transaction authority inside the product.
 
 These pages describe product direction. Check the linked guides and API
 references before treating a capability as shipped.
