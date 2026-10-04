@@ -1,9 +1,16 @@
 # Refactor 155: one permission authority with regional wallet signing
 
-Status: intent and validation plan, October 5, 2026. No implementation or protocol
-feasibility claim. This is a candidate replacement for
+Status: first protocol feasibility checks passed, October 5, 2026. Complete
+regional device installation and product integration remain open. No runtime
+implementation. This is a candidate replacement for
 [R153](refactor-153-wallet-region-selection.md) and
 [R154](refactor-154-automatic-wallet-relocation.md).
+
+[Protocol feasibility findings](refactor-155-protocol-feasibility.md) record the
+source review and executed evidence. Both protocols signed the same wallet keys
+with independent regional sessions and unchanged owner client shares. Existing
+device credentials also passed a separate production authorization-store probe.
+These checks do not establish a composed multi-region device installation.
 
 ## Intent
 
@@ -177,8 +184,10 @@ dependency has been traced. Compare the full signing path with the R152 baseline
 
 ## Preliminary validation
 
-All checks below remain open. Earlier transfer probes establish role-preserving
-copying under one active home. They do not establish this multi-region contract.
+The [first feasibility checkpoint](refactor-155-protocol-feasibility.md) establishes
+key continuity at the protocol layer and identity continuity in a separate
+authorization-store probe. The full acceptance checks below remain open. Earlier
+transfer probes do not establish simultaneous regional execution.
 
 | Check | Required finding or evidence |
 | --- | --- |

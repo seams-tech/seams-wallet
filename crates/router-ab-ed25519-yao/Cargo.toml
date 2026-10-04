@@ -32,4 +32,7 @@ frost-ed25519 = { version = "2.2", default-features = false, features = ["serial
 rand_chacha = "0.3"
 rand_core = "0.6.4"
 router-ab-ecdsa-derivation = { path = "../router-ab-ecdsa-derivation" }
+router-ab-ecdsa-online = { path = "../router-ab-ecdsa-online" }
+router-ab-ecdsa-presign = { path = "../router-ab-ecdsa-presign" }
+router-ab-ecdsa-wire = { path = "../router-ab-ecdsa-wire" }
 threshold-prf = { path = "../threshold-prf" }
