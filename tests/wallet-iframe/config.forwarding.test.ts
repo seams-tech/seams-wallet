@@ -1,5 +1,6 @@
 import { expect, test, type Route } from '@playwright/test';
 import { build } from 'esbuild';
+import type { AppearanceConfigInput } from '../../packages/wallet/src/core/types/seams';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setupBasicPasskeyTest } from '../setup';
@@ -22,11 +23,22 @@ async function applyConfiguration(event) {
   configContext ||= configurationModule.createHostContext();
   configurationModule.applyWalletConfig(configContext, event.data.payload);
   const resolved = configurationModule.resolveWalletHostConfig(configContext.walletConfigs);
+  document.body.classList.add('seams-wallet-ui');
+  const style = getComputedStyle(document.body);
   window.configurationReceipt = {
+    rendered: {
+      accentPrimary: style.getPropertyValue('--seams-colors-accentPrimary').trim(),
+      buttonBackground: style.getPropertyValue('--seams-colors-buttonBackground').trim(),
+      card: style.getPropertyValue('--seams-shape-card').trim(),
+      control: style.getPropertyValue('--seams-shape-control').trim(),
+    },
     authPolicy: resolved.signing.emailOtp.authPolicy,
     delegateRoute: resolved.network.relayer.routes.delegateAction,
     relayerUrl: resolved.network.relayer.url,
     theme: resolved.ui.appearance.theme.mode,
+    themeId: resolved.ui.appearance.theme.id,
+    colors: resolved.ui.appearance.theme.colors,
+    shape: resolved.ui.appearance.theme.shape ?? {},
     walletMode: resolved.wallet.mode,
     hasNestedOrigin: Object.hasOwn(resolved.wallet.iframe, 'origin'),
     rpId: resolved.wallet.iframe.rpIdOverride,
@@ -53,6 +65,14 @@ async function configureClient(): Promise<void> {
     relayer: { url: 'https://relay.example.localhost', delegateActionRoute: '/custom/delegate' },
     emailOtpAuthPolicy: 'per_operation',
     registration: { publishableKey: 'pk_test_configuration' },
+    appearance: {
+      theme: {
+        id: 'first',
+        mode: 'dark',
+        colors: { accentPrimary: '#123456', buttonBackground: '#abcdef' },
+        shape: { card: '8px' },
+      },
+    },
     iframeWallet: {
       walletOrigin: 'https://wallet.example.localhost',
       rpIdOverride: 'wallet.example.localhost',
@@ -75,8 +95,8 @@ function readReceipt() {
   return (window as any).configurationReceipt;
 }
 
-async function updateAppearance(): Promise<void> {
-  await (window as any).configurationRouter.setAppearance({ theme: { mode: 'light' } });
+async function updateAppearance(appearance: AppearanceConfigInput): Promise<void> {
+  await (window as any).configurationRouter.setAppearance(appearance);
 }
 
 function disposeClient(): void {
@@ -124,13 +144,42 @@ test('iframe configuration preserves custom relay routes and Email OTP policy ac
     hasNestedOrigin: false,
     rpId: 'wallet.example.localhost',
   });
-  await page.evaluate(updateAppearance);
+  await page.evaluate<void, AppearanceConfigInput>(updateAppearance, {
+    theme: {
+      id: 'first',
+      mode: 'light',
+      colors: { accentPrimary: '#112233' },
+      shape: { control: '4px' },
+    },
+  });
   const updated = await frame.evaluate(readReceipt);
-  expect(updated).toEqual({ ...initial, theme: 'light' });
+  expect(updated).toEqual({
+    ...initial,
+    theme: 'light',
+    colors: { accentPrimary: '#112233', buttonBackground: '#abcdef' },
+    shape: { card: '8px', control: '4px' },
+    rendered: {
+      accentPrimary: '#112233',
+      buttonBackground: '#abcdef',
+      card: '8px',
+      control: '4px',
+    },
+  });
+  await page.evaluate<void, AppearanceConfigInput>(updateAppearance, {
+    theme: { id: 'second', mode: 'light', colors: { accentPrimary: '#654321' } },
+  });
+  const switched = await frame.evaluate(readReceipt);
+  expect(switched).toEqual({
+    ...updated,
+    themeId: 'second',
+    colors: { accentPrimary: '#654321' },
+    shape: {},
+    rendered: { accentPrimary: '#654321', buttonBackground: '', card: '', control: '' },
+  });
   await page.evaluate(disposeClient);
   const artifact = info.outputPath('configuration-forwarding.json');
   await mkdir(path.dirname(artifact), { recursive: true });
-  await writeFile(artifact, JSON.stringify({ initial, updated }, null, 2));
+  await writeFile(artifact, JSON.stringify({ initial, updated, switched }, null, 2));
   await info.attach('configuration-forwarding.json', {
     path: artifact,
     contentType: 'application/json',

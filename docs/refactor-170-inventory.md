@@ -887,3 +887,19 @@ boundaries, configuration browser round trip, and two production lifecycle cases
 (Email OTP multi-chain lifecycle and passkey reload with step-up/export). This
 checkpoint removes 25 net production lines. Source hashes and sanitized receipts
 are in `evidence/refactor-170-host-config-constructor-20261005.json`.
+
+
+### Shared appearance normalization checkpoint
+
+The host now uses `resolveRuntimeAppearance`, the existing application/runtime
+resolver. Deleted its separate raw appearance readers, legacy-token readers,
+string-map helper, and theme-merge implementation. CSS emission receives resolved
+appearance values and retains token-name/value filtering. This removes 87 net
+production lines without introducing another normalization abstraction.
+
+The browser configuration scenario now verifies same-theme color/shape merging,
+replacement when the theme ID changes, and actual computed CSS properties inside
+the iframe. Old colors and shape values disappear after replacement. Auth policy,
+custom relay route, and RP identity remain unchanged. Build, type and runtime-entry
+checks pass. Evidence is in `evidence/refactor-170-shared-appearance-20261005.json`.
+The normalized configuration wire contract and protocol ordering remain open.

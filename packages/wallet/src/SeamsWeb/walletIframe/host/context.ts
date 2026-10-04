@@ -1,13 +1,15 @@
 import { MinimalNearClient } from '@/core/rpcClients/near/NearClient';
 import { WalletHostRuntime } from '@/SeamsWeb/walletIframe/host/WalletHostRuntime';
 import { __setWalletIframeHostMode } from '@/core/browser/walletIframe/host-mode';
-import type { AppearanceConfigInput, SeamsConfigsInput, ThemeMode } from '@/core/types/seams';
+import type { AppearanceConfig, SeamsConfigsInput } from '@/core/types/seams';
 import type { PMSetConfigPayload } from '../shared/messages';
 import type { SdkLifecycleEvent, SdkLifecycleEventListener } from '@/core/types/sdkSentEvents';
 import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 import type { WalletSessionId } from '@/core/types/sdkSentEvents';
 import type { WalletId } from '@shared/utils/domainIds';
 import { isString } from '@shared/utils/validation';
+import { PASSKEY_MANAGER_DEFAULT_CONFIGS } from '@/core/config/defaultConfigs';
+import { resolveRuntimeAppearance } from '../shared/facadeBoundary';
 import { setEmbeddedBase } from '@/core/walletRuntimePaths';
 import { cloneChainConfig, resolvePrimaryNearRpcUrl } from '@/core/config/chains';
 import { resolveWalletHostConfig } from './configuration';
@@ -40,24 +42,6 @@ function getThemeOverrideStyleManager(): ReturnType<typeof createCspStylesheetMa
     });
   }
   return themeOverrideStyleManager;
-}
-
-function toStringRecord(value: unknown): Record<string, string> {
-  if (!value || typeof value !== 'object') return {};
-  const out: Record<string, string> = {};
-  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-    if (typeof v === 'string') out[k] = v;
-  }
-  return out;
-}
-
-function coerceThemeMode(value: unknown): ThemeMode | undefined {
-  return value === 'light' || value === 'dark' ? value : undefined;
-}
-
-function objectRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  return value as Record<string, unknown>;
 }
 
 function normalizeForStableSerialize(value: unknown): unknown {
@@ -131,85 +115,16 @@ function serializeTokenOverrides(
   return lines;
 }
 
-function appearanceMode(appearance: unknown): ThemeMode | undefined {
-  const record = objectRecord(appearance);
-  if (!record) return undefined;
-  const theme = record.theme;
-  const legacyTheme = coerceThemeMode(theme);
-  if (legacyTheme) return legacyTheme;
-  return coerceThemeMode(objectRecord(theme)?.mode);
-}
-
-function appearanceThemeId(appearance: unknown, fallback: string): string {
-  const theme = objectRecord(objectRecord(appearance)?.theme);
-  const rawId = typeof theme?.id === 'string' ? theme.id.trim() : '';
-  return rawId || fallback;
-}
-
-function legacyAppearanceColors(appearance: unknown, mode: ThemeMode): Record<string, string> {
-  const tokens = objectRecord(objectRecord(appearance)?.tokens);
-  return toStringRecord(objectRecord(objectRecord(tokens?.[mode])?.colors));
-}
-
-function objectAppearanceColors(appearance: unknown, mode: ThemeMode): Record<string, string> {
-  const theme = objectRecord(objectRecord(appearance)?.theme);
-  if (coerceThemeMode(theme?.mode) !== mode) return {};
-  return toStringRecord(theme?.colors);
-}
-
-function appearanceColors(appearance: unknown, mode: ThemeMode): Record<string, string> {
-  return {
-    ...legacyAppearanceColors(appearance, mode),
-    ...objectAppearanceColors(appearance, mode),
-  };
-}
-
-function appearanceShape(appearance: unknown): Record<string, string> {
-  const theme = objectRecord(objectRecord(appearance)?.theme);
-  return toStringRecord(theme?.shape);
-}
-
-function normalizeWalletHostAppearance(args: {
-  previous?: AppearanceConfigInput;
-  incoming?: AppearanceConfigInput;
-}): AppearanceConfigInput | undefined {
-  if (args.incoming === undefined) return args.previous;
-  const mode = appearanceMode(args.incoming) ?? appearanceMode(args.previous);
-  if (!mode) return args.previous;
-  const previousId = appearanceThemeId(args.previous, 'default');
-  const id = appearanceThemeId(args.incoming, previousId);
-  /* A different theme id is a theme switch: replace colors/shape wholesale so
-     keys the new theme doesn't define can't leak from the old one. */
-  const isThemeSwitch = id !== previousId;
-  const colors = {
-    ...(isThemeSwitch ? {} : appearanceColors(args.previous, mode)),
-    ...appearanceColors(args.incoming, mode),
-  };
-  const shape = {
-    ...(isThemeSwitch ? {} : appearanceShape(args.previous)),
-    ...appearanceShape(args.incoming),
-  };
-  return {
-    theme: {
-      id,
-      mode,
-      colors,
-      ...(Object.keys(shape).length > 0 ? { shape } : {}),
-    },
-    palette: 'default',
-  };
-}
-
-function upsertThemeOverrideStyle(appearance?: AppearanceConfigInput): void {
-  const mode = appearanceMode(appearance);
-  const colors = mode ? appearanceColors(appearance, mode) : {};
+function upsertThemeOverrideStyle(appearance: AppearanceConfig): void {
+  const mode = appearance.theme.mode;
+  const colors = appearance.theme.colors;
   const lines = [
     ...serializeTokenOverrides(colors, 'colors'),
-    ...serializeTokenOverrides(appearanceShape(appearance), 'shape'),
+    ...serializeTokenOverrides(appearance.theme.shape ?? {}, 'shape'),
   ];
   const cssBlocks: string[] = [];
 
-  if (mode && lines.length > 0) {
+  if (lines.length > 0) {
     const selector = mode === 'light' ? SEAMS_THEME_LIGHT_SELECTOR : SEAMS_THEME_DARK_SELECTOR;
     cssBlocks.push(`${selector} {\n${lines.join('\n')}\n}`);
   }
@@ -290,11 +205,12 @@ export function applyWalletConfig(ctx: HostContext, payload: PMSetConfigPayload)
     : Array.isArray(prev.chains)
       ? prev.chains.map(cloneChainConfig)
       : [];
-  const nextAppearance = normalizeWalletHostAppearance({
-    previous: prev.appearance,
-    incoming: payload?.appearance,
-  });
-  const nextTheme = appearanceMode(nextAppearance);
+  const previousAppearance = resolveRuntimeAppearance(
+    PASSKEY_MANAGER_DEFAULT_CONFIGS.ui.appearance,
+    prev.appearance ?? {},
+  );
+  const nextAppearance = resolveRuntimeAppearance(previousAppearance, payload.appearance ?? {});
+  const nextTheme = nextAppearance.theme.mode;
 
   const base = {
     chains: nextChains,
@@ -327,15 +243,12 @@ export function applyWalletConfig(ctx: HostContext, payload: PMSetConfigPayload)
 
   // Keep wallet-host theme and dynamic appearance tokens in sync with app config.
   try {
-    if (nextTheme) {
-      document.documentElement.setAttribute('data-seams-theme', nextTheme);
-    }
+    document.documentElement.setAttribute('data-seams-theme', nextTheme);
     upsertThemeOverrideStyle(nextAppearance);
   } catch {}
 
   if (
     ctx.walletRuntime &&
-    nextAppearance &&
     nextRuntimeResetFingerprint === prevRuntimeResetFingerprint
   ) {
     try {
