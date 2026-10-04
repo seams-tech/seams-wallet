@@ -1549,3 +1549,13 @@ regional databases remains open; see the results document for evidence.
   and [results](refactor-152-results.md) for artifacts and release impact.
 
 The remaining ownership, linked-device and hosted acceptance gates still apply.
+
+
+### Completion handoff
+
+- [ ] Once R152 is complete, send the user-authorized go-ahead to the Codex chat
+  **R153 wallet region relocation** (host `local`, thread
+  `01a0fbb1-65f2-77f3-8e20-144dce2babc7`) and ask it to proceed with R153 tasks.
+  Include the final ownership contract, commits and verification evidence.
+  Authorization recorded October 4, 2026; send only after the R152 completion gates
+  close. Relocation generations, transfer execution and writer fencing remain R153.
