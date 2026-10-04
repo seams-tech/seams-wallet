@@ -685,6 +685,14 @@ See the inventory's “Session transition sources and revision coverage” secti
 Build, type, runtime-boundary, bloat, and two production lifecycle checks pass.
 Evidence: `evidence/refactor-170-session-transition-audit-20261005.json`.
 
+Session authorization operations now use the existing database transaction manager.
+The separate transaction adapter and repeated abort handlers are deleted. Wallet
+session clearing reads and deletes keys atomically. Corrupt reads retain rollback
+semantics, and all operations inherit the manager's existing transaction timeout.
+Seven browser cases and four production lifecycle cases pass. The change removes
+29 production source lines net. Revision notifications and session envelopes remain
+open. Evidence: `evidence/refactor-170-session-transactions-20261005.json`.
+
 The fresh production root-client static closure measures 66,386 bytes gzip
 (64.8 KiB), compared with 739,640 bytes at baseline: a 91.0% reduction. Including
 its lazy router, it measures 93,551 bytes gzip (91.4 KiB). The provider measures

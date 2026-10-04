@@ -353,10 +353,30 @@ It does not prove that revision tracking is implemented.
 The current `IndexedDBEvent` union only reports user updates, preference updates,
 and user deletion. It does not report authority or session commits.
 `WalletSessionAuthorizationRepository` also has no change subscription.
-Several methods use direct `db.transaction` calls. Other authority transactions
-call `replaceExactActiveWalletSessionAuthorizationInTransaction` directly.
-Tracking only `SeamsWalletDBManager.runTransaction` or only the session repository
-would miss writes.
+The session repository now uses `SeamsWalletDBManager.runTransaction` for every
+operation. This removes its separate transaction context and repeated abort/settle
+code. Other authority transactions still call
+`replaceExactActiveWalletSessionAuthorizationInTransaction` within the manager's
+transaction. Tracking only the public session repository would miss those writes.
+
+Session reads can prune legacy rows, so they retain read-write transactions.
+A read-write transaction is not proof that authority changed. Revision tracking
+must distinguish a successful mutation from an unchanged read or a superseded
+compare-and-update; otherwise each observation could invalidate itself.
+
+`clearWallet` now reads indexed keys and deletes them in one transaction. It no
+longer has a gap between the key snapshot and deletion. Corrupt exact reads still
+abort any earlier legacy-row deletion before returning `corrupt`. Infrastructure
+failures still return `persistence_unavailable`. These operations now share the
+manager's existing eight-second open and transaction timeouts.
+
+`tests/wallet-iframe/session.persistence.test.ts` runs against browser IndexedDB.
+It proves rollback after malformed data, legacy-row pruning on success, scoped
+wallet deletion, successful retirement, stale refresh rejection, store clearing,
+and the unavailable result with disabled persistence. Its receipt contains no
+operation credentials. The six authority-race browser cases and four production
+lifecycle cases also pass. Evidence:
+`evidence/refactor-170-session-transactions-20261005.json`.
 
 The existing SDK lifecycle stream reports session expiry and NEAR provisioning.
 It does not report every activation, lock, recovery, or revocation.

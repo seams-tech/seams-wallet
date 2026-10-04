@@ -252,6 +252,11 @@ the application's session projection. A closed connection clears that projection
 Delayed session-read responses cannot repopulate it. Router disposal is terminal;
 initializing a disposed router rejects the call.
 
+Clearing a wallet's persisted session credentials reads and deletes its keys in
+one transaction. It preserves other wallets' credentials. A corrupt session read
+or failed replacement rolls back any earlier deletions in that transaction.
+A refresh cannot recreate an exact credential that was already retired.
+
 A remote session-status response cannot make an older local authorization active
 again. After that response, the host rechecks the selected factor, lock generation,
 authority binding, exact session record, and operation credential. A changed binding
