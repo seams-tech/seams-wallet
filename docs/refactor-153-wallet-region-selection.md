@@ -140,6 +140,39 @@ presignature invalidation, cutover and relocation acceptance. Implement these no
 against revision 12; enable an executable move only after the relevant execution
 contracts and real relocation acceptance pass.
 
+## October 4 execution journal checkpoint
+
+Private commit `c0a57c6` implements persisted phase execution against the move
+contract. Migration 0071 adds CAS attempt claims, six-attempt retry budgets,
+1/2/4/8/16-second backoff, immediate blocking on identity/receipt/content conflicts,
+and recorded recovery runs. `ready` distinguishes an unclaimed stage from a
+running attempt. Restart, polling and duplicate commands cannot reset its budget.
+Current-attempt identity is required to advance each phase; a running attempt
+remains available for reconciliation after restart without a timer takeover.
+
+Source and destination receipts now bind a common manifest digest. Completion
+requires destination activation and source cleanup receipts with matching scope,
+generation and manifest and ordered timestamps. SQL rejects timestamp-only
+completion. Exact admission replay is resolved before new catalog validation.
+The migration requires an empty relocation journal under the planned test-wallet
+reset; no missing execution history or receipt is reconstructed.
+
+The directory E2E now covers competing/lost attempt claims, phase transitions,
+six transient failures with a mid-budget restart, early retry refusal, exhausted
+budget, stale attempts, explicit recovery, immediate conflict blocking, mismatched
+cleanup evidence, and lost completion reply followed by restart/replay. Both
+directory E2Es passed in 7.9 seconds. Candidate-backed TypeScript (including type
+fixtures), focused ESLint and diff checks passed. Private receipts are retained in
+`.artifacts/r153/execution-journal-20261004/`; relocation receipt SHA-256 is
+`02184ddd17816901bf2413115c35ca33a43bd90a269fedaeffb7f6990d8af555`.
+Repeat the earlier directory command with output `test-results/r153-execution`.
+
+This remains an internal journal implementation. Receipt parsers establish shape
+and binding consistency; real issuer authentication and durable role evidence
+remain unwired. Owner approval, authenticated status during pause, pinned role
+resources, the recovery coordinator, writer fences, import and cleanup producers
+are still required. No user relocation endpoint is enabled.
+
 ## Intent
 
 Add a Wallet region setting so an owner who expects to spend time in another
@@ -479,7 +512,8 @@ uses a new generation and fresh physical targets, retaining old retirement marke
 ### Crash recovery and bounded retries
 
 The durable phase describes authority; execution status describes progress within
-that phase. Use required discriminated status branches: `running`, `retry_wait`
+that phase. Use required discriminated status branches: `ready` for an unclaimed
+stage, `running` for a claimed attempt, `retry_wait`
 with an error code and server `retryAtMs`, or `blocked` with a stable error code.
 Completion has no retry status. Error text/logs do not drive phase transitions.
 
@@ -511,11 +545,13 @@ cooldown and two receipt envelopes. Extend those same modules during implementat
    `authorityId` currently proves no authorization. Pin the complete resource set.
 2. Serve authenticated status/replay during the pause, and move exact replay ahead
    of new-admission catalog validation. Keep no-op and conflict behavior distinct.
-3. Bind real source/destination manifests and authenticated participant evidence;
-   add activation/cleanup evidence before `complete`, which currently accepts a
-   timestamp alone. Synthetic directory-test receipts remain directory-only evidence.
-4. Persist execution status/retry budgets and enforce every effect fence. Keep
-   recovery commands internal; do not add a public cancellation endpoint.
+3. Produce real source/destination manifests and authenticate participant evidence.
+   The journal now requires manifest-bound activation/cleanup receipt envelopes
+   before `complete`; production evidence producers remain to be connected.
+   Synthetic directory-test receipts remain directory-only evidence.
+4. Connect the persisted execution status/retry budgets to the coordinator and
+   enforce every effect fence. Keep recovery commands internal; do not add a public
+   cancellation endpoint.
 5. Extend the existing type fixtures and E2E as each contract is implemented:
    reject forged approval, mismatched receipt kind/generation, mixed phase fields,
    broad state spreads and unsafe construction; exercise exact retries after proof
