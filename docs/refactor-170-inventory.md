@@ -802,3 +802,30 @@ source hashes are in `evidence/refactor-170-client-cutover-20261005.json`.
 Remaining acceptance includes protocol revision ordering, normalized client/host
 configuration, the complete worker loading and latency matrix, direct public
 account-sync coverage, R171 naming, and consumer/release integration.
+
+
+## Final cleanup inventory
+
+R170 is expected to reduce hand-maintained production code. This is not a numerical
+completion gate. Phase 5 in the plan owns the cleanup and its evidence. The following candidates remain open; audit callers before deletion.
+Preserve the supported explicit runtime entry and durable presignatures on lock.
+
+| Candidate | Current caller / responsibility | Replacement owner and deletion condition | Verification | Status |
+| --- | --- | --- | --- | --- |
+| `walletIframe/host/config-guards.ts` | Host context sanitizes client-shaped construction input | Required host configuration; delete empty-origin sanitization when host construction accepts its own resolved type | Config browser round trip, type fixtures, intended lifecycle | Open |
+| `core/config/configBuilder.ts`, `walletIframe/host/context.ts` | Client defaults are resolved, then host merges and resolves again | One boundary normalization with explicit client/host ownership; remove duplicate application of defaults | Field inventory, custom policy/route behavior, cosmetic-update session preservation | Open |
+| `core/browser/walletIframe/host-mode.ts` and callers | Process-wide execution-mode checks remain in host-internal paths | Explicit construction and operation ownership; remove callers that no longer distinguish supported behavior | Runtime entry checks, browser lifecycle, worker loading matrix | Open |
+| `SeamsWeb/publicApi`, `walletIframe/client`, `walletIframe/host` | Extracted factories, commands, callback adapters and facade assembly | Keep only layers with a distinct transport, identity, authorization, lifecycle, or public API role | Types, review/cancellation browser cases, intended signing/device/recovery flows | Open |
+| `walletIframe/coordinator.ts`, `client/router.ts`, `host/runtimeContext.ts` | Session and preference observations plus bootstrap reads | Versioned authoritative streams; delete superseded mirrors, fallback reads and subscriptions after protocol cutover | Bootstrap ordering, out-of-order reads, wallet switching, reconnect/disposal E2E | Open |
+| `SeamsWeb.ts`, React hooks, public exports and consumers | Existing names and connection wrappers await R171 migration | Final `auth`, `config`, and `connection` API; delete aliases and retired call paths after caller migration | External declarations, packed consumers, intended app | Open |
+| Warmup assembly and `core/signingEngine/workerManager` | Remaining preparation/readiness paths | Operation-owned initialization; remove redundant preparation and dead readiness helpers after evidence | Full worker/WASM matrix and first-use retry checks | Open |
+| Tests, fixtures, examples and documentation for replaced paths | Historical mixed-mode behavior and names | Current intended behavior and final API | Classify obsolete fixtures; run owning behavioral contracts | Open; counted separately |
+
+Line-count checkpoint through `914eaacb`: 6,064 production/package lines added,
+5,426 removed, net +638 across the 19 task-owned implementation/preparation commits.
+This uses cumulative Git numstat and includes package scripts. The final audit must
+exclude generated output, list the exact included commits, account for subsequent
+changes, and explain the resulting net production total. Necessary additions must
+have concrete responsibilities; remove redundant paths without gaming line counts.
+Concurrent relocation work is
+outside this count. Do not claim unique removed lines from cumulative diff totals.

@@ -832,7 +832,70 @@ Keep the full inventory size separate from each measured load. Compare the same
 operation before/after; do not claim a saving by omitting a required feature or
 delaying its download beyond the measurement window.
 
-### 5. Update consumers, documentation, and release inputs
+### 5. Remove obsolete and redundant production code
+
+R170 is expected to produce a **net reduction in hand-maintained production code**.
+This is a cleanup expectation, not a numerical pass/fail rule. A smaller application
+bundle alone does not demonstrate simpler source code. Complete
+this cleanup after the ownership cutover and before final consumer acceptance.
+Delete replaced paths during each task; this phase audits what remains.
+
+- [ ] Audit application and host construction together. Remove obsolete mixed-mode
+  branches, host-mode flags whose callers no longer need them, empty-origin
+  workarounds, unused constructor inputs, and dead initialization/disposal paths.
+  Preserve the supported explicit runtime entry through its direct construction.
+- [ ] Replace repeated configuration normalization and merging with the accepted
+  client/host boundary. Remove the old sanitizer, duplicate default application,
+  and input/resolved shape conversions once their callers use the new boundary.
+- [ ] Review each extracted command, facade, factory, and callback adapter.
+  Delete forwarding layers that add no identity, authorization, transport,
+  lifecycle, or public API responsibility. Consolidate duplicate implementation
+  inside the owning realm. Keep the application dependency graph execution-free.
+- [ ] Remove duplicate session/preference mirrors, repeated validation, obsolete
+  event subscriptions, and parallel startup or replay paths. Each operation must
+  have one authority owner and one execution path. Preserve exact-session binding,
+  cancellation, ordering, failure reporting, and durable presignature reuse.
+- [ ] Finish the R171 call-site migration and delete replaced public names,
+  logout aliases, unused exports, stale types, dead helpers, and retired modules.
+  Add no compatibility aliases or fallback execution paths.
+- [ ] Remove obsolete worker preparation and readiness paths after selective
+  first-use initialization is verified. Retain required ceremony dependencies,
+  retry semantics, and shared worker lifetime handling.
+- [ ] Delete stale tests, fixtures, mocks, and documentation for removed behavior.
+  Preserve tests for current invariants and regenerate generated artifacts through
+  their existing commands. Report these deletions separately from production code.
+- [ ] Review the resulting construction and operation paths for readability.
+  Remove abstractions that add more complexity than they remove. Do not compress
+  formatting, remove useful comments, weaken types, drop supported behavior, or
+  move execution back into the application to meet the line-count requirement.
+
+Maintain the cleanup inventory in `refactor-170-inventory.md`. For each remaining
+candidate, record its path, current caller, replacement owner, deletion condition,
+verification command, and status. A retained layer needs a concrete responsibility;
+file extraction or code movement alone does not count as simplification.
+
+Measure attributable R170/R171 changes against the implementation baseline before
+`0d45cb34` (`0d45cb34^`). Concurrent work on `dev` must be excluded using the explicit
+list of task-owned commits and any owned uncommitted changes. Report additions,
+deletions, and the net change for hand-maintained production source and scripts.
+Report tests, documentation, generated files, lockfiles, and build artifacts in
+separate categories. Moving or renaming files cannot create a claimed saving.
+
+The current committed checkpoint has 6,064 production/package lines added and
+5,426 removed across the 19 recorded implementation/preparation commits: **+638
+lines**, before the current configuration fixes. This is a checkpoint, not
+completion. Recalculate the final source-only total with generated output excluded.
+Use the final total to assess the cleanup. Investigate remaining growth and explain
+necessary additions by their concrete responsibility. Remove redundant code, while
+retaining useful boundaries, clear types, readable code, and supported behavior.
+Do not delete useful code merely to make the total negative.
+
+Deliverable: one clear client construction path, one clear host construction path,
+no obsolete parallel implementations, a resolved cleanup inventory, and an honest
+production-code change report. Explain any remaining net growth. Commit each
+completed cleanup task separately.
+
+### 6. Update consumers, documentation, and release inputs
 
 - Update Wallet examples, intended app, and public docs alongside the implementation.
   Change `docs/intended-behaviours.md` and its contracts for any intentional
@@ -902,6 +965,14 @@ Acceptance criteria:
    operation-specific downloads. Record reductions in worker/WASM transfer and
    first-sign latency separately from application-JavaScript savings; evaluate
    latency against the limits established before implementation.
+
+8. The cleanup phase is complete: obsolete and redundant paths are removed or
+   their retention is justified by a concrete current responsibility. The final
+   report lists task-owned commits, counting rules, additions, deletions, and net
+   production totals. Tests and documentation are separate. Net reduction is the
+   expected outcome, not a numerical gate; explain necessary remaining growth.
+   Bundle savings and file movement do not prove source simplification. Preserve
+   readability, supported behavior, and all other acceptance gates.
 
 Relevant existing commands, run from `seams-wallet`:
 
