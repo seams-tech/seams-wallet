@@ -1,0 +1,61 @@
+{
+  "scope": "Application device transport and host device execution separation; account-sync composition separation. Full client constructor cutover remains pending.",
+  "baseRevision": "067154c507073b4ad84a15d278df3414a09743fe",
+  "sourceSha256": {
+    "packages/wallet/src/SeamsWeb/SeamsWeb.ts": "9dd9253b70314b8c016339e1c497d5d8c0efd1253db638cf182f710734e4c47a",
+    "packages/wallet/src/SeamsWeb/operations/devices/linkDevice.ts": "680fa34a8a17f59444b5da3fe7da1d7d6260c3c0f542f1def20b724f4c1f4f3c",
+    "packages/wallet/src/SeamsWeb/publicApi/createPublicApi.ts": "2500ad9dd28a33e1f6fd73dd624c35ab8aa3b70de4570904a3239b629a47cda0",
+    "packages/wallet/src/SeamsWeb/publicApi/devices.ts": "68cae1a7888967a7dadf0d9a8987412e354f6e1032b8a7ce6e922cb1c8a8f151",
+    "packages/wallet/src/SeamsWeb/publicApi/index.ts": "0768c20c37fa767f5d1bf77df3da93a44488ac5b42d9c6d3034ea6372c6e0cf5",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/deviceCommands.ts": "ee88c36b6b49fd887d45169d8aaeac5801fca88d4e9bddc6c0891c9455548515",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/WalletHostRuntime.ts": "cb69e8b3f86cf6f6365f7551fb44e830c872fb7c4e80b9ff3ae1fcb48720ef8a",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/createDeviceDomain.ts": "04348f5dc7c9002a270b463155f02392846f16b5d839fc640c67b76024e5aec3",
+    "tests/typecheck/wallet-command-inputs.typecheck.ts": "da9a91033e6a2cc6af3f0a43fc604329c88fbccefbe41cbb2b404339d3aa1661"
+  },
+  "checks": {
+    "productionBuild": "passed",
+    "walletTypes": "passed",
+    "walletStateTypes": "passed",
+    "intendedTypes": "passed",
+    "bloatGate": "passed"
+  },
+  "browserCases": [
+    {
+      "case": "e2e/intended-behaviours/google-email-otp.recovery.contract.test.ts:66 a committed Google recovery survives a lost finalization response and runtime reset",
+      "result": "1 passed (35.7s)"
+    },
+    {
+      "case": "e2e/intended-behaviours/passkey.device-linking.contract.test.ts:115 a second device links with a passkey, signs NEAR and Tempo, and is revoked",
+      "result": "1 passed (35.9s)"
+    },
+    {
+      "case": "e2e/intended-behaviours/passkey.device-linking.contract.test.ts:271 a linked device links a third device, which signs NEAR and Tempo and exports both keys",
+      "result": "1 passed (41.0s)"
+    },
+    {
+      "case": "e2e/intended-behaviours/passkey.unlock.contract.test.ts:71 synced passkey cold unlock restores mixed-wallet signing from empty browser storage",
+      "result": "1 passed (30.9s)"
+    }
+  ],
+  "commandGraph": {
+    "entryPoints": [
+      "publicApi/createPublicApi.ts",
+      "walletIframe/client/deviceCommands.ts"
+    ],
+    "inputs": 77,
+    "executionInputs": [],
+    "artifact": ".artifacts/r170-device-commands/commands-metafile.json"
+  },
+  "limits": [
+    "The complete SeamsWeb constructor still builds signing infrastructure.",
+    "Empty-storage restoration verifies the hosted account-sync flow. It does not independently exercise the public recovery.syncAccount transport path."
+  ],
+  "reproduce": [
+    "pnpm -C packages/wallet build:prod",
+    "pnpm -C packages/wallet type-check",
+    "pnpm -C tests type-check:wallet-state",
+    "pnpm -C tests type-check:intended",
+    "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.device-linking.contract.test.ts e2e/intended-behaviours/passkey.unlock.contract.test.ts e2e/intended-behaviours/google-email-otp.recovery.contract.test.ts --grep 'a second device links with a passkey|a linked device links a third device,|synced passkey cold unlock|a committed Google recovery'",
+    "pnpm report:bloat --check"
+  ]
+}

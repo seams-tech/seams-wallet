@@ -1,3 +1,4 @@
+import { createApplicationDeviceCommands } from '@/SeamsWeb/walletIframe/client/deviceCommands';
 import { createApplicationNearCommands } from '@/SeamsWeb/walletIframe/client/nearCommands';
 import { createApplicationEvmFamilyCommands } from '@/SeamsWeb/walletIframe/client/evmFamilyCommands';
 import { resolvePrimaryNearRpcUrl } from '@/core/config/chains';
@@ -28,11 +29,7 @@ import {
   buildNearWalletRegistrationSignerSetSelection,
   resolvePasskeyRegistrationAccountProvisioning,
 } from '@/SeamsWeb/operations/registration/registrationSignerSet';
-import {
-  createPublicApi,
-  createWalletIframeLinkedDeviceManagementPortV1,
-  type WalletIframeControlCapability,
-} from '@/SeamsWeb/publicApi';
+import { createPublicApi, type WalletIframeControlCapability } from '@/SeamsWeb/publicApi';
 import {
   resolveConfiguredChainTarget,
   type EcdsaChainSelector,
@@ -86,7 +83,7 @@ import type {
   HostedAuthMenuSessionId,
   PreferencesChangedPayload,
 } from '@/SeamsWeb/walletIframe/shared/messages';
-import { createServerAllocatedWalletId } from '@shared/utils/registrationIds';
+import { createServerAllocatedWalletId, walletIdFromString } from '@shared/utils/registrationIds';
 /**
  * Main SeamsWeb class that provides framework-agnostic passkey operations
  * with flexible event-based callbacks for custom UX implementation
@@ -139,12 +136,7 @@ export class SeamsWeb {
       userPreferences: userPreferences,
       getAppearance: this.getAppearance.bind(this),
     });
-    const deviceDomain = {
-      kind: 'iframe' as const,
-      linkedDeviceManagement: createWalletIframeLinkedDeviceManagementPortV1({
-        walletIframe: this.walletIframe,
-      }),
-    };
+    const deviceDomain = createApplicationDeviceCommands(this.walletIframe);
     const registrationCommands = createApplicationRegistrationCommands(this.walletIframe);
     const sessionCommands = createApplicationSessionCommands(this.walletIframe);
     const emailOtpCommands = createApplicationEmailOtpCommands(
@@ -154,10 +146,8 @@ export class SeamsWeb {
     const publicApi = createPublicApi({
       createNearCommands: createApplicationNearCommands.bind(null, this.walletIframe, this.configs),
       createEvmFamilyCommands: createApplicationEvmFamilyCommands.bind(null, this.walletIframe),
-      signingEngine: this.signingEngine,
       nearClient: this.nearClient,
       configs: this.configs,
-      getTheme: this.getTheme.bind(this),
       userPreferences,
       getWalletIframe: this.getWalletIframe.bind(this),
       auth: {
@@ -171,6 +161,7 @@ export class SeamsWeb {
         registerPasskey: this.registerPasskeyDomain.bind(this),
       },
       recovery: {
+        syncAccount: this.syncAccountDomain.bind(this),
         getWalletRecoveryCodeStatus: this.getWalletRecoveryCodeStatusDomain.bind(this),
         acknowledgeWalletRecoveryCodeBackup:
           this.acknowledgeWalletRecoveryCodeBackupDomain.bind(this),
@@ -359,8 +350,15 @@ export class SeamsWeb {
     return this.appearance;
   }
 
-  private getTheme(): ThemeMode {
-    return this.theme;
+  private async syncAccountDomain(
+    args: Parameters<RecoveryCapability['syncAccount']>[0],
+  ): ReturnType<RecoveryCapability['syncAccount']> {
+    const walletId = args.walletId ? walletIdFromString(args.walletId) : null;
+    const router = await this.walletIframe.requireRouter(args.walletId);
+    return await router.syncAccount({
+      ...(walletId ? { walletId: String(walletId) } : {}),
+      onEvent: args.options?.onEvent,
+    });
   }
 
   private getWalletIframe(): WalletIframeCoordinator {

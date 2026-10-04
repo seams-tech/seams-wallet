@@ -1,14 +1,13 @@
 import type { BrowserSigningSurface } from '@/SeamsWeb/signingSurface/BrowserSigningSurface';
 import type { SeamsConfigsReadonly } from '@/core/types/seams';
-import type { DevicesCapabilityDomainMethods } from '@/SeamsWeb/publicApi/devices';
-import type { Variant } from '@shared/utils/variant';
+import type { DeviceCommands } from '@/SeamsWeb/publicApi/devices';
+import { DeviceLinkingDomain } from '@/SeamsWeb/operations/devices/linkDevice';
+import type { DeviceLinkingWebContext } from '@/SeamsWeb/signingSurface/types';
 import { IndexedDBManager } from '@/core/indexedDB';
 import { walletSessionAuthorizations } from '@/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
 import { createBrowserHostPlatformRuntime } from '@/SeamsWeb/assembly/createBrowserSigningRuntime';
 import { createWalletHostCompositionV1 } from '@/SeamsWeb/operations/devices/walletHostComposition';
-import {
-  createWalletHostOwnerAuthoritiesV1,
-} from '@/SeamsWeb/operations/devices/walletHostOwnerAuthority';
+import { createWalletHostOwnerAuthoritiesV1 } from '@/SeamsWeb/operations/devices/walletHostOwnerAuthority';
 import type {
   LinkSessionOwnerApprovalUpdatesPortV1,
   LinkSessionOwnerAuthenticatedRequestPortV1,
@@ -35,7 +34,7 @@ import type { DeviceLinkingSourceContributionPortV1 } from '@/SeamsWeb/operation
 const ecdsaCapabilityManifestStore = new IndexedDbEcdsaCapabilityManifestStore();
 
 type WalletHostDeviceDomain = {
-  readonly domain: Variant<DevicesCapabilityDomainMethods, 'kind', 'direct'>;
+  readonly domain: DeviceCommands;
   readonly resumePendingAcknowledgementsV1: () => Promise<void>;
   readonly dispose: () => void;
 };
@@ -43,6 +42,7 @@ type WalletHostDeviceDomain = {
 export function createWalletHostDeviceDomain(args: {
   readonly configs: SeamsConfigsReadonly;
   readonly signingEngine: BrowserSigningSurface;
+  readonly getContext: () => DeviceLinkingWebContext;
 }): WalletHostDeviceDomain {
   const relayerUrl = String(args.configs.network.relayer?.url || '').trim();
   const platform = createBrowserHostPlatformRuntime(args.signingEngine.getSignerWorkerContext());
@@ -85,14 +85,18 @@ export function createWalletHostDeviceDomain(args: {
     nowMs: Date.now,
     pollIntervalMs: 1_000,
   });
+  const deviceLinking = new DeviceLinkingDomain({
+    getContext: args.getContext,
+    ports: composition.deviceLinkingPorts,
+  });
   return {
     domain: {
-      kind: 'direct',
       linkedDeviceManagement: composition.linkedDeviceManagement,
-      deviceLinkingPorts: composition.deviceLinkingPorts,
+      startDevice2LinkingFlow: deviceLinking.startDevice2LinkingFlow.bind(deviceLinking),
+      cancelDeviceLinking: deviceLinking.cancelDeviceLinking.bind(deviceLinking),
+      scanAndLinkDevice: deviceLinking.scanAndLinkDevice.bind(deviceLinking),
     },
-    resumePendingAcknowledgementsV1:
-      composition.deviceLinkingPorts.resumePendingAcknowledgementsV1,
+    resumePendingAcknowledgementsV1: composition.deviceLinkingPorts.resumePendingAcknowledgementsV1,
     dispose: composition.dispose,
   };
 }

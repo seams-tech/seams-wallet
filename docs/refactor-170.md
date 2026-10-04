@@ -610,8 +610,10 @@ commands. Public factories retain subject selection and transaction broadcasting
 Application commands own iframe transport; host commands own execution. The
 command inputs require resolved wallet and chain/account identities.
 
-The public-client dependency gate remains open. Device linking, account sync, and
-the coordinator still retain execution infrastructure in the application. Preference
+Device linking and account sync also have explicit application and host owners.
+The shared public API no longer requires a signing engine or constructs a host
+execution domain. The public-client dependency gate remains open: the application
+constructor and coordinator still retain execution infrastructure and preferences. Preference
 synchronization, protocol ordering, complete selective-loading evidence, and
 consumer/release acceptance remain unfinished. See `refactor-170-inventory.md`
 for implementation and verification checkpoints.

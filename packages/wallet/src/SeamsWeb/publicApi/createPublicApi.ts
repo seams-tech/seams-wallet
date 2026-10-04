@@ -1,15 +1,12 @@
 import type { NearClient } from '@/core/rpcClients/near/NearClient';
 import type { UserPreferencesManager } from '@/core/signingEngine/session/userPreferences';
-import type { SeamsConfigsReadonly, ThemeMode } from '@/core/types/seams';
+import type { SeamsConfigsReadonly } from '@/core/types/seams';
 import { awaitNearReady } from '@/SeamsWeb/publicApi/awaitNearReady';
 import {
   createCurrentWalletResolver,
   type CurrentWalletResolver,
 } from '@/SeamsWeb/publicApi/currentWallet';
-import {
-  createDevicesCapability,
-  type DevicesCapabilityDomainMethods,
-} from '@/SeamsWeb/publicApi/devices';
+import { createDevicesCapability, type DeviceCommands } from '@/SeamsWeb/publicApi/devices';
 import { createEvmSignerCapability } from '@/SeamsWeb/publicApi/evm';
 import {
   createKeyExportCapability,
@@ -17,15 +14,9 @@ import {
 } from '@/SeamsWeb/publicApi/keyExport';
 import { createNearSignerCapability } from '@/SeamsWeb/publicApi/near';
 import { createPreferencesCapability } from '@/SeamsWeb/publicApi/preferences';
-import {
-  createRecoveryCapability,
-  type RecoveryCapabilityDomainMethods,
-} from '@/SeamsWeb/publicApi/recovery';
 import { createTempoSignerCapability } from '@/SeamsWeb/publicApi/tempo';
 import type {
-  AccountSyncWebContext,
   AuthCapability,
-  DeviceLinkingWebContext,
   DevicesCapability,
   EvmSignerCapability,
   KeyExportCapability,
@@ -42,10 +33,6 @@ import type { TransactionReviewReservation } from '../walletIframe/client/transa
 import type { CreateEvmFamilyCommands } from './evmFamilyCommands';
 import type { CreateNearCommands } from './nearCommands';
 import { registerTransactionReviewBridge } from './transactionReview';
-type WalletIframeRoutingSurface = Pick<
-  WalletIframeCoordinator,
-  'shouldUseWalletIframe' | 'requireRouter'
->;
 export interface WalletIframeControlCapability {
   initWalletIframe(walletId?: string): Promise<WalletIframeExactSessionState>;
   isWalletIframeReady(): boolean;
@@ -74,14 +61,6 @@ export type RegistrationCapabilityDomainMethods = WalletRegistrationCommands & {
   enrollEmailOtp: RegistrationCapability['enrollEmailOtp'];
 };
 export type KeyExportCapabilityDomainMethods = KeyExportDomainMethods;
-function createWalletIframeRoutingSurface(
-  getWalletIframe: () => WalletIframeCoordinator,
-): WalletIframeRoutingSurface {
-  return {
-    shouldUseWalletIframe: () => getWalletIframe().shouldUseWalletIframe(),
-    requireRouter: async (walletId?: string) => await getWalletIframe().requireRouter(walletId),
-  };
-}
 export type SeamsWebPublicApi = {
   auth: AuthCapability;
   registration: RegistrationCapability;
@@ -94,43 +73,22 @@ export type SeamsWebPublicApi = {
   evm: EvmSignerCapability;
   walletIframeControls: WalletIframeControlCapability;
 };
-type PublicApiSigningSurface = AccountSyncWebContext['signingEngine'] &
-  DeviceLinkingWebContext['signingEngine'];
 type PublicApiDependencies = {
   createNearCommands: CreateNearCommands;
   createEvmFamilyCommands: CreateEvmFamilyCommands;
-  signingEngine: PublicApiSigningSurface;
   nearClient: NearClient;
   configs: SeamsConfigsReadonly;
-  getTheme: () => ThemeMode;
   userPreferences: UserPreferencesManager;
   getWalletIframe: () => WalletIframeCoordinator;
   auth: AuthCapability;
   registration: RegistrationCapabilityDomainMethods;
-  recovery: RecoveryCapabilityDomainMethods;
-  devices: DevicesCapabilityDomainMethods;
+  recovery: RecoveryCapability;
+  devices: DeviceCommands;
   keys: KeyExportCapabilityDomainMethods;
 };
 export function createPublicApi(deps: PublicApiDependencies): SeamsWebPublicApi {
-  const getAccountSyncContext = (): AccountSyncWebContext => ({
-    signingEngine: deps.signingEngine,
-    nearClient: deps.nearClient,
-    configs: deps.configs,
-    theme: deps.getTheme(),
-  });
-  const getDeviceLinkingContext = (): DeviceLinkingWebContext => ({
-    signingEngine: deps.signingEngine,
-    nearClient: deps.nearClient,
-    configs: deps.configs,
-    theme: deps.getTheme(),
-  });
-  const walletIframeRoutingSurface = createWalletIframeRoutingSurface(deps.getWalletIframe);
   const auth = deps.auth;
-  const devices = createDevicesCapability({
-    getContext: getDeviceLinkingContext,
-    walletIframe: walletIframeRoutingSurface,
-    domain: deps.devices,
-  });
+  const devices = createDevicesCapability(deps.devices);
   // Defaults for calls that do not name a wallet come from the authenticated
   // session, never from the `preferences` current-wallet mirror.
   const currentWallet: CurrentWalletResolver = createCurrentWalletResolver({
@@ -191,11 +149,7 @@ export function createPublicApi(deps: PublicApiDependencies): SeamsWebPublicApi 
       requestEmailOtpEnrollmentChallenge: deps.registration.requestEmailOtpEnrollmentChallenge,
       enrollEmailOtp: deps.registration.enrollEmailOtp,
     },
-    recovery: createRecoveryCapability({
-      getContext: getAccountSyncContext,
-      walletIframe: walletIframeRoutingSurface,
-      domain: deps.recovery,
-    }),
+    recovery: deps.recovery,
     devices,
     keys: createKeyExportCapability({
       configs: deps.configs,

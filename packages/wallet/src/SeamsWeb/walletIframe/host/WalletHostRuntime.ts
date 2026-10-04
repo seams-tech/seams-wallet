@@ -1,3 +1,4 @@
+import { syncAccount } from '@/SeamsWeb/operations/recovery/syncAccount';
 import { createWalletHostNearCommands } from '@/SeamsWeb/walletIframe/host/createNearCommands';
 import { createWalletHostEvmFamilyCommands } from '@/SeamsWeb/walletIframe/host/createEvmFamilyCommands';
 import { resolvePrimaryNearRpcUrl } from '@/core/config/chains';
@@ -100,7 +101,7 @@ import {
   resolveRuntimeAppearance,
   SeamsWebPrewarmOptions,
 } from '@/SeamsWeb/walletIframe/shared/facadeBoundary';
-import { createServerAllocatedWalletId } from '@shared/utils/registrationIds';
+import { createServerAllocatedWalletId, walletIdFromString } from '@shared/utils/registrationIds';
 function reportWalletRecoveryStartupResult(result: WalletRecoveryResumeResult): void {
   switch (result.kind) {
     case 'completed':
@@ -194,6 +195,7 @@ export class WalletHostRuntime {
     const deviceDomain = createWalletHostDeviceDomain({
       configs: this.configs,
       signingEngine: browserSigningSurface,
+      getContext: this.getContext.bind(this),
     });
     this.deviceLinkingDispose = deviceDomain.dispose;
     this.resumePendingAcknowledgementsV1 = deviceDomain.resumePendingAcknowledgementsV1;
@@ -217,10 +219,8 @@ export class WalletHostRuntime {
         null,
         this.getContext.bind(this),
       ),
-      signingEngine: this.signingEngine,
       nearClient: this.nearClient,
       configs: this.configs,
-      getTheme: this.getTheme.bind(this),
       userPreferences,
       getWalletIframe: this.getWalletIframe.bind(this),
       auth: {
@@ -234,6 +234,7 @@ export class WalletHostRuntime {
         registerPasskey: this.registerPasskeyDomain.bind(this),
       },
       recovery: {
+        syncAccount: this.syncAccountDomain.bind(this),
         getWalletRecoveryCodeStatus: this.getWalletRecoveryCodeStatusDomain.bind(this),
         acknowledgeWalletRecoveryCodeBackup:
           this.acknowledgeWalletRecoveryCodeBackupDomain.bind(this),
@@ -414,8 +415,11 @@ export class WalletHostRuntime {
     return this.appearance;
   }
 
-  private getTheme(): ThemeMode {
-    return this.theme;
+  private async syncAccountDomain(
+    args: Parameters<RecoveryCapability['syncAccount']>[0],
+  ): ReturnType<RecoveryCapability['syncAccount']> {
+    const walletId = args.walletId ? walletIdFromString(args.walletId) : null;
+    return await syncAccount(this.getContext(), walletId ? String(walletId) : null, args.options);
   }
 
   private getWalletIframe(): WalletIframeCoordinator {

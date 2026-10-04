@@ -686,3 +686,31 @@ empty-storage restoration, and interrupted-unlock retry. Six Chromium review
 cases cover reserved approval, callbacks, cancellation, session replacement,
 and disposal during signing. Sanitized results and source hashes are recorded
 in `evidence/refactor-170-signer-commands-20261005.json`.
+
+### Device linking and account-sync separation
+
+Device linking now receives explicit commands. The application implementation
+only dispatches iframe requests. The host owns QR flow state, owner cancellation,
+authenticated linking ports, and acknowledgement replay. Shared management methods
+retain the existing request/result parsers. The obsolete direct/iframe domain union
+and its source-local type fixture were removed. Replacement fixtures in the tests
+workspace require authenticated host ports and complete device commands.
+
+Account sync now binds a transport implementation on the application and the existing
+execution operation on the host. The mixed account-sync wrapper and forwarding-only
+recovery factory were deleted. `createPublicApi` no longer accepts a signing engine
+or constructs execution contexts.
+
+A production browser bundle graph of `createPublicApi.ts` and application device
+commands contains 77 inputs, with no IndexedDB, custody, or worker-manager modules.
+The graph is `.artifacts/r170-device-commands/commands-metafile.json`. This covers
+shared public API construction only. `SeamsWeb` still constructs signing stores,
+a signing surface, and execution-owned preferences. Coordinator and preference
+separation remain required before removing that construction.
+
+Verification passed: production build, Wallet/intended/state type checks, and the
+bloat gate. Four production cases cover recovery after lost finalization, second-
+and third-device linking with signing/export/revocation, and empty-storage restore.
+The restore case uses the hosted auth flow; separate acceptance of the public
+`recovery.syncAccount` transport remains pending. Sanitized results and source hashes
+are in `evidence/refactor-170-device-commands-20261005.json`.

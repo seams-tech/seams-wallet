@@ -18,3 +18,18 @@ near.executeAction({ ...nearInput, nearAccount: undefined });
 evm.signEvmFamily(missingEvmSubject);
 // @ts-expect-error Signing commands require a concrete chain target.
 evm.signEvmFamily({ ...evmInput, chainTarget: undefined });
+
+import {
+  createDevicesCapability,
+  type DeviceCommands,
+} from '../../packages/wallet/src/SeamsWeb/publicApi/devices';
+import { DeviceLinkingDomain } from '../../packages/wallet/src/SeamsWeb/operations/devices/linkDevice';
+import type { DeviceLinkingWebContext } from '../../packages/wallet/src/SeamsWeb/signingSurface/types';
+declare const devices: DeviceCommands;
+declare const getContext: () => DeviceLinkingWebContext;
+// @ts-expect-error Host linking requires authenticated ports.
+new DeviceLinkingDomain({ getContext });
+// @ts-expect-error Every device facade requires a cancellation command.
+createDevicesCapability({ ...devices, cancelDeviceLinking: undefined });
+// @ts-expect-error Device inventory cannot own an implicit unlock path.
+createDevicesCapability({ ...devices, ownerSessionRenewal: {} });
