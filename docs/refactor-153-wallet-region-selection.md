@@ -66,6 +66,36 @@ and composed linked-device installation. These prevent enabling a general transf
 and cutover today. Continue independent implementation against this journal; close
 those ownership and execution contracts before connecting an executable move.
 
+## October 4 readiness review
+
+Reviewed public revision `e10c1eaa` and private revision `561b0b9`. R152 now provides
+enough verified local composition to resume R153 implementation. Its final
+ownership audit and hosted acceptance remain open. Executable relocation remains
+unwired until the transfer and fencing contracts below are verified.
+
+| Dependency | Current evidence and consequence |
+| --- | --- |
+| Runtime identity home enforcement | Implemented in private `09626d8`. Console partitions mixed-wallet reads by home; direct Runtime reads verify authoritative placement. The former local-read bypass is closed. |
+| Real linked-device installation | The all-home local matrix verifies production registration, cryptographic installation, NEAR/Tempo signing, home-only durable records and transient cleanup. Lost activation/acknowledgement replies and full Gateway/Console/role Worker restarts also pass. The earlier synthetic-source-only limitation is superseded for these scenarios. |
+| Composed regional lifecycle acceptance | Mixed-home wallets in one namespace, passkey and Email OTP founding registration, recovery, unlock, exports, concurrent signing, replay and process restarts have retained local receipts. Independent geographic role placement, transaction crashes and hosted acceptance remain open. |
+| Transfer selectors and complete material ownership | Still open. The frozen inventory continues to mark ordinary-operation and opaque-record selectors as blocked, and requires full DO/Container material accounting. R153 must close these extraction contracts before copying a wallet. |
+| Relocation writer fencing | Still open. Deferred continuation routing establishes its fixed home; it does not fence a queued Deriver execution or NEAR side-effect commit after ownership changes. R153 must connect generations and source quiescence to every relevant effect boundary. |
+
+The [latest R152 lifecycle/restart evidence](refactor-152-results.md#october-4-recovery-and-linked-device-replay-after-local-role-worker-restarts)
+uses one shared local role stack. Verified receipt hashes include mixed-home
+passkey recovery `8eb28b58458ea8d9c33082fb2d2cdf03c7b1a964d28d32a844f78d555ddce528`
+and APAC linked installation
+`ee4b1129ea4dbf680964b15e8625bc2b72ac8656018b601f40fb998b42047f81`.
+The [Email OTP founding-registration/recovery checkpoint](refactor-152-results.md#october-4-email-otp-founded-wallets-retain-regional-ownership-through-recovery)
+adds receipt `4221cccdd7c8a5770915f607f5585c61d8662740da7b81c802024392cb77faf5`.
+These files were present and their hashes matched during this review; no scenarios
+were rerun for the documentation update.
+
+Resume with exact extraction/import ownership and generation fencing against the
+committed relocation journal. Keep owner-triggered transfer and cutover unwired
+until those contracts and real relocation acceptance pass. Full R152 performance
+and hosted-release work can proceed separately from this implementation.
+
 ## Intent
 
 Add a Wallet region setting so an owner who expects to spend time in another
@@ -219,14 +249,15 @@ historical-state restoration, and device cache reconciliation. This assessment
 depends on the assembled signing/fault tests; successful row copying alone does
 not establish safe relocation.
 
-R152 is an explicit dependency. Its directory foundation exists, but its active
-plan still leaves hosted per-wallet routing and shared-authority integration
-open. Before integrating an executable move:
+R152 supplies implemented home routing and verified local composition. Exact
+transfer ownership and execution coverage remain dependencies. Before integrating
+an executable move:
 
-- [ ] Freeze R152's [wallet/shared ownership inventory](refactor-152-per-wallet-inventory.md),
-  including indirect children, opaque credential locators, one-use objects,
-  deferred work, and tenant-root references. Shared identity bindings should
-  continue resolving to the same wallet through the updated directory.
+- [x] Freeze R152's [wallet/shared ownership inventory](refactor-152-state-ownership.md),
+  accounting for 56 signer and 84 shared Console tables. This freezes the inventory
+  snapshot; blocked selectors and incomplete DO/Container ownership remain open.
+  Shared identity bindings should continue resolving to the same wallet through
+  the updated directory.
 - [ ] Establish R152's trusted wallet-home execution context across Gateway,
   Wallet Runtime, role RPCs, and background work, plus the admitted regional
   resource catalog. Extend these contracts for relocation.
