@@ -23,21 +23,83 @@ Console accounts, billing, credentials and custody configuration unless their
 reset is explicitly included in the reviewed reset scope. This plan authorizes
 no immediate data deletion or deployment.
 
-### Measured performance baseline to preserve
+### Recorded latency gains and travel baseline (October 4)
 
-The [consolidated empirical summary](refactor-152-results.md#consolidated-performance-summary-october-2)
-records the observed regional-placement gains, sample sizes, tail latencies,
-D1/SQL breakdowns and limitations. London steady owner signing improved from
-2.4451 to 0.8501 seconds median; Tokyo from 2.96895 to 1.68995 seconds median,
-with 180 verified ready-material signatures in each city. London's smaller
-first-sign/burst diagnostic improved medians from 4.8396 to 1.1519 seconds and
-7.8671 to 1.3336 seconds respectively.
+The controlled October 1–2 placement comparisons reduced median steady signing
+latency by **43–65%**. London's first-sign and concurrent-burst diagnostics
+improved by **76–83%**. These paired gains apply to the recorded experimental
+topologies; the completed per-wallet implementation has separate hosted travel
+acceptance below. Keep these cohorts separate when comparing future releases.
+The [consolidated empirical results](refactor-152-results.md#consolidated-performance-summary-october-2)
+retain source identities, raw evidence, reproduction commands and failure ledgers.
 
-These are baselines for the new per-wallet implementation. Keep the static
-Console, published-server hosted Console and unreleased-candidate measurements
-separate. R6 must measure the completed hosted route across wallet homes and
-travel locations with frozen sources, explicit call budgets and retained failures.
-The earlier measurements do not close that acceptance gate or justify release.
+| Workload | Remote D1 median | Regional D1 median | Median reduction |
+| --- | ---: | ---: | ---: |
+| London owner signing, ready material | APAC 2.4451s | WEUR 0.8501s | 65.2% |
+| London linked-device signing, ready material | APAC 2.2404s | WEUR 0.7986s | 64.4% |
+| London immediate first signature | APAC 4.8396s | WEUR 1.1519s | 76.2% |
+| London concurrent burst | APAC 7.8671s | WEUR 1.3336s | 83.0% |
+| Tokyo owner signing, ready material | WEUR 2.96895s | APAC 1.68995s | 43.1% |
+| Tokyo linked-device signing, ready material | WEUR 2.61425s | APAC 1.44755s | 44.6% |
+
+Each city's repeated steady-signing comparison verified **180 signatures across
+20 fresh wallets**, with 30 owner and 60 linked signatures per arm. London owner
+p95 fell **2.6384 → 0.9427s**, and linked p95 **2.4577 → 0.9270s**. Tokyo owner
+p95 fell **3.1736 → 2.0656s**, and linked p95 **2.9706 → 1.6371s**. London had no
+failed/incomplete attempts; one additional Tokyo WEUR attempt lost its result
+during collection and is excluded from the distribution. Repeated signatures
+within a wallet are correlated.
+
+The smaller London first-sign/burst diagnostic verified **30 additional
+signatures across six fresh wallets**: three timed first signs and six timed
+burst signatures per arm. First-sign and burst median speedups were **4.2×** and
+**5.9×**; the maximum observed WEUR burst was **2.0172s**. Faster background refill
+contributed: the remote APAC arm needed seven or eight foreground refill steps
+per burst; WEUR needed none. The sample supports the recorded gain, with no
+universal two-second latency guarantee.
+[First-sign/burst evidence](refactor-152-results.md#london-first-sign-and-concurrent-burst-diagnostic).
+
+Most savings came from reduced D1 waiting. Summed owner D1 wall medians fell
+**1,762.5 → 114ms in London** and **1,929 → 564ms in Tokyo**; SQL execution
+medians remained approximately 10–17ms. The repeated steady comparisons retained
+the same measured D1-call budgets: seven owner calls and five linked calls.
+Call/write reduction remains the separately planned optimization.
+
+#### Completed per-wallet hosted travel measurements
+
+October 4 hosted acceptance verified **12 Tempo travel signatures per wallet
+home**, plus NEAR and concurrent Tempo/Arc signing. Three concurrent registrations
+under one namespace selected independent US/WEUR/APAC homes. The table measures
+the sum of the sequential signing prepare and execute requests inside physical
+regional Containers, excluding the browser-to-probe hop.
+
+| Fixed wallet home | Client location | Samples | Median prepare + execute | Observed range |
+| --- | --- | ---: | ---: | ---: |
+| APAC | Hong Kong (`hkg12`) | 6 | 1.789s | 1.695–1.869s |
+| APAC | Madrid (`mad01`) | 3 | 2.194s | 2.169–2.253s |
+| APAC | Chicago (`ord16`) | 3 | 2.184s | 2.158–2.206s |
+| WEUR | Madrid (`mad01`) | 6 | 3.733s | 3.452–4.054s |
+| WEUR | Chicago (`ord16`) | 3 | 3.544s | 3.513–3.826s |
+| WEUR | Tokyo (`nrt14`) | 3 | 3.455s | 3.406–3.549s |
+
+The APAC cohort's remote-client median penalty was approximately **0.40s** for
+the two signing requests combined. The WEUR cohort observed comparable backend
+times across locations; its small sample does not establish a location ranking.
+The WEUR wallet retained identical before/after directory records. The APAC run
+verified its final home, while its before snapshot belonged to a failed attempt.
+
+These are backend travel measurements, with Gateway/custody processing included.
+Native full-browser travel latency and isolated hosted D1 time remain outside
+this timing evidence. Earlier paired placement comparisons, these travel cohorts
+and the published 0.8.0 package acceptance have distinct build identities.
+Both travel cohorts recorded four background refill 503 responses while all
+measured signing requests returned 200 and verified. The later controlled
+retired-session refill correction and its hosted verification are recorded in
+[the release review](refactor-152-release-review.md); historical 503s lack evidence
+attributing every occurrence to that cause.
+
+[WEUR travel sources and evidence](refactor-152-results.md#october-4-hosted-regional-registration-and-weur-wallet-travel)
+· [APAC travel sources and evidence](refactor-152-results.md#october-4-apac-home-hosted-travel-mirror).
 
 ### Current closure and remaining gates (October 4)
 
