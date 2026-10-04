@@ -47,7 +47,7 @@ wallet. See [tenant-root backups](/deploy-and-operate/tenant-root-backups).
 1. Router cannot sign by itself.
 2. A single Deriver cannot derive the full server contribution by itself.
 3. SigningWorker cannot export wallet keys.
-4. App-origin code receives public results and explicit export results only.
+4. App-origin code receives public results; exported keys stay in the wallet-origin viewer.
 5. Agents and linked devices receive lane-scoped authority.
 6. Revocation, expiry, and budget exhaustion are checked before signing work.
 

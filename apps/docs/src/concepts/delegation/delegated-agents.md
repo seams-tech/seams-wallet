@@ -5,6 +5,9 @@ description: Give agents bounded signing lanes tied to explicit mandates, expiry
 
 # Delegated agents
 
+Agent-lane issuance is planned; it is not a public Wallet SDK 0.8.0 API.
+The flow below describes its intended authorization and custody boundaries.
+
 Delegated agents receive bounded signing lanes. The lane is tied to mandate
 policy, typed intent checks, budget, expiry, revocation state, and audit
 requirements.

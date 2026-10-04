@@ -5,6 +5,9 @@ description: Treat VoiceID as a consented owner-presence signal within threshold
 
 # VoiceID
 
+This page describes a proposed authorization method. Wallet SDK 0.8.0 does not
+expose VoiceID enrollment or authentication APIs.
+
 VoiceID is an owner-presence signal. Threshold signing and policy are the
 signing controls.
 

@@ -12,17 +12,22 @@ origin, relayer URL, and managed-registration credentials.
 ## 1. Install the SDK
 
 ```sh
-pnpm add @seams/wallet
+pnpm add @seams/wallet@0.8.0
 ```
 
 ## 2. Mount the provider
 
 Configure the isolated wallet origin once near the root of your app.
-`seamsTestnetConfig` takes the four values a wallet cannot start without and
+`seamsTestnetConfig` takes the three values a wallet cannot start without and
 fills in the rest from the SDK defaults. The example reads them from
 `import.meta.env`; use the same names in your own environment or replace them
 with your config loader. Pass `chains` to configure different networks, or use
 `defineSeamsConfig` when you are not on testnet.
+
+These docs target `@seams/wallet` **0.8.0**. Keep the wallet-origin assets and
+`@seams/wallet-server` on the matching release. See
+[upgrading to 0.8.0](/deploy-and-operate/hosted-integration#upgrading-to-0-8-0)
+before updating an existing integration.
 
 <<< ./examples/setup.tsx
 
@@ -41,7 +46,7 @@ and retry guidance.
 
 ## 4. Sign a transaction
 
-Registration leaves the wallet ready to sign. `useWallet()` gives you the
+After the requested signer is ready, `useWallet()` gives you the
 signed-in wallet with signing bound to it, so a call names only the
 transaction. Each request opens the wallet confirmation, and the user approves
 that transaction with the wallet's auth method.

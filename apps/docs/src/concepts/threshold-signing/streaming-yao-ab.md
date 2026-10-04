@@ -10,12 +10,16 @@ Deriver A garbles one fixed circuit and Deriver B evaluates it. The circuit
 computes the export-compatible Ed25519 derivation while neither Deriver learns
 the joined seed, scalar, or signing outputs.
 
-The deployed P0 profile uses the reviewed free-XOR/half-gates construction in
-separate Deriver Workers connected by a Service Binding WebSocket. Its release
+The construction uses free-XOR/half-gates with separated Deriver roles. Its release
 claim is passive, honest execution with abort: the roles remain isolated while
 the shared Cloudflare account control plane remains honest. Stronger active
 security and independently administered Deriver accounts remain deferred
 profiles and are not implied by the deployed benchmark.
+
+The 0.8.0 hosted stack runs native Rust compute in Containers behind Worker and
+Durable Object boundaries. The July Worker/WebSocket measurements below are
+historical implementation benchmarks, not current end-to-end wallet latency
+or Container billing estimates.
 
 ## When Yao runs
 
@@ -46,7 +50,7 @@ flowchart TD
   Router["Router authenticates, authorizes,<br/>rate-limits, and prevents replay"]
   A["Deriver A<br/>fixed garbler"]
   B["Deriver B<br/>fixed evaluator"]
-  Stream["Active OT and control<br/>stream authenticated circuit chunks"]
+  Stream["OT and control<br/>stream authenticated circuit chunks"]
   Output["A and B create separate<br/>recipient-encrypted output shares"]
   Verify["Recipient verifies private shares,<br/>public relation, and transcript receipt"]
   Activate["SigningWorker activates<br/>server signing material"]
@@ -85,8 +89,8 @@ sequenceDiagram
   end
   A->>B: Reserve paired one-use ticket
   B-->>A: Reservation acknowledgement
-  A->>B: Active OT, commitments, and control
-  B-->>A: Active-protocol response
+  A->>B: OT, commitments, and control
+  B-->>A: Protocol response
   A->>B: Stream authenticated garbled-circuit chunks
   Note over A,B: B authenticates and evaluates incrementally<br/>while A garbles with backpressure
   B-->>A: B digest + opaque A-output labels
@@ -104,7 +108,7 @@ sequenceDiagram
   R-->>C: Client-recipient packages + terminal receipt
 ```
 
-The exact A/B request graph is frozen with the selected active-security suite.
+The exact A/B request graph is fixed by the selected protocol artifacts.
 The design target is one A/B round trip, with two to four sequential A/B round
 trips accepted. Circuit chunks belong to one streaming request and do not each
 create another round trip.
@@ -151,8 +155,8 @@ sequenceDiagram
 ## Compute and embedded clients
 
 Streaming Yao is compute-intensive on A and B. Its dominant operations are
-symmetric-key hashes, XORs, OT, transcript authentication, and active-security
-checks over a fixed circuit. Streaming controls peak memory and overlaps
+symmetric-key hashes, XORs, OT, and transcript checks over a fixed circuit.
+Streaming controls peak memory and overlaps
 garbling, transfer, and evaluation. It does not reduce the total cryptographic
 work.
 
@@ -213,7 +217,7 @@ rather than deployed latency claims:
 
 The canonical benchmark sources are checked in with the implementation:
 
-- [deployed Cloudflare release evidence](https://github.com/seams-tech/seams-wallet/blob/main/docs/router-ab/ed25519-yao/deployment.md)
+- [current Cloudflare deployment topology](https://github.com/seams-tech/seams-wallet/blob/main/docs/router-ab/deployment.md)
 - [local lifecycle latency report](https://github.com/seams-tech/seams-wallet/blob/main/crates/router-ab-dev/reports/ed25519-yao-local-latency-v1.json)
 - [same-account Worker benchmark report](https://github.com/seams-tech/seams-wallet/blob/main/crates/ed25519-yao/docs/phase9b-same-account-report.md)
 
@@ -257,6 +261,10 @@ security, malicious-secure OT, input consistency, and authenticated private
 outputs belong to a stronger future profile.
 
 ## Cost model
+
+The following estimate applies to the historical Worker benchmark. Current
+hosted 0.8.0 costs also include DO/Container compute, regional D1, and backup
+storage and requests. Measure those separately for the actual deployment.
 
 The July 10, 2026 planning snapshot for Cloudflare Workers Standard assumes a
 `$5` monthly minimum per paid account, included request and CPU allowances,

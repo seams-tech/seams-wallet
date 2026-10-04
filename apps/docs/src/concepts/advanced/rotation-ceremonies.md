@@ -55,9 +55,10 @@ cryptographic-erasure claims require independently verified key destruction.
 
 ## Availability
 
-R120's refresh implementation is complete. Deployment of its hourly throttle
-and the full public release proof remain pending. The dashboard, fresh
-step-up, progress, and scheduler have local operating evidence. See
+Tenant-root refresh is included in Wallet Server 0.8.0. Verify the hourly
+admission policy, dashboard step-up, progress, scheduler, and recovery custody
+in the deployed environment. SDK publication does not establish those operating
+paths. See
 [recovery and portability](/deploy-and-operate/recovery-and-portability) for
 hosted rollout and recovery delivery gates.
 

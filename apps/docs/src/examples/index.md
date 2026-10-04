@@ -15,10 +15,14 @@ Install the SDK and configure the wallet origin, relayer, and registration
 environment variables used by your app.
 
 ```sh
-pnpm add @seams/wallet
+pnpm add @seams/wallet@0.8.0
 ```
 
 <<< ./setup.tsx
+
+The examples target release **0.8.0**. The setup configures NEAR and Tempo
+testnets; the Ethereum Sepolia example requires adding that chain as shown in
+the [signing guide](/examples/signing#execute-an-evm-family-transaction).
 
 The setup example keeps the provider at the application boundary. Render your
 wallet UI inside `SeamsWebProvider`, then pass the `seams` instance and the

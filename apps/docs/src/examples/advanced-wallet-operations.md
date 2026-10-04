@@ -31,6 +31,10 @@ revoked later.
 
 Call recovery synchronization with the wallet id from the account record.
 
+This synchronizes account state for a known wallet. The hosted wallet menu
+handles recovery-code entry and the new-factor ceremony; see
+[wallet-user recovery](/concepts/custody/recovery-and-export#recovery).
+
 <<< ./recovery.ts
 
 The successful result exposes the restored wallet id and NEAR account id. Use

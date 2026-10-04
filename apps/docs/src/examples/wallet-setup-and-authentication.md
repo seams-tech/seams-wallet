@@ -28,8 +28,8 @@ on testnet.
 
 ## Register with a passkey
 
-Render `CreateWalletButton` or call `createPasskeyWallet` from your own
-registration screen.
+Render `CreateWalletButton` or call `seams.registration.registerPasskey` from
+your own registration screen.
 
 <<< ./registration.tsx
 
@@ -45,8 +45,9 @@ Pass the wallet id from your app's account record to `unlockWallet`.
 
 <<< ./unlock.ts
 
-The successful result creates the wallet session used by signing and export
-flows. Handle both `near_wallet_unlocked` and `ecdsa_wallet_unlocked` branches
+The successful result creates reusable signing-session access. Export requires
+fresh operation-specific authorization. Handle both `near_wallet_unlocked` and
+`ecdsa_wallet_unlocked` branches
 when the app supports both key families.
 
 ## Authenticate with Google Email OTP

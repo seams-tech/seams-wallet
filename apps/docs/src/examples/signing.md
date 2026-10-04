@@ -48,6 +48,23 @@ inline error state when needed.
 Create a typed EIP-1559 request and provide the chain target for the network
 you support.
 
+The default `seamsTestnetConfig` selects NEAR and Tempo. To run the Ethereum
+Sepolia example, configure it explicitly before creating the provider:
+
+```ts
+import { defineSeamsConfig } from '@seams/wallet/react';
+
+const config = defineSeamsConfig({
+  walletOrigin: import.meta.env.VITE_WALLET_ORIGIN,
+  relayerUrl: import.meta.env.VITE_RELAYER_URL,
+  publishableKey: import.meta.env.VITE_SEAMS_PUBLISHABLE_KEY,
+  chains: [
+    { network: 'near-testnet' },
+    { network: 'ethereum-sepolia', chainId: 11_155_111 },
+  ],
+});
+```
+
 <<< ./evm-signing.ts
 
 The sample targets Ethereum Sepolia and returns the transaction hash. Replace

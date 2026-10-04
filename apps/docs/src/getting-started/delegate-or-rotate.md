@@ -36,12 +36,18 @@ binding, so route the person through device linking rather than showing a
 generic error. Use `resolveExactKeyExportLane` and `exportKeypairWithUI`
 directly when you want to check export availability before opening the viewer.
 
-Never place the returned key material in logs, URLs, or application analytics.
+Key material is displayed inside the wallet-origin viewer. The app receives an
+outcome, such as `exported`, without the private key. Keep export content out of
+logs, URLs, and analytics.
 
 ## Recover a wallet account
 
 Synchronize the wallet record when your recovery flow needs to restore its
 wallet-scoped account identity.
+
+`syncAccount` synchronizes a known wallet's account state. Recovery-code entry
+and new-factor verification belong to the hosted wallet menu; see
+[wallet-user recovery](/concepts/custody/recovery-and-export#recovery).
 
 <<< ../examples/recovery.ts
 

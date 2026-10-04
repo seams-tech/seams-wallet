@@ -5,6 +5,10 @@ description: Issue revocable, policy-bound authority to agents without sharing a
 
 # Delegated agents
 
+This guide describes the intended delegated-agent model. Wallet SDK 0.8.0 has
+no public agent-lane issuance API. Its NEAR delegate-action signing API signs a
+transaction envelope and does not create delegated-agent authority.
+
 Use the [policies and mandates guide](/guides/policies-and-mandates) for the
 operation shape, then review [shopping agents](/use-cases/ecommerce-agents) for
 a product example. Give each agent an independent subject and signing lane.

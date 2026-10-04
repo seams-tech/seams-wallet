@@ -36,9 +36,9 @@ Existing ECDSA addresses and Ed25519 public keys remain unchanged. Normal
 signing uses already-provisioned signing material; it does not require this
 refresh ceremony. New derivation ceremonies may be briefly fenced.
 
-R120 implements one successful manual refresh per tenant per rolling hour,
-with durable operation replay and a server-computed retry time. Deployment of
-the throttle and hosted dashboard verification remain rollout gates. See
+Wallet Server implements one successful manual refresh per tenant per rolling
+hour, with durable operation replay and a server-computed retry time. Verify
+that policy and the dashboard in the deployed environment. See
 [recovery and portability](/deploy-and-operate/recovery-and-portability) for
 current dashboard, scheduler, and recovery delivery status.
 

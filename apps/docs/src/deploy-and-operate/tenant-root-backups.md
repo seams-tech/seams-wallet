@@ -86,8 +86,8 @@ R120 implements one successful tenant-admin refresh per tenant per rolling
 hour, enforced on the server before provider work. A distinct request during
 the cooldown receives HTTP 429 with a server-computed retry time; retrying the
 same operation returns its existing result. Mandatory post-restore refresh
-retains its separately authorized recovery path. Deployment of the throttle
-is pending; it is not yet an enforced production limit.
+retains its separately authorized recovery path. Verify the deployed release
+and admission policy before relying on this limit in an environment.
 
 ## Rotation and destruction limits
 

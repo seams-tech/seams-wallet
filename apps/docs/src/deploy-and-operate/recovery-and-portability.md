@@ -1,6 +1,6 @@
 ---
 title: Recovery and portability
-description: Distinguish managed tenant-root backups, tenant-controlled recovery delivery status, and planned wallet deployment portability.
+description: Distinguish released Wallet SDKs, managed tenant-root backups, recovery CLI availability, and planned wallet portability.
 ---
 
 # Recovery and portability
@@ -11,19 +11,21 @@ setting that used it.
 
 ## Availability
 
-Status recorded September 8, 2026:
+Status checked October 4, 2026:
 
 | Capability | Status | Scope |
 | --- | --- | --- |
-| R120 managed tenant-root backup and refresh | Implemented; KMS-backed production creation demonstrated | Role-private D1 shares and separate R2 backups; full public release proof and throttle deployment remain pending |
-| R121 tenant-root security dashboard and tenant-controlled recovery | Locally demonstrated; public delivery pending | Rotation, scheduling, and empty-destination restore have local operating evidence; recovery custody awaits real retention provisioning and a complete backup demonstration |
-| R122 wallet/deployment portability | Planned after R121 | Wallet inventory, signing-participant handoff, destination provisioning, and explicit migration/cutover |
+| Wallet browser and server SDKs | Published as 0.8.0 | Wallet lifecycle, signing, fixed per-wallet regional routing, and ownership contracts |
+| Managed tenant-root backup and refresh | Implemented in Wallet Server | Role-private D1 shares and separate R2 backups; verify custody and refresh policy in the deployed environment |
+| Tenant-controlled root recovery | CLI launcher published as 0.6.0; native assets unavailable at the public release URL | Dashboard approval, holder-key custody, and an approved empty destination are also required |
+| Wallet/deployment portability | Planned | Wallet inventory, signing-participant handoff, destination provisioning, and explicit cutover |
+| Owner-selected or automatic wallet-region relocation | Planned | 0.8.0 retains a fixed home across devices and travel |
 
-Local R121 evidence includes restore activation and cleanup, plus Ed25519
-signing before, during, and after rotation on the restored destination. Hosted
-production-session and physical-passkey verification, production trust, and
-release signing remain delivery gates. The initial CLI release targets macOS
-and Linux. Public operating instructions will accompany released tooling.
+Wallet SDK publication does not establish recovery-tool availability or enable
+every administrative flow in every environment. See the
+[recovery CLI](/deploy-and-operate/recovery-cli) for current installation status
+and commands. Rehearse the dashboard approval, backup verification, empty-destination
+restore, activation, and cleanup against the environment you operate.
 
 ## Managed tenant-root recovery
 
@@ -36,12 +38,12 @@ recovery from total database loss using two ciphertext objects alone.
 See [tenant-root backups](/deploy-and-operate/tenant-root-backups) for ownership,
 cost, and key-destruction limitations.
 
-## Tenant-controlled root recovery — delivery in progress
+## Tenant-controlled root recovery
 
 The **Derivation root security** dashboard implements manual operational-share
 rotation with fresh administrative step-up, durable progress, and R120's
-one-successful-refresh-per-hour policy. Rotation and the fixed scheduler work
-locally; hosted rollout verification remains pending.
+one-successful-refresh-per-hour policy. Check the deployed policy and scheduler
+before relying on either.
 
 The recovery checkpoint adds tenant-controlled recipient keys and a dedicated
 recovery sharing, independent of current operational epochs. It produces
@@ -55,7 +57,7 @@ already provisioned destination, preserves the exact logical tenant-root
 identity, assigns a fresh custody lineage, and forward-refreshes before
 activation.
 
-Browser download issuance will be distinguished from a CLI-verified durable
+Browser download issuance is distinguished from a CLI-verified durable
 file write. Tenant-held recovery copies cannot be revoked by deleting the
 service's copies. Individually destructible recovery-set retention keys are a
 separate requirement from the current shared A/B managed-backup KMS versions.

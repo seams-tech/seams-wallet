@@ -38,5 +38,6 @@ support, reconciliation, and regulatory responsibilities. It is an optional
 product for qualified wallet operators with demonstrated external-spending
 demand.
 
-Read the [stablecoin-linked virtual card plan](https://github.com/web3-authn/sdk/blob/main/docs/stablecoin-linked-virtual-card.md)
-for the deferred testnet and provider design.
+Virtual-card issuance remains product direction. Wallet SDK 0.8.0 exposes no
+card-issuance or card-lifecycle API. Use the [SDK reference](/reference/) to
+identify the available wallet operations.

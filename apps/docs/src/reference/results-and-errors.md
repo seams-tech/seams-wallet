@@ -5,9 +5,10 @@ description: Handle Seams registration, login, signing, recovery, and device out
 
 # Results and recoverable errors
 
-Public operations return state, not a generic success flag. Switch on the
-outer discriminator, then on the branch-specific discriminator such as `kind`,
-`status`, or `code`.
+Public operations use several result contracts. Narrow `success` or `ok` first
+when present, then inspect the branch-specific `kind`, `status`, or error code.
+Some signing methods reject their promise for cancellation or failure, so catch
+errors as well as checking returned results.
 
 ## Registration
 
@@ -22,9 +23,11 @@ provisioning state and continue only from its ready branch.
 
 ## Login and sessions
 
-`LoginResult` and `LoginAndCreateSessionResult` distinguish cancelled,
-recoverable, and ready outcomes. A ready wallet session carries capability
-readiness and use limits. Pass its exact reference into signing.
+`LoginResult` uses `success: false` with an error string, or `success: true`
+with `near_wallet_unlocked` or `ecdsa_wallet_unlocked`. Only the NEAR branch
+carries `nearAccountId`. `LoginAndCreateSessionResult` can also include a
+`signingSession`; inspect its `status` before treating the reusable allowance
+as active. Keep the exact wallet identity when signing.
 
 ## Signing and actions
 

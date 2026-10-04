@@ -5,6 +5,7 @@
     "moduleResolution": "Bundler",
     "strict": true,
     "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable", "ESNext.Disposable"],
     "types": ["vite/client"]
   },
   "include": ["src"]

@@ -5,7 +5,8 @@ description: Choose the supported Seams SDK entrypoint for browser, React, thres
 
 # SDK reference
 
-The Seams package exposes a small set of intentional entrypoints. Start with the
+This reference describes **@seams/wallet 0.8.0**. The Seams package exposes a
+small set of intentional entrypoints. Start with the
 main browser surface or React surface. Reach for the lower-level entrypoints only
 when your integration owns the corresponding runtime or protocol responsibility.
 
@@ -16,6 +17,7 @@ when your integration owns the corresponding runtime or protocol responsibility.
 | [`@seams/wallet/advanced`](/reference/advanced)   | Exact identity builders, RPC clients, encoders, and other low-level integration helpers.                      |
 | [`@seams/wallet/threshold`](/reference/threshold) | Stable threshold session-policy and cryptographic constants.                                                  |
 | [`@seams/wallet/runtime`](/reference/runtime)     | Building a custom signing runtime from explicit platform ports.                                               |
+| [`@seams/wallet/external-evm`](/guides/external-evm-wallets) | Connecting browser EVM wallet extensions independently of Seams custody. |
 
 The package also publishes focused React component subpaths and the hosted
 wallet HTML asset. Those surfaces are documented on the [React

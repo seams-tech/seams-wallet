@@ -20,9 +20,10 @@ device.
 The linked device has its own `laneId`, `laneShareEpoch`, holder-share envelope,
 permission policy, revocation status, and audit history.
 
-Owner-equivalent linked-device lanes should require local user presence for
-signing. Scoped linked-device lanes should use the same mandate admission model
-as delegated agents.
+Version 0.8.0 links owner-controlled devices to the same wallet and fixed
+regional home. Local user presence and server admission remain required by the
+selected operation. Scoped mandate-based device or agent delegation is a
+separate planned capability.
 
 ## Link from the app
 

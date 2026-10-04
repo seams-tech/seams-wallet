@@ -50,11 +50,16 @@ second one; `useSeams` still exposes everything.
 
 ## Components
 
-The stable surface includes `HostedSeamsAuthMenu`,
+The stable surface includes `HostedSeamsAuthMenu`, `WalletSettingsPage`,
 `AccountMenuButton`, `ProfileSettingsButton`, `QRCodeScanner`, and `ShowQRCode`.
 Use the hosted auth menu when the wallet-origin boundary owns the complete auth
 experience. `SeamsAuthMenuMock` is an inert loading shell and display preview;
 `HostedSeamsAuthMenu` shows it while the wallet surface opens.
+
+`WalletSettingsPage` provides account, auth-method, recovery-code, linked-device,
+export, and transaction-preference settings. It uses the same provider and
+wallet-origin operations; signed-out users see hosted authentication. Version
+0.8.0 has no region selector in these settings.
 
 Focused entrypoints are available for applications that need smaller or
 SSR-specific imports:

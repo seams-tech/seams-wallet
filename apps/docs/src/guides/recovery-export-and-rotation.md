@@ -13,9 +13,9 @@ Keep these operations separate in UI, policy, audit, and result handling.
 This guide concerns wallet-user operations. Tenant administrators manage a
 separate derivation-root lifecycle: refreshing A/B operational shares preserves
 the effective tenant root and wallet identities. R120 implements that server
-path. The administrative dashboard and native restore path have local operating
-evidence; hosted verification, recovery-custody provisioning, and release signing
-remain delivery gates. See [recovery and portability](/deploy-and-operate/recovery-and-portability)
+path. Administrative recovery requires the configured dashboard, recovery
+custody, and a usable signed native CLI release. SDK 0.8.0 publication alone
+does not establish those paths. See [recovery and portability](/deploy-and-operate/recovery-and-portability)
 for their availability and the later R122 migration boundary.
 
 ## Safety checklist

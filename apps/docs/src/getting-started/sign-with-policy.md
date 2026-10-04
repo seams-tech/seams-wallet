@@ -6,8 +6,9 @@ description: Sign NEAR, NEP-413, or EVM-family requests with exact references an
 # Sign with policy
 
 Every request names the subject that authorizes it and the chain it targets.
-Omitted, both resolve to the signed-in wallet and a configured chain; pass them
-explicitly when your product manages more than one wallet or chain at a time.
+Omit the subject to resolve the signed-in wallet. EVM-family calls require a
+`chainTarget` naming a configured chain. Name the wallet explicitly when your
+product manages more than one wallet at a time.
 No unlock step is required: every request opens the wallet confirmation, and
 the user approves that transaction with the wallet's auth method. The examples
 below use `useWallet` for buttons and the `SeamsWeb` client for standalone
@@ -20,8 +21,8 @@ Replace the receiver, action, and execution status with values from your app.
 
 <<< ../examples/near-signing.tsx
 
-`wallet.near` is `null` until the wallet has a NEAR account, so the check next
-to the sign button is a type guard rather than a convention — a request cannot
+`near` from `useWallet()` is `null` until the wallet has a NEAR account, so the
+check next to the sign button is a type guard — a request cannot
 start without one. For an exact subject, call `seams.near.signAndSendTransaction`
 with `walletSession` and `nearAccount` built from
 `walletSessionRefFromSession` and `nearAccountRefFromAccountId`.
@@ -42,7 +43,9 @@ chain target is still accepted.
 
 <<< ../examples/evm-signing.ts
 
-The example targets Tempo testnet and uses placeholder transaction values.
+The example targets Ethereum Sepolia and uses placeholder transaction values.
+Add it to your configured chains before calling this helper; see the
+[chain configuration example](/examples/signing#execute-an-evm-family-transaction).
 Replace the chain, recipient, fees, and data before sending a real transaction.
 `tx.chainId` is filled in from the chain target, and the RPC endpoint comes from
 the chain you configured — neither is repeated on the call. A successful call

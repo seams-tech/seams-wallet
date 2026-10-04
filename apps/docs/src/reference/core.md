@@ -36,7 +36,7 @@ carries `txHashHex`.
 ## Naming the subject and the chain
 
 Every operation names the wallet it authorizes and, for EVM-family calls, the
-chain it targets. Both are optional:
+chain it targets:
 
 - Omit `walletSession` and the call resolves the **authenticated** wallet.
   Supply a `WalletSessionRef` — or just a wallet id — to name an exact one,
@@ -44,8 +44,8 @@ chain it targets. Both are optional:
 - Omit `nearAccount` and NEAR calls resolve the authenticated wallet's account.
   A bare account id is accepted.
 - `chainTarget` accepts a configured network slug such as `'tempo-testnet'`.
-  Resolution requires exactly one configured match; a selector matching two
-  throws and names both rather than picking one.
+  It is required for EVM-family signing and export. Resolution requires exactly
+  one configured match; an ambiguous selector throws an error naming the matches.
 
 The exact-reference builders (`walletSessionRefFromSession`,
 `nearAccountRefFromAccountId`, `thresholdEcdsaChainTargetFromConfig`) are

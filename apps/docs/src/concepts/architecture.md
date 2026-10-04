@@ -55,8 +55,9 @@ flowchart LR
 | SigningWorker           | Hot normal-signing role with activated server signing material for admitted sessions.                      |
 
 The app origin does not receive holder shares, PRF outputs, Email OTP secret
-material, VoiceID templates, server shares, root shares, or exported keys unless
-the user completes an explicit export flow.
+material, VoiceID templates, server shares, root shares, or exported keys.
+Explicit export displays key material in a wallet-origin viewer and returns
+only its outcome to the application.
 
 ## Product layers
 
@@ -96,7 +97,7 @@ version, lane, and session.
 
 ## Ed25519 and ECDSA derivation
 
-Ed25519 uses an actively secure, fixed-circuit Streaming Yao ceremony between
+Ed25519 uses a fixed-circuit Streaming Yao ceremony between
 Deriver A and Deriver B. The circuit preserves the standard export-compatible
 derivation:
 
@@ -113,6 +114,23 @@ does not use the Ed25519 Yao circuit.
 
 Normal Ed25519 and ECDSA signing consume already-activated shares and
 presignature state. Neither flow invokes the Derivers during ordinary signing.
+
+The current construction assumes honest Deriver execution and excludes A+B
+collusion and shared-account administrator compromise. Stronger active security
+is a separate target; see [Streaming Yao security properties](/concepts/threshold-signing/streaming-yao-ab#security-properties).
+
+## Per-wallet regional homes
+
+Regional hosted deployments assign each new wallet its own US, WEUR, or APAC
+home using trusted registration-location metadata. Wallets in one project can
+have different homes. The directory routes later operations to that wallet's
+regional Gateway, wallet runtime, and signing roles, with regional D1 and
+DO/Container resources kept together.
+
+All devices of one wallet use the same home. Travelling changes the client-to-home
+network distance and leaves the wallet's home fixed. Version 0.8.0 provides no
+user region selector or automatic relocation. Shared tenant authority remains
+separate from wallet-owned regional state.
 
 ## Custody model
 

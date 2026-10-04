@@ -16,8 +16,9 @@ choose the factor and keep the resulting state explicit.
 - **Google plus email OTP** — account discovery with a recoverable second
   factor. The application supplies the Google token; the wallet flow owns OTP
   and recovery state.
-- **VoiceID or another step-up** — an additional proof for a high-risk
-  operation. Define consent, fallback, and retention rules before enabling it.
+- **VoiceID** — a proposed additional proof for a high-risk operation. Version
+  0.8.0 has no public VoiceID enrollment or authentication API. See the
+  [concept](/concepts/auth-methods/voiceid) for the intended boundary.
 
 ## Keep auth state explicit
 

@@ -69,9 +69,9 @@ wallet.
 Seams is self-hostable and serverless-friendly:
 
 - provide hosted-grade wallet UX while retaining infrastructure control;
-- deploy Router, Deriver A, Deriver B, and SigningWorker on Cloudflare Workers;
-- store state in Durable Objects and role-specific storage;
-- start with near-zero initial hosting cost;
+- deploy role gateways on Cloudflare Workers with wallet-owned Rust compute in Containers;
+- store state in Durable Objects and role-specific regional D1;
+- account for Worker, D1, Durable Object, Container, and backup usage;
 - scale by sharding wallets, sessions, signing roots, and worker roles;
 - preserve the same wallet architecture as deployments harden.
 

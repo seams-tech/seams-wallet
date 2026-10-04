@@ -1,110 +1,99 @@
-# Seams wallet SDK
+# Seams Wallet SDK
 
-Embedded passkey wallet SDK for platforms that provision persistent wallets for
-their users. It supports NEAR and EVM-family signing through SecureConfirm
-WebAuthn, cross-origin iframe isolation, and WASM-based cryptography.
+`@seams/wallet` **0.8.0** provides browser wallet lifecycle, NEAR and EVM-family
+threshold signing, React components, and hosted wallet runtime assets.
 
-Strong fits include marketplaces, trading platforms, games, payout and
-remittance products, stablecoin accounts, rewards networks, and applications
-that sponsor or automate onchain operations. Read the
-wallet vision (`docs/vision.md`) for the complete use-case boundary.
+## Install
 
-Featuring:
-
-- **Core SDK**: Framework-agnostic JavaScript/TypeScript library
-- **React Components**: Drop-in components and hooks for React applications
-- **Hosted wallet runtime**: static wallet-service, worker, WASM, and export
-  viewer support assets for the wallet origin
-
-## Installation
-
-Install the published package:
-
-```bash
-npm install @seams/wallet
-# or
-pnpm add @seams/wallet
-# or
-yarn add @seams/wallet
+```sh
+pnpm add @seams/wallet@0.8.0
 ```
 
-### For SDK Developers
+React integrations support React 18 and 19. Import the provider and UI from
+`@seams/wallet/react` and its stylesheet from `@seams/wallet/react/styles`.
+Keep the application package, wallet-origin assets, and
+`@seams/wallet-server@0.8.0` on the matching release.
 
-**Build**:
+## React quick start
 
-```bash
-# From repo root
-pnpm install
-pnpm build:wasm       # Builds Rust/WASM packages
-pnpm build:sdk        # Builds SDK dist from existing WASM outputs
-pnpm build:sdk-full   # Builds WASM packages + SDK dist
-pnpm -C packages/wallet dev       # Watch mode
-```
-
-**Test**:
-
-```bash
-pnpm test:wallet-browser               # Playwright tests
-pnpm -C packages/wallet run type-check # TypeScript validation
-```
-
-## Quick Start
-
-### React Integration
-
-The easiest way to get started with React (React 18+)
+The three required values are the wallet origin, Gateway/relayer URL, and
+managed-registration publishable key. Obtain them from your project and allow
+your application's origin in that environment. Browser configuration is public.
 
 ```tsx
-import { SeamsWebProvider, useSeams } from '@seams/wallet/react';
+import {
+  HostedSeamsAuthMenu,
+  SeamsWebProvider,
+  seamsTestnetConfig,
+  type HostedAuthMenuOutcome,
+} from '@seams/wallet/react';
+import '@seams/wallet/react/styles';
 
-function App() {
+const config = seamsTestnetConfig({
+  walletOrigin: import.meta.env.VITE_WALLET_ORIGIN,
+  relayerUrl: import.meta.env.VITE_RELAYER_URL,
+  publishableKey: import.meta.env.VITE_SEAMS_PUBLISHABLE_KEY,
+});
+
+function handleOutcome(outcome: HostedAuthMenuOutcome): void {
+  console.log('Wallet authentication:', outcome);
+}
+
+export function App() {
   return (
-    <SeamsWebProvider
-      config={{
-        chains: [
-          {
-            network: 'near-testnet',
-            rpcUrl: 'https://rpc.testnet.fastnear.com',
-            explorerUrl: 'https://testnet.nearblocks.io',
-          },
-        ],
-        iframeWallet: {
-          walletOrigin: 'https://wallet.web3authn.org',
-        },
-        relayer: {
-          url: 'https://router-api.example.com',
-        },
-      }}
-    >
-      <YourApp />
+    <SeamsWebProvider config={config}>
+      <HostedSeamsAuthMenu onOutcome={handleOutcome} />
     </SeamsWebProvider>
   );
 }
-
-function SignInButton() {
-  const seams = useSeams();
-
-  const handleSignIn = async () => {
-    const result = await seams.registerPasskey();
-    console.log('Registered:', result.success);
-  };
-
-  return <button onClick={handleSignIn}>Sign In with Passkey</button>;
-}
 ```
 
-### Full-page wallet settings
+`seamsTestnetConfig` selects NEAR and Tempo testnets. Use `defineSeamsConfig`
+for another chain set. EVM-family chain records require their numeric `chainId`.
+An optional `projectEnvironmentId` cross-check rejects a publishable key for a
+different environment.
 
-`WalletSettingsPage` provides sidebar navigation for accounts, key export,
-recovery codes, authentication methods, device linking, linked devices, and
-transaction preferences. It uses the existing wallet operations and capability
-checks. Signed-out users see the hosted authentication menu.
+The hosted menu owns registration, sign-in, OTP prompts, recovery-code backup,
+and user presence. Supply `externalAuthBroker` when your application acquires
+Google identity evidence for the wallet host. Keep secret credentials and
+recovery material out of app configuration and logs.
+
+## Signing and lifecycle
+
+`useSeams()` exposes the SDK client and authentication state. `useWallet()`
+provides `near`, `evm`, and `tempo` signers bound to the authenticated wallet.
+`near` is null until a NEAR account is ready. Check registration's pending
+branches and use `registration.awaitNearReady` before signing NEAR.
+
+The framework-neutral `SeamsWeb` client groups operations under `registration`,
+`auth`, `near`, `evm`, `tempo`, `recovery`, `devices`, and `keys`. Signing can
+use fresh authorization for one operation; `unlock` provisions a bounded
+reusable Wallet Session. An EVM-family signing or export call requires a
+`chainTarget` naming a configured chain.
+
+`keys.exportKeypair` opens a wallet-origin viewer and returns an export outcome.
+It does not return a private key to the application. `recovery.syncAccount`
+synchronizes a known wallet's account state; the hosted menu handles recovery
+codes and new-factor verification.
+
+See the [compiled examples](https://wallet.seams.sh/docs/examples/) for
+registration, unlock, signing, linked devices, export, recovery, and theming.
+
+## Wallet settings
+
+`WalletSettingsPage` provides accounts, key export, recovery codes,
+authentication methods, device linking, linked devices, and transaction
+preferences. Signed-out users see the hosted authentication menu.
 
 ```tsx
-import { SeamsWebProvider, WalletSettingsPage, type SeamsConfigsInput } from '@seams/wallet/react';
+import {
+  SeamsWebProvider,
+  WalletSettingsPage,
+  type SeamsConfigsInput,
+} from '@seams/wallet/react';
 import '@seams/wallet/react/styles';
 
-function WalletSettingsApp({ config }: { config: SeamsConfigsInput }) {
+export function WalletSettingsApp({ config }: { config: SeamsConfigsInput }) {
   return (
     <SeamsWebProvider config={config}>
       <WalletSettingsPage />
@@ -113,194 +102,58 @@ function WalletSettingsApp({ config }: { config: SeamsConfigsInput }) {
 }
 ```
 
-Use the deployment's existing SDK configuration. For hosting on the wallet
-origin, keep its configured `/wallet-service` endpoint available for embedded
-wallet operations. The bare service document still requires a top-level app
-bootstrap and deployment configuration before it can serve this settings page.
-Pass `externalAuthBroker` when the deployment supports Google authentication.
+Keep the configured `/wallet-service` endpoint available. A bare service HTML
+asset needs the deployment's bootstrap and configuration before it can serve a
+complete settings application.
 
-### Google SSO + Email OTP Wallet Auth
+## Hosted boundary and regional homes
 
-For the standard Google SSO plus Email OTP wallet flow, the app owns Google
-Identity token acquisition and the SDK owns wallet registration, unlock,
-challenge routing, signing-session readiness, and wallet-iframe routing.
+The dedicated wallet origin serves `/wallet-service` and `/sdk/*`, including
+workers, WASM, and the export viewer. The SDK iframe delegates WebAuthn
+permissions to that origin. Credential creation and assertions execute there;
+there is no application-origin credential bridge.
 
-```tsx
-import { HostedSeamsAuthMenu, type HostedAuthMenuOutcome } from '@seams/wallet/react';
+Regional hosted deployments assign each wallet a fixed home at registration.
+Wallets in one project can have different homes, while all devices of one
+wallet use the same home. Travel leaves it fixed. User-selected and automatic
+region relocation are future capabilities.
 
-function handleOutcome(outcome: HostedAuthMenuOutcome): void {
-  console.log('Wallet authentication:', outcome);
-}
+When upgrading from 0.7.x, update application, wallet assets, and backend
+together. An older open client can receive an HTTP 409 upgrade-required message;
+show it and reload the current assets. See the
+[upgrade guide](https://wallet.seams.sh/docs/deploy-and-operate/hosted-integration#upgrading-to-0-8-0).
 
-function AuthMenu() {
-  return <HostedSeamsAuthMenu onOutcome={handleOutcome} />;
-}
+## Public entrypoints
+
+- `@seams/wallet` — browser client, config builders, public results and values.
+- `@seams/wallet/react` — providers, hooks, components, transaction review, and themes.
+- `@seams/wallet/external-evm` — browser EVM extension connector.
+- `@seams/wallet/advanced` — exact identity builders, RPC and encoding helpers.
+- `@seams/wallet/threshold` — session-policy helpers, PRF salts, and intent digests.
+- `@seams/wallet/runtime` — explicit platform ports and custom signing runtime.
+
+Use the documented package exports. Agent-lane issuance and VoiceID
+authentication are planned and have no public 0.8.0 API.
+
+## Develop from source
+
+From the repository root:
+
+```sh
+pnpm install
+pnpm build
+pnpm -C packages/wallet dev
+pnpm test:wallet-browser
+pnpm -C packages/wallet type-check
 ```
 
-Mount `HostedSeamsAuthMenu` inside a configured `SeamsWebProvider`. The wallet-origin
-iframe owns auth inputs, progress, OTP prompts, and the final passkey activation.
-Apps can provide `externalAuthBroker` to acquire provider evidence when the wallet
-host requests it. Direct SDK calls keep their wallet-origin confirmation surface.
+With the required WASM and server artifacts already built, rebuild only the SDK
+with `pnpm -C packages/wallet build:sdk`. See the repository README for the full
+local stack and Console Lite example.
 
-The public flow only exposes UI-safe data: wallet id, email hint, prompt copy,
-delivery status, expiry, and `resend`/`reroll`/`submit`/`cancel` methods. It
-does not expose Wallet Session operation credentials, runtime policy scope,
-recovery codes, or ECDSA bootstrap material.
+## License and support
 
-Low-level Email OTP methods such as `requestEmailOtpChallenge`,
-`requestEmailOtpEnrollmentChallenge`, `enrollEmailOtp`, and
-`loginWithEmailOtpEcdsaCapability` remain available for advanced custom
-integrations. Prefer `beginGoogleEmailOtpWalletAuth` for the standard Google
-SSO wallet registration and login path.
+Apache-2.0. See the package's `LICENSE.md` and `THIRD_PARTY_NOTICES.md`.
 
-In wallet-iframe mode, the same public API is used by the app origin. The wallet
-origin owns Email OTP recovery-code backup UI, acknowledgement, workers, sealed
-refresh state, and exact Wallet Session persistence. App-origin iframe responses
-carry only non-secret flow metadata and submit results.
-
-### Exact Wallet Session authorization
-
-Wallet operations are scoped to one exact wallet, authority, and authentication
-method. The authorization also binds its authorization id, quota id, authority
-digest and revocation epoch, capability subjects, and expiry. A primary
-`WalletSessionOperationCredentialV1` authenticates ordinary wallet operations.
-Hosted iframe sessions redeem an origin-bound exchange into a
-`HostedWalletSessionOperationCredentialV1` child for the same parent
-authorization.
-
-The wallet origin persists the active authorization in the exact V6 IndexedDB
-record `wallet_session_authorization_v6` through
-`WalletSessionAuthorizationRepository`. It stores the scoped wallet, authority,
-auth-method, authorization, and Wallet Session ids; quota, authority
-digest/revocation epoch, capability subjects, issue/expiry times; and the
-matching operation credential. Credential and record identities must match
-exactly. Replacing a session retires the predecessor for that exact scope while
-sibling authentication methods remain independent.
-
-## Hosted Wallet Integration
-
-Applications import the SDK as package code and configure the hosted wallet
-origin. They do not serve Seams wallet assets from the app Vite config.
-
-```typescript
-// vite.config.ts
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-
-export default defineConfig({
-  plugins: [react()],
-});
-```
-
-During the stabilization milestone, configure the hosted wallet through the
-existing `iframeWallet` surface:
-
-```typescript
-const config = {
-  relayer: { url: 'https://router.example.com' },
-  iframeWallet: {
-    walletOrigin: 'https://sign.seams.sh',
-    walletServicePath: '/wallet-service',
-    sdkBasePath: '/sdk',
-  },
-};
-```
-
-The Seams-operated wallet origin serves `/wallet-service`, `/sdk/*`, and
-`/sdk/workers/*` from `@seams/wallet/dist/public`. Private-key export uses a
-wallet-origin inline viewer document that loads its support files from `/sdk/*`.
-App origins should not route those paths.
-
-The SDK-created wallet iframe carries the default WebAuthn delegation through
-its `allow` attribute. App-platform `Permissions-Policy` should only be added
-if hosted-origin browser smokes prove a supported browser requires it.
-
-## Stable API Surfaces
-
-Use `@seams/wallet` for the main surface (for example `SeamsWeb` and core types).
-
-Threshold APIs are stable under an explicit subpath:
-
-```ts
-import { keygenEcdsa } from '@seams/wallet/threshold';
-```
-
-## Configuration Options
-
-```typescript
-interface SeamsWebConfig {
-  // Chain settings
-  chains: Array<{
-    network:
-      | 'near-mainnet'
-      | 'near-testnet'
-      | 'tempo-mainnet'
-      | 'tempo-testnet'
-      | 'arc-mainnet'
-      | 'arc-testnet';
-    rpcUrl: string;
-    explorerUrl: string;
-    chainId?: number; // EVM (arc-*) chains only
-  }>;
-  relayerAccount: string; // Parent account used for new subaccounts
-
-  // Wallet iframe settings (recommended)
-  iframeWallet?: {
-    walletOrigin: string; // e.g., 'https://wallet.web3authn.org'
-    walletServicePath?: string; // Default: '/wallet-service'
-    sdkBasePath?: string; // Default: '/sdk'
-    walletHostVariant?: 'runtime' | 'full' | 'near' | 'ecdsa'; // Default: 'runtime'
-    rpIdOverride?: string; // Optional: Credential scope override
-  };
-
-  // Optional Router API server (for account creation & Shamir 3-pass)
-  relayer?: {
-    url: string;
-  };
-}
-```
-
-## Wallet Iframe Architecture
-
-The SDK isolates all sensitive operations in a cross-origin iframe such as
-`wallet.web3authn.org`. Your app communicates via secure MessageChannel, and app
-code cannot access keys directly.
-
-### Configuration
-
-**Recommended** (dedicated wallet origin):
-
-```tsx
-iframeWallet: {
-  walletOrigin: 'https://wallet.web3authn.org',
-  walletServicePath: '/wallet-service',
-  walletHostVariant: 'runtime',
-}
-```
-
-## Project Structure
-
-```text
-repo/
-├── apps/
-│   ├── web-client/               # Browser app/site
-│   ├── web-server/               # Deployable Router API server app
-│   └── docs/                     # Documentation app
-├── packages/
-│   ├── wallet/                  # Browser SDK package and build output
-│   ├── wallet-server/            # Server library source
-│   └── shared-ts/                # Shared TypeScript utils/types
-├── crates/
-│   └── signer-core/              # Shared signer core primitives
-├── wasm/                         # Rust WASM packages
-└── tests/                        # Playwright + unit tests
-```
-
-## License
-
-MIT License - see [LICENSE](../../LICENSE.md) for details.
-
-## Support
-
-- **Documentation**: [../../apps/docs/](../../apps/docs/)
-- **Issues**: [GitHub Issues](https://github.com/web3-authn/sdk/issues)
+- [Documentation](https://wallet.seams.sh/docs/)
+- [Repository and issues](https://github.com/seams-tech/seams-wallet)

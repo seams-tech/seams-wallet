@@ -22,13 +22,14 @@ description: Define the wallet, custody, policy, session, signing, and Router A/
 | Share epoch | Metadata identifying an operational-share generation; it is not key material. |
 | Custody lineage | The identity of one tenant-root custody lifecycle, used to isolate commands and replay state across restored destinations. |
 | Managed tenant-root backup | A service-held encrypted role-share backup used by the authorized managed restore path. |
-| Tenant recovery set | Planned tenant-held A/B recovery packages and a public manifest for exact-root restoration, separate from wallet portability. |
+| Tenant recovery set | Tenant-held A/B recovery packages and a public manifest for exact-root restoration, separate from wallet portability. |
 | SigningWorker         | The hot normal-signing server role that uses activated server signing material.                                                                       |
 | Wallet Session quota  | A bounded reusable allowance with TTL and remaining uses for signing.                                                                                 |
 | Capability grant      | One-operation authority bound to an exact capability and intent.                                                                                      |
 | Signing lane          | The exact signing capability selected for one operation.                                                                                              |
 | Signed mandate        | A user, org, wallet, device, or agent authority object bound to policy.                                                                               |
 | Streaming Yao         | The fixed-circuit two-party computation used by Deriver A and Deriver B for Ed25519 lifecycle ceremonies. Garbled tables stream directly from A to B. |
-| Threshold session     | Curve/session-specific signing authority.                                                                                                             |
+| Threshold session     | Curve/session-specific protocol identity and signing material; it also needs operation authorization before signing. |
+| Wallet home | The fixed region assigned to one wallet; all its devices and later operations use that home. |
 | Typed intent digest   | Canonical digest of the exact action being approved or executed.                                                                                      |
 | Wallet Session        | A wallet-user operation authority used by signing and budget routes.                                                                                  |

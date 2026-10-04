@@ -15,7 +15,7 @@ input once.
 - Allow exact application origins; avoid wildcard credentialed CORS.
 - Validate every iframe message origin, source window, protocol version, and
   session identity.
-- Scope WebAuthn credentials to the intended RP ID and parent-domain policy.
+- Execute WebAuthn on the wallet origin, with an RP ID valid for that origin.
 - Keep keys, OTP codes, recovery material, app-session tokens, and threshold
   state out of application-origin messages.
 
@@ -26,9 +26,10 @@ to the application `frame-src`. On the wallet origin, restrict scripts,
 connections, workers, images, styles, and framing ancestors to the assets and
 origins required by the deployed release. Avoid unsafe script exceptions.
 
-Test browser permissions for WebAuthn inside the cross-origin iframe. Add a
-Permissions Policy only when the supported-browser smoke demonstrates it is
-required, then scope it to the wallet origin.
+The SDK iframe delegates `publickey-credentials-create` and
+`publickey-credentials-get` to the wallet origin. Ensure the application's
+Permissions Policy permits that delegation and verify registration and unlock
+in supported browsers. The SDK does not fall back to application-origin prompts.
 
 ## Service requests
 

@@ -25,6 +25,10 @@ The primary use cases are [platform wallets](/use-cases/platform-wallets),
 agents](/use-cases/ecommerce-agents). Seams provides self-hostable threshold
 wallet infrastructure that deploys to Cloudflare.
 
+The 0.8.0 SDK ships wallet lifecycle and signing. VoiceID, delegated-agent
+issuance, virtual cards, and region relocation are product direction; their
+concept pages do not imply a released API.
+
 ## System layers
 
 | Layer                    | Role                                                                                                          |

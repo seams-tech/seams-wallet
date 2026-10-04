@@ -7,17 +7,18 @@ description: Derive stable wallet identity through blind Router A/B ceremonies w
 
 Router A/B with Streaming Yao is a key-ceremony architecture: a blind,
 deterministic, two-party key-derivation ceremony that feeds a threshold wallet.
-The wallet key is born shared. The seed and private scalar exist only as
-shares, on every machine, at every point in the lifecycle — yet the key remains
-recoverable and exportable from durable roots.
+The Ed25519 key seed and signing scalar remain shared outside an authorized
+export. The key remains recoverable and exportable from durable roots. This
+Ed25519 seed is distinct from the wallet custody seed retained by the
+wallet-origin custody flow.
 
 One sentence version:
 
 > A 2-of-2 threshold Ed25519 wallet whose deterministic, RFC 8032-compatible
-> key derivation runs inside a garbled-circuit 2PC between two mutually
-> distrusting, independently administered blind Derivers — so no machine ever
-> holds the joined seed or private key, while the key stays exportable and
-> recoverable from durable roots.
+> key derivation runs inside a garbled-circuit 2PC between two
+> separated Deriver roles. Normal signing uses client and SigningWorker shares;
+> authorized export reconstructs the Ed25519 seed inside the wallet-origin
+> export flow.
 
 ## The layered model
 
@@ -59,31 +60,31 @@ matters most.
 
 ### Serverless deployment
 
-The whole ceremony fits serverless limits. The client and Router exchange
+The ceremony uses bounded streaming. The client and Router exchange
 compact envelopes measured in KiB; the multi-MiB garbled-circuit stream travels
-directly between Deriver A and Deriver B with bounded memory. All roles deploy
-as Cloudflare Workers with Durable Object state — no server fleet, near-zero
-idle cost, and a same-account development profile that scales up to the
-separate-account production topology without protocol changes. See
+directly between Deriver A and Deriver B with bounded memory. The 0.8.0 hosted
+stack uses Cloudflare Workers, Durable Objects, regional D1, and Rust compute
+in Containers. The selected same-account profile shares an administrative
+control plane. Independently administered Deriver accounts remain a deferred
+deployment profile. See
 [Serverless Threshold Signing](/concepts/threshold-signing/serverless-threshold-signing).
 
 ### No TEE requirement
 
 The confidentiality and correctness claims come from cryptography (the 2PC
-protocol, one-use tickets, authenticated transcripts) and from administrative
-separation (independently operated A and B accounts) — not from hardware
-attestation. There is no enclave in the trust model, so there is no attestation
+protocol, one-use tickets, authenticated transcripts) and the actual role and
+administration boundaries of the deployment. Hardware attestation is not part
+of this protocol's trust model, so there is no attestation
 supply chain to trust and no enclave side-channel class to carry. The same
 protocol therefore runs on any runtime that can host the roles — Workers,
 containers, or plain VMs — provided the deployment reproduces the same
-administrative separation and release controls. TEEs remain available as
-optional defense-in-depth around the same protocol shape, not as a
-prerequisite.
+role separation and release controls. TEEs can add a runtime boundary around
+the same protocol shape.
 
 ## Trust boundaries
 
-The production target is privacy and correctness-with-abort against the Router
-plus at most one malicious Deriver:
+The shipped construction assumes honest Deriver execution, non-colluding A/B
+roles, and a trusted shared-account control plane:
 
 - no single party — including the client, outside an authorized export — ever
   learns the joined seed or private scalar;
@@ -99,11 +100,10 @@ the hosting provider, and fairness or guaranteed output delivery.
 
 ## Status
 
-Streaming Yao is the approved Ed25519 lifecycle protocol and an implementation
-target under active development. Production remains gated on a reviewed
-actively secure construction, malicious-secure OT, input provenance,
-authenticated private outputs, separate-account deployment, constant-time
-review, and independent security review.
+Streaming Yao is implemented in the 0.8.0 lifecycle path. Its current claim does
+not include malicious Deriver behavior. Active security and independently
+administered Deriver deployments require their own implementation, review, and
+deployment evidence; see [the current security properties](/concepts/threshold-signing/streaming-yao-ab#security-properties).
 
 Read next:
 
