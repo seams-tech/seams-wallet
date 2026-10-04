@@ -876,6 +876,9 @@ type NearSubjectInput = {
 };
 
 export interface NearSignerCapability {
+  /** Returns false only for an absent account; unavailable RPC reads reject. */
+  accountExists(accountId: string): Promise<boolean>;
+
   registerNearWallet(args: RegisterNearWalletArgs): Promise<RegistrationResult>;
 
   fundImplicitNearAccountForTesting(args: {

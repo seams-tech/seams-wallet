@@ -1,4 +1,5 @@
 import type { TransactionDispatch } from '../walletIframe/client/transactionReviewReservation';
+import { accountExists } from '@/core/rpcClients/near/accountExists';
 import type {
   NearSignerCapability,
   NearSigningSurface,
@@ -146,6 +147,7 @@ export function createNearSignerCapability(
     theme: deps.getTheme(),
   });
   const nearCapability: NearSignerCapability = {
+    accountExists: accountExists.bind(null, deps.nearClient),
     registerNearWallet: async (args) => {
       const walletIframe = deps.getWalletIframe();
       const context = getContext();

@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { SeamsWeb } from '@/SeamsWeb';
-import { checkNearAccountExistsBestEffort } from '@/core/rpcClients/near/rpcCalls';
 import { awaitWalletIframeReady } from '../utils/walletIframe';
 import { isObject } from '@shared/utils/validation';
 import { compactImplicitNearAccountId } from '@shared/utils/near';
@@ -227,24 +226,14 @@ export function useAccountInput({
       }
 
       try {
-        if (seams.configs.wallet.mode === 'iframe' && !seams.isWalletIframeReady()) {
-          const ready = await awaitWalletIframeIfNeeded();
-          if (!ready || !seams.isWalletIframeReady()) {
-            // Avoid writing a false-negative while iframe auth surface is still booting.
-            return;
-          }
-        }
-        const accountExistsOnChain = await checkNearAccountExistsBestEffort(
-          seams.getContext().nearClient,
-          accountId,
-        );
+        const accountExistsOnChain = await seams.near.accountExists(accountId);
         setState((prevState) =>
           checkId === accountExistsCheckIdRef.current
             ? { ...prevState, accountExists: accountExistsOnChain }
             : prevState,
         );
       } catch (error) {
-        console.warn('Error checking credentials:', error);
+        console.warn('Error checking account:', error);
         setState((prevState) =>
           checkId === accountExistsCheckIdRef.current
             ? { ...prevState, accountExists: false }
@@ -252,7 +241,7 @@ export function useAccountInput({
         );
       }
     },
-    [awaitWalletIframeIfNeeded, seams],
+    [seams],
   );
 
   const checkPasskeyCredentialExists = useCallback(

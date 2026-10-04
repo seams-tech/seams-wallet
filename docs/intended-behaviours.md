@@ -14,6 +14,16 @@ plans explain how the design arose; they do not override this contract.
 E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
 [Spec 9: Behaviour and test authority](spec-9-behaviour-and-test-authority.md).
 
+## Public account queries
+
+Public NEAR account queries use `seams.near.accountExists(accountId)` and the
+application's configured or injected RPC client. They work before wallet
+connection or authentication. A successful query returns true for an existing
+account and false for a confirmed missing account. Invalid account input and
+unavailable RPC reads reject; an RPC failure does not establish account absence.
+The SDK owns transient read retry and RPC handling. The browser contract is
+`tests/wallet-iframe/account-query.test.ts`.
+
 ## Terms
 
 | Term                              | Meaning                                                                                                                                                                                                   |
