@@ -152,6 +152,33 @@ prove the chosen installation path with a founding device and a linked device,
 both protocols, separate durable stores, restart, revocation, and recovery. Preserve
 all identity checks and test that stale regional material cannot resume execution.
 
+## Composed harness assessment
+
+The private repository already has browser scenarios for registration, linked
+devices, lost replies, process restarts, revocation, and recovery. These provide
+fixtures for the next feasibility stage.
+
+The current harness gives US, WEUR, and APAC separate signer D1 databases.
+All three Gateways use the same Router at port 4102 and SigningWorker at port 4105.
+They share one local signing-role stack. Restart coverage reopens that stack's
+existing stores. It does not establish independent regional installations.
+
+Sources in `seams-monorepo`:
+
+- `tests/helpers/regional-real-gateway.mjs`: `createRegionalRealGateway` constructs the shared role bindings before creating the three Gateways.
+- `tests/playwright.regional-real.config.mjs`: starts one public intended-services stack.
+- `tests/e2e/regional-real/passkey.device-linking.contract.test.ts`: real linked installation and interrupted execution, activation, and acknowledgement flows.
+- `tests/e2e/regional-real/passkey.add-email-otp.contract.test.ts`: auth-method revocation and continued signing with the surviving method.
+- `tests/e2e/regional-real/google-email-otp.recovery.contract.test.ts`: interrupted recovery with process restart.
+- `tests/README.md`: documents the shared stack and retained evidence.
+
+R155 needs two independent role/storage stacks and the production operation
+assignment path before these fixtures can establish simultaneous regional execution.
+Keep tenant custody authority explicit when creating those stacks. Reuse browser
+and fault fixtures, then add the R155 observations from the
+[bounded gate](refactor-155-regional-wallet-signing.md#bounded-feasibility-gate).
+No composed R155 result or new browser execution is claimed by this assessment.
+
 ## Executed evidence and reproduction
 
 Reviewed public source at `235eb98714f77261c53d4e3e4d1653b33260ce45` plus this

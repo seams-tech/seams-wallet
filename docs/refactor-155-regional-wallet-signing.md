@@ -182,38 +182,99 @@ The target is a small number of global coordination calls with regional signing
 exchanges. Do not promise one remote call until every shared policy and custody
 dependency has been traced. Compare the full signing path with the R152 baseline.
 
-## Preliminary validation
+## Bounded feasibility gate
+
+Complete this gate before further R153/R154 feature work. Keep their current
+contracts available until the R155 adoption decision. This gate covers a small
+implementation and its evidence. It does not establish production readiness.
+
+Use one wallet, its founding device, one linked device, and two independent
+regional signing deployments. Exercise ECDSA and Ed25519 in each deployment.
+Keep one permission authority. Keep tenant custody with its existing authority.
+Each regional role must have separate durable storage and one-use material.
+
+Evaluate replicas of the existing logical activation first. Give each physical
+executor an authenticated identity and an independent material pool. Preserve
+existing activation and device bindings. If this model fails, record the exact
+binding before considering distinct regional activations.
+
+Limit implementation to installation, admission, regional execution, and the
+lifecycle behavior required by these checks. Exclude region settings, automatic
+relocation, broad deployment rollout, and a custom consensus implementation.
+Do not build both installation models in parallel.
 
 The [first feasibility checkpoint](refactor-155-protocol-feasibility.md) establishes
 key continuity at the protocol layer and identity continuity in a separate
 authorization-store probe. The full acceptance checks below remain open. Earlier
 transfer probes do not establish simultaneous regional execution.
 
-| Check | Required finding or evidence |
-| --- | --- |
-| ECDSA installations | Show that independent regional installations sign for the same wallet keys and device identities. Examine activation, lane, server, epoch, seal, and client bindings. Prove independent presignature generation and consumption. |
-| Ed25519 Yao installations | Show the same identity continuity. Examine pair sessions, capability replacement, role identities, tenant-root use, and prepared/claimed/burned state. Identify every exclusive resource or global lock. |
-| Full owner and linked devices | Cover both protocols for founding and linked owner devices. Establish whether regional preparation requires a device to be online or to approve a new installation. Preserve permissions and credentials. |
-| Permission and execution split | Map each existing record to one owner. Identify atomic admission requirements, shared policy checks, direct role admissions, and deferred writes. Define authenticated permits and mandatory enforcement points. |
-| Recovery and revocation | Define ordering for device revocation, session expiry, quota exhaustion, key recovery, and retirement across all installations. Prevent a restored region from accepting retired authority or material. |
-| Failure and retry semantics | Exercise concurrent duplicate requests, conflicting payloads, lost replies, missing completion reports, and restarts. An uncertain operation must retain one execution assignment and one allowance charge. |
-| Regional readiness and cost | Establish how server and device material becomes ready before travel. Measure refill cost, expiration, storage, inactive-device behavior, and bounded recovery/refill work. |
-| Geographic latency | Measure first use after travel, warm signing, empty pools, and permission-service latency. Record actual role/storage locations and the entire client-to-result path. Separate chain confirmation from signing. |
+| Stage | Required evidence | Current status |
+| --- | --- | --- |
+| 1. Protocol and binding review | Preserve keys and client shares. Identify activation, lane, recipient, epoch, seal, tenant-root, and exclusive-resource constraints. | Local protocol checks passed. Product constraints are recorded. |
+| 2. Composed regional execution | Install both devices through production lifecycle paths. Sign both protocols through separate regional roles and stores. Preserve wallet keys, credentials, permissions, and role separation. | Open. The existing browser harness shares its signing-role stack. |
+| 3. Failure and lifecycle behavior | Execute the scenario matrix below through the composed path. Enforce assignment at every participating role and deferred writer. | Open. Separate protocol and authorization probes cannot close this stage. |
+| 4. Geography and preparation | Measure the complete signing path and material preparation under the comparison below. | Open. Local execution times cannot establish geographic benefit. |
+| 5. Decision | Record pass, fail, or blocked for each stage. Accept R155 only when all required evidence supports adoption. | Pending. R153/R154 remain the fallback. |
 
 First inspect the protocol bindings and current source. Record exact revisions,
 established facts, proposed changes, and unresolved assumptions for each protocol.
 Do not introduce new lifecycle or wire types until this review identifies the
 smallest required contract change.
 
-Then build a composed E2E feasibility scenario. Use one wallet, a founding device,
-a linked device, and separate regional role/storage installations. Sign with both
-protocols in multiple regions. Include a duplicate operation during a lost reply,
-a restart before result reconciliation, device revocation, and recovery.
+Before stage 2, map existing records to their proposed owners. Define admission,
+installation identity, and pool routing in the existing modules. Resolve the
+proposed revocation rule against the intended wallet contract. Record shared
+policy and custody calls that remain on the global path.
+
+Extend the existing browser lifecycle and restart harness. Allocate independent
+Router and signing-role stacks with separate storage for both regions. Preserve
+shared tenant authority explicitly. A routing label or another Gateway is insufficient.
+The [harness assessment](refactor-155-protocol-feasibility.md#composed-harness-assessment)
+records the current boundary and reusable fixtures.
+
+| Scenario | Required observation |
+| --- | --- |
+| Founding and linked devices | Both devices sign both protocols in both regions, then return to the first region. Verify signatures and stable identities. |
+| Simultaneous regional work | Different approved operations use independent regional material. One region's consumption does not invalidate the other's prepared material. |
+| Concurrent duplicate request | Submit the same operation to both regions. Observe one assignment, one execution, one allowance charge, and replay of the same result. |
+| Conflicting request | Reuse the operation ID with another payload, device, or scope. Reject the conflict without new material consumption. |
+| Lost result and restart | Lose the reply after the durable result commits. Restart the executor before reconciliation. Recover the original result without another signing execution. |
+| Uncertain execution and partition | Disconnect after admission at an uncertain commit point. Preserve the original assignment. A timeout must not permit another region to execute it. |
+| Direct and stale execution | Replay an old permit through direct role calls and deferred work. Reject wrong executors and consumed claims. |
+| Revocation, expiry, and exhausted allowance | Reject new admissions after the relevant authority change commits. Previously admitted operations obey the agreed completion rule. The other valid device remains usable. |
+| Recovery and retirement | Recover through the intended lifecycle while a region is offline. Preserve the wallet keys and the contract's surviving device identities. Reject retired authority and material when that region returns. |
+| Storage restoration | Restore a stale regional snapshot. Prevent consumed one-use material from becoming eligible again. Require a defined restoration fence or fresh installation. |
 
 Retain repeatable evidence: revisions, commands, installation identities, public
 keys, signature verification, operation assignments, allowance changes, and material
 consumption. Exclude secrets from artifacts. Local E2E proves behavior; a hosted
 geographic run must establish the latency claim. No new unit tests are planned.
+
+Compare R155 with the current R152 distant-home path and a ready local-home path.
+Use the same devices, payloads, protocols, and deployment configuration. The local
+home provides a relocation comparison without requiring completion of R153.
+
+Measure client-to-signature p50 and p95, sample counts, failures, and every global
+coordination call. Separate first use after travel, warm signing, empty pools,
+expired material, and an offline device's return. Separate blockchain confirmation.
+Record observed execution and storage locations wherever the platform exposes them.
+Location hints alone cannot establish physical placement.
+
+Measure initial preparation and refill for each device, region, and protocol.
+Include device participation, CPU time, requests, storage, discarded material, and
+failed attempts. Measure recovery-driven replacement separately. Report resource
+counts when a reliable monetary estimate is unavailable.
+
+Before the hosted comparison, record the target latency improvement and acceptable
+preparation budget. These product thresholds remain unset. Do not choose them
+after seeing the results. Persist the configuration, commands, source revisions,
+and observations with the decision artifact.
+
+Stop and reassess if independent material needs global synchronization on each
+signing exchange, identity continuity fails, or bounded preparation cannot meet readiness.
+Use the measured path to decide whether remaining global calls erase the benefit.
+An unavailable environment or missing measurement leaves the gate blocked.
+Neither a blocked stage nor a protocol-only pass permits adoption.
 
 ## Adoption decision and relationship to R153/R154
 
