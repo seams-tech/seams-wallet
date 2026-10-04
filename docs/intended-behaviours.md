@@ -257,6 +257,14 @@ initializing a disposed router rejects the call.
 The application resolves wallet configuration before sending it to the wallet
 host. The host validates the complete snapshot without applying defaults again.
 An incomplete snapshot is rejected before replacing the active configuration.
+Execution configuration replacement advances the host's execution generation.
+Pending runtime requests, including requests waiting for code to load, reject with
+`wallet_configuration_changed`. Their later results and progress cannot update the
+replacement runtime. Cached handlers cannot acquire a runtime from a newer generation.
+Appearance updates and equivalent execution settings retain active work. Invalid
+configuration leaves the current generation intact. Replacement disposes volatile
+runtime state and preserves valid durable presignatures. Request rejection does not
+roll back work already committed by the wallet or network.
 Signing-only clients can initialize without registration credentials. Registration
 still requires its normal configured credentials.
 

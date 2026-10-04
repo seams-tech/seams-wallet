@@ -286,3 +286,30 @@ export function applyWalletConfigurationUpdate(
       };
   }
 }
+
+function normalizeForStableSerialize(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(normalizeForStableSerialize);
+  }
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    const normalized: Record<string, unknown> = {};
+    for (const key of Object.keys(record).sort()) {
+      normalized[key] = normalizeForStableSerialize(record[key]);
+    }
+    return normalized;
+  }
+  return value;
+}
+
+export function walletHostExecutionFingerprint(config: WalletHostConfig | null): string {
+  return JSON.stringify(
+    normalizeForStableSerialize({
+      network: config?.network,
+      registration: config?.registration,
+      signing: config?.signing,
+      webauthn: config?.webauthn,
+      rpId: config?.wallet.rpId,
+    }),
+  );
+}

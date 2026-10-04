@@ -8,11 +8,8 @@ import type { WalletSessionId } from '@/core/types/sdkSentEvents';
 import type { WalletId } from '@shared/utils/domainIds';
 import { setEmbeddedBase } from '@/core/walletRuntimePaths';
 import { resolvePrimaryNearRpcUrl } from '@/core/config/chains';
-import type {
-  WalletHostConfig,
-  ConfiguredWalletHost,
-  WalletHostConfigurationState,
-} from '../shared/configuration';
+import { walletHostExecutionFingerprint } from '../shared/configuration';
+import type { ConfiguredWalletHost, WalletHostConfigurationState } from '../shared/configuration';
 import {
   createCspStylesheetManager,
   getDefaultCspNonce,
@@ -42,39 +39,6 @@ function getThemeOverrideStyleManager(): ReturnType<typeof createCspStylesheetMa
     });
   }
   return themeOverrideStyleManager;
-}
-
-function normalizeForStableSerialize(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map((entry) => normalizeForStableSerialize(entry));
-  }
-  if (value && typeof value === 'object') {
-    const record = value as Record<string, unknown>;
-    const normalized: Record<string, unknown> = {};
-    for (const key of Object.keys(record).sort()) {
-      normalized[key] = normalizeForStableSerialize(record[key]);
-    }
-    return normalized;
-  }
-  return value;
-}
-
-function stableSerialize(value: unknown): string {
-  try {
-    return JSON.stringify(normalizeForStableSerialize(value));
-  } catch {
-    return '';
-  }
-}
-
-function buildWalletRuntimeResetFingerprint(config: WalletHostConfig | null): string {
-  return stableSerialize({
-    network: config?.network,
-    registration: config?.registration,
-    signing: config?.signing,
-    webauthn: config?.webauthn,
-    rpId: config?.wallet.rpId,
-  });
 }
 
 function sanitizeTokenName(name: string): string | null {
@@ -191,8 +155,8 @@ function updateThemeBridge(ctx: HostContext): void {
 
 export function applyWalletConfig(ctx: HostContext, configuration: ConfiguredWalletHost): void {
   const previous = ctx.configuration.kind === 'configured' ? ctx.configuration.config : null;
-  const prevRuntimeResetFingerprint = buildWalletRuntimeResetFingerprint(previous);
-  const nextRuntimeResetFingerprint = buildWalletRuntimeResetFingerprint(configuration.config);
+  const prevRuntimeResetFingerprint = walletHostExecutionFingerprint(previous);
+  const nextRuntimeResetFingerprint = walletHostExecutionFingerprint(configuration.config);
   ctx.configuration = configuration;
   const nextAppearance = configuration.config.ui.appearance;
   const nextTheme = nextAppearance.theme.mode;
@@ -214,14 +178,16 @@ export function applyWalletConfig(ctx: HostContext, configuration: ConfiguredWal
   // Reset runtime instances only when signing/runtime config changes. Cosmetic config updates
   // (theme, tokens, and asset base) must not drop warm signing session state.
   if (nextRuntimeResetFingerprint !== prevRuntimeResetFingerprint) {
-    ctx.walletRuntime?.dispose();
+    const previousRuntime = ctx.walletRuntime;
+    ctx.walletRuntime = null;
+    ctx.lifecycleSource = null;
+    ctx.surfaceMeasurementBinding = { kind: 'disabled' };
     ctx.prefsUnsubscribe?.();
     ctx.lifecycleUnsubscribe?.();
     ctx.prefsUnsubscribe = null;
-    ctx.lifecycleSource = null;
     ctx.lifecycleUnsubscribe = null;
     ctx.nearClient = null;
-    ctx.walletRuntime = null;
+    previousRuntime?.dispose();
   }
 }
 
@@ -241,7 +207,9 @@ export function ensureWalletHostLifecycleSubscription(
   if (ctx.lifecycleSource === pm) return;
   ctx.lifecycleUnsubscribe?.();
   ctx.lifecycleSource = pm;
-  ctx.lifecycleUnsubscribe = pm.onSdkLifecycleEvent(handleWalletHostLifecycleEvent.bind(null, ctx));
+  ctx.lifecycleUnsubscribe = pm.onSdkLifecycleEvent(
+    handleWalletHostLifecycleEvent.bind(null, ctx, pm),
+  );
 }
 
 export function setWalletHostLifecycleListener(
@@ -256,7 +224,12 @@ function assertNeverSdkLifecycleEvent(value: never): never {
   throw new Error(`Unhandled SDK lifecycle event: ${String(value)}`);
 }
 
-function handleWalletHostLifecycleEvent(ctx: HostContext, event: SdkLifecycleEvent): void {
+function handleWalletHostLifecycleEvent(
+  ctx: HostContext,
+  runtime: WalletHostRuntime,
+  event: SdkLifecycleEvent,
+): void {
+  if (ctx.lifecycleSource !== runtime) return;
   switch (event.event) {
     case 'signing_session.expired': {
       const sessions = ctx.expiredSessionsByWallet.get(event.walletId);

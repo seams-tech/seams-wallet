@@ -352,8 +352,9 @@ login status, removal, pending-read rejection, and attempted reinitialization.
 
 This client generation tracks selection only. It does not establish authority
 ordering between concurrent reads for the same wallet. Host-issued revisions,
-lock/unlock/revocation/expiry capture rules, reconnect acceptance, and execution
-replacement fencing remain required. Evidence:
+lock/unlock/revocation/expiry capture rules, reconnect acceptance, and consumer
+ownership across execution replacement remain required. Host request fencing is
+recorded in the configuration section below. Evidence:
 `evidence/refactor-170-session-client-20261005.json`.
 
 ## WebAuthn ownership after R152
@@ -391,8 +392,8 @@ own defaults. An invalid update leaves the previous snapshot in place.
 
 This table covers every top-level `SeamsConfigsInput` field. “Reset” means changed
 execution settings dispose the volatile runtime. It never authorizes deletion of
-valid durable presignatures. Fencing pending operations remains part of the
-protocol revision work.
+valid durable presignatures. Host generation fencing now rejects pending operations
+and prevents retired handlers from acquiring the replacement runtime.
 
 | Input | Resolved transport | Owner / update semantics |
 | --- | --- | --- |
@@ -422,8 +423,23 @@ CSS after theme changes. Production lifecycle coverage is recorded in the normal
 configuration checkpoint below. The shared raw/direct config option and redundant
 host resolver are deleted. No old-payload fallback is retained.
 
-Remaining work: `walletHostVariant` ownership, active-operation fencing on execution changes, and
-revision-ordered session/preference observations. Keep the unreleased protocol 3.0.0
+Host request fencing uses the existing execution fingerprint in both the lightweight
+entry and runtime context. A changed fingerprint advances the execution generation,
+rejects requests waiting for module loading or execution, cancels admitted reviews,
+and retires runtime callbacks. Cached handlers belong to that generation. A late
+handler cannot acquire a new runtime, publish results/progress, or clear its surface
+binding. Appearance and invalid updates preserve the active generation. No durable
+presignature deletion is introduced, and committed side effects are not rolled back.
+
+`tests/wallet-iframe/config.execution.test.ts` uses the real host entry, configuration
+boundary, runtime context, and runtime construction. A controlled loader and handler
+hold requests at both asynchronous boundaries. The receipt proves preserved cosmetic
+updates, rejected invalid input, rejected old requests, suppressed late results, and
+fresh runtime ownership. Type fixtures require immutable captured request generations.
+See `evidence/refactor-170-host-generation-20261005.json`.
+
+Remaining work: `walletHostVariant` ownership, consumer ownership across execution changes, and
+revision-ordered session observations. Keep the unreleased protocol 3.0.0
 client and host paired; complete revision semantics before release.
 
 ## Worker and WASM inventory

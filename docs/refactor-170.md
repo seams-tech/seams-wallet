@@ -637,12 +637,13 @@ preferences. Client preference writes support rollback, bounded `flush()`, retai
 failures, and a preference check before signing. Configuration now crosses the
 iframe boundary as a validated resolved snapshot. Appearance updates carry a
 separate resolved branch. Host-side default resolution and the direct-mode
-normalization option are removed. Protocol snapshot/event revision ordering and
-active-operation fencing on execution replacement remain unfinished. Preference
+normalization option are removed. Protocol session snapshot/event revision ordering
+remains unfinished. Preference
 snapshots and events now carry wallet-bound revisions; delayed snapshots cannot
 replace newer events. Host preference reads now fence stale hydration, and writes
-acknowledge durable storage. Session revisions and execution-replacement fencing
-remain open.
+acknowledge durable storage. Host execution replacement now rejects pending runtime
+requests and fences callbacks from the retired generation. Session revisions and
+consumer ownership verification across replacement remain open.
 
 The host no longer reapplies an existing wallet selection during a session read.
 Saved-wallet restoration now yields to selection changes made during its lookup,
@@ -657,6 +658,14 @@ session-read responses. Disposal prevents reinitialization. Session notification
 no longer reapply a result after another asynchronous boundary. These client
 guards preserve selection and connection lifetime; host authority revisions remain
 open. See `evidence/refactor-170-session-client-20261005.json`.
+
+Host execution generations now cover requests waiting for runtime code and requests
+already executing. Replacement rejects them, clears cached handler ownership, and
+suppresses late results, progress, lifecycle events, and surface cleanup from the
+old runtime. Appearance updates preserve active work. The comparison uses the
+existing execution fingerprint shared by the host entry and runtime context.
+See `evidence/refactor-170-host-generation-20261005.json`. This does not close
+session-authority ordering, React ownership acceptance, or durable-pool longevity.
 
 The fresh production root-client static closure measures 66,386 bytes gzip
 (64.8 KiB), compared with 739,640 bytes at baseline: a 91.0% reduction. Including

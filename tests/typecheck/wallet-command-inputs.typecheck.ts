@@ -112,3 +112,16 @@ void unboundPreferences;
 declare const walletHostRuntime: WalletHostRuntime;
 const persistedPreferenceWrite: Promise<void> = walletHostRuntime.preferences.setConfirmationConfig({ uiMode: 'drawer' });
 void persistedPreferenceWrite;
+
+import type { WalletHostRuntimeRequest, WalletHostRuntimeState } from '../../packages/wallet/src/SeamsWeb/walletIframe/host/runtimeContext';
+declare const requestWithoutExecutionGeneration: Omit<WalletHostRuntimeRequest, 'executionGeneration'>;
+declare const stateWithoutExecutionGeneration: Omit<WalletHostRuntimeState, 'executionGeneration'>;
+// @ts-expect-error A request must capture its execution generation before asynchronous work.
+const unboundRuntimeRequest: WalletHostRuntimeRequest = { ...requestWithoutExecutionGeneration };
+// @ts-expect-error Host state must identify its current execution generation.
+const unversionedRuntimeState: WalletHostRuntimeState = { ...stateWithoutExecutionGeneration };
+declare const capturedRuntimeRequest: WalletHostRuntimeRequest;
+// @ts-expect-error A request cannot adopt a replacement generation after it starts.
+capturedRuntimeRequest.executionGeneration = capturedRuntimeRequest.state.executionGeneration;
+void unboundRuntimeRequest;
+void unversionedRuntimeState;

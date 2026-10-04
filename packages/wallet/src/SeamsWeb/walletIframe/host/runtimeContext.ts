@@ -36,12 +36,14 @@ export type WalletHostRuntimeState = {
   parentOrigin: string | null;
   port: MessagePort | null;
   configuration: WalletHostConfigurationState;
+  executionGeneration: number;
   onConfigurationChanged: (() => void) | null;
 };
 
 export type WalletHostRuntimeRequest = {
   transactionReview: TransactionReviewAdmission | null;
   state: WalletHostRuntimeState;
+  readonly executionGeneration: number;
   req: ParentToChildEnvelope;
   post(msg: ChildToParentEnvelope): void;
   isCancelled(requestId: string | undefined): boolean;
@@ -52,6 +54,7 @@ type HandlerFactory = (deps: HandlerDeps) => HandlerMap;
 
 let runtimeContext: HostContext | null = null;
 const handlerMaps = new Map<HandlerFactory, HandlerMap>();
+let handlerExecutionGeneration: number | null = null;
 
 const FOREGROUND_CONFIRMATION_REQUEST_TYPES: ReadonlySet<ParentToChildType> = new Set([
   'PM_REGISTER_WALLET',
@@ -166,6 +169,10 @@ function takeForegroundSurfaceBinding(
 }
 
 function syncRuntimeContext(state: WalletHostRuntimeState): HostContext {
+  if (handlerExecutionGeneration !== state.executionGeneration) {
+    handlerMaps.clear();
+    handlerExecutionGeneration = state.executionGeneration;
+  }
   if (!runtimeContext) {
     runtimeContext = createHostContext();
   }
@@ -234,8 +241,21 @@ function publishPreferences(ctx: HostContext, runtime: WalletHostRuntime): void 
   });
 }
 
-function readPreferences(ctx: HostContext): PreferencesChangedPayload {
-  return preferencesSnapshot(ctx, ensureRequestWalletRuntime(ctx));
+function getRequestWalletRuntime(
+  ctx: HostContext,
+  input: WalletHostRuntimeRequest,
+): WalletHostRuntime {
+  if (input.executionGeneration !== input.state.executionGeneration) {
+    throw new Error('Wallet configuration changed during request');
+  }
+  return ensureRequestWalletRuntime(ctx);
+}
+
+function readPreferences(
+  ctx: HostContext,
+  input: WalletHostRuntimeRequest,
+): PreferencesChangedPayload {
+  return preferencesSnapshot(ctx, getRequestWalletRuntime(ctx, input));
 }
 
 function buildHandlerDeps(ctx: HostContext, input: WalletHostRuntimeRequest): HandlerDeps {
@@ -245,8 +265,8 @@ function buildHandlerDeps(ctx: HostContext, input: WalletHostRuntimeRequest): Ha
   };
 
   return {
-    getWalletRuntime: ensureRequestWalletRuntime.bind(null, ctx),
-    readPreferences: readPreferences.bind(null, ctx),
+    getWalletRuntime: getRequestWalletRuntime.bind(null, ctx, input),
+    readPreferences: readPreferences.bind(null, ctx, input),
     post: postActivityMessage.bind(null, input),
     postProgress,
     isCancelled: input.isCancelled,
@@ -258,6 +278,7 @@ function postActivityMessage(
   input: WalletHostRuntimeRequest,
   message: ChildToParentEnvelope,
 ): void {
+  if (input.executionGeneration !== input.state.executionGeneration) return;
   observeTransactionActivity(message);
   input.post(message);
 }
@@ -294,12 +315,16 @@ export async function handleWalletHostRuntimeRequestWithHandlers(
       throw new Error(`Unsupported wallet iframe request type: ${input.req.type}`);
     }
     await handler(input.req);
-    observeTransactionLifecycleReport(input.req);
+    if (input.executionGeneration === input.state.executionGeneration) {
+      observeTransactionLifecycleReport(input.req);
+    }
   } catch (error) {
-    failTransactionActivity(input.req.requestId, error);
+    if (input.executionGeneration === input.state.executionGeneration) {
+      failTransactionActivity(input.req.requestId, error);
+    }
     throw error;
   } finally {
-    if (foregroundBinding) {
+    if (foregroundBinding && input.executionGeneration === input.state.executionGeneration) {
       clearSurfaceMeasurementBindingForRequest(ctx, foregroundBinding.requestId);
     }
   }
