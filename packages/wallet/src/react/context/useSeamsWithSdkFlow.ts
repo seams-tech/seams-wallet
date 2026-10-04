@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { PasskeyRegistrationOptions, SeamsWeb } from '@/SeamsWeb';
+import type { ConfigCapability, PasskeyRegistrationOptions, SeamsWeb } from '@/SeamsWeb';
 import type { AuthCapability, RecoveryCapability, RegistrationCapability } from '@/SeamsWeb';
 import {
   type LoginHooksOptions,
@@ -12,6 +12,17 @@ import {
   type AccountSyncFlowEvent,
   type SyncAccountHooksOptions,
 } from '@/core/types/sdkSentEvents';
+
+function setThemeWithHost(
+  seams: SeamsWeb,
+  hostSetTheme: ((theme: 'light' | 'dark') => void) | undefined,
+  next: 'light' | 'dark',
+): void {
+  try {
+    hostSetTheme?.(next);
+  } catch {}
+  seams.config.setTheme(next);
+}
 
 export function useSeamsWithSdkFlow(args: {
   seams: SeamsWeb;
@@ -40,7 +51,6 @@ export function useSeamsWithSdkFlow(args: {
     type AddWalletSignerFn = RegistrationCapability['addWalletSigner'];
     type RegisterPasskeyFn = RegistrationCapability['registerPasskey'];
     type SyncAccountFn = RecoveryCapability['syncAccount'];
-    type SetThemeFn = SeamsWeb['setTheme'];
 
     const loginWithSdkFlow: LoginFn = async (walletId: string, options?: LoginHooksOptions) => {
       const seq = beginSdkFlow('login', walletId);
@@ -218,11 +228,9 @@ export function useSeamsWithSdkFlow(args: {
       });
     };
 
-    const setThemeWithHost: SetThemeFn = (next) => {
-      try {
-        hostSetTheme?.(next);
-      } catch {}
-      seams.setTheme(next);
+    const config: ConfigCapability = {
+      ...seams.config,
+      setTheme: setThemeWithHost.bind(null, seams, hostSetTheme),
     };
 
     return new Proxy(seams, {
@@ -272,9 +280,7 @@ export function useSeamsWithSdkFlow(args: {
           } satisfies RecoveryCapability;
         }
 
-        if (prop === 'setTheme') {
-          return setThemeWithHost;
-        }
+        if (prop === 'config') return config;
 
         const value: unknown = Reflect.get(target, prop, receiver);
         // For non-wrapped methods, bind to preserve `this` on the class instance.

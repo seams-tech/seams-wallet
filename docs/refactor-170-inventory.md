@@ -1245,3 +1245,28 @@ runtime boundaries, and the bloat gate pass. Package validation and sanitized
 receipts are recorded in `evidence/refactor-170-preference-durability-20261005.json`.
 This task adds 138 and removes 123 production lines, net +15. Session revision
 ordering and execution-configuration replacement fencing remain unfinished.
+
+
+### Configuration namespace checkpoint
+
+The application client exposes `config.setTheme`, `config.setAppearance`,
+`config.chainTarget`, and `config.configuredChainTargets`. The old top-level
+methods are deleted. Chain selection binds the existing resolver directly.
+Appearance retains its existing application owner and asynchronous host update.
+The current theme is derived from appearance, removing a duplicate mutable field.
+
+React's existing SDK proxy wraps `config.setTheme` to preserve the optional host
+theme callback. Provider appearance updates and settings controls use the same
+namespace. Public docs and examples use the new calls. Type fixtures reject all
+four old methods and direct mutation of the theme projection.
+
+The browser configuration scenario exercises detached namespace methods, chain
+selection, appearance changes, and host forwarding. It writes `configuration.json`
+to the Playwright output directory. Verification is recorded in
+`evidence/refactor-170-config-api-20261005.json`. Other R171 namespaces and the
+private Console release migration remain pending.
+
+Nine browser cases and one production refresh/signing/step-up/export case pass.
+Build, types, external declarations, runtime boundaries, and the bloat gate pass.
+Production source adds 56 lines and removes 47, net +9; the public contract
+comments and React namespace binding account for the small increase.

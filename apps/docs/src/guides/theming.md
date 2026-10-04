@@ -12,7 +12,7 @@ origin. Use the same color roles and shape settings in both places.
 ## Apply a theme
 
 - Use `Theme` and its tokens for app-owned React components.
-- Set `appearance` during SDK configuration, or call `setAppearance`, for the
+- Set `appearance` during SDK configuration, or call `seams.config.setAppearance`, for the
   auth menu, confirmer, and export viewer inside the wallet iframe.
 - Start from `LIGHT_TOKENS`, `DARK_TOKENS`, and one `SHAPE_PRESETS` branch.
 - Override semantic roles as a complete light/dark pair.

@@ -67,7 +67,7 @@ If you set `relayerAccount`, the SDK skips discovery. Your value must match the 
 
 ## Appearance branch
 
-Initial appearance belongs in configuration. Use `setAppearance` for runtime
+Initial appearance belongs in configuration. Use `seams.config.setAppearance` for runtime
 theme changes. Keep the app-owned React theme and wallet-owned iframe appearance
 on the same semantic palette.
 

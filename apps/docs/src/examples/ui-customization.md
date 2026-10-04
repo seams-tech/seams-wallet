@@ -15,15 +15,15 @@ different control shapes or sizes.
 
 ## Apply one theme
 
-Use `Theme` for React-owned components and `setAppearance` for wallet-iframe
+Use `Theme` for React-owned components and `seams.config.setAppearance` for wallet-iframe
 surfaces. Both receive the same colors and complete shape preset.
 
 <<< ./theming.tsx
 
 Set `appearance` in the provider config for the initial theme. Use
-`setAppearance` when the person switches themes at runtime.
+`seams.config.setAppearance` when the person switches themes at runtime.
 
-Send the full shape record to `setAppearance` as well. Appearance updates
+Send the full shape record to `seams.config.setAppearance` as well. Appearance updates
 merge key by key, so a complete preset avoids stale values when switching from
 rounded controls back to square controls.
 

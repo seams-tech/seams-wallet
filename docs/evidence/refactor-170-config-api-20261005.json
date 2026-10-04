@@ -1,0 +1,349 @@
+{
+  "date": "2026-10-05",
+  "baseCommit": "38d19146b6eca4d7aa4ec568b40ea72c6f2a7e95",
+  "scope": "Migrate the four application configuration methods to seams.config; remove replaced methods and duplicate mutable theme state.",
+  "sourceSha256": {
+    "apps/docs/src/examples/theming.tsx": "c0a6fa0902eb04a8f9d687f1be1ce53da8c6ed63474116d9d9040f4e854dfc01",
+    "apps/docs/src/examples/ui-customization.md": "d2f1ff608463093f02416008d14b36106f5608cb8c08e99e659be2bd085f5cbf",
+    "apps/docs/src/getting-started/sign-with-policy.md": "db77a6e4baa4cbab30400e85f67d25fe0338d29b331d4d9fe5c9436a07173dbc",
+    "apps/docs/src/getting-started/theming.md": "5067f7d1a2422a5dfb8d5713f40f4a39390a4ff00a79dede2d551f9e5dbcd461",
+    "apps/docs/src/guides/theming.md": "a0d413075a7423768409a06b5bd525b2e47cdb6f0cccfb17220eed42f303bf81",
+    "apps/docs/src/reference/advanced.md": "975cd56e9600c6431b387194010f1da185a8b35c752f232b616f04a20f1763c0",
+    "apps/docs/src/reference/configuration.md": "3149faffd110675b893675804cfe7cc51f057067de7c3453e19fcc6c475e688c",
+    "apps/docs/src/reference/core.md": "a4e765b1e3c34ebbc388fb9a6c0bae4e5a02ee491440185ef4956bad7bdf6856",
+    "packages/wallet/src/SeamsWeb/SeamsWeb.ts": "f996d30b0508812125bd3f96b17531cdcb877b13bb59b462c6f6526f5942a1da",
+    "packages/wallet/src/SeamsWeb/index.ts": "09f887648bba3bb1f23a9609684e24a382f3655a20889f751b26e6dec9f243dd",
+    "packages/wallet/src/SeamsWeb/publicApi/types.ts": "47007f224ecf2bc3358bdf570d9d571edad1955f0ccba6102a4138b0254a2f20",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/WalletHostRuntime.ts": "c3ae2dc7747fc31c08bc9e6b13dcb4551156dfc2bd58bf7f0e2299445a86dd6a",
+    "packages/wallet/src/core/signingEngine/interfaces/ecdsaChainTarget.ts": "ff994c66bc110504dd4da09de58211f39058154d2377555f8703788c6301cefb",
+    "packages/wallet/src/index.ts": "cc8bdf5c635b5d93c8de4134c15534b40cf2f26107bb0b374c42cb82b70e1edf",
+    "packages/wallet/src/react/components/AccountMenuButton/WalletSettingsLayout.tsx": "6919bc3fe6b6fdcfc711ab14ac684a267be7db6430a291b11fe7d58fe326d171",
+    "packages/wallet/src/react/context/index.tsx": "d84f1aec13d77496b2b930da0cc52c2c810dd47148286873765c85ade3d5e4f3",
+    "packages/wallet/src/react/context/seamsManagerSingleton.ts": "03de80dd13cddd665a9fc63021990f4e8ed126af5acdc62a72b7b738d92ca174",
+    "packages/wallet/src/react/context/useSeamsWithSdkFlow.ts": "eb146bef796129d80770c0b630e9c07d7e65d33ffb7daa16cf590ec1702b85b8",
+    "tests/typecheck/wallet-command-inputs.typecheck.ts": "4f180fe586529eb45c12b0dbae7cff139392a21ae7ac970096038251f14beecd",
+    "tests/wallet-iframe/preferences.sync.test.ts": "d0a65ec78be5d2a5d90cd4be226f3d96b2a0385d5e80f2ad3de63c670ff5ce40"
+  },
+  "checks": {
+    "productionBuild": "passed",
+    "walletTypecheck": "passed",
+    "walletStateTypecheck": "passed after correcting missing appearance theme ID in the new fixture",
+    "browserTypecheck": "passed",
+    "intendedTypecheck": "passed",
+    "docsTypecheck": "passed",
+    "externalDeclarations": "passed",
+    "runtimeEntryBundles": "passed",
+    "bloat": "passed"
+  },
+  "browser": {
+    "command": "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4289 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/preferences.sync.test.ts wallet-iframe/config.forwarding.test.ts wallet-iframe/config.execution.test.ts wallet-ui/theme.test.ts --project=chromium --output=../.artifacts/r170-config-api-final",
+    "passed": 9,
+    "initialFailure": "obsolete_test_or_fixture: preference stub named Alice while its inherited session snapshot named no wallet. Corrected the stub snapshot wallet binding. Initial run stopped after the final run passed.",
+    "artifacts": [
+      {
+        "path": ".artifacts/r170-config-api-final/wallet-iframe-config.execu-2c1d8-e-appearance-preserves-work-chromium/execution-generation.json",
+        "result": {
+          "messages": [
+            {
+              "type": "READY",
+              "payload": {
+                "protocolVersion": "3.0.0"
+              }
+            },
+            {
+              "type": "PONG",
+              "requestId": "initial-1"
+            },
+            {
+              "type": "PREFERENCES_CHANGED",
+              "payload": {
+                "walletId": null,
+                "confirmationConfig": {
+                  "uiMode": "modal",
+                  "behavior": "requireClick",
+                  "autoProceedDelay": 0
+                },
+                "revision": 1
+              }
+            },
+            {
+              "type": "PONG",
+              "requestId": "appearance-2"
+            },
+            {
+              "type": "ERROR",
+              "requestId": "invalid-3",
+              "payload": {
+                "code": "HOST_ERROR",
+                "message": "Invalid resolved wallet host configuration"
+              }
+            },
+            {
+              "type": "PM_RESULT",
+              "requestId": "appearance-work",
+              "payload": {
+                "ok": true,
+                "result": {
+                  "before": 1,
+                  "after": 1
+                }
+              }
+            },
+            {
+              "type": "ERROR",
+              "requestId": "replaced-work",
+              "payload": {
+                "code": "wallet_configuration_changed",
+                "message": "Wallet configuration changed during request"
+              }
+            },
+            {
+              "type": "PONG",
+              "requestId": "replacement-4"
+            },
+            {
+              "type": "PM_RESULT",
+              "requestId": "new-work",
+              "payload": {
+                "ok": true,
+                "result": {
+                  "before": 2,
+                  "after": 2
+                }
+              }
+            },
+            {
+              "type": "PREFERENCES_CHANGED",
+              "payload": {
+                "walletId": null,
+                "confirmationConfig": {
+                  "uiMode": "modal",
+                  "behavior": "requireClick",
+                  "autoProceedDelay": 0
+                },
+                "revision": 2
+              }
+            },
+            {
+              "type": "ERROR",
+              "requestId": "replaced-load",
+              "payload": {
+                "code": "wallet_configuration_changed",
+                "message": "Wallet configuration changed during request"
+              }
+            },
+            {
+              "type": "PONG",
+              "requestId": "replacement-5"
+            },
+            {
+              "type": "PM_RESULT",
+              "requestId": "final-work",
+              "payload": {
+                "ok": true,
+                "result": {
+                  "before": 3,
+                  "after": 3
+                }
+              }
+            },
+            {
+              "type": "PREFERENCES_CHANGED",
+              "payload": {
+                "walletId": null,
+                "confirmationConfig": {
+                  "uiMode": "modal",
+                  "behavior": "requireClick",
+                  "autoProceedDelay": 0
+                },
+                "revision": 3
+              }
+            }
+          ],
+          "host": {
+            "heldWork": [],
+            "heldLoad": false,
+            "started": [
+              {
+                "requestId": "appearance-work",
+                "runtimeId": 1
+              },
+              {
+                "requestId": "replaced-work",
+                "runtimeId": 1
+              },
+              {
+                "requestId": "new-work",
+                "runtimeId": 2
+              },
+              {
+                "requestId": "final-work",
+                "runtimeId": 3
+              }
+            ],
+            "finished": [
+              {
+                "requestId": "appearance-work",
+                "before": 1,
+                "after": 1
+              },
+              {
+                "requestId": "new-work",
+                "before": 2,
+                "after": 2
+              },
+              {
+                "requestId": "replaced-work",
+                "before": 1,
+                "after": "Wallet configuration changed during request"
+              },
+              {
+                "requestId": "final-work",
+                "before": 3,
+                "after": 3
+              }
+            ]
+          }
+        }
+      },
+      {
+        "path": ".artifacts/r170-config-api-final/wallet-iframe-config.forwa-45d4e-y-across-appearance-changes-chromium/configuration-forwarding.json",
+        "result": {
+          "initial": {
+            "rendered": {
+              "accentPrimary": "#123456",
+              "buttonBackground": "#abcdef",
+              "card": "8px",
+              "control": ""
+            },
+            "authPolicy": "per_operation",
+            "registrationConfigured": true,
+            "delegateRoute": "/custom/delegate",
+            "relayerUrl": "https://relay.example.localhost",
+            "theme": "dark",
+            "themeId": "first",
+            "colors": {
+              "accentPrimary": "#123456",
+              "buttonBackground": "#abcdef"
+            },
+            "shape": {
+              "card": "8px"
+            },
+            "walletMode": "direct",
+            "hasNestedIframe": false,
+            "rpId": "example.localhost"
+          },
+          "rejected": "Error: Invalid resolved wallet host configuration",
+          "missingRp": "Error: Invalid resolved wallet host configuration",
+          "nestedIframe": "Error: Invalid resolved wallet host configuration",
+          "updated": {
+            "rendered": {
+              "accentPrimary": "#112233",
+              "buttonBackground": "#abcdef",
+              "card": "8px",
+              "control": "4px"
+            },
+            "authPolicy": "per_operation",
+            "registrationConfigured": true,
+            "delegateRoute": "/custom/delegate",
+            "relayerUrl": "https://relay.example.localhost",
+            "theme": "light",
+            "themeId": "first",
+            "colors": {
+              "accentPrimary": "#112233",
+              "buttonBackground": "#abcdef"
+            },
+            "shape": {
+              "card": "8px",
+              "control": "4px"
+            },
+            "walletMode": "direct",
+            "hasNestedIframe": false,
+            "rpId": "example.localhost"
+          },
+          "switched": {
+            "rendered": {
+              "accentPrimary": "#654321",
+              "buttonBackground": "",
+              "card": "",
+              "control": ""
+            },
+            "authPolicy": "per_operation",
+            "registrationConfigured": true,
+            "delegateRoute": "/custom/delegate",
+            "relayerUrl": "https://relay.example.localhost",
+            "theme": "light",
+            "themeId": "second",
+            "colors": {
+              "accentPrimary": "#654321"
+            },
+            "shape": {},
+            "walletMode": "direct",
+            "hasNestedIframe": false,
+            "rpId": "example.localhost"
+          },
+          "signingOnly": {
+            "rendered": {
+              "accentPrimary": "#123456",
+              "buttonBackground": "#abcdef",
+              "card": "8px",
+              "control": ""
+            },
+            "authPolicy": "per_operation",
+            "registrationConfigured": false,
+            "delegateRoute": "/custom/delegate",
+            "relayerUrl": "https://relay.example.localhost",
+            "theme": "dark",
+            "themeId": "first",
+            "colors": {
+              "accentPrimary": "#123456",
+              "buttonBackground": "#abcdef"
+            },
+            "shape": {
+              "card": "8px"
+            },
+            "walletMode": "direct",
+            "hasNestedIframe": false,
+            "rpId": "wallet.example.localhost"
+          }
+        }
+      },
+      {
+        "path": ".artifacts/r170-config-api-final/wallet-iframe-preferences.-6c591-pearance-to-the-wallet-host-chromium/configuration.json",
+        "result": {
+          "success": true,
+          "currentTheme": "light",
+          "appearanceTheme": "dark",
+          "target": {
+            "kind": "tempo",
+            "chainId": 42431,
+            "networkSlug": "tempo-testnet"
+          },
+          "targets": [
+            {
+              "kind": "tempo",
+              "chainId": 42431,
+              "networkSlug": "tempo-testnet"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "production": {
+    "command": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.unlock.contract.test.ts --grep 'page refresh hydrates warm signing'",
+    "passed": 1,
+    "sanitizedReceipt": [
+      "[wallet-intended] running 1 case(s) with fresh Wallet state",
+      "[wallet-intended] 1/1 e2e/intended-behaviours/passkey.unlock.contract.test.ts:63 page refresh hydrates warm signing, one-use step-up, and key export",
+      "  1 passed (33.9s)"
+    ]
+  },
+  "productionLines": {
+    "countingRule": "git diff --numstat from baseCommit, packages/wallet/src only; includes comments and types, excludes tests and documentation",
+    "added": 56,
+    "deleted": 47,
+    "net": 9
+  },
+  "remaining": "Other R171 namespaces, private Console exact-release migration, worker optimization, durable presignature longevity, final cleanup and complete R170 acceptance remain open."
+}

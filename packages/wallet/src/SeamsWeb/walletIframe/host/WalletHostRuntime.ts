@@ -345,7 +345,7 @@ export class WalletHostRuntime {
    * Every configured chain is named in the error, so an ambiguous selector is
    * a clear failure rather than a silent first-match pick.
    *
-   * @example seams.chainTarget('tempo-testnet')
+   * @example seams.config.chainTarget('tempo-testnet')
    */
   chainTarget(selector: EcdsaChainSelector): ThresholdEcdsaChainTarget {
     return resolveConfiguredChainTarget(this.configs.network.chains, selector);

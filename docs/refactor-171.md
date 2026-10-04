@@ -1,7 +1,7 @@
 # Simplify the public Wallet SDK API
 
-Status: accepted naming direction, implementation plan, 2026-10-04.
-No runtime changes, publication, or deployment are performed by this document.
+Status: implementation in progress, 2026-10-05.
+Configuration namespace migrated locally; publication and deployment remain pending.
 
 ## Objective
 
@@ -396,6 +396,11 @@ a declaration-level pass before declaring the migration complete.
   options. No broad lifecycle spreads, domain casts, or repeated raw validation.
 
 ## Implementation sequence
+
+- [x] Move theme, appearance, and chain-target helpers to `seams.config`. Remove
+  the four old top-level methods and migrate React, examples, and public docs.
+  Keep the resolved `configs` snapshot separate. See the configuration checkpoint
+  in `refactor-170-inventory.md` for scoped verification.
 
 - [ ] Audit current declarations and consumers in public SDK, tests, examples,
   docs, and private Console. Classify each row as rename, consolidation, internal

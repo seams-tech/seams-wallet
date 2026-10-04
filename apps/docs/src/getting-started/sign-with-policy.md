@@ -35,7 +35,7 @@ group. Their transaction formats and signed results differ. `seams.evm` returns
 Build the transaction with your EVM utilities. Select the chain with a configured
 network slug, such as `'ethereum-sepolia'`. The selector must match exactly one chain.
 If it matches two chains, the SDK throws an error that names both. Call
-`seams.chainTarget(selector)` to resolve the target before signing. You can also pass an
+`seams.config.chainTarget(selector)` to resolve the target before signing. You can also pass an
 exact chain target.
 
 <<< ../examples/evm-signing.ts

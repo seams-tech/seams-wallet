@@ -19,6 +19,8 @@ import type { ExactWalletSessionAuthorization } from '@/core/signingEngine/sessi
 import type { RouterAbEcdsaDerivationLoginPresignaturePrefillResult } from '@/core/signingEngine/session/warmCapabilities/ecdsaLoginPrefill';
 import type { SignedTransaction } from '@/core/rpcClients/near/NearClient';
 import type {
+  AppearanceConfigInput,
+  ThemeMode,
   ActionResult,
   DelegateRouterApiResult,
   EmailOtpAuthPolicy,
@@ -128,6 +130,17 @@ import type {
   RegisterWalletInput,
 } from '@shared/utils/registrationAuthMethodInput';
 import type { ExclusiveUnion } from '@shared/utils/variant';
+
+export interface ConfigCapability {
+  setTheme(theme: ThemeMode): void;
+  /** Update appearance locally and forward it to the wallet host asynchronously. */
+  setAppearance(appearance: AppearanceConfigInput): void;
+  /** Resolve a target. Network, chain ID, and family selectors require exactly one match. */
+  chainTarget(selector: EcdsaChainSelector): ThresholdEcdsaChainTarget;
+  /** All configured ECDSA chain targets. */
+  configuredChainTargets(): readonly ThresholdEcdsaChainTarget[];
+}
+
 export type {
   WalletIframeRequestId,
   WalletIframeSurfaceId,

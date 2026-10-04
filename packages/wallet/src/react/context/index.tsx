@@ -126,7 +126,7 @@ export const SeamsContextProvider: React.FC<SeamsContextProviderProps> = ({
 
   /* This effect is a sync channel for the provider's own theme input, not an
      override channel. Parent effects run after child effects, so a redundant
-     push here would clobber `seams.setAppearance` calls children make during
+     push here would clobber `seams.config.setAppearance` calls children make during
      mount (e.g. a demo theme switcher) — the manager was already constructed
      with `config.appearance`, so skip until the provider's input diverges from
      what the manager already has. */
@@ -155,7 +155,7 @@ export const SeamsContextProvider: React.FC<SeamsContextProviderProps> = ({
       return;
     }
     lastAppearancePushKeyRef.current = key;
-    seams.setAppearance(nextAppearance);
+    seams.config.setAppearance(nextAppearance);
   }, [seams, config.appearance, theme?.appearance, theme?.theme]);
 
   const value = useSeamsContextValue({

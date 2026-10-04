@@ -8,10 +8,7 @@ import { buildConfigsFromEnv } from '@/core/config/defaultConfigs';
 import { MinimalNearClient, type NearClient } from '@/core/rpcClients/near/NearClient';
 import { requestWalletCustodyEmailOtpChallenge } from '@/core/rpcClients/relayer/walletRecoveryRotate';
 import type { SigningEngineExportKeypairWithUIInput } from '@/core/signingEngine/flows/recovery/public';
-import {
-  configuredThresholdEcdsaChainTargets,
-  type ThresholdEcdsaChainTarget,
-} from '@/core/signingEngine/interfaces/ecdsaChainTarget';
+import { configuredThresholdEcdsaChainTargets } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { SdkLifecycleEventListener } from '@/core/types/sdkSentEvents';
 import type {
   AppearanceConfig,
@@ -26,10 +23,8 @@ import {
   resolvePasskeyRegistrationAccountProvisioning,
 } from '@/SeamsWeb/operations/registration/registrationSignerSet';
 import { createApplicationPublicApi } from '@/SeamsWeb/publicApi';
-import {
-  resolveConfiguredChainTarget,
-  type EcdsaChainSelector,
-} from '@/SeamsWeb/publicApi/chainTargets';
+import type { ConfigCapability } from '@/SeamsWeb/publicApi/types';
+import { resolveConfiguredChainTarget } from '@/SeamsWeb/publicApi/chainTargets';
 import type {
   AuthCapability,
   DevicesCapability,
@@ -87,7 +82,7 @@ export class SeamsWeb {
   private readonly nearClient: NearClient;
   readonly configs: SeamsClientConfig;
   private appearance: AppearanceConfig;
-  theme: ThemeMode;
+  readonly config: ConfigCapability;
   private readonly walletIframe: WalletIframeCoordinator;
   readonly recovery: RecoveryCapability;
   readonly devices: DevicesCapability;
@@ -105,7 +100,15 @@ export class SeamsWeb {
     this.nearClient =
       nearClient || new MinimalNearClient(resolvePrimaryNearRpcUrl(this.configs.network.chains));
     this.appearance = this.configs.ui.appearance;
-    this.theme = this.appearance.theme.mode;
+    this.config = {
+      setTheme: this.updateTheme.bind(this),
+      setAppearance: this.updateAppearance.bind(this),
+      chainTarget: resolveConfiguredChainTarget.bind(null, this.configs.network.chains),
+      configuredChainTargets: configuredThresholdEcdsaChainTargets.bind(
+        null,
+        this.configs.network.chains,
+      ),
+    };
     const userPreferences = this.preferenceState;
     this.walletIframe = new WalletIframeCoordinator({
       configs: this.configs,
@@ -243,9 +246,12 @@ export class SeamsWeb {
     this.disposePreferences();
     this.walletIframe.dispose();
   }
-  setTheme(next: ThemeMode): void {
+  get theme(): ThemeMode {
+    return this.appearance.theme.mode;
+  }
+  private updateTheme(next: ThemeMode): void {
     if (next !== 'light' && next !== 'dark') return;
-    this.setAppearance({
+    this.updateAppearance({
       theme: {
         ...this.appearance.theme,
         mode: next,
@@ -253,32 +259,14 @@ export class SeamsWeb {
     });
   }
   /**
-   * Resolve one configured ECDSA chain target by network slug, chain id, or
-   * family — the value every EVM-family signing and export call takes.
-   *
-   * Throws when the selector matches no configured chain, or more than one.
-   * Every configured chain is named in the error, so an ambiguous selector is
-   * a clear failure rather than a silent first-match pick.
-   *
-   * @example seams.chainTarget('tempo-testnet')
-   */
-  chainTarget(selector: EcdsaChainSelector): ThresholdEcdsaChainTarget {
-    return resolveConfiguredChainTarget(this.configs.network.chains, selector);
-  }
-  /** Every ECDSA chain target this client is configured for. */
-  configuredChainTargets(): readonly ThresholdEcdsaChainTarget[] {
-    return configuredThresholdEcdsaChainTargets(this.configs.network.chains);
-  }
-  /**
    * Update resolved appearance at runtime.
    * Forward appearance to the wallet-host document. Appearance is
    * excluded from the runtime-reset fingerprint, so warm signing-session state
    * is preserved. Fire-and-forget; never throws.
    */
-  setAppearance(appearance: AppearanceConfigInput): void {
+  private updateAppearance(appearance: AppearanceConfigInput): void {
     const normalizedAppearance = resolveRuntimeAppearance(this.appearance, appearance);
     this.appearance = normalizedAppearance;
-    this.theme = normalizedAppearance.theme.mode;
     void this.synchronizeAppearance(normalizedAppearance);
   }
   private async synchronizeAppearance(appearance: AppearanceConfig): Promise<void> {

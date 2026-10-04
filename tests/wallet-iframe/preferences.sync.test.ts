@@ -89,6 +89,11 @@ const PREFERENCES_PUSH_STUB = `
           return;
         }
 
+        if (type === 'PM_GET_EXACT_WALLET_SESSION_STATE') {
+          respond(requestId, { revision: ++sessionObservationRevision, walletId, state: exactSessionState });
+          return;
+        }
+
         if (type === 'PM_GET_WALLET_SESSION') {
           respond(requestId, makeLoginSession());
           return;
@@ -419,7 +424,7 @@ test.describe('Wallet iframe preferences sync', () => {
     expect(requests).toEqual(['PM_SET_CONFIRMATION_CONFIG']);
   });
 
-  test('seams.setTheme forwards appearance updates to the wallet host', async ({ page }) => {
+  test('configuration selects chain targets and forwards appearance to the wallet host', async ({ page }, testInfo) => {
     const seamsPath = SDK_ESM_PATHS.seamsWeb;
     const result = await page.evaluate(
       async ({ walletOrigin, seamsPath }) => {
@@ -433,6 +438,7 @@ test.describe('Wallet iframe preferences sync', () => {
 
           const seams = new SeamsWeb({
             chains: [
+              { network: 'tempo-testnet', chainId: 42431, rpcUrl: 'https://rpc.moderato.tempo.xyz' },
               {
                 network: 'near-testnet',
                 rpcUrl: 'https://test.rpc.fastnear.com',
@@ -448,9 +454,14 @@ test.describe('Wallet iframe preferences sync', () => {
           });
 
           await seams.initWalletIframe();
-          seams.setTheme('light');
+          seams.config.setAppearance({ theme: { id: 'brand', mode: 'dark' } });
+          const appearanceTheme = seams.theme;
+          const { setTheme, chainTarget, configuredChainTargets } = seams.config;
+          setTheme('light');
+          const target = chainTarget('tempo-testnet');
+          const targets = configuredChainTargets();
 
-          return { success: true, currentTheme: seams.theme };
+          return { success: true, currentTheme: seams.theme, appearanceTheme, target, targets };
         } catch (error: any) {
           return { success: false, error: error?.message || String(error) };
         }
@@ -464,6 +475,8 @@ test.describe('Wallet iframe preferences sync', () => {
     }
 
     expect(result.currentTheme).toBe('light');
+    expect(result.appearanceTheme).toBe('dark');
+    expect(result.targets).toEqual([result.target]);
 
     const walletFrame = page.frames().find((frame) => {
       const url = frame.url();
@@ -474,6 +487,7 @@ test.describe('Wallet iframe preferences sync', () => {
     await walletFrame!.waitForFunction(() => (window as any).__lastSetTheme === 'light', null, {
       timeout: 3000,
     });
+    await writeFile(testInfo.outputPath('configuration.json'), JSON.stringify(result, null, 2));
   });
 });
 

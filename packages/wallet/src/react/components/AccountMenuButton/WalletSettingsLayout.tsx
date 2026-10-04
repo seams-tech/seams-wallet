@@ -81,7 +81,7 @@ export function WalletSettingsHeader() {
         className="seams-settings-theme-toggle"
         type="button"
         aria-label={`Switch to ${nextTheme} mode`}
-        onClick={seams.setTheme.bind(seams, nextTheme)}
+        onClick={seams.config.setTheme.bind(null, nextTheme)}
       >
         {theme === 'dark' ? (
           <SunIcon size={20} animate={false} />

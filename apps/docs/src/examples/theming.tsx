@@ -33,7 +33,7 @@ export function ThemedAuthMenu({
 }
 
 export function applyWalletTheme(seams: SeamsWeb): void {
-  seams.setAppearance({
+  seams.config.setAppearance({
     theme: {
       id: 'brand',
       mode: 'light',

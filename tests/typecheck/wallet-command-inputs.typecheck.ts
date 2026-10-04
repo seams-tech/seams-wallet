@@ -47,6 +47,20 @@ preferenceState.applyWalletHostConfirmationConfig({
 
 import type { SeamsWeb } from '../../packages/wallet/src/SeamsWeb/SeamsWeb';
 declare const applicationClient: SeamsWeb;
+applicationClient.config.setTheme('dark');
+applicationClient.config.setAppearance({ theme: { id: 'default', mode: 'light' } });
+applicationClient.config.chainTarget('tempo-testnet');
+applicationClient.config.configuredChainTargets();
+// @ts-expect-error Configuration calls are grouped under config.
+applicationClient.setTheme('dark');
+// @ts-expect-error Appearance has one public entry point.
+applicationClient.setAppearance({ theme: { id: 'default', mode: 'light' } });
+// @ts-expect-error Chain selection is grouped under config.
+applicationClient.chainTarget('tempo-testnet');
+// @ts-expect-error Configured chain inventory is grouped under config.
+applicationClient.configuredChainTargets();
+// @ts-expect-error The current theme is a read-only projection of appearance.
+applicationClient.theme = 'dark';
 // @ts-expect-error Application clients cannot expose wallet-origin execution contexts.
 applicationClient.getContext();
 

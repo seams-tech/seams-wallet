@@ -26,7 +26,7 @@ first signing call needs no import from this entrypoint.
 
 They still preserve the relationship between wallet, session, account, and chain.
 Construct the reference once. Pass it through the operation that requires it. Prefer
-`seams.chainTarget(selector)` for chain targets. It can select only a chain configured
+`seams.config.chainTarget(selector)` for chain targets. It can select only a chain configured
 in your client.
 
 ## Other exports

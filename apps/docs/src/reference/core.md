@@ -17,6 +17,7 @@ import { SeamsWeb, type SeamsConfigsInput } from '@seams/wallet';
 
 | Capability     | Responsibility                                                               |
 | -------------- | ---------------------------------------------------------------------------- |
+| `config`       | Update appearance and select configured chain targets.                       |
 | `registration` | Register a wallet, add a signer, await NEAR provisioning.                    |
 | `auth`         | Unlock, lock, restore, and inspect wallet sessions.                          |
 | `near`         | Sign and send NEAR transactions, delegate actions, and NEP-413 messages.     |
@@ -30,6 +31,15 @@ import { SeamsWeb, type SeamsConfigsInput } from '@seams/wallet';
 `advanced` group for reporting after broadcast. Their transaction formats differ. Tempo
 uses EIP-2718 and returns `senderHashHex` in its signed result. EVM uses EIP-1559 and
 returns `txHashHex`.
+
+Configuration calls share one namespace:
+
+```ts
+seams.config.setTheme('dark');
+seams.config.setAppearance({ theme: { id: 'brand', mode: 'light' } });
+const target = seams.config.chainTarget('tempo-testnet');
+const targets = seams.config.configuredChainTargets();
+```
 
 ## Naming the subject and the chain
 

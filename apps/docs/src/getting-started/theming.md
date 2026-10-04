@@ -22,7 +22,7 @@ auth menu, transaction confirmer, and export viewer receive the same values.
 
 ## Set the initial appearance
 
-Set the initial value with `SeamsConfigsInput.appearance`. Use `setAppearance` when the
+Set the initial value with `SeamsConfigsInput.appearance`. Use `seams.config.setAppearance` when the
 user changes the theme or the system changes its appearance mode. Updates merge into the
 current appearance.
 
