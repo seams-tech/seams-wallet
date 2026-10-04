@@ -7,6 +7,33 @@ Exact-candidate validation was dispatched as Wallet run `37196611261` and
 Cloudflare MPC run `37196612989`. Their results are pending; previous green
 checkpoints do not cover this candidate. No release workflow was dispatched.
 
+The first MPC run passed adapter, entrypoint and startup checks. One VM E2E
+exited before its local Worker health check; no protocol assertion failed.
+The exact unchanged test passed locally in 6.57s and emitted its cleanup receipt.
+The failed CI job was retried at the same revision (attempt 2); its result remains
+pending. Do not turn that startup failure into a protocol or fixture change
+without further evidence.
+
+Hosted published-client cutover verification passed in **18.9s** (private
+`adb0d61`). The actual npm 0.7.3 registration transport, loaded in Chromium at
+the staging app origin, received the exact reload/upgrade message from the real
+staging Gateway. The same browser then loaded candidate assets, registered and
+verified a Tempo signature. No backend response was stubbed. This checks the
+published transport and reload path; it does not load the entire historical app
+UI. The earlier UI error-rendering contract remains separate evidence. Receipt,
+old source digest, trace and run log: private
+`.artifacts/r152/hosted-cutover-20261004/`.
+
+Focused final source review confirmed bounded service-binding forwarding,
+rejection of redirect responses, matching explicit-wallet and session ownership,
+and version-bound deployment admission. Source searches found no
+`NamespaceD1Home`, `namespace_d1_homes`, `namespaceHome`, `home_adoption` or
+`ACCOUNT_ID_DERIVATION_SECRET` references in current Wallet/Console runtime
+sources. Historical migrations and empirical documentation remain history.
+The actionable retired-session error finding and its verified correction are
+recorded below; the source audit does not substitute for pending CI or the
+remaining measurement scope.
+
 Latest correction: public `66bc50b2` rejects retired/expired preprocessing sessions
 as invalid. A controlled hosted replay of a pre-unlock refill after lock/reload
 and a fresh unlock reproduced HTTP 503 `wallet_session_unavailable`; the reader
