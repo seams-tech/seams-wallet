@@ -61,9 +61,6 @@ use threshold_prf::{
 };
 use zeroize::{Zeroize, Zeroizing};
 
-#[path = "support/regional_installations.rs"]
-mod regional_installations;
-
 fn lifecycle(work_kind: ExpensiveWorkKindV1) -> LifecycleScopeV1 {
     LifecycleScopeV1::new(
         "local-lifecycle-1",

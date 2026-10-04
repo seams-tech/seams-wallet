@@ -389,7 +389,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292"
 dependencies = [
  "block-buffer 0.10.4",
- "const-oid 0.9.6",
  "crypto-common 0.1.7",
  "subtle",
 ]
@@ -412,19 +411,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d4b8a88685455ed29a21542a33abd9cb6510b6b129abadabdcef0f4c55bc8f61"
 dependencies = [
  "litrs",
-]
-
-[[package]]
-name = "ecdsa"
-version = "0.16.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee27f32b5c5292967d2d4a9d7f1e0b0aed2c15daded5a60300e4abb9d8020bca"
-dependencies = [
- "der 0.7.10",
- "digest 0.10.7",
- "elliptic-curve 0.13.8",
- "rfc6979",
- "signature",
 ]
 
 [[package]]
@@ -872,9 +858,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f6e3919bbaa2945715f0bb6d3934a173d1e9a59ac23767fbaaef277265a7411b"
 dependencies = [
  "cfg-if",
- "ecdsa",
  "elliptic-curve 0.13.8",
- "sha2 0.10.9",
 ]
 
 [[package]]
@@ -1132,16 +1116,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "63b8176103e19a2643978565ca18b50549f6101881c443590420e4dc998a3c69"
 
 [[package]]
-name = "rfc6979"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8dd2a808d456c4a54e300a23e9f5a67e122c3024119acbfd73e3bf664491cb2"
-dependencies = [
- "hmac 0.12.1",
- "subtle",
-]
-
-[[package]]
 name = "router-ab-core"
 version = "0.1.0"
 dependencies = [
@@ -1175,36 +1149,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "router-ab-ecdsa-online"
-version = "0.1.0"
-dependencies = [
- "hkdf 0.12.4",
- "k256",
- "sha3 0.10.9",
- "subtle",
- "zeroize",
-]
-
-[[package]]
-name = "router-ab-ecdsa-presign"
-version = "0.1.0"
-dependencies = [
- "k256",
- "rand_core 0.6.4",
- "router-ab-ecdsa-wire",
- "sha2 0.10.9",
- "subtle",
- "zeroize",
-]
-
-[[package]]
-name = "router-ab-ecdsa-wire"
-version = "0.1.0"
-dependencies = [
- "zeroize",
-]
-
-[[package]]
 name = "router-ab-ed25519-yao"
 version = "0.1.0"
 dependencies = [
@@ -1220,9 +1164,6 @@ dependencies = [
  "rand_core 0.9.5",
  "router-ab-core",
  "router-ab-ecdsa-derivation",
- "router-ab-ecdsa-online",
- "router-ab-ecdsa-presign",
- "router-ab-ecdsa-wire",
  "router-ab-ed25519-yao-protocol",
  "serde",
  "serde_json",
@@ -1410,10 +1351,6 @@ name = "signature"
 version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77549399552de45a898a580c1b41d445bf730df867cc44e6c0233bbc4b8329de"
-dependencies = [
- "digest 0.10.7",
- "rand_core 0.6.4",
-]
 
 [[package]]
 name = "signer-core"
