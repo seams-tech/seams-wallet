@@ -124,7 +124,7 @@ function walletOriginUnlockOptions(
 }
 
 function walletSessionRequestWalletId(
-  pm: Pick<ReturnType<HandlerDeps['getSeamsWeb']>, 'preferences'>,
+  pm: Pick<ReturnType<HandlerDeps['getWalletRuntime']>, 'preferences'>,
   payload: Req<'PM_GET_WALLET_SESSION'>['payload'],
 ): string | undefined {
   const requestedWalletId = String(payload?.walletId || '').trim();
@@ -134,7 +134,7 @@ function walletSessionRequestWalletId(
 }
 
 async function resolvePersistedCurrentWalletId(
-  pm: ReturnType<HandlerDeps['getSeamsWeb']>,
+  pm: ReturnType<HandlerDeps['getWalletRuntime']>,
 ): Promise<string | undefined> {
   const currentWalletId = String(pm.preferences.getCurrentWalletId() || '').trim();
   if (currentWalletId) return currentWalletId;
@@ -148,7 +148,7 @@ async function resolvePersistedCurrentWalletId(
 }
 
 async function resolveExactWalletSessionState(
-  pm: ReturnType<HandlerDeps['getSeamsWeb']>,
+  pm: ReturnType<HandlerDeps['getWalletRuntime']>,
   payload: PMGetExactWalletSessionStatePayload,
 ): Promise<WalletIframeExactSessionState> {
   let walletId: string | undefined;
@@ -192,7 +192,7 @@ export function createAuthWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
   return {
     ...createHostedAuthMenuHandlers(deps),
     PM_UNLOCK: async (req: Req<'PM_UNLOCK'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       assertUnlockPayloadHasNoParentBearer(req.payload);
       const payload = requirePMUnlockPayload(req.payload);
       const requestedOptions = pmUnlockPayloadToLoginHooksOptions(payload);
@@ -208,21 +208,21 @@ export function createAuthWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
     },
 
     PM_LOCK: async (req: Req<'PM_LOCK'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       clearHostedWalletSessions();
       await pm.auth.lock();
       respondOk(deps, req.requestId);
     },
 
     PM_LOGOUT: async (req: Req<'PM_LOGOUT'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       clearHostedWalletSessions();
       await pm.auth.logout();
       respondOk(deps, req.requestId);
     },
 
     PM_LOCK_EXACT_WALLET_SESSION: async (req: Req<'PM_LOCK_EXACT_WALLET_SESSION'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const expected = parseWalletIframeExactSessionIdentity(req.payload);
       const current = await resolveExactWalletSessionState(pm, {
         authenticationRead: 'current',
@@ -241,14 +241,14 @@ export function createAuthWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
     },
 
     PM_GET_WALLET_SESSION: async (req: Req<'PM_GET_WALLET_SESSION'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const walletId = walletSessionRequestWalletId(pm, req.payload);
       const result: WalletSession = await pm.auth.getWalletSession(walletId);
       respondOkResult(deps, req.requestId, result);
     },
 
     PM_GET_EXACT_WALLET_SESSION_STATE: async (req: Req<'PM_GET_EXACT_WALLET_SESSION_STATE'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const payload = req.payload;
       if (
         !payload ||
@@ -269,7 +269,7 @@ export function createAuthWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
     },
 
     PM_GET_RECENT_UNLOCKS: async (req: Req<'PM_GET_RECENT_UNLOCKS'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const result = await pm.auth.getRecentUnlocks();
       respondOkResult(deps, req.requestId, result);
     },

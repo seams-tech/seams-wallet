@@ -526,9 +526,10 @@ The diagnostics flag moved out of the custody driver so reading it cannot pull
 custody execution into an application module.
 
 `walletIframe/host/createDeviceDomain.ts` also owns host device composition.
-`SeamsWeb` still constructs the signing runtime and selects both host factories;
-`host/context.ts` still constructs `SeamsWeb`. The host composition cutover,
-application-only facade, and full public-client dependency gate remain open.
+The host now constructs `WalletHostRuntime` directly. The application facade
+selects application commands only. Shared signer factories and the coordinator
+still require a signing surface, so the public-client dependency gate remains
+open. See the host composition checkpoint below.
 
 Validation of the registration extraction: Wallet type checking, intended-test
 and wallet-state type checking, the production build, and the bloat gate pass.
@@ -567,8 +568,9 @@ auth commands instead of importing execution to construct them.
 This extraction preserves current query/callback and cleanup behavior. The planned
 `getSession`/`hasPasskey` naming, reconciled session subscription, removal of logout,
 and reviewed recent-unlock failure semantics remain part of the protocol/API
-cutover. The main facade still selects host/client factories and constructs the
-runtime; its dependency gate remains open.
+cutover. The application facade now selects client commands only. It still
+constructs signing infrastructure for shared signer factories, so its dependency
+gate remains open.
 
 Validation: production build, intended/state type checks, and the bloat gate pass.
 Eight isolated production-browser cases pass: both asset scenarios and all six
@@ -594,9 +596,9 @@ The replaced mixed methods were removed from `SeamsWeb.ts`.
 
 The standalone application command graph contains twelve pure modules and no
 custody execution, worker orchestration, or IndexedDB implementation. Its bundle
-and metafile are retained under `.artifacts/r170-email-split/`. The main facade
-still imports both command factories and constructs the runtime; this extraction
-does not yet satisfy the public-client dependency gate.
+and metafile are retained under `.artifacts/r170-email-split/`. Host composition
+now owns the host factory. The public-client dependency gate remains open because
+shared signer factories still retain execution dependencies.
 
 Validation: production build, Wallet/intended/state type checks, and the bloat
 gate pass. Six production-browser cases pass: the four Email OTP unlock contracts
@@ -618,3 +620,50 @@ production build, reproduce the six cases with:
 ```sh
 SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/email-otp.unlock.contract.test.ts e2e/intended-behaviours/email-otp.add-passkey.contract.test.ts e2e/intended-behaviours/passkey.add-email-otp.contract.test.ts
 ```
+
+### Independent host composition
+
+`walletIframe/host/WalletHostRuntime.ts` now constructs the wallet-origin runtime.
+`host/context.ts` creates it directly. Handler dependencies, hosted authentication,
+configuration resets, and lifecycle subscriptions use this host class. Host code
+no longer imports or constructs the public `SeamsWeb` class.
+
+`SeamsWeb.ts` now selects application registration, session, and Email OTP commands
+only. Recovery and key-export methods dispatch through the iframe. Host startup
+owns registration/recovery replay and linked-device acknowledgement replay. Host
+methods own restored-session presignature preparation and fee-token preference
+signing. The old constructor mode selector and application copies of these host
+methods were removed.
+
+`walletIframe/shared/facadeBoundary.ts` owns the existing shared input/result
+normalization, appearance resolution, and provisioning-event filter. It contains
+no execution composition. Each facade binds its callbacks to named methods.
+
+The remaining composition work is explicit: shared signer factories and the
+coordinator still depend on a signing surface and execution-owned preferences.
+The application still constructs that infrastructure. The host also still
+constructs the coordinator for these shared factories. Removing those dependencies
+is required before the public-client dependency gate can pass.
+
+Consumer measurement after this change uses the same named exports, Bun production
+minification, and per-file compression as the baseline. The build freshness check
+passes. Root static JS measures 627,059 bytes gzip, compared with 739,640 bytes in
+the recorded production baseline (15.2% lower). Root reachable JS measures 680,712
+bytes gzip. The provider's static JS measures 634,037 bytes gzip. These are bundle
+sizes, not browser traffic. The application remains above the 100,000-byte target.
+The full report is `.artifacts/r170-host-composition/consumers.json`.
+
+Validation: the production build, intended/state type checks, and bloat gate pass.
+Eight production-browser cases pass: Email OTP lifecycle, fresh-browser Google
+recovery, interrupted recovery with durable replay, linked-device signing and
+revocation, both asset scenarios, immediate passkey unlock/export/signing, and
+refresh with step-up/export. The test harness now observes the exact recovery
+journal key through Chromium IndexedDB inspection. This replaces a development
+`/@fs` import that failed against production hosting. Only journal identity
+metadata leaves the browser. Recovery/export tests disable raw capture.
+
+The checked-in receipt is
+`docs/evidence/refactor-170-host-composition-20261005.json`. It records source
+hashes, test results, measurement settings, and reproduction commands. Local
+browser asset evidence and the signed-out trace are under
+`.artifacts/r170-host-composition/`.

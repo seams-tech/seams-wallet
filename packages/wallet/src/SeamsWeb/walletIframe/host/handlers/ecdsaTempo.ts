@@ -9,7 +9,7 @@ export function createEcdsaTempoWalletIframeHandlers(deps: HandlerDeps): Handler
     PM_BOOTSTRAP_THRESHOLD_ECDSA_SESSION: async (
       req: Req<'PM_BOOTSTRAP_THRESHOLD_ECDSA_SESSION'>,
     ) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const args = req.payload!;
       if (deps.respondIfCancelled(req.requestId)) return;
 
@@ -23,7 +23,7 @@ export function createEcdsaTempoWalletIframeHandlers(deps: HandlerDeps): Handler
     },
 
     PM_SIGN_TEMPO: async (req: Req<'PM_SIGN_TEMPO'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const { walletSession, request, chainTarget, options } = req.payload!;
       if (deps.respondIfCancelled(req.requestId)) return;
       const signOptions = {
@@ -93,7 +93,7 @@ export function createEcdsaTempoWalletIframeHandlers(deps: HandlerDeps): Handler
     },
 
     PM_REPORT_TEMPO_BROADCAST_ACCEPTED: async (req: Req<'PM_REPORT_TEMPO_BROADCAST_ACCEPTED'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const { walletSession, signedResult, txHash } = req.payload!;
       if (deps.respondIfCancelled(req.requestId)) return;
       await pm.tempo.reportBroadcastAccepted({
@@ -109,7 +109,7 @@ export function createEcdsaTempoWalletIframeHandlers(deps: HandlerDeps): Handler
     },
 
     PM_REPORT_TEMPO_BROADCAST_REJECTED: async (req: Req<'PM_REPORT_TEMPO_BROADCAST_REJECTED'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const { walletSession, signedResult, error } = req.payload!;
       if (deps.respondIfCancelled(req.requestId)) return;
       await pm.tempo.reportBroadcastRejected({
@@ -125,7 +125,7 @@ export function createEcdsaTempoWalletIframeHandlers(deps: HandlerDeps): Handler
     },
 
     PM_REPORT_TEMPO_FINALIZED: async (req: Req<'PM_REPORT_TEMPO_FINALIZED'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const { walletSession, signedResult, txHash, receiptStatus } = req.payload!;
       if (deps.respondIfCancelled(req.requestId)) return;
       await pm.tempo.reportFinalized({
@@ -144,7 +144,7 @@ export function createEcdsaTempoWalletIframeHandlers(deps: HandlerDeps): Handler
     PM_REPORT_TEMPO_DROPPED_OR_REPLACED: async (
       req: Req<'PM_REPORT_TEMPO_DROPPED_OR_REPLACED'>,
     ) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const { walletSession, signedResult, reason, txHash } = req.payload!;
       if (deps.respondIfCancelled(req.requestId)) return;
       await pm.tempo.reportDroppedOrReplaced({
@@ -161,7 +161,7 @@ export function createEcdsaTempoWalletIframeHandlers(deps: HandlerDeps): Handler
     },
 
     PM_RECONCILE_TEMPO_NONCE_LANE: async (req: Req<'PM_RECONCILE_TEMPO_NONCE_LANE'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const { walletSession, signedResult } = req.payload!;
       if (deps.respondIfCancelled(req.requestId)) return;
       const result = await pm.tempo.reconcileNonceLane({
@@ -178,7 +178,7 @@ export function createEcdsaTempoWalletIframeHandlers(deps: HandlerDeps): Handler
     PM_PREFILL_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL: async (
       req: Req<'PM_PREFILL_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL'>,
     ) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const { walletSession, options } = req.payload!;
       if (deps.respondIfCancelled(req.requestId)) return;
       const result = await pm.auth.prefillRouterAbEcdsaDerivationPresignaturePool({

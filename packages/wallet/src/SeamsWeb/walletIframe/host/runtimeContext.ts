@@ -7,12 +7,12 @@ import type {
   ProgressPayload,
   WalletIframeSurfaceMeasurement,
 } from '../shared/messages';
-import { SeamsWeb } from '@/SeamsWeb';
+import { WalletHostRuntime } from '@/SeamsWeb/walletIframe/host/WalletHostRuntime';
 import type { SeamsConfigsInput } from '@/core/types/seams';
 import {
   applyWalletConfig,
   createHostContext,
-  ensureSeamsWeb,
+  ensureWalletRuntime,
   ensureWalletHostLifecycleSubscription,
   setWalletHostLifecycleListener,
   type HostContext,
@@ -136,7 +136,7 @@ function clearSurfaceMeasurementBindingForRequest(
   const binding = ctx.surfaceMeasurementBinding;
   if (binding.kind !== 'wallet_iframe' || binding.requestId !== requestId) return;
   ctx.surfaceMeasurementBinding = { kind: 'disabled' };
-  ctx.seamsWeb?.setWalletIframeSurfaceMeasurementBinding({ kind: 'disabled' });
+  ctx.walletRuntime?.setWalletIframeSurfaceMeasurementBinding({ kind: 'disabled' });
 }
 
 /**
@@ -161,7 +161,7 @@ function takeForegroundSurfaceBinding(
   binding: UiConfirmSurfaceMeasurementBinding,
 ): void {
   ctx.surfaceMeasurementBinding = binding;
-  ensureSeamsWeb(ctx).setWalletIframeSurfaceMeasurementBinding(binding);
+  ensureWalletRuntime(ctx).setWalletIframeSurfaceMeasurementBinding(binding);
 }
 
 function syncRuntimeContext(state: WalletHostRuntimeState): HostContext {
@@ -186,13 +186,13 @@ export function syncActiveWalletHostRuntimeConfig(state: WalletHostRuntimeState)
   syncRuntimeContext(state);
 }
 
-function ensureHostSeamsWeb(ctx: HostContext, input: WalletHostRuntimeRequest): SeamsWeb {
-  const previous = ctx.seamsWeb;
-  const seamsWeb = ensureSeamsWeb(ctx);
-  ensureWalletHostLifecycleSubscription(ctx, seamsWeb);
-  if (previous === seamsWeb) return seamsWeb;
+function ensureRequestWalletRuntime(ctx: HostContext, input: WalletHostRuntimeRequest): WalletHostRuntime {
+  const previous = ctx.walletRuntime;
+  const walletRuntime = ensureWalletRuntime(ctx);
+  ensureWalletHostLifecycleSubscription(ctx, walletRuntime);
+  if (previous === walletRuntime) return walletRuntime;
 
-  const preferences = seamsWeb.preferences;
+  const preferences = walletRuntime.preferences;
   ctx.prefsUnsubscribe?.();
   const emitPreferencesChanged = (): void => {
     const walletId = String(preferences.getCurrentWalletId?.() || '').trim();
@@ -220,7 +220,7 @@ function ensureHostSeamsWeb(ctx: HostContext, input: WalletHostRuntimeRequest): 
   Promise.resolve()
     .then(emitPreferencesChanged)
     .catch(() => {});
-  return seamsWeb;
+  return walletRuntime;
 }
 
 function buildHandlerDeps(ctx: HostContext, input: WalletHostRuntimeRequest): HandlerDeps {
@@ -230,7 +230,7 @@ function buildHandlerDeps(ctx: HostContext, input: WalletHostRuntimeRequest): Ha
   };
 
   return {
-    getSeamsWeb: ensureHostSeamsWeb.bind(null, ctx, input),
+    getWalletRuntime: ensureRequestWalletRuntime.bind(null, ctx, input),
     post: postActivityMessage.bind(null, input),
     postProgress,
     isCancelled: input.isCancelled,

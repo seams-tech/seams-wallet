@@ -1,6 +1,5 @@
 import { MinimalNearClient } from '@/core/rpcClients/near/NearClient';
-import { SeamsWeb } from '@/SeamsWeb';
-import type { SeamsWebInternalOptions } from '@/SeamsWeb/SeamsWeb';
+import { WalletHostRuntime } from '@/SeamsWeb/walletIframe/host/WalletHostRuntime';
 import { __setWalletIframeHostMode } from '@/core/browser/walletIframe/host-mode';
 import type { AppearanceConfigInput, SeamsConfigsInput, ThemeMode } from '@/core/types/seams';
 import type { PMSetConfigPayload } from '../shared/messages';
@@ -230,9 +229,9 @@ export interface HostContext {
   port: MessagePort | null;
   walletConfigs: SeamsConfigsInput | null;
   nearClient: MinimalNearClient | null;
-  seamsWeb: SeamsWeb | null;
+  walletRuntime: WalletHostRuntime | null;
   prefsUnsubscribe?: (() => void) | null;
-  lifecycleSource: SeamsWeb | null;
+  lifecycleSource: WalletHostRuntime | null;
   lifecycleUnsubscribe: (() => void) | null;
   lifecycleListener: SdkLifecycleEventListener | null;
   expiredSessionsByWallet: Map<WalletId, Set<WalletSessionId>>;
@@ -244,7 +243,7 @@ export function createHostContext(): HostContext {
     port: null,
     walletConfigs: null,
     nearClient: null,
-    seamsWeb: null,
+    walletRuntime: null,
     prefsUnsubscribe: null,
     lifecycleSource: null,
     lifecycleUnsubscribe: null,
@@ -254,36 +253,28 @@ export function createHostContext(): HostContext {
   };
 }
 
-function resolveWalletHostInternalOptionsV1(): Extract<
-  SeamsWebInternalOptions,
-  { readonly kind: 'wallet_host' }
-> {
-  return { kind: 'wallet_host' };
-}
-
-export function ensureSeamsWeb(ctx: HostContext): SeamsWeb {
+export function ensureWalletRuntime(ctx: HostContext): WalletHostRuntime {
   const { walletConfigs } = ctx;
   if (!walletConfigs) {
     throw new Error('Wallet service not configured. Call PM_SET_CONFIG first.');
   }
-  const internalOptions = resolveWalletHostInternalOptionsV1();
   const nearRpcUrl = resolvePrimaryNearRpcUrl(walletConfigs.chains || []);
   if (!ctx.nearClient) {
     ctx.nearClient = new MinimalNearClient(nearRpcUrl);
   }
-  if (!ctx.seamsWeb) {
+  if (!ctx.walletRuntime) {
     const cfg = sanitizeWalletHostConfigs(walletConfigs);
     assertWalletHostConfigsNoNestedIframeWallet(cfg);
     __setWalletIframeHostMode(true);
-    ctx.seamsWeb = new SeamsWeb(cfg, ctx.nearClient, internalOptions);
+    ctx.walletRuntime = new WalletHostRuntime(cfg, ctx.nearClient);
     updateThemeBridge(ctx);
   }
-  return ctx.seamsWeb;
+  return ctx.walletRuntime;
 }
 
 function updateThemeBridge(ctx: HostContext): void {
   try {
-    const pm = ctx.seamsWeb;
+    const pm = ctx.walletRuntime;
     if (!pm) return;
     const theme = pm.theme;
     if (theme === 'light' || theme === 'dark') {
@@ -345,12 +336,12 @@ export function applyWalletConfig(ctx: HostContext, payload: PMSetConfigPayload)
   } catch {}
 
   if (
-    ctx.seamsWeb &&
+    ctx.walletRuntime &&
     nextAppearance &&
     nextRuntimeResetFingerprint === prevRuntimeResetFingerprint
   ) {
     try {
-      ctx.seamsWeb.setAppearance(nextAppearance);
+      ctx.walletRuntime.setAppearance(nextAppearance);
     } catch {}
   }
 
@@ -383,19 +374,19 @@ export function applyWalletConfig(ctx: HostContext, payload: PMSetConfigPayload)
   // Reset runtime instances only when signing/runtime config changes. Cosmetic config updates
   // (theme, tokens, and asset base) must not drop warm signing session state.
   if (nextRuntimeResetFingerprint !== prevRuntimeResetFingerprint) {
-    ctx.seamsWeb?.dispose();
+    ctx.walletRuntime?.dispose();
     ctx.prefsUnsubscribe?.();
     ctx.lifecycleUnsubscribe?.();
     ctx.prefsUnsubscribe = null;
     ctx.lifecycleSource = null;
     ctx.lifecycleUnsubscribe = null;
     ctx.nearClient = null;
-    ctx.seamsWeb = null;
+    ctx.walletRuntime = null;
   }
 
 }
 
-export function ensureWalletHostLifecycleSubscription(ctx: HostContext, pm: SeamsWeb): void {
+export function ensureWalletHostLifecycleSubscription(ctx: HostContext, pm: WalletHostRuntime): void {
   if (ctx.lifecycleSource === pm) return;
   ctx.lifecycleUnsubscribe?.();
   ctx.lifecycleSource = pm;
@@ -407,7 +398,7 @@ export function setWalletHostLifecycleListener(
   listener: SdkLifecycleEventListener,
 ): void {
   ctx.lifecycleListener = listener;
-  if (ctx.seamsWeb) ensureWalletHostLifecycleSubscription(ctx, ctx.seamsWeb);
+  if (ctx.walletRuntime) ensureWalletHostLifecycleSubscription(ctx, ctx.walletRuntime);
 }
 
 function assertNeverSdkLifecycleEvent(value: never): never {

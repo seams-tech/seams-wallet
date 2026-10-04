@@ -58,7 +58,7 @@ investigation measurements, not a fresh production-app network baseline. Rows
 overlap and must not be added together. Worker inventory includes aliases and
 does not represent one operation's downloads.
 
-Confirmed source-level causes:
+Confirmed source-level causes at the investigation baseline:
 
 - `packages/wallet/src/SeamsWeb/SeamsWeb.ts` constructs signing stores,
   `BrowserSigningSurface`, runtime factories, and `WalletIframeCoordinator`.
@@ -596,6 +596,20 @@ queries, and preference synchronization changes.
 - No cryptographic, custody derivation, protocol, or authorization-policy redesign.
 - This document authorizes no publication or deployment. Release operations remain
   separate from implementation and local verification.
+
+## Current implementation checkpoint
+
+Host context now constructs `WalletHostRuntime` directly. Host handlers and
+lifecycle subscriptions no longer depend on the public `SeamsWeb` class.
+Registration, session, and Email OTP commands have separate application and host
+owners. The application facade no longer selects host factories or starts durable
+registration/recovery replay.
+
+The public-client dependency gate remains open. Shared signer factories and the
+coordinator still require execution infrastructure in the application. Preference
+synchronization, protocol ordering, complete selective-loading evidence, and
+consumer/release acceptance remain unfinished. See `refactor-170-inventory.md`
+for implementation and verification checkpoints.
 
 ## Implementation sequence
 

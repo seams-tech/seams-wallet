@@ -1,3 +1,4 @@
+import type { Variant } from '@shared/utils/variant';
 import type {
   CreateRegistrationFlowEventInput,
   CreateUnlockFlowEventInput,
@@ -103,6 +104,12 @@ type EmailOtpUnlockPrewarmSnapshot =
       scope: EmailOtpUnlockPrewarmScope;
       walletMatches: boolean;
     };
+
+export type EmailOtpUnlockPrewarmStatus = Variant<
+  EmailOtpUnlockPrewarmRecord,
+  'kind',
+  'attempted'
+>['status'];
 
 export function nowMs(): number {
   return typeof performance !== 'undefined' && typeof performance.now === 'function'

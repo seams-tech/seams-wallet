@@ -10,8 +10,8 @@ import { AuthMenuController } from '../auth-menu/controller';
 export function createHostedAuthMenuHandlers(
   deps: HandlerDeps,
   controller = new AuthMenuController({
-    getSeamsWeb: deps.getSeamsWeb,
-    getAppearance: () => deps.getSeamsWeb().configs.ui.appearance,
+    getWalletRuntime: deps.getWalletRuntime,
+    getAppearance: () => deps.getWalletRuntime().configs.ui.appearance,
     send: deps.post,
   }),
 ): HandlerMap {

@@ -58,13 +58,13 @@ function keyExportInputFromPayload(
 export function createExportWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
   return {
     PM_RESOLVE_EXACT_KEY_EXPORT_LANE: async (req: Req<'PM_RESOLVE_EXACT_KEY_EXPORT_LANE'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const result = await pm.keys.resolveExactKeyExportLane(req.payload!);
       respondOkResult(deps, req.requestId, result);
     },
 
     PM_EXPORT_KEYPAIR_UI: async (req: Req<'PM_EXPORT_KEYPAIR_UI'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const payload = req.payload!;
       if (deps.respondIfCancelled(req.requestId)) return;
       try {

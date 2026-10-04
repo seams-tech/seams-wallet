@@ -4,7 +4,7 @@ import type {
   ParentToChildType,
   ProgressPayload,
 } from '../../shared/messages';
-import type { SeamsWeb } from '@/SeamsWeb';
+import type { WalletHostRuntime } from '@/SeamsWeb/walletIframe/host/WalletHostRuntime';
 
 export type Req<T extends ParentToChildType> = Extract<ParentToChildEnvelope, { type: T }>;
 
@@ -13,7 +13,7 @@ export type HandlerMap = Partial<{
 }>;
 
 export interface HandlerDeps {
-  getSeamsWeb(): SeamsWeb;
+  getWalletRuntime(): WalletHostRuntime;
   post(msg: ChildToParentEnvelope): void;
   postProgress(requestId: string | undefined, payload: ProgressPayload): void;
   isCancelled(requestId: string | undefined): boolean;

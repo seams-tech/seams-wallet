@@ -6,7 +6,7 @@ import { respondOk, respondOkResult } from './shared';
 export function createPreferencesWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
   return {
     PM_SET_CONFIRM_BEHAVIOR: async (req: Req<'PM_SET_CONFIRM_BEHAVIOR'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const { behavior, walletId } = req.payload!;
       if (walletId) {
         pm.preferences.setCurrentWallet(toWalletId(walletId));
@@ -16,7 +16,7 @@ export function createPreferencesWalletIframeHandlers(deps: HandlerDeps): Handle
     },
 
     PM_SET_CONFIRMATION_CONFIG: async (req: Req<'PM_SET_CONFIRMATION_CONFIG'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const { walletId } = req.payload || {};
       const incoming = req.payload?.config || {};
       let patch: Record<string, unknown> = { ...incoming };
@@ -31,7 +31,7 @@ export function createPreferencesWalletIframeHandlers(deps: HandlerDeps): Handle
     },
 
     PM_GET_CONFIRMATION_CONFIG: async (req: Req<'PM_GET_CONFIRMATION_CONFIG'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const result = pm.preferences.getConfirmationConfig();
       respondOkResult(deps, req.requestId, result);
     },
