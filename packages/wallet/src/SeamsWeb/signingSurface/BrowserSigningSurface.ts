@@ -2427,7 +2427,6 @@ export class BrowserSigningSurface {
   private readonly signingSessionLifecycleSubscription: SigningSessionLifecycleSubscription;
   private readonly nearProvisioningUnsubscribe: () => void;
   private walletAuthenticationState: WalletAuthenticationState = { kind: 'signed_out' };
-  private walletAuthenticationRestoreGeneration = 0;
   private volatileWarmSigningMaterialCleanupInFlight: Promise<void> | null = null;
 
   readonly seamsWebConfigs: SeamsConfigsReadonly;
@@ -3325,24 +3324,6 @@ export class BrowserSigningSurface {
     await this.markWalletSelectionUnlocked(input);
   }
 
-  /**
-   * Every route that lands a wallet in the authenticated state goes through
-   * here — passkey unlock, email OTP login, the hosted auth menu, and session
-   * restore. Binding the preferences manager at this choke point is what makes
-   * per-wallet preferences real: without it the manager stays on "no last
-   * user", so reads answer the built-in defaults while the wallet's persisted
-   * choices sit unread, and writes stay memory-only and evaporate on reload —
-   * the Confirmer UI toggle looked applied but silently reverted every page
-   * load. setCurrentWallet also notifies, which pushes PREFERENCES_CHANGED to
-   * the app origin so its mirrored uiMode follows the wallet too.
-   */
-  private applyAuthenticatedWalletState(
-    state: Extract<WalletAuthenticationState, { kind: 'authenticated' }>,
-  ): void {
-    this.walletAuthenticationState = state;
-    this.userPreferencesManager.setCurrentWallet(state.walletId);
-  }
-
   setWalletAuthenticated(
     state: Extract<WalletAuthenticationState, { kind: 'authenticated' }>,
   ): void {
@@ -3356,12 +3337,11 @@ export class BrowserSigningSurface {
         walletId: String(previous.walletId),
       });
     }
-    this.walletAuthenticationRestoreGeneration += 1;
-    this.applyAuthenticatedWalletState(state);
+    this.walletAuthenticationState = state;
+    this.userPreferencesManager.setCurrentWallet(state.walletId);
   }
 
   clearWalletAuthentication(): void {
-    this.walletAuthenticationRestoreGeneration += 1;
     this.walletAuthenticationState = { kind: 'signed_out' };
     // Logout and wallet switch both land here, and both end the authority the
     // unlocked export-root capability was scoped to.

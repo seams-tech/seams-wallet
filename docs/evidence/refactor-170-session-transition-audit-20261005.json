@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-05",
+  "baseCommit": "bd3d9f15fa5edc9efaee0bbeaf28475c95901002",
+  "scope": "Map session transition sources and remove the unused authentication restore counter and single-caller assignment wrapper.",
+  "sourceSha256": {
+    "packages/wallet/src/SeamsWeb/signingSurface/BrowserSigningSurface.ts": "60249090359fbc1b0d2171ee763c5ae2563b156ef4716a4332a0414efd282bf0"
+  },
+  "productionLines": {
+    "added": 2,
+    "removed": 22,
+    "net": -20,
+    "note": "Physical source lines include the removed historical wrapper comment. State assignment, preference selection and export-capability cleanup retain their order."
+  },
+  "checks": [
+    {
+      "command": "pnpm -C packages/wallet build:prod",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm -C packages/wallet type-check",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm -C packages/wallet check:runtime-entry-bundles",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm report:bloat --check",
+      "exitCode": 0
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "production": {
+    "command": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/email-otp.unlock.contract.test.ts e2e/intended-behaviours/passkey.unlock.contract.test.ts --grep 'Email OTP registration and unlock lifecycle|page refresh hydrates warm signing'",
+    "exitCode": 0,
+    "sanitizedSummary": [
+      "[wallet-intended] running 2 case(s) with fresh Wallet state",
+      "[wallet-intended] 1/2 e2e/intended-behaviours/email-otp.unlock.contract.test.ts:9 Email OTP registration and unlock lifecycle",
+      "  1 passed (46.4s)",
+      "[wallet-intended] 2/2 e2e/intended-behaviours/passkey.unlock.contract.test.ts:61 page refresh hydrates warm signing, one-use step-up, and key export",
+      "  1 passed (48.6s)"
+    ]
+  },
+  "limits": [
+    "The transition map identifies implementation boundaries; it does not implement host session revision envelopes.",
+    "This change does not prove complete session ordering, cross-tab notification coverage, or month-later durable presignature reuse."
+  ]
+}

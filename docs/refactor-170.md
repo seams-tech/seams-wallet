@@ -676,6 +676,15 @@ This costs two local reads per successful remote observation and does not close
 the host transition/revision-envelope gate. See
 `evidence/refactor-170-session-authority-20261005.json`.
 
+The session transition inventory now maps persisted authority/session writes,
+partial commits, remote observations, and connection changes to their owners.
+It identifies writes that bypass the current event stream. The unused runtime
+restore counter and its single-caller assignment wrapper are removed. This
+cleanup removes 20 production lines net; it does not close revision ordering.
+See the inventory's “Session transition sources and revision coverage” section.
+Build, type, runtime-boundary, bloat, and two production lifecycle checks pass.
+Evidence: `evidence/refactor-170-session-transition-audit-20261005.json`.
+
 The fresh production root-client static closure measures 66,386 bytes gzip
 (64.8 KiB), compared with 739,640 bytes at baseline: a 91.0% reduction. Including
 its lazy router, it measures 93,551 bytes gzip (91.4 KiB). The provider measures

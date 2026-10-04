@@ -328,6 +328,61 @@ wallet switch during a read/write, reconnect, and disposal in browser E2E.
 A complete source-to-transition audit and those behavioral checks are required
 before declaring the ordering gate verified.
 
+#### Session transition sources and revision coverage
+
+Source audit at `bd3d9f15` (2026-10-05). Paths below are relative to
+`packages/wallet/src/`. This maps the sources that revision tracking must cover.
+It does not prove that revision tracking is implemented.
+
+| Transition | Current source and commit boundary | Required ordering coverage |
+| --- | --- | --- |
+| Selected wallet changes or is removed | `core/signingEngine/session/userPreferences.ts`: `setCurrentWallet`, `projectCurrentWallet`, and store deletion handling | Invalidate captures for the previous selection. Selecting the same wallet is not proof that its authority stayed unchanged. |
+| Registration and activation | `core/indexedDB/seamsWalletDB/repositories.ts`: `installLocalAuthority`, `finalizeLocalAuthorityActivation`, `publishLocalAuthorityActivation`, `persistFoundingWalletAuthority`, and `publishPendingWalletRegistrationCommit` / `AndRetain` | Observe successful persisted authority, method, selection, and session changes. Some paths publish these in separate transactions. |
+| Unlock and session replacement | `SeamsWeb/operations/auth/login.ts`, `SeamsWeb/operations/authMethods/emailOtp/walletActivation.ts`, and `SeamsWeb/signingSurface/BrowserSigningSurface.ts` | Cover exact credential writes and `markWalletSelectionUnlocked`, including same-wallet unlock. `setWalletAuthenticated` alone does not cover the earlier persisted writes. |
+| Lock and signing failure | `SeamsWeb/operations/auth/login.ts:lock`; `SeamsWeb/signingSurface/BrowserSigningSurface.ts:terminateWalletStateAfterSigningFailure` | Cover lock-generation advance and credential retirement separately. A later failure can leave an earlier mutation committed. Preserve valid durable presignatures. |
+| Session credential writes and retirement | `core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore.ts`: `replaceExactActive`, `refreshExactWithOperationCredential`, `retireExactActiveForWallet`, `clearWallet`, `clearAll` | Observe successful transactions. A failed compare-and-update does not establish a new session. Reads that delete legacy rows also mutate this store. |
+| Recovery | `SeamsWeb/operations/recovery/syncAccount.ts`; repository `persistRecoveredWalletAuthority` and `publishPendingWalletRecoveryCommit` | Cover authority replacement, method replacement, and subsequent credential publication. Recovery's material replacement policy is separate from ordinary lock retention. |
+| Auth-method revocation and deletion | `SeamsWeb/operations/authMethods/revokeAuthMethod.ts` calls `upsertWalletAuthMethodV2`; repository `clearProfileAuthenticators` and `deleteProfileData` remove methods | A selected method can become unusable without a selection event. Refresh its session projection after persistence succeeds. |
+| Authority extension | Repository `adoptAddedEcdsaSignerAuthority`, `reconcilePendingNearRegistrationAuthority`, and pending registration publication | Cover authority digest and capability changes that retain the same wallet and credential. A session-id comparison alone is insufficient. |
+| Remote status reconciliation | `SeamsWeb/walletIframe/shared/exactSessionReconciliation.ts`; repository `replaceExactActiveWalletSessionFromStatus` | Capture ordering before remote work. Observe any successful local update before the final capture. Do not advance the revision only when an old response completes. |
+| Expiry and quota status | `core/signingEngine/session/SigningSessionCoordinator.ts`, `SeamsWeb/walletIframe/shared/exactSessionState.ts`, and `SeamsWeb/walletIframe/host/context.ts` | Recheck the deadline before publication. Order an expiry event against pending active responses. Remote status can change without a local write. |
+| Execution configuration replacement | `SeamsWeb/walletIframe/host/index.ts`, `context.ts`, and `runtimeContext.ts` | Retain execution-generation cancellation. Retire the old runtime's session observations and subscriptions. Appearance changes preserve execution. |
+| Connection restart and disposal | Host connection state and `SeamsWeb/walletIframe/client/router.ts` | Scope revisions to the live connection. Reject old-port results and reset the projection revision when the connection changes. |
+| Other wallet tabs | The same IndexedDB repositories in another context | Local callbacks cannot establish cross-tab ordering. Retain persisted authority checks and transactional compare-and-update. Test a delayed response across another tab's lock and fresh unlock. |
+
+The current `IndexedDBEvent` union only reports user updates, preference updates,
+and user deletion. It does not report authority or session commits.
+`WalletSessionAuthorizationRepository` also has no change subscription.
+Several methods use direct `db.transaction` calls. Other authority transactions
+call `replaceExactActiveWalletSessionAuthorizationInTransaction` directly.
+Tracking only `SeamsWalletDBManager.runTransaction` or only the session repository
+would miss writes.
+
+The existing SDK lifecycle stream reports session expiry and NEAR provisioning.
+It does not report every activation, lock, recovery, or revocation.
+The preference manager suppresses ordinary same-wallet selection notifications.
+Its revision orders preference reads; it is not an authority revision.
+The unused `walletAuthenticationRestoreGeneration` field had no readers and could
+not reject stale work. The cleanup removes it and the single-caller authentication
+assignment wrapper. State assignment and preference selection remain together in
+`setWalletAuthenticated`. The 20-line net reduction includes the obsolete wrapper
+comment; it is a source-line count, not a statement-count reduction.
+
+Implementation order for the remaining gate:
+
+1. Cover the persisted mutation boundaries above, including direct transactions
+   and partial commits. Keep notifications internal and free of credentials.
+2. Pair that invalidation with host selection, expiry, and execution changes.
+   Capture a revision before asynchronous reads. Re-read when it changes.
+3. Add the shared revision envelope to snapshots and session events. Validate it
+   once at the message boundary and reject older values on the client.
+4. Exercise same-wallet unlock, expiry during a read, revocation, authority
+   extension, reversed response delivery, reconnect, and disposal through the
+   real host transport. Preserve the existing cross-tab production race checks.
+
+Do not mark this gate complete from the transition inventory alone. The existing
+local authority rechecks and client selection guard cover only part of it.
+
 The exact-session reader now rechecks persisted authority after the remote status
 read. It compares the selected method and lock generation, active method/authority
 state, authority digest/revocation epoch, exact authorization record, and operation
