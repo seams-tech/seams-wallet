@@ -12,6 +12,16 @@ app code
             -> core/platform
 ```
 
+The current class also constructs the signing surface and stores when used by an
+application configured for the wallet iframe. The host constructs the same class
+in internal host mode. Consequently, an application bundle can contain execution
+dependencies even when operations dispatch to the iframe. Iframe-mode application
+persistence and local worker warmup are disabled; imported code alone does not
+establish that signing executes in both realms.
+
+See the [client and worker inventory](../../../../docs/refactor-170-inventory.md)
+for current dispatch ownership and reproducible consumer bundle measurements.
+
 ## Boundary
 
 This directory may import browser platform adapters, wallet iframe modules, DOM

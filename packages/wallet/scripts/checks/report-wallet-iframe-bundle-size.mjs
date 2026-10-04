@@ -10,6 +10,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { collectBrowserGraph } from './browser-module-graph.mjs';
 
@@ -67,6 +68,29 @@ function brotliSize(buf) {
 
 function relFromSdk(absPath) {
   return path.relative(sdkRoot, absPath).split(path.sep).join('/');
+}
+
+function findIdenticalWasmAssets() {
+  const directory = path.join(distRoot, 'workers');
+  if (!fs.existsSync(directory)) return [];
+  const groups = new Map();
+  for (const name of fs.readdirSync(directory).sort()) {
+    if (!name.endsWith('.wasm')) continue;
+    const filename = path.join(directory, name);
+    const bytes = fs.readFileSync(filename);
+    const sha256 = createHash('sha256').update(bytes).digest('hex');
+    let group = groups.get(sha256);
+    if (!group) {
+      group = { sha256, rawBytesPerCopy: bytes.length, paths: [] };
+      groups.set(sha256, group);
+    }
+    group.paths.push(relFromSdk(filename));
+  }
+  const duplicates = [];
+  for (const group of groups.values()) {
+    if (group.paths.length > 1) duplicates.push(group);
+  }
+  return duplicates;
 }
 
 function readSize(absPath) {
@@ -334,11 +358,16 @@ const browserGraphs = {
   css: { files: cssRows, total: sumRows(cssRows) },
 };
 
+const identicalWasmAssets = findIdenticalWasmAssets();
+
 if (jsonOutput) {
   console.log(
     JSON.stringify(
       {
         sdkRoot,
+        accounting:
+          'Static/reachable JS closures and selected worker/WASM inventory are separate. Inventory totals include aliases and are not observed downloads. Identical WASM bytes at different URLs may still be fetched separately.',
+        identicalWasmAssets,
         buildInputsHash: fs.existsSync(path.join(distRoot, '.build-inputs.sha256'))
           ? fs.readFileSync(path.join(distRoot, '.build-inputs.sha256'), 'utf8').trim()
           : null,
@@ -366,7 +395,7 @@ if (jsonOutput) {
   console.log(
     `\nWallet host boot-path total: ${formatBytes(bootPathTotal.raw)} raw / ${formatBytes(bootPathTotal.gzip)} gzip / ${formatBytes(bootPathTotal.brotli)} brotli`,
   );
-  printRows('Wallet workers and WASM', workerRows);
+  printRows('Selected wallet worker/WASM inventory (includes aliases)', workerRows);
   for (const [label, graph] of Object.entries(flows)) {
     console.log(
       `\n${label}: ${formatBytes(graph.cold.raw)} raw / ${formatBytes(graph.cold.gzip)} gzip / ${formatBytes(graph.cold.brotli)} brotli; incremental gzip ${formatBytes(graph.incrementalOverRuntimeBoot.gzip)}`,
@@ -377,8 +406,13 @@ if (jsonOutput) {
   );
   printRows('Wallet document CSS assets', cssRows);
   console.log(
-    `\nWorker/WASM total: ${formatBytes(workerTotal.raw)} raw / ${formatBytes(workerTotal.gzip)} gzip / ${formatBytes(workerTotal.brotli)} brotli`,
+    `\nSelected worker/WASM inventory sum, not page-load size: ${formatBytes(workerTotal.raw)} raw / ${formatBytes(workerTotal.gzip)} gzip / ${formatBytes(workerTotal.brotli)} brotli`,
   );
+  for (const group of identicalWasmAssets) {
+    console.log(
+      `Identical WASM bytes (${formatBytes(group.rawBytesPerCopy)} per copy): ${group.paths.join(', ')}`,
+    );
+  }
   if (missing.length) {
     console.warn(
       `\n[report-wallet-iframe-bundle-size] Missing build outputs:\n${missing

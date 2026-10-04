@@ -3,6 +3,11 @@
 Status: reviewed implementation plan, 2026-10-03. Pre-implementation gates below
 must be closed before replacing the shared composition.
 
+October 4 preparation: [API/worker inventory and measurement instructions](refactor-170-inventory.md)
+record current dispatch, worker startup, shared crypto dependencies, and remaining
+semantic decisions. Consumer reporting now supports retained temporary bundles;
+the host report identifies identical WASM aliases. Runtime behavior is unchanged.
+
 ## Objective
 
 Make the default browser SDK a small, typed client to the wallet iframe. Keep
@@ -400,7 +405,7 @@ derive production behavior from existing typed requests and selected capabilitie
 | Scenario | Required evidence |
 | --- | --- |
 | Fresh signed-out mount, idle, and generic auth menu | No speculative all-signer startup; distinguish UI assets from signer/custody assets. Use a clean profile with no pending recovery/registration work. |
-| NEAR-only passkey wallet: cold unlock, sign, reload, sign | Required NEAR/auth assets load and signing succeeds; unrelated EVM/Tempo workers and their WASM remain unfetched. |
+| NEAR-only passkey wallet: cold unlock, sign, reload, sign | Required NEAR/auth assets load and signing succeeds; unrelated EVM/Tempo execution remains unloaded. Document any shared auth primitive that uses a binary named for another chain before asserting URL absence. |
 | EVM-only wallet: cold unlock, sign/broadcast, reload, sign | Required EVM/auth assets load; unrelated NEAR/Tempo workers and WASM remain unfetched. Include pending/absent NEAR account behavior. |
 | Tempo-only wallet: unlock and sign/broadcast | Required Tempo/auth dependencies are recorded; no speculative NEAR or unrelated EVM execution startup. |
 | Email OTP authentication and signing | Selected factor's required modules load; no passkey fallback or unrelated signer warmup. |

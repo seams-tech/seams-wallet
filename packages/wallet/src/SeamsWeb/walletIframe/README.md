@@ -2,12 +2,12 @@
 
 ## Overview
 
-The WalletIframe isolates sensitive wallet operations (passkey authentication and transaction signing) in a separate iframe window. Key benefits:
-
-- **Security**: Private keys and sensitive operations are isolated from the main application
-- **WebAuthn Compatibility**: TouchID/FaceID authentication works properly in the iframe context
-- **No Popups**: All operations happen within the same window using an invisible overlay
-- **Isolation**: Even if the main app is compromised, the wallet remains secure
+The wallet iframe hosts wallet UI, signing state, and worker orchestration at the
+configured wallet origin. The application owns transport, public state, transaction
+review, and some broadcast/RPC work. Hosted authentication uses wallet-origin user
+activation. The transport also includes a parent WebAuthn bridge that can return
+serialized credentials with PRF outputs; isolation claims must account for that
+supported browser path and its origin/RP configuration.
 
 ## How It Works
 
@@ -17,7 +17,18 @@ The system consists of three layers:
 2. **WalletIframeRouter** - Handles communication between the main app and the iframe using MessagePort
 3. **Wallet Host** - The actual SeamsWeb running inside the iframe, executing the real operations
 
-When you call methods like `registerPasskey()` or `signTransaction()`, the request flows through these layers. The iframe temporarily expands to capture user activation (TouchID/WebAuthn or iframe-hosted confirmation) when needed, then shrinks back to invisible once that interaction is complete. This is driven by v2 `WalletFlowEvent.interaction.overlay` metadata emitted from SeamsWeb calls.
+Calls such as `seams.registration.registerPasskey()` and
+`seams.evm.signTransaction()` dispatch through these layers. The parent surface
+queue manages visibility for the request and the host reports its measured UI
+size. Public progress events remain available to application callbacks.
+
+The shared `SeamsWeb` implementation currently brings host execution dependencies
+into the application bundle. Host construction also prewarms every registered
+signer-worker kind; several initialize WASM at startup. Separate NEAR/EVM/Tempo
+files therefore do not guarantee selective downloads. The application iframe-mode
+policy disables its own local worker warmup. See the
+[worker inventory and measurements](../../../../../docs/refactor-170-inventory.md)
+for exact loading triggers and the distinction between asset inventory and traffic.
 
 ## Architecture Overview
 
@@ -39,10 +50,8 @@ When you call methods like `registerPasskey()` or `signTransaction()`, the reque
   - Handles the CONNECT → READY handshake using MessageChannel
   - Manages iframe permissions and security attributes
   - Waits for iframe load events to avoid race conditions
-- **`client/progress/on-events-progress-bus.ts`** - Manages overlay visibility from v2 event metadata:
-  - Shows overlay when `interaction.overlay` is `'show'`
-  - Hides overlay when `interaction.overlay` is `'hide'`
-  - Leaves overlay unchanged when `interaction.overlay` is `'none'`
+- **`client/progress/on-events-progress-bus.ts`** - Forwards flow progress metadata
+  to subscribers. The request surface queue and renderer own iframe DOM visibility.
 
 #### 3. **Host-Side Execution Layer** (Runs in Iframe)
 
@@ -64,35 +73,25 @@ When you call methods like `registerPasskey()` or `signTransaction()`, the reque
 #### 5. **Supporting Infrastructure**
 
 - **`sanitization.ts`** - Security utilities for HTML and URL sanitization
-- **`html.ts`** - Generates minimal HTML for the wallet service page
+- **`client/html.ts`** - Generates minimal HTML for the wallet service page
 
 ### Data Flow Architecture
 
 ```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Your App      │    │  WalletIframe    │    │  Wallet Host    │
-│                 │    │                  │    │                 │
-│ SeamsWeb        │───▶│ SeamsWeb    │───▶│ SeamsWeb   │
-│ (coordinator)   │    │ Router           │    │ (real instance) │
-│                 │    │                  │    │                 │
-│                 │    │ IframeTransport  │    │                 │
-│                 │    │ ProgressBus      │    │ CustomElemMounter│
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-         │                       │                       │
-         │                       │                       │
-         ▼                       ▼                       ▼
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Hook Calls    │    │  MessagePort     │    │  WebAuthn UI    │
-│ (onEvent, etc.) │    │  Communication   │    │  Components     │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
+Application origin                         Wallet origin
+SeamsWeb → coordinator → router             host handlers → SeamsWeb
+                           │                    │              │
+                     IframeTransport ← port → host       signing surface
+                           │                                   │
+                 request surface queue                  workers and WASM
 ```
 
 ### Key Design Patterns
 
-1. **One API**: apps call the same `SeamsWeb` methods whether or not the wallet iframe is enabled; in iframe mode each method forwards through the router
-2. **Message Passing**: All communication uses typed messages over MessagePort
+1. **Public browser API**: application construction requires a wallet origin; direct mode is an internal host construction option. Public RPC/broadcast helpers can remain application-local.
+2. **Message Passing**: Wallet requests use typed messages over MessagePort; handshake and browser bridge messages also use window messaging.
 3. **Event Bridging**: Progress events flow from iframe back to parent callbacks
-4. **Overlay Management**: Explicit show/hide behavior from `WalletFlowEvent.interaction.overlay`
+4. **Overlay Management**: The parent surface queue owns request-bound visibility; progress metadata remains available to callbacks.
 5. **Component Registry**: Declarative UI component definitions with automatic wiring
 
 ### Security Model

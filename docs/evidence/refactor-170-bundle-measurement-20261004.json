@@ -1,0 +1,229 @@
+{
+  "measuredOn": "2026-10-04",
+  "status": "Exploratory existing-build measurement. Initial freshness unverified; repeat freshness passed with identical emitted ESM and consumer results. Original build mode unrecorded. No runtime changes or observed network trace.",
+  "commands": [
+    "node packages/wallet/scripts/reports/report-lite-bundle-sizes.mjs --consumers --json",
+    "node packages/wallet/scripts/checks/report-wallet-iframe-bundle-size.mjs --json",
+    "node packages/wallet/scripts/reports/report-lite-bundle-sizes.mjs --consumers"
+  ],
+  "accounting": "Production minified ESM with splitting; named exports retained. Static and all-reachable closures overlap. React peers excluded; dependencies otherwise bundled. CSS/assets separate. Per-file gzip level 9 and Brotli quality 11. No observed network or WASM traffic.",
+  "revision": "ed9975df0867b8b4aacc538795a0cc701c336b87",
+  "workingTree": "",
+  "packageVersion": "0.8.0",
+  "nodeVersion": "v26.4.0",
+  "bunVersion": "1.2.18",
+  "lockfileSha256": "cca6b7aa753c9af21e0bac8af0ce3e7b21377d0c3701cbb5bba1916594e469c9",
+  "inputBuildMode": "Not recorded by the existing build manifest; consumer bundles are minified in production mode.",
+  "buildInputsHash": "05ba3e7bf7bd916ea8e54da365b34dc8fc4885e1e32d4b69bddb24c0221fb5a6",
+  "emittedEsmSha256": "c020c68601a86493e8abdf18217f222f54e38a9b4f10eb7513fcb8266a34eb45",
+  "freshness": {
+    "status": "unverified",
+    "detail": "❌ Build is stale\nFiles newer than build:\n  - ../wallet-server/src/core/WebAuthnLoginChallengeStore.ts\n  - ../wallet-server/src/index.ts\n  - ../wallet-server/src/authorization/service.ts\n  - ../wallet-server/src/router/domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistrationPartitionedStateStore.ts\n  - ../wallet-server/src/router/domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistrationPartitioning.ts\n  - ../wallet-server/src/router/domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistration.ts\n  - ../wallet-server/src/router/domains/ed25519Yao/export/routerAbEd25519YaoExport.typecheck.ts\n  - ../wallet-server/src/router/domains/ed25519Yao/export/routerAbEd25519YaoExport.ts\n  - ../wallet-server/src/router/transport/fetch/createFetchRouter.ts\n  - ../wallet-server/src/router/framework/routeDefinitions.ts\n  - ../wallet-server/src/router/framework/authServicePort.ts\n  - ../wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationService.ts\n  - ../wallet-server/src/router/cloudflare/d1/signingAdmission/d1RouterAbNormalSigningAdmissionStore.ts\n  - ../wallet-server/src/router/cloudflare/d1/auth/d1RouterApiAuthService.ts\n  - ../wallet-server/src/router/cloudflare/d1/webauthn/d1WebAuthnRecords.ts\n  - ../wallet-server/src/router/cloudflare/d1/webauthn/d1WebAuthnStore.typecheck.ts\n  - ../wallet-server/src/router/cloudflare/d1/webauthn/d1WebAuthnStore.ts\n  - ../wallet-server/src/router/cloudflare/d1/wallet/d1WalletAddSignerFinalizeRecord.ts\n  - ../wallet-server/src/router/cloudflare/d1/wallet/d1WalletAddSignerService.typecheck.ts\n  - ../wallet-server/src/router/cloudflare/d1/wallet/d1WalletAddSignerService.ts\n  - ../wallet-server/src/router/cloudflare/d1/near/d1SponsoredNearAccount.ts\n  - ../wallet-server/src/router/cloudflare/d1/near/d1SponsoredNearAccount.typecheck.ts\n  - ../wallet-server/src/router/cloudflare/d1/authorization/authorizedOperationStatements.ts\n  - ../wallet-server/src/router/cloudflare/d1/authorization/d1AuthorizationStore.ts"
+  },
+  "fullConsumerReportSha256": "2cc0eafd9b339b2d89ac77d1737be1a2a65cbe034a656472548b27e47abe566f",
+  "fullHostReportSha256": "be04c986d95e7770b0bf645eb041980d09cac3270649fa8e60db7b0eb1512b11",
+  "repeat": {
+    "revision": "55c446c92608d69dd9f075949a3b3aac45293208",
+    "buildInputsHash": "afe33df8867c39886dfff0a46d4ed29c70caaf2bfec5f688702e0be667f43cd5",
+    "emittedEsmSha256": "c020c68601a86493e8abdf18217f222f54e38a9b4f10eb7513fcb8266a34eb45",
+    "freshness": {
+      "status": "fresh",
+      "detail": "✅ Build is fresh"
+    },
+    "identicalConsumerResults": true,
+    "reportSha256": "a2fe7e862a64fba2e1faeaac7e622465a68da9f5939fe30c12048cd88d41bb16"
+  },
+  "consumers": [
+    {
+      "name": "root-client",
+      "entry": ".",
+      "exports": [
+        "SeamsWeb",
+        "defineSeamsConfig"
+      ],
+      "staticJavaScript": {
+        "raw": 3225409,
+        "gzip": 740587,
+        "brotli": 603335,
+        "fileCount": 59,
+        "external": []
+      },
+      "allReachableJavaScript": {
+        "raw": 3411622,
+        "gzip": 794848,
+        "brotli": 650275,
+        "fileCount": 72,
+        "external": []
+      },
+      "assets": {
+        "raw": 0,
+        "gzip": 0,
+        "brotli": 0,
+        "fileCount": 0
+      }
+    },
+    {
+      "name": "react-provider",
+      "entry": "./react/provider",
+      "exports": [
+        "SeamsWebProvider"
+      ],
+      "staticJavaScript": {
+        "raw": 3249155,
+        "gzip": 747971,
+        "brotli": 608866,
+        "fileCount": 59,
+        "external": [
+          "react",
+          "react/jsx-runtime"
+        ]
+      },
+      "allReachableJavaScript": {
+        "raw": 3447291,
+        "gzip": 805013,
+        "brotli": 657984,
+        "fileCount": 72,
+        "external": [
+          "react",
+          "react/jsx-runtime"
+        ]
+      },
+      "assets": {
+        "raw": 0,
+        "gzip": 0,
+        "brotli": 0,
+        "fileCount": 0
+      }
+    },
+    {
+      "name": "hosted-auth-menu",
+      "entry": "./react/hosted-seams-auth-menu",
+      "exports": [
+        "HostedSeamsAuthMenu"
+      ],
+      "staticJavaScript": {
+        "raw": 41472,
+        "gzip": 13911,
+        "brotli": 12224,
+        "fileCount": 8,
+        "external": [
+          "react",
+          "react/jsx-runtime"
+        ]
+      },
+      "allReachableJavaScript": {
+        "raw": 41472,
+        "gzip": 13911,
+        "brotli": 12224,
+        "fileCount": 8,
+        "external": [
+          "react",
+          "react/jsx-runtime"
+        ]
+      },
+      "assets": {
+        "raw": 0,
+        "gzip": 0,
+        "brotli": 0,
+        "fileCount": 0
+      }
+    },
+    {
+      "name": "react-hosted-auth",
+      "entry": "./react",
+      "exports": [
+        "SeamsWebProvider",
+        "HostedSeamsAuthMenu"
+      ],
+      "staticJavaScript": {
+        "raw": 3273983,
+        "gzip": 754163,
+        "brotli": 614500,
+        "fileCount": 59,
+        "external": [
+          "react",
+          "react/jsx-runtime"
+        ]
+      },
+      "allReachableJavaScript": {
+        "raw": 3459249,
+        "gzip": 808062,
+        "brotli": 661174,
+        "fileCount": 72,
+        "external": [
+          "react",
+          "react/jsx-runtime"
+        ]
+      },
+      "assets": {
+        "raw": 34730,
+        "gzip": 5897,
+        "brotli": 5164,
+        "fileCount": 1
+      }
+    }
+  ],
+  "host": {
+    "accounting": "Static/reachable JS closures and selected worker/WASM inventory are separate. Inventory totals include aliases and are not observed downloads. Identical WASM bytes at different URLs may still be fetched separately.",
+    "buildInputsHash": "05ba3e7bf7bd916ea8e54da365b34dc8fc4885e1e32d4b69bddb24c0221fb5a6",
+    "totals": {
+      "walletHost": {
+        "raw": 98,
+        "gzip": 106,
+        "brotli": 97
+      },
+      "walletHostStaticImports": {
+        "raw": 43194,
+        "gzip": 15004,
+        "brotli": 13098
+      },
+      "walletHostBootPath": {
+        "raw": 43292,
+        "gzip": 15110,
+        "brotli": 13195
+      },
+      "workerAndWasm": {
+        "raw": 7768340,
+        "gzip": 2193792,
+        "brotli": 1752080
+      }
+    },
+    "reachableJavaScript": {
+      "raw": 3838161,
+      "gzip": 905019,
+      "brotli": 757912
+    },
+    "css": {
+      "raw": 155352,
+      "gzip": 21686,
+      "brotli": 18111
+    },
+    "identicalWasmAssets": [
+      {
+        "sha256": "db68ab3dfd1d43a8f52b3a25e86aca072a06dd1ab05290744f4e15b71ef9d9ff",
+        "rawBytesPerCopy": 1303876,
+        "paths": [
+          "dist/workers/evm_crypto.wasm",
+          "dist/workers/evm_crypto_bg.wasm"
+        ]
+      },
+      {
+        "sha256": "27d2cbf2071723dc3a4370503922594ba727200df7675b1c74c51ea51e57d7b3",
+        "rawBytesPerCopy": 411789,
+        "paths": [
+          "dist/workers/near_signer.wasm",
+          "dist/workers/wasm_signer_worker_bg.wasm"
+        ]
+      },
+      {
+        "sha256": "bcdcca13dd77886fa8cf95a8bb599325a9130d81f82062694b6de119754698d4",
+        "rawBytesPerCopy": 777521,
+        "paths": [
+          "dist/workers/tempo_signer.wasm",
+          "dist/workers/tempo_signer_bg.wasm"
+        ]
+      }
+    ],
+    "missing": []
+  }
+}
