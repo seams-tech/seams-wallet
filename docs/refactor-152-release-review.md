@@ -3,9 +3,11 @@
 ## Current release gate — October 4
 
 Candidate `174cd48396e6a6d5760752c6fe5e3c64ed2a9a97` is pushed to `dev`.
-Exact-candidate validation was dispatched as Wallet run `37196611261` and
-Cloudflare MPC run `37196612989`. Their results are pending; previous green
-checkpoints do not cover this candidate. No release workflow was dispatched.
+Exact-candidate Wallet validation `37196611261` passed: build, type checking,
+representative browser/unit/lifecycle contracts, packed packages, documentation,
+example and intended-app builds. The result is retained in
+`.artifacts/r152/ci-174cd483-wallet-result.json`. MPC validation remains pending
+as described below. No release workflow was dispatched.
 
 The first MPC run passed adapter, entrypoint and startup checks. One VM E2E
 exited before its local Worker health check; no protocol assertion failed.
