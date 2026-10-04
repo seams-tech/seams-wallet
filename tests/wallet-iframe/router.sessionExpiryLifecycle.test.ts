@@ -119,8 +119,8 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
           detectedAtMs: Date.now(),
           source: 'server_rejection' as const,
         };
-        emitSdkLifecycleEvent.call(router, staleExpiry);
-        emitSdkLifecycleEvent.call(router, staleExpiry);
+        emitSdkLifecycleEvent.call(router, staleExpiry, 100);
+        emitSdkLifecycleEvent.call(router, staleExpiry, 100);
         await new Promise((resolve) => window.setTimeout(resolve, 50));
         const staleEventResult = {
           requestSettled,
@@ -134,8 +134,8 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
           walletSessionId: activeSessionId,
           detectedAtMs: Date.now(),
         };
-        emitSdkLifecycleEvent.call(router, activeExpiry);
-        emitSdkLifecycleEvent.call(router, activeExpiry);
+        emitSdkLifecycleEvent.call(router, activeExpiry, 101);
+        emitSdkLifecycleEvent.call(router, activeExpiry, 101);
         const requestResult = await pendingRequest;
 
         return {
@@ -244,7 +244,7 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
           expiresAtMs,
           detectedAtMs: Date.now(),
           source: 'server_rejection',
-        });
+        }, 100);
 
         const [firstResult, queuedResult] = await Promise.all([firstRequest, queuedRequest]);
 
@@ -371,7 +371,7 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
           expiresAtMs,
           detectedAtMs: Date.now(),
           source: 'server_rejection',
-        });
+        }, 100);
         await signingRequest.catch(() => undefined);
         await new Promise((resolve) => window.setTimeout(resolve, 50));
         const afterExpiry = { ...settlement };

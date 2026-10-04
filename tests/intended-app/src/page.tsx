@@ -1846,7 +1846,6 @@ class IntendedPageController {
          the family alone cannot tell it from the method that added it. */
       const unlockedSession = await this.seams.auth.getWalletSession(this.walletId);
       const summary = assertPasskeyUnlockSucceeded(unlockedSession, this.walletId);
-      await this.refreshLoginState(summary.walletId);
       this.dispatch({ kind: 'action_succeeded', action, result: summary });
     } catch (error) {
       this.dispatch({ kind: 'action_failed', action, error: errorMessage(error) });

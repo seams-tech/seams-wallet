@@ -70,7 +70,7 @@ import {
   type WalletIframeRequestId,
 } from '@/core/types/walletIframeIdentity';
 import { isPlainObject } from '@shared/utils/validation';
-import type { WalletIframeExactSessionIdentity } from './exactSessionState';
+import type { WalletIframeExactSessionIdentity, WalletIframeExactSessionSnapshot } from './exactSessionState';
 export type {
   LoginUnlockRequest,
   PMUnlockOptions,
@@ -1840,7 +1840,8 @@ export type ChildToParentEnvelope =
   | RpcEnvelope<'READY', ReadyPayload>
   | RpcEnvelope<'PONG'>
   | RpcEnvelope<'PROGRESS', ProgressPayload>
-  | RpcEnvelope<'SDK_LIFECYCLE_EVENT', SdkLifecycleEvent>
+  | RpcEnvelope<'SDK_LIFECYCLE_EVENT', { readonly revision: number; readonly event: SdkLifecycleEvent }>
+  | RpcEnvelope<'SESSION_CHANGED', WalletIframeExactSessionSnapshot>
   | RpcEnvelope<'PREFERENCES_CHANGED', PreferencesChangedPayload>
   | RpcEnvelope<'AUTH_MENU_EXTERNAL_AUTH_REQUEST', HostedAuthMenuExternalAuthRequest>
   | RpcEnvelope<'AUTH_MENU_ERROR', HostedAuthMenuErrorEvent>

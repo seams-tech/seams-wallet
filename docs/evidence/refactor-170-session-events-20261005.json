@@ -1,0 +1,341 @@
+{
+  "date": "2026-10-05",
+  "baseCommit": "423281f1edf281b2055756bd5885c5a1c56c86d5",
+  "scope": "Publish wallet-bound, ordered session events from the host; preserve expiry across delayed observations; coalesce host writes and concurrent reads without caching completed reads.",
+  "sourceSha256": {
+    "packages/wallet/src/SeamsWeb/walletIframe/client/router.ts": "794da9e30ba815cd1f0eeb8875225a09cb23e8b2c669cde2a000e153bc9a5982",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/context.ts": "0590271f07a1f09e10a0063f61b85f8a9de7aa65d311253b13a8ac36c279cca3",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/handlers/auth.ts": "0270190792c0b3c3d34cf629147bcd8c3ecda3f53ba1b1b5a93a85b68a772853",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/handlers/authMenu.ts": "8984d686331b4dd698b48a5ec842c1890a9e78d3266f2ca92072998bd72a893e",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/handlers/walletIframeHandler.types.ts": "fa4a63e1a6918613d812b314c8394e2a295a781a856ad253d61d2465f52b1fde",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/runtimeContext.ts": "36064e76784d1f97bc9adce0c7c226409fc712e2134b19455ffddb2a3297d420",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/sessionObserver.ts": "f344b85965936a375b767551d954a569b9081cdae94eb150dc637157d6651424",
+    "packages/wallet/src/SeamsWeb/walletIframe/shared/exactSessionState.ts": "16d5cd17068149cd48e3dfd998c344ab6b61ba9596964d471018b72db8a2a93b",
+    "packages/wallet/src/SeamsWeb/walletIframe/shared/messages.ts": "44b5adc537d9f0154eab5e443332f74bd6a7070e50602829f1a204f3a758a28f",
+    "packages/wallet/src/core/indexedDB/seamsWalletDB/manager.ts": "8d8eaab98414eb7d1c8a96524d18471965f3ac471ddfce08fb8b134180b9e9f9",
+    "packages/wallet/src/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore.ts": "4b12bc0a7dd9d9887877984f56b3f577864edcc081b3fdbcd322ef21e70d9215",
+    "tests/e2e/intended-behaviours/harness.ts": "5e273a352474ae3d954073682b1506c6d098ccf0353540f869ab9a04407eaec2",
+    "tests/intended-app/src/page.tsx": "c21e7056d5681107e86abca33d0368393617ddee9ab9a5b6d0a269dc48e5ebb2",
+    "tests/typecheck/wallet-command-inputs.typecheck.ts": "214c200fb87b213244b6bd24029f50de16cf259912b819bf6ef50803272f3c59",
+    "tests/wallet-iframe/harness.ts": "5b7486959c291bbf224f1c805354e55a0fdde8b53dc9bc191161eb9362853ef2",
+    "tests/wallet-iframe/router.behavior.test.ts": "d98fd1b17857e11b32fed74dcfcc335e2c49092c9ea3b5c9d937c92d98bcb6b9",
+    "tests/wallet-iframe/router.sessionExpiryLifecycle.test.ts": "dc86a600e8805529ae132211858eafc5fa2d6b0a527bf3ac6b6b8d66fb1feaa7",
+    "tests/wallet-iframe/router.sessionOrdering.test.ts": "045a462eb5d188e05793ce3fafd5dfa3deba99518c9a25c492c59a4665116bf1",
+    "tests/wallet-iframe/session.events.test.ts": "acdef60a0d6cf8cbb97481fe21372de1e09cbcfff374551f9882814168d59e60",
+    "tests/wallet-iframe/session.persistence.test.ts": "4492edc67f63929718473c881761eb8e41fd3f1358d99e1533dde06dbe445d98",
+    "tests/wallet-iframe/session.selection.test.ts": "bd6d49f551018e6311115e1812813c3379a53896d92d75b6fd0be433b191fe0c"
+  },
+  "productionLines": {
+    "added": 550,
+    "removed": 190,
+    "net": 360,
+    "reason": "One host observer replaces handler-local reading. Added event ordering, lifecycle ownership, operation coalescing, and concurrent request sharing. Removed the redundant post-unlock query and identical persisted session replacements."
+  },
+  "browser": {
+    "command": "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4288 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/session.persistence.test.ts wallet-iframe/session.authority.test.ts wallet-iframe/session.selection.test.ts wallet-iframe/session.events.test.ts wallet-iframe/router.sessionOrdering.test.ts wallet-iframe/router.sessionExpiryLifecycle.test.ts wallet-iframe/router.behavior.test.ts wallet-iframe/router.connectionClosed.test.ts wallet-iframe/walletIframeSurface.compact.integration.test.ts wallet-iframe/config.execution.test.ts wallet-iframe/config.forwarding.test.ts wallet-ui/transaction-review.browser.test.ts --project=chromium --output=../.artifacts/r170-session-events/final",
+    "exitCode": 0,
+    "result": "74 passed",
+    "scope": "Real IndexedDB and host observer with controlled HTTP status responses; delayed query/event/expiry ordering through cross-origin transport; selection, disposal, persistence rollback, configuration, review and router behavior.",
+    "receipts": {
+      ".artifacts/r170-session-events/final/wallet-iframe-session.even-c8e16-tus-and-stop-after-disposal-chromium/host-session-events.json": {
+        "afterExpiry": {
+          "held": false,
+          "messages": [
+            {
+              "type": "SDK_LIFECYCLE_EVENT",
+              "payload": {
+                "revision": 2,
+                "event": {
+                  "version": 1,
+                  "event": "signing_session.expired",
+                  "walletId": "wallet:session-events",
+                  "walletSessionId": "wallet-session:management-session-events",
+                  "authMethod": "email_otp",
+                  "expiresAtMs": 1791148755133,
+                  "detectedAtMs": 1791148755134,
+                  "source": "server_rejection"
+                }
+              }
+            },
+            {
+              "type": "SESSION_CHANGED",
+              "payload": {
+                "revision": 3,
+                "walletId": "wallet:session-events",
+                "state": {
+                  "kind": "expired_session",
+                  "walletId": "wallet:session-events",
+                  "authorizationId": "authorization:management-session-events",
+                  "walletSessionId": "wallet-session:management-session-events",
+                  "authMethod": "email_otp",
+                  "expiresAtMs": 1791148755133
+                }
+              }
+            },
+            {
+              "type": "QUERY",
+              "payload": {
+                "revision": 4,
+                "walletId": "wallet:session-events",
+                "state": {
+                  "kind": "expired_session",
+                  "walletId": "wallet:session-events",
+                  "authorizationId": "authorization:management-session-events",
+                  "walletSessionId": "wallet-session:management-session-events",
+                  "authMethod": "email_otp",
+                  "expiresAtMs": 1791148755133
+                }
+              }
+            }
+          ]
+        },
+        "disposed": {
+          "result": {
+            "kind": "rejected",
+            "message": "Wallet session observer is disposed"
+          },
+          "count": 5,
+          "messages": [
+            {
+              "type": "SDK_LIFECYCLE_EVENT",
+              "payload": {
+                "revision": 2,
+                "event": {
+                  "version": 1,
+                  "event": "signing_session.expired",
+                  "walletId": "wallet:session-events",
+                  "walletSessionId": "wallet-session:management-session-events",
+                  "authMethod": "email_otp",
+                  "expiresAtMs": 1791148755133,
+                  "detectedAtMs": 1791148755134,
+                  "source": "server_rejection"
+                }
+              }
+            },
+            {
+              "type": "SESSION_CHANGED",
+              "payload": {
+                "revision": 3,
+                "walletId": "wallet:session-events",
+                "state": {
+                  "kind": "expired_session",
+                  "walletId": "wallet:session-events",
+                  "authorizationId": "authorization:management-session-events",
+                  "walletSessionId": "wallet-session:management-session-events",
+                  "authMethod": "email_otp",
+                  "expiresAtMs": 1791148755133
+                }
+              }
+            },
+            {
+              "type": "QUERY",
+              "payload": {
+                "revision": 4,
+                "walletId": "wallet:session-events",
+                "state": {
+                  "kind": "expired_session",
+                  "walletId": "wallet:session-events",
+                  "authorizationId": "authorization:management-session-events",
+                  "walletSessionId": "wallet-session:management-session-events",
+                  "authMethod": "email_otp",
+                  "expiresAtMs": 1791148755133
+                }
+              }
+            },
+            {
+              "type": "SESSION_CHANGED",
+              "payload": {
+                "revision": 5,
+                "walletId": "wallet:session-events",
+                "state": {
+                  "kind": "wallet_locked"
+                }
+              }
+            },
+            {
+              "type": "SESSION_CHANGED",
+              "payload": {
+                "revision": 7,
+                "walletId": "wallet:session-events",
+                "state": {
+                  "kind": "active_session",
+                  "status": "active",
+                  "walletId": "wallet:session-events",
+                  "authorizationId": "authorization:management-session-events-renewed",
+                  "walletSessionId": "wallet-session:management-session-events-renewed",
+                  "authMethod": "email_otp",
+                  "expiresAtMs": 1791148755370
+                }
+              }
+            }
+          ]
+        }
+      },
+      ".artifacts/r170-session-events/final/wallet-iframe-router.sessi-94338-s-and-retain-a-newer-unlock-chromium/session-events.json": {
+        "eventWon": {
+          "kind": "resolved",
+          "state": {
+            "kind": "wallet_unlocked_without_signing_session",
+            "walletId": "alice.testnet",
+            "reason": "unavailable"
+          }
+        },
+        "expiryWon": {
+          "kind": "resolved",
+          "state": {
+            "kind": "expired_session",
+            "walletId": "alice.testnet",
+            "authorizationId": "wsa_event_ordering_original",
+            "walletSessionId": "wss_event_ordering_original",
+            "authMethod": "passkey",
+            "expiresAtMs": 4102444800000
+          }
+        },
+        "afterOldEvents": {
+          "kind": "active_session",
+          "status": "active",
+          "walletId": "alice.testnet",
+          "authorizationId": "wsa_event_ordering_renewed",
+          "walletSessionId": "wss_event_ordering_renewed",
+          "authMethod": "passkey",
+          "expiresAtMs": 4102444900000
+        }
+      },
+      ".artifacts/r170-session-events/final/wallet-iframe-session.pers-c8abc-e-exact-credentials-durably-chromium/session-persistence.json": {
+        "revisions": {
+          "unchangedRead": true,
+          "identicalWrite": true,
+          "committedRefresh": true,
+          "abortedWrites": true,
+          "legacyPrune": true,
+          "staleRefresh": true
+        },
+        "initial": "found",
+        "updated": "updated",
+        "corruptRead": "corrupt",
+        "legacySurvivedRead": true,
+        "retirementRejected": true,
+        "validSurvivedRetirement": true,
+        "legacySurvivedRetirement": true,
+        "replacementRejected": true,
+        "validSurvivedReplacement": true,
+        "legacySurvivedReplacement": true,
+        "recovered": "found",
+        "legacyPruned": true,
+        "cleared": null,
+        "staleRefresh": "superseded",
+        "otherWallet": "found",
+        "retiredCount": 1,
+        "retiredRead": null,
+        "remainingRows": 0,
+        "unavailable": "persistence_unavailable"
+      },
+      ".artifacts/r170-session-events/final/wallet-iframe-router.sessi-2343f-a-newer-session-observation-chromium/same-wallet-ordering.json": {
+        "current": {
+          "kind": "wallet_unlocked_without_signing_session",
+          "walletId": "alice.testnet",
+          "reason": "unavailable"
+        },
+        "delayed": {
+          "kind": "resolved",
+          "state": {
+            "kind": "wallet_unlocked_without_signing_session",
+            "walletId": "alice.testnet",
+            "reason": "unavailable"
+          }
+        },
+        "mirrored": {
+          "state": {
+            "kind": "wallet_unlocked_without_signing_session",
+            "walletId": "alice.testnet",
+            "reason": "unavailable"
+          },
+          "events": [
+            {
+              "isLoggedIn": true,
+              "walletId": "alice.testnet"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "production": {
+    "command": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/email-otp.unlock.contract.test.ts e2e/intended-behaviours/passkey.unlock.contract.test.ts --grep 'Email OTP registration and unlock lifecycle|page refresh hydrates warm signing|a cross-tab lock prevents delayed restoration|a fresh unlock survives a delayed restoration'",
+    "exitCode": 0,
+    "sanitizedSummary": [
+      "[wallet-intended] running 4 case(s) with fresh Wallet state",
+      "[wallet-intended] 1/4 e2e/intended-behaviours/email-otp.unlock.contract.test.ts:9 Email OTP registration and unlock lifecycle",
+      "  1 passed (48.5s)",
+      "[wallet-intended] 2/4 e2e/intended-behaviours/passkey.unlock.contract.test.ts:14 a cross-tab lock prevents delayed restoration from recreating its credential",
+      "  1 passed (29.7s)",
+      "[wallet-intended] 3/4 e2e/intended-behaviours/passkey.unlock.contract.test.ts:15 a fresh unlock survives a delayed restoration response from another tab",
+      "  1 passed (28.3s)",
+      "[wallet-intended] 4/4 e2e/intended-behaviours/passkey.unlock.contract.test.ts:61 page refresh hydrates warm signing, one-use step-up, and key export",
+      "  1 passed (34.0s)"
+    ],
+    "passkeyUnlockAssertions": [
+      "At most three status reads after unlock verification; the original limit is unchanged.",
+      "The React provider reports logged_in, the exact wallet ID, and NEAR readiness without the consumer manually refreshing login state."
+    ]
+  },
+  "checks": [
+    {
+      "command": "pnpm -C packages/wallet build:prod",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm -C packages/wallet type-check",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm -C tests exec tsc --noEmit -p tsconfig.wallet-browser.json",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm -C tests type-check:wallet-state",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm -C tests type-check:intended",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm -C packages/wallet check:runtime-entry-bundles",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm report:bloat --check",
+      "exitCode": 0
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "failureClassifications": [
+    {
+      "classification": "production_regression",
+      "detail": "Observer status-read amplification initially caused 20 post-unlock status reads against a limit of three. Fixed operation coalescing, duplicate notifications, unchanged record writes, concurrent reads, and auth completion publication. The consumer now uses automatic provider state; the assertion limit stays unchanged."
+    },
+    {
+      "classification": "production_regression",
+      "detail": "A selection-removal bootstrap retry retained restore mode. Retries now use current-state mode."
+    },
+    {
+      "classification": "valid_test_needs_update",
+      "detail": "The registration stub returned its completed session before registration. It now starts locked and changes selection and state on completion."
+    },
+    {
+      "classification": "environment_or_infrastructure_failure",
+      "detail": "The bloat inventory excluded an untracked observer; staging the owned new file restored accurate inventory. A browser module load failed during a rebuild; the final browser run used fixed built assets."
+    }
+  ],
+  "limits": [
+    "Local manager commits and selection changes drive this observer. Passive notification from another tab is still pending.",
+    "The observer browser test uses a valid logical expiry timestamp and controlled HTTP responses. It does not prove a real wall-clock expiry timer.",
+    "Full revocation/activation, reconnect and configuration-remount acceptance remain open.",
+    "This verifies the existing post-passkey-unlock status-read budget, not total traffic, worker loading, first-sign latency, or month-later presignature reuse.",
+    "R171 naming, consumer migration and the remaining R170 cleanup remain incomplete."
+  ]
+}

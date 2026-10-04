@@ -9,10 +9,12 @@ let currentWallet = 'alice.testnet';
 let selectionRevision = 0;
 let observationRevision = 0;
 let sessionReason = 'absent';
+let currentProjection = null;
 let holdNextSession = false;
 let heldSession = null;
 let sessionRequests = [];
 function currentSession(walletId) {
+  if (currentProjection && currentProjection.walletId === walletId) return currentProjection;
   return walletId === null ? { kind: 'wallet_locked' } : { kind: 'wallet_unlocked_without_signing_session', walletId, reason: sessionReason };
 }
 function preferences() {
@@ -24,7 +26,7 @@ function sessionMessage(event) {
   if (message.type === 'PM_GET_EXACT_WALLET_SESSION_STATE') {
     sessionRequests.push(message.payload);
     const walletId = message.payload.wallet.kind === 'exact' ? message.payload.wallet.walletId : currentWallet;
-    const result = { revision: ++observationRevision, state: currentSession(walletId) };
+    const result = { revision: ++observationRevision, walletId, state: currentSession(walletId) };
     if (holdNextSession) {
       holdNextSession = false;
       heldSession = { requestId: message.requestId, result };
@@ -50,6 +52,22 @@ window.selectWallet = function(walletId) {
   currentWallet = walletId;
   selectionRevision++;
   adoptedPort.postMessage({ type: 'PREFERENCES_CHANGED', payload: preferences() });
+  publishSessionProjection(currentSession(currentWallet), currentWallet);
+};
+function publishSessionProjection(state, walletId) {
+  adoptedPort.postMessage({ type: 'SESSION_CHANGED', payload: { revision: ++observationRevision, walletId, state } });
+}
+window.publishCurrentSession = function() { publishSessionProjection(currentSession(currentWallet), currentWallet); };
+window.setSessionProjection = function(state) { currentProjection = state; publishSessionProjection(state, state.walletId); };
+window.publishOtherWalletLock = function() { publishSessionProjection({ kind: 'wallet_locked' }, 'bob.testnet'); };
+window.emitExpiry = function(session) {
+  const event = {
+    version: 1, event: 'signing_session.expired', walletId: session.walletId,
+    walletSessionId: session.walletSessionId, authMethod: session.authMethod,
+    expiresAtMs: session.expiresAtMs, detectedAtMs: session.expiresAtMs + 1,
+    source: 'server_rejection',
+  };
+  adoptedPort.postMessage({ type: 'SDK_LIFECYCLE_EVENT', payload: { revision: ++observationRevision, event } });
 };
 window.sessionHostState = function() { return { held: heldSession !== null, requests: sessionRequests }; };
 `;
@@ -235,5 +253,100 @@ test('an older same-wallet snapshot cannot replace a newer session observation',
   await writeFile(
     info.outputPath('same-wallet-ordering.json'),
     JSON.stringify({ current, delayed, mirrored }, null, 2),
+  );
+});
+
+function publishCurrentSession(): void {
+  (window as any).publishCurrentSession();
+}
+
+function setSessionProjection(state: unknown): void {
+  (window as any).setSessionProjection(state);
+}
+
+function publishOtherWalletLock(): void {
+  (window as any).publishOtherWalletLock();
+}
+
+function emitExpiry(state: unknown): void {
+  (window as any).emitExpiry(state);
+}
+
+test('session and expiry events outrank delayed reads and retain a newer unlock', async ({
+  page,
+}, info) => {
+  await setupBasicPasskeyTest(page, { skipSeamsWebInit: true });
+  await registerWalletServiceRoute(
+    page,
+    buildWalletServiceHtml({ extraScript: hostScript }),
+    '**://wallet.example.localhost/wallet-service*',
+  );
+  await page.addScriptTag({
+    content: [recordLoginStatus, readSucceeded, readFailed, readClient].map(String).join('\n'),
+  });
+  await page.evaluate(initializeClient);
+  const frame = page.frames().find(walletFrame)!;
+  await frame.evaluate(holdSession);
+  await page.evaluate(beginRead);
+  await expect.poll(frame.evaluate.bind(frame, readHost)).toMatchObject({ held: true });
+  await frame.evaluate(changeSessionReason, 'unavailable');
+  await frame.evaluate(publishCurrentSession);
+  await expect.poll(page.evaluate.bind(page, readClient)).toMatchObject({
+    state: { walletId: 'alice.testnet', reason: 'unavailable' },
+  });
+  await frame.evaluate(releaseSession);
+  const eventWon = await page.evaluate(finishRead);
+  expect(eventWon).toMatchObject({ state: { reason: 'unavailable' } });
+
+  const active = {
+    kind: 'active_session',
+    status: 'active',
+    walletId: 'alice.testnet',
+    authorizationId: 'wsa_event_ordering_original',
+    walletSessionId: 'wss_event_ordering_original',
+    authMethod: 'passkey',
+    expiresAtMs: 4102444800000,
+  };
+  await frame.evaluate(setSessionProjection, active);
+  await expect
+    .poll(page.evaluate.bind(page, readClient))
+    .toMatchObject({ state: { kind: 'active_session' } });
+  await frame.evaluate(holdSession);
+  await page.evaluate(beginRead);
+  await expect.poll(frame.evaluate.bind(frame, readHost)).toMatchObject({ held: true });
+  await frame.evaluate(emitExpiry, active);
+  await expect
+    .poll(page.evaluate.bind(page, readClient))
+    .toMatchObject({ state: { kind: 'expired_session' } });
+  await frame.evaluate(releaseSession);
+  const expiryWon = await page.evaluate(finishRead);
+  expect(expiryWon).toMatchObject({
+    state: { kind: 'expired_session', walletSessionId: active.walletSessionId },
+  });
+
+  const renewed = {
+    kind: 'active_session',
+    status: 'active',
+    walletId: 'alice.testnet',
+    authorizationId: 'wsa_event_ordering_renewed',
+    walletSessionId: 'wss_event_ordering_renewed',
+    authMethod: 'passkey',
+    expiresAtMs: 4102444900000,
+  };
+  await frame.evaluate(setSessionProjection, renewed);
+  await expect
+    .poll(page.evaluate.bind(page, readClient))
+    .toMatchObject({ state: { walletSessionId: renewed.walletSessionId } });
+  await frame.evaluate(emitExpiry, active);
+  await frame.evaluate(publishOtherWalletLock);
+  // A new same-wallet read is also a delivery barrier for the earlier notifications.
+  const afterOldEvents = await page.evaluate(readFreshSession);
+  expect(afterOldEvents).toMatchObject({
+    kind: 'active_session',
+    walletSessionId: renewed.walletSessionId,
+  });
+  await writeFile(
+    info.outputPath('session-events.json'),
+    JSON.stringify({ eventWon, expiryWon, afterOldEvents }, null, 2),
   );
 });

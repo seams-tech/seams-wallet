@@ -183,6 +183,7 @@ const CAPTURE_UNLOCK_PAYLOAD_SCRIPT = String.raw`
       };
 `;
 const EMAIL_OTP_REGISTRATION_SESSION_SCRIPT = String.raw`
+      let registrationCompleted = false;
       const captureEmailOtpRequest = (requestType) => {
         window.parent?.postMessage(
           {
@@ -253,6 +254,9 @@ const EMAIL_OTP_REGISTRATION_SESSION_SCRIPT = String.raw`
           }
           if (data.type === 'PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_COMPLETE_REGISTRATION') {
             captureEmailOtpRequest(data.type);
+            registrationCompleted = true;
+            basePreferenceSnapshot = { ...basePreferenceSnapshot, walletId: 'alice.testnet', revision: basePreferenceSnapshot.revision + 1 };
+            adoptedPort.postMessage({ type: 'PREFERENCES_CHANGED', payload: basePreferenceSnapshot });
             postResult(requestId, {
               ok: true,
               value: {
@@ -267,14 +271,15 @@ const EMAIL_OTP_REGISTRATION_SESSION_SCRIPT = String.raw`
             captureEmailOtpRequest(data.type);
             postResult(requestId, {
               revision: ++sessionObservationRevision,
-              state: {
+              walletId: registrationCompleted ? 'alice.testnet' : null,
+              state: registrationCompleted ? {
                 kind: 'wallet_unlocked_without_signing_session',
                 walletId: 'alice.testnet',
                 authorizationId: 'wallet-session-authorization-router-fixture',
                 walletSessionId: 'wallet-session-router-fixture',
                 authMethod: 'email_otp',
                 reason: 'not_found',
-              },
+              } : { kind: 'wallet_locked' },
             });
             return;
           }

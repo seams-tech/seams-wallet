@@ -1,3 +1,4 @@
+import type { WalletHostSessionObserver } from './sessionObserver';
 import { MinimalNearClient } from '@/core/rpcClients/near/NearClient';
 import { WalletHostRuntime } from '@/SeamsWeb/walletIframe/host/WalletHostRuntime';
 import { __setWalletIframeHostMode } from '@/core/browser/walletIframe/host-mode';
@@ -99,6 +100,7 @@ export interface HostContext {
   port: MessagePort | null;
   configuration: WalletHostConfigurationState;
   preferencesRevision: number;
+  sessionObserver: WalletHostSessionObserver | null;
   nearClient: MinimalNearClient | null;
   walletRuntime: WalletHostRuntime | null;
   prefsUnsubscribe?: (() => void) | null;
@@ -114,6 +116,7 @@ export function createHostContext(): HostContext {
     port: null,
     configuration: { kind: 'unconfigured' },
     preferencesRevision: 0,
+    sessionObserver: null,
     nearClient: null,
     walletRuntime: null,
     prefsUnsubscribe: null,
@@ -180,6 +183,8 @@ export function applyWalletConfig(ctx: HostContext, configuration: ConfiguredWal
   if (nextRuntimeResetFingerprint !== prevRuntimeResetFingerprint) {
     const previousRuntime = ctx.walletRuntime;
     ctx.walletRuntime = null;
+    ctx.sessionObserver?.dispose();
+    ctx.sessionObserver = null;
     ctx.lifecycleSource = null;
     ctx.surfaceMeasurementBinding = { kind: 'disabled' };
     ctx.prefsUnsubscribe?.();

@@ -132,9 +132,9 @@ import type {
 } from '../../packages/wallet/src/SeamsWeb/walletIframe/shared/exactSessionState';
 declare const observedSession: WalletIframeExactSessionState;
 // @ts-expect-error Session snapshots require a host-issued revision.
-const unversionedSession: WalletIframeExactSessionSnapshot = { state: observedSession };
+const unversionedSession: WalletIframeExactSessionSnapshot = { walletId: null, state: observedSession };
 // @ts-expect-error A revision cannot replace the required session projection.
-const missingSessionProjection: WalletIframeExactSessionSnapshot = { revision: 1 };
+const missingSessionProjection: WalletIframeExactSessionSnapshot = { walletId: null, revision: 1 };
 declare const sessionSnapshot: WalletIframeExactSessionSnapshot;
 // @ts-expect-error An observation cannot adopt another revision after capture.
 sessionSnapshot.revision = 2;
@@ -143,3 +143,7 @@ const optionalSessionRevision: WalletIframeExactSessionSnapshot = { ...sessionSn
 void unversionedSession;
 void missingSessionProjection;
 void optionalSessionRevision;
+
+// @ts-expect-error Locked snapshots must still identify the observed wallet selection.
+const unboundSessionSnapshot: WalletIframeExactSessionSnapshot = { revision: 1, state: observedSession };
+void unboundSessionSnapshot;

@@ -643,7 +643,7 @@ snapshots and events now carry wallet-bound revisions; delayed snapshots cannot
 replace newer events. Host preference reads now fence stale hydration, and writes
 acknowledge durable storage. Host execution replacement now rejects pending runtime
 requests and fences callbacks from the retired generation. Session event revisions
-and consumer ownership verification across replacement remain open.
+are implemented below; full consumer ownership verification remains open.
 
 The host no longer reapplies an existing wallet selection during a session read.
 Saved-wallet restoration now yields to selection changes made during its lookup,
@@ -704,6 +704,29 @@ fields and preserve the captured revision. Session event revisions, remote-tab
 notifications, and the remaining lifecycle acceptance matrix stay open. All 65
 browser cases and four production lifecycle cases pass. This step adds 127
 production lines net. Evidence: `evidence/refactor-170-authority-revisions-20261005.json`.
+
+The host now owns one session observer per runtime and port. Queries and full-state
+events share an observation clock and required wallet binding. Commit and selection
+subscriptions drive event refreshes. Notifications from one host operation are
+combined before its final refresh. Disposed or replaced observers cannot publish late state. Expiry notifications
+carry a revision, and known expired identities cannot become active through a delayed
+status reply. A fresh session identity remains independent of those expiry facts.
+
+The client consumes host session events instead of querying again on every preference
+notification. It ignores other-wallet snapshots and older observations. Bootstrap
+retries switch to current-state reads after selection changes, preserving removal.
+Unchanged projections do not notify login-state listeners again. Exact session
+replacement skips identical persisted records. Concurrent wallet-session readers
+share pending work within the same connection, selection, and observation revision.
+Unlock and successful hosted authentication publish their session before completion.
+Production verification exposed excessive status reads; its three-read limit remains
+unchanged. The consumer now relies on provider events instead of manually refreshing
+React state after passkey unlock. All 74 browser cases and four production lifecycle
+cases pass, including automatic provider state and the unchanged three-read limit.
+This step adds 550 production lines and removes 190, for a net increase of 360.
+Evidence: `evidence/refactor-170-session-events-20261005.json`.
+Passive cross-tab notifications, full revocation/activation and reconnect acceptance,
+and network/latency measurements remain open.
 
 At the recorded bundle checkpoint, the production root-client static closure measured
 66,386 bytes gzip

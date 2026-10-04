@@ -583,6 +583,7 @@ export async function replaceExactActiveWalletSessionAuthorizationInTransaction(
   }
   const operationCredential = parseWalletSessionOperationCredentialV1(args.operationCredential);
   const incomingRow = toStoredExactWalletSessionAuthorizationRowV6(incoming, operationCredential);
+  let requiresWrite = true;
   const store = args.ctx.store(STORE);
   const rows = await store.index(SEAMS_WALLET_INDEXES.walletId).getAll(incoming.walletId);
   for (const raw of rows) {
@@ -614,11 +615,12 @@ export async function replaceExactActiveWalletSessionAuthorizationInTransaction(
       if (parsedCurrent.operationCredential.token !== operationCredential.token) {
         throw new Error('Stored Wallet Session conflicts with the issued operation credential');
       }
+      requiresWrite = !activeWalletSessionV1RecordsEqual(current, incoming);
       continue;
     }
     await store.delete(parsedCurrent.physicalKey);
   }
-  await store.put(incomingRow);
+  if (requiresWrite) await store.put(incomingRow);
   return incoming;
 }
 

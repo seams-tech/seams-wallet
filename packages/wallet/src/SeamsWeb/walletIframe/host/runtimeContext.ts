@@ -1,3 +1,6 @@
+import { WalletHostSessionObserver } from './sessionObserver';
+import type { WalletIframeExactSessionSnapshot } from '../shared/exactSessionState';
+import type { PMGetExactWalletSessionStatePayload } from '../shared/messages';
 import type { TransactionReviewAdmission } from '@/core/signingEngine/uiConfirm/transactionReviewAdmission';
 import type {
   ChildToParentEnvelope,
@@ -178,6 +181,10 @@ function syncRuntimeContext(state: WalletHostRuntimeState): HostContext {
   }
   state.onConfigurationChanged = syncActiveWalletHostRuntimeConfig.bind(null, state);
   runtimeContext.parentOrigin = state.parentOrigin;
+  if (runtimeContext.port !== state.port) {
+    runtimeContext.sessionObserver?.dispose();
+    runtimeContext.sessionObserver = null;
+  }
   runtimeContext.port = state.port;
   if (state.parentOrigin !== null) {
     recordAdoptedWalletIframeParentOrigin(state.parentOrigin);
@@ -198,7 +205,10 @@ function ensureRequestWalletRuntime(ctx: HostContext): WalletHostRuntime {
   const previous = ctx.walletRuntime;
   const walletRuntime = ensureWalletRuntime(ctx);
   ensureWalletHostLifecycleSubscription(ctx, walletRuntime);
-  if (previous === walletRuntime) return walletRuntime;
+  if (previous === walletRuntime) {
+    ensureSessionObserver(ctx, walletRuntime);
+    return walletRuntime;
+  }
 
   const preferences = walletRuntime.preferences;
   ctx.prefsUnsubscribe?.();
@@ -215,10 +225,50 @@ function ensureRequestWalletRuntime(ctx: HostContext): WalletHostRuntime {
       unsubscribeCurrentWallet?.();
     } catch {}
   };
+  ensureSessionObserver(ctx, walletRuntime);
   Promise.resolve()
     .then(emitPreferencesChanged)
     .catch(() => {});
   return walletRuntime;
+}
+
+function postSessionMessage(
+  ctx: HostContext,
+  runtime: WalletHostRuntime,
+  port: MessagePort,
+  message: ChildToParentEnvelope,
+): void {
+  if (ctx.walletRuntime !== runtime || ctx.port !== port) return;
+  port.postMessage(message);
+}
+
+function ensureSessionObserver(
+  ctx: HostContext,
+  runtime: WalletHostRuntime,
+): WalletHostSessionObserver {
+  if (ctx.sessionObserver) return ctx.sessionObserver;
+  if (!ctx.port) throw new Error('Wallet session observation requires a connected parent');
+  ctx.sessionObserver = new WalletHostSessionObserver(
+    runtime,
+    postSessionMessage.bind(null, ctx, runtime, ctx.port),
+    ctx.expiredSessionsByWallet,
+  );
+  return ctx.sessionObserver;
+}
+
+function observeSession(
+  ctx: HostContext,
+  input: WalletHostRuntimeRequest,
+  payload: PMGetExactWalletSessionStatePayload,
+  publish: (snapshot: WalletIframeExactSessionSnapshot) => void,
+): Promise<void> {
+  const runtime = getRequestWalletRuntime(ctx, input);
+  return ensureSessionObserver(ctx, runtime).observe(payload, publish);
+}
+
+function publishCurrentSession(ctx: HostContext, input: WalletHostRuntimeRequest): Promise<void> {
+  const runtime = getRequestWalletRuntime(ctx, input);
+  return ensureSessionObserver(ctx, runtime).publishCurrentSession();
 }
 
 function preferencesSnapshot(
@@ -267,6 +317,8 @@ function buildHandlerDeps(ctx: HostContext, input: WalletHostRuntimeRequest): Ha
   return {
     getWalletRuntime: getRequestWalletRuntime.bind(null, ctx, input),
     readPreferences: readPreferences.bind(null, ctx, input),
+    observeSession: observeSession.bind(null, ctx, input),
+    publishCurrentSession: publishCurrentSession.bind(null, ctx, input),
     post: postActivityMessage.bind(null, input),
     postProgress,
     isCancelled: input.isCancelled,
@@ -284,7 +336,7 @@ function postActivityMessage(
 }
 
 function postLifecycleEvent(ctx: HostContext, event: SdkLifecycleEvent): void {
-  ctx.port?.postMessage({ type: 'SDK_LIFECYCLE_EVENT', payload: event });
+  ctx.sessionObserver?.onLifecycleEvent(event);
 }
 
 export async function handleWalletHostRuntimeRequestWithHandlers(
@@ -293,6 +345,8 @@ export async function handleWalletHostRuntimeRequestWithHandlers(
 ): Promise<void> {
   if (input.respondIfCancelled(input.req.requestId)) return;
   const ctx = syncRuntimeContext(input.state);
+  const observer = ensureSessionObserver(ctx, getRequestWalletRuntime(ctx, input));
+  observer.beginOperation();
   beginTransactionActivity(input.req, input.post);
   const foregroundBinding = isForegroundConfirmationRequest(input)
     ? surfaceMeasurementBindingForRequest(input)
@@ -324,6 +378,7 @@ export async function handleWalletHostRuntimeRequestWithHandlers(
     }
     throw error;
   } finally {
+    observer.endOperation();
     if (foregroundBinding && input.executionGeneration === input.state.executionGeneration) {
       clearSurfaceMeasurementBindingForRequest(ctx, foregroundBinding.requestId);
     }

@@ -64,7 +64,7 @@ export const buildWalletServiceHtml = (options: WalletServiceHtmlOptions = {}): 
     let adoptedPort = null;
     let exactSessionState = CONFIG.exactSessionState;
     let sessionObservationRevision = 0;
-    let basePreferenceSnapshot = { walletId: null, revision: 0, confirmationConfig: { uiMode: 'modal', behavior: 'requireClick', autoProceedDelay: 0 } };
+    let basePreferenceSnapshot = { walletId: exactSessionState.walletId ?? null, revision: 0, confirmationConfig: { uiMode: 'modal', behavior: 'requireClick', autoProceedDelay: 0 } };
     const pendingRequests = new Map();
 
     function postResult(requestId, result) {
@@ -129,7 +129,7 @@ export const buildWalletServiceHtml = (options: WalletServiceHtmlOptions = {}): 
 
           if (type === 'PM_GET_EXACT_WALLET_SESSION_STATE') {
             try {
-              postResult(requestId, { revision: ++sessionObservationRevision, state: exactSessionState });
+              postResult(requestId, { revision: ++sessionObservationRevision, walletId: basePreferenceSnapshot.walletId, state: exactSessionState });
             } catch (err) {
               console.error('Failed to respond to PM_GET_EXACT_WALLET_SESSION_STATE', err);
             }

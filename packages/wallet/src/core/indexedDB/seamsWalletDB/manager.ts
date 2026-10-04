@@ -121,6 +121,16 @@ export class SeamsWalletDBManager {
   private dbPromise: Promise<IDBPDatabase> | null = null;
   private disabled = false;
   private walletAuthorityRevision = 0;
+  private readonly walletAuthorityListeners = new Set<() => void>();
+
+  onWalletAuthorityChange(listener: () => void): () => void {
+    this.walletAuthorityListeners.add(listener);
+    return this.removeWalletAuthorityListener.bind(this, listener);
+  }
+
+  private removeWalletAuthorityListener(listener: () => void): void {
+    this.walletAuthorityListeners.delete(listener);
+  }
 
   getWalletAuthorityRevision(): number {
     return this.walletAuthorityRevision;
@@ -129,6 +139,11 @@ export class SeamsWalletDBManager {
   private publishWalletAuthorityCommit(writes: WalletAuthorityTransactionWrites): void {
     if (!writes.changed) return;
     this.walletAuthorityRevision += 1;
+    for (const listener of Array.from(this.walletAuthorityListeners)) {
+      try {
+        listener();
+      } catch {}
+    }
   }
 
   constructor(config: SeamsWalletDBConfig = SEAMS_WALLET_DB_CONFIG) {

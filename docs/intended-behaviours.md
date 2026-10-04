@@ -259,6 +259,28 @@ during that read. It checks again immediately before publishing the response.
 Selection removal returns a fresh locked projection. Repeated changes exhaust
 three attempts and reject the read instead of publishing an unstable observation.
 
+Session events and query responses use the same host observation revision sequence.
+Every snapshot identifies its wallet selection, including locked snapshots. The
+application ignores events for another selected wallet. Session expiry notifications
+also carry an observation revision on the wire; the public lifecycle event stays
+unchanged. An old expiry can cancel work bound to its exact session, but it cannot
+replace a newer session projection.
+
+The host publishes current session state after local authority commits and wallet
+selection changes. It combines changes within a host operation before refreshing.
+Unlock and successful hosted authentication publish the session before completion.
+Unchanged projections do not produce repeated login-state notifications. Concurrent
+wallet-session queries share pending work within the same connection, selection,
+and session observation revision. A completed query does not cache later queries.
+Replacing an identical exact-session record preserves the stored row without a write.
+A known expiry remains expired when a delayed status response reports that same
+session as active. A replacement session has its own identity and can become active.
+Disposing or replacing the host observer stops its subscriptions and publication.
+
+Current-state reads never restore a saved selection. Bootstrap can restore it once.
+If selection changes during bootstrap, the client retries as a current-state read.
+This prevents selection removal from starting another saved-wallet lookup.
+
 Clearing a wallet's persisted session credentials reads and deletes its keys in
 one transaction. It preserves other wallets' credentials. A corrupt session read
 or failed replacement rolls back any earlier deletions in that transaction.

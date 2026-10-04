@@ -309,18 +309,25 @@ async function readWalletIframeSessionObservation(
 }
 
 export type WalletIframeExactSessionSnapshot = {
+  readonly walletId: WalletId | null;
   readonly revision: number;
   readonly state: WalletIframeExactSessionState;
 };
+
+export function parseWalletIframeSessionRevision(value: unknown): number {
+  return requireNonNegativeSafeInteger(value, 'Wallet session revision');
+}
 
 export function parseWalletIframeExactSessionSnapshot(
   value: unknown,
 ): WalletIframeExactSessionSnapshot {
   const record = requireRecordCopy(value, 'Wallet iframe exact session snapshot');
-  return {
-    revision: requireNonNegativeSafeInteger(record.revision, 'Wallet session revision'),
-    state: parseWalletIframeExactSessionState(record.state),
-  };
+  const walletId = record.walletId === null ? null : requireWalletId(record.walletId);
+  const state = parseWalletIframeExactSessionState(record.state);
+  if (state.kind !== 'wallet_locked' && state.walletId !== walletId) {
+    throw new Error('Wallet session snapshot identity differs from its projection');
+  }
+  return { revision: parseWalletIframeSessionRevision(record.revision), walletId, state };
 }
 
 export function parseWalletIframeExactSessionState(value: unknown): WalletIframeExactSessionState {

@@ -32,11 +32,12 @@ async function getRecentUnlocks() {
   await new Promise(holdInventory);
   return { walletIds: ['alice.testnet'], accountIds: [], accounts: [], lastUsedAccount: null };
 }
-function recordSelection(walletId) { selectionEvents.push(walletId); }
+function recordSelection(walletId) { selectionEvents.push(walletId); adoptedPort.postMessage({ type: 'PREFERENCES_CHANGED', payload: readSelectionPreferences() }); }
 function selectionPost(message) { adoptedPort.postMessage(message); }
 function noCancellation() { return false; }
 async function noPrefill() {}
 let selectionRuntime;
+let sessionObserver;
 function getSelectionRuntime() { return selectionRuntime; }
 function readSelectionPreferences() {
   return { walletId: selectionManager.getCurrentWalletId(), confirmationConfig: selectionManager.getConfirmationConfig(), revision: selectionEvents.length };
@@ -59,7 +60,10 @@ async function initializeSelection() {
     configs: { network: { relayer: { url: 'https://relay.example.localhost' } } },
     prefillRestoredWalletSession: noPrefill,
   };
+  sessionObserver = new sdk.WalletHostSessionObserver(selectionRuntime, selectionPost, new Map());
   selectionHandlers = sdk.createAuthWalletIframeHandlers({
+    observeSession: sessionObserver.observe.bind(sessionObserver),
+    publishCurrentSession: sessionObserver.publishCurrentSession.bind(sessionObserver),
     getWalletRuntime: getSelectionRuntime, readPreferences: readSelectionPreferences,
     post: selectionPost, postProgress: noCancellation,
     isCancelled: noCancellation, respondIfCancelled: noCancellation,
@@ -150,6 +154,7 @@ for (const selectionChange of ['none', 'select', 'delete', 'authority'] as const
           export { UserPreferencesManager } from './packages/wallet/src/core/signingEngine/session/userPreferences.ts';
           export { IndexedDBManager, configureIndexedDB } from './packages/wallet/src/core/indexedDB/index.ts';
           export { buildEmailOtpEcdsaWalletSessionFixture } from './tests/unit/helpers/linkedDeviceManagement.fixtures.ts';
+          export { WalletHostSessionObserver } from './packages/wallet/src/SeamsWeb/walletIframe/host/sessionObserver.ts';
           export { createAuthWalletIframeHandlers } from './packages/wallet/src/SeamsWeb/walletIframe/host/handlers/auth.ts';
         `,
         resolveDir: root,

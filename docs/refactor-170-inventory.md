@@ -378,7 +378,7 @@ operation credentials. The six authority-race browser cases and four production
 lifecycle cases also pass. Evidence:
 `evidence/refactor-170-session-transactions-20261005.json`.
 
-Session snapshots now carry `{ revision, state }` in the unreleased 3.0.0
+Session snapshots now carry `{ revision, walletId, state }` in the unreleased 3.0.0
 protocol. The host assigns the observation revision before asynchronous work.
 The client accepts only newer snapshots within its current connection and returns
 the current projection when an older response arrives. Selection and connection
@@ -408,10 +408,37 @@ commit, reversed same-wallet snapshot delivery, revision behavior on commit and
 abort, selection removal, and disposal. The snapshot envelope also has type
 fixtures for missing fields and mutation of its captured revision.
 
-Session events and expiry notifications still lack the paired revision envelope.
-The same-wallet expiry, revocation, activation-event, and reconnect acceptance
-matrix remains open. Do not treat snapshot ordering as completion of that gate.
-The final run passes 65 browser cases and four production lifecycle cases.
+Session events now use the same wallet-bound snapshot envelope. Expiry notifications
+carry a revision beside the unchanged public lifecycle event. The host session
+observer owns both reads and event publication. It subscribes to local authority
+commits and selection changes, combines changes within an active host operation,
+and stops after disposal. Runtime and port replacement retire the old observer.
+
+The client no longer starts a second session query from a preference notification.
+It consumes the host's full-state event. It rejects snapshots for another selected
+wallet, including locked snapshots. A stale expiry retains exact-request failure
+handling while leaving a newer projection unchanged. Known expiry facts also guard
+host projections against a delayed active status for that same session.
+
+Bootstrap retains saved-wallet restoration. Current reads use the current selection
+without restoring it. A client retry after a selection change switches to current
+mode, so removal cannot launch another restoration.
+
+The observer's status refreshes can add network requests after commits. Pending
+refresh requests are combined. Identical exact-session replacements now skip the
+store write. Unchanged session projections do not notify login-state listeners.
+Concurrent rich session reads share pending work only within the same connection,
+selection generation, and observation revision. Unlock and successful hosted auth
+publish the session before returning. Production verification exposed a status-read
+regression; the existing three-read limit remains unchanged. All 74 browser cases
+and four production lifecycle cases pass, including automatic provider state after
+unlock. The receipt and source hashes are recorded in
+`evidence/refactor-170-session-events-20261005.json`. End-to-end traffic and latency measurements remain
+part of the worker/network acceptance phase. Local events do not notify another
+tab's manager. Passive cross-tab notification, full revocation/activation acceptance,
+and reconnect acceptance remain open; do not close the full ordering gate yet.
+The earlier snapshot-only checkpoint passed 65 browser cases and four production
+lifecycle cases. The event-observer change needs its own final acceptance evidence.
 Evidence: `evidence/refactor-170-authority-revisions-20261005.json`.
 
 The existing SDK lifecycle stream reports session expiry and NEAR provisioning.
@@ -426,12 +453,12 @@ comment; it is a source-line count, not a statement-count reduction.
 
 Implementation order for the remaining gate:
 
-1. Connect the implemented local commit revision to session event publication.
-   Cover partial commits and keep event payloads free of credentials.
+1. Verify the implemented commit-driven session events across the remaining
+   revocation and activation paths. Keep event payloads free of credentials.
 2. Pair that invalidation with host selection, expiry, and execution changes.
    Capture a revision before asynchronous reads. Re-read when it changes.
-3. Extend the implemented snapshot revision envelope to session events. Validate
-   events once at the boundary and order them against pending snapshots.
+3. Verify event and snapshot ordering across reconnect and passive cross-tab
+   changes. The paired wire envelope is implemented.
 4. Exercise same-wallet unlock, expiry during a read, revocation, authority
    extension, reversed response delivery, reconnect, and disposal through the
    real host transport. Preserve the existing cross-tab production race checks.

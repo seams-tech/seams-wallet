@@ -3071,6 +3071,10 @@ export class IntendedBehaviourHarness {
     if (observedPaths.includes('/router-ab/wallet-session/ed25519')) {
       throw new Error('Passkey unlock requested a second Ed25519 Wallet Session ceremony');
     }
+    const walletPage = this.page.getByTestId('intended-e2e-page');
+    await expect(walletPage).toHaveAttribute('data-login-state', 'logged_in');
+    await expect(walletPage).toHaveAttribute('data-login-wallet-id', this.walletId);
+    await expect(walletPage).toHaveAttribute('data-login-near-ready', 'ready');
     const unlockRequests = this.trace.slice(traceStartIndex).filter(isRequestTraceEntry);
     const verifyIndex = unlockRequests.findIndex(isWalletUnlockVerifyRequest);
     const statusReads = unlockRequests.slice(verifyIndex + 1).filter(isWalletSessionStatusRequest);

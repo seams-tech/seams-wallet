@@ -59,6 +59,8 @@ export async function run() {
   const beforeRead = seamsWalletDB.getWalletAuthorityRevision();
   const initial = await walletSessionAuthorizations.readExactWithOperationCredential(scope(alpha));
   const afterRead = seamsWalletDB.getWalletAuthorityRevision();
+  await write(alpha);
+  const afterIdenticalWrite = seamsWalletDB.getWalletAuthorityRevision();
   const updated = await refresh(alpha);
   const afterRefresh = seamsWalletDB.getWalletAuthorityRevision();
 
@@ -117,6 +119,7 @@ export async function run() {
   return {
     revisions: {
       unchangedRead: afterRead === beforeRead,
+      identicalWrite: afterIdenticalWrite === afterRead,
       committedRefresh: afterRefresh === afterRead + 1,
       abortedWrites: afterAborts === afterRefresh,
       legacyPrune: afterPrune === afterAborts + 1,
@@ -177,6 +180,7 @@ test('session transactions roll back corruption and retire exact credentials dur
   expect(receipt).toEqual({
     revisions: {
       unchangedRead: true,
+      identicalWrite: true,
       committedRefresh: true,
       abortedWrites: true,
       legacyPrune: true,
