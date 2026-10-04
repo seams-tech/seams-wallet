@@ -78,7 +78,8 @@ unwired until the transfer and fencing contracts below are verified.
 | Runtime identity home enforcement | Implemented in private `09626d8`. Console partitions mixed-wallet reads by home; direct Runtime reads verify authoritative placement. The former local-read bypass is closed. |
 | Real linked-device installation | The all-home local matrix verifies production registration, cryptographic installation, NEAR/Tempo signing, home-only durable records and transient cleanup. Lost activation/acknowledgement replies and full Gateway/Console/role Worker restarts also pass. The earlier synthetic-source-only limitation is superseded for these scenarios. |
 | Composed regional lifecycle acceptance | Mixed-home wallets in one namespace, passkey and Email OTP founding registration, recovery, unlock, exports, concurrent signing, replay and process restarts have retained local receipts. Independent geographic role placement, transaction crashes and hosted acceptance remain open. |
-| Transfer selectors and complete material ownership | Still open. The frozen inventory continues to mark ordinary-operation and opaque-record selectors as blocked, and requires full DO/Container material accounting. R153 must close these extraction contracts before copying a wallet. |
+| Yao capability replacement receipt ownership | Closed by public `b764f7b6`. Receipts require scoped `wallet_id`, retries check the same wallet, and cross-wallet capability replacement fails before mutation. Terminal receipts remain directly selectable after lifecycle cleanup. |
+| Remaining transfer selectors and complete material ownership | Still open. Ordinary-operation and opaque-record selectors remain blocked, and DO/Container material accounting remains incomplete. R152 owns these ownership contracts and the fixed-home context for deferred work; R153 consumes them for extraction/import. |
 | Relocation writer fencing | Still open. Deferred continuation routing establishes its fixed home; it does not fence a queued Deriver execution or NEAR side-effect commit after ownership changes. R153 must connect generations and source quiescence to every relevant effect boundary. |
 
 The [latest R152 lifecycle/restart evidence](refactor-152-results.md#october-4-recovery-and-linked-device-replay-after-local-role-worker-restarts)
@@ -95,6 +96,18 @@ Resume with exact extraction/import ownership and generation fencing against the
 committed relocation journal. Keep owner-triggered transfer and cutover unwired
 until those contracts and real relocation acceptance pass. Full R152 performance
 and hosted-release work can proceed separately from this implementation.
+
+The capability receipt follow-up was reviewed at `b764f7b6`. Migration 0045 adds
+required wallet ownership and the exact
+`(namespace, org_id, project_id, env_id, wallet_id)` selector without ownership
+reconstruction or a compatibility reader. Populated unowned receipt tables block
+the migration until the planned disposable-wallet reset. The retained
+`.artifacts/r152/wallet-owned-receipts-20261004/evidence.json` records 45 applied
+signer migrations, exact two-wallet selection, empty-owner rejection, a blocked
+unowned-table upgrade without receipt loss, and SQLite integrity `ok`. This closes
+the capability receipt selector only; remaining ownership selectors and material
+accounting stay with R152, while relocation generations and effect fences stay
+with R153. This review did not rerun type checking or the migration verification.
 
 ## Intent
 
