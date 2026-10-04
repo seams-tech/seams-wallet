@@ -1,6 +1,6 @@
 # R152 state ownership baseline for R153
 
-Revision 2 — October 4, 2026.
+Revision 3 — October 4, 2026.
 
 This freezes the **schema inventory and ownership obligations**, not a copy-ready
 relocation implementation. R153 must fail closed for unresolved ownership below.
@@ -206,7 +206,14 @@ agree with the prepared owner. Execution resumed from a claim checks that owner
 against the ceremony or surviving replay. This remains selectable after ceremony
 cleanup, including a failed terminal response with no response-level wallet ID.
 Unowned old records are rejected; disposable-wallet reset handles the cutover.
-The sponsored-account prefix still needs complete terminal ownership accounting.
+The `router-ab-yao-sponsored-account:` prefix now requires `prepared.walletId`
+plus `prepared.transaction` in both claims and completions. Select the exact tenant
+scope and parsed prepared wallet ID, retaining the entire signed transaction,
+fingerprints, claim version and terminal response. `d1SponsoredNearAccount.ts`
+validates this boundary; unowned prior payloads are rejected. The request fingerprint
+includes the wallet and the prepared fingerprint binds that owner to the existing
+validated signed-transaction fingerprint. A resumed broadcast also checks the owner.
+No surviving ceremony or NEAR-account-name inference is needed.
 
 The custody and Google recovery prefixes have these concrete selectors. Always
 apply all four tenant scope columns before interpreting the key:
@@ -360,3 +367,25 @@ tests/scripts/run-wallet-intended-isolated.mjs
 passkey.ed25519-yao-local.contract.test.ts --grep 'public (ECDSA|Ed25519 Yao) add-signer'`
 after building Wallet-server and the local runtime. These are local protocol E2Es;
 they do not claim hosted regional cutover verification.
+
+### Sponsored NEAR ownership closure — October 4
+
+The effect journal now carries a required wallet owner throughout preparation,
+uncertain broadcast, reconciliation and terminal replay. The registration service
+passes the validated ceremony wallet into this boundary. The previous provisioning
+implementation moved out of the oversized auth service; its signature validation,
+exact signed-byte replay and 30-second lease semantics remain in use. There is no
+legacy payload reader or compatibility export.
+
+`node tests/e2e/sponsored-account-ownership.e2e.mjs` passed using production signing
+WASM, all signer migrations on real SQLite, and a local HTTP NEAR RPC stub. It made
+one `send_tx` attempt, retained the owner through a simulated lost reply/readback
+outage, rejected another wallet's retry before RPC, waited for lease expiry, and
+reconciled through transaction status without rebroadcast. The terminal exact retry
+made no RPC call. This verifies the persistence/RPC boundary locally; it does not
+claim a real-chain sponsored-account broadcast or hosted D1 latency measurement.
+
+Evidence: Wallet `.artifacts/r152/sponsored-owner-20261004/evidence.json` and
+`e2e.log`. Build, type fixtures and bloat checks passed. Initial harness failures
+were test bundling and RPC-stub schema/method mismatches, corrected against the
+existing decoder and client without changing production validation.

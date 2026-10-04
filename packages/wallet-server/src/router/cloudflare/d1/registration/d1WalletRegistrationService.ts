@@ -1,3 +1,4 @@
+import type { SponsoredNamedNearAccountInput } from '../near/d1SponsoredNearAccount';
 import {
   completeRegistrationReservation,
   admitRegistrationReservationHome,
@@ -1433,16 +1434,9 @@ export type SponsoredNamedNearAccountCreationResult =
       readonly message: string;
       readonly retryAfterMs: number;
     };
-type SponsoredNamedNearAccountCreator = (input: {
-  readonly accountId: string;
-  readonly publicKey: string;
-  /**
-   * Registration-scoped key. The provisioning boundary persists the signed
-   * transaction under this key before broadcasting, so a retry replays those
-   * exact bytes instead of building a second transaction.
-   */
-  readonly idempotencyKey: string;
-}) => Promise<SponsoredNamedNearAccountCreationResult>;
+type SponsoredNamedNearAccountCreator = (
+  input: SponsoredNamedNearAccountInput,
+) => Promise<SponsoredNamedNearAccountCreationResult>;
 
 function assertNeverSponsoredNamedNearAccountCreationResult(value: never): never {
   throw new Error(`Unexpected sponsored NEAR account creation result: ${String(value)}`);
@@ -5725,6 +5719,7 @@ export class CloudflareD1WalletRegistrationService {
         );
         if (sponsoredAccountId) {
           const created = await this.createSponsoredNamedNearAccount({
+            walletId: ceremony.intent.walletId,
             accountId: sponsoredAccountId,
             publicKey,
             // Scoped to the activation session so a retry of this exact
