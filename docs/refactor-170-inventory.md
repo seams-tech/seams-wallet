@@ -155,12 +155,15 @@ remove that dependency overlap while retaining these distinctions.
   establish production download or cryptographic behavior.
 
 No missing whole operation family was demonstrated by this source audit. That
-does not prove complete semantic equivalence. Before extraction, settle queued
-preference failure behavior, snapshot/subscription races, constructor/custom RPC
-inputs, multi-step callback transport, exact startup effect ownership, browser/RP
-support, and independently deployed protocol versions. These remain the upfront
-gates in the plan; this batch completes their source inventory rather than
-inventing new protocol messages or claiming those decisions are closed.
+does not prove complete semantic equivalence. The October 4
+[accepted API and lifecycle decisions](refactor-170.md#accepted-api-and-lifecycle-decisions)
+specify narrow RPC access, synchronous preference projection with rollback/flush,
+separate configuration, startup ownership, reconnect behavior, and conditional
+protocol revisions. These are implementation decisions, not completed verification.
+Before extraction, finish the member/custom-RPC/config audits, multi-step callback
+transport review, snapshot-ordering proof, browser/RP evidence, and matching
+client/host version decision. No new protocol messages were introduced by this
+inventory work.
 
 ## Worker and WASM inventory
 

@@ -1,12 +1,18 @@
 # Separate the application SDK client from wallet execution
 
-Status: reviewed implementation plan, 2026-10-03. Pre-implementation gates below
+Status: reviewed implementation plan; API decisions accepted 2026-10-04.
+The decisions below guide implementation; their audit and verification gates
 must be closed before replacing the shared composition.
 
 October 4 preparation: [API/worker inventory and measurement instructions](refactor-170-inventory.md)
 record current dispatch, worker startup, shared crypto dependencies, and remaining
 semantic decisions. Consumer reporting now supports retained temporary bundles;
 the host report identifies identical WASM aliases. Runtime behavior is unchanged.
+
+R152 is complete, including published 0.8.0 releases and Console integration
+evidence. R170 can begin. R153 placement relocation can proceed concurrently;
+coordinate shared client/session files and integrate its settled placement and
+presign invalidation contracts before changing affected worker lifecycle behavior.
 
 ## Objective
 
@@ -219,6 +225,247 @@ support matrix, client state/preference contract, startup-effect ownership, conf
 field mapping, and version-skew release decision in this document. Repository
 evidence should resolve these wherever possible. Ask for a product decision only
 if preserving current supported behavior requires a material scope change.
+
+## Accepted API and lifecycle decisions
+
+These decisions preserve ordinary application authentication and signing calls
+while removing execution internals from the application API. Examples are proposed
+shapes, omit unrelated fields, and reuse existing domain types in implementation.
+They are not evidence of completed code or a new parallel contract layer.
+
+### Narrow RPC access replaces application `getContext()`
+
+- Remove `getContext()` from the application client. Update application, React,
+  example, documentation, and private Console consumers in the same change set.
+- Expose the configured `NearClient` through `readonly nearClient`; preserve
+  constructor injection and existing RPC defaults. Update `useAccountInput` to
+  use it. Keep the standalone `useNearClient` adapter supported.
+- Retain injected function-bearing clients in the application realm. The host
+  constructs its own RPC dependency from host configuration; do not serialize
+  an injected object across postMessage.
+- Supply host controllers with their narrow execution dependencies directly.
+  Move surface binding and restored-session prefill to their owning host modules.
+  Delete obsolete context access paths without a compatibility shim.
+
+```ts
+const exists = await checkNearAccountExistsBestEffort(
+  seams.nearClient,
+  accountId,
+);
+
+type HostedAuthDependencies = {
+  signingEngine: SigningEngine;
+  nearClient: NearClient;
+};
+
+function createHostedAuthController(
+  dependencies: HostedAuthDependencies,
+): HostedAuthController;
+```
+
+Tradeoff: the accessor retains coupling to the existing RPC interface but avoids
+duplicating it with a new convenience-method family. Audit every injected-client
+use before cutover, including explicit-runtime callers. Removing `getContext()`
+is a public declaration change and belongs in release/migration documentation.
+
+### Synchronous preferences with acknowledged synchronization
+
+Keep synchronous getters/setters and the immediate local display projection.
+Replace the execution-owned preference manager on the client with the smallest
+projection and ordered queue that implement these rules:
+
+1. Before connection, getters return the existing configured defaults.
+2. Each setter captures its target when called. Switching wallets cannot redirect
+   an already queued write. Preserve existing default-scoped host semantics.
+3. Send writes in order. Maintain confirmed host state plus pending local patches;
+   reconcile host snapshots/events without overwriting newer optimistic changes.
+4. A failed write removes its optimistic patch, exposes confirmed state with any
+   remaining patches, and does not prevent subsequent writes from proceeding.
+   Handle background rejections internally.
+5. Add `preferences.flush(): Promise<void>`. It captures the queue boundary at
+   invocation, waits for those writes to settle, and rejects if that batch has a
+   failure. Later writes do not extend its wait. Retain unobserved failures until
+   an applicable flush reports them; concurrent flushes covering the same batch
+   must observe consistent results. Reuse existing error types where possible.
+6. A signing dispatch waits for relevant earlier preference writes. If those
+   writes fail, surface the failure before dispatch; do not silently sign using
+   an unconfirmed preference. Host admission still enforces confirmation policy.
+7. Disposal stops local delivery and rejects pending synchronization. It cannot
+   undo writes already accepted by the host; reconnect reads authoritative state.
+8. `setCurrentWallet` remains display selection. Signing subject resolution uses
+   authenticated session state or the existing explicit subject API.
+
+```ts
+type PreferenceTarget =
+  | { kind: "defaults"; walletId?: never }
+  | { kind: "wallet"; walletId: WalletId };
+
+type ConfirmationPreferenceWrite = {
+  target: PreferenceTarget;
+  patch: Partial<ConfirmationConfig>;
+};
+
+seams.preferences.setConfirmBehavior("requireClick");
+await seams.preferences.flush();
+```
+
+Tradeoff: an ordered queue and projection preserve synchronous UI usage. Making
+all setters asynchronous would create broader consumer churn. Rollback, flush,
+and failure-before-signing are deliberate behavior changes: update the normative
+specification, declarations, and behavioral contracts with their implementation.
+Verify wallet A/B switching, failure followed by a successful write, concurrent
+flushes, host events during pending writes, immediate signing, and disposal.
+
+### Separate configuration at construction
+
+Keep `defineSeamsConfig()` as the application entry. Resolve configuration once
+into separate client and host types, preserving supported defaults and precedence.
+Construct host dependencies directly and remove empty-origin/mode-switch tricks.
+
+```ts
+type ResolvedClientConfig = {
+  kind: "client";
+  walletOrigin: WalletOrigin;
+  chains: ChainConfig;
+  appearance: AppearanceConfig;
+  storage?: never;
+};
+
+type ResolvedHostConfig = {
+  kind: "host";
+  allowedAppOrigins: readonly AppOrigin[];
+  chains: ChainConfig;
+  storage: WalletStorageConfig;
+  walletOrigin?: never;
+};
+
+function createApplicationClient(config: ResolvedClientConfig): SeamsWeb;
+function createWalletHost(config: ResolvedHostConfig): WalletHost;
+```
+
+The factories belong to separate entry graphs. The application entry must have
+no runtime import of the host factory. The explicit runtime entry constructs
+execution directly through its supported configuration. Preserve actual wallet
+origin/RP/storage identity; the example's excluded `walletOrigin` means the client
+iframe-target setting, not permission to discard host origin validation.
+
+Tradeoff: two resolved types require a field-by-field ownership/precedence audit,
+but reject contradictory construction. Reuse shared value types and existing
+config parsers; introduce no new config framework. Add type fixtures for invalid
+branch combinations and validate explicit-runtime consumers independently.
+
+### Connection readiness and startup ownership
+
+Connection readiness means handshake and initial public-state reconciliation
+completed. Authentication remains a separate existing session state; signing
+workers initialize for operations independently of connection readiness.
+
+```ts
+type ClientConnection =
+  | { kind: "idle" }
+  | {
+      kind: "connecting";
+      generation: number;
+      completion: Promise<void>;
+    }
+  | {
+      kind: "ready";
+      generation: number;
+      transport: WalletTransport;
+    }
+  | { kind: "failed"; generation: number; error: ConnectionError }
+  | { kind: "disposed" };
+```
+
+Adapt the existing lifecycle types rather than adding a competing state machine.
+Concurrent initialization shares its in-flight attempt. Reconnect starts a new
+generation; late results from older generations are discarded. Bind pending
+results to the existing exact wallet/session identity as well, because a wallet
+can change within one connection. Failed initialization can be retried explicitly;
+disposal is terminal for that instance and rejects pending client requests.
+
+React rerenders/remounts reuse the provider-owned client through the existing
+ownership mechanism. Effect cleanup releases subscriptions; the actual owner
+disposes the client when released or replaced. Configuration replacement must
+release the old ownership and prevent its results from updating the new view.
+Preserve SSR-safe imports and construction.
+
+Never automatically replay signing, registration, or broadcast requests after a
+disconnect. Report the existing interrupted/unknown outcome and reconcile through
+existing operation identity where supported; a lost response does not prove that
+execution failed. Durable host recovery is owned separately from transport retry.
+
+| Startup effect | Owner and trigger |
+| --- | --- |
+| Pending registration/recovery reconciliation | Host lifecycle after durable state is available |
+| Linked-device acknowledgement retry | Host device lifecycle |
+| Restored-session presign prefill | Host session lifecycle after authority and R153 placement validation |
+| Preference/session projection | Connection bootstrap and subsequent host events |
+| Signing worker initialization | First operation requiring that dependency, plus approved flow-specific preparation |
+
+Tradeoff: explicit states make races reviewable at the cost of a small amount of
+lifecycle code. Single ownership does not guarantee exactly-once work across
+crashes: preserve durable recovery guards. Verify reconnect, React remount,
+configuration replacement, wallet changes during pending work, and disposal.
+
+### Snapshot/event ordering and protocol deployment
+
+Subscribe before requesting initial state and buffer events during bootstrap.
+Audit the existing transport/host ordering guarantees to establish which buffered
+events precede or follow the snapshot; subscription order alone is insufficient.
+Prefer the existing messages if they establish this contract. If they cannot,
+add host-issued revisions scoped to the connection/state stream:
+
+```ts
+type PublicStateSnapshot = {
+  revision: number;
+  session: PublicSessionState;
+};
+
+type PublicStateEvent = {
+  revision: number;
+  session: PublicSessionState;
+};
+```
+
+For complete-state events as illustrated, apply the snapshot then newer revisions
+within the current generation. Host state capture, revision assignment, and event
+publication must be consistently ordered. If existing events are patches, preserve
+their ordering and detect missing updates instead of treating them as snapshots.
+
+Tradeoff: revisions clarify reconciliation but expand the wire contract. Add them
+only if the audit demonstrates a gap. Incompatible message or semantic changes
+require updating the existing protocol version and manifest together, typed skew
+failures, and a documented matching client/host release and rollback pair. Do not
+add a compatibility fallback. Preserve protocol 2.0.0 only if its contract remains
+compatible. Verify an event concurrent with snapshot capture and stale events
+arriving after reconnect.
+
+### Preserve transaction and browser-adapter ownership
+
+Keep current application transaction review, broadcast, receipt handling, and
+nonce-lifecycle reports. Keep execution-independent broadcast helpers lazy with
+the operation. The host retains signing and its existing authority checks.
+Preserve reservation/payload binding, expiration, cancellation, return values,
+and error semantics; audit NEAR send/delegate paths independently.
+
+Preserve the supported parent WebAuthn bridge and its minimal serialization and
+constants. Keep wallet-origin hosted-menu CTA behavior. Record and verify actual
+browser/RP support; do not claim that all credential execution or PRF handling
+occurs inside the iframe.
+
+Tradeoff: moving these responsibilities into the iframe might further reduce
+application code, but would expand this refactor into a transaction-protocol and
+browser-behavior redesign. Those changes remain outside this cutover.
+
+### Remaining evidence before cutover
+
+The choices above settle direction. Complete the member dispatch audit, injected
+RPC caller audit, config-field mapping, snapshot-ordering proof/version decision,
+browser/RP matrix, and phase-specific browser baseline before claiming the upfront
+gates closed. Update the inventory's unresolved-work notes as evidence lands.
+Ordinary auth/signing calls remain familiar; explicitly document removal of
+`getContext()`, narrow RPC access, and preference synchronization changes.
 
 ## Scope and constraints
 
