@@ -159,8 +159,8 @@ will later invoke.
 
 - One wallet has one owner using multiple devices. An eligible owner device can
   initiate a move for the wallet; other devices should not need to approve it or
-  be online. Full-owner authority is the proposed eligibility boundary; exact
-  permissions and fresh authentication requirements remain to be defined.
+  be online. Require active full-owner authority and a fresh operation-bound
+  factor proof, as specified in the move contract below.
 - Existing wallets will be deleted before rollout. Exclude existing-wallet
   migration, backfills, legacy formats, and compatibility paths. Relocation must
   still preserve wallets created after that reset.
@@ -185,13 +185,13 @@ will later invoke.
   whether the resulting topology materially improves end-to-end latency.
 - Verify the binding-preserving transfer described below with actual signing,
   sealed-session restoration, and an offline device reconnecting after cutover.
-- Who may change placement, how that action is authenticated, and which supported
-  regions and custody configurations are eligible.
-- What interruption is acceptable and how concurrent requests, conflicting moves,
-  failed moves, and retries should appear to the owner.
+- Validate the move contract's owner-proof and regional eligibility enforcement
+  through the actual admission path.
+- Measure interruption under the paused protocol; the contract promises durable
+  progress and recovery, without a fixed completion-time guarantee.
 - Validate pool invalidation without key or activation retirement, delayed refill
   completion, offline cache reconciliation, and regeneration cost. Confirm the
-  cooldown and its treatment of failed attempts before implementation.
+  effectiveness of the five-minute admission limit under real regeneration load.
 
 ## Binding validation: paused server-side transfer
 
@@ -268,16 +268,16 @@ activation references, or device identities. Preserve one-use tombstones so
 deleting pool secrets cannot make the same presignature identity admissible again.
 See the [follow-up source validation](refactor-153-backend-relocation-validation.md#presignature-invalidation-and-compute-limits).
 
-Use a **proposed five-minute minimum between wallet relocation admissions** to
+Use a **five-minute minimum between wallet relocation admissions** to
 limit repeated regeneration. Enforce it server-side across all owner devices and
 both manual and automatic requests, alongside one move in progress per wallet.
 Keep this limit with the authoritative placement state so a move cannot reset it.
 Selecting the current home is a no-op for transfer; retrying the same move resumes
 its recorded outcome without scheduling another regeneration. Failed attempts
 that incur work also need bounded retries; counting only successful moves would
-leave a way to bypass the cost limit. Exact failure/backoff semantics and the
-adequacy of five minutes remain validation questions. Refill should use bounded
-normal demand rather than eagerly warming every offline device.
+leave a way to bypass the cost limit. Failure/backoff semantics are specified
+below; the adequacy of five minutes remains a measurement question. Refill should
+use bounded normal demand rather than eagerly warming every offline device.
 
 ## Implementation strategy and entry gate
 
@@ -315,39 +315,248 @@ routing. Keep one relocation operation for R153 and R154. Existing-wallet
 backfills, compatibility modes, arbitrary destination URLs/resources, independently
 keyed custody deployments, and live MPC-session transfer stay outside this scope.
 
+## Move contract — step 1
+
+These are implementation decisions for the first manual relocation operation.
+The existing directory journal implements a subset; the gaps at the end of this
+section are implementation work, not additional product decisions. The ownership
+input is R152 revision 12. No endpoint is enabled by this contract update.
+R154 must define standing-consent authorization before automatic policy can invoke
+this same orchestration; the manual contract does not grant that permission.
+
+### Owner authorization and destination eligibility
+
+- Any active full-owner authority of the wallet may initiate relocation, including
+  an installed linked device. Use the existing full-owner permission comparison
+  in `d1WalletAuthMethodService.ts`; do not compare the caller with the founding
+  registration authority. Partial/delegated permissions and Console administration
+  alone do not authorize a move. Other devices need no approval or online presence.
+- Authenticate the Wallet Session and its request/origin binding. For a new move,
+  additionally require a fresh passkey or Email OTP proof from an active method
+  belonging to that same wallet and full-owner authority. Apply the existing
+  factor's verification rules, including WebAuthn user verification. A provider
+  token or long-lived Wallet Session alone is insufficient.
+- Issue a relocation-specific challenge with a server-recorded lifetime of at most
+  five minutes, capped by the factor's own expiry. Bind it to the deployment scope,
+  wallet, move ID, destination region, expected generation and initiating authority.
+  Reject future/expired proofs and cross-purpose reuse. Use the existing fresh-proof
+  and active-authority guard patterns; never reuse a revocation challenge verbatim.
+- Authorization linearizes at the source transaction that checks active method,
+  full-owner permissions and revocation epoch, consumes the proof, and records
+  approval of the exact move digest. Console admission accepts that approval only
+  for its original scope/generation and before expiry. A later method revocation
+  cannot undo an already-authorized operation; it prevents new approvals and
+  unauthorized result reads. Persist approval before contacting Console so a lost
+  reply can replay the same approval without spending another factor proof.
+  Use scoped authorization/replay persistence with explicit wallet ownership;
+  include the approval in the selected wallet's retained operation history.
+- The source transaction and Console admission are separate commits. Before
+  Console admission, there is no relocation pause or transfer. A lost admission
+  reply is resolved by reading the journal; an unused expired approval authorizes
+  no new admission. Proof consumption alone never claims a completed admission.
+- Admit only established wallets in the same logical tenant/custody deployment.
+  Resolve US, WEUR or APAC through the server's admitted regional catalog. Clients
+  supply no D1 IDs, URLs, role identities or key material. Before admission, verify
+  destination resources, schema/import support, role identities, required key
+  versions and server-seal continuity. Pin the checked resource/configuration
+  identities to the move; subsequent configuration changes cannot retarget it.
+  Unsupported custody/jurisdiction configurations return an eligibility failure.
+
+### Request, status and admission results
+
+Use the stable Gateway origin and existing wallet authentication boundary:
+
+| Operation | Contract |
+| --- | --- |
+| Read placement: `GET /wallet/placement/v1?walletId=…` | Authenticated wallet access returns active home and generation, or the pending move's safe progress. Resolve deployment scope from the authenticated boundary. |
+| Admit: `POST /wallet/placement/v1/relocations` | Body requires `walletId`, `moveId`, `destinationRegion`, `expectedGeneration` and `sourceProof`. Verify the factor proof for a new admission; an exact replay does not consume it again. Resolve the initiating authority from authentication and the destination resources from the catalog. Reuse the journal's `wmove_` identity and canonical request digest. |
+| Read move: `GET /wallet/placement/v1/relocations/{moveId}?walletId=…` | Any currently authorized full-owner device of that wallet may read progress. The initiating authority in the journal remains immutable. A move ID is never a bearer credential. |
+
+Parse once into precise internal identities and phase-specific types. Keep proof
+bytes, request nonces and refreshed session tokens outside the canonical move
+digest. The digest binds the full wallet scope, move ID, destination resources,
+expected generation and initiating authority, as the existing request does.
+Public responses expose regions, generations, move identity, phase, timestamps
+and safe error codes; role receipts and infrastructure/key details stay internal.
+
+Admission results are discriminated: `admitted` or `reused` carries the move;
+`unchanged` carries the active placement; `rejected` carries a specific code.
+`cooldown` additionally requires `retryAtMs`; other rejection branches omit it.
+Distinguish invalid input, unauthenticated, insufficient permission, expired proof,
+unsupported destination, unavailable authority, unestablished wallet, stale
+generation, request conflict and another move in progress. Never turn an unknown
+admission outcome into a second move ID automatically.
+
+After ordinary request authentication, look up an existing move before fresh-proof,
+cooldown or current-catalog admission checks. An exact retry returns its recorded
+progress/result even after cutover, proof expiry or catalog changes; it does not
+re-consume the factor proof. Reusing its ID with a different canonical request
+returns `request_conflict`. Another owner device uses the status operation to
+observe/recover the admitted move; it does not rewrite the initiating authority.
+Status and authenticated admission replay remain reachable while ordinary wallet
+mutations are paused. These reads must not issue credentials or mutate copied
+authorization/counter state; use the shared request-proof authority where needed.
+
+### Cooldown, concurrency and cancellation
+
+- Admission atomically journals the move and pauses new wallet mutations. Console
+  is authoritative for time, current generation, one pending move and the cooldown.
+  Require at least 300,000 ms since the previous admitted move, across all devices
+  and future automatic requests. A move still pending blocks another regardless
+  of elapsed time. An admission that later encounters failure still counts.
+- Reject preflight/auth failures before admission without charging this cooldown.
+  Use the existing authentication/rate limits for rejected requests. The original
+  admitted time survives retries, restarts and cleanup.
+- Selecting the active home at the current generation is `unchanged`: no pause,
+  journal admission, cooldown extension, transfer or refill. This is a placement
+  read/no-op; it does not reserve a move ID. If placement subsequently changes, a
+  retry with that stale generation is rejected. During a pending move, selecting
+  its source is a conflicting request, not cancellation.
+- The owner can cancel the settings interaction before submitting the admission
+  request. Once submitted, closing the UI or aborting HTTP does not cancel server
+  execution; resolve the journal outcome. Once admitted, the first
+  implementation has **no cancellation or rollback operation**, including before
+  cutover. Resolve a lost response before claiming cancellation succeeded. Repair
+  and resume the same move after failure. This preserves the journal's linear
+  protocol and avoids reactivating a partly retired source generation.
+- Before cutover, an unrecoverable destination outage can therefore leave the
+  wallet paused until repaired. Surface that state explicitly. A future safe-abort
+  feature would require its own fenced source reactivation at a fresh generation;
+  do not improvise it with an active flag, timeout or journal deletion.
+
+### Phases and required evidence
+
+Let the active source generation be `g`. Reserve `g + 1` for the destination at
+admission; reject generation exhaustion. Registration, authority, activation,
+root-share and signing-root epochs remain unchanged.
+
+| Phase | Writable home and required transition evidence |
+| --- | --- |
+| `freezing` | New wallet mutations are paused. Previously admitted source work may finish only under tracked source authority. Destination ordinary execution is disabled. Obtain durable quiescence/fence evidence from every participant before advancing. |
+| `copying` | Neither home admits ordinary writes. Required source receipt proves `g` cannot produce later effects. Invalidate usable presignatures; preserve claimed/consumed records and exact results. Import the frozen state into inactive destination resources, with idempotent exact-record comparison. |
+| `verified` | Both homes remain closed to ordinary writes. Required destination receipt binds the exact frozen source manifest, restored records and logical identities to destination resources at `g + 1`; all participant checks passed. |
+| `cutover` | One Console transaction CASes the expected paused source, move and receipts to destination `g + 1`. Only the destination may activate, after reading that committed decision. Source `g` stays retired. Post-cutover activation, refill and source cleanup are resumable. |
+| `completed` | Destination activation and source cleanup have durable receipts. Source wallet secrets/state are removed; retirement fences and immutable move/replay evidence remain. Completion never changes home or generation again. |
+
+Use the existing seven participant slots: Gateway, Wallet Runtime, Router,
+Deriver A, Deriver B, SigningWorker and presign sessions. Each slot aggregates
+every applicable D1/DO/role-private resource from revision 12. An empty participant
+must attest its checked empty inventory. Every receipt binds wallet scope, move
+ID, resource identities, generation, phase, protocol version and manifest digest.
+The coordinator verifies authenticated issuers and durable underlying evidence;
+seven caller-supplied hashes alone do not authorize cutover. Persist exact receipts
+so a retry after completion returns the same proof rather than a new timestamp.
+
+### Writer fence and authority lifetime
+
+Every ordinary mutation/effect carries the exact wallet scope, resource identity
+and ownership generation through Gateway, Runtime, role RPCs and deferred work.
+Generation metadata is outside signing operation IDs/digests, preserving exact
+signing retries. Move-control commands additionally bind the admitted move and
+allowed phase, and cannot authorize ordinary signing or credential issuance.
+
+At each writer, serialize durable fence installation with write/effect admission.
+Close admission, settle tracked in-flight work, then persist the source receipt.
+Commit-time generation/fence checks must share the local transaction or serialized
+effect gate with the write. A prior directory lookup followed by an unguarded
+commit, a cached generation, or an expired timer is insufficient. Shared Console
+wallet-affecting mutations use its own transactional placement guard.
+
+External effects already submitted, including NEAR provisioning, need durable
+operation identity and outcome reconciliation before source quiescence. An unknown
+effect outcome keeps the freeze incomplete. Late refill, WebSocket completion,
+alarms and protocol callbacks must settle or be durably prevented from publishing
+after the fence. Timeouts alone cannot prove either result.
+
+Retirement markers outlive source cleanup and are excluded from wallet snapshot
+restoration. On restart, deployment replacement or restored storage, a role must
+reconcile its resource/generation with authoritative Console placement before
+admitting ordinary work. Directory unavailability fails closed. Older deployments
+that bypass the fence cannot retain writable bindings or serve the wallet; verify
+that deployment prerequisite before enabling moves. Returning to a region later
+uses a new generation and fresh physical targets, retaining old retirement markers.
+
+### Crash recovery and bounded retries
+
+The durable phase describes authority; execution status describes progress within
+that phase. Use required discriminated status branches: `running`, `retry_wait`
+with an error code and server `retryAtMs`, or `blocked` with a stable error code.
+Completion has no retry status. Error text/logs do not drive phase transitions.
+
+Persist stage progress and claim attempts through a journal CAS so competing
+coordinators cannot reset or bypass the budget. Initially allow six attempts per stage, with
+1, 2, 4, 8 and 16 second delays before attempts two through six. Retry transient
+transport/unavailability failures only. Identity, receipt or content conflicts
+block immediately; exhaustion also blocks. Restart and owner polling must not
+reset the budget. An authenticated internal recovery action after repair may
+resume the existing stage with a new recorded budget; it creates no new move or
+fresh regeneration work. Reuse the project's existing job/retry mechanism.
+
+All stage commands are idempotent by move, participant, stage and exact input
+digest. A changed input is a conflict. A crash before recording a response is
+resolved through the participant's durable result and the journal. Cutover response
+loss always triggers an authoritative read: if committed, continue destination
+activation/cleanup; if still verified, retry the same CAS. If authority cannot be
+read, neither recovery code nor a timer may reactivate the source. Cleanup failure
+leaves the destination active in `cutover` and blocks a subsequent move until
+completion. Generation and cooldown history survive all cleanup.
+
+### Required extensions to the existing implementation
+
+Private `walletPlacement/relocation.ts`, `relocationStore.ts` and migration 0070
+already supply the canonical request, five phases, generation CAS, admission
+cooldown and two receipt envelopes. Extend those same modules during implementation:
+
+1. Add fresh-owner approval and server destination preflight; a parsed request's
+   `authorityId` currently proves no authorization. Pin the complete resource set.
+2. Serve authenticated status/replay during the pause, and move exact replay ahead
+   of new-admission catalog validation. Keep no-op and conflict behavior distinct.
+3. Bind real source/destination manifests and authenticated participant evidence;
+   add activation/cleanup evidence before `complete`, which currently accepts a
+   timestamp alone. Synthetic directory-test receipts remain directory-only evidence.
+4. Persist execution status/retry budgets and enforce every effect fence. Keep
+   recovery commands internal; do not add a public cancellation endpoint.
+5. Extend the existing type fixtures and E2E as each contract is implemented:
+   reject forged approval, mismatched receipt kind/generation, mixed phase fields,
+   broad state spreads and unsafe construction; exercise exact retries after proof
+   expiry, two-device conflict, paused status and crash recovery. Historical import
+   and real transfer acceptance remain subsequent implementation work.
+
 ## Implementation stages
 
 ### 0. Settle the contracts before parallel implementation
 
-- [ ] Confirm the eligible full-owner authority, authentication freshness, and
-  supported account/jurisdiction/custody configurations. Only an established
-  wallet may move; registration retries keep their original allocation.
-- [ ] Define request, progress, and recoverable failure contracts using precise
+- [x] Define eligible full-owner authority, authentication freshness and compatible
+  custody constraints. Actual regional configuration verification remains part of
+  admission implementation. Only an established wallet may move; registration
+  retries keep their original allocation.
+- [x] Define request, progress, and recoverable failure contracts using precise
   domain states. Require tenant/wallet identity, move identity, source and
   destination resources, and ownership generations where each phase needs them.
   Parse external data once; use branch-specific builders and exhaustive handling.
-- [ ] Separate authorized move-control commands from ordinary wallet execution.
+- [x] Specify separate authorized move-control commands and ordinary wallet execution.
   Inactive destinations may import/verify the admitted move and must reject
   signing and other ordinary mutations. Keep placement metadata separate from
   original operation IDs/request digests so rerouting preserves exact retries.
-- [ ] Define the authority sequence: source active → both homes unable to admit
+- [x] Define the authority sequence: source active → both homes unable to admit
   new writes after source quiescence → destination active at a new generation.
   Name the required per-writer fence and verification receipts. A source comparing
   a request to its own cached generation is insufficient.
-- [ ] Choose how the authority fence survives deletion, restart, old deployment
+- [x] Choose how the authority fence survives deletion, restart, old deployment
   execution, and snapshot restore. Separate ownership generation from activation,
   signing-root, revocation, and operation-lease epochs.
-- [ ] Settle pre-cutover cancellation and post-cutover recovery. Keep incomplete
+- [x] Settle pre-cutover cancellation and post-cutover recovery. Keep incomplete
   destinations inactive; never reuse a retired authority generation. Once the
   destination is authoritative, returning to the source requires a new handover.
-- [ ] Adopt five minutes between relocation admissions as the initial proposed
+- [x] Adopt five minutes between relocation admissions as the initial
   limit, including admitted moves that later fail. Define bounded
   stage retries, same-move replay, conflicts, and authoritative retry timing.
 - [ ] Prove the chosen historical import path against current lifecycle/claim
   triggers before committing to it. The authorization probe's temporary trigger
   removal is a local experiment; production restoration must preserve guards for
   unrelated wallets and avoid quota/audit side effects.
-- [ ] Record the agreed contracts here and add targeted type fixtures for illegal
+- [x] Record the move contract here, distinguishing decisions from runtime support.
+- [ ] Extend targeted type fixtures alongside implementation for illegal
   phase combinations, forged execution contexts, broad spreads, and unsafe casts.
 
 ### 1. Directory authority, move admission, and regional execution
@@ -485,7 +694,7 @@ fixtures wherever they express these scenarios.
 | D1 historical restore and isolation | Restore consumed exchanges and terminal/claimed history according to the reconciliation contract; interrupt/repeat import. Preserve audit/quota exactly, enforce expired/revoked credentials and origin/scope checks, and keep another wallet's ordinary guards active. |
 | Crash at every handover boundary | Crash during each role fence, extraction/import, destination verification, around directory CAS with a lost reply, and during cleanup. Restart both sides and send old direct requests/jobs/alarms. Prove at most one writer and one effect/material consumption. |
 | Shared authority changes and repeated moves | Retire/refresh tenant-root state or revoke authority during a move, keep another wallet active, move back to the old region using fresh resources, and attempt isolated restoration of a pre-move snapshot. Shared policy/limits stay authoritative and old state cannot resume writes. |
-| Conflicting owner requests and cost guard | Race two devices/destinations, issue duplicate/same-home requests, cross the proposed five-minute boundary, and retry failed stages. One active move, no duplicate regeneration/charges, and authoritative retry timing. R154 must later exercise this same admission guard. |
+| Conflicting owner requests and cost guard | Race two devices/destinations, issue duplicate/same-home requests, cross the five-minute boundary, and retry failed stages. One active move, no duplicate regeneration/charges, and authoritative retry timing. R154 must later exercise this same admission guard. |
 | Hosted regional suitability | Verify destination resource/version identities and placement evidence independently from ingress colo. Measure pause, cold refill, warm signing, compute/load, and failure recovery; retain samples and failures. |
 
 Each run produces a repeatable artifact with both repository/build revisions,
