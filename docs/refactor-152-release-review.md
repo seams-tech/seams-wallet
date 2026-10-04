@@ -1,5 +1,34 @@
 # R152 / Wallet 0.8.0 release preparation
 
+## Released 0.8.0 — October 4
+
+Both `@seams/wallet@0.8.0` and `@seams/wallet-server@0.8.0` are published and
+verified downloadable from npm. Release run
+[37199917268](https://github.com/seams-tech/seams-wallet/actions/runs/37199917268)
+passed at `44b1dd07909a46bf683cd1941fb4f7110553576b`, including all three native
+builds, production artifacts, packed-package checks and provenance publication.
+The merge into main changed no files relative to the reviewed dev candidate.
+
+Registry metadata initially returned 404 after the successful publish logs.
+Subsequent reads returned both exact versions and integrity digests, and both
+published tarballs returned HTTP 200. Console installed the registry packages,
+with exact pins and lockfile committed as private `8a40b44`. Full `pnpm check`
+passed (151 lint warnings, zero errors), `pnpm build` passed, and the real
+Console/Runtime ownership-scope E2E against the installed server package passed
+in 8.2s, covering scoped pagination and cached balance refresh.
+
+Private `.artifacts/r152/release-080-20261004/` retains GitHub results, publish
+logs, npm metadata/integrities, install/check/build logs and the E2E receipt.
+The old-client cutover E2E now fetches published 0.7.3 independently of installed
+workspace dependencies; its hosted repeat passed in 21.4s (private `ce2d2fd`).
+No production infrastructure was deployed by the package release.
+
+The dated sections below record preparation and earlier open gates. Current R152
+closure is in [the plan](refactor-152-regional-D1.md#current-closure-and-remaining-gates-october-4).
+Measurement limits remain unchanged: regional proxy timings are backend timings,
+and home-Gateway D1 counts exclude Console and role-private stores. Automatic or
+owner-requested relocation remains R153/R154 scope.
+
 ## Current release gate — October 4
 
 Candidate `174cd48396e6a6d5760752c6fe5e3c64ed2a9a97` is pushed to `dev`.

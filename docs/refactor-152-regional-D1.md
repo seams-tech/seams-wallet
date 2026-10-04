@@ -68,16 +68,13 @@ record earlier checkpoints; they are not additional completion requirements.
 - Published 0.7.3 transport rejection/reload into candidate assets, packed package
   checks and focused routing/legacy-path review.
 
-**Remaining critical work:**
-
-1. Finish Wallet and MPC candidate CI. Two MPC attempts failed during local Worker
-   startup in different E2Es; both exact tests passed locally. The diagnostic run
-   retains role logs so a further failure can be corrected from concrete evidence.
-2. Resolve any demonstrated validation issue, record final source identities and
-   review the final release diff. No runtime failure may be waived as a fixture
-   issue without examining its invariant.
-3. Publish and verify both 0.8.0 npm packages, consume the exact release in Console,
-   and send the authorized completion handoff to R153.
+**Release closure:** Wallet CI `37196611261` and MPC CI `37199113815` passed.
+Both 0.8.0 packages were published by release run `37199917268` at `44b1dd07`,
+verified on npm and installed in Console (private `8a40b44`). Console full checks,
+production build and an ownership-scope E2E against the published server pass.
+See [the final release evidence](refactor-152-release-review.md#released-080--october-4).
+The earlier intermittent local Worker startup failure was not reproduced in the
+passing diagnostic run; its cause remains unproven, with diagnostics retained.
 
 **Evidence limits:** regional proxy measurements establish backend travel latency,
 not native full-browser travel latency or individual hosted D1 time. D1 lifecycle
@@ -85,7 +82,7 @@ counts cover home Gateway `SIGNER_DB`, excluding Console and role-private stores
 Interrupted recovery loses one traced response, so its count is a lower bound.
 Process restart tests do not prove arbitrary crashes during transactions. These
 limitations remain explicit; the historical checklists must not be marked wholly
-verified. Release validation is still pending.
+verified. Release validation and package integration are complete.
 
 ### October 3 checkpoint: shared external identities
 
