@@ -2,6 +2,27 @@
 
 ## Current release gate — October 4
 
+Latest correction: public `66bc50b2` rejects retired/expired preprocessing sessions
+as invalid. A controlled hosted replay of a pre-unlock refill after lock/reload
+and a fresh unlock reproduced HTTP 503 `wallet_session_unavailable`; the reader
+was throwing on a normal terminal lifecycle state. The correction returns no live
+context, producing HTTP 401 `wallet_session_invalid`. Server build, intended-test
+type checking and bloat checks pass. Hosted verification of the fix is pending.
+
+Deploying the corrected bundle to all three staging Gateways changed their
+version identities, requiring Console activation. Activation-only run
+`37196172091` failed semantic readiness with HTTP 409 `readiness_invalid`.
+All three Gateways were rolled back to their prior authorized versions; staging
+`/healthz` returned HTTP 200 afterward. Preserve this admission check and resolve
+readiness before redeploying. Evidence and the failing replay live in private
+`.artifacts/r152/refill-session-20261004/`; the repeatable test is
+`tests/e2e/hosted-product/refill-session.test.ts`. No production deployment or npm
+publication occurred.
+
+The APAC-home backend travel mirror has also passed; see the
+[APAC results](refactor-152-results.md#october-4-apac-home-hosted-travel-mirror).
+The earlier status below describes the preceding WEUR cohort.
+
 Latest regional acceptance: concurrent Madrid/Chicago/Tokyo registrations selected
 WEUR/US/APAC homes. Twelve same-WEUR-wallet travel signatures and concurrent
 Tempo/Arc signing passed; exact home records stayed unchanged. Regional
