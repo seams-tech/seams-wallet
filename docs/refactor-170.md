@@ -867,7 +867,7 @@ Delete replaced paths during each task; this phase audits what remains.
 - [ ] Review the resulting construction and operation paths for readability.
   Remove abstractions that add more complexity than they remove. Do not compress
   formatting, remove useful comments, weaken types, drop supported behavior, or
-  move execution back into the application to meet the line-count requirement.
+  move execution back into the application merely to reduce the line count.
 
 Maintain the cleanup inventory in `refactor-170-inventory.md`. For each remaining
 candidate, record its path, current caller, replacement owner, deletion condition,
