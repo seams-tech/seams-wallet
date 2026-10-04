@@ -1,3 +1,4 @@
+import type { WalletIframeExactSessionState } from '@/SeamsWeb/walletIframe/shared/exactSessionState';
 import { expect, test } from '@playwright/test';
 import { setupBasicPasskeyTest, SDK_ESM_PATHS } from '../setup';
 import { buildWalletServiceHtml, registerWalletServiceRoute } from './harness';
@@ -71,7 +72,7 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
         router.onSdkLifecycleEvent((event) => {
           if (event.event === 'signing_session.expired') lifecycleEvents.push(event);
         });
-        router.onLoginStatusChanged((status) => loginStatuses.push(status));
+        router.onSessionChange((state: WalletIframeExactSessionState) => loginStatuses.push({ isLoggedIn: state.kind !== 'wallet_locked', walletId: state.kind === 'wallet_locked' ? null : state.walletId }));
         await router.init();
 
         let requestSettled = false;
@@ -474,7 +475,7 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
           sdkBasePath: '/sdk',
         });
         const loginStatuses: Array<{ isLoggedIn: boolean; walletId: string | null }> = [];
-        router.onLoginStatusChanged((status) => loginStatuses.push(status));
+        router.onSessionChange((state: WalletIframeExactSessionState) => loginStatuses.push({ isLoggedIn: state.kind !== 'wallet_locked', walletId: state.kind === 'wallet_locked' ? null : state.walletId }));
         await router.init();
 
         const request = router.executeAction({

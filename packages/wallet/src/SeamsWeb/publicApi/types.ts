@@ -760,6 +760,7 @@ export type GoogleEmailOtpWalletAuthStartInput = GoogleEmailOtpWalletAuthStartBa
       }
   >;
 export interface AuthCapability {
+  onSessionChange(listener: (session: WalletSession) => void): () => void;
   unlock(walletId: string, options?: LoginHooksOptions): Promise<LoginAndCreateSessionResult>;
   lock(): Promise<void>;
   getSession(walletId?: string): Promise<WalletSession>;

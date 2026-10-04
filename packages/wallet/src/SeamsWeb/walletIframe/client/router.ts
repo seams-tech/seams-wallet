@@ -1621,7 +1621,7 @@ export class WalletIframeRouter {
   };
   private readonly listeners = {
     connectionClosed: new Set<() => void>(),
-    loginStatus: new Set<(status: { isLoggedIn: boolean; walletId: string | null }) => void>(),
+    sessionChanged: new Set<(state: WalletIframeExactSessionState) => void>(),
     preferencesChanged: new Set<(payload: PreferencesChangedPayload) => void>(),
     hostedAuthMenuExternalAuthRequest: new Set<
       (payload: HostedAuthMenuExternalAuthRequest) => void
@@ -2842,7 +2842,7 @@ export class WalletIframeRouter {
       if (hostedWalletSession) {
         await this.ensureHostedWalletSeamsSession(hostedWalletSession);
       }
-      await this.refreshExactSessionAndEmitLoginStatus('restore', { kind: 'current' });
+      await this.refreshExactSessionAndEmitChange('restore', { kind: 'current' });
       // Resolve the host's confirmation mode while initialization is still in flight. Foreground
       // requests can then begin their surface without a nested config RPC on first use.
       await this.getConfirmationConfig();
@@ -3019,13 +3019,13 @@ export class WalletIframeRouter {
 
   // ===== Public RPC helpers =====
 
-  // Subscribe to wallet-host login status changes observed by this client
-  onLoginStatusChanged(
-    listener: (status: { isLoggedIn: boolean; walletId: string | null }) => void,
+  // Subscribe to reconciled wallet-host session observations.
+  onSessionChange(
+    listener: (state: WalletIframeExactSessionState) => void,
   ): () => void {
-    this.listeners.loginStatus.add(listener);
+    this.listeners.sessionChanged.add(listener);
     return () => {
-      this.listeners.loginStatus.delete(listener);
+      this.listeners.sessionChanged.delete(listener);
     };
   }
 
@@ -3061,7 +3061,7 @@ export class WalletIframeRouter {
   private async refreshExactSessionState(
     authenticationRead: 'restore' | 'current',
     wallet: { readonly kind: 'current' } | { readonly kind: 'exact'; readonly walletId: string },
-    emitLoginStatus = false,
+    emitChange = false,
   ): Promise<WalletIframeExactSessionState> {
     if (!this.state.ready || !this.state.port) await this.init();
     const connectionId = this.state.connectionId;
@@ -3092,8 +3092,8 @@ export class WalletIframeRouter {
       const snapshot = parseWalletIframeExactSessionSnapshot(response.result);
       const changed = this.acceptSessionSnapshot(snapshot);
       const state = this.getMirroredExactSessionState();
-      if (emitLoginStatus && changed) {
-        this.emitLoginStatusChanged(walletIframeLoginStatusFromExactSession(state));
+      if (emitChange && changed) {
+        this.emitSessionChanged(state);
       }
       return state;
     }
@@ -3110,15 +3110,15 @@ export class WalletIframeRouter {
     return changed;
   }
 
-  private emitLoginStatusChanged(status: { isLoggedIn: boolean; walletId: string | null }): void {
-    for (const cb of Array.from(this.listeners.loginStatus)) {
+  private emitSessionChanged(state: WalletIframeExactSessionState): void {
+    for (const cb of Array.from(this.listeners.sessionChanged)) {
       try {
-        cb(status);
+        cb(state);
       } catch {}
     }
   }
 
-  private async refreshExactSessionAndEmitLoginStatus(
+  private async refreshExactSessionAndEmitChange(
     authenticationRead: 'restore' | 'current',
     wallet: { readonly kind: 'current' } | { readonly kind: 'exact'; readonly walletId: string },
   ): Promise<WalletIframeExactSessionState> {
@@ -3160,7 +3160,7 @@ export class WalletIframeRouter {
         const state: WalletIframeExactSessionState = { kind: 'wallet_locked' };
         this.updateReviewSession(state);
         this.exactSessionState = state;
-        this.emitLoginStatusChanged(walletIframeLoginStatusFromExactSession(state));
+        this.emitSessionChanged(state);
       }
       return;
     }
@@ -3209,7 +3209,7 @@ export class WalletIframeRouter {
     };
     this.updateReviewSession(expiredState);
     this.exactSessionState = expiredState;
-    this.emitLoginStatusChanged(walletIframeLoginStatusFromExactSession(expiredState));
+    this.emitSessionChanged(expiredState);
   }
 
   private failPendingRequestsForExpiredSession(event: SigningSessionExpiredEvent): void {
@@ -3362,7 +3362,7 @@ export class WalletIframeRouter {
     );
     const walletId = res.result?.success ? String(res.result.walletId || '') : '';
     if (walletId) {
-      await this.refreshExactSessionAndEmitLoginStatus('current', { kind: 'exact', walletId });
+      await this.refreshExactSessionAndEmitChange('current', { kind: 'exact', walletId });
     }
     return res.result;
   }
@@ -3640,7 +3640,7 @@ export class WalletIframeRouter {
             },
           );
           if (res.result.ok) {
-            await this.refreshExactSessionAndEmitLoginStatus('current', {
+            await this.refreshExactSessionAndEmitChange('current', {
               kind: 'exact',
               walletId: String(res.result.value.walletId),
             });
@@ -3719,7 +3719,7 @@ export class WalletIframeRouter {
           },
         );
         if (res.result.ok) {
-          await this.refreshExactSessionAndEmitLoginStatus('current', { kind: 'current' });
+          await this.refreshExactSessionAndEmitChange('current', { kind: 'current' });
         }
         return res.result;
       },
@@ -3805,7 +3805,7 @@ export class WalletIframeRouter {
       type: 'PM_UNLOCK_ADDED_EMAIL_OTP_WALLET',
       payload,
     });
-    await this.refreshExactSessionAndEmitLoginStatus('current', { kind: 'current' });
+    await this.refreshExactSessionAndEmitChange('current', { kind: 'current' });
   }
 
   async loginWithEmailOtpEcdsaCapability(
@@ -3825,7 +3825,7 @@ export class WalletIframeRouter {
         progressTimeoutExtensionFactor: 1,
       },
     );
-    await this.refreshExactSessionAndEmitLoginStatus('current', { kind: 'current' });
+    await this.refreshExactSessionAndEmitChange('current', { kind: 'current' });
     return sanitizeEmailOtpIframeResult(res.result);
   }
 
@@ -3850,7 +3850,7 @@ export class WalletIframeRouter {
         progressTimeoutExtensionFactor: 1,
       },
     );
-    await this.refreshExactSessionAndEmitLoginStatus('current', { kind: 'current' });
+    await this.refreshExactSessionAndEmitChange('current', { kind: 'current' });
     return sanitizeEmailOtpIframeResult(res.result);
   }
 
@@ -3911,7 +3911,7 @@ export class WalletIframeRouter {
     this.invalidateReviews();
     await this.post<void>({ type: 'PM_LOCK' });
     this.exactSessionState = { kind: 'wallet_locked' };
-    this.emitLoginStatusChanged({ isLoggedIn: false, walletId: null });
+    this.emitSessionChanged({ kind: 'wallet_locked' });
     return { ok: true, result: undefined };
   }
 
@@ -3926,10 +3926,10 @@ export class WalletIframeRouter {
     const result = parseWalletIframeExactSessionLockResult(response.result);
     if (result.kind === 'locked') {
       this.exactSessionState = { kind: 'wallet_locked' };
-      this.emitLoginStatusChanged({ isLoggedIn: false, walletId: null });
+      this.emitSessionChanged({ kind: 'wallet_locked' });
     } else {
       this.exactSessionState = result.current;
-      this.emitLoginStatusChanged(walletIframeLoginStatusFromExactSession(result.current));
+      this.emitSessionChanged(result.current);
     }
     return result;
   }
@@ -4390,7 +4390,7 @@ export class WalletIframeRouter {
     options?.onEvent?.(progress);
     const outcome = classifyLinkDeviceFlowEvent(progress);
     if (outcome.kind !== 'active') return;
-    void this.refreshExactSessionAndEmitLoginStatus('current', {
+    void this.refreshExactSessionAndEmitChange('current', {
       kind: 'exact',
       walletId: outcome.walletId,
     }).catch((error: unknown) => {
@@ -4768,7 +4768,7 @@ export class WalletIframeRouter {
     // Some wallet-host messages are push-style and are not correlated to a requestId.
     if (msg.type === 'SESSION_CHANGED') {
       if (this.acceptSessionSnapshot(msg.payload)) {
-        this.emitLoginStatusChanged(walletIframeLoginStatusFromExactSession(msg.payload.state));
+        this.emitSessionChanged(msg.payload.state);
       }
       return;
     }
@@ -4924,7 +4924,7 @@ export class WalletIframeRouter {
       err.details = msg.payload?.details;
       if (isTerminalWalletStateErrorCode(msg.payload?.code)) {
         this.exactSessionState = { kind: 'wallet_locked' };
-        this.emitLoginStatusChanged({ isLoggedIn: false, walletId: null });
+        this.emitSessionChanged({ kind: 'wallet_locked' });
       }
       // Deliver to pending promise if present
       pending.reject(err);

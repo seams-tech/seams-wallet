@@ -207,12 +207,6 @@ export class SeamsWeb {
       parseWalletIframeExactSessionIdentity(identity);
     return await this.walletIframe.lockExactSession(parsedIdentity);
   }
-  /** Subscribe to wallet-host login status updates. */
-  onWalletIframeLoginStatusChanged(
-    listener: (status: { isLoggedIn: boolean; walletId: string | null }) => void,
-  ): () => void {
-    return this.walletIframe.onLoginStatusChanged(listener);
-  }
   private disposeClient(): void {
     try {
       this.walletIframe.dispose();

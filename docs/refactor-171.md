@@ -402,7 +402,11 @@ a declaration-level pass before declaring the migration complete.
   `auth.logout`, its wire request, and its unused durable-pool deletion path.
   Rename session reads to `auth.getSession` and passkey queries to `auth.hasPasskey`.
   Migrate React's context/auth hook and retain existing result contracts.
-  Session subscription and other auth consolidation work remain open.
+  Other auth consolidation work remains open.
+
+- [x] Publish complete reconciled sessions through `auth.onSessionChange`. Remove
+  the old public boolean login callback and React event-triggered reads. Preserve
+  unsubscribe, reconnect, stale-read fencing, and query-free passive lock handling.
 
 - [x] Introduce `connection.connect`, `getState`, `onChange`, and `dispose` at the
   coordinator lifecycle boundary. Remove old readiness/init/disposal calls and

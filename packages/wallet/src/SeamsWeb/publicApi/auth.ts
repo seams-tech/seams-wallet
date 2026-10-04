@@ -1,5 +1,7 @@
 import type { AuthCapability, RegistrationCapability } from '@/SeamsWeb/signingSurface/types';
 
+export type WalletAuthCommands = Omit<AuthCapability, 'onSessionChange'>;
+
 export type WalletSessionCommands = Pick<
   AuthCapability,
   | 'unlock'

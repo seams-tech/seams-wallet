@@ -1,3 +1,4 @@
+import type { WalletIframeExactSessionState } from '@/SeamsWeb/walletIframe/shared/exactSessionState';
 import { test, expect } from '@playwright/test';
 import { setupBasicPasskeyTest, SDK_ESM_PATHS } from '../setup';
 import {
@@ -791,7 +792,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
           await router.init();
 
           const statuses: Array<{ isLoggedIn: boolean; walletId: string | null }> = [];
-          router.onLoginStatusChanged((status) => statuses.push(status));
+          router.onSessionChange((state: WalletIframeExactSessionState) => statuses.push({ isLoggedIn: state.kind !== 'wallet_locked', walletId: state.kind === 'wallet_locked' ? null : state.walletId }));
 
           const unlockResult = await router.unlock({
             kind: 'default_options',
@@ -861,7 +862,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
           await router.init();
 
           const statuses: Array<{ isLoggedIn: boolean; walletId: string | null }> = [];
-          router.onLoginStatusChanged((status) => statuses.push(status));
+          router.onSessionChange((state: WalletIframeExactSessionState) => statuses.push({ isLoggedIn: state.kind !== 'wallet_locked', walletId: state.kind === 'wallet_locked' ? null : state.walletId }));
           const started = await router.beginGoogleEmailOtpWalletAuth({
             idToken: 'google-id-token',
             mode: 'register',

@@ -1412,3 +1412,42 @@ and refresh with signing, step-up, and export). Production build, wallet/browser
 types, and bloat checks pass. Production TypeScript adds 19 lines and removes five,
 net +14. The browser scenario adds 110 test lines and emits an ordering artifact.
 Evidence: `evidence/refactor-170-session-read-ordering-20261005.json`.
+
+
+### Public session subscription checkpoint
+
+`auth.onSessionChange` now delivers `WalletSession` values. The old public
+`onWalletIframeLoginStatusChanged` method and its boolean callback path are
+removed. The internal router emits validated exact-session observations to the
+coordinator. The coordinator binds its existing rich read to the observed wallet
+ID, sharing an in-flight read with unlock callers for that same identity and
+revision. It returns enriched identity and capability state. A newer observation supersedes pending delivery;
+connection replacement invalidates prior reads. Listener failures are isolated,
+and unsubscribe/disposal fence pending callbacks. Subscriptions survive reconnect.
+
+Locked observations use the canonical anonymous-session builder shared with the
+host query. They require no new session RPC and clear application authority
+immediately. The router accepts newer revisions but emits only changed exact-session states,
+preserving its existing deduplication of repeated host observations. Subscribing
+after connection requests current rich state. No observer means no enriched read.
+
+React subscribes before connecting and consumes complete states. Its separate
+exact-session bootstrap, boolean status conversion, async generation guard, and
+per-event session read are deleted. Host auth command types exclude the
+application subscription; the explicit runtime export remains independent.
+
+The browser contract covers full state, subscriptions before/after connection,
+reconnect, delayed response supersession, throwing listeners, unsubscribe, and
+pending disposal. Production verification covers React's Email OTP flow, passive
+cross-tab lock, and refresh with signing, step-up, and export. Results and artifacts
+are recorded in `evidence/refactor-170-session-subscription-20261005.json`.
+Broader R170 worker, provider replacement, 30-day latency, and release gates remain
+open. The private Console/site source audit found no old login-callback callers.
+
+Final-source verification passes 27 browser cases and three production lifecycle
+cases. Build, wallet/test/docs types, external declarations, runtime boundaries,
+and bloat checks pass. Passive lock preserves four client queries before/after.
+The unchanged post-unlock three-status-read limit passes after binding subscription
+reads to the observed wallet ID. Production TypeScript adds 132 lines and removes
+215, net −83. Tests/type fixtures add 179 and remove 10; Markdown and evidence
+are separate.

@@ -108,12 +108,20 @@ await seams.auth.unlock(walletId);
 const session = await seams.auth.getSession();
 const hasPasskey = await seams.auth.hasPasskey(walletId);
 const recent = await seams.auth.getRecentUnlocks();
+const unsubscribe = seams.auth.onSessionChange(renderSession);
 await seams.auth.lock();
 ```
 
 Lock retires signing authority and clears volatile material. It retains valid
 stored presignatures for a later authorized unlock. React's `useWalletAuth()`
 and context also expose `getSession`.
+
+`onSessionChange` receives a complete `WalletSession`, including authentication,
+identity, and capability state. Subscribe before or after `connection.connect()`.
+The listener receives the current reconciled state once connected and receives
+later observations. Observations can repeat the same state. Subscribing does not
+open a connection. Subscriptions survive reconnects; unsubscribe or dispose the
+client to stop delivery. Use `connection.onChange` for connection failures.
 
 ## Lifecycle rule
 

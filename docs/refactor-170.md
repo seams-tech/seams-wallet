@@ -738,6 +738,14 @@ three, for a net increase of 60. Evidence:
 reconnect acceptance, cross-browser delivery, and network/latency measurements remain
 open.
 
+The application now exposes complete session observations through
+`auth.onSessionChange`. React consumes that subscription directly. The old public
+boolean callback and React's duplicate bootstrap/read-back path are removed.
+Locked observations preserve query-free passive updates; unlocked observations
+bind rich reads to the exact wallet ID and share in-flight work with unlock callers.
+See `evidence/refactor-170-session-subscription-20261005.json` for scoped verification.
+This does not close provider replacement, all-browser delivery, or other R170 gates.
+
 At the recorded bundle checkpoint, the production root-client static closure measured
 66,386 bytes gzip
 (64.8 KiB), compared with 739,640 bytes at baseline: a 91.0% reduction. Including

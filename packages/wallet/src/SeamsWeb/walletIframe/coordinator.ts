@@ -1,8 +1,9 @@
+import { buildAnonymousWalletSession } from '@/SeamsWeb/publicApi/session';
 import type { ClientConnectionState } from '@/SeamsWeb/publicApi/types';
 import { resolveWalletRpId } from './shared/configuration';
 import type { PreferenceState } from './client/preferenceState';
 import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import type { AppearanceConfig, SeamsClientConfig } from '@/core/types/seams';
+import type { AppearanceConfig, SeamsClientConfig, WalletSession } from '@/core/types/seams';
 import type { WalletIframeRouter } from '@/SeamsWeb/walletIframe/client/router';
 import type { WalletIframeTransportDiagnostics } from '@/SeamsWeb/walletIframe/client/transport/IframeTransport';
 import type {
@@ -14,7 +15,7 @@ import type {
   HostedAuthMenuSessionId,
 } from '@/SeamsWeb/walletIframe/shared/messages';
 import { createWalletIframeRouter } from '@/SeamsWeb/assembly/createWalletIframeRouter';
-import type { WebAuthnRpId } from '@shared/utils/domainIds';
+import type { WebAuthnRpId, WalletId } from '@shared/utils/domainIds';
 import type { SdkLifecycleEventListener } from '@/core/types/sdkSentEvents';
 import type { SdkLifecycleEvent } from '@/core/types/sdkSentEvents';
 import type {
@@ -68,9 +69,10 @@ export class WalletIframeCoordinator {
   private readonly connectionListeners = new Set<(state: ClientConnectionState) => void>();
   private walletIframeCloseUnsubscribe: (() => void) | null = null;
   private walletIframePrefsUnsubscribe: (() => void) | null = null;
-  private walletIframeLoginUnsubscribe: (() => void) | null = null;
-  private readonly loginStatusListeners = new Set<
-    (status: { isLoggedIn: boolean; walletId: string | null }) => void
+  private sessionDeliveryRevision = 0;
+  private walletIframeSessionUnsubscribe: (() => void) | null = null;
+  private readonly sessionListeners = new Set<
+    (session: WalletSession) => void
   >();
   private walletIframeLifecycleUnsubscribe: (() => void) | null = null;
   private walletIframeAuthMenuUnsubscribe: (() => void) | null = null;
@@ -143,22 +145,23 @@ export class WalletIframeCoordinator {
     this.releaseRouter();
     this.connectionListeners.clear();
     this.sdkLifecycleEventListeners.clear();
-    this.loginStatusListeners.clear();
+    this.sessionListeners.clear();
     this.hostedAuthMenuExternalAuthRequestListeners.clear();
     this.hostedAuthMenuDemoEmailOtpDeliveryListeners.clear();
   }
 
   private releaseRouter(): void {
+    this.sessionDeliveryRevision += 1;
     this.walletIframeCloseUnsubscribe?.();
     this.walletIframePrefsUnsubscribe?.();
     this.walletIframeLifecycleUnsubscribe?.();
-    this.walletIframeLoginUnsubscribe?.();
+    this.walletIframeSessionUnsubscribe?.();
     this.walletIframeAuthMenuUnsubscribe?.();
     this.walletIframeAuthMenuDemoOtpUnsubscribe?.();
     this.walletIframeCloseUnsubscribe = null;
     this.walletIframePrefsUnsubscribe = null;
     this.walletIframeLifecycleUnsubscribe = null;
-    this.walletIframeLoginUnsubscribe = null;
+    this.walletIframeSessionUnsubscribe = null;
     this.walletIframeAuthMenuUnsubscribe = null;
     this.walletIframeAuthMenuDemoOtpUnsubscribe = null;
     const router = this.iframeRouter;
@@ -175,18 +178,46 @@ export class WalletIframeCoordinator {
     this.setConnection({ kind: 'failed', generation: this.connectionGeneration, error });
   }
 
-  onLoginStatusChanged(
-    listener: (status: { isLoggedIn: boolean; walletId: string | null }) => void,
-  ): () => void {
+  onSessionChange(listener: (session: WalletSession) => void): () => void {
     if (this.connection.kind === 'disposed') return noSubscription;
-    this.loginStatusListeners.add(listener);
-    return this.loginStatusListeners.delete.bind(this.loginStatusListeners, listener);
+    this.sessionListeners.add(listener);
+    if (this.connection.kind === 'ready') this.refreshSession();
+    return this.sessionListeners.delete.bind(this.sessionListeners, listener);
   }
 
-  private forwardLoginStatus(status: { isLoggedIn: boolean; walletId: string | null }): void {
-    for (const listener of Array.from(this.loginStatusListeners)) {
+  private refreshSession(): void {
+    const revision = ++this.sessionDeliveryRevision;
+    const router = this.iframeRouter;
+    if (!router || this.sessionListeners.size === 0) return;
+    const state = router.getMirroredExactSessionState();
+    if (state.kind === 'wallet_locked') {
+      this.deliverSession(router, revision, buildAnonymousWalletSession());
+      return;
+    }
+    void this.publishSession(router, revision, state.walletId).catch(this.reportSessionFailure.bind(this, revision));
+  }
+
+  private reportSessionFailure(revision: number, error: unknown): void {
+    if (revision === this.sessionDeliveryRevision && this.connection.kind !== 'disposed') {
+      console.warn('[WalletIframeClient] Session reconciliation failed:', error);
+    }
+  }
+
+  private async publishSession(
+    router: WalletIframeRouter,
+    revision: number,
+    walletId: WalletId,
+  ): Promise<void> {
+    const session = await router.getWalletSession(walletId);
+    this.deliverSession(router, revision, session);
+  }
+
+  private deliverSession(router: WalletIframeRouter, revision: number, session: WalletSession): void {
+    for (const listener of Array.from(this.sessionListeners)) {
+      if (revision !== this.sessionDeliveryRevision || router !== this.iframeRouter) return;
+      if (!this.sessionListeners.has(listener)) continue;
       try {
-        listener(status);
+        listener(session);
       } catch {}
     }
   }
@@ -244,8 +275,8 @@ export class WalletIframeCoordinator {
       );
       this.ensureWalletIframePreferencesMirror(router);
       this.ensureWalletIframeLifecycleMirror(router);
-      this.walletIframeLoginUnsubscribe = router.onLoginStatusChanged(
-        this.forwardLoginStatus.bind(this),
+      this.walletIframeSessionUnsubscribe = router.onSessionChange(
+        this.refreshSession.bind(this),
       );
       this.ensureWalletIframeAuthMenuMirror(router);
       await router.init();

@@ -197,3 +197,9 @@ applicationClient.auth.logout();
 applicationClient.auth.getWalletSession();
 // @ts-expect-error Passkey queries use hasPasskey.
 applicationClient.auth.hasPasskeyCredential('wallet-1');
+
+applicationClient.auth.onSessionChange((session) => {
+  session.authentication.kind;
+});
+// @ts-expect-error The public boolean login callback is removed.
+applicationClient.onWalletIframeLoginStatusChanged(() => {});

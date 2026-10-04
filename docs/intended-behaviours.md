@@ -1321,3 +1321,19 @@ Email OTP grant issuance likewise checks the current session state in its INSERT
 If cancellation commits first, verification returns a refusal without a grant token.
 Both new- and existing-enrollment verification propagate that refusal. Grant
 consumption remains a single-use transactional state change.
+
+
+### Application session subscriptions
+
+`seams.auth.onSessionChange(listener)` publishes the complete reconciled
+`WalletSession`. A subscription made before connection receives its first state
+when the host is reconciled. A subscription made after connection requests the
+current state. Subscribing alone does not open the connection. Later host
+observations can repeat a state.
+
+A newer observed wallet selection or authority revision supersedes older pending
+read results. Reconnect retains subscribers and reconciles the new host; responses
+from an earlier connection cannot publish. Unsubscribe and client disposal stop
+pending delivery. A listener failure does not stop other listeners. Connection
+failures belong to `connection.onChange`; they do not invent a signed-out session.
+React consumes this subscription without an additional session read per event.

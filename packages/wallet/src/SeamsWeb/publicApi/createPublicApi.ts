@@ -1,3 +1,4 @@
+import type { WalletAuthCommands } from './auth';
 import type { NearClient } from '@/core/rpcClients/near/NearClient';
 import type { SeamsConfigsReadonly } from '@/core/types/seams';
 import { awaitNearReady } from '@/SeamsWeb/publicApi/awaitNearReady';
@@ -63,13 +64,15 @@ type PublicApiDependencies = {
   nearClient: NearClient;
   configs: SeamsConfigsReadonly;
   preferences: PreferencesCapability;
-  auth: AuthCapability;
+  auth: WalletAuthCommands;
   registration: RegistrationCapabilityDomainMethods;
   recovery: RecoveryCapability;
   devices: DeviceCommands;
   keys: KeyExportCapabilityDomainMethods;
 };
-export function createPublicApi(deps: PublicApiDependencies): SeamsWebPublicApi {
+export function createPublicApi(
+  deps: PublicApiDependencies,
+): Omit<SeamsWebPublicApi, 'auth'> & { auth: WalletAuthCommands } {
   const auth = deps.auth;
   const devices = createDevicesCapability(deps.devices);
   // Defaults for calls that do not name a wallet come from the authenticated
@@ -144,7 +147,11 @@ export function createApplicationPublicApi(
       currentWallet,
     }),
   });
-  return api;
+  const coordinator = deps.getWalletIframe();
+  return {
+    ...api,
+    auth: { ...api.auth, onSessionChange: coordinator.onSessionChange.bind(coordinator) },
+  };
 }
 
 function createReviewedCapabilities(

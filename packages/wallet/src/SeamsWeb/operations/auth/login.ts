@@ -1,3 +1,4 @@
+import { buildAnonymousWalletSession } from '@/SeamsWeb/publicApi/session';
 import { scheduleLinkedDevicePresignaturePrefill } from './scheduleLinkedDevicePresignaturePrefill';
 import { scheduleEcdsaSessionPresignaturePrefill } from './scheduleEcdsaSessionPresignaturePrefill';
 import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
@@ -396,15 +397,6 @@ function resolveLoginWalletUnlockSelectionForSubjectSet(args: {
   if (hasNearEd25519) return { mode: 'ed25519_only', ed25519: true };
   if (hasEvmFamilyEcdsa) return { mode: 'ecdsa_only', ecdsa: true };
   throw new Error('[login] wallet unlock subject set has no supported capability');
-}
-
-function buildAnonymousWalletSession(): WalletSession {
-  return {
-    appIdentity: { kind: 'anonymous' },
-    authentication: { kind: 'signed_out' },
-    capabilityProjection: { kind: 'not_requested' },
-    nonceDiagnostics: null,
-  };
 }
 
 type NearEd25519WalletSubject = Extract<WalletUnlockSubject, { kind: 'near_ed25519_wallet' }>;

@@ -86,7 +86,7 @@ async function initializeClient(): Promise<void> {
     sdkBasePath: '/sdk',
   });
   (window as any).sessionProbe = { router, events: [], read: null };
-  router.onLoginStatusChanged(recordLoginStatus);
+  router.onSessionChange(recordLoginStatus);
   await router.init();
   await router.getExactSessionState();
 }

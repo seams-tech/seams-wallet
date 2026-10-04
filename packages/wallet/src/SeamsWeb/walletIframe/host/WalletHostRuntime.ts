@@ -1,3 +1,4 @@
+import type { WalletAuthCommands } from '@/SeamsWeb/publicApi/auth';
 import type { UserPreferencesManager } from '@/core/signingEngine/session/userPreferences';
 import { syncAccount } from '@/SeamsWeb/operations/recovery/syncAccount';
 import { createWalletHostNearCommands } from '@/SeamsWeb/walletIframe/host/createNearCommands';
@@ -58,7 +59,6 @@ import {
 } from '@/SeamsWeb/publicApi/chainTargets';
 import { BrowserSigningSurface } from '@/SeamsWeb/signingSurface/BrowserSigningSurface';
 import type {
-  AuthCapability,
   DevicesCapability,
   EvmSignerCapability,
   KeyExportCapability,
@@ -155,7 +155,7 @@ export class WalletHostRuntime {
       UserPreferencesManager,
       'setConfirmationConfig' | 'setConfirmBehavior' | 'onCurrentWalletChange'
     >;
-  readonly auth: AuthCapability;
+  readonly auth: WalletAuthCommands;
   readonly registration: RegistrationCapability;
   readonly near: NearSignerCapability;
   readonly tempo: TempoSignerCapability;
