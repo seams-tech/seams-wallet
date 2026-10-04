@@ -173,6 +173,35 @@ remain unwired. Owner approval, authenticated status during pause, pinned role
 resources, the recovery coordinator, writer fences, import and cleanup producers
 are still required. No user relocation endpoint is enabled.
 
+## R152 completion handoff — published 0.8.0 baseline
+
+R152's final handoff is public `c160e107` and private `8a40b44`. Consume
+[ownership revision 13](refactor-152-state-ownership.md), including fixed-home
+deferred execution and credential reconciliation, as the current contract.
+Earlier open R152 acceptance statements in this plan are historical checkpoints;
+the R152 dependency is now closed. Relocation generations, fences, transfers and
+their acceptance remain R153 work.
+
+The private checkout consumes exact published Wallet SDK/server 0.8.0. Both
+directory E2Es passed in 6.6 seconds with the installed package, without candidate
+or TypeScript path overrides; the standard Console package type check passed.
+Repeat from the private repository:
+
+```sh
+pnpm --dir packages/wallet-console-server-ts type-check
+pnpm --dir tests exec playwright test -c playwright.relayer.config.ts \
+  relayer/wallet-relocation-directory.e2e.test.ts \
+  relayer/wallet-home-directory.e2e.test.ts \
+  --reporter=line --output=test-results/r153-published
+```
+
+The retained R152 hosted proxy measurements describe backend travel; native
+full-browser latency and calls outside home Gateway `SIGNER_DB` are outside those
+measurements. This handoff check did not deploy infrastructure or enable relocation.
+Continue with owner approval and authenticated placement/status access, then real
+participant evidence, source fencing and data transfer against the published
+baseline. The existing journal remains an internal storage primitive.
+
 ## Intent
 
 Add a Wallet region setting so an owner who expects to spend time in another
