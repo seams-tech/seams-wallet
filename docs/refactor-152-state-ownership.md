@@ -199,8 +199,14 @@ including the request/prepared fingerprints and replay receipts.
 The `wallet-add-signer-start:` payload retains
 `prepared.storedIntent.intent.walletId` in both claim and completion variants.
 Parse with `parseD1WalletAddSignerStartSideEffectRecord` before selecting that owner.
-The finalize and sponsored-account prefixes still need complete terminal ownership
-accounting; a failed response alone need not contain a wallet ID.
+The `wallet-add-signer-finalize:` prefix now requires `prepared.walletId` on both
+curve branches and on both claims and completions. Parse with
+`parseD1WalletAddSignerFinalizeSideEffectRecord`; successful response ownership must
+agree with the prepared owner. Execution resumed from a claim checks that owner
+against the ceremony or surviving replay. This remains selectable after ceremony
+cleanup, including a failed terminal response with no response-level wallet ID.
+Unowned old records are rejected; disposable-wallet reset handles the cutover.
+The sponsored-account prefix still needs complete terminal ownership accounting.
 
 The custody and Google recovery prefixes have these concrete selectors. Always
 apply all four tenant scope columns before interpreting the key:
@@ -336,3 +342,21 @@ when sources have not changed; the successful run rebuilt its candidate.
 Until these gates close, R153 may implement its state machine against this baseline,
 but must not enable a general relocation copy/cutover path. This document does not
 claim R152 completion or authorize release 0.8.0.
+
+### Add-signer finalize ownership closure — October 4
+
+The required prepared owner is included in the existing prepared-artifact
+fingerprint. The two curve branches reject mixed timing state at compile time;
+missing wallet ownership is also rejected by the type fixture. The implementation
+and parser live in `d1WalletAddSignerFinalizeRecord.ts`, extracted from the existing
+service without a compatibility export or second execution path.
+
+Both existing intended-behaviour E2Es passed: Ed25519 add-signer (27.0s), and ECDSA
+add-signer across a lost finalize response followed by NEAR/Tempo/Arc signing and
+unlock (32.2s). Wallet-server build, type check and bloat check passed. Evidence:
+`.artifacts/r152/add-signer-ownership-20261004/evidence.json` and `e2e.log` in Wallet.
+Reproduce with `SEAMS_INTENDED_SKIP_BUILD=1 node
+tests/scripts/run-wallet-intended-isolated.mjs
+passkey.ed25519-yao-local.contract.test.ts --grep 'public (ECDSA|Ed25519 Yao) add-signer'`
+after building Wallet-server and the local runtime. These are local protocol E2Es;
+they do not claim hosted regional cutover verification.

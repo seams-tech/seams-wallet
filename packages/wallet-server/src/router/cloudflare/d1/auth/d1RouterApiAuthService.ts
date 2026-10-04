@@ -1,3 +1,8 @@
+import {
+  parseD1WalletAddSignerFinalizeSideEffectRecord,
+  type D1WalletAddSignerFinalizeSideEffectRecord,
+  type D1WalletAddSignerFinalizeSideEffectStore,
+} from '../wallet/d1WalletAddSignerFinalizeRecord';
 import { dispatchWalletRegistrationSetup } from '../../../framework/registrationSetupDispatch';
 import {
   readActiveWalletSessionCredential,
@@ -119,10 +124,7 @@ import { CloudflareD1WalletRecoveryGoogleEmailOtpAttemptStore } from '../passkey
 import { CloudflareD1WalletRecoveryGoogleEmailOtpService } from '../passkeyCustody/d1WalletRecoveryGoogleEmailOtpService';
 import {
   CloudflareD1WalletAddSignerService,
-  parseD1WalletAddSignerFinalizeSideEffectRecord,
   parseD1WalletAddSignerStartSideEffectRecord,
-  type D1WalletAddSignerFinalizeSideEffectRecord,
-  type D1WalletAddSignerFinalizeSideEffectStore,
   type D1WalletAddSignerStartSideEffectRecord,
   type D1WalletAddSignerStartSideEffectStore,
 } from '../wallet/d1WalletAddSignerService';

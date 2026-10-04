@@ -1,4 +1,12 @@
 import {
+  buildD1WalletAddSignerFinalizePrepared,
+  fingerprintD1WalletAddSignerFinalizePrepared,
+  returnD1WalletAddSignerFinalizePrepared,
+  rejectUnexpectedWalletAddSignerFinalizePreparation,
+  type D1WalletAddSignerFinalizePreparedV1,
+  type D1WalletAddSignerFinalizeSideEffectStore,
+} from './d1WalletAddSignerFinalizeRecord';
+import {
   addSignerIntentGrantFromString,
   computeAddSignerIntentDigestB64u,
   sameAddSignerIntentV1,
@@ -68,7 +76,6 @@ import {
   buildD1WalletEcdsaSignerRecords,
   normalizeThresholdEcdsaChainTargets,
   parseD1AddSignerIntent,
-  parseD1WalletAddSignerFinalizeTerminalResponse,
   parseD1StoredAddSignerIntent,
   parseD1StoredAddSignerAuth,
   parseD1StoredWalletAddSignerCeremony,
@@ -220,28 +227,6 @@ export type D1WalletAddSignerStartSideEffectRecord =
   RouterAbEd25519YaoRegistrationSideEffectRecordV1<
     D1WalletAddSignerStartTerminalV1,
     D1WalletAddSignerStartPreparedV1
-  >;
-
-export type D1WalletAddSignerFinalizePreparedV1 =
-  | {
-      readonly kind: 'd1_wallet_add_signer_finalize_ed25519_prepared_v1';
-      readonly finalizingAtMs: number;
-    }
-  | {
-      readonly kind: 'd1_wallet_add_signer_finalize_ecdsa_prepared_v1';
-      readonly signerWriteAtMs: number;
-    };
-
-export type D1WalletAddSignerFinalizeSideEffectStore =
-  RouterAbEd25519YaoRegistrationSideEffectStoreV1<
-    WalletAddSignerFinalizeResponse,
-    D1WalletAddSignerFinalizePreparedV1
-  >;
-
-export type D1WalletAddSignerFinalizeSideEffectRecord =
-  RouterAbEd25519YaoRegistrationSideEffectRecordV1<
-    WalletAddSignerFinalizeResponse,
-    D1WalletAddSignerFinalizePreparedV1
   >;
 
 function addSignerRecordValue(value: unknown): Record<string, unknown> | null {
@@ -616,83 +601,6 @@ async function fingerprintD1WalletAddSignerStartPrepared(
   prepared: D1WalletAddSignerStartPreparedV1,
 ): Promise<string> {
   return base64UrlEncode(await sha256BytesUtf8(alphabetizeStringify(prepared)));
-}
-
-function parseWalletAddSignerFinalizePrepared(
-  raw: unknown,
-): D1WalletAddSignerFinalizePreparedV1 | null {
-  const record = addSignerRecordValue(raw);
-  if (!record) return null;
-  if (record.kind === 'd1_wallet_add_signer_finalize_ed25519_prepared_v1') {
-    const finalizingAtMs = record.finalizingAtMs;
-    if (
-      typeof finalizingAtMs !== 'number' ||
-      !Number.isSafeInteger(finalizingAtMs) ||
-      finalizingAtMs <= 0
-    ) {
-      return null;
-    }
-    return {
-      kind: 'd1_wallet_add_signer_finalize_ed25519_prepared_v1',
-      finalizingAtMs,
-    };
-  }
-  if (record.kind !== 'd1_wallet_add_signer_finalize_ecdsa_prepared_v1') return null;
-  const signerWriteAtMs = record.signerWriteAtMs;
-  return typeof signerWriteAtMs === 'number' &&
-    Number.isSafeInteger(signerWriteAtMs) &&
-    signerWriteAtMs > 0
-    ? { kind: 'd1_wallet_add_signer_finalize_ecdsa_prepared_v1', signerWriteAtMs }
-    : null;
-}
-
-export function parseD1WalletAddSignerFinalizeSideEffectRecord(
-  raw: unknown,
-): D1WalletAddSignerFinalizeSideEffectRecord | null {
-  return parseRouterAbEd25519YaoRegistrationSideEffectRecordV1(raw, {
-    operation: 'add_signer_finalize',
-    parsePrepared: parseWalletAddSignerFinalizePrepared,
-    parseResponse: parseD1WalletAddSignerFinalizeTerminalResponse,
-  });
-}
-
-async function fingerprintD1WalletAddSignerFinalizePrepared(
-  prepared: D1WalletAddSignerFinalizePreparedV1,
-): Promise<string> {
-  return base64UrlEncode(await sha256BytesUtf8(alphabetizeStringify(prepared)));
-}
-
-async function returnD1WalletAddSignerFinalizePrepared(
-  prepared: D1WalletAddSignerFinalizePreparedV1,
-): Promise<D1WalletAddSignerFinalizePreparedV1> {
-  return prepared;
-}
-
-async function rejectUnexpectedWalletAddSignerFinalizePreparation(): Promise<never> {
-  throw new Error('persisted add-signer finalize claim disappeared during reconciliation');
-}
-
-function buildD1WalletAddSignerFinalizePrepared(input: {
-  readonly request: StoredWalletAddSignerFinalizeRequest;
-  readonly ceremony: StoredWalletAddSignerCeremony;
-  readonly nowMs: number;
-}): D1WalletAddSignerFinalizePreparedV1 {
-  if (input.request.kind === 'evm_family_ecdsa') {
-    return {
-      kind: 'd1_wallet_add_signer_finalize_ecdsa_prepared_v1',
-      signerWriteAtMs: input.nowMs,
-    };
-  }
-  if (input.ceremony.signerState.kind === 'near_ed25519_yao_add_signer_finalizing') {
-    return {
-      kind: 'd1_wallet_add_signer_finalize_ed25519_prepared_v1',
-      finalizingAtMs: input.ceremony.signerState.finalizingAtMs,
-    };
-  }
-  return {
-    kind: 'd1_wallet_add_signer_finalize_ed25519_prepared_v1',
-    finalizingAtMs: input.nowMs,
-  };
 }
 
 function rejectedWalletAddSignerStartTerminal(
@@ -2003,7 +1911,10 @@ export class CloudflareD1WalletAddSignerService {
       exactReplay ||
       (await store.getAddSignerFinalizeReplayForCeremony(finalizeRequest.addSignerCeremonyId));
     if (replay) {
-      if (!sameWalletAddSignerFinalizeRequestV1(replay.request, finalizeRequest)) {
+      if (
+        replay.response.walletId !== prepared.walletId ||
+        !sameWalletAddSignerFinalizeRequestV1(replay.request, finalizeRequest)
+      ) {
         return {
           ok: false,
           code: 'idempotency_conflict',
@@ -2015,6 +1926,9 @@ export class CloudflareD1WalletAddSignerService {
     let ceremony = await store.getAddSignerCeremony(finalizeRequest.addSignerCeremonyId);
     if (!ceremony) {
       return { ok: false, code: 'not_found', message: 'add-signer ceremony not found' };
+    }
+    if (ceremony.intent.walletId !== prepared.walletId) {
+      throw new Error('Add-signer finalize claim belongs to another wallet');
     }
     if (finalizeRequest.kind === 'near_ed25519') {
       if (prepared.kind !== 'd1_wallet_add_signer_finalize_ed25519_prepared_v1') {
