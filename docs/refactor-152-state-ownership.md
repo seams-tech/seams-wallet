@@ -1,6 +1,6 @@
 # R152 state ownership baseline for R153
 
-Revision 4 — October 4, 2026.
+Revision 5 — October 4, 2026.
 
 This freezes the **schema inventory and ownership obligations**, not a copy-ready
 relocation implementation. R153 must fail closed for unresolved ownership below.
@@ -68,7 +68,7 @@ for the baseline, grouped only where the selector and obligations agree.
 | `registration_ceremony_records` | Wallet: exact tenant scope, supported record scope and parsed wallet identity from the selector table below. Preserve setup snapshots, claims and terminal replies independently of surviving ceremony parents. |
 | `router_ab_yao_capability_replacements` | Wallet: migration 0045 requires exact scoped `wallet_id`. Copy old/new capability decisions and replay fingerprints together, including terminal receipts after lifecycle cleanup. Retries verify the same wallet. |
 | `router_ab_yao_versioned_json_records` | Mixed, blocked selector: classify by supported prefix and parsed record ownership. Includes custody/recovery secrets and replay state; never copy all namespace rows or omit the table. |
-| `router_ab_normal_signing_admission_records` | Mixed, blocked split: project policy is shared; wallet abuse/quota/operation decisions need exact key-kind ownership. Existing SQL joins must be replaced or preserved under one authoritative transaction. |
+| `router_ab_normal_signing_admission_records` | Explicit split after migration 0046: `abuse` rows require scoped `wallet_id`; `project_policy` rows require NULL wallet ownership and remain tenant policy. Select all wallet abuse rows across signing-root versions, retaining authority-specific keys and decisions. Retired quota records and columns are removed; active quota state lives in `authorization_wallet_session_quotas`. Existing atomic credential/policy SQL reads are preserved. |
 | `identity_links`, `email_otp_registration_attempts`, `email_otp_rate_limits`, `linked_device_request_proof_nonces` | Hosted shared authority is Console. Do not relocate or independently reset/consume these signer-schema copies. Verify every hosted caller uses the injected shared service; table existence also supports self-hosted composition. |
 | `vault_proxy_secrets` | Shared tenant/vault/item state, no wallet ownership. Excluded from wallet relocation. |
 | `deployment_resource_challenges` | Resource-local deployment proof, excluded; the destination must prove its own identity. |
@@ -433,3 +433,38 @@ Reproduce with the regional recovery command above and
 `SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/email-ownership-20261004`.
 The first attempt stopped before registration on an expired Google token; the
 standard token refresh and rerun succeeded. ESLint, diff and bloat checks passed.
+
+
+### Signing-admission ownership closure — October 4
+
+Migration `0046_wallet_owned_signing_abuse.sql` requires a nonempty `wallet_id`
+for each abuse decision, with a constraint binding that owner and its tenant/root
+scope to the existing authority-specific key. Project-policy rows require NULL
+wallet ownership; they are tenant configuration and must be provisioned separately
+at a destination. The exact wallet selector is `(namespace, org_id, project_id,
+env_id, wallet_id)` with `record_kind = 'abuse'`, across every signing-root version.
+Use the stored runtime policy scope exactly; do not substitute deployment IDs.
+The `signing_abuse_wallet` partial index supports that selection.
+
+The writer uses a discriminated owner type and persists ownership on every insert.
+The migration removes the unused `quota` branch and its request/lifecycle/expiry
+columns. It requires the old table to be empty before replacement; a populated
+upgrade fails without deleting its records. There is no legacy key parser or
+compatibility writer. Existing credential-snapshot policy joins and admission
+roundtrip counts are unchanged.
+
+`node tests/r150-hosted/gateway/admissionPolicy.e2e.mjs` passed on local Workers D1,
+the Node SQLite adapter and memory. It exercises Ed25519 and ECDSA policy changes,
+wallet/environment/root-version/namespace isolation, shared-policy precedence,
+expiry rejection, and independent clearing of one wallet's abuse decision.
+Persisted rows show two explicit wallet owners and one shared policy. Both SQL
+adapters reject wrong-owner, NULL-decision and retired-quota writes. A deliberately
+corrupted SQLite decision still fails closed on read. This is admission-boundary
+E2E evidence; it does not claim hosted Cloudflare execution or full signing.
+
+Evidence: `.artifacts/r152/admission-ownership/result.json`, `e2e.log`,
+`migration-evidence.json` and the repeatable `verify-migrations.py` in Wallet.
+All 46 signer migrations apply cleanly, integrity is `ok`, and the populated-upgrade
+guard preserves the old row. Wallet-server type checking, build and bloat checks
+passed. The initial test mismatch was SQLite's null-prototype result objects;
+normalizing the comparison fixed the fixture without changing production behavior.

@@ -41,6 +41,10 @@ type CloudflareD1PolicyRow = {
   readonly abuse_retry_after_ms: unknown;
 };
 
+type AdmissionDecisionOwner =
+  | { readonly kind: 'project_policy'; readonly walletId: null }
+  | { readonly kind: 'abuse'; readonly walletId: string };
+
 const ROUTER_AB_NORMAL_SIGNING_ADMISSION_TABLE = 'router_ab_normal_signing_admission_records';
 
 export class CloudflareD1RouterAbNormalSigningAdmissionStore implements RouterAbNormalSigningAdmissionStore {
@@ -109,7 +113,7 @@ export class CloudflareD1RouterAbNormalSigningAdmissionStore implements RouterAb
     const normalized = normalizeProjectPolicyDecision(decision);
     await this.putDecision(
       scope,
-      'project_policy',
+      { kind: 'project_policy', walletId: null },
       runtimePolicyScopeKey(scope),
       normalized.kind,
       normalized.kind === 'rejected' ? normalized.retryAfterMs : null,
@@ -127,7 +131,7 @@ export class CloudflareD1RouterAbNormalSigningAdmissionStore implements RouterAb
     const normalized = normalizeAbuseDecision(decision);
     await this.putDecision(
       input.runtimePolicyScope,
-      'abuse',
+      { kind: 'abuse', walletId: input.walletId },
       abusePrincipalKey(input),
       normalized.kind,
       normalized.kind === 'allowed' ? null : normalized.retryAfterMs,
@@ -140,7 +144,7 @@ export class CloudflareD1RouterAbNormalSigningAdmissionStore implements RouterAb
 
   private async putDecision(
     scope: RuntimePolicyScope,
-    kind: 'project_policy' | 'abuse',
+    owner: AdmissionDecisionOwner,
     key: string,
     decision: string,
     retryAfterMs: number | null,
@@ -150,8 +154,8 @@ export class CloudflareD1RouterAbNormalSigningAdmissionStore implements RouterAb
         .prepare(
           `INSERT INTO ${ROUTER_AB_NORMAL_SIGNING_ADMISSION_TABLE} (
              namespace, org_id, project_id, env_id, signing_root_version,
-             record_kind, record_key, decision, retry_after_ms, updated_at_ms
-           ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+             record_kind, record_key, decision, retry_after_ms, updated_at_ms, wallet_id
+           ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
            ON CONFLICT (
              namespace, org_id, project_id, env_id, signing_root_version, record_kind, record_key
            ) DO UPDATE SET
@@ -165,11 +169,12 @@ export class CloudflareD1RouterAbNormalSigningAdmissionStore implements RouterAb
           scope.projectId,
           scope.envId,
           scope.signingRootVersion,
-          kind,
+          owner.kind,
           key,
           decision,
           retryAfterMs,
           this.now(),
+          owner.walletId,
         ),
     );
   }
