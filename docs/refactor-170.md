@@ -436,6 +436,13 @@ branch combinations and validate explicit-runtime consumers independently.
 
 ### Connection readiness and startup ownership
 
+Expose lifecycle operations as `seams.connection.connect()`, `getState()`,
+`onChange(listener)`, and `dispose()` on that namespace. General lifecycle events
+use `seams.events.subscribe(listener)`. Keep no top-level instance method aliases.
+`connection.dispose()` terminates the whole client and releases its owned
+resources and subscriptions; it does not lock the wallet or purge durable
+presignatures. React cleanup follows the same ownership contract.
+
 Connection readiness means handshake and initial public-state reconciliation
 completed. Authentication remains a separate existing session state; signing
 workers initialize for operations independently of connection readiness.
