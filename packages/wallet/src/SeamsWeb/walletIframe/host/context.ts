@@ -10,10 +10,7 @@ import type { WalletId } from '@shared/utils/domainIds';
 import { isString } from '@shared/utils/validation';
 import { setEmbeddedBase } from '@/core/walletRuntimePaths';
 import { cloneChainConfig, resolvePrimaryNearRpcUrl } from '@/core/config/chains';
-import {
-  assertWalletHostConfigsNoNestedIframeWallet,
-  sanitizeWalletHostConfigs,
-} from './config-guards';
+import { resolveWalletHostConfig } from './configuration';
 import {
   createCspStylesheetManager,
   getDefaultCspNonce,
@@ -99,7 +96,7 @@ function buildWalletRuntimeResetFingerprint(config: SeamsConfigsInput | null | u
     routerAbEcdsaDerivationPresignaturePool: config?.routerAbEcdsaDerivationPresignaturePool,
     provisioningDefaults: config?.provisioningDefaults,
     authenticatorOptions: config?.authenticatorOptions,
-    iframeWallet: config?.iframeWallet,
+    rpIdOverride: config?.iframeWallet?.rpIdOverride,
   });
 }
 
@@ -264,8 +261,7 @@ export function ensureWalletRuntime(ctx: HostContext): WalletHostRuntime {
     ctx.nearClient = new MinimalNearClient(nearRpcUrl);
   }
   if (!ctx.walletRuntime) {
-    const cfg = sanitizeWalletHostConfigs(walletConfigs);
-    assertWalletHostConfigsNoNestedIframeWallet(cfg);
+    const cfg = resolveWalletHostConfig(walletConfigs);
     __setWalletIframeHostMode(true);
     ctx.walletRuntime = new WalletHostRuntime(cfg, ctx.nearClient);
     updateThemeBridge(ctx);
@@ -326,7 +322,7 @@ export function applyWalletConfig(ctx: HostContext, payload: PMSetConfigPayload)
     },
     appearance: nextAppearance,
   };
-  ctx.walletConfigs = sanitizeWalletHostConfigs(base);
+  ctx.walletConfigs = base;
   const nextRuntimeResetFingerprint = buildWalletRuntimeResetFingerprint(ctx.walletConfigs);
 
   // Keep wallet-host theme and dynamic appearance tokens in sync with app config.

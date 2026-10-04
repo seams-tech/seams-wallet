@@ -21,14 +21,15 @@ async function applyConfiguration(event) {
   configurationModule ||= await import('/__config-probe.js');
   configContext ||= configurationModule.createHostContext();
   configurationModule.applyWalletConfig(configContext, event.data.payload);
-  const resolved = configurationModule.buildConfigsFromEnv(configContext.walletConfigs, {
-    allowDirectWalletMode: 'wallet_host',
-  });
+  const resolved = configurationModule.resolveWalletHostConfig(configContext.walletConfigs);
   window.configurationReceipt = {
     authPolicy: resolved.signing.emailOtp.authPolicy,
     delegateRoute: resolved.network.relayer.routes.delegateAction,
     relayerUrl: resolved.network.relayer.url,
     theme: resolved.ui.appearance.theme.mode,
+    walletMode: resolved.wallet.mode,
+    hasNestedOrigin: Object.hasOwn(resolved.wallet.iframe, 'origin'),
+    rpId: resolved.wallet.iframe.rpIdOverride,
   };
   postResult(event.data.requestId, undefined);
 }
@@ -52,7 +53,10 @@ async function configureClient(): Promise<void> {
     relayer: { url: 'https://relay.example.localhost', delegateActionRoute: '/custom/delegate' },
     emailOtpAuthPolicy: 'per_operation',
     registration: { publishableKey: 'pk_test_configuration' },
-    iframeWallet: { walletOrigin: 'https://wallet.example.localhost' },
+    iframeWallet: {
+      walletOrigin: 'https://wallet.example.localhost',
+      rpIdOverride: 'wallet.example.localhost',
+    },
   });
   const router = await sdk.createWalletIframeRouter({
     configs: config,
@@ -89,6 +93,7 @@ test('iframe configuration preserves custom relay routes and Email OTP policy ac
       contents: `
         export { createWalletIframeRouter } from './packages/wallet/src/SeamsWeb/assembly/createWalletIframeRouter.ts';
         export { buildConfigsFromEnv } from './packages/wallet/src/core/config/defaultConfigs.ts';
+        export { resolveWalletHostConfig } from './packages/wallet/src/SeamsWeb/walletIframe/host/configuration.ts';
         export { createHostContext, applyWalletConfig } from './packages/wallet/src/SeamsWeb/walletIframe/host/context.ts';
       `,
       resolveDir: root,
@@ -115,6 +120,9 @@ test('iframe configuration preserves custom relay routes and Email OTP policy ac
     authPolicy: 'per_operation',
     delegateRoute: '/custom/delegate',
     relayerUrl: 'https://relay.example.localhost',
+    walletMode: 'direct',
+    hasNestedOrigin: false,
+    rpId: 'wallet.example.localhost',
   });
   await page.evaluate(updateAppearance);
   const updated = await frame.evaluate(readReceipt);

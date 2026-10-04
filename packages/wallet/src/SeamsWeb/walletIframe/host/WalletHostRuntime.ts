@@ -2,7 +2,7 @@ import { syncAccount } from '@/SeamsWeb/operations/recovery/syncAccount';
 import { createWalletHostNearCommands } from '@/SeamsWeb/walletIframe/host/createNearCommands';
 import { createWalletHostEvmFamilyCommands } from '@/SeamsWeb/walletIframe/host/createEvmFamilyCommands';
 import { resolvePrimaryNearRpcUrl } from '@/core/config/chains';
-import { buildConfigsFromEnv } from '@/core/config/defaultConfigs';
+import type { WalletHostConfig } from './configuration';
 import { IndexedDBManager, configureIndexedDB } from '@/core/indexedDB';
 import { pendingWalletRecoveryCodeBackupRepository } from '@/core/indexedDB/seamsWalletDB/pendingWalletRecoveryCodeBackup';
 import type { TempoChainTarget } from '@/core/platform/types';
@@ -33,8 +33,6 @@ import type {
   AppearanceConfig,
   AppearanceConfigInput,
   RegistrationResult,
-  SeamsConfigsInput,
-  SeamsConfigsReadonly,
   ThemeMode,
 } from '@/core/types/seams';
 import type { ConfirmationConfig } from '@/core/types/signer-worker';
@@ -141,7 +139,7 @@ function reportDeviceLinkingAcknowledgementResumeFailureV1(error: unknown): void
 export class WalletHostRuntime {
   private readonly signingEngine: SeamsWebSigningSurface;
   private readonly nearClient: NearClient;
-  readonly configs: SeamsConfigsReadonly;
+  readonly configs: WalletHostConfig;
   private appearance: AppearanceConfig;
   theme: ThemeMode;
   private readonly prefillRestoredSession: RestoredSessionPresignaturePrefill;
@@ -157,10 +155,8 @@ export class WalletHostRuntime {
   private readonly deviceLinkingDispose: () => void;
   private readonly resumePendingAcknowledgementsV1: () => Promise<void>;
   private emailOtpUnlockPrewarmRecord: EmailOtpUnlockPrewarmRecord = { kind: 'none' };
-  constructor(configs: SeamsConfigsInput, nearClient?: NearClient) {
-    this.configs = buildConfigsFromEnv(configs, {
-      allowDirectWalletMode: 'wallet_host',
-    });
+  constructor(configs: WalletHostConfig, nearClient?: NearClient) {
+    this.configs = configs;
     configureIndexedDB({ mode: 'wallet' });
     // Use provided client or create default one
     this.nearClient =

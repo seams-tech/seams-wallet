@@ -815,7 +815,7 @@ Preserve the supported explicit runtime entry and durable presignatures on lock.
 
 | Candidate | Current caller / responsibility | Replacement owner and deletion condition | Verification | Status |
 | --- | --- | --- | --- | --- |
-| `walletIframe/host/config-guards.ts` | Host context sanitizes client-shaped construction input | Required host configuration; delete empty-origin sanitization when host construction accepts its own resolved type | Config browser round trip, type fixtures, intended lifecycle | Open |
+| Host configuration construction | `configuration.ts` resolves the host input; `WalletHostRuntime` accepts `WalletHostConfig` | Empty-origin sanitizer and constructor-side normalization are deleted. Required resolved wire configuration and removal of the shared direct-mode option remain | Config browser round trip, type fixtures, intended lifecycle | Constructor boundary complete; wire split open |
 | `core/config/configBuilder.ts`, `walletIframe/host/context.ts` | Client defaults are resolved, then host merges and resolves again | One boundary normalization with explicit client/host ownership; remove duplicate application of defaults | Field inventory, custom policy/route behavior, cosmetic-update session preservation | Open |
 | `core/browser/walletIframe/host-mode.ts` and callers | Process-wide execution-mode checks remain in host-internal paths | Explicit construction and operation ownership; remove callers that no longer distinguish supported behavior | Runtime entry checks, browser lifecycle, worker loading matrix | Open |
 | `SeamsWeb/publicApi`, `walletIframe/client`, `walletIframe/host` | Extracted factories, commands, callback adapters and facade assembly | Keep only layers with a distinct transport, identity, authorization, lifecycle, or public API role | Types, review/cancellation browser cases, intended signing/device/recovery flows | Open |
@@ -860,3 +860,30 @@ Production build, Wallet/state types, runtime entry boundaries, and the bloat ga
 pass. Two production browser cases pass: signed-out cold/warm startup and reload
 with warm signing, one-use step-up, and export. Sanitized evidence is recorded in
 `evidence/refactor-170-host-initialization-cleanup-20261005.json`.
+
+
+### Resolved host constructor checkpoint
+
+`WalletHostRuntime` now requires `WalletHostConfig`. Raw application configuration,
+a general client/host union, and a nested iframe origin are rejected by type
+fixtures. `configuration.ts` owns host input resolution. Only the RP override is
+carried from incoming iframe settings. The host constructor stores the resolved
+value directly and does not normalize it again.
+
+Deleted `config-guards.ts`, its empty-origin/service-path workaround, and its
+redundant assertion. The execution-config fingerprint now selects the RP override
+rather than unused client iframe-target settings. The browser probe confirms that
+custom delegate routes, Email OTP policy, and explicit RP identity survive an
+appearance update; the resolved host has no nested iframe origin.
+
+This establishes the constructor boundary only. The wire payload and host message
+state still use input-shaped configuration. Complete the required resolved wire
+contract, remove the shared direct-mode normalization option, and fix signing-only
+registration configuration during the remaining client/host split. Do not count
+this checkpoint as completion of normalize-once transport semantics.
+
+Validation passes: production build, Wallet/state/browser types, runtime entry
+boundaries, configuration browser round trip, and two production lifecycle cases
+(Email OTP multi-chain lifecycle and passkey reload with step-up/export). This
+checkpoint removes 25 net production lines. Source hashes and sanitized receipts
+are in `evidence/refactor-170-host-config-constructor-20261005.json`.

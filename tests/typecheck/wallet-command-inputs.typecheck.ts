@@ -49,3 +49,26 @@ import type { SeamsWeb } from '../../packages/wallet/src/SeamsWeb/SeamsWeb';
 declare const applicationClient: SeamsWeb;
 // @ts-expect-error Application clients cannot expose wallet-origin execution contexts.
 applicationClient.getContext();
+
+
+import { WalletHostRuntime } from '../../packages/wallet/src/SeamsWeb/walletIframe/host/WalletHostRuntime';
+import type { WalletHostConfig } from '../../packages/wallet/src/SeamsWeb/walletIframe/host/configuration';
+import type { SeamsConfigsInput, SeamsConfigsReadonly } from '../../packages/wallet/src/core/types/seams';
+declare const rawWalletConfig: SeamsConfigsInput;
+declare const commonWalletConfig: SeamsConfigsReadonly;
+declare const hostConfig: WalletHostConfig;
+// @ts-expect-error Host construction requires resolved configuration.
+new WalletHostRuntime(rawWalletConfig);
+// @ts-expect-error A general configuration can select application iframe execution.
+new WalletHostRuntime(commonWalletConfig);
+// @ts-expect-error Spreading application configuration cannot establish host ownership.
+new WalletHostRuntime({ ...commonWalletConfig });
+const nestedHostConfig = {
+  ...hostConfig,
+  wallet: {
+    mode: 'direct' as const,
+    iframe: { ...hostConfig.wallet.iframe, origin: 'https://wallet.example.com' },
+  },
+};
+// @ts-expect-error Host configuration excludes a nested application iframe origin.
+new WalletHostRuntime(nestedHostConfig);
