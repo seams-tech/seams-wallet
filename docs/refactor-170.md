@@ -638,7 +638,10 @@ failures, and a preference check before signing. Configuration now crosses the
 iframe boundary as a validated resolved snapshot. Appearance updates carry a
 separate resolved branch. Host-side default resolution and the direct-mode
 normalization option are removed. Protocol snapshot/event revision ordering and
-active-operation fencing on execution replacement remain unfinished.
+active-operation fencing on execution replacement remain unfinished. Preference
+snapshots and events now carry wallet-bound revisions; delayed snapshots cannot
+replace newer events. Session revisions, host hydration ordering, and durable
+preference acknowledgements remain open.
 
 The fresh production root-client static closure measures 66,386 bytes gzip
 (64.8 KiB), compared with 739,640 bytes at baseline: a 91.0% reduction. Including

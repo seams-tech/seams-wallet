@@ -187,7 +187,7 @@ function syncActiveWalletHostRuntimeConfig(state: WalletHostRuntimeState): void 
   syncRuntimeContext(state);
 }
 
-function ensureRequestWalletRuntime(ctx: HostContext, input: WalletHostRuntimeRequest): WalletHostRuntime {
+function ensureRequestWalletRuntime(ctx: HostContext): WalletHostRuntime {
   const previous = ctx.walletRuntime;
   const walletRuntime = ensureWalletRuntime(ctx);
   ensureWalletHostLifecycleSubscription(ctx, walletRuntime);
@@ -195,17 +195,7 @@ function ensureRequestWalletRuntime(ctx: HostContext, input: WalletHostRuntimeRe
 
   const preferences = walletRuntime.preferences;
   ctx.prefsUnsubscribe?.();
-  const emitPreferencesChanged = (): void => {
-    const walletId = String(preferences.getCurrentWalletId?.() || '').trim();
-    input.post({
-      type: 'PREFERENCES_CHANGED',
-      payload: {
-        walletId: walletId || null,
-        confirmationConfig: preferences.getConfirmationConfig(),
-        updatedAt: Date.now(),
-      } satisfies PreferencesChangedPayload,
-    });
-  };
+  const emitPreferencesChanged = publishPreferences.bind(null, ctx, walletRuntime);
   const unsubscribeConfirmationConfig =
     preferences.onConfirmationConfigChange?.(emitPreferencesChanged) || null;
   const unsubscribeCurrentWallet =
@@ -224,6 +214,30 @@ function ensureRequestWalletRuntime(ctx: HostContext, input: WalletHostRuntimeRe
   return walletRuntime;
 }
 
+function preferencesSnapshot(
+  ctx: HostContext,
+  runtime: WalletHostRuntime,
+): PreferencesChangedPayload {
+  return {
+    walletId: runtime.preferences.getCurrentWalletId(),
+    confirmationConfig: runtime.preferences.getConfirmationConfig(),
+    revision: ctx.preferencesRevision,
+  };
+}
+
+function publishPreferences(ctx: HostContext, runtime: WalletHostRuntime): void {
+  if (ctx.walletRuntime !== runtime) return;
+  ctx.preferencesRevision += 1;
+  ctx.port?.postMessage({
+    type: 'PREFERENCES_CHANGED',
+    payload: preferencesSnapshot(ctx, runtime),
+  });
+}
+
+function readPreferences(ctx: HostContext): PreferencesChangedPayload {
+  return preferencesSnapshot(ctx, ensureRequestWalletRuntime(ctx));
+}
+
 function buildHandlerDeps(ctx: HostContext, input: WalletHostRuntimeRequest): HandlerDeps {
   const postProgress = (requestId: string | undefined, payload: ProgressPayload): void => {
     if (!requestId) return;
@@ -231,7 +245,8 @@ function buildHandlerDeps(ctx: HostContext, input: WalletHostRuntimeRequest): Ha
   };
 
   return {
-    getWalletRuntime: ensureRequestWalletRuntime.bind(null, ctx, input),
+    getWalletRuntime: ensureRequestWalletRuntime.bind(null, ctx),
+    readPreferences: readPreferences.bind(null, ctx),
     post: postActivityMessage.bind(null, input),
     postProgress,
     isCancelled: input.isCancelled,

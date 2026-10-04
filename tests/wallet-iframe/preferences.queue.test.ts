@@ -7,6 +7,7 @@ import { buildWalletServiceHtml, registerWalletServiceRoute } from './harness';
 const origin = 'https://wallet.example.localhost';
 const host = `
 let pendingPreferences = [];
+let preferenceRevision = 0;
 let observedPreferenceWrites = [];
 let observedSignatures = 0;
 const originalPreferenceAdopt = adoptPort;
@@ -18,7 +19,7 @@ function interceptPreferences(event) {
     return;
   }
   if (message.type === 'PM_GET_CONFIRMATION_CONFIG') {
-    postResult(message.requestId, { behavior: 'requireClick', uiMode: 'modal', autoProceedDelay: 0 });
+    postResult(message.requestId, { walletId: null, revision: preferenceRevision, confirmationConfig: { behavior: 'requireClick', uiMode: 'modal', autoProceedDelay: 0 } });
     return;
   }
   if (message.type === 'PM_PREFETCH_BLOCKHEIGHT') { postResult(message.requestId, undefined); return; }
@@ -40,7 +41,7 @@ window.answerPreference = function(ok) {
 };
 window.pushPreference = function() {
   adoptedPort.postMessage({ type: 'PREFERENCES_CHANGED', payload: {
-    walletId: 'alice.testnet', confirmationConfig: { behavior: 'requireClick', uiMode: 'modal', autoProceedDelay: 7 }, updatedAt: Date.now()
+    walletId: 'alice.testnet', confirmationConfig: { behavior: 'requireClick', uiMode: 'modal', autoProceedDelay: 7 }, revision: ++preferenceRevision
   } });
 };
 `;

@@ -31,8 +31,7 @@ export function createPreferencesWalletIframeHandlers(deps: HandlerDeps): Handle
     },
 
     PM_GET_CONFIRMATION_CONFIG: async (req: Req<'PM_GET_CONFIRMATION_CONFIG'>) => {
-      const pm = deps.getWalletRuntime();
-      const result = pm.preferences.getConfirmationConfig();
+      const result = deps.readPreferences();
       respondOkResult(deps, req.requestId, result);
     },
   };

@@ -1378,7 +1378,7 @@ function parseClientPreferencesChangedPayload(value: unknown): PreferencesChange
   const record = rawClientMessageObject(value);
   if (
     !record ||
-    !hasOnlyClientMessageFields(record, ['walletId', 'confirmationConfig', 'updatedAt'])
+    !hasOnlyClientMessageFields(record, ['walletId', 'confirmationConfig', 'revision'])
   ) {
     return null;
   }
@@ -1404,15 +1404,15 @@ function parseClientPreferencesChangedPayload(value: unknown): PreferencesChange
   ) {
     return null;
   }
-  const updatedAt: unknown = Reflect.get(record, 'updatedAt');
-  if (typeof updatedAt !== 'number' || !Number.isFinite(updatedAt)) return null;
+  const revision: unknown = Reflect.get(record, 'revision');
+  if (typeof revision !== 'number' || !Number.isSafeInteger(revision) || revision < 0) return null;
   return {
     walletId,
     confirmationConfig:
       autoProceedDelay === undefined
         ? { uiMode, behavior }
         : { uiMode, behavior, autoProceedDelay },
-    updatedAt,
+    revision,
   };
 }
 
@@ -2687,6 +2687,8 @@ export class WalletIframeRouter {
     this.overlayState.controller.dispose();
     this.updateSurfaceViewportListeners();
     if (this.state.connectionId === connectionId) {
+      this.lastPreferencesChangedPayload = null;
+      this.mirroredConfirmationUiMode = null;
       this.state.connectionId = null;
       this.state.port = null;
       this.state.ready = false;
@@ -2790,7 +2792,7 @@ export class WalletIframeRouter {
       await this.refreshExactSessionAndEmitLoginStatus('restore', { kind: 'current' });
       // Resolve the host's confirmation mode while initialization is still in flight. Foreground
       // requests can then begin their surface without a nested config RPC on first use.
-      await this.getConfirmationConfig().catch(() => undefined);
+      await this.getConfirmationConfig();
       this.emitReady();
     })();
 
@@ -2822,6 +2824,8 @@ export class WalletIframeRouter {
       const connectionId = walletIframeConnectionIdFromBoundary(
         `wallet-iframe-connection-${secureRandomBase36(16, 'wallet iframe connection IDs')}`,
       );
+      this.lastPreferencesChangedPayload = null;
+      this.mirroredConfirmationUiMode = null;
       this.state.connectionId = connectionId;
       this.state.port.onmessage = (event) => this.onPortMessage(event, connectionId);
       this.state.port.start?.();
@@ -3049,6 +3053,10 @@ export class WalletIframeRouter {
   }
 
   private handlePreferencesChanged(payload: PreferencesChangedPayload): void {
+    if (
+      this.lastPreferencesChangedPayload &&
+      payload.revision <= this.lastPreferencesChangedPayload.revision
+    ) return;
     const previousWalletId = this.lastPreferencesChangedPayload?.walletId;
     this.emitPreferencesChanged(payload);
     const walletId = String(payload.walletId || '').trim();
@@ -4070,9 +4078,18 @@ export class WalletIframeRouter {
   }
 
   async getConfirmationConfig(): Promise<ConfirmationConfig> {
-    const res = await this.post<ConfirmationConfig>({ type: 'PM_GET_CONFIRMATION_CONFIG' });
-    this.mirroredConfirmationUiMode = res.result.uiMode;
-    return res.result;
+    if (!this.state.ready || !this.state.port) await this.init();
+    const connectionId = this.state.connectionId;
+    const res = await this.post<unknown>({ type: 'PM_GET_CONFIRMATION_CONFIG' });
+    if (this.state.connectionId !== connectionId) {
+      throw new Error('Wallet iframe connection changed during preference read');
+    }
+    const snapshot = parseClientPreferencesChangedPayload(res.result);
+    if (!snapshot) throw new Error('Invalid wallet preference snapshot');
+    this.handlePreferencesChanged(snapshot);
+    const current = this.lastPreferencesChangedPayload;
+    if (!current) throw new Error('Wallet preference snapshot is unavailable');
+    return current.confirmationConfig;
   }
 
   /**

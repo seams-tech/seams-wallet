@@ -279,7 +279,7 @@ inventory work.
 
 ## Snapshot ordering and protocol decision
 
-The existing messages do not prove the accepted bootstrap contract:
+The initial audit found these gaps in the bootstrap contract (preference transport is updated in the checkpoint below):
 
 - `coordinator.ts:init` saves `exactState`, awaits `getConfirmationConfig`, then
   associates the response with the saved wallet. A selected-wallet event can
@@ -963,3 +963,36 @@ Verification receipts are in `evidence/refactor-170-host-identity-20261005.json`
 Remaining work includes host-variant API ownership, active-operation fencing,
 session/preference revision ordering, selective worker-loading evidence, durable
 presignature acceptance, R171 naming, and consumer integration.
+
+
+### Preference snapshot ordering checkpoint
+
+Preference snapshots and events now share `{ walletId, confirmationConfig,
+revision }`. The host assigns monotonic revisions from its live context; timestamp
+ordering is removed. The client accepts only newer revisions and rejects malformed
+snapshots. A snapshot response cannot overwrite a newer event. Connection changes
+clear the accepted revision, and a read checks that its connection still owns the
+response before applying it.
+
+The coordinator no longer fetches a second bootstrap snapshot or associates it with
+a saved session's wallet. Router initialization owns the initial snapshot and uses
+the same wallet-bound event path as subsequent updates. The existing client
+preference projection retains pending local writes over confirmed host values.
+
+This completes transport ordering for preference observations only. The audit also
+found host-domain work that must precede final acceptance: asynchronous preference
+hydration can outlive a wallet switch; setters acknowledge before IndexedDB writes
+finish, and storage failures are currently logged rather than returned. Fix those
+at the owning manager/handler boundary. Session reads still need revisions and
+state-change fencing for selection, activation, lock, expiry, revocation, restore,
+and execution-config replacement. Keep protocol 3.0.0 unreleased until these gates
+are complete.
+
+
+Validation for preference transport: production build, Wallet/state/browser types,
+runtime-entry checks, external declarations, and bloat gate pass. Eighteen selected
+browser cases pass; the ordering case also passes after extension to delay the
+initial bootstrap snapshot. Two production cases pass: Email OTP lifecycle and
+passkey refresh with warm signing, step-up, and export. This checkpoint adds 60
+and removes 39 production lines, net +21. Evidence and sanitized receipts are in
+`evidence/refactor-170-preference-revisions-20261005.json`.

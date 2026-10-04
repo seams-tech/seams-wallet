@@ -151,21 +151,7 @@ export class WalletIframeCoordinator {
     }
 
     if (this.iframeRouter) {
-      const exactState = this.iframeRouter.getMirroredExactSessionState();
-      if (exactState.kind !== 'wallet_locked') {
-        this.userPreferences.setCurrentWallet(exactState.walletId);
-      }
-      // Best-effort pull snapshot to cover missed events / older hosts.
-      const cfg = await this.iframeRouter.getConfirmationConfig().catch(() => null);
-      if (cfg) {
-        const confirmationWalletId =
-          exactState.kind === 'wallet_locked' ? null : exactState.walletId;
-        this.userPreferences.applyWalletHostConfirmationConfig({
-          walletId: confirmationWalletId,
-          confirmationConfig: cfg,
-        });
-      }
-      return exactState;
+      return this.iframeRouter.getMirroredExactSessionState();
     }
     return { kind: 'wallet_locked' };
   }

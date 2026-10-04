@@ -3,6 +3,7 @@ import type {
   ParentToChildEnvelope,
   ParentToChildType,
   ProgressPayload,
+  PreferencesChangedPayload,
 } from '../../shared/messages';
 import type { WalletHostRuntime } from '@/SeamsWeb/walletIframe/host/WalletHostRuntime';
 
@@ -14,6 +15,7 @@ export type HandlerMap = Partial<{
 
 export interface HandlerDeps {
   getWalletRuntime(): WalletHostRuntime;
+  readPreferences(): PreferencesChangedPayload;
   post(msg: ChildToParentEnvelope): void;
   postProgress(requestId: string | undefined, payload: ProgressPayload): void;
   isCancelled(requestId: string | undefined): boolean;

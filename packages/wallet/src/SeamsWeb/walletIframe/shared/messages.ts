@@ -952,7 +952,7 @@ export interface WalletIframeProtocolVersionMismatchDetails {
 export interface PreferencesChangedPayload {
   walletId: string | null;
   confirmationConfig: ConfirmationConfig;
-  updatedAt: number;
+  revision: number;
 }
 
 export type PMSetConfigPayload = import('./configuration').WalletConfigurationUpdate;

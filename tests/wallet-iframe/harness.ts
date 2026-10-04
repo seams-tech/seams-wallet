@@ -108,7 +108,7 @@ export const buildWalletServiceHtml = (options: WalletServiceHtmlOptions = {}): 
 
           if (type === 'PM_GET_CONFIRMATION_CONFIG') {
             try {
-              postResult(requestId, { uiMode: 'modal', behavior: 'requireClick', autoProceedDelay: 0 });
+              postResult(requestId, { walletId: null, revision: 0, confirmationConfig: { uiMode: 'modal', behavior: 'requireClick', autoProceedDelay: 0 } });
             } catch (err) {
               console.error('Failed to respond to PM_GET_CONFIRMATION_CONFIG', err);
             }

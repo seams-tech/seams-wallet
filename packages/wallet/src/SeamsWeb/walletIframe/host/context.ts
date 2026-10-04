@@ -134,6 +134,7 @@ export interface HostContext {
   parentOrigin: string | null;
   port: MessagePort | null;
   configuration: WalletHostConfigurationState;
+  preferencesRevision: number;
   nearClient: MinimalNearClient | null;
   walletRuntime: WalletHostRuntime | null;
   prefsUnsubscribe?: (() => void) | null;
@@ -148,6 +149,7 @@ export function createHostContext(): HostContext {
     parentOrigin: null,
     port: null,
     configuration: { kind: 'unconfigured' },
+    preferencesRevision: 0,
     nearClient: null,
     walletRuntime: null,
     prefsUnsubscribe: null,

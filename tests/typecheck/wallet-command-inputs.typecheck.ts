@@ -99,3 +99,11 @@ const mixedWalletConfig: SeamsConfigsReadonly['wallet'] = clientWalletWithHostId
 void missingHostRpId;
 void rawHostRpId;
 void mixedWalletConfig;
+
+import type { PreferencesChangedPayload } from '../../packages/wallet/src/SeamsWeb/walletIframe/shared/messages';
+// @ts-expect-error Preference observations require an ordered revision, not a timestamp.
+const timestampedPreferences: PreferencesChangedPayload = { walletId: null, confirmationConfig: preferences.getConfirmationConfig(), updatedAt: 1 };
+// @ts-expect-error Preference snapshots must identify the wallet whose values they contain.
+const unboundPreferences: PreferencesChangedPayload = { revision: 1, confirmationConfig: preferences.getConfirmationConfig() };
+void timestampedPreferences;
+void unboundPreferences;
