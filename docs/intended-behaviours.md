@@ -14,6 +14,32 @@ plans explain how the design arose; they do not override this contract.
 E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
 [Spec 9: Behaviour and test authority](spec-9-behaviour-and-test-authority.md).
 
+## Application confirmation preferences
+
+Preference setters update the application's display immediately. Each write captures
+its wallet target at the call. Later wallet selection cannot redirect that write.
+The client sends writes in order and keeps pending changes separate from confirmed
+host state. Host updates do not replace a newer pending local change.
+
+`preferences.flush()` waits for writes queued before the call. Later writes do not
+extend that wait. It reports failures, including earlier failures that no caller
+has observed. Concurrent flushes covering the same writes see the same failures.
+A failed write removes its local change and leaves later writes able to proceed.
+Background write failures do not cause unhandled promise rejections.
+
+Signing waits for earlier writes for its wallet and default-scoped writes. A failed
+write rejects that signing attempt before transport dispatch. Explicit flush or
+signing observation consumes the reported failure. A subsequent attempt can use
+the confirmed preferences. Host admission continues to enforce confirmation policy.
+
+Disposal rejects pending synchronization and stops local preference events. It
+cannot undo a write the host already accepted. Display-wallet selection is never
+an authentication source. Acknowledgement covers host preference state; it does
+not claim that a storage write has reached durable storage.
+
+Browser enforcement: `tests/wallet-iframe/preferences.queue.test.ts` and
+`tests/wallet-iframe/preferences.sync.test.ts`.
+
 ## Worker preparation
 
 A fresh signed-out wallet host with no pending registration or recovery work

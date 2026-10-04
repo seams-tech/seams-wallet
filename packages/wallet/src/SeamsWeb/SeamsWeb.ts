@@ -91,6 +91,7 @@ import { createServerAllocatedWalletId, walletIdFromString } from '@shared/utils
  * with flexible event-based callbacks for custom UX implementation
  */
 export class SeamsWeb {
+  private readonly disposePreferences: () => void;
   private readonly preferenceState = new ClientPreferenceState();
   private readonly signingEngine: SeamsWebSigningSurface;
   private readonly nearClient: NearClient;
@@ -139,6 +140,8 @@ export class SeamsWeb {
       userPreferences: userPreferences,
       getAppearance: this.getAppearance.bind(this),
     });
+    const preferences = createApplicationPreferences(userPreferences, this.walletIframe);
+    this.disposePreferences = preferences.dispose;
     const deviceDomain = createApplicationDeviceCommands(this.walletIframe);
     const registrationCommands = createApplicationRegistrationCommands(this.walletIframe);
     const sessionCommands = createApplicationSessionCommands(this.walletIframe);
@@ -147,11 +150,20 @@ export class SeamsWeb {
       this.getEmailOtpUnlockPrewarmRecord.bind(this),
     );
     const publicApi = createPublicApi({
-      createNearCommands: createApplicationNearCommands.bind(null, this.walletIframe, this.configs),
-      createEvmFamilyCommands: createApplicationEvmFamilyCommands.bind(null, this.walletIframe),
+      createNearCommands: createApplicationNearCommands.bind(
+        null,
+        this.walletIframe,
+        this.configs,
+        preferences.beforeSigning,
+      ),
+      createEvmFamilyCommands: createApplicationEvmFamilyCommands.bind(
+        null,
+        this.walletIframe,
+        preferences.beforeSigning,
+      ),
       nearClient: this.nearClient,
       configs: this.configs,
-      preferences: createApplicationPreferences(userPreferences, this.walletIframe),
+      preferences: preferences.capability,
       getWalletIframe: this.getWalletIframe.bind(this),
       auth: {
         ...sessionCommands,
@@ -266,7 +278,7 @@ export class SeamsWeb {
     };
   }
   dispose(): void {
-    this.preferenceState.dispose();
+    this.disposePreferences();
     this.walletIframe.dispose();
     this.signingEngine.dispose();
   }

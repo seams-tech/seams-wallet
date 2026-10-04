@@ -1,3 +1,4 @@
+import type { WalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { buildEvmWalletRegistrationArgs } from '@/SeamsWeb/operations/evm';
 import { toSerializableTempoError } from '@/SeamsWeb/operations/tempo';
@@ -7,9 +8,14 @@ import type { WalletIframeCoordinator } from '@/SeamsWeb/walletIframe/coordinato
 import { toError } from '@shared/utils/errors';
 export function createApplicationEvmFamilyCommands(
   walletIframe: Pick<WalletIframeCoordinator, 'requireRouter'>,
+  beforeSigning: (walletId: WalletId) => Promise<void>,
   transactionDispatch: TransactionDispatch,
 ): EvmFamilyCommands {
-  const commands = new ApplicationEvmFamilyCommands(walletIframe, transactionDispatch);
+  const commands = new ApplicationEvmFamilyCommands(
+    walletIframe,
+    beforeSigning,
+    transactionDispatch,
+  );
   return {
     signEvmFamily: commands.signEvmFamily.bind(commands),
     reportBroadcastAccepted: commands.reportBroadcastAccepted.bind(commands),
@@ -25,6 +31,7 @@ export function createApplicationEvmFamilyCommands(
 class ApplicationEvmFamilyCommands {
   constructor(
     private readonly walletIframe: Pick<WalletIframeCoordinator, 'requireRouter'>,
+    private readonly beforeSigning: (walletId: WalletId) => Promise<void>,
     private readonly transactionDispatch: TransactionDispatch,
   ) {}
   async signEvmFamily(
@@ -34,6 +41,7 @@ class ApplicationEvmFamilyCommands {
     const walletIframe = this.walletIframe;
     const walletId = toWalletId(walletSession.walletId);
     try {
+      await this.beforeSigning(args.walletSession.walletId);
       const router = await walletIframe.requireRouter(walletId);
       const result = await router.signTempo(
         {

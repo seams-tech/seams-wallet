@@ -737,3 +737,29 @@ The production build, Wallet/state type checks, and bloat gate passed. Five
 preference browser cases and two production unlock/refresh lifecycle cases passed.
 Source hashes and sanitized results are in
 `evidence/refactor-170-preference-state-20261005.json`.
+
+### Acknowledged client preference queue
+
+Application preference state now separates confirmed values from pending patches.
+Each queued write captures its wallet. Host events update confirmed values without
+replacing pending patches or redirecting an explicit display-wallet selection.
+Failed writes roll back their patch. Later writes continue.
+
+`preferences.flush()` captures the current write set. It reports unobserved failures
+and does not wait for later writes. Concurrent callers retain their own references
+to the same results. NEAR and EVM-family commands wait for relevant earlier writes
+before transport dispatch. Disposal rejects pending synchronization and stops local
+events. Host setters apply their display state synchronously; host `flush()` has
+no client queue to await and does not promise durable storage completion.
+
+The new browser contract exercises A/B wallet switching, a host event during a
+pending write, two concurrent flushes, a later successful write, rollback, a failed
+write blocking NEAR signing, and disposal after dispatch. The first run used a
+fixture with NEAR signing disabled. Classification: `valid_test_needs_update`.
+Enabling the existing signing capability in the fixture let the intended admission
+path execute. No production policy was weakened.
+
+Remaining: protocol revisions for snapshot/event ordering, persistence acknowledgement
+semantics if required by the host protocol audit, and removal of application signing
+runtime construction. The full selective-loading and consumer acceptance gates remain
+open. Queue behavior is normative in `intended-behaviours.md`.

@@ -1151,6 +1151,8 @@ export interface KeyExportCapability {
 }
 
 export interface PreferencesCapability {
+  /** Wait for writes queued before this call; reject if any of them failed. */
+  flush(): Promise<void>;
   setCurrentWallet(walletId: WalletId): void;
   getCurrentWalletId(): WalletId | null;
   onConfirmationConfigChange(callback: (config: ConfirmationConfig) => void): () => void;

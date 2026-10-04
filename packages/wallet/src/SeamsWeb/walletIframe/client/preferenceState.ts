@@ -20,7 +20,11 @@ export type PreferenceState = Pick<
 /** Application-origin projection. It has no persistence or signing dependencies. */
 export class ClientPreferenceState implements PreferenceState {
   private currentWalletId: WalletId | null = null;
-  private confirmationConfig: ConfirmationConfig = { ...DEFAULT_CONFIRMATION_CONFIG };
+  private readonly confirmed = new Map<WalletId | null, ConfirmationConfig>();
+  private readonly pending = new Map<
+    number,
+    { walletId: WalletId | null; patch: Partial<ConfirmationConfig> }
+  >();
   private readonly configurationListeners = new Set<(config: ConfirmationConfig) => void>();
   private readonly walletListeners = new Set<(walletId: WalletId | null) => void>();
   private disposed = false;
@@ -30,7 +34,17 @@ export class ClientPreferenceState implements PreferenceState {
   }
 
   getConfirmationConfig(): ConfirmationConfig {
-    return { ...this.confirmationConfig };
+    let config = {
+      ...(this.confirmed.get(this.currentWalletId) ??
+        this.confirmed.get(null) ??
+        DEFAULT_CONFIRMATION_CONFIG),
+    };
+    for (const write of this.pending.values()) {
+      if (write.walletId === null || write.walletId === this.currentWalletId) {
+        config = { ...config, ...write.patch };
+      }
+    }
+    return config;
   }
 
   setCurrentWallet(walletId: WalletId): void {
@@ -41,6 +55,35 @@ export class ClientPreferenceState implements PreferenceState {
         listener(walletId);
       } catch {}
     }
+    this.notifyConfiguration();
+  }
+
+  beginWrite(id: number, walletId: WalletId | null, patch: Partial<ConfirmationConfig>): void {
+    this.pending.set(id, { walletId, patch });
+    this.notifyConfiguration();
+  }
+
+  settleWrite(id: number, succeeded: boolean): void {
+    const write = this.pending.get(id);
+    if (!write) return;
+    if (succeeded) {
+      const previous =
+        this.confirmed.get(write.walletId) ??
+        this.confirmed.get(null) ??
+        DEFAULT_CONFIRMATION_CONFIG;
+      this.confirmed.set(write.walletId, { ...previous, ...write.patch });
+    }
+    this.pending.delete(id);
+    this.notifyConfiguration();
+  }
+
+  private notifyConfiguration(): void {
+    if (this.disposed) return;
+    for (const listener of this.configurationListeners) {
+      try {
+        listener(this.getConfirmationConfig());
+      } catch {}
+    }
   }
 
   applyWalletHostConfirmationConfig(input: {
@@ -48,16 +91,14 @@ export class ClientPreferenceState implements PreferenceState {
     confirmationConfig: ConfirmationConfig;
   }): void {
     if (this.disposed) return;
-    if (input.walletId) this.setCurrentWallet(input.walletId);
+    if (input.walletId && this.currentWalletId === null) this.setCurrentWallet(input.walletId);
     const config = input.confirmationConfig;
-    this.confirmationConfig = {
+    this.confirmed.set(input.walletId, {
       uiMode: config.uiMode ?? DEFAULT_CONFIRMATION_CONFIG.uiMode,
       behavior: config.behavior ?? DEFAULT_CONFIRMATION_CONFIG.behavior,
       autoProceedDelay: config.autoProceedDelay ?? DEFAULT_CONFIRMATION_CONFIG.autoProceedDelay,
-    };
-    for (const listener of this.configurationListeners) {
-      listener(this.getConfirmationConfig());
-    }
+    });
+    this.notifyConfiguration();
   }
 
   onConfirmationConfigChange(listener: (config: ConfirmationConfig) => void): () => void {
@@ -72,6 +113,7 @@ export class ClientPreferenceState implements PreferenceState {
 
   dispose(): void {
     this.disposed = true;
+    this.pending.clear();
     this.configurationListeners.clear();
     this.walletListeners.clear();
   }

@@ -222,6 +222,7 @@ export class WalletHostRuntime {
       nearClient: this.nearClient,
       configs: this.configs,
       preferences: {
+        flush: flushHostPreferenceProjection,
         setCurrentWallet: userPreferences.setCurrentWallet.bind(userPreferences),
         getCurrentWalletId: userPreferences.getCurrentWalletId.bind(userPreferences),
         onConfirmationConfigChange:
@@ -609,3 +610,5 @@ export class WalletHostRuntime {
     await this.signingEngine.exportKeypairWithUI(resolvedInput);
   }
 }
+
+async function flushHostPreferenceProjection(): Promise<void> {}

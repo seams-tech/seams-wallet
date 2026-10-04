@@ -33,3 +33,14 @@ new DeviceLinkingDomain({ getContext });
 createDevicesCapability({ ...devices, cancelDeviceLinking: undefined });
 // @ts-expect-error Device inventory cannot own an implicit unlock path.
 createDevicesCapability({ ...devices, ownerSessionRenewal: {} });
+
+import type { ClientPreferenceState } from '../../packages/wallet/src/SeamsWeb/walletIframe/client/preferenceState';
+import type { PreferencesCapability } from '../../packages/wallet/src/SeamsWeb/publicApi/types';
+declare const preferenceState: ClientPreferenceState;
+declare const preferences: PreferencesCapability;
+const preferenceFlush: Promise<void> = preferences.flush();
+void preferenceFlush;
+// @ts-expect-error A host preference update must identify its target, including null for defaults.
+preferenceState.applyWalletHostConfirmationConfig({
+  confirmationConfig: preferences.getConfirmationConfig(),
+});
