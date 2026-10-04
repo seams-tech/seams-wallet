@@ -343,6 +343,52 @@ use bounded normal demand rather than eagerly warming every offline device.
 
 ## Implementation strategy and entry gate
 
+### Modular relocation layer
+
+R153 is a relocation module composed on top of the R152 wallet runtime. Use
+explicit typed dependencies and the existing application composition points. Keep
+the orchestration in the current `walletPlacement/relocation*` modules and adjacent
+coordinator code; keep storage and cryptographic operations inside their owning
+services. Target the completed feature for Wallet SDK/server 0.9.0.
+
+| Boundary | Responsibility |
+| --- | --- |
+| R152 placement and runtime | Authoritative wallet scope/home/generation, ordinary execution, authentication, signing, persistence and replay. Writers enforce current execution authority locally. |
+| Relocation module | Owner admission, eligibility, cooldown, journal, retries, orchestration, evidence collection, cutover and progress. It invokes narrowly typed participant operations through existing authenticated transports. |
+| Participant adapters in existing services | Prepare inactive resources, freeze/drain, invalidate presignatures, extract/import, verify, activate and clean up the participant's own state. Produce durable receipts. Each service owns its selectors, record decoding, storage transactions and effect fences. |
+| SDK/settings | Submit a region choice and show safe progress; reconcile placement and presignature caches. No orchestration or custody-store knowledge. |
+| R154 policy | Decide when to request the same relocation operation under its future standing-consent contract. No second transfer or fencing implementation. |
+
+Ordinary signing and wallet flows depend on a small ownership/execution guard.
+They must not import the relocation coordinator or branch on its copy/retry/cleanup
+phases. The coordinator depends on existing domain services; those services expose
+local operations without depending on the coordinator. Public SDK/server contracts
+remain independent of private Console implementation. Put adapters next to their
+owning stores and roles and use explicit composition to connect them.
+
+The existing seven participant slots form a fixed, required typed set. Define
+phase-specific command and receipt contracts as the real endpoints are connected;
+do not weaken them to arbitrary command strings, optional hooks or generic JSON.
+Extend existing transport/authentication boundaries. A runtime plugin registry,
+dynamic loading, a new package or a generic workflow framework is unnecessary for
+this feature. Separate a new module only when it owns actual behavior.
+
+The module is optional at application composition: an installation may omit the
+relocation API/coordinator and continue normal fixed-home operation. Ownership
+enforcement remains mandatory in every relocation-capable writer. Removing or
+stopping the module cannot undo a pause, erase a journal or reopen a retired source.
+An interrupted move remains at its durable authority state until the coordinator
+resumes. Avoid a legacy writer path or a flag that bypasses generation checks.
+
+This boundary contains the feature's workflow complexity while preserving the
+core safety integration: fencing must execute at each write/effect boundary. A
+Gateway-only wrapper cannot protect deferred callbacks, direct role requests or
+storage restored from an earlier generation. Keep those guards small and test
+normal execution with the relocation entrypoints absent, plus interrupted moves
+with the coordinator stopped and restarted.
+
+### Transfer strategy
+
 Implement a **paused, role-preserving transfer** first: prepare inactive regional
 resources, pause wallet mutations, settle in-flight work, invalidate usable
 presignatures, copy and verify wallet state, then switch ownership and resume.
@@ -724,7 +770,7 @@ with one coordinator and five bounded workstreams.
 
 | Workstream / owner | Owned surfaces | Dependency / handoff |
 | --- | --- | --- |
-| Coordinator: contracts, directory, orchestration, integration | Private `walletPlacement/{home,d1,service,serviceClient}.ts` under `packages/wallet-console-server-ts/src/`, Console directory schema changes, and Gateway/Wallet Runtime wiring. Public placement wire/domain contracts and `router/transport/fetch/createFetchRouter.ts` integration. Placement type fixtures and this plan. | Settle stage 0 and implement authoritative admission/CAS. Own shared entrypoints and connect the other streams; serialize authority-switch integration. |
+| Coordinator: contracts, directory, orchestration, integration | Private `walletPlacement/relocation*.ts` and adjacent coordinator code; narrow integration in `{home,d1,service,serviceClient}.ts`, Console directory schema and Gateway/Wallet Runtime composition. Public placement wire/domain contracts and `router/transport/fetch/createFetchRouter.ts` integration. Placement type fixtures and this plan. | Keep orchestration inside the relocation module, consume typed participant adapters and implement authoritative admission/CAS. Own shared entrypoints and serialize authority-switch integration. |
 | Custody backend: routing, fences, invalidation | Public `crates/router-ab-cloudflare/src/durable_object/{router_wallet,deriver_a_pair,deriver_b_pair,signing_worker_wallet,ecdsa_presign_live_session}.rs`, corresponding role stores/routing, `ecdsa_pool_lifecycle.rs`, `ecdsa_presign_session.rs`, and `crates/router-ab-ecdsa-pool/src/lib.rs`. This owner also integrates changes in Cloudflare `src/lib.rs` and regenerates affected Rust wire bindings. | After contracts, implement role-local freeze/transfer/verification commands and explicit pool invalidation. Hand verified source/destination receipts to the coordinator. |
 | D1 transfer: extraction and historical restore | Public `packages/wallet-server/src/router/cloudflare/d1/` transfer/store changes and required signer schema changes. | Use the R152 ownership inventory and agreed move context. Prove idempotent restore with trigger/quota/replay behavior, then expose the store operations for orchestration. |
 | Client and settings: placement reconciliation | Public `packages/wallet/src/core/` placement-facing SDK/signing/IndexedDB changes and `react/components/AccountMenuButton/` settings. | After API contract, implement progress/cooldown UI and cross-device cache reconciliation. Coordinate against custody invalidation semantics; integration needs the real backend. |
