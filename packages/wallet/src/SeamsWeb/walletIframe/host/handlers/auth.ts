@@ -133,18 +133,32 @@ function walletSessionRequestWalletId(
   return currentWalletId || undefined;
 }
 
+function markWalletSelectionChanged(selection: { changed: boolean }): void {
+  selection.changed = true;
+}
+
 async function resolvePersistedCurrentWalletId(
   pm: ReturnType<HandlerDeps['getWalletRuntime']>,
 ): Promise<string | undefined> {
   const currentWalletId = String(pm.preferences.getCurrentWalletId() || '').trim();
   if (currentWalletId) return currentWalletId;
-  const recentUnlocks = await pm.auth.getRecentUnlocks();
-  const lastUsedWalletId = String(recentUnlocks.lastUsedAccount?.walletId || '').trim();
-  if (lastUsedWalletId) return lastUsedWalletId;
-  const walletIds = recentUnlocks.walletIds
-    .map((walletId) => String(walletId).trim())
-    .filter(Boolean);
-  return walletIds.length === 1 ? walletIds[0] : undefined;
+  const selection = { changed: false };
+  const unsubscribe = pm.preferences.onCurrentWalletChange(
+    markWalletSelectionChanged.bind(null, selection),
+  );
+  try {
+    const recentUnlocks = await pm.auth.getRecentUnlocks();
+    if (selection.changed) return pm.preferences.getCurrentWalletId() ?? undefined;
+    const lastUsedWalletId = String(recentUnlocks.lastUsedAccount?.walletId || '').trim();
+    const walletIds = recentUnlocks.walletIds
+      .map((walletId) => String(walletId).trim())
+      .filter(Boolean);
+    const walletId = lastUsedWalletId || (walletIds.length === 1 ? walletIds[0] : undefined);
+    if (walletId) pm.preferences.setCurrentWallet(toWalletId(walletId));
+    return walletId;
+  } finally {
+    unsubscribe();
+  }
 }
 
 async function resolveExactWalletSessionState(
@@ -155,9 +169,6 @@ async function resolveExactWalletSessionState(
   switch (payload.wallet.kind) {
     case 'current': {
       walletId = await resolvePersistedCurrentWalletId(pm);
-      if (walletId) {
-        pm.preferences.setCurrentWallet(toWalletId(walletId));
-      }
       break;
     }
     case 'exact':

@@ -242,6 +242,10 @@ A delayed preference read cannot overwrite a later wallet selection, a newer rea
 a committed write, or disposed state. Selecting another wallet resets the display
 to default preferences until that wallet's stored preferences arrive.
 
+Session bootstrap can restore a saved wallet when no wallet is selected. A wallet
+selection or removal during the saved-wallet read takes precedence over that
+read. Reading the session of an already selected wallet does not select it again.
+
 ## Hosted Auth Menu Entry Point
 
 The application resolves wallet configuration before sending it to the wallet

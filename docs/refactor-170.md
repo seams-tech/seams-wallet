@@ -644,6 +644,13 @@ replace newer events. Host preference reads now fence stale hydration, and write
 acknowledge durable storage. Session revisions and execution-replacement fencing
 remain open.
 
+The host no longer reapplies an existing wallet selection during a session read.
+Saved-wallet restoration now yields to selection changes made during its lookup,
+including removal back to no selection. Three browser cases cover this ordering,
+with production Email OTP and passkey refresh/sign/export acceptance also passing.
+This closes the restoration side effect only; session-result revisions remain open.
+See `evidence/refactor-170-session-selection-20261005.json`.
+
 The fresh production root-client static closure measures 66,386 bytes gzip
 (64.8 KiB), compared with 739,640 bytes at baseline: a 91.0% reduction. Including
 its lazy router, it measures 93,551 bytes gzip (91.4 KiB). The provider measures

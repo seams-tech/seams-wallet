@@ -149,9 +149,12 @@ export class WalletHostRuntime {
   readonly keys: KeyExportCapability;
   readonly preferences: Omit<
     PreferencesCapability,
-    'setConfirmationConfig' | 'setConfirmBehavior'
+    'setConfirmationConfig' | 'setConfirmBehavior' | 'onCurrentWalletChange'
   > &
-    Pick<UserPreferencesManager, 'setConfirmationConfig' | 'setConfirmBehavior'>;
+    Pick<
+      UserPreferencesManager,
+      'setConfirmationConfig' | 'setConfirmBehavior' | 'onCurrentWalletChange'
+    >;
   readonly auth: AuthCapability;
   readonly registration: RegistrationCapability;
   readonly near: NearSignerCapability;

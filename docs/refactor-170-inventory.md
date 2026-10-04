@@ -328,6 +328,20 @@ wallet switch during a read/write, reconnect, and disposal in browser E2E.
 A complete source-to-transition audit and those behavioral checks are required
 before declaring the ordering gate verified.
 
+The selection-restoration race is fixed in `host/handlers/auth.ts`. The saved-wallet
+lookup observes selection changes until it finishes. A newer selection, including
+removal back to no selection, wins over the lookup. Existing selections are no
+longer reapplied after an asynchronous helper returns. The host requires the
+selection subscription already supplied by its preference manager.
+
+`tests/wallet-iframe/session.selection.test.ts` exercises the real auth handler,
+preference manager, IndexedDB, client router, and cross-origin transport. It holds
+the saved-wallet inventory response while selection changes. Its three cases
+cover ordinary restoration, a newer wallet, and removal of that newer wallet.
+The inventory response and unrelated host operations use the browser harness.
+These cases prove selection preservation; session-result revisions and
+execution-configuration fencing remain open.
+
 ## WebAuthn ownership after R152
 
 The former parent bridge is absent from the current source. Commit `f312be27`
