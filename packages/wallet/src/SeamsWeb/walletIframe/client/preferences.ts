@@ -121,7 +121,7 @@ class ApplicationPreferences {
   private async send(write: PreferenceWrite): Promise<void> {
     if (write.state.kind !== 'pending') return;
     try {
-      const router = await this.walletIframe.requireRouter(write.walletId ?? undefined);
+      const router = await this.walletIframe.requireRouter();
       if (this.disposed) throw disposedPreferenceError();
       await router.setConfirmationConfig(write.patch, write.walletId);
       if (this.disposed) throw disposedPreferenceError();

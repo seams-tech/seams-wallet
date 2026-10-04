@@ -126,9 +126,11 @@ export function useWalletIframeLifecycle(args: {
   const { seams, setWalletIframeConnected, setLoginState } = args;
 
   useEffect(() => {
-    let offReady: (() => void) | undefined;
     let offLogin: (() => void) | undefined;
     const lifecycle: WalletIframeReactLifecycle = { cancelled: false, revision: 0 };
+    const offReady = seams.connection.onChange((state) => {
+      setWalletIframeConnected(state.kind === 'ready');
+    });
 
     (async () => {
       try {
@@ -138,11 +140,9 @@ export function useWalletIframeLifecycle(args: {
           return;
         }
 
-        await seams.initWalletIframe();
+        await seams.connection.connect();
         if (lifecycle.cancelled) return;
 
-        setWalletIframeConnected(seams.isWalletIframeReady());
-        offReady = seams.onWalletIframeReady(() => setWalletIframeConnected(true));
 
         offLogin = seams.onWalletIframeLoginStatusChanged((status) => {
           applyWalletIframeLoginStatus({
@@ -166,7 +166,7 @@ export function useWalletIframeLifecycle(args: {
     return () => {
       lifecycle.cancelled = true;
       lifecycle.revision += 1;
-      offReady && offReady();
+      offReady();
       offLogin && offLogin();
     };
   }, [setLoginState, setWalletIframeConnected, seams]);

@@ -1,5 +1,4 @@
 import type { WalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { buildEvmWalletRegistrationArgs } from '@/SeamsWeb/operations/evm';
 import { toSerializableTempoError } from '@/SeamsWeb/operations/tempo';
 import type { EvmFamilyCommands } from '@/SeamsWeb/publicApi/evmFamilyCommands';
@@ -39,10 +38,9 @@ class ApplicationEvmFamilyCommands {
   ): ReturnType<EvmFamilyCommands['signEvmFamily']> {
     const { chainTarget, walletSession } = args;
     const walletIframe = this.walletIframe;
-    const walletId = toWalletId(walletSession.walletId);
     try {
       await this.beforeSigning(args.walletSession.walletId);
-      const router = await walletIframe.requireRouter(walletId);
+      const router = await walletIframe.requireRouter();
       const result = await router.signTempo(
         {
           walletSession,
@@ -64,9 +62,8 @@ class ApplicationEvmFamilyCommands {
     args: Parameters<EvmFamilyCommands['reportBroadcastAccepted']>[0],
   ): ReturnType<EvmFamilyCommands['reportBroadcastAccepted']> {
     const walletIframe = this.walletIframe;
-    const walletId = toWalletId(args.walletSession.walletId);
     try {
-      const router = await walletIframe.requireRouter(walletId);
+      const router = await walletIframe.requireRouter();
       await router.reportTempoBroadcastAccepted({
         walletSession: args.walletSession,
         signedResult: args.signedResult,
@@ -83,9 +80,8 @@ class ApplicationEvmFamilyCommands {
     args: Parameters<EvmFamilyCommands['reportBroadcastRejected']>[0],
   ): ReturnType<EvmFamilyCommands['reportBroadcastRejected']> {
     const walletIframe = this.walletIframe;
-    const walletId = toWalletId(args.walletSession.walletId);
     try {
-      const router = await walletIframe.requireRouter(walletId);
+      const router = await walletIframe.requireRouter();
       await router.reportTempoBroadcastRejected({
         walletSession: args.walletSession,
         signedResult: args.signedResult,
@@ -102,9 +98,8 @@ class ApplicationEvmFamilyCommands {
     args: Parameters<EvmFamilyCommands['reportFinalized']>[0],
   ): ReturnType<EvmFamilyCommands['reportFinalized']> {
     const walletIframe = this.walletIframe;
-    const walletId = toWalletId(args.walletSession.walletId);
     try {
-      const router = await walletIframe.requireRouter(walletId);
+      const router = await walletIframe.requireRouter();
       await router.reportTempoFinalized({
         walletSession: args.walletSession,
         signedResult: args.signedResult,
@@ -122,9 +117,8 @@ class ApplicationEvmFamilyCommands {
     args: Parameters<EvmFamilyCommands['reportDroppedOrReplaced']>[0],
   ): ReturnType<EvmFamilyCommands['reportDroppedOrReplaced']> {
     const walletIframe = this.walletIframe;
-    const walletId = toWalletId(args.walletSession.walletId);
     try {
-      const router = await walletIframe.requireRouter(walletId);
+      const router = await walletIframe.requireRouter();
       await router.reportTempoDroppedOrReplaced({
         walletSession: args.walletSession,
         signedResult: args.signedResult,
@@ -142,9 +136,8 @@ class ApplicationEvmFamilyCommands {
     args: Parameters<EvmFamilyCommands['reconcileNonceLane']>[0],
   ): ReturnType<EvmFamilyCommands['reconcileNonceLane']> {
     const walletIframe = this.walletIframe;
-    const walletId = toWalletId(args.walletSession.walletId);
     try {
-      const router = await walletIframe.requireRouter(walletId);
+      const router = await walletIframe.requireRouter();
       return await router.reconcileTempoNonceLane({
         walletSession: args.walletSession,
         signedResult: args.signedResult,
@@ -161,7 +154,7 @@ class ApplicationEvmFamilyCommands {
   ): ReturnType<EvmFamilyCommands['bootstrapEcdsaSession']> {
     const walletIframe = this.walletIframe;
     const bootstrapArgs = args;
-    const router = await walletIframe.requireRouter(toWalletId(args.walletSession.walletId));
+    const router = await walletIframe.requireRouter();
     return await router.bootstrapEcdsaSession(bootstrapArgs);
   }
   onBroadcastStarted(args: Parameters<EvmFamilyCommands['onBroadcastStarted']>[0]): void {
@@ -171,7 +164,7 @@ class ApplicationEvmFamilyCommands {
     args: Parameters<EvmFamilyCommands['onBroadcastStarted']>[0],
   ): Promise<void> {
     try {
-      const router = await this.walletIframe.requireRouter(toWalletId(args.walletSession.walletId));
+      const router = await this.walletIframe.requireRouter();
       router.notifyTransactionBroadcastStarted(args.signedResult);
     } catch {}
   }

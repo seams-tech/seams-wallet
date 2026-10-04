@@ -1620,7 +1620,7 @@ export class WalletIframeRouter {
     reqCounter: 0,
   };
   private readonly listeners = {
-    ready: new Set<() => void>(),
+    connectionClosed: new Set<() => void>(),
     loginStatus: new Set<(status: { isLoggedIn: boolean; walletId: string | null }) => void>(),
     preferencesChanged: new Set<(payload: PreferencesChangedPayload) => void>(),
     hostedAuthMenuExternalAuthRequest: new Set<
@@ -2760,6 +2760,11 @@ export class WalletIframeRouter {
       this.state.port = null;
       this.state.ready = false;
       this.state.configured = false;
+      for (const listener of Array.from(this.listeners.connectionClosed)) {
+        try {
+          listener();
+        } catch {}
+      }
     }
   }
 
@@ -2785,21 +2790,9 @@ export class WalletIframeRouter {
     this.finishRequestSurface(surface.identity.requestId, true);
   }
 
-  /**
-   * Subscribe to service-ready event. Returns an unsubscribe function.
-   * If already ready, the listener is invoked on next microtask.
-   */
-  onReady(listener: () => void): () => void {
-    if (this.state.ready) {
-      Promise.resolve().then(() => {
-        listener();
-      });
-      return () => {};
-    }
-    this.listeners.ready.add(listener);
-    return () => {
-      this.listeners.ready.delete(listener);
-    };
+  onConnectionClosed(listener: () => void): () => void {
+    this.listeners.connectionClosed.add(listener);
+    return this.listeners.connectionClosed.delete.bind(this.listeners.connectionClosed, listener);
   }
 
   onHostedAuthMenuExternalAuthRequest(
@@ -2834,14 +2827,6 @@ export class WalletIframeRouter {
     }).then(() => undefined);
   }
 
-  private emitReady(): void {
-    if (!this.listeners.ready.size) return;
-    for (const cb of Array.from(this.listeners.ready)) {
-      cb();
-    }
-    // Keep listeners registered; callers can unsubscribe if desired.
-  }
-
   /**
    * Initialize the transport and configure the wallet host.
    * Safe to call multiple times; concurrent calls deduplicate via initInFlight.
@@ -2861,7 +2846,6 @@ export class WalletIframeRouter {
       // Resolve the host's confirmation mode while initialization is still in flight. Foreground
       // requests can then begin their surface without a nested config RPC on first use.
       await this.getConfirmationConfig();
-      this.emitReady();
     })();
 
     try {
@@ -2934,7 +2918,7 @@ export class WalletIframeRouter {
   }
 
   isReady(): boolean {
-    return this.state.ready;
+    return this.state.ready && this.state.configured && this.exactSessionState !== null && this.state.initInFlight === null;
   }
 
   async initializeHostedWalletSeamsSession(source: HostedWalletSeamsSessionSource): Promise<void> {
@@ -3030,6 +3014,7 @@ export class WalletIframeRouter {
     this.updateSurfaceViewportListeners();
     this.overlayState.controller.dispose();
     this.transport.dispose();
+    for (const listeners of Object.values(this.listeners)) listeners.clear();
   }
 
   // ===== Public RPC helpers =====

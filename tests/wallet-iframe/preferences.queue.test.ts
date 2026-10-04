@@ -73,7 +73,7 @@ async function initialize(): Promise<void> {
       sdkBasePath: '/sdk',
     },
   });
-  await seams.initWalletIframe();
+  await seams.connection.connect();
   (window as any).preferenceProbe = { seams, refs, results: {} };
 }
 function startWrites(): void {
@@ -145,7 +145,7 @@ function startDisposal(): void {
     );
 }
 function disposeBrowser(): void {
-  (window as any).preferenceProbe.seams.dispose();
+  (window as any).preferenceProbe.seams.connection.dispose();
 }
 async function flushBrowser(): Promise<void> {
   await (window as any).preferenceProbe.seams.preferences.flush();

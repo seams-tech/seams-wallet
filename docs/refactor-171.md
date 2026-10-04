@@ -1,7 +1,7 @@
 # Simplify the public Wallet SDK API
 
 Status: implementation in progress, 2026-10-05.
-Configuration, event subscriptions, and public hosted auth-menu operations migrated
+Connection, configuration, event subscriptions, and public hosted auth-menu operations migrated
 locally; publication and deployment remain pending.
 
 ## Objective
@@ -397,6 +397,11 @@ a declaration-level pass before declaring the migration complete.
   options. No broad lifecycle spreads, domain casts, or repeated raw validation.
 
 ## Implementation sequence
+
+- [x] Introduce `connection.connect`, `getState`, `onChange`, and `dispose` at the
+  coordinator lifecycle boundary. Remove old readiness/init/disposal calls and
+  React readiness polling. Connection failure, retry, reconciliation, and disposal
+  have scoped browser acceptance. Full provider replacement acceptance remains open.
 
 - [x] Move general subscriptions to `events.subscribe` and public hosted UI calls
   to `authMenu.open`, `cancel`, `onExternalAuthRequest`, and `resolveExternalAuth`.

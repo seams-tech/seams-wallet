@@ -43,7 +43,7 @@ class ApplicationDeviceCommands {
     input: Parameters<LinkedDeviceManagementPortV1['listLinkedDevices']>[0],
   ): ReturnType<LinkedDeviceManagementPortV1['listLinkedDevices']> {
     const { walletId, limit, cursor } = input;
-    const router = await this.walletIframe.requireRouter(walletId);
+    const router = await this.walletIframe.requireRouter();
     return await router.listLinkedDevices({ walletId: String(walletId), limit, cursor });
   }
 
@@ -51,7 +51,7 @@ class ApplicationDeviceCommands {
     input: Parameters<LinkedDeviceManagementPortV1['revokeLinkedDevice']>[0],
   ): ReturnType<LinkedDeviceManagementPortV1['revokeLinkedDevice']> {
     const { walletId, walletAuthMethodId, requestedAtMs, sourceProof } = input;
-    const router = await this.walletIframe.requireRouter(walletId);
+    const router = await this.walletIframe.requireRouter();
     return await router.revokeLinkedDevice({
       walletId: String(walletId),
       walletAuthMethodId: String(walletAuthMethodId),

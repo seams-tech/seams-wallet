@@ -81,7 +81,7 @@ class ApplicationEmailOtpCommands {
       status: 'running',
     });
     try {
-      const router = await this.walletIframe.requireRouter(args.walletId);
+      const router = await this.walletIframe.requireRouter();
       const result = await router.requestEmailOtpChallenge(args);
       emitEmailOtpUnlockEvent(args.onEvent, {
         flowId: emailOtpUnlockFlowId(args.walletId, result.challengeId),
@@ -122,7 +122,7 @@ class ApplicationEmailOtpCommands {
       status: 'running',
     });
     try {
-      const router = await this.walletIframe.requireRouter(walletId);
+      const router = await this.walletIframe.requireRouter();
       const result = await router.requestEmailOtpSigningSessionChallenge({
         walletSession: args.walletSession,
         chainTarget: args.chainTarget,
@@ -174,7 +174,7 @@ class ApplicationEmailOtpCommands {
     });
     try {
       const result = await (
-        await this.walletIframe.requireRouter(walletId)
+        await this.walletIframe.requireRouter()
       ).refreshEmailOtpSigningSession({
         walletSession: args.walletSession,
         chainTarget,
@@ -248,7 +248,7 @@ class ApplicationEmailOtpCommands {
       ...(args.challengeId ? { requestId: args.challengeId } : {}),
     });
     try {
-      const router = await this.walletIframe.requireRouter(walletId);
+      const router = await this.walletIframe.requireRouter();
       const iframeArgs = { ...args, chainTarget };
       delete iframeArgs.onEvent;
       const iframeStartedAtMs = nowMs();
@@ -327,7 +327,7 @@ class ApplicationEmailOtpCommands {
     otpCode: string;
     relayUrl: string;
   }): Promise<void> {
-    const router = await this.walletIframe.requireRouter(String(args.walletId || ''));
+    const router = await this.walletIframe.requireRouter();
     await router.unlockAddedEmailOtpWallet({
       walletId: args.walletId,
       walletAuthMethodId: args.walletAuthMethodId,
@@ -362,7 +362,7 @@ class ApplicationEmailOtpCommands {
       status: 'running',
     });
     try {
-      const router = await this.walletIframe.requireRouter(args.walletId);
+      const router = await this.walletIframe.requireRouter();
       const result = await router.requestEmailOtpEnrollmentChallenge(args);
       emitEmailOtpRegistrationEvent(args.onEvent, {
         flowId: emailOtpRegistrationFlowId(args.walletId, result.challengeId),
@@ -410,7 +410,7 @@ class ApplicationEmailOtpCommands {
           '[SeamsWeb] Wallet iframe Email OTP enrollment owns client secret generation; clientSecret32 is not accepted from the app origin.',
         );
       }
-      const router = await this.walletIframe.requireRouter(args.walletId);
+      const router = await this.walletIframe.requireRouter();
       const iframeArgs = { ...args };
       delete iframeArgs.clientSecret32;
       delete iframeArgs.onEvent;

@@ -17,6 +17,7 @@ import { SeamsWeb, type SeamsConfigsInput } from '@seams/wallet';
 
 | Capability     | Responsibility                                                               |
 | -------------- | ---------------------------------------------------------------------------- |
+| `connection`   | Connect, observe readiness, and dispose the client.                          |
 | `events`       | Subscribe to SDK lifecycle events.                                          |
 | `authMenu`     | Open, cancel, and supply external authentication for hosted auth UI.         |
 | `config`       | Update appearance and select configured chain targets.                       |
@@ -42,6 +43,25 @@ seams.config.setAppearance({ theme: { id: 'brand', mode: 'light' } });
 const target = seams.config.chainTarget('tempo-testnet');
 const targets = seams.config.configuredChainTargets();
 ```
+
+Connection state is independent of authentication. Subscribe before connecting:
+
+```ts
+const stop = seams.connection.onChange((state) => {
+  if (state.kind === 'failed') console.error(state.error);
+});
+await seams.connection.connect();
+const ready = seams.connection.getState().kind === 'ready';
+// When the client owner releases this instance:
+stop();
+seams.connection.dispose();
+```
+
+`onChange` immediately delivers the current snapshot. States are `idle`,
+`connecting`, `ready`, `failed`, and `disposed`. Readiness includes initial session
+and preference reconciliation. Concurrent calls share one attempt. Call `connect`
+to retry a failed attempt. Disposal is terminal and releases client resources;
+it does not lock the wallet or delete durable presignatures.
 
 ## Naming the subject and the chain
 

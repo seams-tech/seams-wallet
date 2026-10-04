@@ -112,7 +112,7 @@ The callback chain follows this flow:
 - Handles hook callbacks (`afterCall`, `onError`); `onEvent` travels with the request options
 - For example, in `registerWalletDomain()` (`SeamsWeb.ts`):
   ```typescript
-  const router = await this.walletIframe.requireRouter(walletRouterId);
+  const router = await this.walletIframe.requireRouter();
   const res = await router.registerWallet(args);
   await args.options?.afterCall?.(true, res);
   ```

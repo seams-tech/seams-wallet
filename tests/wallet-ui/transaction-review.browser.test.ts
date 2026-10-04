@@ -439,7 +439,7 @@ for (const phase of ['reviewing', 'wallet_approval'] as const) {
       const state = window as any;
       const router = await getTransactionReviewBridge(state.reviewSeams.near)!
         .getWalletIframe()
-        .requireTransportRouter();
+        .requireRouter();
       router.dispose();
       state.reviewControls.continueToWallet();
       state.reviewControls.cancel();
@@ -1076,7 +1076,7 @@ test('same-wallet session replacement cancels active and queued reviews and rele
     const state = window as any;
     state.reviewRouter = await getTransactionReviewBridge(state.reviewSeams.near)!
       .getWalletIframe()
-      .requireTransportRouter();
+      .requireRouter();
     await state.reviewRouter.getExactSessionState();
   });
   await page.getByRole('button', { name: 'Buy', exact: true }).click();
@@ -1259,7 +1259,7 @@ test('cancelAll preserves a signing review until its real result settles', async
       await import('/_test-sdk/esm/SeamsWeb/publicApi/transactionReview.js');
     const router = await getTransactionReviewBridge((window as any).reviewSeams.near)!
       .getWalletIframe()
-      .requireTransportRouter();
+      .requireRouter();
     await router.cancelAll();
   });
   expect(await page.evaluate(() => (window as any).reviewResults)).toEqual([]);
@@ -1280,7 +1280,7 @@ test('cancelAll removes queued reviews before releasing the active review', asyn
       (window as any).reviewSeams.near,
     )!
       .getWalletIframe()
-      .requireTransportRouter();
+      .requireRouter();
   });
   await page.getByRole('button', { name: 'Buy', exact: true }).dispatchEvent('click');
   await expect

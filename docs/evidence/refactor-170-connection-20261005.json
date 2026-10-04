@@ -1,0 +1,157 @@
+{
+  "date": "2026-10-05",
+  "baseCommit": "2fc4ca0a1ed1ddf36219225c80cbd4eb262541a5",
+  "scope": "Single application connection lifecycle, namespace migration, reconciled readiness, retry/reconnect, terminal disposal, and retained login observers.",
+  "sourceSha256": {
+    "apps/docs/src/reference/core.md": "f7649eb7664e68ce881604d7c76f45d346e6cde324092bddb9f5994cfd8c18f2",
+    "packages/wallet/src/SeamsWeb/SeamsWeb.ts": "2053c1faf05c4d2efa817ce23598e51a4bde3df959aa31142214864fc3da213b",
+    "packages/wallet/src/SeamsWeb/index.ts": "00ae84999c2ec5a50d81815e32cbcec3e9c617ee8bc36b4e6019e50ff3c3e0a9",
+    "packages/wallet/src/SeamsWeb/publicApi/types.ts": "b3f8ee5208b2e52276d37a284bdf9896256bc364a96cbb2204eb281bfbed0947",
+    "packages/wallet/src/SeamsWeb/walletIframe/README.md": "fdb1c888bbcb8c331a046117ed8dc5a5efed50526845a02a4cc6c902700fff44",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/deviceCommands.ts": "eede66d9041c5d604b0186dc7b0648a94e9874987fe1d928da95097a82783cd8",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/emailOtpCommands.ts": "855bb5abefd6b6d862d95129907821158ed33d9473d8cd6d03a0abe86e0a5b19",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/evmFamilyCommands.ts": "d636d49f5214e16aab408b6b57662dcfe6e841120d376f2feda974e4653ad3e4",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/nearCommands.ts": "d666135c607ec170c5372a75b91338f9982a38c992cc03f3f10feeef4cb33f38",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/preferences.ts": "04ece56807dec43016bb58498c7a838eb1bdc01afe5770acaa7e476411f497e8",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/registrationCommands.ts": "2e3ee99cc9f5cc13baa2ef182faed08ce08da1ee2e8cac6f15d43dd24d093cc1",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/router.ts": "e6849e7753298c9d00dda279153992beb7bcebc6c8c7ab92fb149ee7af75f8e2",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/sessionCommands.ts": "83f0718f19ecb3a3b71c38bda09642dbcd17450a9fd8d499f9633c9322bd572e",
+    "packages/wallet/src/SeamsWeb/walletIframe/coordinator.ts": "3210163d68027aa8246a95dac05d96d789202d94479eaf9fbe50909a555379e1",
+    "packages/wallet/src/index.ts": "00699f429e9c8b9766a43da4169a86a6b36e51ffd0ff99b97198936acd4af02a",
+    "packages/wallet/src/react/context/seamsManagerSingleton.ts": "744188d89ce38b7fa0ec10e59254d3195709dca41c97e6f53ea0b7b9ac0b7227",
+    "packages/wallet/src/react/context/useWalletIframeLifecycle.ts": "c709ff13199e35d2d9e5a5065b9a948e0ad24b7c250dc5c16ed602c9015e1b02",
+    "packages/wallet/src/react/hooks/useAccountInput.ts": "0f0941326b04b4a3637d2bf159e912ecab80348a932e6e65d7e817c5fb93e959",
+    "packages/wallet/src/react/transactionReview/controller.ts": "41c89ab62897c9e12fe5a9275819985383a96a8cb8a1c16f21336d2caa82c9c1",
+    "packages/wallet/src/react/utils/walletIframe.ts": "6730baf72cd4b9fd62b9148d1a90cda0fd184b23d8f1547198d1c7cef4a851ee",
+    "tests/typecheck/wallet-command-inputs.typecheck.ts": "83e8801483bb9914e6563a72bde49256457beb923f6322fd7caa2a332ef2d195",
+    "tests/wallet-iframe/account-query.test.ts": "a7bf83b01b4ab3da5ceb1145510b036fce40b25c3a04c0cb978a737adcfa3105",
+    "tests/wallet-iframe/client.connection.test.ts": "c4e59d45920d7145da16e1b14ade00005c7e819e0bfe79d1c976ed3a3770bcf9",
+    "tests/wallet-iframe/preferences.queue.test.ts": "9b472ffeab0a134fa07ea13ea4d84d982e777b91379e96a26cc581572352e8b3",
+    "tests/wallet-iframe/preferences.sync.test.ts": "55c874b99adb70e515ccc6a4499926819a94756d9c54c7f5d75bb804125f2e7b",
+    "tests/wallet-ui/transaction-review.browser.test.ts": "2883c5b7524c5a79ee11bff9e1a5af0a675f34113e4cddbe17bc180cad1e2823"
+  },
+  "checksPassed": [
+    "pnpm -C packages/wallet build:prod",
+    "pnpm -C packages/wallet type-check",
+    "pnpm -C tests type-check:wallet-state",
+    "pnpm -C tests exec tsc --noEmit -p tsconfig.wallet-browser.json",
+    "pnpm -C tests type-check:intended",
+    "pnpm -C packages/wallet check:declarations-external",
+    "pnpm -C packages/wallet check:runtime-entry-bundles",
+    "pnpm -C apps/docs exec tsc --noEmit",
+    "pnpm report:bloat --check"
+  ],
+  "browser": {
+    "command": "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4289 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/client.connection.test.ts wallet-iframe/handshake.test.ts wallet-iframe/preferences.sync.test.ts wallet-iframe/preferences.queue.test.ts wallet-iframe/account-query.test.ts wallet-iframe/router.connectionClosed.test.ts wallet-iframe/auth-menu.host.integration.test.ts wallet-ui/transaction-review.browser.test.ts wallet-iframe/session.events.test.ts wallet-iframe/router.sessionOrdering.test.ts --project=chromium --output=../.artifacts/r170-connection-final",
+    "receipt": [
+      "  59 passed (53.5s)"
+    ],
+    "newScenarioArtifacts": [
+      {
+        "path": ".artifacts/r170-connection-final/wallet-iframe-client.conne-87d66-yed-router-import-completes-chromium/connection-disposed-import.json",
+        "result": {
+          "state": {
+            "kind": "disposed"
+          },
+          "states": [
+            {
+              "kind": "idle"
+            },
+            {
+              "kind": "connecting",
+              "generation": 1
+            },
+            {
+              "kind": "disposed"
+            }
+          ],
+          "shared": true,
+          "logins": [],
+          "iframes": 0
+        }
+      },
+      {
+        "path": ".artifacts/r170-connection-final/wallet-iframe-client.conne-53925-ts-and-disposes-permanently-chromium/connection-lifecycle.json",
+        "result": {
+          "state": {
+            "kind": "disposed"
+          },
+          "states": [
+            {
+              "kind": "idle"
+            },
+            {
+              "kind": "connecting",
+              "generation": 1
+            },
+            {
+              "kind": "failed",
+              "generation": 1
+            },
+            {
+              "kind": "connecting",
+              "generation": 2
+            },
+            {
+              "kind": "ready",
+              "generation": 2
+            },
+            {
+              "kind": "failed",
+              "generation": 2
+            },
+            {
+              "kind": "connecting",
+              "generation": 3
+            },
+            {
+              "kind": "ready",
+              "generation": 3
+            },
+            {
+              "kind": "disposed"
+            }
+          ],
+          "shared": true,
+          "logins": [
+            {
+              "isLoggedIn": false,
+              "walletId": null
+            },
+            {
+              "isLoggedIn": false,
+              "walletId": null
+            }
+          ],
+          "iframes": 0
+        }
+      }
+    ],
+    "initialFailure": "environment_or_infrastructure_failure: delayed-import test used route.continue and bypassed the SDK asset handler. Changed to route.fallback; final scenario passes."
+  },
+  "production": {
+    "command": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/email-otp.unlock.contract.test.ts e2e/intended-behaviours/passkey.unlock.contract.test.ts --grep 'Email OTP registration and unlock lifecycle|page refresh hydrates warm signing|locking a wallet updates an idle tab without a session query'",
+    "receipt": [
+      "[wallet-intended] running 3 case(s) with fresh Wallet state",
+      "[wallet-intended] 1/3 e2e/intended-behaviours/email-otp.unlock.contract.test.ts:9 Email OTP registration and unlock lifecycle",
+      "  1 passed (48.7s)",
+      "[wallet-intended] 2/3 e2e/intended-behaviours/passkey.unlock.contract.test.ts:15 locking a wallet updates an idle tab without a session query",
+      "  1 passed (28.2s)",
+      "[wallet-intended] 3/3 e2e/intended-behaviours/passkey.unlock.contract.test.ts:63 page refresh hydrates warm signing, one-use step-up, and key export",
+      "  1 passed (33.9s)"
+    ]
+  },
+  "productionLines": {
+    "rule": "git diff HEAD --numstat relative to baseCommit; packages/wallet/src .ts/.tsx only, excluding *.typecheck.ts; tests/docs/artifacts separate.",
+    "added": 290,
+    "deleted": 280,
+    "net": 10
+  },
+  "remaining": [
+    "React provider replacement/remount ownership acceptance",
+    "Other-browser/full connection and protocol acceptance",
+    "Private Console and site callers with exact new package releases",
+    "Remaining R171 naming and demo callback internalization",
+    "Worker loading, durable presignature longevity, final cleanup, and other R170 gates"
+  ]
+}

@@ -22,7 +22,7 @@ import {
   resolvePasskeyRegistrationAccountProvisioning,
 } from '@/SeamsWeb/operations/registration/registrationSignerSet';
 import { createApplicationPublicApi } from '@/SeamsWeb/publicApi';
-import type { AuthMenuCapability, ConfigCapability, EventsCapability } from '@/SeamsWeb/publicApi/types';
+import type { AuthMenuCapability, ConfigCapability, ConnectionCapability, EventsCapability } from '@/SeamsWeb/publicApi/types';
 import { resolveConfiguredChainTarget } from '@/SeamsWeb/publicApi/chainTargets';
 import type {
   AuthCapability,
@@ -63,7 +63,6 @@ import {
 } from '@/SeamsWeb/walletIframe/shared/facadeBoundary';
 import type {
   HostedAuthMenuDemoEmailOtpDelivery,
-  PreferencesChangedPayload,
 } from '@/SeamsWeb/walletIframe/shared/messages';
 import { createServerAllocatedWalletId, walletIdFromString } from '@shared/utils/registrationIds';
 /**
@@ -78,6 +77,7 @@ export class SeamsWeb {
   private appearance: AppearanceConfig;
   readonly config: ConfigCapability;
   readonly events: EventsCapability;
+  readonly connection: ConnectionCapability;
   readonly authMenu: AuthMenuCapability;
   private readonly walletIframe: WalletIframeCoordinator;
   readonly recovery: RecoveryCapability;
@@ -111,6 +111,12 @@ export class SeamsWeb {
       userPreferences: userPreferences,
       getAppearance: this.getAppearance.bind(this),
     });
+    this.connection = {
+      connect: this.walletIframe.connect.bind(this.walletIframe),
+      getState: this.walletIframe.getConnectionState.bind(this.walletIframe),
+      onChange: this.walletIframe.onConnectionChange.bind(this.walletIframe),
+      dispose: this.disposeClient.bind(this),
+    };
     this.events = {
       subscribe: this.walletIframe.onSdkLifecycleEvent.bind(this.walletIframe),
     };
@@ -186,13 +192,6 @@ export class SeamsWeb {
     this.tempo = publicApi.tempo;
     this.evm = publicApi.evm;
   }
-  /**
-   * Connect to the configured wallet service iframe.
-   * Idempotent and safe to call multiple times.
-   */
-  async initWalletIframe(walletId?: string): Promise<WalletIframeExactSessionState> {
-    return await this.walletIframe.init(walletId);
-  }
   async getWalletIframeExactSessionState(): Promise<WalletIframeExactSessionState> {
     return await this.walletIframe.getExactSessionState();
   }
@@ -208,29 +207,18 @@ export class SeamsWeb {
       parseWalletIframeExactSessionIdentity(identity);
     return await this.walletIframe.lockExactSession(parsedIdentity);
   }
-  /** True when the wallet iframe client is connected and ready. */
-  isWalletIframeReady(): boolean {
-    return this.walletIframe.isReady();
-  }
-  /** Subscribe to wallet iframe ready state transitions. */
-  onWalletIframeReady(listener: () => void): () => void {
-    return this.walletIframe.onReady(listener);
-  }
   /** Subscribe to wallet-host login status updates. */
   onWalletIframeLoginStatusChanged(
     listener: (status: { isLoggedIn: boolean; walletId: string | null }) => void,
   ): () => void {
     return this.walletIframe.onLoginStatusChanged(listener);
   }
-  /** Subscribe to wallet-host preference updates. */
-  onWalletIframePreferencesChanged(
-    listener: (payload: PreferencesChangedPayload) => void,
-  ): () => void {
-    return this.walletIframe.onPreferencesChanged(listener);
-  }
-  dispose(): void {
-    this.disposePreferences();
-    this.walletIframe.dispose();
+  private disposeClient(): void {
+    try {
+      this.walletIframe.dispose();
+    } finally {
+      this.disposePreferences();
+    }
   }
   get theme(): ThemeMode {
     return this.appearance.theme.mode;
@@ -274,7 +262,7 @@ export class SeamsWeb {
     const prewarmScope = emailOtpUnlockPrewarmScopeFromBinding(nearAccountBinding);
     const tasks: Promise<unknown>[] = [];
     if (iframe) {
-      tasks.push(this.initWalletIframe(nearAccountBinding?.wallet.walletId));
+      tasks.push(this.connection.connect());
     }
     if (tasks.length === 0) return;
     let status: EmailOtpUnlockPrewarmStatus = 'succeeded';
@@ -301,7 +289,7 @@ export class SeamsWeb {
     args: Parameters<RecoveryCapability['syncAccount']>[0],
   ): ReturnType<RecoveryCapability['syncAccount']> {
     const walletId = args.walletId ? walletIdFromString(args.walletId) : null;
-    const router = await this.walletIframe.requireRouter(args.walletId);
+    const router = await this.walletIframe.requireRouter();
     return await router.syncAccount({
       ...(walletId ? { walletId: String(walletId) } : {}),
       onEvent: args.options?.onEvent,
@@ -356,7 +344,7 @@ export class SeamsWeb {
   }
   private async getWalletRecoveryCodeStatusDomain(args: { walletId: string }) {
     {
-      const router = await this.walletIframe.requireRouter(args.walletId);
+      const router = await this.walletIframe.requireRouter();
       return await router.getWalletRecoveryCodeStatus({
         walletId: args.walletId,
       });
@@ -364,7 +352,7 @@ export class SeamsWeb {
   }
   private async acknowledgeWalletRecoveryCodeBackupDomain(args: { walletId: string }) {
     {
-      const router = await this.walletIframe.requireTransportRouter();
+      const router = await this.walletIframe.requireRouter();
       return await router.acknowledgeWalletRecoveryCodeBackup({
         walletId: args.walletId,
       });
@@ -380,7 +368,7 @@ export class SeamsWeb {
     args: Parameters<RecoveryCapability['rotateWalletRecoveryCodes']>[0],
   ) {
     {
-      const router = await this.walletIframe.requireRouter(args.walletId);
+      const router = await this.walletIframe.requireRouter();
       return await router.rotateWalletRecoveryCodes(args);
     }
   }
@@ -414,7 +402,7 @@ export class SeamsWeb {
       throw new Error('[SeamsWeb] key export lane resolution requires wallet session context');
     }
     {
-      const router = await this.walletIframe.requireRouter(routerAccountId);
+      const router = await this.walletIframe.requireRouter();
       const result = await router.resolveExactKeyExportLane(resolvedInput);
       return normalizeResolveExactKeyExportLaneResult(result);
     }
@@ -428,7 +416,7 @@ export class SeamsWeb {
       throw new Error('[SeamsWeb] key export requires wallet session user context');
     }
     {
-      const router = await this.walletIframe.requireRouter(routerAccountId);
+      const router = await this.walletIframe.requireRouter();
       await router.exportKeypairWithUI(resolvedInput);
       return;
     }

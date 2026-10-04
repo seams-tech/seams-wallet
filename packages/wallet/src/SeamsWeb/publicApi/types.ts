@@ -139,6 +139,21 @@ import type {
 } from '@shared/utils/registrationAuthMethodInput';
 import type { ExclusiveUnion } from '@shared/utils/variant';
 
+export type ClientConnectionState = ExclusiveUnion<
+  | { readonly kind: 'idle' }
+  | { readonly kind: 'connecting'; readonly generation: number }
+  | { readonly kind: 'ready'; readonly generation: number }
+  | { readonly kind: 'failed'; readonly generation: number; readonly error: Error }
+  | { readonly kind: 'disposed' }
+>;
+
+export interface ConnectionCapability {
+  connect(): Promise<void>;
+  getState(): ClientConnectionState;
+  onChange(listener: (state: ClientConnectionState) => void): () => void;
+  dispose(): void;
+}
+
 export interface EventsCapability {
   subscribe(listener: SdkLifecycleEventListener): () => void;
 }

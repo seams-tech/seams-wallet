@@ -42,11 +42,7 @@ class ApplicationNearCommands {
     const context = { configs: this.configs };
     const registerWalletArgs = buildNearWalletRegistrationArgs(context, args);
     try {
-      const walletRouterId =
-        registerWalletArgs.wallet.kind === 'provided'
-          ? String(registerWalletArgs.wallet.walletId)
-          : undefined;
-      const router = await walletIframe.requireRouter(walletRouterId);
+      const router = await walletIframe.requireRouter();
       const result = await router.registerWallet(registerWalletArgs);
       await args.options?.afterCall?.(true, result);
       return result;
@@ -61,7 +57,7 @@ class ApplicationNearCommands {
     args: Parameters<NearCommands['fundImplicitNearAccountForTesting']>[0],
   ): ReturnType<NearCommands['fundImplicitNearAccountForTesting']> {
     const walletIframe = this.walletIframe;
-    const router = await walletIframe.requireRouter(args.walletSession.walletId);
+    const router = await walletIframe.requireRouter();
     return await router.fundImplicitNearAccountForTesting({
       walletId: args.walletSession.walletId,
       nearAccountId: args.nearAccount.accountId,
@@ -75,7 +71,7 @@ class ApplicationNearCommands {
     const nearAccountId = args.nearAccount.accountId;
     try {
       await this.beforeSigning(args.walletSession.walletId);
-      const router = await walletIframe.requireRouter(args.walletSession.walletId);
+      const router = await walletIframe.requireRouter();
       const result = await router.executeAction(
         {
           walletId: args.walletSession.walletId,
@@ -106,7 +102,7 @@ class ApplicationNearCommands {
     };
     try {
       await this.beforeSigning(args.walletSession.walletId);
-      const router = await walletIframe.requireRouter(args.walletSession.walletId);
+      const router = await walletIframe.requireRouter();
       const result = await router.signAndSendTransaction(
         {
           walletId: args.walletSession.walletId,
@@ -133,7 +129,7 @@ class ApplicationNearCommands {
     const { transaction, options } = args;
     try {
       await this.beforeSigning(args.walletSession.walletId);
-      const router = await walletIframe.requireRouter(args.walletSession.walletId);
+      const router = await walletIframe.requireRouter();
       const result = await router.signTransactionWithActions({
         walletId: args.walletSession.walletId,
         nearAccountId,
@@ -164,7 +160,7 @@ class ApplicationNearCommands {
     const nearAccountId = args.nearAccount.accountId;
     try {
       await this.beforeSigning(args.walletSession.walletId);
-      const router = await walletIframe.requireRouter(args.walletSession.walletId);
+      const router = await walletIframe.requireRouter();
       const result = await router.sendTransaction({
         walletId: args.walletSession.walletId,
         nearAccountId,
@@ -193,7 +189,7 @@ class ApplicationNearCommands {
     const { delegate, options } = args;
     try {
       await this.beforeSigning(args.walletSession.walletId);
-      const router = await walletIframe.requireRouter(args.walletSession.walletId);
+      const router = await walletIframe.requireRouter();
       const result = await router.signDelegateAction({
         walletId: args.walletSession.walletId,
         nearAccountId,
@@ -221,7 +217,7 @@ class ApplicationNearCommands {
     const nearAccountId = args.nearAccount.accountId;
     try {
       await this.beforeSigning(args.walletSession.walletId);
-      const router = await walletIframe.requireRouter(args.walletSession.walletId);
+      const router = await walletIframe.requireRouter();
       const result = await router.signNep413Message({
         walletId: args.walletSession.walletId,
         nearAccountId,

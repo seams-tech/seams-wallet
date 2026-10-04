@@ -33,6 +33,8 @@ export type {
   AuthMenuCapability,
   EventsCapability,
   ConfigCapability,
+  ConnectionCapability,
+  ClientConnectionState,
   AddPasskeyAuthorization,
   AddPasskeyResult,
   BootstrapThresholdEcdsaSessionArgs,

@@ -1283,11 +1283,9 @@ retain their own execution and transport methods.
 
 The demo OTP delivery callback remains pending internalization into demo/test
 integration. It was not added to the ordinary `authMenu` capability.
-Connection migration also remains open: router readiness becomes true after
-transport setup, before initial session/preference reconciliation. Coordinator
-ready subscriptions created before a router exists are currently discarded.
-Replace these behaviors with the accepted connection lifecycle before exposing
-`connection.getState` and `connection.onChange`; a simple rename is insufficient.
+The connection checkpoint below addresses the readiness and subscription gaps
+identified here. Earlier router readiness preceded session/preference reconciliation,
+and coordinator ready subscriptions made before router creation were discarded.
 
 Verification is recorded in `evidence/refactor-170-event-auth-menu-api-20261005.json`.
 
@@ -1296,3 +1294,51 @@ types, external declarations, runtime entry boundaries, and bloat checks pass.
 Production source adds 48 lines and removes 42, net +6; type fixtures,
 tests, and documentation are excluded. New capability declarations and bindings
 replace the old forwarding methods.
+
+
+### Connection lifecycle checkpoint
+
+The coordinator owns `idle`, `connecting`, `ready`, `failed`, and `disposed`
+connection state. A connecting branch owns its generation, shared completion
+promise, and interruption signal. Public snapshots expose state and generation,
+with an error for failure; transport internals remain private. Readiness follows
+the initial session and preference reconciliation. Subscriptions deliver the
+current snapshot immediately and survive router replacement.
+
+Failed initialization releases the router. An explicit retry creates a new
+generation. Disconnect interrupts pending requests and releases the old router;
+no interrupted operation is replayed. Disposal is terminal, rejects a pending
+connection, disposes a late-created router, and releases coordinator subscriptions
+and preference work. It does not lock the wallet or invalidate durable material.
+
+Application, hosted-menu, recovery acknowledgement, and transaction-review calls
+now use one reconciled router-acquisition path. The unused wallet argument on
+router acquisition is removed; operation payloads retain their exact identities.
+Redundant post-registration/unlock initialization and connection-wide blockheight
+prefetch are removed. Operation-owned preparation remains in its existing paths.
+
+React uses `connection` state and the shared connection promise. It no longer
+polls readiness or repeatedly nudges initialization. Coordinator-owned login
+subscriptions remain attached across router replacement. The unused public host
+preference-event method is removed; public preference subscriptions use the
+existing preference state owner.
+
+Acceptance covers failure/retry, concurrent initialization, held reconciliation,
+iframe reload/reconnect, subscription continuity, terminal disposal, and disposal
+during delayed router import. Each new scenario writes a JSON artifact. Type
+fixtures reject missing generations, mixed failure/ready state, invalid spreads,
+mutable snapshots, and the removed public methods. Evidence is recorded in
+`evidence/refactor-170-connection-20261005.json`. Full React provider replacement
+acceptance, all remaining API migration, and other R170 gates remain open.
+
+The separate private repository still uses the published API in
+`apps/wallet-console/src/flows/demo/hooks/useDemoWalletSessionLifecycle.ts:33` and
+`apps/seams-site/src/flows/demo/hooks/useDemoWalletSessionLifecycle.ts:33`. Both
+`initWalletIframe` calls must migrate to `connection.connect` with the exact new
+package release. No private source or package pins changed in this checkpoint.
+
+Final-source verification passes 59 browser cases and three production lifecycle
+cases. Build, types, declarations, bundle boundaries, and bloat checks pass.
+Production TypeScript adds 290 lines and removes 280, net +10. This excludes
+type fixtures, tests, Markdown, and evidence artifacts. The connection state and
+interruption handling replace polling, duplicate startup, and forwarding paths.

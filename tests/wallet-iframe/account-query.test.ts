@@ -81,7 +81,7 @@ async function queryAccounts() {
     }
     return { present, absent, retried, unavailable, invalid };
   } finally {
-    seams.dispose();
+    seams.connection.dispose();
   }
 }
 

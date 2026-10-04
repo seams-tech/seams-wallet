@@ -258,9 +258,9 @@ export function useAccountInput({
       }
 
       try {
-        if (seams.configs.wallet.mode === 'iframe' && !seams.isWalletIframeReady()) {
+        if (seams.configs.wallet.mode === 'iframe' && seams.connection.getState().kind !== 'ready') {
           const ready = await awaitWalletIframeIfNeeded();
-          if (!ready || !seams.isWalletIframeReady()) return;
+          if (!ready || seams.connection.getState().kind !== 'ready') return;
         }
         const passkeyExists = await seams.auth.hasPasskeyCredential(candidateWalletId);
         setState((prevState) => {
@@ -455,7 +455,8 @@ export function useAccountInput({
   // Re-run checks once iframe becomes ready so login state is accurate.
   useEffect(() => {
     if (seams.configs.wallet.mode !== 'iframe') return;
-    const offReady = seams.onWalletIframeReady(() => {
+    const offReady = seams.connection.onChange((connection) => {
+      if (connection.kind !== 'ready') return;
       void refreshAccountData();
       const target = String(state.targetAccountId || '').trim();
       if (target) {

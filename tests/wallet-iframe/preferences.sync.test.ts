@@ -196,7 +196,7 @@ test.describe('Wallet iframe preferences sync', () => {
             },
           });
 
-          await seams.initWalletIframe();
+          await seams.connection.connect();
           const seeded = await waitFor(
             () => seams.preferences.getConfirmationConfig().uiMode === 'modal',
             3000,
@@ -306,7 +306,7 @@ test.describe('Wallet iframe preferences sync', () => {
           },
         });
 
-        await seams.initWalletIframe();
+        await seams.connection.connect();
         const router = await (seams as any).walletIframe.requireRouter();
         await router.setConfirmationConfig({ uiMode: 'drawer' });
         void router
@@ -453,7 +453,7 @@ test.describe('Wallet iframe preferences sync', () => {
             },
           });
 
-          await seams.initWalletIframe();
+          await seams.connection.connect();
           seams.config.setAppearance({ theme: { id: 'brand', mode: 'dark' } });
           const appearanceTheme = seams.theme;
           const { setTheme, chainTarget, configuredChainTargets } = seams.config;

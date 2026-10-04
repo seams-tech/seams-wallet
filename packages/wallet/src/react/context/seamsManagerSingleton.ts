@@ -89,7 +89,7 @@ export function getOrCreateSeamsManager(
   }
 
   if (state.configKey !== nextKey) {
-    state.manager.dispose();
+    state.manager.connection.dispose();
     state.manager = new SeamsWeb(config, nearClient);
     state.configKey = nextKey;
   }

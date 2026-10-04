@@ -8,7 +8,7 @@ import { isRegistrationBenchmarkDiagnosticsEnabled } from '@/core/diagnostics/re
 
 type RegistrationIframe = Pick<
   WalletIframeCoordinator,
-  'requireRouter' | 'init' | 'getTransportDiagnosticsSnapshot'
+  'requireRouter' | 'getTransportDiagnosticsSnapshot'
 >;
 
 export function createApplicationRegistrationCommands(
@@ -32,16 +32,12 @@ async function registerWallet(
   try {
     const walletRouterId =
       args.wallet.kind === 'provided' ? String(args.wallet.walletId) : undefined;
-    const router = await walletIframe.requireRouter(walletRouterId);
+    const router = await walletIframe.requireRouter();
     emitTransportTiming(walletIframe, {
       operation: 'registerWallet',
       walletId: walletRouterId ?? null,
     });
     const res = await router.registerWallet(args);
-    const registeredWalletId = res.success ? String(res.walletId || '').trim() : '';
-    if (registeredWalletId) {
-      void refreshRegisteredSession(walletIframe, registeredWalletId);
-    }
     await args.options?.afterCall?.(true, res);
     return res;
   } catch (error: unknown) {
@@ -58,7 +54,7 @@ async function getNearProvisioningState(
 ): ReturnType<RegistrationCapability['getNearProvisioningState']> {
   const walletId = toWalletId(args.walletId);
 
-  const router = await walletIframe.requireRouter(String(walletId));
+  const router = await walletIframe.requireRouter();
   return await router.getNearProvisioningState({ walletId });
 }
 
@@ -66,7 +62,7 @@ async function resumePendingEcdsaRegistration(
   walletIframe: RegistrationIframe,
   args: Parameters<RegistrationCapability['resumePendingEcdsaRegistration']>[0],
 ): ReturnType<RegistrationCapability['resumePendingEcdsaRegistration']> {
-  const router = await walletIframe.requireRouter(String(args.walletId));
+  const router = await walletIframe.requireRouter();
   return await router.resumePendingEcdsaRegistration(args);
 }
 
@@ -75,7 +71,7 @@ async function addWalletSigner(
   args: Parameters<RegistrationCapability['addWalletSigner']>[0],
 ): Promise<RegistrationResult> {
   try {
-    const router = await walletIframe.requireRouter(String(args.walletId || ''));
+    const router = await walletIframe.requireRouter();
     const res = await router.addWalletSigner(args);
     await args.options?.afterCall?.(true, res);
     return res;
@@ -92,7 +88,7 @@ async function addPasskey(
   args: Parameters<RegistrationCapability['addPasskey']>[0],
 ): Promise<Awaited<ReturnType<RegistrationCapability['addPasskey']>>> {
   try {
-    const router = await walletIframe.requireRouter(String(args.walletId || ''));
+    const router = await walletIframe.requireRouter();
     const result = await router.addPasskey(args);
     await args.options?.afterCall?.(true, result);
     return result;
@@ -108,7 +104,7 @@ async function revokeAuthMethod(
   walletIframe: RegistrationIframe,
   args: Parameters<RegistrationCapability['revokeAuthMethod']>[0],
 ): Promise<Awaited<ReturnType<RegistrationCapability['revokeAuthMethod']>>> {
-  const router = await walletIframe.requireRouter(String(args.walletId || ''));
+  const router = await walletIframe.requireRouter();
   return await router.revokeAuthMethod(args);
 }
 
@@ -117,7 +113,7 @@ async function addEmailOtp(
   args: Parameters<RegistrationCapability['addEmailOtp']>[0],
 ): Promise<Awaited<ReturnType<RegistrationCapability['addEmailOtp']>>> {
   try {
-    const router = await walletIframe.requireRouter(String(args.walletId || ''));
+    const router = await walletIframe.requireRouter();
     const result = await router.addEmailOtp(args);
     await args.options?.afterCall?.(true, result);
     return result;
@@ -128,15 +124,6 @@ async function addEmailOtp(
     throw normalized;
   }
 }
-async function refreshRegisteredSession(
-  walletIframe: RegistrationIframe,
-  walletId: string,
-): Promise<void> {
-  try {
-    await walletIframe.init(walletId);
-  } catch {}
-}
-
 function emitTransportTiming(
   walletIframe: RegistrationIframe,
   input: {

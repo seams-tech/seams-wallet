@@ -1,5 +1,5 @@
 export { SeamsWeb } from './SeamsWeb';
-export type { AuthMenuCapability, ConfigCapability, EventsCapability } from './SeamsWeb';
+export type { AuthMenuCapability, ClientConnectionState, ConfigCapability, ConnectionCapability, EventsCapability } from './SeamsWeb';
 export * from './externalEvm';
 export {
   buildHostedAuthMenuOpenRequest,

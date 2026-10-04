@@ -3,7 +3,7 @@ import type { WalletSessionCommands } from '@/SeamsWeb/publicApi/auth';
 import type { WalletIframeCoordinator } from '@/SeamsWeb/walletIframe/coordinator';
 import { walletIframeUnlockRequestFromLoginHooks } from '../shared/unlockOptions';
 
-type SessionIframe = Pick<WalletIframeCoordinator, 'requireRouter' | 'init'>;
+type SessionIframe = Pick<WalletIframeCoordinator, 'requireRouter'>;
 
 export function createApplicationSessionCommands(
   walletIframe: SessionIframe,
@@ -27,7 +27,7 @@ async function unlock(
   const resolvedWalletId = String(walletId || '').trim();
   if (!resolvedWalletId) throw new Error('unlock requires walletId');
   try {
-    const router = await walletIframe.requireRouter(resolvedWalletId);
+    const router = await walletIframe.requireRouter();
     const result = await router.unlock(
       walletIframeUnlockRequestFromLoginHooks({ walletId: resolvedWalletId, options }),
     );
@@ -37,7 +37,6 @@ async function unlock(
       await options?.afterCall?.(false, undefined, unlockError);
       return result;
     }
-    await walletIframe.init(resolvedWalletId);
     await options?.afterCall?.(true, result);
     return result;
   } catch (error: unknown) {
@@ -62,7 +61,7 @@ async function getWalletSession(
   walletIframe: SessionIframe,
   walletId?: string,
 ): ReturnType<WalletSessionCommands['getWalletSession']> {
-  const router = await walletIframe.requireRouter(walletId);
+  const router = await walletIframe.requireRouter();
   const session = await router.getWalletSession(walletId);
   try {
     await router.prefetchBlockheight();
@@ -95,7 +94,7 @@ async function prefillPresignatures(
   walletIframe: SessionIframe,
   args: Parameters<WalletSessionCommands['prefillRouterAbEcdsaDerivationPresignaturePool']>[0],
 ): ReturnType<WalletSessionCommands['prefillRouterAbEcdsaDerivationPresignaturePool']> {
-  const router = await walletIframe.requireRouter(args.walletSession.walletId);
+  const router = await walletIframe.requireRouter();
   return await router.prefillRouterAbEcdsaDerivationPresignaturePool({
     walletSession: args.walletSession,
     options: {

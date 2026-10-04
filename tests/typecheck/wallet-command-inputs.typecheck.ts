@@ -161,3 +161,29 @@ void optionalSessionRevision;
 // @ts-expect-error Locked snapshots must still identify the observed wallet selection.
 const unboundSessionSnapshot: WalletIframeExactSessionSnapshot = { revision: 1, state: observedSession };
 void unboundSessionSnapshot;
+
+import type { ClientConnectionState } from '../../packages/wallet/src/SeamsWeb';
+const connectionState: ClientConnectionState = applicationClient.connection.getState();
+void connectionState;
+applicationClient.connection.connect();
+applicationClient.connection.onChange(() => {});
+applicationClient.connection.dispose();
+// @ts-expect-error Readiness requires a connection generation.
+const invalidReady: ClientConnectionState = { kind: 'ready' };
+// @ts-expect-error A ready connection cannot carry failure state.
+const invalidSpread: ClientConnectionState = { ...connectionState, kind: 'ready', generation: 1, error: new Error() };
+// @ts-expect-error Disposal cannot retain an active generation.
+const invalidDisposed: ClientConnectionState = { kind: 'disposed', generation: 1 };
+// @ts-expect-error Connection snapshots are read-only.
+connectionState.kind = 'ready';
+// @ts-expect-error Connect has one public namespace.
+applicationClient.initWalletIframe();
+// @ts-expect-error Readiness is represented by connection state.
+applicationClient.isWalletIframeReady();
+// @ts-expect-error Subscriptions use connection.onChange.
+applicationClient.onWalletIframeReady(() => {});
+// @ts-expect-error Disposal belongs to connection.
+applicationClient.dispose();
+
+// @ts-expect-error Host preference events are internal; use preferences subscriptions.
+applicationClient.onWalletIframePreferencesChanged(() => {});
