@@ -49,6 +49,16 @@ no HTTP errors. These are HTTP requests, not D1 calls; D1 counts were not expose
 Regional concurrency, same-wallet travel and the remaining hosted lifecycle fault
 cases are still open.
 
+Hosted linked-device acceptance also passed in 1.3 minutes after fixing the browser
+platform adapter's cross-origin WebAuthn forwarding. The adapter now uses its own
+origin's credentials API. The obsolete parent bridge, fallback flag and serialized
+bridge-response branches are removed. The probe lost one committed activation response and two
+committed cleanup acknowledgements; retries preserved the exact activation and
+acknowledgement, using fresh request proofs. Device 2 signed NEAR and Tempo, owner
+revocation prevented its next signature, and Device 1 continued signing. Evidence:
+private `.artifacts/r152/hosted-linked-20261004/`. Cancellation and regional
+travel/concurrency acceptance remain open.
+
 A preliminary probe registered only Tempo while configuring Tempo plus Arc for
 unlock. Unlock authentication succeeded, but warm-up discarded its context when
 Arc was missing and the auth menu did not finish. Registration and post-failure
@@ -62,7 +72,6 @@ Private `d1fe7ac` adds repeatable hosted lifecycle execution and request evidenc
 Candidate frontend assets are served locally under staging origins; all Gateway,
 Console and custody calls reach deployed services.
 
-These deployment checks do not establish successful hosted wallet lifecycles.
 No npm publication has occurred. Evidence is retained privately under
 `.artifacts/r152/staging-reset-20261004/`.
 

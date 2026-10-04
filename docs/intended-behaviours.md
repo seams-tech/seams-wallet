@@ -795,6 +795,10 @@ than chosen by the caller.
 
 Expected behaviour:
 
+- Target passkey creation and verification run on the configured wallet origin.
+  A cross-origin wallet iframe never forwards those operations to the parent
+  application origin.
+
 - Opening authentication-method or linked-device inventory never starts wallet
   unlock or step-up authentication. Inventory reads use the exact owner Wallet
   Session already established by wallet unlock, do not consume its signing-use

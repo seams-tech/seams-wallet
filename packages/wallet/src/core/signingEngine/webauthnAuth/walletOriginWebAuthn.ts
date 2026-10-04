@@ -1,61 +1,9 @@
-// Safari/WebAuthn fallbacks: wallet-origin registration and GET-only parent bridging.
-
-import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
-
 type Kind = 'create' | 'get';
-
-// Typed message names for parent-domain bridge
-export const WebAuthnBridgeMessage = {
-  Create: 'WALLET_WEBAUTHN_CREATE',
-  Get: 'WALLET_WEBAUTHN_GET',
-  CreateResult: 'WALLET_WEBAUTHN_CREATE_RESULT',
-  GetResult: 'WALLET_WEBAUTHN_GET_RESULT',
-} as const;
-
-type BridgeKind = typeof WebAuthnBridgeMessage.Create | typeof WebAuthnBridgeMessage.Get;
-
-type ResultTypeFor<K extends BridgeKind> = K extends typeof WebAuthnBridgeMessage.Get
-  ? typeof WebAuthnBridgeMessage.GetResult
-  : typeof WebAuthnBridgeMessage.CreateResult;
-
-function getResultTypeFor<K extends BridgeKind>(kind: K): ResultTypeFor<K> {
-  return (
-    kind === WebAuthnBridgeMessage.Get
-      ? WebAuthnBridgeMessage.GetResult
-      : WebAuthnBridgeMessage.CreateResult
-  ) as ResultTypeFor<K>;
-}
-
-type BridgeOk = { ok: true; credential: unknown };
-type BridgeErr = { ok: false; error?: string };
-type BridgeResponse = BridgeOk | BridgeErr;
-
 type AnyPublicKeyOptions = PublicKeyCredentialCreationOptions | PublicKeyCredentialRequestOptions;
 
-// Client interface used to request WebAuthn from the parent/top-level context
-type ParentDomainWebAuthnClient = {
-  request<K extends BridgeKind>(
-    kind: K,
-    publicKey: AnyPublicKeyOptions,
-    timeoutMs?: number,
-  ): Promise<BridgeResponse>;
-};
-
-interface OrchestratorDepsBase {
-  inIframe: boolean;
-  bridgeClient?: ParentDomainWebAuthnClient;
-  // Optional AbortSignal to cancel native navigator.credentials operations.
-  // Note: parent-bridge path may not be abortable.
+interface WebAuthnOptions {
   abortSignal?: AbortSignal;
 }
-
-type RegistrationOrchestratorDeps = OrchestratorDepsBase & {
-  registrationOriginPolicy: 'wallet_origin_only';
-};
-
-type AuthenticationOrchestratorDeps = OrchestratorDepsBase & {
-  registrationOriginPolicy?: never;
-};
 
 class WalletOriginWebAuthnUnavailableError extends Error {
   readonly code = 'wallet_origin_webauthn_unavailable';
@@ -67,21 +15,21 @@ class WalletOriginWebAuthnUnavailableError extends Error {
 }
 
 /** Execute WebAuthn once on the wallet origin. */
-export function executeWebAuthnWithParentFallbacksSafari(
+export function executeWalletOriginWebAuthn(
   kind: 'create',
   publicKey: PublicKeyCredentialCreationOptions,
-  deps: RegistrationOrchestratorDeps,
-): Promise<PublicKeyCredential | unknown>;
-export function executeWebAuthnWithParentFallbacksSafari(
+  deps: WebAuthnOptions,
+): Promise<Credential | null>;
+export function executeWalletOriginWebAuthn(
   kind: 'get',
   publicKey: PublicKeyCredentialRequestOptions,
-  deps: AuthenticationOrchestratorDeps,
-): Promise<PublicKeyCredential | unknown>;
-export async function executeWebAuthnWithParentFallbacksSafari(
+  deps: WebAuthnOptions,
+): Promise<Credential | null>;
+export async function executeWalletOriginWebAuthn(
   kind: Kind,
   publicKey: AnyPublicKeyOptions,
-  deps: RegistrationOrchestratorDeps | AuthenticationOrchestratorDeps,
-): Promise<PublicKeyCredential | unknown> {
+  deps: WebAuthnOptions,
+): Promise<Credential | null> {
   const publicKeyForAttempt = clonePublicKeyOptions(kind, publicKey);
   try {
     if (kind === 'create') {
@@ -101,72 +49,6 @@ export async function executeWebAuthnWithParentFallbacksSafari(
       );
     }
     throw error;
-  }
-}
-
-// Request the parent/top-level window to perform the WebAuthn operation
-export async function requestParentDomainWebAuthn(
-  kind: Kind,
-  publicKey: AnyPublicKeyOptions,
-  client: ParentDomainWebAuthnClient,
-  timeoutMs: number,
-): Promise<BridgeResponse> {
-  const publicKeyForBridge = clonePublicKeyOptions(kind, publicKey);
-  if (kind === 'create') {
-    return client.request(
-      WebAuthnBridgeMessage.Create,
-      publicKeyForBridge as PublicKeyCredentialCreationOptions,
-      timeoutMs,
-    );
-  }
-  return client.request(WebAuthnBridgeMessage.Get, publicKeyForBridge, timeoutMs);
-}
-
-// Default bridge client using window.parent postMessage protocol
-export class WindowParentDomainWebAuthnClient implements ParentDomainWebAuthnClient {
-  async request<K extends BridgeKind>(
-    kind: K,
-    publicKey: AnyPublicKeyOptions,
-    timeoutMs = 60000,
-  ): Promise<BridgeResponse> {
-    const requestId = `${kind}:${Date.now()}:${secureRandomBase64Url(16, 'Safari WebAuthn bridge request IDs')}`;
-    const resultType = getResultTypeFor(kind);
-
-    return new Promise((resolve) => {
-      let settled = false;
-      const finish = (val: BridgeResponse) => {
-        if (!settled) {
-          settled = true;
-          resolve(val);
-        }
-      };
-
-      const onMessage = (ev: MessageEvent) => {
-        const payload = ev?.data as unknown;
-        if (!payload || typeof (payload as { type?: unknown }).type !== 'string') return;
-        const t = (payload as { type: string }).type;
-        if (t !== resultType) return;
-        const rid = (payload as { requestId?: unknown }).requestId;
-        if (rid !== requestId) return;
-        window.removeEventListener('message', onMessage);
-        const ok = !!(payload as { ok?: unknown }).ok;
-        const cred = (payload as { credential?: unknown }).credential;
-        const err = (payload as { error?: unknown }).error;
-        if (ok && cred) return finish({ ok: true, credential: cred });
-        return finish({ ok: false, error: typeof err === 'string' ? err : undefined });
-      };
-      window.addEventListener('message', onMessage);
-      const envelope: {
-        type: K;
-        requestId: string;
-        publicKey: PublicKeyCredentialCreationOptions | PublicKeyCredentialRequestOptions;
-      } = { type: kind, requestId, publicKey };
-      window.parent?.postMessage(envelope, '*');
-      setTimeout(() => {
-        window.removeEventListener('message', onMessage);
-        finish({ ok: false });
-      }, timeoutMs);
-    });
   }
 }
 

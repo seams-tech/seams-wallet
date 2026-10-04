@@ -27,11 +27,9 @@
  */
 
 import { isObject } from '@shared/utils/validation';
-import { WebAuthnBridgeMessage } from '@/core/signingEngine/webauthnAuth/fallbacks/safari-fallbacks';
 import { WALLET_PROTOCOL_VERSION } from '../../shared/messages';
 import { createWalletIframe, removeExistingOverlaysForOrigin } from './iframe-transport-dom';
 import { performHandshake, waitForBootHint, waitForLoad } from './iframe-transport-handshake';
-import { handleWebAuthnBridgeMessage } from './webauthn-bridge';
 
 const WILDCARD_CONNECT_ATTEMPTS = 6;
 
@@ -143,9 +141,6 @@ export class IframeTransport {
         console.debug('[IframeTransport][wallet-log]', data.payload);
       }
       return;
-    }
-    if (type === WebAuthnBridgeMessage.Create || type === WebAuthnBridgeMessage.Get) {
-      handleWebAuthnBridgeMessage(type, data, e);
     }
   };
 

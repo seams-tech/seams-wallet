@@ -22,15 +22,10 @@ import {
   getSignerWorkerOperationErrorCode,
 } from '../../signingEngine/workerManager/workerTypes';
 import {
-  isSerializedRegistrationCredential,
   serializeAuthenticationCredentialWithPRF,
   serializeRegistrationCredentialWithPRF,
 } from '../../signingEngine/webauthnAuth/credentials/helpers';
 import { getPrfFirstB64uFromCredential } from '../../signingEngine/webauthnAuth/credentials/credentialExtensions';
-import {
-  requestParentDomainWebAuthn,
-  WindowParentDomainWebAuthnClient,
-} from '../../signingEngine/webauthnAuth/fallbacks/safari-fallbacks';
 import {
   ecdsaRoleLocalReadyRecordMatchesInput,
   ecdsaRoleLocalReadyRecordStorageKey,
@@ -354,45 +349,15 @@ function isPublicKeyCredential(value: Credential | null): value is PublicKeyCred
   );
 }
 
-function isCrossOriginIframe(): boolean {
-  if (typeof window === 'undefined' || window.top === window) return false;
-  try {
-    return window.top?.location.origin !== window.location.origin;
-  } catch {
-    return true;
-  }
-}
-
 async function runBrowserCredentialOperation(
   kind: 'create' | 'get',
   publicKey: PublicKeyCredentialCreationOptions | PublicKeyCredentialRequestOptions,
   credentials: CredentialsContainer,
-): Promise<unknown> {
-  if (!isCrossOriginIframe()) {
-    return kind === 'create'
-      ? credentials.create({ publicKey: publicKey as PublicKeyCredentialCreationOptions })
-      : credentials.get({ publicKey: publicKey });
+): Promise<Credential | null> {
+  if (kind === 'create') {
+    return credentials.create({ publicKey: publicKey as PublicKeyCredentialCreationOptions });
   }
-  const result = await requestParentDomainWebAuthn(
-    kind,
-    publicKey,
-    new WindowParentDomainWebAuthnClient(),
-    publicKey.timeout ?? 60_000,
-  );
-  if (result.ok) return result.credential;
-  throw new DOMException(result.error || 'Passkey verification was cancelled', 'NotAllowedError');
-}
-
-function isSerializedAuthenticationCredential(
-  value: unknown,
-): value is ReturnType<typeof serializeAuthenticationCredentialWithPRF> {
-  if (!value || typeof value !== 'object') return false;
-  const response = (value as { response?: unknown }).response;
-  return Boolean(
-    response &&
-    typeof response === 'object' &&
-    typeof (response as { authenticatorData?: unknown }).authenticatorData === 'string',
-  );
+  return credentials.get({ publicKey });
 }
 
 function createBrowserAuthenticatorPort(
@@ -413,10 +378,7 @@ function createBrowserAuthenticatorPort(
               browserPasskeyCreationOptions(registrationOptions),
               credentials,
             );
-            if (
-              !isPublicKeyCredential(credential as Credential | null) &&
-              !isSerializedRegistrationCredential(credential)
-            ) {
+            if (!isPublicKeyCredential(credential)) {
               return {
                 ok: false,
                 code: 'invalid_credential',
@@ -425,11 +387,7 @@ function createBrowserAuthenticatorPort(
             }
             let serialized: ReturnType<typeof serializeRegistrationCredentialWithPRF>;
             try {
-              serialized = isSerializedRegistrationCredential(credential)
-                ? credential
-                : serializeRegistrationCredentialWithPRF({
-                    credential: credential as PublicKeyCredential,
-                  });
+              serialized = serializeRegistrationCredentialWithPRF({ credential });
             } catch (error) {
               if (operation.requirePrfFirst) {
                 const prfFailure = requiredPrfSerializationFailure(error);
@@ -482,10 +440,7 @@ function createBrowserAuthenticatorPort(
               },
               credentials,
             );
-            if (
-              !isPublicKeyCredential(credential as Credential | null) &&
-              !isSerializedAuthenticationCredential(credential)
-            ) {
+            if (!isPublicKeyCredential(credential)) {
               return {
                 ok: false,
                 code: 'invalid_credential',
@@ -494,11 +449,7 @@ function createBrowserAuthenticatorPort(
             }
             let serialized: ReturnType<typeof serializeAuthenticationCredentialWithPRF>;
             try {
-              serialized = isSerializedAuthenticationCredential(credential)
-                ? credential
-                : serializeAuthenticationCredentialWithPRF({
-                    credential: credential as PublicKeyCredential,
-                  });
+              serialized = serializeAuthenticationCredentialWithPRF({ credential });
             } catch (error) {
               if (operation.requirePrfFirst) {
                 const prfFailure = requiredPrfSerializationFailure(error);

@@ -1326,7 +1326,10 @@ export class IntendedBehaviourHarness {
    * it starts on the same wallet id and no credential. A linked device opens
    * the device it will approve in turn.
    */
-  async openLinkedDevice(browser: Browser): Promise<IntendedBehaviourHarness> {
+  async openLinkedDevice(
+    browser: Browser,
+    prepareContext?: (context: BrowserContext) => Promise<void>,
+  ): Promise<IntendedBehaviourHarness> {
     this.recordStage('open_linked_device');
     requireLinkableRegisteredWallet(this.requireRegisteredWalletForSigning());
     const deviceNumber = this.deviceNumber + 1;
@@ -1336,6 +1339,7 @@ export class IntendedBehaviourHarness {
       if (this.networkMode === 'external_staging') {
         await installHostedBenchmarkAccess(context);
       }
+      await prepareContext?.(context);
       const page = await context.newPage();
       const device2 = new IntendedBehaviourHarness({
         context,

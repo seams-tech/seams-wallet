@@ -6,7 +6,7 @@ import {
 } from '../../webauthnAuth/credentials/helpers';
 import type { WebAuthnAllowCredential } from '../../webauthnAuth/credentials/collectAuthenticationCredentialForChallengeB64u';
 import type { WebAuthnAuthenticationCredential } from '@/core/types/webauthn';
-import { executeWebAuthnWithParentFallbacksSafari } from '../../webauthnAuth/fallbacks/safari-fallbacks';
+import { executeWalletOriginWebAuthn } from '../../webauthnAuth/walletOriginWebAuthn';
 import { type WalletId } from '@shared/utils/registrationIntent';
 import { walletIdFromString } from '@shared/utils/registrationIds';
 import {
@@ -129,7 +129,7 @@ export class TouchIdPrompt {
   private removePageAbortHandlers?: () => void;
   private removeExternalAbortListener?: () => void;
 
-  constructor(rpIdOverride?: string, _safariGetWebauthnRegistrationFallback = false) {
+  constructor(rpIdOverride?: string) {
     this.rpIdOverride = rpIdOverride;
   }
 
@@ -138,15 +138,6 @@ export class TouchIdPrompt {
       return resolveRpId(this.rpIdOverride, window?.location?.hostname);
     } catch {
       return this.rpIdOverride || '';
-    }
-  }
-
-  // Utility helpers for cross‑origin fallback
-  private static _inIframe(): boolean {
-    try {
-      return window.self !== window.top;
-    } catch {
-      return true;
     }
   }
 
@@ -207,19 +198,15 @@ export class TouchIdPrompt {
     }
 
     try {
-      const credentialMaybe = (await executeWebAuthnWithParentFallbacksSafari('get', publicKey, {
-        inIframe: TouchIdPrompt._inIframe(),
+      const credentialMaybe = (await executeWalletOriginWebAuthn('get', publicKey, {
         abortSignal: this.abortController.signal,
       })) as unknown;
 
-      // Support parent-bridge fallback returning an already-serialized credential.
-      const serialized = isSerializedAuthenticationCredential(credentialMaybe)
-        ? credentialMaybe
-        : serializeAuthenticationCredentialWithPRF({
-            credential: credentialMaybe as PublicKeyCredential,
-            firstPrfOutput: true,
-            secondPrfOutput: includeSecondPrfOutput,
-          });
+      const serialized = serializeAuthenticationCredentialWithPRF({
+        credential: credentialMaybe as PublicKeyCredential,
+        firstPrfOutput: true,
+        secondPrfOutput: includeSecondPrfOutput,
+      });
       assertSerializedAuthenticationCredentialChallenge(serialized, challengeB64u);
       return serialized;
     } finally {
@@ -344,10 +331,7 @@ export class TouchIdPrompt {
           },
         };
     try {
-      const result = await executeWebAuthnWithParentFallbacksSafari('create', publicKey, {
-        inIframe: TouchIdPrompt._inIframe(),
-        registrationOriginPolicy: 'wallet_origin_only',
-        // Pass AbortSignal through when supported; Safari bridge path may ignore it.
+      const result = await executeWalletOriginWebAuthn('create', publicKey, {
         abortSignal: this.abortController.signal,
       });
       return result as PublicKeyCredential;
@@ -374,14 +358,6 @@ function attachExternalAbortSignal(
   }
   signal.addEventListener('abort', abort, { once: true });
   return signal.removeEventListener.bind(signal, 'abort', abort);
-}
-
-// Type guard for already-serialized authentication credential
-function isSerializedAuthenticationCredential(x: unknown): x is WebAuthnAuthenticationCredential {
-  if (!x || typeof x !== 'object') return false;
-  const obj = x as { response?: unknown };
-  const resp = obj.response as { authenticatorData?: unknown } | undefined;
-  return typeof resp?.authenticatorData === 'string';
 }
 
 function normalizeChallengeB64uForComparison(value: unknown): string {

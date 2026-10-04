@@ -53,7 +53,7 @@ export function createManagerAssembly(args: {
   getAppearance: () => AppearanceConfig;
   thresholdEcdsaSigningQueueByKey: ThresholdEcdsaSigningQueueByKey;
 }): ManagerAssembly {
-  const touchIdPrompt = new TouchIdPrompt(args.seamsWebConfigs.wallet.iframe?.rpIdOverride, true);
+  const touchIdPrompt = new TouchIdPrompt(args.seamsWebConfigs.wallet.iframe?.rpIdOverride);
   const userPreferencesManager = new UserPreferencesManager({
     store: args.stores.userPreferencesStore,
   });

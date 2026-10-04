@@ -66,7 +66,7 @@ export class LostLinkedAcknowledgement {
       lostReplies: this.lostReplies,
       exactAcknowledgementReplayed: true,
       freshDeviceProof: true,
-      scope: 'Local real-protocol cleanup committed before the first response was lost; SDK retried and completed linking.',
+      scope: 'Gateway cleanup committed before the first response was lost; SDK retried and completed linking.',
     }, null, 2);
     await testInfo.attach('linked-device-lost-acknowledgement', { body: evidence, contentType: 'application/json' });
     const traceDirectory = process.env.SEAMS_INTENDED_TRACE_DIR;

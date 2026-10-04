@@ -1611,11 +1611,16 @@ Next gates: hosted regional acceptance, D1-call targets, final cleanup review,
 - [x] Record initial D1-call targets and historical measurements in the results,
   distinguishing activation-loss recovery from actual wallet recovery. Full
   current-candidate trace accounting remains open; query reduction stays deferred.
-- [ ] Resolve staging deployment configuration: Cloudflare authentication works,
-  but the configured env lacks generated deployment secrets and the saved
-  September 13 manifests contain different role public keys from live staging.
-  Obtain the current secret bundle before deploying; do not replace live keys
-  with older backup keys. No remote resources were changed during this preflight.
+- [x] Resolve staging deployment configuration. The authorized fresh staging
+  manifest was generated and verified; regional Gateways, Wallet Runtimes,
+  custody roles and Console were deployed. Dedicated role credentials are wired
+  and activation run `37190424277`, attempt 4, passed. See the October 4
+  [release evidence](refactor-152-release-review.md#current-release-gate--october-4).
+- [x] Verify hosted registration, unlock, export and linked-device installation
+  with a lost activation reply and two lost cleanup acknowledgements. Device 2
+  signs NEAR and Tempo; revocation blocks Device 2 while the owner still signs.
+  Remove the obsolete parent-origin WebAuthn bridge exposed by this acceptance.
+- [ ] Complete hosted cancellation and regional concurrency/travel acceptance.
 
 Private evidence: `.artifacts/r152/hosted-candidate-20261004/`, including
 `deployment-readiness.json`, dry-run build and preflight logs. Public packed
