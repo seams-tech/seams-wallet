@@ -1,5 +1,7 @@
 import { intendedTest as test } from './harness';
 
+test.use({ trace: 'off', screenshot: 'off', video: 'off' });
+
 /**
  * One product action, the `email_otp_to_passkey` branch.
  *

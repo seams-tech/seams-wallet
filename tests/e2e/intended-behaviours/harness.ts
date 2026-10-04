@@ -2566,11 +2566,8 @@ export class IntendedBehaviourHarness {
   }
 
   /**
-   * The Gateway answers the Google verification without this wallet: on
-   * fresh services no wallet is enrolled for the Google identity any more
-   * (`stale_identity_mapping` naming this wallet); where another wallet is
-   * enrolled for it, the answer names that one. The menu keeps the refusal on
-   * screen and never settles, so the harness closes it.
+   * Google verification refuses the selected wallet after revocation removes
+   * its enrollment. The harness closes the menu after checking that refusal.
    */
   private async refuseRevokedRegisteredEmailOtpUnlock(): Promise<string> {
     const verification = this.page.waitForResponse(
@@ -2586,21 +2583,14 @@ export class IntendedBehaviourHarness {
     /* Settled below, once the menu is closed. */
     action.catch(() => undefined);
     const response = await verification;
-    const answer = (await response.json().catch(() => null)) as {
-      readonly code?: unknown;
-      readonly walletId?: unknown;
-    } | null;
-    const refusedHere =
-      response.status() === 400 &&
-      answer?.code === 'stale_identity_mapping' &&
-      answer.walletId === this.walletId;
-    const answeredAnotherWallet =
-      response.ok() && typeof answer?.walletId === 'string' && answer.walletId !== this.walletId;
-    if (!refusedHere && !answeredAnotherWallet) {
-      throw new Error(
-        `revoked Email OTP verification answered ${response.status()}: ${JSON.stringify(answer)}`,
-      );
-    }
+    expect(response.request().postDataJSON()).toMatchObject({ wallet_id: this.walletId });
+    expect(response.status()).toBe(400);
+    expect(await response.json()).toMatchObject({
+      ok: false,
+      mode: 'wallet_identity_mismatch',
+      code: 'wallet_identity_mismatch',
+      walletId: this.walletId,
+    });
     await this.page
       .locator('iframe[allow*="publickey-credentials-get"]')
       .last()
@@ -2612,9 +2602,7 @@ export class IntendedBehaviourHarness {
     if (detail !== 'Google Email OTP unlock ended with cancelled') {
       throw new Error(`revoked Email OTP unlock ended for another reason: ${detail}`);
     }
-    return refusedHere
-      ? `Google verification found no enrollment for ${this.walletId}`
-      : `Google verification answered wallet ${String(answer?.walletId)}`;
+    return `Google verification refused the revoked enrollment for ${this.walletId}`;
   }
 
   /** The wallet's session no longer lists the revoked method. */
