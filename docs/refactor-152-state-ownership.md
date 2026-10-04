@@ -1,6 +1,6 @@
 # R152 state ownership baseline for R153
 
-Revision 6 — October 4, 2026.
+Revision 7 — October 4, 2026.
 
 This freezes the **schema inventory and ownership obligations**, not a copy-ready
 relocation implementation. R153 must fail closed for unresolved ownership below.
@@ -67,7 +67,7 @@ for the baseline, grouped only where the selector and obligations agree.
 | `webauthn_credential_bindings` | Regional credential projection: select credentials belonging to selected wallet auth methods; Console `wallet_passkey_claims` is the shared uniqueness/routing authority. Local bindings are not authority to reassign a credential. |
 | `registration_ceremony_records` | Wallet: exact tenant scope, supported record scope and parsed wallet identity from the selector table below. Preserve setup snapshots, claims and terminal replies independently of surviving ceremony parents. |
 | `router_ab_yao_capability_replacements` | Wallet: migration 0045 requires exact scoped `wallet_id`. Copy old/new capability decisions and replay fingerprints together, including terminal receipts after lifecycle cleanup. Retries verify the same wallet. |
-| `router_ab_yao_versioned_json_records` | Mixed, blocked selector: classify by supported prefix and parsed record ownership. Includes custody/recovery secrets and replay state; never copy all namespace rows or omit the table. |
+| `router_ab_yao_versioned_json_records` | Mixed ownership: use the supported prefix/record selectors below, including entry-level selection in the default shared partition. Includes custody/recovery secrets and replay state. Unknown prefixes or ambiguous/orphaned records block extraction; never copy all namespace rows or omit the table. |
 | `router_ab_normal_signing_admission_records` | Explicit split after migration 0046: `abuse` rows require scoped `wallet_id`; `project_policy` rows require NULL wallet ownership and remain tenant policy. Select all wallet abuse rows across signing-root versions, retaining authority-specific keys and decisions. Retired quota records and columns are removed; active quota state lives in `authorization_wallet_session_quotas`. Existing atomic credential/policy SQL reads are preserved. |
 | `identity_links`, `email_otp_registration_attempts`, `email_otp_rate_limits`, `linked_device_request_proof_nonces` | Hosted shared authority is Console. Do not relocate or independently reset/consume these signer-schema copies. Verify every hosted caller uses the injected shared service; table existence also supports self-hosted composition. |
 | `vault_proxy_secrets` | Shared tenant/vault/item state, no wallet ownership. Excluded from wallet relocation. |
@@ -201,9 +201,8 @@ sets and backup acknowledgements written by the custody commit store),
 `passkey-credential-activity:`, `wallet-recovery-google-email-otp:` and the default
 `router-ab-yao:`. Parse each payload using its owning store/domain contract before
 assigning it to a wallet; text matching a wallet ID inside JSON is not an ownership
-rule. This prefix list is a starting boundary inventory, **not** an
-exhaustive approved extraction registry. Unknown prefixes block a move until their
-owning store and exact selector are accounted for.
+rule. The selectors below cover these hosted prefixes. Unknown prefixes block a move
+until their owning store and exact selector are accounted for.
 
 Registration activation and NEAR-provisioning effects have durable shared
 ownership even after local ceremony cleanup: select the wallet's Console
@@ -249,8 +248,8 @@ apply all four tenant scope columns before interpreting the key:
 Use unfiltered persisted rows for this accounting, including expiries, versions,
 revocations and terminal decisions. User-facing list methods can cap results or
 filter retired material. These selectors close the listed prefixes only; the
-side-effect prefixes and default `router-ab-yao:` still need their exact extraction
-contract completed.
+remaining selector obligations are called out explicitly below; ownership alone
+does not implement transactional extraction or destination installation.
 
 Within the default `router-ab-yao:` partition store, export replay metadata now
 retains explicit wallet ownership. Decode with
@@ -267,6 +266,32 @@ check. Copying the whole shared row would copy unrelated wallets. An export cere
 retains its full validated request, including `request.scope.account_id`; its owner
 must agree with the selected replay entries. This closes export replay ownership
 without claiming that the remaining recovery/shared-state extraction is complete.
+
+The remainder of the hosted default partition has the following exact selectors.
+Decode the entire record with
+`parseRouterAbEd25519YaoProductRegistrationPartitionRecordV1` before interpreting
+its collections. Apply the four outer tenant columns to every selection.
+
+| Collection | Wallet ownership and retained relationships |
+| --- | --- |
+| Shared `recoveryCapabilities` | Each value's `identity.applicationBinding.wallet_id`; require agreement with `identity.activationBinding.lifecycle.account_id`. Retain the complete active/suspended/retired value and its capability-binding key. |
+| Shared `recoveryIdentityCapabilities` | Parse the JSON key emitted by `identityKey`: its `accountId` is the owner. Require the mapped capability-binding key to exist in the selected capability set and have the same owner. Retain the other key fields exactly. |
+| Shared `recoverySessions` | Each value is the complete JSON admission request emitted by `canonicalFingerprint(admittedRequest)`, rather than a digest. Parse it with `parseRouterAbEd25519YaoRecoveryAdmissionRequestV1`; `scope.account_id` is the owner. Retain the original session key and complete request string, including after ceremony cleanup. |
+| Ceremony `registration.states` and `authorization.authorities` | Each entry's validated `admissionRequest.scope.account_id`. All entries in a ceremony must agree on wallet and lifecycle. |
+| Ceremony `registration.admissionClaims` | `admissionFingerprint` is the complete JSON registration request. Parse it with `parseRouterAbEd25519YaoRegistrationAdmissionRequestV1`; select `scope.account_id` and require its lifecycle to match the claim and partition. This identifies pending claims before a backend session exists. |
+| Ceremony `registration.lifecycleSessions` and `registration.dispatchRoots` | Retain together with the same parsed ceremony owner and lifecycle. These are child indexes/admitted root context, never independent wallet authorities. Missing or conflicting parent ownership blocks extraction. |
+| Ceremony `recovery.recoveries` | Each entry's `context.admissionRequest.scope.account_id`; retain the full context, authorization, admitted tenant-root context and every pending/terminal state. |
+| Ceremony `export.exports` | Each entry's `request.scope.account_id`; retain full request, authorization/factor release and every pending/terminal answer with the selected export replay metadata. |
+
+The ceremony row key is exactly `router-ab-yao:<lifecycleId>`; the decoder checks
+its contained lifecycle collections, including dispatch-root keys. Shared records
+reject any ceremony dispatch-root context. Require the row key to agree as well. A row
+with conflicting owners, unknown state, invalid request, or only orphaned child
+indexes blocks extraction. Shared collections require selecting individual entries
+and version-checked merging; they cannot be copied as a namespace-wide snapshot.
+Source anchors are `routerAbEd25519YaoProductRegistrationPartitioning.ts`,
+`routerAbEd25519YaoProductRegistrationPartitionedStateStore.ts`,
+`routerAbEd25519YaoRegistration.ts` and `routerAbEd25519YaoRecovery.ts`.
 
 Gateway dispatch already recognizes registration `near-admission` and
 `near-provisioning` continuations by ceremony allocation. That routing alone does
@@ -510,3 +535,34 @@ Evidence: `.artifacts/r152/export-ownership-20261004/evidence.json`, `e2e.log`,
 `build.log`, `typecheck.log`, and `bloat.log`. The first attempt omitted the runner's
 required Google-token flag, failed before registration, and timed out in teardown;
 the correctly configured rerun passed without a production-code repair.
+
+### Default Yao partition ownership closure — October 4
+
+The US-wallet/APAC-ingress recovery E2E now decodes all default Yao partition rows
+with the production codec and verifies their wallet ownership. The completed run
+passed in 1.0 minute after interrupted recovery finalization, Gateway restart,
+unlock, NEAR signing and concurrent EVM signing. US contained three records with
+two capabilities, one recovery-session index, one registration state, one
+registration authority and one recovery state. WEUR and APAC contained none.
+This run contained no pending registration claims or export entries; those counts
+remain explicit in its artifact instead of implying every variant was exercised.
+
+The audit found a production boundary gap: the partition decoder omitted
+`registration.dispatchRoots` from both the shared-record emptiness check and the
+ceremony lifecycle check. It now rejects a dispatch-root entry in shared state or
+under another lifecycle, instead of silently discarding that context during
+partitioning. Using records produced by the actual lifecycle, the E2E inserts a
+misplaced root context into in-memory copies of each partition variant and verifies
+both are rejected. Persisted test-wallet records remain intact.
+
+Private evidence:
+`.artifacts/r152/yao-ownership-20261004/google-recovery-email_otp-US/recovery-evidence.json`,
+SHA-256 `84c2c2a0384921a3d6b8cd754cc6c85a54b62d4d244e42de9c2dea5476dc58d2`.
+Reproduce with the regional recovery command above and
+`SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/yao-ownership-20261004`.
+Wallet-server build, type checking and bloat checks, plus private-helper ESLint,
+passed. One intermediate run returned `regional_gateway_unavailable` during
+post-restart NEAR signing; its log is retained as `e2e-unavailable.log`. The next
+run passed with unchanged production code. Its underlying transient cause was not
+established. The helper now reports the home-side HTTP error code on future 5xx
+failures without logging credential or request bodies.

@@ -280,6 +280,7 @@ function isEmptyCeremonyState(state: RouterAbEd25519YaoProductRegistrationStateV
     state.registration.states.size === 0 &&
     state.registration.lifecycleSessions.size === 0 &&
     state.registration.admissionClaims.size === 0 &&
+    state.registration.dispatchRoots.size === 0 &&
     state.authorization.authorities.length === 0 &&
     state.recovery.recoveries.size === 0 &&
     state.export.exports.size === 0
@@ -307,6 +308,9 @@ function isCeremonyStateOwnedByLifecycle(
     if (key !== lifecycleId) return false;
   }
   for (const key of state.registration.admissionClaims.keys()) {
+    if (key !== lifecycleId) return false;
+  }
+  for (const key of state.registration.dispatchRoots.keys()) {
     if (key !== lifecycleId) return false;
   }
   for (const authority of state.authorization.authorities) {
