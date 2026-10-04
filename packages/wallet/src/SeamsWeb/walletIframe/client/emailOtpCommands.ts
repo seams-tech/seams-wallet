@@ -18,12 +18,10 @@ import {
 import type { EmailOtpCommandGroups } from '@/SeamsWeb/publicApi/auth';
 import {
   type InternalEmailOtpEcdsaCapabilityArgs,
-  type EmailOtpUnlockPrewarmRecord,
   nowMs,
   createEmailOtpUnlockTimings,
   recordEmailOtpUnlockElapsedTiming,
   logEmailOtpUnlockTimingSummary,
-  emailOtpUnlockPrewarmSnapshot,
   requireConcreteEcdsaChainTarget,
   emailOtpRegistrationFlowId,
   emailOtpUnlockFlowId,
@@ -37,9 +35,8 @@ type EmailOtpIframe = Pick<WalletIframeCoordinator, 'requireRouter'>;
 
 export function createApplicationEmailOtpCommands(
   walletIframe: EmailOtpIframe,
-  getPrewarmRecord: () => EmailOtpUnlockPrewarmRecord,
 ): EmailOtpCommandGroups {
-  const commands = new ApplicationEmailOtpCommands(walletIframe, getPrewarmRecord);
+  const commands = new ApplicationEmailOtpCommands(walletIframe);
   return {
     auth: {
       requestEmailOtpChallenge: commands.requestEmailOtpChallengeDomain.bind(commands),
@@ -60,10 +57,7 @@ export function createApplicationEmailOtpCommands(
 }
 
 class ApplicationEmailOtpCommands {
-  constructor(
-    private readonly walletIframe: EmailOtpIframe,
-    private readonly getPrewarmRecord: () => EmailOtpUnlockPrewarmRecord,
-  ) {}
+  constructor(private readonly walletIframe: EmailOtpIframe) {}
   async requestEmailOtpChallengeDomain(args: {
     walletId: string;
     walletAuthMethodId?: string;
@@ -233,11 +227,6 @@ class ApplicationEmailOtpCommands {
       startedAtMs: nowMs(),
       timings: createEmailOtpUnlockTimings(),
     };
-    const prewarm = emailOtpUnlockPrewarmSnapshot({
-      record: this.getPrewarmRecord(),
-      walletId,
-      nowMs: Date.now(),
-    });
     emitEmailOtpUnlockEvent(args.onEvent, {
       flowId,
       walletId,
@@ -263,7 +252,6 @@ class ApplicationEmailOtpCommands {
         status: 'succeeded',
         mode: 'evm_family_ecdsa',
         walletId,
-        prewarm,
         chainTarget,
         startedAtMs: unlockTiming.startedAtMs,
         timings: unlockTiming.timings,
@@ -301,7 +289,6 @@ class ApplicationEmailOtpCommands {
         status: 'failed',
         mode: 'evm_family_ecdsa',
         walletId,
-        prewarm,
         chainTarget,
         startedAtMs: unlockTiming.startedAtMs,
         timings: unlockTiming.timings,

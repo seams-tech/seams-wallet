@@ -68,14 +68,12 @@ import type { EmailOtpCommandGroups } from '@/SeamsWeb/publicApi/auth';
 import {
   type InternalEmailOtpEcdsaCapabilityArgs,
   type EmailOtpUnlockTimingBucket,
-  type EmailOtpUnlockPrewarmRecord,
   nowMs,
   createEmailOtpUnlockTimings,
   recordEmailOtpUnlockElapsedTiming,
   addEmailOtpUnlockTiming,
   isEmailOtpUnlockDiagnosticsEnabled,
   logEmailOtpUnlockTimingSummary,
-  emailOtpUnlockPrewarmSnapshot,
   requireConcreteEcdsaChainTarget,
   emailOtpRegistrationFlowId,
   emailOtpUnlockFlowId,
@@ -259,7 +257,6 @@ function emitEmailOtpUnlockWorkerProgress(
 
 type HostEmailOtpDependencies = {
   getContext: () => SeamsWebContext;
-  getPrewarmRecord: () => EmailOtpUnlockPrewarmRecord;
   registerWallet: RegistrationCapability['registerWallet'];
   getWalletSession: AuthCapability['getSession'];
   resumePendingAcknowledgements: () => void;
@@ -502,11 +499,6 @@ class HostEmailOtpCommands {
       startedAtMs: nowMs(),
       timings: createEmailOtpUnlockTimings(),
     };
-    const prewarm = emailOtpUnlockPrewarmSnapshot({
-      record: this.deps.getPrewarmRecord(),
-      walletId,
-      nowMs: Date.now(),
-    });
     emitEmailOtpUnlockEvent(args.onEvent, {
       flowId,
       walletId,
@@ -709,7 +701,6 @@ class HostEmailOtpCommands {
         status: 'succeeded',
         mode: 'evm_family_ecdsa',
         walletId,
-        prewarm,
         chainTarget,
         startedAtMs: unlockTiming.startedAtMs,
         timings: unlockTiming.timings,
@@ -747,7 +738,6 @@ class HostEmailOtpCommands {
         status: 'failed',
         mode: 'evm_family_ecdsa',
         walletId,
-        prewarm,
         chainTarget,
         startedAtMs: unlockTiming.startedAtMs,
         timings: unlockTiming.timings,

@@ -22,7 +22,6 @@ function interceptPreferences(event) {
     postResult(message.requestId, { walletId: null, revision: preferenceRevision, confirmationConfig: { behavior: 'requireClick', uiMode: 'modal', autoProceedDelay: 0 } });
     return;
   }
-  if (message.type === 'PM_PREFETCH_BLOCKHEIGHT') { postResult(message.requestId, undefined); return; }
   if (message.type === 'PM_EXECUTE_ACTION') { observedSignatures++; postResult(message.requestId, {}); return; }
   window.originalPreferenceMessage(event);
 }

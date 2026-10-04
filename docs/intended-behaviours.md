@@ -1337,3 +1337,16 @@ from an earlier connection cannot publish. Unsubscribe and client disposal stop
 pending delivery. A listener failure does not stop other listeners. Connection
 failures belong to `connection.onChange`; they do not invent a signed-out session.
 React consumes this subscription without an additional session read per event.
+
+
+### Connection and operation preparation
+
+The React provider connects on mount through `connection.connect`. It has no
+separate idle prewarm lifecycle or `eager` option. Application clients have no
+`prewarm` or `prefetchBlockheight` method. Their operations acquire the connection
+through the same coordinator.
+
+The wallet host owns required preparation for each selected operation. Keep
+registration's signer-selection preparation, Email OTP Yao preparation, and
+first-use worker/WASM initialization. Removing an unused generic preparation
+entry must not remove these dependencies or create an all-signer startup path.

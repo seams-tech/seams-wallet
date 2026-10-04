@@ -84,11 +84,6 @@ const PREFERENCES_PUSH_STUB = `
           '*',
         );
 
-        if (type === 'PM_PREFETCH_BLOCKHEIGHT') {
-          respond(requestId, undefined);
-          return;
-        }
-
         if (type === 'PM_GET_EXACT_WALLET_SESSION_STATE') {
           respond(requestId, { revision: ++sessionObservationRevision, walletId, state: exactSessionState });
           return;

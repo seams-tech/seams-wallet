@@ -6,7 +6,6 @@ import type * as React from 'react';
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useNearClient } from '../hooks/useNearClient';
 import { useAccountInput } from '../hooks/useAccountInput';
-import { useEagerPrewarm } from './useEagerPrewarm';
 import { useLoginStateRefresher } from './useLoginStateRefresher';
 import { useNearProvisioningStateRefresh } from './useNearProvisioningStateRefresh';
 import { useSeamsContextValue } from './useSeamsContextValue';
@@ -26,7 +25,6 @@ export const SeamsContextProvider: React.FC<SeamsContextProviderProps> = ({
   children,
   config,
   theme,
-  eager,
 }) => {
   const [loginState, setLoginState] = useState<LoginState>({
     isLoggedIn: false,
@@ -42,8 +40,6 @@ export const SeamsContextProvider: React.FC<SeamsContextProviderProps> = ({
 
   const nearClient = useNearClient();
   const seams = useMemo(() => getOrCreateSeamsManager(config, nearClient), [config, nearClient]);
-
-  useEagerPrewarm(seams, eager);
 
   useWalletIframeLifecycle({
     seams,

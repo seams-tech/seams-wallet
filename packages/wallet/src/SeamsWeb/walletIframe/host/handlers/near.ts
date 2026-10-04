@@ -19,7 +19,7 @@ import {
 import type { ActionArgs } from '@/core/types';
 import type { RegistrationAuthMethodInput } from '@shared/utils/registrationAuthMethodInput';
 import type { HandlerDeps, HandlerMap, Req } from './walletIframeHandler.types';
-import { respondOk, respondOkResult, withProgress, withRegistrationProgress } from './shared';
+import { respondOkResult, withProgress, withRegistrationProgress } from './shared';
 
 function walletSessionFromWalletId(walletIdRaw: unknown) {
   const walletId = toWalletId(walletIdRaw);
@@ -205,12 +205,6 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
       const walletId = toWalletId(req.payload?.walletId);
       const result = await pm.registration.getNearProvisioningState({ walletId });
       respondOkResult(deps, req.requestId, result);
-    },
-
-    PM_PREFETCH_BLOCKHEIGHT: async (req: Req<'PM_PREFETCH_BLOCKHEIGHT'>) => {
-      const pm = deps.getWalletRuntime();
-      await pm.prefetchBlockheight().catch(() => undefined);
-      respondOk(deps, req.requestId);
     },
 
     PM_SIGN_TX_WITH_ACTIONS: async (req: Req<'PM_SIGN_TX_WITH_ACTIONS'>) => {

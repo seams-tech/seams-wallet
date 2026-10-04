@@ -281,12 +281,6 @@ export interface SeamsContextProviderProps {
     setTheme?: (theme: ThemeMode) => void;
     appearance?: AppearanceConfigInput;
   };
-  /**
-   * When true, the provider will opportunistically pre-warm iframe + workers
-   * on idle after mount to reduce first-action latency.
-   * Default: false (lazy by default).
-   */
-  eager?: boolean;
 }
 
 // === CONVENIENCE RE-EXPORTS ===

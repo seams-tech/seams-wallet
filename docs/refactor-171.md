@@ -398,6 +398,11 @@ a declaration-level pass before declaring the migration complete.
 
 ## Implementation sequence
 
+- [x] Remove public `prewarm` and `prefetchBlockheight` calls. Delete the redundant
+  React idle preparation hook and `eager` flag. Keep connection startup under
+  `connection.connect` and preserve selected-operation preparation in the host.
+  Private wrapper prop migration remains part of exact-release adoption.
+
 - [x] Keep `auth.lock` as the sole public session-ending operation. Remove
   `auth.logout`, its wire request, and its unused durable-pool deletion path.
   Rename session reads to `auth.getSession` and passkey queries to `auth.hasPasskey`.

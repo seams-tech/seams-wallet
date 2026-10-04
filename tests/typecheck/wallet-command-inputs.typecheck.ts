@@ -203,3 +203,11 @@ applicationClient.auth.onSessionChange((session) => {
 });
 // @ts-expect-error The public boolean login callback is removed.
 applicationClient.onWalletIframeLoginStatusChanged(() => {});
+
+// @ts-expect-error Connection preparation uses connection.connect.
+applicationClient.prewarm({ iframe: true, workers: true });
+// @ts-expect-error Block preparation belongs to the selected host operation.
+applicationClient.prefetchBlockheight();
+declare const providerProps: import('../../packages/wallet/src/react/context/SeamsWebProvider').SeamsWebProviderProps;
+// @ts-expect-error Provider mount already connects; the redundant idle flag is removed.
+providerProps.eager;

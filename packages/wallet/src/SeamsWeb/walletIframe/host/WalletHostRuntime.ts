@@ -82,21 +82,13 @@ import {
   scheduleRestoredSessionPresignaturePrefills,
   type RestoredSessionPresignaturePrefill,
 } from '@/SeamsWeb/walletIframe/host/restoredSessionPresignaturePrefill';
-import type {
-  EmailOtpUnlockPrewarmRecord,
-  EmailOtpUnlockPrewarmStatus,
-} from '@/SeamsWeb/walletIframe/shared/emailOtpLifecycle';
 import { type WalletIframeExactSessionState } from '@/SeamsWeb/walletIframe/shared/exactSessionState';
 import {
   deliverNearProvisioningStateChanged,
-  emailOtpUnlockPrewarmRequestFromOptions,
-  emailOtpUnlockPrewarmScopeFromBinding,
   normalizeExportKeypairWithUIInput,
   normalizeResolveExactKeyExportLaneInput,
   normalizeResolveExactKeyExportLaneResult,
-  resolvePrewarmNearAccountBinding,
   resolveRuntimeAppearance,
-  SeamsWebPrewarmOptions,
 } from '@/SeamsWeb/walletIframe/shared/facadeBoundary';
 import { createServerAllocatedWalletId, walletIdFromString } from '@shared/utils/registrationIds';
 function reportWalletRecoveryStartupResult(result: WalletRecoveryResumeResult): void {
@@ -162,7 +154,6 @@ export class WalletHostRuntime {
   readonly evm: EvmSignerCapability;
   private readonly deviceLinkingDispose: () => void;
   private readonly resumePendingAcknowledgementsV1: () => Promise<void>;
-  private emailOtpUnlockPrewarmRecord: EmailOtpUnlockPrewarmRecord = { kind: 'none' };
   constructor(configs: WalletHostConfig, nearClient?: NearClient) {
     this.configs = configs;
     configureIndexedDB({ mode: 'wallet' });
@@ -202,7 +193,6 @@ export class WalletHostRuntime {
     );
     const emailOtpCommands = createWalletHostEmailOtpCommands({
       getContext: this.getContext.bind(this),
-      getPrewarmRecord: this.getEmailOtpUnlockPrewarmRecord.bind(this),
       registerWallet: registrationCommands.registerWallet,
       getWalletSession: sessionCommands.getSession,
       resumePendingAcknowledgements:
@@ -375,45 +365,6 @@ export class WalletHostRuntime {
   setWalletIframeSurfaceMeasurementBinding(binding: UiConfirmSurfaceMeasurementBinding): void {
     this.signingEngine.setWalletIframeSurfaceMeasurementBinding(binding);
   }
-  /**
-   * Pre-warm resources on a best-effort basis without changing visible state.
-   * - When iframe=true, initializes the wallet iframe client.
-   * - When workers=true, warms local critical resources only outside app-origin iframe mode.
-   * - When both are false/omitted, does nothing.
-   */
-  async prewarm(opts?: SeamsWebPrewarmOptions): Promise<void> {
-    const iframe = !!opts?.iframe;
-    const workers = !!opts?.workers;
-    const nearAccountBinding = resolvePrewarmNearAccountBinding(opts);
-    const prewarmRequest = emailOtpUnlockPrewarmRequestFromOptions(opts);
-    const prewarmScope = emailOtpUnlockPrewarmScopeFromBinding(nearAccountBinding);
-    const tasks: Promise<unknown>[] = [];
-    if (iframe) {
-      tasks.push(this.signingEngine.warmCriticalResources({ kind: 'none' }));
-    } else if (workers) {
-      // Warm local-only resources without touching the iframe.
-      const accountContext = nearAccountBinding
-        ? { kind: 'near_account_bound' as const, account: nearAccountBinding }
-        : { kind: 'none' as const };
-      tasks.push(this.signingEngine.warmCriticalResources(accountContext));
-    }
-    if (tasks.length === 0) return;
-    let status: EmailOtpUnlockPrewarmStatus = 'succeeded';
-    try {
-      await Promise.all(tasks);
-    } catch {
-      status = 'failed';
-    }
-    if (prewarmRequest) {
-      this.emailOtpUnlockPrewarmRecord = {
-        kind: 'attempted',
-        status,
-        completedAtMs: Date.now(),
-        request: prewarmRequest,
-        scope: prewarmScope,
-      };
-    }
-  }
   private async syncAccountDomain(
     args: Parameters<RecoveryCapability['syncAccount']>[0],
   ): ReturnType<RecoveryCapability['syncAccount']> {
@@ -427,9 +378,6 @@ export class WalletHostRuntime {
     return this.onSdkLifecycleEvent(deliverNearProvisioningStateChanged.bind(null, listener));
   }
 
-  private getEmailOtpUnlockPrewarmRecord(): EmailOtpUnlockPrewarmRecord {
-    return this.emailOtpUnlockPrewarmRecord;
-  }
   private async registerPasskeyDomain(
     options: Parameters<RegistrationCapability['registerPasskey']>[0] = {},
   ): Promise<RegistrationResult> {
@@ -534,21 +482,7 @@ export class WalletHostRuntime {
       authorization: args.authorization,
     });
   }
-  ///////////////////////////////////////
-  // === User Settings ===
-  ///////////////////////////////////////
-  /**
-   * Prefetch latest block height/hash (and nonce if context missing) to reduce
-   * perceived latency when the user initiates a signing flow.
-   */
-  async prefetchBlockheight(): Promise<void> {
-    try {
-      await this.signingEngine.getNonceCoordinator().prefetchNearContext({
-        kind: 'initialized_state',
-        nearClient: this.nearClient,
-      });
-    } catch {}
-  }
+
   /** Wallet-host entrypoint for the exact FeeManager preference operation. */
   async signTempoFeeTokenPreferenceInternal(args: {
     walletSession: WalletSessionRef;

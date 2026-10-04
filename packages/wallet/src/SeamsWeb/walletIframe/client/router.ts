@@ -4238,10 +4238,6 @@ export class WalletIframeRouter {
     this.opts.hostConfig = replaceWalletHostAppearance(this.opts.hostConfig, resolved);
   }
 
-  async prefetchBlockheight(): Promise<void> {
-    await this.post<void>({ type: 'PM_PREFETCH_BLOCKHEIGHT' });
-  }
-
   async prefillRouterAbEcdsaDerivationPresignaturePool(payload: {
     walletSession: WalletSessionRef;
     options: {

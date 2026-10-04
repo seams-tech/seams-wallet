@@ -39,10 +39,6 @@ import { createApplicationEmailOtpCommands } from '@/SeamsWeb/walletIframe/clien
 import { createApplicationRegistrationCommands } from '@/SeamsWeb/walletIframe/client/registrationCommands';
 import { createApplicationSessionCommands } from '@/SeamsWeb/walletIframe/client/sessionCommands';
 import { WalletIframeCoordinator } from '@/SeamsWeb/walletIframe/coordinator';
-import type {
-  EmailOtpUnlockPrewarmRecord,
-  EmailOtpUnlockPrewarmStatus,
-} from '@/SeamsWeb/walletIframe/shared/emailOtpLifecycle';
 import {
   parseWalletIframeExactSessionIdentity,
   type WalletIframeExactSessionIdentity,
@@ -52,14 +48,10 @@ import {
 } from '@/SeamsWeb/walletIframe/shared/exactSessionState';
 import {
   deliverNearProvisioningStateChanged,
-  emailOtpUnlockPrewarmRequestFromOptions,
-  emailOtpUnlockPrewarmScopeFromBinding,
   normalizeExportKeypairWithUIInput,
   normalizeResolveExactKeyExportLaneInput,
   normalizeResolveExactKeyExportLaneResult,
-  resolvePrewarmNearAccountBinding,
   resolveRuntimeAppearance,
-  SeamsWebPrewarmOptions,
 } from '@/SeamsWeb/walletIframe/shared/facadeBoundary';
 import type {
   HostedAuthMenuDemoEmailOtpDelivery,
@@ -89,7 +81,6 @@ export class SeamsWeb {
   readonly near: NearSignerCapability;
   readonly tempo: TempoSignerCapability;
   readonly evm: EvmSignerCapability;
-  private emailOtpUnlockPrewarmRecord: EmailOtpUnlockPrewarmRecord = { kind: 'none' };
   constructor(configs: SeamsConfigsInput, nearClient?: NearClient) {
     this.configs = buildConfigsFromEnv(configs);
     // Use provided client or create default one
@@ -135,10 +126,7 @@ export class SeamsWeb {
     const deviceDomain = createApplicationDeviceCommands(this.walletIframe);
     const registrationCommands = createApplicationRegistrationCommands(this.walletIframe);
     const sessionCommands = createApplicationSessionCommands(this.walletIframe);
-    const emailOtpCommands = createApplicationEmailOtpCommands(
-      this.walletIframe,
-      this.getEmailOtpUnlockPrewarmRecord.bind(this),
-    );
+    const emailOtpCommands = createApplicationEmailOtpCommands(this.walletIframe);
     const publicApi = createApplicationPublicApi({
       createNearCommands: createApplicationNearCommands.bind(
         null,
@@ -244,37 +232,6 @@ export class SeamsWeb {
     } catch {}
   }
 
-  /**
-   * Pre-warm resources on a best-effort basis without changing visible state.
-   * - When iframe=true, initializes the wallet iframe client.
-   * Worker preparation belongs to the wallet host and follows the selected operation.
-   */
-  async prewarm(opts?: SeamsWebPrewarmOptions): Promise<void> {
-    const iframe = !!opts?.iframe;
-    const nearAccountBinding = resolvePrewarmNearAccountBinding(opts);
-    const prewarmRequest = emailOtpUnlockPrewarmRequestFromOptions(opts);
-    const prewarmScope = emailOtpUnlockPrewarmScopeFromBinding(nearAccountBinding);
-    const tasks: Promise<unknown>[] = [];
-    if (iframe) {
-      tasks.push(this.connection.connect());
-    }
-    if (tasks.length === 0) return;
-    let status: EmailOtpUnlockPrewarmStatus = 'succeeded';
-    try {
-      await Promise.all(tasks);
-    } catch {
-      status = 'failed';
-    }
-    if (prewarmRequest) {
-      this.emailOtpUnlockPrewarmRecord = {
-        kind: 'attempted',
-        status,
-        completedAtMs: Date.now(),
-        request: prewarmRequest,
-        scope: prewarmScope,
-      };
-    }
-  }
   private getAppearance(): AppearanceConfig {
     return this.appearance;
   }
@@ -300,9 +257,6 @@ export class SeamsWeb {
     return this.events.subscribe(deliverNearProvisioningStateChanged.bind(null, listener));
   }
 
-  private getEmailOtpUnlockPrewarmRecord(): EmailOtpUnlockPrewarmRecord {
-    return this.emailOtpUnlockPrewarmRecord;
-  }
   private async registerPasskeyDomain(
     options: Parameters<RegistrationCapability['registerPasskey']>[0] = {},
   ): Promise<RegistrationResult> {
@@ -366,20 +320,7 @@ export class SeamsWeb {
       return await router.rotateWalletRecoveryCodes(args);
     }
   }
-  ///////////////////////////////////////
-  // === User Settings ===
-  ///////////////////////////////////////
-  /**
-   * Prefetch latest block height/hash (and nonce if context missing) to reduce
-   * perceived latency when the user initiates a signing flow.
-   */
-  async prefetchBlockheight(): Promise<void> {
-    {
-      const router = await this.walletIframe.requireRouter();
-      await router.prefetchBlockheight();
-      return;
-    }
-  }
+
   ///////////////////////////////////////
   // === KEY MANAGEMENT ===
   ///////////////////////////////////////

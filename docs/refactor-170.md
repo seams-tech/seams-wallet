@@ -746,6 +746,14 @@ bind rich reads to the exact wallet ID and share in-flight work with unlock call
 See `evidence/refactor-170-session-subscription-20261005.json` for scoped verification.
 This does not close provider replacement, all-browser delivery, or other R170 gates.
 
+Generic application `prewarm` and `prefetchBlockheight` calls are removed, along
+with React's redundant idle preparation hook and `eager` flag. Provider mount uses
+`connection.connect`; selected operations retain host-owned preparation. Unused
+host prewarm options and their diagnostic records are deleted. See
+`evidence/refactor-170-preparation-cleanup-20261005.json`. The generic registration
+menu's JS preload closure and the complete worker dependency matrix still need
+measurement and refinement.
+
 At the recorded bundle checkpoint, the production root-client static closure measured
 66,386 bytes gzip
 (64.8 KiB), compared with 739,640 bytes at baseline: a 91.0% reduction. Including

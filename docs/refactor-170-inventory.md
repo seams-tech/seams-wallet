@@ -1451,3 +1451,53 @@ The unchanged post-unlock three-status-read limit passes after binding subscript
 reads to the observed wallet ID. Production TypeScript adds 132 lines and removes
 215, net −83. Tests/type fixtures add 179 and remove 10; Markdown and evidence
 are separate.
+
+
+### Generic preparation cleanup checkpoint
+
+The application `prewarm` method only connected the iframe after the earlier
+worker cutover. React's idle `useEagerPrewarm` hook called it even though
+`useWalletIframeLifecycle` already connects on mount. The hook, idle timer,
+`eager` props, application method, and their intended-app caller are removed.
+Manual client setup uses `connection.connect`.
+
+The host's generic `prewarm` method had no callers. It and its option parser are
+removed. The app/host prewarm records, scope/request types, and Email OTP diagnostic
+snapshot plumbing are deleted; actual per-stage Email OTP timings remain. The
+public `prefetchBlockheight` method and its unused `PM_PREFETCH_BLOCKHEIGHT` RPC,
+router method, host wrapper, handler, and obsolete test stubs are also removed.
+No aliases or fallback flags are retained.
+
+Required internal preparation remains at its existing owners:
+
+| Selected operation | Preserved owner |
+| --- | --- |
+| Registration surface and signer selection | `operations/registration/registration.ts`, including ECDSA crypto and Email OTP Yao preparation |
+| Google/Email OTP auth | `host/createEmailOtpCommands.ts` and `prewarmEmailOtpYaoDomain` |
+| Successful unlock preparation | `host/createSessionCommands.ts` → `warmCriticalResources` |
+| NEAR context preparation | `core/signingEngine/assembly/warmup.ts` → `prefetchNearContext` |
+| Worker/WASM first use | Existing worker manager, transport, and operation handlers |
+
+The removed facade diagnostic could describe iframe-only connection as a worker
+prewarm attempt. Its removal changes diagnostics only; no auth/control-flow branch
+consumed it. This cleanup does not claim extra worker-transfer savings because
+the all-worker startup loop was already removed.
+
+Private consumer migration remains tied to the exact new release. Both
+`apps/wallet-console/src/context/frontendRuntime.tsx` and
+`apps/seams-site/src/context/frontendRuntime.tsx` declare/destructure/forward
+`eager`; remove those wrapper props. Also remove `eager` from
+`apps/wallet-console/src/marketing/WalletMarketingRoute.tsx`. Their current package
+pins remain unchanged. No private app prewarm call was found in the source audit.
+
+Evidence: `evidence/refactor-170-preparation-cleanup-20261005.json`.
+The complete per-operation worker matrix and cold/warm latency gates remain open.
+
+Final-source verification passes 43 browser cases and six production cases,
+including worker initialization retry, interrupted Email OTP export recovery,
+EVM execution with NEAR admission/execution held, and cold/warm signed-out assets.
+Cold/warm signed-out mount/menu creates zero workers; the authenticated asset
+scenario creates 20 across registration, signing, and unlock. These are current
+observations, not an attributed transfer saving. Production TypeScript adds six
+lines and removes 401, net −395. Build, types, declarations, runtime boundaries,
+and bloat checks pass.

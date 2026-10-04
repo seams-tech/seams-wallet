@@ -60,7 +60,6 @@ const hostScript = `
       const message = event.data;
       if (message.type === 'PM_HAS_PASSKEY') { postResult(message.requestId, false); return; }
       if (message.type === 'PM_GET_RECENT_UNLOCKS') { postResult(message.requestId, []); return; }
-      if (message.type === 'PM_PREFETCH_BLOCKHEIGHT') { postResult(message.requestId, undefined); return; }
       if (message.type === 'PM_GET_WALLET_SESSION') {
         postResult(message.requestId, ${JSON.stringify(session)});
         return;

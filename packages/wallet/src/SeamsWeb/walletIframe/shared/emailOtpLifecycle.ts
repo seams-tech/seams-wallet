@@ -1,4 +1,3 @@
-import type { Variant } from '@shared/utils/variant';
 import type {
   CreateRegistrationFlowEventInput,
   CreateUnlockFlowEventInput,
@@ -41,75 +40,12 @@ type EmailOtpUnlockTimingSummary = {
   status: 'succeeded' | 'failed';
   mode: 'evm_family_ecdsa';
   walletId: string;
-  prewarm: EmailOtpUnlockPrewarmSnapshot;
   chainTarget?: ThresholdEcdsaChainTarget;
   totalElapsedMs: number;
   timings: Record<EmailOtpUnlockTimingBucket, number>;
   topBuckets: { bucket: EmailOtpUnlockTimingBucket; durationMs: number }[];
   errorMessage?: string;
 };
-
-export type EmailOtpUnlockPrewarmScope =
-  | {
-      kind: 'global';
-      walletId?: never;
-      nearAccountId?: never;
-    }
-  | {
-      kind: 'near_account_bound';
-      walletId: string;
-      nearAccountId: string;
-    };
-
-export type EmailOtpUnlockPrewarmRequest =
-  | {
-      kind: 'iframe_and_local_resources';
-    }
-  | {
-      kind: 'local_worker_resources';
-    };
-
-export type EmailOtpUnlockPrewarmRecord =
-  | {
-      kind: 'none';
-      status?: never;
-      completedAtMs?: never;
-      request?: never;
-      scope?: never;
-    }
-  | {
-      kind: 'attempted';
-      status: 'succeeded' | 'failed';
-      completedAtMs: number;
-      request: EmailOtpUnlockPrewarmRequest;
-      scope: EmailOtpUnlockPrewarmScope;
-    };
-
-type EmailOtpUnlockPrewarmSnapshot =
-  | {
-      kind: 'not_prewarmed';
-      status?: never;
-      ageMs?: never;
-      completedAtMs?: never;
-      request?: never;
-      scope?: never;
-      walletMatches?: never;
-    }
-  | {
-      kind: 'prewarm_attempted';
-      status: 'succeeded' | 'failed';
-      ageMs: number;
-      completedAtMs: number;
-      request: EmailOtpUnlockPrewarmRequest;
-      scope: EmailOtpUnlockPrewarmScope;
-      walletMatches: boolean;
-    };
-
-export type EmailOtpUnlockPrewarmStatus = Variant<
-  EmailOtpUnlockPrewarmRecord,
-  'kind',
-  'attempted'
->['status'];
 
 export function nowMs(): number {
   return typeof performance !== 'undefined' && typeof performance.now === 'function'
@@ -164,7 +100,6 @@ export function logEmailOtpUnlockTimingSummary(input: {
   status: EmailOtpUnlockTimingSummary['status'];
   mode: EmailOtpUnlockTimingSummary['mode'];
   walletId: string;
-  prewarm: EmailOtpUnlockPrewarmSnapshot;
   startedAtMs: number;
   timings: Record<EmailOtpUnlockTimingBucket, number>;
   chainTarget?: ThresholdEcdsaChainTarget;
@@ -185,7 +120,6 @@ export function logEmailOtpUnlockTimingSummary(input: {
     status: input.status,
     mode: input.mode,
     walletId: input.walletId,
-    prewarm: input.prewarm,
     ...(input.chainTarget ? { chainTarget: input.chainTarget } : {}),
     totalElapsedMs: Math.max(0, Math.round(nowMs() - input.startedAtMs)),
     timings: input.timings,
@@ -193,26 +127,6 @@ export function logEmailOtpUnlockTimingSummary(input: {
     ...(errorMessage ? { errorMessage } : {}),
   };
   console.info('[EmailOtpUnlock] timing summary', summary);
-}
-
-export function emailOtpUnlockPrewarmSnapshot(args: {
-  record: EmailOtpUnlockPrewarmRecord;
-  walletId: string;
-  nowMs: number;
-}): EmailOtpUnlockPrewarmSnapshot {
-  if (args.record.kind === 'none') {
-    return { kind: 'not_prewarmed' };
-  }
-  const scope = args.record.scope;
-  return {
-    kind: 'prewarm_attempted',
-    status: args.record.status,
-    completedAtMs: args.record.completedAtMs,
-    ageMs: Math.max(0, Math.round(args.nowMs - args.record.completedAtMs)),
-    request: args.record.request,
-    scope,
-    walletMatches: scope.kind === 'global' || scope.walletId === args.walletId,
-  };
 }
 
 export function requireConcreteEcdsaChainTarget(

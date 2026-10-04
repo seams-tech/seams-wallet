@@ -123,6 +123,13 @@ later observations. Observations can repeat the same state. Subscribing does not
 open a connection. Subscriptions survive reconnects; unsubscribe or dispose the
 client to stop delivery. Use `connection.onChange` for connection failures.
 
+## Connection and preparation
+
+The React provider connects the wallet frame on mount. Applications that manage
+clients directly can call `await seams.connection.connect()` before an operation.
+Registration, authentication, and signing prepare their required resources inside
+the wallet host. No application prewarm call or provider `eager` flag is needed.
+
 ## Lifecycle rule
 
 Keep the `walletId` from a successful registration or login result. It is the stable
