@@ -228,6 +228,11 @@ if preserving current supported behavior requires a material scope change.
 
 ## Accepted API and lifecycle decisions
 
+[R171](refactor-171.md) owns the full public naming and consumer migration,
+including the decisions below. R170 owns their execution/state boundaries and
+behavioral verification. Implement shared changes once at the composition
+cutover; use R171 for the complete rename/internalization map.
+
 These decisions simplify application authentication calls and preserve signing
 contracts while removing execution internals from the application API. Examples are proposed
 shapes, omit unrelated fields, and reuse existing domain types in implementation.
@@ -261,20 +266,23 @@ const unsubscribe = seams.onSessionChange(listener);
   expose the same operation names as the client.
 
 Current `logout` in `operations/auth/login.ts` calls `lock` and additionally
-deletes wallet-scoped durable ECDSA presignatures. The unified `lock` includes
-that cleanup, as well as retiring active session authorization, clearing current
-authentication, fencing stale work, and clearing volatile signing material.
-Capture the exact cleanup wallet before clearing authentication; an overlapping
-unlock for another wallet must not be cleared by stale completion. Attempt all
+deletes wallet-scoped durable ECDSA presignatures. Do not carry that deletion into
+the unified `lock`. Preserve durable presignatures while retiring active session
+authorization, clearing current authentication, fencing stale work, and clearing
+volatile signing material. Capture the exact cleanup wallet before clearing
+authentication; an overlapping unlock for another wallet must not be cleared by
+stale completion. Attempt all
 required cleanup and surface failures, preserving the existing failure-handling
 intent. Keep wallet records, credentials, and recovery material intact.
 
-Tradeoff: clearing durable presignatures can require replenishment on the next
-unlock. A single complete lock contract removes a hidden application decision.
-Coordinate pool invalidation and refill fencing with R153. Update the normative
-spec and behavioral contracts for this intentional change, including cleanup
-failure, repeated lock, concurrent unlock, and restart after lock. Measure the
-next-unlock/first-sign cost. Audit every old logout and exact-session lock caller
+Preserving durable presignatures avoids unnecessary replenishment after lock.
+Retained material grants no active signing authority: a subsequent unlock must
+validate authority and R153 placement/generation before reuse. Preserve independent
+invalidation for relocation, revocation, expiry, or consumption; lock itself must
+not delete the durable pool. Coordinate refill fencing with R153. Update the
+normative spec and behavioral contracts for removal of logout, including cleanup
+failure, repeated lock, concurrent unlock, restart, durable-pool retention, and
+signing rejection while locked. Audit every old logout and exact-session lock caller
 before deleting paths; preserve exact-session targeting. Removing or changing
 wire handlers follows the protocol-version rules below.
 
