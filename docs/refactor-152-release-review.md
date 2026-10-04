@@ -1,5 +1,44 @@
 # R152 / Wallet 0.8.0 release preparation
 
+## Current release gate — October 4
+
+Candidate implementation: `55c446c9`, with the ownership closure in `9c1c7b8e`.
+Per-wallet home routing, exact ownership accounting, deferred context and local
+credential/linked-device reconciliation are implemented. Three-home real browser
+installation/restart evidence and the directory-outage redemption correction are
+recorded in [the results](refactor-152-results.md). Packed imports and the private
+backend dry-run build passed against the October 4 tarballs.
+
+Hosted acceptance and release remain open. Cloudflare credentials authenticate,
+but the configured local staging env lacks generated deployment secrets, and saved
+manifests contain different role public keys from live staging. Resolve the current
+secret bundle before deploying. No remote mutation or npm publication was performed
+in this preparation. User authorization covers publishing 0.8.0 after the required
+implementation and verification gates; it does not make an unverified candidate
+ready for publication.
+
+Apply the complete packaged signer migration set through **0048**. Migration 0042
+renames the former namespace-home proof table to `deployment_resource_challenges`;
+that proof identifies a deployment resource, not a wallet's region. Migrations
+0045 and 0046 explicitly require their obsolete unowned receipt/admission tables
+to be empty before replacement. Use the authorized disposable-test-wallet reset;
+do not bypass those guards or preserve ambiguous ownership as compatibility code.
+Migration 0047 removes the unused NEAR key table; 0048 removes obsolete linked
+identity columns and gives retained operation scope its owner-specific name.
+
+R152 Console migrations extend through **0069**. The current private checkout also
+contains R153's **0070_wallet_relocations.sql** and relocation consumers. A deploy
+from that checkout must use a consistent code/schema snapshot; do not omit 0070
+while deploying code that reads its columns, or label relocation activation as
+R152 acceptance. Keep relocation execution outside this task's deployment scope.
+
+The remaining sections are dated preparation history. Their earlier candidate
+hashes, schema counts and open-work lists describe those checkpoints, not the
+October 4 candidate. The current gates are hosted regional routing/concurrency and
+same-wallet travel measurements, final candidate verification, coordinated release
+and the authorized R153 handoff. Initial call targets are recorded; unmeasured
+flows remain explicitly identified in the results table.
+
 > Superseded ownership decision (October 2): production placement is per wallet,
 > selected from trusted registration ingress location across US, WEUR and APAC.
 > Namespace-wide ownership is historical experiment evidence only. The active
@@ -24,9 +63,9 @@ counts describe the release delta; they do not imply every line was audited.
 
 ## Release behavior and upgrade requirements
 
-- R152 adds signer migration 0040 for short-lived namespace-home challenges.
-  The first 39 packaged signer migrations are byte-identical to 0.7.3.
-  Console must apply its corresponding migration 0050 before home activation.
+- Apply the current full signer and Console schemas described above. The earlier
+  0040/0050-only deployment instructions belonged to the discarded namespace-wide
+  placement candidate and cannot provision the per-wallet implementation.
 - Wallet authority initialization now relies on migrations. Apply the complete
   signer migration set before admitting requests; runtime requests no longer
   create authority tables and indexes.
