@@ -288,6 +288,28 @@ Source anchors: `durable_object/deriver_a_pair.rs`, `deriver_b_pair.rs`,
 `signing_worker/wallet_ecdsa_store.rs`, and `ed25519_yao_lifecycle.rs` under
 `crates/router-ab-cloudflare/src`.
 
+## October 4 ownership evidence
+
+The existing regional recovery E2E now records ownership counts in its receipt.
+A US Email-OTP-founded wallet recovered through APAC after a lost finalization
+response and Gateway restart, then signed NEAR and concurrent EVM transactions.
+The run passed: one retained `setup-ceremony` and six authorization-grant operations
+resolved to that wallet in US, each operation retained its audit row, and both
+remote homes contained none. This exercises the ordinary authorization join and
+setup retention; it does not exercise step-up/linked operation ownership or every
+terminal ceremony scope.
+
+Private artifact:
+`.artifacts/r152/ceremony-ownership-20261004/google-recovery-email_otp-US/recovery-evidence.json`
+SHA-256 `bb534ff270b465a39f79084803d82b88f2a8e6e89883de4cd936507fa1e1d711`.
+The initial attempt stopped before registration because the Google token expired;
+the repository token-refresh command succeeded and the retry passed. ESLint and
+diff checks passed. Reproduce with `SEAMS_WALLET_SERVER_CANDIDATE` pointing to the
+public package and `node tests/scripts/run-regional-real.mjs
+ google-email-otp.recovery.contract.test.ts --grep 'US email_otp-founded'` in the
+private repository. `SEAMS_INTENDED_SKIP_BUILD=1` reuses already-built binaries
+when sources have not changed; the successful run rebuilt its candidate.
+
 ## Closure gates owned by R152
 
 - [x] Internal Wallet Runtime routing: `regionalWalletIdentities.ts` partitions
