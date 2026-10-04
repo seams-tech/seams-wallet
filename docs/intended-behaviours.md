@@ -71,6 +71,10 @@ E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
   expiry-bound identity before returning its first message, including on failure.
   Reinitialization is rejected after completion and worker restart. Requests that
   exceed authorized deadlines fail rather than changing an initialized binding.
+- A refill using a retired or expired Wallet Session receives HTTP 401
+  `wallet_session_invalid`. Unlock can replace a session while an older background
+  request is in flight; that request cannot continue under the replacement
+  session. Storage failures remain unavailable errors.
 
 - A foreground signer waiting for an in-flight ceremony waits for the existing
   Gateway-authorized pool-fill completion. The client verifies the matching

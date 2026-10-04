@@ -1852,6 +1852,12 @@ export class CloudflareD1AuthorizationStore
       lookupValue: input.tokenHash,
     });
     if (!row) return null;
+    if (
+      (row.session_retired_at_ms !== null && row.session_retired_at_ms !== undefined) ||
+      integerColumn(row.session_expires_at_ms, 'session.expiresAtMs') <= input.nowMs
+    ) {
+      return null;
+    }
     const session = parseLiveWalletSessionAuthorizationV2Row(row, {
       operationCredentialHash: input.tokenHash,
       tenantId: input.tenantId,
