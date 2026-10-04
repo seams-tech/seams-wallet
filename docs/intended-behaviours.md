@@ -246,6 +246,12 @@ Session bootstrap can restore a saved wallet when no wallet is selected. A walle
 selection or removal during the saved-wallet read takes precedence over that
 read. Reading the session of an already selected wallet does not select it again.
 
+The application discards a session response captured before an observed wallet
+selection change and reads the current wallet again. Removing the selection clears
+the application's session projection. A closed connection clears that projection.
+Delayed session-read responses cannot repopulate it. Router disposal is terminal;
+initializing a disposed router rejects the call.
+
 ## Hosted Auth Menu Entry Point
 
 The application resolves wallet configuration before sending it to the wallet

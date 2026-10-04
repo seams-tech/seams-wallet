@@ -342,6 +342,20 @@ The inventory response and unrelated host operations use the browser harness.
 These cases prove selection preservation; session-result revisions and
 execution-configuration fencing remain open.
 
+Client session reads now capture the live connection and the observed selection
+generation. A newer wallet selection causes a fresh current-wallet read before
+the result can update the projection. Selection removal clears the projection.
+Disconnect clears the cached session, and a disposed router cannot initialize
+again. The duplicate session application after the notification helper's `await`
+is removed. The browser ordering scenario records delayed-read results, emitted
+login status, removal, pending-read rejection, and attempted reinitialization.
+
+This client generation tracks selection only. It does not establish authority
+ordering between concurrent reads for the same wallet. Host-issued revisions,
+lock/unlock/revocation/expiry capture rules, reconnect acceptance, and execution
+replacement fencing remain required. Evidence:
+`evidence/refactor-170-session-client-20261005.json`.
+
 ## WebAuthn ownership after R152
 
 The former parent bridge is absent from the current source. Commit `f312be27`

@@ -651,6 +651,13 @@ with production Email OTP and passkey refresh/sign/export acceptance also passin
 This closes the restoration side effect only; session-result revisions remain open.
 See `evidence/refactor-170-session-selection-20261005.json`.
 
+Client session reads now retry against the current wallet after an observed
+selection change. Connection closure clears the cached session and fences delayed
+session-read responses. Disposal prevents reinitialization. Session notifications
+no longer reapply a result after another asynchronous boundary. These client
+guards preserve selection and connection lifetime; host authority revisions remain
+open. See `evidence/refactor-170-session-client-20261005.json`.
+
 The fresh production root-client static closure measures 66,386 bytes gzip
 (64.8 KiB), compared with 739,640 bytes at baseline: a 91.0% reduction. Including
 its lazy router, it measures 93,551 bytes gzip (91.4 KiB). The provider measures
