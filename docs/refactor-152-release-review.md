@@ -20,13 +20,23 @@ installation/restart evidence and the directory-outage redemption correction are
 recorded in [the results](refactor-152-results.md). Packed imports and the private
 backend dry-run build passed against the October 4 tarballs.
 
-Hosted acceptance and release remain open. Cloudflare credentials authenticate,
-but the configured local staging env lacks generated deployment secrets, and saved
-manifests contain different role public keys from live staging. Resolve the current
-secret bundle before deploying. No remote mutation or npm publication was performed
-in this preparation. User authorization covers publishing 0.8.0 after the required
-implementation and verification gates; it does not make an unverified candidate
-ready for publication.
+Hosted acceptance and release remain open. Staging keys were regenerated with
+user authorization and verified against the configured public keys. Seven staging
+D1 databases were backed up and validated; 38 disposable registration records were
+cleared. All three regional Gateways and Wallet Runtimes, custody roles and Console
+were deployed. Regional D1 queries served from US/IAD, WEUR/LHR and APAC/HKG.
+
+The staging activation flow now verifies GitHub OIDC and regional resource proofs.
+Its registration canary initially failed because deployment wiring omitted the
+existing dedicated Gateway-to-Router and Gateway-to-SigningWorker credentials.
+Private commit `731249c` fixes the generator, preflight, workflows and secret
+uploads. The credentials were installed across receiving roles and all regional
+Gateway/Runtime pairs; custody keys were preserved. GitHub activation run
+`37190424277`, attempt 4, passed on October 4: OIDC admission, regional resource
+verification, registration canary, tenant activation and readiness checks succeeded.
+These deployment checks do not establish successful hosted wallet lifecycles.
+No npm publication has occurred. Evidence is retained privately under
+`.artifacts/r152/staging-reset-20261004/`.
 
 Apply the complete packaged signer migration set through **0048**. Migration 0042
 renames the former namespace-home proof table to `deployment_resource_challenges`;
@@ -38,8 +48,8 @@ Migration 0047 removes the unused NEAR key table; 0048 removes obsolete linked
 identity columns and gives retained operation scope its owner-specific name.
 
 R152 Console migrations extend through **0069**. The current private checkout also
-contains R153's **0070_wallet_relocations.sql** and relocation consumers. A deploy
-from that checkout must use a consistent code/schema snapshot; do not omit 0070
+contains R153's migrations through **0071** and relocation consumers. A deploy
+from that checkout must use a consistent code/schema snapshot; do not omit its required migrations
 while deploying code that reads its columns, or label relocation activation as
 R152 acceptance. Keep relocation execution outside this task's deployment scope.
 
