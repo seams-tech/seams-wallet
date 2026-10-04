@@ -56,15 +56,24 @@ bridge-response branches are removed. The probe lost one committed activation re
 committed cleanup acknowledgements; retries preserved the exact activation and
 acknowledgement, using fresh request proofs. Device 2 signed NEAR and Tempo, owner
 revocation prevented its next signature, and Device 1 continued signing. Evidence:
-private `.artifacts/r152/hosted-linked-20261004/`. Cancellation and regional
-travel/concurrency acceptance remain open.
+private `.artifacts/r152/hosted-linked-20261004/`. Regional
+travel/concurrency acceptance remains open.
 
-A preliminary probe registered only Tempo while configuring Tempo plus Arc for
-unlock. Unlock authentication succeeded, but warm-up discarded its context when
-Arc was missing and the auth menu did not finish. Registration and post-failure
-IndexedDB metadata were identical: material was retained. The accepted probe
-provisions both configured targets. Partial-target unlock and terminal auth-menu
-error propagation remain findings to resolve before claiming those cases work.
+The partial-target finding is resolved as a failed requested-lane hydration:
+Tempo-only registration followed by an unlock requesting Tempo plus Arc now rejects
+before warm-up with the missing Arc target. The obsolete first-bootstrap branch
+that discarded Tempo context and the unreachable post-Ed25519 context resolver are
+removed. Hosted acceptance verifies a visible retryable error. Its earlier timeout
+was a stale harness reader for a retired custom-element error field; the harness
+now reads the actual rendered error footer. Successful hydration of unprovisioned
+lanes is not claimed.
+
+The hosted lifecycle additionally cancels an unclaimed QR, verifies unchanged
+owner device inventory, then links successfully from the same target browser.
+Both hosted cases passed in 1.5 minutes; intended-flow type-check, SDK build and
+bloat checks pass. Cancellation here covers the unclaimed hosted path; claimed
+and committed delivery boundaries retain the existing regional composition evidence.
+Regional concurrency/travel and final release validation remain open.
 
 The hosted fixture uses the configured wallet origin for its RP ID (public
 `f8415eea`); the previous application-host assumption was masked by local hosts.

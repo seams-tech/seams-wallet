@@ -614,6 +614,7 @@ declare global {
   interface Window {
     __seamsIntendedE2EReadEmailOtpCode?: (input: IntendedEmailOtpCodeRequest) => Promise<string>;
     __seamsIntendedE2ELockWallet?: () => Promise<void>;
+    __seamsIntendedE2ECancelDeviceLink?: () => Promise<void>;
     __seamsIntendedE2EReadWalletLockState?: () => Promise<{
       authenticationKind: WalletSession['authentication']['kind'];
     }>;
@@ -1172,6 +1173,10 @@ class IntendedPageController {
    * The wallet's device inventory as the owner session sees it. A read, not an
    * action: opening inventory must never unlock, step up, or spend budget.
    */
+  cancelDeviceLinkForIntendedTest = async (): Promise<void> => {
+    await this.seams.devices.cancelDeviceLinking();
+  };
+
   readLinkedDevicesForIntendedTest = async (): Promise<unknown> => {
     if (!this.walletId) throw new Error('linked-device inventory requires a registered wallet');
     const inventory = await this.seams.devices.listLinkedDevices({
@@ -4030,6 +4035,7 @@ function installIntendedE2EHelpers(controller: IntendedPageController): void {
   if (typeof window === 'undefined') return;
   window.__seamsIntendedE2EReadEmailOtpCode = controller.readEmailOtpCodeForChallenge;
   window.__seamsIntendedE2ELockWallet = controller.lockWalletForIntendedTest;
+  window.__seamsIntendedE2ECancelDeviceLink = controller.cancelDeviceLinkForIntendedTest;
   window.__seamsIntendedE2EReadWalletLockState = controller.readWalletLockStateForIntendedTest;
   window.__seamsIntendedE2EReadAuthenticationMethods =
     controller.readAuthenticationMethodsForIntendedTest;

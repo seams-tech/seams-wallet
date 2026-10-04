@@ -350,11 +350,19 @@ declare global {
     }>;
     /** The linked-device inventory, parsed strictly by the contract. */
     __seamsIntendedE2EReadLinkedDevices?: () => Promise<unknown>;
+    __seamsIntendedE2ECancelDeviceLink?: () => Promise<void>;
     /** The QR payload Device 1 "scans"; the contract has no camera. */
     __seamsIntendedE2EDeviceLinkQrPayloadJson?: string;
     /** The exact revocation Device 1 submits, with its fresh source proof. */
     __seamsIntendedE2ELinkedDeviceRevocationJson?: string;
   }
+}
+
+async function cancelDeviceLinkFromIntendedPage(): Promise<void> {
+  if (!window.__seamsIntendedE2ECancelDeviceLink) {
+    throw new Error('Device-link cancellation is unavailable');
+  }
+  await window.__seamsIntendedE2ECancelDeviceLink();
 }
 
 async function readLinkedDevicesFromIntendedPage(): Promise<unknown> {
@@ -1381,6 +1389,16 @@ export class IntendedBehaviourHarness {
     } finally {
       await linked.context.close();
     }
+  }
+
+  async cancelUnclaimedDeviceLink(device: IntendedBehaviourHarness): Promise<void> {
+    const before = await this.readLinkedDeviceInventory();
+    await device.showDeviceLinkQr();
+    await device.page.evaluate(cancelDeviceLinkFromIntendedPage);
+    await expect(device.page.locator('[data-device-link-state="failed"]')).toBeVisible();
+    const after = await this.readLinkedDeviceInventory();
+    expect(after).toEqual(before);
+    this.recordStage('unclaimed_device_link_cancelled_inventory_unchanged');
   }
 
   /**
@@ -8827,17 +8845,11 @@ async function runWalletIframeAutoConfirmLoop(args: {
 async function readWalletIframeAuthMenuError(page: Page): Promise<string | null> {
   const iframe = page.locator('iframe[allow*="publickey-credentials-get"]').last();
   if (!(await iframe.isVisible().catch(() => false))) return null;
-  const surface = iframe.contentFrame().locator('seams-auth-menu-surface').first();
-  if ((await surface.count().catch(() => 0)) === 0) return null;
-  return await surface
-    .evaluate((element) => {
-      const authMenu = element as HTMLElement & {
-        viewModel?: { readonly error?: unknown };
-      };
-      const error = String(authMenu.viewModel?.error || '').trim();
-      return error || null;
-    })
-    .catch(() => null);
+  const notice = iframe
+    .contentFrame()
+    .locator('.seams-auth-footer[data-state="notice"] .seams-auth-footer-text');
+  if (!(await notice.isVisible().catch(() => false))) return null;
+  return (await notice.textContent())?.trim() || null;
 }
 
 /**

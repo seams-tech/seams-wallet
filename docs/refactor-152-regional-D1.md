@@ -1620,7 +1620,9 @@ Next gates: hosted regional acceptance, D1-call targets, final cleanup review,
   with a lost activation reply and two lost cleanup acknowledgements. Device 2
   signs NEAR and Tempo; revocation blocks Device 2 while the owner still signs.
   Remove the obsolete parent-origin WebAuthn bridge exposed by this acceptance.
-- [ ] Complete hosted cancellation and regional concurrency/travel acceptance.
+- [x] Verify hosted unclaimed-link cancellation followed by successful linking
+  from the same target browser, with unchanged owner inventory after cancellation.
+- [ ] Complete hosted regional concurrency/travel acceptance.
 
 Private evidence: `.artifacts/r152/hosted-candidate-20261004/`, including
 `deployment-readiness.json`, dry-run build and preflight logs. Public packed

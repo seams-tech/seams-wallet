@@ -4036,14 +4036,12 @@ async function unlockInternal(
           context: storedCanonicalEcdsaContext,
         });
       }
-      const canFirstBootstrapThresholdEcdsa = Boolean(managedRuntimeScopeBootstrap);
 
       // The plan decides which signers warm, and whether Ed25519/ECDSA depends on the other.
       const warmupPlan = resolveThresholdLoginWarmupPlan({
         selection: warmupInput.selection,
         selectedEcdsaTargets: warmupInput.selectedEcdsaTargets,
         storedCanonicalEcdsaContext,
-        canFirstBootstrapThresholdEcdsa,
         wantsEd25519Warmup: warmupInput.wantsEd25519Warmup,
       });
       const passkeyExchangeEcdsaActivationForWarmup = completedPasskeyExchangeEcdsaActivation;
@@ -4167,7 +4165,7 @@ async function unlockInternal(
         unlockRemainingUses: requireLoginUnlockSessionUses(
           signingSessionPolicy.unlockRemainingUses,
         ),
-        ecdsaContextResolution: warmupPlan.ecdsaContextResolution,
+        ecdsaContext: warmupPlan.ecdsaContext,
         credentialState,
         runtimeScopeBootstrapState,
         signersToWarm: warmupPlan.signersToWarm,
@@ -5145,33 +5143,11 @@ async function completePasskeyWalletUnlock(
   };
 }
 
-type ThresholdLoginWarmEcdsaContextResolution =
-  | {
-      kind: 'pre_resolved';
-      context: CanonicalThresholdEcdsaWarmSessionContext;
-      initialContext?: never;
-      resolveAfterEd25519?: never;
-    }
-  | {
-      kind: 'first_bootstrap_missing_target_keys';
-      initialContext: CanonicalThresholdEcdsaWarmSessionContext;
-      context?: never;
-      resolveAfterEd25519?: never;
-    }
-  | {
-      kind: 'resolve_after_ed25519';
-      initialContext: CanonicalThresholdEcdsaWarmSessionContext;
-      resolveAfterEd25519: (
-        ed25519State: ThresholdLoginWarmEd25519State,
-      ) => Promise<CanonicalThresholdEcdsaWarmSessionContext>;
-      context?: never;
-    };
-
 type ThresholdLoginWarmupPlan = {
   kind: 'threshold_login_warmup_plan_ready';
   storedCanonicalEcdsaContext: CanonicalThresholdEcdsaWarmSessionContext;
   configuredTargetKeyCompletion: ConfiguredTargetKeyCompletion;
-  ecdsaContextResolution: ThresholdLoginWarmEcdsaContextResolution;
+  ecdsaContext: CanonicalThresholdEcdsaWarmSessionContext;
   signersToWarm: ThresholdLoginWarmSigner[];
   ed25519DependsOnEcdsa: boolean;
   ecdsaDependsOnEd25519: boolean;
@@ -5258,7 +5234,6 @@ async function stageMintedLoginEd25519WalletSessionAuthority(
   context: {
     sharedState: ThresholdLoginWarmSharedState;
     authorityDeferred: LoginWarmupDeferred<MintedEd25519WalletSessionAuthority> | null;
-    ecdsaContextResolution: ThresholdLoginWarmEcdsaContextResolution;
   },
   minted: MintedEd25519WalletSessionAuthority,
 ): Promise<void> {
@@ -5270,10 +5245,6 @@ async function stageMintedLoginEd25519WalletSessionAuthority(
   context.sharedState.ed25519.expiresAtMs = minted.expiresAtMs;
   context.sharedState.ed25519.remainingUses = minted.remainingUses;
   context.sharedState.ed25519.runtimePolicyScope = minted.runtimePolicyScope;
-  if (context.ecdsaContextResolution.kind === 'resolve_after_ed25519') {
-    context.sharedState.activeCanonicalEcdsaContext =
-      await context.ecdsaContextResolution.resolveAfterEd25519(context.sharedState.ed25519);
-  }
   context.authorityDeferred?.resolve(minted);
 }
 
@@ -6001,7 +5972,7 @@ async function primeThresholdLoginWarmSigners(args: {
   participantIds: number[];
   ttlMs: number;
   unlockRemainingUses: number;
-  ecdsaContextResolution: ThresholdLoginWarmEcdsaContextResolution;
+  ecdsaContext: CanonicalThresholdEcdsaWarmSessionContext;
   credentialState: LoginWarmupCredentialState;
   runtimeScopeBootstrapState: LoginWarmupRuntimeScopeBootstrapState;
   signersToWarm: readonly ThresholdLoginWarmSigner[];
@@ -6022,10 +5993,7 @@ async function primeThresholdLoginWarmSigners(args: {
     args.runtimeScopeBootstrapState.kind === 'available'
       ? args.runtimeScopeBootstrapState.runtimeScopeBootstrap
       : null;
-  const initialCanonicalEcdsaContext =
-    args.ecdsaContextResolution.kind === 'pre_resolved'
-      ? args.ecdsaContextResolution.context
-      : args.ecdsaContextResolution.initialContext;
+  const initialCanonicalEcdsaContext = args.ecdsaContext;
   const sharedState: ThresholdLoginWarmSharedState = {
     activeCanonicalEcdsaContext: initialCanonicalEcdsaContext,
     ed25519: {
@@ -6099,7 +6067,6 @@ async function primeThresholdLoginWarmSigners(args: {
             {
               sharedState,
               authorityDeferred,
-              ecdsaContextResolution: args.ecdsaContextResolution,
             },
           ),
         };
@@ -6830,59 +6797,26 @@ function resolveThresholdLoginWarmupPlan(args: {
   selection: WalletUnlockSelection;
   selectedEcdsaTargets: readonly ConfiguredThresholdEcdsaPublicationTarget[];
   storedCanonicalEcdsaContext: CanonicalThresholdEcdsaWarmSessionContext;
-  canFirstBootstrapThresholdEcdsa: boolean;
   wantsEd25519Warmup: boolean;
 }): ThresholdLoginWarmupPlan {
   const configuredTargetKeyCompletion = buildConfiguredTargetKeyCompletion({
     context: args.storedCanonicalEcdsaContext,
     configuredTargets: args.selectedEcdsaTargets,
   });
-  let ecdsaContextResolution: ThresholdLoginWarmEcdsaContextResolution;
-  let signersToWarm: ThresholdLoginWarmSigner[];
-  const ed25519DependsOnEcdsa = false;
-  let ecdsaDependsOnEd25519 = false;
-  if (
-    configuredTargetKeyCompletion.kind === 'missing_configured_target_keys' &&
-    args.selectedEcdsaTargets.length
-  ) {
-    const initialContext: CanonicalThresholdEcdsaWarmSessionContext = {
-      ecdsaKeys: [],
-      ...(args.storedCanonicalEcdsaContext.runtimePolicyScope
-        ? { runtimePolicyScope: args.storedCanonicalEcdsaContext.runtimePolicyScope }
-        : {}),
-    };
-    if (!args.canFirstBootstrapThresholdEcdsa) {
-      throw new Error(
-        `[login] threshold ECDSA warm-up requires complete local key facts for ${configuredTargetKeyCompletion.missingTargets.join(
-          ', ',
-        )}; run explicit authenticated ECDSA key-facts inventory before unlock`,
-      );
-    }
-    signersToWarm = args.wantsEd25519Warmup ? ['ed25519', 'ecdsa'] : ['ecdsa'];
-    ecdsaDependsOnEd25519 = args.wantsEd25519Warmup;
-    ecdsaContextResolution = {
-      kind: 'first_bootstrap_missing_target_keys',
-      initialContext,
-    };
-  } else {
-    const resolvedCanonicalEcdsaContext = requireCompleteConfiguredTargetKeyContext({
-      completion: configuredTargetKeyCompletion,
-      source: 'stored ECDSA key facts',
-    });
-    ecdsaContextResolution = {
-      kind: 'pre_resolved',
-      context: resolvedCanonicalEcdsaContext,
-    };
-    signersToWarm = resolveThresholdLoginWarmSigners({
-      selection: args.selection,
-      configuredEcdsaTargets: args.selectedEcdsaTargets,
-      canonicalEcdsaContext: resolvedCanonicalEcdsaContext,
-    });
-    if (args.wantsEd25519Warmup && !signersToWarm.includes('ed25519')) {
-      signersToWarm = ['ed25519', ...signersToWarm];
-    }
-    ecdsaDependsOnEd25519 = signersToWarm.includes('ed25519') && signersToWarm.includes('ecdsa');
+  const ecdsaContext = requireCompleteConfiguredTargetKeyContext({
+    completion: configuredTargetKeyCompletion,
+    source: 'stored ECDSA key facts',
+  });
+  let signersToWarm = resolveThresholdLoginWarmSigners({
+    selection: args.selection,
+    configuredEcdsaTargets: args.selectedEcdsaTargets,
+    canonicalEcdsaContext: ecdsaContext,
+  });
+  if (args.wantsEd25519Warmup && !signersToWarm.includes('ed25519')) {
+    signersToWarm = ['ed25519', ...signersToWarm];
   }
+  const ed25519DependsOnEcdsa = false;
+  const ecdsaDependsOnEd25519 = signersToWarm.includes('ed25519') && signersToWarm.includes('ecdsa');
   if (!signersToWarm.length) {
     throw new Error('[login] ECDSA unlock requested with no configured ECDSA targets');
   }
@@ -6890,7 +6824,7 @@ function resolveThresholdLoginWarmupPlan(args: {
     kind: 'threshold_login_warmup_plan_ready',
     storedCanonicalEcdsaContext: args.storedCanonicalEcdsaContext,
     configuredTargetKeyCompletion,
-    ecdsaContextResolution,
+    ecdsaContext,
     signersToWarm,
     ed25519DependsOnEcdsa,
     ecdsaDependsOnEd25519,
