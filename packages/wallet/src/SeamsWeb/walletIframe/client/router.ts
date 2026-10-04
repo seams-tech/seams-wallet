@@ -326,6 +326,7 @@ interface WalletIframeRouterOptions {
   registration?: SeamsConfigsInput['registration'];
   signingSessionDefaults?: SeamsConfigsInput['signingSessionDefaults'];
   signingSessionPersistenceMode?: SeamsConfigsInput['signingSessionPersistenceMode'];
+  emailOtpAuthPolicy?: SeamsConfigsInput['emailOtpAuthPolicy'];
   routerAb?: SeamsConfigsInput['routerAb'];
   routerAbEcdsaDerivationPresignaturePool?: SeamsConfigsInput['routerAbEcdsaDerivationPresignaturePool'];
   provisioningDefaults?: SeamsConfigsInput['provisioningDefaults'];
@@ -2853,6 +2854,7 @@ export class WalletIframeRouter {
         registration: this.opts.registration,
         signingSessionDefaults: this.opts.signingSessionDefaults,
         signingSessionPersistenceMode: this.opts.signingSessionPersistenceMode,
+        emailOtpAuthPolicy: this.opts.emailOtpAuthPolicy,
         routerAb: this.opts.routerAb,
         routerAbEcdsaDerivationPresignaturePool: this.opts.routerAbEcdsaDerivationPresignaturePool,
         provisioningDefaults: this.opts.provisioningDefaults,

@@ -368,11 +368,11 @@ not permission to delete persisted presignatures.
 | `chains` | `resolveChains` resolves configured RPC/explorer/network values; router forwards normalized chains; host clones incoming array or retains previous array. | Client public RPC/selection and host signing config; reset. Preserve chain order and primary NEAR RPC selection. |
 | `relayerAccount` | Trimmed nonempty override, then default; sent separately from relayer object; host uses incoming, previous, then empty string. | Client display/public calls and host registration; reset. Preserve existing discovery separately from normalization. |
 | `relayer.url` | Trimmed override/default, required nonempty; forwarded and shallow-merged at host. | Both client relaying and host execution; reset. |
-| `relayer.delegateActionRoute` | Normalizes to `network.relayer.routes.delegateAction`. Assembly passes the normalized relayer object where the router expects the input shape. Host re-normalization reads `delegateActionRoute`, so the override is lost there. | Client relay helper retains the configured route. Explicitly serialize the input field for any host consumer; do not forward mismatched resolved/input objects. |
+| `relayer.delegateActionRoute` | Normalizes to `network.relayer.routes.delegateAction`. Assembly now maps the resolved route back to the explicit `delegateActionRoute` wire field. The browser round trip preserves the override. | Client relay helper retains the configured route. Explicitly serialize the input field for any host consumer; do not forward mismatched resolved/input objects. |
 | `registration` | Managed mode; publishable key required when registration config is explicitly supplied; optional environment cross-check, payment mode and NEAR provisioning normalized. Router forwards resolved object; host replaces the whole registration config when present. | Host ceremony/bootstrap; public client retains browser-safe registration config. Reset. Preserve signing-only construction without registration credentials. |
 | `signingSessionDefaults` | Per-field override/default for TTL and use budget; forwarded; host replaces the defaults object when supplied. | Host authority inputs, with existing per-operation overrides; reset. Do not reinterpret projection values as grants. |
 | `signingSessionPersistenceMode` | Validates `none` or `sealed_refresh_v1`; derives seal algorithm/group locally. Forwarded and retained when omitted. | Host persistence; reset. Keep existing storage names and schemas. |
-| `emailOtpAuthPolicy` | Validates `session` or `per_operation` into `signing.emailOtp.authPolicy`. **Omitted** by router options, PM_SET_CONFIG construction, host config assembly, and reset fingerprint. | Host factor/signing policy. Carry the resolved policy explicitly at cutover and include it in effective execution-config identity. Add a real per-operation Email OTP contract before calling preservation verified. |
+| `emailOtpAuthPolicy` | Validates `session` or `per_operation` into `signing.emailOtp.authPolicy`. Now forwarded by router options, PM_SET_CONFIG, and host config assembly; included in the execution reset fingerprint. | Host factor/signing policy. Carry the resolved policy explicitly at cutover and include it in effective execution-config identity. Add a real per-operation Email OTP contract before calling preservation verified. |
 | `routerAb` | Validates enabled/disabled normal-signing branch and required worker id; forwarded; host replaces when supplied. | Host signing policy; reset. Preserve the discriminated branch. |
 | `routerAbEcdsaDerivationPresignaturePool` | Validates enabled, depth, low-watermark, concurrency, timeout against existing bounds; forwarded; host replaces when supplied. | Host background refill policy; reset. Neither config reconstruction nor cosmetic updates authorize durable-pool deletion. |
 | `provisioningDefaults` | Copies the configured/default EVM and Tempo policies; forwarded; host replaces when supplied. | Host registration/signing setup, with existing per-call signer overrides; reset. |
@@ -384,9 +384,12 @@ not permission to delete persisted presignatures.
 | `iframeWallet.rpIdOverride` | Input/default value; router sends it inside `iframeWallet`; host merges it before sanitizing nested origin/path. | Both supported credential adapters and host RP identity; reset. Must remain independent of service/asset URL choices. |
 | `appearance` | Theme/palette normalized in client; current appearance sent on connection. Host merges same-theme colors/shape and replaces them on theme-id change; absent update preserves previous appearance. | Client and host display only; no execution reset. Host updates CSS and existing runtime appearance. |
 
-Two demonstrated round-trip gaps are the Email OTP policy omission and relayer
-route shape mismatch. These are configuration preservation work for the cutover;
-the source audit does not establish their end-to-end behavioral impact yet.
+The Email OTP policy omission and relayer route shape mismatch are fixed. A browser
+probe exercises the real client router, cross-origin iframe transport, host config
+application, and normalization. Both values survive an appearance-only update.
+This proves configuration forwarding; real per-operation authentication/signing and
+active-session replacement behavior remain acceptance work. Evidence is recorded in
+`evidence/refactor-170-config-forwarding-20261005.json`.
 `walletHostVariant` also needs a supported-consumer decision. Do not fix these by
 adding another default or a compatibility branch. Use explicit boundary mapping
 and update the paired protocol/version if the resulting semantics require it.
@@ -829,3 +832,11 @@ changes, and explain the resulting net production total. Necessary additions mus
 have concrete responsibilities; remove redundant paths without gaming line counts.
 Concurrent relocation work is
 outside this count. Do not claim unique removed lines from cumulative diff totals.
+
+
+Configuration probe note: constructing a signing-only client without registration
+credentials still materializes a resolved registration object. Host re-normalization
+then treats it as explicit registration input and requires a publishable key. The
+probe uses explicit registration credentials to test the supported configured path.
+Resolve this signing-only construction gap in the client/host config split; do not
+add an empty-key exception or a compatibility fallback.

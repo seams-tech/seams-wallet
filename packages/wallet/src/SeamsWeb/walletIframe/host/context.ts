@@ -94,6 +94,7 @@ function buildWalletRuntimeResetFingerprint(config: SeamsConfigsInput | null | u
     registration: config?.registration,
     signingSessionDefaults: config?.signingSessionDefaults,
     signingSessionPersistenceMode: config?.signingSessionPersistenceMode,
+    emailOtpAuthPolicy: config?.emailOtpAuthPolicy,
     routerAb: config?.routerAb,
     routerAbEcdsaDerivationPresignaturePool: config?.routerAbEcdsaDerivationPresignaturePool,
     provisioningDefaults: config?.provisioningDefaults,
@@ -304,6 +305,7 @@ export function applyWalletConfig(ctx: HostContext, payload: PMSetConfigPayload)
     relayerAccount: payload?.relayerAccount ?? prev.relayerAccount ?? '',
     signingSessionDefaults: payload?.signingSessionDefaults ?? prev.signingSessionDefaults,
     signingSessionPersistenceMode: nextSigningSessionPersistenceMode,
+    emailOtpAuthPolicy: payload?.emailOtpAuthPolicy ?? prev.emailOtpAuthPolicy,
     routerAb: payload?.routerAb ?? prev.routerAb,
     routerAbEcdsaDerivationPresignaturePool:
       payload?.routerAbEcdsaDerivationPresignaturePool ??
