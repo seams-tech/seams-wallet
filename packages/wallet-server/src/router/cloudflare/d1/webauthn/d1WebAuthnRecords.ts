@@ -175,18 +175,18 @@ export function parseWebAuthnLoginChallengeRecord(
   }
   const version = toOptionalTrimmedString(record.version);
   const challengeId = toOptionalTrimmedString(record.challengeId);
-  const userId = toOptionalTrimmedString(record.userId);
+  const userId = parseWalletId(record.userId);
   const rpId = toOptionalTrimmedString(record.rpId);
   const challengeB64u = toOptionalTrimmedString(record.challengeB64u);
   const createdAtMs = positiveInteger(record.createdAtMs);
   const expiresAtMs = positiveInteger(record.expiresAtMs);
   if (version !== 'webauthn_login_challenge_v1') return null;
-  if (!challengeId || !userId || !rpId || !challengeB64u) return null;
+  if (!challengeId || !userId.ok || !rpId || !challengeB64u) return null;
   if (createdAtMs === null || expiresAtMs === null) return null;
   return {
     version: 'webauthn_login_challenge_v1',
     challengeId,
-    userId,
+    userId: userId.value,
     rpId,
     challengeB64u,
     createdAtMs,

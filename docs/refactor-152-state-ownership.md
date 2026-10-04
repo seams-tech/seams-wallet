@@ -1,6 +1,6 @@
 # R152 state ownership baseline for R153
 
-Revision 7 — October 4, 2026.
+Revision 8 — October 4, 2026.
 
 This freezes the **schema inventory and ownership obligations**, not a copy-ready
 relocation implementation. R153 must fail closed for unresolved ownership below.
@@ -63,7 +63,7 @@ for the baseline, grouped only where the selector and obligations agree.
 | `linked_device_sessions`, `linked_device_session_transcripts`, `linked_device_target_commit_reservations`, `linked_device_bootstrap_imports` | Wallet children: resolve scoped link IDs through Console `wallet_routes` kind `linked_device`, plus validated local session/claim records. Import receipts may survive deletion of sessions and target rows; select those via the shared route, never only via surviving local parents. |
 | `near_public_keys` | Blocked selector: `user_id` is not a wallet ID contract. Resolve through validated wallet signer/auth identity; retain removal markers. |
 | `webauthn_authenticators` | Wallet counter state: resolve RP/credential through scoped wallet auth methods and bindings. Do not infer wallet from `user_id`; preserve counters. |
-| `webauthn_challenges` | Mixed lifecycle: shared sync challenges use Console. Local login/unlock/registration challenge records require kind-specific parsed wallet/ceremony ownership and shared challenge routes. Block unknown kinds and unresolved pre-wallet challenges. |
+| `webauthn_challenges` | Kind-specific ownership: parsed `login.userId` is a validated WalletId; parsed `recovery_registration.walletId` is the recovery wallet. Hosted `sync` challenges use Console and must not appear in regional signer extraction. Retain full tenant scope, exact challenge ID, expiry and shared locator. Unknown kinds block extraction. |
 | `webauthn_credential_bindings` | Regional credential projection: select credentials belonging to selected wallet auth methods; Console `wallet_passkey_claims` is the shared uniqueness/routing authority. Local bindings are not authority to reassign a credential. |
 | `registration_ceremony_records` | Wallet: exact tenant scope, supported record scope and parsed wallet identity from the selector table below. Preserve setup snapshots, claims and terminal replies independently of surviving ceremony parents. |
 | `router_ab_yao_capability_replacements` | Wallet: migration 0045 requires exact scoped `wallet_id`. Copy old/new capability decisions and replay fingerprints together, including terminal receipts after lifecycle cleanup. Retries verify the same wallet. |
@@ -73,6 +73,42 @@ for the baseline, grouped only where the selector and obligations agree.
 | `vault_proxy_secrets` | Shared tenant/vault/item state, no wallet ownership. Excluded from wallet relocation. |
 | `deployment_resource_challenges` | Resource-local deployment proof, excluded; the destination must prove its own identity. |
 | `lane_cas_guard`, `linked_device_session_cas_guard`, `registration_ceremony_cas_guard`, `router_ab_yao_versioned_json_cas_guard`, `wallet_authority_cas_guard` | Schema guard tables, excluded from row copy. Destination migrations install them and their triggers. |
+
+## WebAuthn credential and challenge selectors
+
+Always select the complete namespace/organization/project/environment scope first.
+`webauthn_challenges.challenge_kind` has three supported branches:
+
+- `login`: parse `record_json` with `parseWebAuthnLoginChallengeRecord` in
+  `d1WebAuthnRecords.ts`. Its required `userId` is validated with `parseWalletId`
+  on issuance and decoding, and is typed as `WalletId`. Require the parsed
+  `challengeId` to equal the row key; preserve its expiry and RP binding.
+- `recovery_registration`: parse with
+  `parseWebAuthnRecoveryRegistrationChallengeRecord`. Its required `walletId`
+  owns the complete recovery operation/reservation, target authority/method/device,
+  and continuity snapshot. Retain the one-use challenge with that state and its
+  exact key/expiry; it is consumed in the custody commit transaction.
+- `sync`: hosted composition injects Console's `syncChallenges` service for both
+  creation and consumption. These are shared discovery records; do not infer a
+  regional owner from optional `expectedUserId`. A local signer `sync` row in a
+  hosted extraction indicates a composition mismatch and blocks the move.
+
+`writeChallenge` now discriminates kind and record together. A login, shared sync,
+or recovery payload cannot be passed under another kind. The already typed sync
+record is passed directly to the shared service; persisted reads retain their
+boundary parsers. The wire/persistence field `userId` is unchanged, with no
+compatibility reader or duplicate owner field.
+
+For authenticators and credential bindings, select all parsed passkey methods for
+the wallet, including revoked methods, then match their exact RP/credential IDs
+against bindings in the same tenant scope. Require each binding's `userId` to equal
+the selected wallet. Select authenticator counters by the same scoped wallet
+`user_id` and credential ID; the authenticator table has no independent RP column.
+Registration, factor addition and recovery installation write these records with
+the allocated wallet ID. Preserve counters and timestamps. Shared Console
+`wallet_passkey_claims` remains the credential uniqueness/routing authority.
+Missing methods/bindings or inconsistent owners block extraction; active-only
+public readers cannot provide a complete selection.
 
 ## Authorization operation selection
 
@@ -566,3 +602,21 @@ post-restart NEAR signing; its log is retained as `e2e-unavailable.log`. The nex
 run passed with unchanged production code. Its underlying transient cause was not
 established. The helper now reports the home-side HTTP error code on future 5xx
 failures without logging credential or request bodies.
+
+
+### WebAuthn challenge ownership closure — October 4
+
+The passkey intended-behaviour E2E passed in 32.8 seconds: registration, unlock,
+Ed25519/ECDSA key export, NEAR signing, concurrent Tempo/Arc signing and step-up.
+Static fixtures reject a sync record labeled as login, a broad spread relabeling
+login as recovery, and an unvalidated string used as login wallet ownership.
+Wallet-server build, typecheck and bloat checks passed. The schema and persisted
+field names remain unchanged; this closes the challenge type/selector ambiguity.
+It does not claim hosted locator reconciliation or every credential lifecycle
+branch has been verified.
+
+Reproduce: `SEAMS_INTENDED_SKIP_BUILD=1 node
+ tests/scripts/run-wallet-intended-isolated.mjs passkey.unlock.contract.test.ts
+ --grep 'passkey unlock restores immediate'` after building Wallet-server.
+Evidence: Wallet `.artifacts/r152/webauthn-ownership-20261004/evidence.json`,
+`e2e.log`, `build.log`, `typecheck.log`, and `bloat.log`.

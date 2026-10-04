@@ -34,6 +34,19 @@ import type { ScopedD1Prepare } from '../../../../core/emailOtpD1Statements';
 
 type WebAuthnChallengeKind = 'login' | 'sync' | 'recovery_registration';
 
+type WebAuthnChallengeWrite = {
+  readonly challengeId: string;
+  readonly createdAtMs: number;
+  readonly expiresAtMs: number;
+} & (
+  | { readonly challengeKind: 'login'; readonly record: WebAuthnLoginChallengeRecord }
+  | { readonly challengeKind: 'sync'; readonly record: WebAuthnSyncChallengeRecord }
+  | {
+      readonly challengeKind: 'recovery_registration';
+      readonly record: WebAuthnRecoveryRegistrationChallengeRecord;
+    }
+);
+
 export type D1WebAuthnStoreScope = D1TenantScope;
 
 type AuthenticatorStatementInput = {
@@ -105,20 +118,11 @@ export class CloudflareD1WebAuthnStore {
     };
   }
 
-  async writeChallenge(input: {
-    readonly challengeId: string;
-    readonly challengeKind: WebAuthnChallengeKind;
-    readonly record:
-      | WebAuthnLoginChallengeRecord
-      | WebAuthnSyncChallengeRecord
-      | WebAuthnRecoveryRegistrationChallengeRecord;
-    readonly createdAtMs: number;
-    readonly expiresAtMs: number;
-  }): ReturnType<WebAuthnSyncChallengeStore['create']> {
+  async writeChallenge(
+    input: WebAuthnChallengeWrite,
+  ): ReturnType<WebAuthnSyncChallengeStore['create']> {
     if (input.challengeKind === 'sync' && this.syncChallenges) {
-      const record = parseWebAuthnSyncChallengeRecord(input.record);
-      if (!record) throw new Error('Invalid sync challenge');
-      return this.syncChallenges.create(record);
+      return this.syncChallenges.create(input.record);
     }
     await webAuthnChallengeRows.upsert(this.prepare, input).run();
     return { ok: true };
