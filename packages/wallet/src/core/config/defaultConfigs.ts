@@ -6,7 +6,6 @@ import type {
   SeamsChainConfig,
   SeamsConfigsInput,
   SeamsClientConfig,
-  SeamsConfigsReadonly,
   RouterAbEcdsaDerivationPresignaturePoolPolicy,
 } from '../types/seams';
 import { buildConfigsFromDefaults } from './configBuilder';
@@ -93,7 +92,7 @@ const DEFAULT_CHAIN_CONFIGS: SeamsChainConfig[] = [
 /// Seams Client SDK configs
 //////////////////////////////
 
-export const PASSKEY_MANAGER_DEFAULT_CONFIGS: SeamsConfigsReadonly = {
+export const PASSKEY_MANAGER_DEFAULT_CONFIGS: SeamsClientConfig = {
   network: {
     chains: DEFAULT_CHAIN_CONFIGS,
     relayer: {
@@ -147,7 +146,7 @@ export const PASSKEY_MANAGER_DEFAULT_CONFIGS: SeamsConfigsReadonly = {
   },
   // Configure iframeWallet in application code to point at your dedicated wallet origin when available.
   wallet: {
-    mode: 'direct',
+    mode: 'iframe',
     iframe: {
       origin: 'https://wallet.example.localhost',
       servicePath: '/wallet-service',

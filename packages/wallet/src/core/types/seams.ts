@@ -18,6 +18,7 @@ import type {
   WalletAuthMethod,
 } from '@shared/utils';
 import type { WalletId } from '@shared/utils/registrationIntent';
+import type { WebAuthnRpId } from '@shared/utils/domainIds';
 import type { RouterApiKeyAuthFailureCode } from '@shared/utils/routerApiKeyAuth';
 import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIds';
 import type {
@@ -31,7 +32,7 @@ import type {
   NearEd25519WalletUnlockSubject,
   WalletUnlockSubjectSet,
 } from '../signingEngine/session/identity/walletUnlockSubject';
-import type { ExclusiveUnion, ReadonlyExclusiveUnion } from '@shared/utils/variant';
+import type { ExclusiveUnion, ReadonlyExclusiveUnion, Variant } from '@shared/utils/variant';
 
 export type {
   SensitiveOperationPolicy,
@@ -296,7 +297,7 @@ export interface SeamsConfigsInput {
  *     authenticatorOptions: AuthenticatorOptions;
  *   };
  *   wallet:
- *     | { mode: 'direct'; iframe: { origin?: string; servicePath: string; sdkBasePath: string; rpIdOverride?: string } }
+ *     | { mode: 'direct'; rpId: WebAuthnRpId; iframe?: never }
  *     | { mode: 'iframe'; iframe: { origin: string; servicePath: string; sdkBasePath: string; rpIdOverride?: string } };
  *   ui: {
  *     appearance: AppearanceConfig;
@@ -307,10 +308,7 @@ export interface SeamsConfigsInput {
 export type SeamsConfigsReadonly = ReadonlyDeep<SeamsConfigsResolved>;
 
 export type SeamsClientConfig = Omit<SeamsConfigsReadonly, 'wallet'> & {
-  readonly wallet: {
-    readonly mode: 'iframe';
-    readonly iframe: ReadonlyDeep<SeamsIframeWalletConfig> & { readonly origin: string };
-  };
+  readonly wallet: Variant<SeamsConfigsReadonly['wallet'], 'mode', 'iframe'>;
 };
 
 //////////////////////////////////
@@ -893,7 +891,7 @@ interface SeamsWebauthnConfig {
 }
 
 interface SeamsIframeWalletConfig {
-  origin?: string;
+  origin: string;
   servicePath: string;
   sdkBasePath: string;
   walletHostVariant: WalletHostVariant;
@@ -903,11 +901,13 @@ interface SeamsIframeWalletConfig {
 type SeamsWalletConfig =
   | {
       mode: 'direct';
-      iframe: SeamsIframeWalletConfig;
+      rpId: WebAuthnRpId;
+      iframe?: never;
     }
   | {
       mode: 'iframe';
-      iframe: SeamsIframeWalletConfig & { origin: string };
+      iframe: SeamsIframeWalletConfig;
+      rpId?: never;
     };
 
 interface SeamsUiConfig {

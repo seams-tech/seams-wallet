@@ -43,8 +43,8 @@ async function applyConfiguration(event) {
     colors: resolved.ui.appearance.theme.colors,
     shape: resolved.ui.appearance.theme.shape ?? {},
     walletMode: resolved.wallet.mode,
-    hasNestedOrigin: Object.hasOwn(resolved.wallet.iframe, 'origin'),
-    rpId: resolved.wallet.iframe.rpIdOverride,
+    hasNestedIframe: Object.hasOwn(resolved.wallet, 'iframe'),
+    rpId: resolved.wallet.rpId,
   };
   postResult(event.data.requestId, undefined);
 }
@@ -79,7 +79,7 @@ async function configureClient(registrationMode: 'managed' | 'signing_only'): Pr
     },
     iframeWallet: {
       walletOrigin: 'https://wallet.example.localhost',
-      rpIdOverride: 'wallet.example.localhost',
+      rpIdOverride: registrationMode === 'managed' ? 'example.localhost' : '',
     },
   });
   const router = await sdk.createWalletIframeRouter({
@@ -103,10 +103,22 @@ async function updateAppearance(appearance: AppearanceConfigInput): Promise<void
   await (window as any).configurationRouter.setAppearance(appearance);
 }
 
-async function rejectIncompleteConfiguration(): Promise<string> {
+async function rejectInvalidConfiguration(
+  kind: 'missing_policy' | 'missing_rp' | 'nested_iframe',
+): Promise<string> {
   const router = (window as any).configurationRouter;
   const config = structuredClone(router.opts.hostConfig);
-  delete config.signing.emailOtp;
+  switch (kind) {
+    case 'missing_policy':
+      delete config.signing.emailOtp;
+      break;
+    case 'missing_rp':
+      delete config.wallet.rpId;
+      break;
+    case 'nested_iframe':
+      config.wallet.iframe = { origin: 'https://other.example.localhost' };
+      break;
+  }
   try {
     await router.post({
       type: 'PM_SET_CONFIG',
@@ -116,7 +128,7 @@ async function rejectIncompleteConfiguration(): Promise<string> {
         assetsBaseUrl: 'https://wallet.example.localhost/sdk/',
       },
     });
-    throw new Error('Incomplete configuration was accepted');
+    throw new Error('Invalid configuration was accepted');
   } catch (error) {
     return error instanceof Error ? error.message : String(error);
   }
@@ -165,11 +177,16 @@ test('iframe configuration preserves custom relay routes and Email OTP policy ac
     delegateRoute: '/custom/delegate',
     relayerUrl: 'https://relay.example.localhost',
     walletMode: 'direct',
-    hasNestedOrigin: false,
-    rpId: 'wallet.example.localhost',
+    hasNestedIframe: false,
+    rpId: 'example.localhost',
   });
-  const rejected = await page.evaluate(rejectIncompleteConfiguration);
+  const rejected = await page.evaluate<string, 'missing_policy'>(rejectInvalidConfiguration, 'missing_policy');
   expect(rejected).toContain('Invalid resolved wallet host configuration');
+  expect(await frame.evaluate(readReceipt)).toEqual(initial);
+  const missingRp = await page.evaluate<string, 'missing_rp'>(rejectInvalidConfiguration, 'missing_rp');
+  expect(missingRp).toContain('Invalid resolved wallet host configuration');
+  const nestedIframe = await page.evaluate<string, 'nested_iframe'>(rejectInvalidConfiguration, 'nested_iframe');
+  expect(nestedIframe).toContain('Invalid resolved wallet host configuration');
   expect(await frame.evaluate(readReceipt)).toEqual(initial);
   await page.evaluate<void, AppearanceConfigInput>(updateAppearance, {
     theme: {
@@ -209,6 +226,8 @@ test('iframe configuration preserves custom relay routes and Email OTP policy ac
   const signingOnly = await signingOnlyFrame.evaluate(readReceipt);
   expect(signingOnly).toMatchObject({
     registrationConfigured: false,
+    rpId: 'wallet.example.localhost',
+    hasNestedIframe: false,
     authPolicy: 'per_operation',
     delegateRoute: '/custom/delegate',
   });
@@ -217,7 +236,11 @@ test('iframe configuration preserves custom relay routes and Email OTP policy ac
   await mkdir(path.dirname(artifact), { recursive: true });
   await writeFile(
     artifact,
-    JSON.stringify({ initial, rejected, updated, switched, signingOnly }, null, 2),
+    JSON.stringify(
+      { initial, rejected, missingRp, nestedIframe, updated, switched, signingOnly },
+      null,
+      2,
+    ),
   );
   await info.attach('configuration-forwarding.json', {
     path: artifact,

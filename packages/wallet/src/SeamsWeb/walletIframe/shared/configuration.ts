@@ -1,3 +1,5 @@
+import type { Variant } from '@shared/utils/variant';
+import { parseWebAuthnRpId, type WebAuthnRpId } from '@shared/utils/domainIds';
 import type { AppearanceConfig, SeamsClientConfig, SeamsConfigsReadonly } from '@/core/types/seams';
 import { THRESHOLD_ECDSA_PRESIGN_POOL_LIMITS } from '@/core/config/configBuilder';
 import { isNearChainNetwork, isSeamsChainNetwork } from '@/core/config/chains';
@@ -8,13 +10,16 @@ import {
 } from '@shared/utils/signingSessionSeal';
 
 export type WalletHostConfig = Omit<SeamsConfigsReadonly, 'wallet'> & {
-  readonly wallet: {
-    readonly mode: 'direct';
-    readonly iframe: Omit<SeamsConfigsReadonly['wallet']['iframe'], 'origin'> & {
-      readonly origin?: never;
-    };
-  };
+  readonly wallet: Variant<SeamsConfigsReadonly['wallet'], 'mode', 'direct'>;
 };
+
+export function resolveWalletRpId(config: SeamsClientConfig): WebAuthnRpId {
+  const iframe = config.wallet.iframe;
+  const configured = iframe.rpIdOverride?.trim();
+  const parsed = parseWebAuthnRpId(configured || new URL(iframe.origin).hostname);
+  if (!parsed.ok) throw new Error(`Invalid wallet RP ID: ${parsed.error.message}`);
+  return parsed.value;
+}
 
 export function createWalletHostConfig(config: SeamsClientConfig): WalletHostConfig {
   return {
@@ -24,12 +29,7 @@ export function createWalletHostConfig(config: SeamsClientConfig): WalletHostCon
     webauthn: config.webauthn,
     wallet: {
       mode: 'direct',
-      iframe: {
-        servicePath: config.wallet.iframe.servicePath,
-        sdkBasePath: config.wallet.iframe.sdkBasePath,
-        walletHostVariant: config.wallet.iframe.walletHostVariant,
-        rpIdOverride: config.wallet.iframe.rpIdOverride,
-      },
+      rpId: resolveWalletRpId(config),
     },
     ui: config.ui,
   };
@@ -195,19 +195,9 @@ function isAuthenticator(value: unknown): boolean {
 }
 
 function isHostWallet(value: unknown): boolean {
-  if (!isPlainObject(value) || value.mode !== 'direct' || !isPlainObject(value.iframe))
-    return false;
-  const iframe = value.iframe;
-  return (
-    iframe.origin === undefined &&
-    isString(iframe.servicePath) &&
-    isString(iframe.sdkBasePath) &&
-    (iframe.rpIdOverride === undefined || isString(iframe.rpIdOverride)) &&
-    (iframe.walletHostVariant === 'runtime' ||
-      iframe.walletHostVariant === 'full' ||
-      iframe.walletHostVariant === 'near' ||
-      iframe.walletHostVariant === 'ecdsa')
-  );
+  if (!isPlainObject(value) || value.mode !== 'direct' || value.iframe !== undefined) return false;
+  const parsed = parseWebAuthnRpId(value.rpId);
+  return parsed.ok && parsed.value === value.rpId;
 }
 
 function isWalletHostConfig(value: unknown): value is WalletHostConfig {

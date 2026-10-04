@@ -73,7 +73,7 @@ function buildWalletRuntimeResetFingerprint(config: WalletHostConfig | null): st
     registration: config?.registration,
     signing: config?.signing,
     webauthn: config?.webauthn,
-    rpIdOverride: config?.wallet.iframe.rpIdOverride,
+    rpId: config?.wallet.rpId,
   });
 }
 

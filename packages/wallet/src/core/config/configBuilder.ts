@@ -186,7 +186,7 @@ function resolveRouterAbNormalSigningConfig(args: {
 }
 
 export function buildConfigsFromDefaults(args: {
-  defaults: SeamsConfigsReadonly;
+  defaults: SeamsClientConfig;
   overrides?: SeamsConfigsInput;
   fallbackRouterAbEcdsaDerivationPresignaturePoolPolicy: RouterAbEcdsaDerivationPresignaturePoolPolicy;
 }): SeamsClientConfig {

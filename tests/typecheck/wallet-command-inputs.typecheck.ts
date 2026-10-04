@@ -67,7 +67,8 @@ const nestedHostConfig = {
   ...hostConfig,
   wallet: {
     mode: 'direct' as const,
-    iframe: { ...hostConfig.wallet.iframe, origin: 'https://wallet.example.com' },
+    rpId: hostConfig.wallet.rpId,
+    iframe: { origin: 'https://wallet.example.com' },
   },
 };
 // @ts-expect-error Host configuration excludes a nested application iframe origin.
@@ -84,3 +85,17 @@ const partialHostUpdate: PMSetConfigPayload = { relayer: { url: 'https://relay.e
 void missingHostConfig;
 void mixedHostUpdate;
 void partialHostUpdate;
+
+// @ts-expect-error Host identity requires a validated RP ID.
+const missingHostRpId: WalletHostConfig['wallet'] = { mode: 'direct' };
+// @ts-expect-error Raw strings cannot become host credential identities.
+const rawHostRpId: WalletHostConfig['wallet'] = { mode: 'direct', rpId: 'wallet.example.com' };
+const clientWalletWithHostIdentity = {
+  ...applicationClient.configs.wallet,
+  rpId: hostConfig.wallet.rpId,
+};
+// @ts-expect-error Client transport settings cannot be combined with host credential identity.
+const mixedWalletConfig: SeamsConfigsReadonly['wallet'] = clientWalletWithHostIdentity;
+void missingHostRpId;
+void rawHostRpId;
+void mixedWalletConfig;

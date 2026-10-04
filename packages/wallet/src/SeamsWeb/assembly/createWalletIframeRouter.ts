@@ -28,13 +28,13 @@ export async function createWalletIframeRouter(args: {
   const { WalletIframeRouter } = await import('@/SeamsWeb/walletIframe/client/router');
   return new WalletIframeRouter({
     walletOrigin: args.walletOrigin,
-    servicePath: args.configs.wallet.iframe?.servicePath || '/wallet-service',
+    servicePath: args.configs.wallet.iframe.servicePath,
     connectTimeoutMs: 20_000,
     requestTimeoutMs: 60_000,
     hostConfig: createWalletHostConfig(args.configs),
     appearance: args.getAppearance(),
     getAppearance: args.getAppearance,
-    sdkBasePath: args.configs.wallet.iframe?.sdkBasePath,
+    sdkBasePath: args.configs.wallet.iframe.sdkBasePath,
     createOverlayState: createWalletIframeOverlayState,
   });
 }

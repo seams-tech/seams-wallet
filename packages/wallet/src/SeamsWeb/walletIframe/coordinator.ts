@@ -1,3 +1,4 @@
+import { resolveWalletRpId } from './shared/configuration';
 import type { PreferenceState } from './client/preferenceState';
 import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { AppearanceConfig, SeamsClientConfig } from '@/core/types/seams';
@@ -13,7 +14,7 @@ import type {
   PreferencesChangedPayload,
 } from '@/SeamsWeb/walletIframe/shared/messages';
 import { createWalletIframeRouter } from '@/SeamsWeb/assembly/createWalletIframeRouter';
-import { parseWebAuthnRpId, type WebAuthnRpId } from '@shared/utils/domainIds';
+import type { WebAuthnRpId } from '@shared/utils/domainIds';
 import type { SdkLifecycleEventListener } from '@/core/types/sdkSentEvents';
 import type { SdkLifecycleEvent } from '@/core/types/sdkSentEvents';
 import type {
@@ -21,22 +22,6 @@ import type {
   WalletIframeExactSessionLockResult,
   WalletIframeExactSessionState,
 } from './shared/exactSessionState';
-
-function requireRegistrationRpId(value: string, source: string): WebAuthnRpId {
-  const parsed = parseWebAuthnRpId(value);
-  if (!parsed.ok) {
-    throw new Error(`${source}: ${parsed.error.message}`);
-  }
-  return parsed.value;
-}
-
-function walletOriginHostname(walletOrigin: string): string {
-  try {
-    return new URL(walletOrigin).hostname;
-  } catch {
-    throw new Error('[SeamsWeb] Wallet iframe origin is not a valid URL.');
-  }
-}
 
 interface WalletIframeCoordinatorDeps {
   configs: SeamsClientConfig;
@@ -87,32 +72,8 @@ export class WalletIframeCoordinator {
       this.forwardHostedAuthMenuDemoEmailOtpDelivery.bind(this);
   }
 
-  /**
-   * True when the SDK is running on the app origin with a wallet iframe configured.
-   * In this mode, sensitive persistence must live in the wallet-iframe origin.
-   */
-  isConfigured(): boolean {
-    return this.configs.wallet.mode === 'iframe';
-  }
-
   resolveRegistrationRpId(): WebAuthnRpId {
-    const iframeConfig = this.configs.wallet.iframe;
-    const configuredRpId = String(iframeConfig.rpIdOverride || '').trim();
-    if (configuredRpId) {
-      return requireRegistrationRpId(
-        configuredRpId,
-        '[SeamsWeb] Wallet iframe registration RP ID is invalid',
-      );
-    }
-
-    const walletOrigin = iframeConfig.origin;
-    if (!walletOrigin) {
-      throw new Error('[SeamsWeb] Wallet iframe registration requires a wallet origin.');
-    }
-    return requireRegistrationRpId(
-      walletOriginHostname(walletOrigin),
-      '[SeamsWeb] Wallet iframe origin hostname is not a valid registration RP ID',
-    );
+    return resolveWalletRpId(this.configs);
   }
 
   isReady(): boolean {
@@ -158,13 +119,7 @@ export class WalletIframeCoordinator {
   }
 
   async init(_walletId?: string): Promise<WalletIframeExactSessionState> {
-    if (!this.isConfigured()) throw new Error('[SeamsWeb] Wallet iframe is not configured.');
-
-    const walletIframeConfig = this.configs.wallet.iframe;
-    const walletOrigin = walletIframeConfig?.origin;
-    if (!walletOrigin) {
-      return { kind: 'wallet_locked' };
-    }
+    const walletOrigin = this.configs.wallet.iframe.origin;
 
     // Initialize iframe router once (and prevent concurrent calls from mounting multiple iframes).
     if (!this.iframeRouter) {
@@ -264,9 +219,6 @@ export class WalletIframeCoordinator {
   }
 
   async requireRouter(walletId?: string): Promise<WalletIframeRouter> {
-    if (!this.isConfigured()) {
-      throw new Error('[SeamsWeb] Wallet iframe is not configured.');
-    }
     if (!this.iframeRouter) {
       await this.init(walletId);
     }
@@ -277,13 +229,7 @@ export class WalletIframeCoordinator {
   }
 
   async requireTransportRouter(): Promise<WalletIframeRouter> {
-    if (!this.isConfigured()) {
-      throw new Error('[SeamsWeb] Wallet iframe is not configured.');
-    }
-    const walletOrigin = this.configs.wallet.iframe?.origin;
-    if (!walletOrigin) {
-      throw new Error('[SeamsWeb] Wallet iframe is configured but unavailable.');
-    }
+    const walletOrigin = this.configs.wallet.iframe.origin;
     return await this.getOrCreateRouter(walletOrigin);
   }
 

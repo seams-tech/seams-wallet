@@ -300,8 +300,8 @@ The existing messages do not prove the accepted bootstrap contract:
 
 Decision: the cutover will use **protocol 3.0.0**, updating the existing protocol
 constant, asset manifest, paired endpoints, skew tests, and release instructions
-in the same change. Current implementation remains 2.0.0 until that paired change
-lands. Mandatory wallet-bound/versioned snapshots, preference acknowledgement
+in paired changes. Configuration transport has started the unreleased 3.0.0
+cutover; revision ordering remains open. Mandatory wallet-bound/versioned snapshots, preference acknowledgement
 semantics, and the retired logout command must not be silently deployed under
 the old handshake. No old-host fallback or dual protocol is introduced.
 
@@ -381,10 +381,10 @@ protocol revision work.
 | `provisioningDefaults` | `signing.thresholdEcdsa.provisioningDefaults` | Host registration/signing defaults; reset. |
 | `authenticatorOptions` | `webauthn.authenticatorOptions` | Host ceremonies and credential adapter; reset. |
 | `iframeWallet.walletOrigin` | Required on `SeamsClientConfig`; absent from `WalletHostConfig` | Client transport/origin checks. Empty-origin sanitizer and direct-mode normalization option are deleted. |
-| `iframeWallet.walletServicePath` | Client router option; still copied into host iframe metadata | Client-only endpoint. Remove the unused host field in remaining identity cleanup. |
-| `iframeWallet.sdkBasePath` | Router resolves `assetsBaseUrl`; host accepts its same-origin URL, otherwise `/sdk/` | Client URL construction and host asset resolution. Remove unused host iframe metadata; verify changed worker URLs separately. |
-| `iframeWallet.walletHostVariant` | Still present in resolved host metadata | Supported-consumer audit remains open; the mapper alone proves no entry-selection behavior. |
-| `iframeWallet.rpIdOverride` | Resolved host `wallet.iframe.rpIdOverride` | Credential identity; reset. Replace transport-shaped host metadata with explicit RP identity during remaining cleanup. |
+| `iframeWallet.walletServicePath` | Client router option only | Client-only endpoint; absent from host configuration. |
+| `iframeWallet.sdkBasePath` | Router resolves `assetsBaseUrl`; host accepts its same-origin URL, otherwise `/sdk/` | Client URL construction and host asset resolution. Host configuration has no iframe metadata; verify changed worker URLs separately. |
+| `iframeWallet.walletHostVariant` | Client config retains the existing value; host configuration excludes it | Supported-consumer audit remains open; plugin host generation owns actual entry selection. |
+| `iframeWallet.rpIdOverride` | Shared resolver uses a nonempty override, otherwise the wallet-origin hostname; host requires branded `wallet.rpId` | Credential identity; reset. Host parser rejects absent identities and nested iframe settings. |
 | `appearance` | Complete resolved `ui.appearance`; appearance updates have their own wire branch | Display only. Client resolver merges same-theme values and replaces old-theme values. Host updates CSS and existing runtime appearance without an execution reset. |
 
 Browser coverage uses the actual source router, cross-origin MessagePort transport,
@@ -394,8 +394,7 @@ CSS after theme changes. Production lifecycle coverage is recorded in the normal
 configuration checkpoint below. The shared raw/direct config option and redundant
 host resolver are deleted. No old-payload fallback is retained.
 
-Remaining work: explicit host RP identity, removal of client-only host metadata,
-`walletHostVariant` ownership, active-operation fencing on execution changes, and
+Remaining work: `walletHostVariant` ownership, active-operation fencing on execution changes, and
 revision-ordered session/preference observations. Keep the unreleased protocol 3.0.0
 client and host paired; complete revision semantics before release.
 
@@ -813,7 +812,7 @@ Preserve the supported explicit runtime entry and durable presignatures on lock.
 
 | Candidate | Current caller / responsibility | Replacement owner and deletion condition | Verification | Status |
 | --- | --- | --- | --- | --- |
-| Host configuration construction | Shared mapper/parser supplies required `WalletHostConfig` | Raw/direct normalization and redundant host resolver are deleted. Explicit RP identity and removal of unused client metadata remain | Config browser round trip, type fixtures, intended lifecycle | Resolved wire complete; identity cleanup open |
+| Host configuration construction | Shared mapper/parser supplies required `WalletHostConfig` | Raw/direct normalization and redundant host resolver are deleted. Host requires explicit RP identity and excludes client transport metadata | Config browser round trip, type fixtures, intended lifecycle | Resolved wire and identity split complete |
 | `core/config/configBuilder.ts`, `walletIframe/host/context.ts` | Client resolves defaults; host validates the complete snapshot | Duplicate host default application and raw merging are removed | Field inventory, custom policy/route behavior, cosmetic-update session preservation | Complete for normalized transport |
 | `core/browser/walletIframe/host-mode.ts` and callers | Process-wide execution-mode checks remain in host-internal paths | Explicit construction and operation ownership; remove callers that no longer distinguish supported behavior | Runtime entry checks, browser lifecycle, worker loading matrix | Open |
 | `SeamsWeb/publicApi`, `walletIframe/client`, `walletIframe/host` | Extracted factories, commands, callback adapters and facade assembly | Keep only layers with a distinct transport, identity, authorization, lifecycle, or public API role | Types, review/cancellation browser cases, intended signing/device/recovery flows | Open |
@@ -939,3 +938,28 @@ Remaining configuration cleanup: required explicit host RP identity, removal of
 unused client transport metadata from the host type, host-variant ownership, and
 active-operation fencing on execution replacement. The full revision-ordering,
 worker-loading, durable-presignature, R171, and consumer acceptance gates stay open.
+
+
+### Explicit host credential identity checkpoint
+
+Host configuration now requires branded `wallet.rpId` and rejects all nested iframe
+settings. Client configuration requires its iframe transport branch and rejects
+host identity fields. Both branches use the shared `Variant` helper. The host no
+longer carries service paths, SDK paths, or host-variant selection.
+
+Registration and host construction share one RP resolver. It preserves nonempty
+explicit overrides and otherwise selects the configured wallet-origin hostname.
+The host validates the serialized identity before accepting configuration. Type
+fixtures reject absent or raw RP identities and mixed client/host branches. The
+browser probe covers override and fallback behavior, missing RP rejection, and
+nested-iframe rejection without replacing the previous valid state.
+
+Deleted `isConfigured()` and unreachable missing-origin branches from the client
+coordinator. Required client configuration supplies the origin at construction.
+Transaction review still requires its live provider bridge and the router's
+existing connection/session checks. Source changes remove 62 net production lines.
+Verification receipts are in `evidence/refactor-170-host-identity-20261005.json`.
+
+Remaining work includes host-variant API ownership, active-operation fencing,
+session/preference revision ordering, selective worker-loading evidence, durable
+presignature acceptance, R171 naming, and consumer integration.
