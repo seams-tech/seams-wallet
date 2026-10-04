@@ -5685,3 +5685,27 @@ node tests/scripts/run-regional-real.mjs google-email-otp.recovery.contract.test
 Full linked-device ownership, credential reconciliation, deferred/DO ownership,
 remaining selectors and hosted regional acceptance remain open. No deployment or
 0.8.0 publication occurred.
+
+
+### Unused NEAR index retirement — October 4, 2026
+
+Closed the `near_public_keys` ownership blocker by deleting an obsolete read-only
+path with no runtime writer or SDK caller in either repository. Migration 0047 drops
+the table and its index; canonical key ownership remains in `wallet_signers`.
+The old `/near/public-keys` route and `NearPublicKeyKind` export are removed for
+0.8.0. No compatibility path remains.
+
+All 47 signer migrations applied to fresh SQLite with integrity `ok`. The existing
+passkey unlock/export/signing/step-up E2E passed in **38.9 seconds**. Public server
+build/type-check, Console readiness-file ESLint and bloat checks passed. Repeat:
+
+```sh
+SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs \
+  passkey.unlock.contract.test.ts --grep 'passkey unlock restores immediate'
+```
+
+Public artifacts: `.artifacts/r152/near-key-retirement-20261004/` (schema receipt,
+E2E log, build, type-check and bloat logs). No hosted migration/deployment or release
+occurred. This closes one obsolete selector; the remaining authorization linked
+branch, credential reconciliation, deferred/DO accounting, linked installation and
+hosted regional gates remain open.

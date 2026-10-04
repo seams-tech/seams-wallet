@@ -37,7 +37,6 @@ import { handleThresholdEcdsa } from './routes/thresholdEcdsa';
 import { handleOwnerWalletExecutionLanePreflight } from './routes/walletExecutionLanePreflight';
 import { handleWebAuthnAuthenticators } from './routes/webauthnAuthenticators';
 import { handleAuth } from './routes/auth';
-import { handleNearPublicKeys } from './routes/nearPublicKeys';
 import { handleWellKnown } from './routes/wellKnown';
 import { handleDeviceLinking } from './routes/deviceLinking';
 import {
@@ -381,7 +380,6 @@ export function createFetchRouter(
     handleThresholdEcdsa,
     handleExactWalletSigningSessionSeal,
     handleWebAuthnAuthenticators,
-    handleNearPublicKeys,
     handleExactWalletSessionStatus,
     handleHostedWalletSessionExchangeIssue,
     handleHostedWalletSessionExchangeRedeem,

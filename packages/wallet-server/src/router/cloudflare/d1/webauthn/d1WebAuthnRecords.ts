@@ -49,7 +49,6 @@ import type { WebAuthnCredentialBindingRecord as CoreWebAuthnCredentialBindingRe
 import type { D1WebAuthnAuthenticatorRow } from '../../../../core/WebAuthnAuthenticatorStore';
 import type { WebAuthnLoginChallengeRecord as CoreWebAuthnLoginChallengeRecord } from '../../../../core/WebAuthnLoginChallengeStore';
 import type { WebAuthnSyncChallengeRecord as CoreWebAuthnSyncChallengeRecord } from '../../../../core/WebAuthnSyncChallengeStore';
-import type { NearPublicKeyAuthBinding } from '../../../../core/NearPublicKeyStore';
 import type { ResolvedEd25519WalletBinding } from '../../../../core/authService/webauthnWalletBinding';
 
 export type D1AuthenticatorRow = D1WebAuthnAuthenticatorRow;
@@ -61,19 +60,6 @@ export type D1RecordJsonRow = {
 export type WebAuthnCredentialBindingRecord = CoreWebAuthnCredentialBindingRecord;
 
 export type WebAuthnSyncWalletBinding = Readonly<ResolvedEd25519WalletBinding>;
-
-export type { NearPublicKeyAuthBinding };
-
-export type NearPublicKeyRecord = {
-  readonly publicKey: string;
-  readonly kind: 'threshold' | 'local' | 'backup' | 'ephemeral';
-  readonly signerSlot?: number;
-  readonly authBinding?: NearPublicKeyAuthBinding;
-  readonly credentialIdB64u?: never;
-  readonly rpId?: never;
-  readonly createdAtMs?: number;
-  readonly updatedAtMs?: number;
-};
 
 export type WebAuthnAuthenticatorRecord = {
   readonly credentialIdB64u: string;
@@ -681,43 +667,6 @@ export function webAuthnSyncWalletBindingFromCredentialBinding(
   };
 }
 
-export function parseNearPublicKey(row: D1RecordJsonRow): NearPublicKeyRecord | null {
-  const candidate = parseWebAuthnJsonInput(row.record_json);
-  if (candidate === null || typeof candidate !== 'object' || Array.isArray(candidate)) return null;
-  let prototype: object | null;
-  try {
-    prototype = Object.getPrototypeOf(candidate);
-  } catch {
-    return null;
-  }
-  if (prototype !== Object.prototype && prototype !== null) return null;
-  const record = candidate as Readonly<Record<string, unknown>>;
-  if (
-    Object.keys(record).some(
-      (field) =>
-        !['publicKey', 'kind', 'authBinding', 'signerSlot', 'createdAtMs', 'updatedAtMs'].includes(
-          field,
-        ),
-    )
-  ) {
-    return null;
-  }
-  const publicKey = toOptionalTrimmedString(record.publicKey);
-  const kindRaw = toOptionalTrimmedString(record.kind);
-  const kind = parseNearPublicKeyKind(kindRaw);
-  const authBinding = parseNearPublicKeyAuthBinding(record);
-  if (authBinding === null) return null;
-  if (!publicKey || !kind) return null;
-  return {
-    publicKey,
-    kind,
-    signerSlot: optionalNonNegativeInteger(record.signerSlot),
-    ...(authBinding ? { authBinding } : {}),
-    createdAtMs: optionalNonNegativeInteger(record.createdAtMs),
-    updatedAtMs: optionalNonNegativeInteger(record.updatedAtMs),
-  };
-}
-
 function parseWebAuthnJsonInput(input: unknown): unknown {
   if (typeof input === 'string') {
     try {
@@ -759,43 +708,4 @@ function optionalNumberArray(input: unknown): number[] | undefined {
     values.push(value);
   }
   return values;
-}
-
-function parseNearPublicKeyKind(input: string | undefined): NearPublicKeyRecord['kind'] | null {
-  switch (input) {
-    case 'threshold':
-    case 'local':
-    case 'backup':
-    case 'ephemeral':
-      return input;
-    default:
-      return null;
-  }
-}
-
-function parseNearPublicKeyAuthBinding(
-  record: Readonly<Record<string, unknown>>,
-): NearPublicKeyAuthBinding | undefined | null {
-  if (
-    Object.prototype.hasOwnProperty.call(record, 'rpId') ||
-    Object.prototype.hasOwnProperty.call(record, 'credentialIdB64u')
-  ) {
-    return null;
-  }
-  if (record.authBinding === undefined) return undefined;
-  const candidate = record.authBinding;
-  if (candidate === null || typeof candidate !== 'object' || Array.isArray(candidate)) return null;
-  let prototype: object | null;
-  try {
-    prototype = Object.getPrototypeOf(candidate);
-  } catch {
-    return null;
-  }
-  if (prototype !== Object.prototype && prototype !== null) return null;
-  const authBinding = candidate as Readonly<Record<string, unknown>>;
-  const kind = toOptionalTrimmedString(authBinding.kind);
-  const rpId = parseWebAuthnRpId(authBinding.rpId);
-  const credentialIdB64u = toOptionalTrimmedString(authBinding.credentialIdB64u);
-  if (kind !== 'passkey' || !rpId.ok || !credentialIdB64u) return null;
-  return { kind: 'passkey', rpId: rpId.value, credentialIdB64u };
 }

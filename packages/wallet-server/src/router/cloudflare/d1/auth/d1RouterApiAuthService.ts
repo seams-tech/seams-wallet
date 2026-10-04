@@ -78,7 +78,6 @@ import type { CloudflareD1AuthorizationStore } from '../authorization/d1Authoriz
 import { parseTenantId } from '@shared/authorization/capabilityKinds';
 import { CloudflareD1RegistrationCeremonyIntentStore } from '../registration/d1RegistrationCeremonyStore';
 import { sha256BytesPortable, toRecordValue } from './d1RouterApiAuthBoundary';
-import { CloudflareD1NearPublicKeyStore } from '../near/d1NearPublicKeyStore';
 import { CloudflareD1WebAuthnStore } from '../webauthn/d1WebAuthnStore';
 import { parseWebAuthnAuthenticationCredential } from '../../../auth/webAuthnCredentialCodecs';
 import { CloudflareD1EmailOtpChallengeStore } from '../emailOtp/d1EmailOtpChallengeStore';
@@ -240,7 +239,6 @@ type CloudflareD1RouterApiAuthAssembly = {
   readonly authorizationService: AuthorizationService;
   readonly authorizationStore: CloudflareD1AuthorizationStore;
   readonly googleEmailOtpSessions: CloudflareD1GoogleEmailOtpSessionResolver;
-  readonly nearPublicKeys: CloudflareD1NearPublicKeyStore;
   readonly webAuthnAuthService: CloudflareD1WebAuthnAuthService;
   readonly walletAuthMethods: CloudflareD1WalletAuthMethodService;
   readonly walletRegistrations: CloudflareD1WalletRegistrationService;
@@ -315,10 +313,7 @@ type D1AuthorizationSessionRouteServiceAssembly = Pick<
 
 type D1ThresholdRuntimeRouteServiceAssembly = Pick<CloudflareD1RouterApiAuthAssembly, 'options'>;
 
-type D1NearFundingRouteServiceAssembly = Pick<
-  CloudflareD1RouterApiAuthAssembly,
-  'nearPublicKeys' | 'options'
->;
+type D1NearFundingRouteServiceAssembly = Pick<CloudflareD1RouterApiAuthAssembly, 'options'>;
 
 type D1RouterAccountRouteServiceAssembly = Pick<CloudflareD1RouterApiAuthAssembly, 'options'>;
 
@@ -1232,7 +1227,6 @@ function createCloudflareD1RouterApiAuthAssembly(
     options.sessionRouting,
   );
   const googleEmailOtpRegistrationAttempts = createD1GoogleRegistrationAttempts(options, prepare);
-  const nearPublicKeys = new CloudflareD1NearPublicKeyStore({ prepare });
   const { webAuthnStore, webAuthnAuthService } = createD1WebAuthnAssembly(
     options,
     walletAuthMethodStore,
@@ -1507,7 +1501,6 @@ function createCloudflareD1RouterApiAuthAssembly(
     authorizationService,
     authorizationStore,
     googleEmailOtpSessions,
-    nearPublicKeys,
     webAuthnAuthService,
     walletAuthMethods,
     walletRegistrations,
@@ -2182,9 +2175,6 @@ function createD1NearFundingRouteService(
 ): RouterApiServiceBag['nearFunding'] {
   return {
     fundImplicitNearAccount: fundImplicitNearAccountForOptions.bind(undefined, assembly.options),
-    listNearPublicKeysForUser: assembly.nearPublicKeys.listForRelayUser.bind(
-      assembly.nearPublicKeys,
-    ),
   };
 }
 

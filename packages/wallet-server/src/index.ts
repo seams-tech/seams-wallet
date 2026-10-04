@@ -71,7 +71,6 @@ export {
   type LinkIdentityResult,
   type UnlinkIdentityResult,
 } from './core/IdentityStore';
-export { type NearPublicKeyKind } from './core/NearPublicKeyStore';
 export {
   InMemoryRouterAbNormalSigningAdmissionStore,
   createInMemoryRouterAbNormalSigningAdmissionAdapter,

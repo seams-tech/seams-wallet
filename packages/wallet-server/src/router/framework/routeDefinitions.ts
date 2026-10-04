@@ -106,10 +106,6 @@ const ROUTER_API_WEBAUTHN_AUTHENTICATOR_SERVICES = [
   'webAuthn',
   'session',
 ] as const satisfies readonly CoreRouteServiceKey[];
-const ROUTER_API_NEAR_PUBLIC_KEY_SERVICES = [
-  'nearFunding',
-  'session',
-] as const satisfies readonly CoreRouteServiceKey[];
 const ROUTER_API_PASSKEY_CUSTODY_SERVICES = [
   'passkeyCustody',
   'walletAuthMethods',
@@ -1049,13 +1045,6 @@ export function createRouterApiRouteDefinitions(
       '/webauthn/authenticators',
       'List registered WebAuthn authenticators',
       ROUTER_API_WEBAUTHN_AUTHENTICATOR_SERVICES,
-    ),
-    sessionPrincipalRoute(
-      'near_public_keys',
-      'GET',
-      '/near/public-keys',
-      'List NEAR public keys for current session',
-      ROUTER_API_NEAR_PUBLIC_KEY_SERVICES,
     ),
     publicRoute(
       'wallet_unlock_challenge',

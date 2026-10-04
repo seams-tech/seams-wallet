@@ -1,6 +1,6 @@
 # R152 state ownership baseline for R153
 
-Revision 9 — October 4, 2026.
+Revision 10 — October 4, 2026.
 
 This freezes the **schema inventory and ownership obligations**, not a copy-ready
 relocation implementation. R153 must fail closed for unresolved ownership below.
@@ -61,7 +61,7 @@ for the baseline, grouped only where the selector and obligations agree.
 | `lane_locks`, `lane_receipts` | Wallet children: join scoped selected enrollment/operation IDs; do not transfer a live lock as fresh ownership. Preserve replay receipts. |
 | `linked_device_authority_allocations`, `linked_device_authority_installations`, `linked_device_ed25519_export_root_transfers`, `linked_device_email_otp_grants`, `linked_device_target_credentials`, `linked_device_wallet_session_credential_deliveries_v1` | Wallet: exact scoped `wallet_id`; preserve installation, encrypted packages, reservation IDs, delivery and acknowledgement/cleanup receipts together. |
 | `linked_device_sessions`, `linked_device_session_transcripts`, `linked_device_target_commit_reservations`, `linked_device_bootstrap_imports` | Wallet children: resolve scoped link IDs through Console `wallet_routes` kind `linked_device`, plus validated local session/claim records. Import receipts may survive deletion of sessions and target rows; select those via the shared route, never only via surviving local parents. |
-| `near_public_keys` | Blocked selector: `user_id` is not a wallet ID contract. Resolve through validated wallet signer/auth identity; retain removal markers. |
+| `near_public_keys` | Removed by migration 0047. No current writer or SDK consumer existed. Canonical public key ownership lives in scoped `wallet_signers`; no relocation selector remains for this obsolete table. |
 | `webauthn_authenticators` | Wallet counter state: resolve RP/credential through scoped wallet auth methods and bindings. Do not infer wallet from `user_id`; preserve counters. |
 | `webauthn_challenges` | Kind-specific ownership: parsed `login.userId` is a validated WalletId; parsed `recovery_registration.walletId` is the recovery wallet. Hosted `sync` challenges use Console and must not appear in regional signer extraction. Retain full tenant scope, exact challenge ID, expiry and shared locator. Unknown kinds block extraction. |
 | `webauthn_credential_bindings` | Regional credential projection: select credentials belonging to selected wallet auth methods; Console `wallet_passkey_claims` is the shared uniqueness/routing authority. Local bindings are not authority to reassign a credential. |
@@ -644,3 +644,21 @@ Verification passed in 1.1 minutes: six session grants and two step-up exports,
 with correct-owner acceptance and wrong-owner rejection for all eight. See the
 October 4 step-up verification entry in [results](refactor-152-results.md) for the
 repeat command, artifact hash and validation limits.
+
+
+### Obsolete NEAR key index removed — October 4
+
+Migration `0047_remove_unused_near_public_keys.sql` drops the unused NEAR key index.
+Both repositories had no runtime writer or SDK consumer; registration/add-signer
+persist public keys in `wallet_signers`. The old `/near/public-keys` listing route,
+its service, parser, SQL helper and `NearPublicKeyKind` export are removed. Console
+local readiness no longer expects the table. This is a 0.8.0 API removal with no
+alias or compatibility reader. Existing disposable test data in the obsolete table
+is discarded when the migration is applied; this turn applied it only locally.
+
+All 47 signer migrations applied successfully to fresh SQLite with integrity `ok`;
+the old table is absent and `wallet_signers` remains. The existing passkey lifecycle
+E2E passed in 38.9 seconds: registration, unlock, Ed25519/ECDSA export, NEAR signing,
+concurrent Tempo/Arc signing and step-up. Build, TypeScript, Console readiness-file
+ESLint and bloat checks passed. Evidence: public
+`.artifacts/r152/near-key-retirement-20261004/{schema.json,e2e.log,build.log,typecheck.log,bloat.log}`.

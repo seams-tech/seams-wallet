@@ -63,7 +63,6 @@ import type {
   EmailOtpWalletEnrollmentRecord,
 } from '../../core/EmailOtpStores';
 import type { LinkIdentityResult, UnlinkIdentityResult } from '../../core/IdentityStore';
-import type { NearPublicKeyAuthBinding, NearPublicKeyKind } from '../../core/NearPublicKeyStore';
 import type { ResolvedEd25519WalletBinding } from '../../core/authService/webauthnWalletBinding';
 import type { RouterAbEcdsaPresignRuntime } from '../../core/routerAbSigning/RouterAbEcdsaPresignRuntime';
 import type { DeviceLinkingRouteServiceV1 } from '../transport/fetch/routes/deviceLinking';
@@ -797,22 +796,6 @@ type RouterApiMethodTypes = {
       readonly subjects?: string[];
       readonly code?: string;
       readonly message?: string;
-    };
-  };
-  listNearPublicKeysForUser: {
-    readonly input: { readonly userId: string };
-    readonly result: {
-      readonly ok: boolean;
-      readonly code?: string;
-      readonly message?: string;
-      readonly keys?: Array<{
-        readonly publicKey: string;
-        readonly kind: NearPublicKeyKind;
-        readonly signerSlot?: number;
-        readonly createdAtMs?: number;
-        readonly updatedAtMs?: number;
-        readonly authBinding?: NearPublicKeyAuthBinding;
-      }>;
     };
   };
   listWalletEcdsaKeyFactsInventory: {
@@ -1582,9 +1565,6 @@ interface RouterApiNearFundingService {
   fundImplicitNearAccount(
     input: FundImplicitNearAccountRequest,
   ): Promise<FundImplicitNearAccountResult>;
-  listNearPublicKeysForUser(
-    input: RouterApiMethodTypes['listNearPublicKeysForUser']['input'],
-  ): Promise<RouterApiMethodTypes['listNearPublicKeysForUser']['result']>;
 }
 
 interface RouterApiRouterAccountService {

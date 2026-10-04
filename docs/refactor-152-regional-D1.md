@@ -1538,3 +1538,14 @@ or dispatching the Router. The exhaustive shared state predicate preserves activ
 and in-progress retry behavior. Regional cancellation checks and the real local
 lost-execution/activation-response contract pass. Complete installation across
 regional databases remains open; see the results document for evidence.
+
+
+### October 4: retire obsolete NEAR key ownership path
+
+- [x] Remove the unused `near_public_keys` table/listing path, parser and exported
+  type; migration 0047 and Console readiness use the current schema.
+- [x] Verify all 47 migrations and existing registration/unlock/export/signing
+  lifecycle (38.9 seconds). See the revision 10 [ownership baseline](refactor-152-state-ownership.md)
+  and [results](refactor-152-results.md) for artifacts and release impact.
+
+The remaining ownership, linked-device and hosted acceptance gates still apply.
