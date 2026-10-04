@@ -1250,9 +1250,12 @@ require deleting databases immediately or weakening quota/replay enforcement.
 
 ## Deferred follow-up: lifecycle D1 call budgets
 
-Requested October 1, 2026. Perform this audit later, before the next lifecycle
-query-reduction implementation. Numeric targets remain unset until their
-required state transitions and freshness boundaries have been analysed.
+Requested October 1, 2026. The October 4 initial tracking table in
+[the results](refactor-152-results.md#october-4-lifecycle-d1-budget-targets)
+separates historical measurements, proposed targets and unmeasured flows.
+Complete the trace inventory before implementing the later query reductions.
+Targets describe Gateway database calls; Console directory work and role-private
+storage remain separately accounted costs.
 
 - [ ] Inventory unlock, signing, wallet recovery, key export, registration,
   device linking, auth-method addition/revocation, session status/refresh,
@@ -1599,3 +1602,22 @@ relocation fences and cutover validation. Other R152 acceptance gates still appl
 
 Next gates: hosted regional acceptance, D1-call targets, final cleanup review,
 0.8.0 publication and the authorized R153 handoff.
+
+### October 4: hosted candidate preparation and initial call targets
+
+- [x] Build and pack the 0.8.0 candidate containing `55c446c9`; validate packed
+  imports and build the private Gateway/WalletRuntime consumers against those
+  exact tarballs. Backend Wrangler dry runs pass.
+- [x] Record initial D1-call targets and historical measurements in the results,
+  distinguishing activation-loss recovery from actual wallet recovery. Full
+  current-candidate trace accounting remains open; query reduction stays deferred.
+- [ ] Resolve staging deployment configuration: Cloudflare authentication works,
+  but the configured env lacks generated deployment secrets and the saved
+  September 13 manifests contain different role public keys from live staging.
+  Obtain the current secret bundle before deploying; do not replace live keys
+  with older backup keys. No remote resources were changed during this preflight.
+
+Private evidence: `.artifacts/r152/hosted-candidate-20261004/`, including
+`deployment-readiness.json`, dry-run build and preflight logs. Public packed
+artifacts and import checks: `.artifacts/r152/release-candidate-20261004/`.
+Hosted acceptance, final review, publication and R153 handoff remain open.

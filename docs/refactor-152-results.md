@@ -5791,3 +5791,58 @@ node tests/e2e/regional-session-routing.e2e.mjs
 
 No hosted deployment or release occurred. Hosted regional acceptance, D1-call
 budgets and the final review/release/handoff gates remain.
+## October 4: lifecycle D1 budget targets
+
+This is the initial optimization backlog, not a new benchmark. Historical counts
+below come from the frozen cohorts in this document. The current per-wallet-home
+candidate has additional directory publication/resolution boundaries and has not
+yet completed hosted call accounting. Never use these old counts as its baseline.
+A call is one awaited D1 operation (`first`, `all`, `run`, `batch` or `exec`);
+a batch may execute multiple SQL statements and produce many index writes.
+
+| Flow / variant | Observed Gateway calls | First optimization target | Required boundary / justification |
+| --- | --- | --- | --- |
+| Passkey cold unlock | 29; two Console calls; 33 reported rows written, frozen post-mint-read cohort | 28 on that same path, then rebaseline the current candidate | Challenge currently reads bindings and active methods separately before writing the challenge. One joined projection can replace those two reads. Keep challenge consumption, authenticator counter, credential activity and atomic session replacement. |
+| Lost activation reply, unlock retry | 25; two Console calls; 33 reported rows written, same cohort | 24 under the same challenge-query change | This is session activation reconciliation. It is **not wallet recovery**. Preserve exact replay and replacement guards. |
+| Ready owner signature, complete SDK dependency window | 7 calls / 8 statements / 4 HTTP requests | 7 as the initial ceiling; investigate 5 only after proving material-authority reads can be combined | Two additional material-authorization requests precede the five-call prepare/finalize path. Eliminating them needs freshness and exact-material proof. |
+| Ready linked signature | 5 calls / 6 statements / 2 HTTP requests | 5 as the initial ceiling | Joined authority/policy lookup already removed redundant reads. Preserve admission/quota reservation and durable completion. |
+| Ready signing prepare/finalize only | 5 calls, two write-bearing calls, 14 reported rows written in the frozen cohort | Research target 4; no implementation commitment | Requires identifying a read or readback that can be returned from the guarded write without weakening denial classification, quota races or replay. Two separated mutations remain necessary around protocol execution. |
+| Wallet recovery: recovery code or Google + Email OTP | Unmeasured total | Measure each ceremony before setting a numeric ceiling | Persist attempt/proof progress; authenticate recovery factors; verify the key manifest and continuity; install the new authority, envelopes and signer state atomically where they share a database; retain replay receipts. Google/OTP involves multiple user/network decisions that cannot be one batch. |
+| Key export: Ed25519 / ECDSA, owner / linked, step-up | Unmeasured total | Measure separately with ready material and with step-up | Fresh authority and export permission, one-use proof/nonce, role material release and completion/replay. Local successful exports establish behavior, not a call budget. |
+| Registration: passkey / Email OTP, each curve set | Unmeasured total | Measure before assigning a ceiling | Reserve wallet home, authenticate initial factor, prove manifest, commit custody/authority, publish locators, acknowledge installation. Separate NEAR sponsorship and background refill. |
+| Device linking and installation | Unmeasured total | Measure happy path plus lost reply at execution/activation/cleanup | Approval, target-bound reservation, material installation, durable completion receipt, acknowledgement, activation and cleanup are separate transitions. Count polling and retries independently. |
+| Add / revoke auth method | Unmeasured total | Measure add and revoke separately | Owner proof, envelope/method write, authority change, revocation of affected sessions and credentials, directory reconciliation. |
+| Session status | Unmeasured total | One joined authority/session/quota read, plus required material resolution; design target | Current status also verifies capability subjects resolve to installed material. Count those reads instead of declaring the entire endpoint a one-call operation. |
+| Session exchange redemption | Source audit: one read + one atomic batch on the uncontended local store path | Retain those two calls initially | Directory publication must succeed before the batch consumes the code and inserts the child credential. Contention may add a classification read. Directory calls are additional. |
+| Recovery-code rotation | Unmeasured total | Measure proof + envelope-set commit + locator reconciliation | Keep old-code invalidation and replacement coordinated; no period with an acknowledged unusable replacement. |
+| Background material refill | Unmeasured total | Budget per completed usable item and per failed attempt | Count role-private D1, DO storage, reservations, completion/replay and cleanup separately. Amortize per batch only after recording its yield. |
+
+The first numeric reductions are deliberately small, tied to a concrete duplicate
+read. The much lower theoretical count for unlock or recovery depends on a wider
+transaction/API redesign and is not established by this audit. In particular,
+cryptographic proof verification between reading a challenge and committing its
+result, a cross-database locator publication, and protocol execution between
+reservation and finalization create distinct dependency boundaries. Batching
+independent SQL does not eliminate those boundaries or required durable writes.
+
+For every row, record success, exact replay, denial, and interrupted/retried
+variants separately. Malformed input can fail before D1; an expired or revoked
+credential needs current persisted state. An exact replay needs retained outcome
+and owner validation even after ordinary lifecycle cleanup. Report executed calls
+on failures, including a failed directory publication that prevents consumption.
+
+Next measurement: use the existing regional browser contracts and request-level
+D1 tracing on the frozen hosted candidate. Attribute each call to Gateway,
+Console directory or custody role; retain served region, SQL statements,
+write-bearing calls, rows written and sequential dependency depth. Keep foreground
+and overlapping background traffic separate. Prioritize cold unlock and frequent
+ready signing; then recovery/export and linked installation. Query-reduction
+implementation remains deferred, as requested, and does not reopen R152 ownership.
+
+Source review: `d1WebAuthnAuthService.createWebAuthnLoginOptions`,
+`d1AuthorizationStore.redeemHostedWalletSeamsSessionExchange`,
+`readExactWalletSessionStatusSnapshotByOperationCredential`, and
+`d1WalletRecoveryGoogleEmailOtpService` at candidate `55c446c9`.
+Historical sources: this document's “Remaining write and read boundaries”,
+post-mint-read hosted verification, and “Controlled workload” sections. Current
+local reconciliation evidence is recorded in the preceding October 4 entries.
