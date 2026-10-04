@@ -137,17 +137,23 @@ const buildWebauthnP256SignatureWasm = evmCryptoWasmModule.build_webauthn_p256_s
 const wasmUrl = resolveWasmUrl('evm_crypto.wasm', 'Eth Signer');
 let wasmInitPromise: Promise<void> | null = null;
 
-async function ensureWasm(): Promise<void> {
-  if (wasmInitPromise) return wasmInitPromise;
-  wasmInitPromise = (async () => {
+function ensureWasm(): Promise<void> {
+  wasmInitPromise ??= initializeWorkerWasm();
+  return wasmInitPromise;
+}
+
+async function initializeWorkerWasm(): Promise<void> {
+  try {
     await initializeWasm({
       workerName: 'Eth Signer',
       wasmUrl,
       initFunction: init as unknown as (wasmModule?: unknown) => Promise<void>,
-      validateFunction: () => init_evm_crypto(),
+      validateFunction: init_evm_crypto,
     });
-  })();
-  return wasmInitPromise;
+  } catch (error) {
+    wasmInitPromise = null;
+    throw error;
+  }
 }
 
 async function prewarmWasmAndSignalWorkerReady(): Promise<void> {

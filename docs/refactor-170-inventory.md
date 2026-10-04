@@ -452,9 +452,18 @@ worker-startup progress and does not satisfy the client-size/composition goal.
 
 Still required: per-signer/factor network allowlists, recovery/export/device-link
 flows, authenticated warm-cache evidence, initialization-failure recovery, and
-cancellation/worker reuse. In particular, EVM/Tempo worker initialization currently
-retains a rejected initialization promise; fix and verify that failure path before
-checking off the first-use/retry workstream. Generic UI preparation still imports
+cancellation/worker reuse. The EVM/Tempo rejected-initialization promise is now
+cleared on failure. A real-browser emitted-asset test makes WASM unavailable,
+observes an explicit operation failure despite thread readiness, restores delivery,
+and verifies concurrent successful operations and a later operation on the same
+worker with one successful WASM fetch. The Tempo output matches the existing Rust
+vector. Run `pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts
+wallet-iframe/static-wallet-assets.browser.test.ts --project=chromium
+--output=../.artifacts/r170-worker-retry`; the retry scenario produces
+`worker-wasm-retry.json`. Production build, Wallet/test type checks, both static
+asset browser scenarios and bloat checks pass. This closes the demonstrated
+EVM/Tempo failure-cache gap; the full operation/dependency matrix remains open.
+Generic UI preparation still imports
 EVM-family JS and needs the measured host feature-loading audit. Durable
 presignature storage and lock invalidation behavior are unchanged in this patch.
 

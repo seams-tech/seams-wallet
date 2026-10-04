@@ -78,17 +78,23 @@ function postOperationSucceeded(
 const wasmUrl = resolveWasmUrl('tempo_signer.wasm', 'Tempo Signer');
 let wasmInitPromise: Promise<void> | null = null;
 
-async function ensureWasm(): Promise<void> {
-  if (wasmInitPromise) return wasmInitPromise;
-  wasmInitPromise = (async () => {
+function ensureWasm(): Promise<void> {
+  wasmInitPromise ??= initializeWorkerWasm();
+  return wasmInitPromise;
+}
+
+async function initializeWorkerWasm(): Promise<void> {
+  try {
     await initializeWasm({
       workerName: 'Tempo Signer',
       wasmUrl,
       initFunction: init as unknown as (wasmModule?: unknown) => Promise<void>,
-      validateFunction: () => init_tempo_signer(),
+      validateFunction: init_tempo_signer,
     });
-  })();
-  return wasmInitPromise;
+  } catch (error) {
+    wasmInitPromise = null;
+    throw error;
+  }
 }
 
 async function prewarmWasmAndSignalWorkerReady(): Promise<void> {

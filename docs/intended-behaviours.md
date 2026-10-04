@@ -25,8 +25,11 @@ may load independently.
 Signer and custody workers are initialized by the operation that requires them.
 Selected registration preparation may start its required crypto during the
 credential prompt; a best-effort preparation failure does not replace the real
-operation's initialization check. Worker reuse, cancellation, and durable
-presignature validity retain their existing contracts.
+operation's initialization check. A failed WASM load must be retryable on the
+same worker when asset delivery recovers. Concurrent requests share initialization;
+subsequent requests reuse the initialized module. A thread-ready notification
+alone does not prove crypto initialization succeeded. Worker reuse, cancellation,
+and durable presignature validity retain their existing contracts.
 
 Generic `prewarm` initializes the requested iframe or local UI/account resources;
 it does not start every signer or unconditionally prepare ECDSA crypto. Explicit
