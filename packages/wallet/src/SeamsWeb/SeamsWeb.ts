@@ -72,14 +72,17 @@ import { configureBrowserIndexedDB } from './assembly/configureBrowserIndexedDB'
 import {
   createBrowserSigningRuntime,
 } from './assembly/createBrowserSigningRuntime';
-import { scheduleRestoredSessionPresignaturePrefills } from './walletIframe/host/restoredSessionPresignaturePrefill';
+import {
+  type RestoredSessionPresignaturePrefill,
+  scheduleRestoredSessionPresignaturePrefills,
+} from './walletIframe/host/restoredSessionPresignaturePrefill';
 import { createBrowserSigningStores } from './assembly/createBrowserSigningStores';
 import { initializeBrowserSigningRuntime } from './assembly/initializeBrowserSigningRuntime';
+import { createApplicationSessionCommands } from './walletIframe/client/sessionCommands';
 import {
-  getWalletSessionDomain,
-  prefillRouterAbEcdsaDerivationPresignaturePoolDomain,
-  type WalletAuthDomainDeps,
-} from '@/SeamsWeb/operations/auth/walletAuth';
+  createWalletHostSessionCommands,
+  prefillWalletHostPresignatures,
+} from './walletIframe/host/createSessionCommands';
 import {
   createPublicApi,
   createWalletIframeLinkedDeviceManagementPortV1,
@@ -824,6 +827,7 @@ export class SeamsWeb {
   private appearance: AppearanceConfig;
   theme: ThemeMode;
   private readonly walletIframe: WalletIframeCoordinator;
+  private readonly prefillRestoredSession: RestoredSessionPresignaturePrefill;
   private readonly lifecycleEventSource: SeamsWebLifecycleEventSource;
   readonly recovery: RecoveryCapability;
   readonly devices: DevicesCapability;
@@ -891,6 +895,14 @@ export class SeamsWeb {
       runtimeMode === 'wallet_host'
         ? createWalletHostRegistrationCommands(this.getContext.bind(this))
         : createApplicationRegistrationCommands(this.walletIframe);
+    const sessionCommands =
+      runtimeMode === 'wallet_host'
+        ? createWalletHostSessionCommands(this.getContext.bind(this))
+        : createApplicationSessionCommands(this.walletIframe);
+    this.prefillRestoredSession =
+      runtimeMode === 'wallet_host'
+        ? prefillWalletHostPresignatures.bind(null, this.getContext.bind(this))
+        : sessionCommands.prefillRouterAbEcdsaDerivationPresignaturePool;
     const publicApi = createPublicApi({
       signingEngine: this.signingEngine,
       nearClient: this.nearClient,
@@ -898,8 +910,8 @@ export class SeamsWeb {
       getTheme: () => this.theme,
       userPreferences,
       getWalletIframe: () => this.walletIframe,
-      getWalletAuthDeps: () => this.getWalletAuthDeps(),
       auth: {
+        ...sessionCommands,
         requestEmailOtpChallenge: async (args) => await this.requestEmailOtpChallengeDomain(args),
         requestEmailOtpSigningSessionChallenge: async (args) =>
           await this.requestEmailOtpSigningSessionChallengeDomain(args),
@@ -977,10 +989,7 @@ export class SeamsWeb {
     await scheduleRestoredSessionPresignaturePrefills({
       state,
       chainTargets: this.configuredChainTargets(),
-      prefill: prefillRouterAbEcdsaDerivationPresignaturePoolDomain.bind(
-        null,
-        this.getWalletAuthDeps(),
-      ),
+      prefill: this.prefillRestoredSession,
     });
   }
 
@@ -1103,18 +1112,6 @@ export class SeamsWeb {
     this.deviceLinkingDispose();
     this.walletIframe.dispose();
     this.signingEngine.dispose();
-  }
-
-  private getWalletAuthDeps(): WalletAuthDomainDeps {
-    return {
-      getContext: () => this.getContext(),
-      walletIframe: this.walletIframe,
-      signingEngine: this.signingEngine,
-      nearClient: this.nearClient,
-      initWalletIframe: async (walletId?: string) => {
-        return await this.initWalletIframe(walletId);
-      },
-    };
   }
 
   setTheme(next: ThemeMode): void {
@@ -1903,7 +1900,7 @@ export class SeamsWeb {
   private async getGoogleEmailOtpWalletSessionDomain(
     walletId: string,
   ): ReturnType<GoogleEmailOtpWalletAuthDeps['getWalletSession']> {
-    return await getWalletSessionDomain(this.getWalletAuthDeps(), walletId);
+    return await this.auth.getWalletSession(walletId);
   }
 
   private async acknowledgeWalletRecoveryCodeBackupDomain(args: { walletId: string }) {

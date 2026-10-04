@@ -3,8 +3,6 @@ import type { TransactionReviewReservation } from '../walletIframe/client/transa
 import type { NearClient } from '@/core/rpcClients/near/NearClient';
 import type { UserPreferencesManager } from '@/core/signingEngine/session/userPreferences';
 import type { SeamsConfigsReadonly, ThemeMode } from '@/core/types/seams';
-import type { WalletAuthDomainDeps } from '@/SeamsWeb/operations/auth/walletAuth';
-import { createAuthCapability, type AuthCapabilityDomainMethods } from '@/SeamsWeb/publicApi/auth';
 import {
   createDevicesCapability,
   type DevicesCapabilityDomainMethods,
@@ -124,8 +122,7 @@ type PublicApiDependencies = {
   getTheme: () => ThemeMode;
   userPreferences: UserPreferencesManager;
   getWalletIframe: () => WalletIframeCoordinator;
-  getWalletAuthDeps: () => WalletAuthDomainDeps;
-  auth: AuthCapabilityDomainMethods;
+  auth: AuthCapability;
   registration: RegistrationCapabilityDomainMethods;
   recovery: RecoveryCapabilityDomainMethods;
   devices: DevicesCapabilityDomainMethods;
@@ -146,10 +143,7 @@ export function createPublicApi(deps: PublicApiDependencies): SeamsWebPublicApi 
     theme: deps.getTheme(),
   });
   const walletIframeRoutingSurface = createWalletIframeRoutingSurface(deps.getWalletIframe);
-  const auth = createAuthCapability({
-    getWalletAuthDeps: deps.getWalletAuthDeps,
-    domain: deps.auth,
-  });
+  const auth = deps.auth;
   const devices = createDevicesCapability({
     getContext: getDeviceLinkingContext,
     walletIframe: walletIframeRoutingSurface,

@@ -195,9 +195,9 @@ remove that dependency overlap while retaining these distinctions.
 
 | Public surface and members | Current client path / protocol | Host owner or local responsibility |
 | --- | --- | --- |
-| `auth.unlock`, `lock`, `logout` | `publicApi/auth.ts` → `operations/auth/walletAuth.ts` → router equivalents | H: `host/handlers/auth.ts`; retain exact session, progress, error, and logout cleanup semantics. |
-| `auth.getWalletSession`, `getRecentUnlocks`, `hasPasskeyCredential` | Same domain → router queries; session read can also prefetch blockheight | H auth queries; preserve authentication versus app-identity distinction. Recent-unlock fallback behavior needs explicit review before removing local paths. |
-| `auth.prefillRouterAbEcdsaDerivationPresignaturePool` | Domain → router prefill | H: session/presignature preparation; R153 overlap. |
+| `auth.unlock`, `lock`, `logout` | `walletIframe/client/sessionCommands.ts` → router equivalents | H: `host/handlers/auth.ts`; retain exact session, progress, error, and logout cleanup semantics. |
+| `auth.getWalletSession`, `getRecentUnlocks`, `hasPasskeyCredential` | `walletIframe/client/sessionCommands.ts` → router queries; session read can also prefetch blockheight | H auth queries; preserve authentication versus app-identity distinction. Recent-unlock fallback behavior needs explicit review before removing local paths. |
+| `auth.prefillRouterAbEcdsaDerivationPresignaturePool` | `walletIframe/client/sessionCommands.ts` → router prefill | H: session/presignature preparation; R153 overlap. |
 | `auth.requestEmailOtpChallenge`, `requestEmailOtpSigningSessionChallenge`, `refreshEmailOtpSigningSession` | `SeamsWeb` domain methods → matching router requests | H: `host/handlers/emailOtp.ts`; challenge purpose and session scope remain distinct. |
 | `auth.loginWithEmailOtpEcdsaCapability`, `unlockAddedEmailOtpWallet` | Domain → login/unlock-added router methods | H: Email OTP handler and selected factor activation. |
 | `auth.beginGoogleEmailOtpWalletAuth` | Domain → router flow proxy | C proxy for H flow, including resend/reroll/submit/complete/cancel; callbacks and terminal results remain correlated to the flow. |
@@ -545,4 +545,38 @@ Reproduce the factor and signer cases with a fresh production build:
 
 ```sh
 SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/auth-method-addition.matrix.contract.test.ts e2e/intended-behaviours/passkey.add-email-otp.contract.test.ts e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts --grep 'gains|a passkey wallet can add|public ECDSA add-signer|public Ed25519 Yao add-signer'
+```
+
+### Session command ownership
+
+`walletIframe/client/sessionCommands.ts` owns application unlock callbacks,
+acknowledged lock/logout dispatch, session/recent-unlock/passkey queries, and
+explicit presignature preparation requests. Its standalone bundle input graph
+contains only that module, the shared unlock-request builder, and shared error
+normalization. The bundle/metafile are under `.artifacts/r170-session-split/`.
+
+`walletIframe/host/createSessionCommands.ts` owns unlock-subject resolution,
+local session operations, passkey-record queries, and presignature preparation.
+It receives the existing wallet-auth context plus local resource warmup; it has
+no coordinator dependency. Local post-unlock warmup retains its existing timing.
+Restored-session preparation retains the shared `WalletSessionStatusReadScope`
+across configured chain targets. The mixed `operations/auth/walletAuth.ts` module
+and the mixed dependency builder were deleted; `createPublicApi` receives complete
+auth commands instead of importing execution to construct them.
+
+This extraction preserves current query/callback and cleanup behavior. The planned
+`getSession`/`hasPasskey` naming, reconciled session subscription, removal of logout,
+and reviewed recent-unlock failure semantics remain part of the protocol/API
+cutover. The main facade still selects host/client factories and constructs the
+runtime; its dependency gate remains open.
+
+Validation: production build, intended/state type checks, and the bloat gate pass.
+Eight isolated production-browser cases pass: both asset scenarios and all six
+`passkey.unlock.contract.test.ts` cases (cross-tab lock/restore races, immediate
+export/shared-budget signing, refresh/step-up/export, cold sync, and interrupted
+unlock retry). That file disables DOM/network/video capture for its export flows;
+its existing sanitized status and race evidence remains enabled. Reproduce with:
+
+```sh
+SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.unlock.contract.test.ts e2e/intended-behaviours/passkey.registration.assets.contract.test.ts
 ```
