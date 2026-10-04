@@ -14,6 +14,15 @@ evidence. R170 can begin. R153 placement relocation can proceed concurrently;
 coordinate shared client/session files and integrate its settled placement and
 presign invalidation contracts before changing affected worker lifecycle behavior.
 
+Implementation checkpoint, October 4: fresh production assets and a packed
+baseline are recorded in the [production receipt](evidence/refactor-170-production-baseline-20261004.json).
+The production-browser registration/sign/lock/unlock scenario passes, but its
+initial collector lacks 23 worker-script response measurements and the harness
+disables HTTP caching. These are partial measurements; the network acceptance
+gate remains open. `near.accountExists` and its public browser contract are
+implemented; account-input UI no longer reaches through execution context for
+RPC reads. Host/client composition and targeted worker loading are still pending.
+
 ## Objective
 
 Make the default browser SDK a small, typed client to the wallet iframe. Keep

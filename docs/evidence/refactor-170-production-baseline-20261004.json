@@ -1,0 +1,213 @@
+{
+  "accounting": "Production minified ESM with splitting; named exports retained. Static and all-reachable closures overlap. React peers excluded; dependencies otherwise bundled. CSS/assets separate. Per-file gzip level 9 and Brotli quality 11. No observed network or WASM traffic.",
+  "outputDirectory": "/var/folders/7k/nz1ldp1n0bz4n2wdmy_wvnkw0000gn/T/seams-wallet-consumers-KUrjZd",
+  "revision": "822dfb30fe4b025c0c88cdfeb46225bc8c082c30",
+  "workingTree": "",
+  "packageVersion": "0.8.0",
+  "nodeVersion": "v26.4.0",
+  "bunVersion": "1.2.18",
+  "lockfileSha256": "cca6b7aa753c9af21e0bac8af0ce3e7b21377d0c3701cbb5bba1916594e469c9",
+  "inputBuildMode": "Production: pnpm -C packages/wallet build:prod, completed successfully before source changes",
+  "buildInputsHash": "2c087ee6d92c4ec9fd1a7371e107c90102c7990a8a7521afba5e015365649629",
+  "emittedEsmSha256": "89076c05ed298b1474219d44e7d9bc531f61bb57d14001a6f62203aa35517139",
+  "freshness": {
+    "status": "fresh",
+    "detail": "\u2705 Build is fresh"
+  },
+  "buildLogSha256": "2b848d95040ae9e672ebd479e1fa7a2e468c86980b3594ad90e64e4d7637d764",
+  "packedTarballSha256": "408c93ca1dc51c92712b67996912492e5780ead521370a946c2bbcbe1f48e617",
+  "consumers": [
+    {
+      "name": "root-client",
+      "entry": ".",
+      "exports": [
+        "SeamsWeb",
+        "defineSeamsConfig"
+      ],
+      "closures": {
+        "staticJavaScript": {
+          "raw": 3222482,
+          "gzip": 739640,
+          "brotli": 602498,
+          "external": []
+        },
+        "allReachableJavaScript": {
+          "raw": 3406963,
+          "gzip": 793388,
+          "brotli": 648923,
+          "external": []
+        }
+      },
+      "assets": {
+        "raw": 0,
+        "gzip": 0,
+        "brotli": 0
+      }
+    },
+    {
+      "name": "react-provider",
+      "entry": "./react/provider",
+      "exports": [
+        "SeamsWebProvider"
+      ],
+      "closures": {
+        "staticJavaScript": {
+          "raw": 3246225,
+          "gzip": 747087,
+          "brotli": 608115,
+          "external": [
+            "react",
+            "react/jsx-runtime"
+          ]
+        },
+        "allReachableJavaScript": {
+          "raw": 3442622,
+          "gzip": 803630,
+          "brotli": 656797,
+          "external": [
+            "react",
+            "react/jsx-runtime"
+          ]
+        }
+      },
+      "assets": {
+        "raw": 0,
+        "gzip": 0,
+        "brotli": 0
+      }
+    },
+    {
+      "name": "hosted-auth-menu",
+      "entry": "./react/hosted-seams-auth-menu",
+      "exports": [
+        "HostedSeamsAuthMenu"
+      ],
+      "closures": {
+        "staticJavaScript": {
+          "raw": 41472,
+          "gzip": 13907,
+          "brotli": 12250,
+          "external": [
+            "react",
+            "react/jsx-runtime"
+          ]
+        },
+        "allReachableJavaScript": {
+          "raw": 41472,
+          "gzip": 13907,
+          "brotli": 12250,
+          "external": [
+            "react",
+            "react/jsx-runtime"
+          ]
+        }
+      },
+      "assets": {
+        "raw": 0,
+        "gzip": 0,
+        "brotli": 0
+      }
+    },
+    {
+      "name": "react-hosted-auth",
+      "entry": "./react",
+      "exports": [
+        "SeamsWebProvider",
+        "HostedSeamsAuthMenu"
+      ],
+      "closures": {
+        "staticJavaScript": {
+          "raw": 3271048,
+          "gzip": 753175,
+          "brotli": 613644,
+          "external": [
+            "react",
+            "react/jsx-runtime"
+          ]
+        },
+        "allReachableJavaScript": {
+          "raw": 3454576,
+          "gzip": 806515,
+          "brotli": 659843,
+          "external": [
+            "react",
+            "react/jsx-runtime"
+          ]
+        }
+      },
+      "assets": {
+        "raw": 34730,
+        "gzip": 5897,
+        "brotli": 5164
+      }
+    }
+  ],
+  "browserEvidence": {
+    "status": "scenario_passed_partial_network_coverage",
+    "command": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 SEAMS_INTENDED_WALLET_DIST_ROOT=/tmp/r170-baseline-package/package/dist node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.registration.assets.contract.test.ts",
+    "runtimeSourceRevision": "822dfb30fe4b025c0c88cdfeb46225bc8c082c30",
+    "runnerRevision": "0d45cb34664a24b21659458ea6267cb4d1524e99",
+    "runnerWorkingTree": "New production-serving and asset-evidence instrumentation pending commit during this run",
+    "reportSha256": "e26382c152ecb7b75f0c9393fbda9e04f02c927de51adc6b594f05c34cdc2fd2",
+    "accounting": {
+      "scope": "BrowserContext requestfinished events and Page dedicated-worker events",
+      "phaseAttribution": "Request completion phase; concurrent requests may cross phase boundaries",
+      "bytes": "Encoded response body and HTTP response headers counted separately; decoded bodies where available",
+      "cache": "Intended harness request routing disables HTTP cache; repeat phases measure warm runtime only",
+      "omissions": "No claim of complete worker-target network coverage; no service-worker or socket accounting",
+      "privacy": "Only static asset URLs without query strings; no request headers, payloads, auth responses, or bodies retained"
+    },
+    "partialTotals": {
+      "encodedBodyBytes": 10590821,
+      "responseHeaderBytes": 111765,
+      "decodedBodyBytes": 20796937,
+      "unknownDecodedBodies": 1
+    },
+    "unmeasuredResponses": 23,
+    "observedWorkerCreations": 25,
+    "phases": [
+      {
+        "name": "initialization",
+        "durationMs": 386.94387500000005
+      },
+      {
+        "name": "register",
+        "durationMs": 1935.3785000000003
+      },
+      {
+        "name": "first-near-sign",
+        "durationMs": 721.7494590000001
+      },
+      {
+        "name": "first-evm-sign",
+        "durationMs": 769.9546250000003
+      },
+      {
+        "name": "lock",
+        "durationMs": 19.129165999999714
+      },
+      {
+        "name": "unlock",
+        "durationMs": 717.4725830000007
+      },
+      {
+        "name": "repeat-near-sign",
+        "durationMs": 681.1251249999996
+      },
+      {
+        "name": "repeat-evm-sign",
+        "durationMs": 749.7347920000002
+      },
+      {
+        "name": "completed",
+        "durationMs": 2.0241249999999127
+      }
+    ],
+    "limitations": [
+      "Missing worker-script response sizes; totals are partial, not acceptance traffic totals",
+      "HTTP cache disabled by harness routing",
+      "Phase durations include local test orchestration; final performance limits still required",
+      "No cold signed-out idle/menu or signer-specific matrix yet"
+    ]
+  }
+}

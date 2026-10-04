@@ -14,7 +14,9 @@ const gatewayUrl = process.env.SEAMS_INTENDED_ROUTER_URL || 'http://127.0.0.1:41
 const runtimeRoot =
   process.env.SEAMS_INTENDED_ROUTER_AB_ROOT ||
   path.join(tmpdir(), `${path.basename(repoRoot)}-wallet-intended`);
-const walletDistRoot = path.join(repoRoot, 'packages', 'wallet', 'dist');
+const walletDistRoot =
+  process.env.SEAMS_INTENDED_WALLET_DIST_ROOT || path.join(repoRoot, 'packages', 'wallet', 'dist');
+const productionApp = process.env.SEAMS_INTENDED_PRODUCTION === '1';
 const externalGateway = parseExternalGatewayMode();
 // `vm` runs the Wallet on the VM reference (ordinary processes, SQLite, the
 // Gateway on Node); the default runs it on local Workers.
@@ -46,7 +48,12 @@ async function main() {
 }
 
 function buildWalletRuntime() {
-  runRequired('Wallet SDK build', 'pnpm', ['-C', 'packages/wallet', 'run', 'build:sdk-full']);
+  runRequired('Wallet SDK build', 'pnpm', [
+    '-C',
+    'packages/wallet',
+    'run',
+    productionApp ? 'build:prod' : 'build:sdk-full',
+  ]);
   if (externalGateway || walletHost === 'vm') return;
   for (const role of [
     'signing-worker',
@@ -132,6 +139,15 @@ function startIntendedApp(label, origin, cacheName) {
     VITE_SIGNING_SESSION_PERSISTENCE_MODE: 'sealed_refresh_v1',
     VITE_WALLET_ORIGIN: walletOrigin,
   };
+  const appOutput = path.join(runtimeRoot, '.runtime', `production-${cacheName}`);
+  if (productionApp) {
+    const result = spawnSync(
+      'pnpm',
+      ['-C', 'tests/intended-app', 'exec', 'vite', 'build', '--outDir', appOutput],
+      childOptions(environment),
+    );
+    if (result.status !== 0) throw new Error(`${label} production build failed`);
+  }
   const child = spawn(
     'pnpm',
     [
@@ -139,6 +155,7 @@ function startIntendedApp(label, origin, cacheName) {
       'tests/intended-app',
       'exec',
       'vite',
+      ...(productionApp ? ['preview', '--outDir', appOutput] : []),
       '--host',
       listenHost,
       '--port',

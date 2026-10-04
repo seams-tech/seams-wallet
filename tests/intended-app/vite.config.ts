@@ -70,6 +70,11 @@ function intendedWalletOriginPlugin(walletAssetHost: boolean) {
     configureServer(server: { middlewares: { use: (handler: WalletOriginMiddleware) => void } }) {
       server.middlewares.use(createWalletOriginMiddleware(walletAssetHost));
     },
+    configurePreviewServer(server: {
+      middlewares: { use: (handler: WalletOriginMiddleware) => void };
+    }) {
+      server.middlewares.use(createWalletOriginMiddleware(walletAssetHost));
+    },
   };
 }
 

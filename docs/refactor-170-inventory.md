@@ -8,6 +8,48 @@ their integration before moving those implementations.
 
 ## Reproduce bundle measurements
 
+### Implementation baseline and production-browser runner
+
+The [fresh production receipt](evidence/refactor-170-production-baseline-20261004.json)
+records the successful `build:prod` baseline at revision `822dfb30`, before runtime
+changes, with build-input, emitted-ESM, lockfile, and packed-tarball hashes. The
+minimal root consumer measured 739,640 bytes gzip statically and 793,388 bytes
+including reachable lazy JS. Keep this distinct from the earlier exploratory
+build and from observed browser traffic.
+
+The existing intended-services runner now accepts `SEAMS_INTENDED_PRODUCTION=1`
+to build/serve the intended app with Vite production output on separate app and
+wallet origins. `SEAMS_INTENDED_WALLET_DIST_ROOT` selects an unpacked package's
+`dist` for both origins. Install that package's runtime dependencies before using
+it; a tar extraction alone is not an installed consumer.
+
+```sh
+SEAMS_INTENDED_PRODUCTION=1 node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.registration.assets.contract.test.ts
+```
+
+For a retained production package and already-built local services, set
+`SEAMS_INTENDED_SKIP_BUILD=1` and `SEAMS_INTENDED_WALLET_DIST_ROOT` to its absolute
+`dist` path. The scenario emits `wallet-assets.json` into its Playwright output
+directory. It covers registration, NEAR/EVM signing, lock, unlock, and repeat
+signing. Only static asset metadata is retained; auth bodies, headers, OTPs,
+recovery codes, and key material are excluded. Browser traces/screenshots/video
+are disabled for this custody scenario.
+
+This collector is initial instrumentation, not completion of the browser gate:
+the intended harness's request routing disables HTTP caching, and context-level
+request events do not establish complete worker-target coverage. It explicitly
+reports missing measurements. Add cache-enabled and worker-target evidence,
+separate mount/menu phases, selective signer scenarios, safe boot tracing, and
+measured latency limits before claiming the cutover baseline complete.
+
+The packed baseline scenario passed twice (37.1 s and 34.1 s overall test runs).
+The later report is retained at `.artifacts/r170-baseline/wallet-assets.json`;
+its digest, phase measurements, and limitations are in the production receipt.
+Twenty-three worker-script responses lacked measurements. Worker events show
+broad NEAR/EVM/Tempo/Email OTP/custody startup during registration and again on
+reload/unlock. A worker URL's origin is not proof of its creating execution
+realm; add target-level attribution before making that ownership assertion.
+
 From `seams-wallet`, with existing SDK outputs and installed dependencies:
 
 ```sh
@@ -73,6 +115,15 @@ wallet needs no CSS, workers, or WASM; runtime fetches and explicit stylesheet
 imports are outside this consumer build.
 
 ## API dispatch inventory
+
+Implementation progress: `near.accountExists(accountId)` now owns public account
+lookup using the configured/injected RPC client. `useAccountInput` calls this
+capability without waiting for an iframe or reaching through `getContext()`.
+The mixed RPC/auth module's former best-effort account helper is deleted. The
+public query rejects invalid input and unavailable reads instead of returning
+false; its contract and browser scenario are in `docs/intended-behaviours.md`
+and `tests/wallet-iframe/account-query.test.ts`. This does not yet remove host
+context callers or complete the client/host split.
 
 Paths in this section are relative to `packages/wallet/src/SeamsWeb/`.
 The callable-member lists cover `publicApi/types.ts` capability interfaces and

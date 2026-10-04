@@ -5527,7 +5527,7 @@ function uniqueWalletId(): string {
 function lifecycleFlowFromTestFile(filePath: string): IntendedLifecycleFlow {
   const normalized = filePath.replaceAll('\\', '/');
   if (
-    /\/passkey\.registration(?:\.(?:checkpoint|resume|activation-resume))?\.contract\.test\.ts$/u.test(
+    /\/passkey\.registration(?:\.(?:checkpoint|resume|activation-resume|assets))?\.contract\.test\.ts$/u.test(
       normalized,
     ) ||
     normalized.endsWith('passkey.presign-pool.contract.test.ts') ||
