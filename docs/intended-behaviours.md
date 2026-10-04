@@ -14,6 +14,24 @@ plans explain how the design arose; they do not override this contract.
 E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
 [Spec 9: Behaviour and test authority](spec-9-behaviour-and-test-authority.md).
 
+## Worker preparation
+
+A fresh signed-out wallet host with no pending registration or recovery work
+must not create signer or custody workers merely because the runtime is
+constructed, the provider mounts, or a generic auth menu opens. Configuring
+multiple chains does not select all of their workers. Confirmation UI assets
+may load independently.
+
+Signer and custody workers are initialized by the operation that requires them.
+Selected registration preparation may start its required crypto during the
+credential prompt; a best-effort preparation failure does not replace the real
+operation's initialization check. Worker reuse, cancellation, and durable
+presignature validity retain their existing contracts.
+
+Generic `prewarm` initializes the requested iframe or local UI/account resources;
+it does not start every signer or unconditionally prepare ECDSA crypto. Explicit
+operation-specific ECDSA and Email OTP preparation remain internal.
+
 ## Public account queries
 
 Public NEAR account queries use `seams.near.accountExists(accountId)` and the

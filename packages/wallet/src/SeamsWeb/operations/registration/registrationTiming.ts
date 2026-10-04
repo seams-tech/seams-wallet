@@ -329,7 +329,6 @@ const REGISTRATION_TIMING_BUCKETS = [
   'registrationWarmupNoncePrefetchMs',
   'registrationWarmupKeyMaterialReadMs',
   'registrationWarmupUiConfirmPrewarmMs',
-  'registrationWarmupSignerWorkerPrewarmMs',
   'registrationWarmupEmailOtpWorkerPrewarmMs',
   'registrationWarmupEmailOtpYaoWasmInitMs',
   'managedRegistrationGrantMs',
@@ -902,7 +901,6 @@ export class RegistrationTimingRecorder {
     this.buckets.registrationWarmupNoncePrefetchMs = diagnostics.noncePrefetchMs;
     this.buckets.registrationWarmupKeyMaterialReadMs = diagnostics.keyMaterialReadMs;
     this.buckets.registrationWarmupUiConfirmPrewarmMs = diagnostics.uiConfirmPrewarmMs;
-    this.buckets.registrationWarmupSignerWorkerPrewarmMs = diagnostics.signerWorkerPrewarmMs;
     this.buckets.registrationWarmupEmailOtpWorkerPrewarmMs = diagnostics.emailOtpWorkerPrewarmMs;
     this.buckets.registrationWarmupEmailOtpYaoWasmInitMs = diagnostics.emailOtpYaoWasmInitMs;
     this.emailOtpYaoPrewarm = { ...diagnostics.emailOtpYaoPrewarm };

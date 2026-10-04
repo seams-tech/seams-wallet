@@ -206,7 +206,6 @@ export function createWorkerResourceWarmupDepsFactory(
     store: runtimeDeps.warmupStore,
     nearClient: args.nearClient,
     nonceCoordinator: args.nonceCoordinator,
-    prewarmWorkers: args.signerWorkerManager.prewarmWorkers.bind(args.signerWorkerManager),
     workerWarmupPolicy: args.workerWarmupPolicy,
     prewarmUiConfirmUi: async () => {
       await Promise.all([

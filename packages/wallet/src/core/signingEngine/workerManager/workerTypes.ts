@@ -2180,7 +2180,6 @@ export type EmailOtpYaoPrewarmOutcome =
 
 export interface SignerWorkerTransportProtocol {
   setWorkerBaseOrigin(origin: string | undefined): void;
-  prewarmWorkers(): Promise<void>;
   prewarmEmailOtpYao(request?: EmailOtpYaoPrewarmRequest): Promise<EmailOtpYaoPrewarmOutcome>;
   requestOperation<K extends SignerWorkerKind, T extends SignerWorkerOperationType<K>>(args: {
     kind: K;

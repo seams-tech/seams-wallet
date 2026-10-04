@@ -420,12 +420,50 @@ initialization is recorded separately.
 | `shamir3pass.worker.ts` | `shamir3pass_runtime_bg.wasm` | Thread-ready notification and request-time WASM initialization/warmup. |
 | `device-linking-key.worker.ts` | `router_ab_ed25519_yao_client_bg.wasm` for lane-recipient operations | Request-time initialization with a cached promise; managed outside the generic signer-worker list. |
 
-### Loading triggers to change later
+### Worker-loading implementation checkpoint
+
+October 5: the host no longer calls generic `prewarm` when constructing its
+runtime. The all-eight-worker loop, unused readiness promises, and corresponding
+warmup API/diagnostic fields are deleted. Generic explicit prewarm no longer
+starts ECDSA registration crypto without a selected operation. Registration's
+existing signer-selection guard still starts ECDSA preparation when required;
+Email OTP Yao preparation remains factor/operation-selected. Worker operation
+handlers retain their own WASM initialization checks.
+
+Fresh production build, Wallet and intended/state type checks, bloat check, and
+both production-browser scenarios pass. The mount/menu scenario now asserts no
+crypto workers, permitting the separate confirmation UI worker if needed. The
+observed run created **zero workers** in both cold and warm signed-out phases.
+Evidence and build hashes are in the
+[worker-startup receipt](evidence/refactor-170-worker-startup-20261005.json).
+
+| Encoded static bodies, same scenario | Before | After |
+| --- | ---: | ---: |
+| Cold signed-out app + wallet mount/menu | 3,398,239 B | 1,645,101 B |
+| Signed-out WASM | 1,560,164 B | 0 B |
+| Register/sign/lock/unlock/repeat app + wallet | 11,031,734 B | 9,917,593 B |
+| Same completed scenario WASM | 7,283,249 B | 6,194,505 B |
+
+The auth/sign run creates 20 workers across its phases, versus 25 before. Latest
+register/unlock durations are 1,920/709 ms; first NEAR/EVM signs 710/783 ms; repeat
+signs 712/767 ms. These remain single-run observations; the paired three-run
+median gate is open. Root consumer static gzip is still 739,365 B, so this is
+worker-startup progress and does not satisfy the client-size/composition goal.
+
+Still required: per-signer/factor network allowlists, recovery/export/device-link
+flows, authenticated warm-cache evidence, initialization-failure recovery, and
+cancellation/worker reuse. In particular, EVM/Tempo worker initialization currently
+retains a rejected initialization promise; fix and verify that failure path before
+checking off the first-use/retry workstream. Generic UI preparation still imports
+EVM-family JS and needs the measured host feature-loading audit. Durable
+presignature storage and lock invalidation behavior are unchanged in this patch.
+
+### Loading triggers and current disposition
 
 | Trigger | Existing path | Consequence / intended boundary |
 | --- | --- | --- |
-| Host first runtime construction | `SeamsWeb/walletIframe/host/context.ts` → `SeamsWeb.prewarm({ workers: true })` | Broad host preparation; replace only during runtime work. |
-| Generic signer warmup | `assembly/warmup.ts` → `SignerWorkerManager.prewarmWorkers()` → `workerTransport.ts` | Creates all eight registered kinds: NEAR, ECDSA derivation/presign/online, EVM, Tempo, Email OTP, custody. Awaits four WASM-ready workers. |
+| Host first runtime construction | `SeamsWeb/walletIframe/host/context.ts` | Generic prewarm call removed; fresh signed-out construction creates no workers in production E2E. |
+| Generic signer warmup | Former `prewarmWorkers()` path through warmup assembly/manager/transport | Deleted, including its readiness waits and unused timing field. Requests initialize selected workers through `getOrCreateWorker`. |
 | Application iframe-mode warmup policy | `SeamsWeb/assembly/browserWorkerWarmupPolicy.ts` | Disables local worker warmup in the application realm; host same-origin policy enables it. |
 | Registration surface preparation | `host/runtimeLoader.ts` → `registrationPreparationPreload.ts` | Imports NEAR preparation and ECDSA/Tempo signing engines. JS reachability must be measured separately from WASM fetches. |
 | ECDSA registration preparation | `prewarmEcdsaRegistrationCrypto` → derivation-worker request | Initializes crypto while awaiting authentication; must follow selected ceremony. |

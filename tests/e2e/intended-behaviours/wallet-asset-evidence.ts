@@ -80,6 +80,10 @@ export class WalletAssetEvidence {
     this.cachePolicy = policy;
   }
 
+  getWorkerUrls(): readonly string[] {
+    return this.workers.map(workerUrl);
+  }
+
   setPhase(name: string): void {
     this.phases.push({
       name: this.phase,
@@ -230,6 +234,10 @@ function sumDecodedBytes(total: number, asset: AssetEvidence): number {
 
 function hasUnknownBody(asset: AssetEvidence): boolean {
   return asset.decodedBodyBytes === null;
+}
+
+function workerUrl(worker: WorkerEvidence): string {
+  return worker.url;
 }
 
 async function resetServerTransfers(origin: string): Promise<void> {

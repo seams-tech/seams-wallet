@@ -19,12 +19,10 @@ type WorkerResourceWarmupPredicate = (workerBaseOrigin: string) => boolean;
 export type WorkerResourceWarmupPolicy =
   | {
       kind: 'local_worker_warmup_disabled';
-      shouldPrewarmWorkers: WorkerResourceWarmupPredicate;
       shouldPrewarmUiConfirmUi: WorkerResourceWarmupPredicate;
     }
   | {
       kind: 'local_worker_warmup_enabled';
-      shouldPrewarmWorkers: WorkerResourceWarmupPredicate;
       shouldPrewarmUiConfirmUi: WorkerResourceWarmupPredicate;
     };
 
@@ -33,7 +31,6 @@ export type WorkerResourceWarmupDeps = {
   store: WorkerResourceWarmupStorePort;
   nearClient: NearClient;
   nonceCoordinator: Pick<NonceCoordinator, 'prefetchNearContext'>;
-  prewarmWorkers: () => Promise<void>;
   workerWarmupPolicy: WorkerResourceWarmupPolicy;
   prewarmUiConfirmUi: () => Promise<void>;
   activateAuthenticatedWalletState: (args: {
@@ -50,7 +47,6 @@ export type WorkerResourceWarmupDiagnostics = {
   noncePrefetchMs: number;
   keyMaterialReadMs: number;
   uiConfirmPrewarmMs: number;
-  signerWorkerPrewarmMs: number;
 };
 
 export type WorkerResourceWarmupAccountContext =
@@ -62,10 +58,6 @@ export type WorkerResourceWarmupAccountContext =
       kind: 'near_account_bound';
       account: NearAccountBinding;
 };
-
-function shouldPrewarmWorkers(deps: WorkerResourceWarmupDeps): boolean {
-  return deps.workerWarmupPolicy.shouldPrewarmWorkers(deps.workerBaseOrigin);
-}
 
 function shouldPrewarmUiConfirmUi(deps: WorkerResourceWarmupDeps): boolean {
   return deps.workerWarmupPolicy.shouldPrewarmUiConfirmUi(deps.workerBaseOrigin);
@@ -138,16 +130,9 @@ export async function warmCriticalResources(
       })
     : 0;
 
-  const canPrewarmUiConfirmUi = shouldPrewarmUiConfirmUi(deps);
-  const canPrewarmSignerWorkers = shouldPrewarmWorkers(deps);
-  const [uiConfirmPrewarmMs, signerWorkerPrewarmMs] = await Promise.all([
-    canPrewarmUiConfirmUi
-      ? measureBestEffortWarmupStep(() => deps.prewarmUiConfirmUi())
-      : Promise.resolve(0),
-    canPrewarmSignerWorkers
-      ? measureBestEffortWarmupStep(() => deps.prewarmWorkers())
-      : Promise.resolve(0),
-  ]);
+  const uiConfirmPrewarmMs = shouldPrewarmUiConfirmUi(deps)
+    ? await measureBestEffortWarmupStep(deps.prewarmUiConfirmUi)
+    : 0;
 
   return {
     kind: 'worker_resource_warmup_diagnostics_v1',
@@ -155,6 +140,5 @@ export async function warmCriticalResources(
     noncePrefetchMs,
     keyMaterialReadMs,
     uiConfirmPrewarmMs,
-    signerWorkerPrewarmMs,
   };
 }

@@ -1483,7 +1483,6 @@ export class SeamsWeb {
         ? { kind: 'near_account_bound' as const, account: nearAccountBinding }
         : { kind: 'none' as const };
       tasks.push(this.signingEngine.warmCriticalResources(accountContext));
-      tasks.push(this.signingEngine.prewarmEcdsaRegistrationCrypto());
     }
 
     if (tasks.length === 0) return;

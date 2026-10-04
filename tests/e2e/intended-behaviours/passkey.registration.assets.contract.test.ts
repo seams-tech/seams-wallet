@@ -81,6 +81,10 @@ async function observeGenericMenu(page: Page): Promise<void> {
   await page.waitForTimeout(2_000);
 }
 
+function isCryptoWorkerUrl(url: string): boolean {
+  return !url.endsWith('/passkey-confirm.worker.js');
+}
+
 async function measureSignedOutAssets(
   { page, assets }: { page: Page; assets: WalletAssetEvidence },
   testInfo: TestInfo,
@@ -98,11 +102,13 @@ async function measureSignedOutAssets(
     await observeSignedOutMount(page);
     assets.setPhase('cold-generic-menu');
     await observeGenericMenu(page);
+    expect(assets.getWorkerUrls().filter(isCryptoWorkerUrl)).toEqual([]);
     await page.goto('about:blank');
     assets.setPhase('warm-signed-out-mount-idle');
     await observeSignedOutMount(page);
     assets.setPhase('warm-generic-menu');
     await observeGenericMenu(page);
+    expect(assets.getWorkerUrls().filter(isCryptoWorkerUrl)).toEqual([]);
     assets.setPhase('completed');
   } finally {
     await page.context().tracing.stop({ path: tracePath });

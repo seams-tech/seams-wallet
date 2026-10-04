@@ -1,0 +1,746 @@
+{
+  "kind": "worker_startup_measurement",
+  "baseRevision": "c4c07358798cacb1ba56eb0a8c79e1a869530f4d",
+  "sourcePatchSha256": "c65d091254b34ca38303ff69e4b8a9d3cb94e44309c227e6aeb41b68ac6714cb",
+  "workingTree": "Blanket host/signer warmup deletion and its browser contract pending commit",
+  "buildCommand": "pnpm -C packages/wallet build:prod",
+  "testCommand": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.registration.assets.contract.test.ts",
+  "buildInputs": "11a4f43346ad713cc7e02d08dcfb087a8e7947866a00a3dd7938f71896e8c1cf",
+  "scenarios": [
+    {
+      "scenario": "signed-out",
+      "artifactPath": ".artifacts/r170-worker-startup/signed-out.json",
+      "reportSha256": "c4e26cfab82d3c38e3541c60ae23fadb79070cd0342330d572f454f16b0cbd00",
+      "cachePolicy": "enabled",
+      "before": {
+        "http://localhost:4201": {
+          "encodedBodiesByExtension": {
+            ".js": 827928,
+            ".css": 6577
+          },
+          "encodedBodyBytes": 834505,
+          "requests": 100
+        },
+        "http://localhost:4202": {
+          "encodedBodiesByExtension": {
+            ".js": 982211,
+            ".css": 21359,
+            ".wasm": 1560164
+          },
+          "encodedBodyBytes": 2563734,
+          "requests": 236
+        }
+      },
+      "after": {
+        "http://localhost:4201": {
+          "encodedBodiesByExtension": {
+            ".js": 827319,
+            ".css": 6577
+          },
+          "encodedBodyBytes": 833896,
+          "requests": 100
+        },
+        "http://localhost:4202": {
+          "encodedBodiesByExtension": {
+            ".js": 789846,
+            ".css": 21359
+          },
+          "encodedBodyBytes": 811205,
+          "requests": 196
+        }
+      },
+      "beforeWorkerCreations": 22,
+      "afterWorkerCreations": 0,
+      "phases": [
+        {
+          "name": "initialization",
+          "durationMs": 35.23750000000007
+        },
+        {
+          "name": "cold-signed-out-mount-idle",
+          "durationMs": 2847.013166
+        },
+        {
+          "name": "cold-generic-menu",
+          "durationMs": 2089.5537919999997
+        },
+        {
+          "name": "warm-signed-out-mount-idle",
+          "durationMs": 2644.2995420000007
+        },
+        {
+          "name": "warm-generic-menu",
+          "durationMs": 2138.5202910000007
+        },
+        {
+          "name": "completed",
+          "durationMs": 36.34337500000038
+        }
+      ]
+    },
+    {
+      "scenario": "registration",
+      "artifactPath": ".artifacts/r170-worker-startup/registration.json",
+      "reportSha256": "6362d34502f218f49e26e0b790eb25589d29634167ec2c12010a6eb4be65e261",
+      "cachePolicy": "disabled_by_routing",
+      "before": {
+        "http://localhost:4201": {
+          "encodedBodiesByExtension": {
+            ".js": 1655848,
+            ".css": 13154
+          },
+          "encodedBodyBytes": 1669002,
+          "requests": 100
+        },
+        "http://localhost:4202": {
+          "encodedBodiesByExtension": {
+            ".js": 2036765,
+            ".css": 42718,
+            ".wasm": 7283249
+          },
+          "encodedBodyBytes": 9362732,
+          "requests": 249
+        }
+      },
+      "after": {
+        "http://localhost:4201": {
+          "encodedBodiesByExtension": {
+            ".js": 1654636,
+            ".css": 13154
+          },
+          "encodedBodyBytes": 1667790,
+          "requests": 100
+        },
+        "http://localhost:4202": {
+          "encodedBodiesByExtension": {
+            ".js": 2012580,
+            ".css": 42718,
+            ".wasm": 6194505
+          },
+          "encodedBodyBytes": 8249803,
+          "requests": 239
+        }
+      },
+      "beforeWorkerCreations": 25,
+      "afterWorkerCreations": 20,
+      "phases": [
+        {
+          "name": "initialization",
+          "durationMs": 374.7979590000001
+        },
+        {
+          "name": "register",
+          "durationMs": 1919.9810410000002
+        },
+        {
+          "name": "first-near-sign",
+          "durationMs": 710.1041249999998
+        },
+        {
+          "name": "first-evm-sign",
+          "durationMs": 783.1388329999995
+        },
+        {
+          "name": "lock",
+          "durationMs": 29.715167000000292
+        },
+        {
+          "name": "unlock",
+          "durationMs": 708.7584159999997
+        },
+        {
+          "name": "repeat-near-sign",
+          "durationMs": 712.4703329999993
+        },
+        {
+          "name": "repeat-evm-sign",
+          "durationMs": 767.1738340000002
+        },
+        {
+          "name": "completed",
+          "durationMs": 2.51391699999931
+        }
+      ]
+    }
+  ],
+  "trace": {
+    "path": ".artifacts/r170-worker-startup/signed-out-trace.zip",
+    "sha256": "5a893a4871a1bc32c301421980b02f1d5b57f9a45d358646c098dcaa892588e0",
+    "scope": "Signed-out mount/menu; no credential operations"
+  },
+  "limitations": [
+    "Single before/after timing samples do not establish the three-run median acceptance gate.",
+    "The registration scenario still disables HTTP cache through harness RPC routing.",
+    "Host/client composition is still shared; this measures worker loading only.",
+    "Full signer/factor, recovery, export, device-link and initialization-failure matrices remain required."
+  ],
+  "consumerReport": {
+    "outputDirectory": "/var/folders/7k/nz1ldp1n0bz4n2wdmy_wvnkw0000gn/T/seams-wallet-consumers-pxx4hR",
+    "nodeVersion": "v26.4.0",
+    "bunVersion": "1.2.18",
+    "lockfileSha256": "cca6b7aa753c9af21e0bac8af0ce3e7b21377d0c3701cbb5bba1916594e469c9",
+    "buildInputsHash": "11a4f43346ad713cc7e02d08dcfb087a8e7947866a00a3dd7938f71896e8c1cf",
+    "emittedEsmSha256": "7828287a05c2b7f8ae017532744870dda1c0c160e481a300e8cb72f89808a515",
+    "freshness": {
+      "status": "fresh",
+      "detail": "\u2705 Build is fresh"
+    },
+    "consumers": [
+      {
+        "name": "root-client",
+        "entry": ".",
+        "exports": [
+          "SeamsWeb",
+          "defineSeamsConfig"
+        ],
+        "closures": {
+          "staticJavaScript": {
+            "raw": 3220995,
+            "gzip": 739365,
+            "brotli": 602060,
+            "files": [
+              "registration-3d62rw12.js",
+              "registration-3kz8agaj.js",
+              "root-client-070j147g.js",
+              "root-client-10vzba5d.js",
+              "root-client-15n09fyd.js",
+              "root-client-1a46nejz.js",
+              "root-client-2e1zmp7z.js",
+              "root-client-2gsqsh4w.js",
+              "root-client-2r84jq0k.js",
+              "root-client-2rxzzx7j.js",
+              "root-client-4c5mxcas.js",
+              "root-client-5bmszwje.js",
+              "root-client-5q0tbcs6.js",
+              "root-client-5qcqehz1.js",
+              "root-client-60871zdh.js",
+              "root-client-7a13sknx.js",
+              "root-client-7t0b9xy1.js",
+              "root-client-8trtkvqs.js",
+              "root-client-a78g61yj.js",
+              "root-client-cgfgkbq1.js",
+              "root-client-ds7r0afa.js",
+              "root-client-dzzdfvnz.js",
+              "root-client-e9n01ykg.js",
+              "root-client-fbbwb7f7.js",
+              "root-client-fe8rczfp.js",
+              "root-client-gbp63xrf.js",
+              "root-client-ghmw9asa.js",
+              "root-client-jakmznmv.js",
+              "root-client-jgk85vs7.js",
+              "root-client-kqs6h81v.js",
+              "root-client-kxxckxz6.js",
+              "root-client-mdppq7js.js",
+              "root-client-nqk915pz.js",
+              "root-client-pdma4qwh.js",
+              "root-client-pe4a1k62.js",
+              "root-client-qqkwbmpn.js",
+              "root-client-r8mjb5t0.js",
+              "root-client-s50my5cs.js",
+              "root-client-ssdk5wv3.js",
+              "root-client-sw28nmh3.js",
+              "root-client-t9n5vbed.js",
+              "root-client-te4pqd0y.js",
+              "root-client-tmbghs5c.js",
+              "root-client-vd92n02c.js",
+              "root-client-w9w9mfz8.js",
+              "root-client-whtyrjth.js",
+              "root-client-xbbrbr1q.js",
+              "root-client-xvwh2t4r.js",
+              "root-client-y623x86v.js",
+              "root-client-yavm8qqh.js",
+              "root-client-yn12ypex.js",
+              "root-client-yq55jh75.js",
+              "root-client-yz676pf2.js",
+              "root-client-z2mg7czx.js",
+              "root-client-z9qtgdc3.js",
+              "root-client.js",
+              "secp256k1-g3ntbvr1.js",
+              "signEvmFamily-4b7c6bm6.js",
+              "signNear-k38fwqf5.js"
+            ],
+            "external": []
+          },
+          "allReachableJavaScript": {
+            "raw": 3405476,
+            "gzip": 793113,
+            "brotli": 648485,
+            "files": [
+              "browser-14r0b6x6.js",
+              "ecdsaWalletRecords-ahgm8w6n.js",
+              "enrichDisplayModelWithAbi-82vwqhrb.js",
+              "localOnly-fvzmvjmt.js",
+              "mountExportPrivateKeySurface-6pcdw6we.js",
+              "mountRecoveryCodeBackupSurface-8gb1bfb8.js",
+              "registration-3d62rw12.js",
+              "registration-3kz8agaj.js",
+              "registrationAccounts-2swz0r6g.js",
+              "root-client-070j147g.js",
+              "root-client-10vzba5d.js",
+              "root-client-15n09fyd.js",
+              "root-client-1a46nejz.js",
+              "root-client-2e1zmp7z.js",
+              "root-client-2gsqsh4w.js",
+              "root-client-2r84jq0k.js",
+              "root-client-2rxzzx7j.js",
+              "root-client-4c5mxcas.js",
+              "root-client-5bmszwje.js",
+              "root-client-5q0tbcs6.js",
+              "root-client-5qcqehz1.js",
+              "root-client-60871zdh.js",
+              "root-client-7a13sknx.js",
+              "root-client-7t0b9xy1.js",
+              "root-client-8trtkvqs.js",
+              "root-client-a78g61yj.js",
+              "root-client-cgfgkbq1.js",
+              "root-client-ds7r0afa.js",
+              "root-client-dzzdfvnz.js",
+              "root-client-e9n01ykg.js",
+              "root-client-fbbwb7f7.js",
+              "root-client-fe8rczfp.js",
+              "root-client-gbp63xrf.js",
+              "root-client-ghmw9asa.js",
+              "root-client-jakmznmv.js",
+              "root-client-jgk85vs7.js",
+              "root-client-kqs6h81v.js",
+              "root-client-kxxckxz6.js",
+              "root-client-mdppq7js.js",
+              "root-client-nqk915pz.js",
+              "root-client-nqwev0cv.js",
+              "root-client-pdma4qwh.js",
+              "root-client-pe4a1k62.js",
+              "root-client-qqkwbmpn.js",
+              "root-client-r8mjb5t0.js",
+              "root-client-s50my5cs.js",
+              "root-client-ssdk5wv3.js",
+              "root-client-sw28nmh3.js",
+              "root-client-t9n5vbed.js",
+              "root-client-te4pqd0y.js",
+              "root-client-tmbghs5c.js",
+              "root-client-vd92n02c.js",
+              "root-client-w9w9mfz8.js",
+              "root-client-whtyrjth.js",
+              "root-client-xbbrbr1q.js",
+              "root-client-xvwh2t4r.js",
+              "root-client-y623x86v.js",
+              "root-client-yavm8qqh.js",
+              "root-client-yn12ypex.js",
+              "root-client-yq55jh75.js",
+              "root-client-yz676pf2.js",
+              "root-client-z2mg7czx.js",
+              "root-client-z9qtgdc3.js",
+              "root-client.js",
+              "router-20x850g6.js",
+              "secp256k1-g3ntbvr1.js",
+              "signEvmFamily-4b7c6bm6.js",
+              "signEvmFamilyWithUiConfirmForTempo-bntyt4zv.js",
+              "signEvmWithUiConfirm-g764ymza.js",
+              "signNear-k38fwqf5.js",
+              "warmSessionHydration-gz016w9r.js",
+              "webauthnP256-9txwszwt.js"
+            ],
+            "external": []
+          }
+        },
+        "assets": {
+          "raw": 0,
+          "gzip": 0,
+          "brotli": 0,
+          "files": []
+        }
+      },
+      {
+        "name": "react-provider",
+        "entry": "./react/provider",
+        "exports": [
+          "SeamsWebProvider"
+        ],
+        "closures": {
+          "staticJavaScript": {
+            "raw": 3243833,
+            "gzip": 746369,
+            "brotli": 607650,
+            "files": [
+              "react-provider-0jfwmj7h.js",
+              "react-provider-0mw1v2mm.js",
+              "react-provider-14nmv41c.js",
+              "react-provider-1gdfp32q.js",
+              "react-provider-1hqz23se.js",
+              "react-provider-1v5dah1r.js",
+              "react-provider-2dhs6bk7.js",
+              "react-provider-3azays3d.js",
+              "react-provider-3q86djd8.js",
+              "react-provider-4f2nqpd5.js",
+              "react-provider-4g3dcaxh.js",
+              "react-provider-52x6f5jr.js",
+              "react-provider-6enzr2m2.js",
+              "react-provider-6ppg7vfq.js",
+              "react-provider-6wm92mad.js",
+              "react-provider-73y6rpaj.js",
+              "react-provider-7dp3s1x4.js",
+              "react-provider-8rjpqe3k.js",
+              "react-provider-9n3b2xr8.js",
+              "react-provider-a7fhnctr.js",
+              "react-provider-c2f4gbmh.js",
+              "react-provider-c9t0hwf5.js",
+              "react-provider-cvp33fms.js",
+              "react-provider-dc8x5rkk.js",
+              "react-provider-ddrhyc91.js",
+              "react-provider-dfmf01w5.js",
+              "react-provider-dfs43n4y.js",
+              "react-provider-eaxqtqkw.js",
+              "react-provider-f79res57.js",
+              "react-provider-fccc8cxa.js",
+              "react-provider-fe26twn5.js",
+              "react-provider-fgnxbazp.js",
+              "react-provider-g0xd6fmd.js",
+              "react-provider-gqndn6vq.js",
+              "react-provider-h5jqnj8p.js",
+              "react-provider-hxngvp34.js",
+              "react-provider-jbv913ty.js",
+              "react-provider-pcx23tex.js",
+              "react-provider-pvbdj6ca.js",
+              "react-provider-r95pde0p.js",
+              "react-provider-rr39nr13.js",
+              "react-provider-trtxx9ym.js",
+              "react-provider-v01ag4p8.js",
+              "react-provider-vcs29sj0.js",
+              "react-provider-vgajpc7s.js",
+              "react-provider-wvwd5ny3.js",
+              "react-provider-x8sv9jxv.js",
+              "react-provider-xgxja9mr.js",
+              "react-provider-xrefe19w.js",
+              "react-provider-xwe3jzkd.js",
+              "react-provider-yv6htj34.js",
+              "react-provider-zj61wsea.js",
+              "react-provider-zwcft2sw.js",
+              "react-provider.js",
+              "registration-cga76ma8.js",
+              "registration-qx9k8hv5.js",
+              "secp256k1-n6gze5as.js",
+              "signEvmFamily-50698t8a.js",
+              "signNear-672gksms.js"
+            ],
+            "external": [
+              "react",
+              "react/jsx-runtime"
+            ]
+          },
+          "allReachableJavaScript": {
+            "raw": 3440230,
+            "gzip": 802911,
+            "brotli": 656427,
+            "files": [
+              "browser-ge5japx1.js",
+              "ecdsaWalletRecords-zxgykpyq.js",
+              "enrichDisplayModelWithAbi-3xn655c5.js",
+              "localOnly-6szjy8hr.js",
+              "mountExportPrivateKeySurface-7bmgmt6a.js",
+              "mountRecoveryCodeBackupSurface-mb0qc5g0.js",
+              "react-provider-0jfwmj7h.js",
+              "react-provider-0mw1v2mm.js",
+              "react-provider-14nmv41c.js",
+              "react-provider-1gdfp32q.js",
+              "react-provider-1hqz23se.js",
+              "react-provider-1v5dah1r.js",
+              "react-provider-2dhs6bk7.js",
+              "react-provider-3azays3d.js",
+              "react-provider-3q86djd8.js",
+              "react-provider-4f2nqpd5.js",
+              "react-provider-4g3dcaxh.js",
+              "react-provider-52x6f5jr.js",
+              "react-provider-6enzr2m2.js",
+              "react-provider-6ppg7vfq.js",
+              "react-provider-6wm92mad.js",
+              "react-provider-73y6rpaj.js",
+              "react-provider-7dp3s1x4.js",
+              "react-provider-7n1csgqy.js",
+              "react-provider-8rjpqe3k.js",
+              "react-provider-9n3b2xr8.js",
+              "react-provider-a7fhnctr.js",
+              "react-provider-c2f4gbmh.js",
+              "react-provider-c9t0hwf5.js",
+              "react-provider-cvp33fms.js",
+              "react-provider-dc8x5rkk.js",
+              "react-provider-ddrhyc91.js",
+              "react-provider-dfmf01w5.js",
+              "react-provider-dfs43n4y.js",
+              "react-provider-eaxqtqkw.js",
+              "react-provider-f79res57.js",
+              "react-provider-fccc8cxa.js",
+              "react-provider-fe26twn5.js",
+              "react-provider-fgnxbazp.js",
+              "react-provider-g0xd6fmd.js",
+              "react-provider-gqndn6vq.js",
+              "react-provider-h5jqnj8p.js",
+              "react-provider-hxngvp34.js",
+              "react-provider-jbv913ty.js",
+              "react-provider-pcx23tex.js",
+              "react-provider-pvbdj6ca.js",
+              "react-provider-r95pde0p.js",
+              "react-provider-rr39nr13.js",
+              "react-provider-trtxx9ym.js",
+              "react-provider-v01ag4p8.js",
+              "react-provider-vcs29sj0.js",
+              "react-provider-vgajpc7s.js",
+              "react-provider-wvwd5ny3.js",
+              "react-provider-x8sv9jxv.js",
+              "react-provider-xgxja9mr.js",
+              "react-provider-xrefe19w.js",
+              "react-provider-xwe3jzkd.js",
+              "react-provider-yv6htj34.js",
+              "react-provider-zj61wsea.js",
+              "react-provider-zwcft2sw.js",
+              "react-provider.js",
+              "registration-cga76ma8.js",
+              "registration-qx9k8hv5.js",
+              "registrationAccounts-pykt462a.js",
+              "router-jtrxst35.js",
+              "secp256k1-n6gze5as.js",
+              "signEvmFamily-50698t8a.js",
+              "signEvmFamilyWithUiConfirmForTempo-kynz5kqf.js",
+              "signEvmWithUiConfirm-sbf68jt4.js",
+              "signNear-672gksms.js",
+              "warmSessionHydration-0x5q9w6q.js",
+              "webauthnP256-tk2zh0es.js"
+            ],
+            "external": [
+              "react",
+              "react/jsx-runtime"
+            ]
+          }
+        },
+        "assets": {
+          "raw": 0,
+          "gzip": 0,
+          "brotli": 0,
+          "files": []
+        }
+      },
+      {
+        "name": "hosted-auth-menu",
+        "entry": "./react/hosted-seams-auth-menu",
+        "exports": [
+          "HostedSeamsAuthMenu"
+        ],
+        "closures": {
+          "staticJavaScript": {
+            "raw": 41472,
+            "gzip": 13907,
+            "brotli": 12250,
+            "files": [
+              "hosted-auth-menu-86yqqn2c.js",
+              "hosted-auth-menu-bw7m6223.js",
+              "hosted-auth-menu-dfk2jtfy.js",
+              "hosted-auth-menu-gn5qsf0a.js",
+              "hosted-auth-menu-nsfc5f7d.js",
+              "hosted-auth-menu-teh7xgxb.js",
+              "hosted-auth-menu-zzwb8t4z.js",
+              "hosted-auth-menu.js"
+            ],
+            "external": [
+              "react",
+              "react/jsx-runtime"
+            ]
+          },
+          "allReachableJavaScript": {
+            "raw": 41472,
+            "gzip": 13907,
+            "brotli": 12250,
+            "files": [
+              "hosted-auth-menu-86yqqn2c.js",
+              "hosted-auth-menu-bw7m6223.js",
+              "hosted-auth-menu-dfk2jtfy.js",
+              "hosted-auth-menu-gn5qsf0a.js",
+              "hosted-auth-menu-nsfc5f7d.js",
+              "hosted-auth-menu-teh7xgxb.js",
+              "hosted-auth-menu-zzwb8t4z.js",
+              "hosted-auth-menu.js"
+            ],
+            "external": [
+              "react",
+              "react/jsx-runtime"
+            ]
+          }
+        },
+        "assets": {
+          "raw": 0,
+          "gzip": 0,
+          "brotli": 0,
+          "files": []
+        }
+      },
+      {
+        "name": "react-hosted-auth",
+        "entry": "./react",
+        "exports": [
+          "SeamsWebProvider",
+          "HostedSeamsAuthMenu"
+        ],
+        "closures": {
+          "staticJavaScript": {
+            "raw": 3268658,
+            "gzip": 752512,
+            "brotli": 613048,
+            "files": [
+              "react-hosted-auth-0wbxbs4h.js",
+              "react-hosted-auth-1hxc2var.js",
+              "react-hosted-auth-1tf7v30g.js",
+              "react-hosted-auth-1xrxpfy0.js",
+              "react-hosted-auth-3dmrhmfc.js",
+              "react-hosted-auth-3dnyxdzv.js",
+              "react-hosted-auth-488dhajd.js",
+              "react-hosted-auth-5bec5ast.js",
+              "react-hosted-auth-5n926308.js",
+              "react-hosted-auth-6f6ryykf.js",
+              "react-hosted-auth-8kx3hqgt.js",
+              "react-hosted-auth-8vh62v3t.js",
+              "react-hosted-auth-94yfnndw.js",
+              "react-hosted-auth-9h9tmjnw.js",
+              "react-hosted-auth-ag56n3s8.js",
+              "react-hosted-auth-ayvjtnfk.js",
+              "react-hosted-auth-bbhpw7n8.js",
+              "react-hosted-auth-bepchp1z.js",
+              "react-hosted-auth-bpabvg3t.js",
+              "react-hosted-auth-c20f823e.js",
+              "react-hosted-auth-csszj2xy.js",
+              "react-hosted-auth-cydtnxtd.js",
+              "react-hosted-auth-dyc865kp.js",
+              "react-hosted-auth-ebz1peys.js",
+              "react-hosted-auth-edmb4vgy.js",
+              "react-hosted-auth-f2nzxhs3.js",
+              "react-hosted-auth-f4fv3ph5.js",
+              "react-hosted-auth-f9yjb27b.js",
+              "react-hosted-auth-fkn2h6gp.js",
+              "react-hosted-auth-gs6t4zdw.js",
+              "react-hosted-auth-gw35j2a0.js",
+              "react-hosted-auth-hjrc5sbk.js",
+              "react-hosted-auth-hsc1z6cy.js",
+              "react-hosted-auth-j2061g5j.js",
+              "react-hosted-auth-jhf14bcp.js",
+              "react-hosted-auth-kg5t35qz.js",
+              "react-hosted-auth-krh5xf3d.js",
+              "react-hosted-auth-kttjw8b6.js",
+              "react-hosted-auth-mdawzrzw.js",
+              "react-hosted-auth-nqsqmtq1.js",
+              "react-hosted-auth-p11tymx8.js",
+              "react-hosted-auth-p2551bpm.js",
+              "react-hosted-auth-p3h6zp5b.js",
+              "react-hosted-auth-ptjn6vvs.js",
+              "react-hosted-auth-q3myewxx.js",
+              "react-hosted-auth-qrtxdqfv.js",
+              "react-hosted-auth-r9mp6mhp.js",
+              "react-hosted-auth-sc8et5gm.js",
+              "react-hosted-auth-t4s21ac3.js",
+              "react-hosted-auth-tvngrckn.js",
+              "react-hosted-auth-y5xzecy9.js",
+              "react-hosted-auth-ybw0zk68.js",
+              "react-hosted-auth-z3tb7145.js",
+              "react-hosted-auth.js",
+              "registration-7t3fywgd.js",
+              "registration-prnwctjc.js",
+              "secp256k1-7ck3fevx.js",
+              "signEvmFamily-8c039jhs.js",
+              "signNear-7s4vspz4.js"
+            ],
+            "external": [
+              "react",
+              "react/jsx-runtime"
+            ]
+          },
+          "allReachableJavaScript": {
+            "raw": 3452186,
+            "gzip": 805849,
+            "brotli": 659250,
+            "files": [
+              "browser-95gf7x0e.js",
+              "ecdsaWalletRecords-axxqn4tv.js",
+              "enrichDisplayModelWithAbi-7j4tetg7.js",
+              "localOnly-1vj163ky.js",
+              "mountExportPrivateKeySurface-z7mzv1zz.js",
+              "mountRecoveryCodeBackupSurface-fdzc9mf7.js",
+              "react-hosted-auth-0wbxbs4h.js",
+              "react-hosted-auth-1hxc2var.js",
+              "react-hosted-auth-1tf7v30g.js",
+              "react-hosted-auth-1xrxpfy0.js",
+              "react-hosted-auth-3dmrhmfc.js",
+              "react-hosted-auth-3dnyxdzv.js",
+              "react-hosted-auth-488dhajd.js",
+              "react-hosted-auth-4ahyxzy4.js",
+              "react-hosted-auth-5bec5ast.js",
+              "react-hosted-auth-5n926308.js",
+              "react-hosted-auth-6f6ryykf.js",
+              "react-hosted-auth-8kx3hqgt.js",
+              "react-hosted-auth-8vh62v3t.js",
+              "react-hosted-auth-94yfnndw.js",
+              "react-hosted-auth-9h9tmjnw.js",
+              "react-hosted-auth-ag56n3s8.js",
+              "react-hosted-auth-ayvjtnfk.js",
+              "react-hosted-auth-bbhpw7n8.js",
+              "react-hosted-auth-bepchp1z.js",
+              "react-hosted-auth-bpabvg3t.js",
+              "react-hosted-auth-c20f823e.js",
+              "react-hosted-auth-csszj2xy.js",
+              "react-hosted-auth-cydtnxtd.js",
+              "react-hosted-auth-dyc865kp.js",
+              "react-hosted-auth-ebz1peys.js",
+              "react-hosted-auth-edmb4vgy.js",
+              "react-hosted-auth-f2nzxhs3.js",
+              "react-hosted-auth-f4fv3ph5.js",
+              "react-hosted-auth-f9yjb27b.js",
+              "react-hosted-auth-fkn2h6gp.js",
+              "react-hosted-auth-gs6t4zdw.js",
+              "react-hosted-auth-gw35j2a0.js",
+              "react-hosted-auth-hjrc5sbk.js",
+              "react-hosted-auth-hsc1z6cy.js",
+              "react-hosted-auth-j2061g5j.js",
+              "react-hosted-auth-jhf14bcp.js",
+              "react-hosted-auth-kg5t35qz.js",
+              "react-hosted-auth-krh5xf3d.js",
+              "react-hosted-auth-kttjw8b6.js",
+              "react-hosted-auth-mdawzrzw.js",
+              "react-hosted-auth-nqsqmtq1.js",
+              "react-hosted-auth-p11tymx8.js",
+              "react-hosted-auth-p2551bpm.js",
+              "react-hosted-auth-p3h6zp5b.js",
+              "react-hosted-auth-ptjn6vvs.js",
+              "react-hosted-auth-q3myewxx.js",
+              "react-hosted-auth-qrtxdqfv.js",
+              "react-hosted-auth-r9mp6mhp.js",
+              "react-hosted-auth-sc8et5gm.js",
+              "react-hosted-auth-t4s21ac3.js",
+              "react-hosted-auth-tvngrckn.js",
+              "react-hosted-auth-y5xzecy9.js",
+              "react-hosted-auth-ybw0zk68.js",
+              "react-hosted-auth-z3tb7145.js",
+              "react-hosted-auth.js",
+              "registration-7t3fywgd.js",
+              "registration-prnwctjc.js",
+              "registrationAccounts-psnb4013.js",
+              "router-bv7yxr81.js",
+              "secp256k1-7ck3fevx.js",
+              "signEvmFamily-8c039jhs.js",
+              "signEvmFamilyWithUiConfirmForTempo-ww4qzdt0.js",
+              "signEvmWithUiConfirm-mcxzkj0w.js",
+              "signNear-7s4vspz4.js",
+              "warmSessionHydration-tmn4arq6.js",
+              "webauthnP256-xpn1tbbt.js"
+            ],
+            "external": [
+              "react",
+              "react/jsx-runtime"
+            ]
+          }
+        },
+        "assets": {
+          "raw": 34730,
+          "gzip": 5897,
+          "brotli": 5164,
+          "files": [
+            "react-hosted-auth.css"
+          ]
+        }
+      }
+    ]
+  }
+}

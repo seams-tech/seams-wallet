@@ -22,7 +22,10 @@ script byte measurements; a separate cache-enabled signed-out mount/menu scenari
 and safe trace also pass. The inventory records phase-specific latency limits.
 Authenticated warm-cache and signer-specific evidence remain open. `near.accountExists` and its public browser contract are
 implemented; account-input UI no longer reaches through execution context for
-RPC reads. Host/client composition and targeted worker loading are still pending.
+RPC reads. Host/client composition remains pending. Blanket worker startup is now removed;
+production mount/menu creates zero crypto workers. The full selective-loading
+matrix and initialization-failure/retry work remain open. See the
+[worker-startup receipt](evidence/refactor-170-worker-startup-20261005.json).
 
 ## Objective
 
@@ -712,7 +715,7 @@ derive production behavior from existing typed requests and selected capabilitie
   restored-session presignature prefill, and pending-operation replay. Record
   required assets by operation, signer set, and auth method, with the call site
   that justifies each dependency.
-- [ ] **Remove unconditional all-worker prewarm.** Replace the host's generic
+- [x] **Remove unconditional all-worker prewarm.** Replace the host's generic
   worker startup with preparation for the selected operation. Remove the
   `prewarmWorkers()` loop over all worker kinds and obsolete broad readiness
   waits/callers. A fresh idle host with no selected operation or pending resume
