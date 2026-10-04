@@ -4,6 +4,8 @@ import {
   type IntendedRecoveryTargetKind,
 } from './harness';
 
+test.use({ trace: 'off', screenshot: 'off', video: 'off' });
+
 type RecoveryOrigin = {
   readonly name: string;
   readonly register: (harness: IntendedBehaviourHarness) => Promise<void>;

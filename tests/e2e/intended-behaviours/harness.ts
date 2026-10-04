@@ -1,7 +1,4 @@
-import {
-  intendedIndexedDbModulePath,
-  readPendingWalletRecoveryCommitIdentitiesInBrowser,
-} from './recovery-journal';
+import { readPendingWalletRecoveryCommitIdentity } from './recovery-journal';
 import {
   concealFirstRecoveryFinalizationResponse,
   createRecoveryFinalizationResponseLoss,
@@ -3670,22 +3667,24 @@ export class IntendedBehaviourHarness {
     finalization: RecoveryRequestIdentity,
     expectation: 'present' | 'absent',
   ): Promise<void> {
-    const modulePath = intendedIndexedDbModulePath(this.config.appUrl);
     const frame = await walletServiceFrame(this.page, this.config.walletOrigin);
     const deadline = Date.now() + 120_000;
     while (Date.now() < deadline) {
-      const pending = await frame.evaluate(readPendingWalletRecoveryCommitIdentitiesInBrowser, {
-        modulePath,
-      });
-      const matching = pending.filter(
-        (record) =>
-          record.walletId === finalization.walletId &&
-          record.recoveryOperationId === finalization.recoveryOperationId,
+      const pending = await readPendingWalletRecoveryCommitIdentity(
+        frame,
+        finalization.recoveryOperationId,
       );
+      if (
+        pending &&
+        (pending.walletId !== finalization.walletId ||
+          pending.recoveryOperationId !== finalization.recoveryOperationId)
+      ) {
+        throw new Error('Recovery journal identity does not match the selected operation');
+      }
       const matchesExpectation =
         expectation === 'present'
-          ? matching.length === 1 && matching[0]?.stage === 'awaiting_server_promotion'
-          : matching.length === 0;
+          ? pending?.stage === 'awaiting_server_promotion'
+          : pending === null;
       if (matchesExpectation) {
         this.recordService(
           `durable recovery journal ${expectation} for wallet=${finalization.walletId} operation=${finalization.recoveryOperationId}`,

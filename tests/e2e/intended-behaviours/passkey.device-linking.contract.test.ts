@@ -16,6 +16,8 @@ import { SigningTimingEvidence } from './signing-timing-evidence';
 import { GatewayRequestEvidence } from './gateway-request-evidence';
 import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
 
+test.use({ trace: 'off', screenshot: 'off', video: 'off' });
+
 function enableLinkedSigningTiming(): void {
   process.env.SEAMS_INTENDED_SIGNING_SESSION_DEBUG = '1';
 }
