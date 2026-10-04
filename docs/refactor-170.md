@@ -623,15 +623,30 @@ command inputs require resolved wallet and chain/account identities.
 
 Device linking and account sync also have explicit application and host owners.
 The shared public API no longer requires a signing engine or constructs a host
-execution domain. The public-client dependency gate remains open: the application
-constructor and coordinator still retain execution infrastructure. Application
-preference display state is now memory-only; the host retains durable preferences.
-Client preference writes now support rollback, bounded `flush()`, retained failures,
-and a preference check before signing. Protocol snapshot/event revision ordering
-and removal of the remaining runtime construction are still pending. Preference
-synchronization, protocol ordering, complete selective-loading evidence, and
-consumer/release acceptance remain unfinished. See `refactor-170-inventory.md`
-for implementation and verification checkpoints.
+execution domain. The application constructor and coordinator now retain only client state,
+configuration, and transport. The host owns signing infrastructure and wallet-origin
+IndexedDB directly. Root and provider production graphs contain no signing stores,
+custody implementation, worker managers, or host runtime. The obsolete mixed-mode
+storage selector and public `getContext()` have been removed.
+
+Application preference display state is memory-only; the host retains durable
+preferences. Client preference writes support rollback, bounded `flush()`, retained
+failures, and a preference check before signing. Protocol snapshot/event revision
+ordering and configuration boundary cleanup remain unfinished.
+
+The fresh production root-client static closure measures 66,386 bytes gzip
+(64.8 KiB), compared with 739,640 bytes at baseline: a 91.0% reduction. Including
+its lazy router, it measures 93,551 bytes gzip (91.4 KiB). The provider measures
+73,281 bytes static and 103,213 bytes reachable gzip, excluding React peers.
+These figures exclude wallet-origin assets and do not establish total network or
+latency savings. Eight production lifecycle cases and 13 browser cases pass.
+Production build, type checks, external declarations, runtime boundaries, packed
+package boundaries, and the bloat gate pass. See
+`evidence/refactor-170-client-cutover-20261005.json` for source hashes and evidence.
+
+Complete selective-loading evidence, protocol ordering, configuration separation,
+R171 naming, and consumer/release acceptance remain unfinished. See
+`refactor-170-inventory.md` for historical checkpoints and remaining verification.
 
 ## Implementation sequence
 

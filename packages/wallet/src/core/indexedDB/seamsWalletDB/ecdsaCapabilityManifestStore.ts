@@ -64,8 +64,8 @@ import {
 import {
   ECDSA_CLIENT_PRESIGNATURE_CAPACITY,
   MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS,
-  type EcdsaClientPresignCleanupTarget,
-} from '@/core/signingEngine/workerManager/ecdsaPresignLifecycle';
+} from '@/core/config/presignatures';
+import { type EcdsaClientPresignCleanupTarget } from '@/core/signingEngine/workerManager/ecdsaPresignLifecycle';
 import {
   MANIFEST_RECORD_VERSION,
   MANIFEST_STORE,

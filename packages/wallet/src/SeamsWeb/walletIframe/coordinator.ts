@@ -12,9 +12,7 @@ import type {
   HostedAuthMenuSessionId,
   PreferencesChangedPayload,
 } from '@/SeamsWeb/walletIframe/shared/messages';
-import { __isWalletIframeHostMode } from '@/core/browser/walletIframe/host-mode';
 import { createWalletIframeRouter } from '@/SeamsWeb/assembly/createWalletIframeRouter';
-import type { WalletIframeWarmupSurface } from '@/SeamsWeb/signingSurface/types';
 import { parseWebAuthnRpId, type WebAuthnRpId } from '@shared/utils/domainIds';
 import type { SdkLifecycleEventListener } from '@/core/types/sdkSentEvents';
 import type { SdkLifecycleEvent } from '@/core/types/sdkSentEvents';
@@ -42,7 +40,6 @@ function walletOriginHostname(walletOrigin: string): string {
 
 interface WalletIframeCoordinatorDeps {
   configs: SeamsConfigsReadonly;
-  signingEngine: WalletIframeWarmupSurface;
   userPreferences: PreferenceState;
   getAppearance: () => AppearanceConfig;
 }
@@ -53,7 +50,6 @@ interface WalletIframeCoordinatorDeps {
  */
 export class WalletIframeCoordinator {
   private readonly configs: SeamsConfigsReadonly;
-  private readonly signingEngine: WalletIframeWarmupSurface;
   private readonly userPreferences: PreferenceState;
   private readonly getAppearance: () => AppearanceConfig;
 
@@ -82,7 +78,6 @@ export class WalletIframeCoordinator {
 
   constructor(deps: WalletIframeCoordinatorDeps) {
     this.configs = deps.configs;
-    this.signingEngine = deps.signingEngine;
     this.userPreferences = deps.userPreferences;
     this.getAppearance = deps.getAppearance;
     this.forwardSdkLifecycleEventListener = this.forwardSdkLifecycleEvent.bind(this);
@@ -96,15 +91,11 @@ export class WalletIframeCoordinator {
    * True when the SDK is running on the app origin with a wallet iframe configured.
    * In this mode, sensitive persistence must live in the wallet-iframe origin.
    */
-  shouldUseWalletIframe(): boolean {
-    return this.configs.wallet.mode === 'iframe' && !__isWalletIframeHostMode();
+  isConfigured(): boolean {
+    return this.configs.wallet.mode === 'iframe';
   }
 
-  resolveRegistrationRpId(localRpId: string): WebAuthnRpId {
-    if (!this.shouldUseWalletIframe()) {
-      return requireRegistrationRpId(localRpId, '[SeamsWeb] Local registration RP ID is invalid');
-    }
-
+  resolveRegistrationRpId(): WebAuthnRpId {
     const iframeConfig = this.configs.wallet.iframe;
     const configuredRpId = String(iframeConfig.rpIdOverride || '').trim();
     if (configuredRpId) {
@@ -167,17 +158,7 @@ export class WalletIframeCoordinator {
   }
 
   async init(_walletId?: string): Promise<WalletIframeExactSessionState> {
-    if (!this.shouldUseWalletIframe()) {
-      await this.signingEngine.warmCriticalResources({ kind: 'none' });
-      return { kind: 'wallet_locked' };
-    }
-
-    // Guardrail: when running inside the wallet service iframe host, never attempt to
-    // initialize a nested wallet iframe client, even if configs accidentally set wallet.mode='iframe'.
-    // The host runs the real SeamsWeb instance and must remain self-contained.
-    if (__isWalletIframeHostMode()) {
-      return { kind: 'wallet_locked' };
-    }
+    if (!this.isConfigured()) throw new Error('[SeamsWeb] Wallet iframe is not configured.');
 
     const walletIframeConfig = this.configs.wallet.iframe;
     const walletOrigin = walletIframeConfig?.origin;
@@ -283,7 +264,7 @@ export class WalletIframeCoordinator {
   }
 
   async requireRouter(walletId?: string): Promise<WalletIframeRouter> {
-    if (!this.shouldUseWalletIframe()) {
+    if (!this.isConfigured()) {
       throw new Error('[SeamsWeb] Wallet iframe is not configured.');
     }
     if (!this.iframeRouter) {
@@ -296,7 +277,7 @@ export class WalletIframeCoordinator {
   }
 
   async requireTransportRouter(): Promise<WalletIframeRouter> {
-    if (!this.shouldUseWalletIframe()) {
+    if (!this.isConfigured()) {
       throw new Error('[SeamsWeb] Wallet iframe is not configured.');
     }
     const walletOrigin = this.configs.wallet.iframe?.origin;

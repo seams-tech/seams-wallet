@@ -28,10 +28,8 @@ import {
   parseEcdsaClientPresignPoolIdentity,
   type EcdsaClientPresignPoolIdentity,
 } from '@/core/signingEngine/workerManager/ecdsaPresignPoolIdentity';
-import {
-  MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS,
-  type EcdsaClientPresignUnavailableReason,
-} from '@/core/signingEngine/workerManager/ecdsaPresignLifecycle';
+import { MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS } from '@/core/config/presignatures';
+import { type EcdsaClientPresignUnavailableReason } from '@/core/signingEngine/workerManager/ecdsaPresignLifecycle';
 import {
   PRESIGNATURE_STORE,
   AES_GCM_IV_BYTES,

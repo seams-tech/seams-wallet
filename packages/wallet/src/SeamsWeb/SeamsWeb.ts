@@ -5,7 +5,6 @@ import { createApplicationNearCommands } from '@/SeamsWeb/walletIframe/client/ne
 import { createApplicationEvmFamilyCommands } from '@/SeamsWeb/walletIframe/client/evmFamilyCommands';
 import { resolvePrimaryNearRpcUrl } from '@/core/config/chains';
 import { buildConfigsFromEnv } from '@/core/config/defaultConfigs';
-import { IndexedDBManager } from '@/core/indexedDB';
 import { MinimalNearClient, type NearClient } from '@/core/rpcClients/near/NearClient';
 import { requestWalletCustodyEmailOtpChallenge } from '@/core/rpcClients/relayer/walletRecoveryRotate';
 import type { SigningEngineExportKeypairWithUIInput } from '@/core/signingEngine/flows/recovery/public';
@@ -22,21 +21,15 @@ import type {
   SeamsConfigsReadonly,
   ThemeMode,
 } from '@/core/types/seams';
-import { resolveBrowserWorkerWarmupPolicy } from '@/SeamsWeb/assembly/browserWorkerWarmupPolicy';
-import { configureBrowserIndexedDB } from '@/SeamsWeb/assembly/configureBrowserIndexedDB';
-import { createBrowserSigningRuntime } from '@/SeamsWeb/assembly/createBrowserSigningRuntime';
-import { createBrowserSigningStores } from '@/SeamsWeb/assembly/createBrowserSigningStores';
-import { initializeBrowserSigningRuntime } from '@/SeamsWeb/assembly/initializeBrowserSigningRuntime';
 import {
   buildNearWalletRegistrationSignerSetSelection,
   resolvePasskeyRegistrationAccountProvisioning,
 } from '@/SeamsWeb/operations/registration/registrationSignerSet';
-import { createPublicApi, type WalletIframeControlCapability } from '@/SeamsWeb/publicApi';
+import { createApplicationPublicApi } from '@/SeamsWeb/publicApi';
 import {
   resolveConfiguredChainTarget,
   type EcdsaChainSelector,
 } from '@/SeamsWeb/publicApi/chainTargets';
-import { BrowserSigningSurface } from '@/SeamsWeb/signingSurface/BrowserSigningSurface';
 import type {
   AuthCapability,
   DevicesCapability,
@@ -46,8 +39,6 @@ import type {
   PreferencesCapability,
   RecoveryCapability,
   RegistrationCapability,
-  SeamsWebContext,
-  SeamsWebSigningSurface,
   TempoSignerCapability,
 } from '@/SeamsWeb/signingSurface/types';
 import { createApplicationEmailOtpCommands } from '@/SeamsWeb/walletIframe/client/emailOtpCommands';
@@ -93,7 +84,6 @@ import { createServerAllocatedWalletId, walletIdFromString } from '@shared/utils
 export class SeamsWeb {
   private readonly disposePreferences: () => void;
   private readonly preferenceState = new ClientPreferenceState();
-  private readonly signingEngine: SeamsWebSigningSurface;
   private readonly nearClient: NearClient;
   readonly configs: SeamsConfigsReadonly;
   private appearance: AppearanceConfig;
@@ -108,35 +98,17 @@ export class SeamsWeb {
   readonly near: NearSignerCapability;
   readonly tempo: TempoSignerCapability;
   readonly evm: EvmSignerCapability;
-  private readonly walletIframeControls: WalletIframeControlCapability;
   private emailOtpUnlockPrewarmRecord: EmailOtpUnlockPrewarmRecord = { kind: 'none' };
   constructor(configs: SeamsConfigsInput, nearClient?: NearClient) {
     this.configs = buildConfigsFromEnv(configs, {});
-    configureBrowserIndexedDB(this.configs);
     // Use provided client or create default one
     this.nearClient =
       nearClient || new MinimalNearClient(resolvePrimaryNearRpcUrl(this.configs.network.chains));
-    const browserSigningStores = createBrowserSigningStores(IndexedDBManager);
-    const browserSigningSurface = new BrowserSigningSurface(this.configs, this.nearClient, {
-      managerStores: browserSigningStores.managerStores,
-      signingEngineStores: browserSigningStores.signingEngineStores,
-      sealedSigningSessionStore: browserSigningStores.sealedSigningSessionStore,
-      ed25519YaoPublicCapabilityReferences:
-        browserSigningStores.ed25519YaoPublicCapabilityReferences,
-      createRuntime: createBrowserSigningRuntime,
-      initializeRuntime: initializeBrowserSigningRuntime,
-      workerWarmupPolicy: resolveBrowserWorkerWarmupPolicy(this.configs),
-    });
-    this.signingEngine = browserSigningSurface;
     this.appearance = this.configs.ui.appearance;
     this.theme = this.appearance.theme.mode;
-    try {
-      this.signingEngine.setAppearance(this.appearance);
-    } catch {}
     const userPreferences = this.preferenceState;
     this.walletIframe = new WalletIframeCoordinator({
       configs: this.configs,
-      signingEngine: this.signingEngine,
       userPreferences: userPreferences,
       getAppearance: this.getAppearance.bind(this),
     });
@@ -149,7 +121,7 @@ export class SeamsWeb {
       this.walletIframe,
       this.getEmailOtpUnlockPrewarmRecord.bind(this),
     );
-    const publicApi = createPublicApi({
+    const publicApi = createApplicationPublicApi({
       createNearCommands: createApplicationNearCommands.bind(
         null,
         this.walletIframe,
@@ -192,7 +164,6 @@ export class SeamsWeb {
         exportKeypairWithUI: this.exportKeypairWithUIDomain.bind(this),
       },
     });
-    this.walletIframeControls = publicApi.walletIframeControls;
     this.preferences = publicApi.preferences;
     this.auth = publicApi.auth;
     this.registration = publicApi.registration;
@@ -204,8 +175,7 @@ export class SeamsWeb {
     this.evm = publicApi.evm;
   }
   /**
-   * Initialize the hidden wallet service iframe client (optional) and warm critical resources.
-   * Always warms local resources; initializes iframe when wallet mode is `iframe`.
+   * Connect to the configured wallet service iframe.
    * Idempotent and safe to call multiple times.
    */
   async initWalletIframe(walletId?: string): Promise<WalletIframeExactSessionState> {
@@ -247,17 +217,17 @@ export class SeamsWeb {
   }
   /** True when the wallet iframe client is connected and ready. */
   isWalletIframeReady(): boolean {
-    return this.walletIframeControls.isWalletIframeReady();
+    return this.walletIframe.isReady();
   }
   /** Subscribe to wallet iframe ready state transitions. */
   onWalletIframeReady(listener: () => void): () => void {
-    return this.walletIframeControls.onWalletIframeReady(listener);
+    return this.walletIframe.onReady(listener);
   }
   /** Subscribe to wallet-host login status updates. */
   onWalletIframeLoginStatusChanged(
     listener: (status: { isLoggedIn: boolean; walletId: string | null }) => void,
   ): () => void {
-    return this.walletIframeControls.onWalletIframeLoginStatusChanged(listener);
+    return this.walletIframe.onLoginStatusChanged(listener);
   }
   /** Subscribe to typed lifecycle events emitted by the wallet boundary. */
   onSdkLifecycleEvent(listener: SdkLifecycleEventListener): () => void {
@@ -267,20 +237,11 @@ export class SeamsWeb {
   onWalletIframePreferencesChanged(
     listener: (payload: PreferencesChangedPayload) => void,
   ): () => void {
-    return this.walletIframeControls.onWalletIframePreferencesChanged(listener);
-  }
-  getContext(): SeamsWebContext {
-    return {
-      signingEngine: this.signingEngine,
-      nearClient: this.nearClient,
-      configs: this.configs,
-      theme: this.theme,
-    };
+    return this.walletIframe.onPreferencesChanged(listener);
   }
   dispose(): void {
     this.disposePreferences();
     this.walletIframe.dispose();
-    this.signingEngine.dispose();
   }
   setTheme(next: ThemeMode): void {
     if (next !== 'light' && next !== 'dark') return;
@@ -310,8 +271,7 @@ export class SeamsWeb {
   }
   /**
    * Update resolved appearance at runtime.
-   * This is the canonical internal propagation path for local signing UI,
-   * wallet-host documents, and app-origin wallet iframe mode. Appearance is
+   * Forward appearance to the wallet-host document. Appearance is
    * excluded from the runtime-reset fingerprint, so warm signing-session state
    * is preserved. Fire-and-forget; never throws.
    */
@@ -319,9 +279,6 @@ export class SeamsWeb {
     const normalizedAppearance = resolveRuntimeAppearance(this.appearance, appearance);
     this.appearance = normalizedAppearance;
     this.theme = normalizedAppearance.theme.mode;
-    try {
-      this.signingEngine.setAppearance(normalizedAppearance);
-    } catch {}
     void this.synchronizeAppearance(normalizedAppearance);
   }
   private async synchronizeAppearance(appearance: AppearanceConfig): Promise<void> {
@@ -399,7 +356,7 @@ export class SeamsWeb {
       );
     }
     const { wallet, nearAccountProvisioning, ...registrationOptions } = options || {};
-    const rpId = this.walletIframe.resolveRegistrationRpId(this.signingEngine.getRpId());
+    const rpId = this.walletIframe.resolveRegistrationRpId();
     const provisioningPreference =
       nearAccountProvisioning ?? this.configs.registration.nearAccountProvisioning;
     const resolvedWallet =

@@ -1,9 +1,9 @@
 export {
   createPublicApi,
+  createApplicationPublicApi,
   type KeyExportCapabilityDomainMethods,
   type RegistrationCapabilityDomainMethods,
   type SeamsWebPublicApi,
-  type WalletIframeControlCapability,
 } from './createPublicApi';
 export {
   createDevicesCapability,

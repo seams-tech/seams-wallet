@@ -765,3 +765,40 @@ Remaining: protocol revisions for snapshot/event ordering, persistence acknowled
 semantics if required by the host protocol audit, and removal of application signing
 runtime construction. The full selective-loading and consumer acceptance gates remain
 open. Queue behavior is normative in `intended-behaviours.md`.
+
+
+### Application client cutover checkpoint
+
+This checkpoint supersedes the earlier constructor-dependency and bundle-size
+limitations above. `SeamsWeb` no longer constructs a signing engine, signing stores,
+worker managers, or wallet execution runtime. Its coordinator owns client transport
+and memory-only preferences. `WalletHostRuntime` configures wallet-origin IndexedDB
+directly and has no client coordinator. The mixed-mode storage selector is deleted.
+
+The root and narrow provider production dependency graph contains 214 resolved
+inputs and no execution modules in the prohibited categories. The root static
+closure is 66,386 bytes gzip, down from 739,640 bytes. Including lazy imports,
+it is 93,551 bytes gzip. The provider static/reachable figures are 73,281/103,213
+bytes gzip. React peers, CSS, WASM, and wallet-origin assets are counted separately.
+These measurements do not establish complete scenario transfer or latency savings.
+
+Integration changes in this checkpoint:
+
+- `SeamsWeb.getContext()` is removed from the public declarations. Use
+  `seams.near.accountExists(accountId)` for public NEAR account queries. This path
+  preserves the injected `NearClient`; host execution remains internal.
+- `SeamsWeb` uses the configured wallet iframe. Initialization without an iframe
+  reports an explicit unavailable-configuration error. It cannot execute locally.
+  Supported explicit runtime exports remain available and pass their boundary check.
+- Pure presignature capacity/lifetime constants moved into `core/config/presignatures.ts`.
+  Capacity remains five and maximum durable lifetime remains 90 days. This change
+  does not delete durable presignatures on lock or change their validity rules.
+
+Verification: eight production lifecycle cases and 13 focused browser cases pass.
+The production build, Wallet/intended/state types, external declarations, runtime
+entry boundaries, packed-package boundaries, and bloat gate pass. Evidence and
+source hashes are in `evidence/refactor-170-client-cutover-20261005.json`.
+
+Remaining acceptance includes protocol revision ordering, normalized client/host
+configuration, the complete worker loading and latency matrix, direct public
+account-sync coverage, R171 naming, and consumer/release integration.

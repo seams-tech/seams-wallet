@@ -4,7 +4,7 @@ import {
   scheduleRouterAbEcdsaDerivationClientPresignaturePoolRefill,
   signRouterAbEcdsaDerivationDigestWithPool,
 } from '../../../routerAb/ecdsaDerivation/presignaturePool';
-import { MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS } from '../../../workerManager/ecdsaPresignLifecycle';
+import { MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS } from '@/core/config/presignatures';
 import type { HydratedEcdsaSignerMaterial } from '../../../session/identity/evmFamilyEcdsaIdentity';
 import {
   loadRouterAbEcdsaDerivationSigningMaterialSource,

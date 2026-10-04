@@ -9,7 +9,7 @@ import {
   type RouterAbEcdsaDerivationClientSigningMaterialSource,
   type RouterAbEcdsaDerivationClientPresignatureRefillScheduleResult,
 } from '../../routerAb/ecdsaDerivation/presignaturePool';
-import { MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS } from '../../workerManager/ecdsaPresignLifecycle';
+import { MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS } from '@/core/config/presignatures';
 import type { SignerWorkerManagerContext } from '../../workerManager/SignerWorkerManager';
 import type { ActiveEcdsaCapabilityManifest } from '../material/ecdsaCapabilityManifest';
 import type { AuthorizedEcdsaPreprocessingCapability } from '../material/ecdsaSigningCapability';

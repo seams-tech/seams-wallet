@@ -40,7 +40,7 @@ import type {
 import {
   ECDSA_CLIENT_PRESIGNATURE_CAPACITY,
   MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS,
-} from '../../workerManager/ecdsaPresignLifecycle';
+} from '@/core/config/presignatures';
 import {
   routerAbEcdsaDerivationPresignaturePoolFillInit,
   routerAbEcdsaDerivationPresignaturePoolFillStep,

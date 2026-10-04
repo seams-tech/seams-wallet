@@ -1,6 +1,6 @@
 import { UserVerificationPolicy } from '../types/authenticatorOptions';
 import type { EcdsaSignerProvisioningDefaults } from '../types/ecdsaSignerProvisioningDefaults';
-import { ECDSA_CLIENT_PRESIGNATURE_CAPACITY } from '../signingEngine/workerManager/ecdsaPresignLifecycle';
+import { ECDSA_CLIENT_PRESIGNATURE_CAPACITY } from '@/core/config/presignatures';
 import { DEFAULT_THRESHOLD_SESSION_TTL_MS } from '../signingEngine/threshold/sessionPolicy';
 import type {
   SeamsChainConfig,

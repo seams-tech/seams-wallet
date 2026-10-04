@@ -25,23 +25,10 @@ import type {
   TempoSignerCapability,
 } from '@/SeamsWeb/signingSurface/types';
 import type { WalletIframeCoordinator } from '@/SeamsWeb/walletIframe/coordinator';
-import type { WalletIframeExactSessionState } from '@/SeamsWeb/walletIframe/shared/exactSessionState';
-import type { PreferencesChangedPayload } from '@/SeamsWeb/walletIframe/shared/messages';
 import type { TransactionReviewReservation } from '../walletIframe/client/transactionReviewReservation';
 import type { CreateEvmFamilyCommands } from './evmFamilyCommands';
 import type { CreateNearCommands } from './nearCommands';
 import { registerTransactionReviewBridge } from './transactionReview';
-export interface WalletIframeControlCapability {
-  initWalletIframe(walletId?: string): Promise<WalletIframeExactSessionState>;
-  isWalletIframeReady(): boolean;
-  onWalletIframeReady(listener: () => void): () => void;
-  onWalletIframeLoginStatusChanged(
-    listener: (status: { isLoggedIn: boolean; walletId: string | null }) => void,
-  ): () => void;
-  onWalletIframePreferencesChanged(
-    listener: (payload: PreferencesChangedPayload) => void,
-  ): () => void;
-}
 export type WalletRegistrationCommands = Pick<
   RegistrationCapability,
   | 'registerWallet'
@@ -69,7 +56,6 @@ export type SeamsWebPublicApi = {
   near: NearSignerCapability;
   tempo: TempoSignerCapability;
   evm: EvmSignerCapability;
-  walletIframeControls: WalletIframeControlCapability;
 };
 type PublicApiDependencies = {
   createNearCommands: CreateNearCommands;
@@ -77,7 +63,6 @@ type PublicApiDependencies = {
   nearClient: NearClient;
   configs: SeamsConfigsReadonly;
   preferences: PreferencesCapability;
-  getWalletIframe: () => WalletIframeCoordinator;
   auth: AuthCapability;
   registration: RegistrationCapabilityDomainMethods;
   recovery: RecoveryCapability;
@@ -105,21 +90,7 @@ export function createPublicApi(deps: PublicApiDependencies): SeamsWebPublicApi 
   });
   const commands = deps.createEvmFamilyCommands({ kind: 'ordinary' });
   const evmFamily = createTempoSignerCapability({ ...signingDeps, commands });
-  registerTransactionReviewBridge(near, {
-    getWalletIframe: deps.getWalletIframe,
-    createCapabilities: createReviewedCapabilities.bind(null, signingDeps),
-  });
   return {
-    walletIframeControls: {
-      initWalletIframe: async (walletId?: string): Promise<WalletIframeExactSessionState> =>
-        await deps.getWalletIframe().init(walletId),
-      isWalletIframeReady: (): boolean => deps.getWalletIframe().isReady(),
-      onWalletIframeReady: (listener): (() => void) => deps.getWalletIframe().onReady(listener),
-      onWalletIframeLoginStatusChanged: (listener): (() => void) =>
-        deps.getWalletIframe().onLoginStatusChanged(listener),
-      onWalletIframePreferencesChanged: (listener): (() => void) =>
-        deps.getWalletIframe().onPreferencesChanged(listener),
-    },
     preferences: deps.preferences,
     auth,
     registration: {
@@ -156,6 +127,26 @@ export function createPublicApi(deps: PublicApiDependencies): SeamsWebPublicApi 
     evm: createEvmSignerCapability({ configs: deps.configs, currentWallet, commands, evmFamily }),
   };
 }
+export function createApplicationPublicApi(
+  deps: PublicApiDependencies & { getWalletIframe: () => WalletIframeCoordinator },
+): SeamsWebPublicApi {
+  const api = createPublicApi(deps);
+  const currentWallet = createCurrentWalletResolver({
+    getWalletSession: deps.auth.getWalletSession,
+  });
+  registerTransactionReviewBridge(api.near, {
+    getWalletIframe: deps.getWalletIframe,
+    createCapabilities: createReviewedCapabilities.bind(null, {
+      nearClient: deps.nearClient,
+      configs: deps.configs,
+      createNearCommands: deps.createNearCommands,
+      createEvmFamilyCommands: deps.createEvmFamilyCommands,
+      currentWallet,
+    }),
+  });
+  return api;
+}
+
 function createReviewedCapabilities(
   deps: Pick<
     PublicApiDependencies,

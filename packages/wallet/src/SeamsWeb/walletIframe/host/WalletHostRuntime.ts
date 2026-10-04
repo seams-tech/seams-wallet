@@ -3,7 +3,7 @@ import { createWalletHostNearCommands } from '@/SeamsWeb/walletIframe/host/creat
 import { createWalletHostEvmFamilyCommands } from '@/SeamsWeb/walletIframe/host/createEvmFamilyCommands';
 import { resolvePrimaryNearRpcUrl } from '@/core/config/chains';
 import { buildConfigsFromEnv } from '@/core/config/defaultConfigs';
-import { IndexedDBManager } from '@/core/indexedDB';
+import { IndexedDBManager, configureIndexedDB } from '@/core/indexedDB';
 import { pendingWalletRecoveryCodeBackupRepository } from '@/core/indexedDB/seamsWalletDB/pendingWalletRecoveryCodeBackup';
 import type { TempoChainTarget } from '@/core/platform/types';
 import { MinimalNearClient, type NearClient } from '@/core/rpcClients/near/NearClient';
@@ -39,7 +39,6 @@ import type {
 } from '@/core/types/seams';
 import type { ConfirmationConfig } from '@/core/types/signer-worker';
 import { resolveBrowserWorkerWarmupPolicy } from '@/SeamsWeb/assembly/browserWorkerWarmupPolicy';
-import { configureBrowserIndexedDB } from '@/SeamsWeb/assembly/configureBrowserIndexedDB';
 import { createBrowserSigningRuntime } from '@/SeamsWeb/assembly/createBrowserSigningRuntime';
 import { createBrowserSigningStores } from '@/SeamsWeb/assembly/createBrowserSigningStores';
 import { initializeBrowserSigningRuntime } from '@/SeamsWeb/assembly/initializeBrowserSigningRuntime';
@@ -73,7 +72,7 @@ import type {
   SeamsWebSigningSurface,
   TempoSignerCapability,
 } from '@/SeamsWeb/signingSurface/types';
-import { WalletIframeCoordinator } from '@/SeamsWeb/walletIframe/coordinator';
+import { parseWebAuthnRpId } from '@shared/utils/domainIds';
 import { createWalletHostDeviceDomain } from '@/SeamsWeb/walletIframe/host/createDeviceDomain';
 import { createWalletHostEmailOtpCommands } from '@/SeamsWeb/walletIframe/host/createEmailOtpCommands';
 import { createWalletHostRegistrationCommands } from '@/SeamsWeb/walletIframe/host/createRegistrationCommands';
@@ -146,7 +145,6 @@ export class WalletHostRuntime {
   readonly configs: SeamsConfigsReadonly;
   private appearance: AppearanceConfig;
   theme: ThemeMode;
-  private readonly walletIframe: WalletIframeCoordinator;
   private readonly prefillRestoredSession: RestoredSessionPresignaturePrefill;
   readonly recovery: RecoveryCapability;
   readonly devices: DevicesCapability;
@@ -164,7 +162,7 @@ export class WalletHostRuntime {
     this.configs = buildConfigsFromEnv(configs, {
       allowDirectWalletMode: 'wallet_host',
     });
-    configureBrowserIndexedDB(this.configs);
+    configureIndexedDB({ mode: 'wallet' });
     // Use provided client or create default one
     this.nearClient =
       nearClient || new MinimalNearClient(resolvePrimaryNearRpcUrl(this.configs.network.chains));
@@ -186,12 +184,6 @@ export class WalletHostRuntime {
       this.signingEngine.setAppearance(this.appearance);
     } catch {}
     const userPreferences = this.signingEngine.getUserPreferences();
-    this.walletIframe = new WalletIframeCoordinator({
-      configs: this.configs,
-      signingEngine: this.signingEngine,
-      userPreferences: userPreferences,
-      getAppearance: this.getAppearance.bind(this),
-    });
     const deviceDomain = createWalletHostDeviceDomain({
       configs: this.configs,
       signingEngine: browserSigningSurface,
@@ -232,7 +224,6 @@ export class WalletHostRuntime {
         setConfirmationConfig: userPreferences.setConfirmationConfig.bind(userPreferences),
         getConfirmationConfig: userPreferences.getConfirmationConfig.bind(userPreferences),
       },
-      getWalletIframe: this.getWalletIframe.bind(this),
       auth: {
         ...sessionCommands,
         ...emailOtpCommands.auth,
@@ -332,7 +323,6 @@ export class WalletHostRuntime {
   }
   dispose(): void {
     this.deviceLinkingDispose();
-    this.walletIframe.dispose();
     this.signingEngine.dispose();
   }
   setTheme(next: ThemeMode): void {
@@ -421,19 +411,11 @@ export class WalletHostRuntime {
       };
     }
   }
-  private getAppearance(): AppearanceConfig {
-    return this.appearance;
-  }
-
   private async syncAccountDomain(
     args: Parameters<RecoveryCapability['syncAccount']>[0],
   ): ReturnType<RecoveryCapability['syncAccount']> {
     const walletId = args.walletId ? walletIdFromString(args.walletId) : null;
     return await syncAccount(this.getContext(), walletId ? String(walletId) : null, args.options);
-  }
-
-  private getWalletIframe(): WalletIframeCoordinator {
-    return this.walletIframe;
   }
 
   private onNearProvisioningStateChanged(
@@ -454,7 +436,9 @@ export class WalletHostRuntime {
       );
     }
     const { wallet, nearAccountProvisioning, ...registrationOptions } = options || {};
-    const rpId = this.walletIframe.resolveRegistrationRpId(this.signingEngine.getRpId());
+    const parsedRpId = parseWebAuthnRpId(this.signingEngine.getRpId());
+    if (!parsedRpId.ok) throw new Error(parsedRpId.error.message);
+    const rpId = parsedRpId.value;
     const provisioningPreference =
       nearAccountProvisioning ?? this.configs.registration.nearAccountProvisioning;
     const resolvedWallet =

@@ -44,3 +44,8 @@ void preferenceFlush;
 preferenceState.applyWalletHostConfirmationConfig({
   confirmationConfig: preferences.getConfirmationConfig(),
 });
+
+import type { SeamsWeb } from '../../packages/wallet/src/SeamsWeb/SeamsWeb';
+declare const applicationClient: SeamsWeb;
+// @ts-expect-error Application clients cannot expose wallet-origin execution contexts.
+applicationClient.getContext();
