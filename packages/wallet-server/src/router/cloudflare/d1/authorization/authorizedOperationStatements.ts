@@ -50,7 +50,16 @@ function ecdsaSignerMatchBindings(
 }
 
 const PINNED_OWNER_WALLET = `
-  (SELECT session.wallet_id
+  CASE operation.authorization_source_kind
+  WHEN 'verified_step_up' THEN (
+    SELECT evidence.wallet_id
+      FROM verified_wallet_operation_evidence_sets AS evidence
+     WHERE evidence.namespace = operation.namespace
+       AND evidence.tenant_id = operation.tenant_id
+       AND evidence.evidence_set_digest = operation.evidence_set_digest
+     LIMIT 1)
+  WHEN 'authorization_grant' THEN (
+    SELECT session.wallet_id
      FROM wallet_session_authorizations_v2 AS session
     WHERE session.namespace = operation.namespace
       AND session.tenant_id = operation.tenant_id
@@ -58,8 +67,8 @@ const PINNED_OWNER_WALLET = `
       AND session.org_id = operation.linked_scope_org_id
       AND session.project_id = operation.linked_scope_project_id
       AND session.env_id = operation.linked_scope_env_id
-      AND operation.authorization_source_kind = 'authorization_grant'
-    LIMIT 1) AS pinned_owner_wallet_id`;
+    LIMIT 1)
+  END AS pinned_owner_wallet_id`;
 
 export function prepareAuthorizedOperationCommittedRead(
   database: D1DatabaseLike,

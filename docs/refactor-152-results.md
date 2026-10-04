@@ -5647,3 +5647,41 @@ same recovery/restart invariants. Private artifacts:
 | APAC | `d2d21809d7a1b6815b7562d473a0b40a184d788a3a246bc3e4fc310c3f937648` | `3d79902b320b09d9804e3208fb2a1e7e47bcad8539498467912f8cbbd340e8c1` |
 
 Select `--grep 'passkey-founded'` to reproduce this matrix.
+
+
+### Step-up operation ownership verification — October 4, 2026
+
+The composed regional Google Email OTP recovery E2E passed in **1.1 minutes** with
+US home and APAC ingress. Following a lost recovery-finalization response and
+Gateway restart, it unlocked, signed NEAR and concurrent Tempo/Arc transactions,
+and exported both Ed25519 and ECDSA keys. The production authorization store
+accepted the actual wallet and rejected an unrelated wallet for **six session-grant
+operations and two verified step-up operations**. All eight operations and their
+audits remained at US; WEUR/APAC contained none. The Yao ownership verifier also
+accounted for one persisted export state and one export nonce owner.
+
+This validates local regional composition with real SQLite and protocol execution;
+it is not a hosted Cloudflare latency measurement. Build, wallet-server TypeScript,
+private verifier ESLint and bloat checks passed. The initial expired Google token,
+test-helper scope error and overlapping build were corrected before the successful
+run; their logs are retained separately.
+
+Evidence in the private repository:
+`.artifacts/r152/operation-ownership-20261004/google-recovery-email_otp-US/recovery-evidence.json`
+SHA-256: `348670fef5ba8cb638ae3cec370fec2045d18bb305744de0d9f2dcd88782c120`.
+Public build/type-check/bloat logs:
+`.artifacts/r152/operation-ownership-20261004/`.
+
+Repeat after building the public wallet-server candidate:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_INTENDED_SKIP_BUILD=1 \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/operation-ownership-20261004 \
+node tests/scripts/run-regional-real.mjs google-email-otp.recovery.contract.test.ts \
+  --grep 'US email_otp-founded'
+```
+
+Full linked-device ownership, credential reconciliation, deferred/DO ownership,
+remaining selectors and hosted regional acceptance remain open. No deployment or
+0.8.0 publication occurred.

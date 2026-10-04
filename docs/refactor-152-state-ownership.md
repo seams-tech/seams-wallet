@@ -1,6 +1,6 @@
 # R152 state ownership baseline for R153
 
-Revision 8 — October 4, 2026.
+Revision 9 — October 4, 2026.
 
 This freezes the **schema inventory and ownership obligations**, not a copy-ready
 relocation implementation. R153 must fail closed for unresolved ownership below.
@@ -132,8 +132,10 @@ Retain pending and completed operations, result bodies, audits, expired/retired
 sessions, evidence and exhausted quotas together. Public active-session readers
 are unsuitable for this extraction. A missing parent or conflicting ownership
 stops extraction; the current schema does not independently encode full wallet
-ownership on operation/audit rows. Proving parent retention across every lifecycle
-cleanup remains necessary before declaring this selector closed.
+ownership on operation/audit rows. Current runtime cleanup retains session and evidence parents: session retirement
+updates lifecycle timestamps; hosted-credential cleanup removes exchange codes and
+orphaned credentials, without deleting these ownership parents. Linked-operation
+coverage remains part of the full linked-device acceptance gate.
 
 ## Capability replacement ownership (revision 2)
 
@@ -620,3 +622,25 @@ Reproduce: `SEAMS_INTENDED_SKIP_BUILD=1 node
  --grep 'passkey unlock restores immediate'` after building Wallet-server.
 Evidence: Wallet `.artifacts/r152/webauthn-ownership-20261004/evidence.json`,
 `e2e.log`, `build.log`, `typecheck.log`, and `bloat.log`.
+
+
+### Committed step-up ownership — October 4
+
+The committed-operation query now selects the owner from the authorization branch:
+session grants use the scoped session; verified step-up uses its exact
+`(namespace, tenant_id, evidence_set_digest)` evidence parent. Signing owner-scope
+resolution requires that selected owner to equal the requested wallet. This closes
+the previous step-up path that checked the evidence digest without checking its
+wallet. It adds no D1 call, schema change or compatibility path.
+
+The regional Google recovery scenario now exports both keys after recovery and
+Gateway restart. Its verifier reloads committed operations through the production
+store, accepts their actual wallet, and rejects an unrelated wallet for each
+session-grant and step-up operation. Both authorization branches must be observed.
+Linked-device branch acceptance and the remaining ownership/deployment gates above
+remain open.
+
+Verification passed in 1.1 minutes: six session grants and two step-up exports,
+with correct-owner acceptance and wrong-owner rejection for all eight. See the
+October 4 step-up verification entry in [results](refactor-152-results.md) for the
+repeat command, artifact hash and validation limits.

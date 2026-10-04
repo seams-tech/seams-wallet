@@ -2360,7 +2360,10 @@ export class CloudflareD1AuthorizationStore
       throw new Error('Pinned owner operation is not claimed');
     }
     if (operation.authorization.kind === 'verified_step_up') {
-      if (row.evidence_set_digest !== operation.authorization.evidenceSetDigest) {
+      if (
+        row.evidence_set_digest !== operation.authorization.evidenceSetDigest ||
+        row.pinned_owner_wallet_id !== walletId
+      ) {
         throw new Error('Verified step-up operation is not claimed');
       }
       return {
