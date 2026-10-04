@@ -5556,3 +5556,94 @@ Private directory: `.artifacts/r152/google-role-restart-20261004/`. SHA-256:
 Reproduce with `--grep 'interrupted Google Email OTP'` and fresh trace/artifact
 directories. The existing configured Google test token was refreshed before the
 run. Its value and OTPs are excluded from the evidence receipts.
+
+
+### October 4: Email OTP-founded wallets retain regional ownership through recovery
+
+The new founding-factor matrix passed **3 browser cases in 2.4 minutes**. It creates
+Email OTP-founded wallets at US, WEUR and APAC homes, then recovers them through
+APAC, US and WEUR ingress. Each recovery commits, restarts Gateway/Console and all
+five local role Workers over retained stores, loses the finalization reply and
+resets the client runtime. Exact operation replay and journal cleanup succeed.
+The recovered wallet unlocks and signs NEAR plus concurrent Tempo/Arc, with
+budget-exhaustion and consumed-code rejection checks retained.
+
+Each receipt verifies one established wallet home, one active shared Google
+registration offer and one shared identity locator. The home retains one wallet,
+three signers and two active authorities: the original Email OTP registration
+authority and its additive recovery authority. Both methods remain active;
+foreign signer databases contain no wallet, signer, authority or method copies,
+and identity locators stay out of signer databases. This adds founding registration
+to the previously verified passkey-origin Google recovery path.
+
+The first run failed at `/auth/google/verify` with HTTP 500 caused by a shared-offer
+HTTP 400. Classification: `production_regression`. The offer validator compared
+`RuntimePolicyScope.envId` (an environment key) with the full deployment environment
+ID. Console now supplies the environment key from its authenticated deployment
+mode, and offer validation uses that value. Database scope and wallet-home
+ownership retain the full environment ID. During verification, the initial patch
+also passed that extra policy field into a strict ownership parser; explicit
+ownership-field construction fixed that implementation error before the passing run.
+Temporary diagnostic traces were removed.
+
+Original failure artifacts remain at private
+`.artifacts/r152/email-founded-recovery-20261004/`, with diagnosis and intermediate
+runs at `email-founded-diagnosis-20261004/`, `email-founded-recovery-fixed-20261004/`
+and `email-activation-diagnosis-20261004/` under the same parent. Passing artifacts
+are in `.artifacts/r152/email-founded-recovery-verified-20261004/`, including
+lifecycle traces, protocol log, lint/format logs and candidate type-check output.
+Per-home receipt SHA-256:
+
+| Home | `recovery-evidence.json` | `restart-evidence.json` |
+| --- | --- | --- |
+| US | `209cb9ea48b132400ed1ebdacdb57a826588c818578548b173c7f82e32d90c66` | `ed7928c12fe939b2075c038adf3b26c0c3a9e5b61f06a67a7648e6fd33102041` |
+| WEUR | `28ed5d76b9eaba77857d5a0a067050c83ea59c0bc771004dbef2cc53461e7940` | `9d0781342dfcb45cf4af9a6af24998b6d128c702bf786514d537755aac160584` |
+| APAC | `4221cccdd7c8a5770915f607f5585c61d8662740da7b81c802024392cb77faf5` | `f0c1eb83144e06fd59c3784f52ac3ec46f49c04dae7f1d8cb722ad4a1354669e` |
+
+The existing regional HTTP/D1 composition also passed, retaining shared-offer
+contention, scope and outage assertions alongside registration, session, recovery,
+linked-device and expiry coverage. Its evidence is private
+`.artifacts/r152/email-offer-routing-20261004/regional-session-routing-evidence.json`
+(SHA-256 `0e9fcacbe373bf6b6d13968de8e87c53b0a6a9788ffce268a7dcc773a9b0957c`).
+
+Reproduce with the private regional runner, a built public candidate and fresh
+artifact directories:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_INTENDED_SKIP_BUILD=1 SEAMS_INTENDED_PERSIST_TRACE=1 \
+SEAMS_INTENDED_TRACE_DIR=.artifacts/r152/email-founder-repeat/lifecycle \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/email-founder-repeat \
+node tests/scripts/run-regional-real.mjs --grep 'email_otp-founded' --max-failures=1
+```
+
+Refresh the configured intended Google token with the public
+`tests/scripts/ensure-intended-google-token.mjs` if needed. Receipts exclude Google
+tokens, OTPs and material payloads. The standard package type-check still resolves
+the older installed SDK; validation used explicit public candidate declarations
+for the changed production entrypoint/service and registration-admission fixture.
+A broader check also exposed pre-existing raw-request typing errors in the separate
+`walletHomeAuthority` fixture; this checkpoint does not claim a clean repository-wide
+type-check. ESLint, formatting and the public bloat check passed, with bloat output
+at public `.artifacts/r152/email-founded-recovery-20261004/bloat.log`.
+
+The implementation, required service callers and browser matrix are committed in
+private `seams-monorepo` revision `561b0b9`. No infrastructure deployment or release
+occurred. Terminal claim reconciliation, combined-factor founders and remaining
+recovery-target combinations, transaction crashes, the final ownership audit and
+hosted regional acceptance remain open. Release 0.8.0 remains held.
+
+
+The existing passkey-founded matrix also passed **3 cases in 2.4 minutes** against
+the same implementation and updated verifier. This confirms the absence of a Google
+registration offer for a passkey founder, its retained registration method and the
+same recovery/restart invariants. Private artifacts:
+`.artifacts/r152/passkey-offer-scope-check-20261004/`. SHA-256:
+
+| Home | `recovery-evidence.json` | `restart-evidence.json` |
+| --- | --- | --- |
+| US | `34441e28f480ce2ea62d862e6af145de0181db5f576f829ec73db6e7d46ac0a1` | `52b9cb0a7d1882ee423cf4a458e31ef63bf2e21fc6c3d4329481a93cd2950a70` |
+| WEUR | `f3ff35506faa6c24dcb0f489ce25908f32cf740b1686d7922ca5981111e1ac99` | `4807c9e79f9d9291c7b2bb6699b4c94d1b389fa181dfb461c2315fc6ba73ebb9` |
+| APAC | `d2d21809d7a1b6815b7562d473a0b40a184d788a3a246bc3e4fc310c3f937648` | `3d79902b320b09d9804e3208fb2a1e7e47bcad8539498467912f8cbbd340e8c1` |
+
+Select `--grep 'passkey-founded'` to reproduce this matrix.

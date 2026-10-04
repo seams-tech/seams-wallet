@@ -142,7 +142,13 @@ older implementation checkpoints and must be read with their later evidence.
    restarting after finalization as well, preserving exact replay, unlock,
    concurrent signing and consumed-code rejection. Other recovery origins,
    crashes during transactions and remaining shared credential/identity
-   reconciliation still need composed acceptance.
+   reconciliation still need composed acceptance. Email OTP-founded wallets now
+   also pass registration and interrupted Google recovery in all three homes,
+   retaining the original authority and one shared active offer/identity locator
+   across full local-stack restart. This exposed and fixed shared-offer validation
+   comparing the runtime environment key with the deployment environment ID;
+   ownership continues to use the full deployment ID. Combined-factor founders
+   and other recovery-target combinations remain open.
    Method finalization and revocation
    reply loss now pass at every home: both mutations replay the exact request and
    committed result through foreign ingress, with one added method and one revocation.

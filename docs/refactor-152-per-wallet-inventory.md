@@ -1809,3 +1809,28 @@ cleanup, unlock, NEAR/concurrent Tempo-Arc signing, budget exhaustion and
 consumed-code rejection. Console retains one shared identity locator per case;
 wallet custody remains only at home. Receipts are under private
 `.artifacts/r152/google-role-restart-20261004/google-recovery-<home>/`.
+
+
+### October 4: Email OTP founding registration and regional recovery
+
+The composed browser matrix now starts Email OTP-founded wallets at US, WEUR and
+APAC homes, then recovers through APAC, US and WEUR ingress respectively. Each
+case verifies one active shared registration offer, one shared Google identity,
+one established home and separate active registration/recovery authorities only
+at that home. The original registration method remains active. Recovery replay,
+consumed-code refusal, unlock and NEAR/concurrent Tempo-Arc signing pass after
+Gateway/Console and all five local role Workers restart.
+
+The first attempt exposed a production scope-validation bug. Runtime policy uses
+an environment key (`dev`/`prod`); the shared registration-offer validator compared
+it against the full ownership environment ID. Console now supplies the trusted
+key from the authenticated deployment mode. Offer validation checks that key,
+while scoped D1 rows and wallet ownership retain their deployment environment ID.
+The browser configuration deliberately has different values, exercising this
+boundary through real Google proof verification and registration.
+
+Private implementation and acceptance: `561b0b9`. Passing browser receipts are in
+`.artifacts/r152/email-founded-recovery-verified-20261004/`; regional protocol
+acceptance is in `.artifacts/r152/email-offer-routing-20261004/`. These checks do
+not close terminal claim reconciliation, combined-factor coverage, transaction
+crashes, independently hosted regional execution or the final ownership audit.
