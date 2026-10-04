@@ -4,6 +4,7 @@ import { performance } from 'node:perf_hooks';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
+import { WalletAssetNetworkEvidence } from './wallet-asset-network-evidence';
 
 type AssetEvidence = {
   phase: string;
@@ -48,11 +49,20 @@ export class WalletAssetEvidence {
   private readonly pageListeners = new Map<Page, (worker: Worker) => void>();
   private readonly requestListener = this.onRequestFinished.bind(this);
   private readonly pageListener = this.onPage.bind(this);
+  private network: WalletAssetNetworkEvidence | null = null;
 
   constructor(private readonly context: BrowserContext) {
     context.on('requestfinished', this.requestListener);
     context.on('page', this.pageListener);
     for (const page of context.pages()) this.onPage(page);
+  }
+
+  async observeNetwork(page: Page): Promise<void> {
+    this.network = await WalletAssetNetworkEvidence.start(page, this.getPhase.bind(this));
+  }
+
+  private getPhase(): string {
+    return this.phase;
   }
 
   setPhase(name: string): void {
@@ -110,6 +120,7 @@ export class WalletAssetEvidence {
     for (const [page, listener] of this.pageListeners) page.off('worker', listener);
     this.phases.push({ name: this.phase, durationMs: performance.now() - this.phaseStart });
     await Promise.all(this.pending);
+    const network = this.network ? await this.network.finish() : null;
     const report = {
       revision: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
       productionApp: process.env.SEAMS_INTENDED_PRODUCTION === '1',
@@ -131,6 +142,7 @@ export class WalletAssetEvidence {
       assets: this.assets,
       workers: this.workers,
       failures: this.failures,
+      network,
       totals: {
         encodedBodyBytes: this.assets.reduce(sumEncodedBytes, 0),
         responseHeaderBytes: this.assets.reduce(sumHeaderBytes, 0),

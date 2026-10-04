@@ -208,6 +208,35 @@
       "HTTP cache disabled by harness routing",
       "Phase durations include local test orchestration; final performance limits still required",
       "No cold signed-out idle/menu or signer-specific matrix yet"
-    ]
+    ],
+    "targetObservation": {
+      "status": "scenario_passed_partial_target_coverage",
+      "runnerRevision": "d1272727948960c364fd51c5da79059b056cc73b",
+      "runnerWorkingTree": "CDP observer and configuration audit pending commit",
+      "artifactPath": ".artifacts/r170-baseline/wallet-assets-cdp.json",
+      "reportSha256": "8fc174af083ff1785fc5dc337d462929e9f27561fc1563f01b6c4ef9af9e39f5",
+      "observerSha256": "37676573a6e1445637d9e7316d0b1e78ba0dc6286a35e23139a587841e04f796",
+      "scenarioDurationSeconds": 35.7,
+      "requestCountsByTarget": {
+        "page": 334,
+        "worker": 6
+      },
+      "requestCompletionCounts": {
+        "finished": 315,
+        "pending": 25
+      },
+      "observerFailures": [
+        "Could not enable network observation for worker",
+        "Could not resume observed worker",
+        "Could not resume observed worker"
+      ],
+      "findings": [
+        "All 25 worker-script starts observed by page CDP identify the wallet document origin http://localhost:4202.",
+        "Six completed WASM requests observed in worker targets; these are not added to context-level totals.",
+        "Worker-script completion events remain missing even with recursive target attachment; 25 records remain pending.",
+        "Network capture still incomplete; combine with static-serving transfer evidence or improve target attachment before setting acceptance totals.",
+        "Target startup pauses add instrumentation overhead; hold instrumentation constant for before/after latency comparisons."
+      ]
+    }
   }
 }
