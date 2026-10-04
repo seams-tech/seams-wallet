@@ -28,8 +28,8 @@ export type RouterAbEd25519YaoProductRegistrationSharedStateV1 = {
   readonly recoveryCapabilities: ReadonlyMap<string, RecoveryCapabilityState>;
   readonly recoveryIdentityCapabilities: ReadonlyMap<string, string>;
   readonly recoverySessions: ReadonlyMap<string, string>;
-  readonly exportAuthorizationNonces: ReadonlySet<string>;
-  readonly exportAuthorizationUncertain: ReadonlySet<string>;
+  readonly exportAuthorizationNonceOwners: ReadonlyMap<string, string>;
+  readonly exportAuthorizationUncertainOwners: ReadonlyMap<string, string>;
 };
 
 export type RouterAbEd25519YaoProductRegistrationCeremonyStateV1 = {
@@ -93,8 +93,8 @@ export function partitionRouterAbEd25519YaoProductRegistrationStateV1(
       recoveryCapabilities: new Map(state.recovery.capabilities),
       recoveryIdentityCapabilities: new Map(state.recovery.identityCapabilities),
       recoverySessions: new Map(state.recovery.recoverySessions),
-      exportAuthorizationNonces: new Set(state.export.authorizationNonces),
-      exportAuthorizationUncertain: new Set(state.export.authorizationUncertain),
+      exportAuthorizationNonceOwners: new Map(state.export.authorizationNonceOwners),
+      exportAuthorizationUncertainOwners: new Map(state.export.authorizationUncertainOwners),
     },
     ceremony: {
       kind: 'router_ab_ed25519_yao_product_registration_ceremony_state_v1',
@@ -197,8 +197,8 @@ export function mergeRouterAbEd25519YaoProductRegistrationStatePartitionV1(
     },
     export: {
       exports,
-      authorizationNonces: new Set(partition.shared.exportAuthorizationNonces),
-      authorizationUncertain: new Set(partition.shared.exportAuthorizationUncertain),
+      authorizationNonceOwners: new Map(partition.shared.exportAuthorizationNonceOwners),
+      authorizationUncertainOwners: new Map(partition.shared.exportAuthorizationUncertainOwners),
     },
   });
 }
@@ -249,8 +249,8 @@ export function boundedRouterAbEd25519YaoProductRegistrationSharedStateV1(
       recoveryCapabilities,
     ),
     recoverySessions: new Map(source.recoverySessions),
-    exportAuthorizationNonces: new Set(source.exportAuthorizationNonces),
-    exportAuthorizationUncertain: new Set(source.exportAuthorizationUncertain),
+    exportAuthorizationNonceOwners: new Map(source.exportAuthorizationNonceOwners),
+    exportAuthorizationUncertainOwners: new Map(source.exportAuthorizationUncertainOwners),
   };
 }
 

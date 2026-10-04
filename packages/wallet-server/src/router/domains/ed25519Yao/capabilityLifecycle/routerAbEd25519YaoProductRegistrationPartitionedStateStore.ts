@@ -291,8 +291,8 @@ function isEmptySharedState(state: RouterAbEd25519YaoProductRegistrationStateV1)
     state.recovery.capabilities.size === 0 &&
     state.recovery.identityCapabilities.size === 0 &&
     state.recovery.recoverySessions.size === 0 &&
-    state.export.authorizationNonces.size === 0 &&
-    state.export.authorizationUncertain.size === 0
+    state.export.authorizationNonceOwners.size === 0 &&
+    state.export.authorizationUncertainOwners.size === 0
   );
 }
 

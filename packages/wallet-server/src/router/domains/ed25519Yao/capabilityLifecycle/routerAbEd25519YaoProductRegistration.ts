@@ -41,7 +41,7 @@ import type {
   WalletSessionAuthorizationId,
   WalletSessionId,
 } from '@shared/authorization/capabilityKinds';
-import type { ThresholdEd25519SessionId } from '@shared/utils/domainIds';
+import { parseWalletId, type ThresholdEd25519SessionId } from '@shared/utils/domainIds';
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import { ROUTER_AB_ED25519_NORMAL_SIGNING_STATE_KIND } from '@shared/utils/signingSessionSeal';
 import { deriveSigningRootId, type RuntimePolicyScope } from '@shared/threshold/signingRootScope';
@@ -274,10 +274,11 @@ function isDispatchRootMap(
   return true;
 }
 
-function isStringSet(input: unknown): input is Set<string> {
-  if (!(input instanceof Set)) return false;
-  for (const value of input) {
-    if (typeof value !== 'string') return false;
+function isWalletOwnershipMap(input: unknown): input is Map<string, string> {
+  if (!isStringMap(input)) return false;
+  for (const [key, walletId] of input) {
+    const parsed = parseWalletId(walletId);
+    if (!key || !parsed.ok || parsed.value !== walletId) return false;
   }
   return true;
 }
@@ -317,9 +318,8 @@ function hasProductStateCollections(
     isStringMapWithStateKinds(recovery.recoveries, RECOVERY_STATE_KINDS) &&
     isStringMap(recovery.recoverySessions) &&
     isStringMapWithStateKinds(exportState.exports, EXPORT_STATE_KINDS) &&
-    isStringSet(exportState.authorizationNonces) &&
-    (exportState.authorizationUncertain === undefined ||
-      isStringSet(exportState.authorizationUncertain))
+    isWalletOwnershipMap(exportState.authorizationNonceOwners) &&
+    isWalletOwnershipMap(exportState.authorizationUncertainOwners)
   );
 }
 
@@ -341,10 +341,6 @@ export function parseRouterAbEd25519YaoProductRegistrationStateV1(
     registration.admissionClaims === undefined
       ? new Map<string, RouterAbEd25519YaoRegistrationAdmissionClaimV1>()
       : registration.admissionClaims;
-  const authorizationUncertain =
-    input.export.authorizationUncertain === undefined
-      ? new Set<string>()
-      : input.export.authorizationUncertain;
   return {
     ok: true,
     value: {
@@ -359,8 +355,8 @@ export function parseRouterAbEd25519YaoProductRegistrationStateV1(
       recovery: input.recovery,
       export: {
         exports: input.export.exports,
-        authorizationNonces: input.export.authorizationNonces,
-        authorizationUncertain,
+        authorizationNonceOwners: input.export.authorizationNonceOwners,
+        authorizationUncertainOwners: input.export.authorizationUncertainOwners,
       },
     },
   };

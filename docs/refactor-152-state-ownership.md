@@ -1,6 +1,6 @@
 # R152 state ownership baseline for R153
 
-Revision 5 — October 4, 2026.
+Revision 6 — October 4, 2026.
 
 This freezes the **schema inventory and ownership obligations**, not a copy-ready
 relocation implementation. R153 must fail closed for unresolved ownership below.
@@ -252,6 +252,22 @@ filter retired material. These selectors close the listed prefixes only; the
 side-effect prefixes and default `router-ab-yao:` still need their exact extraction
 contract completed.
 
+Within the default `router-ab-yao:` partition store, export replay metadata now
+retains explicit wallet ownership. Decode with
+`parseRouterAbEd25519YaoProductRegistrationPartitionRecordV1`. In the shared record
+`router-ab-yao:router-ab-ed25519-yao:shared`, select entries of
+`exportAuthorizationNonceOwners` and `exportAuthorizationUncertainOwners` by their
+wallet-ID values, retaining each original nonce/digest key. The parser requires
+both maps and validates their wallet IDs. The previous unowned sets and missing
+uncertainty collection are rejected; disposable state must be reset before deploying.
+
+These are entries inside a mixed-owner record, so extraction must preserve other
+wallets' entries and destination installation must merge under the existing version
+check. Copying the whole shared row would copy unrelated wallets. An export ceremony
+retains its full validated request, including `request.scope.account_id`; its owner
+must agree with the selected replay entries. This closes export replay ownership
+without claiming that the remaining recovery/shared-state extraction is complete.
+
 Gateway dispatch already recognizes registration `near-admission` and
 `near-provisioning` continuations by ceremony allocation. That routing alone does
 not prove an in-flight deferred write is fenced across home changes. Scheduled
@@ -468,3 +484,29 @@ All 46 signer migrations apply cleanly, integrity is `ok`, and the populated-upg
 guard preserves the old row. Wallet-server type checking, build and bloat checks
 passed. The initial test mismatch was SQLite's null-prototype result objects;
 normalizing the comparison fixed the fixture without changing production behavior.
+
+
+### Export replay ownership closure — October 4
+
+Export nonce claims and uncertain authorization digests now persist as maps from
+nonce/digest to wallet ID, through the existing shared partition codec. The writer
+uses the validated export request's `scope.account_id`. Replay checks still reject
+an already-consumed nonce regardless of its stored owner; retaining ownership does
+not allow reuse by another wallet. The parser requires both maps and rejects the
+previous unowned sets or missing uncertainty state. Static fixtures reject missing
+owners and a broad spread that reinstates an unowned collection.
+
+The existing intended-behaviour E2E for Email OTP export interrupted after durable
+authorization passed in 28.3 seconds. It verifies the authorization batch committed,
+subsequent storage access failed, and the exact retry completed export with factor
+release. Wallet-server build, type fixtures and bloat checks passed. This verifies
+local export continuity, not hosted regional relocation or the complete shared
+recovery-state selector.
+
+Reproduce from Wallet with `SEAMS_INTENDED_SKIP_BUILD=1 node
+ tests/scripts/run-wallet-intended-isolated.mjs email-otp.unlock.contract.test.ts
+ --grep 'export interrupted' --require-google-token` after building Wallet-server.
+Evidence: `.artifacts/r152/export-ownership-20261004/evidence.json`, `e2e.log`,
+`build.log`, `typecheck.log`, and `bloat.log`. The first attempt omitted the runner's
+required Google-token flag, failed before registration, and timed out in teardown;
+the correctly configured rerun passed without a production-code repair.

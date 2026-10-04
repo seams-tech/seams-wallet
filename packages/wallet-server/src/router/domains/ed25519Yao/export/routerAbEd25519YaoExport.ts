@@ -431,8 +431,8 @@ type ExportLifecycleState =
 
 export class InMemoryRouterAbEd25519YaoExportStateV1 {
   readonly exports = new Map<string, ExportLifecycleState>();
-  readonly authorizationNonces = new Set<string>();
-  readonly authorizationUncertain = new Set<string>();
+  readonly authorizationNonceOwners = new Map<string, string>();
+  readonly authorizationUncertainOwners = new Map<string, string>();
 }
 
 function bytesToHex(bytes: readonly number[]): string {
@@ -723,11 +723,11 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
   ) {}
 
   authorizationIsUncertain(request: RouterAbEd25519YaoExportAdmissionRequestV1): boolean {
-    return this.state.authorizationUncertain.has(exportKey(request));
+    return this.state.authorizationUncertainOwners.has(exportKey(request));
   }
 
   recordAuthorizationUncertain(request: RouterAbEd25519YaoExportAdmissionRequestV1): void {
-    this.state.authorizationUncertain.add(exportKey(request));
+    this.state.authorizationUncertainOwners.set(exportKey(request), request.scope.account_id);
   }
 
   async admitExport(
@@ -838,7 +838,7 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
       }
     }
     const nonce = bytesToHex(request.authorization.nonce);
-    if (this.state.authorizationNonces.has(nonce)) {
+    if (this.state.authorizationNonceOwners.has(nonce)) {
       return {
         kind: 'completed',
         value: authorizationConflict(
@@ -847,7 +847,7 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
         ),
       };
     }
-    this.state.authorizationNonces.add(nonce);
+    this.state.authorizationNonceOwners.set(nonce, request.scope.account_id);
     this.state.exports.set(key, {
       kind: 'authorized',
       request,
