@@ -49,6 +49,14 @@ jobs:
         env:
           CARGO_PROFILE_DEV_OPT_LEVEL: '2'
         run: cargo test --manifest-path crates/router-ab-dev/Cargo.toml -- --test-threads=2
+      - name: Retain VM role startup diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: router-ab-vm-role-logs
+          path: /tmp/router-ab-*/logs/*.log
+          if-no-files-found: warn
+          retention-days: 7
 
   router_ab_cloudflare_tests:
     name: MPC Router A/B Cloudflare adapter tests

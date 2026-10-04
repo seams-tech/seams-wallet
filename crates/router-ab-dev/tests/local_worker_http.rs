@@ -8729,8 +8729,12 @@ fn post_bytes_for_bytes(
 
 fn wait_for_health(base_url: &str, child: &mut Child) -> Result<(), Box<dyn std::error::Error>> {
     for _ in 0..80 {
-        if child.try_wait()?.is_some() {
-            return Err("local worker exited before health check".into());
+        if let Some(status) = child.try_wait()? {
+            return Err(format!(
+                "local worker {} at {base_url} exited before health check: {status}",
+                child.id()
+            )
+            .into());
         }
         if get_health(base_url).is_ok() {
             return Ok(());
