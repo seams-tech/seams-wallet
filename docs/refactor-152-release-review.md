@@ -7,17 +7,25 @@ as invalid. A controlled hosted replay of a pre-unlock refill after lock/reload
 and a fresh unlock reproduced HTTP 503 `wallet_session_unavailable`; the reader
 was throwing on a normal terminal lifecycle state. The correction returns no live
 context, producing HTTP 401 `wallet_session_invalid`. Server build, intended-test
-type checking and bloat checks pass. Hosted verification of the fix is pending.
+type checking and bloat checks pass. Hosted verification passed in **20.6s**:
+the old refill received 401 and the replacement session produced a verified
+Tempo signature. Existing client maintenance treats invalid-session rejection
+as terminal, avoiding retries with the retired credential.
 
 Deploying the corrected bundle to all three staging Gateways changed their
 version identities, requiring Console activation. Activation-only run
 `37196172091` failed semantic readiness with HTTP 409 `readiness_invalid`.
 All three Gateways were rolled back to their prior authorized versions; staging
-`/healthz` returned HTTP 200 afterward. Preserve this admission check and resolve
-readiness before redeploying. Evidence and the failing replay live in private
+`/healthz` returned HTTP 200 afterward. Inspection found one unexpired APAC
+registration ceremony; WEUR and US had none. After its natural expiry, APAC also
+reported zero. The same candidate Gateway versions were redeployed and activation
+run `37196436008` passed both resource verification and readiness. The corrected
+versions are now active in staging. Evidence and both replay results live in private
 `.artifacts/r152/refill-session-20261004/`; the repeatable test is
 `tests/e2e/hosted-product/refill-session.test.ts`. No production deployment or npm
-publication occurred.
+publication occurred. This proves the retired-session error correction; historical
+regional 503 responses have no server exception evidence tying every occurrence
+to this exact cause.
 
 The APAC-home backend travel mirror has also passed; see the
 [APAC results](refactor-152-results.md#october-4-apac-home-hosted-travel-mirror).
