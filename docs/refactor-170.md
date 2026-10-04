@@ -238,24 +238,24 @@ contracts while removing execution internals from the application API. Examples 
 shapes, omit unrelated fields, and reuse existing domain types in implementation.
 They are not evidence of completed code or a new parallel contract layer.
 
-### Flat session API with one lock operation
+### Grouped auth API with one lock operation
 
-Expose routine wallet session operations directly on `SeamsWeb`:
+Expose wallet session operations alongside specialized auth flows under `seams.auth`:
 
 ```ts
-await seams.unlock(walletId);
-await seams.lock();
+await seams.auth.unlock(walletId);
+await seams.auth.lock();
 
-await seams.getSession();
-await seams.getRecentUnlocks();
-await seams.hasPasskey(walletId);
+await seams.auth.getSession();
+await seams.auth.getRecentUnlocks();
+await seams.auth.hasPasskey(walletId);
 
-const unsubscribe = seams.onSessionChange(listener);
+const unsubscribe = seams.auth.onSessionChange(listener);
 ```
 
-- Replace the corresponding `seams.auth` methods; remove `logout` and old method
-  names without aliases. Internal auth composition may remain private. This
-  decision does not flatten all registration, chain, or specialized auth flows.
+- Keep session operations under `seams.auth`; rename the session/passkey queries
+  as shown and remove `logout` without aliases. Do not expose duplicate top-level
+  session calls. Registration and chain operations retain their own namespaces.
 - `getSession` returns the existing precise session states. Preserve supported
   explicit-wallet queries and exact identity binding at the boundary.
 - `hasPasskey` retains the supported credential-lookup meaning; it does not
@@ -389,6 +389,14 @@ Verify wallet A/B switching, failure followed by a successful write, concurrent
 flushes, host events during pending writes, immediate signing, and disposal.
 
 ### Separate configuration at construction
+
+Group the public helpers under `seams.config`: `setTheme`, `setAppearance`,
+`chainTarget`, and `configuredChainTargets`. Remove their top-level counterparts.
+This namespace groups the existing operations; it introduces no mutable config
+store or generic setter. Keep constructor input and the existing read-only
+`configs` snapshot distinct, and preserve supported read access during the audit.
+Appearance changes preserve warm sessions. Chain helpers resolve/read configured
+targets and do not change authentication or the selected signing subject.
 
 Keep `defineSeamsConfig()` as the application entry. Resolve configuration once
 into separate client and host types, preserving supported defaults and precedence.
@@ -536,8 +544,8 @@ The choices above settle direction. Complete the member dispatch audit, injected
 RPC caller audit, config-field mapping, snapshot-ordering proof/version decision,
 browser/RP matrix, and phase-specific browser baseline before claiming the upfront
 gates closed. Update the inventory's unresolved-work notes as evidence lands.
-Signing calls retain their supported contracts; explicitly document the flat
-session API and unified lock, removal of `getContext()`, SDK-owned account
+Signing calls retain their supported contracts; explicitly document the grouped
+auth/config APIs and unified lock, removal of `getContext()`, SDK-owned account
 queries, and preference synchronization changes.
 
 ## Scope and constraints

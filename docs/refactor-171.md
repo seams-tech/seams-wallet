@@ -18,9 +18,10 @@ worker preparation, export selection, and synchronization internally.
   aliases with their consumers; add no compatibility wrappers or legacy flags.
 - Preserve distinct operations and their authorization boundaries. A shorter name
   does not authorize combining different proofs, sessions, or signing protocols.
-- Keep the current namespaces where they aid discovery. Routine session calls
-  live directly on `SeamsWeb`; chain operations remain on `near`, `evm`, and
-  `tempo`. Do not add another facade or duplicate hook family.
+- Group session and authentication calls under `auth`, appearance/chain helpers
+  under `config`, and chain operations under `near`, `evm`, and `tempo`. Keep
+  connection lifecycle at the top level. Do not add another facade or duplicate
+  hook family.
 
 ## Relationship to R170 and R153
 
@@ -29,7 +30,7 @@ state boundaries, targeted worker loading, and bundle/network acceptance. This
 plan owns the complete public naming/export migration and consumer updates.
 Use the [existing inventory](refactor-170-inventory.md) as the starting point.
 
-The flat session API, unified lock, SDK-owned `near.accountExists`, and preference
+The grouped auth/config API, unified lock, SDK-owned `near.accountExists`, and preference
 `flush` were already accepted in R170. Implement each once: R170 establishes the
 behavior/ownership; R171 verifies the final names and migrates all public callers.
 Do not build temporary renamed wrappers around the mixed runtime or maintain two
@@ -56,17 +57,17 @@ seams.getConnectionState();
 const stopConnection = seams.onConnectionChange(listener);
 const stopEvents = seams.onEvent(eventListener);
 
-await seams.unlock(walletId);
-await seams.lock();
-await seams.getSession();
-await seams.getRecentUnlocks();
-await seams.hasPasskey(walletId);
-const stopSession = seams.onSessionChange(sessionListener);
+await seams.auth.unlock(walletId);
+await seams.auth.lock();
+await seams.auth.getSession();
+await seams.auth.getRecentUnlocks();
+await seams.auth.hasPasskey(walletId);
+const stopSession = seams.auth.onSessionChange(sessionListener);
 
-seams.setTheme("dark");
-seams.setAppearance({ ... });
-seams.chainTarget("ethereum");
-seams.configuredChainTargets();
+seams.config.setTheme("dark");
+seams.config.setAppearance({ ... });
+seams.config.chainTarget("ethereum");
+seams.config.configuredChainTargets();
 seams.dispose();
 ```
 
@@ -74,6 +75,15 @@ seams.dispose();
 authenticate or initialize every signer. `dispose` releases the client and its
 owned resources; `lock` ends the wallet session. Session/connection subscriptions
 return unsubscribe functions and obey R170's snapshot/generation rules.
+
+The top level has five methods: `connect`, `getConnectionState`,
+`onConnectionChange`, `onEvent`, and `dispose`. Namespaces are `auth`, `config`,
+`registration`, `near`, `evm`, `tempo`, `recovery`, `devices`, `keys`,
+`preferences`, and `authMenu`. There are no duplicate top-level session or config
+helper aliases. `config` groups operations, while constructor input and the
+existing read-only `configs` snapshot remain separate concepts; audit supported
+snapshot consumers before changing that property. Add no generic config setter
+or new mutable configuration source.
 
 ## Complete operation migration map
 
@@ -86,19 +96,19 @@ uses, not deletion based solely on absence of repository callers.
 
 | Current call | Target / disposition |
 | --- | --- |
-| `auth.unlock` | `seams.unlock` |
-| `auth.lock`, `auth.logout` | One `seams.lock`; remove `logout` |
-| `auth.getWalletSession` | `seams.getSession` |
-| `auth.getRecentUnlocks` | `seams.getRecentUnlocks` |
-| `auth.hasPasskeyCredential` | `seams.hasPasskey` |
+| `auth.unlock` | `seams.auth.unlock` |
+| `auth.lock`, `auth.logout` | One `seams.auth.lock`; remove `logout` |
+| `auth.getWalletSession` | `seams.auth.getSession` |
+| `auth.getRecentUnlocks` | `seams.auth.getRecentUnlocks` |
+| `auth.hasPasskeyCredential` | `seams.auth.hasPasskey` |
 | `initWalletIframe` | `seams.connect` |
 | `isWalletIframeReady` | Read discriminated `seams.getConnectionState()` |
 | `onWalletIframeReady` | `seams.onConnectionChange` |
-| `onWalletIframeLoginStatusChanged` | `seams.onSessionChange` |
+| `onWalletIframeLoginStatusChanged` | `seams.auth.onSessionChange` |
 | `onSdkLifecycleEvent` | `seams.onEvent` |
 | `onWalletIframePreferencesChanged` | Internal reconciliation feeding public preference subscriptions |
-| `setTheme`, `setAppearance` | Keep |
-| `chainTarget`, `configuredChainTargets` | Keep |
+| `setTheme`, `setAppearance` | `config.setTheme`, `config.setAppearance` |
+| `chainTarget`, `configuredChainTargets` | `config.chainTarget`, `config.configuredChainTargets` |
 | `dispose` | Keep |
 | `prewarm`, `prefetchBlockheight` | Internal connection/operation preparation |
 
@@ -139,8 +149,8 @@ await seams.auth.unlockWithEmailCode({ challenge, code });
 const flow = await seams.auth.startGoogleSignIn({ ... });
 ```
 
-Keep specialized email/provider flows under `auth`; do not retain routine
-session aliases there. Preserve returned flow handles, supported code submission,
+Keep specialized email/provider flows alongside session calls under `auth`.
+Expose each method once under that namespace. Preserve returned flow handles, supported code submission,
 resend/cancel operations, external broker callbacks, and one terminal outcome.
 Inventory those returned-object methods as part of the declaration audit.
 
