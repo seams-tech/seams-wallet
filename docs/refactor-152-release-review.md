@@ -6,8 +6,11 @@ Candidate `174cd48396e6a6d5760752c6fe5e3c64ed2a9a97` is pushed to `dev`.
 Exact-candidate Wallet validation `37196611261` passed: build, type checking,
 representative browser/unit/lifecycle contracts, packed packages, documentation,
 example and intended-app builds. The result is retained in
-`.artifacts/r152/ci-174cd483-wallet-result.json`. MPC validation remains pending
-as described below. No release workflow was dispatched.
+`.artifacts/r152/ci-174cd483-wallet-result.json`. MPC validation `37199113815` also passed at diagnostic revision `85b3d670`,
+including core/dev tests, adapters, strict entrypoints and startup dry-run. The
+result is retained in `.artifacts/r152/ci-85b3d670-mpc-result.json`. Changes after
+the runtime candidate are documentation and CI/test diagnostics only. Publication
+and npm verification remain pending.
 
 The first MPC run passed adapter, entrypoint and startup checks. One VM E2E
 exited before its local Worker health check; no protocol assertion failed.
@@ -15,7 +18,10 @@ The exact unchanged test passed locally in 6.57s and emitted its cleanup receipt
 Attempt 2 failed during Worker startup in a different VM E2E, also before any
 protocol assertion. That exact test passed locally in 0.71s. Diagnostic revision
 `85b3d670` reports PID, URL and child exit status and retains role stderr logs on
-CI failure. MPC run `37199113815` validates that revision; its result is pending.
+CI failure. MPC run `37199113815` passed at that revision: the local Worker suite had
+34 passing cases and two pre-existing ignored cases. Both previously failing
+cases passed. The cause of the earlier intermittent startup failures remains
+unproven; the green run does not establish a fix for that cause.
 Do not turn these startup failures into protocol or fixture changes without
 further evidence.
 
