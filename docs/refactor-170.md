@@ -667,6 +667,15 @@ existing execution fingerprint shared by the host entry and runtime context.
 See `evidence/refactor-170-host-generation-20261005.json`. This does not close
 session-authority ordering, React ownership acceptance, or durable-pool longevity.
 
+Exact-session observations now recheck persisted authority and the expiry deadline
+after remote status work. A concurrent lock, replacement, or retirement forces a
+fresh observation; repeated changes return `superseded` after three attempts. The
+browser probe covers six outcomes using real IndexedDB and canonical fixtures.
+Four production lifecycle cases also pass, including both cross-tab restoration races.
+This costs two local reads per successful remote observation and does not close
+the host transition/revision-envelope gate. See
+`evidence/refactor-170-session-authority-20261005.json`.
+
 The fresh production root-client static closure measures 66,386 bytes gzip
 (64.8 KiB), compared with 739,640 bytes at baseline: a 91.0% reduction. Including
 its lazy router, it measures 93,551 bytes gzip (91.4 KiB). The provider measures

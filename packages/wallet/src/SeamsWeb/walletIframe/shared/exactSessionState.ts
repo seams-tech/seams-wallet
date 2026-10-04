@@ -167,6 +167,17 @@ export async function readSelectedWalletIframeExactSessionState(
   },
   dependencies: WalletIframeExactSessionReadDependencies,
 ): Promise<WalletIframeExactSessionState> {
+  // Bound repeated reads when another context keeps replacing authority.
+  return readWalletIframeSessionObservation(input, dependencies, 3);
+}
+
+async function readWalletIframeSessionObservation(
+  input: { readonly walletId: WalletId },
+  dependencies: WalletIframeExactSessionReadDependencies,
+  remainingAttempts: number,
+): Promise<WalletIframeExactSessionState> {
+  const { walletId } = input;
+  if (remainingAttempts === 0) return unavailableSession(walletId, 'superseded');
   let selected: ResolveSelectedWalletAuthorityResultV1;
   try {
     selected = await dependencies.resolveSelectedWalletAuthority(String(input.walletId));
@@ -244,6 +255,46 @@ export async function readSelectedWalletIframeExactSessionState(
     status = await dependencies.readStatus({ authorization, operationCredential });
   } catch {
     return unavailableSession(input.walletId, 'unavailable');
+  }
+  let currentSelection: ResolveSelectedWalletAuthorityResultV1;
+  try {
+    currentSelection = await dependencies.resolveSelectedWalletAuthority(input.walletId);
+  } catch {
+    return unavailableSession(input.walletId, 'unavailable');
+  }
+  if (
+    currentSelection.kind !== 'resolved' ||
+    currentSelection.selection.lockState !== 'unlocked' ||
+    currentSelection.selection.lockGeneration !== selection.lockGeneration ||
+    currentSelection.selection.walletAuthMethodId !== selection.walletAuthMethodId ||
+    currentSelection.authMethod.status !== 'active' ||
+    currentSelection.authMethod.kind !== authMethod.kind ||
+    currentSelection.authority.state !== 'active' ||
+    !selectedExactSessionIdentityMatches({
+      walletId,
+      authorization,
+      operationCredential,
+      selected: currentSelection,
+    })
+  ) {
+    return readWalletIframeSessionObservation(input, dependencies, remainingAttempts - 1);
+  }
+  const currentAuthorization = await readExactActiveForWalletOrUnavailable(dependencies, {
+    walletId,
+    authorityId: authority.authorityId,
+    authMethodId: authMethod.walletAuthMethodId,
+  });
+  if (
+    currentAuthorization.kind !== 'found' ||
+    !activeWalletSessionV1RecordsEqual(currentAuthorization.record, authorization) ||
+    currentAuthorization.operationCredential.walletSessionId !==
+      operationCredential.walletSessionId ||
+    currentAuthorization.operationCredential.token !== operationCredential.token
+  ) {
+    return readWalletIframeSessionObservation(input, dependencies, remainingAttempts - 1);
+  }
+  if (authorization.expiresAtMs <= dependencies.nowMs()) {
+    return expiredExactSessionState(walletId, authMethod.kind, authorization, operationCredential);
   }
   if (!walletIframeStatusMatchesAuthorization(status, authorization, operationCredential)) {
     return unavailableSession(input.walletId, 'invalid');

@@ -252,6 +252,12 @@ the application's session projection. A closed connection clears that projection
 Delayed session-read responses cannot repopulate it. Router disposal is terminal;
 initializing a disposed router rejects the call.
 
+A remote session-status response cannot make an older local authorization active
+again. After that response, the host rechecks the selected factor, lock generation,
+authority binding, exact session record, and operation credential. A changed binding
+causes a fresh observation. Repeated changes stop after three attempts and report
+`superseded`. The host also rechecks the expiry deadline after the response.
+
 ## Hosted Auth Menu Entry Point
 
 The application resolves wallet configuration before sending it to the wallet

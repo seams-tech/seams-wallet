@@ -328,6 +328,22 @@ wallet switch during a read/write, reconnect, and disposal in browser E2E.
 A complete source-to-transition audit and those behavioral checks are required
 before declaring the ordering gate verified.
 
+The exact-session reader now rechecks persisted authority after the remote status
+read. It compares the selected method and lock generation, active method/authority
+state, authority digest/revocation epoch, exact authorization record, and operation
+credential. A changed binding starts a fresh observation. Three interrupted
+attempts produce the existing `superseded` result. Expiry is checked again after
+the remote read. A delayed active response cannot undo a lock, use a retired
+credential, or restore a replaced authority through this read path.
+
+`tests/wallet-iframe/session.authority.test.ts` uses real IndexedDB repositories
+and canonical fixture builders. Its controlled status boundary covers unchanged
+authority, lock, authority replacement, session retirement, expiry, and repeated
+replacement. This adds two local reads after a successful remote observation.
+It does not make all local reads atomic or establish wire revision ordering.
+Keep the host transition audit and paired revision-envelope gate open. Evidence:
+`evidence/refactor-170-session-authority-20261005.json`.
+
 The selection-restoration race is fixed in `host/handlers/auth.ts`. The saved-wallet
 lookup observes selection changes until it finishes. A newer selection, including
 removal back to no selection, wins over the lookup. Existing selections are no
