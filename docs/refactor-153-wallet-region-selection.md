@@ -222,6 +222,34 @@ remains the wallet's preference until the owner changes it.
 This phase establishes the relocation operation used when an owner accepts
 [R154's region-change suggestion](refactor-154-region-change-notifications.md).
 
+### User-requested pause and progress
+
+The owner accepts a temporary pause when confirming a region change. Optimize
+for a short interruption, with a few seconds as a measurement target. Network
+partitions, unresolved operations, or recovery can extend the pause. Promise no
+fixed completion time before hosted measurements establish the normal duration.
+
+After submission, show a blocking progress view while resolving admission and
+performing the transfer. Disable signing, export, recovery, device or factor
+changes, and another region change. Enforce the mutation pause at the server
+across every device, direct role request, and deferred writer. The loading view
+only communicates that durable state.
+
+Keep authenticated status access and local lock available. Closing the wallet,
+locking it, or losing the connection does not cancel the move. On reconnect,
+resolve the same move before enabling ordinary wallet actions.
+
+Use an indicator with a truthful phase label, such as **Preparing your wallet**,
+**Transferring wallet data**, or **Activating the new region**. Do not infer a
+percentage from the phase count. Show **Reconnecting to check progress** when the
+client loses contact. Show a recovery message when the journal reports a blocked
+stage; an indefinite loading indicator must not conceal a known failure.
+
+Resume ordinary actions after verified destination activation and client placement
+reconciliation. Source cleanup may continue afterward under the durable journal.
+Keep another relocation disabled until cleanup completes. Distinguish wallet
+readiness from completion of all move stages.
+
 ## Working assumptions and boundaries
 
 - One wallet has one owner using multiple devices. An eligible owner device can
@@ -236,6 +264,9 @@ This phase establishes the relocation operation used when an owner accepts
   through the new home when they reconnect.
 - At most one home may authorize wallet writes, including during crashes, stale
   routing, and retries. One-use signing material must remain single-use.
+- Ownership changes at one directory commit after source fencing and destination
+  verification. Each participant persists its transfer progress for exact retries.
+  The copy itself can span several transactions while both homes reject new work.
 - Existing presignatures may be invalidated and regenerated after relocation.
   Preserve durable signing material and identities, consumed-material history,
   and operation results. Uninterrupted access to a ready presignature pool is
@@ -527,15 +558,14 @@ authorization/counter state; use the shared request-proof authority where needed
   its source is a conflicting request, not cancellation.
 - The owner can cancel the settings interaction before submitting the admission
   request. Once submitted, closing the UI or aborting HTTP does not cancel server
-  execution; resolve the journal outcome. Once admitted, the first
-  implementation has **no cancellation or rollback operation**, including before
+  execution; resolve the journal outcome. Once admitted, there is
+  **no cancellation or rollback operation**, including before
   cutover. Resolve a lost response before claiming cancellation succeeded. Repair
   and resume the same move after failure. This preserves the journal's linear
   protocol and avoids reactivating a partly retired source generation.
 - Before cutover, an unrecoverable destination outage can therefore leave the
-  wallet paused until repaired. Surface that state explicitly. A future safe-abort
-  feature would require its own fenced source reactivation at a fresh generation;
-  do not improvise it with an active flag, timeout or journal deletion.
+  wallet paused until repaired. Surface that state explicitly. Preserve the
+  source fences and journal while repairing and resuming the same move.
 
 ### Phases and required evidence
 
@@ -590,6 +620,23 @@ that deployment prerequisite before enabling moves. Returning to a region later
 uses a new generation and fresh physical targets, retaining old retirement markers.
 
 ### Crash recovery and bounded retries
+
+Recovery uses retries and reconciliation, with no rollback. A network failure
+resumes or reconciles the same move, with the same operation and material identities. It must
+not trigger a second admission or restore an earlier snapshot over current state.
+The accepted UI pause does not remove any source-fence or verification requirement.
+
+| Failure | Recovery and owner experience |
+| --- | --- |
+| Before admission | Resolve an uncertain admission response. If no move was admitted, the source stays active. |
+| After admission, before cutover | Keep new wallet mutations paused. Resume the recorded stage after transient failure, within its retry budget. |
+| Cutover response is lost | Read the authoritative decision. Keep actions blocked while ownership is unknown. Never reactivate the source based on a timeout. |
+| After cutover, before destination activation | Resume destination activation. The source remains retired. |
+| After activation, during source cleanup | Allow reconciled clients to use the destination. Retry cleanup and block another relocation until completion. |
+| Retry budget exhausted or evidence conflicts | Report the blocked stage. Repair and resume through the existing internal recovery action. Preserve the phase's execution restrictions. |
+
+Do not add a source-reactivation or rollback path. After cutover, returning to
+the source requires a new verified relocation after the current move completes.
 
 The durable phase describes authority; execution status describes progress within
 that phase. Use required discriminated status branches: `ready` for an unclaimed
@@ -745,6 +792,9 @@ cooldown and two receipt envelopes. Extend those same modules during implementat
   selected region, pending progress, temporary mutation pause, recoverable failure,
   and cooldown retry time. Expose supported regions and eligible owner controls;
   Region-change notifications remain R154's follow-up.
+- [ ] Implement the blocking progress view and reconnect behavior above. Preserve
+  local lock and status access. Resume ordinary actions only after destination
+  activation and client reconciliation; show blocked recovery states explicitly.
 - [ ] Delete obsolete source wallet state after verification while retaining the
   authority fence and move outcome needed for cleanup/retry. Failed cleanup is
   resumable and cannot reopen the source. A later move back uses fresh resources.
@@ -809,6 +859,7 @@ fixtures wherever they express these scenarios.
 | In-flight work and stale preparation | Lose a finalize response after its effect; retry after relocation returns the original result with one quota use/effect. Interrupt presigning, delay a terminal refill/admission until after cutover, and restore an old client cache after reload; obsolete material never becomes usable. |
 | D1 historical restore and isolation | Restore consumed exchanges and terminal/claimed history according to the reconciliation contract; interrupt/repeat import. Preserve audit/quota exactly, enforce expired/revoked credentials and origin/scope checks, and keep another wallet's ordinary guards active. |
 | Crash at every handover boundary | Crash during each role fence, extraction/import, destination verification, around directory CAS with a lost reply, and during cleanup. Restart both sides and send old direct requests/jobs/alarms. Prove at most one writer and one effect/material consumption. |
+| Blocking progress and network recovery | Confirm a move, lose the admission reply, and attempt actions from two devices. Interrupt transfer and status connectivity, reload the browser, and resume the same journal. Verify truthful progress, local lock, server rejection of paused mutations, and no second admission. After activation, verify signing while cleanup retries; another move remains blocked. Retain move IDs, phase transitions, rejection results, and verified signatures. |
 | Shared authority changes and repeated moves | Retire/refresh tenant-root state or revoke authority during a move, keep another wallet active, move back to the old region using fresh resources, and attempt isolated restoration of a pre-move snapshot. Shared policy/limits stay authoritative and old state cannot resume writes. |
 | Conflicting owner requests and cost guard | Race two devices/destinations, issue duplicate/same-home requests, cross the five-minute boundary, and retry failed stages. One active move, no duplicate regeneration/charges, and authoritative retry timing. R154 must later exercise this same admission guard. |
 | Hosted regional suitability | Verify destination resource/version identities and placement evidence independently from ingress colo. Measure pause, cold refill, warm signing, compute/load, and failure recovery; retain samples and failures. |

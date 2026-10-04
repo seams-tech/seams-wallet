@@ -49,6 +49,8 @@ The review action opens R153 settings with the suggested destination selected.
 Show the current home, destination, wallet-wide effect, and temporary pause before
 confirmation. Require R153's fresh operation-bound owner proof for admission.
 Opening the notification or settings grants no authority to move the wallet.
+After submission, use R153's blocking progress view and recovery behavior. Region
+notifications do not create a separate loading, cancellation, or retry flow.
 
 Deduplicate repeated notifications for the same wallet home and observed region.
 Remember dismissal on that device until the home or observed region changes.
