@@ -109,9 +109,15 @@ material cleanup, and stale-work fencing, per R170. Keep credentials, wallet
 records, and recovery material. Preserve exact-wallet cleanup under concurrent
 unlock; attempt required cleanup and report failures. Retained presignatures
 grant no active signing authority: validate authority and placement/generation
-before reuse after unlock. Keep independent relocation/revocation/expiry and
-consumption invalidation intact. Do not broaden a local lock into a global device
+before reuse after unlock. Session expiry requires reauthorization and must not
+by itself delete otherwise-valid durable presignatures. Keep independent material
+invalidation and consumption rules intact. Do not broaden a local lock into a global device
 revocation or a durable-pool purge.
+
+A user can lock, return a month later, and use still-valid durable presignatures
+for the first transaction after unlock without waiting for replenishment. Elapsed
+time alone must not discard otherwise-valid material. Verify validity against
+current authority, placement, and material state before reuse.
 
 `hasPasskey` reports the supported credential lookup. It cannot guarantee a later
 authenticator assertion succeeds. `getSession` preserves the existing distinct
@@ -152,8 +158,8 @@ drop it or invent an authorization conversion to make one signature work.
 | Current call | Target / disposition |
 | --- | --- |
 | `registration.registerWallet` | Keep |
-| `registration.registerPasskey` | Keep the complete convenience flow; verify its distinct value |
-| `registration.registerWithEmailOtp` | Delete deprecated alias; use `registerWallet` |
+| `registration.registerPasskey` | Remove; select passkey through `registerWallet` arguments |
+| `registration.registerWithEmailOtp` | Remove; select email OTP through `registerWallet` arguments |
 | `registration.addWalletSigner` | `registration.addSigner` |
 | `registration.addPasskey` | Keep |
 | `registration.addEmailOtp` | `registration.addEmail` |
@@ -164,6 +170,34 @@ drop it or invent an authorization conversion to make one signature work.
 | `registration.resumePendingEcdsaRegistration` | Internal durable continuation |
 | `registration.requestEmailOtpEnrollmentChallenge`, `registration.enrollEmailOtp` | Internal registration/add-email steps; preserve custom UI needs through the flow contract |
 | `near.registerNearWallet`, `evm.registerEvmWallet` | Consolidate into `registration.registerWallet` after behavior audit |
+
+`registerWallet` is the sole public wallet-creation operation. Use the existing
+`authMethod` discriminated union (`kind: "passkey"` or `kind: "email_otp"`) to
+select authentication; keep wallet identity and signer selection as separate
+arguments. Preserve proof-specific email branches and required evidence. Reuse
+`RegistrationAuthMethodInput` and its boundary parser; do not introduce competing
+flags, optional auth fields, or a second registration implementation.
+
+```ts
+await seams.registration.registerWallet({
+  authMethod: { kind: "passkey", rpId },
+  wallet,
+  signerSelection,
+});
+
+await seams.registration.registerWallet({
+  authMethod: emailOtpAuthMethod,
+  wallet,
+  signerSelection,
+});
+```
+
+Here `emailOtpAuthMethod` is the precise email branch produced by the supported
+challenge/provider flow, including its required proof. Remove `registerPasskey`
+and `registerWithEmailOtp` from client declarations, React hooks/context, examples,
+docs, and tests. Migrate convenience defaults into the single registration
+boundary where supported; keep no aliases. Adding a passkey to an existing wallet
+remains the distinct `registration.addPasskey` operation.
 
 `waitForNearAccount` retains typed ready, failed, and timed-out outcomes and abort
 behavior. Consolidating registration must preserve signer selection, implicit or
@@ -292,6 +326,7 @@ transaction review. Keep the existing bound `wallet.exportKey` spelling.
 | --- | --- |
 | `refreshLoginState` | `refreshSession` |
 | `getWalletSession`, `addWalletSigner`, `setConfirmBehavior` | `getSession`, `addSigner`, `setConfirmationBehavior` |
+| `registerPasskey`, `registerWithEmailOtp` | Remove; use `registerWallet` with `authMethod` |
 | `setInputUsername` | `setAccountName` |
 | `refreshAccountData` | Keep |
 | Device `startDevice2LinkingFlow`, `cancelDeviceLinking`, `linkDevice` | `startLinking`, `cancelLinking`, `approveLinking` |
@@ -378,6 +413,11 @@ classify failures against intended behavior before repairs.
   concurrent unlock, restart, signing rejection while locked, validated reuse
   after unlock, preference write failure, flush, and immediate sign. Verify that
   lock adds no durable-pool purge; retain independent invalidation coverage.
+- Returning-user E2E: lock, restart the browser with durable storage preserved,
+  advance the supported test clock by one month, unlock, and sign immediately.
+  Record first-sign latency and evidence that the operation consumes a retained
+  valid presignature without waiting for refill. Ensure the clock advances across
+  relevant client/server validity checks; do not simulate aging only in UI time.
 - Save repeatable commands, source revision, packed asset identity, browser
   traces/reports, and scenario results. Stub-host success alone is insufficient.
 - Re-run R170 consumer graph/size checks to ensure naming/export moves do not

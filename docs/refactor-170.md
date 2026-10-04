@@ -277,14 +277,21 @@ intent. Keep wallet records, credentials, and recovery material intact.
 
 Preserving durable presignatures avoids unnecessary replenishment after lock.
 Retained material grants no active signing authority: a subsequent unlock must
-validate authority and R153 placement/generation before reuse. Preserve independent
-invalidation for relocation, revocation, expiry, or consumption; lock itself must
+validate authority and R153 placement/generation before reuse. Session expiry
+requires reauthorization and does not itself expire otherwise-valid durable
+presignatures. Preserve independent material invalidation for relocation,
+revocation, or consumption; lock itself must
 not delete the durable pool. Coordinate refill fencing with R153. Update the
 normative spec and behavioral contracts for removal of logout, including cleanup
 failure, repeated lock, concurrent unlock, restart, durable-pool retention, and
 signing rejection while locked. Audit every old logout and exact-session lock caller
 before deleting paths; preserve exact-session targeting. Removing or changing
 wire handlers follows the protocol-version rules below.
+
+Verify the returning-user contract: lock, restart with durable storage retained,
+advance time by one month, unlock, and sign the first transaction using retained
+valid presignatures without waiting for replenishment. Record actual pool reuse
+and first-sign latency. Elapsed time alone must not purge otherwise-valid material.
 
 ### SDK-owned account queries replace application `getContext()`
 
