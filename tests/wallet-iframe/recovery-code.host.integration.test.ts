@@ -38,15 +38,11 @@ test('reveals and cancels the recovery summary without a child animation frame o
     async ({ walletOrigin }) => {
       const routerModule = await import('/_test-sdk/esm/SeamsWeb/walletIframe/client/router.js');
       const router = new routerModule.WalletIframeRouter({
+        hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
         walletOrigin,
         appearance: { theme: { id: 'default', mode: 'dark', colors: {} } },
         servicePath: '/wallet-service',
         sdkBasePath: '/_test-sdk/esm/sdk',
-        relayer: { url: window.location.origin },
-        registration: {
-          projectEnvironmentId: 'proj_local:test',
-          publishableKey: 'pk_local',
-        },
         testOptions: { ownerTag: 'recovery-code-host-test' },
       });
       const initialization = router.init();
@@ -78,7 +74,7 @@ test('reveals and cancels the recovery summary without a child animation frame o
     return performance.now() - (testWindow.__recoveryCodeHostTest?.startedAt ?? 0);
   });
   expect(elapsedMs).toBeLessThan(2_000);
-  expect(fullWalletRuntimeRequested).toBe(true);
+  expect(fullWalletRuntimeRequested).toBe(false);
 
   const childDialog = page
     .frameLocator('iframe[data-seams-owner="recovery-code-host-test"]')
@@ -93,6 +89,7 @@ test('reveals and cancels the recovery summary without a child animation frame o
     await testWindow.__recoveryCodeHostTest?.router.cancelAll();
   });
   await expect(childDialog).toHaveCount(0);
+  expect(fullWalletRuntimeRequested).toBe(false);
 
   await page.evaluate(() => {
     const testWindow = window as typeof window & {

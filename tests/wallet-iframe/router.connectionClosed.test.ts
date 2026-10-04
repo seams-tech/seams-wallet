@@ -23,6 +23,7 @@ test.describe('WalletIframeRouter connection teardown', () => {
         const routerModule = await import(routerPath);
         const messages = await import('/_test-sdk/esm/SeamsWeb/walletIframe/shared/messages.js');
         const router = new routerModule.WalletIframeRouter({
+          hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
           walletOrigin,
           servicePath: '/wallet-service',
           sdkBasePath: '/sdk',
@@ -67,6 +68,7 @@ test.describe('WalletIframeRouter connection teardown', () => {
       async ({ routerPath, walletOrigin }) => {
         const routerModule = await import(routerPath);
         const router = new routerModule.WalletIframeRouter({
+          hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
           walletOrigin,
           servicePath: '/wallet-service',
           sdkBasePath: '/sdk',

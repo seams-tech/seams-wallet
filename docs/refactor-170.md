@@ -556,9 +556,12 @@ The current-source audit in [the inventory](refactor-170-inventory.md#snapshot-o
 found wallet-unbound preference snapshots and asynchronous session reads without
 within-connection freshness ordering. The cutover therefore requires protocol
 **3.0.0**, paired revision envelopes and preference acknowledgements. Update the
-existing manifest/version and skew checks with both endpoints; keep the current
-2.0.0 runtime unchanged until that implementation lands. The audit specifies
-stale-capture rejection and the host transitions whose revisions need coverage.
+existing manifest/version and skew checks with both endpoints. The normalized
+configuration transport now starts the unreleased 3.0.0 cutover. Revision ordering
+remains required before release. Release the client package and wallet-host assets
+as a matching 3.0.0 pair; roll back both to their matching prior releases together.
+Version-skew errors must reject mixed pairs. The audit specifies stale-capture
+rejection and the host transitions whose revisions need coverage.
 
 ### Preserve transaction and browser-adapter ownership
 
@@ -631,8 +634,11 @@ storage selector and public `getContext()` have been removed.
 
 Application preference display state is memory-only; the host retains durable
 preferences. Client preference writes support rollback, bounded `flush()`, retained
-failures, and a preference check before signing. Protocol snapshot/event revision
-ordering and configuration boundary cleanup remain unfinished.
+failures, and a preference check before signing. Configuration now crosses the
+iframe boundary as a validated resolved snapshot. Appearance updates carry a
+separate resolved branch. Host-side default resolution and the direct-mode
+normalization option are removed. Protocol snapshot/event revision ordering and
+the remaining configuration identity/field cleanup remain unfinished.
 
 The fresh production root-client static closure measures 66,386 bytes gzip
 (64.8 KiB), compared with 739,640 bytes at baseline: a 91.0% reduction. Including

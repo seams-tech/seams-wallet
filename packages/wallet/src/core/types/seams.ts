@@ -306,6 +306,13 @@ export interface SeamsConfigsInput {
  */
 export type SeamsConfigsReadonly = ReadonlyDeep<SeamsConfigsResolved>;
 
+export type SeamsClientConfig = Omit<SeamsConfigsReadonly, 'wallet'> & {
+  readonly wallet: {
+    readonly mode: 'iframe';
+    readonly iframe: ReadonlyDeep<SeamsIframeWalletConfig> & { readonly origin: string };
+  };
+};
+
 //////////////////////////////////
 /// Result Types
 //////////////////////////////////
@@ -769,8 +776,6 @@ export type ReadonlyDeep<T> = T extends ReadonlyDeepPrimitive
       : T extends object
         ? { readonly [K in keyof T]: ReadonlyDeep<T[K]> }
         : T;
-
-export type SeamsWalletMode = 'direct' | 'iframe';
 
 type SeamsRegistrationPaymentMode = 'disabled' | 'quota_then_x402' | 'always_x402';
 

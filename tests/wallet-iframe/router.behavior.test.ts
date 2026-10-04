@@ -303,6 +303,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
         const { WalletIframeRouter } =
           mod as typeof import('@/SeamsWeb/walletIframe/client/router');
         const router = new WalletIframeRouter({
+          hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
           walletOrigin,
           servicePath: '/wallet-service',
           connectTimeoutMs: 3000,
@@ -352,6 +353,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
             mod as typeof import('@/SeamsWeb/walletIframe/client/router');
 
           const router = new WalletIframeRouter({
+            hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
             walletOrigin,
             servicePath: '/wallet-service',
             connectTimeoutMs: 3000,
@@ -433,6 +435,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
         const { WalletIframeRouter } =
           mod as typeof import('@/SeamsWeb/walletIframe/client/router');
         const router = new WalletIframeRouter({
+          hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
           walletOrigin,
           servicePath: '/wallet-service',
           connectTimeoutMs: 3000,
@@ -524,6 +527,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
             mod as typeof import('@/SeamsWeb/walletIframe/client/router');
 
           const router = new WalletIframeRouter({
+            hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
             walletOrigin,
             servicePath: '/wallet-service',
             connectTimeoutMs: 3000,
@@ -593,6 +597,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
             mod as typeof import('@/SeamsWeb/walletIframe/client/router');
 
           const router = new WalletIframeRouter({
+            hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
             walletOrigin,
             servicePath: '/wallet-service',
             connectTimeoutMs: 3000,
@@ -662,6 +667,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
         const { WalletIframeRouter } =
           mod as typeof import('@/SeamsWeb/walletIframe/client/router');
         const router = new WalletIframeRouter({
+          hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
           walletOrigin,
           servicePath: '/wallet-service',
           connectTimeoutMs: 3000,
@@ -766,6 +772,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
 
           const accountId = 'crisp-plain-29ph888gzw.w3a-relayer.testnet';
           const router = new WalletIframeRouter({
+            hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
             walletOrigin,
             servicePath: '/wallet-service',
             connectTimeoutMs: 3000,
@@ -835,6 +842,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
           const { WalletIframeRouter } =
             mod as typeof import('@/SeamsWeb/walletIframe/client/router');
           const router = new WalletIframeRouter({
+            hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
             walletOrigin,
             servicePath: '/wallet-service',
             connectTimeoutMs: 3000,
@@ -929,6 +937,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
           const { WalletIframeRouter } =
             mod as typeof import('@/SeamsWeb/walletIframe/client/router');
           const router = new WalletIframeRouter({
+            hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
             walletOrigin,
             servicePath: '/wallet-service',
             connectTimeoutMs: 3000,

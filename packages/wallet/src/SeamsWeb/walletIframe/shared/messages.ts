@@ -27,7 +27,7 @@ import type {
   ThresholdEcdsaChainTarget,
   WalletSessionRef,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import type { EmailOtpAuthPolicy, SeamsConfigsInput } from '@/core/types/seams';
+import type { EmailOtpAuthPolicy } from '@/core/types/seams';
 import type { WalletEmailOtpLoginOperation } from '@shared/utils/emailOtpDomain';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { WalletCustodyAdminOperation } from '@shared/authorization/walletCustodyOperation';
@@ -841,7 +841,7 @@ export function parseHostedAuthMenuOutcome(value: unknown): HostedAuthMenuOutcom
   }
 }
 
-export const WALLET_PROTOCOL_VERSION = '2.0.0' as const;
+export const WALLET_PROTOCOL_VERSION = '3.0.0' as const;
 
 export const WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH =
   'WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH' as const;
@@ -955,10 +955,7 @@ export interface PreferencesChangedPayload {
   updatedAt: number;
 }
 
-export interface PMSetConfigPayload extends Partial<SeamsConfigsInput> {
-  // Absolute base URL for SDK browser assets (e.g., https://app.example.com/sdk/)
-  assetsBaseUrl?: string;
-}
+export type PMSetConfigPayload = import('./configuration').WalletConfigurationUpdate;
 
 interface PMCancelPayload {
   requestId?: string; // when omitted, host may attempt best-effort global cancel (close UIs)

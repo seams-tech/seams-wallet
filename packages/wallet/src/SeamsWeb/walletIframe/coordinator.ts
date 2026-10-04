@@ -1,6 +1,6 @@
 import type { PreferenceState } from './client/preferenceState';
 import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import type { AppearanceConfig, SeamsConfigsReadonly } from '@/core/types/seams';
+import type { AppearanceConfig, SeamsClientConfig } from '@/core/types/seams';
 import type { WalletIframeRouter } from '@/SeamsWeb/walletIframe/client/router';
 import type { WalletIframeTransportDiagnostics } from '@/SeamsWeb/walletIframe/client/transport/IframeTransport';
 import type {
@@ -39,7 +39,7 @@ function walletOriginHostname(walletOrigin: string): string {
 }
 
 interface WalletIframeCoordinatorDeps {
-  configs: SeamsConfigsReadonly;
+  configs: SeamsClientConfig;
   userPreferences: PreferenceState;
   getAppearance: () => AppearanceConfig;
 }
@@ -49,7 +49,7 @@ interface WalletIframeCoordinatorDeps {
  * This keeps `SeamsWeb` focused on business flows while preserving one cohesive iframe domain module.
  */
 export class WalletIframeCoordinator {
-  private readonly configs: SeamsConfigsReadonly;
+  private readonly configs: SeamsClientConfig;
   private readonly userPreferences: PreferenceState;
   private readonly getAppearance: () => AppearanceConfig;
 

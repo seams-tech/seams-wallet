@@ -84,6 +84,7 @@ export type { RegisterWalletInput } from '@shared/utils/registrationAuthMethodIn
 
 export type {
   SeamsConfigsReadonly,
+  SeamsClientConfig,
   SeamsConfigsInput,
   // Registration
   AddedEvmFamilyEcdsaSignerCapability,

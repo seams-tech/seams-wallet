@@ -1,3 +1,4 @@
+import { applyWalletConfigurationUpdate, parseWalletConfigurationUpdate } from '../shared/configuration';
 import {
   TransactionReviewAdmission,
   transactionReviewAdmission,
@@ -15,7 +16,6 @@ import { bootstrapTransparentHost } from './bootstrap';
 import type {
   ChildToParentEnvelope,
   ParentToChildEnvelope,
-  PMSetConfigPayload,
   WalletIframeProtocolVersionMismatchDetails,
 } from '../shared/messages';
 import {
@@ -134,7 +134,8 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
   const state: WalletHostRuntimeState = {
     parentOrigin: null,
     port: null,
-    walletConfigs: null,
+    configuration: { kind: 'unconfigured' },
+    onConfigurationChanged: null,
   };
 
   const post = (msg: ChildToParentEnvelope): void => {
@@ -253,14 +254,11 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
             post({ type: 'PONG', requestId });
             return;
           case 'PM_SET_CONFIG':
-            state.walletConfigs = {
-              ...(state.walletConfigs || {}),
-              ...(route.request.payload as PMSetConfigPayload),
-            };
-            if (CONFIRM_UI_SURFACES.some(({ selector }) => document.querySelector(selector))) {
-              const runtimeContext = await import('./runtimeContext');
-              runtimeContext.syncActiveWalletHostRuntimeConfig(state);
-            }
+            state.configuration = applyWalletConfigurationUpdate(
+              state.configuration,
+              parseWalletConfigurationUpdate(route.request.payload),
+            );
+            state.onConfigurationChanged?.();
             post({ type: 'PONG', requestId });
             return;
           case 'PM_ACTIVATE_TRANSACTION_REVIEW': {

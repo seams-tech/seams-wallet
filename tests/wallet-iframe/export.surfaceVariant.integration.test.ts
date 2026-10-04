@@ -186,6 +186,7 @@ test.describe('wallet iframe export surface variant', () => {
             });
 
             const router = new WalletIframeRouter({
+              hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
               walletOrigin,
               servicePath: '/wallet-service',
               connectTimeoutMs: 3000,

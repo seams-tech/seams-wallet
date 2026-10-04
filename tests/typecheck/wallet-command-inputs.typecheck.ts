@@ -52,7 +52,7 @@ applicationClient.getContext();
 
 
 import { WalletHostRuntime } from '../../packages/wallet/src/SeamsWeb/walletIframe/host/WalletHostRuntime';
-import type { WalletHostConfig } from '../../packages/wallet/src/SeamsWeb/walletIframe/host/configuration';
+import type { WalletHostConfig } from '../../packages/wallet/src/SeamsWeb/walletIframe/shared/configuration';
 import type { SeamsConfigsInput, SeamsConfigsReadonly } from '../../packages/wallet/src/core/types/seams';
 declare const rawWalletConfig: SeamsConfigsInput;
 declare const commonWalletConfig: SeamsConfigsReadonly;
@@ -72,3 +72,15 @@ const nestedHostConfig = {
 };
 // @ts-expect-error Host configuration excludes a nested application iframe origin.
 new WalletHostRuntime(nestedHostConfig);
+
+
+import type { PMSetConfigPayload } from '../../packages/wallet/src/SeamsWeb/walletIframe/shared/messages';
+// @ts-expect-error Configuration messages require a complete resolved configuration.
+const missingHostConfig: PMSetConfigPayload = { kind: 'configure', assetsBaseUrl: 'https://wallet.example.com/sdk/' };
+// @ts-expect-error Appearance updates cannot replace execution settings.
+const mixedHostUpdate: PMSetConfigPayload = { kind: 'appearance', appearance: hostConfig.ui.appearance, config: hostConfig };
+// @ts-expect-error The retired partial input payload is not a configuration message.
+const partialHostUpdate: PMSetConfigPayload = { relayer: { url: 'https://relay.example.com' } };
+void missingHostConfig;
+void mixedHostUpdate;
+void partialHostUpdate;

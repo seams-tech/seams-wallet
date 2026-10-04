@@ -5,11 +5,11 @@ import { DEFAULT_THRESHOLD_SESSION_TTL_MS } from '../signingEngine/threshold/ses
 import type {
   SeamsChainConfig,
   SeamsConfigsInput,
+  SeamsClientConfig,
   SeamsConfigsReadonly,
   RouterAbEcdsaDerivationPresignaturePoolPolicy,
 } from '../types/seams';
 import { buildConfigsFromDefaults } from './configBuilder';
-import type { BuildConfigsOptions } from './configBuilder';
 
 export {
   THRESHOLD_ED25519_CLIENT_PARTICIPANT_ID,
@@ -180,13 +180,11 @@ export const PASSKEY_MANAGER_DEFAULT_CONFIGS: SeamsConfigsReadonly = {
 
 export function buildConfigsFromEnv(
   overrides: SeamsConfigsInput = {},
-  options?: BuildConfigsOptions,
-): SeamsConfigsReadonly {
+): SeamsClientConfig {
   return buildConfigsFromDefaults({
     defaults: PASSKEY_MANAGER_DEFAULT_CONFIGS,
     overrides,
     fallbackRouterAbEcdsaDerivationPresignaturePoolPolicy:
       DEFAULT_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL_POLICY,
-    options,
   });
 }

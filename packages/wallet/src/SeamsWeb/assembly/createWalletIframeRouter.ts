@@ -1,5 +1,5 @@
-import { cloneAuthenticatorOptions } from '@/core/types/authenticatorOptions';
-import type { AppearanceConfig, SeamsConfigsReadonly } from '@/core/types/seams';
+import { createWalletHostConfig } from '@/SeamsWeb/walletIframe/shared/configuration';
+import type { AppearanceConfig, SeamsClientConfig } from '@/core/types/seams';
 import type { WalletIframeRouter } from '@/SeamsWeb/walletIframe/client/router';
 import { createWalletIframeOverlayState } from './createWalletIframeOverlayState';
 
@@ -19,34 +19,19 @@ function warnIfSameOriginWallet(walletOrigin: string): void {
 }
 
 export async function createWalletIframeRouter(args: {
-  configs: SeamsConfigsReadonly;
+  configs: SeamsClientConfig;
   walletOrigin: string;
   getAppearance: () => AppearanceConfig;
 }): Promise<WalletIframeRouter> {
   warnIfSameOriginWallet(args.walletOrigin);
 
   const { WalletIframeRouter } = await import('@/SeamsWeb/walletIframe/client/router');
-  const signingSessionPersistenceMode = args.configs.signing.sessionPersistenceMode;
   return new WalletIframeRouter({
     walletOrigin: args.walletOrigin,
     servicePath: args.configs.wallet.iframe?.servicePath || '/wallet-service',
     connectTimeoutMs: 20_000,
     requestTimeoutMs: 60_000,
-    chains: args.configs.network.chains,
-    relayerAccount: args.configs.network.relayer.accountId,
-    relayer: {
-      url: args.configs.network.relayer.url,
-      delegateActionRoute: args.configs.network.relayer.routes.delegateAction,
-    },
-    registration: args.configs.registration,
-    signingSessionDefaults: args.configs.signing.sessionDefaults,
-    signingSessionPersistenceMode,
-    emailOtpAuthPolicy: args.configs.signing.emailOtp.authPolicy,
-    routerAb: args.configs.signing.routerAb,
-    routerAbEcdsaDerivationPresignaturePool: args.configs.signing.routerAbEcdsaDerivation.presignaturePool,
-    provisioningDefaults: args.configs.signing.thresholdEcdsa.provisioningDefaults,
-    rpIdOverride: args.configs.wallet.iframe?.rpIdOverride,
-    authenticatorOptions: cloneAuthenticatorOptions(args.configs.webauthn.authenticatorOptions),
+    hostConfig: createWalletHostConfig(args.configs),
     appearance: args.getAppearance(),
     getAppearance: args.getAppearance,
     sdkBasePath: args.configs.wallet.iframe?.sdkBasePath,

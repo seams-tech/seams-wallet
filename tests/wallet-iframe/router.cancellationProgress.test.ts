@@ -76,6 +76,7 @@ test.describe('WalletIframeRouter cancellation progress', () => {
         const waitFor = eval(waitForSource) as typeof import('./harness').waitFor;
 
         const router = new WalletIframeRouter({
+          hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
           walletOrigin,
           servicePath: '/wallet-service',
           connectTimeoutMs: 3000,
@@ -235,6 +236,7 @@ test.describe('WalletIframeRouter cancellation progress', () => {
         const capture = eval(captureOverlaySource) as typeof import('./harness').captureOverlay;
         const waitFor = eval(waitForSource) as typeof import('./harness').waitFor;
         const router = new WalletIframeRouter({
+          hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
           walletOrigin,
           servicePath: '/wallet-service',
           connectTimeoutMs: 3_000,
@@ -299,6 +301,7 @@ test.describe('WalletIframeRouter cancellation progress', () => {
         const capture = eval(captureOverlaySource) as typeof import('./harness').captureOverlay;
         const waitFor = eval(waitForSource) as typeof import('./harness').waitFor;
         const router = new WalletIframeRouter({
+          hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
           walletOrigin,
           servicePath: '/wallet-service',
           connectTimeoutMs: 3_000,

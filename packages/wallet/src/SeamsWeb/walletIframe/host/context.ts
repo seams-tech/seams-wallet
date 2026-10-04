@@ -1,18 +1,18 @@
 import { MinimalNearClient } from '@/core/rpcClients/near/NearClient';
 import { WalletHostRuntime } from '@/SeamsWeb/walletIframe/host/WalletHostRuntime';
 import { __setWalletIframeHostMode } from '@/core/browser/walletIframe/host-mode';
-import type { AppearanceConfig, SeamsConfigsInput } from '@/core/types/seams';
-import type { PMSetConfigPayload } from '../shared/messages';
+import type { AppearanceConfig } from '@/core/types/seams';
 import type { SdkLifecycleEvent, SdkLifecycleEventListener } from '@/core/types/sdkSentEvents';
 import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 import type { WalletSessionId } from '@/core/types/sdkSentEvents';
 import type { WalletId } from '@shared/utils/domainIds';
-import { isString } from '@shared/utils/validation';
-import { PASSKEY_MANAGER_DEFAULT_CONFIGS } from '@/core/config/defaultConfigs';
-import { resolveRuntimeAppearance } from '../shared/facadeBoundary';
 import { setEmbeddedBase } from '@/core/walletRuntimePaths';
-import { cloneChainConfig, resolvePrimaryNearRpcUrl } from '@/core/config/chains';
-import { resolveWalletHostConfig } from './configuration';
+import { resolvePrimaryNearRpcUrl } from '@/core/config/chains';
+import type {
+  WalletHostConfig,
+  ConfiguredWalletHost,
+  WalletHostConfigurationState,
+} from '../shared/configuration';
 import {
   createCspStylesheetManager,
   getDefaultCspNonce,
@@ -67,20 +67,13 @@ function stableSerialize(value: unknown): string {
   }
 }
 
-function buildWalletRuntimeResetFingerprint(config: SeamsConfigsInput | null | undefined): string {
+function buildWalletRuntimeResetFingerprint(config: WalletHostConfig | null): string {
   return stableSerialize({
-    chains: config?.chains,
-    relayerAccount: config?.relayerAccount,
-    relayer: config?.relayer,
+    network: config?.network,
     registration: config?.registration,
-    signingSessionDefaults: config?.signingSessionDefaults,
-    signingSessionPersistenceMode: config?.signingSessionPersistenceMode,
-    emailOtpAuthPolicy: config?.emailOtpAuthPolicy,
-    routerAb: config?.routerAb,
-    routerAbEcdsaDerivationPresignaturePool: config?.routerAbEcdsaDerivationPresignaturePool,
-    provisioningDefaults: config?.provisioningDefaults,
-    authenticatorOptions: config?.authenticatorOptions,
-    rpIdOverride: config?.iframeWallet?.rpIdOverride,
+    signing: config?.signing,
+    webauthn: config?.webauthn,
+    rpIdOverride: config?.wallet.iframe.rpIdOverride,
   });
 }
 
@@ -140,7 +133,7 @@ function upsertThemeOverrideStyle(appearance: AppearanceConfig): void {
 export interface HostContext {
   parentOrigin: string | null;
   port: MessagePort | null;
-  walletConfigs: SeamsConfigsInput | null;
+  configuration: WalletHostConfigurationState;
   nearClient: MinimalNearClient | null;
   walletRuntime: WalletHostRuntime | null;
   prefsUnsubscribe?: (() => void) | null;
@@ -154,7 +147,7 @@ export function createHostContext(): HostContext {
   return {
     parentOrigin: null,
     port: null,
-    walletConfigs: null,
+    configuration: { kind: 'unconfigured' },
     nearClient: null,
     walletRuntime: null,
     prefsUnsubscribe: null,
@@ -167,18 +160,17 @@ export function createHostContext(): HostContext {
 }
 
 export function ensureWalletRuntime(ctx: HostContext): WalletHostRuntime {
-  const { walletConfigs } = ctx;
-  if (!walletConfigs) {
+  const { configuration } = ctx;
+  if (configuration.kind === 'unconfigured') {
     throw new Error('Wallet service not configured. Call PM_SET_CONFIG first.');
   }
-  const nearRpcUrl = resolvePrimaryNearRpcUrl(walletConfigs.chains || []);
+  const nearRpcUrl = resolvePrimaryNearRpcUrl(configuration.config.network.chains);
   if (!ctx.nearClient) {
     ctx.nearClient = new MinimalNearClient(nearRpcUrl);
   }
   if (!ctx.walletRuntime) {
-    const cfg = resolveWalletHostConfig(walletConfigs);
     __setWalletIframeHostMode(true);
-    ctx.walletRuntime = new WalletHostRuntime(cfg, ctx.nearClient);
+    ctx.walletRuntime = new WalletHostRuntime(configuration.config, ctx.nearClient);
     updateThemeBridge(ctx);
   }
   return ctx.walletRuntime;
@@ -195,51 +187,13 @@ function updateThemeBridge(ctx: HostContext): void {
   } catch {}
 }
 
-export function applyWalletConfig(ctx: HostContext, payload: PMSetConfigPayload): void {
-  const prev = ctx.walletConfigs || {};
-  const prevRuntimeResetFingerprint = buildWalletRuntimeResetFingerprint(ctx.walletConfigs);
-  const nextSigningSessionPersistenceMode =
-    payload?.signingSessionPersistenceMode ?? prev.signingSessionPersistenceMode;
-  const nextChains = Array.isArray(payload?.chains)
-    ? payload.chains.map(cloneChainConfig)
-    : Array.isArray(prev.chains)
-      ? prev.chains.map(cloneChainConfig)
-      : [];
-  const previousAppearance = resolveRuntimeAppearance(
-    PASSKEY_MANAGER_DEFAULT_CONFIGS.ui.appearance,
-    prev.appearance ?? {},
-  );
-  const nextAppearance = resolveRuntimeAppearance(previousAppearance, payload.appearance ?? {});
+export function applyWalletConfig(ctx: HostContext, configuration: ConfiguredWalletHost): void {
+  const previous = ctx.configuration.kind === 'configured' ? ctx.configuration.config : null;
+  const prevRuntimeResetFingerprint = buildWalletRuntimeResetFingerprint(previous);
+  const nextRuntimeResetFingerprint = buildWalletRuntimeResetFingerprint(configuration.config);
+  ctx.configuration = configuration;
+  const nextAppearance = configuration.config.ui.appearance;
   const nextTheme = nextAppearance.theme.mode;
-
-  const base = {
-    chains: nextChains,
-    relayerAccount: payload?.relayerAccount ?? prev.relayerAccount ?? '',
-    signingSessionDefaults: payload?.signingSessionDefaults ?? prev.signingSessionDefaults,
-    signingSessionPersistenceMode: nextSigningSessionPersistenceMode,
-    emailOtpAuthPolicy: payload?.emailOtpAuthPolicy ?? prev.emailOtpAuthPolicy,
-    routerAb: payload?.routerAb ?? prev.routerAb,
-    routerAbEcdsaDerivationPresignaturePool:
-      payload?.routerAbEcdsaDerivationPresignaturePool ??
-      prev.routerAbEcdsaDerivationPresignaturePool,
-    provisioningDefaults: payload?.provisioningDefaults ?? prev.provisioningDefaults,
-    relayer:
-      payload?.relayer || prev.relayer
-        ? {
-            ...(prev.relayer || {}),
-            ...(payload?.relayer || {}),
-          }
-        : undefined,
-    registration: payload?.registration === undefined ? prev.registration : payload.registration,
-    authenticatorOptions: payload?.authenticatorOptions ?? prev.authenticatorOptions,
-    iframeWallet: {
-      ...(prev.iframeWallet || {}),
-      ...(payload?.iframeWallet || {}),
-    },
-    appearance: nextAppearance,
-  };
-  ctx.walletConfigs = base;
-  const nextRuntimeResetFingerprint = buildWalletRuntimeResetFingerprint(ctx.walletConfigs);
 
   // Keep wallet-host theme and dynamic appearance tokens in sync with app config.
   try {
@@ -247,40 +201,13 @@ export function applyWalletConfig(ctx: HostContext, payload: PMSetConfigPayload)
     upsertThemeOverrideStyle(nextAppearance);
   } catch {}
 
-  if (
-    ctx.walletRuntime &&
-    nextRuntimeResetFingerprint === prevRuntimeResetFingerprint
-  ) {
+  if (ctx.walletRuntime && nextRuntimeResetFingerprint === prevRuntimeResetFingerprint) {
     try {
       ctx.walletRuntime.setAppearance(nextAppearance);
     } catch {}
   }
 
-  // Configure the base URL used by SDK-hosted UI assets.
-  try {
-    const assetsBaseUrl = payload?.assetsBaseUrl;
-    const safeOrigin = window.location.origin || window.location.href;
-    const defaultRoot = (() => {
-      try {
-        const base = new URL('/sdk/', safeOrigin).toString();
-        return base.endsWith('/') ? base : base + '/';
-      } catch {
-        return '/sdk/';
-      }
-    })();
-    let resolvedBase = defaultRoot;
-    const assetsBaseUrlCandidate = isString(assetsBaseUrl) ? assetsBaseUrl : undefined;
-    if (assetsBaseUrlCandidate !== undefined) {
-      try {
-        const u = new URL(assetsBaseUrlCandidate, safeOrigin);
-        if (u.origin === safeOrigin) {
-          const norm = u.toString().endsWith('/') ? u.toString() : u.toString() + '/';
-          resolvedBase = norm;
-        }
-      } catch {}
-    }
-    setEmbeddedBase(resolvedBase);
-  } catch {}
+  setEmbeddedBase(resolveHostAssetBase(configuration.assetsBaseUrl));
 
   // Reset runtime instances only when signing/runtime config changes. Cosmetic config updates
   // (theme, tokens, and asset base) must not drop warm signing session state.
@@ -294,10 +221,21 @@ export function applyWalletConfig(ctx: HostContext, payload: PMSetConfigPayload)
     ctx.nearClient = null;
     ctx.walletRuntime = null;
   }
-
 }
 
-export function ensureWalletHostLifecycleSubscription(ctx: HostContext, pm: WalletHostRuntime): void {
+function resolveHostAssetBase(value: string): string {
+  const origin = window.location.origin;
+  try {
+    const url = new URL(value, origin);
+    if (url.origin === origin) return url.href.endsWith('/') ? url.href : `${url.href}/`;
+  } catch {}
+  return new URL('/sdk/', origin).href;
+}
+
+export function ensureWalletHostLifecycleSubscription(
+  ctx: HostContext,
+  pm: WalletHostRuntime,
+): void {
   if (ctx.lifecycleSource === pm) return;
   ctx.lifecycleUnsubscribe?.();
   ctx.lifecycleSource = pm;

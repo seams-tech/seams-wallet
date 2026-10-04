@@ -5,12 +5,9 @@ import type {
 } from '@/core/types/seams';
 
 /**
- * The four values a browser wallet cannot start without.
- *
- * Every field of `SeamsConfigsInput` is optional, because the wallet-host
- * runtime builds partial configs — which means `{} satisfies SeamsConfigsInput`
- * compiles and then throws at runtime. `defineSeamsConfig` is the application's
- * entry point, so it makes the real contract compile-time enforced.
+ * Required application values for managed wallet registration.
+ * The lower-level input permits omitted registration credentials for signing-only
+ * applications. This helper makes the standard registration setup explicit.
  */
 export type SeamsRequiredConfigInput = {
   /** Origin serving the wallet iframe, e.g. `https://wallet.example.com`. */

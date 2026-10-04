@@ -1,3 +1,5 @@
+import { replaceWalletHostAppearance, type WalletHostConfig } from '../shared/configuration';
+import { resolveRuntimeAppearance } from '../shared/facadeBoundary';
 import {
   TransactionReviewReservation,
   type TransactionDispatch,
@@ -123,8 +125,6 @@ import type {
   RegistrationResult,
   SignDelegateActionResult,
   SignTransactionResult,
-  SeamsChainConfig,
-  SeamsConfigsInput,
 } from '@/core/types/seams';
 import type { WalletIframeRequestId } from '@/SeamsWeb/publicApi/types';
 import { walletIframeSurfaceIdFromBoundary } from '@/core/types/walletIframeIdentity';
@@ -278,11 +278,8 @@ import { walletIdFromString } from '@shared/utils/registrationIds';
 import { type RegistrationAuthMethodInput } from '@shared/utils/registrationAuthMethodInput';
 import { joinNormalizedUrl, stripTrailingSlashes } from '@shared/utils/normalize';
 import { needsExplicitActivation } from '@/utils/deviceDetection';
-import type { AuthenticatorOptions } from '@/core/types/authenticatorOptions';
 import { type ConfirmationConfig } from '@/core/types/signer-worker';
 import type { SignNEP413MessageResult } from '@/SeamsWeb/operations/near/signNEP413';
-import { PASSKEY_MANAGER_DEFAULT_CONFIGS } from '@/core/config/defaultConfigs';
-import { cloneResolvedChainConfig } from '@/core/config/chains';
 import type { WalletEmailOtpLoginOperation } from '@shared/utils/emailOtpDomain';
 import type { LoginUnlockRequest } from '@/core/types/login.types';
 import { buildPMUnlockPayload } from '../shared/unlockOptions';
@@ -319,19 +316,7 @@ interface WalletIframeRouterOptions {
     // Lazy mounting: when false, do not auto-connect/mount during init(); connect on first use
     autoMount?: boolean;
   };
-  // Optional config forwarded to wallet host
-  chains?: readonly SeamsChainConfig[];
-  relayerAccount?: string;
-  relayer?: SeamsConfigsInput['relayer'];
-  registration?: SeamsConfigsInput['registration'];
-  signingSessionDefaults?: SeamsConfigsInput['signingSessionDefaults'];
-  signingSessionPersistenceMode?: SeamsConfigsInput['signingSessionPersistenceMode'];
-  emailOtpAuthPolicy?: SeamsConfigsInput['emailOtpAuthPolicy'];
-  routerAb?: SeamsConfigsInput['routerAb'];
-  routerAbEcdsaDerivationPresignaturePool?: SeamsConfigsInput['routerAbEcdsaDerivationPresignaturePool'];
-  provisioningDefaults?: SeamsConfigsInput['provisioningDefaults'];
-  rpIdOverride?: string;
-  authenticatorOptions?: AuthenticatorOptions;
+  hostConfig: WalletHostConfig;
   // SDK asset base path for embedded bundles when mounting same‑origin via srcdoc
   // Must serve dist/esm under this base path. Defaults to '/sdk'.
   sdkBasePath?: string;
@@ -1680,9 +1665,6 @@ export class WalletIframeRouter {
       servicePath: normalizedServicePath,
       sdkBasePath: normalizedSdkBasePath,
       testOptions,
-      chains: (options.chains ?? PASSKEY_MANAGER_DEFAULT_CONFIGS.network.chains).map(
-        cloneResolvedChainConfig,
-      ),
     } as Required<WalletIframeRouterOptions>;
     this.walletOriginUrl = parsedOrigin;
     this.walletOriginOrigin = parsedOrigin.origin;
@@ -2848,19 +2830,14 @@ export class WalletIframeRouter {
     await this.post({
       type: 'PM_SET_CONFIG',
       payload: {
-        chains: this.opts.chains,
-        relayerAccount: this.opts.relayerAccount,
-        relayer: this.opts.relayer,
-        registration: this.opts.registration,
-        signingSessionDefaults: this.opts.signingSessionDefaults,
-        signingSessionPersistenceMode: this.opts.signingSessionPersistenceMode,
-        emailOtpAuthPolicy: this.opts.emailOtpAuthPolicy,
-        routerAb: this.opts.routerAb,
-        routerAbEcdsaDerivationPresignaturePool: this.opts.routerAbEcdsaDerivationPresignaturePool,
-        provisioningDefaults: this.opts.provisioningDefaults,
-        iframeWallet: this.opts.rpIdOverride ? { rpIdOverride: this.opts.rpIdOverride } : undefined,
-        authenticatorOptions: this.opts.authenticatorOptions,
-        appearance: this.getCurrentAppearance(),
+        kind: 'configure',
+        config: replaceWalletHostAppearance(
+          this.opts.hostConfig,
+          resolveRuntimeAppearance(
+            this.opts.hostConfig.ui.appearance,
+            this.getCurrentAppearance() ?? {},
+          ),
+        ),
         assetsBaseUrl: this.walletAssetBaseUrl(),
       },
     });
@@ -3406,7 +3383,7 @@ export class WalletIframeRouter {
 
   async unlock(payload: LoginUnlockRequest): Promise<LoginAndCreateSessionResult> {
     await this.ensureHostedWalletSeamsSession(
-      hostedWalletSeamsSessionSourceFromUnlock(payload, this.opts.relayer?.url),
+      hostedWalletSeamsSessionSourceFromUnlock(payload, this.opts.hostConfig.network.relayer.url),
     );
     const unlockPayload = buildPMUnlockPayload(payload);
     const onEvent = unlockOnEventFromRequest(payload);
@@ -4106,7 +4083,12 @@ export class WalletIframeRouter {
    * fingerprint, so this never drops warm signing-session state.
    */
   async setAppearance(appearance: AppearanceConfigInput): Promise<void> {
-    await this.post<void>({ type: 'PM_SET_CONFIG', payload: { appearance } });
+    const resolved = resolveRuntimeAppearance(this.opts.hostConfig.ui.appearance, appearance);
+    await this.post<void>({
+      type: 'PM_SET_CONFIG',
+      payload: { kind: 'appearance', appearance: resolved },
+    });
+    this.opts.hostConfig = replaceWalletHostAppearance(this.opts.hostConfig, resolved);
   }
 
   async prefetchBlockheight(): Promise<void> {

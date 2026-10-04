@@ -2,7 +2,7 @@ import { syncAccount } from '@/SeamsWeb/operations/recovery/syncAccount';
 import { createWalletHostNearCommands } from '@/SeamsWeb/walletIframe/host/createNearCommands';
 import { createWalletHostEvmFamilyCommands } from '@/SeamsWeb/walletIframe/host/createEvmFamilyCommands';
 import { resolvePrimaryNearRpcUrl } from '@/core/config/chains';
-import type { WalletHostConfig } from './configuration';
+import type { WalletHostConfig } from '../shared/configuration';
 import { IndexedDBManager, configureIndexedDB } from '@/core/indexedDB';
 import { pendingWalletRecoveryCodeBackupRepository } from '@/core/indexedDB/seamsWalletDB/pendingWalletRecoveryCodeBackup';
 import type { TempoChainTarget } from '@/core/platform/types';

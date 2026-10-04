@@ -352,54 +352,52 @@ RP-override, cancellation, or Safari verification gates.
 ## Configuration boundary audit
 
 Source chain: `core/config/defineConfig.ts` → `configBuilder.ts` →
-`SeamsWeb/assembly/createWalletIframeRouter.ts` →
-`walletIframe/client/router.ts:connectAndConfigure` →
-`host/context.ts:applyWalletConfig` → host constructor normalization.
-`PMSetConfigPayload` currently extends `Partial<SeamsConfigsInput>`; that broad
-type does not prove every input field survives the round trip.
+`shared/configuration.ts:createWalletHostConfig` →
+`client/router.ts:connectAndConfigure` → `parseWalletConfigurationUpdate` →
+`host/context.ts:applyWalletConfig` → `WalletHostRuntime`.
 
-This table covers every top-level `SeamsConfigsInput` field, including nested
-transport settings. “Reset” means the current host fingerprint disposes the
-runtime when the effective field changes; it is evidence of current behavior,
-not permission to delete persisted presignatures.
+The client resolves defaults once. Protocol 3.0.0 sends a complete host snapshot,
+with a separate appearance-update branch. The host validates incoming values and
+stores the resolved snapshot directly. It does not merge raw inputs or apply its
+own defaults. An invalid update leaves the previous snapshot in place.
 
-| Input | Normalization and current transport | Target owner / update semantics |
+This table covers every top-level `SeamsConfigsInput` field. “Reset” means changed
+execution settings dispose the volatile runtime. It never authorizes deletion of
+valid durable presignatures. Fencing pending operations remains part of the
+protocol revision work.
+
+| Input | Resolved transport | Owner / update semantics |
 | --- | --- | --- |
-| `chains` | `resolveChains` resolves configured RPC/explorer/network values; router forwards normalized chains; host clones incoming array or retains previous array. | Client public RPC/selection and host signing config; reset. Preserve chain order and primary NEAR RPC selection. |
-| `relayerAccount` | Trimmed nonempty override, then default; sent separately from relayer object; host uses incoming, previous, then empty string. | Client display/public calls and host registration; reset. Preserve existing discovery separately from normalization. |
-| `relayer.url` | Trimmed override/default, required nonempty; forwarded and shallow-merged at host. | Both client relaying and host execution; reset. |
-| `relayer.delegateActionRoute` | Normalizes to `network.relayer.routes.delegateAction`. Assembly now maps the resolved route back to the explicit `delegateActionRoute` wire field. The browser round trip preserves the override. | Client relay helper retains the configured route. Explicitly serialize the input field for any host consumer; do not forward mismatched resolved/input objects. |
-| `registration` | Managed mode; publishable key required when registration config is explicitly supplied; optional environment cross-check, payment mode and NEAR provisioning normalized. Router forwards resolved object; host replaces the whole registration config when present. | Host ceremony/bootstrap; public client retains browser-safe registration config. Reset. Preserve signing-only construction without registration credentials. |
-| `signingSessionDefaults` | Per-field override/default for TTL and use budget; forwarded; host replaces the defaults object when supplied. | Host authority inputs, with existing per-operation overrides; reset. Do not reinterpret projection values as grants. |
-| `signingSessionPersistenceMode` | Validates `none` or `sealed_refresh_v1`; derives seal algorithm/group locally. Forwarded and retained when omitted. | Host persistence; reset. Keep existing storage names and schemas. |
-| `emailOtpAuthPolicy` | Validates `session` or `per_operation` into `signing.emailOtp.authPolicy`. Now forwarded by router options, PM_SET_CONFIG, and host config assembly; included in the execution reset fingerprint. | Host factor/signing policy. Carry the resolved policy explicitly at cutover and include it in effective execution-config identity. Add a real per-operation Email OTP contract before calling preservation verified. |
-| `routerAb` | Validates enabled/disabled normal-signing branch and required worker id; forwarded; host replaces when supplied. | Host signing policy; reset. Preserve the discriminated branch. |
-| `routerAbEcdsaDerivationPresignaturePool` | Validates enabled, depth, low-watermark, concurrency, timeout against existing bounds; forwarded; host replaces when supplied. | Host background refill policy; reset. Neither config reconstruction nor cosmetic updates authorize durable-pool deletion. |
-| `provisioningDefaults` | Copies the configured/default EVM and Tempo policies; forwarded; host replaces when supplied. | Host registration/signing setup, with existing per-call signer overrides; reset. |
-| `authenticatorOptions` | Whole input object or defaults; assembly clones the supported options; forwarded and retained when omitted. | Host ceremonies and wallet-origin browser adapter; reset. Preserve RP/origin and activation contracts. |
-| `iframeWallet.walletOrigin` | Required nonempty for public construction; used for iframe transport/origin checks. Host sanitizer forces empty to admit the current direct branch. | Client-only required origin. Delete host empty-string/mode workaround when separate construction lands. |
-| `iframeWallet.walletServicePath` | Trimmed nonempty override/default, then `/wallet-service`; used by router transport. | Client-only endpoint. Host needs no nested service path. |
-| `iframeWallet.sdkBasePath` | Trimmed nonempty override/default, then `/sdk`; router resolves it against wallet origin and sends `assetsBaseUrl`. Host accepts same-origin URL only, otherwise `/sdk/`. | Client URL construction and host asset resolution. Asset-base changes currently preserve warm execution state. Verify worker URL changes and disposal separately. |
-| `iframeWallet.walletHostVariant` | Normalized into resolved config; the application assembly does not pass it to router options. | Audit documented host-entry selection and actual consumers before retaining or deleting this option; do not claim transport coverage. |
-| `iframeWallet.rpIdOverride` | Input/default value; router sends it inside `iframeWallet`; host merges it before sanitizing nested origin/path. | Both supported credential adapters and host RP identity; reset. Must remain independent of service/asset URL choices. |
-| `appearance` | Theme/palette normalized in client; current appearance sent on connection. Host merges same-theme colors/shape and replaces them on theme-id change; absent update preserves previous appearance. | Client and host display only; no execution reset. Host updates CSS and existing runtime appearance. |
+| `chains` | `network.chains`, preserving configured order and resolved RPC/explorer values | Client public RPC/selection and host signing; reset. |
+| `relayerAccount` | `network.relayer.accountId` | Client public calls and host registration; reset. |
+| `relayer.url` | `network.relayer.url` | Client relaying and host execution; reset. |
+| `relayer.delegateActionRoute` | `network.relayer.routes.delegateAction`; no conversion back to raw input | Client relay helper and host consumers; reset. Custom route round trip is covered. |
+| `registration` | Complete resolved managed registration object | Host ceremony/bootstrap. Signing-only clients retain the resolved empty credential state; registration keeps its existing credential requirements. Reset. |
+| `signingSessionDefaults` | `signing.sessionDefaults` | Host defaults for operation inputs; reset. These values are not authority grants. |
+| `signingSessionPersistenceMode` | `signing.sessionPersistenceMode` and matching `signing.sessionSeal` branch | Host persistence; reset. Storage names and schemas remain unchanged. |
+| `emailOtpAuthPolicy` | `signing.emailOtp.authPolicy` | Host factor/signing policy; reset. Browser probe checks `per_operation` forwarding. Real per-operation signing remains an acceptance item. |
+| `routerAb` | `signing.routerAb`, with validated normal-signing branch | Host signing policy; reset. |
+| `routerAbEcdsaDerivationPresignaturePool` | `signing.routerAbEcdsaDerivation.presignaturePool`, validated against shared bounds | Host refill policy; reset. Durable-pool retention still applies. |
+| `provisioningDefaults` | `signing.thresholdEcdsa.provisioningDefaults` | Host registration/signing defaults; reset. |
+| `authenticatorOptions` | `webauthn.authenticatorOptions` | Host ceremonies and credential adapter; reset. |
+| `iframeWallet.walletOrigin` | Required on `SeamsClientConfig`; absent from `WalletHostConfig` | Client transport/origin checks. Empty-origin sanitizer and direct-mode normalization option are deleted. |
+| `iframeWallet.walletServicePath` | Client router option; still copied into host iframe metadata | Client-only endpoint. Remove the unused host field in remaining identity cleanup. |
+| `iframeWallet.sdkBasePath` | Router resolves `assetsBaseUrl`; host accepts its same-origin URL, otherwise `/sdk/` | Client URL construction and host asset resolution. Remove unused host iframe metadata; verify changed worker URLs separately. |
+| `iframeWallet.walletHostVariant` | Still present in resolved host metadata | Supported-consumer audit remains open; the mapper alone proves no entry-selection behavior. |
+| `iframeWallet.rpIdOverride` | Resolved host `wallet.iframe.rpIdOverride` | Credential identity; reset. Replace transport-shaped host metadata with explicit RP identity during remaining cleanup. |
+| `appearance` | Complete resolved `ui.appearance`; appearance updates have their own wire branch | Display only. Client resolver merges same-theme values and replaces old-theme values. Host updates CSS and existing runtime appearance without an execution reset. |
 
-The Email OTP policy omission and relayer route shape mismatch are fixed. A browser
-probe exercises the real client router, cross-origin iframe transport, host config
-application, and normalization. Both values survive an appearance-only update.
-This proves configuration forwarding; real per-operation authentication/signing and
-active-session replacement behavior remain acceptance work. Evidence is recorded in
-`evidence/refactor-170-config-forwarding-20261005.json`.
-`walletHostVariant` also needs a supported-consumer decision. Do not fix these by
-adding another default or a compatibility branch. Use explicit boundary mapping
-and update the paired protocol/version if the resulting semantics require it.
+Browser coverage uses the actual source router, cross-origin MessagePort transport,
+and actual host parser/config application. It covers policy, custom route, explicit
+RP, signing-only construction, rejection of an incomplete snapshot, and rendered
+CSS after theme changes. Production lifecycle coverage is recorded in the normalized
+configuration checkpoint below. The shared raw/direct config option and redundant
+host resolver are deleted. No old-payload fallback is retained.
 
-The host currently normalizes a second time against its own defaults. Separate
-client/host config must preserve the effective application settings rather than
-silently substituting host-release defaults. Cosmetic updates must continue to
-preserve the execution instance; changed execution settings must dispose its
-volatile resources and fence pending work. The new required host-config branch,
-paired protocol decision, and browser verification are still pending.
+Remaining work: explicit host RP identity, removal of client-only host metadata,
+`walletHostVariant` ownership, active-operation fencing on execution changes, and
+revision-ordered session/preference observations. Keep the unreleased protocol 3.0.0
+client and host paired; complete revision semantics before release.
 
 ## Worker and WASM inventory
 
@@ -815,8 +813,8 @@ Preserve the supported explicit runtime entry and durable presignatures on lock.
 
 | Candidate | Current caller / responsibility | Replacement owner and deletion condition | Verification | Status |
 | --- | --- | --- | --- | --- |
-| Host configuration construction | `configuration.ts` resolves the host input; `WalletHostRuntime` accepts `WalletHostConfig` | Empty-origin sanitizer and constructor-side normalization are deleted. Required resolved wire configuration and removal of the shared direct-mode option remain | Config browser round trip, type fixtures, intended lifecycle | Constructor boundary complete; wire split open |
-| `core/config/configBuilder.ts`, `walletIframe/host/context.ts` | Client defaults are resolved, then host merges and resolves again | One boundary normalization with explicit client/host ownership; remove duplicate application of defaults | Field inventory, custom policy/route behavior, cosmetic-update session preservation | Open |
+| Host configuration construction | Shared mapper/parser supplies required `WalletHostConfig` | Raw/direct normalization and redundant host resolver are deleted. Explicit RP identity and removal of unused client metadata remain | Config browser round trip, type fixtures, intended lifecycle | Resolved wire complete; identity cleanup open |
+| `core/config/configBuilder.ts`, `walletIframe/host/context.ts` | Client resolves defaults; host validates the complete snapshot | Duplicate host default application and raw merging are removed | Field inventory, custom policy/route behavior, cosmetic-update session preservation | Complete for normalized transport |
 | `core/browser/walletIframe/host-mode.ts` and callers | Process-wide execution-mode checks remain in host-internal paths | Explicit construction and operation ownership; remove callers that no longer distinguish supported behavior | Runtime entry checks, browser lifecycle, worker loading matrix | Open |
 | `SeamsWeb/publicApi`, `walletIframe/client`, `walletIframe/host` | Extracted factories, commands, callback adapters and facade assembly | Keep only layers with a distinct transport, identity, authorization, lifecycle, or public API role | Types, review/cancellation browser cases, intended signing/device/recovery flows | Open |
 | `walletIframe/coordinator.ts`, `client/router.ts`, `host/runtimeContext.ts` | Session and preference observations plus bootstrap reads | Versioned authoritative streams; delete superseded mirrors, fallback reads and subscriptions after protocol cutover | Bootstrap ordering, out-of-order reads, wallet switching, reconnect/disposal E2E | Open |
@@ -834,12 +832,10 @@ Concurrent relocation work is
 outside this count. Do not claim unique removed lines from cumulative diff totals.
 
 
-Configuration probe note: constructing a signing-only client without registration
-credentials still materializes a resolved registration object. Host re-normalization
-then treats it as explicit registration input and requires a publishable key. The
-probe uses explicit registration credentials to test the supported configured path.
-Resolve this signing-only construction gap in the client/host config split; do not
-add an empty-key exception or a compatibility fallback.
+Configuration probe resolution: signing-only construction now crosses the wire as
+resolved configuration. The host no longer interprets the empty resolved credential
+as explicit raw registration input. The browser probe covers both managed and
+signing-only clients; no raw-input exception or compatibility fallback was added.
 
 
 ### Host initialization cleanup checkpoint
@@ -903,3 +899,43 @@ the iframe. Old colors and shape values disappear after replacement. Auth policy
 custom relay route, and RP identity remain unchanged. Build, type and runtime-entry
 checks pass. Evidence is in `evidence/refactor-170-shared-appearance-20261005.json`.
 The normalized configuration wire contract and protocol ordering remain open.
+
+### Normalized configuration transport checkpoint
+
+The configuration wire contract is now implemented in both endpoints. The client
+constructs `WalletHostConfig` from its resolved configuration. The host validates
+the snapshot and stores it directly. Appearance messages carry a separate complete
+appearance value. Deleted the redundant host resolver, raw partial-config merging,
+the `allowDirectWalletMode` option, unused chain-cloning exports, and the retired
+mode alias. `SeamsWeb` now requires the narrower resolved client branch internally.
+
+Signing-only construction works without registration credentials because the host
+does not reinterpret resolved configuration as raw registration input. Invalid
+snapshots fail before state replacement. Configuration changes notify an existing
+runtime immediately without importing it during idle setup. The recovery summary
+browser test confirms that display and cancellation need no full runtime load.
+
+Both endpoints and the generated asset manifest declare protocol 3.0.0. Skew tests
+reject a 2.0.0 host and a newer incompatible endpoint. This starts an unreleased
+cutover: session/preference revision ordering remains required before release.
+Release the client and wallet assets together and roll back the pair together.
+No compatibility path accepts the old partial configuration payload.
+
+The production build, Wallet/state/browser/intended types, runtime-entry checks,
+external declarations, and bloat gate pass. All 44 selected browser cases and four
+production lifecycle cases pass. The lifecycle cases cover Email OTP registration
+and unlock, registration/signing asset traffic, signed-out cold/warm traffic, and
+passkey refresh with warm signing, one-use step-up, and export. Source hashes,
+sanitized receipts, reproduction commands, and package validation are recorded in
+`evidence/refactor-170-normalized-config-20261005.json`.
+
+This task adds 421 and removes 291 production lines, net +130. The boundary parser
+accounts for necessary validation that raw partial merging previously lacked.
+The root client measures 66,218 bytes static gzip and 93,297 bytes including its
+lazy router. The provider measures 73,225 and 103,055 bytes respectively, excluding
+React peers. These are JavaScript bundle measurements, not total page traffic.
+
+Remaining configuration cleanup: required explicit host RP identity, removal of
+unused client transport metadata from the host type, host-variant ownership, and
+active-operation fencing on execution replacement. The full revision-ordering,
+worker-loading, durable-presignature, R171, and consumer acceptance gates stay open.

@@ -1,0 +1,320 @@
+{
+  "scope": "Normalized client-to-host configuration, separate appearance updates, and paired unreleased protocol 3.0.0 endpoints.",
+  "baseRevision": "dee47f9a0c471fbaf8bbd5bbdd8b75e8fa2a4e47",
+  "sourceSha256": {
+    "packages/wallet/src/SeamsWeb/SeamsWeb.ts": "905feeb0523633ac291f9af3d458472c857da82b5960dbd84f56e4d956926ff2",
+    "packages/wallet/src/SeamsWeb/assembly/createWalletIframeRouter.ts": "80a9577201f149a6f941cd991cf73e2cc7a1257caad2fd61c6e0f1e2a0a0e66b",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/router.ts": "417443d9310715fc9d3f49f8b96f1095e0459a98802e12f1f7e310ba3ba9c56e",
+    "packages/wallet/src/SeamsWeb/walletIframe/coordinator.ts": "80673dbb90941c1c1bd044da991658e4f61d37a89b202956e064b08bc9407738",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/WalletHostRuntime.ts": "50850e1a387e8effe62d0b18a6a7e13910dd2f5554e2b3737c609352f0e38c51",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/context.ts": "b28891f55de45e574b655b78a77559c9216026ec8032296e9f72119d6c45208d",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/index.ts": "fd7bcb08a9200406cb9e853c83070613f608bac7b2d90edf62208d5455d48ed3",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/runtime-recovery-codes.ts": "012cc5ae11dccabe6c626c449a7e8423caee6713e824dad02a9c568c5680dc0a",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/runtimeContext.ts": "43939df22e2fd402c65e162910a872c7f5852f2573bf91daee3f84421157caaa",
+    "packages/wallet/src/SeamsWeb/walletIframe/shared/messages.ts": "442f804e9f80c69ce06f0328d2abd3a712161449cd87d0276a552af0bf91f93b",
+    "packages/wallet/src/core/config/chains.ts": "5770014e574c5c6f6db4d8cf1ad68082bab968ea56644a873f7115ed56cfd7ae",
+    "packages/wallet/src/core/config/configBuilder.ts": "995f61564238447e32685a9e3162f41786075335f2fb551239a61ff518b8f74c",
+    "packages/wallet/src/core/config/defaultConfigs.ts": "3a14c88c45f307e8dcc80a5ba399acbd0c0b029fb75edae52867ef70d13152ba",
+    "packages/wallet/src/core/config/defineConfig.ts": "ed9dfe1a462c4380065d0af2b6470ee664671d47abee9f7b0c97a4a0912a051e",
+    "packages/wallet/src/core/types/seams.ts": "785ed51c51f0e44c8250a268948731801392a2eb46e7498f2777d28d96ef1864",
+    "packages/wallet/src/index.ts": "9c3b53411fcaf885ca036d4fe72fd3e1f781080690122105fcc3e6cf0b0751d0",
+    "tests/setup/index.ts": "a3b058f61948c1639a07bfc17c19d91328569fe8d7c88de8d7807638a41506c2",
+    "tests/typecheck/wallet-command-inputs.typecheck.ts": "241c624a453a879ab786c41d463a6893bd9e021c672357dbf7d2aacd28d502aa",
+    "tests/unit/configs.iframeWalletDisable.test.ts": "33da32b12d12d10fc4c238f3ee881e1490d6365eefe65bfbe99091c76d22d939",
+    "tests/wallet-iframe/auth-menu.host.integration.test.ts": "e1a234b57d22e3e18ab2a93ec3e1223f996fe623bd816b878bc741a3e2c9b90f",
+    "tests/wallet-iframe/config.forwarding.test.ts": "c028860b16666756314c67d2290303ef1ca7e56bf67073cab5e8927c426e4a3a",
+    "tests/wallet-iframe/confirmSurface.treeGrowth.integration.test.ts": "f5ee07fe5dc036352f8f21b5822ebdd66c09889088915d69c16c05c7070c9f62",
+    "tests/wallet-iframe/export.flow.integration.test.ts": "58d6b027827939e442fdfb240e0d6eae3e31f355038b4ebb3df540ff8a7f9066",
+    "tests/wallet-iframe/export.surfaceVariant.integration.test.ts": "bb8f413a840b98854941fe87e8e6945c67c81a78301c125abba359fa1fc65dae",
+    "tests/wallet-iframe/handshake.test.ts": "2e5c725ac5c7aa3b7c653f88769d1e4ac5492ceaa03ae5e3d621f53d51c3dedc",
+    "tests/wallet-iframe/harness.ts": "173ad085fb7107fd6c489e5363f5edab3cd9a6cfcb7ec38ca16dd2aa2218cfee",
+    "tests/wallet-iframe/preferences.sync.test.ts": "0da8ca2272eecc63776708055c083b3e3e24332a8e5e3b59b07eb9f90874cf77",
+    "tests/wallet-iframe/recovery-code.host.integration.test.ts": "13552c1fc91eabfcdf4df10993c3911aeaef4afaab498eee14a436dbec8d4860",
+    "tests/wallet-iframe/router.behavior.test.ts": "e9b83dc288e29b3402fba6ae55f0ec656abdc755773a46c7447e63f70b966cd5",
+    "tests/wallet-iframe/router.cancellationProgress.test.ts": "079ab44398b0a03749b3294e6d77c41dfaf892a0aa1d2d0d9429c950b8e819e4",
+    "tests/wallet-iframe/router.connectionClosed.test.ts": "9cf40c0dda99e4058178000a5f29b2ab27e1be36d00b2b5e32a29a1dec2199a3",
+    "tests/wallet-iframe/router.sessionExpiryLifecycle.test.ts": "0fc943b8621cc94be4268fe75d6dca8469f75c94a2b5ad44f863c61abce65f95",
+    "tests/wallet-iframe/router.signingProgressForwarding.test.ts": "8841bf8b04cfe1f422efe85631818ae5aa2d5c309fc727c6545aeab14c342abb",
+    "tests/wallet-iframe/walletIframeSurface.compact.integration.test.ts": "d7dd200a5dadc2d50d08623f115e24aa5dc6bc9635c9792e67fc599ddc70c0b5",
+    "packages/wallet/src/SeamsWeb/walletIframe/shared/configuration.ts": "fedf06714e6943e2f2f60f9d5ee304bcce0e022a3811bb57abdf33aec99b80f7",
+    "tests/setup/walletHostConfig.ts": "cb0a831e40eaf2039123ade0286b6c2c7434a25cdc3c501aef6166938f42184c"
+  },
+  "deletedSourcePaths": [
+    "packages/wallet/src/SeamsWeb/walletIframe/host/configuration.ts"
+  ],
+  "productionLineChange": {
+    "added": 421,
+    "removed": 291,
+    "net": 130,
+    "scope": "This task only, hand-maintained packages source; tests and documentation excluded."
+  },
+  "checks": {
+    "productionBuild": "passed",
+    "walletTypes": "passed",
+    "walletStateTypes": "passed",
+    "browserTypes": "passed",
+    "intendedTypes": "passed",
+    "runtimeEntryBundles": "passed",
+    "externalDeclarations": "passed",
+    "browser": "44 passed",
+    "productionLifecycle": "4 passed",
+    "bloatGate": "passed",
+    "packedPackage": "passed"
+  },
+  "productionReceipt": [
+    "[wallet-intended] running 4 case(s) with fresh Wallet state",
+    "[wallet-intended] 1/4 e2e/intended-behaviours/email-otp.unlock.contract.test.ts:9 Email OTP registration and unlock lifecycle",
+    "  1 passed (48.8s)",
+    "[wallet-intended] 2/4 e2e/intended-behaviours/passkey.registration.assets.contract.test.ts:53 production wallet records asset traffic across registration, signing, and unlock",
+    "  1 passed (35.7s)",
+    "[wallet-intended] 3/4 e2e/intended-behaviours/passkey.registration.assets.contract.test.ts:111 production signed-out mount and menu record cold and warm cache traffic",
+    "  1 passed (34.8s)",
+    "[wallet-intended] 4/4 e2e/intended-behaviours/passkey.unlock.contract.test.ts:61 page refresh hydrates warm signing, one-use step-up, and key export",
+    "  1 passed (35.5s)"
+  ],
+  "browserReceipt": {
+    "initial": {
+      "rendered": {
+        "accentPrimary": "#123456",
+        "buttonBackground": "#abcdef",
+        "card": "8px",
+        "control": ""
+      },
+      "authPolicy": "per_operation",
+      "registrationConfigured": true,
+      "delegateRoute": "/custom/delegate",
+      "relayerUrl": "https://relay.example.localhost",
+      "theme": "dark",
+      "themeId": "first",
+      "colors": {
+        "accentPrimary": "#123456",
+        "buttonBackground": "#abcdef"
+      },
+      "shape": {
+        "card": "8px"
+      },
+      "walletMode": "direct",
+      "hasNestedOrigin": false,
+      "rpId": "wallet.example.localhost"
+    },
+    "rejected": "Error: Invalid resolved wallet host configuration",
+    "updated": {
+      "rendered": {
+        "accentPrimary": "#112233",
+        "buttonBackground": "#abcdef",
+        "card": "8px",
+        "control": "4px"
+      },
+      "authPolicy": "per_operation",
+      "registrationConfigured": true,
+      "delegateRoute": "/custom/delegate",
+      "relayerUrl": "https://relay.example.localhost",
+      "theme": "light",
+      "themeId": "first",
+      "colors": {
+        "accentPrimary": "#112233",
+        "buttonBackground": "#abcdef"
+      },
+      "shape": {
+        "card": "8px",
+        "control": "4px"
+      },
+      "walletMode": "direct",
+      "hasNestedOrigin": false,
+      "rpId": "wallet.example.localhost"
+    },
+    "switched": {
+      "rendered": {
+        "accentPrimary": "#654321",
+        "buttonBackground": "",
+        "card": "",
+        "control": ""
+      },
+      "authPolicy": "per_operation",
+      "registrationConfigured": true,
+      "delegateRoute": "/custom/delegate",
+      "relayerUrl": "https://relay.example.localhost",
+      "theme": "light",
+      "themeId": "second",
+      "colors": {
+        "accentPrimary": "#654321"
+      },
+      "shape": {},
+      "walletMode": "direct",
+      "hasNestedOrigin": false,
+      "rpId": "wallet.example.localhost"
+    },
+    "signingOnly": {
+      "rendered": {
+        "accentPrimary": "#123456",
+        "buttonBackground": "#abcdef",
+        "card": "8px",
+        "control": ""
+      },
+      "authPolicy": "per_operation",
+      "registrationConfigured": false,
+      "delegateRoute": "/custom/delegate",
+      "relayerUrl": "https://relay.example.localhost",
+      "theme": "dark",
+      "themeId": "first",
+      "colors": {
+        "accentPrimary": "#123456",
+        "buttonBackground": "#abcdef"
+      },
+      "shape": {
+        "card": "8px"
+      },
+      "walletMode": "direct",
+      "hasNestedOrigin": false,
+      "rpId": "wallet.example.localhost"
+    }
+  },
+  "bundleAccounting": "Production minified ESM with splitting; named exports retained. Static and all-reachable closures overlap. React peers excluded; dependencies otherwise bundled. CSS/assets separate. Per-file gzip level 9 and Brotli quality 11. No observed network or WASM traffic.",
+  "bundleFreshness": {
+    "status": "fresh",
+    "detail": "\u2705 Build is fresh"
+  },
+  "buildInputsHash": "8bc280bccc72c85b54ca245233625c9674a457af9b9597ff59f4ab6abb602a50",
+  "emittedEsmSha256": "d5a694dd49c8cba5ac0656bf1eb725b80609c48e381a407ff54c6563a5042ce1",
+  "consumers": [
+    {
+      "name": "root-client",
+      "entry": ".",
+      "exports": [
+        "SeamsWeb",
+        "defineSeamsConfig"
+      ],
+      "files": [
+        {
+          "path": "root-client-x2c58mg4.js",
+          "raw": 172973,
+          "gzip": 45268,
+          "brotli": 38981
+        },
+        {
+          "path": "root-client.js",
+          "raw": 86807,
+          "gzip": 20950,
+          "brotli": 18403
+        },
+        {
+          "path": "router-2m7hgcx7.js",
+          "raw": 110430,
+          "gzip": 27079,
+          "brotli": 22945
+        }
+      ],
+      "closures": {
+        "staticJavaScript": {
+          "raw": 259780,
+          "gzip": 66218,
+          "brotli": 57384,
+          "files": [
+            "root-client-x2c58mg4.js",
+            "root-client.js"
+          ],
+          "external": []
+        },
+        "allReachableJavaScript": {
+          "raw": 370210,
+          "gzip": 93297,
+          "brotli": 80329,
+          "files": [
+            "root-client-x2c58mg4.js",
+            "root-client.js",
+            "router-2m7hgcx7.js"
+          ],
+          "external": []
+        }
+      },
+      "assets": {
+        "raw": 0,
+        "gzip": 0,
+        "brotli": 0,
+        "files": []
+      }
+    },
+    {
+      "name": "react-provider",
+      "entry": "./react/provider",
+      "exports": [
+        "SeamsWebProvider"
+      ],
+      "files": [
+        {
+          "path": "react-provider-6x5sm7wd.js",
+          "raw": 161174,
+          "gzip": 42482,
+          "brotli": 36600
+        },
+        {
+          "path": "react-provider.js",
+          "raw": 120204,
+          "gzip": 30743,
+          "brotli": 26561
+        },
+        {
+          "path": "router-nbpbp353.js",
+          "raw": 122152,
+          "gzip": 29830,
+          "brotli": 25226
+        }
+      ],
+      "closures": {
+        "staticJavaScript": {
+          "raw": 281378,
+          "gzip": 73225,
+          "brotli": 63161,
+          "files": [
+            "react-provider-6x5sm7wd.js",
+            "react-provider.js"
+          ],
+          "external": [
+            "react",
+            "react/jsx-runtime"
+          ]
+        },
+        "allReachableJavaScript": {
+          "raw": 403530,
+          "gzip": 103055,
+          "brotli": 88387,
+          "files": [
+            "react-provider-6x5sm7wd.js",
+            "react-provider.js",
+            "router-nbpbp353.js"
+          ],
+          "external": [
+            "react",
+            "react/jsx-runtime"
+          ]
+        }
+      },
+      "assets": {
+        "raw": 0,
+        "gzip": 0,
+        "brotli": 0,
+        "files": []
+      }
+    }
+  ],
+  "assetManifestSha256": "aadcccfc1686cba5bb2fc534aa7915558e61cb9ac25c3ec1633fec0a28d62513",
+  "limitations": [
+    "Protocol 3.0.0 remains unreleased. Session and preference revisions are not yet implemented.",
+    "Explicit host RP identity, removal of unused client-only host metadata, active-operation fencing, and the complete worker matrix remain open.",
+    "Bundle measurements exclude actual wallet-origin network and WASM transfer."
+  ],
+  "reproduce": [
+    "pnpm -C packages/wallet build:prod",
+    "pnpm -C packages/wallet type-check",
+    "pnpm -C tests type-check:wallet-state",
+    "pnpm -C tests type-check:intended",
+    "pnpm -C tests exec tsc --noEmit -p tsconfig.wallet-browser.json",
+    "pnpm -C packages/wallet check:runtime-entry-bundles",
+    "pnpm -C packages/wallet check:declarations-external",
+    "pnpm check:packed-wallet",
+    "node packages/wallet/scripts/reports/report-lite-bundle-sizes.mjs --consumers --json",
+    "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/email-otp.unlock.contract.test.ts e2e/intended-behaviours/passkey.unlock.contract.test.ts e2e/intended-behaviours/passkey.registration.assets.contract.test.ts --grep 'Email OTP registration and unlock lifecycle|page refresh hydrates warm signing|production wallet records asset|production signed-out mount'",
+    "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4288 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/config.forwarding.test.ts wallet-iframe/handshake.test.ts wallet-iframe/preferences.sync.test.ts wallet-iframe/preferences.queue.test.ts wallet-iframe/router.behavior.test.ts wallet-iframe/router.cancellationProgress.test.ts wallet-iframe/router.sessionExpiryLifecycle.test.ts wallet-iframe/router.signingProgressForwarding.test.ts wallet-iframe/router.connectionClosed.test.ts wallet-iframe/walletIframeSurface.compact.integration.test.ts wallet-iframe/recovery-code.host.integration.test.ts --project=chromium",
+    "pnpm report:bloat --check"
+  ]
+}

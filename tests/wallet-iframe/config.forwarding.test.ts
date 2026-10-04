@@ -21,8 +21,10 @@ async function applyConfiguration(event) {
   if (event.data.type !== 'PM_SET_CONFIG') return originalConfigMessage(event);
   configurationModule ||= await import('/__config-probe.js');
   configContext ||= configurationModule.createHostContext();
-  configurationModule.applyWalletConfig(configContext, event.data.payload);
-  const resolved = configurationModule.resolveWalletHostConfig(configContext.walletConfigs);
+  const update = configurationModule.parseWalletConfigurationUpdate(event.data.payload);
+  const configured = configurationModule.applyWalletConfigurationUpdate(configContext.configuration, update);
+  configurationModule.applyWalletConfig(configContext, configured);
+  const resolved = configured.config;
   document.body.classList.add('seams-wallet-ui');
   const style = getComputedStyle(document.body);
   window.configurationReceipt = {
@@ -33,6 +35,7 @@ async function applyConfiguration(event) {
       control: style.getPropertyValue('--seams-shape-control').trim(),
     },
     authPolicy: resolved.signing.emailOtp.authPolicy,
+    registrationConfigured: resolved.registration.publishableKey.length > 0,
     delegateRoute: resolved.network.relayer.routes.delegateAction,
     relayerUrl: resolved.network.relayer.url,
     theme: resolved.ui.appearance.theme.mode,
@@ -57,14 +60,15 @@ async function serveProbe(source: string, route: Route): Promise<void> {
   await route.fulfill({ contentType: 'text/javascript', body: source });
 }
 
-async function configureClient(): Promise<void> {
+async function configureClient(registrationMode: 'managed' | 'signing_only'): Promise<void> {
   const modulePath = '/__config-probe.js';
   const sdk = await import(modulePath);
   const config = sdk.buildConfigsFromEnv({
     chains: [{ network: 'near-testnet' }],
     relayer: { url: 'https://relay.example.localhost', delegateActionRoute: '/custom/delegate' },
     emailOtpAuthPolicy: 'per_operation',
-    registration: { publishableKey: 'pk_test_configuration' },
+    registration:
+      registrationMode === 'managed' ? { publishableKey: 'pk_test_configuration' } : undefined,
     appearance: {
       theme: {
         id: 'first',
@@ -99,6 +103,25 @@ async function updateAppearance(appearance: AppearanceConfigInput): Promise<void
   await (window as any).configurationRouter.setAppearance(appearance);
 }
 
+async function rejectIncompleteConfiguration(): Promise<string> {
+  const router = (window as any).configurationRouter;
+  const config = structuredClone(router.opts.hostConfig);
+  delete config.signing.emailOtp;
+  try {
+    await router.post({
+      type: 'PM_SET_CONFIG',
+      payload: {
+        kind: 'configure',
+        config,
+        assetsBaseUrl: 'https://wallet.example.localhost/sdk/',
+      },
+    });
+    throw new Error('Incomplete configuration was accepted');
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+}
+
 function disposeClient(): void {
   (window as any).configurationRouter.dispose();
 }
@@ -113,7 +136,7 @@ test('iframe configuration preserves custom relay routes and Email OTP policy ac
       contents: `
         export { createWalletIframeRouter } from './packages/wallet/src/SeamsWeb/assembly/createWalletIframeRouter.ts';
         export { buildConfigsFromEnv } from './packages/wallet/src/core/config/defaultConfigs.ts';
-        export { resolveWalletHostConfig } from './packages/wallet/src/SeamsWeb/walletIframe/host/configuration.ts';
+        export { parseWalletConfigurationUpdate, applyWalletConfigurationUpdate } from './packages/wallet/src/SeamsWeb/walletIframe/shared/configuration.ts';
         export { createHostContext, applyWalletConfig } from './packages/wallet/src/SeamsWeb/walletIframe/host/context.ts';
       `,
       resolveDir: root,
@@ -133,17 +156,21 @@ test('iframe configuration preserves custom relay routes and Email OTP policy ac
     '**://wallet.example.localhost/wallet-service*',
   );
   await page.addScriptTag({ content: `window.readAppearance = ${readAppearance.toString()};` });
-  await page.evaluate(configureClient);
+  await page.evaluate<void, 'managed' | 'signing_only'>(configureClient, 'managed');
   const frame = page.frames().find(isWalletFrame)!;
   const initial = await frame.evaluate(readReceipt);
   expect(initial).toMatchObject({
     authPolicy: 'per_operation',
+    registrationConfigured: true,
     delegateRoute: '/custom/delegate',
     relayerUrl: 'https://relay.example.localhost',
     walletMode: 'direct',
     hasNestedOrigin: false,
     rpId: 'wallet.example.localhost',
   });
+  const rejected = await page.evaluate(rejectIncompleteConfiguration);
+  expect(rejected).toContain('Invalid resolved wallet host configuration');
+  expect(await frame.evaluate(readReceipt)).toEqual(initial);
   await page.evaluate<void, AppearanceConfigInput>(updateAppearance, {
     theme: {
       id: 'first',
@@ -177,9 +204,21 @@ test('iframe configuration preserves custom relay routes and Email OTP policy ac
     rendered: { accentPrimary: '#654321', buttonBackground: '', card: '', control: '' },
   });
   await page.evaluate(disposeClient);
+  await page.evaluate<void, 'managed' | 'signing_only'>(configureClient, 'signing_only');
+  const signingOnlyFrame = page.frames().find(isWalletFrame)!;
+  const signingOnly = await signingOnlyFrame.evaluate(readReceipt);
+  expect(signingOnly).toMatchObject({
+    registrationConfigured: false,
+    authPolicy: 'per_operation',
+    delegateRoute: '/custom/delegate',
+  });
+  await page.evaluate(disposeClient);
   const artifact = info.outputPath('configuration-forwarding.json');
   await mkdir(path.dirname(artifact), { recursive: true });
-  await writeFile(artifact, JSON.stringify({ initial, updated, switched }, null, 2));
+  await writeFile(
+    artifact,
+    JSON.stringify({ initial, rejected, updated, switched, signingOnly }, null, 2),
+  );
   await info.attach('configuration-forwarding.json', {
     path: artifact,
     contentType: 'application/json',

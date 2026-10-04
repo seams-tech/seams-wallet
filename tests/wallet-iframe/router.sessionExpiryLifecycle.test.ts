@@ -59,6 +59,7 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
           module as typeof import('@/SeamsWeb/walletIframe/client/router');
 
         const router = new WalletIframeRouter({
+          hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
           walletOrigin,
           servicePath: '/wallet-service',
           connectTimeoutMs: 3_000,
@@ -193,6 +194,7 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
         const { WalletIframeRouter } =
           module as typeof import('@/SeamsWeb/walletIframe/client/router');
         const router = new WalletIframeRouter({
+          hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
           walletOrigin,
           servicePath: '/wallet-service',
           connectTimeoutMs: 3_000,
@@ -298,6 +300,7 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
         const { WalletIframeRouter } =
           module as typeof import('@/SeamsWeb/walletIframe/client/router');
         const router = new WalletIframeRouter({
+          hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
           walletOrigin,
           servicePath: '/wallet-service',
           connectTimeoutMs: 3_000,
@@ -408,6 +411,7 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
         const { WalletIframeRouter } =
           module as typeof import('@/SeamsWeb/walletIframe/client/router');
         const router = new WalletIframeRouter({
+          hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
           walletOrigin,
           servicePath: '/wallet-service',
           connectTimeoutMs: 3_000,
@@ -462,6 +466,7 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
         const { WalletIframeRouter } =
           module as typeof import('@/SeamsWeb/walletIframe/client/router');
         const router = new WalletIframeRouter({
+          hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
           walletOrigin,
           servicePath: '/wallet-service',
           connectTimeoutMs: 3_000,

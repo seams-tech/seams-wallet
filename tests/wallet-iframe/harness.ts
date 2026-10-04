@@ -1,4 +1,6 @@
 import type { Page } from '@playwright/test';
+import { createTestWalletHostConfig } from '../setup/walletHostConfig';
+import { DEFAULT_TEST_CONFIG } from '../setup/config';
 import { injectImportMap } from '../setup/bootstrap';
 import { SDK_ESM_PATHS } from '../setup/sdkEsmPaths';
 import {
@@ -290,6 +292,7 @@ export const initRouter = async (page: Page, options: RouterHarnessOptions = {})
   await injectImportMap(page);
 
   const opts = {
+    hostConfig: createTestWalletHostConfig(DEFAULT_TEST_CONFIG),
     walletOrigin: 'https://wallet.test',
     servicePath: '/wallet-service',
     testOptions: { ownerTag: 'tests' },

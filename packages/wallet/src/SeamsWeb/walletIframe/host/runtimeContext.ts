@@ -8,7 +8,7 @@ import type {
   WalletIframeSurfaceMeasurement,
 } from '../shared/messages';
 import { WalletHostRuntime } from '@/SeamsWeb/walletIframe/host/WalletHostRuntime';
-import type { SeamsConfigsInput } from '@/core/types/seams';
+import type { WalletHostConfigurationState } from '../shared/configuration';
 import {
   applyWalletConfig,
   createHostContext,
@@ -35,7 +35,8 @@ import {
 export type WalletHostRuntimeState = {
   parentOrigin: string | null;
   port: MessagePort | null;
-  walletConfigs: SeamsConfigsInput | null;
+  configuration: WalletHostConfigurationState;
+  onConfigurationChanged: (() => void) | null;
 };
 
 export type WalletHostRuntimeRequest = {
@@ -168,21 +169,21 @@ function syncRuntimeContext(state: WalletHostRuntimeState): HostContext {
   if (!runtimeContext) {
     runtimeContext = createHostContext();
   }
+  state.onConfigurationChanged = syncActiveWalletHostRuntimeConfig.bind(null, state);
   runtimeContext.parentOrigin = state.parentOrigin;
   runtimeContext.port = state.port;
   if (state.parentOrigin !== null) {
     recordAdoptedWalletIframeParentOrigin(state.parentOrigin);
   }
   setWalletHostLifecycleListener(runtimeContext, postLifecycleEvent.bind(null, runtimeContext));
-  if (state.walletConfigs) {
-    applyWalletConfig(runtimeContext, state.walletConfigs);
-    state.walletConfigs = runtimeContext.walletConfigs;
+  if (state.configuration.kind === 'configured') {
+    applyWalletConfig(runtimeContext, state.configuration);
   }
   return runtimeContext;
 }
 
-export function syncActiveWalletHostRuntimeConfig(state: WalletHostRuntimeState): void {
-  if (!runtimeContext || !state.walletConfigs) return;
+function syncActiveWalletHostRuntimeConfig(state: WalletHostRuntimeState): void {
+  if (!runtimeContext || state.configuration.kind === 'unconfigured') return;
   syncRuntimeContext(state);
 }
 

@@ -18,7 +18,7 @@ import type {
   AppearanceConfigInput,
   RegistrationResult,
   SeamsConfigsInput,
-  SeamsConfigsReadonly,
+  SeamsClientConfig,
   ThemeMode,
 } from '@/core/types/seams';
 import {
@@ -85,7 +85,7 @@ export class SeamsWeb {
   private readonly disposePreferences: () => void;
   private readonly preferenceState = new ClientPreferenceState();
   private readonly nearClient: NearClient;
-  readonly configs: SeamsConfigsReadonly;
+  readonly configs: SeamsClientConfig;
   private appearance: AppearanceConfig;
   theme: ThemeMode;
   private readonly walletIframe: WalletIframeCoordinator;
@@ -100,7 +100,7 @@ export class SeamsWeb {
   readonly evm: EvmSignerCapability;
   private emailOtpUnlockPrewarmRecord: EmailOtpUnlockPrewarmRecord = { kind: 'none' };
   constructor(configs: SeamsConfigsInput, nearClient?: NearClient) {
-    this.configs = buildConfigsFromEnv(configs, {});
+    this.configs = buildConfigsFromEnv(configs);
     // Use provided client or create default one
     this.nearClient =
       nearClient || new MinimalNearClient(resolvePrimaryNearRpcUrl(this.configs.network.chains));

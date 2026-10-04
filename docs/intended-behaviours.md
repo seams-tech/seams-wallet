@@ -225,6 +225,17 @@ The SDK owns transient read retry and RPC handling. The browser contract is
 
 ## Hosted Auth Menu Entry Point
 
+The application resolves wallet configuration before sending it to the wallet
+host. The host validates the complete snapshot without applying defaults again.
+An incomplete snapshot is rejected before replacing the active configuration.
+Signing-only clients can initialize without registration credentials. Registration
+still requires its normal configured credentials.
+
+Appearance updates preserve execution settings and warm signing state. Updating
+the same theme merges its colors and shape values. Selecting another theme removes
+the previous theme's overrides. Configuration alone does not load the full wallet
+runtime; the recovery summary can appear and cancel without that runtime.
+
 When hosted wallet-iframe mode is configured, mounting `HostedSeamsAuthMenu` opens one
 `modal_auth_menu` surface in the wallet-origin iframe. The app document contains
 an inert loading shell until the hosted surface appears; auth inputs, progress, OTP prompts, and the final

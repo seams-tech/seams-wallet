@@ -115,11 +115,10 @@ async function openRealModal(page: Page, options: { greeting?: string } = {}): P
         /* @vite-ignore */ '/_test-sdk/esm/SeamsWeb/walletIframe/client/router.js' as string
       )) as typeof import('@/SeamsWeb/walletIframe/client/router');
       const router = new routerModule.WalletIframeRouter({
+        hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
         walletOrigin,
         servicePath: '/wallet-service',
         sdkBasePath: '/sdk',
-        relayer: { url: window.location.origin },
-        registration: { projectEnvironmentId: 'proj_local:test', publishableKey: 'pk_local' },
         requestTimeoutMs: 60_000,
         testOptions: { ownerTag: 'tree-growth-integration' },
       });

@@ -88,7 +88,8 @@ const PREFERENCES_PUSH_STUB = `
         }
 
         if (type === 'PM_SET_CONFIG') {
-          const themeMode = message?.payload?.appearance?.theme?.mode;
+          const appearance = message.payload.kind === 'configure' ? message.payload.config.ui.appearance : message.payload.appearance;
+          const themeMode = appearance.theme.mode;
           if (themeMode === 'dark' || themeMode === 'light') {
             window.__lastSetTheme = themeMode;
           }
@@ -313,14 +314,10 @@ test.describe('Wallet iframe preferences sync', () => {
         '/_test-sdk/esm/SeamsWeb/walletIframe/client/router.js'
       );
       const router = new routerModule.WalletIframeRouter({
+        hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
         walletOrigin,
         servicePath: '/wallet-service',
         sdkBasePath: '/sdk',
-        relayer: { url: window.location.origin },
-        registration: {
-          projectEnvironmentId: 'proj_local:test',
-          publishableKey: 'pk_local',
-        },
         requestTimeoutMs: 3_000,
       });
       await router.init();
@@ -365,6 +362,7 @@ test.describe('Wallet iframe preferences sync', () => {
         const { WalletIframeRouter } =
           await import('/_test-sdk/esm/SeamsWeb/walletIframe/client/router.js');
         const router = new WalletIframeRouter({
+          hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
           walletOrigin,
           servicePath: '/wallet-service',
           sdkBasePath: '/sdk',
