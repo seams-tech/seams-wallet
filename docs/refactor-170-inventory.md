@@ -1501,3 +1501,38 @@ scenario creates 20 across registration, signing, and unlock. These are current
 observations, not an attributed transfer saving. Production TypeScript adds six
 lines and removes 401, net −395. Build, types, declarations, runtime boundaries,
 and bloat checks pass.
+
+### Registration-menu preload checkpoint
+
+The `initialMode === 'register'` branch in `host/auth-menu/controller.ts` called
+`preloadWalletHostRegistrationSurface` before account input. That path loaded
+`runtime-near`, `runtime-ecdsa-tempo`, both EVM/Tempo signing implementations, and
+both signer engine constructors. It was independent of the selected registration
+operation. The branch, loader promise/helper, and `registrationPreparationPreload.ts`
+are deleted.
+
+Actual registration retains `AuthMenuSession.setRegistrationPreparation` and
+`startPasskeyPreparation`, then the controller's typed signer selection and
+`prepareHostedPasskeyRegistration`. `startRegistrationWarmup` still prepares ECDSA
+only when selected and Email OTP Yao only when the factor/signer set requires it.
+Signing still awaits the existing loaders through `transactionExecutor` and
+`signingFlowRuntime`. Recovery-code surface loading is unchanged.
+
+The earlier generic-menu measurement opened in login mode and did not cover this
+branch. The new production scenario opens a sponsored-account registration menu
+with empty input, under cold then warm caches. It records assets without invoking
+registration. An initial fixture used implicit-wallet mode, which supplies a
+generated read-only name; that was classified `valid_test_needs_update` and changed
+to the existing sponsored-account form before the SDK modification.
+
+The unchanged-SDK baseline fetched seven additional JS assets during cold menu
+opening, totaling 8,002 browser-reported encoded body bytes. After removal, the
+same cold-menu phase makes zero additional asset requests. Both runs create zero
+workers. This task removes 36 production TypeScript lines and adds none.
+The 11 browser cases and three production asset scenarios pass. The production
+scenario also checks that cold/warm empty registration menus fetch no signing
+implementation chunks. Build, types, declarations, and runtime boundary checks pass.
+Before/after artifacts, accounting limits, and production registration/signing
+acceptance are recorded in `evidence/refactor-170-registration-menu-20261005.json`.
+This is a measured deferral of unused menu work; do not infer a whole-operation
+payload saving or close the paired-median latency/complete worker-matrix gates.

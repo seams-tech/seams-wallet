@@ -1350,3 +1350,9 @@ The wallet host owns required preparation for each selected operation. Keep
 registration's signer-selection preparation, Email OTP Yao preparation, and
 first-use worker/WASM initialization. Removing an unused generic preparation
 entry must not remove these dependencies or create an all-signer startup path.
+
+Opening a registration menu while its account-name input is empty must not
+speculatively import unrelated signing implementations. The menu keeps its UI and
+input-validation lifecycle. Once registration preparation has a valid input, the
+existing selected-signer ceremony owns required crypto preparation. Cancellation
+must not terminate shared workers or discard durable signing material.

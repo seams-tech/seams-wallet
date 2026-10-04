@@ -84,6 +84,15 @@ export class WalletAssetEvidence {
     return this.workers.map(workerUrl);
   }
 
+  async getAssetUrlsForPhase(phase: string): Promise<readonly string[]> {
+    await Promise.all(this.pending);
+    const urls: string[] = [];
+    for (const asset of this.assets) {
+      if (asset.phase === phase) urls.push(asset.url);
+    }
+    return urls;
+  }
+
   setPhase(name: string): void {
     this.phases.push({
       name: this.phase,

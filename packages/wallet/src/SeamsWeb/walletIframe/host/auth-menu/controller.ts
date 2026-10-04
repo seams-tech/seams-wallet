@@ -37,7 +37,6 @@ import type {
   StartDevice2LinkingFlowResults,
 } from '@/core/types/linkDevice';
 import { listLocalLoginAuthMethods } from '@/SeamsWeb/operations/auth/login';
-import { preloadWalletHostRegistrationSurface } from '../runtimeLoader';
 import type {
   HostedRecoveryEmailOtpVerified,
   HostedRecoveryCredentialCreated,
@@ -154,8 +153,6 @@ function requestedWalletIdForLoginTarget(target: HostedAuthMenuLoginTarget): str
   }
 }
 
-function ignoreRegistrationPreloadFailure(): void {}
-
 function resolveOnNextTask(resolve: () => void): void {
   window.setTimeout(resolve, 0);
 }
@@ -204,9 +201,6 @@ export class AuthMenuController {
     try {
       session.mount();
       await yieldAfterAuthMenuMount();
-      if (args.request.initialMode === 'register') {
-        void preloadWalletHostRegistrationSurface().catch(ignoreRegistrationPreloadFailure);
-      }
       session.setRegistrationPreparation((registrationValue, cancellation) =>
         this.prepareRegistration(
           args.request,

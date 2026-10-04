@@ -69,7 +69,7 @@ async function observeSignedOutMount(page: Page): Promise<void> {
     .frameLocator('iframe.seams-wallet-overlay')
     .locator('body')
     .waitFor({ state: 'attached' });
-  // A fixed observation window includes the provider's idle preparation.
+  // Observe deferred activity after the provider connects.
   await page.waitForTimeout(2_000);
 }
 
@@ -122,4 +122,56 @@ async function measureSignedOutAssets(
 test(
   'production signed-out mount and menu record cold and warm cache traffic',
   measureSignedOutAssets,
+);
+
+async function observeUnselectedRegistrationMenu(page: Page): Promise<void> {
+  await page.getByTestId('asset-open-registration-menu').click();
+  const wallet = page.frameLocator('iframe.seams-wallet-overlay');
+  await expect(wallet.locator('[data-auth-menu-primary]').first()).toBeVisible();
+  await expect(wallet.locator('input').first()).toHaveValue('');
+  await page.waitForTimeout(2_000);
+}
+
+function isSigningImplementationUrl(url: string): boolean {
+  return /\/(?:runtime-ecdsa-tempo|signEvmWithUiConfirm|signEvmFamilyWithUiConfirmForTempo|webauthnP256|secp256k1)-[^/]+\.js$/u.test(
+    new URL(url).pathname,
+  );
+}
+
+async function measureUnselectedRegistrationAssets({
+  page,
+  assets,
+}: {
+  page: Page;
+  assets: WalletAssetEvidence;
+}): Promise<void> {
+  test.skip(process.env.SEAMS_INTENDED_PRODUCTION !== '1', 'Requires production app assets');
+  assets.setCachePolicy('enabled');
+  assets.setPhase('cold-registration-mount');
+  await observeSignedOutMount(page);
+  assets.setPhase('cold-unselected-registration-menu');
+  await observeUnselectedRegistrationMenu(page);
+  expect(
+    (await assets.getAssetUrlsForPhase('cold-unselected-registration-menu')).filter(
+      isSigningImplementationUrl,
+    ),
+  ).toEqual([]);
+  expect(assets.getWorkerUrls().filter(isCryptoWorkerUrl)).toEqual([]);
+  await page.goto('about:blank');
+  assets.setPhase('warm-registration-mount');
+  await observeSignedOutMount(page);
+  assets.setPhase('warm-unselected-registration-menu');
+  await observeUnselectedRegistrationMenu(page);
+  expect(
+    (await assets.getAssetUrlsForPhase('warm-unselected-registration-menu')).filter(
+      isSigningImplementationUrl,
+    ),
+  ).toEqual([]);
+  expect(assets.getWorkerUrls().filter(isCryptoWorkerUrl)).toEqual([]);
+  assets.setPhase('completed');
+}
+
+test(
+  'production registration menu awaits input with cold and warm caches',
+  measureUnselectedRegistrationAssets,
 );

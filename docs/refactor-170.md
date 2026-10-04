@@ -751,8 +751,9 @@ with React's redundant idle preparation hook and `eager` flag. Provider mount us
 `connection.connect`; selected operations retain host-owned preparation. Unused
 host prewarm options and their diagnostic records are deleted. See
 `evidence/refactor-170-preparation-cleanup-20261005.json`. The generic registration
-menu's JS preload closure and the complete worker dependency matrix still need
-measurement and refinement.
+menu preload is removed and measured separately in
+`evidence/refactor-170-registration-menu-20261005.json`. The complete worker
+dependency matrix and paired latency gates remain open.
 
 At the recorded bundle checkpoint, the production root-client static closure measured
 66,386 bytes gzip
