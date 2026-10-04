@@ -5817,6 +5817,31 @@ a batch may execute multiple SQL statements and produce many index writes.
 | Recovery-code rotation | Unmeasured total | Measure proof + envelope-set commit + locator reconciliation | Keep old-code invalidation and replacement coordinated; no period with an acknowledged unusable replacement. |
 | Background material refill | Unmeasured total | Budget per completed usable item and per failed attempt | Count role-private D1, DO storage, reservations, completion/replay and cleanup separately. Amortize per batch only after recording its yield. |
 
+Source-audited subflow floors (October 4) make the unmeasured totals more concrete:
+
+- **Google/OTP recovery attempt coordination: at least 7 D1 calls on the linear
+  success path.** Persist the prepared attempt (1), read and advance it after
+  Google verification (2), read and advance it after OTP verification (2), read it
+  during finalization (1), and atomically commit its finalized state with the
+  replacement authority/envelope (1). These are the calls in
+  `d1WalletRecoveryGoogleEmailOtpService.ts`, its attempt store, and
+  `d1WalletCustodyCommitStore.commitRecoveryGoogleEmailOtpAuthorityInstall`.
+  OTP issuance/consumption, manifest and continuity reads, locator publication,
+  signer roles and contention add calls. Seven is a floor for this subflow,
+  **not a measured recovery total or a seven-call target for the whole ceremony**.
+- **Ed25519 export authorization: at least 2 lifecycle-store calls before
+  admission/execution.** `runAuthorization` in
+  `routerAbEd25519YaoExportRequestScopedCloudflare.ts` loads the lifecycle, verifies
+  authorization, then commits the authorized state, nonce and operation together.
+  Authority resolution, subsequent admission/execution transitions, role material
+  access and completion add calls. Preserve the one atomic authorization commit;
+  do not optimize by acknowledging a nonce without its authorized operation.
+
+These floors retain today's persisted protocol phases. They are source analysis,
+not runtime measurements or a claim about an unconstrained redesigned protocol.
+The full-flow measurement tasks above remain necessary before setting numerical
+recovery/export ceilings.
+
 The first numeric reductions are deliberately small, tied to a concrete duplicate
 read. The much lower theoretical count for unlock or recovery depends on a wider
 transaction/API redesign and is not established by this audit. In particular,
@@ -5874,3 +5899,52 @@ unavailable. Evidence: private `.artifacts/r152/hosted-product-20261004/lifecycl
 and `run.log`; rerun instructions accompany the test. Regional travel/concurrency,
 remaining hosted fault cases and release stay open. See the release review for the
 partial-target unlock finding from an earlier probe.
+
+
+### October 4: hosted regional registration and WEUR-wallet travel
+
+Private test revision `bdf91d1` passed in **5.4 minutes**, using SDK `0c536cd4`
+and the already activated staging Gateway/Console/custody deployment. Temporary
+forwarding Container source was frozen at private `7349c6f`, with the existing
+probe Worker from public `0c536cd4`. Container identities confirmed Madrid
+`mad01` (WEUR), Chicago `ord16` (ENAM), and Tokyo `nrt14` (APAC).
+
+Three registrations overlapped for **9.917 seconds**. The authoritative Console
+D1 directory assigned the respective wallets to WEUR, US and APAC. The WEUR
+wallet then verified three Tempo signatures from each client in the order
+WEUR → APAC → US → WEUR: **12 verified travel signatures**. An explicit unlock
+restored the normal three-use budget before each cohort. A final unlock, NEAR
+signature and concurrent Tempo/Arc signatures also passed. Exact home records,
+including database and registration identities, were unchanged after travel.
+
+| Client location, same WEUR wallet | Samples | Median prepare + execute | Observed range |
+| --- | ---: | ---: | ---: |
+| Madrid | 6 | 3.733s | 3.452–4.054s |
+| Chicago | 3 | 3.544s | 3.513–3.826s |
+| Tokyo | 3 | 3.455s | 3.406–3.549s |
+
+These durations sum the two sequential signing Gateway requests measured inside
+the regional Container, excluding the local-browser-to-probe hop. They include
+Gateway/custody processing. They are **not native full-browser latency**, do not
+isolate D1 time, and do not establish that Tokyo is faster than Europe. The small
+sample shows comparable backend signing times under this cohort's conditions.
+Local-browser medians through the extra proxy hop were 15.146s, 13.985s and 11.179s;
+those numbers must not be compared with earlier direct-browser measurements.
+
+Four background presignature refill steps returned HTTP 503; all measured signing
+prepare/execute requests returned 200 and signatures verified. The retained trace
+contains no error response bodies, so the 503 cause is unclassified. Failed attempts
+are retained: the initial probe exhausted the intended three-use quota; a second
+attempt rejected a changed US Container boot identity before forwarding. The final
+run refreshes and pins identity at each regional transition.
+
+Evidence is private `.artifacts/r152/hosted-regional-probe-20261004/`:
+`regional-travel.json`, `summary.json`, `analyze.py`, `run.log`, source/identity
+records, before/after directory snapshots, and lifecycle traces. All three
+Containers were explicitly stopped; the probe Worker and all three Container
+applications were deleted. Follow-up inventories found zero remaining probe
+applications and zero probe Durable Object namespaces.
+
+This closes hosted concurrent regional registration and the WEUR-home backend
+travel cohort. The Phase 5 APAC-home mirror and native browser/individual D1
+latency accounting remain unproven by this run. No 0.8.0 package was published.

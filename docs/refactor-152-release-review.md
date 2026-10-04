@@ -2,6 +2,16 @@
 
 ## Current release gate — October 4
 
+Latest regional acceptance: concurrent Madrid/Chicago/Tokyo registrations selected
+WEUR/US/APAC homes. Twelve same-WEUR-wallet travel signatures and concurrent
+Tempo/Arc signing passed; exact home records stayed unchanged. Regional
+prepare/execute medians were 3.733s / 3.544s / 3.455s, measured at the proxy
+Containers, excluding the local-to-proxy hop. Four background refill 503s remain
+unclassified; foreground signing passed. Temporary infrastructure was removed.
+See the latest [results](refactor-152-results.md#october-4-hosted-regional-registration-and-weur-wallet-travel).
+The APAC-home mirror, remaining measurement/review gates and release remain open.
+
+
 Follow-up: the unused OIDC account-name derivation service and
 `ACCOUNT_ID_DERIVATION_SECRET` requirement have been removed from runtime options,
 public ports, deployment generation/preflight, and local fixtures. Registration

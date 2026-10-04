@@ -1622,7 +1622,10 @@ Next gates: hosted regional acceptance, D1-call targets, final cleanup review,
   Remove the obsolete parent-origin WebAuthn bridge exposed by this acceptance.
 - [x] Verify hosted unclaimed-link cancellation followed by successful linking
   from the same target browser, with unchanged owner inventory after cancellation.
-- [ ] Complete hosted regional concurrency/travel acceptance.
+- [x] Verify hosted concurrent Madrid/Chicago/Tokyo registration and a fixed
+  WEUR wallet signing through all three regional clients; retain scope and
+  background refill failures in the results.
+- [ ] Complete the APAC-home travel mirror and remaining Phase 5 measurement scope.
 
 Private evidence: `.artifacts/r152/hosted-candidate-20261004/`, including
 `deployment-readiness.json`, dry-run build and preflight logs. Public packed
