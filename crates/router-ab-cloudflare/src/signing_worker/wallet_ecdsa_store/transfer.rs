@@ -27,11 +27,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         &self,
         request: SigningWorkerEcdsaExportRequestV1,
     ) -> RouterAbProtocolResult<SigningWorkerEcdsaSnapshotChunkV1> {
-        if !(1..=65_536).contains(&request.chunk_bytes) {
-            return Err(wallet_error(
-                "ECDSA export chunk size must be 1 through 65536 bytes",
-            ));
-        }
+        validate_chunk_bytes(request.chunk_bytes)?;
         self.require_frozen_receipt(&request.receipt)?;
         let snapshot = self.ecdsa_snapshot(&request.receipt.scope)?;
         let bytes = snapshot.encode(&request.receipt.scope, &request.receipt.request)?;
@@ -57,4 +53,13 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
             data_b64u: crate::encode_base64url_bytes_v1(&bytes[start..end]),
         })
     }
+}
+
+pub(super) fn validate_chunk_bytes(size: u32) -> RouterAbProtocolResult<()> {
+    if !(1..=65_536).contains(&size) {
+        return Err(wallet_error(
+            "ECDSA transfer chunk size must be 1 through 65536 bytes",
+        ));
+    }
+    Ok(())
 }

@@ -15,6 +15,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
         require_cloudflare_gateway_to_signing_worker_presign_auth_request_v1(&request, &env)
     } else if path == crate::SIGNING_WORKER_POOL_FREEZE_PATH_V1
         || path == crate::SIGNING_WORKER_ECDSA_EXPORT_PATH_V1
+        || path == crate::SIGNING_WORKER_ECDSA_TRANSFER_PATH_V1
         || path == CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_ACTIVATION_PATH
         || path == CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PREPARE_PATH
         || path == CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH
@@ -40,6 +41,24 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
         Err(err) => return cloudflare_protocol_error_response_v1(err),
     };
     match path.as_str() {
+        #[cfg(feature = "wallet-do-signing-worker-harness")]
+        crate::SIGNING_WORKER_ECDSA_TRANSFER_PATH_V1 => {
+            if request.method() != Method::Post {
+                return Response::error("ECDSA transfer requires POST", 405);
+            }
+            let mut request = request;
+            let command = match request.json::<crate::SigningWorkerEcdsaTransferRequestV1>().await {
+                Ok(command) => command,
+                Err(_) => return Response::error("ECDSA transfer request is malformed", 400),
+            };
+            match crate::durable_object::call_signing_worker_wallet_do_v1(
+                &env,
+                crate::durable_object::SigningWorkerWalletDoRequestV1::TransferEcdsaSnapshot(command),
+            ).await {
+                Ok(response) => Ok(response),
+                Err(error) => cloudflare_protocol_error_response_v1(error),
+            }
+        }
         #[cfg(feature = "wallet-do-signing-worker-harness")]
         crate::SIGNING_WORKER_ECDSA_EXPORT_PATH_V1 => {
             if request.method() != Method::Post {

@@ -327,6 +327,21 @@ wallet inventory to verify each segment. Destination preparation, transactional
 import acknowledgements, verification, and coordinator command authority remain
 unfinished for this inventory.
 
+Wallet ECDSA destinations now support preparation and durable segment staging
+through the native and wallet-DO transports. Preparation requires an empty wallet
+inventory and pins the move and chunk size. Every accepted segment commits its
+bytes, acknowledgement, and next position in one host transaction. Exact retries
+read the saved acknowledgement. Changed inputs and out-of-order segments fail.
+Both prepared and importing destinations reject ordinary mutations and source
+freeze. The extended production-store E2E stages 33 segments, reopens for every
+retry, and injects an error before transaction commit to prove that bytes and
+acknowledgement roll back together. All segments remain staged and the destination
+stays inactive. Native and both WASM builds, the existing HTTP scenarios, and the
+bloat check pass. Evidence remains in `.artifacts/r153/ecdsa-import-20261005/`.
+Record restoration, full destination verification, activation, and coordinator
+command authority remain unfinished. HTTP transfer commands compile but their
+new preparation/import operations still need composed transport coverage.
+
 Retained evidence:
 `.artifacts/r153/execution-journal-20261004/`, receipt SHA-256
 `02184ddd17816901bf2413115c35ca33a43bd90a269fedaeffb7f6990d8af555`.

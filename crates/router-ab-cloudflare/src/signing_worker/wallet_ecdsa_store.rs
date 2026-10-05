@@ -13,6 +13,11 @@ use serde::de::DeserializeOwned;
 mod relocation;
 mod snapshot;
 mod transfer;
+mod import;
+pub use import::{
+    SigningWorkerEcdsaTransferRequestV1, SigningWorkerEcdsaTransferResponseV1,
+    SIGNING_WORKER_ECDSA_TRANSFER_PATH_V1,
+};
 pub use transfer::{
     SigningWorkerEcdsaExportRequestV1, SigningWorkerEcdsaSnapshotChunkV1,
     SIGNING_WORKER_ECDSA_EXPORT_PATH_V1,
@@ -70,12 +75,13 @@ const LINKED_ECDSA_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_linked_ecds
     owner_json TEXT NOT NULL,
     ciphertext_json TEXT NOT NULL)";
 /// The wallet store's ECDSA tables.
-pub(crate) const SIGNING_WORKER_WALLET_ECDSA_SCHEMA_V1: [&str; 5] = [
+pub(crate) const SIGNING_WORKER_WALLET_ECDSA_SCHEMA_V1: [&str; 6] = [
     ECDSA_POOL_SCHEMA,
     ECDSA_EFFECT_SCHEMA,
     ECDSA_ACTIVATION_SCHEMA,
     LINKED_ECDSA_SCHEMA,
     relocation::SCHEMA,
+    import::SCHEMA,
 ];
 
 /// The outcome of claiming one signing effect and consuming its presignature.

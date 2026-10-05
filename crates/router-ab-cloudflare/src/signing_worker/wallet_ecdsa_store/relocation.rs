@@ -28,6 +28,22 @@ pub struct SigningWorkerPoolFreezeRequestV1 {
     pub invalidated_at_ms: u64,
 }
 
+impl SigningWorkerPoolFreezeRequestV1 {
+    pub(super) fn validate(&self) -> RouterAbProtocolResult<()> {
+        if self.move_id.len() != 49
+            || !self.move_id.starts_with("wmove_")
+            || !self.move_id.as_bytes()[6..]
+                .iter()
+                .all(|byte| byte.is_ascii_alphanumeric() || *byte == b'_' || *byte == b'-')
+            || self.source_generation == 0
+            || self.source_generation >= 9_007_199_254_740_991
+        {
+            return Err(wallet_error("Pool relocation identity is invalid"));
+        }
+        crate::require_positive_ms("Pool relocation time", self.invalidated_at_ms)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SigningWorkerPoolFreezeReceiptV1 {
@@ -50,12 +66,22 @@ pub enum SigningWorkerPoolFreezeResponseV1 {
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
-enum Fence {
+pub(super) enum Fence {
     Draining {
         request: SigningWorkerPoolFreezeRequestV1,
     },
     Frozen {
         receipt: SigningWorkerPoolFreezeReceiptV1,
+    },
+    Prepared {
+        request: SigningWorkerPoolFreezeRequestV1,
+        chunk_bytes: u32,
+    },
+    Importing {
+        receipt: SigningWorkerPoolFreezeReceiptV1,
+        chunk_bytes: u32,
+        segment_count: u32,
+        next_segment: u32,
     },
 }
 
@@ -76,7 +102,7 @@ struct PoolRow {
 }
 
 impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
-    fn pool_fence(
+    pub(super) fn pool_fence(
         &self,
         scope: &CloudflareSigningWorkerWalletScopeV1,
     ) -> RouterAbProtocolResult<Option<Fence>> {
@@ -118,7 +144,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         }
     }
 
-    fn save_pool_fence(
+    pub(super) fn save_pool_fence(
         &self,
         scope: &CloudflareSigningWorkerWalletScopeV1,
         fence: &Fence,
@@ -153,17 +179,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         request: SigningWorkerPoolFreezeRequestV1,
     ) -> RouterAbProtocolResult<SigningWorkerPoolFreezeResponseV1> {
         scope.validate()?;
-        if request.move_id.len() != 49
-            || !request.move_id.starts_with("wmove_")
-            || !request.move_id.as_bytes()[6..]
-                .iter()
-                .all(|byte| byte.is_ascii_alphanumeric() || *byte == b'_' || *byte == b'-')
-            || request.source_generation == 0
-            || request.source_generation >= 9_007_199_254_740_991
-        {
-            return Err(wallet_error("Pool relocation identity is invalid"));
-        }
-        crate::require_positive_ms("Pool relocation time", request.invalidated_at_ms)?;
+        request.validate()?;
         match self.pool_fence(&scope)? {
             Some(Fence::Frozen { receipt }) => {
                 if receipt.request == request && receipt.scope == scope {
@@ -175,6 +191,11 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
                 return Err(wallet_error("Pool relocation inputs changed"))
             }
             Some(Fence::Draining { .. }) => {}
+            Some(Fence::Prepared { .. } | Fence::Importing { .. }) => {
+                return Err(wallet_error(
+                    "An import destination cannot freeze as a source",
+                ));
+            }
             None => self.save_pool_fence(
                 &scope,
                 &Fence::Draining {

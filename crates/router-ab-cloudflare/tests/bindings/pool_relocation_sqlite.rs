@@ -426,6 +426,11 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         "snapshot_includes_pool_activation_and_terminal_effect": true,
         "snapshot_record_count": receipt.record_count,
         "exported_segments": exported_segments,
+        "destination_preparation_exact_retry": true,
+        "chunk_and_acknowledgement_rollback_together": true,
+        "import_exact_retry_after_reopen": true,
+        "changed_import_and_out_of_order_segment_rejected": true,
+        "staged_destination_remains_inactive": true,
         "export_exact_after_reopen": true,
         "export_rejects_changed_receipt_and_bounds": true,
         "export_rejects_changed_source_inventory": true,
@@ -471,6 +476,57 @@ fn verify_snapshot_export(
         store.export_ecdsa_snapshot(request.clone())
     })?;
     assert!(first.segment_count > 1);
+    let destination = path.with_file_name("destination.sqlite");
+    let preparation = router_ab_cloudflare::SigningWorkerEcdsaTransferRequestV1::Prepare {
+        scope: receipt.scope.clone(),
+        request: receipt.request.clone(),
+        chunk_bytes: 1_024,
+    };
+    let prepared = with_store(&destination, env, |store| {
+        store.transfer_ecdsa_snapshot(preparation.clone())
+    })?;
+    assert_eq!(
+        with_store(&destination, env, |store| {
+            store.transfer_ecdsa_snapshot(preparation.clone())
+        })?,
+        prepared
+    );
+    assert!(with_store(path, env, |store| {
+        store.transfer_ecdsa_snapshot(preparation.clone())
+    })
+    .is_err());
+    assert!(with_store(&destination, env, |store| {
+        store.require_mutation_admission(&receipt.scope)
+    })
+    .is_err());
+    let mut out_of_order = first.clone();
+    out_of_order.segment_index = 1;
+    assert!(with_store(&destination, env, |store| {
+        store.transfer_ecdsa_snapshot(
+            router_ab_cloudflare::SigningWorkerEcdsaTransferRequestV1::Import {
+                chunk: out_of_order,
+            },
+        )
+    })
+    .is_err());
+    let rolled_back = with_store(&destination, env, |store| {
+        store.transfer_ecdsa_snapshot(
+            router_ab_cloudflare::SigningWorkerEcdsaTransferRequestV1::Import {
+                chunk: first.clone(),
+            },
+        )?;
+        Err::<(), _>(sql_error(
+            "simulated interruption before transaction commit",
+        ))
+    });
+    assert!(rolled_back.is_err());
+    let stored_chunks: u64 = Connection::open(&destination)?.query_row(
+        "SELECT COUNT(*) FROM wallet_ecdsa_import_chunks",
+        [],
+        |row| row.get(0),
+    )?;
+    assert_eq!(stored_chunks, 0);
+
     let mut bytes = Vec::new();
     for segment_index in 0..first.segment_count {
         request.segment_index = segment_index;
@@ -481,7 +537,34 @@ fn verify_snapshot_export(
             store.export_ecdsa_snapshot(request.clone())
         })?;
         assert_eq!(chunk, retried);
+        let import = router_ab_cloudflare::SigningWorkerEcdsaTransferRequestV1::Import {
+            chunk: chunk.clone(),
+        };
+        let acknowledged = with_store(&destination, env, |store| {
+            store.transfer_ecdsa_snapshot(import.clone())
+        })?;
+        assert_eq!(
+            with_store(&destination, env, |store| store
+                .transfer_ecdsa_snapshot(import.clone()))?,
+            acknowledged
+        );
         let data = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(&chunk.data_b64u)?;
+        let mut changed = chunk;
+        let mut changed_data = data.clone();
+        changed_data[0] ^= 1;
+        changed.data_b64u = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(changed_data);
+        let conflict = with_store(&destination, env, |store| {
+            store.transfer_ecdsa_snapshot(
+                router_ab_cloudflare::SigningWorkerEcdsaTransferRequestV1::Import {
+                    chunk: changed,
+                },
+            )
+        })
+        .unwrap_err();
+        assert_eq!(
+            conflict.code(),
+            RouterAbProtocolErrorCode::ReplayedLocalRequest
+        );
         assert!(!data.is_empty() && data.len() <= 1_024);
         bytes.extend(data);
     }
@@ -534,5 +617,20 @@ fn verify_snapshot_export(
             .export_ecdsa_snapshot(request.clone()))?,
         first,
     );
+    assert!(with_store(&destination, env, |store| {
+        store.require_mutation_admission(&receipt.scope)
+    })
+    .is_err());
+    assert!(
+        rows(&destination).is_empty(),
+        "staged chunks do not activate records"
+    );
+    assert_eq!(
+        with_store(&destination, env, |store| {
+            store.transfer_ecdsa_snapshot(preparation.clone())
+        })?,
+        prepared
+    );
+    std::fs::remove_file(destination)?;
     Ok(first.segment_count)
 }
