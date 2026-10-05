@@ -74,6 +74,16 @@ Session continuity, sealed-session restoration, and pool restoration are exclude
 
 ## Implemented baseline
 
+Authorization source capture now has an internal Gateway route. It obtains a live
+Console gateway freeze command before retirement, freeze, or snapshot writes.
+Commands include the immutable relocation request digest. The handler checks the
+wallet scope, operation, move identity, and command digest. Exact retries preserve
+retirement time, freeze time, and snapshot bytes. The public storage E2E supplies
+synthetic Console responses; the private directory E2E verifies actual command
+authorization separately. This receipt covers authorization storage only. Other
+participant settlement, complete source-fence assembly, and regional transport
+remain unfinished.
+
 Frozen authorization D1 records now have a durable snapshot and bounded export.
 SQLite encodes rows into exact JSON bytes before the server reads them. Capture
 pins the schema, writes ordered 32 KiB segments with digest-chain receipts, and

@@ -87,6 +87,7 @@ const bundle = await build({
       export { emailOtpChallengeRecord } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRecords';
       export { prepareD1TenantStatement } from './packages/wallet-server/src/core/d1TenantStore';
       export { buildEmailOtpEnrollmentFixture } from './tests/unit/helpers/emailOtpAuthMethod.fixtures';
+      export { WalletAuthorizationRelocationRoutes } from './packages/wallet-server/src/router/cloudflare/runtime/walletAuthorizationRelocationRoutes';
       export { WalletPlacementRoutes } from './packages/wallet-server/src/router/cloudflare/runtime/walletPlacementRoutes';
       export { WalletRelocationReadAccess } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationReadAccess';
       export { WalletRelocationOwnerRequest } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationOwnerRequest';

@@ -1,3 +1,4 @@
+import { WalletAuthorizationRelocationRoutes } from './router/cloudflare/runtime/walletAuthorizationRelocationRoutes';
 import { parseTenantId } from '@shared/authorization/capabilityKinds';
 import { parseSessionOrigin } from './authorization/domain';
 import { WalletPlacementRoutes } from './router/cloudflare/runtime/walletPlacementRoutes';
@@ -745,6 +746,11 @@ export async function createHostedWalletGatewayCompositionV1(
     signerDatabase: env.SIGNER_DB,
     signerStorageNamespace: scope.namespace,
     routeExtensions: [
+      new WalletAuthorizationRelocationRoutes({
+        database: env.SIGNER_DB,
+        scope,
+        directory: env.WALLET_CONSOLE,
+      }),
       new WalletPlacementRoutes({
         emailOtp: service.relocationEmailOtp,
         database: env.SIGNER_DB,
