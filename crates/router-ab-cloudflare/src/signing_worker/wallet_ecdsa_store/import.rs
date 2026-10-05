@@ -20,6 +20,10 @@ pub enum SigningWorkerEcdsaTransferRequestV1 {
         request: SigningWorkerPoolFreezeRequestV1,
         chunk_bytes: u32,
     },
+    Status {
+        receipt: SigningWorkerPoolFreezeReceiptV1,
+        chunk_bytes: u32,
+    },
     Import {
         chunk: SigningWorkerEcdsaSnapshotChunkV1,
     },
@@ -33,7 +37,7 @@ impl SigningWorkerEcdsaTransferRequestV1 {
         match self {
             Self::Prepare { scope, .. } => scope,
             Self::Import { chunk } => &chunk.receipt.scope,
-            Self::Verify { receipt } => &receipt.scope,
+            Self::Status { receipt, .. } | Self::Verify { receipt } => &receipt.scope,
         }
     }
 }
@@ -45,6 +49,12 @@ pub enum SigningWorkerEcdsaTransferResponseV1 {
         scope: CloudflareSigningWorkerWalletScopeV1,
         request: SigningWorkerPoolFreezeRequestV1,
         chunk_bytes: u32,
+    },
+    Receiving {
+        receipt: SigningWorkerPoolFreezeReceiptV1,
+        chunk_bytes: u32,
+        segment_count: u32,
+        next_segment: u32,
     },
     Imported {
         segment_index: u32,
@@ -73,6 +83,10 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
                 request,
                 chunk_bytes,
             } => self.prepare_ecdsa_import(scope, request, chunk_bytes),
+            SigningWorkerEcdsaTransferRequestV1::Status {
+                receipt,
+                chunk_bytes,
+            } => self.ecdsa_import_status(receipt, chunk_bytes),
             SigningWorkerEcdsaTransferRequestV1::Import { chunk } => self.import_ecdsa_chunk(chunk),
             SigningWorkerEcdsaTransferRequestV1::Verify { receipt } => {
                 self.verify_ecdsa_import(receipt)
@@ -128,6 +142,48 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
             request,
             chunk_bytes,
         })
+    }
+
+    // Read durable progress without admitting writes or opening the import gate.
+    fn ecdsa_import_status(
+        &self,
+        receipt: SigningWorkerPoolFreezeReceiptV1,
+        chunk_bytes: u32,
+    ) -> RouterAbProtocolResult<SigningWorkerEcdsaTransferResponseV1> {
+        validate_receipt(&receipt)?;
+        validate_chunk_bytes(chunk_bytes)?;
+        match self.pool_fence(&receipt.scope)? {
+            Some(Fence::Prepared {
+                request,
+                chunk_bytes: size,
+            }) if request == receipt.request && size == chunk_bytes => {
+                Ok(SigningWorkerEcdsaTransferResponseV1::Prepared {
+                    scope: receipt.scope,
+                    request,
+                    chunk_bytes,
+                })
+            }
+            Some(Fence::Importing {
+                receipt: stored,
+                chunk_bytes: size,
+                segment_count,
+                next_segment,
+            }) if stored == receipt && size == chunk_bytes => {
+                Ok(SigningWorkerEcdsaTransferResponseV1::Receiving {
+                    receipt,
+                    chunk_bytes,
+                    segment_count,
+                    next_segment,
+                })
+            }
+            Some(Fence::Verified {
+                receipt: stored,
+                chunk_bytes: size,
+            }) if stored == receipt && size == chunk_bytes => {
+                Ok(SigningWorkerEcdsaTransferResponseV1::Verified { receipt })
+            }
+            _ => Err(wallet_error("ECDSA import status identity differs")),
+        }
     }
 
     fn import_ecdsa_chunk(
@@ -207,23 +263,28 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
     }
 }
 
-fn decode_chunk(chunk: &SigningWorkerEcdsaSnapshotChunkV1) -> RouterAbProtocolResult<Vec<u8>> {
-    chunk.receipt.scope.validate()?;
-    chunk.receipt.request.validate()?;
-    validate_chunk_bytes(chunk.chunk_bytes)?;
-    if chunk.segment_count == 0
-        || chunk.segment_index >= chunk.segment_count
-        || chunk.data_b64u.len() > (chunk.chunk_bytes as usize).div_ceil(3) * 4
-        || chunk.receipt.wallet_records_digest_hex.len() != 64
-        || !chunk
-            .receipt
+fn validate_receipt(receipt: &SigningWorkerPoolFreezeReceiptV1) -> RouterAbProtocolResult<()> {
+    receipt.scope.validate()?;
+    receipt.request.validate()?;
+    if receipt.wallet_records_digest_hex.len() != 64
+        || !receipt
             .wallet_records_digest_hex
             .bytes()
             .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
     {
-        return Err(wallet_error(
-            "ECDSA import chunk bounds or digest are invalid",
-        ));
+        return Err(wallet_error("ECDSA import receipt digest is invalid"));
+    }
+    Ok(())
+}
+
+fn decode_chunk(chunk: &SigningWorkerEcdsaSnapshotChunkV1) -> RouterAbProtocolResult<Vec<u8>> {
+    validate_receipt(&chunk.receipt)?;
+    validate_chunk_bytes(chunk.chunk_bytes)?;
+    if chunk.segment_count == 0
+        || chunk.segment_index >= chunk.segment_count
+        || chunk.data_b64u.len() > (chunk.chunk_bytes as usize).div_ceil(3) * 4
+    {
+        return Err(wallet_error("ECDSA import chunk bounds are invalid"));
     }
     let data = crate::decode_base64url_bytes_v1("ECDSA import chunk", &chunk.data_b64u)?;
     if data.is_empty()
@@ -244,6 +305,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         &self,
         receipt: SigningWorkerPoolFreezeReceiptV1,
     ) -> RouterAbProtocolResult<SigningWorkerEcdsaTransferResponseV1> {
+        validate_receipt(&receipt)?;
         let (chunk_bytes, segment_count) = match self.pool_fence(&receipt.scope)? {
             Some(Fence::Verified {
                 receipt: stored, ..

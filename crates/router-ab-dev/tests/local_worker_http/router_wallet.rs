@@ -797,6 +797,15 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
     );
 
     println!(
+        "SIGNING_WORKER_IMPORT_PROGRESS_E2E {}",
+        json!({
+            "cursor_survives_restart": true,
+            "changed_manifest_rejected": true,
+            "verified_status_survives_restart": true,
+        })
+    );
+
+    println!(
         "R150_VM_ROUTER_WALLET_OBJECT_E2E {}",
         json!({
             "retry_while_claimed": [in_progress["code"], retry_after_ms],
@@ -1411,7 +1420,7 @@ fn verify_ecdsa_destination_transport(
         SigningWorkerEcdsaTransferRequestV1 as Command,
         SigningWorkerEcdsaTransferResponseV1 as Response,
     };
-    let worker = destination.start_signing_worker()?;
+    let mut worker = destination.start_signing_worker()?;
     let entries = parse_local_env_file_contents_v1(&std::fs::read_to_string(
         destination
             .temp
@@ -1444,6 +1453,14 @@ fn verify_ecdsa_destination_transport(
         serde_json::from_str::<Response>(&prepared_body)?,
         Response::Prepared { .. }
     ));
+    let status_command = Command::Status {
+        receipt: receipt.clone(),
+        chunk_bytes: 1_024,
+    };
+    let (status, initial_progress) =
+        transfer_ecdsa_http(&destination.signing_worker_url, credential, &status_command)?;
+    assert_eq!(status, 200, "{initial_progress}");
+    assert_eq!(initial_progress, prepared_body);
     let verify = Command::Verify {
         receipt: receipt.clone(),
     };
@@ -1476,6 +1493,37 @@ fn verify_ecdsa_destination_transport(
             serde_json::from_str::<Response>(&acknowledgement)?,
             Response::Imported { .. }
         ));
+        if export.segment_index == 0 {
+            drop(worker);
+            worker = destination.start_signing_worker()?;
+            let (status, progress) =
+                transfer_ecdsa_http(&destination.signing_worker_url, credential, &status_command)?;
+            assert_eq!(status, 200, "{progress}");
+            assert_eq!(
+                serde_json::from_str::<Response>(&progress)?,
+                Response::Receiving {
+                    receipt: receipt.clone(),
+                    chunk_bytes: 1_024,
+                    segment_count: count,
+                    next_segment: 1,
+                }
+            );
+            let mut changed = receipt.clone();
+            changed.wallet_records_digest_hex = "f".repeat(64);
+            let (status, _) = transfer_ecdsa_http(
+                &destination.signing_worker_url,
+                credential,
+                &Command::Status {
+                    receipt: changed,
+                    chunk_bytes: 1_024,
+                },
+            )?;
+            assert_ne!(status, 200);
+            let (status, replay) =
+                transfer_ecdsa_http(&destination.signing_worker_url, credential, &import)?;
+            assert_eq!(status, 200, "{replay}");
+            assert_eq!(replay, acknowledgement);
+        }
         export.segment_index += 1;
         if export.segment_index == count {
             break (import, acknowledgement);
@@ -1502,6 +1550,10 @@ fn verify_ecdsa_destination_transport(
         transfer_ecdsa_http(&destination.signing_worker_url, credential, &verify)?;
     assert_eq!(status, 200, "{replay}");
     assert_eq!(replay, verified_body);
+    let (status, progress) =
+        transfer_ecdsa_http(&destination.signing_worker_url, credential, &status_command)?;
+    assert_eq!(status, 200, "{progress}");
+    assert_eq!(progress, verified_body);
     let (status, replay) =
         transfer_ecdsa_http(&destination.signing_worker_url, credential, &preparation)?;
     assert_eq!(status, 200, "{replay}");
