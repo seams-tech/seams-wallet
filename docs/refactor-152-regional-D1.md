@@ -1,5 +1,34 @@
 # Refactor 152: regional D1 ownership and placement
 
+## Full MPC signing follow-up (October 5)
+
+**The two-second full-signing target remains open.** A native NRT browser with an
+APAC wallet measured **2.942s** with ready material and **5.788s** for consecutive
+signing in the rebuilt control. These timers include automated confirmation and
+end with the signed transaction. Blockchain confirmation is excluded.
+
+The client now replaces the last reserved presignature while signing continues.
+The verified candidate measured **3.051s** with ready material and **5.500s** for
+consecutive signing. This small sample shows no ready-signing gain and a roughly
+5% consecutive-signing median reduction. Variation is substantial, and the longest
+consecutive call remained 6.701s. Two failed attempts remain documented.
+
+Regional Gateway bindings now use the default fetch handler. Staging Console
+now targets Tokyo, beside its D1 primary. Its binding query fell from about 60ms
+to 10–25ms, while full signing remained around three seconds. These changes
+introduced no new Cloudflare resources and retain the **$25 total budget**.
+
+Read-only D1 queries found the custody primaries in **ICN, KIX and SIN**. OC
+wallet D1 serves in **SYD**. Thus, regional wallet D1 alone does not place the
+complete MPC signing path in Australia. Individual DO/Container placement still
+requires direct evidence.
+
+Next, measure and reduce the custody work inside prepare/finalize, then reconcile
+the two session-status checks with prepare's authority validation. Preserve
+revocation, budget and replay guarantees. See the
+[native signing results](refactor-152-results.md#native-mpc-signing-investigation-october-5-2026)
+for exact boundaries, sample counts, failure evidence, source hashes and commands.
+
 ## Oceania extension (October 5)
 
 The development candidate adds **OC** as the fourth wallet home. Trusted Oceania
