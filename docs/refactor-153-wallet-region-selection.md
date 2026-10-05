@@ -90,12 +90,24 @@ Private commits `72ce0f6` and `c0a57c6` implement the directory journal in
 
 This is an internal storage primitive. Its receipt parsers check shape and binding.
 Real participant authentication, writer fences, transfer, and activation remain
-unwired. The current journal records activation only at completion.
+unwired. Private commit `e87c500` adds migration 0073 and records activation during
+`cutover`, before cleanup. Its required activation branch retains the durable
+receipt through cleanup retries and restart. Recording activation preserves the
+current attempt and retry budget. Completion requires that prior activation.
 No owner relocation endpoint is enabled.
 
 The existing private directory E2E covers races, lost replies, restart, cooldown,
 receipt conflicts, stale attempts, budget exhaustion, and recovery. Its synthetic
 receipts prove directory behavior only. Extend this test for journal changes.
+
+The activation extension covers a lost activation reply, process restart, cleanup
+failure, exact replay, rejected conflicting receipts, and rejection of completion
+before activation. Type fixtures reject missing or wrong activation receipts and
+mixed phase fields. Console type checking, the type fixtures, and focused lint pass.
+The directory E2Es write repeatable evidence under the private
+`.artifacts/r153/activation-journal-20261005/` directory. This verifies journal
+behavior with synthetic participant receipts. Real execution authority and
+participant command contracts remain phase-one work.
 
 Retained evidence:
 `.artifacts/r153/execution-journal-20261004/`, receipt SHA-256
@@ -747,11 +759,11 @@ readiness must not add a Console roundtrip to every signature. Local generation
 fences and authoritative restart reconciliation still apply. Existing shared
 authorization dependencies require their separate latency assessment.
 
-The current `WalletRelocationProgress` type and migration 0071 permit activation
-and cleanup receipts only at `completed`. Extend that existing journal to persist
-activation during `cutover`. Model its activation state as required discriminated
-branches: awaiting activation or activated with its required receipt. Preserve
-the existing five phases and stage retry budget. Do not add an independent
+`WalletRelocationProgress` and migration 0073 persist activation during `cutover`.
+The required activation branches are `awaiting_activation` and `activated` with
+its receipt. Activation preserves the existing five phases and stage retry budget.
+Connect this journal state to authenticated participant evidence and regional
+execution authority. Do not add an independent
 `walletReady` flag or infer readiness from an error string or directory region.
 
 After activation, the destination can change normally. Retries verify the stored
