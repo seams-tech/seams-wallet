@@ -83,7 +83,6 @@ import type {
   LocalWalletAuthMethodRecord,
   LocalWalletAuthMethodProjectionV2,
   NonceLaneLeaseStoreRecord,
-  NonceLaneLeaseStoreRecordState,
   ProfileAuthenticatorRecord,
   ProfileContinuitySnapshot,
   ProfileRecord,
@@ -105,7 +104,6 @@ import type {
   WalletSignerLookup,
 } from '../passkeyClientDB.types';
 import type { ThresholdEcdsaChainTarget } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import { thresholdEcdsaChainTargetFromRequest } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { parseEcdsaThresholdKeyId } from '../../signingEngine/session/keyMaterialBrands';
 import { parseNearProvisioningState } from '../../types/sdkSentEvents';
 import { parseWalletAuthorityLinkedSignerMaterialRecordV1 } from '../linkedAuthoritySignerMaterial';
@@ -118,6 +116,8 @@ import {
 } from '../accountSignerLifecycle';
 import { parseLastProfileState } from '../lastProfileState';
 import {
+  parseStoredNonEmptyString,
+  signerChainTargetKey,
   normalizeIndexedDbAccountAddress,
   normalizeIndexedDbAccountModel,
   normalizeIndexedDbChainIdKey,
@@ -162,6 +162,24 @@ import {
   upsertEd25519YaoPublicCapabilityReferenceInTransaction,
   type Ed25519YaoPublicCapabilityReferenceV1,
 } from '../../signingEngine/threshold/ed25519/yaoPublicCapabilityReferences';
+import {
+  type NonceLaneLockRow,
+  nonceLeaseRow,
+  parseNonceLaneLockRow,
+  parseNonceLeaseRow,
+} from './nonceLeaseRows';
+import { signerOutboxRow, parseSignerOutboxRow } from './signerOutboxRows';
+import {
+  type WalletSignerRow,
+  CHAIN_ACCOUNT_PROJECTION_SIGNER_SLOT,
+  chainAccountProjectionId,
+  walletSignerId,
+  normalizeEcdsaChainTargetKey,
+  chainAccountProjectionRow,
+  parseChainAccountProjectionRow,
+  accountSignerRow,
+  parseAccountSignerRow,
+} from './accountSignerRows';
 
 function assertNever(value: never): never {
   throw new Error(`Unhandled wallet auth method branch: ${String(value)}`);
@@ -256,64 +274,6 @@ type WalletEmailOtpAuthMethodRow = WalletAuthMethodBaseRow & {
 };
 
 type WalletAuthMethodRow = WalletPasskeyAuthMethodRow | WalletEmailOtpAuthMethodRow;
-
-type ChainAccountProjectionRow = {
-  wallet_id: string;
-  near_account_id: string;
-  signer_slot: number;
-  profile_id: string;
-  chain_id_key: string;
-  account_address: string;
-  account_model: string;
-  is_primary: boolean;
-  updated_at: number;
-  record: ChainAccountRecord;
-};
-
-type WalletSignerRow = {
-  wallet_signer_id: string;
-  wallet_id: string;
-  kind: string;
-  chain_target_key: string;
-  near_signer_slot?: number;
-  near_ed25519_signing_key_id?: string;
-  key_handle?: string;
-  ecdsa_threshold_key_id?: string;
-  threshold_owner_address?: string;
-  status: AccountSignerStatus;
-  updated_at: number;
-  record: AccountSignerRecord;
-};
-
-type SignerOpsOutboxRow = {
-  op_id: string;
-  idempotency_key: string;
-  status: SignerOperationStatus;
-  next_attempt_at: number;
-  wallet_id: string;
-  chain_target_key: string;
-  updated_at: number;
-  record: SignerOpOutboxRecord;
-};
-
-type NonceLaneLeaseRow = {
-  lease_id: string;
-  lane_key: string;
-  wallet_id: string;
-  near_account_id?: string;
-  state: NonceLaneLeaseStoreRecordState;
-  expires_at_ms: number;
-  record: NonceLaneLeaseStoreRecord;
-};
-
-type NonceLaneLockRow = {
-  lock_key: string;
-  owner_id: string;
-  fencing_token: string;
-  acquired_at_ms: number;
-  expires_at_ms: number;
-  updated_at_ms: number;
-};
 
 type KeyMaterialRow = {
   key_material_id: string;
@@ -964,7 +924,6 @@ function requireWebAuthnRpId(value: string): WebAuthnRpId {
   if (!parsed.ok) throw new Error(parsed.error.message);
   return parsed.value;
 }
-const CHAIN_ACCOUNT_PROJECTION_SIGNER_SLOT = 0;
 
 class SeamsWalletDBConstraintError extends Error {
   readonly code: DBConstraintErrorCode;
@@ -989,209 +948,6 @@ function createRandomToken(prefix: string): string {
   return `${prefix}-${suffix}`;
 }
 
-function nonceLeaseWalletId(record: NonceLaneLeaseStoreRecord): string {
-  if (record.family === 'near') return record.walletId;
-  return record.accountId;
-}
-
-function nonceLeaseNearAccountId(record: NonceLaneLeaseStoreRecord): string {
-  return record.family === 'near' ? record.nearAccountId : '';
-}
-
-function nonceLeaseRow(record: NonceLaneLeaseStoreRecord): NonceLaneLeaseRow {
-  const leaseId = toTrimmedString(record.leaseId || '');
-  const laneKey = toTrimmedString(record.laneKey || '');
-  const walletId = toTrimmedString(nonceLeaseWalletId(record) || '');
-  const nearAccountId = toTrimmedString(nonceLeaseNearAccountId(record) || '');
-  if (!leaseId || !laneKey || !walletId) {
-    throw new Error('[SeamsWalletDB] nonce lease requires leaseId, laneKey, and wallet identity');
-  }
-  return {
-    lease_id: leaseId,
-    lane_key: laneKey,
-    wallet_id: walletId,
-    ...(nearAccountId ? { near_account_id: nearAccountId } : {}),
-    state: record.state,
-    expires_at_ms: Math.floor(Number(record.expiresAtMs)),
-    record,
-  };
-}
-
-function parseStoredNonEmptyString(value: unknown): string | null {
-  return typeof value === 'string' && value.length > 0 && value.trim() === value ? value : null;
-}
-
-function parseNonceLaneLockRow(value: unknown): NonceLaneLockRow | null {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
-  const lockKey = parseStoredNonEmptyString(Reflect.get(value, 'lock_key'));
-  const ownerId = parseStoredNonEmptyString(Reflect.get(value, 'owner_id'));
-  const fencingToken = parseStoredNonEmptyString(Reflect.get(value, 'fencing_token'));
-  const acquiredAtMs = Reflect.get(value, 'acquired_at_ms');
-  const expiresAtMs = Reflect.get(value, 'expires_at_ms');
-  const updatedAtMs = Reflect.get(value, 'updated_at_ms');
-  if (
-    !lockKey ||
-    !ownerId ||
-    !fencingToken ||
-    !Number.isSafeInteger(acquiredAtMs) ||
-    acquiredAtMs < 0 ||
-    !Number.isSafeInteger(expiresAtMs) ||
-    expiresAtMs < 0 ||
-    !Number.isSafeInteger(updatedAtMs) ||
-    updatedAtMs < 0
-  ) {
-    return null;
-  }
-  return {
-    lock_key: lockKey,
-    owner_id: ownerId,
-    fencing_token: fencingToken,
-    acquired_at_ms: acquiredAtMs,
-    expires_at_ms: expiresAtMs,
-    updated_at_ms: updatedAtMs,
-  };
-}
-
-function parseStoredThresholdEcdsaChainTarget(value: unknown): ThresholdEcdsaChainTarget | null {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
-  try {
-    return thresholdEcdsaChainTargetFromRequest({
-      kind: Reflect.get(value, 'kind'),
-      namespace: Reflect.get(value, 'namespace'),
-      chainId: Reflect.get(value, 'chainId'),
-      networkSlug: Reflect.get(value, 'networkSlug'),
-    });
-  } catch {
-    return null;
-  }
-}
-
-function parseNonceLeaseRecord(value: unknown): NonceLaneLeaseStoreRecord | null {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
-  const version = Reflect.get(value, 'v');
-  const leaseId = parseStoredNonEmptyString(Reflect.get(value, 'leaseId'));
-  const laneKey = parseStoredNonEmptyString(Reflect.get(value, 'laneKey'));
-  const networkKey = parseStoredNonEmptyString(Reflect.get(value, 'networkKey'));
-  const nonce = parseStoredNonEmptyString(Reflect.get(value, 'nonce'));
-  const operationId = parseStoredNonEmptyString(Reflect.get(value, 'operationId'));
-  const operationFingerprint = parseStoredNonEmptyString(
-    Reflect.get(value, 'operationFingerprint'),
-  );
-  const reservedAtMs = Reflect.get(value, 'reservedAtMs');
-  const expiresAtMs = Reflect.get(value, 'expiresAtMs');
-  const updatedAtMs = Reflect.get(value, 'updatedAtMs');
-  const state = Reflect.get(value, 'state');
-  if (
-    version !== 1 ||
-    !leaseId ||
-    !laneKey ||
-    !networkKey ||
-    !nonce ||
-    !operationId ||
-    !operationFingerprint ||
-    !Number.isSafeInteger(reservedAtMs) ||
-    !Number.isSafeInteger(expiresAtMs) ||
-    !Number.isSafeInteger(updatedAtMs) ||
-    (state !== 'reserved' && state !== 'signed' && state !== 'broadcast_accepted')
-  ) {
-    return null;
-  }
-
-  const txHash = Reflect.get(value, 'txHash');
-  if (state === 'broadcast_accepted' && !parseStoredNonEmptyString(txHash)) return null;
-  if (state !== 'broadcast_accepted' && txHash !== undefined) return null;
-
-  const runtimeId = Reflect.get(value, 'runtimeId');
-  const fencingToken = Reflect.get(value, 'fencingToken');
-  const batchId = Reflect.get(value, 'batchId');
-  const txIndex = Reflect.get(value, 'txIndex');
-  if (
-    (runtimeId !== undefined && !parseStoredNonEmptyString(runtimeId)) ||
-    (fencingToken !== undefined && !parseStoredNonEmptyString(fencingToken)) ||
-    (batchId !== undefined && !parseStoredNonEmptyString(batchId)) ||
-    (txIndex !== undefined && !Number.isSafeInteger(txIndex))
-  ) {
-    return null;
-  }
-
-  const family = Reflect.get(value, 'family');
-  if (family === 'near') {
-    const walletId = parseStoredNonEmptyString(Reflect.get(value, 'walletId'));
-    const nearAccountId = parseStoredNonEmptyString(Reflect.get(value, 'nearAccountId'));
-    const publicKey = parseStoredNonEmptyString(Reflect.get(value, 'publicKey'));
-    if (!walletId || !nearAccountId || !publicKey) return null;
-    const record: NonceLaneLeaseStoreRecord = {
-      v: 1,
-      leaseId,
-      laneKey,
-      networkKey,
-      nonce,
-      operationId,
-      operationFingerprint,
-      reservedAtMs,
-      expiresAtMs,
-      updatedAtMs,
-      family: 'near',
-      walletId,
-      nearAccountId,
-      publicKey,
-      state,
-      ...(runtimeId === undefined ? {} : { runtimeId }),
-      ...(fencingToken === undefined ? {} : { fencingToken }),
-      ...(batchId === undefined ? {} : { batchId }),
-      ...(txIndex === undefined ? {} : { txIndex }),
-      ...(state === 'broadcast_accepted' ? { txHash } : {}),
-    };
-    return record;
-  }
-  if (family !== 'evm') return null;
-  const chainTarget = parseStoredThresholdEcdsaChainTarget(Reflect.get(value, 'chainTarget'));
-  const sender = parseStoredNonEmptyString(Reflect.get(value, 'sender'));
-  const accountId = parseStoredNonEmptyString(Reflect.get(value, 'accountId'));
-  if (!chainTarget || !sender || !accountId) return null;
-  const nonceKey = Reflect.get(value, 'nonceKey');
-  if (nonceKey !== undefined && !parseStoredNonEmptyString(nonceKey)) return null;
-  const record: NonceLaneLeaseStoreRecord = {
-    v: 1,
-    leaseId,
-    laneKey,
-    networkKey,
-    nonce,
-    operationId,
-    operationFingerprint,
-    reservedAtMs,
-    expiresAtMs,
-    updatedAtMs,
-    family: 'evm',
-    chainTarget,
-    sender,
-    accountId,
-    state,
-    ...(runtimeId === undefined ? {} : { runtimeId }),
-    ...(fencingToken === undefined ? {} : { fencingToken }),
-    ...(batchId === undefined ? {} : { batchId }),
-    ...(txIndex === undefined ? {} : { txIndex }),
-    ...(nonceKey === undefined ? {} : { nonceKey }),
-    ...(state === 'broadcast_accepted' ? { txHash } : {}),
-  };
-  return record;
-}
-
-function parseNonceLeaseRow(value: unknown): NonceLaneLeaseStoreRecord | null {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
-  const record = parseNonceLeaseRecord(Reflect.get(value, 'record'));
-  if (!record) return null;
-  if (Reflect.get(value, 'lease_id') !== record.leaseId) return null;
-  if (Reflect.get(value, 'lane_key') !== record.laneKey) return null;
-  if (Reflect.get(value, 'wallet_id') !== nonceLeaseWalletId(record)) return null;
-  if ((Reflect.get(value, 'near_account_id') || '') !== nonceLeaseNearAccountId(record)) {
-    return null;
-  }
-  if (Reflect.get(value, 'state') !== record.state) return null;
-  if (Reflect.get(value, 'expires_at_ms') !== Math.floor(Number(record.expiresAtMs))) return null;
-  return record;
-}
-
 function keyRangeUpperBound(value: number): IDBKeyRange {
   return IDBKeyRange.upperBound(value);
 }
@@ -1212,95 +968,6 @@ function scopedLastProfileStateAppStateKey(scope?: string | null): string {
   return normalized
     ? `${LAST_PROFILE_STATE_APP_STATE_KEY}::${normalized}`
     : LAST_PROFILE_STATE_APP_STATE_KEY;
-}
-
-function chainAccountProjectionId(args: { chainIdKey: string; accountAddress: string }): string {
-  return `${args.chainIdKey}\0${args.accountAddress}`;
-}
-
-function walletSignerId(args: {
-  chainIdKey: string;
-  accountAddress: string;
-  signerId: string;
-}): string {
-  return [args.chainIdKey, args.accountAddress, args.signerId].join('\0');
-}
-
-function signerChainTargetKey(args: { chainIdKey: string; accountAddress: string }): string {
-  return [args.chainIdKey, args.accountAddress].join('\0');
-}
-
-function normalizeEcdsaChainTargetKey(value: unknown): string {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return '';
-  const kind = toTrimmedString(Reflect.get(value, 'kind') || '');
-  const chainId = Number(Reflect.get(value, 'chainId'));
-  if (!Number.isSafeInteger(chainId) || chainId <= 0) return '';
-  if (kind === 'evm') {
-    if (toTrimmedString(Reflect.get(value, 'namespace') || '') !== 'eip155') return '';
-    return toIndexedDbChainTargetKey({
-      kind: 'evm',
-      namespace: 'eip155',
-      chainId,
-      networkSlug: toTrimmedString(Reflect.get(value, 'networkSlug') || ''),
-    });
-  }
-  if (kind === 'tempo') {
-    return toIndexedDbChainTargetKey({
-      kind: 'tempo',
-      chainId,
-      networkSlug: toTrimmedString(Reflect.get(value, 'networkSlug') || ''),
-    });
-  }
-  return '';
-}
-
-type WalletSignerScalarMirrors = {
-  chainTargetKey: string;
-  nearSignerSlot?: number;
-  nearEd25519SigningKeyId?: string;
-  keyHandle?: string;
-  ecdsaThresholdKeyId?: string;
-  thresholdOwnerAddress?: string;
-};
-
-function walletSignerScalarMirrors(record: AccountSignerRecord): WalletSignerScalarMirrors {
-  if (record.signerKind === SIGNER_KINDS.thresholdEcdsa) {
-    const metadata = record.metadata || {};
-    const keyHandle = toTrimmedString(metadata.keyHandle || '');
-    const ecdsaThresholdKeyId = toTrimmedString(metadata.ecdsaThresholdKeyId || '');
-    const thresholdOwnerAddress = normalizeIndexedDbAccountAddress(
-      metadata.thresholdOwnerAddress || '',
-    );
-    const chainTargetKey = normalizeEcdsaChainTargetKey(metadata.chainTarget);
-    if (!keyHandle || !ecdsaThresholdKeyId || !thresholdOwnerAddress || !chainTargetKey) {
-      throw new Error(
-        '[SeamsWalletDB] threshold ECDSA signer requires keyHandle, ecdsaThresholdKeyId, thresholdOwnerAddress, and chainTarget',
-      );
-    }
-    return {
-      chainTargetKey,
-      keyHandle,
-      ecdsaThresholdKeyId,
-      thresholdOwnerAddress,
-    };
-  }
-
-  const signerSlot = Number(record.signerSlot);
-  if (!Number.isSafeInteger(signerSlot) || signerSlot < 1) {
-    throw new Error('[SeamsWalletDB] Ed25519 signer requires a positive signerSlot');
-  }
-  const nearEd25519SigningKeyId = toTrimmedString(record.metadata?.nearEd25519SigningKeyId || '');
-  if (!nearEd25519SigningKeyId) {
-    throw new Error('[SeamsWalletDB] Ed25519 signer requires nearEd25519SigningKeyId');
-  }
-  return {
-    chainTargetKey: signerChainTargetKey({
-      chainIdKey: record.chainIdKey,
-      accountAddress: record.accountAddress,
-    }),
-    nearSignerSlot: signerSlot,
-    nearEd25519SigningKeyId,
-  };
 }
 
 function shouldWriteNearAccountProjection(args: {
@@ -3793,316 +3460,6 @@ function walletAuthMethodRowsForRegistrationFinalize(
   return [...rows.values()];
 }
 
-function chainAccountProjectionRow(
-  input: UpsertChainAccountInput,
-  existing?: ChainAccountRecord,
-): ChainAccountProjectionRow {
-  const profileId = toTrimmedString(input.profileId || '');
-  const chainIdKey = normalizeIndexedDbChainIdKey(input.chainIdKey);
-  const accountAddress = normalizeIndexedDbAccountAddress(input.accountAddress);
-  const accountModel = normalizeIndexedDbAccountModel(input.accountModel);
-  if (!profileId || !chainIdKey || !accountAddress) {
-    throw new Error('[SeamsWalletDB] profileId, chainIdKey, and accountAddress are required');
-  }
-  if (!accountModel) {
-    throw new Error('[SeamsWalletDB] accountModel is required');
-  }
-  const now = Date.now();
-  const record: ChainAccountRecord = {
-    profileId,
-    chainIdKey,
-    accountAddress,
-    accountModel,
-    isPrimary: input.isPrimary ?? existing?.isPrimary ?? false,
-    createdAt: existing?.createdAt ?? now,
-    updatedAt: now,
-  };
-  return {
-    wallet_id: profileId,
-    near_account_id: chainAccountProjectionId({ chainIdKey, accountAddress }),
-    signer_slot: CHAIN_ACCOUNT_PROJECTION_SIGNER_SLOT,
-    profile_id: profileId,
-    chain_id_key: chainIdKey,
-    account_address: accountAddress,
-    account_model: accountModel,
-    is_primary: !!record.isPrimary,
-    updated_at: record.updatedAt,
-    record,
-  };
-}
-
-function parseStoredChainAccountRecord(value: unknown): ChainAccountRecord | null {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
-  const profileId = parseStoredNonEmptyString(Reflect.get(value, 'profileId'));
-  const chainIdKey = normalizeIndexedDbChainIdKey(Reflect.get(value, 'chainIdKey'));
-  const accountAddress = normalizeIndexedDbAccountAddress(Reflect.get(value, 'accountAddress'));
-  const accountModel = normalizeIndexedDbAccountModel(Reflect.get(value, 'accountModel'));
-  const createdAt = Reflect.get(value, 'createdAt');
-  const updatedAt = Reflect.get(value, 'updatedAt');
-  const isPrimary = Reflect.get(value, 'isPrimary');
-  if (
-    !profileId ||
-    !chainIdKey ||
-    !accountAddress ||
-    !accountModel ||
-    !Number.isSafeInteger(createdAt) ||
-    Number(createdAt) < 0 ||
-    !Number.isSafeInteger(updatedAt) ||
-    Number(updatedAt) < 0 ||
-    (isPrimary !== undefined && typeof isPrimary !== 'boolean')
-  ) {
-    return null;
-  }
-  return {
-    profileId,
-    chainIdKey,
-    accountAddress,
-    accountModel,
-    ...(isPrimary === undefined ? {} : { isPrimary }),
-    createdAt: Number(createdAt),
-    updatedAt: Number(updatedAt),
-  };
-}
-
-function parseChainAccountProjectionRow(value: unknown): ChainAccountRecord | null {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
-  const record = parseStoredChainAccountRecord(Reflect.get(value, 'record'));
-  if (!record) return null;
-  if (Reflect.get(value, 'wallet_id') !== record.profileId) return null;
-  if (Reflect.get(value, 'profile_id') !== record.profileId) return null;
-  if (Reflect.get(value, 'chain_id_key') !== record.chainIdKey) return null;
-  if (Reflect.get(value, 'account_address') !== record.accountAddress) return null;
-  if (Reflect.get(value, 'account_model') !== record.accountModel) return null;
-  if (Reflect.get(value, 'is_primary') !== !!record.isPrimary) return null;
-  if (Reflect.get(value, 'updated_at') !== record.updatedAt) return null;
-  if (
-    Reflect.get(value, 'near_account_id') !==
-    chainAccountProjectionId({
-      chainIdKey: record.chainIdKey,
-      accountAddress: record.accountAddress,
-    })
-  ) {
-    return null;
-  }
-  return record;
-}
-
-function accountSignerRow(record: AccountSignerRecord): WalletSignerRow {
-  const profileId = toTrimmedString(record.profileId || '');
-  const chainIdKey = normalizeIndexedDbChainIdKey(record.chainIdKey);
-  const accountAddress = normalizeIndexedDbAccountAddress(record.accountAddress);
-  const signerId = toTrimmedString(record.signerId || '');
-  const signerKind = toTrimmedString(record.signerKind || '');
-  if (!profileId || !chainIdKey || !accountAddress || !signerId || !signerKind) {
-    throw new Error(
-      '[SeamsWalletDB] signer requires profileId, chainIdKey, accountAddress, signerId, and signerKind',
-    );
-  }
-  const mirrors = walletSignerScalarMirrors({
-    ...record,
-    profileId,
-    chainIdKey,
-    accountAddress,
-    signerId,
-  });
-  const isActive = record.status === 'active';
-  return {
-    wallet_signer_id: walletSignerId({ chainIdKey, accountAddress, signerId }),
-    wallet_id: profileId,
-    kind: signerKind,
-    chain_target_key: mirrors.chainTargetKey,
-    ...(isActive && mirrors.nearSignerSlot != null
-      ? { near_signer_slot: mirrors.nearSignerSlot }
-      : {}),
-    ...(isActive && mirrors.nearEd25519SigningKeyId
-      ? { near_ed25519_signing_key_id: mirrors.nearEd25519SigningKeyId }
-      : {}),
-    ...(isActive && mirrors.keyHandle ? { key_handle: mirrors.keyHandle } : {}),
-    ...(isActive && mirrors.ecdsaThresholdKeyId
-      ? { ecdsa_threshold_key_id: mirrors.ecdsaThresholdKeyId }
-      : {}),
-    ...(isActive && mirrors.thresholdOwnerAddress
-      ? { threshold_owner_address: mirrors.thresholdOwnerAddress }
-      : {}),
-    status: record.status,
-    updated_at: record.updatedAt,
-    record: {
-      ...record,
-      profileId,
-      chainIdKey,
-      accountAddress,
-      signerId,
-    },
-  };
-}
-
-function parseStoredAccountSignerRecord(value: unknown): AccountSignerRecord | null {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
-  const profileId = parseStoredNonEmptyString(Reflect.get(value, 'profileId'));
-  const chainIdKey = normalizeIndexedDbChainIdKey(Reflect.get(value, 'chainIdKey'));
-  const accountAddress = normalizeIndexedDbAccountAddress(Reflect.get(value, 'accountAddress'));
-  const signerId = parseStoredNonEmptyString(Reflect.get(value, 'signerId'));
-  const signerSlot = Reflect.get(value, 'signerSlot');
-  const signerType = parseStoredNonEmptyString(Reflect.get(value, 'signerType'));
-  const signerKind = Reflect.get(value, 'signerKind');
-  const signerAuthMethod = Reflect.get(value, 'signerAuthMethod');
-  const signerSource = Reflect.get(value, 'signerSource');
-  const status = Reflect.get(value, 'status');
-  const addedAt = Reflect.get(value, 'addedAt');
-  const updatedAt = Reflect.get(value, 'updatedAt');
-  if (
-    !profileId ||
-    !chainIdKey ||
-    !accountAddress ||
-    !signerId ||
-    !Number.isSafeInteger(signerSlot) ||
-    Number(signerSlot) < 1 ||
-    !signerType ||
-    (signerKind !== SIGNER_KINDS.thresholdEd25519 && signerKind !== SIGNER_KINDS.thresholdEcdsa) ||
-    (signerAuthMethod !== 'passkey' && signerAuthMethod !== 'email_otp') ||
-    (signerSource !== 'passkey_registration' &&
-      signerSource !== 'email_otp_registration' &&
-      signerSource !== 'self_hosted_import') ||
-    (status !== 'active' && status !== 'pending' && status !== 'revoked') ||
-    !Number.isSafeInteger(addedAt) ||
-    Number(addedAt) < 0 ||
-    !Number.isSafeInteger(updatedAt) ||
-    Number(updatedAt) < 0
-  ) {
-    return null;
-  }
-  const metadataRaw = Reflect.get(value, 'metadata');
-  let metadata: Record<string, unknown> | undefined;
-  if (metadataRaw !== undefined) {
-    if (metadataRaw === null || typeof metadataRaw !== 'object' || Array.isArray(metadataRaw)) {
-      return null;
-    }
-    metadata = {};
-    for (const key of Object.keys(metadataRaw)) {
-      metadata[key] = Reflect.get(metadataRaw, key);
-    }
-  }
-  const removedAt = Reflect.get(value, 'removedAt');
-  const revocationReason = Reflect.get(value, 'revocationReason');
-  if (
-    (removedAt !== undefined && (!Number.isSafeInteger(removedAt) || Number(removedAt) < 0)) ||
-    (revocationReason !== undefined && typeof revocationReason !== 'string')
-  ) {
-    return null;
-  }
-  return {
-    profileId,
-    chainIdKey,
-    accountAddress,
-    signerId,
-    signerSlot: Number(signerSlot),
-    signerType,
-    signerKind,
-    signerAuthMethod,
-    signerSource,
-    status,
-    addedAt: Number(addedAt),
-    updatedAt: Number(updatedAt),
-    ...(removedAt === undefined ? {} : { removedAt: Number(removedAt) }),
-    ...(revocationReason === undefined ? {} : { revocationReason }),
-    ...(metadata === undefined ? {} : { metadata }),
-  };
-}
-
-function parseAccountSignerRow(value: unknown): AccountSignerRecord | null {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
-  const record = parseStoredAccountSignerRecord(Reflect.get(value, 'record'));
-  if (!record) return null;
-  if (
-    Reflect.get(value, 'wallet_signer_id') !==
-    walletSignerId({
-      chainIdKey: record.chainIdKey,
-      accountAddress: record.accountAddress,
-      signerId: record.signerId,
-    })
-  ) {
-    return null;
-  }
-  if (Reflect.get(value, 'wallet_id') !== record.profileId) return null;
-  if (Reflect.get(value, 'kind') !== record.signerKind) return null;
-  let mirrors: WalletSignerScalarMirrors;
-  try {
-    mirrors = walletSignerScalarMirrors(record);
-  } catch {
-    return null;
-  }
-  const requiresActiveMirrors = record.status === 'active';
-  if (record.signerKind === SIGNER_KINDS.thresholdEd25519) {
-    const chainTargetKey = Reflect.get(value, 'chain_target_key');
-    const nearSignerSlot = Reflect.get(value, 'near_signer_slot');
-    const nearEd25519SigningKeyId = Reflect.get(value, 'near_ed25519_signing_key_id');
-    if (chainTargetKey !== undefined && chainTargetKey !== mirrors.chainTargetKey) {
-      return null;
-    }
-    if (requiresActiveMirrors && nearSignerSlot !== mirrors.nearSignerSlot) {
-      return null;
-    }
-    if (
-      !requiresActiveMirrors &&
-      nearSignerSlot !== undefined &&
-      nearSignerSlot !== mirrors.nearSignerSlot
-    ) {
-      return null;
-    }
-    if (requiresActiveMirrors && nearEd25519SigningKeyId !== mirrors.nearEd25519SigningKeyId) {
-      return null;
-    }
-    if (
-      !requiresActiveMirrors &&
-      nearEd25519SigningKeyId !== undefined &&
-      nearEd25519SigningKeyId !== mirrors.nearEd25519SigningKeyId
-    ) {
-      return null;
-    }
-  } else if (
-    requiresActiveMirrors &&
-    Reflect.get(value, 'chain_target_key') !== mirrors.chainTargetKey
-  ) {
-    return null;
-  } else if (
-    !requiresActiveMirrors &&
-    Reflect.get(value, 'chain_target_key') !== undefined &&
-    Reflect.get(value, 'chain_target_key') !== mirrors.chainTargetKey
-  ) {
-    return null;
-  }
-  const keyHandle = Reflect.get(value, 'key_handle');
-  const ecdsaThresholdKeyId = Reflect.get(value, 'ecdsa_threshold_key_id');
-  const thresholdOwnerAddress = Reflect.get(value, 'threshold_owner_address');
-  if (requiresActiveMirrors && keyHandle !== mirrors.keyHandle) return null;
-  if (!requiresActiveMirrors && keyHandle !== undefined && keyHandle !== mirrors.keyHandle) {
-    return null;
-  }
-  if (requiresActiveMirrors && ecdsaThresholdKeyId !== mirrors.ecdsaThresholdKeyId) {
-    return null;
-  }
-  if (
-    !requiresActiveMirrors &&
-    ecdsaThresholdKeyId !== undefined &&
-    ecdsaThresholdKeyId !== mirrors.ecdsaThresholdKeyId
-  ) {
-    return null;
-  }
-  if (requiresActiveMirrors && thresholdOwnerAddress !== mirrors.thresholdOwnerAddress) {
-    return null;
-  }
-  if (
-    !requiresActiveMirrors &&
-    thresholdOwnerAddress !== undefined &&
-    thresholdOwnerAddress !== mirrors.thresholdOwnerAddress
-  ) {
-    return null;
-  }
-  if (Reflect.get(value, 'status') !== record.status) return null;
-  if (Reflect.get(value, 'updated_at') !== record.updatedAt) return null;
-  return record;
-}
-
 async function deleteConflictingThresholdEcdsaSignerRows(args: {
   store: any;
   nextRow: WalletSignerRow;
@@ -4138,132 +3495,6 @@ async function deleteConflictingThresholdEcdsaSignerRows(args: {
   for (const rowId of conflictingRowIds) {
     await args.store.delete(rowId);
   }
-}
-
-function signerOutboxRow(record: SignerOpOutboxRecord): SignerOpsOutboxRow {
-  const opId = toTrimmedString(record.opId || '');
-  const idempotencyKey = toTrimmedString(record.idempotencyKey || '');
-  const chainIdKey = normalizeIndexedDbChainIdKey(record.chainIdKey);
-  const accountAddress = normalizeIndexedDbAccountAddress(record.accountAddress);
-  const signerId = toTrimmedString(record.signerId || '');
-  if (!opId || !idempotencyKey || !chainIdKey || !accountAddress || !signerId) {
-    throw new Error(
-      '[SeamsWalletDB] signer op requires opId, idempotencyKey, chainIdKey, accountAddress, and signerId',
-    );
-  }
-  return {
-    op_id: opId,
-    idempotency_key: idempotencyKey,
-    status: record.status,
-    next_attempt_at: record.nextAttemptAt,
-    wallet_id: toTrimmedString(String(record.payload?.profileId || '')),
-    chain_target_key: signerChainTargetKey({ chainIdKey, accountAddress }),
-    updated_at: record.updatedAt,
-    record: {
-      ...record,
-      opId,
-      idempotencyKey,
-      chainIdKey,
-      accountAddress,
-      signerId,
-    },
-  };
-}
-
-function parseStoredSignerOutboxRecord(value: unknown): SignerOpOutboxRecord | null {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
-  const opId = parseStoredNonEmptyString(Reflect.get(value, 'opId'));
-  const idempotencyKey = parseStoredNonEmptyString(Reflect.get(value, 'idempotencyKey'));
-  const opType = parseStoredNonEmptyString(Reflect.get(value, 'opType'));
-  const chainIdKey = normalizeIndexedDbChainIdKey(Reflect.get(value, 'chainIdKey'));
-  const accountAddress = normalizeIndexedDbAccountAddress(Reflect.get(value, 'accountAddress'));
-  const signerId = parseStoredNonEmptyString(Reflect.get(value, 'signerId'));
-  const status = Reflect.get(value, 'status');
-  const attemptCount = Reflect.get(value, 'attemptCount');
-  const nextAttemptAt = Reflect.get(value, 'nextAttemptAt');
-  const createdAt = Reflect.get(value, 'createdAt');
-  const updatedAt = Reflect.get(value, 'updatedAt');
-  if (
-    !opId ||
-    !idempotencyKey ||
-    !opType ||
-    !chainIdKey ||
-    !accountAddress ||
-    !signerId ||
-    (status !== 'queued' &&
-      status !== 'submitted' &&
-      status !== 'confirmed' &&
-      status !== 'failed' &&
-      status !== 'dead-letter') ||
-    !Number.isSafeInteger(attemptCount) ||
-    Number(attemptCount) < 0 ||
-    !Number.isSafeInteger(nextAttemptAt) ||
-    Number(nextAttemptAt) < 0 ||
-    !Number.isSafeInteger(createdAt) ||
-    Number(createdAt) < 0 ||
-    !Number.isSafeInteger(updatedAt) ||
-    Number(updatedAt) < 0
-  ) {
-    return null;
-  }
-  const payloadRaw = Reflect.get(value, 'payload');
-  const payload = sanitizePayload(payloadRaw);
-  if (
-    payloadRaw !== undefined &&
-    (payloadRaw === null || typeof payloadRaw !== 'object' || Array.isArray(payloadRaw))
-  ) {
-    return null;
-  }
-  const lastError = Reflect.get(value, 'lastError');
-  const txHash = Reflect.get(value, 'txHash');
-  if (
-    (lastError !== undefined && typeof lastError !== 'string') ||
-    (txHash !== undefined && typeof txHash !== 'string')
-  ) {
-    return null;
-  }
-  return {
-    opId,
-    idempotencyKey,
-    opType,
-    chainIdKey,
-    accountAddress,
-    signerId,
-    status,
-    attemptCount: Number(attemptCount),
-    nextAttemptAt: Number(nextAttemptAt),
-    createdAt: Number(createdAt),
-    updatedAt: Number(updatedAt),
-    ...(payload === undefined ? {} : { payload }),
-    ...(lastError === undefined ? {} : { lastError }),
-    ...(txHash === undefined ? {} : { txHash }),
-  };
-}
-
-function parseSignerOutboxRow(value: unknown): SignerOpOutboxRecord | null {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
-  const record = parseStoredSignerOutboxRecord(Reflect.get(value, 'record'));
-  if (!record) return null;
-  if (Reflect.get(value, 'op_id') !== record.opId) return null;
-  if (Reflect.get(value, 'idempotency_key') !== record.idempotencyKey) return null;
-  if (Reflect.get(value, 'status') !== record.status) return null;
-  if (Reflect.get(value, 'next_attempt_at') !== record.nextAttemptAt) return null;
-  if (
-    Reflect.get(value, 'chain_target_key') !==
-    signerChainTargetKey({ chainIdKey: record.chainIdKey, accountAddress: record.accountAddress })
-  ) {
-    return null;
-  }
-  const payloadProfileId = toTrimmedString(
-    String(
-      record.payload && Reflect.get(record.payload, 'profileId')
-        ? Reflect.get(record.payload, 'profileId')
-        : '',
-    ),
-  );
-  if (Reflect.get(value, 'wallet_id') !== payloadProfileId) return null;
-  if (Reflect.get(value, 'updated_at') !== record.updatedAt) return null;
-  return record;
 }
 
 function keyMaterialId(args: { walletSignerId: string; keyKind: string }): string {

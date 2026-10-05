@@ -38,9 +38,24 @@ storage formats, transaction ordering, and durable presignatures.
   Server type-check and build passed. The production Email OTP lifecycle
   contract passed (1 test): registration, unlock, NEAR/Tempo/Arc signing,
   reload recovery, step-up signing, and both key exports. The bloat ratchet
-  passed; measured duplicated TypeScript lines fell from 10,751 to 10,509.
-- [ ] Separate iframe inbound-message parsing and persistence row codecs from
-  their transport and transaction owners. Verify the affected production flows.
+  passed; measured duplicated TypeScript lines fell from 10,751 to 10,529 (measured again from the complete committed tree).
+- [x] Separate iframe inbound-message parsing and persistence row codecs from
+  their transport and transaction owners. `inboundMessages.ts` owns wire parsing;
+  `accountSignerRows.ts`, `nonceLeaseRows.ts`, and `signerOutboxRows.ts` own stored-row
+  conversion. Shared scalar parsers and index keys use the existing normalization
+  module. Router request handling and repository transactions remain unchanged.
+  The router shrank from 5,027 to 4,743 lines; the repository from 8,954 to 8,183.
+  All new modules are below 450 lines. A syntax-tree comparison verified 314
+  declarations unchanged except import and export visibility.
+  Verification: wallet build/type-check, state type fixtures, external declaration
+  consumers, runtime-entry checks, and the bloat ratchet passed. All 11 browser
+  contracts passed. Two isolated production contracts passed: mixed-chain reload
+  and step-up signing, and durable presignature retention across lock/unlock.
+
+Batch source changes: 1,420 lines added, 1,756 removed; net reduction of 336.
+Structural moves account for most additions. The large owners still exceed 2,000
+lines; additional splits remain separate cleanup candidates.
+Repeatable commands and source hashes: [verification receipt](evidence/cleanup-first-three-20261005.json).
 
 Chunk splitting and month-later presignature reuse proof are outside this batch.
 

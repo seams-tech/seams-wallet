@@ -25,3 +25,11 @@ export function normalizeIndexedDbAccountModel<T extends string = string>(model:
 export function toIndexedDbChainTargetKey(chainTarget: ThresholdEcdsaChainTarget): string {
   return thresholdEcdsaChainTargetKey(chainTarget);
 }
+
+export function parseStoredNonEmptyString(value: unknown): string | null {
+  return typeof value === 'string' && value.length > 0 && value.trim() === value ? value : null;
+}
+
+export function signerChainTargetKey(args: { chainIdKey: string; accountAddress: string }): string {
+  return [args.chainIdKey, args.accountAddress].join('\0');
+}

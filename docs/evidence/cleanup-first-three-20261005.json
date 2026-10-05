@@ -1,0 +1,113 @@
+{
+  "date": "2026-10-05",
+  "scope": "First three wallet cleanup tasks",
+  "committedTasks": [
+    "e471e8c6",
+    "a9a54c27"
+  ],
+  "splitBaseCommit": "2ff914408d4da63c5b9cb148625dfc7676795b9c",
+  "sourceChanges": {
+    "added": 1420,
+    "removed": 1756
+  },
+  "splitSourceChanges": {
+    "added": 1118,
+    "removed": 1079
+  },
+  "checks": [
+    {
+      "name": "wallet-types",
+      "command": "pnpm -C packages/wallet type-check",
+      "result": "passed"
+    },
+    {
+      "name": "server-types",
+      "command": "pnpm -C packages/wallet-server type-check",
+      "result": "passed"
+    },
+    {
+      "name": "state-type-fixtures",
+      "command": "pnpm -C tests type-check:wallet-state",
+      "result": "passed"
+    },
+    {
+      "name": "wallet-build",
+      "command": "pnpm -C packages/wallet build:prod",
+      "result": "passed"
+    },
+    {
+      "name": "server-build",
+      "command": "pnpm -C packages/wallet-server build",
+      "result": "passed"
+    },
+    {
+      "name": "external-declarations",
+      "command": "pnpm -C packages/wallet check:declarations-external",
+      "result": "passed"
+    },
+    {
+      "name": "runtime-entry-bundles",
+      "command": "pnpm -C packages/wallet check:runtime-entry-bundles",
+      "result": "passed"
+    },
+    {
+      "name": "bloat",
+      "command": "pnpm report:bloat --check",
+      "result": "passed"
+    },
+    {
+      "name": "browser-contracts",
+      "command": "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4289 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/router.sessionOrdering.test.ts wallet-iframe/router.sessionExpiryLifecycle.test.ts wallet-iframe/router.signingProgressForwarding.test.ts --project=chromium --output=../.artifacts/cleanup-message-boundaries",
+      "result": "11 passed"
+    },
+    {
+      "name": "registration",
+      "command": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.registration.assets.contract.test.ts --grep \"production wallet records asset traffic across registration, signing, and unlock\"",
+      "result": "1 passed"
+    },
+    {
+      "name": "email-lifecycle",
+      "command": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/email-otp.unlock.contract.test.ts --grep \"Email OTP registration and unlock lifecycle\"",
+      "result": "1 passed"
+    },
+    {
+      "name": "reload-and-retention",
+      "command": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.unlock.contract.test.ts --grep \"page refresh hydrates warm signing, one-use step-up, and key export|lock retains durable presignatures across a fresh unlock\"",
+      "result": "2 isolated cases passed"
+    }
+  ],
+  "bloat": {
+    "typescriptDuplicatedLinesBefore": 10751,
+    "typescriptDuplicatedLinesAfter": 10529,
+    "deadExports": 0,
+    "baselineChanged": false
+  },
+  "declarationMoveAudit": {
+    "declarations": 314,
+    "result": "Syntax trees unchanged except import and export visibility; includes repository and router classes."
+  },
+  "sourceSha256": {
+    "packages/wallet/src/SeamsWeb/walletIframe/client/inboundMessages.ts": "d4d00e06e5ed60140497069b9897755508997445f7427a689d5191d253608b08",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/router.ts": "74cd090bb3b118aa9be467d2227d9f986ac6312f0abbd9585a5fd1280440823e",
+    "packages/wallet/src/core/indexedDB/normalization.ts": "c73581b0e170662f8c1e1996f563130fba13828e63c4d5a9ef605c927c5f9635",
+    "packages/wallet/src/core/indexedDB/seamsWalletDB/accountSignerRows.ts": "853fe87909ea27ed3cda4ca2c1bbe923b3cc64035ce41702c2dcc2e499e75a83",
+    "packages/wallet/src/core/indexedDB/seamsWalletDB/nonceLeaseRows.ts": "2a00c4f721d31a06fc91a896524dd930aaa0a53143a5cf8d005e2d7b5b9d0f79",
+    "packages/wallet/src/core/indexedDB/seamsWalletDB/repositories.ts": "39de8daa56c003bab213bb679338b691b8d114199c7c8b756d7d9b396329f6ea",
+    "packages/wallet/src/core/indexedDB/seamsWalletDB/signerOutboxRows.ts": "f1a305f20cfa78c61efabbe61327042a116347a250e04dca8b7331a7e1478ab1"
+  },
+  "limitations": [
+    "No month-later reuse claim.",
+    "No release, deployment, R153 implementation, or chunk-splitting work.",
+    "The large router and repository still exceed 2000 lines. This batch extracts their inbound-message and row-codec boundaries."
+  ],
+  "resolvedFailures": [
+    {
+      "classification": "production_regression",
+      "issue": "Import consolidation dropped two imports; compiler caught the error before commit. Restored imports and rebuilt successfully."
+    },
+    {
+      "classification": "environment_or_infrastructure_failure",
+      "issue": "Initial browser run lacked SDK assets because that build failed. All 11 cases passed after the successful build."
+    }
+  ]
+}
