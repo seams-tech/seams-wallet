@@ -132,9 +132,7 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
     }
     const backend = this.input.registrationBackend;
     const consumed = await backend.consumeRegistration({
-      tenantRoot: authority.dispatchRoot,
-      walletId: authority.admissionReceipt.binding.lifecycle.account_id,
-      lifecycleId,
+      authority,
       sessionId: input.reference.sessionId,
       consumerBinding: input.consumerBinding,
     });

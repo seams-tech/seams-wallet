@@ -321,8 +321,7 @@ async function runExecutionRequest(
   try {
     backend = await input.backend.executePinnedRegistration(
       request,
-      authority.admissionRequest,
-      authority.dispatchRoot,
+      authority,
       trace,
     );
   } catch (error: unknown) {

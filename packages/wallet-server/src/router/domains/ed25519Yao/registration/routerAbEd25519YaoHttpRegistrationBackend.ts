@@ -1,3 +1,4 @@
+import type { RouterAbEd25519YaoRegistrationExecutionAuthorityV1 } from './routerAbEd25519YaoRegistrationExecutionRecord';
 import {
   parseRouterAbEd25519YaoActivationKeysetV1,
   parseRouterAbEd25519YaoActivationResultV1,
@@ -474,8 +475,7 @@ export interface RouterAbEd25519YaoPinnedRegistrationBackend
   /// its terminal answer: an exact retry gets that answer.
   executePinnedRegistration(
     request: RouterAbEd25519YaoRegistrationExecuteRequestV1,
-    admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
-    dispatchRoot: RouterAbEd25519YaoTenantRootWireV1,
+    authority: RouterAbEd25519YaoRegistrationExecutionAuthorityV1,
     traceContext: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRegistrationBackendResult>;
   /// Consumes a completed registration's activation at the Router, for one
@@ -486,9 +486,7 @@ export interface RouterAbEd25519YaoPinnedRegistrationBackend
 }
 
 export type RouterAbEd25519YaoRegistrationConsumeInputV1 = {
-  readonly tenantRoot: RouterAbEd25519YaoTenantRootWireV1;
-  readonly walletId: string;
-  readonly lifecycleId: string;
+  readonly authority: RouterAbEd25519YaoRegistrationExecutionAuthorityV1;
   readonly sessionId: readonly number[];
   readonly consumerBinding: string;
 };
@@ -948,16 +946,19 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
 
   async executePinnedRegistration(
     request: RouterAbEd25519YaoRegistrationExecuteRequestV1,
-    admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
-    dispatchRoot: RouterAbEd25519YaoTenantRootWireV1,
+    authority: RouterAbEd25519YaoRegistrationExecutionAuthorityV1,
     traceContext: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRegistrationBackendResult> {
-    const routerInput = { operation: 'registration', request, admissionRequest } as const;
+    const routerInput = {
+      operation: 'registration',
+      request,
+      admissionRequest: authority.admissionRequest,
+    } as const;
     // The Router decides a registration's replay from its own claim, so a
     // retry after a lost reply is the exact request, unmarked.
     return await this.sendRouterRequest(
       routerInput,
-      registrationRouterExecuteRequest(routerInput, dispatchRoot),
+      registrationRouterExecuteRequest(routerInput, authority.dispatchRoot),
       traceContext.value,
       'exact',
       false,
@@ -972,9 +973,9 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
       response = await this.post(
         ROUTER_REGISTRATION_CONSUME_PATH,
         {
-          tenant_root: input.tenantRoot,
-          wallet_id: input.walletId,
-          lifecycle_id: input.lifecycleId,
+          tenant_root: input.authority.dispatchRoot,
+          wallet_id: input.authority.admissionReceipt.binding.lifecycle.account_id,
+          lifecycle_id: input.authority.lifecycleId,
           session_id: Array.from(input.sessionId),
           consumer_binding: input.consumerBinding,
         },
