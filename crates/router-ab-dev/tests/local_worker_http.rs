@@ -7831,6 +7831,7 @@ fn product_registration_request(
             application: tenant_root_fixture.application.clone(),
             participant_ids: tenant_root_fixture.participant_ids,
             target: RouterEd25519YaoGatewayExecuteTargetV2::registration(
+                1,
                 admission.binding,
                 input_a,
                 input_b,

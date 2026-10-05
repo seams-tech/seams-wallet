@@ -591,7 +591,7 @@ export class InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter im
     if (matched.authority.kind === 'available') {
       this.authorities[matched.index] = admittedAuthority(matched.authority);
     }
-    return { ok: true };
+    return { ok: true, ownershipGeneration: matched.authority.ownershipGeneration };
   }
 
   private async authorizeExecution(
@@ -641,6 +641,6 @@ export class InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter im
         message: 'registration execution context does not match its admitted application',
       });
     }
-    return { ok: true };
+    return { ok: true, ownershipGeneration: matched.authority.ownershipGeneration };
   }
 }

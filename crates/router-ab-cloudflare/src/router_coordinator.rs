@@ -257,15 +257,18 @@ pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
                 replay: takes_over,
                 generation,
             }) => {
-                gateway_envelope = match serde_json::from_str(&request_json) {
-                    Ok(pinned) => pinned,
-                    Err(error) => {
-                        return protocol_error_response(RouterAbProtocolError::new(
-                            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                            format!("Router wallet object pinned an unreadable request: {error}"),
-                        ))
-                    }
-                };
+                gateway_envelope =
+                    match crate::router_wallet::decode_stored_registration_request(&request_json) {
+                        Ok(pinned) => pinned,
+                        Err(error) => {
+                            return protocol_error_response(RouterAbProtocolError::new(
+                                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                                format!(
+                                    "Router wallet object pinned an unreadable request: {error}"
+                                ),
+                            ))
+                        }
+                    };
                 replay = takes_over;
                 claimed = Some((registration, generation));
             }
@@ -2609,7 +2612,7 @@ mod tests {
             vec![8; 16],
         )
         .expect("deriver B input");
-        RouterEd25519YaoGatewayExecuteTargetV2::registration(binding, input_a, input_b)
+        RouterEd25519YaoGatewayExecuteTargetV2::registration(1, binding, input_a, input_b)
             .expect("gateway registration")
     }
 

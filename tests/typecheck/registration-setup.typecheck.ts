@@ -76,18 +76,35 @@ declare const intentWithoutGeneration: Omit<
 // @ts-expect-error Verified intents require the authoritative ownership generation.
 const missingIntentGeneration: RouterAbEd25519YaoVerifiedActivationIntentV1 =
   intentWithoutGeneration;
-// @ts-expect-error A broad spread cannot erase the execution generation.
 const erasedIntentGeneration: RouterAbEd25519YaoVerifiedActivationIntentV1 = {
   ...verifiedActivationIntent,
+  // @ts-expect-error A broad spread cannot erase the execution generation.
   ownershipGeneration: undefined,
 };
 type EstablishedHomeAdmission = Awaited<
   ReturnType<WalletRegistrationReservationAuthority['admitEstablishedHome']>
 >;
-// @ts-expect-error An established wallet cannot receive registration-only execution authority.
 const registrationAuthorityForEstablishedWallet: EstablishedHomeAdmission = {
   ok: true,
   ownershipGeneration: 1,
+  // @ts-expect-error An established wallet cannot receive registration-only execution authority.
   purpose: 'registration',
 };
 void [missingIntentGeneration, erasedIntentGeneration, registrationAuthorityForEstablishedWallet];
+
+import type { RouterAbEd25519YaoRegistrationAuthorizationResult } from '../../packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistration';
+// @ts-expect-error Successful execution authorization must carry an ownership generation.
+const missingAuthorizedGeneration: RouterAbEd25519YaoRegistrationAuthorizationResult = { ok: true };
+declare const authorizedRegistration: Extract<
+  RouterAbEd25519YaoRegistrationAuthorizationResult,
+  { ok: true }
+>;
+// @ts-expect-error A failure cannot retain execution authority through a broad spread.
+const failedWithGeneration: RouterAbEd25519YaoRegistrationAuthorizationResult = {
+  ...authorizedRegistration,
+  ok: false,
+  status: 403,
+  code: 'denied',
+  message: 'Denied',
+};
+void [missingAuthorizedGeneration, failedWithGeneration];

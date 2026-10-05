@@ -424,6 +424,7 @@ function activeReceiptMatchesRecoveryActivation(
 type RouterExecuteTargetBoundary =
   | {
       operation: 'registration';
+      ownership_generation: number;
       binding: RouterAbEd25519YaoRegistrationExecuteRequestV1['binding'];
       deriver_a_input: RouterAbEd25519YaoRegistrationExecuteRequestV1['deriver_a_input'];
       deriver_b_input: RouterAbEd25519YaoRegistrationExecuteRequestV1['deriver_b_input'];
@@ -452,6 +453,7 @@ type RouterExecuteBoundary = {
 type RouterExecuteInput =
   | {
       readonly operation: 'registration';
+      readonly ownershipGeneration: number;
       readonly request: RouterAbEd25519YaoRegistrationExecuteRequestV1;
       readonly admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1;
     }
@@ -516,6 +518,7 @@ function registrationRouterExecuteRequest(
     participant_ids: input.admissionRequest.participant_ids,
     target: {
       operation: 'registration',
+      ownership_generation: input.ownershipGeneration,
       binding: input.request.binding,
       deriver_a_input: input.request.deriver_a_input,
       deriver_b_input: input.request.deriver_b_input,
@@ -927,10 +930,11 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
   async execute(
     request: RouterAbEd25519YaoRegistrationExecuteRequestV1,
     admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
+    ownershipGeneration: number,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRegistrationBackendResult> {
     return await this.executeRouterRequest(
-      { operation: 'registration', request, admissionRequest },
+      { operation: 'registration', request, admissionRequest, ownershipGeneration },
       false,
       traceContext,
     );
@@ -953,6 +957,7 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
       operation: 'registration',
       request,
       admissionRequest: authority.admissionRequest,
+      ownershipGeneration: authority.ownershipGeneration,
     } as const;
     // The Router decides a registration's replay from its own claim, so a
     // retry after a lost reply is the exact request, unmarked.

@@ -505,6 +505,7 @@ fn request_fixture(
     let input_b =
         seal_local_ed25519_yao_activation_deriver_b_input_v1(&request_b, deriver_b_public)?;
     let gateway_request = RouterEd25519YaoGatewayExecuteTargetV2::registration(
+        1,
         admission.binding.clone(),
         input_a,
         input_b,

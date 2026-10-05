@@ -402,8 +402,7 @@ fn validate_record(
         ),
         _ => return Err(conflict("Router import contains an unsettled registration")),
     };
-    let decoded = serde_json::from_str(request)
-        .map_err(|_| conflict("Router historical request is invalid"))?;
+    let decoded = crate::router_wallet::decode_stored_registration_request(request)?;
     let registration = RouterWalletRegistrationV1::from_request(&decoded)?
         .ok_or_else(|| conflict("Router historical request is not a registration"))?;
     let answer: RouterEd25519YaoExecuteResultV1 = serde_json::from_str(response)
@@ -416,7 +415,7 @@ fn validate_record(
     };
     if &registration.owner != owner
         || &registration.lifecycle_id != lifecycle
-        || &registration.request_digest_hex != digest
+        || &crate::router_wallet::registration_request_digest(request) != digest
         || key != format!("{REGISTRATION_KEY_PREFIX}{lifecycle}")
         || !terminal
     {

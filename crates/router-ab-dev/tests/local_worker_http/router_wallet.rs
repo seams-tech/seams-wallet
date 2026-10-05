@@ -25,6 +25,23 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
     let owner = router_ab_cloudflare::RouterWalletRegistrationV1::from_request(&registration)?
         .ok_or("registration owner")?
         .owner;
+    let mut wrong_generation = serde_json::to_value(&registration)?;
+    wrong_generation["target"]["ownership_generation"] = json!(2);
+    let (wrong_status, wrong_body) = post_json_to_path_with_headers(
+        &stack.router_url,
+        "/router-ab/router/ed25519-yao/execute",
+        &wrong_generation,
+        &[(
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+            TEST_GATEWAY_TO_ROUTER_AUTH,
+        )],
+    )?;
+    assert_ne!(wrong_status, 200, "{wrong_body}");
+    assert!(
+        wrong_body.contains("ownership generation does not match"),
+        "{wrong_body}"
+    );
+    assert!(registration_rows(&stack.router_db, &owner)?.is_empty());
     let freeze = router_ab_cloudflare::RouterWalletFreezeRequestV1 {
         owner,
         move_id: format!("wmove_{}", "a".repeat(43)),
@@ -231,6 +248,16 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
     );
     let unknown = consume(&json!("no-such-lifecycle"), session_id, "finalize-1")?;
     assert_eq!(unknown["code"], "unknown_registration", "{unknown}");
+    restore_fixed_home_record_format(&stack.router_db, &freeze.owner)?;
+    let historical_consumed = consume(lifecycle_id, session_id, "finalize-1")?;
+    assert_eq!(historical_consumed["kind"], "consumed");
+    assert_eq!(
+        historical_consumed["response_json"],
+        consumed["response_json"]
+    );
+    let (historical_retry_status, historical_retry_body) = stack.register(&registration)?;
+    assert_eq!(historical_retry_status, 200, "{historical_retry_body}");
+    assert_eq!(historical_retry_body, first);
     let sealed = freeze_wallet(&stack.router_url, &freeze)?;
     assert_eq!(sealed["state"], "frozen", "{sealed}");
     assert_eq!(sealed["receipt"]["record_count"], 1);
@@ -328,7 +355,15 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
         transfer_wallet(&destination.router_url, last_command)?,
         last_acknowledgement
     );
-    let (inactive_status, inactive_body) = destination.register(&registration)?;
+    let mut destination_registration = registration.clone();
+    if let router_ab_core::RouterEd25519YaoGatewayExecuteTargetV2::Registration {
+        ownership_generation,
+        ..
+    } = &mut destination_registration.target
+    {
+        *ownership_generation = 2;
+    }
+    let (inactive_status, inactive_body) = destination.register(&destination_registration)?;
     assert_ne!(inactive_status, 200, "{inactive_body}");
     assert!(
         inactive_body.contains("LifecycleTransitionInProgress"),
@@ -441,6 +476,7 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
         json!({
             "retry_while_claimed": [in_progress["code"], retry_after_ms],
             "first_run": "succeeded",
+            "wrong_execution_generation_rejected": wrong_status,
             "exact_retry": "recorded answer, byte for byte, no new pair",
             "same_lifecycle_other_lineage": "execution_mismatch",
             "consume": {
@@ -462,6 +498,7 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
                 "destination_verified_but_inactive": true,
                 "lost_chunk_reply_replayed_after_restart": true,
                 "exact_historical_record_bytes": true,
+                "fixed_home_history_replays_and_transfers": true,
                 "pool_freeze_transport_authenticated_and_replayed": true,
                 "linked_inventory_empty_page_replays_after_restart": true,
                 "linked_inventory_rejects_unrelated_credentials_and_changed_receipt": true,
@@ -512,6 +549,40 @@ fn export_wallet_chunk(
         router_ab_cloudflare::RouterWalletTransferResponseV1::Exported { chunk } => Ok(chunk),
         _ => Err("Router returned an unexpected export response".into()),
     }
+}
+
+fn restore_fixed_home_record_format(
+    database: &Connection,
+    owner: &router_ab_cloudflare::RouterWalletOwnerV1,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let records = registration_rows(database, owner)?;
+    assert_eq!(records.len(), 1);
+    for (key, encoded) in records {
+        let mut record: serde_json::Value = serde_json::from_str(&encoded)?;
+        let mut request: serde_json::Value = serde_json::from_str(
+            record["request_json"]
+                .as_str()
+                .ok_or("missing stored request")?,
+        )?;
+        request["target"]
+            .as_object_mut()
+            .ok_or("missing target")?
+            .remove("ownership_generation")
+            .ok_or("missing generation")?;
+        let request_json = serde_json::to_string(&request)?;
+        let mut hash = Sha256::new();
+        hash.update(b"seams/router/yao-registration-request/v1");
+        hash.update(request_json.as_bytes());
+        record["request_digest_hex"] = json!(hex::encode(hash.finalize()));
+        record["request_json"] = json!(request_json);
+        let stored: router_ab_cloudflare::RouterWalletRegistrationRecordV1 =
+            serde_json::from_value(record)?;
+        assert_eq!(database.execute(
+            "UPDATE local_router_wallet_objects SET value_json = ?1 WHERE object_name = ?2 AND storage_key = ?3",
+            rusqlite::params![serde_json::to_string(&stored)?, owner.object_name()?, key],
+        )?, 1);
+    }
+    Ok(())
 }
 
 fn registration_rows(

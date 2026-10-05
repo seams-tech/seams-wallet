@@ -282,7 +282,7 @@ mod tests {
             vec![0x92; 16],
         )
         .expect("B input");
-        RouterEd25519YaoGatewayExecuteTargetV2::registration(binding, input_a, input_b)
+        RouterEd25519YaoGatewayExecuteTargetV2::registration(1, binding, input_a, input_b)
             .expect("gateway request")
     }
 

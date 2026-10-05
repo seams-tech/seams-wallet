@@ -548,6 +548,8 @@ pub enum RouterEd25519YaoExecuteRequestV1 {
 pub enum RouterEd25519YaoGatewayExecuteTargetV2 {
     /// Initial registration activation.
     Registration {
+        /// Wallet ownership generation admitted by the Gateway.
+        ownership_generation: u64,
         /// Admitted activation ceremony binding.
         binding: Ed25519YaoCeremonyBindingV1,
         /// Opaque Deriver A envelope.
@@ -583,6 +585,7 @@ pub enum RouterEd25519YaoGatewayExecuteTargetV2 {
 #[serde(tag = "operation", rename_all = "snake_case", deny_unknown_fields)]
 enum RawRouterEd25519YaoGatewayExecuteTargetV2 {
     Registration {
+        ownership_generation: u64,
         binding: Ed25519YaoCeremonyBindingV1,
         deriver_a_input: Ed25519YaoEncryptedInputV1,
         deriver_b_input: Ed25519YaoEncryptedInputV1,
@@ -608,10 +611,16 @@ impl<'de> Deserialize<'de> for RouterEd25519YaoGatewayExecuteTargetV2 {
         let raw = RawRouterEd25519YaoGatewayExecuteTargetV2::deserialize(deserializer)?;
         let target = match raw {
             RawRouterEd25519YaoGatewayExecuteTargetV2::Registration {
+                ownership_generation,
                 binding,
                 deriver_a_input,
                 deriver_b_input,
-            } => Self::registration(binding, deriver_a_input, deriver_b_input),
+            } => Self::registration(
+                ownership_generation,
+                binding,
+                deriver_a_input,
+                deriver_b_input,
+            ),
             RawRouterEd25519YaoGatewayExecuteTargetV2::Recovery {
                 binding,
                 attempt,
@@ -631,10 +640,17 @@ impl<'de> Deserialize<'de> for RouterEd25519YaoGatewayExecuteTargetV2 {
 impl RouterEd25519YaoGatewayExecuteTargetV2 {
     /// Builds a validated registration target.
     pub fn registration(
+        ownership_generation: u64,
         binding: Ed25519YaoCeremonyBindingV1,
         deriver_a_input: Ed25519YaoEncryptedInputV1,
         deriver_b_input: Ed25519YaoEncryptedInputV1,
     ) -> RouterAbProtocolResult<Self> {
+        if ownership_generation == 0 || ownership_generation > 9_007_199_254_740_991 {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                "Registration ownership generation is invalid",
+            ));
+        }
         validate_gateway_inputs(
             &binding,
             Ed25519YaoOperationV1::Registration,
@@ -642,6 +658,7 @@ impl RouterEd25519YaoGatewayExecuteTargetV2 {
             &deriver_b_input,
         )?;
         Ok(Self::Registration {
+            ownership_generation,
             binding,
             deriver_a_input,
             deriver_b_input,
@@ -772,6 +789,7 @@ impl RouterEd25519YaoGatewayExecuteTargetV2 {
                 binding,
                 deriver_a_input,
                 deriver_b_input,
+                ..
             } => RouterEd25519YaoExecuteRequestV1::registration(
                 authority,
                 binding,
@@ -2258,6 +2276,7 @@ mod tests {
     #[test]
     fn gateway_target_v2_constructs_pair_only_in_rust() {
         let target = RouterEd25519YaoGatewayExecuteTargetV2::registration(
+            1,
             binding(),
             input(Ed25519YaoDeriverRoleV1::DeriverA, 4),
             input(Ed25519YaoDeriverRoleV1::DeriverB, 5),
