@@ -2666,3 +2666,68 @@ recorded in `evidence/refactor-170-email-challenge-expiry-20261005.json`.
 The public consolidation remains open. Outstanding work includes purpose-bound
 challenge handles, concurrent submission and cancellation, pending activation,
 removal of the two specialized public unlock methods, and consumer migration.
+
+
+### Three repeated production asset samples (2026-10-05)
+
+At revision `59c8254f`, three isolated authenticated scenarios and three isolated
+signed-out cold/warm pairs passed. Each authenticated scenario registers a mixed
+wallet, signs on NEAR and EVM, locks, unlocks, and signs on both again. The signed-out
+scenario revisits the same browser profile after a cold mount and generic menu.
+
+The table counts static response bodies from both preview servers exactly once.
+It includes worker scripts and repeated loads. It excludes API traffic and
+HTTP/TLS framing. Current values are medians of three runs. Baseline values come
+from the retained complete server-counter artifacts for the same scenarios.
+
+| Scenario | Baseline bodies | Current bodies | Reduction |
+| --- | ---: | ---: | ---: |
+| Registration, NEAR/EVM signing, lock/unlock, repeat signing | 11,031,734 B | 7,807,858 B | 29.2% |
+| Signed-out cold mount/idle/menu | 3,398,239 B | 958,079 B | 71.8% |
+| Same-profile signed-out warm revisit/menu | 0 B | 0 B | Both revalidate cached assets |
+
+Authenticated application bytes fell from 1,669,002 to 358,502. Wallet-origin
+bytes fell from 9,362,732 to 7,449,356. The three wallet-origin totals were identical;
+application totals varied by ten bytes. Worker creation fell from 25 to 17 across
+this scenario, which includes a fresh runtime for unlock.
+
+| Authenticated asset kind | Baseline bodies | Current bodies |
+| --- | ---: | ---: |
+| JavaScript, including workers | 3,692,613 B | 2,100,372 B |
+| WASM | 7,283,249 B | 5,651,582 B |
+| CSS | 55,872 B | 55,904 B |
+
+Signed-out runs created no workers and fetched no WASM. Their warm visits made
+three application and 83 wallet-origin revalidation requests, with zero body
+bytes. Zero body transfer does not mean zero requests or zero latency.
+
+| Automated phase | Single baseline observation | Current median |
+| --- | ---: | ---: |
+| Register and reach NEAR readiness | 1,950 ms | 1,821 ms |
+| First NEAR signature | 721 ms | 719 ms |
+| First EVM signature | 788 ms | 768 ms |
+| Unlock | 704 ms | 619 ms |
+| Repeat NEAR signature | 698 ms | 707 ms |
+| Repeat EVM signature | 752 ms | 753 ms |
+
+These medians stay within the numerical tolerance relative to the retained
+single observations. They do not close the paired-latency gate: repeated baseline
+samples are still missing. Signed-out observation phases include deliberate idle
+waits and must not be presented as user-perceived startup latency.
+
+All observed wallet static response sizes match their served dist files using
+gzip level 6 or identity encoding. Both baseline and current records contain no
+incomplete server responses. Current CDP observers report no errors. Server,
+BrowserContext, and CDP counters overlap and are never added together.
+
+The local preview gzip-encodes most JavaScript and CSS. All observed WASM responses
+use identity encoding, so their encoded and decoded body sizes are equal. This
+verifies local serving behavior; deployed edge compression and caching remain
+open. Authenticated HTTP caching also remains open because harness routing disables
+it. Preserve those limits when comparing this result with the separate 91% static
+client-bundle reduction.
+
+Evidence and reproduction: `evidence/refactor-170-repeated-assets-20261005.json`.
+The six raw reports, safe signed-out traces, and static-file catalogue are retained
+under `.artifacts/r170-repeated-20261005/`, with hashes in the evidence file.
+No production source changed in this measurement task.

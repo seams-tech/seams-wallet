@@ -797,6 +797,20 @@ React DOM, and their type packages absent. This closes optional-peer absence
 for those entries. React provider SSR/remount and deployed asset delivery remain
 separate acceptance requirements. See the inventory's optional-peer checkpoint.
 
+### Repeated production transfer checkpoint
+
+Three current authenticated runs transfer a median 7,807,858 static body bytes,
+compared with 11,031,734 in the retained baseline (29.2% less). Three signed-out
+cold/warm pairs transfer a median 958,079 cold body bytes versus 3,398,239 (71.8%
+less). Warm signed-out visits revalidate assets with zero response body bytes.
+No workers or WASM load during the signed-out scenarios.
+
+This proves a transfer reduction for these completed local production scenarios.
+It does not close authenticated warm-cache coverage, repeated baseline latency
+acceptance, or deployed edge compression. Local preview WASM responses remain
+uncompressed. See `evidence/refactor-170-repeated-assets-20261005.json` and the
+inventory's repeated production asset checkpoint for counting rules and limits.
+
 ## Implementation sequence
 
 Complete this sequence together with R171's naming and consumer migration.

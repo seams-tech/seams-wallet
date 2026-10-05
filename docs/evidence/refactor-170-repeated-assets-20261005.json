@@ -1,0 +1,1250 @@
+{
+  "revision": "59c8254fb130eaf95a2e64ce0bd41d5afe80907a",
+  "accounting": "Encoded static response bodies after local preview-server compression; application and wallet origins summed exactly once. JS, WASM, CSS and worker-script subset separate. Excludes HTTP/TLS framing and API traffic. Wallet decoded response bytes come from exact served dist files validated against compressed transfer sizes; app decoded bytes come from captured browser response bodies. 304 responses contribute zero body bytes.",
+  "baseline": {
+    "authenticated": {
+      "artifact": ".artifacts/r170-baseline/registration-static-transfers.json",
+      "sha256": "385b094b7a925a1f657e2ee844ccaff1d701dfa654347cd53c1c54cd5a836395",
+      "revision": "e108dbe52c8f9809ac675c7617018bc20945e1e5",
+      "cachePolicy": "disabled_by_routing",
+      "realms": {
+        "application": {
+          "encodedBodyBytes": 1669002,
+          "decodedResponseBytes": 7208756,
+          "responses": 100,
+          "revalidations": 0,
+          "byKind": {
+            "js": {
+              "encodedBodyBytes": 1655848,
+              "decodedResponseBytes": 7136032,
+              "responses": 98
+            },
+            "css": {
+              "encodedBodyBytes": 13154,
+              "decodedResponseBytes": 72724,
+              "responses": 2
+            }
+          },
+          "byPhase": {
+            "register": {
+              "encodedBodyBytes": 834501,
+              "decodedResponseBytes": 3604378,
+              "responses": 50
+            },
+            "unlock": {
+              "encodedBodyBytes": 834501,
+              "decodedResponseBytes": 3604378,
+              "responses": 50
+            }
+          },
+          "workerScriptBytes": 0,
+          "workerScriptResponses": 0,
+          "encodingByKind": {
+            "js": {
+              "gzip": 80,
+              "identity": 18
+            },
+            "css": {
+              "gzip": 2
+            }
+          }
+        },
+        "wallet": {
+          "encodedBodyBytes": 9362732,
+          "decodedResponseBytes": 16276865,
+          "responses": 249,
+          "revalidations": 0,
+          "byKind": {
+            "js": {
+              "encodedBodyBytes": 2036765,
+              "decodedResponseBytes": 8686152,
+              "responses": 230
+            },
+            "css": {
+              "encodedBodyBytes": 42718,
+              "decodedResponseBytes": 307464,
+              "responses": 2
+            },
+            "wasm": {
+              "encodedBodyBytes": 7283249,
+              "decodedResponseBytes": 7283249,
+              "responses": 17
+            }
+          },
+          "byPhase": {
+            "register": {
+              "encodedBodyBytes": 4251655,
+              "decodedResponseBytes": 7587504,
+              "responses": 122
+            },
+            "first-evm-sign": {
+              "encodedBodyBytes": 1550,
+              "decodedResponseBytes": 4926,
+              "responses": 1
+            },
+            "unlock": {
+              "encodedBodyBytes": 5106254,
+              "decodedResponseBytes": 8675500,
+              "responses": 124
+            },
+            "repeat-evm-sign": {
+              "encodedBodyBytes": 3273,
+              "decodedResponseBytes": 8935,
+              "responses": 2
+            }
+          },
+          "workerScriptBytes": 442628,
+          "workerScriptResponses": 25,
+          "encodingByKind": {
+            "js": {
+              "identity": 38,
+              "gzip": 192
+            },
+            "css": {
+              "gzip": 2
+            },
+            "wasm": {
+              "identity": 17
+            }
+          }
+        }
+      },
+      "phaseDurationMs": {
+        "initialization": 377.43566699999997,
+        "register": 1949.7577910000002,
+        "first-near-sign": 720.9955839999998,
+        "first-evm-sign": 788.1374579999997,
+        "lock": 14.434708000000683,
+        "unlock": 703.6825830000007,
+        "repeat-near-sign": 697.7047089999996,
+        "repeat-evm-sign": 752.1554999999998,
+        "completed": 2.163292000000183
+      },
+      "networkObserverFailures": [
+        "Could not enable network observation for worker",
+        "Could not enable network observation for worker",
+        "Could not resume observed worker",
+        "Could not resume observed worker"
+      ],
+      "contextMeasurementFailures": 23,
+      "incompleteServerResponses": [],
+      "walletAssetSizeMismatches": [],
+      "workerCreationsByUrl": {
+        "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js": 3,
+        "http://localhost:4202/sdk/workers/passkey-confirm.worker.js": 2,
+        "http://localhost:4202/sdk/workers/passkey-mpc-session.worker.js": 2,
+        "http://localhost:4202/sdk/workers/ecdsa-online-client.worker.js": 3,
+        "http://localhost:4202/sdk/workers/near-signer.worker.js": 2,
+        "http://localhost:4202/sdk/workers/ecdsa-presign-client.worker.js": 3,
+        "http://localhost:4202/sdk/workers/evm-crypto.worker.js": 2,
+        "http://localhost:4202/sdk/workers/tempo-signer.worker.js": 2,
+        "http://localhost:4202/sdk/workers/email-otp.worker.js": 2,
+        "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js": 2,
+        "http://localhost:4202/sdk/workers/shamir3pass.worker.js": 2
+      }
+    },
+    "signed-out": {
+      "artifact": ".artifacts/r170-baseline/signed-out-static-transfers.json",
+      "sha256": "a8d76685e7a923e526bda98dd886cff9a2bd12e28bc08602489f2d6839558af6",
+      "revision": "e108dbe52c8f9809ac675c7617018bc20945e1e5",
+      "cachePolicy": "enabled",
+      "realms": {
+        "application": {
+          "encodedBodyBytes": 834505,
+          "decodedResponseBytes": 3604378,
+          "responses": 100,
+          "revalidations": 50,
+          "byKind": {
+            "js": {
+              "encodedBodyBytes": 827928,
+              "decodedResponseBytes": 3568016,
+              "responses": 98
+            },
+            "css": {
+              "encodedBodyBytes": 6577,
+              "decodedResponseBytes": 36362,
+              "responses": 2
+            }
+          },
+          "byPhase": {
+            "cold-signed-out-mount-idle": {
+              "encodedBodyBytes": 834505,
+              "decodedResponseBytes": 3604378,
+              "responses": 50
+            },
+            "warm-signed-out-mount-idle": {
+              "encodedBodyBytes": 0,
+              "decodedResponseBytes": 0,
+              "responses": 50
+            }
+          },
+          "workerScriptBytes": 0,
+          "workerScriptResponses": 0,
+          "encodingByKind": {
+            "js": {
+              "gzip": 40,
+              "identity": 9
+            },
+            "css": {
+              "gzip": 1
+            }
+          }
+        },
+        "wallet": {
+          "encodedBodyBytes": 2563734,
+          "decodedResponseBytes": 5894841,
+          "responses": 236,
+          "revalidations": 118,
+          "byKind": {
+            "js": {
+              "encodedBodyBytes": 982211,
+              "decodedResponseBytes": 4180945,
+              "responses": 224
+            },
+            "css": {
+              "encodedBodyBytes": 21359,
+              "decodedResponseBytes": 153732,
+              "responses": 2
+            },
+            "wasm": {
+              "encodedBodyBytes": 1560164,
+              "decodedResponseBytes": 1560164,
+              "responses": 10
+            }
+          },
+          "byPhase": {
+            "cold-signed-out-mount-idle": {
+              "encodedBodyBytes": 2563734,
+              "decodedResponseBytes": 5894841,
+              "responses": 118
+            },
+            "warm-signed-out-mount-idle": {
+              "encodedBodyBytes": 0,
+              "decodedResponseBytes": 0,
+              "responses": 118
+            }
+          },
+          "workerScriptBytes": 187841,
+          "workerScriptResponses": 22,
+          "encodingByKind": {
+            "js": {
+              "identity": 19,
+              "gzip": 93
+            },
+            "css": {
+              "gzip": 1
+            },
+            "wasm": {
+              "identity": 5
+            }
+          }
+        }
+      },
+      "phaseDurationMs": {
+        "initialization": 23.541416000000027,
+        "cold-signed-out-mount-idle": 2827.706791,
+        "cold-generic-menu": 2077.79825,
+        "warm-signed-out-mount-idle": 2680.9431670000004,
+        "warm-generic-menu": 2122.7081660000003,
+        "completed": 90.94475000000057
+      },
+      "networkObserverFailures": [],
+      "contextMeasurementFailures": 20,
+      "incompleteServerResponses": [],
+      "walletAssetSizeMismatches": [],
+      "workerCreationsByUrl": {
+        "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js": 2,
+        "http://localhost:4202/sdk/workers/passkey-confirm.worker.js": 2,
+        "http://localhost:4202/sdk/workers/passkey-mpc-session.worker.js": 2,
+        "http://localhost:4202/sdk/workers/ecdsa-online-client.worker.js": 2,
+        "http://localhost:4202/sdk/workers/tempo-signer.worker.js": 2,
+        "http://localhost:4202/sdk/workers/evm-crypto.worker.js": 2,
+        "http://localhost:4202/sdk/workers/ecdsa-presign-client.worker.js": 2,
+        "http://localhost:4202/sdk/workers/near-signer.worker.js": 2,
+        "http://localhost:4202/sdk/workers/shamir3pass.worker.js": 2,
+        "http://localhost:4202/sdk/workers/email-otp.worker.js": 2,
+        "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js": 2
+      }
+    }
+  },
+  "runs": {
+    "1": {
+      "authenticated": {
+        "artifact": ".artifacts/r170-repeated-20261005/run-1/authenticated.json",
+        "sha256": "dd6c6ea05e2bc056546c566073bb9b558736357b6dd79d4f329525716ae1de53",
+        "revision": "59c8254fb130eaf95a2e64ce0bd41d5afe80907a",
+        "cachePolicy": "disabled_by_routing",
+        "realms": {
+          "application": {
+            "encodedBodyBytes": 358502,
+            "decodedResponseBytes": 1380930,
+            "responses": 6,
+            "revalidations": 0,
+            "byKind": {
+              "css": {
+                "encodedBodyBytes": 13154,
+                "decodedResponseBytes": 72724,
+                "responses": 2
+              },
+              "js": {
+                "encodedBodyBytes": 345348,
+                "decodedResponseBytes": 1308206,
+                "responses": 4
+              }
+            },
+            "byPhase": {
+              "register": {
+                "encodedBodyBytes": 179251,
+                "decodedResponseBytes": 690465,
+                "responses": 3
+              },
+              "unlock": {
+                "encodedBodyBytes": 179251,
+                "decodedResponseBytes": 690465,
+                "responses": 3
+              }
+            },
+            "workerScriptBytes": 0,
+            "workerScriptResponses": 0,
+            "encodingByKind": {
+              "css": {
+                "gzip": 2
+              },
+              "js": {
+                "gzip": 4
+              }
+            }
+          },
+          "wallet": {
+            "encodedBodyBytes": 7449356,
+            "decodedResponseBytes": 13466351,
+            "responses": 207,
+            "revalidations": 0,
+            "byKind": {
+              "js": {
+                "encodedBodyBytes": 1755024,
+                "decodedResponseBytes": 7507099,
+                "responses": 193
+              },
+              "css": {
+                "encodedBodyBytes": 42750,
+                "decodedResponseBytes": 307670,
+                "responses": 2
+              },
+              "wasm": {
+                "encodedBodyBytes": 5651582,
+                "decodedResponseBytes": 5651582,
+                "responses": 12
+              }
+            },
+            "byPhase": {
+              "register": {
+                "encodedBodyBytes": 3626306,
+                "decodedResponseBytes": 6624926,
+                "responses": 102
+              },
+              "first-near-sign": {
+                "encodedBodyBytes": 417558,
+                "decodedResponseBytes": 429740,
+                "responses": 2
+              },
+              "first-evm-sign": {
+                "encodedBodyBytes": 3025,
+                "decodedResponseBytes": 8201,
+                "responses": 2
+              },
+              "unlock": {
+                "encodedBodyBytes": 2807698,
+                "decodedResponseBytes": 5769841,
+                "responses": 90
+              },
+              "repeat-near-sign": {
+                "encodedBodyBytes": 422049,
+                "decodedResponseBytes": 443871,
+                "responses": 4
+              },
+              "repeat-evm-sign": {
+                "encodedBodyBytes": 172720,
+                "decodedResponseBytes": 189772,
+                "responses": 7
+              }
+            },
+            "workerScriptBytes": 225272,
+            "workerScriptResponses": 17,
+            "encodingByKind": {
+              "js": {
+                "identity": 32,
+                "gzip": 161
+              },
+              "css": {
+                "gzip": 2
+              },
+              "wasm": {
+                "identity": 12
+              }
+            }
+          }
+        },
+        "phaseDurationMs": {
+          "initialization": 386.447542,
+          "register": 1860.713458,
+          "first-near-sign": 738.248458,
+          "first-evm-sign": 768.4136249999997,
+          "lock": 20.996165999999903,
+          "unlock": 617.5782500000005,
+          "repeat-near-sign": 693.6684169999999,
+          "repeat-evm-sign": 751.6807079999999,
+          "completed": 2.1337499999999636
+        },
+        "networkObserverFailures": [],
+        "contextMeasurementFailures": 16,
+        "incompleteServerResponses": [],
+        "walletAssetSizeMismatches": [],
+        "workerCreationsByUrl": {
+          "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js": 2,
+          "http://localhost:4202/sdk/workers/passkey-confirm.worker.js": 2,
+          "http://localhost:4202/sdk/workers/passkey-mpc-session.worker.js": 2,
+          "http://localhost:4202/sdk/workers/shamir3pass.worker.js": 1,
+          "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js": 2,
+          "http://localhost:4202/sdk/workers/ecdsa-presign-client.worker.js": 2,
+          "http://localhost:4202/sdk/workers/evm-crypto.worker.js": 2,
+          "http://localhost:4202/sdk/workers/near-signer.worker.js": 2,
+          "http://localhost:4202/sdk/workers/ecdsa-online-client.worker.js": 2
+        }
+      },
+      "signed-out": {
+        "artifact": ".artifacts/r170-repeated-20261005/run-1/signed-out.json",
+        "sha256": "6d50a75e328a505b5c4be13a819901d02b2afcf2254245e1d9cf0570483c3fac",
+        "revision": "59c8254fb130eaf95a2e64ce0bd41d5afe80907a",
+        "cachePolicy": "enabled",
+        "realms": {
+          "application": {
+            "encodedBodyBytes": 179250,
+            "decodedResponseBytes": 690465,
+            "responses": 6,
+            "revalidations": 3,
+            "byKind": {
+              "css": {
+                "encodedBodyBytes": 6577,
+                "decodedResponseBytes": 36362,
+                "responses": 2
+              },
+              "js": {
+                "encodedBodyBytes": 172673,
+                "decodedResponseBytes": 654103,
+                "responses": 4
+              }
+            },
+            "byPhase": {
+              "cold-signed-out-mount-idle": {
+                "encodedBodyBytes": 179250,
+                "decodedResponseBytes": 690465,
+                "responses": 3
+              },
+              "warm-signed-out-mount-idle": {
+                "encodedBodyBytes": 0,
+                "decodedResponseBytes": 0,
+                "responses": 3
+              }
+            },
+            "workerScriptBytes": 0,
+            "workerScriptResponses": 0,
+            "encodingByKind": {
+              "css": {
+                "gzip": 1
+              },
+              "js": {
+                "gzip": 2
+              }
+            }
+          },
+          "wallet": {
+            "encodedBodyBytes": 778828,
+            "decodedResponseBytes": 3405087,
+            "responses": 166,
+            "revalidations": 83,
+            "byKind": {
+              "js": {
+                "encodedBodyBytes": 757453,
+                "decodedResponseBytes": 3251252,
+                "responses": 164
+              },
+              "css": {
+                "encodedBodyBytes": 21375,
+                "decodedResponseBytes": 153835,
+                "responses": 2
+              }
+            },
+            "byPhase": {
+              "cold-signed-out-mount-idle": {
+                "encodedBodyBytes": 778828,
+                "decodedResponseBytes": 3405087,
+                "responses": 83
+              },
+              "warm-signed-out-mount-idle": {
+                "encodedBodyBytes": 0,
+                "decodedResponseBytes": 0,
+                "responses": 83
+              }
+            },
+            "workerScriptBytes": 0,
+            "workerScriptResponses": 0,
+            "encodingByKind": {
+              "js": {
+                "identity": 14,
+                "gzip": 68
+              },
+              "css": {
+                "gzip": 1
+              }
+            }
+          }
+        },
+        "phaseDurationMs": {
+          "initialization": 22.426292000000103,
+          "cold-signed-out-mount-idle": 2711.837708,
+          "cold-generic-menu": 2080.983584,
+          "warm-signed-out-mount-idle": 2630.544333,
+          "warm-generic-menu": 2122.404207999999,
+          "completed": 34.10212499999943
+        },
+        "networkObserverFailures": [],
+        "contextMeasurementFailures": 0,
+        "incompleteServerResponses": [],
+        "walletAssetSizeMismatches": [],
+        "workerCreationsByUrl": {}
+      }
+    },
+    "2": {
+      "authenticated": {
+        "artifact": ".artifacts/r170-repeated-20261005/run-2/authenticated.json",
+        "sha256": "1af7acb24f40a43e32834eb2e969c3c454cd6de8cdee143eb94e496ddee71b14",
+        "revision": "59c8254fb130eaf95a2e64ce0bd41d5afe80907a",
+        "cachePolicy": "disabled_by_routing",
+        "realms": {
+          "application": {
+            "encodedBodyBytes": 358498,
+            "decodedResponseBytes": 1380930,
+            "responses": 6,
+            "revalidations": 0,
+            "byKind": {
+              "css": {
+                "encodedBodyBytes": 13154,
+                "decodedResponseBytes": 72724,
+                "responses": 2
+              },
+              "js": {
+                "encodedBodyBytes": 345344,
+                "decodedResponseBytes": 1308206,
+                "responses": 4
+              }
+            },
+            "byPhase": {
+              "register": {
+                "encodedBodyBytes": 179249,
+                "decodedResponseBytes": 690465,
+                "responses": 3
+              },
+              "unlock": {
+                "encodedBodyBytes": 179249,
+                "decodedResponseBytes": 690465,
+                "responses": 3
+              }
+            },
+            "workerScriptBytes": 0,
+            "workerScriptResponses": 0,
+            "encodingByKind": {
+              "css": {
+                "gzip": 2
+              },
+              "js": {
+                "gzip": 4
+              }
+            }
+          },
+          "wallet": {
+            "encodedBodyBytes": 7449356,
+            "decodedResponseBytes": 13466351,
+            "responses": 207,
+            "revalidations": 0,
+            "byKind": {
+              "js": {
+                "encodedBodyBytes": 1755024,
+                "decodedResponseBytes": 7507099,
+                "responses": 193
+              },
+              "css": {
+                "encodedBodyBytes": 42750,
+                "decodedResponseBytes": 307670,
+                "responses": 2
+              },
+              "wasm": {
+                "encodedBodyBytes": 5651582,
+                "decodedResponseBytes": 5651582,
+                "responses": 12
+              }
+            },
+            "byPhase": {
+              "register": {
+                "encodedBodyBytes": 3626306,
+                "decodedResponseBytes": 6624926,
+                "responses": 102
+              },
+              "first-near-sign": {
+                "encodedBodyBytes": 417558,
+                "decodedResponseBytes": 429740,
+                "responses": 2
+              },
+              "first-evm-sign": {
+                "encodedBodyBytes": 3025,
+                "decodedResponseBytes": 8201,
+                "responses": 2
+              },
+              "unlock": {
+                "encodedBodyBytes": 2807698,
+                "decodedResponseBytes": 5769841,
+                "responses": 90
+              },
+              "repeat-near-sign": {
+                "encodedBodyBytes": 422049,
+                "decodedResponseBytes": 443871,
+                "responses": 4
+              },
+              "repeat-evm-sign": {
+                "encodedBodyBytes": 172720,
+                "decodedResponseBytes": 189772,
+                "responses": 7
+              }
+            },
+            "workerScriptBytes": 225272,
+            "workerScriptResponses": 17,
+            "encodingByKind": {
+              "js": {
+                "identity": 32,
+                "gzip": 161
+              },
+              "css": {
+                "gzip": 2
+              },
+              "wasm": {
+                "identity": 12
+              }
+            }
+          }
+        },
+        "phaseDurationMs": {
+          "initialization": 355.40962499999995,
+          "register": 1820.8843339999999,
+          "first-near-sign": 718.7430840000002,
+          "first-evm-sign": 785.7757499999998,
+          "lock": 21.434166000000005,
+          "unlock": 620.9592499999999,
+          "repeat-near-sign": 706.8706660000007,
+          "repeat-evm-sign": 753.024375,
+          "completed": 2.7163339999997334
+        },
+        "networkObserverFailures": [],
+        "contextMeasurementFailures": 16,
+        "incompleteServerResponses": [],
+        "walletAssetSizeMismatches": [],
+        "workerCreationsByUrl": {
+          "http://localhost:4202/sdk/workers/passkey-confirm.worker.js": 2,
+          "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js": 2,
+          "http://localhost:4202/sdk/workers/passkey-mpc-session.worker.js": 2,
+          "http://localhost:4202/sdk/workers/shamir3pass.worker.js": 1,
+          "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js": 2,
+          "http://localhost:4202/sdk/workers/ecdsa-presign-client.worker.js": 2,
+          "http://localhost:4202/sdk/workers/evm-crypto.worker.js": 2,
+          "http://localhost:4202/sdk/workers/near-signer.worker.js": 2,
+          "http://localhost:4202/sdk/workers/ecdsa-online-client.worker.js": 2
+        }
+      },
+      "signed-out": {
+        "artifact": ".artifacts/r170-repeated-20261005/run-2/signed-out.json",
+        "sha256": "33f8a59e7be2739a5c3dfd7fa6d02b0ed305cc5fde21072e09ab116af28c6e5d",
+        "revision": "59c8254fb130eaf95a2e64ce0bd41d5afe80907a",
+        "cachePolicy": "enabled",
+        "realms": {
+          "application": {
+            "encodedBodyBytes": 179251,
+            "decodedResponseBytes": 690465,
+            "responses": 6,
+            "revalidations": 3,
+            "byKind": {
+              "css": {
+                "encodedBodyBytes": 6577,
+                "decodedResponseBytes": 36362,
+                "responses": 2
+              },
+              "js": {
+                "encodedBodyBytes": 172674,
+                "decodedResponseBytes": 654103,
+                "responses": 4
+              }
+            },
+            "byPhase": {
+              "cold-signed-out-mount-idle": {
+                "encodedBodyBytes": 179251,
+                "decodedResponseBytes": 690465,
+                "responses": 3
+              },
+              "warm-signed-out-mount-idle": {
+                "encodedBodyBytes": 0,
+                "decodedResponseBytes": 0,
+                "responses": 3
+              }
+            },
+            "workerScriptBytes": 0,
+            "workerScriptResponses": 0,
+            "encodingByKind": {
+              "css": {
+                "gzip": 1
+              },
+              "js": {
+                "gzip": 2
+              }
+            }
+          },
+          "wallet": {
+            "encodedBodyBytes": 778828,
+            "decodedResponseBytes": 3405087,
+            "responses": 166,
+            "revalidations": 83,
+            "byKind": {
+              "js": {
+                "encodedBodyBytes": 757453,
+                "decodedResponseBytes": 3251252,
+                "responses": 164
+              },
+              "css": {
+                "encodedBodyBytes": 21375,
+                "decodedResponseBytes": 153835,
+                "responses": 2
+              }
+            },
+            "byPhase": {
+              "cold-signed-out-mount-idle": {
+                "encodedBodyBytes": 778828,
+                "decodedResponseBytes": 3405087,
+                "responses": 83
+              },
+              "warm-signed-out-mount-idle": {
+                "encodedBodyBytes": 0,
+                "decodedResponseBytes": 0,
+                "responses": 83
+              }
+            },
+            "workerScriptBytes": 0,
+            "workerScriptResponses": 0,
+            "encodingByKind": {
+              "js": {
+                "identity": 14,
+                "gzip": 68
+              },
+              "css": {
+                "gzip": 1
+              }
+            }
+          }
+        },
+        "phaseDurationMs": {
+          "initialization": 21.75116700000001,
+          "cold-signed-out-mount-idle": 2714.930041,
+          "cold-generic-menu": 2084.497833,
+          "warm-signed-out-mount-idle": 2633.4287080000004,
+          "warm-generic-menu": 2127.8127079999995,
+          "completed": 34.09137499999997
+        },
+        "networkObserverFailures": [],
+        "contextMeasurementFailures": 0,
+        "incompleteServerResponses": [],
+        "walletAssetSizeMismatches": [],
+        "workerCreationsByUrl": {}
+      }
+    },
+    "3": {
+      "authenticated": {
+        "artifact": ".artifacts/r170-repeated-20261005/run-3/authenticated.json",
+        "sha256": "65277e69a62f5d43774132538d0a5f9dee1f4a7c7fb0fdb8c1a72710102f9af9",
+        "revision": "59c8254fb130eaf95a2e64ce0bd41d5afe80907a",
+        "cachePolicy": "disabled_by_routing",
+        "realms": {
+          "application": {
+            "encodedBodyBytes": 358508,
+            "decodedResponseBytes": 1380930,
+            "responses": 6,
+            "revalidations": 0,
+            "byKind": {
+              "css": {
+                "encodedBodyBytes": 13154,
+                "decodedResponseBytes": 72724,
+                "responses": 2
+              },
+              "js": {
+                "encodedBodyBytes": 345354,
+                "decodedResponseBytes": 1308206,
+                "responses": 4
+              }
+            },
+            "byPhase": {
+              "register": {
+                "encodedBodyBytes": 179254,
+                "decodedResponseBytes": 690465,
+                "responses": 3
+              },
+              "unlock": {
+                "encodedBodyBytes": 179254,
+                "decodedResponseBytes": 690465,
+                "responses": 3
+              }
+            },
+            "workerScriptBytes": 0,
+            "workerScriptResponses": 0,
+            "encodingByKind": {
+              "css": {
+                "gzip": 2
+              },
+              "js": {
+                "gzip": 4
+              }
+            }
+          },
+          "wallet": {
+            "encodedBodyBytes": 7449356,
+            "decodedResponseBytes": 13466351,
+            "responses": 207,
+            "revalidations": 0,
+            "byKind": {
+              "js": {
+                "encodedBodyBytes": 1755024,
+                "decodedResponseBytes": 7507099,
+                "responses": 193
+              },
+              "css": {
+                "encodedBodyBytes": 42750,
+                "decodedResponseBytes": 307670,
+                "responses": 2
+              },
+              "wasm": {
+                "encodedBodyBytes": 5651582,
+                "decodedResponseBytes": 5651582,
+                "responses": 12
+              }
+            },
+            "byPhase": {
+              "register": {
+                "encodedBodyBytes": 3626306,
+                "decodedResponseBytes": 6624926,
+                "responses": 102
+              },
+              "first-near-sign": {
+                "encodedBodyBytes": 417558,
+                "decodedResponseBytes": 429740,
+                "responses": 2
+              },
+              "first-evm-sign": {
+                "encodedBodyBytes": 3025,
+                "decodedResponseBytes": 8201,
+                "responses": 2
+              },
+              "unlock": {
+                "encodedBodyBytes": 2807698,
+                "decodedResponseBytes": 5769841,
+                "responses": 90
+              },
+              "repeat-near-sign": {
+                "encodedBodyBytes": 422049,
+                "decodedResponseBytes": 443871,
+                "responses": 4
+              },
+              "repeat-evm-sign": {
+                "encodedBodyBytes": 172720,
+                "decodedResponseBytes": 189772,
+                "responses": 7
+              }
+            },
+            "workerScriptBytes": 225272,
+            "workerScriptResponses": 17,
+            "encodingByKind": {
+              "js": {
+                "identity": 32,
+                "gzip": 161
+              },
+              "css": {
+                "gzip": 2
+              },
+              "wasm": {
+                "identity": 12
+              }
+            }
+          }
+        },
+        "phaseDurationMs": {
+          "initialization": 358.562916,
+          "register": 1804.3204589999998,
+          "first-near-sign": 717.8520410000001,
+          "first-evm-sign": 768.2139579999998,
+          "lock": 22.80133299999943,
+          "unlock": 618.7635829999999,
+          "repeat-near-sign": 709.1750830000001,
+          "repeat-evm-sign": 753.7082089999994,
+          "completed": 2.190082999999504
+        },
+        "networkObserverFailures": [],
+        "contextMeasurementFailures": 16,
+        "incompleteServerResponses": [],
+        "walletAssetSizeMismatches": [],
+        "workerCreationsByUrl": {
+          "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js": 2,
+          "http://localhost:4202/sdk/workers/passkey-confirm.worker.js": 2,
+          "http://localhost:4202/sdk/workers/passkey-mpc-session.worker.js": 2,
+          "http://localhost:4202/sdk/workers/shamir3pass.worker.js": 1,
+          "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js": 2,
+          "http://localhost:4202/sdk/workers/ecdsa-presign-client.worker.js": 2,
+          "http://localhost:4202/sdk/workers/evm-crypto.worker.js": 2,
+          "http://localhost:4202/sdk/workers/near-signer.worker.js": 2,
+          "http://localhost:4202/sdk/workers/ecdsa-online-client.worker.js": 2
+        }
+      },
+      "signed-out": {
+        "artifact": ".artifacts/r170-repeated-20261005/run-3/signed-out.json",
+        "sha256": "6bc0255da6e140f5e038b5a67a55d4b3cc4865b945c5eb9174dd4229629f0eba",
+        "revision": "59c8254fb130eaf95a2e64ce0bd41d5afe80907a",
+        "cachePolicy": "enabled",
+        "realms": {
+          "application": {
+            "encodedBodyBytes": 179253,
+            "decodedResponseBytes": 690465,
+            "responses": 6,
+            "revalidations": 3,
+            "byKind": {
+              "css": {
+                "encodedBodyBytes": 6577,
+                "decodedResponseBytes": 36362,
+                "responses": 2
+              },
+              "js": {
+                "encodedBodyBytes": 172676,
+                "decodedResponseBytes": 654103,
+                "responses": 4
+              }
+            },
+            "byPhase": {
+              "cold-signed-out-mount-idle": {
+                "encodedBodyBytes": 179253,
+                "decodedResponseBytes": 690465,
+                "responses": 3
+              },
+              "warm-signed-out-mount-idle": {
+                "encodedBodyBytes": 0,
+                "decodedResponseBytes": 0,
+                "responses": 3
+              }
+            },
+            "workerScriptBytes": 0,
+            "workerScriptResponses": 0,
+            "encodingByKind": {
+              "css": {
+                "gzip": 1
+              },
+              "js": {
+                "gzip": 2
+              }
+            }
+          },
+          "wallet": {
+            "encodedBodyBytes": 778828,
+            "decodedResponseBytes": 3405087,
+            "responses": 166,
+            "revalidations": 83,
+            "byKind": {
+              "js": {
+                "encodedBodyBytes": 757453,
+                "decodedResponseBytes": 3251252,
+                "responses": 164
+              },
+              "css": {
+                "encodedBodyBytes": 21375,
+                "decodedResponseBytes": 153835,
+                "responses": 2
+              }
+            },
+            "byPhase": {
+              "cold-signed-out-mount-idle": {
+                "encodedBodyBytes": 778828,
+                "decodedResponseBytes": 3405087,
+                "responses": 83
+              },
+              "warm-signed-out-mount-idle": {
+                "encodedBodyBytes": 0,
+                "decodedResponseBytes": 0,
+                "responses": 83
+              }
+            },
+            "workerScriptBytes": 0,
+            "workerScriptResponses": 0,
+            "encodingByKind": {
+              "js": {
+                "identity": 14,
+                "gzip": 68
+              },
+              "css": {
+                "gzip": 1
+              }
+            }
+          }
+        },
+        "phaseDurationMs": {
+          "initialization": 23.415250000000015,
+          "cold-signed-out-mount-idle": 2723.569125,
+          "cold-generic-menu": 2076.4135829999996,
+          "warm-signed-out-mount-idle": 2630.515542,
+          "warm-generic-menu": 2130.364583999999,
+          "completed": 36.66145800000049
+        },
+        "networkObserverFailures": [],
+        "contextMeasurementFailures": 0,
+        "incompleteServerResponses": [],
+        "walletAssetSizeMismatches": [],
+        "workerCreationsByUrl": {}
+      }
+    }
+  },
+  "summary": {
+    "authenticated": {
+      "encodedBodyBytes": {
+        "application": {
+          "baseline": 1669002,
+          "samples": [
+            358502,
+            358498,
+            358508
+          ]
+        },
+        "wallet": {
+          "baseline": 9362732,
+          "samples": [
+            7449356,
+            7449356,
+            7449356
+          ]
+        }
+      },
+      "phaseDurationMs": {
+        "initialization": {
+          "baselineObservation": 377.43566699999997,
+          "samples": [
+            386.447542,
+            355.40962499999995,
+            358.562916
+          ],
+          "median": 358.562916
+        },
+        "register": {
+          "baselineObservation": 1949.7577910000002,
+          "samples": [
+            1860.713458,
+            1820.8843339999999,
+            1804.3204589999998
+          ],
+          "median": 1820.8843339999999
+        },
+        "first-near-sign": {
+          "baselineObservation": 720.9955839999998,
+          "samples": [
+            738.248458,
+            718.7430840000002,
+            717.8520410000001
+          ],
+          "median": 718.7430840000002
+        },
+        "first-evm-sign": {
+          "baselineObservation": 788.1374579999997,
+          "samples": [
+            768.4136249999997,
+            785.7757499999998,
+            768.2139579999998
+          ],
+          "median": 768.4136249999997
+        },
+        "lock": {
+          "baselineObservation": 14.434708000000683,
+          "samples": [
+            20.996165999999903,
+            21.434166000000005,
+            22.80133299999943
+          ],
+          "median": 21.434166000000005
+        },
+        "unlock": {
+          "baselineObservation": 703.6825830000007,
+          "samples": [
+            617.5782500000005,
+            620.9592499999999,
+            618.7635829999999
+          ],
+          "median": 618.7635829999999
+        },
+        "repeat-near-sign": {
+          "baselineObservation": 697.7047089999996,
+          "samples": [
+            693.6684169999999,
+            706.8706660000007,
+            709.1750830000001
+          ],
+          "median": 706.8706660000007
+        },
+        "repeat-evm-sign": {
+          "baselineObservation": 752.1554999999998,
+          "samples": [
+            751.6807079999999,
+            753.024375,
+            753.7082089999994
+          ],
+          "median": 753.024375
+        },
+        "completed": {
+          "baselineObservation": 2.163292000000183,
+          "samples": [
+            2.1337499999999636,
+            2.7163339999997334,
+            2.190082999999504
+          ],
+          "median": 2.190082999999504
+        }
+      }
+    },
+    "signed-out": {
+      "encodedBodyBytes": {
+        "application": {
+          "baseline": 834505,
+          "samples": [
+            179250,
+            179251,
+            179253
+          ]
+        },
+        "wallet": {
+          "baseline": 2563734,
+          "samples": [
+            778828,
+            778828,
+            778828
+          ]
+        }
+      },
+      "phaseDurationMs": {
+        "initialization": {
+          "baselineObservation": 23.541416000000027,
+          "samples": [
+            22.426292000000103,
+            21.75116700000001,
+            23.415250000000015
+          ],
+          "median": 22.426292000000103
+        },
+        "cold-signed-out-mount-idle": {
+          "baselineObservation": 2827.706791,
+          "samples": [
+            2711.837708,
+            2714.930041,
+            2723.569125
+          ],
+          "median": 2714.930041
+        },
+        "cold-generic-menu": {
+          "baselineObservation": 2077.79825,
+          "samples": [
+            2080.983584,
+            2084.497833,
+            2076.4135829999996
+          ],
+          "median": 2080.983584
+        },
+        "warm-signed-out-mount-idle": {
+          "baselineObservation": 2680.9431670000004,
+          "samples": [
+            2630.544333,
+            2633.4287080000004,
+            2630.515542
+          ],
+          "median": 2630.544333
+        },
+        "warm-generic-menu": {
+          "baselineObservation": 2122.7081660000003,
+          "samples": [
+            2122.404207999999,
+            2127.8127079999995,
+            2130.364583999999
+          ],
+          "median": 2127.8127079999995
+        },
+        "completed": {
+          "baselineObservation": 90.94475000000057,
+          "samples": [
+            34.10212499999943,
+            34.09137499999997,
+            36.66145800000049
+          ],
+          "median": 34.10212499999943
+        }
+      }
+    }
+  },
+  "limits": [
+    "Three current cold/warm signed-out pairs; authenticated HTTP cache disabled by harness routing.",
+    "Retained baseline has one complete server-counter sample per scenario; latency acceptance requires repeated comparable baseline evidence.",
+    "Local preview gzip-encodes most JS and CSS; all observed WASM responses use identity encoding. Deployed edge compression/headers remain unverified.",
+    "CDP observer failures are retained; encoded static body totals use independent server counters.",
+    "No total user latency or network saving is claimed outside these completed scenarios."
+  ],
+  "walletStaticFileCatalogue": {
+    "path": ".artifacts/r170-repeated-20261005/wallet-static-file-catalogue.json",
+    "sha256": "9a6f15d8aab53f326e73b35ee86f03fdc8e0fd287af307f79c2ea0eea25d9ef4",
+    "baselineFiles": 122,
+    "currentFiles": 105
+  },
+  "reproduction": {
+    "samples": 3,
+    "command": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.registration.assets.contract.test.ts --grep 'production wallet records asset traffic across registration, signing, and unlock|production signed-out mount and menu record cold and warm cache traffic'",
+    "retain": "Copy both wallet-assets JSON reports and signed-out-trace.zip after each invocation, before the next overwrites them.",
+    "calculation": "Sum serverTransfers[].transfers[].encodedBodyBytes by origin and extension. Assign phases by the latest phase.startedAtMs not later than transfer.startedAtMs. Median uses three current observations. Validate every wallet response against its dist/public file (gzip level 6 or identity; status 304 has zero body)."
+  },
+  "signedOutTraces": [
+    {
+      "path": ".artifacts/r170-repeated-20261005/run-1/signed-out-trace.zip",
+      "sha256": "ba972ff12a3293dfaef71b2e6204fcea993ed7bee77662ca27b0c76ef588cfe8"
+    },
+    {
+      "path": ".artifacts/r170-repeated-20261005/run-2/signed-out-trace.zip",
+      "sha256": "e4659835eb86e19b2cac09698ca550d771cc7a392327100210428695361619d3"
+    },
+    {
+      "path": ".artifacts/r170-repeated-20261005/run-3/signed-out-trace.zip",
+      "sha256": "889e478b892da8d50bfbfb387b58d34aa64c94737c550e02d7cd5a0953fd8208"
+    }
+  ],
+  "executionResults": {
+    "1": [
+      "1 passed (34.2s)",
+      "1 passed (33.1s)"
+    ],
+    "2": [
+      "1 passed (33.9s)",
+      "1 passed (33.1s)"
+    ],
+    "3": [
+      "1 passed (33.9s)",
+      "1 passed (33.2s)"
+    ]
+  },
+  "checks": {
+    "productionScenarios": "six passed",
+    "walletStaticResponseSizes": "all baseline and current records match gzip/identity file sizes",
+    "incompleteServerResponses": 0,
+    "currentNetworkObserverFailures": 0,
+    "buildFreshness": "passed",
+    "bloat": "passed",
+    "diffWhitespace": "passed"
+  }
+}
