@@ -6297,3 +6297,192 @@ node /Users/pta/Dev/rust/seams-wallet/node_modules/playwright/cli.js test \
 This pass provisioned no new Cloudflare resources. It reused staging Workers and
 D1 within the existing **$25 total budget**. Request and query usage still count
 toward that budget. No additional Container probe cost was introduced.
+
+## Session-validation consolidation and signing call graph (October 5, 2026)
+
+The SDK now shares one authenticated status snapshot across the NEAR, EVM and
+Tempo projections of a single combined session view. The existing
+`WalletSessionStatusReadScope` owns this snapshot. Its key includes the relayer,
+credential, session and quota, so different credentials remain separate. Each
+new view creates a new scope. This removes up to two duplicate requests when all
+three projections use the same credential. This is a code-path count, not a
+measured reduction for every unlock or signing operation.
+
+The NEAR material-rebind path also reuses the authorization it just resolved.
+It previously resolved that authorization again before rebinding. Each independent
+operation still starts a fresh scope. There is no global or time-based cache.
+
+Ordinary ECDSA signing retains its pre-confirmation and post-confirmation reads.
+The first selects the confirmation plan and budget. The second reconciles changes
+while approval is pending, including deferred NEAR authority extension. The
+Gateway also validates live authority during prepare and finalize. Sharing one
+snapshot across these boundaries would weaken their freshness guarantee. The
+six ready-signing samples each still made two status requests.
+
+### Online call graph
+
+This graph describes the measured owner ECDSA path with a ready presignature.
+Pool refill is separate. The deployed SigningWorker version is
+`8e6c14c4-8dba-4b22-847c-0652b7e5836a`. Its bindings include private D1 and the
+presign-session DO. They do not include the newer wallet-state DO. Do not
+attribute the development wallet-DO execution path to these measurements.
+
+```mermaid
+sequenceDiagram
+  participant B as Browser SDK
+  participant G as Home Gateway
+  participant C as Console
+  participant D as Wallet D1
+  participant R as MPC Router
+  participant S as SigningWorker
+  participant P as Custody D1
+  B->>G: Session status for confirmation planning
+  G->>C: Resolve deployment and routing
+  G->>D: Read session, authority and quota
+  G-->>B: Exact session status
+  Note over B: User approves
+  B->>G: Fresh session status
+  G->>C: Resolve deployment and routing
+  G->>D: Read current session, authority and quota
+  G-->>B: Reconcile current authorization
+  B->>G: Prepare exact operation and presignature
+  G->>C: Resolve deployment and routing
+  G->>D: Joined session, material and policy read
+  G->>D: Admit operation and consume quota atomically
+  G->>R: Validated operation admission
+  R->>S: Admitted prepare
+  S->>P: Load and validate signer material
+  S->>P: Reserve exact presignature
+  S-->>B: Prepare response through Router and Gateway
+  Note over B: Compute client contribution
+  B->>G: Finalize same operation
+  G->>C: Resolve deployment and routing
+  G->>D: Fresh session, material and policy read
+  G->>D: Resolve existing operation claim
+  G->>R: Validated finalize admission
+  R->>S: Admitted finalize
+  S->>P: Check terminal replay and load material
+  S->>P: Claim effect and consume reservation
+  Note over S: Compute signature
+  S->>P: Persist terminal response
+  S-->>G: Signature through Router
+  G->>D: Complete operation and persist replay response
+  G-->>B: Signature
+  Note over B: Assemble signed transaction
+```
+
+The diagram groups storage work by purpose. Each storage arrow can contain more
+than one SQL statement or database call. It is not a D1-call-count measurement.
+The two writes that record completion belong to separate owners and replay
+boundaries. They must not be removed as duplicate writes without replacing their
+failure guarantees.
+
+The ready online path calls **SigningWorker only**. It makes no Deriver A,
+Deriver B or tenant-root-control-plane call. Their placements can affect other
+flows, but do not explain this ready-signing result. The Gateway strips the
+Wallet Session bearer before forwarding its validated admission to the Router.
+The Router checks that admission against the exact request and forwards it using
+internal service authentication.
+
+Source entry points:
+
+- `browserSigningSurfaceAssembly.ts`: exact session resolution and reconciliation.
+- `capabilityReaderCore.ts`: one scope for a combined session view.
+- `signingFlowRuntime.ts`: a new scope inside the material queue after approval.
+- `wallet-server/src/router/transport/fetch/routes/thresholdEcdsa.ts`:
+  authorize, admit, proxy and complete timers for prepare/finalize.
+- `routerAbEcdsaDerivationNormalSigningRoute.ts`: joined admission evidence and
+  atomic prepare admission, then exact operation resolution for finalize.
+- `normalSigningRouterProxy.ts`: Gateway-to-Router transport.
+- `router-ab-cloudflare/src/ecdsa_normal_signing_transport.rs`: Router dispatch.
+- `router-ab-cloudflare/src/lib.rs`: deployed private-D1 material, reservation,
+  effect and terminal-response operations.
+
+### Measurements
+
+The first consolidated candidate passed both hosted cohorts: nine consecutive
+signatures and six ready signatures. Each cohort also passed NEAR signing,
+concurrent Tempo/Arc signing and shared-budget exhaustion. Signatures were
+independently verified. Automated approval remains inside the full SDK timer.
+
+| Boundary | Ready material, median | Consecutive signing, median |
+| --- | ---: | ---: |
+| Full SDK call | 3.164s | 5.212s |
+| After approval | 2.368s | 4.204s |
+| Prepare | 0.912s | 0.890s |
+| Finalize | 1.142s | 1.201s |
+| Refill wait | None | 1.813s across eight affected calls |
+
+These small sequential cohorts show **no established signing-latency gain** from
+session-view consolidation. The previous ready candidate measured 3.051s.
+Consecutive timings remain sensitive to refill overlap. The two-second target
+remains open.
+
+After the final reader cleanup, a second six-signature ready cohort also passed,
+including concurrent signing and the shared budget check. Its full SDK median was
+**3.072s** (2.814–3.447s), with a post-approval median of **2.453s**. Prepare was
+0.829s and finalize was 1.284s. This confirms the same roughly three-second result.
+Its frozen patch and asset hashes are recorded separately in
+`session-validation-final-source.json`, and results are in
+`session-validation-final/`. Across both candidate runs, 21 measured Tempo
+signatures passed, in addition to warm-up, NEAR and concurrent signatures.
+
+The six ready calls expose these Gateway stage medians:
+
+| Gateway stage | Prepare | Finalize |
+| --- | ---: | ---: |
+| Authorize | 15.0ms | 15.5ms |
+| Admit / resolve existing claim | 58.5ms | 15.5ms |
+| Router and custody round trip | 558.5ms | 790.0ms |
+| Persist Gateway completion | Not run on successful prepare | 48.5ms |
+| Console binding request | 80.0ms | 76.5ms |
+
+A bounded read-only SigningWorker tail captured 14 prepare timing records during
+the test window, including warm-up and concurrent work. Median material loading
+was **327.5ms** (290–380ms). Median reservation was **138.5ms** (128–241ms).
+Median total inside SigningWorker prepare was **475.5ms** (422–531ms).
+These metrics include storage and material handling. They do not isolate D1 SQL
+execution or network latency. The tail stores only route, outcome, timestamp and
+allowlisted duration fields. It stores no request headers or protocol material.
+The observer stopped after three minutes.
+
+The finalize route exposes no equivalent inner timing breakdown in the deployed
+build. Its 790ms custody round trip remains an aggregate. The next useful change
+is to measure material loading, effect claim, presignature consumption and terminal
+commit separately, then combine demonstrated serial reads where ownership permits.
+Prepare's material loading and reservation are already concrete targets. Retain
+fresh authorization, atomic quota consumption, single-use material and exact replay.
+Do not claim a two-second result before the full SDK measurement reaches it.
+
+### Retirement error found during verification
+
+The expanded hosted retirement scenario reached a pre-existing error: an old
+prepare request returned HTTP 503 after unlock retired its session. The D1 reader
+passed the retired row to the live-session parser, which threw. The Gateway then
+reported `wallet_session_unavailable`. This is a production error in failure
+classification. It is independent of browser snapshot sharing.
+
+The development fix rejects the retired row at the credential boundary and
+returns the existing invalid-credential result. It adds no database read and
+changes no budget or replay rule. The existing D1 storage-transfer scenario now
+uses an ECDSA owner and verifies that its credential resolves before retirement,
+then returns invalid after retirement at the destination database. The second
+device remains authorized. That integration test passes. Wallet and Wallet Server
+type-checking and the bloat check pass.
+
+The hosted retirement test remains an acceptance gate for the next Gateway
+candidate. **This server fix is not deployed in staging.** The failed hosted
+attempt is retained; do not report it as a pass. No server, custody role, database,
+Container application or Cloudflare resource was deployed for this investigation.
+
+Evidence remains under private `.artifacts/mpc-signing-20261005/`:
+`session-validation/`, `session-validation-retirement/`,
+`session-validation-source.json`, `session-validation-measured.patch`,
+`prepare-finalize-timing.json`, `signing-worker-timing.json`, and
+`signing-worker-source.json`. The D1 integration proof is public-repository local
+`.artifacts/r153/authorization-storage-transfer/evidence.json`; its scope explicitly
+excludes browser or physical-region proof. Reproduce it with:
+
+```sh
+node tests/e2e/authorization-storage-transfer.e2e.mjs
+```

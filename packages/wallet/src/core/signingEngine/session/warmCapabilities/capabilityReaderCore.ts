@@ -1,3 +1,4 @@
+import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import type {
   ActiveEcdsaCapabilityRuntimeForChainResolver,
   ActiveEcdsaCapabilityRuntimeResolution,
@@ -78,6 +79,7 @@ type WarmSessionCapabilityReaderCoreDeps = {
   resolveActiveEcdsaWalletSessionAuthorization?: ExactEcdsaWalletSessionAuthorizationResolver;
   resolveActiveEd25519WalletSessionAuthorization?: (
     walletId: WalletId,
+    statusReads: WalletSessionStatusReadScope,
   ) => Promise<ExactNearEd25519WalletSessionAuthorization | null>;
 };
 
@@ -85,14 +87,18 @@ async function resolveEcdsaAuthorizationForResolution(args: {
   readonly resolve?: ExactEcdsaWalletSessionAuthorizationResolver;
   readonly walletId: WalletId;
   readonly resolution: ActiveEcdsaCapabilityRuntimeResolution;
+  readonly statusReads: WalletSessionStatusReadScope;
 }): Promise<ExactEvmFamilyWalletSessionAuthorization | null> {
   if (!args.resolve || args.resolution.kind !== 'resolved') return null;
   try {
-    return await args.resolve({
-      walletId: args.walletId,
-      chainTarget: args.resolution.runtime.chainTarget,
-      materialActivation: args.resolution.manifest.activation.materialActivation,
-    });
+    return await args.resolve(
+      {
+        walletId: args.walletId,
+        chainTarget: args.resolution.runtime.chainTarget,
+        materialActivation: args.resolution.manifest.activation.materialActivation,
+      },
+      args.statusReads,
+    );
   } catch {
     return null;
   }
@@ -122,11 +128,12 @@ export function createWarmSessionCapabilityReaderCore(
 ): WarmSessionCapabilityReader {
   async function resolveEd25519AuthorizationForWallet(
     walletId: WalletId,
+    statusReads: WalletSessionStatusReadScope,
   ): Promise<ExactNearEd25519WalletSessionAuthorization | null> {
     const resolve = deps.resolveActiveEd25519WalletSessionAuthorization;
     if (!resolve) return null;
     try {
-      return await resolve(walletId);
+      return await resolve(walletId, statusReads);
     } catch {
       return null;
     }
@@ -323,13 +330,15 @@ export function createWarmSessionCapabilityReaderCore(
 
   async function getWarmSession(walletId: WalletId): Promise<WarmSessionEnvelope> {
     const normalizedWalletId = toWalletId(walletId);
+    // Share only this view's authenticated snapshot across curve projections.
+    const statusReads = new WalletSessionStatusReadScope();
     // Resolve each material lane first so its authorization lookup is qualified
     // by the exact target and activation. A resolved lane without authorization
     // still reaches authorization_required.
     const [ed25519Resolution, ed25519Authorization, evmResolution, tempoResolution] =
       await Promise.all([
         resolveExactEd25519SealedSessionRuntimeForWallet(normalizedWalletId),
-        resolveEd25519AuthorizationForWallet(normalizedWalletId),
+        resolveEd25519AuthorizationForWallet(normalizedWalletId, statusReads),
         deps.resolveActiveEcdsaCapabilityRuntimeForChain({
           walletId: normalizedWalletId,
           chain: 'evm',
@@ -344,11 +353,13 @@ export function createWarmSessionCapabilityReaderCore(
         resolve: deps.resolveActiveEcdsaWalletSessionAuthorization,
         walletId: normalizedWalletId,
         resolution: evmResolution,
+        statusReads,
       }),
       resolveEcdsaAuthorizationForResolution({
         resolve: deps.resolveActiveEcdsaWalletSessionAuthorization,
         walletId: normalizedWalletId,
         resolution: tempoResolution,
+        statusReads,
       }),
     ]);
     const ed25519Claim =

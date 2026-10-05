@@ -29,6 +29,25 @@ revocation, budget and replay guarantees. See the
 [native signing results](refactor-152-results.md#native-mpc-signing-investigation-october-5-2026)
 for exact boundaries, sample counts, failure evidence, source hashes and commands.
 
+### Session validation and prepare/finalize follow-up
+
+- [x] Share one status snapshot across a combined NEAR/EVM/Tempo session view.
+- [x] Reuse the freshly resolved NEAR authorization during material rebinding.
+- [x] Preserve fresh status after approval and live Gateway checks for both phases.
+- [x] Document the owner prepare/finalize call graph and measure deployed prepare
+  material loading (327.5ms median) and reservation (138.5ms median).
+- [x] Verify hosted ready/consecutive signing, concurrent signing and budget limits.
+- [x] Fix retired ECDSA credentials being classified as availability failures in
+  development, and verify the D1 boundary through the storage-transfer scenario.
+- [ ] Deploy that narrow Gateway error-classification fix and pass the expanded
+  hosted retirement gate. Staging still returns 503 for the retired prepare.
+- [ ] Measure the inner finalize stages before changing custody storage calls.
+
+The consolidated SDK cohorts measured 3.164s and 3.072s ready, and 5.212s
+consecutive. This establishes no signing-latency gain. Both status checks remain in ordinary
+ECDSA signing, and the two-second full-call target remains open. See the
+[call graph and verification evidence](refactor-152-results.md#session-validation-consolidation-and-signing-call-graph-october-5-2026).
+
 ## Oceania extension (October 5)
 
 The development candidate adds **OC** as the fourth wallet home. Trusted Oceania

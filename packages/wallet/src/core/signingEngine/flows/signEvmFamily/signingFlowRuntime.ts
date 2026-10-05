@@ -1,3 +1,4 @@
+import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import { isEd25519ExtensionOfEcdsaWalletAuthority } from '@shared/authorization/walletAuthority';
 import { walletSessionPreservesCapabilities } from '@shared/device-linking/activeWalletSession';
 import type {
@@ -741,11 +742,14 @@ export async function createEvmFamilySigningFlowRuntime(
               capability,
               preparedAuthorization: activeAuthorization,
               currentAuthorization: activeAuthorization
-                ? await args.deps.resolveActiveEcdsaWalletSessionAuthorization({
-                    walletId: resolvedSigner.walletId,
-                    chainTarget: resolvedSigner.chainTarget,
-                    materialActivation: resolvedSigner.materialActivation,
-                  })
+                ? await args.deps.resolveActiveEcdsaWalletSessionAuthorization(
+                    {
+                      walletId: resolvedSigner.walletId,
+                      chainTarget: resolvedSigner.chainTarget,
+                      materialActivation: resolvedSigner.materialActivation,
+                    },
+                    new WalletSessionStatusReadScope(),
+                  )
                 : null,
               walletId: resolvedSigner.walletId,
               chainTarget: resolvedSigner.chainTarget,

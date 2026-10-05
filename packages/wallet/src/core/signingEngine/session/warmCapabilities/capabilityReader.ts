@@ -1,3 +1,4 @@
+import type { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import type { WarmSessionStatusResult } from '../../uiConfirm/uiConfirm.types';
 import {
   createWarmSessionCapabilityReaderCore,
@@ -59,6 +60,7 @@ export type WarmSessionCapabilityReaderFactoryDeps = Omit<
   resolveActiveEcdsaWalletSessionAuthorization?: ExactEcdsaWalletSessionAuthorizationResolver;
   resolveActiveEd25519WalletSessionAuthorization?: (
     walletId: WalletId,
+    statusReads: WalletSessionStatusReadScope,
   ) => Promise<ExactNearEd25519WalletSessionAuthorization | null>;
 };
 

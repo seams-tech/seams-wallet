@@ -15,7 +15,10 @@ import type {
   ExactEcdsaSealedRuntimeAuthBinding,
   ExactEcdsaWalletSessionRuntime,
 } from './ecdsaSealedRuntime';
-import type { ActiveWalletSessionQuotaStatusV1 } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
+import type {
+  ActiveWalletSessionQuotaStatusV1,
+  WalletSessionStatusReadScope,
+} from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import {
   isEmailOtpWalletAuthAuthority,
@@ -74,6 +77,7 @@ type ExactEcdsaWalletSessionAuthorizationLookup = {
 
 export type ExactEcdsaWalletSessionAuthorizationResolver = (
   input: ExactEcdsaWalletSessionAuthorizationLookup,
+  statusReads: WalletSessionStatusReadScope,
 ) => Promise<ExactEvmFamilyWalletSessionAuthorization | null>;
 
 export type CanonicalEvmFamilyEcdsaSigningCapability = {

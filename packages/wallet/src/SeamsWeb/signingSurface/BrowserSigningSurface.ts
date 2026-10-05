@@ -487,13 +487,6 @@ import type {
   ReservedRegistrationWebAuthnPrompt,
   WebAuthnPromptCancellation,
 } from '@/core/signingEngine/stepUpConfirmation/passkeyPrompt/webauthnPromptCoordinator';
-async function resolveActiveEd25519WalletSessionAuthorization(
-  walletId: WalletId,
-  relayerUrl: string,
-): Promise<ExactNearEd25519WalletSessionAuthorization | null> {
-  return await resolveBrowserActiveNearEd25519WalletSessionAuthorization(walletId, relayerUrl);
-}
-
 function requireEmailOtpEcdsaRehydrationManifest(
   manifests: readonly ActiveEcdsaCapabilityManifest[],
   authorityDigest: string,
@@ -1779,6 +1772,7 @@ async function walletSessionStateFromExactEd25519Runtime(args: {
   const authorization = await resolveBrowserActiveNearEd25519WalletSessionAuthorization(
     args.runtime.walletId,
     args.relayerUrl,
+    new WalletSessionStatusReadScope(),
   );
   if (!authorization) {
     throw new Error('[SigningEngine][near] active Wallet Session authorization is unavailable');
@@ -2471,10 +2465,12 @@ export class BrowserSigningSurface {
 
   private resolveActiveNearEd25519WalletSessionAuthorization(
     walletId: WalletId,
+    statusReads: WalletSessionStatusReadScope,
   ): ReturnType<typeof resolveBrowserActiveNearEd25519WalletSessionAuthorization> {
     return resolveBrowserActiveNearEd25519WalletSessionAuthorization(
       walletId,
       String(this.seamsWebConfigs.network.relayer?.url || '').trim(),
+      statusReads,
     );
   }
 
@@ -3440,9 +3436,10 @@ export class BrowserSigningSurface {
       if (!relayerUrl) return;
       const parsedWalletId = parseWalletId(upgrade.walletId);
       if (!parsedWalletId.ok) return;
-      const authorization = await resolveActiveEd25519WalletSessionAuthorization(
+      const authorization = await resolveBrowserActiveNearEd25519WalletSessionAuthorization(
         parsedWalletId.value,
         relayerUrl,
+        new WalletSessionStatusReadScope(),
       );
       const walletSessionToken = authorization?.operationCredential.token;
       if (!walletSessionToken) return;
@@ -5200,14 +5197,16 @@ export class BrowserSigningSurface {
       materialActivation: args.materialActivation,
     });
     let thresholdSessionId = args.laneIdentity.thresholdSessionId;
-    const activeAuthorization = await resolveActiveEd25519WalletSessionAuthorization(
+    const activeAuthorization = await resolveBrowserActiveNearEd25519WalletSessionAuthorization(
       runtime.walletId,
       relayerUrl,
+      new WalletSessionStatusReadScope(),
     );
     if (activeAuthorization) {
-      const walletSessionState = await walletSessionStateFromExactEd25519Runtime({
+      const walletSessionState = await rebindRouterAbEd25519WalletSessionStateFromExactRuntime({
         runtime,
-        relayerUrl: String(this.seamsWebConfigs.network.relayer?.url || '').trim(),
+        authorization: activeAuthorization,
+        nowMs: Date.now(),
       });
       const warmSessionClaim = await this.ensurePasskeyEd25519WarmSessionForSigning({
         runtime,
@@ -6725,12 +6724,12 @@ export class BrowserSigningSurface {
     if (resolution.kind !== 'resolved') {
       throw new Error(`[WarmSessionStore] Ed25519 sealed runtime is ${resolution.kind}`);
     }
-    const authorization = await this.resolveActiveNearEd25519WalletSessionAuthorization(walletId);
+    const read = await this.readExactNearEd25519WalletSessionAuthorization(walletId);
     return await warmCapabilitiesPublic.getWarmThresholdEd25519SessionStatus(
       this.warmCapabilitiesPublicDeps,
       {
         runtime: resolution.runtime,
-        authorization,
+        authorization: read.kind === 'found' ? read.authorization : null,
         nowMs: Date.now(),
       },
     );

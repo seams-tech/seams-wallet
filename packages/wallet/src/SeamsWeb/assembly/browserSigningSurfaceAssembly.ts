@@ -551,10 +551,11 @@ export async function readBrowserExactNearEd25519WalletSessionAuthorization(
 export async function resolveBrowserActiveNearEd25519WalletSessionAuthorization(
   walletId: ReturnType<typeof toWalletId>,
   relayerUrl: string,
+  statusReads: WalletSessionStatusReadScope,
 ): Promise<ExactNearEd25519WalletSessionAuthorization | null> {
   const read = await readBrowserExactNearEd25519WalletSessionAuthorization(
     relayerUrl,
-    new WalletSessionStatusReadScope(),
+    statusReads,
     walletId,
   );
   return read.kind === 'found' ? read.authorization : null;
@@ -884,15 +885,22 @@ export function createBrowserActiveEcdsaWalletSessionAuthorizationResolver(
   args: BrowserEcdsaCapabilityReaderContext,
 ): (
   input: BrowserEcdsaWalletSessionAuthorizationInput,
+  statusReads: WalletSessionStatusReadScope,
 ) => Promise<ExactEvmFamilyWalletSessionAuthorization | null> {
-  return async (input) => {
-    const resolution = await resolveBrowserActiveEcdsaWalletSessionAuthorization(
-      args,
-      input,
-      new WalletSessionStatusReadScope(),
-    );
-    return resolution.kind === 'active' ? resolution.authorization : null;
-  };
+  return resolveBrowserExactEcdsaAuthorization.bind(null, args);
+}
+
+async function resolveBrowserExactEcdsaAuthorization(
+  args: BrowserEcdsaCapabilityReaderContext,
+  input: BrowserEcdsaWalletSessionAuthorizationInput,
+  statusReads: WalletSessionStatusReadScope,
+): Promise<ExactEvmFamilyWalletSessionAuthorization | null> {
+  const resolution = await resolveBrowserActiveEcdsaWalletSessionAuthorization(
+    args,
+    input,
+    statusReads,
+  );
+  return resolution.kind === 'active' ? resolution.authorization : null;
 }
 
 /** The wallet's current active manifest covering the requested target, if one
