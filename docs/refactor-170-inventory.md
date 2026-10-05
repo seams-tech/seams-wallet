@@ -2434,3 +2434,46 @@ browser, and documentation types pass, as do the production build, packed
 consumer declarations, runtime boundaries, freshness, and bloat checks. This
 naming change has zero net production-source lines. Evidence:
 `evidence/refactor-170-request-email-code-20261005.json`.
+
+
+### Registration continuation audit and production baseline (2026-10-05)
+
+Both current passkey activation-response-loss cases pass in production, each in
+28.3 seconds. ECDSA-only and mixed wallets each replay the exact activation three
+times, reject a changed activation digest before prompting, unlock the exact method
+once, and produce one verified EVM signature. Neither creates another registration.
+Evidence: `evidence/refactor-170-registration-continuation-baseline-20261005.json`.
+
+These cases use `tests/intended-app/src/ResumeRegistration.tsx`, which asks the
+application for the wallet ID, ceremony ID, and expected passkey origin. They do
+not prove the accepted SDK-owned continuation. `WalletHostRuntime` calls
+`resumePendingNearRegistrations` at startup, but that function returns
+`unlock_required` for ECDSA/mixed commits. Startup only reports failures. Normal
+`auth.unlock` resolves published subjects before doing any pending-registration
+work, so the normal unlock path does not replace the separate resume operation.
+
+The existing mixed recovery publishes the ECDSA registration projection. Its E2E
+checks only EVM signing. Mixed NEAR rows are also reported as `unlock_required` by
+startup. The separate planned/prepared NEAR continuation in `registration.ts` must
+be reconciled during authenticated recovery. These passing tests do not establish
+that the mixed wallet's NEAR registration completes after reload.
+
+Complete this migration in the following dependency order:
+
+1. Resolve a pending registration from wallet identity inside the host. Reject
+   ambiguous or mismatched records. Derive passkey origin from the executing host;
+   applications must not supply ceremony IDs or activation details.
+2. Reuse exact activation replay, fact validation, and method unlock. Preserve one
+   authentication prompt and the normal unlock selection, policy, progress, and
+   failure contracts. Do not call ordinary unlock again after a fresh recovery
+   unlock merely to construct its result.
+3. Continue the persisted mixed NEAR plan through its existing custody/provisioning
+   path. Expose EVM availability and pending NEAR state accurately. Verify NEAR
+   readiness and a NEAR signature before calling mixed continuation complete.
+4. Integrate Email OTP continuation with its existing provider/challenge flow.
+   Retain exact method and challenge ownership; do not consume the same OTP again
+   in a second unlock path. Verify response loss for both authentication methods.
+5. Move the E2E driver to normal `auth.unlock` and the accepted email flow. Preserve
+   the corrupted-digest rejection, exact replay, single prompt, and unchanged
+   registration-count assertions. Then remove the public resume method, iframe
+   request, special resume form, and obsolete request/result exports together.

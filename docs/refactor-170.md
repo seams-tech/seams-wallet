@@ -866,7 +866,11 @@ explicit auth method, wallet allocation, and signer selection. The former four
 creation shortcuts and their duplicate builders are removed. See the unified
 registration checkpoint in `refactor-170-inventory.md`. NEAR account readiness
 also uses the accepted read/wait/subscription names and the SDK-owned wait.
-Other R171 operations still require migration.
+Other R171 operations still require migration. Registration continuation still
+uses an explicit public resume call. The production baseline proves exact replay
+and EVM signing for passkey ECDSA-only/mixed wallets, but does not prove automatic
+unlock continuation or mixed NEAR completion. Follow the dependency audit in
+`refactor-170-inventory.md` before removing that call.
 
 - Keep shared message contracts and public value helpers free of execution
   imports. Use type-only imports for domain types; move pure boundary helpers
