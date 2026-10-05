@@ -187,11 +187,10 @@ const workerTargets = [
   ['emailOtpWorker', 'Email OTP worker', 'dist/workers/email-otp.worker.js'],
   ['nearSignerWorker', 'NEAR signer worker', 'dist/workers/near-signer.worker.js'],
   ['nearWasm', 'NEAR signer WASM', 'dist/workers/wasm_signer_worker_bg.wasm'],
-  ['nearWorkerWasm', 'NEAR worker WASM alias', 'dist/workers/near_signer.wasm'],
   ['evmCryptoWorker', 'ECDSA signer worker', 'dist/workers/evm-crypto.worker.js'],
-  ['ecdsaWasm', 'ECDSA signer WASM', 'dist/workers/evm_crypto.wasm'],
+  ['ecdsaWasm', 'ECDSA signer WASM', 'dist/workers/evm_crypto_bg.wasm'],
   ['tempoSignerWorker', 'Tempo signer worker', 'dist/workers/tempo-signer.worker.js'],
-  ['tempoWasm', 'Tempo signer WASM', 'dist/workers/tempo_signer.wasm'],
+  ['tempoWasm', 'Tempo signer WASM', 'dist/workers/tempo_signer_bg.wasm'],
   [
     'ecdsaDerivationClientWorker',
     'ECDSA bootstrap/export client worker',

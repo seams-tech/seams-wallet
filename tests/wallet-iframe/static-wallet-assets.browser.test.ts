@@ -251,14 +251,14 @@ const GENERATOR_PUBLIC_KEY = '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d9
 const RETRY_SCENARIOS = [
   {
     workerUrl: '/sdk/workers/evm-crypto.worker.js',
-    wasmUrl: '/sdk/workers/evm_crypto.wasm',
+    wasmUrl: '/sdk/workers/evm_crypto_bg.wasm',
     operation: 'validateSecp256k1PublicKey33',
     payload: { publicKey33: Array.from(Buffer.from(GENERATOR_PUBLIC_KEY, 'hex')) },
     expectedResult: { ok: true, hex: GENERATOR_PUBLIC_KEY },
   },
   {
     workerUrl: '/sdk/workers/tempo-signer.worker.js',
-    wasmUrl: '/sdk/workers/tempo_signer.wasm',
+    wasmUrl: '/sdk/workers/tempo_signer_bg.wasm',
     operation: 'computeTempoSenderHash',
     payload: {
       tx: {
@@ -315,7 +315,7 @@ test('Email OTP loaders retry delivery failure and reuse successful initializati
     await page.evaluate("globalThis.WASM_BASE_URL = new URL('/sdk/workers/', location.href).href");
     await page.addScriptTag({ content: bundle.outputFiles[0]!.text });
     for (const [loader, filename] of [
-      ['evm', 'evm_crypto.wasm'],
+      ['evm', 'evm_crypto_bg.wasm'],
       ['email', 'email_otp_runtime_bg.wasm'],
       ['custody', 'wallet_custody_ceremony_bg.wasm'],
     ]) {

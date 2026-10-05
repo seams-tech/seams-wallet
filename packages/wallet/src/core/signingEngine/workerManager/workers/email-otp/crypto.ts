@@ -31,7 +31,7 @@ export function generateRandomSecret32(): Uint8Array {
   return cryptoApi.getRandomValues(new Uint8Array(32));
 }
 
-const evmCryptoWasmUrl = resolveWasmUrl('evm_crypto.wasm', 'Email OTP');
+const evmCryptoWasmUrl = resolveWasmUrl('evm_crypto_bg.wasm', 'Email OTP');
 const emailOtpRuntimeWasmUrl = resolveWasmUrl('email_otp_runtime_bg.wasm', 'Email OTP Runtime');
 const walletCustodyCeremonyWasmUrl = resolveWasmUrl(
   'wallet_custody_ceremony_bg.wasm',

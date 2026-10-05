@@ -68,9 +68,15 @@ Chunk splitting and month-later presignature reuse proof are outside this batch.
   request-count tradeoff. Enrollment deferral increased startup bytes and was
   reverted. Build, mixed-wallet exports, cold/warm menu scenarios, and the bloat
   ratchet passed. See [startup evidence](evidence/cleanup-startup-20261005.json).
-- [ ] **5. Signer-specific chunks:** defer curve-specific export execution,
-  remove duplicate emitted WASM aliases, and measure NEAR-only and ECDSA-only
-  flows. Preserve shared custody dependencies.
+- [x] **5. Signer-specific chunks:** defer curve-specific export execution.
+  NEAR-only export loads no ECDSA export module; ECDSA-only export loads no
+  Ed25519 export module or Yao WASM. Both scenarios verify registration,
+  lock/unlock, and restored signing before export. Three duplicate WASM aliases
+  are removed from development and production output: 675,372 package bytes.
+  Canonical URLs retain the generated filenames. Shared custody dependencies
+  remain. Build, type-check, mixed-wallet exports, both signer scenarios, three
+  worker delivery/retry tests, freshness, and the bloat ratchet passed. See
+  [signer asset evidence](evidence/cleanup-signer-assets-20261005.json).
 - [ ] **6. Tests and documentation:** consolidate repeated asset-test setup,
   verify operation-specific imports, and correct ownership and asset guidance.
 

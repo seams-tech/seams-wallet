@@ -158,7 +158,7 @@ test(
 );
 
 function isEvmOperationModuleUrl(url: string): boolean {
-  return /\/(?:signEvmWithUiConfirm|signEvmFamilyWithUiConfirmForTempo|webauthnP256|secp256k1)-[^/]+\.js$/u.test(
+  return /\/(?:signEvmWithUiConfirm|signEvmFamilyWithUiConfirmForTempo|webauthnP256|secp256k1|ecdsaExportFlow)-[^/]+\.js$/u.test(
     new URL(url).pathname,
   );
 }
@@ -196,6 +196,8 @@ async function measureNearOnlyAssets({
   assets.setPhase('near-only-restored-sign');
   await harness.refreshPagePreservingWalletStorage();
   await harness.signNearTransactionAfterRefresh();
+  assets.setPhase('near-only-export');
+  await harness.exportEd25519Key();
   for (const workerUrl of assets.getWorkerUrls()) {
     expect(workerUrl).not.toMatch(/\/(?:ecdsa-[^/]+|email-otp)\.worker\.js$/u);
   }
@@ -204,6 +206,7 @@ async function measureNearOnlyAssets({
     'near-only-unlock',
     'near-only-sign',
     'near-only-restored-sign',
+    'near-only-export',
   ]) {
     expect(assets.getRequestedAssetUrlsForPhase(phase).filter(isEvmOperationModuleUrl)).toEqual([]);
   }
@@ -254,6 +257,13 @@ async function measureEcdsaOnlyAssets({
   expect(status.status).toBe('exhausted');
   assets.setPhase('ecdsa-evm-step-up-sign');
   await harness.signArcEvmTransaction('step_up_required');
+  assets.setPhase('ecdsa-only-export');
+  await harness.exportEcdsaKey();
+  for (const assetUrl of assets.getRequestedAssetUrlsForPhase('ecdsa-only-export')) {
+    expect(assetUrl).not.toMatch(
+      /\/(?:ed25519YaoExportFlow-[^/]+\.js|router_ab_ed25519_yao_client_bg\.wasm)$/u,
+    );
+  }
   assets.setPhase('completed');
 }
 

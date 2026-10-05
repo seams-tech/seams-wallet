@@ -9,7 +9,7 @@ const sdkRoot = path.resolve(path.join(__dirname, '../..'));
 const repoRoot = path.resolve(sdkRoot, '../..');
 
 const wasmPkgJsAbs = path.join(repoRoot, 'wasm', 'evm_crypto', 'pkg', 'evm_crypto.js');
-const workerWasmAbs = path.join(sdkRoot, 'dist', 'workers', 'evm_crypto.wasm');
+const workerWasmAbs = path.join(sdkRoot, 'dist', 'workers', 'evm_crypto_bg.wasm');
 
 function fail(msg) {
   console.error(`\n[smoke-evm-crypto-workers-runtime] ${msg}`);

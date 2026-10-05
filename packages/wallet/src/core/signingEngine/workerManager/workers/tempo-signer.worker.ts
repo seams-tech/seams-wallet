@@ -75,7 +75,7 @@ function postOperationSucceeded(
   postToMainThread({ id: msg.id, ok: true, result }, transfer);
 }
 
-const wasmUrl = resolveWasmUrl('tempo_signer.wasm', 'Tempo Signer');
+const wasmUrl = resolveWasmUrl('tempo_signer_bg.wasm', 'Tempo Signer');
 let wasmInitPromise: Promise<void> | null = null;
 
 function ensureWasm(): Promise<void> {

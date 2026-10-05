@@ -134,7 +134,7 @@ function postOperationSucceeded(
 
 const buildWebauthnP256SignatureWasm = evmCryptoWasmModule.build_webauthn_p256_signature;
 
-const wasmUrl = resolveWasmUrl('evm_crypto.wasm', 'Eth Signer');
+const wasmUrl = resolveWasmUrl('evm_crypto_bg.wasm', 'Eth Signer');
 let wasmInitPromise: Promise<void> | null = null;
 
 function ensureWasm(): Promise<void> {

@@ -1,0 +1,289 @@
+{
+  "date": "2026-10-05",
+  "task": 5,
+  "baseCommit": "b8c4f045",
+  "changes": [
+    "Load curve-specific key export implementations when that curve is selected.",
+    "Use generated WASM filenames as the only browser worker URLs. Remove three duplicate copies from development and production output."
+  ],
+  "duplicateWasmBytesRemoved": 675372,
+  "identicalWasmAssetsAfter": [],
+  "scenarios": {
+    "production-near-only-wallet-records-unlock-and-restored-signing-assets": {
+      "before": {
+        "encodedBodyBytes": 8507761,
+        "responses": 439,
+        "phases": {
+          "near-only-registration": {
+            "encodedBodyBytes": 2763835,
+            "responses": 112,
+            "wasm": [
+              "router_ab_ed25519_yao_client_bg.wasm",
+              "shamir3pass_runtime_bg.wasm",
+              "wallet_custody_ceremony_bg.wasm",
+              "wasm_signer_worker_bg.wasm"
+            ],
+            "exportModules": []
+          },
+          "locked-reload": {
+            "encodedBodyBytes": 983432,
+            "responses": 106,
+            "wasm": [],
+            "exportModules": []
+          },
+          "near-only-unlock": {
+            "encodedBodyBytes": 2126133,
+            "responses": 108,
+            "wasm": [
+              "router_ab_ed25519_yao_client_bg.wasm",
+              "wasm_signer_worker_bg.wasm"
+            ],
+            "exportModules": []
+          },
+          "near-only-sign": {
+            "encodedBodyBytes": 413449,
+            "responses": 2,
+            "wasm": [
+              "wasm_signer_worker_bg.wasm"
+            ],
+            "exportModules": []
+          },
+          "near-only-restored-sign": {
+            "encodedBodyBytes": 2220912,
+            "responses": 111,
+            "wasm": [
+              "router_ab_ed25519_yao_client_bg.wasm",
+              "shamir3pass_runtime_bg.wasm",
+              "wasm_signer_worker_bg.wasm"
+            ],
+            "exportModules": []
+          }
+        },
+        "failures": 10
+      },
+      "after": {
+        "encodedBodyBytes": 9281139,
+        "responses": 497,
+        "phases": {
+          "near-only-registration": {
+            "encodedBodyBytes": 2769604,
+            "responses": 124,
+            "wasm": [
+              "router_ab_ed25519_yao_client_bg.wasm",
+              "shamir3pass_runtime_bg.wasm",
+              "wallet_custody_ceremony_bg.wasm",
+              "wasm_signer_worker_bg.wasm"
+            ],
+            "exportModules": []
+          },
+          "locked-reload": {
+            "encodedBodyBytes": 989148,
+            "responses": 118,
+            "wasm": [],
+            "exportModules": []
+          },
+          "near-only-unlock": {
+            "encodedBodyBytes": 2131849,
+            "responses": 120,
+            "wasm": [
+              "router_ab_ed25519_yao_client_bg.wasm",
+              "wasm_signer_worker_bg.wasm"
+            ],
+            "exportModules": []
+          },
+          "near-only-sign": {
+            "encodedBodyBytes": 413502,
+            "responses": 2,
+            "wasm": [
+              "wasm_signer_worker_bg.wasm"
+            ],
+            "exportModules": []
+          },
+          "near-only-restored-sign": {
+            "encodedBodyBytes": 2226681,
+            "responses": 123,
+            "wasm": [
+              "router_ab_ed25519_yao_client_bg.wasm",
+              "shamir3pass_runtime_bg.wasm",
+              "wasm_signer_worker_bg.wasm"
+            ],
+            "exportModules": []
+          },
+          "near-only-export": {
+            "encodedBodyBytes": 750355,
+            "responses": 10,
+            "wasm": [
+              "router_ab_ed25519_yao_client_bg.wasm"
+            ],
+            "exportModules": [
+              "ed25519YaoExportFlow-DIFAsyZa.js",
+              "keyExportFlow-WsQrgA7s.js"
+            ]
+          }
+        },
+        "failures": 11
+      }
+    },
+    "production-ecdsa-only-wallet-records-unlock-and-restored-signing-assets": {
+      "before": {
+        "encodedBodyBytes": 8068111,
+        "responses": 452,
+        "phases": {
+          "ecdsa-only-registration": {
+            "encodedBodyBytes": 2986203,
+            "responses": 113,
+            "wasm": [
+              "evm_crypto.wasm",
+              "router_ab_ecdsa_client_bg.wasm",
+              "shamir3pass_runtime_bg.wasm",
+              "wallet_custody_ceremony_bg.wasm",
+              "wasm_signer_worker_bg.wasm"
+            ],
+            "exportModules": []
+          },
+          "locked-reload": {
+            "encodedBodyBytes": 985668,
+            "responses": 107,
+            "wasm": [],
+            "exportModules": []
+          },
+          "ecdsa-only-unlock": {
+            "encodedBodyBytes": 1938948,
+            "responses": 109,
+            "wasm": [
+              "evm_crypto.wasm",
+              "router_ab_ecdsa_client_bg.wasm"
+            ],
+            "exportModules": []
+          },
+          "tempo-sign": {
+            "encodedBodyBytes": 108557,
+            "responses": 6,
+            "wasm": [
+              "tempo_signer.wasm"
+            ],
+            "exportModules": []
+          },
+          "evm-sign": {
+            "encodedBodyBytes": 615,
+            "responses": 1,
+            "wasm": [],
+            "exportModules": []
+          },
+          "ecdsa-restored-sign": {
+            "encodedBodyBytes": 2047505,
+            "responses": 115,
+            "wasm": [
+              "evm_crypto.wasm",
+              "router_ab_ecdsa_client_bg.wasm",
+              "tempo_signer.wasm"
+            ],
+            "exportModules": []
+          },
+          "ecdsa-evm-step-up-sign": {
+            "encodedBodyBytes": 615,
+            "responses": 1,
+            "wasm": [],
+            "exportModules": []
+          }
+        },
+        "failures": 19
+      },
+      "after": {
+        "encodedBodyBytes": 8112669,
+        "responses": 509,
+        "phases": {
+          "ecdsa-only-registration": {
+            "encodedBodyBytes": 2991969,
+            "responses": 125,
+            "wasm": [
+              "evm_crypto_bg.wasm",
+              "router_ab_ecdsa_client_bg.wasm",
+              "shamir3pass_runtime_bg.wasm",
+              "wallet_custody_ceremony_bg.wasm",
+              "wasm_signer_worker_bg.wasm"
+            ],
+            "exportModules": []
+          },
+          "locked-reload": {
+            "encodedBodyBytes": 991428,
+            "responses": 119,
+            "wasm": [],
+            "exportModules": []
+          },
+          "ecdsa-only-unlock": {
+            "encodedBodyBytes": 1944708,
+            "responses": 121,
+            "wasm": [
+              "evm_crypto_bg.wasm",
+              "router_ab_ecdsa_client_bg.wasm"
+            ],
+            "exportModules": []
+          },
+          "tempo-sign": {
+            "encodedBodyBytes": 108644,
+            "responses": 6,
+            "wasm": [
+              "tempo_signer_bg.wasm"
+            ],
+            "exportModules": []
+          },
+          "evm-sign": {
+            "encodedBodyBytes": 615,
+            "responses": 1,
+            "wasm": [],
+            "exportModules": []
+          },
+          "ecdsa-restored-sign": {
+            "encodedBodyBytes": 2053352,
+            "responses": 127,
+            "wasm": [
+              "evm_crypto_bg.wasm",
+              "router_ab_ecdsa_client_bg.wasm",
+              "tempo_signer_bg.wasm"
+            ],
+            "exportModules": []
+          },
+          "ecdsa-evm-step-up-sign": {
+            "encodedBodyBytes": 615,
+            "responses": 1,
+            "wasm": [],
+            "exportModules": []
+          },
+          "ecdsa-only-export": {
+            "encodedBodyBytes": 21338,
+            "responses": 9,
+            "wasm": [],
+            "exportModules": [
+              "ecdsaExportFlow-DqocYZrf.js",
+              "keyExportFlow-WsQrgA7s.js"
+            ]
+          }
+        },
+        "failures": 19
+      }
+    }
+  },
+  "checks": [
+    "Production build passed",
+    "Intended-flow type check passed",
+    "Mixed Email OTP lifecycle with both exports passed",
+    "NEAR-only registration, unlock, restored signing, and export passed without ECDSA export module",
+    "ECDSA-only registration, unlock, restored signing, step-up, and export passed without Ed25519 export module or Yao WASM in export",
+    "Three static-asset/worker delivery and retry browser tests passed",
+    "Build freshness passed",
+    "Bloat ratchet passed"
+  ],
+  "accounting": [
+    "Before scenarios end after signing. After scenarios add an export phase. Compare common phases separately.",
+    "Phase attribution follows request completion; concurrent requests can cross phase boundaries.",
+    "Duplicate alias removal reduces package inventory. It does not imply 675372 fewer bytes per visit.",
+    "Registration ceremonies and custody-envelope operations retain their required shared modules."
+  ],
+  "repeat": [
+    "pnpm -C packages/wallet build:prod",
+    "node packages/wallet/scripts/checks/report-wallet-iframe-bundle-size.mjs --json",
+    "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.registration.assets.contract.test.ts e2e/intended-behaviours/email-otp.unlock.contract.test.ts --grep \"production NEAR-only wallet records unlock and restored signing assets|production ECDSA-only wallet records unlock and restored signing assets|Email OTP registration and unlock lifecycle\"",
+    "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4289 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/static-wallet-assets.browser.test.ts --project=chromium"
+  ]
+}
