@@ -198,6 +198,7 @@ const RELAY_SIGNER_READY_TABLES = Object.freeze([
   'wallet_auth_methods',
   'wallet_relocation_challenges',
   'wallet_relocation_approvals',
+  'wallet_relocation_session_fences',
   'authorization_wallet_session_quotas',
   'wallet_session_authorizations_v2',
   'wallet_session_hosted_credentials_v2',

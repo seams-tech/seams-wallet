@@ -65,6 +65,7 @@ const bundle = await build({
     resolveDir: process.cwd(),
     loader: 'ts',
     contents: `
+      export { D1WalletRelocationSessions, WalletRelocationSessionSource } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationSessions';
       export { CloudflareD1WebAuthnStore } from './packages/wallet-server/src/router/cloudflare/d1/webauthn/d1WebAuthnStore';
       export { walletRelocationEmailOtpBinding, verifyWalletRelocationEmailOtp } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationEmailOtp';
       export { CloudflareD1EmailOtpChallengeStore } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeStore';
@@ -319,6 +320,10 @@ try {
   const relocationPasskey = await verifyRelocationPasskey(source);
   const relocationEmailOtp = await verifyRelocationEmailOtp(source);
   const relocationOwnerRequest = await verifyRelocationOwnerRequest(source);
+  const sessionRetirement = await verifyWalletSessionRetirement({
+    source, sourceService, fixture, issued, offlineIssued, primaryInput, offlineInput,
+    hostedInput, hostedBefore, before, offlineBefore, redeemInput, issuedAtMs,
+  });
   const artifact = {
     kind: 'wallet_authorization_storage_transfer_evidence_v1',
     recordedAt: new Date().toISOString(),
@@ -336,6 +341,7 @@ try {
       relocationPasskey,
       relocationEmailOtp,
       relocationOwnerRequest,
+      sessionRetirement,
       existingPrimaryCredentialAcceptedAtIndependentDatabase: true,
       secondDeviceCredentialAndAuthorityPreservedWithoutReissuance: true,
       directConsumedExchangeImportRejected: true,
@@ -351,7 +357,7 @@ try {
       retiringFirstDeviceSessionLeftSecondDeviceSessionActive: true,
     },
     scope:
-      'Production authorization service and D1 stores with canonical fixture authority; no signing execution, cryptographic material copy, browser, physical geography, or source-fencing proof.',
+      'Production authorization service and D1 stores with canonical fixture authority; no signing execution, cryptographic material copy, browser, physical geography, complete writer fencing, or coordinator integration.',
     reproduce: 'node tests/e2e/authorization-storage-transfer.e2e.mjs',
   };
   await writeFile(resolve(output, 'evidence.json'), `${JSON.stringify(artifact, null, 2)}\n`);
@@ -1589,4 +1595,195 @@ function relocationOwnerHttpRequest(token, origin) {
     headers: { authorization: `Bearer ${token}`, origin },
     body: '{}',
   });
+}
+
+async function verifyWalletSessionRetirement(input) {
+  const {
+    source,
+    sourceService,
+    fixture,
+    issued,
+    offlineIssued,
+    primaryInput,
+    offlineInput,
+    hostedInput,
+    hostedBefore,
+    before,
+    offlineBefore,
+    redeemInput,
+    issuedAtMs,
+  } = input;
+  const identity = api.WalletRelocationSessionSource.parse({
+    walletId: issued.session.walletId,
+    moveId: `wmove_${'s'.repeat(43)}`,
+    requestDigestHex: 'cd'.repeat(32),
+    sourceGeneration: 1,
+  });
+  const store = new api.D1WalletRelocationSessions(source, scope);
+  const pending = await sourceService.mintHostedWalletSeamsSessionExchange({
+    authorization: issued,
+    appOrigin: api.parseSessionOrigin('https://app.example.test'),
+    walletOrigin: api.parseSessionOrigin('https://wallet.example.test'),
+    issuedAtMs: issuedAtMs + 4,
+    expiresAtMs: issued.session.expiresAtMs,
+  });
+  const exchangesBefore = await source
+    .prepare(
+      'SELECT * FROM wallet_session_hosted_exchange_codes_v2 WHERE wallet_id = ? ORDER BY code_hash',
+    )
+    .bind(issued.session.walletId)
+    .all();
+  await source
+    .prepare(
+      `CREATE TRIGGER injected_relocation_retirement_failure
+    BEFORE UPDATE ON wallet_session_authorizations_v2
+    WHEN NEW.retired_at_ms IS NOT NULL
+    BEGIN SELECT RAISE(ABORT, 'injected_retirement_failure'); END`,
+    )
+    .run();
+  await assert.rejects(store.retire(identity, issuedAtMs + 5), /injected_retirement_failure/u);
+  await source.prepare('DROP TRIGGER injected_relocation_retirement_failure').run();
+  assert.deepEqual(
+    await sourceService.readWalletSessionAdmissionSnapshotByOperationCredential(primaryInput),
+    before,
+  );
+  assert.deepEqual(
+    await sourceService.readWalletSessionAdmissionSnapshotByOperationCredential(offlineInput),
+    offlineBefore,
+  );
+  assert.deepEqual(
+    await sourceService.readHostedWalletSessionOperationCredentialV2(hostedInput),
+    hostedBefore,
+  );
+  assert.equal(
+    await source
+      .prepare('SELECT COUNT(*) AS count FROM wallet_relocation_session_fences')
+      .first('count'),
+    0,
+  );
+
+  const [first, concurrent] = await Promise.all([
+    store.retire(identity, issuedAtMs + 5),
+    store.retire(identity, issuedAtMs + 6),
+  ]);
+  assert.equal(first, concurrent);
+  assert.equal(
+    await new api.D1WalletRelocationSessions(source, scope).retire(identity, issuedAtMs + 7),
+    first,
+  );
+  for (const credential of [primaryInput, offlineInput]) {
+    await assert.rejects(
+      sourceService.readWalletSessionAdmissionSnapshotByOperationCredential(credential),
+      /authorization is retired/u,
+    );
+  }
+  assert.equal(await sourceService.readHostedWalletSessionOperationCredentialV2(hostedInput), null);
+  assert.equal(
+    (await sourceService.redeemHostedWalletSeamsSessionExchange(redeemInput)).kind,
+    'already_consumed',
+  );
+  const pendingResult = await sourceService.redeemHostedWalletSeamsSessionExchange({
+    exchangeCode: pending.exchangeCode,
+    nonce: pending.nonce,
+    appOrigin: api.parseSessionOrigin('https://app.example.test'),
+    walletOrigin: api.parseSessionOrigin('https://wallet.example.test'),
+    redeemedAtMs: issuedAtMs + 8,
+  });
+  assert.notEqual(pendingResult.kind, 'redeemed');
+  assert.deepEqual(
+    (
+      await source
+        .prepare(
+          'SELECT * FROM wallet_session_hosted_exchange_codes_v2 WHERE wallet_id = ? ORDER BY code_hash',
+        )
+        .bind(issued.session.walletId)
+        .all()
+    ).results,
+    exchangesBefore.results,
+  );
+  await assert.rejects(
+    store.retire(
+      api.WalletRelocationSessionSource.parse({
+        walletId: identity.walletId,
+        moveId: `wmove_${'t'.repeat(43)}`,
+        requestDigestHex: identity.requestDigestHex,
+        sourceGeneration: 1,
+      }),
+      issuedAtMs + 9,
+    ),
+    /identity conflicts/u,
+  );
+  await assert.rejects(
+    source
+      .prepare(
+        `UPDATE wallet_session_authorizations_v2 SET retired_at_ms = NULL
+    WHERE authorization_id = ?`,
+      )
+      .bind(issued.session.authorizationId)
+      .run(),
+    /wallet_relocation_session_admission_closed/u,
+  );
+  const lateFixture = await api.buildLinkedDeviceManagementAuthorityFixture({
+    label: 'late-relocation-issuance',
+    permissions: api.buildFullOwnerPermissionsV1(),
+    provenance: 'device_link',
+    sourceAuthorityId: fixture.authority.authorityId,
+    expiresAtMs: issuedAtMs + 3_600_000,
+    identity: {
+      walletId: issued.session.walletId,
+      authorityId: 'authority:late-relocation-device',
+      walletAuthMethodId: 'auth-method:late-relocation-device',
+      rpId: fixture.authMethod.rpId,
+      credentialIdB64u: Buffer.alloc(32, 66).toString('base64url'),
+    },
+  });
+  await assert.rejects(
+    issueDeviceSession(source, sourceService, lateFixture, issuedAtMs + 10),
+    /wallet_relocation_session_admission_closed/u,
+  );
+  const unrelated = await api.buildLinkedDeviceManagementAuthorityFixture({
+    label: 'unrelated-relocation-session',
+    permissions: api.buildFullOwnerPermissionsV1(),
+    provenance: 'wallet_registration',
+    expiresAtMs: issuedAtMs + 3_600_000,
+    identity: {
+      walletId: 'wallet:unrelated-relocation-session',
+      authorityId: 'authority:unrelated-relocation-session',
+      walletAuthMethodId: 'auth-method:unrelated-relocation-session',
+      rpId: fixture.authMethod.rpId,
+      credentialIdB64u: Buffer.alloc(32, 67).toString('base64url'),
+    },
+  });
+  const unaffected = await issueDeviceSession(source, sourceService, unrelated, issuedAtMs + 11);
+  assert.equal(
+    (
+      await sourceService.readWalletSessionAdmissionSnapshotByOperationCredential({
+        tenantId: unaffected.session.tenantId,
+        token: unaffected.operationCredential.token,
+        nowMs: issuedAtMs + 12,
+      })
+    ).kind,
+    'active',
+  );
+  const methods = await source
+    .prepare('SELECT status FROM wallet_auth_methods WHERE wallet_id = ?')
+    .bind(issued.session.walletId)
+    .all();
+  assert.ok(methods.results.length >= 2);
+  assert.ok(methods.results.every(methodIsActive));
+  return {
+    allDevicesRetired: [issued.session.authorizationId, offlineIssued.session.authorizationId],
+    originalRetirementTime: first,
+    partialFailureRolledBack: true,
+    concurrentRetriesExact: true,
+    delayedIssuanceRejected: true,
+    sourceReactivationRejected: true,
+    issuedAndConsumedExchangeHistoryPreserved: true,
+    enrolledMethodsRemainActive: true,
+    unrelatedWalletRemainsUsable: true,
+  };
+}
+
+function methodIsActive(method) {
+  return method.status === 'active';
 }

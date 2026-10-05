@@ -68,3 +68,16 @@ void directReadAccess;
 declare const otpIssuer: import('../../packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeIssuer').CloudflareD1EmailOtpChallengeIssuer;
 // @ts-expect-error Relocation OTP issuance must retain the relocation challenge expiry.
 otpIssuer.create({ action: 'wallet_email_otp_relocation', operation: 'wallet_relocation' });
+
+import { WalletRelocationSessionSource } from '../../packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationSessions';
+declare const sessionSource: WalletRelocationSessionSource;
+// @ts-expect-error A broad spread cannot forge a validated source identity.
+const forgedSessionSource: WalletRelocationSessionSource = { ...sessionSource };
+// @ts-expect-error Source identity construction requires its boundary parser.
+new WalletRelocationSessionSource(
+  sessionSource.walletId,
+  sessionSource.moveId,
+  sessionSource.requestDigestHex,
+  1,
+);
+void forgedSessionSource;

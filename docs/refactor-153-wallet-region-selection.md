@@ -74,6 +74,22 @@ Session continuity, sealed-session restoration, and pool restoration are exclude
 
 ## Implemented baseline
 
+The signer D1 session-retirement operation now retires every device's primary
+and hosted sessions in one transaction. The same transaction installs a durable
+source fence against new session issuance, hosted issuance, exchange redemption,
+and attempts to reactivate retired sessions. Exact and concurrent retries retain
+the original retirement timestamp. Issued and consumed exchange rows remain as
+history; their retired parent prevents use. Auth methods and authorities remain
+enrolled. A two-device D1 E2E verifies rollback, concurrent retries, delayed
+issuance rejection, and isolation from an unrelated wallet.
+
+This is a session-admission boundary. The authenticated coordinator must call it
+after outstanding effects settle. It does not yet fence every wallet record,
+freeze a complete snapshot, invalidate presignatures, transfer session history,
+or install a later destination generation. Return-home activation must install
+fresh execution authority without reopening an obsolete source generation.
+
+
 Relocation challenge issuance now delivers Email OTP through the existing issuer
 and configured delivery provider. The authenticated method selects the factor.
 The relocation challenge expiry is capped by the OTP policy and original session.
