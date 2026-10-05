@@ -6599,3 +6599,135 @@ routing and authorization, and the preserved durable writes. Priorities 1–3 ar
 implemented and measured. Browser status-call reduction and refill throughput are
 separate follow-ups. The retired-credential Gateway error-classification rollout
 also remains separate and was not included in this custody deployment.
+
+
+## Approval planning and finalize snapshot (October 6, 2026)
+
+The ready-signing candidate reached a **1.983s aggregate median across twelve
+verified signatures**. The two six-signature cohorts measured **2.032s** and
+**1.954s**. A fresh six-signature control measured **2.242s**. This is a **9–13%**
+median reduction per candidate cohort. The range across candidate calls was
+**1.859–2.241s**. These results support an approximately two-second median for
+this workload. They do not establish a maximum latency.
+
+### Scope and measured boundaries
+
+The client was a native NRT browser and the wallet home was APAC. All timed
+samples had ready presignatures. The timer starts at the public SDK call,
+includes automated approval, and ends with the assembled signed transaction.
+No transaction broadcast or blockchain confirmation is included. The control
+already contained the preceding custody optimization. These are small,
+sequential cohorts, so transport variation affects the comparison.
+
+| Median boundary | Fresh control, n=6 | Client change only, n=6 | Both changes, n=6 | Both changes repeat, n=6 |
+| --- | ---: | ---: | ---: | ---: |
+| Full SDK | 2.242s | 2.040s | 2.032s | 1.954s |
+| After approval | 1.594s | 1.610s | 1.670s | 1.561s |
+| Fresh status after approval | 0.289s | 0.308s | 0.322s | 0.317s |
+| Browser prepare | 0.543s | 0.545s | 0.612s | 0.565s |
+| Browser finalize | 0.738s | 0.706s | 0.656s | 0.644s |
+| Prepare custody round trip | 0.219s | 0.211s | 0.241s | 0.192s |
+| Finalize custody round trip | 0.389s | 0.336s | 0.288s | 0.259s |
+| Browser status requests per signature | 2 | 1 | 1 | 1 |
+
+All 24 measured signatures in these four cohorts verified. Each cohort also
+passed NEAR signing, concurrent Tempo/Arc signing and the shared budget limit.
+None of the timed ready samples waited for refill. There is no new claim about
+consecutive refill throughput, linked-device latency, or other client regions.
+Stage medians must not be added to reconstruct a full-call median.
+
+### Approval planning
+
+Completed authenticated status reads leave a bounded local observation, keyed
+by relayer, operation credential, session and quota. At most 32 observations
+are retained per fetch implementation. A later-started read supersedes an older
+observation. The observation never becomes a fresh status response.
+
+Confirmation planning uses an observation only when its session and selected
+wallet authority match the current local records. It checks capability,
+material identity, expiry and observed quota through the existing builders.
+The observation is used only to plan approval. Signing still starts a new status
+read after approval, inside the serialized material-use queue. Current authority
+and material must match that preparation before signing proceeds. Existing
+supersession handling discards the preparation and requires approval again.
+A capability-preserving NEAR extension retains its existing exception.
+
+A first plan after reload or credential replacement can still require a server
+read when no matching observation exists. No persistent cache, configuration
+flag, new environment variable or server authorization bypass was added.
+
+The hosted approval scenario observes **zero** status requests before approval.
+It then forces the post-approval status request to return HTTP 503. The SDK
+reports the failure and sends **zero** signing prepares. A subsequent approval
+performs one successful fresh status request, sends one prepare, and produces
+an independently verified Arc signature. The test writes repeatable evidence.
+
+### Finalize snapshot and safety
+
+Finalize reads terminal replay, effect claim, presignature reservation, activation
+and lifecycle fences together from the primary database. A completed exact
+terminal response is returned before fresh-request retirement or expiry checks.
+Fresh signing validates current material before claiming or consuming anything.
+A failed conditional claim retries the snapshot. The existing atomic D1 batch
+still owns the claim and one-use consumption. The durable terminal is written
+before a signature is returned. Rotatable lane material retains its own loader.
+
+| Uncontended registration-material custody operation | Before | After |
+| --- | ---: | ---: |
+| Prepare D1 round trips | 3 | 3 |
+| Finalize D1 round trips | 5 | 3 |
+| Prepare plus finalize D1 round trips | 8 | 6 |
+
+These counts exclude Gateway, Console, refill, contention and replay retries.
+The claim/consume batch is one round trip containing two SQL statements.
+The final three trips are the snapshot, atomic batch and terminal write.
+
+A bounded live observer captured **37** timing records, including warmup and
+concurrency traffic, and then stopped. Seventeen finalize records had medians
+of **146ms** for snapshot plus claim/consume, **90ms** for terminal persistence,
+and **234ms** total inside SigningWorker. The preceding measured candidate's
+internal finalize median was **333.5ms**. Prepare's median was **182.5ms** across
+20 records. These spans include storage handling and queuing, not pure network
+latency alone.
+
+The production Worker E2E again passed retirement before consumption, atomic
+rollback after an injected write failure, three concurrent identical finalizes,
+one consumption and terminal, lost-reply replay, and exact replay after
+retirement. Seven boundary checks pass. Production and wallet-DO Worker builds,
+wallet TypeScript checks, the isolated candidate type-check, private test lint,
+and the bloat check pass. No unit test was added.
+
+### Deployment and evidence
+
+Staging SigningWorker is **137dfce9-8ac7-4dbf-be2b-de0b1171f01d**. The control
+was **13b9b85e-f766-4fd9-82f8-689f30736ae0**. Before/after Cloudflare API checks
+confirm every binding is unchanged, including the database and DO namespace.
+The candidate uses the previous frozen measured source plus these focused
+changes. Unrelated active refactor work was excluded. No resources were created.
+The **$25 total Cloudflare budget** remains the constraint. Production and npm
+were unchanged. The Gateway retirement-error fix remains a separate rollout.
+
+Public `dev` commits: **f5d35c42** (finalize), **236120e1** (verification), and
+**04f7323d** (client approval planning). The private hosted approval test is
+on `dev` at **90cd677**.
+
+Tracked aggregates, source and asset hashes, versions, and verification evidence:
+[`r152-mpc-finalize-20261006.json`](evidence/r152-mpc-finalize-20261006.json).
+Private browser traces, source patches, frozen candidate and analysis:
+`seams-monorepo/.artifacts/mpc-finalize-20261005/`.
+Public build logs and custody E2E evidence:
+`seams-wallet/.artifacts/mpc-finalize-20261005/`.
+The artifact directory retains its October 5 start date; the measurements
+finished on October 6 in Tokyo. An initial sealed-session-only client attempt
+retained both status requests and was replaced. Its discarded evidence remains
+in the private artifact directory.
+
+The hosted reproduction uses `tests/playwright.hosted-product.config.mjs`, the
+`prefilled` case in `mpc-signing-latency.test.ts`, and `signing-approval.test.ts`.
+Supply the saved projection, frozen candidate site and artifact destination
+through the same `SEAMS_HOSTED_*` and `SEAMS_TEST_ARTIFACT_DIR` inputs used by
+the preceding custody experiment. The local custody command remains:
+
+```sh
+ROUTER_AB_WORKER_BUILD_PROFILE=dev node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --ecdsa-presign-handoff
+```

@@ -1,5 +1,27 @@
 # Refactor 152: regional D1 ownership and placement
 
+## Latest MPC signing result (October 6)
+
+**The measured ready-signing median is now about two seconds.** A native NRT
+browser with an APAC wallet measured **2.242s** in the fresh control, **2.032s**
+with both changes, and **1.954s** on repeat. The twelve candidate signatures have
+an aggregate median of **1.983s** and a range of **1.859–2.241s**. Automated
+approval and signed-transaction assembly are included. This small sample does
+not establish a two-second maximum or a consecutive-refill result.
+
+- [x] Plan approval from a matching local status observation. Ready signing now
+  makes **one browser status request**, after approval, instead of two.
+- [x] Combine finalize's replay, material, lifecycle, effect and reservation reads
+  in one primary D1 snapshot. Custody prepare plus finalize falls **8 → 6** D1
+  round trips for uncontended registration-material signing.
+- [x] Verify fresh status failure after approval blocks signing, then verify a
+  successful retry. Retain retirement, rollback, concurrency and exact replay.
+- [x] Deploy the SigningWorker candidate to existing staging resources and record
+  two hosted cohorts. Every binding remains unchanged. The **$25 budget** applies.
+
+See [the measurements and boundaries](refactor-152-results.md#approval-planning-and-finalize-snapshot-october-6-2026).
+The retired-credential Gateway error-classification rollout remains separate.
+
 ## Full MPC signing follow-up (October 5)
 
 **The two-second full-signing target remains open.** A native NRT browser with an
@@ -52,9 +74,9 @@ reduction is **21–22%**. Source-derived custody D1 round trips fell from **20 
 for uncontended registration-material prepare plus finalize. The two-second target
 remains open. See [custody measurements and verification](refactor-152-results.md#custody-d1-consolidation-october-5-2026).
 
-The consolidated SDK cohorts measured 3.164s and 3.072s ready, and 5.212s
-consecutive. This establishes no signing-latency gain. Both status checks remain in ordinary
-ECDSA signing, and the two-second full-call target remains open. See the
+The earlier session-view-only SDK cohorts measured 3.164s and 3.072s ready, and
+5.212s consecutive. Those cohorts established no signing-latency gain and still
+made both status requests. The October 6 follow-up above supersedes that result. See the
 [call graph and verification evidence](refactor-152-results.md#session-validation-consolidation-and-signing-call-graph-october-5-2026).
 
 ## Oceania extension (October 5)
