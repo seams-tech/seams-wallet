@@ -127,6 +127,8 @@ async function verifyInitializedTransfer(topology, credential, fixture) {
     },
   };
   const fencePath = '/router-ab/signing-worker/linked-presign-session/fence';
+  const walletClass = 'RouterAbSigningWorkerWalletDurableObject';
+  const walletsBefore = await topology.listDurableObjectIds(walletClass, workerName);
   const before = await topology.listDurableObjectIds(objectClass, workerName);
   await rejected(source, fencePath, command, credential, /requires its source wallet move/);
   const after = await topology.listDurableObjectIds(objectClass, workerName);
@@ -136,6 +138,17 @@ async function verifyInitializedTransfer(topology, credential, fixture) {
   const session = namespace.get(namespace.idFromString(created[0]));
   const initPath = '/router-ab/internal/signing-worker/linked-ecdsa-presign-session/init';
   await accepted(session, initPath, initialization, credential);
+  const walletsAfter = await topology.listDurableObjectIds(walletClass, workerName);
+  const walletsCreated = walletsAfter.filter(isNewObject.bind(undefined, walletsBefore));
+  assert.equal(walletsCreated.length, 1);
+  const walletNamespace = await topology.getDurableObjectNamespace('SIGNING_WORKER_WALLET_DO', workerName);
+  const wallet = walletNamespace.get(walletNamespace.idFromString(walletsCreated[0]));
+  const pending = structuredClone(initialization);
+  pending.request.presign_session_id += '-pending';
+  pending.request.request.client_presignature_id += '-pending';
+  await accepted(wallet, '/router-ab/internal/signing-worker/wallet', {
+    command: 'register_linked_presign_session', ...pending.request,
+  }, credential);
   const walletFreeze = await accepted(source, '/router-ab/signing-worker/wallet/pool/freeze', {
     scope: command.wallet_scope, request: command.request,
   }, credential);
@@ -169,6 +182,7 @@ async function verifyInitializedTransfer(topology, credential, fixture) {
   const destinationNamespace = await topology.getDurableObjectNamespace('SIGNING_WORKER_PRESIGN_SESSION_DO', destinationName);
   const restored = destinationNamespace.get(destinationNamespace.idFromString(destinationIds[0]));
   await rejected(restored, initPath, initialization, credential, /fenced for relocation/);
+  const pendingRegistration = await verifyPendingRegistration(topology, credential, pending, command.request);
   return {
     scope: 'Production session initialization, wallet registration, freeze and role-to-role import; excludes completed presignature retirement and full device linking',
     initializedAuthorityPreserved: true,
@@ -176,6 +190,50 @@ async function verifyInitializedTransfer(topology, credential, fixture) {
     destinationVerificationReplayedAfterEviction: true,
     delayedInitializationRejectedAtBothHomes: true,
     segments: first.segment_count,
+    pendingRegistration,
+  };
+}
+
+async function verifyPendingRegistration(topology, credential, initialization, move) {
+  const source = await topology.getWorker(workerName);
+  const command = {
+    wallet_scope: initialization.request.wallet_scope,
+    presign_session_id: initialization.request.presign_session_id,
+    server_presignature_id: initialization.request.request.client_presignature_id,
+    request: move,
+  };
+  const fencePath = '/router-ab/signing-worker/linked-presign-session/fence';
+  const before = await topology.listDurableObjectIds(objectClass, workerName);
+  const wrongMove = structuredClone(command);
+  wrongMove.request.source_generation += 1;
+  await rejected(source, fencePath, wrongMove, credential, /requires its source wallet move/);
+  const fence = await accepted(source, fencePath, command, credential);
+  assert.equal(fence.initialization.state, 'registered');
+  const after = await topology.listDurableObjectIds(objectClass, workerName);
+  const created = after.filter(isNewObject.bind(undefined, before));
+  assert.equal(created.length, 1);
+  const namespace = await topology.getDurableObjectNamespace('SIGNING_WORKER_PRESIGN_SESSION_DO', workerName);
+  const session = namespace.get(namespace.idFromString(created[0]));
+  await rejected(session, '/router-ab/internal/signing-worker/linked-ecdsa-presign-session/init', initialization, credential, /fenced for relocation/);
+  const receipt = await accepted(source, freezePath, command, credential);
+  await topology.unsafeEvictDurableObject(workerName, objectClass, { id: created[0] });
+  assert.deepEqual(await accepted(source, fencePath, command, credential), fence);
+  assert.deepEqual(await accepted(source, freezePath, command, credential), receipt);
+  const chunk = await accepted(source, exportPath, { receipt, segment_index: 0, chunk_bytes: 65536 }, credential);
+  assert.equal(chunk.segment_count, 1);
+  const snapshot = JSON.parse(Buffer.from(chunk.data_b64u, 'base64url').toString('utf8'));
+  assert.equal(snapshot.state, 'uninitialized');
+  assert.equal(snapshot.request_digest_hex, fence.initialization.request_digest_hex);
+  const destination = await topology.getWorker('fixture-signing-worker-after-refresh');
+  await accepted(destination, transferPath, { kind: 'prepare', command, chunk_bytes: 65536 }, credential);
+  await accepted(destination, transferPath, { kind: 'import', chunk }, credential);
+  assert.deepEqual(await accepted(destination, transferPath, { kind: 'verify', receipt }, credential), { kind: 'verified', receipt });
+  return {
+    schedule: 'Registration commits; wallet freezes; session fences; delayed initialization arrives',
+    wrongMoveRejected: true,
+    delayedInitializationRejected: true,
+    fenceAndFreezeReplayedAfterEviction: true,
+    registeredDigestTransferredWithoutAuthority: true,
   };
 }
 

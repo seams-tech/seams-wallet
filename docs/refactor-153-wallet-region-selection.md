@@ -157,6 +157,13 @@ this scenario and its original tests through one shared fixture module. This cas
 has no stored completion; it does not prove completed-presignature retirement or the
 registration race. Evidence is retained under
 `.artifacts/r153/linked-session-source-transfer-20261005/`.
+The same Worker scenario now covers a deterministic registration gap: wallet
+registration commits, the wallet freezes, the session fences, and delayed local
+initialization arrives. It rejects that initialization and a fence for the wrong
+move. Fence and freeze receipts replay after eviction, and the destination imports
+the registered digest without creating authority. Evidence is retained under
+`.artifacts/r153/linked-session-registration-gap-20261005/`. Concurrent completion
+and consumption during fencing remain unverified.
 
 
 ECDSA transfer preserves SQL integers through the Worker JavaScript boundary.
