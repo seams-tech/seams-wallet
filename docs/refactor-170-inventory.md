@@ -632,7 +632,7 @@ initialization is recorded separately.
 
 ### Worker-loading implementation checkpoint
 
-October 5: the host no longer calls generic `prewarm` when constructing its
+Historical startup checkpoint (see later client-cutover measurements): the host no longer calls generic `prewarm` when constructing its
 runtime. The all-eight-worker loop, unused readiness promises, and corresponding
 warmup API/diagnostic fields are deleted. Generic explicit prewarm no longer
 starts ECDSA registration crypto without a selected operation. Registration's
@@ -673,9 +673,9 @@ wallet-iframe/static-wallet-assets.browser.test.ts --project=chromium
 `worker-wasm-retry.json`. Production build, Wallet/test type checks, both static
 asset browser scenarios and bloat checks pass. This closes the demonstrated
 EVM/Tempo failure-cache gap; the full operation/dependency matrix remains open.
-Generic UI preparation still imports
-EVM-family JS and needs the measured host feature-loading audit. Durable
-presignature storage and lock invalidation behavior are unchanged in this patch.
+The later registration-menu checkpoint removes generic UI preparation's
+EVM-family import. Durable presignature storage and lock invalidation behavior
+are unchanged in this patch.
 
 ### Loading triggers and current disposition
 
@@ -684,28 +684,51 @@ presignature storage and lock invalidation behavior are unchanged in this patch.
 | Host first runtime construction | `SeamsWeb/walletIframe/host/context.ts` | Generic prewarm call removed; fresh signed-out construction creates no workers in production E2E. |
 | Generic signer warmup | Former `prewarmWorkers()` path through warmup assembly/manager/transport | Deleted, including its readiness waits and unused timing field. Requests initialize selected workers through `getOrCreateWorker`. |
 | Host UI preparation predicate | `walletIframe/host/WalletHostRuntime.ts:shouldPrewarmBrowserUi` | The application owns no signing surface. The host supplies a same-origin browser predicate directly; the disabled app policy and its module are deleted. |
-| Registration surface preparation | `host/runtimeLoader.ts` → `registrationPreparationPreload.ts` | Imports NEAR preparation and ECDSA/Tempo signing engines. JS reachability must be measured separately from WASM fetches. |
-| ECDSA registration preparation | `prewarmEcdsaRegistrationCrypto` → derivation-worker request | Initializes crypto while awaiting authentication; must follow selected ceremony. |
-| Email OTP Yao preparation | `prewarmEmailOtpYao` → Email OTP worker dispatch | Can initialize Ed25519 Yao explicitly; keep factor/operation selection. |
-| Restored-session prefill and startup replay | `host/restoredSessionPresignaturePrefill.ts`, `SeamsWeb` startup replay, device acknowledgement domains | Existing authorized/resumable work may justify loading after page startup. Preserve R152 fixed-home checks. R153 adds relocation handling later. |
+| Registration surface preparation | `host/runtimeLoader.ts`; former `registrationPreparationPreload.ts` | Generic registration preload is deleted. Runtime imports follow the typed operation route; recovery-code UI retains its separate preload. |
+| ECDSA registration preparation | `operations/registration/registration.ts:beginRegistrationWarmup` → `prewarmEcdsaRegistrationCrypto` | Starts only when signer selection includes `evm_family_ecdsa`. Failure is best-effort; the operation independently initializes WASM. |
+| Email OTP registration preparation | `registrationEmailOtpYaoPrewarmWork`; `googleEmailOtpWalletAuthFlow.ts:startGoogleEmailOtpRegistrationPrewarm` | Direct registration checks factor and signer selection. The Google registration flow separately starts Yao preparation without checking its resolved signer selection; audit and fix that discrepancy. |
+| Restored-session prefill | `host/restoredSessionPresignaturePrefill.ts:scheduleRestoredSessionPresignaturePrefills` | Active sessions and unlocked exhausted sessions may prefill configured ECDSA targets. Locked, expired, and unresolved identities return immediately. The downstream prefill owns lane/material eligibility. |
+| Startup replay | `WalletHostRuntime.ts:resumePendingRegistrationOnStartup`, device acknowledgement domain | Replays pending NEAR registration, wallet recovery, and device acknowledgements. Persisted work can justify loading after mount; clean-profile idle evidence does not cover replay. |
 | Confirmation/session/export manager startup | Confirmation and passkey MPC managers outside `WorkerTransport` | Must be included in browser evidence; changing only the eight-kind loop cannot prove zero unrelated workers. |
+| Volatile-material cleanup | `workerTransport.ts:requestOperation` | Absent ECDSA derivation and Email OTP workers are no longer created by cleanup. Existing workers receive the original request. Durable presignatures are unaffected. |
 
 ### Operation-to-dependency audit
 
 | Operation | Required dependency family | What remains to verify in real-browser evidence |
 | --- | --- | --- |
 | Idle fresh host | Transport and UI; no operation-selected signing dependency | Separate unconditional warmup from pending persisted work. |
-| NEAR passkey unlock/sign | Selected passkey session/seal and Ed25519/NEAR execution | Which workers own Yao material for that lane; remove unrelated EVM/Tempo warmup while preserving shared factor primitives. |
+| NEAR passkey unlock/sign | Confirmation, passkey session, nested Shamir worker, custody worker for envelope operations, and NEAR execution | Production registration/lock/unlock/reload/sign passes with no ECDSA or Email OTP workers. The custody worker still initializes the ceremony binary for every request; see audit below. |
 | EVM/Tempo unlock/sign | Selected factor, ECDSA holder/presign/online authority and transaction codec | Per-chain worker set, shared auth helpers, first-sign prefill, and warm reuse. |
 | Email OTP unlock/sign | Email OTP runtime plus selected lane's crypto and seal helpers | A NEAR flow may use a binary named EVM crypto for shared helper functions; do not forbid URLs solely by filename. |
 | Registration/recovery | Custody ceremony plus selected signer-set dependencies | Both protocol families are linked into the shared ceremony binary; separate optional worker downloads from necessary shared binary code. |
 | Key export | Selected lane, fresh factor authorization, export worker/viewer, Yao or ECDSA export dependencies | No ordinary warm-signing authority substitution; observe per-lane loads. |
-| Device linking | Source contribution, recipient worker, selected target factor, activation/seal dependencies | Both browser contexts and acknowledgement retry. Preserve R152 placement/material semantics. R153 adds relocation later. |
+| Device linking | Source contribution, recipient worker, selected target factor, activation/seal dependencies | Both browser contexts and acknowledgement retry. Preserve current placement and material semantics. Third-device signing/export passes; per-phase asset attribution remains open. |
 
 These rows are source-based dependency families, not final network allowlists.
 Use the real production host to establish exact sets before enforcing absence of
 individual assets. In particular, worker naming and configured chain lists are
 insufficient to decide whether shared crypto is required.
+
+### Initialization and lifetime audit at `20974d3c`
+
+This source audit separates worker creation, binary initialization, and cleanup.
+Paths in this subsection are relative to `packages/wallet/src/`.
+
+| Owner / entry point | Initialization and lifetime behavior | Remaining work |
+| --- | --- | --- |
+| `core/signingEngine/workerManager/workerTransport.ts:getOrCreateWorker` | One worker per kind. Requests reuse it. Timeout/crash resets the affected worker; ECDSA authority resets also retire dependent presign/online workers. Ordinary RPC error replies reject the request without resetting its worker. Origin changes reset workers. | Verify concurrent cancellation, origin replacement, and retry against real emitted workers. A rejected initialization promise therefore must clear itself. |
+| `workerManager/workers/{near-signer,evm-crypto,tempo-signer,ecdsa-derivation-client}.worker.ts` | Startup preparation catches failure before READY. Operation dispatch independently awaits initialization. Failed initialization promises clear. | EVM/Tempo same-worker retry has browser evidence. Extend failure/retry evidence to NEAR and derivation. READY alone is not crypto readiness. |
+| `workerTransport.ts:connectPresignAuthorityChannel`, `connectPresignOnlineChannel` | Presign session initialization connects a derivation or linked-holder authority. Online requests connect presign and online workers. These two coordinator workers load no separate WASM. | Record restoration and authority replacement separately from first-use signing. Do not remove required channels to reduce worker counts. |
+| `workerManager/workers/wallet-custody-ceremony.worker.ts:handleRequest` | Every request first awaits the full ceremony binary. Envelope open/reseal and export-root transfer handlers separately await NEAR signer WASM. Lane-source operations await Yao. All three initialization promises clear on failure. | Move ceremony initialization to operations that use ceremony exports or restore ceremony handles. Envelope-only unlock must retain authenticated seed/manifest checks while avoiding unrelated ceremony initialization. |
+| `workerManager/workers/email-otp/crypto.ts` | EVM helper, Email OTP runtime, and ceremony initializers cache promises without clearing rejection. Yao initialization already clears rejection. Dispatch selects helper calls by operation. | Fix the three failed-promise caches and verify same-worker retry after unavailable WASM. Preserve concurrent request coalescing. |
+| `workerManager/workers/shamir3pass.worker.ts:ensureWasm` | Request-time initialization caches a rejected promise. Its parent runtime rejects ordinary RPC errors without restarting the worker. | Fix the rejected-promise cache and verify seal work after transient delivery failure. A parent runtime singleton reset does not repair the child worker's promise. |
+| `core/signingEngine/uiConfirm/{UiConfirmManager,PasskeyMpcSessionManager,PasskeyMpcExportManager}.ts` | Managers own workers outside the signer transport. Confirmation owns UI messages. Session operations and explicit Shamir preparation create the session worker, which creates Shamir on demand. Export starts its worker for the export request; its runtime initializes Yao for selected Ed25519 work. | Include these workers in operation measurements. Preserve fresh export authorization and reject pending requests when their owner disposes. |
+| `SeamsWeb/operations/devices/deviceLinkingWorkerChannels.ts`; `workerManager/workers/device-linking-key.worker.ts` | The default endpoint is created on first use; injected authenticated endpoints remain supported. Lane-recipient work initializes Yao with a retryable cached promise. Closing the owner terminates its endpoint. | Capture source and recipient contexts, cancellation, acknowledgement replay, and retry. |
+
+The next fixes are operation-specific custody initialization, Email OTP/Shamir
+initialization retry, and signer-selected Google registration preparation.
+These are source findings; successful lifecycle runs do not prove failure recovery
+or an exact network allowlist. No binary split or new worker registry is needed.
 
 ### Alias and caching accounting
 

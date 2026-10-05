@@ -961,6 +961,23 @@ derive production behavior from existing typed requests and selected capabilitie
   signing must not warm unrelated NEAR/Tempo workers. Record any genuine shared
   dependency explicitly. Do not split custody proofs or alter protocol behavior
   to satisfy a download assertion.
+- [ ] **Remove ceremony initialization from envelope-only work.** The custody
+  worker currently awaits its full ceremony binary before every request. Initialize
+  it only for operations that call ceremony exports or restore ceremony handles.
+  Keep NEAR signer initialization for authenticated envelope open/reseal and
+  Yao initialization for lane-source work. Verify registration/recovery, unlock,
+  factor addition, export, and linking; capture unlock traffic after reload.
+- [ ] **Repair remaining failed-initialization caches.** Email OTP's EVM helper,
+  Email OTP runtime, and ceremony loaders retain rejected promises. The Shamir
+  worker does too. Clear each failed promise using existing initializer patterns.
+  Verify explicit failure, restored asset delivery, concurrent successful retry,
+  and subsequent reuse in the same worker. Preserve all material and authorization
+  boundaries; do not hide the failure by restarting unrelated workers.
+- [ ] **Select Google registration preparation by signer set.** Direct registration
+  already gates Email OTP Yao preparation on the selected signers. The Google
+  registration flow starts it separately without that gate. Use its resolved signer
+  selection and verify ECDSA-only and NEAR registration, including preparation
+  failure followed by successful operation-owned initialization.
 - [ ] **Preserve worker lifetime and operation isolation.** Reuse initialized
   workers when switching chains; create newly needed workers on demand. Cancelled
   preparation must not terminate a worker used by another operation or discard
