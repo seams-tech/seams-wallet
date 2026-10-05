@@ -138,19 +138,14 @@ struct ClaimedPresignAuthorityV1 {
 /// Claims one presignature session's authority before any server message.
 ///
 /// On Cloudflare the session's Durable Object makes this one-use claim in its
-/// own storage and deletes it when the ceremony expires. A retry, or a second
+/// own storage and retains it after the ceremony expires. A retry, or a second
 /// start of the same session, is refused; a failed or interrupted ceremony
 /// also burns its session id.
 pub(crate) fn claim_local_presign_authority_v1(
     sql: &LocalWalletSqlV1<'_>,
     request: &CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1,
-    now_unix_ms: u64,
 ) -> RouterAbProtocolResult<()> {
     sql.query::<serde::de::IgnoredAny>(PRESIGN_AUTHORITY_SCHEMA, Vec::new())?;
-    sql.query::<serde::de::IgnoredAny>(
-        "DELETE FROM signing_worker_presign_authorities WHERE ceremony_expires_at_ms <= ?",
-        vec![integer(now_unix_ms)?],
-    )?;
     let authority_json = serde_json::to_string(&request.authority)
         .map_err(|error| store_error(format!("presign authority is invalid: {error}")))?;
     let claimed = sql.query::<ClaimedPresignAuthorityV1>(

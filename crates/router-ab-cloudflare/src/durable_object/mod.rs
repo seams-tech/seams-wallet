@@ -146,9 +146,8 @@ impl worker::DurableObject for RouterAbSigningWorkerPresignSessionDurableObject 
     }
 
     async fn alarm(&self) -> worker::Result<worker::Response> {
-        // Owner identities include their immutable expiry, so expired claims can be removed safely.
+        // Expiry discards live protocol state while preserving immutable identity history.
         self.ecdsa_presign_sessions.borrow_mut().clear();
-        self.storage.delete("owner-presign-authority").await?;
         worker::Response::ok("expired")
     }
 

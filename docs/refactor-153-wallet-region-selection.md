@@ -74,6 +74,16 @@ Session continuity, sealed-session restoration, and pool restoration are exclude
 
 ## Implemented baseline
 
+Presignature expiry now preserves durable owner-session identity claims in both
+native SQLite and the session Durable Object. Native admission no longer deletes
+expired claims across wallets. The Durable Object alarm clears live protocol
+memory without deleting the authority record. Expired requests remain rejected
+by the existing expiry checks. This removes expiry-driven changes to identity
+history while a wallet is frozen. Aggregate presign-session inventory, transfer,
+and source cleanup remain unfinished. Native and WASM compilation cover these
+changes; the existing HTTP relocation scenario does not exercise overdue alarms.
+
+
 R152 closed the ownership dependency at public `c160e107` and private
 `8a40b44`. Use [ownership revision 13](refactor-152-state-ownership.md).
 Its [results](refactor-152-results.md) retain the regional routing and lifecycle

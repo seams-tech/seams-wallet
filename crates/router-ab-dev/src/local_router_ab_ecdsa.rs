@@ -815,7 +815,7 @@ fn start_presign_session(
     let start = with_local_signing_worker_wallet_store_v1(config, |store, sql| {
         store.require_mutation_admission(&wallet_scope)?;
         let (active, material) = store.load_activated_material(&wallet_scope, &request.scope)?;
-        claim_local_presign_authority_v1(sql, &request, now_ms)?;
+        claim_local_presign_authority_v1(sql, &request)?;
         signing_worker_ecdsa_presign_session_start_v1(request, &active, &material)
     })?;
     timing.mark("ecdsa_presign_sw_material", material_started);
