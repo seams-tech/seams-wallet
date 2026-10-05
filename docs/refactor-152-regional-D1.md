@@ -1,5 +1,22 @@
 # Refactor 152: regional D1 ownership and placement
 
+## Full MPC signing baseline (October 6, 2026)
+
+| Full MPC signing workload | Median | Observed range |
+| --- | ---: | ---: |
+| Material ready — 12 signatures | **1.745s** | **1.557–1.838s** |
+| Consecutive signing — 18 signatures | **3.411s** | **1.962–7.164s** |
+
+These verified samples used a native NRT browser and an APAC wallet on staging.
+The full SDK timer includes automated approval and transaction assembly. It
+excludes blockchain broadcast and confirmation. Ready-material samples waited
+for a supplied pool. Consecutive samples used three signatures after each unlock,
+without deliberate warm-up or prefill waits. These small samples establish no
+maximum or p95 guarantee.
+
+This is the baseline for the next refill optimizations, focused on two or three
+consecutive signatures. See the [measurement boundaries and tracked evidence](refactor-152-results.md#full-mpc-signing-baseline-october-6-2026).
+
 ## Latest consecutive-signing result (October 6)
 
 **Consecutive signing measured 3.411s median across eighteen verified signatures.**

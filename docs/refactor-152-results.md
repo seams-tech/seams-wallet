@@ -1,5 +1,37 @@
 # Regional D1 empirical results
 
+## Full MPC signing baseline (October 6, 2026)
+
+| Full MPC signing workload | Median | Observed range |
+| --- | ---: | ---: |
+| Material ready — 12 signatures | **1.745s** | **1.557–1.838s** |
+| Consecutive signing — 18 signatures | **3.411s** | **1.962–7.164s** |
+
+Both workloads used the same frozen browser candidate with a native NRT browser
+and an APAC wallet on staging. All thirty measured signatures verified. The full
+SDK timer includes automated approval, signing, and transaction assembly. It
+excludes blockchain broadcast and confirmation.
+
+The ready-material workload used a verified warm-up signature and waited for
+pool depth three before measuring two signatures per unlock. The consecutive
+workload measured three signatures per unlock without deliberate warm-up or
+prefill waits. UI automation still takes time between calls. Neither workload
+establishes saturated throughput, a latency ceiling, or p95.
+
+Sixteen of eighteen consecutive calls waited for refill. Their median refill
+wait was **1.959s**, with a maximum of **5.532s**. These results form the baseline
+for optimizing the typical burst of two or three signatures. They do not predict
+the gains from changes that follow.
+
+Details and repeatable evidence:
+
+- [Ready-material measurements](#combined-gateway-to-console-lookup-october-6-2026)
+  and [tracked evidence](evidence/r152-gateway-console-20261006.json).
+- [Consecutive measurements](#consecutive-signing-remeasurement-october-6-2026)
+  and [tracked evidence](evidence/r152-consecutive-signing-20261006.json).
+
+## Initial regional experiment status (October 1, 2026)
+
 Date: October 1, 2026. Status: repeated London ready-material comparison and
 first-sign/burst diagnostic complete; temporary DO-scheduled probe unblocks verified Tokyo startup
 and signing. Tokyo now also reaches the ready-material sample target: 180 verified
