@@ -12,6 +12,18 @@ pub(super) const SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_ecdsa_import_
     acknowledgement_json TEXT NOT NULL,
     PRIMARY KEY(owner_json, segment_index))";
 
+pub(super) const ACTIVATION_SCHEMA: &str =
+    "CREATE TABLE IF NOT EXISTS wallet_ecdsa_import_activation (
+    owner_json TEXT PRIMARY KEY,
+    receipt_json TEXT NOT NULL,
+    chunk_bytes INTEGER NOT NULL)";
+
+#[derive(Deserialize)]
+struct ImportActivationRow {
+    receipt_json: String,
+    chunk_bytes: u32,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum SigningWorkerEcdsaTransferRequestV1 {
@@ -30,6 +42,9 @@ pub enum SigningWorkerEcdsaTransferRequestV1 {
     Verify {
         receipt: SigningWorkerPoolFreezeReceiptV1,
     },
+    Activate {
+        receipt: SigningWorkerPoolFreezeReceiptV1,
+    },
 }
 
 impl SigningWorkerEcdsaTransferRequestV1 {
@@ -37,7 +52,9 @@ impl SigningWorkerEcdsaTransferRequestV1 {
         match self {
             Self::Prepare { scope, .. } => scope,
             Self::Import { chunk } => &chunk.receipt.scope,
-            Self::Status { receipt, .. } | Self::Verify { receipt } => &receipt.scope,
+            Self::Status { receipt, .. }
+            | Self::Verify { receipt }
+            | Self::Activate { receipt } => &receipt.scope,
         }
     }
 }
@@ -61,6 +78,9 @@ pub enum SigningWorkerEcdsaTransferResponseV1 {
         input_digest_hex: String,
     },
     Verified {
+        receipt: SigningWorkerPoolFreezeReceiptV1,
+    },
+    Activated {
         receipt: SigningWorkerPoolFreezeReceiptV1,
     },
 }
@@ -88,10 +108,84 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
                 chunk_bytes,
             } => self.ecdsa_import_status(receipt, chunk_bytes),
             SigningWorkerEcdsaTransferRequestV1::Import { chunk } => self.import_ecdsa_chunk(chunk),
+            SigningWorkerEcdsaTransferRequestV1::Activate { receipt } => {
+                self.activate_ecdsa_import(receipt)
+            }
             SigningWorkerEcdsaTransferRequestV1::Verify { receipt } => {
                 self.verify_ecdsa_import(receipt)
             }
         }
+    }
+
+    fn import_activation(
+        &self,
+        scope: &CloudflareSigningWorkerWalletScopeV1,
+    ) -> RouterAbProtocolResult<Option<(SigningWorkerPoolFreezeReceiptV1, u32)>> {
+        let rows = self.sql.query::<ImportActivationRow>(
+            "SELECT receipt_json, chunk_bytes FROM wallet_ecdsa_import_activation WHERE owner_json = ?",
+            vec![text(owner_json(scope, "ECDSA import activation")?)],
+        )?;
+        match rows.as_slice() {
+            [] => Ok(None),
+            [row] => {
+                let receipt: SigningWorkerPoolFreezeReceiptV1 =
+                    serde_json::from_str(&row.receipt_json)
+                        .map_err(|error| wallet_error(error.to_string()))?;
+                validate_receipt(&receipt)?;
+                if receipt.scope != *scope {
+                    return Err(wallet_error("ECDSA activation scope differs"));
+                }
+                Ok(Some((receipt, row.chunk_bytes)))
+            }
+            _ => Err(wallet_error("ECDSA import activation is duplicated")),
+        }
+    }
+
+    pub(super) fn activated_ecdsa_generation(
+        &self,
+        scope: &CloudflareSigningWorkerWalletScopeV1,
+    ) -> RouterAbProtocolResult<u64> {
+        Ok(match self.import_activation(scope)? {
+            Some((receipt, _)) => receipt.request.source_generation + 1,
+            None => 1,
+        })
+    }
+
+    fn activate_ecdsa_import(
+        &self,
+        receipt: SigningWorkerPoolFreezeReceiptV1,
+    ) -> RouterAbProtocolResult<SigningWorkerEcdsaTransferResponseV1> {
+        validate_receipt(&receipt)?;
+        if let Some((prior, _)) = self.import_activation(&receipt.scope)? {
+            if prior != receipt {
+                return Err(wallet_error("ECDSA import activation changed"));
+            }
+            // An exact retry must never remove a later move's source fence.
+            return Ok(SigningWorkerEcdsaTransferResponseV1::Activated { receipt });
+        }
+        let chunk_bytes = match self.pool_fence(&receipt.scope)? {
+            Some(Fence::Verified {
+                receipt: prior,
+                chunk_bytes,
+            }) if prior == receipt => chunk_bytes,
+            _ => {
+                return Err(wallet_error(
+                    "ECDSA activation requires its verified destination",
+                ))
+            }
+        };
+        let owner = owner_json(&receipt.scope, "ECDSA import activation")?;
+        let encoded =
+            serde_json::to_string(&receipt).map_err(|error| wallet_error(error.to_string()))?;
+        self.sql.query::<serde::de::IgnoredAny>(
+            "INSERT INTO wallet_ecdsa_import_activation (owner_json, receipt_json, chunk_bytes) VALUES (?, ?, ?)",
+            vec![text(owner.clone()), text(encoded), SigningWorkerWalletSqlValueV1::Integer(chunk_bytes.into())],
+        )?;
+        self.sql.query::<serde::de::IgnoredAny>(
+            "DELETE FROM wallet_ecdsa_pool_relocation WHERE owner_json = ?",
+            vec![text(owner)],
+        )?;
+        Ok(SigningWorkerEcdsaTransferResponseV1::Activated { receipt })
     }
 
     fn prepare_ecdsa_import(
@@ -103,6 +197,16 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         scope.validate()?;
         request.validate()?;
         validate_chunk_bytes(chunk_bytes)?;
+        if let Some((receipt, size)) = self.import_activation(&scope)? {
+            if receipt.request != request || size != chunk_bytes {
+                return Err(wallet_error("ECDSA destination preparation changed"));
+            }
+            return Ok(SigningWorkerEcdsaTransferResponseV1::Prepared {
+                scope,
+                request,
+                chunk_bytes,
+            });
+        }
         match self.pool_fence(&scope)? {
             Some(Fence::Prepared {
                 request: prior,
@@ -152,6 +256,12 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
     ) -> RouterAbProtocolResult<SigningWorkerEcdsaTransferResponseV1> {
         validate_receipt(&receipt)?;
         validate_chunk_bytes(chunk_bytes)?;
+        if let Some((prior, size)) = self.import_activation(&receipt.scope)? {
+            if prior != receipt || size != chunk_bytes {
+                return Err(wallet_error("ECDSA import status identity differs"));
+            }
+            return Ok(SigningWorkerEcdsaTransferResponseV1::Activated { receipt });
+        }
         match self.pool_fence(&receipt.scope)? {
             Some(Fence::Prepared {
                 request,
@@ -306,6 +416,12 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         receipt: SigningWorkerPoolFreezeReceiptV1,
     ) -> RouterAbProtocolResult<SigningWorkerEcdsaTransferResponseV1> {
         validate_receipt(&receipt)?;
+        if let Some((prior, _)) = self.import_activation(&receipt.scope)? {
+            if prior != receipt {
+                return Err(wallet_error("ECDSA verification receipt changed"));
+            }
+            return Ok(SigningWorkerEcdsaTransferResponseV1::Verified { receipt });
+        }
         let (chunk_bytes, segment_count) = match self.pool_fence(&receipt.scope)? {
             Some(Fence::Verified {
                 receipt: stored, ..

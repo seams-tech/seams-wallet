@@ -184,6 +184,9 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
     ) -> RouterAbProtocolResult<SigningWorkerPoolFreezeResponseV1> {
         scope.validate()?;
         request.validate()?;
+        if request.source_generation != self.activated_ecdsa_generation(&scope)? {
+            return Err(wallet_error("ECDSA source ownership generation differs"));
+        }
         match self.pool_fence(&scope)? {
             Some(Fence::Frozen { receipt }) => {
                 if receipt.request == request && receipt.scope == scope {

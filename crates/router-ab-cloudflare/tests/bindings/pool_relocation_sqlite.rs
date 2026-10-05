@@ -507,7 +507,7 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
     })?;
     let exported_segments =
         verify_snapshot_export(&path, &env, receipt, &effect, &response, &presign_request)?;
-    let artifact = serde_json::json!({
+    let mut artifact = serde_json::json!({
         "scenario": "encrypted_pool_relocation", "records": 7,
         "available_and_reserved_destroyed": true, "reserved_binding_preserved": true,
         "consumed_retired_and_unrelated_bytes_preserved": true, "exact_retry_after_reopen": true,
@@ -542,6 +542,13 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         "presign_claims_fenced_and_other_wallet_claims_excluded": true,
         "presign_steps_require_pinned_authority_expiry_and_open_wallet": true,
         "scope": "Production wallet store and cipher on SQLite; excludes wallet-wide fencing and HTTP authorization"
+    });
+    artifact["activation"] = serde_json::json!({
+        "activation_commit_opens_admission": true,
+        "fresh_presign_authority_admitted_after_activation": true,
+        "activation_rollback_preserves_closed_admission": true,
+        "activation_retry_never_reopens_later_source_fence": true,
+        "source_freeze_requires_activated_generation": true,
     });
     std::fs::write(
         directory.join("receipt.json"),
@@ -636,6 +643,12 @@ fn verify_snapshot_export(
     )?;
     assert_eq!(stored_chunks, 0);
 
+    let activate = router_ab_cloudflare::SigningWorkerEcdsaTransferRequestV1::Activate {
+        receipt: receipt.clone(),
+    };
+    assert!(with_store(&destination, env, |store| store
+        .transfer_ecdsa_snapshot(activate.clone()))
+    .is_err());
     let verify = router_ab_cloudflare::SigningWorkerEcdsaTransferRequestV1::Verify {
         receipt: receipt.clone(),
     };
@@ -877,6 +890,66 @@ fn verify_snapshot_export(
         .transfer_ecdsa_snapshot(late.clone()))
     .is_ok());
     assert_eq!(rows(&destination), expected_rows);
+    let interrupted_activation = with_store(&destination, env, |store| {
+        store.transfer_ecdsa_snapshot(activate.clone())?;
+        Err::<(), _>(sql_error("interrupted activation before commit"))
+    });
+    assert!(interrupted_activation.is_err());
+    assert!(with_store(&destination, env, |store| store
+        .require_mutation_admission(&receipt.scope))
+    .is_err());
+    let activated = with_store(&destination, env, |store| {
+        store.transfer_ecdsa_snapshot(activate.clone())
+    })?;
+    assert_eq!(
+        activated,
+        router_ab_cloudflare::SigningWorkerEcdsaTransferResponseV1::Activated {
+            receipt: receipt.clone()
+        }
+    );
+    with_store(&destination, env, |store| {
+        store.require_mutation_admission(&receipt.scope)
+    })?;
+    assert_eq!(
+        with_store(&destination, env, |store| store
+            .transfer_ecdsa_snapshot(activate.clone()))?,
+        activated
+    );
+    assert_eq!(
+        with_store(&destination, env, |store| store
+            .transfer_ecdsa_snapshot(status.clone()))?,
+        activated
+    );
+    assert_eq!(rows(&destination), expected_rows);
+    let mut fresh_presign = presign_request.clone();
+    fresh_presign.presign_session_id = format!("ecdsa-presign-v2:2000:{}", b64u(&[0x44; 32]));
+    fresh_presign.ceremony_expires_at_ms = 2_000;
+    with_store(&destination, env, |store| {
+        store.claim_presign_authority(&fresh_presign, 1_700)
+    })?;
+    assert!(freeze(&destination, env, &receipt.scope, receipt.request.clone()).is_err());
+    let next_move = router_ab_cloudflare::SigningWorkerPoolFreezeRequestV1 {
+        move_id: format!("wmove_{}", "r".repeat(43)),
+        source_generation: receipt.request.source_generation + 1,
+        invalidated_at_ms: receipt.request.invalidated_at_ms + 1,
+    };
+    let frozen_again = freeze(&destination, env, &receipt.scope, next_move.clone())?;
+    assert!(matches!(
+        frozen_again,
+        router_ab_cloudflare::SigningWorkerPoolFreezeResponseV1::Frozen { .. }
+    ));
+    assert_eq!(
+        with_store(&destination, env, |store| store
+            .transfer_ecdsa_snapshot(activate.clone()))?,
+        activated
+    );
+    assert!(with_store(&destination, env, |store| store
+        .require_mutation_admission(&receipt.scope))
+    .is_err());
+    assert_eq!(
+        freeze(&destination, env, &receipt.scope, next_move)?,
+        frozen_again
+    );
     std::fs::remove_file(destination)?;
     Ok(first.segment_count)
 }

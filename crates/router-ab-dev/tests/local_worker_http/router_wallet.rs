@@ -802,6 +802,8 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
             "cursor_survives_restart": true,
             "changed_manifest_rejected": true,
             "verified_status_survives_restart": true,
+            "activation_requires_verification_and_role_credential": true,
+            "activation_receipt_survives_restart": true,
         })
     );
 
@@ -1461,6 +1463,12 @@ fn verify_ecdsa_destination_transport(
         transfer_ecdsa_http(&destination.signing_worker_url, credential, &status_command)?;
     assert_eq!(status, 200, "{initial_progress}");
     assert_eq!(initial_progress, prepared_body);
+    let activation = Command::Activate {
+        receipt: receipt.clone(),
+    };
+    let (premature_activation, _) =
+        transfer_ecdsa_http(&destination.signing_worker_url, credential, &activation)?;
+    assert_ne!(premature_activation, 200);
     let verify = Command::Verify {
         receipt: receipt.clone(),
     };
@@ -1566,6 +1574,31 @@ fn verify_ecdsa_destination_transport(
         &Command::Verify { receipt: changed },
     )?;
     assert_ne!(status, 200);
+    let (unauthorized, _) = transfer_ecdsa_http(
+        &destination.signing_worker_url,
+        TEST_GATEWAY_TO_ROUTER_AUTH,
+        &activation,
+    )?;
+    assert_ne!(unauthorized, 200);
+    let (status, activated) =
+        transfer_ecdsa_http(&destination.signing_worker_url, credential, &activation)?;
+    assert_eq!(status, 200, "{activated}");
+    assert_eq!(
+        serde_json::from_str::<Response>(&activated)?,
+        Response::Activated {
+            receipt: receipt.clone()
+        }
+    );
+    drop(_verified);
+    let _active = destination.start_signing_worker()?;
+    let (status, replay) =
+        transfer_ecdsa_http(&destination.signing_worker_url, credential, &activation)?;
+    assert_eq!(status, 200, "{replay}");
+    assert_eq!(replay, activated);
+    let (status, progress) =
+        transfer_ecdsa_http(&destination.signing_worker_url, credential, &status_command)?;
+    assert_eq!(status, 200, "{progress}");
+    assert_eq!(progress, activated);
     Ok(())
 }
 
