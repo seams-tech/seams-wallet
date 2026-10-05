@@ -109,6 +109,10 @@ pub(crate) enum SigningWorkerWalletDoRequestV1 {
         material: CloudflareServerOutputMaterialRecordV1,
         activated_at_ms: u64,
     },
+    LoadEcdsaPresignActivation {
+        scope: CloudflareSigningWorkerWalletScopeV1,
+        lookup: CloudflareActiveSigningWorkerStateLookupV1,
+    },
     LoadEcdsaActivation {
         scope: CloudflareSigningWorkerWalletScopeV1,
         lookup: CloudflareActiveSigningWorkerStateLookupV1,
@@ -233,7 +237,9 @@ impl SigningWorkerWalletDoRequestV1 {
             Self::ReserveLinkedEcdsa(request) => &request.scope,
             Self::ActivateLinkedEcdsa(request) => &request.scope,
             Self::DeactivateLinkedEcdsa(request) => &request.scope,
-            Self::ActivateEcdsa { scope, .. } | Self::LoadEcdsaActivation { scope, .. } => scope,
+            Self::ActivateEcdsa { scope, .. }
+            | Self::LoadEcdsaActivation { scope, .. }
+            | Self::LoadEcdsaPresignActivation { scope, .. } => scope,
             Self::PrepareNear { scope, .. } | Self::FinalizeNear { scope, .. } => scope,
             Self::EcdsaPoolMutate { scope, .. } => scope,
             Self::FreezeEcdsaPool(command) => &command.scope,
@@ -267,7 +273,8 @@ impl SigningWorkerWalletDoRequestV1 {
                 }
                 crate::require_positive_ms("ECDSA activation time", *activated_at_ms)
             }
-            Self::LoadEcdsaActivation { scope, lookup } => {
+            Self::LoadEcdsaActivation { scope, lookup }
+            | Self::LoadEcdsaPresignActivation { scope, lookup } => {
                 scope.validate()?;
                 lookup.validate()?;
                 if lookup.account_id != scope.wallet_id {
@@ -594,6 +601,12 @@ impl RouterAbSigningWorkerWalletDurableObject {
                 material,
                 activated_at_ms,
             } => self.activate_ecdsa(scope, activation, material, activated_at_ms),
+            SigningWorkerWalletDoRequestV1::LoadEcdsaPresignActivation { scope, lookup } => {
+                let sql = DurableObjectWalletSqlV1(&self.sql);
+                self.open_ecdsa_store(&sql)?
+                    .require_pool_admission(&scope)?;
+                self.load_ecdsa_activation(scope, lookup)
+            }
             SigningWorkerWalletDoRequestV1::LoadEcdsaActivation { scope, lookup } => {
                 self.load_ecdsa_activation(scope, lookup)
             }

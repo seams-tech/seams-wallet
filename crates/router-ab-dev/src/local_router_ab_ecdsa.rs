@@ -791,6 +791,7 @@ fn start_presign_session(
     // one transaction, before the session emits any server message.
     let material_started = Instant::now();
     let start = with_local_signing_worker_wallet_store_v1(config, |store, sql| {
+        store.require_pool_admission(&wallet_scope)?;
         let (active, material) = store.load_activated_material(&wallet_scope, &request.scope)?;
         claim_local_presign_authority_v1(sql, &request, now_ms)?;
         signing_worker_ecdsa_presign_session_start_v1(request, &active, &material)
@@ -834,14 +835,21 @@ fn step_presign_session(
     let mut timing = LocalPresignTimingV1::new();
     let now_ms = local_now_ms_v1()?;
     request.validate_at(now_ms)?;
-    let pinned = with_local_signing_worker_wallet_store_v1(config, |_, sql| {
-        load_local_presign_authority_v1(sql, &request.presign_session_id, now_ms)
-    })?;
-    if request.authority != pinned {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::MalformedWirePayload,
-            "SigningWorker ECDSA presign authority does not match initialized session",
-        ));
+    let admission = with_local_signing_worker_wallet_store_v1(config, |store, sql| {
+        let pinned = load_local_presign_authority_v1(sql, &request.presign_session_id, now_ms)?;
+        if request.authority != pinned {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                "SigningWorker ECDSA presign authority does not match initialized session",
+            ));
+        }
+        store.require_pool_admission(pinned.wallet_scope())
+    });
+    if let Err(error) = admission {
+        if error.code() == RouterAbProtocolErrorCode::LifecycleTransitionInProgress {
+            live_presign_sessions()?.remove(&request.presign_session_id);
+        }
+        return Err(error);
     }
     let presign_session_id = request.presign_session_id.clone();
     let session_started = Instant::now();

@@ -235,6 +235,21 @@ WASM builds, and the bloat check pass. Evidence remains in
 does not expose this wallet-store operation. Console command authorization and
 coordinator invocation remain unfinished.
 
+Owner presignature initialization now checks the wallet pool fence before reading
+material. The native adapter checks it in the transaction that claims session
+authority. The wallet-DO adapter uses a separate presignature material-read command,
+so an admitted signing effect can still read material and finish. Native session
+steps verify the pinned authority before checking the fence; a closed fence
+discards that session's live protocol state. Its durable one-use authority remains.
+The storage E2E verifies admission rejection in both draining and frozen states
+and admission for another wallet. Native and both SigningWorker WASM builds pass,
+as does the bloat check. Evidence remains in
+`.artifacts/r153/presign-admission-fence-20261005/`. Live native session disposal
+still needs composed behavioral coverage. Cloudflare session-step cancellation,
+linked presignatures, the separate private-D1 pool, and the aggregate presign-session
+freeze barrier remain unfinished. An earlier admitted round may still finish;
+the pool publication fence continues to reject its output after freeze.
+
 Retained evidence:
 `.artifacts/r153/execution-journal-20261004/`, receipt SHA-256
 `02184ddd17816901bf2413115c35ca33a43bd90a269fedaeffb7f6990d8af555`.

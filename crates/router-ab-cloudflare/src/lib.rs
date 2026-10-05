@@ -11525,11 +11525,18 @@ where
 }
 
 #[cfg(feature = "workers-rs")]
+enum EcdsaMaterialRead {
+    Signing,
+    Presign,
+}
+
+#[cfg(feature = "workers-rs")]
 async fn load_cloudflare_signing_worker_active_ecdsa_derivation_material_v1(
     env: &worker::Env,
     runtime: &CloudflareSigningWorkerRuntimeV1,
     scope: &RouterAbEcdsaDerivationNormalSigningScopeV1,
     wallet_scope: Option<&CloudflareSigningWorkerWalletScopeV1>,
+    purpose: EcdsaMaterialRead,
 ) -> RouterAbProtocolResult<(
     ActiveSigningWorkerStateV1,
     CloudflareServerOutputMaterialRecordV1,
@@ -11543,14 +11550,21 @@ async fn load_cloudflare_signing_worker_active_ecdsa_derivation_material_v1(
             ));
         }
         let lookup = CloudflareActiveSigningWorkerStateLookupV1::from_router_ab_ecdsa_derivation_normal_signing_scope(scope)?;
-        let response = durable_object::call_signing_worker_wallet_do_v1(
-            env,
-            durable_object::SigningWorkerWalletDoRequestV1::LoadEcdsaActivation {
-                scope: wallet_scope.clone(),
-                lookup,
-            },
-        )
-        .await?;
+        let command = match purpose {
+            EcdsaMaterialRead::Signing => {
+                durable_object::SigningWorkerWalletDoRequestV1::LoadEcdsaActivation {
+                    scope: wallet_scope.clone(),
+                    lookup,
+                }
+            }
+            EcdsaMaterialRead::Presign => {
+                durable_object::SigningWorkerWalletDoRequestV1::LoadEcdsaPresignActivation {
+                    scope: wallet_scope.clone(),
+                    lookup,
+                }
+            }
+        };
+        let response = durable_object::call_signing_worker_wallet_do_v1(env, command).await?;
         let loaded: SigningWorkerWalletEcdsaActivationMaterialV1 =
             parse_cloudflare_signing_worker_wallet_do_json_response_v1(
                 response,
@@ -11564,7 +11578,7 @@ async fn load_cloudflare_signing_worker_active_ecdsa_derivation_material_v1(
         )?;
         return Ok((loaded.active, loaded.material));
     }
-    let _ = wallet_scope;
+    let _ = (wallet_scope, purpose);
     match ordinary_inactive_signer_material::load_source_preserving_ecdsa_material_v1(
         env,
         runtime,
@@ -11861,6 +11875,7 @@ async fn load_cloudflare_signing_worker_ecdsa_normal_signing_material_v1(
                 runtime,
                 scope,
                 wallet_scope,
+                EcdsaMaterialRead::Signing,
             )
             .await
         }
@@ -11950,6 +11965,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_init_private
             runtime,
             &parsed.scope,
             wallet_scope,
+            EcdsaMaterialRead::Presign,
         )
         .await
         {

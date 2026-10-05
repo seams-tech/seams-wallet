@@ -128,8 +128,12 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         ),
     ]);
     let base = router_ab_ecdsa_derivation_presignature_pool_record();
-    let owner =
-        CloudflareSigningWorkerWalletScopeV1::new("org-1", "project-1", "dev", &base.scope.wallet_id)?;
+    let owner = CloudflareSigningWorkerWalletScopeV1::new(
+        "org-1",
+        "project-1",
+        "dev",
+        &base.scope.wallet_id,
+    )?;
     let mut records = Vec::new();
     for id in ["available", "reserved", "consumed", "retired", "untouched"] {
         let mut material = base.clone();
@@ -310,6 +314,12 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         freeze(&path, &env, &owner, freeze_request.clone())?,
         draining
     );
+    let admission =
+        with_store(&path, &env, |store| store.require_pool_admission(&owner)).unwrap_err();
+    assert_eq!(
+        admission.code(),
+        RouterAbProtocolErrorCode::LifecycleTransitionInProgress
+    );
     let response = RouterAbEcdsaDerivationEvmDigestSigningResponseV1::new_for_request(
         &effect.request,
         b64u(&[0x99; 65]),
@@ -325,6 +335,10 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
     assert_eq!(receipt.record_count, 6);
     assert_eq!(receipt.scope, owner);
     let frozen_rows = rows(&path);
+    assert!(with_store(&path, &env, |store| store.require_pool_admission(&owner)).is_err());
+    with_store(&path, &env, |store| {
+        store.require_pool_admission(&other_owner)
+    })?;
     assert_eq!(freeze(&path, &env, &owner, freeze_request.clone())?, frozen);
     assert_eq!(rows(&path), frozen_rows);
     let mut delayed_material = base.clone();
@@ -360,6 +374,7 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         "changed_retry_rejected": true, "terminal_ids_cannot_be_repopulated": true,
         "pool_fence_survives_reopen": true,
         "pending_effect_blocks_freeze_until_commit": true,
+        "presign_admission_closed_while_draining_and_frozen": true,
         "unrecorded_delayed_refill_rejected": true,
         "frozen_receipt_exact_retry": true,
         "other_wallet_pool_admission_preserved": true,
