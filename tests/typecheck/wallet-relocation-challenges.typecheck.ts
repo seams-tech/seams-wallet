@@ -27,3 +27,16 @@ const deniedApproval: ApprovalResult = { kind: 'denied', approval: approved };
 const absentApproval: ApprovalResult = { kind: 'approved' };
 void deniedApproval;
 void absentApproval;
+
+type OtpPurpose =
+  import('../../packages/wallet-server/src/core/EmailOtpStores').EmailOtpChallengePurpose;
+declare const relocationPurpose: OtpPurpose & { readonly action: 'wallet_email_otp_relocation' };
+// @ts-expect-error Relocation proof cannot use the signing operation.
+const wrongOtpPurpose: OtpPurpose = {
+  action: 'wallet_email_otp_relocation',
+  operation: 'transaction_sign',
+};
+// @ts-expect-error Broad spreads cannot turn relocation into a login challenge.
+const spreadOtpPurpose: OtpPurpose = { ...relocationPurpose, action: 'wallet_email_otp_login' };
+void wrongOtpPurpose;
+void spreadOtpPurpose;

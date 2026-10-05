@@ -4,12 +4,14 @@ import {
   EMAIL_OTP_CHANNEL,
   WALLET_EMAIL_OTP_ACTIONS,
   WALLET_EMAIL_OTP_DEVICE_LINK_OPERATION,
+  WALLET_EMAIL_OTP_RELOCATION_OPERATION,
   WALLET_EMAIL_OTP_REGISTRATION_OPERATION,
   WALLET_EMAIL_OTP_UNLOCK_OPERATION,
   isWalletEmailOtpLoginOperation,
 } from '@shared/utils/emailOtpDomain';
 import type {
   EmailOtpChallengeRecord,
+  EmailOtpChallengePurpose,
   EmailOtpGrantRecord,
   EmailOtpUnlockChallengeRecord,
   GoogleEmailOtpRegistrationAttemptRecord,
@@ -76,22 +78,8 @@ function parseCurrentEmailOtpChallengeRecord(raw: unknown): EmailOtpChallengeRec
     return null;
   }
   if (otpChannel !== EMAIL_OTP_CHANNEL) return null;
-  if (
-    action !== WALLET_EMAIL_OTP_ACTIONS.login &&
-    action !== WALLET_EMAIL_OTP_ACTIONS.registration &&
-    action !== WALLET_EMAIL_OTP_ACTIONS.recoveryBootstrap &&
-    action !== WALLET_EMAIL_OTP_ACTIONS.deviceLink
-  ) {
-    return null;
-  }
-  const operation =
-    isWalletEmailOtpLoginOperation(operationRaw) ||
-    operationRaw === WALLET_EMAIL_OTP_REGISTRATION_OPERATION ||
-    operationRaw === WALLET_EMAIL_OTP_UNLOCK_OPERATION ||
-    operationRaw === WALLET_EMAIL_OTP_DEVICE_LINK_OPERATION
-      ? operationRaw
-      : null;
-  if (!operation) return null;
+  const purpose = parseEmailOtpChallengePurpose(action, operationRaw);
+  if (!purpose) return null;
   return {
     version: 'email_otp_challenge_v1',
     challengeId,
@@ -102,13 +90,34 @@ function parseCurrentEmailOtpChallengeRecord(raw: unknown): EmailOtpChallengeRec
     email,
     otpCode,
     ownerProofBindingDigest,
-    action,
-    operation,
+    ...purpose,
     createdAtMs,
     expiresAtMs,
     attemptCount,
     maxAttempts,
   };
+}
+
+export function parseEmailOtpChallengePurpose(
+  action: unknown,
+  operation: unknown,
+): EmailOtpChallengePurpose | null {
+  switch (action) {
+    case WALLET_EMAIL_OTP_ACTIONS.login:
+      return typeof operation === 'string' && isWalletEmailOtpLoginOperation(operation)
+        ? { action, operation }
+        : null;
+    case WALLET_EMAIL_OTP_ACTIONS.registration:
+      return operation === WALLET_EMAIL_OTP_REGISTRATION_OPERATION ? { action, operation } : null;
+    case WALLET_EMAIL_OTP_ACTIONS.recoveryBootstrap:
+      return operation === WALLET_EMAIL_OTP_UNLOCK_OPERATION ? { action, operation } : null;
+    case WALLET_EMAIL_OTP_ACTIONS.deviceLink:
+      return operation === WALLET_EMAIL_OTP_DEVICE_LINK_OPERATION ? { action, operation } : null;
+    case WALLET_EMAIL_OTP_ACTIONS.relocation:
+      return operation === WALLET_EMAIL_OTP_RELOCATION_OPERATION ? { action, operation } : null;
+    default:
+      return null;
+  }
 }
 
 export function parseCurrentEmailOtpChallengeRow(input: {

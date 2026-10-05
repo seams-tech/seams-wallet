@@ -4,7 +4,6 @@ import { base64UrlDecode } from '@shared/utils/encoders';
 import {
   EMAIL_OTP_CHANNEL,
   WALLET_EMAIL_OTP_ACTIONS,
-  WALLET_EMAIL_OTP_DEVICE_LINK_OPERATION,
   WALLET_EMAIL_OTP_REGISTRATION_OPERATION,
   WALLET_EMAIL_OTP_UNLOCK_OPERATION,
   isWalletEmailOtpLoginOperation,
@@ -12,6 +11,7 @@ import {
 import { failure } from '@shared/utils/failure';
 import {
   parseCurrentEmailOtpChallengeRow,
+  parseEmailOtpChallengePurpose,
   parseCurrentEmailOtpGrantRow,
   parseCurrentEmailOtpUnlockChallengeRow,
 } from '../../../../core/EmailOtpRecords';
@@ -346,11 +346,7 @@ export function parseEmailOtpChallengeRow(
     recordJson: row?.record_json,
     expiresAtMs: row?.expires_at_ms,
   });
-  if (
-    !record ||
-    record.expiresAtMs <= record.createdAtMs ||
-    !emailOtpChallengePurposeIsValid(record)
-  ) {
+  if (!record || record.expiresAtMs <= record.createdAtMs) {
     return null;
   }
   return { ...record, email: record.email.toLowerCase() };
@@ -470,6 +466,8 @@ export function emailOtpChallengeRecord(input: {
   readonly expiresAtMs: number;
   readonly maxAttempts: number;
 }): EmailOtpChallengeRecord {
+  const purpose = parseEmailOtpChallengePurpose(input.action, input.operation);
+  if (!purpose) throw new Error('Invalid Email OTP challenge purpose');
   return {
     version: 'email_otp_challenge_v1',
     challengeId: input.challengeId,
@@ -480,8 +478,7 @@ export function emailOtpChallengeRecord(input: {
     email: input.email,
     otpCode: input.otpCode,
     ownerProofBindingDigest: input.ownerProofBindingDigest,
-    action: input.action,
-    operation: input.operation,
+    ...purpose,
     createdAtMs: input.createdAtMs,
     expiresAtMs: input.expiresAtMs,
     attemptCount: 0,
@@ -493,6 +490,8 @@ export function emailOtpChallengeWithAttemptCount(
   record: EmailOtpChallengeRecord,
   attemptCount: number,
 ): EmailOtpChallengeRecord {
+  const purpose = parseEmailOtpChallengePurpose(record.action, record.operation);
+  if (!purpose) throw new Error('Invalid Email OTP challenge purpose');
   return {
     version: 'email_otp_challenge_v1',
     challengeId: record.challengeId,
@@ -503,8 +502,7 @@ export function emailOtpChallengeWithAttemptCount(
     email: record.email,
     otpCode: record.otpCode,
     ownerProofBindingDigest: record.ownerProofBindingDigest,
-    action: record.action,
-    operation: record.operation,
+    ...purpose,
     createdAtMs: record.createdAtMs,
     expiresAtMs: record.expiresAtMs,
     attemptCount,
@@ -722,16 +720,7 @@ export function emailOtpChallengePurposeIsValid(input: {
   readonly action: EmailOtpChallengeIssueAction;
   readonly operation: EmailOtpChallengeOperation;
 }): boolean {
-  switch (input.action) {
-    case WALLET_EMAIL_OTP_ACTIONS.login:
-      return isWalletEmailOtpLoginOperation(input.operation);
-    case WALLET_EMAIL_OTP_ACTIONS.registration:
-      return input.operation === WALLET_EMAIL_OTP_REGISTRATION_OPERATION;
-    case WALLET_EMAIL_OTP_ACTIONS.recoveryBootstrap:
-      return input.operation === WALLET_EMAIL_OTP_UNLOCK_OPERATION;
-    case WALLET_EMAIL_OTP_ACTIONS.deviceLink:
-      return input.operation === WALLET_EMAIL_OTP_DEVICE_LINK_OPERATION;
-  }
+  return parseEmailOtpChallengePurpose(input.action, input.operation) !== null;
 }
 
 function optionalPositiveSafeIntegerField(

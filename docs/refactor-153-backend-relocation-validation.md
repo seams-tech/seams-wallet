@@ -161,8 +161,22 @@ challenge rollback. It covers concurrent requests, exact replay through a new st
 instance after expiry, changed bindings, tenant isolation, and expiry at commit.
 Evidence is retained under `.artifacts/r153/relocation-approval-20261005/`.
 
-Email OTP verification, initiating-session authentication, move-only reads, HTTP
-admission, and challenge/approval transfer remain unfinished. The authenticated
+Email OTP now uses a distinct relocation action and operation. Its digest binds
+the scope, exact move binding, and stored relocation nonce. Verification checks
+an active full-owner method and its enrolled email. The approval transaction guards
+the method, authority, and enrollment, then consumes both challenges and records
+the approval together. Both factors use the same approval transaction.
+The existing E2E checks rejection of a signing challenge, wrong-code accounting,
+enrollment removal before commit, rollback of both challenges, and exact replay.
+It also verifies that the schema migration preserves an existing OTP challenge.
+The wrong-code case exposed an existing parameter-order defect in the attempt
+update. Numbered parameters now bind the scope and record fields correctly.
+Type fixtures reject mixed challenge purposes. The client rejects relocation
+proofs as signing-session inputs. Evidence is retained under
+`.artifacts/r153/relocation-email-otp-20261006/`.
+
+Email delivery, initiating-session authentication, move-only reads, HTTP admission,
+and challenge/approval transfer remain unfinished. The authenticated
 owner boundary must validate the initiating credential before calling this store.
 Console must verify the source approval and its expiry before new admission.
 These component scenarios do not prove that integration or an assembled move.

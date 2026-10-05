@@ -33,11 +33,13 @@ export const WALLET_EMAIL_OTP_REGISTRATION_OPERATION = 'registration' as const;
 /** Linked-device enrollment: prove control of the wallet's enrolled email
  * destination to complete one device link. */
 export const WALLET_EMAIL_OTP_DEVICE_LINK_OPERATION = 'device_link' as const;
+export const WALLET_EMAIL_OTP_RELOCATION_OPERATION = 'wallet_relocation' as const;
 
 export type WalletEmailOtpOperation =
   | WalletEmailOtpLoginOperation
   | typeof WALLET_EMAIL_OTP_REGISTRATION_OPERATION
-  | typeof WALLET_EMAIL_OTP_DEVICE_LINK_OPERATION;
+  | typeof WALLET_EMAIL_OTP_DEVICE_LINK_OPERATION
+  | typeof WALLET_EMAIL_OTP_RELOCATION_OPERATION;
 
 export const WALLET_EMAIL_OTP_ACTIONS = {
   login: 'wallet_email_otp_login',
@@ -45,6 +47,7 @@ export const WALLET_EMAIL_OTP_ACTIONS = {
   recoveryBootstrap: 'wallet_email_otp_recovery_bootstrap',
   unseal: 'wallet_email_otp_unseal',
   deviceLink: 'wallet_email_otp_device_link',
+  relocation: 'wallet_email_otp_relocation',
 } as const;
 
 export type WalletEmailOtpAction =

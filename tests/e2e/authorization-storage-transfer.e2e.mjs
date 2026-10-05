@@ -36,6 +36,14 @@ const bundle = await build({
     loader: 'ts',
     contents: `
       export { CloudflareD1WebAuthnStore } from './packages/wallet-server/src/router/cloudflare/d1/webauthn/d1WebAuthnStore';
+      export { walletRelocationEmailOtpBinding, verifyWalletRelocationEmailOtp } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationEmailOtp';
+      export { CloudflareD1EmailOtpChallengeStore } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeStore';
+      export { CloudflareD1EmailOtpChallengeVerifier } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeVerifier';
+      export { CloudflareD1EmailOtpEnrollmentStore } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpEnrollmentStore';
+      export { CloudflareD1EmailOtpRateLimitStore } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRateLimitStore';
+      export { emailOtpChallengeRecord } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRecords';
+      export { prepareD1TenantStatement } from './packages/wallet-server/src/core/d1TenantStore';
+      export { buildEmailOtpEnrollmentFixture } from './tests/unit/helpers/emailOtpAuthMethod.fixtures';
       export { D1WalletRelocationApprovals } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationApprovals';
       export { verifyWalletRelocationPasskey } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationPasskey';
       export { AuthorizationService } from './packages/wallet-server/src/authorization/service';
@@ -45,7 +53,7 @@ const bundle = await build({
       export { CloudflareD1AuthorizationStore } from './packages/wallet-server/src/router/cloudflare/d1/authorization/d1AuthorizationStore';
       export { D1WalletAuthorityStore, prepareD1WalletAuthorityPutStatement } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorityStore';
       export { prepareD1WalletAuthMethodV2PutStatement } from './packages/wallet-server/src/core/d1WalletAuthMethodStore';
-      export { buildLinkedDeviceManagementAuthorityFixture } from './tests/unit/helpers/linkedDeviceManagement.fixtures';
+      export { buildLinkedDeviceManagementAuthorityFixture, buildEmailOtpEcdsaWalletSessionFixture } from './tests/unit/helpers/linkedDeviceManagement.fixtures';
       export { buildFullOwnerPermissionsV1 } from './packages/shared-ts/src/authorization/delegatedAuthority';
       export { routerAbMpcMaterialActivationRefToWire } from './packages/shared-ts/src/utils/routerAbNormalSigningIdentity';
       export { readWalletSessionSigningCandidate } from './packages/wallet-server/src/router/cloudflare/d1/auth/walletSessionCredentialReaders';
@@ -274,6 +282,7 @@ try {
   );
 
   const relocationPasskey = await verifyRelocationPasskey(source);
+  const relocationEmailOtp = await verifyRelocationEmailOtp(source);
   const artifact = {
     kind: 'wallet_authorization_storage_transfer_evidence_v1',
     recordedAt: new Date().toISOString(),
@@ -289,6 +298,7 @@ try {
     observations: {
       relocationChallenges,
       relocationPasskey,
+      relocationEmailOtp,
       existingPrimaryCredentialAcceptedAtIndependentDatabase: true,
       secondDeviceCredentialAndAuthorityPreservedWithoutReissuance: true,
       directConsumedExchangeImportRejected: true,
@@ -353,6 +363,17 @@ async function migrate(database) {
   const directory = 'packages/wallet-server/migrations/d1-signer';
   const migrations = [];
   for (const name of (await readdir(directory)).filter(isSql).sort()) {
+    const preservedChallenge = name === '0051_wallet_relocation_email_otp.sql'
+      ? api.emailOtpChallengeRecord({
+          challengeId: 'otp:migration', challengeSubjectId: 'google:migration',
+          walletId: 'wallet:migration', orgId: scope.orgId, email: 'migration@example.test',
+          otpCode: '135790', ownerProofBindingDigest: 'migration-binding',
+          action: 'wallet_email_otp_login', operation: 'wallet_unlock',
+          createdAtMs: 100, expiresAtMs: 200, maxAttempts: 5,
+        })
+      : null;
+    const challengeStore = new api.CloudflareD1EmailOtpChallengeStore({ database, ...scope });
+    if (preservedChallenge) await challengeStore.put(preservedChallenge);
     const original = await readFile(`${directory}/${name}`, 'utf8');
     let sql = original;
     if (name === '0028_r103f_phase1_additive_schema_bridge.sql') {
@@ -363,7 +384,8 @@ async function migrate(database) {
       statements.push(database.prepare(query));
     }
     await database.batch(statements);
-    migrations.push({ name, sha256: digest(original) });
+    if (preservedChallenge) assert.deepEqual(await challengeStore.read(preservedChallenge.challengeId), preservedChallenge);
+    migrations.push({ name, sha256: digest(original), ...(preservedChallenge ? { existingOtpChallengePreserved: true } : {}) });
   }
   return migrations;
 }
@@ -775,5 +797,149 @@ function relocationAssertion(privateKey, method, challenge, origin, flags, count
       signature: sign(null, signed, privateKey).toString('base64url'),
       userHandle: null,
     },
+  };
+}
+
+
+async function verifyRelocationEmailOtp(database) {
+  const nowMs = Date.now();
+  const email = 'relocation@example.test';
+  const providerUserId = 'google:relocation-otp';
+  const fixture = await api.buildEmailOtpEcdsaWalletSessionFixture({
+    label: 'relocation-otp',
+    walletId: 'wallet:relocation-otp',
+    providerUserId,
+    emailHashHex: digest(Buffer.from(email)),
+    expiresAtMs: nowMs + 60_000,
+  });
+  await database.batch([
+    api.prepareD1WalletAuthorityPutStatement({ database, scope, authority: fixture.authority }),
+    api.prepareD1WalletAuthMethodV2PutStatement({ database, scope, record: fixture.authMethod }),
+  ]);
+  const prepare = api.prepareD1TenantStatement.bind(null, database, scope);
+  const emailOtpEnrollments = new api.CloudflareD1EmailOtpEnrollmentStore({ prepare });
+  const enrollment = api.buildEmailOtpEnrollmentFixture({
+    walletId: fixture.authority.walletId,
+    orgId: scope.orgId,
+    providerUserId,
+    email,
+    nowMs,
+  });
+  await emailOtpEnrollments.putEnrollment(enrollment);
+  const emailOtpChallenges = new api.CloudflareD1EmailOtpChallengeStore({ database, ...scope });
+  const policy = { limit: 100, windowMs: 60_000 };
+  const emailOtpRateLimits = new api.CloudflareD1EmailOtpRateLimitStore({
+    prepare,
+    rateLimits: {
+      challenge: policy,
+      verify: policy,
+      grant: policy,
+      googleRegistrationAttempt: policy,
+    },
+  });
+  const verifier = new api.CloudflareD1EmailOtpChallengeVerifier({
+    emailOtpChallenges,
+    emailOtpEnrollments,
+    emailOtpRateLimits,
+    lockoutTtlMs: 60_000,
+  });
+  const binding = api.WalletRelocationChallengeBinding.parse({
+    walletId: fixture.authority.walletId,
+    moveId: `wmove_${Buffer.alloc(32, 100).toString('base64url')}`,
+    requestDigestHex: 'de'.repeat(32),
+    sourceGeneration: 1,
+    destinationRegion: 'APAC',
+    authorityId: fixture.authority.authorityId,
+    walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
+    credentialDigestHex: 'ad'.repeat(32),
+    credentialExpiresAtMs: nowMs + 60_000,
+    origin: 'https://wallet.example.test',
+  });
+  const challenges = new api.D1WalletRelocationChallenges(database, scope);
+  const challenge = await challenges.issue(binding, nowMs, nowMs + 30_000);
+  const ownerProofBindingDigest = await api.walletRelocationEmailOtpBinding(
+    scope,
+    binding,
+    challenge.challengeB64u,
+  );
+  const otpInput = {
+    challengeId: 'otp:relocation',
+    challengeSubjectId: providerUserId,
+    walletId: binding.walletId,
+    orgId: scope.orgId,
+    email,
+    otpCode: '483920',
+    ownerProofBindingDigest,
+    action: 'wallet_email_otp_relocation',
+    operation: 'wallet_relocation',
+    createdAtMs: nowMs,
+    expiresAtMs: nowMs + 30_000,
+    maxAttempts: 5,
+  };
+  await emailOtpChallenges.put(api.emailOtpChallengeRecord(otpInput));
+  await emailOtpChallenges.put(
+    api.emailOtpChallengeRecord({
+      ...otpInput,
+      challengeId: 'otp:signing',
+      action: 'wallet_email_otp_login',
+      operation: 'transaction_sign',
+    }),
+  );
+  const approvals = new api.D1WalletRelocationApprovals(database, scope);
+  const input = {
+    binding,
+    challengeId: otpInput.challengeId,
+    otpCode: otpInput.otpCode,
+    nowMs: nowMs + 1,
+    verifier,
+    emailOtpChallenges,
+  };
+  assert.equal(
+    (await approvals.approveEmailOtp({ ...input, challengeId: 'otp:signing' })).kind,
+    'denied',
+  );
+  assert.ok(await emailOtpChallenges.read('otp:signing'));
+  assert.equal((await approvals.approveEmailOtp({ ...input, otpCode: '000000' })).kind, 'denied');
+  assert.equal((await emailOtpChallenges.read(otpInput.challengeId)).attemptCount, 1);
+  const beforeEnrollmentRemoval = await api.verifyWalletRelocationEmailOtp({
+    database,
+    scope,
+    ...input,
+  });
+  assert.equal(beforeEnrollmentRemoval.kind, 'verified');
+  await emailOtpEnrollments.deleteEnrollment(binding.walletId);
+  await assert.rejects(database.batch(beforeEnrollmentRemoval.commitPrerequisites));
+  assert.ok(await emailOtpChallenges.read(otpInput.challengeId));
+  assert.equal((await challenges.read(binding)).state, 'issued');
+  await emailOtpEnrollments.putEnrollment(enrollment);
+  await database.exec(
+    "CREATE TRIGGER fail_relocation_approval BEFORE INSERT ON wallet_relocation_approvals BEGIN SELECT RAISE(ABORT, 'injected OTP approval failure'); END;",
+  );
+  await assert.rejects(approvals.approveEmailOtp(input), /injected OTP approval failure/);
+  assert.ok(await emailOtpChallenges.read(otpInput.challengeId));
+  assert.equal((await challenges.read(binding)).state, 'issued');
+  assert.equal(await approvals.read(binding), null);
+  await database.exec('DROP TRIGGER fail_relocation_approval;');
+  const approved = await approvals.approveEmailOtp(input);
+  assert.equal(approved.kind, 'approved');
+  assert.equal(approved.approval.expiresAtMs, nowMs + 30_000);
+  assert.equal(await emailOtpChallenges.read(otpInput.challengeId), null);
+  assert.equal((await challenges.read(binding)).state, 'consumed');
+  assert.deepEqual(
+    await approvals.approveEmailOtp({ ...input, otpCode: '000000', nowMs: nowMs + 90_000 }),
+    approved,
+  );
+  assert.ok(await emailOtpChallenges.read('otp:signing'));
+  return {
+    scope:
+      'OTP verification and atomic approval through production stores; excludes email delivery, factor unsealing, owner HTTP authentication and Console admission',
+    enrollmentRemovalRejectsStaleCommit: true,
+    distinctRelocationPurpose: true,
+    signingChallengeRejectedAndPreserved: true,
+    wrongCodeUsesExistingAttemptLimit: true,
+    failedApprovalPreservesBothChallenges: true,
+    approvalConsumesOtpAndRelocationChallengeTogether: true,
+    approvalExpiryCappedByOtp: true,
+    exactReplayRequiresNoSecondOtp: true,
   };
 }

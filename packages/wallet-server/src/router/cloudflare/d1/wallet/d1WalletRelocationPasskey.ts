@@ -1,21 +1,17 @@
-import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
 import { CloudflareD1WebAuthnStore } from '../webauthn/d1WebAuthnStore';
 import { verifyAuthenticationResponse } from '@simplewebauthn/server';
-import {
-  buildDelegatedWalletAuthorityV1,
-  buildFullOwnerPermissionsV1,
-  sameDelegatedWalletAuthorityV1,
-} from '@shared/authorization/delegatedAuthority';
-import type { D1DatabaseLike, D1PreparedStatementLike } from '../../../../storage/tenantRoute';
+import type { D1DatabaseLike } from '../../../../storage/tenantRoute';
 import type { D1TenantScope } from '../../../../core/d1TenantStore';
-import { D1WalletAuthMethodStore } from '../../../../core/d1WalletAuthMethodStore';
 import {
   decodeWebAuthnBase64UrlOrBase64,
   parseWebAuthnAuthenticationCredential,
   webAuthnCredentialIdB64uFromCredential,
 } from '../../../auth/webAuthnCredentialCodecs';
-import { D1WalletAuthorityStore } from './d1WalletAuthorityStore';
+import {
+  readWalletRelocationOwner,
+  type WalletRelocationFactorVerification,
+} from './d1WalletRelocationOwner';
 import { d1HostIsWithinWebAuthnRpId } from './d1WalletAuthMethodBoundary';
 import {
   D1WalletRelocationChallenges,
@@ -29,15 +25,7 @@ export async function verifyWalletRelocationPasskey(input: {
   readonly binding: WalletRelocationChallengeBinding;
   readonly credential: unknown;
   readonly nowMs: number;
-}): Promise<
-  | {
-      readonly kind: 'verified';
-      readonly authorityDigestB64u: DigestB64u;
-      readonly authorityRevocationEpoch: number;
-      readonly commitPrerequisites: readonly D1PreparedStatementLike[];
-    }
-  | { readonly kind: 'denied'; readonly commitPrerequisites?: never }
-> {
+}): Promise<WalletRelocationFactorVerification> {
   const challenges = new D1WalletRelocationChallenges(input.database, input.scope);
   const challenge = await challenges.read(input.binding);
   if (
@@ -53,32 +41,12 @@ export async function verifyWalletRelocationPasskey(input: {
   if (!credential) return { kind: 'denied' };
   const credentialId = webAuthnCredentialIdB64uFromCredential(credential);
   if (!credentialId.ok) return { kind: 'denied' };
-  const methods = new D1WalletAuthMethodStore({
-    database: input.database,
-    ...input.scope,
-    ensureSchema: false,
-  });
-  const method = await methods.readByIdV2({ walletAuthMethodId: input.binding.walletAuthMethodId });
+  const owner = await readWalletRelocationOwner(input.database, input.scope, input.binding);
+  if (!owner || owner.method.kind !== 'passkey') return { kind: 'denied' };
+  const { method, authority } = owner;
   if (
-    !method ||
-    method.kind !== 'passkey' ||
-    method.status !== 'active' ||
-    method.walletId !== input.binding.walletId ||
-    method.walletAuthorityId !== input.binding.authorityId ||
     method.credentialIdB64u !== credentialId.credentialIdB64u ||
     !d1HostIsWithinWebAuthnRpId(new URL(input.binding.origin).hostname, method.rpId)
-  )
-    return { kind: 'denied' };
-  const authorities = new D1WalletAuthorityStore({ database: input.database, scope: input.scope });
-  const authority = await authorities.readById(method.walletAuthorityId);
-  if (
-    !authority ||
-    authority.state !== 'active' ||
-    authority.walletId !== input.binding.walletId ||
-    !sameDelegatedWalletAuthorityV1(
-      buildDelegatedWalletAuthorityV1({ permissions: authority.permissions }),
-      buildDelegatedWalletAuthorityV1({ permissions: buildFullOwnerPermissionsV1() }),
-    )
   )
     return { kind: 'denied' };
 
@@ -132,13 +100,7 @@ export async function verifyWalletRelocationPasskey(input: {
     authorityDigestB64u: authority.authorityDigestB64u,
     authorityRevocationEpoch: authority.revocationEpoch,
     commitPrerequisites: [
-      ...methods.prepareActiveV2SourceGuardStatements({
-        walletId: input.binding.walletId,
-        walletAuthMethodId: method.walletAuthMethodId,
-        walletAuthorityId: method.walletAuthorityId,
-        authorityDigestB64u: authority.authorityDigestB64u,
-        authorityRevocationEpoch: authority.revocationEpoch,
-      }),
+      ...owner.commitPrerequisites,
       input.database
         .prepare(
           `UPDATE webauthn_authenticators SET counter = ?, updated_at_ms = ?

@@ -3,6 +3,7 @@ import {
   EMAIL_OTP_CHANNEL,
   WALLET_EMAIL_OTP_ACTIONS,
   WALLET_EMAIL_OTP_DEVICE_LINK_OPERATION,
+  WALLET_EMAIL_OTP_RELOCATION_OPERATION,
   WALLET_EMAIL_OTP_REGISTRATION_OPERATION,
   WALLET_EMAIL_OTP_UNLOCK_OPERATION,
 } from '@shared/utils/emailOtpDomain';
@@ -40,6 +41,10 @@ export type EmailOtpExistingChallengeVerifyInput =
   | (EmailOtpExistingChallengeVerifyBaseInput & {
       readonly action: typeof WALLET_EMAIL_OTP_ACTIONS.login;
       readonly operation: EmailOtpLoginChallengeOperation;
+    })
+  | (EmailOtpExistingChallengeVerifyBaseInput & {
+      readonly action: typeof WALLET_EMAIL_OTP_ACTIONS.relocation;
+      readonly operation: typeof WALLET_EMAIL_OTP_RELOCATION_OPERATION;
     })
   | (EmailOtpExistingChallengeVerifyBaseInput & {
       readonly action: typeof WALLET_EMAIL_OTP_ACTIONS.deviceLink;
@@ -231,7 +236,6 @@ export class CloudflareD1EmailOtpChallengeVerifier {
   prepareDeleteEnrollmentIfUnreferencedStatement(walletId: string): D1PreparedStatementLike {
     return this.emailOtpEnrollments.prepareDeleteEnrollmentIfUnreferencedStatement(walletId);
   }
-
 
   async verifyExisting(
     input: EmailOtpExistingChallengeVerifyInput,
@@ -555,8 +559,7 @@ export class CloudflareD1EmailOtpChallengeVerifier {
             ownerProofBindingDigest,
             action: WALLET_EMAIL_OTP_ACTIONS.recoveryBootstrap,
             operation: WALLET_EMAIL_OTP_UNLOCK_OPERATION,
-          }) ||
-          (record.email !== proofEmail ? 'challenge_email_mismatch' : null)
+          }) || (record.email !== proofEmail ? 'challenge_email_mismatch' : null)
         : emailOtpRegistrationChallengeBindingMismatchCode({
             record,
             providerSubject: resolvedProviderSubject,

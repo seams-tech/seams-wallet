@@ -4,7 +4,13 @@ import type {
   WalletEmailOtpLoginOperation,
   WalletEmailOtpOperation,
 } from '@shared/utils/emailOtpDomain';
-import { WALLET_EMAIL_OTP_ACTIONS } from '@shared/utils/emailOtpDomain';
+import {
+  WALLET_EMAIL_OTP_ACTIONS,
+  WALLET_EMAIL_OTP_REGISTRATION_OPERATION,
+  WALLET_EMAIL_OTP_UNLOCK_OPERATION,
+  WALLET_EMAIL_OTP_DEVICE_LINK_OPERATION,
+  WALLET_EMAIL_OTP_RELOCATION_OPERATION,
+} from '@shared/utils/emailOtpDomain';
 export type EmailOtpChannel = WalletEmailOtpChannel;
 export type EmailOtpGrantAction =
   | typeof WALLET_EMAIL_OTP_ACTIONS.unseal
@@ -13,9 +19,32 @@ export type EmailOtpChallengeAction =
   | typeof WALLET_EMAIL_OTP_ACTIONS.login
   | typeof WALLET_EMAIL_OTP_ACTIONS.registration
   | typeof WALLET_EMAIL_OTP_ACTIONS.recoveryBootstrap
-  | typeof WALLET_EMAIL_OTP_ACTIONS.deviceLink;
+  | typeof WALLET_EMAIL_OTP_ACTIONS.deviceLink
+  | typeof WALLET_EMAIL_OTP_ACTIONS.relocation;
 export type EmailOtpChallengeOperation = WalletEmailOtpOperation;
 export type EmailOtpLoginChallengeOperation = WalletEmailOtpLoginOperation;
+
+export type EmailOtpChallengePurpose =
+  | {
+      readonly action: typeof WALLET_EMAIL_OTP_ACTIONS.login;
+      readonly operation: WalletEmailOtpLoginOperation;
+    }
+  | {
+      readonly action: typeof WALLET_EMAIL_OTP_ACTIONS.registration;
+      readonly operation: typeof WALLET_EMAIL_OTP_REGISTRATION_OPERATION;
+    }
+  | {
+      readonly action: typeof WALLET_EMAIL_OTP_ACTIONS.recoveryBootstrap;
+      readonly operation: typeof WALLET_EMAIL_OTP_UNLOCK_OPERATION;
+    }
+  | {
+      readonly action: typeof WALLET_EMAIL_OTP_ACTIONS.deviceLink;
+      readonly operation: typeof WALLET_EMAIL_OTP_DEVICE_LINK_OPERATION;
+    }
+  | {
+      readonly action: typeof WALLET_EMAIL_OTP_ACTIONS.relocation;
+      readonly operation: typeof WALLET_EMAIL_OTP_RELOCATION_OPERATION;
+    };
 
 export type EmailOtpChallengeRecord = {
   version: 'email_otp_challenge_v1';
@@ -36,13 +65,11 @@ export type EmailOtpChallengeRecord = {
   otpCode: string;
   /** Exact wallet, owner, operation, origin, and audience binding digest. */
   ownerProofBindingDigest: string;
-  action: EmailOtpChallengeAction;
-  operation: EmailOtpChallengeOperation;
   createdAtMs: number;
   expiresAtMs: number;
   attemptCount: number;
   maxAttempts: number;
-};
+} & EmailOtpChallengePurpose;
 
 export type EmailOtpGrantRecord = {
   version: 'email_otp_grant_v1';

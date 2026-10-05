@@ -3,6 +3,10 @@ import type { D1DatabaseLike, D1ResultLike } from '../../../../storage/tenantRou
 import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
 import type { D1TenantScope } from '../../../../core/d1TenantStore';
 import type { WalletRelocationChallengeBinding } from './d1WalletRelocationChallenges';
+import { verifyWalletRelocationEmailOtp } from './d1WalletRelocationEmailOtp';
+import type { WalletRelocationFactorVerification } from './d1WalletRelocationOwner';
+import type { CloudflareD1EmailOtpChallengeVerifier } from '../emailOtp/d1EmailOtpChallengeVerifier';
+import type { CloudflareD1EmailOtpChallengeStore } from '../emailOtp/d1EmailOtpChallengeStore';
 import { verifyWalletRelocationPasskey } from './d1WalletRelocationPasskey';
 
 type StoredApproval = {
@@ -38,6 +42,36 @@ export class D1WalletRelocationApprovals {
       credential: input.credential,
       nowMs: input.nowMs,
     });
+    return this.commit(input, verified);
+  }
+
+  async approveEmailOtp(input: {
+    readonly binding: WalletRelocationChallengeBinding;
+    readonly challengeId: string;
+    readonly otpCode: string;
+    readonly nowMs: number;
+    readonly verifier: CloudflareD1EmailOtpChallengeVerifier;
+    readonly emailOtpChallenges: CloudflareD1EmailOtpChallengeStore;
+  }): Promise<ApprovalResult> {
+    const previous = await this.read(input.binding);
+    if (previous) return { kind: 'approved', approval: previous };
+    const verified = await verifyWalletRelocationEmailOtp({
+      database: this.database,
+      scope: this.scope,
+      binding: input.binding,
+      challengeId: input.challengeId,
+      otpCode: input.otpCode,
+      nowMs: input.nowMs,
+      verifier: input.verifier,
+      emailOtpChallenges: input.emailOtpChallenges,
+    });
+    return this.commit(input, verified);
+  }
+
+  private async commit(
+    input: { readonly binding: WalletRelocationChallengeBinding; readonly nowMs: number },
+    verified: WalletRelocationFactorVerification,
+  ): Promise<ApprovalResult> {
     if (verified.kind === 'denied') {
       const concurrent = await this.read(input.binding);
       return concurrent ? { kind: 'approved', approval: concurrent } : { kind: 'denied' };
