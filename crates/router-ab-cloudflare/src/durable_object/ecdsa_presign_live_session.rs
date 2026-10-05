@@ -15,6 +15,9 @@ use router_ab_ecdsa_wire::{CompressedPointBytes, ScalarBytes};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+#[cfg(any(not(feature = "wallet-do-signing-worker-harness"), test))]
+use crate::CloudflareSigningWorkerEcdsaPresignAuthorityV1;
+
 pub(super) type CloudflareSigningWorkerEcdsaPresignLiveSessionsV1 =
     RefCell<crate::CloudflareSigningWorkerEcdsaPresignLiveSessionMapV1>;
 
@@ -26,7 +29,6 @@ use crate::{
     cloudflare_now_unix_ms_v1, decode_base64url_bytes_v1, decode_base64url_fixed_32_v1,
     decode_base64url_fixed_33_v1, encode_base64url_bytes_v1, require_non_empty,
     require_positive_ms, ActiveSigningWorkerStateV1, CloudflareSignerProofGetrandomRngV1,
-    CloudflareSigningWorkerEcdsaPresignAuthorityV1,
     CloudflareSigningWorkerEcdsaPresignRequestedStageV1,
     CloudflareSigningWorkerEcdsaPresignSessionDoGatewayStepRequestV1,
     CloudflareSigningWorkerEcdsaPresignSessionDoInitRequestV1,
@@ -348,6 +350,9 @@ pub(super) async fn handle_cloudflare_signing_worker_linked_ecdsa_presign_sessio
             405,
         );
     }
+    if let Err(error) = super::presign_session_relocation::require_open(storage).await {
+        return presign_do_error_response(error);
+    }
     let now_unix_ms = match cloudflare_now_unix_ms_v1() {
         Ok(value) => value,
         Err(error) => return presign_do_error_response(error),
@@ -440,7 +445,7 @@ pub(super) async fn handle_cloudflare_signing_worker_linked_ecdsa_presign_sessio
     }
 }
 
-const LINKED_PRESIGN_AUTHORITY_STORAGE_KEY: &str = "linked-presign-authority";
+pub(super) const LINKED_PRESIGN_AUTHORITY_STORAGE_KEY: &str = "linked-presign-authority";
 
 async fn load_linked_presign_authority(
     storage: &worker::Storage,
@@ -466,6 +471,7 @@ async fn claim_linked_presign_authority(
     let authority = authority.clone();
     storage
         .transaction(move |transaction| async move {
+            super::presign_session_relocation::require_open_transaction(&transaction).await?;
             claim_result.set(false);
             if transaction_get_optional::<
                 CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1,
@@ -803,6 +809,7 @@ async fn consume_linked_presignature(
     let now_unix_ms = input.now_unix_ms;
     storage
         .transaction(move |transaction| async move {
+            super::presign_session_relocation::require_open_transaction(&transaction).await?;
             let candidate = match transaction_get_optional::<
                 CloudflareSigningWorkerLinkedDeviceEcdsaCompletedPresignatureRecordV1,
             >(&transaction, &storage_key)
@@ -924,6 +931,7 @@ async fn persist_linked_terminal_completion(
     let completed = completed.clone();
     storage
         .transaction(move |transaction| async move {
+            super::presign_session_relocation::require_open_transaction(&transaction).await?;
             if transaction_get_optional::<
                 CloudflareSigningWorkerLinkedDeviceEcdsaCompletedPresignatureRecordV1,
             >(&transaction, &session_key)
@@ -945,7 +953,7 @@ async fn persist_linked_terminal_completion(
         .await
 }
 
-async fn transaction_get_optional<T: DeserializeOwned>(
+pub(super) async fn transaction_get_optional<T: DeserializeOwned>(
     transaction: &worker::Transaction,
     key: &str,
 ) -> worker::Result<Option<T>> {
@@ -964,7 +972,7 @@ fn durable_storage_protocol_error(error: worker::Error) -> RouterAbProtocolError
 }
 
 #[cfg(feature = "workers-rs")]
-fn presign_do_error_response(error: RouterAbProtocolError) -> worker::Result<worker::Response> {
+pub(super) fn presign_do_error_response(error: RouterAbProtocolError) -> worker::Result<worker::Response> {
     worker::Response::error(
         format!("{:?}: {}", error.code(), error.message()),
         durable_object_error_status(error.code()),

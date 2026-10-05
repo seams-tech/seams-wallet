@@ -27,6 +27,8 @@ mod deriver_b_pair;
 #[cfg(feature = "workers-rs")]
 mod ecdsa_presign_live_session;
 #[cfg(feature = "workers-rs")]
+pub(crate) mod presign_session_relocation;
+#[cfg(feature = "workers-rs")]
 mod router_wallet;
 #[cfg(feature = "workers-rs")]
 pub(crate) use router_wallet::{
@@ -153,6 +155,17 @@ impl worker::DurableObject for RouterAbSigningWorkerPresignSessionDurableObject 
 
     async fn fetch(&self, request: worker::Request) -> worker::Result<worker::Response> {
         let path = request.path();
+        if path == presign_session_relocation::INTERNAL_FENCE_PATH {
+            let result = presign_session_relocation::handle_fence(request, &self.storage).await;
+            if result.is_ok() {
+                self.linked_ecdsa_presign_sessions.borrow_mut().clear();
+                self.linked_ecdsa_presignature_records.borrow_mut().clear();
+            }
+            return match result {
+                Ok(receipt) => worker::Response::from_json(&receipt),
+                Err(error) => ecdsa_presign_live_session::presign_do_error_response(error),
+            };
+        }
         if path.starts_with("/router-ab/internal/signing-worker/linked-ecdsa-presign-session/")
             || path == crate::CLOUDFLARE_SIGNING_WORKER_LINKED_ECDSA_PRESIGNATURE_DO_CONSUME_PATH
         {

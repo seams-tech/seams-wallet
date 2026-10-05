@@ -93,10 +93,16 @@ records, linked-session history, existing Cloudflare sessions without wallet SQL
 claims, and aggregate participant freeze/transfer remain unfinished.
 Linked KV consumption in the wallet-DO backend now reads the pinned wallet
 authority and checks wallet admission before consuming or expiring a record.
-The client cannot select a different wallet for this check. Both Worker backend
-builds compile. This admission check does not settle work admitted before the
-pause: the participant still needs its local freeze barrier and drain receipt.
-Hosted execution of linked consumption remains unverified.
+The client cannot select a different wallet for this check. A separate linked
+session fence now serializes with its KV claim, completion, consumption, and
+expiry transactions. Its private endpoint requires the Router-to-SigningWorker
+ECDSA credential and binds the move to the stored wallet, session, and server
+presignature identities. Exact retries return the stored receipt; changed commands
+fail. Closing the fence clears live linked protocol and completion caches. The
+receipt proves a local write barrier only. It does not claim material invalidation
+or a sealed snapshot. Invalidation, history extraction, coordinator integration,
+and runtime verification of this barrier remain unfinished. Both Worker backend
+builds compile; these checks do not prove its restart or race behavior.
 
 
 ECDSA transfer preserves SQL integers through the Worker JavaScript boundary.

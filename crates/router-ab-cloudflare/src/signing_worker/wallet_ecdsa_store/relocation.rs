@@ -29,7 +29,7 @@ pub struct SigningWorkerPoolFreezeRequestV1 {
 }
 
 impl SigningWorkerPoolFreezeRequestV1 {
-    pub(super) fn validate(&self) -> RouterAbProtocolResult<()> {
+    pub(crate) fn validate(&self) -> RouterAbProtocolResult<()> {
         if self.move_id.len() != 49
             || !self.move_id.starts_with("wmove_")
             || !self.move_id.as_bytes()[6..]

@@ -14,6 +14,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
     {
         require_cloudflare_gateway_to_signing_worker_presign_auth_request_v1(&request, &env)
     } else if path == crate::SIGNING_WORKER_POOL_FREEZE_PATH_V1
+        || path == crate::durable_object::presign_session_relocation::FENCE_PATH
         || path == crate::SIGNING_WORKER_ECDSA_EXPORT_PATH_V1
         || path == crate::SIGNING_WORKER_ECDSA_TRANSFER_PATH_V1
         || path == CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_ACTIVATION_PATH
@@ -41,6 +42,9 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
         Err(err) => return cloudflare_protocol_error_response_v1(err),
     };
     match path.as_str() {
+        crate::durable_object::presign_session_relocation::FENCE_PATH => {
+            crate::durable_object::presign_session_relocation::forward_fence(request, &env, &runtime).await
+        }
         #[cfg(feature = "wallet-do-signing-worker-harness")]
         crate::SIGNING_WORKER_ECDSA_TRANSFER_PATH_V1 => {
             if request.method() != Method::Post {
