@@ -45,6 +45,9 @@ async function measureEmailOtpNearRegistration({
   assets.setPhase('email-otp-near-restored-sign');
   await harness.refreshPagePreservingWalletStorage();
   await harness.signNearTransactionAfterRefresh();
+  for (const workerUrl of assets.getWorkerUrls()) {
+    expect(workerUrl).not.toMatch(/\/ecdsa-[^/]+\.worker\.js$/u);
+  }
   assets.setPhase('completed');
 }
 
