@@ -108,6 +108,30 @@ currently fails closed in `local_router_ab_ecdsa.rs`; its owner presignature
 initialization uses the separate owner-authority inventory. This result does
 not establish native linked-session initialization or a complete regional move.
 
+## October 5 owner-approval boundary audit
+
+The existing `d1WalletAuthMethodBoundary.ts` revocation verifier is unsuitable as
+a relocation verifier. It rejects the target method as a source factor, while
+relocation permits the initiating owner's own method. Its passkey branch checks
+an operation-fingerprint challenge. It does not read a server-recorded relocation
+challenge or enforce that challenge's five-minute lifetime. Its Email OTP branch
+binds a revocation fingerprint and the transaction-sign operation. Keep these
+purpose-specific checks separate from relocation.
+
+Reuse `D1WalletAuthMethodStore.prepareActiveV2SourceGuardStatements` for the
+source commit. It checks the exact active method and authority, authority digest,
+and revocation epoch, then aborts the batch if no row matches. The fresh-proof
+consumption and relocation approval must share this batch. Read-only permission
+checks before the batch cannot replace this commit-time check.
+
+The next source implementation needs a relocation challenge bound to the wallet,
+move digest, authority, origin, generation, and server-recorded expiry. The approval
+must retain the exact initiating credential digest and its original expiry for
+move-only reads. Add no signing capability to this record. Publish approval to
+Console only after the source batch commits. Existing owner-management
+request authentication returns an active signing-session context; it cannot
+represent progress access after relocation retires that session.
+
 ## Cloudflare capabilities
 
 | Question | Established behavior | Consequence for relocation |
