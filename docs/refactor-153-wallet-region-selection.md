@@ -135,9 +135,12 @@ New linked sessions in the wallet-DO backend now register their session identity
 server presignature identity, and exact initialization digest in the wallet SQL
 store before creating local protocol state. Registration shares the wallet mutation
 fence, permits exact retries, and rejects conflicting identities. Wallet snapshots
-transfer this inventory with exact historical restore. The existing storage E2E
-passes with an empty linked inventory. Populated wallet-inventory transfer and
-enumeration by the coordinator remain unverified. A registration can
+transfer this inventory with exact historical restore. The Worker E2E transfers
+both initialized and pending session identities through five wallet-snapshot chunks.
+Chunk acknowledgements replay exactly, verification survives destination eviction,
+and destination admission remains closed. Evidence is retained under
+`.artifacts/r153/linked-wallet-inventory-20261005/`. Enumeration by the coordinator
+remains unfinished. A registration can
 outlive failed local initialization. The local fence now checks the wallet's
 registered identities and exact draining/frozen move before closing an uninitialized
 session. Its snapshot records the initialization digest without inventing signing

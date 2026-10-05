@@ -198,6 +198,7 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa) {
   await rejected(restored, initPath, initialization, credential, /fenced for relocation/);
   await rejected(restored, '/router-ab/internal/signing-worker/linked-ecdsa-presign-session/step', completed.terminalStep, credential, /fenced for relocation/);
   const pendingRegistration = await verifyPendingRegistration(topology, credential, pending, command.request);
+  const walletInventory = await verifyWalletInventoryTransfer(topology, credential, walletFreeze.receipt, [initialization.request, pending.request]);
   return {
     scope: 'Production presign completion, wallet registration, freeze and role-to-role import; excludes full device linking and concurrent consumption',
     completedPresignatureRetired: true,
@@ -208,7 +209,67 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa) {
     delayedInitializationRejectedAtBothHomes: true,
     segments: first.segment_count,
     pendingRegistration,
+    walletInventory,
   };
+}
+
+async function verifyWalletInventoryTransfer(topology, credential, receipt, requests) {
+  const source = await topology.getWorker(workerName);
+  const destinationName = 'fixture-signing-worker-after-refresh';
+  const destination = await topology.getWorker(destinationName);
+  const walletClass = 'RouterAbSigningWorkerWalletDurableObject';
+  const before = await topology.listDurableObjectIds(walletClass, destinationName);
+  const transfer = '/router-ab/signing-worker/wallet/ecdsa/transfer';
+  const exportSnapshot = '/router-ab/signing-worker/wallet/ecdsa/export';
+  const chunkBytes = 256;
+  const preparation = { kind: 'prepare', scope: receipt.scope, request: receipt.request, chunk_bytes: chunkBytes };
+  const prepared = await accepted(destination, transfer, preparation, credential);
+  assert.deepEqual(await accepted(destination, transfer, preparation, credential), prepared);
+  const first = await accepted(source, exportSnapshot, { receipt, segment_index: 0, chunk_bytes: chunkBytes }, credential);
+  const pieces = [];
+  for (let index = 0; index < first.segment_count; index += 1) {
+    const chunk = index === 0 ? first : await accepted(source, exportSnapshot, { receipt, segment_index: index, chunk_bytes: chunkBytes }, credential);
+    pieces.push(Buffer.from(chunk.data_b64u, 'base64url'));
+    const acknowledgement = await accepted(destination, transfer, { kind: 'import', chunk }, credential);
+    assert.deepEqual(await accepted(destination, transfer, { kind: 'import', chunk }, credential), acknowledgement);
+  }
+  const [scope, move, snapshot] = JSON.parse(Buffer.concat(pieces).toString('utf8'));
+  assert.deepEqual(scope, receipt.scope);
+  assert.deepEqual(move, receipt.request);
+  assert.equal(receipt.record_count, requests.length);
+  assert.equal(snapshot.linked_presign_sessions.length, requests.length);
+  for (const request of requests) {
+    const row = snapshot.linked_presign_sessions.find(matchesSession.bind(undefined, request.presign_session_id));
+    assert.ok(row, 'Every registered session must remain discoverable');
+    assert.equal(row.server_presignature_id, request.request.client_presignature_id);
+    assert.deepEqual(JSON.parse(row.owner_json), request.wallet_scope);
+  }
+  const verification = { kind: 'verify', receipt };
+  const verified = await accepted(destination, transfer, verification, credential);
+  assert.deepEqual(verified, { kind: 'verified', receipt });
+  const after = await topology.listDurableObjectIds(walletClass, destinationName);
+  const created = after.filter(isNewObject.bind(undefined, before));
+  assert.equal(created.length, 1);
+  await topology.unsafeEvictDurableObject(destinationName, walletClass, { id: created[0] });
+  assert.deepEqual(await accepted(destination, transfer, verification, credential), verified);
+  const namespace = await topology.getDurableObjectNamespace('SIGNING_WORKER_WALLET_DO', destinationName);
+  const wallet = namespace.get(namespace.idFromString(created[0]));
+  const admission = await accepted(wallet, '/router-ab/internal/signing-worker/wallet', {
+    command: 'check_ecdsa_pool_admission', scope: receipt.scope,
+  }, credential);
+  assert.equal(admission, 'closed');
+  return {
+    registeredSessions: requests.length,
+    segments: first.segment_count,
+    initializedAndPendingIdentitiesTransferred: true,
+    chunkAcknowledgementsReplayed: true,
+    verifiedInventorySurvivedEviction: true,
+    destinationAdmissionRemainsClosed: true,
+  };
+}
+
+function matchesSession(sessionId, row) {
+  return row.presign_session_id === sessionId;
 }
 
 async function completeLinkedPresign(session, credential, initialization, initialProgress, stateBlob, groupPublicKey) {
