@@ -708,7 +708,7 @@ fn freeze_wallet(
 /// the run holding the current claim generation.
 /// 1. The first run is paused after both Derivers completed its pair: Deriver
 ///    A's answer to the Router is held.
-/// 2. Its one-second lease lapses, and an exact retry takes the claim over as
+/// 2. Its one-second lease lapses, and a freeze command takes the claim over as
 ///    generation 2. It replays: it reads both Derivers' pair status, and is
 ///    paused reading Deriver B's.
 /// 3. The first run resumes and completes, but the claim is no longer its: it
@@ -805,13 +805,28 @@ fn vm_router_run_that_lost_its_claim_cannot_record_its_answer(
         "{first_claim}"
     );
 
-    // 2. The lease lapses. An exact retry takes the claim over and is paused
+    // 2. The lease lapses. A freeze command takes the claim over and is paused
     //    reading Deriver B's pair status.
     thread::sleep(Duration::from_millis(LEASE_MS + 250).saturating_sub(first_claimed_at.elapsed()));
     stack
         .proxy_b
         .hold_next_request_on(router_ab_dev::LOCAL_DERIVER_B_ED25519_YAO_READ_PAIR_STATUS_PATH);
-    let takeover = run();
+    let freeze = router_ab_cloudflare::RouterWalletFreezeRequestV1 {
+        owner: router_ab_cloudflare::RouterWalletRegistrationV1::from_request(&registration)?
+            .ok_or("registration owner")?
+            .owner,
+        move_id: format!("wmove_{}", "t".repeat(43)),
+        request_digest_hex: "8".repeat(64),
+        source_generation: 1,
+        destination_generation: 2,
+    };
+    let takeover = {
+        let router_url = stack.router_url.clone();
+        let freeze = freeze.clone();
+        thread::spawn(move || {
+            freeze_wallet(&router_url, &freeze).map_err(|error| error.to_string())
+        })
+    };
     wait_for("the takeover run's status read at Deriver B", &|| {
         stack.proxy_b.held_request().is_some()
     })?;
@@ -840,16 +855,22 @@ fn vm_router_run_that_lost_its_claim_cannot_record_its_answer(
 
     // 4. The takeover run resumes, reconciles and records its answer.
     stack.proxy_b.release_request();
-    let (takeover_status, takeover_body) =
-        takeover.join().map_err(|_| "the takeover run panicked")??;
-    assert_eq!(takeover_status, 200, "{takeover_body}");
-    assert!(registration_succeeded(&takeover_body)?, "{takeover_body}");
+    let takeover_freeze = takeover.join().map_err(|_| "the takeover run panicked")??;
+    assert_eq!(
+        takeover_freeze["state"], "draining",
+        "activation still needs its Gateway consumer"
+    );
     let recorded = router_record()?;
     assert_eq!(recorded["kind"], "completed", "{recorded}");
+    let takeover_body = recorded["response_json"]
+        .as_str()
+        .ok_or("a recorded result")?;
+    assert!(registration_succeeded(takeover_body)?, "{takeover_body}");
+    assert_eq!(freeze_wallet(&stack.router_url, &freeze)?, takeover_freeze);
     assert_eq!(
-        recorded["response_json"],
-        json!(takeover_body),
-        "the takeover run's answer"
+        router_record()?,
+        recorded,
+        "freeze retry leaves the result unchanged"
     );
     let (retry_status, retry) = stack.register(&registration)?;
     assert_eq!(retry_status, 200, "{retry}");
@@ -876,7 +897,9 @@ fn vm_router_run_that_lost_its_claim_cannot_record_its_answer(
             "takeover_paused_at": "Deriver B pair status read",
             "first_run_resumed": [fenced["status"], fenced["code"], retry_after_ms],
             "claim_after_first_run_resumed": [still_claimed["kind"], still_claimed["generation"]],
-            "takeover_run": "succeeded and recorded its answer",
+            "takeover_run": "freeze reconciled the stored request and recorded its answer",
+            "freeze_waits_for_gateway_consumption": true,
+            "freeze_retry_preserves_completed_record": true,
             "exact_retry": "the takeover run's answer, byte for byte, no new pair",
         })
     );

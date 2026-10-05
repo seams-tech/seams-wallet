@@ -307,6 +307,8 @@ impl RouterWalletRequestV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum RouterWalletCommandV1 {
+    /// Reads one expired registration claim while the source is draining.
+    PendingRegistration { now_ms: u64 },
     /// Allows admitted recovery and export work to settle until the source snapshot is sealed.
     AdmitSettlement,
     /// Claims a registration's execution before the Router runs it.
@@ -338,6 +340,10 @@ pub enum RouterWalletCommandV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum RouterWalletResponseV1 {
+    PendingRegistration {
+        request_json: String,
+    },
+    NoPendingRegistration,
     /// Settlement execution passed the local ownership and source-fence checks.
     SettlementAdmitted,
     /// Claim `generation` is this run's: run the request, replaying when
@@ -409,6 +415,10 @@ pub async fn router_wallet_serve_v1<Store: RouterWalletStoreV1>(
         None => store.put_json(OWNER_KEY, &request.owner).await?,
     }
     match request.command {
+        RouterWalletCommandV1::PendingRegistration { now_ms } => {
+            crate::router_wallet_relocation::pending_registration(store, &request.owner, now_ms)
+                .await
+        }
         RouterWalletCommandV1::AdmitSettlement => {
             crate::router_wallet_relocation::admit_settlement(store).await?;
             Ok(RouterWalletResponseV1::SettlementAdmitted)

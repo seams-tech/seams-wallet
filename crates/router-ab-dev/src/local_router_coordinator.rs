@@ -155,6 +155,40 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
         }
     }
 
+    fn freeze_wallet(
+        &self,
+        config: &LocalRouterWorkerConfigV1,
+        freeze: router_ab_cloudflare::RouterWalletFreezeRequestV1,
+    ) -> RouterAbProtocolResult<router_ab_cloudflare::RouterWalletFreezeResponseV1> {
+        use router_ab_cloudflare::{
+            RouterWalletCommandV1, RouterWalletFreezeResponseV1, RouterWalletRequestV1,
+        };
+        let path = &config.tenant_root.creation_storage_path;
+        let response =
+            crate::local_router_wallet::freeze_local_router_wallet_v1(path, freeze.clone())?;
+        if matches!(response, RouterWalletFreezeResponseV1::Draining { .. }) {
+            let pending = crate::local_router_wallet::serve_local_router_wallet_v1(
+                path,
+                RouterWalletRequestV1 {
+                    owner: freeze.owner.clone(),
+                    ownership_generation: freeze.source_generation,
+                    command: RouterWalletCommandV1::PendingRegistration {
+                        now_ms: local_now_ms_v1()?,
+                    },
+                },
+            )?;
+            match pending {
+                RouterWalletResponseV1::PendingRegistration { request_json } => {
+                    self.execute(config, request_json.as_bytes(), false, false)?;
+                    return crate::local_router_wallet::freeze_local_router_wallet_v1(path, freeze);
+                }
+                RouterWalletResponseV1::NoPendingRegistration => {}
+                _ => return Err(coordinator_error("Router settlement response is invalid")),
+            }
+        }
+        Ok(response)
+    }
+
     /// Consumes one completed registration's activation for one finalization.
     fn consume_registration(
         &self,
@@ -983,12 +1017,7 @@ impl LocalRouterRequestDispatcherV1 for LocalRouterEd25519YaoCoordinatorV1 {
                     format!("Router wallet freeze request is malformed: {error}"),
                 )
             });
-            return match freeze.and_then(|freeze| {
-                crate::local_router_wallet::freeze_local_router_wallet_v1(
-                    &config.tenant_root.creation_storage_path,
-                    freeze,
-                )
-            }) {
+            return match freeze.and_then(|freeze| self.freeze_wallet(config, freeze)) {
                 Ok(response) => Ok(Some((200, serde_json::to_string(&response)?))),
                 Err(error) => Ok(Some(local_dev_http_route_error_v1(
                     LocalServiceRoleV1::Router,

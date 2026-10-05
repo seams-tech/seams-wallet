@@ -1573,6 +1573,21 @@ handler recreation, atomic retirement rejection, settlement, delayed admission
 rejection, and completion through the original freeze command. Other participant
 work and automatic reconciliation remain separate requirements.
 
+### Reconcile Router execution while relocation drains
+
+Each authenticated Router freeze call can reconcile one expired registration claim.
+The Router uses the exact stored request and its existing claim-generation rules.
+A live claim keeps its lease. A resumed old execution cannot replace the result
+recorded by the takeover execution. Expiry permits reconciliation; it does not
+prove that the work settled.
+
+Completed registration still waits for Gateway activation consumption before the
+Router seals its snapshot. Repeated freeze calls preserve that completed result.
+The local worker HTTP takeover scenario verifies real Deriver completion, an
+interrupted reply, freeze-driven takeover, refusal of the old run's result, and
+exact result replay without another pair. Gateway finalization and recovery/export
+reconciliation remain separate requirements.
+
 ### Freeze authorization history before relocation export
 
 After admitted work settles and all wallet sessions retire, the internal D1

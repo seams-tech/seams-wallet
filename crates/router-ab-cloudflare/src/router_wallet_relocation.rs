@@ -274,8 +274,101 @@ pub(crate) async fn handle_freeze(
             ))
         }
     };
-    match crate::durable_object::call_router_wallet_freeze_v1(env, &freeze).await {
-        Ok(response) => worker::Response::from_json(&response),
-        Err(error) => crate::router_coordinator::protocol_error_response(error),
+    let response = match crate::durable_object::call_router_wallet_freeze_v1(env, &freeze).await {
+        Ok(response) => response,
+        Err(error) => return crate::router_coordinator::protocol_error_response(error),
+    };
+    if matches!(response, RouterWalletFreezeResponseV1::Draining { .. }) {
+        let command = crate::RouterWalletRequestV1 {
+            owner: freeze.owner.clone(),
+            ownership_generation: freeze.source_generation,
+            command: crate::RouterWalletCommandV1::PendingRegistration {
+                now_ms: crate::cloudflare_now_unix_ms_v1()
+                    .map_err(|error| worker::Error::RustError(error.to_string()))?,
+            },
+        };
+        match crate::durable_object::call_router_wallet_v1(env, &command).await {
+            Ok(crate::RouterWalletResponseV1::PendingRegistration { request_json }) => {
+                let mut init = worker::RequestInit::new();
+                init.with_method(worker::Method::Post);
+                let headers = worker::Headers::new();
+                if let Some(auth) = request.headers().get("x-router-ab-internal-service-auth")? {
+                    headers.set("x-router-ab-internal-service-auth", &auth)?;
+                }
+                init.with_headers(headers);
+                init.with_body(Some(request_json.into()));
+                let replay = worker::Request::new_with_init(
+                    "https://router.internal/router-ab/router/ed25519-yao/execute",
+                    &init,
+                )?;
+                // A lost execution reply is harmless: the next freeze reads the
+                // durable claim or terminal result and continues from there.
+                let _ = crate::handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
+                    replay, env,
+                )
+                .await?;
+                return match crate::durable_object::call_router_wallet_freeze_v1(env, &freeze).await
+                {
+                    Ok(response) => worker::Response::from_json(&response),
+                    Err(error) => crate::router_coordinator::protocol_error_response(error),
+                };
+            }
+            Ok(crate::RouterWalletResponseV1::NoPendingRegistration) => {}
+            Ok(_) => {
+                return crate::router_coordinator::protocol_error_response(conflict(
+                    "Router settlement response is invalid",
+                ))
+            }
+            Err(error) => return crate::router_coordinator::protocol_error_response(error),
+        }
     }
+    worker::Response::from_json(&response)
+}
+
+/// Returns only a stored, expired claim. The ordinary execution path still takes
+/// the next claim generation before it can reconcile any external effects.
+pub(crate) async fn pending_registration<Store: RouterWalletStoreV1>(
+    store: &Store,
+    owner: &RouterWalletOwnerV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<crate::RouterWalletResponseV1> {
+    if !matches!(
+        store.get_json::<Fence>(FENCE_KEY).await?,
+        Some(Fence::Draining { .. })
+    ) {
+        return Ok(crate::RouterWalletResponseV1::NoPendingRegistration);
+    }
+    let mut records = store.list_registrations().await?;
+    records.sort_by(|left, right| left.0.cmp(&right.0));
+    for (key, record) in records {
+        let RouterWalletRegistrationRecordV1::Claimed {
+            lifecycle_id,
+            request_digest_hex,
+            request_json,
+            lease_until_ms,
+            ..
+        } = record
+        else {
+            continue;
+        };
+        if lease_until_ms > now_ms {
+            continue;
+        }
+        let request = crate::router_wallet::decode_stored_registration_request(&request_json)?;
+        let registration = crate::RouterWalletRegistrationV1::from_request(&request)?
+            .ok_or_else(|| conflict("Router settlement record is not a registration"))?;
+        if registration.owner != *owner
+            || registration.lifecycle_id != lifecycle_id
+            || key != format!("{REGISTRATION_KEY_PREFIX}{lifecycle_id}")
+            || crate::router_wallet::registration_request_digest(&request_json)
+                != request_digest_hex
+        {
+            return Err(conflict("Router settlement record identity conflicts"));
+        }
+        return Ok(crate::RouterWalletResponseV1::PendingRegistration {
+            request_json: serde_json::to_string(&request)
+                .map_err(|_| conflict("Router settlement request cannot be encoded"))?,
+        });
+    }
+    Ok(crate::RouterWalletResponseV1::NoPendingRegistration)
 }
