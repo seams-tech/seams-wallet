@@ -53,6 +53,44 @@ wallet signing protocol, prove actual geography, or measure regional latency.
 Its fixture exposes raw SQL only inside this local test; it must never be
 deployed as a hosted transfer service.
 
+## October 5 resource-authority audit
+
+The current implementation cannot yet authorize a complete regional move. The
+private `tenantDeployment/resourceVerification.ts` verifies Gateway and
+WalletRuntime deployment versions and their D1 resource. It contains no proof
+for Rust role namespaces or physical wallet objects. The private
+`walletPlacement/relocationCommands.ts` authorizes only these two D1 participants.
+Do not use their resource proof as authority for a Rust participant.
+
+The public Router resolves its wallet through `owner.object_name()` in
+`durable_object/router_wallet.rs`. Deriver A and B also resolve wallet objects
+from stable owner names. Those calls do not select a fresh physical destination
+for each ownership generation. Regional preparation must record the actual
+namespace and object locator before admission pauses the source. Ordinary calls
+and relocation commands must resolve the same admitted locator.
+
+SigningWorker requires an additional boundary: `wallet_row_identity` in
+`signing_worker/wallet_ecdsa_store.rs` includes the value returned by
+`signing_worker_wallet_object_name_v1`. That value binds encrypted records to
+stable wallet identity. Preserve it when selecting a fresh physical object.
+Adding a generation to this shared function would also change encrypted-row
+identity. Separate physical routing from the existing storage identity instead.
+
+The next resource integration must bind the wallet, role, physical locator,
+verified runtime, and ownership generation at preparation and admission. Each
+participant must compare that authority with its local durable state before a
+mutation. Keep the coordinator disconnected from activation until these checks
+and real participant verification are present.
+
+The native SigningWorker now serves frozen linked-inventory reads through the
+same store operation as the Worker backend. Its existing HTTP E2E verifies an
+empty page, dedicated credentials, exact receipt binding, and replay after a
+process restart. Evidence is in
+`.artifacts/r153/native-linked-inventory-20261005/`. Native linked-device signing
+currently fails closed in `local_router_ab_ecdsa.rs`; its owner presignature
+initialization uses the separate owner-authority inventory. This result does
+not establish native linked-session initialization or a complete regional move.
+
 ## Cloudflare capabilities
 
 | Question | Established behavior | Consequence for relocation |
