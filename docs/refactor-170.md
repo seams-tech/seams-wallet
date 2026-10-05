@@ -979,6 +979,10 @@ derive production behavior from existing typed requests and selected capabilitie
   browser user activation. A generic menu open must not preload all chains.
   Define how existing public `prewarm` options map to this behavior; update the
   intended-behavior spec, examples, and contracts for any observable change.
+  Generic confirmation preparation no longer imports EVM/Tempo signing modules.
+  The NEAR-only production scenario checks operation-module absence through registration,
+  unlock, signing, and restored signing. Selected EVM/Tempo operations retain
+  first-use loading. See the selected signing-module audit in the inventory.
 - [ ] **Preserve shared ceremony requirements.** Registration and recovery can
   require the custody ceremony module, which links both curve protocols. Select
   assets by the actual ceremony and signer set rather than by chain name alone.

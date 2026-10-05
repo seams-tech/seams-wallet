@@ -697,7 +697,7 @@ are unchanged in this patch.
 | Operation | Required dependency family | What remains to verify in real-browser evidence |
 | --- | --- | --- |
 | Idle fresh host | Transport and UI; no operation-selected signing dependency | Separate unconditional warmup from pending persisted work. |
-| NEAR passkey unlock/sign | Confirmation, passkey session, nested Shamir worker, custody worker for envelope operations, and NEAR execution | Production registration/lock/unlock/reload/sign passes with no ECDSA or Email OTP workers. The custody worker still initializes the ceremony binary for every request; see audit below. |
+| NEAR passkey unlock/sign | Confirmation, passkey session, nested Shamir worker, custody worker for envelope operations, and NEAR execution | Production registration/lock/unlock/reload/sign passes with no ECDSA or Email OTP workers. Envelope-only unlock avoids ceremony initialization; recovery rotation asset acceptance remains open. |
 | EVM/Tempo unlock/sign | Selected factor, ECDSA holder/presign/online authority and transaction codec | Per-chain worker set, shared auth helpers, first-sign prefill, and warm reuse. |
 | Email OTP unlock/sign | Email OTP runtime plus selected lane's crypto and seal helpers | A NEAR flow may use a binary named EVM crypto for shared helper functions; do not forbid URLs solely by filename. |
 | Registration/recovery | Custody ceremony plus selected signer-set dependencies | Both protocol families are linked into the shared ceremony binary; separate optional worker downloads from necessary shared binary code. |
@@ -2748,3 +2748,36 @@ the final method. Evidence: `evidence/refactor-170-method-removal-20261005.json`
 
 This closes the React device-list proof duplication. General email unlock API
 consolidation and the separate linked-device service proof API remain open.
+
+## Selected signing modules: generic preparation audit
+
+Source traced after `caa390c8`:
+
+| Entry | Call path | Ownership and change |
+| --- | --- | --- |
+| Registration, every signer set and factor | `operations/registration/registration.ts:startRegistrationWarmup` → `registrationWarmupWork` → `BrowserSigningSurface.warmCriticalResources` | The generic branch prepares confirmation UI and session sealing. Its four unconditional EVM/Tempo signing imports are removed. Selected ECDSA and Email OTP Yao preparation retain their existing signer-set guards. |
+| Normal passkey unlock | `host/createSessionCommands.ts:unlock` → `warmCriticalResources({kind: 'none'})` → `assembly/ports/shared.ts:createWorkerResourceWarmupDepsFactory` | The same generic branch previously fetched EVM/Tempo signing modules even for NEAR-only wallets. Confirmation and Shamir preparation remain. |
+| EVM signing | `flows/signEvmFamily/transactionExecutor.ts` → `loadSignEvmWithUiConfirm` | Selected operation owns its first-use import. |
+| Tempo signing | `flows/signEvmFamily/transactionExecutor.ts` → `loadSignEvmFamilyWithUiConfirmForTempo` | Selected operation owns its first-use import. |
+| EVM-family signer engines | `flows/signEvmFamily/signingFlowRuntime.ts` → `loadSecp256k1EngineCtor` and `loadWebAuthnP256EngineCtor` | These imports remain within the EVM-family flow. Algorithm-specific narrowing is not part of this change. |
+
+The existing production NEAR-only scenario now checks signing-module requests
+through registration, unlock, signing, and restored signing. Before the fix it
+fetched all four signing modules. Evidence and repeatable asset captures are in
+`evidence/refactor-170-selective-ui-preparation-20261005.json`.
+
+The iframe README now describes separate application and host construction. Its
+obsolete direct-mode, shared-class, blanket-prewarm, and old dispatch examples
+are removed. The complete worker operation/factor dependency matrix remains open;
+this audit closes only the demonstrated generic signing-module preload.
+
+The first post-fix assertion was too broad: the emitted `secp256k1` chunk also
+exports worker operation types and shared ECDSA support. Static host imports still
+fetch it. This is a remaining bundle dependency, not an active NEAR signing
+requirement. The behavioral assertion therefore checks the three independently
+loaded operation/P256 modules. It does not claim absence of all ECDSA source code.
+Shared chunk separation remains part of the packaging audit.
+
+The mixed NEAR/EVM production scenario also passes. Its capture attributes the
+EVM operation/P256 imports to `first-evm-sign`, then to repeat signing after
+unlock replaces the runtime. Registration no longer triggers those imports.

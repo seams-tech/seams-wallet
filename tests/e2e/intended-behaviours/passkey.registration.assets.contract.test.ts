@@ -157,6 +157,12 @@ test(
   measureUnselectedRegistrationAssets,
 );
 
+function isEvmOperationModuleUrl(url: string): boolean {
+  return /\/(?:signEvmWithUiConfirm|signEvmFamilyWithUiConfirmForTempo|webauthnP256)-[^/]+\.js$/u.test(
+    new URL(url).pathname,
+  );
+}
+
 async function measureNearOnlyAssets({
   harness,
   assets,
@@ -192,6 +198,14 @@ async function measureNearOnlyAssets({
   await harness.signNearTransactionAfterRefresh();
   for (const workerUrl of assets.getWorkerUrls()) {
     expect(workerUrl).not.toMatch(/\/(?:ecdsa-[^/]+|email-otp)\.worker\.js$/u);
+  }
+  for (const phase of [
+    'near-only-registration',
+    'near-only-unlock',
+    'near-only-sign',
+    'near-only-restored-sign',
+  ]) {
+    expect(assets.getRequestedAssetUrlsForPhase(phase).filter(isEvmOperationModuleUrl)).toEqual([]);
   }
   assets.setPhase('completed');
 }

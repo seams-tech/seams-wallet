@@ -1,0 +1,54 @@
+{
+  "baseCommit": "caa390c8f814d383109eeb8db496e7827ddb3886",
+  "scope": "Remove unconditional EVM/Tempo and signer-engine dynamic imports from generic confirmation preparation. Preserve selected first-use signing loaders.",
+  "classification": "production_regression: NEAR-only preparation fetched unrelated signing operation modules",
+  "sourceSha256": {
+    "packages/wallet/src/core/signingEngine/assembly/ports/shared.ts": "94b737ecdc37b2ae6526b3044f4cf0178d71ad8ef569ba15288522a2611291d6",
+    "tests/e2e/intended-behaviours/passkey.registration.assets.contract.test.ts": "4f4d0f43c52a7c958737d1b593aab50023e18b43046668b7dfe410c2d0aef3f0"
+  },
+  "productionSourceLines": {
+    "added": 0,
+    "removed": 13,
+    "net": -13
+  },
+  "checks": {
+    "walletTypes": "passed",
+    "intendedTypes": "passed",
+    "productionBuild": "passed",
+    "runtimeEntryBoundaries": "passed",
+    "buildFreshness": "passed",
+    "nearOnlyBefore": "failed: four matching module URLs downloaded",
+    "nearOnlyAfter": "passed (33.5s)",
+    "mixedNearEvm": "passed (34.3s)",
+    "bloat": "passed",
+    "diffWhitespace": "passed",
+    "tempoFactorLifecycle": "passed (39.3s)"
+  },
+  "artifacts": {
+    "before": {
+      "path": ".artifacts/r170-selective-ui/before.json",
+      "sha256": "c6b1ddb6391ac28bf3d4fbf28c1d9d0a0f4b8a05abf25a68bd2f4cfcef837bae"
+    },
+    "after": {
+      "path": ".artifacts/r170-selective-ui/after.json",
+      "sha256": "d6b86ac64cb20aab3bfb4143e097b5de7b70970b958ffee0863e8d2ba1dc7116"
+    },
+    "mixed": {
+      "path": ".artifacts/r170-selective-ui/mixed.json",
+      "sha256": "df2b8765340bf146f2841d681ddac016f7e77cc66613d9e538808f0449b7ee2c"
+    }
+  },
+  "reproduce": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.registration.assets.contract.test.ts --grep 'production NEAR-only wallet records unlock and restored signing assets'",
+  "findings": [
+    "Generic warmup runs for registration and normal passkey unlock regardless of signer set.",
+    "Removing four unconditional imports eliminates signEvmWithUiConfirm, signEvmFamilyWithUiConfirmForTempo, and webauthnP256 module requests in the NEAR-only scenario.",
+    "Initial post-fix assertion was too broad: the emitted secp256k1 chunk contains shared exports and remains a static host dependency. The final assertion checks independently loaded operation/P256 modules.",
+    "In the mixed scenario, EVM operation/P256 modules first load during first-evm-sign, then reload for repeat signing after the unlock runtime replacement."
+  ],
+  "limits": [
+    "Shared host chunks still include ECDSA support code; this patch does not prove absence of all ECDSA source from NEAR-only downloads.",
+    "No latency conclusion from single-run observations. Repeated paired latency acceptance remains open.",
+    "Complete worker operation/factor matrix and deployed compression remain open.",
+    "No publication or deployment performed."
+  ]
+}

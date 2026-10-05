@@ -570,6 +570,15 @@ Failure behaviour:
   rollback messaging must be separate from local persistence rollback/repair
   messaging.
 
+### Selected signing assets
+
+Generic confirmation preparation during registration or unlock does not load
+EVM/Tempo signing modules. A NEAR-only wallet can register, unlock, sign, and
+restore signing without the EVM/Tempo operation modules or WebAuthn P256 engine. EVM and Tempo operations load their
+required signing modules on first use. Shared host chunks can still contain
+ECDSA support code; this is separate from operation preparation. Shared custody ceremony dependencies
+remain required when an operation creates or verifies a key set.
+
 ### Registration methods
 
 - `registration.addSigner` adds a selected signer to an existing wallet.

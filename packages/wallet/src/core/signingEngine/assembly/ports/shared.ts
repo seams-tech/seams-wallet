@@ -49,12 +49,6 @@ import type {
   UiConfirmRuntimeBridgePort,
   WarmSessionStatusResult,
 } from '../../uiConfirm/uiConfirm.types';
-import {
-  loadSecp256k1EngineCtor,
-  loadSignEvmFamilyWithUiConfirmForTempo,
-  loadSignEvmWithUiConfirm,
-  loadWebAuthnP256EngineCtor,
-} from '../../flows/signEvmFamily/signerLoader';
 import type { SignerWorkerManager } from '../../workerManager/SignerWorkerManager';
 import {
   warmCriticalResources as warmCriticalResourcesValue,
@@ -211,13 +205,6 @@ export function createWorkerResourceWarmupDepsFactory(
       await Promise.all([
         args.touchConfirm.initialize(),
         args.passkeyMpcSession.prewarmShamir3Pass(),
-        /* Also warm the lazily-imported EVM-family signing flow chunks: the
-           first sign after a page load otherwise pays these dynamic imports
-           before the confirmation modal can open. */
-        loadSignEvmFamilyWithUiConfirmForTempo().catch(() => {}),
-        loadSignEvmWithUiConfirm().catch(() => {}),
-        loadSecp256k1EngineCtor().catch(() => {}),
-        loadWebAuthnP256EngineCtor().catch(() => {}),
       ]);
     },
     activateAuthenticatedWalletState: args.activateAuthenticatedWalletState,
