@@ -74,6 +74,15 @@ Session continuity, sealed-session restoration, and pool restoration are exclude
 
 ## Implemented baseline
 
+The authorization D1 source now has a separate durable freeze after session
+retirement. It blocks inserts, updates, identity changes, and deletes across
+six authorization record families, including quotas selected through their scoped
+parent sessions. Concurrent and restarted retries preserve the same fence.
+The authorization-transfer E2E checks transaction rollback, direct delayed writes,
+record preservation, and continued session issuance for another wallet. Other
+wallet stores, the complete snapshot manifest, and source cleanup remain open.
+
+
 Hosted session history now has a scoped D1 import path. It imports retired
 hosted credentials and issued/consumed exchanges beneath retired parent sessions.
 Each record is a bounded chunk, with its digest and acknowledgement committed

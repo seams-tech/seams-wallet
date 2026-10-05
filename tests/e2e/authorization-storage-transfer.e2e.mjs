@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { authorizationRowsQuery, verifyAuthorizationFreeze } from './authorization-transfer-freeze.scenario.mjs';
 import { execFileSync } from 'node:child_process';
 import { createHash, generateKeyPairSync, sign } from 'node:crypto';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
@@ -65,6 +66,7 @@ const bundle = await build({
     resolveDir: process.cwd(),
     loader: 'ts',
     contents: `
+      export { D1WalletAuthorizationFreeze } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationFreeze';
       export { D1WalletHostedHistory } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletHostedHistory';
       export { D1WalletRelocationSessions, WalletRelocationSessionSource } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationSessions';
       export { CloudflareD1WebAuthnStore } from './packages/wallet-server/src/router/cloudflare/d1/webauthn/d1WebAuthnStore';
@@ -212,6 +214,10 @@ try {
     requestDigestHex: 'cd'.repeat(32),
     sourceGeneration: 1,
   });
+  await assert.rejects(
+    new api.D1WalletAuthorizationFreeze(source, scope).freeze(sessionSource, issuedAtMs + 3),
+    /wallet_authorization_freeze_requires_retirement/u,
+  );
   const sessionRetirement = await verifyWalletSessionRetirement({
     identity: sessionSource,
     source,
@@ -227,6 +233,16 @@ try {
     offlineBefore,
     redeemInput,
     issuedAtMs,
+  });
+  const authorizationFreeze = await verifyAuthorizationFreeze({
+    api,
+    source,
+    sourceService,
+    scope,
+    identity: sessionSource,
+    nowMs: issuedAtMs + 20,
+    tables,
+    issueDeviceSession,
   });
   const copied = await verifyHostedHistoryCopy(source, destination, sessionSource);
 
@@ -302,6 +318,7 @@ try {
       relocationEmailOtp,
       relocationOwnerRequest,
       sessionRetirement,
+      authorizationFreeze,
       retiredPrimaryCredentialRejectedAtIndependentDatabase: true,
       secondDeviceAuthorityAndRetiredSessionPreserved: true,
       directConsumedExchangeImportRejected: true,
@@ -1770,14 +1787,7 @@ async function verifyHostedHistoryCopy(source, destination, identity) {
   const expectedRows = [];
   let firstImported = null;
   for (const table of tables) {
-    const ownership =
-      table === 'authorization_wallet_session_quotas'
-        ? `EXISTS (SELECT 1 FROM wallet_session_authorizations_v2 AS session
-          WHERE session.namespace = ?1 AND session.org_id = ?2 AND session.project_id = ?3 AND session.env_id = ?4
-            AND session.wallet_id = ?5 AND session.namespace = target.namespace AND session.tenant_id = target.tenant_id
-            AND session.quota_id = target.quota_id AND session.wallet_session_id = target.wallet_session_id)`
-        : 'target.namespace = ?1 AND target.org_id = ?2 AND target.project_id = ?3 AND target.env_id = ?4 AND target.wallet_id = ?5';
-    const query = `SELECT target.* FROM ${table} AS target WHERE ${ownership} ORDER BY target.rowid`;
+    const query = authorizationRowsQuery(table);
     const result = await api
       .prepareD1TenantStatement(source, scope, query, [identity.walletId])
       .all();

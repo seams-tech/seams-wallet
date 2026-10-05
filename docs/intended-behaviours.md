@@ -1545,3 +1545,22 @@ remains inactive until a separate activation authorizes fresh sessions.
 It verifies retirement of two devices, exact historical rows, failed-import
 rollback, concurrent retries, isolation, and rejection of old credentials. This
 contract does not claim complete regional transfer or client reconciliation.
+
+### Freeze authorization history before relocation export
+
+After admitted work settles and all wallet sessions retire, the internal D1
+freeze operation preserves authorities, auth methods, primary sessions, hosted
+credentials, exchange history, and their session quotas. It rejects subsequent
+inserts, updates, identity changes, and deletes for that wallet. Retirement alone
+does not establish this stronger freeze.
+
+The freeze and its identity guard commit atomically. Concurrent and restarted
+exact retries retain the original freeze time. A different move cannot replace
+the fence. A failed freeze leaves these records mutable. Unrelated wallets can
+continue to issue and use sessions.
+
+`tests/e2e/authorization-storage-transfer.e2e.mjs` owns this component contract.
+Its scenario retains record counts and digests after attempted delayed writes.
+This fence does not attest other stores, a complete snapshot, activation, or
+source cleanup. The coordinator must collect every participant's evidence before
+it seals the common snapshot.
