@@ -1,4 +1,4 @@
-import type { TenantId } from '@shared/authorization/capabilityKinds';
+import type { WalletSessionAuthorizationId, TenantId } from '@shared/authorization/capabilityKinds';
 import type { WalletId, WalletAuthorityId, WalletAuthMethodId } from '@shared/utils/domainIds';
 import { sha256HexUtf8 } from '@shared/utils/digests';
 import {
@@ -13,7 +13,10 @@ import {
   type SessionOrigin,
 } from '../../../../authorization/domain';
 import type { D1TenantScope } from '../../../../core/d1TenantStore';
-import type { AuthorizationService } from '../../../../authorization/service';
+import { digestOpaqueValue, type AuthorizationService } from '../../../../authorization/service';
+import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
+import type { D1DatabaseLike, D1PreparedStatementLike } from '../../../../storage/tenantRoute';
+import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
 import { extractBearerCredential } from '../../../auth/routerApiKeyAuth';
 import { WalletRelocationChallengeBinding } from './d1WalletRelocationChallenges';
 
@@ -27,6 +30,10 @@ export class WalletRelocationOwnerRequest {
     readonly credentialExpiresAtMs: number,
     readonly origin: SessionOrigin,
     credentialDigestHex: string,
+    private readonly scope: D1TenantScope,
+    private readonly tenantId: TenantId,
+    private readonly authorizationId: WalletSessionAuthorizationId,
+    private readonly credentialHash: DigestB64u,
   ) {
     this.#credentialDigestHex = credentialDigestHex;
     Object.freeze(this);
@@ -85,7 +92,55 @@ export class WalletRelocationOwnerRequest {
       session.expiresAtMs,
       origin,
       await sha256HexUtf8(token),
+      Object.freeze({ ...input.scope }),
+      session.tenantId,
+      session.authorizationId,
+      await digestOpaqueValue(token),
     );
+  }
+
+  prepareApprovalGuard(
+    database: D1DatabaseLike,
+    scope: D1TenantScope,
+    binding: WalletRelocationChallengeBinding,
+    nowMs: number,
+  ): readonly D1PreparedStatementLike[] {
+    if (
+      scope.namespace !== this.scope.namespace ||
+      scope.orgId !== this.scope.orgId ||
+      scope.projectId !== this.scope.projectId ||
+      scope.envId !== this.scope.envId ||
+      this.bindMove(binding).encoded() !== binding.encoded()
+    )
+      throw new Error('Relocation approval owner binding changed');
+    return [
+      database
+        .prepare(
+          `UPDATE wallet_session_authorizations_v2
+        SET retired_at_ms = retired_at_ms
+        WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
+          AND tenant_id = ?5 AND authorization_id = ?6
+          AND wallet_id = ?7 AND authority_id = ?8 AND wallet_auth_method_id = ?9
+          AND operation_credential_hash = ?10 AND expires_at_ms = ?11
+          AND retired_at_ms IS NULL AND expires_at_ms > ?12
+          AND expires_at_ms > CAST(unixepoch('subsec') * 1000 AS INTEGER)`,
+        )
+        .bind(
+          scope.namespace,
+          scope.orgId,
+          scope.projectId,
+          scope.envId,
+          this.tenantId,
+          this.authorizationId,
+          this.walletId,
+          this.authorityId,
+          this.walletAuthMethodId,
+          this.credentialHash,
+          this.credentialExpiresAtMs,
+          nowMs,
+        ),
+      database.prepare(D1_BATCH_CAS_GUARD_SQL),
+    ];
   }
 
   bindMove(input: {

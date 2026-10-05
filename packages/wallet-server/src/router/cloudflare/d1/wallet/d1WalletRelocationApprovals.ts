@@ -8,6 +8,7 @@ import type { WalletRelocationFactorVerification } from './d1WalletRelocationOwn
 import type { CloudflareD1EmailOtpChallengeVerifier } from '../emailOtp/d1EmailOtpChallengeVerifier';
 import type { CloudflareD1EmailOtpChallengeStore } from '../emailOtp/d1EmailOtpChallengeStore';
 import { verifyWalletRelocationPasskey } from './d1WalletRelocationPasskey';
+import type { WalletRelocationOwnerRequest } from './d1WalletRelocationOwnerRequest';
 
 type StoredApproval = {
   readonly binding: WalletRelocationChallengeBinding;
@@ -21,7 +22,6 @@ type ApprovalResult =
   | { readonly kind: 'approved'; readonly approval: StoredApproval }
   | { readonly kind: 'denied'; readonly approval?: never };
 
-// The authenticated owner boundary must bind the initiating credential before calling this store.
 export class D1WalletRelocationApprovals {
   constructor(
     private readonly database: D1DatabaseLike,
@@ -29,6 +29,7 @@ export class D1WalletRelocationApprovals {
   ) {}
 
   async approvePasskey(input: {
+    readonly owner: WalletRelocationOwnerRequest;
     readonly binding: WalletRelocationChallengeBinding;
     readonly credential: unknown;
     readonly nowMs: number;
@@ -46,6 +47,7 @@ export class D1WalletRelocationApprovals {
   }
 
   async approveEmailOtp(input: {
+    readonly owner: WalletRelocationOwnerRequest;
     readonly binding: WalletRelocationChallengeBinding;
     readonly challengeId: string;
     readonly otpCode: string;
@@ -69,7 +71,11 @@ export class D1WalletRelocationApprovals {
   }
 
   private async commit(
-    input: { readonly binding: WalletRelocationChallengeBinding; readonly nowMs: number },
+    input: {
+      readonly owner: WalletRelocationOwnerRequest;
+      readonly binding: WalletRelocationChallengeBinding;
+      readonly nowMs: number;
+    },
     verified: WalletRelocationFactorVerification,
   ): Promise<ApprovalResult> {
     if (verified.kind === 'denied') {
@@ -77,6 +83,7 @@ export class D1WalletRelocationApprovals {
       return concurrent ? { kind: 'approved', approval: concurrent } : { kind: 'denied' };
     }
     const statements = [
+      ...input.owner.prepareApprovalGuard(this.database, this.scope, input.binding, input.nowMs),
       ...verified.commitPrerequisites,
       this.database
         .prepare(

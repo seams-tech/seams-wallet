@@ -460,6 +460,21 @@ async function verifyRelocationChallenges(database, fixture, session, nowMs) {
   };
 }
 
+async function authenticateRelocationOwner(authorizationSessions, issued, nowMs) {
+  const origin = api.parseSessionOrigin('https://wallet.example.test');
+  const owner = await api.WalletRelocationOwnerRequest.authenticate({
+    request: relocationOwnerHttpRequest(issued.operationCredential.token, origin),
+    walletId: issued.session.walletId,
+    tenantId: issued.session.tenantId,
+    scope,
+    allowedOrigins: [origin],
+    authorizationSessions,
+    nowMs,
+  });
+  assert.ok(owner);
+  return owner;
+}
+
 async function verifyRelocationPasskey(database) {
   const keys = generateKeyPairSync('ed25519');
   const publicKey = Buffer.from(keys.publicKey.export({ format: 'jwk' }).x, 'base64url');
@@ -471,6 +486,7 @@ async function verifyRelocationPasskey(database) {
     permissions: api.buildFullOwnerPermissionsV1(),
     provenance: 'wallet_registration',
     credentialPublicKeyB64u: cose.toString('base64url'),
+    expiresAtMs: nowMs + 60_000,
     identity: {
       walletId: 'wallet:relocation-passkey',
       authorityId: 'authority:relocation-passkey',
@@ -478,10 +494,9 @@ async function verifyRelocationPasskey(database) {
       rpId: 'wallet.example.test',
     },
   });
-  await database.batch([
-    api.prepareD1WalletAuthorityPutStatement({ database, scope, authority: fixture.authority }),
-    api.prepareD1WalletAuthMethodV2PutStatement({ database, scope, record: fixture.authMethod }),
-  ]);
+  const authorizationSessions = service(database, scope);
+  const issued = await issueDeviceSession(database, authorizationSessions, fixture, nowMs);
+  const owner = await authenticateRelocationOwner(authorizationSessions, issued, nowMs);
   const authenticators = new api.CloudflareD1WebAuthnStore({ database, ...scope });
   await authenticators.writeAuthenticator({
     userId: fixture.authority.walletId,
@@ -508,7 +523,7 @@ async function verifyRelocationPasskey(database) {
     destinationRegion: 'APAC',
     authorityId: fixture.authority.authorityId,
     walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
-    credentialDigestHex: 'ef'.repeat(32),
+    credentialDigestHex: digest(Buffer.from(issued.operationCredential.token)),
     credentialExpiresAtMs: nowMs + 60_000,
     origin: 'https://wallet.example.test',
   };
@@ -586,7 +601,7 @@ async function verifyRelocationPasskey(database) {
     "CREATE TRIGGER fail_relocation_approval BEFORE INSERT ON wallet_relocation_approvals BEGIN SELECT RAISE(ABORT, 'injected approval failure'); END;",
   );
   await assert.rejects(
-    approvals.approvePasskey({ binding, credential, nowMs: input.nowMs }),
+    approvals.approvePasskey({ owner, binding, credential, nowMs: input.nowMs }),
     /injected approval failure/,
   );
   assert.equal((await store.read(binding)).state, 'issued');
@@ -602,8 +617,8 @@ async function verifyRelocationPasskey(database) {
   );
   await database.exec('DROP TRIGGER fail_relocation_approval;');
   const [approved, concurrent] = await Promise.all([
-    approvals.approvePasskey({ binding, credential, nowMs: input.nowMs }),
-    approvals.approvePasskey({ binding, credential, nowMs: input.nowMs + 1 }),
+    approvals.approvePasskey({ owner, binding, credential, nowMs: input.nowMs }),
+    approvals.approvePasskey({ owner, binding, credential, nowMs: input.nowMs + 1 }),
   ]);
   assert.equal(approved.kind, 'approved');
   assert.deepEqual(concurrent, approved);
@@ -613,6 +628,7 @@ async function verifyRelocationPasskey(database) {
   const reopenedApprovals = new api.D1WalletRelocationApprovals(database, scope);
   assert.deepEqual(
     await reopenedApprovals.approvePasskey({
+      owner,
       binding,
       credential: null,
       nowMs: challenge.expiresAtMs + 1,
@@ -621,6 +637,7 @@ async function verifyRelocationPasskey(database) {
   );
   await assert.rejects(
     reopenedApprovals.approvePasskey({
+      owner,
       binding: api.WalletRelocationChallengeBinding.parse({
         ...bindingInput,
         destinationRegion: 'US',
@@ -654,6 +671,7 @@ async function verifyRelocationPasskey(database) {
   const expired = await store.issue(expiredBinding, nowMs - 120_000, nowMs - 60_000);
   await assert.rejects(
     approvals.approvePasskey({
+      owner,
       binding: expiredBinding,
       credential: relocationAssertion(
         keys.privateKey,
@@ -668,6 +686,47 @@ async function verifyRelocationPasskey(database) {
   );
   assert.equal(await approvals.read(expiredBinding), null);
   assert.equal((await store.read(expiredBinding)).state, 'issued');
+  const retiredBinding = owner.bindMove({
+    moveId: `wmove_${Buffer.alloc(32, 104).toString('base64url')}`,
+    requestDigestHex: 'fa'.repeat(32),
+    sourceGeneration: 1,
+    destinationRegion: 'APAC',
+  });
+  const retiredChallenge = await store.issue(retiredBinding, nowMs, nowMs + 60_000);
+  await authorizationSessions.retireWalletSessionAuthorizationsForAuthMethod({
+    tenantId: issued.session.tenantId,
+    walletId: issued.session.walletId,
+    walletAuthMethodId: issued.session.walletAuthMethodId,
+    nowMs: nowMs + 3,
+  });
+  await assert.rejects(
+    approvals.approvePasskey({
+      owner,
+      binding: retiredBinding,
+      credential: relocationAssertion(
+        keys.privateKey,
+        fixture.authMethod,
+        retiredChallenge.challengeB64u,
+        binding.origin,
+        5,
+        2,
+      ),
+      nowMs: nowMs + 4,
+    }),
+  );
+  assert.equal(await approvals.read(retiredBinding), null);
+  assert.equal((await store.read(retiredBinding)).state, 'issued');
+  assert.equal(
+    (
+      await authenticators.readAuthenticator({
+        userId: binding.walletId,
+        credentialIdB64u: fixture.authMethod.credentialIdB64u,
+      })
+    ).counter,
+    1,
+  );
+  assert.deepEqual(await approvals.read(binding), approved.approval);
+
   assert.equal(
     (
       await authenticators.readAuthenticator({
@@ -757,8 +816,9 @@ async function verifyRelocationPasskey(database) {
   assert.equal((await store.read(secondBinding)).state, 'issued');
   assert.equal((await api.verifyWalletRelocationPasskey(freshInput)).kind, 'denied');
   return {
+    retiredInitiatingSessionRejectsApprovalWithoutConsumingProof: true,
     scope:
-      'Real passkey approval persistence and transactional guards; excludes initiating-session authentication, Email OTP, HTTP admission and transfer',
+      'Real initiating-session authentication, passkey approval persistence and transactional guards; excludes HTTP admission and transfer',
     expiryCheckedAtTransactionCommit: true,
     exactApprovalRecordedWithProofConsumption: true,
     concurrentApprovalReturnsOriginalOutcome: true,
@@ -803,7 +863,6 @@ function relocationAssertion(privateKey, method, challenge, origin, flags, count
   };
 }
 
-
 async function verifyRelocationEmailOtp(database) {
   const nowMs = Date.now();
   const email = 'relocation@example.test';
@@ -815,10 +874,9 @@ async function verifyRelocationEmailOtp(database) {
     emailHashHex: digest(Buffer.from(email)),
     expiresAtMs: nowMs + 60_000,
   });
-  await database.batch([
-    api.prepareD1WalletAuthorityPutStatement({ database, scope, authority: fixture.authority }),
-    api.prepareD1WalletAuthMethodV2PutStatement({ database, scope, record: fixture.authMethod }),
-  ]);
+  const authorizationSessions = service(database, scope);
+  const issued = await issueDeviceSession(database, authorizationSessions, fixture, nowMs);
+  const owner = await authenticateRelocationOwner(authorizationSessions, issued, nowMs);
   const prepare = api.prepareD1TenantStatement.bind(null, database, scope);
   const emailOtpEnrollments = new api.CloudflareD1EmailOtpEnrollmentStore({ prepare });
   const enrollment = api.buildEmailOtpEnrollmentFixture({
@@ -854,7 +912,7 @@ async function verifyRelocationEmailOtp(database) {
     destinationRegion: 'APAC',
     authorityId: fixture.authority.authorityId,
     walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
-    credentialDigestHex: 'ad'.repeat(32),
+    credentialDigestHex: digest(Buffer.from(issued.operationCredential.token)),
     credentialExpiresAtMs: nowMs + 60_000,
     origin: 'https://wallet.example.test',
   });
@@ -890,6 +948,7 @@ async function verifyRelocationEmailOtp(database) {
   );
   const approvals = new api.D1WalletRelocationApprovals(database, scope);
   const input = {
+    owner,
     binding,
     challengeId: otpInput.challengeId,
     otpCode: otpInput.otpCode,
@@ -936,6 +995,7 @@ async function verifyRelocationEmailOtp(database) {
   return {
     scope:
       'OTP verification and atomic approval through production stores; excludes email delivery, factor unsealing, owner HTTP authentication and Console admission',
+    initiatingSessionGuardUsesIssuedCredential: true,
     enrollmentRemovalRejectsStaleCommit: true,
     distinctRelocationPurpose: true,
     signingChallengeRejectedAndPreserved: true,
@@ -946,7 +1006,6 @@ async function verifyRelocationEmailOtp(database) {
     exactReplayRequiresNoSecondOtp: true,
   };
 }
-
 
 async function verifyRelocationOwnerRequest(database) {
   const nowMs = Date.now();

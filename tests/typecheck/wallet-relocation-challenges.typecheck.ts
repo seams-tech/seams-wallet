@@ -49,3 +49,7 @@ const forgedOwnerRequest: typeof ownerRequest = { ...ownerRequest };
 const directOwnerRequest = new WalletRelocationOwnerRequest();
 void forgedOwnerRequest;
 void directOwnerRequest;
+
+declare const approvals: D1WalletRelocationApprovals;
+// @ts-expect-error A factor assertion alone cannot authorize a new relocation approval.
+approvals.approvePasskey({ binding, credential: null, nowMs: 1 });

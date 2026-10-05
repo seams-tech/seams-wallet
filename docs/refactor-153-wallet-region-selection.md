@@ -74,6 +74,15 @@ Session continuity, sealed-session restoration, and pool restoration are exclude
 
 ## Implemented baseline
 
+Fresh relocation approval now requires an authenticated initiating owner request.
+The approval transaction checks the exact original session, credential hash, scope,
+expiry, and unretired state before it consumes either factor proof. The existing
+D1 E2E uses real issued sessions for passkey and Email OTP approval. It retires a
+session after authentication and proves that approval fails without consuming the
+passkey challenge or advancing its counter. Stored approvals remain historical
+evidence. Owner routes, move-only access, and Console admission remain unfinished.
+
+
 Owner presignature identity claims now use the shared wallet SQL store. Native
 admission and step lookup use that store, replacing the native-only implementation
 without changing the persisted table. Cloudflare wallet-DO session admission also
