@@ -1,5 +1,11 @@
 # Wallet client and worker inventory
 
+Scope update, 2026-10-05: [R170's essential remaining work](refactor-170.md#essential-remaining-work)
+is the authoritative completion checklist after the user's scope reduction.
+This inventory retains historical findings and evidence. Unfinished matrices,
+optimization ideas, and audit notes below are follow-ups unless the focused
+checklist explicitly requires them or a current defect blocks it.
+
 Audited October 4, 2026. Companion to [the refactor plan](refactor-170.md).
 This records current implementation and proposed ownership. It changes no
 runtime behavior. Follow **R152 → R170/R171 → R153 → slim R154**.

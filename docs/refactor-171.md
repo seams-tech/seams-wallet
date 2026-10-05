@@ -1,6 +1,9 @@
 # Simplify the public Wallet SDK API
 
-Status: implementation in progress, 2026-10-05.
+Status: implementation in progress. Remaining scope narrowed by user request,
+2026-10-05. [R170's essential remaining work](refactor-170.md#essential-remaining-work)
+is the shared completion checklist. The completed migration records below remain
+valid; historical audit notes do not add further gates.
 Connection, configuration, event subscriptions, and public hosted auth-menu operations migrated
 locally; publication and deployment remain pending. Wallet creation now uses only
 `registration.registerWallet`, including React callers and explicit runtime.
@@ -41,7 +44,7 @@ worker preparation, export selection, and synchronization internally.
 
 Implementation order: **R152 → R170/R171 → R153 → slim R154**.
 Complete R170/R171 as one coordinated stage against R152's fixed-home behavior.
-Pass both plans' acceptance gates before resuming R153 implementation.
+Pass the shared focused completion gates before the R153 handoff.
 
 [R170](refactor-170.md) owns separating application/host execution, config and
 state boundaries, targeted worker loading, and bundle/network acceptance. This
@@ -524,76 +527,42 @@ a declaration-level pass before declaring the migration complete.
   `registration.removeAuthMethod` host operation for both factors. Delete the
   duplicate parent challenge, OTP form, and raw-proof submission. Production
   account-menu coverage verifies removal and signing with the surviving method.
-  General linked-device API consolidation remains open.
-- [ ] Audit current declarations and consumers in public SDK, tests, examples,
-  docs, and private Console. Classify each row as rename, consolidation, internal
-  move, or intentional behavior change; record unresolved contract differences.
-- [ ] Close email/registration/action consolidation gates and returned-flow API
-  inventory. Confirm behavior of `syncAccount` and external receipt completion.
-  Pending activation lookup and passkey origin now belong to the host. Normal
-  unlock integration for passkey recovery and removal of the public resume method
-  are complete. Email OTP continuation remains open. Mixed
-  passkey activation recovery now completes NEAR with the same unlock. See
-  `evidence/refactor-170-pending-identity-20261005.json` and
-  `evidence/refactor-170-pending-near-continuation-20261005.json`. Recovery also
-  honors configured session limits through the shared unlock policy resolver; see
-  `evidence/refactor-170-unlock-policy-20261005.json`.
-- [ ] Integrate session/lifecycle names and unified lock with R170 host ownership
-  and R152 fixed-home behavior.
-  Implement SDK-owned account lookup and preserve injected RPC behavior.
-- [ ] Rename chain, registration, recovery, device, key, preference, and hosted UI
-  methods at their real implementation boundary. Remove old aliases/callers in
-  the same change; reuse underlying flows rather than adding wrapper layers.
-- [ ] Update React bindings and external EVM receipt naming. Preserve review,
-  identity binding, optional React integration, SSR, and remount behavior.
-- [ ] Complete package export/type cleanup and move internal/test helpers. Update
-  all first-party examples, reference docs, intended-behavior specs, and Console.
-- [ ] Run targeted verification and produce repeatable artifacts. Record public
-  API migration notes and matching client/host release requirements.
+  General linked-device API consolidation is deferred below.
 
-## Verification and completion
+## Essential remaining work
 
-Use existing behavioral E2E suites and type fixtures; add no unit tests or
-source-text change-detector tests. Read the applicable test instructions and
-classify failures against intended behavior before repairs.
+R171 shares the four-task completion checklist in
+[R170](refactor-170.md#essential-remaining-work). Its remaining implementation is:
 
-- Packed SDK consumer type-check: ordinary setup/session/signing calls work
-  through public imports. Type fixtures reject invalid lifecycle/challenge
-  combinations and exercise removed public names without production casts.
-- Real-host E2E: register a mixed wallet, await NEAR provisioning, lock/unlock,
-  switch the rendered wallet during pending work, and sign on NEAR and EVM/Tempo.
-  Verify bound identities, review, receipt results, and stale client-connection
-  response exclusion. R153 later verifies wallet ownership generations and moves.
-- Email custom/hosted flows: code failure, resend/cancel, step-up, and successful
-  completion preserve purpose and authority. Cover consolidated registration
-  paths and custom UI callers before deleting their old APIs.
-- Device/recovery/export: link another browser context, approve and revoke it,
-  acknowledge/rotate recovery codes, and exercise authorized export plus relink
-  outcomes. Preserve wallet-origin secret display.
-- Lock and preferences: durable-pool retention, volatile cleanup, failed cleanup,
-  concurrent unlock, restart, signing rejection while locked, validated reuse
-  after unlock, preference write failure, flush, and immediate sign. Verify that
-  lock adds no durable-pool purge; retain independent invalidation coverage.
-- Returning-user E2E: lock, restart the browser with durable storage preserved,
-  advance the supported test clock by one month, unlock, and sign immediately.
-  Record first-sign latency and evidence that the operation consumes a retained
-  valid presignature without waiting for refill. Ensure the clock advances across
-  relevant client/server validity checks; do not simulate aging only in UI time.
-- Save repeatable commands, source revision, packed asset identity, browser
-  traces/reports, and scenario results. Stub-host success alone is insufficient.
-- Re-run R170 consumer graph/size checks to ensure naming/export moves do not
-  pull runtime execution into application entries. Run relevant declaration,
-  type, build, and `pnpm report:bloat --check` checks.
-- Private Console must use the matching exact package release when available;
-  record any local packed-package validation separately from released integration.
-  Publication/deployment requires its own user instruction.
+- [ ] Finish `auth.unlockWithEmailCode` and its custom/hosted callers. Preserve
+  ordinary, NEAR-only, added-method, and pending email activation behavior.
+  Delete replaced specialized public unlock methods and transport paths.
+- [ ] Reconcile public declarations with this migration map. Remove remaining
+  replaced names and callers in SDK, React, examples, intended app, and docs.
+  Confirm the returned email flow controls remain usable and well named.
+- [ ] Run focused production E2E, type fixtures, packed-consumer checks, and
+  application dependency/size checks for the changed surface. Reuse existing
+  valid evidence for completed migrations.
+- [ ] Record migration notes and the matching client/host protocol requirement.
+  Identify private Console adoption work; exact released-package adoption is a
+  separate release task.
 
-Complete when every inventory row has a disposition and migrated callers, the
-accepted names are the only supported names for replaced operations, necessary
-advanced/runtime contracts remain supported, documented behavior matches E2E
-evidence, and no obsolete aliases or duplicate implementation paths remain.
+Done when the accepted grouped API is the only supported API for replaced
+operations, ordinary callers work, and the changed auth contracts have production
+coverage. No public compatibility aliases or duplicate execution paths remain.
 
-Public TypeScript renames do not inherently require wire renames. Preserve wire
-contracts where compatible; deletion or incompatible semantic changes require
-R170's protocol/manifest version decision and a matched release/rollback pair.
-Do not retain obsolete wire handlers as a compatibility path after that cutover.
+## Deferred follow-ups
+
+Use R170's deferred list. R171 no longer requires new exhaustive browser,
+SSR/remount, month-later clock, device/recovery/export, or real-chain receipt
+matrices for unchanged behavior. Preserve those behaviors and their existing
+contracts. Run targeted coverage when a change actually touches them.
+
+Further consolidation of internal linked-device action-proof plumbing is deferred
+unless it blocks the accepted unlock API. Never reuse unlock proof for an action
+that requires operation-bound authorization. Unchanged `syncAccount`, recovery
+rotation, and receipt semantics do not require redesign in this stage.
+
+Public TypeScript renames do not inherently require wire renames. Deletion or
+incompatible semantic changes require the existing protocol-version decision and
+matching client/host release. No publication or deployment is authorized here.

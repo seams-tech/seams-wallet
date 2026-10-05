@@ -1,8 +1,13 @@
 # Separate the application SDK client from wallet execution
 
-Status: reviewed implementation plan; API decisions accepted 2026-10-04.
-The decisions below guide implementation; their audit and verification gates
-must be closed before replacing the shared composition.
+Status: implementation in progress. Remaining scope narrowed by user request,
+2026-10-05.
+
+The four tasks under **Essential remaining work** are the completion checklist
+for R170/R171. Earlier decisions and checkpoints describe accepted behavior and
+completed work. Their historical open audit notes do not add completion gates.
+Keep supported behavior, authority checks, and durable presignature retention.
+Do not reopen completed work without evidence of a defect.
 
 October 4 preparation: [API/worker inventory and measurement instructions](refactor-170-inventory.md)
 record current dispatch, worker startup, shared crypto dependencies, and remaining
@@ -14,14 +19,14 @@ R152 is complete, including published 0.8.0 releases and Console integration
 evidence. Complete R170 and R171 together against that fixed-home behavior before
 resuming R153 implementation. R170 owns client/host composition and lifecycle.
 R171 owns final public names and consumer migration within the same cutover.
-Their existing acceptance gates must pass before the R153 handoff.
+Their focused completion gates below must pass before the R153 handoff.
 
 R153 later adds relocation ownership generations, backend writer fences, and
 wallet-wide session/pool retirement. Those features are not prerequisites for
 R170/R171 completion. Preserve existing authorization and material checks without
 adding placeholder relocation APIs or a second lifecycle implementation.
 
-Implementation checkpoint, October 4: fresh production assets and a packed
+Historical implementation checkpoint, October 4: fresh production assets and a packed
 baseline are recorded in the [production receipt](evidence/refactor-170-production-baseline-20261004.json).
 The production-browser registration/sign/lock/unlock scenario passes. October 5
 server-side static-body counters close the initial collector's missing worker
@@ -585,13 +590,9 @@ browser-behavior redesign. Those changes remain outside this cutover.
 
 ### Remaining evidence before cutover
 
-The choices above settle direction. Complete the member dispatch audit, injected
-RPC caller audit, config-field mapping, snapshot-ordering proof/version decision,
-browser/RP matrix, and phase-specific browser baseline before claiming the upfront
-gates closed. Update the inventory's unresolved-work notes as evidence lands.
-Signing calls retain their supported contracts; explicitly document the grouped
-auth/config APIs and unified lock, removal of `getContext()`, SDK-owned account
-queries, and preference synchronization changes.
+Use the focused completion gates at the end of this plan. Retain existing
+inventory and test evidence. Expand coverage only for a changed contract or a
+concrete failure; the full browser, worker, and latency matrices are follow-ups.
 
 ## Scope and constraints
 
@@ -794,8 +795,8 @@ The package declaration check now also installs the actual tarball into an
 isolated temporary npm project with optional peers omitted. Strict core and
 external-EVM consumers compile, and both entries import in Node with React,
 React DOM, and their type packages absent. This closes optional-peer absence
-for those entries. React provider SSR/remount and deployed asset delivery remain
-separate acceptance requirements. See the inventory's optional-peer checkpoint.
+for those entries. Expanded React provider SSR/remount and deployed asset delivery checks are
+deferred under the narrowed scope below. See the inventory's optional-peer checkpoint.
 
 The React device list now delegates email removal proof to the existing host
 `registration.removeAuthMethod` operation. Its duplicate challenge, OTP form, and
@@ -817,418 +818,115 @@ acceptance, or deployed edge compression. Local preview WASM responses remain
 uncompressed. See `evidence/refactor-170-repeated-assets-20261005.json` and the
 inventory's repeated production asset checkpoint for counting rules and limits.
 
-## Implementation sequence
+## Essential remaining work
 
-Complete this sequence together with R171's naming and consumer migration.
-Validate the resulting client/host pair against R152 before R153 implementation
-resumes. Relocation fault tests belong to the subsequent R153 stage.
+These four tasks replace the former broad implementation and acceptance backlog.
+Complete them together with R171. Commit each finished task with its evidence.
 
-Keep the first cutover focused on dependency ownership and preserved behavior.
-Moving the shared constructor wholesale into a host class can remove application
-duplication while leaving the host's large auth closure intact; report those as
-separate outcomes. Additional host-internal splitting must follow measured
-dependencies. Avoid combining this work with a general signing-engine rewrite,
-public API redesign, or a storage migration without a demonstrated requirement.
+### 1. Finish the email unlock API
 
-### 1. Establish reproducible consumer and browser baselines
+- [ ] Implement `auth.unlockWithEmailCode({ challenge, code })` through the
+  existing host-owned flows. Keep `auth.requestEmailCode` and
+  `auth.startGoogleSignIn` as the supported custom and hosted entry points.
+- Preserve the supported ECDSA, NEAR-only, added-method, and pending email
+  activation branches. Keep relay routing and activation details inside the SDK.
+- Preserve challenge purpose, exact wallet/method binding, expiry, resend,
+  cancellation, and one terminal outcome. Operation-bound action proofs remain
+  distinct from unlock proof. Reuse the existing flow ownership and transport.
+- Delete the replaced public specialized unlock methods, handlers, and callers
+  once their supported behavior is covered. Add no compatibility aliases.
 
-- Build current production assets from a recorded revision and dependency lock.
-  Record build mode, tooling versions, and any working-tree differences.
-- Extend the existing size reports under `packages/wallet/scripts/` to measure
-  realistic root-client and React-provider consumers, including static and lazy
-  import closures. The size of `dist/esm/index.js` alone is insufficient.
-- Use the existing intended app or example app for a production-browser baseline
-  with distinct application and wallet origins. Record cold and warm runs with
-  fixed compression/cache settings and identical scenarios.
-- Attribute requests to application, iframe, and workers. Record URLs, initiators,
-  transferred and decoded bytes, caching, and operation timing. Capture boot,
-  first authentication, first signing, and subsequent signing separately.
-- Inventory `SeamsWeb` methods and callers: client-only, host execution,
-  existing protocol coverage, and explicit runtime usage. Include examples,
-  React hooks, public docs, tests, and private Console consumers.
-- Close the P1 decisions above and record config-field mapping, startup effects,
-  supported browser/RP paths, client state/preference semantics, protocol skew,
-  and per-phase performance limits before changing composition.
+Done when custom and hosted email unlock use the accepted public API, supported
+branches work, and applications no longer orchestrate internal activation steps.
 
-Deliverable: a reproducible baseline report with bundle graphs and browser
-artifacts. Reuse existing reports and harnesses; add only missing instrumentation.
+### 2. Finish the public API and delete replaced paths
 
-### 2. Separate host composition from the public client
+- [ ] Audit the final public declarations and repository callers against R171's
+  migration map. Fix remaining mismatches in SDK, React, examples, intended app,
+  and public documentation. Record private Console changes for exact-release
+  adoption separately.
+- Delete obsolete names, duplicate adapters, and dead construction/configuration
+  paths directly replaced by this refactor. Keep one client construction path
+  and one host execution owner. Preserve the explicit runtime entry.
+- Keep the existing inventory current for affected paths. No exhaustive audit
+  of every host helper, worker dependency, or unrelated export is required.
+- Report task-owned production additions, deletions, and net change against
+  `0d45cb34^`, excluding concurrent work, tests, docs, and generated output.
+  Net deletion remains an expectation, not a numerical gate.
 
-- Extract the host's execution composition from `SeamsWeb.ts` into focused
-  internal host modules, reusing the signing surface and runtime factories.
-- Change `host/context.ts`, `host/runtimeContext.ts`, handler dependencies, and
-  lifecycle subscription wiring to consume the host composition directly.
-- Convert the public `SeamsWeb` into the iframe client. Replace eager construction
-  of signing stores, `BrowserSigningSurface`, and runtime factories with the
-  existing transport and public state subscriptions.
-- Remove the coordinator's dependence on the signing surface and host-owned
-  preference managers. Give it the narrow client configuration and state it uses.
-- Route supported operations through existing messages. Add a typed message only
-  for a demonstrated protocol gap, with its parser and handler in the same patch.
-- Preserve initialization, cancellation, timeout, disposal, reconnect, origin
-  checks, request binding, and event ordering. An unavailable iframe produces the
-  supported explicit failure outcome.
-- Audit persisted state ownership before moving storage access. Keep existing
-  wallet-origin schemas and keys where possible. Document any supported
-  application-origin records requiring a one-time boundary migration.
+Done when ordinary callers use the accepted grouped API, removed names have no
+live callers, and no obsolete parallel implementation remains in changed paths.
 
-Deliverable: the application dependency graph has no wallet execution
-implementation, signing stores, worker managers, or host composition, including
-through dynamic imports. Supported client browser adapters, public RPC/broadcast
-helpers, and pure contracts are classified explicitly in the ownership table.
-Remove the obsolete mixed-mode implementation.
+### 3. Verify the affected wallet flows
 
-### 3. Make the boundary precise and keep the public API approachable
+- [ ] Reuse existing production E2E coverage for passkey and email registration,
+  unlock, NEAR/EVM/Tempo signing, lock/unlock, and restored signing. Add or extend
+  a scenario only for a behavior changed by the remaining work.
+- Verify the new email boundary's failure/resend/cancel behavior and pending
+  activation continuation. Keep exact authority and challenge-purpose checks.
+- Preserve existing lock evidence: signing fails while locked; volatile authority
+  is cleared; valid durable presignatures remain reusable after unlock.
+  Never add a durable-pool purge to lock. The month-later reuse requirement
+  remains; the additional full-clock browser aging test is deferred below.
+- Retain existing stale-result, connection/disposal, selective-worker, and
+  initialization-retry evidence. Re-run relevant cases if the remaining changes
+  touch those boundaries. Do not build a new exhaustive permutation matrix.
+- Run the relevant type fixtures, production build, packed declarations,
+  runtime-entry checks, freshness check, and `pnpm report:bloat --check`.
+  Fix production failures caused by this refactor; do not weaken contracts.
 
-Registration creation is consolidated under `registration.registerWallet`, with
-explicit auth method, wallet allocation, and signer selection. The former four
-creation shortcuts and their duplicate builders are removed. See the unified
-registration checkpoint in `refactor-170-inventory.md`. NEAR account readiness
-also uses the accepted read/wait/subscription names and the SDK-owned wait.
-Other R171 operations still require migration. Normal `auth.unlock` now owns
-pending passkey activation recovery. The public resume method and its transport
-request are removed. Production cases verify exact replay, normal completion
-callbacks, EVM signing, mixed NEAR completion, and explicit NEAR selection.
-Email OTP continuation and cancellation/lifetime acceptance remain open.
-See `evidence/refactor-170-normal-unlock-20261005.json`.
+Done when the changed public flows pass against the production host and assets,
+with repeatable sanitized evidence. Existing valid evidence counts; do not rerun
+unaffected suites solely to refresh timestamps.
 
-- Keep shared message contracts and public value helpers free of execution
-  imports. Use type-only imports for domain types; move pure boundary helpers
-  only when their current module introduces runtime dependencies.
-- Parse raw configuration, messages, and responses once at their boundaries.
-  Use existing discriminated lifecycle and Result-style types, exhaustive
-  handling, and branch-specific construction.
-- Require valid identity/session fields for each operation. Preserve exact
-  wallet/session binding through account changes and asynchronous responses.
-- Keep `defineSeamsConfig`, the provider, `useWallet`, and existing bound signer
-  calls as the standard integration path. Avoid another public facade or a
-  parallel set of hooks.
-- Update hooks that currently read execution internals to use public client
-  state and events. Keep advanced runtime concepts in their existing explicit
-  entry points when supported consumers need them.
-- Preserve React as an optional integration. Verify narrow provider and hosted
-  auth-menu imports; ensure unrelated QR/profile/theme features can be omitted
-  or loaded with the UI that needs them.
-- Add compile-time fixtures for changed domain boundaries: invalid lifecycle
-  combinations, broad spreads, direct construction, and known cast escapes.
-  Do not claim TypeScript prevents arbitrary deliberate assertions; eliminate
-  unsafe production casts and cover enforceable constraints.
+### 4. Record the final bundle and migration result
 
-Deliverable: examples and public declarations demonstrate one clear setup and
-operation path without exposing host construction to application callers.
+- [ ] Refresh root-client and React-provider bundle reports from the final build.
+  Verify that application graphs contain no host execution or worker managers.
+- Run the existing signed-out cold/warm scenario and representative authenticated
+  registration/sign/lock/unlock scenario. Compare static response bytes with the
+  retained baseline using the existing accounting rules. Report app, iframe,
+  worker, and WASM costs separately where the collector supports attribution.
+- Record scenario completion and first/repeat signing timings as observations.
+  Do not require repeated historical baseline reconstruction or claim a latency
+  improvement without paired evidence. Explain material observed regressions.
+- Publish a local completion receipt with commit/build identity, commands,
+  measurements, known limits, source-line accounting, and migration instructions.
+  Record the matching client/host protocol and release requirement.
 
-Recovery replay acceptance, October 5: the passkey unlock stall was a test
-infrastructure failure. The journal probe detached a separate debugging session,
-which removed Chromium's virtual authenticator. The probe now reuses the
-harness-owned session. Passkey and Google recovery with lost finalization and
-runtime reset both pass, including subsequent signing. See
-`evidence/refactor-170-recovery-probe-session-20261005.json`. Direct code-rotation,
-`syncAccount`, and the full worker/browser acceptance matrix remain open.
+Done when the smaller application client, supported wallet behavior, and public
+API are verified, and the result can be reproduced from the recorded revision.
 
-### 4. Tighten host feature loading and packaging
+## Deferred follow-ups — not completion gates
 
-- Use `host/runtimeLoader.ts` as the existing feature dispatch point. Trace the
-  auth closure and remove shared imports that unnecessarily retain signing,
-  export, recovery, or device-link execution.
-- Load chain-specific execution and worker/WASM assets when the selected
-  operation requires them. Replace blanket worker warmup with the targeted
-  preparation below and measure its latency/transfer tradeoff explicitly.
-- Verify Rolldown output and package export paths for root, React, runtime, and
-  hosted static assets. A dynamically imported module must have no other eager
-  path into the same consumer graph.
-- Review repeated WASM/static assets separately. Delete a copy only after
-  updating all loaders, emitted URLs, and hosting contracts that depend on it.
-  Package-size reduction is a secondary result, measured separately from traffic.
+These items remain useful, but are outside the remaining R170/R171 implementation:
 
-Deliverable: smaller observed wallet operation payloads with valid static asset
-paths and unchanged supported runtime behavior.
+- Full operation × signer × factor worker inventory and exhaustive retry,
+  cancellation, origin-change, and worker-lifetime permutations.
+- Further host chunk splitting, algorithm-specific import tuning, WASM binary
+  trimming, and duplicate-asset removal without a demonstrated current defect.
+- Authenticated warm HTTP-cache instrumentation, three repeated historical
+  baseline latency runs, and deployed edge compression/cache validation.
+- Additional month-later browser-restart/clock-advance presignature acceptance.
+  Preserve current validity checks and fast reuse; do not shorten material
+  lifetime or delete durable presignatures to avoid this scenario.
+- Expanded Safari/browser/RP matrices, SSR/provider replacement permutations,
+  and real-chain broadcast/receipt/delegation matrices beyond affected flows.
+- New direct coverage for unchanged recovery-code rotation, account sync,
+  device linking, and key export. Existing contracts still apply and run when
+  a change affects those paths.
+- Repository-wide abstraction and dead-code sweeps unrelated to replaced paths.
+- Publication, deployment, and private Console exact-release adoption. Prepare
+  migration notes now; execute release work under its separate authorization.
 
-#### Required workstream: targeted worker and WASM loading
+## Focused completion gate
 
-This work fixes the broad warmup path in addition to the application/host split.
-It does not require repartitioning the cryptographic binaries or adding a public
-loading option. Keep the operation dependency inventory in this document and
-derive production behavior from existing typed requests and selected capabilities.
+R170/R171 implementation is complete when all four essential tasks above have
+current evidence and no unresolved defect introduced by this refactor remains.
+Accepted security, custody, authorization, session, and material-validity behavior
+still applies. Deferral removes extra scope and test permutations; it does not
+permit dropping supported behavior or retaining replaced public aliases.
 
-- [ ] **Map actual dependencies before editing warmup.** Trace every worker
-  creation, readiness wait, WASM fetch/init, and preparation call through
-  `SeamsWeb.prewarm`, host creation, `BrowserSigningSurface`, the warmup assembly,
-  `SignerWorkerManager`, and `WorkerTransport`. Include confirmation/session/export
-  workers outside `SIGNER_WORKER_KINDS`, registration preparation, Email OTP Yao,
-  restored-session presignature prefill, and pending-operation replay. Record
-  required assets by operation, signer set, and auth method, with the call site
-  that justifies each dependency.
-- [x] **Remove unconditional all-worker prewarm.** Replace the host's generic
-  worker startup with preparation for the selected operation. Remove the
-  `prewarmWorkers()` loop over all worker kinds and obsolete broad readiness
-  waits/callers. A fresh idle host with no selected operation or pending resume
-  must not create signer/custody workers solely because its runtime was created.
-  Configuring several chains alone must not trigger every chain's workers.
-- [ ] **Keep first-use initialization authoritative.** Each operation must await
-  the workers/WASM it needs even when prewarming never ran or failed. Coalesce
-  concurrent initialization using the existing worker and WASM promise caches;
-  permit recovery from a failed initialization. Audit worker-ready signals that
-  currently swallow WASM errors: a ready thread must not be mistaken for
-  successfully initialized crypto. Keep best-effort preparation failure separate
-  from the operation's explicit failure result.
-- [ ] **Make preparation follow the selected flow.** Audit
-  `registrationPreparationPreload.ts`, `prewarmEcdsaRegistrationCrypto`,
-  `prewarmEmailOtpYao`, and eager/idle provider hooks. Start required preparation
-  while the user interacts with the selected auth/confirmation surface, preserving
-  browser user activation. A generic menu open must not preload all chains.
-  Define how existing public `prewarm` options map to this behavior; update the
-  intended-behavior spec, examples, and contracts for any observable change.
-  Generic confirmation preparation no longer imports EVM/Tempo signing modules.
-  The NEAR-only production scenario checks operation-module absence through registration,
-  unlock, signing, and restored signing. The material builder now belongs to
-  its existing material module, so it no longer imports the ECDSA engine into
-  the static host graph. Selected EVM/Tempo operations retain first-use loading. See the selected signing-module audit in the inventory.
-- [ ] **Preserve shared ceremony requirements.** Registration and recovery can
-  require the custody ceremony module, which links both curve protocols. Select
-  assets by the actual ceremony and signer set rather than by chain name alone.
-  Ordinary NEAR signing must not warm unrelated EVM/Tempo workers; ordinary EVM
-  signing must not warm unrelated NEAR/Tempo workers. Record any genuine shared
-  dependency explicitly. Do not split custody proofs or alter protocol behavior
-  to satisfy a download assertion.
-- [ ] **Remove ceremony initialization from envelope-only work.** The custody
-  worker currently awaits its full ceremony binary before every request. Initialize
-  it only for operations that call ceremony exports or restore ceremony handles.
-  Keep NEAR signer initialization for authenticated envelope open/reseal and
-  Yao initialization for lane-source work. Verify registration/recovery, unlock,
-  factor addition, export, and linking; capture unlock traffic after reload.
-  Initialization is now operation-specific, with registration/ordinary-unlock
-  asset assertions for NEAR-only and ECDSA-only wallets. Recovery-code rotation
-  still needs direct public-flow acceptance before this item closes.
-- [ ] **Repair remaining failed-initialization caches.** Email OTP's EVM helper,
-  Email OTP runtime, and ceremony loaders retain rejected promises. The Shamir
-  worker does too. Clear each failed promise using existing initializer patterns.
-  Verify explicit failure, restored asset delivery, concurrent successful retry,
-  and subsequent reuse in the same worker. Preserve all material and authorization
-  boundaries; do not hide the failure by restarting unrelated workers.
-  All four caches now clear rejection. Browser evidence covers Shamir's emitted
-  worker and the production Email OTP loader source with actual WASM. Full Email
-  OTP protocol retry in the same emitted worker remains to be exercised.
-- [x] **Select Google registration preparation by signer set.** Direct and Google
-  registration share the selected-NEAR predicate. Production scenarios cover
-  wallet-name reroll, ECDSA-only registration without Yao, and NEAR-only signing.
-  An injected Yao delivery failure now proves that registration can finish,
-  first signing retries in the same emitted Email OTP worker, and a second
-  signature reuses initialization. See
-  `evidence/refactor-170-google-preparation-retry-20261005.json`.
-- [x] **Restore NEAR-only Email OTP material without requiring ECDSA.** Explicit
-  worker request/result branches follow authoritative signer ownership. A missing
-  manifest on a combined wallet remains an error. NEAR-only restoration reuses
-  `ed25519_yao_recovery` and exact Wallet Session checks. Boundary parsing and
-  type fixtures reject invalid branch combinations. NEAR-only registration/sign/
-  reload/sign and the combined Email OTP lifecycle pass. Evidence:
-  `evidence/refactor-170-email-otp-signer-selection-20261005.json`.
-- [ ] **Preserve worker lifetime and operation isolation.** Reuse initialized
-  workers when switching chains; create newly needed workers on demand. Cancelled
-  preparation must not terminate a worker used by another operation or discard
-  presignature state. Preserve existing cleanup, disposal, worker-origin changes,
-  and retry semantics. Do not add eviction policies or another worker registry.
-- [ ] **Verify assets and compression separately.** For each scenario report
-  fetched worker JS, WASM URLs, decoded bytes, and actual encoded transfer.
-  Identify aliases so inventory totals cannot be confused with observed loads.
-  Verify production WASM compression and caching; fix demonstrated delivery
-  problems within existing hosting configuration. Only propose binary/dependency
-  trimming after required-module measurements show an additional concrete issue.
-- [ ] **Prove selective loading in real E2E flows.** Extend the production-browser
-  evidence scenario with the matrix below. Capture worker creation plus actual
-  requests across the application, host, and worker contexts. Re-run with warm
-  caches and record first-auth, first-sign, and repeat-sign latency. Add behavioral
-  assertions only where existing coverage has a gap; add no unit/source-text tests.
-
-| Scenario | Required evidence |
-| --- | --- |
-| Fresh signed-out mount, idle, and generic auth menu | No speculative all-signer startup; distinguish UI assets from signer/custody assets. Use a clean profile with no pending recovery/registration work. |
-| NEAR-only passkey wallet: cold unlock, sign, reload, sign | Required NEAR/auth assets load and signing succeeds; unrelated EVM/Tempo execution remains unloaded. Document any shared auth primitive that uses a binary named for another chain before asserting URL absence. |
-| EVM-only wallet: cold unlock, sign/broadcast, reload, sign | Required EVM/auth assets load; unrelated NEAR/Tempo workers and WASM remain unfetched. Include pending/absent NEAR account behavior. |
-| Tempo-only wallet: unlock and sign/broadcast | Required Tempo/auth dependencies are recorded; no speculative NEAR or unrelated EVM execution startup. |
-| Email OTP authentication and signing | Selected factor's required modules load; no passkey fallback or unrelated signer warmup. |
-| Multi-signer registration and recovery | Shared custody assets load when required; all configured signer results and post-recovery signing remain correct. |
-| Export and device linking | Deferred dependencies load when used; fresh export authorization and source/target activation still succeed. |
-| Existing multi-chain wallet: NEAR then EVM, cancelled preparation, retry | Additional workers load on demand and are reused; cancellation/retry does not corrupt another operation or presignature state. |
-
-Define each scenario's allowed worker/WASM set from the audited production flow
-before changing loading behavior. Use those sets in behavioral network/worker
-assertions, allowing shared modules only with a documented operation dependency.
-Keep the full inventory size separate from each measured load. Compare the same
-operation before/after; do not claim a saving by omitting a required feature or
-delaying its download beyond the measurement window.
-
-### 5. Remove obsolete and redundant production code
-
-R170 is expected to produce a **net reduction in hand-maintained production code**.
-This is a cleanup expectation, not a numerical pass/fail rule. A smaller application
-bundle alone does not demonstrate simpler source code. Complete
-this cleanup after the ownership cutover and before final consumer acceptance.
-Delete replaced paths during each task; this phase audits what remains.
-
-- [ ] Audit application and host construction together. Remove obsolete mixed-mode
-  branches, host-mode flags whose callers no longer need them, empty-origin
-  workarounds, unused constructor inputs, and dead initialization/disposal paths.
-  Preserve the supported explicit runtime entry through its direct construction.
-- [ ] Replace repeated configuration normalization and merging with the accepted
-  client/host boundary. Remove the old sanitizer, duplicate default application,
-  and input/resolved shape conversions once their callers use the new boundary.
-- [ ] Review each extracted command, facade, factory, and callback adapter.
-  Delete forwarding layers that add no identity, authorization, transport,
-  lifecycle, or public API responsibility. Consolidate duplicate implementation
-  inside the owning realm. Keep the application dependency graph execution-free.
-- [ ] Remove duplicate session/preference mirrors, repeated validation, obsolete
-  event subscriptions, and parallel startup or replay paths. Each operation must
-  have one authority owner and one execution path. Preserve exact-session binding,
-  cancellation, ordering, failure reporting, and durable presignature reuse.
-- [ ] Finish the R171 call-site migration and delete replaced public names,
-  logout aliases, unused exports, stale types, dead helpers, and retired modules.
-  Add no compatibility aliases or fallback execution paths.
-- [ ] Remove obsolete worker preparation and readiness paths after selective
-  first-use initialization is verified. Retain required ceremony dependencies,
-  retry semantics, and shared worker lifetime handling.
-- [ ] Delete stale tests, fixtures, mocks, and documentation for removed behavior.
-  Preserve tests for current invariants and regenerate generated artifacts through
-  their existing commands. Report these deletions separately from production code.
-- [ ] Review the resulting construction and operation paths for readability.
-  Remove abstractions that add more complexity than they remove. Do not compress
-  formatting, remove useful comments, weaken types, drop supported behavior, or
-  move execution back into the application merely to reduce the line count.
-
-Maintain the cleanup inventory in `refactor-170-inventory.md`. For each remaining
-candidate, record its path, current caller, replacement owner, deletion condition,
-verification command, and status. A retained layer needs a concrete responsibility;
-file extraction or code movement alone does not count as simplification.
-
-Measure attributable R170/R171 changes against the implementation baseline before
-`0d45cb34` (`0d45cb34^`). Concurrent work on `dev` must be excluded using the explicit
-list of task-owned commits and any owned uncommitted changes. Report additions,
-deletions, and the net change for hand-maintained production source and scripts.
-Report tests, documentation, generated files, lockfiles, and build artifacts in
-separate categories. Moving or renaming files cannot create a claimed saving.
-
-The current committed checkpoint has 6,064 production/package lines added and
-5,426 removed across the 19 recorded implementation/preparation commits: **+638
-lines**, before the current configuration fixes. This is a checkpoint, not
-completion. Recalculate the final source-only total with generated output excluded.
-Use the final total to assess the cleanup. Investigate remaining growth and explain
-necessary additions by their concrete responsibility. Remove redundant code, while
-retaining useful boundaries, clear types, readable code, and supported behavior.
-Do not delete useful code merely to make the total negative.
-
-Deliverable: one clear client construction path, one clear host construction path,
-no obsolete parallel implementations, a resolved cleanup inventory, and an honest
-production-code change report. Explain any remaining net growth. Commit each
-completed cleanup task separately.
-
-### 6. Update consumers, documentation, and release inputs
-
-The external declaration check now compiles the npm tarball for root, React,
-and runtime entry points with strict ES2022 settings and no ignored diagnostics.
-See the packed external TypeScript checkpoint in the inventory. Optional-peer
-absence, broader runtime acceptance, and release adoption remain separate gates.
-
-- Update Wallet examples, intended app, and public docs alongside the implementation.
-  Change `docs/intended-behaviours.md` and its contracts for any intentional
-  externally observable behavior change.
-- Verify the packed package in the existing external-consumer checks, including
-  declarations, optional React usage, runtime entry, and hosted asset delivery.
-- Update private Console composition in `seams-monorepo` using exact released
-  Wallet versions when the release is available. Use packed artifacts for local
-  pre-release verification; do not commit workspace/source shortcuts across repos.
-- Remove replaced tests, fixtures, mocks, and documentation that solely describe
-  retired mixed-mode behavior. Classify failures against current contracts
-  before repairing them.
-
-## Verification and acceptance
-
-- [x] Resolve the raw-calldata disclosure motion acceptance gap. Native raw-data
-  details bypassed the shared host sizing path and overflowed the iframe by
-  294 px. The shared disclosure now drives raw-data opening and closing. Normal
-  and reduced-motion browser checks pass. Evidence:
-  `evidence/refactor-170-raw-disclosure-motion-20261005.json`.
-
-
-Use the existing E2E and intended-behavior infrastructure. Add no unit tests.
-Extend an existing scenario where it covers the boundary; add an E2E scenario
-only for a genuine gap. Keep compile-time checks for domain-state guarantees.
-
-The representative production-browser scenario should register/authenticate a
-wallet, sign on NEAR and an EVM-family chain where configured, reload and restore,
-lock and unlock, exercise recovery, and sign again. Reuse existing isolated
-contracts for destructive recovery and device-linking steps. Cover cancellation,
-iframe disconnect/reconnect, and an account/session change during a pending
-request using the existing applicable browser tests. An explicit runtime
-consumer must continue to pass its existing runtime checks.
-
-Each measured E2E run produces a Playwright trace, sanitized request/timing
-evidence, and a machine-readable byte summary with reproduction commands and
-revision/build identifiers. Exclude OTPs, tokens, seeds, shares, and export
-secrets from persisted artifacts, including screenshots and DOM snapshots during
-recovery/export. Disable sensitive trace capture at collection time and retain
-sanitized phase evidence for those steps. Save before/after evidence under the
-existing test-artifact/evidence conventions.
-
-Collect traffic across the browser context and relevant worker targets, rather
-than relying on the parent page's resource timing alone. Resource timing may hide
-cross-origin sizes, and cache hits can report zero transfer. Separate HTTP
-compression, protocol overhead, decoded resource bytes, cached responses, and
-repeated fetches; record the counting method. Use a fresh browser profile for cold
-runs and the same profile for the corresponding warm run. Hold compression,
-prewarming, network/CPU settings, and service-worker/cache policy constant.
-
-Acceptance criteria:
-
-1. Root and narrow React consumer graphs contain no host execution, signing
-   persistence, custody implementation, or worker orchestration modules. Verify
-   this using resolved production bundle graphs and observed worker creation,
-   allowing the explicitly owned browser adapters and client network helpers.
-2. The application uses authoritative wallet state through the existing protocol;
-   session identity, authorization, review, and cancellation semantics survive
-   the split. No direct-signing fallback remains in the client.
-3. Cold total JavaScript transfer across application and iframe decreases for
-   the same completed scenario. Report WASM, CSS, and warm-cache behavior
-   separately, together with first-auth/sign latency and repeat-run variation.
-4. Target less than 100 KiB gzip for the minimal hosted client static closure,
-   excluding optional React/UI and wallet-origin assets. This is a design target
-   to validate, not an established saving. Explain remaining contributors if the
-   target is missed; do not hide them behind an immediately fetched lazy chunk.
-5. Fresh production size reports, relevant intended contracts, browser E2E,
-   type fixtures, packed-package boundaries, and runtime checks pass. Record
-   concrete environment blockers without weakening supported invariants.
-6. Obsolete composition, mode switches, and dead helpers are deleted. The client
-   and host each have a single understandable construction path.
-7. Blanket signer-worker warmup is removed. The worker-loading scenario matrix
-   passes with real production assets, required first-use initialization, and
-   operation-specific downloads. Record reductions in worker/WASM transfer and
-   first-sign latency separately from application-JavaScript savings; evaluate
-   latency against the limits established before implementation.
-
-8. The cleanup phase is complete: obsolete and redundant paths are removed or
-   their retention is justified by a concrete current responsibility. The final
-   report lists task-owned commits, counting rules, additions, deletions, and net
-   production totals. Tests and documentation are separate. Net reduction is the
-   expected outcome, not a numerical gate; explain necessary remaining growth.
-   Bundle savings and file movement do not prove source simplification. Preserve
-   readability, supported behavior, and all other acceptance gates.
-
-Relevant existing commands, run from `seams-wallet`:
-
-```sh
-pnpm -C packages/wallet build:prod
-pnpm -C packages/wallet check:bundle-size --json
-pnpm -C packages/wallet type-check
-pnpm -C tests type-check:wallet-state
-pnpm test:intended
-pnpm test:wallet-browser
-pnpm check:packed-wallet
-pnpm -C packages/wallet check:runtime-entry-bundles
-pnpm -C packages/wallet smoke:evm-crypto:runtimes
-pnpm report:bloat --check
-```
-
-Start with focused scenarios during implementation, then run the relevant wider
-contracts for the shared API/session boundary before completion. Keep work on
-`dev` in the main checkout, preserve concurrent edits, and commit only the files
-owned by this refactor. Publication, deployment, and private dependency updates
-must be reported distinctly from implementation completion.
+Stop adding optimization tasks once these gates pass. Record additional findings
+as follow-ups unless they break an essential gate. Release readiness and deployed
+integration remain separate from implementation completion.
