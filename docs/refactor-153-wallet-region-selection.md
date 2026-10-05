@@ -118,6 +118,16 @@ E2Es, Console type checking, type fixtures, and focused lint pass. Evidence rema
 under private `.artifacts/r153/activation-gate-20261005/`. These checks use synthetic
 participant receipts; they do not prove role-local writer fencing or transfer.
 
+The internal placement service also provides `placement-status`. It reads the
+home and latest journal in one database snapshot. It returns settled placement
+and cooldown, the current move with activation/retry state, or explicit absence.
+The read remains available during a pause and rejects foreign tenant scope.
+Repeated reads leave attempt identity and budget unchanged. The directory E2E
+covers cutover, activation with failed cleanup, completion, and a later blocked
+move. Evidence remains under private `.artifacts/r153/placement-status-20261005/`.
+This internal observation grants no write authority. The owner-facing API and
+bounded move-only access remain unfinished.
+
 Retained evidence:
 `.artifacts/r153/execution-journal-20261004/`, receipt SHA-256
 `02184ddd17816901bf2413115c35ca33a43bd90a269fedaeffb7f6990d8af555`.
@@ -747,8 +757,8 @@ alone grants no execution authority.
 
 ### Activation, shared references, and cleanup
 
-Cutover changes the directory's home atomically. Its `active` placement value
-does not by itself establish that destination roles are ready. Each participant
+Cutover changes the directory's home atomically and keeps placement paused.
+Each participant
 must install generation `g + 1`, confirm the committed move, and durably acknowledge
 readiness while ordinary admission remains closed. Reconcile physical role/pair
 references with their existing shared authority, without altering logical identities.
