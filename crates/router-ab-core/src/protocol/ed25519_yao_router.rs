@@ -574,6 +574,8 @@ pub enum RouterEd25519YaoGatewayExecuteTargetV2 {
     },
     /// Explicit client-recipient export.
     Export {
+        /// Wallet ownership generation admitted by the Gateway.
+        ownership_generation: u64,
         /// Admitted export identity binding.
         binding: crate::protocol::ed25519_yao::RouterAbEd25519YaoExportBindingV1,
         /// Opaque Deriver A envelope.
@@ -600,6 +602,7 @@ enum RawRouterEd25519YaoGatewayExecuteTargetV2 {
         deriver_b_input: Ed25519YaoEncryptedInputV1,
     },
     Export {
+        ownership_generation: u64,
         binding: crate::protocol::ed25519_yao::RouterAbEd25519YaoExportBindingV1,
         deriver_a_input: Ed25519YaoEncryptedInputV1,
         deriver_b_input: Ed25519YaoEncryptedInputV1,
@@ -638,10 +641,16 @@ impl<'de> Deserialize<'de> for RouterEd25519YaoGatewayExecuteTargetV2 {
                 deriver_b_input,
             ),
             RawRouterEd25519YaoGatewayExecuteTargetV2::Export {
+                ownership_generation,
                 binding,
                 deriver_a_input,
                 deriver_b_input,
-            } => Self::export(binding, deriver_a_input, deriver_b_input),
+            } => Self::export(
+                ownership_generation,
+                binding,
+                deriver_a_input,
+                deriver_b_input,
+            ),
         };
         target.map_err(D::Error::custom)
     }
@@ -655,12 +664,7 @@ impl RouterEd25519YaoGatewayExecuteTargetV2 {
         deriver_a_input: Ed25519YaoEncryptedInputV1,
         deriver_b_input: Ed25519YaoEncryptedInputV1,
     ) -> RouterAbProtocolResult<Self> {
-        if ownership_generation == 0 || ownership_generation > 9_007_199_254_740_991 {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MalformedWirePayload,
-                "Registration ownership generation is invalid",
-            ));
-        }
+        validate_gateway_ownership_generation(ownership_generation)?;
         validate_gateway_inputs(
             &binding,
             Ed25519YaoOperationV1::Registration,
@@ -683,12 +687,7 @@ impl RouterEd25519YaoGatewayExecuteTargetV2 {
         deriver_a_input: Ed25519YaoEncryptedInputV1,
         deriver_b_input: Ed25519YaoEncryptedInputV1,
     ) -> RouterAbProtocolResult<Self> {
-        if ownership_generation == 0 || ownership_generation > 9_007_199_254_740_991 {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MalformedWirePayload,
-                "Recovery ownership generation is invalid",
-            ));
-        }
+        validate_gateway_ownership_generation(ownership_generation)?;
         validate_gateway_inputs(
             &binding,
             Ed25519YaoOperationV1::Recovery,
@@ -706,10 +705,12 @@ impl RouterEd25519YaoGatewayExecuteTargetV2 {
 
     /// Builds a validated export target.
     pub fn export(
+        ownership_generation: u64,
         binding: crate::protocol::ed25519_yao::RouterAbEd25519YaoExportBindingV1,
         deriver_a_input: Ed25519YaoEncryptedInputV1,
         deriver_b_input: Ed25519YaoEncryptedInputV1,
     ) -> RouterAbProtocolResult<Self> {
+        validate_gateway_ownership_generation(ownership_generation)?;
         validate_gateway_inputs(
             binding.ceremony(),
             Ed25519YaoOperationV1::Export,
@@ -717,6 +718,7 @@ impl RouterEd25519YaoGatewayExecuteTargetV2 {
             &deriver_b_input,
         )?;
         Ok(Self::Export {
+            ownership_generation,
             binding,
             deriver_a_input,
             deriver_b_input,
@@ -833,6 +835,7 @@ impl RouterEd25519YaoGatewayExecuteTargetV2 {
                 binding,
                 deriver_a_input,
                 deriver_b_input,
+                ..
             } => RouterEd25519YaoExecuteRequestV1::export(
                 authority,
                 binding,
@@ -842,6 +845,16 @@ impl RouterEd25519YaoGatewayExecuteTargetV2 {
             ),
         }
     }
+}
+
+fn validate_gateway_ownership_generation(generation: u64) -> RouterAbProtocolResult<()> {
+    if generation == 0 || generation > 9_007_199_254_740_991 {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::MalformedWirePayload,
+            "Gateway ownership generation is invalid",
+        ));
+    }
+    Ok(())
 }
 
 fn validate_gateway_inputs(

@@ -309,6 +309,20 @@ function hasRecoveryOwnershipGenerations(input: unknown): boolean {
   return true;
 }
 
+function hasExportOwnershipGenerations(input: unknown): boolean {
+  if (!(input instanceof Map)) return false;
+  for (const state of input.values()) {
+    if (
+      !isPlainObject(state) ||
+      typeof state.ownershipGeneration !== 'number' ||
+      !Number.isSafeInteger(state.ownershipGeneration) ||
+      state.ownershipGeneration < 1
+    )
+      return false;
+  }
+  return true;
+}
+
 function hasProductStateCollections(
   input: unknown,
 ): input is RouterAbEd25519YaoProductRegistrationStateV1 {
@@ -343,6 +357,7 @@ function hasProductStateCollections(
     hasRecoveryOwnershipGenerations(recovery.recoveries) &&
     isStringMap(recovery.recoverySessions) &&
     isStringMapWithStateKinds(exportState.exports, EXPORT_STATE_KINDS) &&
+    hasExportOwnershipGenerations(exportState.exports) &&
     isWalletOwnershipMap(exportState.authorizationNonceOwners) &&
     isWalletOwnershipMap(exportState.authorizationUncertainOwners)
   );

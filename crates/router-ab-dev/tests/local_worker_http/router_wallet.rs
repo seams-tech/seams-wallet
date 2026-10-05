@@ -42,6 +42,12 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
         "{wrong_body}"
     );
     assert!(registration_rows(&stack.router_db, &owner)?.is_empty());
+    let export_generation_status = reject_export_probe(
+        &stack.router_url,
+        &registration,
+        2,
+        "ownership generation does not match",
+    )?;
     let mut rejected_recovery = serde_json::to_value(&registration)?;
     rejected_recovery["target"]["operation"] = json!("recovery");
     rejected_recovery["target"]["ownership_generation"] = json!(2);
@@ -106,6 +112,12 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
         recovery_destination_body.contains("relocation has closed admission"),
         "{recovery_destination_body}"
     );
+    let export_destination_status = reject_export_probe(
+        &destination.router_url,
+        &registration,
+        2,
+        "relocation has closed admission",
+    )?;
     let a_pairs = |db: &Connection| -> rusqlite::Result<i64> {
         db.query_row(
             "SELECT COUNT(*) FROM local_deriver_a_yao_pairs",
@@ -309,6 +321,12 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
     assert_eq!(freeze_wallet(&stack.router_url, &freeze)?, sealed);
     rejected_recovery["target"]["ownership_generation"] = json!(1);
     let pairs_before_rejected_recovery = a_pairs(&stack.a_store)?;
+    let export_frozen_status = reject_export_probe(
+        &stack.router_url,
+        &registration,
+        1,
+        "relocation has closed admission",
+    )?;
     let (recovery_frozen_status, recovery_frozen_body) = post_json_to_path_with_headers(
         &stack.router_url,
         LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
@@ -540,6 +558,9 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
             "retry_while_claimed": [in_progress["code"], retry_after_ms],
             "first_run": "succeeded",
             "wrong_execution_generation_rejected": wrong_status,
+            "export_wrong_generation_rejected": export_generation_status,
+            "export_frozen_source_rejected": export_frozen_status,
+            "export_inactive_destination_rejected": export_destination_status,
             "recovery_wrong_generation_rejected": recovery_generation_status,
             "recovery_frozen_source_rejected": recovery_frozen_status,
             "recovery_inactive_destination_rejected": recovery_destination_status,
@@ -1151,4 +1172,44 @@ fn verify_ecdsa_destination_transport(
     )?;
     assert_ne!(status, 200);
     Ok(())
+}
+
+// Only the outer export envelope is valid. Its ciphertext must never reach a Deriver.
+fn reject_export_probe(
+    router_url: &str,
+    registration: &CloudflareRouterEd25519YaoExecuteRequestV2,
+    generation: u64,
+    expected_error: &str,
+) -> Result<u16, Box<dyn std::error::Error>> {
+    let mut request = serde_json::to_value(registration)?;
+    let mut ceremony = request["target"]["binding"].clone();
+    ceremony["operation"] = json!("export");
+    ceremony["lifecycle"]["work_kind"] = json!("key_export");
+    ceremony["lifecycle"]["primitive_request_kind"] = json!("export");
+    request["target"]["operation"] = json!("export");
+    request["target"]["ownership_generation"] = json!(generation);
+    request["target"]["binding"] = json!({
+        "ceremony": ceremony,
+        "registered_public_key": vec![1u8; 32],
+        "state_epoch": 1,
+        "runtime_policy_binding": vec![2u8; 32],
+        "authorization_digest": vec![3u8; 32],
+    });
+    request["target"]["deriver_a_input"]["kind"] = json!("export");
+    request["target"]["deriver_b_input"]["kind"] = json!("export");
+    request["target"]["deriver_a_input"]["operation"] = json!("export");
+    request["target"]["deriver_b_input"]["operation"] = json!("export");
+    let request: CloudflareRouterEd25519YaoExecuteRequestV2 = serde_json::from_value(request)?;
+    let (status, body) = post_json_to_path_with_headers(
+        router_url,
+        LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
+        &request,
+        &[(
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+            TEST_GATEWAY_TO_ROUTER_AUTH,
+        )],
+    )?;
+    assert_ne!(status, 200, "{body}");
+    assert!(body.contains(expected_error), "{body}");
+    Ok(status)
 }

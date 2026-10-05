@@ -231,12 +231,12 @@ pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
     if let Err(error) = gateway_envelope.validate() {
         return protocol_error_response(error);
     }
-    if let Some(admission) = crate::RouterWalletRequestV1::recovery_admission(&gateway_envelope) {
+    if let Some(admission) = crate::RouterWalletRequestV1::settlement_admission(&gateway_envelope) {
         match crate::durable_object::call_router_wallet_v1(env, &admission).await {
-            Ok(crate::RouterWalletResponseV1::RecoveryAdmitted) => {}
+            Ok(crate::RouterWalletResponseV1::SettlementAdmitted) => {}
             Ok(_) => {
                 return protocol_error_response(invalid_coordinator(
-                    "Router wallet returned an invalid recovery admission",
+                    "Router wallet returned an invalid settlement admission",
                 ))
             }
             Err(error) => return protocol_error_response(error),

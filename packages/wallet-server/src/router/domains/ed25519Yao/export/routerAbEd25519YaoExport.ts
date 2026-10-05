@@ -1,3 +1,4 @@
+import type { WalletRegistrationReservationAuthority } from '../../walletRegistration/walletRegistrationReservation';
 import {
   ROUTER_AB_ED25519_YAO_EXPORT_ADMISSION_PATH_V1,
   ROUTER_AB_ED25519_YAO_EXPORT_EXECUTE_PATH_V1,
@@ -26,6 +27,7 @@ import {
 import {
   parseThresholdEd25519SessionId,
   type ThresholdEd25519SessionId,
+  type WalletId,
 } from '@shared/utils/domainIds';
 import {
   parseAuthFactorId,
@@ -147,7 +149,7 @@ export interface RouterAbEd25519YaoExportBackend {
   ): Promise<RouterAbEd25519YaoExportBackendResult> | RouterAbEd25519YaoExportBackendResult;
   executeExport(
     request: RouterAbEd25519YaoExportExecuteRequestV1,
-    admissionRequest: RouterAbEd25519YaoExportExecuteAdmissionContextV1,
+    claim: RouterAbEd25519YaoExportExecuteClaimV1,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoExportBackendResult> | RouterAbEd25519YaoExportBackendResult;
 }
@@ -156,6 +158,7 @@ export interface RouterAbEd25519YaoExportService {
   admitExport(
     request: RouterAbEd25519YaoExportAdmissionRequestV1,
     authorizationIdentity: RouterAbEd25519YaoExportServerAuthorizationIdentityV1,
+    ownershipGeneration: number,
     admission: RouterAbEd25519YaoExportOperationAdmissionV1,
     factorRelease: RouterAbEd25519YaoExportEmailOtpFactorReleaseV1 | null,
     traceContext?: RouterAbTraceContextV1,
@@ -216,6 +219,7 @@ export type RouterAbEd25519YaoExportExecuteClaimV1 = {
   readonly sessionId: string;
   readonly executeFingerprint: string;
   readonly admissionRequest: RouterAbEd25519YaoExportExecuteAdmissionContextV1;
+  readonly ownershipGeneration: number;
 };
 
 export type RouterAbEd25519YaoExportExecutePreparationV1 =
@@ -300,6 +304,7 @@ export type RouterAbEd25519YaoExportAuthorizationResult =
     }
   | {
       readonly ok: false;
+      readonly ownershipGeneration?: never;
       readonly status: 401 | 403 | 409 | 429 | 503;
       readonly code: string;
       readonly message: string;
@@ -338,6 +343,7 @@ export type RouterAbEd25519YaoExportAdmissionAuthorizationResultV1 =
       readonly ok: true;
       readonly authorizationIdentity: RouterAbEd25519YaoExportServerAuthorizationIdentityV1;
       readonly admission: RouterAbEd25519YaoExportOperationAdmissionV1;
+      readonly ownershipGeneration: number;
       readonly factorRelease?: RouterAbEd25519YaoExportEmailOtpFactorReleaseV1;
     }
   | RouterAbEd25519YaoExportAuthorizationFailure;
@@ -369,6 +375,7 @@ export interface RouterAbEd25519YaoExportAuthorizationAdapter {
 }
 
 type ExportAuthorizationContext = {
+  readonly ownershipGeneration: number;
   readonly request: RouterAbEd25519YaoExportAdmissionRequestV1;
   readonly authorizationFingerprint: string;
   readonly authorizationIdentity: RouterAbEd25519YaoExportServerAuthorizationIdentityV1;
@@ -733,6 +740,7 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
   async admitExport(
     request: RouterAbEd25519YaoExportAdmissionRequestV1,
     authorizationIdentity: RouterAbEd25519YaoExportServerAuthorizationIdentityV1,
+    ownershipGeneration: number,
     admission: RouterAbEd25519YaoExportOperationAdmissionV1,
     factorRelease: RouterAbEd25519YaoExportEmailOtpFactorReleaseV1 | null,
     traceContext?: RouterAbTraceContextV1,
@@ -750,6 +758,7 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
       request,
       exportKey(request),
       authorizationIdentity,
+      ownershipGeneration,
       factorRelease,
     );
     if (authorization.kind === 'completed' && !authorization.value.ok) {
@@ -790,12 +799,14 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
     request: RouterAbEd25519YaoExportAdmissionRequestV1,
     authorizationFingerprint: string,
     authorizationIdentity: RouterAbEd25519YaoExportServerAuthorizationIdentityV1,
+    ownershipGeneration: number,
     factorRelease: RouterAbEd25519YaoExportEmailOtpFactorReleaseV1 | null,
   ): RouterAbEd25519YaoExportAuthorizationDecisionV1 {
     const key = exportKey(request);
     const existing = this.state.exports.get(key);
     if (existing) {
       if (
+        existing.ownershipGeneration !== ownershipGeneration ||
         !sameExportServerAuthorizationIdentityV1(
           existing.authorizationIdentity,
           authorizationIdentity,
@@ -853,16 +864,21 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
       request,
       authorizationFingerprint,
       authorizationIdentity,
+      ownershipGeneration,
       factorRelease,
     });
     return { kind: 'authorized' };
   }
 
-  readAuthorizationIdentity(
+  readAdmissionAuthority(
     request: RouterAbEd25519YaoExportAdmissionRequestV1,
-  ): RouterAbEd25519YaoExportServerAuthorizationIdentityV1 | null {
+  ): Pick<ExportAuthorizationContext, 'authorizationIdentity' | 'ownershipGeneration'> | null {
     const current = this.state.exports.get(exportKey(request));
-    return current?.authorizationIdentity ?? null;
+    if (!current) return null;
+    return {
+      authorizationIdentity: current.authorizationIdentity,
+      ownershipGeneration: current.ownershipGeneration,
+    };
   }
 
   async prepareAdmitExport(
@@ -955,6 +971,7 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
       request: current.request,
       authorizationFingerprint: current.authorizationFingerprint,
       authorizationIdentity: current.authorizationIdentity,
+      ownershipGeneration: current.ownershipGeneration,
       factorRelease: current.factorRelease,
     });
     return {
@@ -1039,6 +1056,7 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
       request: current.request,
       authorizationFingerprint: current.authorizationFingerprint,
       authorizationIdentity: current.authorizationIdentity,
+      ownershipGeneration: current.ownershipGeneration,
       factorRelease: current.factorRelease,
       receipt: parsed.value,
     });
@@ -1063,11 +1081,7 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
     try {
       outcome = {
         kind: 'backend_response',
-        result: await this.backend.executeExport(
-          request,
-          preparation.claim.admissionRequest,
-          traceContext,
-        ),
+        result: await this.backend.executeExport(request, preparation.claim, traceContext),
       };
     } catch (error: unknown) {
       return this.failUncertainExecution(preparation.claim, error);
@@ -1111,6 +1125,7 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
           request: current.request,
           authorizationFingerprint: current.authorizationFingerprint,
           authorizationIdentity: current.authorizationIdentity,
+          ownershipGeneration: current.ownershipGeneration,
           factorRelease: current.factorRelease,
           receipt: current.receipt,
           executeFingerprint: canonicalFingerprint(request),
@@ -1127,6 +1142,7 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
           request: current.request,
           authorizationFingerprint: current.authorizationFingerprint,
           authorizationIdentity: current.authorizationIdentity,
+          ownershipGeneration: current.ownershipGeneration,
           factorRelease: current.factorRelease,
           receipt: current.receipt,
           executeFingerprint,
@@ -1140,6 +1156,7 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
             sessionId: session,
             executeFingerprint,
             admissionRequest: current.request,
+            ownershipGeneration: current.ownershipGeneration,
           },
         };
       case 'executing':
@@ -1218,6 +1235,7 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
       request: current.request,
       authorizationFingerprint: current.authorizationFingerprint,
       authorizationIdentity: current.authorizationIdentity,
+      ownershipGeneration: current.ownershipGeneration,
       factorRelease: current.factorRelease,
       receipt: current.receipt,
       executeFingerprint: current.executeFingerprint,
@@ -1265,6 +1283,7 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
       request: current.request,
       authorizationFingerprint: current.authorizationFingerprint,
       authorizationIdentity: current.authorizationIdentity,
+      ownershipGeneration: current.ownershipGeneration,
       factorRelease: current.factorRelease,
       failure: rejected,
     });
@@ -1280,6 +1299,7 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
       request: current.request,
       authorizationFingerprint: current.authorizationFingerprint,
       authorizationIdentity: current.authorizationIdentity,
+      ownershipGeneration: current.ownershipGeneration,
       factorRelease: current.factorRelease,
       receipt: current.receipt,
       executeFingerprint: current.executeFingerprint,
@@ -1578,6 +1598,7 @@ async function authorizeExportAdmission(args: {
     });
     if (!checked.ok) return checked;
     const recorded = await recordFreshExportProof({
+      walletId: walletId.value,
       input: args.input,
       authority,
       authorizedOperations: args.authorizedOperations,
@@ -1608,6 +1629,7 @@ async function authorizeExportAdmission(args: {
   });
   if (!checked.ok) return checked;
   const recorded = await recordFreshExportProof({
+    walletId: walletId.value,
     input: args.input,
     authority: authority.authority,
     authorizedOperations: args.authorizedOperations,
@@ -1619,11 +1641,13 @@ async function authorizeExportAdmission(args: {
   return {
     ok: true,
     admission: recorded.admission,
+    walletId: recorded.walletId,
     factorRelease: checked.factorRelease,
   };
 }
 
 async function recordFreshExportProof(args: {
+  readonly walletId: WalletId;
   readonly input: ExportAdmissionAuthorizationInput;
   readonly authority: WalletAuthAuthority;
   readonly authorizedOperations: RouterApiAuthorizedOperationService;
@@ -1632,17 +1656,10 @@ async function recordFreshExportProof(args: {
   readonly assertionDigest?: string;
   readonly challengeId?: string;
 }): Promise<VerifiedExportAdmission> {
-  const walletId = parseWalletId(args.input.body.application_binding.wallet_id);
-  if (!walletId.ok)
-    return authorizationFailure({
-      status: 403,
-      code: 'invalid_body',
-      message: walletId.error.message,
-    });
   const authorizationIdentitySuffix = base64UrlEncode(
     Uint8Array.from(args.input.body.authorization.authorization_digest),
   );
-  const principalId = parsePrincipalId(`ed25519-export:${walletId.value}`);
+  const principalId = parsePrincipalId(`ed25519-export:${args.walletId}`);
   const capabilityId = parseCapabilityId(
     String(args.input.body.scope.material_activation.capability),
   );
@@ -1747,7 +1764,7 @@ async function recordFreshExportProof(args: {
       factor = buildVerifiedWalletOperationPasskeyFactorResult({
         tenantId: args.authorizedOperations.tenantId,
         principalId: principalId.value,
-        walletId: walletId.value,
+        walletId: args.walletId,
         requestOrigin,
         audience: requestOrigin,
         factorId: factorId.value,
@@ -1766,7 +1783,7 @@ async function recordFreshExportProof(args: {
       factor = buildVerifiedWalletOperationEmailOtpFactorResult({
         tenantId: args.authorizedOperations.tenantId,
         principalId: principalId.value,
-        walletId: walletId.value,
+        walletId: args.walletId,
         requestOrigin,
         audience: requestOrigin,
         factorId: factorId.value,
@@ -1792,6 +1809,7 @@ async function recordFreshExportProof(args: {
   });
   return {
     ok: true,
+    walletId: args.walletId,
     admission: new ExportOperationAdmission(args.authorizedOperations, {
       tenantId: args.authorizedOperations.tenantId,
       authorizedOperationId: authorizedOperationId.value,
@@ -1807,6 +1825,7 @@ async function recordFreshExportProof(args: {
 type VerifiedExportAdmission =
   | {
       readonly ok: true;
+      readonly walletId: WalletId;
       readonly admission: RouterAbEd25519YaoExportOperationAdmissionV1;
       readonly factorRelease?: RouterAbEd25519YaoExportEmailOtpFactorReleaseV1;
     }
@@ -1883,6 +1902,7 @@ export class RouterAbEd25519YaoExportOwnerProofAuthorizationAdapter implements R
     >,
     private readonly authorizedOperations: RouterApiAuthorizedOperationService,
     private readonly resolveEd25519MaterialActivation: RouterApiWalletRegistrationService['resolveEd25519MaterialActivation'],
+    private readonly admitEstablishedHome: WalletRegistrationReservationAuthority['admitEstablishedHome'],
   ) {}
 
   async authorizeAdmission(
@@ -1900,14 +1920,26 @@ export class RouterAbEd25519YaoExportOwnerProofAuthorizationAdapter implements R
       walletAuthMethods: this.walletAuthMethods,
       authorizedOperations: this.authorizedOperations,
     });
-    return checked.ok
-      ? {
-          ok: true,
-          authorizationIdentity: activeIdentity.authorizationIdentity,
-          admission: checked.admission,
-          ...(checked.factorRelease ? { factorRelease: checked.factorRelease } : {}),
-        }
-      : checked;
+    if (!checked.ok) return checked;
+    let home: Awaited<ReturnType<WalletRegistrationReservationAuthority['admitEstablishedHome']>>;
+    try {
+      home = await this.admitEstablishedHome({ walletId: checked.walletId });
+    } catch {
+      return authorizationFailure({
+        status: 503,
+        code: 'wallet_home_unavailable',
+        message: 'Export wallet home is unavailable',
+      });
+    }
+    if (!home.ok)
+      return authorizationFailure({ status: 409, code: home.code, message: home.message });
+    return {
+      ok: true,
+      authorizationIdentity: activeIdentity.authorizationIdentity,
+      ownershipGeneration: home.ownershipGeneration,
+      admission: checked.admission,
+      ...(checked.factorRelease ? { factorRelease: checked.factorRelease } : {}),
+    };
   }
 
   authorizeExecution(
@@ -2189,6 +2221,7 @@ class RouterAbEd25519YaoExportRouteExtension implements RouterApiRouteExtension 
       const result = await this.service.admitExport(
         parsed.protocol,
         authorized.authorizationIdentity,
+        authorized.ownershipGeneration,
         authorized.admission,
         authorized.factorRelease ?? null,
         traceContext.value,

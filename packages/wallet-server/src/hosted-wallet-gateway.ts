@@ -1268,7 +1268,12 @@ async function handlePartitionedD1Operation(
       return await handleRouterAbEd25519YaoExportRequestScopedCloudflareV1({
         request,
         lifecycleRouting: dependencies.lifecycleRouting,
-        ...createStagingExportRequestScopedDependencies(env, service, tenantRootCustodyLineage),
+        ...createStagingExportRequestScopedDependencies(
+          env,
+          service,
+          tenantRootCustodyLineage,
+          dependencies,
+        ),
       });
     }
   }
@@ -1383,12 +1388,15 @@ export function createStagingExportRequestScopedDependencies(
   env: CloudflareD1GatewayBaseEnv,
   service: ReturnType<typeof createCloudflareD1RouterApiAuthService>,
   tenantRootCustodyLineage: CloudflareD1RouterApiAuthServiceOptions['tenantRootCustodyLineage'],
+  dependencies: HostedWalletGatewayDependenciesV1,
 ): {
   readonly store: ReturnType<typeof createStagingYaoPartitionedStateStore>;
   readonly backend: ReturnType<typeof createStagingEd25519YaoBackend>;
   readonly authorization: RouterAbEd25519YaoExportOwnerProofAuthorizationAdapter;
   readonly capabilities: RouterAbEd25519YaoProductRegistrationRuntimeV1;
 } {
+  const authority = dependencies.registrationAuthority;
+  if (!authority) throw new Error('Export requires wallet home authority');
   const scope = stagingTenantScope(env);
   const registrationTenantRootResolver = createStagingRegistrationTenantRootResolver(
     scope,
@@ -1409,6 +1417,7 @@ export function createStagingExportRequestScopedDependencies(
       service.walletAuthMethods,
       service.authorizedOperations,
       service.walletRegistration.resolveEd25519MaterialActivation.bind(service.walletRegistration),
+      authority.admitEstablishedHome.bind(authority),
     ),
     capabilities: createStagingYaoRequestScopedRuntime(env, registrationTenantRootResolver),
   };

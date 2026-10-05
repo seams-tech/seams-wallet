@@ -182,7 +182,7 @@ class ExportExecutionRequestRun {
   }
 
   async backend(
-    _claim: RouterAbEd25519YaoExportExecuteClaimV1,
+    claim: RouterAbEd25519YaoExportExecuteClaimV1,
   ): Promise<
     RouterAbEd25519YaoRegistrationTwoPhaseBackendResultV1<RouterAbEd25519YaoExportBackendResult>
   > {
@@ -191,7 +191,7 @@ class ExportExecutionRequestRun {
         kind: 'response',
         value: await this.context.input.backend.executeExport(
           this.request,
-          _claim.admissionRequest,
+          claim,
           this.context.trace,
         ),
       };
@@ -344,13 +344,13 @@ async function runAuthorization(
       'Export authorization outcome is uncertain and cannot be retried',
     );
   }
-  const existingIdentity = service.readAuthorizationIdentity(parsed.protocol);
+  const existingAuthority = service.readAdmissionAuthority(parsed.protocol);
   let verified: VerifiedAuthorization;
   // An export already authorized answers from its state: its proof is spent,
   // and an Email OTP one cannot be verified again. Its authorization must
   // still be in its window, and its owner must still hold the active
   // material identity.
-  if (existingIdentity) {
+  if (existingAuthority) {
     if (parsed.protocol.authorization.expires_at_ms <= Date.now()) {
       return authorizationFailure(
         403,
@@ -362,14 +362,23 @@ async function runAuthorization(
       parsed.protocol,
     );
     if (!resolved.ok) return resolved;
-    if (!sameAuthorizationIdentity(resolved.authorizationIdentity, existingIdentity)) {
+    if (
+      !sameAuthorizationIdentity(
+        resolved.authorizationIdentity,
+        existingAuthority.authorizationIdentity,
+      )
+    ) {
       return authorizationFailure(
         409,
         'export_authorization_conflict',
         'Export authorization owner changed for an existing request',
       );
     }
-    verified = { identity: existingIdentity, admission: null };
+    verified = {
+      identity: existingAuthority.authorizationIdentity,
+      ownershipGeneration: existingAuthority.ownershipGeneration,
+      admission: null,
+    };
   } else {
     let authorized: Awaited<
       ReturnType<RouterAbEd25519YaoExportAuthorizationAdapter['authorizeAdmission']>
@@ -390,6 +399,7 @@ async function runAuthorization(
     if (!authorized.ok) return authorized;
     verified = {
       identity: authorized.authorizationIdentity,
+      ownershipGeneration: authorized.ownershipGeneration,
       admission: authorized.admission,
       ...(authorized.factorRelease ? { factorRelease: authorized.factorRelease } : {}),
     };
@@ -403,12 +413,14 @@ async function runAuthorization(
       parsed.protocol,
       authorizationFingerprint,
       verified.identity,
+      verified.ownershipGeneration,
       verified.factorRelease ?? null,
     );
     if (decision.kind === 'completed') {
       return decision.value.ok
         ? authorizedRun({
             identity: verified.identity,
+            ownershipGeneration: verified.ownershipGeneration,
             admission: verified.admission,
             ...(decision.value.factorRelease
               ? { factorRelease: decision.value.factorRelease }
@@ -456,6 +468,7 @@ async function runAuthorization(
 const EXPORT_AUTHORIZATION_COMMIT_ATTEMPTS = 2;
 
 type VerifiedAuthorization = {
+  readonly ownershipGeneration: number;
   readonly identity: RouterAbEd25519YaoExportServerAuthorizationIdentityV1;
   /** Null when the export was already authorized and only its identity was checked. */
   readonly admission: RouterAbEd25519YaoExportOperationAdmissionV1 | null;

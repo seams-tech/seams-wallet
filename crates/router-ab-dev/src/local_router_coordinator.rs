@@ -89,16 +89,16 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
             )
         })?;
         if let Some(admission) =
-            router_ab_cloudflare::RouterWalletRequestV1::recovery_admission(&envelope)
+            router_ab_cloudflare::RouterWalletRequestV1::settlement_admission(&envelope)
         {
             let admitted = crate::local_router_wallet::serve_local_router_wallet_v1(
                 &config.tenant_root.creation_storage_path,
                 admission,
             )?;
-            if !matches!(admitted, RouterWalletResponseV1::RecoveryAdmitted) {
+            if !matches!(admitted, RouterWalletResponseV1::SettlementAdmitted) {
                 return Err(RouterAbProtocolError::new(
                     RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                    "Router wallet returned an invalid recovery admission",
+                    "Router wallet returned an invalid settlement admission",
                 ));
             }
         }

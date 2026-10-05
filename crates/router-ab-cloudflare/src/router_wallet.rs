@@ -274,17 +274,22 @@ pub struct RouterWalletRequestV1 {
 }
 
 impl RouterWalletRequestV1 {
-    /// Checks an admitted recovery against this wallet's local generation and fence.
-    pub fn recovery_admission(
+    /// Checks admitted recovery or export against this wallet's local generation and fence.
+    pub fn settlement_admission(
         request: &CloudflareRouterEd25519YaoExecuteRequestV2,
     ) -> Option<Self> {
-        let RouterEd25519YaoGatewayExecuteTargetV2::Recovery {
-            ownership_generation,
-            binding,
-            ..
-        } = &request.target
-        else {
-            return None;
+        let (ownership_generation, binding) = match &request.target {
+            RouterEd25519YaoGatewayExecuteTargetV2::Registration { .. } => return None,
+            RouterEd25519YaoGatewayExecuteTargetV2::Recovery {
+                ownership_generation,
+                binding,
+                ..
+            } => (ownership_generation, binding),
+            RouterEd25519YaoGatewayExecuteTargetV2::Export {
+                ownership_generation,
+                binding,
+                ..
+            } => (ownership_generation, binding.ceremony()),
         };
         Some(Self {
             owner: RouterWalletOwnerV1 {
@@ -294,7 +299,7 @@ impl RouterWalletRequestV1 {
                 wallet_id: binding.lifecycle.account_id.clone(),
             },
             ownership_generation: *ownership_generation,
-            command: RouterWalletCommandV1::AdmitRecovery,
+            command: RouterWalletCommandV1::AdmitSettlement,
         })
     }
 }
@@ -302,8 +307,8 @@ impl RouterWalletRequestV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum RouterWalletCommandV1 {
-    /// Allows admitted recovery work to settle until the source snapshot is sealed.
-    AdmitRecovery,
+    /// Allows admitted recovery and export work to settle until the source snapshot is sealed.
+    AdmitSettlement,
     /// Claims a registration's execution before the Router runs it.
     ClaimRegistration {
         lifecycle_id: String,
@@ -333,8 +338,8 @@ pub enum RouterWalletCommandV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum RouterWalletResponseV1 {
-    /// Recovery execution passed the local ownership and source-fence checks.
-    RecoveryAdmitted,
+    /// Settlement execution passed the local ownership and source-fence checks.
+    SettlementAdmitted,
     /// Claim `generation` is this run's: run the request, replaying when
     /// the run takes over a lapsed claim.
     Run {
@@ -404,9 +409,9 @@ pub async fn router_wallet_serve_v1<Store: RouterWalletStoreV1>(
         None => store.put_json(OWNER_KEY, &request.owner).await?,
     }
     match request.command {
-        RouterWalletCommandV1::AdmitRecovery => {
+        RouterWalletCommandV1::AdmitSettlement => {
             crate::router_wallet_relocation::admit_settlement(store).await?;
-            Ok(RouterWalletResponseV1::RecoveryAdmitted)
+            Ok(RouterWalletResponseV1::SettlementAdmitted)
         }
         RouterWalletCommandV1::ClaimRegistration {
             lifecycle_id,

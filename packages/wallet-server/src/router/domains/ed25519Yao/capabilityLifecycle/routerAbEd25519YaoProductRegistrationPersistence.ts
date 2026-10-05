@@ -69,7 +69,8 @@ export function createRouterAbEd25519YaoCeremonyStateStoreV1(
 
 type EncodedStateValue = VersionedJsonValue;
 
-const CODEC_KIND = 'router_ab_ed25519_yao_product_registration_state_json_v3';
+const CODEC_KIND = 'router_ab_ed25519_yao_product_registration_state_json_v4';
+const RECOVERY_GENERATION_CODEC_KIND = 'router_ab_ed25519_yao_product_registration_state_json_v3';
 const REGISTRATION_GENERATION_CODEC_KIND =
   'router_ab_ed25519_yao_product_registration_state_json_v2';
 const FIXED_HOME_CODEC_KIND = 'router_ab_ed25519_yao_product_registration_state_json_v1';
@@ -122,7 +123,8 @@ export function parseRouterAbEd25519YaoProductRegistrationStateJsonV1(
     record === null ||
     (record.kind !== CODEC_KIND &&
       record.kind !== FIXED_HOME_CODEC_KIND &&
-      record.kind !== REGISTRATION_GENERATION_CODEC_KIND)
+      record.kind !== REGISTRATION_GENERATION_CODEC_KIND &&
+      record.kind !== RECOVERY_GENERATION_CODEC_KIND)
   ) {
     return null;
   }
@@ -134,7 +136,12 @@ export function parseRouterAbEd25519YaoProductRegistrationStateJsonV1(
     record.kind === FIXED_HOME_CODEC_KIND
       ? normalizeFixedHomeAuthorities(decoded.value)
       : decoded.value;
-  const normalized = record.kind === CODEC_KIND ? state : normalizeFixedHomeRecoveries(state);
+  const recoveryNormalized =
+    record.kind === CODEC_KIND || record.kind === RECOVERY_GENERATION_CODEC_KIND
+      ? state
+      : normalizeFixedHomeRecoveries(state);
+  const normalized =
+    record.kind === CODEC_KIND ? recoveryNormalized : normalizeFixedHomeExports(recoveryNormalized);
   const parsed = parseRouterAbEd25519YaoProductRegistrationStateV1(normalized);
   return parsed.ok ? parsed.value : null;
 }
@@ -180,6 +187,18 @@ function normalizeFixedHomeRecoveries(input: unknown): unknown {
     recoveries.set(key, normalizeFixedHomeRecovery(value));
   }
   return { ...input, recovery: { ...recovery, recoveries } };
+}
+
+function normalizeFixedHomeExports(input: unknown): unknown {
+  if (!isRouterAbEd25519YaoProductRegistrationJsonObjectV1(input)) return input;
+  const exportState = input.export;
+  if (!isRouterAbEd25519YaoProductRegistrationJsonObjectV1(exportState)) return input;
+  if (!(exportState.exports instanceof Map)) return input;
+  const exports = new Map<unknown, unknown>();
+  for (const [key, value] of exportState.exports) {
+    exports.set(key, normalizeFixedHomeAuthority(value));
+  }
+  return { ...input, export: { ...exportState, exports } };
 }
 
 export function parseRouterAbEd25519YaoCeremonyKeyV1(

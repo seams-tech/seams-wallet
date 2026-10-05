@@ -142,3 +142,34 @@ declare const recoveryExecutionWithoutGeneration: Omit<
 const unpinnedRecoveryExecution: RecoveryExecutionAuthorization =
   recoveryExecutionWithoutGeneration;
 void unpinnedRecoveryExecution;
+
+import type {
+  RouterAbEd25519YaoExportAdmissionAuthorizationResultV1,
+  RouterAbEd25519YaoExportExecuteClaimV1,
+} from '../../packages/wallet-server/src/router/domains/ed25519Yao/export/routerAbEd25519YaoExport';
+declare const authorizedExport: Extract<
+  RouterAbEd25519YaoExportAdmissionAuthorizationResultV1,
+  { ok: true }
+>;
+// @ts-expect-error An export owner proof also requires admission at its wallet home.
+const exportWithoutHome: RouterAbEd25519YaoExportAdmissionAuthorizationResultV1 = {
+  ok: true,
+  authorizationIdentity: authorizedExport.authorizationIdentity,
+  admission: authorizedExport.admission,
+};
+// @ts-expect-error A rejected export cannot retain ownership authority through a spread.
+const rejectedExportWithHome: RouterAbEd25519YaoExportAdmissionAuthorizationResultV1 = {
+  ...authorizedExport,
+  ok: false,
+  status: 409,
+  code: 'wallet_paused',
+  message: 'Paused',
+};
+declare const exportClaimWithoutGeneration: Omit<
+  RouterAbEd25519YaoExportExecuteClaimV1,
+  'ownershipGeneration'
+>;
+// @ts-expect-error Export execution must carry its stored admission generation.
+const unpinnedExportExecution: RouterAbEd25519YaoExportExecuteClaimV1 =
+  exportClaimWithoutGeneration;
+void [exportWithoutHome, rejectedExportWithHome, unpinnedExportExecution];

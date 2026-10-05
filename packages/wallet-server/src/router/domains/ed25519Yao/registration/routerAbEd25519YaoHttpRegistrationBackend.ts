@@ -17,7 +17,10 @@ import type {
   RouterAbEd25519YaoRegistrationBackendFailure,
   RouterAbEd25519YaoRegistrationBackendResult,
 } from './routerAbEd25519YaoRegistration';
-import type { RouterAbEd25519YaoExportBackend } from '../export/routerAbEd25519YaoExport';
+import type {
+  RouterAbEd25519YaoExportBackend,
+  RouterAbEd25519YaoExportExecuteClaimV1,
+} from '../export/routerAbEd25519YaoExport';
 import type {
   RouterAbEd25519YaoRecoveryBackend,
   RouterAbEd25519YaoRecoveryExecuteClaimV1,
@@ -442,6 +445,7 @@ type RouterExecuteTargetBoundary =
     }
   | {
       operation: 'export';
+      ownership_generation: number;
       binding: RouterAbEd25519YaoExportExecuteRequestV1['binding'];
       deriver_a_input: RouterAbEd25519YaoExportExecuteRequestV1['deriver_a_input'];
       deriver_b_input: RouterAbEd25519YaoExportExecuteRequestV1['deriver_b_input'];
@@ -469,6 +473,7 @@ type RouterExecuteInput =
     }
   | {
       readonly operation: 'export';
+      readonly ownershipGeneration: number;
       readonly request: RouterAbEd25519YaoExportExecuteRequestV1;
       readonly admissionRequest: RouterAbEd25519YaoExportAdmissionRequestV1;
     };
@@ -576,6 +581,7 @@ async function routerExecuteRequest(
         participant_ids: input.admissionRequest.participant_ids,
         target: {
           operation: 'export',
+          ownership_generation: input.ownershipGeneration,
           binding: input.request.binding,
           deriver_a_input: input.request.deriver_a_input,
           deriver_b_input: input.request.deriver_b_input,
@@ -845,11 +851,16 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
 
   async executeExport(
     request: RouterAbEd25519YaoExportExecuteRequestV1,
-    admissionRequest: RouterAbEd25519YaoExportAdmissionRequestV1,
+    claim: RouterAbEd25519YaoExportExecuteClaimV1,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRegistrationBackendResult> {
     return await this.executeRouterRequest(
-      { operation: 'export', request, admissionRequest },
+      {
+        operation: 'export',
+        request,
+        admissionRequest: claim.admissionRequest,
+        ownershipGeneration: claim.ownershipGeneration,
+      },
       false,
       traceContext,
     );
