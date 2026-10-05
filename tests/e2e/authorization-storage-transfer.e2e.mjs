@@ -72,6 +72,7 @@ const bundle = await build({
     resolveDir: process.cwd(),
     loader: 'ts',
     contents: `
+      export { buildNearRecoveryCacheFixture } from './tests/unit/helpers/nearRecovery.fixtures';
       export { D1WalletAuthorizationSnapshot } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationSnapshot';
       export { D1WalletAuthorizationFreeze } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationFreeze';
       export { D1WalletAuthorizationIntake } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationIntake';

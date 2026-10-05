@@ -752,6 +752,12 @@ readiness from completion of all move stages.
 - Invalidate every usable presignature before the snapshot. Preserve durable
   signing material and identities, consumed-material history, and operation
   results. Start the destination with no usable sessions or presignatures.
+- The Gateway recovery capability cache derives from canonical signer records.
+  Exclude this cache from the immutable snapshot. Transfer the canonical signer
+  records and admitted recovery history. A frozen source rejects cache installation,
+  capability changes, and identity-index changes. It may evict settled cache entries
+  so unrelated wallets can continue. It must retain suspended entries until admitted
+  recovery work settles.
 - Shared tenant policy, identity uniqueness, and shared custody authorities retain
   their ownership boundaries. Determine which wallet-owned resources move.
 - Region-change detection and notifications belong to R154. Owners choose each move.

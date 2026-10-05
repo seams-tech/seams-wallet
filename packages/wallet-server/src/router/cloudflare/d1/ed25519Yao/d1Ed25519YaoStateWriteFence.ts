@@ -1,3 +1,4 @@
+import type { RouterAbEd25519YaoProductRegistrationSharedStateV1 } from '../../../domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistrationPartitioning';
 import { parseRouterAbEd25519YaoRecoveryAdmissionRequestV1 } from '@shared/utils/routerAbEd25519Yao';
 import { parseWalletId, type WalletId } from '@shared/utils/domainIds';
 import type { D1PreparedStatementLike } from '../../../../storage/tenantRoute';
@@ -25,6 +26,7 @@ export function collectChangedStateWallets(
   if (before?.kind === 'router_ab_ed25519_yao_product_registration_ceremony_record_v1') {
     throw new Error('Lifecycle partition kind changed');
   }
+  collectChangedRecoveryCapabilities(before?.value ?? null, after.value, wallets);
   const empty = new Map<string, string>();
   collectChangedOwners(
     before?.value.exportAuthorizationNonceOwners ?? empty,
@@ -44,6 +46,52 @@ export function collectChangedStateWallets(
     recoverySessionOwner,
     wallets,
   );
+}
+
+function collectChangedRecoveryCapabilities(
+  before: RouterAbEd25519YaoProductRegistrationSharedStateV1 | null,
+  after: RouterAbEd25519YaoProductRegistrationSharedStateV1,
+  wallets: Set<WalletId>,
+): void {
+  // Cache eviction does not change the canonical signer record. Installing or
+  // changing a cached capability must still obey that wallet's source fence.
+  for (const [key, capability] of after.recoveryCapabilities) {
+    const previous = before?.recoveryCapabilities.get(key);
+    if (JSON.stringify(previous) === JSON.stringify(capability)) continue;
+    if (previous) wallets.add(walletOwner(previous.identity.applicationBinding.wallet_id));
+    wallets.add(walletOwner(capability.identity.applicationBinding.wallet_id));
+  }
+  for (const [key, capability] of before?.recoveryCapabilities ?? []) {
+    if (capability.kind === 'suspended' && !after.recoveryCapabilities.has(key)) {
+      wallets.add(walletOwner(capability.identity.applicationBinding.wallet_id));
+    }
+  }
+  const identities = new Set([
+    ...(before?.recoveryIdentityCapabilities.keys() ?? []),
+    ...after.recoveryIdentityCapabilities.keys(),
+  ]);
+  for (const identity of identities) {
+    const previousKey = before?.recoveryIdentityCapabilities.get(identity);
+    const nextKey = after.recoveryIdentityCapabilities.get(identity);
+    if (previousKey === nextKey) continue;
+    // The bounded cache removes an index together with its evicted capability.
+    if (
+      nextKey === undefined &&
+      previousKey !== undefined &&
+      !after.recoveryCapabilities.has(previousKey)
+    )
+      continue;
+    if (previousKey !== undefined) {
+      const previous = before?.recoveryCapabilities.get(previousKey);
+      if (!previous) throw new Error('Recovery identity index has no capability owner');
+      wallets.add(walletOwner(previous.identity.applicationBinding.wallet_id));
+    }
+    if (nextKey !== undefined) {
+      const next = after.recoveryCapabilities.get(nextKey);
+      if (!next) throw new Error('Recovery identity index has no capability owner');
+      wallets.add(walletOwner(next.identity.applicationBinding.wallet_id));
+    }
+  }
 }
 
 function readPartition(

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import {
   parseWalletAuthMethodId,
   parseWalletId,
@@ -65,7 +66,12 @@ export async function buildNearRegistrationAuthorityFixture(label: string) {
       ],
     },
     foundingWalletAuthMethodId: required(parseWalletAuthMethodId(`method-${label}`)),
-    runtimePolicyScope: { projectId: 'project', envId: 'dev', signingRootVersion: 'v1' },
+    runtimePolicyScope: {
+      orgId: 'organization',
+      projectId: 'project',
+      envId: 'dev',
+      signingRootVersion: 'v1',
+    },
     nonceB64u: 'AQ',
   };
   const state = new InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationStateV1();
@@ -110,7 +116,9 @@ export function buildNearRecoveryAdmissionFixture(
     application_binding: registration.application_binding,
     participant_ids: registration.participant_ids,
     active_capability_binding: new Array(32).fill(1),
-    replacement_capability_binding: new Array(32).fill(2),
+    replacement_capability_binding: Array.from(
+      createHash('sha256').update(registration.application_binding.wallet_id).digest(),
+    ),
     registered_public_key: new Array(32).fill(3),
   });
   if (!parsed.ok) throw new Error(parsed.message);

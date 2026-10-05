@@ -26,7 +26,7 @@ async function installAuthority(store, fixture) {
   assert.equal(stored.kind, 'stored');
 }
 
-async function seedReplayRecords(store, fixture, recovery) {
+async function seedReplayRecords(store, fixture, recovery, cache) {
   const lifecycleId = fixture.admission.scope.lifecycle_id;
   const loaded = await store.load(lifecycleId);
   loaded.state.export.authorizationNonceOwners.set(
@@ -38,6 +38,7 @@ async function seedReplayRecords(store, fixture, recovery) {
     fixture.intent.walletId,
   );
   loaded.state.recovery.recoverySessions.set('01'.repeat(32), JSON.stringify(recovery));
+  copyCapabilityCache(loaded.state.recovery, cache);
   assert.equal(
     (
       await store.commit({
@@ -132,7 +133,12 @@ export async function verifyCeremonyWriteFence({ api, source, scope, nowMs }) {
     scope,
   });
   await installAuthority(store, fixture);
-  await seedReplayRecords(store, fixture, api.buildNearRecoveryAdmissionFixture(fixture.admission));
+  await seedReplayRecords(
+    store,
+    fixture,
+    api.buildNearRecoveryAdmissionFixture(fixture.admission),
+    api.buildNearRecoveryCacheFixture(fixture.admission, 'active'),
+  );
   const lifecycleId = fixture.admission.scope.lifecycle_id;
   const delayed = await store.load(lifecycleId);
   delayed.state.authorization.authorities.splice(0);
@@ -176,6 +182,7 @@ export async function verifyCeremonyWriteFence({ api, source, scope, nowMs }) {
   assert.deepEqual(await readRecords(source, scope), before);
   await installAuthority(reopened, other);
   await verifyFrozenReplayEntries(reopened, source, scope, fixture, other);
+  await verifyFrozenCapabilityCache(api, reopened, source, scope, fixture, other);
   assert.equal((await reopened.load(lifecycleId)).state.authorization.authorities.length, 1);
   assert.equal(
     (await reopened.load(other.admission.scope.lifecycle_id)).state.authorization.authorities
@@ -192,5 +199,67 @@ export async function verifyCeremonyWriteFence({ api, source, scope, nowMs }) {
     frozenReplayReassignmentRejected: true,
     frozenReplayInsertionRejected: true,
     unrelatedSharedReplayUpdateAllowed: true,
+    frozenCapabilityChangeRejected: true,
+    frozenCapabilityRehydrationRejected: true,
+    frozenIdentityIndexDeletionRejected: true,
+    unrelatedCacheEvictionAllowed: true,
   };
+}
+
+function copyCapabilityCache(target, source) {
+  for (const [key, capability] of source.capabilities) target.capabilities.set(key, capability);
+  for (const [key, capability] of source.identityCapabilities)
+    target.identityCapabilities.set(key, capability);
+}
+
+async function commitCache(store, lifecycleId, loaded) {
+  return store.commit({
+    lifecycleId,
+    state: loaded.state,
+    baseline: loaded.baseline,
+    companionWrite: null,
+  });
+}
+
+async function verifyFrozenCapabilityCache(api, store, database, scope, frozen, other) {
+  const lifecycleId = other.admission.scope.lifecycle_id;
+  const active = api.buildNearRecoveryCacheFixture(frozen.admission, 'active');
+  const suspended = api.buildNearRecoveryCacheFixture(frozen.admission, 'suspended');
+  const before = await readRecords(database, scope);
+  const changed = await store.load(lifecycleId);
+  copyCapabilityCache(changed.state.recovery, suspended);
+  await assert.rejects(
+    commitCache(store, lifecycleId, changed),
+    /router_ab_yao_versioned_json_cas_guard/u,
+  );
+  assert.deepEqual(await readRecords(database, scope), before);
+  const removedIndex = await store.load(lifecycleId);
+  for (const key of active.identityCapabilities.keys())
+    removedIndex.state.recovery.identityCapabilities.delete(key);
+  await assert.rejects(
+    commitCache(store, lifecycleId, removedIndex),
+    /router_ab_yao_versioned_json_cas_guard/u,
+  );
+  assert.deepEqual(await readRecords(database, scope), before);
+
+  const eviction = await store.load(lifecycleId);
+  for (let index = 0; index < 33; index += 1) {
+    const fixture = await api.buildNearRegistrationAuthorityFixture(`cache-eviction-${index}`);
+    copyCapabilityCache(
+      eviction.state.recovery,
+      api.buildNearRecoveryCacheFixture(fixture.admission, 'active'),
+    );
+  }
+  assert.equal((await commitCache(store, lifecycleId, eviction)).kind, 'stored');
+  const evicted = await store.load(lifecycleId);
+  assert.equal(evicted.state.recovery.capabilities.size, 32);
+  for (const key of active.capabilities.keys())
+    assert.equal(evicted.state.recovery.capabilities.has(key), false);
+  const afterEviction = await readRecords(database, scope);
+  copyCapabilityCache(evicted.state.recovery, active);
+  await assert.rejects(
+    commitCache(store, lifecycleId, evicted),
+    /router_ab_yao_versioned_json_cas_guard/u,
+  );
+  assert.deepEqual(await readRecords(database, scope), afterEviction);
 }
