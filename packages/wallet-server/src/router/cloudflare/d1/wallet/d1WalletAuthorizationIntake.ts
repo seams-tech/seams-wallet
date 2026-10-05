@@ -153,8 +153,8 @@ export class D1WalletAuthorizationIntake {
         this.database,
         this.scope,
         `
-        SELECT CAST(unhex(group_concat(payload, '')) AS TEXT) AS record_json FROM (
-          SELECT json_extract(chunk_json, '$.bytesHex') AS payload
+        SELECT group_concat(payload, '') AS record_json FROM (
+          SELECT CAST(unhex(json_extract(chunk_json, '$.bytesHex')) AS TEXT) AS payload
           FROM wallet_relocation_authorization_intake_chunks WHERE ${SCOPE}
             AND chunk_index BETWEEN ?6 AND ?7 ORDER BY chunk_index)`,
         [source.walletId, chunk.index - chunk.segmentIndex, chunk.index],

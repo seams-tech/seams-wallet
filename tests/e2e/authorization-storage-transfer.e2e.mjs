@@ -243,7 +243,7 @@ try {
   });
   await source
     .prepare('UPDATE wallet_authorities SET record_json = record_json || ? WHERE wallet_id = ?')
-    .bind(' '.repeat(80_000), sessionSource.walletId)
+    .bind(' '.repeat(1_200_000), sessionSource.walletId)
     .run();
   const authorizationFreeze = await verifyAuthorizationFreeze({
     api,

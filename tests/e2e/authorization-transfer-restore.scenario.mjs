@@ -44,8 +44,10 @@ export async function verifyAuthorizationHistoryCopy({
   const neighbor = await issueDeviceSession(destination, neighborService, neighborFixture, nowMs);
   const copied = [];
   let firstImported = null;
+  let largestRecordBytes = 0;
   for (const [table, records] of snapshot.recordsByTable) {
     for (const record of records) {
+      largestRecordBytes = Math.max(largestRecordBytes, Buffer.byteLength(record.json));
       if (!firstImported) {
         await destination
           .prepare(
@@ -177,6 +179,7 @@ export async function verifyAuthorizationHistoryCopy({
     assert.deepEqual(restored.results, rows);
   }
   assert.ok(firstImported);
+  assert.ok(largestRecordBytes > 1_048_576);
   assert.equal(chunkIndex, manifest.chunkCount);
   assert.equal(await intake.verify(identity), manifest.digestHex);
   assert.equal(
@@ -213,6 +216,7 @@ export async function verifyAuthorizationHistoryCopy({
   );
   return {
     tables: copied,
+    largestRecordBytes,
     allSixFamiliesUseProductionRestore: true,
     exactRowsAndQuotasPreserved: true,
     restartedChunkReplayExact: true,

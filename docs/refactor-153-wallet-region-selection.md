@@ -112,9 +112,13 @@ It checks acknowledgement rollback, concurrent and restarted retries, conflicts,
 quota protection, inactive admission, and an unaffected neighboring wallet.
 The old standalone hosted-history runtime path is removed. Its replacement
 migration refuses to discard existing standalone import metadata. Assembled
-record intake is currently bounded at 2 MiB. Larger-record assembly, authenticated
-transport, common wallet manifest verification, other wallet record families, and
-coordinator activation remain unfinished. The stream E2E also interrupts progress
+record intake is currently bounded at 2 MiB. Assembly decodes each chunk before
+concatenation, so hexadecimal encoding does not halve the usable record limit.
+The E2E transfers an authorization record larger than 1 MiB. D1 still rejects
+source rows whose complete JSON encoding exceeds SQLite's value limit. Supporting
+those rows requires a different snapshot encoding. Authenticated transport, common
+wallet manifest verification, other wallet record families, and coordinator
+activation remain unfinished. The stream E2E also interrupts progress
 acknowledgement after successful record restore, then resumes with concurrent and
 recreated receivers. Missing chunks and conflicting replays cannot verify.
 
