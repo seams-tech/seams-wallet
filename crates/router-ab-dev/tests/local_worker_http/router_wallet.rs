@@ -42,6 +42,37 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
         "{wrong_body}"
     );
     assert!(registration_rows(&stack.router_db, &owner)?.is_empty());
+    let mut rejected_recovery = serde_json::to_value(&registration)?;
+    rejected_recovery["target"]["operation"] = json!("recovery");
+    rejected_recovery["target"]["ownership_generation"] = json!(2);
+    rejected_recovery["target"]["attempt"] = json!(1);
+    rejected_recovery["target"]["binding"]["operation"] = json!("recovery");
+    rejected_recovery["target"]["binding"]["lifecycle"]["work_kind"] = json!("recovery");
+    rejected_recovery["target"]["binding"]["lifecycle"]["primitive_request_kind"] =
+        json!("recovery");
+    rejected_recovery["target"]["deriver_a_input"]["operation"] = json!("recovery");
+    rejected_recovery["target"]["deriver_b_input"]["operation"] = json!("recovery");
+    // Validate the outer request. Its ciphertext must never reach a Deriver.
+    let _: CloudflareRouterEd25519YaoExecuteRequestV2 =
+        serde_json::from_value(rejected_recovery.clone())?;
+    let (recovery_generation_status, recovery_generation_body) = post_json_to_path_with_headers(
+        &stack.router_url,
+        LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
+        &rejected_recovery,
+        &[(
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+            TEST_GATEWAY_TO_ROUTER_AUTH,
+        )],
+    )?;
+    assert_ne!(
+        recovery_generation_status, 200,
+        "{recovery_generation_body}"
+    );
+    assert!(
+        recovery_generation_body.contains("ownership generation does not match"),
+        "{recovery_generation_body}"
+    );
+    assert!(registration_rows(&stack.router_db, &owner)?.is_empty());
     let freeze = router_ab_cloudflare::RouterWalletFreezeRequestV1 {
         owner,
         move_id: format!("wmove_{}", "a".repeat(43)),
@@ -61,6 +92,20 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
         prepared,
         router_ab_cloudflare::RouterWalletTransferResponseV1::Prepared { .. }
     ));
+    let (recovery_destination_status, recovery_destination_body) = post_json_to_path_with_headers(
+        &destination.router_url,
+        LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
+        &rejected_recovery,
+        &[(
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+            TEST_GATEWAY_TO_ROUTER_AUTH,
+        )],
+    )?;
+    assert_ne!(recovery_destination_status, 200, "{recovery_destination_body}");
+    assert!(
+        recovery_destination_body.contains("relocation has closed admission"),
+        "{recovery_destination_body}"
+    );
     let a_pairs = |db: &Connection| -> rusqlite::Result<i64> {
         db.query_row(
             "SELECT COUNT(*) FROM local_deriver_a_yao_pairs",
@@ -261,6 +306,24 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
     let sealed = freeze_wallet(&stack.router_url, &freeze)?;
     assert_eq!(sealed["state"], "frozen", "{sealed}");
     assert_eq!(sealed["receipt"]["record_count"], 1);
+    assert_eq!(freeze_wallet(&stack.router_url, &freeze)?, sealed);
+    rejected_recovery["target"]["ownership_generation"] = json!(1);
+    let pairs_before_rejected_recovery = a_pairs(&stack.a_store)?;
+    let (recovery_frozen_status, recovery_frozen_body) = post_json_to_path_with_headers(
+        &stack.router_url,
+        LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
+        &rejected_recovery,
+        &[(
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+            TEST_GATEWAY_TO_ROUTER_AUTH,
+        )],
+    )?;
+    assert_ne!(recovery_frozen_status, 200, "{recovery_frozen_body}");
+    assert!(
+        recovery_frozen_body.contains("relocation has closed admission"),
+        "{recovery_frozen_body}"
+    );
+    assert_eq!(a_pairs(&stack.a_store)?, pairs_before_rejected_recovery);
     assert_eq!(freeze_wallet(&stack.router_url, &freeze)?, sealed);
     let router_ab_cloudflare::RouterWalletFreezeResponseV1::Frozen { receipt } =
         serde_json::from_value(sealed.clone())?
@@ -477,6 +540,9 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
             "retry_while_claimed": [in_progress["code"], retry_after_ms],
             "first_run": "succeeded",
             "wrong_execution_generation_rejected": wrong_status,
+            "recovery_wrong_generation_rejected": recovery_generation_status,
+            "recovery_frozen_source_rejected": recovery_frozen_status,
+            "recovery_inactive_destination_rejected": recovery_destination_status,
             "exact_retry": "recorded answer, byte for byte, no new pair",
             "same_lifecycle_other_lineage": "execution_mismatch",
             "consume": {

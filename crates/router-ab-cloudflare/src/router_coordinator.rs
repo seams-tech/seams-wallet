@@ -231,6 +231,17 @@ pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
     if let Err(error) = gateway_envelope.validate() {
         return protocol_error_response(error);
     }
+    if let Some(admission) = crate::RouterWalletRequestV1::recovery_admission(&gateway_envelope) {
+        match crate::durable_object::call_router_wallet_v1(env, &admission).await {
+            Ok(crate::RouterWalletResponseV1::RecoveryAdmitted) => {}
+            Ok(_) => {
+                return protocol_error_response(invalid_coordinator(
+                    "Router wallet returned an invalid recovery admission",
+                ))
+            }
+            Err(error) => return protocol_error_response(error),
+        }
+    }
     // A registration is claimed in the Router's wallet object before it runs.
     // The claim decides whether this run replays, and an exact retry of a
     // finished run gets the recorded answer. The run records its answer under

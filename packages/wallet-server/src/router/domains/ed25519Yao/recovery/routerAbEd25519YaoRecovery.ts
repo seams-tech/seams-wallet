@@ -190,10 +190,7 @@ export interface RouterAbEd25519YaoRecoveryBackend {
    */
   executeRecovery(
     request: RecoveryExecuteRequest,
-    admissionRequest: RouterAbEd25519YaoRecoveryExecuteAdmissionContextV1,
-    dispatchRoot: RouterAbEd25519YaoTenantRootWireV1,
-    attempt: number,
-    replay: boolean,
+    claim: RouterAbEd25519YaoRecoveryExecuteClaimV1,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRecoveryBackendResult> | RouterAbEd25519YaoRecoveryBackendResult;
   /** Promotes the recovery at the SigningWorker of the attempt's tenant root. */
@@ -2349,14 +2346,7 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
         try {
           outcome = {
             kind: 'backend_response',
-            result: await this.backend.executeRecovery(
-              request,
-              preparation.claim.admissionRequest,
-              preparation.claim.dispatchRoot,
-              preparation.claim.attempt,
-              preparation.claim.replay,
-              traceContext,
-            ),
+            result: await this.backend.executeRecovery(request, preparation.claim, traceContext),
           };
         } catch (error: unknown) {
           return this.failUncertainExecution(preparation.claim, error);

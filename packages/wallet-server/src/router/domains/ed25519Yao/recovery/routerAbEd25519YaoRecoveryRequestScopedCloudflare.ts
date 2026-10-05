@@ -261,10 +261,7 @@ class RecoveryExecutionRequestRun {
         kind: 'response',
         value: await this.context.input.backend.executeRecovery(
           this.request,
-          claim.admissionRequest,
-          claim.dispatchRoot,
-          claim.attempt,
-          claim.replay,
+          claim,
           this.context.trace,
         ),
       };

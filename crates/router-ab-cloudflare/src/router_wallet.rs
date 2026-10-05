@@ -273,9 +273,37 @@ pub struct RouterWalletRequestV1 {
     pub command: RouterWalletCommandV1,
 }
 
+impl RouterWalletRequestV1 {
+    /// Checks an admitted recovery against this wallet's local generation and fence.
+    pub fn recovery_admission(
+        request: &CloudflareRouterEd25519YaoExecuteRequestV2,
+    ) -> Option<Self> {
+        let RouterEd25519YaoGatewayExecuteTargetV2::Recovery {
+            ownership_generation,
+            binding,
+            ..
+        } = &request.target
+        else {
+            return None;
+        };
+        Some(Self {
+            owner: RouterWalletOwnerV1 {
+                org_id: request.tenant_root.identity.org_id().to_owned(),
+                project_id: request.tenant_root.identity.project_id().to_owned(),
+                env_id: request.tenant_root.identity.env_id().to_owned(),
+                wallet_id: binding.lifecycle.account_id.clone(),
+            },
+            ownership_generation: *ownership_generation,
+            command: RouterWalletCommandV1::AdmitRecovery,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum RouterWalletCommandV1 {
+    /// Allows admitted recovery work to settle until the source snapshot is sealed.
+    AdmitRecovery,
     /// Claims a registration's execution before the Router runs it.
     ClaimRegistration {
         lifecycle_id: String,
@@ -305,6 +333,8 @@ pub enum RouterWalletCommandV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum RouterWalletResponseV1 {
+    /// Recovery execution passed the local ownership and source-fence checks.
+    RecoveryAdmitted,
     /// Claim `generation` is this run's: run the request, replaying when
     /// the run takes over a lapsed claim.
     Run {
@@ -374,6 +404,10 @@ pub async fn router_wallet_serve_v1<Store: RouterWalletStoreV1>(
         None => store.put_json(OWNER_KEY, &request.owner).await?,
     }
     match request.command {
+        RouterWalletCommandV1::AdmitRecovery => {
+            crate::router_wallet_relocation::admit_settlement(store).await?;
+            Ok(RouterWalletResponseV1::RecoveryAdmitted)
+        }
         RouterWalletCommandV1::ClaimRegistration {
             lifecycle_id,
             request_digest_hex,

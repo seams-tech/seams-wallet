@@ -83,11 +83,25 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
     ) -> RouterAbProtocolResult<String> {
         let envelope = serde_json::from_slice::<CloudflareRouterEd25519YaoExecuteRequestV2>(body)
             .map_err(|error| {
-                RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::MalformedWirePayload,
-                    format!("local Router Ed25519 Yao execute request is malformed: {error}"),
-                )
-            })?;
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                format!("local Router Ed25519 Yao execute request is malformed: {error}"),
+            )
+        })?;
+        if let Some(admission) =
+            router_ab_cloudflare::RouterWalletRequestV1::recovery_admission(&envelope)
+        {
+            let admitted = crate::local_router_wallet::serve_local_router_wallet_v1(
+                &config.tenant_root.creation_storage_path,
+                admission,
+            )?;
+            if !matches!(admitted, RouterWalletResponseV1::RecoveryAdmitted) {
+                return Err(RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                    "Router wallet returned an invalid recovery admission",
+                ));
+            }
+        }
         let Some(registration) = RouterWalletRegistrationV1::from_request(&envelope)? else {
             return answer_json(&self.run_execution(config, body, replay)?);
         };

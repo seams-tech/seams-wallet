@@ -559,6 +559,8 @@ pub enum RouterEd25519YaoGatewayExecuteTargetV2 {
     },
     /// Recovery activation into staged recipient shares.
     Recovery {
+        /// Wallet ownership generation admitted by the Gateway.
+        ownership_generation: u64,
         /// Admitted activation ceremony binding.
         binding: Ed25519YaoCeremonyBindingV1,
         /// The Gateway's attempt of the recovery. The authorization digest
@@ -591,6 +593,7 @@ enum RawRouterEd25519YaoGatewayExecuteTargetV2 {
         deriver_b_input: Ed25519YaoEncryptedInputV1,
     },
     Recovery {
+        ownership_generation: u64,
         binding: Ed25519YaoCeremonyBindingV1,
         attempt: Ed25519YaoRecoveryAttemptV1,
         deriver_a_input: Ed25519YaoEncryptedInputV1,
@@ -622,11 +625,18 @@ impl<'de> Deserialize<'de> for RouterEd25519YaoGatewayExecuteTargetV2 {
                 deriver_b_input,
             ),
             RawRouterEd25519YaoGatewayExecuteTargetV2::Recovery {
+                ownership_generation,
                 binding,
                 attempt,
                 deriver_a_input,
                 deriver_b_input,
-            } => Self::recovery(binding, attempt, deriver_a_input, deriver_b_input),
+            } => Self::recovery(
+                ownership_generation,
+                binding,
+                attempt,
+                deriver_a_input,
+                deriver_b_input,
+            ),
             RawRouterEd25519YaoGatewayExecuteTargetV2::Export {
                 binding,
                 deriver_a_input,
@@ -667,11 +677,18 @@ impl RouterEd25519YaoGatewayExecuteTargetV2 {
 
     /// Builds a validated recovery target.
     pub fn recovery(
+        ownership_generation: u64,
         binding: Ed25519YaoCeremonyBindingV1,
         attempt: Ed25519YaoRecoveryAttemptV1,
         deriver_a_input: Ed25519YaoEncryptedInputV1,
         deriver_b_input: Ed25519YaoEncryptedInputV1,
     ) -> RouterAbProtocolResult<Self> {
+        if ownership_generation == 0 || ownership_generation > 9_007_199_254_740_991 {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                "Recovery ownership generation is invalid",
+            ));
+        }
         validate_gateway_inputs(
             &binding,
             Ed25519YaoOperationV1::Recovery,
@@ -679,6 +696,7 @@ impl RouterEd25519YaoGatewayExecuteTargetV2 {
             &deriver_b_input,
         )?;
         Ok(Self::Recovery {
+            ownership_generation,
             binding,
             attempt,
             deriver_a_input,
@@ -802,6 +820,7 @@ impl RouterEd25519YaoGatewayExecuteTargetV2 {
                 attempt,
                 deriver_a_input,
                 deriver_b_input,
+                ..
             } => RouterEd25519YaoExecuteRequestV1::recovery(
                 authority,
                 binding,

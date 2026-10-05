@@ -18,7 +18,10 @@ import type {
   RouterAbEd25519YaoRegistrationBackendResult,
 } from './routerAbEd25519YaoRegistration';
 import type { RouterAbEd25519YaoExportBackend } from '../export/routerAbEd25519YaoExport';
-import type { RouterAbEd25519YaoRecoveryBackend } from '../recovery/routerAbEd25519YaoRecovery';
+import type {
+  RouterAbEd25519YaoRecoveryBackend,
+  RouterAbEd25519YaoRecoveryExecuteClaimV1,
+} from '../recovery/routerAbEd25519YaoRecovery';
 import {
   routerAbEd25519YaoTenantRootWireV1,
   type RouterAbEd25519YaoTenantRootResolverV1,
@@ -431,6 +434,7 @@ type RouterExecuteTargetBoundary =
     }
   | {
       operation: 'recovery';
+      ownership_generation: number;
       binding: RouterAbEd25519YaoRecoveryExecuteRequestV1['binding'];
       attempt: number;
       deriver_a_input: RouterAbEd25519YaoRecoveryExecuteRequestV1['deriver_a_input'];
@@ -459,6 +463,7 @@ type RouterExecuteInput =
     }
   | {
       readonly operation: 'recovery';
+      readonly ownershipGeneration: number;
       readonly request: RouterAbEd25519YaoRecoveryExecuteRequestV1;
       readonly admissionRequest: RouterAbEd25519YaoRecoveryAdmissionRequestV1;
     }
@@ -537,6 +542,7 @@ function recoveryRouterExecuteRequest(
     participant_ids: input.admissionRequest.participant_ids,
     target: {
       operation: 'recovery',
+      ownership_generation: input.ownershipGeneration,
       binding: input.request.binding,
       attempt,
       deriver_a_input: input.request.deriver_a_input,
@@ -1005,19 +1011,21 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
 
   async executeRecovery(
     request: RouterAbEd25519YaoRecoveryExecuteRequestV1,
-    admissionRequest: RouterAbEd25519YaoRecoveryAdmissionRequestV1,
-    dispatchRoot: RouterAbEd25519YaoTenantRootWireV1,
-    attempt: number,
-    replay: boolean,
+    claim: RouterAbEd25519YaoRecoveryExecuteClaimV1,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRegistrationBackendResult> {
-    const routerInput = { operation: 'recovery', request, admissionRequest } as const;
+    const routerInput = {
+      operation: 'recovery',
+      request,
+      admissionRequest: claim.admissionRequest,
+      ownershipGeneration: claim.ownershipGeneration,
+    } as const;
     return await this.sendRouterRequest(
       routerInput,
-      recoveryRouterExecuteRequest(routerInput, dispatchRoot, attempt),
+      recoveryRouterExecuteRequest(routerInput, claim.dispatchRoot, claim.attempt),
       (traceContext ?? createRouterAbTraceContextV1()).value,
       'replay',
-      replay,
+      claim.replay,
     );
   }
 
