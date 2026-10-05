@@ -2287,3 +2287,26 @@ Keep this acceptance gap open. Inspect the rendered disclosure, its actual heigh
 change, and emitted measurement before classifying it as a production defect or
 an obsolete geometry expectation. Do not weaken the assertion or change production
 motion solely to satisfy the fixture. The trace path is in the evidence file.
+
+
+### Raw calldata shares the hosted disclosure path (2026-10-05)
+
+The preceding motion failure was a `production_regression`. Browser measurements
+showed the card growing from 675.6875 px to 969.6875 px while its iframe remained
+676 px. The raw-data `<details>` element bypassed the shared resize announcement
+and clamp. The existing contract correctly rejected that overflow.
+
+`TransactionReview` now uses `ReviewDisclosure` for raw data. A presentation
+option retains the raw-data class, and its CSS follows the shared body wrapper.
+The wrapper contains the existing code-block margins. No second animation or
+forwarding path was added. Existing disclosure timing and reduced-motion handling
+remain in effect.
+
+All four motion cases passed in 15.1 seconds. The expanded raw-data case passed
+in 6.9 seconds with opening, closing, and reduced-motion checks. Normal motion
+emitted one target measurement per transition, +298 px and -298 px; every sampled
+card fit its iframe. The test saves the measured frames and reduced-motion bounds.
+Wallet/browser types, production build, bundle boundaries, and freshness passed.
+SDK production source: 10 added, 8 removed, net +2. Evidence:
+`evidence/refactor-170-raw-disclosure-motion-20261005.json`.
+This closes the previously recorded raw-calldata motion gap.

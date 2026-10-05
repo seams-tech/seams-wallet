@@ -381,6 +381,11 @@ CTA belong to the wallet origin.
   exchange usable for retry. Concurrent redemption still produces one credential;
   an unused locator never grants authorization.
 
+Wallet-origin transaction details and raw calldata use the same disclosure
+sizing path. With normal motion, expanding or collapsing content announces one
+target height before the card changes size. The card must fit within the iframe
+throughout the resize. Reduced-motion behavior remains immediate.
+
 ## Registration
 
 ### Wallet-management protocol

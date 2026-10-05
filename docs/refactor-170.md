@@ -1113,10 +1113,11 @@ absence, broader runtime acceptance, and release adoption remain separate gates.
 
 ## Verification and acceptance
 
-- [ ] Resolve the raw-calldata disclosure motion acceptance gap recorded in
-  `evidence/refactor-170-demo-email-internal-20261005.json`. The production entry
-  now loads through the corrected test path, but disclosure reports no height
-  change. Inspect real geometry before changing behavior or expectations.
+- [x] Resolve the raw-calldata disclosure motion acceptance gap. Native raw-data
+  details bypassed the shared host sizing path and overflowed the iframe by
+  294 px. The shared disclosure now drives raw-data opening and closing. Normal
+  and reduced-motion browser checks pass. Evidence:
+  `evidence/refactor-170-raw-disclosure-motion-20261005.json`.
 
 
 Use the existing E2E and intended-behavior infrastructure. Add no unit tests.

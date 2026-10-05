@@ -250,10 +250,9 @@ function ReviewDetail({ node }: { node: TreeNode }) {
         {node.copyValue && <CopyReviewValue value={node.copyValue} />}
       </div>
       {node.contentVariants && (
-        <details class="seams-review-raw">
-          <summary>Raw data</summary>
+        <ReviewDisclosure label="Raw data" kind="raw">
           <pre>{node.contentVariants.raw}</pre>
-        </details>
+        </ReviewDisclosure>
       )}
       {Boolean(node.children?.length) && (
         <div class="seams-review-detail-children">

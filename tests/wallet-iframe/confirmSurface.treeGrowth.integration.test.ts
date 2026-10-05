@@ -1,3 +1,4 @@
+import { writeFile } from 'node:fs/promises';
 import { expect, test, type Frame, type Page } from '@playwright/test';
 import { encodeFunctionData, parseAbi } from 'viem';
 import { setupBasicPasskeyTest } from '../setup';
@@ -87,7 +88,7 @@ type MotionTrace = {
 /** The interior changes this surface can make, each through the same seam. */
 type MotionAction =
   | { kind: 'details'; open: boolean }
-  | { kind: 'raw-data' }
+  | { kind: 'raw-data'; open: boolean }
   | { kind: 'error-banner'; message: string };
 
 async function openRealModal(page: Page, options: { greeting?: string } = {}): Promise<Frame> {
@@ -202,6 +203,20 @@ async function openRealModal(page: Page, options: { greeting?: string } = {}): P
   return frame;
 }
 
+function readRawDisclosureGeometry() {
+  const raw = document.querySelector<HTMLDetailsElement>('.seams-review-raw');
+  const card = document.querySelector<HTMLElement>('.modal-container-root');
+  if (!raw || !card) throw new Error('Raw disclosure and confirmation card are required');
+  const cardHeight = card.getBoundingClientRect().height;
+  const viewportHeight = document.documentElement.clientHeight;
+  return {
+    open: raw.open,
+    cardHeight,
+    viewportHeight,
+    fits: Math.abs(cardHeight - viewportHeight) <= 1,
+  };
+}
+
 async function recordMotion(frame: Frame, action: MotionAction): Promise<MotionTrace> {
   return frame.evaluate(async (action) => {
     const host = document.getElementById('seams-confirm-portal')!.firstElementChild as HTMLElement;
@@ -248,7 +263,9 @@ async function recordMotion(frame: Frame, action: MotionAction): Promise<MotionT
         click(`.seams-review-technical${action.open ? ':not([open])' : '[open]'} > summary`);
         break;
       case 'raw-data':
-        click('.seams-review-technical .seams-review-raw > summary');
+        click(
+          `.seams-review-technical .seams-review-raw${action.open ? ':not([open])' : '[open]'} > summary`,
+        );
         break;
       case 'error-banner':
         const handle = (window as unknown as {
@@ -262,7 +279,19 @@ async function recordMotion(frame: Frame, action: MotionAction): Promise<MotionT
     await new Promise((resolve) => setTimeout(resolve, 1200));
     observer.disconnect();
     sample();
-    if (!begin) throw new Error('the surface was never offered the height change');
+    if (!begin) {
+      const raw = document.querySelector<HTMLDetailsElement>('.seams-review-raw');
+      throw new Error(
+        `the surface was never offered the height change: ${JSON.stringify({
+          action,
+          measurements,
+          frames,
+          rawOpen: raw?.open,
+          rawHeight: raw?.getBoundingClientRect().height,
+          finalHostPx: host.getBoundingClientRect().height,
+        })}`,
+      );
+    }
     return {
       begin,
       measurements: measurements.slice(),
@@ -347,7 +376,7 @@ test.describe('wallet iframe host-driven interior motion', () => {
     });
   });
 
-  test('revealing the raw calldata moves the box, not the card', async ({ page }) => {
+  test('revealing the raw calldata moves the box, not the card', async ({ page }, testInfo) => {
     // Tall enough that the parent does not clamp the box short of the raw bytes.
     await page.setViewportSize({ width: 1280, height: 1200 });
     // Long enough that the raw bytes wrap over several lines.
@@ -355,7 +384,28 @@ test.describe('wallet iframe host-driven interior motion', () => {
     await recordMotion(frame, { kind: 'details', open: true });
     await page.waitForTimeout(400);
 
-    assertMotionInvariants(await recordMotion(frame, { kind: 'raw-data' }));
+    const opening = await recordMotion(frame, { kind: 'raw-data', open: true });
+    assertMotionInvariants(opening, { sign: 1 });
+    const closing = await recordMotion(frame, { kind: 'raw-data', open: false });
+    assertMotionInvariants(closing, { sign: -1 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const rawSummary = frame.locator('.seams-review-raw > summary');
+    await rawSummary.click();
+    await expect.poll(frame.evaluate.bind(frame, readRawDisclosureGeometry)).toMatchObject({
+      open: true,
+      fits: true,
+    });
+    const reducedOpening = await frame.evaluate(readRawDisclosureGeometry);
+    await rawSummary.click();
+    await expect.poll(frame.evaluate.bind(frame, readRawDisclosureGeometry)).toMatchObject({
+      open: false,
+      fits: true,
+    });
+    const reducedClosing = await frame.evaluate(readRawDisclosureGeometry);
+    await writeFile(
+      testInfo.outputPath('raw-disclosure-motion.json'),
+      JSON.stringify({ opening, closing, reducedOpening, reducedClosing }, null, 2),
+    );
   });
 
   test('an error banner arriving moves the box, not the card', async ({ page }) => {

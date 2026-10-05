@@ -5,7 +5,7 @@ import { confirmationDocumentStyles } from './confirmation-styles';
 
 let nextDisclosureId = 0;
 
-export class ReviewDisclosure extends Component<{ label: string; children: ComponentChildren; initiallyOpen?: boolean }> {
+export class ReviewDisclosure extends Component<{ label: string; children: ComponentChildren; initiallyOpen?: boolean; kind?: 'technical' | 'raw' }> {
   private readonly root = createRef<HTMLDetailsElement>();
   private readonly id = `seams-review-disclosure-${++nextDisclosureId}`;
   componentDidMount(): void {
@@ -76,7 +76,7 @@ export class ReviewDisclosure extends Component<{ label: string; children: Compo
   };
 
   render() {
-    return <details ref={this.root} class="seams-review-technical">
+    return <details ref={this.root} class={`seams-review-${this.props.kind ?? 'technical'}`}>
       <summary onClick={this.toggle}>{this.props.label}<svg class="seams-review-caret" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 7.5 5 5 5-5" /></svg></summary>
       <div id={this.id}>{this.props.children}</div>
     </details>;
