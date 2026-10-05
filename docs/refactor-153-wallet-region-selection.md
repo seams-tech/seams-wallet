@@ -74,6 +74,17 @@ Session continuity, sealed-session restoration, and pool restoration are exclude
 
 ## Implemented baseline
 
+The move-read authentication component now checks the original credential digest,
+origin, expiry, scoped approval, and current full-owner method and authority.
+It remains usable after signing-session retirement without refreshing that session.
+It rejects revoked owners and changed authority epochs. Its separate type cannot
+serve as an initiating owner for new approval. The existing D1 E2E verifies these
+checks and read access after factor-proof expiry, bounded by credential expiry.
+The HTTP resolver must still restrict this identity to the matching existing
+journal entry and exact admitted-request replay. Routing, shared request-proof
+integration where required, and verified approval transfer remain unfinished.
+
+
 Fresh relocation approval now requires an authenticated initiating owner request.
 The approval transaction checks the exact original session, credential hash, scope,
 expiry, and unretired state before it consumes either factor proof. The existing

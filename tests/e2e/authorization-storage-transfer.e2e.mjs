@@ -44,6 +44,7 @@ const bundle = await build({
       export { emailOtpChallengeRecord } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRecords';
       export { prepareD1TenantStatement } from './packages/wallet-server/src/core/d1TenantStore';
       export { buildEmailOtpEnrollmentFixture } from './tests/unit/helpers/emailOtpAuthMethod.fixtures';
+      export { WalletRelocationReadAccess } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationReadAccess';
       export { WalletRelocationOwnerRequest } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationOwnerRequest';
       export { D1WalletRelocationApprovals } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationApprovals';
       export { verifyWalletRelocationPasskey } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationPasskey';
@@ -726,6 +727,63 @@ async function verifyRelocationPasskey(database) {
     1,
   );
   assert.deepEqual(await approvals.read(binding), approved.approval);
+  const readInput = {
+    database,
+    scope,
+    binding,
+    request: relocationOwnerHttpRequest(issued.operationCredential.token, binding.origin),
+    allowedOrigins: [binding.origin],
+    nowMs: nowMs + 5,
+  };
+  const readAccess = await api.WalletRelocationReadAccess.authenticate(readInput);
+  assert.ok(readAccess);
+  assert.equal(readAccess.binding.encoded(), binding.encoded());
+  assert.equal(
+    await authorizationSessions.readWalletSessionExactOperationContextByCredential({
+      tenantId: issued.session.tenantId,
+      token: issued.operationCredential.token,
+      nowMs: nowMs + 5,
+    }),
+    null,
+  );
+  assert.equal(
+    await api.WalletRelocationReadAccess.authenticate({
+      ...readInput,
+      binding: retiredBinding,
+    }),
+    null,
+  );
+  assert.equal(
+    await api.WalletRelocationReadAccess.authenticate({
+      ...readInput,
+      nowMs: issued.session.expiresAtMs,
+    }),
+    null,
+  );
+  assert.equal(
+    await api.WalletRelocationReadAccess.authenticate({
+      ...readInput,
+      request: relocationOwnerHttpRequest('wrong-token', binding.origin),
+    }),
+    null,
+  );
+  assert.equal(
+    await api.WalletRelocationReadAccess.authenticate({
+      ...readInput,
+      request: relocationOwnerHttpRequest(
+        issued.operationCredential.token,
+        'https://foreign.example.test',
+      ),
+    }),
+    null,
+  );
+  assert.equal(
+    await api.WalletRelocationReadAccess.authenticate({
+      ...readInput,
+      scope: { ...scope, envId: 'foreign' },
+    }),
+    null,
+  );
 
   assert.equal(
     (
@@ -812,11 +870,14 @@ async function verifyRelocationPasskey(database) {
     requestedAtMs: nowMs + 3,
   });
   assert.equal(revoked.kind, 'revoked_method');
+  assert.equal(await api.WalletRelocationReadAccess.authenticate(readInput), null);
   await assert.rejects(database.batch(beforeRevocation.commitPrerequisites));
   assert.equal((await store.read(secondBinding)).state, 'issued');
   assert.equal((await api.verifyWalletRelocationPasskey(freshInput)).kind, 'denied');
   return {
     retiredInitiatingSessionRejectsApprovalWithoutConsumingProof: true,
+    moveReadSurvivesSessionRetirementButRejectsRevocation: true,
+    moveReadRejectsWrongCredentialOriginScopeMoveAndExpiry: true,
     scope:
       'Real initiating-session authentication, passkey approval persistence and transactional guards; excludes HTTP admission and transfer',
     expiryCheckedAtTransactionCommit: true,
@@ -992,6 +1053,16 @@ async function verifyRelocationEmailOtp(database) {
     approved,
   );
   assert.ok(await emailOtpChallenges.read('otp:signing'));
+  assert.ok(
+    await api.WalletRelocationReadAccess.authenticate({
+      database,
+      scope,
+      binding,
+      request: relocationOwnerHttpRequest(issued.operationCredential.token, binding.origin),
+      allowedOrigins: [binding.origin],
+      nowMs: nowMs + 40_000,
+    }),
+  );
   return {
     scope:
       'OTP verification and atomic approval through production stores; excludes email delivery, factor unsealing, owner HTTP authentication and Console admission',

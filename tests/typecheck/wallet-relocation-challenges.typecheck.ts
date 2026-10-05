@@ -53,3 +53,14 @@ void directOwnerRequest;
 declare const approvals: D1WalletRelocationApprovals;
 // @ts-expect-error A factor assertion alone cannot authorize a new relocation approval.
 approvals.approvePasskey({ binding, credential: null, nowMs: 1 });
+
+import { WalletRelocationReadAccess } from '../../packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationReadAccess';
+declare const readAccess: WalletRelocationReadAccess;
+// @ts-expect-error Move-only access cannot authorize new admission.
+approvals.approvePasskey({ owner: readAccess, binding, credential: null, nowMs: 1 });
+// @ts-expect-error A broad spread cannot forge authenticated move access.
+const forgedReadAccess: WalletRelocationReadAccess = { ...readAccess };
+// @ts-expect-error A move locator cannot construct authenticated move access.
+const directReadAccess = new WalletRelocationReadAccess(binding);
+void forgedReadAccess;
+void directReadAccess;
