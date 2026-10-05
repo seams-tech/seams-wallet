@@ -60,6 +60,18 @@ and durable presignature validity retain their existing contracts.
 The provider connects through `connection.connect`. Operation-specific ECDSA
 and Email OTP preparation remain internal.
 
+Google Email OTP registration prepares Yao only when its resolved signer
+selection includes NEAR. Rerolling the wallet name retains that selection and
+reuses preparation already started. ECDSA-only registration does not fetch the
+Yao client binary for speculative preparation. Each operation still initializes
+its required crypto independently of preparation.
+
+NEAR-only Email OTP wallets restore signing material without an ECDSA capability.
+The active wallet authority selects the restore branch. A combined wallet still
+requires its exact ECDSA manifest and activation. Both branches verify the returned
+Wallet Session against the selected wallet and factor before using it. Restored
+NEAR-only authorization is persisted so subsequent reloads can restore signing.
+
 Cleanup of volatile linked ECDSA holder material or Email OTP warm material must
 not create an absent worker. An existing worker receives the cleanup operation.
 Lock preserves valid durable presignatures. The production NEAR-only passkey

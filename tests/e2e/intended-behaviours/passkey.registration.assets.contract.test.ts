@@ -1,28 +1,9 @@
-import { expect, type BrowserContext, type Page, type TestInfo } from '@playwright/test';
+import { expect, type Page, type TestInfo } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
-import { intendedTest, type IntendedBehaviourHarness } from './harness';
+import type { IntendedBehaviourHarness } from './harness';
+import { walletAssetTest as test } from './wallet-asset-fixture';
 import { WalletAssetEvidence } from './wallet-asset-evidence';
-
-type AssetFixtures = { assets: WalletAssetEvidence };
-
-async function assetFixture(
-  { context, page }: { context: BrowserContext; page: Page },
-  use: (evidence: WalletAssetEvidence) => Promise<void>,
-  testInfo: TestInfo,
-): Promise<void> {
-  const evidence = new WalletAssetEvidence(context);
-  await evidence.observeNetwork(page);
-  try {
-    await use(evidence);
-  } finally {
-    await evidence.finish(testInfo);
-  }
-}
-
-const test = intendedTest.extend<AssetFixtures>({
-  assets: [assetFixture, { auto: true }],
-});
 
 // Capture static-asset metadata only; custody responses must never enter traces.
 test.use({ trace: 'off', screenshot: 'off', video: 'off' });

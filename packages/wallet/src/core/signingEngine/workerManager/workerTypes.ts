@@ -979,21 +979,34 @@ export interface EmailOtpWorkerOperationMap {
       readonly expectedOperationalPublicKey: string;
       readonly expectedThresholdSessionId: ThresholdEd25519SessionId;
       readonly operationCredential: WalletSessionOperationCredentialV1;
-      readonly ecdsa: {
-        readonly sessionHandleBinding: Extract<
-          EmailOtpEcdsaSessionBootstrapHandleBinding,
-          { readonly operation: 'wallet_unlock' }
-        >;
-        readonly runtimePolicyScope: ThresholdRuntimePolicyScope;
-        readonly sessionPolicy: RouterAbEcdsaPostRegistrationSessionActivationPolicyV1;
-      };
+      readonly ecdsa:
+        | {
+            readonly kind: 'required';
+            readonly sessionHandleBinding: Extract<
+              EmailOtpEcdsaSessionBootstrapHandleBinding,
+              { readonly operation: 'wallet_unlock' }
+            >;
+            readonly runtimePolicyScope: ThresholdRuntimePolicyScope;
+            readonly sessionPolicy: RouterAbEcdsaPostRegistrationSessionActivationPolicyV1;
+          }
+        | {
+            readonly kind: 'absent';
+            readonly sessionHandleBinding?: never;
+            readonly runtimePolicyScope?: never;
+            readonly sessionPolicy?: never;
+          };
       readonly walletCustodyEd25519Material: Extract<
         EmailOtpWalletCustodyEd25519MaterialRequest,
         { readonly kind: 'found' }
       >;
     };
     result: EmailOtpEd25519YaoWorkerActivationResult & {
-      readonly ecdsaSession: RouterAbEcdsaCredentialFreeSessionActivationResponseV1;
+      readonly ecdsa:
+        | { readonly kind: 'absent'; readonly session?: never }
+        | {
+            readonly kind: 'activated';
+            readonly session: RouterAbEcdsaCredentialFreeSessionActivationResponseV1;
+          };
       readonly walletSessionAuthorization: ExactWalletSessionAuthorization;
     };
   };

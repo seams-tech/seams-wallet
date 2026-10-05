@@ -18,6 +18,15 @@ import type { RegistrationHooksOptions } from '@/core/types/sdkSentEvents';
 import { listThresholdEcdsaProvisionTargets } from '@/SeamsWeb/operations/session/thresholdEcdsaProvisioning';
 import type { ThresholdEcdsaChainTarget } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 
+export function registrationSelectionIncludesNear(
+  selection: RegistrationSignerSetSelection,
+): boolean {
+  for (const signer of selection.signers) {
+    if (signer.kind === 'near_ed25519') return true;
+  }
+  return false;
+}
+
 export function buildNearWalletRegistrationSignerSetSelection(args: {
   configs: SeamsConfigsReadonly;
   accountProvisioning?: RegistrationNearAccountProvisioning;

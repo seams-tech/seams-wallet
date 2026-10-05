@@ -1,4 +1,5 @@
 import { recordWalletCustodyTiming } from '@/core/signingEngine/walletCustody/ceremonyDriver';
+import { registrationSelectionIncludesNear } from './registrationSignerSet';
 import { walletSessionPreservesCapabilities } from '@shared/device-linking/activeWalletSession';
 import type { LoginWebContext } from '@/SeamsWeb/signingSurface/types';
 import { listConfiguredThresholdEcdsaPublicationTargets } from '@/SeamsWeb/operations/session/thresholdEcdsaProvisioning';
@@ -89,7 +90,6 @@ import type {
   RegistrationEvmFamilyEcdsaSignerPlan,
   RegistrationNearEd25519SignerPlan,
   RegistrationSignerPlan,
-  RegistrationSignerPlanBranch,
   RegistrationSignerRequest,
   RegistrationSignerSetSelection,
   RegistrationNearAccountProvisioning,
@@ -789,18 +789,6 @@ function registrationWarmupWork(
   return context.signingEngine.warmCriticalResources.bind(context.signingEngine, { kind: 'none' });
 }
 
-function registrationPlanBranchIncludesNearEd25519(branch: RegistrationSignerPlanBranch): boolean {
-  return branch.kind === 'near_ed25519';
-}
-
-function registrationSelectionRequiresEmailOtpYaoWarmup(
-  signerSelection: RegistrationSignerSetSelection,
-): boolean {
-  return registrationSignerPlanFromSignerSet(signerSelection).branches.some(
-    registrationPlanBranchIncludesNearEd25519,
-  );
-}
-
 function noEmailOtpYaoPrewarm(): Promise<EmailOtpYaoPrewarmOutcome> {
   return Promise.resolve(zeroEmailOtpYaoPrewarmDiagnostics());
 }
@@ -818,7 +806,7 @@ function registrationEmailOtpYaoPrewarmWork(input: {
 }): () => Promise<EmailOtpYaoPrewarmOutcome> {
   if (
     input.authMethod.kind !== 'email_otp' ||
-    !registrationSelectionRequiresEmailOtpYaoWarmup(input.signerSelection)
+    !registrationSelectionIncludesNear(input.signerSelection)
   ) {
     return noEmailOtpYaoPrewarm;
   }

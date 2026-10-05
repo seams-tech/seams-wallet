@@ -14,7 +14,10 @@ import {
   listConfiguredThresholdEcdsaPublicationTargets,
   listThresholdEcdsaProvisionTargets,
 } from '@/SeamsWeb/operations/session/thresholdEcdsaProvisioning';
-import { buildNearWalletRegistrationSignerSetSelection } from '@/SeamsWeb/operations/registration/registrationSignerSet';
+import {
+  buildNearWalletRegistrationSignerSetSelection,
+  registrationSelectionIncludesNear,
+} from '@/SeamsWeb/operations/registration/registrationSignerSet';
 import type {
   EmailOtpEcdsaCapabilityArgs,
   EmailOtpEcdsaCapabilityResult,
@@ -627,7 +630,9 @@ type GoogleEmailOtpRegistrationPrewarm =
 
 function startGoogleEmailOtpRegistrationPrewarm(
   deps: GoogleEmailOtpWalletAuthDeps,
+  signerSelection: GoogleEmailOtpWalletRegistrationArgs['signerSelection'],
 ): GoogleEmailOtpRegistrationPrewarm {
+  if (!registrationSelectionIncludesNear(signerSelection)) return { kind: 'not_started' };
   const completion = deps.prewarmEmailOtpYao().catch(() => undefined);
   return { kind: 'started', completion };
 }
@@ -762,7 +767,7 @@ function createGoogleEmailOtpWalletRegistrationFlow(
   };
   const prewarm =
     args.prewarm.kind === 'not_started'
-      ? startGoogleEmailOtpRegistrationPrewarm(deps)
+      ? startGoogleEmailOtpRegistrationPrewarm(deps, registrationArgs.signerSelection)
       : args.prewarm;
   const liveness = createFlowLiveness({ state: args.state });
   const flowId = `google-email-otp-registration:${selectedWalletId}:${registrationAttemptId}`;

@@ -2761,6 +2761,7 @@ export class IntendedBehaviourHarness {
     if (result.ecdsaTargetProfile === 'none') {
       throw new Error('ECDSA-only Email OTP registration provisioned no ECDSA target');
     }
+    this.walletId = result.walletId;
     this.registeredWallet = result;
     this.currentWarmSigningStage = 'post_registration';
     this.emailOtpVerificationCount += 1;
@@ -2788,6 +2789,7 @@ export class IntendedBehaviourHarness {
     if (result.ecdsaTargetProfile !== 'none') {
       throw new Error('Ed25519-only Email OTP registration provisioned an ECDSA signer');
     }
+    this.walletId = result.walletId;
     this.registeredWallet = result;
     this.currentWarmSigningStage = 'post_registration';
     this.emailOtpVerificationCount += 1;
@@ -5602,6 +5604,7 @@ function lifecycleFlowFromTestFile(filePath: string): IntendedLifecycleFlow {
   }
   if (
     normalized.endsWith('email-otp.registration.contract.test.ts') ||
+    normalized.endsWith('email-otp.registration.assets.contract.test.ts') ||
     normalized.endsWith('email-otp.registration.resume.contract.test.ts') ||
     normalized.endsWith('email-otp.add-passkey.contract.test.ts') ||
     normalized.endsWith('email-otp.registration.benchmark.test.ts')

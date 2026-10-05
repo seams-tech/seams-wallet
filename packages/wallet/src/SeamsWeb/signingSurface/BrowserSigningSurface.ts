@@ -1,3 +1,5 @@
+import { isActiveEd25519WalletAuthorityV1 } from '@shared/authorization/walletAuthority';
+import type { EmailOtpWorkerOperationMap } from '@/core/signingEngine/workerManager/workerTypes';
 import type { DurableRecordStore, RuntimePorts } from '@/core/platform';
 import { SIGNING_SESSION_SEAL_GROUP_ID } from '@shared/utils/signingSessionSeal';
 import type { NearClient } from '@/core/rpcClients/near/NearClient';
@@ -536,6 +538,36 @@ function buildEmailOtpEcdsaRehydrationPolicy(args: {
       remaining_uses: args.remainingUses,
       runtime_policy_scope: args.manifest.durableMaterial.runtimePolicyScope,
     },
+  };
+}
+
+async function resolveEmailOtpNearRestoreEcdsa(
+  authorization: ExactNearEd25519WalletSessionAuthorization,
+  remainingUses: number,
+): Promise<
+  EmailOtpWorkerOperationMap['rehydrateActiveEmailOtpEd25519YaoSessionMaterial']['payload']['ecdsa']
+> {
+  if (authorization.selectedFactorAuthority.factor.kind !== 'email_otp') {
+    throw new Error('Email OTP restore requires an Email OTP factor authority');
+  }
+  if (isActiveEd25519WalletAuthorityV1(authorization.selectedAuthority)) return { kind: 'absent' };
+  const factor = await walletAuthAuthorityRef({ authority: authorization.selectedFactorAuthority });
+  const manifest = requireEmailOtpEcdsaRehydrationManifest(
+    await listBrowserActiveEcdsaCapabilityManifestsForWallet(
+      String(authorization.selectedAuthority.walletId),
+    ),
+    String(factor.authorityDigest),
+  );
+  return {
+    kind: 'required',
+    sessionHandleBinding: {
+      operation: 'wallet_unlock',
+      keyHandle: String(manifest.durableMaterial.roleLocalBinding.keyHandle),
+      authSubjectId: authorization.selectedFactorAuthority.factor.providerUserId,
+      chainTarget: manifest.signer.scope.targetMemberships[0],
+    },
+    runtimePolicyScope: manifest.durableMaterial.runtimePolicyScope,
+    sessionPolicy: buildEmailOtpEcdsaRehydrationPolicy({ manifest, remainingUses }),
   };
 }
 
@@ -3982,20 +4014,7 @@ export class BrowserSigningSurface {
     if (sealed.kind !== 'found') {
       throw new Error('[SigningEngine][near] Email OTP session material is unavailable');
     }
-    const ecdsaManifest = requireEmailOtpEcdsaRehydrationManifest(
-      await listBrowserActiveEcdsaCapabilityManifestsForWallet(String(input.walletId)),
-      String(
-        (
-          await walletAuthAuthorityRef({
-            authority: args.authorization.selectedFactorAuthority,
-          })
-        ).authorityDigest,
-      ),
-    );
-    const ecdsaSessionPolicy = buildEmailOtpEcdsaRehydrationPolicy({
-      manifest: ecdsaManifest,
-      remainingUses: args.remainingUses,
-    });
+    const ecdsa = await resolveEmailOtpNearRestoreEcdsa(args.authorization, args.remainingUses);
     const activated = await this.signerWorkerManager.requestWorkerOperation({
       kind: 'emailOtp',
       request: {
@@ -4012,25 +4031,27 @@ export class BrowserSigningSurface {
           expectedOperationalPublicKey: user.operationalPublicKey,
           expectedThresholdSessionId: publicLane.thresholdSessionId,
           operationCredential,
-          ecdsa: {
-            sessionHandleBinding: {
-              operation: 'wallet_unlock',
-              keyHandle: String(ecdsaManifest.durableMaterial.roleLocalBinding.keyHandle),
-              authSubjectId: input.auth.providerSubjectId,
-              chainTarget: ecdsaManifest.signer.scope.targetMemberships[0],
-            },
-            runtimePolicyScope: ecdsaManifest.durableMaterial.runtimePolicyScope,
-            sessionPolicy: ecdsaSessionPolicy,
-          },
+          ecdsa,
           walletCustodyEd25519Material: sealed,
         },
       },
     });
-    await persistRehydratedEmailOtpEcdsaWalletSession({
-      walletId: input.walletId,
-      authorization: activated.walletSessionAuthorization,
-      response: activated.ecdsaSession,
-    });
+    switch (activated.ecdsa.kind) {
+      case 'activated':
+        if (ecdsa.kind !== 'required') throw new Error('NEAR-only restore returned ECDSA activation');
+        await persistRehydratedEmailOtpEcdsaWalletSession({
+          walletId: input.walletId,
+          authorization: activated.walletSessionAuthorization,
+          response: activated.ecdsa.session,
+        });
+        break;
+      case 'absent':
+        if (ecdsa.kind !== 'absent') throw new Error('Combined restore omitted ECDSA activation');
+        break;
+      default:
+        activated.ecdsa satisfies never;
+        throw new Error('Unsupported Email OTP restore result');
+    }
     await this.activateEmailOtpEd25519CustodyCapabilityInternal({
       commitQueue: 'acquire',
       walletSession: {
@@ -4047,6 +4068,12 @@ export class BrowserSigningSurface {
       metadata: activated.metadata,
       exactAuthorization: activated.walletSessionAuthorization,
     });
+    if (activated.ecdsa.kind === 'absent') {
+      await walletSessionAuthorizations.writeExactWithOperationCredential({
+        record: activated.walletSessionAuthorization.record,
+        operationCredential: activated.walletSessionAuthorization.operationCredential,
+      });
+    }
     const refreshedAuthority = await walletAuthAuthorityRef({
       authority: args.authorization.selectedFactorAuthority,
     });

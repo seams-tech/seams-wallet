@@ -686,7 +686,7 @@ are unchanged in this patch.
 | Host UI preparation predicate | `walletIframe/host/WalletHostRuntime.ts:shouldPrewarmBrowserUi` | The application owns no signing surface. The host supplies a same-origin browser predicate directly; the disabled app policy and its module are deleted. |
 | Registration surface preparation | `host/runtimeLoader.ts`; former `registrationPreparationPreload.ts` | Generic registration preload is deleted. Runtime imports follow the typed operation route; recovery-code UI retains its separate preload. |
 | ECDSA registration preparation | `operations/registration/registration.ts:beginRegistrationWarmup` → `prewarmEcdsaRegistrationCrypto` | Starts only when signer selection includes `evm_family_ecdsa`. Failure is best-effort; the operation independently initializes WASM. |
-| Email OTP registration preparation | `registrationEmailOtpYaoPrewarmWork`; `googleEmailOtpWalletAuthFlow.ts:startGoogleEmailOtpRegistrationPrewarm` | Direct registration checks factor and signer selection. The Google registration flow separately starts Yao preparation without checking its resolved signer selection; audit and fix that discrepancy. |
+| Email OTP registration preparation | `registrationEmailOtpYaoPrewarmWork`; `googleEmailOtpWalletAuthFlow.ts:startGoogleEmailOtpRegistrationPrewarm` | Both paths use `registrationSelectionIncludesNear` on the resolved signer selection. ECDSA-only Google registration and reroll no longer prepare Yao. |
 | Restored-session prefill | `host/restoredSessionPresignaturePrefill.ts:scheduleRestoredSessionPresignaturePrefills` | Active sessions and unlocked exhausted sessions may prefill configured ECDSA targets. Locked, expired, and unresolved identities return immediately. The downstream prefill owns lane/material eligibility. |
 | Startup replay | `WalletHostRuntime.ts:resumePendingRegistrationOnStartup`, device acknowledgement domain | Replays pending NEAR registration, wallet recovery, and device acknowledgements. Persisted work can justify loading after mount; clean-profile idle evidence does not cover replay. |
 | Confirmation/session/export manager startup | Confirmation and passkey MPC managers outside `WorkerTransport` | Must be included in browser evidence; changing only the eight-kind loop cannot prove zero unrelated workers. |
@@ -2160,3 +2160,33 @@ also passes through registration, unlock, signing, export, reload, and step-up.
 Wallet/browser types, production build, runtime boundaries, freshness, and bloat
 checks pass. Production source adds 43 lines and removes 31 (net +12).
 Evidence: `evidence/refactor-170-loader-retry-20261005.json`.
+
+
+### Email OTP signer-selection and NEAR restoration checkpoint
+
+Google registration now checks its resolved signer selection before starting Yao
+preparation. Direct registration shares that predicate; the old plan-conversion
+predicate is removed. Wallet-name reroll preserves the selection. ECDSA-only
+Google registration and Tempo/Arc signing pass without a Yao binary request.
+NEAR-only registration requests Yao and passes signing plus reload/restored signing.
+
+The new NEAR scenario exposed an existing restoration defect: its host path
+required an ECDSA manifest even for an Ed25519-only authority. The host now chooses
+an explicit absent/required ECDSA branch from active authority signer ownership.
+A combined authority still fails if its exact ECDSA manifest is unavailable.
+The worker boundary rejects incompatible fields. NEAR-only restoration uses the
+existing Ed25519 recovery completion; combined restoration retains ECDSA activation
+and exact session checks. Both branches verify the returned authorization before
+using it. The NEAR-only refreshed credential is persisted for later restoration.
+
+Static fixtures reject missing material, mixed literals, broad spreads, and
+incompatible branch assertions. The combined production Email OTP lifecycle passes
+through unlock, signing, export, reload, and step-up. The two signer-specific
+helpers now retain the registered wallet ID after reroll. Asset recording uses one
+shared fixture, with separate Email OTP and passkey auth guards.
+
+Production source adds 212 lines and removes 110 (net +102). The new branches fix
+required behavior; line removal remains an expectation rather than a gate.
+Injected preparation failure remains open. Routed observations do not establish
+warm-cache latency or deployed delivery savings. Evidence:
+`evidence/refactor-170-email-otp-signer-selection-20261005.json`.

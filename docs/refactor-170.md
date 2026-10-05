@@ -984,6 +984,16 @@ derive production behavior from existing typed requests and selected capabilitie
   registration flow starts it separately without that gate. Use its resolved signer
   selection and verify ECDSA-only and NEAR registration, including preparation
   failure followed by successful operation-owned initialization.
+  Both paths now share the selected-NEAR predicate. Production asset scenarios
+  cover Google registration, wallet-name reroll, and signing for each single
+  signer family. Injected preparation failure remains a separate acceptance case.
+- [x] **Restore NEAR-only Email OTP material without requiring ECDSA.** Explicit
+  worker request/result branches follow authoritative signer ownership. A missing
+  manifest on a combined wallet remains an error. NEAR-only restoration reuses
+  `ed25519_yao_recovery` and exact Wallet Session checks. Boundary parsing and
+  type fixtures reject invalid branch combinations. NEAR-only registration/sign/
+  reload/sign and the combined Email OTP lifecycle pass. Evidence:
+  `evidence/refactor-170-email-otp-signer-selection-20261005.json`.
 - [ ] **Preserve worker lifetime and operation isolation.** Reuse initialized
   workers when switching chains; create newly needed workers on demand. Cancelled
   preparation must not terminate a worker used by another operation or discard
