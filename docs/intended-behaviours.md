@@ -1131,6 +1131,19 @@ restore, lane selection, or budget handling.
 - Local disconnect removes browser listeners and connection state. Revoking the
   site's permission remains an explicit action in the external wallet.
 
+- `waitForReceipt(submission, options?)` polls the configured chain RPC after
+  validating its chain ID. It resolves to `confirmed` or `reverted` only after a
+  receipt matches the submitted hash and account, with valid status and block.
+  Confirmation means inclusion in one block, without a chain-finality guarantee.
+- Receipt polling defaults to 90 seconds and a 1.25-second interval. Callers can
+  supply `timeoutMs` or `signal`. Timeout, cancellation, unavailable RPC, missing
+  configuration, and unverified receipts return `unresolved`; none cause resend.
+  Cancellation follows the shared RPC wait behavior; an in-flight request can
+  complete before cancellation settles.
+
+Receipt behavior: `tests/wallet-ui/external-evm-receipt.browser.test.ts` produces
+`receipt-observations.json` with outcomes and RPC counts.
+
 ## Application transaction review
 
 Hosted React transactions may supply an application review through an explicit

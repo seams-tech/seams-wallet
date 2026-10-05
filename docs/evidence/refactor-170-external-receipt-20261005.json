@@ -1,0 +1,113 @@
+{
+  "baseCommit": "3c37ff7a4d493b4c551d4e7c8221be5416ec359e",
+  "scope": "Replace single receipt lookup with waitForReceipt using existing EVM RPC polling.",
+  "sourceSha256": {
+    "packages/wallet/src/externalEvm/controller.ts": "55a1d91a35ace2d88e6616bcfaaef2bc7f5cb5a71c623702023e8ce0aaf95e46",
+    "tests/unit/externalEvmController.unit.test.ts": "7a9e5fcd9ac8c2901dfa52120b06a7d892474df688aac3c75b617660945d4d4c",
+    "tests/wallet-ui/external-evm-receipt.browser.test.ts": "4190414f37c13eac5c088ee554597a80cabef104fdfe50fff6623838973c4c63"
+  },
+  "productionLines": {
+    "added": 8,
+    "removed": 9,
+    "net": -1
+  },
+  "verification": {
+    "browser": {
+      "command": "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4289 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-ui/external-evm-receipt.browser.test.ts --project=chromium --output=../.artifacts/r170-receipt-browser",
+      "result": "1 passed (5.0s)",
+      "artifact": ".artifacts/r170-receipt-browser/wallet-ui-external-evm-rec-246f7--and-cancelled-observations-chromium/receipt-observations.json",
+      "observations": {
+        "observations": [
+          {
+            "scenario": "confirmed",
+            "result": {
+              "kind": "confirmed",
+              "blockNumber": "16"
+            }
+          },
+          {
+            "scenario": "reverted",
+            "result": {
+              "kind": "reverted",
+              "blockNumber": "16"
+            }
+          },
+          {
+            "scenario": "wrong_sender",
+            "result": {
+              "kind": "unresolved",
+              "reason": "Receipt could not be verified. Check the wallet before retrying."
+            }
+          },
+          {
+            "scenario": "wrong_hash",
+            "result": {
+              "kind": "unresolved",
+              "reason": "Receipt could not be verified. Check the wallet before retrying."
+            }
+          },
+          {
+            "scenario": "wrong_chain",
+            "result": {
+              "kind": "unresolved",
+              "reason": "Receipt could not be verified. Check the wallet before retrying."
+            }
+          },
+          {
+            "scenario": "timeout",
+            "result": {
+              "kind": "unresolved",
+              "reason": "Receipt could not be verified. Check the wallet before retrying."
+            }
+          },
+          {
+            "scenario": "cancelled",
+            "result": {
+              "kind": "unresolved",
+              "reason": "Receipt could not be verified. Check the wallet before retrying."
+            }
+          }
+        ],
+        "rpcCounts": {
+          "confirmed:eth_chainId": 1,
+          "confirmed:eth_getTransactionReceipt": 2,
+          "confirmed:eth_getTransactionByHash": 1,
+          "reverted:eth_chainId": 1,
+          "reverted:eth_getTransactionReceipt": 2,
+          "reverted:eth_getTransactionByHash": 1,
+          "wrong_sender:eth_chainId": 1,
+          "wrong_sender:eth_getTransactionReceipt": 1,
+          "wrong_hash:eth_chainId": 1,
+          "wrong_hash:eth_getTransactionReceipt": 1,
+          "wrong_chain:eth_chainId": 1,
+          "timeout:eth_chainId": 1,
+          "timeout:eth_getTransactionReceipt": 1,
+          "timeout:eth_getTransactionByHash": 1,
+          "cancelled:eth_chainId": 1,
+          "cancelled:eth_getTransactionReceipt": 1,
+          "cancelled:eth_getTransactionByHash": 1
+        }
+      }
+    },
+    "passedCommands": [
+      "pnpm -C packages/wallet type-check",
+      "pnpm -C tests exec tsc -p tsconfig.wallet-browser.json",
+      "pnpm -C packages/wallet build:prod",
+      "pnpm -C packages/wallet check:declarations-external",
+      "pnpm -C packages/wallet check:runtime-entry-bundles",
+      "pnpm -C packages/wallet build:check:fresh",
+      "pnpm report:bloat --check"
+    ],
+    "packedIntegrity": "sha512-eV9pr7iynfaRBR+UYs8xljWI3ED8W6uJ93RGakqD2hKlQlNOjJE02kpJ9SaEmeJjTbKgrH1Jw7D+C98XMYkw+A=="
+  },
+  "removedTest": {
+    "classification": "obsolete_test_or_fixture",
+    "reason": "Single-lookup pending return was retired. Browser contract replaces it with actual polling and identity checks."
+  },
+  "limits": [
+    "Controlled RPC responses; no real-wallet extension or blockchain submission claimed.",
+    "Confirmed means one-block inclusion, not finality.",
+    "Cancellation may wait for an in-flight RPC request.",
+    "Packed declaration command covers root, React, and runtime entries."
+  ]
+}

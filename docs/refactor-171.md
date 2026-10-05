@@ -383,13 +383,13 @@ adapter/React integration owns `start`/`mount`, with supported non-React lifecyc
 access explicitly documented. External signing/broadcast semantics remain separate
 from hosted-wallet authorization.
 
-Receipt audit finding: `ExternalEvmController.observeReceipt` currently performs
-one chain-validated RPC lookup. It returns `unresolved` when the receipt is still
-pending or the RPC cannot resolve it. A rename alone would make `waitForReceipt`
-misleading. Before completing that migration, define bounded polling and preserve
-receipt hash, account, chain, status, and block validation. Reuse the existing RPC
-waiting behavior where it fits. The only discovered callers are existing controller
-tests; no public examples or applications call the method. This work remains open.
+`ExternalEvmController.waitForReceipt` now uses the shared bounded RPC polling
+operation. It retains receipt hash, account, chain, status, and block checks.
+Confirmed means inclusion in one block. Timeout, cancellation, or an unverified
+receipt returns `unresolved`. The old one-lookup `observeReceipt` operation is
+removed. The browser contract records pending-to-inclusion, reversion, identity
+mismatch, timeout, and cancellation. Extension and real-chain acceptance remain
+part of the broader release gates.
 
 ## Export and input-shape audit
 
@@ -476,6 +476,11 @@ a declaration-level pass before declaring the migration complete.
   to `setAccountName`, including context, hooks, UI, examples, and intended app.
   Preserve display refresh and account-input behavior. Private release consumers
   remain pending; camera naming and external receipt waiting remain open.
+
+- [x] Replace external `observeReceipt` with bounded `waitForReceipt`, reusing
+  existing RPC polling and preserving submission identity verification. Record
+  inclusion semantics, unresolved outcomes, timeout, and cancellation. Browser
+  contract coverage is complete; real-chain/extension release gates remain open.
 
 - [ ] Audit current declarations and consumers in public SDK, tests, examples,
   docs, and private Console. Classify each row as rename, consolidation, internal

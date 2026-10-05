@@ -584,7 +584,11 @@ export class ExternalEvmController {
     }
   }
 
-  async observeReceipt(submission: ExternalEvmSubmission): Promise<ExternalEvmReceipt> {
+  /** Wait for inclusion in one block, then verify the receipt against the submission. */
+  async waitForReceipt(
+    submission: ExternalEvmSubmission,
+    options: { timeoutMs?: number; signal?: AbortSignal } = {},
+  ): Promise<ExternalEvmReceipt> {
     const chain = this.chains.find((candidate) => candidate.chainId === submission.chainId);
     if (!chain) {
       return {
@@ -599,16 +603,11 @@ export class ExternalEvmController {
         await client.request({ method: 'eth_chainId', params: [] }),
       );
       if (actualChain !== submission.chainId) throw new Error('RPC chain mismatch.');
-      const receipt = await client.getTransactionReceipt({
+      const receipt = await client.waitForTransactionReceipt({
         txHash: parseHex(submission.hash, 32),
+        timeoutMs: options.timeoutMs,
+        signal: options.signal,
       });
-      if (receipt === null) {
-        return {
-          kind: 'unresolved',
-          submission,
-          reason: 'Transaction receipt is pending.',
-        };
-      }
       if (
         parseHex(receipt.transactionHash, 32).toLowerCase() !== submission.hash.toLowerCase() ||
         typeof receipt.from !== 'string' ||

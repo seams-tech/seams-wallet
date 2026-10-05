@@ -2002,3 +2002,27 @@ The example's existing refresh callback initially collided with the SDK rename;
 renaming that local callback to `refreshSelectedWallet` fixed its type check.
 SDK production source adds 59 lines and removes 65 (net −6), excluding type
 fixtures. Evidence: `evidence/refactor-170-react-names-20261005.json`.
+
+
+### External EVM receipt waiting checkpoint
+
+`ExternalEvmController.waitForReceipt` replaces `observeReceipt`. The previous
+method performed one lookup; the new method uses the existing EVM RPC polling
+operation. No new polling engine or compatibility alias is added. Chain ID is
+checked before polling; hash, sender, status, and block checks remain after it.
+The captured submission remains independent of later provider selection changes.
+
+Polling defaults to 90 seconds and a 1.25-second interval. Optional `timeoutMs`
+and `signal` configure waiting. Inclusion in one block returns `confirmed` or
+`reverted`. Missing configuration, timeout, cancellation, or an unverified receipt
+returns `unresolved`. This does not promise finality or trigger transaction resend.
+An in-flight request can complete before cancellation settles.
+
+The old single-lookup unit case encoded retired behavior and was removed. The
+replacement browser contract imports the production public entry and covers
+pending-to-confirmed/reverted, wrong sender/hash/chain, timeout, and cancellation.
+It writes `receipt-observations.json`. Controlled RPC responses are used; extension
+and real-chain release acceptance remain open. Types, build, packed root/React/
+runtime declarations, runtime boundaries, and freshness pass. SDK production
+source adds 8 lines and removes 9 (net −1). Evidence:
+`evidence/refactor-170-external-receipt-20261005.json`.

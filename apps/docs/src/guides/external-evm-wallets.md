@@ -92,6 +92,19 @@ Disconnect clears this application's provider listeners and local state. It does
 revoke the site's permission in MetaMask, Rabby, or Phantom. The user manages that
 permission in the external wallet.
 
+## Wait for a receipt
+
+After `sendTransaction` returns a successful submission, call
+`await controller.waitForReceipt(submission, { timeoutMs: 90_000, signal })`.
+The controller polls the configured RPC and verifies the receipt's chain,
+transaction hash, account, status, and block number.
+
+The result is `confirmed`, `reverted`, or `unresolved`. Confirmation means
+inclusion in one block. Applications that need chain finality must track it
+separately. Timeout, cancellation, RPC failure, or an unverified receipt returns
+`unresolved`. Keep the submitted hash and let the user inspect it; do not resend
+automatically. Cancellation can wait for an in-flight RPC request to finish.
+
 ## Extension smoke check
 
 Before releasing an application that uses this connector, check the Console Lite

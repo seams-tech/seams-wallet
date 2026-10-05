@@ -1,7 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { ExternalEvmController } from '@/externalEvm';
 import { providerFailure, type ExternalProvider } from '@/externalEvm/boundary';
-import type { ExternalEvmSubmission } from '@/externalEvm';
 
 const ICON = 'data:image/png;base64,AA==';
 const WALLET_ID = '00000000-0000-4000-8000-000000000001';
@@ -575,54 +574,4 @@ test('requires the configured chain for transaction submission', async () => {
     code: 'unsupported_chain',
     message: 'Switch to a configured network first.',
   });
-});
-
-test('verifies submitted receipts and keeps pending outcomes unresolved', async () => {
-  const submission: ExternalEvmSubmission = {
-    kind: 'submitted',
-    hash: TRANSACTION_HASH,
-    account: FIRST_ACCOUNT,
-    chainId: 1,
-  };
-  let receiptAvailable = true;
-  const methods: string[] = [];
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (_input, init) => {
-    const body = JSON.parse(String(init?.body ?? '{}')) as { method?: string };
-    if (body.method) methods.push(body.method);
-    let result: unknown;
-    if (body.method === 'eth_chainId') {
-      result = '0x1';
-    } else if (receiptAvailable) {
-      result = {
-        transactionHash: TRANSACTION_HASH,
-        from: FIRST_ACCOUNT,
-        status: '0x1',
-        blockNumber: '0x10',
-      };
-    } else {
-      result = null;
-    }
-    return new Response(JSON.stringify({ jsonrpc: '2.0', id: 1, result }), {
-      status: 200,
-      headers: { 'content-type': 'application/json' },
-    });
-  };
-  try {
-    const controller = new ExternalEvmController([
-      { chainId: 1, name: 'Ethereum', rpcUrl: 'https://rpc.example.test' },
-    ]);
-    const confirmed = await controller.observeReceipt(submission);
-    expect(methods).toEqual(['eth_chainId', 'eth_getTransactionReceipt']);
-    expect(confirmed).toEqual({ kind: 'confirmed', submission, blockNumber: 16n });
-    receiptAvailable = false;
-    const pending = await controller.observeReceipt(submission);
-    expect(pending).toEqual({
-      kind: 'unresolved',
-      submission,
-      reason: 'Transaction receipt is pending.',
-    });
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
 });
