@@ -948,14 +948,10 @@ export function scheduleRouterAbEcdsaDerivationClientPresignaturePoolRefill(
         targetDepth,
       );
     }
-    if (clientPresignatureRefillInFlightByPoolKey.has(poolKey)) {
-      return buildPresignatureRefillNotScheduledResult(
-        'in_flight_for_pool_key',
-        depth,
-        targetDepth,
-      );
-    }
-    if (getForegroundSignInFlightCount(poolKey) > 0) {
+    if (
+      clientPresignatureRefillInFlightByPoolKey.has(poolKey) ||
+      (depth > 0 && getForegroundSignInFlightCount(poolKey) > 0)
+    ) {
       return buildPresignatureRefillNotScheduledResult(
         'in_flight_for_pool_key',
         depth,
@@ -1656,6 +1652,10 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
           'Router A/B ECDSA derivation client presignature pool was invalidated before prepare',
       };
     }
+    // Replace the last reserved item while its signing requests are in flight.
+    if (getClientPresignaturePoolDepth(poolKey) === 0) {
+      armPresignatureMaintenance(poolKey, 0);
+    }
     preparationState = { kind: 'prepare_submitted' };
     const prepareStartedAt = performance.now();
     const prepareResponse = await prepareRouterAbEcdsaDerivationEvmDigestSigningV1({
@@ -1879,7 +1879,7 @@ export async function signRouterAbEcdsaDerivationDigestWithPool(
     materialActivation: args.materialActivation,
   });
   const poolKey = ecdsaClientPresignPoolKey(poolIdentity);
-  // Keep maintenance paused across cache lookup, recovery generation, and signing.
+  // Track foreground work across cache lookup, recovery generation, and signing.
   startForegroundSign(poolKey);
   try {
     const refillInput: RouterAbEcdsaDerivationClientPresignatureRefillInput = {
