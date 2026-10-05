@@ -1528,3 +1528,20 @@ use a challenge at a time. Cancellation before submission retires the challenge.
 Cancellation during submission rejects because the host already owns that operation.
 A successful submission ends the flow. Recoverable failures permit a retry while
 the challenge remains valid. The hosted Google flow uses the same execution path.
+
+### Historical hosted-session restore during relocation
+
+The internal restore path accepts retired hosted credentials and issued or
+consumed exchanges beneath retired parent sessions. It preserves their original
+identity, expiry, retirement, and redemption facts. It does not issue credentials
+or consume quota. Ordinary insert and update guards remain installed.
+
+Each record and its acknowledgement commit atomically. An exact retry returns
+the original acknowledgement. Changed content or wallet scope is rejected.
+Closing import rejects new records while preserving exact retries. The destination
+remains inactive until a separate activation authorizes fresh sessions.
+
+`tests/e2e/authorization-storage-transfer.e2e.mjs` owns this D1 component contract.
+It verifies retirement of two devices, exact historical rows, failed-import
+rollback, concurrent retries, isolation, and rejection of old credentials. This
+contract does not claim complete regional transfer or client reconciliation.

@@ -74,6 +74,23 @@ Session continuity, sealed-session restoration, and pool restoration are exclude
 
 ## Implemented baseline
 
+Hosted session history now has a scoped D1 import path. It imports retired
+hosted credentials and issued/consumed exchanges beneath retired parent sessions.
+Each record is a bounded chunk, with its digest and acknowledgement committed
+in the same transaction. The temporary restore context names one wallet, tenant,
+move, record kind, and record identity. Ordinary lifecycle, identity, foreign-key,
+and quota guards remain installed. Closing import rejects new records and keeps
+exact acknowledgement replay. Preparation and closure leave the destination
+inactive; this component does not authorize activation.
+
+The authorization-transfer E2E now retires both devices before copying history.
+It no longer removes a database-wide insertion guard. It verifies exact rows and
+quotas, rollback after an acknowledgement failure, concurrent retries, conflict
+rejection, import closure, and an unaffected neighboring wallet. Transport,
+complete manifest verification, other historical record families, and coordinator
+activation remain unfinished.
+
+
 The signer D1 session-retirement operation now retires every device's primary
 and hosted sessions in one transaction. The same transaction installs a durable
 source fence against new session issuance, hosted issuance, exchange redemption,
@@ -1193,8 +1210,9 @@ destination scope, without deleting another wallet's data.
 
 Use a dedicated internal restore operation in the owning store. Ordinary session
 issuance, registration, quota claims, and signing APIs must not perform restoration.
-The current consumed-exchange probe disabled a trigger temporarily; that technique
-is excluded from production shared databases.
+Do not disable database-wide triggers during restore. Hosted credential and
+exchange imports now use the scoped context described below. Other record families
+still need their own validated restore operations.
 
 For rows rejected or mutated by ordinary insertion triggers, implement a scoped
 restore context in the same local transaction as the imported rows. It must bind

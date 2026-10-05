@@ -65,6 +65,7 @@ const bundle = await build({
     resolveDir: process.cwd(),
     loader: 'ts',
     contents: `
+      export { D1WalletHostedHistory } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletHostedHistory';
       export { D1WalletRelocationSessions, WalletRelocationSessionSource } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationSessions';
       export { CloudflareD1WebAuthnStore } from './packages/wallet-server/src/router/cloudflare/d1/webauthn/d1WebAuthnStore';
       export { walletRelocationEmailOtpBinding, verifyWalletRelocationEmailOtp } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationEmailOtp';
@@ -196,62 +197,51 @@ try {
     await sourceService.readHostedWalletSessionOperationCredentialV2(hostedInput);
   assert.ok(hostedBefore);
 
-  const copied = [];
-  for (const table of tables) {
-    const result = await source
-      .prepare(`SELECT * FROM ${table} WHERE namespace = ?`)
-      .bind(scope.namespace)
-      .all();
-    const statements = [];
-    for (const row of result.results) {
-      const columns = Object.keys(row);
-      const placeholders = Array(columns.length).fill('?').join(', ');
-      statements.push(
-        destination
-          .prepare(`INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`)
-          .bind(...Object.values(row)),
-      );
-    }
-    if (table === 'wallet_session_hosted_exchange_codes_v2') {
-      await assert.rejects(
-        destination.batch(statements),
-        /wallet_session_hosted_exchange_initial_state_rejected/u,
-      );
-      const guardName = 'wallet_session_hosted_exchange_codes_v2_insert_lifecycle_guard';
-      const guard = await destination
-        .prepare("SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = ?")
-        .bind(guardName)
-        .first();
-      assert.ok(guard);
-      // Restore terminal history only in this isolated, inactive destination, then reinstate its insert guard.
-      await destination.batch([
-        destination.prepare(`DROP TRIGGER ${guardName}`),
-        ...statements,
-        destination.prepare(guard.sql),
-      ]);
-      await assert.rejects(
-        destination.batch(statements),
-        /wallet_session_hosted_exchange_initial_state_rejected/u,
-      );
-    } else if (statements.length > 0) {
-      await destination.batch(statements);
-    }
-    copied.push({ table, rows: statements.length });
-  }
+  assert.equal(
+    await sourceService.readHostedWalletSessionOperationCredentialV2({
+      tenantId: hostedInput.tenantId,
+      token: hostedInput.token,
+      requestOrigin: api.parseSessionOrigin('https://changed-wallet.example.test'),
+      nowMs: hostedInput.nowMs,
+    }),
+    null,
+  );
+  const sessionSource = api.WalletRelocationSessionSource.parse({
+    walletId: issued.session.walletId,
+    moveId: `wmove_${'s'.repeat(43)}`,
+    requestDigestHex: 'cd'.repeat(32),
+    sourceGeneration: 1,
+  });
+  const sessionRetirement = await verifyWalletSessionRetirement({
+    identity: sessionSource,
+    source,
+    sourceService,
+    fixture,
+    issued,
+    offlineIssued,
+    primaryInput,
+    offlineInput,
+    hostedInput,
+    hostedBefore,
+    before,
+    offlineBefore,
+    redeemInput,
+    issuedAtMs,
+  });
+  const copied = await verifyHostedHistoryCopy(source, destination, sessionSource);
 
   const destinationService = service(destination, scope);
-  assert.deepEqual(
-    await destinationService.readWalletSessionAdmissionSnapshotByOperationCredential(primaryInput),
-    before,
-  );
-  assert.deepEqual(
+  for (const credential of [primaryInput, offlineInput]) {
+    await assert.rejects(
+      destinationService.readWalletSessionAdmissionSnapshotByOperationCredential(credential),
+      /authorization is retired/u,
+    );
+  }
+  assert.equal(
     await destinationService.readHostedWalletSessionOperationCredentialV2(hostedInput),
-    hostedBefore,
+    null,
   );
-  assert.deepEqual(
-    await destinationService.readWalletSessionAdmissionSnapshotByOperationCredential(offlineInput),
-    offlineBefore,
-  );
+  assert.equal(await api.readWalletSessionSigningCandidate(destinationService, signingInput), null);
   assert.equal(
     (await destinationService.redeemHostedWalletSeamsSessionExchange(redeemInput)).kind,
     'already_consumed',
@@ -276,54 +266,24 @@ try {
     await otherScopeService.readWalletSessionAdmissionSnapshotByOperationCredential(primaryInput),
     null,
   );
-  assert.equal(
-    await destinationService.readHostedWalletSessionOperationCredentialV2({
-      tenantId: hostedInput.tenantId,
-      token: hostedInput.token,
-      requestOrigin: api.parseSessionOrigin('https://changed-wallet.example.test'),
-      nowMs: hostedInput.nowMs,
-    }),
-    null,
-  );
   await assert.rejects(
-    destinationService.readWalletSessionAdmissionSnapshotByOperationCredential({
-      tenantId: primaryInput.tenantId,
-      token: primaryInput.token,
-      nowMs: issued.session.expiresAtMs + 1,
+    destinationService.issueDirectWalletSessionAuthorizationV2({
+      tenantId: issued.session.tenantId,
+      principalId: issued.session.principalId,
+      walletId: fixture.authority.walletId,
+      authority: fixture.authority,
+      walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
+      mintId: 'wallet-mint:inactive-import-issuance',
+      remainingUses: 7,
+      issuedAtMs: issuedAtMs + 20,
+      expiresAtMs: issued.session.expiresAtMs,
     }),
-    /authorization has expired/u,
-  );
-  await destinationService.retireWalletSessionAuthorizationsForAuthMethod({
-    tenantId: issued.session.tenantId,
-    walletId: issued.session.walletId,
-    walletAuthMethodId: issued.session.walletAuthMethodId,
-    nowMs: issuedAtMs + 3,
-  });
-  await assert.rejects(
-    destinationService.readWalletSessionAdmissionSnapshotByOperationCredential(primaryInput),
-    /authorization is retired/u,
-  );
-  assert.equal(
-    await api.readWalletSessionSigningCandidate(destinationService, signingInput),
-    null,
-    'Retired signing credentials are rejected without an availability exception',
-  );
-  assert.equal(
-    await destinationService.readHostedWalletSessionOperationCredentialV2(hostedInput),
-    null,
-  );
-  assert.deepEqual(
-    await destinationService.readWalletSessionAdmissionSnapshotByOperationCredential(offlineInput),
-    offlineBefore,
+    /wallet_hosted_history_destination_inactive/u,
   );
 
   const relocationPasskey = await verifyRelocationPasskey(source);
   const relocationEmailOtp = await verifyRelocationEmailOtp(source);
   const relocationOwnerRequest = await verifyRelocationOwnerRequest(source);
-  const sessionRetirement = await verifyWalletSessionRetirement({
-    source, sourceService, fixture, issued, offlineIssued, primaryInput, offlineInput,
-    hostedInput, hostedBefore, before, offlineBefore, redeemInput, issuedAtMs,
-  });
   const artifact = {
     kind: 'wallet_authorization_storage_transfer_evidence_v1',
     recordedAt: new Date().toISOString(),
@@ -342,19 +302,18 @@ try {
       relocationEmailOtp,
       relocationOwnerRequest,
       sessionRetirement,
-      existingPrimaryCredentialAcceptedAtIndependentDatabase: true,
-      secondDeviceCredentialAndAuthorityPreservedWithoutReissuance: true,
+      retiredPrimaryCredentialRejectedAtIndependentDatabase: true,
+      secondDeviceAuthorityAndRetiredSessionPreserved: true,
       directConsumedExchangeImportRejected: true,
-      isolatedTerminalRestoreReinstatedInsertGuard: true,
+      scopedHistoricalRestoreKeptOrdinaryGuardsInstalled: true,
       exactAuthorityCapabilityAndQuotaPreserved: true,
-      existingHostedCredentialAcceptedAtIndependentDatabase: true,
+      retiredHostedCredentialRejectedAtIndependentDatabase: true,
       consumedExchangeRemainedConsumed: true,
       changedTenantAndOrganizationRejected: true,
       changedWalletOriginRejected: true,
       retiredSigningCredentialReturnsInvalid: true,
-      expiredSessionRejected: true,
-      retirementInvalidatedBothCredentialsAtDestination: true,
-      retiringFirstDeviceSessionLeftSecondDeviceSessionActive: true,
+      bothDevicesRemainRetiredAtDestination: true,
+      inactiveDestinationRejectsFreshSessionIssuance: true,
     },
     scope:
       'Production authorization service and D1 stores with canonical fixture authority; no signing execution, cryptographic material copy, browser, physical geography, complete writer fencing, or coordinator integration.',
@@ -1613,12 +1572,7 @@ async function verifyWalletSessionRetirement(input) {
     redeemInput,
     issuedAtMs,
   } = input;
-  const identity = api.WalletRelocationSessionSource.parse({
-    walletId: issued.session.walletId,
-    moveId: `wmove_${'s'.repeat(43)}`,
-    requestDigestHex: 'cd'.repeat(32),
-    sourceGeneration: 1,
-  });
+  const identity = input.identity;
   const store = new api.D1WalletRelocationSessions(source, scope);
   const pending = await sourceService.mintHostedWalletSeamsSessionExchange({
     authorization: issued,
@@ -1786,4 +1740,157 @@ async function verifyWalletSessionRetirement(input) {
 
 function methodIsActive(method) {
   return method.status === 'active';
+}
+
+async function verifyHostedHistoryCopy(source, destination, identity) {
+  const importer = new api.D1WalletHostedHistory(destination, scope);
+  await importer.prepare(identity);
+  const neighborNow = Date.now();
+  const neighborFixture = await api.buildLinkedDeviceManagementAuthorityFixture({
+    label: 'hosted-history-neighbor',
+    permissions: api.buildFullOwnerPermissionsV1(),
+    provenance: 'wallet_registration',
+    expiresAtMs: neighborNow + 3_600_000,
+    identity: {
+      walletId: 'wallet:hosted-history-neighbor',
+      authorityId: 'authority:hosted-history-neighbor',
+      walletAuthMethodId: 'auth-method:hosted-history-neighbor',
+      rpId: 'wallet.example.test',
+      credentialIdB64u: Buffer.alloc(32, 68).toString('base64url'),
+    },
+  });
+  const neighborService = service(destination, scope);
+  const neighbor = await issueDeviceSession(
+    destination,
+    neighborService,
+    neighborFixture,
+    neighborNow,
+  );
+  const copied = [];
+  const expectedRows = [];
+  let firstImported = null;
+  for (const table of tables) {
+    const ownership =
+      table === 'authorization_wallet_session_quotas'
+        ? `EXISTS (SELECT 1 FROM wallet_session_authorizations_v2 AS session
+          WHERE session.namespace = ?1 AND session.org_id = ?2 AND session.project_id = ?3 AND session.env_id = ?4
+            AND session.wallet_id = ?5 AND session.namespace = target.namespace AND session.tenant_id = target.tenant_id
+            AND session.quota_id = target.quota_id AND session.wallet_session_id = target.wallet_session_id)`
+        : 'target.namespace = ?1 AND target.org_id = ?2 AND target.project_id = ?3 AND target.env_id = ?4 AND target.wallet_id = ?5';
+    const query = `SELECT target.* FROM ${table} AS target WHERE ${ownership} ORDER BY target.rowid`;
+    const result = await api
+      .prepareD1TenantStatement(source, scope, query, [identity.walletId])
+      .all();
+    for (const row of result.results) {
+      const columns = Object.keys(row);
+      const statement = destination
+        .prepare(
+          `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${columns.map(sqlPlaceholder).join(', ')})`,
+        )
+        .bind(...Object.values(row));
+      if (
+        table === 'wallet_session_hosted_credentials_v2' ||
+        table === 'wallet_session_hosted_exchange_codes_v2'
+      ) {
+        const kind = table === 'wallet_session_hosted_credentials_v2' ? 'credential' : 'exchange';
+        await assert.rejects(statement.run(), /wallet_session_hosted_/u);
+        if (!firstImported) {
+          await destination
+            .prepare(
+              `CREATE TRIGGER injected_hosted_import_failure
+            BEFORE INSERT ON wallet_relocation_hosted_import_receipts
+            BEGIN SELECT RAISE(ABORT, 'injected_import_ack_failure'); END`,
+            )
+            .run();
+          await assert.rejects(
+            importer.restore(identity, kind, row),
+            /injected_import_ack_failure/u,
+          );
+          await destination.prepare('DROP TRIGGER injected_hosted_import_failure').run();
+          assert.equal(
+            await destination
+              .prepare('SELECT COUNT(*) AS count FROM wallet_relocation_hosted_import_context')
+              .first('count'),
+            0,
+          );
+          assert.equal(
+            await destination.prepare(`SELECT COUNT(*) AS count FROM ${table}`).first('count'),
+            0,
+          );
+          const [first, concurrent] = await Promise.all([
+            importer.restore(identity, kind, row),
+            importer.restore(identity, kind, row),
+          ]);
+          assert.equal(concurrent, first);
+          firstImported = { kind, row, receipt: first };
+          await assert.rejects(
+            importer.restore(identity, kind, { ...row, expires_at_ms: row.expires_at_ms + 1 }),
+            /content conflicts/u,
+          );
+          await assert.rejects(
+            importer.restore(identity, kind, { ...row, wallet_id: 'wallet:foreign-history' }),
+            /scope conflicts/u,
+          );
+        } else {
+          const receipt = await importer.restore(identity, kind, row);
+          assert.equal(
+            await new api.D1WalletHostedHistory(destination, scope).restore(identity, kind, row),
+            receipt,
+          );
+        }
+      } else {
+        await statement.run();
+      }
+    }
+    expectedRows.push({ query, rows: result.results });
+    copied.push({ table, rows: result.results.length });
+  }
+  for (const expected of expectedRows) {
+    const restored = await api
+      .prepareD1TenantStatement(destination, scope, expected.query, [identity.walletId])
+      .all();
+    assert.deepEqual(restored.results, expected.rows);
+  }
+  assert.ok(firstImported);
+  await importer.close(identity);
+  assert.equal(
+    await importer.restore(identity, firstImported.kind, firstImported.row),
+    firstImported.receipt,
+  );
+  await importer.prepare(identity);
+  await assert.rejects(
+    importer.restore(identity, firstImported.kind, {
+      ...firstImported.row,
+      hosted_credential_id: 'hosted-credential:late-import',
+    }),
+  );
+  assert.equal(
+    await destination
+      .prepare('SELECT COUNT(*) AS count FROM wallet_relocation_hosted_import_context')
+      .first('count'),
+    0,
+  );
+  assert.equal(
+    (
+      await neighborService.readWalletSessionAdmissionSnapshotByOperationCredential({
+        tenantId: neighbor.session.tenantId,
+        token: neighbor.operationCredential.token,
+        nowMs: neighborNow + 1,
+      })
+    ).kind,
+    'active',
+  );
+  return {
+    unrelatedDestinationWalletRemainsActive: true,
+    tables: copied,
+    exactRowsAndQuotasPreserved: true,
+    concurrentReplayExact: true,
+    failedAcknowledgementRolledBackRecordAndContext: true,
+    scopeAndContentConflictsRejected: true,
+    importClosureRejectsNewChunksAndPreservesReplay: true,
+  };
+}
+
+function sqlPlaceholder() {
+  return '?';
 }
