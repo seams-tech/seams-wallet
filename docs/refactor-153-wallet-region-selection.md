@@ -34,6 +34,11 @@ Owners mainly use one region and occasionally travel. The priority is local
 permission and signing calls after relocation. Verify actual placement and shared
 dependencies before claiming a signing path without cross-region calls.
 
+Move wallet-owned durable state and execution together to the selected home.
+Keeping that state in a fixed region while relocating only execution is excluded:
+the resulting cross-region storage calls defeat this latency objective.
+Shared policy and tenant custody retain their existing ownership boundaries.
+
 [Initial backend relocation validation](refactor-153-backend-relocation-validation.md)
 records the Cloudflare capabilities, current storage hazards, local probe
 results, and remaining hosted checks.
@@ -514,10 +519,33 @@ with the coordinator stopped and restarted.
 
 ### Transfer strategy
 
-Implement a **paused, role-preserving transfer** first: prepare inactive regional
-resources, pause wallet mutations, settle in-flight work, invalidate usable
-sessions and presignatures, copy and verify durable wallet state and history,
-then switch ownership. Fresh authentication and refill happen after activation.
+Implement one **forward-only, paused, role-preserving transfer** with exact retries.
+Preserve source data and frozen transfer inputs until verified destination
+activation is durable. Required session retirement and presignature invalidation
+still happen before the snapshot. Preserving the source never permits reactivation.
+
+Use this lifecycle:
+
+1. **Complete preparation before pausing the wallet.** Prepare inactive regional
+   resources and check every prerequisite that does not require frozen source data.
+   Pin the checked resources at admission. Drain work and verify copied wallet
+   data after the pause. Preparation cannot prove those conditions in advance.
+2. **Transfer one immutable snapshot.** Settle admitted work, retire signing
+   sessions, and invalidate usable presignatures before sealing the snapshot.
+   Every retry uses the same snapshot, manifest, and chunk identities.
+3. **Make each transfer command independently repeatable.** Persist command
+   identities, input digests, and durable results at the owning participant.
+   Exact retries return recorded results. Changed inputs under the same identity
+   block the move. Resolve uncertain effects before issuing a completion receipt.
+4. **Separate activation from cleanup.** Persist destination activation during
+   `cutover`. Allow fresh authentication and signing after client reconciliation
+   while source cleanup retries. Block another move until cleanup completes.
+5. **Keep historical import narrow.** Use dedicated store restore operations with
+   transaction-scoped permission for the wallet, move, and chunk. Preserve identity
+   and parent checks. Adjust only demonstrated restore-sensitive trigger paths.
+
+These rules refine the existing five phases. They add no rollback or second
+transfer protocol. Fresh authentication and refill happen after activation.
 Measure pause duration before adding online pre-copy or delta replication.
 Keep wallet key derivation, custody ceremonies, and device enrollment intact.
 
@@ -591,7 +619,11 @@ Region observations and notification actions cannot authorize relocation.
   Resolve US, WEUR or APAC through the server's admitted regional catalog. Clients
   supply no D1 IDs, URLs, role identities or key material. Before admission, verify
   destination resources, schema/import support, role identities, required key
-  versions and server-seal continuity. Pin the checked resource/configuration
+  versions, server-seal continuity, and authenticated transport access. Prepare
+  inactive destination resources before admission pauses the source. This preparation
+  copies no wallet data and grants no ordinary execution authority. A preparation
+  failure leaves source placement and signing sessions unchanged and charges no
+  relocation cooldown. Pin the checked resource/configuration
   identities to the move; subsequent configuration changes cannot retarget it.
   Unsupported custody/jurisdiction configurations return an eligibility failure.
 
@@ -1074,6 +1106,11 @@ cooldown and receipt envelopes. Extend those same modules during implementation:
   generation, one active move, progress/recovery state, and wallet-wide cooldown.
   Preserve immutable wallet and founding-registration identities. Replace the
   blanket immutable-home rule with changes permitted only by a verified move.
+- [ ] Prepare inactive regional D1 resources and fresh physical per-role DO
+  identities before admission pauses the wallet. Apply intended location hints
+  on first creation. Verify schema/import support, logical identities, required
+  key versions, server-seal continuity, and authenticated transport access.
+  Pin the checked resources at admission without exposing keys to a central mover.
 - [ ] Admit moves through the authenticated owner path and configured region
   catalog. Persist the move before transfer effects. Bind retries to the same
   canonical request; changed destinations/requests conflict. Selecting the
@@ -1087,13 +1124,9 @@ cooldown and receipt envelopes. Extend those same modules during implementation:
   and independent activation persistence. Preserve stage budgets across chunk
   progress, restart, and UI polling.
 
-### 2. Destination preparation, source quiescence, and session/pool retirement
+### 2. Source quiescence and session/pool retirement
 
-- [ ] Select verified regional D1 resources and fresh physical per-role DO
-  identities. Apply intended location hints on first creation. Keep logical
-  ciphertext identities and role configuration stable; verify required keys and
-  versions without exposing them to a central mover.
-- [ ] Prepare destinations inactive. Stop new source admissions, drain already
+- [ ] Keep prepared destinations inactive. Stop new source admissions, drain already
   admitted effects, and reconcile unfinished claims. If an effect's outcome or
   source quiescence is uncertain, retain the pause and reconcile before switching.
 - [ ] Fence Router, Deriver A/B, SigningWorker, and presign session/deferred paths.
@@ -1216,7 +1249,7 @@ fixtures wherever they express these scenarios.
 
 | Scenario | Required evidence |
 | --- | --- |
-| Owner authorization and destination admission | Reject unauthenticated, insufficient-permission, expired/revoked, wrong-tenant/wallet, stale-generation, and unsupported-resource requests before transfer effects. An unavailable directory or unverified destination fails closed without a fallback write. |
+| Owner authorization and destination admission | Reject unauthenticated, insufficient-permission, expired/revoked, wrong-tenant/wallet, stale-generation, and unsupported-resource requests before transfer effects. Fail destination preparation or transport checks before admission and prove source placement, signing sessions, and relocation cooldown stay unchanged. Admit only the checked resource set. An unavailable directory or unverified destination fails closed without a fallback write. |
 | Paused WEUR → APAC move with two owner devices | Real signatures for both curves before/after. Preserve addresses, wallet/device/material identities, permissions, historical accounting, and completed results. Reject every old signing credential, exchange, and sealed-session restore. Keep device two offline through cutover, then authenticate it again without re-enrollment, obtain a new session, refill, and sign. Exercise passkey and Email OTP entrypoints where supported. |
 | In-flight work and stale preparation | Lose a finalize response after its effect. After relocation and fresh authentication, retrieve the original result under its original identity with one quota use/effect. Interrupt presigning, delay refill/admission and linked credential delivery until after cutover, and restore an old client cache after reload. No old grant or material becomes usable. |
 | D1 historical restore and isolation | Restore consumed exchanges, expired parents, exhausted quotas, and reconciled operation history through the scoped import context. Crash before and after a chunk commit, lose its acknowledgement, and replay it. Preserve audit/quota exactly and leave no restore context enabled. Keep a second wallet active in the same database and enforce its ordinary triggers throughout. |
