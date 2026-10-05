@@ -62,7 +62,7 @@ branch before reading its fields, such as the NEAR provisioning state.
 - `wallet_registered` means the wallet and its returned capabilities are ready.
 - `ecdsa_wallet_registered_near_pending` means the EVM-family capability is
   ready while NEAR provisioning is pending or retryable. This branch carries no
-  NEAR account ID. Await `seams.registration.awaitNearReady({ walletId })`
+  NEAR account ID. Await `seams.registration.waitForNearAccount({ walletId })`
   before signing NEAR.
 - `near_wallet_registered_pending` means NEAR provisioning still needs to
   reach a ready state before you read a NEAR account.
@@ -80,10 +80,10 @@ Passkey cancellation ends the current attempt. Let the person start a new attemp
 the same button. A retryable NEAR provisioning result preserves the wallet identity.
 Check provisioning before offering a retry. Do not register a second wallet:
 
-- `seams.registration.awaitNearReady({ walletId })` waits for provisioning to
+- `seams.registration.waitForNearAccount({ walletId })` waits for provisioning to
   settle and resolves with `near_ready`, `near_failed_retryable`, or
   `timed_out`. It never rejects unless you abort it with a `signal`.
-- `seams.registration.getNearProvisioningState({ walletId })` reads the current
+- `seams.registration.getNearAccountState({ walletId })` reads the current
   state without waiting.
 
 Origin, publishable-key, and authentication errors require configuration or

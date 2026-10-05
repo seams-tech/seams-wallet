@@ -1,5 +1,6 @@
 import {
   expect,
+  test,
   type BrowserContext,
   type ConsoleMessage,
   type Frame,
@@ -33,6 +34,18 @@ class NearRegistrationGate {
 }
 
 function ignoreRelease(): void {}
+
+async function releaseAfterPendingNearWait(page: Page, gate: NearRegistrationGate): Promise<void> {
+  try {
+    const status = page.getByTestId('intended-action-status');
+    await expect(status).toHaveAttribute('data-action', 'awaitNearReady');
+    await expect(status).toHaveAttribute('data-state', 'running');
+    await page.waitForTimeout(250);
+    await expect(status).toHaveAttribute('data-state', 'running');
+  } finally {
+    gate.release();
+  }
+}
 
 export async function assertIndependentNearRegistration(input: {
   harness: IntendedBehaviourHarness;
@@ -71,12 +84,15 @@ export async function assertIndependentNearRegistration(input: {
     if (input.exhaustBudget) await input.harness.signTempoTransaction('post_registration');
     pendingSession = await input.harness.readCurrentWalletSessionStatus();
     if (input.exhaustBudget) expect(pendingSession.remainingUses).toBe(0);
+    await Promise.all([
+      input.harness.awaitNearReady(),
+      releaseAfterPendingNearWait(page, gate),
+    ]);
   } finally {
     gate.release();
     await input.context.unroute(`**${input.path}`, handler);
     page.off('console', observePreparation);
   }
-  await input.harness.awaitNearReady();
   if (!pendingSession) throw new Error('NEAR gate did not capture the pending session');
   const readySession = await input.harness.readCurrentWalletSessionStatus();
   expect(readySession.walletSessionId).toBe(pendingSession.walletSessionId);
@@ -106,6 +122,17 @@ export async function assertIndependentNearRegistration(input: {
     expect(afterStepUp.remainingUses).toBe(0);
     expect(afterStepUp.expiresAtMs).toBe(pendingSession.expiresAtMs);
   }
+  await test.info().attach('near-account-readiness.json', {
+    contentType: 'application/json',
+    body: JSON.stringify({
+      factor: input.factor,
+      heldPath: input.path,
+      defaultWaitRemainedPendingForMs: 250,
+      accountReadyAfterRelease: true,
+      sessionAuthorityUnchanged: true,
+      nearSigningAfterRelease: 'passed',
+    }),
+  });
 }
 
 class NearFinalizationResponseGate {

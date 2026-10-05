@@ -35,7 +35,7 @@ async function createNearWallet(
     return { kind: 'registration_failed' as const, reason: registration.error };
   }
 
-  return wallet.registration.awaitNearReady({
+  return wallet.registration.waitForNearAccount({
     walletId: registration.walletId,
   });
 }
@@ -69,11 +69,11 @@ provider, or worker is checked when it enters the system. The rest of the code
 uses that checked representation.
 
 For example, the
-[NEAR readiness result](../packages/wallet/src/SeamsWeb/publicApi/awaitNearReady.ts)
+[NEAR readiness result](../packages/wallet/src/SeamsWeb/publicApi/waitForNearAccount.ts)
 states exactly what the caller can use in each case:
 
 ```ts
-export type AwaitNearReadyResult =
+export type WaitForNearAccountResult =
   | { kind: 'near_ready'; nearAccountId: string }
   | { kind: 'near_failed_retryable'; reason: string }
   | { kind: 'timed_out' };

@@ -218,7 +218,7 @@ export class WalletHostRuntime {
       registration: {
         ...registrationCommands,
         ...emailOtpCommands.registration,
-        onNearProvisioningStateChanged: this.onNearProvisioningStateChanged.bind(this),
+        onNearAccountChange: this.onNearAccountChange.bind(this),
       },
       recovery: {
         syncAccount: this.syncAccountDomain.bind(this),
@@ -365,8 +365,8 @@ export class WalletHostRuntime {
     return await syncAccount(this.getContext(), walletId ? String(walletId) : null, args.options);
   }
 
-  private onNearProvisioningStateChanged(
-    listener: Parameters<RegistrationCapability['onNearProvisioningStateChanged']>[0],
+  private onNearAccountChange(
+    listener: Parameters<RegistrationCapability['onNearAccountChange']>[0],
   ): () => void {
     return this.onSdkLifecycleEvent(deliverNearProvisioningStateChanged.bind(null, listener));
   }

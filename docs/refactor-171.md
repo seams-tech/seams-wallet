@@ -4,7 +4,8 @@ Status: implementation in progress, 2026-10-05.
 Connection, configuration, event subscriptions, and public hosted auth-menu operations migrated
 locally; publication and deployment remain pending. Wallet creation now uses only
 `registration.registerWallet`, including React callers and explicit runtime.
-See the unified registration checkpoint in the R170 inventory for evidence.
+NEAR account reads, waits, and subscriptions also use the accepted names.
+See the registration and NEAR account checkpoints in the R170 inventory for evidence.
 
 ## Objective
 

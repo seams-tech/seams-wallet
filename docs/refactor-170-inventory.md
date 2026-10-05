@@ -1572,3 +1572,38 @@ The protocol case initially failed because its storage probe used Vite `/@fs/`
 in production. Classified `valid_test_needs_update`, it now serves a bundled
 probe and passes without changing the storage assertion. Production TypeScript
 adds 21 lines and removes 406 (net −385), excluding type fixtures and docs.
+
+### Public NEAR account readiness checkpoint
+
+The registration capability now names its read, wait, and subscription
+`getNearAccountState`, `waitForNearAccount`, and `onNearAccountChange`. Client,
+explicit runtime, React profile/refresh consumers, type fixtures, and public
+examples use those names. The message discriminator and underlying provisioning
+state/event shapes retain their existing contracts. There are no public aliases.
+
+The public factory binds the existing wait directly, removing its forwarding
+closure and repeated dependency object. The intended app uses this public wait
+instead of its separate subscription/read/timeout implementation. A source audit
+found that the former timeout expression clamped missing input to 1 ms before
+applying the documented default. Missing input now selects 120 seconds first.
+The wait still subscribes before reading and cleans up listeners and timers.
+
+The existing gated-registration E2E now starts the default public wait while
+NEAR is held. It verifies the wait remains pending for 250 ms, releases the gate,
+and verifies account readiness, unchanged session authority, and NEAR signing.
+Each run attaches `near-account-readiness.json` with these non-secret facts.
+Results and source accounting are recorded in
+`evidence/refactor-170-near-account-api-20261005.json`.
+No private `apps/` or `packages/` callers use the replaced readiness method names.
+
+Five production cases pass on the final build: four held admission/execution
+cases across passkey and Email OTP, plus immediate owner-session signing.
+Build freshness, types, declarations, runtime boundaries, and bloat checks pass.
+Production TypeScript adds 129 lines and removes 137 (net −8), counting the file
+rename on both sides. Test code adds 40 lines and removes 68 (net −28).
+
+The declaration-resolution probe needed the renamed method and now passes.
+Its scope is unresolved modules and `any` degradation. Initial raw diagnostics
+also showed generated WASM `Symbol.dispose` errors with the probe's ES2022 libs.
+Do not treat that probe as complete external-consumer compilation evidence;
+resolve the library contract and verify all diagnostics before final acceptance.

@@ -2,14 +2,14 @@ import type { NearProvisioningState } from '@/core/types/seams';
 import type { NearProvisioningStateChangedEvent } from '@/core/types/sdkSentEvents';
 import type { RegistrationCapability } from '@/SeamsWeb/publicApi/types';
 
-const DEFAULT_AWAIT_NEAR_READY_TIMEOUT_MS = 120_000;
+const DEFAULT_NEAR_ACCOUNT_TIMEOUT_MS = 120_000;
 
-export type AwaitNearReadyResult =
+export type WaitForNearAccountResult =
   | { kind: 'near_ready'; nearAccountId: string }
   | { kind: 'near_failed_retryable'; reason: string }
   | { kind: 'timed_out' };
 
-function outcomeFor(state: NearProvisioningState | null): AwaitNearReadyResult | null {
+function outcomeFor(state: NearProvisioningState | null): WaitForNearAccountResult | null {
   if (!state) return null;
   if (state.status === 'near_ready') {
     return { kind: 'near_ready', nearAccountId: state.nearAccountId };
@@ -28,45 +28,44 @@ function outcomeFor(state: NearProvisioningState | null): AwaitNearReadyResult |
  * and then reading the current state closes the race where provisioning
  * completes between the two.
  */
-export async function awaitNearReady(
+export async function waitForNearAccount(
   deps: {
-    getNearProvisioningState: RegistrationCapability['getNearProvisioningState'];
-    onNearProvisioningStateChanged: RegistrationCapability['onNearProvisioningStateChanged'];
+    getNearAccountState: RegistrationCapability['getNearAccountState'];
+    onNearAccountChange: RegistrationCapability['onNearAccountChange'];
   },
   args: { walletId: string; timeoutMs?: number; signal?: AbortSignal },
-): Promise<AwaitNearReadyResult> {
+): Promise<WaitForNearAccountResult> {
   const walletId = String(args.walletId || '').trim();
-  if (!walletId) throw new Error('[seams] awaitNearReady requires a walletId');
-  const timeoutMs =
-    Math.max(1, Math.floor(Number(args.timeoutMs) || 0)) || DEFAULT_AWAIT_NEAR_READY_TIMEOUT_MS;
+  if (!walletId) throw new Error('[seams] waitForNearAccount requires a walletId');
+  const timeoutMs = Math.max(1, Math.floor(args.timeoutMs ?? DEFAULT_NEAR_ACCOUNT_TIMEOUT_MS));
 
   let unsubscribe: null | (() => void) = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let onAbort: (() => void) | null = null;
   try {
-    return await new Promise<AwaitNearReadyResult>((resolve, reject) => {
+    return await new Promise<WaitForNearAccountResult>((resolve, reject) => {
       let settled = false;
-      const settle = (result: AwaitNearReadyResult): void => {
+      const settle = (result: WaitForNearAccountResult): void => {
         if (settled) return;
         settled = true;
         resolve(result);
       };
 
       if (args.signal?.aborted) {
-        reject(args.signal.reason ?? new Error('[seams] awaitNearReady aborted'));
+        reject(args.signal.reason ?? new Error('[seams] waitForNearAccount aborted'));
         return;
       }
       if (args.signal) {
         onAbort = () => {
           if (settled) return;
           settled = true;
-          reject(args.signal?.reason ?? new Error('[seams] awaitNearReady aborted'));
+          reject(args.signal?.reason ?? new Error('[seams] waitForNearAccount aborted'));
         };
         args.signal.addEventListener('abort', onAbort, { once: true });
       }
 
       // Subscribe before the first read so a transition in between is not lost.
-      unsubscribe = deps.onNearProvisioningStateChanged(
+      unsubscribe = deps.onNearAccountChange(
         (event: NearProvisioningStateChangedEvent) => {
           if (String(event.walletId) !== walletId) return;
           const outcome = outcomeFor(event.state);
@@ -76,7 +75,7 @@ export async function awaitNearReady(
       timer = setTimeout(() => settle({ kind: 'timed_out' }), timeoutMs);
 
       void deps
-        .getNearProvisioningState({ walletId })
+        .getNearAccountState({ walletId })
         .then((state) => {
           const outcome = outcomeFor(state);
           if (outcome) settle(outcome);

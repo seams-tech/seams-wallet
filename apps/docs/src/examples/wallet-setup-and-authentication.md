@@ -35,8 +35,8 @@ your own registration screen.
 `RegistrationResult` is a typed union. A successful registration can be ready
 immediately or report pending NEAR provisioning. Check the result branch before reading
 a chain-specific capability. For the pending branch, await
-`seams.registration.awaitNearReady({ walletId })` rather than polling
-`getNearProvisioningState` yourself.
+`seams.registration.waitForNearAccount({ walletId })` rather than polling
+`getNearAccountState` yourself.
 
 ## Unlock an existing wallet
 

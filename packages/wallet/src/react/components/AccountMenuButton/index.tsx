@@ -105,12 +105,12 @@ function isRecoveryCodeDialogDismissal(error: unknown): boolean {
 async function resolveNearAccountIdForExport(input: {
   readonly walletId: string;
   readonly sessionNearAccountId: string | null | undefined;
-  readonly getNearProvisioningState: (args: {
+  readonly getNearAccountState: (args: {
     walletId: string;
   }) => Promise<NearProvisioningState | null>;
 }): Promise<string> {
   if (input.sessionNearAccountId) return input.sessionNearAccountId;
-  const state = await input.getNearProvisioningState({ walletId: input.walletId });
+  const state = await input.getNearAccountState({ walletId: input.walletId });
   if (state?.status === 'near_ready') return state.nearAccountId;
   if (state?.status === 'near_pending' || state?.status === 'near_provisioning') {
     throw new Error('NEAR signer provisioning is still in progress. Try again shortly.');
@@ -312,7 +312,7 @@ const AccountMenuButtonInner: React.FC<
           const exportNearAccountId = await resolveNearAccountIdForExport({
             walletId,
             sessionNearAccountId: nearAccountId,
-            getNearProvisioningState: seams.registration.getNearProvisioningState,
+            getNearAccountState: seams.registration.getNearAccountState,
           });
           const result = await seams.keys.exportKeypair({
             kind: 'ed25519',

@@ -58,7 +58,7 @@ import type {
   UnlockFlowEvent,
   NearProvisioningStateChangedEvent,
 } from '@/core/types/sdkSentEvents';
-import type { AwaitNearReadyResult } from '@/SeamsWeb/publicApi/awaitNearReady';
+import type { WaitForNearAccountResult } from '@/SeamsWeb/publicApi/waitForNearAccount';
 import type { EmailOtpProvider } from '@shared/utils/walletAuthAuthority';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { WalletAuthMethodRevocationProof } from '@shared/utils/walletAuthMethodRecord';
@@ -181,7 +181,7 @@ export type {
   WalletIframeSurfaceId,
 } from '@/core/types/walletIframeIdentity';
 export type { WalletSessionInput } from '@/SeamsWeb/publicApi/currentWallet';
-export type { AwaitNearReadyResult } from '@/SeamsWeb/publicApi/awaitNearReady';
+export type { WaitForNearAccountResult } from '@/SeamsWeb/publicApi/waitForNearAccount';
 export type {
   AddPasskeyAuthorization,
   AddPasskeyHooksOptions,
@@ -788,10 +788,10 @@ export interface RegistrationCapability {
   resumePendingEcdsaRegistration(
     args: PendingEcdsaRegistrationResumeRequest,
   ): Promise<ResumePendingEcdsaRegistrationResult>;
-  getNearProvisioningState(args: {
+  getNearAccountState(args: {
     walletId: WalletId | string;
   }): Promise<NearProvisioningState | null>;
-  onNearProvisioningStateChanged(
+  onNearAccountChange(
     listener: (event: NearProvisioningStateChangedEvent) => void,
   ): () => void;
   /**
@@ -804,11 +804,11 @@ export interface RegistrationCapability {
    *
    * @param args.timeoutMs defaults to 120_000
    */
-  awaitNearReady(args: {
+  waitForNearAccount(args: {
     walletId: WalletId | string;
     timeoutMs?: number;
     signal?: AbortSignal;
-  }): Promise<AwaitNearReadyResult>;
+  }): Promise<WaitForNearAccountResult>;
   addWalletSigner(args: {
     walletId: WalletId | string;
     rpId: string;

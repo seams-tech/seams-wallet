@@ -205,8 +205,8 @@ const validNearSendTransactionInput: Parameters<NearSignerCapability['sendTransa
 void validNearSendTransactionInput;
 
 declare const registrationCapability: RegistrationCapability;
-void registrationCapability.getNearProvisioningState({ walletId: 'alice.testnet' });
-const unsubscribeNearProvisioning = registrationCapability.onNearProvisioningStateChanged(
+void registrationCapability.getNearAccountState({ walletId: 'alice.testnet' });
+const unsubscribeNearProvisioning = registrationCapability.onNearAccountChange(
   (event) => {
     const walletId: string = event.walletId;
     const status = event.state.status;
@@ -216,7 +216,7 @@ const unsubscribeNearProvisioning = registrationCapability.onNearProvisioningSta
 );
 unsubscribeNearProvisioning();
 // @ts-expect-error wallet identity is required for a provisioning-state read.
-void registrationCapability.getNearProvisioningState({});
+void registrationCapability.getNearAccountState({});
 const legacyPublicNearMode = ['ed25519', 'only'].join('_');
 const legacyPublicEvmMode = ['ecdsa', 'only'].join('_');
 
@@ -454,3 +454,10 @@ void registrationCapability.registerWallet({
 void registrationCapability.registerPasskey;
 // @ts-expect-error Use registerWallet with an email authentication method.
 void registrationCapability.registerWithEmailOtp;
+
+// @ts-expect-error Use getNearAccountState for the public account-state read.
+void registrationCapability.getNearProvisioningState;
+// @ts-expect-error Use waitForNearAccount for the public readiness wait.
+void registrationCapability.awaitNearReady;
+// @ts-expect-error Use onNearAccountChange for the public subscription.
+void registrationCapability.onNearProvisioningStateChanged;

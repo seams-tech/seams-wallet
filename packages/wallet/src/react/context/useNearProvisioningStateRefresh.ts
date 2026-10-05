@@ -27,7 +27,7 @@ function refreshCurrentWalletAfterNearReady(
 }
 
 function subscribeToNearReady(args: NearProvisioningRefreshArgs): () => void {
-  return args.seams.registration.onNearProvisioningStateChanged(
+  return args.seams.registration.onNearAccountChange(
     refreshCurrentWalletAfterNearReady.bind(null, args),
   );
 }

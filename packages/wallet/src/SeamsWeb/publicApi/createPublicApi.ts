@@ -1,7 +1,7 @@
 import type { WalletAuthCommands } from './auth';
 import type { NearClient } from '@/core/rpcClients/near/NearClient';
 import type { SeamsConfigsReadonly } from '@/core/types/seams';
-import { awaitNearReady } from '@/SeamsWeb/publicApi/awaitNearReady';
+import { waitForNearAccount } from '@/SeamsWeb/publicApi/waitForNearAccount';
 import {
   createCurrentWalletResolver,
   type CurrentWalletResolver,
@@ -33,7 +33,7 @@ import { registerTransactionReviewBridge } from './transactionReview';
 export type WalletRegistrationCommands = Pick<
   RegistrationCapability,
   | 'registerWallet'
-  | 'getNearProvisioningState'
+  | 'getNearAccountState'
   | 'resumePendingEcdsaRegistration'
   | 'addWalletSigner'
   | 'addPasskey'
@@ -41,7 +41,7 @@ export type WalletRegistrationCommands = Pick<
   | 'addEmailOtp'
 >;
 export type RegistrationCapabilityDomainMethods = WalletRegistrationCommands & {
-  onNearProvisioningStateChanged: RegistrationCapability['onNearProvisioningStateChanged'];
+  onNearAccountChange: RegistrationCapability['onNearAccountChange'];
   requestEmailOtpEnrollmentChallenge: RegistrationCapability['requestEmailOtpEnrollmentChallenge'];
   enrollEmailOtp: RegistrationCapability['enrollEmailOtp'];
 };
@@ -97,16 +97,9 @@ export function createPublicApi(
     auth,
     registration: {
       resumePendingEcdsaRegistration: deps.registration.resumePendingEcdsaRegistration,
-      getNearProvisioningState: deps.registration.getNearProvisioningState,
-      onNearProvisioningStateChanged: deps.registration.onNearProvisioningStateChanged,
-      awaitNearReady: async (args) =>
-        await awaitNearReady(
-          {
-            getNearProvisioningState: deps.registration.getNearProvisioningState,
-            onNearProvisioningStateChanged: deps.registration.onNearProvisioningStateChanged,
-          },
-          { ...args, walletId: String(args.walletId) },
-        ),
+      getNearAccountState: deps.registration.getNearAccountState,
+      onNearAccountChange: deps.registration.onNearAccountChange,
+      waitForNearAccount: waitForNearAccount.bind(null, deps.registration),
       addWalletSigner: deps.registration.addWalletSigner,
       addPasskey: deps.registration.addPasskey,
       addEmailOtp: deps.registration.addEmailOtp,

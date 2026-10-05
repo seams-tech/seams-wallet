@@ -3367,7 +3367,7 @@ export class WalletIframeRouter {
     return res.result;
   }
 
-  async getNearProvisioningState(args: {
+  async getNearAccountState(args: {
     walletId: WalletId | string;
   }): Promise<NearProvisioningState | null> {
     const walletId = toWalletId(args.walletId);

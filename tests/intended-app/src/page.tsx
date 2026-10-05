@@ -4,7 +4,6 @@ import type {
   HostedAuthMenuOutcome,
   LinkDeviceFlowEvent,
   NearProvisioningState,
-  NearProvisioningStateChangedEvent,
   QrLinkedDeviceSessionPayloadV5,
   WalletSession,
 } from '@seams/wallet';
@@ -590,11 +589,6 @@ type IntendedEmailOtpCodeRequest =
     };
 
 type IntendedNearProvisioningState = NearProvisioningState;
-
-type IntendedNearProvisioningReadyState = Extract<
-  IntendedNearProvisioningState,
-  { status: 'near_ready' }
->;
 
 type IntendedNearProvisioningSummary =
   | { status: 'pending'; error?: never; errorCode?: never }
@@ -1764,10 +1758,17 @@ class IntendedPageController {
     const action: IntendedActionName = 'awaitNearReady';
     this.dispatch({ kind: 'action_started', action });
     try {
-      const state = await awaitWalletNearReady({
-        registration: this.seams.registration,
-        walletId: this.walletId,
-      });
+      const state = await this.seams.registration.waitForNearAccount({ walletId: this.walletId });
+      switch (state.kind) {
+        case 'near_ready':
+          break;
+        case 'near_failed_retryable':
+          throw new Error(`NEAR provisioning is retryable: ${state.reason}`);
+        case 'timed_out':
+          throw new Error('Timed out waiting for NEAR provisioning');
+        default:
+          return assertNever(state);
+      }
       const session = await this.seams.auth.getSession(this.walletId);
       if (session.appIdentity.kind !== 'resolved') {
         throw new Error(`NEAR readiness wallet identity is ${session.appIdentity.kind}`);
@@ -2490,7 +2491,7 @@ class IntendedPageController {
     if (!completed.ok) {
       throw new Error(completed.error.message);
     }
-    const nearProvisioning = await this.seams.registration.getNearProvisioningState({
+    const nearProvisioning = await this.seams.registration.getNearAccountState({
       walletId: completed.value.walletId,
     });
     const session = await resolveEmailOtpRegistrationSession({
@@ -3485,62 +3486,6 @@ function nearProvisioningSummaryStatus(
       return { status: 'retryable', error: state.error, errorCode: state.errorCode };
     case 'near_ready':
       throw new Error('NEAR readiness is missing its wallet session identity');
-    default:
-      return assertNever(state);
-  }
-}
-
-async function awaitWalletNearReady(args: {
-  registration: ReturnType<typeof useSeams>['seams']['registration'];
-  walletId: string;
-}): Promise<IntendedNearProvisioningReadyState> {
-  const current = await args.registration.getNearProvisioningState({ walletId: args.walletId });
-  const settled = settleNearProvisioningState(current);
-  if (settled) return settled;
-
-  return await new Promise<IntendedNearProvisioningReadyState>((resolve, reject) => {
-    let unsubscribe = (): void => undefined;
-    const timeout = window.setTimeout(() => {
-      unsubscribe();
-      reject(new Error('Timed out waiting for NEAR provisioning'));
-    }, 120_000);
-    const settle = (state: IntendedNearProvisioningState | null): void => {
-      try {
-        const ready = settleNearProvisioningState(state);
-        if (!ready) return;
-        window.clearTimeout(timeout);
-        unsubscribe();
-        resolve(ready);
-      } catch (error) {
-        window.clearTimeout(timeout);
-        unsubscribe();
-        reject(error);
-      }
-    };
-    unsubscribe = args.registration.onNearProvisioningStateChanged(
-      (event: NearProvisioningStateChangedEvent) => {
-        if (String(event.walletId) === args.walletId) settle(event.state);
-      },
-    );
-    void args.registration
-      .getNearProvisioningState({ walletId: args.walletId })
-      .then(settle)
-      .catch(reject);
-  });
-}
-
-function settleNearProvisioningState(
-  state: IntendedNearProvisioningState | null,
-): IntendedNearProvisioningReadyState | null {
-  if (!state) return null;
-  switch (state.status) {
-    case 'near_pending':
-    case 'near_provisioning':
-      return null;
-    case 'near_ready':
-      return state;
-    case 'near_failed_retryable':
-      throw new Error(`NEAR provisioning is retryable (${state.errorCode}): ${state.error}`);
     default:
       return assertNever(state);
   }

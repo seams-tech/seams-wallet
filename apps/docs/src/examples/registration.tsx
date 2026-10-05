@@ -30,7 +30,7 @@ async function createWallet(
       result.kind === 'ecdsa_wallet_registered_near_pending' ||
       result.kind === 'near_wallet_registered_pending'
     ) {
-      const near = await seams.registration.awaitNearReady({ walletId: result.walletId });
+      const near = await seams.registration.waitForNearAccount({ walletId: result.walletId });
       switch (near.kind) {
         case 'near_ready':
           console.log('NEAR account ready:', near.nearAccountId);

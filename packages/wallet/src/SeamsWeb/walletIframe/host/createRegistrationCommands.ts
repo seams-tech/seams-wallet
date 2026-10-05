@@ -21,7 +21,7 @@ export function createWalletHostRegistrationCommands(
 ): WalletRegistrationCommands {
   return {
     registerWallet: registerWallet.bind(null, getContext),
-    getNearProvisioningState: getNearProvisioningState.bind(null, getContext),
+    getNearAccountState: getNearAccountState.bind(null, getContext),
     resumePendingEcdsaRegistration: resumePendingEcdsaRegistration.bind(null, getContext),
     addWalletSigner: addWalletSigner.bind(null, getContext),
     addPasskey: addPasskey.bind(null, getContext),
@@ -45,10 +45,10 @@ async function registerWallet(
   });
 }
 
-async function getNearProvisioningState(
+async function getNearAccountState(
   getContext: () => RegistrationWebContext,
-  args: Parameters<RegistrationCapability['getNearProvisioningState']>[0],
-): ReturnType<RegistrationCapability['getNearProvisioningState']> {
+  args: Parameters<RegistrationCapability['getNearAccountState']>[0],
+): ReturnType<RegistrationCapability['getNearAccountState']> {
   const walletId = toWalletId(args.walletId);
 
   const live = readNearProvisioningState(walletId);

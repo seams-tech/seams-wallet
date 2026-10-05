@@ -1364,3 +1364,11 @@ remain distinct branches of the existing authentication input. NEAR-only,
 ECDSA-only, and combined signer selections use the same creation operation.
 Chain namespaces do not expose separate wallet-creation calls. Registration
 callbacks, pending NEAR results, and durable continuation retain their contracts.
+
+`registration.getNearAccountState` reads the wallet's NEAR provisioning state.
+`registration.onNearAccountChange` observes its transitions.
+`registration.waitForNearAccount` subscribes before reading current state, so it
+cannot miss a readiness event between those operations. Omitting `timeoutMs`
+uses 120 seconds. Explicit timeouts and abort signals remain supported. The wait
+returns ready, retryable failure, or timeout; abort rejects and releases its
+subscription. A pending NEAR account does not block available EVM-family signing.

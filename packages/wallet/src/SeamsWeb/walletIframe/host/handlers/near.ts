@@ -203,7 +203,7 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
     PM_GET_NEAR_PROVISIONING_STATE: async (req: Req<'PM_GET_NEAR_PROVISIONING_STATE'>) => {
       const pm = deps.getWalletRuntime();
       const walletId = toWalletId(req.payload?.walletId);
-      const result = await pm.registration.getNearProvisioningState({ walletId });
+      const result = await pm.registration.getNearAccountState({ walletId });
       respondOkResult(deps, req.requestId, result);
     },
 

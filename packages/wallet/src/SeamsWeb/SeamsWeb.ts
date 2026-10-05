@@ -144,7 +144,7 @@ export class SeamsWeb {
       registration: {
         ...registrationCommands,
         ...emailOtpCommands.registration,
-        onNearProvisioningStateChanged: this.onNearProvisioningStateChanged.bind(this),
+        onNearAccountChange: this.onNearAccountChange.bind(this),
       },
       recovery: {
         syncAccount: this.syncAccountDomain.bind(this),
@@ -244,8 +244,8 @@ export class SeamsWeb {
     return this.walletIframe;
   }
 
-  private onNearProvisioningStateChanged(
-    listener: Parameters<RegistrationCapability['onNearProvisioningStateChanged']>[0],
+  private onNearAccountChange(
+    listener: Parameters<RegistrationCapability['onNearAccountChange']>[0],
   ): () => void {
     return this.events.subscribe(deliverNearProvisioningStateChanged.bind(null, listener));
   }

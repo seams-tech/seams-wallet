@@ -32,7 +32,7 @@ type ProvisioningStatus = NearProvisioningState['status'];
 type LaneRegistration = SeamsWeb['registration'];
 declare const status: ProvisioningStatus;
 declare const registration: LaneRegistration;
-declare const provisioning: Awaited<ReturnType<LaneRegistration['getNearProvisioningState']>>;
+declare const provisioning: Awaited<ReturnType<LaneRegistration['getNearAccountState']>>;
 export const a: never = status;
 export const b: never = registration;
 export const c: never = provisioning;
