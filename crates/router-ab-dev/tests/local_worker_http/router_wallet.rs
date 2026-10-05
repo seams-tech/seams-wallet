@@ -416,7 +416,7 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
     assert_eq!(unrelated_retry_status, 200);
     assert_eq!(unrelated_retry, unrelated_answer);
     drop(signing_worker);
-    verify_pool_freeze_transport(&stack)?;
+    verify_pool_freeze_transport(&stack, &destination)?;
     println!(
         "R150_VM_ROUTER_WALLET_OBJECT_E2E {}",
         json!({
@@ -443,6 +443,9 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
                 "lost_chunk_reply_replayed_after_restart": true,
                 "exact_historical_record_bytes": true,
                 "pool_freeze_transport_authenticated_and_replayed": true,
+                "ecdsa_empty_destination_verified_after_restart": true,
+                "ecdsa_import_acknowledgement_replayed_after_restart": true,
+                "ecdsa_transfer_rejects_unrelated_credentials": true,
                 "empty_inventory_verified_without_chunks": true,
                 "empty_inventory_fences_survive_restart": true,
                 "empty_inventory_preserves_other_wallets": true,
@@ -700,7 +703,10 @@ fn vm_router_run_that_lost_its_claim_cannot_record_its_answer(
     Ok(())
 }
 
-fn verify_pool_freeze_transport(stack: &RecoveryStackV1) -> Result<(), Box<dyn std::error::Error>> {
+fn verify_pool_freeze_transport(
+    stack: &RecoveryStackV1,
+    destination: &RecoveryStackV1,
+) -> Result<(), Box<dyn std::error::Error>> {
     let worker = stack.start_signing_worker()?;
     let entries = parse_local_env_file_contents_v1(&std::fs::read_to_string(
         stack
@@ -768,7 +774,10 @@ fn verify_pool_freeze_transport(stack: &RecoveryStackV1) -> Result<(), Box<dyn s
         &stack.signing_worker_url,
         router_ab_cloudflare::SIGNING_WORKER_ECDSA_EXPORT_PATH_V1,
         &export_request,
-        &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_GATEWAY_TO_ROUTER_AUTH)],
+        &[(
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+            TEST_GATEWAY_TO_ROUTER_AUTH,
+        )],
     )?;
     assert_ne!(unauthorized_status, 200);
     let (export_status, export_body) = post_json_to_path_with_headers(
@@ -796,6 +805,12 @@ fn verify_pool_freeze_transport(stack: &RecoveryStackV1) -> Result<(), Box<dyn s
     )?;
     assert_eq!(export_retry_status, 200, "{export_retry_body}");
     assert_eq!(export_retry_body, export_body);
+    verify_ecdsa_destination_transport(
+        stack,
+        destination,
+        &config.router_to_signing_worker_ecdsa_auth,
+        &export_request.receipt,
+    )?;
     let mut changed = command;
     changed.request.source_generation = 2;
     let (conflict_status, _) = post_json_to_path_with_headers(
@@ -805,5 +820,134 @@ fn verify_pool_freeze_transport(stack: &RecoveryStackV1) -> Result<(), Box<dyn s
         &headers,
     )?;
     assert_ne!(conflict_status, 200);
+    Ok(())
+}
+
+fn transfer_ecdsa_http(
+    base_url: &str,
+    credential: &str,
+    command: &router_ab_cloudflare::SigningWorkerEcdsaTransferRequestV1,
+) -> Result<(u16, String), Box<dyn std::error::Error>> {
+    post_json_to_path_with_headers(
+        base_url,
+        router_ab_cloudflare::SIGNING_WORKER_ECDSA_TRANSFER_PATH_V1,
+        command,
+        &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, credential)],
+    )
+}
+
+fn verify_ecdsa_destination_transport(
+    source: &RecoveryStackV1,
+    destination: &RecoveryStackV1,
+    source_credential: &str,
+    receipt: &router_ab_cloudflare::SigningWorkerPoolFreezeReceiptV1,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use router_ab_cloudflare::{
+        SigningWorkerEcdsaTransferRequestV1 as Command,
+        SigningWorkerEcdsaTransferResponseV1 as Response,
+    };
+    let worker = destination.start_signing_worker()?;
+    let entries = parse_local_env_file_contents_v1(&std::fs::read_to_string(
+        destination
+            .temp
+            .join(router_ab_dev::LOCAL_SIGNING_WORKER_ENV_FILE_V1),
+    )?)?;
+    let LocalWorkerRoleConfigV1::SigningWorker(config) =
+        parse_local_worker_role_config_for_role_v1(LocalServiceRoleV1::SigningWorker, entries)?
+    else {
+        return Err("expected destination SigningWorker configuration".into());
+    };
+    let credential = &config.router_to_signing_worker_ecdsa_auth;
+    let preparation = Command::Prepare {
+        scope: receipt.scope.clone(),
+        request: receipt.request.clone(),
+        chunk_bytes: 1_024,
+    };
+    for unrelated in [
+        "",
+        TEST_ROLE_SHARED_SERVICE_AUTH,
+        TEST_GATEWAY_TO_ROUTER_AUTH,
+    ] {
+        let (status, _) =
+            transfer_ecdsa_http(&destination.signing_worker_url, unrelated, &preparation)?;
+        assert_ne!(status, 200);
+    }
+    let (status, prepared_body) =
+        transfer_ecdsa_http(&destination.signing_worker_url, credential, &preparation)?;
+    assert_eq!(status, 200, "{prepared_body}");
+    assert!(matches!(
+        serde_json::from_str::<Response>(&prepared_body)?,
+        Response::Prepared { .. }
+    ));
+    let verify = Command::Verify {
+        receipt: receipt.clone(),
+    };
+    let (premature, _) = transfer_ecdsa_http(&destination.signing_worker_url, credential, &verify)?;
+    assert_ne!(premature, 200);
+    let mut export = router_ab_cloudflare::SigningWorkerEcdsaExportRequestV1 {
+        receipt: receipt.clone(),
+        segment_index: 0,
+        chunk_bytes: 1_024,
+    };
+    let (import, acknowledgement) = loop {
+        let (status, body) = post_json_to_path_with_headers(
+            &source.signing_worker_url,
+            router_ab_cloudflare::SIGNING_WORKER_ECDSA_EXPORT_PATH_V1,
+            &export,
+            &[(
+                LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+                source_credential,
+            )],
+        )?;
+        assert_eq!(status, 200, "{body}");
+        let chunk: router_ab_cloudflare::SigningWorkerEcdsaSnapshotChunkV1 =
+            serde_json::from_str(&body)?;
+        let count = chunk.segment_count;
+        let import = Command::Import { chunk };
+        let (status, acknowledgement) =
+            transfer_ecdsa_http(&destination.signing_worker_url, credential, &import)?;
+        assert_eq!(status, 200, "{acknowledgement}");
+        assert!(matches!(
+            serde_json::from_str::<Response>(&acknowledgement)?,
+            Response::Imported { .. }
+        ));
+        export.segment_index += 1;
+        if export.segment_index == count {
+            break (import, acknowledgement);
+        }
+    };
+    drop(worker);
+    let restarted = destination.start_signing_worker()?;
+    let (status, replay) =
+        transfer_ecdsa_http(&destination.signing_worker_url, credential, &import)?;
+    assert_eq!(status, 200, "{replay}");
+    assert_eq!(replay, acknowledgement);
+    let (status, verified_body) =
+        transfer_ecdsa_http(&destination.signing_worker_url, credential, &verify)?;
+    assert_eq!(status, 200, "{verified_body}");
+    assert_eq!(
+        serde_json::from_str::<Response>(&verified_body)?,
+        Response::Verified {
+            receipt: receipt.clone()
+        }
+    );
+    drop(restarted);
+    let _verified = destination.start_signing_worker()?;
+    let (status, replay) =
+        transfer_ecdsa_http(&destination.signing_worker_url, credential, &verify)?;
+    assert_eq!(status, 200, "{replay}");
+    assert_eq!(replay, verified_body);
+    let (status, replay) =
+        transfer_ecdsa_http(&destination.signing_worker_url, credential, &preparation)?;
+    assert_eq!(status, 200, "{replay}");
+    assert_eq!(replay, prepared_body);
+    let mut changed = receipt.clone();
+    changed.request.source_generation += 1;
+    let (status, _) = transfer_ecdsa_http(
+        &destination.signing_worker_url,
+        credential,
+        &Command::Verify { receipt: changed },
+    )?;
+    assert_ne!(status, 200);
     Ok(())
 }

@@ -358,6 +358,20 @@ Linked-reservation/NULL fixtures and composed transfer transport coverage remain
 unfinished. Activation, cleanup, coordinator authority, and the other participant
 inventories still require implementation.
 
+The existing two-stack native HTTP scenario now sends ECDSA preparation, import,
+and verification commands to a separate destination SigningWorker. It rejects
+unrelated credentials and premature verification. After import, it restarts the
+destination and receives the exact saved acknowledgement. It then verifies,
+restarts again, and receives the exact verification response. Preparation replay
+still matches, and a changed verification identity fails. The scenario transfers
+an empty ECDSA inventory to isolate transport and process durability. The existing
+production-store scenario owns populated encrypted inventory and restore coverage.
+The focused HTTP scenario and bloat check pass. Evidence remains in
+`.artifacts/r153/ecdsa-transfer-http-20261005/`. This does not prove deployed
+Cloudflare execution, key continuity for populated HTTP transfers, or assembled
+wallet relocation. Activation, cleanup, and coordinator command authority remain
+unfinished.
+
 Retained evidence:
 `.artifacts/r153/execution-journal-20261004/`, receipt SHA-256
 `02184ddd17816901bf2413115c35ca33a43bd90a269fedaeffb7f6990d8af555`.
