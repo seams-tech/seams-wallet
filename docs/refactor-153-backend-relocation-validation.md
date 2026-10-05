@@ -132,7 +132,7 @@ Console only after the source batch commits. Existing owner-management
 request authentication returns an active signing-session context; it cannot
 represent progress access after relocation retires that session.
 
-### Source challenge and passkey verification
+### Source challenges, approvals, and owner authentication
 
 The source now persists a relocation-specific nonce and its immutable binding.
 Concurrent issuance returns the same challenge. Its lifetime cannot exceed five
@@ -175,7 +175,19 @@ Type fixtures reject mixed challenge purposes. The client rejects relocation
 proofs as signing-session inputs. Evidence is retained under
 `.artifacts/r153/relocation-email-otp-20261006/`.
 
-Email delivery, initiating-session authentication, move-only reads, HTTP admission,
+The initiating-owner boundary now resolves the primary Wallet Session through the
+existing exact credential identity reader. It requires a configured origin, matching
+wallet/deployment scope, full-owner permissions, and matching capability subjects.
+An exhausted signing quota preserves owner access. Expired and retired credentials
+fail. The immutable result derives the move's authority, method, credential digest,
+original expiry, and origin without accepting those fields from the request body.
+The existing E2E verifies these checks and rejects delegated permissions. Type
+fixtures reject forged construction and broad spreads of authenticated metadata.
+Evidence is retained under `.artifacts/r153/relocation-owner-request-20261006/`.
+
+This boundary authenticates a live initiating session only. Move-only access after
+retirement remains separate. Approval still needs initiating-session revalidation
+at commit and HTTP integration. Email delivery, move-only reads, Console admission,
 and challenge/approval transfer remain unfinished. The authenticated
 owner boundary must validate the initiating credential before calling this store.
 Console must verify the source approval and its expiry before new admission.

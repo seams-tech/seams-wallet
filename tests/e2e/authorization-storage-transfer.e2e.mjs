@@ -44,6 +44,7 @@ const bundle = await build({
       export { emailOtpChallengeRecord } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRecords';
       export { prepareD1TenantStatement } from './packages/wallet-server/src/core/d1TenantStore';
       export { buildEmailOtpEnrollmentFixture } from './tests/unit/helpers/emailOtpAuthMethod.fixtures';
+      export { WalletRelocationOwnerRequest } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationOwnerRequest';
       export { D1WalletRelocationApprovals } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationApprovals';
       export { verifyWalletRelocationPasskey } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationPasskey';
       export { AuthorizationService } from './packages/wallet-server/src/authorization/service';
@@ -54,7 +55,7 @@ const bundle = await build({
       export { D1WalletAuthorityStore, prepareD1WalletAuthorityPutStatement } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorityStore';
       export { prepareD1WalletAuthMethodV2PutStatement } from './packages/wallet-server/src/core/d1WalletAuthMethodStore';
       export { buildLinkedDeviceManagementAuthorityFixture, buildEmailOtpEcdsaWalletSessionFixture } from './tests/unit/helpers/linkedDeviceManagement.fixtures';
-      export { buildFullOwnerPermissionsV1 } from './packages/shared-ts/src/authorization/delegatedAuthority';
+      export { buildFullOwnerPermissionsV1, buildSigningOnlyDelegatedWalletAuthorityV1 } from './packages/shared-ts/src/authorization/delegatedAuthority';
       export { routerAbMpcMaterialActivationRefToWire } from './packages/shared-ts/src/utils/routerAbNormalSigningIdentity';
       export { readWalletSessionSigningCandidate } from './packages/wallet-server/src/router/cloudflare/d1/auth/walletSessionCredentialReaders';
       export { parseTenantId } from './packages/shared-ts/src/authorization/capabilityKinds';
@@ -283,6 +284,7 @@ try {
 
   const relocationPasskey = await verifyRelocationPasskey(source);
   const relocationEmailOtp = await verifyRelocationEmailOtp(source);
+  const relocationOwnerRequest = await verifyRelocationOwnerRequest(source);
   const artifact = {
     kind: 'wallet_authorization_storage_transfer_evidence_v1',
     recordedAt: new Date().toISOString(),
@@ -299,6 +301,7 @@ try {
       relocationChallenges,
       relocationPasskey,
       relocationEmailOtp,
+      relocationOwnerRequest,
       existingPrimaryCredentialAcceptedAtIndependentDatabase: true,
       secondDeviceCredentialAndAuthorityPreservedWithoutReissuance: true,
       directConsumedExchangeImportRejected: true,
@@ -942,4 +945,151 @@ async function verifyRelocationEmailOtp(database) {
     approvalExpiryCappedByOtp: true,
     exactReplayRequiresNoSecondOtp: true,
   };
+}
+
+
+async function verifyRelocationOwnerRequest(database) {
+  const nowMs = Date.now();
+  const authorizationSessions = service(database, scope);
+  const fixture = await api.buildLinkedDeviceManagementAuthorityFixture({
+    label: 'relocation-owner-request',
+    permissions: api.buildFullOwnerPermissionsV1(),
+    provenance: 'wallet_registration',
+    expiresAtMs: nowMs + 60_000,
+    identity: {
+      walletId: 'wallet:owner-request',
+      authorityId: 'authority:owner-request',
+      walletAuthMethodId: 'auth-method:owner-request',
+      rpId: 'wallet.example.test',
+      credentialIdB64u: Buffer.alloc(32, 101).toString('base64url'),
+    },
+  });
+  const issued = await issueDeviceSession(database, authorizationSessions, fixture, nowMs);
+  const origin = api.parseSessionOrigin('https://wallet.example.test');
+  const request = relocationOwnerHttpRequest(issued.operationCredential.token, origin);
+  const input = {
+    request,
+    walletId: fixture.authority.walletId,
+    tenantId: issued.session.tenantId,
+    scope,
+    allowedOrigins: [origin],
+    authorizationSessions,
+    nowMs: nowMs + 1,
+  };
+  const owner = await api.WalletRelocationOwnerRequest.authenticate(input);
+  assert.ok(owner);
+  const move = {
+    moveId: `wmove_${Buffer.alloc(32, 102).toString('base64url')}`,
+    requestDigestHex: 'be'.repeat(32),
+    sourceGeneration: 1,
+    destinationRegion: 'APAC',
+  };
+  const binding = owner.bindMove(move);
+  assert.equal(binding.walletId, issued.session.walletId);
+  assert.equal(binding.authorityId, issued.session.authorityId);
+  assert.equal(binding.walletAuthMethodId, issued.session.walletAuthMethodId);
+  assert.equal(binding.credentialExpiresAtMs, issued.session.expiresAtMs);
+  assert.equal(binding.credentialDigestHex, digest(Buffer.from(issued.operationCredential.token)));
+  assert.equal(binding.origin, origin);
+  assert.equal(
+    await api.WalletRelocationOwnerRequest.authenticate({ ...input, allowedOrigins: [] }),
+    null,
+  );
+  assert.equal(
+    await api.WalletRelocationOwnerRequest.authenticate({
+      ...input,
+      request: relocationOwnerHttpRequest(
+        issued.operationCredential.token,
+        'https://foreign.example.test',
+      ),
+    }),
+    null,
+  );
+  assert.equal(
+    await api.WalletRelocationOwnerRequest.authenticate({
+      ...input,
+      request: relocationOwnerHttpRequest('', origin),
+    }),
+    null,
+  );
+  assert.equal(
+    await api.WalletRelocationOwnerRequest.authenticate({ ...input, walletId: 'wallet:foreign' }),
+    null,
+  );
+  assert.equal(
+    await api.WalletRelocationOwnerRequest.authenticate({
+      ...input,
+      scope: { ...scope, envId: 'foreign' },
+    }),
+    null,
+  );
+  assert.equal(
+    await api.WalletRelocationOwnerRequest.authenticate({
+      ...input,
+      nowMs: issued.session.expiresAtMs,
+    }),
+    null,
+  );
+  await database
+    .prepare(
+      `UPDATE authorization_wallet_session_quotas SET remaining_uses = 0, lifecycle_kind = 'exhausted'
+    WHERE namespace = ? AND tenant_id = ? AND quota_id = ?`,
+    )
+    .bind(scope.namespace, issued.session.tenantId, issued.session.quotaId)
+    .run();
+  const exhausted = await api.WalletRelocationOwnerRequest.authenticate(input);
+  assert.ok(exhausted);
+  assert.equal(exhausted.bindMove(move).encoded(), binding.encoded());
+  await authorizationSessions.retireWalletSessionAuthorizationsForAuthMethod({
+    tenantId: issued.session.tenantId,
+    walletId: issued.session.walletId,
+    walletAuthMethodId: issued.session.walletAuthMethodId,
+    nowMs: nowMs + 2,
+  });
+  assert.equal(await api.WalletRelocationOwnerRequest.authenticate(input), null);
+  const delegated = await api.buildLinkedDeviceManagementAuthorityFixture({
+    label: 'relocation-delegated-request',
+    permissions: api.buildSigningOnlyDelegatedWalletAuthorityV1().permissions,
+    provenance: 'device_link',
+    sourceAuthorityId: fixture.authority.authorityId,
+    expiresAtMs: nowMs + 60_000,
+    identity: {
+      walletId: fixture.authority.walletId,
+      authorityId: 'authority:delegated-request',
+      walletAuthMethodId: 'auth-method:delegated-request',
+      rpId: 'wallet.example.test',
+      credentialIdB64u: Buffer.alloc(32, 103).toString('base64url'),
+    },
+  });
+  const delegatedIssued = await issueDeviceSession(
+    database,
+    authorizationSessions,
+    delegated,
+    nowMs,
+  );
+  assert.equal(
+    await api.WalletRelocationOwnerRequest.authenticate({
+      ...input,
+      request: relocationOwnerHttpRequest(delegatedIssued.operationCredential.token, origin),
+    }),
+    null,
+  );
+  return {
+    scope:
+      'Initiating primary credential and move binding only; excludes move-only status, owner routes and Console admission',
+    credentialAndAuthorityBoundToMove: true,
+    originAllowlistRequired: true,
+    foreignWalletAndDeploymentRejected: true,
+    expiredAndRetiredCredentialsRejected: true,
+    exhaustedSigningQuotaAllowsOwnerAuthentication: true,
+    delegatedAuthorityRejected: true,
+  };
+}
+
+function relocationOwnerHttpRequest(token, origin) {
+  return new Request('https://gateway.example.test/wallet/placement/v1/relocations', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${token}`, origin },
+    body: '{}',
+  });
 }

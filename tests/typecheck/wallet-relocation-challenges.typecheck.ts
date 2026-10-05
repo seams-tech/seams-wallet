@@ -1,3 +1,4 @@
+import { WalletRelocationOwnerRequest } from '../../packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationOwnerRequest';
 import type { D1WalletRelocationApprovals } from '../../packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationApprovals';
 import type {
   D1WalletRelocationChallenges,
@@ -40,3 +41,11 @@ const wrongOtpPurpose: OtpPurpose = {
 const spreadOtpPurpose: OtpPurpose = { ...relocationPurpose, action: 'wallet_email_otp_login' };
 void wrongOtpPurpose;
 void spreadOtpPurpose;
+
+declare const ownerRequest: WalletRelocationOwnerRequest;
+// @ts-expect-error Spreading public metadata cannot forge an authenticated owner request.
+const forgedOwnerRequest: typeof ownerRequest = { ...ownerRequest };
+// @ts-expect-error Authentication is required to construct an owner request.
+const directOwnerRequest = new WalletRelocationOwnerRequest();
+void forgedOwnerRequest;
+void directOwnerRequest;
