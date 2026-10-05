@@ -288,10 +288,13 @@ export async function transferAuthorizationThroughCommands({
       .first('count'),
     0,
   );
-  assert.equal(
-    (await receiver.handle(destinationRequest(scope, identity, { kind: 'prepare' }))).status,
-    200,
-  );
+  const prepared = await receiver.handle(destinationRequest(scope, identity, { kind: 'prepare' }));
+  assert.equal(prepared.status, 200);
+  assert.deepEqual((await prepared.json()).progress, {
+    state: 'receiving',
+    nextIndex: 0,
+    chunkCount: manifest.chunkCount,
+  });
   assert.equal(
     (await receiver.handle(destinationRequest(scope, identity, { kind: 'verify' }))).status,
     503,
@@ -321,11 +324,33 @@ export async function transferAuthorizationThroughCommands({
       directory,
     }).handle(destinationRequest(scope, identity, { kind: 'accept', chunk: received.chunk }));
     assert.deepEqual(await acceptedAgain.json(), acknowledgement);
+    const resumed = await new api.WalletAuthorizationRelocationRoutes({
+      database: destination,
+      scope,
+      directory,
+    }).handle(destinationRequest(scope, identity, { kind: 'prepare' }));
+    assert.equal(resumed.status, 200);
+    assert.deepEqual((await resumed.json()).progress, {
+      state: 'receiving',
+      nextIndex: index + 1,
+      chunkCount: manifest.chunkCount,
+    });
   }
   const verified = await receiver.handle(destinationRequest(scope, identity, { kind: 'verify' }));
   assert.equal(verified.status, 200, await verified.clone().text());
   assert.equal((await verified.json()).digestHex, manifest.digestHex);
+  const completed = await new api.WalletAuthorizationRelocationRoutes({
+    database: destination,
+    scope,
+    directory,
+  }).handle(destinationRequest(scope, identity, { kind: 'prepare' }));
+  assert.equal(completed.status, 200);
+  assert.deepEqual((await completed.json()).progress, {
+    state: 'verified',
+    digestHex: manifest.digestHex,
+  });
   return {
+    durableResumePositionAfterAcknowledgementLoss: true,
     chunksTransferred: manifest.chunkCount,
     destinationDigest: manifest.digestHex,
     deniedAndPublicExportRejected: true,

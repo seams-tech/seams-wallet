@@ -238,11 +238,11 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
     ) {
       try {
         const intake = new D1WalletAuthorizationIntake(this.options.database, this.options.scope);
-        await intake.prepare(source, pinnedManifest);
+        const progress = await intake.prepare(source, pinnedManifest);
         switch (requested.kind) {
           case 'prepare':
             return Response.json(
-              { kind: 'authorization_prepared', commandDigest },
+              { kind: 'authorization_prepared', commandDigest, progress },
               { headers: { 'Cache-Control': 'no-store' } },
             );
           case 'accept': {

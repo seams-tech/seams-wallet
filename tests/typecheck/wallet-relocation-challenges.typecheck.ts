@@ -95,3 +95,25 @@ const directSnapshotLayout = new AuthorizationSnapshotLayout(
 );
 void forgedSnapshotLayout;
 void directSnapshotLayout;
+
+import type { D1WalletAuthorizationIntake } from '../../packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationIntake';
+type AuthorizationIntakeProgress = Awaited<ReturnType<D1WalletAuthorizationIntake['prepare']>>;
+// @ts-expect-error Receiving progress requires the durable next chunk position.
+const missingIntakePosition: AuthorizationIntakeProgress = { state: 'receiving', chunkCount: 2 };
+// @ts-expect-error Verified progress cannot retain a receiving cursor.
+const mixedIntakeProgress: AuthorizationIntakeProgress = {
+  state: 'verified',
+  digestHex: 'a'.repeat(64),
+  nextIndex: 2,
+  chunkCount: 2,
+};
+declare const intakeProgress: AuthorizationIntakeProgress;
+// @ts-expect-error A spread cannot add a receiving cursor to a possibly verified result.
+const spreadIntakeProgress: AuthorizationIntakeProgress = {
+  ...intakeProgress,
+  nextIndex: 0,
+  chunkCount: 2,
+};
+void missingIntakePosition;
+void mixedIntakeProgress;
+void spreadIntakeProgress;

@@ -92,7 +92,11 @@ production destination HTTP intake and verifies exact 64-bit quota preservation.
 Console pins the source authorization manifest during the running freeze attempt.
 Destination prepare, accept, and verify commands obtain that pinned manifest from
 Console. Callers cannot supply a replacement manifest. Exact chunk retries return
-the same acknowledgement; incomplete imports cannot verify. Console responses
+the same acknowledgement; incomplete imports cannot verify. Prepare returns the
+durable next chunk position, or the verified digest after completion. A restarted
+transport can resume from that position without replaying all preceding chunks.
+The storage E2E checks this position after each acknowledged chunk and after
+verification through a new handler instance. Console responses
 remain synthetic in the storage E2E. The private directory E2E checks real command
 admission and manifest immutability separately. Regional transport orchestration,
 complete participant verification, and activation remain unfinished.

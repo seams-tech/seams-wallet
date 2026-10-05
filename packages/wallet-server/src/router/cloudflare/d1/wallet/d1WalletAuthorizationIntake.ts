@@ -16,6 +16,19 @@ type IntakeState = {
   readonly recordCount: number;
   readonly digestHex: string;
 } & ({ readonly state: 'receiving' } | { readonly state: 'verified' });
+type IntakeProgress =
+  | {
+      readonly state: 'receiving';
+      readonly nextIndex: number;
+      readonly chunkCount: number;
+      readonly digestHex?: never;
+    }
+  | {
+      readonly state: 'verified';
+      readonly digestHex: string;
+      readonly nextIndex?: never;
+      readonly chunkCount?: never;
+    };
 type Chunk = {
   index: number;
   chunkJson: string;
@@ -34,7 +47,10 @@ export class D1WalletAuthorizationIntake {
     private readonly scope: D1TenantScope,
   ) {}
 
-  async prepare(source: WalletRelocationSessionSource, rawManifest: unknown): Promise<void> {
+  async prepare(
+    source: WalletRelocationSessionSource,
+    rawManifest: unknown,
+  ): Promise<IntakeProgress> {
     const manifest = parseManifest(rawManifest);
     if (
       manifest.schemaJson !== JSON.stringify(await AuthorizationSnapshotLayout.read(this.database))
@@ -45,7 +61,7 @@ export class D1WalletAuthorizationIntake {
     if (existing) {
       if (JSON.stringify(existing.manifest) !== json)
         throw new Error('Authorization intake manifest conflicts');
-      return;
+      return intakeProgress(existing);
     }
     await new D1WalletAuthorizationHistory(this.database, this.scope).prepare(source);
     const digest = await sha256HexUtf8(
@@ -83,6 +99,7 @@ export class D1WalletAuthorizationIntake {
     const saved = await this.read(source);
     if (!saved || JSON.stringify(saved.manifest) !== json)
       throw new Error('Authorization intake manifest conflicts');
+    return intakeProgress(saved);
   }
 
   async accept(source: WalletRelocationSessionSource, rawChunk: unknown): Promise<string> {
@@ -327,4 +344,17 @@ function parseChunk(raw: unknown, layouts: readonly AuthorizationSnapshotLayout[
     segmentIndex,
     segmentCount,
   };
+}
+
+function intakeProgress(state: IntakeState): IntakeProgress {
+  switch (state.state) {
+    case 'receiving':
+      return {
+        state: 'receiving',
+        nextIndex: state.nextIndex,
+        chunkCount: state.manifest.chunkCount,
+      };
+    case 'verified':
+      return { state: 'verified', digestHex: state.digestHex };
+  }
 }
