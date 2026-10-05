@@ -149,6 +149,14 @@ bytes. This proves the destination path only. It does not prove source registrat
 authority or initialization races. Evidence is retained under
 `.artifacts/r153/linked-session-uninitialized-20261005/`.
 Sessions created before this inventory existed still require historical discovery.
+The Worker E2E also initializes a real linked presign session through its production
+Durable Object handler. It records wallet inventory, freezes the source, transfers
+the original authority in five chunks, and verifies the destination after eviction.
+Both homes reject delayed initialization. The existing Rust scope fixture now serves
+this scenario and its original tests through one shared fixture module. This case
+has no stored completion; it does not prove completed-presignature retirement or the
+registration race. Evidence is retained under
+`.artifacts/r153/linked-session-source-transfer-20261005/`.
 
 
 ECDSA transfer preserves SQL integers through the Worker JavaScript boundary.

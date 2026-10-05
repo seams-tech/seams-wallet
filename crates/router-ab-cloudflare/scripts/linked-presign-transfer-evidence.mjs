@@ -32,7 +32,7 @@ async function rejected(worker, path, body, credential, message) {
   assert.match(text, message);
 }
 
-export async function verifyLinkedImportRejection(topology, credential, sharedCredential) {
+export async function verifyLinkedImportRejection(topology, credential, sharedCredential, initialization) {
   const worker = await topology.getWorker(workerName);
   const before = await topology.listDurableObjectIds(objectClass, workerName);
   const command = {
@@ -93,6 +93,7 @@ export async function verifyLinkedImportRejection(topology, credential, sharedCr
   await rejected(worker, exportPath, { receipt, segment_index: 0, chunk_bytes: 1 }, credential, /requires a frozen snapshot/);
   await rejected(worker, freezePath, command, credential, /No such value|not found|does not exist/);
   const uninitializedImport = await verifyUninitializedImport(topology, credential, command);
+  const initializedTransfer = await verifyInitializedTransfer(topology, credential, initialization);
   return {
     sharedCredentialRejected: true,
     exactPreparationReplayed: true,
@@ -104,6 +105,77 @@ export async function verifyLinkedImportRejection(topology, credential, sharedCr
     failedVerificationSurvivedEviction: true,
     unverifiedSnapshotUnavailable: true,
     uninitializedImport,
+    initializedTransfer,
+  };
+}
+
+async function verifyInitializedTransfer(topology, credential, fixture) {
+  const source = await topology.getWorker(workerName);
+  const destinationName = 'fixture-signing-worker-after-refresh';
+  const destination = await topology.getWorker(destinationName);
+  const initialization = structuredClone(fixture);
+  initialization.request.expires_at_ms = Date.now() + 120_000;
+  initialization.request.request.expires_at_ms = initialization.request.expires_at_ms;
+  const command = {
+    wallet_scope: initialization.request.wallet_scope,
+    presign_session_id: initialization.request.presign_session_id,
+    server_presignature_id: initialization.request.request.client_presignature_id,
+    request: {
+      move_id: `wmove_${randomBytes(32).toString('base64url')}`,
+      source_generation: 1,
+      invalidated_at_ms: Date.now(),
+    },
+  };
+  const fencePath = '/router-ab/signing-worker/linked-presign-session/fence';
+  const before = await topology.listDurableObjectIds(objectClass, workerName);
+  await rejected(source, fencePath, command, credential, /requires its source wallet move/);
+  const after = await topology.listDurableObjectIds(objectClass, workerName);
+  const created = after.filter(isNewObject.bind(undefined, before));
+  assert.equal(created.length, 1);
+  const namespace = await topology.getDurableObjectNamespace('SIGNING_WORKER_PRESIGN_SESSION_DO', workerName);
+  const session = namespace.get(namespace.idFromString(created[0]));
+  const initPath = '/router-ab/internal/signing-worker/linked-ecdsa-presign-session/init';
+  await accepted(session, initPath, initialization, credential);
+  const walletFreeze = await accepted(source, '/router-ab/signing-worker/wallet/pool/freeze', {
+    scope: command.wallet_scope, request: command.request,
+  }, credential);
+  assert.equal(walletFreeze.state, 'frozen');
+  const fence = await accepted(source, fencePath, command, credential);
+  assert.equal(fence.initialization.state, 'initialized');
+  await rejected(session, initPath, initialization, credential, /fenced for relocation/);
+  const receipt = await accepted(source, freezePath, command, credential);
+  assert.equal(receipt.record_count, 1);
+  await topology.unsafeEvictDurableObject(workerName, objectClass, { id: created[0] });
+  assert.deepEqual(await accepted(source, freezePath, command, credential), receipt);
+  const chunkBytes = 1024;
+  await accepted(destination, transferPath, { kind: 'prepare', command, chunk_bytes: chunkBytes }, credential);
+  const first = await accepted(source, exportPath, { receipt, segment_index: 0, chunk_bytes: chunkBytes }, credential);
+  const chunks = [];
+  for (let index = 0; index < first.segment_count; index += 1) {
+    const chunk = index === 0 ? first : await accepted(source, exportPath, { receipt, segment_index: index, chunk_bytes: chunkBytes }, credential);
+    chunks.push(Buffer.from(chunk.data_b64u, 'base64url'));
+    await accepted(destination, transferPath, { kind: 'import', chunk }, credential);
+  }
+  const snapshot = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  assert.equal(snapshot.state, 'initialized');
+  assert.deepEqual(snapshot.authority, initialization.request);
+  assert.equal(snapshot.completion.state, 'no_stored_completion');
+  const verified = await accepted(destination, transferPath, { kind: 'verify', receipt }, credential);
+  assert.deepEqual(verified, { kind: 'verified', receipt });
+  const destinationIds = await topology.listDurableObjectIds(objectClass, destinationName);
+  assert.equal(destinationIds.length, 1);
+  await topology.unsafeEvictDurableObject(destinationName, objectClass, { id: destinationIds[0] });
+  assert.deepEqual(await accepted(destination, transferPath, { kind: 'verify', receipt }, credential), verified);
+  const destinationNamespace = await topology.getDurableObjectNamespace('SIGNING_WORKER_PRESIGN_SESSION_DO', destinationName);
+  const restored = destinationNamespace.get(destinationNamespace.idFromString(destinationIds[0]));
+  await rejected(restored, initPath, initialization, credential, /fenced for relocation/);
+  return {
+    scope: 'Production session initialization, wallet registration, freeze and role-to-role import; excludes completed presignature retirement and full device linking',
+    initializedAuthorityPreserved: true,
+    sourceFreezeReplayedAfterEviction: true,
+    destinationVerificationReplayedAfterEviction: true,
+    delayedInitializationRejectedAtBothHomes: true,
+    segments: first.segment_count,
   };
 }
 
