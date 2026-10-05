@@ -64,3 +64,7 @@ const forgedReadAccess: WalletRelocationReadAccess = { ...readAccess };
 const directReadAccess = new WalletRelocationReadAccess(binding);
 void forgedReadAccess;
 void directReadAccess;
+
+declare const otpIssuer: import('../../packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeIssuer').CloudflareD1EmailOtpChallengeIssuer;
+// @ts-expect-error Relocation OTP issuance must retain the relocation challenge expiry.
+otpIssuer.create({ action: 'wallet_email_otp_relocation', operation: 'wallet_relocation' });

@@ -4,6 +4,7 @@ import {
   WALLET_EMAIL_OTP_ACTIONS,
   WALLET_EMAIL_OTP_REGISTRATION_OPERATION,
   WALLET_EMAIL_OTP_DEVICE_LINK_OPERATION,
+  WALLET_EMAIL_OTP_RELOCATION_OPERATION,
   WALLET_EMAIL_OTP_UNLOCK_OPERATION,
 } from '@shared/utils/emailOtpDomain';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
@@ -39,6 +40,11 @@ type EmailOtpChallengeIssueBaseInput = {
 };
 
 type EmailOtpChallengeIssueInput =
+  | (EmailOtpChallengeIssueBaseInput & {
+      readonly action: typeof WALLET_EMAIL_OTP_ACTIONS.relocation;
+      readonly operation: typeof WALLET_EMAIL_OTP_RELOCATION_OPERATION;
+      readonly expiresAtMs: number;
+    })
   | (EmailOtpChallengeIssueBaseInput & {
       readonly action: typeof WALLET_EMAIL_OTP_ACTIONS.login;
       readonly operation: EmailOtpLoginChallengeOperation;
@@ -128,6 +134,10 @@ export class CloudflareD1EmailOtpChallengeIssuer {
     this.emailOtpRateLimits = input.emailOtpRateLimits;
   }
 
+  challengeExpiresAt(nowMs: number): number {
+    return nowMs + this.config.challengeTtlMs;
+  }
+
   async create(input: EmailOtpChallengeIssueInput): Promise<EmailOtpChallengeIssueResult> {
     try {
       const userId = toOptionalTrimmedString(input.userId);
@@ -185,8 +195,15 @@ export class CloudflareD1EmailOtpChallengeIssuer {
       }
 
       const nowMs = Date.now();
+      if (
+        input.action === WALLET_EMAIL_OTP_ACTIONS.relocation &&
+        (!Number.isSafeInteger(input.expiresAtMs) ||
+          input.expiresAtMs <= nowMs ||
+          input.expiresAtMs > nowMs + this.config.challengeTtlMs)
+      )
+        return failure('invalid_body', 'Relocation OTP expiry is invalid');
       await this.emailOtpChallenges.pruneExpired(nowMs);
-      if (input.reuseActiveChallenge === true) {
+      if (input.reuseActiveChallenge === true && action !== WALLET_EMAIL_OTP_ACTIONS.relocation) {
         const existing = await this.emailOtpChallenges.findLatestActive({
           challengeSubjectId: userId,
           walletId,
@@ -231,21 +248,28 @@ export class CloudflareD1EmailOtpChallengeIssuer {
       });
       if (!rateLimit.ok) return rateLimit;
 
-      await this.emailOtpChallenges.deleteActiveOverflow({
-        challengeSubjectId: userId,
-        walletId,
-        orgId,
-        action,
-        ownerProofBindingDigest,
-        operation,
-        nowMs,
-        maxActiveChallenges: this.config.maxActiveChallengesPerContext,
-      });
+      if (action !== WALLET_EMAIL_OTP_ACTIONS.relocation)
+        await this.emailOtpChallenges.deleteActiveOverflow({
+          challengeSubjectId: userId,
+          walletId,
+          orgId,
+          action,
+          ownerProofBindingDigest,
+          operation,
+          nowMs,
+          maxActiveChallenges: this.config.maxActiveChallengesPerContext,
+        });
 
-      const challengeId = secureRandomBase64Url(16, 'email otp challenge ids');
+      const challengeId =
+        action === WALLET_EMAIL_OTP_ACTIONS.relocation
+          ? `relocation:${ownerProofBindingDigest}`
+          : secureRandomBase64Url(16, 'email otp challenge ids');
       const otpCode = generateNumericOtp(this.config.codeLength);
-      const expiresAtMs = nowMs + this.config.challengeTtlMs;
-      const record = emailOtpChallengeRecord({
+      const expiresAtMs =
+        input.action === WALLET_EMAIL_OTP_ACTIONS.relocation
+          ? input.expiresAtMs
+          : nowMs + this.config.challengeTtlMs;
+      let record = emailOtpChallengeRecord({
         challengeId,
         challengeSubjectId: userId,
         walletId,
@@ -259,10 +283,13 @@ export class CloudflareD1EmailOtpChallengeIssuer {
         expiresAtMs,
         maxAttempts: this.config.maxAttempts,
       });
-      await this.emailOtpChallenges.put(record);
+      if (action === WALLET_EMAIL_OTP_ACTIONS.relocation)
+        record = await this.emailOtpChallenges.putIfAbsent(record);
+      else await this.emailOtpChallenges.put(record);
       const delivery = await this.emailOtpDelivery.deliverEmailOtpCode(record, input.requestOrigin);
       if (!delivery.ok) {
-        await this.emailOtpChallenges.delete(challengeId);
+        if (action !== WALLET_EMAIL_OTP_ACTIONS.relocation)
+          await this.emailOtpChallenges.delete(challengeId);
         return delivery;
       }
 
@@ -270,7 +297,7 @@ export class CloudflareD1EmailOtpChallengeIssuer {
         ok: true,
         challenge: {
           challengeId,
-          issuedAtMs: nowMs,
+          issuedAtMs: record.createdAtMs,
           expiresAtMs,
           challengeSubjectId: userId,
           walletId,

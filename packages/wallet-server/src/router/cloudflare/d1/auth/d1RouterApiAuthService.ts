@@ -1482,7 +1482,11 @@ function createCloudflareD1RouterApiAuthAssembly(
     linkedDeviceComposition.linkedDeviceEd25519AuthorityReader ?? null;
 
   return {
-    relocationEmailOtp: { verifier: emailOtpChallengeVerifier, emailOtpChallenges },
+    relocationEmailOtp: {
+      verifier: emailOtpChallengeVerifier,
+      emailOtpChallenges,
+      issuer: emailOtpChallengeIssuer,
+    },
     options,
     emailOtpServerSeal,
     emailOtpChallengeService,

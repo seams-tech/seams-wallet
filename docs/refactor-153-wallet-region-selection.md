@@ -74,6 +74,17 @@ Session continuity, sealed-session restoration, and pool restoration are exclude
 
 ## Implemented baseline
 
+Relocation challenge issuance now delivers Email OTP through the existing issuer
+and configured delivery provider. The authenticated method selects the factor.
+The relocation challenge expiry is capped by the OTP policy and original session.
+A deterministic OTP identity and conditional insert preserve the original code
+and expiry across concurrent retries and delivery failure. Each delivery attempt
+uses the existing challenge rate limit. Expired or consumed relocation challenges
+cannot issue another OTP. The E2E exercises provider failure, concurrent retries,
+HTTP proof submission, and rejection after consumption with a recording provider.
+Real provider delivery and composed regional routing remain unverified.
+
+
 Fresh Email OTP submission now uses the public relocation POST with
 `sourceProof: { kind: "email_otp", challengeId, otpCode }`. Hosted composition
 passes the existing OTP verifier and challenge store, including the existing

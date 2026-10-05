@@ -1,3 +1,11 @@
+import { sha256HexUtf8 } from '@shared/utils/digests';
+import {
+  WALLET_EMAIL_OTP_ACTIONS,
+  WALLET_EMAIL_OTP_RELOCATION_OPERATION,
+  EMAIL_OTP_CHANNEL,
+} from '@shared/utils/emailOtpDomain';
+import { readWalletRelocationOwner } from '../d1/wallet/d1WalletRelocationOwner';
+import { walletRelocationEmailOtpBinding } from '../d1/wallet/d1WalletRelocationEmailOtp';
 import type { WalletRelocationEmailOtpServices } from '../d1/wallet/d1WalletRelocationEmailOtp';
 import { isPlainObject, requireCanonicalString } from '@shared/utils/validation';
 import type { TenantId } from '@shared/authorization/capabilityKinds';
@@ -187,13 +195,66 @@ export class WalletPlacementRoutes implements RouterApiRouteExtension {
       sourceGeneration: intent.expectedGeneration,
       destinationRegion: intent.destinationRegion,
     });
+    const activeOwner = await readWalletRelocationOwner(
+      this.options.database,
+      this.options.scope,
+      binding,
+    );
+    if (!activeOwner) return failure('unauthorized', 401);
+    const factorExpiresAtMs =
+      activeOwner.method.kind === 'email_otp'
+        ? this.options.emailOtp.issuer.challengeExpiresAt(nowMs)
+        : owner.credentialExpiresAtMs;
     const challenge = await new D1WalletRelocationChallenges(
       this.options.database,
       this.options.scope,
-    ).issue(binding, nowMs, owner.credentialExpiresAtMs);
+    ).issue(binding, nowMs, factorExpiresAtMs);
+    if (challenge.state !== 'issued' || challenge.expiresAtMs <= Date.now())
+      return failure('relocation_challenge_expired_or_consumed', 409);
+    let factor:
+      | { readonly kind: 'passkey' }
+      | {
+          readonly kind: 'email_otp';
+          readonly challengeId: string;
+          readonly delivery: import('../../framework/authServicePort').EmailOtpChallengeDelivery;
+        };
+    if (activeOwner.method.kind === 'email_otp') {
+      const enrollment = await this.options.emailOtp.verifier.readEnrollmentForWallet(
+        binding.walletId,
+      );
+      if (
+        !enrollment ||
+        enrollment.orgId !== this.options.scope.orgId ||
+        (await sha256HexUtf8(enrollment.verifiedEmail)) !== activeOwner.method.emailHashHex
+      )
+        return failure('unauthorized', 401);
+      const issued = await this.options.emailOtp.issuer.create({
+        action: WALLET_EMAIL_OTP_ACTIONS.relocation,
+        operation: WALLET_EMAIL_OTP_RELOCATION_OPERATION,
+        userId: enrollment.providerUserId,
+        walletId: binding.walletId,
+        orgId: this.options.scope.orgId,
+        otpChannel: EMAIL_OTP_CHANNEL,
+        requestOrigin: binding.origin,
+        ownerProofBindingDigest: await walletRelocationEmailOtpBinding(
+          this.options.scope,
+          binding,
+          challenge.challengeB64u,
+        ),
+        expiresAtMs: challenge.expiresAtMs,
+      });
+      if (!issued.ok)
+        return Response.json(issued, { status: 503, headers: { 'Cache-Control': 'no-store' } });
+      factor = {
+        kind: 'email_otp',
+        challengeId: issued.challenge.challengeId,
+        delivery: issued.delivery,
+      };
+    } else factor = { kind: 'passkey' };
     return Response.json(
       {
         kind: 'challenge',
+        factor,
         moveId: binding.moveId,
         walletId: binding.walletId,
         destinationRegion: binding.destinationRegion,

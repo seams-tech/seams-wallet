@@ -172,6 +172,25 @@ export class CloudflareD1EmailOtpChallengeStore {
     return deletedRecords;
   }
 
+  async putIfAbsent(record: EmailOtpChallengeRecord): Promise<EmailOtpChallengeRecord> {
+    await emailOtpChallengeRows.insertIfAbsent(this.prepare, record).run();
+    const stored = await this.read(record.challengeId);
+    if (
+      !stored ||
+      stored.walletId !== record.walletId ||
+      stored.orgId !== record.orgId ||
+      stored.challengeSubjectId !== record.challengeSubjectId ||
+      stored.email !== record.email ||
+      stored.action !== record.action ||
+      stored.operation !== record.operation ||
+      stored.ownerProofBindingDigest !== record.ownerProofBindingDigest ||
+      stored.expiresAtMs !== record.expiresAtMs ||
+      stored.createdAtMs > record.createdAtMs
+    )
+      throw new Error('Email OTP challenge identity conflict');
+    return stored;
+  }
+
   async put(record: EmailOtpChallengeRecord): Promise<void> {
     await emailOtpChallengeRows.insert(this.prepare, record).run();
   }

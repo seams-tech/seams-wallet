@@ -24,6 +24,20 @@ const tables = [
   'wallet_session_hosted_credentials_v2',
   'wallet_session_hosted_exchange_codes_v2',
 ];
+class RecordingOtpDelivery {
+  failNext = false;
+  attempts = [];
+
+  async deliver(input) {
+    this.attempts.push({ challengeId: input.challengeId, otpCode: input.otpCode });
+    if (this.failNext) {
+      this.failNext = false;
+      return { ok: false, code: 'provider_unavailable', message: 'Injected delivery failure' };
+    }
+    return { ok: true };
+  }
+}
+
 class PlacementDirectoryRecorder {
   constructor(resolution) {
     this.resolution = resolution;
@@ -54,6 +68,8 @@ const bundle = await build({
       export { CloudflareD1WebAuthnStore } from './packages/wallet-server/src/router/cloudflare/d1/webauthn/d1WebAuthnStore';
       export { walletRelocationEmailOtpBinding, verifyWalletRelocationEmailOtp } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationEmailOtp';
       export { CloudflareD1EmailOtpChallengeStore } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeStore';
+      export { CloudflareD1EmailOtpDeliveryRuntime } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpDeliveryRuntime';
+      export { CloudflareD1EmailOtpChallengeIssuer } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeIssuer';
       export { CloudflareD1EmailOtpChallengeVerifier } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeVerifier';
       export { CloudflareD1EmailOtpEnrollmentStore } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpEnrollmentStore';
       export { CloudflareD1EmailOtpRateLimitStore } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRateLimitStore';
@@ -530,7 +546,24 @@ function relocationEmailOtpServices(database) {
     emailOtpRateLimits,
     lockoutTtlMs: 60_000,
   });
-  return { verifier, emailOtpChallenges };
+  const deliveryProvider = new RecordingOtpDelivery();
+  const issuer = new api.CloudflareD1EmailOtpChallengeIssuer({
+    config: {
+      challengeTtlMs: 30_000,
+      codeLength: 6,
+      maxActiveChallengesPerContext: 5,
+      maxAttempts: 5,
+    },
+    emailOtpChallenges,
+    emailOtpEnrollments,
+    emailOtpRateLimits,
+    emailOtpDelivery: new api.CloudflareD1EmailOtpDeliveryRuntime({
+      production: true,
+      deliveryMode: 'email_provider',
+      deliveryProvider,
+    }),
+  });
+  return { verifier, emailOtpChallenges, issuer, deliveryProvider };
 }
 
 async function authenticateRelocationOwner(authorizationSessions, issued, nowMs) {
@@ -1147,7 +1180,7 @@ function relocationAssertion(privateKey, method, challenge, origin, flags, count
 }
 
 async function verifyRelocationEmailOtp(database) {
-  const nowMs = Date.now();
+  let nowMs = Date.now();
   const email = 'relocation@example.test';
   const providerUserId = 'google:relocation-otp';
   const fixture = await api.buildEmailOtpEcdsaWalletSessionFixture({
@@ -1170,7 +1203,8 @@ async function verifyRelocationEmailOtp(database) {
     nowMs,
   });
   await emailOtpEnrollments.putEnrollment(enrollment);
-  const { verifier, emailOtpChallenges } = relocationEmailOtpServices(database);
+  const { verifier, emailOtpChallenges, issuer, deliveryProvider } =
+    relocationEmailOtpServices(database);
   const binding = api.WalletRelocationChallengeBinding.parse({
     walletId: fixture.authority.walletId,
     moveId: `wmove_${Buffer.alloc(32, 100).toString('base64url')}`,
@@ -1190,21 +1224,60 @@ async function verifyRelocationEmailOtp(database) {
     binding,
     challenge.challengeB64u,
   );
-  const otpInput = {
-    challengeId: 'otp:relocation',
-    challengeSubjectId: providerUserId,
-    walletId: binding.walletId,
-    orgId: scope.orgId,
-    email,
-    otpCode: '483920',
-    ownerProofBindingDigest,
-    action: 'wallet_email_otp_relocation',
-    operation: 'wallet_relocation',
-    createdAtMs: nowMs,
-    expiresAtMs: nowMs + 30_000,
-    maxAttempts: 5,
-  };
-  await emailOtpChallenges.put(api.emailOtpChallengeRecord(otpInput));
+  const challengeDirectory = new PlacementDirectoryRecorder({
+    kind: 'resolved',
+    requestDigest: binding.requestDigestHex,
+    sourceGeneration: binding.sourceGeneration,
+    destinationRegion: binding.destinationRegion,
+  });
+  const challengeRoutes = new api.WalletPlacementRoutes({
+    database,
+    scope,
+    emailOtp: { verifier, emailOtpChallenges, issuer },
+    tenantId: issued.session.tenantId,
+    allowedOrigins: [binding.origin],
+    authorizationSessions,
+    directory: challengeDirectory,
+  });
+  const challengeRequest = new Request(
+    'https://gateway.example.test/wallet/placement/v1/relocations/challenge',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${issued.operationCredential.token}`,
+        Origin: binding.origin,
+      },
+      body: JSON.stringify({
+        walletId: binding.walletId,
+        moveId: binding.moveId,
+        destinationRegion: binding.destinationRegion,
+        expectedGeneration: binding.sourceGeneration,
+      }),
+    },
+  );
+  deliveryProvider.failNext = true;
+  assert.equal((await challengeRoutes.handle(challengeRequest.clone())).status, 503);
+  const retained = await emailOtpChallenges.read(deliveryProvider.attempts[0].challengeId);
+  assert.ok(retained);
+  const [retry, concurrentRetry] = await Promise.all([
+    challengeRoutes.handle(challengeRequest.clone()),
+    challengeRoutes.handle(challengeRequest.clone()),
+  ]);
+  assert.equal(retry.status, 200);
+  assert.equal(concurrentRetry.status, 200);
+  const delivered = await retry.json();
+  assert.deepEqual(await concurrentRetry.json(), delivered);
+  assert.equal(delivered.factor.kind, 'email_otp');
+  assert.equal(delivered.factor.challengeId, retained.challengeId);
+  assert.equal(delivered.expiresAtMs, challenge.expiresAtMs);
+  assert.equal(deliveryProvider.attempts.length, 3);
+  for (const attempt of deliveryProvider.attempts)
+    assert.deepEqual(attempt, deliveryProvider.attempts[0]);
+  const otpInput = await emailOtpChallenges.read(delivered.factor.challengeId);
+  assert.ok(otpInput);
+  assert.equal(otpInput.ownerProofBindingDigest, ownerProofBindingDigest);
+  assert.equal(otpInput.expiresAtMs, challenge.expiresAtMs);
+  nowMs = Date.now();
   await emailOtpChallenges.put(
     api.emailOtpChallengeRecord({
       ...otpInput,
@@ -1253,7 +1326,7 @@ async function verifyRelocationEmailOtp(database) {
   const routes = new api.WalletPlacementRoutes({
     database,
     scope,
-    emailOtp: { verifier, emailOtpChallenges },
+    emailOtp: { verifier, emailOtpChallenges, issuer },
     tenantId: issued.session.tenantId,
     allowedOrigins: [binding.origin],
     authorizationSessions,
@@ -1288,9 +1361,11 @@ async function verifyRelocationEmailOtp(database) {
 
   const approved = await approvals.approveEmailOtp(input);
   assert.equal(approved.kind, 'approved');
-  assert.equal(approved.approval.expiresAtMs, nowMs + 30_000);
+  assert.equal(approved.approval.expiresAtMs, challenge.expiresAtMs);
   assert.equal(await emailOtpChallenges.read(otpInput.challengeId), null);
   assert.equal((await challenges.read(binding)).state, 'consumed');
+  assert.equal((await challengeRoutes.handle(challengeRequest.clone())).status, 409);
+  assert.equal(deliveryProvider.attempts.length, 3);
   assert.deepEqual(
     await approvals.approveEmailOtp({ ...input, otpCode: '000000', nowMs: nowMs + 90_000 }),
     approved,
@@ -1310,6 +1385,8 @@ async function verifyRelocationEmailOtp(database) {
     scope:
       'OTP verification and atomic approval through production stores; excludes email delivery, factor unsealing, owner HTTP authentication and Console admission',
     initiatingSessionGuardUsesIssuedCredential: true,
+    failedDeliveryAndConcurrentRetriesPreserveOriginalOtpAndExpiry: true,
+    consumedChallengeCannotIssueAnotherOtp: true,
     httpOtpSubmissionUsesSharedVerifierAndPersistsApprovalBeforeDispatch: true,
     enrollmentRemovalRejectsStaleCommit: true,
     distinctRelocationPurpose: true,

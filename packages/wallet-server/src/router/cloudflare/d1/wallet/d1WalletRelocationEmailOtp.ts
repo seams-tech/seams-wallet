@@ -1,3 +1,4 @@
+import type { CloudflareD1EmailOtpChallengeIssuer } from '../emailOtp/d1EmailOtpChallengeIssuer';
 import { sha256Utf8DigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { sha256HexUtf8 } from '@shared/utils/digests';
 import {
@@ -20,6 +21,7 @@ import {
 } from './d1WalletRelocationOwner';
 
 export type WalletRelocationEmailOtpServices = {
+  readonly issuer: CloudflareD1EmailOtpChallengeIssuer;
   readonly verifier: CloudflareD1EmailOtpChallengeVerifier;
   readonly emailOtpChallenges: CloudflareD1EmailOtpChallengeStore;
 };
