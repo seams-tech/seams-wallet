@@ -73,6 +73,7 @@ const bundle = await build({
     contents: `
       export { D1WalletAuthorizationSnapshot } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationSnapshot';
       export { D1WalletAuthorizationFreeze } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationFreeze';
+      export { D1WalletAuthorizationIntake } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationIntake';
       export { D1WalletAuthorizationHistory } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationHistory';
       export { D1WalletRelocationSessions, WalletRelocationSessionSource } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationSessions';
       export { CloudflareD1WebAuthnStore } from './packages/wallet-server/src/router/cloudflare/d1/webauthn/d1WebAuthnStore';
@@ -264,7 +265,7 @@ try {
     issueDeviceSession,
   });
   const copied = await verifyAuthorizationHistoryCopy({
-    api, destination, scope, identity: sessionSource, snapshot, service, issueDeviceSession,
+    api, source, destination, scope, identity: sessionSource, snapshot, service, issueDeviceSession,
   });
 
   const destinationService = service(destination, scope);

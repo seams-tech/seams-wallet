@@ -202,6 +202,8 @@ const RELAY_SIGNER_READY_TABLES = Object.freeze([
   'wallet_relocation_authorization_fences',
   'wallet_relocation_authorization_snapshots',
   'wallet_relocation_authorization_chunks',
+  'wallet_relocation_authorization_intakes',
+  'wallet_relocation_authorization_intake_chunks',
   'wallet_relocation_authorization_imports',
   'wallet_relocation_authorization_import_context',
   'wallet_relocation_authorization_import_receipts',

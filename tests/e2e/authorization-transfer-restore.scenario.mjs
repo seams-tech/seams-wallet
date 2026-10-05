@@ -4,6 +4,7 @@ import { authorizationRowsQuery } from './authorization-transfer-freeze.scenario
 export async function verifyAuthorizationHistoryCopy({
   api,
   destination,
+  source,
   scope,
   identity,
   snapshot,
@@ -11,7 +12,20 @@ export async function verifyAuthorizationHistoryCopy({
   issueDeviceSession,
 }) {
   const importer = new api.D1WalletAuthorizationHistory(destination, scope);
-  await importer.prepare(identity);
+  const exporter = new api.D1WalletAuthorizationSnapshot(source, scope);
+  const manifest = await exporter.seal(identity);
+  const intake = new api.D1WalletAuthorizationIntake(destination, scope);
+  await intake.prepare(identity, manifest);
+  await assert.rejects(
+    intake.prepare(identity, { ...manifest, recordCount: manifest.recordCount + 1 }),
+    /manifest conflicts/u,
+  );
+  await assert.rejects(intake.verify(identity), /incomplete/u);
+  await assert.rejects(
+    intake.accept(identity, await exporter.exportChunk(identity, 1)),
+    /out of order/u,
+  );
+  let chunkIndex = 0;
   const nowMs = Date.now();
   const neighborFixture = await api.buildLinkedDeviceManagementAuthorityFixture({
     label: 'authorization-history-neighbor',
@@ -71,11 +85,49 @@ export async function verifyAuthorizationHistoryCopy({
           /wallet_authorization_destination_inactive|wallet_session_hosted_/u,
         );
       }
-      const [receipt, concurrent] = await Promise.all([
-        importer.restore(identity, table, record.json),
-        importer.restore(identity, table, record.json),
-      ]);
-      assert.equal(concurrent, receipt);
+      while (chunkIndex < manifest.chunkCount) {
+        const chunk = await exporter.exportChunk(identity, chunkIndex);
+        const payload = JSON.parse(chunk.chunkJson);
+        assert.equal(payload.table, table);
+        assert.equal(payload.recordKey, record.key);
+        if (!firstImported && payload.segmentIndex + 1 === payload.segmentCount) {
+          await destination
+            .prepare(
+              `CREATE TRIGGER injected_intake_ack_failure
+            BEFORE UPDATE ON wallet_relocation_authorization_intakes
+            BEGIN SELECT RAISE(ABORT, 'injected_intake_ack_failure'); END`,
+            )
+            .run();
+          await assert.rejects(intake.accept(identity, chunk), /injected_intake_ack_failure/u);
+          await destination.exec('DROP TRIGGER injected_intake_ack_failure');
+          const restored = await destination
+            .prepare(
+              `SELECT COUNT(*) AS count
+            FROM wallet_relocation_authorization_import_receipts WHERE wallet_id = ?`,
+            )
+            .bind(identity.walletId)
+            .first('count');
+          assert.equal(restored, 1);
+        }
+        const [receipt, concurrent] = await Promise.all([
+          intake.accept(identity, chunk),
+          new api.D1WalletAuthorizationIntake(destination, scope).accept(identity, chunk),
+        ]);
+        assert.equal(concurrent, receipt);
+        assert.equal(receipt, chunk.digestHex);
+        assert.equal(
+          await new api.D1WalletAuthorizationIntake(destination, scope).accept(identity, chunk),
+          receipt,
+        );
+        await assert.rejects(
+          intake.accept(identity, { ...chunk, digestHex: '0'.repeat(64) }),
+          /conflicts/u,
+        );
+        chunkIndex += 1;
+        if (payload.segmentIndex + 1 === payload.segmentCount) break;
+        await assert.rejects(intake.verify(identity), /incomplete/u);
+      }
+      const receipt = await importer.restore(identity, table, record.json);
       assert.equal(
         await new api.D1WalletAuthorizationHistory(destination, scope).restore(
           identity,
@@ -125,7 +177,16 @@ export async function verifyAuthorizationHistoryCopy({
     assert.deepEqual(restored.results, rows);
   }
   assert.ok(firstImported);
-  await importer.close(identity);
+  assert.equal(chunkIndex, manifest.chunkCount);
+  assert.equal(await intake.verify(identity), manifest.digestHex);
+  assert.equal(
+    await new api.D1WalletAuthorizationIntake(destination, scope).verify(identity),
+    manifest.digestHex,
+  );
+  assert.equal(
+    await intake.accept(identity, await exporter.exportChunk(identity, 0)),
+    (await exporter.exportChunk(identity, 0)).digestHex,
+  );
   assert.equal(
     await importer.restore(identity, firstImported.table, firstImported.json),
     firstImported.receipt,
@@ -154,7 +215,11 @@ export async function verifyAuthorizationHistoryCopy({
     tables: copied,
     allSixFamiliesUseProductionRestore: true,
     exactRowsAndQuotasPreserved: true,
-    concurrentReplayExact: true,
+    restartedChunkReplayExact: true,
+    concurrentChunkReplayExact: true,
+    interruptedProgressAcknowledgementResumesRestoredRecord: true,
+    incompleteAndConflictingStreamsRejected: true,
+    verifiedManifestDigest: manifest.digestHex,
     failedAcknowledgementRolledBackRecordAndContext: true,
     scopeAndContentConflictsRejected: true,
     quotaProtectedBeforeItsSessionArrives: true,
@@ -162,6 +227,6 @@ export async function verifyAuthorizationHistoryCopy({
     importClosureRejectsNewRecordsAndPreservesReplay: true,
     unrelatedDestinationWalletRemainsActive: true,
     scope:
-      'Production record restore. Bounded stream intake, complete-manifest verification and activation remain unfinished.',
+      'Production bounded intake and authorization manifest verification. Regional transport and activation remain unfinished.',
   };
 }

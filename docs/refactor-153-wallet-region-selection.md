@@ -81,9 +81,12 @@ seals only after the complete six-family scan. Interrupted capture resumes from
 the last durable chunk. Export rejects partial snapshots and preserves sealed bytes
 across retries and store recreation. The E2E uses those exported records for its
 transfer path and verifies a multi-segment record and exact 64-bit integer text.
-All six families now use production record restore. Bounded stream intake and
-complete-manifest verification remain unfinished. This authorization snapshot is
-one component of the future common wallet manifest.
+All six families now use production record restore through durable bounded chunk
+intake. Intake pins the authorization manifest, validates the digest chain and
+segment order, and acknowledges completed records only after durable restore.
+Verification requires the expected chunks, records, final digest, and retired
+quota parents. This authorization snapshot is one component of the future common
+wallet manifest. Regional transport and coordinator activation remain unfinished.
 
 
 The authorization D1 source now has a separate durable freeze after session
@@ -109,9 +112,11 @@ It checks acknowledgement rollback, concurrent and restarted retries, conflicts,
 quota protection, inactive admission, and an unaffected neighboring wallet.
 The old standalone hosted-history runtime path is removed. Its replacement
 migration refuses to discard existing standalone import metadata. Assembled
-record intake is currently bounded at 2 MiB. Bounded stream intake, larger-record
-assembly, authenticated transport, complete manifest verification, other wallet
-record families, and coordinator activation remain unfinished.
+record intake is currently bounded at 2 MiB. Larger-record assembly, authenticated
+transport, common wallet manifest verification, other wallet record families, and
+coordinator activation remain unfinished. The stream E2E also interrupts progress
+acknowledgement after successful record restore, then resumes with concurrent and
+recreated receivers. Missing chunks and conflicting replays cannot verify.
 
 
 The signer D1 session-retirement operation now retires every device's primary
