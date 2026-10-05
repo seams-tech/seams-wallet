@@ -60,6 +60,10 @@ declare const seams: SeamsWeb;
 void seams.auth.getSession();
 // @ts-expect-error Presignature preparation belongs to wallet operations.
 void seams.auth.prefillRouterAbEcdsaDerivationPresignaturePool;
+// @ts-expect-error Signing owns its operation-bound Email OTP challenge.
+void seams.auth.requestEmailOtpSigningSessionChallenge;
+// @ts-expect-error Signing owns its Email OTP session refresh.
+void seams.auth.refreshEmailOtpSigningSession;
 void seams.auth.startGoogleSignIn({ idToken: 'provider-evidence', mode: 'login', loginTarget: { kind: 'discoverable' } });
 // @ts-expect-error Google sign-in has one public entry name.
 void seams.auth.beginGoogleEmailOtpWalletAuth;

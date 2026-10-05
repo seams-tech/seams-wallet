@@ -269,9 +269,6 @@ export function createWalletHostEmailOtpCommands(
   return {
     auth: {
       requestEmailOtpChallenge: commands.requestEmailOtpChallengeDomain.bind(commands),
-      requestEmailOtpSigningSessionChallenge:
-        commands.requestEmailOtpSigningSessionChallengeDomain.bind(commands),
-      refreshEmailOtpSigningSession: commands.refreshEmailOtpSigningSessionDomain.bind(commands),
       loginWithEmailOtpEcdsaCapability:
         commands.loginWithEmailOtpEcdsaCapabilityDomain.bind(commands),
       unlockAddedEmailOtpWallet: commands.loginWithLinkedEmailOtpWalletDomain.bind(commands),
@@ -365,124 +362,6 @@ class HostEmailOtpCommands {
         flowId,
         walletId: args.walletId,
         authMethod: 'email_otp',
-        error: e,
-      });
-      throw e;
-    }
-  }
-
-  async requestEmailOtpSigningSessionChallengeDomain(args: {
-    walletSession: WalletSessionRef;
-    chainTarget: ThresholdEcdsaChainTarget;
-    onEvent?: (event: UnlockFlowEvent) => void;
-  }): Promise<{
-    challengeId: string;
-    emailHint?: string;
-  }> {
-    const walletId = args.walletSession.walletId;
-    const flowId = emailOtpUnlockFlowId(walletId);
-    emitEmailOtpUnlockEvent(args.onEvent, {
-      flowId,
-      walletId,
-      authMethod: 'email_otp',
-      phase: UnlockEventPhase.STEP_03_EMAIL_OTP_CHALLENGE_STARTED,
-      status: 'running',
-    });
-    try {
-      const result = await this.deps
-        .getContext()
-        .signingEngine.requestEmailOtpSigningSessionChallenge({
-          walletSession: args.walletSession,
-          chainTarget: args.chainTarget,
-        });
-      emitEmailOtpUnlockEvent(args.onEvent, {
-        flowId: emailOtpUnlockFlowId(walletId, result.challengeId),
-        walletId,
-        authMethod: 'email_otp',
-        phase: UnlockEventPhase.STEP_03_EMAIL_OTP_CHALLENGE_SENT,
-        status: 'succeeded',
-        data: { challengeId: result.challengeId, otpChannel: 'email_otp' },
-      });
-      return result;
-    } catch (error: unknown) {
-      const e = toError(error);
-      emitEmailOtpUnlockFailure(args.onEvent, {
-        flowId,
-        walletId,
-        authMethod: 'email_otp',
-        error: e,
-      });
-      throw e;
-    }
-  }
-
-  async refreshEmailOtpSigningSessionDomain(args: {
-    walletSession: WalletSessionRef;
-    chainTarget: ThresholdEcdsaChainTarget;
-    challengeId: string;
-    otpCode: string;
-    ttlMs?: number;
-    remainingUses?: number;
-    onEvent?: (event: UnlockFlowEvent) => void;
-  }): Promise<EmailOtpEcdsaCapabilityResult> {
-    const walletId = args.walletSession.walletId;
-    const flowId = emailOtpUnlockFlowId(walletId, args.challengeId);
-    const chainTarget = requireConcreteEcdsaChainTarget(
-      args.chainTarget,
-      'Email OTP signing-session refresh',
-    );
-    emitEmailOtpUnlockEvent(args.onEvent, {
-      flowId,
-      walletId,
-      authMethod: 'email_otp',
-      phase: UnlockEventPhase.STEP_03_EMAIL_OTP_VERIFY_STARTED,
-      status: 'running',
-      interaction: { kind: 'otp_input', overlay: 'none' },
-      requestId: args.challengeId,
-    });
-    try {
-      const result = await this.deps.getContext().signingEngine.refreshEmailOtpSigningSession({
-        walletSession: args.walletSession,
-        chainTarget,
-        challengeId: args.challengeId,
-        otpCode: args.otpCode,
-        ...(typeof args.ttlMs === 'number' ? { ttlMs: args.ttlMs } : {}),
-        ...(typeof args.remainingUses === 'number' ? { remainingUses: args.remainingUses } : {}),
-      });
-      emitEmailOtpUnlockEvent(args.onEvent, {
-        flowId,
-        walletId,
-        authMethod: 'email_otp',
-        phase: UnlockEventPhase.STEP_03_EMAIL_OTP_VERIFY_SUCCEEDED,
-        status: 'succeeded',
-        interaction: { kind: 'otp_input', overlay: 'hide' },
-        requestId: args.challengeId,
-      });
-      emitEmailOtpUnlockEvent(args.onEvent, {
-        flowId,
-        walletId,
-        authMethod: 'email_otp',
-        phase: UnlockEventPhase.STEP_05_ECDSA_SIGNING_SESSION_READY,
-        status: 'succeeded',
-        requestId: args.challengeId,
-        data: { chainTarget },
-      });
-      emitEmailOtpUnlockEvent(args.onEvent, {
-        flowId,
-        walletId,
-        authMethod: 'email_otp',
-        phase: UnlockEventPhase.STEP_07_COMPLETED,
-        status: 'succeeded',
-        requestId: args.challengeId,
-      });
-      return result;
-    } catch (error: unknown) {
-      const e = toError(error);
-      emitEmailOtpUnlockFailure(args.onEvent, {
-        flowId,
-        walletId,
-        authMethod: 'email_otp',
-        requestId: args.challengeId,
         error: e,
       });
       throw e;

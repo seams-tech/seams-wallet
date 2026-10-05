@@ -15,8 +15,6 @@ export type EmailOtpCommandGroups = {
   auth: Pick<
     AuthCapability,
     | 'requestEmailOtpChallenge'
-    | 'requestEmailOtpSigningSessionChallenge'
-    | 'refreshEmailOtpSigningSession'
     | 'loginWithEmailOtpEcdsaCapability'
     | 'unlockAddedEmailOtpWallet'
     | 'startGoogleSignIn'

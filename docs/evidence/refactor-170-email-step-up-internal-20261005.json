@@ -1,0 +1,69 @@
+{
+  "task": "R170/R171 internal Email OTP signing step-up",
+  "baseCommit": "3327b99a",
+  "protocolVersion": "8.0.0",
+  "removed": [
+    "manual signing-session challenge auth method and RPC",
+    "manual signing-session refresh auth method and RPC",
+    "client and host command adapters",
+    "signing-surface adapters and ports",
+    "unused core refresh implementation and dependency wiring",
+    "duplicate exact-authority resolver used only by manual refresh"
+  ],
+  "retained": [
+    "createEmailOtpEcdsaTransactionSigningBridge",
+    "operation fingerprint and exact step-up authority binding",
+    "emailOtpEcdsaSigningSessionAuthLane used by active ECDSA selection",
+    "custom login and enrollment proof contracts"
+  ],
+  "typeFixtures": {
+    "classification": "obsolete_test_or_fixture for removed API calls; valid constraints migrated",
+    "checks": [
+      "EVM-family challenge rejects NEAR",
+      "wallet-session identity requires normalized WalletId",
+      "operation fingerprint is required",
+      "live-session authority rejects a second capability reauth lane"
+    ]
+  },
+  "production": {
+    "command": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/email-otp.unlock.contract.test.ts e2e/intended-behaviours/passkey.add-email-otp.contract.test.ts --grep \"Email OTP registration and unlock lifecycle|a passkey wallet can add an email code\"",
+    "cases": [
+      {
+        "title": "Email OTP registration and unlock lifecycle",
+        "result": "passed",
+        "seconds": 49.2
+      },
+      {
+        "title": "a passkey wallet can add an email code as a second way in",
+        "result": "passed",
+        "seconds": 39.4
+      }
+    ]
+  },
+  "browser": {
+    "command": "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4289 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/handshake.test.ts --project=chromium --output=../.artifacts/r170-stepup-internal",
+    "result": "5 passed",
+    "seconds": 2.6
+  },
+  "checks": [
+    "wallet type-check including updated source type fixtures",
+    "intended type-check",
+    "browser type-check",
+    "build:prod",
+    "packed declaration consumer rejects both removed methods",
+    "runtime entry bundle boundaries",
+    "build freshness",
+    "report:bloat --check"
+  ],
+  "productionLines": {
+    "added": 6,
+    "removed": 980,
+    "net": -974,
+    "scope": "packages/wallet/src excluding .typecheck.ts fixtures"
+  },
+  "limits": [
+    "General Email OTP login/enrollment consolidation remains open.",
+    "This closes manual signing challenge/refresh removal only.",
+    "No publication or deployment performed."
+  ]
+}

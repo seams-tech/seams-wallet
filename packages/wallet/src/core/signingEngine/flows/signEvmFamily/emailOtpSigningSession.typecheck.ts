@@ -1,28 +1,21 @@
-import type {
-  ThresholdEcdsaChainTarget,
-  WalletId,
-  WalletSessionRef,
-} from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import type {
-  EmailOtpEcdsaSigningSessionDeps,
-  EmailOtpEcdsaStepUpAuthority,
+import type { WalletSessionRef } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
+import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
+import {
+  createEmailOtpEcdsaTransactionSigningBridge,
+  type EmailOtpEcdsaStepUpAuthority,
+  type EmailOtpEcdsaChallengeAuthority,
 } from './emailOtpSigningSession';
 import type {
   EcdsaCommittedLane,
   EmailOtpEcdsaSigningSessionCommittedLane,
 } from './ecdsaSelection';
-import type { EmailOtpPublicDeps } from './emailOtpPublic';
-import { requestEmailOtpSigningSessionChallenge } from './emailOtpPublic';
-import type { EmailOtpSigningSessionAuthLane } from '../../stepUpConfirmation/otpPrompt/authLane';
 
-declare const deps: EmailOtpPublicDeps;
-declare const signingSessionDeps: EmailOtpEcdsaSigningSessionDeps;
-declare const walletId: WalletId;
 declare const walletSession: WalletSessionRef;
-declare const chainTarget: ThresholdEcdsaChainTarget;
-declare const ecdsaAuthLane: Extract<EmailOtpSigningSessionAuthLane, { curve: 'ecdsa' }>;
+declare const authority: EmailOtpEcdsaChallengeAuthority;
+declare const operationFingerprintDigest: DigestB64u;
 declare const committedLane: EcdsaCommittedLane;
 declare const signingSessionCommittedLane: EmailOtpEcdsaSigningSessionCommittedLane;
+
 const invalidLiveStepUpWithPublicLane: EmailOtpEcdsaStepUpAuthority = {
   kind: 'live_session',
   committedLane: signingSessionCommittedLane,
@@ -31,42 +24,35 @@ const invalidLiveStepUpWithPublicLane: EmailOtpEcdsaStepUpAuthority = {
 };
 void invalidLiveStepUpWithPublicLane;
 
-type WalletSessionSigningChallengeArgs = Parameters<
-  EmailOtpEcdsaSigningSessionDeps['emailOtpSessions']['requestTransactionSigningChallenge']
+type SigningChallengeArgs = Parameters<
+  NonNullable<
+    Parameters<
+      typeof createEmailOtpEcdsaTransactionSigningBridge
+    >[0]['requestEmailOtpTransactionSigningChallenge']
+  >
 >[0];
 
-const validWalletSessionSigningChallengeArgs: WalletSessionSigningChallengeArgs = {
-  kind: 'wallet_session_challenge',
-  walletSession,
-  chain: 'evm',
-  authLane: ecdsaAuthLane,
-};
-void validWalletSessionSigningChallengeArgs;
+declare function requestChallenge(args: SigningChallengeArgs): void;
 
-const invalidNearAccountSigningChallengeArgs: WalletSessionSigningChallengeArgs = {
-  // @ts-expect-error ECDSA signing-session challenge bridge is wallet-session only.
-  kind: 'near_account_challenge',
+requestChallenge({ walletSession, chain: 'evm', authority, operationFingerprintDigest });
+requestChallenge({
   walletSession,
+  // @ts-expect-error EVM-family step-up cannot target NEAR.
   chain: 'near',
-};
-void invalidNearAccountSigningChallengeArgs;
-
-void signingSessionDeps;
-
-void requestEmailOtpSigningSessionChallenge(deps, {
-  walletSession,
-  chainTarget,
+  authority,
+  operationFingerprintDigest,
 });
-
-void requestEmailOtpSigningSessionChallenge(deps, {
+requestChallenge({
   walletSession: {
     ...walletSession,
-    // @ts-expect-error ECDSA signing-session auth resolution requires a normalized WalletId.
+    // @ts-expect-error Signing challenges require the normalized wallet identity.
     walletId: 'wallet.testnet',
   },
-  chainTarget,
+  chain: 'evm',
+  authority,
+  operationFingerprintDigest,
 });
-
-void walletId;
+// @ts-expect-error An operation-bound challenge requires its operation fingerprint.
+requestChallenge({ walletSession, chain: 'evm', authority });
 
 export {};

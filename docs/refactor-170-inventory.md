@@ -201,7 +201,7 @@ remove that dependency overlap while retaining these distinctions.
 | `auth.unlock`, `lock`, `logout` | `walletIframe/client/sessionCommands.ts` → router equivalents | H: `host/handlers/auth.ts`; retain exact session, progress, error, and logout cleanup semantics. |
 | `auth.getWalletSession`, `getRecentUnlocks`, `hasPasskeyCredential` | `walletIframe/client/sessionCommands.ts` → router queries; session read can also prefetch blockheight | H auth queries; preserve authentication versus app-identity distinction. Recent-unlock fallback behavior needs explicit review before removing local paths. |
 | Internal presignature preparation | Registration/unlock scheduler and host restoration | Public auth call and iframe route removed. The host retains existing session/material checks and durable reuse. |
-| `auth.requestEmailOtpChallenge`, `requestEmailOtpSigningSessionChallenge`, `refreshEmailOtpSigningSession` | `SeamsWeb` domain methods → matching router requests | H: `host/handlers/emailOtp.ts`; challenge purpose and session scope remain distinct. |
+| `auth.requestEmailOtpChallenge` | Application command → router request | H: login challenge handling remains public for custom UI. Manual signing-session challenge/refresh was removed; signing owns its operation-bound step-up. |
 | `auth.loginWithEmailOtpEcdsaCapability`, `unlockAddedEmailOtpWallet` | Domain → login/unlock-added router methods | H: Email OTP handler and selected factor activation. |
 | `auth.startGoogleSignIn` | Domain → router flow proxy | C proxy for H flow, including resend/reroll/submit/complete/cancel; callbacks and terminal results remain correlated to the flow. |
 | `registration.registerWallet`, `registerWithEmailOtp`, `registerPasskey` | `createPublicApi.ts` delegates to `client/registrationCommands.ts`; passkey builds registration input | H registration via `PM_REGISTER_WALLET`; preserve selected auth method and signer set. `registerWithEmailOtp` currently aliases `registerWallet`. |
@@ -2335,3 +2335,34 @@ and browser types, production build, packed declarations, runtime boundaries,
 and freshness passed. SDK production source: 3 added, 94 removed, net -91.
 Evidence: `evidence/refactor-170-presign-preparation-internal-20261005.json`.
 Month-later return latency and validity-clock acceptance remain open.
+
+
+### Email OTP signing owns step-up (2026-10-05)
+
+The manual `requestEmailOtpSigningSessionChallenge` and `refreshEmailOtpSigningSession`
+methods had no application consumers. Removed their public types, command adapters,
+router requests, host handlers, signing-surface methods and ports. Their core
+refresh implementation, dependency wiring, and duplicate exact-authority resolver
+had no remaining callers and were removed as well. The shared auth-lane builder
+remains because active ECDSA selection uses it.
+
+The active `createEmailOtpEcdsaTransactionSigningBridge` is unchanged. It supplies
+the exact step-up authority, wallet session, chain, and operation fingerprint to
+the challenge callback. Existing signing execution remains responsible for proof
+verification and material activation. No unlock proof was substituted for a
+transaction proof. No durable signing material was deleted.
+
+The former public-path type fixtures were obsolete after removal. Their useful
+constraints now target the live bridge: EVM-family chain selection, normalized
+wallet identity, required operation fingerprint, and rejection of mixed live-session
+and capability-step-up authority. Packed consumers reject both retired methods.
+Protocol 8.0.0 removes both iframe requests and requires matched deployment.
+General Email OTP login/enrollment consolidation remains open.
+
+Production Google Email OTP lifecycle passed in 49.2 seconds. The added-email
+lifecycle passed in 39.4 seconds, including lost-response retry, both signer
+families, step-up, key exports, and method revocation. Five protocol handshake
+cases passed in 2.6 seconds. Wallet/intended/browser types, the production build,
+packed declarations, bundle boundaries, freshness, and bloat checks passed.
+SDK production source excluding type fixtures: 6 added, 980 removed, net -974.
+Evidence: `evidence/refactor-170-email-step-up-internal-20261005.json`.

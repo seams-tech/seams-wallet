@@ -505,6 +505,13 @@ a declaration-level pass before declaring the migration complete.
   retain their operation-owned schedulers. Lock continues to retain durable
   presignatures. Protocol 7.0.0 requires matched client/host deployment.
 
+- [x] Remove manual Email OTP signing-session challenge and refresh APIs.
+  Delete their client/host adapters, signing-surface ports, unused core refresh
+  implementation, and duplicate authority resolver. Keep the active signing
+  bridge and its operation-bound challenge. Migrate type fixtures to that bridge.
+  Protocol 8.0.0 requires matched client/host deployment. General email unlock
+  and enrollment consolidation remains open.
+
 - [ ] Audit current declarations and consumers in public SDK, tests, examples,
   docs, and private Console. Classify each row as rename, consolidation, internal
   move, or intentional behavior change; record unresolved contract differences.

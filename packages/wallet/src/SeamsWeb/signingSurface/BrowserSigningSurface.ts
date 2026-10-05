@@ -292,7 +292,6 @@ import {
 } from '@/core/signingEngine/flows/signEvmFamily/signEvmFamily';
 import {
   clearThresholdEcdsaSigningQueue,
-  withThresholdEcdsaSigningQueue,
   type ThresholdEcdsaSigningQueueByKey,
 } from '@/core/signingEngine/threshold/ecdsa/signingQueue';
 import {
@@ -399,7 +398,6 @@ import {
   requestClearEmailOtpWarmSessionMaterial,
   requestRehydrateEmailOtpEd25519YaoOperationMaterial,
 } from '@/core/signingEngine/session/emailOtp/workerRequests';
-import type { EmailOtpBootstrapRecovery } from '@/core/signingEngine/stepUpConfirmation/otpPrompt/bootstrapRecovery';
 import type {
   DiscoverPersistedSessionsForWalletInput,
   DiscoverPersistedSessionsForWalletResult,
@@ -2630,23 +2628,8 @@ export class BrowserSigningSurface {
     this.emailOtpPublicDeps = {
       relayerUrl: this.seamsWebConfigs.network.relayer?.url || '',
       groupId: SIGNING_SESSION_SEAL_GROUP_ID,
-      signingSessionAuthorityPorts: {
-        resolveActiveEcdsaCapabilityRuntime: resolveBrowserActiveEcdsaCapabilityRuntime,
-        factorStores: browserSigningSurfaceExactWalletAuthMethodStore,
-        resolveSelectedWalletAuthority:
-          IndexedDBManager.resolveSelectedWalletAuthority.bind(IndexedDBManager),
-        readExactWalletSessionAuthorization:
-          walletSessionAuthorizations.readExactWithOperationCredential.bind(
-            walletSessionAuthorizations,
-          ),
-      },
       getSignerWorkerContext: () =>
         this.enginePorts.walletSessionActivationDeps.getSignerWorkerContext(),
-      withThresholdEcdsaSigningQueue: (queueArgs) =>
-        withThresholdEcdsaSigningQueue({
-          queueByKey: this.thresholdEcdsaSigningQueueByKey,
-          ...queueArgs,
-        }),
       emailOtpSessions: this.emailOtpSessions,
     };
     this.recoveryPublicDeps = createBrowserRecoveryPublicDeps({
@@ -6721,35 +6704,6 @@ export class BrowserSigningSurface {
     } finally {
       unlock.ed25519ExportRootCustody.factorSecret32.fill(0);
     }
-  }
-
-  async requestEmailOtpSigningSessionChallenge(args: {
-    walletSession: WalletSessionRef;
-    chainTarget: ThresholdEcdsaChainTarget;
-  }): Promise<{ challengeId: string; emailHint?: string }> {
-    return await emailOtpPublic.requestEmailOtpSigningSessionChallenge(
-      this.emailOtpPublicDeps,
-      args,
-    );
-  }
-
-  async refreshEmailOtpSigningSession(args: {
-    walletSession: WalletSessionRef;
-    chainTarget: ThresholdEcdsaChainTarget;
-    challengeId: string;
-    otpCode: string;
-    ttlMs?: number;
-    remainingUses?: number;
-  }): Promise<{
-    recovery: EmailOtpBootstrapRecovery;
-    bootstrap: ThresholdEcdsaSessionBootstrapResult;
-    authorization: ExactWalletSessionAuthorization;
-    authorizations: readonly [
-      ExactWalletSessionAuthorization,
-      ...ExactWalletSessionAuthorization[],
-    ];
-  }> {
-    return await emailOtpPublic.refreshEmailOtpSigningSession(this.emailOtpPublicDeps, args);
   }
 
   async enrollEmailOtpInternal(args: {

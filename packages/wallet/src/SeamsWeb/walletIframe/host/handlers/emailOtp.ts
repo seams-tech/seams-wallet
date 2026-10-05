@@ -313,14 +313,6 @@ export function createEmailOtpWalletIframeHandlers(deps: HandlerDeps): HandlerMa
       respondOkResult(deps, req.requestId, result);
     },
 
-    PM_REQUEST_EMAIL_OTP_SIGNING_SESSION_CHALLENGE: async (
-      req: Req<'PM_REQUEST_EMAIL_OTP_SIGNING_SESSION_CHALLENGE'>,
-    ) => {
-      const pm = deps.getWalletRuntime();
-      const result = await pm.auth.requestEmailOtpSigningSessionChallenge(req.payload!);
-      respondOkResult(deps, req.requestId, result);
-    },
-
     PM_BEGIN_GOOGLE_EMAIL_OTP_WALLET_AUTH: async (
       req: Req<'PM_BEGIN_GOOGLE_EMAIL_OTP_WALLET_AUTH'>,
     ) => {
@@ -436,18 +428,6 @@ export function createEmailOtpWalletIframeHandlers(deps: HandlerDeps): HandlerMa
       });
       const result = await pm.auth.loginWithEmailOtpEcdsaCapability(
         payload as Parameters<typeof pm.auth.loginWithEmailOtpEcdsaCapability>[0],
-      );
-      respondOkResult(deps, req.requestId, result);
-    },
-
-    PM_REFRESH_EMAIL_OTP_SIGNING_SESSION: async (
-      req: Req<'PM_REFRESH_EMAIL_OTP_SIGNING_SESSION'>,
-    ) => {
-      assertNoParentPostedWalletSessionToken(req.payload);
-      const pm = deps.getWalletRuntime();
-      const payload = withProgress(deps, req.requestId, req.payload || {});
-      const result = await pm.auth.refreshEmailOtpSigningSession(
-        payload as Parameters<typeof pm.auth.refreshEmailOtpSigningSession>[0],
       );
       respondOkResult(deps, req.requestId, result);
     },

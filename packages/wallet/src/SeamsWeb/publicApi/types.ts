@@ -712,20 +712,6 @@ export interface AuthCapability {
     operationFingerprintDigest?: DigestB64u;
     onEvent?: (event: UnlockFlowEvent) => void;
   }): Promise<EmailOtpOperationChallengeResult>;
-  requestEmailOtpSigningSessionChallenge(args: {
-    walletSession: WalletSessionRef;
-    chainTarget: ThresholdEcdsaChainTarget;
-    onEvent?: (event: UnlockFlowEvent) => void;
-  }): Promise<Pick<EmailOtpChallengeResult, 'challengeId' | 'emailHint'>>;
-  refreshEmailOtpSigningSession(args: {
-    walletSession: WalletSessionRef;
-    chainTarget: ThresholdEcdsaChainTarget;
-    challengeId: string;
-    otpCode: string;
-    ttlMs?: number;
-    remainingUses?: number;
-    onEvent?: (event: UnlockFlowEvent) => void;
-  }): Promise<EmailOtpEcdsaCapabilityResult>;
   loginWithEmailOtpEcdsaCapability(
     args: EmailOtpEcdsaCapabilityArgs,
   ): Promise<EmailOtpEcdsaCapabilityResult>;

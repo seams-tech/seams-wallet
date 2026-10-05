@@ -3521,20 +3521,6 @@ export class WalletIframeRouter {
     return res.result;
   }
 
-  async requestEmailOtpSigningSessionChallenge(payload: {
-    walletSession: WalletSessionRef;
-    chainTarget: ThresholdEcdsaChainTarget;
-    onEvent?: (ev: UnlockFlowEvent) => void;
-  }): Promise<Pick<EmailOtpChallengeResult, 'challengeId' | 'emailHint'>> {
-    const { onEvent, ...wirePayload } = payload;
-    const res = await this.post<Pick<EmailOtpChallengeResult, 'challengeId' | 'emailHint'>>({
-      type: 'PM_REQUEST_EMAIL_OTP_SIGNING_SESSION_CHALLENGE',
-      payload: wirePayload,
-      options: { onProgress: this.wrapOnEvent(onEvent, isUnlockFlowEvent) },
-    });
-    return res.result;
-  }
-
   private googleEmailOtpWalletAuthFlowFromWire(
     wire: PMGoogleEmailOtpWalletAuthWireFlow,
   ): GoogleEmailOtpWalletAuthFlow {
@@ -3756,31 +3742,6 @@ export class WalletIframeRouter {
     const res = await this.post<EmailOtpEcdsaCapabilityResult>(
       {
         type: 'PM_LOGIN_EMAIL_OTP_ECDSA_CAPABILITY',
-        payload: wirePayload,
-        options: { onProgress: this.wrapOnEvent(onEvent, isUnlockFlowEvent) },
-      },
-      {
-        timeoutMs: WALLET_IFRAME_THRESHOLD_SIGNING_TIMEOUT_MS,
-        progressTimeoutExtensionFactor: 1,
-      },
-    );
-    await this.refreshExactSessionAndEmitChange('current', { kind: 'current' });
-    return sanitizeEmailOtpIframeResult(res.result);
-  }
-
-  async refreshEmailOtpSigningSession(payload: {
-    walletSession: WalletSessionRef;
-    chainTarget: ThresholdEcdsaChainTarget;
-    challengeId: string;
-    otpCode: string;
-    ttlMs?: number;
-    remainingUses?: number;
-    onEvent?: (ev: UnlockFlowEvent) => void;
-  }): Promise<EmailOtpEcdsaCapabilityResult> {
-    const { onEvent, ...wirePayload } = payload;
-    const res = await this.post<EmailOtpEcdsaCapabilityResult>(
-      {
-        type: 'PM_REFRESH_EMAIL_OTP_SIGNING_SESSION',
         payload: wirePayload,
         options: { onProgress: this.wrapOnEvent(onEvent, isUnlockFlowEvent) },
       },

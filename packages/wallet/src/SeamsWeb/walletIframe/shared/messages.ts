@@ -20,7 +20,6 @@ import type { EvmSigningRequest } from '@/core/signingEngine/chains/evm/evmSigni
 import type { TempoFeeTokenPreferenceSigningRequest } from '@/core/signingEngine/chains/tempo/feeToken';
 import type { EvmSignedResult } from '@/core/signingEngine/chains/evm/evmAdapter';
 import type { TempoSignedResult } from '@/core/signingEngine/chains/tempo/tempoAdapter';
-import type { RefreshEmailOtpSigningSessionArgs } from '@/core/signingEngine/flows/signEvmFamily/emailOtpSigningSession';
 import type { KeyExportUiOptions } from '@/core/signingEngine/flows/recovery/keyExportFlow';
 import type {
   EvmEip155ChainTarget,
@@ -803,7 +802,7 @@ export function parseHostedAuthMenuOutcome(value: unknown): HostedAuthMenuOutcom
   }
 }
 
-export const WALLET_PROTOCOL_VERSION = '7.0.0' as const;
+export const WALLET_PROTOCOL_VERSION = '8.0.0' as const;
 
 export const WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH =
   'WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH' as const;
@@ -837,7 +836,6 @@ export type ParentToChildType =
   | 'PM_GET_NEAR_PROVISIONING_STATE'
   | 'PM_REQUEST_EMAIL_OTP_CHALLENGE'
   | 'PM_REQUEST_EMAIL_OTP_ENROLLMENT_CHALLENGE'
-  | 'PM_REQUEST_EMAIL_OTP_SIGNING_SESSION_CHALLENGE'
   | 'PM_BEGIN_GOOGLE_EMAIL_OTP_WALLET_AUTH'
   | 'PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_RESEND'
   | 'PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_REROLL_WALLET_ID'
@@ -846,7 +844,6 @@ export type ParentToChildType =
   | 'PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_CANCEL'
   | 'PM_ENROLL_EMAIL_OTP'
   | 'PM_LOGIN_EMAIL_OTP_ECDSA_CAPABILITY'
-  | 'PM_REFRESH_EMAIL_OTP_SIGNING_SESSION'
   | 'PM_GET_WALLET_RECOVERY_CODE_STATUS'
   | 'PM_ACKNOWLEDGE_WALLET_RECOVERY_CODE_BACKUP'
   | 'PM_ROTATE_WALLET_RECOVERY_CODES'
@@ -1338,10 +1335,6 @@ interface PMEmailOtpChallengePayload {
   operationFingerprintDigest?: DigestB64u;
 }
 
-interface PMEmailOtpSigningSessionChallengePayload {
-  walletSession: WalletSessionRef;
-  chainTarget: ThresholdEcdsaChainTarget;
-}
 
 export interface PMEnrollEmailOtpPayload {
   walletId: string;
@@ -1676,10 +1669,6 @@ export type ParentToChildEnvelope =
   | RpcEnvelope<'PM_GET_NEAR_PROVISIONING_STATE', PMGetNearProvisioningStatePayload>
   | RpcEnvelope<'PM_REQUEST_EMAIL_OTP_CHALLENGE', PMEmailOtpChallengePayload>
   | RpcEnvelope<'PM_REQUEST_EMAIL_OTP_ENROLLMENT_CHALLENGE', PMEmailOtpChallengePayload>
-  | RpcEnvelope<
-      'PM_REQUEST_EMAIL_OTP_SIGNING_SESSION_CHALLENGE',
-      PMEmailOtpSigningSessionChallengePayload
-    >
   | RpcEnvelope<'PM_BEGIN_GOOGLE_EMAIL_OTP_WALLET_AUTH', PMGoogleEmailOtpWalletAuthStartPayload>
   | RpcEnvelope<'PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_RESEND', PMGoogleEmailOtpWalletAuthHandlePayload>
   | RpcEnvelope<
@@ -1694,7 +1683,6 @@ export type ParentToChildEnvelope =
   | RpcEnvelope<'PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_CANCEL', PMGoogleEmailOtpWalletAuthHandlePayload>
   | RpcEnvelope<'PM_ENROLL_EMAIL_OTP', PMEnrollEmailOtpPayload>
   | RpcEnvelope<'PM_LOGIN_EMAIL_OTP_ECDSA_CAPABILITY', PMEmailOtpEcdsaCapabilityPayload>
-  | RpcEnvelope<'PM_REFRESH_EMAIL_OTP_SIGNING_SESSION', RefreshEmailOtpSigningSessionArgs>
   | RpcEnvelope<'PM_GET_WALLET_RECOVERY_CODE_STATUS', PMWalletRecoverySessionPayload>
   | RpcEnvelope<'PM_ACKNOWLEDGE_WALLET_RECOVERY_CODE_BACKUP', PMWalletRecoverySessionPayload>
   | RpcEnvelope<'PM_ROTATE_WALLET_RECOVERY_CODES', PMRotateWalletRecoveryCodesPayload>

@@ -205,7 +205,7 @@ also require their callback, cancellation, and terminal-result contract.
 | Surface | Existing path to audit | Edge that must survive |
 | --- | --- | --- |
 | `auth`: unlock, lock/logout, session queries, recent unlocks, passkey lookup | `PM_UNLOCK`, `PM_LOCK`, `PM_LOGOUT`, `PM_GET_WALLET_SESSION`, exact-session get/lock, `PM_GET_RECENT_UNLOCKS`, `PM_HAS_PASSKEY` | Locked, expired, authenticated-but-unresolved, and unlocked-without-signing-session remain distinct; display wallet selection is never authority. |
-| `auth`: Email OTP challenge, enrollment/login/refresh, Google flow | `PM_REQUEST_EMAIL_OTP_*`, `PM_LOGIN_EMAIL_OTP_ECDSA_CAPABILITY`, `PM_REFRESH_EMAIL_OTP_SIGNING_SESSION`, `PM_UNLOCK_ADDED_EMAIL_OTP_WALLET`, `PM_GOOGLE_EMAIL_OTP_*` and begin | Preserve multi-step flow handles, resend/cancel, external broker callbacks, one terminal outcome, and no passkey fallback. |
+| `auth`: Email OTP challenge, enrollment/login, Google flow | `PM_REQUEST_EMAIL_OTP_*`, `PM_LOGIN_EMAIL_OTP_ECDSA_CAPABILITY`, `PM_UNLOCK_ADDED_EMAIL_OTP_WALLET`, `PM_GOOGLE_EMAIL_OTP_*` and begin | Preserve multi-step flow handles, resend/cancel, external broker callbacks, one terminal outcome, and no passkey fallback. |
 | `registration`: register/add signer, auth methods, provisioning and resume | `PM_REGISTER_WALLET`, `PM_ADD_WALLET_SIGNER`, `PM_ADD_PASSKEY`, `PM_ADD_EMAIL_OTP`, `PM_REVOKE_AUTH_METHOD`, enrollment, `PM_RESUME_PENDING_ECDSA_REGISTRATION`, `PM_GET_NEAR_PROVISIONING_STATE` | Preserve intent/auth-method selection, resumable checkpoints, pending NEAR, and provisioning events/awaitNearReady. |
 | `near`: sign, send, execute, delegate, NEP-413, registration, test funding | Existing NEAR messages and client relayer/RPC helpers | Preserve which side sends already signed data, callback order, result type, abort behavior, and exact wallet/account. |
 | `evm` and `tempo`: sign, execute, bootstrap, fee-token APIs | `PM_SIGN_TEMPO`, `PM_BOOTSTRAP_THRESHOLD_ECDSA_SESSION`, existing client fee-token/RPC helpers | EVM and Tempo results/chain selectors remain distinct; execute includes broadcast/finality; fee-token writes still use the signing/review contract. |
@@ -786,7 +786,7 @@ in `refactor-170-inventory.md` for verification and remaining acceptance limits.
 
 ECDSA bootstrap now stays inside host authentication and the explicit runtime
 port. The unused application bootstrap methods, argument builders, and transport
-route are removed. The iframe protocol is now 7.0.0 after removal of public presignature preparation; client and host deployments
+route are removed. The iframe protocol is now 8.0.0 after removal of manual Email OTP signing-session refresh; client and host deployments
 must match. Custom-broadcast reporting remains supported. See the bootstrap
 ownership checkpoint in `refactor-170-inventory.md`.
 

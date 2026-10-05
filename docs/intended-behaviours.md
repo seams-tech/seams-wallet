@@ -40,6 +40,12 @@ not claim that a storage write has reached durable storage.
 Browser enforcement: `tests/wallet-iframe/preferences.queue.test.ts` and
 `tests/wallet-iframe/preferences.sync.test.ts`.
 
+Email OTP transaction step-up belongs to the signing operation. Application code
+must not request a signing-session challenge or refresh a signing session through
+separate auth methods. The active signing bridge supplies the exact authority,
+wallet session, chain, and operation fingerprint to its challenge request.
+Custom login and registration flows retain their distinct proof contracts.
+
 ## Worker preparation
 
 A fresh signed-out wallet host with no pending registration or recovery work
