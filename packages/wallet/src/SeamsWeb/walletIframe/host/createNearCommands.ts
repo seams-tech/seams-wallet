@@ -1,5 +1,4 @@
 import {
-  executeAction,
   sendTransaction,
   signAndSendTransaction,
   signTransactionWithActions,
@@ -18,14 +17,12 @@ import type {
   NearAccountRef,
   WalletSessionRef,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import { toAccountId } from '@/core/types/accountIds';
 import type { SeamsConfigsReadonly } from '@/core/types/seams';
 import { toError } from '@shared/utils/errors';
 export function createWalletHostNearCommands(getContext: () => NearSigningWebContext): NearCommands {
   const commands = new WalletHostNearCommands(getContext);
   return {
     fundImplicitNearAccountForTesting: commands.fundImplicitNearAccountForTesting.bind(commands),
-    executeAction: commands.executeAction.bind(commands),
     signAndSendTransaction: commands.signAndSendTransaction.bind(commands),
     signTransactionWithActions: commands.signTransactionWithActions.bind(commands),
     sendTransaction: commands.sendTransaction.bind(commands),
@@ -111,19 +108,6 @@ class WalletHostNearCommands {
       walletSession: args.walletSession,
       nearAccount: args.nearAccount,
       nearPublicKey: args.nearPublicKey,
-    });
-  }
-  async executeAction(
-    args: Parameters<NearCommands['executeAction']>[0],
-  ): ReturnType<NearCommands['executeAction']> {
-    const nearAccountId = args.nearAccount.accountId;
-    return await executeAction({
-      context: this.getContext(),
-      nearAccountId,
-      walletSession: args.walletSession,
-      receiverId: toAccountId(args.receiverId),
-      actionArgs: args.actionArgs,
-      options: args.options,
     });
   }
   async signAndSendTransaction(

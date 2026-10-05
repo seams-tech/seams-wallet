@@ -1,6 +1,4 @@
-import type { ActionHooksOptions } from '@/core/types/sdkSentEvents';
 import {
-  type PMExecuteActionPayload,
   type PMFundImplicitNearAccountForTestingPayload,
   type PMRegistrationAuthMethodInput,
   type PMSendTxPayload,
@@ -16,7 +14,6 @@ import {
   isPlainSignedTransactionLike,
   type PlainSignedTransactionLike,
 } from '@shared/utils/validation';
-import type { ActionArgs } from '@/core/types';
 import type { RegistrationAuthMethodInput } from '@shared/utils/registrationAuthMethodInput';
 import type { HandlerDeps, HandlerMap, Req } from './walletIframeHandler.types';
 import { respondOkResult, withProgress, withRegistrationProgress } from './shared';
@@ -269,23 +266,6 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
         },
       });
 
-      if (deps.respondIfCancelled(req.requestId)) return;
-      respondOkResult(deps, req.requestId, result);
-    },
-
-    PM_EXECUTE_ACTION: async (req: Req<'PM_EXECUTE_ACTION'>) => {
-      const pm = deps.getWalletRuntime();
-      const { walletId, nearAccountId, receiverId, actionArgs, options } =
-        req.payload || ({} as Partial<PMExecuteActionPayload>);
-      const result = await pm.near.executeAction({
-        walletSession: walletSessionFromWalletId(walletId),
-        nearAccount: nearAccountRefFromAccountId(nearAccountId),
-        receiverId: receiverId as string,
-        actionArgs: actionArgs as ActionArgs | ActionArgs[],
-        options: {
-          ...withProgress(deps, req.requestId, options || {}),
-        } as ActionHooksOptions,
-      });
       if (deps.respondIfCancelled(req.requestId)) return;
       respondOkResult(deps, req.requestId, result);
     },

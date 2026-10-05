@@ -184,12 +184,12 @@ export interface SeamsContextType {
   unlock: (walletId: string, options?: LoginHooksOptions) => Promise<LoginAndCreateSessionResult>;
   lock: () => Promise<void>;
 
-  // Execute actions
-  executeAction: (args: {
+  // Sign and submit a NEAR transaction.
+  signAndSendTransaction: (args: {
     walletSession: WalletSessionRef;
     nearAccount: NearAccountRef;
     receiverId: string;
-    actionArgs: ActionArgs;
+    actions: ActionArgs[];
     options?: ActionHooksOptions;
   }) => Promise<ActionResult>;
 

@@ -555,11 +555,13 @@ arriving after reconnect.
 The current-source audit in [the inventory](refactor-170-inventory.md#snapshot-ordering-and-protocol-decision)
 found wallet-unbound preference snapshots and asynchronous session reads without
 within-connection freshness ordering. The cutover therefore requires protocol
-**3.0.0**, paired revision envelopes and preference acknowledgements. Update the
+**4.0.0**, paired revision envelopes and preference acknowledgements, and removal
+of the duplicate `PM_EXECUTE_ACTION` command. Update the
 existing manifest/version and skew checks with both endpoints. The normalized
-configuration transport now starts the unreleased 3.0.0 cutover. Revision ordering
+configuration transport started the unreleased 3.0.0 cutover. Removing the NEAR
+command advances the matched pair to 4.0.0. Revision ordering
 remains required before release. Release the client package and wallet-host assets
-as a matching 3.0.0 pair; roll back both to their matching prior releases together.
+as a matching 4.0.0 pair; roll back both to their matching prior releases together.
 Version-skew errors must reject mixed pairs. The audit specifies stale-capture
 rejection and the host transitions whose revisions need coverage.
 

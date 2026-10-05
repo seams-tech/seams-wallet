@@ -7,7 +7,7 @@ import type {
 } from '@/core/types/sdkSentEvents';
 import type { ActionResult, SignTransactionResult } from '@/core/types/seams';
 import type { FinalExecutionOutcome } from '@near-js/types';
-import type { ActionArgs, TransactionInput, TransactionInputWasm } from '@/core/types/actions';
+import type { TransactionInput, TransactionInputWasm } from '@/core/types/actions';
 import { type ConfirmationConfig } from '@/core/types/signer-worker';
 import type { NearSigningWebContext } from '@/SeamsWeb/signingSurface/types';
 import type { SignedTransaction } from '@/core/rpcClients/near/NearClient';
@@ -78,40 +78,6 @@ async function yieldForUiPaint(): Promise<void> {
     return;
   }
   await Promise.resolve();
-}
-
-/**
- * executeAction signs one transaction with actions[] to one receiver.
- *
- * @param context - SeamsWeb context
- * @param nearAccountId - NEAR account ID to sign transactions with
- * @param actionArgs - Action arguments to sign transactions with
- * @param options - Options for the action
- * @returns Promise resolving to the action result
- */
-export async function executeAction(args: {
-  context: NearSigningWebContext;
-  nearAccountId: AccountId;
-  walletSession: WalletSessionRef;
-  receiverId: AccountId;
-  actionArgs: ActionArgs | ActionArgs[];
-  options: ActionHooksOptions;
-}): Promise<ActionResult> {
-  try {
-    // Thread optional per-call confirmation override when provided; otherwise
-    // user preferences determine the confirmation behavior.
-    return executeActionInternal({
-      context: args.context,
-      nearAccountId: args.nearAccountId,
-      walletSession: args.walletSession,
-      receiverId: args.receiverId,
-      actionArgs: args.actionArgs,
-      options: args.options,
-      confirmationConfigOverride: args.options.confirmationConfig,
-    });
-  } catch (error: unknown) {
-    throw toError(error);
-  }
 }
 
 /**
@@ -345,87 +311,6 @@ export async function sendTransaction({
 //////////////////////////////
 // === INTERNAL API ===
 //////////////////////////////
-
-/**
- * Internal API for executing actions with optional confirmation override
- * @internal - Only used by internal SDK components like SecureTxConfirmButton
- *
- * @param context - SeamsWeb context
- * @param nearAccountId - NEAR account ID to sign transactions with
- * @param actionArgs - Action arguments to sign transactions with
- * @param options - Options for the action
- * @returns Promise resolving to the action result
- */
-async function executeActionInternal({
-  context,
-  nearAccountId,
-  walletSession,
-  receiverId,
-  actionArgs,
-  options,
-  confirmationConfigOverride,
-}: {
-  context: NearSigningWebContext;
-  nearAccountId: AccountId;
-  walletSession: WalletSessionRef;
-  receiverId: AccountId;
-  actionArgs: ActionArgs | ActionArgs[];
-  options?: ActionHooksOptions;
-  // Accept partial override and merge later in confirm flow
-  confirmationConfigOverride?: Partial<ConfirmationConfig> | undefined;
-}): Promise<ActionResult> {
-  const { onEvent, onError, afterCall, waitUntil } = options || {};
-  const confirmerText = options?.confirmerText;
-  const actions = Array.isArray(actionArgs) ? actionArgs : [actionArgs];
-
-  try {
-    const signedTx = await signTransactionWithActionsInternal({
-      context,
-      nearAccountId,
-      walletSession,
-      transactionInput: {
-        receiverId,
-        actions,
-      },
-      options: { onEvent, onError, waitUntil, confirmerText },
-      confirmationConfigOverride,
-    });
-
-    const txResult = await sendTransaction({
-      context,
-      nearAccountId,
-      walletSession,
-      signedTransaction: signedTransactionWithSdkReadiness({
-        signedTransaction: signedTx.signedTransaction,
-        signingResult: signedTx,
-      }),
-      options: { onEvent, onError, waitUntil },
-    });
-    afterCall?.(true, txResult);
-    return txResult;
-  } catch (error: unknown) {
-    console.error('[executeAction] Error during execution:', error);
-    const e = toError(error);
-    const details = (e as { details?: unknown }).details;
-    const short = (e as { short?: string }).short || getNearShortErrorMessage(e);
-    onError?.(e);
-    emitNearSigningEvent(onEvent, nearAccountId, {
-      phase: SigningEventPhase.FAILED,
-      status: 'failed',
-      message: `Action failed: ${short || e.message}`,
-      interaction: { kind: 'none', overlay: 'hide' },
-      error: { message: short || e.message },
-    });
-    const result: ActionResult = {
-      success: false,
-      error: e.message,
-      // propagate structured RPC details when present so UIs can render helpful errors
-      errorDetails: details,
-    };
-    afterCall?.(false, undefined, e);
-    return result;
-  }
-}
 
 async function signAndSendTransactionInternal({
   context,

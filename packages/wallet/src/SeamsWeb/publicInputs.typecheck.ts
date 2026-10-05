@@ -422,26 +422,26 @@ const invalidEcdsaExportSubjectInput: PublicKeyExportInput = {
 void invalidEcdsaExportSubjectInput;
 
 // NEAR signing accepts a bare account id, or no subject at all.
-const nearExecuteActionWithAccountId: Parameters<NearSignerCapability['executeAction']>[0] = {
+const nearSignAndSendTransactionWithAccountId: Parameters<NearSignerCapability['signAndSendTransaction']>[0] = {
   nearAccount: 'wallet.testnet',
   receiverId: 'contract.testnet',
-  actionArgs: [],
+  actions: [],
 };
-void nearExecuteActionWithAccountId;
+void nearSignAndSendTransactionWithAccountId;
 
-const nearExecuteActionWithoutSubject: Parameters<NearSignerCapability['executeAction']>[0] = {
+const nearSignAndSendTransactionWithoutSubject: Parameters<NearSignerCapability['signAndSendTransaction']>[0] = {
   receiverId: 'contract.testnet',
-  actionArgs: [],
+  actions: [],
 };
-void nearExecuteActionWithoutSubject;
+void nearSignAndSendTransactionWithoutSubject;
 
-const invalidNearExecuteAction: Parameters<NearSignerCapability['executeAction']>[0] = {
+const invalidNearSignAndSendTransaction: Parameters<NearSignerCapability['signAndSendTransaction']>[0] = {
   receiverId: 'contract.testnet',
-  actionArgs: [],
+  actions: [],
   // @ts-expect-error nearAccount must be a NearAccountRef or an account id string.
   nearAccount: { accountId: 'wallet.testnet' },
 };
-void invalidNearExecuteAction;
+void invalidNearSignAndSendTransaction;
 
 export {};
 
@@ -468,3 +468,7 @@ void registrationCapability.addWalletSigner;
 void registrationCapability.addEmailOtp;
 // @ts-expect-error Use removeAuthMethod to retire an authentication method.
 void registrationCapability.revokeAuthMethod;
+
+declare const nearCapability: NearSignerCapability;
+// @ts-expect-error NEAR transaction submission uses signAndSendTransaction.
+void nearCapability.executeAction;

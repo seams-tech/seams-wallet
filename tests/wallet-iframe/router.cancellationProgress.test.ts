@@ -21,7 +21,7 @@ const CANCEL_SIGNING_PROGRESS_SCRIPT = String.raw`
     adoptedPort.onmessage = (event) => {
       originalHandler?.(event);
       const data = event.data || {};
-      if (data.type !== 'PM_EXECUTE_ACTION' || typeof data.requestId !== 'string') return;
+      if (data.type !== 'PM_SIGN_AND_SEND_TX' || typeof data.requestId !== 'string') return;
       setTimeout(() => {
         adoptedPort.postMessage({
           type: 'PROGRESS',
@@ -145,11 +145,13 @@ test.describe('WalletIframeRouter cancellation progress', () => {
           }),
         );
         const signing = await runAndCancel('signing', () =>
-          router.executeAction({
+          router.signAndSendTransaction({
             walletId: 'alice.testnet',
             nearAccountId: 'alice.testnet',
-            receiverId: 'seams-v1.testnet',
-            actionArgs: { type: 'Transfer', amount: '1' } as any,
+            transaction: {
+              receiverId: 'seams-v1.testnet',
+              actions: [{ type: 'Transfer', amount: '1' } as any],
+            },
             options: { onEvent: (event: any) => events.signing.push(event) },
           }),
         );
@@ -247,11 +249,13 @@ test.describe('WalletIframeRouter cancellation progress', () => {
         await router.init();
 
         const request = router
-          .executeAction({
+          .signAndSendTransaction({
             walletId: 'alice.testnet',
             nearAccountId: 'alice.testnet',
-            receiverId: 'seams-v1.testnet',
-            actionArgs: { type: 'Transfer', amount: '1' } as any,
+            transaction: {
+              receiverId: 'seams-v1.testnet',
+              actions: [{ type: 'Transfer', amount: '1' } as any],
+            },
             options: {},
           })
           .catch(() => undefined);
@@ -314,11 +318,13 @@ test.describe('WalletIframeRouter cancellation progress', () => {
         const events: Array<{ status?: string }> = [];
         const requestStartedAt = performance.now();
         const request = router
-          .executeAction({
+          .signAndSendTransaction({
             walletId: 'alice.testnet',
             nearAccountId: 'alice.testnet',
-            receiverId: 'seams-v1.testnet',
-            actionArgs: { type: 'Transfer', amount: '1' } as any,
+            transaction: {
+              receiverId: 'seams-v1.testnet',
+              actions: [{ type: 'Transfer', amount: '1' } as any],
+            },
             options: { onEvent: (event) => events.push(event) },
           })
           .then(

@@ -77,11 +77,13 @@ test.describe('WalletIframeRouter connection teardown', () => {
         });
         await router.init();
         const request = router
-          .executeAction({
+          .signAndSendTransaction({
             walletId: 'connection-closed-request.testnet',
             nearAccountId: 'connection-closed-request.testnet',
-            receiverId: 'seams-v1.testnet',
-            actionArgs: { type: 'Transfer', amount: '1' } as any,
+            transaction: {
+              receiverId: 'seams-v1.testnet',
+              actions: [{ type: 'Transfer', amount: '1' } as any],
+            },
             options: {},
           })
           .then(

@@ -31,11 +31,6 @@ export interface BoundNearSigner {
       WithoutNearSubject<Parameters<NearSignerCapability['signAndSendTransaction']>[0]>
     >,
   ): ReturnType<NearSignerCapability['signAndSendTransaction']>;
-  executeAction(
-    args: ReviewedTransactionInput<
-      WithoutNearSubject<Parameters<NearSignerCapability['executeAction']>[0]>
-    >,
-  ): ReturnType<NearSignerCapability['executeAction']>;
   signNEP413Message(
     args: WithoutNearSubject<Parameters<NearSignerCapability['signNEP413Message']>[0]>,
   ): ReturnType<NearSignerCapability['signNEP413Message']>;
@@ -143,7 +138,6 @@ function createBoundWallet(
       ? {
           accountId: nearAccountId,
           signAndSendTransaction: reviewed.nearSign,
-          executeAction: reviewed.nearExecute,
           signNEP413Message: (args) =>
             seams.near.signNEP413Message({ ...args, walletSession, nearAccount }),
         }

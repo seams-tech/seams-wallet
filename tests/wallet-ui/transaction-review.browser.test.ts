@@ -789,14 +789,14 @@ test('wallet admission arbitrates credential cancellation and preserves a starte
   });
 });
 
-test('all six methods forward one core failure and preserve callback ownership', async ({
+test('all transaction methods forward one core failure and preserve callback ownership', async ({
   page,
 }) => {
   const walletFrame = page.frames().find((frame) => frame.url().startsWith(walletOrigin))!;
   await walletFrame.evaluate(() => {
     (window as any).reviewHostFailure = true;
   });
-  const methods = ['nearSign', 'nearExecute', 'evmSign', 'evmExecute', 'tempoSign', 'tempoExecute'];
+  const methods = ['nearSign', 'evmSign', 'evmExecute', 'tempoSign', 'tempoExecute'];
   for (const method of methods) {
     await page.evaluate((method) => {
       const state = window as any;
@@ -864,14 +864,6 @@ test('all six methods forward one core failure and preserve callback ownership',
         case 'nearSign':
           result = wallet.near.signAndSendTransaction({ receiverId, actions, review, options });
           break;
-        case 'nearExecute':
-          result = wallet.near.executeAction({
-            receiverId,
-            actionArgs: actions[0],
-            review,
-            options,
-          });
-          break;
         case 'evmSign':
           result = wallet.evm.signTransaction(evm);
           break;
@@ -898,7 +890,7 @@ test('all six methods forward one core failure and preserve callback ownership',
     const expectedCallbacks = method.startsWith('near') ? ['onError', 'afterCall'] : [];
     expect(await page.evaluate(() => (window as any).methodCallbacks)).toEqual(expectedCallbacks);
   }
-  expect(await page.evaluate(() => (window as any).reviewDispatches.length)).toBe(6);
+  expect(await page.evaluate(() => (window as any).reviewDispatches.length)).toBe(methods.length);
 });
 
 test('missing and duplicate hosts reject before dispatch and disposed methods stay invalid', async ({

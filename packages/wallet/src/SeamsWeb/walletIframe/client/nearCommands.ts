@@ -15,7 +15,6 @@ export function createApplicationNearCommands(
   );
   return {
     fundImplicitNearAccountForTesting: commands.fundImplicitNearAccountForTesting.bind(commands),
-    executeAction: commands.executeAction.bind(commands),
     signAndSendTransaction: commands.signAndSendTransaction.bind(commands),
     signTransactionWithActions: commands.signTransactionWithActions.bind(commands),
     sendTransaction: commands.sendTransaction.bind(commands),
@@ -39,33 +38,6 @@ class ApplicationNearCommands {
       nearAccountId: args.nearAccount.accountId,
       nearPublicKey: args.nearPublicKey,
     });
-  }
-  async executeAction(
-    args: Parameters<NearCommands['executeAction']>[0],
-  ): ReturnType<NearCommands['executeAction']> {
-    const walletIframe = this.walletIframe;
-    const nearAccountId = args.nearAccount.accountId;
-    try {
-      await this.beforeSigning(args.walletSession.walletId);
-      const router = await walletIframe.requireRouter();
-      const result = await router.executeAction(
-        {
-          walletId: args.walletSession.walletId,
-          nearAccountId,
-          receiverId: args.receiverId,
-          actionArgs: args.actionArgs,
-          options: args.options,
-        },
-        this.transactionDispatch,
-      );
-      await args.options?.afterCall?.(true, result);
-      return result;
-    } catch (error: unknown) {
-      const e = toError(error);
-      await args.options?.onError?.(e);
-      await args.options?.afterCall?.(false, undefined, e);
-      throw e;
-    }
   }
   async signAndSendTransaction(
     args: Parameters<NearCommands['signAndSendTransaction']>[0],

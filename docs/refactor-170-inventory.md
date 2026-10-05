@@ -1709,3 +1709,42 @@ The production build, types, strict packed declarations, runtime boundaries,
 freshness, and bloat checks pass. All 31 transaction-review browser cases and
 three production signing/lifecycle cases pass. Production code adds 81 lines and
 removes 106 (net −25), excluding type fixtures and documentation.
+
+### NEAR transaction submission consolidation checkpoint
+
+`near.signAndSendTransaction({ receiverId, actions, options })` is the sole NEAR
+sign-and-submit operation. React context and bound wallets use the same name.
+Callers supply a single action as a one-element array. The former `executeAction`
+path duplicated input resolution, callbacks, review dispatch, router handling,
+and the core sign/send sequence. Those paths and the unused default-wait entry
+are removed. The React context uses the existing bound capability directly.
+
+The audit found a failure-contract difference: `executeAction` converted caught
+exceptions into `success: false`; the canonical send operation rejects. Migrated
+callers now use the canonical rejection contract. Its existing confirmation,
+wait status, callback ownership, signed-result readiness, nonce reporting, and
+error details remain unchanged. No compatibility wrapper or handler remains.
+
+Removing `PM_EXECUTE_ACTION` advances the iframe protocol from 3.0.0 to 4.0.0.
+The existing build generates the asset manifest from that same source constant.
+Release and rollback require matched client and wallet-host artifacts; mixed
+versions reject at handshake. This is an unreleased source change, with no
+publication or deployment performed.
+
+Existing behavioral tests now send the canonical payload through cancellation,
+timeout, connection closure, session expiry, preference ordering, and review
+flows. The duplicate reviewed-method branch is retired; callback and error
+assertions remain for every supported transaction method. Type fixtures retain
+subject requirements and reject the removed public method. No private application
+or package callers use the removed operation.
+
+Evidence: `evidence/refactor-170-near-consolidation-20261005.json`.
+NEAR sign-only/message/delegate naming and test-funding export cleanup remain
+open, together with live-chain submission, worker, returning-user, and release
+acceptance gates.
+
+All 56 selected browser cases and three production registration/signing cases
+pass. Types, production build, strict packed declarations, runtime boundaries,
+build freshness, and bloat checks pass. Production source adds 13 lines and
+removes 348 (net −335), excluding tests and documentation. The production HTTP
+protocol-rejection case is separate from iframe handshake-skew coverage.

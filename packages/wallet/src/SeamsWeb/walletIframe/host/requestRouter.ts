@@ -28,7 +28,6 @@ type NearWalletRequestType =
   | 'PM_SIGN_AND_SEND_TX'
   | 'PM_FUND_IMPLICIT_NEAR_ACCOUNT_FOR_TESTING'
   | 'PM_SEND_TRANSACTION'
-  | 'PM_EXECUTE_ACTION'
   | 'PM_SIGN_DELEGATE_ACTION'
   | 'PM_SIGN_NEP413';
 type AuthWalletRequestType =
@@ -171,7 +170,6 @@ export function routeWalletHostRequest(request: ParentToChildEnvelope): WalletHo
     case 'PM_SIGN_AND_SEND_TX':
     case 'PM_FUND_IMPLICIT_NEAR_ACCOUNT_FOR_TESTING':
     case 'PM_SEND_TRANSACTION':
-    case 'PM_EXECUTE_ACTION':
     case 'PM_SIGN_DELEGATE_ACTION':
     case 'PM_SIGN_NEP413':
       return { kind: 'near', type: request.type, request };

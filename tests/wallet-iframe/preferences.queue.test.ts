@@ -22,7 +22,7 @@ function interceptPreferences(event) {
     postResult(message.requestId, { walletId: null, revision: preferenceRevision, confirmationConfig: { behavior: 'requireClick', uiMode: 'modal', autoProceedDelay: 0 } });
     return;
   }
-  if (message.type === 'PM_EXECUTE_ACTION') { observedSignatures++; postResult(message.requestId, {}); return; }
+  if (message.type === 'PM_SIGN_AND_SEND_TX') { observedSignatures++; postResult(message.requestId, {}); return; }
   window.originalPreferenceMessage(event);
 }
 function adoptPreferencePort(port) {
@@ -119,14 +119,14 @@ function startSigning(): void {
   seams.preferences.setCurrentWallet(refs.toWalletId('alice.testnet'));
   seams.preferences.setConfirmationConfig({ uiMode: 'drawer' });
   seams.near
-    .executeAction({
+    .signAndSendTransaction({
       walletSession: refs.walletSessionRefFromSession({
         walletId: 'alice.testnet',
         walletSessionUserId: 'alice.testnet',
       }),
       nearAccount: refs.nearAccountRefFromAccountId('alice.testnet'),
       receiverId: 'alice.testnet',
-      actionArgs: { type: 'Transfer', amount: '0' },
+      actions: [{ type: 'Transfer', amount: '0' }],
     })
     .then(
       (window as any).prefSucceeded.bind(null, 'sign'),

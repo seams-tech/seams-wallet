@@ -27,7 +27,6 @@ export function createNearSignerCapability(deps: NearDependencies): NearSignerCa
   return {
     accountExists: accountExists.bind(null, deps.nearClient),
     fundImplicitNearAccountForTesting: deps.commands.fundImplicitNearAccountForTesting,
-    executeAction: signer.executeAction.bind(signer),
     signAndSendTransaction: signer.signAndSendTransaction.bind(signer),
     signTransactionWithActions: signer.signTransactionWithActions.bind(signer),
     sendTransaction: signer.sendTransaction.bind(signer),
@@ -42,21 +41,6 @@ function ignoreSigningCompletion(): void {}
 
 class NearSigner {
   constructor(private readonly deps: NearDependencies) {}
-
-  async executeAction(
-    rawArgs: Parameters<NearSignerCapability['executeAction']>[0],
-  ): ReturnType<NearSignerCapability['executeAction']> {
-    const args = {
-      ...rawArgs,
-      ...(await this.deps.currentWallet.nearSubject(rawArgs)),
-      options: rawArgs.options ?? {},
-    };
-    requireBrowserCapabilityOperation(this.deps.configs, {
-      capabilityKind: CAPABILITY_KINDS.nearEd25519MpcSigning,
-      operationKind: NEAR_ED25519_MPC_OPERATION_KINDS.signTransaction,
-    });
-    return await this.deps.commands.executeAction(args);
-  }
 
   async signAndSendTransaction(
     rawArgs: Parameters<NearSignerCapability['signAndSendTransaction']>[0],

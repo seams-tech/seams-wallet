@@ -71,7 +71,7 @@ SSR-specific imports:
 ## Custom transaction review
 
 Mount `TransactionReviewHost` beneath the wallet provider, then pass `review` to
-`near.signAndSendTransaction`, `near.executeAction`, or the EVM and Tempo
+`near.signAndSendTransaction` or the EVM and Tempo
 `signTransaction` and `signAndSendTransaction` methods returned by `useWallet()`.
 
 | Export | Purpose |

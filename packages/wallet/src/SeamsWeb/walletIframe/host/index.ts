@@ -224,7 +224,6 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
       if ('transactionReview' in req) {
         if (
           req.type !== 'PM_SIGN_AND_SEND_TX' &&
-          req.type !== 'PM_EXECUTE_ACTION' &&
           req.type !== 'PM_SIGN_TEMPO'
         ) {
           throw new TransactionReviewError(

@@ -23,7 +23,7 @@ import {
  *
  *   Step legend
  *   -----------
- *   (1) App calls a router RPC (executeAction, registerWallet, etc).
+ *   (1) App calls a router RPC (signAndSendTransaction, registerWallet, etc).
  *   (2) Router posts request to iframe and tracks a pending entry.
  *   (3) Wallet iframe sends PROGRESS messages back to the router.
  *   (4) Router forwards ProgressPayloads into OnEventsProgressBus.
@@ -33,7 +33,7 @@ import {
  *  +-----------+       +--------------------+       +----------------------+       +----------------------+
  *  |   App     |       | WalletIframeRouter |       | OnEventsProgressBus  |       | OverlayController    |
  *  +-----+-----+       +---------+----------+       +----------+-----------+       +----------+-----------+
- *        |   (1) RPC call (executeAction, etc.)                |                              |
+ *        |   (1) RPC call                                      |                              |
  *        |---------------------->|---------------------------->|                              |
  *        |                                                     |                              |
  *        |                        (2) post(): send request to iframe                          |
@@ -80,7 +80,6 @@ import { SignedTransaction } from '@/core/rpcClients/near/NearClient';
 import { OnEventsProgressBus } from './progress/on-events-progress-bus';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type {
-  ActionHooksOptions,
   AfterCall,
   LinkDeviceFlowEvent,
   LoginHooksOptions,
@@ -225,7 +224,7 @@ import type {
   HostedAuthMenuExternalAuthResolutionInput,
   HostedAuthMenuDemoEmailOtpDelivery,
 } from '../shared/messages';
-import { ActionArgs, TransactionInput } from '@/core/types';
+import { TransactionInput } from '@/core/types';
 import type { DelegateActionInput } from '@/core/types/delegate';
 import { IframeTransport } from './transport/IframeTransport';
 import OverlayController, { type OverlayControllerState } from './overlay/overlay-controller';
@@ -423,7 +422,6 @@ function requestSurfaceKindForMessage(
       return 'recovery_codes';
     case 'PM_SIGN_TX_WITH_ACTIONS':
     case 'PM_SIGN_AND_SEND_TX':
-    case 'PM_EXECUTE_ACTION':
     case 'PM_SIGN_DELEGATE_ACTION':
     case 'PM_SIGN_NEP413':
     case 'PM_SIGN_TEMPO':
@@ -447,7 +445,6 @@ function isTransactionSurfaceMessage(type: ParentToChildEnvelope['type']): boole
   switch (type) {
     case 'PM_SIGN_TX_WITH_ACTIONS':
     case 'PM_SIGN_AND_SEND_TX':
-    case 'PM_EXECUTE_ACTION':
     case 'PM_SIGN_DELEGATE_ACTION':
     case 'PM_SIGN_NEP413':
     case 'PM_SIGN_TEMPO':
@@ -1205,7 +1202,6 @@ function createTerminalProgressForRequest(args: {
     'PM_SIGN_TX_WITH_ACTIONS',
     'PM_SIGN_AND_SEND_TX',
     'PM_SEND_TRANSACTION',
-    'PM_EXECUTE_ACTION',
     'PM_SIGN_DELEGATE_ACTION',
     'PM_SIGN_NEP413',
     'PM_SIGN_TEMPO',
@@ -4134,51 +4130,6 @@ export class WalletIframeRouter {
     return res.result;
   }
 
-  async executeAction(
-    payload: {
-      walletId: string;
-      nearAccountId: string;
-      receiverId: string;
-      actionArgs: ActionArgs | ActionArgs[];
-      options: ActionHooksOptions;
-    },
-    transactionDispatch: TransactionDispatch = { kind: 'ordinary' },
-  ): Promise<ActionResult> {
-    // Strip non-cloneable functions from options; host emits PROGRESS events
-    if (transactionDispatch.kind === 'reviewed') {
-      payload = {
-        ...payload,
-        options: {
-          ...payload.options,
-          confirmationConfig: transactionDispatch.reservation.confirmationConfig,
-        },
-      };
-    }
-    const { options } = payload;
-    const safeOptions = {
-      waitUntil: options.waitUntil,
-      confirmationConfig: options.confirmationConfig,
-      ...(typeof options.signerSlot === 'number' ? { signerSlot: options.signerSlot } : {}),
-      ...(options.confirmerText ? { confirmerText: options.confirmerText } : {}),
-    };
-
-    const res = await this.post<ActionResult>(
-      {
-        type: 'PM_EXECUTE_ACTION',
-        payload: {
-          walletId: payload.walletId,
-          nearAccountId: payload.nearAccountId,
-          receiverId: payload.receiverId,
-          actionArgs: payload.actionArgs,
-          options: safeOptions,
-        },
-        options: { onProgress: this.wrapOnEvent(options?.onEvent, isSigningFlowEvent) },
-      },
-      { transactionDispatch },
-    );
-    return res.result;
-  }
-
   async setConfirmBehavior(
     behavior: 'requireClick' | 'skipClick',
     walletId?: string | null,
@@ -5247,7 +5198,6 @@ function exactSessionRequestWalletId(envelope: WalletIframeRequestEnvelope): str
   switch (envelope.type) {
     case 'PM_SIGN_TX_WITH_ACTIONS':
     case 'PM_SIGN_AND_SEND_TX':
-    case 'PM_EXECUTE_ACTION':
     case 'PM_SIGN_DELEGATE_ACTION':
     case 'PM_SIGN_NEP413':
       return requestPayloadWalletId(payload);

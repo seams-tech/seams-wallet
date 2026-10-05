@@ -69,7 +69,7 @@ const reviewedSpread: NearReviewInput = {
   options: { ...broadOptions },
 };
 type AllReviewed = [
-  Parameters<BoundNearSigner['executeAction']>[0]['review'],
+  Parameters<BoundNearSigner['signAndSendTransaction']>[0]['review'],
   Parameters<BoundEvmSigner['signTransaction']>[0]['review'],
   Parameters<BoundEvmSigner['signAndSendTransaction']>[0]['review'],
   Parameters<BoundTempoSigner['signTransaction']>[0]['review'],

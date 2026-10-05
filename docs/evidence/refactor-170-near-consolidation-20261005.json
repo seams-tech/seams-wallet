@@ -1,0 +1,104 @@
+{
+  "baseCommit": "5d010fbc35fba031c9463aa569dcd349e32ac3d0",
+  "scope": "Remove executeAction through public API, React, client, host, core, and wire. Use canonical NEAR signAndSendTransaction with actions arrays.",
+  "failureContract": "The removed executeAction converted exceptions into success:false. The canonical signAndSendTransaction rejects signing and broadcast failures. Callers and documentation adopt the canonical contract.",
+  "preserved": [
+    "canonical send implementation",
+    "confirmation and reviewed dispatch",
+    "wait status",
+    "canonical callback ownership",
+    "nonce reporting",
+    "signed transaction readiness",
+    "durable presignatures"
+  ],
+  "protocol": {
+    "before": "3.0.0",
+    "after": "4.0.0",
+    "removedCommand": "PM_EXECUTE_ACTION",
+    "assetManifestContract": {
+      "kind": "wallet_iframe_protocol_handshake",
+      "packageVersion": "0.8.0",
+      "protocolVersion": "4.0.0",
+      "readyPayloadField": "protocolVersion",
+      "failureMode": "typed_error",
+      "errorCode": "WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH"
+    },
+    "manifestSha256": "c7ce458128b9d4c60ac21a6931309026144d337161e34b30900180f48bde2a95",
+    "releaseRule": "Publish and roll back a matching client/host pair. Mixed protocol versions reject. No release or deployment performed."
+  },
+  "sourceSha256": {
+    "packages/wallet/src/SeamsWeb/operations/near/actions.ts": "b0a82de53b11eae3bc4d79e01b0e3ba59f6ec1889135c35065f8dc366c72d16a",
+    "packages/wallet/src/SeamsWeb/publicApi/near.ts": "fdd6a00ef74f4325f236942afba7e0a18f1915fb10883b72be9086c5f5122d2b",
+    "packages/wallet/src/SeamsWeb/publicApi/nearCommands.ts": "47fe4759eb4d2e185fad7ee164d390f891ca778619bb148834aece3a406c30f4",
+    "packages/wallet/src/SeamsWeb/publicApi/types.ts": "f142ea9ed255ce56be1b62016880d621fd98a6dde00f1d744ea914c161b2ae41",
+    "packages/wallet/src/SeamsWeb/publicInputs.typecheck.ts": "1e00686dbe89b6622d5d93008beb9f7d51b725c85b521b24e86f4fbd76065203",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/nearCommands.ts": "930777c29223e13687ec55a17d5f573b5630a23c1050466bf8be7acb490665ba",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/router.ts": "42d765f4dace0ecf91e552b4af877764dee1b1f8de69f55c4ca9cd716cbb37e9",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/canonicalSignerErrorCode.ts": "484abfe83071d06f517593768b5b26cc09fbc9fa70747d5644e8a5056918edb7",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/createNearCommands.ts": "858f39b0e520f6e2c2f317c62dad3b7b61c645c239ba52c32aaf09ef0ff92c5f",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/handlers/near.ts": "f8b08d641d8e537c43a15d2a4c82f756cd4b41b73b00b1a9a7639d637c8dc0dd",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/index.ts": "89e428e093e6d78d04406f22d7d4988751dbfff4188b41f77657444849d1cff4",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/requestRouter.ts": "28ae20c85e17fcf5bd4ede5c32df3ac901f4e3c47980ee275767f744ae69287e",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/runtimeContext.ts": "97e48825a7324fd12f9086ed245da75dd424a80030239187d065f075f345a406",
+    "packages/wallet/src/SeamsWeb/walletIframe/shared/messages.ts": "a09b73d114d34ce0ebd325e45564b7d6cff73e2efba37bd706b78b3ab70afc14",
+    "packages/wallet/src/core/signingEngine/uiConfirm/ui/transaction-activity.ts": "ef3609fae001080edf75f8dd9dfca6602ee27717ff24628e9d85403b92ab024c",
+    "packages/wallet/src/core/types/rpc.ts": "b091a20ab665d23b4c25e7c15580869823454dc9fd2fe423753dec6158f59554",
+    "packages/wallet/src/react/context/useSeamsContextValue.ts": "37ccacc8924216f17c41f188fa11d1fcfdb801b479745c8014c736026c6a99a7",
+    "packages/wallet/src/react/hooks/useWallet.ts": "b34a9f487833b31b5227969837124ed386adec7ecc806de7bae5a8e311fb453c",
+    "packages/wallet/src/react/transactionReview/boundCalls.ts": "d1848248388c4c974d1112f57144dc2e9e6750c63577260144010356ea4ba6b7",
+    "packages/wallet/src/react/types.ts": "2a17cc744a23ec4f30452e236d69c09e7707c8d3eb42159b2c26cd668b251af9",
+    "tests/typecheck/transaction-review.typecheck.ts": "244a960a5a7ac170531ee58ff1dc958c5781d6e3851f53e2f5928adec14c1599",
+    "tests/typecheck/wallet-command-inputs.typecheck.ts": "a79c4ff162f06b61379c50e73793d4445b1cbbf0d269305da25403e8270b7d13",
+    "tests/wallet-iframe/handshake.test.ts": "11c52854035316d9ba47323d9522fb11b1cab5f4de45fd0fd45613b1643815be",
+    "tests/wallet-iframe/harness.ts": "dc5a18a93c6d1237b6f57a1c93401f5395b78b33eb2dd0078b8800789f3ad8d6",
+    "tests/wallet-iframe/preferences.queue.test.ts": "d818f8d14ca1ed7368d3c797bdfa5f799cd43166c818d4dfa1ac5dfbedd7e537",
+    "tests/wallet-iframe/router.behavior.test.ts": "b6d6e784dbd2e447b85e89e81bd66593889d8f764b3339f05e8cb1a1b0420998",
+    "tests/wallet-iframe/router.cancellationProgress.test.ts": "e396b76c7c05b3accd8f804b31694db4db208289f5561e0149fa4bae05d364e2",
+    "tests/wallet-iframe/router.connectionClosed.test.ts": "9c640ce84e46991bbd07c56e33e163c0a22b29f0b46fc78ae2e74c979d114023",
+    "tests/wallet-iframe/router.sessionExpiryLifecycle.test.ts": "6245f32d4cf090da1725b795251271ae90f60586d8c8ef593a6062398ab10314",
+    "tests/wallet-ui/transaction-review.browser.test.ts": "efa87ad7cf852281acd59f02084f0527646299175f2c9fc6d2a783675d814070"
+  },
+  "productionLines": {
+    "added": 13,
+    "removed": 348,
+    "net": -335,
+    "exclusions": "Type fixtures, tests, documentation, generated artifacts, lockfiles"
+  },
+  "verification": {
+    "productionExit": 0,
+    "cases": [
+      "[wallet-intended] 1/3 e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts:11 public Ed25519 Yao registration signs immediately and after refresh",
+      "[wallet-intended] 2/3 e2e/intended-behaviours/passkey.registration.contract.test.ts:17 wallet protocol rejection shows an upgrade message and reload restores registration and signing",
+      "[wallet-intended] 3/3 e2e/intended-behaviours/passkey.registration.contract.test.ts:459 passkey registration establishes an immediately usable owner session without waiting for presignatures"
+    ],
+    "passReceipts": [
+      "1 passed (30.9s)",
+      "1 passed (31.0s)",
+      "1 passed (31.2s)"
+    ],
+    "browserExit": 0,
+    "browserReceipt": "56 passed (51.3s)",
+    "productionCommand": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.registration.contract.test.ts e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts --grep 'wallet protocol rejection|public Ed25519 Yao registration signs immediately|passkey registration establishes an immediately usable owner session'",
+    "browserCommand": "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4289 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/handshake.test.ts wallet-iframe/router.behavior.test.ts wallet-iframe/router.cancellationProgress.test.ts wallet-iframe/router.connectionClosed.test.ts wallet-iframe/router.sessionExpiryLifecycle.test.ts wallet-iframe/preferences.queue.test.ts wallet-ui/transaction-review.browser.test.ts --project=chromium --output=../.artifacts/r170-near-consolidation",
+    "checks": [
+      "wallet type-check",
+      "intended type-check",
+      "wallet-state type-check",
+      "wallet-browser type-check",
+      "docs type-check",
+      "build:prod",
+      "check:declarations-external",
+      "check:runtime-entry-bundles",
+      "build:check:fresh",
+      "report:bloat --check",
+      "git diff --check"
+    ]
+  },
+  "packageIntegrity": "sha512-D/ABXVChS6smTR01CUAjVAMxhamj3Rv8n/l7ipBBqouuhhIG/N9NSjNkb+WBfb61k5wckUGJ3EYqGJe4QnJ8iw==",
+  "limitations": [
+    "Browser cases verify canonical transport, errors, cancellation and version rejection against stub hosts.",
+    "Production cases use the current real iframe host for registration/signing; the protocol-rejection case exercises the registration HTTP contract, not an old deployed iframe host.",
+    "No live-chain NEAR broadcast acceptance claim.",
+    "NEAR signing/message/delegate names, funding-tool exports, remaining worker/performance/browser/consumer-release gates remain open."
+  ]
+}

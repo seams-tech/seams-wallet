@@ -190,7 +190,7 @@ export const buildWalletServiceHtml = (options: WalletServiceHtmlOptions = {}): 
 
           if (typeof requestId === 'string') {
             pendingRequests.set(requestId, true);
-            if (type === 'PM_EXECUTE_ACTION') {
+            if (type === 'PM_SIGN_AND_SEND_TX') {
               try {
                 adoptedPort.postMessage({
                   type: 'PROGRESS',
@@ -218,7 +218,7 @@ export const buildWalletServiceHtml = (options: WalletServiceHtmlOptions = {}): 
                   },
                 });
               } catch (err) {
-                console.error('Failed to post PROGRESS for executeAction', err);
+                console.error('Failed to post PROGRESS for signAndSendTransaction', err);
               }
             }
           }

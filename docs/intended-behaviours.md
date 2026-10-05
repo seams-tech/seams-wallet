@@ -725,6 +725,15 @@ Failure behaviour:
 
 ## Transaction Signing
 
+NEAR transaction submission uses `near.signAndSendTransaction({ receiverId,
+actions, options })`, including React bindings. A single action is a one-element
+`actions` array. Signing and submission failures reject the promise through the
+existing send API; callers handle them with `try`/`catch`. There is no separate
+`executeAction` operation or wire command that converts exceptions into a
+`success: false` result. Confirmation, callbacks, wait status, and nonce reporting
+retain the canonical send path's contracts.
+
+
 EVM and Tempo use `signTransaction` for signing without broadcast and
 `signAndSendTransaction` for signing, broadcasting, and waiting for finalization.
 React wallet bindings use the same names. Existing result types, payload

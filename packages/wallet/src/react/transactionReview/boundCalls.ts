@@ -37,7 +37,6 @@ function requireHost(env: BoundReviewEnvironment): ReviewHostController {
 export function createReviewedBoundCalls(env: BoundReviewEnvironment) {
   return {
     nearSign: nearSign.bind(null, env),
-    nearExecute: nearExecute.bind(null, env),
     evmSign: evmSign.bind(null, env),
     evmExecute: evmExecute.bind(null, env),
     tempoSign: tempoSign.bind(null, env),
@@ -87,52 +86,6 @@ function dispatchNearSign(
   capabilities: TransactionReviewCapabilities,
 ): ReturnType<TransactionReviewCapabilities['near']['signAndSendTransaction']> {
   return capabilities.near.signAndSendTransaction(input);
-}
-
-async function nearExecute(
-  env: BoundReviewEnvironment,
-  args: Parameters<BoundNearSigner['executeAction']>[0],
-): ReturnType<BoundNearSigner['executeAction']> {
-  if (!env.nearAccount)
-    throw new TransactionReviewError('review_identity_changed', 'This wallet has no NEAR account');
-  const { review, ...ordinary } = args;
-  if (review === undefined)
-    return env.seams.near.executeAction({
-      ...ordinary,
-      walletSession: env.walletSession,
-      nearAccount: env.nearAccount,
-    });
-  const host = requireHost(env);
-  const { options, actionArgs, ...data } = ordinary;
-  const actions = Array.isArray(actionArgs) ? actionArgs : [actionArgs];
-  const copied = snapshotTransactionInput({ ...data, actionArgs: actions.map(snapshotNearAction) });
-  const reviewSnapshot = validateTransactionReview(review);
-  const copiedOptions = snapshotTransactionOptions(options ?? {});
-  reviewedConfirmationConfig(
-    { uiMode: 'modal', behavior: 'requireClick' },
-    copiedOptions.confirmationConfig,
-  );
-  const input = {
-    ...copied,
-    walletSession: env.walletSession,
-    nearAccount: env.nearAccount,
-    actionArgs: Array.isArray(copied.actionArgs) ? copied.actionArgs : [copied.actionArgs],
-    options: copiedOptions,
-  };
-  return host.run(
-    env.owner,
-    env.walletId,
-    reviewSnapshot,
-    copiedOptions.confirmationConfig,
-    dispatchNearExecute.bind(null, input),
-  );
-}
-
-function dispatchNearExecute(
-  input: Parameters<TransactionReviewCapabilities['near']['executeAction']>[0],
-  capabilities: TransactionReviewCapabilities,
-): ReturnType<TransactionReviewCapabilities['near']['executeAction']> {
-  return capabilities.near.executeAction(input);
 }
 
 async function evmSign(

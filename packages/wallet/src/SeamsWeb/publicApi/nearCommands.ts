@@ -6,7 +6,6 @@ import type {
 import type { TransactionDispatch } from '@/SeamsWeb/walletIframe/client/transactionReviewReservation';
 
 type NearSigningOperation =
-  | 'executeAction'
   | 'signAndSendTransaction'
   | 'signTransactionWithActions'
   | 'sendTransaction'

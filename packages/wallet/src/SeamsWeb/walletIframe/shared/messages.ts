@@ -2,7 +2,7 @@ import type { TransactionReviewWire, TransactionReviewStateMessage } from './tra
 // Typed RPC messages for the wallet service iframe channel (SeamsWeb-first)
 import type { BootstrapThresholdEcdsaSessionArgs } from '@/SeamsWeb/signingSurface/types';
 import { SignedTransaction } from '@/core/rpcClients/near/NearClient';
-import { ActionArgs, TransactionInput } from '@/core/types';
+import { TransactionInput } from '@/core/types';
 import type {
   LinkedDeviceEmailOtpBaseFactorChoiceV1,
   QrLinkedDeviceSessionPayloadV5,
@@ -841,7 +841,7 @@ export function parseHostedAuthMenuOutcome(value: unknown): HostedAuthMenuOutcom
   }
 }
 
-export const WALLET_PROTOCOL_VERSION = '3.0.0' as const;
+export const WALLET_PROTOCOL_VERSION = '4.0.0' as const;
 
 export const WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH =
   'WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH' as const;
@@ -894,7 +894,6 @@ export type ParentToChildType =
   | 'PM_SIGN_AND_SEND_TX'
   | 'PM_FUND_IMPLICIT_NEAR_ACCOUNT_FOR_TESTING'
   | 'PM_SEND_TRANSACTION'
-  | 'PM_EXECUTE_ACTION'
   | 'PM_SIGN_DELEGATE_ACTION'
   | 'PM_SIGN_NEP413'
   | 'PM_SIGN_TEMPO'
@@ -1245,20 +1244,6 @@ export interface PMSendTxPayload {
   nearAccountId: string;
   signedTransaction: SignedTransaction; // SignedTransaction-like
   options?: Record<string, unknown>;
-}
-
-export interface PMExecuteActionPayload {
-  walletId: string;
-  nearAccountId: string;
-  receiverId: string;
-  actionArgs: ActionArgs | ActionArgs[];
-  options: {
-    waitUntil?: unknown;
-    signerSlot?: number;
-    confirmationConfig?: Partial<ConfirmationConfig>;
-    confirmerText?: { title?: string; body?: string };
-    [key: string]: unknown;
-  };
 }
 
 interface PMSignDelegateActionPayload {
@@ -1773,7 +1758,6 @@ export type ParentToChildEnvelope =
       PMFundImplicitNearAccountForTestingPayload
     >
   | RpcEnvelope<'PM_SEND_TRANSACTION', PMSendTxPayload>
-  | ReviewedTransactionEnvelope<RpcEnvelope<'PM_EXECUTE_ACTION', PMExecuteActionPayload>>
   | RpcEnvelope<'PM_SIGN_DELEGATE_ACTION', PMSignDelegateActionPayload>
   | RpcEnvelope<'PM_SIGN_NEP413', PMSignNep413Payload>
   | ReviewedTransactionEnvelope<RpcEnvelope<'PM_SIGN_TEMPO', PMSignTempoPayload>>

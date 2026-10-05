@@ -81,7 +81,7 @@ self-transfer. Gas fees apply. Use a testnet wallet to try it.
 
 | Signer from `useWallet()` | Methods accepting `review` |
 | --- | --- |
-| `near` | `signAndSendTransaction`, `executeAction` |
+| `near` | `signAndSendTransaction` |
 | `evm` | `signTransaction`, `signAndSendTransaction` |
 | `tempo` | `signTransaction`, `signAndSendTransaction` |
 
@@ -100,9 +100,8 @@ starts, the call preserves the wallet's actual result.
 ## Errors and styling
 
 Before dispatch, review failures reject with `TransactionReviewError` and invoke no
-signing callbacks. This also applies to `executeAction`. After dispatch, its normal
-`success: false` result remains possible. Existing connection and router errors retain
-their types.
+signing callbacks. After dispatch, signing failures reject through the canonical
+transaction API. Existing connection and router errors retain their types.
 
 | `TransactionReviewError.code` | Meaning |
 | --- | --- |

@@ -11,7 +11,9 @@ Signer addition, email addition, and authentication-method removal now use
 EVM and Tempo use `signAndSendTransaction`, including reviewed React calls.
 Tempo fee-token methods use `getFeeToken` and `setFeeToken`. Deprecated Tempo
 signing and lifecycle aliases are removed. Advanced bootstrap internalization
-and the remaining NEAR transaction consolidation still need completion.
+still needs completion. NEAR transaction submission now uses only
+`signAndSendTransaction` with `actions[]`; the duplicate `executeAction` path is
+removed. NEAR signing/message/delegate naming remains open.
 See the relevant checkpoints in the R170 inventory for evidence.
 
 ## Objective

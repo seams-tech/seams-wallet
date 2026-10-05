@@ -77,11 +77,13 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
 
         let requestSettled = false;
         const pendingRequest = router
-          .executeAction({
+          .signAndSendTransaction({
             walletId,
             nearAccountId: 'refactor-92.testnet',
-            receiverId: 'seams-v1.testnet',
-            actionArgs: { type: 'Transfer', amount: '1' } as any,
+            transaction: {
+              receiverId: 'seams-v1.testnet',
+              actions: [{ type: 'Transfer', amount: '1' } as any],
+            },
             options: {},
           })
           .then(
@@ -206,11 +208,13 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
 
         const execute = () =>
           router
-            .executeAction({
+            .signAndSendTransaction({
               walletId,
               nearAccountId: 'refactor-92.testnet',
-              receiverId: 'seams-v1.testnet',
-              actionArgs: { type: 'Transfer', amount: '1' } as any,
+              transaction: {
+                receiverId: 'seams-v1.testnet',
+                actions: [{ type: 'Transfer', amount: '1' } as any],
+              },
               options: {},
             })
             .then(
@@ -317,11 +321,13 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
           inventory: false,
         };
         const signingRequest = router
-          .executeAction({
+          .signAndSendTransaction({
             walletId,
             nearAccountId: 'refactor-92.testnet',
-            receiverId: 'seams-v1.testnet',
-            actionArgs: { type: 'Transfer', amount: '1' } as any,
+            transaction: {
+              receiverId: 'seams-v1.testnet',
+              actions: [{ type: 'Transfer', amount: '1' } as any],
+            },
             options: {},
           })
           .finally(() => {
@@ -478,11 +484,13 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
         router.onSessionChange((state: WalletIframeExactSessionState) => loginStatuses.push({ isLoggedIn: state.kind !== 'wallet_locked', walletId: state.kind === 'wallet_locked' ? null : state.walletId }));
         await router.init();
 
-        const request = router.executeAction({
+        const request = router.signAndSendTransaction({
           walletId,
           nearAccountId: 'refactor-92.testnet',
-          receiverId: 'seams-v1.testnet',
-          actionArgs: { type: 'Transfer', amount: '1' } as any,
+          transaction: {
+            receiverId: 'seams-v1.testnet',
+            actions: [{ type: 'Transfer', amount: '1' } as any],
+          },
           options: {},
         });
         await new Promise((resolve) => window.setTimeout(resolve, 30));

@@ -42,7 +42,6 @@ import type {
   SignTransactionResult,
 } from '@/core/types/seams';
 import type {
-  ActionHooksOptions,
   DelegateActionHooksOptions,
   DelegateRelayHooksOptions,
   LoginHooksOptions,
@@ -888,14 +887,6 @@ export interface NearSignerCapability {
     nearAccount: NearAccountRef;
     nearPublicKey: string;
   }): Promise<FundImplicitNearAccountForTestingResult>;
-
-  executeAction(
-    args: NearSubjectInput & {
-      receiverId: string;
-      actionArgs: ActionArgs | ActionArgs[];
-      options?: ActionHooksOptions;
-    },
-  ): Promise<ActionResult>;
 
   signAndSendTransaction(
     args: NearSubjectInput & {
