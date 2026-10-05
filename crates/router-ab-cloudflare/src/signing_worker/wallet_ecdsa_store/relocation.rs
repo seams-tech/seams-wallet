@@ -1,5 +1,14 @@
 use super::*;
 
+pub const SIGNING_WORKER_POOL_FREEZE_PATH_V1: &str = "/router-ab/signing-worker/wallet/pool/freeze";
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SigningWorkerPoolFreezeCommandV1 {
+    pub scope: CloudflareSigningWorkerWalletScopeV1,
+    pub request: SigningWorkerPoolFreezeRequestV1,
+}
+
 pub(super) const SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_ecdsa_pool_relocation (
     owner_json TEXT PRIMARY KEY,
     state_json TEXT NOT NULL)";

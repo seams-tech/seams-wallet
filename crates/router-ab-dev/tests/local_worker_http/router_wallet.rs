@@ -416,6 +416,7 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
     assert_eq!(unrelated_retry_status, 200);
     assert_eq!(unrelated_retry, unrelated_answer);
     drop(signing_worker);
+    verify_pool_freeze_transport(&stack)?;
     println!(
         "R150_VM_ROUTER_WALLET_OBJECT_E2E {}",
         json!({
@@ -441,6 +442,7 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
                 "destination_verified_but_inactive": true,
                 "lost_chunk_reply_replayed_after_restart": true,
                 "exact_historical_record_bytes": true,
+                "pool_freeze_transport_authenticated_and_replayed": true,
                 "empty_inventory_verified_without_chunks": true,
                 "empty_inventory_fences_survive_restart": true,
                 "empty_inventory_preserves_other_wallets": true,
@@ -695,5 +697,86 @@ fn vm_router_run_that_lost_its_claim_cannot_record_its_answer(
             "exact_retry": "the takeover run's answer, byte for byte, no new pair",
         })
     );
+    Ok(())
+}
+
+fn verify_pool_freeze_transport(stack: &RecoveryStackV1) -> Result<(), Box<dyn std::error::Error>> {
+    let worker = stack.start_signing_worker()?;
+    let entries = parse_local_env_file_contents_v1(&std::fs::read_to_string(
+        stack
+            .temp
+            .join(router_ab_dev::LOCAL_SIGNING_WORKER_ENV_FILE_V1),
+    )?)?;
+    let LocalWorkerRoleConfigV1::SigningWorker(config) =
+        parse_local_worker_role_config_for_role_v1(LocalServiceRoleV1::SigningWorker, entries)?
+    else {
+        return Err("expected SigningWorker configuration".into());
+    };
+    let command = router_ab_cloudflare::SigningWorkerPoolFreezeCommandV1 {
+        scope: router_ab_cloudflare::CloudflareSigningWorkerWalletScopeV1::new(
+            "local-org",
+            "local-project",
+            "router-wallet-object",
+            "account-router-wallet-object",
+        )?,
+        request: router_ab_cloudflare::SigningWorkerPoolFreezeRequestV1 {
+            move_id: format!("wmove_{}", "p".repeat(43)),
+            source_generation: 1,
+            invalidated_at_ms: 1_900_000_000_000,
+        },
+    };
+    for credential in [
+        "",
+        TEST_ROLE_SHARED_SERVICE_AUTH,
+        TEST_GATEWAY_TO_ROUTER_AUTH,
+    ] {
+        let (status, _) = post_json_to_path_with_headers(
+            &stack.signing_worker_url,
+            router_ab_cloudflare::SIGNING_WORKER_POOL_FREEZE_PATH_V1,
+            &command,
+            &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, credential)],
+        )?;
+        assert_ne!(
+            status, 200,
+            "another service credential cannot freeze a pool"
+        );
+    }
+    let headers = [(
+        LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+        config.router_to_signing_worker_ecdsa_auth.as_str(),
+    )];
+    let (status, body) = post_json_to_path_with_headers(
+        &stack.signing_worker_url,
+        router_ab_cloudflare::SIGNING_WORKER_POOL_FREEZE_PATH_V1,
+        &command,
+        &headers,
+    )?;
+    assert_eq!(status, 200, "{body}");
+    let router_ab_cloudflare::SigningWorkerPoolFreezeResponseV1::Frozen { receipt } =
+        serde_json::from_str(&body)?
+    else {
+        return Err("expected a frozen empty pool".into());
+    };
+    assert_eq!(receipt.scope, command.scope);
+    assert_eq!(receipt.record_count, 0);
+    drop(worker);
+    let _restarted = stack.start_signing_worker()?;
+    let (retry_status, retry_body) = post_json_to_path_with_headers(
+        &stack.signing_worker_url,
+        router_ab_cloudflare::SIGNING_WORKER_POOL_FREEZE_PATH_V1,
+        &command,
+        &headers,
+    )?;
+    assert_eq!(retry_status, 200, "{retry_body}");
+    assert_eq!(retry_body, body);
+    let mut changed = command;
+    changed.request.source_generation = 2;
+    let (conflict_status, _) = post_json_to_path_with_headers(
+        &stack.signing_worker_url,
+        router_ab_cloudflare::SIGNING_WORKER_POOL_FREEZE_PATH_V1,
+        &changed,
+        &headers,
+    )?;
+    assert_ne!(conflict_status, 200);
     Ok(())
 }

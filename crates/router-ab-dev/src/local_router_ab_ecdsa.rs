@@ -216,6 +216,17 @@ pub fn local_router_ab_ecdsa_route_v1(
             _ => None,
         },
         LocalWorkerRoleConfigV1::SigningWorker(signing_worker) => match path {
+            router_ab_cloudflare::SIGNING_WORKER_POOL_FREEZE_PATH_V1 => Some(authorized(
+                &signing_worker.router_to_signing_worker_ecdsa_auth,
+                request,
+                |command: router_ab_cloudflare::SigningWorkerPoolFreezeCommandV1| {
+                    let receipt = with_local_signing_worker_wallet_store_v1(
+                        signing_worker,
+                        |store, _| store.freeze_pool_for_relocation(command.scope, command.request),
+                    )?;
+                    json(&receipt)
+                },
+            )),
             CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_ACTIVATION_PATH => Some(authorized(
                 &signing_worker.router_to_signing_worker_ecdsa_auth,
                 request,

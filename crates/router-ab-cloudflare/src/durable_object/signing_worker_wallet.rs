@@ -123,6 +123,7 @@ pub(crate) enum SigningWorkerWalletDoRequestV1 {
         request: CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2,
         now_unix_ms: u64,
     },
+    FreezeEcdsaPool(crate::SigningWorkerPoolFreezeCommandV1),
     EcdsaPoolMutate {
         scope: CloudflareSigningWorkerWalletScopeV1,
         mutation: CloudflareSigningWorkerEcdsaPoolCommandV1,
@@ -235,6 +236,7 @@ impl SigningWorkerWalletDoRequestV1 {
             Self::ActivateEcdsa { scope, .. } | Self::LoadEcdsaActivation { scope, .. } => scope,
             Self::PrepareNear { scope, .. } | Self::FinalizeNear { scope, .. } => scope,
             Self::EcdsaPoolMutate { scope, .. } => scope,
+            Self::FreezeEcdsaPool(command) => &command.scope,
             Self::ClaimAndConsumeEcdsaEffect { scope, .. }
             | Self::CommitEcdsaTerminal { scope, .. } => scope,
         }
@@ -301,6 +303,7 @@ impl SigningWorkerWalletDoRequestV1 {
                 )?;
                 crate::require_positive_ms("SigningWorker finalize time", *now_unix_ms)
             }
+            Self::FreezeEcdsaPool(command) => command.scope.validate(),
             Self::EcdsaPoolMutate { scope, mutation } => {
                 scope.validate()?;
                 mutation.validate()?;
@@ -604,6 +607,12 @@ impl RouterAbSigningWorkerWalletDurableObject {
                 request,
                 now_unix_ms,
             } => self.finalize_near(scope, request, now_unix_ms),
+            SigningWorkerWalletDoRequestV1::FreezeEcdsaPool(command) => {
+                self.with_ecdsa_transaction(move |store| {
+                    store.freeze_pool_for_relocation(command.scope, command.request)
+                })
+                .await
+            }
             SigningWorkerWalletDoRequestV1::EcdsaPoolMutate { scope, mutation } => {
                 self.mutate_ecdsa_pool(scope, mutation)
             }
@@ -656,6 +665,19 @@ impl RouterAbSigningWorkerWalletDurableObject {
         request: CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1,
         now_unix_ms: u64,
     ) -> Result<Response, RouterAbProtocolError> {
+        self.with_ecdsa_transaction(move |store| {
+            store.claim_and_consume_effect(scope, request, now_unix_ms)
+        })
+        .await
+    }
+
+    async fn with_ecdsa_transaction<T: Serialize + 'static>(
+        &self,
+        operation: impl FnOnce(
+                &crate::SigningWorkerWalletEcdsaStoreV1<'_, DurableObjectWalletSqlV1<'_>>,
+            ) -> Result<T, RouterAbProtocolError>
+            + 'static,
+    ) -> Result<Response, RouterAbProtocolError> {
         let sql = self.sql.clone();
         let env = self.env.clone();
         let result = Rc::new(RefCell::new(None));
@@ -668,7 +690,7 @@ impl RouterAbSigningWorkerWalletDurableObject {
                     &sql,
                     &crate::CloudflareWorkerEnvReaderV1::new(&env),
                 )
-                .and_then(|store| store.claim_and_consume_effect(scope, request, now_unix_ms));
+                .and_then(|store| operation(&store));
                 match attempt {
                     Ok(outcome) => {
                         *transaction_result.borrow_mut() = Some(Ok(outcome));
@@ -687,7 +709,7 @@ impl RouterAbSigningWorkerWalletDurableObject {
             (Ok(()), Some(Ok(outcome))) => Response::from_json(&outcome).map_err(sql_error),
             (Err(_), Some(Err(error))) => Err(error),
             (Err(error), _) => Err(sql_error(error)),
-            (Ok(()), _) => Err(wallet_error("ECDSA claim transaction returned no outcome")),
+            (Ok(()), _) => Err(wallet_error("ECDSA wallet transaction returned no outcome")),
         }
     }
 

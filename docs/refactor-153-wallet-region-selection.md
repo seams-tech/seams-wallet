@@ -223,6 +223,18 @@ in `.artifacts/r153/pool-fence-20261005/`. This covers the wallet pool store onl
 The coordinator does not invoke this operation yet. Other SigningWorker stores,
 the separate private-D1 pool, and presign-session admission still need fences.
 
+The pool freeze operation is now reachable through the native SigningWorker
+and the existing Cloudflare wallet-DO build. Both require the Router's dedicated
+ECDSA service credential. The Worker uses the same transaction wrapper for effect
+claims and pool freeze, so an error rolls back the complete operation. The native
+HTTP E2E rejects absent and unrelated credentials, freezes an empty inventory,
+restarts the SigningWorker, replays the exact receipt, and rejects changed inputs.
+Both focused HTTP E2Es, native compilation, wallet-DO and standard SigningWorker
+WASM builds, and the bloat check pass. Evidence remains in
+`.artifacts/r153/pool-freeze-transport-20261005/`. The standard private-D1 build
+does not expose this wallet-store operation. Console command authorization and
+coordinator invocation remain unfinished.
+
 Retained evidence:
 `.artifacts/r153/execution-journal-20261004/`, receipt SHA-256
 `02184ddd17816901bf2413115c35ca33a43bd90a269fedaeffb7f6990d8af555`.
