@@ -23,7 +23,8 @@ function preferenceSnapshot() {
 }
 function publishPreference() {
   preferenceRevision++;
-  adoptedPort.postMessage({ type: 'PREFERENCES_CHANGED', payload: preferenceSnapshot() });
+  basePreferenceSnapshot = preferenceSnapshot();
+  adoptedPort.postMessage({ type: 'PREFERENCES_CHANGED', payload: basePreferenceSnapshot });
 }
 async function readPreferences(walletId) {
   const captured = await database.getWalletPreferences(walletId);
