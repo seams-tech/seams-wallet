@@ -19,7 +19,7 @@ import type { HydratedEcdsaSignerMaterial } from '../../session/identity/evmFami
 import {
   buildReadySecp256k1SigningMaterial,
   type ReadySecp256k1SigningMaterial,
-} from './signers/secp256k1';
+} from './readySecp256k1Material';
 
 /** The operation a step-up authorizes: the intent it was prepared for, and the
  * plan that will authorize it. It carries no `SelectedEcdsaLane` — an

@@ -981,8 +981,9 @@ derive production behavior from existing typed requests and selected capabilitie
   intended-behavior spec, examples, and contracts for any observable change.
   Generic confirmation preparation no longer imports EVM/Tempo signing modules.
   The NEAR-only production scenario checks operation-module absence through registration,
-  unlock, signing, and restored signing. Selected EVM/Tempo operations retain
-  first-use loading. See the selected signing-module audit in the inventory.
+  unlock, signing, and restored signing. The material builder now belongs to
+  its existing material module, so it no longer imports the ECDSA engine into
+  the static host graph. Selected EVM/Tempo operations retain first-use loading. See the selected signing-module audit in the inventory.
 - [ ] **Preserve shared ceremony requirements.** Registration and recovery can
   require the custody ceremony module, which links both curve protocols. Select
   assets by the actual ceremony and signer set rather than by chain name alone.

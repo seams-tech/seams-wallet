@@ -71,7 +71,7 @@ import {
 import { buildEvmFamilyEcdsaStepUpAuthorization } from './stepUpAuthorization';
 import type { PreparedEcdsaOperationStepUp } from '../../threshold/ecdsa/operationStepUp';
 import type { EvmFamilySigningAuthSideEffect } from './freshAuthRetryPolicy';
-import type { ReadySecp256k1Signer, ReadySecp256k1SigningMaterial } from './signers/secp256k1';
+import type { ReadySecp256k1Signer, ReadySecp256k1SigningMaterial } from './readySecp256k1Material';
 import type {
   HydratedSecp256k1SigningMaterialResolution,
   ReadySecp256k1SigningMaterialResolution,

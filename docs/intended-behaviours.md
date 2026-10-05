@@ -574,7 +574,8 @@ Failure behaviour:
 
 Generic confirmation preparation during registration or unlock does not load
 EVM/Tempo signing modules. A NEAR-only wallet can register, unlock, sign, and
-restore signing without the EVM/Tempo operation modules or WebAuthn P256 engine. EVM and Tempo operations load their
+restore signing without the EVM/Tempo operation modules or the secp256k1 and
+WebAuthn P256 signing engines. EVM and Tempo operations load their
 required signing modules on first use. Shared host chunks can still contain
 ECDSA support code; this is separate from operation preparation. Shared custody ceremony dependencies
 remain required when an operation creates or verifies a key set.

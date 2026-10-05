@@ -5,141 +5,27 @@ import {
   signRouterAbEcdsaDerivationDigestWithPool,
 } from '../../../routerAb/ecdsaDerivation/presignaturePool';
 import { MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS } from '@/core/config/presignatures';
-import type { HydratedEcdsaSignerMaterial } from '../../../session/identity/evmFamilyEcdsaIdentity';
 import {
   loadRouterAbEcdsaDerivationSigningMaterialSource,
   type LoadedRouterAbEcdsaDerivationSigningMaterialSource,
 } from './ecdsaDerivationClientSigningMaterialSource';
 import { parseEcdsaKeyHandle } from '../../../session/keyMaterialBrands';
 import type { EvmFamilyThresholdEcdsaOperation } from '../thresholdAdmission';
+import type {
+  ReadySecp256k1SigningMaterial,
+  ReusableEcdsaSigningAuthorization,
+} from '../readySecp256k1Material';
 import { routerAbMpcMaterialActivationRefToWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import type { OperationDigestSet } from '@shared/authorization/operationFingerprint';
-import type { RouterAbNormalSigningAuthorizationWire } from '@shared/utils/routerAbNormalSigningIdentity';
-import type { RouterAbEcdsaOperationStepUpPreparationV1Wire } from '@shared/utils/routerAbEcdsaDerivation';
 import type { RouterAbOwnerNormalSigningCredential } from '@/core/rpcClients/relayer/routerAbNormalSigning';
 import {
   emitEcdsaSigningTiming,
   emitSigningSessionFlowTrace,
 } from '../../../session/operationState/trace';
 
-export type ReusableEcdsaSigningAuthorization = Extract<
-  RouterAbNormalSigningAuthorizationWire,
-  { readonly kind: 'reusable_wallet_session' }
->;
-
 type Secp256k1DigestSignRequest = Extract<SignRequest, { kind: 'digest' }> & {
   algorithm: 'secp256k1';
 };
-
-type ReusableEcdsaSigningCredential = {
-  readonly kind: 'reusable_wallet_session';
-  readonly walletSessionToken: string;
-};
-
-type OperationStepUpEcdsaSigningCredential = {
-  readonly kind: 'operation_step_up';
-  readonly walletSessionToken: string;
-};
-
-type ReadySecp256k1SigningMaterialBase = {
-  kind: 'ready_secp256k1_signing_material';
-  walletId: string;
-  signerSession: HydratedEcdsaSignerMaterial;
-  expiresAtMs: number;
-  singleUseEmailOtpSession: boolean;
-};
-
-export type ReadySecp256k1SigningMaterial =
-  | (ReadySecp256k1SigningMaterialBase & {
-      authorization: ReusableEcdsaSigningAuthorization;
-      credential: ReusableEcdsaSigningCredential;
-      operationStepUpPreparation?: never;
-    })
-  | (ReadySecp256k1SigningMaterialBase & {
-      authorization: Extract<
-        RouterAbNormalSigningAuthorizationWire,
-        { readonly kind: 'operation_step_up' }
-      >;
-      credential: OperationStepUpEcdsaSigningCredential;
-      operationStepUpPreparation: RouterAbEcdsaOperationStepUpPreparationV1Wire;
-    });
-
-export type ReadySecp256k1Signer = {
-  readonly algorithm: 'secp256k1';
-  signReady: (
-    req: SignRequest,
-    material: ReadySecp256k1SigningMaterial,
-    operation: EvmFamilyThresholdEcdsaOperation,
-    operationDigests: OperationDigestSet,
-  ) => Promise<SignatureBytes>;
-};
-
-type BuildReadySecp256k1SigningMaterialInputBase = {
-  walletId: unknown;
-  expiresAtMs: number;
-  singleUseEmailOtpSession: boolean;
-  signerSession: HydratedEcdsaSignerMaterial;
-};
-
-export type BuildReadySecp256k1SigningMaterialInput =
-  | (BuildReadySecp256k1SigningMaterialInputBase & {
-      authorization: ReusableEcdsaSigningAuthorization;
-      credential: ReusableEcdsaSigningCredential;
-      operationStepUpPreparation?: never;
-    })
-  | (BuildReadySecp256k1SigningMaterialInputBase & {
-      authorization: Extract<
-        RouterAbNormalSigningAuthorizationWire,
-        { readonly kind: 'operation_step_up' }
-      >;
-      credential: OperationStepUpEcdsaSigningCredential;
-      operationStepUpPreparation: RouterAbEcdsaOperationStepUpPreparationV1Wire;
-    });
-
-export function buildReadySecp256k1SigningMaterial(
-  args: BuildReadySecp256k1SigningMaterialInput,
-): ReadySecp256k1SigningMaterial {
-  const walletId = String(args.walletId || '').trim();
-  if (!walletId) {
-    throw new Error('[multichain] Missing wallet id for ready secp256k1 signing material');
-  }
-  const signerSession = args.signerSession;
-  if (walletId !== String(signerSession.walletId)) {
-    throw new Error('[multichain] ready secp256k1 material wallet identity mismatch');
-  }
-  const expiresAtMs = Math.floor(Number(args.expiresAtMs));
-  if (!Number.isSafeInteger(expiresAtMs) || expiresAtMs <= Date.now()) {
-    throw new Error('[multichain] ready secp256k1 authorization expiry is invalid');
-  }
-  const base = {
-    kind: 'ready_secp256k1_signing_material',
-    walletId,
-    signerSession,
-    expiresAtMs,
-    singleUseEmailOtpSession: args.singleUseEmailOtpSession,
-  } as const;
-  switch (args.authorization.kind) {
-    case 'reusable_wallet_session': {
-      if (args.credential.kind !== 'reusable_wallet_session') {
-        throw new Error(
-          '[multichain] exact Wallet Session authorization requires its operation credential',
-        );
-      }
-      return { ...base, authorization: args.authorization, credential: args.credential };
-    }
-    case 'operation_step_up': {
-      if (!args.operationStepUpPreparation) {
-        throw new Error('[multichain] operation step-up preparation is required');
-      }
-      return {
-        ...base,
-        authorization: args.authorization,
-        credential: args.credential,
-        operationStepUpPreparation: args.operationStepUpPreparation,
-      };
-    }
-  }
-}
 
 function isSecp256k1DigestSignRequest(req: SignRequest): req is Secp256k1DigestSignRequest {
   return req.kind === 'digest' && req.algorithm === 'secp256k1';
@@ -154,7 +40,7 @@ function requireEvmSigningOperationId(operation: EvmFamilyThresholdEcdsaOperatio
 }
 
 function routerAbTransportCredential(
-  credential: ReusableEcdsaSigningCredential | OperationStepUpEcdsaSigningCredential,
+  credential: ReadySecp256k1SigningMaterial['credential'],
 ): RouterAbOwnerNormalSigningCredential {
   switch (credential.kind) {
     case 'reusable_wallet_session':

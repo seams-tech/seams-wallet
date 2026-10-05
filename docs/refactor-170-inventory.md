@@ -2781,3 +2781,21 @@ Shared chunk separation remains part of the packaging audit.
 The mixed NEAR/EVM production scenario also passes. Its capture attributes the
 EVM operation/P256 imports to `first-evm-sign`, then to repeat signing after
 unlock replaces the runtime. Registration no longer triggers those imports.
+
+## ECDSA material builder and engine boundary
+
+The follow-up audit traced the shared `secp256k1` chunk to runtime imports of
+`buildReadySecp256k1SigningMaterial` from `readySecp256k1Material.ts` and
+`thresholdAdmission.ts`. That builder shared a module with `Secp256k1Engine`.
+The material builder and its unchanged types now live in the existing
+`readySecp256k1Material.ts`. All callers use that owner directly; no re-export or
+compatibility path remains. The engine imports material types only.
+
+The emitted `secp256k1` chunk now exports only `Secp256k1Engine` and has no static
+host importers. The existing NEAR-only asset assertion includes that chunk again.
+Shared worker/presign support still belongs to the host; this change does not
+claim that every ECDSA-related helper is absent from a NEAR-only host.
+
+The existing material type fixture uses the new owner and retains the same
+invalid credential rejection. There is no domain-state or protocol change.
+Evidence: `evidence/refactor-170-material-engine-boundary-20261005.json`.

@@ -158,7 +158,7 @@ test(
 );
 
 function isEvmOperationModuleUrl(url: string): boolean {
-  return /\/(?:signEvmWithUiConfirm|signEvmFamilyWithUiConfirmForTempo|webauthnP256)-[^/]+\.js$/u.test(
+  return /\/(?:signEvmWithUiConfirm|signEvmFamilyWithUiConfirmForTempo|webauthnP256|secp256k1)-[^/]+\.js$/u.test(
     new URL(url).pathname,
   );
 }

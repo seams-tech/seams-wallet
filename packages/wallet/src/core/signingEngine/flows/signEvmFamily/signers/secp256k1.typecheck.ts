@@ -4,7 +4,7 @@ import type { HydratedEcdsaSignerMaterial } from '../../../session/identity/evmF
 import type {
   BuildReadySecp256k1SigningMaterialInput,
   ReusableEcdsaSigningAuthorization,
-} from './secp256k1';
+} from '../readySecp256k1Material';
 
 declare const signerSession: HydratedEcdsaSignerMaterial;
 declare const reusableAuthorization: ReusableEcdsaSigningAuthorization;
