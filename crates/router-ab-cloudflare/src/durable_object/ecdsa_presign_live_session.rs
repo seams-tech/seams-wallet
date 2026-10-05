@@ -116,6 +116,7 @@ pub(super) async fn handle_cloudflare_signing_worker_ecdsa_presign_session_do_fe
     mut request: worker::Request,
     sessions: &CloudflareSigningWorkerEcdsaPresignLiveSessionsV1,
     storage: &worker::Storage,
+    _env: &worker::Env,
 ) -> worker::Result<worker::Response> {
     let started_at_ms = cloudflare_now_unix_ms_v1().unwrap_or_default();
     if request.method() != worker::Method::Post {
@@ -140,6 +141,12 @@ pub(super) async fn handle_cloudflare_signing_worker_ecdsa_presign_session_do_fe
                 }
             };
             if let Err(error) = parsed.request.validate_at(now_unix_ms) {
+                return presign_do_error_response(error);
+            }
+            #[cfg(feature = "wallet-do-signing-worker-harness")]
+            if let Err(error) =
+                require_owner_pool_admission(_env, parsed.request.authority.wallet_scope()).await
+            {
                 return presign_do_error_response(error);
             }
             // Claim before emitting any server message; failed or interrupted ceremonies also burn the identity.
@@ -222,6 +229,13 @@ pub(super) async fn handle_cloudflare_signing_worker_ecdsa_presign_session_do_fe
                     "SigningWorker ECDSA presign authority does not match initialized session",
                 ));
             }
+            #[cfg(feature = "wallet-do-signing-worker-harness")]
+            if let Err(error) = require_owner_pool_admission(_env, pinned.wallet_scope()).await {
+                if error.code() == RouterAbProtocolErrorCode::LifecycleTransitionInProgress {
+                    sessions.borrow_mut().remove(&parsed.presign_session_id);
+                }
+                return presign_do_error_response(error);
+            }
             crate::step_signing_worker_ecdsa_presign_session_v1(
                 parsed,
                 &mut sessions.borrow_mut(),
@@ -235,6 +249,33 @@ pub(super) async fn handle_cloudflare_signing_worker_ecdsa_presign_session_do_fe
     match result {
         Ok(progress) => presign_do_json_response(&progress, started_at_ms),
         Err(error) => presign_do_error_response(error),
+    }
+}
+
+#[cfg(feature = "wallet-do-signing-worker-harness")]
+async fn require_owner_pool_admission(
+    env: &worker::Env,
+    scope: &crate::CloudflareSigningWorkerWalletScopeV1,
+) -> RouterAbProtocolResult<()> {
+    let response = super::call_signing_worker_wallet_do_v1(
+        env,
+        super::SigningWorkerWalletDoRequestV1::CheckEcdsaPoolAdmission {
+            scope: scope.clone(),
+        },
+    )
+    .await?;
+    let admission: crate::SigningWorkerPoolAdmissionV1 =
+        crate::parse_cloudflare_signing_worker_wallet_do_json_response_v1(
+            response,
+            "Presign pool admission",
+        )
+        .await?;
+    match admission {
+        crate::SigningWorkerPoolAdmissionV1::Open => Ok(()),
+        crate::SigningWorkerPoolAdmissionV1::Closed => Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::LifecycleTransitionInProgress,
+            "Wallet relocation has closed ECDSA pool admission",
+        )),
     }
 }
 

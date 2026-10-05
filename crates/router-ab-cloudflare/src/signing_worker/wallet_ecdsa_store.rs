@@ -12,9 +12,9 @@ use serde::de::DeserializeOwned;
 
 mod relocation;
 pub use relocation::{
-    SigningWorkerPoolFreezeCommandV1, SigningWorkerPoolFreezeReceiptV1,
-    SigningWorkerPoolFreezeRequestV1, SigningWorkerPoolFreezeResponseV1,
-    SIGNING_WORKER_POOL_FREEZE_PATH_V1,
+    SigningWorkerPoolAdmissionV1, SigningWorkerPoolFreezeCommandV1,
+    SigningWorkerPoolFreezeReceiptV1, SigningWorkerPoolFreezeRequestV1,
+    SigningWorkerPoolFreezeResponseV1, SIGNING_WORKER_POOL_FREEZE_PATH_V1,
 };
 
 /// One bound parameter of a wallet statement.

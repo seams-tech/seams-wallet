@@ -13,6 +13,13 @@ pub(super) const SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_ecdsa_pool_re
     owner_json TEXT PRIMARY KEY,
     state_json TEXT NOT NULL)";
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SigningWorkerPoolAdmissionV1 {
+    Open,
+    Closed,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SigningWorkerPoolFreezeRequestV1 {
@@ -87,18 +94,28 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         }
     }
 
+    pub fn pool_admission(
+        &self,
+        scope: &CloudflareSigningWorkerWalletScopeV1,
+    ) -> RouterAbProtocolResult<SigningWorkerPoolAdmissionV1> {
+        Ok(match self.pool_fence(scope)? {
+            None => SigningWorkerPoolAdmissionV1::Open,
+            Some(_) => SigningWorkerPoolAdmissionV1::Closed,
+        })
+    }
+
     /// Checks admission inside the transaction that claims a new presignature session.
     pub fn require_pool_admission(
         &self,
         scope: &CloudflareSigningWorkerWalletScopeV1,
     ) -> RouterAbProtocolResult<()> {
-        if self.pool_fence(scope)?.is_some() {
-            return Err(RouterAbProtocolError::new(
+        match self.pool_admission(scope)? {
+            SigningWorkerPoolAdmissionV1::Open => Ok(()),
+            SigningWorkerPoolAdmissionV1::Closed => Err(RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::LifecycleTransitionInProgress,
                 "Wallet relocation has closed ECDSA pool admission",
-            ));
+            )),
         }
-        Ok(())
     }
 
     fn save_pool_fence(

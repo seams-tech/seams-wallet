@@ -250,6 +250,17 @@ linked presignatures, the separate private-D1 pool, and the aggregate presign-se
 freeze barrier remain unfinished. An earlier admitted round may still finish;
 the pool publication fence continues to reject its output after freeze.
 
+Cloudflare owner presignature sessions now read typed pool admission from the
+wallet Durable Object before initialization and each session step. A closed fence
+removes live protocol state after the step verifies the pinned authority. The
+durable one-use authority remains. Transport errors stop the step without deleting
+live state. This applies to the existing wallet-DO build. The native build, both
+SigningWorker WASM builds, production-store E2E, and bloat check pass. Evidence
+remains in `.artifacts/r153/presign-step-fence-20261005/`. Cloudflare live-session
+disposal still needs composed behavioral coverage. The aggregate freeze barrier,
+linked presignatures, and private-D1 pool remain unfinished. An already admitted
+round can finish after the check; the pool publication fence rejects its output.
+
 Retained evidence:
 `.artifacts/r153/execution-journal-20261004/`, receipt SHA-256
 `02184ddd17816901bf2413115c35ca33a43bd90a269fedaeffb7f6990d8af555`.

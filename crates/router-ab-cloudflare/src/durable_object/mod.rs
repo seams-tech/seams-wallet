@@ -125,6 +125,7 @@ pub(crate) use worker_storage::{
 #[cfg(feature = "workers-rs")]
 #[worker::durable_object(alarm)]
 pub struct RouterAbSigningWorkerPresignSessionDurableObject {
+    env: worker::Env,
     storage: worker::Storage,
     ecdsa_presign_sessions: CloudflareSigningWorkerEcdsaPresignLiveSessionsV1,
     linked_ecdsa_presign_sessions: CloudflareSigningWorkerLinkedDeviceEcdsaPresignLiveSessionsV1,
@@ -134,8 +135,9 @@ pub struct RouterAbSigningWorkerPresignSessionDurableObject {
 
 #[cfg(feature = "workers-rs")]
 impl worker::DurableObject for RouterAbSigningWorkerPresignSessionDurableObject {
-    fn new(state: worker::State, _env: worker::Env) -> Self {
+    fn new(state: worker::State, env: worker::Env) -> Self {
         Self {
+            env,
             storage: state.storage(),
             ecdsa_presign_sessions: Default::default(),
             linked_ecdsa_presign_sessions: Default::default(),
@@ -167,6 +169,7 @@ impl worker::DurableObject for RouterAbSigningWorkerPresignSessionDurableObject 
             request,
             &self.ecdsa_presign_sessions,
             &self.storage,
+            &self.env,
         )
         .await
     }
