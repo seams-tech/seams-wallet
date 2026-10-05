@@ -59,6 +59,24 @@ Repeatable commands and source hashes: [verification receipt](evidence/cleanup-f
 
 Chunk splitting and month-later presignature reuse proof are outside this batch.
 
+## Wallet loading cleanup — tasks 4–6
+
+- [x] **4. Startup imports:** defer the key-export operation module until exact
+  export-lane resolution or export. Signed-out encoded asset bodies fell from
+  989,172 to 983,432 bytes. Warm visits transferred zero asset bodies. Cold
+  response count increased from 93 to 106. This is a modest byte saving with a
+  request-count tradeoff. Enrollment deferral increased startup bytes and was
+  reverted. Build, mixed-wallet exports, cold/warm menu scenarios, and the bloat
+  ratchet passed. See [startup evidence](evidence/cleanup-startup-20261005.json).
+- [ ] **5. Signer-specific chunks:** defer curve-specific export execution,
+  remove duplicate emitted WASM aliases, and measure NEAR-only and ECDSA-only
+  flows. Preserve shared custody dependencies.
+- [ ] **6. Tests and documentation:** consolidate repeated asset-test setup,
+  verify operation-specific imports, and correct ownership and asset guidance.
+
+Release work, deployed compression checks, R153 implementation, and month-later
+presignature proof remain outside this batch.
+
 ## Current completion checklist
 
 ### Done

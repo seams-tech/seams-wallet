@@ -1,11 +1,9 @@
 import type { ThemeMode } from '@/core/types/seams';
-import {
-  exportKeypairWithUI as exportKeypairWithUIValue,
-  type ExportKeypairWithUIDeps,
-  resolveExactKeyExportLane as resolveExactKeyExportLaneValue,
-  type SigningEngineExportKeypairWithUIInput,
-  type SigningEngineResolveExactKeyExportLaneInput,
-  type SigningEngineResolveExactKeyExportLaneResult,
+import type {
+  ExportKeypairWithUIDeps,
+  SigningEngineExportKeypairWithUIInput,
+  SigningEngineResolveExactKeyExportLaneInput,
+  SigningEngineResolveExactKeyExportLaneResult,
 } from './exportKeypairOperation';
 import type { KeyExportEventCallback } from './keyExportFlow';
 
@@ -38,6 +36,7 @@ export async function exportKeypairWithUI(
   deps: RecoveryPublicDeps,
   input: SigningEngineExportKeypairWithUIInput,
 ): Promise<{ accountId: string; exportedSchemes: Array<'ed25519' | 'secp256k1'> }> {
+  const { exportKeypairWithUI: exportKeypairWithUIValue } = await import('./exportKeypairOperation');
   return await exportKeypairWithUIValue(exportKeypairDeps(deps), input);
 }
 
@@ -45,6 +44,7 @@ export async function resolveExactKeyExportLane(
   deps: RecoveryPublicDeps,
   input: SigningEngineResolveExactKeyExportLaneInput,
 ): Promise<SigningEngineResolveExactKeyExportLaneResult> {
+  const { resolveExactKeyExportLane: resolveExactKeyExportLaneValue } = await import('./exportKeypairOperation');
   return await resolveExactKeyExportLaneValue(exportKeypairDeps(deps), input);
 }
 
