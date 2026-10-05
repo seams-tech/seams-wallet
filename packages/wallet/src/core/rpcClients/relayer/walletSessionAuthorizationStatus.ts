@@ -93,12 +93,68 @@ type RelayerExactWalletSessionStatusPortOptions = {
 
 const defaultStatusFetch: typeof fetch = (input, init) => globalThis.fetch(input, init);
 
+type LocalWalletSessionObservation = {
+  readonly kind: 'local_wallet_session_observation';
+  readonly sequence: number;
+  readonly status: ExactWalletSessionStatus;
+};
+
+// These observations plan confirmation only. Fresh authorization always uses
+// read() with a new scope. Bound the retained credentials and keep fetch mocks isolated.
+const observationsByFetch = new WeakMap<typeof fetch, Map<string, LocalWalletSessionObservation>>();
+let observationSequence = 0;
+
+function statusIdentityKey(
+  options: RelayerExactWalletSessionStatusPortOptions,
+  identity: ExactWalletSessionStatusIdentity,
+): string {
+  return JSON.stringify([
+    normalizeRelayerBaseUrl(options.relayerUrl),
+    options.operationCredential.token,
+    identity.walletSessionId,
+    identity.quotaId,
+  ]);
+}
+
+function recordStatusObservation(
+  fetchImpl: typeof fetch,
+  key: string,
+  sequence: number,
+  status: ExactWalletSessionStatus,
+): ExactWalletSessionStatus {
+  let observations = observationsByFetch.get(fetchImpl);
+  if (!observations) {
+    observations = new Map();
+    observationsByFetch.set(fetchImpl, observations);
+  }
+  const previous = observations.get(key);
+  if (previous && previous.sequence > sequence) return status;
+  observations.delete(key);
+  observations.set(key, { kind: 'local_wallet_session_observation', sequence, status });
+  if (observations.size > 32) {
+    const oldest = observations.keys().next();
+    if (!oldest.done) observations.delete(oldest.value);
+  }
+  return status;
+}
+
 /** One operation owns this snapshot; subsequent operations create a new scope. */
 export class WalletSessionStatusReadScope {
   private readonly readsByFetch = new Map<
     typeof fetch,
     Map<string, Promise<ExactWalletSessionStatus>>
   >();
+
+  static observationForConfirmation(
+    options: RelayerExactWalletSessionStatusPortOptions,
+    identity: ExactWalletSessionStatusIdentity,
+  ): LocalWalletSessionObservation | null {
+    return (
+      observationsByFetch
+        .get(options.fetchImpl ?? defaultStatusFetch)
+        ?.get(statusIdentityKey(options, identity)) ?? null
+    );
+  }
 
   read(
     options: RelayerExactWalletSessionStatusPortOptions,
@@ -110,15 +166,13 @@ export class WalletSessionStatusReadScope {
       reads = new Map();
       this.readsByFetch.set(fetchImpl, reads);
     }
-    const key = JSON.stringify([
-      normalizeRelayerBaseUrl(options.relayerUrl),
-      options.operationCredential.token,
-      identity.walletSessionId,
-      identity.quotaId,
-    ]);
+    const key = statusIdentityKey(options, identity);
     const existing = reads.get(key);
     if (existing) return existing;
-    const pending = createRelayerExactWalletSessionStatusPort(options).read(identity);
+    const sequence = ++observationSequence;
+    const pending = createRelayerExactWalletSessionStatusPort(options)
+      .read(identity)
+      .then(recordStatusObservation.bind(null, fetchImpl, key, sequence));
     reads.set(key, pending);
     return pending;
   }

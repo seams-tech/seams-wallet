@@ -1179,6 +1179,76 @@ async function resolveBrowserEcdsaCapabilityAvailability(
   return { kind: 'authorization_required', capability };
 }
 
+/** Local facts plan confirmation only. The signing runtime reads fresh status
+ * after approval before it attaches authorization to signing material. */
+async function resolveBrowserEcdsaConfirmationCandidate(
+  args: BrowserEcdsaCapabilityReaderContext,
+  chainTargets: readonly ThresholdEcdsaChainTarget[],
+  statusReads: WalletSessionStatusReadScope,
+  capability: CanonicalEvmFamilyEcdsaSigningCapability,
+): Promise<EvmFamilyEcdsaSigningCapabilityAvailability> {
+  const manifest = capability.manifest;
+  const walletId = manifest.signer.walletId;
+  const chainTarget = chainTargets.find((target) =>
+    manifest.signer.scope.targetMemberships.some((membership) =>
+      thresholdEcdsaChainTargetKey(target) === thresholdEcdsaChainTargetKey(membership),
+    ),
+  );
+  if (!chainTarget) return { kind: 'authorization_required', capability };
+  const selected = exactSelectedWalletAuthority(
+    await IndexedDBManager.resolveSelectedWalletAuthority(String(walletId)),
+    walletId,
+  );
+  const exact = await readExactWalletSessionAuthorization(walletId);
+  if (!selected || exact.kind !== 'found' || !walletSessionMatchesSelectedAuthority(exact.record, selected)) {
+    return { kind: 'authorization_required', capability };
+  }
+  const observation = WalletSessionStatusReadScope.observationForConfirmation(
+    { relayerUrl: args.seamsWebConfigs.network.relayer.url, operationCredential: exact.operationCredential },
+    { walletSessionId: exact.operationCredential.walletSessionId, quotaId: exact.record.quotaId },
+  );
+  if (!observation) {
+    return resolveBrowserEcdsaCapabilityAvailability(args, chainTargets, statusReads, capability);
+  }
+  const status = observation.status;
+  if (status.status !== 'active') return { kind: 'authorization_required', capability };
+  if (!walletSessionImmutableIdentityMatches(status.authorization, exact.record) ||
+      !walletSessionMatchesSelectedAuthority(status.authorization, selected)) {
+    return resolveBrowserEcdsaCapabilityAvailability(args, chainTargets, statusReads, capability);
+  }
+  const resolution = await buildBrowserEcdsaPreprocessingCapability({
+    context: args,
+    walletId,
+    selected,
+    session: exact.record,
+    operationCredential: exact.operationCredential,
+    status,
+    chainTarget,
+    materialActivation: manifest.activation.materialActivation,
+    nowMs: Date.now(),
+  });
+  if (resolution.kind !== 'resolved') return { kind: 'authorization_required', capability };
+  const authorization = signingAuthorizationFromPreprocessing(resolution.capability, Date.now());
+  return authorization
+    ? authorizeEvmFamilyEcdsaSigningCapability({ capability, authorization, nowMs: Date.now() })
+    : { kind: 'authorization_required', capability };
+}
+
+async function listBrowserEcdsaConfirmationCandidates(
+  args: BrowserEcdsaCapabilityReaderContext,
+  input: Parameters<typeof listBrowserEcdsaSigningCapabilitiesForWallet>[1],
+  statusReads: WalletSessionStatusReadScope,
+): Promise<readonly EvmFamilyEcdsaSigningCapabilityAvailability[]> {
+  const capabilities = await listBrowserCanonicalEcdsaSigningCapabilitiesForWallet({
+    walletId: toWalletId(input.walletId),
+    chainTargets: input.chainTargets,
+    ...(input.authMethod ? { authMethod: input.authMethod } : {}),
+  });
+  return Promise.all(capabilities.map(
+    resolveBrowserEcdsaConfirmationCandidate.bind(null, args, input.chainTargets, statusReads),
+  ));
+}
+
 /** Durable key facts are independent of a Wallet Session's current budget. */
 export async function listBrowserCanonicalEcdsaSigningCapabilitiesForWallet(input: {
   walletId: ReturnType<typeof toWalletId>;
@@ -1436,10 +1506,9 @@ export function createBrowserSigningSurfaceEnginePorts(
               null,
               args.seamsWebConfigs.network.relayer.url,
             ),
-          listEcdsaSigningCapabilitiesForWallet: listBrowserEcdsaSigningCapabilitiesForWallet.bind(
-            null,
-            args,
-          ),
+          listEcdsaSigningCapabilitiesForWallet: (readArgs.curve === 'ecdsa'
+            ? listBrowserEcdsaConfirmationCandidates
+            : listBrowserEcdsaSigningCapabilitiesForWallet).bind(null, args),
         },
         readArgs,
         configuredThresholdEcdsaChainTargets(args.seamsWebConfigs.network.chains),

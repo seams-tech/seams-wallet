@@ -590,8 +590,8 @@ export async function createEvmFamilySigningFlowRuntime(
           materialActivation: resolvedSigner.materialActivation,
         })
       : undefined;
-  // Lane preparation already read live status. Keep that exact snapshot until
-  // confirmation, then refresh it inside the serialized material-use queue.
+  // Preparation can use local session facts to plan confirmation. Only the
+  // fresh post-approval read inside the material-use queue authorizes signing.
   const preparedAuthorization =
     args.preparedSession?.kind === 'authorized'
       ? args.preparedSession.selection.lane.authorization
