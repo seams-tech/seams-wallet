@@ -1,3 +1,4 @@
+import type { ExclusiveUnion } from '@shared/utils/variant';
 import { assertPendingWalletRegistrationIdentity } from '@/core/indexedDB';
 import type {
   PendingWalletRegistrationCommitV1,
@@ -61,9 +62,10 @@ export type PendingEcdsaRegistrationCommit =
   | PendingEcdsaOnlyRegistrationCommit
   | PendingMixedEcdsaRegistrationCommit;
 
-export type PendingRegistrationExactMethod =
-  | { readonly kind: 'passkey'; readonly expectedOrigin: string }
-  | { readonly kind: 'email_otp'; readonly otpCode: string; readonly challengeId: string };
+export type PendingRegistrationExactMethod = ExclusiveUnion<
+  | { readonly kind: 'passkey' }
+  | { readonly kind: 'email_otp'; readonly otpCode: string; readonly challengeId: string }
+>;
 
 export type PendingRegistrationRecoverySigningSurface = Pick<
   RegistrationSigningSurface,

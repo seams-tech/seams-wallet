@@ -539,6 +539,12 @@ Expected behaviour:
 - ECDSA key export remains available while NEAR is pending and requires fresh
   export authorization.
 - Passkey registration must not send or verify an Email OTP challenge.
+- Pending activation recovery selects the stored ceremony by wallet identity.
+  Applications do not supply a ceremony ID or passkey origin. The executing wallet
+  host supplies its origin. Missing or ambiguous activation records and mismatched
+  authentication methods fail before activation replay or credential collection.
+  Replay verifies committed facts before requesting the exact founding passkey.
+
 
 Failure behaviour:
 

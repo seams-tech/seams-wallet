@@ -49,13 +49,9 @@ type PendingEcdsaRecoveryCommon = {
   readonly ports: PendingEcdsaRegistrationRecoveryPorts;
 };
 
-type ResumePendingEcdsaRegistrationInput =
-  | (PendingEcdsaRecoveryCommon & {
-      readonly exactMethod: Extract<PendingRegistrationExactMethod, { readonly kind: 'passkey' }>;
-    })
-  | (PendingEcdsaRecoveryCommon & {
-      readonly exactMethod: Extract<PendingRegistrationExactMethod, { readonly kind: 'email_otp' }>;
-    });
+type ResumePendingEcdsaRegistrationInput = PendingEcdsaRecoveryCommon & {
+  readonly exactMethod: PendingRegistrationExactMethod;
+};
 
 async function prepareRegistrationContinuity(
   input: Parameters<typeof prepareWalletCustodyEcdsaContinuity>[0],

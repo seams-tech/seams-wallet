@@ -48,10 +48,11 @@ import {
   isMixedEcdsaRegistrationCommit,
 } from './pendingEcdsaRegistrationRecoveryValidation';
 import {
-  resumePendingEcdsaRegistration as resumePendingEcdsaRegistrationWithPorts,
+  resumePendingEcdsaRegistration,
   type ResumePendingEcdsaRegistrationResult,
 } from './pendingEcdsaRegistrationRecovery';
 import { unlockPendingEcdsaRegistration } from './pendingEcdsaRegistrationRecoveryUnlock';
+import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 
 type PendingNearProvisioningCommit = Extract<
   PendingWalletRegistrationCommitV1,
@@ -588,45 +589,32 @@ const defaultPendingEcdsaRegistrationRecoveryPorts: PendingEcdsaRegistrationReco
   unlockPendingEcdsaRegistration,
 };
 
-type PendingEcdsaRegistrationResumeInput = {
-  readonly relayerUrl: string;
-  readonly pending: PendingEcdsaRegistrationCommit;
-  readonly exactMethod: PendingRegistrationExactMethod;
-  readonly signingSurface: PendingRegistrationRecoverySigningSurface;
-  readonly ports?: PendingEcdsaRegistrationRecoveryPorts;
-};
-
 export type PendingEcdsaRegistrationResumeRequest = {
   readonly walletId: WalletId | string;
-  readonly registrationCeremonyId: string;
   readonly exactMethod: PendingRegistrationExactMethod;
 };
 
-export async function resumePendingEcdsaRegistration(
-  args: PendingEcdsaRegistrationResumeInput,
-): Promise<ResumePendingEcdsaRegistrationResult> {
-  const ports = args.ports ?? defaultPendingEcdsaRegistrationRecoveryPorts;
-  switch (args.exactMethod.kind) {
-    case 'passkey':
-      return await resumePendingEcdsaRegistrationWithPorts({
-        relayerUrl: args.relayerUrl,
-        pending: args.pending,
-        signingSurface: args.signingSurface,
-        exactMethod: args.exactMethod,
-        ports,
-      });
-    case 'email_otp':
-      return await resumePendingEcdsaRegistrationWithPorts({
-        relayerUrl: args.relayerUrl,
-        pending: args.pending,
-        signingSurface: args.signingSurface,
-        exactMethod: args.exactMethod,
-        ports,
-      });
-    default:
-      args.exactMethod satisfies never;
-      throw new Error('pending ECDSA registration has an unsupported exact method');
+async function requirePendingEcdsaRegistrationForWallet(
+  walletId: WalletId,
+): Promise<PendingEcdsaRegistrationCommit> {
+  await IndexedDBManager.initialize();
+  let pending: PendingWalletRegistrationCommitV1 | null = null;
+  for (const candidate of await IndexedDBManager.listPendingWalletRegistrationCommits()) {
+    if (candidate.operation !== 'registration_activate' || candidate.walletId !== walletId) {
+      continue;
+    }
+    if (pending) {
+      throw new Error('wallet has multiple pending registration activations');
+    }
+    pending = candidate;
   }
+  if (!pending) {
+    throw new Error('pending ECDSA registration commit was not found');
+  }
+  if (!isEcdsaRegistrationCommit(pending) && !isMixedEcdsaRegistrationCommit(pending)) {
+    throw new Error('pending registration commit is not ECDSA-enabled');
+  }
+  return pending;
 }
 
 export async function resumePendingEcdsaRegistrationFromStoredCommit(args: {
@@ -634,23 +622,15 @@ export async function resumePendingEcdsaRegistrationFromStoredCommit(args: {
   readonly request: PendingEcdsaRegistrationResumeRequest;
   readonly signingSurface: PendingRegistrationRecoverySigningSurface;
 }): Promise<ResumePendingEcdsaRegistrationResult> {
-  await IndexedDBManager.initialize();
-  const pending = (await IndexedDBManager.listPendingWalletRegistrationCommits()).find(
-    (candidate) =>
-      candidate.operation === 'registration_activate' &&
-      String(candidate.walletId) === String(args.request.walletId) &&
-      candidate.registrationCeremonyId === args.request.registrationCeremonyId,
-  );
-  if (!pending) {
-    throw new Error('pending ECDSA registration commit was not found');
-  }
-  if (!isEcdsaRegistrationCommit(pending) && !isMixedEcdsaRegistrationCommit(pending)) {
-    throw new Error('pending registration commit is not ECDSA-enabled');
+  const pending = await requirePendingEcdsaRegistrationForWallet(toWalletId(args.request.walletId));
+  if (pending.auth.kind !== args.request.exactMethod.kind) {
+    throw new Error('pending registration requires its exact authentication method');
   }
   return await resumePendingEcdsaRegistration({
     relayerUrl: args.relayerUrl,
     pending,
     exactMethod: args.request.exactMethod,
     signingSurface: args.signingSurface,
+    ports: defaultPendingEcdsaRegistrationRecoveryPorts,
   });
 }

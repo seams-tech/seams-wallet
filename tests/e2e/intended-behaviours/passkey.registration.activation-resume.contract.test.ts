@@ -20,7 +20,10 @@ class LostActivationResponse {
   observe(request: Request): void {
     const pathname = new URL(request.url()).pathname;
     if (request.method() !== 'POST') return;
-    if (pathname === '/wallet/unlock/verify') this.unlocks += 1;
+    if (pathname === '/wallet/unlock/verify') {
+      expect(request.postDataJSON().expected_origin).toBe(new URL(request.frame().url()).origin);
+      this.unlocks += 1;
+    }
     if (pathname.startsWith('/wallets/register/') && pathname !== '/wallets/register/activate') {
       this.otherRegistrationRequests += 1;
     }
@@ -115,11 +118,17 @@ for (const signerPlan of ['ecdsa_only', 'mixed'] as const) {
       const registrationRequests = lost.otherRegistrationRequests;
       expect(registrationRequests).toBeGreaterThan(0);
       await page.reload();
-      await page.getByLabel('Pending wallet', { exact: true }).fill(lost.walletId);
-      await page.getByLabel('Registration ceremony', { exact: true }).fill(lost.ceremonyId);
+      const pendingWallet = page.getByLabel('Pending wallet', { exact: true });
+      const recovery = page.getByTestId('registration-resume-result');
+      await pendingWallet.fill('unrelated-wallet.testnet');
+      await page.getByRole('button', { name: 'Resume with exact passkey', exact: true }).click();
+      await expect(recovery).toHaveAttribute('data-state', 'failed');
+      await expect(recovery).toContainText('pending ECDSA registration commit was not found');
+      expect(lost.exactReplays).toBe(1);
+      expect(lost.unlocks).toBe(0);
+      await pendingWallet.fill(lost.walletId);
       lost.nextResponse = 'wrong_activation_digest';
       await page.getByRole('button', { name: 'Resume with exact passkey', exact: true }).click();
-      const recovery = page.getByTestId('registration-resume-result');
       await expect(recovery).toHaveAttribute('data-state', 'failed');
       await expect(recovery).toContainText('pending ECDSA activation facts mismatch');
       expect(lost.unlocks).toBe(0);
@@ -173,6 +182,9 @@ for (const signerPlan of ['ecdsa_only', 'mixed'] as const) {
         },
         verifiedSignatures: 1,
         alteredActivationDigestRejectedBeforeUnlock: true,
+        unrelatedWalletRejectedBeforeReplay: true,
+        applicationSuppliesCeremonyId: false,
+        applicationSuppliesPasskeyOrigin: false,
         registrationRequestsBeforeResume: registrationRequests,
         registrationRequestsAfterResume: lost.otherRegistrationRequests,
         registeredAddress: registeredKey.thresholdOwnerAddress,

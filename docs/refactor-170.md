@@ -786,7 +786,7 @@ in `refactor-170-inventory.md` for verification and remaining acceptance limits.
 
 ECDSA bootstrap now stays inside host authentication and the explicit runtime
 port. The unused application bootstrap methods, argument builders, and transport
-route are removed. The iframe protocol is now 10.0.0 after removal of the public NEAR test-funding request; client and host deployments
+route are removed. The iframe protocol is now 11.0.0 after removing caller-supplied pending ceremony and passkey-origin inputs; client and host deployments
 must match. Custom-broadcast reporting remains supported. See the bootstrap
 ownership checkpoint in `refactor-170-inventory.md`.
 

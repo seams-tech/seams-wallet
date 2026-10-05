@@ -19,9 +19,6 @@ export function ResumeRegistration(): React.ReactNode {
       <label>
         Pending wallet <input name="walletId" required />
       </label>
-      <label>
-        Registration ceremony <input name="registrationCeremonyId" required />
-      </label>
       <button type="submit" disabled={state.kind === 'pending'}>
         Resume with exact passkey
       </button>
@@ -42,14 +39,12 @@ async function resumeRegistration(
   setState({ kind: 'pending' });
   try {
     const walletId = form.get('walletId');
-    const registrationCeremonyId = form.get('registrationCeremonyId');
-    if (typeof walletId !== 'string' || typeof registrationCeremonyId !== 'string') {
-      throw new Error('Pending wallet and ceremony are required');
+    if (typeof walletId !== 'string') {
+      throw new Error('Pending wallet is required');
     }
     const result = await registration.resumePendingEcdsaRegistration({
       walletId,
-      registrationCeremonyId,
-      exactMethod: { kind: 'passkey', expectedOrigin: import.meta.env.VITE_WALLET_ORIGIN },
+      exactMethod: { kind: 'passkey' },
     });
     setState({ kind: 'published', result });
   } catch (error) {

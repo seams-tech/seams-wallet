@@ -211,7 +211,7 @@ async function unlockWithPasskey(args: {
     throw new Error('ECDSA registration passkey unlock has a different pending factor');
   const primaryKey = args.walletKeys[0];
   if (!primaryKey) throw new Error('ECDSA registration unlock has no primary wallet key');
-  const expectedOrigin = args.exactMethod.expectedOrigin.trim();
+  const expectedOrigin = typeof window !== 'undefined' ? window.location.origin : '';
   if (!expectedOrigin) throw new Error('ECDSA registration passkey unlock requires an origin');
   const challenge = await requestPasskeyUnlockChallenge({
     relayerUrl: args.relayerUrl,

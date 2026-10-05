@@ -2445,7 +2445,8 @@ once, and produce one verified EVM signature. Neither creates another registrati
 Evidence: `evidence/refactor-170-registration-continuation-baseline-20261005.json`.
 
 These cases use `tests/intended-app/src/ResumeRegistration.tsx`, which asks the
-application for the wallet ID, ceremony ID, and expected passkey origin. They do
+application for the wallet ID, ceremony ID, and expected passkey origin at that
+baseline. The later wallet-identity checkpoint removes ceremony and origin inputs. They do
 not prove the accepted SDK-owned continuation. `WalletHostRuntime` calls
 `resumePendingNearRegistrations` at startup, but that function returns
 `unlock_required` for ECDSA/mixed commits. Startup only reports failures. Normal
@@ -2460,7 +2461,7 @@ that the mixed wallet's NEAR registration completes after reload.
 
 Complete this migration in the following dependency order:
 
-1. Resolve a pending registration from wallet identity inside the host. Reject
+1. Completed for activation replay: resolve a pending registration from wallet identity inside the host. Reject
    ambiguous or mismatched records. Derive passkey origin from the executing host;
    applications must not supply ceremony IDs or activation details.
 2. Reuse exact activation replay, fact validation, and method unlock. Preserve one
@@ -2515,3 +2516,33 @@ build, packed declarations, runtime boundaries, and freshness checks.
 
 This removes 165 production source lines net. Evidence:
 `evidence/refactor-170-near-funding-internal-20261005.json`.
+
+### Pending activation selection belongs to the host (2026-10-05)
+
+Pending activation recovery now accepts wallet identity and the authentication
+method. The host selects the unique stored activation for that wallet and rejects
+missing or ambiguous records. A different method fails before replay. Passkey
+verification obtains the origin from the executing wallet host. The application
+no longer supplies a ceremony ID or expected origin. The redundant method
+dispatcher and its optional port override are removed.
+
+The exact-method union rejects combined passkey/email proofs, including broad
+spreads. Packed declaration checks also reject the removed caller inputs.
+The iframe protocol is 11.0.0. All five handshake cases pass.
+
+Both production activation-response-loss scenarios pass in 26.6 seconds each.
+ECDSA-only and mixed wallets each reject an unrelated wallet before replay and an
+altered activation digest before unlock. Each then performs three exact activation
+replays in total, one exact-method unlock, and one independently verified EVM
+signature. The verification request uses the executing host's origin. No new
+registration request occurs during recovery.
+
+This completes the host-selection prerequisite. The public resume operation and
+special test form still exist. Normal unlock integration, preservation of its
+session options and callbacks, Email OTP acceptance, and mixed NEAR completion
+remain open. These tests prove EVM recovery for a mixed wallet; they do not prove
+NEAR readiness after recovery.
+
+Production source changes remove 22 lines net. Build, wallet/intended/browser/docs
+types, packed declarations, runtime boundaries, and freshness checks pass.
+Evidence: `evidence/refactor-170-pending-identity-20261005.json`.
