@@ -23,7 +23,7 @@ import {
  *
  *   Step legend
  *   -----------
- *   (1) App calls a router RPC (executeAction, registerPasskey, etc).
+ *   (1) App calls a router RPC (executeAction, registerWallet, etc).
  *   (2) Router posts request to iframe and tracks a pending entry.
  *   (3) Wallet iframe sends PROGRESS messages back to the router.
  *   (4) Router forwards ProgressPayloads into OnEventsProgressBus.
@@ -50,7 +50,7 @@ import {
  *        |<----------------------------------------------------|                              |
  *
  * Communication Flow (requests):
- * 1. Parent calls RPC method (e.g., registerPasskey).
+ * 1. Parent calls RPC method (e.g., registerWallet).
  * 2. Router creates unique request ID and pending entry.
  * 3. Message sent to iframe via MessagePort.
  * 4. Progress events are bridged to parent callbacks and diagnostics.

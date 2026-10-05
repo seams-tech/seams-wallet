@@ -1,5 +1,4 @@
 import type { WalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import { buildEvmWalletRegistrationArgs } from '@/SeamsWeb/operations/evm';
 import { toSerializableTempoError } from '@/SeamsWeb/operations/tempo';
 import type { EvmFamilyCommands } from '@/SeamsWeb/publicApi/evmFamilyCommands';
 import type { TransactionDispatch } from '@/SeamsWeb/walletIframe/client/transactionReviewReservation';
@@ -24,7 +23,6 @@ export function createApplicationEvmFamilyCommands(
     reconcileNonceLane: commands.reconcileNonceLane.bind(commands),
     bootstrapEcdsaSession: commands.bootstrapEcdsaSession.bind(commands),
     onBroadcastStarted: commands.onBroadcastStarted.bind(commands),
-    registerEvmWallet: commands.registerEvmWallet.bind(commands),
   };
 }
 class ApplicationEvmFamilyCommands {
@@ -168,21 +166,5 @@ class ApplicationEvmFamilyCommands {
       router.notifyTransactionBroadcastStarted(args.signedResult);
     } catch {}
   }
-  async registerEvmWallet(
-    args: Parameters<EvmFamilyCommands['registerEvmWallet']>[0],
-  ): ReturnType<EvmFamilyCommands['registerEvmWallet']> {
-    const walletIframe = this.walletIframe;
-    const registerWalletArgs = buildEvmWalletRegistrationArgs(args);
-    try {
-      const router = await walletIframe.requireRouter();
-      const result = await router.registerWallet(registerWalletArgs);
-      await args.options?.afterCall?.(true, result);
-      return result;
-    } catch (error: unknown) {
-      const e = toError(error);
-      await args.options?.onError?.(e);
-      await args.options?.afterCall?.(false, undefined, e);
-      throw e;
-    }
-  }
+
 }

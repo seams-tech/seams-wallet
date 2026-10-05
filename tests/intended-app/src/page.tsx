@@ -151,10 +151,6 @@ type IntendedPasskeyEcdsaTargetProfile =
   | { kind: 'tempo' }
   | { kind: 'tempo_arc' };
 
-type IntendedEcdsaSignerProvisioningDefaults = ReturnType<
-  typeof useSeams
->['seams']['configs']['signing']['thresholdEcdsa']['provisioningDefaults'];
-
 type IntendedEcdsaSessionSummary =
   | {
       ecdsaTargetProfile: 'none';
@@ -561,7 +557,7 @@ type IntendedPageControllerArgs = {
   passkeyEcdsaTargetProfile: IntendedPasskeyEcdsaTargetProfile;
   emailOtpEcdsaTargetProfile: IntendedEmailOtpEcdsaTargetProfile;
   seams: ReturnType<typeof useSeams>['seams'];
-  registerPasskey: ReturnType<typeof useSeams>['registerPasskey'];
+  registerWallet: ReturnType<typeof useSeams>['registerWallet'];
   refreshLoginState: ReturnType<typeof useSeams>['refreshLoginState'];
   dispatch: React.Dispatch<IntendedPageAction>;
 };
@@ -713,7 +709,7 @@ export const IntendedBehaviourE2EPage: React.FC = () => {
     passkeyEcdsaTargetProfile: query.passkeyEcdsaTargetProfile,
     emailOtpEcdsaTargetProfile: query.emailOtpEcdsaTargetProfile,
     seams: seamsContext.seams,
-    registerPasskey: seamsContext.registerPasskey,
+    registerWallet: seamsContext.registerWallet,
     refreshLoginState: seamsContext.refreshLoginState,
     dispatch,
   });
@@ -1024,7 +1020,7 @@ class IntendedPageController {
 
   private readonly seams: ReturnType<typeof useSeams>['seams'];
 
-  private readonly registerPasskey: ReturnType<typeof useSeams>['registerPasskey'];
+  private readonly registerWallet: ReturnType<typeof useSeams>['registerWallet'];
 
   private readonly refreshLoginState: ReturnType<typeof useSeams>['refreshLoginState'];
 
@@ -1038,7 +1034,7 @@ class IntendedPageController {
     this.passkeyEcdsaTargetProfile = args.passkeyEcdsaTargetProfile;
     this.emailOtpEcdsaTargetProfile = args.emailOtpEcdsaTargetProfile;
     this.seams = args.seams;
-    this.registerPasskey = args.registerPasskey;
+    this.registerWallet = args.registerWallet;
     this.refreshLoginState = args.refreshLoginState;
     this.dispatch = args.dispatch;
   }
@@ -1222,17 +1218,17 @@ class IntendedPageController {
     this.dispatch({ kind: 'action_started', action });
     try {
       const registrationStartedAt = performance.now();
-      const result = await this.registerPasskey({
+      const result = await this.registerWallet({
         wallet: {
           kind: 'provided',
           walletId: toWalletId(this.walletId),
         },
-        signerOptions: passkeySignerOptionsForProfile({
-          defaults: this.seams.configs.signing.thresholdEcdsa.provisioningDefaults,
-          profile: this.passkeyEcdsaTargetProfile,
-        }),
-        recoveryCodeBackup: { kind: 'show_builtin_dialog' },
-        onEvent: this.recordLifecycleEvent,
+        authMethod: { kind: 'passkey', rpId: intendedRegistrationRpId() },
+        signerSelection: intendedPasskeySignerSelection(this.passkeyEcdsaTargetProfile),
+        options: {
+          recoveryCodeBackup: { kind: 'show_builtin_dialog' },
+          onEvent: this.recordLifecycleEvent,
+        },
       });
       recordNearBenchmarkDuration('near_sdk_registration_timing', registrationStartedAt);
       const registration = assertPasskeyRegistrationSucceeded({
@@ -3031,47 +3027,30 @@ function parseEcdsaTargetProfileName(value: string, label: string): IntendedEcds
   }
 }
 
-function passkeySignerOptionsForProfile(args: {
-  defaults: IntendedEcdsaSignerProvisioningDefaults;
-  profile: IntendedPasskeyEcdsaTargetProfile;
-}): IntendedEcdsaSignerProvisioningDefaults {
-  switch (args.profile.kind) {
+function intendedPasskeySignerSelection(
+  profile: IntendedPasskeyEcdsaTargetProfile,
+): RegistrationSignerSetSelection {
+  const near = intendedEd25519YaoSignerSelection();
+  let chainTargets: ThresholdEcdsaChainTarget[];
+  switch (profile.kind) {
     case 'none':
-      return {
-        tempo: {
-          ...args.defaults.tempo,
-          enabled: false,
-        },
-        evm: {
-          ...args.defaults.evm,
-          enabled: false,
-        },
-      };
+      return near;
     case 'tempo':
-      return {
-        tempo: {
-          ...args.defaults.tempo,
-          enabled: true,
-        },
-        evm: {
-          ...args.defaults.evm,
-          enabled: false,
-        },
-      };
+      chainTargets = [INTENDED_TEMPO_CHAIN_TARGET];
+      break;
     case 'tempo_arc':
-      return {
-        tempo: {
-          ...args.defaults.tempo,
-          enabled: true,
-        },
-        evm: {
-          ...args.defaults.evm,
-          enabled: true,
-        },
-      };
+      chainTargets = [INTENDED_TEMPO_CHAIN_TARGET, INTENDED_ARC_EVM_CHAIN_TARGET];
+      break;
     default:
-      return assertNever(args.profile);
+      return assertNever(profile);
   }
+  return {
+    kind: 'signer_set',
+    signers: [
+      ...near.signers,
+      { kind: 'evm_family_ecdsa', chainTargets, participantIds: [1, 2] },
+    ],
+  };
 }
 
 function stringParam(params: URLSearchParams, key: string, fallback: string): string {

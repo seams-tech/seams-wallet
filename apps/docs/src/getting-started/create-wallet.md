@@ -5,7 +5,7 @@ description: Register a passkey wallet and handle ready, pending, and failed res
 
 # Create a wallet
 
-Call `registerPasskey` in response to a user action, such as a button click. The SDK
+Call `registerWallet` in response to a user action, such as a button click. The SDK
 opens the passkey prompt and reports progress. It returns a result whose branch
 identifies the available capability.
 
@@ -13,7 +13,44 @@ identifies the available capability.
 
 Use the hook when your product owns the registration button and result UI.
 Render `CreateWalletButton` inside the `SeamsWebProvider` from [Start
-here](/).
+here](/). Supply its `registration` prop with an explicit `authMethod`, `wallet`,
+and `signerSelection`. Select passkey or email authentication through `authMethod`.
+Use `{ kind: "server_allocated" }` for a new server-assigned wallet identity.
+The signer selection declares the required NEAR and EVM-family capabilities.
+
+For example, this request creates a passkey wallet with an implicit NEAR account:
+
+```ts
+import type { SeamsWeb } from '@seams/wallet';
+import { parseWebAuthnRpId } from '@seams/wallet/advanced';
+
+const rpId = parseWebAuthnRpId('wallet.example.com');
+if (!rpId.ok) throw new Error(rpId.error.message);
+
+const registration: Parameters<SeamsWeb['registration']['registerWallet']>[0] = {
+  authMethod: { kind: 'passkey', rpId: rpId.value },
+  wallet: { kind: 'server_allocated' },
+  signerSelection: {
+    kind: 'signer_set',
+    signers: [
+      {
+        kind: 'near_ed25519',
+        accountProvisioning: {
+          kind: 'implicit_account',
+          accountIdSource: 'ed25519_public_key',
+        },
+        signerSlot: 1,
+        participantIds: [1, 2],
+        derivationVersion: 1,
+      },
+    ],
+  },
+};
+```
+
+Use your wallet origin's relying-party ID in place of `wallet.example.com`.
+Pass `registration` to the button below, or call
+`seams.registration.registerWallet(registration)` from your own UI.
 
 <<< ../examples/registration.tsx
 

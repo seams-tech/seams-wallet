@@ -1,6 +1,5 @@
 import { buildAnonymousWalletSession } from '@/SeamsWeb/publicApi/session';
 import type { ClientConnectionState } from '@/SeamsWeb/publicApi/types';
-import { resolveWalletRpId } from './shared/configuration';
 import type { PreferenceState } from './client/preferenceState';
 import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { AppearanceConfig, SeamsClientConfig, WalletSession } from '@/core/types/seams';
@@ -15,7 +14,7 @@ import type {
   HostedAuthMenuSessionId,
 } from '@/SeamsWeb/walletIframe/shared/messages';
 import { createWalletIframeRouter } from '@/SeamsWeb/assembly/createWalletIframeRouter';
-import type { WebAuthnRpId, WalletId } from '@shared/utils/domainIds';
+import type { WalletId } from '@shared/utils/domainIds';
 import type { SdkLifecycleEventListener } from '@/core/types/sdkSentEvents';
 import type { SdkLifecycleEvent } from '@/core/types/sdkSentEvents';
 import type {
@@ -101,10 +100,6 @@ export class WalletIframeCoordinator {
       this.forwardHostedAuthMenuExternalAuthRequest.bind(this);
     this.forwardHostedAuthMenuDemoEmailOtpDeliveryListener =
       this.forwardHostedAuthMenuDemoEmailOtpDelivery.bind(this);
-  }
-
-  resolveRegistrationRpId(): WebAuthnRpId {
-    return resolveWalletRpId(this.configs);
   }
 
   getConnectionState(): ClientConnectionState {

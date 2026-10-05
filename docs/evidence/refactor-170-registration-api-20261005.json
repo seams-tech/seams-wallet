@@ -1,0 +1,127 @@
+{
+  "baseCommit": "0adc7d65ec8aea8e33ea12cb0fd994522208c6f5",
+  "testProbeCommit": "86fd2df0a0ad9455ff3552c57be0b64872c2ca04",
+  "scope": "One public wallet creation call: registration.registerWallet, with existing explicit authentication, wallet allocation, and signer-selection contracts.",
+  "removedPublicMethods": [
+    "registration.registerPasskey",
+    "registration.registerWithEmailOtp",
+    "near.registerNearWallet",
+    "evm.registerEvmWallet"
+  ],
+  "removedReactMethod": "registerPasskey",
+  "sourceSha256": {
+    "apps/docs/src/examples/registration.tsx": "b82fa81391a6358c946b8502c6866a199f63f9eb8232a9eebacaca920d00f5d2",
+    "packages/wallet/src/SeamsWeb/SeamsWeb.ts": "c2a21daa4eb0eb86fdd3627701396c559a969da5e7043a240428d853d0771022",
+    "packages/wallet/src/SeamsWeb/index.ts": "7309b844e6c43fd303c3fd3ab991f32aee09c8849675cbb05f0d0a72cbb10bd6",
+    "packages/wallet/src/SeamsWeb/operations/evm/index.ts": "bbb1694a6efdd2a2bad0408cc66dc477612f3ae114cc941f2c239fb498da81b2",
+    "packages/wallet/src/SeamsWeb/publicApi/awaitNearReady.ts": "22195f987ebc29cbde48c7f340e034fbc659353dc49f8080f195da0b81b19116",
+    "packages/wallet/src/SeamsWeb/publicApi/createPublicApi.ts": "7e6a1adab2c3dbbd6877f74f4f10b7c4dea7f6fbb79158e0a6bdf33eddf0e13e",
+    "packages/wallet/src/SeamsWeb/publicApi/evm.ts": "f317804a9dc4f8cdd1f1fef4ab6b81facc6516bd4531a7bdf940c5cd3e06e0ed",
+    "packages/wallet/src/SeamsWeb/publicApi/evmFamilyCommands.ts": "48228d8a4bb902d58ca1d9d8134938f7151ee8f7d4210be45b08b152542251cf",
+    "packages/wallet/src/SeamsWeb/publicApi/near.ts": "37367968a0bddf09313e3dea8e5a5839db840a967190cda43864a2ff0cb05e84",
+    "packages/wallet/src/SeamsWeb/publicApi/nearCommands.ts": "7d26b1f403a3f3ed33e1fbb1515a0b354cf55b20d3c2a1afac32b4d05d7efb46",
+    "packages/wallet/src/SeamsWeb/publicApi/types.ts": "125c7d13ec515ba4c35dc2b85304cfa923be5ea9050ecc91ad9185422fed1de7",
+    "packages/wallet/src/SeamsWeb/publicInputs.typecheck.ts": "6bca0e3ece1ded9a76d2e1e4882c8b4911fac4f4c4325a046b8e20f266739a9f",
+    "packages/wallet/src/SeamsWeb/publicNamespaceApi.typecheck.ts": "a68593fd0932f8acb3529fb33c7ed26185aef706b41d55bdf56aa344bc2a05bd",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/evmFamilyCommands.ts": "85e515dad355cbb4c42bc386c9fe66b4829b67fe058399e25fb3af08f1e9bceb",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/nearCommands.ts": "e09bdc5203294e88cc46eefc43505cc7f4b073677f98ce993accf8ec8fb62021",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/registrationCommands.ts": "01ec6f0c3d3be5286303a747bc1a4f03b4c5298a894129364e28fd18b1bec0f9",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/router.ts": "7b44e5f911f09b82aac99b0ce7225ed20ab91229e163fb003b5446b7514a4561",
+    "packages/wallet/src/SeamsWeb/walletIframe/coordinator.ts": "37ffaf720213ffb5d7c90791c2176584b000366c30eeca6850d2eaf8a9ac26d0",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/WalletHostRuntime.ts": "c4f2505f7dfddeb04cebc71e96f6cc3b9fe517c12b86b186fdc599ced66c23a0",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/createEvmFamilyCommands.ts": "96bf0b4ec128fe028bf573296a57f744e4fed44053d0d437cb7ec8a4d7ffd902",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/createNearCommands.ts": "a7feb00e1ead67b69c69063208b48961d03c8c2eb168791594408633e7cb42b0",
+    "packages/wallet/src/SeamsWeb/walletIframe/shared/configuration.ts": "316ed64bd8506e36150e4cee3e8751066ede52c81595398bdd50c9dee3e3fd2f",
+    "packages/wallet/src/react/context/useSeamsContextValue.ts": "df68ca2cae9245fd77930b74600ac1bfac9651782c97f94e17bbe912d9946502",
+    "packages/wallet/src/react/context/useSeamsWithSdkFlow.ts": "d8809a3f445c3aa8917d27634f6d841b2e5888ec00da27b95891c8da961dfebf",
+    "packages/wallet/src/react/hooks/useWalletAuth.ts": "69592ad40b586c56ca16cc6f98784822b932767bd78c84dc9f8a69c6ff95d52b",
+    "packages/wallet/src/react/index.ts": "02db810b21c4ed3b45ef338a8b1091bf9b41cf69348eef44f881ec94b06b5773",
+    "packages/wallet/src/react/types.ts": "46aac62dbf190d411fb2f6643ec14460a62600ddddf82494452a2111d22fee40",
+    "tests/e2e/intended-behaviours/registration-protocol.ts": "b360a46ae9482215242faec804f96aee64810d63798d6280d2e264c16a4e39c2",
+    "tests/intended-app/src/page.tsx": "c18b2baec297c0f4ceb2f00a42bd93235c709f900b14d6d05b63576114a28ab3"
+  },
+  "deletedPaths": [
+    "packages/wallet/src/SeamsWeb/operations/near/registrationInputs.ts"
+  ],
+  "productionLineDelta": {
+    "added": 21,
+    "removed": 406,
+    "net": -385,
+    "scope": "packages/wallet/src TypeScript excluding type fixtures"
+  },
+  "verification": {
+    "browser": {
+      "files": [
+        "wallet-iframe/auth-menu.host.integration.test.ts",
+        "wallet-ui/auth-menu.lifecycle.test.ts",
+        "wallet-ui/registration-setup.browser.test.ts"
+      ],
+      "receipt": [
+        "11 passed (6.4s)"
+      ]
+    },
+    "production": {
+      "initialPasses": [
+        "1 passed (46.2s)",
+        "1 passed (28.1s)"
+      ],
+      "correctedProbeAndRemainingPasses": [
+        "1 passed (29.1s)",
+        "1 passed (25.4s)",
+        "1 passed (30.6s)"
+      ],
+      "caseTitles": [
+        "Email OTP registration and unlock lifecycle",
+        "public Ed25519 Yao registration signs immediately and after refresh",
+        "wallet protocol rejection shows an upgrade message and reload restores registration and signing",
+        "Gateway ECDSA respond retries its pinned root after Router reply loss",
+        "passkey registration establishes an immediately usable owner session without waiting for presignatures"
+      ],
+      "command": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.registration.contract.test.ts e2e/intended-behaviours/email-otp.unlock.contract.test.ts e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts --grep \"immediately usable owner session|Email OTP registration and unlock lifecycle|public Ed25519 Yao registration signs immediately|Gateway ECDSA respond retries|wallet protocol rejection shows\"",
+      "retry": "Same runner, passkey.registration.contract.test.ts only, with the final three grep alternatives. No production source changes between runs."
+    },
+    "checks": [
+      "wallet type-check",
+      "intended type-check",
+      "wallet-state type-check",
+      "browser type-check",
+      "docs TypeScript",
+      "wallet build:prod",
+      "build:check:fresh",
+      "check:declarations-external",
+      "check:runtime-entry-bundles",
+      "report:bloat --check"
+    ]
+  },
+  "testRepair": {
+    "classification": "valid_test_needs_update",
+    "failure": "The protocol case completed registration/signing, then failed to import a Vite /@fs/ database module from the production server.",
+    "repair": "Bundle the existing singleton source using esbuild and serve it through the existing browser probe route pattern. Preserve the accepted-setup-record assertion.",
+    "initialRunTerminalExit": 1,
+    "correctedRunTerminalExit": 0
+  },
+  "bundleObservation": {
+    "command": "node packages/wallet/scripts/checks/report-wallet-iframe-bundle-size.mjs --json",
+    "reportSha256": "ae56e6fde72b964e8841d5c4d3817411671cc9cc53b3221b73f3fc43b0ebf3d8",
+    "buildInputsHash": "842eaaa8dab0ff777c625979ca706007f4777b1059b845354388bcd601d397cb",
+    "metrics": {
+      "walletHostGzip": 154,
+      "walletHostBootPathGzip": 18461,
+      "walletHostStaticImportsGzip": 18307,
+      "workerAndWasmGzip": 1621738,
+      "nearWasmGzip": 179831,
+      "ecdsaWasmGzip": 71845,
+      "tempoWasmGzip": 44757,
+      "derivationWasmGzip": 317270,
+      "ed25519YaoClientWasmGzip": 295326,
+      "walletReachableGzip": 834846
+    },
+    "missing": [],
+    "limits": "Static graph/compression observation only. Not an attributed transfer or latency improvement."
+  },
+  "limits": [
+    "No release publication or private exact-package adoption performed.",
+    "Sponsored account input remains supported by the existing signer selection; this run does not add sponsored-registration E2E coverage.",
+    "Remaining R171 email/device/key/recovery/provisioning naming and R170 worker-matrix/latency/lifecycle acceptance remain open."
+  ]
+}

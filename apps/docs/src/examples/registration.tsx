@@ -10,12 +10,14 @@ function assertNever(value: never): never {
 }
 
 async function createWallet(
-  registerPasskey: SeamsContextType['registerPasskey'],
+  registerWallet: SeamsContextType['registerWallet'],
   seams: SeamsWeb,
+  registration: Parameters<SeamsContextType['registerWallet']>[0],
 ): Promise<void> {
   try {
-    const result = await registerPasskey({
-      onEvent: logRegistrationEvent,
+    const result = await registerWallet({
+      ...registration,
+      options: { ...registration.options, onEvent: logRegistrationEvent },
     });
     if (!result.success) {
       console.error('Registration failed:', result.error);
@@ -48,8 +50,14 @@ async function createWallet(
   }
 }
 
-export function CreateWalletButton() {
-  const { registerPasskey, seams } = useSeams();
+export function CreateWalletButton({ registration }: {
+  registration: Parameters<SeamsContextType['registerWallet']>[0];
+}) {
+  const { registerWallet, seams } = useSeams();
 
-  return <button onClick={createWallet.bind(null, registerPasskey, seams)}>Create wallet</button>;
+  return (
+    <button onClick={createWallet.bind(null, registerWallet, seams, registration)}>
+      Create wallet
+    </button>
+  );
 }

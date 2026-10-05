@@ -15,7 +15,6 @@ export type UseWalletAuthResult = Pick<
   | 'loginState'
   | 'unlock'
   | 'lock'
-  | 'registerPasskey'
   | 'registerWallet'
   | 'addWalletSigner'
   | 'refreshLoginState'
@@ -30,7 +29,6 @@ export function useWalletAuth(): UseWalletAuthResult {
       loginState: ctx.loginState,
       unlock: ctx.unlock,
       lock: ctx.lock,
-      registerPasskey: ctx.registerPasskey,
       registerWallet: ctx.registerWallet,
       addWalletSigner: ctx.addWalletSigner,
       refreshLoginState: ctx.refreshLoginState,

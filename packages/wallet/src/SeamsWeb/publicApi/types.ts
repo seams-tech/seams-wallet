@@ -40,7 +40,6 @@ import type {
   SignAndSendDelegateActionResult,
   SignDelegateActionResult,
   SignTransactionResult,
-  SeamsRegistrationNearAccountProvisioning,
 } from '@/core/types/seams';
 import type {
   ActionHooksOptions,
@@ -130,7 +129,6 @@ import type {
 import type { WalletId } from '@shared/utils/registrationIntent';
 import type {
   AddSignerSelection,
-  RegistrationNearAccountProvisioning,
   RegistrationSignerSetSelection,
 } from '@shared/utils/registrationSignerPlan';
 import type {
@@ -295,27 +293,6 @@ export type SetTempoFeeTokenPreferenceArgs = {
   };
 };
 
-type RegisterNearImplicitWalletArgs = {
-  accountProvisioning?: Extract<RegistrationNearAccountProvisioning, { kind: 'implicit_account' }>;
-  nearAccountId?: never;
-  wallet?: Extract<RegisterWalletInput, { kind: 'provided' }>;
-  authMethod: RegistrationAuthMethodInput;
-  options?: RegistrationHooksOptions;
-};
-
-type RegisterNearSponsoredWalletArgs = {
-  accountProvisioning: Extract<
-    RegistrationNearAccountProvisioning,
-    { kind: 'sponsored_named_account' }
-  >;
-  wallet: Extract<RegisterWalletInput, { kind: 'provided' }>;
-  nearAccountId?: never;
-  authMethod: RegistrationAuthMethodInput;
-  options?: RegistrationHooksOptions;
-};
-
-type RegisterNearWalletArgs = RegisterNearImplicitWalletArgs | RegisterNearSponsoredWalletArgs;
-
 export type FundImplicitNearAccountForTestingResult =
   | {
       ok: true;
@@ -330,18 +307,6 @@ export type FundImplicitNearAccountForTestingResult =
       code: string;
       message: string;
     };
-
-export type PasskeyRegistrationOptions = RegistrationHooksOptions & {
-  wallet?: Extract<RegisterWalletInput, { kind: 'provided' }>;
-  nearAccountProvisioning?: SeamsRegistrationNearAccountProvisioning;
-};
-
-type RegisterEvmWalletArgs = {
-  chainTargets: readonly ThresholdEcdsaChainTarget[];
-  participantIds: readonly number[];
-  authMethod: RegistrationAuthMethodInput;
-  options?: RegistrationHooksOptions;
-};
 
 export type TempoNonceLifecycleEvent = SigningFlowEvent;
 
@@ -883,18 +848,6 @@ export interface RegistrationCapability {
     signerSelection: RegistrationSignerSetSelection;
     options?: RegistrationHooksOptions;
   }): Promise<RegistrationResult>;
-  /**
-   * @deprecated Use `registerWallet` with an `email_otp` `authMethod` — this is
-   * the same function, only narrower. Two names for one operation makes the
-   * registration surface look larger than it is.
-   */
-  registerWithEmailOtp(args: {
-    authMethod: Extract<RegistrationAuthMethodInput, { kind: 'email_otp' }>;
-    wallet: RegisterWalletInput;
-    signerSelection: RegistrationSignerSetSelection;
-    options?: RegistrationHooksOptions;
-  }): Promise<RegistrationResult>;
-  registerPasskey(options?: PasskeyRegistrationOptions): Promise<RegistrationResult>;
   requestEmailOtpEnrollmentChallenge(args: {
     walletId: string;
     relayUrl?: string;
@@ -929,7 +882,6 @@ export interface NearSignerCapability {
   /** Returns false only for an absent account; unavailable RPC reads reject. */
   accountExists(accountId: string): Promise<boolean>;
 
-  registerNearWallet(args: RegisterNearWalletArgs): Promise<RegistrationResult>;
 
   fundImplicitNearAccountForTesting(args: {
     walletSession: WalletSessionRef;
@@ -1081,7 +1033,6 @@ export interface EvmSignerCapability {
   /** Post-broadcast lifecycle reporting; `executeTransaction` already drives it. */
   readonly advanced: EvmFamilyAdvancedCapability;
 
-  registerEvmWallet(args: RegisterEvmWalletArgs): Promise<RegistrationResult>;
 
   /** @deprecated Use `seams.evm.advanced.bootstrapEcdsaSession`. */
   bootstrapEcdsaSession(

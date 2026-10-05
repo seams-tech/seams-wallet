@@ -1,24 +1,19 @@
 import type { WalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import { buildNearWalletRegistrationArgs } from '@/SeamsWeb/operations/near/registrationInputs';
 import type { NearCommands } from '@/SeamsWeb/publicApi/nearCommands';
 import type { TransactionDispatch } from '@/SeamsWeb/walletIframe/client/transactionReviewReservation';
 import type { WalletIframeCoordinator } from '@/SeamsWeb/walletIframe/coordinator';
-import type { SeamsConfigsReadonly } from '@/core/types/seams';
 import { toError } from '@shared/utils/errors';
 export function createApplicationNearCommands(
   walletIframe: Pick<WalletIframeCoordinator, 'requireRouter'>,
-  configs: SeamsConfigsReadonly,
   beforeSigning: (walletId: WalletId) => Promise<void>,
   transactionDispatch: TransactionDispatch,
 ): NearCommands {
   const commands = new ApplicationNearCommands(
     walletIframe,
-    configs,
     beforeSigning,
     transactionDispatch,
   );
   return {
-    registerNearWallet: commands.registerNearWallet.bind(commands),
     fundImplicitNearAccountForTesting: commands.fundImplicitNearAccountForTesting.bind(commands),
     executeAction: commands.executeAction.bind(commands),
     signAndSendTransaction: commands.signAndSendTransaction.bind(commands),
@@ -31,28 +26,9 @@ export function createApplicationNearCommands(
 class ApplicationNearCommands {
   constructor(
     private readonly walletIframe: Pick<WalletIframeCoordinator, 'requireRouter'>,
-    private readonly configs: SeamsConfigsReadonly,
     private readonly beforeSigning: (walletId: WalletId) => Promise<void>,
     private readonly transactionDispatch: TransactionDispatch,
   ) {}
-  async registerNearWallet(
-    args: Parameters<NearCommands['registerNearWallet']>[0],
-  ): ReturnType<NearCommands['registerNearWallet']> {
-    const walletIframe = this.walletIframe;
-    const context = { configs: this.configs };
-    const registerWalletArgs = buildNearWalletRegistrationArgs(context, args);
-    try {
-      const router = await walletIframe.requireRouter();
-      const result = await router.registerWallet(registerWalletArgs);
-      await args.options?.afterCall?.(true, result);
-      return result;
-    } catch (error: unknown) {
-      const e = toError(error);
-      await args.options?.onError?.(e);
-      await args.options?.afterCall?.(false, undefined, e);
-      throw e;
-    }
-  }
   async fundImplicitNearAccountForTesting(
     args: Parameters<NearCommands['fundImplicitNearAccountForTesting']>[0],
   ): ReturnType<NearCommands['fundImplicitNearAccountForTesting']> {

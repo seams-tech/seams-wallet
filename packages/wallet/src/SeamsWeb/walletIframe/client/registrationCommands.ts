@@ -43,7 +43,7 @@ async function registerWallet(
   } catch (error: unknown) {
     const e = toError(error);
     await args.options?.onError?.(e);
-    await args.options?.afterCall?.(false);
+    await args.options?.afterCall?.(false, undefined, e);
     throw e;
   }
 }

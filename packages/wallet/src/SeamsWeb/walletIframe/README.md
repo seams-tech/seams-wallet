@@ -17,7 +17,7 @@ The system consists of three layers:
 2. **WalletIframeRouter** - Handles communication between the main app and the iframe using MessagePort
 3. **Wallet Host** - The actual SeamsWeb running inside the iframe, executing the real operations
 
-Calls such as `seams.registration.registerPasskey()` and
+Calls such as `seams.registration.registerWallet()` and
 `seams.evm.signTransaction()` dispatch through these layers. The parent surface
 queue manages visibility for the request and the host reports its measured UI
 size. Public progress events remain available to application callbacks.
@@ -137,7 +137,7 @@ The callback chain follows this flow:
 
 - Receives messages via MessagePort in `onPortMessage()`
 - Creates and manages the actual SeamsWeb instance
-- Executes the requested operations (like `seams!.registration.registerPasskey()`)
+- Executes the requested operations (like `seams!.registration.registerWallet()`)
 - Sends progress events back via `post({ type: 'PROGRESS', requestId, payload: ev })`
 - Returns results via `post({ type: 'PM_RESULT', requestId, payload: { ok: true, result } })`
 

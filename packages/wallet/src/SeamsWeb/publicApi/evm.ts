@@ -23,7 +23,6 @@ export function createEvmSignerCapability(deps: EvmDependencies): EvmSignerCapab
     executeTransaction: deps.evmFamily.executeEvmFamilyTransaction,
     advanced: deps.evmFamily.advanced,
     signTransaction: signer.signTransaction.bind(signer),
-    registerEvmWallet: deps.commands.registerEvmWallet,
     bootstrapEcdsaSession: signer.bootstrapEcdsaSession.bind(signer),
   };
 }

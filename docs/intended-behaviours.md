@@ -1356,3 +1356,11 @@ speculatively import unrelated signing implementations. The menu keeps its UI an
 input-validation lifecycle. Once registration preparation has a valid input, the
 existing selected-signer ceremony owns required crypto preparation. Cancellation
 must not terminate shared workers or discard durable signing material.
+
+Wallet creation uses `registration.registerWallet` in the client and explicit runtime,
+and `registerWallet` in React. The request declares the authentication method,
+wallet identity allocation, and signer selection. Passkey and Email OTP proofs
+remain distinct branches of the existing authentication input. NEAR-only,
+ECDSA-only, and combined signer selections use the same creation operation.
+Chain namespaces do not expose separate wallet-creation calls. Registration
+callbacks, pending NEAR results, and durable continuation retain their contracts.

@@ -34,7 +34,6 @@ import type {
 import type {
   AppearanceConfig,
   AppearanceConfigInput,
-  RegistrationResult,
   ThemeMode,
 } from '@/core/types/seams';
 import type { ConfirmationConfig } from '@/core/types/signer-worker';
@@ -48,10 +47,6 @@ import {
 } from '@/SeamsWeb/operations/recovery/walletRecoveryCommit';
 import { rotateWalletRecoveryCodes } from '@/SeamsWeb/operations/recovery/walletRecoveryRotation';
 import { resumePendingNearRegistrations } from '@/SeamsWeb/operations/registration/pendingRegistrationRecovery';
-import {
-  buildNearWalletRegistrationSignerSetSelection,
-  resolvePasskeyRegistrationAccountProvisioning,
-} from '@/SeamsWeb/operations/registration/registrationSignerSet';
 import { createPublicApi } from '@/SeamsWeb/publicApi';
 import {
   resolveConfiguredChainTarget,
@@ -70,7 +65,6 @@ import type {
   SeamsWebSigningSurface,
   TempoSignerCapability,
 } from '@/SeamsWeb/signingSurface/types';
-import { parseWebAuthnRpId } from '@shared/utils/domainIds';
 import { createWalletHostDeviceDomain } from '@/SeamsWeb/walletIframe/host/createDeviceDomain';
 import { createWalletHostEmailOtpCommands } from '@/SeamsWeb/walletIframe/host/createEmailOtpCommands';
 import { createWalletHostRegistrationCommands } from '@/SeamsWeb/walletIframe/host/createRegistrationCommands';
@@ -90,7 +84,7 @@ import {
   normalizeResolveExactKeyExportLaneResult,
   resolveRuntimeAppearance,
 } from '@/SeamsWeb/walletIframe/shared/facadeBoundary';
-import { createServerAllocatedWalletId, walletIdFromString } from '@shared/utils/registrationIds';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 function reportWalletRecoveryStartupResult(result: WalletRecoveryResumeResult): void {
   switch (result.kind) {
     case 'completed':
@@ -225,7 +219,6 @@ export class WalletHostRuntime {
         ...registrationCommands,
         ...emailOtpCommands.registration,
         onNearProvisioningStateChanged: this.onNearProvisioningStateChanged.bind(this),
-        registerPasskey: this.registerPasskeyDomain.bind(this),
       },
       recovery: {
         syncAccount: this.syncAccountDomain.bind(this),
@@ -378,41 +371,6 @@ export class WalletHostRuntime {
     return this.onSdkLifecycleEvent(deliverNearProvisioningStateChanged.bind(null, listener));
   }
 
-  private async registerPasskeyDomain(
-    options: Parameters<RegistrationCapability['registerPasskey']>[0] = {},
-  ): Promise<RegistrationResult> {
-    if (typeof options === 'string') {
-      throw new Error(
-        '[SeamsWeb] registration.registerPasskey no longer accepts a NEAR account id; call registration.registerPasskey(options) for implicit NEAR registration or registerWallet(...) with explicit sponsored accountProvisioning.',
-      );
-    }
-    const { wallet, nearAccountProvisioning, ...registrationOptions } = options || {};
-    const parsedRpId = parseWebAuthnRpId(this.signingEngine.getRpId());
-    if (!parsedRpId.ok) throw new Error(parsedRpId.error.message);
-    const rpId = parsedRpId.value;
-    const provisioningPreference =
-      nearAccountProvisioning ?? this.configs.registration.nearAccountProvisioning;
-    const resolvedWallet =
-      wallet ||
-      (provisioningPreference.kind === 'relayer_named_subaccount'
-        ? { kind: 'provided' as const, walletId: createServerAllocatedWalletId() }
-        : { kind: 'server_allocated' as const });
-    const accountProvisioning = resolvePasskeyRegistrationAccountProvisioning({
-      configs: this.configs,
-      wallet: resolvedWallet,
-      preference: provisioningPreference,
-    });
-    return await this.registration.registerWallet({
-      wallet: resolvedWallet,
-      authMethod: { kind: 'passkey', rpId },
-      signerSelection: buildNearWalletRegistrationSignerSetSelection({
-        configs: this.configs,
-        accountProvisioning,
-        options: registrationOptions,
-      }),
-      options: registrationOptions,
-    });
-  }
   private async getWalletRecoveryCodeStatusDomain(args: { walletId: string }) {
     const relayUrl = String(this.configs.network.relayer.url || '').trim();
     const status = await readWalletRecoveryCodeStatus({

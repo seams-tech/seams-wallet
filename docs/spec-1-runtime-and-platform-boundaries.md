@@ -26,8 +26,11 @@ this:
 ```ts
 import type { SeamsWeb } from '@seams/wallet';
 
-async function createNearWallet(wallet: SeamsWeb) {
-  const registration = await wallet.registration.registerPasskey();
+async function createNearWallet(
+  wallet: SeamsWeb,
+  request: Parameters<SeamsWeb['registration']['registerWallet']>[0],
+) {
+  const registration = await wallet.registration.registerWallet(request);
   if (!registration.success) {
     return { kind: 'registration_failed' as const, reason: registration.error };
   }

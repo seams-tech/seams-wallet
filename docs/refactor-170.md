@@ -834,6 +834,12 @@ Remove the obsolete mixed-mode implementation.
 
 ### 3. Make the boundary precise and keep the public API approachable
 
+Registration creation is consolidated under `registration.registerWallet`, with
+explicit auth method, wallet allocation, and signer selection. The former four
+creation shortcuts and their duplicate builders are removed. See the unified
+registration checkpoint in `refactor-170-inventory.md`; other R171 operations
+still require migration.
+
 - Keep shared message contracts and public value helpers free of execution
   imports. Use type-only imports for domain types; move pure boundary helpers
   only when their current module introduces runtime dependencies.

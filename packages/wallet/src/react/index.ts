@@ -126,7 +126,6 @@ export type {
   RegisteredEvmFamilyEcdsaCapability,
   RegisteredNearEd25519Capability,
   RegistrationResult,
-  PasskeyRegistrationOptions,
   // Re-exported from SeamsWeb types
   RegistrationHooksOptions,
   LoginHooksOptions,

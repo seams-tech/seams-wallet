@@ -27,7 +27,7 @@ deployment. Use `defineSeamsConfig` for networks other than testnet.
 
 ## Register with a passkey
 
-Render `CreateWalletButton` or call `seams.registration.registerPasskey` from
+Render `CreateWalletButton` or call `seams.registration.registerWallet` from
 your own registration screen.
 
 <<< ./registration.tsx

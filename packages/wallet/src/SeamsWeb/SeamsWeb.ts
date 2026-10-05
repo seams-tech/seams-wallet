@@ -12,15 +12,10 @@ import { configuredThresholdEcdsaChainTargets } from '@/core/signingEngine/inter
 import type {
   AppearanceConfig,
   AppearanceConfigInput,
-  RegistrationResult,
   SeamsConfigsInput,
   SeamsClientConfig,
   ThemeMode,
 } from '@/core/types/seams';
-import {
-  buildNearWalletRegistrationSignerSetSelection,
-  resolvePasskeyRegistrationAccountProvisioning,
-} from '@/SeamsWeb/operations/registration/registrationSignerSet';
 import { createApplicationPublicApi } from '@/SeamsWeb/publicApi';
 import type { AuthMenuCapability, ConfigCapability, ConnectionCapability, EventsCapability } from '@/SeamsWeb/publicApi/types';
 import { resolveConfiguredChainTarget } from '@/SeamsWeb/publicApi/chainTargets';
@@ -56,7 +51,7 @@ import {
 import type {
   HostedAuthMenuDemoEmailOtpDelivery,
 } from '@/SeamsWeb/walletIframe/shared/messages';
-import { createServerAllocatedWalletId, walletIdFromString } from '@shared/utils/registrationIds';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 /**
  * Main SeamsWeb class that provides framework-agnostic passkey operations
  * with flexible event-based callbacks for custom UX implementation
@@ -131,7 +126,6 @@ export class SeamsWeb {
       createNearCommands: createApplicationNearCommands.bind(
         null,
         this.walletIframe,
-        this.configs,
         preferences.beforeSigning,
       ),
       createEvmFamilyCommands: createApplicationEvmFamilyCommands.bind(
@@ -151,7 +145,6 @@ export class SeamsWeb {
         ...registrationCommands,
         ...emailOtpCommands.registration,
         onNearProvisioningStateChanged: this.onNearProvisioningStateChanged.bind(this),
-        registerPasskey: this.registerPasskeyDomain.bind(this),
       },
       recovery: {
         syncAccount: this.syncAccountDomain.bind(this),
@@ -257,39 +250,6 @@ export class SeamsWeb {
     return this.events.subscribe(deliverNearProvisioningStateChanged.bind(null, listener));
   }
 
-  private async registerPasskeyDomain(
-    options: Parameters<RegistrationCapability['registerPasskey']>[0] = {},
-  ): Promise<RegistrationResult> {
-    if (typeof options === 'string') {
-      throw new Error(
-        '[SeamsWeb] registration.registerPasskey no longer accepts a NEAR account id; call registration.registerPasskey(options) for implicit NEAR registration or registerWallet(...) with explicit sponsored accountProvisioning.',
-      );
-    }
-    const { wallet, nearAccountProvisioning, ...registrationOptions } = options || {};
-    const rpId = this.walletIframe.resolveRegistrationRpId();
-    const provisioningPreference =
-      nearAccountProvisioning ?? this.configs.registration.nearAccountProvisioning;
-    const resolvedWallet =
-      wallet ||
-      (provisioningPreference.kind === 'relayer_named_subaccount'
-        ? { kind: 'provided' as const, walletId: createServerAllocatedWalletId() }
-        : { kind: 'server_allocated' as const });
-    const accountProvisioning = resolvePasskeyRegistrationAccountProvisioning({
-      configs: this.configs,
-      wallet: resolvedWallet,
-      preference: provisioningPreference,
-    });
-    return await this.registration.registerWallet({
-      wallet: resolvedWallet,
-      authMethod: { kind: 'passkey', rpId },
-      signerSelection: buildNearWalletRegistrationSignerSetSelection({
-        configs: this.configs,
-        accountProvisioning,
-        options: registrationOptions,
-      }),
-      options: registrationOptions,
-    });
-  }
   private async getWalletRecoveryCodeStatusDomain(args: { walletId: string }) {
     {
       const router = await this.walletIframe.requireRouter();

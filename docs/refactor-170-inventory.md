@@ -186,8 +186,9 @@ and `tests/wallet-iframe/account-query.test.ts`. This does not yet remove host
 context callers or complete the client/host split.
 
 Paths in this section are relative to `packages/wallet/src/SeamsWeb/`.
-The callable-member lists cover `publicApi/types.ts` capability interfaces and
-the public methods on `SeamsWeb`. Names grouped on one row share an ownership
+The table preserves the initial API audit. Later checkpoints below record
+completed migrations and removed names. Its callable-member lists covered
+`publicApi/types.ts` capability interfaces and public methods on `SeamsWeb`. Names grouped on one row share an ownership
 decision, but still retain their individual result/callback contracts.
 
 `C` means application client orchestration; `H` means host execution through the
@@ -195,7 +196,7 @@ existing router; `L` means a local value, display projection, or subscription.
 Current factories often import both C and H implementations. The target is to
 remove that dependency overlap while retaining these distinctions.
 
-| Public surface and members | Current client path / protocol | Host owner or local responsibility |
+| Initial public surface and members | Audited client path / protocol | Host owner or local responsibility |
 | --- | --- | --- |
 | `auth.unlock`, `lock`, `logout` | `walletIframe/client/sessionCommands.ts` → router equivalents | H: `host/handlers/auth.ts`; retain exact session, progress, error, and logout cleanup semantics. |
 | `auth.getWalletSession`, `getRecentUnlocks`, `hasPasskeyCredential` | `walletIframe/client/sessionCommands.ts` → router queries; session read can also prefetch blockheight | H auth queries; preserve authentication versus app-identity distinction. Recent-unlock fallback behavior needs explicit review before removing local paths. |
@@ -1536,3 +1537,38 @@ Before/after artifacts, accounting limits, and production registration/signing
 acceptance are recorded in `evidence/refactor-170-registration-menu-20261005.json`.
 This is a measured deferral of unused menu work; do not infer a whole-operation
 payload saving or close the paired-median latency/complete worker-matrix gates.
+
+### Unified registration API checkpoint
+
+The public client, explicit runtime, and React now expose one wallet-creation
+operation: `registration.registerWallet` (React `registerWallet`). Removed
+`registerPasskey`, `registerWithEmailOtp`, `near.registerNearWallet`, and
+`evm.registerEvmWallet`, including their option types, duplicated client/host
+input builders, and React progress wrappers. No aliases remain.
+
+All four former paths already reached the unified ceremony. Callers now supply
+its existing `authMethod`, `wallet`, and `signerSelection` fields directly.
+Implicit and sponsored NEAR provisioning remain signer-selection branches.
+The hosted menu still resolves configured defaults and selected-flow preparation.
+Custom UI passes explicit intent; it can request a server-allocated identity.
+The unified client error path supplies the error to `afterCall`, preserving the
+former chain shortcut's callback contract.
+
+The intended app's combined passkey flow now uses the React `registerWallet`
+hook. Its existing NEAR-only and ECDSA-only flows use the same client operation.
+Public examples and creation docs use the unified call. Negative type fixtures
+reject the four removed names and registration without authentication.
+A source scan found no callers of the removed creation methods under private
+`apps/` or `packages/`; exact-release adoption remains a separate pending gate.
+
+Verification and source accounting are recorded in
+`evidence/refactor-170-registration-api-20261005.json`. This checkpoint does not
+complete the remaining email, device, key, recovery, and provisioning API renames.
+
+The final source passes 11 browser cases and five production cases: Email OTP
+registration/unlock/export/signing, NEAR-only signing across refresh, protocol
+rejection/reload, ECDSA reply-loss retry, and immediate mixed-wallet signing.
+The protocol case initially failed because its storage probe used Vite `/@fs/`
+in production. Classified `valid_test_needs_update`, it now serves a bundled
+probe and passes without changing the storage assertion. Production TypeScript
+adds 21 lines and removes 406 (net −385), excluding type fixtures and docs.

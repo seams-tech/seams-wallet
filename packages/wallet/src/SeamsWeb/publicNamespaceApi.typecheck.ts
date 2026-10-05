@@ -43,11 +43,24 @@ void seams.near.signNEP413Message({
   options: {},
 });
 
-void seams.evm.registerEvmWallet({
-  chainTargets: [evmChainTarget],
-  participantIds: [1, 2],
+void seams.registration.registerWallet({
+  wallet: { kind: 'server_allocated' },
   authMethod: { kind: 'passkey', rpId },
+  signerSelection: {
+    kind: 'signer_set',
+    signers: [
+      {
+        kind: 'evm_family_ecdsa',
+        chainTargets: [evmChainTarget],
+        participantIds: [1, 2],
+      },
+    ],
+  },
 });
+// @ts-expect-error Chain namespaces do not create wallets.
+void seams.evm.registerEvmWallet;
+// @ts-expect-error Chain namespaces do not create wallets.
+void seams.near.registerNearWallet;
 
 void seams.evm.bootstrapEcdsaSession({
   kind: 'reuse_warm_ecdsa_bootstrap',

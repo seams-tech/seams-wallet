@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { UnlockEventPhase } from '@/core/types/sdkSentEvents';
-import type { AccountInputState, LoginState, RegistrationResult, SeamsContextType } from '../types';
+import type { AccountInputState, LoginState, SeamsContextType } from '../types';
 import type { ThemeMode } from '@/core/types/seams';
 import type { DevicesCapability } from '@/SeamsWeb';
 import { useSDKFlowRuntime } from './useSDKFlowRuntime';
@@ -88,25 +88,6 @@ export function useSeamsContextValue(args: {
     [lock, refreshAccountData, refreshLoginState, seamsWithSdkFlow],
   );
 
-  const registerPasskey: SeamsContextType['registerPasskey'] = useCallback(
-    async (options) => {
-      const result: RegistrationResult = await seamsWithSdkFlow.registration.registerPasskey({
-        ...options,
-        onError: (error) => {
-          lock();
-          return options?.onError?.(error);
-        },
-      });
-
-      const walletId = result?.success ? String(result.walletId || '').trim() : '';
-      if (result?.success && walletId) {
-        await refreshLoginState(walletId);
-      }
-      return result;
-    },
-    [lock, refreshLoginState, seamsWithSdkFlow],
-  );
-
   const registerWallet: SeamsContextType['registerWallet'] = useCallback(
     async (args) => {
       const result = await seamsWithSdkFlow.registration.registerWallet({
@@ -188,7 +169,6 @@ export function useSeamsContextValue(args: {
       walletLockState,
       addWalletSigner,
       registerWallet,
-      registerPasskey,
       unlock,
       lock,
       startDevice2LinkingFlow,
@@ -216,7 +196,6 @@ export function useSeamsContextValue(args: {
       walletLockState,
       addWalletSigner,
       registerWallet,
-      registerPasskey,
       unlock,
       lock,
       startDevice2LinkingFlow,

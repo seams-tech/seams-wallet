@@ -13,7 +13,7 @@ export type WalletHostConfig = Omit<SeamsConfigsReadonly, 'wallet'> & {
   readonly wallet: Variant<SeamsConfigsReadonly['wallet'], 'mode', 'direct'>;
 };
 
-export function resolveWalletRpId(config: SeamsClientConfig): WebAuthnRpId {
+function resolveWalletRpId(config: SeamsClientConfig): WebAuthnRpId {
   const iframe = config.wallet.iframe;
   const configured = iframe.rpIdOverride?.trim();
   const parsed = parseWebAuthnRpId(configured || new URL(iframe.origin).hostname);

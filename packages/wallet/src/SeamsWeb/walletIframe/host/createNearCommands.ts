@@ -4,15 +4,10 @@ import {
   signAndSendTransaction,
   signTransactionWithActions,
 } from '@/SeamsWeb/operations/near/actions';
-import { buildNearWalletRegistrationArgs } from '@/SeamsWeb/operations/near/registrationInputs';
 import { signDelegateAction as signDelegateActionCore } from '@/SeamsWeb/operations/near/signDelegateAction';
 import { signNEP413Message as signNEP413MessageCore } from '@/SeamsWeb/operations/near/signNEP413';
-import { registerWallet as registerWalletWithUnifiedCeremony } from '@/SeamsWeb/operations/registration/registration';
 import type { NearCommands } from '@/SeamsWeb/publicApi/nearCommands';
-import type {
-  NearSigningWebContext,
-  RegistrationWebContext,
-} from '@/SeamsWeb/signingSurface/types';
+import type { NearSigningWebContext } from '@/SeamsWeb/signingSurface/types';
 import { IndexedDBManager } from '@/core/indexedDB';
 import {
   walletSessionAuthorizations,
@@ -24,14 +19,11 @@ import type {
   WalletSessionRef,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { toAccountId } from '@/core/types/accountIds';
-import { cloneAuthenticatorOptions } from '@/core/types/authenticatorOptions';
 import type { SeamsConfigsReadonly } from '@/core/types/seams';
 import { toError } from '@shared/utils/errors';
-type NearHostContext = NearSigningWebContext & RegistrationWebContext;
-export function createWalletHostNearCommands(getContext: () => NearHostContext): NearCommands {
+export function createWalletHostNearCommands(getContext: () => NearSigningWebContext): NearCommands {
   const commands = new WalletHostNearCommands(getContext);
   return {
-    registerNearWallet: commands.registerNearWallet.bind(commands),
     fundImplicitNearAccountForTesting: commands.fundImplicitNearAccountForTesting.bind(commands),
     executeAction: commands.executeAction.bind(commands),
     signAndSendTransaction: commands.signAndSendTransaction.bind(commands),
@@ -110,26 +102,7 @@ async function fundImplicitNearAccountFromCurrentSession(args: {
   });
 }
 class WalletHostNearCommands {
-  constructor(private readonly getContext: () => NearHostContext) {}
-  async registerNearWallet(
-    args: Parameters<NearCommands['registerNearWallet']>[0],
-  ): ReturnType<NearCommands['registerNearWallet']> {
-    const context = this.getContext();
-    const registerWalletArgs = buildNearWalletRegistrationArgs(context, args);
-    const registrationContext: RegistrationWebContext = {
-      signingEngine: this.getContext().signingEngine,
-      nearClient: this.getContext().nearClient,
-      configs: this.getContext().configs,
-      theme: this.getContext().theme,
-    };
-    return await registerWalletWithUnifiedCeremony({
-      context: registrationContext,
-      ...registerWalletArgs,
-      authenticatorOptions: cloneAuthenticatorOptions(
-        this.getContext().configs.webauthn.authenticatorOptions,
-      ),
-    });
-  }
+  constructor(private readonly getContext: () => NearSigningWebContext) {}
   async fundImplicitNearAccountForTesting(
     args: Parameters<NearCommands['fundImplicitNearAccountForTesting']>[0],
   ): ReturnType<NearCommands['fundImplicitNearAccountForTesting']> {

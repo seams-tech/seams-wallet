@@ -23,7 +23,7 @@ function outcomeFor(state: NearProvisioningState | null): AwaitNearReadyResult |
 /**
  * Waits for a mixed registration's NEAR account to finish provisioning.
  *
- * `registerPasskey` can return `ecdsa_wallet_registered_near_pending`, which
+ * `registerWallet` can return `ecdsa_wallet_registered_near_pending`, which
  * carries no NEAR account id — but signing NEAR needs one. Subscribing first
  * and then reading the current state closes the race where provisioning
  * completes between the two.

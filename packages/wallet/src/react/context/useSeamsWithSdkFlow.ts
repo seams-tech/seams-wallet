@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { ConfigCapability, PasskeyRegistrationOptions, SeamsWeb } from '@/SeamsWeb';
+import type { ConfigCapability, SeamsWeb } from '@/SeamsWeb';
 import type { AuthCapability, RecoveryCapability, RegistrationCapability } from '@/SeamsWeb';
 import {
   type LoginHooksOptions,
@@ -49,7 +49,6 @@ export function useSeamsWithSdkFlow(args: {
     type LoginFn = AuthCapability['unlock'];
     type RegisterWalletFn = RegistrationCapability['registerWallet'];
     type AddWalletSignerFn = RegistrationCapability['addWalletSigner'];
-    type RegisterPasskeyFn = RegistrationCapability['registerPasskey'];
     type SyncAccountFn = RecoveryCapability['syncAccount'];
 
     const loginWithSdkFlow: LoginFn = async (walletId: string, options?: LoginHooksOptions) => {
@@ -79,40 +78,6 @@ export function useSeamsWithSdkFlow(args: {
       };
 
       return await seams.auth.unlock(walletId, wrappedOptions);
-    };
-
-    const registerPasskeyWithSdkFlow: RegisterPasskeyFn = async (
-      options?: PasskeyRegistrationOptions,
-    ) => {
-      const seq = beginSdkFlow('register');
-      const wrappedOptions: PasskeyRegistrationOptions = {
-        ...options,
-        onEvent: (event: RegistrationFlowEvent) => {
-          appendSdkEventMessage(seq, event.message);
-          if (
-            event.phase === RegistrationEventPhase.STEP_11_COMPLETED &&
-            event.status === 'succeeded'
-          ) {
-            endSdkFlow('register', seq, 'success');
-          } else if (
-            event.phase === RegistrationEventPhase.FAILED ||
-            event.phase === RegistrationEventPhase.CANCELLED ||
-            event.status === 'failed' ||
-            event.status === 'cancelled'
-          ) {
-            const error = event.error?.message || event.message;
-            endSdkFlow('register', seq, 'error', error || event.message);
-          }
-          options?.onEvent?.(event);
-        },
-        onError: (error: Error) => {
-          appendSdkEventMessage(seq, error.message);
-          endSdkFlow('register', seq, 'error', error.message);
-          options?.onError?.(error);
-        },
-      };
-
-      return await seams.registration.registerPasskey(wrappedOptions);
     };
 
     const registerWalletWithSdkFlow: RegisterWalletFn = async (registerWalletArgs) => {
@@ -249,8 +214,6 @@ export function useSeamsWithSdkFlow(args: {
             ...registration,
             addWalletSigner: addWalletSignerWithSdkFlow,
             registerWallet: registerWalletWithSdkFlow,
-            registerWithEmailOtp: registerWalletWithSdkFlow,
-            registerPasskey: registerPasskeyWithSdkFlow,
           } satisfies RegistrationCapability;
         }
 

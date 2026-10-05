@@ -26,7 +26,6 @@ export function createNearSignerCapability(deps: NearDependencies): NearSignerCa
   const signer = new NearSigner(deps);
   return {
     accountExists: accountExists.bind(null, deps.nearClient),
-    registerNearWallet: deps.commands.registerNearWallet,
     fundImplicitNearAccountForTesting: deps.commands.fundImplicitNearAccountForTesting,
     executeAction: signer.executeAction.bind(signer),
     signAndSendTransaction: signer.signAndSendTransaction.bind(signer),

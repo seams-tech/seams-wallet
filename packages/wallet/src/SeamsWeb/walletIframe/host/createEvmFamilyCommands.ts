@@ -1,11 +1,8 @@
 import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { EcdsaBootstrapRequest } from '@/core/signingEngine/session/passkey/ecdsaBootstrap';
-import { cloneAuthenticatorOptions } from '@/core/types/authenticatorOptions';
-import { buildEvmWalletRegistrationArgs } from '@/SeamsWeb/operations/evm';
-import { registerWallet as registerWalletWithUnifiedCeremony } from '@/SeamsWeb/operations/registration/registration';
 import type { EvmFamilyCommands } from '@/SeamsWeb/publicApi/evmFamilyCommands';
-import type { RegistrationWebContext, TempoSigningSurface } from '@/SeamsWeb/signingSurface/types';
-type EvmFamilyHostContext = RegistrationWebContext & {
+import type { TempoSigningSurface } from '@/SeamsWeb/signingSurface/types';
+type EvmFamilyHostContext = {
   signingEngine: TempoSigningSurface;
 };
 export function createWalletHostEvmFamilyCommands(
@@ -21,7 +18,6 @@ export function createWalletHostEvmFamilyCommands(
     reconcileNonceLane: commands.reconcileNonceLane.bind(commands),
     bootstrapEcdsaSession: commands.bootstrapEcdsaSession.bind(commands),
     onBroadcastStarted: commands.onBroadcastStarted.bind(commands),
-    registerEvmWallet: commands.registerEvmWallet.bind(commands),
   };
 }
 class WalletHostEvmFamilyCommands {
@@ -109,19 +105,7 @@ class WalletHostEvmFamilyCommands {
     );
   }
   onBroadcastStarted(_args: Parameters<EvmFamilyCommands['onBroadcastStarted']>[0]): void {}
-  async registerEvmWallet(
-    args: Parameters<EvmFamilyCommands['registerEvmWallet']>[0],
-  ): ReturnType<EvmFamilyCommands['registerEvmWallet']> {
-    const registerWalletArgs = buildEvmWalletRegistrationArgs(args);
-    const context = this.getContext();
-    return await registerWalletWithUnifiedCeremony({
-      context,
-      ...registerWalletArgs,
-      authenticatorOptions: cloneAuthenticatorOptions(
-        context.configs.webauthn.authenticatorOptions,
-      ),
-    });
-  }
+
 }
 function toLocalTempoBootstrapRequest(
   args: Parameters<EvmFamilyCommands['bootstrapEcdsaSession']>[0],

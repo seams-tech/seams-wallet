@@ -8,7 +8,6 @@ import type {
   SignNEP413MessageParams,
   SignNEP413MessageResult,
   RegistrationCapability,
-  PasskeyRegistrationOptions,
 } from '../SeamsWeb';
 import type { AppearanceConfigInput, ThemeMode, WalletAuthMethod } from '../core/types/seams';
 import type {
@@ -36,7 +35,6 @@ export type {
   StartDeviceLinkingOptionsDevice2,
 } from '../core/types/linkDevice';
 
-export type { PasskeyRegistrationOptions };
 
 // === React states types ===
 
@@ -183,7 +181,6 @@ export interface SeamsContextType {
   // Registration and wallet unlock functions
   addWalletSigner: RegistrationCapability['addWalletSigner'];
   registerWallet: RegistrationCapability['registerWallet'];
-  registerPasskey: RegistrationCapability['registerPasskey'];
   unlock: (walletId: string, options?: LoginHooksOptions) => Promise<LoginAndCreateSessionResult>;
   lock: () => Promise<void>;
 
