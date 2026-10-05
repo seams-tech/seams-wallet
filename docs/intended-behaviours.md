@@ -1569,6 +1569,18 @@ After activation, a fresh session can be issued through the authorization servic
 Transferred retired credentials remain invalid. This component check does not prove
 fresh factor authentication, other participants' activation, or complete relocation.
 
+Source authorization cleanup requires the Console's destination-activation receipt
+and pinned authorization manifest. Each call deletes at most 16 selected rows and,
+for session rows, their associated quotas in the same transaction. It deletes hosted
+children before sessions, then auth methods and authorities. It also removes obsolete
+import receipts and snapshot payloads. Source fences and exact completion metadata
+remain durable. Other stores must remove dependent linked-device records before
+authorization cleanup can remove their parent sessions.
+
+The storage E2E interrupts deletion, resumes through new handlers, and verifies exact
+completion replay. It checks quota removal, neighboring-wallet isolation, continued
+destination session use, and refusal to issue a session at the cleaned source.
+
 The Gateway commits each ceremony's wallet activity index with its lifecycle state.
 Session retirement rejects wallets with unsettled registration, recovery, or export
 work. Gateway registration admission must finish its local claim. The Router separately

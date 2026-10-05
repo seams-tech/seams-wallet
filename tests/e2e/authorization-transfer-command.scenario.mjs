@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { authorizationRowsQuery } from './authorization-transfer-freeze.scenario.mjs';
 
 const URL = 'https://wallet-relocation.internal/internal/wallet-relocation/v1/authorization/freeze';
 
@@ -31,13 +32,17 @@ class SourceDirectory {
       body.kind === 'freeze' ||
         body.kind === 'export' ||
         body.kind === 'import_authorization' ||
-        body.kind === 'activate',
+        body.kind === 'activate' ||
+        body.kind === 'cleanup',
     );
     assert.equal(body.attempt.moveId, this.identity.moveId);
     if (this.mode === 'denied')
       return Response.json({ ok: false, code: 'attempt_conflict' }, { status: 409 });
     let command;
-    if (body.kind === 'import_authorization' || body.kind === 'activate') {
+    if (body.kind === 'cleanup') {
+      assert.equal(this.snapshot.kind, 'captured');
+      command = cleanupCommand(this.scope, this.identity, this.snapshot.manifest);
+    } else if (body.kind === 'import_authorization' || body.kind === 'activate') {
       assert.equal(this.snapshot.kind, 'captured');
       command = destinationCommand(this.scope, this.identity, this.snapshot.manifest, body.kind);
     } else {
@@ -435,10 +440,10 @@ function destinationCommand(scope, identity, manifest, kind) {
   };
 }
 
-function destinationVerification(scope, identity, home) {
+function destinationVerification(scope, identity, home, kind = 'destination_verification') {
   const source = sourceFence(scope, identity);
   return {
-    kind: 'destination_verification',
+    kind,
     wallet: source.wallet,
     moveId: identity.moveId,
     home,
@@ -449,11 +454,163 @@ function destinationVerification(scope, identity, home) {
   };
 }
 
+function cleanupCommand(scope, identity, manifest) {
+  const source = sourceCommand(scope, identity, 'freeze');
+  const destination = destinationCommand(scope, identity, manifest, 'activate');
+  return {
+    id: `${identity.moveId}/gateway/cleanup`,
+    wallet: source.wallet,
+    moveId: identity.moveId,
+    requestDigest: identity.requestDigestHex,
+    participant: source.participant,
+    versionId: source.versionId,
+    home: source.home,
+    generation: identity.sourceGeneration,
+    operation: {
+      kind: 'cleanup',
+      receipt: destinationVerification(scope, identity, destination.home, 'destination_activation'),
+      manifest,
+    },
+  };
+}
+
+export async function cleanupAuthorizationThroughCommand({
+  api,
+  database,
+  scope,
+  identity,
+  manifest,
+  tables,
+}) {
+  const directory = new SourceDirectory(scope, identity, 'authorized', {
+    kind: 'captured',
+    manifest,
+  });
+  const denied = new api.WalletAuthorizationRelocationRoutes({
+    database,
+    scope,
+    directory: new SourceDirectory(scope, identity, 'denied', { kind: 'captured', manifest }),
+  });
+  assert.equal(
+    (await denied.handle(destinationRequest(scope, identity, { kind: 'cleanup' }))).status,
+    403,
+  );
+  const quotaRows = await database
+    .prepare(authorizationRowsQuery('authorization_wallet_session_quotas'))
+    .bind(scope.namespace, scope.orgId, scope.projectId, scope.envId, identity.walletId)
+    .all();
+  const neighborBefore = await readCleanupNeighbor(database, scope, tables);
+  await database
+    .prepare(
+      `CREATE TRIGGER injected_authorization_cleanup_failure
+    BEFORE DELETE ON wallet_session_hosted_exchange_codes_v2
+    BEGIN SELECT RAISE(ABORT, 'injected_cleanup_failure'); END`,
+    )
+    .run();
+  const interrupted = await new api.WalletAuthorizationRelocationRoutes({
+    database,
+    scope,
+    directory,
+  }).handle(destinationRequest(scope, identity, { kind: 'cleanup' }));
+  assert.equal(interrupted.status, 503);
+  await database.exec('DROP TRIGGER injected_authorization_cleanup_failure');
+  let completion = null;
+  let calls = 0;
+  for (; calls < 32; calls += 1) {
+    const response = await new api.WalletAuthorizationRelocationRoutes({
+      database,
+      scope,
+      directory,
+    }).handle(destinationRequest(scope, identity, { kind: 'cleanup' }));
+    assert.ok(response.status === 200 || response.status === 202, await response.clone().text());
+    const body = await response.json();
+    if (body.progress.state === 'cleaned') {
+      completion = body;
+      break;
+    }
+    assert.equal(body.progress.state, 'cleaning');
+  }
+  assert.ok(completion);
+  assert.ok(calls > 2, 'Large snapshot cleanup must require several bounded calls');
+  const repeated = await new api.WalletAuthorizationRelocationRoutes({
+    database,
+    scope,
+    directory,
+  }).handle(destinationRequest(scope, identity, { kind: 'cleanup' }));
+  assert.deepEqual(await repeated.json(), completion);
+  for (const table of tables) {
+    const rows = await database
+      .prepare(authorizationRowsQuery(table))
+      .bind(scope.namespace, scope.orgId, scope.projectId, scope.envId, identity.walletId)
+      .all();
+    assert.equal(rows.results.length, 0, table);
+  }
+  for (const quota of quotaRows.results) {
+    assert.equal(
+      await database
+        .prepare(
+          `SELECT COUNT(*) AS count FROM authorization_wallet_session_quotas
+      WHERE namespace = ? AND tenant_id = ? AND quota_id = ?`,
+        )
+        .bind(quota.namespace, quota.tenant_id, quota.quota_id)
+        .first('count'),
+      0,
+    );
+  }
+  assert.deepEqual(await readCleanupNeighbor(database, scope, tables), neighborBefore);
+  for (const table of [
+    'wallet_relocation_authorization_chunks',
+    'wallet_relocation_authorization_intake_chunks',
+  ])
+    assert.equal(
+      await database
+        .prepare(`SELECT COUNT(*) AS count FROM ${table} WHERE wallet_id = ?`)
+        .bind(identity.walletId)
+        .first('count'),
+      0,
+    );
+  assert.equal(
+    await database
+      .prepare(
+        'SELECT COUNT(*) AS count FROM wallet_relocation_authorization_fences WHERE wallet_id = ?',
+      )
+      .bind(identity.walletId)
+      .first('count'),
+    1,
+  );
+  return {
+    boundedCalls: calls + 1,
+    failureResumedAfterHandlerRestart: true,
+    exactCompletionReplay: true,
+    quotasRemovedWithSessions: true,
+    neighboringWalletUnchanged: true,
+    sourceFenceRetained: true,
+  };
+}
+
+async function readCleanupNeighbor(database, scope, tables) {
+  const result = [];
+  for (const table of tables) {
+    const rows = await database
+      .prepare(authorizationRowsQuery(table))
+      .bind(
+        scope.namespace,
+        scope.orgId,
+        scope.projectId,
+        scope.envId,
+        'wallet:authorization-freeze-neighbor',
+      )
+      .all();
+    result.push(rows.results);
+  }
+  return result;
+}
+
 function destinationRequest(scope, identity, operation) {
   const attempt = {
     wallet: sourceCommand(scope, identity, 'freeze').wallet,
     moveId: identity.moveId,
-    phase: operation.kind === 'activate' ? 'cutover' : 'copying',
+    phase: operation.kind === 'activate' || operation.kind === 'cleanup' ? 'cutover' : 'copying',
     id: `wattempt_${'e'.repeat(43)}`,
     revision: 2,
     run: 1,

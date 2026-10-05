@@ -1,4 +1,4 @@
-import { activateAuthorizationThroughCommand, verifyPendingCeremonyFreeze } from './authorization-transfer-command.scenario.mjs';
+import { activateAuthorizationThroughCommand, cleanupAuthorizationThroughCommand, verifyPendingCeremonyFreeze } from './authorization-transfer-command.scenario.mjs';
 import { verifyCeremonyWriteFence } from './ceremony-write-fence.scenario.mjs';
 import assert from 'node:assert/strict';
 import { verifyAuthorizationHistoryCopy } from './authorization-transfer-restore.scenario.mjs';
@@ -359,6 +359,22 @@ try {
     expiresAtMs: issued.session.expiresAtMs,
   });
   assert.equal(resumedSession.session.walletId, fixture.authority.walletId);
+  const authorizationCleanup = await cleanupAuthorizationThroughCommand({
+    api, database: source, scope, identity: sessionSource,
+    manifest: snapshot.evidence.manifest, tables,
+  });
+  assert.equal((await destinationService.readWalletSessionAdmissionSnapshotByOperationCredential({
+    tenantId: resumedSession.session.tenantId,
+    token: resumedSession.operationCredential.token,
+    nowMs: issuedAtMs + 31,
+  })).kind, 'active');
+  await assert.rejects(sourceService.issueDirectWalletSessionAuthorizationV2({
+    tenantId: issued.session.tenantId, principalId: issued.session.principalId,
+    walletId: fixture.authority.walletId, authority: fixture.authority,
+    walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
+    mintId: 'wallet-mint:cleaned-source', remainingUses: 7,
+    issuedAtMs: issuedAtMs + 32, expiresAtMs: issued.session.expiresAtMs,
+  }));
   await assert.rejects(
     destinationService.readWalletSessionAdmissionSnapshotByOperationCredential(primaryInput),
     /authorization is retired/u,
@@ -385,6 +401,7 @@ try {
       sessionRetirement,
       authorizationFreeze,
       authorizationActivation,
+      authorizationCleanup,
       ceremonyWriteFence,
       ceremonySettlement,
       authorizationSnapshot: snapshot.evidence,

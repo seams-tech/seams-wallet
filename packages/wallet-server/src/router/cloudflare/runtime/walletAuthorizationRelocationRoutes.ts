@@ -1,5 +1,6 @@
 import { D1WalletCeremonyActivity } from '../d1/ed25519Yao/d1WalletCeremonyActivity';
 import { D1WalletAuthorizationIntake } from '../d1/wallet/d1WalletAuthorizationIntake';
+import { D1WalletAuthorizationCleanup } from '../d1/wallet/d1WalletAuthorizationCleanup';
 import { parseNonNegativeSafeInteger } from '@shared/device-linking/wireFields';
 import { isPlainObject, requireRecord } from '@shared/utils/validation';
 import { parseWalletId } from '@shared/utils/domainIds';
@@ -23,7 +24,7 @@ type AuthorizationOperation =
   | { readonly kind: 'freeze'; readonly index?: never; readonly chunk?: never }
   | { readonly kind: 'export'; readonly index: number; readonly chunk?: never }
   | {
-      readonly kind: 'prepare' | 'verify' | 'activate';
+      readonly kind: 'prepare' | 'verify' | 'activate' | 'cleanup';
       readonly index?: never;
       readonly chunk?: never;
     }
@@ -36,6 +37,19 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
   readonly kind = 'fetch_route_extension';
   readonly id = 'wallet_authorization_relocation';
   readonly routes: RouterApiRouteExtension['routes'] = [
+    {
+      id: 'wallet_authorization_cleanup',
+      surface: 'relay',
+      method: 'POST',
+      path: `${BASE_PATH}/cleanup`,
+      auth: {
+        plane: 'public',
+        rationale:
+          'Console must authorize cleanup after destination activation with the pinned authorization manifest.',
+      },
+      metering: { kind: 'none' },
+      summary: 'Delete one bounded batch of obsolete source authorization state',
+    },
     {
       id: 'wallet_authorization_activate',
       surface: 'relay',
@@ -189,8 +203,7 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
         body.attempt.phase !== authorizationCommandPhase(commandKind) ||
         command.participant !== 'gateway' ||
         operation.kind !== commandKind ||
-        Object.keys(operation).length !==
-          (commandKind === 'freeze' ? 1 : commandKind === 'export' ? 2 : 4) ||
+        Object.keys(operation).length !== authorizationCommandFields(commandKind) ||
         command.id !== `${command.moveId}/gateway/${commandKind}`
       )
         throw new Error('Source command identity conflicts');
@@ -202,15 +215,14 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
         const receipt = requireRecord(operation.receipt, 'source-fence receipt');
         const receiptWallet = requireRecord(receipt.wallet, 'source-fence wallet');
         if (
-          receipt.kind !==
-            (commandKind === 'activate' ? 'destination_verification' : 'source_fence') ||
+          receipt.kind !== authorizationReceiptKind(commandKind) ||
           receipt.moveId !== command.moveId ||
           typeof receipt.generation !== 'number' ||
-          command.generation !==
-            receipt.generation + (commandKind === 'import_authorization' ? 1 : 0)
+          command.generation !== receipt.generation + authorizationGenerationOffset(commandKind)
         )
           throw new Error('Source export receipt conflicts');
-        sourceGeneration = receipt.generation - (commandKind === 'activate' ? 1 : 0);
+        sourceGeneration =
+          receipt.generation - (commandKind === 'activate' || commandKind === 'cleanup' ? 1 : 0);
         for (const [key, value] of Object.entries(wallet)) {
           if (receiptWallet[key] !== value)
             throw new Error('Source export receipt scope conflicts');
@@ -224,6 +236,7 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
           throw new Error('Destination resource is absent');
         pinnedManifest = operation.manifest;
       }
+      if (commandKind === 'cleanup') pinnedManifest = operation.manifest;
       source = WalletRelocationSessionSource.parse({
         walletId: identity.walletId,
         moveId: command.moveId,
@@ -246,6 +259,23 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
       if (response.digest !== commandDigest) throw new Error('Source command digest conflicts');
     } catch {
       return failure('relocation_command_invalid', 502);
+    }
+    if (requested.kind === 'cleanup') {
+      try {
+        const progress = await new D1WalletAuthorizationCleanup(
+          this.options.database,
+          this.options.scope,
+        ).advance(source, pinnedManifest, commandDigest, Date.now());
+        return Response.json(
+          { kind: 'authorization_cleanup', commandDigest, progress },
+          {
+            status: progress.state === 'cleaned' ? 200 : 202,
+            headers: { 'Cache-Control': 'no-store' },
+          },
+        );
+      } catch {
+        return failure('authorization_cleanup_incomplete', 503);
+      }
     }
     if (requested.kind === 'activate') {
       try {
@@ -396,6 +426,9 @@ function parseAuthorizationOperation(
     case `${BASE_PATH}/activate`:
       if (fields === 2) return { kind: 'activate' };
       break;
+    case `${BASE_PATH}/cleanup`:
+      if (fields === 2) return { kind: 'cleanup' };
+      break;
   }
   throw new Error('Authorization transfer operation is invalid');
 }
@@ -405,6 +438,7 @@ function authorizationCommandKind(kind: AuthorizationOperation['kind']) {
     case 'freeze':
     case 'export':
     case 'activate':
+    case 'cleanup':
       return kind;
     case 'prepare':
     case 'accept':
@@ -423,7 +457,56 @@ function authorizationCommandPhase(kind: ReturnType<typeof authorizationCommandK
     case 'import_authorization':
       return 'copying';
     case 'activate':
+    case 'cleanup':
       return 'cutover';
+    default:
+      return assertNever(kind);
+  }
+}
+
+function authorizationReceiptKind(
+  kind: Exclude<ReturnType<typeof authorizationCommandKind>, 'freeze'>,
+) {
+  switch (kind) {
+    case 'export':
+    case 'import_authorization':
+      return 'source_fence';
+    case 'activate':
+      return 'destination_verification';
+    case 'cleanup':
+      return 'destination_activation';
+    default:
+      return assertNever(kind);
+  }
+}
+
+function authorizationGenerationOffset(
+  kind: Exclude<ReturnType<typeof authorizationCommandKind>, 'freeze'>,
+) {
+  switch (kind) {
+    case 'import_authorization':
+      return 1;
+    case 'cleanup':
+      return -1;
+    case 'activate':
+    case 'export':
+      return 0;
+    default:
+      return assertNever(kind);
+  }
+}
+
+function authorizationCommandFields(kind: ReturnType<typeof authorizationCommandKind>) {
+  switch (kind) {
+    case 'freeze':
+      return 1;
+    case 'export':
+      return 2;
+    case 'cleanup':
+      return 3;
+    case 'activate':
+    case 'import_authorization':
+      return 4;
     default:
       return assertNever(kind);
   }
