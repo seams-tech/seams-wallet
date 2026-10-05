@@ -1,4 +1,9 @@
-import { activateAuthorizationThroughCommand, cleanupAuthorizationThroughCommand, verifyPendingCeremonyFreeze } from './authorization-transfer-command.scenario.mjs';
+import {
+  activateAuthorizationThroughCommand,
+  cleanupAuthorizationThroughCommand,
+  verifyPendingCeremonyFreeze,
+  verifyPendingSessionOperationFreeze,
+} from './authorization-transfer-command.scenario.mjs';
 import { verifyCeremonyWriteFence } from './ceremony-write-fence.scenario.mjs';
 import assert from 'node:assert/strict';
 import { verifyAuthorizationHistoryCopy } from './authorization-transfer-restore.scenario.mjs';
@@ -73,6 +78,7 @@ const bundle = await build({
     resolveDir: process.cwd(),
     loader: 'ts',
     contents: `
+      export { buildSessionSigningOperationInputFixture } from './tests/unit/helpers/authorizedOperation.fixtures';
       export { D1WalletOperationStore } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletOperationStore';
       export { runRouterAbEd25519YaoRegistrationSideEffectV2, parseRouterAbEd25519YaoRegistrationSideEffectRecordV2 } from './packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationSideEffectBoundary';
       export { parseRouterAbEd25519YaoRegistrationAdmissionRequestV1 } from './packages/shared-ts/src/utils/routerAbEd25519Yao';
@@ -266,6 +272,13 @@ try {
     tables,
     issueDeviceSession,
   });
+  const sessionOperationSettlement = await verifyPendingSessionOperationFreeze({
+    api,
+    database: source,
+    scope,
+    service,
+    issueDeviceSession,
+  });
   const ceremonySettlement = await verifyPendingCeremonyFreeze({ api, database: source, scope });
   const ceremonyWriteFence = await verifyCeremonyWriteFence({
     api,
@@ -404,6 +417,7 @@ try {
       authorizationCleanup,
       ceremonyWriteFence,
       ceremonySettlement,
+      sessionOperationSettlement,
       authorizationSnapshot: snapshot.evidence,
       snapshotPrecision,
       retiredPrimaryCredentialRejectedAtIndependentDatabase: true,

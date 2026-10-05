@@ -908,3 +908,248 @@ class SettlementOperationProbe {
     });
   }
 }
+
+// Admit a real operation immediately before the retirement transaction starts.
+class RetirementRaceDatabase {
+  constructor(database, store, operation) {
+    this.database = database;
+    this.store = store;
+    this.operation = operation;
+    this.claimed = null;
+  }
+
+  prepare(sql) {
+    return this.database.prepare(sql);
+  }
+
+  async batch(statements) {
+    if (this.operation !== null) {
+      const operation = this.operation;
+      this.operation = null;
+      const admitted = await this.store.admitAuthorizedOperation({ operation });
+      assert.equal(admitted.kind, 'claimed');
+      this.claimed = admitted.operation;
+    }
+    return this.database.batch(statements);
+  }
+}
+
+export async function verifyPendingSessionOperationFreeze({
+  api,
+  database,
+  scope,
+  service,
+  issueDeviceSession,
+}) {
+  const nowMs = Date.now();
+  const fixture = await api.buildLinkedDeviceManagementAuthorityFixture({
+    label: 'operation-settlement',
+    identity: {
+      walletId: 'wallet:operation-settlement',
+      credentialIdB64u: Buffer.alloc(32, 81).toString('base64url'),
+    },
+    permissions: api.buildFullOwnerPermissionsV1(),
+    provenance: 'wallet_registration',
+    expiresAtMs: nowMs + 3_600_000,
+  });
+  const issued = await issueDeviceSession(database, service(database, scope), fixture, nowMs);
+  const store = new api.CloudflareD1AuthorizationStore({
+    database,
+    namespace: scope.namespace,
+    walletSignerScope: scope,
+  });
+  const firstInput = api.buildSessionSigningOperationInputFixture({
+    session: issued.session,
+    label: 'settlement-first',
+    nowMs,
+  });
+  const secondInput = api.buildSessionSigningOperationInputFixture({
+    session: issued.session,
+    label: 'settlement-second',
+    nowMs,
+  });
+  const first = await store.admitAuthorizedOperation({ operation: firstInput });
+  const second = await store.admitAuthorizedOperation({ operation: secondInput });
+  assert.equal(first.kind, 'claimed');
+  assert.equal(second.kind, 'claimed');
+  const identity = api.WalletRelocationSessionSource.parse({
+    walletId: fixture.authority.walletId,
+    moveId: `wmove_${'o'.repeat(43)}`,
+    requestDigestHex: '4'.repeat(64),
+    sourceGeneration: 1,
+  });
+  const sessions = new api.D1WalletRelocationSessions(database, scope);
+  assert.equal(await sessions.hasPendingOperations(identity.walletId), true);
+  assert.equal(
+    await new api.D1WalletRelocationSessions(database, {
+      ...scope,
+      envId: 'foreign-operation-scope',
+    }).hasPendingOperations(identity.walletId),
+    false,
+  );
+  const directory = new SourceDirectory(scope, identity, 'authorized', { kind: 'uncaptured' });
+  const original = request(scope, identity);
+  const waitingResponse = await new api.WalletAuthorizationRelocationRoutes({
+    database,
+    scope,
+    directory,
+  }).handle(original.clone());
+  assert.equal(waitingResponse.status, 202);
+  const waiting = await waitingResponse.json();
+  assert.equal(waiting.reason, 'session_operations_unsettled');
+  await assert.rejects(
+    sessions.retire(identity, nowMs + 1),
+    /wallet_session_operations_unsettled/u,
+  );
+  assert.equal(await liveSessions(database, scope, identity), 1);
+  const firstCompletion = await store.completeAuthorizedOperation({
+    operation: first.operation,
+    result: 'succeeded',
+    response: {
+      status: 200,
+      contentType: 'application/json',
+      bodyText: '{"signature":"settled-first"}',
+    },
+    completedAtMs: nowMs + 2,
+  });
+  assert.equal(firstCompletion.lifecycle, 'completed');
+  assert.equal(await sessions.hasPendingOperations(identity.walletId), true);
+  await database
+    .prepare(
+      `CREATE TRIGGER interrupt_operation_completion BEFORE UPDATE ON authorized_operations
+    WHEN NEW.authorized_operation_id = 'operation:settlement-second'
+    BEGIN SELECT RAISE(ABORT, 'injected_operation_completion_failure'); END`,
+    )
+    .run();
+  const completion = {
+    operation: second.operation,
+    result: 'failed_before_side_effect',
+    response: {
+      status: 409,
+      contentType: 'application/json',
+      bodyText: '{"code":"backend_rejected"}',
+    },
+    completedAtMs: nowMs + 3,
+  };
+  await assert.rejects(
+    store.completeAuthorizedOperation(completion),
+    /injected_operation_completion_failure/u,
+  );
+  const repeated = await new api.WalletAuthorizationRelocationRoutes({
+    database,
+    scope,
+    directory,
+  }).handle(original.clone());
+  assert.deepEqual(await repeated.json(), waiting);
+  await database.exec('DROP TRIGGER interrupt_operation_completion');
+  const secondCompletion = await store.completeAuthorizedOperation(completion);
+  assert.equal(secondCompletion.lifecycle, 'completed');
+  assert.equal(await sessions.hasPendingOperations(identity.walletId), false);
+
+  const lateInput = api.buildSessionSigningOperationInputFixture({
+    session: issued.session,
+    label: 'settlement-late',
+    nowMs,
+  });
+  const raced = new RetirementRaceDatabase(database, store, lateInput);
+  const raceResponse = await new api.WalletAuthorizationRelocationRoutes({
+    database: raced,
+    scope,
+    directory,
+  }).handle(original.clone());
+  assert.equal(raceResponse.status, 202);
+  assert.deepEqual(await raceResponse.json(), waiting);
+  assert.ok(raced.claimed);
+  assert.equal(await liveSessions(database, scope, identity), 1);
+  assert.equal(
+    await database
+      .prepare('SELECT COUNT(*) AS count FROM wallet_relocation_session_fences WHERE wallet_id = ?')
+      .bind(identity.walletId)
+      .first('count'),
+    0,
+  );
+  await store.completeAuthorizedOperation({
+    operation: raced.claimed,
+    result: 'succeeded',
+    response: {
+      status: 200,
+      contentType: 'application/json',
+      bodyText: '{"signature":"settled-late"}',
+    },
+    completedAtMs: nowMs + 4,
+  });
+  const exactReplay = await store.admitAuthorizedOperation({ operation: firstInput });
+  assert.equal(exactReplay.kind, 'replayed');
+  assert.deepEqual(exactReplay.operation, firstCompletion);
+
+  const neighbor = await api.buildLinkedDeviceManagementAuthorityFixture({
+    label: 'operation-settlement-neighbor',
+    identity: {
+      walletId: 'wallet:operation-settlement-neighbor',
+      credentialIdB64u: Buffer.alloc(32, 82).toString('base64url'),
+    },
+    permissions: api.buildFullOwnerPermissionsV1(),
+    provenance: 'wallet_registration',
+    expiresAtMs: nowMs + 3_600_000,
+  });
+  const neighborIssued = await issueDeviceSession(
+    database,
+    service(database, scope),
+    neighbor,
+    nowMs,
+  );
+  const neighborClaim = await store.admitAuthorizedOperation({
+    operation: api.buildSessionSigningOperationInputFixture({
+      session: neighborIssued.session,
+      label: 'settlement-neighbor',
+      nowMs,
+    }),
+  });
+  assert.equal(neighborClaim.kind, 'claimed');
+  const frozenResponse = await new api.WalletAuthorizationRelocationRoutes({
+    database,
+    scope,
+    directory,
+  }).handle(original.clone());
+  assert.equal(frozenResponse.status, 200, await frozenResponse.clone().text());
+  const frozen = await frozenResponse.json();
+  assert.equal(frozen.kind, 'authorization_frozen');
+  assert.equal(await liveSessions(database, scope, identity), 0);
+  assert.equal(await sessions.hasPendingOperations(neighbor.authority.walletId), true);
+  const retry = await new api.WalletAuthorizationRelocationRoutes({
+    database,
+    scope,
+    directory,
+  }).handle(original.clone());
+  assert.deepEqual(await retry.json(), frozen);
+  const rejected = await store.admitAuthorizedOperation({
+    operation: api.buildSessionSigningOperationInputFixture({
+      session: issued.session,
+      label: 'settlement-after-freeze',
+      nowMs,
+    }),
+  });
+  assert.equal(rejected.kind, 'authorization_grant_rejected');
+  assert.deepEqual(
+    await store.readAuthorizedOperation({
+      tenantId: issued.session.tenantId,
+      operationFingerprintDigest: first.operation.operationFingerprintDigest,
+    }),
+    firstCompletion,
+  );
+  return {
+    pendingClaimsBlockRetirement: true,
+    completionFailureKeepsSessionsAvailableForSettlement: true,
+    claimBetweenReadAndRetirementRollsBackRetirement: true,
+    terminalResultsSurviveFreeze: true,
+    neighboringPendingWalletDoesNotBlockFreeze: true,
+    obsoleteSessionCannotClaimNewOperation: true,
+    exactFreezeReplay: true,
+    operationIds: [
+      first.operation.authorizedOperationId,
+      second.operation.authorizedOperationId,
+      raced.claimed.authorizedOperationId,
+    ],
+    manifest: frozen.manifest,
+  };
+}

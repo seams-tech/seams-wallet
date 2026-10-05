@@ -60,6 +60,18 @@ export class D1WalletRelocationSessions {
     private readonly scope: D1TenantScope,
   ) {}
 
+  async hasPendingOperations(walletId: WalletId): Promise<boolean> {
+    const pending = await prepareD1TenantStatement(
+      this.database,
+      this.scope,
+      `SELECT 1 FROM wallet_session_pending_operations
+       WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
+         AND wallet_id = ?5 LIMIT 1`,
+      [walletId],
+    ).first();
+    return pending !== null;
+  }
+
   async retire(source: WalletRelocationSessionSource, nowMs: number): Promise<number> {
     parseUnixMs(nowMs, 'session relocation time');
     const existing = await this.read(source);

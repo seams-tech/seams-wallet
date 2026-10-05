@@ -1605,6 +1605,17 @@ completed Gateway admissions permit local freeze, interrupted operation journals
 delay freeze, and exact operation retries remain readable after freeze. Other participant
 work and automatic reconciliation remain separate requirements.
 
+Wallet Session operation claims also block session retirement until each operation
+has a terminal result. The claim's exact session scope identifies its wallet.
+The database rejects retirement if a new claim arrives after the pending check.
+Failed completion leaves the claim pending and permits another completion attempt.
+Another wallet's pending operation does not block retirement. After retirement,
+the obsolete session cannot claim another operation.
+
+The storage E2E verifies this race through the production claim and completion store.
+It preserves completed responses at the source and repeats the original freeze command.
+Step-up operation settlement and transfer of operation history remain separate requirements.
+
 ### Reconcile Router execution while relocation drains
 
 Router physical objects include the wallet's ownership generation. Ordinary commands

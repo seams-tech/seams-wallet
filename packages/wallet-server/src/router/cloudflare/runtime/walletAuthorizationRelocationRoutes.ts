@@ -344,12 +344,13 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
       }
     }
     const activity = new D1WalletCeremonyActivity(this.options.database, this.options.scope);
+    const sessions = new D1WalletRelocationSessions(this.options.database, this.options.scope);
     try {
-      if (await activity.hasPending(source.walletId)) return pendingCeremonies(commandDigest);
-      const retiredAtMs = await new D1WalletRelocationSessions(
-        this.options.database,
-        this.options.scope,
-      ).retire(source, Date.now());
+      if (await activity.hasPending(source.walletId))
+        return pendingAuthorization(commandDigest, 'ceremonies_unsettled');
+      if (await sessions.hasPendingOperations(source.walletId))
+        return pendingAuthorization(commandDigest, 'session_operations_unsettled');
+      const retiredAtMs = await sessions.retire(source, Date.now());
       const frozenAtMs = await new D1WalletAuthorizationFreeze(
         this.options.database,
         this.options.scope,
@@ -381,7 +382,10 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
         { headers: { 'Cache-Control': 'no-store' } },
       );
     } catch {
-      if (await activity.hasPending(source.walletId)) return pendingCeremonies(commandDigest);
+      if (await activity.hasPending(source.walletId))
+        return pendingAuthorization(commandDigest, 'ceremonies_unsettled');
+      if (await sessions.hasPendingOperations(source.walletId))
+        return pendingAuthorization(commandDigest, 'session_operations_unsettled');
       return failure('authorization_freeze_incomplete', 503);
     }
   }
@@ -516,9 +520,12 @@ function assertNever(value: never): never {
   throw new Error(`Unexpected authorization operation: ${String(value)}`);
 }
 
-function pendingCeremonies(commandDigest: string): Response {
+function pendingAuthorization(
+  commandDigest: string,
+  reason: 'ceremonies_unsettled' | 'session_operations_unsettled',
+): Response {
   return Response.json(
-    { kind: 'authorization_pending', commandDigest, reason: 'ceremonies_unsettled' },
+    { kind: 'authorization_pending', commandDigest, reason },
     { status: 202, headers: { 'Cache-Control': 'no-store' } },
   );
 }
