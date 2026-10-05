@@ -222,12 +222,12 @@ export class WalletHostRuntime {
       },
       recovery: {
         syncAccount: this.syncAccountDomain.bind(this),
-        getWalletRecoveryCodeStatus: this.getWalletRecoveryCodeStatusDomain.bind(this),
-        acknowledgeWalletRecoveryCodeBackup:
-          this.acknowledgeWalletRecoveryCodeBackupDomain.bind(this),
+        getCodeStatus: this.getCodeStatusDomain.bind(this),
+        confirmBackup:
+          this.confirmBackupDomain.bind(this),
         requestWalletCustodyEmailOtpChallenge:
           this.requestWalletCustodyEmailOtpChallengeDomain.bind(this),
-        rotateWalletRecoveryCodes: this.rotateWalletRecoveryCodesDomain.bind(this),
+        rotateCodes: this.rotateCodesDomain.bind(this),
       },
       devices: {
         ...deviceDomain.domain,
@@ -371,7 +371,7 @@ export class WalletHostRuntime {
     return this.onSdkLifecycleEvent(deliverNearProvisioningStateChanged.bind(null, listener));
   }
 
-  private async getWalletRecoveryCodeStatusDomain(args: { walletId: string }) {
+  private async getCodeStatusDomain(args: { walletId: string }) {
     const relayUrl = String(this.configs.network.relayer.url || '').trim();
     const status = await readWalletRecoveryCodeStatus({
       relayUrl,
@@ -384,12 +384,12 @@ export class WalletHostRuntime {
         }
       : status;
   }
-  private async acknowledgeWalletRecoveryCodeBackupDomain(args: { walletId: string }) {
+  private async confirmBackupDomain(args: { walletId: string }) {
     const relayUrl = String(this.configs.network.relayer.url || '').trim();
     const acknowledgement = await showWalletRecoveryCodesUi(
       {
         walletId: args.walletId,
-        loadStatus: this.getWalletRecoveryCodeStatusDomain.bind(this, args),
+        loadStatus: this.getCodeStatusDomain.bind(this, args),
         loadPendingBackup: this.loadPendingWalletRecoveryCodeBackupRequest.bind(
           this,
           args.walletId,
@@ -429,8 +429,8 @@ export class WalletHostRuntime {
     const relayUrl = String(this.configs.network.relayer.url || '').trim();
     return await requestWalletCustodyEmailOtpChallenge({ relayUrl, ...args });
   }
-  private async rotateWalletRecoveryCodesDomain(
-    args: Parameters<RecoveryCapability['rotateWalletRecoveryCodes']>[0],
+  private async rotateCodesDomain(
+    args: Parameters<RecoveryCapability['rotateCodes']>[0],
   ) {
     const relayUrl = String(this.configs.network.relayer.url || '').trim();
     return await rotateWalletRecoveryCodes({

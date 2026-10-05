@@ -873,6 +873,13 @@ Other R171 operations still require migration.
 Deliverable: examples and public declarations demonstrate one clear setup and
 operation path without exposing host construction to application callers.
 
+Recovery acceptance finding, October 5: committed passkey recovery followed by
+runtime reset stalls during the next unlock in two runs. The same stalled path
+was observed on base commit `9153c56b`; the diagnostic baseline run was terminated.
+The rename is not sufficient evidence for full recovery acceptance. Track the
+root-cause investigation and repeatable repair in the recovery checkpoint of
+`refactor-170-inventory.md` and `evidence/refactor-170-recovery-names-20261005.json`.
+
 ### 4. Tighten host feature loading and packaging
 
 - Use `host/runtimeLoader.ts` as the existing feature dispatch point. Trace the

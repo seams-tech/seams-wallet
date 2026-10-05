@@ -366,7 +366,7 @@ const AccountMenuButtonInner: React.FC<
     setRecoveryCodesOpen(true);
     setSettingsError(null);
     try {
-      const result = await recovery.acknowledgeWalletRecoveryCodeBackup({ walletId });
+      const result = await recovery.confirmBackup({ walletId });
       switch (result.kind) {
         case 'acknowledged':
           return;

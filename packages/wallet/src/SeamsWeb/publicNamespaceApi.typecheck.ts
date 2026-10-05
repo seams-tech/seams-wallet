@@ -133,8 +133,8 @@ void seams.evm.signTransaction({
 void seams.recovery.syncAccount({ walletId: 'frost-vermillion-k7p9m2' });
 // @ts-expect-error syncAccount identifies a wallet, not a NEAR account-shaped accountId.
 void seams.recovery.syncAccount({ accountId: 'alice.testnet' });
-void seams.recovery.getWalletRecoveryCodeStatus({ walletId: 'frost-vermillion-k7p9m2' });
-void seams.recovery.acknowledgeWalletRecoveryCodeBackup({ walletId: 'frost-vermillion-k7p9m2' });
+void seams.recovery.getCodeStatus({ walletId: 'frost-vermillion-k7p9m2' });
+void seams.recovery.confirmBackup({ walletId: 'frost-vermillion-k7p9m2' });
 
 void seams.devices.cancelLinking();
 void seams.devices.list({
@@ -205,3 +205,10 @@ void seams.devices.scanAndLinkDevice;
 void seams.devices.listLinkedDevices;
 // @ts-expect-error Use devices.remove.
 void seams.devices.revokeLinkedDevice;
+
+// @ts-expect-error Use recovery.getCodeStatus.
+void seams.recovery.getWalletRecoveryCodeStatus;
+// @ts-expect-error Use recovery.confirmBackup.
+void seams.recovery.acknowledgeWalletRecoveryCodeBackup;
+// @ts-expect-error Use recovery.rotateCodes.
+void seams.recovery.rotateWalletRecoveryCodes;

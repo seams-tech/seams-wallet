@@ -445,6 +445,11 @@ a declaration-level pass before declaring the migration complete.
   app callers. Keep timestamp-bound removal proofs intact; email proof-flow
   internalization remains part of the consolidation work below.
 
+- [x] Rename recovery code calls to `getCodeStatus`, `confirmBackup`, and
+  `rotateCodes`. Migrate client/host dispatch, React, and intended-app callers.
+  Remove redundant React forwarding closures. Rotation authorization and email
+  challenge internalization remain under the broader consolidation gates.
+
 - [ ] Audit current declarations and consumers in public SDK, tests, examples,
   docs, and private Console. Classify each row as rename, consolidation, internal
   move, or intentional behavior change; record unresolved contract differences.

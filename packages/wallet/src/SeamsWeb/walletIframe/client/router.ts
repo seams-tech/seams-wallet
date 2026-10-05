@@ -3850,7 +3850,7 @@ export class WalletIframeRouter {
     return sanitizeEmailOtpIframeResult(res.result);
   }
 
-  async getWalletRecoveryCodeStatus(payload: {
+  async getCodeStatus(payload: {
     walletId: string;
   }): Promise<WalletRecoveryCodeStatusResult> {
     const res = await this.post<WalletRecoveryCodeStatusResult>({
@@ -3860,7 +3860,7 @@ export class WalletIframeRouter {
     return res.result;
   }
 
-  async acknowledgeWalletRecoveryCodeBackup(payload: {
+  async confirmBackup(payload: {
     walletId: string;
   }): Promise<WalletRecoveryBackupAcknowledgementResult> {
     await this.ensureConfigured();
@@ -3888,8 +3888,8 @@ export class WalletIframeRouter {
     return res.result;
   }
 
-  async rotateWalletRecoveryCodes(
-    payload: Parameters<RecoveryCapability['rotateWalletRecoveryCodes']>[0],
+  async rotateCodes(
+    payload: Parameters<RecoveryCapability['rotateCodes']>[0],
   ): Promise<WalletRecoveryRotationOutcome> {
     const res = await this.post<WalletRecoveryRotationOutcome>({
       type: 'PM_ROTATE_WALLET_RECOVERY_CODES',

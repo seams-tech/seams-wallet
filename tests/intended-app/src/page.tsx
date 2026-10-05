@@ -1954,7 +1954,7 @@ class IntendedPageController {
         throw new Error('Passkey recovery returned the wrong wallet or auth method');
       }
       await this.refreshLoginState(String(outcome.walletId));
-      const recoveryStatus = await this.seams.recovery.getWalletRecoveryCodeStatus({
+      const recoveryStatus = await this.seams.recovery.getCodeStatus({
         walletId: String(outcome.walletId),
       });
       if (recoveryStatus.kind !== 'ready') {
@@ -2017,7 +2017,7 @@ class IntendedPageController {
         throw new Error('Google Email OTP recovery returned the wrong wallet or auth method');
       }
       await this.refreshLoginState(String(outcome.walletId));
-      const recoveryStatus = await this.seams.recovery.getWalletRecoveryCodeStatus({
+      const recoveryStatus = await this.seams.recovery.getCodeStatus({
         walletId: String(outcome.walletId),
       });
       if (recoveryStatus.kind !== 'ready') {

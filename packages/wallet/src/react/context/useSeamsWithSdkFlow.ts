@@ -218,21 +218,9 @@ export function useSeamsWithSdkFlow(args: {
         }
 
         if (prop === 'recovery') {
-          const recovery = Reflect.get(target, prop, receiver);
           return {
+            ...target.recovery,
             syncAccount: syncAccountWithSdkFlow,
-            getWalletRecoveryCodeStatus: (
-              ...args: Parameters<RecoveryCapability['getWalletRecoveryCodeStatus']>
-            ) => recovery.getWalletRecoveryCodeStatus(...args),
-            acknowledgeWalletRecoveryCodeBackup: (
-              ...args: Parameters<RecoveryCapability['acknowledgeWalletRecoveryCodeBackup']>
-            ) => recovery.acknowledgeWalletRecoveryCodeBackup(...args),
-            requestWalletCustodyEmailOtpChallenge: (
-              ...args: Parameters<RecoveryCapability['requestWalletCustodyEmailOtpChallenge']>
-            ) => recovery.requestWalletCustodyEmailOtpChallenge(...args),
-            rotateWalletRecoveryCodes: (
-              ...args: Parameters<RecoveryCapability['rotateWalletRecoveryCodes']>
-            ) => recovery.rotateWalletRecoveryCodes(...args),
           } satisfies RecoveryCapability;
         }
 

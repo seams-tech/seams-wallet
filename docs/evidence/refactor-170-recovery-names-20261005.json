@@ -1,0 +1,121 @@
+{
+  "baseCommit": "9153c56b110f33c78a2a310a23ac50503d1aac1d",
+  "scope": "Recovery public method names, direct adapters, React forwarding cleanup, and client block-scope cleanup.",
+  "publicMethods": [
+    "recovery.getCodeStatus",
+    "recovery.confirmBackup",
+    "recovery.rotateCodes"
+  ],
+  "sourceSha256": {
+    "packages/wallet/src/SeamsWeb/SeamsWeb.ts": "d8b92b2bc6ca5a3938adb82693c054e0889af5ae567b02dce1aa11d662555022",
+    "packages/wallet/src/SeamsWeb/publicApi/types.ts": "640ef14630c36456913d6f46369f08a0a4f637353a669a909df6a11550ed5437",
+    "packages/wallet/src/SeamsWeb/publicNamespaceApi.typecheck.ts": "224020969f6f97bfcc80aa5786a7d01284cbbbf310c80eaa0b7a4ea0417717bf",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/router.ts": "4e44e35a6ff0b6887beb83e19c7fd42c747cdfb912b51d8ca3f0e9d57af83be5",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/WalletHostRuntime.ts": "8e287dae0ab3ca86a4bc15959345c709f69f071a5d62e8b85cd40fece22c8f72",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/handlers/emailOtp.ts": "f8c79374e138677e93c49c5a55fce34f85c3653f6db56b301e67733376ddbef5",
+    "packages/wallet/src/react/components/AccountMenuButton/index.tsx": "7668a7b94d70a3afac647c91ebfcdff1e49252e471f21300772d93fa07610b56",
+    "packages/wallet/src/react/context/useSeamsWithSdkFlow.ts": "615598ffa4df821c1bc29d386b5b3da3a8384bb92e8272c53b6531a7101dbfaf",
+    "tests/intended-app/src/page.tsx": "a0b04dc3f20c8c774ce79125d84ac86b3fae85ed39b63d5ed46e68788693442f",
+    "tests/wallet-iframe/recovery-code.host.integration.test.ts": "1021ae1906b9be782b48735386ce1f6a6c6f65589f33f2dd27d3b37942060648"
+  },
+  "productionLines": {
+    "added": 39,
+    "removed": 57,
+    "net": -18,
+    "scope": "SDK production source excluding type fixtures"
+  },
+  "preserved": [
+    "Iframe protocol 4.0.0 and wire discriminators",
+    "Recovery rotation authorization inputs and result unions",
+    "User acknowledgement semantics; no external-backup verification claim",
+    "Core rotation implementation and custody boundaries"
+  ],
+  "limitations": [
+    "Direct rotateCodes production acceptance remains open.",
+    "syncAccount direct acceptance and email challenge internalization remain open.",
+    "Full worker-loading and cross-browser matrix remains open.",
+    "Private retained intended-app status callers await exact-release migration."
+  ],
+  "verification": {
+    "production": {
+      "googleRecovery": "1 passed (33.7s)",
+      "passkeyRecovery": "Failed twice at unlock after runtime reset; same stalled path observed on base commit. Full recovery acceptance remains open."
+    },
+    "browser": {
+      "command": "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4289 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/recovery-code.host.integration.test.ts --project=chromium --output=../.artifacts/r170-recovery-browser",
+      "result": "1 passed (1.6s)",
+      "scope": "Real emitted host backup-summary opening/cancellation with suspended animation frames and delayed full runtime."
+    },
+    "passedCommands": [
+      "pnpm -C packages/wallet type-check",
+      "pnpm -C tests type-check:intended",
+      "pnpm -C tests exec tsc -p tsconfig.wallet-browser.json",
+      "pnpm -C packages/wallet build:prod",
+      "pnpm -C packages/wallet check:declarations-external",
+      "pnpm -C packages/wallet check:runtime-entry-bundles",
+      "pnpm -C packages/wallet build:check:fresh",
+      "git diff --check",
+      "pnpm report:bloat --check"
+    ],
+    "tarballIntegrity": "sha512-bAUuPwPsAzomsEXIYnOozDo4cOXiyo+Z0S9R2SoNHpsWm2jkDWINmH9SU/Za9uO3d5Cs4fr5NHng/LkwuaazLg==",
+    "initialProductionFailure": {
+      "case": "a committed Passkey recovery survives a lost finalization response and runtime reset",
+      "observation": "Recovery resumed; subsequent unlockPasskeyWallet stayed running. Auto-confirm attempted 118 times and reported clicked=true. Browser displayed Unlocking wallet. Unlock wait timed out at 120000ms, teardown reached the 420000ms test timeout. Trace archive was not readable.",
+      "classification": "Unresolved; rerun unchanged before any repair. No production or test behavior changed in response.",
+      "googleCase": "1 passed (33.7s)"
+    },
+    "unchangedRerun": {
+      "exitCode": 1,
+      "result": "Unlock after committed passkey recovery timed out again. Runner exited naturally before the attempted interrupt; no signal reached it.",
+      "classification": "Repeated failure; compare with base commit before repair."
+    },
+    "baselineComparison": {
+      "baseCommit": "9153c56b110f33c78a2a310a23ac50503d1aac1d",
+      "state": "terminated after reproducing the unlock stall",
+      "timeoutNote": "The isolated runner uses extra CLI flags for case discovery but constructs its execution command with file, grep, and reporter only. The requested --timeout=180000 was not forwarded; actual test timeout remains 420000ms.",
+      "networkBeforeTimeout": {
+        "requests": [
+          {
+            "path": "/wallets/recovery/finalize",
+            "status": 200
+          },
+          {
+            "path": "/wallets/recovery/finalize",
+            "status": 503
+          },
+          {
+            "path": "/wallets/recovery/finalize",
+            "status": 200
+          },
+          {
+            "path": "/wallet/unlock/challenge",
+            "status": 200
+          },
+          {
+            "path": "/wallets/recovery/finalize",
+            "status": 200
+          },
+          {
+            "path": "/wallets/recovery/finalize",
+            "status": 503
+          },
+          {
+            "path": "/wallets/recovery/finalize",
+            "status": 200
+          },
+          {
+            "path": "/wallet/unlock/challenge",
+            "status": 200
+          }
+        ],
+        "allowedCredentialCount": 2,
+        "recoveredCredentialAllowed": true,
+        "note": "Only route paths, HTTP statuses, and credential comparisons retained. Tokens, passkey identifiers, and recovery secrets are omitted."
+      },
+      "exitCode": 1,
+      "termination": "SIGINT did not finish cleanup. Sent SIGTERM only to the verified baseline Playwright process tree; runner then exited.",
+      "classification": "Existing unresolved recovery/unlock acceptance failure: unchanged base reproduces a stalled unlock after successful recovery replay and challenge. Root cause remains unclassified between production and browser/test infrastructure; no repair attempted."
+    },
+    "restoredSource": "All refactor source hashes match the previously tested edits; production rebuild passes after the baseline comparison."
+  }
+}

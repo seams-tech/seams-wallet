@@ -1813,3 +1813,44 @@ cases cover lost activation/acknowledgement responses, third-device ECDSA signin
 and email-authorized revocation after a refused commit. Source types, production
 build, packed declarations, runtime boundaries, freshness, and bloat checks pass.
 SDK production source adds 65 lines and removes 76 (net −11), excluding fixtures.
+
+### Recovery API names checkpoint
+
+Recovery code calls now use `getCodeStatus`, `confirmBackup`, and `rotateCodes`.
+The public client, router, wallet host, React menu, and intended app use those
+names. The React flow adapter reuses the bound recovery capability and overrides
+only `syncAccount`; four forwarding closures are deleted. Three redundant client
+block scopes are removed. Negative type fixtures reject the old public names.
+
+Wire requests, authorization inputs, backup acknowledgement semantics, and
+rotation outcomes remain unchanged. `confirmBackup` records the user's backup
+acknowledgement; it does not verify an external copy. Core rotation operations
+retain their domain-specific names. No public compatibility aliases remain.
+
+The private repository's retained intended-app source still has two old status
+calls in `tests/intended-app/src/page.tsx`. Migrate them with its matching exact
+package release if that app remains supported. Private application/package
+source searches found no other callers of these retired recovery methods.
+
+Scoped evidence: `evidence/refactor-170-recovery-names-20261005.json`.
+Direct rotation acceptance, `syncAccount` acceptance, email challenge
+internalization, and the full worker/browser matrix remain open.
+
+The host summary/cancellation case passes (1.6s). Google recovery with a lost
+finalization response and runtime reset passes (33.7s). The corresponding passkey
+case fails twice during the subsequent unlock. Confirmation is clicked, the UI
+stays on “Unlocking wallet”, and the action exceeds its 120-second wait.
+
+A production build of base commit `9153c56b` reproduces the stalled path:
+recovery finalization replays successfully, the unlock challenge returns HTTP 200,
+and its two allowed credentials include the recovered credential. No unlock
+verification request follows. The comparison was terminated after observing the
+same stall beyond the unlock wait limit. This is evidence of an existing
+acceptance failure, not a passing baseline test. Root cause remains unresolved
+between wallet behavior and browser/test infrastructure. No behavior or test
+expectation was changed to bypass it. Diagnose and close this gate before the
+full R170 recovery acceptance claim.
+
+Source types, packed declarations, runtime boundaries, freshness, and the
+production build pass for the renamed API. SDK production source adds 39 lines
+and removes 57 (net −18), excluding type fixtures.

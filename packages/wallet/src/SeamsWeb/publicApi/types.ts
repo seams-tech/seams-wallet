@@ -1003,9 +1003,9 @@ export interface RecoveryCapability {
     options?: SyncAccountHooksOptions;
   }): Promise<SyncAccountResult>;
 
-  getWalletRecoveryCodeStatus(args: { walletId: string }): Promise<WalletRecoveryCodeStatusResult>;
+  getCodeStatus(args: { walletId: string }): Promise<WalletRecoveryCodeStatusResult>;
 
-  acknowledgeWalletRecoveryCodeBackup(args: {
+  confirmBackup(args: {
     walletId: string;
   }): Promise<WalletRecoveryBackupAcknowledgementResult>;
 
@@ -1017,7 +1017,7 @@ export interface RecoveryCapability {
     requestOrigin?: string;
   }): Promise<WalletCustodyEmailOtpChallengeResult>;
 
-  rotateWalletRecoveryCodes(args: {
+  rotateCodes(args: {
     walletId: string;
     authorization: WalletRecoveryRotationAuthorization;
   }): Promise<WalletRecoveryRotationOutcome>;

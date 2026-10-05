@@ -455,7 +455,7 @@ export function createEmailOtpWalletIframeHandlers(deps: HandlerDeps): HandlerMa
     PM_GET_WALLET_RECOVERY_CODE_STATUS: async (req: Req<'PM_GET_WALLET_RECOVERY_CODE_STATUS'>) => {
       assertNoParentPostedWalletSessionToken(req.payload);
       const pm = deps.getWalletRuntime();
-      const result = await pm.recovery.getWalletRecoveryCodeStatus(
+      const result = await pm.recovery.getCodeStatus(
         parseWalletRecoverySessionPayload(req.payload),
       );
       respondOkResult(deps, req.requestId, result);
@@ -477,7 +477,7 @@ export function createEmailOtpWalletIframeHandlers(deps: HandlerDeps): HandlerMa
     ) => {
       assertNoParentPostedWalletSessionToken(req.payload);
       const pm = deps.getWalletRuntime();
-      const result = await pm.recovery.acknowledgeWalletRecoveryCodeBackup(
+      const result = await pm.recovery.confirmBackup(
         parseWalletRecoverySessionPayload(req.payload),
       );
       respondOkResult(deps, req.requestId, result);
@@ -486,7 +486,7 @@ export function createEmailOtpWalletIframeHandlers(deps: HandlerDeps): HandlerMa
     PM_ROTATE_WALLET_RECOVERY_CODES: async (req: Req<'PM_ROTATE_WALLET_RECOVERY_CODES'>) => {
       assertNoParentPostedWalletSessionToken(req.payload);
       const pm = deps.getWalletRuntime();
-      const result = await pm.recovery.rotateWalletRecoveryCodes(
+      const result = await pm.recovery.rotateCodes(
         parseWalletRecoveryRotationPayload(req.payload),
       );
       respondOkResult(deps, req.requestId, result);

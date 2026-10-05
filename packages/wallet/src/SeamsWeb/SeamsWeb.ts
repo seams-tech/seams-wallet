@@ -148,12 +148,12 @@ export class SeamsWeb {
       },
       recovery: {
         syncAccount: this.syncAccountDomain.bind(this),
-        getWalletRecoveryCodeStatus: this.getWalletRecoveryCodeStatusDomain.bind(this),
-        acknowledgeWalletRecoveryCodeBackup:
-          this.acknowledgeWalletRecoveryCodeBackupDomain.bind(this),
+        getCodeStatus: this.getCodeStatusDomain.bind(this),
+        confirmBackup:
+          this.confirmBackupDomain.bind(this),
         requestWalletCustodyEmailOtpChallenge:
           this.requestWalletCustodyEmailOtpChallengeDomain.bind(this),
-        rotateWalletRecoveryCodes: this.rotateWalletRecoveryCodesDomain.bind(this),
+        rotateCodes: this.rotateCodesDomain.bind(this),
       },
       devices: {
         ...deviceDomain,
@@ -250,21 +250,17 @@ export class SeamsWeb {
     return this.events.subscribe(deliverNearProvisioningStateChanged.bind(null, listener));
   }
 
-  private async getWalletRecoveryCodeStatusDomain(args: { walletId: string }) {
-    {
-      const router = await this.walletIframe.requireRouter();
-      return await router.getWalletRecoveryCodeStatus({
-        walletId: args.walletId,
-      });
-    }
+  private async getCodeStatusDomain(args: { walletId: string }) {
+    const router = await this.walletIframe.requireRouter();
+    return await router.getCodeStatus({
+      walletId: args.walletId,
+    });
   }
-  private async acknowledgeWalletRecoveryCodeBackupDomain(args: { walletId: string }) {
-    {
-      const router = await this.walletIframe.requireRouter();
-      return await router.acknowledgeWalletRecoveryCodeBackup({
-        walletId: args.walletId,
-      });
-    }
+  private async confirmBackupDomain(args: { walletId: string }) {
+    const router = await this.walletIframe.requireRouter();
+    return await router.confirmBackup({
+      walletId: args.walletId,
+    });
   }
   private async requestWalletCustodyEmailOtpChallengeDomain(
     args: Parameters<RecoveryCapability['requestWalletCustodyEmailOtpChallenge']>[0],
@@ -272,13 +268,11 @@ export class SeamsWeb {
     const relayUrl = String(this.configs.network.relayer.url || '').trim();
     return await requestWalletCustodyEmailOtpChallenge({ relayUrl, ...args });
   }
-  private async rotateWalletRecoveryCodesDomain(
-    args: Parameters<RecoveryCapability['rotateWalletRecoveryCodes']>[0],
+  private async rotateCodesDomain(
+    args: Parameters<RecoveryCapability['rotateCodes']>[0],
   ) {
-    {
-      const router = await this.walletIframe.requireRouter();
-      return await router.rotateWalletRecoveryCodes(args);
-    }
+    const router = await this.walletIframe.requireRouter();
+    return await router.rotateCodes(args);
   }
 
   ///////////////////////////////////////

@@ -54,7 +54,7 @@ test('reveals and cancels the recovery summary without a child animation frame o
       };
       testWindow.__recoveryCodeHostTest = { startedAt: performance.now(), router };
       void router
-        .acknowledgeWalletRecoveryCodeBackup({ walletId: 'recovery-delay-test-wallet' })
+        .confirmBackup({ walletId: 'recovery-delay-test-wallet' })
         .catch(() => undefined);
       void initialization.catch(() => undefined);
     },
