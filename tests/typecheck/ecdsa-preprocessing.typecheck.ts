@@ -79,3 +79,15 @@ void missingPreparedSession;
 void mixedRuntimeInput;
 void mixedDirectRuntimeInput;
 void castRuntimeInput;
+
+// Linked presign admission carries the trusted deployment scope through transport.
+type LinkedPresignInit = Parameters<
+  import('../../packages/wallet-server/src/core/routerAbSigning/RouterAbEcdsaPresignRuntime').RouterAbEcdsaPresignRuntime['initializeLinkedDevicePresign']
+>[0];
+declare const linkedWithoutWalletScope: Omit<LinkedPresignInit, 'walletScope'>;
+// @ts-expect-error A request cannot admit linked presigning without deployment scope.
+const unscopedLinkedPresign: LinkedPresignInit = linkedWithoutWalletScope;
+// @ts-expect-error A broad spread cannot supply the missing deployment scope.
+const unscopedLinkedPresignSpread: LinkedPresignInit = { ...linkedWithoutWalletScope };
+void unscopedLinkedPresign;
+void unscopedLinkedPresignSpread;

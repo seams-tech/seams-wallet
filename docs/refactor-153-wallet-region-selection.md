@@ -272,6 +272,19 @@ composed behavioral proof yet. Linked admission still needs authenticated deploy
 scope and a relocation fence. Its durable claims, completion records, and usable
 secrets must join the aggregate freeze and transfer inventory.
 
+The linked presignature transport now requires wallet deployment scope. Rust
+validates its wallet identity against the signing request. The stored admission
+pins that scope, and later steps reject a changed scope. In the wallet-DO build,
+initialization and live steps check the wallet pool fence. Closed admission removes
+live state while retaining the durable claim. Exact terminal-step replay remains
+available. Server TypeScript, existing type fixtures, both SigningWorker WASM
+builds, and the bloat check pass. Evidence remains in
+`.artifacts/r153/linked-presign-fence-20261005/`. No Gateway caller of this separate
+linked-presignature transport exists in the current source search. Trace the active
+linked-device signing flow before claiming end-to-end coverage or retaining an
+obsolete transport. Composed behavioral proof, completed-secret invalidation,
+private-D1 fencing, and the aggregate freeze barrier remain unfinished.
+
 Retained evidence:
 `.artifacts/r153/execution-journal-20261004/`, receipt SHA-256
 `02184ddd17816901bf2413115c35ca33a43bd90a269fedaeffb7f6990d8af555`.

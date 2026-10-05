@@ -145,7 +145,7 @@ pub(super) async fn handle_cloudflare_signing_worker_ecdsa_presign_session_do_fe
             }
             #[cfg(feature = "wallet-do-signing-worker-harness")]
             if let Err(error) =
-                require_owner_pool_admission(_env, parsed.request.authority.wallet_scope()).await
+                require_pool_admission(_env, parsed.request.authority.wallet_scope()).await
             {
                 return presign_do_error_response(error);
             }
@@ -230,7 +230,7 @@ pub(super) async fn handle_cloudflare_signing_worker_ecdsa_presign_session_do_fe
                 ));
             }
             #[cfg(feature = "wallet-do-signing-worker-harness")]
-            if let Err(error) = require_owner_pool_admission(_env, pinned.wallet_scope()).await {
+            if let Err(error) = require_pool_admission(_env, pinned.wallet_scope()).await {
                 if error.code() == RouterAbProtocolErrorCode::LifecycleTransitionInProgress {
                     sessions.borrow_mut().remove(&parsed.presign_session_id);
                 }
@@ -253,7 +253,7 @@ pub(super) async fn handle_cloudflare_signing_worker_ecdsa_presign_session_do_fe
 }
 
 #[cfg(feature = "wallet-do-signing-worker-harness")]
-async fn require_owner_pool_admission(
+async fn require_pool_admission(
     env: &worker::Env,
     scope: &crate::CloudflareSigningWorkerWalletScopeV1,
 ) -> RouterAbProtocolResult<()> {
@@ -300,6 +300,7 @@ pub(super) async fn handle_cloudflare_signing_worker_linked_ecdsa_presign_sessio
     sessions: &CloudflareSigningWorkerLinkedDeviceEcdsaPresignLiveSessionsV1,
     completed_records: &CloudflareSigningWorkerLinkedDeviceEcdsaCompletedPresignatureRecordsV1,
     storage: &worker::Storage,
+    env: &worker::Env,
 ) -> worker::Result<worker::Response> {
     if request.method() != worker::Method::Post {
         return worker::Response::error(
@@ -352,6 +353,10 @@ pub(super) async fn handle_cloudflare_signing_worker_linked_ecdsa_presign_sessio
             if let Err(error) = parsed.request.validate_at(now_unix_ms) {
                 return presign_do_error_response(error);
             }
+            #[cfg(feature = "wallet-do-signing-worker-harness")]
+            if let Err(error) = require_pool_admission(env, &parsed.request.wallet_scope).await {
+                return presign_do_error_response(error);
+            }
             if let Err(error) = claim_linked_presign_authority(storage, &parsed.request).await {
                 return presign_do_error_response(error);
             }
@@ -372,8 +377,15 @@ pub(super) async fn handle_cloudflare_signing_worker_linked_ecdsa_presign_sessio
                     );
                 }
             };
-            step_linked_presign_session(parsed, sessions, completed_records, storage, now_unix_ms)
-                .await
+            step_linked_presign_session(
+                parsed,
+                sessions,
+                completed_records,
+                storage,
+                env,
+                now_unix_ms,
+            )
+            .await
         }
         _ => {
             return worker::Response::error(
@@ -485,6 +497,7 @@ async fn step_linked_presign_session(
     sessions: &CloudflareSigningWorkerLinkedDeviceEcdsaPresignLiveSessionsV1,
     completed_records: &CloudflareSigningWorkerLinkedDeviceEcdsaCompletedPresignatureRecordsV1,
     storage: &worker::Storage,
+    _env: &worker::Env,
     now_unix_ms: u64,
 ) -> RouterAbProtocolResult<CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionDoProgressV1> {
     input.validate_at(now_unix_ms)?;
@@ -498,7 +511,8 @@ async fn step_linked_presign_session(
                 "Linked ECDSA presign authority is missing",
             )
         })?;
-    if pinned.presign_session_id != input.presign_session_id
+    if pinned.wallet_scope != input.wallet_scope
+        || pinned.presign_session_id != input.presign_session_id
         || pinned.request != input.request
         || pinned.material_source != input.material_source
         || pinned.expires_at_ms != input.expires_at_ms
@@ -536,6 +550,13 @@ async fn step_linked_presign_session(
             RouterAbProtocolErrorCode::ReplayedLocalRequest,
             "linked ECDSA presign terminal step does not match the completed request",
         ));
+    }
+    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    if let Err(error) = require_pool_admission(_env, &pinned.wallet_scope).await {
+        if error.code() == RouterAbProtocolErrorCode::LifecycleTransitionInProgress {
+            sessions.borrow_mut().remove(&input.presign_session_id);
+        }
+        return Err(error);
     }
     let mut entry = sessions
         .borrow_mut()

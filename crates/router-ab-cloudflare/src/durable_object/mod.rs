@@ -162,6 +162,7 @@ impl worker::DurableObject for RouterAbSigningWorkerPresignSessionDurableObject 
                 &self.linked_ecdsa_presign_sessions,
                 &self.linked_ecdsa_presignature_records,
                 &self.storage,
+                &self.env,
             )
             .await;
         }

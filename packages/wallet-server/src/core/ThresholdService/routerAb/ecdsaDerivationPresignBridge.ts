@@ -299,6 +299,7 @@ export async function stepRouterAbEcdsaPresignSession(input: {
  * uses a separate private-worker route from the owner pool-fill protocol.
  */
 export async function startRouterAbLinkedDeviceEcdsaPresignSession(input: {
+  walletScope: RouterAbEcdsaPresignAuthorityV1['wallet_scope'];
   signingWorkerBaseUrl: string;
   request: Record<string, unknown>;
   materialSource: Record<string, unknown>;
@@ -312,6 +313,7 @@ export async function startRouterAbLinkedDeviceEcdsaPresignSession(input: {
     path: CLOUDFLARE_SIGNING_WORKER_ECDSA_LINKED_PRESIGN_SESSION_INIT_PATH,
     body: {
       request: input.request,
+      wallet_scope: input.walletScope,
       material_source: input.materialSource,
       presign_session_id: input.presignSessionId,
       expires_at_ms: input.expiresAtMs,
@@ -322,6 +324,7 @@ export async function startRouterAbLinkedDeviceEcdsaPresignSession(input: {
 }
 
 export async function stepRouterAbLinkedDeviceEcdsaPresignSession(input: {
+  walletScope: RouterAbEcdsaPresignAuthorityV1['wallet_scope'];
   signingWorkerBaseUrl: string;
   request: Record<string, unknown>;
   materialSource: Record<string, unknown>;
@@ -337,6 +340,7 @@ export async function stepRouterAbLinkedDeviceEcdsaPresignSession(input: {
     path: CLOUDFLARE_SIGNING_WORKER_ECDSA_LINKED_PRESIGN_SESSION_STEP_PATH,
     body: {
       request: input.request,
+      wallet_scope: input.walletScope,
       material_source: input.materialSource,
       presign_session_id: input.presignSessionId,
       requested_stage: input.requestedStage,
