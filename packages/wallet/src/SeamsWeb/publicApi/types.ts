@@ -288,21 +288,6 @@ export type SetTempoFeeTokenPreferenceArgs = {
   };
 };
 
-export type FundImplicitNearAccountForTestingResult =
-  | {
-      ok: true;
-      walletId: string;
-      nearAccountId: string;
-      fundedAmountYocto: string;
-      transactionHash?: string;
-      message?: string;
-    }
-  | {
-      ok: false;
-      code: string;
-      message: string;
-    };
-
 export type TempoNonceLifecycleEvent = SigningFlowEvent;
 
 export type TempoNonceLifecycleOptions = {
@@ -817,12 +802,6 @@ export interface NearSignerCapability {
   /** Returns false only for an absent account; unavailable RPC reads reject. */
   accountExists(accountId: string): Promise<boolean>;
 
-
-  fundImplicitNearAccountForTesting(args: {
-    walletSession: WalletSessionRef;
-    nearAccount: NearAccountRef;
-    nearPublicKey: string;
-  }): Promise<FundImplicitNearAccountForTestingResult>;
 
   signAndSendTransaction(
     args: NearSubjectInput & {

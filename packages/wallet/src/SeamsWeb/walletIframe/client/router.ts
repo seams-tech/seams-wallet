@@ -171,7 +171,6 @@ import type { SyncAccountResult } from '@/SeamsWeb/operations/recovery/syncAccou
 // by the time a request reaches it.
 import type { SigningEngineExportKeypairWithUIInput as ExportKeypairWithUIInput } from '@/core/signingEngine/flows/recovery/public';
 import type {
-  FundImplicitNearAccountForTestingResult,
   AddPasskeyResult,
   AddEmailOtpResult,
   RevokeAuthMethodResult,
@@ -4302,18 +4301,6 @@ export class WalletIframeRouter {
       },
       { transactionDispatch },
     );
-    return res.result;
-  }
-
-  async fundImplicitNearAccountForTesting(payload: {
-    walletId: string;
-    nearAccountId: string;
-    nearPublicKey: string;
-  }): Promise<FundImplicitNearAccountForTestingResult> {
-    const res = await this.post<FundImplicitNearAccountForTestingResult>({
-      type: 'PM_FUND_IMPLICIT_NEAR_ACCOUNT_FOR_TESTING',
-      payload,
-    });
     return res.result;
   }
 

@@ -61,6 +61,8 @@ void seams.auth.getSession();
 void seams.auth.requestEmailCode({ walletId: 'wallet.testnet' });
 // @ts-expect-error Custom UI requests email codes through one public method.
 void seams.auth.requestEmailOtpChallenge;
+// @ts-expect-error Test funding is internal to confirmed NEAR signing.
+void seams.near.fundImplicitNearAccountForTesting;
 void seams.registration.registerWallet;
 void seams.registration.addEmail;
 // @ts-expect-error Registration owns its Email OTP enrollment challenge.

@@ -270,7 +270,7 @@ await seams.tempo.setFeeToken({ ... });
 | `near.executeAction` | Consolidate into `signAndSendTransaction` after comparing result, callbacks, and review semantics |
 | `near.signDelegateAction`, `near.signAndSendDelegateAction` | Keep |
 | `near.sendDelegateActionViaRelayer` | `near.sendDelegateAction` |
-| `near.fundImplicitNearAccountForTesting` | Test tooling only |
+| `near.fundImplicitNearAccountForTesting` | Removed from the public API; no callers required migration. Confirmed signing retains its internal funding path. |
 | `evm.signTransaction`, `tempo.signTransaction` | Keep |
 | `evm.executeTransaction`, `tempo.executeTransaction` | `signAndSendTransaction` in each namespace |
 | `tempo.getFeeTokenPreference` | `tempo.getFeeToken` |
@@ -512,6 +512,10 @@ a declaration-level pass before declaring the migration complete.
   Protocol 8.0.0 requires matched client/host deployment. General email unlock
   and enrollment consolidation remains open.
 
+- [x] Remove the unused public NEAR test-funding method, its adapters, and iframe
+  request. Preserve funding inside confirmed signing. Packed declaration and
+  production NEAR-only checks pass. See
+  `evidence/refactor-170-near-funding-internal-20261005.json`.
 - [ ] Audit current declarations and consumers in public SDK, tests, examples,
   docs, and private Console. Classify each row as rename, consolidation, internal
   move, or intentional behavior change; record unresolved contract differences.

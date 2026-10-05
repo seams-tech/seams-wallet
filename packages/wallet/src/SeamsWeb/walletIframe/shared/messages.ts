@@ -802,7 +802,7 @@ export function parseHostedAuthMenuOutcome(value: unknown): HostedAuthMenuOutcom
   }
 }
 
-export const WALLET_PROTOCOL_VERSION = '9.0.0' as const;
+export const WALLET_PROTOCOL_VERSION = '10.0.0' as const;
 
 export const WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH =
   'WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH' as const;
@@ -848,7 +848,6 @@ export type ParentToChildType =
   | 'PM_REQUEST_WALLET_CUSTODY_EMAIL_OTP_CHALLENGE'
   | 'PM_SIGN_TX_WITH_ACTIONS'
   | 'PM_SIGN_AND_SEND_TX'
-  | 'PM_FUND_IMPLICIT_NEAR_ACCOUNT_FOR_TESTING'
   | 'PM_SEND_TRANSACTION'
   | 'PM_SIGN_DELEGATE_ACTION'
   | 'PM_SIGN_NEP413'
@@ -1186,12 +1185,6 @@ interface PMSignAndSendTxPayload {
     confirmerText?: { title?: string; body?: string };
     [key: string]: unknown;
   };
-}
-
-export interface PMFundImplicitNearAccountForTestingPayload {
-  walletId: string;
-  nearAccountId: string;
-  nearPublicKey: string;
 }
 
 export interface PMSendTxPayload {
@@ -1679,10 +1672,6 @@ export type ParentToChildEnvelope =
     >
   | RpcEnvelope<'PM_SIGN_TX_WITH_ACTIONS', PMSignTxPayload>
   | ReviewedTransactionEnvelope<RpcEnvelope<'PM_SIGN_AND_SEND_TX', PMSignAndSendTxPayload>>
-  | RpcEnvelope<
-      'PM_FUND_IMPLICIT_NEAR_ACCOUNT_FOR_TESTING',
-      PMFundImplicitNearAccountForTestingPayload
-    >
   | RpcEnvelope<'PM_SEND_TRANSACTION', PMSendTxPayload>
   | RpcEnvelope<'PM_SIGN_DELEGATE_ACTION', PMSignDelegateActionPayload>
   | RpcEnvelope<'PM_SIGN_NEP413', PMSignNep413Payload>

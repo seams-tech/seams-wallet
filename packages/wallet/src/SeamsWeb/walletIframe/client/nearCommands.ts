@@ -14,7 +14,6 @@ export function createApplicationNearCommands(
     transactionDispatch,
   );
   return {
-    fundImplicitNearAccountForTesting: commands.fundImplicitNearAccountForTesting.bind(commands),
     signAndSendTransaction: commands.signAndSendTransaction.bind(commands),
     signTransaction: commands.signTransaction.bind(commands),
     sendTransaction: commands.sendTransaction.bind(commands),
@@ -28,17 +27,6 @@ class ApplicationNearCommands {
     private readonly beforeSigning: (walletId: WalletId) => Promise<void>,
     private readonly transactionDispatch: TransactionDispatch,
   ) {}
-  async fundImplicitNearAccountForTesting(
-    args: Parameters<NearCommands['fundImplicitNearAccountForTesting']>[0],
-  ): ReturnType<NearCommands['fundImplicitNearAccountForTesting']> {
-    const walletIframe = this.walletIframe;
-    const router = await walletIframe.requireRouter();
-    return await router.fundImplicitNearAccountForTesting({
-      walletId: args.walletSession.walletId,
-      nearAccountId: args.nearAccount.accountId,
-      nearPublicKey: args.nearPublicKey,
-    });
-  }
   async signAndSendTransaction(
     args: Parameters<NearCommands['signAndSendTransaction']>[0],
   ): ReturnType<NearCommands['signAndSendTransaction']> {

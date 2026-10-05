@@ -2497,3 +2497,21 @@ source changed. Evidence: `evidence/refactor-170-google-preparation-retry-202610
 This closes the selected-signer Google preparation failure/retry acceptance case.
 It does not close emitted-worker retry coverage for the separate EVM, Email OTP
 runtime, or ceremony helpers. Those retain their existing source-loader evidence.
+
+### Public NEAR test-funding removal (2026-10-05)
+
+Removed `near.fundImplicitNearAccountForTesting`, its result type, client/host
+adapters, duplicate session lookup, and iframe request. The repository had no
+callers of the public helper. No replacement wrapper was required. Confirmed NEAR
+signing still uses the existing internal relayer funding function after validating
+the authenticated operation. That production path is unchanged.
+
+The iframe protocol is now 10.0.0. Packed declaration consumers reject the removed
+method. All five handshake cases pass, including mismatched client/host versions.
+The production NEAR-only registration, signing, reload, and restored-signing case
+passes in 31.5 seconds without an ECDSA worker. It does not force the internal faucet
+branch. Wallet, intended-app, browser, and docs types pass, as do the production
+build, packed declarations, runtime boundaries, and freshness checks.
+
+This removes 165 production source lines net. Evidence:
+`evidence/refactor-170-near-funding-internal-20261005.json`.

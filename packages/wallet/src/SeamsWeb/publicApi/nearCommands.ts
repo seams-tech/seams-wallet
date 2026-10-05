@@ -25,6 +25,6 @@ export type NearCommands = {
   [K in NearSigningOperation]: (
     args: ResolvedNearInput<Parameters<NearSignerCapability[K]>[0]>,
   ) => ReturnType<NearSignerCapability[K]>;
-} & Pick<NearSignerCapability, 'fundImplicitNearAccountForTesting'>;
+};
 
 export type CreateNearCommands = (dispatch: TransactionDispatch) => NearCommands;
