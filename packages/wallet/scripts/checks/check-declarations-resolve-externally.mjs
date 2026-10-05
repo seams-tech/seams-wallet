@@ -51,17 +51,9 @@ export type RuntimeIsTyped = Assert<
 >;
 // @ts-expect-error The obsolete public name must not remain available.
 export type RemovedAccountRead = Registration['getNearProvisioningState'];
-type PendingRegistrationRequest = Parameters<Registration['resumePendingEcdsaRegistration']>[0];
-declare const registration: Registration;
-declare const walletId: PendingRegistrationRequest['walletId'];
-registration.resumePendingEcdsaRegistration({ walletId, exactMethod: { kind: 'passkey' } });
-// @ts-expect-error The host resolves the pending ceremony from wallet identity.
-registration.resumePendingEcdsaRegistration({ walletId, registrationCeremonyId: 'caller-ceremony', exactMethod: { kind: 'passkey' } });
-// @ts-expect-error The executing host supplies the passkey origin.
-registration.resumePendingEcdsaRegistration({ walletId, exactMethod: { kind: 'passkey', expectedOrigin: 'https://caller.invalid' } });
-declare const emailMethod: Extract<PendingRegistrationRequest['exactMethod'], { kind: 'email_otp' }>;
-// @ts-expect-error A spread must not turn an email proof into passkey authentication.
-registration.resumePendingEcdsaRegistration({ walletId, exactMethod: { ...emailMethod, kind: 'passkey' } });
+// @ts-expect-error Pending registration resumes through ordinary authentication.
+export type RemovedRegistrationResume = Registration['resumePendingEcdsaRegistration'];
+
 `;
 
 const CORE_CONSUMER_SOURCE = `

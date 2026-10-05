@@ -82,7 +82,7 @@ void reusableRegistrationAllowance;
 void spreadRegistrationAllowance;
 
 import type { PendingEcdsaRegistrationUnlockMaterial } from '../../packages/wallet/src/SeamsWeb/operations/registration/pendingEcdsaRegistrationRecoveryValidation';
-import type { ResumePendingEcdsaRegistrationResult } from '../../packages/wallet/src/SeamsWeb/operations/registration/pendingEcdsaRegistrationRecovery';
+import type { LoginAndCreateSessionResult } from '../../packages/wallet/src/core/types/seams';
 
 declare const pendingEmailUnlock: Extract<PendingEcdsaRegistrationUnlockMaterial, { kind: 'email_otp' }>;
 declare const pendingPasskeyUnlock: Extract<PendingEcdsaRegistrationUnlockMaterial, { kind: 'passkey' }>;
@@ -97,9 +97,9 @@ const mixedPendingProof: PendingEcdsaRegistrationUnlockMaterial = {
   ...pendingPasskeyUnlock,
   kind: 'email_otp',
 };
-declare const publicPendingResult: ResumePendingEcdsaRegistrationResult;
+declare const publicUnlockResult: LoginAndCreateSessionResult;
 // @ts-expect-error Internal continuation credentials never cross the public result boundary.
-publicPendingResult.credential;
+publicUnlockResult.credential;
 void [missingPasskeyProof, mixedPendingProof];
 
 import type { UnlockSessionPolicy } from '../../packages/wallet/src/SeamsWeb/operations/auth/unlockSessionPolicy';

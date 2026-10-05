@@ -1,4 +1,3 @@
-import { resolveUnlockSessionPolicy } from '@/SeamsWeb/operations/auth/unlockSessionPolicy';
 import type {
   RegistrationCapability,
   RegistrationWebContext,
@@ -9,7 +8,6 @@ import {
   addSigner as addSignerWithUnifiedCeremony,
   registerWallet as registerWalletWithUnifiedCeremony,
 } from '@/SeamsWeb/operations/registration/registration';
-import { resumePendingEcdsaRegistrationFromStoredCommit } from '@/SeamsWeb/operations/registration/pendingRegistrationRecovery';
 import { addPasskeyWalletAuthMethod } from '@/SeamsWeb/operations/authMethods/passkey/addPasskey';
 import { revokeWalletAuthMethodOperation } from '@/SeamsWeb/operations/authMethods/revokeAuthMethod';
 import { addEmailOtpWalletAuthMethod } from '@/SeamsWeb/operations/authMethods/emailOtp/addEmailOtp';
@@ -23,7 +21,6 @@ export function createWalletHostRegistrationCommands(
   return {
     registerWallet: registerWallet.bind(null, getContext),
     getNearAccountState: getNearAccountState.bind(null, getContext),
-    resumePendingEcdsaRegistration: resumePendingEcdsaRegistration.bind(null, getContext),
     addSigner: addSigner.bind(null, getContext),
     addPasskey: addPasskey.bind(null, getContext),
     removeAuthMethod: removeAuthMethod.bind(null, getContext),
@@ -55,29 +52,6 @@ async function getNearAccountState(
   const live = readNearProvisioningState(walletId);
   if (live) return live;
   return await getContext().signingEngine.getWalletNearProvisioningState(walletId);
-}
-
-async function resumePendingEcdsaRegistration(
-  getContext: () => RegistrationWebContext,
-  args: Parameters<RegistrationCapability['resumePendingEcdsaRegistration']>[0],
-): ReturnType<RegistrationCapability['resumePendingEcdsaRegistration']> {
-  const context = getContext();
-  const relayerUrl = String(context.configs.network.relayer?.url || '').trim();
-  if (!relayerUrl) throw new Error('pending ECDSA registration recovery requires a relayer URL');
-  const sessionPolicy = resolveUnlockSessionPolicy({
-    defaults: context.configs.signing.sessionDefaults,
-    override: undefined,
-  });
-  if (sessionPolicy.kind === 'disabled') {
-    throw new Error('Pending registration recovery requires an enabled signing session policy');
-  }
-  return await resumePendingEcdsaRegistrationFromStoredCommit({
-    relayerUrl,
-    sessionPolicy,
-    request: args,
-    nearContext: context,
-    signingSurface: context.signingEngine,
-  });
 }
 
 async function addSigner(

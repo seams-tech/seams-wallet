@@ -33,7 +33,6 @@ export type WalletRegistrationCommands = Pick<
   RegistrationCapability,
   | 'registerWallet'
   | 'getNearAccountState'
-  | 'resumePendingEcdsaRegistration'
   | 'addSigner'
   | 'addPasskey'
   | 'removeAuthMethod'
@@ -93,7 +92,6 @@ export function createPublicApi(
     preferences: deps.preferences,
     auth,
     registration: {
-      resumePendingEcdsaRegistration: deps.registration.resumePendingEcdsaRegistration,
       getNearAccountState: deps.registration.getNearAccountState,
       onNearAccountChange: deps.registration.onNearAccountChange,
       waitForNearAccount: waitForNearAccount.bind(null, deps.registration),

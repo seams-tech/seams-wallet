@@ -1,3 +1,5 @@
+import { emitUnlockEvent } from '../auth/unlockCompletion';
+import { UnlockEventPhase } from '@/core/types/sdkSentEvents';
 import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import { joinCustodyJsonFromEstablishedCommitPayload } from '@/core/signingEngine/walletCustody/registrationCeremony';
 import { buildFreshEmailOtpRoutePlan } from '@/core/signingEngine/session/emailOtp/routePlan';
@@ -202,6 +204,7 @@ function zeroizeArrayBuffer(buffer: ArrayBuffer): void {
 async function unlockWithPasskey(args: {
   readonly relayerUrl: string;
   readonly sessionPolicy: PendingEcdsaRegistrationUnlockInput['sessionPolicy'];
+  readonly onEvent: PendingEcdsaRegistrationUnlockInput['onEvent'];
   readonly pending: PendingEcdsaRegistrationCommit;
   readonly response: CommittedEcdsaRegistrationResponse;
   readonly walletKeys: readonly WalletRegistrationEcdsaWalletKey[];
@@ -214,10 +217,21 @@ async function unlockWithPasskey(args: {
   if (!primaryKey) throw new Error('ECDSA registration unlock has no primary wallet key');
   const expectedOrigin = typeof window !== 'undefined' ? window.location.origin : '';
   if (!expectedOrigin) throw new Error('ECDSA registration passkey unlock requires an origin');
+  emitUnlockEvent(args.onEvent, String(args.pending.walletId), {
+    phase: UnlockEventPhase.STEP_03_PASSKEY_CHALLENGE_STARTED,
+    status: 'running',
+    authMethod: 'passkey',
+  });
   const challenge = await requestPasskeyUnlockChallenge({
     relayerUrl: args.relayerUrl,
     walletId: String(args.pending.walletId),
     rpId: args.pending.auth.rpId,
+  });
+  emitUnlockEvent(args.onEvent, String(args.pending.walletId), {
+    phase: UnlockEventPhase.STEP_03_PASSKEY_PROMPT_STARTED,
+    status: 'waiting_for_user',
+    authMethod: 'passkey',
+    interaction: { kind: 'passkey_assert', overlay: 'show' },
   });
   const credential = await args.signingSurface.getAuthenticationCredentialsSerialized({
     subjectId: String(args.pending.walletId),
@@ -232,6 +246,12 @@ async function unlockWithPasskey(args: {
   ) {
     throw new Error('ECDSA registration unlock returned a different Passkey credential');
   }
+  emitUnlockEvent(args.onEvent, String(args.pending.walletId), {
+    phase: UnlockEventPhase.STEP_03_PASSKEY_PROMPT_SUCCEEDED,
+    status: 'succeeded',
+    authMethod: 'passkey',
+    interaction: { kind: 'passkey_assert', overlay: 'hide' },
+  });
   const prfFirstB64u = requirePasskeyPrfFirstB64u(credential, 'ECDSA registration recovery');
   const verified = await verifyPasskeyWalletUnlock(
     args.relayerUrl,
@@ -305,6 +325,7 @@ async function unlockWithPasskey(args: {
 async function unlockWithEmailOtp(args: {
   readonly relayerUrl: string;
   readonly sessionPolicy: PendingEcdsaRegistrationUnlockInput['sessionPolicy'];
+  readonly onEvent: PendingEcdsaRegistrationUnlockInput['onEvent'];
   readonly pending: PendingEcdsaRegistrationCommit;
   readonly response: CommittedEcdsaRegistrationResponse;
   readonly walletKeys: readonly WalletRegistrationEcdsaWalletKey[];
@@ -381,6 +402,7 @@ export async function unlockPendingEcdsaRegistration(
       return await unlockWithPasskey({
         relayerUrl: args.relayerUrl,
         sessionPolicy: args.sessionPolicy,
+        onEvent: args.onEvent,
         pending: args.pending,
         response: args.response,
         walletKeys: args.walletKeys,
@@ -391,6 +413,7 @@ export async function unlockPendingEcdsaRegistration(
       return await unlockWithEmailOtp({
         relayerUrl: args.relayerUrl,
         sessionPolicy: args.sessionPolicy,
+        onEvent: args.onEvent,
         pending: args.pending,
         response: args.response,
         walletKeys: args.walletKeys,

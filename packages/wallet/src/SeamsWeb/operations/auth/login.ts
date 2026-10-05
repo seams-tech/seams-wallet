@@ -1,15 +1,14 @@
+import { emitUnlockEvent, finalizeLoginSuccess, finalizeLoginError } from './unlockCompletion';
 import { resolveUnlockSessionPolicy } from './unlockSessionPolicy';
 import { buildAnonymousWalletSession } from '@/SeamsWeb/publicApi/session';
 import { scheduleLinkedDevicePresignaturePrefill } from './scheduleLinkedDevicePresignaturePrefill';
 import { scheduleEcdsaSessionPresignaturePrefill } from './scheduleEcdsaSessionPresignaturePrefill';
 import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import type {
-  AfterCall,
-  CreateUnlockFlowEventInput,
   EcdsaKeyFactsInventoryWalletSessionCredential,
   LoginHooksOptions,
 } from '@/core/types/sdkSentEvents';
-import { createUnlockFlowEvent, UnlockEventPhase } from '@/core/types/sdkSentEvents';
+import { UnlockEventPhase } from '@/core/types/sdkSentEvents';
 import type {
   GetRecentUnlocksResult,
   LoginAndCreateSessionResult,
@@ -337,25 +336,10 @@ import {
 } from './walletUnlockSubject';
 import { resolveEcdsaActivationJournalSelectors } from './walletUnlockEcdsaSubject';
 
-type EmitUnlockEventInput = Omit<CreateUnlockFlowEventInput, 'accountId' | 'flowId'>;
-
 function fetchWithGlobalThis(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   return globalThis.fetch(input, init);
 }
 
-function emitUnlockEvent(
-  onEvent: LoginHooksOptions['onEvent'] | undefined,
-  unlockSubjectId: string,
-  event: EmitUnlockEventInput,
-): void {
-  onEvent?.(
-    createUnlockFlowEvent({
-      flowId: `unlock:${unlockSubjectId}`,
-      accountId: unlockSubjectId,
-      ...event,
-    }),
-  );
-}
 
 function resolveLoginWalletUnlockSelection(
   selection: LoginHooksOptions['unlockSelection'] | undefined,
@@ -4462,81 +4446,6 @@ async function clearFailedUnlockSessionState(args: {
   try {
     await args.context.signingEngine.clearVolatileWarmSigningMaterial(args.walletId);
   } catch {}
-}
-
-async function finalizeLoginSuccess(args: {
-  context: LoginWebContext;
-  authMethod: WalletAuthMethod;
-  unlockSubjectId: string;
-  loginResult: LoginResult;
-  onEvent?: LoginHooksOptions['onEvent'];
-  afterCall?: AfterCall<LoginAndCreateSessionResult>;
-}): Promise<LoginAndCreateSessionResult> {
-  const { context, authMethod, unlockSubjectId, loginResult, onEvent, afterCall } = args;
-  if (loginResult.success) {
-    context.signingEngine.setWalletAuthenticated({
-      kind: 'authenticated',
-      walletId: loginResult.walletId,
-      authMethod,
-    });
-  }
-  emitUnlockEvent(onEvent, unlockSubjectId, {
-    phase: UnlockEventPhase.STEP_07_COMPLETED,
-    status: 'succeeded',
-    data: {
-      ...(loginResult.success && loginResult.kind === 'near_wallet_unlocked'
-        ? { operationalPublicKey: loginResult.operationalPublicKey ?? '' }
-        : { walletId: loginResult.success ? String(loginResult.walletId) : '' }),
-    },
-  });
-  await afterCall?.(true, loginResult);
-  return loginResult;
-}
-
-async function finalizeLoginError(args: {
-  unlockSubjectId: string;
-  message: string;
-  error?: unknown;
-  onEvent?: LoginHooksOptions['onEvent'];
-  onError?: (error: Error) => void;
-  afterCall?: AfterCall<LoginAndCreateSessionResult>;
-  callOnError?: boolean;
-  callAfterCall?: boolean;
-  cancelled?: boolean;
-}): Promise<LoginAndCreateSessionResult> {
-  const {
-    message,
-    unlockSubjectId,
-    error,
-    onEvent,
-    onError,
-    afterCall,
-    callOnError = true,
-    callAfterCall = true,
-    cancelled = false,
-  } = args;
-
-  if (callOnError) {
-    onError?.(toError(error));
-  }
-
-  emitUnlockEvent(onEvent, unlockSubjectId, {
-    phase: cancelled ? UnlockEventPhase.CANCELLED : UnlockEventPhase.FAILED,
-    status: cancelled ? 'cancelled' : 'failed',
-    ...(cancelled ? {} : { message }),
-    interaction: {
-      kind: 'passkey_assert',
-      overlay: 'hide',
-    },
-    error: {
-      message,
-    },
-  });
-
-  if (callAfterCall) {
-    await afterCall?.(false);
-  }
-  return { success: false, error: message };
 }
 
 type ConfiguredThresholdEcdsaPublicationTarget = ReturnType<

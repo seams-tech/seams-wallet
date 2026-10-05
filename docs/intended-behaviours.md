@@ -539,14 +539,19 @@ Expected behaviour:
 - ECDSA key export remains available while NEAR is pending and requires fresh
   export authorization.
 - Passkey registration must not send or verify an Email OTP challenge.
+- `auth.unlock(walletId)` resumes pending passkey activation through the ordinary
+  unlock flow. Applications do not call a separate registration resume operation.
+  Successful recovery emits unlock completion and invokes the normal callback once.
+  Explicit NEAR selection waits for NEAR readiness before reporting success.
+  Default mixed recovery allows EVM use while NEAR completes in the background.
 - Pending activation recovery selects the stored ceremony by wallet identity.
   Applications do not supply a ceremony ID or passkey origin. The executing wallet
-  host supplies its origin. Missing or ambiguous activation records and mismatched
+  host supplies its origin. Ambiguous activation records and mismatched
   authentication methods fail before activation replay or credential collection.
   Replay verifies committed facts before requesting the exact founding passkey.
 - Pending activation recovery uses the configured unlock session lifetime and use
-  budget. It does not replace them with registration defaults. A disabled session
-  policy leaves the pending journal unchanged and fails before activation replay
+  budget, including per-call unlock overrides. It does not replace them with
+  registration defaults. A disabled session policy leaves the pending journal unchanged and fails before activation replay
   or credential collection. NEAR completion preserves the newly issued session's
   remaining budget and expiry.
 

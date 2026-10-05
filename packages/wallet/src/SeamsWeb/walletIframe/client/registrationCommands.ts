@@ -17,7 +17,6 @@ export function createApplicationRegistrationCommands(
   return {
     registerWallet: registerWallet.bind(null, walletIframe),
     getNearAccountState: getNearAccountState.bind(null, walletIframe),
-    resumePendingEcdsaRegistration: resumePendingEcdsaRegistration.bind(null, walletIframe),
     addSigner: addSigner.bind(null, walletIframe),
     addPasskey: addPasskey.bind(null, walletIframe),
     removeAuthMethod: removeAuthMethod.bind(null, walletIframe),
@@ -56,14 +55,6 @@ async function getNearAccountState(
 
   const router = await walletIframe.requireRouter();
   return await router.getNearAccountState({ walletId });
-}
-
-async function resumePendingEcdsaRegistration(
-  walletIframe: RegistrationIframe,
-  args: Parameters<RegistrationCapability['resumePendingEcdsaRegistration']>[0],
-): ReturnType<RegistrationCapability['resumePendingEcdsaRegistration']> {
-  const router = await walletIframe.requireRouter();
-  return await router.resumePendingEcdsaRegistration(args);
 }
 
 async function addSigner(

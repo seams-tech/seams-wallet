@@ -786,7 +786,7 @@ in `refactor-170-inventory.md` for verification and remaining acceptance limits.
 
 ECDSA bootstrap now stays inside host authentication and the explicit runtime
 port. The unused application bootstrap methods, argument builders, and transport
-route are removed. The iframe protocol is now 11.0.0 after removing caller-supplied pending ceremony and passkey-origin inputs; client and host deployments
+route are removed. The iframe protocol is now 12.0.0 after removing the public pending-registration resume request; client and host deployments
 must match. Custom-broadcast reporting remains supported. See the bootstrap
 ownership checkpoint in `refactor-170-inventory.md`.
 
@@ -866,11 +866,12 @@ explicit auth method, wallet allocation, and signer selection. The former four
 creation shortcuts and their duplicate builders are removed. See the unified
 registration checkpoint in `refactor-170-inventory.md`. NEAR account readiness
 also uses the accepted read/wait/subscription names and the SDK-owned wait.
-Other R171 operations still require migration. Registration continuation still
-uses an explicit public resume call. The production baseline proves exact replay
-and EVM signing for passkey ECDSA-only/mixed wallets, but does not prove automatic
-unlock continuation or mixed NEAR completion. Follow the dependency audit in
-`refactor-170-inventory.md` before removing that call.
+Other R171 operations still require migration. Normal `auth.unlock` now owns
+pending passkey activation recovery. The public resume method and its transport
+request are removed. Production cases verify exact replay, normal completion
+callbacks, EVM signing, mixed NEAR completion, and explicit NEAR selection.
+Email OTP continuation and cancellation/lifetime acceptance remain open.
+See `evidence/refactor-170-normal-unlock-20261005.json`.
 
 - Keep shared message contracts and public value helpers free of execution
   imports. Use type-only imports for domain types; move pure boundary helpers

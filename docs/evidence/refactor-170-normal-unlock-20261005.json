@@ -1,0 +1,156 @@
+{
+  "baseCommit": "7d8dbce890c51e8118aa8a8f85fb85365bc2e9b0",
+  "scope": "Normal auth.unlock owns pending passkey activation recovery; remove the public resume operation and preserve unlock policy, callbacks, and explicit NEAR selection.",
+  "sourceSha256": {
+    "packages/wallet/scripts/checks/check-declarations-resolve-externally.mjs": "66dad1901614ae8709a85f4902dc9a4bc0574445b0dab4f97cb6e5da9bad70fc",
+    "packages/wallet/src/SeamsWeb/operations/auth/login.ts": "9f26d972a62677b7a0f53bc9e0ac787b9e813a16895d3a1cd0d9a847c4b5d415",
+    "packages/wallet/src/SeamsWeb/operations/auth/unlockCompletion.ts": "a3d4eae5cb257bc31997e511f6c274c1d307697bc27df8cfb0676250c6da36d9",
+    "packages/wallet/src/SeamsWeb/operations/auth/unlockPendingRegistration.ts": "e38e2c215652ce5a6e463c20b7f17183432a27f234b75ac24858cea791ed3bc3",
+    "packages/wallet/src/SeamsWeb/operations/registration/pendingEcdsaRegistrationRecovery.ts": "bf2a20f7378f0d93bbbf776406007ed63866fa6a564faeae4e6e935264bf5139",
+    "packages/wallet/src/SeamsWeb/operations/registration/pendingEcdsaRegistrationRecoveryUnlock.ts": "9372f506365224bdf5191491167c85e17ff9eef19cad8e6dac312f3fdb014617",
+    "packages/wallet/src/SeamsWeb/operations/registration/pendingEcdsaRegistrationRecoveryValidation.ts": "aa0986327e81b788ecfe349c0b903482e387364e9f183391d0cb90859cbba7bf",
+    "packages/wallet/src/SeamsWeb/operations/registration/pendingRegistrationRecovery.ts": "d31718e76797280af97ba4dea4468b89004c1ae1e9c6d9a02b59495eaccd8d43",
+    "packages/wallet/src/SeamsWeb/publicApi/createPublicApi.ts": "2397a000f38e587d6b2bccdb1aef3492a0319e0a103c168ba056970e6bc155af",
+    "packages/wallet/src/SeamsWeb/publicApi/types.ts": "fed8a15afc6c774ac97085a68e2a22ea48c469e43315e0c714fefe83a554a9b2",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/registrationCommands.ts": "43c01c8c7221449eb47487af5e1abe8866b44148595c8273937abe6650519295",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/router.ts": "a714aa5d74488a80e49365ee7b62baf05bb0d85a8d4a00e7e06b6d4d78950697",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/createRegistrationCommands.ts": "33e96218356ad958caa974ed496392c27995457788ed805867454f7abf14727e",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/createSessionCommands.ts": "46aa3728253b8ba8cd3724bc5a343ee6f8977dfff93d0f576a5b719ca2f60d7d",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/handlers/near.ts": "84ee36e5263f7b19782877b7c4136d552794582264db05979a68a4b0b0c17e93",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/requestRouter.ts": "1ee5d5fc0b9d435440b4a56f0a62b9d717a06ebeb37610dcb8779c689924f5aa",
+    "packages/wallet/src/SeamsWeb/walletIframe/shared/messages.ts": "ebf03bce74f4338b902da708e7c415ccd7d7085c3306d0947b7027d8f5d2a256",
+    "tests/e2e/intended-behaviours/passkey.registration.activation-resume.contract.test.ts": "30232960bd341f6aec509ab4aec2e15c439e0777dd333c359f6de15fb765d1e4",
+    "tests/intended-app/src/UnlockWallet.tsx": "9bedbbf9c845edebdfff39577ee0905d7c796748ed78f087a7d6a50c79f70356",
+    "tests/intended-app/src/main.tsx": "70dd615765c43d884f04db0a75a4204944549b4817034164c7f47ac4bea8c602",
+    "tests/typecheck/registration-checkpoint.typecheck.ts": "b9393bf8af3fc0ca58a72515e194ff2a543f55d113db637fe3023a47b4c5b20c",
+    "tests/wallet-iframe/handshake.test.ts": "25b2a547b1f7beccfb843884aa98bd3299b2ffab3d1d41b30fa283dd54f77aa1"
+  },
+  "protocolVersion": "12.0.0",
+  "checks": {
+    "walletTypes": "passed",
+    "intendedTypes": "passed",
+    "walletStateTypes": "passed",
+    "browserTypes": "passed",
+    "docsTypes": "passed",
+    "productionBuild": "passed",
+    "packedDeclarations": "passed",
+    "runtimeEntryBoundaries": "passed",
+    "buildFreshness": "passed",
+    "handshake": "5 passed (2.4s)",
+    "productionEcdsaOnly": "passed (28.8s)",
+    "productionMixed": "passed (28.6s)",
+    "productionMixedRequiredNear": "passed (27.4s)",
+    "productionLockRetention": "passed (27.0s)",
+    "productionRefreshSigningExport": "passed (34.0s)",
+    "bloat": "passed",
+    "diffWhitespace": "passed"
+  },
+  "productionSourceLines": {
+    "added": 296,
+    "removed": 198,
+    "net": 98
+  },
+  "scenarios": {
+    "ecdsa_only": {
+      "exactReplays": 3,
+      "exactMethodUnlocks": 1,
+      "verifiedSignatures": 1,
+      "normalUnlockOwnsContinuation": true,
+      "unlockCompletionCallbacks": 1,
+      "unlockEvents": [
+        "unlock.started",
+        "unlock.auth.passkey.challenge.started",
+        "unlock.auth.passkey.prompt.started",
+        "unlock.auth.passkey.prompt.succeeded",
+        "unlock.session.ready",
+        "unlock.completed"
+      ],
+      "nearRequiredBeforeUnlockCompletion": false,
+      "evmSignedWhileNearHeld": false,
+      "disabledPolicyRejectedBeforeReplay": true,
+      "requestedSessionPolicy": {
+        "ttlMs": 600000,
+        "remainingUses": 2
+      },
+      "alteredActivationDigestRejectedBeforeUnlock": true,
+      "unrelatedWalletRejectedBeforeReplay": true,
+      "artifactPath": ".artifacts/r150/registration-activation-resume-ecdsa_only.json",
+      "artifactSha256": "32c9d3cb7de84b26e846a065185f57554ad748c6dc84e620ca314f86fe61c5c1"
+    },
+    "mixed": {
+      "exactReplays": 3,
+      "exactMethodUnlocks": 1,
+      "verifiedSignatures": 2,
+      "normalUnlockOwnsContinuation": true,
+      "unlockCompletionCallbacks": 1,
+      "unlockEvents": [
+        "unlock.started",
+        "unlock.auth.passkey.challenge.started",
+        "unlock.auth.passkey.prompt.started",
+        "unlock.auth.passkey.prompt.succeeded",
+        "unlock.session.ready",
+        "unlock.completed"
+      ],
+      "nearRequiredBeforeUnlockCompletion": false,
+      "evmSignedWhileNearHeld": true,
+      "disabledPolicyRejectedBeforeReplay": true,
+      "requestedSessionPolicy": {
+        "ttlMs": 600000,
+        "remainingUses": 2
+      },
+      "alteredActivationDigestRejectedBeforeUnlock": true,
+      "unrelatedWalletRejectedBeforeReplay": true,
+      "artifactPath": ".artifacts/r150/registration-activation-resume-mixed.json",
+      "artifactSha256": "1afcb91e8f9fc1626a39486156ef8564e11d8e72b58ed89c7750cebe8ef6a1ac"
+    },
+    "mixed_near": {
+      "exactReplays": 3,
+      "exactMethodUnlocks": 1,
+      "verifiedSignatures": 2,
+      "normalUnlockOwnsContinuation": true,
+      "unlockCompletionCallbacks": 1,
+      "unlockEvents": [
+        "unlock.started",
+        "unlock.auth.passkey.challenge.started",
+        "unlock.auth.passkey.prompt.started",
+        "unlock.auth.passkey.prompt.succeeded",
+        "unlock.session.ready",
+        "unlock.completed"
+      ],
+      "nearRequiredBeforeUnlockCompletion": true,
+      "evmSignedWhileNearHeld": false,
+      "disabledPolicyRejectedBeforeReplay": true,
+      "requestedSessionPolicy": {
+        "ttlMs": 600000,
+        "remainingUses": 2
+      },
+      "alteredActivationDigestRejectedBeforeUnlock": true,
+      "unrelatedWalletRejectedBeforeReplay": true,
+      "artifactPath": ".artifacts/r150/registration-activation-resume-mixed_near.json",
+      "artifactSha256": "2ae08c114799d30efe3fbb010b5442df8aae63bdd9befdb554cba4b6550cfb59"
+    }
+  },
+  "commands": [
+    "pnpm -C packages/wallet type-check",
+    "pnpm -C tests type-check:intended",
+    "pnpm -C tests type-check:wallet-state",
+    "pnpm -C tests exec tsc -p tsconfig.wallet-browser.json",
+    "pnpm -C apps/docs exec tsc --noEmit",
+    "pnpm -C packages/wallet build:prod",
+    "pnpm -C packages/wallet check:declarations-external",
+    "pnpm -C packages/wallet check:runtime-entry-bundles",
+    "pnpm -C packages/wallet build:check:fresh",
+    "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4289 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/handshake.test.ts --project=chromium --output=../.artifacts/r170-normal-unlock-handshake",
+    "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.registration.activation-resume.contract.test.ts",
+    "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.unlock.contract.test.ts --grep 'lock retains durable presignatures across a fresh unlock|page refresh hydrates warm signing, one-use step-up, and key export'",
+    "pnpm report:bloat --check",
+    "git diff --check"
+  ],
+  "limits": [
+    "Email OTP pending continuation remains open.",
+    "Per-call overrides use the shared resolver; these production cases exercise configured defaults.",
+    "Cancellation, concurrent lock, runtime replacement, and full selection combinations require further acceptance.",
+    "Month-later restart/first-sign latency remains open.",
+    "No package publication, deployment, or private consumer release adoption performed."
+  ]
+}

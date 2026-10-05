@@ -1,3 +1,4 @@
+import type { LoginHooksOptions } from '@/core/types/sdkSentEvents';
 import type { UnlockSessionPolicy } from '../auth/unlockSessionPolicy';
 import type { WebAuthnAuthenticationCredential } from '@/core/types';
 import type { PasskeySessionCustodyUnlockV1 } from '@/core/rpcClients/near/rpcCalls';
@@ -116,6 +117,7 @@ export type CommittedEcdsaRegistrationResponse = Extract<
 export type PendingEcdsaRegistrationUnlockInput = {
   readonly relayerUrl: string;
   readonly sessionPolicy: Extract<UnlockSessionPolicy, { kind: 'enabled' }>;
+  readonly onEvent: LoginHooksOptions['onEvent'];
   readonly pending: PendingEcdsaRegistrationCommit;
   readonly response: CommittedEcdsaRegistrationResponse;
   readonly walletKeys: readonly [

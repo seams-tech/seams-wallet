@@ -1,3 +1,4 @@
+import type { SigningSessionStatus } from '@/core/types/seams';
 import { base64UrlDecode } from '@shared/utils/base64';
 import {
   passkeyCredentialIdB64uFromAuthentication,
@@ -51,6 +52,8 @@ import {
 type PendingEcdsaRecoveryCommon = {
   readonly relayerUrl: string;
   readonly sessionPolicy: PendingEcdsaRegistrationUnlockInput['sessionPolicy'];
+  readonly onEvent: PendingEcdsaRegistrationUnlockInput['onEvent'];
+  readonly nearCompletion: 'background' | 'await';
   readonly pending: PendingEcdsaRegistrationCommit;
   readonly signingSurface: PendingRegistrationRecoverySigningSurface;
   readonly ports: PendingEcdsaRegistrationRecoveryPorts;
@@ -124,7 +127,7 @@ export type ResumePendingEcdsaRegistrationResult = {
   readonly kind: 'published';
   readonly registrationCeremonyId: string;
   readonly walletId: CommittedEcdsaRegistrationResponse['walletId'];
-  readonly sessionResult: 'already_committed';
+  readonly signingSession: SigningSessionStatus;
 };
 
 function nonEmptyWalletKeys(
@@ -228,6 +231,7 @@ export async function resumePendingEcdsaRegistration(
   const responseWalletKeys = requireResponseWalletKeys(committed);
   const unlockInput: PendingEcdsaRegistrationUnlockInput = {
     sessionPolicy: args.sessionPolicy,
+    onEvent: args.onEvent,
     relayerUrl: args.relayerUrl,
     pending: args.pending,
     response: committed,
@@ -310,7 +314,7 @@ export async function resumePendingEcdsaRegistration(
       unlocked.credential,
       'Pending NEAR registration continuation',
     );
-    void resumeNearRegistrationAfterUnlock({
+    const nearCompletion = resumeNearRegistrationAfterUnlock({
       context: args.nearContext,
       sessionAuthority: {
         record: unlocked.session.session.wallet_session,
@@ -325,11 +329,18 @@ export async function resumePendingEcdsaRegistration(
       ownedFactorSecret: base64UrlDecode(prfFirstB64u).slice().buffer,
       custodyEnvelope: unlocked.custody.envelope,
     });
+    if (args.nearCompletion === 'await') await nearCompletion;
   }
   return {
     kind: 'published',
     registrationCeremonyId: args.pending.registrationCeremonyId,
     walletId: committed.walletId,
-    sessionResult: 'already_committed',
+    signingSession: {
+      sessionId: String(unlocked.session.session.threshold_session_id),
+      status: 'active',
+      authMethod: unlocked.kind,
+      remainingUses: unlocked.session.session.remaining_uses,
+      expiresAtMs: unlocked.session.session.expires_at_ms,
+    },
   };
 }

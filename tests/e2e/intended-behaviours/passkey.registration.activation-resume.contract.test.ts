@@ -106,8 +106,10 @@ class LostActivationResponse {
   }
 }
 
-for (const signerPlan of ['ecdsa_only', 'mixed'] as const) {
-  test(`Passkey ${signerPlan} activation response loss resumes the same wallet after reload and signs`, async ({
+for (const scenario of ['ecdsa_only', 'mixed', 'mixed_near'] as const) {
+  const signerPlan = scenario === 'ecdsa_only' ? 'ecdsa_only' : 'mixed';
+  const requireNear = scenario === 'mixed_near';
+  test(`Passkey ${scenario} activation response loss resumes the same wallet after reload and signs`, async ({
     harness,
     context,
     page,
@@ -139,41 +141,55 @@ for (const signerPlan of ['ecdsa_only', 'mixed'] as const) {
       resumeUrl.searchParams.set('signingSessionTtlMs', '0');
       resumeUrl.searchParams.set('signingSessionUses', '0');
       await page.goto(resumeUrl.href);
-      const pendingWallet = page.getByLabel('Pending wallet', { exact: true });
-      const recovery = page.getByTestId('registration-resume-result');
+      const pendingWallet = page.getByLabel('Wallet to unlock', { exact: true });
+      const recovery = page.getByTestId('wallet-unlock-result');
       await pendingWallet.fill(lost.walletId);
-      await page.getByRole('button', { name: 'Resume with exact passkey', exact: true }).click();
+      await page.getByRole('button', { name: 'Unlock wallet', exact: true }).click();
       await expect(recovery).toHaveAttribute('data-state', 'failed');
       await expect(recovery).toContainText('requires an enabled signing session policy');
       expect(lost.exactReplays).toBe(1);
       expect(lost.unlocks).toBe(0);
+      expect(JSON.parse(await recovery.innerText())).toMatchObject({ errors: 1, completions: 1 });
       resumeUrl.searchParams.set('signingSessionTtlMs', '600000');
       resumeUrl.searchParams.set('signingSessionUses', '2');
       await page.goto(resumeUrl.href);
-      if (signerPlan === 'mixed') await context.route(nearPath, holdNear);
+      if (scenario === 'mixed') await context.route(nearPath, holdNear);
       await pendingWallet.fill('unrelated-wallet.testnet');
-      await page.getByRole('button', { name: 'Resume with exact passkey', exact: true }).click();
+      await page.getByRole('button', { name: 'Unlock wallet', exact: true }).click();
       await expect(recovery).toHaveAttribute('data-state', 'failed');
-      await expect(recovery).toContainText('pending ECDSA registration commit was not found');
+      await expect(recovery).toContainText('wallet unlock');
       expect(lost.exactReplays).toBe(1);
       expect(lost.unlocks).toBe(0);
       await pendingWallet.fill(lost.walletId);
+      if (signerPlan === 'ecdsa_only') {
+        await page.getByLabel('Require NEAR', { exact: true }).check();
+        await page.getByRole('button', { name: 'Unlock wallet', exact: true }).click();
+        await expect(recovery).toHaveAttribute('data-state', 'failed');
+        await expect(recovery).toContainText('missing the requested capability subject');
+        expect(lost.exactReplays).toBe(1);
+        expect(lost.unlocks).toBe(0);
+        await page.getByLabel('Require NEAR', { exact: true }).uncheck();
+      }
+      if (requireNear) await page.getByLabel('Require NEAR', { exact: true }).check();
       lost.nextResponse = 'wrong_activation_digest';
-      await page.getByRole('button', { name: 'Resume with exact passkey', exact: true }).click();
+      await page.getByRole('button', { name: 'Unlock wallet', exact: true }).click();
       await expect(recovery).toHaveAttribute('data-state', 'failed');
       await expect(recovery).toContainText('pending ECDSA activation facts mismatch');
       expect(lost.unlocks).toBe(0);
       const resumeStartedAt = performance.now();
-      await page.getByRole('button', { name: 'Resume with exact passkey', exact: true }).click();
+      await page.getByRole('button', { name: 'Unlock wallet', exact: true }).click();
       await expect(recovery).not.toHaveAttribute('data-state', 'pending', { timeout: 60_000 });
       const resumeEndedAt = performance.now();
-      expect(JSON.parse(await recovery.innerText()).kind).toBe('published');
-      expect(JSON.parse(await recovery.innerText()).result).toEqual({
-        kind: 'published',
+      expect(JSON.parse(await recovery.innerText()).kind).toBe('unlocked');
+      const unlocked = JSON.parse(await recovery.innerText());
+      expect(unlocked.result).toMatchObject({
+        success: true,
+        kind: requireNear ? 'near_wallet_unlocked' : 'ecdsa_wallet_unlocked',
         walletId: lost.walletId,
-        registrationCeremonyId: lost.ceremonyId,
-        sessionResult: 'already_committed',
+        signingSession: { status: 'active', remainingUses: 2, authMethod: 'passkey' },
       });
+      expect(unlocked.completions).toBe(1);
+      expect(unlocked.events).toContain('unlock.completed');
       expect(lost.exactReplays).toBe(3);
       expect(lost.unlocks).toBe(1);
       expect(lost.otherRegistrationRequests).toBe(registrationRequests);
@@ -198,7 +214,9 @@ for (const signerPlan of ['ecdsa_only', 'mixed'] as const) {
       );
 
       if (signerPlan === 'mixed') {
-        await expect.poll(nearGate.observed.bind(nearGate), { timeout: 60_000 }).toBeGreaterThan(0);
+        if (!requireNear) {
+          await expect.poll(nearGate.observed.bind(nearGate), { timeout: 60_000 }).toBeGreaterThan(0);
+        }
         const pendingSession = await harness.readCurrentWalletSessionStatus();
         expect(pendingSession.remainingUses).toBe(1);
         expect(pendingSession.expiresAtMs - pendingSession.authorization.issuedAtMs).toBeLessThanOrEqual(600_000);
@@ -248,13 +266,17 @@ for (const signerPlan of ['ecdsa_only', 'mixed'] as const) {
         },
         verifiedSignatures: signerPlan === 'mixed' ? 2 : 1,
         nearSignatureVerified: signerPlan === 'mixed',
-        evmSignedWhileNearHeld: signerPlan === 'mixed',
+        evmSignedWhileNearHeld: scenario === 'mixed',
+        nearRequiredBeforeUnlockCompletion: requireNear,
         nearExtensionPreservedSession: signerPlan === 'mixed',
         nearProvisioningRequests: lost.nearProvisioningRequests,
         alteredActivationDigestRejectedBeforeUnlock: true,
         unrelatedWalletRejectedBeforeReplay: true,
         applicationSuppliesCeremonyId: false,
         applicationSuppliesPasskeyOrigin: false,
+        normalUnlockOwnsContinuation: true,
+        unlockCompletionCallbacks: unlocked.completions,
+        unlockEvents: unlocked.events,
         disabledPolicyRejectedBeforeReplay: true,
         requestedSessionPolicy: { ttlMs: 600_000, remainingUses: 2 },
         registrationRequestsBeforeResume: registrationRequests,
@@ -278,7 +300,7 @@ for (const signerPlan of ['ecdsa_only', 'mixed'] as const) {
         throw new Error('Hosted activation recovery requires an arm, region and run identity');
       }
       const suffix = hosted ? `-hosted_${arm}-${region}-${runId}-${testInfo.repeatEachIndex}` : '';
-      const artifactName = `registration-activation-resume-${signerPlan}${suffix}.json`;
+      const artifactName = `registration-activation-resume-${scenario}${suffix}.json`;
       const artifactPath = path.resolve(testInfo.config.rootDir, '../.artifacts/r150', artifactName);
       await mkdir(path.dirname(artifactPath), { recursive: true });
       await writeFile(artifactPath, `${JSON.stringify(evidence, null, 2)}\n`);

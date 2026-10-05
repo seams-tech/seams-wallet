@@ -90,10 +90,6 @@ import type {
 import type { WalletRecoveryRotationAuthorization } from '@/SeamsWeb/operations/recovery/walletRecoveryRotation';
 import type { WalletRecoveryRotationOutcome } from '@/core/signingEngine/walletCustody/walletRecoveryRotation';
 import type {
-  PendingEcdsaRegistrationResumeRequest,
-  ResumePendingEcdsaRegistrationResult,
-} from '@/SeamsWeb/operations/registration/pendingRegistrationRecovery';
-import type {
   EvmAddress,
   EvmBytes,
   EvmSigningRequest,
@@ -193,10 +189,6 @@ export type {
   WalletCustodyEmailOtpChallengeResult,
 } from '@/core/rpcClients/relayer/walletRecoveryRotate';
 export type { WalletRecoveryRotationAuthorization } from '@/SeamsWeb/operations/recovery/walletRecoveryRotation';
-export type {
-  PendingEcdsaRegistrationResumeRequest,
-  ResumePendingEcdsaRegistrationResult,
-} from '@/SeamsWeb/operations/registration/pendingRegistrationRecovery';
 export type { WalletRecoveryRotationOutcome } from '@/core/signingEngine/walletCustody/walletRecoveryRotation';
 export type {
   LinkedDeviceEmailOtpActivationStateV1,
@@ -719,9 +711,6 @@ export interface AuthCapability {
 }
 
 export interface RegistrationCapability {
-  resumePendingEcdsaRegistration(
-    args: PendingEcdsaRegistrationResumeRequest,
-  ): Promise<ResumePendingEcdsaRegistrationResult>;
   getNearAccountState(args: {
     walletId: WalletId | string;
   }): Promise<NearProvisioningState | null>;

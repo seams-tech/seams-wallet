@@ -48,7 +48,6 @@ import type {
   GoogleEmailOtpWalletAuthRequestedMode,
   GoogleEmailOtpWalletAuthSubmitSuccess,
   EmailOtpEcdsaCapabilityArgs,
-  PendingEcdsaRegistrationResumeRequest,
   WalletRecoveryRotationAuthorization,
 } from '@/SeamsWeb/publicApi/types';
 import type { WalletId } from '@shared/utils/registrationIntent';
@@ -802,7 +801,7 @@ export function parseHostedAuthMenuOutcome(value: unknown): HostedAuthMenuOutcom
   }
 }
 
-export const WALLET_PROTOCOL_VERSION = '11.0.0' as const;
+export const WALLET_PROTOCOL_VERSION = '12.0.0' as const;
 
 export const WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH =
   'WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH' as const;
@@ -822,7 +821,6 @@ export type ParentToChildType =
   | 'PM_REDEEM_HOSTED_WALLET_SEAMS_SESSION'
   // SeamsWeb API surface
   | 'PM_REGISTER_WALLET'
-  | 'PM_RESUME_PENDING_ECDSA_REGISTRATION'
   | 'PM_ADD_WALLET_SIGNER'
   | 'PM_ADD_PASSKEY'
   | 'PM_ADD_EMAIL_OTP'
@@ -1040,7 +1038,6 @@ interface PMRegisterWalletPayload {
   options?: Record<string, unknown>;
 }
 
-type PMResumePendingEcdsaRegistrationPayload = PendingEcdsaRegistrationResumeRequest;
 
 interface PMAddWalletSignerPayload {
   walletId: WalletId | string;
@@ -1637,7 +1634,6 @@ export type ParentToChildEnvelope =
   | RpcEnvelope<'PM_RESOLVE_AUTH_MENU_EXTERNAL_AUTH', PMResolveAuthMenuExternalAuthPayload>
   | RpcEnvelope<'PM_REDEEM_HOSTED_WALLET_SEAMS_SESSION', PMRedeemHostedWalletSeamsSessionPayload>
   | RpcEnvelope<'PM_REGISTER_WALLET', PMRegisterWalletPayload>
-  | RpcEnvelope<'PM_RESUME_PENDING_ECDSA_REGISTRATION', PMResumePendingEcdsaRegistrationPayload>
   | RpcEnvelope<'PM_ADD_WALLET_SIGNER', PMAddWalletSignerPayload>
   | RpcEnvelope<'PM_ADD_PASSKEY', PMAddPasskeyPayload>
   | RpcEnvelope<'PM_ADD_EMAIL_OTP', PMAddEmailOtpPayload>

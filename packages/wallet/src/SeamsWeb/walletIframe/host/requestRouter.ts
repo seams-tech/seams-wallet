@@ -17,7 +17,6 @@ type BootWalletRequestType =
   | 'PM_TRANSACTION_BROADCAST_STARTED';
 type NearWalletRequestType =
   | 'PM_REGISTER_WALLET'
-  | 'PM_RESUME_PENDING_ECDSA_REGISTRATION'
   | 'PM_ADD_WALLET_SIGNER'
   | 'PM_ADD_PASSKEY'
   | 'PM_ADD_EMAIL_OTP'
@@ -152,7 +151,6 @@ export function routeWalletHostRequest(request: ParentToChildEnvelope): WalletHo
       return { kind: 'boot', type: request.type, request };
 
     case 'PM_REGISTER_WALLET':
-    case 'PM_RESUME_PENDING_ECDSA_REGISTRATION':
     case 'PM_ADD_WALLET_SIGNER':
     case 'PM_ADD_PASSKEY':
     case 'PM_ADD_EMAIL_OTP':

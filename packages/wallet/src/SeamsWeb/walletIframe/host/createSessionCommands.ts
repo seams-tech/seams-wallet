@@ -1,3 +1,8 @@
+import { unlockPendingRegistration } from '@/SeamsWeb/operations/auth/unlockPendingRegistration';
+import {
+  readPendingEcdsaRegistrationForWallet,
+  type PendingRegistrationRecoverySigningSurface,
+} from '@/SeamsWeb/operations/registration/pendingRegistrationRecovery';
 import type { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import type { Variant } from '@shared/utils/variant';
 import type { RouterAbEcdsaDerivationLoginPresignaturePrefillResult } from '@/core/signingEngine/session/warmCapabilities/ecdsaLoginPrefill';
@@ -34,7 +39,8 @@ import {
 } from '@/SeamsWeb/operations/auth/walletUnlockSubject';
 
 type WalletHostAuthContext = WalletAuthWebContext & {
-  signingEngine: Pick<WalletIframeWarmupSurface, 'warmCriticalResources'>;
+  signingEngine: Pick<WalletIframeWarmupSurface, 'warmCriticalResources'> &
+    PendingRegistrationRecoverySigningSurface;
 };
 
 export function createWalletHostSessionCommands(
@@ -110,11 +116,14 @@ async function unlock(
   const resolvedWalletId = String(walletId || '').trim();
   if (!resolvedWalletId) throw new Error('unlock requires walletId');
 
+  const context = getContext();
+  const pending = await readPendingEcdsaRegistrationForWallet(toWalletId(resolvedWalletId));
+  if (pending) return await unlockPendingRegistration({ context, pending, options });
+
   const subjectSet = await requireWalletUnlockSubjectSet({
     walletId: resolvedWalletId,
     selection: options?.unlockSelection,
   });
-  const context = getContext();
   const result = await unlockCoreWithSubjectSet(context, subjectSet, options);
   if (result?.success) {
     const nearSubject = selectNearSubjectForActivation(subjectSet);

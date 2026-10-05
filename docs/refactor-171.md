@@ -522,7 +522,8 @@ a declaration-level pass before declaring the migration complete.
 - [ ] Close email/registration/action consolidation gates and returned-flow API
   inventory. Confirm behavior of `syncAccount` and external receipt completion.
   Pending activation lookup and passkey origin now belong to the host. Normal
-  unlock integration and removal of the public resume method remain open. Mixed
+  unlock integration for passkey recovery and removal of the public resume method
+  are complete. Email OTP continuation remains open. Mixed
   passkey activation recovery now completes NEAR with the same unlock. See
   `evidence/refactor-170-pending-identity-20261005.json` and
   `evidence/refactor-170-pending-near-continuation-20261005.json`. Recovery also

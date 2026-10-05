@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { SeamsWebProvider, TransactionReviewHost, defineSeamsConfig } from '@seams/wallet/react';
 import '@seams/wallet/react/styles';
 import { IntendedBehaviourE2EPage } from './page';
-import { ResumeRegistration } from './ResumeRegistration';
+import { UnlockWallet } from './UnlockWallet';
 import { AssetMenu } from './AssetMenu';
 
 function requiredEnvironmentValue(name: string): string {
@@ -80,7 +80,7 @@ createRoot(root).render(
     <SeamsWebProvider config={config}>
       <TransactionReviewHost>
         <IntendedBehaviourE2EPage />
-        <ResumeRegistration />
+        <UnlockWallet />
         <AssetMenu />
       </TransactionReviewHost>
     </SeamsWebProvider>

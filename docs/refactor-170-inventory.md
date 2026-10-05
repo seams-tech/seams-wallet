@@ -207,7 +207,7 @@ remove that dependency overlap while retaining these distinctions.
 | `registration.registerWallet`, `registerWithEmailOtp`, `registerPasskey` | `createPublicApi.ts` delegates to `client/registrationCommands.ts`; passkey builds registration input | H registration via `PM_REGISTER_WALLET`; preserve selected auth method and signer set. `registerWithEmailOtp` currently aliases `registerWallet`. |
 | `registration.addWalletSigner`, `addPasskey`, `addEmailOtp`, `revokeAuthMethod` | `client/registrationCommands.ts` → matching router messages | H registration/auth-method handlers; preserve exact authorization and effect/retry semantics. |
 | Internal Email OTP enrollment | `registration.registerWallet` / `addEmail` | Standalone public calls, iframe routes, and duplicate worker finalization removed. Registration retains its internal challenge and factor preparation. |
-| `registration.resumePendingEcdsaRegistration`, `getNearProvisioningState` | `client/registrationCommands.ts` → resume/provisioning router requests | H registration state/replay. Preserve the completed R152 ownership contract. |
+| Pending registration continuation; `registration.getNearAccountState` | `auth.unlock` → host recovery; client registration readiness query | H registration state/replay. Public resume request removed; passkey recovery uses ordinary unlock. Email OTP continuation remains open. |
 | `registration.onNearProvisioningStateChanged`, `awaitNearReady` | Lifecycle subscription; `publicApi/awaitNearReady.ts` combines read and subscription | C observation of H state, with timeout and disposal; pending NEAR must not invalidate an EVM-ready wallet. |
 | `near.registerNearWallet`, `evm.registerEvmWallet` | Capability builds registration input → router `registerWallet` | H unified registration; C retains public argument/result adaptation. |
 | `near.fundImplicitNearAccountForTesting` | `publicApi/near.ts` → router test-funding request | H NEAR handler; preserve test-only scope. |
@@ -2610,3 +2610,25 @@ This removes the fixed-policy obstacle to normal unlock integration. The public
 resume operation remains until normal unlock owns selection, events, callbacks,
 and recovery completion. Email OTP continuation and month-later latency acceptance
 remain open.
+
+
+### Normal unlock owns pending passkey activation (2026-10-05)
+
+`auth.unlock(walletId)` selects pending activation before resolving established
+wallet subjects. Recovery uses the founding passkey, the host origin, and the
+ordinary unlock policy, events, and callbacks. Applications supply no ceremony
+identity and perform no second unlock. The public resume method, its types,
+client/host adapters, and transport request are removed. Protocol 12.0.0 requires
+matching client and host deployments.
+
+Default mixed recovery allows EVM signing during deferred NEAR provisioning.
+Explicit NEAR selection waits for provisioning and returns a NEAR unlock result.
+An ECDSA-only pending wallet rejects a NEAR request before replay or proof.
+Production ECDSA-only, mixed, and required-NEAR scenarios pass. They verify exact
+replay, altered-digest rejection, one authentication request, completion callbacks,
+and independently verified transaction signatures. Existing disabled-policy and
+unrelated-wallet checks remain in the same scenarios.
+
+Evidence: `evidence/refactor-170-normal-unlock-20261005.json`. Email OTP pending
+continuation, cancellation/lock races, and full runtime-lifetime acceptance remain
+open. This checkpoint does not close the broader auth consolidation gate.
