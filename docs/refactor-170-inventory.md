@@ -1972,3 +1972,33 @@ signing, one-use step-up, and export (36.4s). Types, build, packed declarations,
 runtime boundaries, freshness, docs/examples, and bloat checks pass. SDK source
 adds 3 lines and removes 177 (net −174), excluding type fixtures. Evidence:
 `evidence/refactor-170-bootstrap-internal-20261005.json`.
+
+
+### React session and account-input naming checkpoint
+
+`useSeams` and `useWalletAuth` expose `refreshSession`. `useSeams` and
+`useAccountInput` expose `setAccountName`. Context construction, provisioning
+updates, QR linking completion, account-menu authentication, the intended app,
+and wallet-console-lite use the new names. The replaced names have no aliases.
+Negative type fixtures reject the old members.
+
+`refreshSession` still returns `Promise<void>` and refreshes React's session
+projection with the existing exact-wallet selection and readiness checks.
+`getSession` remains the operation for retrieving a session value. `setAccountName`
+retains lowercase input normalization, empty-input autofill suppression, and
+saved-wallet matching. Removed the helper that merely forwarded refresh through
+an extra async call. These changes do not complete the provider replacement,
+remount, SSR, or cross-browser acceptance gates.
+
+Private Console and site `HostedPasskeyLoginMenu` callers and the retained private
+intended app still use `refreshLoginState`. Migrate them with the exact SDK release.
+The account-menu responsiveness fixture now supplies `refreshSession`; its behavior
+assertions remain unchanged.
+
+Five account-menu browser cases and the production Email OTP registration,
+unlock, refresh, signing, and export lifecycle pass. Types, build, packed
+declarations, runtime boundaries, freshness, docs/examples, and bloat checks pass.
+The example's existing refresh callback initially collided with the SDK rename;
+renaming that local callback to `refreshSelectedWallet` fixed its type check.
+SDK production source adds 59 lines and removes 65 (net −6), excluding type
+fixtures. Evidence: `evidence/refactor-170-react-names-20261005.json`.

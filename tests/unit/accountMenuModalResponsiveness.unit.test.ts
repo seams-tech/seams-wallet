@@ -113,7 +113,7 @@ async function mountModalWithPendingInventory(
       ).__accountMenuModalTestContext = {
         seams,
         loginState,
-        refreshLoginState: async () => undefined,
+        refreshSession: async () => undefined,
       };
       (
         globalThis as typeof globalThis & {

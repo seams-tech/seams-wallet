@@ -9,12 +9,12 @@ import {
   buildReactLoggedOutLoginState,
 } from './reactLoginStateBuilders';
 
-function syncInputUsernameFromWalletId(
-  setInputUsername: SeamsContextType['setInputUsername'],
+function syncAccountNameFromWalletId(
+  setAccountName: SeamsContextType['setAccountName'],
   walletId: string | null | undefined,
 ): void {
   const value = String(walletId || '').trim();
-  if (value) setInputUsername(value);
+  if (value) setAccountName(value);
 }
 
 async function resolveExactReactLoginWalletId(
@@ -35,20 +35,14 @@ async function resolveExactReactLoginWalletId(
   return persistedWalletIds.length === 1 ? String(persistedWalletIds[0]) : null;
 }
 
-async function refreshLocalLoginState(args: {
-  refreshLoginState: SeamsContextType['refreshLoginState'];
-}): Promise<void> {
-  await args.refreshLoginState();
-}
-
 export function useLoginStateRefresher(args: {
   seams: SeamsWeb;
   setLoginState: Dispatch<SetStateAction<LoginState>>;
-  setInputUsername: SeamsContextType['setInputUsername'];
+  setAccountName: SeamsContextType['setAccountName'];
 }) {
-  const { seams, setLoginState, setInputUsername } = args;
+  const { seams, setLoginState, setAccountName } = args;
 
-  const refreshLoginState: SeamsContextType['refreshLoginState'] = useCallback(
+  const refreshSession: SeamsContextType['refreshSession'] = useCallback(
     async (walletId?: string) => {
       try {
         let exactWalletId: string | null;
@@ -99,7 +93,7 @@ export function useLoginStateRefresher(args: {
         const resolvedWalletId = session.appIdentity.walletId;
         if (resolvedWalletId) {
           seams.preferences.setCurrentWallet(toWalletId(resolvedWalletId));
-          syncInputUsernameFromWalletId(setInputUsername, resolvedWalletId);
+          syncAccountNameFromWalletId(setAccountName, resolvedWalletId);
         }
         const nextLoginState = buildReactLoggedInLoginStateFromSession(session);
         setLoginState(nextLoginState ?? buildReactLoggedOutLoginState());
@@ -107,13 +101,13 @@ export function useLoginStateRefresher(args: {
         console.error('Error refreshing login state:', error);
       }
     },
-    [setInputUsername, setLoginState, seams],
+    [setAccountName, setLoginState, seams],
   );
 
   useEffect(() => {
     if (seams.configs.wallet.mode === 'iframe') return;
-    void refreshLocalLoginState({ refreshLoginState });
-  }, [refreshLoginState, seams]);
+    void refreshSession();
+  }, [refreshSession, seams]);
 
-  return refreshLoginState;
+  return refreshSession;
 }

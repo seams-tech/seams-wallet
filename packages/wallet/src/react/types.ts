@@ -97,7 +97,7 @@ export interface AccountInputState {
 
 // Account input hook types
 export interface UseAccountInputReturn extends AccountInputState {
-  setInputUsername: (username: string) => void;
+  setAccountName: (username: string) => void;
   refreshAccountData: () => Promise<void>;
 }
 
@@ -228,12 +228,12 @@ export interface SeamsContextType {
   walletIframeConnected: boolean;
 
   getSession: (walletId?: string) => Promise<WalletSession>;
-  refreshLoginState: (walletId?: string) => Promise<void>;
+  refreshSession: (walletId?: string) => Promise<void>;
 
   // Account input management
   // UI account name input state (form/input tracking)
   accountInputState: AccountInputState;
-  setInputUsername: (username: string) => void;
+  setAccountName: (username: string) => void;
   refreshAccountData: () => Promise<void>;
 
   // Confirmation configuration functions

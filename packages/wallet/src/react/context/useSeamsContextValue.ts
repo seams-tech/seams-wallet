@@ -12,9 +12,9 @@ export function useSeamsContextValue(args: {
   loginState: LoginState;
   setLoginState: Dispatch<SetStateAction<LoginState>>;
   walletIframeConnected: boolean;
-  refreshLoginState: SeamsContextType['refreshLoginState'];
+  refreshSession: SeamsContextType['refreshSession'];
   accountInputState: AccountInputState;
-  setInputUsername: SeamsContextType['setInputUsername'];
+  setAccountName: SeamsContextType['setAccountName'];
   refreshAccountData: SeamsContextType['refreshAccountData'];
   hostSetTheme?: (theme: ThemeMode) => void;
 }): SeamsContextType {
@@ -23,9 +23,9 @@ export function useSeamsContextValue(args: {
     loginState,
     setLoginState,
     walletIframeConnected,
-    refreshLoginState,
+    refreshSession,
     accountInputState,
-    setInputUsername,
+    setAccountName,
     refreshAccountData,
     hostSetTheme,
   } = args;
@@ -63,7 +63,7 @@ export function useSeamsContextValue(args: {
         ...options,
         onEvent: async (event) => {
           if (event.phase === UnlockEventPhase.STEP_07_COMPLETED && event.status === 'succeeded') {
-            await refreshLoginState(walletId);
+            await refreshSession(walletId);
             await refreshAccountData();
           }
           return options?.onEvent?.(event);
@@ -74,7 +74,7 @@ export function useSeamsContextValue(args: {
         },
       });
     },
-    [lock, refreshAccountData, refreshLoginState, seamsWithSdkFlow],
+    [lock, refreshAccountData, refreshSession, seamsWithSdkFlow],
   );
 
   const registerWallet: SeamsContextType['registerWallet'] = useCallback(
@@ -91,11 +91,11 @@ export function useSeamsContextValue(args: {
       });
       const walletId = result?.success ? String(result.walletId || '') : '';
       if (result?.success && walletId) {
-        await refreshLoginState(walletId);
+        await refreshSession(walletId);
       }
       return result;
     },
-    [lock, refreshLoginState, seamsWithSdkFlow],
+    [lock, refreshSession, seamsWithSdkFlow],
   );
 
   const addSigner = seamsWithSdkFlow.registration.addSigner;
@@ -137,11 +137,11 @@ export function useSeamsContextValue(args: {
       signMessage,
       signDelegateAction,
       getSession,
-      refreshLoginState,
+      refreshSession,
       loginState,
       walletIframeConnected,
       accountInputState,
-      setInputUsername,
+      setAccountName,
       refreshAccountData,
       setConfirmationBehavior,
       setConfirmationConfig,
@@ -164,11 +164,11 @@ export function useSeamsContextValue(args: {
       signMessage,
       signDelegateAction,
       getSession,
-      refreshLoginState,
+      refreshSession,
       loginState,
       walletIframeConnected,
       accountInputState,
-      setInputUsername,
+      setAccountName,
       refreshAccountData,
       setConfirmationBehavior,
       setConfirmationConfig,

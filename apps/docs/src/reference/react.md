@@ -47,6 +47,15 @@ when the UI needs to say something different about each.
 `useWalletAuth` and `useWalletDevices` read different parts of the same context.
 `useSeams` exposes the complete context.
 
+### Refresh session and account input
+
+Use `refreshSession(walletId?)` from `useSeams` or `useWalletAuth` to refresh
+React's session display after a wallet operation. It returns `Promise<void>`.
+Use `getSession` when you need the session result itself.
+
+Use `setAccountName(name)` from `useSeams` or `useAccountInput` to update the
+account input. It retains lowercase normalization and saved-wallet matching.
+
 ## Components
 
 The stable surface includes `HostedSeamsAuthMenu`, `WalletSettingsPage`,

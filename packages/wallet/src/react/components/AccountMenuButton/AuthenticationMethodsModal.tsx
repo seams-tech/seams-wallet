@@ -200,7 +200,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
   onClose,
   presentation = 'modal',
 }) => {
-  const { seams, loginState, refreshLoginState } = useSeams();
+  const { seams, loginState, refreshSession } = useSeams();
   const [loadState, setLoadState] = React.useState<LoadState>({ kind: 'idle' });
   const [actionState, setActionState] = React.useState<ActionState>({ kind: 'idle' });
   const [emailAddress, setEmailAddress] = React.useState('');
@@ -208,12 +208,12 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
   const loadSequence = React.useRef(0);
   const seamsRef = React.useRef(seams);
   const loginStateRef = React.useRef(loginState);
-  const refreshLoginStateRef = React.useRef(refreshLoginState);
+  const refreshSessionRef = React.useRef(refreshSession);
   const dialogRef = React.useRef<HTMLDivElement>(null);
   const emailInputId = React.useId();
   seamsRef.current = seams;
   loginStateRef.current = loginState;
-  refreshLoginStateRef.current = refreshLoginState;
+  refreshSessionRef.current = refreshSession;
 
   const selectedWalletAuthMethodId =
     loginState.isLoggedIn && loginState.currentAuthMethod.kind === 'selected'
@@ -304,7 +304,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
             emailAddress: normalizedEmail,
           });
         }
-        await refreshLoginStateRef.current(walletId);
+        await refreshSessionRef.current(walletId);
         setEmailAddress('');
         setActionState({ kind: 'idle' });
         setAnnouncement(method === 'passkey' ? 'Passkey added.' : 'Email OTP added.');
@@ -325,7 +325,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
       if (!result.success) {
         throw new Error(result.error);
       }
-      await refreshLoginStateRef.current(walletId);
+      await refreshSessionRef.current(walletId);
       setActionState({ kind: 'idle' });
       setAnnouncement('Wallet management unlocked.');
       await loadInventory();
@@ -345,7 +345,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
         walletId,
         walletAuthMethodId: method.walletAuthMethodId,
       });
-      await refreshLoginStateRef.current(walletId);
+      await refreshSessionRef.current(walletId);
       if (presentation === 'page') {
         setActionState({ kind: 'idle' });
         await loadInventory();

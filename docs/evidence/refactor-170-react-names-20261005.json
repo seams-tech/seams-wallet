@@ -1,0 +1,75 @@
+{
+  "baseCommit": "2c91961fcbe7a58f920169fb025abb5dbc0a29f7",
+  "scope": "Rename React display refresh and account input methods, remove one forwarding helper, and migrate callers.",
+  "methods": {
+    "refreshLoginState": "refreshSession",
+    "setInputUsername": "setAccountName"
+  },
+  "sourceSha256": {
+    "examples/wallet-console-lite/src/WalletConsoleLite.tsx": "531a606426de957474fb16c47b6df04c714042461004af788d2c65c7e5c711cb",
+    "packages/wallet/src/react/components/AccountMenuButton/AuthenticationMethodsModal.tsx": "bb8f8eabf62c514913c0efa61df5dbe571cdd2a915667fc3fff4a992093c7b70",
+    "packages/wallet/src/react/components/AccountMenuButton/index.tsx": "36e0af2596bafbaf5f175e2d6443f5942431cd2c6640bec3bc5a120bd9aa18ec",
+    "packages/wallet/src/react/components/ShowQRCode.tsx": "bad6e919094323e153d8dae07d2ac101f26b1537da3022a69d68b3e635be9426",
+    "packages/wallet/src/react/context/index.tsx": "81a50838833543ebf91444b2da15bc8c1486c6cd60af67fe441b36865dc1142f",
+    "packages/wallet/src/react/context/useLoginStateRefresher.ts": "4b055728f7aec1d0c12b99863b6441ed03e01366b641ffaa5a972dbd37c87471",
+    "packages/wallet/src/react/context/useNearProvisioningStateRefresh.ts": "5d20b5c05bdb9f859a83afce1a42e3b3cd5b95876007d382af27bf69197a6690",
+    "packages/wallet/src/react/context/useSeamsContextValue.ts": "a8a309e99bc3b2f2a9a87f91966f9d107b7c77d325f672d3e69500faadc1cd4f",
+    "packages/wallet/src/react/hooks/useAccountInput.ts": "c63b9fca845940fb1f99625a61afb9d259185ba3b919161031b3362dfffbad6c",
+    "packages/wallet/src/react/hooks/useWalletAuth.ts": "0f01b5372c6979417f722769d84f0bf45b04789c19526032e67e60c324c831c7",
+    "packages/wallet/src/react/reactDisplayState.typecheck.ts": "ea16fc4c1ce32cbcf2d444452afae578c6a1cc8921150c4785a3c949eba47162",
+    "packages/wallet/src/react/types.ts": "d9463162952215c9408cd90290d45dd8a0cdc7aa3e5e541d086354d3e6b750a7",
+    "tests/intended-app/src/page.tsx": "ac823b7d4e8a2476a34d4a0a3b6d6212baabd66e7c1f2d29869d573b8767d7c0",
+    "tests/unit/accountMenuModalResponsiveness.unit.test.ts": "6604d3cf2748f085fe562be954520735fca68d65b86f2b061bdc28fc2bf1c2af"
+  },
+  "productionLines": {
+    "added": 59,
+    "removed": 65,
+    "net": -6,
+    "scope": "SDK production source excluding type fixtures"
+  },
+  "preserved": [
+    "Exact-wallet selection and session readiness checks",
+    "Promise<void> display refresh; getSession remains the session-value operation",
+    "Account name lowercase normalization and empty-input autofill suppression",
+    "Saved-wallet matching and provisioning/linking refresh callers"
+  ],
+  "verification": {
+    "browser": {
+      "command": "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4289 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts unit/accountMenuModalResponsiveness.unit.test.ts --project=chromium --output=../.artifacts/r170-react-names-browser",
+      "result": "5 passed (5.7s)",
+      "scope": "Existing browser-rendered account-menu cases with stub context; fixture member renamed without changed assertions."
+    },
+    "passedCommands": [
+      "pnpm -C packages/wallet type-check",
+      "pnpm -C tests type-check:intended",
+      "pnpm -C tests exec tsc -p tsconfig.wallet-browser.json",
+      "pnpm -C packages/wallet build:prod",
+      "pnpm -C packages/wallet check:declarations-external",
+      "pnpm -C packages/wallet check:runtime-entry-bundles",
+      "pnpm -C packages/wallet build:check:fresh",
+      "pnpm -C apps/docs exec tsc --noEmit",
+      "pnpm -C examples/wallet-console-lite type-check",
+      "pnpm report:bloat --check"
+    ],
+    "packedIntegrity": "sha512-WTPYrKRxFSuCZlA8dUiQ+fvWndzKK5oTabsBi5/i+oDAdlX6+hGO89c/5/b9pXg3EqHwIqyx/gVtRubm1+YGCg==",
+    "repairedFailure": {
+      "classification": "production_regression",
+      "detail": "The example had an existing refreshSession callback. Renamed it refreshSelectedWallet to avoid shadowing the SDK method. Targeted type-check passes."
+    },
+    "production": {
+      "command": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/email-otp.unlock.contract.test.ts --grep 'Email OTP registration and unlock lifecycle'",
+      "results": [
+        "[wallet-intended] running 1 case(s) with fresh Wallet state",
+        "[wallet-intended] 1/1 e2e/intended-behaviours/email-otp.unlock.contract.test.ts:9 Email OTP registration and unlock lifecycle",
+        "  1 passed (47.2s)"
+      ],
+      "exitCode": 0
+    }
+  },
+  "limits": [
+    "Private Console/site HostedPasskeyLoginMenu and retained intended app need exact-release migration.",
+    "Provider replacement, remount, SSR, and cross-browser acceptance remain open.",
+    "Receipt audit found observeReceipt performs one lookup; bounded waitForReceipt behavior remains open.",
+    "Camera API cleanup remains open."
+  ]
+}

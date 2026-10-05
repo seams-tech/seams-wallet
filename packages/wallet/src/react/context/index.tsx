@@ -74,7 +74,7 @@ export const SeamsContextProvider: React.FC<SeamsContextProviderProps> = ({
     passkeyCredentialExists,
     indexDBAccounts,
     indexDBAccountOptions,
-    setInputUsername,
+    setAccountName,
     refreshAccountData,
   } = accountInputHook;
 
@@ -107,16 +107,16 @@ export const SeamsContextProvider: React.FC<SeamsContextProviderProps> = ({
     ],
   );
 
-  const refreshLoginState = useLoginStateRefresher({
+  const refreshSession = useLoginStateRefresher({
     seams,
     setLoginState,
-    setInputUsername,
+    setAccountName,
   });
 
   useNearProvisioningStateRefresh({
     seams,
     currentWalletId: loginState.walletId,
-    refreshLoginState,
+    refreshSession,
     refreshAccountData,
   });
 
@@ -159,9 +159,9 @@ export const SeamsContextProvider: React.FC<SeamsContextProviderProps> = ({
     loginState,
     setLoginState,
     walletIframeConnected,
-    refreshLoginState,
+    refreshSession,
     accountInputState,
-    setInputUsername,
+    setAccountName,
     refreshAccountData,
     hostSetTheme: theme?.setTheme,
   });

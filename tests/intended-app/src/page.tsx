@@ -559,7 +559,7 @@ type IntendedPageControllerArgs = {
   emailOtpEcdsaTargetProfile: IntendedEmailOtpEcdsaTargetProfile;
   seams: ReturnType<typeof useSeams>['seams'];
   registerWallet: ReturnType<typeof useSeams>['registerWallet'];
-  refreshLoginState: ReturnType<typeof useSeams>['refreshLoginState'];
+  refreshSession: ReturnType<typeof useSeams>['refreshSession'];
   dispatch: React.Dispatch<IntendedPageAction>;
 };
 
@@ -709,7 +709,7 @@ export const IntendedBehaviourE2EPage: React.FC = () => {
     emailOtpEcdsaTargetProfile: query.emailOtpEcdsaTargetProfile,
     seams: seamsContext.seams,
     registerWallet: seamsContext.registerWallet,
-    refreshLoginState: seamsContext.refreshLoginState,
+    refreshSession: seamsContext.refreshSession,
     dispatch,
   });
   const snapshot = JSON.stringify(state, null, 2);
@@ -1021,7 +1021,7 @@ class IntendedPageController {
 
   private readonly registerWallet: ReturnType<typeof useSeams>['registerWallet'];
 
-  private readonly refreshLoginState: ReturnType<typeof useSeams>['refreshLoginState'];
+  private readonly refreshSession: ReturnType<typeof useSeams>['refreshSession'];
 
   private readonly dispatch: React.Dispatch<IntendedPageAction>;
 
@@ -1034,7 +1034,7 @@ class IntendedPageController {
     this.emailOtpEcdsaTargetProfile = args.emailOtpEcdsaTargetProfile;
     this.seams = args.seams;
     this.registerWallet = args.registerWallet;
-    this.refreshLoginState = args.refreshLoginState;
+    this.refreshSession = args.refreshSession;
     this.dispatch = args.dispatch;
   }
 
@@ -1213,7 +1213,7 @@ class IntendedPageController {
 
   lockWalletForIntendedTest = async (): Promise<void> => {
     await this.seams.auth.lock();
-    await this.refreshLoginState(this.walletId);
+    await this.refreshSession(this.walletId);
   };
 
   readWalletLockStateForIntendedTest = async (): Promise<{
@@ -1617,7 +1617,7 @@ class IntendedPageController {
       }
       await this.seams.auth.lock();
       await this.unlockEmailOtpWalletWithHostedMenu('intended-unlock-added-email-otp');
-      await this.refreshLoginState(walletId);
+      await this.refreshSession(walletId);
       const unlockedSession = await this.seams.auth.getSession(walletId);
       this.dispatch({
         kind: 'action_succeeded',
@@ -1797,7 +1797,7 @@ class IntendedPageController {
         throw new Error('NEAR provisioning completed without a matching wallet session identity');
       }
       this.nearAccountId = nearAccountId;
-      await this.refreshLoginState(this.walletId);
+      await this.refreshSession(this.walletId);
       this.dispatch({
         kind: 'action_succeeded',
         action,
@@ -1907,7 +1907,7 @@ class IntendedPageController {
         throw new Error('Passkey sync omitted its NEAR signer identity');
       }
       this.nearAccountId = nearAccountId;
-      await this.refreshLoginState(String(outcome.walletId));
+      await this.refreshSession(String(outcome.walletId));
       this.dispatch({
         kind: 'action_succeeded',
         action,
@@ -1953,7 +1953,7 @@ class IntendedPageController {
       if (String(outcome.walletId) !== this.walletId || outcome.method !== 'passkey') {
         throw new Error('Passkey recovery returned the wrong wallet or auth method');
       }
-      await this.refreshLoginState(String(outcome.walletId));
+      await this.refreshSession(String(outcome.walletId));
       const recoveryStatus = await this.seams.recovery.getCodeStatus({
         walletId: String(outcome.walletId),
       });
@@ -2016,7 +2016,7 @@ class IntendedPageController {
       if (String(outcome.walletId) !== this.walletId || outcome.method !== 'google_email_otp') {
         throw new Error('Google Email OTP recovery returned the wrong wallet or auth method');
       }
-      await this.refreshLoginState(String(outcome.walletId));
+      await this.refreshSession(String(outcome.walletId));
       const recoveryStatus = await this.seams.recovery.getCodeStatus({
         walletId: String(outcome.walletId),
       });
@@ -2044,7 +2044,7 @@ class IntendedPageController {
     try {
       await this.seams.auth.lock();
       const unlock = await this.unlockEmailOtpWalletWithHostedMenu('intended-unlock-email-otp');
-      await this.refreshLoginState(unlock.walletId);
+      await this.refreshSession(unlock.walletId);
       const ecdsaTargetKeys = registrationEcdsaTargetKeys(unlock);
       const ecdsa = assertEcdsaTargetKeysForSession({
         session: unlock,
@@ -2193,7 +2193,7 @@ class IntendedPageController {
       if (active.walletId !== this.walletId) {
         throw new Error(`Device 2 linked wallet ${active.walletId}; expected ${this.walletId}`);
       }
-      await this.refreshLoginState(active.walletId);
+      await this.refreshSession(active.walletId);
       const session = await this.seams.auth.getSession(active.walletId);
       if (session.appIdentity.kind !== 'resolved') {
         throw new Error(`Linked wallet identity is ${session.appIdentity.kind}`);

@@ -381,7 +381,7 @@ export function useAccountInput({
   );
 
   // Handle username input changes
-  const setInputUsername = useCallback(
+  const setAccountName = useCallback(
     (username: string) => {
       const uname = (username || '').toLowerCase();
       suppressRefreshAutofillRef.current = uname.trim().length === 0;
@@ -470,7 +470,7 @@ export function useAccountInput({
 
   return {
     ...state,
-    setInputUsername,
+    setAccountName,
     refreshAccountData,
   };
 }

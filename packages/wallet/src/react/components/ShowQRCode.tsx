@@ -78,9 +78,9 @@ type ActiveDevice2Flow = {
 type Device2LinkingRuntime = {
   readonly startLinking: ReturnType<typeof useSeams>['startLinking'];
   readonly cancelLinking: ReturnType<typeof useSeams>['cancelLinking'];
-  readonly refreshLoginState: ReturnType<typeof useSeams>['refreshLoginState'];
+  readonly refreshSession: ReturnType<typeof useSeams>['refreshSession'];
   readonly refreshAccountData: ReturnType<typeof useSeams>['refreshAccountData'];
-  readonly setInputUsername: ReturnType<typeof useSeams>['setInputUsername'];
+  readonly setAccountName: ReturnType<typeof useSeams>['setAccountName'];
   readonly accountIdRaw: string;
   readonly onClose: ShowQRCodeProps['onClose'];
   readonly onEvent: ShowQRCodeProps['onEvent'];
@@ -168,10 +168,10 @@ function reconcileActiveLinkedDevice(
   event: LinkDeviceFlowEvent,
   walletId: string,
 ): void {
-  runtime.setInputUsername(walletId);
+  runtime.setAccountName(walletId);
   runtime.onEvent(event);
   runtime.onClose();
-  void Promise.all([runtime.refreshLoginState(walletId), runtime.refreshAccountData()]).catch(
+  void Promise.all([runtime.refreshSession(walletId), runtime.refreshAccountData()]).catch(
     warnLinkedDeviceMenuRefresh,
   );
 }
@@ -180,9 +180,9 @@ export function ShowQRCode({ isOpen, onClose, onEvent, onError }: ShowQRCodeProp
   const {
     startLinking,
     cancelLinking,
-    refreshLoginState,
+    refreshSession,
     refreshAccountData,
-    setInputUsername,
+    setAccountName,
     accountInputState,
     loginState,
   } = useSeams();
@@ -197,9 +197,9 @@ export function ShowQRCode({ isOpen, onClose, onEvent, onError }: ShowQRCodeProp
   const flowRuntimeRef = useRef<Device2LinkingRuntime>({
     startLinking,
     cancelLinking,
-    refreshLoginState,
+    refreshSession,
     refreshAccountData,
-    setInputUsername,
+    setAccountName,
     accountIdRaw: '',
     onClose,
     onEvent,
@@ -208,9 +208,9 @@ export function ShowQRCode({ isOpen, onClose, onEvent, onError }: ShowQRCodeProp
   flowRuntimeRef.current = {
     startLinking,
     cancelLinking,
-    refreshLoginState,
+    refreshSession,
     refreshAccountData,
-    setInputUsername,
+    setAccountName,
     accountIdRaw: String(
       accountInputState?.targetAccountId || loginState?.nearAccountId || '',
     ).trim(),

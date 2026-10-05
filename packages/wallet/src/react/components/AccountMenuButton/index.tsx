@@ -53,7 +53,7 @@ function closeSettingsScanner(
 }
 
 async function finishSettingsAuthentication(
-  refreshLoginState: (walletId?: string) => Promise<void>,
+  refreshSession: (walletId?: string) => Promise<void>,
   setError: (message: string) => void,
   outcome: HostedAuthMenuOutcome,
 ): Promise<void> {
@@ -62,7 +62,7 @@ async function finishSettingsAuthentication(
     case 'registered':
     case 'account_synced':
       try {
-        await refreshLoginState(outcome.walletId);
+        await refreshSession(outcome.walletId);
       } catch (error) {
         setError(
           error instanceof Error ? error.message : 'Unable to refresh your wallet. Try again.',
@@ -748,7 +748,7 @@ export const ProfileSettingsButton = AccountMenuButton;
 export function WalletSettingsPage(
   props: Pick<HostedSeamsAuthMenuProps, 'externalAuthBroker' | 'onDemoEmailOtp'>,
 ) {
-  const { loginState, refreshLoginState } = useSeams();
+  const { loginState, refreshSession } = useSeams();
   const [error, setError] = useState('');
   if (loginState.isLoggedIn) {
     return <AccountMenuButtonInner presentation="page" nearAccountId={loginState.nearAccountId} />;
@@ -763,7 +763,7 @@ export function WalletSettingsPage(
         <HostedSeamsAuthMenu
           externalAuthBroker={props.externalAuthBroker}
           onDemoEmailOtp={props.onDemoEmailOtp}
-          onOutcome={finishSettingsAuthentication.bind(null, refreshLoginState, setError)}
+          onOutcome={finishSettingsAuthentication.bind(null, refreshSession, setError)}
         />
       </main>
     </div>

@@ -17,7 +17,7 @@ export type UseWalletAuthResult = Pick<
   | 'lock'
   | 'registerWallet'
   | 'addSigner'
-  | 'refreshLoginState'
+  | 'refreshSession'
   | 'getSession'
   | 'sdkFlow'
 >;
@@ -31,7 +31,7 @@ export function useWalletAuth(): UseWalletAuthResult {
       lock: ctx.lock,
       registerWallet: ctx.registerWallet,
       addSigner: ctx.addSigner,
-      refreshLoginState: ctx.refreshLoginState,
+      refreshSession: ctx.refreshSession,
       getSession: ctx.getSession,
       sdkFlow: ctx.sdkFlow,
     }),

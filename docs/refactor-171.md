@@ -383,6 +383,14 @@ adapter/React integration owns `start`/`mount`, with supported non-React lifecyc
 access explicitly documented. External signing/broadcast semantics remain separate
 from hosted-wallet authorization.
 
+Receipt audit finding: `ExternalEvmController.observeReceipt` currently performs
+one chain-validated RPC lookup. It returns `unresolved` when the receipt is still
+pending or the RPC cannot resolve it. A rename alone would make `waitForReceipt`
+misleading. Before completing that migration, define bounded polling and preserve
+receipt hash, account, chain, status, and block validation. Reuse the existing RPC
+waiting behavior where it fits. The only discovered callers are existing controller
+tests; no public examples or applications call the method. This work remains open.
+
 ## Export and input-shape audit
 
 Audit all package entries: root, React and narrow React exports, external EVM,
@@ -463,6 +471,11 @@ a declaration-level pass before declaring the migration complete.
   argument builders, client/host transport adapters, and the obsolete iframe RPC.
   Retain the explicit runtime port used by authentication and supported broadcast
   reporting. Protocol 5.0.0 requires matching client and host deployments.
+
+- [x] Rename React `refreshLoginState` to `refreshSession` and `setInputUsername`
+  to `setAccountName`, including context, hooks, UI, examples, and intended app.
+  Preserve display refresh and account-input behavior. Private release consumers
+  remain pending; camera naming and external receipt waiting remain open.
 
 - [ ] Audit current declarations and consumers in public SDK, tests, examples,
   docs, and private Console. Classify each row as rename, consolidation, internal

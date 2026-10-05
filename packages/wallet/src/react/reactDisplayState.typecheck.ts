@@ -1,4 +1,5 @@
-import type { SDKFlowState } from './types';
+import type { SDKFlowState, SeamsContextType, UseAccountInputReturn } from './types';
+import type { UseWalletAuthResult } from './hooks/useWalletAuth';
 
 const idleFlow: SDKFlowState = {
   seq: 0,
@@ -62,3 +63,19 @@ const invalidSuccessFlow: SDKFlowState = {
   error: 'unexpected',
 };
 void invalidSuccessFlow;
+
+declare const seamsContext: SeamsContextType;
+declare const walletAuth: UseWalletAuthResult;
+declare const accountInput: UseAccountInputReturn;
+void seamsContext.refreshSession();
+void walletAuth.refreshSession('wallet.testnet');
+seamsContext.setAccountName('alice');
+accountInput.setAccountName('alice');
+// @ts-expect-error Use refreshSession.
+void seamsContext.refreshLoginState;
+// @ts-expect-error Use refreshSession.
+void walletAuth.refreshLoginState;
+// @ts-expect-error Use setAccountName.
+void seamsContext.setInputUsername;
+// @ts-expect-error Use setAccountName.
+void accountInput.setInputUsername;
