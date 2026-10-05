@@ -9,9 +9,9 @@ const ownerlessOperation: D1WalletRegistrationOperationPreparedV1 = {
   deviceId: preparedOperation.deviceId,
   walletAuthMethodId: preparedOperation.walletAuthMethodId,
 };
-// @ts-expect-error Broad spreads cannot remove the operation's wallet owner.
 const ownerlessSpread: D1WalletRegistrationOperationPreparedV1 = {
   ...preparedOperation,
+  // @ts-expect-error Broad spreads cannot remove the operation's wallet owner.
   walletId: undefined,
 };
 void ownerlessOperation;
