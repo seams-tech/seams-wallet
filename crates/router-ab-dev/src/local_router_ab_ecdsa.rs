@@ -235,6 +235,17 @@ pub fn local_router_ab_ecdsa_route_v1(
                     json(&chunk)
                 },
             )),
+            router_ab_cloudflare::SIGNING_WORKER_LINKED_PRESIGN_INVENTORY_PATH_V1 => Some(authorized(
+                &signing_worker.router_to_signing_worker_ecdsa_auth,
+                request,
+                |command: router_ab_cloudflare::SigningWorkerLinkedPresignInventoryRequestV1| {
+                    let page = with_local_signing_worker_wallet_store_v1(
+                        signing_worker,
+                        |store, _| store.list_frozen_linked_presign_sessions(command),
+                    )?;
+                    json(&page)
+                },
+            )),
             router_ab_cloudflare::SIGNING_WORKER_POOL_FREEZE_PATH_V1 => Some(authorized(
                 &signing_worker.router_to_signing_worker_ecdsa_auth,
                 request,

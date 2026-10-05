@@ -443,6 +443,8 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
                 "lost_chunk_reply_replayed_after_restart": true,
                 "exact_historical_record_bytes": true,
                 "pool_freeze_transport_authenticated_and_replayed": true,
+                "linked_inventory_empty_page_replays_after_restart": true,
+                "linked_inventory_rejects_unrelated_credentials_and_changed_receipt": true,
                 "ecdsa_empty_destination_verified_after_restart": true,
                 "ecdsa_import_acknowledgement_replayed_after_restart": true,
                 "ecdsa_transfer_rejects_unrelated_credentials": true,
@@ -765,6 +767,40 @@ fn verify_pool_freeze_transport(
     };
     assert_eq!(receipt.scope, command.scope);
     assert_eq!(receipt.record_count, 0);
+    let inventory_request = router_ab_cloudflare::SigningWorkerLinkedPresignInventoryRequestV1 {
+        receipt: receipt.clone(),
+        cursor: router_ab_cloudflare::SigningWorkerLinkedPresignCursorV1::Start,
+        limit: 1,
+    };
+    for credential in ["", TEST_ROLE_SHARED_SERVICE_AUTH, TEST_GATEWAY_TO_ROUTER_AUTH] {
+        let (status, _) = post_json_to_path_with_headers(
+            &stack.signing_worker_url,
+            router_ab_cloudflare::SIGNING_WORKER_LINKED_PRESIGN_INVENTORY_PATH_V1,
+            &inventory_request,
+            &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, credential)],
+        )?;
+        assert_ne!(status, 200, "another service credential cannot read inventory");
+    }
+    let (inventory_status, inventory_body) = post_json_to_path_with_headers(
+        &stack.signing_worker_url,
+        router_ab_cloudflare::SIGNING_WORKER_LINKED_PRESIGN_INVENTORY_PATH_V1,
+        &inventory_request,
+        &headers,
+    )?;
+    assert_eq!(inventory_status, 200, "{inventory_body}");
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&inventory_body)?,
+        json!({ "state": "complete", "sessions": [] })
+    );
+    let mut changed_inventory = inventory_request.clone();
+    changed_inventory.receipt.record_count += 1;
+    let (changed_inventory_status, _) = post_json_to_path_with_headers(
+        &stack.signing_worker_url,
+        router_ab_cloudflare::SIGNING_WORKER_LINKED_PRESIGN_INVENTORY_PATH_V1,
+        &changed_inventory,
+        &headers,
+    )?;
+    assert_ne!(changed_inventory_status, 200);
     let export_request = router_ab_cloudflare::SigningWorkerEcdsaExportRequestV1 {
         receipt,
         segment_index: 0,
@@ -805,6 +841,14 @@ fn verify_pool_freeze_transport(
     )?;
     assert_eq!(export_retry_status, 200, "{export_retry_body}");
     assert_eq!(export_retry_body, export_body);
+    let (inventory_retry_status, inventory_retry_body) = post_json_to_path_with_headers(
+        &stack.signing_worker_url,
+        router_ab_cloudflare::SIGNING_WORKER_LINKED_PRESIGN_INVENTORY_PATH_V1,
+        &inventory_request,
+        &headers,
+    )?;
+    assert_eq!(inventory_retry_status, 200, "{inventory_retry_body}");
+    assert_eq!(inventory_retry_body, inventory_body);
     verify_ecdsa_destination_transport(
         stack,
         destination,
