@@ -8,12 +8,8 @@ import { ScanQRCodeFlow, enumerateVideoDevices, detectFrontCamera } from '@/util
  *
  * Provides camera-based QR code scanning functionality for device linking.
  *
- * **Important:** This hook should be used with the SeamsWeb provider.
- * Wrap your app with PasskeyProvider so useSeams is available when needed.
- *
  * @example
  * ```tsx
- * import { PasskeyProvider } from '@seams/wallet/react';
  * import { useQRCamera } from '@seams/wallet/react';
  *
  * function QRScanner() {
@@ -57,12 +53,8 @@ export interface UseQRCameraReturn {
   // Controls
   startScanning: () => Promise<void>;
   stopScanning: () => void;
-  handleCameraChange: (deviceId: string) => void;
+  selectCamera: (deviceId: string) => void;
   setScanMode: (mode: QRScanMode) => void;
-  setError: (error: string | null) => void;
-
-  // Utilities
-  getOptimalFacingMode: () => 'user' | 'environment';
 }
 
 export const useQRCamera = (options: UseQRCameraOptions): UseQRCameraReturn => {
@@ -216,8 +208,8 @@ export const useQRCamera = (options: UseQRCameraOptions): UseQRCameraReturn => {
   }, []);
 
   // Handle camera change
-  const handleCameraChange = useCallback(
-    async (deviceId: string) => {
+  const selectCamera = useCallback(
+    (deviceId: string) => {
       setSelectedCamera(deviceId);
 
       const selectedCameraDevice = cameras.find((camera) => camera.deviceId === deviceId);
@@ -229,8 +221,6 @@ export const useQRCamera = (options: UseQRCameraOptions): UseQRCameraReturn => {
     },
     [cameras],
   );
-
-  const getOptimalFacingMode = useCallback(() => getOptimalCameraFacingMode(), []);
 
   return {
     // State
@@ -250,11 +240,7 @@ export const useQRCamera = (options: UseQRCameraOptions): UseQRCameraReturn => {
     // Controls
     startScanning,
     stopScanning,
-    handleCameraChange,
+    selectCamera,
     setScanMode,
-    setError,
-
-    // Utilities
-    getOptimalFacingMode,
   };
 };

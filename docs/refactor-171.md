@@ -475,12 +475,18 @@ a declaration-level pass before declaring the migration complete.
 - [x] Rename React `refreshLoginState` to `refreshSession` and `setInputUsername`
   to `setAccountName`, including context, hooks, UI, examples, and intended app.
   Preserve display refresh and account-input behavior. Private release consumers
-  remain pending; camera naming and external receipt waiting remain open.
+  remain pending; camera naming and external receipt waiting are completed below.
 
 - [x] Replace external `observeReceipt` with bounded `waitForReceipt`, reusing
   existing RPC polling and preserving submission identity verification. Record
   inclusion semantics, unresolved outcomes, timeout, and cancellation. Browser
   contract coverage is complete; real-chain/extension release gates remain open.
+
+- [x] Rename camera selection to `selectCamera`. Keep `setError` and facing-mode
+  selection internal. The scanner retry action now starts scanning and clears the
+  error through the hook. Browser acceptance covers denied permission, retry,
+  camera switching, stop, file-mode transition, and unmount with real media tracks.
+  See `evidence/refactor-170-camera-api-20261005.json`.
 
 - [ ] Audit current declarations and consumers in public SDK, tests, examples,
   docs, and private Console. Classify each row as rename, consolidation, internal

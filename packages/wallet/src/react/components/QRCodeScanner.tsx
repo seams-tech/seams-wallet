@@ -445,7 +445,7 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
             <p role="alert">{qrCamera.error}</p>
             <button
               type="button"
-              onClick={() => qrCamera.setError(null)}
+              onClick={qrCamera.startScanning}
               className="qr-scanner-error-button"
             >
               Try Again
@@ -654,7 +654,7 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
                     <select
                       name="camera"
                       value={qrCamera.selectedCamera}
-                      onChange={(e) => qrCamera.handleCameraChange(e.target.value)}
+                      onChange={(e) => qrCamera.selectCamera(e.target.value)}
                       className="qr-scanner-camera-selector"
                     >
                       {qrCamera.cameras.map((camera) => (

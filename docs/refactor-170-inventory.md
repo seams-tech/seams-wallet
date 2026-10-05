@@ -2190,3 +2190,26 @@ required behavior; line removal remains an expectation rather than a gate.
 Injected preparation failure remains open. Routed observations do not establish
 warm-cache latency or deployed delivery savings. Evidence:
 `evidence/refactor-170-email-otp-signer-selection-20261005.json`.
+
+
+### Camera controls and internal retry (2026-10-05)
+
+`useQRCamera` exposes `selectCamera` instead of `handleCameraChange`. Its error
+setter and unused facing-mode callback are removed from the public return shape.
+The hook still selects camera constraints internally. `QRCodeScanner` uses
+`startScanning` for its retry action, which clears the error and starts the camera.
+The hook documentation no longer claims a provider dependency that does not exist.
+
+A browser scenario loads the emitted hook with React and the real QR decoder.
+Controlled media-device requests reject the first attempt and return canvas-backed
+MediaStreams afterward. The scenario verifies retry, back-camera constraints,
+release of the previous stream, explicit stop, file-mode cleanup, camera-mode
+restart, and unmount cleanup. All four acquired tracks end. This verifies the
+hook lifecycle with controlled hardware; it does not prove physical-camera or
+QR-payload recognition behavior. Chromium passed in 2.6 seconds.
+
+Wallet/browser typechecks, production build, packed declarations, runtime entry
+boundaries, and build freshness passed. SDK production source: 6 lines added,
+20 removed (net -14). Repeatable evidence and command:
+`evidence/refactor-170-camera-api-20261005.json`. Broader React replacement and
+cross-browser acceptance remain open.

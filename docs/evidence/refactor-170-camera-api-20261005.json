@@ -1,0 +1,111 @@
+{
+  "task": "R170/R171 camera API cleanup",
+  "baseCommit": "391d4be9",
+  "browser": "chromium",
+  "result": "passed",
+  "durationSeconds": 2.6,
+  "command": "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4289 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-ui/qr-camera.browser.test.ts --project=chromium --output=../.artifacts/r170-camera",
+  "observations": {
+    "requests": [
+      {
+        "video": {
+          "deviceId": "front",
+          "width": {
+            "ideal": 720,
+            "min": 480
+          },
+          "height": {
+            "ideal": 720,
+            "min": 480
+          },
+          "aspectRatio": {
+            "ideal": 1
+          }
+        }
+      },
+      {
+        "video": {
+          "deviceId": "front",
+          "width": {
+            "ideal": 720,
+            "min": 480
+          },
+          "height": {
+            "ideal": 720,
+            "min": 480
+          },
+          "aspectRatio": {
+            "ideal": 1
+          }
+        }
+      },
+      {
+        "video": {
+          "deviceId": "back",
+          "width": {
+            "ideal": 720,
+            "min": 480
+          },
+          "height": {
+            "ideal": 720,
+            "min": 480
+          },
+          "aspectRatio": {
+            "ideal": 1
+          }
+        }
+      },
+      {
+        "video": {
+          "deviceId": "back",
+          "width": {
+            "ideal": 720,
+            "min": 480
+          },
+          "height": {
+            "ideal": 720,
+            "min": 480
+          },
+          "aspectRatio": {
+            "ideal": 1
+          }
+        }
+      },
+      {
+        "video": {
+          "deviceId": "back",
+          "width": {
+            "ideal": 720,
+            "min": 480
+          },
+          "height": {
+            "ideal": 720,
+            "min": 480
+          },
+          "aspectRatio": {
+            "ideal": 1
+          }
+        }
+      }
+    ],
+    "tracks": [
+      "ended",
+      "ended",
+      "ended",
+      "ended"
+    ]
+  },
+  "checks": [
+    "wallet type-check",
+    "browser type-check",
+    "build:prod",
+    "check:declarations-external",
+    "check:runtime-entry-bundles",
+    "build:check:fresh"
+  ],
+  "limits": [
+    "Controlled camera hardware; real MediaStreams and emitted SDK hook.",
+    "Physical camera and QR recognition acceptance remain separate.",
+    "Scanner component retry handler uses the tested startScanning control; this scenario renders the hook directly."
+  ]
+}
