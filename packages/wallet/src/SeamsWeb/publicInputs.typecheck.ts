@@ -461,3 +461,10 @@ void registrationCapability.getNearProvisioningState;
 void registrationCapability.awaitNearReady;
 // @ts-expect-error Use onNearAccountChange for the public subscription.
 void registrationCapability.onNearProvisioningStateChanged;
+
+// @ts-expect-error Use addSigner to add a wallet signer.
+void registrationCapability.addWalletSigner;
+// @ts-expect-error Use addEmail to add email authentication.
+void registrationCapability.addEmailOtp;
+// @ts-expect-error Use removeAuthMethod to retire an authentication method.
+void registrationCapability.revokeAuthMethod;

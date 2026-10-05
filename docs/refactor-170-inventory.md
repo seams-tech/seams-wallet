@@ -1642,3 +1642,39 @@ Wallet/server boundary smoke check, runtime-entry checks, and two production
 cases. Those cases cover NEAR-only signing across refresh and Email OTP
 registration/unlock/export/signing. The normal npm packaging lifecycle supplies
 the tested archive. The verifier reports its integrity in the saved evidence.
+
+### Registration method names checkpoint
+
+The public registration namespace now uses `addSigner`, `addEmail`, and
+`removeAuthMethod`. Client commands, host commands, explicit runtime, React
+components, and the intended app use those names without compatibility aliases.
+React context and `useWalletAuth` expose `addSigner`. A redundant async React
+forwarder is removed; the existing SDK-flow callback owns instrumentation.
+Public input type fixtures reject the three replaced method names.
+
+Arguments, callback outcomes, wire message discriminators, and authorization
+proofs retain their existing contracts. Internal Email OTP and revocation modules
+keep their domain-specific file names. No private application/package call sites
+use the replaced names; exact-release adoption remains a separate gate.
+
+Production verification found a stale aggregate session-read limit in the unlock
+harness. The intended behavior permits each sibling method to retain its own
+active session. The host reconciles each stored session with its own credential.
+A temporary trace found three reads for the selected session and one for its
+sibling. The check now allows one read per distinct session plus two repeated
+reads across the whole unlock. A single-session unlock retains its three-read
+limit. Missing request identities fail the check. The trace records session and
+quota identifiers, never operation credentials, for repeatable request accounting.
+Temporary stack instrumentation was removed.
+
+Verification and source accounting are recorded in
+`evidence/refactor-170-registration-methods-20261005.json`. The complete worker,
+returning-user, browser, and release acceptance gates remain open.
+
+Nine browser cases and four production cases pass. Production cases cover
+distinct Ed25519 signer addition, ECDSA addition across a lost response, and both
+authentication-method addition directions through signing, export, and removal.
+Strict packed declarations, runtime boundaries, build freshness, types, and the
+bloat gate pass. Production source adds 73 lines and removes 78 (net −5).
+The harness accounting correction has separate evidence in
+`evidence/refactor-170-session-read-accounting-20261005.json`.

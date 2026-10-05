@@ -489,7 +489,7 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
         }
         setRevokeState({ kind: 'working', walletAuthMethodId });
         setAnnouncement(`Removing ${description}…`);
-        await seams.registration.revokeAuthMethod({
+        await seams.registration.removeAuthMethod({
           walletId,
           walletAuthMethodId,
         });

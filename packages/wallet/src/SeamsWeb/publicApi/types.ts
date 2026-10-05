@@ -809,7 +809,7 @@ export interface RegistrationCapability {
     timeoutMs?: number;
     signal?: AbortSignal;
   }): Promise<WaitForNearAccountResult>;
-  addWalletSigner(args: {
+  addSigner(args: {
     walletId: WalletId | string;
     rpId: string;
     signerSelection: AddSignerSelection;
@@ -826,7 +826,7 @@ export interface RegistrationCapability {
    * caller supplies only the address being verified and the code that verifies
    * it, the same way `registerWallet` and `loginWithEmailOtp*` do.
    */
-  addEmailOtp(args: {
+  addEmail(args: {
     walletId: WalletId | string;
     emailAddress: string;
     options?: AddEmailOtpHooksOptions;
@@ -838,7 +838,7 @@ export interface RegistrationCapability {
    * method being removed, so a credential the user has lost can still be
    * retired by the one they still hold.
    */
-  revokeAuthMethod(args: {
+  removeAuthMethod(args: {
     walletId: WalletId | string;
     walletAuthMethodId: string;
   }): Promise<RevokeAuthMethodResult>;

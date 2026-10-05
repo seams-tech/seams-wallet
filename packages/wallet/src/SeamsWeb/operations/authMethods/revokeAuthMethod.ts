@@ -125,7 +125,7 @@ async function passkeySourceProof(args: {
     !credentialIdB64u ||
     !args.allowCredentials.some((allowed) => allowed.id === credentialIdB64u)
   ) {
-    throw new Error('registration.revokeAuthMethod used a credential outside the wallet');
+    throw new Error('registration.removeAuthMethod used a credential outside the wallet');
   }
   return {
     kind: 'webauthn_assertion',
@@ -153,7 +153,7 @@ async function emailOtpSourceProof(args: {
   const [source, ...remaining] = sources;
   if (!source || remaining.length > 0 || source.kind !== 'email_otp') {
     throw new Error(
-      'registration.revokeAuthMethod needs exactly one other active method to authorize with',
+      'registration.removeAuthMethod needs exactly one other active method to authorize with',
     );
   }
   const walletAuthMethodId = String(source.authority.bindingId);
@@ -192,10 +192,10 @@ async function revokeAuthMethodInternal(args: {
   readonly walletAuthMethodId: WalletAuthMethodId;
 }): Promise<RevokeAuthMethodResult> {
   const relayerUrl = String(args.context.configs.network.relayer.url || '').trim();
-  if (!relayerUrl) throw new Error('registration.revokeAuthMethod requires relayer.url');
+  if (!relayerUrl) throw new Error('registration.removeAuthMethod requires relayer.url');
   const parsedRpId = parseWebAuthnRpId(String(args.context.signingEngine.getRpId() || '').trim());
   if (!parsedRpId.ok) {
-    throw new Error(`registration.revokeAuthMethod ${parsedRpId.error.message}`);
+    throw new Error(`registration.removeAuthMethod ${parsedRpId.error.message}`);
   }
   /* The proof is taken over the operation fingerprint, so the assertion
      authorizes this wallet, this target, and this moment - not revocation in
@@ -246,7 +246,7 @@ async function revokeAuthMethodInternal(args: {
       break;
     default:
       sourceAuthMethod satisfies never;
-      throw new Error('registration.revokeAuthMethod encountered an unsupported source method');
+      throw new Error('registration.removeAuthMethod encountered an unsupported source method');
   }
   const response = await revokeWalletAuthMethodRoute({
     relayerUrl,
@@ -256,7 +256,7 @@ async function revokeAuthMethodInternal(args: {
     sourceProof,
   });
   if (!response.ok || response.authMethod.status !== 'revoked') {
-    throw new Error('registration.revokeAuthMethod did not revoke the method');
+    throw new Error('registration.removeAuthMethod did not revoke the method');
   }
   /* Carry the server's decision into the local record. The wallet builds its
      own view of which methods exist from these rows, so leaving one active
@@ -292,7 +292,7 @@ export async function revokeWalletAuthMethodOperation(args: {
   const walletId = walletIdFromString(String(args.walletId || '').trim());
   const parsedMethodId = parseWalletAuthMethodId(String(args.walletAuthMethodId || '').trim());
   if (!parsedMethodId.ok) {
-    throw new Error('registration.revokeAuthMethod requires a wallet auth method id');
+    throw new Error('registration.removeAuthMethod requires a wallet auth method id');
   }
   try {
     return await revokeAuthMethodInternal({

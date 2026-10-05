@@ -85,7 +85,7 @@ function normalizedEmailAddress(value: string): string {
     .trim()
     .toLowerCase();
   if (!email || !email.includes('@')) {
-    throw new Error('registration.addEmailOtp requires an email address');
+    throw new Error('registration.addEmail requires an email address');
   }
   return email;
 }
@@ -97,11 +97,11 @@ async function addEmailOtpWalletAuthMethodInternal(args: {
   readonly options?: AddEmailOtpHooksOptions;
 }): Promise<AddEmailOtpResult> {
   const relayerUrl = String(args.context.configs.network.relayer.url || '').trim();
-  if (!relayerUrl) throw new Error('registration.addEmailOtp requires relayer.url');
+  if (!relayerUrl) throw new Error('registration.addEmail requires relayer.url');
   const managedRuntimeScope = resolveManagedRuntimeScopeBootstrap(args.context.configs);
   if (!managedRuntimeScope) {
     throw new Error(
-      'registration.addEmailOtp requires registration.publishableKey and registration.projectEnvironmentId',
+      'registration.addEmail requires registration.publishableKey and registration.projectEnvironmentId',
     );
   }
   const emailAddress = normalizedEmailAddress(args.emailAddress);
@@ -110,7 +110,7 @@ async function addEmailOtpWalletAuthMethodInternal(args: {
      It is the wallet's, not the new factor's — an Email OTP method has no RP of
      its own. */
   const parsedRpId = parseWebAuthnRpId(String(args.context.signingEngine.getRpId() || '').trim());
-  if (!parsedRpId.ok) throw new Error(`registration.addEmailOtp ${parsedRpId.error.message}`);
+  if (!parsedRpId.ok) throw new Error(`registration.addEmail ${parsedRpId.error.message}`);
   const rpId = parsedRpId.value;
 
   /* The intent names the source it is minted for, so the fresh assertion

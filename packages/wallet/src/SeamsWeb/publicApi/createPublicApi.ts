@@ -35,10 +35,10 @@ export type WalletRegistrationCommands = Pick<
   | 'registerWallet'
   | 'getNearAccountState'
   | 'resumePendingEcdsaRegistration'
-  | 'addWalletSigner'
+  | 'addSigner'
   | 'addPasskey'
-  | 'revokeAuthMethod'
-  | 'addEmailOtp'
+  | 'removeAuthMethod'
+  | 'addEmail'
 >;
 export type RegistrationCapabilityDomainMethods = WalletRegistrationCommands & {
   onNearAccountChange: RegistrationCapability['onNearAccountChange'];
@@ -100,10 +100,10 @@ export function createPublicApi(
       getNearAccountState: deps.registration.getNearAccountState,
       onNearAccountChange: deps.registration.onNearAccountChange,
       waitForNearAccount: waitForNearAccount.bind(null, deps.registration),
-      addWalletSigner: deps.registration.addWalletSigner,
+      addSigner: deps.registration.addSigner,
       addPasskey: deps.registration.addPasskey,
-      addEmailOtp: deps.registration.addEmailOtp,
-      revokeAuthMethod: deps.registration.revokeAuthMethod,
+      addEmail: deps.registration.addEmail,
+      removeAuthMethod: deps.registration.removeAuthMethod,
       registerWallet: deps.registration.registerWallet,
       requestEmailOtpEnrollmentChallenge: deps.registration.requestEmailOtpEnrollmentChallenge,
       enrollEmailOtp: deps.registration.enrollEmailOtp,

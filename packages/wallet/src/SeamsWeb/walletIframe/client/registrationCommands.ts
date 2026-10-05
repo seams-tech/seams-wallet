@@ -18,10 +18,10 @@ export function createApplicationRegistrationCommands(
     registerWallet: registerWallet.bind(null, walletIframe),
     getNearAccountState: getNearAccountState.bind(null, walletIframe),
     resumePendingEcdsaRegistration: resumePendingEcdsaRegistration.bind(null, walletIframe),
-    addWalletSigner: addWalletSigner.bind(null, walletIframe),
+    addSigner: addSigner.bind(null, walletIframe),
     addPasskey: addPasskey.bind(null, walletIframe),
-    revokeAuthMethod: revokeAuthMethod.bind(null, walletIframe),
-    addEmailOtp: addEmailOtp.bind(null, walletIframe),
+    removeAuthMethod: removeAuthMethod.bind(null, walletIframe),
+    addEmail: addEmail.bind(null, walletIframe),
   };
 }
 
@@ -66,13 +66,13 @@ async function resumePendingEcdsaRegistration(
   return await router.resumePendingEcdsaRegistration(args);
 }
 
-async function addWalletSigner(
+async function addSigner(
   walletIframe: RegistrationIframe,
-  args: Parameters<RegistrationCapability['addWalletSigner']>[0],
+  args: Parameters<RegistrationCapability['addSigner']>[0],
 ): Promise<RegistrationResult> {
   try {
     const router = await walletIframe.requireRouter();
-    const res = await router.addWalletSigner(args);
+    const res = await router.addSigner(args);
     await args.options?.afterCall?.(true, res);
     return res;
   } catch (error: unknown) {
@@ -100,21 +100,21 @@ async function addPasskey(
   }
 }
 
-async function revokeAuthMethod(
+async function removeAuthMethod(
   walletIframe: RegistrationIframe,
-  args: Parameters<RegistrationCapability['revokeAuthMethod']>[0],
-): Promise<Awaited<ReturnType<RegistrationCapability['revokeAuthMethod']>>> {
+  args: Parameters<RegistrationCapability['removeAuthMethod']>[0],
+): Promise<Awaited<ReturnType<RegistrationCapability['removeAuthMethod']>>> {
   const router = await walletIframe.requireRouter();
-  return await router.revokeAuthMethod(args);
+  return await router.removeAuthMethod(args);
 }
 
-async function addEmailOtp(
+async function addEmail(
   walletIframe: RegistrationIframe,
-  args: Parameters<RegistrationCapability['addEmailOtp']>[0],
-): Promise<Awaited<ReturnType<RegistrationCapability['addEmailOtp']>>> {
+  args: Parameters<RegistrationCapability['addEmail']>[0],
+): Promise<Awaited<ReturnType<RegistrationCapability['addEmail']>>> {
   try {
     const router = await walletIframe.requireRouter();
-    const result = await router.addEmailOtp(args);
+    const result = await router.addEmail(args);
     await args.options?.afterCall?.(true, result);
     return result;
   } catch (error: unknown) {

@@ -755,6 +755,11 @@ menu preload is removed and measured separately in
 `evidence/refactor-170-registration-menu-20261005.json`. The complete worker
 dependency matrix and paired latency gates remain open.
 
+Registration method names now match R171: `addSigner`, `addEmail`, and
+`removeAuthMethod`. The application client, wallet host, React bindings, and
+intended app use the same names. Existing wire messages and authorization proofs
+retain their contracts. See the registration-method checkpoint in the inventory.
+
 At the recorded bundle checkpoint, the production root-client static closure measured
 66,386 bytes gzip
 (64.8 KiB), compared with 739,640 bytes at baseline: a 91.0% reduction. Including

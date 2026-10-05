@@ -6133,7 +6133,7 @@ export class BrowserSigningSurface {
    *
    * Built on the same confirmation channel key export uses, so the code is
    * typed into the wallet's own surface and never passes through the host
-   * application — the reason `addEmailOtp` takes an address and not a code.
+   * application — the reason `addEmail` takes an address and not a code.
    */
   async requestEmailOtpEnrollmentConfirmation(params: {
     walletId: string;

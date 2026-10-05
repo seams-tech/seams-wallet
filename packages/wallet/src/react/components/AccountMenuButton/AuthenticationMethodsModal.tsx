@@ -299,7 +299,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
             rpId: configuredWalletRpId(seamsRef.current),
           });
         } else {
-          await seamsRef.current.registration.addEmailOtp({
+          await seamsRef.current.registration.addEmail({
             walletId,
             emailAddress: normalizedEmail,
           });
@@ -341,7 +341,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
     setActionState({ kind: 'revoking', method });
     setAnnouncement(`Removing ${methodTitle(method)}…`);
     try {
-      await seamsRef.current.registration.revokeAuthMethod({
+      await seamsRef.current.registration.removeAuthMethod({
         walletId,
         walletAuthMethodId: method.walletAuthMethodId,
       });

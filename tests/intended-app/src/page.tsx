@@ -1390,7 +1390,7 @@ class IntendedPageController {
     const action: IntendedActionName = 'addPasskeyEd25519YaoWalletSigner';
     this.dispatch({ kind: 'action_started', action });
     try {
-      const result = await this.seams.registration.addWalletSigner({
+      const result = await this.seams.registration.addSigner({
         walletId: toWalletId(this.walletId),
         rpId: intendedRegistrationRpId(),
         signerSelection: {
@@ -1428,7 +1428,7 @@ class IntendedPageController {
       if (sdkTargets.kind !== 'explicit') {
         throw new Error('ECDSA add-signer requires configured chain targets');
       }
-      const result = await this.seams.registration.addWalletSigner({
+      const result = await this.seams.registration.addSigner({
         walletId: toWalletId(this.walletId),
         rpId: intendedRegistrationRpId(),
         signerSelection: {
@@ -1494,7 +1494,7 @@ class IntendedPageController {
       if (!walletId) throw new Error('add-email-code requires a registered wallet');
       const emailAddress = intendedGoogleEmailAddress(requireGoogleIdToken(this.googleIdToken));
       intendedEmailOtpChallengeSubjectOverride = emailAddress;
-      const result = await this.seams.registration.addEmailOtp({
+      const result = await this.seams.registration.addEmail({
         walletId: toWalletId(walletId),
         emailAddress,
         options: { onEvent: this.recordLifecycleEvent },
@@ -1552,7 +1552,7 @@ class IntendedPageController {
           `revoke needs exactly one sibling to remove, found ${siblings.length} beside the added method`,
         );
       }
-      const result = await this.seams.registration.revokeAuthMethod({
+      const result = await this.seams.registration.removeAuthMethod({
         walletId: toWalletId(walletId),
         walletAuthMethodId: String(target.walletAuthMethodId),
       });

@@ -5933,7 +5933,7 @@ async function dispatchPasskeyWalletAddSigner(args: {
   }
 }
 
-export async function addWalletSigner(
+export async function addSigner(
   args: AddWalletSignerOperationArgs,
 ): Promise<RegistrationResult> {
   const { context, signerSelection } = args;
@@ -5949,11 +5949,11 @@ export async function addWalletSigner(
 
   try {
     const relayerUrl = String(context.configs.network.relayer.url || '').trim();
-    if (!relayerUrl) throw new Error('addWalletSigner requires relayer.url');
+    if (!relayerUrl) throw new Error('addSigner requires relayer.url');
     const managedRuntimeScope = resolveManagedRuntimeScopeBootstrap(context.configs);
     if (!managedRuntimeScope) {
       throw new Error(
-        'addWalletSigner requires registration.publishableKey and registration.projectEnvironmentId',
+        'addSigner requires registration.publishableKey and registration.projectEnvironmentId',
       );
     }
     const intentResponse = await createWalletAddSignerIntent({

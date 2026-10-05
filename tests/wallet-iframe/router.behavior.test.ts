@@ -301,7 +301,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
     await page.unroute(WALLET_SERVICE_ROUTE).catch(() => {});
   });
 
-  test('addEmailOtp shows an interactive wallet surface while awaiting the OTP', async ({
+  test('addEmail shows an interactive wallet surface while awaiting the OTP', async ({
     page,
   }) => {
     const routerPath = SDK_ESM_PATHS.walletIframeRouter;
@@ -323,7 +323,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
 
         let settled = false;
         const request = router
-          .addEmailOtp({ walletId: 'alice.testnet', emailAddress: 'alice@example.test' })
+          .addEmail({ walletId: 'alice.testnet', emailAddress: 'alice@example.test' })
           .then(
             () => {
               settled = true;

@@ -5,7 +5,7 @@ import type {
 import type { RegistrationResult } from '@/core/types/seams';
 import type { WalletRegistrationCommands } from '@/SeamsWeb/publicApi/createPublicApi';
 import {
-  addWalletSigner as addWalletSignerWithUnifiedCeremony,
+  addSigner as addSignerWithUnifiedCeremony,
   registerWallet as registerWalletWithUnifiedCeremony,
 } from '@/SeamsWeb/operations/registration/registration';
 import { resumePendingEcdsaRegistrationFromStoredCommit } from '@/SeamsWeb/operations/registration/pendingRegistrationRecovery';
@@ -23,10 +23,10 @@ export function createWalletHostRegistrationCommands(
     registerWallet: registerWallet.bind(null, getContext),
     getNearAccountState: getNearAccountState.bind(null, getContext),
     resumePendingEcdsaRegistration: resumePendingEcdsaRegistration.bind(null, getContext),
-    addWalletSigner: addWalletSigner.bind(null, getContext),
+    addSigner: addSigner.bind(null, getContext),
     addPasskey: addPasskey.bind(null, getContext),
-    revokeAuthMethod: revokeAuthMethod.bind(null, getContext),
-    addEmailOtp: addEmailOtp.bind(null, getContext),
+    removeAuthMethod: removeAuthMethod.bind(null, getContext),
+    addEmail: addEmail.bind(null, getContext),
   };
 }
 
@@ -69,11 +69,11 @@ async function resumePendingEcdsaRegistration(
   });
 }
 
-async function addWalletSigner(
+async function addSigner(
   getContext: () => RegistrationWebContext,
-  args: Parameters<RegistrationCapability['addWalletSigner']>[0],
+  args: Parameters<RegistrationCapability['addSigner']>[0],
 ): Promise<RegistrationResult> {
-  return await addWalletSignerWithUnifiedCeremony({
+  return await addSignerWithUnifiedCeremony({
     context: getContext(),
     walletId: args.walletId,
     rpId: args.rpId,
@@ -94,10 +94,10 @@ async function addPasskey(
   });
 }
 
-async function revokeAuthMethod(
+async function removeAuthMethod(
   getContext: () => RegistrationWebContext,
-  args: Parameters<RegistrationCapability['revokeAuthMethod']>[0],
-): Promise<Awaited<ReturnType<RegistrationCapability['revokeAuthMethod']>>> {
+  args: Parameters<RegistrationCapability['removeAuthMethod']>[0],
+): Promise<Awaited<ReturnType<RegistrationCapability['removeAuthMethod']>>> {
   return await revokeWalletAuthMethodOperation({
     context: getContext(),
     walletId: args.walletId,
@@ -105,10 +105,10 @@ async function revokeAuthMethod(
   });
 }
 
-async function addEmailOtp(
+async function addEmail(
   getContext: () => RegistrationWebContext,
-  args: Parameters<RegistrationCapability['addEmailOtp']>[0],
-): Promise<Awaited<ReturnType<RegistrationCapability['addEmailOtp']>>> {
+  args: Parameters<RegistrationCapability['addEmail']>[0],
+): Promise<Awaited<ReturnType<RegistrationCapability['addEmail']>>> {
   return await addEmailOtpWalletAuthMethod({
     context: getContext(),
     walletId: args.walletId,

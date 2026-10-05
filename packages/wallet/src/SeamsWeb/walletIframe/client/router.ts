@@ -3391,8 +3391,8 @@ export class WalletIframeRouter {
     return response.result;
   }
 
-  async addWalletSigner(
-    payload: Parameters<RegistrationCapability['addWalletSigner']>[0],
+  async addSigner(
+    payload: Parameters<RegistrationCapability['addSigner']>[0],
   ): Promise<RegistrationResult> {
     const confirmationConfig = payload.options?.confirmationConfig;
     if (confirmationConfig) {
@@ -3440,8 +3440,8 @@ export class WalletIframeRouter {
     return res.result;
   }
 
-  async addEmailOtp(
-    payload: Parameters<RegistrationCapability['addEmailOtp']>[0],
+  async addEmail(
+    payload: Parameters<RegistrationCapability['addEmail']>[0],
   ): Promise<AddEmailOtpResult> {
     const safeOptions = removeFunctionsFromOptions(payload.options);
     const res = await this.post<AddEmailOtpResult>(
@@ -3461,8 +3461,8 @@ export class WalletIframeRouter {
     return res.result;
   }
 
-  async revokeAuthMethod(
-    payload: Parameters<RegistrationCapability['revokeAuthMethod']>[0],
+  async removeAuthMethod(
+    payload: Parameters<RegistrationCapability['removeAuthMethod']>[0],
   ): Promise<RevokeAuthMethodResult> {
     const res = await this.post<RevokeAuthMethodResult>({
       type: 'PM_REVOKE_AUTH_METHOD',

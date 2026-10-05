@@ -1,0 +1,99 @@
+{
+  "baseCommit": "8717514d2c9dcb3cb2d09bf22acc6bb22087b688",
+  "scope": "Rename registration methods and React signer addition without compatibility aliases; remove the redundant React async forwarder.",
+  "publicMethods": [
+    "registration.addSigner",
+    "registration.addEmail",
+    "registration.removeAuthMethod",
+    "React addSigner"
+  ],
+  "preserved": [
+    "argument and result contracts",
+    "wire message discriminators",
+    "authorization proofs",
+    "durable presignatures",
+    "SDK-flow callbacks"
+  ],
+  "sourceSha256": {
+    "packages/wallet/src/SeamsWeb/operations/authMethods/emailOtp/addEmailOtp.ts": "0ce219072238c9a1adef37f5ee957789fbf8eeefa36b2d8d2226340bedd18ce1",
+    "packages/wallet/src/SeamsWeb/operations/authMethods/revokeAuthMethod.ts": "82fe6e2eaf2db1ae6e0a351cb8442011cfc18e48447b113efa2a83a80dcc6bb1",
+    "packages/wallet/src/SeamsWeb/operations/registration/registration.ts": "99b04dbfc8479872cc440a79b233602609a58268c6da070fc2e34f78bb01ab62",
+    "packages/wallet/src/SeamsWeb/publicApi/createPublicApi.ts": "c26ea5ab03b303b116d56cb28f2f500227fc10e10e0a4c4c45b7bbb46ed0313b",
+    "packages/wallet/src/SeamsWeb/publicApi/types.ts": "80636f550d416470ba89960a0ca1f6d0306b7546b848dd5de8b799d6cc9a6a89",
+    "packages/wallet/src/SeamsWeb/publicInputs.typecheck.ts": "f93c57677e392b87da2ac17d3f3318b220e69252fdaecf1d211e6ee048de20d1",
+    "packages/wallet/src/SeamsWeb/signingSurface/BrowserSigningSurface.ts": "3030a6dfdc6fcaf068860c41e70aa8e3922802c67947bcae98c2727e55d7e810",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/registrationCommands.ts": "0138bd6408daa1ffdeab56c647e558c3257d4a8e2611b34df92943dc3aa3437a",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/router.ts": "00fd9fae8bc5824b3390975abecf88cf03ccbbfd0f052e8cffa356f57c268c23",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/createRegistrationCommands.ts": "450691d72e053270edd644b934936046e86e59afdab8e5035994e0a6d59d2a73",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/handlers/near.ts": "cd6fb0e79bf8464452cd1a267f7aab0b693213d2c7adcdb04b948cfeeba842a5",
+    "packages/wallet/src/react/components/AccountMenuButton/AuthenticationMethodsModal.tsx": "aa3dee721e4494e440b34de10978a6e342297df14281cab5594545cec1c2f5d6",
+    "packages/wallet/src/react/components/AccountMenuButton/LinkedDevicesModal.tsx": "727e930a0982d441638874464a6cd634681751642b0279f81e8ddc8ac96e2ab3",
+    "packages/wallet/src/react/context/useSeamsContextValue.ts": "98648cb430698d79a7c25b3ecffc73afd5defdb0036717444adffeccf827b245",
+    "packages/wallet/src/react/context/useSeamsWithSdkFlow.ts": "29d7e2accb9650db77ba973c3324920d699f8c0ad461833b199f82b6e6e794f8",
+    "packages/wallet/src/react/hooks/useWalletAuth.ts": "c9148679cf81c96697ff79a000d4dda86cc63de026d17ee09527113befd8db52",
+    "packages/wallet/src/react/types.ts": "4716eeb9c24609f187bcdf5d154b7179f33a553e6c452f67f81d5547ec10496c",
+    "tests/e2e/intended-behaviours/harness.ts": "20b9c62066908d52a519567cd57f8337a9666fbc8200cbd4f342845513951974",
+    "tests/intended-app/src/page.tsx": "8320a8b2b9124dd6591c2123c8a03be177a4d8d489f10a03db769c3053edff92",
+    "tests/wallet-iframe/router.behavior.test.ts": "23ab3bee0a0cfd2a3b11a13447e7a3d58a3c90ba717322e19df28927ea132932"
+  },
+  "productionLines": {
+    "added": 73,
+    "removed": 78,
+    "net": -5,
+    "exclusions": "Type fixtures, tests, documentation, generated output, lockfiles"
+  },
+  "verification": {
+    "signerCases": {
+      "cases": [
+        "[wallet-intended] 1/2 e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts:18 public Ed25519 Yao add-signer persists a distinct signer",
+        "[wallet-intended] 2/2 e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts:36 public ECDSA add-signer lets an Ed25519 wallet sign NEAR, Tempo and Arc at once and after unlock, across a lost finalize response"
+      ],
+      "passed": [
+        "1 passed (27.8s)",
+        "1 passed (34.3s)"
+      ]
+    },
+    "authMethodCases": {
+      "cases": [
+        "[wallet-intended] 1/2 e2e/intended-behaviours/email-otp.add-passkey.contract.test.ts:15 an Email OTP wallet can add a passkey as a second way in",
+        "[wallet-intended] 2/2 e2e/intended-behaviours/passkey.add-email-otp.contract.test.ts:14 a passkey wallet can add an email code as a second way in"
+      ],
+      "passed": [
+        "1 passed (41.1s)",
+        "1 passed (39.6s)"
+      ]
+    },
+    "productionExits": [
+      0,
+      0
+    ],
+    "browserCases": 9,
+    "browserExit": 0,
+    "checks": [
+      "wallet type-check",
+      "intended type-check",
+      "wallet-browser type-check",
+      "wallet-state type-check",
+      "docs type-check",
+      "build:prod",
+      "build:check:fresh",
+      "check:declarations-external",
+      "check:runtime-entry-bundles",
+      "report:bloat --check",
+      "git diff --check"
+    ],
+    "commands": {
+      "signers": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts --grep 'public Ed25519 Yao add-signer persists|public ECDSA add-signer'",
+      "authMethods": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.add-email-otp.contract.test.ts e2e/intended-behaviours/email-otp.add-passkey.contract.test.ts",
+      "browser": "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4289 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/router.behavior.test.ts --project=chromium --output=../.artifacts/r170-registration-methods"
+    }
+  },
+  "packageIntegrity": "sha512-2zPKS6EpSICqgP6W2GXXCy6QO2S5k44vzl2YVfzEpD4YHhWKWqdSnS4zhkFS9r7OQww7RHLZi4VIexKQx/nHaQ==",
+  "failureDisposition": "The first two full email-addition runs hit a stale aggregate read limit. See refactor-170-session-read-accounting-20261005.json. The corrected behavioral budget passes both full auth-method lifecycles.",
+  "limitations": [
+    "No publication or deployed consumer adoption",
+    "No complete worker-loading or latency matrix",
+    "No month-later retained-presignature acceptance",
+    "No full cross-browser or provider lifecycle acceptance"
+  ]
+}

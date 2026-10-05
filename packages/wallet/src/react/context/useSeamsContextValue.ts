@@ -109,12 +109,7 @@ export function useSeamsContextValue(args: {
     [lock, refreshLoginState, seamsWithSdkFlow],
   );
 
-  const addWalletSigner: SeamsContextType['addWalletSigner'] = useCallback(
-    async (args) => {
-      return await seamsWithSdkFlow.registration.addWalletSigner(args);
-    },
-    [seamsWithSdkFlow],
-  );
+  const addSigner = seamsWithSdkFlow.registration.addSigner;
 
   const executeAction: SeamsContextType['executeAction'] = useCallback(
     (args) => {
@@ -167,7 +162,7 @@ export function useSeamsContextValue(args: {
       seams: seamsWithSdkFlow,
       sdkFlow,
       walletLockState,
-      addWalletSigner,
+      addSigner,
       registerWallet,
       unlock,
       lock,
@@ -194,7 +189,7 @@ export function useSeamsContextValue(args: {
       seamsWithSdkFlow,
       sdkFlow,
       walletLockState,
-      addWalletSigner,
+      addSigner,
       registerWallet,
       unlock,
       lock,

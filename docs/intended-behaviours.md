@@ -345,7 +345,7 @@ CTA belong to the wallet origin.
   the wallet origin and never reaches the outer application.
 - The adapter emits exactly one terminal `HostedAuthMenuOutcome` for the session.
   Unmounting or closing cancels only that session and leaves direct
-  `registerWallet()`, `addWalletSigner()`, and `unlock()` confirmation surfaces
+  `registerWallet()`, `addSigner()`, and `unlock()` confirmation surfaces
   unchanged.
 
 - Hosted exchange redemption publishes the child's home locator before consuming
@@ -505,6 +505,14 @@ Failure behaviour:
 - If blockchain account creation has already happened, immutable chain-state
   rollback messaging must be separate from local persistence rollback/repair
   messaging.
+
+### Registration methods
+
+- `registration.addSigner` adds a selected signer to an existing wallet.
+- `registration.addEmail` adds email authentication through the existing verification flow.
+- `registration.removeAuthMethod` removes a method using proof from a surviving method.
+- React exposes signer addition as `addSigner`. These operations retain their
+  existing authorization, retry, signing, and export behavior.
 
 ### Email OTP authentication
 

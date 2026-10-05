@@ -135,7 +135,7 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
       const payload = req.payload!;
       if (deps.respondIfCancelled(req.requestId)) return;
       const hooksOptions = withProgress(deps, req.requestId, payload.options || {});
-      const result = await pm.registration.addWalletSigner({
+      const result = await pm.registration.addSigner({
         walletId: payload.walletId,
         rpId: payload.rpId,
         signerSelection: payload.signerSelection,
@@ -170,7 +170,7 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
       const payload = req.payload!;
       if (deps.respondIfCancelled(req.requestId)) return;
       const hooksOptions = withProgress(deps, req.requestId, payload.options || {});
-      const result = await pm.registration.addEmailOtp({
+      const result = await pm.registration.addEmail({
         walletId: payload.walletId,
         emailAddress: payload.emailAddress,
         options: hooksOptions,
@@ -192,7 +192,7 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
       const pm = deps.getWalletRuntime();
       const payload = req.payload!;
       if (deps.respondIfCancelled(req.requestId)) return;
-      const result = await pm.registration.revokeAuthMethod({
+      const result = await pm.registration.removeAuthMethod({
         walletId: payload.walletId,
         walletAuthMethodId: payload.walletAuthMethodId,
       });

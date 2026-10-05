@@ -179,7 +179,7 @@ export interface SeamsContextType {
   ////////////////////////////
 
   // Registration and wallet unlock functions
-  addWalletSigner: RegistrationCapability['addWalletSigner'];
+  addSigner: RegistrationCapability['addSigner'];
   registerWallet: RegistrationCapability['registerWallet'];
   unlock: (walletId: string, options?: LoginHooksOptions) => Promise<LoginAndCreateSessionResult>;
   lock: () => Promise<void>;

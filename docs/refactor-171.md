@@ -5,7 +5,10 @@ Connection, configuration, event subscriptions, and public hosted auth-menu oper
 locally; publication and deployment remain pending. Wallet creation now uses only
 `registration.registerWallet`, including React callers and explicit runtime.
 NEAR account reads, waits, and subscriptions also use the accepted names.
-See the registration and NEAR account checkpoints in the R170 inventory for evidence.
+Signer addition, email addition, and authentication-method removal now use
+`registration.addSigner`, `registration.addEmail`, and
+`registration.removeAuthMethod`. React exposes `addSigner`.
+See the registration checkpoints in the R170 inventory for evidence.
 
 ## Objective
 
