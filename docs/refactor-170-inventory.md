@@ -2137,3 +2137,26 @@ source adds 3 lines and removes 1 (net +2). Direct public recovery-code rotation
 acceptance remains open, so its broader plan item stays unchecked. These routed
 single runs do not establish warm-cache latency or deployed transfer savings.
 Evidence: `evidence/refactor-170-custody-loading-20261005.json`.
+
+### Failed initialization retry checkpoint
+
+Email OTP's EVM helper, unlock runtime, and ceremony loaders now clear rejected
+initialization promises. The Shamir worker does the same. Existing in-flight
+promises still coalesce concurrent requests; successful initialization remains
+cached. Redundant async wrappers are removed. The change follows the existing
+Email OTP Yao failure-reset pattern and changes no authorization or stored material.
+
+The emitted-worker browser scenario now covers Shamir alongside EVM and Tempo.
+It makes WASM unavailable, observes operation failure, restores delivery, and
+verifies concurrent success and reuse with one successful binary fetch and one
+worker creation. A separate browser probe runs the production Email OTP loader
+source against emitted WASM for all three repaired loaders. It verifies the same
+failure/concurrency/reuse sequence, including unlock-seed derivation. It does not
+dispatch the full Email OTP worker protocol; that same-worker acceptance remains
+open. Both probes write repeatable JSON artifacts.
+
+All three static-asset browser scenarios pass. The production Email OTP lifecycle
+also passes through registration, unlock, signing, export, reload, and step-up.
+Wallet/browser types, production build, runtime boundaries, freshness, and bloat
+checks pass. Production source adds 43 lines and removes 31 (net +12).
+Evidence: `evidence/refactor-170-loader-retry-20261005.json`.

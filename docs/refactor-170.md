@@ -976,6 +976,9 @@ derive production behavior from existing typed requests and selected capabilitie
   Verify explicit failure, restored asset delivery, concurrent successful retry,
   and subsequent reuse in the same worker. Preserve all material and authorization
   boundaries; do not hide the failure by restarting unrelated workers.
+  All four caches now clear rejection. Browser evidence covers Shamir's emitted
+  worker and the production Email OTP loader source with actual WASM. Full Email
+  OTP protocol retry in the same emitted worker remains to be exercised.
 - [ ] **Select Google registration preparation by signer set.** Direct registration
   already gates Email OTP Yao preparation on the selected signers. The Google
   registration flow starts it separately without that gate. Use its resolved signer

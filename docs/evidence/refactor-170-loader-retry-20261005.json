@@ -1,0 +1,195 @@
+{
+  "baseCommit": "f92eba0bf95a44760052757d686aedfdbb8539aa",
+  "scope": "Clear rejected initialization promises in three Email OTP WASM loaders and the Shamir worker. Remove redundant async initializer wrappers and reuse the existing named failure-reset pattern.",
+  "sourceSha256": {
+    "packages/wallet/src/core/signingEngine/workerManager/workers/email-otp/crypto.ts": "27b795584fc047bdae07940715c08f7815932586b46185642041afd2fe0e82e0",
+    "packages/wallet/src/core/signingEngine/workerManager/workers/shamir3pass.worker.ts": "6a0079671e6412f77c16a823a4280fd4a340950faf4a9df36c0d8cbe4249cc0e",
+    "tests/wallet-iframe/static-wallet-assets.browser.test.ts": "905149e09aa12fcc2b47a444abc451e36ee63e314e5903e2434009bf7845951a",
+    "tests/wallet-iframe/worker-retry-probe.ts": "e71fc8d5c0090d631fc5efed0f1dbe174edf9a50db6cf48b4db8bb9b3db94ccb",
+    "tests/wallet-iframe/email-otp-loader-retry-probe.ts": "1569b205a388c7c7c24cc02dc9557a973adecf5303004d17a2c1f13d9afabe9b"
+  },
+  "productionSourceLines": {
+    "added": 43,
+    "removed": 31,
+    "net": 12
+  },
+  "checks": {
+    "walletTypes": "passed",
+    "browserTypes": "passed",
+    "productionBuild": "passed",
+    "runtimeEntryBoundaries": "passed",
+    "buildFreshness": "passed",
+    "browser": "3 passed (5.1s)",
+    "emailOtpProductionLifecycle": "passed (45.6s)",
+    "bloat": "passed",
+    "diffWhitespace": "passed"
+  },
+  "commands": [
+    "pnpm -C packages/wallet type-check",
+    "pnpm -C tests exec tsc -p tsconfig.wallet-browser.json",
+    "pnpm -C packages/wallet build:prod",
+    "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4289 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/static-wallet-assets.browser.test.ts --project=chromium --output=../.artifacts/r170-loader-retry",
+    "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/email-otp.unlock.contract.test.ts --grep 'Email OTP registration and unlock lifecycle'"
+  ],
+  "artifacts": [
+    {
+      "path": ".artifacts/r170-loader-retry/wallet-iframe-static-walle-9dc72-lesce-concurrent-operations-chromium/worker-wasm-retry.json",
+      "sha256": "89a20d9fd9ca7110853b3b6c1445e9398ea4939c2f09473611b63a8cf0dcbcaf",
+      "evidence": [
+        {
+          "worker": "/sdk/workers/evm-crypto.worker.js",
+          "failed": [
+            {
+              "ok": false,
+              "error": "ETH SIGNER WASM initialization failed. This may be due to:\n1. Server MIME type configuration (WASM files should be served with 'application/wasm')\n2. Network connectivity issues\n3. CORS policy restrictions\n4. Missing WASM files in deployment\n5. SDK packaging problems\n\nOriginal error: Failed to execute 'compile' on 'WebAssembly': HTTP status code is not ok"
+            }
+          ],
+          "concurrent": [
+            {
+              "ok": true,
+              "hex": "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"
+            },
+            {
+              "ok": true,
+              "hex": "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"
+            }
+          ],
+          "reused": [
+            {
+              "ok": true,
+              "hex": "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"
+            }
+          ]
+        },
+        {
+          "worker": "/sdk/workers/tempo-signer.worker.js",
+          "failed": [
+            {
+              "ok": false,
+              "error": "TEMPO SIGNER WASM initialization failed. This may be due to:\n1. Server MIME type configuration (WASM files should be served with 'application/wasm')\n2. Network connectivity issues\n3. CORS policy restrictions\n4. Missing WASM files in deployment\n5. SDK packaging problems\n\nOriginal error: Failed to execute 'compile' on 'WebAssembly': HTTP status code is not ok"
+            }
+          ],
+          "concurrent": [
+            {
+              "ok": true,
+              "hex": "84d4731901604de2e1e4d7c9b6919f29f8f8bb7c3975d3495461b7f32768f870"
+            },
+            {
+              "ok": true,
+              "hex": "84d4731901604de2e1e4d7c9b6919f29f8f8bb7c3975d3495461b7f32768f870"
+            }
+          ],
+          "reused": [
+            {
+              "ok": true,
+              "hex": "84d4731901604de2e1e4d7c9b6919f29f8f8bb7c3975d3495461b7f32768f870"
+            }
+          ]
+        },
+        {
+          "worker": "/sdk/workers/shamir3pass.worker.js",
+          "failed": [
+            {
+              "ok": false,
+              "error": "SHAMIR3PASS RUNTIME WASM initialization failed. This may be due to:\n1. Server MIME type configuration (WASM files should be served with 'application/wasm')\n2. Network connectivity issues\n3. CORS policy restrictions\n4. Missing WASM files in deployment\n5. SDK packaging problems\n\nOriginal error: Failed to execute 'compile' on 'WebAssembly': HTTP status code is not ok"
+            }
+          ],
+          "concurrent": [
+            {
+              "ok": true,
+              "ready": true
+            },
+            {
+              "ok": true,
+              "ready": true
+            }
+          ],
+          "reused": [
+            {
+              "ok": true,
+              "ready": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".artifacts/r170-loader-retry/wallet-iframe-static-walle-43934-e-successful-initialization-chromium/email-otp-loader-retry.json",
+      "sha256": "adbfda00b1636ecb5663999c8de0d50a586646d85cc3c1f635f40d6b18519028",
+      "evidence": [
+        {
+          "loader": "evm",
+          "failed": [
+            {
+              "ok": false,
+              "error": "EMAIL OTP WASM initialization failed. This may be due to:\n1. Server MIME type configuration (WASM files should be served with 'application/wasm')\n2. Network connectivity issues\n3. CORS policy restrictions\n4. Missing WASM files in deployment\n5. SDK packaging problems\n\nOriginal error: Failed to execute 'compile' on 'WebAssembly': HTTP status code is not ok"
+            }
+          ],
+          "concurrent": [
+            {
+              "ok": true
+            },
+            {
+              "ok": true
+            }
+          ],
+          "reused": [
+            {
+              "ok": true
+            }
+          ]
+        },
+        {
+          "loader": "email",
+          "failed": [
+            {
+              "ok": false,
+              "error": "EMAIL OTP RUNTIME WASM initialization failed. This may be due to:\n1. Server MIME type configuration (WASM files should be served with 'application/wasm')\n2. Network connectivity issues\n3. CORS policy restrictions\n4. Missing WASM files in deployment\n5. SDK packaging problems\n\nOriginal error: Failed to execute 'compile' on 'WebAssembly': HTTP status code is not ok"
+            }
+          ],
+          "concurrent": [
+            {
+              "ok": true
+            },
+            {
+              "ok": true
+            }
+          ],
+          "reused": [
+            {
+              "ok": true
+            }
+          ]
+        },
+        {
+          "loader": "custody",
+          "failed": [
+            {
+              "ok": false,
+              "error": "EMAIL OTP WALLET CUSTODY WASM initialization failed. This may be due to:\n1. Server MIME type configuration (WASM files should be served with 'application/wasm')\n2. Network connectivity issues\n3. CORS policy restrictions\n4. Missing WASM files in deployment\n5. SDK packaging problems\n\nOriginal error: WebAssembly.instantiate(): expected magic word 00 61 73 6d, found 54 65 6d 70 @+0"
+            }
+          ],
+          "concurrent": [
+            {
+              "ok": true
+            },
+            {
+              "ok": true
+            }
+          ],
+          "reused": [
+            {
+              "ok": true
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "Shamir uses its actual emitted worker. Email OTP tests bundle the production loader source into a browser probe and load emitted WASM; they do not dispatch the full Email OTP worker protocol.",
+    "Full Email OTP protocol retry in the same emitted worker remains an acceptance gap.",
+    "Browser probe bundling reports import.meta warnings in generated glue; explicit WASM base URLs select the actual files and request counters verify delivery.",
+    "No custody, durable presignature, or authorization behavior is changed."
+  ]
+}

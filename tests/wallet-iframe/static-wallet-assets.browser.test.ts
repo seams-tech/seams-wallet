@@ -254,7 +254,7 @@ const RETRY_SCENARIOS = [
     wasmUrl: '/sdk/workers/evm_crypto.wasm',
     operation: 'validateSecp256k1PublicKey33',
     payload: { publicKey33: Array.from(Buffer.from(GENERATOR_PUBLIC_KEY, 'hex')) },
-    expectedHex: GENERATOR_PUBLIC_KEY,
+    expectedResult: { ok: true, hex: GENERATOR_PUBLIC_KEY },
   },
   {
     workerUrl: '/sdk/workers/tempo-signer.worker.js',
@@ -275,7 +275,17 @@ const RETRY_SCENARIOS = [
       },
     },
     // Existing signer-core Tempo vector, checked through the emitted browser worker.
-    expectedHex: '84d4731901604de2e1e4d7c9b6919f29f8f8bb7c3975d3495461b7f32768f870',
+    expectedResult: {
+      ok: true,
+      hex: '84d4731901604de2e1e4d7c9b6919f29f8f8bb7c3975d3495461b7f32768f870',
+    },
+  },
+  {
+    workerUrl: '/sdk/workers/shamir3pass.worker.js',
+    wasmUrl: '/sdk/workers/shamir3pass_runtime_bg.wasm',
+    operation: 'warmup',
+    payload: {},
+    expectedResult: { ok: true, ready: true },
   },
 ];
 
@@ -286,6 +296,71 @@ function countAssetRequests(faults: AssetFaults, route: string, status: number):
   }
   return count;
 }
+
+test('Email OTP loaders retry delivery failure and reuse successful initialization', async function emailOtpLoaderRetry({
+  page,
+}, testInfo) {
+  const { server, baseUrl, faults } = await createWalletServerFixture();
+  const bundle = await build({
+    entryPoints: [path.join(TEST_DIR, 'email-otp-loader-retry-probe.ts')],
+    tsconfig: path.join(REPO_ROOT, 'packages/wallet/tsconfig.json'),
+    bundle: true,
+    format: 'iife',
+    platform: 'browser',
+    write: false,
+  });
+  const evidence = [];
+  try {
+    await page.goto(`${baseUrl}/wallet-service`, { waitUntil: 'domcontentloaded' });
+    await page.evaluate("globalThis.WASM_BASE_URL = new URL('/sdk/workers/', location.href).href");
+    await page.addScriptTag({ content: bundle.outputFiles[0]!.text });
+    for (const [loader, filename] of [
+      ['evm', 'evm_crypto.wasm'],
+      ['email', 'email_otp_runtime_bg.wasm'],
+      ['custody', 'wallet_custody_ceremony_bg.wasm'],
+    ]) {
+      const route = `/sdk/workers/${filename}`;
+      faults.unavailable.add(route);
+      const failed = await page.evaluate<Array<{ ok: boolean }>>(
+        `runEmailOtpLoaderRetry(${JSON.stringify(loader)}, 1)`,
+      );
+      expect(failed).toHaveLength(1);
+      expect(failed[0]!.ok).toBe(false);
+      expect(countAssetRequests(faults, route, 503)).toBeGreaterThan(0);
+      faults.unavailable.delete(route);
+      const concurrent = await page.evaluate(
+        `runEmailOtpLoaderRetry(${JSON.stringify(loader)}, 2)`,
+      );
+      expect(concurrent).toEqual([{ ok: true }, { ok: true }]);
+      const reused = await page.evaluate(`runEmailOtpLoaderRetry(${JSON.stringify(loader)}, 1)`);
+      expect(reused).toEqual([{ ok: true }]);
+      expect(countAssetRequests(faults, route, 200)).toBe(1);
+      evidence.push({ loader, failed, concurrent, reused });
+    }
+    const artifact = testInfo.outputPath('email-otp-loader-retry.json');
+    await fs.mkdir(path.dirname(artifact), { recursive: true });
+    await fs.writeFile(
+      artifact,
+      JSON.stringify(
+        {
+          scope:
+            'Production Email OTP loader source bundled for the browser; actual emitted WASM. This probe does not dispatch the full Email OTP worker protocol.',
+          evidence,
+          requests: faults.requests,
+        },
+        null,
+        2,
+      ),
+    );
+    await testInfo.attach('email-otp-loader-retry.json', {
+      path: artifact,
+      contentType: 'application/json',
+    });
+  } finally {
+    await page.close();
+    await close(server);
+  }
+});
 
 test('real workers retry failed WASM initialization and coalesce concurrent operations', async function workerRetry({
   page,
@@ -314,12 +389,9 @@ test('real workers retry failed WASM initialization and coalesce concurrent oper
 
       faults.unavailable.delete(scenario.wasmUrl);
       const concurrent = await page.evaluate<WorkerRetryResult[]>('runWorkerRetryProbe(2)');
-      expect(concurrent).toEqual([
-        { ok: true, hex: scenario.expectedHex },
-        { ok: true, hex: scenario.expectedHex },
-      ]);
+      expect(concurrent).toEqual([scenario.expectedResult, scenario.expectedResult]);
       const reused = await page.evaluate<WorkerRetryResult[]>('runWorkerRetryProbe(1)');
-      expect(reused).toEqual([{ ok: true, hex: scenario.expectedHex }]);
+      expect(reused).toEqual([scenario.expectedResult]);
       expect(countAssetRequests(faults, scenario.wasmUrl, 200)).toBe(1);
       expect(countAssetRequests(faults, scenario.workerUrl, 200)).toBe(1);
       await page.evaluate('stopWorkerRetryProbe()');

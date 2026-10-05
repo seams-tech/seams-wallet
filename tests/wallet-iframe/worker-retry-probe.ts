@@ -1,4 +1,7 @@
-export type WorkerRetryResult = { ok: true; hex: string } | { ok: false; error: string };
+export type WorkerRetryResult =
+  | { ok: true; hex: string }
+  | { ok: true; ready: true }
+  | { ok: false; error: string };
 
 type ProbeInput = {
   workerUrl: string;
@@ -44,6 +47,15 @@ class WorkerRetryProbe {
     if (!resolve) return;
     if (data.ok === true && 'result' in data && data.result instanceof ArrayBuffer) {
       resolve({ ok: true, hex: Array.from(new Uint8Array(data.result), byteHex).join('') });
+    } else if (
+      data.ok === true &&
+      'result' in data &&
+      data.result !== null &&
+      typeof data.result === 'object' &&
+      'ready' in data.result &&
+      data.result.ready === true
+    ) {
+      resolve({ ok: true, ready: true });
     } else if (data.ok === false && 'error' in data && typeof data.error === 'string') {
       resolve({ ok: false, error: data.error });
     } else {

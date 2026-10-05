@@ -103,16 +103,19 @@ function postToMainThread(message: unknown, transfer?: Transferable[]): void {
   workerSelf.postMessage(message, transfer);
 }
 
+function resetWasmInitOnFailure(error: unknown): never {
+  wasmInitPromise = null;
+  throw error;
+}
+
 async function ensureWasm(): Promise<void> {
   if (wasmInitPromise) return wasmInitPromise;
-  wasmInitPromise = (async () => {
-    await initializeWasm({
-      workerName: 'Shamir3Pass Runtime',
-      wasmUrl,
-      initFunction: init as unknown as (wasmModule?: unknown) => Promise<void>,
-      validateFunction: () => init_shamir3pass_runtime(),
-    });
-  })();
+  wasmInitPromise = initializeWasm({
+    workerName: 'Shamir3Pass Runtime',
+    wasmUrl,
+    initFunction: init as unknown as (wasmModule?: unknown) => Promise<void>,
+    validateFunction: init_shamir3pass_runtime,
+  }).catch(resetWasmInitOnFailure);
   return wasmInitPromise;
 }
 

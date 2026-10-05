@@ -47,6 +47,21 @@ function resetEmailOtpYaoClientInitOnFailure(error: unknown): never {
   throw error;
 }
 
+function resetEvmCryptoInitOnFailure(error: unknown): never {
+  evmCryptoInitPromise = null;
+  throw error;
+}
+
+function resetEmailOtpRuntimeInitOnFailure(error: unknown): never {
+  emailOtpRuntimeInitPromise = null;
+  throw error;
+}
+
+function resetWalletCustodyCeremonyInitOnFailure(error: unknown): never {
+  walletCustodyCeremonyInitPromise = null;
+  throw error;
+}
+
 export function getEmailOtpYaoClient(): Promise<RouterAbEd25519YaoClientV1> {
   if (!emailOtpYaoClientInitPromise) {
     emailOtpYaoClientInitPromise = RouterAbEd25519YaoClientV1.initializeBundled().catch(
@@ -58,39 +73,33 @@ export function getEmailOtpYaoClient(): Promise<RouterAbEd25519YaoClientV1> {
 
 export async function ensureEvmCryptoWasm(): Promise<void> {
   if (evmCryptoInitPromise) return evmCryptoInitPromise;
-  evmCryptoInitPromise = (async () => {
-    await initializeWasm({
-      workerName: 'Email OTP',
-      wasmUrl: evmCryptoWasmUrl,
-      initFunction: initEvmCrypto as unknown as (wasmModule?: unknown) => Promise<void>,
-      validateFunction: () => init_evm_crypto(),
-    });
-  })();
+  evmCryptoInitPromise = initializeWasm({
+    workerName: 'Email OTP',
+    wasmUrl: evmCryptoWasmUrl,
+    initFunction: initEvmCrypto as unknown as (wasmModule?: unknown) => Promise<void>,
+    validateFunction: init_evm_crypto,
+  }).catch(resetEvmCryptoInitOnFailure);
   return evmCryptoInitPromise;
 }
 
 async function ensureEmailOtpRuntimeWasm(): Promise<void> {
   if (emailOtpRuntimeInitPromise) return emailOtpRuntimeInitPromise;
-  emailOtpRuntimeInitPromise = (async () => {
-    await initializeWasm({
-      workerName: 'Email OTP Runtime',
-      wasmUrl: emailOtpRuntimeWasmUrl,
-      initFunction: initEmailOtpRuntime as unknown as (wasmModule?: unknown) => Promise<void>,
-      validateFunction: () => init_email_otp_runtime(),
-    });
-  })();
+  emailOtpRuntimeInitPromise = initializeWasm({
+    workerName: 'Email OTP Runtime',
+    wasmUrl: emailOtpRuntimeWasmUrl,
+    initFunction: initEmailOtpRuntime as unknown as (wasmModule?: unknown) => Promise<void>,
+    validateFunction: init_email_otp_runtime,
+  }).catch(resetEmailOtpRuntimeInitOnFailure);
   return emailOtpRuntimeInitPromise;
 }
 
 export async function ensureWalletCustodyCeremonyWasm(): Promise<void> {
   if (walletCustodyCeremonyInitPromise) return walletCustodyCeremonyInitPromise;
-  walletCustodyCeremonyInitPromise = (async () => {
-    await initializeWasm({
-      workerName: 'Email OTP Wallet Custody',
-      wasmUrl: walletCustodyCeremonyWasmUrl,
-      initFunction: initWalletCustodyCeremony as unknown as (wasmModule?: unknown) => Promise<void>,
-    });
-  })();
+  walletCustodyCeremonyInitPromise = initializeWasm({
+    workerName: 'Email OTP Wallet Custody',
+    wasmUrl: walletCustodyCeremonyWasmUrl,
+    initFunction: initWalletCustodyCeremony as unknown as (wasmModule?: unknown) => Promise<void>,
+  }).catch(resetWalletCustodyCeremonyInitOnFailure);
   return walletCustodyCeremonyInitPromise;
 }
 
