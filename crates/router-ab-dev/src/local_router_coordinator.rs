@@ -935,6 +935,30 @@ impl LocalRouterRequestDispatcherV1 for LocalRouterEd25519YaoCoordinatorV1 {
         config: &LocalRouterWorkerConfigV1,
         request: &LocalDevHttpRequestPartsV1,
     ) -> Result<Option<(u16, String)>, Box<dyn std::error::Error>> {
+        if request.path == router_ab_cloudflare::ROUTER_WALLET_FREEZE_PATH_V1 {
+            let freeze = serde_json::from_slice::<router_ab_cloudflare::RouterWalletFreezeRequestV1>(
+                &request.body,
+            )
+            .map_err(|error| {
+                RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::MalformedWirePayload,
+                    format!("Router wallet freeze request is malformed: {error}"),
+                )
+            });
+            return match freeze.and_then(|freeze| {
+                crate::local_router_wallet::freeze_local_router_wallet_v1(
+                    &config.tenant_root.creation_storage_path,
+                    freeze,
+                )
+            }) {
+                Ok(response) => Ok(Some((200, serde_json::to_string(&response)?))),
+                Err(error) => Ok(Some(local_dev_http_route_error_v1(
+                    LocalServiceRoleV1::Router,
+                    &request.path,
+                    error,
+                )?)),
+            };
+        }
         if crate::local_router_normal_signing::is_local_router_normal_signing_path_v1(&request.path)
         {
             return match crate::local_router_normal_signing::serve_local_router_normal_signing_v1(

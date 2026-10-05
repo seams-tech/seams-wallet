@@ -152,6 +152,20 @@ This verifies the D1 resource/version subset with synthetic provider checkpoints
 It does not complete owner approval, schema/key checks, Rust role preparation,
 participant effects, or the full preparation gate.
 
+The Router registration store now has a transactional source fence on both native
+SQLite and the wallet Durable Object. Its private freeze route requires the
+existing Gateway-to-Router authentication. It stops new registration claims,
+drains admitted claims and activation consumption, then seals a stable record
+digest. Claim expiry alone never proves completion. Exact retries return the
+stored receipt; changed inputs conflict. No source-reactivation operation exists.
+The two existing Router wallet HTTP E2Es pass, including a real held Deriver
+request, delayed admission, restart, exact replay, and wallet isolation. The
+Cloudflare Router compiles for WASM. Evidence remains in public
+`.artifacts/r153/router-wallet-freeze-20261005/`. This covers the Router's
+registration records only. Console command integration, other Router stores,
+authoritative generation reconciliation, and other participant fences remain
+unfinished. No whole-wallet source-fence receipt is produced yet.
+
 Retained evidence:
 `.artifacts/r153/execution-journal-20261004/`, receipt SHA-256
 `02184ddd17816901bf2413115c35ca33a43bd90a269fedaeffb7f6990d8af555`.

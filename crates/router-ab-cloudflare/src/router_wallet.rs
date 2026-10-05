@@ -64,8 +64,8 @@ pub fn parse_router_yao_registration_lease_ms_v1(
 pub const CLOUDFLARE_ROUTER_ED25519_YAO_REGISTRATION_CONSUME_PRIVATE_REQUEST_PATH: &str =
     "/router-ab/router/ed25519-yao/registration/consume";
 
-const OWNER_KEY: &str = "owner";
-const REGISTRATION_KEY_PREFIX: &str = "yao-registration/";
+pub(crate) const OWNER_KEY: &str = "owner";
+pub(crate) const REGISTRATION_KEY_PREFIX: &str = "yao-registration/";
 
 /// The wallet one Router wallet object belongs to.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -338,6 +338,9 @@ pub enum RouterWalletRefusalCodeV1 {
 pub trait RouterWalletStoreV1 {
     async fn get_json<T: DeserializeOwned>(&self, key: &str) -> RouterAbProtocolResult<Option<T>>;
     async fn put_json<T: Serialize>(&self, key: &str, value: &T) -> RouterAbProtocolResult<()>;
+    async fn list_registrations(
+        &self,
+    ) -> RouterAbProtocolResult<Vec<(String, RouterWalletRegistrationRecordV1)>>;
 }
 
 /// Runs one command against one wallet object's storage. The first command
@@ -432,6 +435,7 @@ async fn claim_registration<Store: RouterWalletStoreV1>(
         .await?
     {
         None => {
+            crate::router_wallet_relocation::admit_new_registration(store).await?;
             store
                 .put_json(
                     &key,
@@ -467,6 +471,7 @@ async fn claim_registration<Store: RouterWalletStoreV1>(
             let generation = held_generation
                 .checked_add(1)
                 .ok_or_else(|| stored_record_error("its claim generation overflowed".to_owned()))?;
+            crate::router_wallet_relocation::admit_settlement(store).await?;
             store
                 .put_json(
                     &key,
@@ -537,6 +542,7 @@ async fn finish_registration<Store: RouterWalletStoreV1>(
             request_json,
             ..
         }) if claimed_digest == request_digest_hex => {
+            crate::router_wallet_relocation::admit_settlement(store).await?;
             let record = match outcome {
                 RouterWalletRegistrationOutcomeV1::Completed => {
                     RouterWalletRegistrationRecordV1::Completed {
@@ -647,6 +653,7 @@ async fn consume_registration<Store: RouterWalletStoreV1>(
             response_json,
         }),
         None => {
+            crate::router_wallet_relocation::admit_settlement(store).await?;
             store
                 .put_json(
                     &key,
@@ -676,7 +683,7 @@ pub fn router_wallet_registration_replay_refused_v1() -> RouterAbProtocolError {
     )
 }
 
-fn lower_hex(bytes: &[u8]) -> String {
+pub(crate) fn lower_hex(bytes: &[u8]) -> String {
     bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 

@@ -1,0 +1,221 @@
+use router_ab_core::{RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult};
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+
+use crate::router_wallet::{
+    RouterWalletOwnerV1, RouterWalletRegistrationRecordV1, RouterWalletStoreV1, OWNER_KEY,
+    REGISTRATION_KEY_PREFIX,
+};
+
+pub const ROUTER_WALLET_FREEZE_PATH_V1: &str = "/router-ab/router/wallet/freeze";
+const FENCE_KEY: &str = "relocation-fence";
+
+/// The admitted move's immutable identity, supplied through the private Router boundary.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RouterWalletFreezeRequestV1 {
+    pub owner: RouterWalletOwnerV1,
+    pub move_id: String,
+    pub request_digest_hex: String,
+    pub source_generation: u64,
+    pub destination_generation: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RouterWalletFreezeReceiptV1 {
+    pub request: RouterWalletFreezeRequestV1,
+    pub records_digest_hex: String,
+    pub record_count: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
+pub enum RouterWalletFreezeResponseV1 {
+    Draining {
+        unsettled_lifecycles: Vec<String>,
+    },
+    Frozen {
+        receipt: RouterWalletFreezeReceiptV1,
+    },
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
+enum Fence {
+    Draining {
+        request: RouterWalletFreezeRequestV1,
+    },
+    Frozen {
+        receipt: RouterWalletFreezeReceiptV1,
+    },
+}
+
+/// Must share the store transaction with the admitted write.
+pub(crate) async fn admit_new_registration<Store: RouterWalletStoreV1>(
+    store: &Store,
+) -> RouterAbProtocolResult<()> {
+    if store.get_json::<Fence>(FENCE_KEY).await?.is_some() {
+        return Err(paused());
+    }
+    Ok(())
+}
+
+/// Existing claims can settle until the immutable snapshot is sealed.
+pub(crate) async fn admit_settlement<Store: RouterWalletStoreV1>(
+    store: &Store,
+) -> RouterAbProtocolResult<()> {
+    if matches!(
+        store.get_json::<Fence>(FENCE_KEY).await?,
+        Some(Fence::Frozen { .. })
+    ) {
+        return Err(paused());
+    }
+    Ok(())
+}
+
+/// Runs inside the same transaction as ordinary Router wallet commands.
+/// A pending external effect stays unresolved even if its claim lease expired.
+pub async fn freeze_router_wallet_v1<Store: RouterWalletStoreV1>(
+    store: &Store,
+    request: RouterWalletFreezeRequestV1,
+) -> RouterAbProtocolResult<RouterWalletFreezeResponseV1> {
+    validate_request(&request)?;
+    if store
+        .get_json::<RouterWalletOwnerV1>(OWNER_KEY)
+        .await?
+        .as_ref()
+        != Some(&request.owner)
+    {
+        return Err(conflict("Router wallet freeze names an unknown owner"));
+    }
+    match store.get_json::<Fence>(FENCE_KEY).await? {
+        Some(Fence::Frozen { receipt }) => {
+            if receipt.request != request {
+                return Err(conflict("Router wallet freeze inputs changed"));
+            }
+            return Ok(RouterWalletFreezeResponseV1::Frozen { receipt });
+        }
+        Some(Fence::Draining { request: admitted }) => {
+            if admitted != request {
+                return Err(conflict("Router wallet freeze inputs changed"));
+            }
+        }
+        None => {
+            store
+                .put_json(
+                    FENCE_KEY,
+                    &Fence::Draining {
+                        request: request.clone(),
+                    },
+                )
+                .await?
+        }
+    }
+    let mut records = store.list_registrations().await?;
+    records.sort_by(|left, right| left.0.cmp(&right.0));
+    let mut unsettled_lifecycles = Vec::new();
+    for (key, record) in &records {
+        let (lifecycle_id, settled) = match record {
+            RouterWalletRegistrationRecordV1::Claimed { lifecycle_id, .. } => (lifecycle_id, false),
+            RouterWalletRegistrationRecordV1::Completed {
+                lifecycle_id,
+                consumer_binding,
+                ..
+            } => (lifecycle_id, consumer_binding.is_some()),
+            RouterWalletRegistrationRecordV1::Failed { lifecycle_id, .. } => (lifecycle_id, true),
+        };
+        if key != &format!("{REGISTRATION_KEY_PREFIX}{lifecycle_id}") {
+            return Err(conflict(
+                "Router wallet record key differs from its lifecycle",
+            ));
+        }
+        if !settled {
+            unsettled_lifecycles.push(lifecycle_id.clone());
+        }
+    }
+    if !unsettled_lifecycles.is_empty() {
+        return Ok(RouterWalletFreezeResponseV1::Draining {
+            unsettled_lifecycles,
+        });
+    }
+    let bytes = serde_json::to_vec(&(&request, &records))
+        .map_err(|error| conflict(&format!("Router wallet snapshot encoding failed: {error}")))?;
+    let mut digest = Sha256::new();
+    digest.update(b"seams/router/wallet-snapshot/v1");
+    digest.update(bytes);
+    let receipt = RouterWalletFreezeReceiptV1 {
+        request,
+        records_digest_hex: crate::router_wallet::lower_hex(&digest.finalize()),
+        record_count: records.len() as u64,
+    };
+    store
+        .put_json(
+            FENCE_KEY,
+            &Fence::Frozen {
+                receipt: receipt.clone(),
+            },
+        )
+        .await?;
+    Ok(RouterWalletFreezeResponseV1::Frozen { receipt })
+}
+
+fn validate_request(request: &RouterWalletFreezeRequestV1) -> RouterAbProtocolResult<()> {
+    if request.move_id.len() != 49
+        || !request.move_id.starts_with("wmove_")
+        || !request.move_id.as_bytes()[6..]
+            .iter()
+            .all(|byte| byte.is_ascii_alphanumeric() || *byte == b'_' || *byte == b'-')
+        || request.request_digest_hex.len() != 64
+        || !request
+            .request_digest_hex
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        || request.source_generation == 0
+        || request.source_generation >= 9_007_199_254_740_991
+        || request.destination_generation != request.source_generation + 1
+    {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::MalformedWirePayload,
+            "Router wallet freeze identity is invalid",
+        ));
+    }
+    Ok(())
+}
+
+fn paused() -> RouterAbProtocolError {
+    RouterAbProtocolError::new(
+        RouterAbProtocolErrorCode::LifecycleTransitionInProgress,
+        "Router wallet relocation has closed admission",
+    )
+}
+
+fn conflict(message: &str) -> RouterAbProtocolError {
+    RouterAbProtocolError::new(RouterAbProtocolErrorCode::ForbiddenLocalBinding, message)
+}
+
+#[cfg(feature = "workers-rs")]
+pub(crate) async fn handle_freeze(
+    mut request: worker::Request,
+    env: &worker::Env,
+) -> worker::Result<worker::Response> {
+    if request.method() != worker::Method::Post {
+        return worker::Response::error("Router wallet freeze requires POST", 405);
+    }
+    if let Err(error) = crate::require_cloudflare_gateway_to_router_auth_request_v1(&request, env) {
+        return crate::cloudflare_private_service_auth_error_response_v1(error);
+    }
+    let freeze = match request.json::<RouterWalletFreezeRequestV1>().await {
+        Ok(freeze) => freeze,
+        Err(error) => {
+            return crate::router_coordinator::protocol_error_response(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                format!("Router wallet freeze request is malformed: {error}"),
+            ))
+        }
+    };
+    match crate::durable_object::call_router_wallet_freeze_v1(env, &freeze).await {
+        Ok(response) => worker::Response::from_json(&response),
+        Err(error) => crate::router_coordinator::protocol_error_response(error),
+    }
+}

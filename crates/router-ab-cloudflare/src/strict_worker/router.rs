@@ -904,6 +904,9 @@ pub(super) async fn handle_strict_router_fetch_v1(
     if path == CLOUDFLARE_ROUTER_ED25519_YAO_EXECUTE_PRIVATE_REQUEST_PATH {
         return handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(request, &env).await;
     }
+    if path == crate::ROUTER_WALLET_FREEZE_PATH_V1 {
+        return crate::router_wallet_relocation::handle_freeze(request, &env).await;
+    }
     if path == crate::CLOUDFLARE_ROUTER_ED25519_YAO_REGISTRATION_CONSUME_PRIVATE_REQUEST_PATH {
         return crate::handle_cloudflare_router_ed25519_yao_registration_consume_private_fetch_v1(
             request, &env,

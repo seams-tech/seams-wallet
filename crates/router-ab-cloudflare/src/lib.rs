@@ -331,6 +331,11 @@ mod router;
 pub use router::*;
 mod router_wallet;
 pub use router_wallet::*;
+mod router_wallet_relocation;
+pub use router_wallet_relocation::{
+    freeze_router_wallet_v1, RouterWalletFreezeReceiptV1, RouterWalletFreezeRequestV1,
+    RouterWalletFreezeResponseV1, ROUTER_WALLET_FREEZE_PATH_V1,
+};
 
 #[cfg(feature = "workers-rs")]
 mod router_coordinator;

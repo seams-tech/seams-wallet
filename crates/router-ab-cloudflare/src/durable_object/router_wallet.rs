@@ -13,11 +13,21 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use worker::{durable_object, DurableObject, Env, Method, Request, Response, State};
 
 use crate::router_wallet::{
-    router_wallet_serve_v1, RouterWalletRequestV1, RouterWalletResponseV1, RouterWalletStoreV1,
+    router_wallet_serve_v1, RouterWalletOwnerV1, RouterWalletRegistrationRecordV1,
+    RouterWalletRequestV1, RouterWalletResponseV1, RouterWalletStoreV1, REGISTRATION_KEY_PREFIX,
+};
+use crate::{
+    freeze_router_wallet_v1, RouterWalletFreezeRequestV1, RouterWalletFreezeResponseV1,
+    ROUTER_WALLET_FREEZE_PATH_V1,
 };
 
 const BINDING: &str = "ROUTER_WALLET_DO";
 const COMMAND_PATH: &str = "/router-wallet/v1/command";
+
+enum WalletCall {
+    Ordinary(RouterWalletRequestV1),
+    Freeze(RouterWalletFreezeRequestV1),
+}
 
 /// A refusal as the object answers it, with its protocol code.
 #[derive(Debug, Serialize, Deserialize)]
@@ -38,10 +48,23 @@ impl DurableObject for RouterAbRouterWalletDurableObject {
     }
 
     async fn fetch(&self, mut request: Request) -> worker::Result<Response> {
-        if request.method() != Method::Post || request.path() != COMMAND_PATH {
+        if request.method() != Method::Post
+            || (request.path() != COMMAND_PATH && request.path() != ROUTER_WALLET_FREEZE_PATH_V1)
+        {
             return Response::error("Router wallet object route not found", 404);
         }
-        let command = match request.json::<RouterWalletRequestV1>().await {
+        let parsed = if request.path() == COMMAND_PATH {
+            request
+                .json::<RouterWalletRequestV1>()
+                .await
+                .map(WalletCall::Ordinary)
+        } else {
+            request
+                .json::<RouterWalletFreezeRequestV1>()
+                .await
+                .map(WalletCall::Freeze)
+        };
+        let command = match parsed {
             Ok(command) => command,
             Err(error) => {
                 return refusal_response(&RouterAbProtocolError::new(
@@ -59,7 +82,14 @@ impl DurableObject for RouterAbRouterWalletDurableObject {
                     transaction,
                     storage_error: RefCell::new(None),
                 };
-                let result = router_wallet_serve_v1(&store, command).await;
+                let result = match command {
+                    WalletCall::Ordinary(command) => router_wallet_serve_v1(&store, command)
+                        .await
+                        .and_then(encode_response),
+                    WalletCall::Freeze(command) => freeze_router_wallet_v1(&store, command)
+                        .await
+                        .and_then(encode_response),
+                };
                 if let Some(error) = store.storage_error.borrow_mut().take() {
                     return Err(worker::Error::RustError(error));
                 }
@@ -92,7 +122,23 @@ pub(crate) async fn call_router_wallet_v1(
     env: &Env,
     request: &RouterWalletRequestV1,
 ) -> RouterAbProtocolResult<RouterWalletResponseV1> {
-    let object_name = request.owner.object_name()?;
+    call_wallet(env, &request.owner, COMMAND_PATH, request).await
+}
+
+pub(crate) async fn call_router_wallet_freeze_v1(
+    env: &Env,
+    request: &RouterWalletFreezeRequestV1,
+) -> RouterAbProtocolResult<RouterWalletFreezeResponseV1> {
+    call_wallet(env, &request.owner, ROUTER_WALLET_FREEZE_PATH_V1, request).await
+}
+
+async fn call_wallet<Input: Serialize, Output: DeserializeOwned>(
+    env: &Env,
+    owner: &RouterWalletOwnerV1,
+    path: &str,
+    request: &Input,
+) -> RouterAbProtocolResult<Output> {
+    let object_name = owner.object_name()?;
     let stub = env
         .durable_object(BINDING)
         .and_then(|namespace| namespace.get_by_name(&object_name))
@@ -106,11 +152,8 @@ pub(crate) async fn call_router_wallet_v1(
     let mut init = worker::RequestInit::new();
     init.with_method(Method::Post)
         .with_body(Some(worker::wasm_bindgen::JsValue::from_str(&body)));
-    let outbound = Request::new_with_init(
-        &format!("https://router-wallet.internal{COMMAND_PATH}"),
-        &init,
-    )
-    .map_err(|error| unavailable(format!("Router wallet object request failed: {error}")))?;
+    let outbound = Request::new_with_init(&format!("https://router-wallet.internal{path}"), &init)
+        .map_err(|error| unavailable(format!("Router wallet object request failed: {error}")))?;
     let mut response = stub
         .fetch_with_request(outbound)
         .await
@@ -139,6 +182,11 @@ fn decode<T: DeserializeOwned>(text: &str, what: &str) -> RouterAbProtocolResult
             format!("Router wallet object {what} is malformed: {error}"),
         )
     })
+}
+
+fn encode_response<T: Serialize>(response: T) -> RouterAbProtocolResult<serde_json::Value> {
+    serde_json::to_value(response)
+        .map_err(|error| unavailable(format!("Router wallet response encoding failed: {error}")))
 }
 
 fn unavailable(message: String) -> RouterAbProtocolError {
@@ -170,6 +218,32 @@ impl TransactionStoreV1 {
 }
 
 impl RouterWalletStoreV1 for TransactionStoreV1 {
+    async fn list_registrations(
+        &self,
+    ) -> RouterAbProtocolResult<Vec<(String, RouterWalletRegistrationRecordV1)>> {
+        let values = self
+            .transaction
+            .list_with_options(worker::ListOptions::new().prefix(REGISTRATION_KEY_PREFIX))
+            .await
+            .map_err(|error| self.record(error))?;
+        let mut records = Vec::new();
+        for key in values.keys() {
+            let key =
+                key.map_err(|error| self.record(worker::Error::JsError(format!("{error:?}"))))?;
+            let key = key.as_string().ok_or_else(|| {
+                self.record(worker::Error::RustError(
+                    "Router wallet storage key is invalid".to_owned(),
+                ))
+            })?;
+            let record = self.get_json(&key).await?.ok_or_else(|| {
+                self.record(worker::Error::RustError(
+                    "Router wallet record disappeared".to_owned(),
+                ))
+            })?;
+            records.push((key, record));
+        }
+        Ok(records)
+    }
     async fn get_json<T: DeserializeOwned>(&self, key: &str) -> RouterAbProtocolResult<Option<T>> {
         match self.transaction.get::<T>(key).await {
             Ok(value) => Ok(Some(value)),

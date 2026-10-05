@@ -2524,7 +2524,7 @@ fn operation_label(operation: Ed25519YaoOperationV1) -> &'static str {
     }
 }
 
-fn protocol_error_response(error: RouterAbProtocolError) -> worker::Result<Response> {
+pub(crate) fn protocol_error_response(error: RouterAbProtocolError) -> worker::Result<Response> {
     Response::error(
         format!("{:?}: {}", error.code(), error.message()),
         cloudflare_router_error_status(error.code()),

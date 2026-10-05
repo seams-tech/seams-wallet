@@ -67,6 +67,7 @@ pub fn local_worker_owned_paths_v1(role: LocalServiceRoleV1) -> &'static [&'stat
             LOCAL_WORKER_HEALTH_PATH,
             LOCAL_WORKER_READY_PATH,
             LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
+            router_ab_cloudflare::ROUTER_WALLET_FREEZE_PATH_V1,
             router_ab_cloudflare::CLOUDFLARE_ROUTER_ED25519_YAO_SOURCE_PRESERVING_EXECUTE_PRIVATE_REQUEST_PATH,
             router_ab_cloudflare::CLOUDFLARE_ROUTER_ED25519_YAO_REGISTRATION_CONSUME_PRIVATE_REQUEST_PATH,
             LOCAL_ROUTER_ED25519_YAO_RECOVERY_PROMOTE_PATH,
