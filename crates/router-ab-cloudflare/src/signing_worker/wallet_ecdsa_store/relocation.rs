@@ -133,6 +133,18 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         Ok(())
     }
 
+    pub(super) fn require_frozen_receipt(
+        &self,
+        receipt: &SigningWorkerPoolFreezeReceiptV1,
+    ) -> RouterAbProtocolResult<()> {
+        match self.pool_fence(&receipt.scope)? {
+            Some(Fence::Frozen { receipt: stored }) if stored == *receipt => Ok(()),
+            _ => Err(wallet_error(
+                "ECDSA export requires its frozen source receipt",
+            )),
+        }
+    }
+
     /// The host must serialize this operation with wallet ECDSA writes in one storage transaction.
     /// Pending effects retain the fence and can finish through their original commit path.
     pub fn freeze_pool_for_relocation(
@@ -211,16 +223,12 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
             self.mutate_pool_record(scope.clone(), command)?;
         }
         let snapshot = self.ecdsa_snapshot(&scope)?;
-        let encoded = serde_json::to_vec(&(&scope, &request, &snapshot))
-            .map_err(|error| wallet_error(error.to_string()))?;
-        let mut digest = Sha256::new();
-        digest.update(b"seams/signing-worker/wallet-ecdsa-snapshot/v1");
-        digest.update(encoded);
+        let encoded = snapshot.encode(&scope, &request)?;
         let receipt = SigningWorkerPoolFreezeReceiptV1 {
             scope: scope.clone(),
             request,
             record_count: snapshot.record_count(),
-            wallet_records_digest_hex: hex_slice(&digest.finalize()),
+            wallet_records_digest_hex: snapshot::snapshot_digest(&encoded),
         };
         self.save_pool_fence(
             &scope,

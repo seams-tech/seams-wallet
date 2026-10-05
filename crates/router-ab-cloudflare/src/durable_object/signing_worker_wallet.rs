@@ -131,6 +131,7 @@ pub(crate) enum SigningWorkerWalletDoRequestV1 {
         scope: CloudflareSigningWorkerWalletScopeV1,
     },
     FreezeEcdsaPool(crate::SigningWorkerPoolFreezeCommandV1),
+    ExportEcdsaSnapshot(crate::SigningWorkerEcdsaExportRequestV1),
     EcdsaPoolMutate {
         scope: CloudflareSigningWorkerWalletScopeV1,
         mutation: CloudflareSigningWorkerEcdsaPoolCommandV1,
@@ -246,6 +247,7 @@ impl SigningWorkerWalletDoRequestV1 {
             Self::PrepareNear { scope, .. } | Self::FinalizeNear { scope, .. } => scope,
             Self::EcdsaPoolMutate { scope, .. } => scope,
             Self::FreezeEcdsaPool(command) => &command.scope,
+            Self::ExportEcdsaSnapshot(command) => &command.receipt.scope,
             Self::CheckEcdsaPoolAdmission { scope } => scope,
             Self::ClaimAndConsumeEcdsaEffect { scope, .. }
             | Self::CommitEcdsaTerminal { scope, .. } => scope,
@@ -315,6 +317,7 @@ impl SigningWorkerWalletDoRequestV1 {
                 crate::require_positive_ms("SigningWorker finalize time", *now_unix_ms)
             }
             Self::FreezeEcdsaPool(command) => command.scope.validate(),
+            Self::ExportEcdsaSnapshot(command) => command.receipt.scope.validate(),
             Self::CheckEcdsaPoolAdmission { scope } => scope.validate(),
             Self::EcdsaPoolMutate { scope, mutation } => {
                 scope.validate()?;
@@ -629,6 +632,9 @@ impl RouterAbSigningWorkerWalletDurableObject {
                 let sql = DurableObjectWalletSqlV1(&self.sql);
                 Response::from_json(&self.open_ecdsa_store(&sql)?.pool_admission(&scope)?)
                     .map_err(sql_error)
+            }
+            SigningWorkerWalletDoRequestV1::ExportEcdsaSnapshot(command) => {
+                self.with_ecdsa_transaction(move |store| store.export_ecdsa_snapshot(command)).await
             }
             SigningWorkerWalletDoRequestV1::FreezeEcdsaPool(command) => {
                 self.with_ecdsa_transaction(move |store| {

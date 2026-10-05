@@ -312,6 +312,21 @@ coverage. This inventory is not yet exported through bounded chunks, and it does
 not cover the other SigningWorker stores or the separate presign-session objects.
 Evidence remains in `.artifacts/r153/ecdsa-snapshot-20261005/`.
 
+Frozen wallet ECDSA inventories now export through the native SigningWorker and
+wallet-DO transports. The endpoint requires the dedicated Router-to-SigningWorker
+ECDSA credential. Each request names the exact stored receipt, segment position,
+and a size of 1 through 65,536 bytes. The store recomputes the complete inventory
+digest before returning a segment. Changed receipts, changed source rows, missing
+segments, and oversized requests fail. The production-store E2E reopens storage
+for every segment and exact retry, reconstructs the inventory, and detects changed
+SQL versions. The HTTP E2E rejects an unrelated credential and repeats the same
+export after SigningWorker restart. Native and both WASM builds, these focused
+E2Es, and the bloat check pass. Evidence remains in
+`.artifacts/r153/ecdsa-export-20261005/`. The export currently reads the complete
+wallet inventory to verify each segment. Destination preparation, transactional
+import acknowledgements, verification, and coordinator command authority remain
+unfinished for this inventory.
+
 Retained evidence:
 `.artifacts/r153/execution-journal-20261004/`, receipt SHA-256
 `02184ddd17816901bf2413115c35ca33a43bd90a269fedaeffb7f6990d8af555`.

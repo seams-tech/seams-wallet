@@ -12,6 +12,11 @@ use serde::de::DeserializeOwned;
 
 mod relocation;
 mod snapshot;
+mod transfer;
+pub use transfer::{
+    SigningWorkerEcdsaExportRequestV1, SigningWorkerEcdsaSnapshotChunkV1,
+    SIGNING_WORKER_ECDSA_EXPORT_PATH_V1,
+};
 pub use relocation::{
     SigningWorkerPoolAdmissionV1, SigningWorkerPoolFreezeCommandV1,
     SigningWorkerPoolFreezeReceiptV1, SigningWorkerPoolFreezeRequestV1,

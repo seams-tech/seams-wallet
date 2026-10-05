@@ -411,6 +411,7 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         frozen_rows,
         "another wallet retains its ordinary pool admission"
     );
+    let exported_segments = verify_snapshot_export(&path, &env, receipt)?;
     let artifact = serde_json::json!({
         "scenario": "encrypted_pool_relocation", "records": 7,
         "available_and_reserved_destroyed": true, "reserved_binding_preserved": true,
@@ -424,6 +425,10 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         "frozen_receipt_exact_retry": true,
         "snapshot_includes_pool_activation_and_terminal_effect": true,
         "snapshot_record_count": receipt.record_count,
+        "exported_segments": exported_segments,
+        "export_exact_after_reopen": true,
+        "export_rejects_changed_receipt_and_bounds": true,
+        "export_rejects_changed_source_inventory": true,
         "other_wallet_pool_admission_preserved": true,
         "scope": "Production wallet store and cipher on SQLite; excludes wallet-wide fencing and HTTP authorization"
     });
@@ -450,4 +455,84 @@ fn freeze(
     with_store(path, env, |store| {
         store.freeze_pool_for_relocation(owner.clone(), request)
     })
+}
+
+fn verify_snapshot_export(
+    path: &std::path::Path,
+    env: &CloudflareEnvMapV1,
+    receipt: &router_ab_cloudflare::SigningWorkerPoolFreezeReceiptV1,
+) -> Result<u32, Box<dyn std::error::Error>> {
+    let mut request = router_ab_cloudflare::SigningWorkerEcdsaExportRequestV1 {
+        receipt: receipt.clone(),
+        segment_index: 0,
+        chunk_bytes: 1_024,
+    };
+    let first = with_store(path, env, |store| {
+        store.export_ecdsa_snapshot(request.clone())
+    })?;
+    assert!(first.segment_count > 1);
+    let mut bytes = Vec::new();
+    for segment_index in 0..first.segment_count {
+        request.segment_index = segment_index;
+        let chunk = with_store(path, env, |store| {
+            store.export_ecdsa_snapshot(request.clone())
+        })?;
+        let retried = with_store(path, env, |store| {
+            store.export_ecdsa_snapshot(request.clone())
+        })?;
+        assert_eq!(chunk, retried);
+        let data = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(&chunk.data_b64u)?;
+        assert!(!data.is_empty() && data.len() <= 1_024);
+        bytes.extend(data);
+    }
+    let (scope, move_request, snapshot): (
+        CloudflareSigningWorkerWalletScopeV1,
+        router_ab_cloudflare::SigningWorkerPoolFreezeRequestV1,
+        serde_json::Value,
+    ) = serde_json::from_slice(&bytes)?;
+    assert_eq!(scope, receipt.scope);
+    assert_eq!(move_request, receipt.request);
+    assert_eq!(snapshot["pools"].as_array().unwrap().len(), 6);
+    assert_eq!(snapshot["activations"].as_array().unwrap().len(), 1);
+    assert_eq!(snapshot["effects"].as_array().unwrap().len(), 1);
+    assert!(snapshot["effects"][0]["terminal_json"].as_str().is_some());
+    request.segment_index = first.segment_count;
+    assert!(with_store(path, env, |store| store
+        .export_ecdsa_snapshot(request.clone()))
+    .is_err());
+    request.segment_index = 0;
+    request.chunk_bytes = 65_537;
+    assert!(with_store(path, env, |store| store
+        .export_ecdsa_snapshot(request.clone()))
+    .is_err());
+    request.chunk_bytes = 1_024;
+    request.receipt.record_count += 1;
+    assert!(with_store(path, env, |store| store
+        .export_ecdsa_snapshot(request.clone()))
+    .is_err());
+    request.receipt = receipt.clone();
+    request.receipt.scope.wallet_id = "another-wallet".to_owned();
+    assert!(with_store(path, env, |store| store
+        .export_ecdsa_snapshot(request.clone()))
+    .is_err());
+    request.receipt = receipt.clone();
+    let database = Connection::open(path)?;
+    let owner_json = serde_json::to_string(&receipt.scope)?;
+    database.execute(
+        "UPDATE wallet_ecdsa_pool SET version = version + 1 WHERE owner_json = ?",
+        [&owner_json],
+    )?;
+    assert!(with_store(path, env, |store| store
+        .export_ecdsa_snapshot(request.clone()))
+    .is_err());
+    database.execute(
+        "UPDATE wallet_ecdsa_pool SET version = version - 1 WHERE owner_json = ?",
+        [&owner_json],
+    )?;
+    assert_eq!(
+        with_store(path, env, |store| store
+            .export_ecdsa_snapshot(request.clone()))?,
+        first,
+    );
+    Ok(first.segment_count)
 }

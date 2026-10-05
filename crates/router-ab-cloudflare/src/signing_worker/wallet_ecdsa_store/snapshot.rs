@@ -9,6 +9,14 @@ pub(super) struct EcdsaSnapshot {
 }
 
 impl EcdsaSnapshot {
+    pub(super) fn encode(
+        &self,
+        scope: &CloudflareSigningWorkerWalletScopeV1,
+        request: &SigningWorkerPoolFreezeRequestV1,
+    ) -> RouterAbProtocolResult<Vec<u8>> {
+        serde_json::to_vec(&(scope, request, self)).map_err(|error| wallet_error(error.to_string()))
+    }
+
     pub(super) fn record_count(&self) -> u64 {
         (self.pools.len()
             + self.activations.len()
@@ -96,4 +104,11 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
             effects,
         })
     }
+}
+
+pub(super) fn snapshot_digest(bytes: &[u8]) -> String {
+    let mut digest = Sha256::new();
+    digest.update(b"seams/signing-worker/wallet-ecdsa-snapshot/v1");
+    digest.update(bytes);
+    hex_slice(&digest.finalize())
 }

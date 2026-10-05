@@ -759,6 +759,25 @@ fn verify_pool_freeze_transport(stack: &RecoveryStackV1) -> Result<(), Box<dyn s
     };
     assert_eq!(receipt.scope, command.scope);
     assert_eq!(receipt.record_count, 0);
+    let export_request = router_ab_cloudflare::SigningWorkerEcdsaExportRequestV1 {
+        receipt,
+        segment_index: 0,
+        chunk_bytes: 1_024,
+    };
+    let (unauthorized_status, _) = post_json_to_path_with_headers(
+        &stack.signing_worker_url,
+        router_ab_cloudflare::SIGNING_WORKER_ECDSA_EXPORT_PATH_V1,
+        &export_request,
+        &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_GATEWAY_TO_ROUTER_AUTH)],
+    )?;
+    assert_ne!(unauthorized_status, 200);
+    let (export_status, export_body) = post_json_to_path_with_headers(
+        &stack.signing_worker_url,
+        router_ab_cloudflare::SIGNING_WORKER_ECDSA_EXPORT_PATH_V1,
+        &export_request,
+        &headers,
+    )?;
+    assert_eq!(export_status, 200, "{export_body}");
     drop(worker);
     let _restarted = stack.start_signing_worker()?;
     let (retry_status, retry_body) = post_json_to_path_with_headers(
@@ -769,6 +788,14 @@ fn verify_pool_freeze_transport(stack: &RecoveryStackV1) -> Result<(), Box<dyn s
     )?;
     assert_eq!(retry_status, 200, "{retry_body}");
     assert_eq!(retry_body, body);
+    let (export_retry_status, export_retry_body) = post_json_to_path_with_headers(
+        &stack.signing_worker_url,
+        router_ab_cloudflare::SIGNING_WORKER_ECDSA_EXPORT_PATH_V1,
+        &export_request,
+        &headers,
+    )?;
+    assert_eq!(export_retry_status, 200, "{export_retry_body}");
+    assert_eq!(export_retry_body, export_body);
     let mut changed = command;
     changed.request.source_generation = 2;
     let (conflict_status, _) = post_json_to_path_with_headers(
