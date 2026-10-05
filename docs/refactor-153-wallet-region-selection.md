@@ -74,6 +74,17 @@ Session continuity, sealed-session restoration, and pool restoration are exclude
 
 ## Implemented baseline
 
+Fresh challenge issuance now uses `POST /wallet/placement/v1/relocations/challenge`.
+The gateway authenticates an active full owner and asks Console to resolve the
+canonical request from the admitted region catalog. Console checks the source
+writer, active placement, generation, and cooldown. Same-home selection returns
+unchanged placement. Resolution writes no journal or cooldown. The gateway binds
+the resolved digest to the initiating credential and stores the existing bounded
+challenge. Exact retries preserve its nonce and expiry. The public D1 and private
+journal E2Es verify these components separately. Fresh factor submission, complete
+participant preparation, and new admission remain unfinished.
+
+
 The public relocation POST now authenticates exact replay from retained approval.
 It compares destination and source generation before sending the pinned request
 digest to Console. A replacement factor proof is not consumed. Console compares
@@ -909,6 +920,7 @@ Use the stable Gateway origin and existing wallet authentication boundary:
 | Operation | Contract |
 | --- | --- |
 | Read placement: `GET /wallet/placement/v1?walletId=…` | Authenticated wallet access returns active home and generation, or the pending move's safe progress. Resolve deployment scope from the authenticated boundary. |
+| Challenge: `POST /wallet/placement/v1/relocations/challenge` | Requires `walletId`, `moveId`, `destinationRegion`, and `expectedGeneration`. Authenticate the active full owner. Resolve the canonical request through Console, then issue the bounded relocation challenge. This does not pause the wallet or authorize admission. |
 | Admit: `POST /wallet/placement/v1/relocations` | Body requires `walletId`, `moveId`, `destinationRegion`, `expectedGeneration` and `sourceProof`. Verify the factor proof for a new admission; an exact replay does not consume it again. Resolve the initiating authority from authentication and the destination resources from the catalog. Reuse the journal's `wmove_` identity and canonical request digest. |
 | Read move: `GET /wallet/placement/v1/relocations/{moveId}?walletId=…` | The initiating device uses its move-only read authorization during transfer. After activation, any freshly authenticated full-owner device may read progress. The initiating authority stays immutable. A move ID is never a bearer credential. |
 

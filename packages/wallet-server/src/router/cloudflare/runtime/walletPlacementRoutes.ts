@@ -9,6 +9,7 @@ import type {
   RouterApiRouteExtension,
   RouterApiFetchRouteExtensionInput,
 } from '../../framework/routeExtensions';
+import { D1WalletRelocationChallenges } from '../d1/wallet/d1WalletRelocationChallenges';
 import { D1WalletRelocationApprovals } from '../d1/wallet/d1WalletRelocationApprovals';
 import { WalletRelocationOwnerRequest } from '../d1/wallet/d1WalletRelocationOwnerRequest';
 import { WalletRelocationReadAccess } from '../d1/wallet/d1WalletRelocationReadAccess';
@@ -21,6 +22,18 @@ export class WalletPlacementRoutes implements RouterApiRouteExtension {
   readonly kind = 'fetch_route_extension';
   readonly id = 'wallet_placement';
   readonly routes: RouterApiRouteExtension['routes'] = [
+    {
+      id: 'wallet_relocation_challenge',
+      surface: 'relay',
+      method: 'POST',
+      path: `${BASE_PATH}/relocations/challenge`,
+      auth: {
+        plane: 'public',
+        rationale: 'The handler requires an authenticated full-owner Wallet Session.',
+      },
+      metering: { kind: 'none' },
+      summary: 'Issue a fresh owner relocation challenge',
+    },
     {
       id: 'wallet_relocation_post',
       surface: 'relay',
@@ -79,6 +92,11 @@ export class WalletPlacementRoutes implements RouterApiRouteExtension {
   }
 
   async handle(request: Request): Promise<Response> {
+    if (
+      request.method === 'POST' &&
+      new URL(request.url).pathname === `${BASE_PATH}/relocations/challenge`
+    )
+      return this.challenge(request);
     if (request.method === 'POST' && new URL(request.url).pathname === `${BASE_PATH}/relocations`)
       return this.replay(request);
     if (request.method !== 'GET') return failure('method_not_allowed', 405);
@@ -128,9 +146,67 @@ export class WalletPlacementRoutes implements RouterApiRouteExtension {
     return this.dispatch(path, body);
   }
 
+  private async challenge(request: Request): Promise<Response> {
+    const intent = parseRelocationIntent(await request.json().catch(invalidBody), 'challenge');
+    if (!intent) return failure('invalid_input', 400);
+    const nowMs = Date.now();
+    const owner = await WalletRelocationOwnerRequest.authenticate({
+      request,
+      walletId: intent.walletId,
+      tenantId: this.options.tenantId,
+      scope: this.options.scope,
+      allowedOrigins: this.options.allowedOrigins,
+      authorizationSessions: this.options.authorizationSessions,
+      nowMs,
+    });
+    if (!owner) return failure('unauthorized', 401);
+    const resolved = await this.dispatch('relocation-request', {
+      wallet: this.walletKey(intent.walletId),
+      moveId: intent.moveId,
+      destinationRegion: intent.destinationRegion,
+      expectedGeneration: intent.expectedGeneration,
+      authorityId: owner.authorityId,
+    });
+    if (!resolved.ok) return resolved;
+    const body: unknown = await resolved.clone().json().catch(invalidBody);
+    if (!isPlainObject(body)) return failure('invalid_directory_response', 502);
+    if (body.kind === 'unchanged') return resolved;
+    if (
+      body.kind !== 'resolved' ||
+      typeof body.requestDigest !== 'string' ||
+      !/^[a-f0-9]{64}$/u.test(body.requestDigest) ||
+      body.sourceGeneration !== intent.expectedGeneration ||
+      body.destinationRegion !== intent.destinationRegion
+    )
+      return failure('invalid_directory_response', 502);
+    const binding = owner.bindMove({
+      moveId: intent.moveId,
+      requestDigestHex: body.requestDigest,
+      sourceGeneration: intent.expectedGeneration,
+      destinationRegion: intent.destinationRegion,
+    });
+    const challenge = await new D1WalletRelocationChallenges(
+      this.options.database,
+      this.options.scope,
+    ).issue(binding, nowMs, owner.credentialExpiresAtMs);
+    return Response.json(
+      {
+        kind: 'challenge',
+        moveId: binding.moveId,
+        walletId: binding.walletId,
+        destinationRegion: binding.destinationRegion,
+        expectedGeneration: binding.sourceGeneration,
+        requestDigest: binding.requestDigestHex,
+        challengeB64u: challenge.challengeB64u,
+        expiresAtMs: challenge.expiresAtMs,
+      },
+      { headers: { 'Cache-Control': 'no-store' } },
+    );
+  }
+
   private async replay(request: Request): Promise<Response> {
     const raw: unknown = await request.json().catch(invalidBody);
-    const intent = parseReplayRequest(raw);
+    const intent = parseRelocationIntent(raw, 'replay');
     if (!intent) return failure('invalid_input', 400);
     const nowMs = Date.now();
     const owner = await WalletRelocationOwnerRequest.authenticate({
@@ -182,7 +258,7 @@ export class WalletPlacementRoutes implements RouterApiRouteExtension {
   }
 
   private async dispatch(
-    path: 'placement-status' | 'relocation-status' | 'relocation-replay',
+    path: 'placement-status' | 'relocation-status' | 'relocation-replay' | 'relocation-request',
     body: object,
   ): Promise<Response> {
     const response = await this.options.directory.fetch(
@@ -206,14 +282,18 @@ function invalidBody(): null {
   return null;
 }
 
-function parseReplayRequest(raw: unknown): {
+function parseRelocationIntent(
+  raw: unknown,
+  purpose: 'challenge' | 'replay',
+): {
   readonly walletId: WalletId;
   readonly moveId: string;
   readonly destinationRegion: 'US' | 'WEUR' | 'APAC' | 'OC';
   readonly expectedGeneration: number;
 } | null {
-  if (!isPlainObject(raw) || Object.keys(raw).length !== 5 || !Object.hasOwn(raw, 'sourceProof'))
+  if (!isPlainObject(raw) || Object.keys(raw).length !== (purpose === 'challenge' ? 4 : 5))
     return null;
+  if (purpose === 'replay' && !Object.hasOwn(raw, 'sourceProof')) return null;
   const wallet = parseWalletId(raw.walletId);
   if (
     !wallet.ok ||

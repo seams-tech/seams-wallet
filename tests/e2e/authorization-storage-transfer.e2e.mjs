@@ -25,11 +25,17 @@ const tables = [
   'wallet_session_hosted_exchange_codes_v2',
 ];
 class PlacementDirectoryRecorder {
+  constructor(resolution) {
+    this.resolution = resolution;
+  }
+
   requests = [];
 
   async fetch(request) {
     assert.equal(request.headers.get('authorization'), null);
     this.requests.push({ path: new URL(request.url).pathname, body: await request.json() });
+    if (new URL(request.url).pathname.endsWith('/relocation-request') && this.resolution)
+      return Response.json(this.resolution);
     return Response.json({ state: 'unavailable', code: 'not_found' }, { status: 404 });
   }
 }
@@ -781,7 +787,7 @@ async function verifyRelocationPasskey(database) {
   const readAccess = await api.WalletRelocationReadAccess.authenticate(readInput);
   assert.ok(readAccess);
   assert.equal(readAccess.binding.encoded(), binding.encoded());
-  const directory = new PlacementDirectoryRecorder();
+  const directory = new PlacementDirectoryRecorder(null);
   const routes = new api.WalletPlacementRoutes({
     database,
     scope,
@@ -1271,6 +1277,46 @@ async function verifyRelocationOwnerRequest(database) {
   assert.equal(binding.credentialExpiresAtMs, issued.session.expiresAtMs);
   assert.equal(binding.credentialDigestHex, digest(Buffer.from(issued.operationCredential.token)));
   assert.equal(binding.origin, origin);
+  const directory = new PlacementDirectoryRecorder({
+    kind: 'resolved',
+    requestDigest: move.requestDigestHex,
+    sourceGeneration: move.sourceGeneration,
+    destinationRegion: move.destinationRegion,
+  });
+  const routes = new api.WalletPlacementRoutes({
+    database,
+    scope,
+    tenantId: issued.session.tenantId,
+    allowedOrigins: [origin],
+    authorizationSessions,
+    directory,
+  });
+  const challengeBody = {
+    walletId: fixture.authority.walletId,
+    moveId: move.moveId,
+    destinationRegion: move.destinationRegion,
+    expectedGeneration: move.sourceGeneration,
+  };
+  const challengeRequest = new Request(
+    'https://gateway.example.test/wallet/placement/v1/relocations/challenge',
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${issued.operationCredential.token}`, Origin: origin },
+      body: JSON.stringify(challengeBody),
+    },
+  );
+  const firstChallenge = await routes.handle(challengeRequest.clone());
+  assert.equal(firstChallenge.status, 200);
+  const issuedChallenge = await firstChallenge.json();
+  assert.equal(issuedChallenge.kind, 'challenge');
+  assert.equal(issuedChallenge.expiresAtMs, issued.session.expiresAtMs);
+  assert.deepEqual(await (await routes.handle(challengeRequest.clone())).json(), issuedChallenge);
+  assert.equal(
+    (await new api.D1WalletRelocationChallenges(database, scope).read(binding)).challengeB64u,
+    issuedChallenge.challengeB64u,
+  );
+  assert.equal(directory.requests[0].body.authorityId, fixture.authority.authorityId);
+
   assert.equal(
     await api.WalletRelocationOwnerRequest.authenticate({ ...input, allowedOrigins: [] }),
     null,
@@ -1327,6 +1373,10 @@ async function verifyRelocationOwnerRequest(database) {
     nowMs: nowMs + 2,
   });
   assert.equal(await api.WalletRelocationOwnerRequest.authenticate(input), null);
+  const resolutionCount = directory.requests.length;
+  assert.equal((await routes.handle(challengeRequest.clone())).status, 401);
+  assert.equal(directory.requests.length, resolutionCount);
+
   const delegated = await api.buildLinkedDeviceManagementAuthorityFixture({
     label: 'relocation-delegated-request',
     permissions: api.buildSigningOnlyDelegatedWalletAuthorityV1().permissions,
@@ -1355,6 +1405,7 @@ async function verifyRelocationOwnerRequest(database) {
     null,
   );
   return {
+    httpChallengeBindsResolvedDigestAndPreservesExactNonce: true,
     scope:
       'Initiating primary credential and move binding only; excludes move-only status, owner routes and Console admission',
     credentialAndAuthorityBoundToMove: true,
