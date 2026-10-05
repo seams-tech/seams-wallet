@@ -1,0 +1,71 @@
+{
+  "baseCommit": "16cd62675a90a5664b5596555ee6f4a774aa4efd",
+  "scope": "Real Google registration tolerates failed preparation; first signing retries Yao delivery in the same emitted Email OTP worker and subsequent signing reuses initialization.",
+  "sourceSha256": {
+    "tests/e2e/intended-behaviours/email-otp.registration.assets.contract.test.ts": "0a2d9be15497ea6d194bd20155ba96700a6fe521dfcf611542bcec623f286839",
+    "tests/e2e/intended-behaviours/email-otp-preparation-observer.ts": "cf5f43444a229461300646ba275e92a8aff55502c3b7a6421f6b0c52b617d04a",
+    "packages/wallet/src/SeamsWeb/operations/authMethods/emailOtp/googleEmailOtpWalletAuthFlow.ts": "0566fb066a6b0bed5723577a3a17f8b42e9287511dd03eb53388bc78720d90bc",
+    "packages/wallet/src/core/signingEngine/workerManager/workers/email-otp/crypto.ts": "27b795584fc047bdae07940715c08f7815932586b46185642041afd2fe0e82e0",
+    "packages/wallet/src/core/signingEngine/workerManager/workers/email-otp/dispatch.ts": "4ba06ad8f7a40dc9ff9f423b2aac94b799f219e6dcc3f33e8c4c263a2dea217d"
+  },
+  "checks": {
+    "production": "passed (33.3s)",
+    "intendedTypes": "passed",
+    "buildFreshness": "passed",
+    "bloat": "passed",
+    "diffWhitespace": "passed"
+  },
+  "scenario": {
+    "failedPreparations": 1,
+    "rejectedDownloads": 1,
+    "retriedDownloads": 1,
+    "emailOtpWorkerCreations": 1,
+    "verifiedNearSignatures": 2,
+    "scope": "Real Google registration and emitted Email OTP worker; reject WASM delivery until its preparation response reports failure, then allow operation retry."
+  },
+  "artifact": "tests/test-results/e2e-intended-behaviours-em-99880-aration-and-signing-retries-chromium/email-otp-preparation-retry.json",
+  "artifactSha256": "4511d5a959fdced69974afc347d263f5cb702e044f36db61fba19627a07e3a27",
+  "assetArtifact": ".artifacts/wallet-assets/production-google-registration-tolerates-failed-preparation-and-signing-retries.json",
+  "assetArtifactSha256": "5e6696c1d10d39f636238bea99f281c9f2f3280f226384a386a75db1ae726193",
+  "networkCollectorFailures": [],
+  "bodyCaptureFailureCount": 5,
+  "wasmRequests": [
+    {
+      "phase": "failed-preparation-then-registration",
+      "url": "http://localhost:4202/sdk/workers/router_ab_ed25519_yao_client_bg.wasm",
+      "response": {
+        "status": 503,
+        "contentEncoding": "identity",
+        "fromDiskCache": false,
+        "fromServiceWorker": false
+      },
+      "completion": {
+        "kind": "pending"
+      }
+    },
+    {
+      "phase": "sign-after-retried-preparation",
+      "url": "http://localhost:4202/sdk/workers/router_ab_ed25519_yao_client_bg.wasm",
+      "response": {
+        "status": 200,
+        "contentEncoding": "identity",
+        "fromDiskCache": false,
+        "fromServiceWorker": false
+      },
+      "completion": {
+        "kind": "finished",
+        "encodedTransferBytes": 731188
+      }
+    }
+  ],
+  "command": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/email-otp.registration.assets.contract.test.ts --grep 'production Google registration tolerates failed preparation and signing retries'",
+  "failureClassifications": [
+    "valid_test_needs_update: the test imported a Playwright type that this version does not export; the unused callback source now accepts unknown.",
+    "valid_test_needs_update: retry was asserted before first signing, although registration can finish with its custody-ceremony runtime. The test now checks at the actual first-use boundary."
+  ],
+  "limits": [
+    "Covers the Yao preparation/retry path. Email OTP EVM/runtime/ceremony helper retries still have source-loader evidence rather than complete emitted-worker operation coverage.",
+    "Routed asset observations disable cache and do not establish deployed compression or warm-cache latency."
+  ],
+  "productionSourceNetLines": 0
+}

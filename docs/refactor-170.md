@@ -983,14 +983,13 @@ derive production behavior from existing typed requests and selected capabilitie
   All four caches now clear rejection. Browser evidence covers Shamir's emitted
   worker and the production Email OTP loader source with actual WASM. Full Email
   OTP protocol retry in the same emitted worker remains to be exercised.
-- [ ] **Select Google registration preparation by signer set.** Direct registration
-  already gates Email OTP Yao preparation on the selected signers. The Google
-  registration flow starts it separately without that gate. Use its resolved signer
-  selection and verify ECDSA-only and NEAR registration, including preparation
-  failure followed by successful operation-owned initialization.
-  Both paths now share the selected-NEAR predicate. Production asset scenarios
-  cover Google registration, wallet-name reroll, and signing for each single
-  signer family. Injected preparation failure remains a separate acceptance case.
+- [x] **Select Google registration preparation by signer set.** Direct and Google
+  registration share the selected-NEAR predicate. Production scenarios cover
+  wallet-name reroll, ECDSA-only registration without Yao, and NEAR-only signing.
+  An injected Yao delivery failure now proves that registration can finish,
+  first signing retries in the same emitted Email OTP worker, and a second
+  signature reuses initialization. See
+  `evidence/refactor-170-google-preparation-retry-20261005.json`.
 - [x] **Restore NEAR-only Email OTP material without requiring ECDSA.** Explicit
   worker request/result branches follow authoritative signer ownership. A missing
   manifest on a combined wallet remains an error. NEAR-only restoration reuses

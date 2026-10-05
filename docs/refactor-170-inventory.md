@@ -2477,3 +2477,23 @@ Complete this migration in the following dependency order:
    the corrupted-digest rejection, exact replay, single prompt, and unchanged
    registration-count assertions. Then remove the public resume method, iframe
    request, special resume form, and obsolete request/result exports together.
+
+
+### Google preparation failure and operation retry (2026-10-05)
+
+A production Google NEAR-only registration scenario now rejects Yao WASM delivery
+until the emitted Email OTP worker reports that preparation failed. A test observer
+records only that outcome; it does not replace worker execution or capture request
+payloads. Registration completes through its custody ceremony. First NEAR signing
+then retries the download, and two NEAR signatures verify successfully. The second
+signature makes no additional Yao request. One Email OTP worker serves the flow.
+
+The initial test incorrectly required a retry before signing. This was a
+`valid_test_needs_update`: registration can finish without the prewarmed Yao
+runtime. The final test checks the operation's actual first-use boundary. It passes
+in 33.3 seconds. Intended types, build freshness, and bloat checks pass. No production
+source changed. Evidence: `evidence/refactor-170-google-preparation-retry-20261005.json`.
+
+This closes the selected-signer Google preparation failure/retry acceptance case.
+It does not close emitted-worker retry coverage for the separate EVM, Email OTP
+runtime, or ceremony helpers. Those retain their existing source-loader evidence.
