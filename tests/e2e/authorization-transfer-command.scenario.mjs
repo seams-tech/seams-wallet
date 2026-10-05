@@ -406,3 +406,129 @@ function destinationRequest(scope, identity, operation) {
     body: JSON.stringify(body),
   });
 }
+
+class UnusedRegistrationBackend {
+  admit() {
+    throw new Error('Settlement scenario must not call the backend');
+  }
+  execute() {
+    throw new Error('Settlement scenario must not call the backend');
+  }
+}
+
+async function commitCeremony(store, lifecycleId, loaded) {
+  return store.commit({
+    lifecycleId,
+    state: loaded.state,
+    baseline: loaded.baseline,
+    companionWrite: null,
+  });
+}
+
+export async function verifyPendingCeremonyFreeze({ api, database, scope }) {
+  const fixture = await api.buildNearRegistrationAuthorityFixture('settlement');
+  const lifecycleId = fixture.admission.scope.lifecycle_id;
+  const store = api.createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1({
+    database,
+    scope,
+  });
+  const admitted = await store.load(lifecycleId);
+  admitted.state.authorization.authorities.push(...fixture.state.authorities);
+  const service = new api.InMemoryRouterAbEd25519YaoRegistrationService(
+    new UnusedRegistrationBackend(),
+    admitted.state.registration,
+  );
+  const preparation = service.prepareAdmit(fixture.admission);
+  assert.equal(preparation.kind, 'claimed');
+  assert.equal((await commitCeremony(store, lifecycleId, admitted)).kind, 'stored');
+  const identity = api.WalletRelocationSessionSource.parse({
+    walletId: fixture.intent.walletId,
+    moveId: `wmove_${'s'.repeat(43)}`,
+    requestDigestHex: '7'.repeat(64),
+    sourceGeneration: 1,
+  });
+  const directory = new SourceDirectory(scope, identity, 'authorized', { kind: 'uncaptured' });
+  const original = request(scope, identity);
+  const handler = new api.WalletAuthorizationRelocationRoutes({ database, scope, directory });
+  const pending = await handler.handle(original.clone());
+  assert.equal(pending.status, 202);
+  const waiting = await pending.json();
+  assert.equal(waiting.kind, 'authorization_pending');
+  assert.equal(waiting.reason, 'ceremonies_unsettled');
+  const repeated = await new api.WalletAuthorizationRelocationRoutes({
+    database,
+    scope,
+    directory,
+  }).handle(original.clone());
+  assert.deepEqual(await repeated.json(), waiting);
+  await assert.rejects(
+    new api.D1WalletRelocationSessions(database, scope).retire(identity, Date.now()),
+    /wallet_ceremonies_unsettled/u,
+  );
+  assert.equal(
+    await database
+      .prepare('SELECT COUNT(*) AS count FROM wallet_relocation_session_fences WHERE wallet_id = ?')
+      .bind(identity.walletId)
+      .first('count'),
+    0,
+  );
+  await assert.rejects(
+    new api.D1WalletAuthorizationSnapshot(database, scope).seal(identity),
+    /requires_frozen_source/u,
+  );
+
+  const settled = await store.load(lifecycleId);
+  const resumed = new api.InMemoryRouterAbEd25519YaoRegistrationService(
+    new UnusedRegistrationBackend(),
+    settled.state.registration,
+  );
+  const rejected = resumed.commitAdmit({
+    request: fixture.admission,
+    claim: preparation.claim,
+    outcome: {
+      kind: 'backend_response',
+      result: {
+        ok: false,
+        status: 409,
+        code: 'admission_rejected',
+        message: 'Admission definitively rejected',
+      },
+    },
+  });
+  assert.equal(rejected.ok, false);
+  assert.equal((await commitCeremony(store, lifecycleId, settled)).kind, 'stored');
+  const neighbor = await api.buildNearRegistrationAuthorityFixture('settlement-neighbor');
+  const neighborLifecycleId = neighbor.admission.scope.lifecycle_id;
+  const neighborLoaded = await store.load(neighborLifecycleId);
+  neighborLoaded.state.authorization.authorities.push(...neighbor.state.authorities);
+  const neighborService = new api.InMemoryRouterAbEd25519YaoRegistrationService(
+    new UnusedRegistrationBackend(),
+    neighborLoaded.state.registration,
+  );
+  assert.equal(neighborService.prepareAdmit(neighbor.admission).kind, 'claimed');
+  assert.equal((await commitCeremony(store, neighborLifecycleId, neighborLoaded)).kind, 'stored');
+  const delayed = await store.load(lifecycleId);
+  const late = new api.InMemoryRouterAbEd25519YaoRegistrationService(
+    new UnusedRegistrationBackend(),
+    delayed.state.registration,
+  );
+  assert.equal(late.prepareAdmit(fixture.admission).kind, 'claimed');
+  await new api.D1WalletRelocationSessions(database, scope).retire(identity, Date.now());
+  await assert.rejects(
+    commitCeremony(store, lifecycleId, delayed),
+    /wallet_ceremony_admission_closed/u,
+  );
+  assert.equal((await store.load(lifecycleId)).state.registration.admissionClaims.size, 0);
+  const completed = await handler.handle(original.clone());
+  assert.equal(completed.status, 200, await completed.clone().text());
+  assert.equal((await completed.json()).kind, 'authorization_frozen');
+  return {
+    pendingFreezeKeepsSourceUnretired: true,
+    restartedPendingReplyMatches: true,
+    unsettledSnapshotRejected: true,
+    admittedWorkCanSettle: true,
+    lateAdmissionAfterRetirementRejected: true,
+    sameCommandFreezesAfterSettlement: true,
+    unrelatedPendingWorkDoesNotBlockFreeze: true,
+  };
+}

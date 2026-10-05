@@ -4,19 +4,14 @@ import { parseWalletId, type WalletId } from '@shared/utils/domainIds';
 import type { D1PreparedStatementLike } from '../../../../storage/tenantRoute';
 import type { VersionedJsonObject } from '../../../framework/versionedJsonRecordStore';
 import type { CloudflareD1VersionedJsonRecordStoreOptions } from '../versionedJson/d1VersionedJsonRecordStore';
-import {
-  parseRouterAbEd25519YaoProductRegistrationPartitionRecordV1,
-  type RouterAbEd25519YaoProductRegistrationPartitionRecordV1,
-} from '../../../domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistrationPartitionedStateStore';
+import { type RouterAbEd25519YaoProductRegistrationPartitionRecordV1 } from '../../../domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistrationPartitionedStateStore';
 
 // Compare shared replay entries so unchanged frozen wallets do not block other wallets.
 export function collectChangedStateWallets(
-  previous: VersionedJsonObject | null,
-  next: VersionedJsonObject,
+  before: RouterAbEd25519YaoProductRegistrationPartitionRecordV1 | null,
+  after: RouterAbEd25519YaoProductRegistrationPartitionRecordV1,
   wallets: Set<WalletId>,
 ): void {
-  const before = previous === null ? null : readPartition(previous);
-  const after = readPartition(next);
   if (before && before.kind !== after.kind) throw new Error('Lifecycle partition kind changed');
   if (after.kind === 'router_ab_ed25519_yao_product_registration_ceremony_record_v1') {
     collectCeremonyWallets(after, wallets);
@@ -92,14 +87,6 @@ function collectChangedRecoveryCapabilities(
       wallets.add(walletOwner(next.identity.applicationBinding.wallet_id));
     }
   }
-}
-
-function readPartition(
-  value: VersionedJsonObject,
-): RouterAbEd25519YaoProductRegistrationPartitionRecordV1 {
-  const record = parseRouterAbEd25519YaoProductRegistrationPartitionRecordV1(value);
-  if (!record) throw new Error('Lifecycle mutation contains an invalid partition record');
-  return record;
 }
 
 function walletOwner(value: string): WalletId {

@@ -1,3 +1,5 @@
+import { D1WalletCeremonyActivity } from './d1WalletCeremonyActivity';
+import type { D1PreparedStatementLike } from '../../../../storage/tenantRoute';
 import type { WalletId } from '@shared/utils/domainIds';
 import {
   collectChangedStateWallets,
@@ -11,6 +13,7 @@ import {
 import type { VersionedJsonObject } from '../../../framework/versionedJsonRecordStore';
 import {
   createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1,
+  parseRouterAbEd25519YaoProductRegistrationPartitionRecordV1,
   parseRouterAbEd25519YaoProductRegistrationPartitionRecordJsonV1,
   type RouterAbEd25519YaoProductRegistrationPartitionRecordStoreV1,
   type RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1,
@@ -61,13 +64,27 @@ class D1LifecycleRecords implements RouterAbEd25519YaoProductRegistrationPartiti
     for (const entry of previous) {
       if (entry.result.kind === 'present') previousValues.set(entry.key, entry.result.value);
     }
+    const activity = new D1WalletCeremonyActivity(this.options.database, this.options.scope);
+    const projections: D1PreparedStatementLike[] = [];
     for (const mutation of mutations) {
-      collectChangedStateWallets(previousValues.get(mutation.key) ?? null, mutation.value, wallets);
+      const previousValue = previousValues.get(mutation.key);
+      const before = previousValue === undefined ? null : readPartition(previousValue);
+      const after = readPartition(mutation.value);
+      const changedWallets = new Set<WalletId>();
+      collectChangedStateWallets(before, after, changedWallets);
+      for (const walletId of changedWallets) wallets.add(walletId);
+      if (after.kind === 'router_ab_ed25519_yao_product_registration_ceremony_record_v1') {
+        if (changedWallets.size > 1) throw new Error('Ceremony wallet owner changed');
+        for (const walletId of changedWallets) {
+          projections.push(activity.project(this.records.storageKey(mutation.key), walletId, after.value));
+        }
+      }
     }
     // The record CAS protects the versions inspected above. The local fence and
     // companion effects commit in that same batch, or the whole batch rolls back.
     return this.records.putManyWithAdditionalStatements(mutations, [
       ...lifecycleWriteFenceStatements(this.options, wallets),
+      ...projections,
       ...(companion?.statements ?? []),
     ]);
   }
@@ -75,4 +92,10 @@ class D1LifecycleRecords implements RouterAbEd25519YaoProductRegistrationPartiti
 
 function identityVersionedJsonObject(value: VersionedJsonObject): VersionedJsonObject {
   return value;
+}
+
+function readPartition(value: VersionedJsonObject) {
+  const record = parseRouterAbEd25519YaoProductRegistrationPartitionRecordV1(value);
+  if (!record) throw new Error('Lifecycle mutation contains an invalid partition record');
+  return record;
 }

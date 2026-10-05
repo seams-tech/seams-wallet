@@ -1555,6 +1555,24 @@ concurrent retries, inactive admission, and an unaffected neighboring wallet.
 The record boundary accepts assembled records up to 2 MiB. Bounded stream intake,
 complete-manifest verification, and larger-record assembly remain separate work.
 
+### Settle Gateway ceremonies before session retirement
+
+The Gateway commits each ceremony's wallet activity index with its lifecycle state.
+Session retirement rejects wallets with unsettled registration, recovery, or export
+work. Registration must finish activation consumption. Recovery must reach promotion
+or supersession. Export must reach completion. A stored failure alone does not prove
+that its external effects settled.
+
+The internal freeze command returns a repeatable pending response while this work
+remains. It retires no sessions and seals no snapshot. Admitted work can finish while
+the command waits. Retirement and new pending ceremony writes exclude each other in
+one database transaction. A delayed admission cannot reopen work after retirement.
+
+`tests/e2e/authorization-storage-transfer.e2e.mjs` verifies pending replies across
+handler recreation, atomic retirement rejection, settlement, delayed admission
+rejection, and completion through the original freeze command. Other participant
+work and automatic reconciliation remain separate requirements.
+
 ### Freeze authorization history before relocation export
 
 After admitted work settles and all wallet sessions retire, the internal D1

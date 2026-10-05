@@ -443,7 +443,7 @@ export class CloudflareD1VersionedJsonRecordStore<T> {
       : { kind: 'version_mismatch' };
   }
 
-  private storageKey(key: string): string {
+  storageKey(key: string): string {
     return `${this.keyPrefix}${normalizeRecordKey(key)}`;
   }
 }

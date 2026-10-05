@@ -1,3 +1,4 @@
+import { D1WalletCeremonyActivity } from '../d1/ed25519Yao/d1WalletCeremonyActivity';
 import { D1WalletAuthorizationIntake } from '../d1/wallet/d1WalletAuthorizationIntake';
 import { parseNonNegativeSafeInteger } from '@shared/device-linking/wireFields';
 import { isPlainObject, requireRecord } from '@shared/utils/validation';
@@ -278,7 +279,9 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
         return failure('authorization_export_unavailable', 503);
       }
     }
+    const activity = new D1WalletCeremonyActivity(this.options.database, this.options.scope);
     try {
+      if (await activity.hasPending(source.walletId)) return pendingCeremonies(commandDigest);
       const retiredAtMs = await new D1WalletRelocationSessions(
         this.options.database,
         this.options.scope,
@@ -314,6 +317,7 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
         { headers: { 'Cache-Control': 'no-store' } },
       );
     } catch {
+      if (await activity.hasPending(source.walletId)) return pendingCeremonies(commandDigest);
       return failure('authorization_freeze_incomplete', 503);
     }
   }
@@ -357,4 +361,11 @@ function parseAuthorizationOperation(
       break;
   }
   throw new Error('Authorization transfer operation is invalid');
+}
+
+function pendingCeremonies(commandDigest: string): Response {
+  return Response.json(
+    { kind: 'authorization_pending', commandDigest, reason: 'ceremonies_unsettled' },
+    { status: 202, headers: { 'Cache-Control': 'no-store' } },
+  );
 }

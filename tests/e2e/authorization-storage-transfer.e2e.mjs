@@ -1,3 +1,4 @@
+import { verifyPendingCeremonyFreeze } from './authorization-transfer-command.scenario.mjs';
 import { verifyCeremonyWriteFence } from './ceremony-write-fence.scenario.mjs';
 import assert from 'node:assert/strict';
 import { verifyAuthorizationHistoryCopy } from './authorization-transfer-restore.scenario.mjs';
@@ -72,6 +73,7 @@ const bundle = await build({
     resolveDir: process.cwd(),
     loader: 'ts',
     contents: `
+      export { InMemoryRouterAbEd25519YaoRegistrationService } from './packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistration';
       export { buildNearRecoveryCacheFixture } from './tests/unit/helpers/nearRecovery.fixtures';
       export { D1WalletAuthorizationSnapshot } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationSnapshot';
       export { D1WalletAuthorizationFreeze } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationFreeze';
@@ -260,6 +262,7 @@ try {
     tables,
     issueDeviceSession,
   });
+  const ceremonySettlement = await verifyPendingCeremonyFreeze({ api, database: source, scope });
   const ceremonyWriteFence = await verifyCeremonyWriteFence({
     api,
     source,
@@ -358,6 +361,7 @@ try {
       sessionRetirement,
       authorizationFreeze,
       ceremonyWriteFence,
+      ceremonySettlement,
       authorizationSnapshot: snapshot.evidence,
       snapshotPrecision,
       retiredPrimaryCredentialRejectedAtIndependentDatabase: true,
