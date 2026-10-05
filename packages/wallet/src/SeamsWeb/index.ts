@@ -41,7 +41,6 @@ export type {
   EmailOtpChallengeResult,
   EmailOtpEcdsaCapabilityArgs,
   EmailOtpEcdsaCapabilityResult,
-  EmailOtpEnrollmentResult,
   ExportKeyInput,
   KeyExportOutcome,
   GoogleEmailOtpRegistrationEnrollmentResult,

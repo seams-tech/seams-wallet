@@ -204,7 +204,7 @@ drop it or invent an authorization conversion to make one signature work.
 | `registration.awaitNearReady` | `registration.waitForNearAccount` |
 | `registration.onNearProvisioningStateChanged` | `registration.onNearAccountChange` |
 | `registration.resumePendingEcdsaRegistration` | Internal durable continuation |
-| `registration.requestEmailOtpEnrollmentChallenge`, `registration.enrollEmailOtp` | Internal registration/add-email steps; preserve custom UI needs through the flow contract |
+| `registration.requestEmailOtpEnrollmentChallenge`, `registration.enrollEmailOtp` | Removed. `registerWallet` and `addEmail` own enrollment; custom UI retains the existing authentication flow contract. |
 | `near.registerNearWallet`, `evm.registerEvmWallet` | Consolidate into `registration.registerWallet` after behavior audit |
 
 `registerWallet` is the sole public wallet-creation operation. Use the existing

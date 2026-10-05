@@ -179,11 +179,9 @@ import type {
   WalletRecoveryRotationOutcome,
 } from '@/SeamsWeb/publicApi/types';
 import type {
-  EmailOtpChallengeResult,
   EmailOtpOperationChallengeResult,
   EmailOtpEcdsaCapabilityArgs,
   EmailOtpEcdsaCapabilityResult,
-  EmailOtpEnrollmentResult,
   GoogleEmailOtpWalletAuthFlow,
   GoogleEmailOtpWalletAuthRegistrationCompleted,
   GoogleEmailOtpWalletAuthRegistrationFlow,
@@ -736,7 +734,6 @@ function buildSignTempoIframePayload(
     chainTarget: payload.chainTarget,
   };
 }
-const WALLET_IFRAME_EMAIL_OTP_ENROLLMENT_TIMEOUT_MS = 5 * 60 * 1000;
 
 function walletIframeSessionStatesEqual(
   left: WalletIframeExactSessionState | null,
@@ -1185,8 +1182,6 @@ function createTerminalProgressForRequest(args: {
   const registrationRequests = new Set<ParentToChildEnvelope['type']>([
     'PM_REGISTER_WALLET',
     'PM_ADD_PASSKEY',
-    'PM_REQUEST_EMAIL_OTP_ENROLLMENT_CHALLENGE',
-    'PM_ENROLL_EMAIL_OTP',
   ]);
   const unlockRequests = new Set<ParentToChildEnvelope['type']>([
     'PM_UNLOCK',
@@ -3507,20 +3502,6 @@ export class WalletIframeRouter {
     return res.result;
   }
 
-  async requestEmailOtpEnrollmentChallenge(payload: {
-    walletId: string;
-    relayUrl?: string;
-    onEvent?: (ev: RegistrationFlowEvent) => void;
-  }): Promise<EmailOtpChallengeResult> {
-    const { onEvent, ...wirePayload } = payload;
-    const res = await this.post<EmailOtpChallengeResult>({
-      type: 'PM_REQUEST_EMAIL_OTP_ENROLLMENT_CHALLENGE',
-      payload: wirePayload,
-      options: { onProgress: this.wrapOnEvent(onEvent, isRegistrationFlowEvent) },
-    });
-    return res.result;
-  }
-
   private googleEmailOtpWalletAuthFlowFromWire(
     wire: PMGoogleEmailOtpWalletAuthWireFlow,
   ): GoogleEmailOtpWalletAuthFlow {
@@ -3692,29 +3673,6 @@ export class WalletIframeRouter {
           value: this.googleEmailOtpWalletAuthFlowFromWire(res.result.value),
         }
       : res.result;
-  }
-
-  async enrollEmailOtp(payload: {
-    walletId: string;
-    otpCode: string;
-    relayUrl?: string;
-    challengeId?: string;
-    groupId?: string;
-    onEvent?: (ev: RegistrationFlowEvent) => void;
-  }): Promise<EmailOtpEnrollmentResult> {
-    const { onEvent, ...wirePayload } = payload;
-    const res = await this.post<EmailOtpEnrollmentResult>(
-      {
-        type: 'PM_ENROLL_EMAIL_OTP',
-        payload: wirePayload,
-        options: { onProgress: this.wrapOnEvent(onEvent, isRegistrationFlowEvent) },
-      },
-      {
-        timeoutMs: WALLET_IFRAME_EMAIL_OTP_ENROLLMENT_TIMEOUT_MS,
-        progressTimeoutExtensionFactor: 1,
-      },
-    );
-    return sanitizeEmailOtpIframeResult(res.result);
   }
 
   async unlockAddedEmailOtpWallet(payload: {

@@ -41,8 +41,6 @@ export type WalletRegistrationCommands = Pick<
 >;
 export type RegistrationCapabilityDomainMethods = WalletRegistrationCommands & {
   onNearAccountChange: RegistrationCapability['onNearAccountChange'];
-  requestEmailOtpEnrollmentChallenge: RegistrationCapability['requestEmailOtpEnrollmentChallenge'];
-  enrollEmailOtp: RegistrationCapability['enrollEmailOtp'];
 };
 export type KeyExportCapabilityDomainMethods = KeyExportDomainMethods;
 export type SeamsWebPublicApi = {
@@ -104,8 +102,6 @@ export function createPublicApi(
       addEmail: deps.registration.addEmail,
       removeAuthMethod: deps.registration.removeAuthMethod,
       registerWallet: deps.registration.registerWallet,
-      requestEmailOtpEnrollmentChallenge: deps.registration.requestEmailOtpEnrollmentChallenge,
-      enrollEmailOtp: deps.registration.enrollEmailOtp,
     },
     recovery: deps.recovery,
     devices,

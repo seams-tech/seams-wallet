@@ -802,7 +802,7 @@ export function parseHostedAuthMenuOutcome(value: unknown): HostedAuthMenuOutcom
   }
 }
 
-export const WALLET_PROTOCOL_VERSION = '8.0.0' as const;
+export const WALLET_PROTOCOL_VERSION = '9.0.0' as const;
 
 export const WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH =
   'WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH' as const;
@@ -835,14 +835,12 @@ export type ParentToChildType =
   | 'PM_GET_EXACT_WALLET_SESSION_STATE'
   | 'PM_GET_NEAR_PROVISIONING_STATE'
   | 'PM_REQUEST_EMAIL_OTP_CHALLENGE'
-  | 'PM_REQUEST_EMAIL_OTP_ENROLLMENT_CHALLENGE'
   | 'PM_BEGIN_GOOGLE_EMAIL_OTP_WALLET_AUTH'
   | 'PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_RESEND'
   | 'PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_REROLL_WALLET_ID'
   | 'PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_SUBMIT'
   | 'PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_COMPLETE_REGISTRATION'
   | 'PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_CANCEL'
-  | 'PM_ENROLL_EMAIL_OTP'
   | 'PM_LOGIN_EMAIL_OTP_ECDSA_CAPABILITY'
   | 'PM_GET_WALLET_RECOVERY_CODE_STATUS'
   | 'PM_ACKNOWLEDGE_WALLET_RECOVERY_CODE_BACKUP'
@@ -1336,15 +1334,6 @@ interface PMEmailOtpChallengePayload {
 }
 
 
-export interface PMEnrollEmailOtpPayload {
-  walletId: string;
-  otpCode: string;
-  relayUrl?: string;
-  challengeId?: string;
-  groupId?: string;
-  walletSessionToken?: never;
-}
-
 interface PMWalletRecoverySessionPayload {
   walletId: string;
 }
@@ -1668,7 +1657,6 @@ export type ParentToChildEnvelope =
   | RpcEnvelope<'PM_GET_EXACT_WALLET_SESSION_STATE', PMGetExactWalletSessionStatePayload>
   | RpcEnvelope<'PM_GET_NEAR_PROVISIONING_STATE', PMGetNearProvisioningStatePayload>
   | RpcEnvelope<'PM_REQUEST_EMAIL_OTP_CHALLENGE', PMEmailOtpChallengePayload>
-  | RpcEnvelope<'PM_REQUEST_EMAIL_OTP_ENROLLMENT_CHALLENGE', PMEmailOtpChallengePayload>
   | RpcEnvelope<'PM_BEGIN_GOOGLE_EMAIL_OTP_WALLET_AUTH', PMGoogleEmailOtpWalletAuthStartPayload>
   | RpcEnvelope<'PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_RESEND', PMGoogleEmailOtpWalletAuthHandlePayload>
   | RpcEnvelope<
@@ -1681,7 +1669,6 @@ export type ParentToChildEnvelope =
       PMGoogleEmailOtpWalletAuthHandlePayload
     >
   | RpcEnvelope<'PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_CANCEL', PMGoogleEmailOtpWalletAuthHandlePayload>
-  | RpcEnvelope<'PM_ENROLL_EMAIL_OTP', PMEnrollEmailOtpPayload>
   | RpcEnvelope<'PM_LOGIN_EMAIL_OTP_ECDSA_CAPABILITY', PMEmailOtpEcdsaCapabilityPayload>
   | RpcEnvelope<'PM_GET_WALLET_RECOVERY_CODE_STATUS', PMWalletRecoverySessionPayload>
   | RpcEnvelope<'PM_ACKNOWLEDGE_WALLET_RECOVERY_CODE_BACKUP', PMWalletRecoverySessionPayload>

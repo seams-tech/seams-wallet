@@ -136,8 +136,6 @@ import type {
 import type { WalletCustodyCacheEnvelopeV1 } from '@/core/signingEngine/walletCustody/openCustodyCache';
 import type { WalletCustodyEd25519Projection } from '@/core/signingEngine/walletCustody/ed25519Projection';
 import type {
-  EnrollEmailOtpInternalArgs,
-  EnrollEmailOtpInternalResult,
   LoginWithEmailOtpEcdsaCapabilityInternalArgs,
   LoginWithEmailOtpEcdsaCapabilityInternalResult,
   PrepareEmailOtpRegistrationEnrollmentMaterialInternalArgs,
@@ -866,7 +864,6 @@ export interface EmailOtpSigningSessionSurface {
   loginWithEmailOtpEcdsaCapabilityInternal(
     args: LoginWithEmailOtpEcdsaCapabilityInternalArgs,
   ): Promise<LoginWithEmailOtpEcdsaCapabilityInternalResult>;
-  enrollEmailOtpInternal(args: EnrollEmailOtpInternalArgs): Promise<EnrollEmailOtpInternalResult>;
 }
 
 export interface KeyExportSigningSurface {

@@ -1,17 +1,15 @@
-import type { RegistrationFlowEvent, UnlockFlowEvent } from '@/core/types/sdkSentEvents';
-import { RegistrationEventPhase, UnlockEventPhase } from '@/core/types/sdkSentEvents';
+import type { UnlockFlowEvent } from '@/core/types/sdkSentEvents';
+import { UnlockEventPhase } from '@/core/types/sdkSentEvents';
 import { toError } from '@shared/utils/errors';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { WalletEmailOtpLoginOperation } from '@shared/utils/emailOtpDomain';
 import type { WalletIframeCoordinator } from '@/SeamsWeb/walletIframe/coordinator';
 import type {
   AuthCapability,
-  EmailOtpChallengeResult,
   EmailOtpOperationChallengeResult,
   EmailOtpEcdsaCapabilityResult,
 } from '@/SeamsWeb/signingSurface/types';
-import type { EnrollEmailOtpInternalResult } from '@/core/signingEngine/flows/signEvmFamily/emailOtpPublic';
-import type { EmailOtpCommandGroups } from '@/SeamsWeb/publicApi/auth';
+import type { EmailOtpAuthCommands } from '@/SeamsWeb/publicApi/auth';
 import {
   type InternalEmailOtpEcdsaCapabilityArgs,
   nowMs,
@@ -19,11 +17,8 @@ import {
   recordEmailOtpUnlockElapsedTiming,
   logEmailOtpUnlockTimingSummary,
   requireConcreteEcdsaChainTarget,
-  emailOtpRegistrationFlowId,
   emailOtpUnlockFlowId,
-  emitEmailOtpRegistrationEvent,
   emitEmailOtpUnlockEvent,
-  emitEmailOtpRegistrationFailure,
   emitEmailOtpUnlockFailure,
 } from '@/SeamsWeb/walletIframe/shared/emailOtpLifecycle';
 
@@ -31,21 +26,14 @@ type EmailOtpIframe = Pick<WalletIframeCoordinator, 'requireRouter'>;
 
 export function createApplicationEmailOtpCommands(
   walletIframe: EmailOtpIframe,
-): EmailOtpCommandGroups {
+): EmailOtpAuthCommands {
   const commands = new ApplicationEmailOtpCommands(walletIframe);
   return {
-    auth: {
-      requestEmailOtpChallenge: commands.requestEmailOtpChallengeDomain.bind(commands),
-      loginWithEmailOtpEcdsaCapability:
-        commands.loginWithEmailOtpEcdsaCapabilityDomain.bind(commands),
-      unlockAddedEmailOtpWallet: commands.loginWithLinkedEmailOtpWalletDomain.bind(commands),
-      startGoogleSignIn: commands.startGoogleSignInDomain.bind(commands),
-    },
-    registration: {
-      requestEmailOtpEnrollmentChallenge:
-        commands.requestEmailOtpEnrollmentChallengeDomain.bind(commands),
-      enrollEmailOtp: commands.enrollEmailOtpDomain.bind(commands),
-    },
+    requestEmailOtpChallenge: commands.requestEmailOtpChallengeDomain.bind(commands),
+    loginWithEmailOtpEcdsaCapability:
+      commands.loginWithEmailOtpEcdsaCapabilityDomain.bind(commands),
+    unlockAddedEmailOtpWallet: commands.loginWithLinkedEmailOtpWalletDomain.bind(commands),
+    startGoogleSignIn: commands.startGoogleSignInDomain.bind(commands),
   };
 }
 
@@ -207,116 +195,5 @@ class ApplicationEmailOtpCommands {
   ): ReturnType<AuthCapability['startGoogleSignIn']> {
     const router = await this.walletIframe.requireRouter();
     return await router.startGoogleSignIn(args);
-  }
-
-  async requestEmailOtpEnrollmentChallengeDomain(args: {
-    walletId: string;
-    relayUrl?: string;
-    onEvent?: (event: RegistrationFlowEvent) => void;
-  }): Promise<EmailOtpChallengeResult> {
-    const flowId = emailOtpRegistrationFlowId(args.walletId);
-    emitEmailOtpRegistrationEvent(args.onEvent, {
-      flowId,
-      walletId: args.walletId,
-      authMethod: 'email_otp',
-      phase: RegistrationEventPhase.STEP_04_OTP_CHALLENGE_STARTED,
-      status: 'running',
-    });
-    try {
-      const router = await this.walletIframe.requireRouter();
-      const result = await router.requestEmailOtpEnrollmentChallenge(args);
-      emitEmailOtpRegistrationEvent(args.onEvent, {
-        flowId: emailOtpRegistrationFlowId(args.walletId, result.challengeId),
-        walletId: args.walletId,
-        authMethod: 'email_otp',
-        phase: RegistrationEventPhase.STEP_04_OTP_CHALLENGE_SENT,
-        status: 'succeeded',
-        data: { challengeId: result.challengeId, otpChannel: result.otpChannel },
-      });
-      return result;
-    } catch (error: unknown) {
-      const e = toError(error);
-      emitEmailOtpRegistrationFailure(args.onEvent, {
-        flowId,
-        walletId: args.walletId,
-        authMethod: 'email_otp',
-        error: e,
-      });
-      throw e;
-    }
-  }
-
-  async enrollEmailOtpDomain(args: {
-    walletId: string;
-    otpCode: string;
-    relayUrl?: string;
-    challengeId?: string;
-    groupId?: string;
-    clientSecret32?: Uint8Array;
-    onEvent?: (event: RegistrationFlowEvent) => void;
-  }): Promise<EnrollEmailOtpInternalResult> {
-    const flowId = emailOtpRegistrationFlowId(args.walletId, args.challengeId);
-    emitEmailOtpRegistrationEvent(args.onEvent, {
-      flowId,
-      walletId: args.walletId,
-      authMethod: 'email_otp',
-      phase: RegistrationEventPhase.STEP_04_OTP_VERIFY_STARTED,
-      status: 'running',
-      interaction: { kind: 'otp_input', overlay: 'none' },
-      ...(args.challengeId ? { requestId: args.challengeId } : {}),
-    });
-    try {
-      if (args.clientSecret32) {
-        throw new Error(
-          '[SeamsWeb] Wallet iframe Email OTP enrollment owns client secret generation; clientSecret32 is not accepted from the app origin.',
-        );
-      }
-      const router = await this.walletIframe.requireRouter();
-      const iframeArgs = { ...args };
-      delete iframeArgs.clientSecret32;
-      delete iframeArgs.onEvent;
-      const result = await router.enrollEmailOtp(iframeArgs);
-      emitEmailOtpRegistrationEvent(args.onEvent, {
-        flowId,
-        walletId: args.walletId,
-        authMethod: 'email_otp',
-        phase: RegistrationEventPhase.STEP_04_OTP_VERIFY_SUCCEEDED,
-        status: 'succeeded',
-        interaction: { kind: 'otp_input', overlay: 'hide' },
-        ...(args.challengeId ? { requestId: args.challengeId } : {}),
-        data: {
-          otpChannel: result.otpChannel,
-          enrollmentSealKeyVersion: result.enrollmentSealKeyVersion,
-        },
-      });
-      emitEmailOtpRegistrationEvent(args.onEvent, {
-        flowId,
-        walletId: args.walletId,
-        authMethod: 'email_otp',
-        phase: RegistrationEventPhase.STEP_09_EMAIL_OTP_SIGNER_ENROLL_STARTED,
-        status: 'running',
-        ...(args.challengeId ? { requestId: args.challengeId } : {}),
-      });
-      emitEmailOtpRegistrationEvent(args.onEvent, {
-        flowId,
-        walletId: args.walletId,
-        authMethod: 'email_otp',
-        phase: RegistrationEventPhase.STEP_09_EMAIL_OTP_SIGNER_ENROLL_SUCCEEDED,
-        status: 'succeeded',
-        ...(args.challengeId ? { requestId: args.challengeId } : {}),
-        data: { unlockKeyVersion: result.unlockKeyVersion },
-      });
-      return result;
-    } catch (error: unknown) {
-      const e = toError(error);
-      emitEmailOtpRegistrationFailure(args.onEvent, {
-        flowId,
-        walletId: args.walletId,
-        authMethod: 'email_otp',
-        ...(args.challengeId ? { requestId: args.challengeId } : {}),
-        error: e,
-      });
-      throw e;
-    }
   }
 }

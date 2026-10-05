@@ -1,5 +1,4 @@
 import {
-  enrollEmailOtpWallet,
   prepareEmailOtpRegistrationEnrollmentMaterial,
 } from '../../session/emailOtp/workerEnrollment';
 import type { EmailOtpAuthPolicy } from '@/core/types/seams';
@@ -55,18 +54,6 @@ export type LoginWithEmailOtpEcdsaCapabilityInternalArgs = {
 };
 
 export type LoginWithEmailOtpEcdsaCapabilityInternalResult = EmailOtpThresholdEcdsaLoginResult;
-
-export type EnrollEmailOtpInternalArgs = {
-  walletId: WalletId;
-  otpCode: string;
-  relayUrl?: string;
-  challengeId?: string;
-  groupId?: string;
-  clientSecret32?: Uint8Array;
-  otpChannel?: WalletEmailOtpChannel;
-};
-
-export type EnrollEmailOtpInternalResult = Awaited<ReturnType<typeof enrollEmailOtpWallet>>;
 
 type PrepareEmailOtpRegistrationEnrollmentMaterialInternalArgsBase = {
   walletId: WalletId;
@@ -146,32 +133,6 @@ export async function loginWithEmailOtpEcdsaCapabilityInternal(
   return await deps.emailOtpSessions.loginWithEcdsaCapabilityInternal(
     emailOtpEcdsaLoginCoreArgsFromBoundary(args),
   );
-}
-
-export async function enrollEmailOtpInternal(
-  deps: EmailOtpPublicDeps,
-  args: EnrollEmailOtpInternalArgs,
-): Promise<EnrollEmailOtpInternalResult> {
-  const walletId = toWalletId(args.walletId);
-  const relayUrl = String(args.relayUrl || deps.relayerUrl || '').trim();
-  if (!relayUrl) {
-    throw new Error('Missing relayer url (configs.network.relayer.url)');
-  }
-  const groupId = String(args.groupId || deps.groupId || '').trim();
-  if (!groupId) {
-    throw new Error('Missing shamir prime for Email OTP runtime');
-  }
-  return await enrollEmailOtpWallet({
-    relayUrl,
-    walletId: String(walletId),
-    userId: String(walletId),
-    challengeId: args.challengeId,
-    otpCode: args.otpCode,
-    groupId,
-    workerCtx: deps.getSignerWorkerContext(),
-    otpChannel: args.otpChannel,
-    ...(args.clientSecret32 ? { clientSecret32: args.clientSecret32 } : {}),
-  });
 }
 
 export async function prepareEmailOtpRegistrationEnrollmentMaterialInternal(

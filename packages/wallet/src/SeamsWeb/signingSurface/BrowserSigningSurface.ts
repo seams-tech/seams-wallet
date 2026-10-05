@@ -23,7 +23,6 @@ import type {
 } from '@/core/types/seams';
 import { WALLET_AUTH_METHODS } from '@shared/utils/signerDomain';
 import type { WebAuthnAuthenticationCredential } from '@/core/types';
-import { type WalletEmailOtpChannel } from '@shared/utils/emailOtpDomain';
 import type { UserPreferencesManager } from '@/core/signingEngine/session/userPreferences';
 import {
   exactEd25519ExportMaterialIdentity,
@@ -6704,18 +6703,6 @@ export class BrowserSigningSurface {
     } finally {
       unlock.ed25519ExportRootCustody.factorSecret32.fill(0);
     }
-  }
-
-  async enrollEmailOtpInternal(args: {
-    walletId: WalletId;
-    otpCode: string;
-    relayUrl?: string;
-    challengeId?: string;
-    groupId?: string;
-    clientSecret32?: Uint8Array;
-    otpChannel?: WalletEmailOtpChannel;
-  }): Promise<Awaited<ReturnType<typeof emailOtpPublic.enrollEmailOtpInternal>>> {
-    return await emailOtpPublic.enrollEmailOtpInternal(this.emailOtpPublicDeps, args);
   }
 
   async prepareEmailOtpRegistrationEnrollmentMaterialInternal(

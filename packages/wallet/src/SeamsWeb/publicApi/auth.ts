@@ -1,26 +1,16 @@
-import type { AuthCapability, RegistrationCapability } from '@/SeamsWeb/signingSurface/types';
+import type { AuthCapability } from '@/SeamsWeb/signingSurface/types';
 
 export type WalletAuthCommands = Omit<AuthCapability, 'onSessionChange'>;
 
 export type WalletSessionCommands = Pick<
   AuthCapability,
-  | 'unlock'
-  | 'lock'
-  | 'getSession'
-  | 'getRecentUnlocks'
-  | 'hasPasskey'
+  'unlock' | 'lock' | 'getSession' | 'getRecentUnlocks' | 'hasPasskey'
 >;
 
-export type EmailOtpCommandGroups = {
-  auth: Pick<
-    AuthCapability,
-    | 'requestEmailOtpChallenge'
-    | 'loginWithEmailOtpEcdsaCapability'
-    | 'unlockAddedEmailOtpWallet'
-    | 'startGoogleSignIn'
-  >;
-  registration: Pick<
-    RegistrationCapability,
-    'requestEmailOtpEnrollmentChallenge' | 'enrollEmailOtp'
-  >;
-};
+export type EmailOtpAuthCommands = Pick<
+  AuthCapability,
+  | 'requestEmailOtpChallenge'
+  | 'loginWithEmailOtpEcdsaCapability'
+  | 'unlockAddedEmailOtpWallet'
+  | 'startGoogleSignIn'
+>;

@@ -139,11 +139,10 @@ export class SeamsWeb {
       getWalletIframe: this.getWalletIframe.bind(this),
       auth: {
         ...sessionCommands,
-        ...emailOtpCommands.auth,
+        ...emailOtpCommands,
       },
       registration: {
         ...registrationCommands,
-        ...emailOtpCommands.registration,
         onNearAccountChange: this.onNearAccountChange.bind(this),
       },
       recovery: {

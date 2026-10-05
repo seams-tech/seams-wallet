@@ -58,6 +58,12 @@ import { SeamsWeb } from '@seams/wallet';
 import { ExternalEvmController } from '@seams/wallet/external-evm';
 declare const seams: SeamsWeb;
 void seams.auth.getSession();
+void seams.registration.registerWallet;
+void seams.registration.addEmail;
+// @ts-expect-error Registration owns its Email OTP enrollment challenge.
+void seams.registration.requestEmailOtpEnrollmentChallenge;
+// @ts-expect-error Wallet creation and email addition own enrollment.
+void seams.registration.enrollEmailOtp;
 // @ts-expect-error Presignature preparation belongs to wallet operations.
 void seams.auth.prefillRouterAbEcdsaDerivationPresignaturePool;
 // @ts-expect-error Signing owns its operation-bound Email OTP challenge.

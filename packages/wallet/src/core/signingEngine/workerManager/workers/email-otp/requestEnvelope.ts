@@ -214,51 +214,6 @@ export function parseEmailOtpWorkerRequest(raw: unknown): EmailOtpWorkerRequest 
         },
       };
     }
-    case 'enrollEmailOtpWallet': {
-      rejectUnknownEmailOtpYaoFields(
-        payload,
-        [
-          'relayUrl',
-          'walletId',
-          'userId',
-          'challengeId',
-          'otpCode',
-          'groupId',
-          'routePlan',
-          'googleEmailOtpRegistrationAttemptId',
-          'otpChannel',
-          'clientSecret32',
-        ],
-        type,
-      );
-      const otpChannel = parseOptionalEmailOtpChannel(payload.otpChannel, `${type}.otpChannel`);
-      return {
-        id,
-        type,
-        payload: {
-          relayUrl: readString(payload.relayUrl, 'relayUrl'),
-          walletId: readString(payload.walletId, 'walletId'),
-          userId: readString(payload.userId, 'userId'),
-          ...(toOptionalTrimmedNonEmptyString(payload.challengeId)
-            ? { challengeId: toOptionalTrimmedNonEmptyString(payload.challengeId)! }
-            : {}),
-          otpCode: readString(payload.otpCode, 'otpCode'),
-          groupId: readString(payload.groupId, 'groupId'),
-          routePlan: readRegistrationRoutePlan(payload.routePlan, type),
-          ...(toOptionalTrimmedNonEmptyString(payload.googleEmailOtpRegistrationAttemptId)
-            ? {
-                googleEmailOtpRegistrationAttemptId: toOptionalTrimmedNonEmptyString(
-                  payload.googleEmailOtpRegistrationAttemptId,
-                )!,
-              }
-            : {}),
-          ...(otpChannel === undefined ? {} : { otpChannel }),
-          ...(payload.clientSecret32 instanceof ArrayBuffer
-            ? { clientSecret32: payload.clientSecret32 }
-            : {}),
-        },
-      };
-    }
     case 'prepareEmailOtpRegistrationEnrollmentMaterial': {
       rejectUnknownEmailOtpYaoFields(
         payload,

@@ -13,7 +13,6 @@ import {
   parseEmailOtpUnlockEd25519Identity,
   parseEmailOtpUnlockEd25519Selection,
   type EmailOtpChallengeDelivery,
-  type EmailOtpEnrollmentResult,
   type EmailOtpUnlockSignerSelection,
   type GoogleEmailOtpProviderResolution,
 } from '@/core/signingEngine/session/emailOtp/publicTypes';
@@ -26,7 +25,7 @@ import {
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 
 export type FetchLike = typeof fetch;
-export type { EmailOtpEnrollmentResult, WalletEmailOtpChannel };
+export type { WalletEmailOtpChannel };
 export { EMAIL_OTP_CHANNEL };
 
 type JsonObject = Record<string, unknown>;

@@ -220,11 +220,10 @@ export class WalletHostRuntime {
       preferences: hostPreferences,
       auth: {
         ...sessionCommands,
-        ...emailOtpCommands.auth,
+        ...emailOtpCommands,
       },
       registration: {
         ...registrationCommands,
-        ...emailOtpCommands.registration,
         onNearAccountChange: this.onNearAccountChange.bind(this),
       },
       recovery: {

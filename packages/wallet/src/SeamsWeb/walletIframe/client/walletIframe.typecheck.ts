@@ -6,7 +6,7 @@ import type {
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type {
   PMEmailOtpEcdsaCapabilityPayload,
-  PMEnrollEmailOtpPayload,
+  PMRegistrationAuthMethodInput,
   PMExportKeypairUiPayload,
   ParentToChildType,
 } from '../shared/messages';
@@ -46,9 +46,12 @@ void coreExportInputWithRawLane;
 const staleRegisterRoute: ParentToChildType = 'PM_REGISTER';
 void staleRegisterRoute;
 
-const enrollmentWithParentBearer: PMEnrollEmailOtpPayload = {
-  walletId: 'wallet.testnet',
-  otpCode: '123456',
+declare const emailRegistrationAuth: Extract<
+  PMRegistrationAuthMethodInput,
+  { proofKind: 'otp_challenge' }
+>;
+const enrollmentWithParentBearer: PMRegistrationAuthMethodInput = {
+  ...emailRegistrationAuth,
   // @ts-expect-error Hosted-wallet enrollment exchanges the bearer before postMessage.
   walletSessionToken: 'parent-wallet-session-token',
 };

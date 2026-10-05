@@ -655,29 +655,6 @@ export interface EmailOtpWorkerOperationMap {
       expiresAtMs?: number;
     };
   };
-  enrollEmailOtpWallet: {
-    payload: {
-      relayUrl: string;
-      walletId: string;
-      userId: string;
-      challengeId?: string;
-      otpCode: string;
-      groupId: string;
-      routePlan: EmailOtpRoutePlan;
-      googleEmailOtpRegistrationAttemptId?: string;
-      otpChannel?: WalletEmailOtpChannel;
-      clientSecret32?: ArrayBuffer;
-    };
-    result: {
-      challengeId: string;
-      otpChannel: WalletEmailOtpChannel;
-      enrollmentId: string;
-      enrollmentSealKeyVersion: string;
-      serverSealedFactorCiphertextB64u: string;
-      clientUnlockPublicKeyB64u: string;
-      unlockKeyVersion: string;
-    };
-  };
   prepareEmailOtpRegistrationEnrollmentMaterial: {
     payload: {
       relayUrl: string;

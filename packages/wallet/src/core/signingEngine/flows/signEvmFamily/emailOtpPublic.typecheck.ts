@@ -1,19 +1,21 @@
 import type { WalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import type { EnrollEmailOtpInternalArgs } from './emailOtpPublic';
+import type { PrepareEmailOtpRegistrationEnrollmentMaterialInternalArgs } from './emailOtpPublic';
 
 declare const walletId: WalletId;
 
-const validEnrollEmailOtpInternalArgs: EnrollEmailOtpInternalArgs = {
-  walletId,
-  otpCode: '123456',
-};
-void validEnrollEmailOtpInternalArgs;
+const validPrepareEmailOtpRegistrationEnrollmentMaterialInternalArgs: PrepareEmailOtpRegistrationEnrollmentMaterialInternalArgs =
+  {
+    walletId,
+    userId: 'google-subject',
+  };
+void validPrepareEmailOtpRegistrationEnrollmentMaterialInternalArgs;
 
-const invalidEnrollEmailOtpInternalArgs: EnrollEmailOtpInternalArgs = {
-  // @ts-expect-error internal Email OTP enrollment requires WalletId.
-  walletId: 'alice.testnet',
-  otpCode: '123456',
-};
-void invalidEnrollEmailOtpInternalArgs;
+const invalidPrepareEmailOtpRegistrationEnrollmentMaterialInternalArgs: PrepareEmailOtpRegistrationEnrollmentMaterialInternalArgs =
+  {
+    // @ts-expect-error internal Email OTP registration preparation requires WalletId.
+    walletId: 'alice.testnet',
+    userId: 'google-subject',
+  };
+void invalidPrepareEmailOtpRegistrationEnrollmentMaterialInternalArgs;
 
 export {};

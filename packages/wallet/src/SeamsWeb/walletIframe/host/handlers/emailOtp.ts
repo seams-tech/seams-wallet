@@ -300,19 +300,6 @@ export function createEmailOtpWalletIframeHandlers(deps: HandlerDeps): HandlerMa
       respondOkResult(deps, req.requestId, result);
     },
 
-    PM_REQUEST_EMAIL_OTP_ENROLLMENT_CHALLENGE: async (
-      req: Req<'PM_REQUEST_EMAIL_OTP_ENROLLMENT_CHALLENGE'>,
-    ) => {
-      assertNoParentPostedWalletSessionToken(req.payload);
-      const pm = deps.getWalletRuntime();
-      const { walletId, relayUrl } = req.payload!;
-      const result = await pm.registration.requestEmailOtpEnrollmentChallenge({
-        walletId,
-        ...(relayUrl ? { relayUrl } : {}),
-      });
-      respondOkResult(deps, req.requestId, result);
-    },
-
     PM_BEGIN_GOOGLE_EMAIL_OTP_WALLET_AUTH: async (
       req: Req<'PM_BEGIN_GOOGLE_EMAIL_OTP_WALLET_AUTH'>,
     ) => {
@@ -395,23 +382,6 @@ export function createEmailOtpWalletIframeHandlers(deps: HandlerDeps): HandlerMa
       const flow = burnFlow(req.payload);
       await flow.cancel();
       respondOkResult(deps, req.requestId, undefined);
-    },
-
-    PM_ENROLL_EMAIL_OTP: async (req: Req<'PM_ENROLL_EMAIL_OTP'>) => {
-      assertNoParentPostedWalletSessionToken(req.payload);
-      const pm = deps.getWalletRuntime();
-      const rawPayload = recordFromPayload(req.payload);
-      const walletId = String(rawPayload.walletId || '').trim();
-      if (!walletId) {
-        throw new Error('PM_ENROLL_EMAIL_OTP requires walletId');
-      }
-      const payload = withProgress(deps, req.requestId, {
-        ...rawPayload,
-      });
-      const result = await pm.registration.enrollEmailOtp(
-        payload as Parameters<typeof pm.registration.enrollEmailOtp>[0],
-      );
-      respondOkResult(deps, req.requestId, result);
     },
 
     PM_LOGIN_EMAIL_OTP_ECDSA_CAPABILITY: async (

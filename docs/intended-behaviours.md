@@ -1452,6 +1452,10 @@ remain distinct branches of the existing authentication input. NEAR-only,
 ECDSA-only, and combined signer selections use the same creation operation.
 Chain namespaces do not expose separate wallet-creation calls. Registration
 callbacks, pending NEAR results, and durable continuation retain their contracts.
+Email OTP enrollment belongs to `registration.registerWallet` and
+`registration.addEmail`. Applications do not request an enrollment challenge or
+finalize enrollment separately. Custom authentication UI uses the existing flow
+contract; the SDK retains challenge acquisition and factor preparation internally.
 
 `registration.getNearAccountState` reads the wallet's NEAR provisioning state.
 `registration.onNearAccountChange` observes its transitions.

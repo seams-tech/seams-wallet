@@ -1,13 +1,9 @@
 import type {
-  CreateRegistrationFlowEventInput,
   CreateUnlockFlowEventInput,
-  RegistrationFlowEvent,
   UnlockFlowEvent,
 } from '@/core/types/sdkSentEvents';
 import {
-  createRegistrationFlowEvent,
   createUnlockFlowEvent,
-  RegistrationEventPhase,
   UnlockEventPhase,
 } from '@/core/types/sdkSentEvents';
 import { isUserCancellationError } from '@shared/utils/errors';
@@ -139,25 +135,10 @@ export function requireConcreteEcdsaChainTarget(
   return thresholdEcdsaChainTargetFromRequest(value);
 }
 
-export function emailOtpRegistrationFlowId(walletId: string, challengeId?: string): string {
-  const accountPart = String(walletId || 'unknown-wallet').trim() || 'unknown-wallet';
-  const challengePart = String(challengeId || 'active').trim() || 'active';
-  return `email-otp-registration:${accountPart}:${challengePart}`;
-}
-
 export function emailOtpUnlockFlowId(walletId: string, challengeId?: string): string {
   const accountPart = String(walletId || 'unknown-wallet').trim() || 'unknown-wallet';
   const challengePart = String(challengeId || 'active').trim() || 'active';
   return `email-otp-unlock:${accountPart}:${challengePart}`;
-}
-
-export function emitEmailOtpRegistrationEvent(
-  onEvent: ((event: RegistrationFlowEvent) => void) | undefined,
-  input: CreateRegistrationFlowEventInput,
-): void {
-  try {
-    onEvent?.(createRegistrationFlowEvent(input));
-  } catch {}
 }
 
 export function emitEmailOtpUnlockEvent(
@@ -167,20 +148,6 @@ export function emitEmailOtpUnlockEvent(
   try {
     onEvent?.(createUnlockFlowEvent(input));
   } catch {}
-}
-
-export function emitEmailOtpRegistrationFailure(
-  onEvent: ((event: RegistrationFlowEvent) => void) | undefined,
-  input: Omit<CreateRegistrationFlowEventInput, 'phase' | 'status' | 'error'> & {
-    error: Error;
-  },
-): void {
-  emitEmailOtpRegistrationEvent(onEvent, {
-    ...input,
-    phase: RegistrationEventPhase.FAILED,
-    status: 'failed',
-    error: { message: input.error.message },
-  });
 }
 
 export function emitEmailOtpUnlockFailure(

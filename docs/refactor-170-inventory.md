@@ -206,7 +206,7 @@ remove that dependency overlap while retaining these distinctions.
 | `auth.startGoogleSignIn` | Domain → router flow proxy | C proxy for H flow, including resend/reroll/submit/complete/cancel; callbacks and terminal results remain correlated to the flow. |
 | `registration.registerWallet`, `registerWithEmailOtp`, `registerPasskey` | `createPublicApi.ts` delegates to `client/registrationCommands.ts`; passkey builds registration input | H registration via `PM_REGISTER_WALLET`; preserve selected auth method and signer set. `registerWithEmailOtp` currently aliases `registerWallet`. |
 | `registration.addWalletSigner`, `addPasskey`, `addEmailOtp`, `revokeAuthMethod` | `client/registrationCommands.ts` → matching router messages | H registration/auth-method handlers; preserve exact authorization and effect/retry semantics. |
-| `registration.requestEmailOtpEnrollmentChallenge`, `enrollEmailOtp` | Domain → enrollment router requests | H Email OTP enrollment. |
+| Internal Email OTP enrollment | `registration.registerWallet` / `addEmail` | Standalone public calls, iframe routes, and duplicate worker finalization removed. Registration retains its internal challenge and factor preparation. |
 | `registration.resumePendingEcdsaRegistration`, `getNearProvisioningState` | `client/registrationCommands.ts` → resume/provisioning router requests | H registration state/replay. Preserve the completed R152 ownership contract. |
 | `registration.onNearProvisioningStateChanged`, `awaitNearReady` | Lifecycle subscription; `publicApi/awaitNearReady.ts` combines read and subscription | C observation of H state, with timeout and disposal; pending NEAR must not invalidate an EVM-ready wallet. |
 | `near.registerNearWallet`, `evm.registerEvmWallet` | Capability builds registration input → router `registerWallet` | H unified registration; C retains public argument/result adaptation. |
@@ -2366,3 +2366,38 @@ cases passed in 2.6 seconds. Wallet/intended/browser types, the production build
 packed declarations, bundle boundaries, freshness, and bloat checks passed.
 SDK production source excluding type fixtures: 6 added, 980 removed, net -974.
 Evidence: `evidence/refactor-170-email-step-up-internal-20261005.json`.
+
+
+### Email OTP enrollment stays inside wallet operations (2026-10-05)
+
+Removed the unused public `requestEmailOtpEnrollmentChallenge` and `enrollEmailOtp`
+methods, their application/host adapters, iframe requests, signing-surface ports,
+and standalone worker enrollment operation. `registerWallet` retains the internal
+challenge and factor preparation. `addEmail` retains its existing authorized
+addition flow. The custom Google authentication flow contract is unchanged.
+
+The worker now only prepares enrollment material. Removed its duplicate server
+finalization, optional secret return, associated mode flags, and unused progress
+adapters. The retained worker clears its factor and unlock-key buffers and destroys
+its seal handle. The Email OTP command factory now returns its auth commands
+directly because the separate registration group has no remaining commands.
+
+The retired enrollment type fixtures were obsolete. Their normalized-wallet and
+parent-bearer constraints now target live registration preparation and the
+registration iframe input. The packed consumer check rejects both removed public
+methods. Protocol 9.0.0 removes their iframe routes; client and host must match.
+General Email OTP login consolidation and durable registration continuation remain
+open. Verification is recorded in
+`evidence/refactor-170-email-enrollment-internal-20261005.json`.
+
+The NEAR-only signing defect was already fixed in `391d4be9`. Its existing E2E
+scenario now also rejects ECDSA worker creation across registration, signing, and
+reload/restored signing. It passed against the current production build in 34.4
+seconds. See `evidence/refactor-170-near-only-recheck-20261005.json`.
+
+The Email OTP lifecycle passed in 45.9 seconds. The added-email lifecycle passed
+in 39.4 seconds, including lost-response retry, signing, exports, and revocation.
+Five handshake cases passed in 2.7 seconds. Wallet, intended, browser, state-fixture,
+and documentation type checks passed. Production build, packed declarations,
+runtime boundaries, freshness, and bloat checks passed. SDK production source
+excluding type fixtures: 49 lines added, 762 removed, net -713.

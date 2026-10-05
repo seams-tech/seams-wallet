@@ -25,11 +25,6 @@ const tempoChainTarget = thresholdEcdsaChainTargetFromChainFamily({
   networkSlug: 'tempo',
 });
 
-void seams.registration.enrollEmailOtp({
-  walletId: 'alice.testnet',
-  otpCode: '123456',
-});
-
 void seams.auth.unlock('alice.testnet');
 void seams.auth.getSession('alice.testnet');
 

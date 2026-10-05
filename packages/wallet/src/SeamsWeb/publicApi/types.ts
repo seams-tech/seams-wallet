@@ -20,7 +20,7 @@ import type {
 import type { WalletSessionInput } from '@/SeamsWeb/publicApi/currentWallet';
 import type {
   EmailOtpChallengeDelivery,
-  EmailOtpEnrollmentResult,
+  EmailOtpEnrollmentMaterial,
 } from '@/core/signingEngine/session/emailOtp/publicTypes';
 import type { ExactWalletSessionAuthorization } from '@/core/signingEngine/session/persistence/walletSessionAuthorizationProjection';
 import type { SignedTransaction } from '@/core/rpcClients/near/NearClient';
@@ -471,12 +471,7 @@ export type EmailOtpOperationChallengeResult = EmailOtpChallengeResult & {
   signerSelection: import('@/core/signingEngine/session/emailOtp/publicTypes').EmailOtpUnlockSignerSelection;
 };
 
-export type { EmailOtpEnrollmentResult };
-
-export type GoogleEmailOtpRegistrationEnrollmentResult = Omit<
-  EmailOtpEnrollmentResult,
-  'challengeId'
-> & {
+export type GoogleEmailOtpRegistrationEnrollmentResult = EmailOtpEnrollmentMaterial & {
   registrationAuthorityId: string;
   challengeId?: never;
   otpCode?: never;
@@ -802,20 +797,6 @@ export interface RegistrationCapability {
     signerSelection: RegistrationSignerSetSelection;
     options?: RegistrationHooksOptions;
   }): Promise<RegistrationResult>;
-  requestEmailOtpEnrollmentChallenge(args: {
-    walletId: string;
-    relayUrl?: string;
-    onEvent?: (event: RegistrationFlowEvent) => void;
-  }): Promise<EmailOtpChallengeResult>;
-  enrollEmailOtp(args: {
-    walletId: string;
-    otpCode: string;
-    relayUrl?: string;
-    challengeId?: string;
-    groupId?: string;
-    clientSecret32?: Uint8Array;
-    onEvent?: (event: RegistrationFlowEvent) => void;
-  }): Promise<EmailOtpEnrollmentResult>;
 }
 
 /**
