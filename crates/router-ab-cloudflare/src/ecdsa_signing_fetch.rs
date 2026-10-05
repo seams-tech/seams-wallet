@@ -392,78 +392,16 @@ where
             403,
         );
     }
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
-    {
-        let replay_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
-        let replay = replay_cloudflare_signing_worker_ecdsa_terminal_v1(env, &parsed).await;
-        timing.mark("worker_finalize_replay", replay_started_at_ms);
-        match replay {
-            Ok(Some(response_json)) => {
-                let response = match serde_json::from_str::<
-                    RouterAbEcdsaDerivationEvmDigestSigningResponseV1,
-                >(&response_json)
-                {
-                    Ok(response) => response,
-                    Err(error) => {
-                        return worker::Response::error(
-                            format!(
-                                "SigningWorker ECDSA terminal response JSON is invalid: {error}"
-                            ),
-                            500,
-                        );
-                    }
-                };
-                if let Err(error) = response.validate_for_request(&parsed.request) {
-                    return worker::Response::error(
-                        format!("{:?}: {}", error.code(), error.message()),
-                        cloudflare_router_error_status(error.code()),
-                    );
-                }
-                return worker::Response::from_json(&response);
-            }
-            Ok(None) => {}
-            Err(error) => {
-                return worker::Response::error(
-                    format!("{:?}: {}", error.code(), error.message()),
-                    cloudflare_router_error_status(error.code()),
-                );
-            }
-        }
-    }
-    // Revoked or stale lane admissions fail before the owner touches one-use pool state.
-    let material_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
-    let (active_signing_worker, material) =
-        match load_cloudflare_signing_worker_ecdsa_normal_signing_material_v1(
-            env,
-            runtime,
-            &parsed.request.scope,
-            &parsed.material_source,
-            parsed.wallet_scope.as_ref(),
-            now_unix_ms,
-        )
-        .await
-        {
-            Ok(value) => value,
-            Err(err) => {
-                return worker::Response::error(
-                    format!("{:?}: {}", err.code(), err.message()),
-                    cloudflare_router_error_status(err.code()),
-                );
-            }
-        };
-    timing.mark("worker_finalize_material", material_started_at_ms);
     let claim_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
-    let claimed = claim_and_consume_cloudflare_signing_worker_ecdsa_for_wallet_v1(
-        env,
-        runtime,
-        &parsed,
-        now_unix_ms,
-    )
-    .await;
-    timing.mark("worker_finalize_claim_consume", claim_started_at_ms);
-    let server_presignature = match claimed {
-        Ok(CloudflareSigningWorkerEcdsaClaimAndConsumeV1::Claimed { material }) => material,
-        Ok(CloudflareSigningWorkerEcdsaClaimAndConsumeV1::Replay { terminal_json }) => {
+    let claimed = prepare_ecdsa_finalize(env, runtime, &parsed, now_unix_ms).await;
+    timing.mark("worker_finalize_snapshot_claim", claim_started_at_ms);
+    let (active_signing_worker, material, server_presignature) = match claimed {
+        Ok(EcdsaFinalizePreparation::Claimed {
+            active,
+            material,
+            presignature,
+        }) => (active, material, presignature),
+        Ok(EcdsaFinalizePreparation::Replay { terminal_json }) => {
             let response = match serde_json::from_str::<
                 RouterAbEcdsaDerivationEvmDigestSigningResponseV1,
             >(&terminal_json)
@@ -484,7 +422,7 @@ where
             }
             return worker::Response::from_json(&response);
         }
-        Ok(CloudflareSigningWorkerEcdsaClaimAndConsumeV1::InProgress) => {
+        Ok(EcdsaFinalizePreparation::InProgress) => {
             let error = RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::ReplayedLocalRequest,
                 SIGNING_WORKER_ECDSA_EFFECT_IN_PROGRESS_V1,
@@ -494,7 +432,7 @@ where
                 cloudflare_router_error_status(error.code()),
             );
         }
-        Ok(CloudflareSigningWorkerEcdsaClaimAndConsumeV1::Burned) => {
+        Ok(EcdsaFinalizePreparation::Burned) => {
             return worker::Response::error(
                 "SigningWorker ECDSA reservation was terminally burned before finalization",
                 cloudflare_router_error_status(RouterAbProtocolErrorCode::ReplayedLocalRequest),
@@ -575,4 +513,64 @@ where
             cloudflare_router_error_status(err.code()),
         ),
     }
+}
+
+async fn prepare_ecdsa_finalize(
+    env: &worker::Env,
+    runtime: &CloudflareSigningWorkerRuntimeV1,
+    request: &CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1,
+    now_unix_ms: u64,
+) -> RouterAbProtocolResult<EcdsaFinalizePreparation> {
+    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    {
+        let (active, material) = load_cloudflare_signing_worker_ecdsa_normal_signing_material_v1(
+            env,
+            runtime,
+            &request.request.scope,
+            &request.material_source,
+            request.wallet_scope.as_ref(),
+            now_unix_ms,
+        )
+        .await?;
+        let scope = request.wallet_scope.as_ref().ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidGateDecision,
+                "Wallet-DO ECDSA effect requires a Router-admitted wallet scope",
+            )
+        })?;
+        let response = durable_object::call_signing_worker_wallet_do_v1(
+            env,
+            durable_object::SigningWorkerWalletDoRequestV1::ClaimAndConsumeEcdsaEffect {
+                scope: scope.clone(),
+                request: request.clone(),
+                now_unix_ms,
+            },
+        )
+        .await?;
+        let result = parse_cloudflare_signing_worker_wallet_do_json_response_v1(
+            response,
+            "SigningWorker wallet-DO ECDSA claim and consume",
+        )
+        .await?;
+        return Ok(match result {
+            CloudflareSigningWorkerEcdsaClaimAndConsumeV1::Claimed {
+                material: presignature,
+            } => EcdsaFinalizePreparation::Claimed {
+                active,
+                material,
+                presignature,
+            },
+            CloudflareSigningWorkerEcdsaClaimAndConsumeV1::Replay { terminal_json } => {
+                EcdsaFinalizePreparation::Replay { terminal_json }
+            }
+            CloudflareSigningWorkerEcdsaClaimAndConsumeV1::InProgress => {
+                EcdsaFinalizePreparation::InProgress
+            }
+            CloudflareSigningWorkerEcdsaClaimAndConsumeV1::Burned => {
+                EcdsaFinalizePreparation::Burned
+            }
+        });
+    }
+    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    prepare_cloudflare_signing_worker_ecdsa_finalize_v1(env, runtime, request, now_unix_ms).await
 }

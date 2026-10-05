@@ -6,7 +6,9 @@ use worker::{D1Database, D1DatabaseSession, D1SessionConstraint, Env, Method, Re
 mod ecdsa_material;
 pub(crate) use ecdsa_material::load_cloudflare_signing_worker_ecdsa_active_material_v1;
 mod ecdsa_effect;
-pub(crate) use ecdsa_effect::claim_and_consume_cloudflare_signing_worker_ecdsa_effect_v1;
+pub(crate) use ecdsa_effect::{
+    prepare_cloudflare_signing_worker_ecdsa_finalize_v1, EcdsaFinalizePreparation,
+};
 
 pub const SIGNING_WORKER_PRIVATE_D1_BINDING_V1: &str = "SIGNING_WORKER_PRIVATE_DB";
 
@@ -426,26 +428,6 @@ pub async fn claim_cloudflare_signing_worker_near_effect_v1(
         &request_digest_hex,
         &authorization_json,
         claimed_at_ms,
-    )
-    .await
-}
-
-/// Reads an exact ECDSA terminal result before applying fresh-request checks.
-pub async fn replay_cloudflare_signing_worker_ecdsa_terminal_v1(
-    env: &Env,
-    request: &CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1,
-) -> RouterAbProtocolResult<Option<String>> {
-    request.validate()?;
-    let operation_key = request.effect_operation_key()?;
-    let request_digest_hex = private_d1_digest_hex_v1(request.effect_request_digest()?);
-    let database = signing_worker_private_d1_from_env_v1(env)?;
-    let session = database
-        .with_session_constraint(D1SessionConstraint::FirstPrimary)
-        .map_err(|error| map_d1_error("SigningWorker ECDSA effect replay session failed", error))?;
-    load_cloudflare_signing_worker_terminal_response_v1(
-        &session,
-        &operation_key,
-        &request_digest_hex,
     )
     .await
 }

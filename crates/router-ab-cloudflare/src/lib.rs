@@ -13282,44 +13282,6 @@ async fn execute_cloudflare_signing_worker_ecdsa_pool_mutation_for_wallet_v1(
 }
 
 #[cfg(feature = "workers-rs")]
-async fn claim_and_consume_cloudflare_signing_worker_ecdsa_for_wallet_v1(
-    env: &worker::Env,
-    runtime: &CloudflareSigningWorkerRuntimeV1,
-    request: &CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1,
-    now_unix_ms: u64,
-) -> RouterAbProtocolResult<CloudflareSigningWorkerEcdsaClaimAndConsumeV1> {
-    #[cfg(feature = "wallet-do-signing-worker-harness")]
-    {
-        let _ = runtime;
-        let scope = request.wallet_scope.as_ref().ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidGateDecision,
-                "Wallet-DO ECDSA effect requires a Router-admitted wallet scope",
-            )
-        })?;
-        let response = durable_object::call_signing_worker_wallet_do_v1(
-            env,
-            durable_object::SigningWorkerWalletDoRequestV1::ClaimAndConsumeEcdsaEffect {
-                scope: scope.clone(),
-                request: request.clone(),
-                now_unix_ms,
-            },
-        )
-        .await?;
-        return parse_cloudflare_signing_worker_wallet_do_json_response_v1(
-            response,
-            "SigningWorker wallet-DO ECDSA claim and consume",
-        )
-        .await;
-    }
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
-    {
-        let _ = runtime;
-        claim_and_consume_cloudflare_signing_worker_ecdsa_effect_v1(env, request, now_unix_ms).await
-    }
-}
-
-#[cfg(feature = "workers-rs")]
 async fn commit_cloudflare_signing_worker_ecdsa_terminal_for_wallet_v1(
     env: &worker::Env,
     request: &CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1,

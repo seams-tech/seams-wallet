@@ -2,7 +2,7 @@ use super::*;
 use crate::{ed25519_yao_signing_worker, ordinary_inactive_signer_material};
 
 #[derive(Deserialize)]
-struct EcdsaMaterialSnapshotRow {
+pub(super) struct EcdsaMaterialSnapshotRow {
     activation_json: Option<String>,
     active_state_json: Option<String>,
     material_key: Option<String>,
@@ -58,6 +58,28 @@ pub(crate) async fn load_cloudflare_signing_worker_ecdsa_active_material_v1(
         .await
         .map_err(|error| map_d1_error("SigningWorker material snapshot failed", error))?
         .ok_or_else(|| d1_error("SigningWorker material snapshot is missing"))?;
+    decode_ecdsa_active_material(env, runtime, scope, row)
+}
+
+pub(super) fn decode_ecdsa_active_material(
+    env: &Env,
+    runtime: &CloudflareSigningWorkerRuntimeV1,
+    scope: &RouterAbEcdsaDerivationNormalSigningScopeV1,
+    row: EcdsaMaterialSnapshotRow,
+) -> RouterAbProtocolResult<(
+    ActiveSigningWorkerStateV1,
+    CloudflareServerOutputMaterialRecordV1,
+)> {
+    runtime
+        .server_output_decrypt_key()
+        .validate_matches_server(&scope.signing_worker)?;
+    let lookup = CloudflareActiveSigningWorkerStateLookupV1::from_router_ab_ecdsa_derivation_normal_signing_scope(scope)?;
+    let reservation_key =
+        ordinary_inactive_signer_material::reservation_record_key_v1(&scope.material_activation)?;
+    let ed25519_key =
+        ed25519_yao_signing_worker::reservation_record_key_from_material_activation_v1(
+            &scope.material_activation,
+        )?;
     if row.fenced == 1 {
         return Err(crate::signing_worker_activation_retired_error_v1());
     }
