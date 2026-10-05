@@ -190,6 +190,7 @@ impl RouterWalletRegistrationV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareRouterEd25519YaoRegistrationConsumeRequestV1 {
+    pub ownership_generation: u64,
     pub tenant_root: crate::CloudflareRouterEd25519YaoTenantRootV1,
     pub wallet_id: String,
     pub lifecycle_id: String,
@@ -209,6 +210,7 @@ impl CloudflareRouterEd25519YaoRegistrationConsumeRequestV1 {
                 wallet_id: self.wallet_id,
             },
             command: RouterWalletCommandV1::ConsumeRegistration {
+                ownership_generation: self.ownership_generation,
                 lifecycle_id: self.lifecycle_id,
                 session_id: self.session_id,
                 consumer_binding: self.consumer_binding,
@@ -287,6 +289,7 @@ pub enum RouterWalletCommandV1 {
     },
     /// Consumes a completed registration's activation for one finalization.
     ConsumeRegistration {
+        ownership_generation: u64,
         lifecycle_id: String,
         session_id: Ed25519YaoSessionIdV1,
         consumer_binding: String,
@@ -398,10 +401,18 @@ pub async fn router_wallet_serve_v1<Store: RouterWalletStoreV1>(
             .await
         }
         RouterWalletCommandV1::ConsumeRegistration {
+            ownership_generation,
             lifecycle_id,
             session_id,
             consumer_binding,
-        } => consume_registration(store, lifecycle_id, session_id, consumer_binding).await,
+        } => {
+            crate::router_wallet_relocation::require_ownership_generation(
+                store,
+                ownership_generation,
+            )
+            .await?;
+            consume_registration(store, lifecycle_id, session_id, consumer_binding).await
+        }
     }
 }
 

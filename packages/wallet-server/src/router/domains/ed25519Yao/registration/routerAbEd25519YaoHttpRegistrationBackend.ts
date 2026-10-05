@@ -974,6 +974,7 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
         ROUTER_REGISTRATION_CONSUME_PATH,
         {
           tenant_root: input.authority.dispatchRoot,
+          ownership_generation: input.authority.ownershipGeneration,
           wallet_id: input.authority.admissionReceipt.binding.lifecycle.account_id,
           lifecycle_id: input.authority.lifecycleId,
           session_id: Array.from(input.sessionId),

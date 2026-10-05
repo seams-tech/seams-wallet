@@ -178,6 +178,7 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
             router_ab_cloudflare::CLOUDFLARE_ROUTER_ED25519_YAO_REGISTRATION_CONSUME_PRIVATE_REQUEST_PATH,
             &json!({
                 "tenant_root": request["tenant_root"],
+                "ownership_generation": 1,
                 "wallet_id": binding["lifecycle"]["account_id"],
                 "lifecycle_id": lifecycle_id,
                 "session_id": session_id,
@@ -192,6 +193,24 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
     };
     let lifecycle_id = &binding["lifecycle"]["lifecycle_id"];
     let session_id = &binding["session_id"];
+    let (wrong_generation_status, wrong_generation_body) = post_json_to_path_with_headers(
+        &stack.router_url,
+        router_ab_cloudflare::CLOUDFLARE_ROUTER_ED25519_YAO_REGISTRATION_CONSUME_PRIVATE_REQUEST_PATH,
+        &json!({
+            "tenant_root": request["tenant_root"],
+            "ownership_generation": 2,
+            "wallet_id": binding["lifecycle"]["account_id"],
+            "lifecycle_id": lifecycle_id,
+            "session_id": session_id,
+            "consumer_binding": "stale-owner",
+        }),
+        &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_GATEWAY_TO_ROUTER_AUTH)],
+    )?;
+    assert_ne!(wrong_generation_status, 200, "{wrong_generation_body}");
+    assert!(
+        wrong_generation_body.contains("ownership generation does not match"),
+        "{wrong_generation_body}"
+    );
     let consumed = consume(lifecycle_id, session_id, "finalize-1")?;
     assert_eq!(consumed["kind"], "consumed", "{consumed}");
     assert_eq!(
@@ -425,6 +444,7 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
             "exact_retry": "recorded answer, byte for byte, no new pair",
             "same_lifecycle_other_lineage": "execution_mismatch",
             "consume": {
+                "wrong_ownership_generation_rejected": wrong_generation_status,
                 "first_binding": consumed["kind"],
                 "same_binding_replays": true,
                 "other_binding": taken["code"],

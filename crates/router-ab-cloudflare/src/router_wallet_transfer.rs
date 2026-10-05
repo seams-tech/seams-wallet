@@ -7,7 +7,9 @@ use crate::router_wallet::{
     lower_hex, RouterWalletOwnerV1, RouterWalletRegistrationRecordV1, RouterWalletRegistrationV1,
     RouterWalletStoreV1, OWNER_KEY, REGISTRATION_KEY_PREFIX,
 };
-use crate::router_wallet_relocation::{conflict, validate_request, Fence, FENCE_KEY};
+use crate::router_wallet_relocation::{
+    conflict, validate_request, Fence, FENCE_KEY, OWNERSHIP_GENERATION_KEY,
+};
 use crate::{RouterWalletFreezeReceiptV1, RouterWalletFreezeRequestV1};
 
 pub const ROUTER_WALLET_TRANSFER_PATH_V1: &str = "/router-ab/router/wallet/transfer";
@@ -130,11 +132,18 @@ async fn prepare<Store: RouterWalletStoreV1>(
                 .get_json::<RouterWalletOwnerV1>(OWNER_KEY)
                 .await?
                 .is_some()
+                || store
+                    .get_json::<u64>(OWNERSHIP_GENERATION_KEY)
+                    .await?
+                    .is_some()
                 || !store.list_registrations().await?.is_empty()
             {
                 return Err(conflict("Router import requires a fresh destination"));
             }
             store.put_json(OWNER_KEY, &request.owner).await?;
+            store
+                .put_json(OWNERSHIP_GENERATION_KEY, &request.destination_generation)
+                .await?;
             store
                 .put_json(
                     FENCE_KEY,

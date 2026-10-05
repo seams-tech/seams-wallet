@@ -9,6 +9,7 @@ use crate::router_wallet::{
 
 pub const ROUTER_WALLET_FREEZE_PATH_V1: &str = "/router-ab/router/wallet/freeze";
 pub(crate) const FENCE_KEY: &str = "relocation-fence";
+pub(crate) const OWNERSHIP_GENERATION_KEY: &str = "ownership-generation";
 
 /// The admitted move's immutable identity, supplied through the private Router boundary.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -66,6 +67,21 @@ pub(crate) enum Fence {
     },
 }
 
+/// Older fixed-home stores predate this metadata and belong to generation one.
+pub(crate) async fn require_ownership_generation<Store: RouterWalletStoreV1>(
+    store: &Store,
+    requested: u64,
+) -> RouterAbProtocolResult<()> {
+    let stored = store
+        .get_json::<u64>(OWNERSHIP_GENERATION_KEY)
+        .await?
+        .unwrap_or(1);
+    if requested == 0 || requested > 9_007_199_254_740_991 || requested != stored {
+        return Err(conflict("Router wallet ownership generation does not match"));
+    }
+    Ok(())
+}
+
 pub(crate) async fn admit_ordinary_command<Store: RouterWalletStoreV1>(
     store: &Store,
 ) -> RouterAbProtocolResult<()> {
@@ -112,6 +128,7 @@ pub async fn freeze_router_wallet_v1<Store: RouterWalletStoreV1>(
     request: RouterWalletFreezeRequestV1,
 ) -> RouterAbProtocolResult<RouterWalletFreezeResponseV1> {
     validate_request(&request)?;
+    require_ownership_generation(store, request.source_generation).await?;
     match store.get_json::<RouterWalletOwnerV1>(OWNER_KEY).await? {
         Some(owner) if owner == request.owner => {}
         Some(_) => return Err(conflict("Router wallet freeze names another owner")),
