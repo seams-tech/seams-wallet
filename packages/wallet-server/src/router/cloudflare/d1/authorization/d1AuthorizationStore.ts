@@ -1814,7 +1814,7 @@ export class CloudflareD1AuthorizationStore
       tenantId: input.tenantId,
       lookupValue: input.tokenHash,
     });
-    if (!row) return null;
+    if (!row || row.session_retired_at_ms !== null) return null;
     const snapshot = await parseWalletSessionAdmissionRow(row, input);
     const session = snapshot.kind === 'active' ? snapshot.authorization.session : snapshot.session;
     return {

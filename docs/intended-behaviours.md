@@ -842,6 +842,10 @@ consuming quota, or invoking custody signing. Repeating that finalize preserves
 the same state. Existing exact-response replay remains available after quota
 exhaustion, subject to live authority and material checks.
 
+A retired reusable Wallet Session cannot prepare or finalize an ECDSA signature.
+The Gateway returns HTTP 401 / `wallet_session_invalid`. Retirement is a known
+credential state and must not become HTTP 503 / `wallet_session_unavailable`.
+
 ### Passkey authentication
 
 Expected behaviour:

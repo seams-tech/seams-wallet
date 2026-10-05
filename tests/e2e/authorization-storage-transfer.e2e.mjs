@@ -43,6 +43,8 @@ const bundle = await build({
       export { prepareD1WalletAuthMethodV2PutStatement } from './packages/wallet-server/src/core/d1WalletAuthMethodStore';
       export { buildLinkedDeviceManagementAuthorityFixture } from './tests/unit/helpers/linkedDeviceManagement.fixtures';
       export { buildFullOwnerPermissionsV1 } from './packages/shared-ts/src/authorization/delegatedAuthority';
+      export { routerAbMpcMaterialActivationRefToWire } from './packages/shared-ts/src/utils/routerAbNormalSigningIdentity';
+      export { readWalletSessionSigningCandidate } from './packages/wallet-server/src/router/cloudflare/d1/auth/walletSessionCredentialReaders';
       export { parseTenantId } from './packages/shared-ts/src/authorization/capabilityKinds';
     `,
   },
@@ -67,6 +69,7 @@ try {
   const issuedAtMs = Date.now();
   const fixture = await api.buildLinkedDeviceManagementAuthorityFixture({
     label: 'storage-transfer-owner',
+    keyFamily: 'ecdsa_secp256k1',
     permissions: api.buildFullOwnerPermissionsV1(),
     provenance: 'wallet_registration',
     expiresAtMs: issuedAtMs + 3_600_000,
@@ -128,6 +131,18 @@ try {
     await sourceService.readWalletSessionAdmissionSnapshotByOperationCredential(primaryInput);
   assert.equal(before.kind, 'active');
   assert.equal(before.authorization.quota.remainingUses, 7);
+  const activation = fixture.authority.signerActivations.ecdsa?.materialActivation;
+  assert.ok(activation);
+  const signingInput = {
+    tenantId: primaryInput.tenantId,
+    token: primaryInput.token,
+    nowMs: primaryInput.nowMs,
+    materialActivation: api.routerAbMpcMaterialActivationRefToWire(activation),
+  };
+  assert.equal(
+    (await api.readWalletSessionSigningCandidate(sourceService, signingInput)).kind,
+    'active',
+  );
   const hostedBefore =
     await sourceService.readHostedWalletSessionOperationCredentialV2(hostedInput);
   assert.ok(hostedBefore);
@@ -240,6 +255,11 @@ try {
     /authorization is retired/u,
   );
   assert.equal(
+    await api.readWalletSessionSigningCandidate(destinationService, signingInput),
+    null,
+    'Retired signing credentials are rejected without an availability exception',
+  );
+  assert.equal(
     await destinationService.readHostedWalletSessionOperationCredentialV2(hostedInput),
     null,
   );
@@ -270,6 +290,7 @@ try {
       consumedExchangeRemainedConsumed: true,
       changedTenantAndOrganizationRejected: true,
       changedWalletOriginRejected: true,
+      retiredSigningCredentialReturnsInvalid: true,
       expiredSessionRejected: true,
       retirementInvalidatedBothCredentialsAtDestination: true,
       retiringFirstDeviceSessionLeftSecondDeviceSessionActive: true,
