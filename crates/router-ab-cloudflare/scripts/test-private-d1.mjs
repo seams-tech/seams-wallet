@@ -1764,7 +1764,7 @@ async function runEcdsaPresignSession(topology, ecdsa, mode = 'pool', checkRejec
           },
         });
         assert.equal(changedTenant.ok, false, 'A changed tenant must not advance presigning');
-        assert.match(await changedTenant.text(), /authority does not match initialized session/);
+        assert.match(await changedTenant.text(), walletObjectBuild ? /ExpiredLocalRequest: Presign authority is unavailable/ : /authority does not match initialized session/);
         const peerBearer = await postWorkerJson(signingWorker, ecdsaPresignSessionStepPath, stepRequest, {
           [internalAuthHeader]: internalAuthSecret,
         });
@@ -5451,17 +5451,16 @@ async function main() {
       }
       const priorSigning = await testEcdsaNormalSigning(topology, ecdsa, 'pool', false);
       assert.ok(priorSigning.response.signature65_b64u);
+      const objectIds = walletDoPool
+        ? await topology.listDurableObjectIds('RouterAbSigningWorkerWalletDurableObject', 'fixture-signing-worker')
+        : [];
+      if (walletDoPool) assert.equal(objectIds.length, 1, 'ECDSA owner material must live in one wallet object before tenant rejection probes');
       const signing = await testEcdsaNormalSigning(topology, ecdsa, 'prepare');
       if (walletDoPool) {
         const activationRows = await signingWorkerDatabase
           .prepare('SELECT COUNT(*) AS count FROM signing_worker_activations')
           .first();
         assert.equal(activationRows.count, 0, 'Wallet-DO ECDSA activation must not write D1 material');
-        const objectIds = await topology.listDurableObjectIds(
-          'RouterAbSigningWorkerWalletDurableObject',
-          'fixture-signing-worker',
-        );
-        assert.equal(objectIds.length, 1, 'ECDSA owner material must live in one wallet object');
         await topology.unsafeEvictDurableObject(
           'fixture-signing-worker',
           'RouterAbSigningWorkerWalletDurableObject',

@@ -91,6 +91,12 @@ step identities, changed authority, changed expiry, and delayed steps during dra
 Separate presign-session KV
 records, linked-session history, existing Cloudflare sessions without wallet SQL
 claims, and aggregate participant freeze/transfer remain unfinished.
+The existing Worker E2E now verifies real ECDSA signing with the shared SQL
+authority, tenant rejection, lost-reply replay, and replay after eviction of the
+owner's wallet object. The test identifies that object before tenant rejection
+probes, because a rejected tenant lookup can create a separate empty object.
+Evidence is retained under `.artifacts/r153/worker-presign-runtime-20261005/`.
+This scenario does not verify linked-session freezing or an assembled regional move.
 Linked KV consumption in the wallet-DO backend now reads the pinned wallet
 authority and checks wallet admission before consuming or expiring a record.
 The client cannot select a different wallet for this check. A separate linked
