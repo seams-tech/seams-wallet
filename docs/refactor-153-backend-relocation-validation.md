@@ -151,10 +151,21 @@ wrong challenge/origin, expiry, and a consumed challenge. It proves rollback and
 rejects commits after concurrent counter advancement or production method revocation.
 Evidence is retained under `.artifacts/r153/relocation-passkey-20261005/`.
 
-Approval persistence, Email OTP verification, initiating-session authentication,
-move-only reads, HTTP admission, and challenge/approval transfer remain unfinished.
-The coordinator must commit all returned prerequisites with the durable approval
-before it can admit the move. This component scenario does not prove that integration.
+The passkey approval store now commits those prerequisites with a durable approval.
+It records the exact binding, authority digest and revocation epoch, approval time,
+and original expiry. The transaction checks expiry against the database clock.
+Concurrent requests return the same outcome. A recorded outcome remains available
+after expiry without extending its authority for new Console admission.
+The existing E2E now injects an approval-insert failure and verifies counter and
+challenge rollback. It covers concurrent requests, exact replay through a new store
+instance after expiry, changed bindings, tenant isolation, and expiry at commit.
+Evidence is retained under `.artifacts/r153/relocation-approval-20261005/`.
+
+Email OTP verification, initiating-session authentication, move-only reads, HTTP
+admission, and challenge/approval transfer remain unfinished. The authenticated
+owner boundary must validate the initiating credential before calling this store.
+Console must verify the source approval and its expiry before new admission.
+These component scenarios do not prove that integration or an assembled move.
 
 ## Cloudflare capabilities
 

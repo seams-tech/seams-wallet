@@ -36,6 +36,7 @@ const bundle = await build({
     loader: 'ts',
     contents: `
       export { CloudflareD1WebAuthnStore } from './packages/wallet-server/src/router/cloudflare/d1/webauthn/d1WebAuthnStore';
+      export { D1WalletRelocationApprovals } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationApprovals';
       export { verifyWalletRelocationPasskey } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationPasskey';
       export { AuthorizationService } from './packages/wallet-server/src/authorization/service';
       export { D1WalletRelocationChallenges, WalletRelocationChallengeBinding } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationChallenges';
@@ -474,7 +475,7 @@ async function verifyRelocationPasskey(database) {
       },
     },
   });
-  const binding = api.WalletRelocationChallengeBinding.parse({
+  const bindingInput = {
     walletId: fixture.authority.walletId,
     moveId: `wmove_${Buffer.alloc(32, 96).toString('base64url')}`,
     requestDigestHex: 'cd'.repeat(32),
@@ -485,7 +486,8 @@ async function verifyRelocationPasskey(database) {
     credentialDigestHex: 'ef'.repeat(32),
     credentialExpiresAtMs: nowMs + 60_000,
     origin: 'https://wallet.example.test',
-  });
+  };
+  const binding = api.WalletRelocationChallengeBinding.parse(bindingInput);
   const store = new api.D1WalletRelocationChallenges(database, scope);
   const challenge = await store.issue(binding, nowMs, nowMs + 60_000);
   const input = { database, scope, binding, nowMs: nowMs + 1 };
@@ -554,14 +556,61 @@ async function verifyRelocationPasskey(database) {
   const verified = await api.verifyWalletRelocationPasskey({ ...input, credential });
   assert.equal(verified.kind, 'verified');
   assert.equal((await store.read(binding)).state, 'issued');
+  const approvals = new api.D1WalletRelocationApprovals(database, scope);
+  await database.exec(
+    "CREATE TRIGGER fail_relocation_approval BEFORE INSERT ON wallet_relocation_approvals BEGIN SELECT RAISE(ABORT, 'injected approval failure'); END;",
+  );
   await assert.rejects(
-    database.batch([
-      ...verified.commitPrerequisites,
-      database.prepare('INSERT INTO router_ab_yao_versioned_json_cas_guard (guard_id) VALUES (1)'),
-    ]),
+    approvals.approvePasskey({ binding, credential, nowMs: input.nowMs }),
+    /injected approval failure/,
   );
   assert.equal((await store.read(binding)).state, 'issued');
-  await database.batch(verified.commitPrerequisites);
+  assert.equal(await approvals.read(binding), null);
+  assert.equal(
+    (
+      await authenticators.readAuthenticator({
+        userId: binding.walletId,
+        credentialIdB64u: fixture.authMethod.credentialIdB64u,
+      })
+    ).counter,
+    0,
+  );
+  await database.exec('DROP TRIGGER fail_relocation_approval;');
+  const [approved, concurrent] = await Promise.all([
+    approvals.approvePasskey({ binding, credential, nowMs: input.nowMs }),
+    approvals.approvePasskey({ binding, credential, nowMs: input.nowMs + 1 }),
+  ]);
+  assert.equal(approved.kind, 'approved');
+  assert.deepEqual(concurrent, approved);
+  assert.equal(approved.approval.expiresAtMs, challenge.expiresAtMs);
+  assert.equal(approved.approval.authorityDigestB64u, fixture.authority.authorityDigestB64u);
+  assert.equal(approved.approval.authorityRevocationEpoch, fixture.authority.revocationEpoch);
+  const reopenedApprovals = new api.D1WalletRelocationApprovals(database, scope);
+  assert.deepEqual(
+    await reopenedApprovals.approvePasskey({
+      binding,
+      credential: null,
+      nowMs: challenge.expiresAtMs + 1,
+    }),
+    approved,
+  );
+  await assert.rejects(
+    reopenedApprovals.approvePasskey({
+      binding: api.WalletRelocationChallengeBinding.parse({
+        ...bindingInput,
+        destinationRegion: 'US',
+      }),
+      credential,
+      nowMs: input.nowMs,
+    }),
+    /binding changed/,
+  );
+  assert.equal(
+    await new api.D1WalletRelocationApprovals(database, { ...scope, envId: 'foreign' }).read(
+      binding,
+    ),
+    null,
+  );
   assert.equal(
     (
       await authenticators.readAuthenticator({
@@ -573,6 +622,36 @@ async function verifyRelocationPasskey(database) {
   );
   assert.equal((await store.read(binding)).state, 'consumed');
   assert.equal((await api.verifyWalletRelocationPasskey({ ...input, credential })).kind, 'denied');
+  const expiredBinding = api.WalletRelocationChallengeBinding.parse({
+    ...bindingInput,
+    moveId: `wmove_${Buffer.alloc(32, 99).toString('base64url')}`,
+  });
+  const expired = await store.issue(expiredBinding, nowMs - 120_000, nowMs - 60_000);
+  await assert.rejects(
+    approvals.approvePasskey({
+      binding: expiredBinding,
+      credential: relocationAssertion(
+        keys.privateKey,
+        fixture.authMethod,
+        expired.challengeB64u,
+        binding.origin,
+        5,
+        2,
+      ),
+      nowMs: nowMs - 90_000,
+    }),
+  );
+  assert.equal(await approvals.read(expiredBinding), null);
+  assert.equal((await store.read(expiredBinding)).state, 'issued');
+  assert.equal(
+    (
+      await authenticators.readAuthenticator({
+        userId: binding.walletId,
+        credentialIdB64u: fixture.authMethod.credentialIdB64u,
+      })
+    ).counter,
+    1,
+  );
   const secondBinding = api.WalletRelocationChallengeBinding.parse({
     walletId: binding.walletId,
     moveId: `wmove_${Buffer.alloc(32, 97).toString('base64url')}`,
@@ -654,7 +733,13 @@ async function verifyRelocationPasskey(database) {
   assert.equal((await api.verifyWalletRelocationPasskey(freshInput)).kind, 'denied');
   return {
     scope:
-      'Real passkey verification and transactional guards only; excludes approval persistence and HTTP admission',
+      'Real passkey approval persistence and transactional guards; excludes initiating-session authentication, Email OTP, HTTP admission and transfer',
+    expiryCheckedAtTransactionCommit: true,
+    exactApprovalRecordedWithProofConsumption: true,
+    concurrentApprovalReturnsOriginalOutcome: true,
+    lostReplyReplayAfterExpiryPreservesOutcome: true,
+    changedApprovalBindingRejected: true,
+    approvalTenantScopeIsolated: true,
     signedAssertionVerified: true,
     userVerificationRequired: true,
     wrongPurposeOriginAndExpiryRejected: true,

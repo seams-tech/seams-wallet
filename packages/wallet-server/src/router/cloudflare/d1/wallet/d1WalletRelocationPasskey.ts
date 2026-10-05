@@ -1,3 +1,4 @@
+import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
 import { CloudflareD1WebAuthnStore } from '../webauthn/d1WebAuthnStore';
 import { verifyAuthenticationResponse } from '@simplewebauthn/server';
@@ -29,7 +30,12 @@ export async function verifyWalletRelocationPasskey(input: {
   readonly credential: unknown;
   readonly nowMs: number;
 }): Promise<
-  | { readonly kind: 'verified'; readonly commitPrerequisites: readonly D1PreparedStatementLike[] }
+  | {
+      readonly kind: 'verified';
+      readonly authorityDigestB64u: DigestB64u;
+      readonly authorityRevocationEpoch: number;
+      readonly commitPrerequisites: readonly D1PreparedStatementLike[];
+    }
   | { readonly kind: 'denied'; readonly commitPrerequisites?: never }
 > {
   const challenges = new D1WalletRelocationChallenges(input.database, input.scope);
@@ -123,6 +129,8 @@ export async function verifyWalletRelocationPasskey(input: {
   }
   return {
     kind: 'verified',
+    authorityDigestB64u: authority.authorityDigestB64u,
+    authorityRevocationEpoch: authority.revocationEpoch,
     commitPrerequisites: [
       ...methods.prepareActiveV2SourceGuardStatements({
         walletId: input.binding.walletId,

@@ -1,3 +1,4 @@
+import type { D1WalletRelocationApprovals } from '../../packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationApprovals';
 import type {
   D1WalletRelocationChallenges,
   WalletRelocationChallengeBinding,
@@ -17,3 +18,12 @@ const forgedBinding: WalletRelocationChallengeBinding = { ...binding };
 const directBinding = new WalletRelocationChallengeBinding();
 void forgedBinding;
 void directBinding;
+
+declare const approved: NonNullable<Awaited<ReturnType<D1WalletRelocationApprovals['read']>>>;
+type ApprovalResult = Awaited<ReturnType<D1WalletRelocationApprovals['approvePasskey']>>;
+// @ts-expect-error A denied result cannot carry a durable approval.
+const deniedApproval: ApprovalResult = { kind: 'denied', approval: approved };
+// @ts-expect-error An approved result requires the durable approval record.
+const absentApproval: ApprovalResult = { kind: 'approved' };
+void deniedApproval;
+void absentApproval;
