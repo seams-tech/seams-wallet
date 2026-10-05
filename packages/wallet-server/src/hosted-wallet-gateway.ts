@@ -1,3 +1,6 @@
+import { parseTenantId } from '@shared/authorization/capabilityKinds';
+import { parseSessionOrigin } from './authorization/domain';
+import { WalletPlacementReadRoutes } from './router/cloudflare/runtime/walletPlacementReads';
 import type { WalletLifecycleRoutingPublisher } from './authorization/lifecycleRouting';
 import { decodeTenantRootIdentityWireV1 } from '@shared/tenant-root';
 import { resolveRuntimeTenantRootLineage } from './cloud-host';
@@ -193,6 +196,8 @@ type RouterApiTenantScope = {
 const RELAY_SIGNER_READY_TABLES = Object.freeze([
   'wallets',
   'wallet_auth_methods',
+  'wallet_relocation_challenges',
+  'wallet_relocation_approvals',
   'authorization_wallet_session_quotas',
   'wallet_session_authorizations_v2',
   'wallet_session_hosted_credentials_v2',
@@ -723,11 +728,23 @@ export async function createHostedWalletGatewayCompositionV1(
     tenantRootCustodyLineage,
     dependencies,
   );
+  const tenantId = parseTenantId(scope.orgId);
+  if (!tenantId.ok) throw new Error('Wallet placement authorization tenant is invalid');
   const handler = createCloudflareWalletGatewayRouterV1({
     service,
     walletConsole: env.WALLET_CONSOLE,
     signerDatabase: env.SIGNER_DB,
     signerStorageNamespace: scope.namespace,
+    routeExtensions: [
+      new WalletPlacementReadRoutes({
+        database: env.SIGNER_DB,
+        scope,
+        tenantId: tenantId.value,
+        allowedOrigins: readStagingHostedWalletOrigins(env).map(parseSessionOrigin),
+        authorizationSessions: service.authorizationSessions,
+        directory: env.WALLET_CONSOLE,
+      }),
+    ],
     router: {
       healthz: true,
       readyz: true,

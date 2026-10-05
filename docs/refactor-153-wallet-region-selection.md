@@ -79,9 +79,12 @@ wallet/move locator, authenticates the full owner or bounded move reader, and
 calls only the directory's existing safe read endpoints. Retired credentials
 cannot read general placement or other moves. Responses disable caching. The
 D1 E2E verifies authentication and dispatch with a recording directory binding;
-it does not prove deployed routing or assembled Console integration. Hosted
-regional composition must still install the extension with the resolved home's
-stores. Admission and exact POST replay remain unfinished.
+it does not prove deployed routing or assembled Console integration.
+The hosted gateway composition installs this extension with its scoped signer
+database, existing authorization service, configured origins, and Console binding.
+Readiness requires both relocation tables. Regional dispatch during a move and
+composed Console verification remain unfinished. Admission and exact POST replay
+also remain unfinished.
 
 
 The move-read authentication component now checks the original credential digest,
