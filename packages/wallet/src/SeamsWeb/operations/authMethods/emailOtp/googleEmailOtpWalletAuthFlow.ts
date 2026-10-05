@@ -39,7 +39,6 @@ import type {
   RegistrationCapability,
 } from '@/SeamsWeb/publicApi/types';
 import type {
-  DemoEmailOtpCodeResponse,
   EmailOtpChallengeDelivery,
   GoogleEmailOtpProviderResolution,
 } from '@/core/signingEngine/session/emailOtp/publicTypes';
@@ -466,20 +465,6 @@ async function requestLoginChallenge(args: {
   };
 }
 
-function emitDemoEmailOtpCode(args: {
-  delivery: EmailOtpChallengeDelivery;
-  onDemoOtp: ((response: DemoEmailOtpCodeResponse) => void) | undefined;
-}): void {
-  switch (args.delivery.kind) {
-    case 'provider':
-      return;
-    case 'demo_code_response':
-    case 'provider_and_demo_code':
-      args.onDemoOtp?.(args.delivery);
-      return;
-  }
-}
-
 function resolveRegistrationEcdsaTargets(args: {
   configs: SeamsConfigsReadonly;
   policy?: GoogleEmailOtpWalletAuthEcdsaTargets;
@@ -856,10 +841,6 @@ function createGoogleEmailOtpWalletLoginFlow(
 ): GoogleEmailOtpWalletAuthFlow {
   const liveness = createFlowLiveness({ state: args.state });
   const flowId = `google-email-otp-login:${args.state.walletId}:${args.challenge.challengeId}`;
-  emitDemoEmailOtpCode({
-    delivery: args.challenge.delivery,
-    onDemoOtp: args.input.onDemoOtp,
-  });
   return {
     kind: 'google_email_otp_wallet_auth_flow_v1',
     state: 'challenge_sent',

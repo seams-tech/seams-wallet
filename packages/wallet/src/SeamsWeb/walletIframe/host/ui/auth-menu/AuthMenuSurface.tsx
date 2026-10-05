@@ -33,6 +33,19 @@ import {
   rerollIcon,
 } from './icons';
 
+import { demoEmailOtpCodeFromDelivery } from '@/core/signingEngine/session/emailOtp/challengeDelivery';
+import type { EmailOtpChallengeDelivery } from '@/core/signingEngine/session/emailOtp/publicTypes';
+
+function renderDemoEmailCode(delivery: EmailOtpChallengeDelivery): ComponentChildren {
+  const code = demoEmailOtpCodeFromDelivery(delivery);
+  if (code === null) return null;
+  return (
+    <p class="seams-otp-description">
+      Demo email code: <code>{code}</code>
+    </p>
+  );
+}
+
 const AUTH_MENU_TITLE_ID = 'seams-auth-menu-title';
 const AUTH_MENU_ACCOUNT_LIST_ID = 'seams-auth-menu-account-list';
 
@@ -1123,6 +1136,7 @@ export class AuthMenuSurface extends Component<
           {this.renderHeader(viewModel)}
           <div class="seams-otp-prompt" aria-live="polite">
             <p class="seams-otp-description">{deliveryMessage}</p>
+            {renderDemoEmailCode(viewModel.delivery)}
             <label class="seams-field-label" for="seams-recovery-google-otp">
               Email code
             </label>
@@ -1679,6 +1693,7 @@ export class AuthMenuSurface extends Component<
               {viewModel.heading}
             </div>
             <p class="seams-otp-description">{deliveryMessage}</p>
+            {renderDemoEmailCode(viewModel.delivery)}
             <div class="seams-otp-account" title={viewModel.walletId}>
               <span class="seams-otp-account-label">Wallet</span>
               <span class="seams-otp-account-value">{viewModel.walletId}</span>

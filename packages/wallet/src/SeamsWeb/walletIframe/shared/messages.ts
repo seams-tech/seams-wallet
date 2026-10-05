@@ -166,12 +166,6 @@ export type HostedAuthMenuExternalAuthRequest = {
   mode: HostedAuthMenuMode;
 };
 
-export type HostedAuthMenuDemoEmailOtpDelivery = {
-  kind: 'hosted_auth_menu_demo_email_otp_delivery_v1';
-  authMenuSessionId: HostedAuthMenuSessionId;
-  delivery: Extract<GoogleEmailOtpWalletAuthDelivery, { otpCode: string }>;
-};
-
 export const HOSTED_AUTH_MENU_ERROR_EVENT = 'seams:hosted-auth-menu-error' as const;
 
 type HostedAuthMenuErrorEvent = {
@@ -657,39 +651,6 @@ export function parseHostedAuthMenuExternalAuthRequest(
   return { kind: record.kind, authMenuSessionId, externalAuthRequestId, provider, mode };
 }
 
-export function parseHostedAuthMenuDemoEmailOtpDelivery(
-  value: unknown,
-): HostedAuthMenuDemoEmailOtpDelivery | null {
-  const record = recordFromBoundary(value);
-  if (
-    !record ||
-    !isWireSerializable(record) ||
-    record.kind !== 'hosted_auth_menu_demo_email_otp_delivery_v1' ||
-    !hasOnlyKeys(record, ['kind', 'authMenuSessionId', 'delivery'])
-  ) {
-    return null;
-  }
-  const authMenuSessionId = hostedAuthMenuSessionIdFromBoundary(record.authMenuSessionId);
-  const delivery = recordFromBoundary(record.delivery);
-  if (
-    !authMenuSessionId ||
-    !delivery ||
-    !hasOnlyKeys(delivery, ['kind', 'status', 'emailHint', 'otpCode']) ||
-    (delivery.kind !== 'demo_code_response' && delivery.kind !== 'provider_and_demo_code') ||
-    (delivery.status !== 'sent' && delivery.status !== 'reused')
-  ) {
-    return null;
-  }
-  const emailHint = boundaryString(delivery.emailHint, 'emailHint');
-  const otpCode = boundaryString(delivery.otpCode, 'otpCode');
-  if (!emailHint || !otpCode || !/^\d{6}$/.test(otpCode)) return null;
-  return {
-    kind: record.kind,
-    authMenuSessionId,
-    delivery: { kind: delivery.kind, status: delivery.status, emailHint, otpCode },
-  };
-}
-
 export function parseHostedAuthMenuErrorEvent(value: unknown): HostedAuthMenuErrorEvent | null {
   const record = recordFromBoundary(value);
   if (
@@ -842,7 +803,7 @@ export function parseHostedAuthMenuOutcome(value: unknown): HostedAuthMenuOutcom
   }
 }
 
-export const WALLET_PROTOCOL_VERSION = '5.0.0' as const;
+export const WALLET_PROTOCOL_VERSION = '6.0.0' as const;
 
 export const WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH =
   'WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH' as const;
@@ -1824,7 +1785,6 @@ export type ChildToParentEnvelope =
   | RpcEnvelope<'PREFERENCES_CHANGED', PreferencesChangedPayload>
   | RpcEnvelope<'AUTH_MENU_EXTERNAL_AUTH_REQUEST', HostedAuthMenuExternalAuthRequest>
   | RpcEnvelope<'AUTH_MENU_ERROR', HostedAuthMenuErrorEvent>
-  | RpcEnvelope<'AUTH_MENU_DEMO_EMAIL_OTP_DELIVERY', HostedAuthMenuDemoEmailOtpDelivery>
   | RpcEnvelope<'SURFACE_MEASUREMENT', WalletIframeSurfaceMeasurement>
   | RpcEnvelope<'PM_RESULT', PMResultPayload>
   | RpcEnvelope<'ERROR', ErrorPayload>;

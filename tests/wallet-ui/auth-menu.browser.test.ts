@@ -1,6 +1,7 @@
+import { writeFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import { injectImportMap } from '../setup/bootstrap';
-import { authBranchFixtures, registration } from './auth-menu-fixtures';
+import { authBranchFixtures, registration, googleOtp } from './auth-menu-fixtures';
 import { mountAuthMenu, prepareAuthMenuDocument } from './auth-menu.harness';
 import type { AuthMenuIntent } from '@/SeamsWeb/walletIframe/host/auth-menu/domain';
 import type { WalletIframeSurfaceMeasurement } from '@/SeamsWeb/walletIframe/shared/messages';
@@ -71,7 +72,7 @@ for (const variant of ['modal', 'drawer'] as const) {
       await expect(page.locator('[data-auth-menu-input]')).toBeFocused();
       await page.evaluate(async (variant) => {
         window.__authMenu.handle.dispose();
-        const module = await import('/_test-sdk/esm/core/signingEngine/uiConfirm/ui/confirm-ui.js');
+        const module = await import('/_test-sdk/esm/sdk/tx-confirm-ui.js');
         const mountConfirmUI: typeof import('@/core/signingEngine/uiConfirm/ui/confirm-ui').mountConfirmUI =
           module.mountConfirmUI;
         const handle = await mountConfirmUI({
@@ -280,4 +281,67 @@ test('recovery announcements remain accessible without consuming control space',
       .toBe(true);
   }
   await initialAnnouncement.dispose();
+});
+
+
+function recordAuthIntents() {
+  window.__authMenu.onIntent = window.__authBrowser.intents.push.bind(window.__authBrowser.intents);
+}
+
+function updateOtpView(model: ReturnType<typeof googleOtp>) {
+  window.__authMenu.handle.update(model);
+}
+
+function readAuthIntents() {
+  return window.__authBrowser.intents;
+}
+
+test('hosted demo email codes follow delivery replacement without automatic submission', async ({
+  page,
+}, testInfo) => {
+  await mountAuthMenu(
+    page,
+    googleOtp('dark', {
+      kind: 'demo_code_response',
+      status: 'sent',
+      emailHint: 'f***@example.test',
+      otpCode: '654321',
+    }),
+  );
+  await page.evaluate(recordAuthIntents);
+  await expect(page.getByText('Demo email code: 654321')).toBeVisible();
+  expect(await page.evaluate(readAuthIntents)).toEqual([]);
+  await page.evaluate(
+    updateOtpView,
+    googleOtp('dark', {
+      kind: 'provider_and_demo_code',
+      status: 'reused',
+      emailHint: 'f***@example.test',
+      otpCode: '456789',
+    }),
+  );
+  await expect(page.getByText('Demo email code: 456789')).toBeVisible();
+  await expect(page.getByText('Demo email code: 654321')).toHaveCount(0);
+  await page.locator('#seams-auth-menu-google-otp').fill('456789');
+  const intents = await page.evaluate(readAuthIntents);
+  expect(intents).toContainEqual({ kind: 'google_otp_code_changed', code: '456789' });
+  await page.evaluate(
+    updateOtpView,
+    googleOtp('dark', { kind: 'provider', status: 'sent', emailHint: 'f***@example.test' }),
+  );
+  await expect(page.getByText('Demo email code:', { exact: false })).toHaveCount(0);
+  await expect(page.getByText('A 6-digit code was sent to f***@example.test.')).toBeVisible();
+  await writeFile(
+    testInfo.outputPath('demo-email-delivery.json'),
+    JSON.stringify(
+      {
+        deliveryBranches: ['demo_code_response', 'provider_and_demo_code', 'provider'],
+        replacementRemovedPreviousCode: true,
+        providerDeliveryHidesCode: true,
+        intents,
+      },
+      null,
+      2,
+    ),
+  );
 });

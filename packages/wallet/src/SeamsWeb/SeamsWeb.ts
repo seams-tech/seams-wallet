@@ -50,7 +50,6 @@ import {
   resolveRuntimeAppearance,
 } from '@/SeamsWeb/walletIframe/shared/facadeBoundary';
 import type {
-  HostedAuthMenuDemoEmailOtpDelivery,
 } from '@/SeamsWeb/walletIframe/shared/messages';
 import { walletIdFromString } from '@shared/utils/registrationIds';
 /**
@@ -176,11 +175,6 @@ export class SeamsWeb {
   }
   async getWalletIframeExactSessionState(): Promise<WalletIframeExactSessionState> {
     return await this.walletIframe.getExactSessionState();
-  }
-  onHostedAuthMenuDemoEmailOtpDelivery(
-    listener: (delivery: HostedAuthMenuDemoEmailOtpDelivery) => void,
-  ): () => void {
-    return this.walletIframe.onHostedAuthMenuDemoEmailOtpDelivery(listener);
   }
   async lockWalletIframeExactSession(
     identity: WalletIframeExactSessionIdentityInput,

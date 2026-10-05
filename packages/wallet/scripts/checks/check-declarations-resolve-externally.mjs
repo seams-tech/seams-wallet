@@ -61,6 +61,10 @@ void seams.auth.getSession();
 void seams.auth.startGoogleSignIn({ idToken: 'provider-evidence', mode: 'login', loginTarget: { kind: 'discoverable' } });
 // @ts-expect-error Google sign-in has one public entry name.
 void seams.auth.beginGoogleEmailOtpWalletAuth;
+// @ts-expect-error Hosted demo delivery is internal to the wallet UI.
+void seams.onHostedAuthMenuDemoEmailOtpDelivery;
+// @ts-expect-error Custom UI reads the flow delivery result directly.
+void seams.auth.startGoogleSignIn({ idToken: 'provider-evidence', mode: 'login', loginTarget: { kind: 'discoverable' }, onDemoOtp() {} });
 void seams.keys.exportKey({ kind: 'ecdsa', chainTarget: 'arc-testnet' });
 const external = new ExternalEvmController([]);
 void external.waitForReceipt;

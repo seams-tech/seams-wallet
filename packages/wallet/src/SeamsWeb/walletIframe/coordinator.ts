@@ -7,7 +7,6 @@ import type { WalletIframeRouter } from '@/SeamsWeb/walletIframe/client/router';
 import type { WalletIframeTransportDiagnostics } from '@/SeamsWeb/walletIframe/client/transport/IframeTransport';
 import type {
   HostedAuthMenuExternalAuthRequest,
-  HostedAuthMenuDemoEmailOtpDelivery,
   HostedAuthMenuExternalAuthResolutionInput,
   HostedAuthMenuOpenRequest,
   HostedAuthMenuOutcome,
@@ -75,20 +74,13 @@ export class WalletIframeCoordinator {
   >();
   private walletIframeLifecycleUnsubscribe: (() => void) | null = null;
   private walletIframeAuthMenuUnsubscribe: (() => void) | null = null;
-  private walletIframeAuthMenuDemoOtpUnsubscribe: (() => void) | null = null;
   private readonly sdkLifecycleEventListeners = new Set<SdkLifecycleEventListener>();
   private readonly hostedAuthMenuExternalAuthRequestListeners = new Set<
     (request: HostedAuthMenuExternalAuthRequest) => void
   >();
-  private readonly hostedAuthMenuDemoEmailOtpDeliveryListeners = new Set<
-    (delivery: HostedAuthMenuDemoEmailOtpDelivery) => void
-  >();
   private readonly forwardSdkLifecycleEventListener: SdkLifecycleEventListener;
   private readonly forwardHostedAuthMenuExternalAuthRequestListener: (
     request: HostedAuthMenuExternalAuthRequest,
-  ) => void;
-  private readonly forwardHostedAuthMenuDemoEmailOtpDeliveryListener: (
-    delivery: HostedAuthMenuDemoEmailOtpDelivery,
   ) => void;
 
   constructor(deps: WalletIframeCoordinatorDeps) {
@@ -98,8 +90,6 @@ export class WalletIframeCoordinator {
     this.forwardSdkLifecycleEventListener = this.forwardSdkLifecycleEvent.bind(this);
     this.forwardHostedAuthMenuExternalAuthRequestListener =
       this.forwardHostedAuthMenuExternalAuthRequest.bind(this);
-    this.forwardHostedAuthMenuDemoEmailOtpDeliveryListener =
-      this.forwardHostedAuthMenuDemoEmailOtpDelivery.bind(this);
   }
 
   getConnectionState(): ClientConnectionState {
@@ -142,7 +132,6 @@ export class WalletIframeCoordinator {
     this.sdkLifecycleEventListeners.clear();
     this.sessionListeners.clear();
     this.hostedAuthMenuExternalAuthRequestListeners.clear();
-    this.hostedAuthMenuDemoEmailOtpDeliveryListeners.clear();
   }
 
   private releaseRouter(): void {
@@ -152,13 +141,11 @@ export class WalletIframeCoordinator {
     this.walletIframeLifecycleUnsubscribe?.();
     this.walletIframeSessionUnsubscribe?.();
     this.walletIframeAuthMenuUnsubscribe?.();
-    this.walletIframeAuthMenuDemoOtpUnsubscribe?.();
     this.walletIframeCloseUnsubscribe = null;
     this.walletIframePrefsUnsubscribe = null;
     this.walletIframeLifecycleUnsubscribe = null;
     this.walletIframeSessionUnsubscribe = null;
     this.walletIframeAuthMenuUnsubscribe = null;
-    this.walletIframeAuthMenuDemoOtpUnsubscribe = null;
     const router = this.iframeRouter;
     this.iframeRouter = null;
     router?.dispose();
@@ -321,14 +308,6 @@ export class WalletIframeCoordinator {
     return this.removeHostedAuthMenuExternalAuthRequestListener.bind(this, listener);
   }
 
-  onHostedAuthMenuDemoEmailOtpDelivery(
-    listener: (delivery: HostedAuthMenuDemoEmailOtpDelivery) => void,
-  ): () => void {
-    if (this.connection.kind === 'disposed') return noSubscription;
-    this.hostedAuthMenuDemoEmailOtpDeliveryListeners.add(listener);
-    if (this.iframeRouter) this.ensureWalletIframeAuthMenuMirror(this.iframeRouter);
-    return this.removeHostedAuthMenuDemoEmailOtpDeliveryListener.bind(this, listener);
-  }
 
   async resolveHostedAuthMenuExternalAuth(
     resolution: HostedAuthMenuExternalAuthResolutionInput,
@@ -380,11 +359,7 @@ export class WalletIframeCoordinator {
         this.forwardHostedAuthMenuExternalAuthRequestListener,
       );
     }
-    if (!this.walletIframeAuthMenuDemoOtpUnsubscribe) {
-      this.walletIframeAuthMenuDemoOtpUnsubscribe = router.onHostedAuthMenuDemoEmailOtpDelivery(
-        this.forwardHostedAuthMenuDemoEmailOtpDeliveryListener,
-      );
-    }
+
   }
 
   private forwardSdkLifecycleEvent(event: SdkLifecycleEvent): void {
@@ -413,19 +388,4 @@ export class WalletIframeCoordinator {
     this.hostedAuthMenuExternalAuthRequestListeners.delete(listener);
   }
 
-  private forwardHostedAuthMenuDemoEmailOtpDelivery(
-    delivery: HostedAuthMenuDemoEmailOtpDelivery,
-  ): void {
-    for (const listener of Array.from(this.hostedAuthMenuDemoEmailOtpDeliveryListeners)) {
-      try {
-        listener(delivery);
-      } catch {}
-    }
-  }
-
-  private removeHostedAuthMenuDemoEmailOtpDeliveryListener(
-    listener: (delivery: HostedAuthMenuDemoEmailOtpDelivery) => void,
-  ): void {
-    this.hostedAuthMenuDemoEmailOtpDeliveryListeners.delete(listener);
-  }
 }

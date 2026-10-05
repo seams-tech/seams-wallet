@@ -21,7 +21,6 @@ import {
   parseHostedAuthMenuErrorEvent,
   type HostedAuthMenuExternalAuthRequest,
   type HostedAuthMenuExternalAuthResolution,
-  type HostedAuthMenuDemoEmailOtpDelivery,
   type HostedAuthMenuMode,
   type HostedAuthMenuOpenRequest,
   type HostedAuthMenuOutcome,
@@ -1245,22 +1244,6 @@ export class AuthMenuSession {
           return;
         }
         this.googleCancellation = null;
-        const delivery = flow.delivery;
-        if (
-          delivery &&
-          (delivery.kind === 'demo_code_response' || delivery.kind === 'provider_and_demo_code')
-        ) {
-          const payload: HostedAuthMenuDemoEmailOtpDelivery = {
-            kind: 'hosted_auth_menu_demo_email_otp_delivery_v1',
-            authMenuSessionId: this.identity.authMenuSessionId,
-            delivery,
-          };
-          this.sendToParent({
-            type: 'AUTH_MENU_DEMO_EMAIL_OTP_DELIVERY',
-            requestId: this.identity.requestId,
-            payload,
-          });
-        }
         if (flow.mode === 'login') {
           this.stateValue = {
             kind: 'google_login',

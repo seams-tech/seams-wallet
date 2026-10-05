@@ -54,7 +54,7 @@ const childScript = (calldata: string) => String.raw`
   };
   window.__measurements = [];
   window.__mountReal = async (requestId) => {
-    const confirmUi = await import('/_test-sdk/esm/core/signingEngine/uiConfirm/ui/confirm-ui.js');
+    const confirmUi = await import('/_test-sdk/esm/sdk/tx-confirm-ui.js');
     const evm = await import('/_test-sdk/esm/core/signingEngine/chains/evm/display/evmTx.js');
     const model = evm.buildEvmDisplayModel({ request: { chain: 'evm', kind: 'eip1559', senderSignatureAlgorithm: 'secp256k1',
       tx: { chainId: 42431, nonce: 1n, maxPriorityFeePerGas: 1500000000n, maxFeePerGas: 3000000000n, gasLimit: 200000n,

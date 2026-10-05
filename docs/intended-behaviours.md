@@ -362,6 +362,11 @@ CTA belong to the wallet origin.
   same prepared surface; it does not open a second registration-confirmation modal.
 - The wallet host owns passkey and Email OTP validation, OTP state,
   registration continuation, and unlock continuation.
+- Demo email delivery displays its code inside the wallet-origin OTP prompt.
+  Replacement delivery replaces the displayed code. Provider-only delivery shows
+  no demo code. Displaying a code never submits it automatically. Hosted demo
+  delivery does not require an application callback or a parent-window event.
+  Custom UI reads the delivery result from its returned authentication flow.
 - A hosted-wallet handoff is single-use and bound to the application and wallet
   origins. The wallet iframe receives one short-lived hosted operation credential
   for the exact parent Wallet Session; the primary operation credential stays in

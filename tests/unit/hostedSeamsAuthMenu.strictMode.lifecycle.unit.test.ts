@@ -12,7 +12,6 @@ test.describe('HostedSeamsAuthMenu StrictMode lifecycle', () => {
         contentType: 'application/javascript',
         body: `
           const seams = {
-            onHostedAuthMenuDemoEmailOtpDelivery() { return () => {}; },
             authMenu: {
               onExternalAuthRequest() { return () => {}; },
               async cancel() {},

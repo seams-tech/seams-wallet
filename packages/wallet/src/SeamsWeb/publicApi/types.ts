@@ -21,7 +21,6 @@ import type { WalletSessionInput } from '@/SeamsWeb/publicApi/currentWallet';
 import type {
   EmailOtpChallengeDelivery,
   EmailOtpEnrollmentResult,
-  DemoEmailOtpCodeResponse,
 } from '@/core/signingEngine/session/emailOtp/publicTypes';
 import type { ExactWalletSessionAuthorization } from '@/core/signingEngine/session/persistence/walletSessionAuthorizationProjection';
 import type { RouterAbEcdsaDerivationLoginPresignaturePrefillResult } from '@/core/signingEngine/session/warmCapabilities/ecdsaLoginPrefill';
@@ -676,7 +675,6 @@ type GoogleEmailOtpWalletAuthStartBaseInput = {
   relayUrl?: string;
   ecdsaTargets?: GoogleEmailOtpWalletAuthEcdsaTargets;
   emailOtpAuthPolicy?: EmailOtpAuthPolicy;
-  onDemoOtp?: (response: DemoEmailOtpCodeResponse) => void;
   onEvent?: (event: RegistrationFlowEvent | UnlockFlowEvent) => void;
 };
 

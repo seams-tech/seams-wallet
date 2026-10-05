@@ -1,0 +1,72 @@
+{
+  "task": "R170/R171 internal demo Email OTP handling",
+  "baseCommit": "4b92a172",
+  "protocolVersion": "6.0.0",
+  "observations": {
+    "deliveryBranches": [
+      "demo_code_response",
+      "provider_and_demo_code",
+      "provider"
+    ],
+    "replacementRemovedPreviousCode": true,
+    "providerDeliveryHidesCode": true,
+    "intents": [
+      {
+        "kind": "google_otp_code_changed",
+        "code": "456789"
+      }
+    ]
+  },
+  "productionLifecycle": {
+    "result": "passed",
+    "durationSeconds": 47.4,
+    "command": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/email-otp.unlock.contract.test.ts --grep \"Email OTP registration and unlock lifecycle\""
+  },
+  "browser": {
+    "initialResult": "16 passed; 2 confirmation handoff tests failed on an obsolete dynamic import path",
+    "classification": "valid_test_needs_update",
+    "repair": "Use emitted sdk/tx-confirm-ui.js entry",
+    "command": "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4289 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-ui/auth-menu.browser.test.ts wallet-iframe/handshake.test.ts wallet-iframe/auth-menu.host.integration.test.ts unit/hostedSeamsAuthMenu.strictMode.lifecycle.unit.test.ts --project=chromium --output=../.artifacts/r170-demo-internal",
+    "confirmationRecheck": {
+      "result": "5 passed, 1 failed",
+      "command": "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4289 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-ui/auth-menu.browser.test.ts wallet-iframe/confirmSurface.treeGrowth.integration.test.ts --grep \"renderer handoff|confirmation|tree\" --project=chromium --output=../.artifacts/r170-demo-confirmation",
+      "passed": [
+        "modal handoff",
+        "drawer handoff",
+        "details growth",
+        "error banner growth",
+        "height independence"
+      ],
+      "remainingFailure": "raw calldata disclosure: surface was never offered the height change",
+      "classification": "unresolved; production confirmation code unchanged",
+      "reportedDuration": "1.3m"
+    },
+    "isolatedMotionRecheck": {
+      "result": "failed",
+      "command": "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4289 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/confirmSurface.treeGrowth.integration.test.ts --grep \"revealing the raw calldata\" --project=chromium --output=../.artifacts/r170-demo-motion-recheck",
+      "error": "the surface was never offered the height change",
+      "trace": ".artifacts/r170-demo-motion-recheck/wallet-iframe-confirmSurfa-0cf2b--moves-the-box-not-the-card-chromium/trace.zip"
+    }
+  },
+  "checks": [
+    "wallet type-check",
+    "intended type-check",
+    "browser type-check",
+    "docs type-check",
+    "production build",
+    "packed declarations with removed-callback rejection",
+    "runtime entry bundle boundaries",
+    "build freshness",
+    "report:bloat --check"
+  ],
+  "sdkProductionLines": {
+    "added": 23,
+    "removed": 225,
+    "net": -202
+  },
+  "limits": [
+    "Demo display uses controlled delivery fixtures and the emitted host renderer.",
+    "Production lifecycle verifies custom flow operation with callbacks removed.",
+    "Hosted recovery rendering shares the helper; full hosted recovery acceptance remains separate."
+  ]
+}

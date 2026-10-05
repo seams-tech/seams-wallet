@@ -1,5 +1,7 @@
+import type { EmailOtpChallengeDelivery } from '@/core/signingEngine/session/emailOtp/publicTypes';
 import type {
   AuthMenuLinkDeviceState,
+  AuthMenuGoogleLoginViewModel,
   AuthMenuLoginViewModel,
   AuthMenuRegisterViewModel,
   AuthMenuViewModel,
@@ -223,28 +225,7 @@ export function authBranchFixtures(
     },
     {
       name: 'google-otp',
-      model: {
-        ...display,
-        kind: 'google_otp_login',
-        mode: 'login',
-        heading: 'Verify your email',
-        subtitle: 'Enter the code we sent.',
-        ctaLabel: 'Verify',
-        walletId: 'visual-fixture.testnet',
-        emailHint: 'f***@example.test',
-        challengeId: 'synthetic-visual-challenge',
-        prompt: {
-          title: 'Verify your email',
-          description: 'Enter the code we sent.',
-          submitLabel: 'Verify',
-          helperText: '',
-        },
-        delivery: { kind: 'provider', status: 'sent', emailHint: 'f***@example.test' },
-        otpCode: '123456',
-        resendBusy: false,
-        submitBusy: false,
-        status: { kind: 'idle', interaction: 'actionable' },
-      },
+      model: googleOtp(theme, { kind: 'provider', status: 'sent', emailHint: 'f***@example.test' }),
     },
     {
       name: 'google-registration',
@@ -334,4 +315,35 @@ function syntheticDeviceQr(): string {
   }
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${modules.size + 8} ${modules.size + 8}"><rect width="100%" height="100%" fill="white"/><g fill="black">${pixels.join('')}</g></svg>`;
   return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
+export function googleOtp(
+  theme: AuthMenuTheme,
+  delivery: EmailOtpChallengeDelivery,
+): AuthMenuGoogleLoginViewModel {
+  return {
+    appearance: { theme: { id: 'default', mode: theme, colors: {} }, palette: 'default' },
+    hostname: 'wallet.example.test',
+    closeLabel: 'Close authentication menu',
+    showProgress: true,
+    kind: 'google_otp_login',
+    mode: 'login',
+    heading: 'Verify your email',
+    subtitle: 'Enter the code we sent.',
+    ctaLabel: 'Verify',
+    walletId: 'visual-fixture.testnet',
+    emailHint: 'f***@example.test',
+    challengeId: 'synthetic-visual-challenge',
+    prompt: {
+      title: 'Verify your email',
+      description: 'Enter the code we sent.',
+      submitLabel: 'Verify',
+      helperText: '',
+    },
+    delivery,
+    otpCode: '123456',
+    resendBusy: false,
+    submitBusy: false,
+    status: { kind: 'idle', interaction: 'actionable' },
+  };
 }

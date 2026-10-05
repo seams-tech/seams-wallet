@@ -326,7 +326,7 @@ backup. `exportKey` opens the wallet-origin viewer and preserves outcomes such a
 | `cancelHostedAuthMenu` | `authMenu.cancel` |
 | `onHostedAuthMenuExternalAuthRequest` | `authMenu.onExternalAuthRequest` |
 | `resolveHostedAuthMenuExternalAuth` | `authMenu.resolveExternalAuth` |
-| `onHostedAuthMenuDemoEmailOtpDelivery` | Demo/test integration only |
+| `onHostedAuthMenuDemoEmailOtpDelivery` | Removed; hosted demo code display is internal |
 
 Keep preference synchronization automatic where operations require it. Preserve
 R170 rollback/flush behavior and the distinction between display selection and
@@ -441,7 +441,7 @@ a declaration-level pass before declaring the migration complete.
 - [x] Move general subscriptions to `events.subscribe` and public hosted UI calls
   to `authMenu.open`, `cancel`, `onExternalAuthRequest`, and `resolveExternalAuth`.
   Remove their old application methods and migrate React and acceptance callers.
-  The demo OTP callback still requires internalization.
+  Demo OTP callback internalization is completed below.
 
 - [x] Move theme, appearance, and chain-target helpers to `seams.config`. Remove
   the four old top-level methods and migrate React, examples, and public docs.
@@ -470,7 +470,7 @@ a declaration-level pass before declaring the migration complete.
 - [x] Internalize ECDSA bootstrap. Remove advanced application methods, unused
   argument builders, client/host transport adapters, and the obsolete iframe RPC.
   Retain the explicit runtime port used by authentication and supported broadcast
-  reporting. Protocol 5.0.0 requires matching client and host deployments.
+  reporting. That change used protocol 5.0.0; the current protocol is 6.0.0 below.
 
 - [x] Rename React `refreshLoginState` to `refreshSession` and `setInputUsername`
   to `setAccountName`, including context, hooks, UI, examples, and intended app.
@@ -493,6 +493,12 @@ a declaration-level pass before declaring the migration complete.
   Preserve the existing registration/login flow union and returned controls.
   This closes the entry rename only; challenge consolidation, callback
   internalization, and cancellation acceptance remain open.
+
+- [x] Internalize demo email code display in the wallet-origin OTP view. Remove
+  `onDemoEmailOtp`, the duplicate Google-flow `onDemoOtp` callback, the public
+  delivery subscription, and its forwarding/event/parser paths. Custom UI keeps
+  the flow delivery result. Protocol 6.0.0 requires matched client/host deployment.
+  Browser coverage checks code replacement, provider-only display, and user input.
 
 - [ ] Audit current declarations and consumers in public SDK, tests, examples,
   docs, and private Console. Classify each row as rename, consolidation, internal

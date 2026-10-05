@@ -746,7 +746,7 @@ export const ProfileSettingsButton = AccountMenuButton;
 
 /** Full-page wallet settings, mounted inside SeamsWebProvider. */
 export function WalletSettingsPage(
-  props: Pick<HostedSeamsAuthMenuProps, 'externalAuthBroker' | 'onDemoEmailOtp'>,
+  props: Pick<HostedSeamsAuthMenuProps, 'externalAuthBroker'>,
 ) {
   const { loginState, refreshSession } = useSeams();
   const [error, setError] = useState('');
@@ -762,7 +762,6 @@ export function WalletSettingsPage(
         {error ? <p role="alert">{error}</p> : null}
         <HostedSeamsAuthMenu
           externalAuthBroker={props.externalAuthBroker}
-          onDemoEmailOtp={props.onDemoEmailOtp}
           onOutcome={finishSettingsAuthentication.bind(null, refreshSession, setError)}
         />
       </main>

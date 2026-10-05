@@ -2238,8 +2238,7 @@ Applications select controls through its existing `mode`/`state` discriminants.
 The host checks activity and expiry before each operation. This static inspection
 is insufficient to prove cancellation during an outstanding operation: liveness
 is checked before awaited work. Keep concurrent cancel/submit, repeat completion,
-expiry, and resend replacement acceptance open. The public callback `onDemoOtp`
-and hosted demo-delivery callback remain to be internalized. General Email OTP
+expiry, and resend replacement acceptance open. The demo callbacks were subsequently internalized in the checkpoint below. General Email OTP
 challenge/refresh methods and added-factor unlock still need their separate
 purpose and authority audit before consolidation.
 
@@ -2249,3 +2248,42 @@ and docs types passed, as did the production build, packed declarations, bundle
 boundaries, and freshness check. The packed consumer rejects the removed entry.
 SDK production source remains line-neutral (18 added, 18 removed). Evidence:
 `evidence/refactor-170-google-sign-in-api-20261005.json`.
+
+
+### Demo Email OTP handling stays in the SDK (2026-10-05)
+
+The wallet-origin OTP view displays demo codes from its existing delivery state.
+The same renderer supports hosted Google login and recovery. Provider delivery
+has no demo code. Replacement delivery replaces the displayed value; rendering
+never submits a code. Custom UI retains the existing returned-flow delivery data.
+
+Removed the `onDemoEmailOtp` React prop and handler type, the Google-flow
+`onDemoOtp` input callback, the top-level hosted delivery subscription, and all
+coordinator/router listener and forwarding code. Removed the host-to-parent event,
+its parser, payload type, and React re-exports. The existing StrictMode fixture
+lost its obsolete fake subscription. No compatibility path remains.
+
+The iframe protocol advances from 5.0.0 to 6.0.0. Client and host must deploy
+matching protocol versions. Existing mismatch tests now exercise versions 5/6
+and 6/7. Hosted external provider evidence and terminal outcome callbacks remain
+unchanged. General Email OTP challenge consolidation remains open.
+
+The production Email OTP lifecycle passed in 47.4 seconds. The initial browser
+run passed 16 cases, including demo replacement, host integration, React lifecycle,
+and protocol rejection. Two confirmation handoff cases requested an obsolete
+source-shaped module URL. Classified as `valid_test_needs_update`: the build emits
+`sdk/tx-confirm-ui.js`. The tests and shared path now use that emitted entry; both
+handoff cases passed afterward. The associated motion suite passed three cases
+and exposed a separate raw-calldata height-change failure. Its cause is still
+under investigation; no production motion code was changed for this cleanup.
+
+Wallet, intended-app, browser, and docs types passed. Production build, packed
+consumer declarations, bundle boundaries, freshness, and bloat checks passed.
+SDK production source: 23 lines added, 225 removed, net -202. Evidence:
+`evidence/refactor-170-demo-email-internal-20261005.json`.
+
+The raw-calldata motion failure reproduced in isolation after the path correction.
+Keep this acceptance gap open. Inspect the rendered disclosure, its actual height
+change, and emitted measurement before classifying it as a production defect or
+an obsolete geometry expectation. Do not weaken the assertion or change production
+motion solely to satisfy the fixture. The trace path is in the evidence file.

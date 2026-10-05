@@ -137,7 +137,6 @@ import { requireTempoFeeTokenPreferenceSigningRequest } from '@/core/signingEngi
 import type { EvmSignedResult } from '@/core/signingEngine/chains/evm/evmAdapter';
 import type { TempoSignedResult } from '@/core/signingEngine/chains/tempo/tempoAdapter';
 import type { RouterAbEcdsaDerivationLoginPresignaturePrefillResult } from '@/core/signingEngine/session/warmCapabilities/ecdsaLoginPrefill';
-import type { DemoEmailOtpCodeResponse } from '@/core/signingEngine/session/emailOtp/publicTypes';
 import {
   thresholdEcdsaChainTargetsEqual,
   toWalletId,
@@ -207,7 +206,6 @@ import {
   hostedAuthMenuSessionIdFromBoundary,
   parseHostedAuthMenuExternalAuthRequest,
   parseHostedAuthMenuExternalAuthResolution,
-  parseHostedAuthMenuDemoEmailOtpDelivery,
 } from '../shared/messages';
 import type {
   PMGoogleEmailOtpWalletAuthCompleteRegistrationWireResult,
@@ -222,7 +220,6 @@ import type {
   HostedAuthMenuSessionId,
   HostedAuthMenuExternalAuthRequest,
   HostedAuthMenuExternalAuthResolutionInput,
-  HostedAuthMenuDemoEmailOtpDelivery,
 } from '../shared/messages';
 import { TransactionInput } from '@/core/types';
 import type { DelegateActionInput } from '@/core/types/delegate';
@@ -1335,21 +1332,6 @@ function walletIframeRequestCancelledError(): Error & { code: 'cancelled' } {
   return error;
 }
 
-function emitDemoEmailOtpCodeFromWire(args: {
-  wire: PMGoogleEmailOtpWalletAuthWireFlow;
-  onDemoOtp: ((response: DemoEmailOtpCodeResponse) => void) | undefined;
-}): void {
-  if (args.wire.mode !== 'login') return;
-  switch (args.wire.delivery.kind) {
-    case 'provider':
-      return;
-    case 'demo_code_response':
-    case 'provider_and_demo_code':
-      args.onDemoOtp?.(args.wire.delivery);
-      return;
-  }
-}
-
 type ParsedSdkLifecycleEnvelope =
   | { readonly kind: 'not_lifecycle_event' }
   | { readonly kind: 'invalid_lifecycle_event' }
@@ -1377,11 +1359,6 @@ type ParsedChildToParentEnvelope =
       readonly type: 'AUTH_MENU_ERROR';
       readonly requestId?: string;
       readonly payload: NonNullable<ReturnType<typeof parseHostedAuthMenuErrorEvent>>;
-    }
-  | {
-      readonly type: 'AUTH_MENU_DEMO_EMAIL_OTP_DELIVERY';
-      readonly requestId?: string;
-      readonly payload: NonNullable<ReturnType<typeof parseHostedAuthMenuDemoEmailOtpDelivery>>;
     }
   | {
       readonly type: 'SURFACE_MEASUREMENT';
@@ -1539,10 +1516,6 @@ function parseClientChildToParentEnvelope(value: unknown): ParsedChildToParentEn
       const payload = parseHostedAuthMenuErrorEvent(Reflect.get(record, 'payload'));
       return payload ? { ...requestIdFields, type, payload } : null;
     }
-    case 'AUTH_MENU_DEMO_EMAIL_OTP_DELIVERY': {
-      const payload = parseHostedAuthMenuDemoEmailOtpDelivery(Reflect.get(record, 'payload'));
-      return payload ? { ...requestIdFields, type, payload } : null;
-    }
     case 'TRANSACTION_REVIEW_STATE': {
       const payload = parseTransactionReviewState(Reflect.get(record, 'payload'));
       return payload ? { ...requestIdFields, type, payload } : null;
@@ -1620,9 +1593,6 @@ export class WalletIframeRouter {
     preferencesChanged: new Set<(payload: PreferencesChangedPayload) => void>(),
     hostedAuthMenuExternalAuthRequest: new Set<
       (payload: HostedAuthMenuExternalAuthRequest) => void
-    >(),
-    hostedAuthMenuDemoEmailOtpDelivery: new Set<
-      (payload: HostedAuthMenuDemoEmailOtpDelivery) => void
     >(),
     sdkLifecycleEvent: new Set<SdkLifecycleEventListener>(),
   };
@@ -2797,12 +2767,6 @@ export class WalletIframeRouter {
     return () => this.listeners.hostedAuthMenuExternalAuthRequest.delete(listener);
   }
 
-  onHostedAuthMenuDemoEmailOtpDelivery(
-    listener: (payload: HostedAuthMenuDemoEmailOtpDelivery) => void,
-  ): () => void {
-    this.listeners.hostedAuthMenuDemoEmailOtpDelivery.add(listener);
-    return () => this.listeners.hostedAuthMenuDemoEmailOtpDelivery.delete(listener);
-  }
 
   async resolveHostedAuthMenuExternalAuth(
     resolution: HostedAuthMenuExternalAuthResolutionInput,
@@ -3574,9 +3538,7 @@ export class WalletIframeRouter {
 
   private googleEmailOtpWalletAuthFlowFromWire(
     wire: PMGoogleEmailOtpWalletAuthWireFlow,
-    onDemoOtp: ((response: DemoEmailOtpCodeResponse) => void) | undefined,
   ): GoogleEmailOtpWalletAuthFlow {
-    emitDemoEmailOtpCodeFromWire({ wire, onDemoOtp });
     const cancel = async (): Promise<void> => {
       await this.post<void>({
         type: 'PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_CANCEL',
@@ -3638,7 +3600,7 @@ export class WalletIframeRouter {
             },
           });
           if (!res.result.ok) return res.result;
-          const flow = this.googleEmailOtpWalletAuthFlowFromWire(res.result.value, onDemoOtp);
+          const flow = this.googleEmailOtpWalletAuthFlowFromWire(res.result.value);
           if (flow.mode !== 'register') {
             throw new Error('Google Email OTP registration reroll returned a login flow');
           }
@@ -3673,7 +3635,7 @@ export class WalletIframeRouter {
         return res.result.ok
           ? {
               ok: true,
-              value: this.googleEmailOtpWalletAuthFlowFromWire(res.result.value, onDemoOtp),
+              value: this.googleEmailOtpWalletAuthFlowFromWire(res.result.value),
             }
           : res.result;
       },
@@ -3708,7 +3670,7 @@ export class WalletIframeRouter {
   async startGoogleSignIn(
     payload: GoogleEmailOtpWalletAuthStartInput,
   ): Promise<GoogleEmailOtpWalletAuthResult<GoogleEmailOtpWalletAuthFlow>> {
-    const { onDemoOtp, onEvent, ...wirePayload } = payload;
+    const { onEvent, ...wirePayload } = payload;
     const diagnosticsEnabled =
       Reflect.get(globalThis, '__SEAMS_EMAIL_OTP_UNLOCK_DIAGNOSTICS') === true;
     const registrationBenchmarkTimings =
@@ -3742,7 +3704,7 @@ export class WalletIframeRouter {
     return res.result.ok
       ? {
           ok: true,
-          value: this.googleEmailOtpWalletAuthFlowFromWire(res.result.value, onDemoOtp),
+          value: this.googleEmailOtpWalletAuthFlowFromWire(res.result.value),
         }
       : res.result;
   }
@@ -4718,24 +4680,6 @@ export class WalletIframeRouter {
         return;
       }
       for (const listener of Array.from(this.listeners.hostedAuthMenuExternalAuthRequest)) {
-        try {
-          listener(payload);
-        } catch {}
-      }
-      return;
-    }
-    if (msg.type === 'AUTH_MENU_DEMO_EMAIL_OTP_DELIVERY') {
-      const payload = parseHostedAuthMenuDemoEmailOtpDelivery(msg.payload);
-      if (!payload) return;
-      const activeRequestId = this.hostedAuthMenuRequestIds.get(payload.authMenuSessionId);
-      if (
-        !activeRequestId ||
-        typeof msg.requestId !== 'string' ||
-        msg.requestId !== activeRequestId
-      ) {
-        return;
-      }
-      for (const listener of Array.from(this.listeners.hostedAuthMenuDemoEmailOtpDelivery)) {
         try {
           listener(payload);
         } catch {}

@@ -786,7 +786,7 @@ in `refactor-170-inventory.md` for verification and remaining acceptance limits.
 
 ECDSA bootstrap now stays inside host authentication and the explicit runtime
 port. The unused application bootstrap methods, argument builders, and transport
-route are removed. The iframe protocol is now 5.0.0; client and host deployments
+route are removed. The iframe protocol is now 6.0.0 after removal of the hosted demo-delivery event; client and host deployments
 must match. Custom-broadcast reporting remains supported. See the bootstrap
 ownership checkpoint in `refactor-170-inventory.md`.
 
@@ -1112,6 +1112,12 @@ absence, broader runtime acceptance, and release adoption remain separate gates.
   before repairing them.
 
 ## Verification and acceptance
+
+- [ ] Resolve the raw-calldata disclosure motion acceptance gap recorded in
+  `evidence/refactor-170-demo-email-internal-20261005.json`. The production entry
+  now loads through the corrected test path, but disclosure reports no height
+  change. Inspect real geometry before changing behavior or expectations.
+
 
 Use the existing E2E and intended-behavior infrastructure. Add no unit tests.
 Extend an existing scenario where it covers the boundary; add an E2E scenario
