@@ -9,22 +9,29 @@ reconciliation, settings, and hosted placement remain unfinished.
 Follow **R152 → R170/R171 → R153 → slim R154**.
 
 1. R152 supplies the completed fixed-home routing and state ownership baseline.
-2. Complete [R170](refactor-170.md) and [R171](refactor-171.md) together, including
-   their real-host lifecycle, public API, consumer, and performance acceptance gates.
-3. Resume R153 on that completed client/host composition. Preserve the existing
+2. [R170](refactor-170.md) and [R171](refactor-171.md) are complete within their
+   approved scope. Use their committed `dev` implementation and
+   [completion receipt](refactor-170-completion.md).
+3. Proceed directly to R153 on that client/host composition. Preserve the existing
    relocation journal and evidence. Implement and validate the manual move first.
 4. Implement [slim R154](refactor-154-region-change-notifications.md) only after
    R153 acceptance passes. It adds region observations and owner-confirmed suggestions.
 
-This sequence supersedes earlier checkpoint instructions to resume R153 directly
-after R152. R170/R171 use R152's fixed-home checks and do not depend on relocation.
+Release/adoption work and deployed compression checks can wait. They do not block
+R153 implementation. Month-later presignature reuse is a separate task outside
+R170/R171 and is not an R153 prerequisite. Use matching client/host builds from
+committed `dev` through the existing local candidate workflow when integration
+requires them. Publication is not required to start R153.
+
 R153 reuses their host-owned session cleanup, typed commands, session events,
 fresh unlock, and on-demand worker preparation. Add relocation handling to those
 owners without rebuilding the SDK composition or introducing another lifecycle.
 
 Ordinary lock preserves valid durable presignatures. Relocation retires sessions
-and invalidates usable presignatures across all devices. Client connection
-generations and wallet ownership generations remain separate concepts.
+and invalidates usable presignatures across all devices through a separate
+invalidation operation. Never add a durable-pool purge to ordinary lock or shorten
+material validity to implement relocation. Client connection generations and wallet
+ownership generations remain separate concepts.
 
 ## Architecture decision
 
@@ -863,11 +870,13 @@ The move contract above is settled. Use this checklist for remaining implementat
 work. Acceptance ownership appears below. Do not create separate deliverables for
 the same requirement in each section.
 
-### 0. Consume the completed prerequisites
+### 0. Use the committed implementation
 
-- [ ] Confirm R170/R171 completion and use their matched client/host artifacts.
-  Map SDK/settings work to the established host lifecycle and final public API.
-  Reuse their acceptance evidence unless R153 changes the tested behavior.
+- [x] R170/R171 are complete within their approved scope. Their completion receipt
+  records source revision `8ecbea72` and matching protocol `14.0.0`.
+  Build R153 on committed `dev` and reuse that evidence for unchanged behavior.
+- [ ] Map SDK/settings work to the established host lifecycle and final public API.
+  Keep ordinary-lock retention separate from relocation-driven invalidation.
 - [ ] Extend existing type fixtures when shared domain types change. Cover missing
   activation receipts, premature cleanup, forged construction, broad spreads,
   and move-only access passed as signing authority. Check runtime identity values
@@ -954,7 +963,9 @@ the same requirement in each section.
 - [ ] Reconcile authoritative placement before using durable or resident client
   presignatures. Cancel stale refill work and clear old sessions, credentials,
   sealed-session restores, and pool caches across tabs and reloads. Authenticate
-  again before ordinary refill. Offline devices resume independently.
+  again before ordinary refill. Offline devices resume independently. Keep this
+  relocation invalidation separate from ordinary lock, which preserves otherwise-valid
+  durable presignatures.
 - [ ] Add Wallet region to the existing settings surface. Show actual home,
   selected region, pending progress, temporary mutation pause, recoverable failure,
   cooldown retry time, and fresh authentication on all devices. Expose supported
