@@ -151,6 +151,27 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
             1_000,
         )
     })?;
+    let presign_request = router_ab_cloudflare::CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1 {
+        scope: base.scope.clone(),
+        authority: router_ab_cloudflare::CloudflareSigningWorkerEcdsaPresignAuthorityV1::OwnerWalletSession {
+            wallet_scope: owner.clone(),
+        },
+        presign_session_id: format!("ecdsa-presign-v2:1500:{}", b64u(&[0x41; 32])),
+        first_message_b64u: b64u(&[1]),
+        ceremony_expires_at_ms: 1_500,
+        material_expires_at_ms: 2_000,
+    };
+    with_store(&path, &env, |store| {
+        store.claim_presign_authority(&presign_request, 1_000)
+    })?;
+    let replay = with_store(&path, &env, |store| {
+        store.claim_presign_authority(&presign_request, 1_000)
+    })
+    .unwrap_err();
+    assert_eq!(
+        replay.code(),
+        RouterAbProtocolErrorCode::ReplayedLocalRequest
+    );
     let mut delayed_activation = activation_request.clone();
     delayed_activation.material_activation.activation_id = "late-ecdsa-activation".to_owned();
     delayed_activation.validate()?;
@@ -372,7 +393,7 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
     else {
         panic!("settled pool must freeze");
     };
-    assert_eq!(receipt.record_count, 8);
+    assert_eq!(receipt.record_count, 9);
     assert_eq!(receipt.scope, owner);
     let activation_error = with_store(&path, &env, |store| {
         store.activate(
@@ -422,7 +443,26 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         frozen_rows,
         "another wallet retains its ordinary pool admission"
     );
-    let exported_segments = verify_snapshot_export(&path, &env, receipt, &effect, &response)?;
+    let mut later_presign = presign_request.clone();
+    later_presign.presign_session_id = format!("ecdsa-presign-v2:2000:{}", b64u(&[0x42; 32]));
+    later_presign.ceremony_expires_at_ms = 2_000;
+    let frozen_claim = with_store(&path, &env, |store| {
+        store.claim_presign_authority(&later_presign, 1_700)
+    })
+    .unwrap_err();
+    assert_eq!(
+        frozen_claim.code(),
+        RouterAbProtocolErrorCode::LifecycleTransitionInProgress
+    );
+    later_presign.authority =
+        router_ab_cloudflare::CloudflareSigningWorkerEcdsaPresignAuthorityV1::OwnerWalletSession {
+            wallet_scope: other_owner.clone(),
+        };
+    with_store(&path, &env, |store| {
+        store.claim_presign_authority(&later_presign, 1_700)
+    })?;
+    let exported_segments =
+        verify_snapshot_export(&path, &env, receipt, &effect, &response, &presign_request)?;
     let artifact = serde_json::json!({
         "scenario": "encrypted_pool_relocation", "records": 7,
         "available_and_reserved_destroyed": true, "reserved_binding_preserved": true,
@@ -452,6 +492,8 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         "export_rejects_changed_receipt_and_bounds": true,
         "export_rejects_changed_source_inventory": true,
         "other_wallet_pool_admission_preserved": true,
+        "expired_presign_identity_history_restored": true,
+        "presign_claims_fenced_and_other_wallet_claims_excluded": true,
         "scope": "Production wallet store and cipher on SQLite; excludes wallet-wide fencing and HTTP authorization"
     });
     std::fs::write(
@@ -485,6 +527,7 @@ fn verify_snapshot_export(
     receipt: &router_ab_cloudflare::SigningWorkerPoolFreezeReceiptV1,
     effect: &CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1,
     response: &RouterAbEcdsaDerivationEvmDigestSigningResponseV1,
+    presign_request: &router_ab_cloudflare::CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1,
 ) -> Result<u32, Box<dyn std::error::Error>> {
     let mut request = router_ab_cloudflare::SigningWorkerEcdsaExportRequestV1 {
         receipt: receipt.clone(),
@@ -603,6 +646,7 @@ fn verify_snapshot_export(
     assert_eq!(snapshot["pools"].as_array().unwrap().len(), 6);
     assert_eq!(snapshot["activations"].as_array().unwrap().len(), 1);
     assert_eq!(snapshot["effects"].as_array().unwrap().len(), 1);
+    assert_eq!(snapshot["presign_authorities"].as_array().unwrap().len(), 1);
     assert!(snapshot["effects"][0]["terminal_json"].as_str().is_some());
     request.segment_index = first.segment_count;
     assert!(with_store(path, env, |store| store
@@ -697,7 +741,23 @@ fn verify_snapshot_export(
         })
         .collect();
     assert_eq!(rows(&destination), expected_rows);
-    assert!(expected_rows.iter().any(|row| row.2 == HISTORICAL_SQL_VERSION));
+    assert_eq!(
+        with_store(&destination, env, |store| {
+            store.load_presign_authority(&receipt.scope, &presign_request.presign_session_id, 1_000)
+        })?,
+        presign_request.authority
+    );
+    let expired = with_store(&destination, env, |store| {
+        store.load_presign_authority(&receipt.scope, &presign_request.presign_session_id, 1_700)
+    })
+    .unwrap_err();
+    assert_eq!(
+        expired.code(),
+        RouterAbProtocolErrorCode::ExpiredLocalRequest
+    );
+    assert!(expected_rows
+        .iter()
+        .any(|row| row.2 == HISTORICAL_SQL_VERSION));
     assert!(expected_rows
         .iter()
         .any(|row| row.2 == HISTORICAL_SQL_VERSION + 1));

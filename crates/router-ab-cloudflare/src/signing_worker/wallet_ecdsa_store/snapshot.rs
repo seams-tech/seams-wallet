@@ -7,6 +7,7 @@ pub(super) struct EcdsaSnapshot {
     activations: Vec<ActivationSnapshotRow>,
     linked_reservations: Vec<LinkedSnapshotRow>,
     effects: Vec<EffectSnapshotRow>,
+    presign_authorities: Vec<presign_authority::PresignAuthorityRow>,
 }
 
 impl EcdsaSnapshot {
@@ -22,7 +23,8 @@ impl EcdsaSnapshot {
         (self.pools.len()
             + self.activations.len()
             + self.linked_reservations.len()
-            + self.effects.len()) as u64
+            + self.effects.len()
+            + self.presign_authorities.len()) as u64
     }
 }
 
@@ -111,6 +113,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
             activations,
             linked_reservations,
             effects,
+            presign_authorities: self.presign_authority_snapshot(scope)?,
         })
     }
 }
@@ -130,6 +133,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         snapshot: EcdsaSnapshot,
     ) -> RouterAbProtocolResult<()> {
         let owner = owner_json(scope, "ECDSA restore")?;
+        self.restore_presign_authorities(scope, snapshot.presign_authorities)?;
         for row in snapshot.pools {
             let record: CloudflareSigningWorkerEcdsaPoolLifecycleRecordV1 = self.cipher.open(
                 "ecdsa_pool",

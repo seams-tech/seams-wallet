@@ -145,7 +145,7 @@ pub(super) async fn handle_cloudflare_signing_worker_ecdsa_presign_session_do_fe
             }
             #[cfg(feature = "wallet-do-signing-worker-harness")]
             if let Err(error) =
-                require_pool_admission(_env, parsed.request.authority.wallet_scope()).await
+                claim_wallet_presign_authority(_env, &parsed.request).await
             {
                 return presign_do_error_response(error);
             }
@@ -250,6 +250,23 @@ pub(super) async fn handle_cloudflare_signing_worker_ecdsa_presign_session_do_fe
         Ok(progress) => presign_do_json_response(&progress, started_at_ms),
         Err(error) => presign_do_error_response(error),
     }
+}
+
+#[cfg(feature = "wallet-do-signing-worker-harness")]
+async fn claim_wallet_presign_authority(
+    env: &worker::Env,
+    request: &crate::CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1,
+) -> RouterAbProtocolResult<()> {
+    let response = super::call_signing_worker_wallet_do_v1(
+        env,
+        super::SigningWorkerWalletDoRequestV1::ClaimEcdsaPresignAuthority(request.clone()),
+    )
+    .await?;
+    crate::parse_cloudflare_signing_worker_wallet_do_json_response_v1(
+        response,
+        "Presign wallet identity claim",
+    )
+    .await
 }
 
 #[cfg(feature = "wallet-do-signing-worker-harness")]

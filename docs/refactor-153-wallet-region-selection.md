@@ -74,6 +74,19 @@ Session continuity, sealed-session restoration, and pool restoration are exclude
 
 ## Implemented baseline
 
+Owner presignature identity claims now use the shared wallet SQL store. Native
+admission and step lookup use that store, replacing the native-only implementation
+without changing the persisted table. Cloudflare wallet-DO session admission also
+records the claim in the wallet transaction before creating live protocol output.
+The immutable ECDSA snapshot includes these claims and restores their original
+authority bytes, identities, and expiry values. Restore validates historical
+identity bindings without requiring an unexpired ceremony or reopening admission.
+The production-store E2E transfers an expired claim, rejects duplicate and frozen
+admissions, and excludes another wallet's later claim. Separate presign-session KV
+records, linked-session history, existing Cloudflare sessions without wallet SQL
+claims, and aggregate participant freeze/transfer remain unfinished.
+
+
 ECDSA transfer preserves SQL integers through the Worker JavaScript boundary.
 Pool versions and historical effect timestamps use canonical decimal strings in
 snapshot encoding and SQL reads. The wallet DO binds integer parameters as text;

@@ -109,10 +109,7 @@ use std::{
 
 use super::{
     local_router_coordinator::local_now_ms_v1,
-    local_signing_worker_wallet_sqlite::{
-        claim_local_presign_authority_v1, load_local_presign_authority_v1,
-        with_local_signing_worker_wallet_store_v1,
-    },
+    local_signing_worker_wallet_sqlite::with_local_signing_worker_wallet_store_v1,
     local_tenant_root::{
         local_router_tenant_root_admission_receipt_v1, LocalTenantRootDeriverHostV1,
     },
@@ -812,10 +809,10 @@ fn start_presign_session(
     // The wallet's material is read and the session's authority claimed in
     // one transaction, before the session emits any server message.
     let material_started = Instant::now();
-    let start = with_local_signing_worker_wallet_store_v1(config, |store, sql| {
+    let start = with_local_signing_worker_wallet_store_v1(config, |store, _sql| {
         store.require_mutation_admission(&wallet_scope)?;
         let (active, material) = store.load_activated_material(&wallet_scope, &request.scope)?;
-        claim_local_presign_authority_v1(sql, &request)?;
+        store.claim_presign_authority(&request, now_ms)?;
         signing_worker_ecdsa_presign_session_start_v1(request, &active, &material)
     })?;
     timing.mark("ecdsa_presign_sw_material", material_started);
@@ -857,8 +854,12 @@ fn step_presign_session(
     let mut timing = LocalPresignTimingV1::new();
     let now_ms = local_now_ms_v1()?;
     request.validate_at(now_ms)?;
-    let admission = with_local_signing_worker_wallet_store_v1(config, |store, sql| {
-        let pinned = load_local_presign_authority_v1(sql, &request.presign_session_id, now_ms)?;
+    let admission = with_local_signing_worker_wallet_store_v1(config, |store, _sql| {
+        let pinned = store.load_presign_authority(
+            request.authority.wallet_scope(),
+            &request.presign_session_id,
+            now_ms,
+        )?;
         if request.authority != pinned {
             return Err(RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::MalformedWirePayload,

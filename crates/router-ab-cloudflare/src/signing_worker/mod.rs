@@ -292,21 +292,29 @@ pub struct CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1 {
     pub material_expires_at_ms: u64,
 }
 
+fn validate_presign_session_identity(
+    presign_session_id: &str,
+    ceremony_expires_at_ms: u64,
+) -> RouterAbProtocolResult<()> {
+    let parts: Vec<_> = presign_session_id.split(':').collect();
+    if parts.len() != 3
+        || parts[0] != "ecdsa-presign-v2"
+        || parts[1] != ceremony_expires_at_ms.to_string()
+        || decode_base64url_fixed_32_v1("presign session nonce", parts[2]).is_err()
+    {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::MalformedWirePayload,
+            "Invalid presign session identity or bound expiry",
+        ));
+    }
+    Ok(())
+}
+
 impl CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1 {
     pub fn validate_at(&self, now_unix_ms: u64) -> RouterAbProtocolResult<()> {
         self.scope.validate()?;
         self.authority.validate_for_scope(&self.scope)?;
-        let parts: Vec<_> = self.presign_session_id.split(':').collect();
-        if parts.len() != 3
-            || parts[0] != "ecdsa-presign-v2"
-            || parts[1] != self.ceremony_expires_at_ms.to_string()
-            || decode_base64url_fixed_32_v1("presign session nonce", parts[2]).is_err()
-        {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MalformedWirePayload,
-                "Invalid presign session identity or bound expiry",
-            ));
-        }
+        validate_presign_session_identity(&self.presign_session_id, self.ceremony_expires_at_ms)?;
         let first_message =
             decode_base64url_bytes_v1("ECDSA presign first message", &self.first_message_b64u)?;
         require_non_empty_vec("ECDSA presign first message", &first_message)?;

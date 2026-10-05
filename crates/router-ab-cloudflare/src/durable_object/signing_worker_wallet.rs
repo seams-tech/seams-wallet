@@ -113,6 +113,7 @@ pub(crate) enum SigningWorkerWalletDoRequestV1 {
         scope: CloudflareSigningWorkerWalletScopeV1,
         lookup: CloudflareActiveSigningWorkerStateLookupV1,
     },
+    ClaimEcdsaPresignAuthority(crate::CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1),
     LoadEcdsaActivation {
         scope: CloudflareSigningWorkerWalletScopeV1,
         lookup: CloudflareActiveSigningWorkerStateLookupV1,
@@ -251,6 +252,7 @@ impl SigningWorkerWalletDoRequestV1 {
             Self::ExportEcdsaSnapshot(command) => &command.receipt.scope,
             Self::TransferEcdsaSnapshot(command) => command.scope(),
             Self::CheckEcdsaPoolAdmission { scope } => scope,
+            Self::ClaimEcdsaPresignAuthority(request) => request.authority.wallet_scope(),
             Self::ClaimAndConsumeEcdsaEffect { scope, .. }
             | Self::CommitEcdsaTerminal { scope, .. } => scope,
         }
@@ -258,6 +260,9 @@ impl SigningWorkerWalletDoRequestV1 {
 
     fn validate(&self) -> Result<(), RouterAbProtocolError> {
         match self {
+            Self::ClaimEcdsaPresignAuthority(request) => {
+                request.validate_at(crate::cloudflare_now_unix_ms_v1()?)
+            }
             Self::DeliverPackages(request) => request.validate(),
             Self::PromoteRecovery(request) => request.validate(),
             Self::LookupRegistration(request) => request.validate(),
@@ -637,6 +642,13 @@ impl RouterAbSigningWorkerWalletDurableObject {
                 let sql = DurableObjectWalletSqlV1(&self.sql);
                 Response::from_json(&self.open_ecdsa_store(&sql)?.pool_admission(&scope)?)
                     .map_err(sql_error)
+            }
+            SigningWorkerWalletDoRequestV1::ClaimEcdsaPresignAuthority(request) => {
+                let now_unix_ms = crate::cloudflare_now_unix_ms_v1()?;
+                self.with_ecdsa_transaction(move |store| {
+                    store.claim_presign_authority(&request, now_unix_ms)
+                })
+                .await
             }
             SigningWorkerWalletDoRequestV1::TransferEcdsaSnapshot(command) => {
                 self.with_ecdsa_transaction(move |store| store.transfer_ecdsa_snapshot(command)).await
