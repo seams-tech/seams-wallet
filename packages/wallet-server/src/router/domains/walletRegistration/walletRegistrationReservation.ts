@@ -43,12 +43,28 @@ type ReservationOutcome =
   | { readonly ok: true }
   | { readonly ok: false; readonly code: string; readonly message: string };
 
+type RegistrationHomeAdmission =
+  | {
+      readonly ok: true;
+      readonly ownershipGeneration: number;
+      readonly purpose: 'registration' | 'ordinary';
+      readonly code?: never;
+      readonly message?: never;
+    }
+  | {
+      readonly ok: false;
+      readonly code: string;
+      readonly message: string;
+      readonly ownershipGeneration?: never;
+      readonly purpose?: never;
+    };
+
 export interface WalletRegistrationReservationAuthority {
   reserve(input: WalletRegistrationSetupInput): Promise<WalletRegistrationSetupReservationResult>;
   admitHome(input: {
     readonly ceremonyId: string;
     readonly walletId: WalletId;
-  }): Promise<ReservationOutcome>;
+  }): Promise<RegistrationHomeAdmission>;
   complete(input: {
     readonly ceremonyId: string;
     readonly walletId: WalletId;
@@ -148,7 +164,7 @@ export async function completeRegistrationReservation(
 export async function admitRegistrationReservationHome(
   authority: WalletRegistrationReservationAuthority | null,
   input: Parameters<WalletRegistrationReservationAuthority['admitHome']>[0],
-): Promise<ReservationOutcome> {
+): Promise<RegistrationHomeAdmission> {
   if (!authority)
     return {
       ok: false,

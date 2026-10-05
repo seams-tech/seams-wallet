@@ -51,3 +51,17 @@ const failedAdmission: WalletRegistrationSetupReservationResult = {
   message: 'Cancelled',
 };
 void [missingLifecycle, cancelledAdmission, failedAdmission];
+
+import type { WalletRegistrationReservationAuthority } from '../../packages/wallet-server/src/router/domains/walletRegistration/walletRegistrationReservation';
+type HomeAdmission = Awaited<ReturnType<WalletRegistrationReservationAuthority['admitHome']>>;
+// @ts-expect-error Successful admission must retain its ownership generation and purpose.
+const admissionWithoutGeneration: HomeAdmission = { ok: true };
+// @ts-expect-error Rejection cannot also grant an execution generation.
+const mixedHomeAdmission: HomeAdmission = {
+  ok: false,
+  code: 'paused',
+  message: 'Paused',
+  ownershipGeneration: 1,
+};
+void admissionWithoutGeneration;
+void mixedHomeAdmission;

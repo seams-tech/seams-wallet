@@ -89,12 +89,16 @@ export class LocalRegistrationSetupAuthority implements WalletRegistrationReserv
         message: 'Registration home is unavailable',
       };
     }
-    return { ok: true };
+    return {
+      ok: true,
+      ownershipGeneration: 1,
+      purpose: terminal?.value.outcome === 'established' ? 'ordinary' : 'registration',
+    };
   }
 
   async complete(
     input: Parameters<WalletRegistrationReservationAuthority['complete']>[0],
-  ): Promise<Awaited<ReturnType<WalletRegistrationReservationAuthority['admitHome']>>> {
+  ): Promise<Awaited<ReturnType<WalletRegistrationReservationAuthority['complete']>>> {
     const identity = await this.storage.get('setup-ceremony-index', input.ceremonyId);
     if (!identity || identity.value.walletId !== input.walletId) {
       return {
