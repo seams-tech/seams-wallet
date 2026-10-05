@@ -307,7 +307,8 @@ import type {
 } from '@/core/signingEngine/flows/recovery/public';
 import type { RegistrationCredentialConfirmationPayload } from '@/core/signingEngine/workerManager/validation';
 import type { ConfirmationConfig } from '@/core/types/signer-worker';
-import * as registrationPublic from '@/core/signingEngine/flows/registration/public';
+import * as registrationAccount from '@/core/signingEngine/flows/registration/accountLifecycle';
+import * as registrationSession from '@/core/signingEngine/flows/registration/session';
 import {
   type EmailOtpPublicDeps,
   type LoginWithEmailOtpEcdsaCapabilityInternalArgs,
@@ -2441,7 +2442,6 @@ export class BrowserSigningSurface {
   private readonly sessionPublicDeps: SessionPublicDeps;
   private readonly emailOtpPublicDeps: EmailOtpPublicDeps;
   private readonly recoveryPublicDeps: RecoveryPublicDeps;
-  private readonly registrationPublicDeps: registrationPublic.RegistrationPublicDeps;
   private readonly sealedRefreshStartupParityPromise: Promise<void>;
   private hostWarmCriticalResourcesTask: Promise<WorkerResourceWarmupDiagnostics> | null = null;
   private sealedRefreshStartupParityError: Error | null = null;
@@ -2698,7 +2698,6 @@ export class BrowserSigningSurface {
       ensureSealedRefreshStartupParity: () => this.ensureSealedRefreshStartupParity(),
       resolveOwnerLaneScope: (walletId) => this.resolveSelectedOwnerLaneScope(walletId),
       getEnginePorts: () => this.enginePorts,
-      getRegistrationPublicDeps: () => this.registrationPublicDeps,
       prepareNearEd25519YaoMaterialBoundary:
         this.prepareExactNearEd25519YaoMaterialBoundary.bind(this),
     });
@@ -2727,10 +2726,6 @@ export class BrowserSigningSurface {
     });
     this.passkeyPublicDeps = warmSessionPublicDeps.passkeyPublicDeps;
     this.warmCapabilitiesPublicDeps = warmSessionPublicDeps.warmCapabilitiesPublicDeps;
-    this.registrationPublicDeps = {
-      accountLifecycle: this.enginePorts.registrationAccountLifecycleDeps,
-      session: this.enginePorts.registrationSessionDeps,
-    };
 
     /* Every path that unlocks an unbound envelope reseals it, and the reseal
        has nowhere to go without the relayer and the Wallet Session that only
@@ -5826,9 +5821,9 @@ export class BrowserSigningSurface {
   }
 
   storeUserData(
-    userData: Parameters<typeof registrationPublic.storeUserData>[1],
-  ): ReturnType<typeof registrationPublic.storeUserData> {
-    return registrationPublic.storeUserData(this.registrationPublicDeps, userData);
+    userData: Parameters<typeof registrationAccount.storeUserData>[1],
+  ): ReturnType<typeof registrationAccount.storeUserData> {
+    return registrationAccount.storeUserData(this.enginePorts.registrationAccountLifecycleDeps, userData);
   }
 
   async storeNearThresholdKeyMaterial(input: StoreNearThresholdKeyMaterialInput): Promise<void> {
@@ -5841,45 +5836,45 @@ export class BrowserSigningSurface {
     );
   }
 
-  getAllUsers(): ReturnType<typeof registrationPublic.getAllUsers> {
-    return registrationPublic.getAllUsers(this.registrationPublicDeps);
+  getAllUsers(): ReturnType<typeof registrationAccount.getAllUsers> {
+    return registrationAccount.getAllUsers(this.enginePorts.registrationAccountLifecycleDeps);
   }
 
   getUserBySignerSlot(
-    nearAccountId: Parameters<typeof registrationPublic.getUserBySignerSlot>[1],
-    signerSlot: Parameters<typeof registrationPublic.getUserBySignerSlot>[2],
-  ): ReturnType<typeof registrationPublic.getUserBySignerSlot> {
-    return registrationPublic.getUserBySignerSlot(
-      this.registrationPublicDeps,
+    nearAccountId: Parameters<typeof registrationAccount.getUserBySignerSlot>[1],
+    signerSlot: Parameters<typeof registrationAccount.getUserBySignerSlot>[2],
+  ): ReturnType<typeof registrationAccount.getUserBySignerSlot> {
+    return registrationAccount.getUserBySignerSlot(
+      this.enginePorts.registrationAccountLifecycleDeps,
       nearAccountId,
       signerSlot,
     );
   }
 
-  getLastUser(): ReturnType<typeof registrationPublic.getLastUser> {
-    return registrationPublic.getLastUser(this.registrationPublicDeps);
+  getLastUser(): ReturnType<typeof registrationAccount.getLastUser> {
+    return registrationAccount.getLastUser(this.enginePorts.registrationAccountLifecycleDeps);
   }
 
   nearAuthenticatorsByAccount(
-    nearAccountId: Parameters<typeof registrationPublic.nearAuthenticatorsByAccount>[1],
-  ): ReturnType<typeof registrationPublic.nearAuthenticatorsByAccount> {
-    return registrationPublic.nearAuthenticatorsByAccount(
-      this.registrationPublicDeps,
+    nearAccountId: Parameters<typeof registrationAccount.nearAuthenticatorsByAccount>[1],
+  ): ReturnType<typeof registrationAccount.nearAuthenticatorsByAccount> {
+    return registrationAccount.nearAuthenticatorsByAccount(
+      this.enginePorts.registrationAccountLifecycleDeps,
       nearAccountId,
     );
   }
 
   setLastUser(
-    walletId: Parameters<typeof registrationPublic.setLastUser>[1],
-    signerSlot: Parameters<typeof registrationPublic.setLastUser>[2],
-  ): ReturnType<typeof registrationPublic.setLastUser> {
-    return registrationPublic.setLastUser(this.registrationPublicDeps, walletId, signerSlot);
+    walletId: Parameters<typeof registrationAccount.setLastUser>[1],
+    signerSlot: Parameters<typeof registrationAccount.setLastUser>[2],
+  ): ReturnType<typeof registrationAccount.setLastUser> {
+    return registrationAccount.setLastUser(this.enginePorts.registrationAccountLifecycleDeps, walletId, signerSlot);
   }
 
   activateAuthenticatedWalletState(
-    args: Parameters<typeof registrationPublic.activateAuthenticatedWalletState>[1],
-  ): ReturnType<typeof registrationPublic.activateAuthenticatedWalletState> {
-    return registrationPublic.activateAuthenticatedWalletState(this.registrationPublicDeps, args);
+    args: Parameters<typeof registrationAccount.activateAuthenticatedWalletState>[1],
+  ): ReturnType<typeof registrationAccount.activateAuthenticatedWalletState> {
+    return registrationAccount.activateAuthenticatedWalletState(this.enginePorts.registrationAccountLifecycleDeps, args);
   }
 
   async upsertEd25519YaoPublicCapabilityReference(
@@ -5898,91 +5893,91 @@ export class BrowserSigningSurface {
   }
 
   setWalletNearProvisioningState(
-    write: Parameters<typeof registrationPublic.setWalletNearProvisioningState>[1],
-  ): ReturnType<typeof registrationPublic.setWalletNearProvisioningState> {
-    return registrationPublic.setWalletNearProvisioningState(this.registrationPublicDeps, write);
+    write: Parameters<typeof registrationAccount.setWalletNearProvisioningState>[1],
+  ): ReturnType<typeof registrationAccount.setWalletNearProvisioningState> {
+    return registrationAccount.setWalletNearProvisioningState(this.enginePorts.registrationAccountLifecycleDeps, write);
   }
 
   getWalletNearProvisioningState(
-    walletId: Parameters<typeof registrationPublic.getWalletNearProvisioningState>[1],
-  ): ReturnType<typeof registrationPublic.getWalletNearProvisioningState> {
-    return registrationPublic.getWalletNearProvisioningState(this.registrationPublicDeps, walletId);
+    walletId: Parameters<typeof registrationAccount.getWalletNearProvisioningState>[1],
+  ): ReturnType<typeof registrationAccount.getWalletNearProvisioningState> {
+    return registrationAccount.getWalletNearProvisioningState(this.enginePorts.registrationAccountLifecycleDeps, walletId);
   }
 
   storeAuthenticator(
-    authenticatorData: Parameters<typeof registrationPublic.storeAuthenticator>[1],
-  ): ReturnType<typeof registrationPublic.storeAuthenticator> {
-    return registrationPublic.storeAuthenticator(this.registrationPublicDeps, authenticatorData);
+    authenticatorData: Parameters<typeof registrationAccount.storeAuthenticator>[1],
+  ): ReturnType<typeof registrationAccount.storeAuthenticator> {
+    return registrationAccount.storeAuthenticator(this.enginePorts.registrationAccountLifecycleDeps, authenticatorData);
   }
 
   rollbackUserRegistration(
-    nearAccountId: Parameters<typeof registrationPublic.rollbackUserRegistration>[1],
-  ): ReturnType<typeof registrationPublic.rollbackUserRegistration> {
-    return registrationPublic.rollbackUserRegistration(this.registrationPublicDeps, nearAccountId);
+    nearAccountId: Parameters<typeof registrationAccount.rollbackUserRegistration>[1],
+  ): ReturnType<typeof registrationAccount.rollbackUserRegistration> {
+    return registrationAccount.rollbackUserRegistration(this.enginePorts.registrationAccountLifecycleDeps, nearAccountId);
   }
 
   hasPasskeyCredential(
-    nearAccountId: Parameters<typeof registrationPublic.hasPasskeyCredential>[1],
-  ): ReturnType<typeof registrationPublic.hasPasskeyCredential> {
-    return registrationPublic.hasPasskeyCredential(this.registrationPublicDeps, nearAccountId);
+    nearAccountId: Parameters<typeof registrationAccount.hasPasskeyCredential>[1],
+  ): ReturnType<typeof registrationAccount.hasPasskeyCredential> {
+    return registrationAccount.hasPasskeyCredential(this.enginePorts.registrationAccountLifecycleDeps, nearAccountId);
   }
 
   storeWalletEd25519RegistrationData(
-    input: Parameters<typeof registrationPublic.storeWalletEd25519RegistrationData>[1],
-  ): ReturnType<typeof registrationPublic.storeWalletEd25519RegistrationData> {
-    return registrationPublic.storeWalletEd25519RegistrationData(
-      this.registrationPublicDeps,
+    input: Parameters<typeof registrationAccount.storeWalletEd25519RegistrationData>[1],
+  ): ReturnType<typeof registrationAccount.storeWalletEd25519RegistrationData> {
+    return registrationAccount.storeWalletEd25519RegistrationData(
+      this.enginePorts.registrationAccountLifecycleDeps,
       input,
     );
   }
 
   storeWalletMixedRegistrationData(
-    input: Parameters<typeof registrationPublic.storeWalletMixedRegistrationData>[1],
-  ): ReturnType<typeof registrationPublic.storeWalletMixedRegistrationData> {
-    return registrationPublic.storeWalletMixedRegistrationData(this.registrationPublicDeps, input);
+    input: Parameters<typeof registrationAccount.storeWalletMixedRegistrationData>[1],
+  ): ReturnType<typeof registrationAccount.storeWalletMixedRegistrationData> {
+    return registrationAccount.storeWalletMixedRegistrationData(this.enginePorts.registrationAccountLifecycleDeps, input);
   }
 
   storeWalletEd25519RecoveryRegistrationData(
-    input: Parameters<typeof registrationPublic.storeWalletEd25519RecoveryRegistrationData>[1],
-  ): ReturnType<typeof registrationPublic.storeWalletEd25519RecoveryRegistrationData> {
-    return registrationPublic.storeWalletEd25519RecoveryRegistrationData(
-      this.registrationPublicDeps,
+    input: Parameters<typeof registrationAccount.storeWalletEd25519RecoveryRegistrationData>[1],
+  ): ReturnType<typeof registrationAccount.storeWalletEd25519RecoveryRegistrationData> {
+    return registrationAccount.storeWalletEd25519RecoveryRegistrationData(
+      this.enginePorts.registrationAccountLifecycleDeps,
       input,
     );
   }
 
   storeWalletEmailOtpEd25519RegistrationData(
-    input: Parameters<typeof registrationPublic.storeWalletEmailOtpEd25519RegistrationData>[1],
-  ): ReturnType<typeof registrationPublic.storeWalletEmailOtpEd25519RegistrationData> {
-    return registrationPublic.storeWalletEmailOtpEd25519RegistrationData(
-      this.registrationPublicDeps,
+    input: Parameters<typeof registrationAccount.storeWalletEmailOtpEd25519RegistrationData>[1],
+  ): ReturnType<typeof registrationAccount.storeWalletEmailOtpEd25519RegistrationData> {
+    return registrationAccount.storeWalletEmailOtpEd25519RegistrationData(
+      this.enginePorts.registrationAccountLifecycleDeps,
       input,
     );
   }
 
   storeWalletEmailOtpMixedRegistrationData(
-    input: Parameters<typeof registrationPublic.storeWalletEmailOtpMixedRegistrationData>[1],
-  ): ReturnType<typeof registrationPublic.storeWalletEmailOtpMixedRegistrationData> {
-    return registrationPublic.storeWalletEmailOtpMixedRegistrationData(
-      this.registrationPublicDeps,
+    input: Parameters<typeof registrationAccount.storeWalletEmailOtpMixedRegistrationData>[1],
+  ): ReturnType<typeof registrationAccount.storeWalletEmailOtpMixedRegistrationData> {
+    return registrationAccount.storeWalletEmailOtpMixedRegistrationData(
+      this.enginePorts.registrationAccountLifecycleDeps,
       input,
     );
   }
 
   finalizeWalletEd25519SignerRegistration(
-    input: Parameters<typeof registrationPublic.finalizeWalletEd25519SignerRegistration>[1],
-  ): ReturnType<typeof registrationPublic.finalizeWalletEd25519SignerRegistration> {
-    return registrationPublic.finalizeWalletEd25519SignerRegistration(
-      this.registrationPublicDeps,
+    input: Parameters<typeof registrationAccount.finalizeWalletEd25519SignerRegistration>[1],
+  ): ReturnType<typeof registrationAccount.finalizeWalletEd25519SignerRegistration> {
+    return registrationAccount.finalizeWalletEd25519SignerRegistration(
+      this.enginePorts.registrationAccountLifecycleDeps,
       input,
     );
   }
 
   rollbackWalletEd25519SignerRegistration(
-    receipt: Parameters<typeof registrationPublic.rollbackWalletEd25519SignerRegistration>[1],
-  ): ReturnType<typeof registrationPublic.rollbackWalletEd25519SignerRegistration> {
-    return registrationPublic.rollbackWalletEd25519SignerRegistration(
-      this.registrationPublicDeps,
+    receipt: Parameters<typeof registrationAccount.rollbackWalletEd25519SignerRegistration>[1],
+  ): ReturnType<typeof registrationAccount.rollbackWalletEd25519SignerRegistration> {
+    return registrationAccount.rollbackWalletEd25519SignerRegistration(
+      this.enginePorts.registrationAccountLifecycleDeps,
       receipt,
     );
   }
@@ -6034,33 +6029,33 @@ export class BrowserSigningSurface {
   }
 
   storeWalletEcdsaSignerRecords(
-    input: Parameters<typeof registrationPublic.storeWalletEcdsaSignerRecords>[1],
-  ): ReturnType<typeof registrationPublic.storeWalletEcdsaSignerRecords> {
-    return registrationPublic.storeWalletEcdsaSignerRecords(this.registrationPublicDeps, input);
+    input: Parameters<typeof registrationAccount.storeWalletEcdsaSignerRecords>[1],
+  ): ReturnType<typeof registrationAccount.storeWalletEcdsaSignerRecords> {
+    return registrationAccount.storeWalletEcdsaSignerRecords(this.enginePorts.registrationAccountLifecycleDeps, input);
   }
 
   storeWalletEcdsaRecoverySignerRecords(
-    input: Parameters<typeof registrationPublic.storeWalletEcdsaRecoverySignerRecords>[1],
-  ): ReturnType<typeof registrationPublic.storeWalletEcdsaRecoverySignerRecords> {
-    return registrationPublic.storeWalletEcdsaRecoverySignerRecords(
-      this.registrationPublicDeps,
+    input: Parameters<typeof registrationAccount.storeWalletEcdsaRecoverySignerRecords>[1],
+  ): ReturnType<typeof registrationAccount.storeWalletEcdsaRecoverySignerRecords> {
+    return registrationAccount.storeWalletEcdsaRecoverySignerRecords(
+      this.enginePorts.registrationAccountLifecycleDeps,
       input,
     );
   }
 
   storeWalletEmailOtpEcdsaSignerRecords(
-    input: Parameters<typeof registrationPublic.storeWalletEmailOtpEcdsaSignerRecords>[1],
-  ): ReturnType<typeof registrationPublic.storeWalletEmailOtpEcdsaSignerRecords> {
-    return registrationPublic.storeWalletEmailOtpEcdsaSignerRecords(
-      this.registrationPublicDeps,
+    input: Parameters<typeof registrationAccount.storeWalletEmailOtpEcdsaSignerRecords>[1],
+  ): ReturnType<typeof registrationAccount.storeWalletEmailOtpEcdsaSignerRecords> {
+    return registrationAccount.storeWalletEmailOtpEcdsaSignerRecords(
+      this.enginePorts.registrationAccountLifecycleDeps,
       input,
     );
   }
 
   finalizeWalletEcdsaRegistration(
-    input: Parameters<typeof registrationPublic.finalizeWalletEcdsaRegistration>[1],
-  ): ReturnType<typeof registrationPublic.finalizeWalletEcdsaRegistration> {
-    return registrationPublic.finalizeWalletEcdsaRegistration(this.registrationPublicDeps, input);
+    input: Parameters<typeof registrationAccount.finalizeWalletEcdsaRegistration>[1],
+  ): ReturnType<typeof registrationAccount.finalizeWalletEcdsaRegistration> {
+    return registrationAccount.finalizeWalletEcdsaRegistration(this.enginePorts.registrationAccountLifecycleDeps, input);
   }
 
   async activateVerifiedNearEd25519YaoMaterial(
@@ -6086,10 +6081,10 @@ export class BrowserSigningSurface {
   }
 
   storeWalletEmailOtpEcdsaRegistrationData(
-    input: Parameters<typeof registrationPublic.storeWalletEmailOtpEcdsaRegistrationData>[1],
-  ): ReturnType<typeof registrationPublic.storeWalletEmailOtpEcdsaRegistrationData> {
-    return registrationPublic.storeWalletEmailOtpEcdsaRegistrationData(
-      this.registrationPublicDeps,
+    input: Parameters<typeof registrationAccount.storeWalletEmailOtpEcdsaRegistrationData>[1],
+  ): ReturnType<typeof registrationAccount.storeWalletEmailOtpEcdsaRegistrationData> {
+    return registrationAccount.storeWalletEmailOtpEcdsaRegistrationData(
+      this.enginePorts.registrationAccountLifecycleDeps,
       input,
     );
   }
@@ -6222,8 +6217,8 @@ export class BrowserSigningSurface {
     challengeB64u?: string;
     registrationOptions?: WalletAddAuthMethodRegistrationOptions;
   }): Promise<RegistrationCredentialConfirmationPayload> {
-    return registrationPublic.requestRegistrationCredentialConfirmation(
-      this.registrationPublicDeps,
+    return registrationSession.requestRegistrationSessionCredentialConfirmation(
+      this.enginePorts.registrationSessionDeps,
       params,
     );
   }
@@ -6278,8 +6273,8 @@ export class BrowserSigningSurface {
     if (args.cancellation) {
       return this.touchIdPrompt.getAuthenticationCredentialsSerializedForChallengeB64u(args);
     }
-    return registrationPublic.getAuthenticationCredentialsSerialized(
-      this.registrationPublicDeps,
+    return registrationSession.getAuthenticationCredentialsSerialized(
+      this.enginePorts.registrationSessionDeps,
       args,
     );
   }

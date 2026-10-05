@@ -22,6 +22,24 @@ thing written more than once: wire fields declared three times, helpers copied
 between files, contracts defined on both sides of a package boundary, and large
 files that repeat themselves.
 
+## Wallet cleanup batch — 2026-10-05
+
+Scope: remove obsolete forwarding code, consolidate duplicated behavior, and
+split large modules by responsibility. Preserve public APIs, authorization,
+storage formats, transaction ordering, and durable presignatures.
+
+- [x] Remove the registration forwarding module. Its two consumers now call
+  the existing account-lifecycle and credential-session implementations directly.
+  Production source: 91 lines added, 377 removed; net reduction of 286 lines.
+  Verification: wallet type-check, production build, and production registration,
+  signing, and unlock asset contract passed (1 test). The bloat ratchet passed.
+- [ ] Consolidate the shared authorized-operation wire serialization used by
+  the ECDSA and Ed25519 routes. Keep curve-specific checks in their routes.
+- [ ] Separate iframe inbound-message parsing and persistence row codecs from
+  their transport and transaction owners. Verify the affected production flows.
+
+Chunk splitting and month-later presignature reuse proof are outside this batch.
+
 ## Current completion checklist
 
 ### Done

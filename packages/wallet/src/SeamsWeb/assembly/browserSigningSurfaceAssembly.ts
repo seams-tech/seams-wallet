@@ -75,7 +75,7 @@ import type {
 import type { WarmSigningPorts } from '@/core/signingEngine/assembly/ports/warmSigning';
 import type { UiConfirmPrewarmPredicate } from '@/core/signingEngine/assembly/warmup';
 import type { SeamsConfigsReadonly, ThemeMode } from '@/core/types/seams';
-import * as registrationPublic from '@/core/signingEngine/flows/registration/public';
+import { activateAuthenticatedWalletState } from '@/core/signingEngine/flows/registration/accountLifecycle';
 import type { Ed25519YaoPublicCapabilityReferenceStorePort } from '@/core/signingEngine/threshold/ed25519/yaoPublicCapabilityReferences';
 import type { EmailOtpEcdsaChallengeAuthority } from '@/core/signingEngine/flows/signEvmFamily/emailOtpSigningSession';
 import type {
@@ -1303,7 +1303,6 @@ type BrowserSigningSurfaceEnginePortsArgs = {
   ensureSealedRefreshStartupParity: () => Promise<void>;
   resolveOwnerLaneScope: (walletId: string) => Promise<OwnerLaneScope>;
   getEnginePorts: () => SigningEnginePorts;
-  getRegistrationPublicDeps: () => registrationPublic.RegistrationPublicDeps;
   prepareNearEd25519YaoMaterialBoundary: Parameters<
     typeof createSigningEnginePorts
   >[0]['prepareNearEd25519YaoMaterialBoundary'];
@@ -1350,7 +1349,7 @@ export function createBrowserSigningSurfaceEnginePorts(
     signTempo: (signArgs) =>
       signEvmFamilyOperation(args.getEnginePorts().tempoSigningDeps, signArgs),
     activateAuthenticatedWalletState: (activationArgs) =>
-      registrationPublic.activateAuthenticatedWalletState(args.getRegistrationPublicDeps(), {
+      activateAuthenticatedWalletState(args.getEnginePorts().registrationAccountLifecycleDeps, {
         walletId: activationArgs.walletId,
         nearAccountId: activationArgs.nearAccountId,
         signerSlot: activationArgs.signerSlot,
