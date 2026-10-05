@@ -35,7 +35,10 @@ import type {
   SignerWorkerOperationType,
   SignerWorkerTransportProtocol,
 } from './workerTypes';
-import { EcdsaDerivationClientCustomRequestType } from './workerTypes';
+import {
+  EcdsaDerivationClientCustomRequestType,
+  EcdsaDerivationClientCustomResponseType,
+} from './workerTypes';
 import {
   EcdsaPresignClientRequestType,
   SignerWorkerOperationError,
@@ -90,11 +93,11 @@ type NearWorkerOperationArgs<T extends NearWorkerOperationType = NearWorkerOpera
   request: NearWorkerOperationRequest<T>;
 };
 
-type EcdsaDerivationWorkerOperationArgs<
-  T extends EcdsaDerivationWorkerOperationType = EcdsaDerivationWorkerOperationType,
-> = {
+type EcdsaDerivationWorkerOperationArgs = {
   kind: 'ecdsaDerivationClient';
-  request: EcdsaDerivationWorkerOperationRequest<T>;
+  request: {
+    [T in EcdsaDerivationWorkerOperationType]: EcdsaDerivationWorkerOperationRequest<T>;
+  }[EcdsaDerivationWorkerOperationType];
 };
 
 type MultichainWorkerOperationArgs<
@@ -420,6 +423,17 @@ export class WorkerTransport implements SignerWorkerTransportProtocol {
       return await this.requestNearOperation(args.request);
     }
     if (args.kind === 'ecdsaDerivationClient') {
+      if (
+        args.request.type ===
+          EcdsaDerivationClientCustomRequestType.DisposeLinkedDeviceEcdsaHolderMaterials &&
+        !this.workers.has('ecdsaDerivationClient')
+      ) {
+        // Volatile holder material cannot outlive its worker.
+        return {
+          type: EcdsaDerivationClientCustomResponseType.DisposeLinkedDeviceEcdsaHolderMaterialsSuccess,
+          payload: args.request.payload,
+        };
+      }
       return await this.requestDerivationOperation(args.request);
     }
     if (args.kind === 'ecdsaPresignClient') {
@@ -440,6 +454,9 @@ export class WorkerTransport implements SignerWorkerTransportProtocol {
     // TypeScript cannot correlate `kind` with `request` across a wider union.
     if (args.kind === 'walletCustodyCeremony') {
       return await this.requestRpcOperation('walletCustodyCeremony', args.request);
+    }
+    if (args.request.type === 'clearEmailOtpWarmSessionMaterial' && !this.workers.has('emailOtp')) {
+      return { ok: true, cleared: true };
     }
     return await this.requestRpcOperation(args.kind, args.request);
   }

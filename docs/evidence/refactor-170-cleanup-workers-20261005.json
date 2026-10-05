@@ -1,0 +1,351 @@
+{
+  "baseCommit": "ab60a9476f3d168ee07b1c7368ebac70380fa6df",
+  "scope": "Prevent volatile-material cleanup from creating absent ECDSA derivation or Email OTP workers. Existing-worker dispatch remains unchanged. Durable presignature storage is untouched.",
+  "sourceSha256": {
+    "packages/wallet/src/core/signingEngine/workerManager/workerTransport.ts": "c09b5e13d6f2bbcf9a2f5c1847a3b2d545909817c08244f68b22cc5553d00a85",
+    "tests/e2e/intended-behaviours/passkey.registration.assets.contract.test.ts": "fb69f69bca5a8dd2ef277e2a3d8df67396e54c650299e0e36457d69a78b84264"
+  },
+  "productionSourceLines": {
+    "added": 22,
+    "removed": 5,
+    "net": 17
+  },
+  "checks": {
+    "walletTypes": "passed",
+    "intendedTypes": "passed",
+    "productionBuild": "passed, including final formatting",
+    "runtimeEntryBoundaries": "passed on final build",
+    "buildFreshness": "passed on final source",
+    "nearAssetScenario": "passed (33.6s)",
+    "ecdsaAssetScenario": "passed (33.3s)",
+    "emailOtpLifecycle": "passed (45.6s)",
+    "linkedThirdDevice": "passed (39.9s)",
+    "bloat": "passed",
+    "diffWhitespace": "passed"
+  },
+  "scenarios": [
+    {
+      "signer": "near",
+      "artifact": ".artifacts/wallet-assets/production-near-only-wallet-records-unlock-and-restored-signing-assets.json",
+      "artifactSha256": "3312d9c7eb0e1b15e7aeb4b34d647f9532ceb7fed0d5bbff62e0a03c0b64768e",
+      "phases": [
+        {
+          "name": "initialization",
+          "startedAtMs": 1791169524982,
+          "durationMs": 396.74912500000016
+        },
+        {
+          "name": "near-only-registration",
+          "startedAtMs": 1791169525379,
+          "durationMs": 1607.7876669999998
+        },
+        {
+          "name": "locked-reload",
+          "startedAtMs": 1791169526986,
+          "durationMs": 721.7560829999998
+        },
+        {
+          "name": "near-only-unlock",
+          "startedAtMs": 1791169527708,
+          "durationMs": 637.0348750000003
+        },
+        {
+          "name": "near-only-sign",
+          "startedAtMs": 1791169528345,
+          "durationMs": 739.4341249999998
+        },
+        {
+          "name": "near-only-restored-sign",
+          "startedAtMs": 1791169529085,
+          "durationMs": 1105.0887089999997
+        },
+        {
+          "name": "completed",
+          "startedAtMs": 1791169530190,
+          "durationMs": 2.324999999999818
+        }
+      ],
+      "workers": [
+        {
+          "phase": "near-only-registration",
+          "url": "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "near-only-registration",
+          "url": "http://localhost:4202/sdk/workers/passkey-mpc-session.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "near-only-registration",
+          "url": "http://localhost:4202/sdk/workers/shamir3pass.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "near-only-registration",
+          "url": "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "near-only-unlock",
+          "url": "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "near-only-unlock",
+          "url": "http://localhost:4202/sdk/workers/passkey-mpc-session.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "near-only-sign",
+          "url": "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "near-only-sign",
+          "url": "http://localhost:4202/sdk/workers/near-signer.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "near-only-restored-sign",
+          "url": "http://localhost:4202/sdk/workers/passkey-mpc-session.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "near-only-restored-sign",
+          "url": "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "near-only-restored-sign",
+          "url": "http://localhost:4202/sdk/workers/shamir3pass.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "near-only-restored-sign",
+          "url": "http://localhost:4202/sdk/workers/near-signer.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        }
+      ],
+      "browserTotals": {
+        "encodedBodyBytes": 8972635,
+        "responseHeaderBytes": 125387,
+        "decodedBodyBytes": 21632537,
+        "unknownDecodedBodies": 0
+      },
+      "bodyCaptureFailureCount": 10,
+      "networkCollectorFailures": [],
+      "serverTransfers": [
+        {
+          "origin": "http://localhost:4201",
+          "count": 12,
+          "encodedBodyBytes": 722812,
+          "completionCounts": {
+            "finished": 12
+          }
+        },
+        {
+          "origin": "http://localhost:4202",
+          "count": 362,
+          "encodedBodyBytes": 8337471,
+          "completionCounts": {
+            "finished": 362
+          }
+        }
+      ]
+    },
+    {
+      "signer": "ecdsa",
+      "artifact": ".artifacts/wallet-assets/production-ecdsa-only-wallet-records-unlock-and-restored-signing-assets.json",
+      "artifactSha256": "870c82232359076608873ecc246da1fb89fde8ce1ef0d25e8ddd2d67b96fbc84",
+      "phases": [
+        {
+          "name": "initialization",
+          "startedAtMs": 1791169559061,
+          "durationMs": 360.61720800000006
+        },
+        {
+          "name": "ecdsa-only-registration",
+          "startedAtMs": 1791169559422,
+          "durationMs": 816.9995839999999
+        },
+        {
+          "name": "locked-reload",
+          "startedAtMs": 1791169560239,
+          "durationMs": 722.0661249999998
+        },
+        {
+          "name": "ecdsa-only-unlock",
+          "startedAtMs": 1791169560961,
+          "durationMs": 631.5303750000003
+        },
+        {
+          "name": "tempo-sign",
+          "startedAtMs": 1791169561593,
+          "durationMs": 707.4366669999999
+        },
+        {
+          "name": "evm-sign",
+          "startedAtMs": 1791169562300,
+          "durationMs": 770.9882499999994
+        },
+        {
+          "name": "ecdsa-restored-sign",
+          "startedAtMs": 1791169563071,
+          "durationMs": 1119.2485840000008
+        },
+        {
+          "name": "ecdsa-evm-step-up-sign",
+          "startedAtMs": 1791169564190,
+          "durationMs": 745.6225839999997
+        },
+        {
+          "name": "completed",
+          "startedAtMs": 1791169564936,
+          "durationMs": 2.317457999999533
+        }
+      ],
+      "workers": [
+        {
+          "phase": "ecdsa-only-registration",
+          "url": "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-only-registration",
+          "url": "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-only-registration",
+          "url": "http://localhost:4202/sdk/workers/passkey-mpc-session.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-only-registration",
+          "url": "http://localhost:4202/sdk/workers/shamir3pass.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-only-registration",
+          "url": "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-only-registration",
+          "url": "http://localhost:4202/sdk/workers/ecdsa-presign-client.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-only-registration",
+          "url": "http://localhost:4202/sdk/workers/evm-crypto.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-only-unlock",
+          "url": "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-only-unlock",
+          "url": "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-only-unlock",
+          "url": "http://localhost:4202/sdk/workers/ecdsa-presign-client.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-only-unlock",
+          "url": "http://localhost:4202/sdk/workers/evm-crypto.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "tempo-sign",
+          "url": "http://localhost:4202/sdk/workers/tempo-signer.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "tempo-sign",
+          "url": "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "tempo-sign",
+          "url": "http://localhost:4202/sdk/workers/ecdsa-online-client.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-restored-sign",
+          "url": "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-restored-sign",
+          "url": "http://localhost:4202/sdk/workers/ecdsa-presign-client.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-restored-sign",
+          "url": "http://localhost:4202/sdk/workers/tempo-signer.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-restored-sign",
+          "url": "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-restored-sign",
+          "url": "http://localhost:4202/sdk/workers/evm-crypto.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-restored-sign",
+          "url": "http://localhost:4202/sdk/workers/ecdsa-online-client.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        }
+      ],
+      "browserTotals": {
+        "encodedBodyBytes": 8529794,
+        "responseHeaderBytes": 129118,
+        "decodedBodyBytes": 21198991,
+        "unknownDecodedBodies": 0
+      },
+      "bodyCaptureFailureCount": 19,
+      "networkCollectorFailures": [],
+      "serverTransfers": [
+        {
+          "origin": "http://localhost:4201",
+          "count": 12,
+          "encodedBodyBytes": 722816,
+          "completionCounts": {
+            "finished": 12
+          }
+        },
+        {
+          "origin": "http://localhost:4202",
+          "count": 382,
+          "encodedBodyBytes": 8089104,
+          "completionCounts": {
+            "finished": 382
+          }
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "Single routed production run per signer; HTTP cache disabled. No latency or deployed transfer improvement claim.",
+    "Preview responses mix gzip and identity encodings. Server totals exclude framing and must not be added to overlapping browser totals.",
+    "Asset body capture errors during reloads are retained as counts; they do not imply failed signing.",
+    "Month-later durable presignature longevity remains a separate acceptance gate.",
+    "Production scenarios used the first build; final source differs only in condition formatting. Final build and freshness checks passed."
+  ],
+  "testInvocationCorrection": "An anchored Email OTP grep matched no full Playwright title. The corrected unanchored title ran successfully; no production or fixture repair was needed.",
+  "productionCommands": [
+    "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.registration.assets.contract.test.ts --grep 'production (NEAR|ECDSA)-only wallet records'",
+    "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/email-otp.unlock.contract.test.ts --grep 'Email OTP registration and unlock lifecycle'",
+    "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.device-linking.contract.test.ts --grep 'a linked device links a third device, which signs NEAR and Tempo and exports both keys'"
+  ]
+}

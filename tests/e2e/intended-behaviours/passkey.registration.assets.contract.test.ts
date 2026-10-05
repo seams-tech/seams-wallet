@@ -203,6 +203,9 @@ async function measureNearOnlyAssets({
   assets.setPhase('near-only-restored-sign');
   await harness.refreshPagePreservingWalletStorage();
   await harness.signNearTransactionAfterRefresh();
+  for (const workerUrl of assets.getWorkerUrls()) {
+    expect(workerUrl).not.toMatch(/\/(?:ecdsa-[^/]+|email-otp)\.worker\.js$/u);
+  }
   assets.setPhase('completed');
 }
 

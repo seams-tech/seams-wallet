@@ -2074,3 +2074,22 @@ errors. Retained artifacts preserve completion states and separate accounting.
 Paired cold/warm measurements, deployed compression, and repeatable latency gates
 remain open. No SDK production source changed. Evidence:
 `evidence/refactor-170-signer-assets-20261005.json`.
+
+### Cleanup without worker creation checkpoint
+
+The transport now completes volatile linked-holder and Email OTP cleanup locally
+when the owning worker is absent. An existing worker still receives the same
+cleanup request. The existing worker map owns this decision; no registry,
+eviction policy, or durable presignature deletion is added. ECDSA transport
+requests now preserve the correlation between operation type and payload.
+
+The production NEAR-only scenario asserts that no ECDSA or Email OTP worker
+starts across registration, lock, unlock, and restored signing. It passes with
+12 worker creations, compared with 15 before this change. ECDSA-only restored
+signing and step-up, the Email OTP lifecycle, and third-device linking with
+signing and export also pass. These flows exercise already-created workers.
+
+The single routed measurements do not establish cold/warm latency improvement
+or deployed transfer savings. Full worker lifetime and dependency acceptance
+remains open. Production source adds 22 lines and removes 5 (net +17).
+Evidence: `evidence/refactor-170-cleanup-workers-20261005.json`.

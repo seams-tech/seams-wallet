@@ -57,9 +57,14 @@ subsequent requests reuse the initialized module. A thread-ready notification
 alone does not prove crypto initialization succeeded. Worker reuse, cancellation,
 and durable presignature validity retain their existing contracts.
 
-Generic `prewarm` initializes the requested iframe or local UI/account resources;
-it does not start every signer or unconditionally prepare ECDSA crypto. Explicit
-operation-specific ECDSA and Email OTP preparation remain internal.
+The provider connects through `connection.connect`. Operation-specific ECDSA
+and Email OTP preparation remain internal.
+
+Cleanup of volatile linked ECDSA holder material or Email OTP warm material must
+not create an absent worker. An existing worker receives the cleanup operation.
+Lock preserves valid durable presignatures. The production NEAR-only passkey
+scenario verifies registration, lock, unlock, and restored signing without ECDSA
+or Email OTP worker creation.
 
 ## Public account queries
 
