@@ -157,6 +157,7 @@ type TraceEntry = {
   message: string;
   url?: string;
   status?: number;
+  walletSessionStatusIdentity?: string;
 };
 
 const WEB_AUTHN_VIRTUAL_AUTHENTICATOR_OPTIONS = {
@@ -3078,10 +3079,22 @@ export class IntendedBehaviourHarness {
     const unlockRequests = this.trace.slice(traceStartIndex).filter(isRequestTraceEntry);
     const verifyIndex = unlockRequests.findIndex(isWalletUnlockVerifyRequest);
     const statusReads = unlockRequests.slice(verifyIndex + 1).filter(isWalletSessionStatusRequest);
+    const statusIdentities = new Set<string>();
+    for (const read of statusReads) {
+      if (!read.walletSessionStatusIdentity) {
+        throw new Error('Wallet status request omitted its exact session identity');
+      }
+      statusIdentities.add(read.walletSessionStatusIdentity);
+    }
+    // Each sibling session requires its own authenticated reconciliation read.
+    // Keep the original allowance of two further reads across the whole unlock.
     expect(
-      statusReads.length,
-      'post-passkey unlock must avoid redundant session-status reads',
-    ).toBeLessThanOrEqual(3);
+      statusReads.length - statusIdentities.size,
+      'post-passkey unlock must avoid redundant reads of the same session',
+    ).toBeLessThanOrEqual(2);
+    this.recordService(
+      `unlock status reads=${statusReads.length} distinctSessions=${statusIdentities.size}`,
+    );
     this.assertNoRouterAbEd25519YaoRecoveryRoutes(traceStartIndex, {
       kind: 'passkey_unlock',
     });
@@ -4896,15 +4909,23 @@ export class IntendedBehaviourHarness {
 
   private handleRequest(request: Request): void {
     const routePath = routePathAtRouter(request.url(), this.config.routerUrl);
+    const captured = captureWalletBudgetStatusRequest(request, this.config.routerUrl);
     if (routePath) {
       this.trace.push({
         atMs: Date.now(),
         kind: 'request',
         message: `${request.method()} ${routePath}`,
         url: request.url(),
+        ...(captured
+          ? {
+              walletSessionStatusIdentity: JSON.stringify([
+                captured.walletSessionId,
+                captured.quotaId,
+              ]),
+            }
+          : {}),
       });
     }
-    const captured = captureWalletBudgetStatusRequest(request, this.config.routerUrl);
     if (captured) this.latestWalletBudgetStatusRequest = captured;
   }
 

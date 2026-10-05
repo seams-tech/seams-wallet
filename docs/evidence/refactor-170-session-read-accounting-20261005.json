@@ -1,0 +1,39 @@
+{
+  "baseCommit": "8717514d2c9dcb3cb2d09bf22acc6bb22087b688",
+  "classification": "valid_test_needs_update",
+  "invariant": "Allow one authenticated reconciliation read per distinct session and at most two further reads across the whole unlock.",
+  "before": {
+    "aggregateLimit": 3,
+    "observed": 4,
+    "anonymizedExactSessionCounts": {
+      "2": 3,
+      "1": 1
+    },
+    "failures": 2
+  },
+  "diagnosis": "The selected session has three reads. A sibling method has its own active session and requires one reconciliation read. The old aggregate limit assumed one session.",
+  "after": {
+    "singleSessionLimit": 3,
+    "additionalReadBudgetAcrossAllSessions": 2,
+    "missingIdentity": "fails"
+  },
+  "temporaryInstrumentation": "Removed after tracing fetch call stacks and anonymized request identity ordinals. No request headers or credentials were logged by the instrumentation.",
+  "sourceSha256": {
+    "tests/e2e/intended-behaviours/harness.ts": "20b9c62066908d52a519567cd57f8337a9666fbc8200cbd4f342845513951974"
+  },
+  "verification": {
+    "production": {
+      "cases": [
+        "[wallet-intended] 1/2 e2e/intended-behaviours/email-otp.add-passkey.contract.test.ts:15 an Email OTP wallet can add a passkey as a second way in",
+        "[wallet-intended] 2/2 e2e/intended-behaviours/passkey.add-email-otp.contract.test.ts:14 a passkey wallet can add an email code as a second way in"
+      ],
+      "passed": [
+        "1 passed (41.1s)",
+        "1 passed (39.6s)"
+      ]
+    },
+    "exit": 0,
+    "typecheckExit": 0,
+    "command": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.add-email-otp.contract.test.ts e2e/intended-behaviours/email-otp.add-passkey.contract.test.ts"
+  }
+}
