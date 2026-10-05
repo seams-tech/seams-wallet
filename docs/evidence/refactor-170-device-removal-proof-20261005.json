@@ -1,0 +1,49 @@
+{
+  "baseCommit": "2945dda2718a3032d477c5c3029480df32a48138",
+  "scope": "Move device-removal challenge, timestamp, and proof collection into the host while preserving the management endpoint and its retry contract.",
+  "protocolVersion": "13.0.0",
+  "sourceSha256": {
+    "packages/wallet/src/SeamsWeb/operations/authMethods/revokeAuthMethod.ts": "01e11b2a6b4f3fc2aaf4efebb00aa0026d4c4af2c913a7d4a82bf895f1f0f27f",
+    "packages/wallet/src/SeamsWeb/operations/devices/walletHostComposition.ts": "98ecf295d13a9890d5831f9c1b2bb1287a102142ae00d6b946e7a1017d1f1c92",
+    "packages/wallet/src/SeamsWeb/publicApi/devices.ts": "0a783ed113d343eec5c82297a37e3ab6a77b9d5317871142c42d2003975d67d2",
+    "packages/wallet/src/SeamsWeb/publicApi/types.ts": "533ca9a6d7098ce1fe2a969e41bb502382062886c3571b0ecbe7e58f047ba9f9",
+    "packages/wallet/src/SeamsWeb/publicNamespaceApi.typecheck.ts": "0a4997ca5819a866a3e713ace68c322af5577b4c731cd4047db138bb7891e0e5",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/deviceCommands.ts": "7aa8c718f8bba97a8547c33377a402958b8c1ecac3a0e82b9b934bd9d28caf2c",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/router.ts": "996892e51adeaf7c421d79bf3f968223f4b6db7baa1e28755c42578db74f2c98",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/createDeviceDomain.ts": "ee9cbad86c2aa061253dc517de89e3c296c4046c4fcdce6cfd66b1f56fd22fdd",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/handlers/deviceLink.ts": "f667b12fef225132f58fa21df352b1b4e995c72ee4456fe944fcec6b6cb4e009",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/runtimeContext.ts": "e1c4a568936fc5ede1a689f2a14c18184d54bcba36956ddb0238f8211494a20f",
+    "packages/wallet/src/SeamsWeb/walletIframe/shared/messages.ts": "92d7b94374ff268773079844bf7b0aa1ec1d6c7cb67dbf5cef08d199b1581016",
+    "tests/e2e/intended-behaviours/harness.ts": "261b2a4753c2bba89bc78a70d715620d4283f89179bef9b554fa4cc3491fcbd9",
+    "tests/intended-app/src/page.tsx": "b30b14c9de92760c4ba4f5b33bed402fc7cc54d07b84de24ae25e5f42d140794",
+    "tests/wallet-iframe/handshake.test.ts": "167fd2e4a08268397df320d74451084fb0c4f6ec85283998cf6035e4016f39d4"
+  },
+  "checks": {
+    "email": "1 passed (38.6s)",
+    "passkey": "1 passed (35.6s)",
+    "handshake": "5 passed (2.4s)",
+    "walletTypes": "passed",
+    "intendedTypes": "passed",
+    "browserTypes": "passed",
+    "productionBuild": "passed",
+    "externalPackedDeclarations": "passed",
+    "runtimeEntryBoundaries": "passed",
+    "buildFreshness": "passed",
+    "bloat": "passed",
+    "diffWhitespace": "passed"
+  },
+  "findings": [
+    "Device removal previously required applications to supply an operation-bound proof and timestamp.",
+    "The host now collects selected-method proof with the existing shared collector; auth-method removal retains surviving-sibling selection.",
+    "The email contract verifies a refused revocation commit, exact retry, revocation enforcement on the linked device, and continued owner signing.",
+    "The passkey contract verifies linked-device NEAR/Tempo signing, lost acknowledgement recovery, revocation and owner continuity."
+  ],
+  "reproduce": [
+    "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.device-linking.contract.test.ts --grep 'a linked device revoked with an email code across a refused commit is answered from what committed'",
+    "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.device-linking.contract.test.ts --grep 'a second device links with a passkey, signs NEAR and Tempo, and is revoked'"
+  ],
+  "limits": [
+    "Unified email unlock API remains in progress.",
+    "No publication or deployment performed."
+  ]
+}

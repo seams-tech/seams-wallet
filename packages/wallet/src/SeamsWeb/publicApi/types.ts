@@ -58,7 +58,6 @@ import type {
 import type { WaitForNearAccountResult } from '@/SeamsWeb/publicApi/waitForNearAccount';
 import type { EmailOtpProvider } from '@shared/utils/walletAuthAuthority';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
-import type { WalletAuthMethodRevocationProof } from '@shared/utils/walletAuthMethodRecord';
 import type {
   ConfirmationBehavior,
   ConfirmationConfig,
@@ -945,8 +944,6 @@ export interface DevicesCapability {
   remove(args: {
     walletId: string;
     walletAuthMethodId: string;
-    requestedAtMs: number;
-    sourceProof: WalletAuthMethodRevocationProof;
   }): Promise<LinkedDeviceRevokeResultV1>;
 }
 

@@ -6,11 +6,9 @@ import {
   type WalletId,
 } from '@shared/utils/domainIds';
 import type { LinkedDeviceListResultV1, LinkedDeviceRevokeResultV1 } from '@shared/device-linking';
-import type { WalletAuthMethodRevocationProof } from '@shared/utils/walletAuthMethodRecord';
 import {
   parseLinkedDeviceListRequestV1,
   parseLinkedDeviceListResultV1,
-  parseLinkedDeviceRevokeRequestV1,
   parseLinkedDeviceRevokeResultV1,
 } from '@shared/device-linking';
 
@@ -39,8 +37,6 @@ export type LinkedDeviceManagementPortV1 = {
   revokeLinkedDevice(input: {
     readonly walletId: WalletId;
     readonly walletAuthMethodId: WalletAuthMethodId;
-    readonly requestedAtMs: number;
-    readonly sourceProof: WalletAuthMethodRevocationProof;
   }): Promise<LinkedDeviceRevokeResultV1>;
 };
 
@@ -83,17 +79,9 @@ class DeviceManagement {
   async remove(
     args: Parameters<DevicesCapability['remove']>[0],
   ): ReturnType<DevicesCapability['remove']> {
-    const request = parseLinkedDeviceRevokeRequestV1({
-      kind: 'linked_device_revoke_request_v1',
+    const result = await this.management.revokeLinkedDevice({
       walletId: parseWalletIdForPublicCall(args.walletId),
       walletAuthMethodId: parseWalletAuthMethodIdForPublicCall(args.walletAuthMethodId),
-      requestedAtMs: args.requestedAtMs,
-    });
-    const result = await this.management.revokeLinkedDevice({
-      walletId: request.walletId,
-      walletAuthMethodId: request.walletAuthMethodId,
-      requestedAtMs: request.requestedAtMs,
-      sourceProof: args.sourceProof,
     });
     return parseLinkedDeviceRevokeResultV1(result);
   }

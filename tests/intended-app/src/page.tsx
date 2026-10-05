@@ -2287,8 +2287,6 @@ class IntendedPageController {
       const result = await this.seams.devices.remove({
         walletId: this.walletId,
         walletAuthMethodId: revocation.walletAuthMethodId,
-        requestedAtMs: revocation.requestedAtMs,
-        sourceProof: revocation.sourceProof,
       });
       if (result.kind !== 'revoked') {
         throw new Error(`Linked-device revocation returned ${result.kind}`);
@@ -2310,9 +2308,8 @@ class IntendedPageController {
   }
 
   /**
-   * Device 1 revokes its linked device with an email code, as the account
-   * menu does: a challenge bound to the revocation's operation, then the code
-   * as its fresh proof. The code comes from the dev outbox.
+   * Device 1 requests removal. The wallet host collects email authorization
+   * bound to the exact device removal; the harness answers the wallet prompt.
    */
   private async revokeLinkedDeviceWithEmailOtp(): Promise<void> {
     const action: IntendedActionName = 'revokeLinkedDeviceWithEmailOtp';
@@ -2320,33 +2317,15 @@ class IntendedPageController {
     try {
       const rawRevocation = window.__seamsIntendedE2ELinkedDeviceRevocationJson;
       delete window.__seamsIntendedE2ELinkedDeviceRevocationJson;
-      const revocation = parseIntendedLinkedDeviceEmailOtpRevocation(rawRevocation);
+      const revocation = parseIntendedLinkedDeviceRevocation(rawRevocation);
       /* The code is sent under the added method's derived address, as for
          the other added-method flows. */
       intendedEmailOtpChallengeSubjectOverride = intendedGoogleEmailAddress(
         requireGoogleIdToken(this.googleIdToken),
       );
-      const operation: IntendedEmailOtpChallengeOperation = 'transaction_sign';
-      const challenge = await this.seams.auth.requestEmailCode({
-        walletId: this.walletId,
-        operation,
-        operationFingerprintDigest: revocation.operationFingerprintDigest,
-      });
-      const otpCode = await this.readEmailOtpCodeForChallenge({
-        kind: 'challenge',
-        challengeId: challenge.challengeId,
-        walletId: this.walletId,
-      });
       const result = await this.seams.devices.remove({
         walletId: this.walletId,
         walletAuthMethodId: revocation.walletAuthMethodId,
-        requestedAtMs: revocation.requestedAtMs,
-        sourceProof: {
-          kind: 'email_otp',
-          challengeId: challenge.challengeId,
-          otpCode,
-          ownerProofBindingDigest: challenge.ownerProofBindingDigest,
-        },
       });
       if (result.kind !== 'revoked') {
         throw new Error(`Linked-device revocation returned ${result.kind}`);
@@ -3731,104 +3710,19 @@ function settleIntendedDeviceLinkActivation(
   activation.resolve({ walletId, enrollmentId });
 }
 
-type IntendedLinkedDeviceRevocation = {
-  readonly walletAuthMethodId: string;
-  readonly requestedAtMs: number;
-  readonly sourceProof: Parameters<
-    IntendedSeams['devices']['remove']
-  >[0]['sourceProof'];
-};
-
-type IntendedEmailOtpChallengeOperation = NonNullable<
-  Parameters<IntendedSeams['auth']['requestEmailCode']>[0]['operation']
->;
-type IntendedOperationFingerprintDigest = NonNullable<
-  Parameters<IntendedSeams['auth']['requestEmailCode']>[0]['operationFingerprintDigest']
->;
-
-type IntendedLinkedDeviceEmailOtpRevocation = {
-  readonly walletAuthMethodId: string;
-  readonly requestedAtMs: number;
-  readonly operationFingerprintDigest: IntendedOperationFingerprintDigest;
-};
-
-/**
- * The contract names the device and the time; the page proves the
- * revocation with a code. The fingerprint is the contract's, computed from
- * the same three values the Gateway computes it from.
- */
-function parseIntendedLinkedDeviceEmailOtpRevocation(
-  raw: unknown,
-): IntendedLinkedDeviceEmailOtpRevocation {
+function parseIntendedLinkedDeviceRevocation(raw: unknown): { walletAuthMethodId: string } {
   if (typeof raw !== 'string' || !raw) {
     throw new Error('No linked-device revocation was presented to Device 1');
   }
   const parsed: unknown = JSON.parse(raw);
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
     throw new Error('Linked-device revocation must be an object');
-  }
-  const record = parsed as Record<string, unknown>;
-  const requestedAtMs = record.requestedAtMs;
-  if (typeof requestedAtMs !== 'number' || !Number.isSafeInteger(requestedAtMs)) {
-    throw new Error('linked-device revocation requestedAtMs must be a safe integer');
-  }
-  const digest = requireNonEmptyString(
-    record.operationFingerprintDigest,
-    'linked-device revocation operationFingerprintDigest',
-  );
-  if (!/^[A-Za-z0-9_-]{43}$/.test(digest)) {
-    throw new Error('linked-device revocation operationFingerprintDigest is not a SHA-256 digest');
   }
   return {
     walletAuthMethodId: requireNonEmptyString(
-      record.walletAuthMethodId,
+      Reflect.get(parsed, 'walletAuthMethodId'),
       'linked-device revocation walletAuthMethodId',
     ),
-    requestedAtMs,
-    operationFingerprintDigest: digest as IntendedOperationFingerprintDigest,
-  };
-}
-
-/** The contract hands the page one exact revocation; parse it before sending. */
-function parseIntendedLinkedDeviceRevocation(raw: unknown): IntendedLinkedDeviceRevocation {
-  if (typeof raw !== 'string' || !raw) {
-    throw new Error('No linked-device revocation was presented to Device 1');
-  }
-  const parsed: unknown = JSON.parse(raw);
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new Error('Linked-device revocation must be an object');
-  }
-  const record = parsed as Record<string, unknown>;
-  const walletAuthMethodId = requireNonEmptyString(
-    record.walletAuthMethodId,
-    'linked-device revocation walletAuthMethodId',
-  );
-  const requestedAtMs = record.requestedAtMs;
-  if (typeof requestedAtMs !== 'number' || !Number.isSafeInteger(requestedAtMs)) {
-    throw new Error('linked-device revocation requestedAtMs must be a safe integer');
-  }
-  const sourceProof = record.sourceProof;
-  if (!sourceProof || typeof sourceProof !== 'object' || Array.isArray(sourceProof)) {
-    throw new Error('linked-device revocation sourceProof must be an object');
-  }
-  const proof = sourceProof as Record<string, unknown>;
-  if (proof.kind !== 'webauthn_assertion') {
-    throw new Error(`linked-device revocation sourceProof kind is ${String(proof.kind)}`);
-  }
-  const rpId = parseWebAuthnRpId(proof.rpId);
-  if (!rpId.ok) throw new Error(rpId.error.message);
-  return {
-    walletAuthMethodId,
-    requestedAtMs,
-    sourceProof: {
-      kind: 'webauthn_assertion',
-      rpId: rpId.value,
-      credential: proof.credential,
-      expectedChallengeDigestB64u: requireNonEmptyString(
-        proof.expectedChallengeDigestB64u,
-        'linked-device revocation expectedChallengeDigestB64u',
-      ),
-    },
   };
 }
 

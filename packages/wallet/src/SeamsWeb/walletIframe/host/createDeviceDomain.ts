@@ -1,3 +1,4 @@
+import { authorizeWalletAuthMethodRemoval } from '@/SeamsWeb/operations/authMethods/revokeAuthMethod';
 import type { BrowserSigningSurface } from '@/SeamsWeb/signingSurface/BrowserSigningSurface';
 import type { SeamsConfigsReadonly } from '@/core/types/seams';
 import type { DeviceCommands } from '@/SeamsWeb/publicApi/devices';
@@ -38,6 +39,24 @@ type WalletHostDeviceDomain = {
   readonly resumePendingAcknowledgementsV1: () => Promise<void>;
   readonly dispose: () => void;
 };
+
+async function authorizeSelectedDeviceRemoval(
+  context: Parameters<typeof authorizeWalletAuthMethodRemoval>[0],
+  input: Parameters<typeof authorizeWalletAuthMethodRemoval>[2],
+): ReturnType<typeof authorizeWalletAuthMethodRemoval> {
+  const selected = await IndexedDBManager.resolveSelectedWalletAuthority(String(input.walletId));
+  if (selected.kind !== 'resolved') {
+    throw new Error('Unlock the wallet before removing a device');
+  }
+  return await authorizeWalletAuthMethodRemoval(
+    context,
+    {
+      kind: 'selected_method',
+      walletAuthMethodId: selected.authMethod.walletAuthMethodId,
+    },
+    input,
+  );
+}
 
 export function createWalletHostDeviceDomain(args: {
   readonly configs: SeamsConfigsReadonly;
@@ -82,6 +101,10 @@ export function createWalletHostDeviceDomain(args: {
       args.signingEngine.getSignerWorkerContext(),
     ),
     managementRequest: ownerAuthorities.managementRequest,
+    authorizeRemoval: authorizeSelectedDeviceRemoval.bind(undefined, {
+      configs: args.configs,
+      signingEngine: args.signingEngine,
+    }),
     nowMs: Date.now,
     pollIntervalMs: 1_000,
   });

@@ -37,9 +37,7 @@ import {
 import * as ed25519 from '@noble/ed25519';
 import { base58Decode, base64UrlEncode } from '@shared/utils/encoders';
 import { decodeWalletRecoveryCode } from '@shared/wallet-recovery/recoveryCodes';
-import { computeWalletAuthMethodRevokeOperationFingerprintV1 } from '@shared/utils/walletAuthMethodRecord';
-import { createReadableWalletId, walletIdFromString } from '@shared/utils/registrationIds';
-import { parseWalletAuthMethodId } from '@shared/utils/domainIds';
+import { createReadableWalletId } from '@shared/utils/registrationIds';
 import { parseQrLinkedDeviceSessionPayloadV5 } from '@shared/device-linking/parsers';
 import {
   ROUTER_AB_ED25519_YAO_EXPORT_ADMISSION_PATH_V1,
@@ -1643,37 +1641,9 @@ export class IntendedBehaviourHarness {
     if (!linked || extra.length > 0) {
       throw new Error(`revocation expects one linked device, found ${before.devices.length}`);
     }
-    const owner = requireSingleOwnerPasskey(before);
-    const targetWalletAuthMethodId = parseWalletAuthMethodId(linked.walletAuthMethodId);
-    if (!targetWalletAuthMethodId.ok) throw new Error(targetWalletAuthMethodId.error.message);
-    const requestedAtMs = Date.now();
-    const operationFingerprintDigest = String(
-      await computeWalletAuthMethodRevokeOperationFingerprintV1({
-        walletId: walletIdFromString(this.walletId),
-        targetWalletAuthMethodId: targetWalletAuthMethodId.value,
-        requestedAtMs,
-      }),
-    );
-    const rpId = new URL(this.config.walletOrigin).hostname;
-    const walletFrame = await walletServiceFrame(this.page, this.config.walletOrigin);
-    const credential = await walletFrame.evaluate(getWalletOriginPasskeyAssertion, {
-      rpId,
-      challengeB64u: operationFingerprintDigest,
-      credentialIdB64u: owner.credentialIdB64u,
-    });
-    this.passkeyPromptCount += 1;
     await this.page.evaluate(
       presentLinkedDeviceRevocationToIntendedPage,
-      JSON.stringify({
-        walletAuthMethodId: linked.walletAuthMethodId,
-        requestedAtMs,
-        sourceProof: {
-          kind: 'webauthn_assertion',
-          rpId,
-          credential,
-          expectedChallengeDigestB64u: operationFingerprintDigest,
-        },
-      }),
+      JSON.stringify({ walletAuthMethodId: linked.walletAuthMethodId }),
     );
     const snapshot = await this.runIntendedPageAction(
       'revokeLinkedDevice',
@@ -1720,23 +1690,9 @@ export class IntendedBehaviourHarness {
     if (!linked || extra.length > 0) {
       throw new Error(`revocation expects one linked device, found ${before.devices.length}`);
     }
-    const targetWalletAuthMethodId = parseWalletAuthMethodId(linked.walletAuthMethodId);
-    if (!targetWalletAuthMethodId.ok) throw new Error(targetWalletAuthMethodId.error.message);
-    const requestedAtMs = Date.now();
-    const operationFingerprintDigest = String(
-      await computeWalletAuthMethodRevokeOperationFingerprintV1({
-        walletId: walletIdFromString(this.walletId),
-        targetWalletAuthMethodId: targetWalletAuthMethodId.value,
-        requestedAtMs,
-      }),
-    );
     await this.page.evaluate(
       presentLinkedDeviceRevocationToIntendedPage,
-      JSON.stringify({
-        walletAuthMethodId: linked.walletAuthMethodId,
-        requestedAtMs,
-        operationFingerprintDigest,
-      }),
+      JSON.stringify({ walletAuthMethodId: linked.walletAuthMethodId }),
     );
     const refusedCommit = options.refuseFirstRevocationCommit
       ? await this.refuseFirstRevocationCommitOnce('linked_device')
@@ -7993,68 +7949,6 @@ function assertOwnerDevicesUnchanged(
       `${label} changed Device 1's founding methods: ${describe(before)} -> ${describe(after)}`,
     );
   }
-}
-
-type IntendedWebAuthnAssertionRequest = {
-  readonly rpId: string;
-  readonly challengeB64u: string;
-  readonly credentialIdB64u: string;
-};
-
-/**
- * Runs inside the wallet frame, so the assertion's client data names the
- * wallet origin - the origin the Gateway expects for a request the wallet
- * host sends. Playwright serializes this function alone; keep it
- * self-contained.
- */
-async function getWalletOriginPasskeyAssertion(
-  input: IntendedWebAuthnAssertionRequest,
-): Promise<Record<string, unknown>> {
-  function decodeB64u(value: string): Uint8Array {
-    const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
-    const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
-    const binary = atob(padded);
-    const bytes = new Uint8Array(binary.length);
-    for (let index = 0; index < binary.length; index += 1) {
-      bytes[index] = binary.charCodeAt(index);
-    }
-    return bytes;
-  }
-  function encodeB64u(buffer: ArrayBuffer): string {
-    const bytes = new Uint8Array(buffer);
-    let binary = '';
-    for (const byte of bytes) binary += String.fromCharCode(byte);
-    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  }
-  const credential = await navigator.credentials.get({
-    publicKey: {
-      rpId: input.rpId,
-      challenge: decodeB64u(input.challengeB64u),
-      allowCredentials: [{ type: 'public-key', id: decodeB64u(input.credentialIdB64u) }],
-      userVerification: 'required',
-      timeout: 30_000,
-    },
-  });
-  if (!(credential instanceof PublicKeyCredential)) {
-    throw new Error('Wallet-origin passkey assertion returned no public-key credential');
-  }
-  const response = credential.response;
-  if (!(response instanceof AuthenticatorAssertionResponse)) {
-    throw new Error('Wallet-origin passkey assertion returned a non-assertion response');
-  }
-  return {
-    id: credential.id,
-    rawId: encodeB64u(credential.rawId),
-    type: credential.type,
-    authenticatorAttachment: credential.authenticatorAttachment ?? null,
-    response: {
-      clientDataJSON: encodeB64u(response.clientDataJSON),
-      authenticatorData: encodeB64u(response.authenticatorData),
-      signature: encodeB64u(response.signature),
-      userHandle: response.userHandle ? encodeB64u(response.userHandle) : null,
-    },
-    clientExtensionResults: {},
-  };
 }
 
 async function hostedAuthMenuFrame(page: Page): Promise<FrameLocator> {

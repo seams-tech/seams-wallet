@@ -1,3 +1,4 @@
+import type { authorizeWalletAuthMethodRemoval } from '../authMethods/revokeAuthMethod';
 import type { WalletCustodyCeremonyTransportPort } from '@/core/signingEngine/walletCustody/ceremonyStepRunner';
 import type { AuthenticatorPort } from '@/core/platform';
 import type { HttpTransport } from '@/core/platform/http';
@@ -55,6 +56,9 @@ type WalletHostCompositionDependenciesV1 = {
   /** The wallet custody worker both devices drive for the seed transfer. */
   readonly custodyCeremonyTransport: WalletCustodyCeremonyTransportPort;
   readonly managementRequest: WalletHostManagementRequestV1;
+  readonly authorizeRemoval: (
+    input: Parameters<typeof authorizeWalletAuthMethodRemoval>[2],
+  ) => ReturnType<typeof authorizeWalletAuthMethodRemoval>;
   readonly workerEndpoint?: DeviceLinkingWorkerEndpointV1;
   readonly workerTimeoutMs?: number;
   readonly nowMs: () => number;
@@ -74,6 +78,7 @@ export function createWalletHostCompositionV1(
   return {
     linkedDeviceManagement: createWalletHostLinkedDeviceManagementPortV1({
       request: args.managementRequest,
+      authorizeRemoval: args.authorizeRemoval,
     }),
     deviceLinkingPorts,
     dispose: deviceLinkingPorts.dispose,
@@ -82,6 +87,7 @@ export function createWalletHostCompositionV1(
 
 function createWalletHostLinkedDeviceManagementPortV1(args: {
   readonly request: WalletHostManagementRequestV1;
+  readonly authorizeRemoval: WalletHostCompositionDependenciesV1['authorizeRemoval'];
 }): LinkedDeviceManagementPortV1 {
   return {
     listLinkedDevices: async ({ walletId, limit, cursor }) => {
@@ -104,7 +110,11 @@ function createWalletHostLinkedDeviceManagementPortV1(args: {
       assertManagementSuccess(response, 'list linked devices');
       return parseLinkedDeviceListResponseV1(response.body);
     },
-    revokeLinkedDevice: async ({ walletId, walletAuthMethodId, requestedAtMs, sourceProof }) => {
+    revokeLinkedDevice: async ({ walletId, walletAuthMethodId }) => {
+      const { requestedAtMs, sourceProof } = await args.authorizeRemoval({
+        walletId,
+        walletAuthMethodId,
+      });
       const request = parseLinkedDeviceRevokeRequestV1({
         kind: 'linked_device_revoke_request_v1',
         walletId,

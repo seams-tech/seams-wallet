@@ -51,7 +51,6 @@ import type {
   WalletRecoveryRotationAuthorization,
 } from '@/SeamsWeb/publicApi/types';
 import type { WalletId } from '@shared/utils/registrationIntent';
-import type { WalletAuthMethodRevocationProof } from '@shared/utils/walletAuthMethodRecord';
 import type {
   AddSignerSelection,
   RegistrationSignerSetSelection,
@@ -801,7 +800,7 @@ export function parseHostedAuthMenuOutcome(value: unknown): HostedAuthMenuOutcom
   }
 }
 
-export const WALLET_PROTOCOL_VERSION = '12.0.0' as const;
+export const WALLET_PROTOCOL_VERSION = '13.0.0' as const;
 
 export const WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH =
   'WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH' as const;
@@ -1370,8 +1369,6 @@ interface PMListLinkedDevicesPayload {
 interface PMRevokeLinkedDevicePayload {
   walletId: string;
   walletAuthMethodId: string;
-  requestedAtMs: number;
-  sourceProof: WalletAuthMethodRevocationProof;
 }
 
 export type DeviceLinkEmailOtpBaseFactorSelectionProgressV1 = {

@@ -580,6 +580,14 @@ required signing modules on first use. Shared host chunks can still contain
 ECDSA support code; this is separate from operation preparation. Shared custody ceremony dependencies
 remain required when an operation creates or verifies a key set.
 
+### Device removal
+
+`devices.remove({ walletId, walletAuthMethodId })` collects fresh authorization
+inside the wallet host. The selected active method must differ from the target.
+The host binds the proof to the wallet, target, and request timestamp. Applications
+do not supply that timestamp, a code, or a raw proof. Network retries reuse the
+same authorized request and preserve the management service's recorded result.
+
 ### Registration methods
 
 - `registration.addSigner` adds a selected signer to an existing wallet.

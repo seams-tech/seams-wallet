@@ -139,24 +139,12 @@ void seams.devices.list({
 void seams.devices.remove({
   walletId: 'frost-vermillion-k7p9m2',
   walletAuthMethodId: 'email_otp:wallet:method-1',
-  requestedAtMs: Date.now(),
-  sourceProof: {
-    kind: 'webauthn_assertion',
-    rpId,
-    credential: {},
-    expectedChallengeDigestB64u: 'operation-digest',
-  },
 });
-// @ts-expect-error revocation requires the exact requested-at timestamp.
 void seams.devices.remove({
   walletId: 'frost-vermillion-k7p9m2',
   walletAuthMethodId: 'email_otp:wallet:method-1',
-  sourceProof: {
-    kind: 'webauthn_assertion',
-    rpId,
-    credential: {},
-    expectedChallengeDigestB64u: 'operation-digest',
-  },
+  // @ts-expect-error The host owns removal proof collection.
+  sourceProof: {},
 });
 
 seams.preferences.setConfirmationBehavior('requireClick');

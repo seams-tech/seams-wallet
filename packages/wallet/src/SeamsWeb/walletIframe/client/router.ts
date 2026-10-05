@@ -158,7 +158,6 @@ import type {
 import {
   parseLinkedDeviceListRequestV1,
   parseLinkedDeviceListResultV1,
-  parseLinkedDeviceRevokeRequestV1,
   parseLinkedDeviceRevokeResultV1,
   parseWalletSessionOperationCredentialV1,
   type QrLinkedDeviceSessionPayloadV5,
@@ -265,7 +264,6 @@ import {
 } from '@shared/utils/validation';
 import { toError } from '@shared/utils/errors';
 import { secureRandomBase36 } from '@shared/utils/secureRandomId';
-import { type WalletAuthMethodRevocationProof } from '@shared/utils/walletAuthMethodRecord';
 import { walletIdFromString } from '@shared/utils/registrationIds';
 import { type RegistrationAuthMethodInput } from '@shared/utils/registrationAuthMethodInput';
 import { joinNormalizedUrl, stripTrailingSlashes } from '@shared/utils/normalize';
@@ -4326,23 +4324,10 @@ export class WalletIframeRouter {
   async revokeLinkedDevice(payload: {
     walletId: string;
     walletAuthMethodId: string;
-    requestedAtMs: number;
-    sourceProof: WalletAuthMethodRevocationProof;
   }): Promise<LinkedDeviceRevokeResultV1> {
-    const request = parseLinkedDeviceRevokeRequestV1({
-      kind: 'linked_device_revoke_request_v1',
-      walletId: payload.walletId,
-      walletAuthMethodId: payload.walletAuthMethodId,
-      requestedAtMs: payload.requestedAtMs,
-    });
     const res = await this.post<unknown>({
       type: 'PM_REVOKE_LINKED_DEVICE',
-      payload: {
-        walletId: String(request.walletId),
-        walletAuthMethodId: String(request.walletAuthMethodId),
-        requestedAtMs: request.requestedAtMs,
-        sourceProof: payload.sourceProof,
-      },
+      payload,
     });
     return parseLinkedDeviceRevokeResultV1(res.result);
   }

@@ -4,7 +4,6 @@ import {
   LinkedDeviceEmailOtpBaseFactorChoiceV1,
   parseLinkedDeviceListRequestV1,
   parseLinkedDeviceListResultV1,
-  parseLinkedDeviceRevokeRequestV1,
   parseLinkedDeviceRevokeResultV1,
   parseQrLinkedDeviceSessionPayloadV5,
 } from '@shared/device-linking';
@@ -369,17 +368,9 @@ export function createDeviceLinkWalletIframeHandlers(deps: HandlerDeps): Handler
       const payload = req.payload;
       if (!payload) throw new Error('PM_REVOKE_LINKED_DEVICE requires a payload');
       if (deps.respondIfCancelled(req.requestId)) return;
-      const request = parseLinkedDeviceRevokeRequestV1({
-        kind: 'linked_device_revoke_request_v1',
+      const result = await pm.devices.remove({
         walletId: payload.walletId,
         walletAuthMethodId: payload.walletAuthMethodId,
-        requestedAtMs: payload.requestedAtMs,
-      });
-      const result = await pm.devices.remove({
-        walletId: String(request.walletId),
-        walletAuthMethodId: String(request.walletAuthMethodId),
-        requestedAtMs: request.requestedAtMs,
-        sourceProof: payload.sourceProof,
       });
       if (deps.respondIfCancelled(req.requestId)) return;
       respondOkResult(deps, req.requestId, parseLinkedDeviceRevokeResultV1(result));

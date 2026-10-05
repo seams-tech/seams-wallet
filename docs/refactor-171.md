@@ -457,8 +457,8 @@ a declaration-level pass before declaring the migration complete.
 - [x] Rename the device capability to `startLinking`, `approveLinking`,
   `cancelLinking`, `list`, and `remove`. Migrate React, host handlers, and intended
   app callers. Keep timestamp-bound removal proofs intact. React device-list
-  email proof internalization is complete below; the linked-device service
-  proof API remains part of the consolidation work.
+  email proof internalization is complete below. The linked-device service now
+  also owns its proof inside the host, preserving its separate endpoint.
 
 - [x] Rename recovery code calls to `getCodeStatus`, `confirmBackup`, and
   `rotateCodes`. Migrate client/host dispatch, React, and intended-app callers.
@@ -527,7 +527,11 @@ a declaration-level pass before declaring the migration complete.
   `registration.removeAuthMethod` host operation for both factors. Delete the
   duplicate parent challenge, OTP form, and raw-proof submission. Production
   account-menu coverage verifies removal and signing with the surviving method.
-  General linked-device API consolidation is deferred below.
+- [x] Internalize linked-device removal proof and timestamp. Applications call
+  `devices.remove({ walletId, walletAuthMethodId })`. The host uses the selected
+  surviving method, the shared proof collector, and the original management
+  endpoint/retry contract. This frees email-code requests from removal-proof
+  callers before unlock consolidation. Protocol 13.0.0 requires matched deployment.
 
 ## Essential remaining work
 

@@ -2805,3 +2805,22 @@ claim that every ECDSA-related helper is absent from a NEAR-only host.
 The existing material type fixture uses the new owner and retains the same
 invalid credential rejection. There is no domain-state or protocol change.
 Evidence: `evidence/refactor-170-material-engine-boundary-20261005.json`.
+
+## Linked-device removal proof prerequisite
+
+The last application caller of `auth.requestEmailCode` requested a linked-device
+removal proof. That purpose cannot be merged with an unlock challenge. The host
+now owns `devices.remove` authorization and timestamp construction. Applications
+supply wallet and target method identity only. The existing auth-method proof
+collector is shared; the linked-device management endpoint, owner-session check,
+exact replay, and response-loss retry remain separate and unchanged.
+
+Linked-device removal uses the selected active method. Auth-method removal keeps
+its existing surviving-sibling selection. Both exclude the target method and bind
+proof to the exact wallet, target, and timestamp. Passkey/email prompts run in the
+wallet origin. The old application proof collectors and hand-built test proofs
+are removed. The iframe protocol advances to 13.0.0.
+
+Production evidence: `evidence/refactor-170-device-removal-proof-20261005.json`.
+This is a prerequisite for the accepted email unlock API; it does not reopen the
+broader deferred device-linking workstream.

@@ -50,13 +50,11 @@ class ApplicationDeviceCommands {
   async revokeLinkedDevice(
     input: Parameters<LinkedDeviceManagementPortV1['revokeLinkedDevice']>[0],
   ): ReturnType<LinkedDeviceManagementPortV1['revokeLinkedDevice']> {
-    const { walletId, walletAuthMethodId, requestedAtMs, sourceProof } = input;
+    const { walletId, walletAuthMethodId } = input;
     const router = await this.walletIframe.requireRouter();
     return await router.revokeLinkedDevice({
       walletId: String(walletId),
       walletAuthMethodId: String(walletAuthMethodId),
-      requestedAtMs,
-      sourceProof,
     });
   }
 }
