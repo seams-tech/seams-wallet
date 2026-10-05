@@ -49,6 +49,10 @@ pub enum RouterWalletTransferRequestV1 {
         request: RouterWalletFreezeRequestV1,
         chunk_bytes: u32,
     },
+    Status {
+        receipt: RouterWalletFreezeReceiptV1,
+        chunk_bytes: u32,
+    },
     Export {
         receipt: RouterWalletFreezeReceiptV1,
         record_index: u64,
@@ -75,7 +79,9 @@ impl RouterWalletTransferRequestV1 {
             Self::Prepare { request, .. } => request.destination_generation,
             Self::Export { receipt, .. } => receipt.request.source_generation,
             Self::Import { chunk } => chunk.receipt.request.destination_generation,
-            Self::Verify { receipt } => receipt.request.destination_generation,
+            Self::Status { receipt, .. } | Self::Verify { receipt } => {
+                receipt.request.destination_generation
+            }
             Self::Activate { receipt } => receipt.request.destination_generation,
             Self::Cleanup { activation } => activation.source.request.source_generation,
         }
@@ -85,6 +91,7 @@ impl RouterWalletTransferRequestV1 {
         match self {
             Self::Prepare { request, .. } => &request.owner,
             Self::Export { receipt, .. }
+            | Self::Status { receipt, .. }
             | Self::Verify { receipt }
             | Self::Activate { receipt } => &receipt.request.owner,
             Self::Import { chunk } => &chunk.receipt.request.owner,
@@ -99,6 +106,12 @@ pub enum RouterWalletTransferResponseV1 {
     Prepared {
         request: RouterWalletFreezeRequestV1,
         chunk_bytes: u32,
+    },
+    Receiving {
+        receipt: RouterWalletFreezeReceiptV1,
+        chunk_bytes: u32,
+        next_record: u64,
+        next_segment: u32,
     },
     Exported {
         chunk: RouterWalletTransferChunkV1,
@@ -139,6 +152,10 @@ pub async fn transfer_router_wallet_v1<Store: RouterWalletStoreV1>(
             request,
             chunk_bytes,
         } => prepare(store, request, chunk_bytes).await,
+        RouterWalletTransferRequestV1::Status {
+            receipt,
+            chunk_bytes,
+        } => status(store, receipt, chunk_bytes).await,
         RouterWalletTransferRequestV1::Export {
             receipt,
             record_index,
@@ -219,6 +236,58 @@ async fn prepare<Store: RouterWalletStoreV1>(
     Ok(RouterWalletTransferResponseV1::Prepared {
         request,
         chunk_bytes,
+    })
+}
+
+// This observation never opens an import gate or changes ownership.
+async fn status<Store: RouterWalletStoreV1>(
+    store: &Store,
+    receipt: RouterWalletFreezeReceiptV1,
+    chunk_bytes: u32,
+) -> RouterAbProtocolResult<RouterWalletTransferResponseV1> {
+    validate_receipt(&receipt)?;
+    validate_chunk_size(chunk_bytes)?;
+    crate::router_wallet_relocation::require_ownership_generation(
+        store,
+        receipt.request.destination_generation,
+    )
+    .await?;
+    if let Some(activated) = store
+        .get_json::<ActivatedDestination>(ACTIVATION_KEY)
+        .await?
+    {
+        if activated.receipt.source != receipt || activated.chunk_bytes != chunk_bytes {
+            return Err(conflict("Router import status identity differs"));
+        }
+        return Ok(RouterWalletTransferResponseV1::Activated {
+            activation: activated.receipt,
+        });
+    }
+    let (next_record, next_segment) = match store.get_json::<Fence>(FENCE_KEY).await? {
+        Some(Fence::Prepared {
+            request,
+            chunk_bytes: size,
+        }) if request == receipt.request && size == chunk_bytes => (0, 0),
+        Some(Fence::Importing {
+            receipt: prior,
+            chunk_bytes: size,
+            next_record,
+            next_segment,
+            ..
+        }) if prior == receipt && size == chunk_bytes => (next_record, next_segment),
+        Some(Fence::Verified {
+            receipt: prior,
+            chunk_bytes: size,
+        }) if prior == receipt && size == chunk_bytes => {
+            return Ok(RouterWalletTransferResponseV1::Verified { receipt });
+        }
+        _ => return Err(conflict("Router import status identity differs")),
+    };
+    Ok(RouterWalletTransferResponseV1::Receiving {
+        receipt,
+        chunk_bytes,
+        next_record,
+        next_segment,
     })
 }
 

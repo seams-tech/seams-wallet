@@ -372,6 +372,19 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
         )],
     )?;
     assert_ne!(premature_activation, 200);
+    let status_command = router_ab_cloudflare::RouterWalletTransferRequestV1::Status {
+        receipt: receipt.clone(),
+        chunk_bytes: 1_024,
+    };
+    assert_eq!(
+        transfer_wallet(&destination.router_url, status_command.clone())?,
+        router_ab_cloudflare::RouterWalletTransferResponseV1::Receiving {
+            receipt: receipt.clone(),
+            chunk_bytes: 1_024,
+            next_record: 0,
+            next_segment: 0,
+        }
+    );
     let mut imported_segments = 0;
     let mut last_import = None;
     for record_index in 0..receipt.record_count {
@@ -392,10 +405,35 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
                 assert!(registration_rows(&destination.router_db, &freeze.owner, 2)?.is_empty());
                 destination.restart_router()?;
                 assert_eq!(
+                    transfer_wallet(&destination.router_url, status_command.clone())?,
+                    router_ab_cloudflare::RouterWalletTransferResponseV1::Receiving {
+                        receipt: receipt.clone(),
+                        chunk_bytes: 1_024,
+                        next_record: 0,
+                        next_segment: 1,
+                    },
+                    "restart exposes the next durable segment after a lost reply"
+                );
+                assert_eq!(
                     transfer_wallet(&destination.router_url, command.clone())?,
                     acknowledgement,
                     "a lost import reply must replay its durable acknowledgement"
                 );
+                let mut changed_receipt = receipt.clone();
+                changed_receipt.records_digest_hex = "f".repeat(64);
+                let (status_conflict, _) = post_json_to_path_with_headers(
+                    &destination.router_url,
+                    router_ab_cloudflare::ROUTER_WALLET_TRANSFER_PATH_V1,
+                    &router_ab_cloudflare::RouterWalletTransferRequestV1::Status {
+                        receipt: changed_receipt,
+                        chunk_bytes: 1_024,
+                    },
+                    &[(
+                        LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+                        TEST_GATEWAY_TO_ROUTER_AUTH,
+                    )],
+                )?;
+                assert_ne!(status_conflict, 200);
                 let mut changed = chunk;
                 let mut bytes =
                     base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(&changed.data_b64u)?;
@@ -415,6 +453,15 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
             last_import = Some((command, acknowledgement));
         }
     }
+    assert_eq!(
+        transfer_wallet(&destination.router_url, status_command.clone())?,
+        router_ab_cloudflare::RouterWalletTransferResponseV1::Receiving {
+            receipt: receipt.clone(),
+            chunk_bytes: 1_024,
+            next_record: receipt.record_count,
+            next_segment: 0,
+        }
+    );
     let imported_rows = registration_rows(&destination.router_db, &freeze.owner, 2)?;
     assert_eq!(
         imported_rows,
@@ -434,6 +481,10 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
         }
     );
     destination.restart_router()?;
+    assert_eq!(
+        transfer_wallet(&destination.router_url, status_command.clone())?,
+        verified
+    );
     assert_eq!(
         transfer_wallet(
             &destination.router_url,
@@ -723,6 +774,13 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
         activate_router_wallet(&destination.router_url, &receipt)?,
         activation
     );
+    assert_eq!(
+        transfer_wallet(&destination.router_url, status_command)?,
+        router_ab_cloudflare::RouterWalletTransferResponseV1::Activated {
+            activation: activation.clone()
+        },
+        "historical import status does not reopen a cleaned generation"
+    );
     assert_ne!(destination.register(&destination_registration)?.0, 200);
     assert_router_consumption_replay(&stack.router_url, &registration, 3, &historical_consumed)?;
 
@@ -770,6 +828,9 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
                 "imported_segments": imported_segments,
                 "destination_verified_but_inactive": true,
                 "lost_chunk_reply_replayed_after_restart": true,
+                "durable_import_cursor_survives_restart": true,
+                "status_rejects_changed_manifest": true,
+                "status_never_reopens_cleaned_generation": true,
                 "exact_historical_record_bytes": true,
                 "fixed_home_history_replays_and_transfers": true,
                 "pool_freeze_transport_authenticated_and_replayed": true,
