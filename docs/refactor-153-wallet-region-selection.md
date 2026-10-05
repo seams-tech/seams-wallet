@@ -200,8 +200,16 @@ Native and SigningWorker WASM checks, nine existing pool contract tests, and the
 bloat check pass. Evidence remains in
 `.artifacts/r153/pool-relocation-invalidation-20261005/`. These checks preserve
 existing pool behavior; they do not prove the new operation through an E2E.
-Wallet-wide writer fencing, inventory traversal, presign-session invalidation,
-coordinator command binding, and composed behavioral acceptance remain unfinished.
+The later encrypted SQLite storage scenario exercises the new command through
+the production pool store and cipher. It reopens the database for each command,
+burns available and reserved records, preserves reservation bindings, and keeps
+consumed, previously retired, and unrelated records unchanged. Exact retries
+preserve ciphertext and SQL versions. Changed retries and attempts to repopulate
+terminal identities fail. It retains a receipt without key material under
+`.artifacts/r153/pool-storage-relocation-20261005/`. This scoped storage E2E passes
+with the bloat check. Wallet-wide writer fencing, inventory traversal,
+presign-session invalidation, coordinator command binding, HTTP authorization,
+and composed behavioral acceptance remain unfinished.
 
 Retained evidence:
 `.artifacts/r153/execution-journal-20261004/`, receipt SHA-256

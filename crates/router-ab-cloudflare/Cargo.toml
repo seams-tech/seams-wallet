@@ -89,3 +89,6 @@ zeroize = { version = "1.8", features = ["zeroize_derive"] }
 [dev-dependencies]
 curve25519-dalek = { version = "=4.1.3", features = ["zeroize"] }
 wasm-bindgen-test = "0.3"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+rusqlite = { version = "0.32", features = ["bundled"] }
