@@ -873,12 +873,13 @@ Other R171 operations still require migration.
 Deliverable: examples and public declarations demonstrate one clear setup and
 operation path without exposing host construction to application callers.
 
-Recovery acceptance finding, October 5: committed passkey recovery followed by
-runtime reset stalls during the next unlock in two runs. The same stalled path
-was observed on base commit `9153c56b`; the diagnostic baseline run was terminated.
-The rename is not sufficient evidence for full recovery acceptance. Track the
-root-cause investigation and repeatable repair in the recovery checkpoint of
-`refactor-170-inventory.md` and `evidence/refactor-170-recovery-names-20261005.json`.
+Recovery replay acceptance, October 5: the passkey unlock stall was a test
+infrastructure failure. The journal probe detached a separate debugging session,
+which removed Chromium's virtual authenticator. The probe now reuses the
+harness-owned session. Passkey and Google recovery with lost finalization and
+runtime reset both pass, including subsequent signing. See
+`evidence/refactor-170-recovery-probe-session-20261005.json`. Direct code-rotation,
+`syncAccount`, and the full worker/browser acceptance matrix remain open.
 
 ### 4. Tighten host feature loading and packaging
 

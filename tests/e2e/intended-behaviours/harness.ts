@@ -1188,6 +1188,10 @@ export class IntendedBehaviourHarness {
    */
   private operatingAuthFamily: 'passkey' | 'email_otp' | null = null;
 
+  private browserSession:
+    | { readonly kind: 'uninitialized' }
+    | { readonly kind: 'ready'; readonly session: CDPSession } = { kind: 'uninitialized' };
+
   private passkeyPromptCount = 0;
 
   private latestPageSnapshot: IntendedPageSnapshot | null = null;
@@ -3688,10 +3692,14 @@ export class IntendedBehaviourHarness {
     finalization: RecoveryRequestIdentity,
     expectation: 'present' | 'absent',
   ): Promise<void> {
+    if (this.browserSession.kind !== 'ready') {
+      throw new Error('Recovery evidence requires the initialized browser session');
+    }
     const frame = await walletServiceFrame(this.page, this.config.walletOrigin);
     const deadline = Date.now() + 120_000;
     while (Date.now() < deadline) {
       const pending = await readPendingWalletRecoveryCommitIdentity(
+        this.browserSession.session,
         frame,
         finalization.recoveryOperationId,
       );
@@ -4541,6 +4549,7 @@ export class IntendedBehaviourHarness {
     const client = await this.context.newCDPSession(this.page);
     await client.send('WebAuthn.enable');
     await addWebAuthnVirtualAuthenticator(client);
+    this.browserSession = { kind: 'ready', session: client };
     this.recordService('webauthn virtual authenticator ready');
   }
 

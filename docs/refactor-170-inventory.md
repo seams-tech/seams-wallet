@@ -1854,3 +1854,31 @@ full R170 recovery acceptance claim.
 Source types, packed declarations, runtime boundaries, freshness, and the
 production build pass for the renamed API. SDK production source adds 39 lines
 and removes 57 (net −18), excluding type fixtures.
+
+### Recovery journal probe session ownership
+
+The passkey unlock failure above is resolved as `environment_or_infrastructure_failure`.
+The journal probe created and detached a second Chrome debugging session while
+WebAuthn used the harness-owned session. Diagnostic reads found the virtual
+WebAuthn environment disabled immediately after the journal probe. Re-enabling
+that environment found that the authenticator was gone. Chromium's
+[WebAuthn handler](https://chromium.googlesource.com/chromium/src/+/HEAD/content/browser/devtools/protocol/webauthn_handler.cc)
+disables the virtual environment when its renderer is detached.
+
+The harness now retains its initialized debugging session and lends it to journal
+reads. The probe releases its remote row object after extracting identity
+metadata; it never detaches the harness session. Custody material stays in the
+browser. No production code, recovery invariant, or test expectation changes.
+Temporary browser instrumentation and credential probes are removed.
+
+Both existing production cases pass: Google recovery (32.6s) and passkey recovery
+(30.3s), each with a lost finalization response and runtime reset. The passkey case
+then unlocks, signs Tempo and NEAR, and rejects reuse of the consumed recovery
+code. Evidence and reproduction command:
+`evidence/refactor-170-recovery-probe-session-20261005.json`.
+This resolves the previously recorded replay/unlock gate. Direct rotation,
+`syncAccount`, selective loading, and cross-browser acceptance remain open.
+
+Other network observers detach only when their observation finishes. Keep that
+point after the scenario's last WebAuthn operation; they must not be used as
+mid-flow snapshots that detach an active test authenticator.

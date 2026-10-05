@@ -1,4 +1,4 @@
-import type { Frame } from '@playwright/test';
+import type { CDPSession, Frame } from '@playwright/test';
 import { isObject, requireNonEmptyString } from '@shared/utils/validation';
 import {
   SEAMS_WALLET_DB_NAME,
@@ -22,38 +22,39 @@ function journalIdentity(this: {
 }
 
 export async function readPendingWalletRecoveryCommitIdentity(
+  session: CDPSession,
   frame: Frame,
   recoveryOperationId: string,
 ): Promise<PendingWalletRecoveryCommitIdentity | null> {
-  const session = await frame.page().context().newCDPSession(frame.page());
+  // The harness owns this session. Detaching another session can remove its virtual authenticator.
+  const securityOrigin = new URL(frame.url()).origin;
+  const { databaseNames } = await session.send('IndexedDB.requestDatabaseNames', {
+    securityOrigin,
+  });
+  let databaseName: string | null = null;
+  for (const name of databaseNames) {
+    if (name !== SEAMS_WALLET_DB_NAME && !name.startsWith('seams_test_wallet_')) continue;
+    if (databaseName) throw new Error('Recovery evidence found more than one wallet database');
+    databaseName = name;
+  }
+  if (!databaseName) throw new Error('Recovery evidence requires the wallet database');
+  const key = {
+    type: 'string' as const,
+    string: `pending_wallet_recovery_commit_v1:${recoveryOperationId}`,
+  };
+  const records = await session.send('IndexedDB.requestData', {
+    securityOrigin,
+    databaseName,
+    objectStoreName: SEAMS_WALLET_STORES.appState,
+    indexName: '',
+    skipCount: 0,
+    pageSize: 1,
+    keyRange: { lower: key, upper: key, lowerOpen: false, upperOpen: false },
+  });
+  if (records.objectStoreDataEntries.length === 0) return null;
+  const objectId = records.objectStoreDataEntries[0].value.objectId;
+  if (!objectId) throw new Error('Recovery journal row is not an object');
   try {
-    const securityOrigin = new URL(frame.url()).origin;
-    const { databaseNames } = await session.send('IndexedDB.requestDatabaseNames', {
-      securityOrigin,
-    });
-    let databaseName: string | null = null;
-    for (const name of databaseNames) {
-      if (name !== SEAMS_WALLET_DB_NAME && !name.startsWith('seams_test_wallet_')) continue;
-      if (databaseName) throw new Error('Recovery evidence found more than one wallet database');
-      databaseName = name;
-    }
-    if (!databaseName) throw new Error('Recovery evidence requires the wallet database');
-    const key = {
-      type: 'string' as const,
-      string: `pending_wallet_recovery_commit_v1:${recoveryOperationId}`,
-    };
-    const records = await session.send('IndexedDB.requestData', {
-      securityOrigin,
-      databaseName,
-      objectStoreName: SEAMS_WALLET_STORES.appState,
-      indexName: '',
-      skipCount: 0,
-      pageSize: 1,
-      keyRange: { lower: key, upper: key, lowerOpen: false, upperOpen: false },
-    });
-    if (records.objectStoreDataEntries.length === 0) return null;
-    const objectId = records.objectStoreDataEntries[0].value.objectId;
-    if (!objectId) throw new Error('Recovery journal row is not an object');
     // Read only identity metadata from the live row. Custody data stays in the browser.
     const result = await session.send('Runtime.callFunctionOn', {
       objectId,
@@ -72,6 +73,6 @@ export async function readPendingWalletRecoveryCommitIdentity(
       stage: requireNonEmptyString(identity.stage, 'recovery journal stage'),
     };
   } finally {
-    await session.detach();
+    await session.send('Runtime.releaseObject', { objectId });
   }
 }
