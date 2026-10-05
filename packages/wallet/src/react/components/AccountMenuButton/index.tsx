@@ -314,7 +314,7 @@ const AccountMenuButtonInner: React.FC<
             sessionNearAccountId: nearAccountId,
             getNearAccountState: seams.registration.getNearAccountState,
           });
-          const result = await seams.keys.exportKeypair({
+          const result = await seams.keys.exportKey({
             kind: 'ed25519',
             walletSession: walletId,
             nearAccount: exportNearAccountId,
@@ -330,7 +330,7 @@ const AccountMenuButtonInner: React.FC<
         const chainTarget = thresholdEcdsaChainTargetFromConfig(
           requirePrimaryChainByFamily(seams.configs.network.chains, 'evm'),
         );
-        const result = await seams.keys.exportKeypair({
+        const result = await seams.keys.exportKey({
           kind: 'ecdsa',
           walletSession: walletId,
           chainTarget,

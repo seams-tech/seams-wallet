@@ -215,3 +215,11 @@ void seams.recovery.rotateWalletRecoveryCodes;
 
 // @ts-expect-error Use preferences.setConfirmationBehavior.
 void seams.preferences.setConfirmBehavior;
+
+void seams.keys.exportKey({ kind: 'ecdsa', chainTarget: 'arc-testnet' });
+// @ts-expect-error Use keys.exportKey.
+void seams.keys.exportKeypair;
+// @ts-expect-error Export lane resolution belongs to internal dispatch.
+void seams.keys.resolveExactKeyExportLane;
+// @ts-expect-error The public operation owns the viewer and lane handoff.
+void seams.keys.exportKeypairWithUI;

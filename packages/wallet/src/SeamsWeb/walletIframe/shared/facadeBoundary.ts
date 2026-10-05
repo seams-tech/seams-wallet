@@ -1,3 +1,4 @@
+import type { KeyExportDomainMethods } from '@/SeamsWeb/publicApi/keyExport';
 import type { ThemeMode, AppearanceConfig, AppearanceConfigInput } from '@/core/types/seams';
 import type {
   NearProvisioningStateChangedEvent,
@@ -5,7 +6,6 @@ import type {
 } from '@/core/types/sdkSentEvents';
 import { parseMpcMaterialActivationRef } from '@shared/utils/domainIds';
 import { resolveAppearanceTheme, resolveThemePalette } from '@/core/config/configHelpers';
-import type { KeyExportCapability } from '@/SeamsWeb/signingSurface/types';
 import {
   thresholdEcdsaChainTargetsEqual,
   nearAccountRefFromAccountId,
@@ -21,11 +21,11 @@ import {
 type ExportKeypairWithUIBoundaryInput = SigningEngineExportKeypairWithUIInput;
 
 type ResolveExactKeyExportLaneBoundaryInput = Parameters<
-  KeyExportCapability['resolveExactKeyExportLane']
+  KeyExportDomainMethods['resolveExactKeyExportLane']
 >[0];
 
 type ResolveExactKeyExportLaneBoundaryResult = Awaited<
-  ReturnType<KeyExportCapability['resolveExactKeyExportLane']>
+  ReturnType<KeyExportDomainMethods['resolveExactKeyExportLane']>
 >;
 
 export function normalizeResolveExactKeyExportLaneInput(

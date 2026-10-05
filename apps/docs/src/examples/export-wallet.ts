@@ -1,7 +1,7 @@
 import { logWalletEvents, type SeamsWeb } from '@seams/wallet';
 
 export async function exportNearKey(seams: SeamsWeb): Promise<void> {
-  const outcome = await seams.keys.exportKeypair({
+  const outcome = await seams.keys.exportKey({
     kind: 'ed25519',
     options: { onEvent: logWalletEvents() },
   });
@@ -13,7 +13,7 @@ export async function exportNearKey(seams: SeamsWeb): Promise<void> {
 }
 
 export async function exportEvmKey(seams: SeamsWeb): Promise<void> {
-  const outcome = await seams.keys.exportKeypair({
+  const outcome = await seams.keys.exportKey({
     kind: 'ecdsa',
     chainTarget: 'tempo-testnet',
     options: { onEvent: logWalletEvents() },

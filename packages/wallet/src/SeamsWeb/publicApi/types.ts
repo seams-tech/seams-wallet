@@ -104,8 +104,6 @@ import type { TempoSigningRequest } from '@/core/signingEngine/chains/tempo/temp
 import type { TempoFeeTokenValidation } from '@/core/signingEngine/chains/tempo/feeToken';
 import type { EvmFamilyNonceLaneStatus } from '@/core/signingEngine/flows/signEvmFamily/types';
 import type {
-  SigningEngineResolveExactKeyExportLaneInput,
-  SigningEngineResolveExactKeyExportLaneResult,
   SigningEngineExportKeypairWithUIInput,
 } from '@/core/signingEngine/flows/recovery/public';
 import type { ThresholdEcdsaSessionBootstrapResult } from '@/core/signingEngine/threshold/ecdsa/activation';
@@ -1051,18 +1049,8 @@ export interface DevicesCapability {
 
 type KeyExportUiOptions = SigningEngineExportKeypairWithUIInput['options'];
 
-/** Every field of the UI options is optional, so the bag itself is too. */
-type WithOptionalOptions<T> = T extends unknown
-  ? Omit<T, 'options'> & { options?: KeyExportUiOptions }
-  : never;
-
-export type ExportKeypairWithUIInput = WithOptionalOptions<SigningEngineExportKeypairWithUIInput>;
-
-export type ResolveExactKeyExportLaneInput = SigningEngineResolveExactKeyExportLaneInput;
-export type ResolveExactKeyExportLaneResult = SigningEngineResolveExactKeyExportLaneResult;
-
 /**
- * What `exportKeypair` did.
+ * What `exportKey` did.
  *
  * `relink_required` is a real, reachable state — the wallet has no canonical
  * owner binding on this device — and is returned rather than thrown so the
@@ -1072,7 +1060,7 @@ export type KeyExportOutcome =
   | { kind: 'exported' }
   | { kind: 'relink_required'; reason: 'missing_canonical_owner_binding' };
 
-export type ExportKeypairInput = ExclusiveUnion<
+export type ExportKeyInput = ExclusiveUnion<
   | {
       kind: 'ed25519';
       /** A `WalletSessionRef` or bare wallet id. Omitted, resolves to the authenticated wallet. */
@@ -1098,14 +1086,7 @@ export interface KeyExportCapability {
    * One call: the lane resolution feeds straight into the export, and the
    * `relink_required` lane comes back as a result instead of an exception.
    */
-  exportKeypair(input: ExportKeypairInput): Promise<KeyExportOutcome>;
-
-  /** Lower-level: resolve the lane without exporting (e.g. to pre-check availability). */
-  resolveExactKeyExportLane(
-    input: ResolveExactKeyExportLaneInput,
-  ): Promise<ResolveExactKeyExportLaneResult>;
-  /** Lower-level: export with a lane you already resolved. */
-  exportKeypairWithUI(input: ExportKeypairWithUIInput): Promise<void>;
+  exportKey(input: ExportKeyInput): Promise<KeyExportOutcome>;
 }
 
 export interface PreferencesCapability {

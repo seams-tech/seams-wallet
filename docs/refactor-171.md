@@ -454,6 +454,11 @@ a declaration-level pass before declaring the migration complete.
   Update React, client/host adapters, and preference tests. Reuse bound preference
   methods in React; preserve synchronous reads and acknowledged write ordering.
 
+- [x] Consolidate key export under `keys.exportKey`. Keep lane resolution and
+  viewer dispatch internal. Migrate React, intended-app, and documentation callers;
+  preserve host capability checks, exact lane binding, and relink outcomes.
+  Private retained test-app migration remains tied to the exact SDK release.
+
 - [ ] Audit current declarations and consumers in public SDK, tests, examples,
   docs, and private Console. Classify each row as rename, consolidation, internal
   move, or intentional behavior change; record unresolved contract differences.

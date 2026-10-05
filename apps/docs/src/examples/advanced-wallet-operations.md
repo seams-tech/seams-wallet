@@ -41,7 +41,7 @@ the returned values to refresh app state before rendering signing controls.
 
 ## Export an Ed25519 or ECDSA key
 
-`exportKeypair` resolves the exact export lane and opens the wallet-origin
+`exportKey` resolves the exact export lane and opens the wallet-origin
 export viewer in one call.
 
 <<< ./export-wallet.ts
@@ -51,8 +51,8 @@ exports the ECDSA lane for a configured chain. Both default to the authenticated
 and receive progress through `KeyExportFlowEvent`.
 
 Check the outcome. `relink_required` means this device has no canonical owner binding.
-Ask the user to link the device. `resolveExactKeyExportLane` and `exportKeypairWithUI`
-remain available when you want to check export availability before opening the viewer.
+Ask the user to link the device, then retry `exportKey`. The SDK owns lane selection
+and passes the selected lane directly to the wallet-origin viewer.
 
 ## Expected result
 

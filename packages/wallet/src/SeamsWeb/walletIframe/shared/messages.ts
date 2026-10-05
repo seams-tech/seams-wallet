@@ -1,3 +1,6 @@
+import type {
+  SigningEngineResolveExactKeyExportLaneInput as ResolveExactKeyExportLaneInput,
+} from '@/core/signingEngine/flows/recovery/public';
 import type { TransactionReviewWire, TransactionReviewStateMessage } from './transactionReview';
 // Typed RPC messages for the wallet service iframe channel (SeamsWeb-first)
 import type { BootstrapThresholdEcdsaSessionArgs } from '@/SeamsWeb/signingSurface/types';
@@ -48,7 +51,6 @@ import type {
   GoogleEmailOtpWalletAuthSubmitSuccess,
   EmailOtpEcdsaCapabilityArgs,
   PendingEcdsaRegistrationResumeRequest,
-  ResolveExactKeyExportLaneInput,
   WalletRecoveryRotationAuthorization,
 } from '@/SeamsWeb/publicApi/types';
 import type { WalletId } from '@shared/utils/registrationIntent';

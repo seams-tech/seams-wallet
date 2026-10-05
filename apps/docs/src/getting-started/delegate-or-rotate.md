@@ -21,7 +21,7 @@ abandoned session when closed. On Device 1, `useDeviceLinking` reports progress 
 
 ## Export a key
 
-Call `exportKeypair` from a freshly authorized action. It selects the exact export lane
+Call `exportKey` from a freshly authorized action. It selects the exact export lane
 and opens the export viewer on the wallet origin.
 
 <<< ../examples/export-wallet.ts
@@ -31,8 +31,8 @@ Both default to the signed-in wallet. Pass `walletSession`, `nearAccount`, or
 `chainTarget` to select the exact wallet, account, or chain.
 
 Check the outcome. `relink_required` means this device has no canonical owner binding.
-Ask the user to link the device. Use `resolveExactKeyExportLane` and
-`exportKeypairWithUI` directly to check export availability before opening the viewer.
+Ask the user to link the device, then retry `exportKey`. The SDK owns lane selection
+and passes the selected lane directly to the wallet-origin viewer.
 
 Key material is displayed inside the wallet-origin viewer. The app receives an
 outcome, such as `exported`, without the private key. Keep export content out of

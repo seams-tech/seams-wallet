@@ -1907,3 +1907,33 @@ it aligns the stub's selected-wallet snapshot with its real preference manager.
 The production custom-review Arc signing scenario passes (27.3s). Types, build,
 packed declarations, runtime boundaries, and freshness pass. SDK production source
 adds 16 lines and removes 30 (net −14), excluding type fixtures.
+
+
+### Key export API checkpoint
+
+The public operation is `keys.exportKey`. React and documentation examples use
+that name. Lane resolution and viewer dispatch remain internal operations, with
+no advanced public alias. Host dispatch retains the capability check for each
+operation. Wallet, account, chain, lane, material activation, and authorization
+checks keep their existing owners. The wire messages and protocol 4.0.0 remain
+unchanged. The operation returns `exported` or `relink_required`; private keys
+remain inside the wallet-origin viewer.
+
+The intended app now exercises the single public call for both curves. Its Email
+OTP unlock summary projects target addresses from the public session, using the
+same helper as registration. This summary no longer independently probes export
+lanes. Actual signing scenarios still compare recovered signing addresses with
+registered addresses. Export scenarios exercise the internal lane handoff.
+
+Private apps and packages have no callers of the removed export steps. The
+private retained intended app has five references and needs migration with the
+exact SDK release. Release migration, relink acceptance, selective loading, and
+cross-browser acceptance remain open.
+
+Four browser cases pass after the obsolete preference fixture override was
+removed in `cb19e299`. Three production cases pass: Email OTP registration,
+unlock, refresh, signing and export; interrupted export authorization retry;
+and third-device signing and export of both curves. Types, production build,
+packed declarations, runtime boundaries, freshness, docs/examples, and bloat
+checks pass. SDK production source adds 84 lines and removes 112 (net −28),
+excluding type fixtures. Evidence: `evidence/refactor-170-key-export-20261005.json`.

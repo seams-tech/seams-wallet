@@ -1,3 +1,7 @@
+import {
+  requireKeyExportCapability,
+  type KeyExportDomainMethods,
+} from '@/SeamsWeb/publicApi/keyExport';
 import type { WalletAuthCommands } from '@/SeamsWeb/publicApi/auth';
 import type { UserPreferencesManager } from '@/core/signingEngine/session/userPreferences';
 import { syncAccount } from '@/SeamsWeb/operations/recovery/syncAccount';
@@ -56,7 +60,6 @@ import { BrowserSigningSurface } from '@/SeamsWeb/signingSurface/BrowserSigningS
 import type {
   DevicesCapability,
   EvmSignerCapability,
-  KeyExportCapability,
   NearSignerCapability,
   PreferencesCapability,
   RecoveryCapability,
@@ -132,7 +135,7 @@ export class WalletHostRuntime {
   private readonly prefillRestoredSession: RestoredSessionPresignaturePrefill;
   readonly recovery: RecoveryCapability;
   readonly devices: DevicesCapability;
-  readonly keys: KeyExportCapability;
+  readonly keys: KeyExportDomainMethods;
   readonly preferences: Omit<
     PreferencesCapability,
     'setConfirmationConfig' | 'setConfirmationBehavior' | 'onCurrentWalletChange'
@@ -202,6 +205,10 @@ export class WalletHostRuntime {
       setConfirmationConfig: userPreferences.setConfirmationConfig.bind(userPreferences),
       getConfirmationConfig: userPreferences.getConfirmationConfig.bind(userPreferences),
     };
+    const keyExport: KeyExportDomainMethods = {
+      resolveExactKeyExportLane: this.resolveExactKeyExportLaneDomain.bind(this),
+      exportKeypairWithUI: this.exportKeypairWithUIDomain.bind(this),
+    };
     const publicApi = createPublicApi({
       createNearCommands: createWalletHostNearCommands.bind(null, this.getContext.bind(this)),
       createEvmFamilyCommands: createWalletHostEvmFamilyCommands.bind(
@@ -232,17 +239,14 @@ export class WalletHostRuntime {
       devices: {
         ...deviceDomain.domain,
       },
-      keys: {
-        resolveExactKeyExportLane: this.resolveExactKeyExportLaneDomain.bind(this),
-        exportKeypairWithUI: this.exportKeypairWithUIDomain.bind(this),
-      },
+      keys: keyExport,
     });
     this.preferences = hostPreferences;
     this.auth = publicApi.auth;
     this.registration = publicApi.registration;
     this.recovery = publicApi.recovery;
     this.devices = publicApi.devices;
-    this.keys = publicApi.keys;
+    this.keys = keyExport;
     this.near = publicApi.near;
     this.tempo = publicApi.tempo;
     this.evm = publicApi.evm;
@@ -468,9 +472,10 @@ export class WalletHostRuntime {
    * returning private keys to the caller.
    */
   private async resolveExactKeyExportLaneDomain(
-    input: Parameters<KeyExportCapability['resolveExactKeyExportLane']>[0],
-  ): Promise<Awaited<ReturnType<KeyExportCapability['resolveExactKeyExportLane']>>> {
+    input: Parameters<KeyExportDomainMethods['resolveExactKeyExportLane']>[0],
+  ): Promise<Awaited<ReturnType<KeyExportDomainMethods['resolveExactKeyExportLane']>>> {
     const resolvedInput = normalizeResolveExactKeyExportLaneInput(input);
+    requireKeyExportCapability(this.configs, resolvedInput);
     const routerAccountId = String(resolvedInput.walletSession.walletId || '').trim();
     if (!routerAccountId) {
       throw new Error('[SeamsWeb] key export lane resolution requires wallet session context');
@@ -482,6 +487,7 @@ export class WalletHostRuntime {
     input: SigningEngineExportKeypairWithUIInput,
   ): Promise<void> {
     const resolvedInput = normalizeExportKeypairWithUIInput(input, this.theme);
+    requireKeyExportCapability(this.configs, resolvedInput);
     const routerAccountId = String(resolvedInput.walletSession.walletId || '').trim();
     if (!routerAccountId) {
       throw new Error('[SeamsWeb] key export requires wallet session user context');

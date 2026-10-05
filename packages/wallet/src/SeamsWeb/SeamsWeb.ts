@@ -1,3 +1,4 @@
+import type { KeyExportDomainMethods } from '@/SeamsWeb/publicApi/keyExport';
 import { ClientPreferenceState } from '@/SeamsWeb/walletIframe/client/preferenceState';
 import { createApplicationPreferences } from '@/SeamsWeb/walletIframe/client/preferences';
 import { createApplicationDeviceCommands } from '@/SeamsWeb/walletIframe/client/deviceCommands';
@@ -283,8 +284,8 @@ export class SeamsWeb {
    * returning private keys to the caller.
    */
   private async resolveExactKeyExportLaneDomain(
-    input: Parameters<KeyExportCapability['resolveExactKeyExportLane']>[0],
-  ): Promise<Awaited<ReturnType<KeyExportCapability['resolveExactKeyExportLane']>>> {
+    input: Parameters<KeyExportDomainMethods['resolveExactKeyExportLane']>[0],
+  ): Promise<Awaited<ReturnType<KeyExportDomainMethods['resolveExactKeyExportLane']>>> {
     const resolvedInput = normalizeResolveExactKeyExportLaneInput(input);
     const routerAccountId = String(resolvedInput.walletSession.walletId || '').trim();
     if (!routerAccountId) {

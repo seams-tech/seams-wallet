@@ -2045,7 +2045,7 @@ class IntendedPageController {
       await this.seams.auth.lock();
       const unlock = await this.unlockEmailOtpWalletWithHostedMenu('intended-unlock-email-otp');
       await this.refreshLoginState(unlock.walletId);
-      const ecdsaTargetKeys = await this.readEcdsaTargetKeys(this.emailOtpEcdsaTargetProfile.kind);
+      const ecdsaTargetKeys = registrationEcdsaTargetKeys(unlock);
       const ecdsa = assertEcdsaTargetKeysForSession({
         session: unlock,
         ecdsaTargetKeys,
@@ -2367,62 +2367,6 @@ class IntendedPageController {
     }
   }
 
-  private async readEcdsaTargetKeys(
-    profile: IntendedEcdsaTargetProfileName,
-  ): Promise<IntendedEcdsaTargetKeysSummary> {
-    const walletSession = walletSessionRefFromSession({
-      walletId: this.walletId,
-      walletSessionUserId: this.walletId,
-    });
-    switch (profile) {
-      case 'none':
-        return { kind: 'none' };
-      case 'tempo': {
-        const tempo = await this.resolveEcdsaTargetKey({
-          chain: 'tempo',
-          walletSession,
-        });
-        return { kind: 'tempo', tempo };
-      }
-      case 'tempo_arc': {
-        const tempo = await this.resolveEcdsaTargetKey({
-          chain: 'tempo',
-          walletSession,
-        });
-        const arcEvm = await this.resolveEcdsaTargetKey({
-          chain: 'arc_evm',
-          walletSession,
-        });
-        return { kind: 'tempo_arc', tempo, arcEvm };
-      }
-      default:
-        return assertNever(profile);
-    }
-  }
-
-  private async resolveEcdsaTargetKey(input: {
-    chain: 'tempo' | 'arc_evm';
-    walletSession: ReturnType<typeof walletSessionRefFromSession>;
-  }): Promise<IntendedEcdsaTargetKeySummary> {
-    const chainTarget = intendedEcdsaChainTarget(input.chain);
-    const resolved = await this.seams.keys.resolveExactKeyExportLane({
-      kind: 'ecdsa',
-      walletSession: input.walletSession,
-      chainTarget,
-    });
-    if (resolved.kind !== 'ecdsa') {
-      throw new Error(`ECDSA target key returned unexpected kind: ${resolved.kind}`);
-    }
-    return {
-      chain: input.chain,
-      chainId: chainTarget.chainId,
-      thresholdOwnerAddress: requireNonEmptyString(
-        resolved.laneIdentity.signer.key.thresholdOwnerAddress,
-        `${input.chain} thresholdOwnerAddress`,
-      ),
-    };
-  }
-
   private async signNearTransactionWithPublicSdk(): Promise<NearSigningResultSummary> {
     const nearAccountId = requireNearAccountId(this.nearAccountId);
     const signingStartedAt = performance.now();
@@ -2675,24 +2619,16 @@ class IntendedPageController {
       walletSessionUserId: this.walletId,
     });
     const chainTarget = INTENDED_ARC_EVM_CHAIN_TARGET;
-    const resolvedLane = await this.seams.keys.resolveExactKeyExportLane({
+    const result = await this.seams.keys.exportKey({
       kind: 'ecdsa',
       walletSession,
       chainTarget,
-    });
-    if (resolvedLane.kind !== 'ecdsa') {
-      throw new Error(`ECDSA export lane returned unexpected kind: ${resolvedLane.kind}`);
-    }
-    await this.seams.keys.exportKeypairWithUI({
-      kind: 'ecdsa',
-      walletSession,
-      chainTarget,
-      laneIdentity: resolvedLane.laneIdentity,
       options: {
         variant: 'drawer',
         onEvent: this.recordLifecycleEvent,
       },
     });
+    if (result.kind !== 'exported') throw new Error('ECDSA export requires wallet relinking');
     return {
       kind: 'ecdsa_export_success',
       walletId: this.walletId,
@@ -2707,25 +2643,16 @@ class IntendedPageController {
       walletSessionUserId: this.walletId,
     });
     const nearAccount = nearAccountRefFromAccountId(nearAccountId);
-    const resolvedLane = await this.seams.keys.resolveExactKeyExportLane({
+    const result = await this.seams.keys.exportKey({
       kind: 'ed25519',
       walletSession,
       nearAccount,
-    });
-    if (resolvedLane.kind !== 'ed25519') {
-      throw new Error(`Ed25519 export lane returned unexpected kind: ${resolvedLane.kind}`);
-    }
-    await this.seams.keys.exportKeypairWithUI({
-      kind: 'ed25519',
-      walletSession,
-      nearAccount,
-      laneIdentity: resolvedLane.laneIdentity,
-      materialActivation: resolvedLane.materialActivation,
       options: {
         variant: 'drawer',
         onEvent: this.recordLifecycleEvent,
       },
     });
+    if (result.kind !== 'exported') throw new Error('Ed25519 export requires wallet relinking');
     return {
       kind: 'ed25519_export_success',
       walletId: this.walletId,

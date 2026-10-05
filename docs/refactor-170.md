@@ -777,6 +777,13 @@ Complete selective-loading evidence, protocol ordering, configuration separation
 R171 naming, and consumer/release acceptance remain unfinished. See
 `refactor-170-inventory.md` for historical checkpoints and remaining verification.
 
+The public key-export API is now `keys.exportKey`. Applications no longer select
+an export lane or dispatch its viewer separately. React, intended-app, and public
+documentation callers use the single operation. Host dispatch preserves capability
+checks and existing authorization, lane, and material binding. Private retained
+test-app migration remains tied to the exact release. See the key-export checkpoint
+in `refactor-170-inventory.md` for verification and remaining acceptance limits.
+
 ## Implementation sequence
 
 Complete this sequence together with R171's naming and consumer migration.

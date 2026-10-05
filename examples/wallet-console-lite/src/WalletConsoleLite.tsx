@@ -51,8 +51,8 @@ async function exportWalletKey(
 ): Promise<void> {
   const result =
     chain === 'near'
-      ? await seams.keys.exportKeypair({ kind: 'ed25519' })
-      : await seams.keys.exportKeypair({ kind: 'ecdsa', chainTarget: 'arc-testnet' });
+      ? await seams.keys.exportKey({ kind: 'ed25519' })
+      : await seams.keys.exportKey({ kind: 'ecdsa', chainTarget: 'arc-testnet' });
   if (result.kind === 'relink_required') {
     throw new Error('Key export requires re-linking this device to its owner credential.');
   }

@@ -20,7 +20,7 @@ wallet-origin session state.
 App-origin JavaScript receives public results and non-secret flow state. Holder shares,
 PRF output, Email OTP secret material, VoiceID templates, and server shares stay outside
 the app origin. Authorized key export displays material in the wallet-origin viewer.
-`keys.exportKeypair` returns an outcome to the app. It does not return the private key.
+`keys.exportKey` returns an outcome to the app. It does not return the private key.
 
 In 0.8.0, WebAuthn credential creation and assertions execute on the wallet origin. The
 SDK delegates iframe permissions to that origin. There is no application-origin WebAuthn

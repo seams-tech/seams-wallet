@@ -3,7 +3,6 @@ import {
   nearAccountRefFromAccountId,
   type ThresholdEcdsaChainTarget,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import type { ExactEcdsaSigningLaneIdentity } from '@/core/signingEngine/session/identity/exactSigningLaneIdentity';
 import type { EvmSigningRequest } from '@/core/signingEngine/chains/evm/evmSigning.types';
 import type { SignedTransaction } from '@/core/rpcClients/near/NearClient';
 import type {
@@ -26,7 +25,6 @@ const tempoChainTarget = {
   networkSlug: 'tempo-local',
 } satisfies ThresholdEcdsaChainTarget;
 const tempoRequest = {} as SignTempoArgs['request'];
-declare const exactEcdsaLaneIdentity: ExactEcdsaSigningLaneIdentity;
 
 const invalidSignTempoAccountIdentity: SignTempoArgs = {
   walletSession,
@@ -391,21 +389,28 @@ const invalidPublicBootstrapExportArtifact =
   // @ts-expect-error Public bootstrap keyRef hides internal export artifact identity.
   publicEcdsaBootstrapResult.thresholdEcdsaKeyRef.ecdsaDerivationExportArtifact;
 void invalidPublicBootstrapExportArtifact;
-type PublicKeyExportInput = Parameters<KeyExportCapability['exportKeypairWithUI']>[0];
+type PublicKeyExportInput = Parameters<KeyExportCapability['exportKey']>[0];
 
 const validEcdsaExportInput: PublicKeyExportInput = {
   kind: 'ecdsa',
   walletSession,
   chainTarget: tempoChainTarget,
-  laneIdentity: exactEcdsaLaneIdentity,
   options: {},
 };
 void validEcdsaExportInput;
 
+const invalidEcdsaExportLaneInput: PublicKeyExportInput = {
+  kind: 'ecdsa',
+  chainTarget: tempoChainTarget,
+  // @ts-expect-error Public export resolves the lane internally.
+  laneIdentity: {},
+};
+void invalidEcdsaExportLaneInput;
+
 const invalidEcdsaExportUserIdInput: PublicKeyExportInput = {
   kind: 'ecdsa',
   chainTarget: tempoChainTarget,
-  // @ts-expect-error ECDSA public export requires a walletSession object.
+  // @ts-expect-error Public export accepts walletSession, not a raw session user id.
   walletSessionUserId: 'wallet-user',
   options: {},
 };

@@ -12,7 +12,7 @@ import {
 } from '../../boundary/walletRefs';
 import type { SeamsWeb } from '../../SeamsWeb';
 import type {
-  ExportKeypairInput,
+  ExportKeyInput,
   KeyExportOutcome,
   NearSignerCapability,
   EvmSignerCapability,
@@ -72,7 +72,7 @@ export interface BoundWallet {
   readonly near: BoundNearSigner | null;
   readonly evm: BoundEvmSigner;
   readonly tempo: BoundTempoSigner;
-  exportKey(input: WithoutNearSubject<ExportKeypairInput>): Promise<KeyExportOutcome>;
+  exportKey(input: WithoutNearSubject<ExportKeyInput>): Promise<KeyExportOutcome>;
 }
 
 /**
@@ -157,13 +157,13 @@ function createBoundWallet(
     },
     exportKey: async (input) => {
       if (input.kind === 'ed25519') {
-        return await seams.keys.exportKeypair({
+        return await seams.keys.exportKey({
           ...input,
           walletSession,
           ...(nearAccount ? { nearAccount } : {}),
         });
       }
-      return await seams.keys.exportKeypair({ ...input, walletSession });
+      return await seams.keys.exportKey({ ...input, walletSession });
     },
   };
 }

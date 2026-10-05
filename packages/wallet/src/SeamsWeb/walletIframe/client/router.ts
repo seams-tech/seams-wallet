@@ -1,3 +1,7 @@
+import type {
+  SigningEngineResolveExactKeyExportLaneInput as ResolveExactKeyExportLaneInput,
+  SigningEngineResolveExactKeyExportLaneResult as ResolveExactKeyExportLaneResult,
+} from '@/core/signingEngine/flows/recovery/public';
 import type { Variant } from '@shared/utils/variant';
 import { replaceWalletHostAppearance, type WalletHostConfig } from '../shared/configuration';
 import { resolveRuntimeAppearance } from '../shared/facadeBoundary';
@@ -171,8 +175,6 @@ import type { SyncAccountResult } from '@/SeamsWeb/operations/recovery/syncAccou
 import type { SigningEngineExportKeypairWithUIInput as ExportKeypairWithUIInput } from '@/core/signingEngine/flows/recovery/public';
 import type {
   FundImplicitNearAccountForTestingResult,
-  ResolveExactKeyExportLaneInput,
-  ResolveExactKeyExportLaneResult,
   AddPasskeyResult,
   AddEmailOtpResult,
   RevokeAuthMethodResult,
