@@ -804,6 +804,8 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
             "verified_status_survives_restart": true,
             "activation_requires_verification_and_role_credential": true,
             "activation_receipt_survives_restart": true,
+            "cleanup_rejects_wrong_role_credential_and_destination": true,
+            "cleanup_completion_replays": true,
         })
     );
 
@@ -1599,6 +1601,37 @@ fn verify_ecdsa_destination_transport(
         transfer_ecdsa_http(&destination.signing_worker_url, credential, &status_command)?;
     assert_eq!(status, 200, "{progress}");
     assert_eq!(progress, activated);
+    let Response::Activated {
+        receipt: activation_receipt,
+    } = serde_json::from_str::<Response>(&activated)?
+    else {
+        return Err("activation receipt required for cleanup".into());
+    };
+    let cleanup = Command::Cleanup {
+        activation: activation_receipt,
+    };
+    let (unauthorized, _) = transfer_ecdsa_http(
+        &source.signing_worker_url,
+        TEST_GATEWAY_TO_ROUTER_AUTH,
+        &cleanup,
+    )?;
+    assert_ne!(unauthorized, 200);
+    let (wrong_home, _) =
+        transfer_ecdsa_http(&destination.signing_worker_url, credential, &cleanup)?;
+    assert_ne!(wrong_home, 200);
+    let (status, cleaned) =
+        transfer_ecdsa_http(&source.signing_worker_url, source_credential, &cleanup)?;
+    assert_eq!(status, 200, "{cleaned}");
+    assert_eq!(
+        serde_json::from_str::<Response>(&cleaned)?,
+        Response::Cleaned {
+            receipt: receipt.clone()
+        }
+    );
+    let (status, replay) =
+        transfer_ecdsa_http(&source.signing_worker_url, source_credential, &cleanup)?;
+    assert_eq!(status, 200, "{replay}");
+    assert_eq!(replay, cleaned);
     Ok(())
 }
 

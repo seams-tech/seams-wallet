@@ -45,12 +45,16 @@ pub enum SigningWorkerEcdsaTransferRequestV1 {
     Activate {
         receipt: SigningWorkerPoolFreezeReceiptV1,
     },
+    Cleanup {
+        activation: SigningWorkerPoolFreezeReceiptV1,
+    },
 }
 
 impl SigningWorkerEcdsaTransferRequestV1 {
     pub fn scope(&self) -> &CloudflareSigningWorkerWalletScopeV1 {
         match self {
             Self::Prepare { scope, .. } => scope,
+            Self::Cleanup { activation } => &activation.scope,
             Self::Import { chunk } => &chunk.receipt.scope,
             Self::Status { receipt, .. }
             | Self::Verify { receipt }
@@ -83,6 +87,12 @@ pub enum SigningWorkerEcdsaTransferResponseV1 {
     Activated {
         receipt: SigningWorkerPoolFreezeReceiptV1,
     },
+    Cleaning {
+        receipt: SigningWorkerPoolFreezeReceiptV1,
+    },
+    Cleaned {
+        receipt: SigningWorkerPoolFreezeReceiptV1,
+    },
 }
 
 #[derive(Deserialize)]
@@ -98,6 +108,9 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         command: SigningWorkerEcdsaTransferRequestV1,
     ) -> RouterAbProtocolResult<SigningWorkerEcdsaTransferResponseV1> {
         match command {
+            SigningWorkerEcdsaTransferRequestV1::Cleanup { activation } => {
+                self.cleanup_ecdsa_source(activation)
+            }
             SigningWorkerEcdsaTransferRequestV1::Prepare {
                 scope,
                 request,
@@ -373,7 +386,9 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
     }
 }
 
-fn validate_receipt(receipt: &SigningWorkerPoolFreezeReceiptV1) -> RouterAbProtocolResult<()> {
+pub(super) fn validate_receipt(
+    receipt: &SigningWorkerPoolFreezeReceiptV1,
+) -> RouterAbProtocolResult<()> {
     receipt.scope.validate()?;
     receipt.request.validate()?;
     if receipt.wallet_records_digest_hex.len() != 64

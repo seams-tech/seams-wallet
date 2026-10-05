@@ -22,6 +22,7 @@ mod snapshot;
 mod sql_integer;
 mod transfer;
 mod import;
+mod cleanup;
 pub use import::{
     SigningWorkerEcdsaTransferRequestV1, SigningWorkerEcdsaTransferResponseV1,
     SIGNING_WORKER_ECDSA_TRANSFER_PATH_V1,

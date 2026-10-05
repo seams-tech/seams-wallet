@@ -550,6 +550,13 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         "activation_retry_never_reopens_later_source_fence": true,
         "source_freeze_requires_activated_generation": true,
     });
+    artifact["cleanup"] = serde_json::json!({
+        "bounded_batches_resume_after_reopen": true,
+        "rollback_preserves_frozen_snapshot": true,
+        "source_stays_closed_and_destination_stays_open": true,
+        "unrelated_wallet_rows_preserved": true,
+        "completion_and_freeze_receipts_replay": true,
+    });
     std::fs::write(
         directory.join("receipt.json"),
         serde_json::to_vec_pretty(&artifact)?,
@@ -928,6 +935,74 @@ fn verify_snapshot_export(
         store.claim_presign_authority(&fresh_presign, 1_700)
     })?;
     assert!(freeze(&destination, env, &receipt.scope, receipt.request.clone()).is_err());
+    let router_ab_cloudflare::SigningWorkerEcdsaTransferResponseV1::Activated {
+        receipt: activation_receipt,
+    } = activated.clone()
+    else {
+        return Err("destination activation receipt is required".into());
+    };
+    let cleanup = router_ab_cloudflare::SigningWorkerEcdsaTransferRequestV1::Cleanup {
+        activation: activation_receipt,
+    };
+    let unrelated_rows: Vec<_> = rows(path)
+        .into_iter()
+        .filter(|row| !expected_rows.iter().any(|moved| moved.0 == row.0))
+        .collect();
+    assert!(!unrelated_rows.is_empty());
+    let interrupted_cleanup = with_store(path, env, |store| {
+        store.transfer_ecdsa_snapshot(cleanup.clone())?;
+        Err::<(), _>(sql_error("interrupted cleanup before commit"))
+    });
+    assert!(interrupted_cleanup.is_err());
+    request.segment_index = 0;
+    assert_eq!(
+        with_store(path, env, |store| store
+            .export_ecdsa_snapshot(request.clone()))?,
+        first
+    );
+    let mut cleanup_calls = 0;
+    let cleaned = loop {
+        cleanup_calls += 1;
+        assert!(cleanup_calls < 64, "cleanup must make bounded progress");
+        let progress = with_store(path, env, |store| {
+            store.transfer_ecdsa_snapshot(cleanup.clone())
+        })?;
+        match progress {
+            router_ab_cloudflare::SigningWorkerEcdsaTransferResponseV1::Cleaning {
+                receipt: stored,
+            } => assert_eq!(stored, *receipt),
+            router_ab_cloudflare::SigningWorkerEcdsaTransferResponseV1::Cleaned { .. } => {
+                break progress
+            }
+            unexpected => panic!("Unexpected cleanup result: {unexpected:?}"),
+        }
+        assert!(with_store(path, env, |store| store
+            .require_mutation_admission(&receipt.scope))
+        .is_err());
+        with_store(&destination, env, |store| {
+            store.require_mutation_admission(&receipt.scope)
+        })?;
+    };
+    assert!(cleanup_calls > 1);
+    assert_eq!(
+        with_store(path, env, |store| store
+            .transfer_ecdsa_snapshot(cleanup.clone()))?,
+        cleaned
+    );
+    assert_eq!(rows(path), unrelated_rows);
+    assert_eq!(rows(&destination), expected_rows);
+    assert!(with_store(path, env, |store| store
+        .require_mutation_admission(&receipt.scope))
+    .is_err());
+    assert!(with_store(path, env, |store| store
+        .export_ecdsa_snapshot(request.clone()))
+    .is_err());
+    assert_eq!(
+        freeze(path, env, &receipt.scope, receipt.request.clone())?,
+        router_ab_cloudflare::SigningWorkerPoolFreezeResponseV1::Frozen {
+            receipt: receipt.clone()
+        }
+    );
     let next_move = router_ab_cloudflare::SigningWorkerPoolFreezeRequestV1 {
         move_id: format!("wmove_{}", "r".repeat(43)),
         source_generation: receipt.request.source_generation + 1,

@@ -67,6 +67,12 @@ pub enum SigningWorkerPoolFreezeResponseV1 {
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
 pub(super) enum Fence {
+    Cleaning {
+        receipt: SigningWorkerPoolFreezeReceiptV1,
+    },
+    Cleaned {
+        receipt: SigningWorkerPoolFreezeReceiptV1,
+    },
     Draining {
         request: SigningWorkerPoolFreezeRequestV1,
     },
@@ -188,7 +194,11 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
             return Err(wallet_error("ECDSA source ownership generation differs"));
         }
         match self.pool_fence(&scope)? {
-            Some(Fence::Frozen { receipt }) => {
+            Some(
+                Fence::Frozen { receipt }
+                | Fence::Cleaning { receipt }
+                | Fence::Cleaned { receipt },
+            ) => {
                 if receipt.request == request && receipt.scope == scope {
                     return Ok(SigningWorkerPoolFreezeResponseV1::Frozen { receipt });
                 }
