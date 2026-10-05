@@ -29,7 +29,7 @@ export function createApplicationEmailOtpCommands(
 ): EmailOtpAuthCommands {
   const commands = new ApplicationEmailOtpCommands(walletIframe);
   return {
-    requestEmailOtpChallenge: commands.requestEmailOtpChallengeDomain.bind(commands),
+    requestEmailCode: commands.requestEmailCodeDomain.bind(commands),
     loginWithEmailOtpEcdsaCapability:
       commands.loginWithEmailOtpEcdsaCapabilityDomain.bind(commands),
     unlockAddedEmailOtpWallet: commands.loginWithLinkedEmailOtpWalletDomain.bind(commands),
@@ -39,7 +39,7 @@ export function createApplicationEmailOtpCommands(
 
 class ApplicationEmailOtpCommands {
   constructor(private readonly walletIframe: EmailOtpIframe) {}
-  async requestEmailOtpChallengeDomain(args: {
+  async requestEmailCodeDomain(args: {
     walletId: string;
     walletAuthMethodId?: string;
     relayUrl?: string;

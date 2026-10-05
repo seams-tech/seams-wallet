@@ -2327,7 +2327,7 @@ class IntendedPageController {
         requireGoogleIdToken(this.googleIdToken),
       );
       const operation: IntendedEmailOtpChallengeOperation = 'transaction_sign';
-      const challenge = await this.seams.auth.requestEmailOtpChallenge({
+      const challenge = await this.seams.auth.requestEmailCode({
         walletId: this.walletId,
         operation,
         operationFingerprintDigest: revocation.operationFingerprintDigest,
@@ -3740,10 +3740,10 @@ type IntendedLinkedDeviceRevocation = {
 };
 
 type IntendedEmailOtpChallengeOperation = NonNullable<
-  Parameters<IntendedSeams['auth']['requestEmailOtpChallenge']>[0]['operation']
+  Parameters<IntendedSeams['auth']['requestEmailCode']>[0]['operation']
 >;
 type IntendedOperationFingerprintDigest = NonNullable<
-  Parameters<IntendedSeams['auth']['requestEmailOtpChallenge']>[0]['operationFingerprintDigest']
+  Parameters<IntendedSeams['auth']['requestEmailCode']>[0]['operationFingerprintDigest']
 >;
 
 type IntendedLinkedDeviceEmailOtpRevocation = {

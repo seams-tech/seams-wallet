@@ -699,7 +699,7 @@ export interface AuthCapability {
   getSession(walletId?: string): Promise<WalletSession>;
   getRecentUnlocks(): Promise<GetRecentUnlocksResult>;
   hasPasskey(walletId: string): Promise<boolean>;
-  requestEmailOtpChallenge(args: {
+  requestEmailCode(args: {
     walletId: string;
     walletAuthMethodId?: string;
     relayUrl?: string;

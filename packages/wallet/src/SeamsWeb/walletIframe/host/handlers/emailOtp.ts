@@ -290,7 +290,7 @@ export function createEmailOtpWalletIframeHandlers(deps: HandlerDeps): HandlerMa
       const pm = deps.getWalletRuntime();
       const { walletId, walletAuthMethodId, relayUrl, operation, operationFingerprintDigest } =
         req.payload!;
-      const result = await pm.auth.requestEmailOtpChallenge({
+      const result = await pm.auth.requestEmailCode({
         walletId,
         ...(walletAuthMethodId ? { walletAuthMethodId } : {}),
         ...(relayUrl ? { relayUrl } : {}),

@@ -1464,3 +1464,10 @@ cannot miss a readiness event between those operations. Omitting `timeoutMs`
 uses 120 seconds. Explicit timeouts and abort signals remain supported. The wait
 returns ready, retryable failure, or timeout; abort rejects and releases its
 subscription. A pending NEAR account does not block available EVM-family signing.
+
+
+Custom email-code UI requests delivery through `auth.requestEmailCode`. Its result
+retains the challenge ID, exact authentication method, signer selection, delivery,
+and owner-proof binding. An operation-bound request retains its operation and
+fingerprint; renaming the call does not convert that proof into an unlock proof.
+The hosted Google flow continues to manage challenge delivery internally.

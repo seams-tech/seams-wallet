@@ -9,7 +9,7 @@ export type WalletSessionCommands = Pick<
 
 export type EmailOtpAuthCommands = Pick<
   AuthCapability,
-  | 'requestEmailOtpChallenge'
+  | 'requestEmailCode'
   | 'loginWithEmailOtpEcdsaCapability'
   | 'unlockAddedEmailOtpWallet'
   | 'startGoogleSignIn'

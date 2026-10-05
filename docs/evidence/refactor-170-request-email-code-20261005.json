@@ -1,0 +1,57 @@
+{
+  "baseCommit": "4c55b8ec9e86ba77d74216e2d9d9e376475ad0ea",
+  "scope": "Rename public auth.requestEmailOtpChallenge to auth.requestEmailCode, migrate custom UI consumers, preserve challenge and operation proof bindings.",
+  "sourceSha256": {
+    "packages/wallet/scripts/checks/check-declarations-resolve-externally.mjs": "a75da8e78ef2b2acc7eb6c3b00a025d9f652fec545c6332afad404db4be27b58",
+    "packages/wallet/src/SeamsWeb/publicApi/auth.ts": "503d667ed298de85c20c2e02a6b1c8484a041ee947d86e60fdae2fc99103ed94",
+    "packages/wallet/src/SeamsWeb/publicApi/types.ts": "b7d16dbd16e680776ad3c9935366ea8f063fff141f5a37efd48dcf2f76c078cb",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/emailOtpCommands.ts": "34f3c91f64730885d71f1ae8d9e86fc2255093075a86eaf9a3be0136953f04f2",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/createEmailOtpCommands.ts": "6c75e1d35e48aee5ca931934f2cf81265c64559cf4823ea677387c24c928503b",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/handlers/emailOtp.ts": "3d1c835d2fb8f370424d16f43ef9250cba67bb67edbfd4afcbd477b266fc1f30",
+    "packages/wallet/src/react/components/AccountMenuButton/LinkedDevicesModal.tsx": "5a64349499bc3a793782a22c43ae63800bff9cb5514f18d8a9598d70d255ca47",
+    "tests/intended-app/src/page.tsx": "399441df864e0e50f34cc3c2a16d48b35ee2f2b6ab1d71377a5e079aa2c15537"
+  },
+  "checks": {
+    "walletTypes": "passed",
+    "intendedTypes": "passed",
+    "browserTypes": "passed",
+    "docsTypes": "passed",
+    "productionBuild": "passed",
+    "packedDeclarations": "passed; accepted name compiles and retired public name is rejected",
+    "runtimeEntryBoundaries": "passed",
+    "buildFreshness": "passed",
+    "productionDeviceRevocation": "passed (40.2s)",
+    "bloat": "passed",
+    "diffWhitespace": "passed"
+  },
+  "productionScenario": {
+    "name": "a linked device revoked with an email code across a refused commit is answered from what committed",
+    "assertions": [
+      "Passkey wallet links a second device that signs Tempo.",
+      "Owner adds Email OTP and unlocks with that method.",
+      "Public requestEmailCode obtains a challenge bound to the exact revocation operation.",
+      "A refused first commit and lost response recover through exact-request retry.",
+      "Committed replay returns the recorded answer; changed time or code is rejected.",
+      "Revoked device cannot sign; the owner still signs."
+    ]
+  },
+  "commands": [
+    "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.device-linking.contract.test.ts --grep 'a linked device revoked with an email code across a refused commit is answered from what committed'",
+    "pnpm -C packages/wallet type-check",
+    "pnpm -C tests type-check:intended",
+    "pnpm -C tests exec tsc -p tsconfig.wallet-browser.json",
+    "pnpm -C apps/docs exec tsc --noEmit",
+    "pnpm -C packages/wallet build:prod",
+    "pnpm -C packages/wallet check:declarations-external",
+    "pnpm -C packages/wallet check:runtime-entry-bundles",
+    "pnpm -C packages/wallet build:check:fresh",
+    "pnpm report:bloat --check",
+    "git diff --check"
+  ],
+  "limits": [
+    "Wire shape and protocol version remain unchanged.",
+    "General unlockWithEmailCode consolidation remains open; the inventory records the distinct authorization branches.",
+    "React account-menu caller compiles; this run exercises the public call through the intended app, not the React account-menu screen."
+  ],
+  "productionSourceNetLines": 0
+}

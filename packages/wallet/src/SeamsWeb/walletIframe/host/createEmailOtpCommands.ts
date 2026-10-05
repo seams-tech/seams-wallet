@@ -259,7 +259,7 @@ export function createWalletHostEmailOtpCommands(
 ): EmailOtpAuthCommands {
   const commands = new HostEmailOtpCommands(deps);
   return {
-    requestEmailOtpChallenge: commands.requestEmailOtpChallengeDomain.bind(commands),
+    requestEmailCode: commands.requestEmailCodeDomain.bind(commands),
     loginWithEmailOtpEcdsaCapability:
       commands.loginWithEmailOtpEcdsaCapabilityDomain.bind(commands),
     unlockAddedEmailOtpWallet: commands.loginWithLinkedEmailOtpWalletDomain.bind(commands),
@@ -287,7 +287,7 @@ class HostEmailOtpCommands {
       .signingEngine.readOwnerScopedSigningLanes(input, new WalletSessionStatusReadScope());
   }
 
-  async requestEmailOtpChallengeDomain(args: {
+  async requestEmailCodeDomain(args: {
     walletId: string;
     walletAuthMethodId?: string;
     relayUrl?: string;
@@ -648,7 +648,7 @@ class HostEmailOtpCommands {
       {
         configs: this.deps.getContext().configs,
         resolveGoogleEmailOtpProvider: this.resolveGoogleEmailOtpProviderDomain.bind(this),
-        requestEmailOtpChallenge: this.requestEmailOtpChallengeDomain.bind(this),
+        requestEmailOtpChallenge: this.requestEmailCodeDomain.bind(this),
         prewarmEmailOtpYao: this.prewarmEmailOtpYaoDomain.bind(this),
         registerWallet: this.deps.registerWallet,
         loginWithEmailOtpEcdsaCapability: this.loginWithEmailOtpEcdsaCapabilityDomain.bind(this),

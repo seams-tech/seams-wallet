@@ -467,7 +467,7 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
           /* No method id here: both wallet methods can share this email, so a
              factor-derived id cannot name the session's method. The wallet host
              binds the challenge to its exact selected active method. */
-          const challenge = await seams.auth.requestEmailOtpChallenge({
+          const challenge = await seams.auth.requestEmailCode({
             walletId,
             operation: WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION,
             operationFingerprintDigest,

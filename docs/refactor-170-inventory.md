@@ -201,7 +201,7 @@ remove that dependency overlap while retaining these distinctions.
 | `auth.unlock`, `lock`, `logout` | `walletIframe/client/sessionCommands.ts` → router equivalents | H: `host/handlers/auth.ts`; retain exact session, progress, error, and logout cleanup semantics. |
 | `auth.getWalletSession`, `getRecentUnlocks`, `hasPasskeyCredential` | `walletIframe/client/sessionCommands.ts` → router queries; session read can also prefetch blockheight | H auth queries; preserve authentication versus app-identity distinction. Recent-unlock fallback behavior needs explicit review before removing local paths. |
 | Internal presignature preparation | Registration/unlock scheduler and host restoration | Public auth call and iframe route removed. The host retains existing session/material checks and durable reuse. |
-| `auth.requestEmailOtpChallenge` | Application command → router request | H: login challenge handling remains public for custom UI. Manual signing-session challenge/refresh was removed; signing owns its operation-bound step-up. |
+| `auth.requestEmailCode` | Application command → router request | H: login challenge handling remains public for custom UI. Manual signing-session challenge/refresh was removed; signing owns its operation-bound step-up. |
 | `auth.loginWithEmailOtpEcdsaCapability`, `unlockAddedEmailOtpWallet` | Domain → login/unlock-added router methods | H: Email OTP handler and selected factor activation. |
 | `auth.startGoogleSignIn` | Domain → router flow proxy | C proxy for H flow, including resend/reroll/submit/complete/cancel; callbacks and terminal results remain correlated to the flow. |
 | `registration.registerWallet`, `registerWithEmailOtp`, `registerPasskey` | `createPublicApi.ts` delegates to `client/registrationCommands.ts`; passkey builds registration input | H registration via `PM_REGISTER_WALLET`; preserve selected auth method and signer set. `registerWithEmailOtp` currently aliases `registerWallet`. |
@@ -2401,3 +2401,36 @@ Five handshake cases passed in 2.7 seconds. Wallet, intended, browser, state-fix
 and documentation type checks passed. Production build, packed declarations,
 runtime boundaries, freshness, and bloat checks passed. SDK production source
 excluding type fixtures: 49 lines added, 762 removed, net -713.
+
+
+### Custom email-code request and unlock contract audit (2026-10-05)
+
+`auth.requestEmailCode` replaces the public `requestEmailOtpChallenge` name.
+The account-menu device-removal flow and intended app use the accepted name.
+The host still resolves an omitted method from the selected active Email OTP
+method and rejects unresolved identity. The operation and fingerprint cross the
+same request boundary. No protocol shape or proof scope changed.
+
+The remaining unlock consolidation must preserve these existing contracts:
+
+| Existing flow | Required evidence and binding | Completion and remaining gap |
+| --- | --- | --- |
+| ECDSA capability login | Exact wallet session, method, provider subject/email, selected chain, key handle, OTP, and Ed25519 selection | Returns bootstrap/recovery and exact authorizations. Internal Google orchestration also supplies publication targets. Move activation details into the host before exposing `unlockWithEmailCode`. |
+| Added-email authority unlock | Exact wallet/method, verified email subject, challenge, and OTP | Restores the authority's existing signer families and resumes pending acknowledgements. Preserve the all-family result when consolidating. |
+| Google sign-in | Provider evidence resolves the wallet and subject before issuing the challenge | Keep its flow's submit/resend/cancel contract and NEAR-only branch. Concurrent cancellation, expiry, and resend replacement still need acceptance evidence. |
+| Device-removal code | Exact selected source method and transaction-operation fingerprint | The result goes to `devices.remove` with owner-proof binding. It must never become an unlock proof through the new API. SDK-owned device-removal prompting remains a separate cleanup item. |
+
+The current challenge result alone does not contain all provider and activation
+facts required by both unlock implementations. `unlockWithEmailCode({ challenge,
+code })` therefore needs a host-owned continuation that retains those facts and
+rejects stale, replaced, expired, or wrong-purpose challenges. A mechanical rename
+of the ECDSA input would expose the same activation details and leave the
+all-family branch unresolved. The two old unlock calls remain pending this work.
+
+The production device-revocation scenario passed in 40.2 seconds. It covers a
+refused commit, exact-request retry/replay, altered-request rejection, revoked
+device signing refusal, and continued owner signing. Wallet, intended-app,
+browser, and documentation types pass, as do the production build, packed
+consumer declarations, runtime boundaries, freshness, and bloat checks. This
+naming change has zero net production-source lines. Evidence:
+`evidence/refactor-170-request-email-code-20261005.json`.

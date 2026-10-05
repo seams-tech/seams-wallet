@@ -163,7 +163,7 @@ session states and supported explicit-wallet queries.
 
 | Current calls | Target / disposition |
 | --- | --- |
-| `auth.requestEmailOtpChallenge` | `auth.requestEmailCode` for supported custom UI |
+| `auth.requestEmailOtpChallenge` | Migrated to `auth.requestEmailCode` for supported custom UI |
 | `auth.loginWithEmailOtpEcdsaCapability`, `auth.unlockAddedEmailOtpWallet` | `auth.unlockWithEmailCode`, after mapping distinct authorization branches |
 | `auth.beginGoogleEmailOtpWalletAuth` | `auth.startGoogleSignIn` |
 | `auth.requestEmailOtpSigningSessionChallenge`, `auth.refreshEmailOtpSigningSession` | Internal operation-bound step-up/refresh |

@@ -58,6 +58,9 @@ import { SeamsWeb } from '@seams/wallet';
 import { ExternalEvmController } from '@seams/wallet/external-evm';
 declare const seams: SeamsWeb;
 void seams.auth.getSession();
+void seams.auth.requestEmailCode({ walletId: 'wallet.testnet' });
+// @ts-expect-error Custom UI requests email codes through one public method.
+void seams.auth.requestEmailOtpChallenge;
 void seams.registration.registerWallet;
 void seams.registration.addEmail;
 // @ts-expect-error Registration owns its Email OTP enrollment challenge.
