@@ -81,8 +81,9 @@ seals only after the complete six-family scan. Interrupted capture resumes from
 the last durable chunk. Export rejects partial snapshots and preserves sealed bytes
 across retries and store recreation. The E2E uses those exported records for its
 transfer path and verifies a multi-segment record and exact 64-bit integer text.
-Remaining destination imports still use fixture setup except for hosted session
-history. This snapshot is one component of the future common wallet manifest.
+All six families now use production record restore. Bounded stream intake and
+complete-manifest verification remain unfinished. This authorization snapshot is
+one component of the future common wallet manifest.
 
 
 The authorization D1 source now has a separate durable freeze after session
@@ -94,21 +95,23 @@ record preservation, and continued session issuance for another wallet. Other
 wallet stores, the complete snapshot manifest, and source cleanup remain open.
 
 
-Hosted session history now has a scoped D1 import path. It imports retired
-hosted credentials and issued/consumed exchanges beneath retired parent sessions.
-Each record is a bounded chunk, with its digest and acknowledgement committed
-in the same transaction. The temporary restore context names one wallet, tenant,
-move, record kind, and record identity. Ordinary lifecycle, identity, foreign-key,
-and quota guards remain installed. Closing import rejects new records and keeps
-exact acknowledgement replay. Preparation and closure leave the destination
-inactive; this component does not authorize activation.
+Authorization history now has one scoped D1 restore path for authorities, auth
+methods, quotas, retired primary sessions, retired hosted credentials, and exchange
+history. SQLite decodes assembled records and checks exact stored values before
+committing each acknowledgement. This preserves 64-bit integer values and stored
+JSON text. Ordinary lifecycle guards stay installed. Inactive-destination guards
+protect restored quotas even before their parent sessions arrive. Closing import
+requires those parents and preserves exact retries; closure does not activate the
+wallet or attest the complete manifest.
 
-The authorization-transfer E2E now retires both devices before copying history.
-It no longer removes a database-wide insertion guard. It verifies exact rows and
-quotas, rollback after an acknowledgement failure, concurrent retries, conflict
-rejection, import closure, and an unaffected neighboring wallet. Transport,
-complete manifest verification, other historical record families, and coordinator
-activation remain unfinished.
+The authorization-transfer E2E uses production restore for all six families.
+It checks acknowledgement rollback, concurrent and restarted retries, conflicts,
+quota protection, inactive admission, and an unaffected neighboring wallet.
+The old standalone hosted-history runtime path is removed. Its replacement
+migration refuses to discard existing standalone import metadata. Assembled
+record intake is currently bounded at 2 MiB. Bounded stream intake, larger-record
+assembly, authenticated transport, complete manifest verification, other wallet
+record families, and coordinator activation remain unfinished.
 
 
 The signer D1 session-retirement operation now retires every device's primary

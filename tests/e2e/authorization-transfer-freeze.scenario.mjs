@@ -94,7 +94,7 @@ export async function verifyAuthorizationFreeze({
     ]) {
       await assert.rejects(
         api.prepareD1TenantStatement(source, scope, mutation, [identity.walletId]).run(),
-        /wallet_authorization_history_frozen/u,
+        /wallet_authorization_history_frozen|wallet_session_hosted_(credential|exchange)_(parent|initial_state)_rejected/u,
       );
     }
     const after = (

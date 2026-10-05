@@ -210,6 +210,7 @@ export async function verifyAuthorizationSnapshot({ api, source, scope, identity
   );
   return {
     rowsByTable,
+    recordsByTable: snapshot.records,
     evidence: {
       manifest,
       multiSegmentRecords: snapshot.multiSegmentRecords,
@@ -229,6 +230,7 @@ export async function verifyAuthorizationSnapshot({ api, source, scope, identity
 export async function verifySnapshotIntegerPrecision({
   api,
   source,
+  destination,
   sourceService,
   scope,
   issueDeviceSession,
@@ -274,6 +276,21 @@ export async function verifySnapshotIntegerPrecision({
     await source
       .prepare("SELECT CAST(json_extract(?1, '$.expires_at_ms') AS TEXT) AS exact_integer")
       .bind(quotas[0].json)
+      .first('exact_integer'),
+    '9007199254740993',
+  );
+  const importer = new api.D1WalletAuthorizationHistory(destination, scope);
+  await importer.prepare(identity);
+  for (const [table, records] of snapshot.records) {
+    for (const record of records) await importer.restore(identity, table, record.json);
+  }
+  await importer.close(identity);
+  assert.equal(
+    await destination
+      .prepare(
+        'SELECT CAST(expires_at_ms AS TEXT) AS exact_integer FROM authorization_wallet_session_quotas WHERE quota_id = ?',
+      )
+      .bind(issued.session.quotaId)
       .first('exact_integer'),
     '9007199254740993',
   );

@@ -1529,22 +1529,31 @@ Cancellation during submission rejects because the host already owns that operat
 A successful submission ends the flow. Recoverable failures permit a retry while
 the challenge remains valid. The hosted Google flow uses the same execution path.
 
-### Historical hosted-session restore during relocation
+### Restore authorization history during relocation
 
-The internal restore path accepts retired hosted credentials and issued or
-consumed exchanges beneath retired parent sessions. It preserves their original
-identity, expiry, retirement, and redemption facts. It does not issue credentials
-or consume quota. Ordinary insert and update guards remain installed.
+The internal restore path accepts authorities, auth methods, session quotas,
+retired primary sessions, retired hosted credentials, and issued or consumed
+exchanges. It preserves enrollment, identities, original expiry, retirement,
+redemption, and quota facts. SQLite decodes and inserts each assembled record,
+so large integers do not pass through JavaScript numbers.
 
-Each record and its acknowledgement commit atomically. An exact retry returns
-the original acknowledgement. Changed content or wallet scope is rejected.
-Closing import rejects new records while preserving exact retries. The destination
-remains inactive until a separate activation authorizes fresh sessions.
+Each record, its exact stored-value check, and its acknowledgement commit
+atomically. An exact retry returns the original acknowledgement. Changed content
+or wallet scope is rejected. Ordinary lifecycle, identity, and parent guards stay
+installed. A temporary context permits one exact historical insert.
+
+The destination rejects ordinary changes to imported records while admission is
+closed. Imported quotas receive this protection before their parent sessions
+arrive. Import cannot close while an imported quota lacks its retired wallet
+parent. Closing import rejects new records and preserves exact retries. Closure
+does not verify the complete snapshot or activate the wallet.
 
 `tests/e2e/authorization-storage-transfer.e2e.mjs` owns this D1 component contract.
-It verifies retirement of two devices, exact historical rows, failed-import
-rollback, concurrent retries, isolation, and rejection of old credentials. This
-contract does not claim complete regional transfer or client reconciliation.
+It feeds exported snapshot records into production restore for all six families.
+It verifies two-device retirement, exact values, large integers, rollback,
+concurrent retries, inactive admission, and an unaffected neighboring wallet.
+The record boundary accepts assembled records up to 2 MiB. Bounded stream intake,
+complete-manifest verification, and larger-record assembly remain separate work.
 
 ### Freeze authorization history before relocation export
 
@@ -1582,6 +1591,6 @@ through concurrent calls and store recreation.
 `tests/e2e/authorization-storage-transfer.e2e.mjs` verifies interruption, concurrent
 capture, exact export, a record larger than one segment, and an integer beyond
 JavaScript's exact range. The transfer scenario consumes exported snapshot records.
-Hosted credentials and exchanges use production restore. Other record families
-still use fixture imports. This contract does not establish a complete wallet
-manifest, authenticated transport, destination verification, or activation.
+All six authorization families use production restore. This contract does not
+establish a complete wallet manifest, authenticated transport, destination
+verification, or activation.
