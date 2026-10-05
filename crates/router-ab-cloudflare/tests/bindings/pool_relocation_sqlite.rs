@@ -524,6 +524,8 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         "destination_preparation_exact_retry": true,
         "chunk_and_acknowledgement_rollback_together": true,
         "import_exact_retry_after_reopen": true,
+        "populated_import_resumes_from_durable_cursor": true,
+        "rolled_back_verification_preserves_cursor": true,
         "changed_import_and_out_of_order_segment_rejected": true,
         "staged_destination_remains_inactive": true,
         "incomplete_verification_and_wrong_key_rejected": true,
@@ -640,8 +642,40 @@ fn verify_snapshot_export(
     assert!(with_store(&destination, env, |store| store
         .transfer_ecdsa_snapshot(verify.clone()))
     .is_err());
+    let status = router_ab_cloudflare::SigningWorkerEcdsaTransferRequestV1::Status {
+        receipt: receipt.clone(),
+        chunk_bytes: 1_024,
+    };
+    // Every iteration opens a new connection and resumes from committed progress.
     let mut bytes = Vec::new();
-    for segment_index in 0..first.segment_count {
+    loop {
+        let progress = with_store(&destination, env, |store| {
+            store.transfer_ecdsa_snapshot(status.clone())
+        })?;
+        let segment_index = match progress {
+            router_ab_cloudflare::SigningWorkerEcdsaTransferResponseV1::Prepared { .. } => 0,
+            router_ab_cloudflare::SigningWorkerEcdsaTransferResponseV1::Receiving {
+                receipt: stored,
+                chunk_bytes,
+                segment_count,
+                next_segment,
+            } => {
+                assert_eq!(stored, *receipt);
+                assert_eq!(chunk_bytes, 1_024);
+                assert_eq!(segment_count, first.segment_count);
+                assert!(next_segment <= segment_count);
+                if next_segment == segment_count {
+                    break;
+                }
+                next_segment
+            }
+            unexpected => panic!("Unexpected import progress: {unexpected:?}"),
+        };
+        assert_eq!(
+            segment_index as usize * 1_024,
+            bytes.len(),
+            "durable progress must neither skip nor repeat a segment"
+        );
         request.segment_index = segment_index;
         let chunk = with_store(path, env, |store| {
             store.export_ecdsa_snapshot(request.clone())
@@ -765,6 +799,17 @@ fn verify_snapshot_export(
     });
     assert!(interrupted.is_err());
     assert!(rows(&destination).is_empty());
+    assert_eq!(
+        with_store(&destination, env, |store| store
+            .transfer_ecdsa_snapshot(status.clone()))?,
+        router_ab_cloudflare::SigningWorkerEcdsaTransferResponseV1::Receiving {
+            receipt: receipt.clone(),
+            chunk_bytes: 1_024,
+            segment_count: first.segment_count,
+            next_segment: first.segment_count,
+        },
+        "a rolled-back verification retains the completed import cursor"
+    );
     let verified = with_store(&destination, env, |store| {
         store.transfer_ecdsa_snapshot(verify.clone())
     })?;
@@ -772,6 +817,12 @@ fn verify_snapshot_export(
         with_store(&destination, env, |store| store
             .transfer_ecdsa_snapshot(verify.clone()))?,
         verified
+    );
+    assert_eq!(
+        with_store(&destination, env, |store| store
+            .transfer_ecdsa_snapshot(status.clone()))?,
+        verified,
+        "a restarted transfer loop observes durable verification"
     );
     let expected_rows: Vec<(String, String, i64)> = snapshot["pools"]
         .as_array()
