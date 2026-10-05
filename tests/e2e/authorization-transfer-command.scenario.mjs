@@ -5,7 +5,7 @@ const URL = 'https://wallet-relocation.internal/internal/wallet-relocation/v1/au
 
 // This fixture supplies Console command responses. The private directory E2E
 // separately verifies actual command admission and its runtime resource checks.
-class FreezeDirectory {
+class SourceDirectory {
   calls = 0;
   constructor(scope, identity, mode) {
     this.scope = scope;
@@ -19,11 +19,11 @@ class FreezeDirectory {
       'https://wallet-placement.internal/internal/wallet-placement/v1/relocation-command',
     );
     const body = await request.json();
-    assert.equal(body.kind, 'freeze');
+    assert.ok(body.kind === 'freeze' || body.kind === 'export');
     assert.equal(body.attempt.moveId, this.identity.moveId);
     if (this.mode === 'denied')
       return Response.json({ ok: false, code: 'attempt_conflict' }, { status: 409 });
-    const command = freezeCommand(this.scope, this.identity);
+    const command = sourceCommand(this.scope, this.identity, body.kind);
     const digest = createHash('sha256')
       .update(
         JSON.stringify([
@@ -47,9 +47,9 @@ class FreezeDirectory {
   }
 }
 
-function freezeCommand(scope, identity) {
+function sourceCommand(scope, identity, kind) {
   return {
-    id: `${identity.moveId}/gateway/freeze`,
+    id: `${identity.moveId}/gateway/${kind}`,
     wallet: {
       namespace: scope.namespace,
       organizationId: scope.orgId,
@@ -67,7 +67,10 @@ function freezeCommand(scope, identity) {
       databaseId: '22222222-2222-4222-8222-222222222222',
     },
     generation: identity.sourceGeneration,
-    operation: { kind: 'freeze' },
+    operation:
+      kind === 'freeze'
+        ? { kind: 'freeze' }
+        : { kind: 'export', receipt: sourceFence(scope, identity) },
   };
 }
 
@@ -77,7 +80,7 @@ function request(scope, identity, origin = URL) {
     body: JSON.stringify({
       walletId: identity.walletId,
       attempt: {
-        wallet: freezeCommand(scope, identity).wallet,
+        wallet: sourceCommand(scope, identity, 'freeze').wallet,
         moveId: identity.moveId,
         phase: 'freezing',
         id: `wattempt_${'f'.repeat(43)}`,
@@ -93,7 +96,7 @@ function request(scope, identity, origin = URL) {
 export async function freezeAuthorizationThroughCommand({ api, database, scope, identity }) {
   const activeBefore = await liveSessions(database, scope, identity);
   assert.ok(activeBefore > 0);
-  const directory = new FreezeDirectory(scope, identity, 'authorized');
+  const directory = new SourceDirectory(scope, identity, 'authorized');
   const handler = new api.WalletAuthorizationRelocationRoutes({ database, scope, directory });
   assert.equal(
     (
@@ -108,7 +111,7 @@ export async function freezeAuthorizationThroughCommand({ api, database, scope, 
     const rejected = new api.WalletAuthorizationRelocationRoutes({
       database,
       scope,
-      directory: new FreezeDirectory(scope, identity, mode),
+      directory: new SourceDirectory(scope, identity, mode),
     });
     assert.equal(
       (await rejected.handle(request(scope, identity))).status,
@@ -149,4 +152,110 @@ async function liveSessions(database, scope, identity) {
     )
     .bind(scope.namespace, scope.orgId, scope.projectId, scope.envId, identity.walletId)
     .first('count');
+}
+
+function sourceFence(scope, identity) {
+  const command = sourceCommand(scope, identity, 'freeze');
+  return {
+    kind: 'source_fence',
+    wallet: command.wallet,
+    moveId: identity.moveId,
+    home: command.home,
+    generation: identity.sourceGeneration,
+    recordedAtMs: 1_791_000_000_000,
+    manifestDigest: '9'.repeat(64),
+    participants: {
+      gateway: 'a'.repeat(64),
+      walletRuntime: 'b'.repeat(64),
+      router: 'c'.repeat(64),
+      deriverA: 'd'.repeat(64),
+      deriverB: 'e'.repeat(64),
+      signingWorker: 'f'.repeat(64),
+      presignSessions: '0'.repeat(64),
+    },
+  };
+}
+
+function exportRequest(scope, identity, index, origin) {
+  return new Request(origin, {
+    method: 'POST',
+    body: JSON.stringify({
+      walletId: identity.walletId,
+      index,
+      attempt: {
+        wallet: sourceCommand(scope, identity, 'freeze').wallet,
+        moveId: identity.moveId,
+        phase: 'copying',
+        id: `wattempt_${'e'.repeat(43)}`,
+        revision: 2,
+        run: 1,
+        number: 1,
+        startedAtMs: Date.now(),
+      },
+    }),
+  });
+}
+
+export async function transferAuthorizationThroughCommands({
+  api,
+  source,
+  destination,
+  scope,
+  identity,
+  manifest,
+}) {
+  const url = URL.replace('/freeze', '/export');
+  const directory = new SourceDirectory(scope, identity, 'authorized');
+  const handler = new api.WalletAuthorizationRelocationRoutes({
+    database: source,
+    scope,
+    directory,
+  });
+  const denied = new api.WalletAuthorizationRelocationRoutes({
+    database: source,
+    scope,
+    directory: new SourceDirectory(scope, identity, 'denied'),
+  });
+  assert.equal((await denied.handle(exportRequest(scope, identity, 0, url))).status, 403);
+  assert.equal(
+    (
+      await handler.handle(
+        exportRequest(
+          scope,
+          identity,
+          0,
+          url.replace('wallet-relocation.internal', 'wallet.example.test'),
+        ),
+      )
+    ).status,
+    404,
+  );
+  assert.equal(directory.calls, 0);
+  assert.equal((await handler.handle(exportRequest(scope, identity, -1, url))).status, 400);
+  assert.equal(directory.calls, 0);
+  const intake = new api.D1WalletAuthorizationIntake(destination, scope);
+  await intake.prepare(identity, manifest);
+  for (let index = 0; index < manifest.chunkCount; index += 1) {
+    const response = await handler.handle(exportRequest(scope, identity, index, url));
+    assert.equal(response.status, 200, await response.clone().text());
+    const received = await response.json();
+    assert.equal(received.kind, 'authorization_chunk');
+    assert.ok(Buffer.byteLength(received.chunk.chunkJson) <= 131072);
+    const replay = await new api.WalletAuthorizationRelocationRoutes({
+      database: source,
+      scope,
+      directory,
+    }).handle(exportRequest(scope, identity, index, url));
+    const replayed = await replay.json();
+    assert.deepEqual(replayed, received);
+    assert.equal(await intake.accept(identity, received.chunk), received.chunk.digestHex);
+  }
+  assert.equal(await intake.verify(identity), manifest.digestHex);
+  return {
+    chunksTransferred: manifest.chunkCount,
+    destinationDigest: manifest.digestHex,
+    deniedAndPublicExportRejected: true,
+    boundedExactExportReplay: true,
+    allChunksRestoredThroughProductionIntake: true,
+  };
 }

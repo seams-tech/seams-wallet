@@ -1,4 +1,7 @@
-import { freezeAuthorizationThroughCommand } from './authorization-transfer-command.scenario.mjs';
+import {
+  freezeAuthorizationThroughCommand,
+  transferAuthorizationThroughCommands,
+} from './authorization-transfer-command.scenario.mjs';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { authorizationRowsQuery } from './authorization-transfer-freeze.scenario.mjs';
@@ -266,7 +269,12 @@ export async function verifySnapshotIntegerPrecision({
     )
     .bind(issued.session.quotaId)
     .run();
-  const command = await freezeAuthorizationThroughCommand({ api, database: source, scope, identity });
+  const command = await freezeAuthorizationThroughCommand({
+    api,
+    database: source,
+    scope,
+    identity,
+  });
   const manifest = await snapshots.seal(identity);
   assert.deepEqual(manifest, command.manifest);
   const snapshot = await readSnapshot(api, source, scope, identity, manifest);
@@ -280,12 +288,14 @@ export async function verifySnapshotIntegerPrecision({
       .first('exact_integer'),
     '9007199254740993',
   );
-  const importer = new api.D1WalletAuthorizationHistory(destination, scope);
-  await importer.prepare(identity);
-  for (const [table, records] of snapshot.records) {
-    for (const record of records) await importer.restore(identity, table, record.json);
-  }
-  await importer.close(identity);
+  const transfer = await transferAuthorizationThroughCommands({
+    api,
+    source,
+    destination,
+    scope,
+    identity,
+    manifest,
+  });
   assert.equal(
     await destination
       .prepare(
@@ -295,5 +305,10 @@ export async function verifySnapshotIntegerPrecision({
       .first('exact_integer'),
     '9007199254740993',
   );
-  return { manifestDigest: manifest.digestHex, exactIntegerPreserved: '9007199254740993', command };
+  return {
+    manifestDigest: manifest.digestHex,
+    exactIntegerPreserved: '9007199254740993',
+    command,
+    transfer,
+  };
 }

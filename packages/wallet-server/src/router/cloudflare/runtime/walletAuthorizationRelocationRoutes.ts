@@ -1,3 +1,4 @@
+import { parseNonNegativeSafeInteger } from '@shared/device-linking/wireFields';
 import { isPlainObject, requireRecord } from '@shared/utils/validation';
 import { parseWalletId } from '@shared/utils/domainIds';
 import { sha256HexUtf8 } from '@shared/utils/digests';
@@ -15,7 +16,10 @@ import { D1WalletAuthorizationFreeze } from '../d1/wallet/d1WalletAuthorizationF
 import { D1WalletAuthorizationSnapshot } from '../d1/wallet/d1WalletAuthorizationSnapshot';
 import type { WalletConsoleServiceBinding } from './walletConsoleOpsClient';
 
-const PATH = '/internal/wallet-relocation/v1/authorization/freeze';
+const BASE_PATH = '/internal/wallet-relocation/v1/authorization';
+type SourceOperation =
+  | { readonly kind: 'freeze'; readonly index?: never }
+  | { readonly kind: 'export'; readonly index: number };
 const ORIGIN = 'https://wallet-relocation.internal';
 
 // This receipt covers authorization storage only. The coordinator must settle
@@ -28,7 +32,7 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
       id: 'wallet_authorization_freeze',
       surface: 'relay',
       method: 'POST',
-      path: PATH,
+      path: `${BASE_PATH}/freeze`,
       auth: {
         plane: 'public',
         rationale:
@@ -36,6 +40,19 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
       },
       metering: { kind: 'none' },
       summary: 'Freeze and capture admitted authorization history',
+    },
+    {
+      id: 'wallet_authorization_export',
+      surface: 'relay',
+      method: 'POST',
+      path: `${BASE_PATH}/export`,
+      auth: {
+        plane: 'public',
+        rationale:
+          'The handler requires an internal origin and a live Console-authorized source export command.',
+      },
+      metering: { kind: 'none' },
+      summary: 'Export one sealed authorization snapshot chunk',
     },
   ];
 
@@ -53,7 +70,11 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
 
   async handle(request: Request): Promise<Response> {
     const url = new URL(request.url);
-    if (url.origin !== ORIGIN || url.pathname !== PATH) return failure('not_found', 404);
+    if (
+      url.origin !== ORIGIN ||
+      (url.pathname !== `${BASE_PATH}/freeze` && url.pathname !== `${BASE_PATH}/export`)
+    )
+      return failure('not_found', 404);
     if (request.method !== 'POST') return failure('method_not_allowed', 405);
     let body: unknown;
     try {
@@ -61,8 +82,22 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
     } catch {
       return failure('invalid_input', 400);
     }
-    if (!isPlainObject(body) || Object.keys(body).length !== 2)
+    if (!isPlainObject(body)) return failure('invalid_input', 400);
+    let requested: SourceOperation;
+    try {
+      if (url.pathname === `${BASE_PATH}/freeze`) {
+        if (Object.keys(body).length !== 2) return failure('invalid_input', 400);
+        requested = { kind: 'freeze' };
+      } else {
+        if (Object.keys(body).length !== 3) return failure('invalid_input', 400);
+        requested = {
+          kind: 'export',
+          index: parseNonNegativeSafeInteger(body.index, 'snapshot chunk index'),
+        };
+      }
+    } catch {
       return failure('invalid_input', 400);
+    }
     const walletId = parseWalletId(body.walletId);
     if (!walletId.ok || !isPlainObject(body.attempt)) return failure('invalid_input', 400);
     const wallet = {
@@ -80,7 +115,7 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ wallet, attempt: body.attempt, kind: 'freeze' }),
+            body: JSON.stringify({ wallet, attempt: body.attempt, kind: requested.kind }),
           },
         ),
       );
@@ -92,24 +127,38 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
     let source: WalletRelocationSessionSource;
     let commandDigest: string;
     try {
-      const response = requireRecord(await authorized.json(), 'freeze authorization');
-      const command = requireRecord(response.command, 'freeze command');
-      const identity = requireRecord(command.wallet, 'freeze wallet');
-      const operation = requireRecord(command.operation, 'freeze operation');
+      const response = requireRecord(await authorized.json(), 'source authorization');
+      const command = requireRecord(response.command, 'source command');
+      const identity = requireRecord(command.wallet, 'source wallet');
+      const operation = requireRecord(command.operation, 'source operation');
       if (
         response.ok !== true ||
         Object.keys(command).length !== 9 ||
         Object.keys(identity).length !== 5 ||
         command.moveId !== body.attempt.moveId ||
-        body.attempt.phase !== 'freezing' ||
+        body.attempt.phase !== (requested.kind === 'freeze' ? 'freezing' : 'copying') ||
         command.participant !== 'gateway' ||
-        operation.kind !== 'freeze' ||
-        Object.keys(operation).length !== 1 ||
-        command.id !== `${command.moveId}/gateway/freeze`
+        operation.kind !== requested.kind ||
+        Object.keys(operation).length !== (requested.kind === 'freeze' ? 1 : 2) ||
+        command.id !== `${command.moveId}/gateway/${requested.kind}`
       )
-        throw new Error('Freeze command identity conflicts');
+        throw new Error('Source command identity conflicts');
       for (const [key, value] of Object.entries(wallet)) {
-        if (identity[key] !== value) throw new Error('Freeze wallet scope conflicts');
+        if (identity[key] !== value) throw new Error('Source wallet scope conflicts');
+      }
+      if (requested.kind === 'export') {
+        const receipt = requireRecord(operation.receipt, 'source-fence receipt');
+        const receiptWallet = requireRecord(receipt.wallet, 'source-fence wallet');
+        if (
+          receipt.kind !== 'source_fence' ||
+          receipt.moveId !== command.moveId ||
+          receipt.generation !== command.generation
+        )
+          throw new Error('Source export receipt conflicts');
+        for (const [key, value] of Object.entries(wallet)) {
+          if (receiptWallet[key] !== value)
+            throw new Error('Source export receipt scope conflicts');
+        }
       }
       source = WalletRelocationSessionSource.parse({
         walletId: identity.walletId,
@@ -130,9 +179,23 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
           command.operation,
         ]),
       );
-      if (response.digest !== commandDigest) throw new Error('Freeze command digest conflicts');
+      if (response.digest !== commandDigest) throw new Error('Source command digest conflicts');
     } catch {
       return failure('relocation_command_invalid', 502);
+    }
+    if (requested.kind === 'export') {
+      try {
+        const chunk = await new D1WalletAuthorizationSnapshot(
+          this.options.database,
+          this.options.scope,
+        ).exportChunk(source, requested.index);
+        return Response.json(
+          { kind: 'authorization_chunk', commandDigest, chunk },
+          { headers: { 'Cache-Control': 'no-store' } },
+        );
+      } catch {
+        return failure('authorization_export_unavailable', 503);
+      }
     }
     try {
       const retiredAtMs = await new D1WalletRelocationSessions(

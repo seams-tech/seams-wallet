@@ -84,6 +84,15 @@ authorization separately. This receipt covers authorization storage only. Other
 participant settlement, complete source-fence assembly, and regional transport
 remain unfinished.
 
+The authorization source also exports one bounded snapshot chunk per internal
+request. Console authorizes export only on the source resource during a running
+copy attempt, with the persisted source-fence receipt. Export cannot retire or
+freeze data. The storage E2E restores those HTTP-handler responses through the
+production destination intake and verifies exact 64-bit quota preservation.
+Console responses remain synthetic in that storage E2E; real command admission
+is checked in the private directory E2E. Destination HTTP intake and regional
+transport orchestration remain unfinished.
+
 Frozen authorization D1 records now have a durable snapshot and bounded export.
 SQLite encodes rows into exact JSON bytes before the server reads them. Capture
 pins the schema, writes ordered 32 KiB segments with digest-chain receipts, and
