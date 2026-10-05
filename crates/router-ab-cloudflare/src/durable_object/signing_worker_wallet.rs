@@ -114,6 +114,7 @@ pub(crate) enum SigningWorkerWalletDoRequestV1 {
         lookup: CloudflareActiveSigningWorkerStateLookupV1,
     },
     ClaimEcdsaPresignAuthority(crate::CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1),
+    RegisterLinkedPresignSession(crate::CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1),
     AdmitEcdsaPresignStep(crate::CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1),
     LoadEcdsaActivation {
         scope: CloudflareSigningWorkerWalletScopeV1,
@@ -254,6 +255,7 @@ impl SigningWorkerWalletDoRequestV1 {
             Self::TransferEcdsaSnapshot(command) => command.scope(),
             Self::CheckEcdsaPoolAdmission { scope } => scope,
             Self::ClaimEcdsaPresignAuthority(request) => request.authority.wallet_scope(),
+            Self::RegisterLinkedPresignSession(request) => &request.wallet_scope,
             Self::AdmitEcdsaPresignStep(request) => request.authority.wallet_scope(),
             Self::ClaimAndConsumeEcdsaEffect { scope, .. }
             | Self::CommitEcdsaTerminal { scope, .. } => scope,
@@ -262,6 +264,7 @@ impl SigningWorkerWalletDoRequestV1 {
 
     fn validate(&self) -> Result<(), RouterAbProtocolError> {
         match self {
+            Self::RegisterLinkedPresignSession(request) => request.validate_at(crate::cloudflare_now_unix_ms_v1()?),
             Self::ClaimEcdsaPresignAuthority(request) => {
                 request.validate_at(crate::cloudflare_now_unix_ms_v1()?)
             }
@@ -654,6 +657,10 @@ impl RouterAbSigningWorkerWalletDurableObject {
                     store.claim_presign_authority(&request, now_unix_ms)
                 })
                 .await
+            }
+            SigningWorkerWalletDoRequestV1::RegisterLinkedPresignSession(request) => {
+                let now_unix_ms = crate::cloudflare_now_unix_ms_v1()?;
+                self.with_ecdsa_transaction(move |store| store.register_linked_presign_session(&request, now_unix_ms)).await
             }
             SigningWorkerWalletDoRequestV1::AdmitEcdsaPresignStep(request) => {
                 let sql = DurableObjectWalletSqlV1(&self.sql);

@@ -12,6 +12,7 @@ use serde::de::DeserializeOwned;
 
 mod relocation;
 mod presign_authority;
+mod linked_presign_inventory;
 mod snapshot;
 mod sql_integer;
 mod transfer;
@@ -79,7 +80,7 @@ const LINKED_ECDSA_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_linked_ecds
     owner_json TEXT NOT NULL,
     ciphertext_json TEXT NOT NULL)";
 /// The wallet store's ECDSA tables.
-pub(crate) const SIGNING_WORKER_WALLET_ECDSA_SCHEMA_V1: [&str; 7] = [
+pub(crate) const SIGNING_WORKER_WALLET_ECDSA_SCHEMA_V1: [&str; 8] = [
     ECDSA_POOL_SCHEMA,
     ECDSA_EFFECT_SCHEMA,
     ECDSA_ACTIVATION_SCHEMA,
@@ -87,6 +88,7 @@ pub(crate) const SIGNING_WORKER_WALLET_ECDSA_SCHEMA_V1: [&str; 7] = [
     relocation::SCHEMA,
     import::SCHEMA,
     presign_authority::SCHEMA,
+    linked_presign_inventory::SCHEMA,
 ];
 
 /// The outcome of claiming one signing effect and consuming its presignature.

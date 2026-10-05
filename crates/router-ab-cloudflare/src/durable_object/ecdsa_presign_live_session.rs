@@ -295,6 +295,23 @@ async fn admit_wallet_presign_step(
 }
 
 #[cfg(feature = "wallet-do-signing-worker-harness")]
+async fn register_wallet_linked_presign_session(
+    env: &worker::Env,
+    request: &crate::CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1,
+) -> RouterAbProtocolResult<()> {
+    let response = super::call_signing_worker_wallet_do_v1(
+        env,
+        super::SigningWorkerWalletDoRequestV1::RegisterLinkedPresignSession(request.clone()),
+    )
+    .await?;
+    crate::parse_cloudflare_signing_worker_wallet_do_json_response_v1(
+        response,
+        "Linked presign wallet inventory",
+    )
+    .await
+}
+
+#[cfg(feature = "wallet-do-signing-worker-harness")]
 async fn require_pool_admission(
     env: &worker::Env,
     scope: &crate::CloudflareSigningWorkerWalletScopeV1,
@@ -399,7 +416,7 @@ pub(super) async fn handle_cloudflare_signing_worker_linked_ecdsa_presign_sessio
                 return presign_do_error_response(error);
             }
             #[cfg(feature = "wallet-do-signing-worker-harness")]
-            if let Err(error) = require_pool_admission(env, &parsed.request.wallet_scope).await {
+            if let Err(error) = register_wallet_linked_presign_session(env, &parsed.request).await {
                 return presign_do_error_response(error);
             }
             if let Err(error) = claim_linked_presign_authority(storage, &parsed.request).await {

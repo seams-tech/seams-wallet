@@ -131,6 +131,16 @@ leaves authority and snapshot unavailable after eviction. Evidence is retained u
 restore, source freeze races, physical destination preparation, and coordinator
 integration for linked sessions remain unfinished.
 
+New linked sessions in the wallet-DO backend now register their session identity,
+server presignature identity, and exact initialization digest in the wallet SQL
+store before creating local protocol state. Registration shares the wallet mutation
+fence, permits exact retries, and rejects conflicting identities. Wallet snapshots
+transfer this inventory with exact historical restore. The existing storage E2E
+passes with an empty linked inventory. Populated inventory transfer, registration
+races, and enumeration by the coordinator remain unverified. A registration can
+outlive failed local initialization; the coordinator must reconcile that condition.
+Sessions created before this inventory existed still require historical discovery.
+
 
 ECDSA transfer preserves SQL integers through the Worker JavaScript boundary.
 Pool versions and historical effect timestamps use canonical decimal strings in
