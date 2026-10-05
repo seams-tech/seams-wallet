@@ -64,7 +64,7 @@ export class D1WalletRelocationSessions {
     const pending = await prepareD1TenantStatement(
       this.database,
       this.scope,
-      `SELECT 1 FROM wallet_session_pending_operations
+      `SELECT 1 FROM wallet_pending_operations
        WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
          AND wallet_id = ?5 LIMIT 1`,
       [walletId],

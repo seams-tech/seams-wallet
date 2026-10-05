@@ -349,7 +349,7 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
       if (await activity.hasPending(source.walletId))
         return pendingAuthorization(commandDigest, 'ceremonies_unsettled');
       if (await sessions.hasPendingOperations(source.walletId))
-        return pendingAuthorization(commandDigest, 'session_operations_unsettled');
+        return pendingAuthorization(commandDigest, 'operations_unsettled');
       const retiredAtMs = await sessions.retire(source, Date.now());
       const frozenAtMs = await new D1WalletAuthorizationFreeze(
         this.options.database,
@@ -385,7 +385,7 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
       if (await activity.hasPending(source.walletId))
         return pendingAuthorization(commandDigest, 'ceremonies_unsettled');
       if (await sessions.hasPendingOperations(source.walletId))
-        return pendingAuthorization(commandDigest, 'session_operations_unsettled');
+        return pendingAuthorization(commandDigest, 'operations_unsettled');
       return failure('authorization_freeze_incomplete', 503);
     }
   }
@@ -522,7 +522,7 @@ function assertNever(value: never): never {
 
 function pendingAuthorization(
   commandDigest: string,
-  reason: 'ceremonies_unsettled' | 'session_operations_unsettled',
+  reason: 'ceremonies_unsettled' | 'operations_unsettled',
 ): Response {
   return Response.json(
     { kind: 'authorization_pending', commandDigest, reason },

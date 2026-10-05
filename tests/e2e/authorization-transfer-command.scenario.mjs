@@ -996,10 +996,10 @@ export async function verifyPendingSessionOperationFreeze({
   }).handle(original.clone());
   assert.equal(waitingResponse.status, 202);
   const waiting = await waitingResponse.json();
-  assert.equal(waiting.reason, 'session_operations_unsettled');
+  assert.equal(waiting.reason, 'operations_unsettled');
   await assert.rejects(
     sessions.retire(identity, nowMs + 1),
-    /wallet_session_operations_unsettled/u,
+    /wallet_operations_unsettled/u,
   );
   assert.equal(await liveSessions(database, scope, identity), 1);
   const firstCompletion = await store.completeAuthorizedOperation({

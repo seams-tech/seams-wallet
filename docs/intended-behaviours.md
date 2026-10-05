@@ -1614,7 +1614,18 @@ the obsolete session cannot claim another operation.
 
 The storage E2E verifies this race through the production claim and completion store.
 It preserves completed responses at the source and repeats the original freeze command.
-Step-up operation settlement and transfer of operation history remain separate requirements.
+Step-up evidence stores its project and environment when verification completes.
+Pending step-up operations block retirement through that stored scope. Evidence for a
+claimed operation cannot change owner or disappear. Retirement rejects new claims,
+even when their evidence has not expired. Completed step-up responses remain readable
+through exact retries at the source. Another environment cannot use their stored claim.
+
+`tests/e2e/step-up-expiry.e2e.mjs` verifies settlement and rejection through the production
+HTTP admission and SQL store on Node SQLite and local Cloudflare D1. Its backend result
+is symbolic; it does not establish cryptographic signing after a move. The migration
+preserves existing evidence and claims when persisted signers identify one scope.
+Missing evidence or ambiguous scope aborts migration without removing historical rows.
+Transfer of operation history remains a separate requirement.
 
 ### Reconcile Router execution while relocation drains
 

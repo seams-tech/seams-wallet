@@ -1079,6 +1079,7 @@ export class CloudflareD1AuthorizationStore
     const result = await this.database
       .prepare(
         `INSERT OR IGNORE INTO verified_wallet_operation_evidence_sets (
+          org_id, project_id, env_id,
           namespace,
           tenant_id,
           evidence_set_id,
@@ -1097,9 +1098,12 @@ export class CloudflareD1AuthorizationStore
           assurance,
           verified_at_ms,
           expires_at_ms
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .bind(
+        this.walletSignerScope.orgId,
+        this.walletSignerScope.projectId,
+        this.walletSignerScope.envId,
         this.namespace,
         evidenceSet.tenantId,
         evidenceSet.evidenceSetId,
@@ -2371,7 +2375,10 @@ export class CloudflareD1AuthorizationStore
     if (operation.authorization.kind === 'verified_step_up') {
       if (
         row.evidence_set_digest !== operation.authorization.evidenceSetDigest ||
-        row.pinned_owner_wallet_id !== walletId
+        row.pinned_owner_wallet_id !== walletId ||
+        row.step_up_org_id !== this.walletSignerScope.orgId ||
+        row.step_up_project_id !== this.walletSignerScope.projectId ||
+        row.step_up_env_id !== this.walletSignerScope.envId
       ) {
         throw new Error('Verified step-up operation is not claimed');
       }
@@ -2652,6 +2659,8 @@ export class CloudflareD1AuthorizationStore
     }
     if (!committedRow) {
       if (!claimed && input.material) return { kind: 'material_mismatch' };
+      if (!claimed && operation.authorization.kind === 'verified_step_up')
+        return { kind: 'verified_step_up_rejected' };
       throw new Error('authorized operation admission could not be read back');
     }
     const admitted = await parseAuthorizedOperationAdmissionRecord(committedRow);
@@ -2846,7 +2855,10 @@ function authorizedOperationReplayMismatch(input: {
       return { kind: 'authorization_grant_rejected' };
     }
   } else if (
-    input.existing.evidence_set_digest !== input.incoming.authorization.evidenceSetDigest
+    input.existing.evidence_set_digest !== input.incoming.authorization.evidenceSetDigest ||
+    input.existing.step_up_org_id !== input.scope.orgId ||
+    input.existing.step_up_project_id !== input.scope.projectId ||
+    input.existing.step_up_env_id !== input.scope.envId
   ) {
     return { kind: 'verified_step_up_rejected' };
   }

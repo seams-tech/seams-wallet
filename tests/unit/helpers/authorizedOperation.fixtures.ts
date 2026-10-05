@@ -88,3 +88,29 @@ function sessionSigningCapability(session: WalletSessionAuthorizationV2) {
   }
   throw new Error('Signing fixture requires an Ed25519 session capability');
 }
+
+export function buildAdditionalStepUpOperationInputFixture(input: {
+  readonly admitted: AuthorizedOperationInput;
+  readonly label: string;
+  readonly nowMs: number;
+}): AuthorizedOperationInput {
+  const admitted = input.admitted;
+  if (admitted.authorization.kind !== 'verified_step_up')
+    throw new Error('Additional step-up fixture requires verified evidence');
+  return {
+    tenantId: admitted.tenantId,
+    authorizedOperationId: parsed(parseAuthorizedOperationId(`operation:${input.label}`)),
+    auditEventId: parsed(parseAuthorizationAuditEventId(`audit:${input.label}`)),
+    claimedAtMs: input.nowMs,
+    operation: buildCapabilityOperationEnvelope({
+      tenantId: admitted.tenantId,
+      principalId: admitted.operation.principalId,
+      capabilityId: admitted.operation.capabilityId,
+      operationId: parsed(parseCapabilityOperationId(`intent:${input.label}`)),
+      operation: admitted.operation.operation,
+      digests: admitted.operation.digests,
+    }),
+    authorization: admitted.authorization,
+    quota: { kind: 'quota_neutral' },
+  };
+}
