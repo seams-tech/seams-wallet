@@ -1,3 +1,4 @@
+import { resolveUnlockSessionPolicy } from './unlockSessionPolicy';
 import { buildAnonymousWalletSession } from '@/SeamsWeb/publicApi/session';
 import { scheduleLinkedDevicePresignaturePrefill } from './scheduleLinkedDevicePresignaturePrefill';
 import { scheduleEcdsaSessionPresignaturePrefill } from './scheduleEcdsaSessionPresignaturePrefill';
@@ -277,7 +278,6 @@ import {
 import type { ThresholdEcdsaKeyIdentityInventoryEntry } from '@/core/signingEngine/session/passkey/ecdsaKeyFactsInventory';
 import {
   DEFAULT_UNLOCK_REMAINING_USES,
-  resolveWalletUnlockSessionUsesFromRequestedUses,
 } from '@/core/signingEngine/threshold/sessionPolicy';
 import { SIGNER_AUTH_METHODS } from '@shared/utils/signerDomain';
 import { computeWalletEcdsaKeyFactsInventoryChallengeDigestB64u } from '@shared/utils/ecdsaKeyFactsInventory';
@@ -3919,27 +3919,12 @@ async function unlockInternal(
     };
 
     // Warm-session policy controls whether unlock also primes threshold signing lanes.
-    const signingSessionPolicy = (() => {
-      const ttlMsRaw =
-        options?.signingSession?.ttlMs ?? context.configs?.signing.sessionDefaults?.ttlMs;
-      const configuredRemainingUses = options?.signingSession?.remainingUses;
-      const defaultRemainingUses = context.configs?.signing.sessionDefaults?.remainingUses;
-      const requestedRemainingUses =
-        configuredRemainingUses ?? defaultRemainingUses ?? DEFAULT_UNLOCK_REMAINING_USES;
-      const ttlMs =
-        typeof ttlMsRaw === 'number' ? Math.floor(ttlMsRaw) : Math.floor(Number(ttlMsRaw) || 0);
-      const unlockRemainingUses = resolveWalletUnlockSessionUsesFromRequestedUses({
-        requestedRemainingUses,
-      });
-      return {
-        ttlMs: Math.max(0, ttlMs),
-        unlockRemainingUses,
-      };
-    })();
+    const signingSessionPolicy = resolveUnlockSessionPolicy({
+      defaults: context.configs.signing.sessionDefaults,
+      override: options?.signingSession,
+    });
 
-    // Warm sessions are enabled when the unlock policy has remaining uses.
-    const shouldWarmThresholdSigningSession =
-      signingSessionPolicy.ttlMs > 0 && signingSessionPolicy.unlockRemainingUses != null;
+    const shouldWarmThresholdSigningSession = signingSessionPolicy.kind === 'enabled';
     const requireThresholdWarmup = shouldWarmThresholdSigningSession;
     const thresholdKeyMaterialPrefetch =
       requireThresholdWarmup && walletIdentity.kind === 'near_ed25519_capable_wallet'

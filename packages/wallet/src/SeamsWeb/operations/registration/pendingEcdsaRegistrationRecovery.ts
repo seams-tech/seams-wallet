@@ -50,6 +50,7 @@ import {
 
 type PendingEcdsaRecoveryCommon = {
   readonly relayerUrl: string;
+  readonly sessionPolicy: PendingEcdsaRegistrationUnlockInput['sessionPolicy'];
   readonly pending: PendingEcdsaRegistrationCommit;
   readonly signingSurface: PendingRegistrationRecoverySigningSurface;
   readonly ports: PendingEcdsaRegistrationRecoveryPorts;
@@ -226,6 +227,7 @@ export async function resumePendingEcdsaRegistration(
   });
   const responseWalletKeys = requireResponseWalletKeys(committed);
   const unlockInput: PendingEcdsaRegistrationUnlockInput = {
+    sessionPolicy: args.sessionPolicy,
     relayerUrl: args.relayerUrl,
     pending: args.pending,
     response: committed,

@@ -1,0 +1,82 @@
+{
+  "baseCommit": "7dc2a5cd",
+  "scope": "Use one unlock policy resolver for ordinary unlock and pending activation recovery. Honor SDK lifetime/use limits and reject disabled recovery before replay or authentication.",
+  "sourceSha256": {
+    "packages/wallet/src/SeamsWeb/operations/auth/login.ts": "4592c60859f3dbe337d409666e55bc109884770d03a91b9e58f501872f069c55",
+    "packages/wallet/src/SeamsWeb/operations/auth/unlockSessionPolicy.ts": "9cdfaef773f0078dc3295bdca79c237946fc480df519c406279e2b8e9c454836",
+    "packages/wallet/src/SeamsWeb/operations/registration/pendingEcdsaRegistrationRecovery.ts": "42ad3cf029be6a71c5174aea5b1c60b813d6c323100e7aac437d96f63a348d8c",
+    "packages/wallet/src/SeamsWeb/operations/registration/pendingEcdsaRegistrationRecoveryUnlock.ts": "b5967c5997b8342474f3a4508ca588195aceab510c519d46f8088b3dcb9faf90",
+    "packages/wallet/src/SeamsWeb/operations/registration/pendingEcdsaRegistrationRecoveryValidation.ts": "cc94feab0d8e3c12fe0869030b4bbb05b3763c18669895ee295c2132a4146a58",
+    "packages/wallet/src/SeamsWeb/operations/registration/pendingRegistrationRecovery.ts": "d4a463100d39f2076ace77a495a5da07678ec5282b901fdfae83a2659fd3bc53",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/createRegistrationCommands.ts": "40042f337a3554f0bb05dbc12f12285e34715c6654513e4ed32e42035143648e",
+    "tests/e2e/intended-behaviours/passkey.registration.activation-resume.contract.test.ts": "c4737d258ba5fbe209bdf63b75d8642869eda558c65130d2d5fb9f12a3fa0b4a",
+    "tests/intended-app/src/main.tsx": "bbc6d8bf48decfb5b5db121d70aeb1388b4601376578676fcf811a1c135237b2",
+    "tests/typecheck/registration-checkpoint.typecheck.ts": "db9036b45c9079e7b6a1f08da63daccc94427a7d27d6d63e07799a3269fa751d"
+  },
+  "checks": {
+    "walletTypes": "passed",
+    "intendedTypes": "passed",
+    "walletStateTypes": "passed",
+    "docsTypes": "passed",
+    "productionBuild": "passed",
+    "packedDeclarations": "passed",
+    "runtimeEntryBoundaries": "passed",
+    "buildFreshness": "passed",
+    "productionEcdsaOnly": "passed (28.3s)",
+    "productionMixed": "passed (27.8s)",
+    "productionLockRetention": "passed (27.0s)",
+    "bloat": "passed",
+    "diffWhitespace": "passed"
+  },
+  "productionSourceNetLines": 34,
+  "protocolVersion": "11.0.0 (unchanged)",
+  "scenarios": {
+    "ecdsa_only": {
+      "exactReplays": 3,
+      "exactMethodUnlocks": 1,
+      "verifiedSignatures": 1,
+      "disabledPolicyRejectedBeforeReplay": true,
+      "requestedSessionPolicy": {
+        "ttlMs": 600000,
+        "remainingUses": 2
+      },
+      "nearExtensionPreservedSession": false,
+      "artifactPath": ".artifacts/r150/registration-activation-resume-ecdsa_only.json",
+      "artifactSha256": "eae4686edbd1cc99eae8fe7e6b39f44afabfd6740340a8b4305e5803a02d5d2b"
+    },
+    "mixed": {
+      "exactReplays": 3,
+      "exactMethodUnlocks": 1,
+      "verifiedSignatures": 2,
+      "disabledPolicyRejectedBeforeReplay": true,
+      "requestedSessionPolicy": {
+        "ttlMs": 600000,
+        "remainingUses": 2
+      },
+      "nearExtensionPreservedSession": true,
+      "artifactPath": ".artifacts/r150/registration-activation-resume-mixed.json",
+      "artifactSha256": "4cd59e2882f8f1c2236ee7078503a6db456ed6e8a80a67110bd529e618d1d8a3"
+    }
+  },
+  "commands": [
+    "pnpm -C packages/wallet type-check",
+    "pnpm -C tests type-check:intended",
+    "pnpm -C tests type-check:wallet-state",
+    "pnpm -C apps/docs exec tsc --noEmit",
+    "pnpm -C packages/wallet build:prod",
+    "pnpm -C packages/wallet check:declarations-external",
+    "pnpm -C packages/wallet check:runtime-entry-bundles",
+    "pnpm -C packages/wallet build:check:fresh",
+    "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.registration.activation-resume.contract.test.ts",
+    "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.unlock.contract.test.ts --grep 'lock retains durable presignatures across a fresh unlock'",
+    "pnpm report:bloat --check",
+    "git diff --check"
+  ],
+  "limits": [
+    "Normal auth.unlock integration and public resume API removal remain open.",
+    "Pending recovery currently consumes SDK configuration; normal unlock already supplies per-call overrides to the same resolver.",
+    "Email OTP recovery receives the required policy through the same internal input; this run verifies passkey recovery.",
+    "Month-later first-sign latency and browser-restart acceptance remain open.",
+    "No package release or deployment performed."
+  ]
+}

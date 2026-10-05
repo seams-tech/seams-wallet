@@ -544,6 +544,12 @@ Expected behaviour:
   host supplies its origin. Missing or ambiguous activation records and mismatched
   authentication methods fail before activation replay or credential collection.
   Replay verifies committed facts before requesting the exact founding passkey.
+- Pending activation recovery uses the configured unlock session lifetime and use
+  budget. It does not replace them with registration defaults. A disabled session
+  policy leaves the pending journal unchanged and fails before activation replay
+  or credential collection. NEAR completion preserves the newly issued session's
+  remaining budget and expiry.
+
 
 
 Failure behaviour:

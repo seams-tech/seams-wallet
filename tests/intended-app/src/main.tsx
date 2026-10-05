@@ -13,9 +13,30 @@ function requiredEnvironmentValue(name: string): string {
   return value;
 }
 
+function signingSessionDefaultsFromUrl(): { ttlMs: number; remainingUses: number } | undefined {
+  const params = new URL(window.location.href).searchParams;
+  const ttl = params.get('signingSessionTtlMs');
+  const uses = params.get('signingSessionUses');
+  if (ttl === null && uses === null) return undefined;
+  const ttlMs = Number(ttl);
+  const remainingUses = Number(uses);
+  if (
+    ttl === null ||
+    uses === null ||
+    !Number.isSafeInteger(ttlMs) ||
+    !Number.isSafeInteger(remainingUses) ||
+    ttlMs < 0 ||
+    remainingUses < 0
+  ) {
+    throw new Error('Signing session test defaults require nonnegative integers');
+  }
+  return { ttlMs, remainingUses };
+}
+
 const walletOrigin = requiredEnvironmentValue('VITE_WALLET_ORIGIN');
 const config = defineSeamsConfig({
   walletOrigin,
+  signingSessionDefaults: signingSessionDefaultsFromUrl(),
   relayerUrl: requiredEnvironmentValue('VITE_RELAYER_URL'),
   projectEnvironmentId: requiredEnvironmentValue('VITE_SEAMS_PROJECT_ENVIRONMENT_ID'),
   publishableKey: requiredEnvironmentValue('VITE_SEAMS_PUBLISHABLE_KEY'),

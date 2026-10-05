@@ -28,7 +28,10 @@ class LostActivationResponse {
     const pathname = new URL(request.url()).pathname;
     if (request.method() !== 'POST') return;
     if (pathname === '/wallet/unlock/verify') {
-      expect(request.postDataJSON().expected_origin).toBe(new URL(request.frame().url()).origin);
+      const body = request.postDataJSON();
+      expect(body.expected_origin).toBe(new URL(request.frame().url()).origin);
+      expect(body.ecdsaSessionPolicy.session_policy.ttl_ms).toBe(600_000);
+      expect(body.ecdsaSessionPolicy.session_policy.remaining_uses).toBe(2);
       this.unlocks += 1;
     }
     if (
@@ -132,10 +135,22 @@ for (const signerPlan of ['ecdsa_only', 'mixed'] as const) {
       expect(lost.unlocks).toBe(0);
       const registrationRequests = lost.otherRegistrationRequests;
       expect(registrationRequests).toBeGreaterThan(0);
-      await page.reload();
-      if (signerPlan === 'mixed') await context.route(nearPath, holdNear);
+      const resumeUrl = new URL(page.url());
+      resumeUrl.searchParams.set('signingSessionTtlMs', '0');
+      resumeUrl.searchParams.set('signingSessionUses', '0');
+      await page.goto(resumeUrl.href);
       const pendingWallet = page.getByLabel('Pending wallet', { exact: true });
       const recovery = page.getByTestId('registration-resume-result');
+      await pendingWallet.fill(lost.walletId);
+      await page.getByRole('button', { name: 'Resume with exact passkey', exact: true }).click();
+      await expect(recovery).toHaveAttribute('data-state', 'failed');
+      await expect(recovery).toContainText('requires an enabled signing session policy');
+      expect(lost.exactReplays).toBe(1);
+      expect(lost.unlocks).toBe(0);
+      resumeUrl.searchParams.set('signingSessionTtlMs', '600000');
+      resumeUrl.searchParams.set('signingSessionUses', '2');
+      await page.goto(resumeUrl.href);
+      if (signerPlan === 'mixed') await context.route(nearPath, holdNear);
       await pendingWallet.fill('unrelated-wallet.testnet');
       await page.getByRole('button', { name: 'Resume with exact passkey', exact: true }).click();
       await expect(recovery).toHaveAttribute('data-state', 'failed');
@@ -185,6 +200,8 @@ for (const signerPlan of ['ecdsa_only', 'mixed'] as const) {
       if (signerPlan === 'mixed') {
         await expect.poll(nearGate.observed.bind(nearGate), { timeout: 60_000 }).toBeGreaterThan(0);
         const pendingSession = await harness.readCurrentWalletSessionStatus();
+        expect(pendingSession.remainingUses).toBe(1);
+        expect(pendingSession.expiresAtMs - pendingSession.authorization.issuedAtMs).toBeLessThanOrEqual(600_000);
         nearGate.release();
         await waitForWalletIframeConfirmationSettlement(page);
         await page.getByTestId('intended-await-near-ready').click({ timeout: 10_000 });
@@ -238,6 +255,8 @@ for (const signerPlan of ['ecdsa_only', 'mixed'] as const) {
         unrelatedWalletRejectedBeforeReplay: true,
         applicationSuppliesCeremonyId: false,
         applicationSuppliesPasskeyOrigin: false,
+        disabledPolicyRejectedBeforeReplay: true,
+        requestedSessionPolicy: { ttlMs: 600_000, remainingUses: 2 },
         registrationRequestsBeforeResume: registrationRequests,
         registrationRequestsAfterResume: lost.otherRegistrationRequests,
         registeredAddress: registeredKey.thresholdOwnerAddress,

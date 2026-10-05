@@ -1,3 +1,4 @@
+import type { UnlockSessionPolicy } from '../auth/unlockSessionPolicy';
 import type { WebAuthnAuthenticationCredential } from '@/core/types';
 import type { PasskeySessionCustodyUnlockV1 } from '@/core/rpcClients/near/rpcCalls';
 import type { ExclusiveUnion } from '@shared/utils/variant';
@@ -114,6 +115,7 @@ export type CommittedEcdsaRegistrationResponse = Extract<
 
 export type PendingEcdsaRegistrationUnlockInput = {
   readonly relayerUrl: string;
+  readonly sessionPolicy: Extract<UnlockSessionPolicy, { kind: 'enabled' }>;
   readonly pending: PendingEcdsaRegistrationCommit;
   readonly response: CommittedEcdsaRegistrationResponse;
   readonly walletKeys: readonly [

@@ -2578,3 +2578,35 @@ Wallet, intended-app, wallet-state, and docs types pass, along with production
 build, packed declarations, runtime boundaries, and freshness checks. Production
 source adds 47 lines net. Protocol 11.0.0 is unchanged.
 Evidence: `evidence/refactor-170-pending-near-continuation-20261005.json`.
+
+### Pending recovery honors the unlock session policy (2026-10-05)
+
+Ordinary unlock and pending activation recovery now share the existing unlock
+policy normalization. Pending recovery previously used fixed threshold defaults.
+It now receives a required enabled policy from the wallet host. It uses configured
+session lifetime and use limits for both passkey and Email OTP session requests.
+A disabled policy fails before activation replay or authentication and leaves the
+pending journal available for a later permitted recovery.
+
+The shared resolver has explicit enabled and disabled branches. Ordinary unlock
+keeps its existing per-call overrides, configured defaults, use cap, and disabled
+behavior. Recovery type fixtures reject missing or disabled policy inputs.
+The intended app can supply test session defaults through its existing URL-input
+pattern; the SDK gains no new configuration source or public option.
+
+Both production response-loss cases pass with a two-use, ten-minute policy.
+Disabled recovery makes no additional activation replay or unlock request.
+ECDSA-only recovery passes in 28.3 seconds. Mixed recovery passes in 27.8 seconds,
+including EVM signing while NEAR finalization is held, followed by NEAR signing.
+NEAR completion preserves the remaining one-use budget, expiry, and session
+identity. The ordinary lock/fresh-unlock case passes in 27.0 seconds and preserves
+durable presignature reuse.
+
+Build, wallet/intended/wallet-state/docs types, packed declarations, runtime
+boundaries, and freshness checks pass. Production source adds 34 lines net.
+Evidence: `evidence/refactor-170-unlock-policy-20261005.json`.
+
+This removes the fixed-policy obstacle to normal unlock integration. The public
+resume operation remains until normal unlock owns selection, events, callbacks,
+and recovery completion. Email OTP continuation and month-later latency acceptance
+remain open.

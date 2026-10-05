@@ -1,3 +1,4 @@
+import { resolveUnlockSessionPolicy } from '@/SeamsWeb/operations/auth/unlockSessionPolicy';
 import type {
   RegistrationCapability,
   RegistrationWebContext,
@@ -60,13 +61,22 @@ async function resumePendingEcdsaRegistration(
   getContext: () => RegistrationWebContext,
   args: Parameters<RegistrationCapability['resumePendingEcdsaRegistration']>[0],
 ): ReturnType<RegistrationCapability['resumePendingEcdsaRegistration']> {
-  const relayerUrl = String(getContext().configs.network.relayer?.url || '').trim();
+  const context = getContext();
+  const relayerUrl = String(context.configs.network.relayer?.url || '').trim();
   if (!relayerUrl) throw new Error('pending ECDSA registration recovery requires a relayer URL');
+  const sessionPolicy = resolveUnlockSessionPolicy({
+    defaults: context.configs.signing.sessionDefaults,
+    override: undefined,
+  });
+  if (sessionPolicy.kind === 'disabled') {
+    throw new Error('Pending registration recovery requires an enabled signing session policy');
+  }
   return await resumePendingEcdsaRegistrationFromStoredCommit({
     relayerUrl,
+    sessionPolicy,
     request: args,
-    nearContext: getContext(),
-    signingSurface: getContext().signingEngine,
+    nearContext: context,
+    signingSurface: context.signingEngine,
   });
 }
 

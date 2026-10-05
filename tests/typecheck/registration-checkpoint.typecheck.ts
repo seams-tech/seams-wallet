@@ -101,3 +101,16 @@ declare const publicPendingResult: ResumePendingEcdsaRegistrationResult;
 // @ts-expect-error Internal continuation credentials never cross the public result boundary.
 publicPendingResult.credential;
 void [missingPasskeyProof, mixedPendingProof];
+
+import type { UnlockSessionPolicy } from '../../packages/wallet/src/SeamsWeb/operations/auth/unlockSessionPolicy';
+import type { PendingEcdsaRegistrationUnlockInput } from '../../packages/wallet/src/SeamsWeb/operations/registration/pendingEcdsaRegistrationRecoveryValidation';
+
+declare const disabledSessionPolicy: Extract<UnlockSessionPolicy, { kind: 'disabled' }>;
+declare const pendingUnlockInput: PendingEcdsaRegistrationUnlockInput;
+const withDisabledPolicy = { ...pendingUnlockInput, sessionPolicy: disabledSessionPolicy };
+// @ts-expect-error Pending activation recovery cannot mint an enabled session from disabled policy.
+const invalidRecoveryPolicy: PendingEcdsaRegistrationUnlockInput = withDisabledPolicy;
+const { sessionPolicy: removedPolicy, ...withoutPolicy } = pendingUnlockInput;
+// @ts-expect-error Recovery policy must come from the unlock boundary.
+const missingRecoveryPolicy: PendingEcdsaRegistrationUnlockInput = withoutPolicy;
+void [invalidRecoveryPolicy, missingRecoveryPolicy, removedPolicy];
