@@ -13,6 +13,23 @@ use crate::router_wallet_relocation::{
 use crate::{RouterWalletFreezeReceiptV1, RouterWalletFreezeRequestV1};
 
 pub const ROUTER_WALLET_TRANSFER_PATH_V1: &str = "/router-ab/router/wallet/transfer";
+const ACTIVATION_KEY: &str = "relocation-activation";
+const CLEANUP_BATCH_SIZE: u32 = 16;
+
+/// The authenticated destination's acknowledgement, forwarded by the move coordinator.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RouterWalletActivationReceiptV1 {
+    pub source: RouterWalletFreezeReceiptV1,
+    pub destination_object: String,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ActivatedDestination {
+    receipt: RouterWalletActivationReceiptV1,
+    chunk_bytes: u32,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -44,6 +61,12 @@ pub enum RouterWalletTransferRequestV1 {
     Verify {
         receipt: RouterWalletFreezeReceiptV1,
     },
+    Activate {
+        receipt: RouterWalletFreezeReceiptV1,
+    },
+    Cleanup {
+        activation: RouterWalletActivationReceiptV1,
+    },
 }
 
 impl RouterWalletTransferRequestV1 {
@@ -53,14 +76,19 @@ impl RouterWalletTransferRequestV1 {
             Self::Export { receipt, .. } => receipt.request.source_generation,
             Self::Import { chunk } => chunk.receipt.request.destination_generation,
             Self::Verify { receipt } => receipt.request.destination_generation,
+            Self::Activate { receipt } => receipt.request.destination_generation,
+            Self::Cleanup { activation } => activation.source.request.source_generation,
         }
     }
 
     pub fn owner(&self) -> &RouterWalletOwnerV1 {
         match self {
             Self::Prepare { request, .. } => &request.owner,
-            Self::Export { receipt, .. } | Self::Verify { receipt } => &receipt.request.owner,
+            Self::Export { receipt, .. }
+            | Self::Verify { receipt }
+            | Self::Activate { receipt } => &receipt.request.owner,
             Self::Import { chunk } => &chunk.receipt.request.owner,
+            Self::Cleanup { activation } => &activation.source.request.owner,
         }
     }
 }
@@ -82,6 +110,15 @@ pub enum RouterWalletTransferResponseV1 {
     },
     Verified {
         receipt: RouterWalletFreezeReceiptV1,
+    },
+    Activated {
+        activation: RouterWalletActivationReceiptV1,
+    },
+    Cleaning {
+        activation: RouterWalletActivationReceiptV1,
+    },
+    Cleaned {
+        activation: RouterWalletActivationReceiptV1,
     },
 }
 
@@ -110,6 +147,8 @@ pub async fn transfer_router_wallet_v1<Store: RouterWalletStoreV1>(
         } => export(store, receipt, record_index, segment_index, chunk_bytes).await,
         RouterWalletTransferRequestV1::Import { chunk } => import(store, chunk).await,
         RouterWalletTransferRequestV1::Verify { receipt } => verify(store, receipt).await,
+        RouterWalletTransferRequestV1::Activate { receipt } => activate(store, receipt).await,
+        RouterWalletTransferRequestV1::Cleanup { activation } => cleanup(store, activation).await,
     }
 }
 
@@ -120,6 +159,18 @@ async fn prepare<Store: RouterWalletStoreV1>(
 ) -> RouterAbProtocolResult<RouterWalletTransferResponseV1> {
     validate_request(&request)?;
     validate_chunk_size(chunk_bytes)?;
+    if let Some(activated) = store
+        .get_json::<ActivatedDestination>(ACTIVATION_KEY)
+        .await?
+    {
+        if activated.receipt.source.request != request || activated.chunk_bytes != chunk_bytes {
+            return Err(conflict("Router destination preparation changed"));
+        }
+        return Ok(RouterWalletTransferResponseV1::Prepared {
+            request,
+            chunk_bytes,
+        });
+    }
     match store.get_json::<Fence>(FENCE_KEY).await? {
         Some(Fence::Prepared {
             request: prior,
@@ -325,11 +376,126 @@ async fn import<Store: RouterWalletStoreV1>(
     Ok(acknowledgement)
 }
 
+async fn activate<Store: RouterWalletStoreV1>(
+    store: &Store,
+    receipt: RouterWalletFreezeReceiptV1,
+) -> RouterAbProtocolResult<RouterWalletTransferResponseV1> {
+    validate_receipt(&receipt)?;
+    crate::router_wallet_relocation::require_ownership_generation(
+        store,
+        receipt.request.destination_generation,
+    )
+    .await?;
+    if let Some(prior) = store
+        .get_json::<ActivatedDestination>(ACTIVATION_KEY)
+        .await?
+    {
+        if prior.receipt.source != receipt {
+            return Err(conflict("Router destination activation changed"));
+        }
+        // A delayed activation retry must not reopen an object frozen by a later move.
+        return Ok(RouterWalletTransferResponseV1::Activated {
+            activation: prior.receipt,
+        });
+    }
+    let chunk_bytes = match store.get_json::<Fence>(FENCE_KEY).await? {
+        Some(Fence::Verified {
+            receipt: verified,
+            chunk_bytes,
+        }) if verified == receipt => chunk_bytes,
+        _ => {
+            return Err(conflict(
+                "Router activation requires its verified destination",
+            ))
+        }
+    };
+    let activation = RouterWalletActivationReceiptV1 {
+        destination_object: receipt
+            .request
+            .owner
+            .object_name(receipt.request.destination_generation)?,
+        source: receipt,
+    };
+    store
+        .put_json(
+            ACTIVATION_KEY,
+            &ActivatedDestination {
+                receipt: activation.clone(),
+                chunk_bytes,
+            },
+        )
+        .await?;
+    store.delete_key(FENCE_KEY).await?;
+    Ok(RouterWalletTransferResponseV1::Activated { activation })
+}
+
+async fn cleanup<Store: RouterWalletStoreV1>(
+    store: &Store,
+    activation: RouterWalletActivationReceiptV1,
+) -> RouterAbProtocolResult<RouterWalletTransferResponseV1> {
+    validate_receipt(&activation.source)?;
+    let request = &activation.source.request;
+    crate::router_wallet_relocation::require_ownership_generation(store, request.source_generation)
+        .await?;
+    if activation.destination_object != request.owner.object_name(request.destination_generation)? {
+        return Err(conflict("Router cleanup names another destination object"));
+    }
+    match store.get_json::<Fence>(FENCE_KEY).await? {
+        Some(Fence::Frozen { receipt }) if receipt == activation.source => {}
+        Some(Fence::Cleaning { activation: prior }) if prior == activation => {}
+        Some(Fence::Cleaned { activation: prior }) if prior == activation => {
+            return Ok(RouterWalletTransferResponseV1::Cleaned { activation });
+        }
+        _ => {
+            return Err(conflict(
+                "Router cleanup requires its frozen source and activation receipt",
+            ))
+        }
+    }
+    store
+        .put_json(
+            FENCE_KEY,
+            &Fence::Cleaning {
+                activation: activation.clone(),
+            },
+        )
+        .await?;
+    let mut remaining = CLEANUP_BATCH_SIZE;
+    for prefix in [REGISTRATION_KEY_PREFIX, "relocation-import/"] {
+        let keys = store.list_keys(prefix, remaining).await?;
+        for key in &keys {
+            store.delete_key(key).await?;
+        }
+        remaining -= keys.len() as u32;
+        if remaining == 0 {
+            return Ok(RouterWalletTransferResponseV1::Cleaning { activation });
+        }
+    }
+    store
+        .put_json(
+            FENCE_KEY,
+            &Fence::Cleaned {
+                activation: activation.clone(),
+            },
+        )
+        .await?;
+    Ok(RouterWalletTransferResponseV1::Cleaned { activation })
+}
+
 async fn verify<Store: RouterWalletStoreV1>(
     store: &Store,
     receipt: RouterWalletFreezeReceiptV1,
 ) -> RouterAbProtocolResult<RouterWalletTransferResponseV1> {
     validate_receipt(&receipt)?;
+    if let Some(activated) = store
+        .get_json::<ActivatedDestination>(ACTIVATION_KEY)
+        .await?
+    {
+        if activated.receipt.source != receipt {
+            return Err(conflict("Router destination verification changed"));
+        }
+        return Ok(RouterWalletTransferResponseV1::Verified { receipt });
+    }
     let chunk_bytes = match store.get_json::<Fence>(FENCE_KEY).await? {
         Some(Fence::Verified { receipt: prior, .. }) if prior == receipt => {
             return Ok(RouterWalletTransferResponseV1::Verified { receipt })

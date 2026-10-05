@@ -1588,7 +1588,24 @@ snapshot. A prepared object stays inactive, including after a Router restart.
 
 The local Router HTTP E2E verifies return preparation beside a frozen source, exact
 preparation replay after restart, and rejection of work at the inactive destination.
-This check does not establish complete return relocation or destination activation.
+This check does not establish complete wallet relocation.
+
+The Router's authenticated internal transfer endpoint has separate activation and
+cleanup commands. Its caller must authorize activation after directory cutover and
+forward the destination's activation receipt before source cleanup. The complete
+coordinator integration remains required.
+
+Activation requires the exact locally verified snapshot. Its durable acknowledgement
+and admission change commit together. Cleanup deletes at most 16 source records per
+call, including old import segments. It preserves a tombstone that rejects ordinary
+work. Cleanup retries resume after restart. A delayed activation retry returns its
+old acknowledgement without reopening a source frozen or cleaned by a later move.
+
+The local Router HTTP E2E transfers consumed registration history to generation two,
+activates it, and returns it to generation three. It verifies exact consumption
+results, rejection before verification, authenticated commands, independent cleanup,
+and restart during bounded cleanup. This is Router-role evidence, not evidence of
+post-relocation signing or a complete wallet move.
 
 Each authenticated Router freeze call can reconcile one expired registration claim.
 The Router uses the exact stored request and its existing claim-generation rules.

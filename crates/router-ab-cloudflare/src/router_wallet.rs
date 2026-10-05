@@ -392,6 +392,8 @@ pub enum RouterWalletRefusalCodeV1 {
 pub trait RouterWalletStoreV1 {
     async fn get_json<T: DeserializeOwned>(&self, key: &str) -> RouterAbProtocolResult<Option<T>>;
     async fn put_json<T: Serialize>(&self, key: &str, value: &T) -> RouterAbProtocolResult<()>;
+    async fn delete_key(&self, key: &str) -> RouterAbProtocolResult<()>;
+    async fn list_keys(&self, prefix: &str, limit: u32) -> RouterAbProtocolResult<Vec<String>>;
     async fn list_registrations(
         &self,
     ) -> RouterAbProtocolResult<Vec<(String, RouterWalletRegistrationRecordV1)>>;

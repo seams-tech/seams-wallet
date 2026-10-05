@@ -259,6 +259,37 @@ impl TransactionStoreV1 {
 }
 
 impl RouterWalletStoreV1 for TransactionStoreV1 {
+    async fn delete_key(&self, key: &str) -> RouterAbProtocolResult<()> {
+        self.transaction
+            .delete(key)
+            .await
+            .map_err(|error| self.record(error))?;
+        Ok(())
+    }
+
+    async fn list_keys(&self, prefix: &str, limit: u32) -> RouterAbProtocolResult<Vec<String>> {
+        let values = self
+            .transaction
+            .list_with_options(
+                worker::ListOptions::new()
+                    .prefix(prefix)
+                    .limit(limit as usize),
+            )
+            .await
+            .map_err(|error| self.record(error))?;
+        let mut keys = Vec::new();
+        for key in values.keys() {
+            let key =
+                key.map_err(|error| self.record(worker::Error::JsError(format!("{error:?}"))))?;
+            keys.push(key.as_string().ok_or_else(|| {
+                self.record(worker::Error::RustError(
+                    "Router wallet storage key is invalid".to_owned(),
+                ))
+            })?);
+        }
+        Ok(keys)
+    }
+
     async fn list_registrations(
         &self,
     ) -> RouterAbProtocolResult<Vec<(String, RouterWalletRegistrationRecordV1)>> {

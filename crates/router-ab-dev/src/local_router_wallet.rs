@@ -95,6 +95,32 @@ impl LocalRouterWalletStoreV1<'_> {
 }
 
 impl RouterWalletStoreV1 for LocalRouterWalletStoreV1<'_> {
+    async fn delete_key(&self, key: &str) -> RouterAbProtocolResult<()> {
+        self.transaction.execute(
+            "DELETE FROM local_router_wallet_objects WHERE object_name = ?1 AND storage_key = ?2",
+            rusqlite::params![self.object_name, key],
+        ).map_err(|error| self.record(error))?;
+        Ok(())
+    }
+
+    async fn list_keys(&self, prefix: &str, limit: u32) -> RouterAbProtocolResult<Vec<String>> {
+        let mut statement = self
+            .transaction
+            .prepare(
+                "SELECT storage_key FROM local_router_wallet_objects
+             WHERE object_name = ?1 AND substr(storage_key, 1, length(?2)) = ?2
+             ORDER BY storage_key LIMIT ?3",
+            )
+            .map_err(|error| self.record(error))?;
+        let rows = statement
+            .query_map(rusqlite::params![self.object_name, prefix, limit], |row| {
+                row.get(0)
+            })
+            .map_err(|error| self.record(error))?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(|error| self.record(error))
+    }
+
     async fn list_registrations(
         &self,
     ) -> RouterAbProtocolResult<Vec<(String, RouterWalletRegistrationRecordV1)>> {

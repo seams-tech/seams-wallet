@@ -360,6 +360,18 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
         )],
     )?;
     assert_ne!(incomplete_status, 200);
+    let (premature_activation, _) = post_json_to_path_with_headers(
+        &destination.router_url,
+        router_ab_cloudflare::ROUTER_WALLET_TRANSFER_PATH_V1,
+        &router_ab_cloudflare::RouterWalletTransferRequestV1::Activate {
+            receipt: receipt.clone(),
+        },
+        &[(
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+            TEST_GATEWAY_TO_ROUTER_AUTH,
+        )],
+    )?;
+    assert_ne!(premature_activation, 200);
     let mut imported_segments = 0;
     let mut last_import = None;
     for record_index in 0..receipt.record_count {
@@ -561,7 +573,7 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
         destination_generation: 3,
     };
     let return_preparation = router_ab_cloudflare::RouterWalletTransferRequestV1::Prepare {
-        request: return_move,
+        request: return_move.clone(),
         chunk_bytes: 1024,
     };
     let return_receipt = transfer_wallet(&stack.router_url, return_preparation.clone())?;
@@ -583,6 +595,148 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
         3,
         "relocation has closed admission",
     )?;
+
+    let activation_command = router_ab_cloudflare::RouterWalletTransferRequestV1::Activate {
+        receipt: receipt.clone(),
+    };
+    assert_eq!(
+        post_json_to_path_with_headers(
+            &destination.router_url,
+            router_ab_cloudflare::ROUTER_WALLET_TRANSFER_PATH_V1,
+            &activation_command,
+            &[],
+        )?
+        .0,
+        401
+    );
+    let mut conflicting_receipt = receipt.clone();
+    conflicting_receipt.records_digest_hex = "0".repeat(64);
+    let (activation_conflict, _) = post_json_to_path_with_headers(
+        &destination.router_url,
+        router_ab_cloudflare::ROUTER_WALLET_TRANSFER_PATH_V1,
+        &router_ab_cloudflare::RouterWalletTransferRequestV1::Activate {
+            receipt: conflicting_receipt,
+        },
+        &[(
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+            TEST_GATEWAY_TO_ROUTER_AUTH,
+        )],
+    )?;
+    assert_ne!(activation_conflict, 200);
+    let activation = activate_router_wallet(&destination.router_url, &receipt)?;
+    destination.restart_router()?;
+    assert_eq!(
+        activate_router_wallet(&destination.router_url, &receipt)?,
+        activation
+    );
+    assert_router_consumption_replay(
+        &destination.router_url,
+        &registration,
+        2,
+        &historical_consumed,
+    )?;
+    let mut changed_activation = activation.clone();
+    assert_eq!(
+        post_json_to_path_with_headers(
+            &stack.router_url,
+            router_ab_cloudflare::ROUTER_WALLET_TRANSFER_PATH_V1,
+            &router_ab_cloudflare::RouterWalletTransferRequestV1::Cleanup {
+                activation: activation.clone()
+            },
+            &[],
+        )?
+        .0,
+        401
+    );
+    changed_activation.destination_object.push('x');
+    let (cleanup_conflict, _) = post_json_to_path_with_headers(
+        &stack.router_url,
+        router_ab_cloudflare::ROUTER_WALLET_TRANSFER_PATH_V1,
+        &router_ab_cloudflare::RouterWalletTransferRequestV1::Cleanup {
+            activation: changed_activation,
+        },
+        &[(
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+            TEST_GATEWAY_TO_ROUTER_AUTH,
+        )],
+    )?;
+    assert_ne!(cleanup_conflict, 200);
+    assert_eq!(
+        registration_rows(&stack.router_db, &freeze.owner, 1)?,
+        imported_rows
+    );
+    assert_router_consumption_replay(
+        &destination.router_url,
+        &registration,
+        2,
+        &historical_consumed,
+    )?;
+    cleanup_router_wallet(&mut stack, &activation)?;
+    assert!(registration_rows(&stack.router_db, &freeze.owner, 1)?.is_empty());
+    assert_ne!(stack.register(&registration)?.0, 200);
+    assert_eq!(freeze_wallet(&stack.router_url, &freeze)?, sealed);
+
+    let returned_source = freeze_wallet(&destination.router_url, &return_move)?;
+    let router_ab_cloudflare::RouterWalletFreezeResponseV1::Frozen {
+        receipt: return_snapshot,
+    } = serde_json::from_value(returned_source.clone())?
+    else {
+        return Err("return source did not freeze".into());
+    };
+    // Replaying the first activation must not remove the next move's source fence.
+    assert_eq!(
+        activate_router_wallet(&destination.router_url, &receipt)?,
+        activation
+    );
+    assert_eq!(
+        freeze_wallet(&destination.router_url, &return_move)?,
+        returned_source
+    );
+    for record_index in 0..return_snapshot.record_count {
+        let first =
+            export_wallet_chunk(&destination.router_url, &return_snapshot, record_index, 0)?;
+        for segment_index in 0..first.segment_count {
+            let chunk = export_wallet_chunk(
+                &destination.router_url,
+                &return_snapshot,
+                record_index,
+                segment_index,
+            )?;
+            transfer_wallet(
+                &stack.router_url,
+                router_ab_cloudflare::RouterWalletTransferRequestV1::Import { chunk },
+            )?;
+        }
+    }
+    transfer_wallet(
+        &stack.router_url,
+        router_ab_cloudflare::RouterWalletTransferRequestV1::Verify {
+            receipt: return_snapshot.clone(),
+        },
+    )?;
+    let returned_activation = activate_router_wallet(&stack.router_url, &return_snapshot)?;
+    assert_router_consumption_replay(&stack.router_url, &registration, 3, &historical_consumed)?;
+
+    assert!(cleanup_router_wallet(&mut destination, &returned_activation)? > 1);
+    assert!(registration_rows(&destination.router_db, &freeze.owner, 2)?.is_empty());
+    assert_eq!(
+        activate_router_wallet(&destination.router_url, &receipt)?,
+        activation
+    );
+    assert_ne!(destination.register(&destination_registration)?.0, 200);
+    assert_router_consumption_replay(&stack.router_url, &registration, 3, &historical_consumed)?;
+
+    println!(
+        "ROUTER_WALLET_ACTIVATION_E2E {}",
+        json!({
+            "activation_requires_verification": true,
+            "activation_replays_after_restart": true,
+            "cleanup_failure_preserves_active_destination": true,
+            "return_preserves_consumption_result": true,
+            "cleanup_resumes_bounded_batches_after_restart": true,
+            "old_activation_retry_never_reopens_retired_source": true,
+        })
+    );
 
     println!(
         "R150_VM_ROUTER_WALLET_OBJECT_E2E {}",
@@ -634,6 +788,75 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
         })
     );
     Ok(())
+}
+
+fn activate_router_wallet(
+    router_url: &str,
+    receipt: &router_ab_cloudflare::RouterWalletFreezeReceiptV1,
+) -> Result<router_ab_cloudflare::RouterWalletActivationReceiptV1, Box<dyn std::error::Error>> {
+    match transfer_wallet(
+        router_url,
+        router_ab_cloudflare::RouterWalletTransferRequestV1::Activate {
+            receipt: receipt.clone(),
+        },
+    )? {
+        router_ab_cloudflare::RouterWalletTransferResponseV1::Activated { activation } => {
+            Ok(activation)
+        }
+        _ => Err("Router returned an unexpected activation response".into()),
+    }
+}
+
+fn assert_router_consumption_replay(
+    router_url: &str,
+    registration: &CloudflareRouterEd25519YaoExecuteRequestV2,
+    generation: u64,
+    expected: &serde_json::Value,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let request = serde_json::to_value(registration)?;
+    let binding = &request["target"]["binding"];
+    let (status, body) = post_json_to_path_with_headers(
+        router_url,
+        router_ab_cloudflare::CLOUDFLARE_ROUTER_ED25519_YAO_REGISTRATION_CONSUME_PRIVATE_REQUEST_PATH,
+        &json!({
+            "tenant_root": request["tenant_root"],
+            "ownership_generation": generation,
+            "wallet_id": binding["lifecycle"]["account_id"],
+            "lifecycle_id": binding["lifecycle"]["lifecycle_id"],
+            "session_id": binding["session_id"],
+            "consumer_binding": "finalize-1",
+        }),
+        &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_GATEWAY_TO_ROUTER_AUTH)],
+    )?;
+    assert_eq!(status, 200, "{body}");
+    assert_eq!(serde_json::from_str::<serde_json::Value>(&body)?, *expected);
+    Ok(())
+}
+
+fn cleanup_router_wallet(
+    source: &mut RecoveryStackV1,
+    activation: &router_ab_cloudflare::RouterWalletActivationReceiptV1,
+) -> Result<usize, Box<dyn std::error::Error>> {
+    let command = router_ab_cloudflare::RouterWalletTransferRequestV1::Cleanup {
+        activation: activation.clone(),
+    };
+    for call in 1..=10 {
+        let response = transfer_wallet(&source.router_url, command.clone())?;
+        source.restart_router()?;
+        match response {
+            router_ab_cloudflare::RouterWalletTransferResponseV1::Cleaning {
+                activation: receipt,
+            } => {
+                assert_eq!(&receipt, activation);
+            }
+            router_ab_cloudflare::RouterWalletTransferResponseV1::Cleaned { .. } => {
+                assert_eq!(transfer_wallet(&source.router_url, command)?, response);
+                return Ok(call);
+            }
+            _ => return Err("Router returned an unexpected cleanup response".into()),
+        }
+    }
+    Err("Router cleanup exceeded the fixture's bounded inventory".into())
 }
 
 fn transfer_wallet(

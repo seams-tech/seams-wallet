@@ -65,6 +65,12 @@ pub(crate) enum Fence {
         receipt: RouterWalletFreezeReceiptV1,
         chunk_bytes: u32,
     },
+    Cleaning {
+        activation: crate::RouterWalletActivationReceiptV1,
+    },
+    Cleaned {
+        activation: crate::RouterWalletActivationReceiptV1,
+    },
 }
 
 /// Older fixed-home stores predate this metadata and belong to generation one.
@@ -86,9 +92,13 @@ pub(crate) async fn admit_ordinary_command<Store: RouterWalletStoreV1>(
     store: &Store,
 ) -> RouterAbProtocolResult<()> {
     match store.get_json::<Fence>(FENCE_KEY).await? {
-        Some(Fence::Prepared { .. } | Fence::Importing { .. } | Fence::Verified { .. }) => {
-            Err(paused())
-        }
+        Some(
+            Fence::Prepared { .. }
+            | Fence::Importing { .. }
+            | Fence::Verified { .. }
+            | Fence::Cleaning { .. }
+            | Fence::Cleaned { .. },
+        ) => Err(paused()),
         _ => Ok(()),
     }
 }
@@ -114,6 +124,8 @@ pub(crate) async fn admit_settlement<Store: RouterWalletStoreV1>(
                 | Fence::Prepared { .. }
                 | Fence::Importing { .. }
                 | Fence::Verified { .. }
+                | Fence::Cleaning { .. }
+                | Fence::Cleaned { .. }
         )
     ) {
         return Err(paused());
@@ -143,6 +155,14 @@ pub async fn freeze_router_wallet_v1<Store: RouterWalletStoreV1>(
         }
     }
     match store.get_json::<Fence>(FENCE_KEY).await? {
+        Some(Fence::Cleaning { activation } | Fence::Cleaned { activation }) => {
+            if activation.source.request != request {
+                return Err(conflict("Router wallet freeze inputs changed"));
+            }
+            return Ok(RouterWalletFreezeResponseV1::Frozen {
+                receipt: activation.source,
+            });
+        }
         Some(Fence::Frozen { receipt }) => {
             if receipt.request != request {
                 return Err(conflict("Router wallet freeze inputs changed"));
