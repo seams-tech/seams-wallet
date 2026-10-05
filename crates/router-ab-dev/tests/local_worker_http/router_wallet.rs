@@ -41,7 +41,7 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
         wrong_body.contains("ownership generation does not match"),
         "{wrong_body}"
     );
-    assert!(registration_rows(&stack.router_db, &owner)?.is_empty());
+    assert!(registration_rows(&stack.router_db, &owner, 1)?.is_empty());
     let export_generation_status = reject_export_probe(
         &stack.router_url,
         &registration,
@@ -78,7 +78,7 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
         recovery_generation_body.contains("ownership generation does not match"),
         "{recovery_generation_body}"
     );
-    assert!(registration_rows(&stack.router_db, &owner)?.is_empty());
+    assert!(registration_rows(&stack.router_db, &owner, 1)?.is_empty());
     let freeze = router_ab_cloudflare::RouterWalletFreezeRequestV1 {
         owner,
         move_id: format!("wmove_{}", "a".repeat(43)),
@@ -377,7 +377,7 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
             let acknowledgement = transfer_wallet(&destination.router_url, command.clone())?;
             imported_segments += 1;
             if imported_segments == 1 {
-                assert!(registration_rows(&destination.router_db, &freeze.owner)?.is_empty());
+                assert!(registration_rows(&destination.router_db, &freeze.owner, 2)?.is_empty());
                 destination.restart_router()?;
                 assert_eq!(
                     transfer_wallet(&destination.router_url, command.clone())?,
@@ -403,10 +403,10 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
             last_import = Some((command, acknowledgement));
         }
     }
-    let imported_rows = registration_rows(&destination.router_db, &freeze.owner)?;
+    let imported_rows = registration_rows(&destination.router_db, &freeze.owner, 2)?;
     assert_eq!(
         imported_rows,
-        registration_rows(&stack.router_db, &freeze.owner)?,
+        registration_rows(&stack.router_db, &freeze.owner, 1)?,
         "historical request and result bytes survive transfer exactly"
     );
     let verified = transfer_wallet(
@@ -451,7 +451,7 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
         "{inactive_body}"
     );
     assert_eq!(
-        registration_rows(&destination.router_db, &freeze.owner)?,
+        registration_rows(&destination.router_db, &freeze.owner, 2)?,
         imported_rows
     );
     let mut conflict = freeze.clone();
@@ -541,10 +541,10 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
     assert_ne!(empty_source_status, 200);
     assert_ne!(empty_destination_status, 200);
     assert_eq!(a_pairs(&stack.a_store)?, pairs_before_empty_retry);
-    assert!(registration_rows(&stack.router_db, &empty_move.owner)?.is_empty());
-    assert!(registration_rows(&destination.router_db, &empty_move.owner)?.is_empty());
+    assert!(registration_rows(&stack.router_db, &empty_move.owner, 1)?.is_empty());
+    assert!(registration_rows(&destination.router_db, &empty_move.owner, 2)?.is_empty());
     assert_eq!(
-        registration_rows(&destination.router_db, &freeze.owner)?,
+        registration_rows(&destination.router_db, &freeze.owner, 2)?,
         imported_rows
     );
     let (unrelated_retry_status, unrelated_retry) = stack.register(&unrelated)?;
@@ -552,6 +552,38 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
     assert_eq!(unrelated_retry, unrelated_answer);
     drop(signing_worker);
     verify_pool_freeze_transport(&stack, &destination)?;
+    // Returning to the original region prepares a fresh object beside its frozen source.
+    let return_move = router_ab_cloudflare::RouterWalletFreezeRequestV1 {
+        owner: freeze.owner.clone(),
+        move_id: format!("wmove_{}", "r".repeat(43)),
+        request_digest_hex: "c".repeat(64),
+        source_generation: 2,
+        destination_generation: 3,
+    };
+    let return_preparation = router_ab_cloudflare::RouterWalletTransferRequestV1::Prepare {
+        request: return_move,
+        chunk_bytes: 1024,
+    };
+    let return_receipt = transfer_wallet(&stack.router_url, return_preparation.clone())?;
+    stack.restart_router()?;
+    assert_eq!(
+        transfer_wallet(&stack.router_url, return_preparation)?,
+        return_receipt,
+        "return preparation replays in its generation-specific object"
+    );
+    assert_eq!(freeze_wallet(&stack.router_url, &freeze)?, sealed);
+    assert_eq!(
+        registration_rows(&stack.router_db, &freeze.owner, 1)?,
+        imported_rows
+    );
+    assert!(registration_rows(&stack.router_db, &freeze.owner, 3)?.is_empty());
+    reject_export_probe(
+        &stack.router_url,
+        &registration,
+        3,
+        "relocation has closed admission",
+    )?;
+
     println!(
         "R150_VM_ROUTER_WALLET_OBJECT_E2E {}",
         json!({
@@ -595,6 +627,9 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
                 "empty_inventory_verified_without_chunks": true,
                 "empty_inventory_fences_survive_restart": true,
                 "empty_inventory_preserves_other_wallets": true,
+                "return_preparation_preserves_frozen_source": true,
+                "return_preparation_replays_after_restart": true,
+                "return_destination_stays_inactive": true,
             },
         })
     );
@@ -642,7 +677,7 @@ fn restore_fixed_home_record_format(
     database: &Connection,
     owner: &router_ab_cloudflare::RouterWalletOwnerV1,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let records = registration_rows(database, owner)?;
+    let records = registration_rows(database, owner, 1)?;
     assert_eq!(records.len(), 1);
     for (key, encoded) in records {
         let mut record: serde_json::Value = serde_json::from_str(&encoded)?;
@@ -666,7 +701,7 @@ fn restore_fixed_home_record_format(
             serde_json::from_value(record)?;
         assert_eq!(database.execute(
             "UPDATE local_router_wallet_objects SET value_json = ?1 WHERE object_name = ?2 AND storage_key = ?3",
-            rusqlite::params![serde_json::to_string(&stored)?, owner.object_name()?, key],
+            rusqlite::params![serde_json::to_string(&stored)?, owner.object_name(1)?, key],
         )?, 1);
     }
     Ok(())
@@ -675,13 +710,14 @@ fn restore_fixed_home_record_format(
 fn registration_rows(
     database: &Connection,
     owner: &router_ab_cloudflare::RouterWalletOwnerV1,
+    ownership_generation: u64,
 ) -> Result<Vec<(String, String)>, Box<dyn std::error::Error>> {
     let mut query = database.prepare(
         "SELECT storage_key, value_json FROM local_router_wallet_objects
         WHERE object_name = ?1 AND storage_key LIKE 'yao-registration/%' ORDER BY storage_key",
     )?;
     let records = query
-        .query_map([owner.object_name()?], |row| Ok((row.get(0)?, row.get(1)?)))?
+        .query_map([owner.object_name(ownership_generation)?], |row| Ok((row.get(0)?, row.get(1)?)))?
         .collect::<Result<Vec<_>, _>>()?;
     Ok(records)
 }

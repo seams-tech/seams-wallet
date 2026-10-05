@@ -47,6 +47,15 @@ pub enum RouterWalletTransferRequestV1 {
 }
 
 impl RouterWalletTransferRequestV1 {
+    pub fn ownership_generation(&self) -> u64 {
+        match self {
+            Self::Prepare { request, .. } => request.destination_generation,
+            Self::Export { receipt, .. } => receipt.request.source_generation,
+            Self::Import { chunk } => chunk.receipt.request.destination_generation,
+            Self::Verify { receipt } => receipt.request.destination_generation,
+        }
+    }
+
     pub fn owner(&self) -> &RouterWalletOwnerV1 {
         match self {
             Self::Prepare { request, .. } => &request.owner,

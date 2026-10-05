@@ -78,17 +78,22 @@ pub struct RouterWalletOwnerV1 {
 }
 
 impl RouterWalletOwnerV1 {
-    /// The object's name: the same wallet always names the same object, and
-    /// no other wallet can.
-    pub fn object_name(&self) -> RouterAbProtocolResult<String> {
-        let encoded = serde_json::to_vec(self).map_err(|error| {
+    /// Each ownership generation has a separate physical object, including return moves.
+    pub fn object_name(&self, ownership_generation: u64) -> RouterAbProtocolResult<String> {
+        if ownership_generation == 0 || ownership_generation > 9_007_199_254_740_991 {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                "Router wallet ownership generation is invalid",
+            ));
+        }
+        let encoded = serde_json::to_vec(&(self, ownership_generation)).map_err(|error| {
             RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::MalformedWirePayload,
                 format!("Router wallet owner is not encodable: {error}"),
             )
         })?;
         let mut hash = Sha256::new();
-        hash.update(b"seams/router/wallet-do/v1");
+        hash.update(b"seams/router/wallet-do/v2");
         hash.update(encoded);
         Ok(format!("router-wallet-{}", lower_hex(&hash.finalize())))
     }

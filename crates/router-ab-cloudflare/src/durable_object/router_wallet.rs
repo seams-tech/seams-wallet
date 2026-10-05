@@ -134,14 +134,28 @@ pub(crate) async fn call_router_wallet_v1(
     env: &Env,
     request: &RouterWalletRequestV1,
 ) -> RouterAbProtocolResult<RouterWalletResponseV1> {
-    call_wallet(env, &request.owner, COMMAND_PATH, request).await
+    call_wallet(
+        env,
+        &request.owner,
+        request.ownership_generation,
+        COMMAND_PATH,
+        request,
+    )
+    .await
 }
 
 pub(crate) async fn call_router_wallet_freeze_v1(
     env: &Env,
     request: &RouterWalletFreezeRequestV1,
 ) -> RouterAbProtocolResult<RouterWalletFreezeResponseV1> {
-    call_wallet(env, &request.owner, ROUTER_WALLET_FREEZE_PATH_V1, request).await
+    call_wallet(
+        env,
+        &request.owner,
+        request.source_generation,
+        ROUTER_WALLET_FREEZE_PATH_V1,
+        request,
+    )
+    .await
 }
 
 pub(crate) async fn call_router_wallet_transfer_v1(
@@ -151,6 +165,7 @@ pub(crate) async fn call_router_wallet_transfer_v1(
     call_wallet(
         env,
         request.owner(),
+        request.ownership_generation(),
         ROUTER_WALLET_TRANSFER_PATH_V1,
         request,
     )
@@ -160,10 +175,11 @@ pub(crate) async fn call_router_wallet_transfer_v1(
 async fn call_wallet<Input: Serialize, Output: DeserializeOwned>(
     env: &Env,
     owner: &RouterWalletOwnerV1,
+    ownership_generation: u64,
     path: &str,
     request: &Input,
 ) -> RouterAbProtocolResult<Output> {
-    let object_name = owner.object_name()?;
+    let object_name = owner.object_name(ownership_generation)?;
     let stub = env
         .durable_object(BINDING)
         .and_then(|namespace| namespace.get_by_name(&object_name))

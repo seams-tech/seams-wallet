@@ -1580,6 +1580,16 @@ work and automatic reconciliation remain separate requirements.
 
 ### Reconcile Router execution while relocation drains
 
+Router physical objects include the wallet's ownership generation. Ordinary commands
+and source freeze use the admitted source generation. Destination preparation, import,
+and verification use the destination generation. Export reads the frozen source object.
+Returning to a prior region prepares a fresh object without changing its old source
+snapshot. A prepared object stays inactive, including after a Router restart.
+
+The local Router HTTP E2E verifies return preparation beside a frozen source, exact
+preparation replay after restart, and rejection of work at the inactive destination.
+This check does not establish complete return relocation or destination activation.
+
 Each authenticated Router freeze call can reconcile one expired registration claim.
 The Router uses the exact stored request and its existing claim-generation rules.
 A live claim keeps its lease. A resumed old execution cannot replace the result

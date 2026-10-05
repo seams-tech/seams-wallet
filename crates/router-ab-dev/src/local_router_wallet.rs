@@ -25,27 +25,33 @@ pub(crate) fn serve_local_router_wallet_v1(
     storage_path: &Path,
     request: RouterWalletRequestV1,
 ) -> RouterAbProtocolResult<RouterWalletResponseV1> {
-    with_store(storage_path, request.owner.object_name()?, |store| {
-        futures::executor::block_on(router_wallet_serve_v1(store, request))
-    })
+    with_store(
+        storage_path,
+        request.owner.object_name(request.ownership_generation)?,
+        |store| futures::executor::block_on(router_wallet_serve_v1(store, request)),
+    )
 }
 
 pub(crate) fn freeze_local_router_wallet_v1(
     storage_path: &Path,
     request: RouterWalletFreezeRequestV1,
 ) -> RouterAbProtocolResult<RouterWalletFreezeResponseV1> {
-    with_store(storage_path, request.owner.object_name()?, |store| {
-        futures::executor::block_on(freeze_router_wallet_v1(store, request))
-    })
+    with_store(
+        storage_path,
+        request.owner.object_name(request.source_generation)?,
+        |store| futures::executor::block_on(freeze_router_wallet_v1(store, request)),
+    )
 }
 
 pub(crate) fn transfer_local_router_wallet_v1(
     storage_path: &Path,
     request: RouterWalletTransferRequestV1,
 ) -> RouterAbProtocolResult<RouterWalletTransferResponseV1> {
-    with_store(storage_path, request.owner().object_name()?, |store| {
-        futures::executor::block_on(transfer_router_wallet_v1(store, request))
-    })
+    with_store(
+        storage_path,
+        request.owner().object_name(request.ownership_generation())?,
+        |store| futures::executor::block_on(transfer_router_wallet_v1(store, request)),
+    )
 }
 
 fn with_store<T>(
