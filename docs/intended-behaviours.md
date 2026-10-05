@@ -1557,6 +1557,18 @@ complete-manifest verification, and larger-record assembly remain separate work.
 
 ### Settle Gateway ceremonies before session retirement
 
+The authorization destination remains inactive after import verification. Its internal
+activation route requires a live Console command for the cutover phase. That command
+includes the pinned authorization manifest and destination verification receipt.
+Activation atomically stores its exact receipt and opens ordinary authorization
+writes. Repeated commands return the same activation time and digest.
+
+The authorization storage E2E verifies that incomplete imports cannot activate,
+Console denial prevents activation, and handler restart preserves the receipt.
+After activation, a fresh session can be issued through the authorization service.
+Transferred retired credentials remain invalid. This component check does not prove
+fresh factor authentication, other participants' activation, or complete relocation.
+
 The Gateway commits each ceremony's wallet activity index with its lifecycle state.
 Session retirement rejects wallets with unsettled registration, recovery, or export
 work. Gateway registration admission must finish its local claim. The Router separately

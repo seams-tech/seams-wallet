@@ -1,4 +1,6 @@
 import { parseNonNegativeSafeInteger } from '@shared/device-linking/wireFields';
+import { parseUnixMs } from '@shared/passkey-custody/primitives';
+import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
 import { sha256HexUtf8 } from '@shared/utils/digests';
 import { requireCanonicalString, requireRecord } from '@shared/utils/validation';
 import { prepareD1TenantStatement, type D1TenantScope } from '../../../../core/d1TenantStore';
@@ -245,6 +247,80 @@ export class D1WalletAuthorizationIntake {
       [source.walletId],
     ).run();
     return manifest.digestHex;
+  }
+
+  async activate(
+    source: WalletRelocationSessionSource,
+    rawManifest: unknown,
+    commandDigest: string,
+    nowMs: number,
+  ): Promise<{ readonly digestHex: string; readonly activatedAtMs: number }> {
+    const manifest = parseManifest(rawManifest);
+    const manifestJson = JSON.stringify(manifest);
+    parseUnixMs(nowMs, 'authorization activation time');
+    const existing = await this.readActivation(source, manifestJson, commandDigest);
+    if (existing !== null) return { digestHex: manifest.digestHex, activatedAtMs: existing };
+    const identity = [
+      source.walletId,
+      source.moveId,
+      source.requestDigestHex,
+      source.sourceGeneration,
+    ];
+    await this.database.batch([
+      prepareD1TenantStatement(
+        this.database,
+        this.scope,
+        `
+        INSERT INTO wallet_relocation_authorization_activations
+          (namespace, org_id, project_id, env_id, wallet_id, move_id, request_digest_hex,
+           source_generation, command_digest, manifest_json, activated_at_ms)
+        SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11
+        WHERE NOT EXISTS (SELECT 1 FROM wallet_relocation_authorization_activations
+          WHERE ${SCOPE} AND move_id = ?6)
+        ON CONFLICT DO NOTHING`,
+        [...identity, commandDigest, manifestJson, nowMs],
+      ),
+      prepareD1TenantStatement(
+        this.database,
+        this.scope,
+        `
+        UPDATE wallet_relocation_authorization_imports SET state = 'activated'
+        WHERE ${SCOPE} AND move_id = ?6 AND request_digest_hex = ?7 AND source_generation = ?8
+          AND state IN ('closed', 'activated')
+          AND EXISTS (SELECT 1 FROM wallet_relocation_authorization_activations AS receipt
+            WHERE receipt.namespace = ?1 AND receipt.org_id = ?2 AND receipt.project_id = ?3
+              AND receipt.env_id = ?4 AND receipt.wallet_id = ?5 AND receipt.move_id = ?6
+              AND receipt.command_digest = ?9 AND receipt.manifest_json = ?10)`,
+        [...identity, commandDigest, manifestJson],
+      ),
+      this.database.prepare(D1_BATCH_CAS_GUARD_SQL),
+    ]);
+    const activatedAtMs = await this.readActivation(source, manifestJson, commandDigest);
+    if (activatedAtMs === null) throw new Error('Authorization activation receipt disappeared');
+    return { digestHex: manifest.digestHex, activatedAtMs };
+  }
+
+  private async readActivation(
+    source: WalletRelocationSessionSource,
+    manifestJson: string,
+    commandDigest: string,
+  ): Promise<number | null> {
+    const row = await prepareD1TenantStatement(
+      this.database,
+      this.scope,
+      `
+      SELECT * FROM wallet_relocation_authorization_activations
+      WHERE ${SCOPE} AND move_id = ?6`,
+      [source.walletId, source.moveId],
+    ).first<Record<string, unknown>>();
+    if (!row) return null;
+    if (
+      !source.matches(row) ||
+      row.command_digest !== commandDigest ||
+      row.manifest_json !== manifestJson
+    )
+      throw new Error('Authorization activation identity conflicts');
+    return parseUnixMs(row.activated_at_ms, 'stored authorization activation time');
   }
 
   private async read(source: WalletRelocationSessionSource): Promise<IntakeState | null> {

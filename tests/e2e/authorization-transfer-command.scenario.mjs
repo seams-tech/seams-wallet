@@ -28,15 +28,18 @@ class SourceDirectory {
       'https://wallet-placement.internal/internal/wallet-placement/v1/relocation-command',
     );
     assert.ok(
-      body.kind === 'freeze' || body.kind === 'export' || body.kind === 'import_authorization',
+      body.kind === 'freeze' ||
+        body.kind === 'export' ||
+        body.kind === 'import_authorization' ||
+        body.kind === 'activate',
     );
     assert.equal(body.attempt.moveId, this.identity.moveId);
     if (this.mode === 'denied')
       return Response.json({ ok: false, code: 'attempt_conflict' }, { status: 409 });
     let command;
-    if (body.kind === 'import_authorization') {
+    if (body.kind === 'import_authorization' || body.kind === 'activate') {
       assert.equal(this.snapshot.kind, 'captured');
-      command = destinationCommand(this.scope, this.identity, this.snapshot.manifest);
+      command = destinationCommand(this.scope, this.identity, this.snapshot.manifest, body.kind);
     } else {
       command = sourceCommand(this.scope, this.identity, body.kind);
     }
@@ -299,6 +302,10 @@ export async function transferAuthorizationThroughCommands({
     (await receiver.handle(destinationRequest(scope, identity, { kind: 'verify' }))).status,
     503,
   );
+  assert.equal(
+    (await receiver.handle(destinationRequest(scope, identity, { kind: 'activate' }))).status,
+    503,
+  );
   for (let index = 0; index < manifest.chunkCount; index += 1) {
     const response = await handler.handle(exportRequest(scope, identity, index, url));
     assert.equal(response.status, 200, await response.clone().text());
@@ -361,7 +368,46 @@ export async function transferAuthorizationThroughCommands({
   };
 }
 
-function destinationCommand(scope, identity, manifest) {
+export async function activateAuthorizationThroughCommand({
+  api,
+  database,
+  scope,
+  identity,
+  manifest,
+}) {
+  const directory = new SourceDirectory(scope, identity, 'authorized', {
+    kind: 'captured',
+    manifest,
+  });
+  const denied = new api.WalletAuthorizationRelocationRoutes({
+    database,
+    scope,
+    directory: new SourceDirectory(scope, identity, 'denied', { kind: 'captured', manifest }),
+  });
+  assert.equal(
+    (await denied.handle(destinationRequest(scope, identity, { kind: 'activate' }))).status,
+    403,
+  );
+  const handler = new api.WalletAuthorizationRelocationRoutes({ database, scope, directory });
+  const activated = await handler.handle(destinationRequest(scope, identity, { kind: 'activate' }));
+  assert.equal(activated.status, 200, await activated.clone().text());
+  const receipt = await activated.json();
+  assert.equal(receipt.kind, 'authorization_activated');
+  assert.equal(receipt.digestHex, manifest.digestHex);
+  const replay = await new api.WalletAuthorizationRelocationRoutes({
+    database,
+    scope,
+    directory,
+  }).handle(destinationRequest(scope, identity, { kind: 'activate' }));
+  assert.deepEqual(await replay.json(), receipt);
+  return {
+    exactActivationReceiptAfterHandlerRestart: true,
+    directoryDenialPreventsActivation: true,
+    receipt,
+  };
+}
+
+function destinationCommand(scope, identity, manifest, kind) {
   const source = sourceCommand(scope, identity, 'freeze');
   const home = {
     region: 'APAC',
@@ -369,7 +415,7 @@ function destinationCommand(scope, identity, manifest) {
     databaseId: '33333333-3333-4333-8333-333333333333',
   };
   return {
-    id: `${identity.moveId}/gateway/import_authorization`,
+    id: `${identity.moveId}/gateway/${kind}`,
     wallet: source.wallet,
     moveId: identity.moveId,
     requestDigest: identity.requestDigestHex,
@@ -378,11 +424,28 @@ function destinationCommand(scope, identity, manifest) {
     home,
     generation: identity.sourceGeneration + 1,
     operation: {
-      kind: 'import_authorization',
-      receipt: sourceFence(scope, identity),
+      kind,
+      receipt:
+        kind === 'activate'
+          ? destinationVerification(scope, identity, home)
+          : sourceFence(scope, identity),
       physicalResource: `${home.databaseId}/gateway/${identity.sourceGeneration + 1}`,
       manifest,
     },
+  };
+}
+
+function destinationVerification(scope, identity, home) {
+  const source = sourceFence(scope, identity);
+  return {
+    kind: 'destination_verification',
+    wallet: source.wallet,
+    moveId: identity.moveId,
+    home,
+    generation: identity.sourceGeneration + 1,
+    recordedAtMs: source.recordedAtMs,
+    manifestDigest: source.manifestDigest,
+    participants: source.participants,
   };
 }
 
@@ -390,7 +453,7 @@ function destinationRequest(scope, identity, operation) {
   const attempt = {
     wallet: sourceCommand(scope, identity, 'freeze').wallet,
     moveId: identity.moveId,
-    phase: 'copying',
+    phase: operation.kind === 'activate' ? 'cutover' : 'copying',
     id: `wattempt_${'e'.repeat(43)}`,
     revision: 2,
     run: 1,

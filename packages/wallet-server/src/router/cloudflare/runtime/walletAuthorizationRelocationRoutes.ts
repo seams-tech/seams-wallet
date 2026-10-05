@@ -22,7 +22,11 @@ const BASE_PATH = '/internal/wallet-relocation/v1/authorization';
 type AuthorizationOperation =
   | { readonly kind: 'freeze'; readonly index?: never; readonly chunk?: never }
   | { readonly kind: 'export'; readonly index: number; readonly chunk?: never }
-  | { readonly kind: 'prepare' | 'verify'; readonly index?: never; readonly chunk?: never }
+  | {
+      readonly kind: 'prepare' | 'verify' | 'activate';
+      readonly index?: never;
+      readonly chunk?: never;
+    }
   | { readonly kind: 'accept'; readonly chunk: unknown; readonly index?: never };
 const ORIGIN = 'https://wallet-relocation.internal';
 
@@ -32,6 +36,19 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
   readonly kind = 'fetch_route_extension';
   readonly id = 'wallet_authorization_relocation';
   readonly routes: RouterApiRouteExtension['routes'] = [
+    {
+      id: 'wallet_authorization_activate',
+      surface: 'relay',
+      method: 'POST',
+      path: `${BASE_PATH}/activate`,
+      auth: {
+        plane: 'public',
+        rationale:
+          'Console must authorize activation after cutover with the pinned authorization manifest.',
+      },
+      metering: { kind: 'none' },
+      summary: 'Activate the verified authorization destination',
+    },
     {
       id: 'wallet_authorization_freeze',
       surface: 'relay',
@@ -129,10 +146,7 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
     } catch {
       return failure('invalid_input', 400);
     }
-    const commandKind =
-      requested.kind === 'freeze' || requested.kind === 'export'
-        ? requested.kind
-        : 'import_authorization';
+    const commandKind = authorizationCommandKind(requested.kind);
     const walletId = parseWalletId(body.walletId);
     if (!walletId.ok || !isPlainObject(body.attempt)) return failure('invalid_input', 400);
     const wallet = {
@@ -172,7 +186,7 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
         Object.keys(command).length !== 9 ||
         Object.keys(identity).length !== 5 ||
         command.moveId !== body.attempt.moveId ||
-        body.attempt.phase !== (requested.kind === 'freeze' ? 'freezing' : 'copying') ||
+        body.attempt.phase !== authorizationCommandPhase(commandKind) ||
         command.participant !== 'gateway' ||
         operation.kind !== commandKind ||
         Object.keys(operation).length !==
@@ -188,20 +202,21 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
         const receipt = requireRecord(operation.receipt, 'source-fence receipt');
         const receiptWallet = requireRecord(receipt.wallet, 'source-fence wallet');
         if (
-          receipt.kind !== 'source_fence' ||
+          receipt.kind !==
+            (commandKind === 'activate' ? 'destination_verification' : 'source_fence') ||
           receipt.moveId !== command.moveId ||
           typeof receipt.generation !== 'number' ||
           command.generation !==
             receipt.generation + (commandKind === 'import_authorization' ? 1 : 0)
         )
           throw new Error('Source export receipt conflicts');
-        sourceGeneration = receipt.generation;
+        sourceGeneration = receipt.generation - (commandKind === 'activate' ? 1 : 0);
         for (const [key, value] of Object.entries(wallet)) {
           if (receiptWallet[key] !== value)
             throw new Error('Source export receipt scope conflicts');
         }
       }
-      if (commandKind === 'import_authorization') {
+      if (commandKind === 'import_authorization' || commandKind === 'activate') {
         if (
           typeof operation.physicalResource !== 'string' ||
           operation.physicalResource.length === 0
@@ -231,6 +246,25 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
       if (response.digest !== commandDigest) throw new Error('Source command digest conflicts');
     } catch {
       return failure('relocation_command_invalid', 502);
+    }
+    if (requested.kind === 'activate') {
+      try {
+        const activated = await new D1WalletAuthorizationIntake(
+          this.options.database,
+          this.options.scope,
+        ).activate(source, pinnedManifest, commandDigest, Date.now());
+        return Response.json(
+          {
+            kind: 'authorization_activated',
+            commandDigest,
+            digestHex: activated.digestHex,
+            activatedAtMs: activated.activatedAtMs,
+          },
+          { headers: { 'Cache-Control': 'no-store' } },
+        );
+      } catch {
+        return failure('authorization_activation_incomplete', 503);
+      }
     }
     if (
       requested.kind === 'prepare' ||
@@ -359,8 +393,44 @@ function parseAuthorizationOperation(
     case `${BASE_PATH}/verify`:
       if (fields === 2) return { kind: 'verify' };
       break;
+    case `${BASE_PATH}/activate`:
+      if (fields === 2) return { kind: 'activate' };
+      break;
   }
   throw new Error('Authorization transfer operation is invalid');
+}
+
+function authorizationCommandKind(kind: AuthorizationOperation['kind']) {
+  switch (kind) {
+    case 'freeze':
+    case 'export':
+    case 'activate':
+      return kind;
+    case 'prepare':
+    case 'accept':
+    case 'verify':
+      return 'import_authorization';
+    default:
+      return assertNever(kind);
+  }
+}
+
+function authorizationCommandPhase(kind: ReturnType<typeof authorizationCommandKind>) {
+  switch (kind) {
+    case 'freeze':
+      return 'freezing';
+    case 'export':
+    case 'import_authorization':
+      return 'copying';
+    case 'activate':
+      return 'cutover';
+    default:
+      return assertNever(kind);
+  }
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unexpected authorization operation: ${String(value)}`);
 }
 
 function pendingCeremonies(commandDigest: string): Response {
