@@ -37,6 +37,7 @@ impl SigningWorkerWalletSqlV1 for LocalWalletSqlV1<'_> {
         let params = params
             .into_iter()
             .map(|value| match value {
+                SigningWorkerWalletSqlValueV1::Null => rusqlite::types::Value::Null,
                 SigningWorkerWalletSqlValueV1::Text(value) => rusqlite::types::Value::Text(value),
                 SigningWorkerWalletSqlValueV1::Integer(value) => {
                     rusqlite::types::Value::Integer(value)

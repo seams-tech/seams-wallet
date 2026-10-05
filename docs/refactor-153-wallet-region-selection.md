@@ -342,6 +342,22 @@ Record restoration, full destination verification, activation, and coordinator
 command authority remain unfinished. HTTP transfer commands compile but their
 new preparation/import operations still need composed transport coverage.
 
+Wallet ECDSA transfer now verifies and restores a complete staged inventory in
+one host transaction. Verification checks segment identity, completeness, source
+digest, scope, move, and record count. Restore accepts terminal pool records only,
+opens role ciphertext, validates identities, and inserts exact historical rows.
+It preserves SQL NULL values, versions, authorization bytes, and terminal results
+without invoking signing or quota admission. The destination is marked verified
+only after its stored inventory reproduces the source digest. Ordinary admission
+stays closed. Exact verification and known chunk retries remain read-only.
+The production-store E2E verifies incomplete-copy rejection, wrong-key rejection,
+rollback after restoration, exact ciphertext/version preservation, and replay of
+the original terminal operation. Native HTTP scenarios, both WASM builds, and the
+bloat check pass. Evidence remains in `.artifacts/r153/ecdsa-restore-20261005/`.
+Linked-reservation/NULL fixtures and composed transfer transport coverage remain
+unfinished. Activation, cleanup, coordinator authority, and the other participant
+inventories still require implementation.
+
 Retained evidence:
 `.artifacts/r153/execution-journal-20261004/`, receipt SHA-256
 `02184ddd17816901bf2413115c35ca33a43bd90a269fedaeffb7f6990d8af555`.

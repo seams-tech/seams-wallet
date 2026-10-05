@@ -34,6 +34,8 @@ pub enum SigningWorkerWalletSqlValueV1 {
     Text(String),
     /// An INTEGER value.
     Integer(i64),
+    /// A SQL NULL value.
+    Null,
 }
 
 /// Runs one SQLite statement for the wallet store and returns its rows, each

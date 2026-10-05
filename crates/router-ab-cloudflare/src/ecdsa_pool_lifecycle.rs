@@ -1177,3 +1177,16 @@ fn pool_state_error(message: &str) -> RouterAbProtocolError {
 fn pool_replay_error(message: &str) -> RouterAbProtocolError {
     RouterAbProtocolError::new(RouterAbProtocolErrorCode::ReplayedLocalRequest, message)
 }
+
+pub(crate) fn ecdsa_pool_storage_key(
+    scope: &RouterAbEcdsaDerivationNormalSigningScopeV1,
+    server_presignature_id: &str,
+) -> RouterAbProtocolResult<String> {
+    Ok(format!(
+        "signing-worker-ecdsa-pool/{}/{}/{}/{}",
+        scope.wallet_id,
+        scope.material_activation_id()?,
+        scope.signing_worker.server_id,
+        server_presignature_id,
+    ))
+}

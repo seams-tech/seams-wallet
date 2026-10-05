@@ -467,6 +467,7 @@ impl crate::SigningWorkerWalletSqlV1 for DurableObjectWalletSqlV1<'_> {
         let values = params
             .into_iter()
             .map(|value| match value {
+                crate::SigningWorkerWalletSqlValueV1::Null => SqlStorageValue::Null,
                 crate::SigningWorkerWalletSqlValueV1::Text(value) => SqlStorageValue::String(value),
                 crate::SigningWorkerWalletSqlValueV1::Integer(value) => {
                     SqlStorageValue::Integer(value)

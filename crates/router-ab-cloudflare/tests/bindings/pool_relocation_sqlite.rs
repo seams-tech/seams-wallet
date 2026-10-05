@@ -22,6 +22,7 @@ impl SigningWorkerWalletSqlV1 for Sqlite<'_> {
             .map(|name| name.to_string())
             .collect();
         let values = params.into_iter().map(|value| match value {
+            SigningWorkerWalletSqlValueV1::Null => rusqlite::types::Value::Null,
             SigningWorkerWalletSqlValueV1::Text(value) => rusqlite::types::Value::Text(value),
             SigningWorkerWalletSqlValueV1::Integer(value) => rusqlite::types::Value::Integer(value),
         });
@@ -411,7 +412,7 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         frozen_rows,
         "another wallet retains its ordinary pool admission"
     );
-    let exported_segments = verify_snapshot_export(&path, &env, receipt)?;
+    let exported_segments = verify_snapshot_export(&path, &env, receipt, &effect, &response)?;
     let artifact = serde_json::json!({
         "scenario": "encrypted_pool_relocation", "records": 7,
         "available_and_reserved_destroyed": true, "reserved_binding_preserved": true,
@@ -431,6 +432,11 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         "import_exact_retry_after_reopen": true,
         "changed_import_and_out_of_order_segment_rejected": true,
         "staged_destination_remains_inactive": true,
+        "incomplete_verification_and_wrong_key_rejected": true,
+        "restore_rolls_back_before_commit": true,
+        "verified_destination_remains_inactive": true,
+        "exact_ciphertext_versions_and_terminal_result_restored": true,
+        "late_known_chunk_does_not_overwrite_restored_records": true,
         "export_exact_after_reopen": true,
         "export_rejects_changed_receipt_and_bounds": true,
         "export_rejects_changed_source_inventory": true,
@@ -466,6 +472,8 @@ fn verify_snapshot_export(
     path: &std::path::Path,
     env: &CloudflareEnvMapV1,
     receipt: &router_ab_cloudflare::SigningWorkerPoolFreezeReceiptV1,
+    effect: &CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1,
+    response: &RouterAbEcdsaDerivationEvmDigestSigningResponseV1,
 ) -> Result<u32, Box<dyn std::error::Error>> {
     let mut request = router_ab_cloudflare::SigningWorkerEcdsaExportRequestV1 {
         receipt: receipt.clone(),
@@ -527,6 +535,12 @@ fn verify_snapshot_export(
     )?;
     assert_eq!(stored_chunks, 0);
 
+    let verify = router_ab_cloudflare::SigningWorkerEcdsaTransferRequestV1::Verify {
+        receipt: receipt.clone(),
+    };
+    assert!(with_store(&destination, env, |store| store
+        .transfer_ecdsa_snapshot(verify.clone()))
+    .is_err());
     let mut bytes = Vec::new();
     for segment_index in 0..first.segment_count {
         request.segment_index = segment_index;
@@ -631,6 +645,67 @@ fn verify_snapshot_export(
         })?,
         prepared
     );
+    let (wrong_private, wrong_public) = hpke_keypair(0x79);
+    let wrong_env = env.clone().with_overrides(vec![
+        ("SIGNING_WORKER_PRIVATE_D1_KEK_PUBLIC_KEY", wrong_public),
+        (
+            "SIGNING_WORKER_PRIVATE_D1_KEK",
+            encode_cloudflare_server_output_hpke_private_key_secret_v1(&wrong_private)?,
+        ),
+    ]);
+    assert!(with_store(&destination, &wrong_env, |store| store
+        .transfer_ecdsa_snapshot(verify.clone()))
+    .is_err());
+    assert!(rows(&destination).is_empty());
+    let interrupted = with_store(&destination, env, |store| {
+        store.transfer_ecdsa_snapshot(verify.clone())?;
+        Err::<(), _>(sql_error(
+            "simulated interruption after restore before commit",
+        ))
+    });
+    assert!(interrupted.is_err());
+    assert!(rows(&destination).is_empty());
+    let verified = with_store(&destination, env, |store| {
+        store.transfer_ecdsa_snapshot(verify.clone())
+    })?;
+    assert_eq!(
+        with_store(&destination, env, |store| store
+            .transfer_ecdsa_snapshot(verify.clone()))?,
+        verified
+    );
+    let expected_rows: Vec<(String, String, i64)> = snapshot["pools"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|row| {
+            (
+                row["pool_key"].as_str().unwrap().to_owned(),
+                row["ciphertext_json"].as_str().unwrap().to_owned(),
+                row["version"].as_i64().unwrap(),
+            )
+        })
+        .collect();
+    assert_eq!(rows(&destination), expected_rows);
+    assert!(with_store(&destination, env, |store| store
+        .require_mutation_admission(&receipt.scope))
+    .is_err());
+    let replay = with_store(&destination, env, |store| {
+        store.claim_and_consume_effect(receipt.scope.clone(), effect.clone(), 2_000)
+    })?;
+    let router_ab_cloudflare::CloudflareSigningWorkerEcdsaClaimAndConsumeV1::Replay {
+        terminal_json,
+    } = replay
+    else {
+        panic!("restored operation must replay its original result");
+    };
+    assert_eq!(terminal_json, serde_json::to_string(response)?);
+    let late = router_ab_cloudflare::SigningWorkerEcdsaTransferRequestV1::Import {
+        chunk: first.clone(),
+    };
+    assert!(with_store(&destination, env, |store| store
+        .transfer_ecdsa_snapshot(late.clone()))
+    .is_ok());
+    assert_eq!(rows(&destination), expected_rows);
     std::fs::remove_file(destination)?;
     Ok(first.segment_count)
 }

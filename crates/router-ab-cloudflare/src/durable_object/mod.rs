@@ -1378,18 +1378,9 @@ impl CloudflareSigningWorkerPrivateD1RequestV1 {
                 lookup.server_round1_handle
             ),
             Self::Round1CleanupExpired { .. } => "signing-worker-round1/".to_owned(),
-            Self::EcdsaPoolMutate { command } => {
-                let scope = command.scope();
-                format!(
-                    "signing-worker-ecdsa-pool/{}/{}/{}/{}",
-                    scope.wallet_id,
-                    scope
-                        .material_activation_id()
-                        .expect("validated ECDSA pool command has material activation id"),
-                    scope.signing_worker.server_id,
-                    command.server_presignature_id()
-                )
-            }
+            Self::EcdsaPoolMutate { command } => crate::ecdsa_pool_lifecycle::ecdsa_pool_storage_key(
+                command.scope(), command.server_presignature_id(),
+            ).expect("validated ECDSA pool command has material activation id"),
         }
     }
 
