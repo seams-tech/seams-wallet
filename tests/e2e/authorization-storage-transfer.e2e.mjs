@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, generateKeyPairSync, sign } from 'node:crypto';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -35,12 +35,14 @@ const bundle = await build({
     resolveDir: process.cwd(),
     loader: 'ts',
     contents: `
+      export { CloudflareD1WebAuthnStore } from './packages/wallet-server/src/router/cloudflare/d1/webauthn/d1WebAuthnStore';
+      export { verifyWalletRelocationPasskey } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationPasskey';
       export { AuthorizationService } from './packages/wallet-server/src/authorization/service';
       export { D1WalletRelocationChallenges, WalletRelocationChallengeBinding } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationChallenges';
       export { capabilityPolicyPort } from './packages/wallet-server/src/authorization/capabilityPolicy';
       export { parseSessionOrigin } from './packages/wallet-server/src/authorization/domain';
       export { CloudflareD1AuthorizationStore } from './packages/wallet-server/src/router/cloudflare/d1/authorization/d1AuthorizationStore';
-      export { prepareD1WalletAuthorityPutStatement } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorityStore';
+      export { D1WalletAuthorityStore, prepareD1WalletAuthorityPutStatement } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorityStore';
       export { prepareD1WalletAuthMethodV2PutStatement } from './packages/wallet-server/src/core/d1WalletAuthMethodStore';
       export { buildLinkedDeviceManagementAuthorityFixture } from './tests/unit/helpers/linkedDeviceManagement.fixtures';
       export { buildFullOwnerPermissionsV1 } from './packages/shared-ts/src/authorization/delegatedAuthority';
@@ -270,6 +272,7 @@ try {
     offlineBefore,
   );
 
+  const relocationPasskey = await verifyRelocationPasskey(source);
   const artifact = {
     kind: 'wallet_authorization_storage_transfer_evidence_v1',
     recordedAt: new Date().toISOString(),
@@ -284,6 +287,7 @@ try {
     authorizationId: issued.session.authorizationId,
     observations: {
       relocationChallenges,
+      relocationPasskey,
       existingPrimaryCredentialAcceptedAtIndependentDatabase: true,
       secondDeviceCredentialAndAuthorityPreservedWithoutReissuance: true,
       directConsumedExchangeImportRejected: true,
@@ -427,5 +431,264 @@ async function verifyRelocationChallenges(database, fixture, session, nowMs) {
     failedBatchPreservesUnspentChallenge: true,
     exactConsumptionRequiredAndSingleUse: true,
     consumedChallengeNeverReissued: true,
+  };
+}
+
+async function verifyRelocationPasskey(database) {
+  const keys = generateKeyPairSync('ed25519');
+  const publicKey = Buffer.from(keys.publicKey.export({ format: 'jwk' }).x, 'base64url');
+  // COSE OKP key: kty=1, alg=-8, crv=6, x=32-byte Ed25519 public key.
+  const cose = Buffer.concat([Buffer.from('a4010103272006215820', 'hex'), publicKey]);
+  const nowMs = Date.now();
+  const fixture = await api.buildLinkedDeviceManagementAuthorityFixture({
+    label: 'relocation-passkey',
+    permissions: api.buildFullOwnerPermissionsV1(),
+    provenance: 'wallet_registration',
+    credentialPublicKeyB64u: cose.toString('base64url'),
+    identity: {
+      walletId: 'wallet:relocation-passkey',
+      authorityId: 'authority:relocation-passkey',
+      walletAuthMethodId: 'auth-method:relocation-passkey',
+      rpId: 'wallet.example.test',
+    },
+  });
+  await database.batch([
+    api.prepareD1WalletAuthorityPutStatement({ database, scope, authority: fixture.authority }),
+    api.prepareD1WalletAuthMethodV2PutStatement({ database, scope, record: fixture.authMethod }),
+  ]);
+  const authenticators = new api.CloudflareD1WebAuthnStore({ database, ...scope });
+  await authenticators.writeAuthenticator({
+    userId: fixture.authority.walletId,
+    record: {
+      credentialIdB64u: fixture.authMethod.credentialIdB64u,
+      credentialPublicKeyB64u: fixture.authMethod.credentialPublicKeyB64u,
+      counter: 0,
+      createdAtMs: nowMs,
+      updatedAtMs: nowMs,
+      deviceInfo: {
+        label: 'Test authenticator',
+        browser: 'other',
+        os: 'other',
+        synced: false,
+        transports: [],
+      },
+    },
+  });
+  const binding = api.WalletRelocationChallengeBinding.parse({
+    walletId: fixture.authority.walletId,
+    moveId: `wmove_${Buffer.alloc(32, 96).toString('base64url')}`,
+    requestDigestHex: 'cd'.repeat(32),
+    sourceGeneration: 1,
+    destinationRegion: 'APAC',
+    authorityId: fixture.authority.authorityId,
+    walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
+    credentialDigestHex: 'ef'.repeat(32),
+    credentialExpiresAtMs: nowMs + 60_000,
+    origin: 'https://wallet.example.test',
+  });
+  const store = new api.D1WalletRelocationChallenges(database, scope);
+  const challenge = await store.issue(binding, nowMs, nowMs + 60_000);
+  const input = { database, scope, binding, nowMs: nowMs + 1 };
+  const credential = relocationAssertion(
+    keys.privateKey,
+    fixture.authMethod,
+    challenge.challengeB64u,
+    binding.origin,
+    5,
+  );
+  assert.equal(
+    (
+      await api.verifyWalletRelocationPasskey({
+        ...input,
+        credential: relocationAssertion(
+          keys.privateKey,
+          fixture.authMethod,
+          challenge.challengeB64u,
+          binding.origin,
+          1,
+        ),
+      })
+    ).kind,
+    'denied',
+  );
+  assert.equal(
+    (
+      await api.verifyWalletRelocationPasskey({
+        ...input,
+        credential: relocationAssertion(
+          keys.privateKey,
+          fixture.authMethod,
+          'different-purpose',
+          binding.origin,
+          5,
+        ),
+      })
+    ).kind,
+    'denied',
+  );
+  assert.equal(
+    (
+      await api.verifyWalletRelocationPasskey({
+        ...input,
+        credential: relocationAssertion(
+          keys.privateKey,
+          fixture.authMethod,
+          challenge.challengeB64u,
+          'https://other.example.test',
+          5,
+        ),
+      })
+    ).kind,
+    'denied',
+  );
+  assert.equal(
+    (
+      await api.verifyWalletRelocationPasskey({
+        ...input,
+        credential,
+        nowMs: challenge.expiresAtMs,
+      })
+    ).kind,
+    'denied',
+  );
+  const verified = await api.verifyWalletRelocationPasskey({ ...input, credential });
+  assert.equal(verified.kind, 'verified');
+  assert.equal((await store.read(binding)).state, 'issued');
+  await assert.rejects(
+    database.batch([
+      ...verified.commitPrerequisites,
+      database.prepare('INSERT INTO router_ab_yao_versioned_json_cas_guard (guard_id) VALUES (1)'),
+    ]),
+  );
+  assert.equal((await store.read(binding)).state, 'issued');
+  await database.batch(verified.commitPrerequisites);
+  assert.equal(
+    (
+      await authenticators.readAuthenticator({
+        userId: binding.walletId,
+        credentialIdB64u: fixture.authMethod.credentialIdB64u,
+      })
+    ).counter,
+    1,
+  );
+  assert.equal((await store.read(binding)).state, 'consumed');
+  assert.equal((await api.verifyWalletRelocationPasskey({ ...input, credential })).kind, 'denied');
+  const secondBinding = api.WalletRelocationChallengeBinding.parse({
+    walletId: binding.walletId,
+    moveId: `wmove_${Buffer.alloc(32, 97).toString('base64url')}`,
+    requestDigestHex: binding.requestDigestHex,
+    sourceGeneration: binding.sourceGeneration,
+    destinationRegion: binding.destinationRegion,
+    authorityId: binding.authorityId,
+    walletAuthMethodId: binding.walletAuthMethodId,
+    credentialDigestHex: binding.credentialDigestHex,
+    credentialExpiresAtMs: binding.credentialExpiresAtMs,
+    origin: binding.origin,
+  });
+  const second = await store.issue(secondBinding, nowMs, nowMs + 60_000);
+  const secondInput = {
+    database,
+    scope,
+    binding: secondBinding,
+    nowMs: nowMs + 2,
+    credential: relocationAssertion(
+      keys.privateKey,
+      fixture.authMethod,
+      second.challengeB64u,
+      binding.origin,
+      5,
+      2,
+    ),
+  };
+  const beforeCounterChange = await api.verifyWalletRelocationPasskey(secondInput);
+  assert.equal(beforeCounterChange.kind, 'verified');
+  await authenticators.updateAuthenticatorCounter({
+    userId: binding.walletId,
+    credentialIdB64u: fixture.authMethod.credentialIdB64u,
+    newCounter: 2,
+    updatedAtMs: nowMs + 2,
+  });
+  await assert.rejects(database.batch(beforeCounterChange.commitPrerequisites));
+  assert.equal((await store.read(secondBinding)).state, 'issued');
+  assert.equal((await api.verifyWalletRelocationPasskey(secondInput)).kind, 'denied');
+  const freshInput = {
+    ...secondInput,
+    credential: relocationAssertion(
+      keys.privateKey,
+      fixture.authMethod,
+      second.challengeB64u,
+      binding.origin,
+      5,
+      3,
+    ),
+  };
+  const beforeRevocation = await api.verifyWalletRelocationPasskey(freshInput);
+  assert.equal(beforeRevocation.kind, 'verified');
+  const backup = await api.buildLinkedDeviceManagementAuthorityFixture({
+    label: 'relocation-backup',
+    permissions: api.buildFullOwnerPermissionsV1(),
+    provenance: 'device_link',
+    sourceAuthorityId: fixture.authority.authorityId,
+    identity: {
+      walletId: binding.walletId,
+      authorityId: 'authority:relocation-backup',
+      walletAuthMethodId: 'auth-method:relocation-backup',
+      credentialIdB64u: Buffer.alloc(32, 98).toString('base64url'),
+      rpId: 'wallet.example.test',
+    },
+  });
+  await database.batch([
+    api.prepareD1WalletAuthorityPutStatement({ database, scope, authority: backup.authority }),
+    api.prepareD1WalletAuthMethodV2PutStatement({ database, scope, record: backup.authMethod }),
+  ]);
+  const revoked = await new api.D1WalletAuthorityStore({ database, scope }).revokeWalletAuthMethod({
+    walletId: binding.walletId,
+    authorityId: binding.authorityId,
+    walletAuthMethodId: binding.walletAuthMethodId,
+    expectedAuthorityRevocationEpoch: fixture.authority.revocationEpoch,
+    requestedAtMs: nowMs + 3,
+  });
+  assert.equal(revoked.kind, 'revoked_method');
+  await assert.rejects(database.batch(beforeRevocation.commitPrerequisites));
+  assert.equal((await store.read(secondBinding)).state, 'issued');
+  assert.equal((await api.verifyWalletRelocationPasskey(freshInput)).kind, 'denied');
+  return {
+    scope:
+      'Real passkey verification and transactional guards only; excludes approval persistence and HTTP admission',
+    signedAssertionVerified: true,
+    userVerificationRequired: true,
+    wrongPurposeOriginAndExpiryRejected: true,
+    verificationDoesNotConsumeChallenge: true,
+    authenticatorCounterCommitsWithChallenge: true,
+    competingCounterChangeRejectsStaleCommit: true,
+    failedApprovalBatchPreservesChallenge: true,
+    revocationAfterVerificationRejectsCommit: true,
+    committedChallengeCannotReplayAsFreshProof: true,
+  };
+}
+
+function relocationAssertion(privateKey, method, challenge, origin, flags, counter = 1) {
+  const clientData = Buffer.from(JSON.stringify({ type: 'webauthn.get', challenge, origin }));
+  const authenticatorFlags = Buffer.alloc(5);
+  authenticatorFlags[0] = flags;
+  authenticatorFlags.writeUInt32BE(counter, 1);
+  const authenticatorData = Buffer.concat([
+    createHash('sha256').update(method.rpId).digest(),
+    authenticatorFlags,
+  ]);
+  const signed = Buffer.concat([
+    authenticatorData,
+    createHash('sha256').update(clientData).digest(),
+  ]);
+  return {
+    id: method.credentialIdB64u,
+    rawId: method.credentialIdB64u,
+    type: 'public-key',
+    response: {
+      clientDataJSON: clientData.toString('base64url'),
+      authenticatorData: authenticatorData.toString('base64url'),
+      signature: sign(null, signed, privateKey).toString('base64url'),
+      userHandle: null,
+    },
   };
 }

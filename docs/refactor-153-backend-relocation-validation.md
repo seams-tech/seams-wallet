@@ -132,6 +132,30 @@ Console only after the source batch commits. Existing owner-management
 request authentication returns an active signing-session context; it cannot
 represent progress access after relocation retires that session.
 
+### Source challenge and passkey verification
+
+The source now persists a relocation-specific nonce and its immutable binding.
+Concurrent issuance returns the same challenge. Its lifetime cannot exceed five
+minutes, the factor expiry, or the initiating credential expiry. Challenge
+consumption joins the caller's transaction and rolls back if that transaction fails.
+
+The passkey verifier checks the stored nonce, origin, relying party, active method,
+and full-owner authority. It requires WebAuthn user verification and reads the
+current authenticator counter. It returns transaction statements that guard the
+method and authority, update the exact prior counter, and consume the challenge.
+Verification alone grants no move authority and changes no stored state.
+
+The existing authorization-storage E2E uses signed Ed25519 WebAuthn assertions
+against the production verifier and D1 stores. It rejects missing user verification,
+wrong challenge/origin, expiry, and a consumed challenge. It proves rollback and
+rejects commits after concurrent counter advancement or production method revocation.
+Evidence is retained under `.artifacts/r153/relocation-passkey-20261005/`.
+
+Approval persistence, Email OTP verification, initiating-session authentication,
+move-only reads, HTTP admission, and challenge/approval transfer remain unfinished.
+The coordinator must commit all returned prerequisites with the durable approval
+before it can admit the move. This component scenario does not prove that integration.
+
 ## Cloudflare capabilities
 
 | Question | Established behavior | Consequence for relocation |
