@@ -108,3 +108,37 @@ const failedWithGeneration: RouterAbEd25519YaoRegistrationAuthorizationResult = 
   message: 'Denied',
 };
 void [missingAuthorizedGeneration, failedWithGeneration];
+
+import type { RouterAbEd25519YaoRecoveryAuthorizationResult } from '../../packages/wallet-server/src/router/domains/ed25519Yao/recovery/routerAbEd25519YaoRecovery';
+declare const authorizedRecovery: Extract<
+  RouterAbEd25519YaoRecoveryAuthorizationResult,
+  { ok: true }
+>;
+// @ts-expect-error Recovery credentials alone do not grant execution at a wallet home.
+const recoveryWithoutHome: RouterAbEd25519YaoRecoveryAuthorizationResult = {
+  ok: true,
+  authorization: authorizedRecovery.authorization,
+};
+// @ts-expect-error A rejected recovery cannot retain ownership authority through a spread.
+const rejectedRecoveryWithHome: RouterAbEd25519YaoRecoveryAuthorizationResult = {
+  ...authorizedRecovery,
+  ok: false,
+  status: 409,
+  code: 'wallet_paused',
+  message: 'Paused',
+};
+void [recoveryWithoutHome, rejectedRecoveryWithHome];
+
+import type { RouterAbEd25519YaoRecoveryAuthorizationInput } from '../../packages/wallet-server/src/router/domains/ed25519Yao/recovery/routerAbEd25519YaoRecovery';
+type RecoveryExecutionAuthorization = Extract<
+  RouterAbEd25519YaoRecoveryAuthorizationInput,
+  { kind: 'execute' }
+>;
+declare const recoveryExecutionWithoutGeneration: Omit<
+  RecoveryExecutionAuthorization,
+  'ownershipGeneration'
+>;
+// @ts-expect-error Recovery execution requires the generation loaded from its admitted state.
+const unpinnedRecoveryExecution: RecoveryExecutionAuthorization =
+  recoveryExecutionWithoutGeneration;
+void unpinnedRecoveryExecution;

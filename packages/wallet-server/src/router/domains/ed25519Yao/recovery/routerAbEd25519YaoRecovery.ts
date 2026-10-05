@@ -149,7 +149,9 @@ type RouterAbEd25519YaoRecoveryAuthorityProjectionV1 =
   | { readonly kind: 'replace_continuity_authority_projections' }
   | { readonly kind: 'replace_active_authority_projection' };
 
-type RouterAbEd25519YaoRecoveryAuthorizationBindingV1 =
+type RouterAbEd25519YaoRecoveryAuthorizationBindingV1 = {
+  readonly ownershipGeneration: number;
+} & (
   | {
       readonly kind: 'wallet_recovery';
       readonly walletId: string;
@@ -165,7 +167,8 @@ type RouterAbEd25519YaoRecoveryAuthorizationBindingV1 =
       readonly authorizationId: RouterApiWalletSessionAuthorizationV2AdmissionContext['authorization']['session']['authorizationId'];
       readonly walletSessionId: RouterApiWalletSessionAuthorizationV2AdmissionContext['authorization']['session']['walletSessionId'];
       readonly quotaId: RouterApiWalletSessionAuthorizationV2AdmissionContext['authorization']['session']['quotaId'];
-    };
+    }
+);
 
 export interface RouterAbEd25519YaoRecoveryBackend {
   admitRecovery(
@@ -202,6 +205,9 @@ export interface RouterAbEd25519YaoRecoveryBackend {
 }
 
 export interface RouterAbEd25519YaoRecoveryService {
+  recoveryOwnershipGeneration(
+    binding: RecoveryExecuteRequest['binding'],
+  ): RouterAbEd25519YaoRecoveryServiceResult<number>;
   admitRecovery(
     request: RouterAbEd25519YaoRecoveryAdmissionRequestV1,
     authorization: RouterAbEd25519YaoRecoveryAuthorizationBindingV1,
@@ -264,6 +270,7 @@ interface RouterAbEd25519YaoRecoveryAdmissionBoundaryV1 {
 
 export type RouterAbEd25519YaoRecoveryExecuteClaimV1 = {
   readonly kind: 'router_ab_ed25519_yao_recovery_execute_claim_v1';
+  readonly ownershipGeneration: number;
   readonly lifecycleId: string;
   readonly recoveryKey: string;
   readonly sessionId: string;
@@ -403,11 +410,13 @@ export type RouterAbEd25519YaoRecoveryAuthorizationInput =
     }
   | {
       readonly kind: 'execute';
+      readonly ownershipGeneration: number;
       readonly request: Request;
       readonly body: RecoveryExecuteRequest;
     }
   | {
       readonly kind: 'activate';
+      readonly ownershipGeneration: number;
       readonly request: Request;
       readonly body: RouterAbEd25519YaoRecoveryActivationRequestV1;
     };
@@ -415,6 +424,7 @@ export type RouterAbEd25519YaoRecoveryAuthorizationInput =
 export type RouterAbEd25519YaoRecoveryAuthorizationResult =
   | {
       readonly ok: true;
+      readonly ownershipGeneration: number;
       readonly authorization:
         | {
             readonly kind: 'wallet_session_v2';
@@ -431,24 +441,30 @@ export type RouterAbEd25519YaoRecoveryAuthorizationResult =
     }
   | {
       readonly ok: false;
+      readonly ownershipGeneration?: never;
       readonly status: 401 | 403 | 409 | 429 | 503;
       readonly code: string;
       readonly message: string;
     };
 
 export function recoveryAuthorizationBinding(
-  authorization: Extract<
-    RouterAbEd25519YaoRecoveryAuthorizationResult,
-    { readonly ok: true }
-  >['authorization'],
+  admitted: Extract<RouterAbEd25519YaoRecoveryAuthorizationResult, { readonly ok: true }>,
 ): RouterAbEd25519YaoRecoveryAuthorizationBindingV1 {
-  if (authorization.kind === 'wallet_recovery') return authorization;
+  const authorization = admitted.authorization;
+  if (authorization.kind === 'wallet_recovery') {
+    return {
+      kind: 'wallet_recovery',
+      walletId: authorization.walletId,
+      ownershipGeneration: admitted.ownershipGeneration,
+    };
+  }
   const session =
     authorization.kind === 'wallet_session_v2'
       ? authorization.context.authorization.session
       : authorization.context.status.session;
   return {
     kind: 'wallet_session_v2',
+    ownershipGeneration: admitted.ownershipGeneration,
     tenantId: session.tenantId,
     principalId: session.principalId,
     walletId: session.walletId,
@@ -918,7 +934,8 @@ function sameRecoveryAuthorizationBindingV1(
   left: RouterAbEd25519YaoRecoveryAuthorizationBindingV1,
   right: RouterAbEd25519YaoRecoveryAuthorizationBindingV1,
 ): boolean {
-  if (left.kind !== right.kind) return false;
+  if (left.kind !== right.kind || left.ownershipGeneration !== right.ownershipGeneration)
+    return false;
   switch (left.kind) {
     case 'wallet_recovery':
       return right.kind === 'wallet_recovery' && left.walletId === right.walletId;
@@ -2349,6 +2366,20 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
     }
   }
 
+  recoveryOwnershipGeneration(
+    binding: RecoveryExecuteRequest['binding'],
+  ): RouterAbEd25519YaoRecoveryServiceResult<number> {
+    const state = this.stateForSession(binding.session_id);
+    if (!state) {
+      return recoveryFailure({
+        status: 404,
+        code: 'unknown_recovery',
+        message: 'Recovery admission was not found',
+      });
+    }
+    return { ok: true, status: 200, value: state.context.authorization.ownershipGeneration };
+  }
+
   prepareExecuteRecovery(
     request: RecoveryExecuteRequest,
     authorization: RouterAbEd25519YaoRecoveryAuthorizationBindingV1,
@@ -2415,6 +2446,7 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
         kind: 'claimed',
         claim: {
           kind: 'router_ab_ed25519_yao_recovery_execute_claim_v1',
+          ownershipGeneration: claimed.context.authorization.ownershipGeneration,
           lifecycleId: executionRequest.binding.lifecycle.lifecycle_id,
           recoveryKey: claimed.context.recoveryKey,
           sessionId,
@@ -3187,7 +3219,7 @@ class RouterAbEd25519YaoRecoveryRouteExtension implements RouterApiRouteExtensio
     if (!authorization.ok) return routeFailureResponse(authorization);
     const result = await this.service.admitRecovery(
       parsed.value,
-      recoveryAuthorizationBinding(authorization.authorization),
+      recoveryAuthorizationBinding(authorization),
       traceContext.value,
     );
     if (!result.ok) return routeFailureResponse(result);
@@ -3206,15 +3238,18 @@ class RouterAbEd25519YaoRecoveryRouteExtension implements RouterApiRouteExtensio
     if (!parsed.ok) {
       return json({ ok: false, code: parsed.code, message: parsed.message }, { status: 400 });
     }
+    const ownership = this.service.recoveryOwnershipGeneration(parsed.value.binding);
+    if (!ownership.ok) return routeFailureResponse(ownership);
     const authorization = await this.authorization.authorize({
       kind: 'execute',
+      ownershipGeneration: ownership.value,
       request,
       body: parsed.value,
     });
     if (!authorization.ok) return routeFailureResponse(authorization);
     const result = await this.service.executeRecovery(
       parsed.value,
-      recoveryAuthorizationBinding(authorization.authorization),
+      recoveryAuthorizationBinding(authorization),
       traceContext.value,
     );
     if (!result.ok) return routeFailureResponse(result);
@@ -3233,15 +3268,18 @@ class RouterAbEd25519YaoRecoveryRouteExtension implements RouterApiRouteExtensio
     if (!parsed.ok) {
       return json({ ok: false, code: parsed.code, message: parsed.message }, { status: 400 });
     }
+    const ownership = this.service.recoveryOwnershipGeneration(parsed.value.binding);
+    if (!ownership.ok) return routeFailureResponse(ownership);
     const authorization = await this.authorization.authorize({
       kind: 'activate',
+      ownershipGeneration: ownership.value,
       request,
       body: parsed.value,
     });
     if (!authorization.ok) return routeFailureResponse(authorization);
     const result = await this.service.activateRecovery(
       parsed.value,
-      recoveryAuthorizationBinding(authorization.authorization),
+      recoveryAuthorizationBinding(authorization),
       traceContext.value,
     );
     if (!result.ok) return routeFailureResponse(result);

@@ -595,7 +595,10 @@ async function resolveStagingRecoveryAuthorizationServices(
   context: StagingServiceLoader,
 ): Promise<StagingRecoveryAuthorizationServices> {
   const { service } = await loadStagingRouterApiAuthComposition(context);
+  const authority = context.dependencies.registrationAuthority;
+  if (!authority) throw new Error('Recovery requires wallet home authority');
   return {
+    admitEstablishedHome: authority.admitEstablishedHome.bind(authority),
     authorizationSessions: service.authorizationSessions,
     preparedRecoveryAdmission: service.passkeyCustody,
     resolveEd25519MaterialActivation:
