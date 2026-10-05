@@ -17,6 +17,28 @@ maximum or p95 guarantee.
 This is the baseline for the next refill optimizations, focused on two or three
 consecutive signatures. See the [measurement boundaries and tracked evidence](refactor-152-results.md#full-mpc-signing-baseline-october-6-2026).
 
+## Refill scheduling follow-up (October 6)
+
+Public `dev` checkpoint **`4ccc5650`** preserves the baseline table above.
+The later scheduling implementation is **`f6753543`**. Its first hosted cohort
+measured **2.268s** consecutive median across nine signatures, versus **2.955s**
+in the fresh control. Six ready-material signatures measured **1.538s** median.
+These preliminary measurements remain separate from the established baseline.
+
+- [x] Start reusable-session refill before prepare and replenish after each
+  reservation. Continue bounded refill while signing uses ready material.
+- [x] Verify that two spare entries can become available during a pending prepare,
+  then verify three signatures. Retain foreground recovery priority.
+- [x] Verify concurrency, budget enforcement, fresh status failure and successful
+  retry. Preserve the existing five-entry target and infrastructure.
+- [x] Collect Cloudflare CPU and wall timings for slow refill diagnosis. The
+  earlier 3.502s step did not recur. Its exact cause remains unresolved.
+- [x] Evaluate combining status with prepare. Retain the status call until prepare
+  can supply the authorization projection required for client reconciliation.
+
+No server-side outlier reduction or status-call saving is claimed. See the
+[results, limitations, and repeatable evidence](refactor-152-results.md#refill-scheduling-checkpoint-october-6-2026).
+
 ## Latest consecutive-signing result (October 6)
 
 **Consecutive signing measured 3.411s median across eighteen verified signatures.**

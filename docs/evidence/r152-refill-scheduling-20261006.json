@@ -1,0 +1,1067 @@
+{
+  "kind": "r152_refill_overlap_evidence_v1",
+  "scope": "Native NRT browser, APAC wallet, existing staging services. Full SDK call includes automated approval and assembly; excludes chain broadcast and confirmation.",
+  "cohorts": {
+    "control": {
+      "source": "control/mpc-signing-back_to_back.json",
+      "sourceSha256": "d82b884be0e512fa3c35a2e7fd2732249cf7717bdb39c7c4f1c9f3b77423b98b",
+      "sdk": {
+        "count": 9,
+        "medianMs": 2955.2450000047684,
+        "minMs": 2237.800000011921,
+        "maxMs": 4349.75
+      },
+      "refillWaitAffected": {
+        "count": 9,
+        "medianMs": 1425.0999999642372,
+        "minMs": 371.80000001192093,
+        "maxMs": 2844.400000035763
+      },
+      "concurrentVerified": true,
+      "observations": [
+        {
+          "batch": 0,
+          "index": 0,
+          "verified": true,
+          "sdkMs": 3766.8299999833107,
+          "refillWaitMs": 1932.199999988079,
+          "waited": true
+        },
+        {
+          "batch": 0,
+          "index": 1,
+          "verified": true,
+          "sdkMs": 3038.9150000214577,
+          "refillWaitMs": 1608.5,
+          "waited": true
+        },
+        {
+          "batch": 0,
+          "index": 2,
+          "verified": true,
+          "sdkMs": 2672.8700000047684,
+          "refillWaitMs": 809,
+          "waited": true
+        },
+        {
+          "batch": 1,
+          "index": 0,
+          "verified": true,
+          "sdkMs": 2768.400000035763,
+          "refillWaitMs": 1341.199999988079,
+          "waited": true
+        },
+        {
+          "batch": 1,
+          "index": 1,
+          "verified": true,
+          "sdkMs": 4349.75,
+          "refillWaitMs": 2844.400000035763,
+          "waited": true
+        },
+        {
+          "batch": 1,
+          "index": 2,
+          "verified": true,
+          "sdkMs": 2237.800000011921,
+          "refillWaitMs": 371.80000001192093,
+          "waited": true
+        },
+        {
+          "batch": 2,
+          "index": 0,
+          "verified": true,
+          "sdkMs": 2955.2450000047684,
+          "refillWaitMs": 1425.0999999642372,
+          "waited": true
+        },
+        {
+          "batch": 2,
+          "index": 1,
+          "verified": true,
+          "sdkMs": 3371.139999985695,
+          "refillWaitMs": 1986.8999999761581,
+          "waited": true
+        },
+        {
+          "batch": 2,
+          "index": 2,
+          "verified": true,
+          "sdkMs": 2848.2699999809265,
+          "refillWaitMs": 1329.5999999642372,
+          "waited": true
+        }
+      ]
+    },
+    "rebuiltControl": {
+      "source": "candidate-2/mpc-signing-back_to_back.json",
+      "sourceSha256": "b4e07e18d3cd4c388e9f84b55725a34ecd94e70b14b7a0270a681b28ccbc81c9",
+      "sdk": {
+        "count": 9,
+        "medianMs": 3401.1299999952316,
+        "minMs": 2181.275000035763,
+        "maxMs": 3802.875
+      },
+      "refillWaitAffected": {
+        "count": 8,
+        "medianMs": 1720.699999988079,
+        "minMs": 614.5999999642372,
+        "maxMs": 2243.899999976158
+      },
+      "concurrentVerified": true,
+      "observations": [
+        {
+          "batch": 0,
+          "index": 0,
+          "verified": true,
+          "sdkMs": 2181.275000035763,
+          "refillWaitMs": 0,
+          "waited": false
+        },
+        {
+          "batch": 0,
+          "index": 1,
+          "verified": true,
+          "sdkMs": 3739.9549999833107,
+          "refillWaitMs": 1570.5999999642372,
+          "waited": true
+        },
+        {
+          "batch": 0,
+          "index": 2,
+          "verified": true,
+          "sdkMs": 3189.6699999570847,
+          "refillWaitMs": 1046,
+          "waited": true
+        },
+        {
+          "batch": 1,
+          "index": 0,
+          "verified": true,
+          "sdkMs": 3401.1299999952316,
+          "refillWaitMs": 1886.6000000238419,
+          "waited": true
+        },
+        {
+          "batch": 1,
+          "index": 1,
+          "verified": true,
+          "sdkMs": 3802.875,
+          "refillWaitMs": 2243.899999976158,
+          "waited": true
+        },
+        {
+          "batch": 1,
+          "index": 2,
+          "verified": true,
+          "sdkMs": 2560.0049999952316,
+          "refillWaitMs": 614.5999999642372,
+          "waited": true
+        },
+        {
+          "batch": 2,
+          "index": 0,
+          "verified": true,
+          "sdkMs": 3775.2300000190735,
+          "refillWaitMs": 1870.800000011921,
+          "waited": true
+        },
+        {
+          "batch": 2,
+          "index": 1,
+          "verified": true,
+          "sdkMs": 3699.6400000452995,
+          "refillWaitMs": 2147.300000011921,
+          "waited": true
+        },
+        {
+          "batch": 2,
+          "index": 2,
+          "verified": true,
+          "sdkMs": 2276.835000038147,
+          "refillWaitMs": 732,
+          "waited": true
+        }
+      ]
+    },
+    "candidateConsecutive": {
+      "source": "candidate-3/mpc-signing-back_to_back.json",
+      "sourceSha256": "aaa7f8b2a9f87a7b9335773982d39ee560dc73e7dda6d7ef06145eda339770b5",
+      "sdk": {
+        "count": 9,
+        "medianMs": 2267.514999985695,
+        "minMs": 1788.3450000286102,
+        "maxMs": 4052.300000011921
+      },
+      "refillWaitAffected": {
+        "count": 8,
+        "medianMs": 812.0999999940395,
+        "minMs": 262.30000001192093,
+        "maxMs": 2173.300000011921
+      },
+      "concurrentVerified": true,
+      "observations": [
+        {
+          "batch": 0,
+          "index": 0,
+          "verified": true,
+          "sdkMs": 2033.464999973774,
+          "refillWaitMs": 0,
+          "waited": false
+        },
+        {
+          "batch": 0,
+          "index": 1,
+          "verified": true,
+          "sdkMs": 3924.7699999809265,
+          "refillWaitMs": 1558.699999988079,
+          "waited": true
+        },
+        {
+          "batch": 0,
+          "index": 2,
+          "verified": true,
+          "sdkMs": 2832.8349999785423,
+          "refillWaitMs": 900.8999999761581,
+          "waited": true
+        },
+        {
+          "batch": 1,
+          "index": 0,
+          "verified": true,
+          "sdkMs": 4052.300000011921,
+          "refillWaitMs": 2173.300000011921,
+          "waited": true
+        },
+        {
+          "batch": 1,
+          "index": 1,
+          "verified": true,
+          "sdkMs": 2267.514999985695,
+          "refillWaitMs": 723.3000000119209,
+          "waited": true
+        },
+        {
+          "batch": 1,
+          "index": 2,
+          "verified": true,
+          "sdkMs": 2182.7049999833107,
+          "refillWaitMs": 641.1999999880791,
+          "waited": true
+        },
+        {
+          "batch": 2,
+          "index": 0,
+          "verified": true,
+          "sdkMs": 3671.3299999833107,
+          "refillWaitMs": 2093.399999976158,
+          "waited": true
+        },
+        {
+          "batch": 2,
+          "index": 1,
+          "verified": true,
+          "sdkMs": 2103.235000014305,
+          "refillWaitMs": 559.0999999642372,
+          "waited": true
+        },
+        {
+          "batch": 2,
+          "index": 2,
+          "verified": true,
+          "sdkMs": 1788.3450000286102,
+          "refillWaitMs": 262.30000001192093,
+          "waited": true
+        }
+      ]
+    },
+    "candidateReady": {
+      "source": "candidate-3/mpc-signing-prefilled.json",
+      "sourceSha256": "e53e47f113d33313372256b702681476f00c291b3eee80e3c94e4e252a64a4f3",
+      "sdk": {
+        "count": 6,
+        "medianMs": 1537.699999988079,
+        "minMs": 1382.0149999856949,
+        "maxMs": 1683.5849999785423
+      },
+      "refillWaitAffected": {
+        "count": 0
+      },
+      "concurrentVerified": true,
+      "observations": [
+        {
+          "batch": 0,
+          "index": 0,
+          "verified": true,
+          "sdkMs": 1683.5849999785423,
+          "refillWaitMs": 0,
+          "waited": false
+        },
+        {
+          "batch": 0,
+          "index": 1,
+          "verified": true,
+          "sdkMs": 1495.3149999976158,
+          "refillWaitMs": 0,
+          "waited": false
+        },
+        {
+          "batch": 1,
+          "index": 0,
+          "verified": true,
+          "sdkMs": 1682.9150000214577,
+          "refillWaitMs": 0,
+          "waited": false
+        },
+        {
+          "batch": 1,
+          "index": 1,
+          "verified": true,
+          "sdkMs": 1547.614999949932,
+          "refillWaitMs": 0,
+          "waited": false
+        },
+        {
+          "batch": 2,
+          "index": 0,
+          "verified": true,
+          "sdkMs": 1382.0149999856949,
+          "refillWaitMs": 0,
+          "waited": false
+        },
+        {
+          "batch": 2,
+          "index": 1,
+          "verified": true,
+          "sdkMs": 1527.785000026226,
+          "refillWaitMs": 0,
+          "waited": false
+        }
+      ]
+    }
+  },
+  "overlap": {
+    "scope": "Hold the first prepare until background refill supplies at least two available entries; then verify three signatures with the hosted backend.",
+    "verifiedSignatures": 3,
+    "completedWhilePreparePending": {
+      "receivedAtMs": 23120.068,
+      "outcome": "available",
+      "code": null,
+      "depth": 2,
+      "targetDepth": 5
+    },
+    "refills": [
+      {
+        "receivedAtMs": 10677.148417,
+        "outcome": "available",
+        "code": null,
+        "depth": 1,
+        "targetDepth": 1
+      },
+      {
+        "receivedAtMs": 19766.156833,
+        "outcome": "available",
+        "code": null,
+        "depth": 1,
+        "targetDepth": 5
+      },
+      {
+        "receivedAtMs": 23120.068,
+        "outcome": "available",
+        "code": null,
+        "depth": 2,
+        "targetDepth": 5
+      },
+      {
+        "receivedAtMs": 26554.159667,
+        "outcome": "available",
+        "code": null,
+        "depth": 2,
+        "targetDepth": 5
+      }
+    ]
+  },
+  "source": {
+    "baseline": "mpc-finalize-20261005/source",
+    "patchSha256": "2943619216125d25718a3a1f5e1e7e22d400646275ba45c1428303985f3f17ab",
+    "files": {
+      "packages/wallet/src/core/signingEngine/routerAb/ecdsaDerivation/presignaturePool.ts": "849ad2b756ea155576eaeaff241f9c22045d4347c8174e5451699241a3473a43",
+      "packages/wallet/src/core/signingEngine/flows/signEvmFamily/signers/secp256k1.ts": "6d2120c6b180946aaf44f6fd158be425275bd1bf10a717c7f8a51c5a05238abb"
+    }
+  },
+  "assetsSha256": {
+    "assets/ConfirmationDrawer-Dg15VH_U.js": "6a06037026de23a58a08d1b72f883f918300f5b30258956704ea974e9443e05e",
+    "assets/EvmClient-BN-NglRi.js": "2405f92b00ebe7307831b95fdb03e9b49505b3451b4fc0fa9b55a50b1174f5db",
+    "assets/NearClient-CalfU3r8.js": "9ea1b2d33981e5828eb37e05c0e6b3c3d881c5f746edc565123b7e8111b7db0a",
+    "assets/accountIds-C1FzW2wa.js": "cb5e963e113ea91541ce686fe7956b14eb726870a10303ab9cbde025b9535397",
+    "assets/actions-BnlB_pB9.js": "8d8c7dfe6629dcf616550794ffd8892d627815c8dee76ed2be5972d6cbbb0d2a",
+    "assets/adapters-BT0xhnYH.js": "ef023fe084abd2af34c224140943d272317becd44c55cd8131f6f2e01cde8a6e",
+    "assets/appearance-token-vars-BoTuiMUI.js": "1199c179340f8dfec18264ae618a7d1e2953fe4ada54d5419f8420e9fc0b4979",
+    "assets/base64-BzEvR-JL.js": "c1cfb5e8b866ec4ef1dcec8f51d3f73f735474b9a2e4ef7549192d1181779728",
+    "assets/browser-BPrV4wVX.js": "d8a2d57432de9c72686468e545456a34994acba42440d471e3cbd73131effeb0",
+    "assets/canonicalPrimitives-CiJhztO3.js": "f18302ca4a335f327f518936f652f3988ca9153d8d041211e94e9e59ebd198f4",
+    "assets/clientSessionPersistenceState-ChdFb84z.js": "24a89dc87d35fd4b2b1b4bb1025aadb0148d2e9dba7ecb82e0b1a11880cb9de5",
+    "assets/defaultConfigs-CUXGybvz.js": "efc979dfec24f5fb599525e93bf0395b6fef099bcabf7d238dd6af82d0558810",
+    "assets/digests-DDuZSU5P.js": "237f52e18455f1378daa8f318c224df873d80a5f848e3cb3316ed696b6553769",
+    "assets/ecdsaChainTarget-ef3MEcCd.js": "6b1ebc56b4ff08cd1e89400a3599e9608d1a5164b5bf97c70cf23005c41f4aa7",
+    "assets/ecdsaDerivationRoleLocalBootstrap-anSN3k-X.js": "bf0cea26b84b33e2ea501765ec8d5ce90dcce7bddb266acc3d3173a0ca6e1c94",
+    "assets/ecdsaPresignLifecycle-Df6pWafH.js": "12eae35b58c71dd95d3ac2693fa46a6525636b75b20daf0986b901e07d9a3e01",
+    "assets/ecdsaWalletRecords-BT9FQcNg.js": "562725f7a594482686078f699014304e70c7032e572e227ff0976e0e8b7cae8d",
+    "assets/enrichDisplayModelWithAbi-C43FnduV.js": "eafb027c6caaea9c3027f92ff4a55dfb9487d72b2400fd58a5376aa5120d0443",
+    "assets/errors-06rYsb3H.js": "e7c90df71d0f9306e4dddfae12b6a953df00778075efcc0edb1c4bf7ab2738c3",
+    "assets/evmCryptoWasm-BSmiMZ8l.js": "28ae936c5f31dcccdd819a949f6552fcbed3282bc18eeaa189ec039ab2252728",
+    "assets/evmTx-CgbbLOBL.js": "322b69e027603186a0d6aafaaeb36b2ded0948677fbe0853dfc2c5e45adcff4f",
+    "assets/exactSigningLaneIdentity-QFHnF1jm.js": "56ac70e62a62cf2a61e8416ddcffa9b5bd270ff93025827690e3370413ad0009",
+    "assets/executeWorkerOperation-DzK51QnM.js": "824b42447d4beb8cdcfd78a3c239e206015e69434ebdfc8c4f9b6dd80a61dd6c",
+    "assets/helpers-D7YQ8Cdm.js": "4ce5a568937bf486ad3cabbe2b0c41d813e6a2d38905636f8a46daaa30e91b41",
+    "assets/index-B0DR1U-4.css": "80042f655d482133b44606f7a164b70e4d700491b7ffc6ff641799291c58a0c4",
+    "assets/index-DWn8ctdv.js": "ad31a699fbc673674ee74f7fad29e4af0e7491504d3448bcac54b51408108ce1",
+    "assets/intentDigest-CY_x1KTO.js": "14bb5ac558d4e6d80d6550d4c73983e51b3008788fac87f375a5c8d8ae6b6098",
+    "assets/jsonRpc-BR0XC670.js": "2fa3bdd602ed0021a3852fd54382229f6f487b1d1da3a6698ff97ee143b4a210",
+    "assets/jsxRuntime.module-DaERE3uN.js": "041fd2e870d64abc6ba0e4d471481ead91d7201bce63ab51a858eff7013c3212",
+    "assets/keyMaterialBrands-BFO583HZ.js": "99eeaf0685bbe57967163460c4a1845786ba6beafc1b43049f394ca7bae4f72f",
+    "assets/lanes-RxOypq0V.js": "06bccaad69859cda3b419b31c7a651825278b51f569e53ec17a8d27424dcf25f",
+    "assets/localOnly-eIUlagRe.js": "bd379be9846ad75f64328247d36f96c1f2048bd883e43a0ea2fbdacaeb4bcf9b",
+    "assets/mountExportPrivateKeySurface-BZBYbpqj.js": "2a01967be60574a1e59ebfd9557a6b54f2fb2ebd778b01f14f27d77943207ce0",
+    "assets/mountRecoveryCodeBackupSurface-B24R_lAy.js": "7d1d67c4a442b7d359bec9cc9dda097309f845ff104ff9efa7ae2a37b4354823",
+    "assets/nearNonceLaneIdentity-DrJ66DNZ.js": "bc5ff739b2f9cabe25e5e0d02af453760197cc2894fd4fd9a2d2dc177e954f36",
+    "assets/nonceLaneKeys-Cb2_r4HX.js": "3cd95e681c41b2b22e7aab50254fa75f46eec9fbd61c6499757cad5fd5fb9648",
+    "assets/normalization-LxjcILt_.js": "e89246fb4504fd1f0c541af95d44ed347958dc55e305a7d573a85ed9055be8d5",
+    "assets/preload-helper-DRORFeOR.js": "0c88c6aaef07b19239a2eac9faef82584f9e733114f85dc190e98dcea60b1753",
+    "assets/profileAccountProjection-D7qc5OPq.js": "65b35b532213a9b3c0a39aab51bd6d86212975aac5fc025818c116448e7e6fd9",
+    "assets/promptText-DGhyfMQS.js": "a78cc096123ac07ecd1f3d3ea0a02bc7ea220310839f872099a78430008ca4b6",
+    "assets/registrationAccounts-BCp36DbP.js": "a89e55751a6c5039cf0a14eb7452558ff1ac712a000b6398c0ae926c2022b878",
+    "assets/registrationSignerPlan-31nRjqcl.js": "b1980f6e0e2bafbaa1bd4e256d949f3e28f41dbbddbfe898520e2aa6c3e3cf51",
+    "assets/requireStepUpAuth-CFAx3bjH.js": "c2e2cf783cc7f4f0d992d367e5257cfe8a15411f08eb00a4ae58a183238a3e7c",
+    "assets/routePlan-CGmA966r.js": "19c56376fdc77e736fef63a57b3396f857bd0f5b85aca27144e56d63cc86bb7c",
+    "assets/router-Df2MdgzH.js": "3fd23488f566692178428f30e20603738d52a88383ddcb0da1f10cb599ba98ed",
+    "assets/routerAbEcdsaDerivation-CxvuG4oZ.js": "2d534acf487691a1dbaa8464ab62c96a9d038c3422652ed0510ea140af9b73af",
+    "assets/routerAbNormalSigning-QJL2ZUT_.js": "16db6270cff7548c8c7ea97cc9125fa8a8bbcec6aa964b6c6947b884e93cae6c",
+    "assets/router_ab_ed25519_yao_client_bg-COlhPjve.wasm": "325c7f3e5f6f4eb0bfea02aa169b6f8a170520fbe6fade4a59f13bf70be94b48",
+    "assets/sdkSentEvents-CFBkx0Eh.js": "f36e5a7c23829232e9cc818b7cc2df392e7756cc9061e4239905cc9529c2b51c",
+    "assets/secp256k1-BUmnE5xU.js": "45dd58c5a9853f3ad444caf2072428c52ac3aab680d8cb0a3f018c02b1b5aff8",
+    "assets/secp256k1-vds-rHap.js": "ed4ee2ef9dad123f13ddbaa34dd65655a1121fb6046794e15aa5be353ece89fa",
+    "assets/secureRandomId-BEk0uVU4.js": "b9f1bba8632b974a80689c6d32785f8292284c2ea2515dbc06aeb2adbc9a0e98",
+    "assets/signEvmFamilyWithUiConfirmForTempo-D2VSCNwG.js": "2b1b0be4389fcf4d4ff7b3a3434707b5f7c4a5a5202d1bff99f204c764a85fd1",
+    "assets/signEvmWithUiConfirm-tlFkdoMF.js": "0122b7feba95a70b1ed4b7af830b6799eb1cec82c144d99ab0a8c8dd8b2fe4ee",
+    "assets/signatureUses-Cnv2tBfY.js": "5c27b0ac5fb5f3d031229fc64e065d5c074ec1af01c8c184e9fa14cd7a0f7522",
+    "assets/signerSlot-DqQYRjZ1.js": "3f2b2d6243a1b38eacc9a8471d1d483d977c672d81f01f22b852f90d83de9661",
+    "assets/signingSessionSeal-CxvxoKTV.js": "deb553a52aeb370e3a018878ffddcb14ef9a7a2ca1d93faf9d10ad6ee39f5e8d",
+    "assets/trace-BvDxjjqA.js": "10eed3933b8976d2f8c3de0136b017e930f7fc258f7acd982ccaa7497f37259f",
+    "assets/transactionReviewAdmission-bl5yfR22.js": "7f3191ed8eaf141d76df55f33218b1d2fd03ce2bbb422284a6e196a56e8c1dd8",
+    "assets/types-BE9hw46M.js": "5fefa5af45d7cf18a06f7fe49441864d5291daad29e16b7dc95f1f26d1649554",
+    "assets/walletRegistration-DnX4yxac.js": "2dfe8d2dfd59488b166f6124ba5657c56b75b8cbe6967b2d271f120d98548f7d",
+    "assets/warmSessionHydration-hayXiliQ.js": "7d92d4bf7cfe788334ea930b99c1c2ed4f193ece2f115706863c807a013b5d06",
+    "assets/webauthnDeviceInfo-BxCmP64P.js": "f89620ce871aea188a852c30ee25cff392bf5f705e0a1b093e668d257f974a9d",
+    "assets/webauthnP256-CFot_kEE.js": "cf9e85851d5392a6a9b20f6a84167a612f696328e387b3f9e002e7cf36d476a1",
+    "index.html": "a6a4d59b9ee3b387862a73afe3df5be3058b129e5ce2c7a92453a60e66fc142b",
+    "sdk/ConfirmationDrawer-CLeLRILn.js": "e1917910981a32002d094532a39201fbcc2386370fe474c72af57c0a4be55c11",
+    "sdk/ConfirmationDrawer-DrsREojk.js": "576f46978573458a12b2eb2d74925b504ae8e58757606262cfe708edab0a52ab",
+    "sdk/EvmClient-BTcZqNnY.js": "98f5df8449959e917ddd3a634aad28935d4861ba75020b2fcf2d0bb577f187d1",
+    "sdk/EvmClient-DoxytQaJ.js": "20e5e4f44a6f4699ddbda06de94e35a91a9134f9831e7eec63821bb15477ec46",
+    "sdk/NearClient-BiqkRPFD.js": "0954182f8e8aaf7938f6b388f06981c5e6e7619c5cba6be11c028cb7e15d9d1a",
+    "sdk/NearClient-vJ65Wjrq.js": "756088b93865953fc41bd39ca4329b5cc87e6b2ab0ee489c96f8ed3cfb646ffe",
+    "sdk/NonceCoordinator-BBeadCSq.js": "ca908a4cfda9ef9a4dd2597bbc389d1e248a7122f56b033a8d23bb8449e0ebe8",
+    "sdk/NonceCoordinator-CTjzO5dU.js": "f48f1506d86bc3b6036fba89472910663ac13043706311838abc97a4ff92b3d3",
+    "sdk/accountIds-2F_NzU8E.js": "a094cf282250985ef3497c91008f2f01a01493af441d6cccb38f9a13094bb359",
+    "sdk/accountIds-C3Ihsd2c.js": "a094cf282250985ef3497c91008f2f01a01493af441d6cccb38f9a13094bb359",
+    "sdk/accountLifecycle-BCa6vz7i.js": "4f0ec1365874220d11626655e38eb56962b40cfc8c1807946a530451ac7a0f08",
+    "sdk/accountLifecycle-EyfYPnuT.js": "263add8ef1fb835ae6d9b3144477474138a52ed727a6080efa25cecb8f47e1bc",
+    "sdk/actions-CSWtjur-.js": "6cd37b313147f4a5183e731b9afc39a2f9d310cf3f90c522ca03b005043bd198",
+    "sdk/actions-DZLxCcrU.js": "6cd37b313147f4a5183e731b9afc39a2f9d310cf3f90c522ca03b005043bd198",
+    "sdk/adapters-DtAyuoiA.js": "e54c66be9568c54f78bd6113c3c6f9b5148f465d04020ceb7f2bdbdc7640292b",
+    "sdk/adapters-w5MR_2cB.js": "ba0f1f0df116b027d5e58d2eb8c2cf22f9f4e3468fc83534af6c65d6bca4541e",
+    "sdk/base-Xtd32asf.js": "f2af79bfb38a808a92b89d55024b535f39bffab915bb413276630fe2c2fa1052",
+    "sdk/base64-RW0QjBqx.js": "3353cd831962ab5703c18a8d2a1c3ee7e3f73cb6b53a82c3201202b0b0cdc1e9",
+    "sdk/base64-ojm5DKcF.js": "3353cd831962ab5703c18a8d2a1c3ee7e3f73cb6b53a82c3201202b0b0cdc1e9",
+    "sdk/browser-CsOGMbMy.js": "a160e7229142861dd54edabcf48f4be83130461c0c9811e6252f8ca14832763a",
+    "sdk/browser-DVIlXtV0.js": "a160e7229142861dd54edabcf48f4be83130461c0c9811e6252f8ca14832763a",
+    "sdk/bytes-CD3Ri5AY.js": "753da7bb04c926462b3ca0b825121d0c2616671a63e005bf48e156a248cf646e",
+    "sdk/bytes-t5S5mkat.js": "753da7bb04c926462b3ca0b825121d0c2616671a63e005bf48e156a248cf646e",
+    "sdk/canonicalPrimitives-DSYXK8tf.js": "a56e8b31d388bce78b263aeb8dbe082af773b6e7f6155829462bd3d201987d95",
+    "sdk/canonicalPrimitives-MPGET2cl.js": "452f1c3c7e051868698a32744adde2e1ed353efe1240be12904c5bb0883ee908",
+    "sdk/canonicalSignerErrorCode-BjvhRwZN.js": "5dae86ca66eb311479f9109484b1a80a8c82e7ae639307f7f4c6b48367676778",
+    "sdk/canonicalSignerErrorCode-C0hh_SVi.js": "5dae86ca66eb311479f9109484b1a80a8c82e7ae639307f7f4c6b48367676778",
+    "sdk/capabilityKinds-CEGFCsPr.js": "e9c8086b03d25b8113532078f0096c29168343dd85be45c15eed062b71962f5a",
+    "sdk/capabilityKinds-XaXXiD2B.js": "e9c8086b03d25b8113532078f0096c29168343dd85be45c15eed062b71962f5a",
+    "sdk/chains-Dr2ks_xM.js": "fbf2740f1992b094643895ee73ce5a02c7fa30f1d70b64be7f9e5ca4e586558e",
+    "sdk/chains-yAls2d9X.js": "fbf2740f1992b094643895ee73ce5a02c7fa30f1d70b64be7f9e5ca4e586558e",
+    "sdk/challengeDelivery-DfEkD0nN.js": "1c1bc7150264c9a5f79d1d35cfade37eecb0272d5d8361a439bf1146367ed000",
+    "sdk/challengeDelivery-cAsaUC6U.js": "d6936fce62c6f8b28e321512123bb52be78c0c9821f44d29d6f7fb8e628e38ff",
+    "sdk/chunk-dVx5-UGu.js": "c62a259caf983f4ea8940cae8d9abe35924f21613de275b1102b5f9e6243c126",
+    "sdk/configHelpers-B8xePXfC.js": "8341f59a268d1cab8621dedbbcdd4416400bc156ec4c8da34c85b1f9c2aa291f",
+    "sdk/configHelpers-CseiVoZD.js": "5b6ba999081cc939c7866698b7e84980a048794ecf70f422b08d61dc4aadf1f5",
+    "sdk/csp-stylesheet-B1fAhrGB.js": "14de52469bb7fd54c1535c57533f69b781978e0f2ee4a46d6d1d58553cfbe023",
+    "sdk/csp-stylesheet-Bgl_-7_6.js": "14de52469bb7fd54c1535c57533f69b781978e0f2ee4a46d6d1d58553cfbe023",
+    "sdk/defaultConfigs-CWpApkMq.js": "30f32e83aef28879cb67abc277618c3dd8597a6be9331a87ea92b8220eecafcd",
+    "sdk/defaultConfigs-SgLXtoFJ.js": "e65b45d48b505dbbff3d01e16fd0c5c565816101c8f284c3fb57a11b990ba508",
+    "sdk/display-Crcu5rFG.js": "0dcde5fb9a471af5b14b1b445213271f35f63a9d99f33e9c5d25d6cf6bf1c639",
+    "sdk/display-jK7_hYho.js": "c93e5ac9e3dfa8f6babec5e9c257609edc44d6f9825c17299898bfa1d2e9167f",
+    "sdk/domainIds-GDzjOs6i.js": "5a2d013fe4a164b4d084a8da2b9a701fbf407875c9b972936bed325b3c8c7ca8",
+    "sdk/ecdsaCapabilityManifest-CHFu-QrV.js": "00dff1d70ca13ab9bba03b6017a04a5a810f50a4b18798875e496e66b92e39f5",
+    "sdk/ecdsaCapabilityManifest-Dv6AM8nv.js": "065f1417b100e1d1a97b261da671beb6d95179d1fc2bf6c36c6f9476c7fb8f6d",
+    "sdk/ecdsaChainTarget-CRcRR78w.js": "faa51b205786aa07928db43013012b63a7e5ddf0b07aba6c5b50a91c5908e904",
+    "sdk/ecdsaChainTarget-cqsqLHxy.js": "c55fd1ffecf8a52eaccf581a1655b936ec6d3105ecd132c0d145cfa0e35b1aa7",
+    "sdk/ecdsaPresignLifecycle-CQnCxSlq.js": "1a46363b50ef666286093eb14766db93c688635f7856717cbf4b6a2bb8bda309",
+    "sdk/ecdsaPresignLifecycle-CzTpTe-A.js": "9e8646170c0bee13293b4b08ecf81f9a9bbbf9cb00baf78217575d349923ab95",
+    "sdk/ecdsaPresignPoolIdentity-Ci-ovDlv.js": "ab6093af54311fe53bc37e9f7c784abfcfbad785071077117ecd444cbb463efe",
+    "sdk/ecdsaPresignPoolIdentity-j-4hY8IW.js": "ab6093af54311fe53bc37e9f7c784abfcfbad785071077117ecd444cbb463efe",
+    "sdk/ecdsaWalletRecords-Cm1DdexN.js": "7f3e63dcdac8a8c66cf8efc33e7f450ae6b1f773faaf28da3eb70f11b986bc34",
+    "sdk/ecdsaWalletRecords-CqNgkkNl.js": "1f78a7f5aa8a577a69a07da3bf655e0cb9d69e1561d75fec8a0bc8c33f8eb053",
+    "sdk/enrichDisplayModelWithAbi-BUi-BhB-.js": "d624dfea734325c3aa9c48e9a76bb77e54af28c6558c155bdf829da2445d1c79",
+    "sdk/enrichDisplayModelWithAbi-CR-4ebuU.js": "8c1dbd8adf9f411ac8f8b4b191eaab2ad90104a7630b1cb7f06c943a8066029a",
+    "sdk/enrichDisplayModelWithAbi-CwHKFqF4.js": "adbb1c6aa86b9470734099e5e7808e6a7eaa4724a55d3bfda3974e4c087ac166",
+    "sdk/errors-DfbnsXjO.js": "e7c90df71d0f9306e4dddfae12b6a953df00778075efcc0edb1c4bf7ab2738c3",
+    "sdk/events-BJyVcnsn.js": "c02eac55e1a3452e661e8e79db977165c050aa925e541cfb52d5d954712cb286",
+    "sdk/evmCryptoWasm-CwEXiLrC.js": "2423f802b4360a8c610e471a4450df471548dba869c9f92bef3ce9f03c4698cd",
+    "sdk/evmCryptoWasm-Cyk1e9V5.js": "29284696a1d69b79e9e48c88fb7e54879f2e07af16f3767530041a91059580e7",
+    "sdk/evmFamilyEcdsaIdentity-Br3iFdQx.js": "105270dc855c0345d8ea1c10f7c82cbd3a738705589879b423275b33d4125e7d",
+    "sdk/evmFamilyEcdsaIdentity-CeG7fYh9.js": "2c81ca3195bc3500cdc5c78462194cdb1adccd9b76690681dfc014f7f2930d0f",
+    "sdk/exactSessionState-BpiA1Z8H.js": "60b92a5d2c3a5d7eee4aeefdff91a9780ab8b8a13baf16fb7020e806d47e5fe9",
+    "sdk/exactSessionState-wNUxTqsO.js": "629bee6c7e871d26e393ac9cee63511c44d65658618d76bf694655ffb8b1f538",
+    "sdk/exactSigningLaneIdentity-BHxVZ1Xk.js": "17129c689d174111ddac45cf6e6659ed3f600350f7005ef999a299aa9adf053c",
+    "sdk/exactSigningLaneIdentity-olheZx_n.js": "2e4508eaeb795641fc4ef2bd6ff575f1aa5f62f682e794af01942d95fc4c374a",
+    "sdk/executeWorkerOperation-CrFf3FkL.js": "824b42447d4beb8cdcfd78a3c239e206015e69434ebdfc8c4f9b6dd80a61dd6c",
+    "sdk/executeWorkerOperation-DKCRRq5E.js": "824b42447d4beb8cdcfd78a3c239e206015e69434ebdfc8c4f9b6dd80a61dd6c",
+    "sdk/export-viewer-host-BQ-rC15O.js": "0ed4444598fa3342ba802799efef49bef01ec36157377f8793fc7d023505a80b",
+    "sdk/export-viewer-host-jo7h_0wl.js": "226b5c6ae1739cb653218e6bee01f02fa27fe8d2b9f809e55131023c8c13f54a",
+    "sdk/helpers-BegBcrVY.js": "fecfdb9d3314dcb3758cdd691f05636be2f6d6a7b3cea085446852d8a332e81a",
+    "sdk/helpers-D4QckQhq.js": "3faf9be7eeb49da3605bdbd342c9234746fd52ab1920fa8f99a3033c3aad9a84",
+    "sdk/host-Bd2OOmx2.js": "84a663c4a6600e02e48afffc6720a6b2ae1d623c6615d7e5c2f5be17f0b2b5ec",
+    "sdk/host-CW22AnG4.js": "96e196e1624dc86acc3be2bc3c7e2dd1e553a14827023dd7ed89e6af3b7675fa",
+    "sdk/host-CtFTTdFM.js": "35bb198fbdb4b539bf25f62446ef6cc262b7d022c71bba6c7a80ff6079168c5d",
+    "sdk/host-Dca4frsc.js": "858365da6af9b99ef35529ce657b005e418130f7272e05d1518975abf2738f0e",
+    "sdk/host-GqqwMxKD.js": "e34c79543d955e5a3168bcb1bccd0971632e548e985b62b7a51c1a0bcb409e6f",
+    "sdk/host-HJOwhsvu.js": "5ce45394d61c19097b14b125e8bbfb9751e0bcf39af252411f9763be16587185",
+    "sdk/host-VTS-DyLZ.js": "6cbdcbe0f8c29ed902bc30fbed2d0bb748b34925cf07c07732097cdb659b0cc5",
+    "sdk/host-uMHmlHBq.js": "eb988aac7fe5a07d5da443180f4d2c30f1b6709a38ab15b61fdf44ebc3975ac6",
+    "sdk/intentDigest-CB6zy3lN.js": "a80adfde7f87eaf2caeb3c806d6259408dadbc6e018c9895fcce8b2412cc7da0",
+    "sdk/intentDigest-nv3kbjJY.js": "c83733ac124c513a16b62cbda0f899b64f9f005c0a8422a6c4d58ae40e602225",
+    "sdk/jsonRpc-C85RYR0A.js": "2fa3bdd602ed0021a3852fd54382229f6f487b1d1da3a6698ff97ee143b4a210",
+    "sdk/jsonRpc-WBP7LMln.js": "2fa3bdd602ed0021a3852fd54382229f6f487b1d1da3a6698ff97ee143b4a210",
+    "sdk/jsxRuntime.module-Bin_JXev.js": "d82ae5a9cbd504682b39aa42a79ee16d59feddd8c446e8d0f301d95343259487",
+    "sdk/jsxRuntime.module-CoHsKD_3.js": "47eb4a2fdecac2ee1f41326da31c72dfcefaab1a3f8920ab64a5296fbf6c9497",
+    "sdk/keccak-BoGwObIK.js": "21c8e5c0b8da3d7b0241c65f21ac83e9e5c739d9d56dfa6ec7bd85df284283c0",
+    "sdk/keccak-zexutGfG.js": "21c8e5c0b8da3d7b0241c65f21ac83e9e5c739d9d56dfa6ec7bd85df284283c0",
+    "sdk/keyMaterialBrands-Bkjvmwsx.js": "9666a2aded728afb83515b31e5012214a2614f0c89d8f0b47c4e0a599e7044fd",
+    "sdk/keyMaterialBrands-uVZHfAh3.js": "f52369f54ae1e12ac66bbc942b505c9164c551ae73137e10b78df2af570c7d41",
+    "sdk/localOnly-B_3s73Gv.js": "fdf170be09456ed27cc6df54de85c1ca1d6f3d3ddbaf0f41bad7220b9bdd1ad5",
+    "sdk/localOnly-DBQRG6Qh.js": "33fc7ec3e054a4883196a5381b9ef60cb04509871e4db4eac19d8149733c7768",
+    "sdk/messages-Cv2j4SKI.js": "ea45f4d5c56ed0d22f66df0f34e739461ad5f395a94d4c9e625343806dcb4997",
+    "sdk/mountExportPrivateKeySurface-BExTRwSu.js": "1ffcff0b99e73c444ec47f8c2feefc544683095fd4b73c5ea1049f4c83ff498c",
+    "sdk/mountExportPrivateKeySurface-G7Z_9JMQ.js": "682a53c760bd3c87869202fc67d3a6ee7a0b4200a63e1c113e6f7ba12d7bdb0f",
+    "sdk/mountRecoveryCodeBackupSurface-BBCTaQsu.js": "8ad18bc503734fdb3c5d461c8a38b6253fca8399584a6a274d3ca933df7fde4d",
+    "sdk/mountRecoveryCodeBackupSurface-YL6SUi84.js": "99fe9ed28908f72ff8a99b6d748c3def30819bfbfbb1e815a3282f0b875a8dbf",
+    "sdk/nearEd25519YaoMaterialActivation-DQIw8ho3.js": "7e5c6ca2aa3f6c0c471b31d62d415123b1addce60b25d0b921ebbb2ce19f93c3",
+    "sdk/nearEd25519YaoMaterialActivation-MENdEAWO.js": "a40dd22c2f8e7253a0e506e43e5830f3b5dbc245b20e561ff8fbc2bff971b898",
+    "sdk/nearEd25519YaoSigningPreparation-Bp_CvWRz.js": "fc8572a6f62e06704c7a013ceb0b0214062227e0c77449639e9468be0dc6fcf4",
+    "sdk/nearEd25519YaoSigningPreparation-WN2_txbQ.js": "aa965b371666d366a2fe67101ef6a904a5f08881647f9ac00777dcdadbd290eb",
+    "sdk/nearRpcResults--cBcfmp4.js": "3f89200f16d668b1d3e82b90a042d9fd9916caa6c6a569dfb92c594f13b8ad4b",
+    "sdk/nearRpcResults-Ca25GAfM.js": "3f89200f16d668b1d3e82b90a042d9fd9916caa6c6a569dfb92c594f13b8ad4b",
+    "sdk/nonceLaneKeys-BBYi4g51.js": "4a4de0fc7f0e1c3d100df6bc46bb6c06b87000cf0e9b4eb721c5c19c3dea8b3c",
+    "sdk/nonceLaneKeys-D3vJJylL.js": "5f8ce5a2328ef9b6dd5ac2a27c8eead646eaa649d81775d1faa7ba38b9834de5",
+    "sdk/normalization-BGPR6osg.js": "0fb99d393300bf215eb7dd0ff6c751fec7e34f57b49c9f452ce8e1049f6c26f6",
+    "sdk/normalization-D9yteiSA.js": "78fd709a4cc49df53d10b26c064b6135961e073978e08edeca0bd11ad41cdd51",
+    "sdk/operationFingerprint-5-wH2Ht8.js": "429a0f090cf4643203c22fb0bc973280433047c9c6f803002414eb279f59e03d",
+    "sdk/operationFingerprint-CFUAmFX0.js": "310cd340146fa4d2098eb975c2282321c079aaff4fcf9057e8f3a0f24e8bce72",
+    "sdk/operationFingerprint-DYaPNwdu.js": "c8441e6399925f0e66ed30257163f3d41f7b20aff0d9b2472dfc7674493bfa5e",
+    "sdk/operationFingerprint-DtQb0pdp.js": "1bc73a82965fd4d572f89fbea00084d445806edc23edbda5a7d7bc42776bfac6",
+    "sdk/passkey-custody-BRQ91M1G.js": "6910b8c23495df08c36e5a7c4dbe3e2139c717515e8a89db6fdc99835cafe9ae",
+    "sdk/passkey-custody-LP4UTFbn.js": "f83d7aa472d76a146a27e402354d2dea3fd9f8665983bdd6667e8b972d72bfc1",
+    "sdk/pendingWalletRecoveryCodeBackup-BNk4ebsY.js": "24f2330017896925c40772d774c4da4650b11cd1d149edc759d251f356df7391",
+    "sdk/pendingWalletRecoveryCodeBackup-DgINSMpM.js": "b528646e144f8e305923daf010b43d8511ace0f7a4817f22ae678f29d9a87dcf",
+    "sdk/prfCache-Mbo7_USg.js": "1d77096220fdd9b7c37646a9a4f51abe367ec2cf5386e777a1659db5c65129ee",
+    "sdk/prfCache-VbsDYWjO.js": "b9a909eeaa271ad17682d2b1807d3b3c72198bbba477aae4de5f0a356c092ad2",
+    "sdk/profileAccountProjection-BzoKdeN-.js": "65b35b532213a9b3c0a39aab51bd6d86212975aac5fc025818c116448e7e6fd9",
+    "sdk/profileAccountProjection-DHCaMtOu.js": "65b35b532213a9b3c0a39aab51bd6d86212975aac5fc025818c116448e7e6fd9",
+    "sdk/promptText-1trxVuck.js": "70f76d898325309bfa74978fe7b912776403c571f56082a53b58c0cde7b87931",
+    "sdk/promptText-s8TQ6ckX.js": "70f76d898325309bfa74978fe7b912776403c571f56082a53b58c0cde7b87931",
+    "sdk/recovery-entrypoint-BoH-nfbV.js": "5a4ecca0b8a0b49d98871a9a499032e6edfd07dde0807f5b3589bc060faa5bb7",
+    "sdk/recovery-entrypoint-DkT8sFO5.js": "fa6991be5f2614d6e7c4dfff5665346d93bae1fd049afe3005e3af5e6c904c5a",
+    "sdk/registration-BLJ_Ymln.js": "1596b593d7a069c0ab8a2cebc680c57b99350c5edb3b5b87b4395e98297d7337",
+    "sdk/registration-BT5rPvVM.js": "cfefab50d0cd8446b48e76d0903dd8dbb95d0eb098a7c05baa03195d22f61876",
+    "sdk/registration-Btozh7uh.js": "b9018411e539e0b6b2c1db83d366d982038bfa181cdf1acdada59e9976dceb7e",
+    "sdk/registration-CSAG_h4Y.js": "d286368469089a6ec200c1f69e554839b6b308decd91b369be8dc50a220d3db5",
+    "sdk/registration-CgHDER86.js": "13d0a56a7775ee1240852616006619011ca09846319fdf45e9f9f02a351813bf",
+    "sdk/registration-dOVtKxhA.js": "f4cf6a8a7d47de1729622d6aa7046fd30e2575e4c78f5ea175fb670a6d0d2e2a",
+    "sdk/registrationAccounts-BCnD7B_C.js": "167227b94d8d1a254a4fa25288049e46f3d59b82400904cd1ea8c1eac2aef5ef",
+    "sdk/registrationAccounts-DIeEVy6W.js": "c7b50cf64b0ffbc0a1a4c1227ab70446667e13f3e55cd349778a9fc87c1aa46b",
+    "sdk/registrationIds-BIel5S0i.js": "efaa9a9398713612f2b46ceab76a3e10797178da04c10726ee3804eaae386e30",
+    "sdk/registrationIds-DLFHMopJ.js": "8c112d67c55b8107dc1cbd6182cd3b4a47225e532019aa40930673a866abea9f",
+    "sdk/registrationIntent-CH9DJCRU.js": "9847efa24b568194f8c674faf5251e5b53c12bd8f1ac5dedac1d2bc6767a6e28",
+    "sdk/registrationIntent-DV1GYZ3K.js": "6a81b545dd59f5596e5121f471ee7b3b08732a13882c826dd339f6e996553284",
+    "sdk/registrationPreparationPreload-A9V__AnQ.js": "44769aa7f8a43ba9f24fb1175302f99915079250ff69c893b5fc851584ffe967",
+    "sdk/registrationPreparationPreload-B3raFviO.js": "cea3cd4997f284fdf267915f517560c9e164246da9b6d1b773c6700e4f68822a",
+    "sdk/registrationPreparationPreload-BejHxgpS.js": "b76fd8bee524a6ba8fe979083eedfd357b71e8dc998c2eaf2eda0617bcf91ace",
+    "sdk/registrationPreparationPreload-BsclTUxK.js": "a5fd46b413634f2509f48196383ca6e13c3cb23dd9482d123ad185d78a25fb23",
+    "sdk/registrationPreparationPreload-CGCUdduX.js": "e2e5fdca6095e9f1b30b1826df48da21893645a733de332718dd22cf67cbf950",
+    "sdk/registrationPreparationPreload-CH6CQFOH.js": "aa0d795f6659d5e1c705b0aa8053f97bf7ec4ca44280526cb9095a859a98f9d3",
+    "sdk/registrationPreparationPreload-DR3srYwZ.js": "e7cb5f18d04e065faf0b02d96e80020ef29afd280e5cb12dd62dc989fb258a9f",
+    "sdk/registrationPreparationPreload-FYnwt5na.js": "3b4ed9802f70b2b0212565622d97105781969ad14931e37755c74433e2833a6f",
+    "sdk/registrationSignerPlan-BQIhNqb3.js": "0a8c306352ad120c6fcc3f770caabea6655ef4b601b3c34c53ce2b40344c4c70",
+    "sdk/registrationSignerPlan-FzD3TwxB.js": "22ef9636fbec51d5eab3fab952be56c552060f323f5273e57a7ded746c85b6b1",
+    "sdk/relayerHttp-B_-9lFF3.js": "ed8a861eb193f95cda0e25b954cea1489164cafd4fd0d9ecb31d4092522557a2",
+    "sdk/relayerHttp-DaPeS929.js": "ed8a861eb193f95cda0e25b954cea1489164cafd4fd0d9ecb31d4092522557a2",
+    "sdk/routePlan-B_KJaPtm.js": "eb153e5725f42e661aa852cc741f80d41cfde78175627a8f872797bcf1ae27cb",
+    "sdk/routePlan-Bai1xO63.js": "5609d2beb0fa9e9dd075465f8084c3e1e767ebae4540df6450a1b1febc3abcf1",
+    "sdk/routePlan-DQWFoTy6.js": "132501eae7b0248f5265312de059f30cf2ce67b2cf80caa62cb7dff29bd43c4c",
+    "sdk/routePlan-DvcgmSd1.js": "7fbae5544f0e8b66c192a0daa420c9ebe01c0ae722f1603a222c83ca1d75fcbd",
+    "sdk/router-B6SXZRu9.js": "9ceb1692ae9ef56cf0a8643fc3a87be01f4428cb782446984797d19fde4d4aee",
+    "sdk/router-DwR_jIhy.js": "8bb671a0aa9deea398f9d1a393293fa2a8a05191c610f83f2080f6f86289e6b1",
+    "sdk/routerAbNormalSigning-BFCZKBn0.js": "1900509160d326a1297934b12c7bfca9488a014534830c01533c68f9f067ace5",
+    "sdk/routerAbNormalSigning-D_fHjq5l.js": "8fcbea8272710e68cc6258eba65611d0a3981d4977caa528c6e1b1da53158695",
+    "sdk/router_ab_ed25519_yao_client_bg.wasm": "325c7f3e5f6f4eb0bfea02aa169b6f8a170520fbe6fade4a59f13bf70be94b48",
+    "sdk/runtime-auth-BvWpXe1Q.js": "3ec4e4939a93640218cf20dbd2f30449b2597d6249398137b4e59386a3842ffc",
+    "sdk/runtime-auth-C41Pgw-Z.js": "04fd9c0c239b594ff748b927207491dc6d2b755f06447d005024103b520ce6f4",
+    "sdk/runtime-auth-C64RNrGM.js": "737cfeea07aa5f557d9bf5ff7cc26fcae4257600211b7b5ec57f72c2baf2f7cc",
+    "sdk/runtime-auth-CRdR6_XR.js": "cf11cde321301d64cbdd4d825a19e68436594934647e9141509778b501c75d6a",
+    "sdk/runtime-auth-CoDm-4Kt.js": "16adcea904c528cdc2215f9eea6da1f5d77833e7d51074e3b94da956fa779df4",
+    "sdk/runtime-auth-CouB2Gnj.js": "a506a22a341da3dffa9b0cfb41d89e66ccecddc91a6a99c8822c20f8c0006cd8",
+    "sdk/runtime-auth-DyeVOrSX.js": "e868217aea7bbced5394dc03028ea555d6685acacc85d47b3c1bb5d59d776ab5",
+    "sdk/runtime-auth-d4XjDXfk.js": "05cd24f39737b1a125f150a87cb5f023913d67ff61a0af8c7d4171aa71a0196f",
+    "sdk/runtime-device-link-8wro3Gbj.js": "79cf6d59d81038079c84fadfa1bf53e33bf8da6b80370ed62397ae1e1bd1ebc7",
+    "sdk/runtime-device-link-B0Y1PO-D.js": "b2ab1717a3e3c3b43723d77a32ead6e80cc48cefc7149b73967da253f0eb01ac",
+    "sdk/runtime-device-link-BYL0qIoU.js": "c1ceaa4e444e8c1c10f7fde8292a10d5f3060d292851bba23936195b73c50d85",
+    "sdk/runtime-device-link-Bd8SPFdy.js": "e0f8c42ddabd495c06e66a694dc22f538fa125173104a81e818f8ce694613694",
+    "sdk/runtime-device-link-CE9YtK6e.js": "14c0e0479e2d319c3f7382cd35da01bc6168ae3e09aa65f4738bcc49956a86d1",
+    "sdk/runtime-device-link-CeqW2zc_.js": "4ac02fd7c1776705358f2e874c146cc4c82e4ceeea162bc8634dfc972ce2fcc0",
+    "sdk/runtime-device-link-D6kIf3l8.js": "99b8182e0bf50edfed7257818f11a25b645c876c886791a8771a0ceaf317873a",
+    "sdk/runtime-device-link-XqRi_00r.js": "9bbd4a7e10b394c1e86a795172b7b09b44ca6111e4bc1b8705d55cfc4eae2c27",
+    "sdk/runtime-ecdsa-tempo-BocOvnLz.js": "3d1b3d2fc3c532cadc9736d556e0fb14c487cce7bc91892f1b486790667dcd01",
+    "sdk/runtime-ecdsa-tempo-BvSKEbIW.js": "ea286037155858a9c36cafd5ac07d7a867b74adbcf9a71c6b5cbbd84dc5ddff1",
+    "sdk/runtime-ecdsa-tempo-CPYu3s23.js": "746dd8e00ac0ddaf2e3d5192f6e55deb4cba1e410e9576fdfb393fc4a53b48d7",
+    "sdk/runtime-ecdsa-tempo-CeV8C3Bb.js": "17a24058b5205fa02b741dae1fc6ef164da6aef66dc7dc2931d887303828496a",
+    "sdk/runtime-ecdsa-tempo-CjChEf5s.js": "5cb6383acaf4dbd08166f043301ad7572633b96d5ab1cab4b8c38c48ab7056d3",
+    "sdk/runtime-ecdsa-tempo-D4q8yXmx.js": "d38e0d0ba9e9f2910fbaec2920874bcd9b4e61beeb907185bd75da243b6ab0e1",
+    "sdk/runtime-ecdsa-tempo-DNklfQnL.js": "f8cefc1b1f9dfc53a3f8c6e10a5f2d33499d78b9dd1aff4b8d143b1a69506ace",
+    "sdk/runtime-ecdsa-tempo-YlIdh3Bg.js": "42fdd336c5c4dbb20df204a4d0d996766d7e46a7dfa92ac372b58656b341be01",
+    "sdk/runtime-email-otp--wcnQQbj.js": "cf2ccf297d91830c115ded3d7c7421338e323a7e3c4ad252d7474aaece2c5932",
+    "sdk/runtime-email-otp-BPHcUfY2.js": "e607b797fb9fb19bae46e2af38932e05a24c02f67787fecf7f2515073c07efc1",
+    "sdk/runtime-email-otp-B_sOSzc2.js": "75d20fc8eb3db9e4242f95c793ea3fdb60bfaca8c773024eb939361cd89576cc",
+    "sdk/runtime-email-otp-CMD_zt8H.js": "39f092d87cd00f69c980d456066d41877dda7609e0196ae4c4176d1bb3c4f907",
+    "sdk/runtime-email-otp-CZLNk5Q6.js": "f7ecdb4a473fd40275b0f45cece18eb4b8653e8f46c5dacd133c52b416593993",
+    "sdk/runtime-email-otp-DQAkQmIx.js": "732016e5512b56431702bf8c236776e367520c4bf23bd667ce0ed56df67cb467",
+    "sdk/runtime-email-otp-DUipKh6a.js": "dc46b039b58fc0bc1a959e7170b3d8344317e9e401ebae548da884f307c95d3d",
+    "sdk/runtime-email-otp-DfTT24Xy.js": "8f3e5186ef2c6f6249facd92165a8b0559c9dcd37a2f5f004b5e46600a2d9ffb",
+    "sdk/runtime-export-33HxWasQ.js": "ac8aba3b6a4a9318a5670c1905adc020215de225a2787d201723622efc2fafc2",
+    "sdk/runtime-export-53DhcTtv.js": "01514d9768fe20fcce937fce3192054e86d586ae33522c2efc330c32243c7a8b",
+    "sdk/runtime-export-BQhTuI-M.js": "79d7947b5bbe06d511726245984574be67d5c9326a43a245e719183033049bfa",
+    "sdk/runtime-export-C-7s9yQ2.js": "c32bed68f0a356fef19b19bf7a84768ef2d4239bd119ce792c07d735b23448cb",
+    "sdk/runtime-export-CZDtCeQS.js": "8a33c8156b5593879e9b7b3fe5840923b0743471c20b893351e5c8fbcbc05b43",
+    "sdk/runtime-export-DNEAeM1A.js": "bbcdb66b5e1ef91923f85c1c3b5de378412beceb653fba853ce97389929e5b69",
+    "sdk/runtime-export-Dyeem9h0.js": "063a279425e32f85023d8218d7562730d35a6c2cb2dd644964d3fc425da324a6",
+    "sdk/runtime-export-w3BYOQva.js": "cb008e7c519f840430b6cf50dcadc671524cc9de664e05af45fd0b161c184540",
+    "sdk/runtime-near-C2Wa4gp1.js": "af44aef8c48f34c7c1ee30c7611fa13f44dbcaff3d1940e18b06ef8400b7f142",
+    "sdk/runtime-near-CHkqdkin.js": "de571568ed4a0a35c59292ff0b2c061e9625907e2261ab83f5a44b763cf0fad0",
+    "sdk/runtime-near-CaFX0Y3L.js": "28d3685e788ff9e3f437d7532b5e006addb33b626d15ac866b7acde832277afe",
+    "sdk/runtime-near-DEgdmy65.js": "1f48edf2bff4071ad7ff9b197c4bbb11cb673d41fcd4095549b8e5b978fcd4ef",
+    "sdk/runtime-near-DIVErhS5.js": "a43637046a07bb9775d296efd0db328058f75db999c6348ddd7c2332609c98fe",
+    "sdk/runtime-near-DUp-07yM.js": "df166b38b9a40f15afe97ee17a6c554aee1077e4a6617aed28dc4c334da5de67",
+    "sdk/runtime-near-De7t55bj.js": "ea9d709408508509a02525d23959dbbe19c7bd43dbd714d7115abf1fb5ba3112",
+    "sdk/runtime-near-DxY-cuh5.js": "6a8cd45c5380463c990968df9259e342bf3e47aed0ab82d38100859c3acc7b14",
+    "sdk/runtime-preferences-BIixnDge.js": "5c422fb84cc76e016d38f2f6abe1d3510d88ef1b9ef771a33d72595c0616b6de",
+    "sdk/runtime-preferences-BvVdL7oE.js": "af4b4d20a1ff17c049410ec8e3e630539a1f1ec9bd64167a4a8356984df07610",
+    "sdk/runtime-preferences-CtNE4iP2.js": "09e1f62c154bc504a0184cc51d875c35f309ec6db311381f973f8b74c5d48815",
+    "sdk/runtime-preferences-Czntn6iE.js": "ef7559c3d19ccfa03d570fc0b40c3e1a618f9ba26cd5c105d97d65b815b6371d",
+    "sdk/runtime-preferences-Dt95Xzkx.js": "8825cb61381b9a1cc856014377bcac4248b941f610d824b62456dc5ae64ac5ce",
+    "sdk/runtime-preferences-PthSTXfZ.js": "54e965f281acabc710a18e34bb63d106da5fe7366ba26f98f546689f7b8f335d",
+    "sdk/runtime-preferences-TyVo-POJ.js": "2ce5b37e632a980fd0f85cb0456a8d34a1b4b7c06cd6140c1e1754782d679917",
+    "sdk/runtime-preferences-t3yHEl-U.js": "aeccee2a9eb41e5c1a3474601f587173278599eb147ffb0259ffbceb9c806a96",
+    "sdk/runtime-recovery-45GqbOvV.js": "e4155df34375caf12a34b8f4166a9ee88e0ed821a2767aec193fd26677346559",
+    "sdk/runtime-recovery-Bux86bPu.js": "6bf2b3619a85b2360dcac17cc360335f567b347f90a29a0d3fa35c9c4e6d5f88",
+    "sdk/runtime-recovery-CPh2-tk2.js": "ec2add9dde9bd6885eb2f4b793613d6d64b1120968514e5151fe7bbaf48aa901",
+    "sdk/runtime-recovery-CkLpv2lp.js": "e54353028dc797ece1ddf8cf8673e27f371e05ebbf164f1f6e5ef61c84612928",
+    "sdk/runtime-recovery-Dm4sJuKT.js": "fbb6c6a96fa057be120c942a891f4e58c98689586159bb54b588bb2427a2f6e3",
+    "sdk/runtime-recovery-DrqR5eWE.js": "456518f3985c152b21e95f056a5d99ab9a2243a3e21e9029fa37c5629d71b6f6",
+    "sdk/runtime-recovery-TNXXmocN.js": "52aaa4b7549e56cf49409ad453765506eca8171f78308233953d2096c891af98",
+    "sdk/runtime-recovery-codes-CWp839mH.js": "310395953de18dd8359b57e81b59005166222d7c1220503983208dbbd3871658",
+    "sdk/runtime-recovery-codes-_dE6cdEG.js": "259093f54d09bb6d48143c6041a9023c5eb7c399a1958adde471e34f2fdf79fd",
+    "sdk/runtime-recovery-yttn-DWj.js": "f700c89a7347ee4d7bf107d07940097464fda2aa6414c4aca629bf675dc23993",
+    "sdk/runtimeContext-BG-2qQ2U.js": "489287c4493c8af4174bc28a5daab70f24eb025db12dd3b3f8b9650890feb09f",
+    "sdk/runtimeContext-BVfdes7l.js": "1d16a5ed51dd2fa53133c2fb45ea7af1767c1b169437c1fea99fa19af03e06f1",
+    "sdk/runtimeContext-BZAyJ24t.js": "bd77e1c59cc3cc8a813552be8b52ddad540435fbf6162ef2ada68980253ea5d8",
+    "sdk/runtimeContext-CijNdLu-.js": "07df0b2c7fb7a0f101ed5db4622a1ddf9e3b9304061e5337d896535958526ec8",
+    "sdk/runtimeContext-DB3SVwfq.js": "778cb8edb83a754b2ec8f059518b703fd0af79d3efbb445c908f4a5c64be1408",
+    "sdk/runtimeContext-P22AebNL.js": "8dd120b09a6c5079f9157976b755662cfa9e4ddf87d44c18492e4fb69c9b4bc9",
+    "sdk/runtimeContext-VSd7z94m.js": "9f6097d7f4bb725ba40296a4cd30537b605bd689f3214e46b4e3b19520c42224",
+    "sdk/runtimeContext-rANf0chm.js": "777c951297175b5b32992ca19e21d89a5cbdcdbf54f4dd6318e689f082fa3d25",
+    "sdk/runtimeLoader-BB7lrO8h.js": "9701dce1b2484fedb2eaa818e9107e8ff357aca17728fdb423d88b40ab1c0543",
+    "sdk/runtimeLoader-BW6ch_Tu.js": "c75ca12ca4a364d19c29e567ac50b79c1a35affd02c54e72e7d93e642259cfd1",
+    "sdk/runtimeLoader-DAd-1rdg.js": "abd78faddbe2ef599d5de740608850690429d70667b277d801c834e69d266a1e",
+    "sdk/runtimeLoader-DXI7cvkK.js": "ec8c70dd2fd2ead3900314fdfe78f1f4ad9b1f3956107a647fe3c379c5cd6033",
+    "sdk/runtimeLoader-DfEhr9TP.js": "426ec4492b92481513d3a131ad3f983418bec2b984bb7b67176db1663c133c54",
+    "sdk/runtimeLoader-DogblBof.js": "ee79f025df9e7c7125ffdea40cbecf16dadea6cb678b9332057332f1ec424412",
+    "sdk/runtimeLoader-DyCsuH57.js": "25881bd4e48bc3aee18585892eb8e657caeacd5f8561446533a787a140922f3d",
+    "sdk/runtimeLoader-rYlOsKBl.js": "a39608f76f6a7f945aae6b2367abd303daa266380433ded47d1774bd498310e9",
+    "sdk/sdkSentEvents-DiqvZB0J.js": "3c7f46bb23e4696edcff04d76fc9e6ce5da4633c035a7498e985d3371ffef614",
+    "sdk/sdkSentEvents-_RGAEeld.js": "034a5314fb6911c1280e300a68363dc8d14e8729d44d87daf36928c52532f1a9",
+    "sdk/secp256k1-B-SNHCmG.js": "9c9cc89e2f5e8348dccf02bdbbe5fd7dd757de0ab49f6c755c52ac21c11c7e7d",
+    "sdk/secp256k1-B7LENVCN.js": "a6e67f090d366b6b474cf7f292adf036fd7039a661196f63f7851cffa8995771",
+    "sdk/secp256k1-BFGnkOlV.js": "605e52e85845d1ac5b9b68aca7a51b6030d1c9512144f06c13014c45d9679289",
+    "sdk/secp256k1-B_6W9QDJ.js": "1e8061a0f4888f81f64df6fc2aeaef82363f29d85b494be8c700176b0785b2ac",
+    "sdk/secureRandomId-CTdlJ5Mx.js": "1c71650c7127b48b63166f94bd90a836f8615cffbc88cdd6ba467a6497772e55",
+    "sdk/secureRandomId-DnyMOxBZ.js": "53a6f368b54b9e08a0fa5dd766d3d92e46b788279032c16fe3d7ffe8a872834a",
+    "sdk/sessionPolicy-CNVK7nJ6.js": "6e8da2e3bbe26bfc76725d78faf40e2bd108f3401ca2a55fe098c7231e13c5e9",
+    "sdk/sessionPolicy-CrIOcczG.js": "5224e639953cd6b6851fbc56b423ff26d0a57e9bb1679e8534760993749f6203",
+    "sdk/shared-C0LKHe9V.js": "8d9ba59960203d619b9b1ab653ec264c331e829fd112d2a6927df41e7c526776",
+    "sdk/shared-j_KsFbCT.js": "8d9ba59960203d619b9b1ab653ec264c331e829fd112d2a6927df41e7c526776",
+    "sdk/signEvmFamily-0vgiOQpQ.js": "accd7f0559d2abc6c29a4cd441a6eb9a86296549e2a67be308a287339c652f9f",
+    "sdk/signEvmFamily-B3EcuDXX.js": "0cd003d45f600b1bd28195fc2241ee76d3187fa5c2a078fbcf5fde4bd3622483",
+    "sdk/signEvmFamily-CcLVBm0f.js": "ec90cbe703d018aa64bc10f796c577765f1fbb072c691f94aefd0bca7c58976d",
+    "sdk/signEvmFamily-DjkZxY2d.js": "7791bf2d16e28b11e717c13c28c3a1635421e9c4bb808755c442e7bd04c228d7",
+    "sdk/signEvmFamily-JPLRKnFP.js": "266a88cc8a9275e490205e36335f720f51f6194ba4c796aab407ee5d26e52953",
+    "sdk/signEvmFamily-K49U95u2.js": "440df1a1be43c779025f75840a2db15f201d1596eb93d5f5ddf743b4b404b79d",
+    "sdk/signEvmFamilyWithUiConfirmForTempo-DgTbh6jX.js": "fe22edf9cf94b778a362fa5ec24c91d9f1c52708eb07730c34db310492e7bd17",
+    "sdk/signEvmFamilyWithUiConfirmForTempo-qHcMceS6.js": "e70c54e234f801b78accd115dde98f2b08311892b765efb46be996a92de1ad2b",
+    "sdk/signEvmWithUiConfirm-ChreN7aZ.js": "3c69a54115270e85202d7705b99b5f702576386f55a742675a72ed26a1e483bd",
+    "sdk/signEvmWithUiConfirm-Qk90t_r1.js": "2dd79f104e9978e2aea7d7ee2ec99bd7b647e864f708c7eb07d67700e0034a55",
+    "sdk/signNear-CMiVu1rw.js": "cb30a05cc3816dd7673cb6866b03b8e6c203b0c72b136dd12144b750d073bf77",
+    "sdk/signNear-mWbTE2Dl.js": "d275d762fe82f4f1c1a0926462a7fb4aa0f39455744ea4e56985b12ba340dd70",
+    "sdk/signatureUses-CQkkUcwT.js": "b5f059ac579859b2afdd84b8e5114790d655804a5013afab98aa4da4011899b7",
+    "sdk/signatureUses-lbWVGyub.js": "a24482898fd1ee66b4c9f2188679e0b89d77d75e7c00edb30e54eacc9aea595c",
+    "sdk/signerDomain-BhUTzDmF.js": "546133bbb9efbfba1245f0380345b16c85e045e8c08f812c495e4414d502b2c0",
+    "sdk/signerDomain-pL4A2UMb.js": "546133bbb9efbfba1245f0380345b16c85e045e8c08f812c495e4414d502b2c0",
+    "sdk/signerLoader-By0IY24G.js": "5d316e43af45989ded455ed67a20404b0b903f69bd84a2067326da27b61e5f1c",
+    "sdk/signerLoader-Cl6jvRmL.js": "ba46a4f2584cc47ce442dde698c4af13bf77ebd431126d86bb0fa4f574762ceb",
+    "sdk/signerLoader-DoJpdt5C.js": "7358eb0a96d56821cc62a6e3a9ace56457c1f2bb3330220b8e2731d04c7363b8",
+    "sdk/signerLoader-DqovesS5.js": "025dd43f953f99ff51319e90e5b4e250b996bcdaeb769e4ffc4f43bf6f26c382",
+    "sdk/signerSlot-BQ1g5JNV.js": "f30ebe5e8b1167d4821319a6ea9dac69023fd1c4350441aa49b76e26b581d934",
+    "sdk/signerSlot-GJKUZ5fO.js": "f30ebe5e8b1167d4821319a6ea9dac69023fd1c4350441aa49b76e26b581d934",
+    "sdk/signingFlow-Dh_U2U6f.js": "32fc8e0d8f2c086478e8ef3f85646eeefd160a2f4148e688f00da611cccc24e5",
+    "sdk/signingFlow-LUWrZi2d.js": "aabc77a0bcac6bd373f1ea18f7cf8a0ecb6b010d31088f1307005038fce85e27",
+    "sdk/signingSessionSeal-DvrETHfY.js": "47b53931867a0c849f27ae0b5a425d9ac91699a623d096256e209b43b157134a",
+    "sdk/signingSessionSeal-Mr2Xp44o.js": "47b53931867a0c849f27ae0b5a425d9ac91699a623d096256e209b43b157134a",
+    "sdk/surface-measurement-reporter-DHvMre92.js": "ec232e3f9b57d92c7de60b10a8e619011c7ed9eecd84eb2b4549a4bd461d7f66",
+    "sdk/surface-measurement-reporter-OICExWKE.js": "ec232e3f9b57d92c7de60b10a8e619011c7ed9eecd84eb2b4549a4bd461d7f66",
+    "sdk/trace-D45UgDoE.js": "cd335867f10782204707482b2b35cece384049cfa5049be748891bf41b0df333",
+    "sdk/trace-M34pNGuF.js": "cb1904f8ed48d1e07681665c88b0de26f1534e29d63e02c3f2fb567b180f1ad4",
+    "sdk/transaction-activity-BbDod7ji.js": "5418992faf82941251897a18300b1133fcf7c52743bb34e07de1378d7ad01679",
+    "sdk/transaction-activity-wM-mgBs5.js": "160e39889b32d0a9c46941848daf55e1f7f03e889e03f6e6422e03459d88e8b6",
+    "sdk/transactionReview-CBE5oH4c.js": "3e7a61e19cb70a2e662c8ee18959b05ac9983837e10f7b6341fd9221932a89fd",
+    "sdk/transactionReviewAdmission-0ZgWs6q3.js": "654b579361e7cf35c4d297cf6fc7ed905ae3b720e2da20b1065a638dd67de68b",
+    "sdk/transactionState-9d7f3xVj.js": "40c57cd40ccae19e9c345954af8a6640c95db0e53271a4a2b458cf0ebd38b3d8",
+    "sdk/transactionState-U_SHPoAm.js": "d6d3d1ac0870b3afaf7c9a8a23e59680e9725831562e42c72d10e10adb16f03c",
+    "sdk/tx-confirm-ui.js": "e496e9bc241cd053e866d08228bf57ad05c59ca4f6e5f85866abf4a124bdc3eb",
+    "sdk/types-CPRk3nJ9.js": "a5abda14888f81487c823708e427750268fb7f58f8562c58903b84c57bd372db",
+    "sdk/types-M7vxrYtJ.js": "98e58bd945a1f8d3d9a577434999bdfcb0a57a61d24ddce54efd3e4d6cb2f7b2",
+    "sdk/validation-dC1-_uyG.js": "ab9e6827340e10301c66b33ac44bf382f0ac89f408af34c5f4519f3ff6a84317",
+    "sdk/wallet-iframe-host-ecdsa.js": "6eabe975c932e74aeeb8bd62b230a0cd390f2e66433958f3a6c0a81a00f20573",
+    "sdk/wallet-iframe-host-full.js": "a4b43689f210c549037263198536e4bf1c3a9ac528f88a0b28f7387c54dff6f4",
+    "sdk/wallet-iframe-host-near.js": "95a31aa3e7e440e26383a1a8cbfd1254a7fa13f25b7373378b21b09b6967f2e5",
+    "sdk/wallet-iframe-host-runtime.js": "361ee34aa63344304eebbd7d07137badd79ba3b9b1e83e2cf6b87765ba226b9f",
+    "sdk/wallet-recovery-CcDZ1hMH.js": "ed8dd12a03d8f427228799b720b2263416828aa24abb0535b8e7ca810f8b0bfe",
+    "sdk/wallet-recovery-Djf-7oi7.js": "d1d8def3c434f47af0d3189a5a21218979ba2a590265ba0ee4814324c07ba50b",
+    "sdk/wallet-service.css": "b73ef82194b16be09a6acd7a764364ba9f93fce7d741d70349aecb01a46e592b",
+    "sdk/wallet-shims.js": "ee1c390d315d2427d6ddc3fd652891398b09562f7f7a1ba83ed02ac4a9203a56",
+    "sdk/wallet-ui.css": "86ff32c1095de9dfb7c0e8515a818ce364d82a0b20659d0156198a73c35a1ddb",
+    "sdk/walletAuthority-CSW_Zs2o.js": "8cf2617b8fca42cc158a6f868c7f5019203bf2d678cb6646b330407cbe3a14dc",
+    "sdk/walletAuthority-CoWSeqvQ.js": "eb687f06cdabe9827abd31c151b66730799140b2d91fd43973f312a2d323a22b",
+    "sdk/walletCustodyEcdsaContinuity-B7xi7nwh.js": "5d77c695a93c8d1dceb57f99f5610bebd24453594936c933b4f75c2fa254a483",
+    "sdk/walletCustodyEcdsaContinuity-BteC1g4a.js": "159a60d25e6cb49583dfcf607efbfc50ddda7e92b4c1c67619f29617f6c72484",
+    "sdk/walletIframeIdentity-C0b0XMQF.js": "e502796acec804f8fff3a1bc82eaf74a7397772f42499ec0c604caf1b53f3058",
+    "sdk/walletRecoveryCommit-Bmu1Xc99.js": "7d511b7c36ddde7a3400f1d3b2c67471457e13af28fe66fe7a007fc69c45b80c",
+    "sdk/walletRecoveryCommit-ljxVeo-d.js": "1fe395cf963cee15fb8179836d7dcbe93e6eed1bec195b84b218d495c8a722a0",
+    "sdk/walletRecoveryRotate-DuVFGLPG.js": "0bff61803ec4950b2f4f875a24a3770cc2751705b3a1a0fad20df73c219f19fc",
+    "sdk/walletRecoveryRotate-HztDcDaY.js": "9775afc0301d092ac60ef858260f57d6810c209b5c0da44645a2d9daf12f1386",
+    "sdk/warmSessionHydration-BPGM0YRU.js": "5b54b7ffc45da328d94feb9e88855e1ae0aaf473ae925668b8792f55e72447e9",
+    "sdk/warmSessionHydration-jLNCeHqO.js": "0c8088b6d5848d866256b78e9a940360403d0708d30ba42aec7ae1c2db80d2c0",
+    "sdk/webauthnP256-DjCrUnKv.js": "5ea54af106adfaa756a69b4394ddb24f158224cf85aa213b11f1bdca8d394562",
+    "sdk/webauthnP256-qu06GNFm.js": "8289ae79ef824a2aaf19185d37841e211db712e415a337c9be4ca13f458b4b43",
+    "sdk/webauthnPromptCoordinator-BoZv0_7B.js": "5b5e147ea654f5f9600940b7f6ea5c14de8a990e5c5d69210a11c9bbefec37de",
+    "sdk/webauthnPromptCoordinator-DO-qfECu.js": "1a69ce41783bda0ba784508c58413d8bc777599edae8210dc3499f87e882f291",
+    "sdk/workers/device-linking-key.worker.js": "a58a43021a38daa83a1a58e04caa0f792d8c0ef66f099c200097264d76fd30a4",
+    "sdk/workers/ecdsa-derivation-client.worker.js": "8e1184faf56d5374429d5ad02ba19d6a21d018e7a15516a638828e767f820b09",
+    "sdk/workers/ecdsa-online-client.worker.js": "e942294b49a3c611abae370d16bfc9361616a0a11b9b27aab6ea41bcab4f10b4",
+    "sdk/workers/ecdsa-presign-client.worker.js": "c12148e3ecb341a6ad419ae3dbf26fa86eee1f7b3d120571ffe1fb96d0c8492e",
+    "sdk/workers/email-otp.worker.js": "1ae0951d404c68047c7536cb37ebebf71e7336636b25a48dde95860c0c2215db",
+    "sdk/workers/email_otp_runtime.js": "5d9ea0d8aaf2b4fd1fd8e7727a106138b6915e311de28e3267a876083352a373",
+    "sdk/workers/email_otp_runtime_bg.wasm": "baac955fce738cfa96989956fc19dde1ad0f666b1a264075af2f93310e113583",
+    "sdk/workers/evm-crypto.worker.js": "64a90ffc7aa2ad3c93747f3f56d5913de9c5a948a9ba91c55779491ca471bc03",
+    "sdk/workers/evm_crypto.wasm": "db68ab3dfd1d43a8f52b3a25e86aca072a06dd1ab05290744f4e15b71ef9d9ff",
+    "sdk/workers/evm_crypto_bg.wasm": "db68ab3dfd1d43a8f52b3a25e86aca072a06dd1ab05290744f4e15b71ef9d9ff",
+    "sdk/workers/near-signer.worker.js": "e95cb01538aabff3d995a47e94a3d5899927f1881aac1bd8d58c3887124a3b65",
+    "sdk/workers/near_signer.wasm": "27d2cbf2071723dc3a4370503922594ba727200df7675b1c74c51ea51e57d7b3",
+    "sdk/workers/passkey-confirm.worker.js": "4f7f52e3fe301eb4297411f87362ec129c57ceb106f0b248bf78fa2c37ab651d",
+    "sdk/workers/passkey-mpc-export.worker.js": "63016c0c7a3c432a62605e2fb5dbe6eb1aab0ea5c46c1f2a6afb53399c9f134f",
+    "sdk/workers/passkey-mpc-session.worker.js": "4c4b009dafcc945cfe455e4b2d3f9af695e0886a2e3318aeb4e7e2eac7aa67bc",
+    "sdk/workers/router_ab_ecdsa_client_bg.wasm": "23d057a1736f7b51a51a68430e9824e84850565c720f8fc918670906a3eebb00",
+    "sdk/workers/router_ab_ed25519_yao_client_bg.wasm": "325c7f3e5f6f4eb0bfea02aa169b6f8a170520fbe6fade4a59f13bf70be94b48",
+    "sdk/workers/shamir3pass.worker.js": "992e26ea892e9fc0c0e21e6e707f9cbc12a0112ac41b39f171cbc82bfab6a53e",
+    "sdk/workers/shamir3pass_runtime.js": "fe2273bcf11b3b9e1f7fe118373be5025ca558746ab85726155d39cfe08da881",
+    "sdk/workers/shamir3pass_runtime_bg.wasm": "99bbb650019c6c07ea6cba1cc756c817cee954e347216177891256699461edd3",
+    "sdk/workers/tempo-signer.worker.js": "21940f5163de9f004b0b11f4ee5da32b4b8f228cadba55c0e2613463b739e74a",
+    "sdk/workers/tempo_signer.wasm": "bcdcca13dd77886fa8cf95a8bb599325a9130d81f82062694b6de119754698d4",
+    "sdk/workers/tempo_signer_bg.wasm": "bcdcca13dd77886fa8cf95a8bb599325a9130d81f82062694b6de119754698d4",
+    "sdk/workers/wallet-custody-ceremony.worker.js": "1af42ee46b9196b418cb3a82f12749197b34dc54fced5ae8c10798a41f0690cd",
+    "sdk/workers/wallet_custody_ceremony.js": "d92338329d01cad2ed29c897e0a41574f505455656a25c77ffdfadbbef32580f",
+    "sdk/workers/wallet_custody_ceremony_bg.wasm": "ece9b1d012d21cf2378803bcd7bdfa36a6f8bb6a60b050610f55b04edf2db434",
+    "sdk/workers/wasm_signer_worker_bg.wasm": "27d2cbf2071723dc3a4370503922594ba727200df7675b1c74c51ea51e57d7b3",
+    "wallet-service/index.html": "52519464817015cac0312714dee0a21a33bbf260e4b3fb37669255978425c870"
+  },
+  "versionsBefore": [
+    {
+      "script": "seams-sdk-d1-gateway-staging",
+      "versions": [
+        {
+          "version_id": "cebc5a92-875f-4b52-8c42-2fa4b499b398",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "seams-sdk-d1-console-staging",
+      "versions": [
+        {
+          "version_id": "55ec63ea-d332-4ada-a181-8f968aed3b59",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-signing-worker-staging",
+      "versions": [
+        {
+          "version_id": "137dfce9-8ac7-4dbf-be2b-de0b1171f01d",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-mpc-router-staging",
+      "versions": [
+        {
+          "version_id": "2eafdb55-95e8-4d20-b091-c3e744d3aa05",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-deriver-a-staging",
+      "versions": [
+        {
+          "version_id": "9fdd3b52-b26a-4125-854a-ff1f5701662c",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-deriver-b-staging",
+      "versions": [
+        {
+          "version_id": "5c5de8e7-3bb6-46de-bdfb-25deb77387ba",
+          "percentage": 100
+        }
+      ]
+    }
+  ],
+  "tail": {
+    "scope": "Read-only live tail during the control and follow-up runs; individual Worker and DO events are not paired. CPU and wall values come from Cloudflare, not in-Worker clocks.",
+    "routes": {
+      "https://router-ab-do.internal/router-ab/internal/signing-worker/ecdsa-presign-session/init": {
+        "cpu": {
+          "count": 81,
+          "medianMs": 80,
+          "minMs": 55,
+          "maxMs": 114
+        },
+        "wall": {
+          "count": 81,
+          "medianMs": 176,
+          "minMs": 136,
+          "maxMs": 880
+        }
+      },
+      "https://router-ab-do.internal/router-ab/internal/signing-worker/ecdsa-presign-session/step": {
+        "cpu": {
+          "count": 198,
+          "medianMs": 9.0,
+          "minMs": 2,
+          "maxMs": 73
+        },
+        "wall": {
+          "count": 198,
+          "medianMs": 10.0,
+          "minMs": 2,
+          "maxMs": 74
+        }
+      },
+      "https://signing-worker.router-ab.internal/router-ab/signing-worker/ecdsa-derivation/presignature-session/init": {
+        "cpu": {
+          "count": 75,
+          "medianMs": 4,
+          "minMs": 2,
+          "maxMs": 65
+        },
+        "wall": {
+          "count": 75,
+          "medianMs": 908,
+          "minMs": 551,
+          "maxMs": 1515
+        }
+      },
+      "https://signing-worker.router-ab.internal/router-ab/signing-worker/ecdsa-derivation/presignature-session/step": {
+        "cpu": {
+          "count": 252,
+          "medianMs": 2.0,
+          "minMs": 1,
+          "maxMs": 79
+        },
+        "wall": {
+          "count": 252,
+          "medianMs": 146.5,
+          "minMs": 11,
+          "maxMs": 659
+        }
+      }
+    },
+    "rawEvents": {
+      "path": ".artifacts/mpc-refill-20261006/presign-cpu-events.json",
+      "sha256": "1337b0c7fef3965d288e169fb54f4283514e7a1bf2c3e3f28fc487a96395617f",
+      "count": 606
+    },
+    "slowestOuterSteps": [
+      {
+        "route": "https://signing-worker.router-ab.internal/router-ab/signing-worker/ecdsa-derivation/presignature-session/step",
+        "cpuMs": 79,
+        "wallMs": 659,
+        "timestamp": 1791241260304,
+        "outcome": "ok",
+        "scriptVersion": {
+          "id": "137dfce9-8ac7-4dbf-be2b-de0b1171f01d"
+        }
+      },
+      {
+        "route": "https://signing-worker.router-ab.internal/router-ab/signing-worker/ecdsa-derivation/presignature-session/step",
+        "cpuMs": 4,
+        "wallMs": 620,
+        "timestamp": 1791241298701,
+        "outcome": "ok",
+        "scriptVersion": {
+          "id": "137dfce9-8ac7-4dbf-be2b-de0b1171f01d"
+        }
+      },
+      {
+        "route": "https://signing-worker.router-ab.internal/router-ab/signing-worker/ecdsa-derivation/presignature-session/step",
+        "cpuMs": 2,
+        "wallMs": 614,
+        "timestamp": 1791241698945,
+        "outcome": "ok",
+        "scriptVersion": {
+          "id": "137dfce9-8ac7-4dbf-be2b-de0b1171f01d"
+        }
+      },
+      {
+        "route": "https://signing-worker.router-ab.internal/router-ab/signing-worker/ecdsa-derivation/presignature-session/step",
+        "cpuMs": 4,
+        "wallMs": 612,
+        "timestamp": 1791241282992,
+        "outcome": "ok",
+        "scriptVersion": {
+          "id": "137dfce9-8ac7-4dbf-be2b-de0b1171f01d"
+        }
+      },
+      {
+        "route": "https://signing-worker.router-ab.internal/router-ab/signing-worker/ecdsa-derivation/presignature-session/step",
+        "cpuMs": 3,
+        "wallMs": 609,
+        "timestamp": 1791241308258,
+        "outcome": "ok",
+        "scriptVersion": {
+          "id": "137dfce9-8ac7-4dbf-be2b-de0b1171f01d"
+        }
+      }
+    ]
+  },
+  "attempts": [
+    {
+      "name": "candidate",
+      "classification": "environment_or_infrastructure_failure",
+      "detail": "Missing wallet-service HTML; failed before registration, zero measurements."
+    },
+    {
+      "name": "candidate-2",
+      "classification": "environment_or_infrastructure_failure",
+      "detail": "Patch skipped in nested ignored directory. This is a rebuilt unchanged control, not an optimization result."
+    },
+    {
+      "name": "overlap",
+      "classification": "environment_or_infrastructure_failure",
+      "detail": "Old scheduler remained in the incorrectly packaged candidate; overlap assertion failed as expected for that baseline."
+    }
+  ],
+  "newCloudflareResources": 0,
+  "backendDeployments": 0,
+  "productionDeployed": false,
+  "npmReleased": false,
+  "budgetUsd": 25,
+  "versionsAfter": [
+    {
+      "script": "seams-sdk-d1-gateway-staging",
+      "versions": [
+        {
+          "version_id": "cebc5a92-875f-4b52-8c42-2fa4b499b398",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "seams-sdk-d1-console-staging",
+      "versions": [
+        {
+          "version_id": "55ec63ea-d332-4ada-a181-8f968aed3b59",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-signing-worker-staging",
+      "versions": [
+        {
+          "version_id": "137dfce9-8ac7-4dbf-be2b-de0b1171f01d",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-mpc-router-staging",
+      "versions": [
+        {
+          "version_id": "2eafdb55-95e8-4d20-b091-c3e744d3aa05",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-deriver-a-staging",
+      "versions": [
+        {
+          "version_id": "9fdd3b52-b26a-4125-854a-ff1f5701662c",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-deriver-b-staging",
+      "versions": [
+        {
+          "version_id": "5c5de8e7-3bb6-46de-bdfb-25deb77387ba",
+          "percentage": 100
+        }
+      ]
+    }
+  ],
+  "codeCommits": {
+    "active": "e235788a8ba1e3d81185fdbf26f074ba51fe6c31",
+    "dev": "f6753543a80ed6c5d32e09d442bab0c218f8f6a3"
+  },
+  "privateTestCommit": "92de900",
+  "checks": {
+    "walletTypecheck": "passed",
+    "bloat": "passed",
+    "hostedOverlap": "passed",
+    "hostedConsecutive": "passed",
+    "hostedReady": "passed",
+    "hostedFreshStatus": "passed",
+    "hostedTestLint": "passed"
+  }
+}

@@ -18,6 +18,11 @@ workload measured three signatures per unlock without deliberate warm-up or
 prefill waits. UI automation still takes time between calls. Neither workload
 establishes saturated throughput, a latency ceiling, or p95.
 
+The frozen test app configures one entry for login prefill. Post-sign maintenance
+uses the SDK's five-entry target. This configuration is part of this baseline;
+the production SDK default is five. Public `dev` commit `4ccc5650` preserves this
+comparison before the later refill scheduling changes.
+
 Sixteen of eighteen consecutive calls waited for refill. Their median refill
 wait was **1.959s**, with a maximum of **5.532s**. These results form the baseline
 for optimizing the typical burst of two or three signatures. They do not predict
@@ -6908,3 +6913,111 @@ are in `seams-monorepo/.artifacts/mpc-consecutive-20261006/`. The same existing
 hosted test ran twice with `--grep back_to_back`.
 Tracked evidence:
 [`r152-consecutive-signing-20261006.json`](evidence/r152-consecutive-signing-20261006.json).
+
+## Refill scheduling checkpoint (October 6, 2026)
+
+**The first candidate cohort measured 2.268s median for consecutive signing.**
+The fresh unchanged control measured **2.955s**, and a rebuilt unchanged control
+measured **3.401s**. Each cohort contains nine verified signatures. The candidate
+median is 23.3% below the fresh control. These small sequential cohorts show
+substantial variation and do not establish a guaranteed reduction or maximum.
+The preceding 1.745s / 3.411s baseline remains preserved above.
+
+| Workload | Signatures | Median | Observed range | Calls waiting for refill |
+| --- | ---: | ---: | ---: | ---: |
+| Unchanged consecutive control | 9 | 2.955s | 2.238–4.350s | 9/9 |
+| Rebuilt unchanged consecutive control | 9 | 3.401s | 2.181–3.803s | 8/9 |
+| Candidate consecutive signing | 9 | **2.268s** | **1.788–4.052s** | 8/9 |
+| Candidate ready-material signing | 6 | **1.538s** | **1.382–1.684s** | 0/6 |
+
+Affected-call refill wait fell from **1.425s** median in the fresh control to
+**0.812s** in the candidate. The candidate still had a **2.173s** refill wait.
+Stage medians overlap and must not be added. The ready-material cohort has no
+fresh ready-material control in this experiment, so its result cannot isolate
+the scheduling change from ordinary variation.
+
+### Change and verification
+
+Reusable signing starts maintenance before prepare. Every reservation triggers
+replenishment, and maintenance continues during prepare and finalize. One
+background refill per pool and the existing global refill limit remain in force.
+The foreground guard now covers recovery generation only. Maintenance cannot
+start competing generation while foreground recovery is producing material.
+Expiry, revocation, invalidation, quota checks, and atomic one-use reservations
+remain in place. The five-entry SDK target and all infrastructure are unchanged.
+
+A hosted E2E holds the first prepare request until refill supplies two available
+entries. It then independently verifies three signatures. The old scheduler
+failed this overlap assertion; the patched scheduler passed. Both latency
+workloads also passed NEAR signing, concurrent Tempo/Arc signing, shared budget
+exhaustion, and lifecycle checks. The authorization E2E confirmed a failed fresh
+status read after approval still blocks prepare, then verified a successful retry.
+Wallet type-check, the bloat check, and the hosted test's lint check passed.
+
+Implementation on public `dev`: `f6753543`. Hosted overlap E2E on private `dev`:
+`92de900`. Existing staged and unstaged work from other refactors was excluded.
+
+### Slow-step diagnosis
+
+Read-only Cloudflare tail events separated CPU time from request wall time:
+
+| Observed route | Events | CPU median / maximum | Wall median / maximum |
+| --- | ---: | ---: | ---: |
+| Presign DO init | 81 | 80 / 114ms | 176 / 880ms |
+| Presign DO step | 198 | 9 / 73ms | 10 / 74ms |
+| SigningWorker presign init | 75 | 4 / 65ms | 908 / 1515ms |
+| SigningWorker presign step | 252 | 2 / 79ms | 146.5 / 659ms |
+
+These are separate event populations, not paired subrequest timings. They support
+investigating dispatch, placement, startup and waiting before changing the MPC
+computation. They do not identify which of those causes dominates. The earlier
+3.502s step did not recur in this capture. No server-side reduction of that
+outlier is claimed.
+
+The existing in-DO zero-duration timer does not prove zero computation cost.
+[Cloudflare timers advance only after I/O](https://developers.cloudflare.com/workers/runtime-apis/performance/).
+The CPU figures above come from Cloudflare tail events. This experiment added no
+diagnostic code or permanent logging service.
+
+### Session validation and prepare evaluation
+
+The remaining browser status request cost approximately **216ms** in the prior
+consecutive cohort. Prepare already checks session authority, active material,
+policy and operation admission. Thus, a combined admission response is feasible
+in principle, but removing the browser read alone is incomplete.
+
+`resolveBrowserEcdsaPreprocessingCapability` uses the status response to reconcile
+the complete authorization record, including deferred NEAR authority publication,
+before material hydration. The current prepare response contains signing protocol
+facts and no authorization projection or quota state. Combining these requests
+requires a prepare response that carries the current authorization projection,
+client reconciliation before signing, and equivalent failure behavior for
+retirement, exhausted quota, superseded authority and directory failures.
+
+This checkpoint retains the fresh status request. The expected saving remains
+unmeasured. No cached authorization or weaker admission path was introduced.
+
+### Evidence and reproduction
+
+The native NRT browser used the same APAC wallet topology and frozen application
+configuration as the baseline. The full SDK timer includes automated approval
+and transaction assembly. Blockchain broadcast and confirmation are excluded.
+Only the two client scheduling files changed in the frozen candidate. All six
+backend Worker versions matched before and after. There was no backend deployment,
+new Cloudflare resource, production change, or npm release. The **$25 total
+Cloudflare budget** remains the constraint.
+
+One initial attempt failed before registration because the test bundle lacked
+wallet-service HTML. Another packaged attempt retained the old scheduler because
+Git skipped a patch in an ignored nested directory. Its nine successful samples
+are explicitly reported as the rebuilt unchanged control. The frozen patch was
+then applied from outside the repository and verified in source and emitted code.
+All failed attempt logs and traces remain available.
+
+Repeat with `tests/playwright.hosted-product.config.mjs` and
+`mpc-signing-latency.test.ts`, `mpc-refill-overlap.test.ts`, and
+`signing-approval.test.ts`. Use the frozen site and projection recorded under
+`seams-monorepo/.artifacts/mpc-refill-20261006/`. That directory contains the source
+patch, asset hashes, raw traces, tail events, build logs, analysis script, and
+version snapshots. Tracked summary and observations:
+[`r152-refill-scheduling-20261006.json`](evidence/r152-refill-scheduling-20261006.json).
