@@ -19,6 +19,11 @@ import {
   type WalletRelocationFactorVerification,
 } from './d1WalletRelocationOwner';
 
+export type WalletRelocationEmailOtpServices = {
+  readonly verifier: CloudflareD1EmailOtpChallengeVerifier;
+  readonly emailOtpChallenges: CloudflareD1EmailOtpChallengeStore;
+};
+
 export async function walletRelocationEmailOtpBinding(
   scope: D1TenantScope,
   binding: WalletRelocationChallengeBinding,

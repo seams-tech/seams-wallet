@@ -737,6 +737,7 @@ export async function createHostedWalletGatewayCompositionV1(
     signerStorageNamespace: scope.namespace,
     routeExtensions: [
       new WalletPlacementRoutes({
+        emailOtp: service.relocationEmailOtp,
         database: env.SIGNER_DB,
         scope,
         tenantId: tenantId.value,

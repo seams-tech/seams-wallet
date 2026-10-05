@@ -74,6 +74,16 @@ Session continuity, sealed-session restoration, and pool restoration are exclude
 
 ## Implemented baseline
 
+Fresh Email OTP submission now uses the public relocation POST with
+`sourceProof: { kind: "email_otp", challengeId, otpCode }`. Hosted composition
+passes the existing OTP verifier and challenge store, including the existing
+shared rate-limit authority. The public D1 E2E submits the purpose-bound OTP
+through HTTP and verifies that both challenges are consumed with approval before
+journal dispatch. OTP delivery/challenge issuance through this flow remains open.
+The existing Email OTP route assembly moved to its own module, reducing the main
+authentication composition file instead of adding another OTP verification path.
+
+
 The public relocation POST now verifies a fresh passkey `sourceProof` when no
 approval exists. The proof shape is `{ kind: "passkey", credential }`. It reads the
 stored challenge, checks the authenticated initiating credential and exact request,

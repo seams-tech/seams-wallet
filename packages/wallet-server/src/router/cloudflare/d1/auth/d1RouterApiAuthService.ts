@@ -1,3 +1,5 @@
+import { createD1EmailOtpRouteService } from './d1EmailOtpRouteService';
+import type { WalletRelocationEmailOtpServices } from '../wallet/d1WalletRelocationEmailOtp';
 import { createSponsoredNamedNearAccountForOptions } from '../near/d1SponsoredNearAccount';
 import {
   parseD1WalletAddSignerFinalizeSideEffectRecord,
@@ -182,6 +184,7 @@ export type {
 } from './d1RouterApiAuthConfig';
 
 export type CloudflareD1RouterApiAuthService = Omit<RouterApiServiceBag, 'thresholdRuntime'> & {
+  readonly relocationEmailOtp: WalletRelocationEmailOtpServices;
   readonly thresholdRuntime: RouterApiServiceBag['thresholdRuntime'];
   readonly executeSignedDelegate: (
     input: ExecuteSignedDelegateRequest,
@@ -225,6 +228,7 @@ function linkedDeviceEd25519AuthorityReaderFromSlot(
 }
 
 type CloudflareD1RouterApiAuthAssembly = {
+  readonly relocationEmailOtp: WalletRelocationEmailOtpServices;
   readonly options: NormalizedCloudflareD1RouterApiAuthServiceOptions;
   readonly emailOtpServerSeal: CloudflareD1EmailOtpServerSealRuntime;
   readonly emailOtpChallengeService: CloudflareD1EmailOtpChallengeService;
@@ -285,15 +289,6 @@ type D1WalletUnlockRouteServiceAssembly = Pick<
   | 'options'
   | 'walletAuthMethods'
   | 'webAuthnAuthService'
->;
-
-type D1EmailOtpRouteServiceAssembly = Pick<
-  CloudflareD1RouterApiAuthAssembly,
-  | 'emailOtpServerSeal'
-  | 'emailOtpChallengeService'
-  | 'emailOtpRecoveryService'
-  | 'googleEmailOtpSessions'
-  | 'oidcVerification'
 >;
 
 type D1WebAuthnRouteServiceAssembly = Pick<
@@ -1487,6 +1482,7 @@ function createCloudflareD1RouterApiAuthAssembly(
     linkedDeviceComposition.linkedDeviceEd25519AuthorityReader ?? null;
 
   return {
+    relocationEmailOtp: { verifier: emailOtpChallengeVerifier, emailOtpChallenges },
     options,
     emailOtpServerSeal,
     emailOtpChallengeService,
@@ -1970,66 +1966,6 @@ function createD1WalletUnlockRouteService(
   };
 }
 
-function createD1EmailOtpRouteService(
-  assembly: D1EmailOtpRouteServiceAssembly,
-): RouterApiServiceBag['emailOtp'] {
-  return {
-    applyEmailOtpServerSeal: assembly.emailOtpServerSeal.applyEmailOtpServerSeal.bind(
-      assembly.emailOtpServerSeal,
-    ),
-    cleanupGoogleEmailOtpDevRegistrationState:
-      assembly.googleEmailOtpSessions.cleanupDevRegistrationState.bind(
-        assembly.googleEmailOtpSessions,
-      ),
-    consumeEmailOtpGrant: assembly.emailOtpRecoveryService.consumeEmailOtpGrant.bind(
-      assembly.emailOtpRecoveryService,
-    ),
-    createEmailOtpChallenge: assembly.emailOtpChallengeService.createEmailOtpChallenge.bind(
-      assembly.emailOtpChallengeService,
-    ),
-    createEmailOtpEnrollmentChallenge:
-      assembly.emailOtpChallengeService.createEmailOtpEnrollmentChallenge.bind(
-        assembly.emailOtpChallengeService,
-      ),
-    isEmailOtpStrongAuthRequired:
-      assembly.emailOtpRecoveryService.isEmailOtpStrongAuthRequired.bind(
-        assembly.emailOtpRecoveryService,
-      ),
-    markEmailOtpStrongAuthSatisfied:
-      assembly.emailOtpRecoveryService.markEmailOtpStrongAuthSatisfied.bind(
-        assembly.emailOtpRecoveryService,
-      ),
-    readActiveEmailOtpEnrollment:
-      assembly.emailOtpRecoveryService.readActiveEmailOtpEnrollment.bind(
-        assembly.emailOtpRecoveryService,
-      ),
-    readEmailOtpEnrollment: assembly.emailOtpRecoveryService.readEmailOtpEnrollment.bind(
-      assembly.emailOtpRecoveryService,
-    ),
-    readEmailOtpOutboxEntry: assembly.emailOtpChallengeService.readEmailOtpOutboxEntry.bind(
-      assembly.emailOtpChallengeService,
-    ),
-    removeEmailOtpServerSeal: assembly.emailOtpServerSeal.removeEmailOtpServerSeal.bind(
-      assembly.emailOtpServerSeal,
-    ),
-    validateGoogleEmailOtpRegistrationCandidateWallet:
-      assembly.googleEmailOtpSessions.validateRegistrationCandidateWallet.bind(
-        assembly.googleEmailOtpSessions,
-      ),
-    verifyEmailOtpChallenge: assembly.emailOtpChallengeService.verifyEmailOtpChallenge.bind(
-      assembly.emailOtpChallengeService,
-    ),
-    verifyEmailOtpWalletRecoveryChallenge:
-      assembly.emailOtpChallengeService.verifyEmailOtpWalletRecoveryChallenge.bind(
-        assembly.emailOtpChallengeService,
-      ),
-    verifyEmailOtpEnrollment: assembly.emailOtpChallengeService.verifyEmailOtpEnrollment.bind(
-      assembly.emailOtpChallengeService,
-    ),
-    verifyGoogleLogin: assembly.oidcVerification.verifyGoogleLogin.bind(assembly.oidcVerification),
-  };
-}
-
 function createD1WebAuthnRouteService(
   assembly: D1WebAuthnRouteServiceAssembly,
 ): RouterApiServiceBag['webAuthn'] {
@@ -2188,6 +2124,7 @@ export function createCloudflareD1RouterApiAuthService(
 ): CloudflareD1RouterApiAuthService {
   const assembly = createCloudflareD1RouterApiAuthAssembly(input);
   return {
+    relocationEmailOtp: assembly.relocationEmailOtp,
     walletRegistration: createD1WalletRegistrationRouteService(assembly),
     walletAuthMethods: createD1WalletAuthMethodRouteService(assembly),
     walletUnlock: createD1WalletUnlockRouteService(assembly),

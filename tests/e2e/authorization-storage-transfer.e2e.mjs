@@ -510,6 +510,29 @@ function placementReadRequest(binding, token, path) {
   );
 }
 
+function relocationEmailOtpServices(database) {
+  const prepare = api.prepareD1TenantStatement.bind(null, database, scope);
+  const emailOtpEnrollments = new api.CloudflareD1EmailOtpEnrollmentStore({ prepare });
+  const emailOtpChallenges = new api.CloudflareD1EmailOtpChallengeStore({ database, ...scope });
+  const policy = { limit: 100, windowMs: 60_000 };
+  const emailOtpRateLimits = new api.CloudflareD1EmailOtpRateLimitStore({
+    prepare,
+    rateLimits: {
+      challenge: policy,
+      verify: policy,
+      grant: policy,
+      googleRegistrationAttempt: policy,
+    },
+  });
+  const verifier = new api.CloudflareD1EmailOtpChallengeVerifier({
+    emailOtpChallenges,
+    emailOtpEnrollments,
+    emailOtpRateLimits,
+    lockoutTtlMs: 60_000,
+  });
+  return { verifier, emailOtpChallenges };
+}
+
 async function authenticateRelocationOwner(authorizationSessions, issued, nowMs) {
   const origin = api.parseSessionOrigin('https://wallet.example.test');
   const owner = await api.WalletRelocationOwnerRequest.authenticate({
@@ -668,6 +691,7 @@ async function verifyRelocationPasskey(database) {
   await database.exec('DROP TRIGGER fail_relocation_approval;');
   const submissionDirectory = new PlacementDirectoryRecorder(null);
   const submissionRoutes = new api.WalletPlacementRoutes({
+    emailOtp: relocationEmailOtpServices(database),
     database,
     scope,
     tenantId: issued.session.tenantId,
@@ -829,6 +853,7 @@ async function verifyRelocationPasskey(database) {
   assert.equal(readAccess.binding.encoded(), binding.encoded());
   const directory = new PlacementDirectoryRecorder(null);
   const routes = new api.WalletPlacementRoutes({
+    emailOtp: relocationEmailOtpServices(database),
     database,
     scope,
     tenantId: issued.session.tenantId,
@@ -1145,23 +1170,7 @@ async function verifyRelocationEmailOtp(database) {
     nowMs,
   });
   await emailOtpEnrollments.putEnrollment(enrollment);
-  const emailOtpChallenges = new api.CloudflareD1EmailOtpChallengeStore({ database, ...scope });
-  const policy = { limit: 100, windowMs: 60_000 };
-  const emailOtpRateLimits = new api.CloudflareD1EmailOtpRateLimitStore({
-    prepare,
-    rateLimits: {
-      challenge: policy,
-      verify: policy,
-      grant: policy,
-      googleRegistrationAttempt: policy,
-    },
-  });
-  const verifier = new api.CloudflareD1EmailOtpChallengeVerifier({
-    emailOtpChallenges,
-    emailOtpEnrollments,
-    emailOtpRateLimits,
-    lockoutTtlMs: 60_000,
-  });
+  const { verifier, emailOtpChallenges } = relocationEmailOtpServices(database);
   const binding = api.WalletRelocationChallengeBinding.parse({
     walletId: fixture.authority.walletId,
     moveId: `wmove_${Buffer.alloc(32, 100).toString('base64url')}`,
@@ -1240,6 +1249,43 @@ async function verifyRelocationEmailOtp(database) {
   assert.equal((await challenges.read(binding)).state, 'issued');
   assert.equal(await approvals.read(binding), null);
   await database.exec('DROP TRIGGER fail_relocation_approval;');
+  const submissionDirectory = new PlacementDirectoryRecorder(null);
+  const routes = new api.WalletPlacementRoutes({
+    database,
+    scope,
+    emailOtp: { verifier, emailOtpChallenges },
+    tenantId: issued.session.tenantId,
+    allowedOrigins: [binding.origin],
+    authorizationSessions,
+    directory: submissionDirectory,
+  });
+  const submitted = await routes.handle(
+    new Request('https://gateway.example.test/wallet/placement/v1/relocations', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${issued.operationCredential.token}`,
+        Origin: binding.origin,
+      },
+      body: JSON.stringify({
+        walletId: binding.walletId,
+        moveId: binding.moveId,
+        destinationRegion: binding.destinationRegion,
+        expectedGeneration: binding.sourceGeneration,
+        sourceProof: {
+          kind: 'email_otp',
+          challengeId: otpInput.challengeId,
+          otpCode: otpInput.otpCode,
+        },
+      }),
+    }),
+  );
+  assert.equal(submitted.status, 404);
+  assert.ok(await approvals.read(binding));
+  assert.equal(
+    submissionDirectory.requests[0].path,
+    '/internal/wallet-placement/v1/relocation-replay',
+  );
+
   const approved = await approvals.approveEmailOtp(input);
   assert.equal(approved.kind, 'approved');
   assert.equal(approved.approval.expiresAtMs, nowMs + 30_000);
@@ -1264,6 +1310,7 @@ async function verifyRelocationEmailOtp(database) {
     scope:
       'OTP verification and atomic approval through production stores; excludes email delivery, factor unsealing, owner HTTP authentication and Console admission',
     initiatingSessionGuardUsesIssuedCredential: true,
+    httpOtpSubmissionUsesSharedVerifierAndPersistsApprovalBeforeDispatch: true,
     enrollmentRemovalRejectsStaleCommit: true,
     distinctRelocationPurpose: true,
     signingChallengeRejectedAndPreserved: true,
@@ -1325,6 +1372,7 @@ async function verifyRelocationOwnerRequest(database) {
     destinationRegion: move.destinationRegion,
   });
   const routes = new api.WalletPlacementRoutes({
+    emailOtp: relocationEmailOtpServices(database),
     database,
     scope,
     tenantId: issued.session.tenantId,

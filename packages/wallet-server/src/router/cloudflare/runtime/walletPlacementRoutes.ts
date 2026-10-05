@@ -1,4 +1,5 @@
-import { isPlainObject } from '@shared/utils/validation';
+import type { WalletRelocationEmailOtpServices } from '../d1/wallet/d1WalletRelocationEmailOtp';
+import { isPlainObject, requireCanonicalString } from '@shared/utils/validation';
 import type { TenantId } from '@shared/authorization/capabilityKinds';
 import { parseWalletId, type WalletId } from '@shared/utils/domainIds';
 import type { SessionOrigin } from '../../../authorization/domain';
@@ -75,6 +76,7 @@ export class WalletPlacementRoutes implements RouterApiRouteExtension {
 
   constructor(
     private readonly options: {
+      readonly emailOtp: WalletRelocationEmailOtpServices;
       readonly database: D1DatabaseLike;
       readonly scope: D1TenantScope;
       readonly tenantId: TenantId;
@@ -246,14 +248,32 @@ export class WalletPlacementRoutes implements RouterApiRouteExtension {
         return failure('request_conflict', 409);
       if (owner.bindMove(challenge.binding).encoded() !== challenge.binding.encoded())
         return failure('unauthorized', 401);
-      const proof = passkeyProof(intent.sourceProof);
+      const proof = parseSourceProof(intent.sourceProof);
       if (!proof) return failure('invalid_source_proof', 400);
-      const result = await approvals.approvePasskey({
-        owner,
-        binding: challenge.binding,
-        credential: proof.credential,
-        nowMs,
-      });
+      let result: Awaited<ReturnType<D1WalletRelocationApprovals['approvePasskey']>>;
+      switch (proof.kind) {
+        case 'passkey':
+          result = await approvals.approvePasskey({
+            owner,
+            binding: challenge.binding,
+            credential: proof.credential,
+            nowMs,
+          });
+          break;
+        case 'email_otp':
+          result = await approvals.approveEmailOtp({
+            owner,
+            binding: challenge.binding,
+            challengeId: proof.challengeId,
+            otpCode: proof.otpCode,
+            nowMs,
+            verifier: this.options.emailOtp.verifier,
+            emailOtpChallenges: this.options.emailOtp.emailOtpChallenges,
+          });
+          break;
+        default:
+          return assertNever(proof);
+      }
       if (result.kind === 'denied') return failure('source_proof_denied', 403);
       approval = result.approval;
     }
@@ -349,15 +369,36 @@ function parseRelocationIntent(
     : { ...intent, kind: 'admission', sourceProof: raw.sourceProof };
 }
 
-function passkeyProof(
-  raw: unknown,
-): { readonly kind: 'passkey'; readonly credential: unknown } | null {
-  if (
-    !isPlainObject(raw) ||
-    Object.keys(raw).length !== 2 ||
-    raw.kind !== 'passkey' ||
-    !Object.hasOwn(raw, 'credential')
-  )
+type SourceProof =
+  | {
+      readonly kind: 'passkey';
+      readonly credential: unknown;
+      readonly challengeId?: never;
+      readonly otpCode?: never;
+    }
+  | {
+      readonly kind: 'email_otp';
+      readonly credential?: never;
+      readonly challengeId: string;
+      readonly otpCode: string;
+    };
+
+function parseSourceProof(raw: unknown): SourceProof | null {
+  if (!isPlainObject(raw)) return null;
+  if (raw.kind === 'passkey' && Object.keys(raw).length === 2 && Object.hasOwn(raw, 'credential'))
+    return { kind: 'passkey', credential: raw.credential };
+  if (raw.kind !== 'email_otp' || Object.keys(raw).length !== 3) return null;
+  try {
+    return {
+      kind: 'email_otp',
+      challengeId: requireCanonicalString(raw.challengeId, 'OTP challenge'),
+      otpCode: requireCanonicalString(raw.otpCode, 'OTP code'),
+    };
+  } catch {
     return null;
-  return { kind: 'passkey', credential: raw.credential };
+  }
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unexpected relocation proof: ${String(value)}`);
 }
