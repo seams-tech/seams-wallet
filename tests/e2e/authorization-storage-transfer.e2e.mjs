@@ -36,6 +36,7 @@ const bundle = await build({
     loader: 'ts',
     contents: `
       export { AuthorizationService } from './packages/wallet-server/src/authorization/service';
+      export { D1WalletRelocationChallenges, WalletRelocationChallengeBinding } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationChallenges';
       export { capabilityPolicyPort } from './packages/wallet-server/src/authorization/capabilityPolicy';
       export { parseSessionOrigin } from './packages/wallet-server/src/authorization/domain';
       export { CloudflareD1AuthorizationStore } from './packages/wallet-server/src/router/cloudflare/d1/authorization/d1AuthorizationStore';
@@ -75,6 +76,7 @@ try {
     expiresAtMs: issuedAtMs + 3_600_000,
   });
   const issued = await issueDeviceSession(source, sourceService, fixture, issuedAtMs);
+  const relocationChallenges = await verifyRelocationChallenges(source, fixture, issued, issuedAtMs);
   const offlineFixture = await api.buildLinkedDeviceManagementAuthorityFixture({
     label: 'storage-transfer-offline-device',
     permissions: api.buildFullOwnerPermissionsV1(),
@@ -281,6 +283,7 @@ try {
     copied,
     authorizationId: issued.session.authorizationId,
     observations: {
+      relocationChallenges,
       existingPrimaryCredentialAcceptedAtIndependentDatabase: true,
       secondDeviceCredentialAndAuthorityPreservedWithoutReissuance: true,
       directConsumedExchangeImportRejected: true,
@@ -366,4 +369,63 @@ function isSql(name) {
 
 function digest(value) {
   return createHash('sha256').update(value).digest('hex');
+}
+
+async function verifyRelocationChallenges(database, fixture, session, nowMs) {
+  const store = new api.D1WalletRelocationChallenges(database, scope);
+  const input = {
+    walletId: fixture.authority.walletId,
+    moveId: `wmove_${Buffer.alloc(32, 93).toString('base64url')}`,
+    requestDigestHex: 'ab'.repeat(32),
+    sourceGeneration: 1,
+    destinationRegion: 'APAC',
+    authorityId: fixture.authority.authorityId,
+    walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
+    credentialDigestHex: digest(Buffer.from(session.operationCredential.token)),
+    credentialExpiresAtMs: session.session.expiresAtMs,
+    origin: 'https://wallet.example.test',
+  };
+  const binding = api.WalletRelocationChallengeBinding.parse(input);
+  const [issued, concurrent] = await Promise.all([
+    store.issue(binding, nowMs, nowMs + 600_000),
+    store.issue(binding, nowMs + 1, nowMs + 600_000),
+  ]);
+  assert.deepEqual(concurrent, issued);
+  assert.equal(issued.state, 'issued');
+  assert.equal(issued.expiresAtMs, issued.createdAtMs + 300_000);
+  assert.equal(Buffer.from(issued.challengeB64u, 'base64url').length, 32);
+  assert.deepEqual(await store.issue(binding, nowMs + 1, nowMs + 900_000), issued);
+  await assert.rejects(store.issue(api.WalletRelocationChallengeBinding.parse({ ...input, destinationRegion: 'US' }), nowMs + 1, nowMs + 600_000), /binding changed/);
+  assert.equal(await new api.D1WalletRelocationChallenges(database, { ...scope, envId: 'other' }).read(binding), null);
+  assert.throws(() => store.prepareConsume(issued, nowMs - 1), /invalid or expired/);
+  assert.throws(() => store.prepareConsume(issued, issued.expiresAtMs), /invalid or expired/);
+  await assert.rejects(database.batch([
+    ...store.prepareConsume(issued, nowMs + 2),
+    database.prepare('INSERT INTO router_ab_yao_versioned_json_cas_guard (guard_id) VALUES (1)'),
+  ]));
+  assert.deepEqual(await store.read(binding), issued);
+  await database.batch(store.prepareConsume(issued, nowMs + 3));
+  const consumed = await store.read(binding);
+  assert.equal(consumed.state, 'consumed');
+  assert.equal(consumed.consumedAtMs, nowMs + 3);
+  await assert.rejects(database.batch(store.prepareConsume(issued, nowMs + 4)));
+  assert.deepEqual(await store.issue(binding, nowMs + 1_000_000, nowMs), consumed);
+  const factorBound = api.WalletRelocationChallengeBinding.parse({ ...input, moveId: `wmove_${Buffer.alloc(32, 94).toString('base64url')}` });
+  const shorter = await store.issue(factorBound, nowMs, nowMs + 30_000);
+  assert.equal(shorter.expiresAtMs, nowMs + 30_000);
+  const credentialBound = api.WalletRelocationChallengeBinding.parse({ ...input, moveId: `wmove_${Buffer.alloc(32, 95).toString('base64url')}`, credentialExpiresAtMs: nowMs + 10_000 });
+  assert.equal((await store.issue(credentialBound, nowMs, nowMs + 30_000)).expiresAtMs, nowMs + 10_000);
+  return {
+    scope: 'Challenge persistence only; excludes factor verification, full-owner approval, and Console admission',
+    fiveMinuteMaximum: true,
+    factorExpiryCapsChallenge: true,
+    credentialExpiryCapsChallenge: true,
+    concurrentIssueReturnsOneChallenge: true,
+    exactIssueRetryPreservesChallengeAndExpiry: true,
+    changedDestinationRejected: true,
+    tenantScopeIsolated: true,
+    failedBatchPreservesUnspentChallenge: true,
+    exactConsumptionRequiredAndSingleUse: true,
+    consumedChallengeNeverReissued: true,
+  };
 }
