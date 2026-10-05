@@ -2257,12 +2257,19 @@ pub(crate) async fn require_ecdsa_material_active_v1(
     else {
         return Ok(());
     };
-    current.value.validate()?;
-    match current.value {
+    validate_ecdsa_material_active_v1(&current.value, material_activation)
+}
+
+pub(crate) fn validate_ecdsa_material_active_v1(
+    state: &EcdsaReservationStateV1,
+    material_activation: &MpcMaterialActivationRefV1,
+) -> RouterAbProtocolResult<()> {
+    state.validate()?;
+    match state {
         EcdsaReservationStateV1::Active {
             material_activation: stored_ref,
             ..
-        } if stored_ref == *material_activation => Ok(()),
+        } if stored_ref == material_activation => Ok(()),
         EcdsaReservationStateV1::Inactive {
             material_activation: stored_ref,
             ..
@@ -2270,7 +2277,7 @@ pub(crate) async fn require_ecdsa_material_active_v1(
         | EcdsaReservationStateV1::Activating {
             material_activation: stored_ref,
             ..
-        } if stored_ref == *material_activation => Err(invalid_reservation(
+        } if stored_ref == material_activation => Err(invalid_reservation(
             "ordinary ECDSA material reservation is not active",
         )),
         EcdsaReservationStateV1::Deactivating {
@@ -2280,13 +2287,13 @@ pub(crate) async fn require_ecdsa_material_active_v1(
         | EcdsaReservationStateV1::Revoked {
             material_activation: stored_ref,
             ..
-        } if stored_ref == *material_activation => Err(invalid_reservation(
+        } if stored_ref == material_activation => Err(invalid_reservation(
             "ordinary ECDSA material reservation is revoked",
         )),
         EcdsaReservationStateV1::SourcePreservingActive {
             material_activation: stored_ref,
             ..
-        } if stored_ref == *material_activation => Ok(()),
+        } if stored_ref == material_activation => Ok(()),
         EcdsaReservationStateV1::SourcePreservingInactive {
             material_activation: stored_ref,
             ..
@@ -2294,7 +2301,7 @@ pub(crate) async fn require_ecdsa_material_active_v1(
         | EcdsaReservationStateV1::SourcePreservingActivating {
             material_activation: stored_ref,
             ..
-        } if stored_ref == *material_activation => Err(invalid_reservation(
+        } if stored_ref == material_activation => Err(invalid_reservation(
             "source-preserving ECDSA material reservation is not active",
         )),
         EcdsaReservationStateV1::SourcePreservingDeactivating {
@@ -2304,7 +2311,7 @@ pub(crate) async fn require_ecdsa_material_active_v1(
         | EcdsaReservationStateV1::SourcePreservingRevoked {
             material_activation: stored_ref,
             ..
-        } if stored_ref == *material_activation => Err(invalid_reservation(
+        } if stored_ref == material_activation => Err(invalid_reservation(
             "source-preserving ECDSA material reservation is revoked",
         )),
         _ => Err(RouterAbProtocolError::new(
@@ -2323,38 +2330,25 @@ pub(crate) async fn require_ecdsa_material_active_v1(
 /// target identity fields. The decrypted share never leaves this module except
 /// inside the worker-owned `CloudflareServerOutputMaterialRecordV1`.
 #[cfg(feature = "workers-rs")]
-#[allow(clippy::too_many_arguments)]
-pub(crate) async fn load_source_preserving_ecdsa_material_v1(
+pub(crate) fn source_preserving_ecdsa_material_v1(
     env: &Env,
     runtime: &CloudflareSigningWorkerRuntimeV1,
-    material_activation: &MpcMaterialActivationRefV1,
-    signing_worker: &ServerIdentityV1,
-    target_client_public_key33_b64u: &str,
-    target_relayer_public_key33_b64u: &str,
-    threshold_public_key33_b64u: &str,
-    threshold_ethereum_address20_b64u: &str,
+    scope: &router_ab_core::RouterAbEcdsaDerivationNormalSigningScopeV1,
+    state: &EcdsaReservationStateV1,
+    activated_at_ms: u64,
 ) -> RouterAbProtocolResult<(
     ActiveSigningWorkerStateV1,
     CloudflareServerOutputMaterialRecordV1,
 )> {
+    let material_activation = &scope.material_activation;
+    let signing_worker = &scope.signing_worker;
     material_activation.validate()?;
     signing_worker.validate()?;
     runtime
         .server_output_decrypt_key()
         .validate_matches_server(signing_worker)?;
-    require_ecdsa_material_active_v1(env, material_activation).await?;
-
-    let record_key = reservation_record_key_v1(material_activation)?;
-    let Some(current) = load_cloudflare_signing_worker_private_d1_secret_v1::<
-        EcdsaReservationStateV1,
-    >(env, "ecdsa_inactive_reservations", &record_key)
-    .await?
-    else {
-        return Err(source_preserving_material_missing_v1());
-    };
-    current.value.validate()?;
-    let active =
-        select_source_preserving_active_reservation_v1(&current.value, material_activation)?;
+    validate_ecdsa_material_active_v1(state, material_activation)?;
+    let active = select_source_preserving_active_reservation_v1(state, material_activation)?;
     let expected_worker_recipient_public_key_b64u =
         encode_base64url_bytes_v1(&cloudflare_hpke_x25519_public_key_bytes_v1(
             &runtime.server_output_decrypt_key().public_key,
@@ -2364,21 +2358,23 @@ pub(crate) async fn load_source_preserving_ecdsa_material_v1(
         material_activation,
         signing_worker,
         &expected_worker_recipient_public_key_b64u,
-        target_client_public_key33_b64u,
-        target_relayer_public_key33_b64u,
-        threshold_public_key33_b64u,
-        threshold_ethereum_address20_b64u,
+        &scope
+            .public_identity
+            .derivation_client_share_public_key33_b64u,
+        &scope.public_identity.server_public_key33_b64u,
+        &scope.public_identity.threshold_public_key33_b64u,
+        &scope.public_identity.ethereum_address20_b64u,
     )?;
     let private_key = Zeroizing::new(load_cloudflare_server_output_hpke_private_key_bytes_v1(
         env,
         runtime.server_output_decrypt_key(),
     )?);
     linked_ecdsa_active_material_v1(
-        &current.value,
+        state,
         material_activation,
         signing_worker,
         &private_key,
-        current.updated_at_ms,
+        activated_at_ms,
     )
 }
 

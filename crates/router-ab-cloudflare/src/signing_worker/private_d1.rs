@@ -3,6 +3,11 @@ use serde::de::DeserializeOwned;
 use wasm_bindgen::JsValue;
 use worker::{D1Database, D1DatabaseSession, D1SessionConstraint, Env, Method, Request, Response};
 
+mod ecdsa_material;
+pub(crate) use ecdsa_material::load_cloudflare_signing_worker_ecdsa_active_material_v1;
+mod ecdsa_effect;
+pub(crate) use ecdsa_effect::claim_and_consume_cloudflare_signing_worker_ecdsa_effect_v1;
+
 pub const SIGNING_WORKER_PRIVATE_D1_BINDING_V1: &str = "SIGNING_WORKER_PRIVATE_DB";
 
 pub const SIGNING_WORKER_PRIVATE_D1_SCHEMA_V1: &str = r#"
@@ -441,50 +446,6 @@ pub async fn replay_cloudflare_signing_worker_ecdsa_terminal_v1(
         &session,
         &operation_key,
         &request_digest_hex,
-    )
-    .await
-}
-
-/// Claims one ECDSA signing effect before presignature material is consumed.
-pub async fn claim_cloudflare_signing_worker_ecdsa_effect_v1(
-    env: &Env,
-    request: &CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1,
-    claimed_at_ms: u64,
-) -> RouterAbProtocolResult<CloudflareSigningWorkerNearEffectClaimV1> {
-    request.validate()?;
-    require_positive_ms("SigningWorker ECDSA effect claimed_at_ms", claimed_at_ms)?;
-    let operation_key = request.effect_operation_key()?;
-    let request_digest_hex = private_d1_digest_hex_v1(request.effect_request_digest()?);
-    let database = signing_worker_private_d1_from_env_v1(env)?;
-    let session = database
-        .with_session_constraint(D1SessionConstraint::FirstPrimary)
-        .map_err(|error| {
-            map_d1_error("SigningWorker ECDSA effect primary session failed", error)
-        })?;
-    if let Some(response_json) = load_cloudflare_signing_worker_terminal_response_v1(
-        &session,
-        &operation_key,
-        &request_digest_hex,
-    )
-    .await?
-    {
-        return Ok(CloudflareSigningWorkerNearEffectClaimV1::Replay {
-            terminal_json: response_json,
-        });
-    }
-    request.request.validate_at(claimed_at_ms)?;
-    let authorization_json = encode_json(
-        "SigningWorker ECDSA effect authorization",
-        &request.effect_claim,
-    )?;
-    let authorization_key = request.effect_authorization_key()?;
-    claim_cloudflare_signing_worker_authorization_effect_v1(
-        &session,
-        &operation_key,
-        &authorization_key,
-        &request_digest_hex,
-        &authorization_json,
-        claimed_at_ms,
     )
     .await
 }

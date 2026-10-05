@@ -1649,8 +1649,15 @@ pub(crate) async fn require_ed25519_material_active_v1(
     else {
         return Ok(());
     };
-    current.value.validate()?;
-    match current.value {
+    validate_ed25519_material_active_v1(&current.value, material_activation)
+}
+
+pub(crate) fn validate_ed25519_material_active_v1(
+    state: &SigningWorkerYaoReservationStateV1,
+    material_activation: &router_ab_core::MpcMaterialActivationRefV1,
+) -> RouterAbProtocolResult<()> {
+    state.validate()?;
+    match state {
         SigningWorkerYaoReservationStateV1::Active { delivery, .. }
             if delivery.deriver_a.binding.material_activation == *material_activation =>
         {
