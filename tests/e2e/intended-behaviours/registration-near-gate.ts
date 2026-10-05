@@ -9,7 +9,7 @@ import {
 } from '@playwright/test';
 import type { IntendedBehaviourHarness } from './harness';
 
-class NearRegistrationGate {
+export class NearRegistrationGate {
   private releaseGate: () => void = ignoreRelease;
   private readonly released = new Promise<void>(this.saveRelease.bind(this));
   private requests = 0;

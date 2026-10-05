@@ -1,3 +1,9 @@
+import { base64UrlDecode } from '@shared/utils/base64';
+import {
+  passkeyCredentialIdB64uFromAuthentication,
+  requirePasskeyPrfFirstB64u,
+} from '@/SeamsWeb/operations/authMethods/passkey/ecdsaBootstrap';
+import { resumeNearRegistrationAfterUnlock } from './registration';
 import {
   prepareWalletEcdsaRegistrationPublication,
   type StoreWalletEcdsaWalletKey,
@@ -47,6 +53,7 @@ type PendingEcdsaRecoveryCommon = {
   readonly pending: PendingEcdsaRegistrationCommit;
   readonly signingSurface: PendingRegistrationRecoverySigningSurface;
   readonly ports: PendingEcdsaRegistrationRecoveryPorts;
+  readonly nearContext: Parameters<typeof resumeNearRegistrationAfterUnlock>[0]['context'];
 };
 
 type ResumePendingEcdsaRegistrationInput = PendingEcdsaRecoveryCommon & {
@@ -292,6 +299,31 @@ export async function resumePendingEcdsaRegistration(
       ecdsaContinuity: continuity.publication,
     }),
   );
+  if (
+    args.pending.signerPlanKind === 'near_ed25519_and_evm_family_ecdsa' &&
+    args.pending.auth.kind === 'passkey' &&
+    unlocked.kind === 'passkey'
+  ) {
+    const prfFirstB64u = requirePasskeyPrfFirstB64u(
+      unlocked.credential,
+      'Pending NEAR registration continuation',
+    );
+    void resumeNearRegistrationAfterUnlock({
+      context: args.nearContext,
+      sessionAuthority: {
+        record: unlocked.session.session.wallet_session,
+        operationCredential: unlocked.session.session.operation_credential,
+      },
+      factor: {
+        kind: 'passkey',
+        rpId: args.pending.auth.rpId,
+        credentialIdB64u: passkeyCredentialIdB64uFromAuthentication(unlocked.credential),
+        prfFirstB64u,
+      },
+      ownedFactorSecret: base64UrlDecode(prfFirstB64u).slice().buffer,
+      custodyEnvelope: unlocked.custody.envelope,
+    });
+  }
   return {
     kind: 'published',
     registrationCeremonyId: args.pending.registrationCeremonyId,

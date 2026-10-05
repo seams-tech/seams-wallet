@@ -289,6 +289,9 @@ async function unlockWithPasskey(args: {
       }),
     });
     return {
+      kind: 'passkey',
+      credential,
+      custody: verified.walletCustody,
       session: verified.ecdsaSession,
       readyStateBlobB64u: rejoined.readyStateBlobB64u,
       publicFacts: rejoined.publicFacts,
@@ -360,6 +363,7 @@ async function unlockWithEmailOtp(args: {
     signers: verified.ecdsaCustody.continuity.signers,
   });
   return {
+    kind: 'email_otp',
     session: verified.ecdsaSession,
     readyStateBlobB64u: verified.ecdsaCustody.readyStateBlobB64u,
     publicFacts: verified.ecdsaCustody.publicFacts,

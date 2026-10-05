@@ -620,6 +620,7 @@ async function requirePendingEcdsaRegistrationForWallet(
 export async function resumePendingEcdsaRegistrationFromStoredCommit(args: {
   readonly relayerUrl: string;
   readonly request: PendingEcdsaRegistrationResumeRequest;
+  readonly nearContext: Parameters<typeof resumePendingEcdsaRegistration>[0]['nearContext'];
   readonly signingSurface: PendingRegistrationRecoverySigningSurface;
 }): Promise<ResumePendingEcdsaRegistrationResult> {
   const pending = await requirePendingEcdsaRegistrationForWallet(toWalletId(args.request.walletId));
@@ -632,5 +633,6 @@ export async function resumePendingEcdsaRegistrationFromStoredCommit(args: {
     exactMethod: args.request.exactMethod,
     signingSurface: args.signingSurface,
     ports: defaultPendingEcdsaRegistrationRecoveryPorts,
+    nearContext: args.nearContext,
   });
 }

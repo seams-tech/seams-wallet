@@ -80,3 +80,24 @@ const spreadRegistrationAllowance: IssuedWalletSessionAuthorizationV2 = {
 };
 void reusableRegistrationAllowance;
 void spreadRegistrationAllowance;
+
+import type { PendingEcdsaRegistrationUnlockMaterial } from '../../packages/wallet/src/SeamsWeb/operations/registration/pendingEcdsaRegistrationRecoveryValidation';
+import type { ResumePendingEcdsaRegistrationResult } from '../../packages/wallet/src/SeamsWeb/operations/registration/pendingEcdsaRegistrationRecovery';
+
+declare const pendingEmailUnlock: Extract<PendingEcdsaRegistrationUnlockMaterial, { kind: 'email_otp' }>;
+declare const pendingPasskeyUnlock: Extract<PendingEcdsaRegistrationUnlockMaterial, { kind: 'passkey' }>;
+
+// @ts-expect-error A passkey continuation requires its verified credential and custody envelope.
+const missingPasskeyProof: PendingEcdsaRegistrationUnlockMaterial = {
+  ...pendingEmailUnlock,
+  kind: 'passkey',
+};
+// @ts-expect-error An email result cannot inherit passkey custody through a spread.
+const mixedPendingProof: PendingEcdsaRegistrationUnlockMaterial = {
+  ...pendingPasskeyUnlock,
+  kind: 'email_otp',
+};
+declare const publicPendingResult: ResumePendingEcdsaRegistrationResult;
+// @ts-expect-error Internal continuation credentials never cross the public result boundary.
+publicPendingResult.credential;
+void [missingPasskeyProof, mixedPendingProof];

@@ -65,6 +65,7 @@ async function resumePendingEcdsaRegistration(
   return await resumePendingEcdsaRegistrationFromStoredCommit({
     relayerUrl,
     request: args,
+    nearContext: getContext(),
     signingSurface: getContext().signingEngine,
   });
 }

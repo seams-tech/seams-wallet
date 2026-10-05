@@ -2546,3 +2546,35 @@ NEAR readiness after recovery.
 Production source changes remove 22 lines net. Build, wallet/intended/browser/docs
 types, packed declarations, runtime boundaries, and freshness checks pass.
 Evidence: `evidence/refactor-170-pending-identity-20261005.json`.
+
+### Mixed passkey activation recovery completes NEAR (2026-10-05)
+
+After publishing recovered ECDSA registration, the host now starts the existing
+NEAR continuation with the same verified passkey credential, custody envelope,
+and exact Wallet Session. It continues the saved NEAR journal without another
+unlock. NEAR work runs asynchronously, so it cannot delay the ECDSA recovery reply.
+The continuation owns a factor-secret copy and zeroizes it through its existing
+cleanup path. Internal unlock results distinguish passkey and Email OTP material;
+type fixtures reject missing passkey proof and cross-method broad spreads.
+The public recovery result contains no credential or custody material.
+
+ECDSA-only recovery passes in 27.8 seconds. Mixed recovery passes in 27.7 seconds.
+The mixed E2E holds NEAR finalization while it verifies an EVM signature. After
+release, it checks NEAR readiness and verifies an Ed25519 signature. NEAR completion
+preserves the Wallet Session ID, quota ID, expiry, remaining uses, and existing
+ECDSA capability subjects. The flow records one unlock and no new registration
+setup/respond request. Exact replay and altered-activation rejection remain covered.
+
+The first mixed run encountered a `valid_test_needs_update`: the completed EVM
+receipt intercepted the next page button. Its active trace identified the wait.
+The test now reuses the existing confirmation settlement helper. The corrected
+mixed run passes. No production behavior changed for that test repair.
+
+This closes the mixed passkey activation-recovery NEAR gap. It does not close
+normal `auth.unlock` integration, public resume removal, or Email OTP continuation.
+The previously recorded activation baseline remains historical evidence.
+
+Wallet, intended-app, wallet-state, and docs types pass, along with production
+build, packed declarations, runtime boundaries, and freshness checks. Production
+source adds 47 lines net. Protocol 11.0.0 is unchanged.
+Evidence: `evidence/refactor-170-pending-near-continuation-20261005.json`.

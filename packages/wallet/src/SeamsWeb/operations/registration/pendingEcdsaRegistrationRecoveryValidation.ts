@@ -1,3 +1,5 @@
+import type { WebAuthnAuthenticationCredential } from '@/core/types';
+import type { PasskeySessionCustodyUnlockV1 } from '@/core/rpcClients/near/rpcCalls';
 import type { ExclusiveUnion } from '@shared/utils/variant';
 import { assertPendingWalletRegistrationIdentity } from '@/core/indexedDB';
 import type {
@@ -79,7 +81,14 @@ export type PendingEcdsaRegistrationUnlockMaterial = {
   readonly session: RouterAbEcdsaPostRegistrationSessionActivationResponseV1;
   readonly readyStateBlobB64u: string;
   readonly publicFacts: WalletCustodyEvmFamilyPublicFacts;
-};
+} & ExclusiveUnion<
+  | {
+      readonly kind: 'passkey';
+      readonly credential: WebAuthnAuthenticationCredential;
+      readonly custody: PasskeySessionCustodyUnlockV1;
+    }
+  | { readonly kind: 'email_otp' }
+>;
 
 export type PendingEcdsaRegistrationRecoveryPorts = {
   readonly activateWalletRegistration: (

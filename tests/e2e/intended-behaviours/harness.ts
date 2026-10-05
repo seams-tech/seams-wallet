@@ -6334,7 +6334,7 @@ async function readSettledDeviceLinkState(page: Page): Promise<DeviceLinkSettled
   }
 }
 
-function requireNearSigningResult(
+export function requireNearSigningResult(
   snapshot: IntendedPageSnapshot,
   expected: {
     walletId: string;
@@ -6700,8 +6700,8 @@ function requireEd25519ExportResult(
   return result;
 }
 
-async function verifyNearEd25519Signature(args: {
-  registration: NearReadyRegisteredWalletSnapshot;
+export async function verifyNearEd25519Signature(args: {
+  registration: Pick<NearReadyRegisteredWalletSnapshot, 'operationalPublicKey'>;
   result: NearSigningResultSnapshot;
 }): Promise<void> {
   const registeredPublicKey = parseNearEd25519PublicKey(args.registration.operationalPublicKey);
@@ -8580,7 +8580,7 @@ function walletIframeSecureConfirmationControl(frame: FrameLocator): Locator {
     .last();
 }
 
-async function waitForWalletIframeConfirmationSettlement(page: Page): Promise<void> {
+export async function waitForWalletIframeConfirmationSettlement(page: Page): Promise<void> {
   const iframe = page.locator('iframe[allow*="publickey-credentials-get"]').last();
   if ((await iframe.count()) === 0) return;
   await walletIframeSecureConfirmationControl(iframe.contentFrame()).waitFor({

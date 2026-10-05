@@ -1,7 +1,6 @@
 import { recordWalletCustodyTiming } from '@/core/signingEngine/walletCustody/ceremonyDriver';
 import { registrationSelectionIncludesNear } from './registrationSignerSet';
 import { walletSessionPreservesCapabilities } from '@shared/device-linking/activeWalletSession';
-import type { LoginWebContext } from '@/SeamsWeb/signingSurface/types';
 import { listConfiguredThresholdEcdsaPublicationTargets } from '@/SeamsWeb/operations/session/thresholdEcdsaProvisioning';
 import type {
   ActiveWalletSessionV1,
@@ -2816,7 +2815,7 @@ async function resumeNearRegistrationCustodyWork(args: {
 
 /** Owns the factor copy; ordinary unlock is already complete when this starts. */
 export async function resumeNearRegistrationAfterUnlock(args: {
-  readonly context: LoginWebContext;
+  readonly context: NearRegistrationContext & { readonly configs: RegistrationWebContext['configs'] };
   readonly sessionAuthority: NearRegistrationSessionAuthority;
   readonly factor: UnlockedNearRegistrationFactor;
   readonly ownedFactorSecret: ArrayBuffer;
