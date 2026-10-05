@@ -109,6 +109,15 @@ The directory E2Es write repeatable evidence under the private
 behavior with synthetic participant receipts. Real execution authority and
 participant command contracts remain phase-one work.
 
+Private commit `52fa041` adds migration 0074. The directory switches ownership
+while keeping the destination paused. Recording durable activation opens ordinary
+routing and shared locator publication in the same transaction. The directory E2E
+proves that publication fails before activation and succeeds afterward. Old source
+publication remains rejected, and unrelated wallets remain usable. Both directory
+E2Es, Console type checking, type fixtures, and focused lint pass. Evidence remains
+under private `.artifacts/r153/activation-gate-20261005/`. These checks use synthetic
+participant receipts; they do not prove role-local writer fencing or transfer.
+
 Retained evidence:
 `.artifacts/r153/execution-journal-20261004/`, receipt SHA-256
 `02184ddd17816901bf2413115c35ca33a43bd90a269fedaeffb7f6990d8af555`.
