@@ -2632,3 +2632,37 @@ unrelated-wallet checks remain in the same scenarios.
 Evidence: `evidence/refactor-170-normal-unlock-20261005.json`. Email OTP pending
 continuation, cancellation/lock races, and full runtime-lifetime acceptance remain
 open. This checkpoint does not close the broader auth consolidation gate.
+
+
+### Email unlock consolidation boundary audit (2026-10-05)
+
+The existing host owns three email unlock branches. The replacement API must
+retain all three. Their current owners are:
+
+| Branch | Current owner and binding | Consolidation requirement |
+| --- | --- | --- |
+| Ordinary ECDSA, optionally with NEAR | `googleEmailOtpWalletAuthFlow.ts::loginWithConfiguredTargets`; challenge-selected method, key handle, signer selection, verified provider identity, configured publication targets | Retain exact challenge selection in the host. Applications must not rebuild capability inputs. |
+| NEAR-only | The same selection function routes to `loginWithEmailOtpEd25519YaoCapabilityDomain` | Follow the wallet's signer selection even when application configuration includes EVM chains. |
+| Added-method or linked authority | `loginWithLinkedEmailOtpWalletDomain` and `unlockLinkedDeviceEmailOtpWallet` | Resolve the exact authority, unlock its owned families, and resume pending acknowledgements. |
+| Pending ECDSA activation | Internal pending recovery accepts exact Email OTP material; public integration remains absent | Continue the saved activation with its founding method before ordinary subject resolution. |
+| Device removal | `LinkedDevicesModal.tsx` and the intended app request `transaction_sign` with an operation fingerprint | Keep this proof separate from unlock. Move orchestration into the owning device/auth-method operation. |
+
+Google flow handles already carry verified provider state, submit/resend/cancel,
+and terminal outcomes. Reuse this machinery when implementing
+`auth.unlockWithEmailCode({ challenge, code })`. Do not convert an action-bound
+challenge into an unlock challenge. The request must retain the verified provider
+identity and exact wallet/method selection without accepting application-supplied
+key handles, capability records, or relay routing.
+
+The audit found that `requestLoginChallenge` discarded the server challenge expiry.
+The flow retained only its provider deadline. The code now requires challenge
+expiry at that boundary and checks it before unlock execution. Resend retains the
+provider deadline and supplies a fresh challenge deadline. The production scenario
+also exposed a missing Google error notice: the flow stored failures, but the
+shared notice area rendered only passkey failures. Google login and registration
+now use that existing notice area. Completion evidence is
+recorded in `evidence/refactor-170-email-challenge-expiry-20261005.json`.
+
+The public consolidation remains open. Outstanding work includes purpose-bound
+challenge handles, concurrent submission and cancellation, pending activation,
+removal of the two specialized public unlock methods, and consumer migration.

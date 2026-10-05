@@ -53,6 +53,7 @@ type GoogleEmailOtpWalletRegistrationArgs = Parameters<RegistrationCapability['r
 
 type ActiveChallenge = {
   challengeId: string;
+  expiresAtMs: number;
   emailHint: string;
   delivery: EmailOtpChallengeDelivery;
   walletAuthMethodId: string;
@@ -458,11 +459,19 @@ async function requestLoginChallenge(args: {
   });
   return {
     challengeId: result.challengeId,
+    expiresAtMs: requireLoginChallengeExpiry(result.expiresAtMs),
     emailHint: result.delivery.emailHint,
     delivery: result.delivery,
     walletAuthMethodId: result.walletAuthMethodId,
     signerSelection: result.signerSelection,
   };
+}
+
+function requireLoginChallengeExpiry(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= Date.now()) {
+    throw new Error('Email code challenge is expired or missing expiry');
+  }
+  return value;
 }
 
 function resolveRegistrationEcdsaTargets(args: {
@@ -878,6 +887,9 @@ function createGoogleEmailOtpWalletLoginFlow(
     }): Promise<GoogleEmailOtpWalletAuthResult<GoogleEmailOtpWalletAuthSubmitSuccess>> => {
       try {
         liveness.ensureActive();
+        if (Date.now() >= args.challenge.expiresAtMs) {
+          return fail('email_otp_expired', new Error('Email code expired. Request a new code.'));
+        }
         const otpCode = String(submitInput.otpCode || '').trim();
         if (!/^\d{6}$/.test(otpCode)) {
           return fail(

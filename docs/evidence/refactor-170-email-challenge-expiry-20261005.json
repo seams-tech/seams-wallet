@@ -1,0 +1,56 @@
+{
+  "baseCommit": "5c2ffcef442f9452a67a57923654e655d792da2b",
+  "scope": "Retain the email challenge deadline independently of the provider flow, reject expired code before unlock, preserve resend, and display Google flow errors in the existing auth menu notice.",
+  "sourceSha256": {
+    "packages/wallet/src/SeamsWeb/operations/authMethods/emailOtp/googleEmailOtpWalletAuthFlow.ts": "73a03bf1022db1a21326a8c3538ea65882f83f0594a13dd9783bce04ab19c6a1",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/ui/auth-menu/AuthMenuSurface.tsx": "81e8fd21a7511d11ed7f846d8690099830e9db3fb64fb8ff5f91210ef347d21c",
+    "tests/e2e/intended-behaviours/email-otp.challenge-expiry.contract.test.ts": "90142e1ba4a33cdd6b2f58b8d7319ee01f993fe9fc5d9c1f8b53fc144c442467",
+    "tests/e2e/intended-behaviours/harness.ts": "ff564bd81b75a334d5b48df40708330da8b22da8935acd2939dd82976e17bc09"
+  },
+  "protocolVersion": "12.0.0 (unchanged)",
+  "productionSourceNetLines": 15,
+  "checks": {
+    "walletTypes": "passed",
+    "intendedTypes": "passed",
+    "productionBuild": "passed",
+    "runtimeEntryBoundaries": "passed",
+    "buildFreshness": "passed",
+    "productionExpiryResendSigning": "passed (32.2s)",
+    "productionEmailLifecycle": "passed (45.6s)",
+    "bloat": "passed",
+    "diffWhitespace": "passed"
+  },
+  "scenario": {
+    "kind": "email_challenge_expiry_e2e_v1",
+    "expiredCodeRejectedBeforeUnlock": true,
+    "refreshedChallengeUnlockSucceeded": true,
+    "challenges": 2,
+    "signedAfterResend": true,
+    "reproduce": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/email-otp.challenge-expiry.contract.test.ts"
+  },
+  "artifactPath": ".artifacts/r170/email-challenge-expiry.json",
+  "artifactSha256": "88a36b6267007e4a0c1f5435b38f0ac0e0f3aa2ed3bbc883755763ea192c809f",
+  "commands": [
+    "pnpm -C packages/wallet type-check",
+    "pnpm -C tests type-check:intended",
+    "pnpm -C packages/wallet build:prod",
+    "pnpm -C packages/wallet check:runtime-entry-bundles",
+    "pnpm -C packages/wallet build:check:fresh",
+    "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/email-otp.challenge-expiry.contract.test.ts",
+    "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/email-otp.unlock.contract.test.ts --grep 'Email OTP registration and unlock lifecycle'",
+    "pnpm report:bloat --check",
+    "git diff --check"
+  ],
+  "findings": [
+    "Production flow discarded challenge expiry; it now requires and checks the exact challenge deadline.",
+    "Production Google login and registration errors were stored but omitted by the menu notice; the existing notice now renders them.",
+    "The production route deliberately reuses an active challenge. This test shortens only the first browser-visible deadline; resend restores the valid server deadline.",
+    "The hosted OTP input submits automatically on the sixth digit. The scenario follows that behavior without a second submit action."
+  ],
+  "limits": [
+    "The custom auth.unlockWithEmailCode API and removal of specialized public unlock methods remain open.",
+    "Pending Email OTP activation continuation and concurrent submit/cancel acceptance remain open.",
+    "This scenario verifies expiry rejection after challenge creation; malformed expiry inputs are rejected by the boundary parser but not separately exercised here.",
+    "No publication or deployment performed."
+  ]
+}

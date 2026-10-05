@@ -5613,6 +5613,7 @@ function lifecycleFlowFromTestFile(filePath: string): IntendedLifecycleFlow {
   }
   if (
     normalized.endsWith('email-otp.unlock.contract.test.ts') ||
+    normalized.endsWith('email-otp.challenge-expiry.contract.test.ts') ||
     normalized.endsWith('email-otp.unlock.benchmark.test.ts')
   ) {
     return 'email_otp.unlock';

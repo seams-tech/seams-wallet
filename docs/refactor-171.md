@@ -180,8 +180,11 @@ Expose each method once under that namespace. Preserve returned flow handles, su
 resend/cancel operations, external broker callbacks, and one terminal outcome.
 Inventory those returned-object methods as part of the declaration audit.
 
-Before consolidation, map challenge purpose, wallet/authority binding, provider
-evidence, enrollment vs unlock, curve capability scope, expiry, and retry/cancel
+The email unlock boundary audit in `refactor-170-inventory.md` maps the current
+ECDSA, NEAR-only, added-method, pending-activation, and action-proof branches.
+Challenge expiry is now retained separately from provider-flow expiry.
+Before completing consolidation, preserve challenge purpose, wallet/authority
+binding, provider evidence, enrollment vs unlock, curve scope, and retry/cancel
 behavior. Use discriminated branches where contracts differ. The SDK supplies
 relay routing and internal activation details; applications supply user intent,
 required provider evidence, and code input. Preserve operation-bound step-up

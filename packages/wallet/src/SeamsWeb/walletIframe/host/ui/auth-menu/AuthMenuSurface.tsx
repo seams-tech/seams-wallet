@@ -98,6 +98,9 @@ function passkeyButtonLabel(mode: AuthMenuViewModel['mode']): string {
 
 /** The failure the footer strip reports. Only the menu itself reports there. */
 function menuNotice(viewModel: AuthMenuViewModel): string | null {
+  if (viewModel.kind === 'google_otp_login' || viewModel.kind === 'google_registration') {
+    return viewModel.error || null;
+  }
   return viewModel.kind === 'passkey' &&
     viewModel.status.kind === 'recoverable' &&
     viewModel.status.reason === 'error'

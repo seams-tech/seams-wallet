@@ -473,6 +473,11 @@ throughout the resize. Reduced-motion behavior remains immediate.
   a selected wallet remains a separate flow and requires shared provider authority
   before regional release acceptance.
 
+- Email login retains the code challenge's expiry separately from the provider
+  flow's expiry. A missing or expired challenge fails before code collection.
+  Submitting an expired code fails locally before factor release or wallet unlock.
+  Resend can replace that challenge while the provider flow remains active.
+
 ### Passkey authentication
 
 Expected behaviour:
