@@ -1,7 +1,8 @@
+import type { WalletId } from '@shared/utils/domainIds';
 import {
-  collectCeremonyWallets,
-  ceremonyWriteFenceStatements,
-} from './d1Ed25519YaoCeremonyWriteFence';
+  collectChangedStateWallets,
+  lifecycleWriteFenceStatements,
+} from './d1Ed25519YaoStateWriteFence';
 import {
   createCloudflareD1VersionedJsonRecordStore,
   type CloudflareD1VersionedJsonRecordStore,
@@ -28,11 +29,11 @@ export function createRouterAbEd25519YaoProductRegistrationPartitionedStateStore
     encode: identityVersionedJsonObject,
     parse: parseRouterAbEd25519YaoProductRegistrationPartitionRecordJsonV1,
   });
-  const store = new D1CeremonyRecords(options, records);
+  const store = new D1LifecycleRecords(options, records);
   return createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1(store);
 }
 
-class D1CeremonyRecords implements RouterAbEd25519YaoProductRegistrationPartitionRecordStoreV1 {
+class D1LifecycleRecords implements RouterAbEd25519YaoProductRegistrationPartitionRecordStoreV1 {
   constructor(
     private readonly options: RouterAbEd25519YaoProductRegistrationPartitionedStateD1OptionsV1,
     private readonly records: CloudflareD1VersionedJsonRecordStore<VersionedJsonObject>,
@@ -51,19 +52,22 @@ class D1CeremonyRecords implements RouterAbEd25519YaoProductRegistrationPartitio
     >[1],
   ): ReturnType<RouterAbEd25519YaoProductRegistrationPartitionRecordStoreV1['putMany']> {
     const keys: string[] = [];
-    const wallets = new Set<string>();
+    const wallets = new Set<WalletId>();
     for (const mutation of mutations) {
       keys.push(mutation.key);
-      collectCeremonyWallets(mutation.value, wallets);
     }
     const previous = await this.records.readMany(keys);
+    const previousValues = new Map<string, VersionedJsonObject>();
     for (const entry of previous) {
-      if (entry.result.kind === 'present') collectCeremonyWallets(entry.result.value, wallets);
+      if (entry.result.kind === 'present') previousValues.set(entry.key, entry.result.value);
+    }
+    for (const mutation of mutations) {
+      collectChangedStateWallets(previousValues.get(mutation.key) ?? null, mutation.value, wallets);
     }
     // The record CAS protects the versions inspected above. The local fence and
     // companion effects commit in that same batch, or the whole batch rolls back.
     return this.records.putManyWithAdditionalStatements(mutations, [
-      ...ceremonyWriteFenceStatements(this.options, wallets),
+      ...lifecycleWriteFenceStatements(this.options, wallets),
       ...(companion?.statements ?? []),
     ]);
   }

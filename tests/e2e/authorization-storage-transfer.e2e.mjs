@@ -107,7 +107,7 @@ const bundle = await build({
       export { readWalletSessionSigningCandidate } from './packages/wallet-server/src/router/cloudflare/d1/auth/walletSessionCredentialReaders';
       export { parseTenantId } from './packages/shared-ts/src/authorization/capabilityKinds';
       export { createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1 } from './packages/wallet-server/src/router/cloudflare/d1/ed25519Yao/d1Ed25519YaoProductRegistrationPartitionedStateStore';
-      export { buildNearRegistrationAuthorityFixture } from './tests/unit/helpers/nearRegistration.fixtures';
+      export { buildNearRegistrationAuthorityFixture, buildNearRecoveryAdmissionFixture } from './tests/unit/helpers/nearRegistration.fixtures';
     `,
   },
 });

@@ -26,6 +26,104 @@ async function installAuthority(store, fixture) {
   assert.equal(stored.kind, 'stored');
 }
 
+async function seedReplayRecords(store, fixture, recovery) {
+  const lifecycleId = fixture.admission.scope.lifecycle_id;
+  const loaded = await store.load(lifecycleId);
+  loaded.state.export.authorizationNonceOwners.set(
+    `nonce:${fixture.intent.walletId}`,
+    fixture.intent.walletId,
+  );
+  loaded.state.export.authorizationUncertainOwners.set(
+    `uncertain:${fixture.intent.walletId}`,
+    fixture.intent.walletId,
+  );
+  loaded.state.recovery.recoverySessions.set('01'.repeat(32), JSON.stringify(recovery));
+  assert.equal(
+    (
+      await store.commit({
+        lifecycleId,
+        state: loaded.state,
+        baseline: loaded.baseline,
+        companionWrite: null,
+      })
+    ).kind,
+    'stored',
+  );
+}
+
+async function verifyFrozenReplayEntries(store, database, scope, frozen, other) {
+  const lifecycleId = other.admission.scope.lifecycle_id;
+  const before = await readRecords(database, scope);
+  for (const change of [
+    'nonce_delete',
+    'uncertain_delete',
+    'recovery_delete',
+    'nonce_reassign',
+    'nonce_insert',
+  ]) {
+    const loaded = await store.load(lifecycleId);
+    switch (change) {
+      case 'nonce_delete':
+        loaded.state.export.authorizationNonceOwners.delete(`nonce:${frozen.intent.walletId}`);
+        break;
+      case 'uncertain_delete':
+        loaded.state.export.authorizationUncertainOwners.delete(
+          `uncertain:${frozen.intent.walletId}`,
+        );
+        break;
+      case 'recovery_delete':
+        loaded.state.recovery.recoverySessions.delete('01'.repeat(32));
+        break;
+      case 'nonce_reassign':
+        loaded.state.export.authorizationNonceOwners.set(
+          `nonce:${frozen.intent.walletId}`,
+          other.intent.walletId,
+        );
+        break;
+      case 'nonce_insert':
+        loaded.state.export.authorizationNonceOwners.set(
+          'late-frozen-nonce',
+          frozen.intent.walletId,
+        );
+        break;
+      default:
+        throw new Error(`Unexpected replay change: ${change}`);
+    }
+    await assert.rejects(
+      store.commit({
+        lifecycleId,
+        state: loaded.state,
+        baseline: loaded.baseline,
+        companionWrite: null,
+      }),
+      /router_ab_yao_versioned_json_cas_guard/u,
+    );
+    assert.deepEqual(await readRecords(database, scope), before);
+  }
+  const loaded = await store.load(lifecycleId);
+  loaded.state.export.authorizationNonceOwners.set('unrelated-nonce', other.intent.walletId);
+  assert.equal(
+    (
+      await store.commit({
+        lifecycleId,
+        state: loaded.state,
+        baseline: loaded.baseline,
+        companionWrite: null,
+      })
+    ).kind,
+    'stored',
+  );
+  const persisted = await store.load(lifecycleId);
+  assert.equal(
+    persisted.state.export.authorizationNonceOwners.get(`nonce:${frozen.intent.walletId}`),
+    frozen.intent.walletId,
+  );
+  assert.equal(
+    persisted.state.export.authorizationNonceOwners.get('unrelated-nonce'),
+    other.intent.walletId,
+  );
+}
+
 export async function verifyCeremonyWriteFence({ api, source, scope, nowMs }) {
   const fixture = await api.buildNearRegistrationAuthorityFixture('ceremony-fenced');
   const other = await api.buildNearRegistrationAuthorityFixture('ceremony-unrelated');
@@ -34,6 +132,7 @@ export async function verifyCeremonyWriteFence({ api, source, scope, nowMs }) {
     scope,
   });
   await installAuthority(store, fixture);
+  await seedReplayRecords(store, fixture, api.buildNearRecoveryAdmissionFixture(fixture.admission));
   const lifecycleId = fixture.admission.scope.lifecycle_id;
   const delayed = await store.load(lifecycleId);
   delayed.state.authorization.authorities.splice(0);
@@ -76,6 +175,7 @@ export async function verifyCeremonyWriteFence({ api, source, scope, nowMs }) {
   );
   assert.deepEqual(await readRecords(source, scope), before);
   await installAuthority(reopened, other);
+  await verifyFrozenReplayEntries(reopened, source, scope, fixture, other);
   assert.equal((await reopened.load(lifecycleId)).state.authorization.authorities.length, 1);
   assert.equal(
     (await reopened.load(other.admission.scope.lifecycle_id)).state.authorization.authorities
@@ -88,5 +188,9 @@ export async function verifyCeremonyWriteFence({ api, source, scope, nowMs }) {
     sharedWriteAndCompanionRolledBack: true,
     reopenedStoreStillFenced: true,
     unrelatedWalletStillWritable: true,
+    frozenReplayDeletionRejected: true,
+    frozenReplayReassignmentRejected: true,
+    frozenReplayInsertionRejected: true,
+    unrelatedSharedReplayUpdateAllowed: true,
   };
 }

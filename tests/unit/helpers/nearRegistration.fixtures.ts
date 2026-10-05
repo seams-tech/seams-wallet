@@ -5,7 +5,11 @@ import {
   type DomainIdParseResult,
 } from '@shared/utils/domainIds';
 import { routerAbMpcMaterialActivationRefToWire } from '@shared/utils/routerAbNormalSigningIdentity';
-import { parseRouterAbEd25519YaoRegistrationAdmissionRequestV1 } from '@shared/utils/routerAbEd25519Yao';
+import {
+  parseRouterAbEd25519YaoRegistrationAdmissionRequestV1,
+  parseRouterAbEd25519YaoRecoveryAdmissionRequestV1,
+  type RouterAbEd25519YaoRegistrationAdmissionRequestV1,
+} from '@shared/utils/routerAbEd25519Yao';
 import {
   registrationIntentGrantFromString,
   type RegistrationIntentV1,
@@ -78,6 +82,39 @@ export async function buildNearRegistrationAuthorityFixture(label: string) {
   });
   if (!bound.ok) throw new Error(bound.message);
   return { adapter, state, admission: admission.value, credential, intent, expiresAtMs };
+}
+
+export function buildNearRecoveryAdmissionFixture(
+  registration: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
+) {
+  const active = registration.scope.material_activation;
+  const parsed = parseRouterAbEd25519YaoRecoveryAdmissionRequestV1({
+    scope: {
+      lifecycle_id: `${registration.scope.lifecycle_id}-recovery`,
+      root_share_epoch: registration.scope.root_share_epoch,
+      account_id: registration.scope.account_id,
+      threshold_session_id: `${registration.scope.threshold_session_id}-recovery`,
+      signer_set_id: registration.scope.signer_set_id,
+      signing_worker_id: registration.scope.signing_worker_id,
+      material_activation: routerAbMpcMaterialActivationRefToWire({
+        kind: active.kind,
+        activationId: `${active.activation_id}-recovery`,
+        capability: active.capability,
+        materialOwner: active.material_owner,
+        keyBinding: active.key_binding,
+        lifecycleBinding: `${active.lifecycle_binding}-recovery`,
+        signingWorker: active.signing_worker,
+      }),
+    },
+    active_material_activation: active,
+    application_binding: registration.application_binding,
+    participant_ids: registration.participant_ids,
+    active_capability_binding: new Array(32).fill(1),
+    replacement_capability_binding: new Array(32).fill(2),
+    registered_public_key: new Array(32).fill(3),
+  });
+  if (!parsed.ok) throw new Error(parsed.message);
+  return parsed.value;
 }
 
 export async function replaceNearFixtureAuthority(
