@@ -41,7 +41,16 @@ for exact boundaries, sample counts, failure evidence, source hashes and command
   development, and verify the D1 boundary through the storage-transfer scenario.
 - [ ] Deploy that narrow Gateway error-classification fix and pass the expanded
   hosted retirement gate. Staging still returns 503 for the retired prepare.
-- [ ] Measure the inner finalize stages before changing custody storage calls.
+- [x] Consolidate custody material reads while retaining lifecycle and identity checks.
+- [x] Commit the ECDSA effect claim and reservation consumption atomically.
+- [x] Add inner finalize timings and measure the staging candidate.
+- [x] Verify failed-write rollback, concurrent consumption, retirement and exact replay.
+
+The custody follow-up reduced the full ready-signing median from **3.198s** to
+**2.489s**, with **2.521s** on repeat (six signatures per cohort). The observed
+reduction is **21–22%**. Source-derived custody D1 round trips fell from **20 to 8**
+for uncontended registration-material prepare plus finalize. The two-second target
+remains open. See [custody measurements and verification](refactor-152-results.md#custody-d1-consolidation-october-5-2026).
 
 The consolidated SDK cohorts measured 3.164s and 3.072s ready, and 5.212s
 consecutive. This establishes no signing-latency gain. Both status checks remain in ordinary

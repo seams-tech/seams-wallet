@@ -6486,3 +6486,116 @@ excludes browser or physical-region proof. Reproduce it with:
 ```sh
 node tests/e2e/authorization-storage-transfer.e2e.mjs
 ```
+
+
+## Custody D1 consolidation (October 5, 2026)
+
+**Full ready-signing latency fell from 3.198s to 2.489s median (22.2%).** A second
+candidate cohort measured 2.521s (21.2% below control). The two-second full-call
+target remains open. All cohorts used the same frozen browser SDK, native NRT
+client, APAC wallet home, automated approval and ready presignature material.
+The timer ends with the assembled signed transaction. It excludes broadcast and
+blockchain confirmation. This experiment does not establish consecutive-signing
+or linked-device latency gains.
+
+| Median, six measured signatures per cohort | Fresh control | Candidate | Candidate repeat |
+| --- | ---: | ---: | ---: |
+| Full public SDK call | 3.198s | 2.489s | 2.521s |
+| After approval (`commit_total`) | 2.522s | 1.769s | 1.896s |
+| Browser prepare request | 0.920s | 0.612s | 0.645s |
+| Browser finalize request | 1.202s | 0.800s | 0.809s |
+| Prepare custody round trip | 529ms | 220ms | 224ms |
+| Finalize custody round trip | 800.5ms | 376.5ms | 396.5ms |
+
+Full-call ranges were 2.902–3.757s, 2.250–3.123s and 2.200–3.568s respectively.
+These are small cohorts, not a latency guarantee. The three runs verified all
+18 measured signatures, plus warmups, NEAR signing, concurrent Tempo/Arc signing
+and shared-budget exhaustion. No measured ready call waited for refill.
+
+### Changes and call accounting
+
+The SigningWorker now reads activation material, both reservation lifecycle
+checks and the activation retirement fence in one primary D1 snapshot. It retains
+exact wallet, activation, worker, key and material checks. Linked material uses
+the reservation from that snapshot instead of reading it twice. There is no
+cross-request material or authorization cache.
+
+Finalize reads its terminal, effect claim and reservation together. It computes
+the existing pool transition, then writes the claim and consumption in one D1
+batch transaction. A conditional claim checks the pool version. Consumption runs
+only when that transaction inserted the claim. A failed consumption rolls back
+the claim. Concurrent losers cannot obtain the one-use material. The old separate
+ECDSA claim function was removed. Terminal persistence still completes before a
+successful signature response, and exact committed replies remain replayable.
+
+The following counts come from the source path, not provider query telemetry.
+They describe uncontended ready signing with registration material. They exclude
+Gateway, Console, refill and retries. A batch counts as one D1 round trip and
+contains two SQL statements.
+
+| Custody operation | Before D1 round trips | After D1 round trips |
+| --- | ---: | ---: |
+| Material load, each prepare/finalize | 6 | 1 |
+| Linked-material load, each prepare/finalize | 2 | 1 |
+| Finalize claim and consume | 4 | 2 |
+| Complete registration-material prepare | 8 | 3 |
+| Complete registration-material finalize | 12 | 5 |
+| Prepare plus finalize | 20 | 8 |
+
+Prepare reservation still needs a read and a conditional write. The encrypted
+record must pass through the existing Rust transition before persistence. This
+change does not add another storage owner to remove that dependency.
+
+### Inner timings and verification
+
+A bounded live tail retained 32 prepare/finalize timing records, including warmup
+and concurrency traffic. It stored numeric durations and outcomes only, then
+stopped. Candidate medians were:
+
+- Prepare material: **51.5ms**. The preceding deployed cohort measured **327.5ms**.
+- Prepare reservation: **139.5ms**, versus the preceding **138.5ms**.
+- Total prepare inside SigningWorker: **193.5ms**, versus the preceding **475.5ms**.
+- Finalize replay lookup: **48ms**; material: **48ms**; claim/consume: **143ms**.
+- Finalize signature computation: **0ms** at millisecond timer resolution.
+- Finalize terminal persistence: **89.5ms**; total inside SigningWorker: **333.5ms**.
+
+The earlier build had no inner finalize spans. Its baseline is the custody round
+trip in the table, which includes transport. Stage medians must not be added to
+reconstruct a full-call median. These storage spans include processing and queuing;
+they do not isolate pure network delay.
+
+The production Worker E2E forces consumption to fail inside the transaction and
+verifies unchanged claim, pool and terminal records. Three concurrent finalizes
+then produce one consumption and one terminal. Exact replay performs no writes.
+An activation retirement rejects fresh signing before consumption and preserves
+an already committed replay. The existing flow verifies the signatures, rejected
+scope/tenant substitutions, gated bundled presigning, and a lost custody reply.
+The six source-boundary checks plus the updated finalize check pass. Both the
+production and wallet-DO Worker configurations compile. The bloat check passes.
+Obsolete source-text assertions requiring the separate claim/consume path were
+removed; the behavior is covered by the Worker E2E.
+
+Production code is on public `dev` at `2c272eed`; verification is at `87d74583`.
+Staging SigningWorker changed from `8e6c14c4-8dba-4b22-847c-0652b7e5836a` to
+`13b9b85e-f766-4fd9-82f8-689f30736ae0`. The candidate uses the prior frozen measured
+source plus the custody patch. Unrelated active relocation edits were excluded.
+The before/after API comparison confirms every binding is unchanged, including
+the D1 database and DO namespace. No Cloudflare resources were created. The
+**$25 total budget** remains the constraint. Production and npm were not changed.
+
+Tracked aggregates, source hashes, versions and local fault evidence:
+[`r152-mpc-custody-20261005.json`](evidence/r152-mpc-custody-20261005.json).
+Private raw browser artifacts, sanitized timing capture, source patch and analysis:
+`.artifacts/mpc-custody-20261005/` in `seams-monorepo`.
+Public local Worker evidence and build logs: `.artifacts/mpc-custody-20261005/`.
+Reproduce the local Worker scenario after building the five dev roles:
+
+```sh
+ROUTER_AB_WORKER_BUILD_PROFILE=dev node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --ecdsa-presign-handoff
+```
+
+Remaining latency includes the two browser status requests, Gateway/Console
+routing and authorization, and the preserved durable writes. Priorities 1–3 are
+implemented and measured. Browser status-call reduction and refill throughput are
+separate follow-ups. The retired-credential Gateway error-classification rollout
+also remains separate and was not included in this custody deployment.

@@ -1,0 +1,286 @@
+{
+  "scope": "Native NRT browser, APAC wallet, ready material. Full SDK call includes automated approval and transaction assembly; no broadcast or blockchain confirmation.",
+  "controlVersion": "8e6c14c4-8dba-4b22-847c-0652b7e5836a",
+  "candidateVersion": "13b9b85e-f766-4fd9-82f8-689f30736ae0",
+  "cohorts": {
+    "control": {
+      "verified": true,
+      "concurrentVerified": true,
+      "fullSdk": {
+        "count": 6,
+        "medianMs": 3198.3424999713898,
+        "minMs": 2901.9550000429153,
+        "maxMs": 3757.089999973774
+      },
+      "stages": {
+        "commit_total": {
+          "count": 6,
+          "medianMs": 2521.9999999701977,
+          "minMs": 2337.900000035763,
+          "maxMs": 2933.7000000476837
+        },
+        "material_authorization": {
+          "count": 6,
+          "medianMs": 347.15000000596046,
+          "minMs": 319.19999998807907,
+          "maxMs": 584.3999999761581
+        },
+        "prepare": {
+          "count": 6,
+          "medianMs": 919.9500000178814,
+          "minMs": 834.5,
+          "maxMs": 1051.699999988079
+        },
+        "finalize": {
+          "count": 6,
+          "medianMs": 1201.6500000059605,
+          "minMs": 1142.6000000238419,
+          "maxMs": 1292.0999999642372
+        }
+      },
+      "custodyRoundTrip": {
+        "prepare": {
+          "count": 6,
+          "medianMs": 529.0,
+          "minMs": 479.0,
+          "maxMs": 649.0
+        },
+        "finalize": {
+          "count": 6,
+          "medianMs": 800.5,
+          "minMs": 776.0,
+          "maxMs": 868.0
+        }
+      },
+      "sha256": "1429b8db05997e210af00cc896409a4b7785dce9aa1f59e7a4d7ca8840abd139"
+    },
+    "candidate": {
+      "verified": true,
+      "concurrentVerified": true,
+      "fullSdk": {
+        "count": 6,
+        "medianMs": 2488.9500000178814,
+        "minMs": 2249.639999985695,
+        "maxMs": 3123.1699999570847
+      },
+      "stages": {
+        "commit_total": {
+          "count": 6,
+          "medianMs": 1769.199999988079,
+          "minMs": 1668.699999988079,
+          "maxMs": 2008.699999988079
+        },
+        "material_authorization": {
+          "count": 6,
+          "medianMs": 339.2500000298023,
+          "minMs": 288.5,
+          "maxMs": 449.19999998807907
+        },
+        "prepare": {
+          "count": 6,
+          "medianMs": 612.2999999821186,
+          "minMs": 571.6000000238419,
+          "maxMs": 752.1000000238419
+        },
+        "finalize": {
+          "count": 6,
+          "medianMs": 800.4500000476837,
+          "minMs": 726.3000000119209,
+          "maxMs": 825.3999999761581
+        }
+      },
+      "custodyRoundTrip": {
+        "prepare": {
+          "count": 6,
+          "medianMs": 220.0,
+          "minMs": 199.0,
+          "maxMs": 272.0
+        },
+        "finalize": {
+          "count": 6,
+          "medianMs": 376.5,
+          "minMs": 352.0,
+          "maxMs": 405.0
+        }
+      },
+      "sha256": "fe771bbc689b5aca65df5a6dd54d68dd2ac0e70aaf5197f68b7a7edd1cb7bcd8"
+    },
+    "candidate-repeat": {
+      "verified": true,
+      "concurrentVerified": true,
+      "fullSdk": {
+        "count": 6,
+        "medianMs": 2520.5,
+        "minMs": 2199.550000011921,
+        "maxMs": 3567.860000014305
+      },
+      "stages": {
+        "commit_total": {
+          "count": 6,
+          "medianMs": 1895.8499999642372,
+          "minMs": 1631.8999999761581,
+          "maxMs": 2680.800000011921
+        },
+        "material_authorization": {
+          "count": 6,
+          "medianMs": 346.14999997615814,
+          "minMs": 288.0999999642372,
+          "maxMs": 418.7999999523163
+        },
+        "prepare": {
+          "count": 6,
+          "medianMs": 644.6500000059605,
+          "minMs": 546.3000000119209,
+          "maxMs": 1178.1000000238419
+        },
+        "finalize": {
+          "count": 6,
+          "medianMs": 808.6500000059605,
+          "minMs": 739.8000000119209,
+          "maxMs": 1139.0999999642372
+        }
+      },
+      "custodyRoundTrip": {
+        "prepare": {
+          "count": 6,
+          "medianMs": 224.0,
+          "minMs": 201.0,
+          "maxMs": 469.0
+        },
+        "finalize": {
+          "count": 6,
+          "medianMs": 396.5,
+          "minMs": 336.0,
+          "maxMs": 444.0
+        }
+      },
+      "sha256": "2910ff88454fb48b97a3c3ca40941cf57157512fdc56da0e56935a8bd68b6a66"
+    }
+  },
+  "workerSpansIncludingWarmupAndConcurrency": {
+    "worker_prepare_request_body": {
+      "count": 16,
+      "medianMs": 0.0,
+      "minMs": 0,
+      "maxMs": 0
+    },
+    "worker_prepare_material": {
+      "count": 16,
+      "medianMs": 51.5,
+      "minMs": 47,
+      "maxMs": 78
+    },
+    "worker_prepare_reserve": {
+      "count": 16,
+      "medianMs": 139.5,
+      "minMs": 131,
+      "maxMs": 358
+    },
+    "worker_prepare_total": {
+      "count": 16,
+      "medianMs": 193.5,
+      "minMs": 181,
+      "maxMs": 426
+    },
+    "worker_finalize_request_body": {
+      "count": 16,
+      "medianMs": 0.0,
+      "minMs": 0,
+      "maxMs": 0
+    },
+    "worker_finalize_replay": {
+      "count": 16,
+      "medianMs": 48.0,
+      "minMs": 45,
+      "maxMs": 52
+    },
+    "worker_finalize_material": {
+      "count": 16,
+      "medianMs": 48.0,
+      "minMs": 46,
+      "maxMs": 142
+    },
+    "worker_finalize_claim_consume": {
+      "count": 16,
+      "medianMs": 143.0,
+      "minMs": 138,
+      "maxMs": 167
+    },
+    "worker_finalize_compute": {
+      "count": 16,
+      "medianMs": 0.0,
+      "minMs": 0,
+      "maxMs": 0
+    },
+    "worker_finalize_terminal": {
+      "count": 16,
+      "medianMs": 89.5,
+      "minMs": 84,
+      "maxMs": 96
+    },
+    "worker_finalize_total": {
+      "count": 16,
+      "medianMs": 333.5,
+      "minMs": 323,
+      "maxMs": 419
+    }
+  },
+  "sourceDerivedD1RoundTrips": {
+    "registrationPrepare": {
+      "before": 8,
+      "after": 3
+    },
+    "registrationFinalize": {
+      "before": 12,
+      "after": 5
+    },
+    "exclusions": "Custody D1 only; uncontended ready-material success. Gateway, Console, refill and retry calls excluded. The new consume batch contains two SQL statements."
+  },
+  "source": {
+    "productionCommitOnDev": "2c272eed943c009e2bd7f504093791819172bc7e",
+    "verificationCommitOnDev": "87d74583744278dbbf9266091e9fd6ea051dc975",
+    "sourceBase": "prior frozen SDK candidate, 0c536cd482228b7700d23c005cc2ee46e061a868 plus its recorded client/refill patches",
+    "workerVersion": "13b9b85e-f766-4fd9-82f8-689f30736ae0",
+    "files": {
+      "crates/router-ab-cloudflare/src/lib.rs": "682d4b3b28dbe60848494839aea101cf6be03eb65b8fa3fcd53e80c47b79b852",
+      "crates/router-ab-cloudflare/src/ecdsa_signing_fetch.rs": "54c46c10d703c8aa788726571cbba5a7c8eb757f0ca0d8c1253f641ae9f386ee",
+      "crates/router-ab-cloudflare/src/ordinary_inactive_signer_material.rs": "40988585eaea2bb90e23dfad912a7c18f12279a994a5bbac20dab0934bc7b659",
+      "crates/router-ab-cloudflare/src/ed25519_yao_signing_worker.rs": "80f34a23d26b8808913d61deb9617df8ae8203ec71b1abbc1fe962f3d9a7519b",
+      "crates/router-ab-cloudflare/src/signing_worker/private_d1.rs": "3d1a2e50c09efc94363493e1baa3761a292cb57fb48057e6ff5ec04bc8b75985",
+      "crates/router-ab-cloudflare/src/signing_worker/private_d1/ecdsa_effect.rs": "bee3e4aa7339be999279e89e81f216af26c4e954b75b696d6dcb2a4c63e696a3",
+      "crates/router-ab-cloudflare/src/signing_worker/private_d1/ecdsa_material.rs": "3aec9044e1c611242c20eef317b1c602134e6b6edda8e64fcd7e61f8a1398b18"
+    },
+    "bundle": {
+      "shim.mjs": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728"
+    }
+  },
+  "workerE2E": {
+    "reproduce": "ROUTER_AB_WORKER_BUILD_PROFILE=dev node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --ecdsa-presign-handoff",
+    "operations": [
+      {
+        "retirementBeforeConsumption": true,
+        "committedReplayAfterRetirement": true,
+        "rollbackAfterConsumptionFailure": true,
+        "concurrentRequests": 3,
+        "oneClaimOneConsumptionOneTerminal": true,
+        "exactReplayWithoutWrites": true,
+        "signatureSha256": "bcbd6156dfc7dc3318bf9b97b82575bfbeb77cc564a41a7fd8ff6fbd30e04184"
+      },
+      {
+        "retirementBeforeConsumption": true,
+        "committedReplayAfterRetirement": true,
+        "rollbackAfterConsumptionFailure": true,
+        "concurrentRequests": 3,
+        "oneClaimOneConsumptionOneTerminal": true,
+        "exactReplayWithoutWrites": true,
+        "signatureSha256": "016926fc502369ffd487d23a12411106e47ae00d062fac52470563f4c3fdec1d"
+      }
+    ]
+  },
+  "deployment": {
+    "scope": "staging testnet only",
+    "allBindingsUnchanged": true,
+    "newCloudflareResources": 0,
+    "timingCaptureStopped": true
+  }
+}
