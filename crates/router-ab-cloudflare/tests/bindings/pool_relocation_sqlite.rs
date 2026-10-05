@@ -61,6 +61,18 @@ fn mutate(
     owner: &CloudflareSigningWorkerWalletScopeV1,
     command: CloudflareSigningWorkerEcdsaPoolCommandV1,
 ) -> router_ab_core::RouterAbProtocolResult<CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1> {
+    let wire = serde_json::to_vec(&command).map_err(sql_error)?;
+    let decoded = serde_json::from_slice(&wire).map_err(sql_error)?;
+    with_store(path, env, |store| store.mutate_pool(owner.clone(), decoded))
+}
+
+fn with_store<T>(
+    path: &std::path::Path,
+    env: &CloudflareEnvMapV1,
+    operation: impl FnOnce(
+        &SigningWorkerWalletEcdsaStoreV1<'_, Sqlite<'_>>,
+    ) -> router_ab_core::RouterAbProtocolResult<T>,
+) -> router_ab_core::RouterAbProtocolResult<T> {
     let mut connection = Connection::open(path).map_err(sql_error)?;
     let transaction = connection
         .transaction_with_behavior(TransactionBehavior::Immediate)
@@ -68,9 +80,7 @@ fn mutate(
     let sql = Sqlite(&transaction);
     let store = SigningWorkerWalletEcdsaStoreV1::open(&sql, env)?;
     store.ensure_schema()?;
-    let wire = serde_json::to_vec(&command).map_err(sql_error)?;
-    let decoded = serde_json::from_slice(&wire).map_err(sql_error)?;
-    let result = store.mutate_pool(owner.clone(), decoded)?;
+    let result = operation(&store)?;
     transaction.commit().map_err(sql_error)?;
     Ok(result)
 }
@@ -119,7 +129,7 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
     ]);
     let base = router_ab_ecdsa_derivation_presignature_pool_record();
     let owner =
-        CloudflareSigningWorkerWalletScopeV1::new("org", "project", "env", &base.scope.wallet_id)?;
+        CloudflareSigningWorkerWalletScopeV1::new("org-1", "project-1", "dev", &base.scope.wallet_id)?;
     let mut records = Vec::new();
     for id in ["available", "reserved", "consumed", "retired", "untouched"] {
         let mut material = base.clone();
@@ -250,11 +260,109 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         3,
         "consumed, retired, and unrelated rows must retain exact ciphertext and versions"
     );
+    let other_owner = CloudflareSigningWorkerWalletScopeV1::new(
+        "other-org",
+        "project",
+        "env",
+        &base.scope.wallet_id,
+    )?;
+    let mut other_material = base.clone();
+    other_material.server_presignature_id = "other-owner".into();
+    let other_command = CloudflareSigningWorkerEcdsaPoolCommandV1::PutAvailable {
+        material: other_material,
+    };
+    mutate(&path, &env, &other_owner, other_command.clone())?;
+    let freeze_request = router_ab_cloudflare::SigningWorkerPoolFreezeRequestV1 {
+        move_id: format!("wmove_{}", "a".repeat(43)),
+        source_generation: 1,
+        invalidated_at_ms: 1_600,
+    };
+    let mut effect = admitted_router_ab_ecdsa_derivation_digest_finalize_request(
+        router_ab_ecdsa_derivation_digest_signing_finalize_request(),
+    );
+    effect.wallet_scope = Some(owner.clone());
+    mutate(
+        &path,
+        &env,
+        &owner,
+        CloudflareSigningWorkerEcdsaPoolCommandV1::PutReserved {
+            material: base.clone(),
+            request_digest: effect.request.prepare_request_digest()?,
+            admitted_signing_digest: digest(0x77),
+            signing_worker_rerandomization_contribution32_b64u: b64u(&[0x33; 32]),
+            reserved_at_ms: 1_200,
+            request_expires_at_ms: 1_900,
+        },
+    )?;
+    let claimed = with_store(&path, &env, |store| {
+        store.claim_and_consume_effect(owner.clone(), effect.clone(), 1_300)
+    })?;
+    assert!(matches!(
+        claimed,
+        router_ab_cloudflare::CloudflareSigningWorkerEcdsaClaimAndConsumeV1::Claimed { .. }
+    ));
+    let draining = freeze(&path, &env, &owner, freeze_request.clone())?;
+    assert_eq!(
+        draining,
+        router_ab_cloudflare::SigningWorkerPoolFreezeResponseV1::Draining { pending_effects: 1 }
+    );
+    assert_eq!(
+        freeze(&path, &env, &owner, freeze_request.clone())?,
+        draining
+    );
+    let response = RouterAbEcdsaDerivationEvmDigestSigningResponseV1::new_for_request(
+        &effect.request,
+        b64u(&[0x99; 65]),
+    )?;
+    with_store(&path, &env, |store| {
+        store.commit_terminal(&owner, &effect, &response, 1_700)
+    })?;
+    let frozen = freeze(&path, &env, &owner, freeze_request.clone())?;
+    let router_ab_cloudflare::SigningWorkerPoolFreezeResponseV1::Frozen { receipt } = &frozen
+    else {
+        panic!("settled pool must freeze");
+    };
+    assert_eq!(receipt.record_count, 6);
+    assert_eq!(receipt.scope, owner);
+    let frozen_rows = rows(&path);
+    assert_eq!(freeze(&path, &env, &owner, freeze_request.clone())?, frozen);
+    assert_eq!(rows(&path), frozen_rows);
+    let mut delayed_material = base.clone();
+    delayed_material.server_presignature_id = "late-unrecorded-refill".into();
+    let rejected = mutate(
+        &path,
+        &env,
+        &owner,
+        CloudflareSigningWorkerEcdsaPoolCommandV1::PutAvailable {
+            material: delayed_material,
+        },
+    )
+    .unwrap_err();
+    assert_eq!(
+        rejected.code(),
+        RouterAbProtocolErrorCode::LifecycleTransitionInProgress
+    );
+    assert_eq!(rows(&path), frozen_rows);
+    let mut changed = freeze_request;
+    changed.source_generation = 2;
+    assert!(freeze(&path, &env, &owner, changed).is_err());
+    assert_eq!(rows(&path), frozen_rows);
+    mutate(&path, &env, &other_owner, other_command)?;
+    assert_eq!(
+        rows(&path),
+        frozen_rows,
+        "another wallet retains its ordinary pool admission"
+    );
     let artifact = serde_json::json!({
-        "scenario": "encrypted_pool_relocation", "records": 5,
+        "scenario": "encrypted_pool_relocation", "records": 7,
         "available_and_reserved_destroyed": true, "reserved_binding_preserved": true,
         "consumed_retired_and_unrelated_bytes_preserved": true, "exact_retry_after_reopen": true,
         "changed_retry_rejected": true, "terminal_ids_cannot_be_repopulated": true,
+        "pool_fence_survives_reopen": true,
+        "pending_effect_blocks_freeze_until_commit": true,
+        "unrecorded_delayed_refill_rejected": true,
+        "frozen_receipt_exact_retry": true,
+        "other_wallet_pool_admission_preserved": true,
         "scope": "Production wallet store and cipher on SQLite; excludes wallet-wide fencing and HTTP authorization"
     });
     std::fs::write(
@@ -268,4 +376,16 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
     );
     std::fs::remove_file(path)?;
     Ok(())
+}
+
+fn freeze(
+    path: &std::path::Path,
+    env: &CloudflareEnvMapV1,
+    owner: &CloudflareSigningWorkerWalletScopeV1,
+    request: router_ab_cloudflare::SigningWorkerPoolFreezeRequestV1,
+) -> router_ab_core::RouterAbProtocolResult<router_ab_cloudflare::SigningWorkerPoolFreezeResponseV1>
+{
+    with_store(path, env, |store| {
+        store.freeze_pool_for_relocation(owner.clone(), request)
+    })
 }

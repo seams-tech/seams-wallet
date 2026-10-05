@@ -10,6 +10,12 @@ use super::*;
 use crate::ordinary_inactive_signer_material as linked;
 use serde::de::DeserializeOwned;
 
+mod relocation;
+pub use relocation::{
+    SigningWorkerPoolFreezeReceiptV1, SigningWorkerPoolFreezeRequestV1,
+    SigningWorkerPoolFreezeResponseV1,
+};
+
 /// One bound parameter of a wallet statement.
 pub enum SigningWorkerWalletSqlValueV1 {
     /// A TEXT value.
@@ -57,11 +63,12 @@ const LINKED_ECDSA_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_linked_ecds
     owner_json TEXT NOT NULL,
     ciphertext_json TEXT NOT NULL)";
 /// The wallet store's ECDSA tables.
-pub(crate) const SIGNING_WORKER_WALLET_ECDSA_SCHEMA_V1: [&str; 4] = [
+pub(crate) const SIGNING_WORKER_WALLET_ECDSA_SCHEMA_V1: [&str; 5] = [
     ECDSA_POOL_SCHEMA,
     ECDSA_EFFECT_SCHEMA,
     ECDSA_ACTIVATION_SCHEMA,
     LINKED_ECDSA_SCHEMA,
+    relocation::SCHEMA,
 ];
 
 /// The outcome of claiming one signing effect and consuming its presignature.
@@ -409,6 +416,15 @@ impl<'a, Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'a, Sql>
 
     /// Applies one presignature-pool command to the wallet's pool.
     pub fn mutate_pool(
+        &self,
+        scope: CloudflareSigningWorkerWalletScopeV1,
+        command: CloudflareSigningWorkerEcdsaPoolCommandV1,
+    ) -> RouterAbProtocolResult<CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1> {
+        self.require_pool_admission(&scope)?;
+        self.mutate_pool_record(scope, command)
+    }
+
+    fn mutate_pool_record(
         &self,
         scope: CloudflareSigningWorkerWalletScopeV1,
         command: CloudflareSigningWorkerEcdsaPoolCommandV1,

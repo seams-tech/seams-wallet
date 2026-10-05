@@ -211,6 +211,18 @@ with the bloat check. Wallet-wide writer fencing, inventory traversal,
 presign-session invalidation, coordinator command binding, HTTP authorization,
 and composed behavioral acceptance remain unfinished.
 
+The SigningWorker wallet ECDSA store now persists a pool fence in the same
+transaction as pool mutations. Freeze first closes pool admission. It waits for
+claimed effects to record terminal results, then invalidates usable records and
+stores a stable pool digest. Exact freeze retries return the stored receipt.
+The encrypted SQLite scenario now also verifies drain across reopen, completion
+through the original effect commit, rejection of a previously unrecorded refill,
+unchanged frozen bytes, and admission for another wallet. The focused storage
+E2E, native build, SigningWorker WASM build, and bloat check pass. Evidence remains
+in `.artifacts/r153/pool-fence-20261005/`. This covers the wallet pool store only.
+The coordinator does not invoke this operation yet. Other SigningWorker stores,
+the separate private-D1 pool, and presign-session admission still need fences.
+
 Retained evidence:
 `.artifacts/r153/execution-journal-20261004/`, receipt SHA-256
 `02184ddd17816901bf2413115c35ca33a43bd90a269fedaeffb7f6990d8af555`.
