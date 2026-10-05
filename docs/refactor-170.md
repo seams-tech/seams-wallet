@@ -790,6 +790,13 @@ route are removed. The iframe protocol is now 5.0.0; client and host deployments
 must match. Custom-broadcast reporting remains supported. See the bootstrap
 ownership checkpoint in `refactor-170-inventory.md`.
 
+The package declaration check now also installs the actual tarball into an
+isolated temporary npm project with optional peers omitted. Strict core and
+external-EVM consumers compile, and both entries import in Node with React,
+React DOM, and their type packages absent. This closes optional-peer absence
+for those entries. React provider SSR/remount and deployed asset delivery remain
+separate acceptance requirements. See the inventory's optional-peer checkpoint.
+
 ## Implementation sequence
 
 Complete this sequence together with R171's naming and consumer migration.

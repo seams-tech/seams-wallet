@@ -2026,3 +2026,25 @@ and real-chain release acceptance remain open. Types, build, packed root/React/
 runtime declarations, runtime boundaries, and freshness pass. SDK production
 source adds 8 lines and removes 9 (net −1). Evidence:
 `evidence/refactor-170-external-receipt-20261005.json`.
+
+
+### Optional React peer absence checkpoint
+
+The existing `check:declarations-external` command now checks two consumers from
+the same npm tarball. The original consumer retains workspace dependencies and
+checks strict root, React, and runtime declarations. A separate temporary project
+installs the tarball with `npm install --ignore-scripts --omit=optional
+--legacy-peer-deps --no-audit --no-fund`. It has no workspace dependency links.
+
+The isolated core consumer imports root and external-EVM APIs, compiles with
+`strict: true`, `skipLibCheck: false`, no path aliases, and no automatic type
+packages. A Node import probe resolves the two entries and asserts that React,
+React DOM, and their type-package manifests cannot be resolved. It also checks
+the `waitForReceipt` declaration and rejects the removed `observeReceipt` name.
+The command logs tarball integrity and the isolated install lock hash, then
+removes both temporary projects. It installs only into temporary directories.
+
+This proves core/external-EVM package use without React. It does not prove React
+provider SSR, remount, browser feature behavior, optional QR feature loading, or
+published-release deployment. No SDK production source changed. Evidence:
+`evidence/refactor-170-optional-react-20261005.json`.

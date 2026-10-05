@@ -11,12 +11,13 @@
  * mean nothing was checked at all.
  *
  * So this typechecks a small program against the built package with no `paths`
- * configured, and asserts the public types survive as real types. It is a
- * check, not a framework: one temp directory, one `tsc` invocation.
+ * configured, and asserts the public types survive as real types. Isolated
+ * consumers cover React integration and optional-peer absence.
  */
 
 import { mkdtemp, rm, writeFile, mkdir, readFile, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -52,7 +53,39 @@ export type RuntimeIsTyped = Assert<
 export type RemovedAccountRead = Registration['getNearProvisioningState'];
 `;
 
+const CORE_CONSUMER_SOURCE = `
+import { SeamsWeb } from '@seams/wallet';
+import { ExternalEvmController } from '@seams/wallet/external-evm';
+declare const seams: SeamsWeb;
+void seams.auth.getSession();
+void seams.keys.exportKey({ kind: 'ecdsa', chainTarget: 'arc-testnet' });
+const external = new ExternalEvmController([]);
+void external.waitForReceipt;
+// @ts-expect-error Receipt lookup was replaced with bounded waiting.
+void external.observeReceipt;
+`;
+
+const CORE_IMPORT_SOURCE = `
+import { createRequire } from 'node:module';
+import { SeamsWeb } from '@seams/wallet';
+import { ExternalEvmController } from '@seams/wallet/external-evm';
+const require = createRequire(import.meta.url);
+for (const dependency of ['react', 'react-dom', '@types/react', '@types/react-dom']) {
+  try {
+    require.resolve(dependency + '/package.json');
+  } catch (error) {
+    if (error.code === 'MODULE_NOT_FOUND') continue;
+    throw error;
+  }
+  throw new Error(dependency + ' must be absent from the core consumer');
+}
+if (typeof SeamsWeb !== 'function' || typeof ExternalEvmController !== 'function') {
+  throw new Error('Core package exports did not load');
+}
+`;
+
 const workspace = await mkdtemp(join(tmpdir(), 'seams-decl-check-'));
+const coreWorkspace = await mkdtemp(join(tmpdir(), 'seams-core-consumer-'));
 try {
   const packed = JSON.parse(
     execFileSync('npm', ['pack', '--json', '--pack-destination', workspace], {
@@ -123,7 +156,54 @@ try {
       '[declarations] packed root, React, and runtime consumers compile with strict ES2022 declarations',
     );
     console.log(`[declarations] tarball integrity: ${packed[0].integrity}`);
+    await writeFile(
+      join(coreWorkspace, 'package.json'),
+      JSON.stringify({
+        private: true,
+        type: 'module',
+      }),
+    );
+    execFileSync(
+      'npm',
+      [
+        'install',
+        '--ignore-scripts',
+        '--omit=optional',
+        '--legacy-peer-deps',
+        '--no-audit',
+        '--no-fund',
+        join(workspace, packed[0].filename),
+      ],
+      { cwd: coreWorkspace, encoding: 'utf8', timeout: 120_000 },
+    );
+    await writeFile(join(coreWorkspace, 'consumer.ts'), CORE_CONSUMER_SOURCE);
+    await writeFile(join(coreWorkspace, 'import.mjs'), CORE_IMPORT_SOURCE);
+    await writeFile(
+      join(coreWorkspace, 'tsconfig.json'),
+      await readFile(join(workspace, 'tsconfig.json'), 'utf8'),
+    );
+    execFileSync('npx', ['tsc', '--noEmit', '-p', join(coreWorkspace, 'tsconfig.json')], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+    });
+    execFileSync(process.execPath, [join(coreWorkspace, 'import.mjs')], {
+      cwd: coreWorkspace,
+      encoding: 'utf8',
+    });
+    const coreLock = await readFile(join(coreWorkspace, 'package-lock.json'));
+    const installedVersions = {};
+    for (const [path, dependency] of Object.entries(JSON.parse(coreLock.toString()).packages)) {
+      if (dependency.version) installedVersions[path] = dependency.version;
+    }
+    console.log(`[declarations] core dependency versions: ${JSON.stringify(installedVersions)}`);
+    console.log(
+      `[declarations] core install lock SHA-256: ${createHash('sha256').update(coreLock).digest('hex')}`,
+    );
+    console.log(
+      '[declarations] isolated npm install compiles and imports core/external EVM without React',
+    );
   }
 } finally {
   await rm(workspace, { recursive: true, force: true });
+  await rm(coreWorkspace, { recursive: true, force: true });
 }
