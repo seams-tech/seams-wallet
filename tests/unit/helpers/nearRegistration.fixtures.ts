@@ -11,7 +11,10 @@ import {
   type RegistrationIntentV1,
 } from '@shared/utils/registrationIntent';
 import { buildMpcMaterialActivationRefFixture } from './ecdsaMaterialRef.fixtures';
-import { InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter } from '../../../packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationIntentAuthorization';
+import {
+  InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter,
+  InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationStateV1,
+} from '../../../packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationIntentAuthorization';
 
 function required<T>(parsed: DomainIdParseResult<T>): T {
   if (!parsed.ok) throw new Error(parsed.error.message);
@@ -61,18 +64,20 @@ export async function buildNearRegistrationAuthorityFixture(label: string) {
     runtimePolicyScope: { projectId: 'project', envId: 'dev', signingRootVersion: 'v1' },
     nonceB64u: 'AQ',
   };
-  const adapter = new InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter();
+  const state = new InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationStateV1();
+  const adapter = new InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter(state);
   const credential = `original-grant-${label}`;
   const expiresAtMs = Date.now() + 60_000;
   const bound = await adapter.bindVerifiedIntent({
     kind: 'verified_registration_intent',
+    ownershipGeneration: 1,
     registrationIntentGrant: registrationIntentGrantFromString(credential),
     intent,
     admissionRequest: admission.value,
     expiresAtMs,
   });
   if (!bound.ok) throw new Error(bound.message);
-  return { adapter, admission: admission.value, credential, intent, expiresAtMs };
+  return { adapter, state, admission: admission.value, credential, intent, expiresAtMs };
 }
 
 export async function replaceNearFixtureAuthority(

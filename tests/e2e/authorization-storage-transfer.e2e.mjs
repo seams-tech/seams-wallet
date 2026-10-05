@@ -1,3 +1,4 @@
+import { verifyCeremonyWriteFence } from './ceremony-write-fence.scenario.mjs';
 import assert from 'node:assert/strict';
 import { verifyAuthorizationHistoryCopy } from './authorization-transfer-restore.scenario.mjs';
 import {
@@ -105,6 +106,8 @@ const bundle = await build({
       export { routerAbMpcMaterialActivationRefToWire } from './packages/shared-ts/src/utils/routerAbNormalSigningIdentity';
       export { readWalletSessionSigningCandidate } from './packages/wallet-server/src/router/cloudflare/d1/auth/walletSessionCredentialReaders';
       export { parseTenantId } from './packages/shared-ts/src/authorization/capabilityKinds';
+      export { createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1 } from './packages/wallet-server/src/router/cloudflare/d1/ed25519Yao/d1Ed25519YaoProductRegistrationPartitionedStateStore';
+      export { buildNearRegistrationAuthorityFixture } from './tests/unit/helpers/nearRegistration.fixtures';
     `,
   },
 });
@@ -256,7 +259,18 @@ try {
     tables,
     issueDeviceSession,
   });
-  const snapshot = await verifyAuthorizationSnapshot({ api, source, scope, identity: sessionSource });
+  const ceremonyWriteFence = await verifyCeremonyWriteFence({
+    api,
+    source,
+    scope,
+    nowMs: issuedAtMs + 10,
+  });
+  const snapshot = await verifyAuthorizationSnapshot({
+    api,
+    source,
+    scope,
+    identity: sessionSource,
+  });
   const snapshotPrecision = await verifySnapshotIntegerPrecision({
     api,
     source,
@@ -342,6 +356,7 @@ try {
       relocationOwnerRequest,
       sessionRetirement,
       authorizationFreeze,
+      ceremonyWriteFence,
       authorizationSnapshot: snapshot.evidence,
       snapshotPrecision,
       retiredPrimaryCredentialRejectedAtIndependentDatabase: true,
