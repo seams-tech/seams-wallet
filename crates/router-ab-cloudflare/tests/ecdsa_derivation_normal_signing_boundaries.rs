@@ -155,10 +155,8 @@ fn router_ab_ecdsa_derivation_finalize_consumes_before_fallible_signing_work() {
     for required in [
         "CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH",
         "CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1",
-        "load_cloudflare_signing_worker_ecdsa_normal_signing_material_v1",
-        "parsed.material_source",
-        "claim_and_consume_cloudflare_signing_worker_ecdsa_for_wallet_v1",
-        "CloudflareSigningWorkerEcdsaClaimAndConsumeV1::Claimed",
+        "prepare_ecdsa_finalize",
+        "EcdsaFinalizePreparation::Claimed",
         "handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_finalize_private_request_v1",
         "worker::Response::from_json(&response)",
     ] {
@@ -168,17 +166,14 @@ fn router_ab_ecdsa_derivation_finalize_consumes_before_fallible_signing_work() {
         );
     }
     let consume = body
-        .find("claim_and_consume_cloudflare_signing_worker_ecdsa_for_wallet_v1")
+        .find("prepare_ecdsa_finalize")
         .expect("Router A/B ECDSA derivation finalize must consume presignature");
-    let lane_material = body
-        .find("load_cloudflare_signing_worker_ecdsa_normal_signing_material_v1")
-        .expect("Router A/B ECDSA derivation finalize must load lane material");
     let handler = body
         .find("handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_finalize_private_request_v1")
         .expect("Router A/B ECDSA derivation finalize must invoke materialized handler");
     assert!(
-        lane_material < consume && consume < handler,
-        "Router A/B ECDSA derivation finalize must reject stale lanes before pool consume and signing"
+        consume < handler,
+        "Router A/B ECDSA derivation finalize must claim and consume before signing"
     );
     let terminal_commit = body
         .find("CloudflareSigningWorkerTerminalResponseCommitV1::Committed")

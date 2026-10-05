@@ -94,7 +94,7 @@ export async function dispatchEcdsaSigningWithStorageFaults(request, worker, min
     exactReplayWithoutWrites: true,
     signatureSha256: createHash('sha256').update(signed.signature65_b64u).digest('hex'),
   });
-  const directory = new URL('../../../.artifacts/mpc-custody-20261005/', import.meta.url);
+  const directory = new URL('../../../.artifacts/r150/', import.meta.url);
   await mkdir(directory, { recursive: true });
   await writeFile(new URL('ecdsa-storage-evidence.json', directory), `${JSON.stringify({
     reproduce: 'ROUTER_AB_WORKER_BUILD_PROFILE=dev node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --ecdsa-presign-handoff',
