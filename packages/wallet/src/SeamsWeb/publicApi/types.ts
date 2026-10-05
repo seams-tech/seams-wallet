@@ -23,7 +23,6 @@ import type {
   EmailOtpEnrollmentResult,
 } from '@/core/signingEngine/session/emailOtp/publicTypes';
 import type { ExactWalletSessionAuthorization } from '@/core/signingEngine/session/persistence/walletSessionAuthorizationProjection';
-import type { RouterAbEcdsaDerivationLoginPresignaturePrefillResult } from '@/core/signingEngine/session/warmCapabilities/ecdsaLoginPrefill';
 import type { SignedTransaction } from '@/core/rpcClients/near/NearClient';
 import type {
   AppearanceConfigInput,
@@ -705,11 +704,6 @@ export interface AuthCapability {
   getSession(walletId?: string): Promise<WalletSession>;
   getRecentUnlocks(): Promise<GetRecentUnlocksResult>;
   hasPasskey(walletId: string): Promise<boolean>;
-  prefillRouterAbEcdsaDerivationPresignaturePool(args: {
-    walletSession: WalletSessionRef;
-    chainTarget: ThresholdEcdsaChainTarget;
-    waitForPoolReady?: boolean;
-  }): Promise<RouterAbEcdsaDerivationLoginPresignaturePrefillResult>;
   requestEmailOtpChallenge(args: {
     walletId: string;
     walletAuthMethodId?: string;

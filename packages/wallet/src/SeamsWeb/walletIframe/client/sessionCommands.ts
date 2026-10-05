@@ -14,7 +14,6 @@ export function createApplicationSessionCommands(
     getSession: getSession.bind(null, walletIframe),
     getRecentUnlocks: getRecentUnlocks.bind(null, walletIframe),
     hasPasskey: hasPasskey.bind(null, walletIframe),
-    prefillRouterAbEcdsaDerivationPresignaturePool: prefillPresignatures.bind(null, walletIframe),
   };
 }
 
@@ -78,20 +77,4 @@ async function getRecentUnlocks(
   } catch {
     return { walletIds: [], accountIds: [], lastUsedAccount: null };
   }
-}
-
-async function prefillPresignatures(
-  walletIframe: SessionIframe,
-  args: Parameters<WalletSessionCommands['prefillRouterAbEcdsaDerivationPresignaturePool']>[0],
-): ReturnType<WalletSessionCommands['prefillRouterAbEcdsaDerivationPresignaturePool']> {
-  const router = await walletIframe.requireRouter();
-  return await router.prefillRouterAbEcdsaDerivationPresignaturePool({
-    walletSession: args.walletSession,
-    options: {
-      chainTarget: args.chainTarget,
-      ...(typeof args.waitForPoolReady === 'boolean'
-        ? { waitForPoolReady: args.waitForPoolReady }
-        : {}),
-    },
-  });
 }

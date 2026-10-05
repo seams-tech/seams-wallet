@@ -1,4 +1,4 @@
-import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
+import type { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import type { Variant } from '@shared/utils/variant';
 import type { RouterAbEcdsaDerivationLoginPresignaturePrefillResult } from '@/core/signingEngine/session/warmCapabilities/ecdsaLoginPrefill';
 import type {
@@ -46,19 +46,11 @@ export function createWalletHostSessionCommands(
     getSession: getSession.bind(null, getContext),
     getRecentUnlocks: getRecentUnlocks.bind(null, getContext),
     hasPasskey: hasPasskey,
-    prefillRouterAbEcdsaDerivationPresignaturePool: prefillForRequest.bind(null, getContext),
   };
 }
 
 function isActivePasskey(record: LocalWalletAuthMethodRecordV2): boolean {
   return record.kind === SIGNER_AUTH_METHODS.passkey && record.status === 'active';
-}
-
-async function prefillForRequest(
-  getContext: () => WalletHostAuthContext,
-  args: Parameters<WalletSessionCommands['prefillRouterAbEcdsaDerivationPresignaturePool']>[0],
-): ReturnType<WalletSessionCommands['prefillRouterAbEcdsaDerivationPresignaturePool']> {
-  return await prefillWalletHostPresignatures(getContext, args, new WalletSessionStatusReadScope());
 }
 
 function walletUnlockCapabilityScope(
@@ -174,7 +166,6 @@ export async function prefillWalletHostPresignatures(
   args: {
     walletSession: WalletSessionRef;
     chainTarget: ThresholdEcdsaChainTarget;
-    waitForPoolReady?: boolean;
   },
   statusReads: WalletSessionStatusReadScope,
 ): Promise<RouterAbEcdsaDerivationLoginPresignaturePrefillResult> {
@@ -183,9 +174,6 @@ export async function prefillWalletHostPresignatures(
     {
       walletId,
       chainTarget: args.chainTarget,
-      ...(typeof args.waitForPoolReady === 'boolean'
-        ? { waitForPoolReady: args.waitForPoolReady }
-        : {}),
     },
     statusReads,
   );

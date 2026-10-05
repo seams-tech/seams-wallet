@@ -1,0 +1,55 @@
+{
+  "task": "R170/R171 internal presignature preparation",
+  "baseCommit": "08eeb9053f72513727920df99f850bece08af0f5",
+  "protocolVersion": "7.0.0",
+  "removed": "auth.prefillRouterAbEcdsaDerivationPresignaturePool and its iframe request",
+  "retainedOwners": [
+    "registration: scheduleEcdsaSessionPresignaturePrefill",
+    "passkey unlock: scheduleEcdsaSessionPresignaturePrefill",
+    "wallet host restore: scheduleRestoredSessionPresignaturePrefills"
+  ],
+  "production": {
+    "command": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.unlock.contract.test.ts --grep \"lock retains durable presignatures|page refresh hydrates warm signing\"",
+    "cases": [
+      {
+        "title": "lock retains durable presignatures across a fresh unlock",
+        "result": "passed",
+        "seconds": 30.2,
+        "assertions": [
+          "All original durable record identifiers retained while locked",
+          "All original durable record identifiers retained after fresh unlock",
+          "Tempo signing after unlock succeeds"
+        ]
+      },
+      {
+        "title": "page refresh hydrates warm signing, one-use step-up, and key export",
+        "result": "passed",
+        "seconds": 36.8
+      }
+    ]
+  },
+  "browser": {
+    "command": "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4289 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/handshake.test.ts --project=chromium --output=../.artifacts/r170-presign-api",
+    "result": "5 passed",
+    "seconds": 2.6
+  },
+  "checks": [
+    "wallet type-check",
+    "intended type-check",
+    "browser type-check",
+    "build:prod",
+    "check:declarations-external rejects removed public method",
+    "check:runtime-entry-bundles",
+    "build:check:fresh"
+  ],
+  "sdkProductionLines": {
+    "added": 3,
+    "removed": 94,
+    "net": -91
+  },
+  "limits": [
+    "Immediate lock/unlock retention and page refresh only.",
+    "Month-later first-sign latency and durable-material validity clocks remain separate acceptance gates.",
+    "No publication or deployment performed."
+  ]
+}

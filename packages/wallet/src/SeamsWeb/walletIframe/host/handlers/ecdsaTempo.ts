@@ -159,21 +159,5 @@ export function createEcdsaTempoWalletIframeHandlers(deps: HandlerDeps): Handler
       respondOkResult(deps, req.requestId, result);
     },
 
-    PM_PREFILL_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL: async (
-      req: Req<'PM_PREFILL_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL'>,
-    ) => {
-      const pm = deps.getWalletRuntime();
-      const { walletSession, options } = req.payload!;
-      if (deps.respondIfCancelled(req.requestId)) return;
-      const result = await pm.auth.prefillRouterAbEcdsaDerivationPresignaturePool({
-        walletSession,
-        chainTarget: options.chainTarget,
-        ...(typeof options.waitForPoolReady === 'boolean'
-          ? { waitForPoolReady: options.waitForPoolReady }
-          : {}),
-      });
-      if (deps.respondIfCancelled(req.requestId)) return;
-      respondOkResult(deps, req.requestId, result);
-    },
   };
 }

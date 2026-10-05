@@ -110,7 +110,7 @@ test.describe('Wallet iframe handshake', () => {
     await registerWalletServiceRoute(
       page,
       buildWalletServiceHtml({
-        protocolVersion: '5.0.0',
+        protocolVersion: '6.0.0',
         expectedConnectProtocolVersion: null,
       }),
       WALLET_SERVICE_ROUTE,
@@ -130,7 +130,7 @@ test.describe('Wallet iframe handshake', () => {
     expect(result.ok).toBe(false);
     expect(result.code).toBe('WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH');
     expect(result.name).toBe('WalletIframeProtocolVersionMismatchError');
-    expect(result.message).toContain('expected 6.0.0, received 5.0.0');
+    expect(result.message).toContain('expected 7.0.0, received 6.0.0');
 
     const readyState = await page.evaluate(() => {
       const router = (window as any).__walletRouter;
@@ -143,7 +143,7 @@ test.describe('Wallet iframe handshake', () => {
   test('rejects when CONNECT advertises an older host SDK protocol version', async ({ page }) => {
     await registerWalletServiceRoute(
       page,
-      buildWalletServiceHtml({ expectedConnectProtocolVersion: '7.0.0' }),
+      buildWalletServiceHtml({ expectedConnectProtocolVersion: '8.0.0' }),
       WALLET_SERVICE_ROUTE,
     );
     await initRouter(page, { walletOrigin: WALLET_ORIGIN, connectTimeoutMs: 1000 });
@@ -168,9 +168,9 @@ test.describe('Wallet iframe handshake', () => {
     expect(result.ok).toBe(false);
     expect(result.code).toBe('WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH');
     expect(result.name).toBe('WalletIframeProtocolVersionMismatchError');
-    expect(result.message).toContain('expected 7.0.0, received 6.0.0');
-    expect(result.expectedProtocolVersion).toBe('7.0.0');
-    expect(result.receivedProtocolVersion).toBe('6.0.0');
+    expect(result.message).toContain('expected 8.0.0, received 7.0.0');
+    expect(result.expectedProtocolVersion).toBe('8.0.0');
+    expect(result.receivedProtocolVersion).toBe('7.0.0');
 
     const readyState = await page.evaluate(() => {
       const router = (window as any).__walletRouter;
@@ -217,7 +217,7 @@ test.describe('Wallet iframe handshake', () => {
           const channel = new MessageChannel();
           channel.port1.start();
           iframe.contentWindow?.postMessage(
-            { type: 'CONNECT', payload: { protocolVersion: '5.0.0' } },
+            { type: 'CONNECT', payload: { protocolVersion: '6.0.0' } },
             walletOrigin,
             [channel.port2],
           );

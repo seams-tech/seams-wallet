@@ -136,7 +136,6 @@ import type { MultichainSigningRequest } from '@/core/signingEngine/chains/tempo
 import { requireTempoFeeTokenPreferenceSigningRequest } from '@/core/signingEngine/chains/tempo/feeToken';
 import type { EvmSignedResult } from '@/core/signingEngine/chains/evm/evmAdapter';
 import type { TempoSignedResult } from '@/core/signingEngine/chains/tempo/tempoAdapter';
-import type { RouterAbEcdsaDerivationLoginPresignaturePrefillResult } from '@/core/signingEngine/session/warmCapabilities/ecdsaLoginPrefill';
 import {
   thresholdEcdsaChainTargetsEqual,
   toWalletId,
@@ -4131,29 +4130,6 @@ export class WalletIframeRouter {
       payload: { kind: 'appearance', appearance: resolved },
     });
     this.opts.hostConfig = replaceWalletHostAppearance(this.opts.hostConfig, resolved);
-  }
-
-  async prefillRouterAbEcdsaDerivationPresignaturePool(payload: {
-    walletSession: WalletSessionRef;
-    options: {
-      chainTarget: ThresholdEcdsaChainTarget;
-      waitForPoolReady?: boolean;
-    };
-  }): Promise<RouterAbEcdsaDerivationLoginPresignaturePrefillResult> {
-    const res = await this.post<RouterAbEcdsaDerivationLoginPresignaturePrefillResult>(
-      {
-        type: 'PM_PREFILL_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL',
-        payload: {
-          walletSession: payload.walletSession,
-          ...(payload.options ? { options: payload.options } : {}),
-        },
-      },
-      {
-        timeoutMs: WALLET_IFRAME_THRESHOLD_SIGNING_TIMEOUT_MS,
-        progressTimeoutExtensionFactor: 1,
-      },
-    );
-    return res.result;
   }
 
   async getRecentUnlocks(): Promise<GetRecentUnlocksResult> {

@@ -9,7 +9,6 @@ export type WalletSessionCommands = Pick<
   | 'getSession'
   | 'getRecentUnlocks'
   | 'hasPasskey'
-  | 'prefillRouterAbEcdsaDerivationPresignaturePool'
 >;
 
 export type EmailOtpCommandGroups = {

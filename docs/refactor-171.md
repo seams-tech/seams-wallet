@@ -470,7 +470,7 @@ a declaration-level pass before declaring the migration complete.
 - [x] Internalize ECDSA bootstrap. Remove advanced application methods, unused
   argument builders, client/host transport adapters, and the obsolete iframe RPC.
   Retain the explicit runtime port used by authentication and supported broadcast
-  reporting. That change used protocol 5.0.0; the current protocol is 6.0.0 below.
+  reporting. That change used protocol 5.0.0; later removals advance the protocol below.
 
 - [x] Rename React `refreshLoginState` to `refreshSession` and `setInputUsername`
   to `setAccountName`, including context, hooks, UI, examples, and intended app.
@@ -499,6 +499,11 @@ a declaration-level pass before declaring the migration complete.
   delivery subscription, and its forwarding/event/parser paths. Custom UI keeps
   the flow delivery result. Protocol 6.0.0 requires matched client/host deployment.
   Browser coverage checks code replacement, provider-only display, and user input.
+
+- [x] Remove public presignature preparation, its client and host adapters,
+  request classification, and iframe message. Registration, unlock, and restore
+  retain their operation-owned schedulers. Lock continues to retain durable
+  presignatures. Protocol 7.0.0 requires matched client/host deployment.
 
 - [ ] Audit current declarations and consumers in public SDK, tests, examples,
   docs, and private Console. Classify each row as rename, consolidation, internal

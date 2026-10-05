@@ -58,7 +58,10 @@ alone does not prove crypto initialization succeeded. Worker reuse, cancellation
 and durable presignature validity retain their existing contracts.
 
 The provider connects through `connection.connect`. Operation-specific ECDSA
-and Email OTP preparation remain internal.
+and Email OTP preparation remain internal. Applications do not expose or call a
+presignature-pool preparation method. Registration, unlock, and eligible session
+restoration schedule preparation inside the wallet host. Removing the public
+preparation call does not delete durable presignatures or change lock semantics.
 
 Google Email OTP registration prepares Yao only when its resolved signer
 selection includes NEAR. Rerolling the wallet name retains that selection and

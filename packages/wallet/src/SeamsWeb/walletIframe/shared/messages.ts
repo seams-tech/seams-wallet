@@ -803,7 +803,7 @@ export function parseHostedAuthMenuOutcome(value: unknown): HostedAuthMenuOutcom
   }
 }
 
-export const WALLET_PROTOCOL_VERSION = '6.0.0' as const;
+export const WALLET_PROTOCOL_VERSION = '7.0.0' as const;
 
 export const WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH =
   'WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH' as const;
@@ -866,7 +866,6 @@ export type ParentToChildType =
   | 'PM_RESOLVE_EXACT_KEY_EXPORT_LANE'
   | 'PM_EXPORT_KEYPAIR_UI'
   | 'PM_GET_RECENT_UNLOCKS'
-  | 'PM_PREFILL_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL'
   | 'PM_SET_CONFIRM_BEHAVIOR'
   | 'PM_SET_CONFIRMATION_CONFIG'
   | 'PM_GET_CONFIRMATION_CONFIG'
@@ -1386,14 +1385,6 @@ export interface PMEmailOtpEcdsaCapabilityPayload {
   emailOtpAuthorityEmail?: string;
 }
 
-interface PMPrefillRouterAbEcdsaDerivationPresignaturePoolPayload {
-  walletSession: WalletSessionRef;
-  options: {
-    chainTarget: ThresholdEcdsaChainTarget;
-    waitForPoolReady?: boolean;
-  };
-}
-
 interface PMHasPasskeyPayload {
   walletId: string;
 }
@@ -1729,10 +1720,6 @@ export type ParentToChildEnvelope =
   | RpcEnvelope<'PM_RESOLVE_EXACT_KEY_EXPORT_LANE', PMResolveExactKeyExportLanePayload>
   | RpcEnvelope<'PM_EXPORT_KEYPAIR_UI', PMExportKeypairUiPayload>
   | RpcEnvelope<'PM_GET_RECENT_UNLOCKS'>
-  | RpcEnvelope<
-      'PM_PREFILL_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL',
-      PMPrefillRouterAbEcdsaDerivationPresignaturePoolPayload
-    >
   | RpcEnvelope<'PM_SET_CONFIRM_BEHAVIOR', PMSetConfirmBehaviorPayload>
   | RpcEnvelope<'PM_SET_CONFIRMATION_CONFIG', PMSetConfirmationConfigPayload>
   | RpcEnvelope<'PM_GET_CONFIRMATION_CONFIG'>

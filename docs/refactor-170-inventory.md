@@ -200,7 +200,7 @@ remove that dependency overlap while retaining these distinctions.
 | --- | --- | --- |
 | `auth.unlock`, `lock`, `logout` | `walletIframe/client/sessionCommands.ts` → router equivalents | H: `host/handlers/auth.ts`; retain exact session, progress, error, and logout cleanup semantics. |
 | `auth.getWalletSession`, `getRecentUnlocks`, `hasPasskeyCredential` | `walletIframe/client/sessionCommands.ts` → router queries; session read can also prefetch blockheight | H auth queries; preserve authentication versus app-identity distinction. Recent-unlock fallback behavior needs explicit review before removing local paths. |
-| `auth.prefillRouterAbEcdsaDerivationPresignaturePool` | `walletIframe/client/sessionCommands.ts` → router prefill | H: session/presignature preparation with current R152 checks. R153 adds relocation fencing later. |
+| Internal presignature preparation | Registration/unlock scheduler and host restoration | Public auth call and iframe route removed. The host retains existing session/material checks and durable reuse. |
 | `auth.requestEmailOtpChallenge`, `requestEmailOtpSigningSessionChallenge`, `refreshEmailOtpSigningSession` | `SeamsWeb` domain methods → matching router requests | H: `host/handlers/emailOtp.ts`; challenge purpose and session scope remain distinct. |
 | `auth.loginWithEmailOtpEcdsaCapability`, `unlockAddedEmailOtpWallet` | Domain → login/unlock-added router methods | H: Email OTP handler and selected factor activation. |
 | `auth.startGoogleSignIn` | Domain → router flow proxy | C proxy for H flow, including resend/reroll/submit/complete/cancel; callbacks and terminal results remain correlated to the flow. |
@@ -2310,3 +2310,28 @@ Wallet/browser types, production build, bundle boundaries, and freshness passed.
 SDK production source: 10 added, 8 removed, net +2. Evidence:
 `evidence/refactor-170-raw-disclosure-motion-20261005.json`.
 This closes the previously recorded raw-calldata motion gap.
+
+
+### Presignature preparation has no application entry (2026-10-05)
+
+Removed the public auth method, client session adapter, router method, host request
+handler, request classification, and iframe payload. The host's public-session
+command factory no longer creates a preparation adapter. Its restoration helper
+also loses the unused wait-for-pool option. No application or test consumer called
+the removed operation; the packed consumer explicitly rejects the retired name.
+
+Internal ownership remains unchanged: `scheduleEcdsaSessionPresignaturePrefill`
+runs from registration and passkey unlock; `scheduleRestoredSessionPresignaturePrefills`
+runs from the host's restored-session path. These preserve current authorization
+and material checks. No durable storage, lock behavior, presignature consumption,
+or cryptographic protocol changed. The iframe protocol advances from 6.0.0 to
+7.0.0 because the public request was removed. Client and host must deploy together.
+
+Production lock/unlock retention passed in 30.2 seconds. All original durable
+record identifiers remained after lock and fresh unlock, and Tempo signing passed.
+The page-refresh lifecycle passed in 36.8 seconds, including warm signing, step-up,
+and key export. Five handshake cases passed in 2.6 seconds. Wallet, intended-app,
+and browser types, production build, packed declarations, runtime boundaries,
+and freshness passed. SDK production source: 3 added, 94 removed, net -91.
+Evidence: `evidence/refactor-170-presign-preparation-internal-20261005.json`.
+Month-later return latency and validity-clock acceptance remain open.

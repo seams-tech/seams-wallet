@@ -58,6 +58,8 @@ import { SeamsWeb } from '@seams/wallet';
 import { ExternalEvmController } from '@seams/wallet/external-evm';
 declare const seams: SeamsWeb;
 void seams.auth.getSession();
+// @ts-expect-error Presignature preparation belongs to wallet operations.
+void seams.auth.prefillRouterAbEcdsaDerivationPresignaturePool;
 void seams.auth.startGoogleSignIn({ idToken: 'provider-evidence', mode: 'login', loginTarget: { kind: 'discoverable' } });
 // @ts-expect-error Google sign-in has one public entry name.
 void seams.auth.beginGoogleEmailOtpWalletAuth;
