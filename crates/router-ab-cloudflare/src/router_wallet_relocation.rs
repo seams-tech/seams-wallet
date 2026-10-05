@@ -112,13 +112,18 @@ pub async fn freeze_router_wallet_v1<Store: RouterWalletStoreV1>(
     request: RouterWalletFreezeRequestV1,
 ) -> RouterAbProtocolResult<RouterWalletFreezeResponseV1> {
     validate_request(&request)?;
-    if store
-        .get_json::<RouterWalletOwnerV1>(OWNER_KEY)
-        .await?
-        .as_ref()
-        != Some(&request.owner)
-    {
-        return Err(conflict("Router wallet freeze names an unknown owner"));
+    match store.get_json::<RouterWalletOwnerV1>(OWNER_KEY).await? {
+        Some(owner) if owner == request.owner => {}
+        Some(_) => return Err(conflict("Router wallet freeze names another owner")),
+        None => {
+            if store.get_json::<Fence>(FENCE_KEY).await?.is_some()
+                || !store.list_registrations().await?.is_empty()
+            {
+                return Err(conflict("Router wallet inventory has no owner"));
+            }
+            // An unused role still needs a durable fence before it attests an empty inventory.
+            store.put_json(OWNER_KEY, &request.owner).await?;
+        }
     }
     match store.get_json::<Fence>(FENCE_KEY).await? {
         Some(Fence::Frozen { receipt }) => {

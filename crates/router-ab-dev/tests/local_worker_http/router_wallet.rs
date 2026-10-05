@@ -357,6 +357,64 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
         "succeeded"
     );
     assert_eq!(freeze_wallet(&stack.router_url, &freeze)?, sealed);
+    let (empty_registration, _) =
+        stack.wallet_registration(&identity, &lineage_b64u, "empty-router-wallet")?;
+    let empty_owner =
+        router_ab_cloudflare::RouterWalletRegistrationV1::from_request(&empty_registration)?
+            .ok_or("empty inventory owner")?
+            .owner;
+    let empty_move = router_ab_cloudflare::RouterWalletFreezeRequestV1 {
+        owner: empty_owner,
+        move_id: format!("wmove_{}", "e".repeat(43)),
+        request_digest_hex: "f".repeat(64),
+        source_generation: 1,
+        destination_generation: 2,
+    };
+    transfer_wallet(
+        &destination.router_url,
+        router_ab_cloudflare::RouterWalletTransferRequestV1::Prepare {
+            request: empty_move.clone(),
+            chunk_bytes: 1024,
+        },
+    )?;
+    let empty_frozen = freeze_wallet(&stack.router_url, &empty_move)?;
+    let router_ab_cloudflare::RouterWalletFreezeResponseV1::Frozen {
+        receipt: empty_receipt,
+    } = serde_json::from_value(empty_frozen.clone())?
+    else {
+        return Err("expected an empty frozen inventory".into());
+    };
+    assert_eq!(empty_receipt.record_count, 0);
+    let empty_verified = transfer_wallet(
+        &destination.router_url,
+        router_ab_cloudflare::RouterWalletTransferRequestV1::Verify {
+            receipt: empty_receipt.clone(),
+        },
+    )?;
+    assert_eq!(
+        empty_verified,
+        router_ab_cloudflare::RouterWalletTransferResponseV1::Verified {
+            receipt: empty_receipt,
+        }
+    );
+    stack.restart_router()?;
+    destination.restart_router()?;
+    assert_eq!(freeze_wallet(&stack.router_url, &empty_move)?, empty_frozen);
+    let pairs_before_empty_retry = a_pairs(&stack.a_store)?;
+    let (empty_source_status, _) = stack.register(&empty_registration)?;
+    let (empty_destination_status, _) = destination.register(&empty_registration)?;
+    assert_ne!(empty_source_status, 200);
+    assert_ne!(empty_destination_status, 200);
+    assert_eq!(a_pairs(&stack.a_store)?, pairs_before_empty_retry);
+    assert!(registration_rows(&stack.router_db, &empty_move.owner)?.is_empty());
+    assert!(registration_rows(&destination.router_db, &empty_move.owner)?.is_empty());
+    assert_eq!(
+        registration_rows(&destination.router_db, &freeze.owner)?,
+        imported_rows
+    );
+    let (unrelated_retry_status, unrelated_retry) = stack.register(&unrelated)?;
+    assert_eq!(unrelated_retry_status, 200);
+    assert_eq!(unrelated_retry, unrelated_answer);
     drop(signing_worker);
     println!(
         "R150_VM_ROUTER_WALLET_OBJECT_E2E {}",
@@ -383,6 +441,9 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
                 "destination_verified_but_inactive": true,
                 "lost_chunk_reply_replayed_after_restart": true,
                 "exact_historical_record_bytes": true,
+                "empty_inventory_verified_without_chunks": true,
+                "empty_inventory_fences_survive_restart": true,
+                "empty_inventory_preserves_other_wallets": true,
             },
         })
     );

@@ -182,6 +182,13 @@ the Worker WASM build, and the required bloat check pass. Evidence remains in
 storage only. Participant activation, cleanup, physical destination resolution,
 Console command binding, and transfer of other wallet stores remain unfinished.
 
+An unused Router registration store now records its owner and source fence before
+attesting an empty inventory. A store with records or a prior fence but no owner
+fails closed. The same transfer verification accepts the empty snapshot without
+chunks. The focused HTTP E2E checks both stores after restart, rejects delayed
+registration, and preserves another wallet's copied records and replay result.
+Evidence remains in `.artifacts/r153/router-empty-inventory-20261005/`.
+
 Retained evidence:
 `.artifacts/r153/execution-journal-20261004/`, receipt SHA-256
 `02184ddd17816901bf2413115c35ca33a43bd90a269fedaeffb7f6990d8af555`.
