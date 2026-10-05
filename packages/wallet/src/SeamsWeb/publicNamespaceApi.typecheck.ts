@@ -33,7 +33,7 @@ void seams.registration.enrollEmailOtp({
 void seams.auth.unlock('alice.testnet');
 void seams.auth.getSession('alice.testnet');
 
-void seams.near.signNEP413Message({
+void seams.near.signMessage({
   walletSession,
   nearAccount,
   params: {

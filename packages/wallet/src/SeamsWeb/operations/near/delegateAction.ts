@@ -118,7 +118,7 @@ const normalizeSignedDelegateForRelay = (
     },
   };
 };
-export async function sendDelegateActionViaRelayer(args: {
+export async function sendDelegateAction(args: {
   url: string;
   payload: RouterApiDelegateRequest;
   auth?: DelegateRelayerAuth;

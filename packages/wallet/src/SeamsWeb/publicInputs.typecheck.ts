@@ -472,3 +472,10 @@ void registrationCapability.revokeAuthMethod;
 declare const nearCapability: NearSignerCapability;
 // @ts-expect-error NEAR transaction submission uses signAndSendTransaction.
 void nearCapability.executeAction;
+
+// @ts-expect-error NEAR signing uses signTransaction.
+void nearCapability.signTransactionWithActions;
+// @ts-expect-error NEP-413 signing uses signMessage.
+void nearCapability.signNEP413Message;
+// @ts-expect-error Delegate submission uses sendDelegateAction.
+void nearCapability.sendDelegateActionViaRelayer;

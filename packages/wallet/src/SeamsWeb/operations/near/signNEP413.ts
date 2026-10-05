@@ -30,7 +30,7 @@ export type { SignNEP413MessageParams, SignNEP413MessageResult };
  * @param options - Action options for event handling
  * @returns Promise resolving to signing result
  */
-export async function signNEP413Message(args: {
+export async function signMessage(args: {
   context: NearSigningWebContext;
   nearAccountId: AccountId;
   walletSession: WalletSessionRef;

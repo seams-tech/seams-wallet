@@ -307,13 +307,13 @@ export async function signNear<TRequest extends NearSignIntentRequest>(
         getSignerWorkerContext: reviewedNearContext.bind(null, context, admission.beforeSigning),
       };
     }
-    return (await signTransactionWithActions(deps, request.args)) as NearSignIntentResult<TRequest>;
+    return (await signTransaction(deps, request.args)) as NearSignIntentResult<TRequest>;
   }
   if (request.kind === 'delegateAction') {
     return (await signDelegateAction(deps, request.args)) as NearSignIntentResult<TRequest>;
   }
   if (request.kind === 'nep413') {
-    return (await signNEP413Message(deps, request.args)) as NearSignIntentResult<TRequest>;
+    return (await signMessage(deps, request.args)) as NearSignIntentResult<TRequest>;
   }
   throw new Error(
     `[SigningEngine] unsupported near signing intent: ${String((request as { kind?: unknown }).kind || '')}`,
@@ -1431,7 +1431,7 @@ type NearTransactionSigningAttempt = {
   signingSessionCoordinator?: SigningSessionCoordinator;
 };
 
-export async function signTransactionWithActions(
+async function signTransaction(
   deps: NearSigningApiDeps,
   args: SignTransactionWithActionsInput,
 ): Promise<SignTransactionResult> {
@@ -1958,7 +1958,7 @@ async function executeNearNep413SigningAttempt(
   }
 }
 
-export async function signNEP413Message(
+async function signMessage(
   deps: NearSigningApiDeps,
   payload: SignNep413MessagePayload,
 ): Promise<SignNep413MessageResult> {

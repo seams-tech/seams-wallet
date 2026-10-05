@@ -7,10 +7,10 @@ import type { TransactionDispatch } from '@/SeamsWeb/walletIframe/client/transac
 
 type NearSigningOperation =
   | 'signAndSendTransaction'
-  | 'signTransactionWithActions'
+  | 'signTransaction'
   | 'sendTransaction'
   | 'signDelegateAction'
-  | 'signNEP413Message';
+  | 'signMessage';
 
 type ResolvedNearInput<T extends { options?: unknown }> = Omit<
   T,

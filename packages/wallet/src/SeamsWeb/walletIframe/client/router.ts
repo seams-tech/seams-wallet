@@ -3254,7 +3254,7 @@ export class WalletIframeRouter {
 
   // ===== SeamsWeb RPCs =====
 
-  async signTransactionWithActions(payload: {
+  async signTransaction(payload: {
     walletId: string;
     nearAccountId: string;
     transaction: TransactionInput;

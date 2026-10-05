@@ -113,12 +113,7 @@ export function useSeamsContextValue(args: {
 
   const signAndSendTransaction = seams.near.signAndSendTransaction;
 
-  const signNEP413Message: SeamsContextType['signNEP413Message'] = useCallback(
-    (args) => {
-      return seams.near.signNEP413Message({ ...args, options: { ...(args.options || {}) } });
-    },
-    [seams],
-  );
+  const signMessage = seams.near.signMessage;
 
   const signDelegateAction: SeamsContextType['signDelegateAction'] = useCallback(
     (args) => {
@@ -164,7 +159,7 @@ export function useSeamsContextValue(args: {
       startDevice2LinkingFlow,
       cancelDeviceLinking,
       signAndSendTransaction,
-      signNEP413Message,
+      signMessage,
       signDelegateAction,
       getSession,
       refreshLoginState,
@@ -191,7 +186,7 @@ export function useSeamsContextValue(args: {
       startDevice2LinkingFlow,
       cancelDeviceLinking,
       signAndSendTransaction,
-      signNEP413Message,
+      signMessage,
       signDelegateAction,
       getSession,
       refreshLoginState,

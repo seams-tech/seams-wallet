@@ -896,7 +896,7 @@ export interface NearSignerCapability {
     },
   ): Promise<ActionResult>;
 
-  signTransactionWithActions(
+  signTransaction(
     args: NearSubjectInput & {
       transaction: TransactionInput;
       options?: SignTransactionHooksOptions;
@@ -917,7 +917,7 @@ export interface NearSignerCapability {
     },
   ): Promise<SignDelegateActionResult>;
 
-  sendDelegateActionViaRelayer(args: {
+  sendDelegateAction(args: {
     relayerUrl: string;
     signedDelegate: SignedDelegate | WasmSignedDelegate;
     hash: string;
@@ -934,7 +934,7 @@ export interface NearSignerCapability {
     },
   ): Promise<SignAndSendDelegateActionResult>;
 
-  signNEP413Message(
+  signMessage(
     args: NearSubjectInput & {
       params: SignNEP413MessageParams;
       options?: SignNEP413HooksOptions;

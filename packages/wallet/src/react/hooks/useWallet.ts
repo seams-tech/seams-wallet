@@ -31,9 +31,9 @@ export interface BoundNearSigner {
       WithoutNearSubject<Parameters<NearSignerCapability['signAndSendTransaction']>[0]>
     >,
   ): ReturnType<NearSignerCapability['signAndSendTransaction']>;
-  signNEP413Message(
-    args: WithoutNearSubject<Parameters<NearSignerCapability['signNEP413Message']>[0]>,
-  ): ReturnType<NearSignerCapability['signNEP413Message']>;
+  signMessage(
+    args: WithoutNearSubject<Parameters<NearSignerCapability['signMessage']>[0]>,
+  ): ReturnType<NearSignerCapability['signMessage']>;
 }
 
 /** EIP-1559 signing bound to one wallet. */
@@ -138,8 +138,8 @@ function createBoundWallet(
       ? {
           accountId: nearAccountId,
           signAndSendTransaction: reviewed.nearSign,
-          signNEP413Message: (args) =>
-            seams.near.signNEP413Message({ ...args, walletSession, nearAccount }),
+          signMessage: (args) =>
+            seams.near.signMessage({ ...args, walletSession, nearAccount }),
         }
       : null;
 

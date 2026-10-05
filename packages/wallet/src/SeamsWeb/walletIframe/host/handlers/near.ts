@@ -207,7 +207,7 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
     PM_SIGN_TX_WITH_ACTIONS: async (req: Req<'PM_SIGN_TX_WITH_ACTIONS'>) => {
       const pm = deps.getWalletRuntime();
       const { walletId, nearAccountId, transaction, options } = req.payload!;
-      const result = await pm.near.signTransactionWithActions({
+      const result = await pm.near.signTransaction({
         walletSession: walletSessionFromWalletId(walletId),
         nearAccount: nearAccountRefFromAccountId(nearAccountId),
         transaction,
@@ -288,7 +288,7 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
     PM_SIGN_NEP413: async (req: Req<'PM_SIGN_NEP413'>) => {
       const pm = deps.getWalletRuntime();
       const { walletId, nearAccountId, params, options } = req.payload!;
-      const result = await pm.near.signNEP413Message({
+      const result = await pm.near.signMessage({
         walletSession: walletSessionFromWalletId(walletId),
         nearAccount: nearAccountRefFromAccountId(nearAccountId),
         params,

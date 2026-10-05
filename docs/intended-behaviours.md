@@ -725,6 +725,13 @@ Failure behaviour:
 
 ## Transaction Signing
 
+NEAR uses `signTransaction` for signing without broadcast, `signMessage` for the
+existing NEP-413 message operation, and `sendDelegateAction` for delegate relay
+submission. Message inputs and results retain their message, recipient, state,
+nonce, account, public-key, and signature contracts. Sign-and-send delegate
+orchestration uses the same relay operation. React exposes `signMessage`.
+
+
 NEAR transaction submission uses `near.signAndSendTransaction({ receiverId,
 actions, options })`, including React bindings. A single action is a one-element
 `actions` array. Signing and submission failures reject the promise through the

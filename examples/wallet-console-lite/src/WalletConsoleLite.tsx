@@ -203,7 +203,7 @@ function ConfiguredWalletPlayground({
     if (value === 'square' || value === 'rounded') setShape(value);
   }, []);
   return (
-    <SeamsWebProvider eager config={config} theme={theme}>
+    <SeamsWebProvider config={config} theme={theme}>
       <TransactionReviewHost>
         {children ?? (
           <WalletPlayground workspace={workspace} page={page} shape={shape} onShapeChange={handleShapeChange} />
@@ -324,7 +324,7 @@ function WalletPlayground({
     if (wallet.status !== 'ready' || !loginState.isLoggedIn) return;
     setSigningCheck({ kind: 'signing', operation: 'message' });
     try {
-      const result = await wallet.near.signNEP413Message({
+      const result = await wallet.near.signMessage({
         params: {
           message: 'Hello, Seams!',
           recipient: 'wallet-console-lite.local',
@@ -354,7 +354,7 @@ function WalletPlayground({
     if (wallet.status !== 'ready' || !loginState.isLoggedIn) return;
     setSigningCheck({ kind: 'signing', operation: 'transaction' });
     try {
-      await seams.near.signTransactionWithActions({
+      await seams.near.signTransaction({
         transaction: {
           receiverId: wallet.near.accountId,
           actions: [transfer('0')],

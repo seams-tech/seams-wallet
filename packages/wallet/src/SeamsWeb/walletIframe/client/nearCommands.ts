@@ -16,10 +16,10 @@ export function createApplicationNearCommands(
   return {
     fundImplicitNearAccountForTesting: commands.fundImplicitNearAccountForTesting.bind(commands),
     signAndSendTransaction: commands.signAndSendTransaction.bind(commands),
-    signTransactionWithActions: commands.signTransactionWithActions.bind(commands),
+    signTransaction: commands.signTransaction.bind(commands),
     sendTransaction: commands.sendTransaction.bind(commands),
     signDelegateAction: commands.signDelegateAction.bind(commands),
-    signNEP413Message: commands.signNEP413Message.bind(commands),
+    signMessage: commands.signMessage.bind(commands),
   };
 }
 class ApplicationNearCommands {
@@ -69,16 +69,16 @@ class ApplicationNearCommands {
       throw e;
     }
   }
-  async signTransactionWithActions(
-    args: Parameters<NearCommands['signTransactionWithActions']>[0],
-  ): ReturnType<NearCommands['signTransactionWithActions']> {
+  async signTransaction(
+    args: Parameters<NearCommands['signTransaction']>[0],
+  ): ReturnType<NearCommands['signTransaction']> {
     const walletIframe = this.walletIframe;
     const nearAccountId = args.nearAccount.accountId;
     const { transaction, options } = args;
     try {
       await this.beforeSigning(args.walletSession.walletId);
       const router = await walletIframe.requireRouter();
-      const result = await router.signTransactionWithActions({
+      const result = await router.signTransaction({
         walletId: args.walletSession.walletId,
         nearAccountId,
         transaction: {
@@ -158,9 +158,9 @@ class ApplicationNearCommands {
       throw e;
     }
   }
-  async signNEP413Message(
-    args: Parameters<NearCommands['signNEP413Message']>[0],
-  ): ReturnType<NearCommands['signNEP413Message']> {
+  async signMessage(
+    args: Parameters<NearCommands['signMessage']>[0],
+  ): ReturnType<NearCommands['signMessage']> {
     const walletIframe = this.walletIframe;
     const nearAccountId = args.nearAccount.accountId;
     try {

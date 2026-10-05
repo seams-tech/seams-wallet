@@ -1748,3 +1748,39 @@ pass. Types, production build, strict packed declarations, runtime boundaries,
 build freshness, and bloat checks pass. Production source adds 13 lines and
 removes 348 (net −335), excluding tests and documentation. The production HTTP
 protocol-rejection case is separate from iframe handshake-skew coverage.
+
+### NEAR signing method names checkpoint
+
+NEAR now exposes `signTransaction`, `signMessage`, and `sendDelegateAction`.
+Client commands, router calls, host commands, React bindings, the intended app,
+public examples, and the console-lite example use those names. Core operation
+entry names follow their callers, while internal payload and wire discriminators
+retain their existing contracts. No legacy aliases remain on the public API.
+The message React binding directly reuses the existing bound capability.
+Two signing-dispatch helpers with no external callers are module-internal.
+The console-lite example no longer passes the retired provider `eager` prop.
+
+A production E2E scenario signs a message before and after browser refresh, then
+signs a NEAR transaction. It compares the account and public key with registration,
+independently encodes the existing message/recipient/nonce/state payload, verifies
+the Ed25519 signature, and verifies rejection of an altered message. It attaches
+`near-message-signatures.json` with public inputs, nonces, signatures, keys, and
+digests so verification can be repeated. This closes the absent production
+message-signing check without changing the codec or cryptographic protocol.
+
+The private Console and site still call the old delegate submission name in
+`apps/wallet-console/src/flows/demo/hooks/useDemoNearActions.tsx` and
+`apps/seams-site/src/flows/demo/hooks/useDemoNearActions.tsx`. Their migration must
+accompany adoption of the matching exact Wallet release. Their currently pinned
+published release is unchanged by this local SDK task.
+
+Evidence: `evidence/refactor-170-near-names-20261005.json`.
+Live delegate relay submission, funding-tool export cleanup, and the full worker,
+returning-user, browser, and consumer-release acceptance gates remain open.
+
+All 40 selected browser cases and three production scenarios pass. A separate
+message-case rerun verifies persistent artifact output. The evidence embeds its
+public receipts and source-artifact hash. Production build, source/consumer types,
+strict packed declarations, runtime boundaries, freshness, and bloat checks pass.
+SDK production source adds 62 lines and removes 67 (net −5); E2E verification
+and documentation additions are separate.

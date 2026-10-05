@@ -13,7 +13,7 @@ Tempo fee-token methods use `getFeeToken` and `setFeeToken`. Deprecated Tempo
 signing and lifecycle aliases are removed. Advanced bootstrap internalization
 still needs completion. NEAR transaction submission now uses only
 `signAndSendTransaction` with `actions[]`; the duplicate `executeAction` path is
-removed. NEAR signing/message/delegate naming remains open.
+removed. NEAR also uses `signTransaction`, `signMessage`, and `sendDelegateAction`.
 See the relevant checkpoints in the R170 inventory for evidence.
 
 ## Objective

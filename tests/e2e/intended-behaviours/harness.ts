@@ -1,3 +1,7 @@
+import type {
+  SignNEP413MessageParams,
+  SignNEP413MessageResult,
+} from '../../../packages/wallet/src/core/types/sdkPublicResults';
 import { readPendingWalletRecoveryCommitIdentity } from './recovery-journal';
 import {
   concealFirstRecoveryFinalizationResponse,
@@ -3775,6 +3779,36 @@ export class IntendedBehaviourHarness {
     this.recordService(
       `email otp unlock succeeded wallet=${result.walletId} near=${result.nearAccountId}`,
     );
+  }
+
+  async signNearMessage(message: string) {
+    const registration = requireNearReadyRegisteredWallet(
+      this.requireRegisteredWalletForSigning(),
+      'NEAR message signing',
+    );
+    const params = { message, recipient: 'checkout.example', state: 'quote-170' };
+    const result = await autoConfirmWalletIframeUntil(
+      this.page,
+      this.page.evaluate(invokeIntendedSignMessage, params),
+    );
+    if (!result.success) throw new Error(result.error);
+    expect(result.accountId).toBe(registration.nearAccountId);
+    expect(result.publicKey).toBe(registration.operationalPublicKey);
+    expect(result.state).toBe(params.state);
+    const nonce = Buffer.from(result.nonce, 'base64');
+    const signature = Buffer.from(result.signature, 'base64');
+    expect(nonce.length).toBe(32);
+    expect(signature.length).toBe(64);
+    const digest = nearMessageSigningDigest(params, nonce);
+    const publicKey = parseNearEd25519PublicKey(result.publicKey).keyData32;
+    expect(await ed25519.verifyAsync(signature, digest, publicKey)).toBe(true);
+    const changedMessage = nearMessageSigningDigest(
+      { ...params, message: message + ' altered' },
+      nonce,
+    );
+    expect(await ed25519.verifyAsync(signature, changedMessage, publicKey)).toBe(false);
+    await waitForWalletIframeConfirmationSettlement(this.page);
+    return { ...params, ...result, digestHex: Buffer.from(digest).toString('hex') };
   }
 
   async signNearTransaction(stage: IntendedNearSigningStage): Promise<SigningAuthEventSummary> {
@@ -8958,4 +8992,36 @@ function isNearProvisioningFinalizeResponse(response: Response): boolean {
     response.request().method() === 'POST' &&
     new URL(response.url()).pathname === WALLET_REGISTRATION_NEAR_PROVISIONING_PATH_V1
   );
+}
+
+async function invokeIntendedSignMessage(
+  params: SignNEP413MessageParams,
+): Promise<SignNEP413MessageResult> {
+  const sign = window.__seamsIntendedE2ESignMessage;
+  if (!sign) throw new Error('Intended message-signing helper is unavailable');
+  return await sign(params);
+}
+
+function encodeNearMessageString(value: string): Buffer {
+  const bytes = Buffer.from(value, 'utf8');
+  const length = Buffer.alloc(4);
+  length.writeUInt32LE(bytes.length);
+  return Buffer.concat([length, bytes]);
+}
+
+function nearMessageSigningDigest(
+  params: { message: string; recipient: string; state: string },
+  nonce: Uint8Array,
+): Uint8Array {
+  const tag = Buffer.alloc(4);
+  tag.writeUInt32LE(2 ** 31 + 413);
+  // Independently encode the wallet's message/recipient/nonce/state Borsh payload.
+  return sha256Bytes(Buffer.concat([
+    tag,
+    encodeNearMessageString(params.message),
+    encodeNearMessageString(params.recipient),
+    nonce,
+    Buffer.from([1]),
+    encodeNearMessageString(params.state),
+  ]));
 }

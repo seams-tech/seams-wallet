@@ -1,10 +1,10 @@
 import {
   sendTransaction,
   signAndSendTransaction,
-  signTransactionWithActions,
+  signTransaction,
 } from '@/SeamsWeb/operations/near/actions';
 import { signDelegateAction as signDelegateActionCore } from '@/SeamsWeb/operations/near/signDelegateAction';
-import { signNEP413Message as signNEP413MessageCore } from '@/SeamsWeb/operations/near/signNEP413';
+import { signMessage as signNEP413MessageCore } from '@/SeamsWeb/operations/near/signNEP413';
 import type { NearCommands } from '@/SeamsWeb/publicApi/nearCommands';
 import type { NearSigningWebContext } from '@/SeamsWeb/signingSurface/types';
 import { IndexedDBManager } from '@/core/indexedDB';
@@ -24,10 +24,10 @@ export function createWalletHostNearCommands(getContext: () => NearSigningWebCon
   return {
     fundImplicitNearAccountForTesting: commands.fundImplicitNearAccountForTesting.bind(commands),
     signAndSendTransaction: commands.signAndSendTransaction.bind(commands),
-    signTransactionWithActions: commands.signTransactionWithActions.bind(commands),
+    signTransaction: commands.signTransaction.bind(commands),
     sendTransaction: commands.sendTransaction.bind(commands),
     signDelegateAction: commands.signDelegateAction.bind(commands),
-    signNEP413Message: commands.signNEP413Message.bind(commands),
+    signMessage: commands.signMessage.bind(commands),
   };
 }
 function relayerUrlFromConfigs(configs: SeamsConfigsReadonly): string {
@@ -132,13 +132,13 @@ class WalletHostNearCommands {
       throw e;
     }
   }
-  async signTransactionWithActions(
-    args: Parameters<NearCommands['signTransactionWithActions']>[0],
-  ): ReturnType<NearCommands['signTransactionWithActions']> {
+  async signTransaction(
+    args: Parameters<NearCommands['signTransaction']>[0],
+  ): ReturnType<NearCommands['signTransaction']> {
     const nearAccountId = args.nearAccount.accountId;
     const { transaction, options } = args;
     try {
-      return await signTransactionWithActions({
+      return await signTransaction({
         context: this.getContext(),
         nearAccountId,
         walletSession: args.walletSession,
@@ -176,9 +176,9 @@ class WalletHostNearCommands {
       options,
     });
   }
-  async signNEP413Message(
-    args: Parameters<NearCommands['signNEP413Message']>[0],
-  ): ReturnType<NearCommands['signNEP413Message']> {
+  async signMessage(
+    args: Parameters<NearCommands['signMessage']>[0],
+  ): ReturnType<NearCommands['signMessage']> {
     const nearAccountId = args.nearAccount.accountId;
     const result = await signNEP413MessageCore({
       context: this.getContext(),

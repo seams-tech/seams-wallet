@@ -194,7 +194,7 @@ export interface SeamsContextType {
   }) => Promise<ActionResult>;
 
   // NEP-413 message signing
-  signNEP413Message: (args: {
+  signMessage: (args: {
     walletSession: WalletSessionRef;
     nearAccount: NearAccountRef;
     params: SignNEP413MessageParams;

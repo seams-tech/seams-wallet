@@ -6,6 +6,8 @@ import type {
   NearProvisioningState,
   QrLinkedDeviceSessionPayloadV5,
   WalletSession,
+  SignNEP413MessageParams,
+  SignNEP413MessageResult,
 } from '@seams/wallet';
 import {
   buildHostedAuthMenuOpenRequest,
@@ -604,6 +606,9 @@ declare global {
   interface Window {
     __seamsIntendedE2EReadEmailOtpCode?: (input: IntendedEmailOtpCodeRequest) => Promise<string>;
     __seamsIntendedE2ELockWallet?: () => Promise<void>;
+    __seamsIntendedE2ESignMessage?: (
+      params: SignNEP413MessageParams,
+    ) => Promise<SignNEP413MessageResult>;
     __seamsIntendedE2ECancelDeviceLink?: () => Promise<void>;
     __seamsIntendedE2EReadWalletLockState?: () => Promise<{
       authenticationKind: WalletSession['authentication']['kind'];
@@ -1194,6 +1199,17 @@ class IntendedPageController {
       })),
     };
   };
+
+  async signMessageForIntendedTest(
+    params: SignNEP413MessageParams,
+  ): Promise<SignNEP413MessageResult> {
+    return await this.seams.near.signMessage({
+      walletSession: this.walletId,
+      nearAccount: requireNearAccountId(this.nearAccountId),
+      params,
+      options: { signerSlot: this.nearSignerSlot, onEvent: this.recordLifecycleEvent },
+    });
+  }
 
   lockWalletForIntendedTest = async (): Promise<void> => {
     await this.seams.auth.lock();
@@ -2411,7 +2427,7 @@ class IntendedPageController {
     const nearAccountId = requireNearAccountId(this.nearAccountId);
     const signingStartedAt = performance.now();
     recordNearBenchmarkDuration('near_sdk_signing_started', signingStartedAt);
-    const result = await this.seams.near.signTransactionWithActions({
+    const result = await this.seams.near.signTransaction({
       walletSession: walletSessionRefFromSession({
         walletId: this.walletId,
         walletSessionUserId: this.walletId,
@@ -3958,6 +3974,7 @@ function installIntendedE2EHelpers(controller: IntendedPageController): void {
   if (typeof window === 'undefined') return;
   window.__seamsIntendedE2EReadEmailOtpCode = controller.readEmailOtpCodeForChallenge;
   window.__seamsIntendedE2ELockWallet = controller.lockWalletForIntendedTest;
+  window.__seamsIntendedE2ESignMessage = controller.signMessageForIntendedTest.bind(controller);
   window.__seamsIntendedE2ECancelDeviceLink = controller.cancelDeviceLinkForIntendedTest;
   window.__seamsIntendedE2EReadWalletLockState = controller.readWalletLockStateForIntendedTest;
   window.__seamsIntendedE2EReadAuthenticationMethods =

@@ -1,3 +1,5 @@
+import { writeFile } from 'node:fs/promises';
+import type { TestInfo } from '@playwright/test';
 import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
 
 async function verifyLocalEd25519YaoRegistration({
@@ -106,4 +108,26 @@ async function verifyInterruptedExportAuthorizationResumes({
 test(
   'an Ed25519 export interrupted after its authorization committed is admitted by the exact retry',
   verifyInterruptedExportAuthorizationResumes,
+);
+
+async function verifyNearMessageSigningAfterRefresh(
+  { harness }: { harness: IntendedBehaviourHarness },
+  testInfo: TestInfo,
+): Promise<void> {
+  await harness.registerPasskeyEd25519YaoWallet();
+  const first = await harness.signNearMessage('Approve checkout before refresh');
+  await harness.refreshPagePreservingWalletStorage();
+  const second = await harness.signNearMessage('Approve checkout after refresh');
+  await harness.signNearTransactionAfterRefresh();
+  const artifactPath = testInfo.outputPath('near-message-signatures.json');
+  await writeFile(artifactPath, JSON.stringify({ first, second }, null, 2), 'utf8');
+  await testInfo.attach('near-message-signatures.json', {
+    path: artifactPath,
+    contentType: 'application/json',
+  });
+}
+
+test(
+  'public NEAR message signatures verify against the registered key across refresh',
+  verifyNearMessageSigningAfterRefresh,
 );

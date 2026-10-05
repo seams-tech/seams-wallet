@@ -1,7 +1,7 @@
 import { logWalletEvents, type SeamsWeb } from '@seams/wallet';
 
 export async function signCheckoutMessage(seams: SeamsWeb) {
-  const result = await seams.near.signNEP413Message({
+  const result = await seams.near.signMessage({
     // Omitting the subject targets the authenticated wallet and its NEAR
     // account; pass `walletSession` (a wallet id is enough) or `nearAccount` to
     // name an exact one.

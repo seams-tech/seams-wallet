@@ -12,7 +12,7 @@ import {
 } from '@shared/authorization/capabilityKinds';
 import {
   delegateRelayerAuthFromConfigs,
-  sendDelegateActionViaRelayer as sendDelegateActionViaRelayerCore,
+  sendDelegateAction as sendDelegateActionViaRelayerCore,
 } from '@/SeamsWeb/operations/near/delegateAction';
 
 type NearDependencies = {
@@ -28,11 +28,11 @@ export function createNearSignerCapability(deps: NearDependencies): NearSignerCa
     accountExists: accountExists.bind(null, deps.nearClient),
     fundImplicitNearAccountForTesting: deps.commands.fundImplicitNearAccountForTesting,
     signAndSendTransaction: signer.signAndSendTransaction.bind(signer),
-    signTransactionWithActions: signer.signTransactionWithActions.bind(signer),
+    signTransaction: signer.signTransaction.bind(signer),
     sendTransaction: signer.sendTransaction.bind(signer),
     signDelegateAction: signer.signDelegateAction.bind(signer),
-    signNEP413Message: signer.signNEP413Message.bind(signer),
-    sendDelegateActionViaRelayer: signer.sendDelegateActionViaRelayer.bind(signer),
+    signMessage: signer.signMessage.bind(signer),
+    sendDelegateAction: signer.sendDelegateAction.bind(signer),
     signAndSendDelegateAction: signer.signAndSendDelegateAction.bind(signer),
   };
 }
@@ -57,9 +57,9 @@ class NearSigner {
     return await this.deps.commands.signAndSendTransaction(args);
   }
 
-  async signTransactionWithActions(
-    rawArgs: Parameters<NearSignerCapability['signTransactionWithActions']>[0],
-  ): ReturnType<NearSignerCapability['signTransactionWithActions']> {
+  async signTransaction(
+    rawArgs: Parameters<NearSignerCapability['signTransaction']>[0],
+  ): ReturnType<NearSignerCapability['signTransaction']> {
     const args = {
       ...rawArgs,
       ...(await this.deps.currentWallet.nearSubject(rawArgs)),
@@ -69,7 +69,7 @@ class NearSigner {
       capabilityKind: CAPABILITY_KINDS.nearEd25519MpcSigning,
       operationKind: NEAR_ED25519_MPC_OPERATION_KINDS.signTransaction,
     });
-    return await this.deps.commands.signTransactionWithActions(args);
+    return await this.deps.commands.signTransaction(args);
   }
 
   async sendTransaction(
@@ -99,9 +99,9 @@ class NearSigner {
     return await this.deps.commands.signDelegateAction(args);
   }
 
-  async signNEP413Message(
-    rawArgs: Parameters<NearSignerCapability['signNEP413Message']>[0],
-  ): ReturnType<NearSignerCapability['signNEP413Message']> {
+  async signMessage(
+    rawArgs: Parameters<NearSignerCapability['signMessage']>[0],
+  ): ReturnType<NearSignerCapability['signMessage']> {
     const args = {
       ...rawArgs,
       ...(await this.deps.currentWallet.nearSubject(rawArgs)),
@@ -111,11 +111,11 @@ class NearSigner {
       capabilityKind: CAPABILITY_KINDS.nearEd25519MpcSigning,
       operationKind: NEAR_ED25519_MPC_OPERATION_KINDS.signNep413Message,
     });
-    return await this.deps.commands.signNEP413Message(args);
+    return await this.deps.commands.signMessage(args);
   }
-  async sendDelegateActionViaRelayer(
-    args: Parameters<NearSignerCapability['sendDelegateActionViaRelayer']>[0],
-  ): ReturnType<NearSignerCapability['sendDelegateActionViaRelayer']> {
+  async sendDelegateAction(
+    args: Parameters<NearSignerCapability['sendDelegateAction']>[0],
+  ): ReturnType<NearSignerCapability['sendDelegateAction']> {
     const base = args.relayerUrl.replace(/\/+$/, '');
     const route = (
       this.deps.configs.network.relayer?.routes?.delegateAction || '/signed-delegate'
@@ -170,7 +170,7 @@ class NearSigner {
     };
     let relayResult;
     try {
-      relayResult = await this.sendDelegateActionViaRelayer({
+      relayResult = await this.sendDelegateAction({
         relayerUrl: args.relayerUrl,
         hash: signResult.hash,
         signedDelegate: signResult.signedDelegate,

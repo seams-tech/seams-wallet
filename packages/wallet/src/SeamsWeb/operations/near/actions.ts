@@ -115,7 +115,7 @@ export async function signAndSendTransaction(args: {
  * @param options - Options for the action
  * @returns Promise resolving to the action result
  */
-export async function signTransactionWithActions(args: {
+export async function signTransaction(args: {
   context: NearSigningWebContext;
   nearAccountId: AccountId;
   walletSession: WalletSessionRef;
@@ -149,7 +149,7 @@ export async function signTransactionWithActions(args: {
  * @example
  * ```typescript
  * // Sign a transaction first
- * const signedTransaction = await signTransactionWithActions(context, 'alice.near', {
+ * const signedTransaction = await signTransaction(context, 'alice.near', {
  *   transaction: {
  *     receiverId: 'bob.near',
  *     actions: [{
@@ -442,7 +442,7 @@ async function signTransactionWithActionsInternal({
     }
     return results;
   } catch (error: unknown) {
-    console.error('[signTransactionWithActions] Error during execution:', error);
+    console.error('[signTransaction] Error during execution:', error);
     const e = toError(error);
     const short = (e as { short?: string }).short || getNearShortErrorMessage(e) || e.message;
     onError?.(e);
