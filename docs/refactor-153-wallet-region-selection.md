@@ -261,6 +261,17 @@ disposal still needs composed behavioral coverage. The aggregate freeze barrier,
 linked presignatures, and private-D1 pool remain unfinished. An already admitted
 round can finish after the check; the pool publication fence rejects its output.
 
+Linked Cloudflare presignature sessions now persist their complete admission
+identity before emitting protocol messages. Initialization rejects an existing
+claim, including after restart, consumption, or loss of live state. Each step
+compares its request, material source, session identity, and expiry with the stored
+claim before processing or replay. Completion and consumption leave the claim
+intact. Both SigningWorker WASM builds and the bloat check pass. Evidence remains
+in `.artifacts/r153/linked-presign-authority-20261005/`. This checkpoint has no
+composed behavioral proof yet. Linked admission still needs authenticated deployment
+scope and a relocation fence. Its durable claims, completion records, and usable
+secrets must join the aggregate freeze and transfer inventory.
+
 Retained evidence:
 `.artifacts/r153/execution-journal-20261004/`, receipt SHA-256
 `02184ddd17816901bf2413115c35ca33a43bd90a269fedaeffb7f6990d8af555`.

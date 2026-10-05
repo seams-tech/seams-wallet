@@ -349,6 +349,12 @@ pub(super) async fn handle_cloudflare_signing_worker_linked_ecdsa_presign_sessio
                     );
                 }
             };
+            if let Err(error) = parsed.request.validate_at(now_unix_ms) {
+                return presign_do_error_response(error);
+            }
+            if let Err(error) = claim_linked_presign_authority(storage, &parsed.request).await {
+                return presign_do_error_response(error);
+            }
             create_linked_presign_session(parsed, sessions, now_unix_ms)
         }
         CLOUDFLARE_SIGNING_WORKER_LINKED_ECDSA_PRESIGN_SESSION_DO_STEP_PATH => {
@@ -380,6 +386,43 @@ pub(super) async fn handle_cloudflare_signing_worker_linked_ecdsa_presign_sessio
         Ok(progress) => worker::Response::from_json(&progress),
         Err(error) => presign_do_error_response(error),
     }
+}
+
+const LINKED_PRESIGN_AUTHORITY_STORAGE_KEY: &str = "linked-presign-authority";
+
+async fn claim_linked_presign_authority(
+    storage: &worker::Storage,
+    authority: &CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1,
+) -> RouterAbProtocolResult<()> {
+    let claimed = Rc::new(std::cell::Cell::new(false));
+    let claim_result = Rc::clone(&claimed);
+    let authority = authority.clone();
+    storage
+        .transaction(move |transaction| async move {
+            claim_result.set(false);
+            if transaction_get_optional::<
+                CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1,
+            >(&transaction, LINKED_PRESIGN_AUTHORITY_STORAGE_KEY)
+            .await?
+            .is_some()
+            {
+                return Ok(());
+            }
+            transaction
+                .put(LINKED_PRESIGN_AUTHORITY_STORAGE_KEY, &authority)
+                .await?;
+            claim_result.set(true);
+            Ok(())
+        })
+        .await
+        .map_err(durable_storage_protocol_error)?;
+    if !claimed.get() {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ReplayedLocalRequest,
+            "Linked ECDSA presign identity was already initialized",
+        ));
+    }
+    Ok(())
 }
 
 fn create_linked_presign_session(
@@ -445,6 +488,26 @@ async fn step_linked_presign_session(
     now_unix_ms: u64,
 ) -> RouterAbProtocolResult<CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionDoProgressV1> {
     input.validate_at(now_unix_ms)?;
+    let pinned: CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1 = storage
+        .get(LINKED_PRESIGN_AUTHORITY_STORAGE_KEY)
+        .await
+        .map_err(durable_storage_protocol_error)?
+        .ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::ExpiredLocalRequest,
+                "Linked ECDSA presign authority is missing",
+            )
+        })?;
+    if pinned.presign_session_id != input.presign_session_id
+        || pinned.request != input.request
+        || pinned.material_source != input.material_source
+        || pinned.expires_at_ms != input.expires_at_ms
+    {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidGateDecision,
+            "Linked ECDSA presign step does not match initialized authority",
+        ));
+    }
     completed_records
         .borrow_mut()
         .retain(|_, record| record.record.expires_at_ms > now_unix_ms);
