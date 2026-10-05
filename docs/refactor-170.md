@@ -1,7 +1,8 @@
 # Separate the application SDK client from wallet execution
 
-Status: implementation in progress. Remaining scope narrowed by user request,
-2026-10-05.
+Status: complete for the approved essential scope, 2026-10-05.
+See the [completion receipt](refactor-170-completion.md). Release and deployment
+remain separate tasks.
 
 The four tasks under **Essential remaining work** are the completion checklist
 for R170/R171. Earlier decisions and checkpoints describe accepted behavior and
@@ -881,7 +882,7 @@ unaffected suites solely to refresh timestamps.
 
 ### 4. Record the final bundle and migration result
 
-- [ ] Refresh root-client and React-provider bundle reports from the final build.
+- [x] Refresh root-client and React-provider bundle reports from the final build.
   Verify that application graphs contain no host execution or worker managers.
 - Run the existing signed-out cold/warm scenario and representative authenticated
   registration/sign/lock/unlock scenario. Compare static response bytes with the

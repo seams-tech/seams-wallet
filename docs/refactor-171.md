@@ -1,7 +1,7 @@
 # Simplify the public Wallet SDK API
 
-Status: implementation in progress. Remaining scope narrowed by user request,
-2026-10-05. [R170's essential remaining work](refactor-170.md#essential-remaining-work)
+Status: complete for the approved essential scope, 2026-10-05.
+See the [completion receipt](refactor-170-completion.md). [R170's essential remaining work](refactor-170.md#essential-remaining-work)
 is the shared completion checklist. The completed migration records below remain
 valid; historical audit notes do not add further gates.
 Connection, configuration, event subscriptions, and public hosted auth-menu operations migrated
