@@ -4,7 +4,7 @@ import { logWalletEvents, type SeamsWeb } from '@seams/wallet';
 // Tempo's EIP-2718 typed transactions; the two stay separate because the
 // envelopes and the signed results differ.
 export async function executeEvmTransaction(seams: SeamsWeb): Promise<string> {
-  const execution = await seams.evm.executeTransaction({
+  const execution = await seams.evm.signAndSendTransaction({
     // A configured network slug. The RPC endpoint comes from that chain, and
     // `tx.chainId` is filled in from it. Omitting `walletSession` targets the
     // authenticated wallet.

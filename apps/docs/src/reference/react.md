@@ -72,7 +72,7 @@ SSR-specific imports:
 
 Mount `TransactionReviewHost` beneath the wallet provider, then pass `review` to
 `near.signAndSendTransaction`, `near.executeAction`, or the EVM and Tempo
-`signTransaction` and `executeTransaction` methods returned by `useWallet()`.
+`signTransaction` and `signAndSendTransaction` methods returned by `useWallet()`.
 
 | Export | Purpose |
 | --- | --- |

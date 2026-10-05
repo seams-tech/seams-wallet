@@ -28,8 +28,8 @@ export function toSerializableTempoError(
 
 export function buildTempoBootstrapArgs(
   configs: SeamsConfigsReadonly,
-  args: Parameters<TempoSignerCapability['bootstrapEcdsaSession']>[0],
-): Parameters<TempoSignerCapability['bootstrapEcdsaSession']>[0] {
+  args: Parameters<TempoSignerCapability['advanced']['bootstrapEcdsaSession']>[0],
+): Parameters<TempoSignerCapability['advanced']['bootstrapEcdsaSession']>[0] {
   const managedRegistration = configs.registration.mode === 'managed' ? configs.registration : null;
   const runtimeScopeBootstrap =
     args.runtimeScopeBootstrap ||

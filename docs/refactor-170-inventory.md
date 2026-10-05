@@ -1678,3 +1678,34 @@ Strict packed declarations, runtime boundaries, build freshness, types, and the
 bloat gate pass. Production source adds 73 lines and removes 78 (net −5).
 The harness accounting correction has separate evidence in
 `evidence/refactor-170-session-read-accounting-20261005.json`.
+
+### EVM and Tempo transaction names checkpoint
+
+EVM and Tempo expose `signAndSendTransaction` for the existing complete send
+lifecycle. React bindings, reviewed capability calls, documentation, and examples
+use the new name. `signTransaction` retains chain-specific request and signed
+result types. Tempo exposes `getFeeToken`, `validateFeeToken`, and `setFeeToken`.
+The last operation still submits an on-chain fee-token update.
+
+Deprecated `signTempo`, `executeEvmFamilyTransaction`, ordinary bootstrap, and
+Tempo lifecycle-reporting aliases are removed. Host handlers use the canonical
+signing method and `advanced` reporting. EVM advanced bootstrap now binds the
+existing EVM-specific builder; the old shared advanced object used Tempo's
+builder. The host retains the same chain-specific bootstrap behavior through
+these bindings. Bootstrap internalization remains an open R171 task.
+
+One composition function constructs both capabilities and privately shares the
+existing EVM-family send implementation. No generic execution alias is needed
+on Tempo. Ordinary and reviewed construction reuse this same composition.
+Wire messages and the execution lifecycle implementation remain unchanged.
+Negative type fixtures reject all removed ordinary aliases. A private-source
+scan found no callers of the renamed transaction or fee-token methods.
+
+Evidence: `evidence/refactor-170-transaction-names-20261005.json`.
+Live-chain broadcast/finalization and fee-token transaction acceptance remain
+open. These scoped checks do not replace the full R170 operation matrix.
+
+The production build, types, strict packed declarations, runtime boundaries,
+freshness, and bloat checks pass. All 31 transaction-review browser cases and
+three production signing/lifecycle cases pass. Production code adds 81 lines and
+removes 106 (net −25), excluding type fixtures and documentation.

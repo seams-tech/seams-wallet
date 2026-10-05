@@ -8,7 +8,11 @@ NEAR account reads, waits, and subscriptions also use the accepted names.
 Signer addition, email addition, and authentication-method removal now use
 `registration.addSigner`, `registration.addEmail`, and
 `registration.removeAuthMethod`. React exposes `addSigner`.
-See the registration checkpoints in the R170 inventory for evidence.
+EVM and Tempo use `signAndSendTransaction`, including reviewed React calls.
+Tempo fee-token methods use `getFeeToken` and `setFeeToken`. Deprecated Tempo
+signing and lifecycle aliases are removed. Advanced bootstrap internalization
+and the remaining NEAR transaction consolidation still need completion.
+See the relevant checkpoints in the R170 inventory for evidence.
 
 ## Objective
 

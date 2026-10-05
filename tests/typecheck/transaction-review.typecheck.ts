@@ -71,9 +71,9 @@ const reviewedSpread: NearReviewInput = {
 type AllReviewed = [
   Parameters<BoundNearSigner['executeAction']>[0]['review'],
   Parameters<BoundEvmSigner['signTransaction']>[0]['review'],
-  Parameters<BoundEvmSigner['executeTransaction']>[0]['review'],
+  Parameters<BoundEvmSigner['signAndSendTransaction']>[0]['review'],
   Parameters<BoundTempoSigner['signTransaction']>[0]['review'],
-  Parameters<BoundTempoSigner['executeTransaction']>[0]['review'],
+  Parameters<BoundTempoSigner['signAndSendTransaction']>[0]['review'],
 ];
 const allReviewed: AllReviewed = [unbounded, unbounded, unbounded, unbounded, unbounded];
 void ordinaryDrawer;

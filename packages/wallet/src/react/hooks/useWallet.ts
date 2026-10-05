@@ -48,11 +48,11 @@ export interface BoundEvmSigner {
       WithoutWalletSession<Parameters<EvmSignerCapability['signTransaction']>[0]>
     >,
   ): ReturnType<EvmSignerCapability['signTransaction']>;
-  executeTransaction(
+  signAndSendTransaction(
     args: ReviewedTransactionInput<
-      WithoutWalletSession<Parameters<EvmSignerCapability['executeTransaction']>[0]>
+      WithoutWalletSession<Parameters<EvmSignerCapability['signAndSendTransaction']>[0]>
     >,
-  ): ReturnType<EvmSignerCapability['executeTransaction']>;
+  ): ReturnType<EvmSignerCapability['signAndSendTransaction']>;
 }
 
 /** EIP-2718 Tempo signing bound to one wallet. */
@@ -62,11 +62,11 @@ export interface BoundTempoSigner {
       WithoutWalletSession<Parameters<TempoSignerCapability['signTransaction']>[0]>
     >,
   ): ReturnType<TempoSignerCapability['signTransaction']>;
-  executeTransaction(
+  signAndSendTransaction(
     args: ReviewedTransactionInput<
-      WithoutWalletSession<Parameters<TempoSignerCapability['executeTransaction']>[0]>
+      WithoutWalletSession<Parameters<TempoSignerCapability['signAndSendTransaction']>[0]>
     >,
-  ): ReturnType<TempoSignerCapability['executeTransaction']>;
+  ): ReturnType<TempoSignerCapability['signAndSendTransaction']>;
 }
 
 export interface BoundWallet {
@@ -155,11 +155,11 @@ function createBoundWallet(
     near,
     evm: {
       signTransaction: reviewed.evmSign,
-      executeTransaction: reviewed.evmExecute,
+      signAndSendTransaction: reviewed.evmExecute,
     },
     tempo: {
       signTransaction: reviewed.tempoSign,
-      executeTransaction: reviewed.tempoExecute,
+      signAndSendTransaction: reviewed.tempoExecute,
     },
     exportKey: async (input) => {
       if (input.kind === 'ed25519') {

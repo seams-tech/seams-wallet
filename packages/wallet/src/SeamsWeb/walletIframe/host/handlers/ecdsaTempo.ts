@@ -16,8 +16,8 @@ export function createEcdsaTempoWalletIframeHandlers(deps: HandlerDeps): Handler
       const chainKind = args.chainTarget.kind;
       const result =
         chainKind === 'evm'
-          ? await pm.evm.bootstrapEcdsaSession(args)
-          : await pm.tempo.bootstrapEcdsaSession(args);
+          ? await pm.evm.advanced.bootstrapEcdsaSession(args)
+          : await pm.tempo.advanced.bootstrapEcdsaSession(args);
       if (deps.respondIfCancelled(req.requestId)) return;
       respondOkResult(deps, req.requestId, result);
     },
@@ -42,7 +42,7 @@ export function createEcdsaTempoWalletIframeHandlers(deps: HandlerDeps): Handler
           if (chainTarget.kind !== 'tempo') {
             throw new Error('[wallet-iframe] Tempo request requires a Tempo target');
           }
-          result = await pm.tempo.signTempo({
+          result = await pm.tempo.signTransaction({
             walletSession,
             request,
             chainTarget,
@@ -96,7 +96,7 @@ export function createEcdsaTempoWalletIframeHandlers(deps: HandlerDeps): Handler
       const pm = deps.getWalletRuntime();
       const { walletSession, signedResult, txHash } = req.payload!;
       if (deps.respondIfCancelled(req.requestId)) return;
-      await pm.tempo.reportBroadcastAccepted({
+      await pm.tempo.advanced.reportBroadcastAccepted({
         walletSession,
         signedResult,
         txHash,
@@ -112,7 +112,7 @@ export function createEcdsaTempoWalletIframeHandlers(deps: HandlerDeps): Handler
       const pm = deps.getWalletRuntime();
       const { walletSession, signedResult, error } = req.payload!;
       if (deps.respondIfCancelled(req.requestId)) return;
-      await pm.tempo.reportBroadcastRejected({
+      await pm.tempo.advanced.reportBroadcastRejected({
         walletSession,
         signedResult,
         ...(error ? { error } : {}),
@@ -128,7 +128,7 @@ export function createEcdsaTempoWalletIframeHandlers(deps: HandlerDeps): Handler
       const pm = deps.getWalletRuntime();
       const { walletSession, signedResult, txHash, receiptStatus } = req.payload!;
       if (deps.respondIfCancelled(req.requestId)) return;
-      await pm.tempo.reportFinalized({
+      await pm.tempo.advanced.reportFinalized({
         walletSession,
         signedResult,
         ...(txHash ? { txHash } : {}),
@@ -147,7 +147,7 @@ export function createEcdsaTempoWalletIframeHandlers(deps: HandlerDeps): Handler
       const pm = deps.getWalletRuntime();
       const { walletSession, signedResult, reason, txHash } = req.payload!;
       if (deps.respondIfCancelled(req.requestId)) return;
-      await pm.tempo.reportDroppedOrReplaced({
+      await pm.tempo.advanced.reportDroppedOrReplaced({
         walletSession,
         signedResult,
         reason,
@@ -164,7 +164,7 @@ export function createEcdsaTempoWalletIframeHandlers(deps: HandlerDeps): Handler
       const pm = deps.getWalletRuntime();
       const { walletSession, signedResult } = req.payload!;
       if (deps.respondIfCancelled(req.requestId)) return;
-      const result = await pm.tempo.reconcileNonceLane({
+      const result = await pm.tempo.advanced.reconcileNonceLane({
         walletSession,
         signedResult,
         options: {

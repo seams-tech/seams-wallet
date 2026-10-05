@@ -1,3 +1,5 @@
+import { createEvmSignerCapability } from './evm';
+import type { ExecuteEvmFamilyTransactionArgs, ExecuteEvmFamilyTransactionResult } from './types';
 import { resolveConfiguredChainTarget, resolveTempoChainTarget } from './chainTargets';
 import type { CurrentWalletResolver, WalletSessionInput } from './currentWallet';
 import type { EvmFamilyCommands } from './evmFamilyCommands';
@@ -30,8 +32,8 @@ type CapabilitySignEvmFamilyArgs = Omit<EvmFamilyTransactionSignArgs, 'walletSes
   walletSession?: WalletSessionInput;
 };
 
-export function createTempoSignerCapability(deps: TempoDependencies): TempoSignerCapability {
-  const signer = new TempoSigner(deps);
+export function createEvmFamilyCapabilities(deps: TempoDependencies) {
+  const signer = new EvmFamilySigner(deps);
   const commands = deps.commands;
   const bootstrapEcdsaSession = signer.bootstrapEcdsaSession.bind(signer);
   const advanced = {
@@ -44,23 +46,28 @@ export function createTempoSignerCapability(deps: TempoDependencies): TempoSigne
   };
   const signTempo = signer.signTempo.bind(signer);
   const executeEvmFamilyTransaction = signer.executeEvmFamilyTransaction.bind(signer);
-  return {
+  const tempo: TempoSignerCapability = {
     signTransaction: signTempo,
-    executeTransaction: executeEvmFamilyTransaction,
+    signAndSendTransaction: executeEvmFamilyTransaction,
     advanced,
-    signTempo,
-    getFeeTokenPreference: getTempoFeeTokenPreference.bind(null, deps.configs.network.chains),
+    getFeeToken: getTempoFeeTokenPreference.bind(null, deps.configs.network.chains),
     validateFeeToken: validateConfiguredTempoFeeToken.bind(null, deps.configs.network.chains),
-    setFeeTokenPreference: setTempoFeeTokenPreference.bind(null, {
+    setFeeToken: setTempoFeeTokenPreference.bind(null, {
       chains: deps.configs.network.chains,
       execute: executeEvmFamilyTransaction,
     }),
-    executeEvmFamilyTransaction,
-    ...advanced,
+  };
+  return {
+    tempo,
+    evm: createEvmSignerCapability({
+      ...deps,
+      advanced,
+      signAndSendTransaction: executeEvmFamilyTransaction,
+    }),
   };
 }
 
-class TempoSigner {
+class EvmFamilySigner {
   constructor(private readonly deps: TempoDependencies) {}
 
   async signEvmFamily(args: CapabilitySignEvmFamilyArgs) {
@@ -83,8 +90,8 @@ class TempoSigner {
   }
 
   async signTempo(
-    args: Parameters<TempoSignerCapability['signTempo']>[0],
-  ): ReturnType<TempoSignerCapability['signTempo']> {
+    args: Parameters<TempoSignerCapability['signTransaction']>[0],
+  ): ReturnType<TempoSignerCapability['signTransaction']> {
     const result = await this.signEvmFamily({
       ...args,
       chainTarget: resolveTempoChainTarget(this.deps.configs.network.chains, args.chainTarget),
@@ -96,8 +103,8 @@ class TempoSigner {
   }
 
   async executeEvmFamilyTransaction(
-    args: Parameters<TempoSignerCapability['executeEvmFamilyTransaction']>[0],
-  ): ReturnType<TempoSignerCapability['executeEvmFamilyTransaction']> {
+    args: ExecuteEvmFamilyTransactionArgs,
+  ): Promise<ExecuteEvmFamilyTransactionResult> {
     const chainTarget = resolveConfiguredChainTarget(
       this.deps.configs.network.chains,
       args.chainTarget,
@@ -116,8 +123,8 @@ class TempoSigner {
   }
 
   async bootstrapEcdsaSession(
-    args: Parameters<TempoSignerCapability['bootstrapEcdsaSession']>[0],
-  ): ReturnType<TempoSignerCapability['bootstrapEcdsaSession']> {
+    args: Parameters<TempoSignerCapability['advanced']['bootstrapEcdsaSession']>[0],
+  ): ReturnType<TempoSignerCapability['advanced']['bootstrapEcdsaSession']> {
     return await this.deps.commands.bootstrapEcdsaSession(
       buildTempoBootstrapArgs(this.deps.configs, args),
     );

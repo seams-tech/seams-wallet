@@ -876,13 +876,13 @@ test('all six methods forward one core failure and preserve callback ownership',
           result = wallet.evm.signTransaction(evm);
           break;
         case 'evmExecute':
-          result = wallet.evm.executeTransaction(evm);
+          result = wallet.evm.signAndSendTransaction(evm);
           break;
         case 'tempoSign':
           result = wallet.tempo.signTransaction(tempo);
           break;
         case 'tempoExecute':
-          result = wallet.tempo.executeTransaction(tempo);
+          result = wallet.tempo.signAndSendTransaction(tempo);
           break;
         default:
           throw new Error('Unknown method');

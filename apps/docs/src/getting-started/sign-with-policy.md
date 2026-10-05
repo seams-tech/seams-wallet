@@ -28,7 +28,7 @@ from `walletSessionRefFromSession` and `nearAccountRefFromAccountId`.
 ## EVM-family transaction
 
 `seams.evm` signs EIP-1559 transactions. `seams.tempo` signs Tempo's EIP-2718 typed
-transactions. Both provide `signTransaction`, `executeTransaction`, and an `advanced`
+transactions. Both provide `signTransaction`, `signAndSendTransaction`, and an `advanced`
 group. Their transaction formats and signed results differ. `seams.evm` returns
 `txHashHex`. `seams.tempo` returns `senderHashHex`.
 

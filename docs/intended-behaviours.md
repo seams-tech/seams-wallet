@@ -725,6 +725,15 @@ Failure behaviour:
 
 ## Transaction Signing
 
+EVM and Tempo use `signTransaction` for signing without broadcast and
+`signAndSendTransaction` for signing, broadcasting, and waiting for finalization.
+React wallet bindings use the same names. Existing result types, payload
+verification, review reservations, cancellation, and nonce reporting retain their
+contracts. Custom broadcasters report lifecycle outcomes through `advanced`.
+Tempo exposes `getFeeToken`, `validateFeeToken`, and `setFeeToken`.
+`setFeeToken` submits an on-chain transaction.
+
+
 ECDSA reusable Wallet Session finalization requires an already admitted prepare
 for the exact operation. An authenticated finalize with no matching prepare
 returns `authorized_operation_missing` without creating a claim or audit event,

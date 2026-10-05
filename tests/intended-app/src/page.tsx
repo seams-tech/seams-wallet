@@ -2599,7 +2599,7 @@ class IntendedPageController {
 
   private async signTempoTransactionWithPublicSdk(): Promise<TempoSigningResultSummary> {
     const sdkStartedAt = performance.now();
-    const result = await this.seams.tempo.signTempo({
+    const result = await this.seams.tempo.signTransaction({
       walletSession: walletSessionRefFromSession({
         walletId: this.walletId,
         walletSessionUserId: this.walletId,

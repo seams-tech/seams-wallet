@@ -30,7 +30,7 @@ import { SeamsWeb, type SeamsConfigsInput } from '@seams/wallet';
 | `devices`      | Start, approve, and inspect linked-device flows.                             |
 | `keys`         | Run freshly authorized export flows.                                         |
 
-`evm` and `tempo` both provide `signTransaction`, `executeTransaction`, and an
+`evm` and `tempo` both provide `signTransaction`, `signAndSendTransaction`, and an
 `advanced` group for reporting after broadcast. Their transaction formats differ. Tempo
 uses EIP-2718 and returns `senderHashHex` in its signed result. EVM uses EIP-1559 and
 returns `txHashHex`.

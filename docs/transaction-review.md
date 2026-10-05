@@ -16,7 +16,7 @@ import { TransactionReviewHost, useWallet } from '@seams/wallet/react';
 ```
 
 Pass `review` to `near.signAndSendTransaction`, `near.executeAction`, or the EVM and
-Tempo `signTransaction` and `executeTransaction` methods returned by `useWallet()`.
+Tempo `signTransaction` and `signAndSendTransaction` methods returned by `useWallet()`.
 The existing result and lifecycle callbacks retain their meanings.
 
 ```tsx

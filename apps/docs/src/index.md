@@ -62,7 +62,7 @@ Build actions with helpers such as `functionCall` and `transfer`. Avoid construc
 objects such as `{ type: ActionType.FunctionCall, … }`. Pass `logWalletEvents()` to
 `onEvent` to log progress in the console.
 
-`seams.evm` and `seams.tempo` both provide `signTransaction`, `executeTransaction`, and
+`seams.evm` and `seams.tempo` both provide `signTransaction`, `signAndSendTransaction`, and
 `advanced`. They use separate transaction formats: EIP-1559 for EVM and EIP-2718 for
 Tempo.
 

@@ -7,13 +7,12 @@ import {
   type CurrentWalletResolver,
 } from '@/SeamsWeb/publicApi/currentWallet';
 import { createDevicesCapability, type DeviceCommands } from '@/SeamsWeb/publicApi/devices';
-import { createEvmSignerCapability } from '@/SeamsWeb/publicApi/evm';
 import {
   createKeyExportCapability,
   type KeyExportDomainMethods,
 } from '@/SeamsWeb/publicApi/keyExport';
 import { createNearSignerCapability } from '@/SeamsWeb/publicApi/near';
-import { createTempoSignerCapability } from '@/SeamsWeb/publicApi/tempo';
+import { createEvmFamilyCapabilities } from '@/SeamsWeb/publicApi/tempo';
 import type {
   AuthCapability,
   DevicesCapability,
@@ -91,7 +90,7 @@ export function createPublicApi(
     commands: deps.createNearCommands({ kind: 'ordinary' }),
   });
   const commands = deps.createEvmFamilyCommands({ kind: 'ordinary' });
-  const evmFamily = createTempoSignerCapability({ ...signingDeps, commands });
+  const evmFamily = createEvmFamilyCapabilities({ ...signingDeps, commands });
   return {
     preferences: deps.preferences,
     auth,
@@ -116,8 +115,8 @@ export function createPublicApi(
       domain: deps.keys,
     }),
     near,
-    tempo: evmFamily,
-    evm: createEvmSignerCapability({ configs: deps.configs, currentWallet, commands, evmFamily }),
+    tempo: evmFamily.tempo,
+    evm: evmFamily.evm,
   };
 }
 export function createApplicationPublicApi(
@@ -155,10 +154,10 @@ function createReviewedCapabilities(
 ) {
   const dispatch = { kind: 'reviewed', reservation } as const;
   const commands = deps.createEvmFamilyCommands(dispatch);
-  const tempo = createTempoSignerCapability({ ...deps, commands });
+  const evmFamily = createEvmFamilyCapabilities({ ...deps, commands });
   return {
     near: createNearSignerCapability({ ...deps, commands: deps.createNearCommands(dispatch) }),
-    tempo,
-    evm: createEvmSignerCapability({ ...deps, commands, evmFamily: tempo }),
+    tempo: evmFamily.tempo,
+    evm: evmFamily.evm,
   };
 }

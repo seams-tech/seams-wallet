@@ -175,11 +175,11 @@ function dispatchEvmSign(
 
 async function evmExecute(
   env: BoundReviewEnvironment,
-  args: Parameters<BoundEvmSigner['executeTransaction']>[0],
-): ReturnType<BoundEvmSigner['executeTransaction']> {
+  args: Parameters<BoundEvmSigner['signAndSendTransaction']>[0],
+): ReturnType<BoundEvmSigner['signAndSendTransaction']> {
   const { review, ...ordinary } = args;
   if (review === undefined)
-    return env.seams.evm.executeTransaction({ ...ordinary, walletSession: env.walletSession });
+    return env.seams.evm.signAndSendTransaction({ ...ordinary, walletSession: env.walletSession });
   const host = requireHost(env);
   const { options, postFinalizationCheck, ...data } = ordinary;
   const copied = snapshotTransactionInput(data);
@@ -206,10 +206,10 @@ async function evmExecute(
 }
 
 function dispatchEvmExecute(
-  input: Parameters<TransactionReviewCapabilities['evm']['executeTransaction']>[0],
+  input: Parameters<TransactionReviewCapabilities['evm']['signAndSendTransaction']>[0],
   capabilities: TransactionReviewCapabilities,
-): ReturnType<TransactionReviewCapabilities['evm']['executeTransaction']> {
-  return capabilities.evm.executeTransaction(input);
+): ReturnType<TransactionReviewCapabilities['evm']['signAndSendTransaction']> {
+  return capabilities.evm.signAndSendTransaction(input);
 }
 
 async function tempoSign(
@@ -252,11 +252,11 @@ function dispatchTempoSign(
 
 async function tempoExecute(
   env: BoundReviewEnvironment,
-  args: Parameters<BoundTempoSigner['executeTransaction']>[0],
-): ReturnType<BoundTempoSigner['executeTransaction']> {
+  args: Parameters<BoundTempoSigner['signAndSendTransaction']>[0],
+): ReturnType<BoundTempoSigner['signAndSendTransaction']> {
   const { review, ...ordinary } = args;
   if (review === undefined)
-    return env.seams.tempo.executeTransaction({ ...ordinary, walletSession: env.walletSession });
+    return env.seams.tempo.signAndSendTransaction({ ...ordinary, walletSession: env.walletSession });
   const host = requireHost(env);
   const { options, postFinalizationCheck, ...data } = ordinary;
   const copied = snapshotTransactionInput(data);
@@ -283,8 +283,8 @@ async function tempoExecute(
 }
 
 function dispatchTempoExecute(
-  input: Parameters<TransactionReviewCapabilities['tempo']['executeTransaction']>[0],
+  input: Parameters<TransactionReviewCapabilities['tempo']['signAndSendTransaction']>[0],
   capabilities: TransactionReviewCapabilities,
-): ReturnType<TransactionReviewCapabilities['tempo']['executeTransaction']> {
-  return capabilities.tempo.executeTransaction(input);
+): ReturnType<TransactionReviewCapabilities['tempo']['signAndSendTransaction']> {
+  return capabilities.tempo.signAndSendTransaction(input);
 }

@@ -62,13 +62,13 @@ void seams.evm.registerEvmWallet;
 // @ts-expect-error Chain namespaces do not create wallets.
 void seams.near.registerNearWallet;
 
-void seams.evm.bootstrapEcdsaSession({
+void seams.evm.advanced.bootstrapEcdsaSession({
   kind: 'reuse_warm_ecdsa_bootstrap',
   walletSession,
   chainTarget: evmChainTarget,
 });
 
-void seams.tempo.signTempo({
+void seams.tempo.signTransaction({
   walletSession,
   chainTarget: tempoChainTarget,
   request: {
@@ -92,7 +92,7 @@ void seams.tempo.signTempo({
   },
 });
 
-void seams.tempo.getFeeTokenPreference({
+void seams.tempo.getFeeToken({
   chainTarget: tempoChainTarget,
   account: '0x1111111111111111111111111111111111111111',
 });
@@ -100,7 +100,7 @@ void seams.tempo.validateFeeToken({
   chainTarget: tempoChainTarget,
   feeToken: '0x20c0000000000000000000000000000000000001',
 });
-void seams.tempo.setFeeTokenPreference({
+void seams.tempo.setFeeToken({
   walletSession,
   chainTarget: tempoChainTarget,
   account: '0x1111111111111111111111111111111111111111',
@@ -167,3 +167,30 @@ void seams.devices.revokeLinkedDevice({
 
 seams.preferences.setConfirmBehavior('requireClick');
 void seams.preferences.getConfirmationConfig();
+
+// @ts-expect-error Use signAndSendTransaction for EVM submission.
+void seams.evm.executeTransaction;
+// @ts-expect-error Use signAndSendTransaction for Tempo submission.
+void seams.tempo.executeTransaction;
+// @ts-expect-error Use signTransaction for Tempo signing.
+void seams.tempo.signTempo;
+// @ts-expect-error Select a chain namespace for transaction submission.
+void seams.tempo.executeEvmFamilyTransaction;
+// @ts-expect-error Broadcast reporting belongs to advanced.
+void seams.tempo.reportBroadcastAccepted;
+// @ts-expect-error Broadcast reporting belongs to advanced.
+void seams.tempo.reportBroadcastRejected;
+// @ts-expect-error Finalization reporting belongs to advanced.
+void seams.tempo.reportFinalized;
+// @ts-expect-error Replacement reporting belongs to advanced.
+void seams.tempo.reportDroppedOrReplaced;
+// @ts-expect-error Nonce reconciliation belongs to advanced.
+void seams.tempo.reconcileNonceLane;
+// @ts-expect-error Bootstrap is absent from the ordinary signing namespace.
+void seams.tempo.bootstrapEcdsaSession;
+// @ts-expect-error Bootstrap is absent from the ordinary signing namespace.
+void seams.evm.bootstrapEcdsaSession;
+// @ts-expect-error Use getFeeToken.
+void seams.tempo.getFeeTokenPreference;
+// @ts-expect-error Use setFeeToken.
+void seams.tempo.setFeeTokenPreference;

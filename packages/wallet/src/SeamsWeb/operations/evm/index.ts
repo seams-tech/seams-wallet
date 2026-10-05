@@ -3,8 +3,8 @@ import type { SeamsConfigsReadonly } from '@/core/types/seams';
 
 export function buildEvmBootstrapArgs(
   configs: SeamsConfigsReadonly,
-  args: Parameters<EvmSignerCapability['bootstrapEcdsaSession']>[0],
-): Parameters<EvmSignerCapability['bootstrapEcdsaSession']>[0] {
+  args: Parameters<EvmSignerCapability['advanced']['bootstrapEcdsaSession']>[0],
+): Parameters<EvmSignerCapability['advanced']['bootstrapEcdsaSession']>[0] {
   const managedRegistration = configs.registration.mode === 'managed' ? configs.registration : null;
   const runtimeScopeBootstrap =
     args.runtimeScopeBootstrap ||

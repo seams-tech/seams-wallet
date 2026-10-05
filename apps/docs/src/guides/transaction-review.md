@@ -82,8 +82,8 @@ self-transfer. Gas fees apply. Use a testnet wallet to try it.
 | Signer from `useWallet()` | Methods accepting `review` |
 | --- | --- |
 | `near` | `signAndSendTransaction`, `executeAction` |
-| `evm` | `signTransaction`, `executeTransaction` |
-| `tempo` | `signTransaction`, `executeTransaction` |
+| `evm` | `signTransaction`, `signAndSendTransaction` |
+| `tempo` | `signTransaction`, `signAndSendTransaction` |
 
 Custom reviews require a hosted wallet iframe and effective confirmation
 settings of `uiMode: 'modal'` and `behavior: 'requireClick'`. Set them explicitly

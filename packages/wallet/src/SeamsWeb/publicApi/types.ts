@@ -449,7 +449,7 @@ type ExecuteTempoTransactionArgs = Omit<ExecuteEvmFamilyTransactionBaseArgs, 'ch
 
 /**
  * The shared execute shape. Prefer the family-specific
- * `seams.evm.executeTransaction` / `seams.tempo.executeTransaction`, which keep
+ * `seams.evm.signAndSendTransaction` / `seams.tempo.signAndSendTransaction`, which keep
  * the request, the chain, and the payload expectation matched to one family.
  */
 export type ExecuteEvmFamilyTransactionArgs =
@@ -952,14 +952,7 @@ export interface NearSignerCapability {
 }
 
 /**
- * Tempo-specific operations.
- *
- * The generic EVM-family entry points live on `seams.evm` — `seams.evm.execute`
- * sends on any configured EVM-family chain, Tempo included. What remains here
- * is what only Tempo has: the fee-token preference.
- */
-/**
- * Post-broadcast lifecycle. `executeTransaction` drives all of it; reach for
+ * Post-broadcast lifecycle. `signAndSendTransaction` drives all of it; reach for
  * these only when your application broadcasts the signed payload itself.
  */
 interface EvmFamilyAdvancedCapability {
@@ -985,37 +978,16 @@ export interface TempoSignerCapability {
   /** Sign an EIP-2718 typed transaction without broadcasting. */
   signTransaction(args: SignTempoArgs): Promise<TempoSignedResult>;
   /** Sign, broadcast, and await finalization. The usual entry point. */
-  executeTransaction(args: ExecuteTempoTransactionArgs): Promise<ExecuteEvmFamilyTransactionResult>;
-  /** Post-broadcast lifecycle reporting; `executeTransaction` already drives it. */
+  signAndSendTransaction(args: ExecuteTempoTransactionArgs): Promise<ExecuteEvmFamilyTransactionResult>;
+  /** Post-broadcast lifecycle reporting; `signAndSendTransaction` already drives it. */
   readonly advanced: EvmFamilyAdvancedCapability;
 
   /** Tempo pays fees in a configurable token; this is that preference. */
-  getFeeTokenPreference(args: GetTempoFeeTokenPreferenceArgs): Promise<EvmAddress | null>;
+  getFeeToken(args: GetTempoFeeTokenPreferenceArgs): Promise<EvmAddress | null>;
   validateFeeToken(args: ValidateTempoFeeTokenArgs): Promise<TempoFeeTokenValidation>;
-  setFeeTokenPreference(
+  setFeeToken(
     args: SetTempoFeeTokenPreferenceArgs,
   ): Promise<ExecuteEvmFamilyTransactionResult>;
-
-  /** @deprecated Renamed to `signTransaction`, to mirror `seams.evm`. */
-  signTempo(args: SignTempoArgs): Promise<TempoSignedResult>;
-  /** @deprecated Renamed to `executeTransaction`, to mirror `seams.evm`. */
-  executeEvmFamilyTransaction(
-    args: ExecuteEvmFamilyTransactionArgs,
-  ): Promise<ExecuteEvmFamilyTransactionResult>;
-  /** @deprecated Use `seams.tempo.advanced.reportBroadcastAccepted`. */
-  reportBroadcastAccepted(args: ReportTempoBroadcastAcceptedArgs): Promise<void>;
-  /** @deprecated Use `seams.tempo.advanced.reportBroadcastRejected`. */
-  reportBroadcastRejected(args: ReportTempoBroadcastRejectedArgs): Promise<void>;
-  /** @deprecated Use `seams.tempo.advanced.reportFinalized`. */
-  reportFinalized(args: ReportTempoFinalizedArgs): Promise<void>;
-  /** @deprecated Use `seams.tempo.advanced.reportDroppedOrReplaced`. */
-  reportDroppedOrReplaced(args: ReportTempoDroppedOrReplacedArgs): Promise<void>;
-  /** @deprecated Use `seams.tempo.advanced.reconcileNonceLane`. */
-  reconcileNonceLane(args: ReconcileTempoNonceLaneArgs): Promise<TempoNonceLaneStatus>;
-  /** @deprecated Use `seams.tempo.advanced.bootstrapEcdsaSession`. */
-  bootstrapEcdsaSession(
-    args: BootstrapThresholdEcdsaSessionArgs,
-  ): Promise<PublicThresholdEcdsaSessionBootstrapResult>;
 }
 
 /**
@@ -1029,15 +1001,9 @@ export interface EvmSignerCapability {
   /** Sign an EIP-1559 transaction without broadcasting. */
   signTransaction(args: SignEvmTransactionArgs): Promise<EvmSignedResult>;
   /** Sign, broadcast, and await finalization. The usual entry point. */
-  executeTransaction(args: ExecuteEvmTransactionArgs): Promise<ExecuteEvmFamilyTransactionResult>;
-  /** Post-broadcast lifecycle reporting; `executeTransaction` already drives it. */
+  signAndSendTransaction(args: ExecuteEvmTransactionArgs): Promise<ExecuteEvmFamilyTransactionResult>;
+  /** Post-broadcast lifecycle reporting; `signAndSendTransaction` already drives it. */
   readonly advanced: EvmFamilyAdvancedCapability;
-
-
-  /** @deprecated Use `seams.evm.advanced.bootstrapEcdsaSession`. */
-  bootstrapEcdsaSession(
-    args: BootstrapThresholdEcdsaSessionArgs,
-  ): Promise<PublicThresholdEcdsaSessionBootstrapResult>;
 }
 
 export interface RecoveryCapability {
