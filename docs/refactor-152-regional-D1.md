@@ -1,5 +1,24 @@
 # Refactor 152: regional D1 ownership and placement
 
+## Latest consecutive-signing result (October 6)
+
+**Consecutive signing measured 3.411s median across eighteen verified signatures.**
+The two cohorts measured 3.706s and 3.198s. The combined range was **1.962–7.164s**.
+The median is **34.6% lower** than the previous 5.212s cohort, across all later
+optimizations. The two-second consecutive-signing target remains open.
+
+- [x] Repeat the existing consecutive benchmark twice on the current staging
+  candidate, without deliberate pool warm-up or prefill waits.
+- [x] Verify all eighteen signatures, NEAR signing, concurrency, and shared budget
+  exhaustion. Confirm all six backend Worker versions remained unchanged.
+- [x] Record refill waits and outliers: **16/18** calls waited, with an affected-call
+  median of **1.959s**. The longest call spent **5.532s** waiting for material.
+
+Ready-material signing remains a separate **1.745s median** result. Refill is the
+remaining bottleneck for consecutive calls. See the
+[remeasurement and evidence](refactor-152-results.md#consecutive-signing-remeasurement-october-6-2026).
+
+
 ## Latest Gateway lookup result (October 6)
 
 **Ready-signing median is 1.745s across twelve candidate signatures**, versus

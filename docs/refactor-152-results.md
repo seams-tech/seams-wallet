@@ -6820,3 +6820,59 @@ Tracked aggregates, bundle hashes, deployment versions, and verification:
 Raw browser traces, frozen source, compiled bundles, before/after settings,
 reproduction inputs, and analysis remain in
 `seams-monorepo/.artifacts/mpc-console-20261006/`.
+
+
+## Consecutive signing remeasurement (October 6, 2026)
+
+**Consecutive signing measured 3.411s median across eighteen verified signatures.**
+The two nine-signature cohorts measured **3.706s** and **3.198s**. The combined
+range was **1.962–7.164s**. The median is **34.6% lower** than the previous
+nine-signature result of **5.212s**. This historical comparison includes all
+subsequent signing optimizations. It does not isolate the Console lookup change.
+The two-second consecutive-signing target remains open.
+
+The native NRT browser used an APAC wallet. Each cohort performed three unlocks
+and three consecutive Tempo signatures after each unlock. There was no deliberate
+warm-up signature or wait for a full pool. UI automation still takes time between
+calls, so this is not a saturated throughput benchmark. The full SDK timer
+includes automated approval and transaction assembly. Blockchain broadcast and
+confirmation are excluded. Both cohorts also passed NEAR signing, concurrent
+Tempo/Arc signing, shared budget exhaustion, and lifecycle checks.
+
+| Metric | Previous cohort (9) | Current run 1 (9) | Current run 2 (9) | Combined current (18) |
+| --- | ---: | ---: | ---: | ---: |
+| Full SDK median | 5.212s | 3.706s | 3.198s | **3.411s** |
+| Full SDK maximum | 6.005s | 7.164s | 4.328s | **7.164s** |
+| After approval, median | 4.204s | 3.389s | 2.882s | 3.069s |
+| Browser prepare, median | 0.890s | 0.489s | 0.488s | 0.489s |
+| Browser finalize, median | 1.201s | 0.524s | 0.519s | 0.523s |
+| Calls that waited for refill | 8/9 | 8/9 | 8/9 | **16/18** |
+| Refill wait, affected-call median | 1.813s | 2.071s | 1.729s | **1.959s** |
+
+Prepare and finalize improved substantially. Refill remains the limiting part
+of consecutive signing. The **7.164s** outlier spent **5.532s** waiting for
+material. Its later prepare and finalize took **0.464s** and **0.522s**.
+One refill step reported **3.502s** in the SigningWorker session span. These
+headers locate a slow refill step but do not separate its CPU, network, and
+Container time. All 150 captured HTTP responses within the eighteen signing
+windows were 200. All sixteen captured refill outcomes reported available
+material. This was latency variation without an observed request failure.
+
+The preceding ready-material result remains **1.745s median** across twelve
+signatures. It measures a different workload and must remain separate. These
+small cohorts establish no latency ceiling or p95. Stage timers overlap and
+their medians are not additive.
+
+Gateway, Console, SigningWorker, Router, Deriver A, and Deriver B deployment
+versions matched before and after both runs. Browser assets match the preceding
+frozen candidate. No implementation, deployment, infrastructure, or npm changes
+were made for this measurement. Existing staging resources and the **$25 total
+Cloudflare budget** remain the constraints.
+
+The historical input is
+`mpc-signing-20261005/session-validation/mpc-signing-back_to_back.json`.
+New traces, exact inputs, source and asset hashes, analysis, and version snapshots
+are in `seams-monorepo/.artifacts/mpc-consecutive-20261006/`. The same existing
+hosted test ran twice with `--grep back_to_back`.
+Tracked evidence:
+[`r152-consecutive-signing-20261006.json`](evidence/r152-consecutive-signing-20261006.json).
