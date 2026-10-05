@@ -557,6 +557,12 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         "unrelated_wallet_rows_preserved": true,
         "completion_and_freeze_receipts_replay": true,
     });
+    artifact["return_move"] = serde_json::json!({
+        "fresh_store_accepts_generation_three": true,
+        "exact_ciphertext_and_terminal_result_preserved": true,
+        "old_generations_remain_closed_after_cleanup": true,
+        "each_cleanup_deletes_at_most_sixteen_import_chunks": true,
+    });
     std::fs::write(
         directory.join("receipt.json"),
         serde_json::to_vec_pretty(&artifact)?,
@@ -1025,6 +1031,151 @@ fn verify_snapshot_export(
         freeze(&destination, env, &receipt.scope, next_move)?,
         frozen_again
     );
+    let router_ab_cloudflare::SigningWorkerPoolFreezeResponseV1::Frozen {
+        receipt: return_receipt,
+    } = frozen_again
+    else {
+        return Err("return source must be frozen".into());
+    };
+    let returned = path.with_file_name("returned.sqlite");
+    restore_returned_wallet(&destination, &returned, env, &return_receipt)?;
+    assert_eq!(rows(&returned), expected_rows);
+    with_store(&returned, env, |store| {
+        store.require_mutation_admission(&receipt.scope)
+    })?;
+    assert!(with_store(path, env, |store| store
+        .require_mutation_admission(&receipt.scope))
+    .is_err());
+    let return_cleanup = router_ab_cloudflare::SigningWorkerEcdsaTransferRequestV1::Cleanup {
+        activation: return_receipt.clone(),
+    };
+    let mut deletion_calls = 0;
+    loop {
+        let before: u64 = Connection::open(&destination)?.query_row(
+            "SELECT COUNT(*) FROM wallet_ecdsa_import_chunks",
+            [],
+            |row| row.get(0),
+        )?;
+        let result = with_store(&destination, env, |store| {
+            store.transfer_ecdsa_snapshot(return_cleanup.clone())
+        })?;
+        let after: u64 = Connection::open(&destination)?.query_row(
+            "SELECT COUNT(*) FROM wallet_ecdsa_import_chunks",
+            [],
+            |row| row.get(0),
+        )?;
+        assert!(before >= after && before - after <= 16);
+        deletion_calls += 1;
+        assert!(deletion_calls < 64);
+        if matches!(
+            result,
+            router_ab_cloudflare::SigningWorkerEcdsaTransferResponseV1::Cleaned { .. }
+        ) {
+            break;
+        }
+    }
+    assert!(
+        deletion_calls > 3,
+        "cleanup must span stored import chunks and wallet records"
+    );
+    assert_eq!(
+        with_store(&destination, env, |store| store
+            .transfer_ecdsa_snapshot(activate.clone()))?,
+        activated
+    );
+    assert!(with_store(&destination, env, |store| store
+        .require_mutation_admission(&receipt.scope))
+    .is_err());
+    with_store(&returned, env, |store| {
+        store.require_mutation_admission(&receipt.scope)
+    })?;
+    let replay = with_store(&returned, env, |store| {
+        store.claim_and_consume_effect(receipt.scope.clone(), effect.clone(), 2_000)
+    })?;
+    let router_ab_cloudflare::CloudflareSigningWorkerEcdsaClaimAndConsumeV1::Replay {
+        terminal_json,
+    } = replay
+    else {
+        return Err("returned wallet must replay the original terminal result".into());
+    };
+    assert_eq!(terminal_json, serde_json::to_string(response)?);
+    std::fs::remove_file(returned)?;
     std::fs::remove_file(destination)?;
     Ok(first.segment_count)
+}
+
+fn restore_returned_wallet(
+    source: &std::path::Path,
+    destination: &std::path::Path,
+    env: &CloudflareEnvMapV1,
+    receipt: &router_ab_cloudflare::SigningWorkerPoolFreezeReceiptV1,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use router_ab_cloudflare::{
+        SigningWorkerEcdsaTransferRequestV1 as Command,
+        SigningWorkerEcdsaTransferResponseV1 as Response,
+    };
+    with_store(destination, env, |store| {
+        store.transfer_ecdsa_snapshot(Command::Prepare {
+            scope: receipt.scope.clone(),
+            request: receipt.request.clone(),
+            chunk_bytes: 1_024,
+        })
+    })?;
+    loop {
+        let progress = with_store(destination, env, |store| {
+            store.transfer_ecdsa_snapshot(Command::Status {
+                receipt: receipt.clone(),
+                chunk_bytes: 1_024,
+            })
+        })?;
+        let segment_index = match progress {
+            Response::Prepared { .. } => 0,
+            Response::Receiving {
+                next_segment,
+                segment_count,
+                ..
+            } if next_segment < segment_count => next_segment,
+            Response::Receiving {
+                next_segment,
+                segment_count,
+                ..
+            } if next_segment == segment_count => break,
+            unexpected => return Err(format!("Unexpected return progress: {unexpected:?}").into()),
+        };
+        let chunk = with_store(source, env, |store| {
+            store.export_ecdsa_snapshot(router_ab_cloudflare::SigningWorkerEcdsaExportRequestV1 {
+                receipt: receipt.clone(),
+                segment_index,
+                chunk_bytes: 1_024,
+            })
+        })?;
+        with_store(destination, env, |store| {
+            store.transfer_ecdsa_snapshot(Command::Import { chunk })
+        })?;
+    }
+    with_store(destination, env, |store| {
+        store.transfer_ecdsa_snapshot(Command::Verify {
+            receipt: receipt.clone(),
+        })
+    })?;
+    let activated = with_store(destination, env, |store| {
+        store.transfer_ecdsa_snapshot(Command::Activate {
+            receipt: receipt.clone(),
+        })
+    })?;
+    assert_eq!(
+        activated,
+        Response::Activated {
+            receipt: receipt.clone()
+        }
+    );
+    assert_eq!(
+        with_store(destination, env, |store| store.transfer_ecdsa_snapshot(
+            Command::Activate {
+                receipt: receipt.clone()
+            }
+        ))?,
+        activated
+    );
+    Ok(())
 }
