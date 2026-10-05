@@ -1,4 +1,8 @@
 import assert from 'node:assert/strict';
+import {
+  verifyAuthorizationSnapshot,
+  verifySnapshotIntegerPrecision,
+} from './authorization-transfer-snapshot.scenario.mjs';
 import { authorizationRowsQuery, verifyAuthorizationFreeze } from './authorization-transfer-freeze.scenario.mjs';
 import { execFileSync } from 'node:child_process';
 import { createHash, generateKeyPairSync, sign } from 'node:crypto';
@@ -66,6 +70,7 @@ const bundle = await build({
     resolveDir: process.cwd(),
     loader: 'ts',
     contents: `
+      export { D1WalletAuthorizationSnapshot } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationSnapshot';
       export { D1WalletAuthorizationFreeze } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationFreeze';
       export { D1WalletHostedHistory } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletHostedHistory';
       export { D1WalletRelocationSessions, WalletRelocationSessionSource } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationSessions';
@@ -234,6 +239,10 @@ try {
     redeemInput,
     issuedAtMs,
   });
+  await source
+    .prepare('UPDATE wallet_authorities SET record_json = record_json || ? WHERE wallet_id = ?')
+    .bind(' '.repeat(80_000), sessionSource.walletId)
+    .run();
   const authorizationFreeze = await verifyAuthorizationFreeze({
     api,
     source,
@@ -244,7 +253,15 @@ try {
     tables,
     issueDeviceSession,
   });
-  const copied = await verifyHostedHistoryCopy(source, destination, sessionSource);
+  const snapshot = await verifyAuthorizationSnapshot({ api, source, scope, identity: sessionSource });
+  const snapshotPrecision = await verifySnapshotIntegerPrecision({
+    api,
+    source,
+    sourceService,
+    scope,
+    issueDeviceSession,
+  });
+  const copied = await verifyHostedHistoryCopy(destination, sessionSource, snapshot.rowsByTable);
 
   const destinationService = service(destination, scope);
   for (const credential of [primaryInput, offlineInput]) {
@@ -319,6 +336,8 @@ try {
       relocationOwnerRequest,
       sessionRetirement,
       authorizationFreeze,
+      authorizationSnapshot: snapshot.evidence,
+      snapshotPrecision,
       retiredPrimaryCredentialRejectedAtIndependentDatabase: true,
       secondDeviceAuthorityAndRetiredSessionPreserved: true,
       directConsumedExchangeImportRejected: true,
@@ -1759,7 +1778,7 @@ function methodIsActive(method) {
   return method.status === 'active';
 }
 
-async function verifyHostedHistoryCopy(source, destination, identity) {
+async function verifyHostedHistoryCopy(destination, identity, rowsByTable) {
   const importer = new api.D1WalletHostedHistory(destination, scope);
   await importer.prepare(identity);
   const neighborNow = Date.now();
@@ -1788,10 +1807,8 @@ async function verifyHostedHistoryCopy(source, destination, identity) {
   let firstImported = null;
   for (const table of tables) {
     const query = authorizationRowsQuery(table);
-    const result = await api
-      .prepareD1TenantStatement(source, scope, query, [identity.walletId])
-      .all();
-    for (const row of result.results) {
+    const rows = rowsByTable.get(table);
+    for (const row of rows) {
       const columns = Object.keys(row);
       const statement = destination
         .prepare(
@@ -1852,8 +1869,8 @@ async function verifyHostedHistoryCopy(source, destination, identity) {
         await statement.run();
       }
     }
-    expectedRows.push({ query, rows: result.results });
-    copied.push({ table, rows: result.results.length });
+    expectedRows.push({ query, rows });
+    copied.push({ table, rows: rows.length });
   }
   for (const expected of expectedRows) {
     const restored = await api

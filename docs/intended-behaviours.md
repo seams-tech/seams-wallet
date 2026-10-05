@@ -1564,3 +1564,24 @@ Its scenario retains record counts and digests after attempted delayed writes.
 This fence does not attest other stores, a complete snapshot, activation, or
 source cleanup. The coordinator must collect every participant's evidence before
 it seals the common snapshot.
+
+### Capture and export frozen authorization history
+
+The internal snapshot operation requires the authorization source fence. It captures
+all six covered record families in a fixed table and column order. SQLite encodes
+each row before JavaScript receives its bytes. This preserves integer precision,
+nulls, and the exact contents of stored JSON strings.
+
+Capture persists segments of at most 32 KiB with an ordered digest chain. The
+schema and initial digest bind the wallet scope, move, and source generation.
+An interrupted capture retains completed segments. An exact retry resumes from
+the last durable chunk without replacing completed segments. Export remains closed
+until all records are captured and the snapshot is sealed. Sealed snapshots retain the same manifest and bytes
+through concurrent calls and store recreation.
+
+`tests/e2e/authorization-storage-transfer.e2e.mjs` verifies interruption, concurrent
+capture, exact export, a record larger than one segment, and an integer beyond
+JavaScript's exact range. The transfer scenario consumes exported snapshot records.
+Hosted credentials and exchanges use production restore. Other record families
+still use fixture imports. This contract does not establish a complete wallet
+manifest, authenticated transport, destination verification, or activation.

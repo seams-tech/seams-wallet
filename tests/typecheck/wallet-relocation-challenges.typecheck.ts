@@ -81,3 +81,17 @@ new WalletRelocationSessionSource(
   1,
 );
 void forgedSessionSource;
+
+// The SQL layout is parsed once before the snapshot engine uses it.
+import { AuthorizationSnapshotLayout } from '../../packages/wallet-server/src/router/cloudflare/d1/wallet/authorizationSnapshotLayout';
+declare const snapshotLayout: AuthorizationSnapshotLayout;
+// @ts-expect-error A spread cannot forge validated SQL identifiers.
+const forgedSnapshotLayout: AuthorizationSnapshotLayout = { ...snapshotLayout };
+// @ts-expect-error Raw column names require the boundary parser.
+const directSnapshotLayout = new AuthorizationSnapshotLayout(
+  'wallet_authorities',
+  ['wallet_id'],
+  ['wallet_id'],
+);
+void forgedSnapshotLayout;
+void directSnapshotLayout;

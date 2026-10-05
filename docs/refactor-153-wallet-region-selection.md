@@ -74,6 +74,17 @@ Session continuity, sealed-session restoration, and pool restoration are exclude
 
 ## Implemented baseline
 
+Frozen authorization D1 records now have a durable snapshot and bounded export.
+SQLite encodes rows into exact JSON bytes before the server reads them. Capture
+pins the schema, writes ordered 32 KiB segments with digest-chain receipts, and
+seals only after the complete six-family scan. Interrupted capture resumes from
+the last durable chunk. Export rejects partial snapshots and preserves sealed bytes
+across retries and store recreation. The E2E uses those exported records for its
+transfer path and verifies a multi-segment record and exact 64-bit integer text.
+Remaining destination imports still use fixture setup except for hosted session
+history. This snapshot is one component of the future common wallet manifest.
+
+
 The authorization D1 source now has a separate durable freeze after session
 retirement. It blocks inserts, updates, identity changes, and deletes across
 six authorization record families, including quotas selected through their scoped
