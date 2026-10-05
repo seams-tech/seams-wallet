@@ -1559,7 +1559,10 @@ complete-manifest verification, and larger-record assembly remain separate work.
 
 The Gateway commits each ceremony's wallet activity index with its lifecycle state.
 Session retirement rejects wallets with unsettled registration, recovery, or export
-work. Registration must finish activation consumption. Recovery must reach promotion
+work. Gateway registration admission must finish its local claim. The Router separately
+requires execution and activation consumption to finish. Gateway finalization and
+deferred provisioning must complete their durable operation journals before session
+retirement. Recovery must reach promotion
 or supersession. Export must reach completion. A stored failure alone does not prove
 that its external effects settled.
 
@@ -1570,7 +1573,9 @@ one database transaction. A delayed admission cannot reopen work after retiremen
 
 `tests/e2e/authorization-storage-transfer.e2e.mjs` verifies pending replies across
 handler recreation, atomic retirement rejection, settlement, delayed admission
-rejection, and completion through the original freeze command. Other participant
+rejection, and completion through the original freeze command. It also verifies that
+completed Gateway admissions permit local freeze, interrupted operation journals
+delay freeze, and exact operation retries remain readable after freeze. Other participant
 work and automatic reconciliation remain separate requirements.
 
 ### Reconcile Router execution while relocation drains

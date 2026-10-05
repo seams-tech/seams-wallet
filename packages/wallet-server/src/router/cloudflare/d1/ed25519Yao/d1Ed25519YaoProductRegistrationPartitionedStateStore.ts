@@ -1,4 +1,4 @@
-import { D1WalletCeremonyActivity } from './d1WalletCeremonyActivity';
+import { D1WalletCeremonyActivity, ceremonySettled } from './d1WalletCeremonyActivity';
 import type { D1PreparedStatementLike } from '../../../../storage/tenantRoute';
 import type { WalletId } from '@shared/utils/domainIds';
 import {
@@ -76,7 +76,7 @@ class D1LifecycleRecords implements RouterAbEd25519YaoProductRegistrationPartiti
       if (after.kind === 'router_ab_ed25519_yao_product_registration_ceremony_record_v1') {
         if (changedWallets.size > 1) throw new Error('Ceremony wallet owner changed');
         for (const walletId of changedWallets) {
-          projections.push(activity.project(this.records.storageKey(mutation.key), walletId, after.value));
+          projections.push(activity.project(this.records.storageKey(mutation.key), walletId, ceremonySettled(after.value)));
         }
       }
     }

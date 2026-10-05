@@ -1,4 +1,21 @@
 import { WalletRelocationOwnerRequest } from '../../packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationOwnerRequest';
+import type { D1WalletRegistrationOperationPreparedV1 } from '../../packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationService';
+
+declare const preparedOperation: D1WalletRegistrationOperationPreparedV1;
+// @ts-expect-error Operation activity requires its wallet owner before the first durable claim.
+const ownerlessOperation: D1WalletRegistrationOperationPreparedV1 = {
+  kind: preparedOperation.kind,
+  walletAuthorityId: preparedOperation.walletAuthorityId,
+  deviceId: preparedOperation.deviceId,
+  walletAuthMethodId: preparedOperation.walletAuthMethodId,
+};
+// @ts-expect-error Broad spreads cannot remove the operation's wallet owner.
+const ownerlessSpread: D1WalletRegistrationOperationPreparedV1 = {
+  ...preparedOperation,
+  walletId: undefined,
+};
+void ownerlessOperation;
+void ownerlessSpread;
 import type { D1WalletRelocationApprovals } from '../../packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationApprovals';
 import type {
   D1WalletRelocationChallenges,

@@ -25,7 +25,7 @@ export class D1WalletCeremonyActivity {
     return row !== null;
   }
 
-  project(recordKey: string, walletId: WalletId, ceremony: Ceremony): D1PreparedStatementLike {
+  project(recordKey: string, walletId: WalletId, settled: boolean): D1PreparedStatementLike {
     return prepareD1TenantStatement(
       this.database,
       this.scope,
@@ -35,12 +35,12 @@ export class D1WalletCeremonyActivity {
       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
       ON CONFLICT (namespace, org_id, project_id, env_id, record_key)
       DO UPDATE SET wallet_id = excluded.wallet_id, settled = excluded.settled`,
-      [recordKey, walletId, ceremonySettled(ceremony) ? 1 : 0],
+      [recordKey, walletId, settled ? 1 : 0],
     );
   }
 }
 
-function ceremonySettled(ceremony: Ceremony): boolean {
+export function ceremonySettled(ceremony: Ceremony): boolean {
   if (ceremony.registration.admissionClaims.size > 0) return false;
   for (const registration of ceremony.registration.states.values()) {
     if (!registrationSettled(registration)) return false;
@@ -59,6 +59,8 @@ function registrationSettled(state: MapValue<Ceremony['registration']['states']>
     case 'activated':
       return state.activationConsumerBinding !== null;
     case 'admitted':
+      // The Router owns execution and consumption after Gateway admission.
+      return true;
     case 'executing':
     case 'failed':
       return false;

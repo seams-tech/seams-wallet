@@ -73,6 +73,10 @@ const bundle = await build({
     resolveDir: process.cwd(),
     loader: 'ts',
     contents: `
+      export { D1WalletOperationStore } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletOperationStore';
+      export { runRouterAbEd25519YaoRegistrationSideEffectV2, parseRouterAbEd25519YaoRegistrationSideEffectRecordV2 } from './packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationSideEffectBoundary';
+      export { parseRouterAbEd25519YaoRegistrationAdmissionRequestV1 } from './packages/shared-ts/src/utils/routerAbEd25519Yao';
+      export { RouterAbEd25519YaoHttpRegistrationBackend } from './packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoHttpRegistrationBackend';
       export { InMemoryRouterAbEd25519YaoRegistrationService } from './packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistration';
       export { buildNearRecoveryCacheFixture } from './tests/unit/helpers/nearRecovery.fixtures';
       export { D1WalletAuthorizationSnapshot } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationSnapshot';

@@ -1,0 +1,62 @@
+import type { WalletId } from '@shared/utils/domainIds';
+import type { VersionedJsonRecordPutResult } from '../../../framework/versionedJsonRecordStore';
+import {
+  createCloudflareD1VersionedJsonRecordStore,
+  type CloudflareD1VersionedJsonRecordStore,
+  type CloudflareD1VersionedJsonRecordStoreOptions,
+} from '../versionedJson/d1VersionedJsonRecordStore';
+import { D1WalletCeremonyActivity } from '../ed25519Yao/d1WalletCeremonyActivity';
+import { lifecycleWriteFenceStatements } from '../ed25519Yao/d1Ed25519YaoStateWriteFence';
+
+type WalletOperation = {
+  readonly kind:
+    | 'router_ab_ed25519_yao_registration_side_effect_claim_v1'
+    | 'router_ab_ed25519_yao_registration_side_effect_completion_v1'
+    | 'router_ab_ed25519_yao_registration_side_effect_completion_v2';
+};
+
+// The operation journal and its activity projection share the record CAS.
+export class D1WalletOperationStore<T extends WalletOperation> {
+  private readonly records: CloudflareD1VersionedJsonRecordStore<T>;
+  private readonly activity: D1WalletCeremonyActivity;
+
+  constructor(
+    private readonly options: CloudflareD1VersionedJsonRecordStoreOptions<T>,
+    private readonly walletId: (record: T) => WalletId,
+  ) {
+    this.records = createCloudflareD1VersionedJsonRecordStore(options);
+    this.activity = new D1WalletCeremonyActivity(options.database, options.scope);
+  }
+
+  read(key: string) {
+    return this.records.read(key);
+  }
+
+  listByKeyPrefix(key: string, options?: { readonly limit?: number }) {
+    return this.records.listByKeyPrefix(key, options);
+  }
+
+  async put(
+    key: string,
+    value: T,
+    expectedVersion: string | null,
+  ): Promise<VersionedJsonRecordPutResult> {
+    const walletId = this.walletId(value);
+    const result = await this.records.putManyWithAdditionalStatements(
+      [{ key, value, expectedVersion }],
+      [
+        ...lifecycleWriteFenceStatements(this.options, new Set([walletId])),
+        this.activity.project(
+          this.records.storageKey(key),
+          walletId,
+          value.kind !== 'router_ab_ed25519_yao_registration_side_effect_claim_v1',
+        ),
+      ],
+    );
+    if (result.kind === 'version_mismatch') return { kind: 'version_mismatch' };
+    for (const entry of result.versions) {
+      if (entry.key === key) return { kind: 'stored', version: entry.version };
+    }
+    throw new Error('Wallet operation commit omitted its record version');
+  }
+}

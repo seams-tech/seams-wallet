@@ -522,6 +522,7 @@ export async function verifyPendingCeremonyFreeze({ api, database, scope }) {
   const completed = await handler.handle(original.clone());
   assert.equal(completed.status, 200, await completed.clone().text());
   assert.equal((await completed.json()).kind, 'authorization_frozen');
+  await verifyCompletedGatewayAdmission({ api, database, scope });
   return {
     pendingFreezeKeepsSourceUnretired: true,
     restartedPendingReplyMatches: true,
@@ -530,5 +531,160 @@ export async function verifyPendingCeremonyFreeze({ api, database, scope }) {
     lateAdmissionAfterRetirementRejected: true,
     sameCommandFreezesAfterSettlement: true,
     unrelatedPendingWorkDoesNotBlockFreeze: true,
+    completedGatewayAdmissionDoesNotBlockFreeze: true,
+    interruptedOperationBlocksFreeze: true,
+    exactOperationRetrySettlesOriginalClaim: true,
+    frozenOperationReplayDoesNotExecuteEffects: true,
+    frozenOperationWritesRejected: true,
   };
+}
+
+async function unexpectedAdmissionEffect() {
+  throw new Error('Gateway admission must not execute external effects');
+}
+
+async function verifyCompletedGatewayAdmission({ api, database, scope }) {
+  const fixture = await api.buildNearRegistrationAuthorityFixture('settled-admission');
+  const lifecycleId = fixture.admission.scope.lifecycle_id;
+  const store = api.createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1({
+    database,
+    scope,
+  });
+  const loaded = await store.load(lifecycleId);
+  loaded.state.authorization.authorities.push(...fixture.state.authorities);
+  const backend = new api.RouterAbEd25519YaoHttpRegistrationBackend({
+    routerUrl: 'https://router.invalid',
+    signingWorkerId: fixture.admission.scope.signing_worker_id,
+    internalServiceAuth: 'admission-test-secret',
+    deriverAInputPublicKey: new Array(32).fill(1),
+    deriverBInputPublicKey: new Array(32).fill(2),
+    signingWorkerRecipientPublicKey: new Array(32).fill(3),
+    resolveTenantRoot: unexpectedAdmissionEffect,
+    fetch: unexpectedAdmissionEffect,
+  });
+  const service = new api.InMemoryRouterAbEd25519YaoRegistrationService(
+    backend,
+    loaded.state.registration,
+  );
+  const preparation = service.prepareAdmit(fixture.admission);
+  assert.equal(preparation.kind, 'claimed');
+  const result = service.commitAdmit({
+    request: fixture.admission,
+    claim: preparation.claim,
+    outcome: { kind: 'backend_response', result: await backend.admit(fixture.admission) },
+  });
+  assert.equal(result.ok, true);
+  assert.equal((await commitCeremony(store, lifecycleId, loaded)).kind, 'stored');
+  const identity = api.WalletRelocationSessionSource.parse({
+    walletId: fixture.intent.walletId,
+    moveId: `wmove_${'a'.repeat(43)}`,
+    requestDigestHex: '8'.repeat(64),
+    sourceGeneration: 1,
+  });
+  const directory = new SourceDirectory(scope, identity, 'authorized', { kind: 'uncaptured' });
+  const handler = new api.WalletAuthorizationRelocationRoutes({ database, scope, directory });
+  const operation = new SettlementOperationProbe(api, database, scope, fixture.admission);
+  const interrupted = await operation.run();
+  assert.equal(interrupted.kind, 'uncertain');
+  assert.equal(interrupted.phase, 'effect');
+  const pending = await handler.handle(request(scope, identity));
+  assert.equal(pending.status, 202);
+  operation.now += 2;
+  operation.interrupt = false;
+  const completedOperation = await operation.run();
+  assert.equal(completedOperation.kind, 'executed');
+  assert.equal(operation.preparations, 1);
+  const response = await handler.handle(request(scope, identity));
+  assert.equal(response.status, 200, await response.clone().text());
+  assert.equal((await response.json()).kind, 'authorization_frozen');
+  assert.equal((await operation.run()).kind, 'exact_replay');
+  assert.equal(operation.executions, 2);
+  const completedRecord = await operation.store.read('settlement');
+  assert.equal(completedRecord.kind, 'present');
+  await assert.rejects(
+    operation.store.put('settlement', completedRecord.value, completedRecord.version),
+  );
+  const delayed = await operation.run('delayed-operation');
+  assert.equal(delayed.kind, 'uncertain');
+  assert.equal(delayed.phase, 'claim');
+  assert.equal(operation.executions, 2);
+}
+
+class SettlementOperationProbe {
+  now = 100;
+  interrupt = true;
+  preparations = 0;
+  executions = 0;
+
+  constructor(api, database, scope, admission) {
+    this.api = api;
+    this.admission = admission;
+    this.store = new api.D1WalletOperationStore(
+      {
+        database,
+        scope,
+        keyPrefix: 'settlement-operation:',
+        encode: this.encode,
+        parse: this.parse.bind(this),
+      },
+      this.owner,
+    );
+  }
+
+  encode(value) {
+    return value;
+  }
+  owner(record) {
+    return record.prepared.application_binding.wallet_id;
+  }
+  parsePrepared(value) {
+    const parsed = this.api.parseRouterAbEd25519YaoRegistrationAdmissionRequestV1(value);
+    return parsed.ok ? parsed.value : null;
+  }
+  parseReceipt(value) {
+    return value === 'completed' ? value : null;
+  }
+  parse(value) {
+    return this.api.parseRouterAbEd25519YaoRegistrationSideEffectRecordV2(value, {
+      operation: 'registration_activate',
+      parsePrepared: this.parsePrepared.bind(this),
+      parseReceipt: this.parseReceipt,
+    });
+  }
+  nowMs() {
+    return this.now;
+  }
+  async prepare() {
+    this.preparations += 1;
+    return this.admission;
+  }
+  async fingerprint(prepared) {
+    return createHash('sha256').update(JSON.stringify(prepared)).digest('hex');
+  }
+  async execute() {
+    this.executions += 1;
+    if (this.interrupt) throw new Error('Injected interruption after durable admission');
+    return 'completed';
+  }
+  projectReceipt(response) {
+    return response;
+  }
+  async replay(receipt) {
+    return receipt;
+  }
+  run(key = 'settlement') {
+    return this.api.runRouterAbEd25519YaoRegistrationSideEffectV2(this.store, {
+      kind: 'prepared_resumable',
+      operation: 'registration_activate',
+      key,
+      requestFingerprint: 'f'.repeat(64),
+      resumeAfterMs: 1,
+      nowMs: this.nowMs.bind(this),
+      prepare: this.prepare.bind(this),
+      derivePreparedArtifactFingerprint: this.fingerprint,
+      execute: this.execute.bind(this),
+      projectReceipt: this.projectReceipt,
+      replay: this.replay,
+    });
+  }
 }

@@ -778,6 +778,7 @@ async function walletRegistrationFinalizeRequestFingerprint(
 
 export type D1WalletRegistrationOperationPreparedV1 = {
   readonly kind: 'd1_wallet_registration_operation_prepared_v1';
+  readonly walletId: WalletId;
   readonly walletAuthorityId: WalletAuthorityId;
   readonly deviceId: DeviceId;
   readonly walletAuthMethodId: WalletAuthMethodId;
@@ -809,6 +810,7 @@ function walletRegistrationOperationPreparedFromCeremony(
   }
   return {
     kind: 'd1_wallet_registration_operation_prepared_v1',
+    walletId: ceremony.intent.walletId,
     walletAuthorityId: ceremony.foundingWalletAuthorityId,
     deviceId: ceremony.foundingDeviceId,
     walletAuthMethodId: ceremony.foundingWalletAuthMethodId,
@@ -3742,6 +3744,7 @@ export class CloudflareD1WalletRegistrationService {
         (participantId, index) => participantId !== nearPlan.participantIds[index],
       ) ||
       !walletAuthAuthoritiesMatch(derivedAuthority, receipt.authority) ||
+      record.prepared.walletId !== receipt.walletId ||
       record.prepared.walletAuthorityId !== receipt.foundingAuthority.authorityId ||
       record.prepared.deviceId !== foundingDeviceId ||
       record.prepared.walletAuthMethodId !== receipt.walletAuthMethodId
@@ -3767,7 +3770,8 @@ export class CloudflareD1WalletRegistrationService {
       }
       if (
         allocated &&
-        (allocated.walletAuthorityId !== committed.prepared.walletAuthorityId ||
+        (allocated.walletId !== committed.prepared.walletId ||
+          allocated.walletAuthorityId !== committed.prepared.walletAuthorityId ||
           allocated.deviceId !== committed.prepared.deviceId ||
           allocated.walletAuthMethodId !== committed.prepared.walletAuthMethodId)
       ) {
@@ -3786,6 +3790,7 @@ export class CloudflareD1WalletRegistrationService {
     if (!persisted) return prepared;
     return {
       kind: prepared.kind,
+      walletId: prepared.walletId,
       walletAuthorityId: persisted.walletAuthorityId,
       deviceId: prepared.deviceId,
       walletAuthMethodId: persisted.walletAuthMethodId,
