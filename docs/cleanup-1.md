@@ -33,8 +33,12 @@ storage formats, transaction ordering, and durable presignatures.
   Production source: 91 lines added, 377 removed; net reduction of 286 lines.
   Verification: wallet type-check, production build, and production registration,
   signing, and unlock asset contract passed (1 test). The bloat ratchet passed.
-- [ ] Consolidate the shared authorized-operation wire serialization used by
-  the ECDSA and Ed25519 routes. Keep curve-specific checks in their routes.
+- [x] Consolidate the shared authorized-operation wire serialization used by
+  the ECDSA and Ed25519 routes. Curve-specific checks remain in their routes.
+  Server type-check and build passed. The production Email OTP lifecycle
+  contract passed (1 test): registration, unlock, NEAR/Tempo/Arc signing,
+  reload recovery, step-up signing, and both key exports. The bloat ratchet
+  passed; measured duplicated TypeScript lines fell from 10,751 to 10,509.
 - [ ] Separate iframe inbound-message parsing and persistence row codecs from
   their transport and transaction owners. Verify the affected production flows.
 
