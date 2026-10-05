@@ -84,6 +84,11 @@ export class WalletAssetEvidence {
     return this.workers.map(workerUrl);
   }
 
+  getRequestedAssetUrlsForPhase(phase: string): readonly string[] {
+    if (!this.network) throw new Error('Network observation must start before asset assertions');
+    return this.network.getRequestedAssetUrlsForPhase(phase);
+  }
+
   async getAssetUrlsForPhase(phase: string): Promise<readonly string[]> {
     await Promise.all(this.pending);
     const urls: string[] = [];

@@ -189,6 +189,9 @@ async function measureNearOnlyAssets({
   assets.setCachePolicy('disabled_by_routing');
   assets.setPhase('near-only-registration');
   await harness.registerPasskeyEd25519YaoWallet();
+  expect(assets.getRequestedAssetUrlsForPhase('near-only-registration')).toContainEqual(
+    expect.stringMatching(/\/wallet_custody_ceremony_bg\.wasm$/u),
+  );
   assets.setPhase('locked-reload');
   await harness.lockWallet();
   await page.reload({ waitUntil: 'networkidle' });
@@ -198,6 +201,9 @@ async function measureNearOnlyAssets({
   );
   assets.setPhase('near-only-unlock');
   await harness.unlockPasskeyWallet();
+  expect(assets.getRequestedAssetUrlsForPhase('near-only-unlock')).not.toContainEqual(
+    expect.stringMatching(/\/wallet_custody_ceremony_bg\.wasm$/u),
+  );
   assets.setPhase('near-only-sign');
   await harness.signNearTransaction('post_unlock');
   assets.setPhase('near-only-restored-sign');
@@ -227,6 +233,9 @@ async function measureEcdsaOnlyAssets({
   assets.setCachePolicy('disabled_by_routing');
   assets.setPhase('ecdsa-only-registration');
   await harness.registerPasskeyEcdsaOnlyWallet();
+  expect(assets.getRequestedAssetUrlsForPhase('ecdsa-only-registration')).toContainEqual(
+    expect.stringMatching(/\/wallet_custody_ceremony_bg\.wasm$/u),
+  );
   assets.setPhase('locked-reload');
   await harness.lockWallet();
   await page.reload({ waitUntil: 'networkidle' });
@@ -236,6 +245,9 @@ async function measureEcdsaOnlyAssets({
   );
   assets.setPhase('ecdsa-only-unlock');
   await harness.unlockPasskeyWallet();
+  expect(assets.getRequestedAssetUrlsForPhase('ecdsa-only-unlock')).not.toContainEqual(
+    expect.stringMatching(/\/wallet_custody_ceremony_bg\.wasm$/u),
+  );
   assets.setPhase('tempo-sign');
   await harness.signTempoTransaction('post_unlock');
   assets.setPhase('evm-sign');

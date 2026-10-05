@@ -66,6 +66,12 @@ Lock preserves valid durable presignatures. The production NEAR-only passkey
 scenario verifies registration, lock, unlock, and restored signing without ECDSA
 or Email OTP worker creation.
 
+The custody worker loads ceremony WASM when starting a key-set ceremony,
+restoring a NEAR registration ceremony, or rotating recovery codes. Continuation
+steps use the ceremony handles already held by that worker. Envelope open/reseal,
+export-root transfer, and lane-source operations initialize their own required
+modules without loading ceremony WASM merely because they share its worker.
+
 ## Public account queries
 
 Public NEAR account queries use `seams.near.accountExists(accountId)` and the

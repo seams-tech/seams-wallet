@@ -967,6 +967,9 @@ derive production behavior from existing typed requests and selected capabilitie
   Keep NEAR signer initialization for authenticated envelope open/reseal and
   Yao initialization for lane-source work. Verify registration/recovery, unlock,
   factor addition, export, and linking; capture unlock traffic after reload.
+  Initialization is now operation-specific, with registration/ordinary-unlock
+  asset assertions for NEAR-only and ECDSA-only wallets. Recovery-code rotation
+  still needs direct public-flow acceptance before this item closes.
 - [ ] **Repair remaining failed-initialization caches.** Email OTP's EVM helper,
   Email OTP runtime, and ceremony loaders retain rejected promises. The Shamir
   worker does too. Clear each failed promise using existing initializer patterns.

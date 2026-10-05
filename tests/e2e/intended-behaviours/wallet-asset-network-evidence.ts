@@ -84,6 +84,14 @@ export class WalletAssetNetworkEvidence {
     return evidence;
   }
 
+  getRequestedAssetUrlsForPhase(phase: string): readonly string[] {
+    const urls: string[] = [];
+    for (const asset of this.assets) {
+      if (asset.phase === phase) urls.push(asset.url);
+    }
+    return urls;
+  }
+
   private event(target: Target, method: string, raw: unknown): void {
     if (!isObject(raw)) return;
     if (method === 'Target.attachedToTarget') {

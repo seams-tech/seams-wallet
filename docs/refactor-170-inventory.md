@@ -623,7 +623,7 @@ initialization is recorded separately.
 | `ecdsa-presign-client.worker.ts` | No directly loaded WASM binary in this worker; routes opaque authority requests through MessagePorts | Immediate READY, authority/pool setup on requests. Separate JS does not mean independent crypto state. |
 | `ecdsa-online-client.worker.ts` | No directly loaded WASM binary; coordinates via presign worker | Immediate READY; request-time channel use. |
 | `email-otp.worker.ts` → `email-otp/{dispatch,crypto}.ts` | Request-dependent Email OTP runtime, EVM crypto, custody ceremony, Ed25519 Yao client, and Shamir seal runtime | READY reports thread startup. Explicit Yao prewarm and operations initialize required runtimes. |
-| `wallet-custody-ceremony.worker.ts` | `wallet_custody_ceremony_bg.wasm`; selected handlers also initialize NEAR signer or Ed25519 Yao WASM | `handleRequest` awaits custody initialization; additional modules initialize within their operations. Custody crate links both protocol families. |
+| `wallet-custody-ceremony.worker.ts` | `wallet_custody_ceremony_bg.wasm`; selected handlers also initialize NEAR signer or Ed25519 Yao WASM | New key-set runs, NEAR ceremony restoration, and recovery-code rotation await ceremony initialization. Envelope and lane-source handlers initialize their own modules. Custody crate links both protocol families. |
 | `passkey-confirm.worker.ts` | Confirmation messaging/UI; no direct WASM loader | Owned by confirmation infrastructure outside the generic signer-worker list. Do not count it as a curve-specific signer. |
 | `passkey-mpc-session.worker.ts` | Shamir runtime via `shamir3pass/runtime.ts`, which manages a separate worker | Explicit prewarm and session/seal operations. |
 | `passkey-mpc-export.worker.ts` → `passkeyMpcExportRuntime.ts` | Ed25519 Yao client initialization during selected export work; confirmation | Request-time export work; requires fresh export-scoped authorization. |
@@ -2116,3 +2116,24 @@ The single routed measurements do not establish cold/warm latency improvement
 or deployed transfer savings. Full worker lifetime and dependency acceptance
 remains open. Production source adds 22 lines and removes 5 (net +17).
 Evidence: `evidence/refactor-170-cleanup-workers-20261005.json`.
+
+### Operation-specific custody loading checkpoint
+
+The custody worker no longer initializes the ceremony binary before every
+request. New key-set runs, NEAR ceremony restoration, and recovery-code rotation
+explicitly await it. Continuation steps already hold ceremony handles. Envelope
+and export-root handlers retain NEAR signer initialization; lane-source handlers
+retain Yao initialization. No custody proof, authorization, or persistence changes.
+
+Production NEAR-only and ECDSA-only scenarios assert a ceremony WASM request during
+registration and none during ordinary unlock after reload. Both pass. Assertions
+use request-start phases from the existing network observer; successful registration
+provides a positive observation check. Recovery followed by Email OTP addition,
+signing, export, and step-up passes. Resumed encrypted NEAR registration and
+third-device linking with NEAR/Tempo signing and both exports also pass.
+
+Types, build, runtime boundaries, freshness, and the bloat gate pass. Production
+source adds 3 lines and removes 1 (net +2). Direct public recovery-code rotation
+acceptance remains open, so its broader plan item stays unchecked. These routed
+single runs do not establish warm-cache latency or deployed transfer savings.
+Evidence: `evidence/refactor-170-custody-loading-20261005.json`.
