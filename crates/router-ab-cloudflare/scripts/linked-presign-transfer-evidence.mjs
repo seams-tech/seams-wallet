@@ -238,6 +238,23 @@ async function verifyWalletInventoryTransfer(topology, credential, receipt, requ
   assert.deepEqual(move, receipt.request);
   assert.equal(receipt.record_count, requests.length);
   assert.equal(snapshot.linked_presign_sessions.length, requests.length);
+  const inventoryPath = '/router-ab/signing-worker/wallet/linked-presign-inventory';
+  const firstPageRequest = { receipt, cursor: { kind: 'start' }, limit: 1 };
+  const firstPage = await accepted(source, inventoryPath, firstPageRequest, credential);
+  assert.equal(firstPage.state, 'more');
+  assert.equal(firstPage.sessions.length, 1);
+  assert.deepEqual(await accepted(source, inventoryPath, firstPageRequest, credential), firstPage);
+  const lastPage = await accepted(source, inventoryPath, {
+    receipt, cursor: { kind: 'after', presign_session_id: firstPage.next_presign_session_id }, limit: 1,
+  }, credential);
+  assert.equal(lastPage.state, 'complete');
+  assert.equal(lastPage.sessions.length, 1);
+  const inventory = [...firstPage.sessions, ...lastPage.sessions];
+  assert.deepEqual(inventory, snapshot.linked_presign_sessions.map(inventoryIdentity));
+  const changedReceipt = structuredClone(receipt);
+  changedReceipt.record_count += 1;
+  await rejected(source, inventoryPath, { receipt: changedReceipt, cursor: { kind: 'start' }, limit: 1 }, credential, /frozen source receipt/);
+  await rejected(source, inventoryPath, { receipt, cursor: { kind: 'start' }, limit: 0 }, credential, /limit must be/);
   for (const request of requests) {
     const row = snapshot.linked_presign_sessions.find(matchesSession.bind(undefined, request.presign_session_id));
     assert.ok(row, 'Every registered session must remain discoverable');
@@ -265,6 +282,16 @@ async function verifyWalletInventoryTransfer(topology, credential, receipt, requ
     chunkAcknowledgementsReplayed: true,
     verifiedInventorySurvivedEviction: true,
     destinationAdmissionRemainsClosed: true,
+    frozenInventoryPagesMatchSnapshot: true,
+    changedInventoryReceiptRejected: true,
+  };
+}
+
+function inventoryIdentity(row) {
+  return {
+    presign_session_id: row.presign_session_id,
+    server_presignature_id: row.server_presignature_id,
+    request_digest_hex: row.request_digest_hex,
   };
 }
 

@@ -13,6 +13,11 @@ use serde::de::DeserializeOwned;
 mod relocation;
 mod presign_authority;
 mod linked_presign_inventory;
+pub use linked_presign_inventory::{
+    SigningWorkerLinkedPresignCursorV1, SigningWorkerLinkedPresignInventoryRequestV1,
+    SigningWorkerLinkedPresignInventoryPageV1, SigningWorkerLinkedPresignIdentityV1,
+    SIGNING_WORKER_LINKED_PRESIGN_INVENTORY_PATH_V1,
+};
 mod snapshot;
 mod sql_integer;
 mod transfer;

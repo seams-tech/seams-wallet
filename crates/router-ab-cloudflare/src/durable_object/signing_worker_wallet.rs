@@ -141,6 +141,7 @@ pub(crate) enum SigningWorkerWalletDoRequestV1 {
     },
     FreezeEcdsaPool(crate::SigningWorkerPoolFreezeCommandV1),
     ExportEcdsaSnapshot(crate::SigningWorkerEcdsaExportRequestV1),
+    ListLinkedPresignSessions(crate::SigningWorkerLinkedPresignInventoryRequestV1),
     TransferEcdsaSnapshot(crate::SigningWorkerEcdsaTransferRequestV1),
     EcdsaPoolMutate {
         scope: CloudflareSigningWorkerWalletScopeV1,
@@ -258,6 +259,7 @@ impl SigningWorkerWalletDoRequestV1 {
             Self::EcdsaPoolMutate { scope, .. } => scope,
             Self::FreezeEcdsaPool(command) => &command.scope,
             Self::ExportEcdsaSnapshot(command) => &command.receipt.scope,
+            Self::ListLinkedPresignSessions(command) => &command.receipt.scope,
             Self::TransferEcdsaSnapshot(command) => command.scope(),
             Self::CheckEcdsaPoolAdmission { scope } => scope,
             Self::ClaimEcdsaPresignAuthority(request) => request.authority.wallet_scope(),
@@ -271,6 +273,7 @@ impl SigningWorkerWalletDoRequestV1 {
 
     fn validate(&self) -> Result<(), RouterAbProtocolError> {
         match self {
+            Self::ListLinkedPresignSessions(command) => command.receipt.scope.validate(),
             Self::AuthorizeLinkedPresignFence { scope, presign_session_id, server_presignature_id, request } => {
                 scope.validate()?;
                 request.validate()?;
@@ -691,6 +694,9 @@ impl RouterAbSigningWorkerWalletDurableObject {
             }
             SigningWorkerWalletDoRequestV1::ExportEcdsaSnapshot(command) => {
                 self.with_ecdsa_transaction(move |store| store.export_ecdsa_snapshot(command)).await
+            }
+            SigningWorkerWalletDoRequestV1::ListLinkedPresignSessions(command) => {
+                self.with_ecdsa_transaction(move |store| store.list_frozen_linked_presign_sessions(command)).await
             }
             SigningWorkerWalletDoRequestV1::FreezeEcdsaPool(command) => {
                 self.with_ecdsa_transaction(move |store| {

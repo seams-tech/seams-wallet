@@ -1,5 +1,43 @@
 use super::*;
 
+pub const SIGNING_WORKER_LINKED_PRESIGN_INVENTORY_PATH_V1: &str =
+    "/router-ab/signing-worker/wallet/linked-presign-inventory";
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum SigningWorkerLinkedPresignCursorV1 {
+    Start,
+    After { presign_session_id: String },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SigningWorkerLinkedPresignInventoryRequestV1 {
+    pub receipt: SigningWorkerPoolFreezeReceiptV1,
+    pub cursor: SigningWorkerLinkedPresignCursorV1,
+    pub limit: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SigningWorkerLinkedPresignIdentityV1 {
+    presign_session_id: String,
+    server_presignature_id: String,
+    request_digest_hex: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
+pub enum SigningWorkerLinkedPresignInventoryPageV1 {
+    Complete {
+        sessions: Vec<SigningWorkerLinkedPresignIdentityV1>,
+    },
+    More {
+        sessions: Vec<SigningWorkerLinkedPresignIdentityV1>,
+        next_presign_session_id: String,
+    },
+}
+
 pub(super) const SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_linked_presign_sessions (
     presign_session_id TEXT PRIMARY KEY,
     server_presignature_id TEXT NOT NULL UNIQUE,
@@ -35,6 +73,57 @@ impl LinkedPresignSessionRow {
 }
 
 impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
+    pub fn list_frozen_linked_presign_sessions(
+        &self,
+        request: SigningWorkerLinkedPresignInventoryRequestV1,
+    ) -> RouterAbProtocolResult<SigningWorkerLinkedPresignInventoryPageV1> {
+        if !(1..=128).contains(&request.limit) {
+            return Err(wallet_error(
+                "Linked presign inventory limit must be 1 through 128",
+            ));
+        }
+        self.require_frozen_receipt(&request.receipt)?;
+        let after = match request.cursor {
+            SigningWorkerLinkedPresignCursorV1::Start => String::new(),
+            SigningWorkerLinkedPresignCursorV1::After { presign_session_id } => {
+                crate::require_non_empty("Linked presign inventory cursor", &presign_session_id)?;
+                presign_session_id
+            }
+        };
+        let rows = self.sql.query::<LinkedPresignSessionRow>(
+            "SELECT presign_session_id, server_presignature_id, owner_json, request_digest_hex
+             FROM wallet_linked_presign_sessions WHERE owner_json = ? AND presign_session_id > ?
+             ORDER BY presign_session_id LIMIT ?",
+            vec![
+                text(owner_json(
+                    &request.receipt.scope,
+                    "linked presign inventory",
+                )?),
+                text(after),
+                SigningWorkerWalletSqlValueV1::Integer(i64::from(request.limit) + 1),
+            ],
+        )?;
+        let more = rows.len() > request.limit as usize;
+        let mut sessions = Vec::new();
+        for row in rows.into_iter().take(request.limit as usize) {
+            row.validate(&request.receipt.scope)?;
+            sessions.push(SigningWorkerLinkedPresignIdentityV1 {
+                presign_session_id: row.presign_session_id,
+                server_presignature_id: row.server_presignature_id,
+                request_digest_hex: row.request_digest_hex,
+            });
+        }
+        if more {
+            let last = sessions
+                .last()
+                .ok_or_else(|| wallet_error("Linked presign inventory page is empty"))?;
+            let next_presign_session_id = last.presign_session_id.clone();
+            Ok(SigningWorkerLinkedPresignInventoryPageV1::More { sessions, next_presign_session_id })
+        } else {
+            Ok(SigningWorkerLinkedPresignInventoryPageV1::Complete { sessions })
+        }
+    }
+
     pub fn authorize_linked_presign_fence(
         &self,
         scope: &CloudflareSigningWorkerWalletScopeV1,

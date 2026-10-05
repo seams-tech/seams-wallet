@@ -139,8 +139,14 @@ transfer this inventory with exact historical restore. The Worker E2E transfers
 both initialized and pending session identities through five wallet-snapshot chunks.
 Chunk acknowledgements replay exactly, verification survives destination eviction,
 and destination admission remains closed. Evidence is retained under
-`.artifacts/r153/linked-wallet-inventory-20261005/`. Enumeration by the coordinator
-remains unfinished. A registration can
+`.artifacts/r153/linked-wallet-inventory-20261005/`. The wallet-DO backend now exposes
+ordered inventory pages through the dedicated Router-to-SigningWorker credential.
+Each read requires the exact frozen wallet receipt and limits its page to 128
+sessions. Pages expose both session identities and their initialization digest.
+The Worker E2E compares two pages with the sealed snapshot, replays a page, and
+rejects a changed freeze receipt and a zero page limit. Evidence is retained under
+`.artifacts/r153/linked-inventory-api-20261005/`.
+The coordinator still needs to consume this operation. A registration can
 outlive failed local initialization. The local fence now checks the wallet's
 registered identities and exact draining/frozen move before closing an uninitialized
 session. Its snapshot records the initialization digest without inventing signing
