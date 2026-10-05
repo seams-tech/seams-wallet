@@ -3,7 +3,6 @@ import type { CurrentWalletResolver } from './currentWallet';
 import type { EvmFamilyCommands } from './evmFamilyCommands';
 import type { EvmSignerCapability } from '@/SeamsWeb/signingSurface/types';
 import type { SeamsConfigsReadonly } from '@/core/types/seams';
-import { buildEvmBootstrapArgs } from '@/SeamsWeb/operations/evm';
 import {
   CAPABILITY_KINDS,
   EVM_ECDSA_MPC_OPERATION_KINDS,
@@ -22,10 +21,7 @@ export function createEvmSignerCapability(deps: EvmDependencies): EvmSignerCapab
   const signer = new EvmSigner(deps);
   return {
     signAndSendTransaction: deps.signAndSendTransaction,
-    advanced: {
-      ...deps.advanced,
-      bootstrapEcdsaSession: signer.bootstrapEcdsaSession.bind(signer),
-    },
+    advanced: deps.advanced,
     signTransaction: signer.signTransaction.bind(signer),
   };
 }
@@ -53,13 +49,5 @@ class EvmSigner {
       throw new Error(`[EVM capability] expected EVM result, received ${result.chain}`);
     }
     return result;
-  }
-
-  async bootstrapEcdsaSession(
-    args: Parameters<EvmSignerCapability['advanced']['bootstrapEcdsaSession']>[0],
-  ): ReturnType<EvmSignerCapability['advanced']['bootstrapEcdsaSession']> {
-    return await this.deps.commands.bootstrapEcdsaSession(
-      buildEvmBootstrapArgs(this.deps.configs, args),
-    );
   }
 }

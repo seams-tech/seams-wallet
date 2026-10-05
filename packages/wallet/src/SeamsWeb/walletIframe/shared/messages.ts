@@ -3,7 +3,6 @@ import type {
 } from '@/core/signingEngine/flows/recovery/public';
 import type { TransactionReviewWire, TransactionReviewStateMessage } from './transactionReview';
 // Typed RPC messages for the wallet service iframe channel (SeamsWeb-first)
-import type { BootstrapThresholdEcdsaSessionArgs } from '@/SeamsWeb/signingSurface/types';
 import { SignedTransaction } from '@/core/rpcClients/near/NearClient';
 import { TransactionInput } from '@/core/types';
 import type {
@@ -843,7 +842,7 @@ export function parseHostedAuthMenuOutcome(value: unknown): HostedAuthMenuOutcom
   }
 }
 
-export const WALLET_PROTOCOL_VERSION = '4.0.0' as const;
+export const WALLET_PROTOCOL_VERSION = '5.0.0' as const;
 
 export const WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH =
   'WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH' as const;
@@ -869,7 +868,6 @@ export type ParentToChildType =
   | 'PM_ADD_EMAIL_OTP'
   | 'PM_REVOKE_AUTH_METHOD'
   | 'PM_UNLOCK_ADDED_EMAIL_OTP_WALLET'
-  | 'PM_BOOTSTRAP_THRESHOLD_ECDSA_SESSION'
   | 'PM_UNLOCK'
   | 'PM_LOCK'
   | 'PM_LOCK_EXACT_WALLET_SESSION'
@@ -1718,7 +1716,6 @@ export type ParentToChildEnvelope =
   | RpcEnvelope<'PM_ADD_EMAIL_OTP', PMAddEmailOtpPayload>
   | RpcEnvelope<'PM_REVOKE_AUTH_METHOD', PMRevokeAuthMethodPayload>
   | RpcEnvelope<'PM_UNLOCK_ADDED_EMAIL_OTP_WALLET', PMUnlockAddedEmailOtpWalletPayload>
-  | RpcEnvelope<'PM_BOOTSTRAP_THRESHOLD_ECDSA_SESSION', BootstrapThresholdEcdsaSessionArgs>
   | RpcEnvelope<'PM_UNLOCK', PMUnlockPayload>
   | RpcEnvelope<'PM_LOCK'>
   | RpcEnvelope<'PM_LOCK_EXACT_WALLET_SESSION', WalletIframeExactSessionIdentity>

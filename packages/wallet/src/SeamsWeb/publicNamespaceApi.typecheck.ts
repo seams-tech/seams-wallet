@@ -62,11 +62,10 @@ void seams.evm.registerEvmWallet;
 // @ts-expect-error Chain namespaces do not create wallets.
 void seams.near.registerNearWallet;
 
-void seams.evm.advanced.bootstrapEcdsaSession({
-  kind: 'reuse_warm_ecdsa_bootstrap',
-  walletSession,
-  chainTarget: evmChainTarget,
-});
+// @ts-expect-error Authentication owns ECDSA bootstrap.
+void seams.evm.advanced.bootstrapEcdsaSession;
+// @ts-expect-error Authentication owns ECDSA bootstrap.
+void seams.tempo.advanced.bootstrapEcdsaSession;
 
 void seams.tempo.signTransaction({
   walletSession,

@@ -41,7 +41,6 @@ type AuthWalletRequestType =
   | 'PM_GET_EXACT_WALLET_SESSION_STATE'
   | 'PM_GET_RECENT_UNLOCKS';
 type EcdsaWalletRequestType =
-  | 'PM_BOOTSTRAP_THRESHOLD_ECDSA_SESSION'
   | 'PM_SIGN_TEMPO'
   | 'PM_REPORT_TEMPO_BROADCAST_ACCEPTED'
   | 'PM_REPORT_TEMPO_BROADCAST_REJECTED'
@@ -227,7 +226,6 @@ export function routeWalletHostRequest(request: ParentToChildEnvelope): WalletHo
     case 'PM_GET_RECENT_UNLOCKS':
       return { kind: 'auth', type: request.type, request };
 
-    case 'PM_BOOTSTRAP_THRESHOLD_ECDSA_SESSION':
     case 'PM_SIGN_TEMPO':
     case 'PM_REPORT_TEMPO_BROADCAST_ACCEPTED':
     case 'PM_REPORT_TEMPO_BROADCAST_REJECTED':

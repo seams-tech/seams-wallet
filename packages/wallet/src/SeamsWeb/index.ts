@@ -37,7 +37,6 @@ export type {
   ClientConnectionState,
   AddPasskeyAuthorization,
   AddPasskeyResult,
-  BootstrapThresholdEcdsaSessionArgs,
   DevicesCapability,
   EmailOtpChallengeResult,
   EmailOtpEcdsaCapabilityArgs,

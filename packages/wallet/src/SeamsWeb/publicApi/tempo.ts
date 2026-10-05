@@ -10,7 +10,6 @@ import {
   withResolvedChainId,
   type EvmFamilyTransactionSignArgs,
 } from '@/SeamsWeb/operations/tempo/executeEvmFamilyTransaction';
-import { buildTempoBootstrapArgs } from '@/SeamsWeb/operations/tempo';
 import {
   CAPABILITY_KINDS,
   EVM_ECDSA_MPC_OPERATION_KINDS,
@@ -35,14 +34,12 @@ type CapabilitySignEvmFamilyArgs = Omit<EvmFamilyTransactionSignArgs, 'walletSes
 export function createEvmFamilyCapabilities(deps: TempoDependencies) {
   const signer = new EvmFamilySigner(deps);
   const commands = deps.commands;
-  const bootstrapEcdsaSession = signer.bootstrapEcdsaSession.bind(signer);
   const advanced = {
     reportBroadcastAccepted: commands.reportBroadcastAccepted,
     reportBroadcastRejected: commands.reportBroadcastRejected,
     reportFinalized: commands.reportFinalized,
     reportDroppedOrReplaced: commands.reportDroppedOrReplaced,
     reconcileNonceLane: commands.reconcileNonceLane,
-    bootstrapEcdsaSession,
   };
   const signTempo = signer.signTempo.bind(signer);
   const executeEvmFamilyTransaction = signer.executeEvmFamilyTransaction.bind(signer);
@@ -120,13 +117,5 @@ class EvmFamilySigner {
         request: withResolvedChainId(args.request, chainTarget),
       },
     });
-  }
-
-  async bootstrapEcdsaSession(
-    args: Parameters<TempoSignerCapability['advanced']['bootstrapEcdsaSession']>[0],
-  ): ReturnType<TempoSignerCapability['advanced']['bootstrapEcdsaSession']> {
-    return await this.deps.commands.bootstrapEcdsaSession(
-      buildTempoBootstrapArgs(this.deps.configs, args),
-    );
   }
 }

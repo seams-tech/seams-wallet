@@ -5,6 +5,6 @@ import type { TransactionDispatch } from '@/SeamsWeb/walletIframe/client/transac
 export type EvmFamilyCommands = Parameters<
   typeof executeEvmFamilyTransactionLifecycle
 >[0]['lifecycle'] &
-  Pick<TempoSignerCapability['advanced'], 'bootstrapEcdsaSession' | 'reconcileNonceLane'>;
+  Pick<TempoSignerCapability['advanced'], 'reconcileNonceLane'>;
 
 export type CreateEvmFamilyCommands = (dispatch: TransactionDispatch) => EvmFamilyCommands;

@@ -21,7 +21,6 @@ export function createApplicationEvmFamilyCommands(
     reportFinalized: commands.reportFinalized.bind(commands),
     reportDroppedOrReplaced: commands.reportDroppedOrReplaced.bind(commands),
     reconcileNonceLane: commands.reconcileNonceLane.bind(commands),
-    bootstrapEcdsaSession: commands.bootstrapEcdsaSession.bind(commands),
     onBroadcastStarted: commands.onBroadcastStarted.bind(commands),
   };
 }
@@ -146,14 +145,6 @@ class ApplicationEvmFamilyCommands {
     } catch (error: unknown) {
       throw toError(error);
     }
-  }
-  async bootstrapEcdsaSession(
-    args: Parameters<EvmFamilyCommands['bootstrapEcdsaSession']>[0],
-  ): ReturnType<EvmFamilyCommands['bootstrapEcdsaSession']> {
-    const walletIframe = this.walletIframe;
-    const bootstrapArgs = args;
-    const router = await walletIframe.requireRouter();
-    return await router.bootstrapEcdsaSession(bootstrapArgs);
   }
   onBroadcastStarted(args: Parameters<EvmFamilyCommands['onBroadcastStarted']>[0]): void {
     void this.notifyBroadcastStarted(args);

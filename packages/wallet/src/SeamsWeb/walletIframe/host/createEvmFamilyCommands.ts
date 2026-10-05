@@ -1,5 +1,4 @@
 import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import type { EcdsaBootstrapRequest } from '@/core/signingEngine/session/passkey/ecdsaBootstrap';
 import type { EvmFamilyCommands } from '@/SeamsWeb/publicApi/evmFamilyCommands';
 import type { TempoSigningSurface } from '@/SeamsWeb/signingSurface/types';
 type EvmFamilyHostContext = {
@@ -16,7 +15,6 @@ export function createWalletHostEvmFamilyCommands(
     reportFinalized: commands.reportFinalized.bind(commands),
     reportDroppedOrReplaced: commands.reportDroppedOrReplaced.bind(commands),
     reconcileNonceLane: commands.reconcileNonceLane.bind(commands),
-    bootstrapEcdsaSession: commands.bootstrapEcdsaSession.bind(commands),
     onBroadcastStarted: commands.onBroadcastStarted.bind(commands),
   };
 }
@@ -96,28 +94,5 @@ class WalletHostEvmFamilyCommands {
       onEvent: args.options?.onEvent,
     });
   }
-  async bootstrapEcdsaSession(
-    args: Parameters<EvmFamilyCommands['bootstrapEcdsaSession']>[0],
-  ): ReturnType<EvmFamilyCommands['bootstrapEcdsaSession']> {
-    const bootstrapArgs = args;
-    return await this.getContext().signingEngine.bootstrapEcdsaSession(
-      toLocalTempoBootstrapRequest(bootstrapArgs),
-    );
-  }
   onBroadcastStarted(_args: Parameters<EvmFamilyCommands['onBroadcastStarted']>[0]): void {}
-
-}
-function toLocalTempoBootstrapRequest(
-  args: Parameters<EvmFamilyCommands['bootstrapEcdsaSession']>[0],
-): EcdsaBootstrapRequest {
-  return {
-    kind: 'reuse_warm_ecdsa_bootstrap',
-    walletId: toWalletId(args.walletSession.walletId),
-    chainTarget: args.chainTarget,
-    source: args.source,
-    relayerUrl: args.relayerUrl,
-    runtimeScopeBootstrap: args.runtimeScopeBootstrap,
-    ttlMs: args.ttlMs,
-    remainingUses: args.remainingUses,
-  };
 }

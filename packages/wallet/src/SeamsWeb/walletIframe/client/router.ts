@@ -138,7 +138,6 @@ import type { EvmSignedResult } from '@/core/signingEngine/chains/evm/evmAdapter
 import type { TempoSignedResult } from '@/core/signingEngine/chains/tempo/tempoAdapter';
 import type { RouterAbEcdsaDerivationLoginPresignaturePrefillResult } from '@/core/signingEngine/session/warmCapabilities/ecdsaLoginPrefill';
 import type { DemoEmailOtpCodeResponse } from '@/core/signingEngine/session/emailOtp/publicTypes';
-import type { ThresholdEcdsaSessionBootstrapResult } from '@/core/signingEngine/threshold/ecdsa/activation';
 import {
   thresholdEcdsaChainTargetsEqual,
   toWalletId,
@@ -182,7 +181,6 @@ import type {
   WalletRecoveryRotationOutcome,
 } from '@/SeamsWeb/publicApi/types';
 import type {
-  BootstrapThresholdEcdsaSessionArgs,
   EmailOtpChallengeResult,
   EmailOtpOperationChallengeResult,
   EmailOtpEcdsaCapabilityArgs,
@@ -1196,7 +1194,6 @@ function createTerminalProgressForRequest(args: {
   ]);
   const unlockRequests = new Set<ParentToChildEnvelope['type']>([
     'PM_UNLOCK',
-    'PM_BOOTSTRAP_THRESHOLD_ECDSA_SESSION',
     'PM_REQUEST_EMAIL_OTP_CHALLENGE',
     'PM_LOGIN_EMAIL_OTP_ECDSA_CAPABILITY',
   ]);
@@ -3469,23 +3466,6 @@ export class WalletIframeRouter {
         walletAuthMethodId: payload.walletAuthMethodId,
       },
     });
-    return res.result;
-  }
-
-  async bootstrapEcdsaSession(
-    payload: BootstrapThresholdEcdsaSessionArgs,
-  ): Promise<ThresholdEcdsaSessionBootstrapResult> {
-    const safePayload = removeFunctionsFromOptions(payload);
-    const res = await this.post<ThresholdEcdsaSessionBootstrapResult>(
-      {
-        type: 'PM_BOOTSTRAP_THRESHOLD_ECDSA_SESSION',
-        payload: safePayload,
-      },
-      {
-        timeoutMs: WALLET_IFRAME_THRESHOLD_SIGNING_TIMEOUT_MS,
-        progressTimeoutExtensionFactor: 1,
-      },
-    );
     return res.result;
   }
 

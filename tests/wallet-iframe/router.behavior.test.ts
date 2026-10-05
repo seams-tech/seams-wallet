@@ -79,7 +79,7 @@ const SIGN_TEMPO_SESSION_LOSS_SCRIPT = String.raw`
                 payload: {
                   code: 'session_not_ready',
                   message:
-                    '[SigningEngine] missing canonical threshold ECDSA session for alice.testnet; reconnect threshold session via bootstrapEcdsaSession',
+                    '[SigningEngine] missing canonical threshold ECDSA session for alice.testnet; unlock the wallet to restore its signing session',
                 },
               });
             } catch (err) {

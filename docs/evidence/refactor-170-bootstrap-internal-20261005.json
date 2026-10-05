@@ -1,0 +1,78 @@
+{
+  "baseCommit": "fe9a09e7ddcc3fb3ca45a02c4a3950cecbcb2b62",
+  "scope": "Remove application ECDSA bootstrap API and transport; preserve host authentication and explicit runtime bootstrap.",
+  "protocol": {
+    "before": "4.0.0",
+    "after": "5.0.0",
+    "requirement": "Deploy matching client and host versions; no compatibility route."
+  },
+  "sourceSha256": {
+    "packages/wallet/src/SeamsWeb/index.ts": "e5de8bd90b4cc1b29d7d5bf08aedb9d2554c1e479226f3b41c2ff5d3a91bc260",
+    "packages/wallet/src/SeamsWeb/operations/tempo/index.ts": "ceb9def1b35a1b9335b245c09179a65c68cdb5620b9e64aef5958a8cb3d2ca63",
+    "packages/wallet/src/SeamsWeb/publicApi/evm.ts": "7ce81407306f9c80f639fdaa407236a181b785a97ef78e7374f9e5c8a73dd43f",
+    "packages/wallet/src/SeamsWeb/publicApi/evmFamilyCommands.ts": "ce685c52772b8758c575386a3b1635c8bacd73ff1301220674899c7bdfe0a46a",
+    "packages/wallet/src/SeamsWeb/publicApi/tempo.ts": "bdf9c4bce8c981f7de41ff030d889a804d44077c95f68b30f6b79c049b67fef8",
+    "packages/wallet/src/SeamsWeb/publicApi/types.ts": "960fe7a00595aab563bdc889c401959f1efacf429f6cf91c28fe58a22520f6c3",
+    "packages/wallet/src/SeamsWeb/publicInputs.typecheck.ts": "9445750e02149d06a3cb7e9ec44a3eab4d86dd3f2b4b2581333ff9601538d5c3",
+    "packages/wallet/src/SeamsWeb/publicNamespaceApi.typecheck.ts": "761580fabf02514d41d2fd73a95084cf567a97ac481d42b941e6bf749023b55c",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/evmFamilyCommands.ts": "a15a9ce1486bfa5844fa2af1fec7be3770d329e492f488a7f5a793bbcbfe2ab0",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/router.ts": "9fb15a7e817bc2d2a7f9d9d24b5f2a26b591c3a44d76b2269b38597e1905509d",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/walletIframe.typecheck.ts": "5519a42d8d7a77a2b295ffc4c7f073c14679ba93da427b658097c01048f7bc59",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/createEvmFamilyCommands.ts": "9722b88d89fecc333317a8d59ae93c7f179d0f18f44bb3cffde7654bce0b5794",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/handlers/ecdsaTempo.ts": "2c6eaab369113da7f1f02ad175b76caf8b99808b8396ed6fee1ab97b996af341",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/requestRouter.ts": "489d662e776735c0f7880f056013860f582d29dda1c91f9bf77696b88210e92c",
+    "packages/wallet/src/SeamsWeb/walletIframe/shared/messages.ts": "6678a448ab622ad9c6ee5ffe764c957679b652fa92841cf415afd73cd5b476ac",
+    "tests/wallet-iframe/handshake.test.ts": "c35cf2f682e0a40ec4b78e12fef3d493bb637533bc2d0de35ff015029ff4d24d",
+    "tests/wallet-iframe/router.behavior.test.ts": "e5152aaeeda87bc924432a0d53df247bcf247edfd94e472b9b692b3d68cc4f7f"
+  },
+  "deletedFiles": [
+    "packages/wallet/src/SeamsWeb/operations/evm/index.ts"
+  ],
+  "productionLines": {
+    "added": 3,
+    "removed": 177,
+    "net": -174,
+    "scope": "SDK source excluding type fixtures"
+  },
+  "callerAudit": {
+    "applicationCallers": "No runtime calls in public examples/docs/intended app or private apps/packages/tests. Positive public type fixture removed.",
+    "retainedOwner": "Host authentication uses LoginWarmSigningSurface bootstrap with exact wallet, chain, and runtime scope.",
+    "retainedResult": "PublicThresholdEcdsaSessionBootstrapResult remains part of supported Email OTP flow results.",
+    "customBroadcast": "Five advanced broadcast/nonce methods retained."
+  },
+  "verification": {
+    "browser": {
+      "command": "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4289 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/handshake.test.ts wallet-iframe/router.behavior.test.ts wallet-iframe/router.signingProgressForwarding.test.ts --project=chromium --output=../.artifacts/r170-bootstrap-browser",
+      "result": "16 passed (9.8s)"
+    },
+    "production": {
+      "command": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.unlock.contract.test.ts --grep 'passkey unlock restores immediate export and shared-budget signing|page refresh hydrates warm signing, one-use step-up, and key export'",
+      "results": [
+        "[wallet-intended] running 2 case(s) with fresh Wallet state",
+        "[wallet-intended] 1/2 e2e/intended-behaviours/passkey.unlock.contract.test.ts:43 passkey unlock restores immediate export and shared-budget signing",
+        "  1 passed (31.8s)",
+        "[wallet-intended] 2/2 e2e/intended-behaviours/passkey.unlock.contract.test.ts:65 page refresh hydrates warm signing, one-use step-up, and key export",
+        "  1 passed (36.4s)"
+      ],
+      "exitCode": 0
+    },
+    "passedCommands": [
+      "pnpm -C packages/wallet type-check",
+      "pnpm -C tests type-check:intended",
+      "pnpm -C tests type-check:wallet-state",
+      "pnpm -C tests exec tsc -p tsconfig.wallet-browser.json",
+      "pnpm -C packages/wallet build:prod",
+      "pnpm -C packages/wallet check:declarations-external",
+      "pnpm -C packages/wallet check:runtime-entry-bundles",
+      "pnpm -C packages/wallet build:check:fresh",
+      "pnpm -C apps/docs exec tsc --noEmit",
+      "pnpm -C examples/wallet-console-lite type-check",
+      "pnpm report:bloat --check"
+    ],
+    "packedIntegrity": "sha512-syp6cRF7zdpz8Ony69285xyZKui3ja3JCqdVZ02w/4aqd1886bPTyjN3RPKbPHWjJe+F0jPJ2oKXV5Bcb3lkXA=="
+  },
+  "limits": [
+    "No publication or deployment performed.",
+    "Full worker loading, month-later presignature performance, cross-browser, broadcast/finalization, and consumer release acceptance remain open."
+  ]
+}

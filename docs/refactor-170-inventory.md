@@ -1937,3 +1937,38 @@ and third-device signing and export of both curves. Types, production build,
 packed declarations, runtime boundaries, freshness, docs/examples, and bloat
 checks pass. SDK production source adds 84 lines and removes 112 (net −28),
 excluding type fixtures. Evidence: `evidence/refactor-170-key-export-20261005.json`.
+
+
+### ECDSA bootstrap ownership checkpoint
+
+Application callers no longer expose `evm.advanced.bootstrapEcdsaSession` or
+`tempo.advanced.bootstrapEcdsaSession`. Searches of public examples, docs,
+intended apps, and private apps/packages/tests found no runtime callers. The
+positive public type fixture was the only application call site. Negative type
+fixtures now reject both methods and the retired transport route.
+
+Removed `BootstrapThresholdEcdsaSessionArgs`, both chain-specific bootstrap
+argument builders, public forwarding methods, application/host command adapters,
+router dispatch, and `PM_BOOTSTRAP_THRESHOLD_ECDSA_SESSION`. The EVM advanced
+capability now reuses the same broadcast-reporting object as Tempo. Its five
+supported broadcast and nonce methods remain available.
+
+Host authentication still calls the existing `LoginWarmSigningSurface` bootstrap
+port, with the resolved wallet identity, exact chain target, and runtime scope.
+The explicit runtime port and core bootstrap implementation remain in place.
+Public Email OTP results still use `PublicThresholdEcdsaSessionBootstrapResult`;
+that result type is retained for those supported flows.
+
+Removing the route increments the iframe protocol from 4.0.0 to 5.0.0. Deploy the
+client and wallet host together. Existing handshake tests check rejection of the
+previous version and a future incompatible version. No compatibility route is
+retained. The router session-loss fixture now directs users to unlock rather
+than naming a removed application method.
+
+Sixteen browser cases pass, including handshake version rejection, session-loss
+handling, and signing progress. Two production scenarios pass: passkey unlock
+with immediate export/shared-budget signing (31.8s), and refresh with warm
+signing, one-use step-up, and export (36.4s). Types, build, packed declarations,
+runtime boundaries, freshness, docs/examples, and bloat checks pass. SDK source
+adds 3 lines and removes 177 (net −174), excluding type fixtures. Evidence:
+`evidence/refactor-170-bootstrap-internal-20261005.json`.

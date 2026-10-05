@@ -784,6 +784,12 @@ checks and existing authorization, lane, and material binding. Private retained
 test-app migration remains tied to the exact release. See the key-export checkpoint
 in `refactor-170-inventory.md` for verification and remaining acceptance limits.
 
+ECDSA bootstrap now stays inside host authentication and the explicit runtime
+port. The unused application bootstrap methods, argument builders, and transport
+route are removed. The iframe protocol is now 5.0.0; client and host deployments
+must match. Custom-broadcast reporting remains supported. See the bootstrap
+ownership checkpoint in `refactor-170-inventory.md`.
+
 ## Implementation sequence
 
 Complete this sequence together with R171's naming and consumer migration.

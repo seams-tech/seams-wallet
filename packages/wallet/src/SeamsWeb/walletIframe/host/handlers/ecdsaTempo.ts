@@ -6,22 +6,6 @@ import { requireTempoFeeTokenPreferenceSigningRequest } from '@/core/signingEngi
 
 export function createEcdsaTempoWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
   return {
-    PM_BOOTSTRAP_THRESHOLD_ECDSA_SESSION: async (
-      req: Req<'PM_BOOTSTRAP_THRESHOLD_ECDSA_SESSION'>,
-    ) => {
-      const pm = deps.getWalletRuntime();
-      const args = req.payload!;
-      if (deps.respondIfCancelled(req.requestId)) return;
-
-      const chainKind = args.chainTarget.kind;
-      const result =
-        chainKind === 'evm'
-          ? await pm.evm.advanced.bootstrapEcdsaSession(args)
-          : await pm.tempo.advanced.bootstrapEcdsaSession(args);
-      if (deps.respondIfCancelled(req.requestId)) return;
-      respondOkResult(deps, req.requestId, result);
-    },
-
     PM_SIGN_TEMPO: async (req: Req<'PM_SIGN_TEMPO'>) => {
       const pm = deps.getWalletRuntime();
       const { walletSession, request, chainTarget, options } = req.payload!;

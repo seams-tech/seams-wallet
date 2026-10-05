@@ -6,7 +6,6 @@ import {
 import type { EvmSigningRequest } from '@/core/signingEngine/chains/evm/evmSigning.types';
 import type { SignedTransaction } from '@/core/rpcClients/near/NearClient';
 import type {
-  BootstrapThresholdEcdsaSessionArgs,
   ExecuteEvmFamilyTransactionArgs,
   KeyExportCapability,
   NearSignerCapability,
@@ -165,13 +164,6 @@ const invalidTempoExecuteWithEvmPayloadExpectation: Extract<
 };
 void invalidTempoExecuteWithEvmPayloadExpectation;
 
-const validEcdsaBootstrapInput: BootstrapThresholdEcdsaSessionArgs = {
-  kind: 'reuse_warm_ecdsa_bootstrap',
-  walletSession,
-  chainTarget: tempoChainTarget,
-};
-void validEcdsaBootstrapInput;
-
 declare const signedNearTransaction: SignedTransaction;
 
 // Omitting the subject is valid: it resolves to the authenticated wallet.
@@ -291,86 +283,6 @@ void registrationCapability.registerWallet({
     },
   },
 });
-
-const forbiddenProjectionField = ['smart', 'Account'].join('') as `${'smart'}${'Account'}`;
-const forbiddenProjectionAddressField = ['counter', 'factual', 'Address'].join(
-  '',
-) as `${'counter'}${'factual'}Address`;
-const forbiddenProjectionSponsorField = ['pay', 'master'].join('') as `${'pay'}${'master'}`;
-const forbiddenProjectionRelayField = ['bundle', 'rUrl'].join('') as `${'bundle'}rUrl`;
-const forbiddenProjectionProtocolField = ['erc', '4337'].join('') as `${'erc'}4337`;
-
-const invalidEcdsaBootstrapKeyIdInput: BootstrapThresholdEcdsaSessionArgs = {
-  kind: 'reuse_warm_ecdsa_bootstrap',
-  walletSession,
-  chainTarget: tempoChainTarget,
-  // @ts-expect-error Public bootstrap rejects caller-supplied internal key identity.
-  ecdsaThresholdKeyId: 'ecdsa-key',
-};
-void invalidEcdsaBootstrapKeyIdInput;
-
-const invalidEcdsaBootstrapParticipantIdsInput: BootstrapThresholdEcdsaSessionArgs = {
-  kind: 'reuse_warm_ecdsa_bootstrap',
-  walletSession,
-  chainTarget: tempoChainTarget,
-  // @ts-expect-error Public bootstrap rejects caller-supplied internal participant identity.
-  participantIds: [1, 2],
-};
-void invalidEcdsaBootstrapParticipantIdsInput;
-
-const invalidEcdsaBootstrapProjectionInput: BootstrapThresholdEcdsaSessionArgs = {
-  kind: 'reuse_warm_ecdsa_bootstrap',
-  walletSession,
-  chainTarget: tempoChainTarget,
-  // @ts-expect-error Public bootstrap rejects projection fields.
-  [forbiddenProjectionField]: { chainId: 1313 },
-};
-void invalidEcdsaBootstrapProjectionInput;
-
-const invalidEcdsaBootstrapProjectionAddressInput: BootstrapThresholdEcdsaSessionArgs = {
-  kind: 'reuse_warm_ecdsa_bootstrap',
-  walletSession,
-  chainTarget: tempoChainTarget,
-  // @ts-expect-error Public bootstrap rejects projection fields.
-  [forbiddenProjectionAddressField]: `0x${'11'.repeat(20)}`,
-};
-void invalidEcdsaBootstrapProjectionAddressInput;
-
-const invalidEcdsaBootstrapSponsorInput: BootstrapThresholdEcdsaSessionArgs = {
-  kind: 'reuse_warm_ecdsa_bootstrap',
-  walletSession,
-  chainTarget: tempoChainTarget,
-  // @ts-expect-error Public bootstrap rejects projection fields.
-  [forbiddenProjectionSponsorField]: { enabled: true },
-};
-void invalidEcdsaBootstrapSponsorInput;
-
-const invalidEcdsaBootstrapRouterApiInput: BootstrapThresholdEcdsaSessionArgs = {
-  kind: 'reuse_warm_ecdsa_bootstrap',
-  walletSession,
-  chainTarget: tempoChainTarget,
-  // @ts-expect-error Public bootstrap rejects projection fields.
-  [forbiddenProjectionRelayField]: 'https://relay.example',
-};
-void invalidEcdsaBootstrapRouterApiInput;
-
-const invalidEcdsaBootstrapProtocolInput: BootstrapThresholdEcdsaSessionArgs = {
-  kind: 'reuse_warm_ecdsa_bootstrap',
-  walletSession,
-  chainTarget: tempoChainTarget,
-  // @ts-expect-error Public bootstrap rejects projection fields.
-  [forbiddenProjectionProtocolField]: true,
-};
-void invalidEcdsaBootstrapProtocolInput;
-
-const invalidEcdsaBootstrapSubjectInput: BootstrapThresholdEcdsaSessionArgs = {
-  kind: 'reuse_warm_ecdsa_bootstrap',
-  walletSession,
-  chainTarget: tempoChainTarget,
-  // @ts-expect-error Public base-ECDSA warm bootstrap derives subject from walletSession.walletId.
-  subjectId: 'wallet',
-};
-void invalidEcdsaBootstrapSubjectInput;
 
 declare const publicEcdsaBootstrapResult: PublicThresholdEcdsaSessionBootstrapResult;
 const invalidPublicBootstrapEcdsaKeyId =

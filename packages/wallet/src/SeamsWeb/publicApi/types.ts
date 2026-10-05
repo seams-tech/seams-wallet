@@ -459,27 +459,6 @@ export type ExecuteEvmFamilyTransactionResult = {
   payloadVerification: FinalizedEvmTxPayloadVerification;
 };
 
-export type BootstrapThresholdEcdsaSessionArgs = {
-  walletSession: WalletSessionRef;
-  chainTarget: ThresholdEcdsaChainTarget;
-  relayerUrl?: string;
-  runtimeScopeBootstrap?: {
-    projectEnvironmentId: string;
-    publishableKey: string;
-  };
-  ttlMs?: number;
-  remainingUses?: number;
-  kind: 'reuse_warm_ecdsa_bootstrap';
-  source?: 'login' | 'registration' | 'manual-bootstrap' | 'email_otp';
-  ecdsaThresholdKeyId?: never;
-  participantIds?: never;
-  sessionIdentity?: never;
-  routeAuth?: never;
-  webauthnAuthentication?: never;
-  passkeyPrfFirstB64u?: never;
-  emailOtpAuthContext?: never;
-};
-
 export type EmailOtpChallengeResult = {
   challengeId: string;
   otpChannel: WalletEmailOtpChannel;
@@ -950,9 +929,6 @@ interface EvmFamilyAdvancedCapability {
   reportFinalized(args: ReportTempoFinalizedArgs): Promise<void>;
   reportDroppedOrReplaced(args: ReportTempoDroppedOrReplacedArgs): Promise<void>;
   reconcileNonceLane(args: ReconcileTempoNonceLaneArgs): Promise<TempoNonceLaneStatus>;
-  bootstrapEcdsaSession(
-    args: BootstrapThresholdEcdsaSessionArgs,
-  ): Promise<PublicThresholdEcdsaSessionBootstrapResult>;
 }
 
 /**

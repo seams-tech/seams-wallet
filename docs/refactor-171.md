@@ -10,8 +10,8 @@ Signer addition, email addition, and authentication-method removal now use
 `registration.removeAuthMethod`. React exposes `addSigner`.
 EVM and Tempo use `signAndSendTransaction`, including reviewed React calls.
 Tempo fee-token methods use `getFeeToken` and `setFeeToken`. Deprecated Tempo
-signing and lifecycle aliases are removed. Advanced bootstrap internalization
-still needs completion. NEAR transaction submission now uses only
+signing and lifecycle aliases are removed. ECDSA bootstrap now belongs to host
+authentication; public advanced bootstrap methods and their iframe route are removed. NEAR transaction submission now uses only
 `signAndSendTransaction` with `actions[]`; the duplicate `executeAction` path is
 removed. NEAR also uses `signTransaction`, `signMessage`, and `sendDelegateAction`.
 See the relevant checkpoints in the R170 inventory for evidence.
@@ -458,6 +458,11 @@ a declaration-level pass before declaring the migration complete.
   viewer dispatch internal. Migrate React, intended-app, and documentation callers;
   preserve host capability checks, exact lane binding, and relink outcomes.
   Private retained test-app migration remains tied to the exact SDK release.
+
+- [x] Internalize ECDSA bootstrap. Remove advanced application methods, unused
+  argument builders, client/host transport adapters, and the obsolete iframe RPC.
+  Retain the explicit runtime port used by authentication and supported broadcast
+  reporting. Protocol 5.0.0 requires matching client and host deployments.
 
 - [ ] Audit current declarations and consumers in public SDK, tests, examples,
   docs, and private Console. Classify each row as rename, consolidation, internal

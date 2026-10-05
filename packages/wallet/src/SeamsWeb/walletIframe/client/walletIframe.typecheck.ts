@@ -64,3 +64,7 @@ const ecdsaLoginWithParentBearer: PMEmailOtpEcdsaCapabilityPayload = {
 void ecdsaLoginWithParentBearer;
 
 export {};
+
+// @ts-expect-error ECDSA bootstrap belongs to host authentication, not iframe RPC.
+const retiredBootstrapRoute: ParentToChildType = 'PM_BOOTSTRAP_THRESHOLD_ECDSA_SESSION';
+void retiredBootstrapRoute;

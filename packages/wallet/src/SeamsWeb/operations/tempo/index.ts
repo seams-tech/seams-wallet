@@ -1,6 +1,3 @@
-import type { TempoSignerCapability } from '@/SeamsWeb/signingSurface/types';
-import type { SeamsConfigsReadonly } from '@/core/types/seams';
-
 export function toSerializableTempoError(
   error: unknown,
 ): { code?: string; message?: string; details?: unknown } | undefined {
@@ -24,27 +21,4 @@ export function toSerializableTempoError(
     };
   }
   return { message: String(error) };
-}
-
-export function buildTempoBootstrapArgs(
-  configs: SeamsConfigsReadonly,
-  args: Parameters<TempoSignerCapability['advanced']['bootstrapEcdsaSession']>[0],
-): Parameters<TempoSignerCapability['advanced']['bootstrapEcdsaSession']>[0] {
-  const managedRegistration = configs.registration.mode === 'managed' ? configs.registration : null;
-  const runtimeScopeBootstrap =
-    args.runtimeScopeBootstrap ||
-    (managedRegistration
-      ? {
-          projectEnvironmentId: managedRegistration.projectEnvironmentId,
-          publishableKey: managedRegistration.publishableKey,
-        }
-      : undefined);
-  const chainTarget = args.chainTarget;
-  if (chainTarget.kind !== 'tempo') {
-    throw new Error('[SeamsWeb][tempo] bootstrapEcdsaSession requires a Tempo chainTarget');
-  }
-  return {
-    ...args,
-    ...(runtimeScopeBootstrap ? { runtimeScopeBootstrap } : {}),
-  };
 }
