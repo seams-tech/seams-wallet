@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash, randomBytes } from 'node:crypto';
+import { secp256k1 } from '@noble/curves/secp256k1.js';
+import { EcdsaRoleLocalPresignSessionV1 } from '../../../wasm/router_ab_ecdsa_client/pkg/router_ab_ecdsa_client.js';
 
 const transferPath = '/router-ab/signing-worker/linked-presign-session/transfer';
 const freezePath = '/router-ab/signing-worker/linked-presign-session/freeze';
@@ -32,7 +34,7 @@ async function rejected(worker, path, body, credential, message) {
   assert.match(text, message);
 }
 
-export async function verifyLinkedImportRejection(topology, credential, sharedCredential, initialization) {
+export async function verifyLinkedImportRejection(topology, credential, sharedCredential, initialization, ecdsa) {
   const worker = await topology.getWorker(workerName);
   const before = await topology.listDurableObjectIds(objectClass, workerName);
   const command = {
@@ -93,7 +95,7 @@ export async function verifyLinkedImportRejection(topology, credential, sharedCr
   await rejected(worker, exportPath, { receipt, segment_index: 0, chunk_bytes: 1 }, credential, /requires a frozen snapshot/);
   await rejected(worker, freezePath, command, credential, /No such value|not found|does not exist/);
   const uninitializedImport = await verifyUninitializedImport(topology, credential, command);
-  const initializedTransfer = await verifyInitializedTransfer(topology, credential, initialization);
+  const initializedTransfer = await verifyInitializedTransfer(topology, credential, initialization, ecdsa);
   return {
     sharedCredentialRejected: true,
     exactPreparationReplayed: true,
@@ -109,11 +111,19 @@ export async function verifyLinkedImportRejection(topology, credential, sharedCr
   };
 }
 
-async function verifyInitializedTransfer(topology, credential, fixture) {
+async function verifyInitializedTransfer(topology, credential, fixture, ecdsa) {
   const source = await topology.getWorker(workerName);
   const destinationName = 'fixture-signing-worker-after-refresh';
   const destination = await topology.getWorker(destinationName);
   const initialization = structuredClone(fixture);
+  const clientPublicKey = Buffer.from(ecdsa.activation.ecdsa_activation.public_identity.derivation_client_share_public_key33_b64u, 'base64url');
+  const serverPublicKey = secp256k1.getPublicKey(Buffer.from(initialization.relayer_share32_b64u, 'base64url'));
+  const groupPublicKey = secp256k1.ProjectivePoint.fromHex(clientPublicKey)
+    .add(secp256k1.ProjectivePoint.fromHex(serverPublicKey)).toRawBytes(true);
+  initialization.request.request.scope.thresholdPublicKey33B64u = Buffer.from(groupPublicKey).toString('base64url');
+  initialization.request.request.scope.targetHolderPublicCommitmentB64u = clientPublicKey.toString('base64url');
+  initialization.request.request.scope.targetServerPublicCommitmentB64u = Buffer.from(serverPublicKey).toString('base64url');
+  initialization.request.material_source.group_public_key = Buffer.from(groupPublicKey).toString('base64url');
   initialization.request.expires_at_ms = Date.now() + 120_000;
   initialization.request.request.expires_at_ms = initialization.request.expires_at_ms;
   const command = {
@@ -137,7 +147,8 @@ async function verifyInitializedTransfer(topology, credential, fixture) {
   const namespace = await topology.getDurableObjectNamespace('SIGNING_WORKER_PRESIGN_SESSION_DO', workerName);
   const session = namespace.get(namespace.idFromString(created[0]));
   const initPath = '/router-ab/internal/signing-worker/linked-ecdsa-presign-session/init';
-  await accepted(session, initPath, initialization, credential);
+  const initialProgress = await accepted(session, initPath, initialization, credential);
+  const completed = await completeLinkedPresign(session, credential, initialization, initialProgress, ecdsa.finalized.stateBlob.stateBlobB64u, groupPublicKey);
   const walletsAfter = await topology.listDurableObjectIds(walletClass, workerName);
   const walletsCreated = walletsAfter.filter(isNewObject.bind(undefined, walletsBefore));
   assert.equal(walletsCreated.length, 1);
@@ -156,8 +167,9 @@ async function verifyInitializedTransfer(topology, credential, fixture) {
   const fence = await accepted(source, fencePath, command, credential);
   assert.equal(fence.initialization.state, 'initialized');
   await rejected(session, initPath, initialization, credential, /fenced for relocation/);
+  await rejected(session, '/router-ab/internal/signing-worker/linked-ecdsa-presign-session/step', completed.terminalStep, credential, /fenced for relocation/);
   const receipt = await accepted(source, freezePath, command, credential);
-  assert.equal(receipt.record_count, 1);
+  assert.equal(receipt.record_count, 2);
   await topology.unsafeEvictDurableObject(workerName, objectClass, { id: created[0] });
   assert.deepEqual(await accepted(source, freezePath, command, credential), receipt);
   const chunkBytes = 1024;
@@ -172,7 +184,9 @@ async function verifyInitializedTransfer(topology, credential, fixture) {
   const snapshot = JSON.parse(Buffer.concat(chunks).toString('utf8'));
   assert.equal(snapshot.state, 'initialized');
   assert.deepEqual(snapshot.authority, initialization.request);
-  assert.equal(snapshot.completion.state, 'no_stored_completion');
+  assert.equal(snapshot.completion.state, 'retired');
+  assert.equal(snapshot.completion.completion.retirement.reason, 'wallet_relocated');
+  assert.deepEqual(snapshot.completion.completion.response, completed.response);
   const verified = await accepted(destination, transferPath, { kind: 'verify', receipt }, credential);
   assert.deepEqual(verified, { kind: 'verified', receipt });
   const destinationIds = await topology.listDurableObjectIds(objectClass, destinationName);
@@ -182,9 +196,12 @@ async function verifyInitializedTransfer(topology, credential, fixture) {
   const destinationNamespace = await topology.getDurableObjectNamespace('SIGNING_WORKER_PRESIGN_SESSION_DO', destinationName);
   const restored = destinationNamespace.get(destinationNamespace.idFromString(destinationIds[0]));
   await rejected(restored, initPath, initialization, credential, /fenced for relocation/);
+  await rejected(restored, '/router-ab/internal/signing-worker/linked-ecdsa-presign-session/step', completed.terminalStep, credential, /fenced for relocation/);
   const pendingRegistration = await verifyPendingRegistration(topology, credential, pending, command.request);
   return {
-    scope: 'Production session initialization, wallet registration, freeze and role-to-role import; excludes completed presignature retirement and full device linking',
+    scope: 'Production presign completion, wallet registration, freeze and role-to-role import; excludes full device linking and concurrent consumption',
+    completedPresignatureRetired: true,
+    delayedTerminalStepRejectedAtBothHomes: true,
     initializedAuthorityPreserved: true,
     sourceFreezeReplayedAfterEviction: true,
     destinationVerificationReplayedAfterEviction: true,
@@ -192,6 +209,45 @@ async function verifyInitializedTransfer(topology, credential, fixture) {
     segments: first.segment_count,
     pendingRegistration,
   };
+}
+
+async function completeLinkedPresign(session, credential, initialization, initialProgress, stateBlob, groupPublicKey) {
+  const client = new EcdsaRoleLocalPresignSessionV1(stateBlob, groupPublicKey, initialization.request.presign_session_id);
+  try {
+    let progress = initialProgress;
+    let outgoing = client.poll().outgoing.map(base64urlMessage);
+    for (let round = 0; progress.kind !== 'complete' && round < 12; round += 1) {
+      for (const message of progress.outgoing_messages_b64u) {
+        client.message(Buffer.from(message, 'base64url'));
+        if (client.stage() === 'triples_done') client.start_presign();
+      }
+      if (progress.outgoing_messages_b64u.length > 0) outgoing.push(...client.poll().outgoing.map(base64urlMessage));
+      const step = {
+        wallet_scope: initialization.request.wallet_scope,
+        request: initialization.request.request,
+        material_source: initialization.request.material_source,
+        presign_session_id: initialization.request.presign_session_id,
+        requested_stage: progress.stage,
+        outgoing_messages_b64u: outgoing,
+        expires_at_ms: initialization.request.expires_at_ms,
+      };
+      progress = await accepted(session, '/router-ab/internal/signing-worker/linked-ecdsa-presign-session/step', step, credential);
+      outgoing = [];
+      if (progress.kind === 'complete') {
+        assert.equal(progress.server_big_r33_b64u, Buffer.from(client.presignature_big_r_33()).toString('base64url'));
+        return { response: progress, terminalStep: step };
+      }
+    }
+    throw new Error('Linked presigning did not complete within twelve exchanges');
+  } catch (error) {
+    throw new Error(`Linked presign driver failed at client stage ${client.stage()}: ${String(error)}`, { cause: error });
+  } finally {
+    client.free();
+  }
+}
+
+function base64urlMessage(bytes) {
+  return Buffer.from(bytes).toString('base64url');
 }
 
 async function verifyPendingRegistration(topology, credential, initialization, move) {

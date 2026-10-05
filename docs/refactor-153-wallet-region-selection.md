@@ -127,8 +127,8 @@ verification. The Worker E2E now covers exact preparation replay, out-of-order a
 conflicting chunk rejection, acknowledgements after object eviction, and rejection
 of incomplete or invalid history after complete transport. Failed verification
 leaves authority and snapshot unavailable after eviction. Evidence is retained under
-`.artifacts/r153/linked-session-import-runtime-20261005/`. Successful historical
-restore, source freeze races, physical destination preparation, and coordinator
+`.artifacts/r153/linked-session-import-runtime-20261005/`. Concurrent source
+freeze races, physical destination preparation, and coordinator
 integration for linked sessions remain unfinished.
 
 New linked sessions in the wallet-DO backend now register their session identity,
@@ -136,27 +136,27 @@ server presignature identity, and exact initialization digest in the wallet SQL
 store before creating local protocol state. Registration shares the wallet mutation
 fence, permits exact retries, and rejects conflicting identities. Wallet snapshots
 transfer this inventory with exact historical restore. The existing storage E2E
-passes with an empty linked inventory. Populated inventory transfer, registration
-races, and enumeration by the coordinator remain unverified. A registration can
+passes with an empty linked inventory. Populated wallet-inventory transfer and
+enumeration by the coordinator remain unverified. A registration can
 outlive failed local initialization. The local fence now checks the wallet's
 registered identities and exact draining/frozen move before closing an uninitialized
 session. Its snapshot records the initialization digest without inventing signing
 authority or completion history. Import preserves this explicit uninitialized state
-and leaves the destination fenced. Source race verification remains unfinished.
+and leaves the destination fenced.
 The Worker E2E imports synthetic uninitialized registration history through three
 chunks, evicts the destination, replays verification, and exports the exact original
 bytes. This proves the destination path only. It does not prove source registration
 authority or initialization races. Evidence is retained under
 `.artifacts/r153/linked-session-uninitialized-20261005/`.
 Sessions created before this inventory existed still require historical discovery.
-The Worker E2E also initializes a real linked presign session through its production
-Durable Object handler. It records wallet inventory, freezes the source, transfers
-the original authority in five chunks, and verifies the destination after eviction.
-Both homes reject delayed initialization. The existing Rust scope fixture now serves
-this scenario and its original tests through one shared fixture module. This case
-has no stored completion; it does not prove completed-presignature retirement or the
-registration race. Evidence is retained under
-`.artifacts/r153/linked-session-source-transfer-20261005/`.
+The Worker E2E completes a linked presigning exchange between the production
+Durable Object handler and the WASM client. It records wallet inventory, freezes
+the source, and transfers the original authority and retired public completion
+history in nine chunks. Verification replays after destination eviction. Both homes
+reject delayed initialization and terminal steps. The completion response remains
+exact, and retirement names the move. The existing Rust scope fixture serves this
+scenario and its original tests through one shared fixture module. Evidence is
+retained under `.artifacts/r153/linked-session-completed-transfer-20261005/`.
 The same Worker scenario now covers a deterministic registration gap: wallet
 registration commits, the wallet freezes, the session fences, and delayed local
 initialization arrives. It rejects that initialization and a fence for the wrong

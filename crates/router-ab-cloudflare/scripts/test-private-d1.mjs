@@ -5511,7 +5511,7 @@ async function main() {
               consumedWalletDoMaterialRejected: true,
               terminalReplayAfterWalletDoEviction: true,
               lostReplyAfterCommitReplayed: true,
-              linkedImportRejection: await verifyLinkedImportRejection(topology, routerToSigningWorkerEcdsaAuthSecret, internalAuthSecret, fixture.linked_presign_init),
+              linkedImportRejection: await verifyLinkedImportRejection(topology, routerToSigningWorkerEcdsaAuthSecret, internalAuthSecret, fixture.linked_presign_init, ecdsa),
             }
           : {}),
         signatureSha256Hex: createHash('sha256')
