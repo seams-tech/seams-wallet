@@ -1,12 +1,39 @@
 # ML-DSA-65 threshold signing investigation plan
 
-Status: planned. Research baseline: 2026-10-05.
+Status: planned. Source and research review: 2026-10-05.
 
 Build the fastest practical 2-of-2 ML-DSA-65 signing library for the Wallet SDK on Cloudflare Router A/B.
 Select the fastest measured complete protocol that preserves the security and recovery contract.
 Use current research to find candidates. Publication date does not determine the winner.
 The investigation must cover key generation, signing, recovery, export, and deployment.
 This document plans that work. It does not report a completed implementation or benchmark.
+
+Review scope: repository sources at `seams-wallet` commit `7dc2a5cd`, installed Wallet Server 0.8.0 artifacts, and the primary references below.
+Live Cloudflare versions, placement, and target-network activation remain unverified.
+Pin those deployment facts before recording performance results.
+
+## First milestone: deployed feasibility and speed
+
+Complete investigation steps 1–5 with one compatible key-generation and signing combination before broad SDK integration.
+Start with the existing Yao half-gates engine as the execution baseline.
+Compare alternatives against its measured costs.
+Key-generation speed alone cannot establish signing feasibility.
+
+The first milestone must produce one repeatable report that demonstrates:
+
+- Exact agreement with an independent implementation for public test seeds.
+- Canonical key recovery through an authorized test recipient.
+- A standard signature from the generated shares, with A and B running separately on Cloudflare.
+- Complete latency and resource measurements, including preprocessing and every signing attempt.
+- A measured bottleneck and the next experiment most likely to reduce signing latency.
+
+Include run commands, source revisions, deployment configuration, public vectors, raw samples, and verifier results in the report.
+Keep known test seeds in the reference harness and authorized recovery recipient.
+Give each protocol participant only its own input share.
+Exclude production secrets from every artifact.
+
+Keep SDK changes limited to the harness required for this milestone.
+Complete the broader candidate comparison and lifecycle work before selecting the production library.
 
 ## Speed objective
 
@@ -44,7 +71,7 @@ Limit any claim of "fastest" to the evaluated candidates and measured conditions
 - Allow an authorized export recipient to reconstruct `xi` and reproduce the same ordinary keypair.
 - Keep the ML-DSA seed separate from the wallet custody seed and tenant derivation roots.
 - Require both participants for signing. A missing participant causes failure without secret reconstruction.
-- Run the selected implementation in the actual Cloudflare Worker runtime.
+- Run the selected implementation through the intended Cloudflare Router A/B deployment, with separate compute and storage for both participants.
 
 Malicious security is outside this investigation's required scope.
 Record the assumptions of each dependency without making a stronger claim than the current profile supports.
@@ -53,6 +80,8 @@ Record that distinction in the final library documentation.
 
 Canonical key recovery is a requirement. Identical signature bytes across different signing executions are unnecessary.
 Use [FIPS 204 and its current errata](https://csrc.nist.gov/pubs/fips/204/final) as the algorithm reference.
+The checked publication remains the August 2024 edition, with a July 2026 planning note for potential corrections.
+Record which corrections apply instead of treating a planning note as a new standard edition.
 Standard verifier compatibility does not establish FIPS module validation.
 
 ## Architecture and ownership
@@ -63,6 +92,16 @@ Record this custody difference explicitly in the ML-DSA design.
 Keep client authorization bound to the exact operation, key, and message.
 
 Reuse the role separation in the [Router A/B protocol](./protocol.md) and the packaging boundary in the [deployment guide](./deployment.md).
+
+The checked [Deriver A](../../crates/router-ab-cloudflare/wrangler.deriver-a.toml) and [Deriver B](../../crates/router-ab-cloudflare/wrangler.deriver-b.toml) manifests build Rust/WASM Workers with Service Bindings and role-private persistence.
+The installed Wallet Server 0.8.0 manifests also declare Worker entrypoints without Container applications.
+Use Worker/WASM execution as the source-backed baseline.
+
+The [Streaming Yao narrative](../../apps/docs/src/concepts/threshold-signing/streaming-yao-ab.md) claims native Container compute, which conflicts with those manifests.
+The [state ownership audit](../refactor-152-state-ownership.md) also distinguishes benchmark probe Containers from authoritative wallet roles.
+Resolve the actual deployment from deployed artifacts before benchmarking. Do not infer the compute path from that narrative claim.
+Assess Container execution separately only if deployment evidence or an explicit scope decision requires it.
+Historical Worker/WebSocket measurements remain historical evidence, regardless of the selected runtime.
 
 | Area | Responsibility |
 | --- | --- |
@@ -92,6 +131,18 @@ Select one production protocol after the comparison.
 Keep benchmark alternatives outside production routes.
 Avoid a new general-purpose MPC framework or runtime-selectable cryptographic backend.
 
+## NEAR integration baseline
+
+[Current nearcore source](https://github.com/near/nearcore/blob/master/core/crypto/src/signature.rs) contains ML-DSA-65 keys and signatures with wire tag 2.
+It distinguishes the full public key from its hashed access-key handle.
+[NEP-645](https://github.com/near/NEPs/blob/master/neps/nep-0645.md) describes protocol gating and transaction support, but its document status remains Draft.
+Pin nearcore code and verify the target network's feature activation before claiming deployed support.
+
+The local [NEAR signer types](../../wasm/near_signer/src/types/near.rs) still encode 32-byte public keys and 64-byte signatures.
+Those representations require explicit ML-DSA variants before Wallet transaction integration can work.
+Include key parsing, Borsh encoding, access-key lookup, message/context handling, and transaction-size accounting in the integration scope.
+NEAR transaction-signature support does not establish support for ML-DSA implicit-account identifiers.
+
 ## Options to investigate
 
 Secure two-party computation, abbreviated 2PC, lets both participants compute over secrets without revealing those secrets.
@@ -109,7 +160,9 @@ Their share formats must compose correctly.
 [Three-halves garbling](https://eprint.iacr.org/2021/749) reduces communication per AND gate with additional computation.
 [ABY2.0](https://encrypto.de/papers/PSSY21.pdf) provides a reference for Boolean sharing and mixed protocols.
 The [SEEC implementation](https://github.com/encryptogroup/SEEC) is a candidate reference for passive GMW and ABY2.0.
-Its native dependencies require a separate WASM feasibility check.
+Verify its dependencies against the selected runtime. Assess WASM portability separately for any Worker-only comparison.
+Its [README](https://github.com/encryptogroup/SEEC/blob/main/README.md) identifies native SIMD dependencies and marks the Silver silent-OT option insecure.
+Exclude that option. Pin the actual preprocessing backend before comparing its cost or security.
 
 | Signing option | Investigation | Decision condition |
 | --- | --- | --- |
@@ -117,18 +170,32 @@ Its native dependencies require a separate WASM feasibility check.
 | Mithril with canonical-key sharing | Execute its existing-key sharing procedure inside 2PC. Evaluate the resulting short shares. | Quantify privacy differences, security loss, refresh effects, and complete cost. |
 | Trilithium-based signing | Evaluate its arithmetic protocol and secure rounding operations. Replace provider-generated randomness with two-party preprocessing. | Account for the replacement's security argument and full resource cost. |
 | Native distributed key generation | Measure only as a comparison with canonical key generation. | Exclude from selection if ordinary key generation from `xi` cannot reproduce the key. |
-| New research candidates | Screen current publications before implementing another prototype. | Require standard verification, two-party execution, canonical-key support, and plausible Worker resource use. |
+| New research candidates | Screen current publications before implementing another prototype. | Require standard verification, two-party execution, canonical-key support, and plausible resource use in the selected deployment. |
 
 Review [Mithril](https://eprint.iacr.org/2026/013) using its canonical-key sharing analysis and the corresponding complete execution costs.
-The reviewed [paper, section 3.4](https://www.usenix.org/system/files/conference/usenixsecurity26/sec26_prepub_celi.pdf) discusses a 7–12-bit security loss and heuristic parameters.
+The checked ePrint entry dates from January 2026 and supersedes 2025/1166.
+The [USENIX paper, sections 3.4–3.5](https://www.usenix.org/system/files/conference/usenixsecurity26/sec26_prepub_celi.pdf) discusses a 7–12-bit security loss for existing-key sharing and heuristic parameter bounds.
 Check the selected revision and repeated sharing before accepting those tradeoffs.
 
 [Trilithium](https://eprint.iacr.org/2025/675) includes a correlated randomness provider.
+Use its June 30, 2026 revision, which reports an improved protocol and security proof.
 Its published timings do not establish the cost of replacing that provider with two workers.
 
 Screen [THED](https://eprint.iacr.org/2026/638) as a current alternative.
+The checked latest revision dates from September 13, 2026.
 Its reported prototype uses GPU-based homomorphic computation and a different signing-mask construction.
-Require a concrete Worker implementation case before allocating implementation work.
+Require a concrete implementation case for the selected Cloudflare runtime before allocating implementation work.
+
+The review also identified these candidates and limits:
+
+| Candidate and checked revision | Status for this investigation |
+| --- | --- |
+| [Quorus](https://eprint.iacr.org/2025/1163), January 28, 2026 | Its reported instantiation requires an honest majority. Exclude that instantiation from the required two-party privacy profile. |
+| [TALUS v5](https://arxiv.org/abs/2603.22109v5), August 9, 2026 | Its distributed profile requires an honest majority. Its alternative adds trusted execution. The revision adds signing limits and addresses external cryptanalysis. Exclude its current profiles from direct selection. |
+| [Shamir Nonce DKG v6](https://arxiv.org/abs/2601.20917v6), March 3, 2026 | Its distributed profile requires two honest signers for mask hiding. Other profiles and aggregate-signature key privacy require further review. Keep outside the first prototype. |
+
+An honest-majority assumption requires more than half the participants to remain uncorrupted.
+Two participants cannot satisfy that assumption while protecting secrets from either individual participant.
 Screen other recent claims against their primary papers and source code through the same criteria.
 Record exclusions with reasons instead of implementing every published scheme.
 
@@ -146,6 +213,9 @@ They are estimates, not measured results.
 
 The calculation uses 45 Keccak permutations and 38,400 AND gates per permutation.
 It assumes 128-bit garbling labels and four SHAKE output blocks per secret polynomial.
+Thus, the calculation contains 1,728,000 AND gates before compiler simplification.
+Half-gates use 256 transmitted bits per AND gate. Three-halves uses 197 bits under its published formula.
+MB means 1,000,000 bytes in this table.
 The GMW calculation assumes four transmitted bits per AND gate across both participants.
 Its preprocessing cost remains additional and unmeasured.
 Never compare that online figure with a complete Yao operation as equivalent totals.
@@ -178,9 +248,13 @@ Do not budget compression savings for pseudorandom garbled tables.
 ### 1 Freeze the contract and research baseline
 
 - [ ] Record the exact FIPS edition, applicable errata, NEAR protocol version, and message encoding.
+- [ ] Pin the deployed Cloudflare artifacts and reconcile their runtime with the source and packaged manifests.
+- [ ] Verify NEAR feature activation and the exact signing input, including context and prehash behavior.
 - [ ] Pin paper revisions, source commits, dependency versions, implementation licenses, and parameter sets for each candidate.
 - [ ] Record proof assumptions, prototype limits, security losses, and required external parties.
 - [ ] Confirm support for canonical existing keys without plaintext key import at either server.
+- [ ] Pin an independent ML-DSA-65 implementation as the reference for public test seeds and signature verification.
+- [ ] Specify the exact share format that the first signing prototype consumes from key generation.
 - [ ] Specify the admitted key-generation, signing, refresh, recovery, and export operations.
 - [ ] Define each role's inputs, outputs, persistent secrets, permitted disclosures, and abort behavior.
 - [ ] Specify seed creation and retention, key identity checks, and recovery after permanent participant loss.
@@ -195,9 +269,10 @@ Refresh the research survey before the final protocol decision.
 ### 2 Measure the deployed Cloudflare transport
 
 - [ ] Extend the existing separate-role benchmark transport.
+- [ ] Record the actual Worker and Durable Object path. Record Container configuration separately if the verified deployment uses Containers.
 - [ ] Stream synthetic binary payloads of 8, 32, and 64 MB without cryptographic evaluation.
-- [ ] Compare the current Service Binding WebSocket with HTTP streaming and RPC streaming where supported.
-- [ ] Record actual Worker placement and both D1 primary locations separately.
+- [ ] Measure the deployed path first. Compare WebSocket, HTTP streaming, and RPC streaming where their runtime boundaries support them.
+- [ ] Record actual compute placement and both D1 primary locations separately.
 - [ ] Measure setup, first byte, last byte, receiver completion, acknowledgments, and bounded-buffer behavior.
 - [ ] Measure CPU, memory, copied bytes, frame counts, and concurrency effects.
 - [ ] Repeat with controlled delay to establish sensitivity to communication depth.
@@ -208,28 +283,45 @@ Exit condition: separate transfer and runtime overhead from cryptographic comput
 Cloudflare documents default Service Binding execution on the same server thread.
 Placement and the chosen entrypoint can change execution behavior.
 Measure the deployed path instead of assuming parallel CPUs or a particular link speed.
+That Service Binding behavior does not describe the execution or billing of a Container behind a Worker.
 See [Service Bindings](https://developers.cloudflare.com/workers/runtime-apis/bindings/service-bindings/) and [placement](https://developers.cloudflare.com/workers/configuration/placement/).
 
-### 3 Compare complete key generation
+### 3 Benchmark the secret computation
 
-- [ ] Establish an independent standard implementation as the reference for public synthetic seeds.
-- [ ] Run candidate roles in separate processes before the deployed Worker comparison.
+- [ ] Use the existing half-gates engine for the first executable measurements.
+- [ ] Run A and B in separate processes before repeating the workload in the selected Cloudflare runtime.
 - [ ] Measure one Keccak permutation, complete seed expansion, and all secret polynomial streams.
 - [ ] Include secret sampling, coefficient selection, share conversion, and private outputs.
+- [ ] Record generated gate counts, live-wire counts, peak memory, directional bytes, CPU, and latency for each stage.
+- [ ] Verify exact coefficient values and order against the independent reference using public synthetic fixtures.
+- [ ] Test fixed sampler exhaustion through controlled synthetic inputs without changing production bounds.
+- [ ] Compare GMW on the same workload, including two-party preprocessing generation and all share conversions.
+
+Output: executable kernel measurements and a stage-by-stage resource breakdown.
+Exit condition: establish whether hashing, sampling, conversion, transport, or memory creates the largest cost.
+Use these results to prioritize the remaining engine options.
+Gate counts alone do not establish CPU cost or elapsed time.
+
+### 4 Complete canonical key generation
+
+- [ ] Combine the measured secret computation with local arithmetic on shares.
 - [ ] Include local matrix expansion, arithmetic, rounding, and public-key encoding.
 - [ ] Compare full Yao estimates with the measured hybrid implementations.
 - [ ] Include preprocessing generation and every conversion between computation methods.
-- [ ] Test fixed sampler exhaustion through controlled synthetic inputs without changing production bounds.
+- [ ] Include the real transport and role-private persistence path in complete operation timings.
 - [ ] Compare regenerated public keys across independent standard implementations.
+- [ ] Reconstruct the test seed only at the authorized export recipient and reproduce the exact ordinary keypair.
+- [ ] Verify that each participant retains only its own seed and signing material.
 - [ ] Record separate timings for first use and repeated use of public matrix data.
 
 Output: complete key-generation measurements, public synthetic vectors, and exact share-format descriptions.
-Exit condition: identify viable engines and discard candidates that fail correctness or Worker resource limits.
+Exit condition: reproduce the canonical public key and recovery result within the selected runtime's resource limits.
 Retain the current half-gates implementation as the comparison baseline until selection.
 
-### 4 Compare complete signing
+### 5 Produce and compare complete signatures
 
 - [ ] Specify how each candidate consumes the exact outputs from key generation.
+- [ ] Produce the first valid signature from generated shares before expanding SDK integration.
 - [ ] Measure general 2PC signing with local linear operations.
 - [ ] Evaluate Mithril and Trilithium only after their share and preprocessing requirements are explicit.
 - [ ] Keep nonce material, rejected candidates, and secret acceptance checks inside the required privacy boundary.
@@ -242,12 +334,15 @@ Retain the current half-gates implementation as the comparison baseline until se
 - [ ] Evaluate repeated key sharing and refresh for any candidate with short shares.
 - [ ] Document the complete passive privacy argument, including permitted intermediate disclosures.
 
-Output: a ranked signing comparison tied to exact key-generation engines and share formats.
-Exit condition: at least one complete combination meets the contract or has a concrete, quantified blocker.
-Explain why each slower candidate lacks a credible remaining optimization that could change the selection.
-Choose the share format only after this comparison.
+First output: the deployed feasibility report specified at the start of this plan.
+Milestone condition: one complete combination preserves canonical recovery and produces independently verified signatures with complete measurements.
+If that condition fails, record the exact correctness, runtime, privacy, or performance blocker.
 
-### 5 Prove lifecycle behavior through E2E scenarios
+Then extend the report into a ranked signing comparison tied to exact key-generation engines and share formats.
+Explain why each slower candidate lacks a credible remaining optimization that could change the selection.
+Choose the production share format only after this comparison.
+
+### 6 Prove lifecycle behavior through E2E scenarios
 
 Use separate A and B runtimes with their real storage and transport boundaries.
 Use the top-level `tests/` workspace for TypeScript E2E tests.
@@ -256,6 +351,7 @@ Use generated cryptographic vectors and type fixtures for their existing normati
 Add no unit tests or source-text guards for this investigation.
 
 - [ ] Generate a key, register it as a NEAR access key, and submit a threshold-signed transaction.
+- [ ] Verify full-key and hashed-handle RPC behavior without assuming an Ed25519 implicit-account identifier.
 - [ ] Interrupt signing after nonce or preprocessing consumption. Restart through a fresh operation and verify the next signature.
 - [ ] Attempt signing with B unavailable. Verify terminal failure and safe subsequent operation.
 - [ ] Refresh signing shares. Verify the same public key and reject stale operation state.
@@ -272,18 +368,18 @@ E2E success proves behavior and interoperability. It does not replace the protoc
 Classify test failures before repair under the repository testing policy.
 Preserve the current domain contract when retiring stale fixtures.
 
-### 6 Select and integrate the library
+### 7 Select and integrate the library
 
 - [ ] Select one key-generation engine and one compatible signing protocol.
 - [ ] Select the fastest measured complete combination for the agreed signing workload.
 - [ ] Record the measured costs, privacy assumptions, unresolved limitations, and reasons for rejecting other options.
-- [ ] Implement the smallest Rust core and WASM interface that fit the selected protocol.
+- [ ] Implement the smallest Rust core and runtime interfaces that fit the selected protocol and deployment.
 - [ ] Reuse existing Router admission, transport, storage, and lifecycle abstractions where their semantics match.
 - [ ] Model key, session, restore, export, and preprocessing state with branch-specific types.
 - [ ] Validate external values once at their boundaries. Keep raw and compatibility shapes outside core operations.
 - [ ] Add type fixtures for invalid state combinations when changing shared domain types.
 - [ ] Update the Wallet behavior specification and its E2E contracts with the implementation.
-- [ ] Integrate the existing SDK API and NEAR transaction encoding without request-selected protocol backends.
+- [ ] Add explicit ML-DSA key and signature variants to the SDK and NEAR encoders without request-selected protocol backends.
 - [ ] Package exact SDK and Worker artifacts in `seams-wallet` releases.
 - [ ] Consume those exact releases in `seams-monorepo` and run composed staging acceptance scenarios.
 - [ ] Obtain a focused review of the selected cryptographic composition before production use.
@@ -314,13 +410,19 @@ For each complete candidate, report:
 - First-observation timings after deployment, without claiming a verified cold-start distribution.
 - Current platform cost assumptions and cost per successful operation.
 
+Separate Worker CPU, Durable Objects, storage, and applicable network charges.
+For Container comparisons, also report Container CPU, provisioned memory and disk, and idle-resource costs.
+Include pool replenishment in deployment cost estimates.
+Keep key-generation cost separate from cost per signature.
+Do not multiply a historical Ed25519 bill by the AND-gate ratio to predict the complete ML-DSA bill.
+
 Start with 100 warm successful operations per viable candidate.
 Use a larger campaign for finalists and any p99 claim.
 Repeat enough deployment cycles to distinguish first-observation effects from normal variation.
 Use the same workload and measurement boundaries for each comparison.
 
 Reject candidates that reconstruct secrets at a server, change canonical key recovery, or require an unapproved third trusted participant.
-Reject candidates that require unsupported Worker resources or emit signatures that NEAR rejects.
+Reject candidates that require unsupported deployment resources or emit signatures that NEAR rejects.
 Treat additional short-share leakage or changed cryptographic assumptions as explicit decisions, even under passive execution.
 
 Among candidates that pass the contract, select the lowest measured p95 signing latency under the agreed workload.
@@ -335,11 +437,11 @@ State remaining opportunities that could change that ranking.
 
 ## Immediate work queue
 
-1. Complete the contract and current research matrix.
-2. Measure raw transport through the deployed Router A/B bindings.
-3. Compare half-gates and GMW on identical SHAKE work, including preprocessing.
-4. Measure the complete sampler and arithmetic-share conversion.
-5. Select signing candidates using the measured engine costs and required share formats.
+1. Pin the independent reference, canonical-key contract, and first compatible signing-share format.
+2. Measure raw transport through the actual Cloudflare compute path.
+3. Benchmark secret expansion, sampling, and share conversion with half-gates and GMW.
+4. Complete canonical key generation and authorized recovery using public test fixtures.
+5. Produce a standard threshold signature and publish the complete feasibility and speed report.
 
-Continue to full signing and lifecycle work only when the earlier results support that investment.
+Use that report to prioritize protocol optimization and the remaining lifecycle work.
 Keep implementation and benchmark reports linked from this document as the investigation proceeds.
