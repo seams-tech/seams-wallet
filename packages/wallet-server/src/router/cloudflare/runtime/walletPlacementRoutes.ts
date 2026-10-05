@@ -1,5 +1,6 @@
+import { isPlainObject } from '@shared/utils/validation';
 import type { TenantId } from '@shared/authorization/capabilityKinds';
-import { parseWalletId } from '@shared/utils/domainIds';
+import { parseWalletId, type WalletId } from '@shared/utils/domainIds';
 import type { SessionOrigin } from '../../../authorization/domain';
 import type { AuthorizationService } from '../../../authorization/service';
 import type { D1TenantScope } from '../../../core/d1TenantStore';
@@ -16,10 +17,23 @@ import type { WalletConsoleServiceBinding } from './walletConsoleOpsClient';
 const BASE_PATH = '/wallet/placement/v1';
 
 // The supplied database and session reader belong to the resolved wallet home.
-export class WalletPlacementReadRoutes implements RouterApiRouteExtension {
+export class WalletPlacementRoutes implements RouterApiRouteExtension {
   readonly kind = 'fetch_route_extension';
-  readonly id = 'wallet_placement_reads';
+  readonly id = 'wallet_placement';
   readonly routes: RouterApiRouteExtension['routes'] = [
+    {
+      id: 'wallet_relocation_post',
+      surface: 'relay',
+      method: 'POST',
+      path: `${BASE_PATH}/relocations`,
+      auth: {
+        plane: 'public',
+        rationale:
+          'The handler authenticates an owner or bounded move-read credential before exact replay.',
+      },
+      metering: { kind: 'none' },
+      summary: 'Replay an admitted wallet relocation',
+    },
     {
       id: 'wallet_placement_get',
       surface: 'relay',
@@ -65,6 +79,8 @@ export class WalletPlacementReadRoutes implements RouterApiRouteExtension {
   }
 
   async handle(request: Request): Promise<Response> {
+    if (request.method === 'POST' && new URL(request.url).pathname === `${BASE_PATH}/relocations`)
+      return this.replay(request);
     if (request.method !== 'GET') return failure('method_not_allowed', 405);
     const url = new URL(request.url);
     const wallet = parseWalletId(url.searchParams.get('walletId'));
@@ -106,15 +122,69 @@ export class WalletPlacementReadRoutes implements RouterApiRouteExtension {
       });
       if (!access) return failure('unauthorized', 401);
     }
-    const walletKey = {
+    const walletKey = this.walletKey(wallet.value);
+    const path = moveId === null ? 'placement-status' : 'relocation-status';
+    const body = moveId === null ? { wallet: walletKey } : { wallet: walletKey, moveId };
+    return this.dispatch(path, body);
+  }
+
+  private async replay(request: Request): Promise<Response> {
+    const raw: unknown = await request.json().catch(invalidBody);
+    const intent = parseReplayRequest(raw);
+    if (!intent) return failure('invalid_input', 400);
+    const nowMs = Date.now();
+    const owner = await WalletRelocationOwnerRequest.authenticate({
+      request,
+      walletId: intent.walletId,
+      tenantId: this.options.tenantId,
+      scope: this.options.scope,
+      allowedOrigins: this.options.allowedOrigins,
+      authorizationSessions: this.options.authorizationSessions,
+      nowMs,
+    });
+    const approval = await new D1WalletRelocationApprovals(
+      this.options.database,
+      this.options.scope,
+    ).find(intent.walletId, intent.moveId);
+    if (!owner) {
+      if (!approval) return failure('unauthorized', 401);
+      const access = await WalletRelocationReadAccess.authenticate({
+        request,
+        binding: approval.binding,
+        database: this.options.database,
+        scope: this.options.scope,
+        allowedOrigins: this.options.allowedOrigins,
+        nowMs,
+      });
+      if (!access) return failure('unauthorized', 401);
+    }
+    if (!approval) return failure('relocation_not_admitted', 409);
+    if (
+      intent.destinationRegion !== approval.binding.destinationRegion ||
+      intent.expectedGeneration !== approval.binding.sourceGeneration
+    )
+      return failure('request_conflict', 409);
+    return this.dispatch('relocation-replay', {
+      wallet: this.walletKey(intent.walletId),
+      moveId: intent.moveId,
+      requestDigest: approval.binding.requestDigestHex,
+    });
+  }
+
+  private walletKey(walletId: WalletId) {
+    return {
       namespace: this.options.scope.namespace,
       organizationId: this.options.scope.orgId,
       projectId: this.options.scope.projectId,
       environmentId: this.options.scope.envId,
-      walletId: wallet.value,
+      walletId,
     };
-    const path = moveId === null ? 'placement-status' : 'relocation-status';
-    const body = moveId === null ? { wallet: walletKey } : { wallet: walletKey, moveId };
+  }
+
+  private async dispatch(
+    path: 'placement-status' | 'relocation-status' | 'relocation-replay',
+    body: object,
+  ): Promise<Response> {
     const response = await this.options.directory.fetch(
       new Request(`https://wallet-placement.internal/internal/wallet-placement/v1/${path}`, {
         method: 'POST',
@@ -130,4 +200,39 @@ export class WalletPlacementReadRoutes implements RouterApiRouteExtension {
 
 function failure(code: string, status: number): Response {
   return Response.json({ ok: false, code }, { status, headers: { 'Cache-Control': 'no-store' } });
+}
+
+function invalidBody(): null {
+  return null;
+}
+
+function parseReplayRequest(raw: unknown): {
+  readonly walletId: WalletId;
+  readonly moveId: string;
+  readonly destinationRegion: 'US' | 'WEUR' | 'APAC' | 'OC';
+  readonly expectedGeneration: number;
+} | null {
+  if (!isPlainObject(raw) || Object.keys(raw).length !== 5 || !Object.hasOwn(raw, 'sourceProof'))
+    return null;
+  const wallet = parseWalletId(raw.walletId);
+  if (
+    !wallet.ok ||
+    typeof raw.moveId !== 'string' ||
+    !/^wmove_[A-Za-z0-9_-]{43}$/u.test(raw.moveId) ||
+    typeof raw.expectedGeneration !== 'number' ||
+    !Number.isSafeInteger(raw.expectedGeneration) ||
+    raw.expectedGeneration <= 0 ||
+    (raw.destinationRegion !== 'US' &&
+      raw.destinationRegion !== 'WEUR' &&
+      raw.destinationRegion !== 'APAC' &&
+      raw.destinationRegion !== 'OC')
+  )
+    return null;
+  // The recorded approval owns the proof. Exact replay never verifies a replacement proof.
+  return {
+    walletId: wallet.value,
+    moveId: raw.moveId,
+    destinationRegion: raw.destinationRegion,
+    expectedGeneration: raw.expectedGeneration,
+  };
 }

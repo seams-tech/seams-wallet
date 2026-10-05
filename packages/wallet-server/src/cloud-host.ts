@@ -54,7 +54,7 @@ export * from './router/cloudflare/runtime/sessionAdapterRuntime';
 export * from './router/cloudflare/runtime/walletConsoleOps';
 export * from './router/cloudflare/runtime/walletConsoleOpsClient';
 export * from './router/cloudflare/runtime/walletGateway';
-export { WalletPlacementReadRoutes } from './router/cloudflare/runtime/walletPlacementReads';
+export { WalletPlacementRoutes } from './router/cloudflare/runtime/walletPlacementRoutes';
 export * from './router/cloudflare/runtime/walletRuntimeOps';
 export * from './router/cloudflare/runtime/walletRuntimeOpsHandler';
 export * from './router/cloudflare/runtime/walletControlOps';

@@ -1,6 +1,6 @@
 import { parseTenantId } from '@shared/authorization/capabilityKinds';
 import { parseSessionOrigin } from './authorization/domain';
-import { WalletPlacementReadRoutes } from './router/cloudflare/runtime/walletPlacementReads';
+import { WalletPlacementRoutes } from './router/cloudflare/runtime/walletPlacementRoutes';
 import type { WalletLifecycleRoutingPublisher } from './authorization/lifecycleRouting';
 import { decodeTenantRootIdentityWireV1 } from '@shared/tenant-root';
 import { resolveRuntimeTenantRootLineage } from './cloud-host';
@@ -736,7 +736,7 @@ export async function createHostedWalletGatewayCompositionV1(
     signerDatabase: env.SIGNER_DB,
     signerStorageNamespace: scope.namespace,
     routeExtensions: [
-      new WalletPlacementReadRoutes({
+      new WalletPlacementRoutes({
         database: env.SIGNER_DB,
         scope,
         tenantId: tenantId.value,

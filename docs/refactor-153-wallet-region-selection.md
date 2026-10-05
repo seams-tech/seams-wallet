@@ -74,6 +74,17 @@ Session continuity, sealed-session restoration, and pool restoration are exclude
 
 ## Implemented baseline
 
+The public relocation POST now authenticates exact replay from retained approval.
+It compares destination and source generation before sending the pinned request
+digest to Console. A replacement factor proof is not consumed. Console compares
+the digest with the existing journal and returns safe progress without checking
+the current catalog or starting work. The private journal E2E covers replay after
+restart during a later return move. The public D1 E2E covers credential retirement,
+revocation, changed request rejection, and dispatch using a recording binding.
+These are component checks; composed regional POST routing remains unverified.
+New move admission still requires participant preparation and fresh-proof HTTP wiring.
+
+
 The gateway now has a placement/progress read route extension. It validates the
 wallet/move locator, authenticates the full owner or bounded move reader, and
 calls only the directory's existing safe read endpoints. Retired credentials
@@ -83,8 +94,7 @@ it does not prove deployed routing or assembled Console integration.
 The hosted gateway composition installs this extension with its scoped signer
 database, existing authorization service, configured origins, and Console binding.
 Readiness requires both relocation tables. Regional dispatch during a move and
-composed Console verification remain unfinished. Admission and exact POST replay
-also remain unfinished.
+composed Console verification remain unfinished. New admission remains unfinished.
 
 
 The move-read authentication component now checks the original credential digest,

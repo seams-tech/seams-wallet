@@ -54,7 +54,7 @@ const bundle = await build({
       export { emailOtpChallengeRecord } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRecords';
       export { prepareD1TenantStatement } from './packages/wallet-server/src/core/d1TenantStore';
       export { buildEmailOtpEnrollmentFixture } from './tests/unit/helpers/emailOtpAuthMethod.fixtures';
-      export { WalletPlacementReadRoutes } from './packages/wallet-server/src/router/cloudflare/runtime/walletPlacementReads';
+      export { WalletPlacementRoutes } from './packages/wallet-server/src/router/cloudflare/runtime/walletPlacementRoutes';
       export { WalletRelocationReadAccess } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationReadAccess';
       export { WalletRelocationOwnerRequest } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationOwnerRequest';
       export { D1WalletRelocationApprovals } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationApprovals';
@@ -472,6 +472,29 @@ async function verifyRelocationChallenges(database, fixture, session, nowMs) {
   };
 }
 
+function relocationPostRequest(
+  binding,
+  token,
+  destinationRegion = binding.destinationRegion,
+  expectedGeneration = binding.sourceGeneration,
+) {
+  return new Request('https://gateway.example.test/wallet/placement/v1/relocations', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Origin: binding.origin,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      walletId: binding.walletId,
+      moveId: binding.moveId,
+      destinationRegion,
+      expectedGeneration,
+      sourceProof: null,
+    }),
+  });
+}
+
 function placementReadRequest(binding, token, path) {
   return new Request(
     `https://gateway.example.test/wallet/placement/v1${path}?walletId=${encodeURIComponent(binding.walletId)}`,
@@ -759,7 +782,7 @@ async function verifyRelocationPasskey(database) {
   assert.ok(readAccess);
   assert.equal(readAccess.binding.encoded(), binding.encoded());
   const directory = new PlacementDirectoryRecorder();
-  const routes = new api.WalletPlacementReadRoutes({
+  const routes = new api.WalletPlacementRoutes({
     database,
     scope,
     tenantId: issued.session.tenantId,
@@ -816,6 +839,45 @@ async function verifyRelocationPasskey(database) {
     401,
   );
   assert.equal(directory.requests.length, 1);
+  assert.equal((await routes.handle(relocationPostRequest(binding, 'wrong-token'))).status, 401);
+  assert.equal(
+    (await routes.handle(relocationPostRequest(binding, issued.operationCredential.token, 'US')))
+      .status,
+    409,
+  );
+  assert.equal(
+    (
+      await routes.handle(
+        relocationPostRequest(
+          binding,
+          issued.operationCredential.token,
+          binding.destinationRegion,
+          2,
+        ),
+      )
+    ).status,
+    409,
+  );
+  assert.equal(
+    (await routes.handle(relocationPostRequest(retiredBinding, issued.operationCredential.token)))
+      .status,
+    401,
+  );
+  assert.equal(directory.requests.length, 1);
+  const replay = await routes.handle(
+    relocationPostRequest(binding, issued.operationCredential.token),
+  );
+  assert.equal(replay.status, 404);
+  assert.equal(replay.headers.get('cache-control'), 'no-store');
+  assert.equal(directory.requests.length, 2);
+  assert.deepEqual(directory.requests[1], {
+    path: '/internal/wallet-placement/v1/relocation-replay',
+    body: {
+      wallet: directory.requests[0].body.wallet,
+      moveId: binding.moveId,
+      requestDigest: binding.requestDigestHex,
+    },
+  });
 
   assert.equal(
     await authorizationSessions.readWalletSessionExactOperationContextByCredential({
@@ -951,7 +1013,11 @@ async function verifyRelocationPasskey(database) {
   assert.equal(revoked.kind, 'revoked_method');
   assert.equal(await api.WalletRelocationReadAccess.authenticate(readInput), null);
   assert.equal((await routes.handle(statusRequest)).status, 401);
-  assert.equal(directory.requests.length, 1);
+  assert.equal(
+    (await routes.handle(relocationPostRequest(binding, issued.operationCredential.token))).status,
+    401,
+  );
+  assert.equal(directory.requests.length, 2);
 
   await assert.rejects(database.batch(beforeRevocation.commitPrerequisites));
   assert.equal((await store.read(secondBinding)).state, 'issued');
@@ -960,6 +1026,7 @@ async function verifyRelocationPasskey(database) {
     retiredInitiatingSessionRejectsApprovalWithoutConsumingProof: true,
     moveReadSurvivesSessionRetirementButRejectsRevocation: true,
     httpMoveReadDispatchIsAuthenticatedAndNeverStartsWork: true,
+    httpReplayUsesPinnedDigestAndRejectsChangedRequest: true,
     moveReadRejectsWrongCredentialOriginScopeMoveAndExpiry: true,
     scope:
       'Real initiating-session authentication, passkey approval persistence and transactional guards; excludes HTTP admission and transfer',
