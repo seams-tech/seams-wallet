@@ -1,8 +1,9 @@
+import type { WalletId } from '@shared/utils/domainIds';
 import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { D1DatabaseLike, D1ResultLike } from '../../../../storage/tenantRoute';
 import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
 import type { D1TenantScope } from '../../../../core/d1TenantStore';
-import type { WalletRelocationChallengeBinding } from './d1WalletRelocationChallenges';
+import { WalletRelocationChallengeBinding } from './d1WalletRelocationChallenges';
 import { verifyWalletRelocationEmailOtp } from './d1WalletRelocationEmailOtp';
 import type { WalletRelocationFactorVerification } from './d1WalletRelocationOwner';
 import type { CloudflareD1EmailOtpChallengeVerifier } from '../emailOtp/d1EmailOtpChallengeVerifier';
@@ -120,6 +121,31 @@ export class D1WalletRelocationApprovals {
     const approval = await this.read(input.binding);
     if (!approval) throw new Error('Relocation approval was not recorded');
     return { kind: 'approved', approval };
+  }
+
+  async find(walletId: WalletId, moveId: string): Promise<StoredApproval | null> {
+    const row = await this.database
+      .prepare(
+        `SELECT binding_json FROM wallet_relocation_approvals
+      WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
+        AND wallet_id = ?5 AND move_id = ?6`,
+      )
+      .bind(
+        this.scope.namespace,
+        this.scope.orgId,
+        this.scope.projectId,
+        this.scope.envId,
+        walletId,
+        moveId,
+      )
+      .first<Record<string, unknown>>();
+    if (!row) return null;
+    if (typeof row.binding_json !== 'string')
+      throw new Error('Stored relocation binding is invalid');
+    const binding = WalletRelocationChallengeBinding.decode(row.binding_json);
+    if (binding.walletId !== walletId || binding.moveId !== moveId)
+      throw new Error('Stored relocation binding is inconsistent');
+    return this.read(binding);
   }
 
   // A stored outcome is historical evidence. Reads do not authorize new admission or status access.

@@ -66,6 +66,43 @@ export class WalletRelocationChallengeBinding {
     );
   }
 
+  static decode(encoded: string): WalletRelocationChallengeBinding {
+    const raw: unknown = JSON.parse(encoded);
+    if (
+      !Array.isArray(raw) ||
+      raw.length !== 11 ||
+      raw[0] !== 'seams/wallet-relocation-challenge/v1'
+    )
+      throw invalid();
+    const [
+      ,
+      walletId,
+      moveId,
+      requestDigestHex,
+      sourceGeneration,
+      destinationRegion,
+      authorityId,
+      walletAuthMethodId,
+      credentialDigestHex,
+      credentialExpiresAtMs,
+      origin,
+    ] = raw;
+    const binding = WalletRelocationChallengeBinding.parse({
+      walletId,
+      moveId,
+      requestDigestHex,
+      sourceGeneration,
+      destinationRegion,
+      authorityId,
+      walletAuthMethodId,
+      credentialDigestHex,
+      credentialExpiresAtMs,
+      origin,
+    });
+    if (binding.encoded() !== encoded) throw invalid();
+    return binding;
+  }
+
   encoded(): string {
     return this.#canonical;
   }

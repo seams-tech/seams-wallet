@@ -24,6 +24,16 @@ const tables = [
   'wallet_session_hosted_credentials_v2',
   'wallet_session_hosted_exchange_codes_v2',
 ];
+class PlacementDirectoryRecorder {
+  requests = [];
+
+  async fetch(request) {
+    assert.equal(request.headers.get('authorization'), null);
+    this.requests.push({ path: new URL(request.url).pathname, body: await request.json() });
+    return Response.json({ state: 'unavailable', code: 'not_found' }, { status: 404 });
+  }
+}
+
 await mkdir(output, { recursive: true });
 const bundle = await build({
   bundle: true,
@@ -44,6 +54,7 @@ const bundle = await build({
       export { emailOtpChallengeRecord } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRecords';
       export { prepareD1TenantStatement } from './packages/wallet-server/src/core/d1TenantStore';
       export { buildEmailOtpEnrollmentFixture } from './tests/unit/helpers/emailOtpAuthMethod.fixtures';
+      export { WalletPlacementReadRoutes } from './packages/wallet-server/src/router/cloudflare/runtime/walletPlacementReads';
       export { WalletRelocationReadAccess } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationReadAccess';
       export { WalletRelocationOwnerRequest } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationOwnerRequest';
       export { D1WalletRelocationApprovals } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationApprovals';
@@ -461,6 +472,15 @@ async function verifyRelocationChallenges(database, fixture, session, nowMs) {
   };
 }
 
+function placementReadRequest(binding, token, path) {
+  return new Request(
+    `https://gateway.example.test/wallet/placement/v1${path}?walletId=${encodeURIComponent(binding.walletId)}`,
+    {
+      headers: { Authorization: `Bearer ${token}`, Origin: binding.origin },
+    },
+  );
+}
+
 async function authenticateRelocationOwner(authorizationSessions, issued, nowMs) {
   const origin = api.parseSessionOrigin('https://wallet.example.test');
   const owner = await api.WalletRelocationOwnerRequest.authenticate({
@@ -738,6 +758,65 @@ async function verifyRelocationPasskey(database) {
   const readAccess = await api.WalletRelocationReadAccess.authenticate(readInput);
   assert.ok(readAccess);
   assert.equal(readAccess.binding.encoded(), binding.encoded());
+  const directory = new PlacementDirectoryRecorder();
+  const routes = new api.WalletPlacementReadRoutes({
+    database,
+    scope,
+    tenantId: issued.session.tenantId,
+    allowedOrigins: [binding.origin],
+    authorizationSessions,
+    directory,
+  });
+  const statusRequest = placementReadRequest(
+    binding,
+    issued.operationCredential.token,
+    `/relocations/${binding.moveId}`,
+  );
+  const status = await routes.handle(statusRequest);
+  assert.equal(status.status, 404);
+  assert.equal(status.headers.get('cache-control'), 'no-store');
+  assert.deepEqual(directory.requests, [
+    {
+      path: '/internal/wallet-placement/v1/relocation-status',
+      body: {
+        wallet: {
+          namespace: scope.namespace,
+          organizationId: scope.orgId,
+          projectId: scope.projectId,
+          environmentId: scope.envId,
+          walletId: binding.walletId,
+        },
+        moveId: binding.moveId,
+      },
+    },
+  ]);
+  assert.equal(
+    (await routes.handle(placementReadRequest(binding, issued.operationCredential.token, '')))
+      .status,
+    401,
+  );
+  assert.equal(
+    (
+      await routes.handle(
+        placementReadRequest(binding, 'wrong-token', `/relocations/${binding.moveId}`),
+      )
+    ).status,
+    401,
+  );
+  assert.equal(
+    (
+      await routes.handle(
+        placementReadRequest(
+          binding,
+          issued.operationCredential.token,
+          `/relocations/${retiredBinding.moveId}`,
+        ),
+      )
+    ).status,
+    401,
+  );
+  assert.equal(directory.requests.length, 1);
+
   assert.equal(
     await authorizationSessions.readWalletSessionExactOperationContextByCredential({
       tenantId: issued.session.tenantId,
@@ -871,12 +950,16 @@ async function verifyRelocationPasskey(database) {
   });
   assert.equal(revoked.kind, 'revoked_method');
   assert.equal(await api.WalletRelocationReadAccess.authenticate(readInput), null);
+  assert.equal((await routes.handle(statusRequest)).status, 401);
+  assert.equal(directory.requests.length, 1);
+
   await assert.rejects(database.batch(beforeRevocation.commitPrerequisites));
   assert.equal((await store.read(secondBinding)).state, 'issued');
   assert.equal((await api.verifyWalletRelocationPasskey(freshInput)).kind, 'denied');
   return {
     retiredInitiatingSessionRejectsApprovalWithoutConsumingProof: true,
     moveReadSurvivesSessionRetirementButRejectsRevocation: true,
+    httpMoveReadDispatchIsAuthenticatedAndNeverStartsWork: true,
     moveReadRejectsWrongCredentialOriginScopeMoveAndExpiry: true,
     scope:
       'Real initiating-session authentication, passkey approval persistence and transactional guards; excludes HTTP admission and transfer',
