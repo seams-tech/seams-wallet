@@ -57,7 +57,7 @@ export function createApplicationPreferences(
       onConfirmationConfigChange: state.onConfirmationConfigChange.bind(state),
       onCurrentWalletChange: state.onCurrentWalletChange.bind(state),
       getConfirmationConfig: state.getConfirmationConfig.bind(state),
-      setConfirmBehavior: preferences.setConfirmBehavior.bind(preferences),
+      setConfirmationBehavior: preferences.setConfirmationBehavior.bind(preferences),
       setConfirmationConfig: preferences.setConfirmationConfig.bind(preferences),
       flush: preferences.flush.bind(preferences),
     },
@@ -77,7 +77,7 @@ class ApplicationPreferences {
     private readonly walletIframe: Pick<WalletIframeCoordinator, 'requireRouter'>,
   ) {}
 
-  setConfirmBehavior(behavior: 'requireClick' | 'skipClick'): void {
+  setConfirmationBehavior(behavior: 'requireClick' | 'skipClick'): void {
     this.setConfirmationConfig({ behavior });
   }
 

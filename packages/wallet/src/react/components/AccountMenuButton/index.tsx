@@ -286,7 +286,7 @@ const AccountMenuButtonInner: React.FC<
       behavior: newBehavior,
       autoProceedDelay: newBehavior === 'skipClick' ? 0 : (current?.autoProceedDelay ?? 0),
     }));
-    seams.preferences.setConfirmBehavior(newBehavior);
+    seams.preferences.setConfirmationBehavior(newBehavior);
   };
 
   const handleSetDelay = (delay: number) => {

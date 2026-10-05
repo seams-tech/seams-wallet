@@ -237,7 +237,7 @@ export interface SeamsContextType {
   refreshAccountData: () => Promise<void>;
 
   // Confirmation configuration functions
-  setConfirmBehavior: (behavior: ConfirmationBehavior) => void;
+  setConfirmationBehavior: (behavior: ConfirmationBehavior) => void;
   setConfirmationConfig: (config: Partial<ConfirmationConfig>) => void;
   getConfirmationConfig: () => ConfirmationConfig;
 

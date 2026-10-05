@@ -450,6 +450,10 @@ a declaration-level pass before declaring the migration complete.
   Remove redundant React forwarding closures. Rotation authorization and email
   challenge internalization remain under the broader consolidation gates.
 
+- [x] Rename the confirmation preference setter to `setConfirmationBehavior`.
+  Update React, client/host adapters, and preference tests. Reuse bound preference
+  methods in React; preserve synchronous reads and acknowledged write ordering.
+
 - [ ] Audit current declarations and consumers in public SDK, tests, examples,
   docs, and private Console. Classify each row as rename, consolidation, internal
   move, or intentional behavior change; record unresolved contract differences.

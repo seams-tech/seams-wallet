@@ -201,7 +201,7 @@ test.describe('Wallet iframe preferences sync', () => {
 
           seams.preferences.setConfirmationConfig({ uiMode: 'drawer' });
           const optimisticUiMode = seams.preferences.getConfirmationConfig().uiMode;
-          seams.preferences.setConfirmBehavior('skipClick');
+          seams.preferences.setConfirmationBehavior('skipClick');
           const optimisticBehavior = seams.preferences.getConfirmationConfig().behavior;
           const publicPatchMirrored = await waitFor(() => {
             const config = seams.preferences.getConfirmationConfig();

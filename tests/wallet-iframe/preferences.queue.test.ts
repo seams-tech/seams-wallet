@@ -92,7 +92,7 @@ function startWrites(): void {
       (window as any).prefFailed.bind(null, 'concurrent'),
     );
   seams.preferences.setCurrentWallet(refs.toWalletId('bob.testnet'));
-  seams.preferences.setConfirmBehavior('skipClick');
+  seams.preferences.setConfirmationBehavior('skipClick');
 }
 function readProjection() {
   const { seams, results } = (window as any).preferenceProbe;

@@ -165,7 +165,7 @@ void seams.devices.remove({
   },
 });
 
-seams.preferences.setConfirmBehavior('requireClick');
+seams.preferences.setConfirmationBehavior('requireClick');
 void seams.preferences.getConfirmationConfig();
 
 // @ts-expect-error Use signAndSendTransaction for EVM submission.
@@ -212,3 +212,6 @@ void seams.recovery.getWalletRecoveryCodeStatus;
 void seams.recovery.acknowledgeWalletRecoveryCodeBackup;
 // @ts-expect-error Use recovery.rotateCodes.
 void seams.recovery.rotateWalletRecoveryCodes;
+
+// @ts-expect-error Use preferences.setConfirmationBehavior.
+void seams.preferences.setConfirmBehavior;

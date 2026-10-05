@@ -1882,3 +1882,28 @@ This resolves the previously recorded replay/unlock gate. Direct rotation,
 Other network observers detach only when their observation finishes. Keep that
 point after the scenario's last WebAuthn operation; they must not be used as
 mid-flow snapshots that detach an active test authenticator.
+
+### Confirmation preference naming checkpoint
+
+The public and React setter is now `setConfirmationBehavior`. Client and host
+adapters, the preference manager, account-menu callers, and existing preference
+scenarios use that name. A negative type fixture rejects `setConfirmBehavior`.
+React directly reuses the bound behavior setter, configuration setter, and
+configuration getter, removing three forwarding closures.
+
+The setter still updates the application preference view synchronously and queues
+its write. `flush`, wallet-bound ordering, rollback, signing admission, and durable
+host acknowledgement keep their existing contracts. Wire message names and
+iframe protocol 4.0.0 are unchanged. Private source searches found no callers of
+the old preference setter.
+
+Scoped verification and package integrity are recorded in
+`evidence/refactor-170-preference-name-20261005.json`. The full React remount/SSR,
+worker-loading, browser, and release-consumer acceptance gates remain open.
+
+Eight preference browser cases pass across the initial run and targeted fixture
+rerun. The persistence fixture correction is committed separately as `a66bb657`;
+it aligns the stub's selected-wallet snapshot with its real preference manager.
+The production custom-review Arc signing scenario passes (27.3s). Types, build,
+packed declarations, runtime boundaries, and freshness pass. SDK production source
+adds 16 lines and removes 30 (net −14), excluding type fixtures.

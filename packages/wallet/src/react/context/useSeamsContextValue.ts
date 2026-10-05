@@ -118,23 +118,9 @@ export function useSeamsContextValue(args: {
     [seams],
   );
 
-  const setConfirmBehavior: SeamsContextType['setConfirmBehavior'] = useCallback(
-    (behavior) => {
-      seams.preferences.setConfirmBehavior(behavior);
-    },
-    [seams],
-  );
-
-  const setConfirmationConfig: SeamsContextType['setConfirmationConfig'] = useCallback(
-    (config) => {
-      seams.preferences.setConfirmationConfig(config);
-    },
-    [seams],
-  );
-
-  const getConfirmationConfig: SeamsContextType['getConfirmationConfig'] = useCallback(() => {
-    return seams.preferences.getConfirmationConfig();
-  }, [seams]);
+  const setConfirmationBehavior = seams.preferences.setConfirmationBehavior;
+  const setConfirmationConfig = seams.preferences.setConfirmationConfig;
+  const getConfirmationConfig = seams.preferences.getConfirmationConfig;
 
   return useMemo(
     () => ({
@@ -157,7 +143,7 @@ export function useSeamsContextValue(args: {
       accountInputState,
       setInputUsername,
       refreshAccountData,
-      setConfirmBehavior,
+      setConfirmationBehavior,
       setConfirmationConfig,
       getConfirmationConfig,
       themeCapabilities: {
@@ -184,7 +170,7 @@ export function useSeamsContextValue(args: {
       accountInputState,
       setInputUsername,
       refreshAccountData,
-      setConfirmBehavior,
+      setConfirmationBehavior,
       setConfirmationConfig,
       getConfirmationConfig,
       hostSetTheme,

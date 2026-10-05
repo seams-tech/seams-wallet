@@ -1115,7 +1115,7 @@ export interface PreferencesCapability {
   getCurrentWalletId(): WalletId | null;
   onConfirmationConfigChange(callback: (config: ConfirmationConfig) => void): () => void;
   onCurrentWalletChange(callback: (walletId: WalletId | null) => void): () => void;
-  setConfirmBehavior(behavior: ConfirmationBehavior): void;
+  setConfirmationBehavior(behavior: ConfirmationBehavior): void;
   setConfirmationConfig(config: Partial<ConfirmationConfig>): void;
   getConfirmationConfig(): ConfirmationConfig;
 }

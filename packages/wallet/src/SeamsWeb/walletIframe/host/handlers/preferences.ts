@@ -10,7 +10,7 @@ export function createPreferencesWalletIframeHandlers(deps: HandlerDeps): Handle
       if (walletId) {
         pm.preferences.setCurrentWallet(toWalletId(walletId));
       }
-      await pm.preferences.setConfirmBehavior(behavior);
+      await pm.preferences.setConfirmationBehavior(behavior);
       respondOkResult(deps, req.requestId, deps.readPreferences());
     },
 

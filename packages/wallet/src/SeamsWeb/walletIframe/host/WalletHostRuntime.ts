@@ -135,11 +135,11 @@ export class WalletHostRuntime {
   readonly keys: KeyExportCapability;
   readonly preferences: Omit<
     PreferencesCapability,
-    'setConfirmationConfig' | 'setConfirmBehavior' | 'onCurrentWalletChange'
+    'setConfirmationConfig' | 'setConfirmationBehavior' | 'onCurrentWalletChange'
   > &
     Pick<
       UserPreferencesManager,
-      'setConfirmationConfig' | 'setConfirmBehavior' | 'onCurrentWalletChange'
+      'setConfirmationConfig' | 'setConfirmationBehavior' | 'onCurrentWalletChange'
     >;
   readonly auth: WalletAuthCommands;
   readonly registration: RegistrationCapability;
@@ -198,7 +198,7 @@ export class WalletHostRuntime {
       getCurrentWalletId: userPreferences.getCurrentWalletId.bind(userPreferences),
       onConfirmationConfigChange: userPreferences.onConfirmationConfigChange.bind(userPreferences),
       onCurrentWalletChange: userPreferences.onCurrentWalletChange.bind(userPreferences),
-      setConfirmBehavior: userPreferences.setConfirmBehavior.bind(userPreferences),
+      setConfirmationBehavior: userPreferences.setConfirmationBehavior.bind(userPreferences),
       setConfirmationConfig: userPreferences.setConfirmationConfig.bind(userPreferences),
       getConfirmationConfig: userPreferences.getConfirmationConfig.bind(userPreferences),
     };

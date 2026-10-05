@@ -4130,7 +4130,7 @@ export class WalletIframeRouter {
     return res.result;
   }
 
-  async setConfirmBehavior(
+  async setConfirmationBehavior(
     behavior: 'requireClick' | 'skipClick',
     walletId?: string | null,
   ): Promise<void> {

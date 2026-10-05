@@ -239,7 +239,7 @@ export class UserPreferencesManager {
     await this.loadSettingsForWallet(walletId);
   }
 
-  setConfirmBehavior(behavior: 'requireClick' | 'skipClick'): Promise<void> {
+  setConfirmationBehavior(behavior: 'requireClick' | 'skipClick'): Promise<void> {
     return this.setConfirmationConfig({ behavior });
   }
 
