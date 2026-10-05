@@ -841,7 +841,7 @@ branches work, and applications no longer orchestrate internal activation steps.
 
 ### 2. Finish the public API and delete replaced paths
 
-- [ ] Audit the final public declarations and repository callers against R171's
+- [x] Audit the final public declarations and repository callers against R171's
   migration map. Fix remaining mismatches in SDK, React, examples, intended app,
   and public documentation. Record private Console changes for exact-release
   adoption separately.

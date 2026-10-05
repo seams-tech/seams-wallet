@@ -2824,3 +2824,36 @@ are removed. The iframe protocol advances to 13.0.0.
 Production evidence: `evidence/refactor-170-device-removal-proof-20261005.json`.
 This is a prerequisite for the accepted email unlock API; it does not reopen the
 broader deferred device-linking workstream.
+
+
+## Final public API audit — 2026-10-05
+
+The unified email API is implemented in `8ecbea72`. The initial table above is
+historical. `auth.requestEmailCode` now returns the existing host-owned login
+flow. `auth.unlockWithEmailCode` submits through that flow. ECDSA, NEAR-only,
+added-email authority, and pending ECDSA activation run inside the host.
+The specialized public methods, their router methods, RPC payloads, request
+routes, and duplicate application timing/result adapters are deleted.
+`startGoogleSignIn` retains registration and hosted login flow controls.
+See `evidence/refactor-170-unified-email-unlock-20261005.json`.
+
+Public source declarations, packed consumers, React, public apps, and intended
+app callers match R171's grouped names. No replaced callable names remain in
+these application callers. Type fixtures retain negative examples that verify
+removed methods, routes, parent bearer tokens, and signing-purpose arguments
+are rejected. Internal execution method names remain internal.
+
+Private exact-release adoption remains a release task. The read-only caller
+audit found these six locations in `seams-monorepo`:
+
+- `apps/wallet-console/src/flows/demo/hooks/useDemoThresholdAccountState.ts`: `auth.getWalletSession` → `auth.getSession`.
+- `apps/wallet-console/src/flows/demo/hooks/useDemoNearActions.tsx`: same rename.
+- `apps/wallet-console/src/flows/demo/hooks/useDemoWalletSessionLifecycle.ts`: `initWalletIframe` → `connection.connect`.
+- `apps/seams-site/src/flows/demo/hooks/useDemoThresholdAccountState.ts`: `auth.getWalletSession` → `auth.getSession`.
+- `apps/seams-site/src/flows/demo/hooks/useDemoNearActions.tsx`: same rename.
+- `apps/seams-site/src/flows/demo/hooks/useDemoWalletSessionLifecycle.ts`: `initWalletIframe` → `connection.connect`.
+
+The repository still declares package version 0.8.0. These development changes
+are unpublished. Publish a new exact release and deploy its matching application
+client and wallet host. Protocol 14.0.0 rejects older hosts and clients.
+Do not change private consumers before their exact-release adoption.

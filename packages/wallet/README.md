@@ -14,6 +14,38 @@ React integrations support React 18 and 19. Import the provider and UI from
 Keep the application package, wallet-origin assets, and
 `@seams/wallet-server@0.8.0` on the matching release.
 
+## Next release migration (unreleased)
+
+The development API groups calls under `auth`, `connection`, `config`, `events`,
+`registration`, and the chain namespaces. See the
+[complete migration map](../../docs/refactor-171.md#complete-operation-migration-map).
+Use `auth.lock()` to end the session while retaining valid durable presignatures.
+
+Custom email unlock uses a host-owned challenge:
+
+```ts
+const requested = await seams.auth.requestEmailCode({
+  method: 'google',
+  idToken,
+  target: { kind: 'wallet', walletId },
+});
+if (!requested.ok) throw new Error(requested.error.message);
+const result = await seams.auth.unlockWithEmailCode({
+  challenge: requested.value,
+  code,
+});
+if (!result.ok) throw new Error(result.error.message);
+```
+
+For an existing local email method, request with
+`{ method: 'email', walletId, email }`. The challenge supports `resend()` and
+`cancel()`. Use the replacement challenge returned by a successful resend.
+The SDK selects signers and completes pending activation internally.
+
+These changes require a new release with matching client and host assets.
+The development protocol is `14.0.0`; it rejects older protocol versions.
+The published 0.8.0 release does not contain this migration.
+
 ## React quick start
 
 The three required values are the wallet origin, Gateway/relayer URL, and

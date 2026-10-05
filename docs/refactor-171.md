@@ -173,8 +173,14 @@ session states and supported explicit-wallet queries.
 | `auth.prefillRouterAbEcdsaDerivationPresignaturePool` | Internal targeted preparation |
 
 ```ts
-const challenge = await seams.auth.requestEmailCode({ ... });
-await seams.auth.unlockWithEmailCode({ challenge, code });
+const requested = await seams.auth.requestEmailCode({
+  method: 'google',
+  idToken,
+  target: { kind: 'wallet', walletId },
+});
+if (!requested.ok) throw new Error(requested.error.message);
+const unlocked = await seams.auth.unlockWithEmailCode({ challenge: requested.value, code });
+if (!unlocked.ok) throw new Error(unlocked.error.message);
 const flow = await seams.auth.startGoogleSignIn({ ... });
 ```
 
@@ -538,16 +544,16 @@ a declaration-level pass before declaring the migration complete.
 R171 shares the four-task completion checklist in
 [R170](refactor-170.md#essential-remaining-work). Its remaining implementation is:
 
-- [ ] Finish `auth.unlockWithEmailCode` and its custom/hosted callers. Preserve
+- [x] Finish `auth.unlockWithEmailCode` and its custom/hosted callers. Preserve
   ordinary, NEAR-only, added-method, and pending email activation behavior.
   Delete replaced specialized public unlock methods and transport paths.
-- [ ] Reconcile public declarations with this migration map. Remove remaining
+- [x] Reconcile public declarations with this migration map. Remove remaining
   replaced names and callers in SDK, React, examples, intended app, and docs.
   Confirm the returned email flow controls remain usable and well named.
 - [ ] Run focused production E2E, type fixtures, packed-consumer checks, and
   application dependency/size checks for the changed surface. Reuse existing
   valid evidence for completed migrations.
-- [ ] Record migration notes and the matching client/host protocol requirement.
+- [x] Record migration notes and the matching client/host protocol requirement.
   Identify private Console adoption work; exact released-package adoption is a
   separate release task.
 
