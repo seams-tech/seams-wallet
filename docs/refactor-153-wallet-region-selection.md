@@ -298,6 +298,20 @@ WASM compilation, and the bloat check pass. Evidence remains in
 need composed coverage. The current receipt digests pool records only; activation
 and reservation inventory must join the complete participant snapshot.
 
+The wallet ECDSA freeze now inventories all four store collections: pool records,
+registration activations, linked reservations, and completed effects. It hashes
+exact stored ciphertext and metadata in stable key order, including nullable
+indexes, SQL versions, authorization bytes, results, and timestamps. Production
+readers validate activation and reservation ciphertext before sealing the receipt.
+The required `wallet_records_digest_hex` field distinguishes this inventory from
+earlier pool-only receipts. An earlier receipt fails closed at the persistence
+boundary and cannot stand in for the expanded inventory. The storage E2E verifies
+eight selected records, including an activation and terminal effect, and exact
+receipt replay after reopening. Linked-reservation data still needs composed
+coverage. This inventory is not yet exported through bounded chunks, and it does
+not cover the other SigningWorker stores or the separate presign-session objects.
+Evidence remains in `.artifacts/r153/ecdsa-snapshot-20261005/`.
+
 Retained evidence:
 `.artifacts/r153/execution-journal-20261004/`, receipt SHA-256
 `02184ddd17816901bf2413115c35ca33a43bd90a269fedaeffb7f6990d8af555`.

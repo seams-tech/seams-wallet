@@ -361,7 +361,7 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
     else {
         panic!("settled pool must freeze");
     };
-    assert_eq!(receipt.record_count, 6);
+    assert_eq!(receipt.record_count, 8);
     assert_eq!(receipt.scope, owner);
     let activation_error = with_store(&path, &env, |store| {
         store.activate(
@@ -422,6 +422,8 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         "unrecorded_delayed_refill_rejected": true,
         "activation_writes_rejected_while_draining_and_frozen": true,
         "frozen_receipt_exact_retry": true,
+        "snapshot_includes_pool_activation_and_terminal_effect": true,
+        "snapshot_record_count": receipt.record_count,
         "other_wallet_pool_admission_preserved": true,
         "scope": "Production wallet store and cipher on SQLite; excludes wallet-wide fencing and HTTP authorization"
     });

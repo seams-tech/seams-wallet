@@ -11,6 +11,7 @@ use crate::ordinary_inactive_signer_material as linked;
 use serde::de::DeserializeOwned;
 
 mod relocation;
+mod snapshot;
 pub use relocation::{
     SigningWorkerPoolAdmissionV1, SigningWorkerPoolFreezeCommandV1,
     SigningWorkerPoolFreezeReceiptV1, SigningWorkerPoolFreezeRequestV1,
