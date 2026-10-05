@@ -123,8 +123,13 @@ commit each chunk, its acknowledgement, and progress together. Exact retries ret
 the original acknowledgement. Verification checks the complete digest, canonical
 bytes, authority bindings, retired history, and record count before restoring public
 history and the original snapshot. The destination remains fenced, including after
-verification. Runtime restart/race and chunk verification, physical destination
-preparation, and coordinator integration for linked sessions remain unfinished.
+verification. The Worker E2E now covers exact preparation replay, out-of-order and
+conflicting chunk rejection, acknowledgements after object eviction, and rejection
+of incomplete or invalid history after complete transport. Failed verification
+leaves authority and snapshot unavailable after eviction. Evidence is retained under
+`.artifacts/r153/linked-session-import-runtime-20261005/`. Successful historical
+restore, source freeze races, physical destination preparation, and coordinator
+integration for linked sessions remain unfinished.
 
 
 ECDSA transfer preserves SQL integers through the Worker JavaScript boundary.

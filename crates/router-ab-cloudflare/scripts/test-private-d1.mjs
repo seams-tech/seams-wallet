@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { verifyLinkedImportRejection } from './linked-presign-transfer-evidence.mjs';
 import { execFileSync } from 'node:child_process';
 import {
   createHash,
@@ -5510,6 +5511,7 @@ async function main() {
               consumedWalletDoMaterialRejected: true,
               terminalReplayAfterWalletDoEviction: true,
               lostReplyAfterCommitReplayed: true,
+              linkedImportRejection: await verifyLinkedImportRejection(topology, routerToSigningWorkerEcdsaAuthSecret, internalAuthSecret),
             }
           : {}),
         signatureSha256Hex: createHash('sha256')
