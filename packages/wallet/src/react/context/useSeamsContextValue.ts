@@ -3,7 +3,6 @@ import type { Dispatch, SetStateAction } from 'react';
 import { UnlockEventPhase } from '@/core/types/sdkSentEvents';
 import type { AccountInputState, LoginState, SeamsContextType } from '../types';
 import type { ThemeMode } from '@/core/types/seams';
-import type { DevicesCapability } from '@/SeamsWeb';
 import { useSDKFlowRuntime } from './useSDKFlowRuntime';
 import { useSeamsWithSdkFlow } from './useSeamsWithSdkFlow';
 import { buildReactLoggedOutLoginState } from './reactLoginStateBuilders';
@@ -55,18 +54,8 @@ export function useSeamsContextValue(args: {
     }
   }, [setLoginState, seams]);
 
-  const startDevice2LinkingFlow: SeamsContextType['startDevice2LinkingFlow'] = useCallback(
-    async (args) => {
-      const request: Parameters<DevicesCapability['startDevice2LinkingFlow']>[0] = args ?? {};
-      return await seamsWithSdkFlow.devices.startDevice2LinkingFlow(request);
-    },
-    [seamsWithSdkFlow],
-  );
-
-  const cancelDeviceLinking: SeamsContextType['cancelDeviceLinking'] =
-    useCallback(async () => {
-      await seams.devices.cancelDeviceLinking();
-    }, [seams]);
+  const startLinking = seamsWithSdkFlow.devices.startLinking;
+  const cancelLinking = seams.devices.cancelLinking;
 
   const unlock: SeamsContextType['unlock'] = useCallback(
     async (walletId, options) => {
@@ -156,8 +145,8 @@ export function useSeamsContextValue(args: {
       registerWallet,
       unlock,
       lock,
-      startDevice2LinkingFlow,
-      cancelDeviceLinking,
+      startLinking,
+      cancelLinking,
       signAndSendTransaction,
       signMessage,
       signDelegateAction,
@@ -183,8 +172,8 @@ export function useSeamsContextValue(args: {
       registerWallet,
       unlock,
       lock,
-      startDevice2LinkingFlow,
-      cancelDeviceLinking,
+      startLinking,
+      cancelLinking,
       signAndSendTransaction,
       signMessage,
       signDelegateAction,

@@ -215,12 +215,12 @@ export interface SeamsContextType {
   }>;
 
   // Device linking functions
-  startDevice2LinkingFlow: (args: StartDevice2LinkingFlowArgs) => Promise<{
+  startLinking: (args: StartDevice2LinkingFlowArgs) => Promise<{
     qrData: QrLinkedDeviceSessionPayloadV5;
     qrCodeDataURL: string;
   }>;
 
-  cancelDeviceLinking: () => Promise<void>;
+  cancelLinking: () => Promise<void>;
 
   // Login State
   loginState: LoginState;

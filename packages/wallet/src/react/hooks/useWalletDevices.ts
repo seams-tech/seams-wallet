@@ -10,7 +10,7 @@ import type { SeamsContextType } from '../types';
  */
 export type UseWalletDevicesResult = Pick<
   SeamsContextType,
-  'startDevice2LinkingFlow' | 'cancelDeviceLinking'
+  'startLinking' | 'cancelLinking'
 > & {
   /** Typed linked-device management: list, revoke. */
   devices: SeamsContextType['seams']['devices'];
@@ -20,8 +20,8 @@ export function useWalletDevices(): UseWalletDevicesResult {
   const ctx = useSeams();
   return useMemo(
     () => ({
-      startDevice2LinkingFlow: ctx.startDevice2LinkingFlow,
-      cancelDeviceLinking: ctx.cancelDeviceLinking,
+      startLinking: ctx.startLinking,
+      cancelLinking: ctx.cancelLinking,
       devices: ctx.seams.devices,
     }),
     [ctx],

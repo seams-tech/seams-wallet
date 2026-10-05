@@ -386,7 +386,7 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
     setLoadState({ kind: 'loading' });
     try {
       const result = await withLinkedDevicesLoadTimeout(
-        seamsRef.current.devices.listLinkedDevices({ walletId, limit: 50, cursor: null }),
+        seamsRef.current.devices.list({ walletId, limit: 50, cursor: null }),
       );
       if (loadSeq.current === seq) {
         setLoadState({
@@ -513,7 +513,7 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
     setRevokeState({ ...pending, submitting: true, error: null });
     setAnnouncement(`Removing ${pending.description}…`);
     try {
-      const result = await seams.devices.revokeLinkedDevice({
+      const result = await seams.devices.remove({
         walletId,
         walletAuthMethodId: pending.walletAuthMethodId,
         requestedAtMs: pending.requestedAtMs,

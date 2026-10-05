@@ -1784,3 +1784,32 @@ public receipts and source-artifact hash. Production build, source/consumer type
 strict packed declarations, runtime boundaries, freshness, and bloat checks pass.
 SDK production source adds 62 lines and removes 67 (net −5); E2E verification
 and documentation additions are separate.
+
+### Device API names checkpoint
+
+The public device capability now uses `startLinking`, `approveLinking`,
+`cancelLinking`, `list`, and `remove`. React context, QR components, device menus,
+the application command adapter, host handlers, and intended-app callers use the
+same names. The new device starts linking; the authorized device approves it.
+Two redundant React wrappers are removed. Negative type fixtures reject the old
+public names. Internal router methods and management ports retain their precise
+operation names. Wire messages and iframe protocol 4.0.0 are unchanged.
+
+Removal still accepts `requestedAtMs` and `sourceProof`. Existing passkey and
+email proofs bind that timestamp before submission. Generating another timestamp
+inside `remove` would invalidate the proof. The higher-level
+`registration.removeAuthMethod` already owns passkey proof preparation. Email
+challenge and returned-flow consolidation remain open and must move preparation
+and submission together. The rename does not weaken proof admission or change QR
+validation, pagination, activation, revocation, or material retirement.
+
+Private Console/site source searches found no callers of the retired device
+methods. Scoped verification is recorded in
+`evidence/refactor-170-device-names-20261005.json`. Full cancellation, expiry,
+selective worker loading, and cross-browser acceptance remain open.
+
+All eight selected browser cases and three production cases pass. Production
+cases cover lost activation/acknowledgement responses, third-device ECDSA signing,
+and email-authorized revocation after a refused commit. Source types, production
+build, packed declarations, runtime boundaries, freshness, and bloat checks pass.
+SDK production source adds 65 lines and removes 76 (net −11), excluding fixtures.

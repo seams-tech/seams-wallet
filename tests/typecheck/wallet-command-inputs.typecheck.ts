@@ -30,7 +30,7 @@ declare const getContext: () => DeviceLinkingWebContext;
 // @ts-expect-error Host linking requires authenticated ports.
 new DeviceLinkingDomain({ getContext });
 // @ts-expect-error Every device facade requires a cancellation command.
-createDevicesCapability({ ...devices, cancelDeviceLinking: undefined });
+createDevicesCapability({ ...devices, cancelLinking: undefined });
 // @ts-expect-error Device inventory cannot own an implicit unlock path.
 createDevicesCapability({ ...devices, ownerSessionRenewal: {} });
 

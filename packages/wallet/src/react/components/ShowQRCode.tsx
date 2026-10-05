@@ -76,8 +76,8 @@ type ActiveDevice2Flow = {
   };
 
 type Device2LinkingRuntime = {
-  readonly startDevice2LinkingFlow: ReturnType<typeof useSeams>['startDevice2LinkingFlow'];
-  readonly cancelDeviceLinking: ReturnType<typeof useSeams>['cancelDeviceLinking'];
+  readonly startLinking: ReturnType<typeof useSeams>['startLinking'];
+  readonly cancelLinking: ReturnType<typeof useSeams>['cancelLinking'];
   readonly refreshLoginState: ReturnType<typeof useSeams>['refreshLoginState'];
   readonly refreshAccountData: ReturnType<typeof useSeams>['refreshAccountData'];
   readonly setInputUsername: ReturnType<typeof useSeams>['setInputUsername'];
@@ -178,8 +178,8 @@ function reconcileActiveLinkedDevice(
 
 export function ShowQRCode({ isOpen, onClose, onEvent, onError }: ShowQRCodeProps) {
   const {
-    startDevice2LinkingFlow,
-    cancelDeviceLinking,
+    startLinking,
+    cancelLinking,
     refreshLoginState,
     refreshAccountData,
     setInputUsername,
@@ -195,8 +195,8 @@ export function ShowQRCode({ isOpen, onClose, onEvent, onError }: ShowQRCodeProp
   const activeFlowRef = useRef<ActiveDevice2Flow | null>(null);
   const initialEmailSendSessionRef = useRef<number | null>(null);
   const flowRuntimeRef = useRef<Device2LinkingRuntime>({
-    startDevice2LinkingFlow,
-    cancelDeviceLinking,
+    startLinking,
+    cancelLinking,
     refreshLoginState,
     refreshAccountData,
     setInputUsername,
@@ -206,8 +206,8 @@ export function ShowQRCode({ isOpen, onClose, onEvent, onError }: ShowQRCodeProp
     onError,
   });
   flowRuntimeRef.current = {
-    startDevice2LinkingFlow,
-    cancelDeviceLinking,
+    startLinking,
+    cancelLinking,
     refreshLoginState,
     refreshAccountData,
     setInputUsername,
@@ -225,7 +225,7 @@ export function ShowQRCode({ isOpen, onClose, onEvent, onError }: ShowQRCodeProp
     flow.cancelled = true;
     activeFlowRef.current = null;
     flowSessionRef.current += 1;
-    void flowRuntimeRef.current.cancelDeviceLinking().catch(() => undefined);
+    void flowRuntimeRef.current.cancelLinking().catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -294,7 +294,7 @@ export function ShowQRCode({ isOpen, onClose, onEvent, onError }: ShowQRCodeProp
 
     void (async () => {
       try {
-        const { qrCodeDataURL } = await runtime.startDevice2LinkingFlow({
+        const { qrCodeDataURL } = await runtime.startLinking({
           ...target,
           ...(runtime.accountIdRaw ? { accountId: toAccountId(runtime.accountIdRaw) } : {}),
           options: {

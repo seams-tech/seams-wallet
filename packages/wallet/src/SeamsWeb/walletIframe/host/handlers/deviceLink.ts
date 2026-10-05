@@ -248,7 +248,7 @@ export function createDeviceLinkWalletIframeHandlers(deps: HandlerDeps): Handler
       if (deps.respondIfCancelled(req.requestId)) return;
       const activationId = String(req.requestId || '').trim();
       if (!activationId) throw new Error('Device-link target-factor activation id is required');
-      const result = await pm.devices.startDevice2LinkingFlow({
+      const result = await pm.devices.startLinking({
         ...target,
         ...(ui ? { ui } : {}),
         ...(cameraId ? { cameraId } : {}),
@@ -293,7 +293,7 @@ export function createDeviceLinkWalletIframeHandlers(deps: HandlerDeps): Handler
     PM_CANCEL_DEVICE_LINKING: async (req: Req<'PM_CANCEL_DEVICE_LINKING'>) => {
       const pm = deps.getWalletRuntime();
       if (deps.respondIfCancelled(req.requestId)) return;
-      await pm.devices.cancelDeviceLinking();
+      await pm.devices.cancelLinking();
       activeTargetFactor.current = null;
       /* A scan parked on the Email OTP method chooser is part of what this
          cancels: rejecting the pending selection is what unparks that
@@ -315,7 +315,7 @@ export function createDeviceLinkWalletIframeHandlers(deps: HandlerDeps): Handler
       const { qrData, options } = req.payload!;
       if (deps.respondIfCancelled(req.requestId)) return;
       try {
-        const result = await pm.devices.scanAndLinkDevice(
+        const result = await pm.devices.approveLinking(
           parseQrLinkedDeviceSessionPayloadV5(qrData),
           {
             ...withProgress(deps, req.requestId, options || {}),
@@ -356,7 +356,7 @@ export function createDeviceLinkWalletIframeHandlers(deps: HandlerDeps): Handler
         limit: payload.limit,
         cursor: payload.cursor,
       });
-      const result = await pm.devices.listLinkedDevices({
+      const result = await pm.devices.list({
         walletId: String(request.walletId),
         limit: request.limit,
         cursor: request.cursor,
@@ -375,7 +375,7 @@ export function createDeviceLinkWalletIframeHandlers(deps: HandlerDeps): Handler
         walletAuthMethodId: payload.walletAuthMethodId,
         requestedAtMs: payload.requestedAtMs,
       });
-      const result = await pm.devices.revokeLinkedDevice({
+      const result = await pm.devices.remove({
         walletId: String(request.walletId),
         walletAuthMethodId: String(request.walletAuthMethodId),
         requestedAtMs: request.requestedAtMs,

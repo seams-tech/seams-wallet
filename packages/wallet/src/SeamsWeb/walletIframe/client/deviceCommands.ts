@@ -6,9 +6,9 @@ export function createApplicationDeviceCommands(
 ): DeviceCommands {
   const commands = new ApplicationDeviceCommands(walletIframe);
   return {
-    startDevice2LinkingFlow: commands.startDevice2LinkingFlow.bind(commands),
-    cancelDeviceLinking: commands.cancelDeviceLinking.bind(commands),
-    scanAndLinkDevice: commands.scanAndLinkDevice.bind(commands),
+    startLinking: commands.startLinking.bind(commands),
+    cancelLinking: commands.cancelLinking.bind(commands),
+    approveLinking: commands.approveLinking.bind(commands),
     linkedDeviceManagement: {
       listLinkedDevices: commands.listLinkedDevices.bind(commands),
       revokeLinkedDevice: commands.revokeLinkedDevice.bind(commands),
@@ -19,21 +19,21 @@ export function createApplicationDeviceCommands(
 class ApplicationDeviceCommands {
   constructor(private readonly walletIframe: Pick<WalletIframeCoordinator, 'requireRouter'>) {}
 
-  async startDevice2LinkingFlow(
-    args: Parameters<DeviceCommands['startDevice2LinkingFlow']>[0],
-  ): ReturnType<DeviceCommands['startDevice2LinkingFlow']> {
+  async startLinking(
+    args: Parameters<DeviceCommands['startLinking']>[0],
+  ): ReturnType<DeviceCommands['startLinking']> {
     const router = await this.walletIframe.requireRouter();
     return await router.startDevice2LinkingFlow(args);
   }
 
-  async cancelDeviceLinking(): Promise<void> {
+  async cancelLinking(): Promise<void> {
     const router = await this.walletIframe.requireRouter();
     await router.cancelDeviceLinking();
   }
 
-  async scanAndLinkDevice(
-    ...args: Parameters<DeviceCommands['scanAndLinkDevice']>
-  ): ReturnType<DeviceCommands['scanAndLinkDevice']> {
+  async approveLinking(
+    ...args: Parameters<DeviceCommands['approveLinking']>
+  ): ReturnType<DeviceCommands['approveLinking']> {
     const [qrData, options] = args;
     const router = await this.walletIframe.requireRouter();
     return await router.scanAndLinkDevice({ qrData, options });

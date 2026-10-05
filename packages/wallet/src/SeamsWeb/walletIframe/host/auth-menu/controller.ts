@@ -378,13 +378,13 @@ export class AuthMenuController {
       >;
     },
   ): Promise<StartDevice2LinkingFlowResults> =>
-    await this.deps.getWalletRuntime().devices.startDevice2LinkingFlow({
+    await this.deps.getWalletRuntime().devices.startLinking({
       ...target,
       options: callbacks,
     });
 
   private cancelDeviceLinking = async (): Promise<void> =>
-    await this.deps.getWalletRuntime().devices.cancelDeviceLinking();
+    await this.deps.getWalletRuntime().devices.cancelLinking();
 
   private async prepareRegistration(
     request: HostedAuthMenuOpenRequest,

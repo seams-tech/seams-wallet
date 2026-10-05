@@ -91,7 +91,7 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
   showCamera = true,
 }) => {
   const { theme, tokens } = useTheme();
-  const { cancelDeviceLinking } = useSeams();
+  const { cancelLinking } = useSeams();
   const scopedTokens = React.useMemo(
     () => (theme === 'dark' ? { dark: tokens } : { light: tokens }),
     [theme, tokens],
@@ -306,8 +306,8 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
     if (scannerState.kind === 'scanning') return;
     if (cancellationRequestedRef.current || completionReportedRef.current) return;
     cancellationRequestedRef.current = true;
-    void cancelDeviceLinking().catch(() => undefined);
-  }, [cancelDeviceLinking, scannerState.kind]);
+    void cancelLinking().catch(() => undefined);
+  }, [cancelLinking, scannerState.kind]);
 
   const handleClose = useCallback(() => {
     stopScanning();

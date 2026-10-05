@@ -440,6 +440,11 @@ a declaration-level pass before declaring the migration complete.
   Keep the resolved `configs` snapshot separate. See the configuration checkpoint
   in `refactor-170-inventory.md` for scoped verification.
 
+- [x] Rename the device capability to `startLinking`, `approveLinking`,
+  `cancelLinking`, `list`, and `remove`. Migrate React, host handlers, and intended
+  app callers. Keep timestamp-bound removal proofs intact; email proof-flow
+  internalization remains part of the consolidation work below.
+
 - [ ] Audit current declarations and consumers in public SDK, tests, examples,
   docs, and private Console. Classify each row as rename, consolidation, internal
   move, or intentional behavior change; record unresolved contract differences.

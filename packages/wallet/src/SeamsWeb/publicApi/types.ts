@@ -1024,24 +1024,24 @@ export interface RecoveryCapability {
 }
 
 export interface DevicesCapability {
-  startDevice2LinkingFlow(
+  startLinking(
     args: StartDevice2LinkingFlowArgs,
   ): Promise<StartDevice2LinkingFlowResults>;
 
-  cancelDeviceLinking(): Promise<void>;
+  cancelLinking(): Promise<void>;
 
-  scanAndLinkDevice(
+  approveLinking(
     qrData: QrLinkedDeviceSessionPayloadV5,
     options: ScanAndLinkDeviceOptionsDevice1,
   ): Promise<LinkDeviceResult>;
 
-  listLinkedDevices(args: {
+  list(args: {
     walletId: string;
     limit: number;
     cursor: string | null;
   }): Promise<LinkedDeviceListResultV1>;
 
-  revokeLinkedDevice(args: {
+  remove(args: {
     walletId: string;
     walletAuthMethodId: string;
     requestedAtMs: number;

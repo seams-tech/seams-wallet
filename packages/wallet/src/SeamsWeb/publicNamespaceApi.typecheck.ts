@@ -136,13 +136,13 @@ void seams.recovery.syncAccount({ accountId: 'alice.testnet' });
 void seams.recovery.getWalletRecoveryCodeStatus({ walletId: 'frost-vermillion-k7p9m2' });
 void seams.recovery.acknowledgeWalletRecoveryCodeBackup({ walletId: 'frost-vermillion-k7p9m2' });
 
-void seams.devices.cancelDeviceLinking();
-void seams.devices.listLinkedDevices({
+void seams.devices.cancelLinking();
+void seams.devices.list({
   walletId: 'frost-vermillion-k7p9m2',
   limit: 50,
   cursor: null,
 });
-void seams.devices.revokeLinkedDevice({
+void seams.devices.remove({
   walletId: 'frost-vermillion-k7p9m2',
   walletAuthMethodId: 'email_otp:wallet:method-1',
   requestedAtMs: Date.now(),
@@ -154,7 +154,7 @@ void seams.devices.revokeLinkedDevice({
   },
 });
 // @ts-expect-error revocation requires the exact requested-at timestamp.
-void seams.devices.revokeLinkedDevice({
+void seams.devices.remove({
   walletId: 'frost-vermillion-k7p9m2',
   walletAuthMethodId: 'email_otp:wallet:method-1',
   sourceProof: {
@@ -194,3 +194,14 @@ void seams.evm.bootstrapEcdsaSession;
 void seams.tempo.getFeeTokenPreference;
 // @ts-expect-error Use setFeeToken.
 void seams.tempo.setFeeTokenPreference;
+
+// @ts-expect-error Use devices.startLinking.
+void seams.devices.startDevice2LinkingFlow;
+// @ts-expect-error Use devices.cancelLinking.
+void seams.devices.cancelDeviceLinking;
+// @ts-expect-error Use devices.approveLinking.
+void seams.devices.scanAndLinkDevice;
+// @ts-expect-error Use devices.list.
+void seams.devices.listLinkedDevices;
+// @ts-expect-error Use devices.remove.
+void seams.devices.revokeLinkedDevice;

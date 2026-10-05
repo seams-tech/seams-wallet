@@ -46,26 +46,26 @@ export type LinkedDeviceManagementPortV1 = {
 
 export type DeviceCommands = Pick<
   DevicesCapability,
-  'startDevice2LinkingFlow' | 'cancelDeviceLinking' | 'scanAndLinkDevice'
+  'startLinking' | 'cancelLinking' | 'approveLinking'
 > & { readonly linkedDeviceManagement: LinkedDeviceManagementPortV1 };
 
 export function createDevicesCapability(commands: DeviceCommands): DevicesCapability {
   const devices = new DeviceManagement(commands.linkedDeviceManagement);
   return {
-    startDevice2LinkingFlow: commands.startDevice2LinkingFlow,
-    cancelDeviceLinking: commands.cancelDeviceLinking,
-    scanAndLinkDevice: commands.scanAndLinkDevice,
-    listLinkedDevices: devices.listLinkedDevices.bind(devices),
-    revokeLinkedDevice: devices.revokeLinkedDevice.bind(devices),
+    startLinking: commands.startLinking,
+    cancelLinking: commands.cancelLinking,
+    approveLinking: commands.approveLinking,
+    list: devices.list.bind(devices),
+    remove: devices.remove.bind(devices),
   };
 }
 
 class DeviceManagement {
   constructor(private readonly management: LinkedDeviceManagementPortV1) {}
 
-  async listLinkedDevices(
-    args: Parameters<DevicesCapability['listLinkedDevices']>[0],
-  ): ReturnType<DevicesCapability['listLinkedDevices']> {
+  async list(
+    args: Parameters<DevicesCapability['list']>[0],
+  ): ReturnType<DevicesCapability['list']> {
     const request = parseLinkedDeviceListRequestV1({
       kind: 'linked_device_list_request_v1',
       walletId: parseWalletIdForPublicCall(args.walletId),
@@ -80,9 +80,9 @@ class DeviceManagement {
     return parseLinkedDeviceListResultV1(result);
   }
 
-  async revokeLinkedDevice(
-    args: Parameters<DevicesCapability['revokeLinkedDevice']>[0],
-  ): ReturnType<DevicesCapability['revokeLinkedDevice']> {
+  async remove(
+    args: Parameters<DevicesCapability['remove']>[0],
+  ): ReturnType<DevicesCapability['remove']> {
     const request = parseLinkedDeviceRevokeRequestV1({
       kind: 'linked_device_revoke_request_v1',
       walletId: parseWalletIdForPublicCall(args.walletId),

@@ -242,7 +242,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
     loadSequence.current = sequence;
     setLoadState({ kind: 'loading', inventory: localInventory });
     try {
-      const result = await seamsRef.current.devices.listLinkedDevices({
+      const result = await seamsRef.current.devices.list({
         walletId,
         limit: 50,
         cursor: null,

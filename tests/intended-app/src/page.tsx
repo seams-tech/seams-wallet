@@ -1049,7 +1049,7 @@ class IntendedPageController {
     if (!this.walletId) {
       throw new Error('authentication-method inventory requires a registered wallet');
     }
-    const inventory = await this.seams.devices.listLinkedDevices({
+    const inventory = await this.seams.devices.list({
       walletId: toWalletId(this.walletId),
       limit: 50,
       cursor: null,
@@ -1169,12 +1169,12 @@ class IntendedPageController {
    * action: opening inventory must never unlock, step up, or spend budget.
    */
   cancelDeviceLinkForIntendedTest = async (): Promise<void> => {
-    await this.seams.devices.cancelDeviceLinking();
+    await this.seams.devices.cancelLinking();
   };
 
   readLinkedDevicesForIntendedTest = async (): Promise<unknown> => {
     if (!this.walletId) throw new Error('linked-device inventory requires a registered wallet');
-    const inventory = await this.seams.devices.listLinkedDevices({
+    const inventory = await this.seams.devices.list({
       walletId: toWalletId(this.walletId),
       limit: 50,
       cursor: null,
@@ -2133,9 +2133,9 @@ class IntendedPageController {
       intendedDeviceLinkTargetRunning = true;
       const activation = createIntendedDeferred<IntendedDeviceLinkActivation>();
       const recordLifecycleEvent = this.recordLifecycleEvent;
-      let started: Awaited<ReturnType<IntendedSeams['devices']['startDevice2LinkingFlow']>>;
+      let started: Awaited<ReturnType<IntendedSeams['devices']['startLinking']>>;
       try {
-        started = await this.seams.devices.startDevice2LinkingFlow({
+        started = await this.seams.devices.startLinking({
           targetFactor: { kind: 'passkey_prf' },
           ui: 'inline',
           options: {
@@ -2251,7 +2251,7 @@ class IntendedPageController {
         throw new Error('No device-link QR payload was presented to Device 1');
       }
       const qrData = JSON.parse(qrPayloadJson) as QrLinkedDeviceSessionPayloadV5;
-      const result = await this.seams.devices.scanAndLinkDevice(qrData, {
+      const result = await this.seams.devices.approveLinking(qrData, {
         onEvent: this.recordLifecycleEvent,
       });
       if (!result.success) throw new Error(result.error);
@@ -2284,7 +2284,7 @@ class IntendedPageController {
       const rawRevocation = window.__seamsIntendedE2ELinkedDeviceRevocationJson;
       delete window.__seamsIntendedE2ELinkedDeviceRevocationJson;
       const revocation = parseIntendedLinkedDeviceRevocation(rawRevocation);
-      const result = await this.seams.devices.revokeLinkedDevice({
+      const result = await this.seams.devices.remove({
         walletId: this.walletId,
         walletAuthMethodId: revocation.walletAuthMethodId,
         requestedAtMs: revocation.requestedAtMs,
@@ -2337,7 +2337,7 @@ class IntendedPageController {
         challengeId: challenge.challengeId,
         walletId: this.walletId,
       });
-      const result = await this.seams.devices.revokeLinkedDevice({
+      const result = await this.seams.devices.remove({
         walletId: this.walletId,
         walletAuthMethodId: revocation.walletAuthMethodId,
         requestedAtMs: revocation.requestedAtMs,
@@ -3808,7 +3808,7 @@ type IntendedLinkedDeviceRevocation = {
   readonly walletAuthMethodId: string;
   readonly requestedAtMs: number;
   readonly sourceProof: Parameters<
-    IntendedSeams['devices']['revokeLinkedDevice']
+    IntendedSeams['devices']['remove']
   >[0]['sourceProof'];
 };
 

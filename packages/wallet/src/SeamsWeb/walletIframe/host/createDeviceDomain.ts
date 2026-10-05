@@ -92,9 +92,9 @@ export function createWalletHostDeviceDomain(args: {
   return {
     domain: {
       linkedDeviceManagement: composition.linkedDeviceManagement,
-      startDevice2LinkingFlow: deviceLinking.startDevice2LinkingFlow.bind(deviceLinking),
-      cancelDeviceLinking: deviceLinking.cancelDeviceLinking.bind(deviceLinking),
-      scanAndLinkDevice: deviceLinking.scanAndLinkDevice.bind(deviceLinking),
+      startLinking: deviceLinking.startDevice2LinkingFlow.bind(deviceLinking),
+      cancelLinking: deviceLinking.cancelDeviceLinking.bind(deviceLinking),
+      approveLinking: deviceLinking.scanAndLinkDevice.bind(deviceLinking),
     },
     resumePendingAcknowledgementsV1: composition.deviceLinkingPorts.resumePendingAcknowledgementsV1,
     dispose: composition.dispose,
