@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { dispatchEcdsaSigningWithStorageFaults } from './ecdsa-storage-evidence.mjs';
 import { verifyLinkedImportRejection } from './linked-presign-transfer-evidence.mjs';
 import { execFileSync } from 'node:child_process';
 import {
@@ -768,7 +769,9 @@ async function captureSigningWorkerDelivery(request, miniflare) {
     signingWorkerFinalizationLookups += 1;
   }
   const worker = await miniflare.getWorker(signingWorkerDeliveryTarget);
-  const response = await worker.fetch(request);
+  const response = path === ecdsaSigningWorkerFinalizePath
+    ? await dispatchEcdsaSigningWithStorageFaults(request, worker, miniflare)
+    : await worker.fetch(request);
   if (path === ecdsaSigningWorkerFinalizePath && loseNextEcdsaSigningWorkerFinalizeReply) {
     loseNextEcdsaSigningWorkerFinalizeReply = false;
     assert.equal(response.ok, true, 'Simulated lost reply requires a committed signature');
@@ -2058,7 +2061,7 @@ async function testEcdsaNormalSigning(
       assert.equal(consumedPrepare.ok, false, 'interrupted presignature must stay consumed');
       return { finalizeRequest, pendingAfterEviction: true, materialConsumed: true };
     }
-    if (mode === 'prepare' && process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled') {
+    if (mode === 'prepare') {
       loseNextEcdsaSigningWorkerFinalizeReply = true;
       const lostReply = await postWorkerJson(router, ecdsaSigningPath, finalizeRequest);
       assert.equal(lostReply.ok, false, 'Simulated lost SigningWorker reply must reach Router');
