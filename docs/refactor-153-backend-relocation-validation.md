@@ -86,6 +86,12 @@ coordinator authority remain separate, unfinished requirements.
 The real Worker E2E rejects a fence before the wallet move and a changed move
 after wallet freeze. Valid completion, retirement, transfer, and verification
 still pass. Evidence is in `.artifacts/r153/linked-fence-authority-20261005/`.
+The same Worker E2E now sends terminal replay and local fencing concurrently.
+The observed replay returned its exact stored response, and fencing completed.
+After sealing, both source and destination reject a delayed consume request built
+from the actual completion bindings. The source export remains unchanged.
+Evidence is in `.artifacts/r153/linked-fence-race-20261005/`. This schedule does
+not establish concurrent first completion or consumption before the local fence.
 
 The next resource integration must bind the wallet, role, physical locator,
 verified runtime, and ownership generation at preparation and admission. Each
