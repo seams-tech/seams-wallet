@@ -1,0 +1,383 @@
+{
+  "baseCommit": "edc4a981d2047c231a6a5c65f650bb2e84060cf5",
+  "scope": "Production asset observations for NEAR-only and ECDSA-only passkey wallets across registration, lock, unlock, and restored signing.",
+  "sourceSha256": {
+    "tests/e2e/intended-behaviours/harness.ts": "ddcd282c460ecb95998e22bf5a2537c0dd18cf2a3da6688645c74d77fd9f9f89",
+    "tests/e2e/intended-behaviours/passkey.registration.assets.contract.test.ts": "d17f6cb0a37449cf1e3e599a5cd5fa45c1d4188b15e454979d47cb5df4344356"
+  },
+  "scenarios": [
+    {
+      "signer": "near",
+      "artifact": ".artifacts/wallet-assets/production-near-only-wallet-records-unlock-and-restored-signing-assets.json",
+      "artifactSha256": "6d4f28a9878b9b10c23d5bb00fb7dbdc615a46f1372bca699a1e1fc7006b1249",
+      "revision": "edc4a981d2047c231a6a5c65f650bb2e84060cf5",
+      "phases": [
+        {
+          "name": "initialization",
+          "startedAtMs": 1791168268721,
+          "durationMs": 360.60525
+        },
+        {
+          "name": "near-only-registration",
+          "startedAtMs": 1791168269082,
+          "durationMs": 1532.556458
+        },
+        {
+          "name": "locked-reload",
+          "startedAtMs": 1791168270614,
+          "durationMs": 732.0253750000002
+        },
+        {
+          "name": "near-only-unlock",
+          "startedAtMs": 1791168271346,
+          "durationMs": 625.4119580000001
+        },
+        {
+          "name": "near-only-sign",
+          "startedAtMs": 1791168271972,
+          "durationMs": 708.1915829999998
+        },
+        {
+          "name": "near-only-restored-sign",
+          "startedAtMs": 1791168272680,
+          "durationMs": 1118.9210000000003
+        },
+        {
+          "name": "completed",
+          "startedAtMs": 1791168273799,
+          "durationMs": 2.158249999999498
+        }
+      ],
+      "workerCreations": [
+        {
+          "phase": "near-only-registration",
+          "url": "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "near-only-registration",
+          "url": "http://localhost:4202/sdk/workers/passkey-mpc-session.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "near-only-registration",
+          "url": "http://localhost:4202/sdk/workers/shamir3pass.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "near-only-registration",
+          "url": "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "locked-reload",
+          "url": "http://localhost:4202/sdk/workers/email-otp.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "near-only-unlock",
+          "url": "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "near-only-unlock",
+          "url": "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "near-only-unlock",
+          "url": "http://localhost:4202/sdk/workers/email-otp.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "near-only-unlock",
+          "url": "http://localhost:4202/sdk/workers/passkey-mpc-session.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "near-only-sign",
+          "url": "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "near-only-sign",
+          "url": "http://localhost:4202/sdk/workers/near-signer.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "near-only-restored-sign",
+          "url": "http://localhost:4202/sdk/workers/passkey-mpc-session.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "near-only-restored-sign",
+          "url": "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "near-only-restored-sign",
+          "url": "http://localhost:4202/sdk/workers/shamir3pass.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "near-only-restored-sign",
+          "url": "http://localhost:4202/sdk/workers/near-signer.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        }
+      ],
+      "browserTotals": {
+        "encodedBodyBytes": 8972112,
+        "responseHeaderBytes": 125387,
+        "decodedBodyBytes": 21631309,
+        "unknownDecodedBodies": 0
+      },
+      "bodyCaptureFailureCount": 13,
+      "networkCollectorFailures": [],
+      "networkCompletionCounts": {
+        "finished": 362,
+        "pending": 16
+      },
+      "serverTransfers": [
+        {
+          "origin": "http://localhost:4201",
+          "count": 12,
+          "encodedBodyBytes": 722816,
+          "contentEncodingCounts": {
+            "gzip": 12
+          },
+          "completionCounts": {
+            "finished": 12
+          }
+        },
+        {
+          "origin": "http://localhost:4202",
+          "count": 365,
+          "encodedBodyBytes": 8534442,
+          "contentEncodingCounts": {
+            "identity": 69,
+            "gzip": 296
+          },
+          "completionCounts": {
+            "finished": 365
+          }
+        }
+      ]
+    },
+    {
+      "signer": "ecdsa",
+      "artifact": ".artifacts/wallet-assets/production-ecdsa-only-wallet-records-unlock-and-restored-signing-assets.json",
+      "artifactSha256": "a3a84a76a62a7aa2e04f7623f70e9897199ce3234b974a31b3f48fbf51b03b68",
+      "revision": "edc4a981d2047c231a6a5c65f650bb2e84060cf5",
+      "phases": [
+        {
+          "name": "initialization",
+          "startedAtMs": 1791169156930,
+          "durationMs": 372.4371249999999
+        },
+        {
+          "name": "ecdsa-only-registration",
+          "startedAtMs": 1791169157303,
+          "durationMs": 784.7517080000001
+        },
+        {
+          "name": "locked-reload",
+          "startedAtMs": 1791169158088,
+          "durationMs": 714.0387500000002
+        },
+        {
+          "name": "ecdsa-only-unlock",
+          "startedAtMs": 1791169158802,
+          "durationMs": 639.920584
+        },
+        {
+          "name": "tempo-sign",
+          "startedAtMs": 1791169159442,
+          "durationMs": 741.5923749999997
+        },
+        {
+          "name": "evm-sign",
+          "startedAtMs": 1791169160183,
+          "durationMs": 767.9419169999996
+        },
+        {
+          "name": "ecdsa-restored-sign",
+          "startedAtMs": 1791169160951,
+          "durationMs": 1124.791083
+        },
+        {
+          "name": "ecdsa-evm-step-up-sign",
+          "startedAtMs": 1791169162076,
+          "durationMs": 758.9307920000001
+        },
+        {
+          "name": "completed",
+          "startedAtMs": 1791169162835,
+          "durationMs": 2.630207999999584
+        }
+      ],
+      "workerCreations": [
+        {
+          "phase": "ecdsa-only-registration",
+          "url": "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-only-registration",
+          "url": "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-only-registration",
+          "url": "http://localhost:4202/sdk/workers/passkey-mpc-session.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-only-registration",
+          "url": "http://localhost:4202/sdk/workers/shamir3pass.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-only-registration",
+          "url": "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-only-registration",
+          "url": "http://localhost:4202/sdk/workers/ecdsa-presign-client.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-only-registration",
+          "url": "http://localhost:4202/sdk/workers/evm-crypto.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-only-unlock",
+          "url": "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-only-unlock",
+          "url": "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-only-unlock",
+          "url": "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-only-unlock",
+          "url": "http://localhost:4202/sdk/workers/ecdsa-presign-client.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-only-unlock",
+          "url": "http://localhost:4202/sdk/workers/evm-crypto.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "tempo-sign",
+          "url": "http://localhost:4202/sdk/workers/tempo-signer.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "tempo-sign",
+          "url": "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "tempo-sign",
+          "url": "http://localhost:4202/sdk/workers/ecdsa-online-client.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-restored-sign",
+          "url": "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-restored-sign",
+          "url": "http://localhost:4202/sdk/workers/ecdsa-presign-client.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-restored-sign",
+          "url": "http://localhost:4202/sdk/workers/tempo-signer.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-restored-sign",
+          "url": "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-restored-sign",
+          "url": "http://localhost:4202/sdk/workers/evm-crypto.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "ecdsa-restored-sign",
+          "url": "http://localhost:4202/sdk/workers/ecdsa-online-client.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        }
+      ],
+      "browserTotals": {
+        "encodedBodyBytes": 8529251,
+        "responseHeaderBytes": 129118,
+        "decodedBodyBytes": 21197763,
+        "unknownDecodedBodies": 0
+      },
+      "bodyCaptureFailureCount": 20,
+      "networkCollectorFailures": [],
+      "networkCompletionCounts": {
+        "finished": 374,
+        "pending": 22
+      },
+      "serverTransfers": [
+        {
+          "origin": "http://localhost:4201",
+          "count": 12,
+          "encodedBodyBytes": 722808,
+          "contentEncodingCounts": {
+            "gzip": 12
+          },
+          "completionCounts": {
+            "finished": 12
+          }
+        },
+        {
+          "origin": "http://localhost:4202",
+          "count": 383,
+          "encodedBodyBytes": 8148531,
+          "contentEncodingCounts": {
+            "identity": 74,
+            "gzip": 309
+          },
+          "completionCounts": {
+            "finished": 383
+          }
+        }
+      ]
+    }
+  ],
+  "checks": {
+    "intendedTypes": "passed",
+    "nearProduction": "passed (33.2s), before final ECDSA-only assertion edit",
+    "ecdsaProduction": "passed (33.4s)",
+    "bloat": "passed",
+    "diffWhitespace": "passed"
+  },
+  "productionSourceDelta": 0,
+  "limits": [
+    "Browser routing disables cache. These runs do not establish warm-cache or deployed delivery performance.",
+    "One successful run per scenario; paired repeated latency acceptance remains open.",
+    "ECDSA-only means Tempo plus Arc EVM and no NEAR account. Shared envelope cryptography can still require near_signer WASM.",
+    "Phase durations include harness work and reloads; they are not isolated user signing latency.",
+    "Browser body capture errors across reloads remain recorded. Server transfer totals are independent and must not be added to overlapping browser totals.",
+    "Unexpected worker creation is an optimization candidate; these observations do not prove every triggering call path.",
+    "The final test file differs from executed source only in formatting."
+  ],
+  "failureClassification": "valid_test_needs_update: locked reload expected logged-in; common unlock helper required NEAR; fourth ECDSA signature expected warm despite three-use budget; event remainingUses was pre-sign diagnostics. Final scenario checks authoritative exhausted session state before step-up signing.",
+  "repeatCommand": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.registration.assets.contract.test.ts --grep \"production (NEAR|ECDSA)-only wallet records\""
+}

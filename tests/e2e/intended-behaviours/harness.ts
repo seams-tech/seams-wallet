@@ -3055,21 +3055,17 @@ export class IntendedBehaviourHarness {
 
   async unlockPasskeyWallet(): Promise<void> {
     this.recordStage('unlock_passkey_wallet');
-    const registration = requireNearReadyRegisteredWallet(
-      this.requireRegisteredWalletForSigning(),
-      'Passkey unlock',
-    );
+    const registration = this.requireRegisteredWalletForSigning();
+    if (registration.nearReadiness === 'pending') {
+      throw new Error('Use the pending-NEAR unlock scenario while provisioning is incomplete');
+    }
     await this.resetRuntimeOnlyState();
     const traceStartIndex = this.trace.length;
     const snapshot = await this.runIntendedPageAction(
       'unlockPasskeyWallet',
       'intended-unlock-passkey',
     );
-    const result = requirePasskeyUnlockResult(snapshot, {
-      walletId: this.walletId,
-      nearAccountId: registration.nearAccountId,
-      operationalPublicKey: registration.operationalPublicKey,
-    });
+    const result = requirePasskeyUnlockResult(snapshot, registration);
     const observedPaths = this.trace
       .slice(traceStartIndex)
       .map((entry) => routePathAtRouter(entry.url, this.config.routerUrl))
@@ -3083,7 +3079,10 @@ export class IntendedBehaviourHarness {
     const walletPage = this.page.getByTestId('intended-e2e-page');
     await expect(walletPage).toHaveAttribute('data-login-state', 'logged_in');
     await expect(walletPage).toHaveAttribute('data-login-wallet-id', this.walletId);
-    await expect(walletPage).toHaveAttribute('data-login-near-ready', 'ready');
+    await expect(walletPage).toHaveAttribute(
+      'data-login-near-ready',
+      registration.nearReadiness === 'ready' ? 'ready' : 'pending',
+    );
     const unlockRequests = this.trace.slice(traceStartIndex).filter(isRequestTraceEntry);
     const verifyIndex = unlockRequests.findIndex(isWalletUnlockVerifyRequest);
     const statusReads = unlockRequests.slice(verifyIndex + 1).filter(isWalletSessionStatusRequest);
@@ -3109,7 +3108,7 @@ export class IntendedBehaviourHarness {
     this.currentWarmSigningStage = 'post_unlock';
     this.passkeyPromptCount += 1;
     this.recordService(
-      `passkey unlock succeeded wallet=${result.walletId} near=${result.nearAccountId}`,
+      `passkey unlock succeeded wallet=${result.walletId} near=${registration.nearReadiness}`,
     );
   }
 
@@ -6363,11 +6362,7 @@ function requireNearSigningResult(
 
 function requirePasskeyUnlockResult(
   snapshot: IntendedPageSnapshot,
-  expected: {
-    walletId: string;
-    nearAccountId: string;
-    operationalPublicKey: string;
-  },
+  expected: RegisteredWalletSnapshot & { nearReadiness: 'ready' | 'absent' },
 ): PasskeyUnlockResultSnapshot {
   if (snapshot.action.status !== 'success') {
     throw new Error(`Passkey unlock did not succeed: ${snapshot.action.status}`);
@@ -6379,14 +6374,23 @@ function requirePasskeyUnlockResult(
   if (result.walletId !== expected.walletId) {
     throw new Error(`Passkey unlock wallet mismatch: ${result.walletId}`);
   }
-  if (result.nearIdentity !== 'ready') {
-    throw new Error('Passkey unlock did not return its expected NEAR identity');
-  }
-  if (result.nearAccountId !== expected.nearAccountId) {
-    throw new Error(`Passkey unlock NEAR account mismatch: ${result.nearAccountId}`);
-  }
-  if (result.operationalPublicKey !== expected.operationalPublicKey) {
-    throw new Error('Passkey unlock operational public key mismatch');
+  switch (expected.nearReadiness) {
+    case 'ready':
+      if (result.nearIdentity !== 'ready') {
+        throw new Error('Passkey unlock did not return its expected NEAR identity');
+      }
+      if (result.nearAccountId !== expected.nearAccountId) {
+        throw new Error(`Passkey unlock NEAR account mismatch: ${result.nearAccountId}`);
+      }
+      if (result.operationalPublicKey !== expected.operationalPublicKey) {
+        throw new Error('Passkey unlock operational public key mismatch');
+      }
+      break;
+    case 'absent':
+      if (result.nearIdentity !== 'absent') {
+        throw new Error('ECDSA-only Passkey unlock unexpectedly returned a NEAR identity');
+      }
+      break;
   }
   if (result.authenticationKind !== 'authenticated') {
     throw new Error(`Passkey unlock did not authenticate the wallet: ${result.authenticationKind}`);

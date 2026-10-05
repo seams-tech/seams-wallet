@@ -2048,3 +2048,29 @@ This proves core/external-EVM package use without React. It does not prove React
 provider SSR, remount, browser feature behavior, optional QR feature loading, or
 published-release deployment. No SDK production source changed. Evidence:
 `evidence/refactor-170-optional-react-20261005.json`.
+
+### Signer-specific asset checkpoint
+
+Production browser scenarios now measure NEAR-only and ECDSA-only passkey wallets
+through registration, lock, reload, unlock, signing, and restored signing.
+ECDSA-only includes Tempo and Arc EVM. The scenario consumes three authorized
+signatures, checks the authoritative exhausted session state, and verifies fresh
+authorization for the fourth signature. Both scenarios pass. The common unlock
+harness now verifies the existing absent-NEAR branch while retaining identity
+checks for NEAR-ready wallets and the separate pending-NEAR scenario.
+
+The NEAR-only run creates ECDSA derivation and Email OTP workers during unlock.
+It creates no ECDSA presign or online worker. The ECDSA-only run creates no
+NEAR signing worker. Shared envelope cryptography can still load near_signer
+WASM; worker names alone do not establish unnecessary binary dependencies.
+Trace cleanup operations that create workers before claiming selective loading.
+
+Browser routing disables caching in these scenarios. The local preview serves
+both gzip and identity responses. Server body totals are 9,257,258 bytes for the
+NEAR run and 8,871,339 bytes for the ECDSA run, across all phases and reloads.
+These are separate scenarios, not a before/after comparison. Browser body capture
+has 13 and 20 errors respectively across reloads; network collectors report no
+errors. Retained artifacts preserve completion states and separate accounting.
+Paired cold/warm measurements, deployed compression, and repeatable latency gates
+remain open. No SDK production source changed. Evidence:
+`evidence/refactor-170-signer-assets-20261005.json`.

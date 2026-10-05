@@ -175,3 +175,79 @@ test(
   'production registration menu awaits input with cold and warm caches',
   measureUnselectedRegistrationAssets,
 );
+
+async function measureNearOnlyAssets({
+  harness,
+  assets,
+  page,
+}: {
+  harness: IntendedBehaviourHarness;
+  assets: WalletAssetEvidence;
+  page: Page;
+}): Promise<void> {
+  test.skip(process.env.SEAMS_INTENDED_PRODUCTION !== '1', 'Requires production app assets');
+  assets.setCachePolicy('disabled_by_routing');
+  assets.setPhase('near-only-registration');
+  await harness.registerPasskeyEd25519YaoWallet();
+  assets.setPhase('locked-reload');
+  await harness.lockWallet();
+  await page.reload({ waitUntil: 'networkidle' });
+  await expect(page.getByTestId('intended-e2e-page')).toHaveAttribute(
+    'data-login-state',
+    'logged_out',
+  );
+  assets.setPhase('near-only-unlock');
+  await harness.unlockPasskeyWallet();
+  assets.setPhase('near-only-sign');
+  await harness.signNearTransaction('post_unlock');
+  assets.setPhase('near-only-restored-sign');
+  await harness.refreshPagePreservingWalletStorage();
+  await harness.signNearTransactionAfterRefresh();
+  assets.setPhase('completed');
+}
+
+test(
+  'production NEAR-only wallet records unlock and restored signing assets',
+  measureNearOnlyAssets,
+);
+
+async function measureEcdsaOnlyAssets({
+  harness,
+  assets,
+  page,
+}: {
+  harness: IntendedBehaviourHarness;
+  assets: WalletAssetEvidence;
+  page: Page;
+}): Promise<void> {
+  test.skip(process.env.SEAMS_INTENDED_PRODUCTION !== '1', 'Requires production app assets');
+  assets.setCachePolicy('disabled_by_routing');
+  assets.setPhase('ecdsa-only-registration');
+  await harness.registerPasskeyEcdsaOnlyWallet();
+  assets.setPhase('locked-reload');
+  await harness.lockWallet();
+  await page.reload({ waitUntil: 'networkidle' });
+  await expect(page.getByTestId('intended-e2e-page')).toHaveAttribute(
+    'data-login-state',
+    'logged_out',
+  );
+  assets.setPhase('ecdsa-only-unlock');
+  await harness.unlockPasskeyWallet();
+  assets.setPhase('tempo-sign');
+  await harness.signTempoTransaction('post_unlock');
+  assets.setPhase('evm-sign');
+  await harness.signArcEvmTransaction('post_unlock');
+  assets.setPhase('ecdsa-restored-sign');
+  await harness.refreshPagePreservingWalletStorage();
+  await harness.signTempoTransaction('after_refresh_recovery');
+  const status = await harness.readCurrentWalletSessionStatus();
+  expect(status.status).toBe('exhausted');
+  assets.setPhase('ecdsa-evm-step-up-sign');
+  await harness.signArcEvmTransaction('step_up_required');
+  assets.setPhase('completed');
+}
+
+test(
+  'production ECDSA-only wallet records unlock and restored signing assets',
+  measureEcdsaOnlyAssets,
+);
