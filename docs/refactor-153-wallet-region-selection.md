@@ -444,7 +444,7 @@ Region observations and notification actions cannot authorize relocation.
   reply is resolved by reading the journal; an unused expired approval authorizes
   no new admission. Proof consumption alone never claims a completed admission.
 - Admit only established wallets in the same logical tenant/custody deployment.
-  Resolve US, WEUR or APAC through the server's admitted regional catalog. Clients
+  Resolve US, WEUR, APAC or OC through the server's admitted regional catalog. Clients
   supply no D1 IDs, URLs, role identities or key material. Before admission, verify
   destination resources, schema/import support, role identities, required key
   versions, server-seal continuity, and authenticated transport access. Prepare

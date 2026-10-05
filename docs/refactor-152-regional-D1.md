@@ -1,5 +1,77 @@
 # Refactor 152: regional D1 ownership and placement
 
+## Oceania extension (October 5)
+
+The development candidate adds **OC** as the fourth wallet home. Trusted Oceania
+registration ingress selects OC. Later operations retain that wallet's home.
+The admission catalog requires US, WEUR, APAC and OC, with distinct databases.
+Regional Gateway and Wallet Runtime bindings, resource proofs, readiness checks
+and relocation admission include OC. Console migration `0072_wallet_oceania.sql`
+preserves wallet state and pending moves while expanding the region constraints.
+The Wallet Server data-jurisdiction type also accepts `oc`.
+
+All deployment lanes contain pending OC database allocations. Gateway and Runtime
+placement targets Sydney with `aws:ap-southeast-2`. No OC resources have been
+provisioned or deployed. The possible Cloudflare account change remains pending.
+Allocate fresh resource identities in the chosen account before deployment;
+existing account resource IDs cannot identify resources in a new account.
+
+D1 and Durable Objects support the `oc` location hint. Their placement hints are
+best effort. Cloudflare Containers support OC with limited capacity and require
+another allowed region unless dedicated OC capacity is available. Hosted OC
+placement and latency remain unmeasured. Preserve the earlier three-region
+measurements below as evidence for their recorded topology.
+
+Provider references: [D1 data location](https://developers.cloudflare.com/d1/configuration/data-location/),
+[Durable Object data location](https://developers.cloudflare.com/durable-objects/reference/data-location/),
+[Worker placement](https://developers.cloudflare.com/workers/configuration/placement/),
+and [Container placement](https://developers.cloudflare.com/containers/concepts/placement/).
+
+Local acceptance verifies four independent home assignments, fixed-home
+forwarding, competing reservations, OC relocation and return, writer-resource
+proofs, and nine rendered deployment configurations. The migration test retains
+a pending APAC relocation and passes `PRAGMA foreign_key_check` after the upgrade.
+The four-home session composition also passes credential exchange, revocation,
+linked-device proofs, deferred registration, recovery routing and directory
+failure scenarios. These checks establish behavior rather than geographic
+placement or latency.
+
+Reproduce from the private repository:
+
+```sh
+pnpm -C tests exec playwright test -c playwright.relayer.config.ts \
+  relayer/wallet-home-directory.e2e.test.ts \
+  relayer/wallet-relocation-directory.e2e.test.ts \
+  relayer/regional-deployment-config.e2e.test.ts \
+  relayer/tenant-home-challenge.e2e.test.ts \
+  relayer/tenant-d1-provider-bindings.e2e.test.ts \
+  --reporter=line
+
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/oc/session-routing \
+node tests/e2e/regional-session-routing.e2e.mjs
+```
+
+The default `tests/test-results` relayer output retains JSON evidence and
+migration hashes. The session output retains
+`regional-session-routing-evidence.json`, including all four wallet homes and
+failure outcomes.
+
+The OC browser acceptance also passes: register at OC, travel through APAC, add
+and use Email OTP, sign NEAR and Tempo transactions, revoke Email OTP, reject its
+next unlock, and continue signing with the passkey. Lost finalization and
+revocation replies replay the committed result. Evidence remains in
+`.artifacts/oc/regional-real/methods-OC/{method-active,method-revoked}-evidence.json`.
+The run uses four local signer databases and one shared local Router role stack;
+it establishes no Australian placement or latency claim. Reproduce with:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/oc/regional-real \
+node tests/scripts/run-regional-real.mjs passkey.add-email-otp.contract.test.ts \
+  --grep 'a OC wallet adds'
+```
+
 ## Authoritative replacement phase: per-wallet regional homes
 
 **Decision, October 2, 2026:** each wallet receives its own home when registration

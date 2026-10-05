@@ -131,6 +131,10 @@ network distance and leaves the wallet's home fixed. Version 0.8.0 provides no
 user region selector or automatic relocation. Shared tenant authority remains
 separate from wallet-owned regional state.
 
+The development candidate adds an OC (Oceania) home. OC resource allocation and
+hosted placement verification remain pending. Version 0.8.0 has the three homes
+listed above.
+
 ## Custody model
 
 Seams is non-custodial because hosted infrastructure cannot sign or export a

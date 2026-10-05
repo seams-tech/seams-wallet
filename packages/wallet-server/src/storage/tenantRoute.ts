@@ -4,7 +4,7 @@ export type { OrgId } from '@shared/utils/domainIds';
 
 export type TenantStorageBackendFamily = 'cloudflare_d1_do' | 'postgres';
 export type CloudflareTenantTopology = 'shared' | 'dedicated_tenant';
-export type TenantDataJurisdiction = 'automatic' | 'wnam' | 'enam' | 'weur' | 'eeur' | 'apac';
+export type TenantDataJurisdiction = 'automatic' | 'wnam' | 'enam' | 'weur' | 'eeur' | 'apac' | 'oc';
 export type PostgresMigrationReason =
   | 'd1_size_limit'
   | 'd1_throughput_limit'
