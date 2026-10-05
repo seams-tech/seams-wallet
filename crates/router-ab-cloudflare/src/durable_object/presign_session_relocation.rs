@@ -552,6 +552,15 @@ async fn fence_transaction(
             "Linked presign fence does not match initialized authority",
         )));
     }
+    let Initialization::Registered { request_digest_hex } = initialization else {
+        return Err(transaction_error("Linked presign fence lacks wallet move authority"));
+    };
+    let authority_bytes = serde_json::to_vec(&authority).map_err(transaction_error)?;
+    if format!("{:x}", Sha256::digest(&authority_bytes)) != request_digest_hex {
+        return Err(transaction_error(
+            "Linked presign authority differs from its wallet registration",
+        ));
+    }
     let receipt = LinkedPresignFenceReceipt {
         command,
         initialization: Initialization::Initialized,
@@ -577,16 +586,6 @@ async fn fence_initialization(
             ));
         }
         return Ok(receipt.initialization);
-    }
-    if storage
-        .get::<CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1>(
-            super::ecdsa_presign_live_session::LINKED_PRESIGN_AUTHORITY_STORAGE_KEY,
-        )
-        .await
-        .map_err(storage_error)?
-        .is_some()
-    {
-        return Ok(Initialization::Initialized);
     }
     registered_initialization(env, command).await
 }
@@ -620,7 +619,7 @@ async fn registered_initialization(
     _command: &LinkedPresignRelocationRequest,
 ) -> RouterAbProtocolResult<Initialization> {
     Err(storage_error(
-        "Linked presign fence requires initialized authority",
+        "Linked presign fence requires wallet move authority",
     ))
 }
 

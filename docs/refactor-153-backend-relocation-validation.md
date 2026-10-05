@@ -76,6 +76,17 @@ stable wallet identity. Preserve it when selecting a fresh physical object.
 Adding a generation to this shared function would also change encrypted-row
 identity. Separate physical routing from the existing storage identity instead.
 
+The linked-session fence now checks the wallet's exact recorded move for every
+new fence, including sessions with initialized authority. The transaction compares
+that authority with the initialization digest registered in wallet SQL. Existing
+fence receipts still replay locally. This closes an initialized-session bypass of
+the wallet move check. The D1 variant rejects new linked fences until it can
+supply equivalent wallet move authority. Physical resource verification and
+coordinator authority remain separate, unfinished requirements.
+The real Worker E2E rejects a fence before the wallet move and a changed move
+after wallet freeze. Valid completion, retirement, transfer, and verification
+still pass. Evidence is in `.artifacts/r153/linked-fence-authority-20261005/`.
+
 The next resource integration must bind the wallet, role, physical locator,
 verified runtime, and ownership generation at preparation and admission. Each
 participant must compare that authority with its local durable state before a

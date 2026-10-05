@@ -148,6 +148,7 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa) {
   const session = namespace.get(namespace.idFromString(created[0]));
   const initPath = '/router-ab/internal/signing-worker/linked-ecdsa-presign-session/init';
   const initialProgress = await accepted(session, initPath, initialization, credential);
+  await rejected(source, fencePath, command, credential, /requires its source wallet move/);
   const completed = await completeLinkedPresign(session, credential, initialization, initialProgress, ecdsa.finalized.stateBlob.stateBlobB64u, groupPublicKey);
   const walletsAfter = await topology.listDurableObjectIds(walletClass, workerName);
   const walletsCreated = walletsAfter.filter(isNewObject.bind(undefined, walletsBefore));
@@ -164,6 +165,9 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa) {
     scope: command.wallet_scope, request: command.request,
   }, credential);
   assert.equal(walletFreeze.state, 'frozen');
+  const changedMove = structuredClone(command);
+  changedMove.request.source_generation += 1;
+  await rejected(source, fencePath, changedMove, credential, /requires its source wallet move/);
   const fence = await accepted(source, fencePath, command, credential);
   assert.equal(fence.initialization.state, 'initialized');
   await rejected(session, initPath, initialization, credential, /fenced for relocation/);
@@ -202,6 +206,7 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa) {
   return {
     scope: 'Production presign completion, wallet registration, freeze and role-to-role import; excludes full device linking and concurrent consumption',
     completedPresignatureRetired: true,
+    initializedFenceRequiresExactWalletMove: true,
     delayedTerminalStepRejectedAtBothHomes: true,
     initializedAuthorityPreserved: true,
     sourceFreezeReplayedAfterEviction: true,
