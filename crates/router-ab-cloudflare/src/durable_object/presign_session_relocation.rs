@@ -22,6 +22,137 @@ pub(crate) const FREEZE_PATH: &str = "/router-ab/signing-worker/linked-presign-s
 pub(crate) const INTERNAL_FREEZE_PATH: &str =
     "/router-ab/internal/signing-worker/linked-ecdsa-presign-session/freeze";
 const SNAPSHOT_KEY: &str = "linked-presign-relocation-snapshot";
+pub(crate) const EXPORT_PATH: &str = "/router-ab/signing-worker/linked-presign-session/export";
+pub(crate) const INTERNAL_EXPORT_PATH: &str =
+    "/router-ab/internal/signing-worker/linked-ecdsa-presign-session/export";
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ExportRequest {
+    receipt: LinkedPresignFreezeReceipt,
+    segment_index: u32,
+    chunk_bytes: u32,
+}
+
+impl ExportRequest {
+    fn validate(&self) -> RouterAbProtocolResult<()> {
+        self.receipt.command.validate()?;
+        if !(1..=65_536).contains(&self.chunk_bytes) {
+            return Err(storage_error(
+                "Linked presign chunk size must be 1 through 65536 bytes",
+            ));
+        }
+        Ok(())
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SnapshotChunk {
+    receipt: LinkedPresignFreezeReceipt,
+    segment_index: u32,
+    segment_count: u32,
+    chunk_bytes: u32,
+    data_b64u: String,
+}
+
+pub(crate) async fn handle_relocation(
+    request: worker::Request,
+    storage: &worker::Storage,
+) -> RouterAbProtocolResult<worker::Response> {
+    match request.path().as_str() {
+        INTERNAL_FENCE_PATH => worker::Response::from_json(&handle_fence(request, storage).await?),
+        INTERNAL_FREEZE_PATH => {
+            worker::Response::from_json(&handle_freeze(request, storage).await?)
+        }
+        INTERNAL_EXPORT_PATH => {
+            worker::Response::from_json(&handle_export(request, storage).await?)
+        }
+        _ => return Err(storage_error("Unknown linked presign relocation operation")),
+    }
+    .map_err(storage_error)
+}
+
+async fn handle_export(
+    mut request: worker::Request,
+    storage: &worker::Storage,
+) -> RouterAbProtocolResult<SnapshotChunk> {
+    if request.method() != worker::Method::Post {
+        return Err(storage_error("Linked presign export requires POST"));
+    }
+    let command: ExportRequest = request.json().await.map_err(storage_error)?;
+    command.validate()?;
+    let frozen = storage
+        .get::<FrozenSnapshot>(SNAPSHOT_KEY)
+        .await
+        .map_err(storage_error)?
+        .ok_or_else(|| storage_error("Linked presign export requires a frozen snapshot"))?;
+    if frozen.receipt != command.receipt {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ReplayedLocalRequest,
+            "Linked presign export receipt differs from the frozen snapshot",
+        ));
+    }
+    let bytes = frozen.snapshot_json.as_bytes();
+    if snapshot_digest(bytes) != frozen.receipt.records_digest_hex {
+        return Err(storage_error(
+            "Linked presign frozen snapshot digest differs",
+        ));
+    }
+    let segment_count =
+        u32::try_from(bytes.len().div_ceil(command.chunk_bytes as usize)).map_err(storage_error)?;
+    if command.segment_index >= segment_count {
+        return Err(storage_error("Linked presign export segment is absent"));
+    }
+    let start = command.segment_index as usize * command.chunk_bytes as usize;
+    let end = (start + command.chunk_bytes as usize).min(bytes.len());
+    Ok(SnapshotChunk {
+        receipt: frozen.receipt,
+        segment_index: command.segment_index,
+        segment_count,
+        chunk_bytes: command.chunk_bytes,
+        data_b64u: crate::encode_base64url_bytes_v1(&bytes[start..end]),
+    })
+}
+
+pub(crate) async fn forward_export(
+    mut request: worker::Request,
+    env: &worker::Env,
+    runtime: &CloudflareSigningWorkerRuntimeV1,
+) -> worker::Result<worker::Response> {
+    if request.method() != worker::Method::Post {
+        return worker::Response::error("Linked presign export requires POST", 405);
+    }
+    let command: ExportRequest = match request.json().await {
+        Ok(command) => command,
+        Err(_) => {
+            return worker::Response::error("Linked presign export request is malformed", 400)
+        }
+    };
+    if let Err(error) = command.validate() {
+        return presign_do_error_response(error);
+    }
+    let result: RouterAbProtocolResult<SnapshotChunk> =
+        super::execute_cloudflare_durable_object_custom_json_call_v1(
+            env,
+            &runtime.bindings().presign_session,
+            INTERNAL_EXPORT_PATH,
+            &command.receipt.command.server_presignature_id,
+            &command,
+        )
+        .await;
+    match result {
+        Ok(chunk) => worker::Response::from_json(&chunk),
+        Err(error) => presign_do_error_response(error),
+    }
+}
+
+fn snapshot_digest(bytes: &[u8]) -> String {
+    let mut digest = Sha256::new();
+    digest.update(b"seams/signing-worker/linked-presign-snapshot/v1");
+    digest.update(bytes);
+    format!("{:x}", digest.finalize())
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -218,12 +349,9 @@ async fn freeze_transaction(
         completion,
     };
     let snapshot_json = serde_json::to_string(&snapshot).map_err(transaction_error)?;
-    let mut digest = Sha256::new();
-    digest.update(b"seams/signing-worker/linked-presign-snapshot/v1");
-    digest.update(snapshot_json.as_bytes());
     let receipt = LinkedPresignFreezeReceipt {
         command,
-        records_digest_hex: format!("{:x}", digest.finalize()),
+        records_digest_hex: snapshot_digest(snapshot_json.as_bytes()),
         record_count,
     };
     transaction

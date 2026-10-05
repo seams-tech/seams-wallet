@@ -114,8 +114,11 @@ history when removing secrets. Freeze stores canonical snapshot bytes and their
 digest in the same transaction as invalidation. Exact retries return the stored
 freeze receipt. An absent completion remains explicitly unknown; this change
 cannot reconstruct history deleted by earlier builds. Both Worker backend builds
-compile. Runtime restart/race verification, bounded export/import, and coordinator
-integration for linked sessions remain unfinished.
+compile. Linked-session export now reads the sealed bytes in chunks of 1 through
+65536 bytes. It requires the exact stored freeze receipt, verifies the snapshot
+digest, and rejects absent segment indexes. The dedicated Router-to-SigningWorker
+ECDSA credential protects this endpoint. Runtime restart/race and chunk verification,
+destination import, and coordinator integration for linked sessions remain unfinished.
 
 
 ECDSA transfer preserves SQL integers through the Worker JavaScript boundary.
