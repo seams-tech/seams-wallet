@@ -801,7 +801,7 @@ export class RouterAbEd25519YaoHttpActivationTransportV1
   }
 }
 
-export class WasmRouterAbEd25519YaoActiveClientV1 implements RouterAbEd25519YaoSealableActiveClientV1 {
+class WasmRouterAbEd25519YaoActiveClientV1 implements RouterAbEd25519YaoSealableActiveClientV1 {
   private readonly activeMetadata: RouterAbEd25519YaoActiveClientMetadataV1;
   private lifecycle: RouterAbEd25519YaoActiveClientLifecycleV1;
 

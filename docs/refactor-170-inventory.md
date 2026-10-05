@@ -1607,3 +1607,38 @@ Its scope is unresolved modules and `any` degradation. Initial raw diagnostics
 also showed generated WASM `Symbol.dispose` errors with the probe's ES2022 libs.
 Do not treat that probe as complete external-consumer compilation evidence;
 resolve the library contract and verify all diagnostics before final acceptance.
+
+### Packed external TypeScript consumer checkpoint
+
+The exposed `WasmRouterAbEd25519YaoActiveClientV1` implementation constructor
+pulled a generated WASM declaration into the public type graph. That declaration
+requires `Symbol.dispose`, which an ordinary ES2022 consumer does not declare.
+Only a constructor-rejection type fixture imported the implementation class.
+Runtime callers already consume the existing active-client interfaces.
+
+The class is now module-internal. Its construction guard, verified WASM ownership,
+activation paths, and disposal behavior are unchanged. The type fixture now
+rejects access to the internal constructor. Declaration emission no longer
+includes the class, its construction input, or the generated WASM import.
+No generated files, compiler-library settings, or global type shims were edited.
+
+`check:declarations-external` now packs and extracts the actual Wallet npm
+artifact, then compiles root, React, and explicit-runtime consumers. It checks
+for `any` through type assertions and requires a zero compiler exit code, with
+strict ES2022 settings, no SDK source aliases, and `skipLibCheck: false`.
+The old diagnostic substring filter could report success despite other errors.
+The strengthened check failed on the previous declarations and passes after
+regeneration. It reports the tested tarball integrity and always removes its
+temporary directory.
+
+Installed runtime dependencies, optional peers, and peer typings are linked from
+the repository. This is package-content and strict declaration evidence, not a
+fresh registry installation, optional-peer absence test, or complete runtime
+acceptance. Verification details are in
+`evidence/refactor-170-external-consumer-20261005.json`.
+
+Final verification passes the strict tarball consumer, the existing packed
+Wallet/server boundary smoke check, runtime-entry checks, and two production
+cases. Those cases cover NEAR-only signing across refresh and Email OTP
+registration/unlock/export/signing. The normal npm packaging lifecycle supplies
+the tested archive. The verifier reports its integrity in the saved evidence.

@@ -2,11 +2,11 @@ import {
   type RouterAbEd25519YaoExportSeedInputV1,
   type RouterAbEd25519YaoExportCustodyEnvelopeV1,
   type RouterAbEd25519YaoExportEmailOtpFactorReleaseV1,
-  WasmRouterAbEd25519YaoActiveClientV1,
 } from './yaoClient';
+import * as yaoClient from './yaoClient';
 
-// @ts-expect-error Active Client state can only be created from verified WASM completion.
-const forgedActiveClient = new WasmRouterAbEd25519YaoActiveClientV1({});
+// @ts-expect-error The WASM implementation constructor is internal.
+const forgedActiveClient = new yaoClient.WasmRouterAbEd25519YaoActiveClientV1({});
 
 void forgedActiveClient;
 

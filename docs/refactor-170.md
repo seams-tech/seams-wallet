@@ -1026,6 +1026,11 @@ completed cleanup task separately.
 
 ### 6. Update consumers, documentation, and release inputs
 
+The external declaration check now compiles the npm tarball for root, React,
+and runtime entry points with strict ES2022 settings and no ignored diagnostics.
+See the packed external TypeScript checkpoint in the inventory. Optional-peer
+absence, broader runtime acceptance, and release adoption remain separate gates.
+
 - Update Wallet examples, intended app, and public docs alongside the implementation.
   Change `docs/intended-behaviours.md` and its contracts for any intentional
   externally observable behavior change.

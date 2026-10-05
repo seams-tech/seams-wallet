@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Proves the emitted declarations resolve the way an outside consumer sees
- * them — without this repository's source path aliases.
+ * them from the npm tarball, without this repository's source path aliases.
  *
  * Inside the repo everything resolves, because tsconfig maps `@/*` and
  * `@shared/*` to source. A published consumer has neither. When a declaration
@@ -15,34 +15,69 @@
  * check, not a framework: one temp directory, one `tsc` invocation.
  */
 
-import { mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile, mkdir, readFile, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const repoRoot = resolve(packageRoot, '../..');
 
-/* `never` forces tsc to name each type; a degraded one reports `any`, which is
-   the failure this exists to catch. */
 const CONSUMER_SOURCE = `
 import type { SeamsWeb, NearProvisioningState } from '@seams/wallet';
-type ProvisioningStatus = NearProvisioningState['status'];
-type LaneRegistration = SeamsWeb['registration'];
-declare const status: ProvisioningStatus;
-declare const registration: LaneRegistration;
-declare const provisioning: Awaited<ReturnType<LaneRegistration['getNearAccountState']>>;
-export const a: never = status;
-export const b: never = registration;
-export const c: never = provisioning;
+import { SeamsWebProvider, useSeams } from '@seams/wallet/react';
+import { createSigningRuntime } from '@seams/wallet/runtime';
+type IsAny<T> = 0 extends (1 & T) ? true : false;
+type Assert<T extends true> = T;
+type Registration = SeamsWeb['registration'];
+type AccountState = Awaited<ReturnType<Registration['getNearAccountState']>>;
+type AccountWait = Awaited<ReturnType<Registration['waitForNearAccount']>>;
+export type StateIsTyped = Assert<
+  IsAny<NearProvisioningState['status']> extends false ? true : false
+>;
+export type RegistrationIsTyped = Assert<IsAny<Registration> extends false ? true : false>;
+export type AccountStateIsTyped = Assert<IsAny<AccountState> extends false ? true : false>;
+export type AccountWaitIsTyped = Assert<IsAny<AccountWait> extends false ? true : false>;
+export type ProviderIsTyped = Assert<
+  IsAny<Parameters<typeof SeamsWebProvider>[0]> extends false ? true : false
+>;
+export type ReactContextIsTyped = Assert<
+  IsAny<ReturnType<typeof useSeams>> extends false ? true : false
+>;
+export type RuntimeIsTyped = Assert<
+  IsAny<ReturnType<typeof createSigningRuntime>> extends false ? true : false
+>;
+// @ts-expect-error The obsolete public name must not remain available.
+export type RemovedAccountRead = Registration['getNearProvisioningState'];
 `;
 
 const workspace = await mkdtemp(join(tmpdir(), 'seams-decl-check-'));
 try {
-  await mkdir(join(workspace, 'node_modules/@seams'), { recursive: true });
-  const { symlink } = await import('node:fs/promises');
-  await symlink(packageRoot, join(workspace, 'node_modules/@seams/wallet'), 'dir');
+  const packed = JSON.parse(
+    execFileSync('npm', ['pack', '--json', '--pack-destination', workspace], {
+      cwd: packageRoot,
+      encoding: 'utf8',
+    }),
+  );
+  const installedPackage = join(workspace, 'node_modules/@seams/wallet');
+  await mkdir(installedPackage, { recursive: true });
+  execFileSync('tar', [
+    '-xzf',
+    join(workspace, packed[0].filename),
+    '--strip-components=1',
+    '-C',
+    installedPackage,
+  ]);
+  const definition = JSON.parse(await readFile(join(installedPackage, 'package.json'), 'utf8'));
+  for (const dependency of Object.keys({
+    ...definition.dependencies,
+    ...definition.peerDependencies,
+  })) {
+    const destination = join(workspace, 'node_modules', dependency);
+    await mkdir(dirname(destination), { recursive: true });
+    await symlink(join(repoRoot, 'node_modules', dependency), destination, 'dir');
+  }
   /* React types are a peer dependency of the declarations. */
   await symlink(
     join(repoRoot, 'node_modules/@types'),
@@ -73,30 +108,22 @@ try {
     'utf8',
   );
 
-  const result = spawnSync(
-    'npx',
-    ['tsc', '--noEmit', '-p', join(workspace, 'tsconfig.json')],
-    { cwd: repoRoot, encoding: 'utf8' },
-  );
+  const result = spawnSync('npx', ['tsc', '--noEmit', '-p', join(workspace, 'tsconfig.json')], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  });
   const output = `${result.stdout || ''}${result.stderr || ''}`;
 
-  /* Each probe must fail as its real type. `any` means the declaration did not
-     resolve, and an unresolved-module error means a specifier leaked. */
-  const degraded = output.match(/Type 'any' is not assignable to type 'never'/g) || [];
-  const unresolved = output.match(/Cannot find module '([^']+)'/g) || [];
-  if (unresolved.length > 0) {
-    console.error('[declarations] emitted declarations reference unresolvable modules:');
-    console.error([...new Set(unresolved)].join('\n'));
-    process.exit(1);
-  }
-  if (degraded.length > 0) {
-    console.error(
-      `[declarations] ${degraded.length} public type(s) degraded to 'any' for an external consumer.`,
+  if (result.error || result.status !== 0) {
+    console.error('[declarations] external consumer compilation failed:');
+    console.error(result.error?.message ?? output.trim());
+    process.exitCode = 1;
+  } else {
+    console.log(
+      '[declarations] packed root, React, and runtime consumers compile with strict ES2022 declarations',
     );
-    console.error(output.split('\n').slice(0, 20).join('\n'));
-    process.exit(1);
+    console.log(`[declarations] tarball integrity: ${packed[0].integrity}`);
   }
-  console.log('[declarations] public types resolve for an external consumer');
 } finally {
   await rm(workspace, { recursive: true, force: true });
 }
