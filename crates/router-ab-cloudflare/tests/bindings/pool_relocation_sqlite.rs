@@ -134,6 +134,20 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         "dev",
         &base.scope.wallet_id,
     )?;
+    let activation = router_ab_ecdsa_derivation_activation_request();
+    let activation_material = router_ab_ecdsa_derivation_server_material_record(&activation);
+    let activation_request = activation.to_recipient_proof_bundle_activation_request()?;
+    with_store(&path, &env, |store| {
+        store.activate(
+            owner.clone(),
+            activation_request.clone(),
+            activation_material.clone(),
+            1_000,
+        )
+    })?;
+    let mut delayed_activation = activation_request.clone();
+    delayed_activation.material_activation.activation_id = "late-ecdsa-activation".to_owned();
+    delayed_activation.validate()?;
     let mut records = Vec::new();
     for id in ["available", "reserved", "consumed", "retired", "untouched"] {
         let mut material = base.clone();
@@ -314,10 +328,25 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         freeze(&path, &env, &owner, freeze_request.clone())?,
         draining
     );
-    let admission =
-        with_store(&path, &env, |store| store.require_pool_admission(&owner)).unwrap_err();
+    let admission = with_store(&path, &env, |store| {
+        store.require_mutation_admission(&owner)
+    })
+    .unwrap_err();
     assert_eq!(
         admission.code(),
+        RouterAbProtocolErrorCode::LifecycleTransitionInProgress
+    );
+    let activation_error = with_store(&path, &env, |store| {
+        store.activate(
+            owner.clone(),
+            delayed_activation.clone(),
+            activation_material.clone(),
+            1_000,
+        )
+    })
+    .unwrap_err();
+    assert_eq!(
+        activation_error.code(),
         RouterAbProtocolErrorCode::LifecycleTransitionInProgress
     );
     let response = RouterAbEcdsaDerivationEvmDigestSigningResponseV1::new_for_request(
@@ -334,10 +363,25 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
     };
     assert_eq!(receipt.record_count, 6);
     assert_eq!(receipt.scope, owner);
+    let activation_error = with_store(&path, &env, |store| {
+        store.activate(
+            owner.clone(),
+            delayed_activation.clone(),
+            activation_material.clone(),
+            1_000,
+        )
+    })
+    .unwrap_err();
+    assert_eq!(
+        activation_error.code(),
+        RouterAbProtocolErrorCode::LifecycleTransitionInProgress
+    );
     let frozen_rows = rows(&path);
-    assert!(with_store(&path, &env, |store| store.require_pool_admission(&owner)).is_err());
+    assert!(with_store(&path, &env, |store| store
+        .require_mutation_admission(&owner))
+    .is_err());
     with_store(&path, &env, |store| {
-        store.require_pool_admission(&other_owner)
+        store.require_mutation_admission(&other_owner)
     })?;
     assert_eq!(freeze(&path, &env, &owner, freeze_request.clone())?, frozen);
     assert_eq!(rows(&path), frozen_rows);
@@ -376,6 +420,7 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         "pending_effect_blocks_freeze_until_commit": true,
         "presign_admission_closed_while_draining_and_frozen": true,
         "unrecorded_delayed_refill_rejected": true,
+        "activation_writes_rejected_while_draining_and_frozen": true,
         "frozen_receipt_exact_retry": true,
         "other_wallet_pool_admission_preserved": true,
         "scope": "Production wallet store and cipher on SQLite; excludes wallet-wide fencing and HTTP authorization"

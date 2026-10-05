@@ -253,6 +253,7 @@ impl<'a, Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'a, Sql>
             activated_at_ms,
         };
         call.validate()?;
+        self.require_mutation_admission(&scope)?;
         let material_key = call.storage_key();
         let active_key = call.active_state_index_key()?;
         let active = crate::cloudflare_active_signing_worker_state_from_activation_request_v1(
@@ -421,7 +422,7 @@ impl<'a, Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'a, Sql>
         scope: CloudflareSigningWorkerWalletScopeV1,
         command: CloudflareSigningWorkerEcdsaPoolCommandV1,
     ) -> RouterAbProtocolResult<CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1> {
-        self.require_pool_admission(&scope)?;
+        self.require_mutation_admission(&scope)?;
         self.mutate_pool_record(scope, command)
     }
 
@@ -716,6 +717,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         {
             return Ok(response);
         }
+        self.require_mutation_admission(scope)?;
         let source = linked::mpc_material_activation_from_ecdsa_ref_v1(&binding.source.activation)?;
         let source_share = match self.read_activation(
             scope,
@@ -801,6 +803,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         {
             return Ok(response);
         }
+        self.require_mutation_admission(scope)?;
         let state = stored
             .state
             .into_source_preserving_phase_v1(linked::SourcePreservingPhaseV1::Active)?;
@@ -869,6 +872,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
                     reservation_id,
                 } => (binding, source_derivation, reservation_id, now_unix_ms),
             };
+        self.require_mutation_admission(scope)?;
         let revoked = WalletLinkedEcdsaV1 {
             state: linked::EcdsaReservationStateV1::SourcePreservingRevoked {
                 binding,

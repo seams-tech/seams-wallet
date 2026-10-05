@@ -609,7 +609,7 @@ impl RouterAbSigningWorkerWalletDurableObject {
             SigningWorkerWalletDoRequestV1::LoadEcdsaPresignActivation { scope, lookup } => {
                 let sql = DurableObjectWalletSqlV1(&self.sql);
                 self.open_ecdsa_store(&sql)?
-                    .require_pool_admission(&scope)?;
+                    .require_mutation_admission(&scope)?;
                 self.load_ecdsa_activation(scope, lookup)
             }
             SigningWorkerWalletDoRequestV1::LoadEcdsaActivation { scope, lookup } => {

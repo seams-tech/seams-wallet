@@ -285,6 +285,19 @@ linked-device signing flow before claiming end-to-end coverage or retaining an
 obsolete transport. Composed behavioral proof, completed-secret invalidation,
 private-D1 fencing, and the aggregate freeze barrier remain unfinished.
 
+The active Gateway refill path uses `initializePoolFill`/`advancePoolFill` with
+wallet scope from authenticated preprocessing admission. Linked activation material
+loads through the common wallet ECDSA store. Its registration activation and linked
+reservation, activation, and revocation writes now enforce the same relocation
+fence as pool mutations. Read-only linked lifecycle answers remain available.
+The guard is named `require_mutation_admission` to reflect this scope. The existing
+production-store E2E admits an activation before freeze, then rejects a different
+delayed activation during draining and after freeze. Native compilation, wallet-DO
+WASM compilation, and the bloat check pass. Evidence remains in
+`.artifacts/r153/ecdsa-material-fence-20261005/`. Linked lifecycle transitions still
+need composed coverage. The current receipt digests pool records only; activation
+and reservation inventory must join the complete participant snapshot.
+
 Retained evidence:
 `.artifacts/r153/execution-journal-20261004/`, receipt SHA-256
 `02184ddd17816901bf2413115c35ca33a43bd90a269fedaeffb7f6990d8af555`.

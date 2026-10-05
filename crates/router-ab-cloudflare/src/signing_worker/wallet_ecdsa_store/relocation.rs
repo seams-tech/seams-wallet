@@ -104,8 +104,8 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         })
     }
 
-    /// Checks admission inside the transaction that claims a new presignature session.
-    pub fn require_pool_admission(
+    /// Checks wallet mutation admission inside the caller's storage transaction.
+    pub fn require_mutation_admission(
         &self,
         scope: &CloudflareSigningWorkerWalletScopeV1,
     ) -> RouterAbProtocolResult<()> {
