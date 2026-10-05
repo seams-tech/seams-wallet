@@ -74,6 +74,16 @@ Session continuity, sealed-session restoration, and pool restoration are exclude
 
 ## Implemented baseline
 
+The public relocation POST now verifies a fresh passkey `sourceProof` when no
+approval exists. The proof shape is `{ kind: "passkey", credential }`. It reads the
+stored challenge, checks the authenticated initiating credential and exact request,
+then uses the existing atomic approval transaction. Concurrent submissions retain
+one approval and one authenticator counter update. Existing approvals replay
+without another proof. The HTTP E2E verifies approval persistence before journal
+dispatch. A missing journal remains a missing move; this path does not yet perform
+participant preparation or new admission. Email OTP submission wiring remains open.
+
+
 Fresh challenge issuance now uses `POST /wallet/placement/v1/relocations/challenge`.
 The gateway authenticates an active full owner and asks Console to resolve the
 canonical request from the admitted region catalog. Console checks the source

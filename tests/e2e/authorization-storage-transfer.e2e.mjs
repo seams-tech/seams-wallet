@@ -530,7 +530,7 @@ async function verifyRelocationPasskey(database) {
   const publicKey = Buffer.from(keys.publicKey.export({ format: 'jwk' }).x, 'base64url');
   // COSE OKP key: kty=1, alg=-8, crv=6, x=32-byte Ed25519 public key.
   const cose = Buffer.concat([Buffer.from('a4010103272006215820', 'hex'), publicKey]);
-  const nowMs = Date.now();
+  let nowMs = Date.now();
   const fixture = await api.buildLinkedDeviceManagementAuthorityFixture({
     label: 'relocation-passkey',
     permissions: api.buildFullOwnerPermissionsV1(),
@@ -666,6 +666,46 @@ async function verifyRelocationPasskey(database) {
     0,
   );
   await database.exec('DROP TRIGGER fail_relocation_approval;');
+  const submissionDirectory = new PlacementDirectoryRecorder(null);
+  const submissionRoutes = new api.WalletPlacementRoutes({
+    database,
+    scope,
+    tenantId: issued.session.tenantId,
+    allowedOrigins: [binding.origin],
+    authorizationSessions,
+    directory: submissionDirectory,
+  });
+  const sourceSubmission = new Request(
+    'https://gateway.example.test/wallet/placement/v1/relocations',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${issued.operationCredential.token}`,
+        Origin: binding.origin,
+      },
+      body: JSON.stringify({
+        walletId: binding.walletId,
+        moveId: binding.moveId,
+        destinationRegion: binding.destinationRegion,
+        expectedGeneration: binding.sourceGeneration,
+        sourceProof: { kind: 'passkey', credential },
+      }),
+    },
+  );
+  const [submitted, repeatedSubmission] = await Promise.all([
+    submissionRoutes.handle(sourceSubmission.clone()),
+    submissionRoutes.handle(sourceSubmission.clone()),
+  ]);
+  assert.equal(submitted.status, 404);
+  assert.equal(repeatedSubmission.status, 404);
+  assert.ok(await approvals.read(binding));
+  assert.equal(
+    submissionDirectory.requests[0].path,
+    '/internal/wallet-placement/v1/relocation-replay',
+  );
+  assert.equal(submissionDirectory.requests[0].body.requestDigest, binding.requestDigestHex);
+  nowMs = Date.now();
+
   const [approved, concurrent] = await Promise.all([
     approvals.approvePasskey({ owner, binding, credential, nowMs: input.nowMs }),
     approvals.approvePasskey({ owner, binding, credential, nowMs: input.nowMs + 1 }),
@@ -1033,6 +1073,7 @@ async function verifyRelocationPasskey(database) {
     moveReadSurvivesSessionRetirementButRejectsRevocation: true,
     httpMoveReadDispatchIsAuthenticatedAndNeverStartsWork: true,
     httpReplayUsesPinnedDigestAndRejectsChangedRequest: true,
+    httpPasskeySubmissionPersistsApprovalBeforeJournalDispatch: true,
     moveReadRejectsWrongCredentialOriginScopeMoveAndExpiry: true,
     scope:
       'Real initiating-session authentication, passkey approval persistence and transactional guards; excludes HTTP admission and transfer',

@@ -98,7 +98,7 @@ export class WalletPlacementRoutes implements RouterApiRouteExtension {
     )
       return this.challenge(request);
     if (request.method === 'POST' && new URL(request.url).pathname === `${BASE_PATH}/relocations`)
-      return this.replay(request);
+      return this.relocate(request);
     if (request.method !== 'GET') return failure('method_not_allowed', 405);
     const url = new URL(request.url);
     const wallet = parseWalletId(url.searchParams.get('walletId'));
@@ -148,7 +148,7 @@ export class WalletPlacementRoutes implements RouterApiRouteExtension {
 
   private async challenge(request: Request): Promise<Response> {
     const intent = parseRelocationIntent(await request.json().catch(invalidBody), 'challenge');
-    if (!intent) return failure('invalid_input', 400);
+    if (!intent || intent.kind !== 'challenge') return failure('invalid_input', 400);
     const nowMs = Date.now();
     const owner = await WalletRelocationOwnerRequest.authenticate({
       request,
@@ -204,10 +204,10 @@ export class WalletPlacementRoutes implements RouterApiRouteExtension {
     );
   }
 
-  private async replay(request: Request): Promise<Response> {
+  private async relocate(request: Request): Promise<Response> {
     const raw: unknown = await request.json().catch(invalidBody);
-    const intent = parseRelocationIntent(raw, 'replay');
-    if (!intent) return failure('invalid_input', 400);
+    const intent = parseRelocationIntent(raw, 'admission');
+    if (!intent || intent.kind !== 'admission') return failure('invalid_input', 400);
     const nowMs = Date.now();
     const owner = await WalletRelocationOwnerRequest.authenticate({
       request,
@@ -218,10 +218,8 @@ export class WalletPlacementRoutes implements RouterApiRouteExtension {
       authorizationSessions: this.options.authorizationSessions,
       nowMs,
     });
-    const approval = await new D1WalletRelocationApprovals(
-      this.options.database,
-      this.options.scope,
-    ).find(intent.walletId, intent.moveId);
+    const approvals = new D1WalletRelocationApprovals(this.options.database, this.options.scope);
+    let approval = await approvals.find(intent.walletId, intent.moveId);
     if (!owner) {
       if (!approval) return failure('unauthorized', 401);
       const access = await WalletRelocationReadAccess.authenticate({
@@ -234,7 +232,31 @@ export class WalletPlacementRoutes implements RouterApiRouteExtension {
       });
       if (!access) return failure('unauthorized', 401);
     }
-    if (!approval) return failure('relocation_not_admitted', 409);
+    if (!approval) {
+      if (!owner) return failure('unauthorized', 401);
+      const challenge = await new D1WalletRelocationChallenges(
+        this.options.database,
+        this.options.scope,
+      ).find(intent.walletId, intent.moveId);
+      if (!challenge) return failure('relocation_challenge_required', 409);
+      if (
+        challenge.binding.destinationRegion !== intent.destinationRegion ||
+        challenge.binding.sourceGeneration !== intent.expectedGeneration
+      )
+        return failure('request_conflict', 409);
+      if (owner.bindMove(challenge.binding).encoded() !== challenge.binding.encoded())
+        return failure('unauthorized', 401);
+      const proof = passkeyProof(intent.sourceProof);
+      if (!proof) return failure('invalid_source_proof', 400);
+      const result = await approvals.approvePasskey({
+        owner,
+        binding: challenge.binding,
+        credential: proof.credential,
+        nowMs,
+      });
+      if (result.kind === 'denied') return failure('source_proof_denied', 403);
+      approval = result.approval;
+    }
     if (
       intent.destinationRegion !== approval.binding.destinationRegion ||
       intent.expectedGeneration !== approval.binding.sourceGeneration
@@ -282,18 +304,23 @@ function invalidBody(): null {
   return null;
 }
 
-function parseRelocationIntent(
-  raw: unknown,
-  purpose: 'challenge' | 'replay',
-): {
+type RelocationIntent = {
   readonly walletId: WalletId;
   readonly moveId: string;
   readonly destinationRegion: 'US' | 'WEUR' | 'APAC' | 'OC';
   readonly expectedGeneration: number;
-} | null {
+} & (
+  | { readonly kind: 'challenge'; readonly sourceProof?: never }
+  | { readonly kind: 'admission'; readonly sourceProof: unknown }
+);
+
+function parseRelocationIntent(
+  raw: unknown,
+  purpose: 'challenge' | 'admission',
+): RelocationIntent | null {
   if (!isPlainObject(raw) || Object.keys(raw).length !== (purpose === 'challenge' ? 4 : 5))
     return null;
-  if (purpose === 'replay' && !Object.hasOwn(raw, 'sourceProof')) return null;
+  if (purpose === 'admission' && !Object.hasOwn(raw, 'sourceProof')) return null;
   const wallet = parseWalletId(raw.walletId);
   if (
     !wallet.ok ||
@@ -308,11 +335,29 @@ function parseRelocationIntent(
       raw.destinationRegion !== 'OC')
   )
     return null;
-  // The recorded approval owns the proof. Exact replay never verifies a replacement proof.
-  return {
+  const intent: Pick<
+    RelocationIntent,
+    'walletId' | 'moveId' | 'destinationRegion' | 'expectedGeneration'
+  > = {
     walletId: wallet.value,
     moveId: raw.moveId,
     destinationRegion: raw.destinationRegion,
     expectedGeneration: raw.expectedGeneration,
   };
+  return purpose === 'challenge'
+    ? { ...intent, kind: 'challenge' }
+    : { ...intent, kind: 'admission', sourceProof: raw.sourceProof };
+}
+
+function passkeyProof(
+  raw: unknown,
+): { readonly kind: 'passkey'; readonly credential: unknown } | null {
+  if (
+    !isPlainObject(raw) ||
+    Object.keys(raw).length !== 2 ||
+    raw.kind !== 'passkey' ||
+    !Object.hasOwn(raw, 'credential')
+  )
+    return null;
+  return { kind: 'passkey', credential: raw.credential };
 }

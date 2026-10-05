@@ -167,6 +167,29 @@ export class D1WalletRelocationChallenges {
     return created;
   }
 
+  async find(walletId: WalletId, moveId: string): Promise<StoredChallenge | null> {
+    const row = await this.database
+      .prepare(
+        `SELECT binding_json FROM wallet_relocation_challenges
+      WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
+        AND wallet_id = ?5 AND move_id = ?6`,
+      )
+      .bind(
+        this.scope.namespace,
+        this.scope.orgId,
+        this.scope.projectId,
+        this.scope.envId,
+        walletId,
+        moveId,
+      )
+      .first<Record<string, unknown>>();
+    if (!row) return null;
+    if (typeof row.binding_json !== 'string') throw invalid();
+    const binding = WalletRelocationChallengeBinding.decode(row.binding_json);
+    if (binding.walletId !== walletId || binding.moveId !== moveId) throw invalid();
+    return this.read(binding);
+  }
+
   async read(binding: WalletRelocationChallengeBinding): Promise<StoredChallenge | null> {
     const row = await this.database
       .prepare(
