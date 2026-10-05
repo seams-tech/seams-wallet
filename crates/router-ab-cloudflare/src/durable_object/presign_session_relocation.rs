@@ -3,7 +3,8 @@
 use std::{cell::RefCell, rc::Rc};
 
 use router_ab_core::{RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult};
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 use super::ecdsa_presign_live_session::{presign_do_error_response, transaction_get_optional};
 
@@ -17,17 +18,21 @@ pub(crate) const FENCE_PATH: &str = "/router-ab/signing-worker/linked-presign-se
 pub(crate) const INTERNAL_FENCE_PATH: &str =
     "/router-ab/internal/signing-worker/linked-ecdsa-presign-session/fence";
 const FENCE_KEY: &str = "linked-presign-relocation-fence";
+pub(crate) const FREEZE_PATH: &str = "/router-ab/signing-worker/linked-presign-session/freeze";
+pub(crate) const INTERNAL_FREEZE_PATH: &str =
+    "/router-ab/internal/signing-worker/linked-ecdsa-presign-session/freeze";
+const SNAPSHOT_KEY: &str = "linked-presign-relocation-snapshot";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct LinkedPresignFenceCommand {
+pub(crate) struct LinkedPresignRelocationRequest {
     wallet_scope: CloudflareSigningWorkerWalletScopeV1,
     presign_session_id: String,
     server_presignature_id: String,
     request: SigningWorkerPoolFreezeRequestV1,
 }
 
-impl LinkedPresignFenceCommand {
+impl LinkedPresignRelocationRequest {
     fn validate(&self) -> RouterAbProtocolResult<()> {
         self.wallet_scope.validate()?;
         self.request.validate()?;
@@ -40,29 +45,242 @@ impl LinkedPresignFenceCommand {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct LinkedPresignFenceReceipt {
-    command: LinkedPresignFenceCommand,
+    command: LinkedPresignRelocationRequest,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct LinkedPresignFreezeReceipt {
+    command: LinkedPresignRelocationRequest,
+    records_digest_hex: String,
+    record_count: u64,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FrozenSnapshot {
+    receipt: LinkedPresignFreezeReceipt,
+    snapshot_json: String,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
+enum CompletionHistory {
+    NoStoredCompletion,
+    Retired {
+        completion: super::linked_presign_history::RetiredCompletion,
+    },
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Snapshot {
+    command: LinkedPresignRelocationRequest,
+    authority: CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1,
+    completion: CompletionHistory,
+}
+
+pub(crate) async fn handle_freeze(
+    mut request: worker::Request,
+    storage: &worker::Storage,
+) -> RouterAbProtocolResult<LinkedPresignFreezeReceipt> {
+    if request.method() != worker::Method::Post {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::MalformedWirePayload,
+            "Linked presign freeze requires POST",
+        ));
+    }
+    let command: LinkedPresignRelocationRequest = request.json().await.map_err(storage_error)?;
+    command.validate()?;
+    let outcome = Rc::new(RefCell::new(None));
+    let transaction_outcome = Rc::clone(&outcome);
+    storage
+        .transaction(move |transaction| async move {
+            let receipt = freeze_transaction(&transaction, command).await?;
+            transaction_outcome.replace(Some(receipt));
+            Ok(())
+        })
+        .await
+        .map_err(storage_error)?;
+    let receipt = outcome
+        .borrow_mut()
+        .take()
+        .ok_or_else(|| storage_error("Missing freeze outcome"))?;
+    receipt
+}
+
+async fn freeze_transaction(
+    transaction: &worker::Transaction,
+    command: LinkedPresignRelocationRequest,
+) -> worker::Result<RouterAbProtocolResult<LinkedPresignFreezeReceipt>> {
+    use super::ecdsa_presign_live_session::{
+        linked_completion_server_storage_key, linked_completion_session_storage_key,
+        CloudflareSigningWorkerLinkedDeviceEcdsaCompletedPresignatureRecordV1 as Completion,
+        LINKED_PRESIGN_AUTHORITY_STORAGE_KEY,
+    };
+    use super::linked_presign_history::{RetiredCompletion, Retirement};
+
+    let fence =
+        transaction_get_optional::<LinkedPresignFenceReceipt>(transaction, FENCE_KEY).await?;
+    match fence {
+        Some(receipt) if receipt.command == command => {}
+        Some(_) => {
+            return Ok(Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::ReplayedLocalRequest,
+                "Linked presign freeze command differs from its fence",
+            )))
+        }
+        None => {
+            return Ok(Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLifecycleState,
+                "Linked presign freeze requires its durable fence",
+            )))
+        }
+    }
+    if let Some(frozen) =
+        transaction_get_optional::<FrozenSnapshot>(transaction, SNAPSHOT_KEY).await?
+    {
+        if frozen.receipt.command != command {
+            return Err(worker::Error::RustError(
+                "Linked presign frozen command changed".into(),
+            ));
+        }
+        return Ok(Ok(frozen.receipt));
+    }
+    let authority: CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1 =
+        transaction
+            .get(LINKED_PRESIGN_AUTHORITY_STORAGE_KEY)
+            .await?;
+    authority.validate().map_err(transaction_error)?;
+    if authority.wallet_scope != command.wallet_scope
+        || authority.presign_session_id != command.presign_session_id
+        || authority.request.client_presignature_id != command.server_presignature_id
+    {
+        return Err(worker::Error::RustError(
+            "Linked presign frozen authority changed".into(),
+        ));
+    }
+    let session_key = linked_completion_session_storage_key(&command.presign_session_id);
+    let server_key = linked_completion_server_storage_key(&command.server_presignature_id);
+    let by_session = transaction_get_optional::<Completion>(transaction, &session_key).await?;
+    let by_server = transaction_get_optional::<Completion>(transaction, &server_key).await?;
+    if by_session != by_server {
+        return Err(worker::Error::RustError(
+            "Linked presign completion indexes disagree".into(),
+        ));
+    }
+    let retired = transaction_get_optional::<RetiredCompletion>(
+        transaction,
+        &super::linked_presign_history::storage_key(&command.server_presignature_id),
+    )
+    .await?;
+    let completion = match (by_session, retired) {
+        (Some(active), None) => {
+            let retired = RetiredCompletion::from_completion(
+                &active,
+                Retirement::WalletRelocated {
+                    move_id: command.request.move_id.clone(),
+                },
+            )
+            .map_err(transaction_error)?;
+            retired
+                .validate_for_authority(&authority)
+                .map_err(transaction_error)?;
+            super::linked_presign_history::persist_retirement(transaction, &retired).await?;
+            transaction.delete(&session_key).await?;
+            transaction.delete(&server_key).await?;
+            CompletionHistory::Retired {
+                completion: retired,
+            }
+        }
+        (None, Some(retired)) => {
+            retired
+                .validate_for_authority(&authority)
+                .map_err(transaction_error)?;
+            CompletionHistory::Retired {
+                completion: retired,
+            }
+        }
+        (None, None) => CompletionHistory::NoStoredCompletion,
+        (Some(_), Some(_)) => {
+            return Err(worker::Error::RustError(
+                "Linked presign has live and retired records".into(),
+            ))
+        }
+    };
+    let record_count = match &completion {
+        CompletionHistory::NoStoredCompletion => 1,
+        CompletionHistory::Retired { .. } => 2,
+    };
+    let snapshot = Snapshot {
+        command: command.clone(),
+        authority,
+        completion,
+    };
+    let snapshot_json = serde_json::to_string(&snapshot).map_err(transaction_error)?;
+    let mut digest = Sha256::new();
+    digest.update(b"seams/signing-worker/linked-presign-snapshot/v1");
+    digest.update(snapshot_json.as_bytes());
+    let receipt = LinkedPresignFreezeReceipt {
+        command,
+        records_digest_hex: format!("{:x}", digest.finalize()),
+        record_count,
+    };
+    transaction
+        .put(
+            SNAPSHOT_KEY,
+            &FrozenSnapshot {
+                receipt: receipt.clone(),
+                snapshot_json,
+            },
+        )
+        .await?;
+    Ok(Ok(receipt))
+}
+
+fn transaction_error(error: impl std::fmt::Display) -> worker::Error {
+    worker::Error::RustError(error.to_string())
 }
 
 pub(crate) async fn forward_fence(
-    mut request: worker::Request,
+    request: worker::Request,
     env: &worker::Env,
     runtime: &CloudflareSigningWorkerRuntimeV1,
 ) -> worker::Result<worker::Response> {
+    forward_command::<LinkedPresignFenceReceipt>(request, env, runtime, INTERNAL_FENCE_PATH).await
+}
+
+pub(crate) async fn forward_freeze(
+    request: worker::Request,
+    env: &worker::Env,
+    runtime: &CloudflareSigningWorkerRuntimeV1,
+) -> worker::Result<worker::Response> {
+    forward_command::<LinkedPresignFreezeReceipt>(request, env, runtime, INTERNAL_FREEZE_PATH).await
+}
+
+async fn forward_command<Receipt: DeserializeOwned + Serialize>(
+    mut request: worker::Request,
+    env: &worker::Env,
+    runtime: &CloudflareSigningWorkerRuntimeV1,
+    internal_path: &str,
+) -> worker::Result<worker::Response> {
     if request.method() != worker::Method::Post {
-        return worker::Response::error("Linked presign fence requires POST", 405);
+        return worker::Response::error("Linked presign relocation requires POST", 405);
     }
-    let command: LinkedPresignFenceCommand = match request.json().await {
+    let command: LinkedPresignRelocationRequest = match request.json().await {
         Ok(command) => command,
-        Err(_) => return worker::Response::error("Linked presign fence request is malformed", 400),
+        Err(_) => {
+            return worker::Response::error("Linked presign relocation request is malformed", 400)
+        }
     };
     if let Err(error) = command.validate() {
         return presign_do_error_response(error);
     }
-    let result: RouterAbProtocolResult<LinkedPresignFenceReceipt> =
+    let result: RouterAbProtocolResult<Receipt> =
         super::execute_cloudflare_durable_object_custom_json_call_v1(
             env,
             &runtime.bindings().presign_session,
-            INTERNAL_FENCE_PATH,
+            internal_path,
             &command.server_presignature_id,
             &command,
         )
@@ -80,10 +298,10 @@ pub(crate) async fn handle_fence(
     if request.method() != worker::Method::Post {
         return Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::MalformedWirePayload,
-            "Linked presign fence requires POST",
+            "Linked presign relocation requires POST",
         ));
     }
-    let command: LinkedPresignFenceCommand = request.json().await.map_err(storage_error)?;
+    let command: LinkedPresignRelocationRequest = request.json().await.map_err(storage_error)?;
     command.validate()?;
     let outcome = Rc::new(RefCell::new(None));
     let transaction_outcome = Rc::clone(&outcome);
@@ -104,7 +322,7 @@ pub(crate) async fn handle_fence(
 
 async fn fence_transaction(
     transaction: &worker::Transaction,
-    command: LinkedPresignFenceCommand,
+    command: LinkedPresignRelocationRequest,
 ) -> worker::Result<RouterAbProtocolResult<LinkedPresignFenceReceipt>> {
     if let Some(receipt) =
         transaction_get_optional::<LinkedPresignFenceReceipt>(transaction, FENCE_KEY).await?

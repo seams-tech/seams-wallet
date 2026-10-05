@@ -843,6 +843,10 @@ async fn consume_linked_presignature(
                 now_unix_ms,
             ) {
                 if error.code() == RouterAbProtocolErrorCode::ExpiredLocalRequest {
+                    super::linked_presign_history::retire(
+                        &transaction, &candidate,
+                        super::linked_presign_history::Retirement::Expired { at_ms: now_unix_ms },
+                    ).await?;
                     transaction.delete(&storage_key).await?;
                     let session_key = session_key_for_transaction.borrow().clone();
                     if let Some(session_key) = session_key {
@@ -852,6 +856,10 @@ async fn consume_linked_presignature(
                 outcome_for_transaction.replace(Some(Err(error)));
                 return Ok(());
             }
+            super::linked_presign_history::retire(
+                &transaction, &candidate,
+                super::linked_presign_history::Retirement::Consumed { at_ms: now_unix_ms },
+            ).await?;
             transaction.delete(&storage_key).await?;
             let session_key = session_key_for_transaction.borrow().clone();
             if let Some(session_key) = session_key {
@@ -883,18 +891,18 @@ async fn consume_linked_presignature(
 const LINKED_ECDSA_COMPLETION_SESSION_STORAGE_PREFIX_V1: &str = "linked-ecdsa-presign-session/v1/";
 const LINKED_ECDSA_COMPLETION_SERVER_STORAGE_PREFIX_V1: &str = "linked-ecdsa-presignature/v1/";
 
-fn linked_completion_storage_suffix(value: &str) -> String {
+pub(super) fn linked_completion_storage_suffix(value: &str) -> String {
     encode_base64url_bytes_v1(Sha256::digest(value.as_bytes()).as_slice())
 }
 
-fn linked_completion_session_storage_key(session_id: &str) -> String {
+pub(super) fn linked_completion_session_storage_key(session_id: &str) -> String {
     format!(
         "{LINKED_ECDSA_COMPLETION_SESSION_STORAGE_PREFIX_V1}{}",
         linked_completion_storage_suffix(session_id)
     )
 }
 
-fn linked_completion_server_storage_key(server_presignature_id: &str) -> String {
+pub(super) fn linked_completion_server_storage_key(server_presignature_id: &str) -> String {
     format!(
         "{LINKED_ECDSA_COMPLETION_SERVER_STORAGE_PREFIX_V1}{}",
         linked_completion_storage_suffix(server_presignature_id)

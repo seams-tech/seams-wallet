@@ -382,7 +382,7 @@ pub struct CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1 {
 }
 
 impl CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1 {
-    pub fn validate_at(&self, now_unix_ms: u64) -> RouterAbProtocolResult<()> {
+    pub fn validate(&self) -> RouterAbProtocolResult<()> {
         self.wallet_scope.validate()?;
         if self.wallet_scope.wallet_id != self.request.scope.wallet_id {
             return Err(RouterAbProtocolError::new(
@@ -390,15 +390,10 @@ impl CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1 {
                 "Linked presign wallet scope does not match signing request",
             ));
         }
-        self.request.validate_at(now_unix_ms)?;
+        self.request.validate()?;
         self.material_source
             .validate_for_linked_ecdsa_scope(&self.request.scope)?;
         require_non_empty("linked ECDSA presign session id", &self.presign_session_id)?;
-        validate_presign_session_expiry(
-            "linked ECDSA presign session expires_at_ms",
-            self.expires_at_ms,
-            now_unix_ms,
-        )?;
         if self.expires_at_ms != self.request.expires_at_ms {
             return Err(RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::ExpiredLocalRequest,
@@ -406,6 +401,15 @@ impl CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1 {
             ));
         }
         Ok(())
+    }
+
+    pub fn validate_at(&self, now_unix_ms: u64) -> RouterAbProtocolResult<()> {
+        self.validate()?;
+        validate_presign_session_expiry(
+            "linked ECDSA presign session expires_at_ms",
+            self.expires_at_ms,
+            now_unix_ms,
+        )
     }
 }
 

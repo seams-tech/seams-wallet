@@ -29,6 +29,8 @@ mod ecdsa_presign_live_session;
 #[cfg(feature = "workers-rs")]
 pub(crate) mod presign_session_relocation;
 #[cfg(feature = "workers-rs")]
+mod linked_presign_history;
+#[cfg(feature = "workers-rs")]
 mod router_wallet;
 #[cfg(feature = "workers-rs")]
 pub(crate) use router_wallet::{
@@ -155,6 +157,17 @@ impl worker::DurableObject for RouterAbSigningWorkerPresignSessionDurableObject 
 
     async fn fetch(&self, request: worker::Request) -> worker::Result<worker::Response> {
         let path = request.path();
+        if path == presign_session_relocation::INTERNAL_FREEZE_PATH {
+            let result = presign_session_relocation::handle_freeze(request, &self.storage).await;
+            if result.is_ok() {
+                self.linked_ecdsa_presign_sessions.borrow_mut().clear();
+                self.linked_ecdsa_presignature_records.borrow_mut().clear();
+            }
+            return match result {
+                Ok(receipt) => worker::Response::from_json(&receipt),
+                Err(error) => ecdsa_presign_live_session::presign_do_error_response(error),
+            };
+        }
         if path == presign_session_relocation::INTERNAL_FENCE_PATH {
             let result = presign_session_relocation::handle_fence(request, &self.storage).await;
             if result.is_ok() {

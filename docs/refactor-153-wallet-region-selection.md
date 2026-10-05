@@ -100,9 +100,16 @@ ECDSA credential and binds the move to the stored wallet, session, and server
 presignature identities. Exact retries return the stored receipt; changed commands
 fail. Closing the fence clears live linked protocol and completion caches. The
 receipt proves a local write barrier only. It does not claim material invalidation
-or a sealed snapshot. Invalidation, history extraction, coordinator integration,
-and runtime verification of this barrier remain unfinished. Both Worker backend
-builds compile; these checks do not prove its restart or race behavior.
+or a sealed snapshot. A separate freeze command requires that exact fence. It
+validates the pinned authority without requiring an unexpired signing request,
+checks both completion indexes, removes the stored presignature secrets, and
+preserves public completion history. Consumption and expiry also retain public
+history when removing secrets. Freeze stores canonical snapshot bytes and their
+digest in the same transaction as invalidation. Exact retries return the stored
+freeze receipt. An absent completion remains explicitly unknown; this change
+cannot reconstruct history deleted by earlier builds. Both Worker backend builds
+compile. Runtime restart/race verification, bounded export/import, and coordinator
+integration for linked sessions remain unfinished.
 
 
 ECDSA transfer preserves SQL integers through the Worker JavaScript boundary.
