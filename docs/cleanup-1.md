@@ -68,17 +68,32 @@ Chunk splitting and month-later presignature reuse proof are outside this batch.
   request-count tradeoff. Enrollment deferral increased startup bytes and was
   reverted. Build, mixed-wallet exports, cold/warm menu scenarios, and the bloat
   ratchet passed. See [startup evidence](evidence/cleanup-startup-20261005.json).
-- [x] **5. Signer-specific chunks:** defer curve-specific export execution.
-  NEAR-only export loads no ECDSA export module; ECDSA-only export loads no
-  Ed25519 export module or Yao WASM. Both scenarios verify registration,
-  lock/unlock, and restored signing before export. Three duplicate WASM aliases
-  are removed from development and production output: 675,372 package bytes.
-  Canonical URLs retain the generated filenames. Shared custody dependencies
-  remain. Build, type-check, mixed-wallet exports, both signer scenarios, three
-  worker delivery/retry tests, freshness, and the bloat ratchet passed. See
-  [signer asset evidence](evidence/cleanup-signer-assets-20261005.json).
-- [ ] **6. Tests and documentation:** consolidate repeated asset-test setup,
-  verify operation-specific imports, and correct ownership and asset guidance.
+- [x] **5. Signer assets:** audit NEAR-only and ECDSA-only registration,
+  lock/unlock, restored signing, and export. Remove three duplicate WASM aliases
+  from development and production output: 675,372 package bytes. Canonical URLs
+  retain generated filenames. Shared custody dependencies remain.
+  Separate curve-export JavaScript chunks passed behavior checks but increased
+  startup to 989,148 bytes and 118 cold responses. That split was removed. The
+  complete export operation remains deferred as one shared module. Build,
+  type-check, mixed-wallet exports, both signer scenarios, three worker
+  delivery/retry tests, freshness, and the bloat ratchet passed. See
+  [signer asset evidence](evidence/cleanup-signer-assets-20261005.json) for the
+  intermediate experiment and the final completion receipt below.
+- [x] **6. Tests and documentation:** use the existing lock/reload harness in
+  both signer scenarios. Share signed-out asset checks across generic and
+  registration menus. Verify that those menus fetch no signing/export operation
+  modules or crypto workers. Correct the stale same-class host/client description
+  and document the row-codec owners and canonical WASM names. All four affected
+  production scenarios passed on the final build. Type checks, external package
+  consumers, runtime-entry checks, freshness, and the bloat ratchet passed.
+
+Final signed-out transfer: **989,172 → 983,411 bytes** (5,761 fewer, about 0.6%).
+Cold responses: **93 → 106**. Warm asset bodies: **0 bytes**. These measurements
+support a modest transfer saving with more requests. They do not establish a
+latency improvement. The package drops **675,372 raw bytes** of unrequested WASM
+aliases. [Final verification receipt](evidence/cleanup-loading-completion-20261005.json)
+records phase bytes, response counts, source hashes, and repeatable commands.
+Server totals include worker downloads that browser metadata omits.
 
 Release work, deployed compression checks, R153 implementation, and month-later
 presignature proof remain outside this batch.

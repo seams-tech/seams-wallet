@@ -46,6 +46,8 @@ for loading triggers, shared ceremony dependencies, and measurement limits.
   - Progress event bridging from iframe back to parent callbacks
   - Overlay show/hide logic for user activation
   - Timeout and error handling
+- **`client/inboundMessages.ts`** - Validates incoming host messages before the
+  router handles requests and session transitions.
 - **`client/transport/IframeTransport.ts`** - Low-level iframe management:
   - Creates and mounts the iframe element
   - Handles the CONNECT → READY handshake using MessageChannel
@@ -69,7 +71,7 @@ for loading triggers, shared ceremony dependencies, and measurement limits.
   - Parent-to-child message types (PM_REGISTER_WALLET, PM_UNLOCK, etc.)
   - Child-to-parent response types (PROGRESS, PM_RESULT, ERROR)
   - Payload interfaces for all message types
-  - `ProgressPayload` (`WalletFlowEvent`) for real-time public flow updates
+  - Typed progress payloads for public flow updates
 
 #### 5. **Supporting Infrastructure**
 
@@ -93,13 +95,12 @@ SeamsWeb → coordinator → router             host handlers → WalletHostRunt
 2. **Message Passing**: Wallet requests use typed messages over MessagePort; handshake and browser bridge messages also use window messaging.
 3. **Event Bridging**: Progress events flow from iframe back to parent callbacks
 4. **Overlay Management**: The parent surface queue owns request-bound visibility; progress metadata remains available to callbacks.
-5. **Component Registry**: Declarative UI component definitions with automatic wiring
 
 ### Security Model
 
 - **Origin Isolation**: Wallet operations run in a separate origin/domain
 - **Permission Delegation**: WebAuthn permissions are delegated to the iframe
-- **Message Validation**: All messages are validated using type guards
+- **Message Validation**: Boundary parsers validate message envelopes and payloads
 - **Capability Delegation**: The iframe grants WebAuthn and clipboard access via explicit `allow` attributes. Sandboxing is intentionally omitted for cross-origin deployments because Chromium drops transferred `MessagePort`s from sandboxed iframes, which would break the CONNECT → READY handshake.
 - **No Function Transfer**: Functions never cross the iframe boundary
 

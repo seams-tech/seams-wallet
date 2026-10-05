@@ -285,5 +285,11 @@
     "node packages/wallet/scripts/checks/report-wallet-iframe-bundle-size.mjs --json",
     "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.registration.assets.contract.test.ts e2e/intended-behaviours/email-otp.unlock.contract.test.ts --grep \"production NEAR-only wallet records unlock and restored signing assets|production ECDSA-only wallet records unlock and restored signing assets|Email OTP registration and unlock lifecycle\"",
     "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4289 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/static-wallet-assets.browser.test.ts --project=chromium"
-  ]
+  ],
+  "status": "Intermediate experiment. Curve-specific JavaScript splitting was subsequently rejected. Canonical WASM URLs and extended export coverage were retained.",
+  "finalMeasurement": {
+    "startupEncodedBodyBytesWithCurveSplit": 989148,
+    "coldResponsesWithCurveSplit": 118,
+    "decision": "Remove curve-specific JavaScript split. Keep the complete export operation deferred and keep canonical WASM assets."
+  }
 }

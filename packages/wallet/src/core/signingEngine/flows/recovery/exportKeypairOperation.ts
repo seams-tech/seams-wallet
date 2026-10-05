@@ -10,7 +10,12 @@ import {
   type FreshEmailOtpEcdsaExportMaterial,
   type FreshPasskeyEcdsaExportMaterial,
 } from './ecdsaExportMaterial';
-import type { EcdsaExportFlowDeps } from './ecdsaExportFlow';
+import {
+  exportThresholdEcdsaKeyWithActiveWalletAuthority,
+  exportThresholdEcdsaKeyWithFreshEmailOtpRouteAuth,
+  exportThresholdEcdsaKeyWithFreshPasskeyAuthorization,
+  type EcdsaExportFlowDeps,
+} from './ecdsaExportFlow';
 import {
   resolveExactKeyExportLane as resolveExactKeyExportLaneValue,
   resolveEcdsaSessionForExport,
@@ -23,7 +28,10 @@ import {
   type SigningEngineResolveExactKeyExportLaneResult,
 } from './keyExportFlow';
 import { deriveEvmFamilyKeyFingerprintFromPublicFacts } from '../../session/identity/evmFamilyEcdsaIdentity';
-import type { Ed25519YaoExportFlowDeps } from './ed25519YaoExportFlow';
+import {
+  exportEd25519YaoKeyWithFreshAuthorization,
+  type Ed25519YaoExportFlowDeps,
+} from './ed25519YaoExportFlow';
 import { SIGNING_SESSION_EXPIRY_DETECTION_SOURCES } from '@/core/types/sdkSentEvents';
 import {
   requireAuthoritativeExpiredWalletSessionAuthorizationBoundary,
@@ -200,11 +208,6 @@ async function executePreparedEcdsaExport(
   args: Extract<SigningEngineExportKeypairWithUIInput, { kind: 'ecdsa' }> & { flowId: string },
   prepared: PreparedEcdsaExport,
 ): Promise<ExportKeypairResult> {
-  const {
-    exportThresholdEcdsaKeyWithActiveWalletAuthority,
-    exportThresholdEcdsaKeyWithFreshEmailOtpRouteAuth,
-    exportThresholdEcdsaKeyWithFreshPasskeyAuthorization,
-  } = await import('./ecdsaExportFlow');
   const walletId = toWalletId(args.walletSession.walletId);
   if (prepared.kind === 'active_wallet_authority') {
     return await exportThresholdEcdsaKeyWithActiveWalletAuthority(deps.ecdsa, {
@@ -319,7 +322,6 @@ async function exportEd25519KeypairWithFlowId(
   deps: ExportKeypairWithUIDeps,
   args: Extract<SigningEngineExportKeypairWithUIInput, { kind: 'ed25519' }> & { flowId: string },
 ): Promise<ExportKeypairResult> {
-  const { exportEd25519YaoKeyWithFreshAuthorization } = await import('./ed25519YaoExportFlow');
   return await exportEd25519YaoKeyWithFreshAuthorization(deps.ed25519Yao, {
     walletId: args.walletSession.walletId,
     nearAccountId: args.nearAccount.accountId,

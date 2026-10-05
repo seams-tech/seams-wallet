@@ -1,0 +1,203 @@
+{
+  "date": "2026-10-05",
+  "scope": "Cleanup tasks 4-6, final retained implementation",
+  "earlierCommits": [
+    "b8c4f045",
+    "3dc39b6a"
+  ],
+  "retained": [
+    "Key-export operation loads on demand as one shared module.",
+    "Browser workers use one canonical URL per WASM binary.",
+    "Asset scenarios reuse the existing lock/reload helper and verify signed-out operation imports.",
+    "Architecture and asset ownership documentation describes the current client/host split."
+  ],
+  "rejected": [
+    "Factor-enrollment chunk split increased startup transfer.",
+    "Curve-specific export chunk split increased startup requests and erased the byte saving. Final source restores shared export execution."
+  ],
+  "startupComparison": {
+    "beforeEncodedBodyBytes": 989172,
+    "afterEncodedBodyBytes": 983411,
+    "beforeColdResponses": 93,
+    "afterColdResponses": 106,
+    "warmEncodedBodyBytes": 0
+  },
+  "packageInventory": {
+    "duplicateWasmRawBytesRemoved": 675372,
+    "duplicateWasmFilesRemoved": 3,
+    "identicalWasmGroupsAfter": 0,
+    "missingReportedAssets": 0,
+    "note": "Package bytes, not a per-visit transfer saving."
+  },
+  "scenarios": {
+    "production-signed-out-mount-and-menu-record-cold-and-warm-cache-traffic": {
+      "browserEncodedBodyBytes": 983411,
+      "browserResponses": 212,
+      "browserPhases": {
+        "cold-signed-out-mount-idle": {
+          "encodedBodyBytes": 983411,
+          "responses": 106
+        },
+        "warm-signed-out-mount-idle": {
+          "encodedBodyBytes": 0,
+          "responses": 106
+        }
+      },
+      "workers": [],
+      "missingBrowserRequestMetadata": 0,
+      "serverEncodedBodyBytes": 981480,
+      "serverResponses": 212,
+      "incompleteServerResponses": 0
+    },
+    "production-registration-menu-awaits-input-with-cold-and-warm-caches": {
+      "browserEncodedBodyBytes": 983410,
+      "browserResponses": 212,
+      "browserPhases": {
+        "cold-registration-mount": {
+          "encodedBodyBytes": 983410,
+          "responses": 106
+        },
+        "warm-registration-mount": {
+          "encodedBodyBytes": 0,
+          "responses": 106
+        }
+      },
+      "workers": [],
+      "missingBrowserRequestMetadata": 0,
+      "serverEncodedBodyBytes": 981479,
+      "serverResponses": 212,
+      "incompleteServerResponses": 0
+    },
+    "production-near-only-wallet-records-unlock-and-restored-signing-assets": {
+      "browserEncodedBodyBytes": 9258342,
+      "browserResponses": 445,
+      "browserPhases": {
+        "near-only-registration": {
+          "encodedBodyBytes": 2763811,
+          "responses": 112
+        },
+        "locked-reload": {
+          "encodedBodyBytes": 983408,
+          "responses": 106
+        },
+        "near-only-unlock": {
+          "encodedBodyBytes": 2126109,
+          "responses": 108
+        },
+        "near-only-sign": {
+          "encodedBodyBytes": 413449,
+          "responses": 2
+        },
+        "near-only-restored-sign": {
+          "encodedBodyBytes": 2220888,
+          "responses": 111
+        },
+        "near-only-export": {
+          "encodedBodyBytes": 750677,
+          "responses": 6
+        }
+      },
+      "workers": [
+        "near-signer.worker.js",
+        "passkey-confirm.worker.js",
+        "passkey-mpc-export.worker.js",
+        "passkey-mpc-session.worker.js",
+        "shamir3pass.worker.js",
+        "wallet-custody-ceremony.worker.js"
+      ],
+      "missingBrowserRequestMetadata": 11,
+      "serverEncodedBodyBytes": 9370733,
+      "serverResponses": 456,
+      "incompleteServerResponses": 0
+    },
+    "production-ecdsa-only-wallet-records-unlock-and-restored-signing-assets": {
+      "browserEncodedBodyBytes": 8879471,
+      "browserResponses": 458,
+      "browserPhases": {
+        "ecdsa-only-registration": {
+          "encodedBodyBytes": 2988420,
+          "responses": 114
+        },
+        "locked-reload": {
+          "encodedBodyBytes": 1775086,
+          "responses": 107
+        },
+        "ecdsa-only-unlock": {
+          "encodedBodyBytes": 1938929,
+          "responses": 109
+        },
+        "tempo-sign": {
+          "encodedBodyBytes": 108556,
+          "responses": 6
+        },
+        "evm-sign": {
+          "encodedBodyBytes": 615,
+          "responses": 1
+        },
+        "ecdsa-restored-sign": {
+          "encodedBodyBytes": 2047485,
+          "responses": 115
+        },
+        "ecdsa-evm-step-up-sign": {
+          "encodedBodyBytes": 615,
+          "responses": 1
+        },
+        "ecdsa-only-export": {
+          "encodedBodyBytes": 19765,
+          "responses": 5
+        }
+      },
+      "workers": [
+        "ecdsa-derivation-client.worker.js",
+        "ecdsa-online-client.worker.js",
+        "ecdsa-presign-client.worker.js",
+        "evm-crypto.worker.js",
+        "passkey-confirm.worker.js",
+        "passkey-mpc-session.worker.js",
+        "shamir3pass.worker.js",
+        "tempo-signer.worker.js",
+        "wallet-custody-ceremony.worker.js"
+      ],
+      "missingBrowserRequestMetadata": 20,
+      "serverEncodedBodyBytes": 9220615,
+      "serverResponses": 478,
+      "incompleteServerResponses": 0
+    }
+  },
+  "verification": {
+    "finalProductionBuild": "passed",
+    "finalIntendedTypeCheck": "passed",
+    "finalProductionAssetScenarios": "4 isolated cases passed",
+    "mixedEmailLifecycleWithBothExports": "passed",
+    "workerDeliveryAndRetryBrowserScenarios": "3 passed",
+    "externalDeclarationConsumers": "passed",
+    "runtimeEntryBoundary": "passed",
+    "buildFreshness": "passed",
+    "bloatRatchet": "passed",
+    "sourceDiffWhitespace": "passed"
+  },
+  "limits": [
+    "Cold response count increases from 93 to 106.",
+    "Server totals include worker downloads omitted by browser completion metadata. They exclude HTTP/TLS framing. Do not add overlapping browser/server totals.",
+    "Missing browser request metadata does not mean an operation or asset delivery failed. The worker delivery and lifecycle tests passed.",
+    "Local asset transfer measurements do not establish deployed latency or compression.",
+    "No month-later presignature reuse claim, release, or deployment."
+  ],
+  "buildInputsHash": "d54b9700435dd138444933eb81e569ce63b7dcdc439395e3fc9e4728cc400a80",
+  "sourceSha256": {
+    "packages/wallet/src/core/signingEngine/flows/recovery/public.ts": "59f187ccb08a7ad3ecb802405bc7d41171d3615992845c3b91179ef82f75692c",
+    "packages/wallet/src/core/signingEngine/flows/recovery/exportKeypairOperation.ts": "71bbed1de6476684fecc211585d619617c0a0fc260b7fc8b0ee2d09b83ab11c2",
+    "packages/wallet/src/core/signingEngine/workerManager/workers/evm-crypto.worker.ts": "4baa803b6061b837562f6c7aa660f8d1fdb5318179d36afa77219f217691637c",
+    "packages/wallet/src/core/signingEngine/workerManager/workers/tempo-signer.worker.ts": "69ea8f10db899adfc46d5d33efd184ce2f75c82aada93330721f5195d688fd80",
+    "packages/wallet/src/core/signingEngine/workerManager/workers/email-otp/crypto.ts": "1873a0c405d02852adb574076da90622aaca07f63ac3f2a135259728e9ffb10f",
+    "tests/e2e/intended-behaviours/passkey.registration.assets.contract.test.ts": "bd42b8f9e0088b8a7cc02abe5c814630ebc9e2af8aca2324a061b23ac755ef0b"
+  },
+  "repeat": [
+    "pnpm -C packages/wallet build:prod",
+    "pnpm -C tests type-check:intended",
+    "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.registration.assets.contract.test.ts --grep \"production signed-out mount and menu record cold and warm cache traffic|production registration menu awaits input with cold and warm caches|production NEAR-only wallet records unlock and restored signing assets|production ECDSA-only wallet records unlock and restored signing assets\"",
+    "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4289 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/static-wallet-assets.browser.test.ts --project=chromium",
+    "node packages/wallet/scripts/checks/report-wallet-iframe-bundle-size.mjs --json",
+    "pnpm report:bloat --check"
+  ]
+}

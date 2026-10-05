@@ -83,13 +83,19 @@ async function measureSignedOutAssets(
     await observeSignedOutMount(page);
     assets.setPhase('cold-generic-menu');
     await observeGenericMenu(page);
-    expect(assets.getWorkerUrls().filter(isCryptoWorkerUrl)).toEqual([]);
+    await assertNoDeferredOperationAssets(assets, [
+      'cold-signed-out-mount-idle',
+      'cold-generic-menu',
+    ]);
     await page.goto('about:blank');
     assets.setPhase('warm-signed-out-mount-idle');
     await observeSignedOutMount(page);
     assets.setPhase('warm-generic-menu');
     await observeGenericMenu(page);
-    expect(assets.getWorkerUrls().filter(isCryptoWorkerUrl)).toEqual([]);
+    await assertNoDeferredOperationAssets(assets, [
+      'warm-signed-out-mount-idle',
+      'warm-generic-menu',
+    ]);
     assets.setPhase('completed');
   } finally {
     await page.context().tracing.stop({ path: tracePath });
@@ -113,10 +119,22 @@ async function observeUnselectedRegistrationMenu(page: Page): Promise<void> {
   await page.waitForTimeout(2_000);
 }
 
-function isSigningImplementationUrl(url: string): boolean {
-  return /\/(?:runtime-ecdsa-tempo|signEvmWithUiConfirm|signEvmFamilyWithUiConfirmForTempo|webauthnP256|secp256k1)-[^/]+\.js$/u.test(
+function isDeferredOperationModuleUrl(url: string): boolean {
+  return /\/(?:runtime-ecdsa-tempo|signEvmWithUiConfirm|signEvmFamilyWithUiConfirmForTempo|webauthnP256|secp256k1|exportKeypairOperation|ecdsaExportFlow|ed25519YaoExportFlow)-[^/]+\.js$/u.test(
     new URL(url).pathname,
   );
+}
+
+async function assertNoDeferredOperationAssets(
+  assets: WalletAssetEvidence,
+  phases: readonly string[],
+): Promise<void> {
+  for (const phase of phases) {
+    expect((await assets.getAssetUrlsForPhase(phase)).filter(isDeferredOperationModuleUrl)).toEqual(
+      [],
+    );
+  }
+  expect(assets.getWorkerUrls().filter(isCryptoWorkerUrl)).toEqual([]);
 }
 
 async function measureUnselectedRegistrationAssets({
@@ -132,23 +150,19 @@ async function measureUnselectedRegistrationAssets({
   await observeSignedOutMount(page);
   assets.setPhase('cold-unselected-registration-menu');
   await observeUnselectedRegistrationMenu(page);
-  expect(
-    (await assets.getAssetUrlsForPhase('cold-unselected-registration-menu')).filter(
-      isSigningImplementationUrl,
-    ),
-  ).toEqual([]);
-  expect(assets.getWorkerUrls().filter(isCryptoWorkerUrl)).toEqual([]);
+  await assertNoDeferredOperationAssets(assets, [
+    'cold-registration-mount',
+    'cold-unselected-registration-menu',
+  ]);
   await page.goto('about:blank');
   assets.setPhase('warm-registration-mount');
   await observeSignedOutMount(page);
   assets.setPhase('warm-unselected-registration-menu');
   await observeUnselectedRegistrationMenu(page);
-  expect(
-    (await assets.getAssetUrlsForPhase('warm-unselected-registration-menu')).filter(
-      isSigningImplementationUrl,
-    ),
-  ).toEqual([]);
-  expect(assets.getWorkerUrls().filter(isCryptoWorkerUrl)).toEqual([]);
+  await assertNoDeferredOperationAssets(assets, [
+    'warm-registration-mount',
+    'warm-unselected-registration-menu',
+  ]);
   assets.setPhase('completed');
 }
 
@@ -158,7 +172,7 @@ test(
 );
 
 function isEvmOperationModuleUrl(url: string): boolean {
-  return /\/(?:signEvmWithUiConfirm|signEvmFamilyWithUiConfirmForTempo|webauthnP256|secp256k1|ecdsaExportFlow)-[^/]+\.js$/u.test(
+  return /\/(?:signEvmWithUiConfirm|signEvmFamilyWithUiConfirmForTempo|webauthnP256|secp256k1)-[^/]+\.js$/u.test(
     new URL(url).pathname,
   );
 }
@@ -166,11 +180,9 @@ function isEvmOperationModuleUrl(url: string): boolean {
 async function measureNearOnlyAssets({
   harness,
   assets,
-  page,
 }: {
   harness: IntendedBehaviourHarness;
   assets: WalletAssetEvidence;
-  page: Page;
 }): Promise<void> {
   test.skip(process.env.SEAMS_INTENDED_PRODUCTION !== '1', 'Requires production app assets');
   assets.setCachePolicy('disabled_by_routing');
@@ -180,12 +192,7 @@ async function measureNearOnlyAssets({
     expect.stringMatching(/\/wallet_custody_ceremony_bg\.wasm$/u),
   );
   assets.setPhase('locked-reload');
-  await harness.lockWallet();
-  await page.reload({ waitUntil: 'networkidle' });
-  await expect(page.getByTestId('intended-e2e-page')).toHaveAttribute(
-    'data-login-state',
-    'logged_out',
-  );
+  await harness.assertLockedPageReloadStaysLocked();
   assets.setPhase('near-only-unlock');
   await harness.unlockPasskeyWallet();
   expect(assets.getRequestedAssetUrlsForPhase('near-only-unlock')).not.toContainEqual(
@@ -221,11 +228,9 @@ test(
 async function measureEcdsaOnlyAssets({
   harness,
   assets,
-  page,
 }: {
   harness: IntendedBehaviourHarness;
   assets: WalletAssetEvidence;
-  page: Page;
 }): Promise<void> {
   test.skip(process.env.SEAMS_INTENDED_PRODUCTION !== '1', 'Requires production app assets');
   assets.setCachePolicy('disabled_by_routing');
@@ -235,12 +240,7 @@ async function measureEcdsaOnlyAssets({
     expect.stringMatching(/\/wallet_custody_ceremony_bg\.wasm$/u),
   );
   assets.setPhase('locked-reload');
-  await harness.lockWallet();
-  await page.reload({ waitUntil: 'networkidle' });
-  await expect(page.getByTestId('intended-e2e-page')).toHaveAttribute(
-    'data-login-state',
-    'logged_out',
-  );
+  await harness.assertLockedPageReloadStaysLocked();
   assets.setPhase('ecdsa-only-unlock');
   await harness.unlockPasskeyWallet();
   expect(assets.getRequestedAssetUrlsForPhase('ecdsa-only-unlock')).not.toContainEqual(
@@ -260,9 +260,7 @@ async function measureEcdsaOnlyAssets({
   assets.setPhase('ecdsa-only-export');
   await harness.exportEcdsaKey();
   for (const assetUrl of assets.getRequestedAssetUrlsForPhase('ecdsa-only-export')) {
-    expect(assetUrl).not.toMatch(
-      /\/(?:ed25519YaoExportFlow-[^/]+\.js|router_ab_ed25519_yao_client_bg\.wasm)$/u,
-    );
+    expect(assetUrl).not.toMatch(/\/router_ab_ed25519_yao_client_bg\.wasm$/u);
   }
   assets.setPhase('completed');
 }

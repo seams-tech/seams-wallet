@@ -623,8 +623,8 @@ initialization is recorded separately.
 | Worker / owner | WASM and execution dependency | Current trigger |
 | --- | --- | --- |
 | `near-signer.worker.ts` | `wasm_signer_worker_bg.wasm` | Startup initializes WASM before best-effort READY; operations also await initialization. |
-| `evm-crypto.worker.ts` | `evm_crypto.wasm`; secp256k1/transaction and WebAuthn P256 helpers | Startup initializes WASM before best-effort READY; operations await it again. Filename alone does not imply every use is an EVM transaction. |
-| `tempo-signer.worker.ts` | `tempo_signer.wasm` | Startup initialization and operation guard. |
+| `evm-crypto.worker.ts` | `evm_crypto_bg.wasm`; secp256k1/transaction and WebAuthn P256 helpers | Startup initializes WASM before best-effort READY; operations await it again. Filename alone does not imply every use is an EVM transaction. |
+| `tempo-signer.worker.ts` | `tempo_signer_bg.wasm` | Startup initialization and operation guard. |
 | `ecdsa-derivation-client.worker.ts` | `router_ab_ecdsa_client_bg.wasm`; material/registration/export and opaque presign authority | Startup initialization and explicit preparation requests; connected presign/online operations depend on this authority or a linked holder. |
 | `ecdsa-presign-client.worker.ts` | No directly loaded WASM binary in this worker; routes opaque authority requests through MessagePorts | Immediate READY, authority/pool setup on requests. Separate JS does not mean independent crypto state. |
 | `ecdsa-online-client.worker.ts` | No directly loaded WASM binary; coordinates via presign worker | Immediate READY; request-time channel use. |
@@ -738,14 +738,20 @@ or an exact network allowlist. No binary split or new worker registry is needed.
 
 ### Alias and caching accounting
 
-The measured existing output contains byte-identical pairs for
-`evm_crypto.wasm` / `evm_crypto_bg.wasm`, `tempo_signer.wasm` /
-`tempo_signer_bg.wasm`, and `near_signer.wasm` / `wasm_signer_worker_bg.wasm`.
-The host report now identifies these by content hash. Its selected inventory
-includes both NEAR names but does not include every alias in its sum. Several
-workers can also initialize the same WASM URL in separate execution contexts;
-network cache reuse and compilation/instantiation cost are separate measurements.
-No binary or alias should be deleted without auditing all emitted URL consumers.
+The original measurement contained three byte-identical WASM pairs. The loading
+cleanup removed their duplicate browser URLs. Current browser workers use
+`wasm_signer_worker_bg.wasm`, `evm_crypto_bg.wasm`, and `tempo_signer_bg.wasm`.
+Both development and production builds emit one copy of each binary.
+
+This removes 675,372 bytes from the package inventory. It does not establish the
+same transfer saving: the removed aliases were not requested in the measured
+flows. Several workers can initialize the same URL in separate execution
+contexts. Network caching and WASM compilation remain separate costs.
+
+The bundle report identifies identical files by content hash. Production asset
+scenarios record requested URLs and encoded response bodies. See
+[the current loading cleanup](cleanup-1.md#wallet-loading-cleanup--tasks-46)
+for the selected changes and verification.
 
 ### Host composition extraction checkpoint
 
