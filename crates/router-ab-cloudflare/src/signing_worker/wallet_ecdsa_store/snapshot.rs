@@ -32,6 +32,7 @@ struct PoolSnapshotRow {
     pool_key: String,
     owner_json: String,
     ciphertext_json: String,
+    #[serde(with = "sql_integer")]
     version: i64,
 }
 
@@ -61,8 +62,10 @@ struct EffectSnapshotRow {
     owner_json: String,
     request_digest_hex: String,
     authorization_json: String,
+    #[serde(with = "sql_integer")]
     claimed_at_ms: i64,
     terminal_json: String,
+    #[serde(with = "sql_integer")]
     committed_at_ms: i64,
 }
 
@@ -74,7 +77,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
     ) -> RouterAbProtocolResult<EcdsaSnapshot> {
         let owner = owner_json(scope, "wallet ECDSA snapshot")?;
         let pools = self.sql.query::<PoolSnapshotRow>(
-            "SELECT pool_key, owner_json, ciphertext_json, version
+            "SELECT pool_key, owner_json, ciphertext_json, CAST(version AS TEXT) AS version
              FROM wallet_ecdsa_pool WHERE owner_json = ? ORDER BY pool_key",
             vec![text(owner.clone())],
         )?;
@@ -98,7 +101,8 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         }
         let effects = self.sql.query::<EffectSnapshotRow>(
             "SELECT operation_key, authorization_key, owner_json, request_digest_hex,
-                    authorization_json, claimed_at_ms, terminal_json, committed_at_ms
+                    authorization_json, CAST(claimed_at_ms AS TEXT) AS claimed_at_ms,
+                    terminal_json, CAST(committed_at_ms AS TEXT) AS committed_at_ms
              FROM wallet_ecdsa_effects WHERE owner_json = ? ORDER BY operation_key",
             vec![text(owner)],
         )?;

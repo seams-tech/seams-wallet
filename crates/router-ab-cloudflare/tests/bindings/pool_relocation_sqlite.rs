@@ -7,6 +7,9 @@ use router_ab_core::RouterAbProtocolError;
 use rusqlite::{Connection, TransactionBehavior};
 use serde::de::DeserializeOwned;
 
+// This odd integer cannot round-trip through a JavaScript number.
+const HISTORICAL_SQL_VERSION: i64 = 9_007_199_254_740_993;
+
 struct Sqlite<'a>(&'a Connection);
 
 impl SigningWorkerWalletSqlV1 for Sqlite<'_> {
@@ -24,7 +27,9 @@ impl SigningWorkerWalletSqlV1 for Sqlite<'_> {
         let values = params.into_iter().map(|value| match value {
             SigningWorkerWalletSqlValueV1::Null => rusqlite::types::Value::Null,
             SigningWorkerWalletSqlValueV1::Text(value) => rusqlite::types::Value::Text(value),
-            SigningWorkerWalletSqlValueV1::Integer(value) => rusqlite::types::Value::Integer(value),
+            SigningWorkerWalletSqlValueV1::Integer(value) => {
+                rusqlite::types::Value::Text(value.to_string())
+            }
         });
         let mut rows = query
             .query(rusqlite::params_from_iter(values))
@@ -210,7 +215,12 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         }
         records.push((id, record));
     }
+    Connection::open(&path)?.execute(
+        "UPDATE wallet_ecdsa_pool SET version = ? WHERE owner_json = ?",
+        rusqlite::params![HISTORICAL_SQL_VERSION, serde_json::to_string(&owner)?],
+    )?;
     let before = rows(&path);
+    assert!(before.iter().any(|row| row.2 == HISTORICAL_SQL_VERSION));
     for (id, original) in records.iter().filter(|(id, _)| *id != "untouched") {
         let command = CloudflareSigningWorkerEcdsaPoolCommandV1::InvalidateForRelocation {
             scope: base.scope.clone(),
@@ -436,6 +446,7 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         "restore_rolls_back_before_commit": true,
         "verified_destination_remains_inactive": true,
         "exact_ciphertext_versions_and_terminal_result_restored": true,
+        "sql_version_above_javascript_integer_precision_restored": HISTORICAL_SQL_VERSION.to_string(),
         "late_known_chunk_does_not_overwrite_restored_records": true,
         "export_exact_after_reopen": true,
         "export_rejects_changed_receipt_and_bounds": true,
@@ -681,11 +692,15 @@ fn verify_snapshot_export(
             (
                 row["pool_key"].as_str().unwrap().to_owned(),
                 row["ciphertext_json"].as_str().unwrap().to_owned(),
-                row["version"].as_i64().unwrap(),
+                row["version"].as_str().unwrap().parse::<i64>().unwrap(),
             )
         })
         .collect();
     assert_eq!(rows(&destination), expected_rows);
+    assert!(expected_rows.iter().any(|row| row.2 == HISTORICAL_SQL_VERSION));
+    assert!(expected_rows
+        .iter()
+        .any(|row| row.2 == HISTORICAL_SQL_VERSION + 1));
     assert!(with_store(&destination, env, |store| store
         .require_mutation_admission(&receipt.scope))
     .is_err());

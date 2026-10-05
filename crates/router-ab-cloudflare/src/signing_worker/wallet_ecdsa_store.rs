@@ -12,6 +12,7 @@ use serde::de::DeserializeOwned;
 
 mod relocation;
 mod snapshot;
+mod sql_integer;
 mod transfer;
 mod import;
 pub use import::{
@@ -125,6 +126,7 @@ pub struct SigningWorkerWalletEcdsaActivationMaterialV1 {
 struct EcdsaPoolRowV1 {
     owner_json: String,
     ciphertext_json: String,
+    #[serde(deserialize_with = "sql_integer::deserialize")]
     version: i64,
 }
 
@@ -458,7 +460,7 @@ impl<'a, Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'a, Sql>
         .storage_key();
         let owner_json = owner_json(&scope, "ECDSA pool")?;
         let rows = self.sql.query::<EcdsaPoolRowV1>(
-            "SELECT owner_json, ciphertext_json, version FROM wallet_ecdsa_pool WHERE pool_key = ?",
+            "SELECT owner_json, ciphertext_json, CAST(version AS TEXT) AS version FROM wallet_ecdsa_pool WHERE pool_key = ?",
             vec![text(key.clone())],
         )?;
         let current = match rows.as_slice() {

@@ -74,6 +74,17 @@ Session continuity, sealed-session restoration, and pool restoration are exclude
 
 ## Implemented baseline
 
+ECDSA transfer preserves SQL integers through the Worker JavaScript boundary.
+Pool versions and historical effect timestamps use canonical decimal strings in
+snapshot encoding and SQL reads. The wallet DO binds integer parameters as text;
+SQLite integer-column affinity restores their exact values. This avoids the
+Worker library's `i64` to `f64` conversion. The existing production-store scenario
+now transfers version `9007199254740993`, including a real version increment,
+through chunk retries, process-independent store reopens, and historical restore.
+Its SQLite adapter exercises the same decimal parameter binding. This is local
+storage evidence; hosted DO execution remains part of composed acceptance.
+
+
 Presignature expiry now preserves durable owner-session identity claims in both
 native SQLite and the session Durable Object. Native admission no longer deletes
 expired claims across wallets. The Durable Object alarm clears live protocol

@@ -470,7 +470,8 @@ impl crate::SigningWorkerWalletSqlV1 for DurableObjectWalletSqlV1<'_> {
                 crate::SigningWorkerWalletSqlValueV1::Null => SqlStorageValue::Null,
                 crate::SigningWorkerWalletSqlValueV1::Text(value) => SqlStorageValue::String(value),
                 crate::SigningWorkerWalletSqlValueV1::Integer(value) => {
-                    SqlStorageValue::Integer(value)
+                    // SQLite column affinity restores the integer without an f64 conversion.
+                    SqlStorageValue::String(value.to_string())
                 }
             })
             .collect::<Vec<_>>();
