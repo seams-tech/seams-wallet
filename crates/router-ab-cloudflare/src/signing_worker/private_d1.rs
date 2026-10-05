@@ -1510,8 +1510,19 @@ async fn ecdsa_pool_mutate_v1(
                 )
             })
             .transpose()?;
+        let terminal = current_record.as_ref().is_some_and(|record| {
+            matches!(
+                record.lifecycle,
+                router_ab_ecdsa_pool::PoolRecord::Consumed(_)
+                    | router_ab_ecdsa_pool::PoolRecord::Tombstone(_)
+            )
+        });
         let outcome =
             apply_cloudflare_signing_worker_ecdsa_pool_command_v1(current_record, command.clone())?;
+        if terminal {
+            outcome.validate()?;
+            return Ok(CloudflareSigningWorkerPrivateD1ResponseV1::EcdsaPoolMutated { outcome });
+        }
         let stored = match current {
             None => insert_ecdsa_pool_record_v1(db, cipher, &key, outcome.record()).await?,
             Some(row) => {

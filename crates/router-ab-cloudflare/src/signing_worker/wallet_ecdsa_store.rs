@@ -445,7 +445,18 @@ impl<'a, Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'a, Sql>
             }
             _ => return Err(wallet_error("ECDSA pool lookup returned duplicate rows")),
         };
+        let terminal = current.as_ref().is_some_and(|record| {
+            matches!(
+                record.lifecycle,
+                router_ab_ecdsa_pool::PoolRecord::Consumed(_)
+                    | router_ab_ecdsa_pool::PoolRecord::Tombstone(_)
+            )
+        });
         let outcome = apply_cloudflare_signing_worker_ecdsa_pool_command_v1(current, command)?;
+        if terminal {
+            outcome.validate()?;
+            return Ok(outcome);
+        }
         outcome.validate()?;
         if matches!(
             outcome,

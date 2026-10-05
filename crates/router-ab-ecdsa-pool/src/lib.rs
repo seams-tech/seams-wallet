@@ -248,6 +248,18 @@ impl AvailableRecord {
         )
     }
 
+    /// Invalidates unused material when wallet execution moves to another home.
+    pub fn invalidate_for_relocation(
+        &self,
+        now_ms: u64,
+    ) -> Result<PoolMutation, PoolTransitionError> {
+        self.0.tombstone(
+            TombstoneReason::WalletRelocated,
+            now_ms,
+            TombstoneOrigin::Unused,
+        )
+    }
+
     /// Plans terminal destruction after key or activation epoch retirement.
     pub fn retire(
         &self,
@@ -430,6 +442,14 @@ impl ReservedRecord {
         self.destroy(reason, now_ms)
     }
 
+    /// Invalidates reserved material while preserving its request binding.
+    pub fn invalidate_for_relocation(
+        &self,
+        now_ms: u64,
+    ) -> Result<PoolMutation, PoolTransitionError> {
+        self.destroy(TombstoneReason::WalletRelocated, now_ms)
+    }
+
     /// Plans terminal destruction after key or activation epoch retirement.
     pub fn retire(
         &self,
@@ -537,6 +557,8 @@ pub enum TombstoneReason {
     PersistenceFailure,
     /// The material lifetime elapsed.
     MaterialExpired,
+    /// The wallet moved to another execution home without retiring its keys.
+    WalletRelocated,
     /// The authenticated key epoch retired.
     KeyEpochRetired,
     /// The authenticated activation epoch retired.
@@ -575,6 +597,11 @@ impl TombstoneRecord {
     /// Returns the permanent terminal reason.
     pub const fn reason(&self) -> TombstoneReason {
         self.reason
+    }
+
+    /// Returns the time at which usable material was destroyed.
+    pub const fn terminal_at_ms(&self) -> u64 {
+        self.terminal_at_ms
     }
 
     /// Returns the terminal origin.

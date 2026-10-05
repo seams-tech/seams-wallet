@@ -189,6 +189,20 @@ chunks. The focused HTTP E2E checks both stores after restart, rejects delayed
 registration, and preserves another wallet's copied records and replay result.
 Evidence remains in `.artifacts/r153/router-empty-inventory-20261005/`.
 
+The ECDSA pool now has an explicit `InvalidateForRelocation` command and a
+`WalletRelocated` terminal reason. It destroys available or reserved material
+without retiring keys or activations. Reserved records retain their request
+bindings. Existing consumed records and tombstones remain unchanged. Exact
+invalidation retries use the original revision and timestamp and return the
+original terminal result. Both persistence adapters avoid rewriting terminal
+ciphertext. Ordinary lock behavior is unchanged.
+Native and SigningWorker WASM checks, nine existing pool contract tests, and the
+bloat check pass. Evidence remains in
+`.artifacts/r153/pool-relocation-invalidation-20261005/`. These checks preserve
+existing pool behavior; they do not prove the new operation through an E2E.
+Wallet-wide writer fencing, inventory traversal, presign-session invalidation,
+coordinator command binding, and composed behavioral acceptance remain unfinished.
+
 Retained evidence:
 `.artifacts/r153/execution-journal-20261004/`, receipt SHA-256
 `02184ddd17816901bf2413115c35ca33a43bd90a269fedaeffb7f6990d8af555`.

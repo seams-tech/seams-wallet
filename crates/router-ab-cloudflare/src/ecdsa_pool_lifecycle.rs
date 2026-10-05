@@ -173,6 +173,17 @@ pub enum CloudflareSigningWorkerEcdsaPoolCommandV1 {
         /// Cleanup timestamp.
         now_unix_ms: u64,
     },
+    /// Invalidate usable material for wallet relocation without retiring keys or activations.
+    InvalidateForRelocation {
+        /// Exact authenticated pool scope.
+        scope: RouterAbEcdsaDerivationNormalSigningScopeV1,
+        /// Exact pair identifier.
+        server_presignature_id: String,
+        /// Revision that must still be current.
+        expected_revision: u64,
+        /// Invalidation timestamp.
+        now_unix_ms: u64,
+    },
     /// Burn material after key or activation epoch retirement.
     Retire {
         /// Exact authenticated pool scope.
@@ -240,6 +251,12 @@ impl CloudflareSigningWorkerEcdsaPoolCommandV1 {
                 now_unix_ms,
                 ..
             }
+            | Self::InvalidateForRelocation {
+                scope,
+                server_presignature_id,
+                now_unix_ms,
+                ..
+            }
             | Self::Expire {
                 scope,
                 server_presignature_id,
@@ -288,6 +305,7 @@ impl CloudflareSigningWorkerEcdsaPoolCommandV1 {
             | Self::DestroyReserved { scope, .. }
             | Self::RecoverInterrupted { scope, .. }
             | Self::Expire { scope, .. }
+            | Self::InvalidateForRelocation { scope, .. }
             | Self::Retire { scope, .. } => scope,
         }
     }
@@ -315,6 +333,10 @@ impl CloudflareSigningWorkerEcdsaPoolCommandV1 {
                 ..
             }
             | Self::Expire {
+                server_presignature_id,
+                ..
+            }
+            | Self::InvalidateForRelocation {
                 server_presignature_id,
                 ..
             }
@@ -354,6 +376,11 @@ pub enum CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1 {
         /// Complete material-free tombstone.
         record: CloudflareSigningWorkerEcdsaPoolLifecycleRecordV1,
     },
+    /// Relocation found material-free history and preserved it without another transition.
+    PreservedTerminal {
+        /// Existing consumed record or tombstone.
+        record: CloudflareSigningWorkerEcdsaPoolLifecycleRecordV1,
+    },
     /// The requested terminal mutation completed.
     Finished {
         /// Complete material-free tombstone.
@@ -385,6 +412,10 @@ impl CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1 {
                 | (Self::Consumed { .. }, PoolRecord::Consumed(_))
                 | (Self::Burned { .. }, PoolRecord::Tombstone(_))
                 | (Self::Finished { .. }, PoolRecord::Tombstone(_))
+                | (
+                    Self::PreservedTerminal { .. },
+                    PoolRecord::Consumed(_) | PoolRecord::Tombstone(_)
+                )
         );
         if valid {
             return Ok(());
@@ -401,7 +432,8 @@ impl CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1 {
             | Self::Reserved { record }
             | Self::Consumed { record, .. }
             | Self::Burned { record }
-            | Self::Finished { record } => record,
+            | Self::Finished { record }
+            | Self::PreservedTerminal { record } => record,
         }
     }
 }
@@ -561,6 +593,38 @@ pub fn apply_cloudflare_signing_worker_ecdsa_pool_command_v1(
                 expected_revision,
             )?;
             let record = current.expire(now_unix_ms)?;
+            Ok(CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1::Finished { record })
+        }
+        CloudflareSigningWorkerEcdsaPoolCommandV1::InvalidateForRelocation {
+            scope,
+            server_presignature_id,
+            expected_revision,
+            now_unix_ms,
+        } => {
+            let current = require_current(current)?;
+            let exact_retry = matches!(&current.lifecycle, PoolRecord::Tombstone(record)
+                if record.reason() == TombstoneReason::WalletRelocated
+                    && record.terminal_at_ms() == now_unix_ms
+                    && expected_revision.checked_add(1) == Some(record.revision().value()));
+            let revision = if exact_retry {
+                current.lifecycle.revision().value()
+            } else {
+                expected_revision
+            };
+            validate_command_identity(&current, &scope, &server_presignature_id, revision)?;
+            if matches!(
+                &current.lifecycle,
+                PoolRecord::Consumed(_) | PoolRecord::Tombstone(_)
+            ) {
+                return Ok(if exact_retry {
+                    CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1::Finished { record: current }
+                } else {
+                    CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1::PreservedTerminal {
+                        record: current,
+                    }
+                });
+            }
+            let record = current.invalidate_for_relocation(now_unix_ms)?;
             Ok(CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1::Finished { record })
         }
         CloudflareSigningWorkerEcdsaPoolCommandV1::Retire {
@@ -842,6 +906,18 @@ impl CloudflareSigningWorkerEcdsaPoolLifecycleRecordV1 {
                     "SigningWorker ECDSA terminal material cannot expire again",
                 ));
             }
+        }
+        .map_err(pool_transition_error)?;
+        self.into_destroyed_tombstone(mutation)
+    }
+
+    /// Destroys usable material for relocation while retaining its one-use history.
+    pub fn invalidate_for_relocation(self, now_unix_ms: u64) -> RouterAbProtocolResult<Self> {
+        self.validate()?;
+        let mutation = match &self.lifecycle {
+            PoolRecord::Available(record) => record.invalidate_for_relocation(now_unix_ms),
+            PoolRecord::Reserved(record) => record.invalidate_for_relocation(now_unix_ms),
+            PoolRecord::Consumed(_) | PoolRecord::Tombstone(_) => return Ok(self),
         }
         .map_err(pool_transition_error)?;
         self.into_destroyed_tombstone(mutation)
