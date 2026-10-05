@@ -5,6 +5,7 @@ import '@seams/wallet/react/styles';
 import { IntendedBehaviourE2EPage } from './page';
 import { UnlockWallet } from './UnlockWallet';
 import { AssetMenu } from './AssetMenu';
+import { AccountMenu } from './AccountMenu';
 
 function requiredEnvironmentValue(name: string): string {
   const environment = import.meta.env as Record<string, unknown>;
@@ -82,6 +83,7 @@ createRoot(root).render(
         <IntendedBehaviourE2EPage />
         <UnlockWallet />
         <AssetMenu />
+        <AccountMenu />
       </TransactionReviewHost>
     </SeamsWebProvider>
   </React.StrictMode>,

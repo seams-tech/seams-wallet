@@ -1,0 +1,46 @@
+{
+  "baseCommit": "c9bf2f8eb742571bac5afadbad8e965b5553007b",
+  "scope": "Delegate React device-list removal to the existing host auth-method operation and remove duplicate application email proof orchestration.",
+  "sourceSha256": {
+    "packages/wallet/src/react/components/AccountMenuButton/LinkedDevicesModal.tsx": "c2a272b7a644d011e0dc8e4bc6cce080039e64075db187d9c22558269ae277f7",
+    "packages/wallet/src/react/components/AccountMenuButton/LinkedDevicesModal.css": "ba157254af1593fe56db06f8c8c0af2494203c4428745910bc3a53014f47ef6e",
+    "tests/e2e/intended-behaviours/email-otp.add-passkey.contract.test.ts": "4308ab61173f9b71140bd490327d61d1aedaa40be9d9b02fabc0c42b92cd4d37",
+    "tests/e2e/intended-behaviours/harness.ts": "24f32b13a1036bfdabca3c94cb8f67ce09242353a5d5e462ab1747c8c52c7b89",
+    "tests/intended-app/src/AccountMenu.tsx": "8bc7c2c92f269963de2924d6f5abb81bd677ca2a398d0e8b7cbac742fc75ac34",
+    "tests/intended-app/src/main.tsx": "ce58c6721ec48d35504a576f556ab7ab6bcfb9545373404d89653210fc9753d1"
+  },
+  "protocolVersion": "12.0.0 (unchanged)",
+  "productionSourceLines": {
+    "added": 9,
+    "removed": 221,
+    "net": -212
+  },
+  "checks": {
+    "walletTypes": "passed",
+    "intendedTypes": "passed",
+    "productionBuild": "passed",
+    "runtimeEntryBoundaries": "passed",
+    "buildFreshness": "passed",
+    "productionAccountMenu": "passed (29.9s)",
+    "productionEmailToPasskeyLifecycle": "passed (39.5s)",
+    "productionPasskeyToEmailLifecycle": "passed (39.6s)",
+    "bloat": "passed",
+    "diffWhitespace": "passed"
+  },
+  "scenario": {
+    "kind": "auth_method_menu_removal_e2e_v1",
+    "hostOwnedEmailProof": true,
+    "operationBoundChallenges": 1,
+    "activeMethodsBefore": 2,
+    "activeMethodsAfter": 1,
+    "signedWithSurvivingEmailMethod": true,
+    "reproduce": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/email-otp.add-passkey.contract.test.ts --grep 'account menu removes an added passkey through the wallet email prompt and preserves signing'"
+  },
+  "artifactPath": ".artifacts/r170/auth-method-menu-removal.json",
+  "artifactSha256": "a03bba3baac555ddbebae523f1fac3ca4939e97daf359cc18a7d6a8c184b9c84",
+  "limits": [
+    "The linked-device service raw-proof API remains; this change consolidates the React device-list action.",
+    "General email unlock consolidation, pending email activation, and cancellation coverage remain open.",
+    "No publication or deployment performed."
+  ]
+}

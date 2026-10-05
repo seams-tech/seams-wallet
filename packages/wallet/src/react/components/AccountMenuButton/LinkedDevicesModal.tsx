@@ -1,13 +1,9 @@
 import React, { useEffect } from 'react';
 import type {
-  LinkedDeviceRevokeResultV1,
   LinkedDeviceSummaryV1,
   LinkedOwnerCredentialMetadataV1,
   OwnerDeviceSummaryV1,
 } from '@shared/device-linking';
-import { computeWalletAuthMethodRevokeOperationFingerprintV1 } from '@shared/utils/walletAuthMethodRecord';
-import { parseWalletAuthMethodId, parseWalletId } from '@shared/utils/domainIds';
-import { WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION } from '@shared/utils/emailOtpDomain';
 import type { WalletAuthMethodBinding } from '@shared/utils/walletCapabilityBindings';
 import { useSeams } from '../../context';
 import { AccountMenuDialogFrame, useAccountMenuDialogKeyboard } from './AccountMenuDialog';
@@ -48,71 +44,17 @@ type RevokeState =
   | { kind: 'idle' }
   | { kind: 'confirming'; walletAuthMethodId: string }
   | { kind: 'working'; walletAuthMethodId: string }
-  | {
-      kind: 'email_otp';
-      walletAuthMethodId: string;
-      requestedAtMs: number;
-      description: string;
-      challengeId: string;
-      ownerProofBindingDigest: string;
-      emailHint: string | null;
-      otpCode: string;
-      submitting: boolean;
-      error: string | null;
-    }
   | { kind: 'error'; message: string };
-
-type RevokeSourceMethod = { readonly kind: 'passkey' } | { readonly kind: 'email_otp' };
 
 function assertNeverWalletAuthMethodBinding(value: never): never {
   throw new Error(`Unsupported wallet auth-method binding kind: ${String(value)}`);
 }
 
-function requireWalletId(value: string) {
-  const parsed = parseWalletId(value);
-  if (!parsed.ok) throw new Error(parsed.error.message);
-  return parsed.value;
-}
-
-function requireWalletAuthMethodId(value: string) {
-  const parsed = parseWalletAuthMethodId(value);
-  if (!parsed.ok) throw new Error(parsed.error.message);
-  return parsed.value;
-}
-
-async function buildRevokeOperationFingerprint(input: {
-  readonly walletId: string;
-  readonly walletAuthMethodId: string;
-  readonly requestedAtMs: number;
-}) {
-  return await computeWalletAuthMethodRevokeOperationFingerprintV1({
-    walletId: requireWalletId(input.walletId),
-    targetWalletAuthMethodId: requireWalletAuthMethodId(input.walletAuthMethodId),
-    requestedAtMs: input.requestedAtMs,
-  });
-}
-
-function revokeOutcomeAnnouncement(
-  result: LinkedDeviceRevokeResultV1,
-  description: string,
-): string {
-  switch (result.kind) {
-    case 'revoked':
-      return `${description} can no longer use this wallet.`;
-    case 'not_found':
-      return `${description} was already removed.`;
-    case 'conflict':
-      return 'The wallet changed before removal completed. The final wallet method cannot be removed.';
-    case 'unauthorized':
-      return 'Fresh authorization from another wallet method is required.';
-  }
-}
-
-function resolveRevokeSourceMethod(
+function assertRevokeSourceMethod(
   binding: WalletAuthMethodBinding,
   walletId: string,
   targetWalletAuthMethodId: string,
-): RevokeSourceMethod {
+): void {
   switch (binding.kind) {
     case 'passkey':
       if (String(binding.scope.wallet.walletId) !== walletId) {
@@ -121,7 +63,7 @@ function resolveRevokeSourceMethod(
       if (String(binding.walletAuthMethodId) === targetWalletAuthMethodId) {
         throw new Error('Unlock with the sibling authentication method before removing this one.');
       }
-      return { kind: 'passkey' };
+      return;
     case 'email_otp':
       if (String(binding.wallet.walletId) !== walletId) {
         throw new Error('Unlock this wallet with a sibling authentication method first.');
@@ -129,7 +71,7 @@ function resolveRevokeSourceMethod(
       if (String(binding.walletAuthMethodId) === targetWalletAuthMethodId) {
         throw new Error('Unlock with the sibling authentication method before removing this one.');
       }
-      return { kind: 'email_otp' };
+      return;
   }
   return assertNeverWalletAuthMethodBinding(binding);
 }
@@ -372,8 +314,6 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
   const loadSeq = React.useRef(0);
   const seamsRef = React.useRef(seams);
   const dialogRef = React.useRef<HTMLDivElement>(null);
-  const otpInputRef = React.useRef<HTMLInputElement>(null);
-  const otpInputId = React.useId();
   seamsRef.current = seams;
 
   const loadDevices = React.useCallback(async () => {
@@ -420,29 +360,6 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
     void loadDevices();
   }, [isOpen, loadDevices]);
 
-  useEffect(() => {
-    if (revokeState.kind === 'email_otp') otpInputRef.current?.focus();
-  }, [revokeState.kind]);
-
-  const finishRevocation = React.useCallback(
-    async (result: LinkedDeviceRevokeResultV1, description: string) => {
-      const message = revokeOutcomeAnnouncement(result, description);
-      setAnnouncement(message);
-      switch (result.kind) {
-        case 'revoked':
-        case 'not_found':
-          setRevokeState({ kind: 'idle' });
-          await loadDevices();
-          return;
-        case 'conflict':
-        case 'unauthorized':
-          setRevokeState({ kind: 'error', message });
-          return;
-      }
-    },
-    [loadDevices],
-  );
-
   const revokeMethod = React.useCallback(
     async (view: WalletDeviceView, deviceNumber: number) => {
       if (!walletId) return;
@@ -452,41 +369,11 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
         if (!loginState.isLoggedIn || loginState.currentAuthMethod.kind !== 'selected') {
           throw new Error('Unlock this wallet with a sibling authentication method first.');
         }
-        const sourceMethod = resolveRevokeSourceMethod(
+        assertRevokeSourceMethod(
           loginState.currentAuthMethod.binding,
           walletId,
           walletAuthMethodId,
         );
-        const requestedAtMs = Date.now();
-        const operationFingerprintDigest = await buildRevokeOperationFingerprint({
-          walletId,
-          walletAuthMethodId,
-          requestedAtMs,
-        });
-        if (sourceMethod.kind === 'email_otp') {
-          /* No method id here: both wallet methods can share this email, so a
-             factor-derived id cannot name the session's method. The wallet host
-             binds the challenge to its exact selected active method. */
-          const challenge = await seams.auth.requestEmailCode({
-            walletId,
-            operation: WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION,
-            operationFingerprintDigest,
-          });
-          setRevokeState({
-            kind: 'email_otp',
-            walletAuthMethodId,
-            requestedAtMs,
-            description,
-            challengeId: challenge.challengeId,
-            ownerProofBindingDigest: challenge.ownerProofBindingDigest,
-            emailHint: challenge.emailHint ?? null,
-            otpCode: '',
-            submitting: false,
-            error: null,
-          });
-          setAnnouncement(`A verification code was sent for removing ${description}.`);
-          return;
-        }
         setRevokeState({ kind: 'working', walletAuthMethodId });
         setAnnouncement(`Removing ${description}…`);
         await seams.registration.removeAuthMethod({
@@ -502,37 +389,6 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
     },
     [loadDevices, loginState, seams, walletId],
   );
-
-  const submitEmailOtpRevocation = React.useCallback(async () => {
-    if (!walletId || revokeState.kind !== 'email_otp' || revokeState.submitting) return;
-    const pending = revokeState;
-    if (!pending.otpCode.trim()) {
-      setRevokeState({ ...pending, error: 'Enter the verification code.' });
-      return;
-    }
-    setRevokeState({ ...pending, submitting: true, error: null });
-    setAnnouncement(`Removing ${pending.description}…`);
-    try {
-      const result = await seams.devices.remove({
-        walletId,
-        walletAuthMethodId: pending.walletAuthMethodId,
-        requestedAtMs: pending.requestedAtMs,
-        sourceProof: {
-          kind: 'email_otp',
-          challengeId: pending.challengeId,
-          otpCode: pending.otpCode.trim(),
-          ownerProofBindingDigest: pending.ownerProofBindingDigest,
-        },
-      });
-      await finishRevocation(result, pending.description);
-    } catch (error: unknown) {
-      setRevokeState({
-        ...pending,
-        submitting: false,
-        error: linkedDevicesLoadErrorMessage(error),
-      });
-    }
-  }, [finishRevocation, revokeState, seams, walletId]);
 
   if (!isOpen) return null;
 
@@ -603,13 +459,8 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
               const working =
                 revokeState.kind === 'working' &&
                 revokeState.walletAuthMethodId === walletAuthMethodId;
-              const awaitingEmailOtp =
-                revokeState.kind === 'email_otp' &&
-                revokeState.walletAuthMethodId === walletAuthMethodId;
-              const revocationInProgress =
-                revokeState.kind === 'working' || revokeState.kind === 'email_otp';
-              const showRemoveButton =
-                hasRemovableSibling && !isSelectedMethod && !confirming && !awaitingEmailOtp;
+              const revocationInProgress = revokeState.kind === 'working';
+              const showRemoveButton = hasRemovableSibling && !isSelectedMethod && !confirming;
               return (
                 <li
                   key={cardId}
@@ -638,69 +489,7 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
                         <span>{selectedMethodRemovalHint(view, devices)}</span>
                       </div>
                     ) : null}
-                    {awaitingEmailOtp && revokeState.kind === 'email_otp' ? (
-                      <form
-                        className="seams-linked-devices-modal-otp-form"
-                        onSubmit={(event) => {
-                          event.preventDefault();
-                          void submitEmailOtpRevocation();
-                        }}
-                      >
-                        <label htmlFor={otpInputId}>Verification code</label>
-                        {revokeState.emailHint ? (
-                          <span className="seams-linked-devices-modal-item-detail">
-                            Sent to {revokeState.emailHint}
-                          </span>
-                        ) : null}
-                        <input
-                          ref={otpInputRef}
-                          id={otpInputId}
-                          className="seams-linked-devices-modal-otp-input"
-                          type="text"
-                          inputMode="numeric"
-                          autoComplete="one-time-code"
-                          pattern="[0-9]*"
-                          maxLength={10}
-                          value={revokeState.otpCode}
-                          disabled={revokeState.submitting}
-                          aria-invalid={revokeState.error ? 'true' : undefined}
-                          aria-describedby={revokeState.error ? `${otpInputId}-error` : undefined}
-                          onChange={(event) =>
-                            setRevokeState({
-                              ...revokeState,
-                              otpCode: event.currentTarget.value,
-                              error: null,
-                            })
-                          }
-                        />
-                        {revokeState.error ? (
-                          <span
-                            id={`${otpInputId}-error`}
-                            className="seams-linked-devices-modal-error"
-                            role="alert"
-                          >
-                            {revokeState.error}
-                          </span>
-                        ) : null}
-                        <div className="seams-linked-devices-modal-confirm-actions">
-                          <button
-                            type="button"
-                            className="seams-linked-devices-modal-secondary"
-                            disabled={revokeState.submitting}
-                            onClick={() => setRevokeState({ kind: 'idle' })}
-                          >
-                            Keep it
-                          </button>
-                          <button
-                            type="submit"
-                            className="seams-linked-devices-modal-danger"
-                            disabled={revokeState.submitting}
-                          >
-                            {revokeState.submitting ? 'Removing…' : 'Verify and remove'}
-                          </button>
-                        </div>
-                      </form>
-                    ) : confirming ? (
+                    {confirming ? (
                       <div className="seams-linked-devices-modal-confirm">
                         <span>Remove {title}? It will lose access right away.</span>
                         <div className="seams-linked-devices-modal-confirm-actions">

@@ -797,6 +797,12 @@ React DOM, and their type packages absent. This closes optional-peer absence
 for those entries. React provider SSR/remount and deployed asset delivery remain
 separate acceptance requirements. See the inventory's optional-peer checkpoint.
 
+The React device list now delegates email removal proof to the existing host
+`registration.removeAuthMethod` operation. Its duplicate challenge, OTP form, and
+raw-proof submission are removed, reducing production source by 212 net lines.
+Production account-menu coverage verifies removal and subsequent signing. See
+`evidence/refactor-170-method-removal-20261005.json`.
+
 ### Repeated production transfer checkpoint
 
 Three current authenticated runs transfer a median 7,807,858 static body bytes,

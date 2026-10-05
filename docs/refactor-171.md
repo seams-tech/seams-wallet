@@ -453,8 +453,9 @@ a declaration-level pass before declaring the migration complete.
 
 - [x] Rename the device capability to `startLinking`, `approveLinking`,
   `cancelLinking`, `list`, and `remove`. Migrate React, host handlers, and intended
-  app callers. Keep timestamp-bound removal proofs intact; email proof-flow
-  internalization remains part of the consolidation work below.
+  app callers. Keep timestamp-bound removal proofs intact. React device-list
+  email proof internalization is complete below; the linked-device service
+  proof API remains part of the consolidation work.
 
 - [x] Rename recovery code calls to `getCodeStatus`, `confirmBackup`, and
   `rotateCodes`. Migrate client/host dispatch, React, and intended-app callers.
@@ -519,6 +520,11 @@ a declaration-level pass before declaring the migration complete.
   request. Preserve funding inside confirmed signing. Packed declaration and
   production NEAR-only checks pass. See
   `evidence/refactor-170-near-funding-internal-20261005.json`.
+- [x] Internalize React device-list email removal proof. Use the existing
+  `registration.removeAuthMethod` host operation for both factors. Delete the
+  duplicate parent challenge, OTP form, and raw-proof submission. Production
+  account-menu coverage verifies removal and signing with the surviving method.
+  General linked-device API consolidation remains open.
 - [ ] Audit current declarations and consumers in public SDK, tests, examples,
   docs, and private Console. Classify each row as rename, consolidation, internal
   move, or intentional behavior change; record unresolved contract differences.

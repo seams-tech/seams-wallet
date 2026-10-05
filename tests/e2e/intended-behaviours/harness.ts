@@ -8816,7 +8816,7 @@ async function waitForWalletRecoveryCodeBackup(
   throw new Error('Wallet registration did not present recovery codes');
 }
 
-async function autoConfirmWalletIframeUntil<T>(
+export async function autoConfirmWalletIframeUntil<T>(
   page: Page,
   task: Promise<T>,
   opts?: {

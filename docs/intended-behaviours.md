@@ -575,6 +575,9 @@ Failure behaviour:
 - `registration.addSigner` adds a selected signer to an existing wallet.
 - `registration.addEmail` adds email authentication through the existing verification flow.
 - `registration.removeAuthMethod` removes a method using proof from a surviving method.
+  The React device list uses this operation for both passkey and email authorization.
+  The wallet host collects email proof in its confirmation view and binds the
+  challenge to the exact removal operation. The application does not collect the code.
 - React exposes signer addition as `addSigner`. These operations retain their
   existing authorization, retry, signing, and export behavior.
 

@@ -2731,3 +2731,20 @@ Evidence and reproduction: `evidence/refactor-170-repeated-assets-20261005.json`
 The six raw reports, safe signed-out traces, and static-file catalogue are retained
 under `.artifacts/r170-repeated-20261005/`, with hashes in the evidence file.
 No production source changed in this measurement task.
+
+## Device-list removal proof ownership
+
+The React device list now calls `registration.removeAuthMethod` for both passkey
+and email authorization. The existing host operation owns challenge creation,
+operation binding, email confirmation, and revocation. The duplicate React
+fingerprint builder, challenge state, OTP form, and raw-proof submission are
+removed. Shared OTP styles remain because the authentication-method dialog uses
+them. Production source changes remove 212 net lines.
+
+A production account-menu scenario registers with email, adds a passkey, removes
+that passkey through the wallet-origin email prompt, and signs with the surviving
+email method. It verifies one operation-bound challenge and prevents removal of
+the final method. Evidence: `evidence/refactor-170-method-removal-20261005.json`.
+
+This closes the React device-list proof duplication. General email unlock API
+consolidation and the separate linked-device service proof API remain open.
