@@ -27,8 +27,8 @@ export class D1WalletAuthorizationHistory {
     const empty: string[] = [];
     for (const layout of await AuthorizationSnapshotLayout.read(this.database)) {
       if (layout.table === 'authorization_wallet_session_quotas') continue;
-      empty.push(`NOT EXISTS (SELECT 1 FROM ${layout.table}
-        WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4 AND wallet_id = ?5)`);
+      empty.push(`NOT EXISTS (SELECT 1 FROM ${layout.table} AS target
+        WHERE ${layout.expressions().ownership})`);
     }
     await this.database.batch([
       prepareD1TenantStatement(
@@ -222,21 +222,27 @@ export class D1WalletAuthorizationHistory {
     for (const column of layout.columns)
       fields.push(`'${column}', json_extract(?6, '$.${column}')`);
     for (const column of layout.keyColumns) keys.push(`json_extract(?6, '$.${column}')`);
-    let ownership = `json_extract(?6, '$.namespace') = ?1`;
-    if (table !== 'authorization_wallet_session_quotas') {
-      ownership += ` AND json_extract(?6, '$.org_id') = ?2 AND json_extract(?6, '$.project_id') = ?3
-        AND json_extract(?6, '$.env_id') = ?4 AND json_extract(?6, '$.wallet_id') = ?5`;
-    }
+    const ownership =
+      table === 'authorization_wallet_session_quotas'
+        ? 'target.namespace = ?1'
+        : layout.expressions().ownership;
+    const projectedColumns: string[] = [];
+    for (const column of layout.columns)
+      projectedColumns.push(`json_extract(?6, '$.${column}') AS ${column}`);
     let lifecycle = '1';
     if (table === 'wallet_session_authorizations_v2')
       lifecycle = `json_type(?6, '$.retired_at_ms') = 'integer'`;
     if (table === 'wallet_session_hosted_credentials_v2')
       lifecycle = `json_type(?6, '$.retired_at_ms') = 'integer' AND json_extract(?6, '$.lifecycle_kind') = 'retired'`;
+    if (table === 'authorized_operations') lifecycle = "target.lifecycle_kind = 'completed'";
+    if (table === 'authorized_operation_audit_events')
+      lifecycle = "target.result_kind != 'pending'";
     const metadata = await prepareD1TenantStatement(
       this.database,
       this.scope,
       `
       SELECT json_array(${keys.join(', ')}) AS record_key
+      FROM (SELECT ${projectedColumns.join(', ')}) AS target
       WHERE json_valid(?6) AND json_type(?6) = 'object' AND ${ownership} AND ${lifecycle}
         AND (SELECT COUNT(*) FROM json_each(?6)) = ${layout.columns.length}
         AND (SELECT COUNT(DISTINCT key) FROM json_each(?6)) = ${layout.columns.length}

@@ -1,4 +1,9 @@
 import {
+  seedOperationHistory,
+  verifyImportedOperationHistory,
+  verifyOperationHistoryCleanup,
+} from './operation-history-transfer.scenario.mjs';
+import {
   activateAuthorizationThroughCommand,
   cleanupAuthorizationThroughCommand,
   verifyPendingCeremonyFreeze,
@@ -36,6 +41,9 @@ const tables = [
   'wallet_session_authorizations_v2',
   'wallet_session_hosted_credentials_v2',
   'wallet_session_hosted_exchange_codes_v2',
+  'verified_wallet_operation_evidence_sets',
+  'authorized_operations',
+  'authorized_operation_audit_events',
 ];
 class RecordingOtpDelivery {
   failNext = false;
@@ -78,7 +86,7 @@ const bundle = await build({
     resolveDir: process.cwd(),
     loader: 'ts',
     contents: `
-      export { buildSessionSigningOperationInputFixture } from './tests/unit/helpers/authorizedOperation.fixtures';
+      export { buildSessionSigningOperationInputFixture, buildStepUpSigningOperationFixture, buildAdditionalStepUpOperationInputFixture } from './tests/unit/helpers/authorizedOperation.fixtures';
       export { D1WalletOperationStore } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletOperationStore';
       export { runRouterAbEd25519YaoRegistrationSideEffectV2, parseRouterAbEd25519YaoRegistrationSideEffectRecordV2 } from './packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationSideEffectBoundary';
       export { parseRouterAbEd25519YaoRegistrationAdmissionRequestV1 } from './packages/shared-ts/src/utils/routerAbEd25519Yao';
@@ -166,6 +174,14 @@ try {
     },
   });
   const offlineIssued = await issueDeviceSession(source, sourceService, offlineFixture, issuedAtMs);
+  const operationHistory = await seedOperationHistory({
+    api,
+    database: source,
+    scope,
+    session: offlineIssued.session,
+    authMethod: offlineFixture.authMethod,
+    nowMs: issuedAtMs,
+  });
   const offlineInput = {
     tenantId: offlineIssued.session.tenantId,
     token: offlineIssued.operationCredential.token,
@@ -304,6 +320,12 @@ try {
     api, source, destination, scope, identity: sessionSource, snapshot, service, issueDeviceSession,
   });
 
+  const operationHistoryBeforeActivation = await verifyImportedOperationHistory({
+    api,
+    database: destination,
+    scope,
+    history: operationHistory,
+  });
   const destinationService = service(destination, scope);
   for (const credential of [primaryInput, offlineInput]) {
     await assert.rejects(
@@ -360,6 +382,12 @@ try {
     api, database: destination, scope, identity: sessionSource,
     manifest: snapshot.evidence.manifest,
   });
+  const operationHistoryAfterActivation = await verifyImportedOperationHistory({
+    api,
+    database: destination,
+    scope,
+    history: operationHistory,
+  });
   const resumedSession = await destinationService.issueDirectWalletSessionAuthorizationV2({
     tenantId: issued.session.tenantId,
     principalId: issued.session.principalId,
@@ -376,18 +404,40 @@ try {
     api, database: source, scope, identity: sessionSource,
     manifest: snapshot.evidence.manifest, tables,
   });
-  assert.equal((await destinationService.readWalletSessionAdmissionSnapshotByOperationCredential({
-    tenantId: resumedSession.session.tenantId,
-    token: resumedSession.operationCredential.token,
-    nowMs: issuedAtMs + 31,
-  })).kind, 'active');
-  await assert.rejects(sourceService.issueDirectWalletSessionAuthorizationV2({
-    tenantId: issued.session.tenantId, principalId: issued.session.principalId,
-    walletId: fixture.authority.walletId, authority: fixture.authority,
-    walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
-    mintId: 'wallet-mint:cleaned-source', remainingUses: 7,
-    issuedAtMs: issuedAtMs + 32, expiresAtMs: issued.session.expiresAtMs,
-  }));
+  const operationHistoryCleanup = await verifyOperationHistoryCleanup({
+    database: source,
+    scope,
+    history: operationHistory,
+  });
+  const operationHistoryAfterCleanup = await verifyImportedOperationHistory({
+    api,
+    database: destination,
+    scope,
+    history: operationHistory,
+  });
+  assert.equal(
+    (
+      await destinationService.readWalletSessionAdmissionSnapshotByOperationCredential({
+        tenantId: resumedSession.session.tenantId,
+        token: resumedSession.operationCredential.token,
+        nowMs: issuedAtMs + 31,
+      })
+    ).kind,
+    'active',
+  );
+  await assert.rejects(
+    sourceService.issueDirectWalletSessionAuthorizationV2({
+      tenantId: issued.session.tenantId,
+      principalId: issued.session.principalId,
+      walletId: fixture.authority.walletId,
+      authority: fixture.authority,
+      walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
+      mintId: 'wallet-mint:cleaned-source',
+      remainingUses: 7,
+      issuedAtMs: issuedAtMs + 32,
+      expiresAtMs: issued.session.expiresAtMs,
+    }),
+  );
   await assert.rejects(
     destinationService.readWalletSessionAdmissionSnapshotByOperationCredential(primaryInput),
     /authorization is retired/u,
@@ -414,6 +464,10 @@ try {
       sessionRetirement,
       authorizationFreeze,
       authorizationActivation,
+      operationHistoryBeforeActivation,
+      operationHistoryAfterActivation,
+      operationHistoryCleanup,
+      operationHistoryAfterCleanup,
       authorizationCleanup,
       ceremonyWriteFence,
       ceremonySettlement,

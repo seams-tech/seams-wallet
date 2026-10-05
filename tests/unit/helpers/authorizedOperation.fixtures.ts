@@ -1,6 +1,9 @@
 import {
   buildCapabilityOperationEnvelope,
   parseAuthorizedOperationId,
+  parseAuthFactorId,
+  parseAuthorizationEvidenceId,
+  parseAuthorizationEvidenceSetId,
   parseAuthorizationAuditEventId,
   parseCapabilityId,
   parseCapabilityOperationId,
@@ -9,11 +12,22 @@ import {
   parseTenantId,
   type AuthorizationParseResult,
 } from '@shared/authorization';
+import {
+  buildPasskeyWalletAuthAuthority,
+  walletAuthAuthorityRef,
+} from '@shared/utils/walletAuthAuthority';
+import { parseWebAuthnCredentialIdB64u } from '@shared/utils/domainIds';
+import {
+  buildVerifiedWalletOperationPasskeyFactorResult,
+  buildVerifiedWalletOperationFactorEvidenceSet,
+  type VerifiedAuthorizationEvidenceSet,
+} from '../../../packages/wallet-server/src/authorization/factorEvidence';
 import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import {
   type AuthorizedOperationInput,
   type WalletSessionAuthorizationV2,
   buildAuthorizedOperation,
+  parseSessionOrigin,
 } from '../../../packages/wallet-server/src/authorization/domain';
 
 function parsed<T>(result: AuthorizationParseResult<T>): T {
@@ -113,4 +127,55 @@ export function buildAdditionalStepUpOperationInputFixture(input: {
     authorization: admitted.authorization,
     quota: { kind: 'quota_neutral' },
   };
+}
+
+export async function buildStepUpSigningOperationFixture(input: {
+  readonly session: WalletSessionAuthorizationV2;
+  readonly label: string;
+  readonly nowMs: number;
+  readonly rpId: string;
+  readonly credentialIdB64u: string;
+}): Promise<{
+  readonly operation: AuthorizedOperationInput;
+  readonly evidence: VerifiedAuthorizationEvidenceSet;
+}> {
+  const ordinary = buildSessionSigningOperationInputFixture(input);
+  const origin = parseSessionOrigin(`https://${input.rpId}`);
+  const credentialId = parsed(parseWebAuthnCredentialIdB64u(input.credentialIdB64u));
+  const factor = buildVerifiedWalletOperationPasskeyFactorResult({
+    tenantId: input.session.tenantId,
+    principalId: input.session.principalId,
+    walletId: input.session.walletId,
+    authorityRef: await walletAuthAuthorityRef({
+      authority: buildPasskeyWalletAuthAuthority({
+        walletId: input.session.walletId,
+        rpId: input.rpId,
+        credentialIdB64u: credentialId,
+      }),
+    }),
+    requestOrigin: origin,
+    audience: origin,
+    factorId: parsed(parseAuthFactorId(`factor:${input.label}`)),
+    operation: ordinary.operation,
+    credentialIdB64u: credentialId,
+    assertionDigest: parseDigestB64u('AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE'),
+    verifiedAtMs: input.nowMs,
+    expiresAtMs: input.nowMs + 3_600_000,
+  });
+  const evidence = await buildVerifiedWalletOperationFactorEvidenceSet({
+    operation: ordinary.operation,
+    evidenceId: parsed(parseAuthorizationEvidenceId(`evidence:${input.label}`)),
+    evidenceSetId: parsed(parseAuthorizationEvidenceSetId(`evidence-set:${input.label}`)),
+    factor,
+  });
+  const operation: AuthorizedOperationInput = {
+    tenantId: ordinary.tenantId,
+    authorizedOperationId: ordinary.authorizedOperationId,
+    auditEventId: ordinary.auditEventId,
+    claimedAtMs: ordinary.claimedAtMs,
+    operation: ordinary.operation,
+    authorization: { kind: 'verified_step_up', evidenceSetDigest: evidence.evidenceSetDigest },
+    quota: { kind: 'quota_neutral' },
+  };
+  return { operation, evidence };
 }

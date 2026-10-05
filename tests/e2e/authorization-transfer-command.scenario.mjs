@@ -503,7 +503,7 @@ export async function cleanupAuthorizationThroughCommand({
   await database
     .prepare(
       `CREATE TRIGGER injected_authorization_cleanup_failure
-    BEFORE DELETE ON wallet_session_hosted_exchange_codes_v2
+    BEFORE DELETE ON authorized_operation_audit_events
     BEGIN SELECT RAISE(ABORT, 'injected_cleanup_failure'); END`,
     )
     .run();

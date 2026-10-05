@@ -2,6 +2,13 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 
 export function authorizationRowsQuery(table) {
+  if (table === 'authorized_operations' || table === 'authorized_operation_audit_events') {
+    return `SELECT target.* FROM ${table} AS target WHERE EXISTS (
+      SELECT 1 FROM wallet_operation_owners AS owner
+      WHERE owner.namespace = ?1 AND owner.org_id = ?2 AND owner.project_id = ?3 AND owner.env_id = ?4
+        AND owner.wallet_id = ?5 AND owner.namespace = target.namespace AND owner.tenant_id = target.tenant_id
+        AND owner.authorized_operation_id = target.authorized_operation_id) ORDER BY target.rowid`;
+  }
   const ownership =
     table === 'authorization_wallet_session_quotas'
       ? `EXISTS (SELECT 1 FROM wallet_session_authorizations_v2 AS session
@@ -80,12 +87,18 @@ export async function verifyAuthorizationFreeze({
     ).results;
     assert.ok(before.length > 0, `${table} must contain a real transferred record`);
     const rows = query.replace('SELECT target.*', 'SELECT target.rowid');
-    const timestamp =
-      table === 'wallet_authorities' || table === 'wallet_auth_methods'
-        ? 'updated_at_ms'
-        : 'expires_at_ms';
-    const movedIdentity =
-      table === 'authorization_wallet_session_quotas' ? 'wallet_session_id' : 'wallet_id';
+    const operationHistory =
+      table === 'authorized_operations' || table === 'authorized_operation_audit_events';
+    let timestamp = 'expires_at_ms';
+    let movedIdentity = 'wallet_id';
+    if (table === 'wallet_authorities' || table === 'wallet_auth_methods')
+      timestamp = 'updated_at_ms';
+    if (operationHistory) {
+      timestamp = 'completed_at_ms';
+      movedIdentity = 'authorized_operation_id';
+    } else if (table === 'authorization_wallet_session_quotas') {
+      movedIdentity = 'wallet_session_id';
+    }
     for (const mutation of [
       `UPDATE ${table} SET ${timestamp} = ${timestamp} + 1 WHERE rowid IN (${rows})`,
       `UPDATE ${table} SET ${movedIdentity} = 'wallet:foreign-freeze-target' WHERE rowid IN (${rows})`,
@@ -94,7 +107,7 @@ export async function verifyAuthorizationFreeze({
     ]) {
       await assert.rejects(
         api.prepareD1TenantStatement(source, scope, mutation, [identity.walletId]).run(),
-        /wallet_authorization_history_frozen|wallet_session_hosted_(credential|exchange)_(parent|initial_state)_rejected/u,
+        /wallet_authorization_history_frozen|wallet_operation_(history_import_required|terminal_immutable|identity_immutable|evidence_immutable|evidence_referenced|audit_parent_conflicts)|authorization_evidence_claim_rejected|authorization_wallet_session_rejected|wallet_session_hosted_(credential|exchange)_(parent|initial_state)_rejected/u,
       );
     }
     const after = (

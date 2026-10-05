@@ -8,6 +8,9 @@ const TABLES = [
   'wallet_session_authorizations_v2',
   'wallet_session_hosted_credentials_v2',
   'wallet_session_hosted_exchange_codes_v2',
+  'verified_wallet_operation_evidence_sets',
+  'authorized_operations',
+  'authorized_operation_audit_events',
 ] as const;
 
 type Table = (typeof TABLES)[number];
@@ -74,18 +77,39 @@ export class AuthorizationSnapshotLayout {
     for (const column of this.columns) fields.push(`'${column}', target.${column}`);
     const keys: string[] = [];
     for (const column of this.keyColumns) keys.push(`target.${column}`);
-    const ownership =
-      this.table === 'authorization_wallet_session_quotas'
-        ? `EXISTS (SELECT 1 FROM wallet_session_authorizations_v2 AS session
-          WHERE session.namespace = ?1 AND session.org_id = ?2 AND session.project_id = ?3 AND session.env_id = ?4
-            AND session.wallet_id = ?5 AND session.namespace = target.namespace AND session.tenant_id = target.tenant_id
-            AND session.quota_id = target.quota_id AND session.wallet_session_id = target.wallet_session_id)`
-        : 'target.namespace = ?1 AND target.org_id = ?2 AND target.project_id = ?3 AND target.env_id = ?4 AND target.wallet_id = ?5';
     return {
       key: `json_array(${keys.join(', ')})`,
       record: `json_object(${fields.join(', ')})`,
-      ownership,
+      ownership: AuthorizationSnapshotLayout.ownership(this.table),
     };
+  }
+
+  static ownership(table: Table): string {
+    switch (table) {
+      case 'authorization_wallet_session_quotas':
+        return `EXISTS (SELECT 1 FROM wallet_session_authorizations_v2 AS session
+          WHERE session.namespace = ?1 AND session.org_id = ?2 AND session.project_id = ?3 AND session.env_id = ?4
+            AND session.wallet_id = ?5 AND session.namespace = target.namespace AND session.tenant_id = target.tenant_id
+            AND session.quota_id = target.quota_id AND session.wallet_session_id = target.wallet_session_id)`;
+      case 'authorized_operations':
+        return `EXISTS (SELECT 1 FROM wallet_operation_authorizations AS owner
+          WHERE owner.namespace = ?1 AND owner.org_id = ?2 AND owner.project_id = ?3 AND owner.env_id = ?4
+            AND owner.wallet_id = ?5 AND owner.namespace = target.namespace AND owner.tenant_id = target.tenant_id
+            AND owner.source_kind = target.authorization_source_kind
+            AND owner.source_id = CASE target.authorization_source_kind
+              WHEN 'authorization_grant' THEN target.authorization_id ELSE target.evidence_set_digest END
+            AND (target.authorization_source_kind = 'verified_step_up' OR
+              (target.authorization_grant_kind = 'wallet_session_authorization'
+                AND owner.org_id = target.owner_scope_org_id AND owner.project_id = target.owner_scope_project_id
+                AND owner.env_id = target.owner_scope_env_id)))`;
+      case 'authorized_operation_audit_events':
+        return `EXISTS (SELECT 1 FROM wallet_operation_owners AS owner
+          WHERE owner.namespace = ?1 AND owner.org_id = ?2 AND owner.project_id = ?3 AND owner.env_id = ?4
+            AND owner.wallet_id = ?5 AND owner.namespace = target.namespace AND owner.tenant_id = target.tenant_id
+            AND owner.authorized_operation_id = target.authorized_operation_id)`;
+      default:
+        return 'target.namespace = ?1 AND target.org_id = ?2 AND target.project_id = ?3 AND target.env_id = ?4 AND target.wallet_id = ?5';
+    }
   }
 }
 

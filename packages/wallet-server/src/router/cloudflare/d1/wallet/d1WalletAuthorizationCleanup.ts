@@ -4,11 +4,15 @@ import { requireCanonicalString, requireRecord } from '@shared/utils/validation'
 import { prepareD1TenantStatement, type D1TenantScope } from '../../../../core/d1TenantStore';
 import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
 import type { D1DatabaseLike } from '../../../../storage/tenantRoute';
+import { AuthorizationSnapshotLayout } from './authorizationSnapshotLayout';
 import { WalletRelocationSessionSource } from './d1WalletRelocationSessions';
 
 const SCOPE =
   'namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4 AND wallet_id = ?5';
 const TABLES = [
+  'authorized_operation_audit_events',
+  'authorized_operations',
+  'verified_wallet_operation_evidence_sets',
   'wallet_session_hosted_exchange_codes_v2',
   'wallet_session_hosted_credentials_v2',
   'wallet_session_authorizations_v2',
@@ -62,14 +66,18 @@ export class D1WalletAuthorizationCleanup {
     if (!admitted) throw new Error('Authorization cleanup admission disappeared');
     if (admitted.state === 'cleaned') return admitted;
     for (const table of TABLES) {
+      const ownership =
+        table === 'authorized_operations' || table === 'authorized_operation_audit_events'
+          ? AuthorizationSnapshotLayout.ownership(table)
+          : 'target.namespace = ?1 AND target.org_id = ?2 AND target.project_id = ?3 AND target.env_id = ?4 AND target.wallet_id = ?5';
       const quota =
         table === 'wallet_session_authorizations_v2'
-          ? ', json_array(namespace, tenant_id, quota_id) AS quota_key'
+          ? ', json_array(target.namespace, target.tenant_id, target.quota_id) AS quota_key'
           : '';
       const rows = await prepareD1TenantStatement(
         this.database,
         this.scope,
-        `SELECT rowid AS row_id${quota} FROM ${table} WHERE ${SCOPE} ORDER BY rowid LIMIT 16`,
+        `SELECT target.rowid AS row_id${quota} FROM ${table} AS target WHERE ${ownership} ORDER BY target.rowid LIMIT 16`,
         [source.walletId],
       ).all<Record<string, unknown>>();
       const rowIds: number[] = [];
@@ -94,7 +102,7 @@ export class D1WalletAuthorizationCleanup {
         prepareD1TenantStatement(
           this.database,
           this.scope,
-          `DELETE FROM ${table} WHERE ${SCOPE} AND rowid IN (SELECT value FROM json_each(?6))`,
+          `DELETE FROM ${table} AS target WHERE ${ownership} AND target.rowid IN (SELECT value FROM json_each(?6))`,
           [source.walletId, JSON.stringify(rowIds)],
         ),
       ];

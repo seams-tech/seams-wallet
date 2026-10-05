@@ -1536,8 +1536,9 @@ the challenge remains valid. The hosted Google flow uses the same execution path
 
 The internal restore path accepts authorities, auth methods, session quotas,
 retired primary sessions, retired hosted credentials, and issued or consumed
-exchanges. It preserves enrollment, identities, original expiry, retirement,
-redemption, and quota facts. SQLite decodes and inserts each assembled record,
+exchanges. It also accepts scoped step-up evidence, completed operations, and their
+terminal audit records. It preserves enrollment, identities, original expiry,
+retirement, redemption, quota facts, and exact response status, content type, and body. SQLite decodes and inserts each assembled record,
 so large integers do not pass through JavaScript numbers.
 
 Each record, its exact stored-value check, and its acknowledgement commit
@@ -1548,15 +1549,20 @@ installed. A temporary context permits one exact historical insert.
 The destination rejects ordinary changes to imported records while admission is
 closed. Imported quotas receive this protection before their parent sessions
 arrive. Import cannot close while an imported quota lacks its retired wallet
-parent. Closing import rejects new records and preserves exact retries. Closure
+parent. Each imported operation must have its matching terminal audit before import
+closes. Restoring history never claims an operation, consumes quota, or creates a
+second audit. Imported step-up evidence cannot authorize new operations, even after
+activation and before its original expiry. Exact retries of completed step-up
+operations return the stored result. Retired Wallet Session credentials stay rejected.
+Closing import rejects new records and preserves exact retries. Closure
 does not verify the complete snapshot or activate the wallet.
 
 `tests/e2e/authorization-storage-transfer.e2e.mjs` owns this D1 component contract.
-It feeds exported snapshot records into production restore for all six families.
+It feeds exported snapshot records into production restore for all nine tables.
 It verifies two-device retirement, exact values, large integers, rollback,
 concurrent retries, inactive admission, and an unaffected neighboring wallet.
-The record boundary accepts assembled records up to 2 MiB. Bounded stream intake,
-complete-manifest verification, and larger-record assembly remain separate work.
+The record boundary accepts assembled records up to 2 MiB. The existing bounded
+intake verifies the authorization manifest. Larger records require separate work.
 
 ### Settle Gateway ceremonies before session retirement
 
@@ -1625,7 +1631,11 @@ HTTP admission and SQL store on Node SQLite and local Cloudflare D1. Its backend
 is symbolic; it does not establish cryptographic signing after a move. The migration
 preserves existing evidence and claims when persisted signers identify one scope.
 Missing evidence or ambiguous scope aborts migration without removing historical rows.
-Transfer of operation history remains a separate requirement.
+The authorization transfer includes these evidence sets, completed operations, and
+matching audits. It rejects pending operation restore and freezes the source records.
+Cleanup deletes audits and operations before their evidence or session parents.
+The storage E2E preserves a response larger than one chunk, interrupts its import
+acknowledgement, and checks exact results before and after destination activation.
 
 ### Reconcile Router execution while relocation drains
 
@@ -1691,7 +1701,7 @@ it seals the common snapshot.
 ### Capture and export frozen authorization history
 
 The internal snapshot operation requires the authorization source fence. It captures
-all six covered record families in a fixed table and column order. SQLite encodes
+all nine covered record families in a fixed table and column order. SQLite encodes
 each row before JavaScript receives its bytes. This preserves integer precision,
 nulls, and the exact contents of stored JSON strings.
 
@@ -1705,6 +1715,5 @@ through concurrent calls and store recreation.
 `tests/e2e/authorization-storage-transfer.e2e.mjs` verifies interruption, concurrent
 capture, exact export, a record larger than one segment, and an integer beyond
 JavaScript's exact range. The transfer scenario consumes exported snapshot records.
-All six authorization families use production restore. This contract does not
-establish a complete wallet manifest, authenticated transport, destination
-verification, or activation.
+All nine authorization tables use production restore. This component contract
+does not establish a complete wallet move or signing after relocation.

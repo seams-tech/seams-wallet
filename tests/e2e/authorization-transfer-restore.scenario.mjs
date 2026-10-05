@@ -75,6 +75,54 @@ export async function verifyAuthorizationHistoryCopy({
           0,
         );
       }
+      if (table === 'authorized_operations') {
+        await destination
+          .prepare(
+            `CREATE TRIGGER interrupt_operation_import
+          BEFORE INSERT ON wallet_relocation_authorization_import_receipts
+          WHEN NEW.table_name = 'authorized_operations'
+          BEGIN SELECT RAISE(ABORT, 'injected_operation_import_failure'); END`,
+          )
+          .run();
+        await assert.rejects(
+          importer.restore(identity, table, record.json),
+          /injected_operation_import_failure/u,
+        );
+        await destination.exec('DROP TRIGGER interrupt_operation_import');
+        const row = JSON.parse(record.json);
+        const pending = JSON.parse(record.json);
+        pending.lifecycle_kind = 'claimed';
+        pending.result_kind = 'pending';
+        for (const field of [
+          'result_digest',
+          'result_status',
+          'result_content_type',
+          'result_body_text',
+          'completed_at_ms',
+        ])
+          pending[field] = null;
+        await assert.rejects(
+          importer.restore(identity, table, JSON.stringify(pending)),
+          /scope, shape or lifecycle conflicts/u,
+        );
+        const foreign = JSON.parse(record.json);
+        if (foreign.authorization_source_kind === 'authorization_grant')
+          foreign.owner_scope_project_id = 'foreign';
+        else foreign.evidence_set_digest = 'foreign';
+        await assert.rejects(
+          importer.restore(identity, table, JSON.stringify(foreign)),
+          /scope, shape or lifecycle conflicts/u,
+        );
+        assert.equal(
+          await destination
+            .prepare(
+              'SELECT COUNT(*) AS count FROM authorized_operations WHERE authorized_operation_id = ?',
+            )
+            .bind(row.authorized_operation_id)
+            .first('count'),
+          0,
+        );
+      }
       if (table !== 'authorization_wallet_session_quotas') {
         const columns = Object.keys(JSON.parse(record.json));
         const values = [];
@@ -84,7 +132,7 @@ export async function verifyAuthorizationHistoryCopy({
             .prepare(`INSERT INTO ${table} (${columns.join(', ')}) SELECT ${values.join(', ')}`)
             .bind(record.json)
             .run(),
-          /wallet_authorization_destination_inactive|wallet_session_hosted_/u,
+          /wallet_authorization_destination_inactive|wallet_operation_history_import_required|wallet_session_hosted_/u,
         );
       }
       while (chunkIndex < manifest.chunkCount) {
@@ -168,6 +216,8 @@ export async function verifyAuthorizationHistoryCopy({
     }
     if (table === 'authorization_wallet_session_quotas' && records.length > 0)
       await assert.rejects(importer.close(identity));
+    if (table === 'authorized_operations' && records.length > 0)
+      await assert.rejects(importer.close(identity), /wallet_operation_history_incomplete/u);
     copied.push({ table, rows: records.length });
   }
   for (const [table, rows] of snapshot.rowsByTable) {
@@ -217,7 +267,7 @@ export async function verifyAuthorizationHistoryCopy({
   return {
     tables: copied,
     largestRecordBytes,
-    allSixFamiliesUseProductionRestore: true,
+    allInventoryTablesUseProductionRestore: true,
     exactRowsAndQuotasPreserved: true,
     restartedChunkReplayExact: true,
     concurrentChunkReplayExact: true,
@@ -231,6 +281,6 @@ export async function verifyAuthorizationHistoryCopy({
     importClosureRejectsNewRecordsAndPreservesReplay: true,
     unrelatedDestinationWalletRemainsActive: true,
     scope:
-      'Production bounded intake and authorization manifest verification. Regional transport and activation remain unfinished.',
+      'Production bounded intake and authorization manifest verification. Full wallet relocation remains outside this component scenario.',
   };
 }
