@@ -161,7 +161,7 @@ impl worker::DurableObject for RouterAbSigningWorkerPresignSessionDurableObject 
             | presign_session_relocation::INTERNAL_FENCE_PATH
             | presign_session_relocation::INTERNAL_EXPORT_PATH | presign_session_relocation::import::INTERNAL_PATH)
         {
-            let result = presign_session_relocation::handle_relocation(request, &self.storage).await;
+            let result = presign_session_relocation::handle_relocation(request, &self.storage, &self.env).await;
             if result.is_ok() {
                 self.linked_ecdsa_presign_sessions.borrow_mut().clear();
                 self.linked_ecdsa_presignature_records.borrow_mut().clear();

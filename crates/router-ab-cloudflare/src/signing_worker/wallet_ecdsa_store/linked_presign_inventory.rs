@@ -35,6 +35,37 @@ impl LinkedPresignSessionRow {
 }
 
 impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
+    pub fn authorize_linked_presign_fence(
+        &self,
+        scope: &CloudflareSigningWorkerWalletScopeV1,
+        presign_session_id: &str,
+        server_presignature_id: &str,
+        request: &SigningWorkerPoolFreezeRequestV1,
+    ) -> RouterAbProtocolResult<String> {
+        request.validate()?;
+        match self.pool_fence(scope)? {
+            Some(relocation::Fence::Draining { request: prior }) if prior == *request => {}
+            Some(relocation::Fence::Frozen { receipt }) if receipt.request == *request => {}
+            _ => {
+                return Err(wallet_error(
+                    "Linked presign fence requires its source wallet move",
+                ))
+            }
+        }
+        let rows = self.sql.query::<LinkedPresignSessionRow>(
+            "SELECT presign_session_id, server_presignature_id, owner_json, request_digest_hex
+             FROM wallet_linked_presign_sessions WHERE presign_session_id = ? AND server_presignature_id = ?",
+            vec![text(presign_session_id.to_owned()), text(server_presignature_id.to_owned())],
+        )?;
+        let [row] = rows.as_slice() else {
+            return Err(wallet_error(
+                "Linked presign fence requires a registered session",
+            ));
+        };
+        row.validate(scope)?;
+        Ok(row.request_digest_hex.clone())
+    }
+
     /// Records discovery before the session object can create protocol state.
     pub fn register_linked_presign_session(
         &self,

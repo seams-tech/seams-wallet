@@ -175,6 +175,7 @@ async fn prepare(
                     FENCE_KEY,
                     &LinkedPresignFenceReceipt {
                         command: command.clone(),
+                        initialization: Initialization::DestinationPrepared,
                     },
                 )
                 .await?;
@@ -326,40 +327,69 @@ async fn verify(
         return Err(transaction_error("Linked presign imported digest differs"));
     }
     let snapshot: Snapshot = serde_json::from_slice(&bytes).map_err(transaction_error)?;
-    snapshot.authority.validate().map_err(transaction_error)?;
-    if snapshot.command != receipt.command
-        || snapshot.authority.wallet_scope != receipt.command.wallet_scope
-        || snapshot.authority.presign_session_id != receipt.command.presign_session_id
-        || snapshot.authority.request.client_presignature_id
-            != receipt.command.server_presignature_id
-        || serde_json::to_vec(&snapshot).map_err(transaction_error)? != bytes
-    {
+    if serde_json::to_vec(&snapshot).map_err(transaction_error)? != bytes {
         return Err(transaction_error(
-            "Linked presign historical authority differs",
+            "Linked presign snapshot encoding differs",
         ));
     }
-    let count = match &snapshot.completion {
-        CompletionHistory::NoStoredCompletion => 1,
-        CompletionHistory::Retired { completion } => {
-            completion
-                .validate_for_authority(&snapshot.authority)
-                .map_err(transaction_error)?;
-            2
+    match snapshot {
+        Snapshot::Uninitialized {
+            command,
+            request_digest_hex,
+        } => {
+            if command != receipt.command
+                || receipt.record_count != 1
+                || request_digest_hex.len() != 64
+                || !request_digest_hex
+                    .bytes()
+                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+            {
+                return Err(transaction_error(
+                    "Linked presign uninitialized history differs",
+                ));
+            }
         }
-    };
-    if count != receipt.record_count {
-        return Err(transaction_error(
-            "Linked presign historical record count differs",
-        ));
-    }
-    transaction
-        .put(
-            super::super::ecdsa_presign_live_session::LINKED_PRESIGN_AUTHORITY_STORAGE_KEY,
-            &snapshot.authority,
-        )
-        .await?;
-    if let CompletionHistory::Retired { completion } = &snapshot.completion {
-        super::super::linked_presign_history::persist_retirement(transaction, completion).await?;
+        Snapshot::Initialized {
+            command,
+            authority,
+            completion,
+        } => {
+            authority.validate().map_err(transaction_error)?;
+            if command != receipt.command
+                || authority.wallet_scope != receipt.command.wallet_scope
+                || authority.presign_session_id != receipt.command.presign_session_id
+                || authority.request.client_presignature_id
+                    != receipt.command.server_presignature_id
+            {
+                return Err(transaction_error(
+                    "Linked presign historical authority differs",
+                ));
+            }
+            let count = match &completion {
+                CompletionHistory::NoStoredCompletion => 1,
+                CompletionHistory::Retired { completion } => {
+                    completion
+                        .validate_for_authority(&authority)
+                        .map_err(transaction_error)?;
+                    2
+                }
+            };
+            if count != receipt.record_count {
+                return Err(transaction_error(
+                    "Linked presign historical record count differs",
+                ));
+            }
+            transaction
+                .put(
+                    super::super::ecdsa_presign_live_session::LINKED_PRESIGN_AUTHORITY_STORAGE_KEY,
+                    &authority,
+                )
+                .await?;
+            if let CompletionHistory::Retired { completion } = completion {
+                super::super::linked_presign_history::persist_retirement(transaction, &completion)
+                    .await?;
+            }
+        }
     }
     transaction
         .put(

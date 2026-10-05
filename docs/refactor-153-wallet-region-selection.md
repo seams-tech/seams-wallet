@@ -138,7 +138,16 @@ fence, permits exact retries, and rejects conflicting identities. Wallet snapsho
 transfer this inventory with exact historical restore. The existing storage E2E
 passes with an empty linked inventory. Populated inventory transfer, registration
 races, and enumeration by the coordinator remain unverified. A registration can
-outlive failed local initialization; the coordinator must reconcile that condition.
+outlive failed local initialization. The local fence now checks the wallet's
+registered identities and exact draining/frozen move before closing an uninitialized
+session. Its snapshot records the initialization digest without inventing signing
+authority or completion history. Import preserves this explicit uninitialized state
+and leaves the destination fenced. Source race verification remains unfinished.
+The Worker E2E imports synthetic uninitialized registration history through three
+chunks, evicts the destination, replays verification, and exports the exact original
+bytes. This proves the destination path only. It does not prove source registration
+authority or initialization races. Evidence is retained under
+`.artifacts/r153/linked-session-uninitialized-20261005/`.
 Sessions created before this inventory existed still require historical discovery.
 
 

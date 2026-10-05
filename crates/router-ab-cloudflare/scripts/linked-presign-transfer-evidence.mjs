@@ -92,6 +92,7 @@ export async function verifyLinkedImportRejection(topology, credential, sharedCr
   await rejected(worker, transferPath, { kind: 'verify', receipt }, credential, /missing field/);
   await rejected(worker, exportPath, { receipt, segment_index: 0, chunk_bytes: 1 }, credential, /requires a frozen snapshot/);
   await rejected(worker, freezePath, command, credential, /No such value|not found|does not exist/);
+  const uninitializedImport = await verifyUninitializedImport(topology, credential, command);
   return {
     sharedCredentialRejected: true,
     exactPreparationReplayed: true,
@@ -102,6 +103,56 @@ export async function verifyLinkedImportRejection(topology, credential, sharedCr
     invalidHistoryRejectedAfterCompleteTransport: true,
     failedVerificationSurvivedEviction: true,
     unverifiedSnapshotUnavailable: true,
+    uninitializedImport,
+  };
+}
+
+async function verifyUninitializedImport(topology, credential, previousCommand) {
+  const worker = await topology.getWorker(workerName);
+  const before = await topology.listDurableObjectIds(objectClass, workerName);
+  const command = structuredClone(previousCommand);
+  command.presign_session_id = `uninitialized-${randomBytes(16).toString('hex')}`;
+  command.server_presignature_id = `uninitialized-server-${randomBytes(16).toString('hex')}`;
+  const bytes = Buffer.from(JSON.stringify({
+    state: 'uninitialized', command,
+    request_digest_hex: createHash('sha256').update('registered initialization').digest('hex'),
+  }));
+  const receipt = {
+    command,
+    records_digest_hex: createHash('sha256').update('seams/signing-worker/linked-presign-snapshot/v1').update(bytes).digest('hex'),
+    record_count: 1,
+  };
+  const chunkBytes = 256;
+  const segmentCount = Math.ceil(bytes.length / chunkBytes);
+  await accepted(worker, transferPath, { kind: 'prepare', command, chunk_bytes: chunkBytes }, credential);
+  for (let index = 0; index < segmentCount; index += 1) {
+    const chunk = {
+      receipt, segment_index: index, segment_count: segmentCount, chunk_bytes: chunkBytes,
+      data_b64u: bytes.subarray(index * chunkBytes, (index + 1) * chunkBytes).toString('base64url'),
+    };
+    const acknowledgement = await accepted(worker, transferPath, { kind: 'import', chunk }, credential);
+    assert.deepEqual(await accepted(worker, transferPath, { kind: 'import', chunk }, credential), acknowledgement);
+  }
+  const verified = await accepted(worker, transferPath, { kind: 'verify', receipt }, credential);
+  assert.deepEqual(verified, { kind: 'verified', receipt });
+  const after = await topology.listDurableObjectIds(objectClass, workerName);
+  const created = after.filter(isNewObject.bind(undefined, before));
+  assert.equal(created.length, 1);
+  await topology.unsafeEvictDurableObject(workerName, objectClass, { id: created[0] });
+  assert.deepEqual(await accepted(worker, transferPath, { kind: 'verify', receipt }, credential), verified);
+  const exported = [];
+  for (let index = 0; index < segmentCount; index += 1) {
+    const chunk = await accepted(worker, exportPath, { receipt, segment_index: index, chunk_bytes: chunkBytes }, credential);
+    assert.equal(chunk.segment_count, segmentCount);
+    assert.deepEqual(chunk.receipt, receipt);
+    exported.push(Buffer.from(chunk.data_b64u, 'base64url'));
+  }
+  assert.deepEqual(Buffer.concat(exported), bytes);
+  return {
+    scope: 'Production destination import with synthetic registration history; excludes source proof and initialization races',
+    exactBytesRestoredAfterEviction: true,
+    verificationReplayed: true,
+    segments: segmentCount,
   };
 }
 

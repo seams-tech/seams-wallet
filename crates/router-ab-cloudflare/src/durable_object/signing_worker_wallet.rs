@@ -115,6 +115,12 @@ pub(crate) enum SigningWorkerWalletDoRequestV1 {
     },
     ClaimEcdsaPresignAuthority(crate::CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1),
     RegisterLinkedPresignSession(crate::CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1),
+    AuthorizeLinkedPresignFence {
+        scope: CloudflareSigningWorkerWalletScopeV1,
+        presign_session_id: String,
+        server_presignature_id: String,
+        request: crate::SigningWorkerPoolFreezeRequestV1,
+    },
     AdmitEcdsaPresignStep(crate::CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1),
     LoadEcdsaActivation {
         scope: CloudflareSigningWorkerWalletScopeV1,
@@ -256,6 +262,7 @@ impl SigningWorkerWalletDoRequestV1 {
             Self::CheckEcdsaPoolAdmission { scope } => scope,
             Self::ClaimEcdsaPresignAuthority(request) => request.authority.wallet_scope(),
             Self::RegisterLinkedPresignSession(request) => &request.wallet_scope,
+            Self::AuthorizeLinkedPresignFence { scope, .. } => scope,
             Self::AdmitEcdsaPresignStep(request) => request.authority.wallet_scope(),
             Self::ClaimAndConsumeEcdsaEffect { scope, .. }
             | Self::CommitEcdsaTerminal { scope, .. } => scope,
@@ -264,6 +271,12 @@ impl SigningWorkerWalletDoRequestV1 {
 
     fn validate(&self) -> Result<(), RouterAbProtocolError> {
         match self {
+            Self::AuthorizeLinkedPresignFence { scope, presign_session_id, server_presignature_id, request } => {
+                scope.validate()?;
+                request.validate()?;
+                crate::require_non_empty("Linked presign session", presign_session_id)?;
+                crate::require_non_empty("Linked server presignature", server_presignature_id)
+            }
             Self::RegisterLinkedPresignSession(request) => request.validate_at(crate::cloudflare_now_unix_ms_v1()?),
             Self::ClaimEcdsaPresignAuthority(request) => {
                 request.validate_at(crate::cloudflare_now_unix_ms_v1()?)
@@ -661,6 +674,9 @@ impl RouterAbSigningWorkerWalletDurableObject {
             SigningWorkerWalletDoRequestV1::RegisterLinkedPresignSession(request) => {
                 let now_unix_ms = crate::cloudflare_now_unix_ms_v1()?;
                 self.with_ecdsa_transaction(move |store| store.register_linked_presign_session(&request, now_unix_ms)).await
+            }
+            SigningWorkerWalletDoRequestV1::AuthorizeLinkedPresignFence { scope, presign_session_id, server_presignature_id, request } => {
+                self.with_ecdsa_transaction(move |store| store.authorize_linked_presign_fence(&scope, &presign_session_id, &server_presignature_id, &request)).await
             }
             SigningWorkerWalletDoRequestV1::AdmitEcdsaPresignStep(request) => {
                 let sql = DurableObjectWalletSqlV1(&self.sql);
