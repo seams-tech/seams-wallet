@@ -172,6 +172,42 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         replay.code(),
         RouterAbProtocolErrorCode::ReplayedLocalRequest
     );
+    let mut active_presign = presign_request.clone();
+    active_presign.presign_session_id = format!("ecdsa-presign-v2:2000:{}", b64u(&[0x43; 32]));
+    active_presign.ceremony_expires_at_ms = 2_000;
+    let presign_step =
+        router_ab_cloudflare::CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1 {
+            scope: active_presign.scope.clone(),
+            authority: active_presign.authority.clone(),
+            presign_session_id: active_presign.presign_session_id.clone(),
+            requested_stage:
+                router_ab_cloudflare::CloudflareSigningWorkerEcdsaPresignRequestedStageV1::Triples,
+            outgoing_messages_b64u: vec![b64u(&[1])],
+            ceremony_expires_at_ms: active_presign.ceremony_expires_at_ms,
+            material_expires_at_ms: active_presign.material_expires_at_ms,
+        };
+    assert!(with_store(&path, &env, |store| store
+        .admit_presign_step(&presign_step, 1_000))
+    .is_err());
+    with_store(&path, &env, |store| {
+        store.claim_presign_authority(&active_presign, 1_000)
+    })?;
+    with_store(&path, &env, |store| {
+        store.admit_presign_step(&presign_step, 1_000)
+    })?;
+    let mut changed_step = presign_step.clone();
+    changed_step.authority =
+        router_ab_cloudflare::CloudflareSigningWorkerEcdsaPresignAuthorityV1::OperationStepUp {
+            wallet_scope: owner.clone(),
+        };
+    assert!(with_store(&path, &env, |store| store
+        .admit_presign_step(&changed_step, 1_000))
+    .is_err());
+    changed_step = presign_step.clone();
+    changed_step.ceremony_expires_at_ms += 1;
+    assert!(with_store(&path, &env, |store| store
+        .admit_presign_step(&changed_step, 1_000))
+    .is_err());
     let mut delayed_activation = activation_request.clone();
     delayed_activation.material_activation.activation_id = "late-ecdsa-activation".to_owned();
     delayed_activation.validate()?;
@@ -360,6 +396,14 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         freeze(&path, &env, &owner, freeze_request.clone())?,
         draining
     );
+    let delayed_step = with_store(&path, &env, |store| {
+        store.admit_presign_step(&presign_step, 1_700)
+    })
+    .unwrap_err();
+    assert_eq!(
+        delayed_step.code(),
+        RouterAbProtocolErrorCode::LifecycleTransitionInProgress
+    );
     let admission = with_store(&path, &env, |store| {
         store.require_mutation_admission(&owner)
     })
@@ -393,7 +437,7 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
     else {
         panic!("settled pool must freeze");
     };
-    assert_eq!(receipt.record_count, 9);
+    assert_eq!(receipt.record_count, 10);
     assert_eq!(receipt.scope, owner);
     let activation_error = with_store(&path, &env, |store| {
         store.activate(
@@ -494,6 +538,7 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         "other_wallet_pool_admission_preserved": true,
         "expired_presign_identity_history_restored": true,
         "presign_claims_fenced_and_other_wallet_claims_excluded": true,
+        "presign_steps_require_pinned_authority_expiry_and_open_wallet": true,
         "scope": "Production wallet store and cipher on SQLite; excludes wallet-wide fencing and HTTP authorization"
     });
     std::fs::write(
@@ -646,7 +691,7 @@ fn verify_snapshot_export(
     assert_eq!(snapshot["pools"].as_array().unwrap().len(), 6);
     assert_eq!(snapshot["activations"].as_array().unwrap().len(), 1);
     assert_eq!(snapshot["effects"].as_array().unwrap().len(), 1);
-    assert_eq!(snapshot["presign_authorities"].as_array().unwrap().len(), 1);
+    assert_eq!(snapshot["presign_authorities"].as_array().unwrap().len(), 2);
     assert!(snapshot["effects"][0]["terminal_json"].as_str().is_some());
     request.segment_index = first.segment_count;
     assert!(with_store(path, env, |store| store

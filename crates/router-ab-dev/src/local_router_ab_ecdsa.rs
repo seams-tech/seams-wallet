@@ -855,18 +855,7 @@ fn step_presign_session(
     let now_ms = local_now_ms_v1()?;
     request.validate_at(now_ms)?;
     let admission = with_local_signing_worker_wallet_store_v1(config, |store, _sql| {
-        let pinned = store.load_presign_authority(
-            request.authority.wallet_scope(),
-            &request.presign_session_id,
-            now_ms,
-        )?;
-        if request.authority != pinned {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MalformedWirePayload,
-                "SigningWorker ECDSA presign authority does not match initialized session",
-            ));
-        }
-        store.require_mutation_admission(pinned.wallet_scope())
+        store.admit_presign_step(&request, now_ms)
     });
     if let Err(error) = admission {
         if error.code() == RouterAbProtocolErrorCode::LifecycleTransitionInProgress {

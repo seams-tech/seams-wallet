@@ -78,11 +78,17 @@ Owner presignature identity claims now use the shared wallet SQL store. Native
 admission and step lookup use that store, replacing the native-only implementation
 without changing the persisted table. Cloudflare wallet-DO session admission also
 records the claim in the wallet transaction before creating live protocol output.
+Owner-session steps use that same SQL authority and wallet fence. This backend
+does not create a duplicate owner claim in session KV. The private-D1 backend
+continues to use its own session KV authority. Step validation binds the ceremony
+expiry to the session identity.
 The immutable ECDSA snapshot includes these claims and restores their original
 authority bytes, identities, and expiry values. Restore validates historical
 identity bindings without requiring an unexpired ceremony or reopening admission.
 The production-store E2E transfers an expired claim, rejects duplicate and frozen
-admissions, and excludes another wallet's later claim. Separate presign-session KV
+admissions, and excludes another wallet's later claim. It also rejects unknown
+step identities, changed authority, changed expiry, and delayed steps during drain.
+Separate presign-session KV
 records, linked-session history, existing Cloudflare sessions without wallet SQL
 claims, and aggregate participant freeze/transfer remain unfinished.
 

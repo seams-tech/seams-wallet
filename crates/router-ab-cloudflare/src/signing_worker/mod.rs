@@ -349,7 +349,7 @@ impl CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1 {
     pub fn validate_at(&self, now_unix_ms: u64) -> RouterAbProtocolResult<()> {
         self.scope.validate()?;
         self.authority.validate_for_scope(&self.scope)?;
-        require_non_empty("presign_session_id", &self.presign_session_id)?;
+        validate_presign_session_identity(&self.presign_session_id, self.ceremony_expires_at_ms)?;
         validate_presign_session_expiry(
             "ECDSA presign session ceremony_expires_at_ms",
             self.ceremony_expires_at_ms,

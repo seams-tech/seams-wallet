@@ -37,6 +37,27 @@ impl PresignAuthorityRow {
 }
 
 impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
+    /// Checks the pinned identity and current wallet fence before a protocol step.
+    pub fn admit_presign_step(
+        &self,
+        request: &CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1,
+        now_unix_ms: u64,
+    ) -> RouterAbProtocolResult<()> {
+        request.validate_at(now_unix_ms)?;
+        let pinned = self.load_presign_authority(
+            request.authority.wallet_scope(),
+            &request.presign_session_id,
+            now_unix_ms,
+        )?;
+        if request.authority != pinned {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                "SigningWorker ECDSA presign authority does not match initialized session",
+            ));
+        }
+        self.require_mutation_admission(pinned.wallet_scope())
+    }
+
     /// Claims an identity inside the same host transaction as material admission.
     pub fn claim_presign_authority(
         &self,
