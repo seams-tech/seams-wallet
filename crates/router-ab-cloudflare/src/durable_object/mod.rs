@@ -159,7 +159,7 @@ impl worker::DurableObject for RouterAbSigningWorkerPresignSessionDurableObject 
         let path = request.path();
         if matches!(path.as_str(), presign_session_relocation::INTERNAL_FREEZE_PATH
             | presign_session_relocation::INTERNAL_FENCE_PATH
-            | presign_session_relocation::INTERNAL_EXPORT_PATH)
+            | presign_session_relocation::INTERNAL_EXPORT_PATH | presign_session_relocation::import::INTERNAL_PATH)
         {
             let result = presign_session_relocation::handle_relocation(request, &self.storage).await;
             if result.is_ok() {

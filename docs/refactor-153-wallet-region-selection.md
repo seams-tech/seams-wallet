@@ -117,8 +117,14 @@ cannot reconstruct history deleted by earlier builds. Both Worker backend builds
 compile. Linked-session export now reads the sealed bytes in chunks of 1 through
 65536 bytes. It requires the exact stored freeze receipt, verifies the snapshot
 digest, and rejects absent segment indexes. The dedicated Router-to-SigningWorker
-ECDSA credential protects this endpoint. Runtime restart/race and chunk verification,
-destination import, and coordinator integration for linked sessions remain unfinished.
+ECDSA credential protects this endpoint. Linked destination preparation requires an
+empty session object and persists its write fence in the same transaction. Imports
+commit each chunk, its acknowledgement, and progress together. Exact retries retain
+the original acknowledgement. Verification checks the complete digest, canonical
+bytes, authority bindings, retired history, and record count before restoring public
+history and the original snapshot. The destination remains fenced, including after
+verification. Runtime restart/race and chunk verification, physical destination
+preparation, and coordinator integration for linked sessions remain unfinished.
 
 
 ECDSA transfer preserves SQL integers through the Worker JavaScript boundary.

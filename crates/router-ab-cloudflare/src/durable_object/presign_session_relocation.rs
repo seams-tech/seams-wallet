@@ -1,5 +1,7 @@
 //! Local barriers serialize relocation with linked-session KV writers.
 
+pub(crate) mod import;
+
 use std::{cell::RefCell, rc::Rc};
 
 use router_ab_core::{RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult};
@@ -37,16 +39,20 @@ struct ExportRequest {
 impl ExportRequest {
     fn validate(&self) -> RouterAbProtocolResult<()> {
         self.receipt.command.validate()?;
-        if !(1..=65_536).contains(&self.chunk_bytes) {
-            return Err(storage_error(
-                "Linked presign chunk size must be 1 through 65536 bytes",
-            ));
-        }
-        Ok(())
+        validate_chunk_bytes(self.chunk_bytes)
     }
 }
 
-#[derive(Serialize, Deserialize)]
+fn validate_chunk_bytes(size: u32) -> RouterAbProtocolResult<()> {
+    if !(1..=65_536).contains(&size) {
+        return Err(storage_error(
+            "Linked presign chunk size must be 1 through 65536 bytes",
+        ));
+    }
+    Ok(())
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct SnapshotChunk {
     receipt: LinkedPresignFreezeReceipt,
@@ -61,6 +67,7 @@ pub(crate) async fn handle_relocation(
     storage: &worker::Storage,
 ) -> RouterAbProtocolResult<worker::Response> {
     match request.path().as_str() {
+        import::INTERNAL_PATH => return import::handle(request, storage).await,
         INTERNAL_FENCE_PATH => worker::Response::from_json(&handle_fence(request, storage).await?),
         INTERNAL_FREEZE_PATH => {
             worker::Response::from_json(&handle_freeze(request, storage).await?)
