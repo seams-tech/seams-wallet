@@ -1,3 +1,4 @@
+import type { WalletRegistrationReservationAuthority } from '../../../domains/walletRegistration/walletRegistrationReservation';
 import {
   buildD1WalletAddSignerFinalizePrepared,
   fingerprintD1WalletAddSignerFinalizePrepared,
@@ -815,6 +816,7 @@ function sameEcdsaSignerActivation(
 }
 
 export class CloudflareD1WalletAddSignerService {
+  private readonly registrationAuthority: WalletRegistrationReservationAuthority | null;
   private readonly getRegistrationCeremonyIntentStore: RegistrationCeremonyStoreProvider;
   private readonly getEd25519YaoProductRegistration: Ed25519YaoProductRegistrationProvider;
   private readonly ecdsaStrictRegistration: RouterAbEcdsaStrictRegistrationPort;
@@ -827,6 +829,7 @@ export class CloudflareD1WalletAddSignerService {
   private readonly yaoLifecycleDecisions: CloudflareD1Ed25519YaoLifecycleDecisionStoreV1;
 
   constructor(input: {
+    readonly registrationAuthority: WalletRegistrationReservationAuthority | null;
     readonly getRegistrationCeremonyIntentStore: RegistrationCeremonyStoreProvider;
     readonly getEd25519YaoProductRegistration: Ed25519YaoProductRegistrationProvider;
     readonly ecdsaStrictRegistration: RouterAbEcdsaStrictRegistrationPort;
@@ -838,6 +841,7 @@ export class CloudflareD1WalletAddSignerService {
     readonly finalizeSideEffects: D1WalletAddSignerFinalizeSideEffectStore;
     readonly yaoLifecycleDecisions: CloudflareD1Ed25519YaoLifecycleDecisionStoreV1;
   }) {
+    this.registrationAuthority = input.registrationAuthority;
     this.getRegistrationCeremonyIntentStore = input.getRegistrationCeremonyIntentStore;
     this.getEd25519YaoProductRegistration = input.getEd25519YaoProductRegistration;
     this.ecdsaStrictRegistration = input.ecdsaStrictRegistration;
@@ -1282,8 +1286,14 @@ export class CloudflareD1WalletAddSignerService {
           signingWorkerId: yaoRuntime.signingWorkerId,
         }),
       });
+      if (!this.registrationAuthority) {
+        return rejectedWalletAddSignerStartTerminal('wallet_home_unavailable', 'Wallet home authority is unavailable');
+      }
+      const homeAdmission = await this.registrationAuthority.admitEstablishedHome({ walletId: input.walletId });
+      if (!homeAdmission.ok) return rejectedWalletAddSignerStartTerminal(homeAdmission.code, homeAdmission.message);
       const bound = await yaoRuntime.bindVerifiedIntent({
         kind: 'verified_add_signer_intent',
+        ownershipGeneration: homeAdmission.ownershipGeneration,
         addSignerIntentGrant: storedIntent.grant,
         intent: ed25519Intent,
         admissionRequest,

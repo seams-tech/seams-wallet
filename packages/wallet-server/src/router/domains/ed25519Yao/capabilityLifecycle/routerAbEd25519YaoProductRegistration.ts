@@ -283,6 +283,16 @@ function isWalletOwnershipMap(input: unknown): input is Map<string, string> {
   return true;
 }
 
+function hasIntentAuthorityGeneration(input: unknown): boolean {
+  return (
+    isPlainObject(input) &&
+    INTENT_AUTHORITY_KINDS.has(String(input.kind)) &&
+    typeof input.ownershipGeneration === 'number' &&
+    Number.isSafeInteger(input.ownershipGeneration) &&
+    input.ownershipGeneration > 0
+  );
+}
+
 function hasProductStateCollections(
   input: unknown,
 ): input is RouterAbEd25519YaoProductRegistrationStateV1 {
@@ -310,9 +320,7 @@ function hasProductStateCollections(
       )) &&
     isDispatchRootMap(registration.dispatchRoots) &&
     Array.isArray(authorization.authorities) &&
-    authorization.authorities.every(
-      (authority) => isPlainObject(authority) && INTENT_AUTHORITY_KINDS.has(String(authority.kind)),
-    ) &&
+    authorization.authorities.every(hasIntentAuthorityGeneration) &&
     isStringMapWithStateKinds(recovery.capabilities, CAPABILITY_STATE_KINDS) &&
     isStringMap(recovery.identityCapabilities) &&
     isStringMapWithStateKinds(recovery.recoveries, RECOVERY_STATE_KINDS) &&

@@ -1378,6 +1378,7 @@ function createCloudflareD1RouterApiAuthAssembly(
     yaoLifecycleDecisions,
   });
   const walletAddSigners = new CloudflareD1WalletAddSignerService({
+    registrationAuthority: options.registrationAuthority ?? null,
     getRegistrationCeremonyIntentStore,
     getEd25519YaoProductRegistration: () => resolveEd25519YaoProductRegistration(options),
     ecdsaStrictRegistration: options.ecdsaStrictRegistration,

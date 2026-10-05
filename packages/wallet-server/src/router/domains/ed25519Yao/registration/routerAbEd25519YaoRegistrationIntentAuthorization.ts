@@ -34,6 +34,7 @@ type RouterAbEd25519YaoRegistrationBindingV1 =
   RouterAbEd25519YaoActivationBindingV1<'registration'>;
 
 type AvailableIntentAuthority = {
+  readonly ownershipGeneration: number;
   readonly kind: 'available';
   readonly purpose: RouterAbEd25519YaoActivationIntentPurposeV1;
   readonly credentialDigestSha256: Uint8Array;
@@ -43,6 +44,7 @@ type AvailableIntentAuthority = {
 };
 
 type AdmittedIntentAuthority = {
+  readonly ownershipGeneration: number;
   readonly kind: 'admitted';
   readonly purpose: RouterAbEd25519YaoActivationIntentPurposeV1;
   readonly credentialDigestSha256: Uint8Array;
@@ -56,6 +58,7 @@ type IntentAuthority = AvailableIntentAuthority | AdmittedIntentAuthority;
 type RouterAbEd25519YaoActivationIntentPurposeV1 = 'wallet_registration' | 'wallet_add_signer';
 
 export type RouterAbEd25519YaoVerifiedRegistrationIntentV1 = {
+  readonly ownershipGeneration: number;
   readonly kind: 'verified_registration_intent';
   readonly registrationIntentGrant: RegistrationIntentGrant;
   readonly intent: RegistrationIntentV1;
@@ -64,6 +67,7 @@ export type RouterAbEd25519YaoVerifiedRegistrationIntentV1 = {
 };
 
 type RouterAbEd25519YaoVerifiedAddSignerIntentV1 = {
+  readonly ownershipGeneration: number;
   readonly kind: 'verified_add_signer_intent';
   readonly addSignerIntentGrant: AddSignerIntentGrant;
   readonly intent: AddSignerIntentV1 & {
@@ -391,6 +395,7 @@ function admittedAuthority(authority: AvailableIntentAuthority): AdmittedIntentA
   return {
     kind: 'admitted',
     purpose: authority.purpose,
+    ownershipGeneration: authority.ownershipGeneration,
     credentialDigestSha256: authority.credentialDigestSha256,
     admissionRequest: authority.admissionRequest,
     admissionFingerprint: authority.admissionFingerprint,
@@ -441,6 +446,9 @@ export class InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter im
   async bindVerifiedIntent(
     verified: RouterAbEd25519YaoVerifiedActivationIntentV1,
   ): Promise<RouterAbEd25519YaoRegistrationIntentBindingResult> {
+    if (!Number.isSafeInteger(verified.ownershipGeneration) || verified.ownershipGeneration < 1) {
+      return failure('invalid_registration_intent', 'Wallet ownership generation is invalid');
+    }
     const credential = activationIntentCredential(verified);
     if (!VERIFIED_INTENT_CREDENTIAL.test(credential)) {
       return failure(
@@ -472,6 +480,7 @@ export class InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter im
       const exactRetry =
         existing !== undefined &&
         existing.purpose === purpose &&
+        existing.ownershipGeneration === verified.ownershipGeneration &&
         credentialDigestsEqual(existing.credentialDigestSha256, credentialDigest) &&
         (existing.admissionFingerprint === admissionFingerprint ||
           (purpose === 'wallet_registration' &&
@@ -488,6 +497,7 @@ export class InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter im
 
     this.authorities.push({
       kind: 'available',
+      ownershipGeneration: verified.ownershipGeneration,
       purpose,
       credentialDigestSha256: credentialDigest,
       admissionRequest: copiedAdmissionRequest,
@@ -522,6 +532,7 @@ export class InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter im
     this.authorities[existing.index] = {
       kind: existing.authority.kind,
       purpose: existing.authority.purpose,
+      ownershipGeneration: existing.authority.ownershipGeneration,
       admissionRequest: existing.authority.admissionRequest,
       admissionFingerprint: existing.authority.admissionFingerprint,
       credentialDigestSha256: await credentialDigestSha256(verified.credential),

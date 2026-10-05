@@ -65,3 +65,29 @@ const mixedHomeAdmission: HomeAdmission = {
 };
 void admissionWithoutGeneration;
 void mixedHomeAdmission;
+
+import type { RouterAbEd25519YaoVerifiedActivationIntentV1 } from '../../packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationIntentAuthorization';
+
+declare const verifiedActivationIntent: RouterAbEd25519YaoVerifiedActivationIntentV1;
+declare const intentWithoutGeneration: Omit<
+  RouterAbEd25519YaoVerifiedActivationIntentV1,
+  'ownershipGeneration'
+>;
+// @ts-expect-error Verified intents require the authoritative ownership generation.
+const missingIntentGeneration: RouterAbEd25519YaoVerifiedActivationIntentV1 =
+  intentWithoutGeneration;
+// @ts-expect-error A broad spread cannot erase the execution generation.
+const erasedIntentGeneration: RouterAbEd25519YaoVerifiedActivationIntentV1 = {
+  ...verifiedActivationIntent,
+  ownershipGeneration: undefined,
+};
+type EstablishedHomeAdmission = Awaited<
+  ReturnType<WalletRegistrationReservationAuthority['admitEstablishedHome']>
+>;
+// @ts-expect-error An established wallet cannot receive registration-only execution authority.
+const registrationAuthorityForEstablishedWallet: EstablishedHomeAdmission = {
+  ok: true,
+  ownershipGeneration: 1,
+  purpose: 'registration',
+};
+void [missingIntentGeneration, erasedIntentGeneration, registrationAuthorityForEstablishedWallet];

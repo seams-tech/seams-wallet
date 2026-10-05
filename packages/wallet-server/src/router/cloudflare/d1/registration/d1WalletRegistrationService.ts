@@ -4624,6 +4624,12 @@ export class CloudflareD1WalletRegistrationService {
     | { readonly ok: false; readonly code: string; readonly message: string }
   > {
     if (!input.branch) return { ok: true, branch: null, deferred: null };
+    const homeAdmission = await admitRegistrationReservationHome(this.registrationAuthority, {
+      ceremonyId: input.ceremony.registrationCeremonyId,
+      walletId: input.ceremony.intent.walletId,
+    });
+    if (!homeAdmission.ok) return homeAdmission;
+
     const yaoRuntime = this.getEd25519YaoProductRegistration();
     if (!yaoRuntime) {
       return {
@@ -4647,6 +4653,7 @@ export class CloudflareD1WalletRegistrationService {
     });
     const admitted = await yaoRuntime.bindVerifiedIntent({
       kind: 'verified_registration_intent',
+      ownershipGeneration: homeAdmission.ownershipGeneration,
       registrationIntentGrant: registrationIntentGrantFromString(input.registrationBearerToken),
       intent: input.ceremony.intent,
       admissionRequest,
