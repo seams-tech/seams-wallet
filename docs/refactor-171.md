@@ -550,7 +550,7 @@ R171 shares the four-task completion checklist in
 - [x] Reconcile public declarations with this migration map. Remove remaining
   replaced names and callers in SDK, React, examples, intended app, and docs.
   Confirm the returned email flow controls remain usable and well named.
-- [ ] Run focused production E2E, type fixtures, packed-consumer checks, and
+- [x] Run focused production E2E, type fixtures, packed-consumer checks, and
   application dependency/size checks for the changed surface. Reuse existing
   valid evidence for completed migrations.
 - [x] Record migration notes and the matching client/host protocol requirement.

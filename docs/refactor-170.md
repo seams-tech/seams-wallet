@@ -859,7 +859,7 @@ live callers, and no obsolete parallel implementation remains in changed paths.
 
 ### 3. Verify the affected wallet flows
 
-- [ ] Reuse existing production E2E coverage for passkey and email registration,
+- [x] Reuse existing production E2E coverage for passkey and email registration,
   unlock, NEAR/EVM/Tempo signing, lock/unlock, and restored signing. Add or extend
   a scenario only for a behavior changed by the remaining work.
 - Verify the new email boundary's failure/resend/cancel behavior and pending

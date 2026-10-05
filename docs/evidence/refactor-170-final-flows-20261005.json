@@ -1,0 +1,59 @@
+{
+  "task": "R170/R171 final affected-flow verification",
+  "sourceRevision": "8ecbea72",
+  "protocolVersion": "14.0.0",
+  "productionCommand": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.unlock.contract.test.ts e2e/intended-behaviours/passkey.registration.assets.contract.test.ts --grep 'lock retains durable presignatures across a fresh unlock|production wallet records asset traffic across registration, signing, and unlock|production signed-out mount and menu record cold and warm cache traffic'",
+  "cases": [
+    {
+      "title": "lock retains durable presignatures across a fresh unlock",
+      "passed": true,
+      "seconds": 35.7
+    },
+    {
+      "title": "production wallet records asset traffic across registration, signing, and unlock",
+      "passed": true,
+      "seconds": 34.4
+    },
+    {
+      "title": "production signed-out mount and menu record cold and warm cache traffic",
+      "passed": true,
+      "seconds": 28.8
+    }
+  ],
+  "durablePresignatures": {
+    "beforeLock": 1,
+    "whileLocked": 1,
+    "afterUnlock": 1,
+    "allOriginalRecordsRetained": true,
+    "postUnlockTempoSigning": "passed",
+    "scope": "Immediate lock and fresh unlock; the separate 30-day return gate remains open."
+  },
+  "retentionArtifact": ".artifacts/r170-final-20261005/lock-presignature-retention.json",
+  "emailEvidence": "refactor-170-unified-email-unlock-20261005.json",
+  "retainedUnchangedEvidence": [
+    "refactor-170-normal-unlock-20261005.json",
+    "refactor-170-session-read-ordering-20261005.json",
+    "refactor-170-session-transition-audit-20261005.json",
+    "refactor-170-loader-retry-20261005.json",
+    "refactor-170-material-engine-boundary-20261005.json",
+    "refactor-170-device-removal-proof-20261005.json"
+  ],
+  "checks": {
+    "productionBuild": "passed",
+    "walletTypes": "passed",
+    "intendedTypes": "passed",
+    "walletStateTypes": "passed",
+    "browserTypes": "passed",
+    "docsTypes": "passed",
+    "packedDeclarations": "passed",
+    "runtimeEntryGraphs": "passed",
+    "buildFreshness": "passed",
+    "bloat": "passed",
+    "protocolHandshake": "5 passed"
+  },
+  "limits": [
+    "The retention contract verifies original durable record identities before lock, while locked, and after fresh unlock, plus post-unlock Tempo signing.",
+    "The raw retention artifact retains its historical 30-day gate wording. The approved narrowed plan defers that clock simulation. Elapsed time alone must not invalidate otherwise-valid presignatures.",
+    "No release, deployment, or private exact-release adoption was performed."
+  ]
+}
