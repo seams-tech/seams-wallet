@@ -349,6 +349,7 @@ pub async fn router_wallet_serve_v1<Store: RouterWalletStoreV1>(
     store: &Store,
     request: RouterWalletRequestV1,
 ) -> RouterAbProtocolResult<RouterWalletResponseV1> {
+    crate::router_wallet_relocation::admit_ordinary_command(store).await?;
     match store.get_json::<RouterWalletOwnerV1>(OWNER_KEY).await? {
         Some(owner) if owner != request.owner => {
             return Err(RouterAbProtocolError::new(

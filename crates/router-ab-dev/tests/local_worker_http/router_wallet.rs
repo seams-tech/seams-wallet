@@ -22,6 +22,28 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
     assert_eq!(status, 200, "{body}");
     let (registration, _) =
         stack.wallet_registration(&identity, &lineage_b64u, "account-router-wallet-object")?;
+    let owner = router_ab_cloudflare::RouterWalletRegistrationV1::from_request(&registration)?
+        .ok_or("registration owner")?
+        .owner;
+    let freeze = router_ab_cloudflare::RouterWalletFreezeRequestV1 {
+        owner,
+        move_id: format!("wmove_{}", "a".repeat(43)),
+        request_digest_hex: "b".repeat(64),
+        source_generation: 1,
+        destination_generation: 2,
+    };
+    let mut destination = RecoveryStackV1::start("vm-router-wallet-import")?;
+    let prepared = transfer_wallet(
+        &destination.router_url,
+        router_ab_cloudflare::RouterWalletTransferRequestV1::Prepare {
+            request: freeze.clone(),
+            chunk_bytes: 1024,
+        },
+    )?;
+    assert!(matches!(
+        prepared,
+        router_ab_cloudflare::RouterWalletTransferResponseV1::Prepared { .. }
+    ));
     let a_pairs = |db: &Connection| -> rusqlite::Result<i64> {
         db.query_row(
             "SELECT COUNT(*) FROM local_deriver_a_yao_pairs",
@@ -76,16 +98,6 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
             .contains(&retry_after_ms),
         "{in_progress}"
     );
-    let owner = router_ab_cloudflare::RouterWalletRegistrationV1::from_request(&registration)?
-        .ok_or("registration owner")?
-        .owner;
-    let freeze = router_ab_cloudflare::RouterWalletFreezeRequestV1 {
-        owner,
-        move_id: format!("wmove_{}", "a".repeat(43)),
-        request_digest_hex: "b".repeat(64),
-        source_generation: 1,
-        destination_generation: 2,
-    };
     let (unauthorized, _) = post_json_to_path_with_headers(
         &stack.router_url,
         router_ab_cloudflare::ROUTER_WALLET_FREEZE_PATH_V1,
@@ -204,6 +216,109 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
     assert_eq!(sealed["state"], "frozen", "{sealed}");
     assert_eq!(sealed["receipt"]["record_count"], 1);
     assert_eq!(freeze_wallet(&stack.router_url, &freeze)?, sealed);
+    let router_ab_cloudflare::RouterWalletFreezeResponseV1::Frozen { receipt } =
+        serde_json::from_value(sealed.clone())?
+    else {
+        return Err("expected frozen receipt".into());
+    };
+    let (incomplete_status, _) = post_json_to_path_with_headers(
+        &destination.router_url,
+        router_ab_cloudflare::ROUTER_WALLET_TRANSFER_PATH_V1,
+        &router_ab_cloudflare::RouterWalletTransferRequestV1::Verify {
+            receipt: receipt.clone(),
+        },
+        &[(
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+            TEST_GATEWAY_TO_ROUTER_AUTH,
+        )],
+    )?;
+    assert_ne!(incomplete_status, 200);
+    let mut imported_segments = 0;
+    let mut last_import = None;
+    for record_index in 0..receipt.record_count {
+        let first_chunk = export_wallet_chunk(&stack.router_url, &receipt, record_index, 0)?;
+        assert!(
+            first_chunk.segment_count > 1,
+            "the E2E must exercise partial record import"
+        );
+        for segment_index in 0..first_chunk.segment_count {
+            let chunk =
+                export_wallet_chunk(&stack.router_url, &receipt, record_index, segment_index)?;
+            let command = router_ab_cloudflare::RouterWalletTransferRequestV1::Import {
+                chunk: chunk.clone(),
+            };
+            let acknowledgement = transfer_wallet(&destination.router_url, command.clone())?;
+            imported_segments += 1;
+            if imported_segments == 1 {
+                assert!(registration_rows(&destination.router_db, &freeze.owner)?.is_empty());
+                destination.restart_router()?;
+                assert_eq!(
+                    transfer_wallet(&destination.router_url, command.clone())?,
+                    acknowledgement,
+                    "a lost import reply must replay its durable acknowledgement"
+                );
+                let mut changed = chunk;
+                let mut bytes =
+                    base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(&changed.data_b64u)?;
+                bytes[0] ^= 1;
+                changed.data_b64u = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes);
+                let (conflict, _) = post_json_to_path_with_headers(
+                    &destination.router_url,
+                    router_ab_cloudflare::ROUTER_WALLET_TRANSFER_PATH_V1,
+                    &router_ab_cloudflare::RouterWalletTransferRequestV1::Import { chunk: changed },
+                    &[(
+                        LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+                        TEST_GATEWAY_TO_ROUTER_AUTH,
+                    )],
+                )?;
+                assert_ne!(conflict, 200);
+            }
+            last_import = Some((command, acknowledgement));
+        }
+    }
+    let imported_rows = registration_rows(&destination.router_db, &freeze.owner)?;
+    assert_eq!(
+        imported_rows,
+        registration_rows(&stack.router_db, &freeze.owner)?,
+        "historical request and result bytes survive transfer exactly"
+    );
+    let verified = transfer_wallet(
+        &destination.router_url,
+        router_ab_cloudflare::RouterWalletTransferRequestV1::Verify {
+            receipt: receipt.clone(),
+        },
+    )?;
+    assert_eq!(
+        verified,
+        router_ab_cloudflare::RouterWalletTransferResponseV1::Verified {
+            receipt: receipt.clone()
+        }
+    );
+    destination.restart_router()?;
+    assert_eq!(
+        transfer_wallet(
+            &destination.router_url,
+            router_ab_cloudflare::RouterWalletTransferRequestV1::Verify {
+                receipt: receipt.clone()
+            }
+        )?,
+        verified
+    );
+    let (last_command, last_acknowledgement) = last_import.ok_or("expected imported record")?;
+    assert_eq!(
+        transfer_wallet(&destination.router_url, last_command)?,
+        last_acknowledgement
+    );
+    let (inactive_status, inactive_body) = destination.register(&registration)?;
+    assert_ne!(inactive_status, 200, "{inactive_body}");
+    assert!(
+        inactive_body.contains("LifecycleTransitionInProgress"),
+        "{inactive_body}"
+    );
+    assert_eq!(
+        registration_rows(&destination.router_db, &freeze.owner)?,
+        imported_rows
+    );
     let mut conflict = freeze.clone();
     conflict.request_digest_hex = "c".repeat(64);
     let (conflict_status, _) = post_json_to_path_with_headers(
@@ -264,10 +379,65 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
                 "delayed_registration_rejected_after_restart": true,
                 "unrelated_wallet_registered": true,
                 "immutable_receipt": sealed,
+                "imported_segments": imported_segments,
+                "destination_verified_but_inactive": true,
+                "lost_chunk_reply_replayed_after_restart": true,
+                "exact_historical_record_bytes": true,
             },
         })
     );
     Ok(())
+}
+
+fn transfer_wallet(
+    router_url: &str,
+    request: router_ab_cloudflare::RouterWalletTransferRequestV1,
+) -> Result<router_ab_cloudflare::RouterWalletTransferResponseV1, Box<dyn std::error::Error>> {
+    let (status, body) = post_json_to_path_with_headers(
+        router_url,
+        router_ab_cloudflare::ROUTER_WALLET_TRANSFER_PATH_V1,
+        &request,
+        &[(
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+            TEST_GATEWAY_TO_ROUTER_AUTH,
+        )],
+    )?;
+    assert_eq!(status, 200, "{body}");
+    Ok(serde_json::from_str(&body)?)
+}
+
+fn export_wallet_chunk(
+    router_url: &str,
+    receipt: &router_ab_cloudflare::RouterWalletFreezeReceiptV1,
+    record_index: u64,
+    segment_index: u32,
+) -> Result<router_ab_cloudflare::RouterWalletTransferChunkV1, Box<dyn std::error::Error>> {
+    match transfer_wallet(
+        router_url,
+        router_ab_cloudflare::RouterWalletTransferRequestV1::Export {
+            receipt: receipt.clone(),
+            record_index,
+            segment_index,
+            chunk_bytes: 1024,
+        },
+    )? {
+        router_ab_cloudflare::RouterWalletTransferResponseV1::Exported { chunk } => Ok(chunk),
+        _ => Err("Router returned an unexpected export response".into()),
+    }
+}
+
+fn registration_rows(
+    database: &Connection,
+    owner: &router_ab_cloudflare::RouterWalletOwnerV1,
+) -> Result<Vec<(String, String)>, Box<dyn std::error::Error>> {
+    let mut query = database.prepare(
+        "SELECT storage_key, value_json FROM local_router_wallet_objects
+        WHERE object_name = ?1 AND storage_key LIKE 'yao-registration/%' ORDER BY storage_key",
+    )?;
+    let records = query
+        .query_map([owner.object_name()?], |row| Ok((row.get(0)?, row.get(1)?)))?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(records)
 }
 
 fn freeze_wallet(

@@ -17,8 +17,9 @@ use crate::router_wallet::{
     RouterWalletRequestV1, RouterWalletResponseV1, RouterWalletStoreV1, REGISTRATION_KEY_PREFIX,
 };
 use crate::{
-    freeze_router_wallet_v1, RouterWalletFreezeRequestV1, RouterWalletFreezeResponseV1,
-    ROUTER_WALLET_FREEZE_PATH_V1,
+    freeze_router_wallet_v1, transfer_router_wallet_v1, RouterWalletFreezeRequestV1,
+    RouterWalletFreezeResponseV1, RouterWalletTransferRequestV1, RouterWalletTransferResponseV1,
+    ROUTER_WALLET_FREEZE_PATH_V1, ROUTER_WALLET_TRANSFER_PATH_V1,
 };
 
 const BINDING: &str = "ROUTER_WALLET_DO";
@@ -27,6 +28,7 @@ const COMMAND_PATH: &str = "/router-wallet/v1/command";
 enum WalletCall {
     Ordinary(RouterWalletRequestV1),
     Freeze(RouterWalletFreezeRequestV1),
+    Transfer(RouterWalletTransferRequestV1),
 }
 
 /// A refusal as the object answers it, with its protocol code.
@@ -49,7 +51,9 @@ impl DurableObject for RouterAbRouterWalletDurableObject {
 
     async fn fetch(&self, mut request: Request) -> worker::Result<Response> {
         if request.method() != Method::Post
-            || (request.path() != COMMAND_PATH && request.path() != ROUTER_WALLET_FREEZE_PATH_V1)
+            || (request.path() != COMMAND_PATH
+                && request.path() != ROUTER_WALLET_FREEZE_PATH_V1
+                && request.path() != ROUTER_WALLET_TRANSFER_PATH_V1)
         {
             return Response::error("Router wallet object route not found", 404);
         }
@@ -58,11 +62,16 @@ impl DurableObject for RouterAbRouterWalletDurableObject {
                 .json::<RouterWalletRequestV1>()
                 .await
                 .map(WalletCall::Ordinary)
-        } else {
+        } else if request.path() == ROUTER_WALLET_FREEZE_PATH_V1 {
             request
                 .json::<RouterWalletFreezeRequestV1>()
                 .await
                 .map(WalletCall::Freeze)
+        } else {
+            request
+                .json::<RouterWalletTransferRequestV1>()
+                .await
+                .map(WalletCall::Transfer)
         };
         let command = match parsed {
             Ok(command) => command,
@@ -87,6 +96,9 @@ impl DurableObject for RouterAbRouterWalletDurableObject {
                         .await
                         .and_then(encode_response),
                     WalletCall::Freeze(command) => freeze_router_wallet_v1(&store, command)
+                        .await
+                        .and_then(encode_response),
+                    WalletCall::Transfer(command) => transfer_router_wallet_v1(&store, command)
                         .await
                         .and_then(encode_response),
                 };
@@ -130,6 +142,19 @@ pub(crate) async fn call_router_wallet_freeze_v1(
     request: &RouterWalletFreezeRequestV1,
 ) -> RouterAbProtocolResult<RouterWalletFreezeResponseV1> {
     call_wallet(env, &request.owner, ROUTER_WALLET_FREEZE_PATH_V1, request).await
+}
+
+pub(crate) async fn call_router_wallet_transfer_v1(
+    env: &Env,
+    request: &RouterWalletTransferRequestV1,
+) -> RouterAbProtocolResult<RouterWalletTransferResponseV1> {
+    call_wallet(
+        env,
+        request.owner(),
+        ROUTER_WALLET_TRANSFER_PATH_V1,
+        request,
+    )
+    .await
 }
 
 async fn call_wallet<Input: Serialize, Output: DeserializeOwned>(

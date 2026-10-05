@@ -7,9 +7,10 @@ use std::cell::RefCell;
 use std::path::Path;
 
 use router_ab_cloudflare::{
-    freeze_router_wallet_v1, router_wallet_serve_v1, RouterWalletFreezeRequestV1,
-    RouterWalletFreezeResponseV1, RouterWalletRegistrationRecordV1, RouterWalletRequestV1,
-    RouterWalletResponseV1, RouterWalletStoreV1,
+    freeze_router_wallet_v1, router_wallet_serve_v1, transfer_router_wallet_v1,
+    RouterWalletFreezeRequestV1, RouterWalletFreezeResponseV1, RouterWalletRegistrationRecordV1,
+    RouterWalletRequestV1, RouterWalletResponseV1, RouterWalletStoreV1,
+    RouterWalletTransferRequestV1, RouterWalletTransferResponseV1,
 };
 use router_ab_core::{RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult};
 use rusqlite::{OptionalExtension, TransactionBehavior};
@@ -35,6 +36,15 @@ pub(crate) fn freeze_local_router_wallet_v1(
 ) -> RouterAbProtocolResult<RouterWalletFreezeResponseV1> {
     with_store(storage_path, request.owner.object_name()?, |store| {
         futures::executor::block_on(freeze_router_wallet_v1(store, request))
+    })
+}
+
+pub(crate) fn transfer_local_router_wallet_v1(
+    storage_path: &Path,
+    request: RouterWalletTransferRequestV1,
+) -> RouterAbProtocolResult<RouterWalletTransferResponseV1> {
+    with_store(storage_path, request.owner().object_name()?, |store| {
+        futures::executor::block_on(transfer_router_wallet_v1(store, request))
     })
 }
 

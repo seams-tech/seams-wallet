@@ -332,6 +332,11 @@ pub use router::*;
 mod router_wallet;
 pub use router_wallet::*;
 mod router_wallet_relocation;
+mod router_wallet_transfer;
+pub use router_wallet_transfer::{
+    transfer_router_wallet_v1, RouterWalletTransferChunkV1, RouterWalletTransferRequestV1,
+    RouterWalletTransferResponseV1, ROUTER_WALLET_TRANSFER_PATH_V1,
+};
 pub use router_wallet_relocation::{
     freeze_router_wallet_v1, RouterWalletFreezeReceiptV1, RouterWalletFreezeRequestV1,
     RouterWalletFreezeResponseV1, ROUTER_WALLET_FREEZE_PATH_V1,

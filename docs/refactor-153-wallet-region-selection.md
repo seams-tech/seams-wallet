@@ -166,6 +166,22 @@ registration records only. Console command integration, other Router stores,
 authoritative generation reconciliation, and other participant fences remain
 unfinished. No whole-wallet source-fence receipt is produced yet.
 
+Router registration transfer now prepares an inactive destination and imports
+bounded segments through the same native and Durable Object transactions.
+Preparation fixes the chunk size. Each import stores its acknowledgement with
+its effects. Exact retries return that acknowledgement, including after restart
+and verification. Changed chunk inputs fail. Historical restore checks wallet,
+lifecycle, request digest, and terminal outcome without executing registration
+or consumption again. Verification compares the record count and snapshot digest.
+The destination remains inactive after verification, and the source stays frozen.
+The existing Router HTTP E2E transferred one real registration in 21 segments,
+restarted during import, replayed a lost acknowledgement, rejected a changed
+chunk, and compared exact stored historical records. Both focused Router E2Es,
+the Worker WASM build, and the required bloat check pass. Evidence remains in
+`.artifacts/r153/router-wallet-transfer-20261005/`. This covers registration
+storage only. Participant activation, cleanup, physical destination resolution,
+Console command binding, and transfer of other wallet stores remain unfinished.
+
 Retained evidence:
 `.artifacts/r153/execution-journal-20261004/`, receipt SHA-256
 `02184ddd17816901bf2413115c35ca33a43bd90a269fedaeffb7f6990d8af555`.

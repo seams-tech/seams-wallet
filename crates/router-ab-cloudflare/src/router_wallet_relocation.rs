@@ -8,7 +8,7 @@ use crate::router_wallet::{
 };
 
 pub const ROUTER_WALLET_FREEZE_PATH_V1: &str = "/router-ab/router/wallet/freeze";
-const FENCE_KEY: &str = "relocation-fence";
+pub(crate) const FENCE_KEY: &str = "relocation-fence";
 
 /// The admitted move's immutable identity, supplied through the private Router boundary.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -42,13 +42,39 @@ pub enum RouterWalletFreezeResponseV1 {
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
-enum Fence {
+pub(crate) enum Fence {
     Draining {
         request: RouterWalletFreezeRequestV1,
     },
     Frozen {
         receipt: RouterWalletFreezeReceiptV1,
     },
+    Prepared {
+        request: RouterWalletFreezeRequestV1,
+        chunk_bytes: u32,
+    },
+    Importing {
+        receipt: RouterWalletFreezeReceiptV1,
+        chunk_bytes: u32,
+        next_record: u64,
+        next_segment: u32,
+        segment_count: u32,
+    },
+    Verified {
+        receipt: RouterWalletFreezeReceiptV1,
+        chunk_bytes: u32,
+    },
+}
+
+pub(crate) async fn admit_ordinary_command<Store: RouterWalletStoreV1>(
+    store: &Store,
+) -> RouterAbProtocolResult<()> {
+    match store.get_json::<Fence>(FENCE_KEY).await? {
+        Some(Fence::Prepared { .. } | Fence::Importing { .. } | Fence::Verified { .. }) => {
+            Err(paused())
+        }
+        _ => Ok(()),
+    }
 }
 
 /// Must share the store transaction with the admitted write.
@@ -67,7 +93,12 @@ pub(crate) async fn admit_settlement<Store: RouterWalletStoreV1>(
 ) -> RouterAbProtocolResult<()> {
     if matches!(
         store.get_json::<Fence>(FENCE_KEY).await?,
-        Some(Fence::Frozen { .. })
+        Some(
+            Fence::Frozen { .. }
+                | Fence::Prepared { .. }
+                | Fence::Importing { .. }
+                | Fence::Verified { .. }
+        )
     ) {
         return Err(paused());
     }
@@ -100,6 +131,11 @@ pub async fn freeze_router_wallet_v1<Store: RouterWalletStoreV1>(
             if admitted != request {
                 return Err(conflict("Router wallet freeze inputs changed"));
             }
+        }
+        Some(_) => {
+            return Err(conflict(
+                "An inactive destination cannot freeze source records",
+            ))
         }
         None => {
             store
@@ -160,7 +196,9 @@ pub async fn freeze_router_wallet_v1<Store: RouterWalletStoreV1>(
     Ok(RouterWalletFreezeResponseV1::Frozen { receipt })
 }
 
-fn validate_request(request: &RouterWalletFreezeRequestV1) -> RouterAbProtocolResult<()> {
+pub(crate) fn validate_request(
+    request: &RouterWalletFreezeRequestV1,
+) -> RouterAbProtocolResult<()> {
     if request.move_id.len() != 49
         || !request.move_id.starts_with("wmove_")
         || !request.move_id.as_bytes()[6..]
@@ -190,7 +228,7 @@ fn paused() -> RouterAbProtocolError {
     )
 }
 
-fn conflict(message: &str) -> RouterAbProtocolError {
+pub(crate) fn conflict(message: &str) -> RouterAbProtocolError {
     RouterAbProtocolError::new(RouterAbProtocolErrorCode::ForbiddenLocalBinding, message)
 }
 
