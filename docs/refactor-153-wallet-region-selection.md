@@ -128,6 +128,18 @@ move. Evidence remains under private `.artifacts/r153/placement-status-20261005/
 This internal observation grants no write authority. The owner-facing API and
 bounded move-only access remain unfinished.
 
+The internal `relocation-command` endpoint admits Gateway and Wallet Runtime
+freeze, verify, activate, and cleanup commands against the current running attempt.
+It binds the caller's resource, participant, wallet, generation, and stored phase
+evidence. Cleanup requires durable activation. Command identity and input digest
+remain unchanged across retry attempts. The directory E2E verifies stale-attempt,
+wrong-resource, wrong-wallet, and premature-cleanup rejection, plus restart/retry.
+Evidence remains under private `.artifacts/r153/d1-command-authority-20261005/`.
+Type fixtures, Console type checking, and focused lint pass. These commands still
+need participant-local effect fences and durable results. Rust role command
+transport, prepared-version pinning, and authenticated receipt production remain
+unfinished. Command admission alone grants no ordinary write authority.
+
 Retained evidence:
 `.artifacts/r153/execution-journal-20261004/`, receipt SHA-256
 `02184ddd17816901bf2413115c35ca33a43bd90a269fedaeffb7f6990d8af555`.
