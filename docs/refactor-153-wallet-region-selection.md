@@ -88,10 +88,14 @@ The authorization source also exports one bounded snapshot chunk per internal
 request. Console authorizes export only on the source resource during a running
 copy attempt, with the persisted source-fence receipt. Export cannot retire or
 freeze data. The storage E2E restores those HTTP-handler responses through the
-production destination intake and verifies exact 64-bit quota preservation.
-Console responses remain synthetic in that storage E2E; real command admission
-is checked in the private directory E2E. Destination HTTP intake and regional
-transport orchestration remain unfinished.
+production destination HTTP intake and verifies exact 64-bit quota preservation.
+Console pins the source authorization manifest during the running freeze attempt.
+Destination prepare, accept, and verify commands obtain that pinned manifest from
+Console. Callers cannot supply a replacement manifest. Exact chunk retries return
+the same acknowledgement; incomplete imports cannot verify. Console responses
+remain synthetic in the storage E2E. The private directory E2E checks real command
+admission and manifest immutability separately. Regional transport orchestration,
+complete participant verification, and activation remain unfinished.
 
 Frozen authorization D1 records now have a durable snapshot and bounded export.
 SQLite encodes rows into exact JSON bytes before the server reads them. Capture

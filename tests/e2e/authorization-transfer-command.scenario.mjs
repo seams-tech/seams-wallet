@@ -7,23 +7,39 @@ const URL = 'https://wallet-relocation.internal/internal/wallet-relocation/v1/au
 // separately verifies actual command admission and its runtime resource checks.
 class SourceDirectory {
   calls = 0;
-  constructor(scope, identity, mode) {
+  constructor(scope, identity, mode, snapshot) {
     this.scope = scope;
     this.identity = identity;
     this.mode = mode;
+    this.snapshot = snapshot;
   }
   async fetch(request) {
     this.calls += 1;
+    const body = await request.json();
+    if (request.url.endsWith('/relocation-authorization-manifest')) {
+      assert.equal(body.wallet.walletId, this.identity.walletId);
+      if (this.snapshot.kind === 'captured')
+        assert.deepEqual(body.manifest, this.snapshot.manifest);
+      this.snapshot = { kind: 'captured', manifest: body.manifest };
+      return Response.json({ ok: true, manifest: this.snapshot.manifest });
+    }
     assert.equal(
       request.url,
       'https://wallet-placement.internal/internal/wallet-placement/v1/relocation-command',
     );
-    const body = await request.json();
-    assert.ok(body.kind === 'freeze' || body.kind === 'export');
+    assert.ok(
+      body.kind === 'freeze' || body.kind === 'export' || body.kind === 'import_authorization',
+    );
     assert.equal(body.attempt.moveId, this.identity.moveId);
     if (this.mode === 'denied')
       return Response.json({ ok: false, code: 'attempt_conflict' }, { status: 409 });
-    const command = sourceCommand(this.scope, this.identity, body.kind);
+    let command;
+    if (body.kind === 'import_authorization') {
+      assert.equal(this.snapshot.kind, 'captured');
+      command = destinationCommand(this.scope, this.identity, this.snapshot.manifest);
+    } else {
+      command = sourceCommand(this.scope, this.identity, body.kind);
+    }
     const digest = createHash('sha256')
       .update(
         JSON.stringify([
@@ -96,7 +112,7 @@ function request(scope, identity, origin = URL) {
 export async function freezeAuthorizationThroughCommand({ api, database, scope, identity }) {
   const activeBefore = await liveSessions(database, scope, identity);
   assert.ok(activeBefore > 0);
-  const directory = new SourceDirectory(scope, identity, 'authorized');
+  const directory = new SourceDirectory(scope, identity, 'authorized', { kind: 'uncaptured' });
   const handler = new api.WalletAuthorizationRelocationRoutes({ database, scope, directory });
   assert.equal(
     (
@@ -111,7 +127,7 @@ export async function freezeAuthorizationThroughCommand({ api, database, scope, 
     const rejected = new api.WalletAuthorizationRelocationRoutes({
       database,
       scope,
-      directory: new SourceDirectory(scope, identity, mode),
+      directory: new SourceDirectory(scope, identity, mode, { kind: 'uncaptured' }),
     });
     assert.equal(
       (await rejected.handle(request(scope, identity))).status,
@@ -205,7 +221,10 @@ export async function transferAuthorizationThroughCommands({
   manifest,
 }) {
   const url = URL.replace('/freeze', '/export');
-  const directory = new SourceDirectory(scope, identity, 'authorized');
+  const directory = new SourceDirectory(scope, identity, 'authorized', {
+    kind: 'captured',
+    manifest,
+  });
   const handler = new api.WalletAuthorizationRelocationRoutes({
     database: source,
     scope,
@@ -214,7 +233,7 @@ export async function transferAuthorizationThroughCommands({
   const denied = new api.WalletAuthorizationRelocationRoutes({
     database: source,
     scope,
-    directory: new SourceDirectory(scope, identity, 'denied'),
+    directory: new SourceDirectory(scope, identity, 'denied', { kind: 'uncaptured' }),
   });
   assert.equal((await denied.handle(exportRequest(scope, identity, 0, url))).status, 403);
   assert.equal(
@@ -233,8 +252,50 @@ export async function transferAuthorizationThroughCommands({
   assert.equal(directory.calls, 0);
   assert.equal((await handler.handle(exportRequest(scope, identity, -1, url))).status, 400);
   assert.equal(directory.calls, 0);
-  const intake = new api.D1WalletAuthorizationIntake(destination, scope);
-  await intake.prepare(identity, manifest);
+  const receiver = new api.WalletAuthorizationRelocationRoutes({
+    database: destination,
+    scope,
+    directory,
+  });
+  const deniedReceiver = new api.WalletAuthorizationRelocationRoutes({
+    database: destination,
+    scope,
+    directory: new SourceDirectory(scope, identity, 'denied', { kind: 'captured', manifest }),
+  });
+  assert.equal(
+    (await deniedReceiver.handle(destinationRequest(scope, identity, { kind: 'prepare' }))).status,
+    403,
+  );
+  const untrusted = await destinationRequest(scope, identity, { kind: 'prepare' }).json();
+  untrusted.manifest = manifest;
+  assert.equal(
+    (
+      await receiver.handle(
+        new Request(URL.replace('/freeze', '/prepare'), {
+          method: 'POST',
+          body: JSON.stringify(untrusted),
+        }),
+      )
+    ).status,
+    400,
+  );
+  assert.equal(
+    await destination
+      .prepare(
+        'SELECT COUNT(*) AS count FROM wallet_relocation_authorization_imports WHERE wallet_id = ?',
+      )
+      .bind(identity.walletId)
+      .first('count'),
+    0,
+  );
+  assert.equal(
+    (await receiver.handle(destinationRequest(scope, identity, { kind: 'prepare' }))).status,
+    200,
+  );
+  assert.equal(
+    (await receiver.handle(destinationRequest(scope, identity, { kind: 'verify' }))).status,
+    503,
+  );
   for (let index = 0; index < manifest.chunkCount; index += 1) {
     const response = await handler.handle(exportRequest(scope, identity, index, url));
     assert.equal(response.status, 200, await response.clone().text());
@@ -248,14 +309,75 @@ export async function transferAuthorizationThroughCommands({
     }).handle(exportRequest(scope, identity, index, url));
     const replayed = await replay.json();
     assert.deepEqual(replayed, received);
-    assert.equal(await intake.accept(identity, received.chunk), received.chunk.digestHex);
+    const accepted = await receiver.handle(
+      destinationRequest(scope, identity, { kind: 'accept', chunk: received.chunk }),
+    );
+    assert.equal(accepted.status, 200, await accepted.clone().text());
+    const acknowledgement = await accepted.json();
+    assert.equal(acknowledgement.digestHex, received.chunk.digestHex);
+    const acceptedAgain = await new api.WalletAuthorizationRelocationRoutes({
+      database: destination,
+      scope,
+      directory,
+    }).handle(destinationRequest(scope, identity, { kind: 'accept', chunk: received.chunk }));
+    assert.deepEqual(await acceptedAgain.json(), acknowledgement);
   }
-  assert.equal(await intake.verify(identity), manifest.digestHex);
+  const verified = await receiver.handle(destinationRequest(scope, identity, { kind: 'verify' }));
+  assert.equal(verified.status, 200, await verified.clone().text());
+  assert.equal((await verified.json()).digestHex, manifest.digestHex);
   return {
     chunksTransferred: manifest.chunkCount,
     destinationDigest: manifest.digestHex,
     deniedAndPublicExportRejected: true,
     boundedExactExportReplay: true,
-    allChunksRestoredThroughProductionIntake: true,
+    allChunksRestoredThroughAuthorizedDestinationRoute: true,
+    callerCannotChooseDestinationManifest: true,
+    incompleteImportCannotVerify: true,
   };
+}
+
+function destinationCommand(scope, identity, manifest) {
+  const source = sourceCommand(scope, identity, 'freeze');
+  const home = {
+    region: 'APAC',
+    accountId: 'a'.repeat(32),
+    databaseId: '33333333-3333-4333-8333-333333333333',
+  };
+  return {
+    id: `${identity.moveId}/gateway/import_authorization`,
+    wallet: source.wallet,
+    moveId: identity.moveId,
+    requestDigest: identity.requestDigestHex,
+    participant: 'gateway',
+    versionId: source.versionId,
+    home,
+    generation: identity.sourceGeneration + 1,
+    operation: {
+      kind: 'import_authorization',
+      receipt: sourceFence(scope, identity),
+      physicalResource: `${home.databaseId}/gateway/${identity.sourceGeneration + 1}`,
+      manifest,
+    },
+  };
+}
+
+function destinationRequest(scope, identity, operation) {
+  const attempt = {
+    wallet: sourceCommand(scope, identity, 'freeze').wallet,
+    moveId: identity.moveId,
+    phase: 'copying',
+    id: `wattempt_${'e'.repeat(43)}`,
+    revision: 2,
+    run: 1,
+    number: 1,
+    startedAtMs: Date.now(),
+  };
+  const body =
+    operation.kind === 'accept'
+      ? { walletId: identity.walletId, attempt, chunk: operation.chunk }
+      : { walletId: identity.walletId, attempt };
+  return new Request(URL.replace('/freeze', `/${operation.kind}`), {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
 }

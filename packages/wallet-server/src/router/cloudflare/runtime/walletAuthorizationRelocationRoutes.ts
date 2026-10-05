@@ -1,3 +1,4 @@
+import { D1WalletAuthorizationIntake } from '../d1/wallet/d1WalletAuthorizationIntake';
 import { parseNonNegativeSafeInteger } from '@shared/device-linking/wireFields';
 import { isPlainObject, requireRecord } from '@shared/utils/validation';
 import { parseWalletId } from '@shared/utils/domainIds';
@@ -17,9 +18,11 @@ import { D1WalletAuthorizationSnapshot } from '../d1/wallet/d1WalletAuthorizatio
 import type { WalletConsoleServiceBinding } from './walletConsoleOpsClient';
 
 const BASE_PATH = '/internal/wallet-relocation/v1/authorization';
-type SourceOperation =
-  | { readonly kind: 'freeze'; readonly index?: never }
-  | { readonly kind: 'export'; readonly index: number };
+type AuthorizationOperation =
+  | { readonly kind: 'freeze'; readonly index?: never; readonly chunk?: never }
+  | { readonly kind: 'export'; readonly index: number; readonly chunk?: never }
+  | { readonly kind: 'prepare' | 'verify'; readonly index?: never; readonly chunk?: never }
+  | { readonly kind: 'accept'; readonly chunk: unknown; readonly index?: never };
 const ORIGIN = 'https://wallet-relocation.internal';
 
 // This receipt covers authorization storage only. The coordinator must settle
@@ -54,6 +57,42 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
       metering: { kind: 'none' },
       summary: 'Export one sealed authorization snapshot chunk',
     },
+    {
+      id: 'wallet_authorization_prepare',
+      surface: 'relay',
+      method: 'POST',
+      path: `${BASE_PATH}/prepare`,
+      auth: {
+        plane: 'public',
+        rationale: 'Console must authorize destination import with its pinned source manifest.',
+      },
+      metering: { kind: 'none' },
+      summary: 'Prepare inactive authorization intake',
+    },
+    {
+      id: 'wallet_authorization_accept',
+      surface: 'relay',
+      method: 'POST',
+      path: `${BASE_PATH}/accept`,
+      auth: {
+        plane: 'public',
+        rationale: 'Console must authorize destination import with its pinned source manifest.',
+      },
+      metering: { kind: 'none' },
+      summary: 'Restore one authorization snapshot chunk',
+    },
+    {
+      id: 'wallet_authorization_verify',
+      surface: 'relay',
+      method: 'POST',
+      path: `${BASE_PATH}/verify`,
+      auth: {
+        plane: 'public',
+        rationale: 'Console must authorize destination import with its pinned source manifest.',
+      },
+      metering: { kind: 'none' },
+      summary: 'Verify the complete authorization import',
+    },
   ];
 
   constructor(
@@ -72,7 +111,7 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
     const url = new URL(request.url);
     if (
       url.origin !== ORIGIN ||
-      (url.pathname !== `${BASE_PATH}/freeze` && url.pathname !== `${BASE_PATH}/export`)
+      !this.routes.some(matchesAuthorizationPath.bind(null, url.pathname))
     )
       return failure('not_found', 404);
     if (request.method !== 'POST') return failure('method_not_allowed', 405);
@@ -83,21 +122,16 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
       return failure('invalid_input', 400);
     }
     if (!isPlainObject(body)) return failure('invalid_input', 400);
-    let requested: SourceOperation;
+    let requested: AuthorizationOperation;
     try {
-      if (url.pathname === `${BASE_PATH}/freeze`) {
-        if (Object.keys(body).length !== 2) return failure('invalid_input', 400);
-        requested = { kind: 'freeze' };
-      } else {
-        if (Object.keys(body).length !== 3) return failure('invalid_input', 400);
-        requested = {
-          kind: 'export',
-          index: parseNonNegativeSafeInteger(body.index, 'snapshot chunk index'),
-        };
-      }
+      requested = parseAuthorizationOperation(url.pathname, body);
     } catch {
       return failure('invalid_input', 400);
     }
+    const commandKind =
+      requested.kind === 'freeze' || requested.kind === 'export'
+        ? requested.kind
+        : 'import_authorization';
     const walletId = parseWalletId(body.walletId);
     if (!walletId.ok || !isPlainObject(body.attempt)) return failure('invalid_input', 400);
     const wallet = {
@@ -115,7 +149,7 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ wallet, attempt: body.attempt, kind: requested.kind }),
+            body: JSON.stringify({ wallet, attempt: body.attempt, kind: commandKind }),
           },
         ),
       );
@@ -126,6 +160,7 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
       return failure('relocation_command_denied', authorized.status >= 500 ? 503 : 403);
     let source: WalletRelocationSessionSource;
     let commandDigest: string;
+    let pinnedManifest: unknown;
     try {
       const response = requireRecord(await authorized.json(), 'source authorization');
       const command = requireRecord(response.command, 'source command');
@@ -138,33 +173,46 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
         command.moveId !== body.attempt.moveId ||
         body.attempt.phase !== (requested.kind === 'freeze' ? 'freezing' : 'copying') ||
         command.participant !== 'gateway' ||
-        operation.kind !== requested.kind ||
-        Object.keys(operation).length !== (requested.kind === 'freeze' ? 1 : 2) ||
-        command.id !== `${command.moveId}/gateway/${requested.kind}`
+        operation.kind !== commandKind ||
+        Object.keys(operation).length !==
+          (commandKind === 'freeze' ? 1 : commandKind === 'export' ? 2 : 4) ||
+        command.id !== `${command.moveId}/gateway/${commandKind}`
       )
         throw new Error('Source command identity conflicts');
       for (const [key, value] of Object.entries(wallet)) {
         if (identity[key] !== value) throw new Error('Source wallet scope conflicts');
       }
-      if (requested.kind === 'export') {
+      let sourceGeneration = command.generation;
+      if (commandKind !== 'freeze') {
         const receipt = requireRecord(operation.receipt, 'source-fence receipt');
         const receiptWallet = requireRecord(receipt.wallet, 'source-fence wallet');
         if (
           receipt.kind !== 'source_fence' ||
           receipt.moveId !== command.moveId ||
-          receipt.generation !== command.generation
+          typeof receipt.generation !== 'number' ||
+          command.generation !==
+            receipt.generation + (commandKind === 'import_authorization' ? 1 : 0)
         )
           throw new Error('Source export receipt conflicts');
+        sourceGeneration = receipt.generation;
         for (const [key, value] of Object.entries(wallet)) {
           if (receiptWallet[key] !== value)
             throw new Error('Source export receipt scope conflicts');
         }
       }
+      if (commandKind === 'import_authorization') {
+        if (
+          typeof operation.physicalResource !== 'string' ||
+          operation.physicalResource.length === 0
+        )
+          throw new Error('Destination resource is absent');
+        pinnedManifest = operation.manifest;
+      }
       source = WalletRelocationSessionSource.parse({
         walletId: identity.walletId,
         moveId: command.moveId,
         requestDigestHex: command.requestDigest,
-        sourceGeneration: command.generation,
+        sourceGeneration,
       });
       commandDigest = await sha256HexUtf8(
         JSON.stringify([
@@ -182,6 +230,39 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
       if (response.digest !== commandDigest) throw new Error('Source command digest conflicts');
     } catch {
       return failure('relocation_command_invalid', 502);
+    }
+    if (
+      requested.kind === 'prepare' ||
+      requested.kind === 'accept' ||
+      requested.kind === 'verify'
+    ) {
+      try {
+        const intake = new D1WalletAuthorizationIntake(this.options.database, this.options.scope);
+        await intake.prepare(source, pinnedManifest);
+        switch (requested.kind) {
+          case 'prepare':
+            return Response.json(
+              { kind: 'authorization_prepared', commandDigest },
+              { headers: { 'Cache-Control': 'no-store' } },
+            );
+          case 'accept': {
+            const digestHex = await intake.accept(source, requested.chunk);
+            return Response.json(
+              { kind: 'authorization_chunk_accepted', commandDigest, digestHex },
+              { headers: { 'Cache-Control': 'no-store' } },
+            );
+          }
+          case 'verify': {
+            const digestHex = await intake.verify(source);
+            return Response.json(
+              { kind: 'authorization_verified', commandDigest, digestHex },
+              { headers: { 'Cache-Control': 'no-store' } },
+            );
+          }
+        }
+      } catch {
+        return failure('authorization_import_incomplete', 503);
+      }
     }
     if (requested.kind === 'export') {
       try {
@@ -210,6 +291,24 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
         this.options.database,
         this.options.scope,
       ).seal(source);
+      const publication = await this.options.directory.fetch(
+        new Request(
+          'https://wallet-placement.internal/internal/wallet-placement/v1/relocation-authorization-manifest',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ wallet, attempt: body.attempt, manifest }),
+          },
+        ),
+      );
+      if (!publication.ok) return failure('authorization_manifest_unavailable', 503);
+      const published = requireRecord(await publication.json(), 'published authorization manifest');
+      const savedManifest = requireRecord(published.manifest, 'pinned authorization manifest');
+      if (published.ok !== true || Object.keys(savedManifest).length !== 4)
+        return failure('authorization_manifest_conflict', 502);
+      for (const [key, value] of Object.entries(manifest)) {
+        if (savedManifest[key] !== value) return failure('authorization_manifest_conflict', 502);
+      }
       return Response.json(
         { kind: 'authorization_frozen', commandDigest, retiredAtMs, frozenAtMs, manifest },
         { headers: { 'Cache-Control': 'no-store' } },
@@ -222,4 +321,40 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
 
 function failure(code: string, status: number): Response {
   return Response.json({ ok: false, code }, { status, headers: { 'Cache-Control': 'no-store' } });
+}
+
+function matchesAuthorizationPath(
+  pathname: string,
+  route: RouterApiRouteExtension['routes'][number],
+): boolean {
+  return route.path === pathname;
+}
+
+function parseAuthorizationOperation(
+  pathname: string,
+  body: Record<string, unknown>,
+): AuthorizationOperation {
+  const fields = Object.keys(body).length;
+  switch (pathname) {
+    case `${BASE_PATH}/freeze`:
+      if (fields === 2) return { kind: 'freeze' };
+      break;
+    case `${BASE_PATH}/export`:
+      if (fields === 3)
+        return {
+          kind: 'export',
+          index: parseNonNegativeSafeInteger(body.index, 'snapshot chunk index'),
+        };
+      break;
+    case `${BASE_PATH}/prepare`:
+      if (fields === 2) return { kind: 'prepare' };
+      break;
+    case `${BASE_PATH}/accept`:
+      if (fields === 3 && 'chunk' in body) return { kind: 'accept', chunk: body.chunk };
+      break;
+    case `${BASE_PATH}/verify`:
+      if (fields === 2) return { kind: 'verify' };
+      break;
+  }
+  throw new Error('Authorization transfer operation is invalid');
 }
