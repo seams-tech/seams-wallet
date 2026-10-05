@@ -1,0 +1,537 @@
+{
+  "kind": "gateway_console_lookup_latency_v1",
+  "date": "2026-10-06",
+  "timezone": "Asia/Tokyo",
+  "comparison": {
+    "scope": "Native NRT browser, APAC wallet, ready material. Full SDK includes automated approval and transaction assembly; excludes blockchain confirmation.",
+    "cohorts": {
+      "control": {
+        "verified": true,
+        "concurrentVerified": true,
+        "fullSdk": {
+          "count": 6,
+          "medianMs": 1870.1225000023842,
+          "minMs": 1716.7799999713898,
+          "maxMs": 2131.7450000047684
+        },
+        "stages": {
+          "commit_total": {
+            "count": 6,
+            "medianMs": 1500.2499999701977,
+            "minMs": 1401,
+            "maxMs": 1693.4000000357628
+          },
+          "material_authorization": {
+            "count": 6,
+            "medianMs": 291.39999997615814,
+            "minMs": 274.69999998807907,
+            "maxMs": 323
+          },
+          "prepare": {
+            "count": 6,
+            "medianMs": 568.9499999880791,
+            "minMs": 525.3999999761581,
+            "maxMs": 673.5
+          },
+          "finalize": {
+            "count": 6,
+            "medianMs": 631.0499999821186,
+            "minMs": 570.4000000357628,
+            "maxMs": 777
+          }
+        },
+        "gateway": {
+          "status": {
+            "wallet_gateway_total": {
+              "count": 6,
+              "medianMs": 196.5,
+              "minMs": 174.0,
+              "maxMs": 216.0
+            },
+            "wallet_gateway_binding": {
+              "count": 6,
+              "medianMs": 73.5,
+              "minMs": 68.0,
+              "maxMs": 80.0
+            },
+            "wallet_console_binding_d1": {
+              "count": 6,
+              "medianMs": 12.0,
+              "minMs": 11.0,
+              "maxMs": 19.0
+            }
+          },
+          "prepare": {
+            "wallet_gateway_total": {
+              "count": 6,
+              "medianMs": 476.0,
+              "minMs": 434.0,
+              "maxMs": 509.0
+            },
+            "wallet_gateway_binding": {
+              "count": 6,
+              "medianMs": 72.0,
+              "minMs": 68.0,
+              "maxMs": 89.0
+            },
+            "wallet_console_binding_d1": {
+              "count": 6,
+              "medianMs": 12.0,
+              "minMs": 11.0,
+              "maxMs": 15.0
+            },
+            "ecdsa_sign_total": {
+              "count": 6,
+              "medianMs": 307.5,
+              "minMs": 272.0,
+              "maxMs": 354.0
+            },
+            "ecdsa_sign_proxy": {
+              "count": 6,
+              "medianMs": 230.5,
+              "minMs": 199.0,
+              "maxMs": 280.0
+            },
+            "deploymentAndRoutingOverhead": {
+              "count": 6,
+              "medianMs": 165.5,
+              "minMs": 155.0,
+              "maxMs": 177.0
+            }
+          },
+          "finalize": {
+            "wallet_gateway_total": {
+              "count": 6,
+              "medianMs": 534.5,
+              "minMs": 477.0,
+              "maxMs": 678.0
+            },
+            "wallet_gateway_binding": {
+              "count": 6,
+              "medianMs": 72.0,
+              "minMs": 68.0,
+              "maxMs": 75.0
+            },
+            "wallet_console_binding_d1": {
+              "count": 6,
+              "medianMs": 12.5,
+              "minMs": 12.0,
+              "maxMs": 15.0
+            },
+            "ecdsa_sign_total": {
+              "count": 6,
+              "medianMs": 362.0,
+              "minMs": 322.0,
+              "maxMs": 502.0
+            },
+            "ecdsa_sign_proxy": {
+              "count": 6,
+              "medianMs": 283.0,
+              "minMs": 245.0,
+              "maxMs": 402.0
+            },
+            "deploymentAndRoutingOverhead": {
+              "count": 6,
+              "medianMs": 165.0,
+              "minMs": 155.0,
+              "maxMs": 177.0
+            }
+          }
+        },
+        "sha256": "7218e3a63ccf305f94786a863ed9783c211d0cfe766e9d0e9ee6b0cfa2ee4906",
+        "browserStatusRequests": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "refillWaits": 0
+      },
+      "candidate": {
+        "verified": true,
+        "concurrentVerified": true,
+        "fullSdk": {
+          "count": 6,
+          "medianMs": 1787.1449999809265,
+          "minMs": 1556.6500000357628,
+          "maxMs": 1837.8899999856949
+        },
+        "stages": {
+          "commit_total": {
+            "count": 6,
+            "medianMs": 1384.449999988079,
+            "minMs": 1241,
+            "maxMs": 1440.300000011921
+          },
+          "material_authorization": {
+            "count": 6,
+            "medianMs": 222.84999999403954,
+            "minMs": 205.10000002384186,
+            "maxMs": 380.19999998807907
+          },
+          "prepare": {
+            "count": 6,
+            "medianMs": 518.0000000298023,
+            "minMs": 453.19999998807907,
+            "maxMs": 657.7999999523163
+          },
+          "finalize": {
+            "count": 6,
+            "medianMs": 563.2499999701977,
+            "minMs": 526.9000000357628,
+            "maxMs": 604.3999999761581
+          }
+        },
+        "gateway": {
+          "status": {
+            "wallet_gateway_total": {
+              "count": 6,
+              "medianMs": 129.0,
+              "minMs": 109.0,
+              "maxMs": 160.0
+            },
+            "wallet_gateway_binding": {
+              "count": 6,
+              "medianMs": 106.0,
+              "minMs": 87.0,
+              "maxMs": 127.0
+            },
+            "wallet_console_binding_d1": {
+              "count": 6,
+              "medianMs": 15.0,
+              "minMs": 12.0,
+              "maxMs": 24.0
+            }
+          },
+          "prepare": {
+            "wallet_gateway_total": {
+              "count": 6,
+              "medianMs": 405.0,
+              "minMs": 365.0,
+              "maxMs": 454.0
+            },
+            "wallet_gateway_binding": {
+              "count": 6,
+              "medianMs": 110.0,
+              "minMs": 89.0,
+              "maxMs": 136.0
+            },
+            "wallet_console_binding_d1": {
+              "count": 6,
+              "medianMs": 16.5,
+              "minMs": 12.0,
+              "maxMs": 23.0
+            },
+            "ecdsa_sign_total": {
+              "count": 6,
+              "medianMs": 280.5,
+              "minMs": 272.0,
+              "maxMs": 358.0
+            },
+            "ecdsa_sign_proxy": {
+              "count": 6,
+              "medianMs": 217.0,
+              "minMs": 200.0,
+              "maxMs": 279.0
+            },
+            "deploymentAndRoutingOverhead": {
+              "count": 6,
+              "medianMs": 110.0,
+              "minMs": 89.0,
+              "maxMs": 136.0
+            }
+          },
+          "finalize": {
+            "wallet_gateway_total": {
+              "count": 6,
+              "medianMs": 440.0,
+              "minMs": 433.0,
+              "maxMs": 491.0
+            },
+            "wallet_gateway_binding": {
+              "count": 6,
+              "medianMs": 98.0,
+              "minMs": 80.0,
+              "maxMs": 118.0
+            },
+            "wallet_console_binding_d1": {
+              "count": 6,
+              "medianMs": 16.0,
+              "minMs": 12.0,
+              "maxMs": 25.0
+            },
+            "ecdsa_sign_total": {
+              "count": 6,
+              "medianMs": 348.0,
+              "minMs": 329.0,
+              "maxMs": 385.0
+            },
+            "ecdsa_sign_proxy": {
+              "count": 6,
+              "medianMs": 266.5,
+              "minMs": 259.0,
+              "maxMs": 306.0
+            },
+            "deploymentAndRoutingOverhead": {
+              "count": 6,
+              "medianMs": 98.0,
+              "minMs": 80.0,
+              "maxMs": 118.0
+            }
+          }
+        },
+        "sha256": "358dc5887d54909cd61ee8874c247884c8edaf1e96ecf009126cb8cc02e1bc71",
+        "browserStatusRequests": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "refillWaits": 0
+      },
+      "candidate-repeat": {
+        "verified": true,
+        "concurrentVerified": true,
+        "fullSdk": {
+          "count": 6,
+          "medianMs": 1709.9149999916553,
+          "minMs": 1566.2800000309944,
+          "maxMs": 1766.9449999928474
+        },
+        "stages": {
+          "commit_total": {
+            "count": 6,
+            "medianMs": 1319.0999999940395,
+            "minMs": 1249,
+            "maxMs": 1361.800000011921
+          },
+          "material_authorization": {
+            "count": 6,
+            "medianMs": 213.80000001192093,
+            "minMs": 211,
+            "maxMs": 233.30000001192093
+          },
+          "prepare": {
+            "count": 6,
+            "medianMs": 524.6999999880791,
+            "minMs": 482,
+            "maxMs": 584.5
+          },
+          "finalize": {
+            "count": 6,
+            "medianMs": 553.6500000059605,
+            "minMs": 523.7000000476837,
+            "maxMs": 585.5
+          }
+        },
+        "gateway": {
+          "status": {
+            "wallet_gateway_total": {
+              "count": 6,
+              "medianMs": 121.5,
+              "minMs": 112.0,
+              "maxMs": 132.0
+            },
+            "wallet_gateway_binding": {
+              "count": 6,
+              "medianMs": 89.5,
+              "minMs": 83.0,
+              "maxMs": 98.0
+            },
+            "wallet_console_binding_d1": {
+              "count": 6,
+              "medianMs": 12.5,
+              "minMs": 11.0,
+              "maxMs": 17.0
+            }
+          },
+          "prepare": {
+            "wallet_gateway_total": {
+              "count": 6,
+              "medianMs": 411.5,
+              "minMs": 397.0,
+              "maxMs": 469.0
+            },
+            "wallet_gateway_binding": {
+              "count": 6,
+              "medianMs": 93.0,
+              "minMs": 84.0,
+              "maxMs": 117.0
+            },
+            "wallet_console_binding_d1": {
+              "count": 6,
+              "medianMs": 13.0,
+              "minMs": 9.0,
+              "maxMs": 19.0
+            },
+            "ecdsa_sign_total": {
+              "count": 6,
+              "medianMs": 313.5,
+              "minMs": 280.0,
+              "maxMs": 377.0
+            },
+            "ecdsa_sign_proxy": {
+              "count": 6,
+              "medianMs": 229.5,
+              "minMs": 210.0,
+              "maxMs": 300.0
+            },
+            "deploymentAndRoutingOverhead": {
+              "count": 6,
+              "medianMs": 93.0,
+              "minMs": 84.0,
+              "maxMs": 117.0
+            }
+          },
+          "finalize": {
+            "wallet_gateway_total": {
+              "count": 6,
+              "medianMs": 460.5,
+              "minMs": 436.0,
+              "maxMs": 496.0
+            },
+            "wallet_gateway_binding": {
+              "count": 6,
+              "medianMs": 93.5,
+              "minMs": 85.0,
+              "maxMs": 106.0
+            },
+            "wallet_console_binding_d1": {
+              "count": 6,
+              "medianMs": 14.0,
+              "minMs": 11.0,
+              "maxMs": 15.0
+            },
+            "ecdsa_sign_total": {
+              "count": 6,
+              "medianMs": 360.5,
+              "minMs": 339.0,
+              "maxMs": 411.0
+            },
+            "ecdsa_sign_proxy": {
+              "count": 6,
+              "medianMs": 271.5,
+              "minMs": 261.0,
+              "maxMs": 318.0
+            },
+            "deploymentAndRoutingOverhead": {
+              "count": 6,
+              "medianMs": 93.5,
+              "minMs": 85.0,
+              "maxMs": 106.0
+            }
+          }
+        },
+        "sha256": "2eb9a028dccc27609aa4ce874aa47584b2333efebfff895a13fcb32ffeab86ff",
+        "browserStatusRequests": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "refillWaits": 0
+      }
+    },
+    "sourceDerivedLookupCallsPerRequest": {
+      "before": {
+        "consoleRequests": 2,
+        "consoleD1RoundTrips": 3
+      },
+      "after": {
+        "consoleRequests": 1,
+        "consoleD1RoundTrips": 2
+      },
+      "scope": "Deployment authorization plus session-home routing only. Excludes signing admission, custody D1, background refill and usage."
+    },
+    "metricBoundary": "wallet_gateway_binding now includes the combined deployment and session-home lookup. Compare deploymentAndRoutingOverhead for equivalent prepare/finalize boundaries.",
+    "limitations": "Small sequential cohorts; no p95, maximum, cold-material or linked-device latency claim."
+  },
+  "combinedCandidate": {
+    "count": 12,
+    "medianMs": 1744.8675000071526,
+    "minMs": 1556.6500000357628,
+    "maxMs": 1837.8899999856949
+  },
+  "source": {
+    "privateCommit": "3417dc59e6201ea66ce49b31075014c3123cfc0b",
+    "previousPrivateSource": ".artifacts/mpc-signing-20261005/private-source",
+    "browserAssets": ".artifacts/mpc-finalize-20261005/candidate-site",
+    "signingWorkerUnchanged": "137dfce9-8ac7-4dbf-be2b-de0b1171f01d",
+    "activationRun": "37335218292",
+    "bundles": {
+      "gateway-payload/e56b7146a32cc948fa974cd992aefc0e9623097a-wasm_signer_worker_bg.wasm": "cd934670dfafa61f9b8a7124ffece77406a31478a74f87e6b5d56051601b1d9a",
+      "gateway-payload/d407f5e409312f57ce4ff986061d4b7f8647db80-shamir3pass_runtime_bg.wasm": "b47594d9c4e54ff1777e42d53488a607ca668e3f8ae97b6000c726c062d2362d",
+      "gateway-payload/d1GatewayWorker.js": "feb30534f9d1092c46bb24a5f67d538dbd064ce62f0dc2674e695ddcb19a51c1",
+      "gateway-payload/README.md": "420e89cb59d6594d857e4c713192339eea1be2ce53902f35e48e21614f68e8af",
+      "gateway-payload/ed346ee5a2bf66d2c904a7aa231bbbd4bb6749e5-evm_crypto_bg.wasm": "4f4df8f6cf72916fa6453f14de1d14ba1f2b0f00297cc268831649d3fc741860",
+      "gateway-payload/d1GatewayWorker.js.map": "d064517fe616d43587fd2d8f01e558d3cd561791721d044f3c6ced22c9209989",
+      "console-payload/d1ConsoleStagingWorker.js": "21a62b8526192b0843541609b07cbaaa571e127c55195a659a7609a9bcfbadb2",
+      "console-payload/e56b7146a32cc948fa974cd992aefc0e9623097a-wasm_signer_worker_bg.wasm": "cd934670dfafa61f9b8a7124ffece77406a31478a74f87e6b5d56051601b1d9a",
+      "console-payload/d407f5e409312f57ce4ff986061d4b7f8647db80-shamir3pass_runtime_bg.wasm": "b47594d9c4e54ff1777e42d53488a607ca668e3f8ae97b6000c726c062d2362d",
+      "console-payload/README.md": "8107c4c788e4bb41b14383eae546435f52759b921d9a461e475a8f56f201cfc2",
+      "console-payload/d1ConsoleStagingWorker.js.map": "fffcbca06d1a8fc0863d9cfb8a27d30476deed301ce65897279a1270c6c541a5",
+      "console-payload/ed346ee5a2bf66d2c904a7aa231bbbd4bb6749e5-evm_crypto_bg.wasm": "4f4df8f6cf72916fa6453f14de1d14ba1f2b0f00297cc268831649d3fc741860"
+    },
+    "scope": "Existing staging Console and APAC Gateway only. No new resources, production deployment or npm release.",
+    "gatewayBeforeVersion": "0fef3e7c-3f9b-45ae-8f19-b9fa02a22130",
+    "gatewayAfterVersion": "cebc5a92-875f-4b52-8c42-2fa4b499b398",
+    "consoleBeforeVersion": "6060765d-90cc-46a2-a704-798519c74c97",
+    "consoleAfterVersion": "55ec63ea-d332-4ada-a181-8f968aed3b59"
+  },
+  "verification": {
+    "combinedLookup": {
+      "bindingRevision": "tdb_sbS3NgkHbw-ZLAszoimi6k3P5CdDo1xzgfWsm2lES54",
+      "home": "WEUR",
+      "consoleRequestsPerLookup": 1,
+      "deploymentReadsPerLookup": 1,
+      "unadmittedWriterStatus": 503,
+      "unavailableStatus": 503,
+      "removedLocatorStatus": 401
+    },
+    "regional": {
+      "opaqueCredentialsRoutedAcrossRegions": true,
+      "concurrentExchangeHasOneWinner": true,
+      "wrongHomePublicationRejected": true,
+      "walletTokenDisagreementRejected": true,
+      "directRegistrationSessionDisagreementRejected": true,
+      "failedPublicationPreventsExchangeCommit": true,
+      "failedChildPublicationPreservesExchange": true,
+      "retiredPrimaryAndChildRejected": true,
+      "linkedDeviceCredentialUsesSameHomeAndSurvivesOtherDeviceRetirement": true,
+      "unknownCredentialRejected": true,
+      "directoryOutageReturns503": true,
+      "plaintextAbsentFromDirectory": true
+    },
+    "hostedRejections": [
+      {
+        "input": "unknown credential",
+        "status": 401,
+        "code": "unauthorized",
+        "corsOrigin": "https://staging.sign.seams.sh"
+      },
+      {
+        "input": "malformed credential",
+        "status": 401,
+        "code": "unauthorized",
+        "corsOrigin": "https://staging.sign.seams.sh"
+      }
+    ],
+    "privateTypecheck": true,
+    "productionLint": true,
+    "publicBloatCheck": true,
+    "noNewResources": true,
+    "bindingsAndPlacementPreserved": true
+  },
+  "privateArtifacts": ".artifacts/mpc-console-20261006",
+  "reproduction": {
+    "local": "pnpm exec playwright test -c tests/playwright.relayer.config.ts tenant-deployment-binding.e2e.test.ts --reporter=line",
+    "regional": "SEAMS_WALLET_SERVER_CANDIDATE=/path/to/seams-wallet/packages/wallet-server node tests/e2e/regional-session-routing.e2e.mjs",
+    "hosted": "SEAMS_HOSTED_PROJECTION=<saved projection> SEAMS_HOSTED_CANDIDATE_SITE=<frozen candidate-site> SEAMS_WALLET_SERVER_CANDIDATE=<frozen server package> SEAMS_TEST_ARTIFACT_DIR=<destination> SEAMS_INTENDED_SIGNING_SESSION_DEBUG=1 node <wallet repo>/node_modules/playwright/cli.js test -c tests/playwright.hosted-product.config.mjs mpc-signing-latency.test.ts --grep prefilled --reporter=line"
+  }
+}

@@ -1,6 +1,27 @@
 # Refactor 152: regional D1 ownership and placement
 
-## Latest MPC signing result (October 6)
+## Latest Gateway lookup result (October 6)
+
+**Ready-signing median is 1.745s across twelve candidate signatures**, versus
+**1.870s** in the fresh six-signature control. Candidate calls ranged from
+**1.557s to 1.838s**. The native NRT browser used an APAC wallet and ready material.
+These small sequential cohorts establish no maximum or cold-material guarantee.
+
+- [x] Combine deployment authorization and session-home routing in one Console
+  request. These lookups fall **2 → 1** Console calls and **3 → 2** D1 round trips
+  for each status, prepare, and finalize request. Every request reads fresh state.
+- [x] Verify directory failure, unadmitted writers, removed locators, regional
+  routing, retirement, concurrency, and budget enforcement.
+- [x] Deploy existing staging Console and APAC Gateway resources. Preserve all
+  bindings and placement settings. Reuse the prior browser and custody candidate.
+- [x] Record both candidate cohorts and the fresh control. Prepare/finalize
+  deployment and routing overhead fell from about **165ms to 93–110ms**.
+
+See [the lookup measurements and scope](refactor-152-results.md#combined-gateway-to-console-lookup-october-6-2026).
+The $25 Cloudflare budget applies. Production and npm were unchanged.
+
+
+## Approval planning and finalize snapshot (October 6)
 
 **The measured ready-signing median is now about two seconds.** A native NRT
 browser with an APAC wallet measured **2.242s** in the fresh control, **2.032s**
@@ -20,7 +41,7 @@ not establish a two-second maximum or a consecutive-refill result.
   two hosted cohorts. Every binding remains unchanged. The **$25 budget** applies.
 
 See [the measurements and boundaries](refactor-152-results.md#approval-planning-and-finalize-snapshot-october-6-2026).
-The retired-credential Gateway error-classification rollout remains separate.
+The combined lookup above now returns 401 for missing session locators on the APAC Gateway. Other regional Gateway versions remain unchanged.
 
 ## Full MPC signing follow-up (October 5)
 

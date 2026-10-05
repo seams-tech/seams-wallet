@@ -6731,3 +6731,92 @@ the preceding custody experiment. The local custody command remains:
 ```sh
 ROUTER_AB_WORKER_BUILD_PROFILE=dev node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --ecdsa-presign-handoff
 ```
+
+
+## Combined Gateway-to-Console lookup (October 6, 2026)
+
+**Ready-signing median fell from 1.870s to 1.745s across twelve candidate signatures.**
+The fresh control contained six signatures. The two candidate cohorts measured
+**1.787s** and **1.710s**. The aggregate reduction was **6.7%**. Candidate calls
+ranged from **1.557s to 1.838s**. All eighteen measured signatures verified.
+
+The native browser entered through NRT and used an APAC wallet. These timers
+include automated approval, the complete SDK signing call, and transaction
+assembly. They exclude broadcast and blockchain confirmation. Material was ready
+before each measured signature. No measured signature waited for refill. Each
+cohort also passed NEAR signing, concurrent Tempo/Arc signing, and shared budget
+exhaustion. Small sequential cohorts do not establish a two-second maximum, p95,
+or a result for cold material, consecutive refill, or linked-device latency.
+
+### Change and equivalent timing boundaries
+
+The Gateway now requests its active deployment binding and session home together.
+Console checks the writer version once, then reads the session locator in that
+binding's tenant scope. Gateway validates the returned binding, locator, tenant,
+and admitted home. Each request performs fresh reads. No cache, configuration
+variable, database schema, or authorization shortcut was added. The signing route
+still checks current session authorization and budget after routing.
+
+| Work per session-bearing request | Before | After |
+| --- | ---: | ---: |
+| Console requests for deployment and session routing | 2 | 1 |
+| Console D1 round trips for those lookups | 3 | 2 |
+| Browser status requests per ready signature | 1 | 1 |
+
+Status, prepare, and finalize each use the combined lookup. Thus, the critical
+path removes three Console requests and three Console D1 round trips per ready
+signature. Background refill also uses the new lookup. These counts exclude
+signing admission, custody D1, usage reporting, and retry work.
+
+| Median timing | Control (6) | Candidate (6) | Repeat (6) |
+| --- | ---: | ---: | ---: |
+| Full SDK signing | 1870ms | 1787ms | 1710ms |
+| Fresh browser status check | 291ms | 223ms | 214ms |
+| Browser prepare | 569ms | 518ms | 525ms |
+| Browser finalize | 631ms | 563ms | 554ms |
+| Gateway deployment/routing overhead: prepare | 165.5ms | 110ms | 93ms |
+| Gateway deployment/routing overhead: finalize | 165ms | 98ms | 93.5ms |
+
+The last two rows subtract `ecdsa_sign_total` from `wallet_gateway_total` for each
+request before computing medians. They compare the same boundaries. The existing
+`wallet_gateway_binding` metric now covers the combined binding and session-home
+lookup. Comparing that metric alone with the old binding-only timer would be
+misleading. Component medians do not add up to the full-call median.
+
+### Verification and rollout
+
+The Console E2E uses the production Console Worker, service transport, and local
+D1. It proves one lookup, one deployment read, WEUR resolution from a US writer,
+and fresh rejection after locator removal. Unadmitted writer versions and an
+unavailable Console fail closed. The broader regional scenario verifies routing,
+concurrent exchange redemption, wrong-home publication, scope disagreement,
+retired credentials, and publication failures. Type-check and lint pass. The
+public repository's bloat check passes. No unit tests were added.
+
+Live probes confirm unknown and malformed session credentials return **401**
+with the expected CORS origin. This also closes the missing-locator error path
+for the deployed APAC Gateway. Other regional Gateway versions were unchanged.
+
+Existing staging resources only:
+
+- APAC Gateway: **0fef3e7c-3f9b-45ae-8f19-b9fa02a22130** →
+  **cebc5a92-875f-4b52-8c42-2fa4b499b398**.
+- Console: **6060765d-90cc-46a2-a704-798519c74c97** →
+  **55ec63ea-d332-4ada-a181-8f968aed3b59**.
+- SigningWorker remained **137dfce9-8ac7-4dbf-be2b-de0b1171f01d**.
+- Protected activation and readiness passed in
+  [run 37335218292](https://github.com/seams-tech/seams-monorepo/actions/runs/37335218292).
+
+Cloudflare API comparisons confirm every binding and both placement settings
+were preserved. The browser assets and custody code match the preceding measured
+candidate. The deployment used the previous frozen private source plus this
+focused patch. Concurrent relocation and API work was excluded. No resources
+were created. The **$25 total Cloudflare budget** remains the constraint.
+Production and npm were unchanged.
+
+Private implementation and verification commit on `dev`: **3417dc5**.
+Tracked aggregates, bundle hashes, deployment versions, and verification:
+[`r152-gateway-console-20261006.json`](evidence/r152-gateway-console-20261006.json).
+Raw browser traces, frozen source, compiled bundles, before/after settings,
+reproduction inputs, and analysis remain in
+`seams-monorepo/.artifacts/mpc-console-20261006/`.
