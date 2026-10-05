@@ -55,7 +55,7 @@ function routerAbTransportCredential(
   throw new Error('[multichain] unsupported ECDSA signing credential');
 }
 
-function scheduleRouterAbEcdsaDerivationPostSignRefill(args: {
+function scheduleRouterAbEcdsaDerivationSigningRefill(args: {
   operationId: string;
   loadedMaterial: LoadedRouterAbEcdsaDerivationSigningMaterialSource;
   workerCtx: WorkerOperationContext;
@@ -86,7 +86,7 @@ function scheduleRouterAbEcdsaDerivationPostSignRefill(args: {
     authorization: args.authorization,
   });
   emitSigningSessionFlowTrace('evm-family', {
-    event: 'ecdsa_post_sign_refill',
+    event: 'ecdsa_signing_refill',
     operationId: args.operationId,
     scheduled: result.scheduled,
     reason: result.reason,
@@ -153,6 +153,23 @@ export class Secp256k1Engine {
         workerCtx: this.workerCtx,
       } as const;
       this.beforeSigning?.();
+      if (material.authorization.kind === 'reusable_wallet_session') {
+        scheduleRouterAbEcdsaDerivationSigningRefill({
+          operationId,
+          loadedMaterial,
+          workerCtx: this.workerCtx,
+          credential: transportCredential,
+          expiresAtMs: material.expiresAtMs,
+          authorization: material.authorization,
+        });
+      } else {
+        emitSigningSessionFlowTrace('evm-family', {
+          event: 'ecdsa_signing_refill',
+          operationId,
+          scheduled: false,
+          reason: 'operation_step_up',
+        });
+      }
       let signed;
       if (material.authorization.kind === 'reusable_wallet_session') {
         signed = await signRouterAbEcdsaDerivationDigestWithPool({
@@ -178,23 +195,6 @@ export class Secp256k1Engine {
         );
       }
 
-      if (material.authorization.kind === 'reusable_wallet_session') {
-        scheduleRouterAbEcdsaDerivationPostSignRefill({
-          operationId,
-          loadedMaterial,
-          workerCtx: this.workerCtx,
-          credential: transportCredential,
-          expiresAtMs: material.expiresAtMs,
-          authorization: material.authorization,
-        });
-      } else {
-        emitSigningSessionFlowTrace('evm-family', {
-          event: 'ecdsa_post_sign_refill',
-          operationId,
-          scheduled: false,
-          reason: 'operation_step_up',
-        });
-      }
       signatureCreated = true;
       return signed.signature65;
     } finally {

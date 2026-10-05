@@ -504,7 +504,10 @@ Expected behaviour:
   ceremony's remaining lifetime, including response-body delivery. A stalled
   exchange is aborted; recovery starts a fresh ceremony identity. Foreground
   signing retains priority through failed-refill recovery so maintenance cannot
-  launch competing generation before that signing operation finishes.
+  launch competing generation before the replacement material is available.
+  Once material is ready, bounded background refill continues during prepare and
+  finalize. Reserving any available item triggers replenishment without waiting
+  for the pool to become empty or for the signature to finish.
   Gateway requests remain independent: cancellation of one refill cannot block
   subsequent background ceremonies. Refill scheduling and foreground priority
   belong to the client pool; live Gateway authorization still applies per exchange.

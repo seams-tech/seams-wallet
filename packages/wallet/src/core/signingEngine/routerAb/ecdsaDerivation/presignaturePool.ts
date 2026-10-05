@@ -290,8 +290,8 @@ const MAX_CLIENT_PRESIGNATURE_CLAIM_RETRIES = ECDSA_CLIENT_PRESIGNATURE_CAPACITY
 const clientPresignaturePool = new Map<string, RouterAbEcdsaDerivationClientPresignatureRef[]>();
 const clientPresignaturePoolIdentityByPoolKey = new Map<string, EcdsaClientPresignPoolIdentity>();
 const clientPresignatureRefillInFlightByPoolKey = new Map<string, PresignatureRefillProgressV1>();
+const foregroundRefillInFlightByPoolKey = new Map<string, number>();
 const clientPresignatureHydrationInFlightByPoolKey = new Map<string, Promise<void>>();
-const foregroundSignInFlightByPoolKey = new Map<string, number>();
 const clientPresignaturePoolGenerationByPoolKey = new Map<string, number>();
 
 type PresignProtocolStage = ThresholdEcdsaPresignProgressWasm['stage'];
@@ -606,23 +606,23 @@ async function invalidateClientPresignaturePool(input: {
   await destroyClientPresignatureRefs({ ...input, refs });
 }
 
-function getForegroundSignInFlightCount(poolKey: string): number {
-  return foregroundSignInFlightByPoolKey.get(poolKey) || 0;
+function getForegroundRefillInFlightCount(poolKey: string): number {
+  return foregroundRefillInFlightByPoolKey.get(poolKey) || 0;
 }
 
-function startForegroundSign(poolKey: string): void {
-  const current = getForegroundSignInFlightCount(poolKey);
-  foregroundSignInFlightByPoolKey.set(poolKey, current + 1);
+function startForegroundRefill(poolKey: string): void {
+  const current = getForegroundRefillInFlightCount(poolKey);
+  foregroundRefillInFlightByPoolKey.set(poolKey, current + 1);
 }
 
-function finishForegroundSign(poolKey: string): void {
-  const current = getForegroundSignInFlightCount(poolKey);
+function finishForegroundRefill(poolKey: string): void {
+  const current = getForegroundRefillInFlightCount(poolKey);
   if (current <= 1) {
-    foregroundSignInFlightByPoolKey.delete(poolKey);
+    foregroundRefillInFlightByPoolKey.delete(poolKey);
     armPresignatureMaintenance(poolKey, 0);
     return;
   }
-  foregroundSignInFlightByPoolKey.set(poolKey, current - 1);
+  foregroundRefillInFlightByPoolKey.set(poolKey, current - 1);
 }
 
 async function waitForAvailablePresignatureFromInFlightRefill(
@@ -666,7 +666,7 @@ export function clearAllRouterAbEcdsaDerivationClientPresignatures(): void {
     ...presignatureMaintenance.keys(),
     ...clientPresignaturePool.keys(),
     ...clientPresignatureRefillInFlightByPoolKey.keys(),
-    ...foregroundSignInFlightByPoolKey.keys(),
+    ...foregroundRefillInFlightByPoolKey.keys(),
     ...clientPresignaturePoolGenerationByPoolKey.keys(),
   ]);
   for (const poolKey of invalidatedPoolKeys) bumpClientPresignaturePoolGeneration(poolKey);
@@ -676,7 +676,7 @@ export function clearAllRouterAbEcdsaDerivationClientPresignatures(): void {
     progress.settle();
   }
   clientPresignatureRefillInFlightByPoolKey.clear();
-  foregroundSignInFlightByPoolKey.clear();
+  foregroundRefillInFlightByPoolKey.clear();
 }
 
 export function clearRouterAbEcdsaDerivationClientPresignaturesForWallet(
@@ -691,7 +691,6 @@ export function clearRouterAbEcdsaDerivationClientPresignaturesForWallet(
     bumpClientPresignaturePoolGeneration(poolKey);
     clientPresignatureRefillInFlightByPoolKey.get(poolKey)?.settle();
     clientPresignatureRefillInFlightByPoolKey.delete(poolKey);
-    foregroundSignInFlightByPoolKey.delete(poolKey);
   }
 }
 
@@ -853,12 +852,12 @@ async function runBackgroundPresignatureRefill(input: {
     });
     if (getClientPresignaturePoolDepth(poolKey) > 0) {
       progress.publishAvailable();
-      if (getForegroundSignInFlightCount(poolKey) > 0) return;
     }
     while (Date.now() < args.routerAbEcdsaDerivationPoolFill.ceremonyExpiresAtMs) {
       if (getClientPresignaturePoolGeneration(poolKey) !== scheduledGeneration) return;
       if ((presignatureMaintenance.get(poolKey) ?? null) !== attemptMaintenance) return;
       if (getClientPresignaturePoolDepth(poolKey) >= targetDepth) return;
+      if (getForegroundRefillInFlightCount(poolKey) > 0) return;
       if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
       const attemptDeadlineAtMs = Math.min(
         Date.now() + refillAttemptTimeoutMs,
@@ -889,7 +888,6 @@ async function runBackgroundPresignatureRefill(input: {
       const maintenance = presignatureMaintenance.get(poolKey);
       if (maintenance && maintenance === attemptMaintenance) maintenance.failures = 0;
       progress.publishAvailable();
-      if (getForegroundSignInFlightCount(poolKey) > 0) return;
     }
   } catch {
     recordPresignatureRefillFailure(poolKey, attemptMaintenance, 'internal');
@@ -950,7 +948,7 @@ export function scheduleRouterAbEcdsaDerivationClientPresignaturePoolRefill(
     }
     if (
       clientPresignatureRefillInFlightByPoolKey.has(poolKey) ||
-      (depth > 0 && getForegroundSignInFlightCount(poolKey) > 0)
+      getForegroundRefillInFlightCount(poolKey) > 0
     ) {
       return buildPresignatureRefillNotScheduledResult(
         'in_flight_for_pool_key',
@@ -1419,7 +1417,6 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
 ): Promise<RouterAbEcdsaDerivationCoordinatorResult> {
   let poolKey: string | null = null;
   let poolIdentity: EcdsaClientPresignPoolIdentity | null = null;
-  let foregroundStarted = false;
   let presignature: RouterAbEcdsaDerivationClientPresignatureRef | null = null;
   let clientSignatureShare32: Uint8Array | null = null;
   let clientRerandomizationContribution32: Uint8Array | null = null;
@@ -1478,8 +1475,6 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
     });
     poolKey = ecdsaClientPresignPoolKey(poolIdentity);
     clientPresignaturePoolIdentityByPoolKey.set(poolKey, poolIdentity);
-    startForegroundSign(poolKey);
-    foregroundStarted = true;
     poolGeneration = getClientPresignaturePoolGeneration(poolKey);
 
     const lookupStartedAt = performance.now();
@@ -1522,26 +1517,31 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
     }
     if (!presignature && supply.kind === 'on_demand') {
       const foregroundRefillStartedAt = performance.now();
-      let refill = await refillRouterAbEcdsaDerivationClientPresignaturePool({
-        ...supply.refill,
-        trafficClass: 'foreground',
-      });
-      if (!refill.ok && refill.code === 'invalidated') {
-        refill = await refillRouterAbEcdsaDerivationClientPresignaturePool({
+      startForegroundRefill(poolKey);
+      try {
+        let refill = await refillRouterAbEcdsaDerivationClientPresignaturePool({
           ...supply.refill,
           trafficClass: 'foreground',
         });
-      }
-      if (!refill.ok && refill.code !== 'pool_full')
-        return refill;
-      if (!refill.ok && refill.code === 'pool_full') {
-        await hydrateClientPresignaturePool({
-          poolKey,
-          poolIdentity,
-          clientSigningMaterial: args.clientSigningMaterial,
-          workerCtx: args.workerCtx,
-          generation: getClientPresignaturePoolGeneration(poolKey),
-        });
+        if (!refill.ok && refill.code === 'invalidated') {
+          refill = await refillRouterAbEcdsaDerivationClientPresignaturePool({
+            ...supply.refill,
+            trafficClass: 'foreground',
+          });
+        }
+        if (!refill.ok && refill.code !== 'pool_full')
+          return refill;
+        if (!refill.ok && refill.code === 'pool_full') {
+          await hydrateClientPresignaturePool({
+            poolKey,
+            poolIdentity,
+            clientSigningMaterial: args.clientSigningMaterial,
+            workerCtx: args.workerCtx,
+            generation: getClientPresignaturePoolGeneration(poolKey),
+          });
+        }
+      } finally {
+        finishForegroundRefill(poolKey);
       }
       poolGeneration = getClientPresignaturePoolGeneration(poolKey);
       presignature = await takeClientPresignature({
@@ -1652,10 +1652,8 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
           'Router A/B ECDSA derivation client presignature pool was invalidated before prepare',
       };
     }
-    // Replace the last reserved item while its signing requests are in flight.
-    if (getClientPresignaturePoolDepth(poolKey) === 0) {
-      armPresignatureMaintenance(poolKey, 0);
-    }
+    // Replenish the pool as soon as a reservation removes an available item.
+    armPresignatureMaintenance(poolKey, 0);
     preparationState = { kind: 'prepare_submitted' };
     const prepareStartedAt = performance.now();
     const prepareResponse = await prepareRouterAbEcdsaDerivationEvmDigestSigningV1({
@@ -1845,7 +1843,7 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
           .catch(() => {});
       }
     }
-    if (poolKey && foregroundStarted) finishForegroundSign(poolKey);
+    if (poolKey) armPresignatureMaintenance(poolKey, 0);
   }
 }
 
@@ -1873,55 +1871,43 @@ export async function signRouterAbEcdsaDerivationDigestWithPool(
       message: 'Router A/B ECDSA derivation pool fill expiry is unavailable or expired',
     };
   }
-  const poolIdentity = makeClientPresignPoolIdentity({
+  const refillInput: RouterAbEcdsaDerivationClientPresignatureRefillInput = {
     relayerUrl: args.relayerUrl,
-    scope: args.scope,
+    keyHandle: args.keyHandle,
+    ecdsaThresholdKeyId: signingIdentity.ecdsaThresholdKeyId,
+    clientVerifyingShareB64u: signingIdentity.clientVerifyingShareB64u,
+    clientSigningMaterial: args.clientSigningMaterial,
+    thresholdEcdsaPublicKeyB64u: signingIdentity.thresholdEcdsaPublicKeyB64u,
+    credential: args.credential,
     materialActivation: args.materialActivation,
-  });
-  const poolKey = ecdsaClientPresignPoolKey(poolIdentity);
-  // Track foreground work across cache lookup, recovery generation, and signing.
-  startForegroundSign(poolKey);
-  try {
-    const refillInput: RouterAbEcdsaDerivationClientPresignatureRefillInput = {
-      relayerUrl: args.relayerUrl,
-      keyHandle: args.keyHandle,
-      ecdsaThresholdKeyId: signingIdentity.ecdsaThresholdKeyId,
-      clientVerifyingShareB64u: signingIdentity.clientVerifyingShareB64u,
-      clientSigningMaterial: args.clientSigningMaterial,
-      thresholdEcdsaPublicKeyB64u: signingIdentity.thresholdEcdsaPublicKeyB64u,
-      credential: args.credential,
-      materialActivation: args.materialActivation,
-      routerAbEcdsaDerivationPoolFill: {
-        kind: 'router_ab_ecdsa_derivation_signing_worker_pool',
-        scope: args.scope,
-        // A ceremony runs no longer than the Gateway's limit; staying a skew
-        // margin inside it lets the Gateway authorize exactly this deadline.
-        ceremonyExpiresAtMs: Math.min(
-          expiresAtMs,
-          Date.now() +
-            ROUTER_AB_ECDSA_PRESIGN_CEREMONY_MAX_LIFETIME_MS -
-            PRESIGN_CEREMONY_CLOCK_SKEW_MARGIN_MS,
-        ),
-        materialExpiresAtMs:
-          args.authorization.kind === 'operation_step_up'
-            ? expiresAtMs
-            : Date.now() + MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS,
-      },
-      workerCtx: args.workerCtx,
-      ...ecdsaPoolFillAuthorization(args),
-    };
-    const supply: EcdsaSigningMaterialSupply = { kind: 'on_demand', refill: refillInput };
-    const result = await signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(args, 0, supply);
-    if (
-      !result.ok &&
-      (result.code === 'pool_entry_expired' || result.code === 'pool_entry_unavailable')
-    ) {
-      return await signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(args, 0, supply);
-    }
-    return result;
-  } finally {
-    finishForegroundSign(poolKey);
+    routerAbEcdsaDerivationPoolFill: {
+      kind: 'router_ab_ecdsa_derivation_signing_worker_pool',
+      scope: args.scope,
+      // A ceremony runs no longer than the Gateway's limit; staying a skew
+      // margin inside it lets the Gateway authorize exactly this deadline.
+      ceremonyExpiresAtMs: Math.min(
+        expiresAtMs,
+        Date.now() +
+          ROUTER_AB_ECDSA_PRESIGN_CEREMONY_MAX_LIFETIME_MS -
+          PRESIGN_CEREMONY_CLOCK_SKEW_MARGIN_MS,
+      ),
+      materialExpiresAtMs:
+        args.authorization.kind === 'operation_step_up'
+          ? expiresAtMs
+          : Date.now() + MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS,
+    },
+    workerCtx: args.workerCtx,
+    ...ecdsaPoolFillAuthorization(args),
+  };
+  const supply: EcdsaSigningMaterialSupply = { kind: 'on_demand', refill: refillInput };
+  const result = await signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(args, 0, supply);
+  if (
+    !result.ok &&
+    (result.code === 'pool_entry_expired' || result.code === 'pool_entry_unavailable')
+  ) {
+    return await signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(args, 0, supply);
   }
+  return result;
 }
 
 async function refillRouterAbEcdsaDerivationClientPresignaturePool(

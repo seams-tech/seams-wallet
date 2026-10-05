@@ -746,7 +746,7 @@ class StalledPresignExchange {
   private releaseHeld: () => void = () => {};
   private readonly released = new Promise<void>(this.captureRelease.bind(this));
   private foregroundStarted = false;
-  private signingComplete = false;
+  private foregroundRefillComplete = false;
   private readonly identities = new Set<string>();
   private initializations = 0;
   competingBackgroundInitializations = 0;
@@ -765,7 +765,7 @@ class StalledPresignExchange {
       this.identities.add(body.presignSessionId);
       this.initializations += 1;
       if (body.requestTag === 'foreground_presign_pool_refill') this.foregroundStarted = true;
-      else if (this.foregroundStarted && !this.signingComplete) {
+      else if (this.foregroundStarted && !this.foregroundRefillComplete) {
         this.competingBackgroundInitializations += 1;
       }
     } else {
@@ -786,9 +786,16 @@ class StalledPresignExchange {
     this.release();
   }
 
-  response(response: Response): void {
-    if (response.ok() && new URL(response.url()).pathname === '/router-ab/ecdsa-derivation/sign') {
-      this.signingComplete = true;
+  async response(response: Response): Promise<void> {
+    if (
+      !response.ok() ||
+      new URL(response.url()).pathname !== '/router-ab/ecdsa-derivation/presignature-pool/fill/step'
+    ) return;
+    const request: unknown = response.request().postDataJSON();
+    if (!isPlainObject(request) || request.requestTag !== 'foreground_presign_pool_refill') return;
+    const progress: unknown = await response.json();
+    if (isPlainObject(progress) && progress.event === 'presign_done') {
+      this.foregroundRefillComplete = true;
     }
   }
 
