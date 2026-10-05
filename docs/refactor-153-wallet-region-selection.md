@@ -65,200 +65,43 @@ Session continuity, sealed-session restoration, and pool restoration are exclude
 | `cutover` could not express an active destination awaiting cleanup. | Persist activation independently of cleanup and expose readiness from authenticated evidence. |
 | Running-attempt recovery and paused authentication were underspecified. | Reconcile existing participant commands without timer takeover or credential mutation. |
 
-## October 3 implementation checkpoint
+## Implemented baseline
 
-Private implementation: `72ce0f6` on `seams-monorepo/dev`.
+R152 closed the ownership dependency at public `c160e107` and private
+`8a40b44`. Use [ownership revision 13](refactor-152-state-ownership.md).
+Its [results](refactor-152-results.md) retain the regional routing and lifecycle
+evidence. R153 consumes that baseline through the completed R170/R171 composition.
 
-Private Console migration `0070_wallet_relocations.sql` and
-`walletPlacement/relocation{,Store}.ts` add:
+Private commits `72ce0f6` and `c0a57c6` implement the directory journal in
+`walletPlacement/relocation{,Store,Execution}.ts` and migrations 0070/0071:
 
-- A required ownership generation, durable relocation journal, and one pending
-  move per wallet. Wallet and founding-registration identities remain immutable.
-- Atomic admission with the wallet directory paused in the same D1 transaction.
-  Home, credential, and lifecycle lookups reject paused placement; home-owned
-  shared locator publications and linked-device claims also respect the pause.
-- Canonical request replay, destination/request conflicts, stale-generation
-  rejection, and a five-minute interval between admissions. Selecting an active
-  current home performs no transfer and incurs no cooldown. An unfinished move
-  stays paused and resumes through its existing journal; cancellation is pending.
-- Conditional progress through freezing, copying, verified, cutover, and completed.
-  Source-fence and destination-verification receipts are required before cutover.
-  Cutover updates home and generation atomically; an exact retry reads the original
-  committed outcome after a lost reply. Receipts and completed history are immutable.
-- Boundary parsers and type fixtures for request/receipt identity, illegal phase
-  combinations, required generations, and broad-spread forgery.
+- Atomic admission and pause, one pending move, canonical replay, generation
+  checks, same-home no-op, and the five-minute cooldown.
+- Conditional transitions through the five phases with manifest-bound receipts.
+- Persisted attempts, six-attempt budgets, bounded backoff, and explicit recovery.
+- Immutable outcomes and type fixtures for phase, identity, and receipt constraints.
 
-This is a **trusted control-plane storage primitive**. It is not exposed as an
-owner or operator HTTP move endpoint. The directory cannot establish that a role
-has stopped writing from a digest alone: real role receipt producers, quiescence,
-transfer/import, and destination activation must be wired before enabling moves.
-Owner authentication, current permissions, expiry/revocation, and fresh-auth policy
-remain API integration work. Linked owner devices have distinct authority IDs;
-the founding-registration authority is preserved metadata, not the relocation
-eligibility rule. The journal records the actual initiating authority.
+This is an internal storage primitive. Its receipt parsers check shape and binding.
+Real participant authentication, writer fences, transfer, and activation remain
+unwired. The current journal records activation only at completion.
+No owner relocation endpoint is enabled.
 
-The new composed directory E2E uses two Workers and persistent local D1. It exercises
-competing requests, lost admission/cutover replies, process restart, receipt replay,
-cooldown boundaries, a later return move at a fresh generation, and isolation from
-an unrelated wallet. Existing registration/regional-directory acceptance remains
-green. Its participant receipts are synthetic; it makes no backend transfer,
-authorization, signing, or single-writer fencing claim. Repeatable evidence is in
-the private `.artifacts/r153/directory-implementation/` checkpoint.
-Two E2Es passed in 6.7 seconds; candidate-backed TypeScript, focused lint, and
-public bloat checks passed. Directory receipt SHA-256:
-`f13201c216ecfadf69336c8d6f07142642a1b29e879cf3dfa0cce7bdfc7c7e36`.
+The existing private directory E2E covers races, lost replies, restart, cooldown,
+receipt conflicts, stale attempts, budget exhaustion, and recovery. Its synthetic
+receipts prove directory behavior only. Extend this test for journal changes.
 
-Repeat the relocation-directory scenario from the private repository:
+Retained evidence:
+`.artifacts/r153/execution-journal-20261004/`, receipt SHA-256
+`02184ddd17816901bf2413115c35ca33a43bd90a269fedaeffb7f6990d8af555`.
+The later published-0.8.0 handoff passed both directory E2Es and Console type
+checking without candidate overrides. That checkpoint does not verify relocation.
+
+Run the focused directory scenario from the private repository when its code changes:
 
 ```sh
-SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
 pnpm --dir tests exec playwright test -c playwright.relayer.config.ts \
   relayer/wallet-relocation-directory.e2e.test.ts --reporter=line
 ```
-
-R152's [state ownership baseline](refactor-152-state-ownership.md) now identifies
-specific unresolved prerequisites: selectors for ordinary operation history and
-opaque records, complete DO/Container ownership, internal/deferred write fencing,
-and composed linked-device installation. These prevent enabling a general transfer
-and cutover today. Continue independent implementation against this journal; close
-those ownership and execution contracts before connecting an executable move.
-
-## October 4 readiness review
-
-This is the earlier readiness checkpoint. The revision-12 ownership handoff below
-supersedes its open selector and material-accounting findings.
-
-Reviewed public revision `e10c1eaa` and private revision `561b0b9`. R152 now provides
-enough verified local composition to resume R153 implementation. Its final
-ownership audit and hosted acceptance remain open. Executable relocation remains
-unwired until the transfer and fencing contracts below are verified.
-
-| Dependency | Current evidence and consequence |
-| --- | --- |
-| Runtime identity home enforcement | Implemented in private `09626d8`. Console partitions mixed-wallet reads by home; direct Runtime reads verify authoritative placement. The former local-read bypass is closed. |
-| Real linked-device installation | The all-home local matrix verifies production registration, cryptographic installation, NEAR/Tempo signing, home-only durable records and transient cleanup. Lost activation/acknowledgement replies and full Gateway/Console/role Worker restarts also pass. The earlier synthetic-source-only limitation is superseded for these scenarios. |
-| Composed regional lifecycle acceptance | Mixed-home wallets in one namespace, passkey and Email OTP founding registration, recovery, unlock, exports, concurrent signing, replay and process restarts have retained local receipts. Independent geographic role placement, transaction crashes and hosted acceptance remain open. |
-| Yao capability replacement receipt ownership | Closed by public `b764f7b6`. Receipts require scoped `wallet_id`, retries check the same wallet, and cross-wallet capability replacement fails before mutation. Terminal receipts remain directly selectable after lifecycle cleanup. |
-| Remaining transfer selectors and complete material ownership | Still open. Ordinary-operation and opaque-record selectors remain blocked, and DO/Container material accounting remains incomplete. R152 owns these ownership contracts and the fixed-home context for deferred work; R153 consumes them for extraction/import. |
-| Relocation writer fencing | Still open. Deferred continuation routing establishes its fixed home; it does not fence a queued Deriver execution or NEAR side-effect commit after ownership changes. R153 must connect generations and source quiescence to every relevant effect boundary. |
-
-The [latest R152 lifecycle/restart evidence](refactor-152-results.md#october-4-recovery-and-linked-device-replay-after-local-role-worker-restarts)
-uses one shared local role stack. Verified receipt hashes include mixed-home
-passkey recovery `8eb28b58458ea8d9c33082fb2d2cdf03c7b1a964d28d32a844f78d555ddce528`
-and APAC linked installation
-`ee4b1129ea4dbf680964b15e8625bc2b72ac8656018b601f40fb998b42047f81`.
-The [Email OTP founding-registration/recovery checkpoint](refactor-152-results.md#october-4-email-otp-founded-wallets-retain-regional-ownership-through-recovery)
-adds receipt `4221cccdd7c8a5770915f607f5585c61d8662740da7b81c802024392cb77faf5`.
-These files were present and their hashes matched during this review; no scenarios
-were rerun for the documentation update.
-
-Resume with exact extraction/import ownership and generation fencing against the
-committed relocation journal. Keep owner-triggered transfer and cutover unwired
-until those contracts and real relocation acceptance pass. Full R152 performance
-and hosted-release work can proceed separately from this implementation.
-
-The capability receipt follow-up was reviewed at `b764f7b6`. Migration 0045 adds
-required wallet ownership and the exact
-`(namespace, org_id, project_id, env_id, wallet_id)` selector without ownership
-reconstruction or a compatibility reader. Populated unowned receipt tables block
-the migration until the planned disposable-wallet reset. The retained
-`.artifacts/r152/wallet-owned-receipts-20261004/evidence.json` records 45 applied
-signer migrations, exact two-wallet selection, empty-owner rejection, a blocked
-unowned-table upgrade without receipt loss, and SQLite integrity `ok`. This closes
-the capability receipt selector only; remaining ownership selectors and material
-accounting stay with R152, while relocation generations and effect fences stay
-with R153. This review did not rerun type checking or the migration verification.
-
-## October 4 ownership handoff: revision 12
-
-Public `9c1c7b8e` and private `7720793` close the ownership dependency through
-[R152 ownership revision 12](refactor-152-state-ownership.md). R153 can implement
-extraction/import and role fencing against this contract. The earlier open signer
-selectors and DO/Container material accounting are closed.
-
-The contract covers pending and terminal role-private records, pools,
-reservations, presign indexes and replay claims. Linked signing ownership resolves
-through the actual Wallet Session and device-link authority. Migration 0048 removes
-14 obsolete operation/audit columns and names the retained scope `owner_scope_*`.
-Transfer must preserve exact operation/result identities and reject ambiguous
-records using the contract's scoped selectors and validated parent joins.
-
-The retained evidence records all 48 signer migrations with integrity `ok` and
-three-region linked installation/restart acceptance. Each wallet retained two
-linked signing operations only at home; correct-owner reads succeeded and
-foreign-wallet reads failed. This review checked all three regional receipt hashes
-against the committed results; it did not rerun the scenarios.
-
-Credential reconciliation, complete deferred fixed-home execution verification,
-hosted acceptance and R152's final review/release remain open. They are separate
-from the closed ownership dependency and must remain visible during integration.
-R153 owns generations, source quiescence, effect fences, historical import,
-presignature invalidation, cutover and relocation acceptance. Implement these now
-against revision 12; enable an executable move only after the relevant execution
-contracts and real relocation acceptance pass.
-
-## October 4 execution journal checkpoint
-
-Private commit `c0a57c6` implements persisted phase execution against the move
-contract. Migration 0071 adds CAS attempt claims, six-attempt retry budgets,
-1/2/4/8/16-second backoff, immediate blocking on identity/receipt/content conflicts,
-and recorded recovery runs. `ready` distinguishes an unclaimed stage from a
-running attempt. Restart, polling and duplicate commands cannot reset its budget.
-Current-attempt identity is required to advance each phase; a running attempt
-remains available for reconciliation after restart without a timer takeover.
-
-Source and destination receipts now bind a common manifest digest. Completion
-requires destination activation and source cleanup receipts with matching scope,
-generation and manifest and ordered timestamps. SQL rejects timestamp-only
-completion. Exact admission replay is resolved before new catalog validation.
-The migration requires an empty relocation journal under the planned test-wallet
-reset; no missing execution history or receipt is reconstructed.
-
-The directory E2E now covers competing/lost attempt claims, phase transitions,
-six transient failures with a mid-budget restart, early retry refusal, exhausted
-budget, stale attempts, explicit recovery, immediate conflict blocking, mismatched
-cleanup evidence, and lost completion reply followed by restart/replay. Both
-directory E2Es passed in 7.9 seconds. Candidate-backed TypeScript (including type
-fixtures), focused ESLint and diff checks passed. Private receipts are retained in
-`.artifacts/r153/execution-journal-20261004/`; relocation receipt SHA-256 is
-`02184ddd17816901bf2413115c35ca33a43bd90a269fedaeffb7f6990d8af555`.
-Repeat the earlier directory command with output `test-results/r153-execution`.
-
-This remains an internal journal implementation. Receipt parsers establish shape
-and binding consistency; real issuer authentication and durable role evidence
-remain unwired. Owner approval, authenticated status during pause, pinned role
-resources, the recovery coordinator, writer fences, import and cleanup producers
-are still required. No user relocation endpoint is enabled.
-
-## R152 completion handoff — published 0.8.0 baseline
-
-R152's final handoff is public `c160e107` and private `8a40b44`. Consume
-[ownership revision 13](refactor-152-state-ownership.md), including fixed-home
-deferred execution and credential reconciliation, as the current contract.
-Earlier open R152 acceptance statements in this plan are historical checkpoints;
-the R152 dependency is now closed. Relocation generations, fences, transfers and
-their acceptance remain R153 work.
-
-The private checkout consumes exact published Wallet SDK/server 0.8.0. Both
-directory E2Es passed in 6.6 seconds with the installed package, without candidate
-or TypeScript path overrides; the standard Console package type check passed.
-Repeat from the private repository:
-
-```sh
-pnpm --dir packages/wallet-console-server-ts type-check
-pnpm --dir tests exec playwright test -c playwright.relayer.config.ts \
-  relayer/wallet-relocation-directory.e2e.test.ts \
-  relayer/wallet-home-directory.e2e.test.ts \
-  --reporter=line --output=test-results/r153-published
-```
-
-The retained R152 hosted proxy measurements describe backend travel; native
-full-browser latency and calls outside home Gateway `SIGNER_DB` are outside those
-measurements. This handoff check did not deploy infrastructure or enable relocation.
-After R170/R171 acceptance, continue with owner approval and authenticated
-placement/status access, then real participant evidence, source fencing, and data
-transfer. Consume the completed SDK/host composition while preserving R152's
-ownership contract. The existing journal remains an internal storage primitive.
 
 ## Intent
 
@@ -332,21 +175,6 @@ readiness from completion of all move stages.
   their ownership boundaries. Determine which wallet-owned resources move.
 - Region-change detection and notifications belong to R154. Owners choose each move.
 
-## Implementation decisions and validation still open
-
-- What relocation Cloudflare Durable Objects actually support, whether new
-  destination objects are required, and how placement can be measured.
-- Which D1, Router, Deriver, and SigningWorker state must follow the wallet, and
-  whether the resulting topology materially improves end-to-end latency.
-- Verify the binding-preserving transfer with actual signing after fresh
-  authentication, rejection of saved old sessions, and an offline device reconnect.
-- Validate the move contract's owner-proof and regional eligibility enforcement
-  through the actual admission path.
-- Measure interruption under the paused protocol; the contract promises durable
-  progress and recovery, without a fixed completion-time guarantee.
-- Validate pool invalidation without key or activation retirement, delayed refill
-  completion, offline cache reconciliation, and regeneration cost. Confirm the
-  effectiveness of the five-minute admission limit under real regeneration load.
 
 ## Binding validation: paused server-side transfer
 
@@ -1029,76 +857,22 @@ records, or skip a receipt. If pinned resources or source data are irrecoverably
 lost, retry-only relocation can remain unavailable; report that limitation rather
 than inventing a new owner or promising a bounded recovery time.
 
-### Required extensions to the existing implementation
-
-Private `walletPlacement/relocation.ts`, `relocationStore.ts` and migration 0070
-already supply the canonical request, five phases, generation CAS, admission
-cooldown and receipt envelopes. Extend those same modules during implementation:
-
-1. Add fresh-owner approval and server destination preflight; a parsed request's
-   `authorityId` currently proves no authorization. Pin the complete resource set.
-2. Serve authenticated status/replay during the pause. Preserve the implemented
-   exact-replay ordering before new-admission catalog validation. Keep no-op and
-   conflict behavior distinct. Add the bounded move-only read authorization to
-   the existing approval and keep it separate from active signing authority.
-3. Produce real source/destination manifests and authenticate participant evidence.
-   The journal now requires manifest-bound activation/cleanup receipt envelopes
-   before `complete`; production evidence producers remain to be connected.
-   Synthetic directory-test receipts remain directory-only evidence.
-4. Connect the persisted execution status/retry budgets to the coordinator and
-   enforce every effect fence. Keep recovery commands internal; do not add a public
-   cancellation endpoint. Retire all sessions and invalidate pools before sealing
-   the snapshot. Prove fresh-session issuance for retained device enrollments.
-5. Persist activation independently from cleanup in `cutover`. Update domain
-   branches, journal guards, readiness responses, and readers together. Migrate
-   only at the persistence boundary under the supported disposable-wallet reset.
-6. Extend the existing type fixtures and E2E as each contract is implemented:
-   reject forged approval, mismatched receipt kind/generation, mixed phase fields,
-   broad state spreads and unsafe construction; exercise exact retries after proof
-   expiry, two-device conflict, paused status and crash recovery. Historical import
-   and real transfer acceptance remain subsequent implementation work.
-
 ## Implementation stages
 
-### 0. Settle the contracts before parallel implementation
+The move contract above is settled. Use this checklist for remaining implementation
+work. Acceptance ownership appears below. Do not create separate deliverables for
+the same requirement in each section.
 
-- [ ] Close R170/R171 acceptance first. Record the completed source revisions,
-  matched client/host artifacts, and consumer validation. Map SDK/settings work
-  to the established host lifecycle and final public API before implementing it.
-- [x] Define eligible full-owner authority, authentication freshness and compatible
-  custody constraints. Actual regional configuration verification remains part of
-  admission implementation. Only an established wallet may move; registration
-  retries keep their original allocation.
-- [x] Define request, progress, and recoverable failure contracts using precise
-  domain states. Require tenant/wallet identity, move identity, source and
-  destination resources, and ownership generations where each phase needs them.
-  Parse external data once; use branch-specific builders and exhaustive handling.
-- [x] Specify separate authorized move-control commands and ordinary wallet execution.
-  Inactive destinations may import/verify the admitted move and must reject
-  signing and other ordinary mutations. Keep placement metadata separate from
-  original operation IDs/request digests so rerouting preserves exact retries.
-- [x] Define the authority sequence: source active → both homes unable to admit
-  new writes after source quiescence → destination active at a new generation.
-  Name the required per-writer fence and verification receipts. A source comparing
-  a request to its own cached generation is insufficient.
-- [x] Choose how the authority fence survives deletion, restart, old deployment
-  execution, and snapshot restore. Separate ownership generation from activation,
-  signing-root, revocation, and operation-lease epochs.
-- [x] Settle pre-cutover cancellation and post-cutover recovery. Keep incomplete
-  destinations inactive; never reuse a retired authority generation. Once the
-  destination is authoritative, returning to the source requires a new handover.
-- [x] Adopt five minutes between relocation admissions as the initial
-  limit, including admitted moves that later fail. Define bounded
-  stage retries, same-move replay, conflicts, and authoritative retry timing.
-- [ ] Prove the scoped historical restore context against current lifecycle/claim
-  triggers. Preserve guards for unrelated wallets and avoid quota/audit side
-  effects. The authorization probe's temporary trigger removal remains test-only.
-- [x] Record the move contract here, distinguishing decisions from runtime support.
-- [ ] Extend targeted type fixtures alongside implementation for illegal
-  phase combinations, forged execution contexts, broad spreads, and unsafe casts.
-  Include activation without a receipt, cleanup before activation, and chunk
-  commands with mismatched wallet, resource, generation, or manifest identities.
-  Reject move-only read access wherever an active signing session is required.
+### 0. Consume the completed prerequisites
+
+- [ ] Confirm R170/R171 completion and use their matched client/host artifacts.
+  Map SDK/settings work to the established host lifecycle and final public API.
+  Reuse their acceptance evidence unless R153 changes the tested behavior.
+- [ ] Extend existing type fixtures when shared domain types change. Cover missing
+  activation receipts, premature cleanup, forged construction, broad spreads,
+  and move-only access passed as signing authority. Check runtime identity values
+  at boundary parsers through behavioral tests. Explicit unsafe assertions remain
+  review concerns where TypeScript cannot reject them.
 
 ### 1. Directory authority, move admission, and regional execution
 
@@ -1198,74 +972,97 @@ cooldown and receipt envelopes. Extend those same modules during implementation:
 - [ ] Pass the E2E matrix below, including real ECDSA/Ed25519 signing and both
   passkey and Email OTP fresh authentication where supported. Reject old sealed
   signing sessions and delayed linked credential deliveries.
-- [ ] Validate actual hosted resources/placement and measure pause duration,
-  first-signature refill delay, subsequent signing latency, transfer bytes,
-  regeneration compute, and interference with an unrelated wallet.
+- [ ] Run the hosted regional suitability scenario below. Reuse its placement,
+  timing, and load evidence instead of creating a second measurement campaign.
 - [ ] Update intended-behavior specification and matching contracts together.
   Freeze the public package candidate and pin private consumers to its exact
   artifact through the existing integration workflow.
 - [ ] Remove superseded fixed-home mutation restrictions, direct writer paths,
   cache assumptions, fixtures, and exports as their replacements land. Preserve
   ordinary identity immutability and registration replay guarantees.
-- [ ] Run relevant type checks, Rust/wire verification when affected, behavioral
-  acceptance, and the required bloat check. Retain exact-revision evidence.
-  Deployments and publication follow the existing separate release process.
+- [ ] Run affected type checks, Rust/wire verification when affected, and the
+  required bloat check. Run behavioral scenarios through their assigned owners.
+  Broaden checks for shared behavior changes or unresolved failures. Retain results
+  for the final tested revisions. Deployments and publication follow the existing
+  separate release process.
 
-## Parallel work ownership and dependencies
+## Module ownership and integration
 
-Paths below are repository-relative: `private` is `seams-monorepo`, `public` is
-`seams-wallet`. Confirm final seams after R152 integration; use existing modules
-and add adjacent files only when needed. This is a proposed implementation team,
-with one coordinator and five bounded workstreams.
+Use the existing module boundaries. This table assigns responsibilities, without
+requiring a fixed team size or parallel implementation.
 
-| Workstream / owner | Owned surfaces | Dependency / handoff |
-| --- | --- | --- |
-| Coordinator: contracts, directory, orchestration, integration | Private `walletPlacement/relocation*.ts` and adjacent coordinator code; narrow integration in `{home,d1,service,serviceClient}.ts`, Console directory schema and Gateway/Wallet Runtime composition. Public placement wire/domain contracts and `router/transport/fetch/createFetchRouter.ts` integration. Placement type fixtures and this plan. | Keep orchestration inside the relocation module, consume typed participant adapters and implement authoritative admission/CAS. Own shared entrypoints and serialize authority-switch integration. |
-| Custody backend: routing, fences, invalidation | Public `crates/router-ab-cloudflare/src/durable_object/{router_wallet,deriver_a_pair,deriver_b_pair,signing_worker_wallet,ecdsa_presign_live_session}.rs`, corresponding role stores/routing, `ecdsa_pool_lifecycle.rs`, `ecdsa_presign_session.rs`, and `crates/router-ab-ecdsa-pool/src/lib.rs`. This owner also integrates changes in Cloudflare `src/lib.rs` and regenerates affected Rust wire bindings. | After contracts, implement role-local freeze/transfer/verification commands and explicit pool invalidation. Hand verified source/destination receipts to the coordinator. |
-| D1 transfer: extraction and historical restore | Public `packages/wallet-server/src/router/cloudflare/d1/` transfer/store changes and required signer schema changes. | Use the R152 ownership inventory and agreed move context. Prove idempotent restore with trigger/quota/replay behavior, then expose the store operations for orchestration. |
-| Client and settings: placement reconciliation | Public `packages/wallet/src/core/` placement-facing SDK/signing/IndexedDB changes and `react/components/AccountMenuButton/` settings. | After API contract, implement progress/cooldown UI and cross-device cache reconciliation. Coordinate against custody invalidation semantics; integration needs the real backend. |
-| Deployment: regional eligibility and identity preservation | Private `tenantDeployment/` catalog/binding configuration, `scripts/deploy-backend.mjs`, and `deployment/wallet-system/scripts/generate-{github-env-values,deployment-keys}.mjs`. | Preserve logical role identities, environment labels, KEKs/versions, peers, and server-seal configuration across eligible regions. Hand verified resource/configuration evidence to the coordinator; use disposable hosted probes when scheduled. |
-| Verification: behavioral acceptance and evidence | Public `tests/e2e/`, focused E2E fixtures, and `docs/intended-behaviours.md`; private composed E2Es under `tests/`. | Draft scenarios after stage 0, run incremental acceptance as streams land, then own the assembled fault/offline/hosted matrix and repeatable receipts. Do not count the synthetic transfer probes as a full move. |
+| Owner | Surfaces and responsibility |
+| --- | --- |
+| Coordinator | Private `walletPlacement/relocation*.ts`, directory migrations, and narrow Gateway/Runtime composition. Own admission, journal transitions, retries, and authenticated participant receipts. |
+| Custody roles | Public `crates/router-ab-cloudflare/src/` role stores and Durable Objects, plus `router-ab-ecdsa-pool`. Own local fences, invalidation, transfer, verification, activation, and cleanup. |
+| D1 stores | Public `packages/wallet-server/src/router/cloudflare/d1/` and signer migrations. Own exact selection, chunk transactions, historical restore, and stored-data verification. |
+| Client host and settings | The completed R170/R171 host owns reconciliation and session cleanup. Existing SDK commands and settings expose region selection and progress. |
+| Deployment | Existing private `tenantDeployment/` and deployment scripts own regional eligibility and identity-preserving resource configuration. |
+| Acceptance | Public product E2Es own Wallet behavior. Private E2Es own Console composition and the directory. Keep one owner for each assertion. |
 
-Contract decisions precede parallel implementation. The coordinator can build
-directory/admission support while custody, D1 transfer, client/settings,
-deployment preparation, and scenario development run concurrently against those
-contracts. Ownership-switch integration waits for authoritative admission and
-verified source fences/copies. Completion depends on the full E2E and hosted
-evidence. Keep those integration steps on the coordinator's path.
+The coordinator consumes typed service operations. Stores and signing flows never
+import the coordinator or branch on transfer phases. Public contracts remain
+independent of private Console implementation. Add adjacent files only when they
+own behavior. Create no new package, registry, workflow engine, or test harness.
 
-All agents work on `dev` in the main checkouts unless the user explicitly asks
-otherwise. They are sharing the codebase: preserve other agents' edits, agree
-file ownership before editing, and commit only owned changes with explicit paths.
-Do not concurrently edit common entrypoints, package exports, generated bindings,
-or dependency pins. Hand those edits to their designated owner. Record the public
-and private revisions/artifacts used for each integration run.
+Integrate cutover only after real source fences and destination verification work.
+Use the existing candidate/package integration workflow. Work on `dev` in the main
+checkouts. When work is concurrent, agree file ownership and serialize shared
+entrypoint, generated-binding, and dependency-pin edits. Commit only owned changes.
 
 ## Behavioral acceptance matrix
 
-Use medium-to-hard product E2Es and targeted type fixtures; add no unit tests or
-source-text guards. Extend existing signing, device-linking, replay, and regional
-fixtures wherever they express these scenarios.
+Use existing product E2Es and type fixtures. Add no unit tests or source-text
+guards. Extend existing signing, device-linking, replay, and regional fixtures.
+Each row below assigns distinct coverage to an existing or extended scenario.
 
-| Scenario | Required evidence |
+### Coverage ownership
+
+- Keep directory races, cooldown timing, retry budgets, stale attempts, and
+  recovery transitions in the existing private directory E2E. Extend it for
+  activation before cleanup. Product E2Es check that real admission and participant
+  commands obey these decisions, without repeating every journal permutation.
+- Use one two-device WEUR → APAC move and a return move for assembled acceptance.
+  Exercise both signing curves. Cover fresh passkey and Email OTP authentication
+  where supported, without repeating every fault under both factors or every
+  regional direction. Add variants only for different execution paths, storage
+  paths, or deployment configurations.
+- Inject faults at distinct durability boundaries: local fences, chunk commits,
+  import-gate closure, directory switch, activation, and cleanup. Exercise each
+  independently implemented writer fence. Reuse coverage only where implementations
+  share the same transaction/effect gate. Avoid a region × factor × role × fault
+  matrix and crashes after every statement or record.
+- Reuse R152 and R170/R171 evidence for unchanged behavior. Run their affected
+  contracts when R153 changes a shared path. Do not repeat ownership audits or
+  synthetic copy probes as additional relocation gates.
+- Type fixtures check compile-time branch constraints. Behavioral tests check
+  authenticated identity, parser rejection, persisted effects, and restart.
+  They do not duplicate source-text or implementation-shape assertions.
+
+### Required scenarios
+
+| Scenario / owner | Distinct behavior to verify |
 | --- | --- |
-| Owner authorization and destination admission | Reject unauthenticated, insufficient-permission, expired/revoked, wrong-tenant/wallet, stale-generation, and unsupported-resource requests before transfer effects. Fail destination preparation or transport checks before admission and prove source placement, signing sessions, and relocation cooldown stay unchanged. Admit only the checked resource set. An unavailable directory or unverified destination fails closed without a fallback write. |
-| Paused WEUR → APAC move with two owner devices | Real signatures for both curves before/after. Preserve addresses, wallet/device/material identities, permissions, historical accounting, and completed results. Reject every old signing credential, exchange, and sealed-session restore. Keep device two offline through cutover, then authenticate it again without re-enrollment, obtain a new session, refill, and sign. Exercise passkey and Email OTP entrypoints where supported. |
-| In-flight work and stale preparation | Lose a finalize response after its effect. After relocation and fresh authentication, retrieve the original result under its original identity with one quota use/effect. Interrupt presigning, delay refill/admission and linked credential delivery until after cutover, and restore an old client cache after reload. No old grant or material becomes usable. |
-| D1 historical restore and isolation | Restore consumed exchanges, expired parents, exhausted quotas, and reconciled operation history through the scoped import context. Crash before and after a chunk commit, lose its acknowledgement, and replay it. Preserve audit/quota exactly and leave no restore context enabled. Keep a second wallet active in the same database and enforce its ordinary triggers throughout. |
-| Frozen snapshot and destination proof | Delay a refill through freeze, then restart source roles and run overdue alarms. Seal the snapshot only after all signing sessions are retired and all usable presignatures are invalidated. Snapshot digests must remain stable. Transfer binary values, NULL, and maximum supported integers. Reject altered chunks, omitted collections, wrong encryption context, and extra selected records before cutover. Verify ciphertext through production role readers. |
-| Late import and independent activation | Lose activation acknowledgement, restart the coordinator, and fail source cleanup. Preserve the committed activation receipt. Allow fresh authentication and destination signing while cleanup retries. Replay an old chunk after those new writes: return its stored acknowledgement without overwriting live state. An unknown chunk remains rejected. |
-| Crash at every handover boundary | Crash during each role fence, extraction/import, destination verification, around directory CAS with a lost reply, and during cleanup. Restart both sides and send old direct requests/jobs/alarms. Prove at most one writer and one effect/material consumption. |
-| Blocking progress and network recovery | Confirm a move, lose the admission reply, and attempt actions from two devices. Interrupt transfer and status connectivity, reload the browser, and resume the same journal. The initiator's bounded move-only access survives signing-session retirement and permits only that move's status/exact replay. Reject wrong move, origin, expired credentials, and all signing/mutation attempts with this access. Lock clears the credential normally. After activation, authenticate again and sign while cleanup retries; another move remains blocked. |
-| Fresh-session accounting and same-home no-op | Exhaust an old session's allowance, relocate, and obtain a new session under normal issuance rules. Preserve old claims/results and wallet/tenant limits. No old exchange, quota, or credential is revived. Selecting the current home causes no session retirement, pool invalidation, or new allowance. |
-| Concurrent coordinators and blocked recovery | Run two coordinators against one running attempt and duplicate participant commands. Restart during import, exhaust retries, and invoke authenticated recovery after repair. Preserve command identities, manifest, committed chunks, and allowance history. Reject stale advancement and resource retargeting. Polling cannot reset the budget. |
-| Shared authority changes and repeated moves | Retire/refresh tenant-root state or revoke authority during a move, keep another wallet active, move back to the old region using fresh resources, and attempt isolated restoration of a pre-move snapshot. Shared policy/limits stay authoritative and old state cannot resume writes. |
-| Conflicting owner requests and cost guard | Race two devices/destinations, issue duplicate/same-home requests, cross the five-minute boundary, and retry failed stages. One active move, no duplicate regeneration/charges, and authoritative retry timing. R154 must later exercise this same admission guard. |
-| Hosted regional suitability | Verify destination resource/version identities and placement evidence independently from ingress colo. Measure pause, cold refill, warm signing, compute/load, and failure recovery; retain samples and failures. |
+| Owner admission and progress access / product E2E | Reject unauthenticated, partial-owner, expired/revoked, wrong-scope, stale-generation, and unsupported-destination requests before transfer. Preparation failure leaves placement, sessions, and cooldown unchanged. Exercise competing owner requests, same-home no-op, and exact replay after a lost admission reply and proof expiry/catalog change. During the pause, reload and reconnect with bounded move-only access. Reject signing, wrong move/origin, revoked authority, and expired access. Local lock clears the credential. Progress shows blocked recovery and never starts work or resets budgets. |
+| Two-device move and fresh signing / product E2E | Verify both curves before and after transfer. Keep one device offline through activation, then authenticate it again without enrollment replacement. Preserve addresses, permissions, revocations, and durable material. Reject old primary/hosted credentials, exchanges, linked deliveries, refresh, and sealed-session restore. Reconcile resident/durable caches across tabs and reloads. Include an exhausted old allowance and a lost signing response. Retrieve the original result with one effect/quota use, and issue fresh sessions under unchanged wallet/tenant limits. |
+| Frozen transfer and exact restore / production-store E2E | Delay refill through freeze, restart source roles, and run overdue alarms. No delayed material enters the frozen snapshot. Transfer binary values, NULL, full-width integers, consumed exchanges, expired/retired parents, exhausted quotas, and operation history. Exercise D1, DO SQL/KV, and mixed partitions. Lose chunk acknowledgements and replay after crashes before/after commit. Preserve exact digests, audit/quota state, and unrelated-wallet guards. Reject altered or mismatched chunks, missing/extra selected records, and wrong encryption context through production readers. Clear scoped restore permission atomically. |
+| Handover and recovery / composed E2E | Restart at the distinct boundaries above and reconcile concurrent coordinators using the same commands. An unresolved external effect keeps freeze incomplete. Direct calls, jobs, callbacks, and alarms cannot reopen the source. Lose directory-switch and activation replies, then fail cleanup. Fresh authentication and signing work after durable activation while another move stays blocked. Late known chunks return stored acknowledgements without overwriting new data. Unknown chunks fail. After a blocked attempt, repaired execution resumes the same manifest, resources, and committed chunks. |
+| Shared authority and return move / composed E2E | Change shared revocation/tenant-root authority during transfer and keep an unrelated wallet active. Activation/use must obey current authority. After cleanup and cooldown, return using a fresh generation and physical resources. Restore an old source snapshot in isolation and prove it cannot write, including when the directory is unavailable. |
+| Regional suitability / hosted E2E | Verify actual destination resource/configuration identities and placement independently from ingress location. Compare before/after signing from the same client location. Record pause duration, first-signature refill delay, subsequent signing latency, transfer bytes, and unrelated-wallet interference. Use existing telemetry for regeneration compute and transfer load. Do not create a separate benchmark framework or repeat the local fault matrix on every region. |
 
-Each run produces a repeatable artifact with both repository/build revisions,
-resource identities, move/generation transitions, hashes/counts, operation IDs,
-signature verification, quota/replay outcomes, fault points, and relevant timings.
-Exclude tokens, plaintext shares, role keys, and custody material. The existing
-[storage and authorization probes](refactor-153-backend-relocation-validation.md#evidence-and-limits)
-remain useful lower-level evidence; the full relocation gates remain unchecked.
+One assertion may satisfy several requirements. Reuse its result instead of adding
+another scenario. Narrow store/role scenarios use production paths and retain
+repeatable evidence. They do not substitute for the assembled two-device move.
+
+Each focused scenario writes one artifact using the existing test output format.
+Record the command, relevant build revisions, resource identities, and the
+assertions that scenario owns. Include generations, digests, operation IDs,
+signature results, quota outcomes, fault points, and timings only where relevant.
+Reference existing receipts instead of copying them into multiple reports.
+Exclude credentials, plaintext shares, role keys, and custody material.
+
+Acceptance requires correct ownership and preserved state, plus verified regional
+placement and measured latency. A few seconds remains a pause target, without an
+unmeasured hard deadline. Five minutes remains the admission limit. Change these
+values only when measurements justify it. Dedicated load tuning and exhaustive
+regional benchmarking are follow-up work if the hosted run exposes a problem.
