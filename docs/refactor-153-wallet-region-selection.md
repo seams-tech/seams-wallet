@@ -140,6 +140,18 @@ need participant-local effect fences and durable results. Rust role command
 transport, prepared-version pinning, and authenticated receipt production remain
 unfinished. Command admission alone grants no ordinary write authority.
 
+D1 admission now requires fresh source and destination resource proofs from the
+existing deployment verifier. Migration 0075 stores these proofs atomically with
+admission and makes them immutable. Commands require the recorded participant
+version and include it in their input digest. An exact admission replay retains
+the original proofs even after expiry. Failed resource preparation leaves the
+source active and creates no move. Migration requires earlier pending moves to
+finish first. Both directory E2Es, type checks, type fixtures, and focused lint
+pass. Evidence remains under private `.artifacts/r153/resource-admission-20261005/`.
+This verifies the D1 resource/version subset with synthetic provider checkpoints.
+It does not complete owner approval, schema/key checks, Rust role preparation,
+participant effects, or the full preparation gate.
+
 Retained evidence:
 `.artifacts/r153/execution-journal-20261004/`, receipt SHA-256
 `02184ddd17816901bf2413115c35ca33a43bd90a269fedaeffb7f6990d8af555`.
