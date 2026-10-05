@@ -369,7 +369,7 @@ pub(super) async fn handle_cloudflare_signing_worker_linked_ecdsa_presign_sessio
                 );
             }
         };
-        return match consume_linked_presignature(parsed, completed_records, storage).await {
+        return match consume_linked_presignature(parsed, completed_records, storage, env).await {
             Ok(response) => worker::Response::from_json(&response),
             Err(error) => presign_do_error_response(error),
         };
@@ -441,6 +441,21 @@ pub(super) async fn handle_cloudflare_signing_worker_linked_ecdsa_presign_sessio
 }
 
 const LINKED_PRESIGN_AUTHORITY_STORAGE_KEY: &str = "linked-presign-authority";
+
+async fn load_linked_presign_authority(
+    storage: &worker::Storage,
+) -> RouterAbProtocolResult<CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1> {
+    storage
+        .get(LINKED_PRESIGN_AUTHORITY_STORAGE_KEY)
+        .await
+        .map_err(durable_storage_protocol_error)?
+        .ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::ExpiredLocalRequest,
+                "Linked ECDSA presign authority is missing",
+            )
+        })
+}
 
 async fn claim_linked_presign_authority(
     storage: &worker::Storage,
@@ -541,16 +556,7 @@ async fn step_linked_presign_session(
     now_unix_ms: u64,
 ) -> RouterAbProtocolResult<CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionDoProgressV1> {
     input.validate_at(now_unix_ms)?;
-    let pinned: CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1 = storage
-        .get(LINKED_PRESIGN_AUTHORITY_STORAGE_KEY)
-        .await
-        .map_err(durable_storage_protocol_error)?
-        .ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ExpiredLocalRequest,
-                "Linked ECDSA presign authority is missing",
-            )
-        })?;
+    let pinned = load_linked_presign_authority(storage).await?;
     if pinned.wallet_scope != input.wallet_scope
         || pinned.presign_session_id != input.presign_session_id
         || pinned.request != input.request
@@ -752,6 +758,7 @@ async fn consume_linked_presignature(
     input: CloudflareSigningWorkerLinkedDeviceEcdsaPresignatureDoConsumeRequestV1,
     completed_records: &CloudflareSigningWorkerLinkedDeviceEcdsaCompletedPresignatureRecordsV1,
     storage: &worker::Storage,
+    _env: &worker::Env,
 ) -> RouterAbProtocolResult<CloudflareSigningWorkerLinkedDeviceEcdsaPresignatureDoConsumeResponseV1>
 {
     require_non_empty(
@@ -762,6 +769,17 @@ async fn consume_linked_presignature(
         "linked ECDSA presignature consume now_unix_ms",
         input.now_unix_ms,
     )?;
+    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    {
+        let pinned = load_linked_presign_authority(storage).await?;
+        if pinned.request.client_presignature_id != input.server_presignature_id {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidGateDecision,
+                "Linked ECDSA consume identity does not match initialized authority",
+            ));
+        }
+        require_pool_admission(_env, &pinned.wallet_scope).await?;
+    }
     completed_records
         .borrow_mut()
         .retain(|_, record| record.record.expires_at_ms > input.now_unix_ms);

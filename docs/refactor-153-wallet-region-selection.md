@@ -91,6 +91,12 @@ step identities, changed authority, changed expiry, and delayed steps during dra
 Separate presign-session KV
 records, linked-session history, existing Cloudflare sessions without wallet SQL
 claims, and aggregate participant freeze/transfer remain unfinished.
+Linked KV consumption in the wallet-DO backend now reads the pinned wallet
+authority and checks wallet admission before consuming or expiring a record.
+The client cannot select a different wallet for this check. Both Worker backend
+builds compile. This admission check does not settle work admitted before the
+pause: the participant still needs its local freeze barrier and drain receipt.
+Hosted execution of linked consumption remains unverified.
 
 
 ECDSA transfer preserves SQL integers through the Worker JavaScript boundary.
