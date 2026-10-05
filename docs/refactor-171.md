@@ -488,6 +488,12 @@ a declaration-level pass before declaring the migration complete.
   camera switching, stop, file-mode transition, and unmount with real media tracks.
   See `evidence/refactor-170-camera-api-20261005.json`.
 
+- [x] Rename Google authentication entry to `auth.startGoogleSignIn` across the
+  application client, host commands, hosted menu, docs example, and intended app.
+  Preserve the existing registration/login flow union and returned controls.
+  This closes the entry rename only; challenge consolidation, callback
+  internalization, and cancellation acceptance remain open.
+
 - [ ] Audit current declarations and consumers in public SDK, tests, examples,
   docs, and private Console. Classify each row as rename, consolidation, internal
   move, or intentional behavior change; record unresolved contract differences.

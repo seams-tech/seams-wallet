@@ -2423,7 +2423,7 @@ class IntendedPageController {
       signerSelection && !signerSelection.signers.some(isEvmFamilyEcdsaSigner)
         ? { kind: 'none', sdkTargets: { kind: 'none' }, chainTargets: [] }
         : this.emailOtpEcdsaTargetProfile;
-    const flowResult = await this.seams.auth.beginGoogleEmailOtpWalletAuth({
+    const flowResult = await this.seams.auth.startGoogleSignIn({
       idToken,
       mode: 'register',
       // The harness registers a fresh wallet per run against a persistent

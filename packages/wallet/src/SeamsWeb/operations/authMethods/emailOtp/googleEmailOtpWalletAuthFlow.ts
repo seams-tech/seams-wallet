@@ -637,7 +637,7 @@ function startGoogleEmailOtpRegistrationPrewarm(
   return { kind: 'started', completion };
 }
 
-export async function beginGoogleEmailOtpWalletAuth(
+export async function startGoogleSignIn(
   deps: GoogleEmailOtpWalletAuthDeps,
   input: GoogleEmailOtpWalletAuthStartInput,
 ): Promise<GoogleEmailOtpWalletAuthResult<GoogleEmailOtpWalletAuthFlow>> {

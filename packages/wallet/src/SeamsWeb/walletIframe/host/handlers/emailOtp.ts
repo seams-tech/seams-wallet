@@ -331,8 +331,8 @@ export function createEmailOtpWalletIframeHandlers(deps: HandlerDeps): HandlerMa
         assertNoGoogleRegistrationOtpFields(payloadRecord);
       }
       const payload = withProgress(deps, req.requestId, payloadRecord);
-      const result = await pm.auth.beginGoogleEmailOtpWalletAuth(
-        payload as Parameters<typeof pm.auth.beginGoogleEmailOtpWalletAuth>[0],
+      const result = await pm.auth.startGoogleSignIn(
+        payload as Parameters<typeof pm.auth.startGoogleSignIn>[0],
       );
       respondOkResult(deps, req.requestId, resultFlowToWire(result));
     },

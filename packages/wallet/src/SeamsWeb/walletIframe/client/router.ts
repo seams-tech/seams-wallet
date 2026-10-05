@@ -3705,7 +3705,7 @@ export class WalletIframeRouter {
     };
   }
 
-  async beginGoogleEmailOtpWalletAuth(
+  async startGoogleSignIn(
     payload: GoogleEmailOtpWalletAuthStartInput,
   ): Promise<GoogleEmailOtpWalletAuthResult<GoogleEmailOtpWalletAuthFlow>> {
     const { onDemoOtp, onEvent, ...wirePayload } = payload;

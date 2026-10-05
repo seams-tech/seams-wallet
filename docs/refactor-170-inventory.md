@@ -203,7 +203,7 @@ remove that dependency overlap while retaining these distinctions.
 | `auth.prefillRouterAbEcdsaDerivationPresignaturePool` | `walletIframe/client/sessionCommands.ts` → router prefill | H: session/presignature preparation with current R152 checks. R153 adds relocation fencing later. |
 | `auth.requestEmailOtpChallenge`, `requestEmailOtpSigningSessionChallenge`, `refreshEmailOtpSigningSession` | `SeamsWeb` domain methods → matching router requests | H: `host/handlers/emailOtp.ts`; challenge purpose and session scope remain distinct. |
 | `auth.loginWithEmailOtpEcdsaCapability`, `unlockAddedEmailOtpWallet` | Domain → login/unlock-added router methods | H: Email OTP handler and selected factor activation. |
-| `auth.beginGoogleEmailOtpWalletAuth` | Domain → router flow proxy | C proxy for H flow, including resend/reroll/submit/complete/cancel; callbacks and terminal results remain correlated to the flow. |
+| `auth.startGoogleSignIn` | Domain → router flow proxy | C proxy for H flow, including resend/reroll/submit/complete/cancel; callbacks and terminal results remain correlated to the flow. |
 | `registration.registerWallet`, `registerWithEmailOtp`, `registerPasskey` | `createPublicApi.ts` delegates to `client/registrationCommands.ts`; passkey builds registration input | H registration via `PM_REGISTER_WALLET`; preserve selected auth method and signer set. `registerWithEmailOtp` currently aliases `registerWallet`. |
 | `registration.addWalletSigner`, `addPasskey`, `addEmailOtp`, `revokeAuthMethod` | `client/registrationCommands.ts` → matching router messages | H registration/auth-method handlers; preserve exact authorization and effect/retry semantics. |
 | `registration.requestEmailOtpEnrollmentChallenge`, `enrollEmailOtp` | Domain → enrollment router requests | H Email OTP enrollment. |
@@ -2213,3 +2213,39 @@ boundaries, and build freshness passed. SDK production source: 6 lines added,
 20 removed (net -14). Repeatable evidence and command:
 `evidence/refactor-170-camera-api-20261005.json`. Broader React replacement and
 cross-browser acceptance remain open.
+
+
+### Google sign-in entry and returned-flow inventory (2026-10-05)
+
+`auth.startGoogleSignIn` replaces the old Google authentication entry across the
+client, runtime, hosted menu, docs example, and intended app. It preserves
+`GoogleEmailOtpWalletAuthStartInput` and the existing Result-style return union.
+Provider evidence remains the required `idToken`. Login requires a discoverable
+or exact-wallet target. Registration retains signer selection and backup policy.
+No compatibility alias or new protocol message is introduced.
+
+The returned flow owns the wallet identity, flow identity, expiry, and prompt.
+Applications select controls through its existing `mode`/`state` discriminants.
+
+| Branch | Public controls | Current ownership and behavior |
+| --- | --- | --- |
+| Both | `cancel()` | Host burns the flow's active flag. The client sends the bound handle, flow, wallet, and mode. |
+| Registration (`registration_ready`) | `completeRegistration()` | Uses the selected wallet and signer arguments. Successful persistence returns registration and session results. The client reconciles the exact wallet session. |
+| Registration (`registration_ready`) | `rerollWalletId()` | Returns a replacement registration flow and retires the prior flow. Preserves signer selection and started preparation. |
+| Login (`challenge_sent`) | `resend()` | Obtains a replacement challenge and returns a replacement login flow. Retires the old flow after the challenge succeeds. |
+| Login (`challenge_sent`) | `submit({ otpCode })` | Validates a six-digit code and performs the existing authority/curve-specific unlock. Successful client completion reconciles session state. |
+
+The host checks activity and expiry before each operation. This static inspection
+is insufficient to prove cancellation during an outstanding operation: liveness
+is checked before awaited work. Keep concurrent cancel/submit, repeat completion,
+expiry, and resend replacement acceptance open. The public callback `onDemoOtp`
+and hosted demo-delivery callback remain to be internalized. General Email OTP
+challenge/refresh methods and added-factor unlock still need their separate
+purpose and authority audit before consolidation.
+
+The renamed entry passed the production Email OTP lifecycle in 47.9 seconds and
+the exact-session router browser case in 1.7 seconds. Wallet, intended, browser,
+and docs types passed, as did the production build, packed declarations, bundle
+boundaries, and freshness check. The packed consumer rejects the removed entry.
+SDK production source remains line-neutral (18 added, 18 removed). Evidence:
+`evidence/refactor-170-google-sign-in-api-20261005.json`.

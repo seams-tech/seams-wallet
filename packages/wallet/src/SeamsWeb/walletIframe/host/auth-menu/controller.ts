@@ -356,7 +356,7 @@ export class AuthMenuController {
     signal: AbortSignal;
   }): Promise<GoogleEmailOtpWalletAuthFlow> {
     if (args.signal.aborted) throw new Error('Google sign-in was cancelled');
-    const result = await this.deps.getWalletRuntime().auth.beginGoogleEmailOtpWalletAuth({
+    const result = await this.deps.getWalletRuntime().auth.startGoogleSignIn({
       idToken: args.idToken,
       ...args.authTarget,
     });

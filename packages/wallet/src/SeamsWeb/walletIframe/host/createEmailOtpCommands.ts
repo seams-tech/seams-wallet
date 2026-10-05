@@ -46,7 +46,7 @@ import {
   resolveGoogleEmailOtpProvider,
 } from '@/SeamsWeb/operations/authMethods/emailOtp/challenge';
 import {
-  beginGoogleEmailOtpWalletAuth,
+  startGoogleSignIn,
   type GoogleEmailOtpLinkedUnlockSelection,
   type GoogleEmailOtpWalletAuthDeps,
 } from '@/SeamsWeb/operations/authMethods/emailOtp/googleEmailOtpWalletAuthFlow';
@@ -275,7 +275,7 @@ export function createWalletHostEmailOtpCommands(
       loginWithEmailOtpEcdsaCapability:
         commands.loginWithEmailOtpEcdsaCapabilityDomain.bind(commands),
       unlockAddedEmailOtpWallet: commands.loginWithLinkedEmailOtpWalletDomain.bind(commands),
-      beginGoogleEmailOtpWalletAuth: commands.beginGoogleEmailOtpWalletAuthDomain.bind(commands),
+      startGoogleSignIn: commands.startGoogleSignInDomain.bind(commands),
     },
     registration: {
       requestEmailOtpEnrollmentChallenge:
@@ -777,10 +777,10 @@ class HostEmailOtpCommands {
     this.deps.resumePendingAcknowledgements();
   }
 
-  async beginGoogleEmailOtpWalletAuthDomain(
-    args: Parameters<AuthCapability['beginGoogleEmailOtpWalletAuth']>[0],
-  ): ReturnType<AuthCapability['beginGoogleEmailOtpWalletAuth']> {
-    return await beginGoogleEmailOtpWalletAuth(
+  async startGoogleSignInDomain(
+    args: Parameters<AuthCapability['startGoogleSignIn']>[0],
+  ): ReturnType<AuthCapability['startGoogleSignIn']> {
+    return await startGoogleSignIn(
       {
         configs: this.deps.getContext().configs,
         resolveGoogleEmailOtpProvider: this.resolveGoogleEmailOtpProviderDomain.bind(this),

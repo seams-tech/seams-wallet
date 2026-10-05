@@ -46,7 +46,7 @@ export function createApplicationEmailOtpCommands(
       loginWithEmailOtpEcdsaCapability:
         commands.loginWithEmailOtpEcdsaCapabilityDomain.bind(commands),
       unlockAddedEmailOtpWallet: commands.loginWithLinkedEmailOtpWalletDomain.bind(commands),
-      beginGoogleEmailOtpWalletAuth: commands.beginGoogleEmailOtpWalletAuthDomain.bind(commands),
+      startGoogleSignIn: commands.startGoogleSignInDomain.bind(commands),
     },
     registration: {
       requestEmailOtpEnrollmentChallenge:
@@ -328,11 +328,11 @@ class ApplicationEmailOtpCommands {
     return;
   }
 
-  async beginGoogleEmailOtpWalletAuthDomain(
-    args: Parameters<AuthCapability['beginGoogleEmailOtpWalletAuth']>[0],
-  ): ReturnType<AuthCapability['beginGoogleEmailOtpWalletAuth']> {
+  async startGoogleSignInDomain(
+    args: Parameters<AuthCapability['startGoogleSignIn']>[0],
+  ): ReturnType<AuthCapability['startGoogleSignIn']> {
     const router = await this.walletIframe.requireRouter();
-    return await router.beginGoogleEmailOtpWalletAuth(args);
+    return await router.startGoogleSignIn(args);
   }
 
   async requestEmailOtpEnrollmentChallengeDomain(args: {

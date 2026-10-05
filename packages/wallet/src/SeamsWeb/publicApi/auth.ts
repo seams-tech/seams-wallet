@@ -20,7 +20,7 @@ export type EmailOtpCommandGroups = {
     | 'refreshEmailOtpSigningSession'
     | 'loginWithEmailOtpEcdsaCapability'
     | 'unlockAddedEmailOtpWallet'
-    | 'beginGoogleEmailOtpWalletAuth'
+    | 'startGoogleSignIn'
   >;
   registration: Pick<
     RegistrationCapability,

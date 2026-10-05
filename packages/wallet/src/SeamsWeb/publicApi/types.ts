@@ -755,7 +755,7 @@ export interface AuthCapability {
     otpCode: string;
     relayUrl: string;
   }): Promise<void>;
-  beginGoogleEmailOtpWalletAuth(
+  startGoogleSignIn(
     args: GoogleEmailOtpWalletAuthStartInput,
   ): Promise<GoogleEmailOtpWalletAuthResult<GoogleEmailOtpWalletAuthFlow>>;
 }

@@ -869,7 +869,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
 
           const statuses: Array<{ isLoggedIn: boolean; walletId: string | null }> = [];
           router.onSessionChange((state: WalletIframeExactSessionState) => statuses.push({ isLoggedIn: state.kind !== 'wallet_locked', walletId: state.kind === 'wallet_locked' ? null : state.walletId }));
-          const started = await router.beginGoogleEmailOtpWalletAuth({
+          const started = await router.startGoogleSignIn({
             idToken: 'google-id-token',
             mode: 'register',
           });
