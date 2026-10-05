@@ -121,19 +121,22 @@ properties](/concepts/threshold-signing/streaming-yao-ab#security-properties).
 
 ## Per-wallet regional homes
 
-Regional hosted deployments assign each new wallet its own US, WEUR, or APAC home using
+Regional hosted deployments assign each new wallet its own home using
 trusted registration-location metadata. Wallets in one project can have different homes.
 The directory routes later operations to that wallet's regional Gateway, wallet runtime,
-and signing roles. Regional D1 databases, Durable Objects, and Containers stay together.
+and signing roles. Wallet ownership remains fixed across these services. Verify physical
+placement for each service before claiming that all services run in the same region.
 
 All devices of one wallet use the same home. Travelling changes the client-to-home
 network distance and leaves the wallet's home fixed. Version 0.8.0 provides no
 user region selector or automatic relocation. Shared tenant authority remains
 separate from wallet-owned regional state.
 
-The development candidate adds an OC (Oceania) home. OC resource allocation and
-hosted placement verification remain pending. Version 0.8.0 has the three homes
-listed above.
+Staging now supports US, WEUR, APAC and OC (Oceania). The OC D1 primary serves from
+Sydney. Its Gateway and Wallet Runtime target Sydney. Production OC allocations
+remain pending. The published SDK remains at 0.8.0; this staging deployment adds
+OC without changing the public Wallet API. The next server package includes the
+`oc` data-jurisdiction type.
 
 ## Custody model
 

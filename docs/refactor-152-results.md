@@ -6039,3 +6039,93 @@ zero probe applications and zero probe DO namespaces.
 The APAC backend travel mirror is complete. Native full-browser travel timing,
 individual D1 attribution, the refill failure investigation and release gates
 remain open. No package was published by this measurement.
+
+### October 5: OC staging deployment and hosted travel
+
+OC staging is active in account `ba924da36f2ffc3839e8d323000b66b4`. Database
+`053da1ac-afa9-4f88-8e2b-b78b49c2310e` reports primary region **OC**, colo **SYD**.
+Gateway and Wallet Runtime target `aws:ap-southeast-2`. Protected activation
+[37290571181](https://github.com/seams-tech/seams-monorepo/actions/runs/37290571181)
+verified all four databases and both writer versions for each, preserving the
+browser key. Production OC allocation and the account switch remain pending.
+
+The hosted OC test passed in **6.9 minutes**. Four registrations overlapped for
+**19.337 seconds** and received independent OC, APAC, WEUR and US homes under one
+namespace. The OC wallet verified **15 Tempo travel signatures** through
+Sydney → Tokyo → Madrid → Atlanta → Sydney. NEAR signing and concurrent Tempo/Arc
+signing also passed. All **44 existing directory home records** were unchanged;
+the new OC wallet retained its OC database, active placement and generation 1.
+
+| Client location, same OC wallet | Samples | Median prepare + execute | Observed range |
+| --- | ---: | ---: | ---: |
+| Sydney (`syd08`) | 6 | 3.661s | 3.488–3.885s |
+| Tokyo (`nrt14`) | 3 | 3.412s | 3.343–3.446s |
+| Madrid (`mad01`) | 3 | 3.657s | 3.656–3.725s |
+| Atlanta (`atl15`) | 3 | 3.824s | 3.551–4.175s |
+
+These durations sum sequential signing prepare and execute requests measured
+inside each physical client Container. They include Gateway/custody processing
+and exclude the local-browser-to-probe hop. Custody roles retain their deployed
+0.8.0 builds and existing placement. This is an OC travel baseline, with no paired
+OC speedup claim or proof that every custody Container runs in Australia.
+Repeated samples within a wallet are correlated. Proxy-browser signing medians
+were 13.657s, 17.632s, 16.098s and 16.881s respectively. Proxy-browser unlocks took
+14.209s, 20.401s, 16.003s, 17.273s and 13.042s in travel order. These include the
+extra proxy hop and must not be compared with native browser latency.
+
+The passing run recorded five background refill HTTP 401 responses with code
+`wallet_session_invalid`. Every timed signing request returned 200 and verified.
+The first attempt verified 12 travel signatures before the Sydney identity
+endpoint returned HTTP 500 / Cloudflare 1101. Follow-up diagnostics found a probe
+restart error, `The container has not been started`. The temporary Worker now
+restores the idle timeout when a running DO restarts and sets it after starting a
+stopped Container. The bounded rerun had no probe exceptions. Failed-attempt
+records remain separate from the passing timing distribution.
+
+The default OC/APAC Container application selected Tokyo. The temporary Sydney
+probe used the [Durable Object scheduling policy](https://developers.cloudflare.com/containers/configuration/scheduling-policy/)
+and an OC DO location hint; its runtime identity confirmed `syd08`, region OC.
+The Worker used one fixed DO name per region and one-hour access expiry. Containers
+had ten-minute idle shutdown. This placement experiment changed no custody image.
+
+Source identities: private OC provisioning/migration commit `4afab65e`, activation
+and hosted-test commit `77fe76a4`, frozen Wallet harness/assets `0c536cd4`, Container
+server source `7349c6f`, image digest
+`sha256:4aca9529149f0cc138c02470cf27acf57e8438ebf9fbdc83226360fc52e60ec7`, and final
+probe Worker version `72be4561-c390-45ee-b541-a4dda51f6d23`. Deployed bundle hashes
+remain in `source.json`; these identify the tested binaries independently of
+concurrent later development commits.
+
+Private evidence is `.artifacts/oc/live-20261005/`: `summary.json`,
+`travel/regional-travel-oc.json`, `travel-run.log`, `source.json`,
+`oc-d1-primary.json`, before/after home records, `attempt-1/`, `budget.json`,
+`probe-usage-latest.json`, `cleanup.json`, and `SHA256SUMS`. Regenerate the analysis
+with `python3 .artifacts/oc/live-20261005/analyze.py` in the private repository.
+The hosted test uses the same frozen assets as the October 4 cohorts:
+
+```sh
+OC_EVIDENCE="$PWD/.artifacts/oc/live-20261005"
+SEAMS_WALLET_SERVER_CANDIDATE="$OC_EVIDENCE/sdk-source/packages/wallet-server" \
+SEAMS_HOSTED_PROJECTION="$OC_EVIDENCE/active-public-projection.json" \
+SEAMS_HOSTED_CANDIDATE_SITE="$PWD/.artifacts/r152/hosted-product-20261004/rebuild-site" \
+SEAMS_HOSTED_PROBE="$OC_EVIDENCE/probe-client.json" \
+SEAMS_TEST_ARTIFACT_DIR="$OC_EVIDENCE/travel" \
+SEAMS_INTENDED_PERSIST_TRACE=1 \
+SEAMS_INTENDED_TRACE_DIR="$OC_EVIDENCE/traces" \
+node /Users/pta/Dev/rust/seams-wallet/node_modules/playwright/cli.js test \
+  -c tests/playwright.hosted-product.config.mjs regional-travel.test.ts \
+  --grep 'oc home' --reporter=line
+```
+
+Reproduction requires newly authorized temporary probes: the original Worker,
+all five applications and all five DO namespaces were deleted after the test.
+Follow-up inventories verified zero remaining probe resources. Persistent OC
+staging Gateway, Runtime and D1 remain active.
+
+The Cloudflare cap was **$25 total**, with a **$1 test allowance**. Conservative
+account usage, full-month storage, the Workers Paid fee and test reserves totalled
+**$9.77** before testing. Four probe instances at full allocation for 70 minutes
+have a compute upper bound of **$0.3454**. Reported probe usage was **$0.0242** at
+cleanup, covering four default-policy applications; Sydney's direct-policy usage
+was absent from current analytics. Use the conservative reserve for budget
+checking. Analytics can lag billing and these estimates are not an invoice.

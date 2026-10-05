@@ -7,19 +7,27 @@ registration ingress selects OC. Later operations retain that wallet's home.
 The admission catalog requires US, WEUR, APAC and OC, with distinct databases.
 Regional Gateway and Wallet Runtime bindings, resource proofs, readiness checks
 and relocation admission include OC. Console migration `0072_wallet_oceania.sql`
-preserves wallet state and pending moves while expanding the region constraints.
+preserves populated routing records and pending moves while expanding the region
+constraints. Its temporary copy tables are removed after restoration.
 The Wallet Server data-jurisdiction type also accepts `oc`.
 
-All deployment lanes contain pending OC database allocations. Gateway and Runtime
-placement targets Sydney with `aws:ap-southeast-2`. No OC resources have been
-provisioned or deployed. The possible Cloudflare account change remains pending.
-Allocate fresh resource identities in the chosen account before deployment;
-existing account resource IDs cannot identify resources in a new account.
+Staging testnet is deployed and activated in the current Cloudflare account.
+Its OC database is `053da1ac-afa9-4f88-8e2b-b78b49c2310e`; a primary query
+reports region **OC** and colo **SYD**. Gateway and Runtime target Sydney with
+`aws:ap-southeast-2`. Protected activation
+[37290571181](https://github.com/seams-tech/seams-monorepo/actions/runs/37290571181)
+verified all four databases and both writer versions for each database, while
+preserving the browser key. Production OC allocations and the possible account
+change remain pending. Resource identities remain specific to the current account.
 
 D1 and Durable Objects support the `oc` location hint. Their placement hints are
 best effort. Cloudflare Containers support OC with limited capacity and require
-another allowed region unless dedicated OC capacity is available. Hosted OC
-placement and latency remain unmeasured. Preserve the earlier three-region
+another allowed region unless dedicated OC capacity is available. The default
+OC/APAC probe application selected Tokyo. A bounded, temporary probe using the
+Durable Object scheduling policy then reported Sydney (`syd08`, region OC).
+Custody roles retain their deployed 0.8.0 builds and existing placement. These
+facts establish OC D1 placement and Sydney client ingress; they do not prove
+that every custody Container runs in Australia. Preserve the earlier three-region
 measurements below as evidence for their recorded topology.
 
 Provider references: [D1 data location](https://developers.cloudflare.com/d1/configuration/data-location/),
@@ -139,9 +147,10 @@ Call/write reduction remains the separately planned optimization.
 
 #### Completed per-wallet hosted travel measurements
 
-October 4 hosted acceptance verified **12 Tempo travel signatures per wallet
-home**, plus NEAR and concurrent Tempo/Arc signing. Three concurrent registrations
-under one namespace selected independent US/WEUR/APAC homes. The table measures
+October 4 hosted acceptance verified **12 Tempo travel signatures per APAC and
+WEUR wallet home**, plus NEAR and concurrent Tempo/Arc signing. Three concurrent
+registrations under one namespace selected independent US/WEUR/APAC homes.
+The October 5 OC cohort extends this acceptance to four homes. The table measures
 the sum of the sequential signing prepare and execute requests inside physical
 regional Containers, excluding the browser-to-probe hop.
 
@@ -153,6 +162,19 @@ regional Containers, excluding the browser-to-probe hop.
 | WEUR | Madrid (`mad01`) | 6 | 3.733s | 3.452–4.054s |
 | WEUR | Chicago (`ord16`) | 3 | 3.544s | 3.513–3.826s |
 | WEUR | Tokyo (`nrt14`) | 3 | 3.455s | 3.406–3.549s |
+| OC | Sydney (`syd08`) | 6 | 3.661s | 3.488–3.885s |
+| OC | Tokyo (`nrt14`) | 3 | 3.412s | 3.343–3.446s |
+| OC | Madrid (`mad01`) | 3 | 3.657s | 3.656–3.725s |
+| OC | Atlanta (`atl15`) | 3 | 3.824s | 3.551–4.175s |
+
+The October 5 OC cohort passed **15 Tempo travel signatures**, NEAR signing and
+concurrent Tempo/Arc signing. Four registrations overlapped for **19.337s** and
+received independent OC/APAC/WEUR/US homes. All **44 existing home records** stayed
+unchanged. This adds an OC baseline; it supplies no paired OC placement speedup.
+The passing run recorded five background refill HTTP 401 responses with code
+`wallet_session_invalid`; all measured signing requests returned 200. Its failed
+first attempt and temporary probe restart correction remain in the evidence.
+[OC sources, budget and evidence](refactor-152-results.md#october-5-oc-staging-deployment-and-hosted-travel).
 
 The APAC cohort's remote-client median penalty was approximately **0.40s** for
 the two signing requests combined. The WEUR cohort observed comparable backend
