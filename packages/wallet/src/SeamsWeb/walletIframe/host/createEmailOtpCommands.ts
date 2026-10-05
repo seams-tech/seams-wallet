@@ -1,16 +1,17 @@
+import {
+  readPendingEcdsaRegistrationForWallet,
+  recoverPendingRegistration,
+} from '@/SeamsWeb/operations/registration/pendingRegistrationRecovery';
+import { resolveUnlockSessionPolicy } from '@/SeamsWeb/operations/auth/unlockSessionPolicy';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import type { ExactWalletSessionAuthorization } from '@/core/signingEngine/session/persistence/walletSessionAuthorizationProjection';
-import type {
-  CreateUnlockFlowEventInput,
-  UnlockFlowEvent,
-} from '@/core/types/sdkSentEvents';
+import type { CreateUnlockFlowEventInput, UnlockFlowEvent } from '@/core/types/sdkSentEvents';
 import { UnlockEventPhase } from '@/core/types/sdkSentEvents';
 import { IndexedDBManager } from '@/core/indexedDB';
 import { toError } from '@shared/utils/errors';
 import { parseWalletAuthMethodId, type WalletAuthMethodId } from '@shared/utils/domainIds';
 import { sha256HexUtf8 } from '@shared/utils/digests';
-import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
-import type { WalletEmailOtpLoginOperation } from '@shared/utils/emailOtpDomain';
 import {
   isEmailOtpWalletAuthAuthority,
   parseWalletAuthAuthorityRef,
@@ -23,9 +24,7 @@ import type {
   SeamsWebContext,
   RegistrationCapability,
 } from '@/SeamsWeb/signingSurface/types';
-import type {
-  LoginWithEmailOtpEcdsaCapabilityInternalResult,
-} from '@/core/signingEngine/flows/signEvmFamily/emailOtpPublic';
+import type { LoginWithEmailOtpEcdsaCapabilityInternalResult } from '@/core/signingEngine/flows/signEvmFamily/emailOtpPublic';
 import {
   type ThresholdEcdsaChainTarget,
   type WalletSessionRef,
@@ -42,6 +41,7 @@ import {
 } from '@/SeamsWeb/operations/authMethods/emailOtp/challenge';
 import {
   startGoogleSignIn,
+  requestEmailCode,
   type GoogleEmailOtpLinkedUnlockSelection,
   type GoogleEmailOtpWalletAuthDeps,
 } from '@/SeamsWeb/operations/authMethods/emailOtp/googleEmailOtpWalletAuthFlow';
@@ -59,7 +59,7 @@ import {
 import type { ActiveEmailOtpWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import { type NearEd25519SignerBinding } from '@shared/utils/walletCapabilityBindings';
 import type { WalletAuthorityProvenanceV1 } from '@shared/authorization/walletAuthority';
-import type { EmailOtpAuthCommands } from '@/SeamsWeb/publicApi/auth';
+import { unlockWithEmailCode, type EmailOtpAuthCommands } from '@/SeamsWeb/publicApi/auth';
 import {
   type InternalEmailOtpEcdsaCapabilityArgs,
   type EmailOtpUnlockTimingBucket,
@@ -259,10 +259,8 @@ export function createWalletHostEmailOtpCommands(
 ): EmailOtpAuthCommands {
   const commands = new HostEmailOtpCommands(deps);
   return {
-    requestEmailCode: commands.requestEmailCodeDomain.bind(commands),
-    loginWithEmailOtpEcdsaCapability:
-      commands.loginWithEmailOtpEcdsaCapabilityDomain.bind(commands),
-    unlockAddedEmailOtpWallet: commands.loginWithLinkedEmailOtpWalletDomain.bind(commands),
+    requestEmailCode: commands.requestEmailCode.bind(commands),
+    unlockWithEmailCode,
     startGoogleSignIn: commands.startGoogleSignInDomain.bind(commands),
   };
 }
@@ -287,12 +285,10 @@ class HostEmailOtpCommands {
       .signingEngine.readOwnerScopedSigningLanes(input, new WalletSessionStatusReadScope());
   }
 
-  async requestEmailCodeDomain(args: {
+  private async requestUnlockChallenge(args: {
     walletId: string;
     walletAuthMethodId?: string;
     relayUrl?: string;
-    operation?: WalletEmailOtpLoginOperation;
-    operationFingerprintDigest?: DigestB64u;
     onEvent?: (event: UnlockFlowEvent) => void;
   }): Promise<EmailOtpOperationChallengeResult> {
     const flowId = emailOtpUnlockFlowId(args.walletId);
@@ -327,10 +323,6 @@ class HostEmailOtpCommands {
         ).trim(),
         walletId: String(args.walletId || '').trim(),
         walletAuthMethodId,
-        ...(args.operation ? { operation: args.operation } : {}),
-        ...(args.operationFingerprintDigest
-          ? { operationFingerprintDigest: args.operationFingerprintDigest }
-          : {}),
       });
       emitEmailOtpUnlockEvent(args.onEvent, {
         flowId: emailOtpUnlockFlowId(args.walletId, result.challengeId),
@@ -618,7 +610,7 @@ class HostEmailOtpCommands {
     }
   }
 
-  async loginWithLinkedEmailOtpWalletDomain(args: {
+  private async loginWithLinkedEmailOtpWalletDomain(args: {
     walletId: string;
     walletAuthMethodId: string;
     email: string;
@@ -627,6 +619,42 @@ class HostEmailOtpCommands {
     otpCode: string;
     relayUrl: string;
   }): Promise<void> {
+    const pending = await readPendingEcdsaRegistrationForWallet(walletIdFromString(args.walletId));
+    if (pending) {
+      if (
+        pending.auth.kind !== 'email_otp' ||
+        pending.walletAuthMethodId !== args.walletAuthMethodId ||
+        pending.auth.email !== args.email.trim().toLowerCase() ||
+        pending.auth.providerSubject !== args.providerSubjectId
+      ) {
+        throw new Error('Pending registration requires its exact email authentication method');
+      }
+      const context = this.deps.getContext();
+      const sessionPolicy = resolveUnlockSessionPolicy({
+        defaults: context.configs.signing.sessionDefaults,
+        override: undefined,
+      });
+      if (sessionPolicy.kind === 'disabled') {
+        throw new Error('Pending registration recovery requires an enabled signing session policy');
+      }
+      await recoverPendingRegistration({
+        relayerUrl: args.relayUrl,
+        sessionPolicy,
+        pending,
+        exactMethod: { kind: 'email_otp', challengeId: args.challengeId, otpCode: args.otpCode },
+        signingSurface: context.signingEngine,
+        nearContext: context,
+        nearCompletion: 'await',
+        onEvent: undefined,
+      });
+      context.signingEngine.setWalletAuthenticated({
+        kind: 'authenticated',
+        walletId: pending.walletId,
+        authMethod: 'email_otp',
+      });
+      this.deps.resumePendingAcknowledgements();
+      return;
+    }
     const emailHashHex = await this.emailOtpEmailHashHex(args.email);
     await unlockLinkedDeviceEmailOtpWallet({
       context: this.deps.getContext(),
@@ -641,25 +669,32 @@ class HostEmailOtpCommands {
     this.deps.resumePendingAcknowledgements();
   }
 
+  async requestEmailCode(
+    args: Parameters<AuthCapability['requestEmailCode']>[0],
+  ): ReturnType<AuthCapability['requestEmailCode']> {
+    return await requestEmailCode(this.flowDependencies(), args);
+  }
+
   async startGoogleSignInDomain(
     args: Parameters<AuthCapability['startGoogleSignIn']>[0],
   ): ReturnType<AuthCapability['startGoogleSignIn']> {
-    return await startGoogleSignIn(
-      {
-        configs: this.deps.getContext().configs,
-        resolveGoogleEmailOtpProvider: this.resolveGoogleEmailOtpProviderDomain.bind(this),
-        requestEmailOtpChallenge: this.requestEmailCodeDomain.bind(this),
-        prewarmEmailOtpYao: this.prewarmEmailOtpYaoDomain.bind(this),
-        registerWallet: this.deps.registerWallet,
-        loginWithEmailOtpEcdsaCapability: this.loginWithEmailOtpEcdsaCapabilityDomain.bind(this),
-        loginWithEmailOtpEd25519YaoCapability:
-          this.loginWithEmailOtpEd25519YaoCapabilityDomain.bind(this),
-        resolveLinkedEmailOtpWalletAuth: this.resolveLinkedEmailOtpWalletAuthDomain.bind(this),
-        loginWithLinkedEmailOtpWallet: this.loginWithLinkedEmailOtpWalletDomain.bind(this),
-        getWalletSession: this.getGoogleEmailOtpWalletSessionDomain.bind(this),
-      },
-      args,
-    );
+    return await startGoogleSignIn(this.flowDependencies(), args);
+  }
+
+  private flowDependencies(): GoogleEmailOtpWalletAuthDeps {
+    return {
+      configs: this.deps.getContext().configs,
+      resolveGoogleEmailOtpProvider: this.resolveGoogleEmailOtpProviderDomain.bind(this),
+      requestEmailOtpChallenge: this.requestUnlockChallenge.bind(this),
+      prewarmEmailOtpYao: this.prewarmEmailOtpYaoDomain.bind(this),
+      registerWallet: this.deps.registerWallet,
+      loginWithEmailOtpEcdsaCapability: this.loginWithEmailOtpEcdsaCapabilityDomain.bind(this),
+      loginWithEmailOtpEd25519YaoCapability:
+        this.loginWithEmailOtpEd25519YaoCapabilityDomain.bind(this),
+      resolveLinkedEmailOtpWalletAuth: this.resolveLinkedEmailOtpWalletAuthDomain.bind(this),
+      loginWithLinkedEmailOtpWallet: this.loginWithLinkedEmailOtpWalletDomain.bind(this),
+      getWalletSession: this.getGoogleEmailOtpWalletSessionDomain.bind(this),
+    };
   }
 
   private async resolveGoogleEmailOtpProviderDomain(
@@ -684,6 +719,24 @@ class HostEmailOtpCommands {
     provider: 'google' | 'email';
     providerSubjectId: string;
   }): Promise<GoogleEmailOtpLinkedUnlockSelection> {
+    const pending = await readPendingEcdsaRegistrationForWallet(walletIdFromString(args.walletId));
+    if (pending) {
+      if (
+        pending.auth.kind !== 'email_otp' ||
+        pending.auth.email !== args.email.trim().toLowerCase() ||
+        pending.auth.providerSubject !== args.providerSubjectId
+      ) {
+        return {
+          kind: 'rejected',
+          message: 'Pending registration requires its exact email authentication method',
+        };
+      }
+      return {
+        kind: 'selected',
+        walletAuthMethodId: pending.walletAuthMethodId,
+        execution: 'authority',
+      };
+    }
     const emailHashHex = await this.emailOtpEmailHashHex(args.email);
     const resolution = await resolveLinkedDeviceEmailOtpAuthoritySelection({
       walletIdInput: args.walletId,
@@ -714,7 +767,7 @@ class HostEmailOtpCommands {
               method.status === 'active' &&
               method.emailHashHex.toLowerCase() === emailHashHex &&
               isEmailOtpWalletAuthAuthority(method.authority) &&
-              method.authority.factor.provider === 'google' &&
+              method.authority.factor.provider === args.provider &&
               method.authority.factor.providerUserId === args.providerSubjectId
             ) {
               exactLocalFactors.push(method);
@@ -763,7 +816,7 @@ class HostEmailOtpCommands {
         }
         await resolveExactLinkedEmailOtpAuthority({
           authMethod: foundingMethod,
-          provider: 'google',
+          provider: args.provider,
           providerSubjectId: args.providerSubjectId,
         });
         return {

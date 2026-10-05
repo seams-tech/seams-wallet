@@ -29,8 +29,6 @@ import type {
   WalletSessionRef,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { EmailOtpAuthPolicy } from '@/core/types/seams';
-import type { WalletEmailOtpLoginOperation } from '@shared/utils/emailOtpDomain';
-import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { WalletCustodyAdminOperation } from '@shared/authorization/walletCustodyOperation';
 import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
 import type {
@@ -47,7 +45,7 @@ import type {
   GoogleEmailOtpWalletAuthResolvedMode,
   GoogleEmailOtpWalletAuthRequestedMode,
   GoogleEmailOtpWalletAuthSubmitSuccess,
-  EmailOtpEcdsaCapabilityArgs,
+  RequestEmailCodeInput,
   WalletRecoveryRotationAuthorization,
 } from '@/SeamsWeb/publicApi/types';
 import type { WalletId } from '@shared/utils/registrationIntent';
@@ -800,7 +798,7 @@ export function parseHostedAuthMenuOutcome(value: unknown): HostedAuthMenuOutcom
   }
 }
 
-export const WALLET_PROTOCOL_VERSION = '13.0.0' as const;
+export const WALLET_PROTOCOL_VERSION = '14.0.0' as const;
 
 export const WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH =
   'WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH' as const;
@@ -824,7 +822,6 @@ export type ParentToChildType =
   | 'PM_ADD_PASSKEY'
   | 'PM_ADD_EMAIL_OTP'
   | 'PM_REVOKE_AUTH_METHOD'
-  | 'PM_UNLOCK_ADDED_EMAIL_OTP_WALLET'
   | 'PM_UNLOCK'
   | 'PM_LOCK'
   | 'PM_LOCK_EXACT_WALLET_SESSION'
@@ -838,7 +835,6 @@ export type ParentToChildType =
   | 'PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_SUBMIT'
   | 'PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_COMPLETE_REGISTRATION'
   | 'PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_CANCEL'
-  | 'PM_LOGIN_EMAIL_OTP_ECDSA_CAPABILITY'
   | 'PM_GET_WALLET_RECOVERY_CODE_STATUS'
   | 'PM_ACKNOWLEDGE_WALLET_RECOVERY_CODE_BACKUP'
   | 'PM_ROTATE_WALLET_RECOVERY_CODES'
@@ -1057,16 +1053,6 @@ interface PMAddEmailOtpPayload {
   walletId: WalletId | string;
   emailAddress: string;
   options?: Record<string, unknown>;
-}
-
-interface PMUnlockAddedEmailOtpWalletPayload {
-  walletId: string;
-  walletAuthMethodId: string;
-  email: string;
-  providerSubjectId: string;
-  challengeId: string;
-  otpCode: string;
-  relayUrl: string;
 }
 
 interface PMRevokeAuthMethodPayload {
@@ -1314,14 +1300,9 @@ export type PMGetExactWalletSessionStatePayload =
         | { readonly kind: 'exact'; readonly walletId: string };
     };
 
-interface PMEmailOtpChallengePayload {
-  walletId: string;
-  walletAuthMethodId?: string;
-  relayUrl?: string;
-  operation?: WalletEmailOtpLoginOperation;
-  operationFingerprintDigest?: DigestB64u;
-}
-
+type PMEmailOtpChallengePayload =
+  | Omit<Extract<RequestEmailCodeInput, { method: 'google' }>, 'onEvent'>
+  | Omit<Extract<RequestEmailCodeInput, { method: 'email' }>, 'onEvent'>;
 
 interface PMWalletRecoverySessionPayload {
   walletId: string;
@@ -1337,23 +1318,6 @@ interface PMRequestWalletCustodyEmailOtpChallengePayload {
 
 interface PMRotateWalletRecoveryCodesPayload extends PMWalletRecoverySessionPayload {
   authorization: WalletRecoveryRotationAuthorization;
-}
-
-export interface PMEmailOtpEcdsaCapabilityPayload {
-  walletSession: WalletSessionRef;
-  walletAuthMethodId: EmailOtpEcdsaCapabilityArgs['walletAuthMethodId'];
-  chainTarget: ThresholdEcdsaChainTarget;
-  keyHandle: string;
-  providerIdentity: EmailOtpEcdsaCapabilityArgs['providerIdentity'];
-  publicationChainTargets?: readonly ThresholdEcdsaChainTarget[];
-  emailOtpAuthPolicy?: EmailOtpAuthPolicy;
-  relayUrl?: string;
-  challengeId?: string;
-  otpCode: string;
-  groupId?: string;
-  walletSessionToken?: never;
-  registrationAttemptId?: string;
-  emailOtpAuthorityEmail?: string;
 }
 
 interface PMHasPasskeyPayload {
@@ -1635,7 +1599,6 @@ export type ParentToChildEnvelope =
   | RpcEnvelope<'PM_ADD_PASSKEY', PMAddPasskeyPayload>
   | RpcEnvelope<'PM_ADD_EMAIL_OTP', PMAddEmailOtpPayload>
   | RpcEnvelope<'PM_REVOKE_AUTH_METHOD', PMRevokeAuthMethodPayload>
-  | RpcEnvelope<'PM_UNLOCK_ADDED_EMAIL_OTP_WALLET', PMUnlockAddedEmailOtpWalletPayload>
   | RpcEnvelope<'PM_UNLOCK', PMUnlockPayload>
   | RpcEnvelope<'PM_LOCK'>
   | RpcEnvelope<'PM_LOCK_EXACT_WALLET_SESSION', WalletIframeExactSessionIdentity>
@@ -1655,7 +1618,6 @@ export type ParentToChildEnvelope =
       PMGoogleEmailOtpWalletAuthHandlePayload
     >
   | RpcEnvelope<'PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_CANCEL', PMGoogleEmailOtpWalletAuthHandlePayload>
-  | RpcEnvelope<'PM_LOGIN_EMAIL_OTP_ECDSA_CAPABILITY', PMEmailOtpEcdsaCapabilityPayload>
   | RpcEnvelope<'PM_GET_WALLET_RECOVERY_CODE_STATUS', PMWalletRecoverySessionPayload>
   | RpcEnvelope<'PM_ACKNOWLEDGE_WALLET_RECOVERY_CODE_BACKUP', PMWalletRecoverySessionPayload>
   | RpcEnvelope<'PM_ROTATE_WALLET_RECOVERY_CODES', PMRotateWalletRecoveryCodesPayload>

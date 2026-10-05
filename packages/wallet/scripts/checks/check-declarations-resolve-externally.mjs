@@ -61,7 +61,8 @@ import { SeamsWeb } from '@seams/wallet';
 import { ExternalEvmController } from '@seams/wallet/external-evm';
 declare const seams: SeamsWeb;
 void seams.auth.getSession();
-void seams.auth.requestEmailCode({ walletId: 'wallet.testnet' });
+const challenge = await seams.auth.requestEmailCode({ method: 'email', walletId: 'wallet.testnet', email: 'owner@example.com' });
+if (challenge.ok) await seams.auth.unlockWithEmailCode({ challenge: challenge.value, code: '123456' });
 // @ts-expect-error Custom UI requests email codes through one public method.
 void seams.auth.requestEmailOtpChallenge;
 // @ts-expect-error Test funding is internal to confirmed NEAR signing.

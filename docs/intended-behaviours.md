@@ -1509,8 +1509,18 @@ returns ready, retryable failure, or timeout; abort rejects and releases its
 subscription. A pending NEAR account does not block available EVM-family signing.
 
 
-Custom email-code UI requests delivery through `auth.requestEmailCode`. Its result
-retains the challenge ID, exact authentication method, signer selection, delivery,
-and owner-proof binding. An operation-bound request retains its operation and
-fingerprint; renaming the call does not convert that proof into an unlock proof.
-The hosted Google flow continues to manage challenge delivery internally.
+Custom email-code UI requests delivery through `auth.requestEmailCode`. Use
+`{ method: 'google', idToken, target }` for Google, or
+`{ method: 'email', walletId, email }` for an existing local email method.
+The successful result contains a host-owned challenge flow. Submit the code with
+`auth.unlockWithEmailCode({ challenge: result.value, code })`.
+The host retains the exact wallet, method, signer selection, and unlock purpose.
+The SDK handles ECDSA, NEAR-only, added-method, and pending activation internally.
+Operation-bound signing and device-removal proofs remain internal to their operations.
+
+A challenge supports `resend()` and `cancel()`. Successful resend replaces the
+old challenge. Expired or cancelled challenges cannot unlock. One operation can
+use a challenge at a time. Cancellation before submission retires the challenge.
+Cancellation during submission rejects because the host already owns that operation.
+A successful submission ends the flow. Recoverable failures permit a retry while
+the challenge remains valid. The hosted Google flow uses the same execution path.

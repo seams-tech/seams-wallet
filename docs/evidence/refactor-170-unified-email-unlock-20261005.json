@@ -1,0 +1,85 @@
+{
+  "task": "R170/R171 unified email unlock",
+  "baseRevision": "cedae5e4fb390e3c889ef4cd21cd02e8bfa9c4a2",
+  "protocolVersion": "14.0.0",
+  "buildInputsHash": "07247668044e49c94ebc0ffe441aa2cfb8d3dda200b126af3a6b1ce37b3e4349",
+  "emittedEsmSha256": "d2702f057b1114d5cd15912cea71b27cdb9ff64e959ff591aa78f14f98fc34c4",
+  "publicApi": [
+    "auth.requestEmailCode({ method: google, idToken, target })",
+    "auth.requestEmailCode({ method: email, walletId, email })",
+    "auth.unlockWithEmailCode({ challenge, code })",
+    "auth.startGoogleSignIn(input)"
+  ],
+  "removed": [
+    "auth.loginWithEmailOtpEcdsaCapability",
+    "auth.unlockAddedEmailOtpWallet",
+    "PM_LOGIN_EMAIL_OTP_ECDSA_CAPABILITY",
+    "PM_UNLOCK_ADDED_EMAIL_OTP_WALLET"
+  ],
+  "ownership": "The host retains challenge identity, exact method, signer selection, relay routing, unlock execution, and pending activation. The application retains a proxy to the existing flow handle. Operation-bound removal and signing proofs use their own internal authorization paths.",
+  "flowSemantics": [
+    "Expired codes fail before unlock requests.",
+    "Resend replaces the old flow.",
+    "Cancellation before submission retires the flow.",
+    "Concurrent submit/resend is rejected. Cancellation while an operation owns the flow rejects.",
+    "Failed code submission permits retry until expiry; successful submission ends the flow."
+  ],
+  "production": {
+    "command": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/email-otp.challenge-expiry.contract.test.ts",
+    "cases": [
+      {
+        "scenario": "hosted challenge expiry and resend",
+        "result": "passed",
+        "seconds": 33.8
+      },
+      {
+        "scenario": "custom mixed NEAR/EVM unlock",
+        "result": "passed",
+        "seconds": 33.6
+      },
+      {
+        "scenario": "custom NEAR-only unlock",
+        "result": "passed",
+        "seconds": 32.3
+      },
+      {
+        "scenario": "custom added email method unlock",
+        "result": "passed",
+        "seconds": 35.1
+      },
+      {
+        "scenario": "pending ECDSA activation after reload and original-wallet signing",
+        "result": "passed",
+        "seconds": 28.1
+      }
+    ],
+    "artifacts": [
+      ".artifacts/r170/email-challenge-expiry.json",
+      ".artifacts/r170/custom-mixed-email-unlock.json",
+      ".artifacts/r170/custom-near_only-email-unlock.json",
+      ".artifacts/r170/custom-added_email-email-unlock.json",
+      ".artifacts/r170/pending-email-unlock.json"
+    ]
+  },
+  "handshake": {
+    "result": "5 passed",
+    "seconds": 2.5
+  },
+  "checks": [
+    "wallet type-check",
+    "intended type-check",
+    "wallet-state type fixtures",
+    "wallet-browser type-check",
+    "docs type-check",
+    "production build",
+    "packed external declarations and isolated core install",
+    "runtime-entry bundle assertions",
+    "build freshness",
+    "bloat check"
+  ],
+  "limits": [
+    "Local production assets and managed local gateway. No deployment or publication.",
+    "Pending activation evidence covers ECDSA-only response loss; existing mixed NEAR continuation evidence remains separate.",
+    "No month-later clock simulation or deployed compression measurement."
+  ]
+}

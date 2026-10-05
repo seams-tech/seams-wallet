@@ -127,6 +127,7 @@ export type {
   GoogleEmailOtpWalletAuthFlow,
   GoogleEmailOtpWalletAuthLoginTarget,
   GoogleEmailOtpWalletAuthLoginFlow,
+  RequestEmailCodeInput,
   GoogleEmailOtpWalletAuthPromptCopy,
   GoogleEmailOtpWalletAuthRegistrationCompleted,
   GoogleEmailOtpWalletAuthRegistrationFlow,

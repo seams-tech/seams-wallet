@@ -10,7 +10,12 @@ export type WalletSessionCommands = Pick<
 export type EmailOtpAuthCommands = Pick<
   AuthCapability,
   | 'requestEmailCode'
-  | 'loginWithEmailOtpEcdsaCapability'
-  | 'unlockAddedEmailOtpWallet'
+  | 'unlockWithEmailCode'
   | 'startGoogleSignIn'
 >;
+
+export async function unlockWithEmailCode(
+  args: Parameters<AuthCapability['unlockWithEmailCode']>[0],
+): ReturnType<AuthCapability['unlockWithEmailCode']> {
+  return await args.challenge.submit({ otpCode: args.code });
+}

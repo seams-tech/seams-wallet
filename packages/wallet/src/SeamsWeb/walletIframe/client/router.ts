@@ -1,3 +1,4 @@
+import type { AuthCapability } from '@/SeamsWeb/publicApi/types';
 import type {
   SigningEngineResolveExactKeyExportLaneInput as ResolveExactKeyExportLaneInput,
   SigningEngineResolveExactKeyExportLaneResult as ResolveExactKeyExportLaneResult,
@@ -82,7 +83,6 @@ import {
 } from '../shared/messages';
 import { SignedTransaction } from '@/core/rpcClients/near/NearClient';
 import { OnEventsProgressBus } from './progress/on-events-progress-bus';
-import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type {
   AfterCall,
   LinkDeviceFlowEvent,
@@ -176,9 +176,6 @@ import type {
   WalletRecoveryRotationOutcome,
 } from '@/SeamsWeb/publicApi/types';
 import type {
-  EmailOtpOperationChallengeResult,
-  EmailOtpEcdsaCapabilityArgs,
-  EmailOtpEcdsaCapabilityResult,
   GoogleEmailOtpWalletAuthFlow,
   GoogleEmailOtpWalletAuthRegistrationCompleted,
   GoogleEmailOtpWalletAuthRegistrationFlow,
@@ -270,7 +267,6 @@ import { joinNormalizedUrl, stripTrailingSlashes } from '@shared/utils/normalize
 import { needsExplicitActivation } from '@/utils/deviceDetection';
 import { type ConfirmationConfig } from '@/core/types/signer-worker';
 import type { SignNEP413MessageResult } from '@/SeamsWeb/operations/near/signNEP413';
-import type { WalletEmailOtpLoginOperation } from '@shared/utils/emailOtpDomain';
 import type { LoginUnlockRequest } from '@/core/types/login.types';
 import { buildPMUnlockPayload } from '../shared/unlockOptions';
 import type { WalletId } from '@shared/utils/domainIds';
@@ -873,23 +869,6 @@ function walletIframeExportPayload(
   }
 }
 
-const EMAIL_OTP_APP_ORIGIN_FORBIDDEN_RESULT_KEYS = new Set([
-  'S',
-  'secretS',
-  'recoveredS',
-  'recoveredSB64u',
-  'recoveryKeys',
-  'clientSecret32',
-  'clientRootShare32',
-  'clientRootShare32B64u',
-  'clientAdditiveShare32',
-  'clientAdditiveShare32B64u',
-  'clientSigningShare32',
-  'clientSigningShare32B64u',
-  'kShareB64u',
-  'sigmaShareB64u',
-]);
-
 type PostResult<T> = {
   ok: boolean;
   result: T;
@@ -1182,7 +1161,6 @@ function createTerminalProgressForRequest(args: {
   const unlockRequests = new Set<ParentToChildEnvelope['type']>([
     'PM_UNLOCK',
     'PM_REQUEST_EMAIL_OTP_CHALLENGE',
-    'PM_LOGIN_EMAIL_OTP_ECDSA_CAPABILITY',
   ]);
   const signingRequests = new Set<ParentToChildEnvelope['type']>([
     'PM_SIGN_TX_WITH_ACTIONS',
@@ -1241,24 +1219,6 @@ function createTerminalProgressForRequest(args: {
     });
   }
   return null;
-}
-
-function sanitizeEmailOtpIframeResult<T>(value: T): T {
-  if (Array.isArray(value)) {
-    return value.map((entry) => sanitizeEmailOtpIframeResult(entry)) as T;
-  }
-  if (!isObject(value)) {
-    return value;
-  }
-
-  const out: Record<string, unknown> = {};
-  for (const [key, entry] of Object.entries(value)) {
-    if (EMAIL_OTP_APP_ORIGIN_FORBIDDEN_RESULT_KEYS.has(key)) {
-      continue;
-    }
-    out[key] = sanitizeEmailOtpIframeResult(entry);
-  }
-  return out as T;
 }
 
 const CANONICAL_SIGNER_BOUNDARY_MESSAGES: Record<string, string> = {
@@ -3471,21 +3431,19 @@ export class WalletIframeRouter {
     }
   }
 
-  async requestEmailOtpChallenge(payload: {
-    walletId: string;
-    walletAuthMethodId?: string;
-    relayUrl?: string;
-    operation?: WalletEmailOtpLoginOperation;
-    operationFingerprintDigest?: DigestB64u;
-    onEvent?: (ev: UnlockFlowEvent) => void;
-  }): Promise<EmailOtpOperationChallengeResult> {
+  async requestEmailCode(
+    payload: Parameters<AuthCapability['requestEmailCode']>[0],
+  ): ReturnType<AuthCapability['requestEmailCode']> {
     const { onEvent, ...wirePayload } = payload;
-    const res = await this.post<EmailOtpOperationChallengeResult>({
+    const res = await this.post<PMGoogleEmailOtpWalletAuthWireResult<PMGoogleEmailOtpWalletAuthWireFlow>>({
       type: 'PM_REQUEST_EMAIL_OTP_CHALLENGE',
       payload: wirePayload,
       options: { onProgress: this.wrapOnEvent(onEvent, isUnlockFlowEvent) },
     });
-    return res.result;
+    if (!res.result.ok) return res.result;
+    const flow = this.googleEmailOtpWalletAuthFlowFromWire(res.result.value);
+    if (flow.mode !== 'login') throw new Error('Email code request returned a registration flow');
+    return { ok: true, value: flow };
   }
 
   private googleEmailOtpWalletAuthFlowFromWire(
@@ -3659,43 +3617,6 @@ export class WalletIframeRouter {
           value: this.googleEmailOtpWalletAuthFlowFromWire(res.result.value),
         }
       : res.result;
-  }
-
-  async unlockAddedEmailOtpWallet(payload: {
-    walletId: string;
-    walletAuthMethodId: string;
-    email: string;
-    providerSubjectId: string;
-    challengeId: string;
-    otpCode: string;
-    relayUrl: string;
-  }): Promise<void> {
-    await this.post<{ ok: true }>({
-      type: 'PM_UNLOCK_ADDED_EMAIL_OTP_WALLET',
-      payload,
-    });
-    await this.refreshExactSessionAndEmitChange('current', { kind: 'current' });
-  }
-
-  async loginWithEmailOtpEcdsaCapability(
-    payload: EmailOtpEcdsaCapabilityArgs & {
-      publicationChainTargets?: readonly ThresholdEcdsaChainTarget[];
-    },
-  ): Promise<EmailOtpEcdsaCapabilityResult> {
-    const { onEvent, ...wirePayload } = payload;
-    const res = await this.post<EmailOtpEcdsaCapabilityResult>(
-      {
-        type: 'PM_LOGIN_EMAIL_OTP_ECDSA_CAPABILITY',
-        payload: wirePayload,
-        options: { onProgress: this.wrapOnEvent(onEvent, isUnlockFlowEvent) },
-      },
-      {
-        timeoutMs: WALLET_IFRAME_THRESHOLD_SIGNING_TIMEOUT_MS,
-        progressTimeoutExtensionFactor: 1,
-      },
-    );
-    await this.refreshExactSessionAndEmitChange('current', { kind: 'current' });
-    return sanitizeEmailOtpIframeResult(res.result);
   }
 
   async getCodeStatus(payload: {

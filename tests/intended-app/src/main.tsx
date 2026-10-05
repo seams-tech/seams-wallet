@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { SeamsWebProvider, TransactionReviewHost, defineSeamsConfig } from '@seams/wallet/react';
 import '@seams/wallet/react/styles';
 import { IntendedBehaviourE2EPage } from './page';
+import { EmailCodeUnlock } from './EmailCodeUnlock';
 import { UnlockWallet } from './UnlockWallet';
 import { AssetMenu } from './AssetMenu';
 import { AccountMenu } from './AccountMenu';
@@ -82,6 +83,7 @@ createRoot(root).render(
       <TransactionReviewHost>
         <IntendedBehaviourE2EPage />
         <UnlockWallet />
+        <EmailCodeUnlock />
         <AssetMenu />
         <AccountMenu />
       </TransactionReviewHost>

@@ -57,7 +57,6 @@ import type {
 } from '@/core/types/sdkSentEvents';
 import type { WaitForNearAccountResult } from '@/SeamsWeb/publicApi/waitForNearAccount';
 import type { EmailOtpProvider } from '@shared/utils/walletAuthAuthority';
-import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type {
   ConfirmationBehavior,
   ConfirmationConfig,
@@ -114,7 +113,6 @@ import type {
 } from '@shared/device-linking';
 import type {
   WalletEmailOtpChannel,
-  WalletEmailOtpLoginOperation,
 } from '@shared/utils/emailOtpDomain';
 import type { WalletId } from '@shared/utils/registrationIntent';
 import type {
@@ -668,6 +666,13 @@ export type GoogleEmailOtpWalletAuthStartInput = GoogleEmailOtpWalletAuthStartBa
         >;
       }
   >;
+export type RequestEmailCodeInput = ExclusiveUnion<
+  | { method: 'google'; idToken: string; target: GoogleEmailOtpWalletAuthLoginTarget }
+  | { method: 'email'; walletId: string; email: string }
+> & {
+  onEvent?: GoogleEmailOtpWalletAuthStartInput['onEvent'];
+};
+
 export interface AuthCapability {
   onSessionChange(listener: (session: WalletSession) => void): () => void;
   unlock(walletId: string, options?: LoginHooksOptions): Promise<LoginAndCreateSessionResult>;
@@ -675,35 +680,13 @@ export interface AuthCapability {
   getSession(walletId?: string): Promise<WalletSession>;
   getRecentUnlocks(): Promise<GetRecentUnlocksResult>;
   hasPasskey(walletId: string): Promise<boolean>;
-  requestEmailCode(args: {
-    walletId: string;
-    walletAuthMethodId?: string;
-    relayUrl?: string;
-    operation?: WalletEmailOtpLoginOperation;
-    operationFingerprintDigest?: DigestB64u;
-    onEvent?: (event: UnlockFlowEvent) => void;
-  }): Promise<EmailOtpOperationChallengeResult>;
-  loginWithEmailOtpEcdsaCapability(
-    args: EmailOtpEcdsaCapabilityArgs,
-  ): Promise<EmailOtpEcdsaCapabilityResult>;
-  /**
-   * Unlock through an Email OTP method added to an existing authority.
-   *
-   * Distinct from `loginWithEmailOtpEcdsaCapability`, which establishes one
-   * curve's capability. A method added to an authority that already has signer
-   * activations wants all of them, so this asks the authority what it has and
-   * unlocks against that - one code, every family the wallet owns. The address
-   * is the identity; no Google token is involved.
-   */
-  unlockAddedEmailOtpWallet(args: {
-    walletId: string;
-    walletAuthMethodId: string;
-    email: string;
-    providerSubjectId: string;
-    challengeId: string;
-    otpCode: string;
-    relayUrl: string;
-  }): Promise<void>;
+  requestEmailCode(
+    args: RequestEmailCodeInput,
+  ): Promise<GoogleEmailOtpWalletAuthResult<GoogleEmailOtpWalletAuthLoginFlow>>;
+  unlockWithEmailCode(args: {
+    challenge: GoogleEmailOtpWalletAuthLoginFlow;
+    code: string;
+  }): Promise<GoogleEmailOtpWalletAuthResult<GoogleEmailOtpWalletAuthSubmitSuccess>>;
   startGoogleSignIn(
     args: GoogleEmailOtpWalletAuthStartInput,
   ): Promise<GoogleEmailOtpWalletAuthResult<GoogleEmailOtpWalletAuthFlow>>;

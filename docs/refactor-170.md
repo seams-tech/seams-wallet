@@ -825,7 +825,7 @@ Complete them together with R171. Commit each finished task with its evidence.
 
 ### 1. Finish the email unlock API
 
-- [ ] Implement `auth.unlockWithEmailCode({ challenge, code })` through the
+- [x] Implement `auth.unlockWithEmailCode({ challenge, code })` through the
   existing host-owned flows. Keep `auth.requestEmailCode` and
   `auth.startGoogleSignIn` as the supported custom and hosted entry points.
 - Preserve the supported ECDSA, NEAR-only, added-method, and pending email

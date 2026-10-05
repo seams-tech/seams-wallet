@@ -205,3 +205,16 @@ void seams.keys.exportKeypair;
 void seams.keys.resolveExactKeyExportLane;
 // @ts-expect-error The public operation owns the viewer and lane handoff.
 void seams.keys.exportKeypairWithUI;
+
+void seams.auth.requestEmailCode({
+  method: 'google',
+  idToken: 'provider-token',
+  target: { kind: 'wallet', walletId: 'alice.testnet' },
+});
+void seams.auth.requestEmailCode({ method: 'email', walletId: 'alice.testnet', email: 'alice@example.com' });
+// @ts-expect-error Signing challenges cannot enter the unlock API.
+void seams.auth.requestEmailCode({ method: 'email', walletId: 'alice.testnet', email: 'alice@example.com', operation: 'transaction_sign' });
+// @ts-expect-error Specialized unlock is internal to the host.
+void seams.auth.loginWithEmailOtpEcdsaCapability;
+// @ts-expect-error Added email methods use the unified unlock API.
+void seams.auth.unlockAddedEmailOtpWallet;

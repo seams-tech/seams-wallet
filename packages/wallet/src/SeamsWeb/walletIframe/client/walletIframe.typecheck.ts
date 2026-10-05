@@ -1,3 +1,4 @@
+import type { RequestEmailCodeInput } from '@/SeamsWeb/publicApi/types';
 import type { SigningEngineExportKeypairWithUIInput } from '@/core/signingEngine/flows/recovery/keyExportFlow';
 import type { ExactEcdsaSigningLaneIdentity } from '@/core/signingEngine/session/identity/exactSigningLaneIdentity';
 import type {
@@ -5,7 +6,6 @@ import type {
   WalletSessionRef,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type {
-  PMEmailOtpEcdsaCapabilityPayload,
   PMRegistrationAuthMethodInput,
   PMExportKeypairUiPayload,
   ParentToChildType,
@@ -57,14 +57,21 @@ const enrollmentWithParentBearer: PMRegistrationAuthMethodInput = {
 };
 void enrollmentWithParentBearer;
 
-const ecdsaLoginWithParentBearer: PMEmailOtpEcdsaCapabilityPayload = {
-  walletSession,
-  chainTarget,
-  otpCode: '123456',
-  // @ts-expect-error Hosted-wallet ECDSA login exchanges the bearer before postMessage.
+const emailUnlockWithParentBearer: RequestEmailCodeInput = {
+  method: 'email',
+  walletId: 'wallet-id',
+  email: 'owner@example.com',
+  // @ts-expect-error Email unlock proof belongs to the host.
   walletSessionToken: 'parent-wallet-session-token',
 };
-void ecdsaLoginWithParentBearer;
+void emailUnlockWithParentBearer;
+
+// @ts-expect-error Specialized ECDSA unlock is internal to the host.
+const retiredEcdsaUnlock: ParentToChildType = 'PM_LOGIN_EMAIL_OTP_ECDSA_CAPABILITY';
+void retiredEcdsaUnlock;
+// @ts-expect-error Added-method unlock uses the unified email flow.
+const retiredAddedEmailUnlock: ParentToChildType = 'PM_UNLOCK_ADDED_EMAIL_OTP_WALLET';
+void retiredAddedEmailUnlock;
 
 export {};
 

@@ -19,6 +19,8 @@ import {
   registrationSelectionIncludesNear,
 } from '@/SeamsWeb/operations/registration/registrationSignerSet';
 import type {
+  RequestEmailCodeInput,
+  GoogleEmailOtpWalletAuthLoginFlow,
   EmailOtpEcdsaCapabilityArgs,
   EmailOtpEcdsaCapabilityResult,
   EmailOtpOperationChallengeResult,
@@ -50,6 +52,11 @@ import type { EmailOtpAuthoritySelector } from '@/core/signingEngine/workerManag
 const DEFAULT_FLOW_TTL_MS = 10 * 60 * 1000;
 
 type GoogleEmailOtpWalletRegistrationArgs = Parameters<RegistrationCapability['registerWallet']>[0];
+
+type EmailLoginOptions = Pick<
+  GoogleEmailOtpWalletAuthStartInput,
+  'relayUrl' | 'ecdsaTargets' | 'emailOtpAuthPolicy' | 'onEvent'
+>;
 
 type ActiveChallenge = {
   challengeId: string;
@@ -518,7 +525,7 @@ function resolveGoogleEmailOtpEd25519RemainingUses(configs: SeamsConfigsReadonly
 async function loginWithConfiguredTargets(args: {
   deps: GoogleEmailOtpWalletAuthDeps;
   state: GoogleSessionState;
-  input: GoogleEmailOtpWalletAuthStartInput;
+  input: EmailLoginOptions;
   challenge: ActiveChallenge;
   otpCode: string;
   targets: readonly ThresholdEcdsaChainTarget[];
@@ -680,6 +687,53 @@ export async function startGoogleSignIn(
   }
 }
 
+export async function requestEmailCode(
+  deps: GoogleEmailOtpWalletAuthDeps,
+  input: RequestEmailCodeInput,
+): Promise<GoogleEmailOtpWalletAuthResult<GoogleEmailOtpWalletAuthLoginFlow>> {
+  if (input.method === 'google') {
+    const result = await startGoogleSignIn(deps, {
+      mode: 'login',
+      idToken: input.idToken,
+      loginTarget: input.target,
+      onEvent: input.onEvent,
+    });
+    if (!result.ok) return result;
+    if (result.value.mode !== 'login') {
+      return fail('unlock_failed', new Error('Email unlock requires an existing wallet'));
+    }
+    return ok(result.value);
+  }
+  try {
+    const email = input.email.trim().toLowerCase();
+    if (!email) throw new Error('Email address is required');
+    const state = await selectLinkedEmailOtpWalletAuth({
+      deps,
+      state: {
+        walletId: walletIdFromString(input.walletId),
+        providerSubject: email,
+        emailHint: email,
+        requestedMode: 'login',
+        mode: 'login',
+        expiresAtMs: Date.now() + DEFAULT_FLOW_TTL_MS,
+      },
+    });
+    if (!state.linkedEmailOtpSelection) {
+      return fail('unlock_failed', new Error('No active email method matches this wallet'));
+    }
+    const challenge = await requestLoginChallenge({ deps, state, onEvent: input.onEvent });
+    return ok(
+      createGoogleEmailOtpWalletLoginFlow(deps, {
+        state,
+        challenge,
+        input: { onEvent: input.onEvent },
+      }),
+    );
+  } catch (error: unknown) {
+    return fail('email_otp_challenge_failed', error);
+  }
+}
+
 function createFlowLiveness(args: { state: GoogleSessionState }): {
   ensureActive(): void;
   burn(): void;
@@ -701,7 +755,7 @@ function createFlowLiveness(args: { state: GoogleSessionState }): {
 
 function relayerUrlFromInput(args: {
   deps: GoogleEmailOtpWalletAuthDeps;
-  input: GoogleEmailOtpWalletAuthStartInput;
+  input: EmailLoginOptions;
 }): string {
   return String(args.input.relayUrl || args.deps.configs.network.relayer?.url || '').trim();
 }
@@ -840,15 +894,43 @@ function createGoogleEmailOtpWalletRegistrationFlow(
   };
 }
 
+class EmailUnlockLiveness {
+  private state: 'ready' | 'running' | 'finished' = 'ready';
+
+  constructor(private readonly expiresAtMs: number) {}
+
+  begin(): void {
+    if (this.state !== 'ready') throw new Error('Email unlock flow is no longer available');
+    if (Date.now() >= this.expiresAtMs) {
+      this.state = 'finished';
+      throw new Error('Email unlock flow expired');
+    }
+    this.state = 'running';
+  }
+
+  release(): void {
+    if (this.state === 'running') this.state = 'ready';
+  }
+
+  burn(): void {
+    this.state = 'finished';
+  }
+
+  cancel(): void {
+    if (this.state === 'running') throw new Error('Email unlock operation is already in progress');
+    this.burn();
+  }
+}
+
 function createGoogleEmailOtpWalletLoginFlow(
   deps: GoogleEmailOtpWalletAuthDeps,
   args: {
     state: GoogleSessionState;
     challenge: ActiveChallenge;
-    input: GoogleEmailOtpWalletAuthStartInput;
+    input: EmailLoginOptions;
   },
-): GoogleEmailOtpWalletAuthFlow {
-  const liveness = createFlowLiveness({ state: args.state });
+): GoogleEmailOtpWalletAuthLoginFlow {
+  const liveness = new EmailUnlockLiveness(args.state.expiresAtMs);
   const flowId = `google-email-otp-login:${args.state.walletId}:${args.challenge.challengeId}`;
   return {
     kind: 'google_email_otp_wallet_auth_flow_v1',
@@ -862,8 +944,10 @@ function createGoogleEmailOtpWalletLoginFlow(
     delivery: args.challenge.delivery,
     expiresAtMs: args.state.expiresAtMs,
     resend: async (): Promise<GoogleEmailOtpWalletAuthResult<GoogleEmailOtpWalletAuthFlow>> => {
+      let ownsOperation = false;
       try {
-        liveness.ensureActive();
+        liveness.begin();
+        ownsOperation = true;
         const challenge = await requestLoginChallenge({
           deps,
           state: args.state,
@@ -880,13 +964,17 @@ function createGoogleEmailOtpWalletLoginFlow(
         );
       } catch (error: unknown) {
         return fail('email_otp_challenge_failed', error);
+      } finally {
+        if (ownsOperation) liveness.release();
       }
     },
     submit: async (submitInput: {
       otpCode: string;
     }): Promise<GoogleEmailOtpWalletAuthResult<GoogleEmailOtpWalletAuthSubmitSuccess>> => {
+      let ownsOperation = false;
       try {
-        liveness.ensureActive();
+        liveness.begin();
+        ownsOperation = true;
         if (Date.now() >= args.challenge.expiresAtMs) {
           return fail('email_otp_expired', new Error('Email code expired. Request a new code.'));
         }
@@ -934,10 +1022,12 @@ function createGoogleEmailOtpWalletLoginFlow(
         return ok({ walletId: args.state.walletId, mode: 'login', session });
       } catch (error: unknown) {
         return fail(classifyEmailOtpSubmitError(error), error);
+      } finally {
+        if (ownsOperation) liveness.release();
       }
     },
     cancel: async (): Promise<void> => {
-      liveness.burn();
+      liveness.cancel();
     },
   };
 }
