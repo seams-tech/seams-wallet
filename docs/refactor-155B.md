@@ -906,3 +906,47 @@ passed in 1.7 minutes. Server type-check/build and the bloat check passed.
 [Sanitized acceptance evidence](./evidence/near-preflight-exhaustion-20261007.json).
 The executable composed scenario remains in the private repository at
 `tests/e2e/regional-real/passkey.registration.contract.test.ts`.
+
+### Deployment fences in composed signing acceptance — 2026-10-07
+
+The composed browser harness previously exercised production regional dispatch
+and authorization while supplying its deployment binding directly. It bypassed
+`D1RegionalDeploymentAdmission` and `DeploymentFencedDatabase`. That gap is closed.
+The harness now installs admission through the production store and resolves it
+for each regional request. Routing, continuations, signing, and awaited background
+work use the production transactional deployment fence. Restarts reuse persisted
+admission instead of reinstalling it. Provider verification proofs remain fixtures.
+
+Four browser contracts passed with the accepted SDK:
+
+| Workload | Verified signatures | Attempted Console calls |
+| --- | ---: | ---: |
+| ECDSA through WEUR, APAC, and OC | 3 | 0 |
+| NEAR through WEUR, APAC, and OC | 3 | 0 |
+| ECDSA after Gateway and role-process restart | 3 | 0 |
+| NEAR after Gateway and role-process restart | 3 | 0 |
+
+The first pair passed in 1.5 minutes. The restart pair passed in 1.6 minutes.
+These durations are test execution times, not signing latency measurements.
+[Request evidence](./evidence/r155b-fenced-signing-20261007.json). Repeat the private
+`tests/scripts/run-regional-real.mjs passkey.registration.contract.test.ts` runner
+with `--grep 'signs through WEUR|signs after Gateway and role restart'`.
+
+The deployment-renewal E2E also passed. It verifies six retired writers, a delayed
+retired-writer write, partial regional activation recovery, and rejection of stale
+admission restoration. It uses production Console services and local D1; provider
+proofs and Router status are controlled. It does not execute a wallet signing race.
+[Deployment evidence](./evidence/r155b-deployment-renewal-20261007.json). Repeat with
+`playwright test -c tests/playwright.relayer.config.ts tenant-deployment-renewal.e2e.test.ts
+--grep 'regional deployment renewal' --reporter=line`.
+
+The authorization-transfer E2E passed against the current working checkout. Its
+recorded bundle and runner hashes identify that source, including concurrent R153
+work. It proves immutable D1 generations, refusal to reopen the retired source,
+zero central ordinary-admission reads, and preserved terminal replay after transfer.
+[Scoped D1 evidence](./evidence/r155b-authorization-fences-20261007.json). This does
+not close the full MPC/DO relocation race or deferred-alarm acceptance gate.
+
+Remaining enforcement acceptance must compose retirement/relocation with live
+signing and custody effects. The tests above verify their individual boundaries
+and ordinary signing with deployment fences; they do not establish that full race.
