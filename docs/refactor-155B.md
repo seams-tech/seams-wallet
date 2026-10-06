@@ -1076,3 +1076,39 @@ regional-real runner, `passkey.registration.contract.test.ts --grep
 'NEAR-only Yao registration'`, and the exact SDK/server candidate. Local logs and
 frozen SDK are under `.artifacts/r155b-yao-home/`; private request evidence is under
 `.artifacts/r155b/console-outage/near-registration-protocol-home/`.
+
+### Gateway retirement after custody execution — 2026-10-07
+
+The composed browser scenario now retires the regional Gateway writer after a
+successful custody response and before Gateway operation settlement. It tests
+ECDSA and Ed25519 independently. The fault uses the production regional deployment
+admission and fenced D1 wrapper. It does not mock signing or the quota store.
+
+The scenario requires the old writer to fail settlement without changing quota
+or operation records. It then installs the admitted replacement writer in the
+test Gateway and retries the original browser request through WEUR. The custody
+response must match the first response exactly. The replacement must settle the
+same operation without spending another use. Console stays unavailable throughout
+signing and retry.
+
+An intermediate test replayed an internal request through ingress and received
+HTTP 409. This was `valid_test_needs_update`: the request already contained the
+forwarding marker. The test now captures and retries the original browser request.
+The bounded-forwarding rejection remains unchanged.
+
+This proof concerns Gateway D1 settlement after custody completion. It does not
+prove a relocation freeze during custody writes, or deployment fencing inside
+custody roles. Those acceptance requirements remain open.
+
+Both scenarios passed (2 tests, 1.3 minutes). Old-writer settlement returned
+HTTP 500 after custody returned HTTP 200. The admitted replacement returned
+HTTP 200 with the same custody result. Quota hashes remained unchanged and
+operation row counts remained one. The operation state changed only during
+replacement settlement. No Console calls occurred. Bloat and diff checks passed.
+
+[Sanitized evidence](./evidence/r155b-post-custody-retirement-20261007.json).
+Repeat with the private regional-real runner:
+`passkey.registration.contract.test.ts --grep 'retirement after custody'`.
+Use the exact SDK/server candidate. Private artifacts are under
+`.artifacts/r155b/console-outage/post-custody-retirement-{ecdsa,ed25519}/`.
+The SDK was frozen at `.artifacts/r155b-yao-home/dist`.

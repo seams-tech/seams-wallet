@@ -1,0 +1,66 @@
+{
+  "environment": "local composed browser acceptance with real custody processes and regional D1 emulation",
+  "passed": 2,
+  "duration": "1.3m",
+  "samples": [
+    {
+      "curve": "ed25519",
+      "custodyResponseStatus": 200,
+      "retirementPoint": "After successful custody response, before Gateway operation settlement",
+      "unchangedQuotaAndOperations": true,
+      "before": {
+        "quotaRows": 1,
+        "quotaSha256": "fcc3d846f7c2bfe644c7079729372795ebba8bc065b5b51e04b17e5fb8f6a916",
+        "operationRows": 1,
+        "operationSha256": "da00a547779284f935dac769a2caa0efbd221cc3732b6e71e4df0134a1025474"
+      },
+      "after": {
+        "quotaRows": 1,
+        "quotaSha256": "fcc3d846f7c2bfe644c7079729372795ebba8bc065b5b51e04b17e5fb8f6a916",
+        "operationRows": 1,
+        "operationSha256": "da00a547779284f935dac769a2caa0efbd221cc3732b6e71e4df0134a1025474"
+      },
+      "settled": {
+        "quotaRows": 1,
+        "quotaSha256": "fcc3d846f7c2bfe644c7079729372795ebba8bc065b5b51e04b17e5fb8f6a916",
+        "operationRows": 1,
+        "operationSha256": "bc99043a8cfa00678155a9e1c3841d3944c6ec4190fb94ca4e80b03e0a84f8ce"
+      },
+      "replacementReplayStatus": 200,
+      "sameCustodyResult": true,
+      "unchangedQuotaOnReplay": true,
+      "attemptedConsoleCalls": 0,
+      "scope": "Gateway deployment retirement. The custody operation already completed; this does not prove custody-side relocation fencing."
+    },
+    {
+      "curve": "ecdsa",
+      "custodyResponseStatus": 200,
+      "retirementPoint": "After successful custody response, before Gateway operation settlement",
+      "unchangedQuotaAndOperations": true,
+      "before": {
+        "quotaRows": 1,
+        "quotaSha256": "5a574dfac0ac444e3a6bdcdf74972e62fd07d19b6f613ba72c1ed7987ca9c1e6",
+        "operationRows": 1,
+        "operationSha256": "92898326f1d02b243acb8e229f75b1c1778cfff550a84c741c20753639a91b43"
+      },
+      "after": {
+        "quotaRows": 1,
+        "quotaSha256": "5a574dfac0ac444e3a6bdcdf74972e62fd07d19b6f613ba72c1ed7987ca9c1e6",
+        "operationRows": 1,
+        "operationSha256": "92898326f1d02b243acb8e229f75b1c1778cfff550a84c741c20753639a91b43"
+      },
+      "settled": {
+        "quotaRows": 1,
+        "quotaSha256": "5a574dfac0ac444e3a6bdcdf74972e62fd07d19b6f613ba72c1ed7987ca9c1e6",
+        "operationRows": 1,
+        "operationSha256": "ccd3962eedbd4a0b427f379b34ea98f870b7a158879703545c0b7d4c50815143"
+      },
+      "replacementReplayStatus": 200,
+      "sameCustodyResult": true,
+      "unchangedQuotaOnReplay": true,
+      "attemptedConsoleCalls": 0,
+      "scope": "Gateway deployment retirement. The custody operation already completed; this does not prove custody-side relocation fencing."
+    }
+  ],
+  "hostedLatencyMeasured": false
+}
