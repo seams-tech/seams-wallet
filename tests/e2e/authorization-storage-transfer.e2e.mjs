@@ -1,4 +1,4 @@
-import { verifyPlacementClient } from './wallet-placement-client.scenario.mjs';
+import { verifyPlacementClient, verifyRetiredMoveClient } from './wallet-placement-client.scenario.mjs';
 import {
   seedExecutionGeneration,
   prepareExecutionGeneration,
@@ -1162,6 +1162,14 @@ async function verifyRelocationPasskey(database) {
     allowedOrigins: [binding.origin],
     nowMs: nowMs + 5,
   };
+  const retiredMoveClient = await verifyRetiredMoveClient({
+    output, binding, token: issued.operationCredential.token,
+    routeOptions: {
+      emailOtp: relocationEmailOtpServices(database), database, scope,
+      tenantId: issued.session.tenantId, allowedOrigins: [binding.origin], authorizationSessions,
+    },
+    WalletPlacementRoutes: api.WalletPlacementRoutes,
+  });
   const readAccess = await api.WalletRelocationReadAccess.authenticate(readInput);
   assert.ok(readAccess);
   assert.equal(readAccess.binding.encoded(), binding.encoded());
@@ -1416,6 +1424,7 @@ async function verifyRelocationPasskey(database) {
   assert.equal((await api.verifyWalletRelocationPasskey(freshInput)).kind, 'denied');
   return {
     placementClient,
+    retiredMoveClient,
     retiredInitiatingSessionRejectsApprovalWithoutConsumingProof: true,
     moveReadSurvivesSessionRetirementButRejectsRevocation: true,
     httpMoveReadDispatchIsAuthenticatedAndNeverStartsWork: true,

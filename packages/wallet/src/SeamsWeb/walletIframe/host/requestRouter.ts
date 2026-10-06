@@ -34,6 +34,7 @@ type AuthWalletRequestType =
   | 'PM_UNLOCK'
   | 'PM_LOCK'
   | 'PM_LOCK_EXACT_WALLET_SESSION'
+  | 'PM_GET_WALLET_MOVE'
   | 'PM_GET_WALLET_PLACEMENT'
   | 'PM_GET_WALLET_SESSION'
   | 'PM_GET_EXACT_WALLET_SESSION_STATE'
@@ -210,6 +211,7 @@ export function routeWalletHostRequest(request: ParentToChildEnvelope): WalletHo
     case 'PM_UNLOCK':
     case 'PM_LOCK':
     case 'PM_LOCK_EXACT_WALLET_SESSION':
+    case 'PM_GET_WALLET_MOVE':
     case 'PM_GET_WALLET_PLACEMENT':
     case 'PM_GET_WALLET_SESSION':
     case 'PM_GET_EXACT_WALLET_SESSION_STATE':

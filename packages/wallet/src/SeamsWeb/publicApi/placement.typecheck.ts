@@ -1,4 +1,4 @@
-import type { WalletPlacement, WalletPlacementResult } from './placement';
+import type { WalletPlacement, WalletPlacementResult, WalletMoveStatus } from './placement';
 import type { SeamsWeb } from '../SeamsWeb';
 import type { Variant } from '@shared/utils/variant';
 import type { WalletId } from '@shared/utils/domainIds';
@@ -37,3 +37,13 @@ const blockedRetry: typeof moving.move.progress.execution = {
   retryAtMs: 1,
 };
 void [mixed, failedSpread, pausedCleanup, blockedRetry];
+
+// @ts-expect-error Move reads require a parsed move identity.
+void wallet.placement.getMove(walletId, 'unvalidated-move');
+// @ts-expect-error Move reads cannot omit the wallet identity.
+void wallet.placement.getMove();
+
+declare const completedMove: Variant<WalletMoveStatus, 'state', 'completed'>;
+// @ts-expect-error A completed move cannot retain live transfer progress.
+const mixedMove: WalletMoveStatus = { ...completedMove, move: moving.move };
+void mixedMove;

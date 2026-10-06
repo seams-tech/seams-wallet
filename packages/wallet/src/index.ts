@@ -1,3 +1,8 @@
+export { parseWalletMoveId } from './SeamsWeb/publicApi/placement';
+export type {
+  WalletMoveId, WalletMoveStatus, WalletMoveStatusResult,
+  WalletPlacement, WalletPlacementCapability, WalletPlacementResult, WalletRegion,
+} from './SeamsWeb/publicApi/placement';
 export { SeamsWeb } from './SeamsWeb';
 export type { AuthMenuCapability, ClientConnectionState, ConfigCapability, ConnectionCapability, EventsCapability } from './SeamsWeb';
 export * from './externalEvm';

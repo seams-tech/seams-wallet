@@ -1,7 +1,19 @@
 import { requireRecord } from '@shared/utils/validation';
 import { parseNonNegativeSafeInteger } from '@shared/device-linking/wireFields';
 import type { WalletId } from '@shared/utils/domainIds';
-import type { ExclusiveUnion } from '@shared/utils/variant';
+import type { ExclusiveUnion, Variant } from '@shared/utils/variant';
+
+declare const moveIdBrand: unique symbol;
+export type WalletMoveId = string & { readonly [moveIdBrand]: true };
+
+export function parseWalletMoveId(raw: unknown): WalletMoveId {
+  if (!isWalletMoveId(raw)) throw new Error('Wallet move identity is invalid');
+  return raw;
+}
+
+function isWalletMoveId(raw: unknown): raw is WalletMoveId {
+  return typeof raw === 'string' && /^wmove_[A-Za-z0-9_-]{43}$/u.test(raw);
+}
 
 export type WalletRegion = 'US' | 'WEUR' | 'APAC' | 'OC';
 type RelocationFailure =
@@ -37,7 +49,7 @@ export type WalletPlacement = ExclusiveUnion<
   | {
       readonly state: 'moving';
       readonly move: {
-        readonly moveId: string;
+        readonly moveId: WalletMoveId;
         readonly sourceRegion: WalletRegion;
         readonly destinationRegion: WalletRegion;
         readonly sourceGeneration: number;
@@ -60,8 +72,27 @@ export type WalletPlacementResult = ExclusiveUnion<
         | 'invalid_response';
     }
 >;
+export type WalletMoveStatus = ExclusiveUnion<
+  | Variant<WalletPlacement, 'state', 'moving'>
+  | {
+      readonly state: 'completed';
+      readonly moveId: WalletMoveId;
+      readonly sourceRegion: WalletRegion;
+      readonly destinationRegion: WalletRegion;
+      readonly sourceGeneration: number;
+      readonly destinationGeneration: number;
+      readonly admittedAtMs: number;
+      readonly completedAtMs: number;
+    }
+>;
+export type WalletMoveStatusResult = ExclusiveUnion<
+  | { readonly ok: true; readonly status: WalletMoveStatus }
+  | Variant<WalletPlacementResult, 'ok', false>
+>;
+
 export interface WalletPlacementCapability {
   get(walletId: WalletId): Promise<WalletPlacementResult>;
+  getMove(walletId: WalletId, moveId: WalletMoveId): Promise<WalletMoveStatusResult>;
 }
 
 export function parseWalletPlacement(raw: unknown): WalletPlacement {
@@ -82,24 +113,21 @@ export function parseWalletPlacement(raw: unknown): WalletPlacement {
     case 'moving': {
       if (Object.keys(value).length !== 2) break;
       const move = requireRecord(value.move, 'Wallet relocation');
-      if (typeof move.moveId !== 'string' || !/^wmove_[A-Za-z0-9_-]{43}$/u.test(move.moveId)) break;
       if (Object.keys(move).length !== 8) break;
-      const sourceRegion = region(move.sourceRegion);
-      const destinationRegion = region(move.destinationRegion);
-      const sourceGeneration = positivePlacementValue(move.sourceGeneration);
-      const destinationGeneration = positivePlacementValue(move.destinationGeneration);
-      const admittedAtMs = positivePlacementValue(move.admittedAtMs);
+      const {
+        moveId,
+        sourceRegion,
+        destinationRegion,
+        sourceGeneration,
+        destinationGeneration,
+        admittedAtMs,
+      } = relocationIdentity(move);
       const nextMoveAtMs = parseNonNegativeSafeInteger(move.nextMoveAtMs, 'Next relocation time');
-      if (
-        sourceRegion === destinationRegion ||
-        destinationGeneration !== sourceGeneration + 1 ||
-        nextMoveAtMs < admittedAtMs
-      )
-        break;
+      if (nextMoveAtMs < admittedAtMs) break;
       return {
         state: 'moving',
         move: {
-          moveId: move.moveId,
+          moveId,
           sourceRegion,
           destinationRegion,
           sourceGeneration,
@@ -198,4 +226,73 @@ function execution(raw: unknown): Execution {
       }
   }
   throw new Error('Wallet relocation execution is invalid');
+}
+
+export function parseWalletMoveStatus(
+  raw: unknown,
+  expectedMoveId: WalletMoveId,
+): WalletMoveStatus {
+  const value = requireRecord(raw, 'Wallet move status');
+  if (value.state === 'moving') {
+    const placement = parseWalletPlacement(value);
+    if (placement.state !== 'moving' || placement.move.moveId !== expectedMoveId)
+      throw new Error('Wallet move identity changed');
+    return placement;
+  }
+  if (value.state !== 'completed' || Object.keys(value).length !== 8)
+    throw new Error('Wallet move status is invalid');
+  const {
+    moveId,
+    sourceRegion,
+    destinationRegion,
+    sourceGeneration,
+    destinationGeneration,
+    admittedAtMs,
+  } = relocationIdentity(value);
+  const completedAtMs = positivePlacementValue(value.completedAtMs);
+  if (moveId !== expectedMoveId || completedAtMs < admittedAtMs)
+    throw new Error('Wallet move completion is invalid');
+  return {
+    state: 'completed',
+    moveId,
+    sourceRegion,
+    destinationRegion,
+    sourceGeneration,
+    destinationGeneration,
+    admittedAtMs,
+    completedAtMs,
+  };
+}
+
+export function parseWalletMoveStatusResult(
+  raw: unknown,
+  moveId: WalletMoveId,
+): WalletMoveStatusResult {
+  const value = requireRecord(raw, 'Wallet move result');
+  if (value.ok === false) {
+    const failure = parseWalletPlacementResult(value);
+    if (!failure.ok) return failure;
+  }
+  if (value.ok !== true || Object.keys(value).length !== 2)
+    throw new Error('Wallet move result is invalid');
+  return { ok: true, status: parseWalletMoveStatus(value.status, moveId) };
+}
+
+function relocationIdentity(value: Record<string, unknown>) {
+  const moveId = parseWalletMoveId(value.moveId);
+  const sourceRegion = region(value.sourceRegion);
+  const destinationRegion = region(value.destinationRegion);
+  const sourceGeneration = positivePlacementValue(value.sourceGeneration);
+  const destinationGeneration = positivePlacementValue(value.destinationGeneration);
+  const admittedAtMs = positivePlacementValue(value.admittedAtMs);
+  if (sourceRegion === destinationRegion || destinationGeneration !== sourceGeneration + 1)
+    throw new Error('Wallet move generations or regions are invalid');
+  return {
+    moveId,
+    sourceRegion,
+    destinationRegion,
+    sourceGeneration,
+    destinationGeneration,
+    admittedAtMs,
+  };
 }

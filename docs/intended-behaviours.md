@@ -1965,3 +1965,15 @@ availability, invalid responses, and a lock during a pending read. Evidence is i
 `.artifacts/r153/authorization-storage-transfer/placement-client-evidence.json`.
 The scenario simulates the directory and host credential adapter. It does not
 verify browser startup, settings, or local credential selection.
+
+`wallet.placement.getMove(walletId, moveId)` reads one exact move. A parsed move
+identity is required. The host keeps the owner credential out of parent messages.
+After server-side session retirement, the approved original credential can still
+read that move until its existing expiry. It cannot read general placement or an
+unapproved move. Completed responses retain the original move identity and both
+generations. A response for another move fails. Local lock prevents move reads.
+
+The same authorization E2E retires the initiating session in D1 before exercising
+this client path. It records results in `retired-move-client-evidence.json` beside
+the placement evidence. Local credential retention across reload and post-move
+client reconciliation remain outside this scenario.

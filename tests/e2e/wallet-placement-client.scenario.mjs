@@ -91,7 +91,7 @@ class PlacementClientJourney {
 
   async post(request) {
     this.messages.push(structuredClone(request));
-    await this.handlers.PM_GET_WALLET_PLACEMENT({
+    await this.handlers[request.type]({
       ...structuredClone(request),
       requestId: 'placement-read',
     });
@@ -132,26 +132,7 @@ export async function verifyPlacementClient({
   routeOptions,
   WalletPlacementRoutes,
 }) {
-  const bundle = await build({
-    bundle: true,
-    format: 'esm',
-    platform: 'node',
-    write: false,
-    tsconfig: 'packages/wallet/tsconfig.json',
-    stdin: {
-      resolveDir: process.cwd(),
-      loader: 'ts',
-      contents: `
-        export { createApplicationPlacementCommands, createIframePlacementCommands } from './packages/wallet/src/SeamsWeb/walletIframe/client/placementCommands';
-        export { createWalletHostPlacementCommands } from './packages/wallet/src/SeamsWeb/walletIframe/host/createPlacementCommands';
-        export { createPlacementWalletIframeHandlers } from './packages/wallet/src/SeamsWeb/walletIframe/host/handlers/placement';
-      `,
-    },
-  });
-  const bytes = bundle.outputFiles[0].contents;
-  const bundlePath = resolve(output, 'placement-client.mjs');
-  await writeFile(bundlePath, bytes);
-  const api = await import(pathToFileURL(bundlePath).href);
+  const { api, bundleSha256 } = await loadPlacementClient(output);
   const directory = new PlacementDirectory();
   const routes = new WalletPlacementRoutes({ ...routeOptions, directory });
   const client = new PlacementClientJourney(api, routes, binding, token);
@@ -198,7 +179,7 @@ export async function verifyPlacementClient({
   const evidence = {
     scope:
       'Production client commands, host handler and Gateway with real D1 authorization; simulated directory and owner credential adapter. Excludes browser boot, settings and local credential lookup.',
-    bundleSha256: createHash('sha256').update(bytes).digest('hex'),
+    bundleSha256,
     settledAndPausedPlacementRead: true,
     cleanupRetryLeavesDestinationActive: true,
     invalidAvailabilityRejected: true,
@@ -209,6 +190,119 @@ export async function verifyPlacementClient({
   };
   await writeFile(
     resolve(output, 'placement-client-evidence.json'),
+    `${JSON.stringify(evidence, null, 2)}\n`,
+  );
+  return evidence;
+}
+
+async function loadPlacementClient(output) {
+  const bundle = await build({
+    bundle: true,
+    format: 'esm',
+    platform: 'node',
+    write: false,
+    tsconfig: 'packages/wallet/tsconfig.json',
+    stdin: {
+      resolveDir: process.cwd(),
+      loader: 'ts',
+      contents: `
+        export { createApplicationPlacementCommands, createIframePlacementCommands } from './packages/wallet/src/SeamsWeb/walletIframe/client/placementCommands';
+        export { createWalletHostPlacementCommands } from './packages/wallet/src/SeamsWeb/walletIframe/host/createPlacementCommands';
+        export { createPlacementWalletIframeHandlers } from './packages/wallet/src/SeamsWeb/walletIframe/host/handlers/placement';
+      `,
+    },
+  });
+  const bytes = bundle.outputFiles[0].contents;
+  const bundlePath = resolve(output, 'placement-client.mjs');
+  await writeFile(bundlePath, bytes);
+  const api = await import(pathToFileURL(bundlePath).href);
+  return { api, bundleSha256: createHash('sha256').update(bytes).digest('hex') };
+}
+
+class MoveDirectory {
+  calls = 0;
+
+  constructor(binding) {
+    this.binding = binding;
+    this.status = movingPlacement(binding, {
+      state: 'cleanup',
+      availability: 'active',
+      execution: { state: 'running' },
+    });
+  }
+
+  async fetch(request) {
+    assert.equal(new URL(request.url).pathname, '/internal/wallet-placement/v1/relocation-status');
+    const body = await request.json();
+    assert.equal(body.moveId, this.binding.moveId);
+    assert.equal(body.wallet.walletId, this.binding.walletId);
+    this.calls += 1;
+    return Response.json(this.status);
+  }
+}
+
+export async function verifyRetiredMoveClient({
+  output,
+  binding,
+  token,
+  routeOptions,
+  WalletPlacementRoutes,
+}) {
+  const { api, bundleSha256 } = await loadPlacementClient(output);
+  const directory = new MoveDirectory(binding);
+  const routes = new WalletPlacementRoutes({ ...routeOptions, directory });
+  const client = new PlacementClientJourney(api, routes, binding, token);
+  assert.deepEqual(await client.read(), { ok: false, code: 'unauthorized' });
+  assert.equal(directory.calls, 0);
+  const status = await client.application.getMove(binding.walletId, binding.moveId);
+  assert.deepEqual(status, { ok: true, status: directory.status });
+  directory.status = {
+    state: 'completed',
+    moveId: binding.moveId,
+    sourceRegion: 'US',
+    destinationRegion: 'APAC',
+    sourceGeneration: 1,
+    destinationGeneration: 2,
+    admittedAtMs: 1000,
+    completedAtMs: 2000,
+  };
+  assert.deepEqual(await client.application.getMove(binding.walletId, binding.moveId), {
+    ok: true,
+    status: directory.status,
+  });
+  directory.status.moveId = `wmove_${'x'.repeat(43)}`;
+  assert.deepEqual(await client.application.getMove(binding.walletId, binding.moveId), {
+    ok: false,
+    code: 'invalid_response',
+  });
+  const callsBeforeWrongMove = directory.calls;
+  assert.deepEqual(await client.application.getMove(binding.walletId, directory.status.moveId), {
+    ok: false,
+    code: 'unauthorized',
+  });
+  assert.equal(directory.calls, callsBeforeWrongMove);
+  client.lock();
+  const requestsBeforeLock = client.requests;
+  assert.deepEqual(await client.application.getMove(binding.walletId, binding.moveId), {
+    ok: false,
+    code: 'wallet_unlock_required',
+  });
+  assert.equal(client.requests, requestsBeforeLock);
+  assert.equal(JSON.stringify(client.messages).includes(token), false);
+  const evidence = {
+    scope:
+      'Production client commands, host handler and Gateway after real D1 owner-session retirement; simulated directory and local credential adapter.',
+    bundleSha256,
+    retiredCredentialCannotReadGeneralPlacement: true,
+    approvedMoveReadableAfterSessionRetirement: true,
+    completedMoveReadable: true,
+    mismatchedResponseMoveRejected: true,
+    unapprovedMoveDeniedBeforeDirectory: true,
+    localLockPreventsMoveReads: true,
+    credentialsRemainInsideHost: true,
+  };
+  await writeFile(
+    resolve(output, 'retired-move-client-evidence.json'),
     `${JSON.stringify(evidence, null, 2)}\n`,
   );
   return evidence;
