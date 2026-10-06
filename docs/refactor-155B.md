@@ -1139,3 +1139,51 @@ private regional-real runner, `passkey.registration.contract.test.ts --grep
 'setup reply loss'`. The exact frozen SDK is under
 `.artifacts/r155b-setup-retry/dist`; private evidence is under
 `.artifacts/r155b/console-outage/setup-retry-{mixed,near-only}/`.
+
+### Relocation session retirement versus live signing — 2026-10-07
+
+The composed ECDSA and Ed25519 scenarios call the production regional session
+retirement participant after prepare has admitted an operation and before
+finalize runs. Retirement must reject the pending operation atomically. Quota
+and operation records must remain unchanged by the rejected retirement. The
+original signature then completes and is cryptographically verified.
+
+After settlement, retirement must succeed and an exact retirement retry must
+return the same result. The local execution generation becomes retired. An exact
+finalize replay using the retired session must fail without another quota or
+operation mutation. Console remains unavailable during signing and retirement.
+
+The first test assertion used the old session-only error name. This was
+`valid_test_needs_update`: migration 0062 replaced it with the wallet-wide
+`wallet_operations_unsettled` guard. The assertion now matches the current
+contract. No production behavior was changed for that failure.
+
+This verifies the regional participant's settlement boundary with real browser
+signing. Directory orchestration, custody freeze, state transfer and destination
+activation remain outside this scenario. It is not evidence for a complete move.
+
+The corrected test exposed a production error-classification defect in NEAR.
+The general session-admission reader passed retired rows to the live-session
+parser. That parser threw, so the route returned `wallet_session_unavailable`
+(HTTP 503). The ECDSA reader already rejected retired rows before parsing.
+This is `production_regression`: retirement is an ordinary authorization denial,
+not a storage failure. The general reader now uses the existing ECDSA retirement
+check and returns no active session. Live-session parsing and all authorization
+checks remain unchanged.
+
+Both browser scenarios passed (2 tests, 1.4 minutes). Each rejected retirement
+while a signature was pending, verified that signature, retired successfully
+after settlement, and rejected the retired session's exact finalize replay with
+HTTP 401. Neither case contacted Console or changed quota/operation records on
+the rejected retirement or retired-session replay.
+
+The local-session-routing acceptance also passed. Its old exception assertion
+was updated to the corrected no-active-session result (`valid_test_needs_update`);
+its local-routing and zero-Console checks remain. Server type-check, build, bloat
+and diff checks passed. The intended-behavior contract now names both curves.
+
+[Sanitized evidence](./evidence/r155b-relocation-settlement-20261007.json). Repeat
+with the private regional-real runner, `passkey.registration.contract.test.ts
+--grep 'relocation retirement waits'`, using the SDK frozen under
+`.artifacts/r155b-setup-retry/dist` and the matching server candidate. Private
+evidence is under `.artifacts/r155b/console-outage/relocation-signing-settlement-{ecdsa,ed25519}/`.

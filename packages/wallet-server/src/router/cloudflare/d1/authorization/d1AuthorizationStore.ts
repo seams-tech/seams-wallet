@@ -1821,7 +1821,7 @@ export class CloudflareD1AuthorizationStore
       tenantId: input.tenantId,
       lookupValue: input.tokenHash,
     });
-    if (!row) return null;
+    if (!row || row.session_retired_at_ms !== null) return null;
     return parseWalletSessionAdmissionRow(row, input);
   }
 
