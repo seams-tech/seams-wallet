@@ -1652,7 +1652,13 @@ The Router accepts typed Ed25519 settlement and snapshot commands with
 Gateway-to-Router authentication and bounded JSON input. It forwards them through
 its SigningWorker binding with the separate Router-to-SigningWorker credential.
 The Worker E2E sends source settlement, capture, export, and cleanup through this
-transport. The same Router transport accepts typed ECDSA freeze, export, and
+transport. The private Wallet Runtime dispatcher admits only its explicit
+relocation operation list, POST, JSON, and bounded bodies. It uses its configured
+Gateway-to-Router credential and ignores caller-supplied credentials. Public origins
+and unknown operations cannot select this transport. The Ed25519 Worker scenario
+executes source relocation through the production Runtime handler and real Router
+and SigningWorker Workers. Coordinator journal authorization remains unconnected.
+The same Router transport accepts typed ECDSA freeze, export, and
 transfer commands. The ECDSA Worker scenario verifies freeze, export, activation,
 and activation replay through this boundary. A SigningWorker credential cannot
 authorize the Router request. Linked-presignature inventory, fence, freeze, export,

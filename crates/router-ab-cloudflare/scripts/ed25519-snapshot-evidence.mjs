@@ -1,3 +1,4 @@
+import { runtimeRelocationSource } from './runtime-relocation-evidence.mjs';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { evictTransferredWallet } from './linked-presign-transfer-evidence.mjs';
@@ -34,7 +35,7 @@ function digest(value) {
 export async function verifyEd25519Snapshot(topology, activation, fixture, credential, sourceCredential, registrationCredential, signDestination) {
   const delivery = JSON.parse(activation.delivery);
   const scope = delivery.scope;
-  const worker = await topology.getWorker('router');
+  const worker = await runtimeRelocationSource(topology, sourceCredential);
   const source = {
     scope,
     request: {
@@ -53,7 +54,7 @@ export async function verifyEd25519Snapshot(topology, activation, fixture, crede
   const capture = { command: 'capture', source };
   const premature = await post(worker, snapshotPath, capture, sourceCredential);
   assert.notEqual(premature.status, 200, await premature.text());
-  const unauthorized = await post(worker, snapshotPath, capture, 'wrong-credential');
+  const unauthorized = await post(await topology.getWorker('router'), snapshotPath, capture, 'wrong-credential');
   assert.equal(unauthorized.status, 403);
   assert.deepEqual(await accepted(worker, settlePath, source, sourceCredential), {
     state: 'settled', command: source,
@@ -283,6 +284,7 @@ async function verifyDestinationRestoration({
     exactAcknowledgementsAfterEviction: true,
     transferResumesFromDestinationCursor: true,
     sourceCommandsUseAuthenticatedRouterTransport: true,
+    sourceCommandsUsePrivateRuntimeTransport: true,
     exactCiphertextAndIndexesRestored: true,
     ownershipGeneration: nextSource.request.source_generation,
     activationReplayPreservesLaterFence: true,
@@ -291,13 +293,13 @@ async function verifyDestinationRestoration({
 }
 
 async function verifySourceCleanup(topology, receipt, credential, delivery, registrationCredential) {
-  const source = await topology.getWorker('router');
+  const source = await runtimeRelocationSource(topology, credential);
   const command = { command: 'cleanup', activation: receipt };
   const changed = structuredClone(command);
   changed.activation.digest_hex = '00'.repeat(32);
   const rejected = await post(source, snapshotPath, changed, credential);
   assert.notEqual(rejected.status, 200, await rejected.text());
-  const unauthorized = await post(source, snapshotPath, command, 'wrong-credential');
+  const unauthorized = await post(await topology.getWorker('router'), snapshotPath, command, 'wrong-credential');
   assert.equal(unauthorized.status, 403);
   let cleaned;
   let calls = 0;

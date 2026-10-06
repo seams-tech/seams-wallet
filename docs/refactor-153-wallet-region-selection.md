@@ -1641,7 +1641,10 @@ preparation fence. The Router accepts typed settlement and snapshot commands
 through Gateway-to-Router authentication. The same transport accepts ECDSA freeze,
 export, and transfer commands, plus linked-presignature inventory, fence, freeze,
 export, and transfer commands. It forwards typed, bounded requests through its
-existing SigningWorker binding with the separate Router-to-SigningWorker credential. Native SQLite and wallet-DO hosts count pending rounds inside
+existing SigningWorker binding with the separate Router-to-SigningWorker credential. The private Wallet Runtime dispatcher now
+accepts an explicit relocation operation list and forwards it with the configured
+Gateway-to-Router credential. Public origins and unknown operations do not enter
+this transport. Coordinator journal authorization remains to be connected. Native SQLite and wallet-DO hosts count pending rounds inside
 the transaction that commits settlement. Claimed rounds and unexpired preparations
 keep it draining. Exact terminal replay remains available after settlement and
 restart. The native signing E2E covers draining, completion, and restart replay.
