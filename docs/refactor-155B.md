@@ -1378,3 +1378,31 @@ Console-outage acceptance. No Cloudflare deployment or spending occurred.
 Private acceptance commit: `ac66d14`. Current local custody sources include
 concurrent R153 changes. Build hashes identify the tested binaries. A frozen,
 fully committed deployment candidate remains a separate gate.
+
+
+### NEAR signing during a composed relocation — 2026-10-07
+
+The composed acceptance now prepares a generation-1 NEAR signature before move
+admission. The real coordinator observes one pending round and remains in source
+freeze. Finalization then commits through the native source Worker. The harness
+drops that response and retries the exact request while the move still waits.
+The retry returns the same verified signature.
+
+After copying, activation, and source cleanup, the destination returns the exact
+stored terminal result for that original request. This is the intended terminal
+replay contract. A completed result can survive relocation without authorizing new
+execution under its old generation. The destination rejects the same operation
+with a changed generation. The cleaned source rejects the original finalization.
+A fresh generation-2 signature also verifies, with prepare and finalize replay
+after object eviction.
+
+This check exercises native signing and the real private relocation coordinator.
+It does not prove browser SDK session reconciliation after cutover. The injected
+lost reply occurs after the source commits, and the first retry occurs before
+cutover. Earlier session-retirement acceptance remains separate evidence for the
+Gateway authorization boundary. No Cloudflare deployment or spending occurred.
+
+[Sanitized signing-race evidence](./evidence/r155b-near-signing-move-20261007.json).
+Private acceptance commit: `0e86252`. The final check verifies the rejection
+reasons, not only non-200 statuses. The source retains its settlement fence.
+The destination reports different request material for the changed retry.

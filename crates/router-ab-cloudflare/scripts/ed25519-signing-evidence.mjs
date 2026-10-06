@@ -8,7 +8,7 @@ import { evictTransferredWallet } from './linked-presign-transfer-evidence.mjs';
 const preparePath = '/router-ab/ed25519/sign/prepare';
 const finalizePath = '/router-ab/ed25519/sign';
 
-function signingFixture(repoRoot, input) {
+export function signingFixture(repoRoot, input) {
   const output = execFileSync('cargo', [
     'run', '--quiet', '--manifest-path', join(repoRoot, 'crates/router-ab-dev/Cargo.toml'),
     '--example', 'cloudflare_private_d1_fixture', '--', '--ed25519-signing',
@@ -16,7 +16,7 @@ function signingFixture(repoRoot, input) {
   return JSON.parse(output);
 }
 
-async function post(router, path, body, credential) {
+export async function post(router, path, body, credential) {
   return router.fetch(`https://router.test${path}`, {
     method: 'POST',
     headers: {
@@ -60,6 +60,19 @@ export async function verifyEd25519DestinationSigning({
     prepare: fixture.prepare, prepared, authorized_operation: fixture.authorized_operation,
   });
   const response = await accepted(router, finalizePath, finalizeBody, credential);
+  const signatureSha256Hex = verifySigningResponse(response, fixture, activation);
+  await evictTransferredWallet(topology, destinationName, scope);
+  assert.deepEqual(await accepted(router, finalizePath, finalizeBody, credential), response);
+  return {
+    response,
+    signatureSha256Hex,
+    staleGenerationRejected: true,
+    prepareReplayAfterEviction: true,
+    finalizeReplayAfterEviction: true,
+  };
+}
+
+export function verifySigningResponse(response, fixture, activation) {
   const signature = Buffer.from(response.signature.bytes);
   assert.equal(signature.length, 64);
   assert.equal(ed25519.verify(
@@ -67,13 +80,5 @@ export async function verifyEd25519DestinationSigning({
     Buffer.from(fixture.signing_digest_b64u, 'base64url'),
     Buffer.from(activation.public_receipt.registered_public_key),
   ), true);
-  await evictTransferredWallet(topology, destinationName, scope);
-  assert.deepEqual(await accepted(router, finalizePath, finalizeBody, credential), response);
-  return {
-    response,
-    signatureSha256Hex: createHash('sha256').update(signature).digest('hex'),
-    staleGenerationRejected: true,
-    prepareReplayAfterEviction: true,
-    finalizeReplayAfterEviction: true,
-  };
+  return createHash('sha256').update(signature).digest('hex');
 }
