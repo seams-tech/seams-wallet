@@ -355,9 +355,9 @@ try {
   });
   const destinationService = service(destination, scope);
   for (const credential of [primaryInput, offlineInput]) {
-    await assert.rejects(
-      destinationService.readWalletSessionAdmissionSnapshotByOperationCredential(credential),
-      /authorization is retired/u,
+    assert.equal(
+      await destinationService.readWalletSessionAdmissionSnapshotByOperationCredential(credential),
+      null,
     );
   }
   assert.equal(
@@ -482,9 +482,9 @@ try {
       expiresAtMs: issued.session.expiresAtMs,
     }),
   );
-  await assert.rejects(
-    destinationService.readWalletSessionAdmissionSnapshotByOperationCredential(primaryInput),
-    /authorization is retired/u,
+  assert.equal(
+    await destinationService.readWalletSessionAdmissionSnapshotByOperationCredential(primaryInput),
+    null,
   );
   const relocationEmailOtp = await verifyRelocationEmailOtp(source);
   const relocationOwnerRequest = await verifyRelocationOwnerRequest(source);
@@ -1980,9 +1980,9 @@ async function verifyWalletSessionRetirement(input) {
     first,
   );
   for (const credential of [primaryInput, offlineInput]) {
-    await assert.rejects(
-      sourceService.readWalletSessionAdmissionSnapshotByOperationCredential(credential),
-      /authorization is retired/u,
+    assert.equal(
+      await sourceService.readWalletSessionAdmissionSnapshotByOperationCredential(credential),
+      null,
     );
   }
   assert.equal(await sourceService.readHostedWalletSessionOperationCredentialV2(hostedInput), null);

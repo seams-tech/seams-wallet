@@ -1816,3 +1816,24 @@ the wallet DO namespaces and regional authorization databases are independent.
 The SDK uses the previously frozen current-candidate bundle. No live resources
 were changed. Final ownership/enforcement review, the OTP database deployment
 decision, and controlled hosted comparisons remain open.
+
+### Final authorization audit and staging preflight — 2026-10-07
+
+The authorization-storage-transfer E2E passed after the passkey inventory change.
+Two stale test assumptions were corrected: retired admission returns `null`, and
+passkey tables require their actual wallet selectors. Production behavior did not
+change in this audit. The wallet-server build and bloat gate passed.
+[Run identity and scope](evidence/r155b-final-authorization-audit-20261007.json).
+
+A read-only staging check pinned the current Worker deployments and queried
+`SELECT 1` in all four signer databases. D1 reported IAD (US), LHR (WEUR),
+HKG (APAC), and SYD (OC). These observations establish database serving locations
+for those queries. They do not establish Worker/DO colocation or signing latency.
+Private raw evidence: `.artifacts/r155b/hosted-preflight/current-deployments.json`.
+No deployment or database mutation occurred.
+
+The isolated OTP counter database is absent. Direct access to the existing Console
+database would grant Gateway code access to all its tables. The implemented
+dedicated-counter binding avoids that broader access while preserving shared
+limits. Provisioning remains pending authorization. Current candidate capture,
+coordinated staging deployment, and controlled hosted comparisons remain open.

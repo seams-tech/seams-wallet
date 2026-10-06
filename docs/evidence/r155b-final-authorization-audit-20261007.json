@@ -1,0 +1,20 @@
+{
+  "kind": "r155b_final_authorization_audit_v1",
+  "recordedAt": "2026-10-06T22:46:48.318Z",
+  "publicDevRevision": "68ec2bdea53fd22f1a3bbc8eb942bd8dbfbcdc90",
+  "revisionNote": "The runner records the unrelated checked-out branch HEAD. Production sources and runner hashes identify this run; the two test corrections are committed separately on dev.",
+  "runnerSha256": "1d47379c276284a5be0e3dd0976e68be9673d2614b5f527a5004b199e6918362",
+  "productionBundleSha256": "2c0e082794aa1a7ab7bc00f9f9227d330b30e6f9b80b851fa7e36c819b46a9a4",
+  "artifactSha256": "e0987c0984301e7e37acb6d21e7f70339e80c04ed6f74613acb32f2e4ef3804c",
+  "result": "passed",
+  "reproduce": "node tests/e2e/authorization-storage-transfer.e2e.mjs",
+  "scope": "Production authorization service and D1 stores with canonical fixture authority; no signing execution, cryptographic material copy, browser, physical geography, complete writer fencing, or coordinator integration.",
+  "testCorrections": [
+    "Retired session admission returns null under the current service contract.",
+    "Expected-row queries select passkey bindings and authenticators by user_id and custody records by their walletId."
+  ],
+  "validation": {
+    "walletServerBuild": "passed",
+    "bloatGate": "passed"
+  }
+}

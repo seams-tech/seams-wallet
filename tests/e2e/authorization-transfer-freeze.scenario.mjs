@@ -2,6 +2,18 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 
 export function authorizationRowsQuery(table) {
+  if (table === 'webauthn_authenticators' || table === 'webauthn_credential_bindings') {
+    return `SELECT target.* FROM ${table} AS target
+      WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
+        AND user_id = ?5 ORDER BY target.rowid`;
+  }
+  if (table === 'router_ab_yao_versioned_json_records') {
+    return `SELECT target.* FROM ${table} AS target
+      WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
+        AND json_extract(record_json, '$.walletId') = ?5
+        AND (substr(record_key, 1, 17) = 'passkey-envelope:'
+          OR substr(record_key, 1, 28) = 'passkey-credential-activity:') ORDER BY target.rowid`;
+  }
   if (table === 'authorized_operations' || table === 'authorized_operation_audit_events') {
     return `SELECT target.* FROM ${table} AS target WHERE EXISTS (
       SELECT 1 FROM wallet_operation_owners AS owner
