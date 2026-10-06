@@ -21,6 +21,18 @@ export class D1WalletExecutionAuthority implements Authority, WalletExecutionAut
   }
 
   async admitHome(input: Parameters<Authority['admitHome']>[0]): Promise<HomeAdmission> {
+    const completed = await prepareD1TenantStatement(
+      this.database,
+      this.scope,
+      `SELECT generation FROM wallet_execution_generations
+       WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
+         AND wallet_id = ?5 AND origin = 'registration' AND origin_id = ?6
+         AND state = 'active'`,
+      [input.walletId, input.ceremonyId],
+    ).first<{ readonly generation: number }>();
+    if (completed) {
+      return { ok: true, purpose: 'ordinary', ownershipGeneration: completed.generation };
+    }
     const admitted = await this.registration.admitHome(input);
     if (!admitted.ok) return admitted;
     if (admitted.purpose === 'ordinary') {

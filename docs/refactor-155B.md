@@ -463,3 +463,17 @@ This remains an implementation checkpoint, not full regional MPC outage acceptan
 Remaining gates include bounded stale-route rediscovery, registration continuation
 admission, custody/deferred-path review, complete outage/concurrency acceptance, and
 the hosted ECDSA/Ed25519 comparison. No new latency result is claimed.
+
+## Completed-registration continuation admission — October 6, 2026
+
+A continuation for an exact, locally completed registration now reads its active
+execution generation without Console. The lookup requires tenant, wallet, registration
+origin, and ceremony identity. Pending registrations retain the shared admission check;
+cancellation and completion races must be resolved before that check can be removed.
+This adds a local lookup before pending admission. Its latency impact is unmeasured.
+
+The routing E2E verifies completed admission with the directory unavailable and rejects
+a different ceremony. Regional hints also apply to requests without session tokens,
+which allows bounded forwarding of registration continuations. Handler authorization
+remains required. Server types, the focused routing E2E, and bloat checks pass.
+Browser lifecycle and authorization-transfer verification are still running.
