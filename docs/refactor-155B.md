@@ -1,6 +1,6 @@
 # Regional execution without routine Console calls
 
-Status: implementation and local acceptance in progress. Established-session routing, regional deployment admission, and transactional D1 writer fences are implemented. Local owner, linked-device, and step-up signing pass during Console outage. Source integration, remaining relocation coverage, final cleanup, and hosted comparison remain open.
+Status: implementation and local acceptance in progress. Established-session routing, regional deployment admission, and transactional D1 writer fences are implemented. Local owner, linked-device, and step-up signing pass during Console outage. Remaining relocation coverage, final cleanup, and hosted comparison remain open. The tested source contents now match committed dev.
 Date: October 6, 2026.
 
 ## Objective
@@ -1502,15 +1502,13 @@ they do not add a new refactor scope.
    session invalidation. Full browser fresh authentication after the move and
    equivalent composed ECDSA/refill race evidence remain open. Native ECDSA
    relocation evidence is useful but has a narrower boundary.
-3. **Freeze a deployable candidate.** The public checkout is on
-   `codex/ml-dsa-experiments`; R155B commits are on `dev`. Tested custody sources
-   still differ from committed `dev`, including relocation files. Preserve their
-   ownership and review/integrate them before claiming a committed candidate.
-   The standard build now selects wallet-object ownership in both dev and
-   release profiles. Optimized release binaries passed the same native NEAR
-   coordinator and ECDSA pool scenarios. Record these feature selections with
-   the integrated source candidate before deployment. Alternate Rust feature
-   paths still need review during final cleanup.
+3. **Freeze the deployment inputs.** Direct content comparison now confirms that
+   all 3,549 public working files match committed `dev` at `1b3fbb895501077201ca69cc3a94cadcc1cc88e9`.
+   The checkout branch/index difference caused the earlier integration warning.
+   Optimized NEAR and ECDSA acceptance passed on those source contents, with the
+   session-burn fault excluded from release. Preserve these source revisions and
+   binary hashes when rendering the hosted candidate. SDK bundle and deployment
+   version pinning still belong to Phase 6.
 4. **Complete the counter-database deployment decision and cutover.** The isolated
    counter binding is implemented and locally verified. New live infrastructure
    still needs approval under the plan's existing constraint. Preserve one global
@@ -1639,3 +1637,23 @@ Private commits: `3b94c24` and `3dea157`.
 [Counter evidence](evidence/r155b-direct-otp-20261007.json) records these checks.
 Canonical allocations remain pending. Provisioning approval, live cutover, and
 old-counter cleanup remain open.
+
+
+### Committed-source audit and clean release acceptance — 2026-10-07
+
+The source-integration warning above is superseded. Direct Git blob hashing compared
+every public `dev` file with its working copy. All 3,549 files matched revision
+`1b3fbb895501077201ca69cc3a94cadcc1cc88e9`. No file was missing, changed, or extra.
+The checkout remains on `codex/ml-dsa-experiments`; its index caused misleading
+diffs against `dev`. No checkout, reset, or unrelated staging operation was needed.
+
+All five optimized builds completed after the finalize-hold deletion and release
+fault isolation. Composed NEAR relocation and native ECDSA pool acceptance passed
+again, each with exit zero. [The evidence](evidence/r155b-standard-wallet-objects-20261007.json)
+records current binary hashes, build features, artifact hashes, and source revisions.
+Private source revision: `3dea157`. The separate regional routing scenario also
+passed across all four regions, including shared counter and claim contention.
+
+These results close the source-content mismatch concern. They do not establish
+hosted timing, full browser reauthentication after relocation, or the remaining
+composed ECDSA/coordinator race coverage. Live provisioning remains pending.
