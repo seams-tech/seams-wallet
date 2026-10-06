@@ -518,3 +518,18 @@ terminal decision. The current completion order calls the directory before
 updating local execution state. A registering-state fast path alone could admit
 work during that cancellation window. Close that window before removing the
 pending-ceremony directory check.
+
+### Durable registration terminal decision — October 6
+
+Migration 0067 adds an immutable completion decision to the existing execution
+generation row. Completion fixes the outcome before contacting Console. A
+cancellation also retires local execution in that transaction. Establishment
+activates local execution only after Console acknowledges completion. Exact
+retries can republish the same decision; conflicting outcomes fail before any
+Console request.
+
+The real-D1 local-session-routing scenario passes for lost establishment and
+cancellation replies, exact retry, conflicting outcomes, and ordinary admission
+before/after completion. Server type-checking and the bloat gate pass. Pending
+registration admission still uses Console until continuation routing and durable
+write enforcement are verified. Authorization-transfer verification is running.

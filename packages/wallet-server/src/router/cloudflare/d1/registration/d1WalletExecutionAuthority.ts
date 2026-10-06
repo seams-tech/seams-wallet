@@ -81,6 +81,25 @@ export class D1WalletExecutionAuthority implements Authority, WalletExecutionAut
   }
 
   async complete(input: Parameters<Authority['complete']>[0]) {
+    // Fix the terminal decision before crossing the database boundary. Exact
+    // retries may publish it again; a conflicting outcome never reaches Console.
+    await this.database.batch([
+      prepareD1TenantStatement(
+        this.database,
+        this.scope,
+        `UPDATE wallet_execution_generations
+         SET registration_completion = ?7,
+             state = CASE WHEN ?7 = 'cancelled' THEN 'retired' ELSE state END
+         WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
+           AND wallet_id = ?5 AND origin = 'registration' AND origin_id = ?6
+           AND registration_completion IN ('pending', ?7)
+           AND (state = 'registering'
+             OR (?7 = 'established' AND state = 'active')
+             OR (?7 = 'cancelled' AND state = 'retired'))`,
+        [input.walletId, input.ceremonyId, input.outcome],
+      ),
+      this.database.prepare(D1_BATCH_CAS_GUARD_SQL),
+    ]);
     const completed = await this.registration.complete(input);
     if (!completed.ok) return completed;
     const state = input.outcome === 'established' ? 'active' : 'retired';
