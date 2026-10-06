@@ -1,9 +1,10 @@
-import { expect, type Page, type TestInfo } from '@playwright/test';
+import { expect, type Page, type Request, type TestInfo } from '@playwright/test';
+import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
 import { writeFile } from 'node:fs/promises';
 import type { IntendedBehaviourHarness } from './harness';
 import { walletFrame } from './session-restore-lock';
 
-// Read record identifiers only. No sealed or plaintext signing material leaves the wallet origin.
+// Return presignature identifiers only. Signing material stays in the wallet origin.
 class DurablePresignatureProbe {
   static read(walletId: string): Promise<string[]> {
     return new Promise(DurablePresignatureProbe.open.bind(null, walletId));
@@ -40,7 +41,7 @@ class DurablePresignatureProbe {
     const keys = transaction
       .objectStore('ecdsa_client_presignatures')
       .index('wallet_id')
-      .getAllKeys(walletId);
+      .getAll(walletId);
     keys.onsuccess = DurablePresignatureProbe.keysRead.bind(null, database, keys, resolve, reject);
     keys.onerror = DurablePresignatureProbe.readFailed.bind(null, database, keys, reject);
   }
@@ -56,18 +57,23 @@ class DurablePresignatureProbe {
 
   static keysRead(
     database: IDBDatabase,
-    request: IDBRequest<IDBValidKey[]>,
+    request: IDBRequest<unknown[]>,
     resolve: (keys: string[]) => void,
     reject: (error: unknown) => void,
   ): void {
     database.close();
     const keys: string[] = [];
-    for (const key of request.result) {
-      if (typeof key !== 'string') {
-        reject(new Error('Durable presignature key is not a string'));
+    for (const row of request.result) {
+      if (
+        typeof row !== 'object' ||
+        row === null ||
+        !('presignature_id' in row) ||
+        typeof row.presignature_id !== 'string'
+      ) {
+        reject(new Error('Durable presignature identifier is not a string'));
         return;
       }
-      keys.push(key);
+      keys.push(row.presignature_id);
     }
     resolve(keys.sort());
   }
@@ -102,7 +108,15 @@ export async function verifyLockPreservesPresignatures(
   await harness.unlockPasskeyWallet();
   const unlocked = await readPresignatureIds(page, harness.walletId);
   expect(unlocked).toEqual(expect.arrayContaining(before));
+  const preparation = page.waitForRequest(isEcdsaPreparation);
   await harness.signTempoTransaction('post_unlock');
+  const request: unknown = (await preparation).postDataJSON();
+  if (!isPlainObject(request) || typeof request.client_presignature_id !== 'string') {
+    throw new Error('ECDSA preparation omitted its presignature identifier');
+  }
+  expect(before).toContain(request.client_presignature_id);
+  const afterSigning = await readPresignatureIds(page, harness.walletId);
+  expect(afterSigning).not.toContain(request.client_presignature_id);
   await writeFile(
     testInfo.outputPath('lock-presignature-retention.json'),
     JSON.stringify(
@@ -111,12 +125,20 @@ export async function verifyLockPreservesPresignatures(
         whileLocked: locked.length,
         afterUnlock: unlocked.length,
         allOriginalRecordsRetained: true,
+        signingConsumedRetainedPresignature: true,
         postUnlockTempoSigning: 'passed',
         scope: 'Immediate lock and fresh unlock; the separate 30-day return gate remains open.',
       },
       null,
       2,
     ),
+  );
+}
+
+function isEcdsaPreparation(request: Request): boolean {
+  return (
+    request.method() === 'POST' &&
+    new URL(request.url()).pathname === '/router-ab/ecdsa-derivation/sign/prepare'
   );
 }
 
