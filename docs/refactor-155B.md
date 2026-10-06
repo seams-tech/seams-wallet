@@ -1,6 +1,6 @@
 # Regional execution without routine Console calls
 
-Status: implementation in progress. Local wallet execution authority is separated from registration coordination. Routine signing still requires the remaining deployment and routing changes.
+Status: implementation in progress. Local wallet execution authority is separated from registration coordination. Regional deployment admission and transactional D1 writer fences are implemented. Routine signing still requires the remaining routing changes.
 Date: October 6, 2026.
 
 ## Objective
@@ -169,13 +169,13 @@ Exit: each removed call has an explicit replacement or evidence that it is redun
 
 ## Phase 2 — Install and enforce regional execution authority
 
-- [ ] Extend the existing activation workflow to install required local tenant,
+- [x] Extend the existing activation workflow to install required local tenant,
   resource, and writer admission before enabling regional traffic.
 - [ ] Reuse local wallet-generation state. Keep identity fields required and
   represent admission/retirement states with exhaustive domain types.
 - [ ] Enforce current authority at operation admission and durable side effects.
   A read performed before a freeze is insufficient to authorize a later write.
-- [ ] Define deployment cutover failure handling. Do not complete retirement
+- [x] Define deployment cutover failure handling. Do not complete retirement
   while an old regional writer remains authorized. Rollback must not revive a
   retired wallet generation or discard terminal operation history.
 - [ ] Preserve valid terminal replay while rejecting new execution under retired
@@ -327,3 +327,45 @@ Verification:
 This slice does not establish Console-independent signing. Local deployment writer
 admission, cutover fencing, regional session routing, outage acceptance, and hosted
 measurements remain open. No latency gain is claimed for this slice.
+
+## Regional deployment implementation — October 6, 2026
+
+Deployment activation now prepares every configured regional database before Console
+commits activation. Preparation pauses prior admission. After Console commits, regional
+activation installs the admitted binding and verified Gateway/Wallet Runtime versions.
+The existing `reuse_active` operation completes a partially delivered activation.
+Monotonic sequence guards reject delayed preparation or activation from an older deployment.
+If preparation fails before the central commit, affected regions remain paused. A new
+operator-authorized activation can replace that prepared proposal.
+
+Gateway and Wallet Runtime deployment reads now use regional D1. Gateway session
+discovery still calls Console and checks that the directory response matches the local
+binding revision. Scheduled prewarm uses regional deployment admission. No new secret,
+Worker, database, or environment variable is required. Migration `0066` installs the
+admission table and its transactional writer guard. Apply it before activating these
+Worker builds. Existing remote deployments were not changed during this implementation.
+
+Each runtime D1 batch checks its exact admitted binding and writer in the same
+transaction as its statements. Deferred work keeps that database adapter, so a request
+admitted before cutover cannot write after preparation retires its writer. The guard
+adds a local SQL statement to the existing batch. It does not add a network roundtrip.
+Its latency and D1 charge impact remain unmeasured. Privileged deployment/relocation
+control routes retain their separate control authority and use the underlying database.
+
+Verification:
+
+- Private server type check passes.
+- Deployment binding and regional renewal E2E tests pass.
+- Renewal covers lost central replies, interrupted regional activation, retry, old-writer
+  rejection, delayed-write rejection, current-writer batches, stale command rejection,
+  private control retries, and rejection of wrong-writer/public-origin control requests.
+- The test emits `deployment-renewal-evidence.json` and its SHA-256. The retained copy is
+  [regional admission evidence](evidence/r155b-regional-admission-20261006.json).
+- Public bloat check passes.
+- The broad private test type check remains non-green because of unrelated application
+  aliases and stale fixtures. The changed files had no reported errors.
+
+Remaining gates: complete session-home metadata and forwarding, remove routine directory
+reads, verify all signing/refill paths during a Console outage, audit custody-side deferred
+execution, reduce registration continuation lookups, and run the controlled hosted comparison.
+No new signing-latency result is claimed.
