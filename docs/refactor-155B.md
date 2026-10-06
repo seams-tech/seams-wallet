@@ -1406,3 +1406,28 @@ Gateway authorization boundary. No Cloudflare deployment or spending occurred.
 Private acceptance commit: `0e86252`. The final check verifies the rejection
 reasons, not only non-200 statuses. The source retains its settlement fence.
 The destination reports different request material for the changed retry.
+
+
+### Browser session reconciliation after native relocation — 2026-10-07
+
+The composed scenario now opens Chromium with real IndexedDB. It installs the
+registered wallet authority and the actual issued source session through the SDK's
+production persistence APIs. The browser passes actual coordinator responses
+through the public move-status parser and SDK placement-session reconciliation.
+
+While the move is paused, the SDK records the destination generation without
+requesting a lock. Completion requests one lock. The supplied lock callback retires
+the local session through the production repository. Repeating completion does not
+request another lock. After browser reload, the repository rejects a late write of
+the source-generation credential. Native move, source cleanup, lost-finalize-reply
+recovery, destination terminal replay, and fresh destination signing also pass in
+the same run.
+
+This proves browser persistence and the SDK reconciliation callback contract.
+Session installation is direct. It does not cover browser registration, iframe
+transport, Gateway status HTTP routing, or fresh owner authentication after the
+move. Hosted acceptance and Email OTP isolation remain open. No production behavior
+changed, and no Cloudflare resources were deployed.
+
+[Sanitized browser evidence](./evidence/r155b-browser-relocation-20261007.json).
+Private acceptance commit: `d448976`.
