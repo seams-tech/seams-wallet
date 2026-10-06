@@ -1,3 +1,4 @@
+import { reconcileWalletPlacement } from './reconcileWalletPlacement';
 import { saveWalletMoveRequest } from './walletMoveLocator';
 import type { Variant } from '@shared/utils/variant';
 import { requireRecord, requireCanonicalString } from '@shared/utils/validation';
@@ -6,6 +7,7 @@ import {
   parseWalletMoveRequest,
   parseWalletMoveStatus,
   type WalletMoveRequest,
+  type WalletMoveStatus,
   type WalletMoveStatusResult,
 } from '@/SeamsWeb/publicApi/placement';
 import { IndexedDBManager } from '@/core/indexedDB';
@@ -172,7 +174,7 @@ export async function requestWalletMove(
     canonicalPath: `${PATH}/${encodeURIComponent(request.moveId)}?walletId=${encodeURIComponent(request.walletId)}`,
   });
   assertAuthentication(context);
-  if (existing.status === 200) return matchingMove(existing.body, request);
+  if (existing.status === 200) return matchingMove(existing.body, context);
   if (existing.status === 401 || existing.status === 403)
     return { ok: false, code: 'unauthorized' };
   if (existing.status !== 404) return { ok: false, code: 'transport_unavailable' };
@@ -186,7 +188,7 @@ export async function requestWalletMove(
     sourceProof: null,
   });
   assertAuthentication(context);
-  if (resumed.status === 200) return matchingMove(resumed.body, request);
+  if (resumed.status === 200) return matchingMove(resumed.body, context);
   if (resumed.status === 401 || resumed.status === 403) return { ok: false, code: 'unauthorized' };
   if (!requiresOwnerApproval(resumed)) return { ok: false, code: 'transport_unavailable' };
   const challenge = await requestChallenge(context);
@@ -212,22 +214,27 @@ export async function requestWalletMove(
   if (response.status === 401 || response.status === 403)
     return { ok: false, code: 'unauthorized' };
   if (response.status !== 200) return { ok: false, code: 'transport_unavailable' };
-  return matchingMove(response.body, request);
+  return matchingMove(response.body, context);
 }
 
-function matchingMove(raw: unknown, request: WalletMoveRequest): WalletMoveStatusResult {
+async function matchingMove(raw: unknown, context: MoveContext): Promise<WalletMoveStatusResult> {
+  const request = context.request;
+  let status: WalletMoveStatus;
   try {
-    const status = parseWalletMoveStatus(raw, request.moveId);
+    status = parseWalletMoveStatus(raw, request.moveId);
     const identity = status.state === 'moving' ? status.move : status;
     if (
       identity.destinationRegion !== request.destinationRegion ||
       identity.sourceGeneration !== request.expectedGeneration
     )
       throw new Error('Wallet relocation conflicts with the request');
-    return { ok: true, status };
   } catch {
     return { ok: false, code: 'invalid_response' };
   }
+  await reconcileWalletPlacement(request.walletId, status);
+  if (context.host.readAuthentication() !== context.authentication)
+    return { ok: false, code: 'wallet_unlock_required' };
+  return { ok: true, status };
 }
 
 function requiresOwnerApproval(response: {

@@ -208,7 +208,7 @@ async function loadPlacementClient(output) {
       resolveDir: process.cwd(),
       loader: 'ts',
       contents: `
-        export { IndexedDBManager } from './packages/wallet/src/core/indexedDB';
+        export { IndexedDBManager, seamsWalletDB } from './packages/wallet/src/core/indexedDB';
         export { createApplicationPlacementCommands, createIframePlacementCommands } from './packages/wallet/src/SeamsWeb/walletIframe/client/placementCommands';
         export { createWalletHostPlacementCommands } from './packages/wallet/src/SeamsWeb/walletIframe/host/createPlacementCommands';
         export { WalletHostOwnerRequestTransportError } from './packages/wallet/src/SeamsWeb/operations/devices/walletHostOwnerAuthority';
@@ -220,6 +220,8 @@ async function loadPlacementClient(output) {
   const bundlePath = resolve(output, 'placement-client.mjs');
   await writeFile(bundlePath, bytes);
   const api = await import(pathToFileURL(bundlePath).href);
+  const localDatabase = new LocalPlacementDatabase();
+  api.seamsWalletDB.runTransaction = localDatabase.runTransaction.bind(localDatabase);
   return { api, bundleSha256: createHash('sha256').update(bytes).digest('hex') };
 }
 
@@ -510,4 +512,29 @@ function readLocalState(state, key) {
 function writeLocalState(state, key, value) {
   state.set(key, structuredClone(value));
   return Promise.resolve();
+}
+
+// This Gateway scenario has no browser. The browser journey covers real IndexedDB.
+class LocalPlacementDatabase {
+  rows = new Map();
+
+  async runTransaction(_stores, _mode, task) {
+    return task(this);
+  }
+
+  store() {
+    return this;
+  }
+  index() {
+    return this;
+  }
+  async openCursor() {
+    return null;
+  }
+  async get(key) {
+    return structuredClone(this.rows.get(key));
+  }
+  async put(row) {
+    this.rows.set(row.key, structuredClone(row));
+  }
 }

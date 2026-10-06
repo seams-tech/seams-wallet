@@ -2019,6 +2019,15 @@ It uses the production component with simulated placement and surrounding action
 Global application signing controls, automatic activation reconciliation, and the
 assembled regional move remain outside this UI evidence.
 
+Successful host placement reads, exact move reads, and move submissions reconcile
+the local ownership generation before returning success. An admitted move advances
+the local generation to its destination generation, including while transfer is
+paused. The same IndexedDB transaction removes obsolete durable presignatures.
+Existing resident-pool checks reject subsequent use and delayed refill publication
+from the source generation. Historical completed-move reads cannot lower this
+local generation. This observation does not issue a destination credential.
+Ordinary locking does not advance the generation or invoke this invalidation path.
+
 ### Keep owner presign work retired after a return move
 
 Fresh owner and linked-device operation credentials carry a required positive

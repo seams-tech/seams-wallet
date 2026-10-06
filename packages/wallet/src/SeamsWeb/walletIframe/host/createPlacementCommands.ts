@@ -1,3 +1,4 @@
+import { reconcileWalletPlacement } from './reconcileWalletPlacement';
 import { readLastWalletMoveRequest } from './walletMoveLocator';
 import { requestWalletMove } from './requestWalletMove';
 import type { BrowserSigningSurface } from '@/SeamsWeb/signingSurface/BrowserSigningSurface';
@@ -31,12 +32,17 @@ export function createWalletHostPlacementCommands(context: Context): WalletPlace
 }
 
 async function getPlacement(context: Context, walletId: WalletId): Promise<WalletPlacementResult> {
-  return readPlacement(
+  const authentication = context.readAuthentication();
+  const result = await readPlacement(
     context,
     walletId,
     `/wallet/placement/v1?walletId=${encodeURIComponent(walletId)}`,
     placementResult,
   );
+  if (result.ok) await reconcileWalletPlacement(walletId, result.placement);
+  if (context.readAuthentication() !== authentication)
+    return { ok: false, code: 'wallet_unlock_required' };
+  return result;
 }
 
 function placementResult(body: unknown): WalletPlacementResult {
@@ -52,8 +58,13 @@ async function getMove(
   walletId: WalletId,
   moveId: WalletMoveId,
 ): Promise<WalletMoveStatusResult> {
+  const authentication = context.readAuthentication();
   const path = `/wallet/placement/v1/relocations/${encodeURIComponent(moveId)}?walletId=${encodeURIComponent(walletId)}`;
-  return readPlacement(context, walletId, path, moveResult.bind(null, moveId));
+  const result = await readPlacement(context, walletId, path, moveResult.bind(null, moveId));
+  if (result.ok) await reconcileWalletPlacement(walletId, result.status);
+  if (context.readAuthentication() !== authentication)
+    return { ok: false, code: 'wallet_unlock_required' };
+  return result;
 }
 
 async function readPlacement<T extends WalletPlacementResult | WalletMoveStatusResult>(

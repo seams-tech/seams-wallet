@@ -1,3 +1,6 @@
+import { reconcileWalletPlacement } from '../../../packages/wallet/src/SeamsWeb/walletIframe/host/reconcileWalletPlacement';
+import { parseWalletPlacement } from '../../../packages/wallet/src/SeamsWeb/publicApi/placement';
+import { parseWalletId } from '../../../packages/shared-ts/src/utils/domainIds';
 import { configureIndexedDB } from '../../../packages/wallet/src/core/indexedDB';
 import type { SeamsWalletTransactionContext } from '../../../packages/wallet/src/core/indexedDB/seamsWalletDB/manager';
 import { seamsWalletDB } from '../../../packages/wallet/src/core/indexedDB/singletons';
@@ -61,11 +64,11 @@ export async function run(walletId: string) {
     expiresAtMs: metadata.expiresAtMs,
   };
   try {
-    await accept(walletId, 2);
+    await observeMove(walletId);
     const afterAdvance = await count(walletId);
     const delayedOldAdmission = await storage.admitClientPresignature(input);
     const oldAvailable = await storage.listAvailableClientPresignatures(metadata.poolIdentity);
-    await accept(walletId, 2);
+    await observeMove(walletId);
     let rollbackRejected = false;
     try {
       await accept(walletId, 1);
@@ -100,5 +103,24 @@ export async function run(walletId: string) {
 
 export async function advance(walletId: string): Promise<void> {
   configureIndexedDB({ mode: 'wallet' });
-  await accept(walletId, 2);
+  await observeMove(walletId);
+}
+
+async function observeMove(rawWalletId: string): Promise<void> {
+  const wallet = parseWalletId(rawWalletId);
+  if (!wallet.ok) throw new Error('Browser probe wallet is invalid');
+  const placement = parseWalletPlacement({
+    state: 'moving',
+    move: {
+      moveId: `wmove_${'P'.repeat(43)}`,
+      sourceRegion: 'US',
+      destinationRegion: 'APAC',
+      sourceGeneration: 1,
+      destinationGeneration: 2,
+      admittedAtMs: 1000,
+      nextMoveAtMs: 2000,
+      progress: { state: 'freezing', availability: 'paused', execution: { state: 'running' } },
+    },
+  });
+  await reconcileWalletPlacement(wallet.value, placement);
 }

@@ -77,3 +77,24 @@ function assertGenerationInTransaction(
 ): Promise<void> {
   return assertWalletOwnershipGeneration(context, walletId, generation);
 }
+
+export async function observeWalletOwnershipGeneration(
+  walletId: string,
+  generation: number,
+): Promise<void> {
+  await seamsWalletDB.runTransaction(
+    [SEAMS_WALLET_STORES.appState, SEAMS_WALLET_STORES.ecdsaClientPresignatures],
+    'readwrite',
+    observeGenerationInTransaction.bind(null, walletId, generation),
+  );
+}
+
+async function observeGenerationInTransaction(
+  walletId: string,
+  generation: number,
+  context: SeamsWalletTransactionContext,
+): Promise<void> {
+  // Historical move reads and delayed replies must not lower the accepted generation.
+  if (generation <= (await readOwnershipGeneration(context, walletId))) return;
+  await acceptWalletOwnershipGeneration(context, walletId, generation);
+}

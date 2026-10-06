@@ -16,6 +16,7 @@ const bundle = await build({
     resolveDir: process.cwd(),
     loader: 'ts',
     contents: `
+      import { observeWalletOwnershipGeneration } from "./packages/wallet/src/core/indexedDB/seamsWalletDB/walletOwnershipGeneration";
       import { createWalletHostPlacementCommands } from "./packages/wallet/src/SeamsWeb/walletIframe/host/createPlacementCommands";
       import {
         configureIndexedDB,
@@ -32,6 +33,7 @@ const bundle = await build({
       let authentication = { kind: "signed_out" };
       let requests = 0;
       let resumed = false;
+      let completed = false;
       function readAuthentication() {
         return authentication;
       }
@@ -40,6 +42,20 @@ const bundle = await build({
         if (!resumed) return { status: input.method === "GET" ? 404 : 503, body: {} };
         if (input.method !== "GET" || !input.canonicalPath.includes(intent.moveId))
           throw new Error("Resume changed the move");
+        if (completed)
+          return {
+            status: 200,
+            body: {
+              state: "completed",
+              moveId: intent.moveId,
+              sourceRegion: "US",
+              destinationRegion: "APAC",
+              sourceGeneration: 1,
+              destinationGeneration: 2,
+              admittedAtMs: 1000,
+              completedAtMs: 2000,
+            },
+          };
         return {
           status: 200,
           body: {
@@ -93,6 +109,17 @@ const bundle = await build({
         const result = await placement.move(locator);
         return { result, requests };
       }
+      export async function generation() {
+        return IndexedDBManager.getAppState(
+          "wallet_ownership_generation:" + walletId,
+        );
+      }
+      export async function historical() {
+        await observeWalletOwnershipGeneration(walletId, 3);
+        completed = true;
+        const result = await placement.getMove(walletId, intent.moveId);
+        return { result, generation: await generation() };
+      }
       export async function corrupt() {
         await IndexedDBManager.setAppState("wallet_move_request:" + walletId, {
           ...intent,
@@ -131,6 +158,11 @@ try {
   assert.equal(resumed.result.ok, true);
   assert.equal(resumed.result.status.move.moveId, beforeReload.locator.moveId);
   assert.equal(resumed.requests, 1);
+  assert.equal(await page.evaluate(generation), 2);
+  const historical = await page.evaluate(readHistorical);
+  assert.equal(historical.result.ok, true);
+  assert.equal(historical.result.status.state, 'completed');
+  assert.equal(historical.generation, 3);
   assert.equal(await page.evaluate(corrupt), true);
   await mkdir(output, { recursive: true });
   await writeFile(
@@ -143,6 +175,8 @@ try {
         uncertainSubmissionRetainsExactIntent: true,
         lockedReadExposesLocatorWithoutNetworkOrCredential: true,
         reloadPreservesLocator: true,
+        moveReadAdvancesAcceptedGeneration: true,
+        historicalMoveReadCannotLowerGeneration: true,
         resumeReadsSameMoveWithoutPrompt: true,
         otherWalletIsolated: true,
         unexpectedStoredFieldsRejected: true,
@@ -177,4 +211,11 @@ async function resume() {
 }
 async function corrupt() {
   return (await import('/probe.js')).corrupt();
+}
+
+async function generation() {
+  return (await import('/probe.js')).generation();
+}
+async function readHistorical() {
+  return (await import('/probe.js')).historical();
 }
