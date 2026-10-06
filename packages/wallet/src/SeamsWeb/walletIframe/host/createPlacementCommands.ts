@@ -1,4 +1,7 @@
-import { reconcileWalletPlacement } from './reconcileWalletPlacement';
+import {
+  reconcileWalletPlacementSession,
+  type WalletPlacementSession,
+} from './reconcileWalletPlacement';
 import { readLastWalletMoveRequest } from './walletMoveLocator';
 import { requestWalletMove } from './requestWalletMove';
 import type { BrowserSigningSurface } from '@/SeamsWeb/signingSurface/BrowserSigningSurface';
@@ -11,15 +14,13 @@ import {
   type WalletPlacementCapability,
   type WalletPlacementResult,
 } from '@/SeamsWeb/publicApi/placement';
-import type { WalletAuthenticationState } from '@/core/types/seams';
 import type { WalletHostManagementRequestV1 } from '@/SeamsWeb/operations/devices/walletHostOwnerAuthority';
 import type { Variant } from '@shared/utils/variant';
 import type { WalletId } from '@shared/utils/domainIds';
 
-type Context = {
+type Context = WalletPlacementSession & {
   readonly signingEngine: BrowserSigningSurface;
   readonly managementRequest: WalletHostManagementRequestV1;
-  readonly readAuthentication: () => WalletAuthenticationState;
 };
 
 export function createWalletHostPlacementCommands(context: Context): WalletPlacementCapability {
@@ -39,7 +40,7 @@ async function getPlacement(context: Context, walletId: WalletId): Promise<Walle
     `/wallet/placement/v1?walletId=${encodeURIComponent(walletId)}`,
     placementResult,
   );
-  if (result.ok) await reconcileWalletPlacement(walletId, result.placement);
+  if (result.ok) await reconcileWalletPlacementSession(context, walletId, result.placement);
   if (context.readAuthentication() !== authentication)
     return { ok: false, code: 'wallet_unlock_required' };
   return result;
@@ -61,7 +62,7 @@ async function getMove(
   const authentication = context.readAuthentication();
   const path = `/wallet/placement/v1/relocations/${encodeURIComponent(moveId)}?walletId=${encodeURIComponent(walletId)}`;
   const result = await readPlacement(context, walletId, path, moveResult.bind(null, moveId));
-  if (result.ok) await reconcileWalletPlacement(walletId, result.status);
+  if (result.ok) await reconcileWalletPlacementSession(context, walletId, result.status);
   if (context.readAuthentication() !== authentication)
     return { ok: false, code: 'wallet_unlock_required' };
   return result;

@@ -80,7 +80,11 @@ const bundle = await build({
       function unexpectedPrompt() {
         throw new Error("Reconnect must not prompt");
       }
+      async function lockWallet() {
+        authentication = { kind: 'signed_out' };
+      }
       const placement = createWalletHostPlacementCommands({
+        lockWallet,
         managementRequest: { request },
         readAuthentication,
         signingEngine: {

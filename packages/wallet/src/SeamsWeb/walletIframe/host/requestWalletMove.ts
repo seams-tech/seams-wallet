@@ -1,4 +1,7 @@
-import { reconcileWalletPlacement } from './reconcileWalletPlacement';
+import {
+  reconcileWalletPlacementSession,
+  type WalletPlacementSession,
+} from './reconcileWalletPlacement';
 import { saveWalletMoveRequest } from './walletMoveLocator';
 import type { Variant } from '@shared/utils/variant';
 import { requireRecord, requireCanonicalString } from '@shared/utils/validation';
@@ -20,9 +23,8 @@ import {
 import { redactCredentialExtensionOutputs } from '@/core/signingEngine/webauthnAuth/credentials/credentialExtensions';
 
 const PATH = '/wallet/placement/v1/relocations';
-type Context = {
+type Context = WalletPlacementSession & {
   readonly managementRequest: WalletHostManagementRequestV1;
-  readonly readAuthentication: () => WalletAuthenticationState;
   readonly signingEngine: Pick<
     BrowserSigningSurface,
     'getAuthenticationCredentialsSerialized' | 'requestEmailOtpEnrollmentConfirmation'
@@ -231,7 +233,7 @@ async function matchingMove(raw: unknown, context: MoveContext): Promise<WalletM
   } catch {
     return { ok: false, code: 'invalid_response' };
   }
-  await reconcileWalletPlacement(request.walletId, status);
+  await reconcileWalletPlacementSession(context.host, request.walletId, status);
   if (context.host.readAuthentication() !== context.authentication)
     return { ok: false, code: 'wallet_unlock_required' };
   return { ok: true, status };

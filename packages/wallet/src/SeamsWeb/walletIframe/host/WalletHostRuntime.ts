@@ -1,3 +1,4 @@
+import { clearHostedWalletSessions } from './hostedWalletSeamsSession';
 import { createWalletHostPlacementCommands } from './createPlacementCommands';
 import type { WalletPlacementCapability } from '@/SeamsWeb/publicApi/placement';
 import { createBrowserHostPlatformRuntime } from '@/SeamsWeb/assembly/createBrowserSigningRuntime';
@@ -194,6 +195,7 @@ export class WalletHostRuntime {
       readUnlockedEd25519ExportRootCapabilityV1: readUnlockedEd25519ExportRootLinkingCapabilityV1,
     });
     this.placement = createWalletHostPlacementCommands({
+      lockWallet: this.lockAfterWalletMove.bind(this),
       signingEngine: browserSigningSurface,
       managementRequest: ownerAuthorities.managementRequest,
       readAuthentication:
@@ -286,6 +288,11 @@ export class WalletHostRuntime {
       prefill: this.prefillRestoredSession,
     });
   }
+  private async lockAfterWalletMove(): Promise<void> {
+    clearHostedWalletSessions();
+    await this.auth.lock();
+  }
+
   /** Subscribe to typed lifecycle events emitted by the wallet boundary. */
   onSdkLifecycleEvent(listener: SdkLifecycleEventListener): () => void {
     return this.signingEngine.onSdkLifecycleEvent(listener);

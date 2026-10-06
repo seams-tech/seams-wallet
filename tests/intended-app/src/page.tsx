@@ -6,10 +6,12 @@ import type {
   NearProvisioningState,
   QrLinkedDeviceSessionPayloadV5,
   WalletSession,
+  WalletMoveStatusResult,
   SignNEP413MessageParams,
   SignNEP413MessageResult,
 } from '@seams/wallet';
 import {
+  parseWalletMoveId,
   buildHostedAuthMenuOpenRequest,
   hostedAuthMenuSessionIdFromBoundary,
   LinkDeviceEventPhase,
@@ -606,6 +608,7 @@ declare global {
   interface Window {
     __seamsIntendedE2EReadEmailOtpCode?: (input: IntendedEmailOtpCodeRequest) => Promise<string>;
     __seamsIntendedE2ELockWallet?: () => Promise<void>;
+    __seamsIntendedE2EReadWalletMove?: (moveId: string) => Promise<WalletMoveStatusResult>;
     __seamsIntendedE2ESignMessage?: (
       params: SignNEP413MessageParams,
     ) => Promise<SignNEP413MessageResult>;
@@ -1210,6 +1213,10 @@ class IntendedPageController {
       options: { signerSlot: this.nearSignerSlot, onEvent: this.recordLifecycleEvent },
     });
   }
+
+  readWalletMoveForIntendedTest = async (moveId: string): Promise<WalletMoveStatusResult> => {
+    return this.seams.placement.getMove(toWalletId(this.walletId), parseWalletMoveId(moveId));
+  };
 
   lockWalletForIntendedTest = async (): Promise<void> => {
     await this.seams.auth.lock();
@@ -3795,6 +3802,7 @@ function installIntendedE2EHelpers(controller: IntendedPageController): void {
   if (typeof window === 'undefined') return;
   window.__seamsIntendedE2EReadEmailOtpCode = controller.readEmailOtpCodeForChallenge;
   window.__seamsIntendedE2ELockWallet = controller.lockWalletForIntendedTest;
+  window.__seamsIntendedE2EReadWalletMove = controller.readWalletMoveForIntendedTest;
   window.__seamsIntendedE2ESignMessage = controller.signMessageForIntendedTest.bind(controller);
   window.__seamsIntendedE2ECancelDeviceLink = controller.cancelDeviceLinkForIntendedTest;
   window.__seamsIntendedE2EReadWalletLockState = controller.readWalletLockStateForIntendedTest;

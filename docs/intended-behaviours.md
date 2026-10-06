@@ -2028,6 +2028,17 @@ from the source generation. Historical completed-move reads cannot lower this
 local generation. This observation does not issue a destination credential.
 Ordinary locking does not advance the generation or invoke this invalidation path.
 
+When a placement response confirms destination activation, the host locks an
+obsolete local session through the ordinary lock flow. Copying-stage reads retain
+the original session for bounded move progress. A session already issued for the
+active generation remains usable during cleanup. An activation response that locks
+the wallet returns `wallet_unlock_required`. Later authenticated move reads require
+ordinary unlock. No credential survives local lock for progress polling.
+The activation-lock browser contract uses a real registered wallet, stored session,
+and iframe commands with simulated regional responses. It verifies copying-stage
+access, automatic lock at activation, no progress request after lock, and a locked
+state after reload. It does not establish destination unlock or regional relocation.
+
 The iframe request boundary checks the selected session's ownership generation
 before new signing, export, recovery, factor changes, or owner device changes.
 The check uses the requested wallet and local IndexedDB state. It makes no Console

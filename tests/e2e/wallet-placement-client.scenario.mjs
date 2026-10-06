@@ -34,6 +34,7 @@ class PlacementClientJourney {
     this.token = token;
     this.unlock();
     const host = api.createWalletHostPlacementCommands({
+      lockWallet: this.lock.bind(this),
       managementRequest: { request: this.request.bind(this) },
       signingEngine,
       readAuthentication: this.readAuthentication.bind(this),
@@ -220,6 +221,7 @@ async function loadPlacementClient(output) {
   const bundlePath = resolve(output, 'placement-client.mjs');
   await writeFile(bundlePath, bytes);
   const api = await import(pathToFileURL(bundlePath).href);
+  api.IndexedDBManager.resolveSelectedWalletAuthority = missingLocalSelection;
   const localDatabase = new LocalPlacementDatabase();
   api.seamsWalletDB.runTransaction = localDatabase.runTransaction.bind(localDatabase);
   return { api, bundleSha256: createHash('sha256').update(bytes).digest('hex') };
@@ -537,4 +539,8 @@ class LocalPlacementDatabase {
   async put(row) {
     this.rows.set(row.key, structuredClone(row));
   }
+}
+
+async function missingLocalSelection() {
+  return { kind: 'missing_selection' };
 }

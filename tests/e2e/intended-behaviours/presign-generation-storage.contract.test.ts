@@ -221,3 +221,114 @@ test('observed relocation blocks both signing curves and export before remote di
     context.off('request', record);
   }
 });
+
+declare global {
+  interface Window {
+    __seamsIntendedE2EReadWalletMove?: (
+      moveId: string,
+    ) => Promise<
+      import('../../../packages/wallet/src/SeamsWeb/publicApi/placement').WalletMoveStatusResult
+    >;
+  }
+}
+
+class ActivationResponses {
+  readonly moveId = `wmove_${'A'.repeat(43)}`;
+  phase: 'copying' | 'cleanup' = 'copying';
+  calls = 0;
+
+  async respond(route: Route): Promise<void> {
+    this.calls += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: { 'Cache-Control': 'no-store' },
+      body: JSON.stringify({
+        state: 'moving',
+        move: {
+          moveId: this.moveId,
+          sourceRegion: 'US',
+          destinationRegion: 'APAC',
+          sourceGeneration: 1,
+          destinationGeneration: 2,
+          admittedAtMs: 1000,
+          nextMoveAtMs: 2000,
+          progress: {
+            state: this.phase,
+            availability: this.phase === 'copying' ? 'paused' : 'active',
+            execution: { state: 'running' },
+          },
+        },
+      }),
+    });
+  }
+}
+
+async function readMoveFromApplication(moveId: string) {
+  const read = window.__seamsIntendedE2EReadWalletMove;
+  if (!read) throw new Error('Wallet move helper is unavailable');
+  return read(moveId);
+}
+
+test('destination activation retires the old local session and reload stays locked', async ({
+  harness,
+  page,
+  context,
+}, info) => {
+  info.setTimeout(180_000);
+  await harness.registerPasskeyWallet();
+  await harness.awaitNearReady();
+  const responses = new ActivationResponses();
+  const route = '**/wallet/placement/v1/relocations/*';
+  const respond = responses.respond.bind(responses);
+  await context.route(route, respond);
+  try {
+    const copying = await page.evaluate(readMoveFromApplication, responses.moveId);
+    expect(copying.ok).toBe(true);
+    await expect(page.getByTestId('intended-e2e-page')).toHaveAttribute(
+      'data-login-state',
+      'logged_in',
+    );
+    responses.phase = 'cleanup';
+    expect(await page.evaluate(readMoveFromApplication, responses.moveId)).toEqual({
+      ok: false,
+      code: 'wallet_unlock_required',
+    });
+    await harness.assertWalletLocked();
+    await expect(page.getByTestId('intended-e2e-page')).toHaveAttribute(
+      'data-login-state',
+      'logged_out',
+    );
+    const callsAtLock = responses.calls;
+    expect(await page.evaluate(readMoveFromApplication, responses.moveId)).toEqual({
+      ok: false,
+      code: 'wallet_unlock_required',
+    });
+    expect(responses.calls).toBe(callsAtLock);
+    await page.reload();
+    await expect(page.getByTestId('intended-e2e-page')).toHaveAttribute(
+      'data-login-state',
+      'logged_out',
+    );
+    await harness.assertWalletLocked();
+    await writeFile(
+      info.outputPath('activation-lock.json'),
+      JSON.stringify(
+        {
+          scope:
+            'Real registered wallet, stored session, SDK iframe commands and lock flow. Regional copying and activation responses are simulated.',
+          copyingPreservesProgressAuthentication: true,
+          activatedDestinationRetiresOldLocalSession: true,
+          cleanupDoesNotDelayFreshUnlockRequirement: true,
+          lockedMoveReadMakesNoRequest: true,
+          reloadStaysLocked: true,
+          statusRequests: callsAtLock,
+        },
+        null,
+        2,
+      ),
+    );
+  } finally {
+    await context.unroute(route, respond);
+  }
+});
