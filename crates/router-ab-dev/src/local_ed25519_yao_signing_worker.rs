@@ -501,6 +501,20 @@ impl LocalEd25519YaoSigningWorkerStateV1 {
         })
     }
 
+    pub fn registered_wallet_scope(
+        &self,
+        binding: &Ed25519YaoCeremonyBindingV1,
+    ) -> RouterAbProtocolResult<CloudflareSigningWorkerWalletScopeV1> {
+        binding.validate()?;
+        let identity = LocalEd25519YaoEffectiveIdentityV1::from_binding(binding);
+        let registration = self
+            .identities
+            .get(&identity)
+            .and_then(|state| state.initial_registration.as_ref())
+            .ok_or_else(|| invalid_activation("SigningWorker has no registered wallet scope"))?;
+        Ok(registration.request.scope.clone())
+    }
+
     pub fn accept_package_pair(
         &mut self,
         config: &LocalSigningWorkerConfigV1,

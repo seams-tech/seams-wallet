@@ -2230,6 +2230,8 @@ fn vm_tenant_root_restore_over_a_pending_retirement_carries_it_until_erased(
 
 #[path = "local_worker_http/router_wallet.rs"]
 mod router_wallet;
+#[path = "local_worker_http/ed25519_fence.rs"]
+mod ed25519_fence;
 
 /// A restore reservation that is never authorized expires rather than holding
 /// the tenant root. The operator reserves a challenge with a five-second
@@ -7507,9 +7509,16 @@ fn product_near_signing_process_flow(
     )?;
     assert_ne!(fenced_prepare_status, 200, "{fenced_prepare_body}");
     assert!(
-        fenced_prepare_body.contains("closed Ed25519 preparation"),
+        fenced_prepare_body.contains("closed new Ed25519 work"),
         "{fenced_prepare_body}"
     );
+
+    ed25519_fence::verify_rejected_wallet_delivery(
+        temp,
+        &config,
+        signing_worker_url,
+        &activation.binding().lifecycle.account_id,
+    )?;
 
     // A second SigningWorker process on the same role store, fronted by a
     // second Router process: the same finalize races through both paths.
@@ -7634,7 +7643,7 @@ fn product_near_signing_process_flow(
     )?;
     assert_ne!(restarted_prepare_status, 200, "{restarted_prepare_body}");
     assert!(
-        restarted_prepare_body.contains("closed Ed25519 preparation"),
+        restarted_prepare_body.contains("closed new Ed25519 work"),
         "{restarted_prepare_body}"
     );
 
@@ -7661,6 +7670,7 @@ fn product_near_signing_process_flow(
             "source_fence_replays_after_restart": true,
             "admitted_finalize_settles_while_fenced": true,
             "changed_move_rejected": true,
+            "delayed_delivery_preserves_durable_role_state": true,
             "invalid_ownership_generation_statuses": invalid_generation_statuses,
             "worker_restarts": 2,
             "independent_router_signing_worker_paths": 2,

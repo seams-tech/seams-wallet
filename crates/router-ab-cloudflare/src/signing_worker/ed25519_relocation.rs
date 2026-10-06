@@ -60,7 +60,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerEd25519ExecutionStoreV1<'_, Sql
         if self.read_fence(scope)?.is_some() {
             return Err(RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::LifecycleTransitionInProgress,
-                "Wallet relocation has closed Ed25519 preparation",
+                "Wallet relocation has closed new Ed25519 work",
             ));
         }
         Ok(())

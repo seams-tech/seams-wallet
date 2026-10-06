@@ -1,6 +1,14 @@
 use super::*;
 
 impl RouterAbSigningWorkerWalletDurableObject {
+    pub(super) fn require_ed25519_unfenced(
+        &self,
+        scope: &CloudflareSigningWorkerWalletScopeV1,
+    ) -> Result<(), RouterAbProtocolError> {
+        let sql = DurableObjectWalletSqlV1(&self.sql);
+        crate::SigningWorkerEd25519ExecutionStoreV1::new(&sql).require_unfenced(scope)
+    }
+
     pub(super) async fn with_ecdsa_transaction<T: Serialize + 'static>(
         &self,
         operation: impl FnOnce(

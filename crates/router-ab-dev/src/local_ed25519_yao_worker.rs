@@ -794,19 +794,14 @@ pub fn dispatch_local_ed25519_yao_connection_with_persistence_v1(
                 | LOCAL_DERIVER_B_ED25519_YAO_READ_PAIR_STATUS_PATH
                 | LOCAL_DERIVER_B_ED25519_YAO_BURN_PAIR_PATH
         );
-    let signing_worker_registration_route = config.role() == LocalServiceRoleV1::SigningWorker
-        && (request.path == LOCAL_SIGNING_WORKER_ED25519_YAO_ACTIVATION_PACKAGES_PATH
-            || is_signing_worker_linking_path(&request.path));
-    let signing_worker_finalization_lookup_route = config.role()
-        == LocalServiceRoleV1::SigningWorker
-        && request.path == LOCAL_SIGNING_WORKER_ED25519_YAO_INITIAL_REGISTRATION_FINALIZATION_PATH;
+    let signing_worker_state_route = config.role() == LocalServiceRoleV1::SigningWorker;
     let result = handle_yao_control_request(&mut stream, config, state, host, &request);
     request.body.fill(0);
     if let Err(error) = result {
         if deriver_a_pair_route {
             *state = LocalEd25519YaoWorkerStateV1::default();
             *state = host.load_state(LocalServiceRoleV1::DeriverA)?;
-        } else if signing_worker_registration_route {
+        } else if signing_worker_state_route {
             *state = LocalEd25519YaoWorkerStateV1::default();
             *state = host.load_state(LocalServiceRoleV1::SigningWorker)?;
         }
@@ -814,11 +809,7 @@ pub fn dispatch_local_ed25519_yao_connection_with_persistence_v1(
             local_dev_http_error_body_v1(config.role(), &request.path, 400, &error.to_string())?;
         write_local_dev_http_response_v1(&mut stream, status, &body)?;
     }
-    if deriver_a_pair_route
-        || deriver_b_pair_route
-        || signing_worker_registration_route
-        || signing_worker_finalization_lookup_route
-    {
+    if deriver_a_pair_route || deriver_b_pair_route || signing_worker_state_route {
         Ok(LocalEd25519YaoConnectionDispatchV1::NoSnapshotWrite)
     } else {
         Ok(LocalEd25519YaoConnectionDispatchV1::Handled)
@@ -1180,12 +1171,13 @@ fn handle_yao_control_request(
                 LocalEd25519YaoSigningWorkerPackagePairDeliveryV1,
             >(&request.body)?;
             let scope = delivery.scope.clone();
+            host.require_wallet_unfenced(&scope)?;
             let initial = delivery.deriver_a.binding.operation == router_ab_core::Ed25519YaoOperationV1::Registration;
             let receipt = state.signing_worker.accept_package_pair(config, delivery)?;
             if initial {
                 host.persist_initial_ed25519_registration(state, scope)?;
             } else {
-                host.persist_state(LocalServiceRoleV1::SigningWorker, state)?;
+                host.persist_wallet_mutation(state, scope)?;
             }
             write_local_dev_http_response_v1(stream, 200, &serde_json::to_string(&receipt)?)
         }
@@ -1209,9 +1201,11 @@ fn handle_yao_control_request(
             let promotion = serde_json::from_slice::<
                 LocalEd25519YaoSigningWorkerRecoveryPromotionRequestV1,
             >(&request.body)?;
+            let scope = state.signing_worker.registered_wallet_scope(&promotion.binding)?;
+            host.require_wallet_unfenced(&scope)?;
             let receipt = state.signing_worker.promote_recovery_candidate(promotion)?;
             // Persisted before the reply: the Gateway records the promotion on it.
-            host.persist_state(LocalServiceRoleV1::SigningWorker, state)?;
+            host.persist_wallet_mutation(state, scope)?;
             write_local_dev_http_response_v1(stream, 200, &serde_json::to_string(&receipt)?)
         }
         (
@@ -1221,9 +1215,12 @@ fn handle_yao_control_request(
             let delivery = serde_json::from_slice::<
                 LocalEd25519YaoSigningWorkerRefreshPackageDeliveryV1,
             >(&request.body)?;
+            let scope = state.signing_worker.registered_wallet_scope(delivery.binding.ceremony())?;
+            host.require_wallet_unfenced(&scope)?;
             let receipt = state
                 .signing_worker
                 .accept_refresh_deriver_a(config, delivery)?;
+            host.persist_wallet_mutation(state, scope)?;
             write_local_dev_http_response_v1(stream, 200, &serde_json::to_string(&receipt)?)
         }
         (
@@ -1233,9 +1230,12 @@ fn handle_yao_control_request(
             let delivery = serde_json::from_slice::<
                 LocalEd25519YaoSigningWorkerRefreshPackageDeliveryV1,
             >(&request.body)?;
+            let scope = state.signing_worker.registered_wallet_scope(delivery.binding.ceremony())?;
+            host.require_wallet_unfenced(&scope)?;
             let receipt = state
                 .signing_worker
                 .accept_refresh_deriver_b(config, delivery)?;
+            host.persist_wallet_mutation(state, scope)?;
             write_local_dev_http_response_v1(stream, 200, &serde_json::to_string(&receipt)?)
         }
         (
@@ -1282,8 +1282,9 @@ fn handle_yao_control_request(
             let reservation = serde_json::from_slice::<
                 router_ab_cloudflare::CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1,
             >(&request.body)?;
+            host.require_wallet_unfenced(&reservation.scope)?;
             let response = state.signing_worker.reserve_linked(config, &reservation)?;
-            host.persist_state(LocalServiceRoleV1::SigningWorker, state)?;
+            host.persist_wallet_mutation(state, reservation.scope.clone())?;
             write_local_dev_http_response_v1(stream, 200, &serde_json::to_string(&response)?)
         }
         (
@@ -1293,10 +1294,11 @@ fn handle_yao_control_request(
             let activation = serde_json::from_slice::<
                 router_ab_cloudflare::CloudflareEd25519YaoActivateReservationRequestV1,
             >(&request.body)?;
+            host.require_wallet_unfenced(&activation.scope)?;
             let response = state
                 .signing_worker
                 .activate_linked(&activation, now_unix_ms()?)?;
-            host.persist_state(LocalServiceRoleV1::SigningWorker, state)?;
+            host.persist_wallet_mutation(state, activation.scope.clone())?;
             write_local_dev_http_response_v1(stream, 200, &serde_json::to_string(&response)?)
         }
         (
@@ -1306,10 +1308,11 @@ fn handle_yao_control_request(
             let deactivation = serde_json::from_slice::<
                 router_ab_cloudflare::CloudflareEd25519YaoDeactivateReservationRequestV1,
             >(&request.body)?;
+            host.require_wallet_unfenced(&deactivation.scope)?;
             let response = state
                 .signing_worker
                 .deactivate_linked(&deactivation, now_unix_ms()?)?;
-            host.persist_state(LocalServiceRoleV1::SigningWorker, state)?;
+            host.persist_wallet_mutation(state, deactivation.scope.clone())?;
             write_local_dev_http_response_v1(stream, 200, &serde_json::to_string(&response)?)
         }
         _ => Err(io::Error::other("Yao control path is not owned by this worker").into()),

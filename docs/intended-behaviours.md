@@ -1593,6 +1593,11 @@ writes. Repeated commands return the stored identity after restart. Changed move
 inputs fail. Admitted finalize can settle while this fence is draining, and exact
 terminal replay stays available. This fence alone does not attest a sealed snapshot.
 
+The same fence prevents new Ed25519 recovery and linked-device mutations. Native
+refresh deliveries also check the fence. Each mutation commits with its fence check
+in one storage transaction. Native control routes reload durable state after errors
+and never save rejected in-memory mutations through automatic snapshot persistence.
+
 
 
 

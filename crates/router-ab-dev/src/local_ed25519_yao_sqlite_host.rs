@@ -81,6 +81,9 @@ pub(crate) fn ensure_local_deriver_b_pair_schema_v1(
 
 enum RoleStateCommit {
     Ordinary,
+    WalletMutation {
+        scope: router_ab_cloudflare::CloudflareSigningWorkerWalletScopeV1,
+    },
     InitialEd25519 {
         scope: router_ab_cloudflare::CloudflareSigningWorkerWalletScopeV1,
     },
@@ -165,6 +168,28 @@ impl LocalEd25519YaoSqliteHostV1 {
         )
     }
 
+    pub fn require_wallet_unfenced(
+        &self,
+        scope: &router_ab_cloudflare::CloudflareSigningWorkerWalletScopeV1,
+    ) -> RouterAbProtocolResult<()> {
+        let connection = self.connection.borrow();
+        let sql = crate::local_signing_worker_wallet_sqlite::LocalWalletSqlV1(&connection);
+        router_ab_cloudflare::SigningWorkerEd25519ExecutionStoreV1::new(&sql)
+            .require_unfenced(scope)
+    }
+
+    pub fn persist_wallet_mutation(
+        &self,
+        state: &LocalEd25519YaoWorkerStateV1,
+        scope: router_ab_cloudflare::CloudflareSigningWorkerWalletScopeV1,
+    ) -> RouterAbProtocolResult<()> {
+        self.persist_state_with_authority(
+            LocalServiceRoleV1::SigningWorker,
+            state,
+            RoleStateCommit::WalletMutation { scope },
+        )
+    }
+
     fn persist_state_with_authority(
         &self,
         role: LocalServiceRoleV1,
@@ -185,6 +210,11 @@ impl LocalEd25519YaoSqliteHostV1 {
                 return Err(pair_lookup_conflict(
                     "role state changed in another process",
                 ));
+            }
+            if let RoleStateCommit::WalletMutation { scope } = &purpose {
+                let sql = crate::local_signing_worker_wallet_sqlite::LocalWalletSqlV1(&transaction);
+                router_ab_cloudflare::SigningWorkerEd25519ExecutionStoreV1::new(&sql)
+                    .require_unfenced(scope)?;
             }
             storage.put_bytes(STATE_KEY, &bytes)?;
             if let RoleStateCommit::InitialEd25519 { scope } = purpose {
