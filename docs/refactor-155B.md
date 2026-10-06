@@ -1320,3 +1320,29 @@ No alternate relocation implementation or weaker acceptance criterion is needed.
 
 [Coordinator evidence and repeat command](./evidence/r155b-relocation-coordinator-20261007.json).
 No infrastructure was provisioned and no hosted latency was measured.
+
+### Composed relocation custody setup — 2026-10-07
+
+Added a private harness using the existing native Worker configuration builders.
+Source and destination have separate Router, Deriver A, Deriver B, SigningWorker
+wallet-object namespaces and presignature-session namespaces. SigningWorker D1
+stores are separate. Tenant-root authority remains shared.
+
+The harness creates real tenant-root state and completes NEAR registration
+through the source Rust Workers. It verifies distinct object identities across
+all five corresponding namespaces. The repeatable artifact explicitly records
+that the directory coordinator and destination-signing checks remain unfinished.
+
+The native script now permits importing its existing configuration and setup
+functions without executing its CLI. Explicit module roots allow those Workers
+to load from the private repository. Initial startup failures were environment
+configuration failures; no protocol execution occurred in those failed attempts.
+
+The new custody setup and existing `--do-pair-execution` acceptance passed. The
+bloat check passed. Private harness commit: `eac9098`. The next implementation
+step is to bind the real directory coordinator and Runtime handlers to these
+Workers, then run the complete move.
+
+[Setup evidence and repeat command](./evidence/r155b-composed-custody-20261007.json).
+This uses current local custody sources, including concurrent R153 changes. It
+does not establish hosted latency or a deployable committed-source candidate.

@@ -249,7 +249,7 @@ function recoveryCreationGrant(label, lifetimeMs) {
   return JSON.parse(output);
 }
 
-function loadFixture() {
+export function loadFixture() {
   const output = execFileSync(
     'cargo',
     [
@@ -415,6 +415,7 @@ function strictWorker(name, role, bindings) {
     name,
     modules: true,
     scriptPath: join(buildRoot, 'worker/shim.mjs'),
+    modulesRoot: repoRoot,
     modulesRules: [
       { type: 'ESModule', include: ['**/*.js', '**/*.mjs'] },
       { type: 'CompiledWasm', include: ['**/*.wasm'] },
@@ -445,7 +446,7 @@ const admissionRecoveryWindowBinding =
       ? { TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS: '30000' }
       : {};
 
-function deriverAWorker(fixture) {
+export function deriverAWorker(fixture) {
   return {
     ...strictWorker('deriver-a', 'deriver-a', {
       ...fixture.deriver_a_env,
@@ -482,7 +483,7 @@ function deriverAWithRelocationCipherFault(fixture, fault) {
   return { ...worker, name: `deriver-a-relocation-${fault}`, bindings };
 }
 
-function deriverBWorker(fixture) {
+export function deriverBWorker(fixture) {
   const bindings = {
     ...fixture.deriver_b_env,
     ...admissionRecoveryWindowBinding,
@@ -521,7 +522,7 @@ function deriverBWorker(fixture) {
   };
 }
 
-function signingWorker(name, databaseId, fixture) {
+export function signingWorker(name, databaseId, fixture) {
   return {
     ...strictWorker(name, 'signing-worker', {
       ...fixture.signing_worker_env,
@@ -552,7 +553,7 @@ function signingWorker(name, databaseId, fixture) {
   };
 }
 
-function routerWorker(fixture, capturePairPreparation = false, gateDeriverB = false) {
+export function routerWorker(fixture, capturePairPreparation = false, gateDeriverB = false) {
   return {
     ...strictWorker('router', 'router', {
       ...fixture.router_env,
@@ -761,7 +762,7 @@ async function routeDeriverBWithOfflineGate(request, miniflare) {
   return worker.fetch(request);
 }
 
-function tenantRootControlPlaneWorker(fixture) {
+export function tenantRootControlPlaneWorker(fixture) {
   return {
     ...strictWorker(
       'tenant-root-control-plane',
@@ -858,7 +859,7 @@ async function captureDeriverAPreparation(request, miniflare) {
   return response;
 }
 
-async function applyMigrations(miniflare, binding, workerName, migrationsPath) {
+export async function applyMigrations(miniflare, binding, workerName, migrationsPath) {
   const database = await miniflare.getD1Database(binding, workerName);
   const migrationFiles = (await readdir(migrationsPath))
     .filter((file) => file.endsWith('.sql'))
@@ -1164,7 +1165,7 @@ async function testTenantRootCommandReplayCasGuard(database, expectedRole) {
   );
 }
 
-async function testTenantRootCreationOperatingPath(topology, fixture, databases) {
+export async function testTenantRootCreationOperatingPath(topology, fixture, databases) {
   const router = await topology.getWorker('router');
   const backupBucketA = await topology.getR2Bucket(managedBackupR2Binding, 'deriver-a');
   const backupBucketB = await topology.getR2Bucket(managedBackupR2Binding, 'deriver-b');
@@ -2464,7 +2465,7 @@ function parseEd25519ActivationResult(bytes, label) {
   return { result, publicReceipt };
 }
 
-async function captureValidActivationDelivery(
+export async function captureValidActivationDelivery(
   topology,
   fixture,
   tenantRoot,
@@ -6036,4 +6037,6 @@ async function main() {
   console.log('real workerd D1 managed restore and signing continuity tests passed');
 }
 
-await main();
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  await main();
+}
