@@ -1,7 +1,10 @@
 import type { PreparedWalletSessionStatus } from '@/core/rpcClients/relayer/ecdsaPrepareSession';
 import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import { isEd25519ExtensionOfEcdsaWalletAuthority } from '@shared/authorization/walletAuthority';
-import { walletSessionPreservesCapabilities } from '@shared/device-linking/activeWalletSession';
+import {
+  activeWalletSessionV1RecordsEqual,
+  walletSessionPreservesCapabilities,
+} from '@shared/device-linking/activeWalletSession';
 import type {
   SigningSessionPlan,
   SigningOperationContext,
@@ -537,6 +540,24 @@ async function reconcilePreparedEcdsaSession(
   if (superseded) throw new Error('Wallet Session authority changed before client signing');
 }
 
+async function reconcilePreparedLinkedEcdsaSession(
+  input: Parameters<typeof resolveCurrentActiveWalletAuthorityRuntime>[0],
+  status: PreparedWalletSessionStatus,
+): Promise<void> {
+  const current = await resolveCurrentActiveWalletAuthorityRuntime(input);
+  if (
+    status.walletSessionId !== current.operationCredential.walletSessionId ||
+    status.quotaId !== current.session.quotaId ||
+    status.quotaLifecycle !== 'active' ||
+    status.remainingUses <= 0 ||
+    status.expiresAtMs <= Date.now() ||
+    status.expiresAtMs !== current.session.expiresAtMs ||
+    !activeWalletSessionV1RecordsEqual(status.authorization, current.session)
+  ) {
+    throw new Error('Linked Wallet Session authority changed before client signing');
+  }
+}
+
 async function rejectUnexpectedReusableSession(): Promise<never> {
   throw new Error('Operation step-up cannot reconcile a reusable Wallet Session');
 }
@@ -669,15 +690,22 @@ export async function createEvmFamilySigningFlowRuntime(
         }
       : undefined;
 
-  const reconcileSession =
-    activeAuthorization && exactOperationCredentialScope
-      ? reconcilePreparedEcdsaSession.bind(null, {
-          resolve: args.deps.resolveActiveEcdsaWalletSessionAuthorization,
-          scope: exactOperationCredentialScope,
-          prepared: activeAuthorization,
-          relayerUrl,
-        })
-      : rejectUnexpectedReusableSession;
+  let reconcileSession: (status: PreparedWalletSessionStatus) => Promise<void> =
+    rejectUnexpectedReusableSession;
+  if (args.activeWalletAuthority && resolvedSigner) {
+    reconcileSession = reconcilePreparedLinkedEcdsaSession.bind(null, {
+      deps: args.deps,
+      prepared: args.activeWalletAuthority.runtime,
+      signer: resolvedSigner,
+    });
+  } else if (activeAuthorization && exactOperationCredentialScope) {
+    reconcileSession = reconcilePreparedEcdsaSession.bind(null, {
+      resolve: args.deps.resolveActiveEcdsaWalletSessionAuthorization,
+      scope: exactOperationCredentialScope,
+      prepared: activeAuthorization,
+      relayerUrl,
+    });
+  }
   const secp256k1Engine = new Secp256k1Engine({
     reconcileSession,
     beforeSigning: args.deps.beforeSigning,
