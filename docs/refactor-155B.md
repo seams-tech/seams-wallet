@@ -486,8 +486,15 @@ proxy matched an obsolete owner-admission field list. The required
 browser bearer token. The custody Router correctly rejected it. The proxy now
 requires the current generation field and strips the token for owner admission.
 The custody rejection remains unchanged. Server type-checking and the bloat
-check pass. The immediate-signing/refresh browser contract is being rerun;
-its result is pending.
+check pass. After rebuilding the server bundle, the immediate-signing/refresh
+browser contract passed (one Chromium E2E, 34.3 seconds total test time).
+It exercises registration, immediate NEAR signing, reload, and restored signing.
+Command: `SEAMS_INTENDED_SKIP_BUILD=1 node scripts/run-wallet-intended-isolated.mjs
+-- e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts --grep
+"public Ed25519 Yao registration"` from `tests/`, after
+`pnpm -C packages/wallet-server run build`. This is correctness evidence,
+not a hosted latency measurement. The first attempted rerun used the old Worker
+bundle and was stopped; it does not measure the fix.
 
 The authorization-storage-transfer E2E passed. Its repeatable artifact is
 `.artifacts/r153/authorization-storage-transfer/evidence.json`. It verifies
