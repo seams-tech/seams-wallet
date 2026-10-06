@@ -1,0 +1,182 @@
+{
+  "environment": "Local Miniflare with production Rust Workers, dev profile, wallet-object harness",
+  "committedDevAtRun": "b08098c204be11f18a43cc3fe49a472fee607329",
+  "sourceQualification": "The shared checkout includes concurrent R153 custody changes outside committed dev. These results do not validate a deployable committed-dev candidate.",
+  "commands": [
+    "ROUTER_AB_WORKER_BUILD_PROFILE=dev ROUTER_AB_WALLET_DO_HARNESS=enabled node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --ecdsa-wallet-do-pool",
+    "ROUTER_AB_WORKER_BUILD_PROFILE=dev ROUTER_AB_WALLET_DO_HARNESS=enabled node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --do-pair-execution"
+  ],
+  "workerBuilds": {
+    "router": {
+      "buildStamp": {
+        "profile": "dev",
+        "wallet_objects": true,
+        "features": "strict-worker-router-entrypoint,wallet-do-router-harness,local-intended-router-burn",
+        "started_at_ms": 1791314278000
+      },
+      "wasmSha256": "71722579f35d8559f81ddf86640420671e6dcdf9239c2a8e749743a5c3c09080"
+    },
+    "deriver-a": {
+      "buildStamp": {
+        "profile": "dev",
+        "wallet_objects": true,
+        "features": "strict-worker-deriver-a-entrypoint,wallet-do-harness",
+        "started_at_ms": 1791314294000
+      },
+      "wasmSha256": "90afe47f23f7b3058144cbd763493aec097f2ddbc93174911a386a2ddf7033d4"
+    },
+    "deriver-b": {
+      "buildStamp": {
+        "profile": "dev",
+        "wallet_objects": true,
+        "features": "strict-worker-deriver-b-entrypoint,wallet-do-b-harness,wallet-do-b-completion-harness,local-intended-yao-clock-skew",
+        "started_at_ms": 1791314308000
+      },
+      "wasmSha256": "735302864f2c3c098c6072bb6641f78404b522e1cde48c25db1830454a75a9c1"
+    },
+    "signing-worker": {
+      "buildStamp": {
+        "profile": "dev",
+        "wallet_objects": true,
+        "features": "strict-worker-signing-worker-entrypoint,wallet-do-signing-worker-harness",
+        "started_at_ms": 1791314323000
+      },
+      "wasmSha256": "43e36a7ae6221ec818a101c4367a2dfdd82c543cbc99c1344d51495894a3400a"
+    },
+    "tenant-root-control-plane": {
+      "buildStamp": {
+        "profile": "dev",
+        "wallet_objects": false,
+        "features": "strict-worker-tenant-root-control-plane-entrypoint",
+        "started_at_ms": 1791314338000
+      },
+      "wasmSha256": "7cc02a2ca47f79aa0f57f5adb4b183fdd79b3189eed91e1f687116ad8fbe6014"
+    }
+  },
+  "rawArtifactSha256": {
+    "near": "1a90239be3e84a6a6bc0bc1df1791c9f4c4fb3d77423e72ff2679531b84eea98",
+    "ecdsa": "f045e087de7d538bc54b2f3e327eb58f9d24373f98def4de0d15f0ef14787bbb"
+  },
+  "near": {
+    "replayAfterObjectEviction": true,
+    "exactReplayAfterBCompleted": true,
+    "bExecutionUnchangedOnReplay": true,
+    "crossTenantAndWalletReadsRejected": true,
+    "mismatchedRootReceiptRejectedWithoutWrite": true
+  },
+  "nearRelocation": {
+    "routerExport": {
+      "recordCount": 1,
+      "chunkCount": 6,
+      "exactReplay": true,
+      "storedReceiptMatchesExport": true,
+      "destinationVerifiedThroughRuntime": true,
+      "destinationActivatedThroughRuntime": true,
+      "activationReceiptLostReplyRecovered": true,
+      "sourceCleanupPreservesDestinationActivation": true,
+      "destinationPreparedBeforeSourceFinalizationAndFreeze": true,
+      "activatedObjectMatchesPreparedObject": true,
+      "sourceDigestHex": "3b34cc3677d4a4b90f449fd3e284ed338ac786c0e6a2d196ff7e45f8a84453f0"
+    },
+    "restoration": {
+      "returned": {
+        "ownershipGeneration": 3,
+        "registrationAndTerminalHistoryRestored": true,
+        "oldCleanupReplayPreservesReturnedWallet": true,
+        "signatureSha256Hex": "0cb491d48f144c2e1fc788784e6cac3367409bc37642a5c982b7b771462978e3",
+        "freshSignatureVerified": true
+      },
+      "cleanup": {
+        "calls": 3,
+        "resumesAfterEviction": true,
+        "exactCompletionReplay": true,
+        "changedReceiptRejected": true,
+        "sourceRegistrationCannotReopen": true,
+        "commandsUseJournalActivation": true,
+        "cleanedSnapshotUnavailable": true
+      },
+      "signatureSha256Hex": "2402fe947161c412b9f06094c955197fc18015acd08f54039452ad2ed3ee9912",
+      "freshSignatureVerified": true,
+      "staleGenerationRejected": true,
+      "prepareReplayAfterEviction": true,
+      "preparationDoesNotRequireFutureInvalidationTime": true,
+      "firstReceiptPinsInvalidationTime": true,
+      "finalizeReplayAfterEviction": true,
+      "newTerminalIncludedInNextSnapshot": true,
+      "destinationPreparedBeforeSourceSettlement": true,
+      "initialRegistrationWriteBlockedDuringPreparation": true,
+      "historicalRegistrationReplayPreserved": true,
+      "incompleteAndOutOfOrderImportsRejected": true,
+      "finalDigestFailureRollsBackImportProgress": true,
+      "exactAcknowledgementsAfterEviction": true,
+      "transferResumesFromDestinationCursor": true,
+      "sourceCommandsUseAuthenticatedRouterTransport": true,
+      "sourceCommandsUsePrivateRuntimeTransport": true,
+      "sourceCommandsRequireDirectoryAuthorization": true,
+      "routerReceiptLostAcknowledgementRetries": true,
+      "deniedOrCorruptAuthorizationDoesNotReachRouter": true,
+      "exactCiphertextAndIndexesRestored": true,
+      "ownershipGeneration": 2,
+      "activationReplayPreservesLaterFence": true,
+      "lateKnownChunkPreservesRestoredRows": true
+    },
+    "recordCount": 1,
+    "segmentCount": 4,
+    "snapshotDigestHex": "e2bab61cc250a8b476ce8c769ba0629d642bd35f282bb2aa8a6de966df37f192",
+    "captureCalls": 5,
+    "settlementRequired": true,
+    "boundedSegments": true,
+    "captureAndExportResumeAfterEviction": true,
+    "sourceReceiptLostReplyRecovered": true,
+    "activationReceiptLostReplyRecovered": true,
+    "transferUsesJournalAuthorizedRuntime": true,
+    "exactDigestReconstructed": true,
+    "changedMoveAndReceiptRejected": true,
+    "bothCurvesPreparedInSameDestinationBeforeSourceSettlement": true,
+    "bothPreparationReceiptsSurviveEviction": true,
+    "scope": "Worker registration transfer and fresh Ed25519 signing; excludes linked-device transfer and assembled relocation"
+  },
+  "ecdsaRelocation": {
+    "freezeExportAndActivationUseAuthenticatedRouter": true,
+    "activationReceiptLostReplyRecovered": true,
+    "activationAndCleanupUseJournalAuthority": true,
+    "scope": "SigningWorker transfer and fresh ECDSA execution; Gateway routing is selected by the harness. Excludes the complete wallet coordinator.",
+    "ownershipGeneration": 2,
+    "freshPresignatureAndSignatureBeforeCleanup": true,
+    "freshPresignatureAndSignatureAfterCleanup": true,
+    "staleGenerationRejectedBeforeReservation": true,
+    "delayedOwnerRefillRejectedAfterReturn": true,
+    "delayedOwnerAuthorityPreservedInSnapshot": true,
+    "completedPresignPublicationRejectedDuringMoveAndAfterReturn": true,
+    "ownerPublicationReplayAfterWalletEviction": true,
+    "exactPrepareReplayAfterEviction": true,
+    "beforeCleanupSignatureSha256Hex": "58323b322143637b7b5fa9449b46a0cdafdaef83547e5b43107e5d7f47a54bde",
+    "afterCleanupSignatureSha256Hex": "dd3e90cf0a1ab5a746b73bf6517dcf90b00e118062f0dc6fb4c3947c58be2800",
+    "cleanup": {
+      "boundedCalls": 9,
+      "exactCompletionReplay": true,
+      "runtimeUsesStoredActivation": true
+    },
+    "returnTransfer": {
+      "preparationWithoutInvalidationTime": true,
+      "ownershipGeneration": 3,
+      "segments": 15,
+      "historicalSessionsPreservedWithoutBlockingFreeze": true,
+      "delayedOldCleanupReplayedWithoutDeletingReturnedWallet": true,
+      "freshSignatureSha256Hex": "e87fec87a8a44c4e4c7f6efb387f703f1160b48c641e2ef1457afb410d263402",
+      "cleanup": {
+        "boundedCalls": 10,
+        "exactCompletionReplay": true
+      }
+    }
+  },
+  "limitations": [
+    "No assembled product relocation through the public Gateway and directory coordinator.",
+    "No hosted deployment, geographic placement proof, latency comparison, or Cloudflare spending.",
+    "The NEAR transfer scenario excludes linked-device transfer."
+  ],
+  "initialFailure": {
+    "classification": "environment_or_infrastructure_failure",
+    "cause": "Stale Worker build stamp. Rebuilt all five roles using the existing wallet-object harness profile before the passing runs."
+  }
+}

@@ -1187,3 +1187,34 @@ with the private regional-real runner, `passkey.registration.contract.test.ts
 --grep 'relocation retirement waits'`, using the SDK frozen under
 `.artifacts/r155b-setup-retry/dist` and the matching server candidate. Private
 evidence is under `.artifacts/r155b/console-outage/relocation-signing-settlement-{ecdsa,ed25519}/`.
+
+### Custody execution and relocation acceptance — 2026-10-07
+
+Both existing native Worker acceptance scenarios passed with the current local
+custody sources: `--ecdsa-wallet-do-pool` and `--do-pair-execution`. These exercise
+production Rust Workers in Miniflare with the wallet-object harness enabled.
+
+NEAR verified fresh signatures after transfer and after a return move. It rejected
+stale generations and replayed prepare/finalize after object eviction. Deriver A
+replayed its completed result without another Deriver B execution. Cross-wallet
+and cross-tenant reads failed. Changed root receipts failed without writes.
+
+ECDSA verified fresh signatures before and after source cleanup. It rejected
+delayed owner refill and completed presignature publication under retired
+authority, including after a return move. Exact prepare and terminal replay
+survived object eviction. Delayed cleanup preserved the returned wallet.
+
+The initial ECDSA attempt failed the build-freshness check. This was an
+`environment_or_infrastructure_failure`. All five Worker roles were rebuilt
+with the existing dev profile before the passing runs. No production fix was
+required by these results.
+
+The shared checkout contains concurrent R153 custody changes outside committed
+`dev`. These results apply to the tested local binaries. They do not validate a
+frozen deployment candidate. The evidence records each binary hash and build
+stamp. Full product relocation, linked-device NEAR transfer, and hosted regional
+acceptance remain separate gates. No Cloudflare resources were created or used.
+
+[Acceptance evidence and repeat commands](./evidence/r155b-custody-acceptance-20261007.json).
+Raw artifacts remain under `.artifacts/r150/`; logs are under
+`.artifacts/r155b-custody-acceptance/`.
