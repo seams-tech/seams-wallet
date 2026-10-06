@@ -533,3 +533,16 @@ cancellation replies, exact retry, conflicting outcomes, and ordinary admission
 before/after completion. Server type-checking and the bloat gate pass. Pending
 registration admission still uses Console until continuation routing and durable
 write enforcement are verified. Authorization-transfer verification is running.
+
+### Registration continuation routing and cancellation writes — October 6
+
+Private commit `ceb98c3` routes a known ceremony from the exact tenant's regional
+execution record. It preserves session-to-wallet matching and the handler's
+authorization checks. Unknown ceremonies retain directory discovery.
+
+Migration 0068 rejects inserts and updates of cancelled registration ceremony
+and setup records. Cleanup deletes remain available. The real-D1 routing scenario
+verifies late-write rejection after a lost cancellation reply, prevents recreation
+after cleanup, and preserves exact completion retry. The bloat gate passes.
+Custody and session-publication write coverage still needs verification before
+pending registration admission can become fully local.
