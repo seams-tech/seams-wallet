@@ -210,11 +210,12 @@ impl RouterAbSigningWorkerWalletDurableObject {
         &self,
         source: SigningWorkerEd25519PreparationV1,
     ) -> Result<SigningWorkerEd25519SnapshotResponseV1, RouterAbProtocolError> {
+        let destination_object = crate::signing_worker_wallet_object_name_v1(&source.scope)?;
         if let Some(state) = self.read_ed25519_import(&source.scope)? {
             if state.preparation() != source {
                 return Err(wallet_error("Ed25519 destination preparation changed"));
             }
-            return Ok(SigningWorkerEd25519SnapshotResponseV1::Prepared { source });
+            return Ok(SigningWorkerEd25519SnapshotResponseV1::Prepared { source, destination_object });
         }
         self.prepare_cleaned_ed25519_destination(&source)?;
         let authority_count = self.ed25519_count(
@@ -244,7 +245,7 @@ impl RouterAbSigningWorkerWalletDurableObject {
         self.save_ed25519_import(&ImportState::Prepared {
             source: source.clone(),
         })?;
-        Ok(SigningWorkerEd25519SnapshotResponseV1::Prepared { source })
+        Ok(SigningWorkerEd25519SnapshotResponseV1::Prepared { source, destination_object })
     }
 
     fn prepare_cleaned_ed25519_destination(

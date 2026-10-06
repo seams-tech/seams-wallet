@@ -32,6 +32,10 @@ function digest(value) {
     .digest('hex');
 }
 
+function preparedObjectName(scope) {
+  return `signing-worker-wallet-${createHash('sha256').update('seams/signing-worker/wallet-do/v1').update(JSON.stringify(scope)).digest('hex')}`;
+}
+
 function preparationIdentity(source) {
   return {
     scope: source.scope,
@@ -58,7 +62,9 @@ export async function verifyEd25519Snapshot(topology, activation, fixture, crede
   const destination = await topology.getWorker(destinationName);
   const preparation = { command: 'prepare', source: preparationIdentity(source) };
   const prepared = await accepted(destination, snapshotPath, preparation, credential);
-  assert.deepEqual(prepared, { state: 'prepared', source: preparation.source });
+  assert.deepEqual(prepared, { state: 'prepared', source: preparation.source, destination_object: prepared.destination_object });
+  assert.equal(typeof prepared.destination_object, 'string');
+  assert.equal(prepared.destination_object, preparedObjectName(source.scope));
   await evictTransferredWallet(topology, destinationName, scope);
   assert.deepEqual(await accepted(destination, snapshotPath, preparation, credential), prepared);
   source.request.invalidated_at_ms = Date.now();
@@ -242,7 +248,7 @@ async function verifyDestinationRestoration({
   const returnDestination = await topology.getWorker(workerName);
   assert.deepEqual(await accepted(returnDestination, snapshotPath, {
     command: 'prepare', source: preparationIdentity(nextSource),
-  }, credential), { state: 'prepared', source: preparationIdentity(nextSource) });
+  }, credential), { state: 'prepared', source: preparationIdentity(nextSource), destination_object: preparedObjectName(nextSource.scope) });
   assert.deepEqual(await accepted(destination, settlePath, nextSource, credential), {
     state: 'settled', command: nextSource,
   });

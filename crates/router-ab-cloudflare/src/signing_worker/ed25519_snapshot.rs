@@ -107,6 +107,7 @@ impl SigningWorkerEd25519SnapshotCommandV1 {
 pub enum SigningWorkerEd25519SnapshotResponseV1 {
     Prepared {
         source: SigningWorkerEd25519PreparationV1,
+        destination_object: String,
     },
     Imported {
         segment_index: u32,

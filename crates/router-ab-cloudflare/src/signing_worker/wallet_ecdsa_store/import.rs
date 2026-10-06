@@ -68,6 +68,7 @@ impl SigningWorkerEcdsaTransferRequestV1 {
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum SigningWorkerEcdsaTransferResponseV1 {
     Prepared {
+        destination_object: String,
         scope: CloudflareSigningWorkerWalletScopeV1,
         request: SigningWorkerRelocationIdentityV1,
         chunk_bytes: u32,
@@ -235,6 +236,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
                 return Err(wallet_error("ECDSA destination preparation changed"));
             }
             return Ok(SigningWorkerEcdsaTransferResponseV1::Prepared {
+                destination_object: signing_worker_wallet_object_name_v1(&scope)?,
                 scope,
                 request,
                 chunk_bytes,
@@ -275,6 +277,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
             _ => return Err(wallet_error("ECDSA destination preparation changed")),
         }
         Ok(SigningWorkerEcdsaTransferResponseV1::Prepared {
+            destination_object: signing_worker_wallet_object_name_v1(&scope)?,
             scope,
             request,
             chunk_bytes,
@@ -301,6 +304,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
                 chunk_bytes: size,
             }) if request == receipt.request.identity() && size == chunk_bytes => {
                 Ok(SigningWorkerEcdsaTransferResponseV1::Prepared {
+                    destination_object: signing_worker_wallet_object_name_v1(&receipt.scope)?,
                     scope: receipt.scope,
                     request,
                     chunk_bytes,
