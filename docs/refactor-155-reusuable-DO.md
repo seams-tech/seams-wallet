@@ -392,3 +392,55 @@ signatures across comparison and diagnostic runs. Temporary host-address logging
 exists only in the diagnostic build and is absent from the committed source.
 All six original staging versions were restored and verified after the trial.
 The broader lifecycle acceptance gaps recorded above remain open.
+
+## Remove duplicate initial protocol arithmetic — October 6, 2026
+
+The base random oblivious transfer (base ROT) exchanges create secret correlated
+values used by presigning. Two calculations in these initial exchanges repeated
+work. The receiver calculated `xG` again after checking that same point. The
+sender calculated `y(X-Y)` separately for each of its 128 entries.
+
+The receiver now retains its checked point. The sender calculates `yY` once and
+uses `yX-yY` for each entry. These changes remove 128 and 127 scalar
+multiplications per receiver and sender batch, respectively. The shared point
+is zeroized on drop. The protocol equations, rejection checks, randomness
+consumption, messages, and request count remain unchanged. No cache, background
+work, configuration, or compatibility path was added.
+
+[Comparison evidence](evidence/r155-initial-protocol-20261006.json) records the
+native results, hosted samples, per-request spans, and exact hosted versions.
+The native benchmark runs the full two-party protocol and verifies 25 signatures
+per arm. Median computation fell **35.552ms → 26.661ms (25%)**. The transcript
+and signature hashes match exactly across the two arms. The existing timing
+example now emits these hashes so this comparison can be repeated.
+
+The hosted trial changes only SigningWorker. It keeps the browser WASM unchanged
+to isolate server computation and verify interoperability. Both arms include the
+registration-host startup change above. Each arm registers three fresh APAC
+wallets from NRT and signs three times immediately.
+
+| Metric | Control median / max | Candidate median / max |
+| --- | ---: | ---: |
+| First Worker-to-DO initialization span | 695ms / 746ms | 687ms / 698ms |
+| First protocol step Worker-to-DO span | 79ms / 126ms | 81ms / 592ms |
+| First presignature generation | 3.031s / 3.829s | 3.389s / 3.711s |
+| Immediate first signing | 3.433s / 3.784s | 4.075s / 4.348s |
+| First-signature refill wait | 1.185s / 1.816s | 2.210s / 2.358s |
+| Following signatures, six samples | 2.005s / 3.606s | 1.835s / 3.580s |
+| Registration duration | 6.441s / 6.492s | 5.728s / 5.794s |
+
+**No hosted first-signature speedup was demonstrated.** First-signing and
+first-generation medians were slower in this small trial. Native computation
+savings cannot be used as a hosted latency estimate. Each first preparation
+still used six sequential requests. Transport, runtime, and overlapping
+registration work remain material factors that this arithmetic change does not
+remove. The following-signature result is not a ready-material benchmark.
+
+Validation passed: 46 existing protocol tests, the scheduling integration test,
+seven compile-fail doctests, browser-client WASM checking, release SigningWorker
+build, 50 native signature verifications, 18 hosted signature verifications, and
+the bloat check. Source review found no new secret-dependent branch, index, or
+loop. It does not establish constant-time behavior of the JavaScript/WASM runtime.
+The broader lifecycle acceptance gaps above remain separate.
+All six original staging versions were restored and verified after the trial.
+No production release or permanent infrastructure change was made.
