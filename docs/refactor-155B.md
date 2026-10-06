@@ -805,3 +805,29 @@ Source snapshots, builds and logs are under `.artifacts/r155b-email-outage/`.
 The normal Email OTP registration/unlock lifecycle E2E passes (47.7s), including
 NEAR/ECDSA step-up, reload, and key export. SDK/private Console type checks, lifecycle
 type fixtures, and the bloat gate pass. This does not close the outage gate.
+
+### Regional routing rejection acceptance — 2026-10-07
+
+The existing private regional browser suite now uses a real US wallet and its
+captured NEAR signing request to verify three failures during Console outage:
+
+| Mutation | Result |
+| --- | --- |
+| Malformed region metadata | 400 `invalid_wallet_region` |
+| APAC home hint for the US session, entering through WEUR | 409 `wallet_home_discovery_required` |
+| Different request wallet with the valid session credential | 403 `wallet_session_scope_mismatch` |
+
+The first valid signature enters through WEUR. After the rejected requests,
+APAC and OC ingress each complete another signature with the original reusable
+budget. All three signatures verify. The verifier counts three successful home
+prepare/finalize pairs and zero attempted Console calls. This proves the rejected
+requests do not prevent those remaining budgeted operations. It does not establish
+tenant/resource forgery rejection, concurrent double-use, hosted placement, or latency.
+
+The case passes in 1.0 minute. Reproduce in `seams-monorepo`:
+`tests/scripts/run-regional-real.mjs passkey.registration.contract.test.ts --grep 'regional routing rejects'`
+with the existing candidate server and frozen SDK environment variables. The frozen
+SDK is `.artifacts/r155b-email-outage/stepup-dist` in `seams-wallet`. The test writes
+`rejections.json` and `console-outage.json` under the private
+`.artifacts/r155b/console-outage/routing-rejections/` directory.
+[Sanitized combined evidence](./evidence/r155b-routing-rejections.json).

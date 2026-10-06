@@ -1,0 +1,415 @@
+{
+  "rejections": [
+    {
+      "name": "malformed_region",
+      "status": 400,
+      "code": "invalid_wallet_region"
+    },
+    {
+      "name": "wrong_home",
+      "status": 409,
+      "code": "wallet_home_discovery_required"
+    },
+    {
+      "name": "session_wallet_mismatch",
+      "status": 403,
+      "code": "wallet_session_scope_mismatch"
+    }
+  ],
+  "verifiedSignatures": 3,
+  "attemptedConsoleCalls": 0,
+  "date": "2026-10-07",
+  "environment": "Local production Gateway handlers, four isolated regional D1 databases, Chromium, local signing role Workers",
+  "requests": [
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/wallet/execution-lane/owner",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/wallet/execution-lane/owner",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ed25519/sign/prepare",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ed25519/sign",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/wallet/email-otp/challenge",
+      "status": 403,
+      "entry": "home",
+      "forwarded": true,
+      "region": "US"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/wallet/execution-lane/owner",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/wallet/execution-lane/owner",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ed25519/sign/prepare",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ed25519/sign",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/wallet/execution-lane/owner",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/wallet/execution-lane/owner",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ed25519/sign/prepare",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ed25519/sign",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/wallet/execution-lane/owner",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/wallet/execution-lane/owner",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ed25519/sign/prepare",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ed25519/sign",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ed25519/sign/prepare",
+      "status": 400,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ed25519/sign/prepare",
+      "status": 409,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/wallet/email-otp/challenge",
+      "status": 403,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ed25519/sign/prepare",
+      "status": 409,
+      "entry": "home",
+      "forwarded": true,
+      "region": "APAC"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "APAC"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "APAC"
+    },
+    {
+      "path": "/wallet/execution-lane/owner",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "APAC"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "APAC"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "APAC"
+    },
+    {
+      "path": "/wallet/execution-lane/owner",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "APAC"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "APAC"
+    },
+    {
+      "path": "/router-ab/ed25519/sign/prepare",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "APAC"
+    },
+    {
+      "path": "/router-ab/ed25519/sign",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "APAC"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "OC"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "OC"
+    },
+    {
+      "path": "/wallet/execution-lane/owner",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "OC"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "OC"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "OC"
+    },
+    {
+      "path": "/wallet/execution-lane/owner",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "OC"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "OC"
+    },
+    {
+      "path": "/router-ab/ed25519/sign/prepare",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "OC"
+    },
+    {
+      "path": "/router-ab/ed25519/sign",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "OC"
+    }
+  ],
+  "limitations": [
+    "Does not establish hosted placement or latency.",
+    "Does not cover tenant/resource forgery or concurrent double-use."
+  ]
+}
