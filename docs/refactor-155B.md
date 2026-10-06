@@ -1298,3 +1298,25 @@ hosted placement.
 
 Private implementation commit: `a2c187c`.
 [Sanitized evidence](./evidence/r155b-lookup-cleanup-20261007.json).
+
+### Relocation integration gate review — 2026-10-07
+
+The production relocation-directory scenario passed (1 test, 11.0 seconds) with
+the current server candidate. It exercises competing moves, lost replies, restart
+and handover ordering. Its participant receipts are synthetic; this result does
+not prove custody transfer or source writer fencing.
+
+The remaining Phase 5 integration gap is now explicit. The browser harness shares
+one local native custody stack across its regional Gateways. The native Worker
+transfer harness uses real Rust roles but substitutes directory replies through
+`SourceDirectory`. The directory harness supplies synthetic participant receipts.
+These separate passing checks cannot establish the complete relocation claim.
+
+Closure requires the existing coordinator and Runtime paths to run against
+independent regional custody stores in one scenario. Register and sign first,
+move through the real journal, then verify destination signing, rejected delayed
+source work and exact retry behavior. Use real custody receipts throughout.
+No alternate relocation implementation or weaker acceptance criterion is needed.
+
+[Coordinator evidence and repeat command](./evidence/r155b-relocation-coordinator-20261007.json).
+No infrastructure was provisioned and no hosted latency was measured.
