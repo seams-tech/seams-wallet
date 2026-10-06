@@ -1587,3 +1587,23 @@ Validation passed: wallet-server TypeScript checking, SigningWorker WASM-target
 `cargo check` with standard wallet-object features, and the bloat gate. This
 cleanup changes no enabled production path. The preceding optimized-binary E2E
 evidence predates this deletion; no new hosted or timing claim follows from it.
+
+
+### Release fault isolation — 2026-10-07
+
+Review found that the standard Deriver B release build selected
+`wallet-do-b-completion-harness`. This feature enables the test-only
+`R150_TEST_B_BURN_BEFORE_COMPLETE` fault. The fault deliberately burns a pair
+before completion when its environment variable is enabled.
+
+The build now selects that feature only for development. Release retains
+`wallet-do-b-harness`, which provides wallet ownership and scoped persistence.
+The release feature combination passed WASM-target `cargo check`. Shell syntax
+and the bloat gate passed. Fresh optimized builds are running after this change
+and the obsolete finalize-hold deletion. The earlier release hashes identify
+the preceding candidate and must not be reused for deployment of this revision.
+
+The remaining fresh-unlock acceptance needs a wallet created through the browser
+registration harness. The existing composed relocation fixture installs an owner
+authority and session directly; it does not establish the sealed custody data
+required for a complete browser unlock. That gap remains open.
