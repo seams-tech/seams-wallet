@@ -16,6 +16,11 @@ const TABLES = [
   'wallet_session_hosted_exchange_codes_v2',
   'wallet_session_hosted_credentials_v2',
   'wallet_session_authorizations_v2',
+  'router_ab_yao_versioned_json_records',
+  'webauthn_authenticators',
+  'webauthn_credential_bindings',
+  'wallet_signers',
+  'wallets',
   'wallet_auth_methods',
   'wallet_authorities',
   'wallet_relocation_authorization_import_receipts',
@@ -67,7 +72,11 @@ export class D1WalletAuthorizationCleanup {
     if (admitted.state === 'cleaned') return admitted;
     for (const table of TABLES) {
       const ownership =
-        table === 'authorized_operations' || table === 'authorized_operation_audit_events'
+        table === 'authorized_operations' ||
+        table === 'authorized_operation_audit_events' ||
+        table === 'webauthn_authenticators' ||
+        table === 'webauthn_credential_bindings' ||
+        table === 'router_ab_yao_versioned_json_records'
           ? AuthorizationSnapshotLayout.ownership(table)
           : 'target.namespace = ?1 AND target.org_id = ?2 AND target.project_id = ?3 AND target.env_id = ?4 AND target.wallet_id = ?5';
       const quota =

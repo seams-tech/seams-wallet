@@ -2,8 +2,13 @@ import { requireArray, requireRecord } from '@shared/utils/validation';
 import type { D1DatabaseLike } from '../../../../storage/tenantRoute';
 
 const TABLES = [
+  'wallets',
+  'wallet_signers',
   'wallet_authorities',
   'wallet_auth_methods',
+  'webauthn_credential_bindings',
+  'webauthn_authenticators',
+  'router_ab_yao_versioned_json_records',
   'authorization_wallet_session_quotas',
   'wallet_session_authorizations_v2',
   'wallet_session_hosted_credentials_v2',
@@ -86,6 +91,33 @@ export class AuthorizationSnapshotLayout {
 
   static ownership(table: Table): string {
     switch (table) {
+      case 'router_ab_yao_versioned_json_records':
+        return `target.namespace = ?1 AND target.org_id = ?2 AND target.project_id = ?3
+          AND target.env_id = ?4 AND json_extract(target.record_json, '$.walletId') = ?5
+          AND CASE
+            WHEN substr(target.record_key, 1, 17) = 'passkey-envelope:' AND json_valid(substr(target.record_key, 18))
+              THEN json_extract(substr(target.record_key, 18), '$[0]') = ?5
+            WHEN substr(target.record_key, 1, 28) = 'passkey-credential-activity:' AND json_valid(substr(target.record_key, 29))
+              THEN json_extract(substr(target.record_key, 29), '$[0]') = ?5
+            ELSE target.record_key IN ('passkey-envelope:recovery-set:' || ?5,
+              'passkey-envelope:wallet-recovery-backup-ack/' || ?5)
+          END`;
+
+      case 'webauthn_credential_bindings':
+      case 'webauthn_authenticators':
+        return `target.namespace = ?1 AND target.org_id = ?2 AND target.project_id = ?3
+          AND target.env_id = ?4 AND target.user_id = ?5
+          AND EXISTS (SELECT 1 FROM wallet_auth_methods AS method
+            WHERE method.namespace = target.namespace AND method.org_id = target.org_id
+              AND method.project_id = target.project_id AND method.env_id = target.env_id
+              AND method.wallet_id = ?5 AND method.kind = 'passkey'
+              AND method.credential_id_b64u = target.credential_id_b64u
+              AND ${
+                table === 'webauthn_credential_bindings'
+                  ? 'method.rp_id = target.rp_id'
+                  : 'method.credential_public_key_b64u = target.credential_public_key_b64u'
+              })`;
+
       case 'authorization_wallet_session_quotas':
         return `EXISTS (SELECT 1 FROM wallet_session_authorizations_v2 AS session
           WHERE session.namespace = ?1 AND session.org_id = ?2 AND session.project_id = ?3 AND session.env_id = ?4
