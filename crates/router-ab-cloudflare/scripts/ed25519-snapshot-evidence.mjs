@@ -1,4 +1,4 @@
-import { runtimeRelocationSource } from './runtime-relocation-evidence.mjs';
+import { runtimeRelocationSource, verifyRuntimeRouterExport } from './runtime-relocation-evidence.mjs';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { evictTransferredWallet } from './linked-presign-transfer-evidence.mjs';
@@ -123,7 +123,9 @@ export async function verifyEd25519Snapshot(topology, activation, fixture, crede
     originalBytes: Buffer.concat(bytes), credential, sourceCredential, delivery, registrationCredential,
     activation, fixture, signDestination,
   });
+  const routerExport = await verifyRuntimeRouterExport(worker, activation);
   return {
+    routerExport,
     restoration,
     recordCount: receipt.record_count,
     segmentCount: receipt.segment_count,

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { build } from 'esbuild';
 import { fileURLToPath } from 'node:url';
 
@@ -47,8 +48,18 @@ class SourceDirectory {
     if (this.mode === 'denied' || input.attempt.moveId !== this.source.request.move_id)
       return Response.json({ ok: false, code: 'attempt_conflict' }, { status: 409 });
     if (request.url.endsWith('/relocation-router-export')) {
-      assert.equal(this.receipt.record_count, 0);
-      return Response.json({ ok: false, code: 'invalid_cursor' }, { status: 409 });
+      if (input.recordIndex >= this.receipt.record_count)
+        return Response.json({ ok: false, code: 'invalid_cursor' }, { status: 409 });
+      return Response.json({
+        ok: true,
+        command: {
+          kind: 'export',
+          receipt: this.receipt,
+          record_index: input.recordIndex,
+          segment_index: input.segmentIndex,
+          chunk_bytes: 4096,
+        },
+      });
     }
     if (request.url.endsWith('/relocation-router-receipt')) {
       if (this.receipt !== null) assert.deepEqual(input.receipt, this.receipt);
@@ -286,4 +297,88 @@ export async function runtimeRelocationSource(topology, credential, command) {
   assert.equal(routerRuntime.env.MPC_ROUTER.calls, callsBeforeExport);
 
   return source;
+}
+
+export async function verifyRuntimeRouterExport(runtime, activation) {
+  const binding = activation.envelope.target.binding;
+  const consumed = await runtime.env.MPC_ROUTER.fetch(
+    new Request(
+      'https://mpc-router.router-ab.internal/router-ab/router/ed25519-yao/registration/consume',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-router-ab-internal-service-auth': runtime.env.ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET,
+        },
+        body: JSON.stringify({
+          ownership_generation: 1,
+          tenant_root: activation.envelope.tenant_root,
+          wallet_id: binding.lifecycle.account_id,
+          lifecycle_id: binding.lifecycle.lifecycle_id,
+          session_id: binding.session_id,
+          consumer_binding: 'fixture-registration-finalization',
+        }),
+      },
+    ),
+  );
+  assert.equal(consumed.status, 200, await consumed.text());
+  const envelope = sourceEnvelope(runtime.env.WALLET_CONSOLE.source);
+  const freeze = await runtime.handler(
+    new Request(`${runtimeOrigin}${runtimeBase}/router-freeze`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(envelope),
+    }),
+    runtime.env,
+  );
+  const frozen = await freeze.json();
+  assert.equal(freeze.status, 200, JSON.stringify(frozen));
+  assert.equal(frozen.state, 'frozen');
+  assert.ok(frozen.receipt.record_count > 0);
+  const records = [];
+  let chunks = 0;
+  for (let recordIndex = 0; recordIndex < frozen.receipt.record_count; recordIndex += 1) {
+    const bytes = [];
+    for (let segmentIndex = 0; ; segmentIndex += 1) {
+      const init = {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ...envelope, recordIndex, segmentIndex }),
+      };
+      const response = await runtime.handler(
+        new Request(`${runtimeOrigin}${runtimeBase}/router-export`, init),
+        runtime.env,
+      );
+      const exported = await response.json();
+      assert.equal(response.status, 200, JSON.stringify(exported));
+      assert.equal(exported.kind, 'exported');
+      assert.deepEqual(exported.chunk.receipt, frozen.receipt);
+      assert.equal(exported.chunk.record_index, recordIndex);
+      assert.equal(exported.chunk.segment_index, segmentIndex);
+      const replay = await runtime.handler(
+        new Request(`${runtimeOrigin}${runtimeBase}/router-export`, init),
+        runtime.env,
+      );
+      assert.deepEqual(await replay.json(), exported);
+      const segment = Buffer.from(exported.chunk.data_b64u, 'base64url');
+      assert.ok(segment.length <= 4096);
+      bytes.push(segment);
+      chunks += 1;
+      if (segmentIndex + 1 === exported.chunk.segment_count) break;
+      assert.ok(segmentIndex < 1024, 'Router registration export must be bounded');
+    }
+    records.push(JSON.parse(Buffer.concat(bytes).toString('utf8')));
+  }
+  const digest = createHash('sha256')
+    .update('seams/router/wallet-snapshot/v1')
+    .update(JSON.stringify([frozen.receipt.request, records]))
+    .digest('hex');
+  assert.equal(digest, frozen.receipt.records_digest_hex);
+  return {
+    recordCount: records.length,
+    chunkCount: chunks,
+    exactReplay: true,
+    storedReceiptMatchesExport: true,
+    sourceDigestHex: frozen.receipt.records_digest_hex,
+  };
 }
