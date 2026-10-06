@@ -620,3 +620,12 @@ After rebuilding the SDK, both owner browser cases complete signatures through
 WEUR, APAC, and OC ingress for a US wallet with Console disabled. Type-checking
 and the bloat gate pass. Linked-device cases are running. This tests regional
 routing in local Workers, not physical travel latency.
+
+### Linked-device installation generation repair — October 6
+
+Both linked-device outage cases initially failed before the outage: their
+source-preserving Ed25519 Router target omitted required `ownership_generation`.
+The adapter now requires local established-home admission and sends that
+generation in the target. It refuses retired ownership before remote execution.
+Server type-checking and the bloat gate pass. Linked-device browser acceptance
+is being repeated; no linked-device outage success is claimed yet.

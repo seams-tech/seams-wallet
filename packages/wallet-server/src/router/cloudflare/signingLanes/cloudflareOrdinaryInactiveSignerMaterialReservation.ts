@@ -1,3 +1,4 @@
+import type { WalletExecutionAuthority } from '../../domains/walletRegistration/walletRegistrationReservation';
 import {
   createOrdinaryInactiveSignerMaterialReservationServiceV1,
   parseOrdinaryEcdsaSignerMaterialDeactivationResultV1,
@@ -20,6 +21,7 @@ import {
 } from '../../../core/signingMaterial/ordinaryInactiveSignerMaterialReservation';
 import {
   mpcMaterialActivationRefsEqual,
+  parseWalletId,
   type MpcMaterialActivationRef,
 } from '@shared/utils/domainIds';
 import {
@@ -104,6 +106,7 @@ export type CloudflareLinkedDeviceEd25519SourcePreservingRouterEndpointV1 =
   DeviceLinkingEd25519SourcePreservingRouterPortV1;
 
 export function createCloudflareLinkedDeviceEd25519SourcePreservingRouterEndpointV1(input: {
+  readonly admitEstablishedHome: WalletExecutionAuthority['admitEstablishedHome'];
   readonly fetch: typeof fetch;
   readonly internalServiceAuthSecret: string;
   readonly resolveTenantRoot: (
@@ -115,6 +118,10 @@ export function createCloudflareLinkedDeviceEd25519SourcePreservingRouterEndpoin
 }): CloudflareLinkedDeviceEd25519SourcePreservingRouterEndpointV1 {
   return {
     executeEd25519SourcePreservingV1: async (request) => {
+      const walletId = parseWalletId(request.applicationBinding.wallet_id);
+      if (!walletId.ok) throw new Error(walletId.error.message);
+      const admitted = await input.admitEstablishedHome({ walletId: walletId.value });
+      if (!admitted.ok) throw new Error(admitted.message);
       const tenantRoot = await input.resolveTenantRoot(request);
       const tenantRootWire = await routerAbEd25519YaoTenantRootWireV1(tenantRoot);
       return await postRouterJsonRequestV1(
@@ -128,6 +135,7 @@ export function createCloudflareLinkedDeviceEd25519SourcePreservingRouterEndpoin
             participant_ids: request.participantIds,
             target: {
               operation: 'registration',
+              ownership_generation: admitted.ownershipGeneration,
               binding: request.targetRequest.binding,
               deriver_a_input: request.targetRequest.deriver_a_input,
               deriver_b_input: request.targetRequest.deriver_b_input,

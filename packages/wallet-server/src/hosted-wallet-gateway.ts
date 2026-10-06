@@ -1,3 +1,4 @@
+import { admitD1EstablishedWalletHome } from './router/cloudflare/d1/registration/d1WalletExecutionAuthority';
 import { WalletAuthorizationRelocationRoutes } from './router/cloudflare/runtime/walletAuthorizationRelocationRoutes';
 import { parseTenantId } from '@shared/authorization/capabilityKinds';
 import { parseSessionOrigin } from './authorization/domain';
@@ -698,6 +699,7 @@ function stagingLinkedDeviceSessionComposition(
       },
       sourceContributionRouter: createCloudflareLinkedDeviceEd25519SourcePreservingRouterEndpointV1(
         {
+          admitEstablishedHome: admitD1EstablishedWalletHome.bind(undefined, env.SIGNER_DB, scope),
           fetch: serviceFetch,
           internalServiceAuthSecret: requireEnvString(
             env,
