@@ -1622,3 +1622,20 @@ completion recovery, local continuation routing, and rejection of late lifecycle
 writes after cancellation. These checks close the corresponding Phase 3 discovery
 and Phase 4 local-continuation items. Broader authentication, custody relocation,
 registration claims/completion, and hosted gates remain as listed.
+
+
+### Counter deployment integration — 2026-10-07
+
+The canonical deployment configuration and Gateway manifest renderer now include
+`emailOtpRateLimitD1`. They reuse the existing allocated/pending resource model.
+All four Gateways receive the same `EMAIL_OTP_RATE_LIMIT_DB` binding. Console and
+Wallet Runtime manifests exclude it. Pending allocation prevents Gateway rendering.
+The existing wallet-system migration command applies the shared counter schema
+once through the ingress Gateway configuration. No remote migration ran.
+
+The deployment E2E passed with nine rendered manifests. It also rejected missing
+counter allocation and reuse of a Console, signer, or other-environment database.
+Private commits: `3b94c24` and `3dea157`.
+[Counter evidence](evidence/r155b-direct-otp-20261007.json) records these checks.
+Canonical allocations remain pending. Provisioning approval, live cutover, and
+old-counter cleanup remain open.

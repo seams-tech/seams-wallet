@@ -52,5 +52,20 @@
   },
   "implementationCommit": "seams-monorepo@04f5071",
   "acceptanceCommit": "seams-monorepo@7e73599",
-  "bloatCheck": "passed"
+  "bloatCheck": "passed",
+  "deploymentPreparation": {
+    "manifestCommit": "seams-monorepo@3b94c24",
+    "isolationCommit": "seams-monorepo@3dea157",
+    "canonicalAllocation": "pending; no live resource created",
+    "allFourGatewaysShareCounterDatabase": true,
+    "consoleAndRuntimeExcludeCounterBinding": true,
+    "missingAllocationBlocksGatewayRendering": true,
+    "databaseReuseRejected": [
+      "Console",
+      "regional signer",
+      "other environment"
+    ],
+    "migration": "Existing wallet-system migration command applies shared counter schema once through ingress Gateway config. Remote execution remains unverified.",
+    "verification": "regional-deployment-config.e2e.test.ts passed (1.1s), including invalid allocations and nine rendered Worker manifests"
+  }
 }
