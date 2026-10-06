@@ -326,12 +326,19 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa, r
   assert.equal(walletFreeze.state, 'frozen');
   assert.deepEqual(await accepted(walletSource, freezePath, command, routerCredential), receipt);
   const walletDestination = await runtimeRelocationDestination(topology, walletSource);
+  const initialStatus = await accepted(walletDestination, transferPath, { kind: 'status', receipt, chunk_bytes: chunkBytes }, routerCredential);
+  assert.equal(initialStatus.kind, 'prepared');
+  assert.equal(initialStatus.chunk_bytes, chunkBytes);
+  await rejected(destination, transferPath, { kind: 'status', receipt, chunk_bytes: 1024 }, credential, /status identity differs/);
   const first = await accepted(walletSource, exportPath, { receipt, segment_index: 0, chunk_bytes: chunkBytes }, routerCredential);
   const chunks = [];
   for (let index = 0; index < first.segment_count; index += 1) {
     const chunk = index === 0 ? first : await accepted(walletSource, exportPath, { receipt, segment_index: index, chunk_bytes: chunkBytes }, routerCredential);
     chunks.push(Buffer.from(chunk.data_b64u, 'base64url'));
     await accepted(walletDestination, transferPath, { kind: 'import', chunk }, credential);
+    if (index === 0) await topology.unsafeEvictDurableObject(destinationName, objectClass, { id: preparedIds[0] });
+    const progress = await accepted(walletDestination, transferPath, { kind: 'status', receipt, chunk_bytes: chunkBytes }, routerCredential);
+    assert.deepEqual(progress, { kind: 'receiving', receipt, chunk_bytes: chunkBytes, segment_count: first.segment_count, next_segment: index + 1 });
     if (index === 0) {
       const changed = structuredClone(chunk);
       changed.receipt.command.request.invalidated_at_ms += 1;
@@ -358,6 +365,7 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa, r
 
   const verified = await accepted(walletDestination, transferPath, { kind: 'verify', receipt }, credential);
   assert.deepEqual(verified, { kind: 'verified', receipt });
+  assert.deepEqual(await accepted(walletDestination, transferPath, { kind: 'status', receipt, chunk_bytes: chunkBytes }, routerCredential), verified);
   const destinationIds = await topology.listDurableObjectIds(objectClass, destinationName);
   assert.equal(destinationIds.length, 1);
   await topology.unsafeEvictDurableObject(destinationName, objectClass, { id: destinationIds[0] });
@@ -404,6 +412,9 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa, r
     firstImportedReceiptPinsInvalidationTime: true,
     sourceFreezeReplayedAfterEviction: true,
     destinationVerificationReplayedAfterEviction: true,
+    journalAuthorizedDestinationStatus: true,
+    destinationCursorSurvivesEviction: true,
+    changedStatusChunkSizeRejected: true,
     delayedInitializationRejectedAtBothHomes: true,
     segments: first.segment_count,
     pendingRegistration,

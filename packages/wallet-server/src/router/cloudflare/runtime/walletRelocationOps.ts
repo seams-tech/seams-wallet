@@ -66,6 +66,7 @@ const OPERATIONS = {
   'presign-inventory': '/router-ab/signing-worker/wallet/linked-presign-inventory',
   'presign-fence': '/router-ab/signing-worker/linked-presign-session/fence',
   'presign-freeze': '/router-ab/signing-worker/linked-presign-session/freeze',
+  'presign-status': '/router-ab/signing-worker/linked-presign-session/transfer',
   'presign-import': '/router-ab/signing-worker/linked-presign-session/transfer',
   'presign-verify': '/router-ab/signing-worker/linked-presign-session/transfer',
   'presign-export': '/router-ab/signing-worker/linked-presign-session/export',

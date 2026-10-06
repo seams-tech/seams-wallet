@@ -3,7 +3,7 @@ import { ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1 } from '../../../core/Thresho
 import type { CloudflareServiceBindingFetcher } from './routerAbServiceBindings';
 import type { RuntimeSourceDirectory } from './walletRelocationSource';
 
-type Operation = 'inventory' | 'fence' | 'freeze' | 'export' | 'import' | 'verify';
+type Operation = 'inventory' | 'fence' | 'freeze' | 'export' | 'import' | 'verify' | 'status';
 
 export function presignSourceOperation(operation: string): Operation | null {
   switch (operation) {
@@ -13,6 +13,7 @@ export function presignSourceOperation(operation: string): Operation | null {
     case 'presign-export': return 'export';
     case 'presign-import': return 'import';
     case 'presign-verify': return 'verify';
+    case 'presign-status': return 'status';
     default: return null;
   }
 }
@@ -21,7 +22,7 @@ export async function forwardPresignSource(
   input: unknown, operation: Operation, router: CloudflareServiceBindingFetcher,
   credential: string, directory: RuntimeSourceDirectory,
 ): Promise<Response> {
-  if (operation === 'export' || operation === 'import' || operation === 'verify')
+  if (operation === 'export' || operation === 'import' || operation === 'verify' || operation === 'status')
     return forwardPresignTransfer(input, operation, router, credential, directory);
   if (!isPlainObject(input) || Object.keys(input).length !== (operation === 'inventory' ? 4 : 3) ||
       !isPlainObject(input.wallet) || !isPlainObject(input.attempt)) return failure('invalid_input', 400);
@@ -112,10 +113,10 @@ function failure(code: string, status: number): Response {
 }
 
 async function forwardPresignTransfer(
-  input: unknown, operation: 'export' | 'import' | 'verify', router: CloudflareServiceBindingFetcher,
+  input: unknown, operation: 'export' | 'import' | 'verify' | 'status', router: CloudflareServiceBindingFetcher,
   credential: string, directory: RuntimeSourceDirectory,
 ): Promise<Response> {
-  if (!isPlainObject(input) || Object.keys(input).length !== (operation === 'verify' ? 3 : 4) ||
+  if (!isPlainObject(input) || Object.keys(input).length !== (operation === 'verify' || operation === 'status' ? 3 : 4) ||
       !isPlainObject(input.wallet) || !isPlainObject(input.attempt) || !isPlainObject(input.session) ||
       Object.keys(input.session).length !== 2 || typeof input.session.presignSessionId !== 'string' ||
       !input.session.presignSessionId.trim() || typeof input.session.serverPresignatureId !== 'string' ||
@@ -132,7 +133,7 @@ async function forwardPresignTransfer(
     const result: unknown = await authorized.json();
     if (!isPlainObject(result) || Object.keys(result).length !== 2 || result.ok !== true ||
         !isPlainObject(result.command) || result.command.kind !== operation ||
-        Object.keys(result.command).length !== (operation === 'export' ? 4 : operation === 'import' ? 3 : 2))
+        Object.keys(result.command).length !== (operation === 'export' ? 4 : operation === 'import' || operation === 'status' ? 3 : 2))
       return failure('source_command_unavailable', 503);
     const command = result.command;
     const receipt = command.receipt;
@@ -165,6 +166,8 @@ async function forwardPresignTransfer(
           chunk.data_b64u.length > 5462 || !/^[A-Za-z0-9_-]+$/u.test(chunk.data_b64u))
         return failure('invalid_input', 400);
       payload = { kind: 'import', chunk };
+    } else if (operation === 'status') {
+      payload = { kind: 'status', receipt, chunk_bytes: 4096 };
     } else {
       payload = { kind: 'verify', receipt };
     }

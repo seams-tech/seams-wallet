@@ -45,6 +45,10 @@ pub(crate) enum Command {
     Verify {
         receipt: LinkedPresignFreezeReceipt,
     },
+    Status {
+        receipt: LinkedPresignFreezeReceipt,
+        chunk_bytes: u32,
+    },
 }
 
 impl Command {
@@ -52,7 +56,7 @@ impl Command {
         match self {
             Self::Prepare { command, .. } => command.validate(),
             Self::Import { chunk } => chunk.receipt.command.validate(),
-            Self::Verify { receipt } => receipt.command.validate(),
+            Self::Verify { receipt } | Self::Status { receipt, .. } => receipt.command.validate(),
         }
     }
 
@@ -60,7 +64,7 @@ impl Command {
         match self {
             Self::Prepare { command, .. } => command.clone(),
             Self::Import { chunk } => Preparation::from_source(&chunk.receipt.command),
-            Self::Verify { receipt } => Preparation::from_source(&receipt.command),
+            Self::Verify { receipt } | Self::Status { receipt, .. } => Preparation::from_source(&receipt.command),
         }
     }
 }
@@ -71,6 +75,12 @@ pub(crate) enum Receipt {
     Prepared {
         command: Preparation,
         chunk_bytes: u32,
+    },
+    Receiving {
+        receipt: LinkedPresignFreezeReceipt,
+        chunk_bytes: u32,
+        segment_count: u32,
+        next_segment: u32,
     },
     Imported {
         segment_index: u32,
@@ -159,6 +169,7 @@ pub(super) async fn handle(
                 } => prepare(&transaction, command, chunk_bytes).await?,
                 Command::Import { chunk } => import(&transaction, chunk).await?,
                 Command::Verify { receipt } => verify(&transaction, receipt).await?,
+                Command::Status { receipt, chunk_bytes } => status(&transaction, receipt, chunk_bytes).await?,
             };
             result.replace(Some(receipt));
             Ok(())
@@ -170,6 +181,32 @@ pub(super) async fn handle(
         .take()
         .ok_or_else(|| storage_error("Missing linked presign transfer result"))?;
     worker::Response::from_json(&receipt).map_err(storage_error)
+}
+
+async fn status(
+    transaction: &worker::Transaction,
+    receipt: LinkedPresignFreezeReceipt,
+    chunk_bytes: u32,
+) -> worker::Result<Receipt> {
+    validate_chunk_bytes(chunk_bytes).map_err(transaction_error)?;
+    match transaction_get_optional::<ImportState>(transaction, IMPORT_KEY).await? {
+        Some(ImportState::Prepared { command, chunk_bytes: size })
+            if command == Preparation::from_source(&receipt.command) && size == chunk_bytes =>
+        {
+            Ok(Receipt::Prepared { command, chunk_bytes })
+        }
+        Some(ImportState::Importing { receipt: prior, chunk_bytes: size, segment_count, next_segment })
+            if prior == receipt && size == chunk_bytes =>
+        {
+            Ok(Receipt::Receiving { receipt, chunk_bytes, segment_count, next_segment })
+        }
+        Some(ImportState::Verified { receipt: prior, chunk_bytes: size })
+            if prior == receipt && size == chunk_bytes =>
+        {
+            Ok(Receipt::Verified { receipt })
+        }
+        _ => Err(transaction_error("Linked presign status identity differs")),
+    }
 }
 
 async fn prepare(
