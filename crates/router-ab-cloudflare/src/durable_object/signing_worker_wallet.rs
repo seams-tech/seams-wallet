@@ -88,10 +88,10 @@ const ROUND1_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_round1 (
 /// activation here. This object keeps an activation in one record with its
 /// lifecycle and has no revocation of its own, so neither state arises
 /// otherwise; the finalization lookup reports both.
-#[cfg(feature = "strict-worker-signing-worker-entrypoint")]
+#[cfg(debug_assertions)]
 const HARNESS_FAULT_PATH: &str =
     "/router-ab/internal/signing-worker/wallet/harness-activation-fault";
-#[cfg(feature = "strict-worker-signing-worker-entrypoint")]
+#[cfg(debug_assertions)]
 const HARNESS_FAULT_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS harness_activation_faults (
     active_key TEXT PRIMARY KEY,
     fault TEXT NOT NULL CHECK (fault IN ('lost', 'fenced')))";
@@ -540,7 +540,7 @@ struct InsertedRowV1 {
 }
 
 /// Harness only: one lost or fenced activation, by its active key.
-#[cfg(feature = "strict-worker-signing-worker-entrypoint")]
+#[cfg(debug_assertions)]
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct HarnessActivationFaultV1 {
@@ -621,7 +621,7 @@ impl DurableObject for RouterAbSigningWorkerWalletDurableObject {
     }
 
     async fn fetch(&self, mut request: Request) -> worker::Result<Response> {
-        #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
+        #[cfg(debug_assertions)]
         if request.method() == worker::Method::Post && request.path() == HARNESS_FAULT_PATH {
             return self.record_harness_activation_fault(request.json().await?);
         }
@@ -1234,7 +1234,7 @@ impl RouterAbSigningWorkerWalletDurableObject {
                 fenced: false,
             },
         };
-        #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
+        #[cfg(debug_assertions)]
         let snapshot = self.with_harness_activation_fault(snapshot)?;
         let result = evaluate_initial_registration_finalization_v1(&request, snapshot)?;
         Response::from_json(&result).map_err(sql_error)
@@ -1242,7 +1242,7 @@ impl RouterAbSigningWorkerWalletDurableObject {
 
     /// Harness only: marks one stored registration's activation lost or
     /// fenced. The record itself is left as it is.
-    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
+    #[cfg(debug_assertions)]
     fn record_harness_activation_fault(
         &self,
         fault: HarnessActivationFaultV1,
@@ -1272,7 +1272,7 @@ impl RouterAbSigningWorkerWalletDurableObject {
     /// Harness only: the lookup's snapshot with a recorded fault applied. A
     /// lost activation is absent; a fenced one is absent and fenced, as the
     /// role store reports an exact deactivation.
-    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
+    #[cfg(debug_assertions)]
     fn with_harness_activation_fault(
         &self,
         mut snapshot: CloudflareSigningWorkerInitialRegistrationFinalizationSnapshotV1<

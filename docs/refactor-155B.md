@@ -1672,3 +1672,18 @@ syntax and the bloat gate passed. Fresh optimized builds are running; their
 acceptance results remain pending. Earlier release evidence identifies the
 preceding source revision. The development-only completion fault remains an
 explicit test feature and stays excluded from release builds.
+
+
+### Release activation-fault removal — 2026-10-07
+
+Review found a test activation-fault route in the release SigningWorker wallet
+object. Its normal initial-registration lookup also created/read the fault table.
+The handler, request type, schema, and lookup now compile only with debug
+assertions. Release execution omits the route and both fault-related SQL calls.
+No new feature switch or environment variable was introduced.
+
+Release WASM-target compilation and the bloat gate passed. Composed relocation
+acceptance now probes the route directly in source and destination SigningWorker
+objects and requires HTTP 404 in release. That behavioral check is pending the
+new optimized builds. The preceding build loop was deliberately terminated after
+this issue was identified; it is not release acceptance evidence.
