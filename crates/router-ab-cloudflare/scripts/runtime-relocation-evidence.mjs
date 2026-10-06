@@ -29,6 +29,7 @@ class SourceDirectory {
   mode = 'authorized';
   receiptMode = 'available';
   receipt = null;
+  activationReceipt = null;
   constructor(source) {
     this.source = source;
   }
@@ -38,7 +39,8 @@ class SourceDirectory {
       request.url.endsWith('/relocation-runtime-source') ||
         request.url.endsWith('/relocation-router-receipt') ||
         request.url.endsWith('/relocation-router-export') ||
-        request.url.endsWith('/relocation-router-destination'),
+        request.url.endsWith('/relocation-router-destination') ||
+        request.url.endsWith('/relocation-router-activation'),
     );
     assert.equal(request.headers.get('x-seams-writer-role'), 'walletRuntime');
     assert.equal(
@@ -48,6 +50,13 @@ class SourceDirectory {
     const input = await request.json();
     if (this.mode === 'denied' || input.attempt.moveId !== this.source.request.move_id)
       return Response.json({ ok: false, code: 'attempt_conflict' }, { status: 409 });
+    if (request.url.endsWith('/relocation-router-activation')) {
+      assert.deepEqual(input.receipt.source, this.receipt);
+      if (this.activationReceipt !== null) assert.deepEqual(input.receipt, this.activationReceipt);
+      this.activationReceipt = input.receipt;
+      if (this.receiptMode === 'lost_reply') throw new Error('Recorded activation reply was lost');
+      return Response.json({ ok: true, receipt: this.activationReceipt });
+    }
     if (request.url.endsWith('/relocation-router-destination')) {
       assert.ok(this.receipt);
       assert.equal(Object.keys(input).length, 3, 'Console receives no chunk data');
@@ -442,6 +451,18 @@ export async function verifyRuntimeRouterExport(runtime, activation, topology) {
   assert.equal(verified.kind, 'verified');
   assert.deepEqual(verified.receipt, frozen.receipt);
   assert.deepEqual(await runtimeRouterCommand(destination, 'router-status', envelope), verified);
+  destination.env.WALLET_CONSOLE.receiptMode = 'lost_reply';
+  const lostActivation = await destination.handler(
+    new Request(`${runtimeOrigin}${runtimeBase}/router-activate`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(envelope),
+    }),
+    destination.env,
+  );
+  assert.equal(lostActivation.status, 503);
+  assert.ok(destination.env.WALLET_CONSOLE.activationReceipt);
+  destination.env.WALLET_CONSOLE.receiptMode = 'available';
   const activated = await runtimeRouterCommand(destination, 'router-activate', envelope);
   assert.equal(activated.kind, 'activated');
   assert.deepEqual(activated.activation.source, frozen.receipt);
@@ -455,6 +476,7 @@ export async function verifyRuntimeRouterExport(runtime, activation, topology) {
     storedReceiptMatchesExport: true,
     destinationVerifiedThroughRuntime: true,
     destinationActivatedThroughRuntime: true,
+    activationReceiptLostReplyRecovered: true,
     sourceDigestHex: frozen.receipt.records_digest_hex,
   };
 }

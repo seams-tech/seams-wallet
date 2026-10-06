@@ -197,9 +197,10 @@ export async function authorizeRuntimeSource(
   return { ok: true, body: JSON.stringify(payload) };
 }
 
-// A frozen participant is durable even when Console is unavailable. Return a
+// Participant effects are durable even when Console is unavailable. Return a
 // retryable failure until Console confirms the same receipt is in its journal.
 export async function recordRuntimeRouterReceipt(
+  operation: 'router-freeze' | 'router-activate',
   input: unknown,
   response: Response,
   env: RuntimeSourceDirectory,
@@ -207,35 +208,38 @@ export async function recordRuntimeRouterReceipt(
   if (!response.ok) return response;
   try {
     const result: unknown = await response.clone().json();
-    if (isPlainObject(result) && result.state === 'draining') return response;
-    if (
-      !isPlainObject(input) ||
-      !isPlainObject(result) ||
-      result.state !== 'frozen' ||
-      !isPlainObject(result.receipt)
-    )
-      return receiptUnavailable();
+    if (!isPlainObject(input) || !isPlainObject(result)) return receiptUnavailable();
+    let receipt: unknown;
+    let endpoint: string;
+    if (operation === 'router-freeze') {
+      if (result.state === 'draining') return response;
+      if (result.state !== 'frozen') return receiptUnavailable();
+      receipt = result.receipt;
+      endpoint = 'relocation-router-receipt';
+    } else {
+      if (result.kind !== 'activated') return receiptUnavailable();
+      receipt = result.activation;
+      endpoint = 'relocation-router-activation';
+    }
+    if (!isPlainObject(receipt)) return receiptUnavailable();
     const version = env.CF_VERSION_METADATA.id;
     if (typeof version !== 'string' || !version) return receiptUnavailable();
     const recorded = await env.WALLET_CONSOLE.fetch(
-      new Request(
-        'https://wallet-placement.internal/internal/wallet-placement/v1/relocation-router-receipt',
-        {
-          method: 'POST',
-          headers: {
-            'content-type': 'application/json',
-            'x-seams-writer-role': 'walletRuntime',
-            'x-seams-writer-version': version,
-            'x-seams-writer-account': env.SEAMS_D1_HOME_ACCOUNT_ID,
-            'x-seams-writer-database': env.SEAMS_D1_HOME_DATABASE_ID,
-          },
-          body: JSON.stringify({
-            wallet: input.wallet,
-            attempt: input.attempt,
-            receipt: result.receipt,
-          }),
+      new Request(`https://wallet-placement.internal/internal/wallet-placement/v1/${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-seams-writer-role': 'walletRuntime',
+          'x-seams-writer-version': version,
+          'x-seams-writer-account': env.SEAMS_D1_HOME_ACCOUNT_ID,
+          'x-seams-writer-database': env.SEAMS_D1_HOME_DATABASE_ID,
         },
-      ),
+        body: JSON.stringify({
+          wallet: input.wallet,
+          attempt: input.attempt,
+          receipt,
+        }),
+      }),
     );
     if (!recorded.ok) return receiptUnavailable();
     const acknowledgement: unknown = await recorded.json();
@@ -247,7 +251,7 @@ export async function recordRuntimeRouterReceipt(
       return receiptUnavailable();
     // Console canonicalizes the request fields. Compare values without relying
     // on object key order in either service's serializer.
-    if (!sameReceipt(result.receipt, acknowledgement.receipt)) return receiptUnavailable();
+    if (!sameReceipt(receipt, acknowledgement.receipt)) return receiptUnavailable();
     return response;
   } catch {
     return receiptUnavailable();
@@ -268,7 +272,7 @@ function sameReceipt(expected: Record<string, unknown>, actual: Record<string, u
 
 function receiptUnavailable(): Response {
   return Response.json(
-    { ok: false, code: 'source_receipt_unavailable' },
+    { ok: false, code: 'router_receipt_unavailable' },
     {
       status: 503,
       headers: { 'Cache-Control': 'no-store' },

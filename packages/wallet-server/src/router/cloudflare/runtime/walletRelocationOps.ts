@@ -111,7 +111,8 @@ export async function handleWalletRelocationRequest(
       body,
     }),
   );
-  if (operation === 'router-freeze') return recordRuntimeRouterReceipt(input, response, env);
+  if (operation === 'router-freeze' || operation === 'router-activate')
+    return recordRuntimeRouterReceipt(operation, input, response, env);
   return response;
 }
 
