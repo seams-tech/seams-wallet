@@ -658,3 +658,27 @@ Evidence: [ECDSA](./evidence/r155b-console-outage-linked-ecdsa.json) and
 [Ed25519](./evidence/r155b-console-outage-linked-ed25519.json). These are local
 composition results. Hosted latency, restart, revocation, and relocation-race
 acceptance remain separate gates.
+
+### Console-outage process restart acceptance (2026-10-06)
+
+Private commit `aa679a9` extends the existing process-restart harness. Both browser
+cases pass: ECDSA and Ed25519 each complete three signatures through WEUR for a US
+wallet after the Gateway and all five local role Workers restart. Console remains
+unavailable. D1 and DO storage reopen in place; production in-memory state is not
+copied. Only test observations and outage controls survive in memory.
+
+Both cases record zero attempted Console calls and three successful home
+prepare/finalize pairs. ECDSA also completes refill work. Process receipts verify
+replacement PIDs and an incremented role-worker generation. These local results
+verify restart recovery; they do not measure hosted latency or an in-flight crash.
+
+An initial attempt found stale SDK output after the credential gained a required
+ownership generation. Rebuilding the SDK resolved that candidate mismatch. Local
+port collisions also stopped startup attempts before test execution. The final
+matched run passed both cases in 1.7 minutes.
+
+Repeat the linked-outage command above with `--grep 'role restart'`.
+Evidence: [ECDSA requests](./evidence/r155b-console-outage-ecdsa-restart.json),
+[ECDSA restart](./evidence/r155b-restart-evidence-ecdsa-restart.json),
+[Ed25519 requests](./evidence/r155b-console-outage-ed25519-restart.json), and
+[Ed25519 restart](./evidence/r155b-restart-evidence-ed25519-restart.json).
