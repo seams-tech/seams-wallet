@@ -640,27 +640,26 @@ impl RouterAbSigningWorkerWalletDurableObject {
                 .await
             }
             SigningWorkerWalletDoRequestV1::ReserveLinkedEcdsa(request) => {
-                let sql = DurableObjectWalletSqlV1(&self.sql);
-                let response = self
-                    .open_ecdsa_store(&sql)?
-                    .reserve_linked(&request, &self.server_output_key()?)?;
-                Response::from_json(&response).map_err(sql_error)
+                let server_key = self.server_output_key()?;
+                self.with_ecdsa_transaction(move |store| {
+                    store.reserve_linked(&request, &server_key)
+                })
+                .await
             }
             SigningWorkerWalletDoRequestV1::ActivateLinkedEcdsa(request) => {
-                let sql = DurableObjectWalletSqlV1(&self.sql);
-                let response = self.open_ecdsa_store(&sql)?.activate_linked(
-                    &request,
-                    &self.server_output_key()?,
-                    crate::cloudflare_now_unix_ms_v1()?,
-                )?;
-                Response::from_json(&response).map_err(sql_error)
+                let server_key = self.server_output_key()?;
+                let activated_at_ms = crate::cloudflare_now_unix_ms_v1()?;
+                self.with_ecdsa_transaction(move |store| {
+                    store.activate_linked(&request, &server_key, activated_at_ms)
+                })
+                .await
             }
             SigningWorkerWalletDoRequestV1::DeactivateLinkedEcdsa(request) => {
-                let sql = DurableObjectWalletSqlV1(&self.sql);
-                let response = self
-                    .open_ecdsa_store(&sql)?
-                    .deactivate_linked(&request, crate::cloudflare_now_unix_ms_v1()?)?;
-                Response::from_json(&response).map_err(sql_error)
+                let now_unix_ms = crate::cloudflare_now_unix_ms_v1()?;
+                self.with_ecdsa_transaction(move |store| {
+                    store.deactivate_linked(&request, now_unix_ms)
+                })
+                .await
             }
             SigningWorkerWalletDoRequestV1::ActivateEcdsa {
                 scope,
@@ -745,7 +744,8 @@ impl RouterAbSigningWorkerWalletDurableObject {
                 .await
             }
             SigningWorkerWalletDoRequestV1::EcdsaPoolMutate { scope, mutation } => {
-                self.mutate_ecdsa_pool(scope, mutation)
+                self.with_ecdsa_transaction(move |store| store.mutate_pool(scope, mutation))
+                    .await
             }
             SigningWorkerWalletDoRequestV1::ClaimAndConsumeEcdsaEffect {
                 scope,
@@ -760,7 +760,12 @@ impl RouterAbSigningWorkerWalletDurableObject {
                 request,
                 response,
                 now_unix_ms,
-            } => self.commit_ecdsa_terminal(scope, request, response, now_unix_ms),
+            } => {
+                self.with_ecdsa_transaction(move |store| {
+                    store.commit_terminal(&scope, &request, &response, now_unix_ms)
+                })
+                .await
+            }
         }
     }
 
@@ -786,33 +791,6 @@ impl RouterAbSigningWorkerWalletDurableObject {
             store.claim_and_consume_effect(scope, request, now_unix_ms)
         })
         .await
-    }
-
-    fn commit_ecdsa_terminal(
-        &self,
-        scope: CloudflareSigningWorkerWalletScopeV1,
-        request: CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1,
-        response: RouterAbEcdsaDerivationEvmDigestSigningResponseV1,
-        now_unix_ms: u64,
-    ) -> Result<Response, RouterAbProtocolError> {
-        let sql = DurableObjectWalletSqlV1(&self.sql);
-        let outcome = self.open_ecdsa_store(&sql)?.commit_terminal(
-            &scope,
-            &request,
-            &response,
-            now_unix_ms,
-        )?;
-        Response::from_json(&outcome).map_err(sql_error)
-    }
-
-    fn mutate_ecdsa_pool(
-        &self,
-        scope: CloudflareSigningWorkerWalletScopeV1,
-        command: CloudflareSigningWorkerEcdsaPoolCommandV1,
-    ) -> Result<Response, RouterAbProtocolError> {
-        let sql = DurableObjectWalletSqlV1(&self.sql);
-        let outcome = self.open_ecdsa_store(&sql)?.mutate_pool(scope, command)?;
-        Response::from_json(&outcome).map_err(sql_error)
     }
 
     fn server_output_key(
