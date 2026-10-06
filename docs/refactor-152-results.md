@@ -7186,3 +7186,85 @@ Frozen sources, logs and traces remain in
 `seams-monorepo/.artifacts/mpc-prepare-session-20261006/`. Repeat with the existing
 hosted `mpc-signing-latency`, `mpc-refill-overlap`, `signing-approval` and
 `refill-session` tests and matching SDK/Gateway builds.
+
+## Worker-to-DO first-contact diagnosis (October 6, 2026)
+
+**The dominant delay is the first contact with an object or stub.** The transport
+creates a distinct Durable Object for each presigning session. It also constructs
+a fresh stub, the client handle used to call that object, for every protocol
+request. Both choices repeatedly incur platform setup costs.
+
+Three controlled staging runs inserted no-op requests around real refill calls.
+The no-op handler performs no cryptography, storage access or external request.
+One arm sends initialization directly. The other first sends two no-ops through
+the same stub, then performs the unchanged initialization. UUID parity selects
+the arm. The final run also creates a fresh stub to the same object inside the
+same Worker request, then sends another no-op through it.
+
+| Final diagnostic cohort | Calls | Median | Maximum |
+| --- | ---: | ---: | ---: |
+| First no-op to a new object | 12 | **643ms** | 731ms |
+| Next no-op through the same stub | 12 | **3ms** | 5ms |
+| No-op through a fresh stub to that warm object | 12 | **43ms** | 54ms |
+| Real initialization after the probes | 12 | **179ms** | 229ms |
+| Direct initialization, without probes | 6 | **778.5ms** | 948ms |
+| First no-op before a later protocol step | 29 | **48ms** | 548ms |
+| Next no-op through that same stub | 29 | **3ms** | 5ms |
+| No-op through a fresh stub to that same object | 29 | **44ms** | 54ms |
+
+These are all retained Worker spans. Matching DO telemetry recorded only **2ms**
+median wall time and **0ms** median CPU for the twelve first no-op calls to new
+objects. The earlier two runs reproduced the new-object penalty at **673ms** and
+**614.5ms** median. Their repeated same-stub no-ops took **4ms** and **3.5ms**.
+
+The large later-step outlier also moved to the first no-op. One completely paired
+sequence took **502ms** for the first no-op, with **0ms** DO wall time. The next
+no-op took **5ms**. The real protocol step then took **12ms**, including **8ms**
+of DO wall time. Recreating a stub within the same Worker request reintroduced
+about 40ms despite the object already being warm. This isolates additional
+first-stub-call overhead from new-object startup.
+
+The no-op results place the large residual before application work. Cloudflare
+object allocation, route discovery and RPC connection setup remain possible
+internal components. These measurements do not distinguish their exact shares.
+They do identify the application pattern that repeatedly incurs the cost.
+The relevant code is `execute_cloudflare_durable_object_custom_json_call_with_timing_v1`
+and `deterministic_presign_session_object_name` in
+`crates/router-ab-cloudflare/src/durable_object/worker_storage.rs`.
+
+Every real diagnostic call awaited `storage.sync()` before returning. This
+preserved durability and made pending storage completion part of DO execution.
+The new-object penalty still appeared on no-op requests that never touched storage.
+Thus, bypassing durable identity claims does not address the demonstrated delay.
+Cloudflare's [storage API](https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/)
+describes this write barrier. Its [timer documentation](https://developers.cloudflare.com/workers/runtime-apis/performance/)
+explains why JavaScript clocks cannot independently measure CPU time. The evidence
+retains platform CPU/wall values and labels the explicit-sync clock accordingly.
+
+The first optimization candidate is to amortize object setup across multiple
+presigning sessions within an exact wallet/material scope. Each presignature
+still requires its own identity, replay claim, expiry and cleanup. Repeated stub
+setup is a second target where calls can safely share a request context. Global
+stub caching across requests has not been validated. Cloudflare documents
+[stub ordering and failure semantics](https://developers.cloudflare.com/durable-objects/api/stub/),
+which any reuse must preserve.
+
+**No runtime optimization was retained from this diagnosis.** Probes move the
+setup delay onto an earlier request and add calls. They do not remove the cost.
+All three hosted runs verified nine timed signatures each, plus their concurrent
+signing and shared-budget checks. Their instrumented full-SDK timings remain
+diagnostic data and do not replace the **1.441s ready / 2.393s consecutive**
+combined-prepare checkpoint or the historical **1.745s / 3.411s** baseline.
+
+The trial used the existing SigningWorker and DO namespace under the $25 budget
+constraint. It created no Worker, namespace or Container application. All six
+backend Worker versions returned to their original values. SigningWorker bindings
+and placement match the original deployment, and the temporary probes are removed.
+
+Evidence: [first-contact spans, paired DO timings and source hashes](evidence/r152-worker-do-first-contact-20261006.json).
+The table uses all retained Worker spans. Paired Worker/DO records form a smaller
+subset because some DO tail events were absent. Their sample counts remain
+separate. Frozen diagnostic wrappers, capture/analysis scripts, logs and traces
+are in `seams-monorepo/.artifacts/mpc-do-cause-20261006/`. Repeat with the existing
+hosted `mpc-signing-latency.test.ts` back-to-back scenario and the recorded frozen
+SDK assets. Restore the original SigningWorker after diagnostic runs.

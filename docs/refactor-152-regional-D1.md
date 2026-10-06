@@ -76,12 +76,26 @@ No server-side outlier reduction or status-call saving is claimed. See the
 
 Paired requests measured a **769.5ms** initialization round-trip median, including
 **185ms** of DO wall time. Later steps measured **72.5ms**, including **12ms** of
-DO wall time. Platform dispatch, startup, queueing and transport remain unresolved.
+DO wall time. The initial investigation could not separate the remaining costs.
 
 A staging trial placed SigningWorker near Hong Kong. Full consecutive signing
 regressed from **2.390s to 3.035s** median, with nine verified signatures per cohort.
 The trial was rejected and the exact original Worker version restored. No latency
 fix is claimed. See the [paired evidence and remaining limitation](refactor-152-results.md#paired-worker-to-do-refill-investigation-october-6-2026).
+
+The follow-up isolated **first-contact overhead**. A no-op to a new object took
+**643ms median**, while the next no-op through the same stub took **3ms**. A fresh
+stub to that already warm object reintroduced **43ms**. Later-step fresh-stub
+probes measured **44ms** median. The transport creates a new object per presigning
+session and a fresh stub per protocol request, so it repeatedly incurs these
+costs. The exact Cloudflare allocation/routing/connection split remains unknown.
+
+Three diagnostic runs verified **27 timed signatures** and their concurrency and
+budget checks. All staging versions, bindings and placement were restored.
+No runtime optimization was retained. Amortizing object setup and reducing repeated
+stub setup are now evidence-backed targets. Preserve per-presignature identities,
+replay claims, durability, expiry and cleanup. See the
+[controlled diagnosis and sample counts](refactor-152-results.md#worker-to-do-first-contact-diagnosis-october-6-2026).
 
 ## Consecutive-signing baseline checkpoint (October 6)
 

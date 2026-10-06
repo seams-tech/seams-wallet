@@ -1,0 +1,4775 @@
+{
+  "kind": "r152_worker_do_first_contact_diagnosis_v1",
+  "date": "2026-10-06",
+  "conclusion": "First-contact overhead repeats because each presigning session has a fresh Durable Object identity and each protocol request creates a new stub. No-op probes move the delay ahead of crypto and persistence. A fresh stub to the same warm object reproduces additional latency.",
+  "limits": "The exact split among Cloudflare object allocation, route discovery and RPC connection setup is not exposed by these measurements. No durable first-contact optimization is implemented. Diagnostic probes add round trips and are not a product latency improvement.",
+  "method": "Three existing hosted consecutive-signing scenarios. Random UUID parity selects direct or preflight arms. Probes use the same object and same stub; the third cohort additionally constructs a fresh stub using the same namespace, object name and options. All real requests retain storage durability and original authorization.",
+  "timing": "Worker performance.now around awaited stub.fetch to response headers. DO wall and CPU from Cloudflare tail. Explicit storage.sync before returning real requests. syncClockMs includes frozen-clock effects and must not be labeled pure storage latency.",
+  "populations": "workerPhases contains all retained Worker spans. phases and pairs include only correlations with both Worker and DO tail records. These have different sample counts and must not be interchanged.",
+  "cohorts": {
+    "diagnostic": {
+      "workerPhases": {
+        "cold_ping": {
+          "count": 11,
+          "medianMs": 673,
+          "minMs": 579,
+          "maxMs": 749
+        },
+        "warm_ping": {
+          "count": 11,
+          "medianMs": 4,
+          "minMs": 2,
+          "maxMs": 4
+        },
+        "init_preflight": {
+          "count": 11,
+          "medianMs": 190,
+          "minMs": 159,
+          "maxMs": 236
+        },
+        "after_init_ping": {
+          "count": 20,
+          "medianMs": 4.0,
+          "minMs": 3,
+          "maxMs": 6
+        },
+        "step": {
+          "count": 65,
+          "medianMs": 67,
+          "minMs": 11,
+          "maxMs": 598
+        },
+        "init_direct": {
+          "count": 9,
+          "medianMs": 839,
+          "minMs": 725,
+          "maxMs": 970
+        }
+      },
+      "phases": {
+        "cold_ping": {
+          "roundTripMs": {
+            "count": 11,
+            "medianMs": 673,
+            "minMs": 579,
+            "maxMs": 749
+          },
+          "doWallMs": {
+            "count": 11,
+            "medianMs": 2,
+            "minMs": 1,
+            "maxMs": 44
+          },
+          "doCpuMs": {
+            "count": 11,
+            "medianMs": 0,
+            "minMs": 0,
+            "maxMs": 1
+          },
+          "workerCpuMs": {
+            "count": 11,
+            "medianMs": 9,
+            "minMs": 5,
+            "maxMs": 122
+          },
+          "syncClockMs": {
+            "count": 11,
+            "medianMs": 0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "outsideDoMs": {
+            "count": 11,
+            "medianMs": 667,
+            "minMs": 576,
+            "maxMs": 747
+          }
+        },
+        "warm_ping": {
+          "roundTripMs": {
+            "count": 8,
+            "medianMs": 4.0,
+            "minMs": 2,
+            "maxMs": 4
+          },
+          "doWallMs": {
+            "count": 8,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "doCpuMs": {
+            "count": 8,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "workerCpuMs": {
+            "count": 8,
+            "medianMs": 9.0,
+            "minMs": 5,
+            "maxMs": 122
+          },
+          "syncClockMs": {
+            "count": 8,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "outsideDoMs": {
+            "count": 8,
+            "medianMs": 4.0,
+            "minMs": 2,
+            "maxMs": 4
+          }
+        },
+        "init_preflight": {
+          "roundTripMs": {
+            "count": 6,
+            "medianMs": 202.0,
+            "minMs": 161,
+            "maxMs": 236
+          },
+          "doWallMs": {
+            "count": 6,
+            "medianMs": 196.0,
+            "minMs": 156,
+            "maxMs": 232
+          },
+          "doCpuMs": {
+            "count": 6,
+            "medianMs": 116.0,
+            "minMs": 81,
+            "maxMs": 153
+          },
+          "workerCpuMs": {
+            "count": 6,
+            "medianMs": 9.0,
+            "minMs": 5,
+            "maxMs": 122
+          },
+          "syncClockMs": {
+            "count": 6,
+            "medianMs": 87.0,
+            "minMs": 81,
+            "maxMs": 92
+          },
+          "outsideDoMs": {
+            "count": 6,
+            "medianMs": 6.0,
+            "minMs": 4,
+            "maxMs": 13
+          }
+        },
+        "after_init_ping": {
+          "roundTripMs": {
+            "count": 12,
+            "medianMs": 4.0,
+            "minMs": 3,
+            "maxMs": 6
+          },
+          "doWallMs": {
+            "count": 12,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 1
+          },
+          "doCpuMs": {
+            "count": 12,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "workerCpuMs": {
+            "count": 12,
+            "medianMs": 9.0,
+            "minMs": 4,
+            "maxMs": 122
+          },
+          "syncClockMs": {
+            "count": 12,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "outsideDoMs": {
+            "count": 12,
+            "medianMs": 4.0,
+            "minMs": 3,
+            "maxMs": 6
+          }
+        },
+        "step": {
+          "roundTripMs": {
+            "count": 38,
+            "medianMs": 70.5,
+            "minMs": 11,
+            "maxMs": 598
+          },
+          "doWallMs": {
+            "count": 38,
+            "medianMs": 11.5,
+            "minMs": 3,
+            "maxMs": 91
+          },
+          "doCpuMs": {
+            "count": 38,
+            "medianMs": 11.0,
+            "minMs": 2,
+            "maxMs": 90
+          },
+          "workerCpuMs": {
+            "count": 38,
+            "medianMs": 3.0,
+            "minMs": 1,
+            "maxMs": 48
+          },
+          "syncClockMs": {
+            "count": 38,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "outsideDoMs": {
+            "count": 38,
+            "medianMs": 48.5,
+            "minMs": 6,
+            "maxMs": 581
+          }
+        },
+        "init_direct": {
+          "roundTripMs": {
+            "count": 9,
+            "medianMs": 839,
+            "minMs": 725,
+            "maxMs": 970
+          },
+          "doWallMs": {
+            "count": 9,
+            "medianMs": 179,
+            "minMs": 162,
+            "maxMs": 228
+          },
+          "doCpuMs": {
+            "count": 9,
+            "medianMs": 98,
+            "minMs": 79,
+            "maxMs": 141
+          },
+          "workerCpuMs": {
+            "count": 9,
+            "medianMs": 7,
+            "minMs": 4,
+            "maxMs": 13
+          },
+          "syncClockMs": {
+            "count": 9,
+            "medianMs": 89,
+            "minMs": 86,
+            "maxMs": 97
+          },
+          "outsideDoMs": {
+            "count": 9,
+            "medianMs": 658,
+            "minMs": 557,
+            "maxMs": 742
+          }
+        }
+      },
+      "pairs": [
+        {
+          "correlation": "4423bd8d-3fb5-44f3-aa81-a41244035796",
+          "group": "2275f272-b4a8-49a1-8f9e-89adc4c3daef",
+          "phase": "cold_ping",
+          "first": true,
+          "roundTripMs": 720,
+          "doWallMs": 2,
+          "doCpuMs": 0,
+          "workerCpuMs": 122,
+          "workerWallMs": 1030,
+          "syncClockMs": 0,
+          "outsideDoMs": 718
+        },
+        {
+          "correlation": "9f9820aa-548c-4876-ba8f-1d8e329c29dc",
+          "group": "2275f272-b4a8-49a1-8f9e-89adc4c3daef",
+          "phase": "warm_ping",
+          "first": false,
+          "roundTripMs": 4,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 122,
+          "workerWallMs": 1030,
+          "syncClockMs": 0,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "f107e9da-8315-4eae-80f0-b1cd18740ac8",
+          "group": "2275f272-b4a8-49a1-8f9e-89adc4c3daef",
+          "phase": "init_preflight",
+          "first": false,
+          "roundTripMs": 189,
+          "doWallMs": 176,
+          "doCpuMs": 99,
+          "workerCpuMs": 122,
+          "workerWallMs": 1030,
+          "syncClockMs": 84,
+          "outsideDoMs": 13
+        },
+        {
+          "correlation": "a7d0dc8d-e8d4-4cde-ad8b-ffcfca3cb800",
+          "group": "2275f272-b4a8-49a1-8f9e-89adc4c3daef",
+          "phase": "after_init_ping",
+          "first": false,
+          "roundTripMs": 6,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 122,
+          "workerWallMs": 1030,
+          "syncClockMs": 0,
+          "outsideDoMs": 6
+        },
+        {
+          "correlation": "18142701-5dad-4e6a-a6cf-8a3037f2952c",
+          "group": "1d01ccf6-e485-4151-907d-4f2a640b4795",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 566,
+          "doWallMs": 51,
+          "doCpuMs": 50,
+          "workerCpuMs": 48,
+          "workerWallMs": 596,
+          "syncClockMs": 0,
+          "outsideDoMs": 515
+        },
+        {
+          "correlation": "63191a53-375d-4475-af4b-5d63ba788ffd",
+          "group": "6da8cb3c-c897-43bf-99d3-224e8f056696",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 53,
+          "doWallMs": 6,
+          "doCpuMs": 6,
+          "workerCpuMs": 4,
+          "workerWallMs": 57,
+          "syncClockMs": 0,
+          "outsideDoMs": 47
+        },
+        {
+          "correlation": "b9d99ed4-f1f9-4a35-ad24-84074e54fd13",
+          "group": "daa13cd5-5db7-471d-b009-362b38ea2431",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 532,
+          "doWallMs": 11,
+          "doCpuMs": 9,
+          "workerCpuMs": 30,
+          "workerWallMs": 554,
+          "syncClockMs": 0,
+          "outsideDoMs": 521
+        },
+        {
+          "correlation": "5ed6066e-8476-4904-9c6f-a669e1910cfb",
+          "group": "82276fab-9850-452b-a8b1-34edf6a6db34",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 55,
+          "doWallMs": 15,
+          "doCpuMs": 15,
+          "workerCpuMs": 2,
+          "workerWallMs": 57,
+          "syncClockMs": 0,
+          "outsideDoMs": 40
+        },
+        {
+          "correlation": "afaa572c-bd8a-4512-a945-d4390d87d8f7",
+          "group": "67d902a3-966c-4334-8547-42363c57bbc2",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 47,
+          "doWallMs": 3,
+          "doCpuMs": 3,
+          "workerCpuMs": 32,
+          "workerWallMs": 217,
+          "syncClockMs": 0,
+          "outsideDoMs": 44
+        },
+        {
+          "correlation": "3007e686-ab74-409c-9c53-8aca996ff976",
+          "group": "e320028e-36cb-4a39-9f13-46d795bf66f7",
+          "phase": "cold_ping",
+          "first": true,
+          "roundTripMs": 728,
+          "doWallMs": 2,
+          "doCpuMs": 0,
+          "workerCpuMs": 11,
+          "workerWallMs": 971,
+          "syncClockMs": 0,
+          "outsideDoMs": 726
+        },
+        {
+          "correlation": "70b47570-5771-4c0d-b646-a4c1bf35000e",
+          "group": "e320028e-36cb-4a39-9f13-46d795bf66f7",
+          "phase": "warm_ping",
+          "first": false,
+          "roundTripMs": 4,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 11,
+          "workerWallMs": 971,
+          "syncClockMs": 0,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "fad36e6b-7bc8-436a-8a91-322708eca847",
+          "group": "965989e0-ee74-4745-8d9f-0a70c0dd92f5",
+          "phase": "init_direct",
+          "first": true,
+          "roundTripMs": 776,
+          "doWallMs": 183,
+          "doCpuMs": 100,
+          "workerCpuMs": 11,
+          "workerWallMs": 832,
+          "syncClockMs": 89,
+          "outsideDoMs": 593
+        },
+        {
+          "correlation": "c37fe1c5-070a-468b-88d0-adbe9442c8fb",
+          "group": "965989e0-ee74-4745-8d9f-0a70c0dd92f5",
+          "phase": "after_init_ping",
+          "first": false,
+          "roundTripMs": 3,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 11,
+          "workerWallMs": 832,
+          "syncClockMs": 0,
+          "outsideDoMs": 3
+        },
+        {
+          "correlation": "65e06e02-267e-49b2-9f8d-09293117a9f6",
+          "group": "55cb0695-e49d-4d3c-a058-66e36eef1b7d",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 517,
+          "doWallMs": 55,
+          "doCpuMs": 54,
+          "workerCpuMs": 3,
+          "workerWallMs": 519,
+          "syncClockMs": 0,
+          "outsideDoMs": 462
+        },
+        {
+          "correlation": "891c30a5-d219-4f81-9027-8696c9a6c5d6",
+          "group": "bdca6f1d-2666-486d-948e-4f562808027c",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 19,
+          "doWallMs": 9,
+          "doCpuMs": 9,
+          "workerCpuMs": 4,
+          "workerWallMs": 23,
+          "syncClockMs": 0,
+          "outsideDoMs": 10
+        },
+        {
+          "correlation": "c2bc40f3-a2d5-4302-b138-72e6a1b6f52f",
+          "group": "b8873c5a-7d7a-4ec4-8dea-cdb0e7c49295",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 28,
+          "doWallMs": 9,
+          "doCpuMs": 8,
+          "workerCpuMs": 7,
+          "workerWallMs": 36,
+          "syncClockMs": 0,
+          "outsideDoMs": 19
+        },
+        {
+          "correlation": "e923cc94-b723-4b4e-a900-c3c49e72f099",
+          "group": "d7aec757-7563-465e-8670-0b1969d6ea0f",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 21,
+          "doWallMs": 15,
+          "doCpuMs": 15,
+          "workerCpuMs": 1,
+          "workerWallMs": 22,
+          "syncClockMs": 0,
+          "outsideDoMs": 6
+        },
+        {
+          "correlation": "478736ee-21e9-49d1-9e04-b6974e8187bd",
+          "group": "999c3094-7f47-4328-8ea8-ff6f10e843ef",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 11,
+          "doWallMs": 3,
+          "doCpuMs": 3,
+          "workerCpuMs": 28,
+          "workerWallMs": 179,
+          "syncClockMs": 0,
+          "outsideDoMs": 8
+        },
+        {
+          "correlation": "9b4cf497-8528-42ab-a199-c2719419c35c",
+          "group": "fd109a32-224a-40bf-a8b2-951df5e20e83",
+          "phase": "init_direct",
+          "first": true,
+          "roundTripMs": 970,
+          "doWallMs": 228,
+          "doCpuMs": 141,
+          "workerCpuMs": 13,
+          "workerWallMs": 1029,
+          "syncClockMs": 97,
+          "outsideDoMs": 742
+        },
+        {
+          "correlation": "a89c8ebc-f16d-4b9a-926e-b2d6c9c7d2b3",
+          "group": "fd109a32-224a-40bf-a8b2-951df5e20e83",
+          "phase": "after_init_ping",
+          "first": false,
+          "roundTripMs": 5,
+          "doWallMs": 1,
+          "doCpuMs": 0,
+          "workerCpuMs": 13,
+          "workerWallMs": 1029,
+          "syncClockMs": 0,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "315d500e-9347-4804-80b3-12432fe3441a",
+          "group": "1133bcb1-4ac9-4bdf-bdb3-95af8db7e5df",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 591,
+          "doWallMs": 84,
+          "doCpuMs": 83,
+          "workerCpuMs": 4,
+          "workerWallMs": 595,
+          "syncClockMs": 0,
+          "outsideDoMs": 507
+        },
+        {
+          "correlation": "a3e60239-3a0f-4179-b68f-8ae01cdb217a",
+          "group": "615b2ca7-4e4e-4766-9888-9df780337419",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 57,
+          "doWallMs": 9,
+          "doCpuMs": 8,
+          "workerCpuMs": 3,
+          "workerWallMs": 60,
+          "syncClockMs": 0,
+          "outsideDoMs": 48
+        },
+        {
+          "correlation": "475465f1-583c-4fc4-a634-a740b0b3ae92",
+          "group": "c10c64a8-b634-4a45-b1b3-5304b5b68746",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 508,
+          "doWallMs": 15,
+          "doCpuMs": 13,
+          "workerCpuMs": 3,
+          "workerWallMs": 511,
+          "syncClockMs": 0,
+          "outsideDoMs": 493
+        },
+        {
+          "correlation": "c8128b62-e93c-4e46-87a1-b21ebd9dc4e2",
+          "group": "8048a5a8-c11d-4ef1-a906-1b2508572c5c",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 75,
+          "doWallMs": 24,
+          "doCpuMs": 23,
+          "workerCpuMs": 4,
+          "workerWallMs": 80,
+          "syncClockMs": 0,
+          "outsideDoMs": 51
+        },
+        {
+          "correlation": "6d207893-d3c1-477a-91d0-4f3b507c731e",
+          "group": "5687d7a9-e8f4-4306-871f-ee51467de327",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 13,
+          "doWallMs": 4,
+          "doCpuMs": 4,
+          "workerCpuMs": 13,
+          "workerWallMs": 162,
+          "syncClockMs": 0,
+          "outsideDoMs": 9
+        },
+        {
+          "correlation": "de748c24-f83b-4248-a73e-00e182eb55ec",
+          "group": "ad6a74e2-102e-475e-8a3e-08a98e512fb2",
+          "phase": "cold_ping",
+          "first": true,
+          "roundTripMs": 606,
+          "doWallMs": 3,
+          "doCpuMs": 1,
+          "workerCpuMs": 10,
+          "workerWallMs": 894,
+          "syncClockMs": 0,
+          "outsideDoMs": 603
+        },
+        {
+          "correlation": "2194318f-b066-4ccb-98ed-2ef8ed434d73",
+          "group": "ad6a74e2-102e-475e-8a3e-08a98e512fb2",
+          "phase": "warm_ping",
+          "first": false,
+          "roundTripMs": 3,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 10,
+          "workerWallMs": 894,
+          "syncClockMs": 0,
+          "outsideDoMs": 3
+        },
+        {
+          "correlation": "7e2cda2e-8a11-45cb-8733-9cc9b9a7fb09",
+          "group": "ad6a74e2-102e-475e-8a3e-08a98e512fb2",
+          "phase": "init_preflight",
+          "first": false,
+          "roundTripMs": 224,
+          "doWallMs": 218,
+          "doCpuMs": 143,
+          "workerCpuMs": 10,
+          "workerWallMs": 894,
+          "syncClockMs": 86,
+          "outsideDoMs": 6
+        },
+        {
+          "correlation": "5a417892-34d7-4f04-9e40-c6b283831903",
+          "group": "ad6a74e2-102e-475e-8a3e-08a98e512fb2",
+          "phase": "after_init_ping",
+          "first": false,
+          "roundTripMs": 5,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 10,
+          "workerWallMs": 894,
+          "syncClockMs": 0,
+          "outsideDoMs": 5
+        },
+        {
+          "correlation": "992814e0-42ce-4cfe-9c02-54c6ac6e970c",
+          "group": "0eea4a7c-7dea-4b4b-815e-a166876ddb0b",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 12,
+          "doWallMs": 4,
+          "doCpuMs": 4,
+          "workerCpuMs": 10,
+          "workerWallMs": 160,
+          "syncClockMs": 0,
+          "outsideDoMs": 8
+        },
+        {
+          "correlation": "3faae6d3-fddb-473c-9cbc-a9ec57e96212",
+          "group": "db0bc130-c881-4cb3-8576-d54971e8ece7",
+          "phase": "init_direct",
+          "first": true,
+          "roundTripMs": 725,
+          "doWallMs": 168,
+          "doCpuMs": 88,
+          "workerCpuMs": 5,
+          "workerWallMs": 806,
+          "syncClockMs": 86,
+          "outsideDoMs": 557
+        },
+        {
+          "correlation": "053a86c0-321b-47c5-8c8c-a103858ab090",
+          "group": "1ba5902e-af1d-446b-a6ac-ec6669dc7a66",
+          "phase": "init_direct",
+          "first": true,
+          "roundTripMs": 866,
+          "doWallMs": 162,
+          "doCpuMs": 79,
+          "workerCpuMs": 12,
+          "workerWallMs": 927,
+          "syncClockMs": 89,
+          "outsideDoMs": 704
+        },
+        {
+          "correlation": "663a5fc9-0df6-4a14-91b4-2038c424555d",
+          "group": "1ba5902e-af1d-446b-a6ac-ec6669dc7a66",
+          "phase": "after_init_ping",
+          "first": false,
+          "roundTripMs": 4,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 12,
+          "workerWallMs": 927,
+          "syncClockMs": 0,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "cf1d5447-3e91-4a13-b6c4-9c67f208a464",
+          "group": "9da747e9-a73d-4418-944b-54f74f424243",
+          "phase": "init_direct",
+          "first": true,
+          "roundTripMs": 839,
+          "doWallMs": 218,
+          "doCpuMs": 139,
+          "workerCpuMs": 5,
+          "workerWallMs": 918,
+          "syncClockMs": 88,
+          "outsideDoMs": 621
+        },
+        {
+          "correlation": "5aa3fcdc-b7de-465e-93ff-794ee7e30116",
+          "group": "9da747e9-a73d-4418-944b-54f74f424243",
+          "phase": "after_init_ping",
+          "first": false,
+          "roundTripMs": 5,
+          "doWallMs": 1,
+          "doCpuMs": 0,
+          "workerCpuMs": 5,
+          "workerWallMs": 918,
+          "syncClockMs": 0,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "2c9fe3be-b4fc-461c-8998-7376142ca774",
+          "group": "80de61f9-81cf-4250-b7b5-7661c809a6eb",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 548,
+          "doWallMs": 91,
+          "doCpuMs": 90,
+          "workerCpuMs": 7,
+          "workerWallMs": 553,
+          "syncClockMs": 0,
+          "outsideDoMs": 457
+        },
+        {
+          "correlation": "0e004a64-155d-45dc-8e67-46a7a7b35577",
+          "group": "e971b0ae-2ae8-4df0-991f-b91952d0f196",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 20,
+          "doWallMs": 11,
+          "doCpuMs": 11,
+          "workerCpuMs": 1,
+          "workerWallMs": 21,
+          "syncClockMs": 0,
+          "outsideDoMs": 9
+        },
+        {
+          "correlation": "31fd7ab2-16c7-4995-8b35-1269744fece5",
+          "group": "7d85e049-08f3-4e2b-9005-a63c4f0a9381",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 480,
+          "doWallMs": 15,
+          "doCpuMs": 14,
+          "workerCpuMs": 6,
+          "workerWallMs": 486,
+          "syncClockMs": 0,
+          "outsideDoMs": 465
+        },
+        {
+          "correlation": "e3096f96-20ec-4b5d-b716-09926a17f131",
+          "group": "4c05960f-9f60-4293-9a11-741e636dbff1",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 41,
+          "doWallMs": 31,
+          "doCpuMs": 30,
+          "workerCpuMs": 3,
+          "workerWallMs": 44,
+          "syncClockMs": 0,
+          "outsideDoMs": 10
+        },
+        {
+          "correlation": "0f0edb6c-5f51-4959-b378-22dff4d21071",
+          "group": "6b947914-026d-4c3b-96bc-1b5aa343e103",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 13,
+          "doWallMs": 5,
+          "doCpuMs": 4,
+          "workerCpuMs": 8,
+          "workerWallMs": 196,
+          "syncClockMs": 0,
+          "outsideDoMs": 8
+        },
+        {
+          "correlation": "1191281f-1922-4c86-ba88-e453e3b710e2",
+          "group": "acf051bc-7a2a-44c2-8658-4529a6489ec6",
+          "phase": "cold_ping",
+          "first": true,
+          "roundTripMs": 749,
+          "doWallMs": 2,
+          "doCpuMs": 0,
+          "workerCpuMs": 5,
+          "workerWallMs": 988,
+          "syncClockMs": 0,
+          "outsideDoMs": 747
+        },
+        {
+          "correlation": "a161e639-62c7-4d68-a9c3-b4f728e0128f",
+          "group": "acf051bc-7a2a-44c2-8658-4529a6489ec6",
+          "phase": "warm_ping",
+          "first": false,
+          "roundTripMs": 2,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 5,
+          "workerWallMs": 988,
+          "syncClockMs": 0,
+          "outsideDoMs": 2
+        },
+        {
+          "correlation": "1fc2f759-c492-4371-8d6a-00709db03fe8",
+          "group": "acf051bc-7a2a-44c2-8658-4529a6489ec6",
+          "phase": "init_preflight",
+          "first": false,
+          "roundTripMs": 161,
+          "doWallMs": 156,
+          "doCpuMs": 81,
+          "workerCpuMs": 5,
+          "workerWallMs": 988,
+          "syncClockMs": 81,
+          "outsideDoMs": 5
+        },
+        {
+          "correlation": "c734b979-750d-47bd-aaa5-f2c29367bd72",
+          "group": "acf051bc-7a2a-44c2-8658-4529a6489ec6",
+          "phase": "after_init_ping",
+          "first": false,
+          "roundTripMs": 3,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 5,
+          "workerWallMs": 988,
+          "syncClockMs": 0,
+          "outsideDoMs": 3
+        },
+        {
+          "correlation": "17412b99-3c2b-4315-837a-679b40472045",
+          "group": "eb3fc63f-2c62-464f-9bf8-166aefc01c20",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 96,
+          "doWallMs": 48,
+          "doCpuMs": 48,
+          "workerCpuMs": 3,
+          "workerWallMs": 99,
+          "syncClockMs": 0,
+          "outsideDoMs": 48
+        },
+        {
+          "correlation": "53083afd-35a5-468e-97b4-9cf5af384dde",
+          "group": "1807fe26-b085-4046-954a-201a23bf1e8e",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 583,
+          "doWallMs": 7,
+          "doCpuMs": 7,
+          "workerCpuMs": 3,
+          "workerWallMs": 585,
+          "syncClockMs": 0,
+          "outsideDoMs": 576
+        },
+        {
+          "correlation": "1adbfc46-f3a3-40d6-862f-125db1d4dcd6",
+          "group": "24f3ae62-aeb4-414c-b342-5acc9306842f",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 61,
+          "doWallMs": 8,
+          "doCpuMs": 8,
+          "workerCpuMs": 3,
+          "workerWallMs": 78,
+          "syncClockMs": 0,
+          "outsideDoMs": 53
+        },
+        {
+          "correlation": "b635db7b-4baa-4055-b0ee-09fb64a74289",
+          "group": "dc5cf734-663c-4dd3-9ac7-03fe8d50586c",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 598,
+          "doWallMs": 17,
+          "doCpuMs": 16,
+          "workerCpuMs": 3,
+          "workerWallMs": 601,
+          "syncClockMs": 0,
+          "outsideDoMs": 581
+        },
+        {
+          "correlation": "2e6eb395-b5e5-4a22-935a-3fee6658e3d9",
+          "group": "64307e15-bc2a-4526-8f6e-07f8a5d3d911",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 52,
+          "doWallMs": 3,
+          "doCpuMs": 2,
+          "workerCpuMs": 7,
+          "workerWallMs": 194,
+          "syncClockMs": 0,
+          "outsideDoMs": 49
+        },
+        {
+          "correlation": "a2fa8694-734c-42cd-a18b-92d2bda321de",
+          "group": "53c5a53c-d103-4d4f-80a8-a168f90d2e02",
+          "phase": "init_direct",
+          "first": true,
+          "roundTripMs": 818,
+          "doWallMs": 219,
+          "doCpuMs": 138,
+          "workerCpuMs": 4,
+          "workerWallMs": 895,
+          "syncClockMs": 90,
+          "outsideDoMs": 599
+        },
+        {
+          "correlation": "da8082c3-d7b0-43c6-b4da-a50027c511ec",
+          "group": "49d718c3-830a-43b7-b80b-0f62f14ca193",
+          "phase": "cold_ping",
+          "first": true,
+          "roundTripMs": 669,
+          "doWallMs": 2,
+          "doCpuMs": 0,
+          "workerCpuMs": 9,
+          "workerWallMs": 890,
+          "syncClockMs": 0,
+          "outsideDoMs": 667
+        },
+        {
+          "correlation": "6f641527-03e9-43d3-8380-5c43a0bc621f",
+          "group": "9b2a919a-f82b-4b42-a5b6-9b0eedba53d6",
+          "phase": "init_direct",
+          "first": true,
+          "roundTripMs": 825,
+          "doWallMs": 167,
+          "doCpuMs": 84,
+          "workerCpuMs": 8,
+          "workerWallMs": 883,
+          "syncClockMs": 89,
+          "outsideDoMs": 658
+        },
+        {
+          "correlation": "1d5eaecc-dc81-4a67-8d7f-a6774f251305",
+          "group": "045a1e74-14f3-4045-b623-2188477d6a5f",
+          "phase": "cold_ping",
+          "first": true,
+          "roundTripMs": 597,
+          "doWallMs": 5,
+          "doCpuMs": 1,
+          "workerCpuMs": 9,
+          "workerWallMs": 888,
+          "syncClockMs": 0,
+          "outsideDoMs": 592
+        },
+        {
+          "correlation": "65b42827-de06-4b93-9770-99606a4886ef",
+          "group": "c7a69b93-e512-48bf-a6bf-5bc902a7b51c",
+          "phase": "cold_ping",
+          "first": true,
+          "roundTripMs": 673,
+          "doWallMs": 44,
+          "doCpuMs": 1,
+          "workerCpuMs": 5,
+          "workerWallMs": 987,
+          "syncClockMs": 0,
+          "outsideDoMs": 629
+        },
+        {
+          "correlation": "71083415-e90e-47b9-ab15-29a48e108841",
+          "group": "c7a69b93-e512-48bf-a6bf-5bc902a7b51c",
+          "phase": "warm_ping",
+          "first": false,
+          "roundTripMs": 4,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 5,
+          "workerWallMs": 987,
+          "syncClockMs": 0,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "a9a2099d-8207-442b-abd3-a93a8775b1b9",
+          "group": "c7a69b93-e512-48bf-a6bf-5bc902a7b51c",
+          "phase": "init_preflight",
+          "first": false,
+          "roundTripMs": 236,
+          "doWallMs": 232,
+          "doCpuMs": 153,
+          "workerCpuMs": 5,
+          "workerWallMs": 987,
+          "syncClockMs": 91,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "a05ab2a7-fa08-4c68-b568-253502497f0e",
+          "group": "c7a69b93-e512-48bf-a6bf-5bc902a7b51c",
+          "phase": "after_init_ping",
+          "first": false,
+          "roundTripMs": 3,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 5,
+          "workerWallMs": 987,
+          "syncClockMs": 0,
+          "outsideDoMs": 3
+        },
+        {
+          "correlation": "8c550569-66cf-410f-9318-9566aa53f3a7",
+          "group": "bc54a17d-44e2-41d7-9de2-0b1d5d5c9e57",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 546,
+          "doWallMs": 68,
+          "doCpuMs": 67,
+          "workerCpuMs": 3,
+          "workerWallMs": 552,
+          "syncClockMs": 0,
+          "outsideDoMs": 478
+        },
+        {
+          "correlation": "d5101413-ec68-44cf-863a-bf2fabdc92d4",
+          "group": "3c36626f-61b5-4ed3-9838-9e4d3310f091",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 473,
+          "doWallMs": 9,
+          "doCpuMs": 8,
+          "workerCpuMs": 2,
+          "workerWallMs": 475,
+          "syncClockMs": 0,
+          "outsideDoMs": 464
+        },
+        {
+          "correlation": "67f5741d-7cf1-4370-94f1-bdaaafa26369",
+          "group": "16ed366a-0363-4689-8749-8f53f5daf683",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 24,
+          "doWallMs": 16,
+          "doCpuMs": 14,
+          "workerCpuMs": 3,
+          "workerWallMs": 30,
+          "syncClockMs": 0,
+          "outsideDoMs": 8
+        },
+        {
+          "correlation": "1d4009c1-b578-4b0e-8e71-ebcf327454dd",
+          "group": "02335700-96bd-4341-ab1b-6cc9857f9339",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 40,
+          "doWallMs": 29,
+          "doCpuMs": 28,
+          "workerCpuMs": 2,
+          "workerWallMs": 42,
+          "syncClockMs": 0,
+          "outsideDoMs": 11
+        },
+        {
+          "correlation": "fc3f1726-3198-4b65-bfa1-ad82ae7d5574",
+          "group": "6ed28a8f-0503-47ff-80d8-da9a485b2767",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 11,
+          "doWallMs": 4,
+          "doCpuMs": 3,
+          "workerCpuMs": 10,
+          "workerWallMs": 157,
+          "syncClockMs": 0,
+          "outsideDoMs": 7
+        },
+        {
+          "correlation": "51a3db20-caed-448d-89db-566783c18a49",
+          "group": "e4ca1e40-6123-40f9-aeb7-97d7a325fe84",
+          "phase": "cold_ping",
+          "first": true,
+          "roundTripMs": 625,
+          "doWallMs": 1,
+          "doCpuMs": 0,
+          "workerCpuMs": 7,
+          "workerWallMs": 864,
+          "syncClockMs": 0,
+          "outsideDoMs": 624
+        },
+        {
+          "correlation": "c5973aaa-3d4a-440d-92cf-62032150989b",
+          "group": "bfb657c9-e179-4df3-879a-216bb648c81a",
+          "phase": "init_direct",
+          "first": true,
+          "roundTripMs": 869,
+          "doWallMs": 172,
+          "doCpuMs": 86,
+          "workerCpuMs": 7,
+          "workerWallMs": 922,
+          "syncClockMs": 93,
+          "outsideDoMs": 697
+        },
+        {
+          "correlation": "4c40c4b9-8cf5-4e39-88f9-cf01db26bf51",
+          "group": "bfb657c9-e179-4df3-879a-216bb648c81a",
+          "phase": "after_init_ping",
+          "first": false,
+          "roundTripMs": 3,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 7,
+          "workerWallMs": 922,
+          "syncClockMs": 0,
+          "outsideDoMs": 3
+        },
+        {
+          "correlation": "cdf3154b-de49-4877-9df7-459d2708b842",
+          "group": "a6bf0dad-1505-478f-925c-0ad0bff19fcf",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 67,
+          "doWallMs": 54,
+          "doCpuMs": 53,
+          "workerCpuMs": 2,
+          "workerWallMs": 69,
+          "syncClockMs": 0,
+          "outsideDoMs": 13
+        },
+        {
+          "correlation": "a76ee819-8eff-47ce-92ca-b4cbb726bf9f",
+          "group": "99a5e958-3b68-4987-b962-96c2bf73af4a",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 508,
+          "doWallMs": 6,
+          "doCpuMs": 6,
+          "workerCpuMs": 2,
+          "workerWallMs": 509,
+          "syncClockMs": 0,
+          "outsideDoMs": 502
+        },
+        {
+          "correlation": "13bd0597-5ea3-4c87-a665-879360606f3a",
+          "group": "dcb6ec62-c2d1-4b3d-9f10-148c42281d1e",
+          "phase": "init_direct",
+          "first": true,
+          "roundTripMs": 843,
+          "doWallMs": 179,
+          "doCpuMs": 98,
+          "workerCpuMs": 4,
+          "workerWallMs": 919,
+          "syncClockMs": 88,
+          "outsideDoMs": 664
+        },
+        {
+          "correlation": "1171593e-3d98-4186-b8d3-670fffef03b5",
+          "group": "dcb6ec62-c2d1-4b3d-9f10-148c42281d1e",
+          "phase": "after_init_ping",
+          "first": false,
+          "roundTripMs": 3,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 4,
+          "workerWallMs": 919,
+          "syncClockMs": 0,
+          "outsideDoMs": 3
+        },
+        {
+          "correlation": "ea2e37ce-d767-495a-bd9b-935b9b778c96",
+          "group": "a79536b3-ba32-432f-9484-446a11e3d92c",
+          "phase": "cold_ping",
+          "first": true,
+          "roundTripMs": 739,
+          "doWallMs": 2,
+          "doCpuMs": 0,
+          "workerCpuMs": 7,
+          "workerWallMs": 1007,
+          "syncClockMs": 0,
+          "outsideDoMs": 737
+        },
+        {
+          "correlation": "342a75c9-1ac7-47be-9cd9-e491ea341865",
+          "group": "a79536b3-ba32-432f-9484-446a11e3d92c",
+          "phase": "warm_ping",
+          "first": false,
+          "roundTripMs": 3,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 7,
+          "workerWallMs": 1007,
+          "syncClockMs": 0,
+          "outsideDoMs": 3
+        },
+        {
+          "correlation": "fa2577cc-7740-4191-bc9b-9e75c5bb42b0",
+          "group": "4ec1f73c-2cc3-4bc1-9186-853426b900ee",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 572,
+          "doWallMs": 12,
+          "doCpuMs": 11,
+          "workerCpuMs": 1,
+          "workerWallMs": 573,
+          "syncClockMs": 0,
+          "outsideDoMs": 560
+        },
+        {
+          "correlation": "9bf2ad5b-ef54-47fc-b0b0-c2369e1b487a",
+          "group": "61a52b5e-bbd1-4d2e-b680-8c04962b7394",
+          "phase": "cold_ping",
+          "first": true,
+          "roundTripMs": 742,
+          "doWallMs": 4,
+          "doCpuMs": 1,
+          "workerCpuMs": 9,
+          "workerWallMs": 1018,
+          "syncClockMs": 0,
+          "outsideDoMs": 738
+        },
+        {
+          "correlation": "08aa1246-4630-4e95-ac01-c2b543dcee38",
+          "group": "61a52b5e-bbd1-4d2e-b680-8c04962b7394",
+          "phase": "warm_ping",
+          "first": false,
+          "roundTripMs": 4,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 9,
+          "workerWallMs": 1018,
+          "syncClockMs": 0,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "9eeab3db-e7f6-49fa-9195-e8f9cd6eaa15",
+          "group": "61a52b5e-bbd1-4d2e-b680-8c04962b7394",
+          "phase": "init_preflight",
+          "first": false,
+          "roundTripMs": 214,
+          "doWallMs": 208,
+          "doCpuMs": 127,
+          "workerCpuMs": 9,
+          "workerWallMs": 1018,
+          "syncClockMs": 92,
+          "outsideDoMs": 6
+        },
+        {
+          "correlation": "2504bae0-9815-4b03-9c5a-b5c7d7337d54",
+          "group": "61a52b5e-bbd1-4d2e-b680-8c04962b7394",
+          "phase": "after_init_ping",
+          "first": false,
+          "roundTripMs": 4,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 9,
+          "workerWallMs": 1018,
+          "syncClockMs": 0,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "21c0199a-30cc-456a-8b54-3bb7518f7d9c",
+          "group": "0a3d99f2-a88f-4f05-89db-6476ebef5aa2",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 563,
+          "doWallMs": 72,
+          "doCpuMs": 71,
+          "workerCpuMs": 1,
+          "workerWallMs": 565,
+          "syncClockMs": 0,
+          "outsideDoMs": 491
+        },
+        {
+          "correlation": "27e99abe-2ac3-46b1-981b-308906bb0481",
+          "group": "bde09cfa-a163-4bcf-979e-b42bc3e0c205",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 485,
+          "doWallMs": 10,
+          "doCpuMs": 9,
+          "workerCpuMs": 3,
+          "workerWallMs": 488,
+          "syncClockMs": 0,
+          "outsideDoMs": 475
+        },
+        {
+          "correlation": "2dd856cd-9944-46be-984c-16ae19542e38",
+          "group": "259feaf8-801d-4715-b01c-22292cf64f36",
+          "phase": "cold_ping",
+          "first": true,
+          "roundTripMs": 579,
+          "doWallMs": 3,
+          "doCpuMs": 1,
+          "workerCpuMs": 9,
+          "workerWallMs": 833,
+          "syncClockMs": 0,
+          "outsideDoMs": 576
+        },
+        {
+          "correlation": "2da21fc1-7518-4815-ab98-03af09cdaddf",
+          "group": "259feaf8-801d-4715-b01c-22292cf64f36",
+          "phase": "warm_ping",
+          "first": false,
+          "roundTripMs": 4,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 9,
+          "workerWallMs": 833,
+          "syncClockMs": 0,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "07bdf6b6-87b0-49df-957a-dac06a0cc296",
+          "group": "259feaf8-801d-4715-b01c-22292cf64f36",
+          "phase": "init_preflight",
+          "first": false,
+          "roundTripMs": 190,
+          "doWallMs": 184,
+          "doCpuMs": 105,
+          "workerCpuMs": 9,
+          "workerWallMs": 833,
+          "syncClockMs": 88,
+          "outsideDoMs": 6
+        },
+        {
+          "correlation": "4f8289b3-53ee-4874-9b53-082557392e81",
+          "group": "259feaf8-801d-4715-b01c-22292cf64f36",
+          "phase": "after_init_ping",
+          "first": false,
+          "roundTripMs": 4,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 9,
+          "workerWallMs": 833,
+          "syncClockMs": 0,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "cf667e03-860a-46f4-b40c-015bc71cb415",
+          "group": "92a97e37-98a5-476f-bc39-c396e463c5ce",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 74,
+          "doWallMs": 63,
+          "doCpuMs": 62,
+          "workerCpuMs": 3,
+          "workerWallMs": 76,
+          "syncClockMs": 0,
+          "outsideDoMs": 11
+        },
+        {
+          "correlation": "c37e1651-b34d-475b-a4d1-7880873f7b32",
+          "group": "55630325-2e4d-4ec8-8d73-0db2ed12802e",
+          "phase": "step",
+          "first": false,
+          "roundTripMs": 447,
+          "doWallMs": 8,
+          "doCpuMs": 8,
+          "workerCpuMs": 2,
+          "workerWallMs": 449,
+          "syncClockMs": 0,
+          "outsideDoMs": 439
+        }
+      ],
+      "matchedGroups": [
+        {
+          "group": "2275f272-b4a8-49a1-8f9e-89adc4c3daef",
+          "kind": "initialization",
+          "firstRoundTripMs": 720,
+          "warmRoundTripMs": 4,
+          "actualRoundTripMs": 189,
+          "actualDoWallMs": 176
+        },
+        {
+          "group": "ad6a74e2-102e-475e-8a3e-08a98e512fb2",
+          "kind": "initialization",
+          "firstRoundTripMs": 606,
+          "warmRoundTripMs": 3,
+          "actualRoundTripMs": 224,
+          "actualDoWallMs": 218
+        },
+        {
+          "group": "acf051bc-7a2a-44c2-8658-4529a6489ec6",
+          "kind": "initialization",
+          "firstRoundTripMs": 749,
+          "warmRoundTripMs": 2,
+          "actualRoundTripMs": 161,
+          "actualDoWallMs": 156
+        },
+        {
+          "group": "c7a69b93-e512-48bf-a6bf-5bc902a7b51c",
+          "kind": "initialization",
+          "firstRoundTripMs": 673,
+          "warmRoundTripMs": 4,
+          "actualRoundTripMs": 236,
+          "actualDoWallMs": 232
+        },
+        {
+          "group": "61a52b5e-bbd1-4d2e-b680-8c04962b7394",
+          "kind": "initialization",
+          "firstRoundTripMs": 742,
+          "warmRoundTripMs": 4,
+          "actualRoundTripMs": 214,
+          "actualDoWallMs": 208
+        },
+        {
+          "group": "259feaf8-801d-4715-b01c-22292cf64f36",
+          "kind": "initialization",
+          "firstRoundTripMs": 579,
+          "warmRoundTripMs": 4,
+          "actualRoundTripMs": 190,
+          "actualDoWallMs": 184
+        }
+      ],
+      "pairCount": 84,
+      "eventCount": 211,
+      "verifiedSignatures": 9,
+      "concurrencyVerified": true,
+      "diagnosticSdkTiming": {
+        "count": 9,
+        "medianMs": 3024.054999947548,
+        "minMs": 2412.3299999833107,
+        "maxMs": 3958.3300000429153
+      },
+      "sampleSha256": "5b1070b200d7ffbf4017ad5f6c16cdf331f924d0d3f8adefab95e1116f83d9f0"
+    },
+    "steps": {
+      "workerPhases": {
+        "step_direct": {
+          "count": 32,
+          "medianMs": 71.0,
+          "minMs": 11,
+          "maxMs": 573
+        },
+        "step_first_ping": {
+          "count": 27,
+          "medianMs": 46,
+          "minMs": 6,
+          "maxMs": 511
+        },
+        "step_warm_ping": {
+          "count": 27,
+          "medianMs": 4,
+          "minMs": 3,
+          "maxMs": 5
+        },
+        "step_preflight": {
+          "count": 27,
+          "medianMs": 20,
+          "minMs": 6,
+          "maxMs": 99
+        },
+        "init_direct": {
+          "count": 9,
+          "medianMs": 827,
+          "minMs": 721,
+          "maxMs": 945
+        },
+        "after_init_ping": {
+          "count": 17,
+          "medianMs": 4,
+          "minMs": 3,
+          "maxMs": 5
+        },
+        "cold_ping": {
+          "count": 8,
+          "medianMs": 614.5,
+          "minMs": 489,
+          "maxMs": 729
+        },
+        "warm_ping": {
+          "count": 8,
+          "medianMs": 3.5,
+          "minMs": 3,
+          "maxMs": 5
+        },
+        "init_preflight": {
+          "count": 8,
+          "medianMs": 209.5,
+          "minMs": 150,
+          "maxMs": 254
+        }
+      },
+      "phases": {
+        "step_direct": {
+          "roundTripMs": {
+            "count": 17,
+            "medianMs": 70,
+            "minMs": 11,
+            "maxMs": 573
+          },
+          "doWallMs": {
+            "count": 17,
+            "medianMs": 15,
+            "minMs": 3,
+            "maxMs": 76
+          },
+          "doCpuMs": {
+            "count": 17,
+            "medianMs": 14,
+            "minMs": 3,
+            "maxMs": 75
+          },
+          "workerCpuMs": {
+            "count": 17,
+            "medianMs": 5,
+            "minMs": 1,
+            "maxMs": 78
+          },
+          "syncClockMs": {
+            "count": 17,
+            "medianMs": 0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "outsideDoMs": {
+            "count": 17,
+            "medianMs": 45,
+            "minMs": 7,
+            "maxMs": 520
+          }
+        },
+        "step_first_ping": {
+          "roundTripMs": {
+            "count": 18,
+            "medianMs": 28.5,
+            "minMs": 8,
+            "maxMs": 502
+          },
+          "doWallMs": {
+            "count": 18,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 1
+          },
+          "doCpuMs": {
+            "count": 18,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "workerCpuMs": {
+            "count": 18,
+            "medianMs": 5.0,
+            "minMs": 2,
+            "maxMs": 48
+          },
+          "syncClockMs": {
+            "count": 18,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "outsideDoMs": {
+            "count": 18,
+            "medianMs": 28.5,
+            "minMs": 7,
+            "maxMs": 502
+          }
+        },
+        "step_warm_ping": {
+          "roundTripMs": {
+            "count": 7,
+            "medianMs": 4,
+            "minMs": 3,
+            "maxMs": 5
+          },
+          "doWallMs": {
+            "count": 7,
+            "medianMs": 0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "doCpuMs": {
+            "count": 7,
+            "medianMs": 0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "workerCpuMs": {
+            "count": 7,
+            "medianMs": 5,
+            "minMs": 2,
+            "maxMs": 48
+          },
+          "syncClockMs": {
+            "count": 7,
+            "medianMs": 0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "outsideDoMs": {
+            "count": 7,
+            "medianMs": 4,
+            "minMs": 3,
+            "maxMs": 5
+          }
+        },
+        "step_preflight": {
+          "roundTripMs": {
+            "count": 6,
+            "medianMs": 26.5,
+            "minMs": 9,
+            "maxMs": 84
+          },
+          "doWallMs": {
+            "count": 6,
+            "medianMs": 22.5,
+            "minMs": 4,
+            "maxMs": 80
+          },
+          "doCpuMs": {
+            "count": 6,
+            "medianMs": 22.0,
+            "minMs": 4,
+            "maxMs": 80
+          },
+          "workerCpuMs": {
+            "count": 6,
+            "medianMs": 4.5,
+            "minMs": 2,
+            "maxMs": 12
+          },
+          "syncClockMs": {
+            "count": 6,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "outsideDoMs": {
+            "count": 6,
+            "medianMs": 4.0,
+            "minMs": 4,
+            "maxMs": 5
+          }
+        },
+        "init_direct": {
+          "roundTripMs": {
+            "count": 9,
+            "medianMs": 827,
+            "minMs": 721,
+            "maxMs": 945
+          },
+          "doWallMs": {
+            "count": 9,
+            "medianMs": 206,
+            "minMs": 166,
+            "maxMs": 225
+          },
+          "doCpuMs": {
+            "count": 9,
+            "medianMs": 124,
+            "minMs": 80,
+            "maxMs": 144
+          },
+          "workerCpuMs": {
+            "count": 9,
+            "medianMs": 8,
+            "minMs": 6,
+            "maxMs": 14
+          },
+          "syncClockMs": {
+            "count": 9,
+            "medianMs": 90,
+            "minMs": 86,
+            "maxMs": 95
+          },
+          "outsideDoMs": {
+            "count": 9,
+            "medianMs": 621,
+            "minMs": 545,
+            "maxMs": 733
+          }
+        },
+        "after_init_ping": {
+          "roundTripMs": {
+            "count": 7,
+            "medianMs": 4,
+            "minMs": 3,
+            "maxMs": 5
+          },
+          "doWallMs": {
+            "count": 7,
+            "medianMs": 0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "doCpuMs": {
+            "count": 7,
+            "medianMs": 0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "workerCpuMs": {
+            "count": 7,
+            "medianMs": 8,
+            "minMs": 7,
+            "maxMs": 13
+          },
+          "syncClockMs": {
+            "count": 7,
+            "medianMs": 0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "outsideDoMs": {
+            "count": 7,
+            "medianMs": 4,
+            "minMs": 3,
+            "maxMs": 5
+          }
+        },
+        "cold_ping": {
+          "roundTripMs": {
+            "count": 8,
+            "medianMs": 614.5,
+            "minMs": 489,
+            "maxMs": 729
+          },
+          "doWallMs": {
+            "count": 8,
+            "medianMs": 3.0,
+            "minMs": 1,
+            "maxMs": 4
+          },
+          "doCpuMs": {
+            "count": 8,
+            "medianMs": 1.0,
+            "minMs": 0,
+            "maxMs": 2
+          },
+          "workerCpuMs": {
+            "count": 8,
+            "medianMs": 8.5,
+            "minMs": 5,
+            "maxMs": 13
+          },
+          "syncClockMs": {
+            "count": 8,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "outsideDoMs": {
+            "count": 8,
+            "medianMs": 611.5,
+            "minMs": 486,
+            "maxMs": 726
+          }
+        },
+        "warm_ping": {
+          "roundTripMs": {
+            "count": 6,
+            "medianMs": 4.0,
+            "minMs": 3,
+            "maxMs": 5
+          },
+          "doWallMs": {
+            "count": 6,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "doCpuMs": {
+            "count": 6,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "workerCpuMs": {
+            "count": 6,
+            "medianMs": 8.5,
+            "minMs": 7,
+            "maxMs": 13
+          },
+          "syncClockMs": {
+            "count": 6,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "outsideDoMs": {
+            "count": 6,
+            "medianMs": 4.0,
+            "minMs": 3,
+            "maxMs": 5
+          }
+        },
+        "init_preflight": {
+          "roundTripMs": {
+            "count": 5,
+            "medianMs": 210,
+            "minMs": 150,
+            "maxMs": 254
+          },
+          "doWallMs": {
+            "count": 5,
+            "medianMs": 206,
+            "minMs": 147,
+            "maxMs": 248
+          },
+          "doCpuMs": {
+            "count": 5,
+            "medianMs": 124,
+            "minMs": 66,
+            "maxMs": 164
+          },
+          "workerCpuMs": {
+            "count": 5,
+            "medianMs": 8,
+            "minMs": 7,
+            "maxMs": 13
+          },
+          "syncClockMs": {
+            "count": 5,
+            "medianMs": 90,
+            "minMs": 85,
+            "maxMs": 98
+          },
+          "outsideDoMs": {
+            "count": 5,
+            "medianMs": 4,
+            "minMs": 3,
+            "maxMs": 6
+          }
+        }
+      },
+      "pairs": [
+        {
+          "correlation": "7fe29a4c-8347-45f7-bece-baa222457a74",
+          "group": "7c6823fb-d4c5-4e0d-9c9c-5cb2d4af6e10",
+          "phase": "step_direct",
+          "first": false,
+          "roundTripMs": 523,
+          "doWallMs": 47,
+          "doCpuMs": 46,
+          "workerCpuMs": 62,
+          "workerWallMs": 563,
+          "syncClockMs": 0,
+          "outsideDoMs": 476
+        },
+        {
+          "correlation": "6da56325-9c0a-40d1-bf1d-9f31b5a7438b",
+          "group": "5ccda775-2825-43a9-b0d2-7f2f3f1300ba",
+          "phase": "step_direct",
+          "first": false,
+          "roundTripMs": 20,
+          "doWallMs": 8,
+          "doCpuMs": 7,
+          "workerCpuMs": 78,
+          "workerWallMs": 97,
+          "syncClockMs": 0,
+          "outsideDoMs": 12
+        },
+        {
+          "correlation": "945cd20c-0e54-4676-9013-33f60476280d",
+          "group": "ab1fed8e-c4c4-4c71-b7bf-80f5540a410f",
+          "phase": "step_first_ping",
+          "first": false,
+          "roundTripMs": 8,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 4,
+          "workerWallMs": 39,
+          "syncClockMs": 0,
+          "outsideDoMs": 8
+        },
+        {
+          "correlation": "274938c1-caf2-4049-95a7-5631ed49e7d2",
+          "group": "ab1fed8e-c4c4-4c71-b7bf-80f5540a410f",
+          "phase": "step_warm_ping",
+          "first": false,
+          "roundTripMs": 3,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 4,
+          "workerWallMs": 39,
+          "syncClockMs": 0,
+          "outsideDoMs": 3
+        },
+        {
+          "correlation": "a71c8bde-7200-4e30-93d5-1f5774064d5c",
+          "group": "ab1fed8e-c4c4-4c71-b7bf-80f5540a410f",
+          "phase": "step_preflight",
+          "first": false,
+          "roundTripMs": 24,
+          "doWallMs": 20,
+          "doCpuMs": 20,
+          "workerCpuMs": 4,
+          "workerWallMs": 39,
+          "syncClockMs": 0,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "7ffcdb20-ec5e-454d-affa-4fa0a8d952fe",
+          "group": "f04df8bd-8129-490a-b2fc-216e7ca761cf",
+          "phase": "step_direct",
+          "first": false,
+          "roundTripMs": 18,
+          "doWallMs": 7,
+          "doCpuMs": 7,
+          "workerCpuMs": 9,
+          "workerWallMs": 30,
+          "syncClockMs": 0,
+          "outsideDoMs": 11
+        },
+        {
+          "correlation": "6946a018-b237-4d91-bb87-baff08a0e1dc",
+          "group": "5ebf3dbe-ae00-4054-a8e2-b08f3e74eb75",
+          "phase": "step_direct",
+          "first": false,
+          "roundTripMs": 11,
+          "doWallMs": 3,
+          "doCpuMs": 3,
+          "workerCpuMs": 49,
+          "workerWallMs": 203,
+          "syncClockMs": 0,
+          "outsideDoMs": 8
+        },
+        {
+          "correlation": "924131c5-4db0-4db8-a8fb-12884308d747",
+          "group": "de38cb36-0dcb-41b5-a6a5-e54519f8e55f",
+          "phase": "init_direct",
+          "first": true,
+          "roundTripMs": 876,
+          "doWallMs": 197,
+          "doCpuMs": 114,
+          "workerCpuMs": 13,
+          "workerWallMs": 933,
+          "syncClockMs": 91,
+          "outsideDoMs": 679
+        },
+        {
+          "correlation": "9e4528a4-d71d-4503-8dc7-6dd452eb55b9",
+          "group": "de38cb36-0dcb-41b5-a6a5-e54519f8e55f",
+          "phase": "after_init_ping",
+          "first": false,
+          "roundTripMs": 4,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 13,
+          "workerWallMs": 933,
+          "syncClockMs": 0,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "c8b73472-691b-4fb1-b93f-d918c22cca51",
+          "group": "b699e573-8677-4f73-8a34-f90a1f417eff",
+          "phase": "step_direct",
+          "first": false,
+          "roundTripMs": 573,
+          "doWallMs": 70,
+          "doCpuMs": 69,
+          "workerCpuMs": 4,
+          "workerWallMs": 575,
+          "syncClockMs": 0,
+          "outsideDoMs": 503
+        },
+        {
+          "correlation": "9f19d61e-c7df-4145-94cf-fbf6ecff706e",
+          "group": "977134d7-2b49-4947-bf5d-0fbc8008efa5",
+          "phase": "step_direct",
+          "first": false,
+          "roundTripMs": 58,
+          "doWallMs": 13,
+          "doCpuMs": 12,
+          "workerCpuMs": 7,
+          "workerWallMs": 67,
+          "syncClockMs": 0,
+          "outsideDoMs": 45
+        },
+        {
+          "correlation": "a1f4952d-466e-4632-ae12-1b30bfd8c309",
+          "group": "958958b5-40e7-4c99-be51-418a05c2067c",
+          "phase": "step_direct",
+          "first": false,
+          "roundTripMs": 529,
+          "doWallMs": 9,
+          "doCpuMs": 9,
+          "workerCpuMs": 78,
+          "workerWallMs": 580,
+          "syncClockMs": 0,
+          "outsideDoMs": 520
+        },
+        {
+          "correlation": "81b9a58e-d96f-40dd-b3bf-d0097d7027a5",
+          "group": "643cc7ac-edc8-440e-b032-43d9df875e5e",
+          "phase": "step_first_ping",
+          "first": false,
+          "roundTripMs": 50,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 5,
+          "workerWallMs": 88,
+          "syncClockMs": 0,
+          "outsideDoMs": 50
+        },
+        {
+          "correlation": "fe9a459e-7328-4d22-b41a-7c50c2b42b7b",
+          "group": "643cc7ac-edc8-440e-b032-43d9df875e5e",
+          "phase": "step_warm_ping",
+          "first": false,
+          "roundTripMs": 4,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 5,
+          "workerWallMs": 88,
+          "syncClockMs": 0,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "6aace611-7bad-4da7-90e8-e92a7e4cc63f",
+          "group": "643cc7ac-edc8-440e-b032-43d9df875e5e",
+          "phase": "step_preflight",
+          "first": false,
+          "roundTripMs": 29,
+          "doWallMs": 25,
+          "doCpuMs": 24,
+          "workerCpuMs": 5,
+          "workerWallMs": 88,
+          "syncClockMs": 0,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "f94cc024-5600-468e-bbed-3fb1117c8c76",
+          "group": "a936864b-3939-4a7f-984a-aa8f9f870a74",
+          "phase": "step_first_ping",
+          "first": false,
+          "roundTripMs": 49,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 12,
+          "workerWallMs": 251,
+          "syncClockMs": 0,
+          "outsideDoMs": 49
+        },
+        {
+          "correlation": "eb4022aa-354a-4b8f-9c39-43a6fdcf9102",
+          "group": "a936864b-3939-4a7f-984a-aa8f9f870a74",
+          "phase": "step_warm_ping",
+          "first": false,
+          "roundTripMs": 4,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 12,
+          "workerWallMs": 251,
+          "syncClockMs": 0,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "1c9afea4-78e6-4e74-9e42-09f0f28f50d6",
+          "group": "a936864b-3939-4a7f-984a-aa8f9f870a74",
+          "phase": "step_preflight",
+          "first": false,
+          "roundTripMs": 9,
+          "doWallMs": 4,
+          "doCpuMs": 4,
+          "workerCpuMs": 12,
+          "workerWallMs": 251,
+          "syncClockMs": 0,
+          "outsideDoMs": 5
+        },
+        {
+          "correlation": "a483c642-378f-4d0f-b0d8-96bf7a929598",
+          "group": "edfe3b5b-1d72-4bb7-9466-d22ecaa2cf0e",
+          "phase": "cold_ping",
+          "first": true,
+          "roundTripMs": 611,
+          "doWallMs": 2,
+          "doCpuMs": 0,
+          "workerCpuMs": 7,
+          "workerWallMs": 880,
+          "syncClockMs": 0,
+          "outsideDoMs": 609
+        },
+        {
+          "correlation": "ab6b4a31-6972-4455-a123-8ba3553692b3",
+          "group": "edfe3b5b-1d72-4bb7-9466-d22ecaa2cf0e",
+          "phase": "warm_ping",
+          "first": false,
+          "roundTripMs": 3,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 7,
+          "workerWallMs": 880,
+          "syncClockMs": 0,
+          "outsideDoMs": 3
+        },
+        {
+          "correlation": "86ca31d8-7b2f-4a26-bc62-f4a8cbfaabb4",
+          "group": "edfe3b5b-1d72-4bb7-9466-d22ecaa2cf0e",
+          "phase": "init_preflight",
+          "first": false,
+          "roundTripMs": 187,
+          "doWallMs": 183,
+          "doCpuMs": 102,
+          "workerCpuMs": 7,
+          "workerWallMs": 880,
+          "syncClockMs": 89,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "be63a57a-d7ee-4a06-b9aa-3a8f6d2e5e12",
+          "group": "edfe3b5b-1d72-4bb7-9466-d22ecaa2cf0e",
+          "phase": "after_init_ping",
+          "first": false,
+          "roundTripMs": 3,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 7,
+          "workerWallMs": 880,
+          "syncClockMs": 0,
+          "outsideDoMs": 3
+        },
+        {
+          "correlation": "2aded38d-fe60-49fc-9674-e3aca122c491",
+          "group": "111a0606-dcde-4672-87cb-87661db2d25f",
+          "phase": "step_direct",
+          "first": false,
+          "roundTripMs": 57,
+          "doWallMs": 50,
+          "doCpuMs": 50,
+          "workerCpuMs": 2,
+          "workerWallMs": 58,
+          "syncClockMs": 0,
+          "outsideDoMs": 7
+        },
+        {
+          "correlation": "4dd5f596-e855-4394-b25d-0f27a8f20196",
+          "group": "45e0540c-102c-41d0-83af-f12c919066d3",
+          "phase": "step_first_ping",
+          "first": false,
+          "roundTripMs": 502,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 7,
+          "workerWallMs": 514,
+          "syncClockMs": 0,
+          "outsideDoMs": 502
+        },
+        {
+          "correlation": "227bee72-04d8-4928-971a-8e3a220f46a7",
+          "group": "45e0540c-102c-41d0-83af-f12c919066d3",
+          "phase": "step_warm_ping",
+          "first": false,
+          "roundTripMs": 5,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 7,
+          "workerWallMs": 514,
+          "syncClockMs": 0,
+          "outsideDoMs": 5
+        },
+        {
+          "correlation": "f652802b-7d0d-4842-b31d-d25dc968be12",
+          "group": "45e0540c-102c-41d0-83af-f12c919066d3",
+          "phase": "step_preflight",
+          "first": false,
+          "roundTripMs": 12,
+          "doWallMs": 8,
+          "doCpuMs": 8,
+          "workerCpuMs": 7,
+          "workerWallMs": 514,
+          "syncClockMs": 0,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "759e1fe5-936a-4e7b-a4ab-904d285f861c",
+          "group": "1385f34f-7385-4269-a42a-dfaa7067aba1",
+          "phase": "step_direct",
+          "first": false,
+          "roundTripMs": 500,
+          "doWallMs": 13,
+          "doCpuMs": 10,
+          "workerCpuMs": 13,
+          "workerWallMs": 512,
+          "syncClockMs": 0,
+          "outsideDoMs": 487
+        },
+        {
+          "correlation": "a15f3550-109a-409b-80ef-74965b859b04",
+          "group": "c0a6b07a-e601-41f5-b1bf-cd49d0f70fcc",
+          "phase": "step_first_ping",
+          "first": false,
+          "roundTripMs": 9,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 48,
+          "workerWallMs": 204,
+          "syncClockMs": 0,
+          "outsideDoMs": 9
+        },
+        {
+          "correlation": "95802c93-bc81-4b34-95d2-505406c3a982",
+          "group": "c0a6b07a-e601-41f5-b1bf-cd49d0f70fcc",
+          "phase": "step_warm_ping",
+          "first": false,
+          "roundTripMs": 3,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 48,
+          "workerWallMs": 204,
+          "syncClockMs": 0,
+          "outsideDoMs": 3
+        },
+        {
+          "correlation": "638f6666-2813-422d-af2d-d2d7d1e5e9b8",
+          "group": "0f6e13b3-418f-4a65-a679-dbb4229d14cb",
+          "phase": "cold_ping",
+          "first": true,
+          "roundTripMs": 546,
+          "doWallMs": 3,
+          "doCpuMs": 1,
+          "workerCpuMs": 13,
+          "workerWallMs": 815,
+          "syncClockMs": 0,
+          "outsideDoMs": 543
+        },
+        {
+          "correlation": "6380b003-13cc-4476-a541-bbfa92af9030",
+          "group": "6f5c7840-8904-4a04-80f3-2d396ab4ae01",
+          "phase": "cold_ping",
+          "first": true,
+          "roundTripMs": 671,
+          "doWallMs": 2,
+          "doCpuMs": 0,
+          "workerCpuMs": 9,
+          "workerWallMs": 908,
+          "syncClockMs": 0,
+          "outsideDoMs": 669
+        },
+        {
+          "correlation": "915312c1-ca97-4991-ae03-a50a77a6ce99",
+          "group": "6f5c7840-8904-4a04-80f3-2d396ab4ae01",
+          "phase": "warm_ping",
+          "first": false,
+          "roundTripMs": 3,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 9,
+          "workerWallMs": 908,
+          "syncClockMs": 0,
+          "outsideDoMs": 3
+        },
+        {
+          "correlation": "5d78c424-7432-4dfa-b7c7-3ba8e924cba4",
+          "group": "a25c83eb-d214-4926-9b5e-053e9dc1e677",
+          "phase": "step_first_ping",
+          "first": false,
+          "roundTripMs": 494,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 6,
+          "workerWallMs": 566,
+          "syncClockMs": 0,
+          "outsideDoMs": 494
+        },
+        {
+          "correlation": "3efe80bb-2c26-4d78-b1e2-21703e5b17e1",
+          "group": "7108e8d0-05de-4f25-a735-3cb104d09a15",
+          "phase": "init_direct",
+          "first": true,
+          "roundTripMs": 800,
+          "doWallMs": 222,
+          "doCpuMs": 144,
+          "workerCpuMs": 8,
+          "workerWallMs": 877,
+          "syncClockMs": 86,
+          "outsideDoMs": 578
+        },
+        {
+          "correlation": "9b4f468f-b9d1-4cc5-a5c4-4557593664b9",
+          "group": "7108e8d0-05de-4f25-a735-3cb104d09a15",
+          "phase": "after_init_ping",
+          "first": false,
+          "roundTripMs": 5,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 8,
+          "workerWallMs": 877,
+          "syncClockMs": 0,
+          "outsideDoMs": 5
+        },
+        {
+          "correlation": "d58a1a5b-7906-4915-ba8c-e126bd52db17",
+          "group": "1ea005e7-4a21-48c2-a187-809d0d74d8ad",
+          "phase": "step_direct",
+          "first": false,
+          "roundTripMs": 85,
+          "doWallMs": 75,
+          "doCpuMs": 74,
+          "workerCpuMs": 2,
+          "workerWallMs": 91,
+          "syncClockMs": 0,
+          "outsideDoMs": 10
+        },
+        {
+          "correlation": "193f9cae-9643-4974-a8ff-6df21accecab",
+          "group": "d3d9c348-bd17-44a0-bbd6-16834849295e",
+          "phase": "step_direct",
+          "first": false,
+          "roundTripMs": 411,
+          "doWallMs": 15,
+          "doCpuMs": 14,
+          "workerCpuMs": 3,
+          "workerWallMs": 413,
+          "syncClockMs": 0,
+          "outsideDoMs": 396
+        },
+        {
+          "correlation": "56a6fafc-51af-414f-af6c-309ce94fe75c",
+          "group": "62c211ee-9225-4a04-8a16-f3634bed196f",
+          "phase": "step_first_ping",
+          "first": false,
+          "roundTripMs": 8,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 4,
+          "workerWallMs": 38,
+          "syncClockMs": 0,
+          "outsideDoMs": 8
+        },
+        {
+          "correlation": "9831735c-c365-4513-a03f-606c64996ee2",
+          "group": "274d4ff6-8961-4c63-a808-1a8b9a2f9441",
+          "phase": "step_first_ping",
+          "first": false,
+          "roundTripMs": 8,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 3,
+          "workerWallMs": 52,
+          "syncClockMs": 0,
+          "outsideDoMs": 8
+        },
+        {
+          "correlation": "49dc1639-37a3-433c-ab78-24837048f0f0",
+          "group": "dfd9a43c-3265-4224-9783-72aa1f17c1ff",
+          "phase": "init_direct",
+          "first": true,
+          "roundTripMs": 721,
+          "doWallMs": 176,
+          "doCpuMs": 94,
+          "workerCpuMs": 9,
+          "workerWallMs": 778,
+          "syncClockMs": 88,
+          "outsideDoMs": 545
+        },
+        {
+          "correlation": "0d686268-c3fd-47cc-b3ae-ebd5fdad779b",
+          "group": "3a6f355d-e5c0-4db1-94fd-148c6a571df3",
+          "phase": "step_direct",
+          "first": false,
+          "roundTripMs": 72,
+          "doWallMs": 60,
+          "doCpuMs": 60,
+          "workerCpuMs": 6,
+          "workerWallMs": 77,
+          "syncClockMs": 0,
+          "outsideDoMs": 12
+        },
+        {
+          "correlation": "aaffe7d4-0425-45d1-8457-8c22bcd3062e",
+          "group": "e0b0b2f1-20b9-4d82-8a3c-4ed549c44e3c",
+          "phase": "step_first_ping",
+          "first": false,
+          "roundTripMs": 413,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 6,
+          "workerWallMs": 444,
+          "syncClockMs": 0,
+          "outsideDoMs": 413
+        },
+        {
+          "correlation": "c55f9b01-b685-4c2e-9b23-87c72b4ecb95",
+          "group": "e85d2bea-f5d3-46ed-8d0a-72cc90b7c07c",
+          "phase": "step_first_ping",
+          "first": false,
+          "roundTripMs": 8,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 11,
+          "workerWallMs": 159,
+          "syncClockMs": 0,
+          "outsideDoMs": 8
+        },
+        {
+          "correlation": "679a5488-3ad3-4bb9-945a-5bc750a3339e",
+          "group": "28151bb2-ff90-4de3-b5fd-c1c1286880c2",
+          "phase": "cold_ping",
+          "first": true,
+          "roundTripMs": 618,
+          "doWallMs": 4,
+          "doCpuMs": 2,
+          "workerCpuMs": 13,
+          "workerWallMs": 934,
+          "syncClockMs": 0,
+          "outsideDoMs": 614
+        },
+        {
+          "correlation": "53fe23f3-cd16-4e02-bd34-74c90ec58ce9",
+          "group": "28151bb2-ff90-4de3-b5fd-c1c1286880c2",
+          "phase": "warm_ping",
+          "first": false,
+          "roundTripMs": 5,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 13,
+          "workerWallMs": 934,
+          "syncClockMs": 0,
+          "outsideDoMs": 5
+        },
+        {
+          "correlation": "e18b9e6b-061a-49f6-a1fa-58951e5c4b11",
+          "group": "28151bb2-ff90-4de3-b5fd-c1c1286880c2",
+          "phase": "init_preflight",
+          "first": false,
+          "roundTripMs": 254,
+          "doWallMs": 248,
+          "doCpuMs": 164,
+          "workerCpuMs": 13,
+          "workerWallMs": 934,
+          "syncClockMs": 98,
+          "outsideDoMs": 6
+        },
+        {
+          "correlation": "eca231c6-a816-4cae-9a42-4adfd9b3dbf4",
+          "group": "28151bb2-ff90-4de3-b5fd-c1c1286880c2",
+          "phase": "after_init_ping",
+          "first": false,
+          "roundTripMs": 4,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 13,
+          "workerWallMs": 934,
+          "syncClockMs": 0,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "53faaf5a-079a-47ac-93df-09b6d06d7820",
+          "group": "01a8290d-0ab5-4c91-a1d1-f097f0a582e9",
+          "phase": "step_first_ping",
+          "first": false,
+          "roundTripMs": 401,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 2,
+          "workerWallMs": 491,
+          "syncClockMs": 0,
+          "outsideDoMs": 401
+        },
+        {
+          "correlation": "02f6cf84-f39d-4e75-9d55-57a83fd14165",
+          "group": "01a8290d-0ab5-4c91-a1d1-f097f0a582e9",
+          "phase": "step_warm_ping",
+          "first": false,
+          "roundTripMs": 4,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 2,
+          "workerWallMs": 491,
+          "syncClockMs": 0,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "c83bb6f4-b20a-45f0-b166-56a6887d2a18",
+          "group": "01a8290d-0ab5-4c91-a1d1-f097f0a582e9",
+          "phase": "step_preflight",
+          "first": false,
+          "roundTripMs": 84,
+          "doWallMs": 80,
+          "doCpuMs": 80,
+          "workerCpuMs": 2,
+          "workerWallMs": 491,
+          "syncClockMs": 0,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "bf780a76-5594-4841-9b21-73acd0c16074",
+          "group": "a8c1c212-b341-413b-a265-c30b246c444c",
+          "phase": "step_first_ping",
+          "first": false,
+          "roundTripMs": 8,
+          "doWallMs": 1,
+          "doCpuMs": 0,
+          "workerCpuMs": 2,
+          "workerWallMs": 27,
+          "syncClockMs": 0,
+          "outsideDoMs": 7
+        },
+        {
+          "correlation": "5e8da367-7123-40b1-abb4-0931cee884fa",
+          "group": "73a79a59-9c87-4d41-96eb-7ec696fa23c3",
+          "phase": "init_direct",
+          "first": true,
+          "roundTripMs": 945,
+          "doWallMs": 212,
+          "doCpuMs": 132,
+          "workerCpuMs": 14,
+          "workerWallMs": 990,
+          "syncClockMs": 88,
+          "outsideDoMs": 733
+        },
+        {
+          "correlation": "5c0c1a1e-d6c7-41c5-bf9e-3cb089572a81",
+          "group": "de1df6b0-8ad8-456f-8082-9eff83644adf",
+          "phase": "init_direct",
+          "first": true,
+          "roundTripMs": 781,
+          "doWallMs": 225,
+          "doCpuMs": 140,
+          "workerCpuMs": 7,
+          "workerWallMs": 838,
+          "syncClockMs": 95,
+          "outsideDoMs": 556
+        },
+        {
+          "correlation": "f68f54bb-32f8-421f-a1af-67e62a8143a3",
+          "group": "760dcdde-a863-44a7-9f45-1d8745e4e82e",
+          "phase": "init_direct",
+          "first": true,
+          "roundTripMs": 896,
+          "doWallMs": 181,
+          "doCpuMs": 98,
+          "workerCpuMs": 8,
+          "workerWallMs": 951,
+          "syncClockMs": 90,
+          "outsideDoMs": 715
+        },
+        {
+          "correlation": "f7c02af4-f86c-47e8-8994-57e4a92e285e",
+          "group": "84b1f1f1-229d-4c7c-b7f5-9574e163a6d2",
+          "phase": "step_first_ping",
+          "first": false,
+          "roundTripMs": 46,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 13,
+          "workerWallMs": 79,
+          "syncClockMs": 0,
+          "outsideDoMs": 46
+        },
+        {
+          "correlation": "c5b8cf54-f41a-49c1-afee-ab8747f2496b",
+          "group": "8fea36e5-c673-4ff4-bf91-94e3ddf38701",
+          "phase": "cold_ping",
+          "first": true,
+          "roundTripMs": 729,
+          "doWallMs": 3,
+          "doCpuMs": 1,
+          "workerCpuMs": 5,
+          "workerWallMs": 1020,
+          "syncClockMs": 0,
+          "outsideDoMs": 726
+        },
+        {
+          "correlation": "74ca6ca5-3bdd-4601-a9c2-9871b7fc98df",
+          "group": "30ff27d0-fba5-4fad-9491-74e8cf1fb7c2",
+          "phase": "step_direct",
+          "first": false,
+          "roundTripMs": 63,
+          "doWallMs": 11,
+          "doCpuMs": 10,
+          "workerCpuMs": 4,
+          "workerWallMs": 67,
+          "syncClockMs": 0,
+          "outsideDoMs": 52
+        },
+        {
+          "correlation": "53a188f3-8b01-4e83-9b7e-23e926caec7a",
+          "group": "152ee89e-3d95-44a7-b830-ae0f404d18c2",
+          "phase": "step_direct",
+          "first": false,
+          "roundTripMs": 70,
+          "doWallMs": 21,
+          "doCpuMs": 20,
+          "workerCpuMs": 2,
+          "workerWallMs": 71,
+          "syncClockMs": 0,
+          "outsideDoMs": 49
+        },
+        {
+          "correlation": "cea99828-4dac-4254-ae8e-c7645a9f8690",
+          "group": "2f79c5cd-1b28-48ca-8177-f9368e20443d",
+          "phase": "cold_ping",
+          "first": true,
+          "roundTripMs": 539,
+          "doWallMs": 1,
+          "doCpuMs": 0,
+          "workerCpuMs": 8,
+          "workerWallMs": 782,
+          "syncClockMs": 0,
+          "outsideDoMs": 538
+        },
+        {
+          "correlation": "b8839199-0baa-4f0b-b098-7e090dd1c32f",
+          "group": "2f79c5cd-1b28-48ca-8177-f9368e20443d",
+          "phase": "warm_ping",
+          "first": false,
+          "roundTripMs": 4,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 8,
+          "workerWallMs": 782,
+          "syncClockMs": 0,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "7002e1e2-b860-42f5-a3c5-508a403f9b9f",
+          "group": "2f79c5cd-1b28-48ca-8177-f9368e20443d",
+          "phase": "init_preflight",
+          "first": false,
+          "roundTripMs": 150,
+          "doWallMs": 147,
+          "doCpuMs": 66,
+          "workerCpuMs": 8,
+          "workerWallMs": 782,
+          "syncClockMs": 85,
+          "outsideDoMs": 3
+        },
+        {
+          "correlation": "1265b52e-1d65-4c8f-8cfd-6b335848dbe4",
+          "group": "2f79c5cd-1b28-48ca-8177-f9368e20443d",
+          "phase": "after_init_ping",
+          "first": false,
+          "roundTripMs": 4,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 8,
+          "workerWallMs": 782,
+          "syncClockMs": 0,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "93545f16-7777-438e-964a-9f578afa097e",
+          "group": "eab13c2b-fb87-47ef-a82d-36e2e1986df4",
+          "phase": "step_first_ping",
+          "first": false,
+          "roundTripMs": 11,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 4,
+          "workerWallMs": 73,
+          "syncClockMs": 0,
+          "outsideDoMs": 11
+        },
+        {
+          "correlation": "0b3d7270-57c8-41d6-b534-cd60206bcd15",
+          "group": "eab13c2b-fb87-47ef-a82d-36e2e1986df4",
+          "phase": "step_warm_ping",
+          "first": false,
+          "roundTripMs": 3,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 4,
+          "workerWallMs": 73,
+          "syncClockMs": 0,
+          "outsideDoMs": 3
+        },
+        {
+          "correlation": "e99814a6-c345-4e1c-963f-e6aa3d42168f",
+          "group": "eab13c2b-fb87-47ef-a82d-36e2e1986df4",
+          "phase": "step_preflight",
+          "first": false,
+          "roundTripMs": 54,
+          "doWallMs": 50,
+          "doCpuMs": 49,
+          "workerCpuMs": 4,
+          "workerWallMs": 73,
+          "syncClockMs": 0,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "317ecf0b-3c33-40fe-80ad-842e804cead9",
+          "group": "89fbf0c9-0d44-4497-8aad-30380596a741",
+          "phase": "step_first_ping",
+          "first": false,
+          "roundTripMs": 475,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 5,
+          "workerWallMs": 508,
+          "syncClockMs": 0,
+          "outsideDoMs": 475
+        },
+        {
+          "correlation": "7fde9d88-42a3-4f70-8616-4bfec686c3fd",
+          "group": "de19cc21-fc63-4170-b4a8-ca928608112f",
+          "phase": "init_direct",
+          "first": true,
+          "roundTripMs": 761,
+          "doWallMs": 216,
+          "doCpuMs": 134,
+          "workerCpuMs": 6,
+          "workerWallMs": 816,
+          "syncClockMs": 91,
+          "outsideDoMs": 545
+        },
+        {
+          "correlation": "506bdcb6-a890-45c7-be86-192153e1b04e",
+          "group": "41c4f447-91d5-4cd1-ae06-de7ae5000e02",
+          "phase": "cold_ping",
+          "first": true,
+          "roundTripMs": 620,
+          "doWallMs": 3,
+          "doCpuMs": 1,
+          "workerCpuMs": 10,
+          "workerWallMs": 899,
+          "syncClockMs": 0,
+          "outsideDoMs": 617
+        },
+        {
+          "correlation": "60fbf716-0bcb-4274-bdd1-724b71e672bd",
+          "group": "41c4f447-91d5-4cd1-ae06-de7ae5000e02",
+          "phase": "warm_ping",
+          "first": false,
+          "roundTripMs": 5,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 10,
+          "workerWallMs": 899,
+          "syncClockMs": 0,
+          "outsideDoMs": 5
+        },
+        {
+          "correlation": "65b18d7c-1b35-4c0b-9b16-0f73208c50f7",
+          "group": "41c4f447-91d5-4cd1-ae06-de7ae5000e02",
+          "phase": "init_preflight",
+          "first": false,
+          "roundTripMs": 213,
+          "doWallMs": 208,
+          "doCpuMs": 127,
+          "workerCpuMs": 10,
+          "workerWallMs": 899,
+          "syncClockMs": 90,
+          "outsideDoMs": 5
+        },
+        {
+          "correlation": "26095e1d-e3b2-4fe0-8199-54061d6bb0cf",
+          "group": "41c4f447-91d5-4cd1-ae06-de7ae5000e02",
+          "phase": "after_init_ping",
+          "first": false,
+          "roundTripMs": 4,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 10,
+          "workerWallMs": 899,
+          "syncClockMs": 0,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "233ba96e-87a0-47a6-b26a-eea78779a0d7",
+          "group": "4a4e59a6-1523-4155-8f67-8e86a244f81d",
+          "phase": "cold_ping",
+          "first": true,
+          "roundTripMs": 489,
+          "doWallMs": 3,
+          "doCpuMs": 1,
+          "workerCpuMs": 7,
+          "workerWallMs": 761,
+          "syncClockMs": 0,
+          "outsideDoMs": 486
+        },
+        {
+          "correlation": "3837e342-decf-4c96-bde7-6b887b8c461f",
+          "group": "4a4e59a6-1523-4155-8f67-8e86a244f81d",
+          "phase": "warm_ping",
+          "first": false,
+          "roundTripMs": 4,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 7,
+          "workerWallMs": 761,
+          "syncClockMs": 0,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "d79bc6b6-dcf1-4b09-8702-cf67578fe3cb",
+          "group": "4a4e59a6-1523-4155-8f67-8e86a244f81d",
+          "phase": "init_preflight",
+          "first": false,
+          "roundTripMs": 210,
+          "doWallMs": 206,
+          "doCpuMs": 124,
+          "workerCpuMs": 7,
+          "workerWallMs": 761,
+          "syncClockMs": 93,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "ad0bd21d-cf5c-4f84-93eb-385d82d985d0",
+          "group": "8b83c5f3-9c6f-4fc6-aa39-c5b16224f7c9",
+          "phase": "step_first_ping",
+          "first": false,
+          "roundTripMs": 8,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 5,
+          "workerWallMs": 55,
+          "syncClockMs": 0,
+          "outsideDoMs": 8
+        },
+        {
+          "correlation": "422eb35f-57c9-479b-894a-b0ebd99f2e25",
+          "group": "6dd211e5-3df9-4cfa-adbb-c7cb8ab6d17c",
+          "phase": "step_first_ping",
+          "first": false,
+          "roundTripMs": 11,
+          "doWallMs": 1,
+          "doCpuMs": 0,
+          "workerCpuMs": 11,
+          "workerWallMs": 172,
+          "syncClockMs": 0,
+          "outsideDoMs": 10
+        },
+        {
+          "correlation": "c7daafb0-527c-45b6-ad74-1db89db4684a",
+          "group": "97770d75-42c3-484a-bed1-48b8e5b523cc",
+          "phase": "init_direct",
+          "first": true,
+          "roundTripMs": 827,
+          "doWallMs": 206,
+          "doCpuMs": 124,
+          "workerCpuMs": 7,
+          "workerWallMs": 882,
+          "syncClockMs": 90,
+          "outsideDoMs": 621
+        },
+        {
+          "correlation": "b4293568-db72-4c4a-99ae-68135a8364ed",
+          "group": "97770d75-42c3-484a-bed1-48b8e5b523cc",
+          "phase": "after_init_ping",
+          "first": false,
+          "roundTripMs": 3,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 7,
+          "workerWallMs": 882,
+          "syncClockMs": 0,
+          "outsideDoMs": 3
+        },
+        {
+          "correlation": "7b44a8d4-0751-466b-807c-0acfa237f337",
+          "group": "9299b09b-c633-4a8c-a760-4a5f7d850463",
+          "phase": "step_direct",
+          "first": false,
+          "roundTripMs": 474,
+          "doWallMs": 76,
+          "doCpuMs": 75,
+          "workerCpuMs": 2,
+          "workerWallMs": 476,
+          "syncClockMs": 0,
+          "outsideDoMs": 398
+        },
+        {
+          "correlation": "e181d7b4-be59-48bb-b1a5-f47c76a5dcff",
+          "group": "d7b91f94-d811-4b46-8875-a61b540b6ffc",
+          "phase": "step_direct",
+          "first": false,
+          "roundTripMs": 55,
+          "doWallMs": 12,
+          "doCpuMs": 12,
+          "workerCpuMs": 1,
+          "workerWallMs": 57,
+          "syncClockMs": 0,
+          "outsideDoMs": 43
+        },
+        {
+          "correlation": "eab5d47a-e432-47db-9333-81c47cfb44ab",
+          "group": "3c633207-d4ba-479f-9d9a-889eea57d3e5",
+          "phase": "step_direct",
+          "first": false,
+          "roundTripMs": 25,
+          "doWallMs": 15,
+          "doCpuMs": 14,
+          "workerCpuMs": 5,
+          "workerWallMs": 32,
+          "syncClockMs": 0,
+          "outsideDoMs": 10
+        },
+        {
+          "correlation": "4e68e69c-32cb-4567-b95e-e0c582345099",
+          "group": "a42d68f8-6a16-491a-b7db-3d02ef6bf886",
+          "phase": "step_first_ping",
+          "first": false,
+          "roundTripMs": 356,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 4,
+          "workerWallMs": 393,
+          "syncClockMs": 0,
+          "outsideDoMs": 356
+        },
+        {
+          "correlation": "c69efd40-a732-476f-9e54-a86392adf944",
+          "group": "56eadf54-9f85-4559-9878-9fc036806d72",
+          "phase": "init_direct",
+          "first": true,
+          "roundTripMs": 854,
+          "doWallMs": 166,
+          "doCpuMs": 80,
+          "workerCpuMs": 6,
+          "workerWallMs": 911,
+          "syncClockMs": 92,
+          "outsideDoMs": 688
+        }
+      ],
+      "matchedGroups": [
+        {
+          "group": "ab1fed8e-c4c4-4c71-b7bf-80f5540a410f",
+          "kind": "later_step",
+          "firstRoundTripMs": 8,
+          "warmRoundTripMs": 3,
+          "actualRoundTripMs": 24,
+          "actualDoWallMs": 20
+        },
+        {
+          "group": "643cc7ac-edc8-440e-b032-43d9df875e5e",
+          "kind": "later_step",
+          "firstRoundTripMs": 50,
+          "warmRoundTripMs": 4,
+          "actualRoundTripMs": 29,
+          "actualDoWallMs": 25
+        },
+        {
+          "group": "a936864b-3939-4a7f-984a-aa8f9f870a74",
+          "kind": "later_step",
+          "firstRoundTripMs": 49,
+          "warmRoundTripMs": 4,
+          "actualRoundTripMs": 9,
+          "actualDoWallMs": 4
+        },
+        {
+          "group": "edfe3b5b-1d72-4bb7-9466-d22ecaa2cf0e",
+          "kind": "initialization",
+          "firstRoundTripMs": 611,
+          "warmRoundTripMs": 3,
+          "actualRoundTripMs": 187,
+          "actualDoWallMs": 183
+        },
+        {
+          "group": "45e0540c-102c-41d0-83af-f12c919066d3",
+          "kind": "later_step",
+          "firstRoundTripMs": 502,
+          "warmRoundTripMs": 5,
+          "actualRoundTripMs": 12,
+          "actualDoWallMs": 8
+        },
+        {
+          "group": "28151bb2-ff90-4de3-b5fd-c1c1286880c2",
+          "kind": "initialization",
+          "firstRoundTripMs": 618,
+          "warmRoundTripMs": 5,
+          "actualRoundTripMs": 254,
+          "actualDoWallMs": 248
+        },
+        {
+          "group": "01a8290d-0ab5-4c91-a1d1-f097f0a582e9",
+          "kind": "later_step",
+          "firstRoundTripMs": 401,
+          "warmRoundTripMs": 4,
+          "actualRoundTripMs": 84,
+          "actualDoWallMs": 80
+        },
+        {
+          "group": "2f79c5cd-1b28-48ca-8177-f9368e20443d",
+          "kind": "initialization",
+          "firstRoundTripMs": 539,
+          "warmRoundTripMs": 4,
+          "actualRoundTripMs": 150,
+          "actualDoWallMs": 147
+        },
+        {
+          "group": "eab13c2b-fb87-47ef-a82d-36e2e1986df4",
+          "kind": "later_step",
+          "firstRoundTripMs": 11,
+          "warmRoundTripMs": 3,
+          "actualRoundTripMs": 54,
+          "actualDoWallMs": 50
+        },
+        {
+          "group": "41c4f447-91d5-4cd1-ae06-de7ae5000e02",
+          "kind": "initialization",
+          "firstRoundTripMs": 620,
+          "warmRoundTripMs": 5,
+          "actualRoundTripMs": 213,
+          "actualDoWallMs": 208
+        },
+        {
+          "group": "4a4e59a6-1523-4155-8f67-8e86a244f81d",
+          "kind": "initialization",
+          "firstRoundTripMs": 489,
+          "warmRoundTripMs": 4,
+          "actualRoundTripMs": 210,
+          "actualDoWallMs": 206
+        }
+      ],
+      "pairCount": 83,
+      "eventCount": 251,
+      "verifiedSignatures": 9,
+      "concurrencyVerified": true,
+      "diagnosticSdkTiming": {
+        "count": 9,
+        "medianMs": 3224.0150000452995,
+        "minMs": 1750.4449999928474,
+        "maxMs": 3794.6299999952316
+      },
+      "sampleSha256": "8c986d23d015261de9b2d32df0ddac87fa5c8468372321f0bf1e8358d833c9ba"
+    },
+    "fresh-stub": {
+      "workerPhases": {
+        "init_direct": {
+          "count": 6,
+          "medianMs": 778.5,
+          "minMs": 710,
+          "maxMs": 948
+        },
+        "after_init_ping": {
+          "count": 18,
+          "medianMs": 3.0,
+          "minMs": 2,
+          "maxMs": 5
+        },
+        "step_direct": {
+          "count": 28,
+          "medianMs": 62.5,
+          "minMs": 14,
+          "maxMs": 608
+        },
+        "step_first_ping": {
+          "count": 29,
+          "medianMs": 48,
+          "minMs": 5,
+          "maxMs": 548
+        },
+        "step_warm_ping": {
+          "count": 29,
+          "medianMs": 3,
+          "minMs": 3,
+          "maxMs": 5
+        },
+        "step_fresh_stub_ping": {
+          "count": 29,
+          "medianMs": 44,
+          "minMs": 5,
+          "maxMs": 54
+        },
+        "step_preflight": {
+          "count": 29,
+          "medianMs": 15,
+          "minMs": 5,
+          "maxMs": 87
+        },
+        "cold_ping": {
+          "count": 12,
+          "medianMs": 643.0,
+          "minMs": 509,
+          "maxMs": 731
+        },
+        "warm_ping": {
+          "count": 12,
+          "medianMs": 3.0,
+          "minMs": 2,
+          "maxMs": 5
+        },
+        "fresh_stub_ping": {
+          "count": 12,
+          "medianMs": 43.0,
+          "minMs": 7,
+          "maxMs": 54
+        },
+        "init_preflight": {
+          "count": 12,
+          "medianMs": 179.0,
+          "minMs": 150,
+          "maxMs": 229
+        }
+      },
+      "phases": {
+        "init_direct": {
+          "roundTripMs": {
+            "count": 6,
+            "medianMs": 778.5,
+            "minMs": 710,
+            "maxMs": 948
+          },
+          "doWallMs": {
+            "count": 6,
+            "medianMs": 180.0,
+            "minMs": 157,
+            "maxMs": 211
+          },
+          "doCpuMs": {
+            "count": 6,
+            "medianMs": 103.0,
+            "minMs": 80,
+            "maxMs": 129
+          },
+          "workerCpuMs": {
+            "count": 6,
+            "medianMs": 6.5,
+            "minMs": 4,
+            "maxMs": 128
+          },
+          "syncClockMs": {
+            "count": 6,
+            "medianMs": 85.5,
+            "minMs": 82,
+            "maxMs": 92
+          },
+          "outsideDoMs": {
+            "count": 6,
+            "medianMs": 586.0,
+            "minMs": 552,
+            "maxMs": 737
+          }
+        },
+        "after_init_ping": {
+          "roundTripMs": {
+            "count": 8,
+            "medianMs": 3.0,
+            "minMs": 2,
+            "maxMs": 4
+          },
+          "doWallMs": {
+            "count": 8,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "doCpuMs": {
+            "count": 8,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "workerCpuMs": {
+            "count": 8,
+            "medianMs": 9.5,
+            "minMs": 5,
+            "maxMs": 128
+          },
+          "syncClockMs": {
+            "count": 8,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "outsideDoMs": {
+            "count": 8,
+            "medianMs": 3.0,
+            "minMs": 2,
+            "maxMs": 4
+          }
+        },
+        "step_direct": {
+          "roundTripMs": {
+            "count": 14,
+            "medianMs": 429.5,
+            "minMs": 14,
+            "maxMs": 608
+          },
+          "doWallMs": {
+            "count": 14,
+            "medianMs": 14.0,
+            "minMs": 4,
+            "maxMs": 67
+          },
+          "doCpuMs": {
+            "count": 14,
+            "medianMs": 14.0,
+            "minMs": 3,
+            "maxMs": 66
+          },
+          "workerCpuMs": {
+            "count": 14,
+            "medianMs": 3.0,
+            "minMs": 1,
+            "maxMs": 55
+          },
+          "syncClockMs": {
+            "count": 14,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "outsideDoMs": {
+            "count": 14,
+            "medianMs": 388.5,
+            "minMs": 7,
+            "maxMs": 554
+          }
+        },
+        "step_first_ping": {
+          "roundTripMs": {
+            "count": 12,
+            "medianMs": 235.0,
+            "minMs": 6,
+            "maxMs": 544
+          },
+          "doWallMs": {
+            "count": 12,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "doCpuMs": {
+            "count": 12,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "workerCpuMs": {
+            "count": 12,
+            "medianMs": 4.0,
+            "minMs": 3,
+            "maxMs": 78
+          },
+          "syncClockMs": {
+            "count": 12,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "outsideDoMs": {
+            "count": 12,
+            "medianMs": 235.0,
+            "minMs": 6,
+            "maxMs": 544
+          }
+        },
+        "step_warm_ping": {
+          "roundTripMs": {
+            "count": 6,
+            "medianMs": 3.0,
+            "minMs": 3,
+            "maxMs": 4
+          },
+          "doWallMs": {
+            "count": 6,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "doCpuMs": {
+            "count": 6,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "workerCpuMs": {
+            "count": 6,
+            "medianMs": 3.5,
+            "minMs": 3,
+            "maxMs": 78
+          },
+          "syncClockMs": {
+            "count": 6,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "outsideDoMs": {
+            "count": 6,
+            "medianMs": 3.0,
+            "minMs": 3,
+            "maxMs": 4
+          }
+        },
+        "step_fresh_stub_ping": {
+          "roundTripMs": {
+            "count": 5,
+            "medianMs": 9,
+            "minMs": 7,
+            "maxMs": 45
+          },
+          "doWallMs": {
+            "count": 5,
+            "medianMs": 0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "doCpuMs": {
+            "count": 5,
+            "medianMs": 0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "workerCpuMs": {
+            "count": 5,
+            "medianMs": 3,
+            "minMs": 3,
+            "maxMs": 78
+          },
+          "syncClockMs": {
+            "count": 5,
+            "medianMs": 0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "outsideDoMs": {
+            "count": 5,
+            "medianMs": 9,
+            "minMs": 7,
+            "maxMs": 45
+          }
+        },
+        "step_preflight": {
+          "roundTripMs": {
+            "count": 3,
+            "medianMs": 14,
+            "minMs": 11,
+            "maxMs": 63
+          },
+          "doWallMs": {
+            "count": 3,
+            "medianMs": 9,
+            "minMs": 7,
+            "maxMs": 60
+          },
+          "doCpuMs": {
+            "count": 3,
+            "medianMs": 8,
+            "minMs": 7,
+            "maxMs": 59
+          },
+          "workerCpuMs": {
+            "count": 3,
+            "medianMs": 3,
+            "minMs": 3,
+            "maxMs": 78
+          },
+          "syncClockMs": {
+            "count": 3,
+            "medianMs": 0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "outsideDoMs": {
+            "count": 3,
+            "medianMs": 4,
+            "minMs": 3,
+            "maxMs": 5
+          }
+        },
+        "cold_ping": {
+          "roundTripMs": {
+            "count": 12,
+            "medianMs": 643.0,
+            "minMs": 509,
+            "maxMs": 731
+          },
+          "doWallMs": {
+            "count": 12,
+            "medianMs": 2.0,
+            "minMs": 1,
+            "maxMs": 3
+          },
+          "doCpuMs": {
+            "count": 12,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 1
+          },
+          "workerCpuMs": {
+            "count": 12,
+            "medianMs": 8.0,
+            "minMs": 5,
+            "maxMs": 37
+          },
+          "syncClockMs": {
+            "count": 12,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "outsideDoMs": {
+            "count": 12,
+            "medianMs": 641.0,
+            "minMs": 507,
+            "maxMs": 729
+          }
+        },
+        "warm_ping": {
+          "roundTripMs": {
+            "count": 7,
+            "medianMs": 3,
+            "minMs": 3,
+            "maxMs": 5
+          },
+          "doWallMs": {
+            "count": 7,
+            "medianMs": 0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "doCpuMs": {
+            "count": 7,
+            "medianMs": 0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "workerCpuMs": {
+            "count": 7,
+            "medianMs": 9,
+            "minMs": 5,
+            "maxMs": 12
+          },
+          "syncClockMs": {
+            "count": 7,
+            "medianMs": 0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "outsideDoMs": {
+            "count": 7,
+            "medianMs": 3,
+            "minMs": 3,
+            "maxMs": 5
+          }
+        },
+        "fresh_stub_ping": {
+          "roundTripMs": {
+            "count": 6,
+            "medianMs": 43.0,
+            "minMs": 8,
+            "maxMs": 54
+          },
+          "doWallMs": {
+            "count": 6,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "doCpuMs": {
+            "count": 6,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "workerCpuMs": {
+            "count": 6,
+            "medianMs": 9.5,
+            "minMs": 5,
+            "maxMs": 12
+          },
+          "syncClockMs": {
+            "count": 6,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "outsideDoMs": {
+            "count": 6,
+            "medianMs": 43.0,
+            "minMs": 8,
+            "maxMs": 54
+          }
+        },
+        "init_preflight": {
+          "roundTripMs": {
+            "count": 5,
+            "medianMs": 180,
+            "minMs": 150,
+            "maxMs": 229
+          },
+          "doWallMs": {
+            "count": 5,
+            "medianMs": 174,
+            "minMs": 145,
+            "maxMs": 223
+          },
+          "doCpuMs": {
+            "count": 5,
+            "medianMs": 97,
+            "minMs": 66,
+            "maxMs": 143
+          },
+          "workerCpuMs": {
+            "count": 5,
+            "medianMs": 10,
+            "minMs": 5,
+            "maxMs": 12
+          },
+          "syncClockMs": {
+            "count": 5,
+            "medianMs": 86,
+            "minMs": 84,
+            "maxMs": 100
+          },
+          "outsideDoMs": {
+            "count": 5,
+            "medianMs": 5,
+            "minMs": 4,
+            "maxMs": 6
+          }
+        }
+      },
+      "pairs": [
+        {
+          "correlation": "0cf4519c-583e-4712-9e67-50d3d71e80e2",
+          "group": "9e369dcf-1c0b-4e54-9927-a11db396f7ae",
+          "phase": "init_direct",
+          "first": true,
+          "roundTripMs": 745,
+          "doWallMs": 179,
+          "doCpuMs": 100,
+          "workerCpuMs": 128,
+          "workerWallMs": 857,
+          "syncClockMs": 86,
+          "outsideDoMs": 566
+        },
+        {
+          "correlation": "6e622c65-e4e8-4af6-841a-e213e84b6655",
+          "group": "9e369dcf-1c0b-4e54-9927-a11db396f7ae",
+          "phase": "after_init_ping",
+          "first": false,
+          "roundTripMs": 4,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 128,
+          "workerWallMs": 857,
+          "syncClockMs": 0,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "61773761-40fa-4c54-b333-8bd3bfe0d17d",
+          "group": "d9a18cd2-d0dc-4ab5-93b4-777c77ad3ef2",
+          "phase": "step_direct",
+          "first": false,
+          "roundTripMs": 429,
+          "doWallMs": 67,
+          "doCpuMs": 66,
+          "workerCpuMs": 55,
+          "workerWallMs": 465,
+          "syncClockMs": 0,
+          "outsideDoMs": 362
+        },
+        {
+          "correlation": "62875bac-d808-4c72-ab77-040695409e1a",
+          "group": "89b96458-615e-4a16-86d9-e52f329832b0",
+          "phase": "step_first_ping",
+          "first": false,
+          "roundTripMs": 11,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 78,
+          "workerWallMs": 112,
+          "syncClockMs": 0,
+          "outsideDoMs": 11
+        },
+        {
+          "correlation": "e4bb30de-746b-444e-9416-99b1516bb82b",
+          "group": "89b96458-615e-4a16-86d9-e52f329832b0",
+          "phase": "step_warm_ping",
+          "first": false,
+          "roundTripMs": 3,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 78,
+          "workerWallMs": 112,
+          "syncClockMs": 0,
+          "outsideDoMs": 3
+        },
+        {
+          "correlation": "d90bc0ae-6b0f-4a98-b855-a12343f531ca",
+          "group": "89b96458-615e-4a16-86d9-e52f329832b0",
+          "phase": "step_fresh_stub_ping",
+          "first": false,
+          "roundTripMs": 7,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 78,
+          "workerWallMs": 112,
+          "syncClockMs": 0,
+          "outsideDoMs": 7
+        },
+        {
+          "correlation": "8efe9023-6360-4480-acf5-5faec8ba8bc5",
+          "group": "89b96458-615e-4a16-86d9-e52f329832b0",
+          "phase": "step_preflight",
+          "first": false,
+          "roundTripMs": 14,
+          "doWallMs": 9,
+          "doCpuMs": 8,
+          "workerCpuMs": 78,
+          "workerWallMs": 112,
+          "syncClockMs": 0,
+          "outsideDoMs": 5
+        },
+        {
+          "correlation": "a8d89594-55e4-40d0-8087-282b5decdb3f",
+          "group": "65817fdd-7efa-4f66-bc45-fa70d0943715",
+          "phase": "step_first_ping",
+          "first": false,
+          "roundTripMs": 6,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 3,
+          "workerWallMs": 33,
+          "syncClockMs": 0,
+          "outsideDoMs": 6
+        },
+        {
+          "correlation": "c410d4ae-5ec4-4a3a-bd2a-a5322a6023d2",
+          "group": "65817fdd-7efa-4f66-bc45-fa70d0943715",
+          "phase": "step_warm_ping",
+          "first": false,
+          "roundTripMs": 3,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 3,
+          "workerWallMs": 33,
+          "syncClockMs": 0,
+          "outsideDoMs": 3
+        },
+        {
+          "correlation": "81b6fb9f-72c0-4cb7-89ea-7a461ba2edb4",
+          "group": "65817fdd-7efa-4f66-bc45-fa70d0943715",
+          "phase": "step_fresh_stub_ping",
+          "first": false,
+          "roundTripMs": 7,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 3,
+          "workerWallMs": 33,
+          "syncClockMs": 0,
+          "outsideDoMs": 7
+        },
+        {
+          "correlation": "39fe333b-78dc-40b1-9fc2-ffb8cfc3d22d",
+          "group": "65817fdd-7efa-4f66-bc45-fa70d0943715",
+          "phase": "step_preflight",
+          "first": false,
+          "roundTripMs": 11,
+          "doWallMs": 7,
+          "doCpuMs": 7,
+          "workerCpuMs": 3,
+          "workerWallMs": 33,
+          "syncClockMs": 0,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "f84b7a5d-02c1-4bac-8cb9-510b3ef7d9e5",
+          "group": "e0e49dc2-88c9-41e4-9d7b-3607fe899ef6",
+          "phase": "cold_ping",
+          "first": true,
+          "roundTripMs": 697,
+          "doWallMs": 3,
+          "doCpuMs": 1,
+          "workerCpuMs": 11,
+          "workerWallMs": 1038,
+          "syncClockMs": 0,
+          "outsideDoMs": 694
+        },
+        {
+          "correlation": "f2698010-3f3e-429c-ac94-cff4d8a8e2be",
+          "group": "e0e49dc2-88c9-41e4-9d7b-3607fe899ef6",
+          "phase": "warm_ping",
+          "first": false,
+          "roundTripMs": 5,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 11,
+          "workerWallMs": 1038,
+          "syncClockMs": 0,
+          "outsideDoMs": 5
+        },
+        {
+          "correlation": "66a62582-8173-43b1-bba9-2db004e04fd2",
+          "group": "e0e49dc2-88c9-41e4-9d7b-3607fe899ef6",
+          "phase": "fresh_stub_ping",
+          "first": false,
+          "roundTripMs": 44,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 11,
+          "workerWallMs": 1038,
+          "syncClockMs": 0,
+          "outsideDoMs": 44
+        },
+        {
+          "correlation": "21797c9b-516f-454b-9933-ea0c800cfa66",
+          "group": "e0e49dc2-88c9-41e4-9d7b-3607fe899ef6",
+          "phase": "init_preflight",
+          "first": false,
+          "roundTripMs": 229,
+          "doWallMs": 223,
+          "doCpuMs": 143,
+          "workerCpuMs": 11,
+          "workerWallMs": 1038,
+          "syncClockMs": 92,
+          "outsideDoMs": 6
+        },
+        {
+          "correlation": "9ebf1f2c-8d7c-4e52-a055-8a591adf07e9",
+          "group": "e0e49dc2-88c9-41e4-9d7b-3607fe899ef6",
+          "phase": "after_init_ping",
+          "first": false,
+          "roundTripMs": 4,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 11,
+          "workerWallMs": 1038,
+          "syncClockMs": 0,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "7b5c0dcf-c5da-412a-8564-3ae3248a0a83",
+          "group": "a5360ca7-85fd-4ef1-988d-5a924b2184ff",
+          "phase": "step_first_ping",
+          "first": false,
+          "roundTripMs": 501,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 7,
+          "workerWallMs": 635,
+          "syncClockMs": 0,
+          "outsideDoMs": 501
+        },
+        {
+          "correlation": "17f694d3-3f2c-4e43-9454-99ee4fd2921e",
+          "group": "09735d43-a0b8-4428-a27f-54353165d6ca",
+          "phase": "cold_ping",
+          "first": true,
+          "roundTripMs": 704,
+          "doWallMs": 2,
+          "doCpuMs": 0,
+          "workerCpuMs": 37,
+          "workerWallMs": 965,
+          "syncClockMs": 0,
+          "outsideDoMs": 702
+        },
+        {
+          "correlation": "086f3a7e-8431-40c2-a675-e54d4f55ad01",
+          "group": "b73e663f-70b3-4fb2-b80b-29e2747f09ca",
+          "phase": "step_direct",
+          "first": false,
+          "roundTripMs": 51,
+          "doWallMs": 4,
+          "doCpuMs": 3,
+          "workerCpuMs": 12,
+          "workerWallMs": 201,
+          "syncClockMs": 0,
+          "outsideDoMs": 47
+        },
+        {
+          "correlation": "d36a61f7-da93-41f4-829b-4b8b481cd859",
+          "group": "5654a8be-6947-4781-b521-c64fdae22951",
+          "phase": "init_direct",
+          "first": true,
+          "roundTripMs": 710,
+          "doWallMs": 157,
+          "doCpuMs": 80,
+          "workerCpuMs": 7,
+          "workerWallMs": 783,
+          "syncClockMs": 83,
+          "outsideDoMs": 553
+        },
+        {
+          "correlation": "8bc42aee-d815-4881-9eaa-12c3d62165ed",
+          "group": "5654a8be-6947-4781-b521-c64fdae22951",
+          "phase": "after_init_ping",
+          "first": false,
+          "roundTripMs": 2,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 7,
+          "workerWallMs": 783,
+          "syncClockMs": 0,
+          "outsideDoMs": 2
+        },
+        {
+          "correlation": "a66339a0-299c-4fbf-9c04-ab2a646453dc",
+          "group": "16fcb305-a5d1-45ed-b19f-916f8c3e1812",
+          "phase": "step_direct",
+          "first": false,
+          "roundTripMs": 488,
+          "doWallMs": 61,
+          "doCpuMs": 61,
+          "workerCpuMs": 3,
+          "workerWallMs": 486,
+          "syncClockMs": 0,
+          "outsideDoMs": 427
+        },
+        {
+          "correlation": "438304bb-6b7d-4567-80e7-f639f611fbae",
+          "group": "3c887b06-c422-4316-9bb2-6c2daf3d079c",
+          "phase": "step_direct",
+          "first": false,
+          "roundTripMs": 14,
+          "doWallMs": 7,
+          "doCpuMs": 6,
+          "workerCpuMs": 2,
+          "workerWallMs": 17,
+          "syncClockMs": 0,
+          "outsideDoMs": 7
+        },
+        {
+          "correlation": "7f0a306c-3411-4982-83ec-66e895ce6249",
+          "group": "a8aae9b1-7ab1-4f0a-bc3e-52b7c5271a47",
+          "phase": "cold_ping",
+          "first": true,
+          "roundTripMs": 618,
+          "doWallMs": 1,
+          "doCpuMs": 0,
+          "workerCpuMs": 8,
+          "workerWallMs": 896,
+          "syncClockMs": 0,
+          "outsideDoMs": 617
+        },
+        {
+          "correlation": "ee858326-4e00-4525-a49a-2633b1031f05",
+          "group": "a8aae9b1-7ab1-4f0a-bc3e-52b7c5271a47",
+          "phase": "warm_ping",
+          "first": false,
+          "roundTripMs": 3,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 8,
+          "workerWallMs": 896,
+          "syncClockMs": 0,
+          "outsideDoMs": 3
+        },
+        {
+          "correlation": "37f635f3-b59c-4198-ab7e-b212d23f4c3c",
+          "group": "30fa08f7-d93e-44ea-973e-dde73660fc0a",
+          "phase": "init_direct",
+          "first": true,
+          "roundTripMs": 948,
+          "doWallMs": 211,
+          "doCpuMs": 128,
+          "workerCpuMs": 6,
+          "workerWallMs": 1026,
+          "syncClockMs": 92,
+          "outsideDoMs": 737
+        },
+        {
+          "correlation": "cbed4956-e7fb-4437-a3dc-afe4c2e2b774",
+          "group": "30fa08f7-d93e-44ea-973e-dde73660fc0a",
+          "phase": "after_init_ping",
+          "first": false,
+          "roundTripMs": 3,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 6,
+          "workerWallMs": 1026,
+          "syncClockMs": 0,
+          "outsideDoMs": 3
+        },
+        {
+          "correlation": "90173dad-40fb-4942-9988-798a2843f50c",
+          "group": "b90dbd7e-a7a1-493b-a0ca-493ea5f5cb2f",
+          "phase": "step_direct",
+          "first": false,
+          "roundTripMs": 608,
+          "doWallMs": 61,
+          "doCpuMs": 60,
+          "workerCpuMs": 4,
+          "workerWallMs": 605,
+          "syncClockMs": 0,
+          "outsideDoMs": 547
+        },
+        {
+          "correlation": "7143361b-1ec4-4e7c-bda8-9f39f7adf8c7",
+          "group": "b3a48877-1d0d-4f0e-a5f1-45ea9dadd575",
+          "phase": "step_direct",
+          "first": false,
+          "roundTripMs": 58,
+          "doWallMs": 12,
+          "doCpuMs": 11,
+          "workerCpuMs": 2,
+          "workerWallMs": 60,
+          "syncClockMs": 0,
+          "outsideDoMs": 46
+        },
+        {
+          "correlation": "16677cd5-f291-472c-80f6-f173ea69795f",
+          "group": "b0cd5c2b-0127-48b1-86bb-ece6fb4d92bf",
+          "phase": "step_direct",
+          "first": false,
+          "roundTripMs": 60,
+          "doWallMs": 13,
+          "doCpuMs": 13,
+          "workerCpuMs": 3,
+          "workerWallMs": 65,
+          "syncClockMs": 0,
+          "outsideDoMs": 47
+        },
+        {
+          "correlation": "3974f3d2-2e28-4b9e-9f34-2514cb64e98b",
+          "group": "0d152391-c500-460e-aa8a-f4b8d7d0b765",
+          "phase": "step_first_ping",
+          "first": false,
+          "roundTripMs": 535,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 3,
+          "workerWallMs": 610,
+          "syncClockMs": 0,
+          "outsideDoMs": 535
+        },
+        {
+          "correlation": "c8fa32b0-dacf-4217-bcbc-f21f9d5ff565",
+          "group": "0d152391-c500-460e-aa8a-f4b8d7d0b765",
+          "phase": "step_warm_ping",
+          "first": false,
+          "roundTripMs": 4,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 3,
+          "workerWallMs": 610,
+          "syncClockMs": 0,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "013ec6f7-773c-4923-adbc-b46ac701f6d5",
+          "group": "0d152391-c500-460e-aa8a-f4b8d7d0b765",
+          "phase": "step_fresh_stub_ping",
+          "first": false,
+          "roundTripMs": 45,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 3,
+          "workerWallMs": 610,
+          "syncClockMs": 0,
+          "outsideDoMs": 45
+        },
+        {
+          "correlation": "5cb1e388-832d-45ce-9b14-68ea196d8e07",
+          "group": "6151e612-e8ca-44ac-97e4-13598709d842",
+          "phase": "step_first_ping",
+          "first": false,
+          "roundTripMs": 54,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 7,
+          "workerWallMs": 304,
+          "syncClockMs": 0,
+          "outsideDoMs": 54
+        },
+        {
+          "correlation": "3962ad6e-eb2b-4eaf-bc5f-1a2ed7a67879",
+          "group": "6151e612-e8ca-44ac-97e4-13598709d842",
+          "phase": "step_warm_ping",
+          "first": false,
+          "roundTripMs": 4,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 7,
+          "workerWallMs": 304,
+          "syncClockMs": 0,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "11e64678-255e-44ee-a949-c3f0793df1e8",
+          "group": "a91c094e-3e5a-4925-940c-7f2e7f85cf16",
+          "phase": "cold_ping",
+          "first": true,
+          "roundTripMs": 702,
+          "doWallMs": 2,
+          "doCpuMs": 0,
+          "workerCpuMs": 5,
+          "workerWallMs": 994,
+          "syncClockMs": 0,
+          "outsideDoMs": 700
+        },
+        {
+          "correlation": "5ae3c868-b277-4f1e-beaa-c8bedc7546a2",
+          "group": "bb142e2b-8086-48fc-8906-7e2aa0a8d634",
+          "phase": "step_direct",
+          "first": false,
+          "roundTripMs": 563,
+          "doWallMs": 9,
+          "doCpuMs": 7,
+          "workerCpuMs": 13,
+          "workerWallMs": 562,
+          "syncClockMs": 0,
+          "outsideDoMs": 554
+        },
+        {
+          "correlation": "19d1d554-08e8-4f49-aab0-455a9f01b4d2",
+          "group": "4e6a00c9-9129-4b64-be01-15c6f42f95d3",
+          "phase": "step_first_ping",
+          "first": false,
+          "roundTripMs": 47,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 11,
+          "workerWallMs": 216,
+          "syncClockMs": 0,
+          "outsideDoMs": 47
+        },
+        {
+          "correlation": "d8335429-bd3a-4df4-8fbd-0610d370942f",
+          "group": "a959c052-4352-4bfc-bdc2-04203b9f72ca",
+          "phase": "cold_ping",
+          "first": true,
+          "roundTripMs": 528,
+          "doWallMs": 2,
+          "doCpuMs": 0,
+          "workerCpuMs": 12,
+          "workerWallMs": 786,
+          "syncClockMs": 0,
+          "outsideDoMs": 526
+        },
+        {
+          "correlation": "476936c4-766b-4511-b5d5-75adfbb0fa4c",
+          "group": "a959c052-4352-4bfc-bdc2-04203b9f72ca",
+          "phase": "warm_ping",
+          "first": false,
+          "roundTripMs": 4,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 12,
+          "workerWallMs": 786,
+          "syncClockMs": 0,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "eb058eb1-ec1a-4e7e-9af2-620db7f89753",
+          "group": "a959c052-4352-4bfc-bdc2-04203b9f72ca",
+          "phase": "fresh_stub_ping",
+          "first": false,
+          "roundTripMs": 9,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 12,
+          "workerWallMs": 786,
+          "syncClockMs": 0,
+          "outsideDoMs": 9
+        },
+        {
+          "correlation": "50a766e1-e855-44c2-b740-eb369e794a70",
+          "group": "a959c052-4352-4bfc-bdc2-04203b9f72ca",
+          "phase": "init_preflight",
+          "first": false,
+          "roundTripMs": 186,
+          "doWallMs": 181,
+          "doCpuMs": 103,
+          "workerCpuMs": 12,
+          "workerWallMs": 786,
+          "syncClockMs": 86,
+          "outsideDoMs": 5
+        },
+        {
+          "correlation": "90bcb6a3-9f68-4094-aecd-66b95aeae997",
+          "group": "a959c052-4352-4bfc-bdc2-04203b9f72ca",
+          "phase": "after_init_ping",
+          "first": false,
+          "roundTripMs": 3,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 12,
+          "workerWallMs": 786,
+          "syncClockMs": 0,
+          "outsideDoMs": 3
+        },
+        {
+          "correlation": "43c72f51-075a-4ea9-9bc6-5374c80c64a1",
+          "group": "9cf0f14a-896c-42e1-b111-90c86d62f2b8",
+          "phase": "step_direct",
+          "first": false,
+          "roundTripMs": 482,
+          "doWallMs": 48,
+          "doCpuMs": 48,
+          "workerCpuMs": 9,
+          "workerWallMs": 480,
+          "syncClockMs": 0,
+          "outsideDoMs": 434
+        },
+        {
+          "correlation": "9060da9c-5385-4bbd-b384-de51c415de2c",
+          "group": "d31e2483-9525-42e2-aac7-0f807bfd65c0",
+          "phase": "step_direct",
+          "first": false,
+          "roundTripMs": 16,
+          "doWallMs": 7,
+          "doCpuMs": 7,
+          "workerCpuMs": 2,
+          "workerWallMs": 18,
+          "syncClockMs": 0,
+          "outsideDoMs": 9
+        },
+        {
+          "correlation": "cef3280e-2871-4d24-8aac-c92badac1030",
+          "group": "1dd09706-176e-47ea-b5b7-558df2729129",
+          "phase": "step_direct",
+          "first": false,
+          "roundTripMs": 430,
+          "doWallMs": 15,
+          "doCpuMs": 15,
+          "workerCpuMs": 1,
+          "workerWallMs": 428,
+          "syncClockMs": 0,
+          "outsideDoMs": 415
+        },
+        {
+          "correlation": "b13d8067-ce49-4d9c-9d72-de440ace255b",
+          "group": "c6271671-0468-45a1-936b-c9570b324c51",
+          "phase": "cold_ping",
+          "first": true,
+          "roundTripMs": 639,
+          "doWallMs": 2,
+          "doCpuMs": 0,
+          "workerCpuMs": 10,
+          "workerWallMs": 927,
+          "syncClockMs": 0,
+          "outsideDoMs": 637
+        },
+        {
+          "correlation": "c6e2cd04-8966-4c7f-849d-faa64e20f95a",
+          "group": "c6271671-0468-45a1-936b-c9570b324c51",
+          "phase": "warm_ping",
+          "first": false,
+          "roundTripMs": 4,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 10,
+          "workerWallMs": 927,
+          "syncClockMs": 0,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "cdaa4de1-a580-4dc6-a855-6b4d7aca6c64",
+          "group": "c6271671-0468-45a1-936b-c9570b324c51",
+          "phase": "fresh_stub_ping",
+          "first": false,
+          "roundTripMs": 54,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 10,
+          "workerWallMs": 927,
+          "syncClockMs": 0,
+          "outsideDoMs": 54
+        },
+        {
+          "correlation": "71214ee4-8207-4cda-8bbd-cf853cd770e5",
+          "group": "c6271671-0468-45a1-936b-c9570b324c51",
+          "phase": "init_preflight",
+          "first": false,
+          "roundTripMs": 180,
+          "doWallMs": 174,
+          "doCpuMs": 81,
+          "workerCpuMs": 10,
+          "workerWallMs": 927,
+          "syncClockMs": 100,
+          "outsideDoMs": 6
+        },
+        {
+          "correlation": "67dae699-b2b9-4b8b-aafa-d072e8933e22",
+          "group": "176765fb-9447-4b24-b1fc-1fad0a45df12",
+          "phase": "step_direct",
+          "first": false,
+          "roundTripMs": 494,
+          "doWallMs": 47,
+          "doCpuMs": 47,
+          "workerCpuMs": 2,
+          "workerWallMs": 493,
+          "syncClockMs": 0,
+          "outsideDoMs": 447
+        },
+        {
+          "correlation": "75d08342-9f49-4e0f-a294-19dfd6c7d0f6",
+          "group": "3190edc0-0ff1-4fcd-8eb2-6a18e11679a8",
+          "phase": "init_direct",
+          "first": true,
+          "roundTripMs": 812,
+          "doWallMs": 206,
+          "doCpuMs": 129,
+          "workerCpuMs": 6,
+          "workerWallMs": 868,
+          "syncClockMs": 85,
+          "outsideDoMs": 606
+        },
+        {
+          "correlation": "a112c547-cc23-4474-b3b8-137cd37b8d6a",
+          "group": "8b296503-9c05-4995-913e-217f85798fef",
+          "phase": "cold_ping",
+          "first": true,
+          "roundTripMs": 654,
+          "doWallMs": 1,
+          "doCpuMs": 0,
+          "workerCpuMs": 8,
+          "workerWallMs": 899,
+          "syncClockMs": 0,
+          "outsideDoMs": 653
+        },
+        {
+          "correlation": "dfd9e29d-b08a-4f6e-b444-974f4d44b738",
+          "group": "8b296503-9c05-4995-913e-217f85798fef",
+          "phase": "warm_ping",
+          "first": false,
+          "roundTripMs": 3,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 8,
+          "workerWallMs": 899,
+          "syncClockMs": 0,
+          "outsideDoMs": 3
+        },
+        {
+          "correlation": "1c79108f-3756-4f0f-9d32-64674f1a4ada",
+          "group": "88068faa-0203-445c-8d98-04da704d5fcc",
+          "phase": "step_first_ping",
+          "first": false,
+          "roundTripMs": 537,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 4,
+          "workerWallMs": 640,
+          "syncClockMs": 0,
+          "outsideDoMs": 537
+        },
+        {
+          "correlation": "aabe4465-946a-4d7b-9f1a-918f68154e51",
+          "group": "770595d4-85a0-43be-bccd-cea5c27c714c",
+          "phase": "step_direct",
+          "first": false,
+          "roundTripMs": 55,
+          "doWallMs": 5,
+          "doCpuMs": 4,
+          "workerCpuMs": 5,
+          "workerWallMs": 62,
+          "syncClockMs": 0,
+          "outsideDoMs": 50
+        },
+        {
+          "correlation": "153bc527-263e-4eeb-a560-9e139385aa0b",
+          "group": "a0e0e749-82f5-4433-9061-f19c70ef0441",
+          "phase": "cold_ping",
+          "first": true,
+          "roundTripMs": 644,
+          "doWallMs": 2,
+          "doCpuMs": 0,
+          "workerCpuMs": 8,
+          "workerWallMs": 929,
+          "syncClockMs": 0,
+          "outsideDoMs": 642
+        },
+        {
+          "correlation": "4e7e51d0-8460-41eb-81e1-b4bd5bc7f216",
+          "group": "fab2f313-6c63-4bb4-94e4-92ac2b7380bb",
+          "phase": "step_direct",
+          "first": false,
+          "roundTripMs": 561,
+          "doWallMs": 45,
+          "doCpuMs": 44,
+          "workerCpuMs": 2,
+          "workerWallMs": 559,
+          "syncClockMs": 0,
+          "outsideDoMs": 516
+        },
+        {
+          "correlation": "62c7e523-d8d3-4fcb-8f8e-0d3a82d96110",
+          "group": "8069bfb2-3023-4055-a8f0-38c39eec4779",
+          "phase": "step_first_ping",
+          "first": false,
+          "roundTripMs": 47,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 7,
+          "workerWallMs": 128,
+          "syncClockMs": 0,
+          "outsideDoMs": 47
+        },
+        {
+          "correlation": "bb1cf295-3787-4bac-b580-a9bd8f0d6324",
+          "group": "47f01286-91fd-40a8-b775-e16c84345113",
+          "phase": "cold_ping",
+          "first": true,
+          "roundTripMs": 509,
+          "doWallMs": 2,
+          "doCpuMs": 0,
+          "workerCpuMs": 5,
+          "workerWallMs": 771,
+          "syncClockMs": 0,
+          "outsideDoMs": 507
+        },
+        {
+          "correlation": "1ecb44aa-c22f-4a54-940d-df2fb8127bc2",
+          "group": "47f01286-91fd-40a8-b775-e16c84345113",
+          "phase": "warm_ping",
+          "first": false,
+          "roundTripMs": 3,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 5,
+          "workerWallMs": 771,
+          "syncClockMs": 0,
+          "outsideDoMs": 3
+        },
+        {
+          "correlation": "d2ecd8ae-6599-4883-a736-3977f96ec4d6",
+          "group": "47f01286-91fd-40a8-b775-e16c84345113",
+          "phase": "fresh_stub_ping",
+          "first": false,
+          "roundTripMs": 8,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 5,
+          "workerWallMs": 771,
+          "syncClockMs": 0,
+          "outsideDoMs": 8
+        },
+        {
+          "correlation": "1d10e736-f0b3-4a5b-b9d1-7ffbef930b34",
+          "group": "47f01286-91fd-40a8-b775-e16c84345113",
+          "phase": "init_preflight",
+          "first": false,
+          "roundTripMs": 178,
+          "doWallMs": 174,
+          "doCpuMs": 97,
+          "workerCpuMs": 5,
+          "workerWallMs": 771,
+          "syncClockMs": 85,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "42ee3bab-c533-4353-8d42-4f27da65ea6d",
+          "group": "47f01286-91fd-40a8-b775-e16c84345113",
+          "phase": "after_init_ping",
+          "first": false,
+          "roundTripMs": 3,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 5,
+          "workerWallMs": 771,
+          "syncClockMs": 0,
+          "outsideDoMs": 3
+        },
+        {
+          "correlation": "3e6dff42-66ba-45aa-a861-f05e431efe78",
+          "group": "a501f2dc-459f-4e5e-bf4f-4c89200f743e",
+          "phase": "step_first_ping",
+          "first": false,
+          "roundTripMs": 7,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 3,
+          "workerWallMs": 85,
+          "syncClockMs": 0,
+          "outsideDoMs": 7
+        },
+        {
+          "correlation": "c7d7a29b-1d09-4e89-9b3e-9b698e9e8f9c",
+          "group": "a501f2dc-459f-4e5e-bf4f-4c89200f743e",
+          "phase": "step_warm_ping",
+          "first": false,
+          "roundTripMs": 3,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 3,
+          "workerWallMs": 85,
+          "syncClockMs": 0,
+          "outsideDoMs": 3
+        },
+        {
+          "correlation": "5819fc9c-757f-41c6-b3d7-f3df866ddb30",
+          "group": "a501f2dc-459f-4e5e-bf4f-4c89200f743e",
+          "phase": "step_fresh_stub_ping",
+          "first": false,
+          "roundTripMs": 9,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 3,
+          "workerWallMs": 85,
+          "syncClockMs": 0,
+          "outsideDoMs": 9
+        },
+        {
+          "correlation": "79a3b313-ca2b-48cf-832d-f017f35a801a",
+          "group": "a501f2dc-459f-4e5e-bf4f-4c89200f743e",
+          "phase": "step_preflight",
+          "first": false,
+          "roundTripMs": 63,
+          "doWallMs": 60,
+          "doCpuMs": 59,
+          "workerCpuMs": 3,
+          "workerWallMs": 85,
+          "syncClockMs": 0,
+          "outsideDoMs": 3
+        },
+        {
+          "correlation": "f9703b84-ca9e-456a-9843-a0b59b3295f6",
+          "group": "98a56f07-1792-43c9-98ef-615af0235398",
+          "phase": "init_direct",
+          "first": true,
+          "roundTripMs": 733,
+          "doWallMs": 181,
+          "doCpuMs": 106,
+          "workerCpuMs": 4,
+          "workerWallMs": 804,
+          "syncClockMs": 82,
+          "outsideDoMs": 552
+        },
+        {
+          "correlation": "24ce0b7b-2da6-490e-a12b-8c05fd06fc5d",
+          "group": "703d1a24-eeba-4093-b125-a3017f5f586d",
+          "phase": "init_direct",
+          "first": true,
+          "roundTripMs": 913,
+          "doWallMs": 178,
+          "doCpuMs": 98,
+          "workerCpuMs": 10,
+          "workerWallMs": 969,
+          "syncClockMs": 86,
+          "outsideDoMs": 735
+        },
+        {
+          "correlation": "f9ca0cc4-f241-4b3a-8f7a-d03aeff42d42",
+          "group": "703d1a24-eeba-4093-b125-a3017f5f586d",
+          "phase": "after_init_ping",
+          "first": false,
+          "roundTripMs": 3,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 10,
+          "workerWallMs": 969,
+          "syncClockMs": 0,
+          "outsideDoMs": 3
+        },
+        {
+          "correlation": "150b1a9b-0c66-400d-bced-892bdfe7cc49",
+          "group": "8b6f0a87-9198-4170-a528-065ef3a9f6e4",
+          "phase": "cold_ping",
+          "first": true,
+          "roundTripMs": 540,
+          "doWallMs": 2,
+          "doCpuMs": 1,
+          "workerCpuMs": 7,
+          "workerWallMs": 777,
+          "syncClockMs": 0,
+          "outsideDoMs": 538
+        },
+        {
+          "correlation": "8e9ffcf5-341c-4f6f-a666-2573da6e2e4d",
+          "group": "a7b7e5b6-f249-4cf5-9a80-e148cd8d5f4e",
+          "phase": "step_first_ping",
+          "first": false,
+          "roundTripMs": 416,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 4,
+          "workerWallMs": 435,
+          "syncClockMs": 0,
+          "outsideDoMs": 416
+        },
+        {
+          "correlation": "f4251efd-7625-4afa-b35d-dfeec983bd7c",
+          "group": "82398d36-84f1-45b9-9f56-719b49321990",
+          "phase": "cold_ping",
+          "first": true,
+          "roundTripMs": 642,
+          "doWallMs": 2,
+          "doCpuMs": 0,
+          "workerCpuMs": 9,
+          "workerWallMs": 897,
+          "syncClockMs": 0,
+          "outsideDoMs": 640
+        },
+        {
+          "correlation": "882e047e-d893-48f4-b847-d5b059ec72ec",
+          "group": "82398d36-84f1-45b9-9f56-719b49321990",
+          "phase": "warm_ping",
+          "first": false,
+          "roundTripMs": 3,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 9,
+          "workerWallMs": 897,
+          "syncClockMs": 0,
+          "outsideDoMs": 3
+        },
+        {
+          "correlation": "6add614f-591a-4547-8e18-076303f19416",
+          "group": "82398d36-84f1-45b9-9f56-719b49321990",
+          "phase": "fresh_stub_ping",
+          "first": false,
+          "roundTripMs": 42,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 9,
+          "workerWallMs": 897,
+          "syncClockMs": 0,
+          "outsideDoMs": 42
+        },
+        {
+          "correlation": "02e6859d-9830-435f-a37b-b5f43a3a025a",
+          "group": "82398d36-84f1-45b9-9f56-719b49321990",
+          "phase": "init_preflight",
+          "first": false,
+          "roundTripMs": 150,
+          "doWallMs": 145,
+          "doCpuMs": 66,
+          "workerCpuMs": 9,
+          "workerWallMs": 897,
+          "syncClockMs": 84,
+          "outsideDoMs": 5
+        },
+        {
+          "correlation": "ff71ce2d-66d3-4e2c-91ec-9819b9c7511e",
+          "group": "82398d36-84f1-45b9-9f56-719b49321990",
+          "phase": "after_init_ping",
+          "first": false,
+          "roundTripMs": 4,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 9,
+          "workerWallMs": 897,
+          "syncClockMs": 0,
+          "outsideDoMs": 4
+        },
+        {
+          "correlation": "9b87a743-51e4-4a0c-812d-a2af9ef912dd",
+          "group": "031c6c7b-93a0-4461-9828-33d3a6c81326",
+          "phase": "step_first_ping",
+          "first": false,
+          "roundTripMs": 493,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 4,
+          "workerWallMs": 585,
+          "syncClockMs": 0,
+          "outsideDoMs": 493
+        },
+        {
+          "correlation": "f2e94b32-827e-4937-8730-96bb89ebf3c3",
+          "group": "031c6c7b-93a0-4461-9828-33d3a6c81326",
+          "phase": "step_warm_ping",
+          "first": false,
+          "roundTripMs": 3,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 4,
+          "workerWallMs": 585,
+          "syncClockMs": 0,
+          "outsideDoMs": 3
+        },
+        {
+          "correlation": "fc8a4ea7-8af8-4761-9225-123bedf8e8b0",
+          "group": "031c6c7b-93a0-4461-9828-33d3a6c81326",
+          "phase": "step_fresh_stub_ping",
+          "first": false,
+          "roundTripMs": 45,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 4,
+          "workerWallMs": 585,
+          "syncClockMs": 0,
+          "outsideDoMs": 45
+        },
+        {
+          "correlation": "8aaabe28-ccb1-46fe-b7d4-e9325b7d584a",
+          "group": "453feff1-657d-463b-bbb9-1f871bc45c97",
+          "phase": "cold_ping",
+          "first": true,
+          "roundTripMs": 731,
+          "doWallMs": 2,
+          "doCpuMs": 1,
+          "workerCpuMs": 8,
+          "workerWallMs": 1043,
+          "syncClockMs": 0,
+          "outsideDoMs": 729
+        },
+        {
+          "correlation": "91f91f6b-62ba-404f-ab9f-993904131da5",
+          "group": "453feff1-657d-463b-bbb9-1f871bc45c97",
+          "phase": "fresh_stub_ping",
+          "first": false,
+          "roundTripMs": 46,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 8,
+          "workerWallMs": 1043,
+          "syncClockMs": 0,
+          "outsideDoMs": 46
+        },
+        {
+          "correlation": "9420cb2f-a118-49f4-8794-c3afe5d42a1c",
+          "group": "0dc9af2a-ac9f-4540-8aa2-cd1caa9f6319",
+          "phase": "step_first_ping",
+          "first": false,
+          "roundTripMs": 544,
+          "doWallMs": 0,
+          "doCpuMs": 0,
+          "workerCpuMs": 3,
+          "workerWallMs": 662,
+          "syncClockMs": 0,
+          "outsideDoMs": 544
+        }
+      ],
+      "matchedGroups": [
+        {
+          "group": "89b96458-615e-4a16-86d9-e52f329832b0",
+          "kind": "later_step",
+          "firstRoundTripMs": 11,
+          "warmRoundTripMs": 3,
+          "actualRoundTripMs": 14,
+          "actualDoWallMs": 9
+        },
+        {
+          "group": "65817fdd-7efa-4f66-bc45-fa70d0943715",
+          "kind": "later_step",
+          "firstRoundTripMs": 6,
+          "warmRoundTripMs": 3,
+          "actualRoundTripMs": 11,
+          "actualDoWallMs": 7
+        },
+        {
+          "group": "e0e49dc2-88c9-41e4-9d7b-3607fe899ef6",
+          "kind": "initialization",
+          "firstRoundTripMs": 697,
+          "warmRoundTripMs": 5,
+          "actualRoundTripMs": 229,
+          "actualDoWallMs": 223
+        },
+        {
+          "group": "a959c052-4352-4bfc-bdc2-04203b9f72ca",
+          "kind": "initialization",
+          "firstRoundTripMs": 528,
+          "warmRoundTripMs": 4,
+          "actualRoundTripMs": 186,
+          "actualDoWallMs": 181
+        },
+        {
+          "group": "c6271671-0468-45a1-936b-c9570b324c51",
+          "kind": "initialization",
+          "firstRoundTripMs": 639,
+          "warmRoundTripMs": 4,
+          "actualRoundTripMs": 180,
+          "actualDoWallMs": 174
+        },
+        {
+          "group": "47f01286-91fd-40a8-b775-e16c84345113",
+          "kind": "initialization",
+          "firstRoundTripMs": 509,
+          "warmRoundTripMs": 3,
+          "actualRoundTripMs": 178,
+          "actualDoWallMs": 174
+        },
+        {
+          "group": "a501f2dc-459f-4e5e-bf4f-4c89200f743e",
+          "kind": "later_step",
+          "firstRoundTripMs": 7,
+          "warmRoundTripMs": 3,
+          "actualRoundTripMs": 63,
+          "actualDoWallMs": 60
+        },
+        {
+          "group": "82398d36-84f1-45b9-9f56-719b49321990",
+          "kind": "initialization",
+          "firstRoundTripMs": 642,
+          "warmRoundTripMs": 3,
+          "actualRoundTripMs": 150,
+          "actualDoWallMs": 145
+        }
+      ],
+      "pairCount": 84,
+      "eventCount": 305,
+      "verifiedSignatures": 9,
+      "concurrencyVerified": true,
+      "diagnosticSdkTiming": {
+        "count": 9,
+        "medianMs": 3787.0199999809265,
+        "minMs": 2426.9800000190735,
+        "maxMs": 4343.314999997616
+      },
+      "sampleSha256": "cddac39b843d3da0ab122cbfad0049752ec829a7f12455515ca647e01f6eda62"
+    }
+  },
+  "matchedExample": {
+    "cohort": "steps",
+    "group": "45e0540c-102c-41d0-83af-f12c919066d3",
+    "firstNoopMs": 502,
+    "firstNoopDoWallMs": 0,
+    "nextNoopMs": 5,
+    "actualStepMs": 12,
+    "actualStepDoWallMs": 8
+  },
+  "source": {
+    "transport": "crates/router-ab-cloudflare/src/durable_object/worker_storage.rs",
+    "routing": "Object name hashes the presign session routing key; get_by_name constructs a stub for every call.",
+    "baseWorkerVersion": "137dfce9-8ac7-4dbf-be2b-de0b1171f01d",
+    "diagnosticVersions": [
+      "71ba5402-6e02-48a5-aa8d-565ebae26ebc",
+      "3baed03f-59cf-46b7-9f56-fc2412b79d7c",
+      "ab021c58-4608-4cfa-84f2-3a34c57f0915"
+    ],
+    "sdkSite": ".artifacts/mpc-refill-20261006/candidate-site",
+    "hashes": {
+      "diagnostic.mjs": "431e7a30e4e2547b31b2aeaf2319c47176e7deab0878dda338892ecc65c01086",
+      "diagnostic-steps.mjs": "7e10dcd44920ccca54ff5e4aa43785bb0c3e35a9675e3c1f7980333f56a9e276",
+      "diagnostic-fresh-stub.mjs": "469ae2c6ffb505f09a117e6520a2bc956f0ba44fb7b998898bc3fbc5c635aaf3",
+      "analyze.py": "fade166492be3e1765fa76dff0f71dd50adaff8d0047db91f2e66b10bcbb414d"
+    }
+  },
+  "restoration": {
+    "versions": [
+      {
+        "script": "seams-sdk-d1-gateway-staging",
+        "versions": [
+          {
+            "version_id": "cebc5a92-875f-4b52-8c42-2fa4b499b398",
+            "percentage": 100
+          }
+        ]
+      },
+      {
+        "script": "seams-sdk-d1-console-staging",
+        "versions": [
+          {
+            "version_id": "55ec63ea-d332-4ada-a181-8f968aed3b59",
+            "percentage": 100
+          }
+        ]
+      },
+      {
+        "script": "router-ab-signing-worker-staging",
+        "versions": [
+          {
+            "version_id": "137dfce9-8ac7-4dbf-be2b-de0b1171f01d",
+            "percentage": 100
+          }
+        ]
+      },
+      {
+        "script": "router-ab-mpc-router-staging",
+        "versions": [
+          {
+            "version_id": "2eafdb55-95e8-4d20-b091-c3e744d3aa05",
+            "percentage": 100
+          }
+        ]
+      },
+      {
+        "script": "router-ab-deriver-a-staging",
+        "versions": [
+          {
+            "version_id": "9fdd3b52-b26a-4125-854a-ff1f5701662c",
+            "percentage": 100
+          }
+        ]
+      },
+      {
+        "script": "router-ab-deriver-b-staging",
+        "versions": [
+          {
+            "version_id": "5c5de8e7-3bb6-46de-bdfb-25deb77387ba",
+            "percentage": 100
+          }
+        ]
+      }
+    ],
+    "settings": {
+      "bindingsUnchanged": true,
+      "placementRestored": true,
+      "placement": {}
+    }
+  },
+  "references": [
+    "https://developers.cloudflare.com/workers/runtime-apis/performance/",
+    "https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/",
+    "https://developers.cloudflare.com/durable-objects/api/stub/"
+  ]
+}
