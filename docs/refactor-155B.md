@@ -1431,3 +1431,42 @@ changed, and no Cloudflare resources were deployed.
 
 [Sanitized browser evidence](./evidence/r155b-browser-relocation-20261007.json).
 Private acceptance commit: `d448976`.
+
+
+### Shared OTP counters and browser step-up — 2026-10-07
+
+The private Gateway now binds a dedicated shared OTP-counter D1 directly. It reuses
+the existing atomic counter and tenant scope. The Console rate-limit RPC and client
+adapter are removed. Every regional Gateway must bind the same counter database.
+Counter storage failure rejects the OTP action; no regional fallback exists.
+The staging example, readiness check, migration, and cutover notes are updated.
+
+Regional local acceptance passed: 32 concurrent requests produced 12 approvals
+and 20 limit rejections across four policy scopes. Independent project scopes,
+Console outage, and real counter-storage failure checks passed. Package type-check
+and the public bloat gate passed.
+
+The composed Chromium check then completed two NEAR signatures, three ECDSA
+signatures, and two Email OTP step-ups while Console stayed unavailable. It recorded
+zero Console requests. All three authorization grants and both verified step-ups
+remained in the US home. Signing entered through WEUR, APAC, and OC.
+
+The first browser retry exposed a test-fixture dependency: its development OTP
+outbox reader required Console discovery. The check now uses a local mailbox at
+the production email-provider boundary. Only external email delivery is simulated.
+OTP generation, verification, shared limits, regional routing, and MPC signing use
+production code. This closes the local OTP outage blocker recorded above.
+
+Private commits: `04f5071` (counter wiring), `7e73599` (browser acceptance).
+[Sanitized evidence](./evidence/r155b-direct-otp-20261007.json).
+Repeat the browser check with `tests/scripts/run-regional-real.mjs`,
+`google-email-otp.recovery.contract.test.ts`, and
+`--grep 'Email OTP budget exhaustion'` in the private repository. Set
+`SEAMS_WALLET_SERVER_CANDIDATE` to the matching public wallet-server candidate.
+The counter composition check is `tests/e2e/regional-session-routing.e2e.mjs`.
+
+No live database was provisioned or deployed. Approval for the dedicated shared
+counter database remains pending under the infrastructure constraint and $25 budget.
+The old Console counter table must be removed after coordinated Gateway cutover.
+This evidence uses local regional D1 stores and a shared local custody backend.
+It does not prove hosted placement, regional latency, or the remaining R155B gates.
