@@ -1871,3 +1871,19 @@ receipt conflicts, regional authority, premature cleanup, and restart recovery.
 These remain separate component scenarios. Full coordinator assembly, linked
 presign-session command authority, and bounded ECDSA seal/final verification remain
 unfinished. Evidence is retained under `.artifacts/r153/ecdsa-journal-20261006/`.
+
+### Linked presign source journal authority (2026-10-06)
+
+Source inventory, fence, and freeze commands now require the current freezing
+attempt and source Runtime. The journal supplies the admitted scope, generation,
+move identity, and invalidation timestamp. The source wallet still checks session
+membership before mutating a session object. Runtime persists each exact frozen
+session receipt in Console before reporting freeze success.
+
+The Worker scenario covers initialized and registered-but-uninitialized sessions,
+a terminal-step/fence race, denied or corrupted authorization without participant
+dispatch, a lost receipt reply, and retries after eviction. Delayed initialization,
+terminal steps, and consumption remain rejected. The private Console scenario
+checks regional authority, immutable receipts, and rejection after freezing ends.
+Transfer authorization, late inventory reconciliation, and source session cleanup
+remain open. Evidence is under `.artifacts/r153/presign-source-20261006/`.

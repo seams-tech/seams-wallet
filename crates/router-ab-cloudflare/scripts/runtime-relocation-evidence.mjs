@@ -29,6 +29,7 @@ class SourceDirectory {
   mode = 'authorized';
   receiptMode = 'available';
   receipt = null;
+  presignReceipts = new Map();
   ecdsaReceipt = null;
   ecdsaActivation = null;
   ed25519Receipt = null;
@@ -40,7 +41,9 @@ class SourceDirectory {
 
   async fetch(request) {
     assert.ok(
-      request.url.endsWith('/relocation-ecdsa-activation') ||
+      request.url.endsWith('/relocation-presign-source') ||
+        request.url.endsWith('/relocation-presign-receipt') ||
+        request.url.endsWith('/relocation-ecdsa-activation') ||
         request.url.endsWith('/relocation-ecdsa-receipt') ||
         request.url.endsWith('/relocation-ecdsa-transfer') ||
         request.url.endsWith('/relocation-ed25519-activation') ||
@@ -61,6 +64,24 @@ class SourceDirectory {
     const input = await request.json();
     if (this.mode === 'denied' || input.attempt.moveId !== this.source.request.move_id)
       return Response.json({ ok: false, code: 'attempt_conflict' }, { status: 409 });
+    if (request.url.endsWith('/relocation-presign-source')) {
+      const operation = input.request.operation;
+      const payload = operation === 'inventory'
+        ? { scope: this.source.scope, request: this.source.request, cursor: input.request.cursor, limit: input.request.limit }
+        : { wallet_scope: this.source.scope, request: this.source.request,
+          presign_session_id: input.request.session.presignSessionId, server_presignature_id: input.request.session.serverPresignatureId };
+      if (this.mode === 'corrupt') payload.request = { ...payload.request, move_id: `wmove_${'z'.repeat(43)}` };
+      return Response.json({ ok: true, command: { operation, payload } });
+    }
+    if (request.url.endsWith('/relocation-presign-receipt')) {
+      assert.deepEqual(input.receipt.command.wallet_scope, this.source.scope);
+      assert.deepEqual(input.receipt.command.request, this.source.request);
+      const key = input.receipt.command.presign_session_id;
+      if (this.presignReceipts.has(key)) assert.deepEqual(input.receipt, this.presignReceipts.get(key));
+      this.presignReceipts.set(key, input.receipt);
+      if (this.receiptMode === 'lost_reply') throw new Error('Recorded presign receipt reply was lost');
+      return Response.json({ ok: true, receipt: input.receipt });
+    }
     if (request.url.endsWith('/relocation-ecdsa-receipt')) {
       assert.deepEqual(input.receipt.scope, this.source.scope);
       assert.deepEqual(input.receipt.request, this.source.request);
@@ -228,6 +249,18 @@ class RuntimeRelocationSource {
     const body = JSON.parse(init.body);
     let forwardedBody = body;
     switch (path) {
+      case '/router-ab/signing-worker/wallet/linked-presign-inventory':
+        operation = 'presign-inventory';
+        forwardedBody = sourceEnvelope(body);
+        forwardedBody.cursor = body.cursor;
+        forwardedBody.limit = body.limit;
+        break;
+      case '/router-ab/signing-worker/linked-presign-session/fence':
+      case '/router-ab/signing-worker/linked-presign-session/freeze':
+        operation = path.endsWith('/fence') ? 'presign-fence' : 'presign-freeze';
+        forwardedBody = sourceEnvelope({ scope: body.wallet_scope, request: body.request });
+        forwardedBody.session = { presignSessionId: body.presign_session_id, serverPresignatureId: body.server_presignature_id };
+        break;
       case '/router-ab/signing-worker/wallet/pool/freeze':
         operation = 'ecdsa-freeze';
         forwardedBody = sourceEnvelope(body);

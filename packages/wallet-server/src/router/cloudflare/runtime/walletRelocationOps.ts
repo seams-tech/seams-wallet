@@ -1,3 +1,4 @@
+import { presignSourceOperation, forwardPresignSource } from './walletRelocationPresign';
 import { ecdsaRuntimeOperation, forwardEcdsaRelocation } from './walletRelocationEcdsa';
 import { ed25519RuntimeOperation, forwardEd25519Snapshot } from './walletRelocationEd25519';
 import { forwardDeriverRelocation, deriverRuntimeOperation } from './walletRelocationDeriver';
@@ -115,6 +116,8 @@ export async function handleWalletRelocationRequest(
   if (ed25519Action) return forwardEd25519Snapshot(input, ed25519Action, env.MPC_ROUTER, credential, env);
   const ecdsaAction = ecdsaRuntimeOperation(operation);
   if (ecdsaAction) return forwardEcdsaRelocation(input, ecdsaAction, env.MPC_ROUTER, credential, env);
+  const presignAction = presignSourceOperation(operation);
+  if (presignAction) return forwardPresignSource(input, presignAction, env.MPC_ROUTER, credential, env);
   let body: BodyInit = bytes;
   if (
     operation === 'router-cleanup' ||
