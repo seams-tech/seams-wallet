@@ -1,10 +1,9 @@
 import { routerAbMpcMaterialActivationRefToWire } from '@shared/utils/routerAbNormalSigningIdentity';
+import { validateRouterAbEcdsaDerivationWalletSessionInputs } from '../../../auth/commonRouterUtils';
 import type { ActiveOwnerWalletExecutionLaneProjection } from '../../../../core/signingLanes/WalletExecutionLaneProjection';
 import type { RouterApiWalletRegistrationService } from '../../../framework/authServicePort';
-import {
-  validateRouterAbEcdsaDerivationWalletSessionInputs,
-  validateRouterAbEd25519WalletSessionInputs,
-} from '../../../auth/commonRouterUtils';
+import { extractBearerCredential } from '../../../auth/routerApiKeyAuth';
+import { resolveWalletSessionAuthorizationV2Admission } from '../../../domains/signingOperations/walletExecutionAdmission';
 import {
   walletSessionFailure,
   walletSessionFailureStatus,
@@ -12,9 +11,11 @@ import {
 } from '../../../auth/walletSessionFailure';
 import type { FetchRouterApiContext } from '../createFetchRouter';
 import { json, readJson } from '../../../framework/http';
-import { parseMpcMaterialActivationRef, parseWalletId } from '@shared/utils/domainIds';
-import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
-import { WALLET_SESSION_FAILURE_CODES } from '@shared/utils/walletSessionFailure';
+import {
+  mpcMaterialActivationRefsEqual,
+  parseMpcMaterialActivationRef,
+} from '@shared/utils/domainIds';
+import type { MpcMaterialActivationRef, WalletId } from '@shared/utils/domainIds';
 import type {
   OwnerLaneParticipantContinuityV1,
   SigningLaneLifecycle,
@@ -223,19 +224,54 @@ export async function handleOwnerWalletExecutionLanePreflight(
   type OwnerLaneAuthorization = Parameters<
     RouterApiWalletRegistrationService['resolveActiveOwnerWalletExecutionLane']
   >[0]['authorization'];
-  let walletIdRaw: string;
+  let walletId: WalletId;
   let authorization: OwnerLaneAuthorization;
   if (request.curve === 'ed25519') {
-    const validated = await validateRouterAbEd25519WalletSessionInputs({
-      headers,
-      authorizationSessions: ctx.service.authorizationSessions,
-      operationKind: NEAR_ED25519_MPC_OPERATION_KINDS.signTransaction,
+    const service = ctx.service.authorizationSessions;
+    if (!service) {
+      return validationFailure({ code: 'sessions_disabled', message: 'Sessions are not configured' });
+    }
+    const token = extractBearerCredential(headers);
+    if (!token) return validationFailure(walletSessionFailure('wallet_session_missing'));
+    const nowMs = Date.now();
+    let context;
+    try {
+      // Lane metadata remains readable after exhaustion. Signing still requires admission.
+      context = await service.readWalletSessionExactOperationContextByCredential({
+        tenantId: service.tenantId,
+        token,
+        nowMs,
+      });
+    } catch {
+      return validationFailure(walletSessionFailure('wallet_session_unavailable'));
+    }
+    if (!context) return validationFailure(walletSessionFailure('wallet_session_invalid'));
+    const session = context.session;
+    const admission = resolveWalletSessionAuthorizationV2Admission({
+      authorization: session,
+      authority: context.authority,
+      authMethod: context.authMethod,
+      retiredAtMs: context.retiredAtMs,
+      nowMs,
+      operation: {
+        tenantId: service.tenantId,
+        principalId: session.principalId,
+        walletId: session.walletId,
+        keyFamily: 'ed25519',
+        operationKind: NEAR_ED25519_MPC_OPERATION_KINDS.signTransaction,
+      },
     });
-    if (!validated.ok) return validationFailure(validated);
-    walletIdRaw = String(validated.admission.context.authorization.session.walletId);
+    if (
+      !admission.ok ||
+      admission.keyFamily !== 'ed25519' ||
+      !mpcMaterialActivationRefsEqual(admission.materialActivation, request.expectedMaterialActivation)
+    ) {
+      return validationFailure(walletSessionFailure('wallet_session_scope_mismatch'));
+    }
+    walletId = session.walletId;
     authorization = {
       kind: 'wallet_auth_method',
-      walletAuthMethodId: validated.admission.context.authorization.session.walletAuthMethodId,
+      walletAuthMethodId: session.walletAuthMethodId,
     };
   } else {
     const validated = await validateRouterAbEcdsaDerivationWalletSessionInputs({
@@ -248,25 +284,17 @@ export async function handleOwnerWalletExecutionLanePreflight(
     if (validated.kind === 'wallet_session_operation_credential_exhausted_candidate_v1') {
       return validationFailure(walletSessionFailure('wallet_session_unavailable'));
     }
-    walletIdRaw = String(validated.admission.context.authorization.session.walletId);
+    walletId = validated.admission.context.authorization.session.walletId;
     authorization = {
       kind: 'wallet_auth_method',
       walletAuthMethodId: validated.admission.context.authorization.session.walletAuthMethodId,
     };
   }
 
-  const walletId = parseWalletId(walletIdRaw);
-  if (!walletId.ok) {
-    return validationFailure({
-      code: WALLET_SESSION_FAILURE_CODES.invalid,
-      message: 'Wallet Session wallet identity is invalid',
-    });
-  }
-
   let resolved;
   try {
     resolved = await ctx.service.walletRegistration.resolveActiveOwnerWalletExecutionLane({
-      walletId: walletId.value,
+      walletId,
       expectedMaterialActivation: request.expectedMaterialActivation,
       authorization,
     });

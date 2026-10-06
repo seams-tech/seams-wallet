@@ -871,3 +871,38 @@ before generating a client signature share. Do not weaken revocation or budget c
 [Sanitized experimental request counts](./evidence/near-lane-observation-20261007.json).
 These lower counts describe a rejected candidate, not shipped behavior or a
 hosted latency improvement. Current immediate-signature status calls remain two.
+
+### NEAR owner-lane preflight after budget exhaustion — 2026-10-07
+
+The rejected lane-selection experiment exposed an owner-preflight defect. NEAR
+preflight called the reader for a spendable session. An exhausted session made
+that reader fail, producing HTTP 503 before signing could request step-up.
+
+NEAR preflight now uses the existing exact-operation identity reader. It checks
+the live authority, factor, expiry, signer family, and exact material activation.
+It can return lane metadata after exhaustion. It grants no signing allowance.
+Prepare and finalize retain their admission checks. ECDSA preflight keeps its
+existing path. The redundant wallet-ID reparse was removed because both readers
+already return a validated WalletId.
+
+This server correction did not make the experimental client optimization ready.
+With the status read removed, NEAR step-up progressed but the subsequent ECDSA
+confirmation timed out. Narrowing the server change to NEAR and refreshing status
+on a prepare-exhaustion response did not resolve that timeout. Both client changes
+were reverted. The remaining client issue needs confirmation-flow tracing.
+Immediate signing therefore still has two status calls in the accepted SDK.
+
+One earlier run was invalidated by rebuilding watched server output during the
+test. It is excluded from acceptance evidence. Later runs used fixed build inputs.
+
+Final acceptance uses the accepted SDK and the NEAR-only server correction.
+The composed test captures the unlocked session's NEAR owner-lane request,
+consumes its three shared uses, and replays that metadata read through WEUR.
+The read returns HTTP 200 from US. Fresh NEAR and ECDSA step-up then succeed.
+The verifier records three reusable grants, two verified step-up operations,
+and zero Console calls. Linked Ed25519 revocation also passes. Both final tests
+passed in 1.7 minutes. Server type-check/build and the bloat check passed.
+
+[Sanitized acceptance evidence](./evidence/near-preflight-exhaustion-20261007.json).
+The executable composed scenario remains in the private repository at
+`tests/e2e/regional-real/passkey.registration.contract.test.ts`.

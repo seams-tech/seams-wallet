@@ -948,6 +948,11 @@ operation after its shared signing budget is exhausted. Fresh factor verificatio
 is required. Exhaustion does not invalidate the identity used for step-up, and
 step-up does not renew that session or replenish its reusable budget.
 
+NEAR owner execution-lane preflight can read metadata for an exhausted session with
+live credentials and matching signer material. This read neither consumes nor
+restores signing allowance. Prepare and finalize must still enforce the budget
+or require fresh step-up authorization.
+
 With the regional home and custody services available, this flow must succeed
 while Console is unavailable. Requests retain the admitted home and authenticate
 locally. Another ingress must forward to that home. A request naming a different
