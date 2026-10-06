@@ -239,6 +239,10 @@ async fn handle_strict_deriver_fetch_v1(
     _context: Context,
 ) -> worker::Result<Response> {
     let path = request.path();
+    #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
+    if path == crate::durable_object::DERIVER_A_PREPARATION_PATH {
+        return crate::durable_object::prepare_deriver_a_wallet_relocation(request, &env).await;
+    }
     let worker_role = runtime.worker_role();
     let label = runtime.label();
     let now_unix_ms = match cloudflare_now_unix_ms_v1() {

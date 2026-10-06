@@ -1902,3 +1902,20 @@ source snapshot. The source remains usable until admission pauses it.
 `tests/e2e/authorization-storage-transfer.e2e.mjs` verifies these boundaries and then
 imports the source history into the reserved destination. This component evidence
 does not establish preparation or activation of every wallet participant.
+
+
+### Reserve a Deriver A wallet destination
+
+The private Runtime forwards destination preparation through the authenticated
+Deriver A service boundary. Preparation requires an empty wallet pair store and
+binds its reservation to the wallet owner, move, request digest, and generations.
+Exact retries retain the same receipt after object restart. A nonempty store or
+conflicting reservation is rejected. Ordinary pair commands cannot write to a
+reserved destination. SQL guards also reject deferred writes to pair records and
+admission fences. Read-only inspection remains available.
+
+The Worker pair-execution E2E exercises a separate destination object for the same
+wallet. It verifies private Runtime preparation, authentication, restart replay,
+conflict rejection, and rejection of a valid ordinary pair preparation. This
+contract covers Deriver A destination reservation. Deriver state transfer, key
+continuity checks, activation, and the aggregate preparation adapter remain open.

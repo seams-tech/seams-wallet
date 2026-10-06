@@ -35,6 +35,9 @@ use crate::{
     CloudflareEd25519YaoPairPrepareRequestV1, CloudflareEd25519YaoPairStatusResponseV1,
 };
 
+mod preparation;
+pub(crate) use preparation::{call_preparation, PREPARATION_PATH};
+
 const PAIR_DO_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair";
 #[cfg(feature = "wallet-do-harness")]
 const PREPARE_WORK_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair/prepare-work";
@@ -385,9 +388,22 @@ impl DurableObject for RouterAbDeriverAWalletDurableObject {
         self.sql.exec(OWNER_SCHEMA, None)?;
         self.sql.exec(PAIR_SCHEMA, None)?;
         self.sql.exec(FENCE_SCHEMA, None)?;
+        self.sql.exec(preparation::SCHEMA, None)?;
+        if path != PREPARATION_PATH && path != PAIR_DO_PATH {
+            preparation::require_open(&self.sql)?;
+        }
         match path.as_str() {
+            PREPARATION_PATH => {
+                let command: preparation::Preparation = request.json().await?;
+                command.validate()?;
+                self.check_owner(&command.owner, true)?;
+                preparation::reserve(&self.sql, command)
+            }
             PAIR_DO_PATH => {
                 let command: DeriverAPairDoCommandV1 = request.json().await?;
+                if !matches!(command, DeriverAPairDoCommandV1::Read { .. }) {
+                    preparation::require_open(&self.sql)?;
+                }
                 let response = self.execute(command)?;
                 Response::from_json(&response)
             }

@@ -13,6 +13,7 @@ const BASE_PATH = '/internal/wallet-runtime/v1/relocation';
 // The private Runtime binding carries trusted coordinator commands. The Router
 // parses each role's command and the participant enforces its durable move state.
 const OPERATIONS = {
+  'deriver-a-prepare': '/router-ab/internal/deriver-a/wallet/prepare-relocation',
   'router-freeze': '/router-ab/router/wallet/freeze',
   'router-cleanup': '/router-ab/router/wallet/transfer',
   'router-activate': '/router-ab/router/wallet/transfer',
@@ -36,6 +37,8 @@ const OPERATIONS = {
 
 export type WalletRelocationRuntimeBindings = RuntimeSourceDirectory & {
   readonly MPC_ROUTER: CloudflareServiceBindingFetcher;
+  readonly DERIVER_A: CloudflareServiceBindingFetcher;
+  readonly ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET?: string;
   readonly ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET?: string;
 };
 
@@ -54,7 +57,10 @@ export async function handleWalletRelocationRequest(
   const contentType = request.headers.get('content-type') || '';
   if (!contentType.toLowerCase().startsWith('application/json'))
     return failure('unsupported_media_type', 415);
-  const credential = env.ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET?.trim();
+  const deriverPreparation = operation === 'deriver-a-prepare';
+  const credential = deriverPreparation
+    ? env.ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET?.trim()
+    : env.ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET?.trim();
   if (!credential) return failure('relocation_transport_unavailable', 503);
   const bytes = await request.arrayBuffer();
   if (bytes.byteLength > 131072) return failure('request_too_large', 413);
@@ -103,8 +109,10 @@ export async function handleWalletRelocationRequest(
   ) {
     return failure('source_command_required', 400);
   }
-  const response = await env.MPC_ROUTER.fetch(
-    new Request(`https://mpc-router.router-ab.internal${path}`, {
+  const transport = deriverPreparation ? env.DERIVER_A : env.MPC_ROUTER;
+  const origin = deriverPreparation ? 'https://deriver-a.router-ab.internal' : 'https://mpc-router.router-ab.internal';
+  const response = await transport.fetch(
+    new Request(`${origin}${path}`, {
       method: 'POST',
       redirect: 'manual',
       headers: {

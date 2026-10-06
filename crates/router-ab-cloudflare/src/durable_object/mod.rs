@@ -50,7 +50,8 @@ pub use deriver_a_pair::RouterAbDeriverAWalletDurableObject;
     any(feature = "strict-worker-deriver-a-entrypoint", test)
 ))]
 pub(crate) use deriver_a_pair::{
-    call_deriver_a_pair_do_v1, DeriverAPairDoCommandV1, DeriverAPairDoResponseV1,
+    call_deriver_a_pair_do_v1, call_preparation as prepare_deriver_a_wallet_relocation,
+    PREPARATION_PATH as DERIVER_A_PREPARATION_PATH, DeriverAPairDoCommandV1, DeriverAPairDoResponseV1,
     DeriverAPairPayloadV1, DeriverAWalletOwnerV1,
 };
 #[cfg(all(feature = "workers-rs", feature = "wallet-do-harness"))]
