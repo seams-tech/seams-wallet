@@ -5,7 +5,7 @@ import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
 import type { D1TenantScope } from '../../../../core/d1TenantStore';
 import { WalletRelocationChallengeBinding } from './d1WalletRelocationChallenges';
 import { verifyWalletRelocationEmailOtp } from './d1WalletRelocationEmailOtp';
-import type { WalletRelocationFactorVerification } from './d1WalletRelocationOwner';
+import { readWalletRelocationOwner, type WalletRelocationFactorVerification } from './d1WalletRelocationOwner';
 import type { CloudflareD1EmailOtpChallengeVerifier } from '../emailOtp/d1EmailOtpChallengeVerifier';
 import type { CloudflareD1EmailOtpChallengeStore } from '../emailOtp/d1EmailOtpChallengeStore';
 import { verifyWalletRelocationPasskey } from './d1WalletRelocationPasskey';
@@ -146,6 +146,26 @@ export class D1WalletRelocationApprovals {
     if (binding.walletId !== walletId || binding.moveId !== moveId)
       throw new Error('Stored relocation binding is inconsistent');
     return this.read(binding);
+  }
+
+  async readForAdmission(
+    binding: WalletRelocationChallengeBinding,
+    nowMs: number,
+  ): Promise<StoredApproval | null> {
+    const approval = await this.read(binding);
+    if (
+      !approval ||
+      !Number.isSafeInteger(nowMs) ||
+      nowMs < approval.approvedAtMs ||
+      nowMs >= approval.expiresAtMs
+    ) return null;
+    const owner = await readWalletRelocationOwner(this.database, this.scope, binding);
+    if (
+      !owner ||
+      owner.authority.authorityDigestB64u !== approval.authorityDigestB64u ||
+      owner.authority.revocationEpoch !== approval.authorityRevocationEpoch
+    ) return null;
+    return approval;
   }
 
   // A stored outcome is historical evidence. Reads do not authorize new admission or status access.

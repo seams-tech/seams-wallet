@@ -950,6 +950,44 @@ async function verifyRelocationPasskey(database) {
   assert.equal(approved.approval.expiresAtMs, challenge.expiresAtMs);
   assert.equal(approved.approval.authorityDigestB64u, fixture.authority.authorityDigestB64u);
   assert.equal(approved.approval.authorityRevocationEpoch, fixture.authority.revocationEpoch);
+  assert.deepEqual(await approvals.readForAdmission(binding, approved.approval.approvedAtMs), approved.approval);
+  assert.equal(await approvals.readForAdmission(binding, challenge.expiresAtMs), null);
+  const admissionRoutes = new api.WalletAuthorizationRelocationRoutes({
+    database,
+    scope,
+    directory: submissionDirectory,
+  });
+  const admissionBody = {
+    walletId: binding.walletId,
+    moveId: binding.moveId,
+    requestDigest: binding.requestDigestHex,
+    authorityId: binding.authorityId,
+    sourceGeneration: binding.sourceGeneration,
+  };
+  const admissionUrl = 'https://wallet-relocation.internal/internal/wallet-relocation/v1/authorization/owner-approval';
+  const admissionResponse = await admissionRoutes.handle(new Request(admissionUrl, {
+    method: 'POST',
+    body: JSON.stringify(admissionBody),
+  }));
+  assert.equal(admissionResponse.status, 200);
+  assert.equal(admissionResponse.headers.get('Cache-Control'), 'no-store');
+  assert.deepEqual(await admissionResponse.json(), {
+    kind: 'approved',
+    requestDigest: binding.requestDigestHex,
+    authorityId: binding.authorityId,
+    sourceGeneration: binding.sourceGeneration,
+    approvedAtMs: approved.approval.approvedAtMs,
+    expiresAtMs: approved.approval.expiresAtMs,
+  });
+  const changedAdmission = await admissionRoutes.handle(new Request(admissionUrl, {
+    method: 'POST',
+    body: JSON.stringify({ ...admissionBody, requestDigest: '0'.repeat(64) }),
+  }));
+  assert.deepEqual(await changedAdmission.json(), { kind: 'denied' });
+  assert.equal((await admissionRoutes.handle(new Request(
+    admissionUrl.replace('wallet-relocation.internal', 'wallet.example.test'),
+    { method: 'POST', body: JSON.stringify(admissionBody) },
+  ))).status, 404);
   const reopenedApprovals = new api.D1WalletRelocationApprovals(database, scope);
   assert.deepEqual(
     await reopenedApprovals.approvePasskey({
@@ -1293,6 +1331,13 @@ async function verifyRelocationPasskey(database) {
     requestedAtMs: nowMs + 3,
   });
   assert.equal(revoked.kind, 'revoked_method');
+  assert.equal(await approvals.readForAdmission(binding, approved.approval.approvedAtMs), null);
+  assert.deepEqual(await approvals.read(binding), approved.approval);
+  const revokedAdmission = await admissionRoutes.handle(new Request(admissionUrl, {
+    method: 'POST',
+    body: JSON.stringify(admissionBody),
+  }));
+  assert.deepEqual(await revokedAdmission.json(), { kind: 'denied' });
   assert.equal(await api.WalletRelocationReadAccess.authenticate(readInput), null);
   assert.equal((await routes.handle(statusRequest)).status, 401);
   assert.equal(
@@ -1314,6 +1359,8 @@ async function verifyRelocationPasskey(database) {
     scope:
       'Real initiating-session authentication, passkey approval persistence and transactional guards; excludes HTTP admission and transfer',
     expiryCheckedAtTransactionCommit: true,
+    admissionRejectsExpiredOrRevokedApprovalAndPreservesHistoricalReplay: true,
+    admissionReadBindsRequestAndRequiresPrivateOrigin: true,
     exactApprovalRecordedWithProofConsumption: true,
     concurrentApprovalReturnsOriginalOutcome: true,
     lostReplyReplayAfterExpiryPreservesOutcome: true,

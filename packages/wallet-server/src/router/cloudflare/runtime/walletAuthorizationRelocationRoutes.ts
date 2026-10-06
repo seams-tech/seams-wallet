@@ -1,3 +1,4 @@
+import { D1WalletRelocationApprovals } from '../d1/wallet/d1WalletRelocationApprovals';
 import { D1WalletCeremonyActivity } from '../d1/ed25519Yao/d1WalletCeremonyActivity';
 import { D1WalletAuthorizationIntake } from '../d1/wallet/d1WalletAuthorizationIntake';
 import { D1WalletAuthorizationCleanup } from '../d1/wallet/d1WalletAuthorizationCleanup';
@@ -37,6 +38,12 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
   readonly kind = 'fetch_route_extension';
   readonly id = 'wallet_authorization_relocation';
   readonly routes: RouterApiRouteExtension['routes'] = [
+    {
+      id: 'wallet_relocation_owner_approval', surface: 'relay', method: 'POST',
+      path: `${BASE_PATH}/owner-approval`,
+      auth: { plane: 'public', rationale: 'The internal binding reads fresh durable owner approval for Console admission.' },
+      metering: { kind: 'none' }, summary: 'Read fresh owner approval for relocation admission',
+    },
     {
       id: 'wallet_authorization_cleanup',
       surface: 'relay',
@@ -135,6 +142,43 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
     },
   ) {}
 
+  private async ownerApproval(body: Record<string, unknown>): Promise<Response> {
+    const walletId = parseWalletId(body.walletId);
+    if (
+      Object.keys(body).length !== 5 ||
+      !walletId.ok ||
+      typeof body.moveId !== 'string' ||
+      !/^wmove_[A-Za-z0-9_-]{43}$/u.test(body.moveId) ||
+      typeof body.requestDigest !== 'string' ||
+      !/^[a-f0-9]{64}$/u.test(body.requestDigest) ||
+      typeof body.authorityId !== 'string' ||
+      typeof body.sourceGeneration !== 'number' ||
+      !Number.isSafeInteger(body.sourceGeneration) ||
+      body.sourceGeneration < 1
+    ) return failure('invalid_input', 400);
+    const approvals = new D1WalletRelocationApprovals(this.options.database, this.options.scope);
+    const stored = await approvals.find(walletId.value, body.moveId);
+    if (
+      !stored ||
+      stored.binding.requestDigestHex !== body.requestDigest ||
+      stored.binding.authorityId !== body.authorityId ||
+      stored.binding.sourceGeneration !== body.sourceGeneration
+    ) return Response.json({ kind: 'denied' }, { headers: { 'Cache-Control': 'no-store' } });
+    const approval = await approvals.readForAdmission(stored.binding, Date.now());
+    if (!approval) return Response.json({ kind: 'denied' }, { headers: { 'Cache-Control': 'no-store' } });
+    return Response.json(
+      {
+        kind: 'approved',
+        requestDigest: approval.binding.requestDigestHex,
+        authorityId: approval.binding.authorityId,
+        sourceGeneration: approval.binding.sourceGeneration,
+        approvedAtMs: approval.approvedAtMs,
+        expiresAtMs: approval.expiresAtMs,
+      },
+      { headers: { 'Cache-Control': 'no-store' } },
+    );
+  }
+
   handleFetchRoute(input: RouterApiFetchRouteExtensionInput): Promise<Response> {
     return this.handle(input.request);
   }
@@ -154,6 +198,7 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
       return failure('invalid_input', 400);
     }
     if (!isPlainObject(body)) return failure('invalid_input', 400);
+    if (url.pathname === `${BASE_PATH}/owner-approval`) return this.ownerApproval(body);
     let requested: AuthorizationOperation;
     try {
       requested = parseAuthorizationOperation(url.pathname, body);
