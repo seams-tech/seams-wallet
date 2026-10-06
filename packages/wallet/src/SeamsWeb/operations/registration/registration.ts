@@ -4142,8 +4142,12 @@ async function registerEcdsaOrMixedWallet(
     /* Commit #1 has made the exact ECDSA capability and Wallet Session durable.
        Start preprocessing now so it overlaps export-root setup, deferred NEAR
        setup, and completion bookkeeping. Registration still reports success
-       independently of this fire-and-forget work. */
-    const prefillStatusReads = new WalletSessionStatusReadScope();
+       independently of this fire-and-forget work. The issued response already
+       contains the exact session facts needed to start this first refill. */
+    const prefillStatusReads = WalletSessionStatusReadScope.fromRegistration(
+      relayerUrl,
+      persistencePlan.ecdsa.session.registrationEstablishedSession,
+    );
     for (const chainTarget of ecdsaSession.chainTargets) {
       void scheduleEcdsaSessionPresignaturePrefill({
         signingEngine: context.signingEngine,

@@ -12,6 +12,7 @@ import type {
   ActiveWalletSessionV1,
   WalletSessionOperationCredentialV1,
 } from '@shared/device-linking/contracts';
+import type { RegistrationEstablishedSessionV2 } from '@shared/utils/registrationEstablishedSession';
 import {
   buildBearerAuthorizationHeader,
   buildRelayerJsonPostRequestInit,
@@ -148,9 +149,9 @@ export class WalletSessionStatusReadScope {
   private suppliedStatus:
     | { readonly kind: 'remote' }
     | {
-        readonly kind: 'prepare';
+        readonly kind: 'server_response';
         readonly key: string;
-        readonly status: ExactWalletSessionStatus;
+        readonly status: Extract<ExactWalletSessionStatus, { readonly status: 'active' }>;
       } = { kind: 'remote' };
 
   static fromPrepare(
@@ -158,7 +159,31 @@ export class WalletSessionStatusReadScope {
     status: Extract<ExactWalletSessionStatus, { readonly status: 'active' }>,
   ): WalletSessionStatusReadScope {
     const scope = new WalletSessionStatusReadScope();
-    scope.suppliedStatus = { kind: 'prepare', key: statusIdentityKey(options, status), status };
+    scope.suppliedStatus = { kind: 'server_response', key: statusIdentityKey(options, status), status };
+    return scope;
+  }
+
+  /** Initial prefill uses the issued response. Each refill request still verifies
+   * current server authorization before it generates or admits material. */
+  static fromRegistration(
+    relayerUrl: string,
+    session: RegistrationEstablishedSessionV2,
+  ): WalletSessionStatusReadScope {
+    const status: Extract<ExactWalletSessionStatus, { readonly status: 'active' }> = {
+      status: 'active',
+      walletSessionId: session.walletSessionId,
+      quotaId: session.quotaId,
+      remainingUses: session.remainingUses,
+      expiresAtMs: session.expiresAtMs,
+      quotaLifecycle: 'active',
+      authorization: session.walletSession,
+    };
+    const scope = new WalletSessionStatusReadScope();
+    scope.suppliedStatus = {
+      kind: 'server_response',
+      key: statusIdentityKey({ relayerUrl, operationCredential: session.operationCredential }, status),
+      status,
+    };
     return scope;
   }
 
@@ -177,9 +202,9 @@ export class WalletSessionStatusReadScope {
     options: RelayerExactWalletSessionStatusPortOptions,
     identity: ExactWalletSessionStatusIdentity,
   ): Promise<ExactWalletSessionStatus> {
-    if (this.suppliedStatus.kind === 'prepare') {
+    if (this.suppliedStatus.kind === 'server_response') {
       if (this.suppliedStatus.key !== statusIdentityKey(options, identity)) {
-        throw new Error('Prepared Wallet Session identity changed before reconciliation');
+        throw new Error('Wallet Session response identity changed before reconciliation');
       }
       return Promise.resolve(
         recordStatusObservation(

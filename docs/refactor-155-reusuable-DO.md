@@ -285,3 +285,50 @@ The remaining acceptance blocker is the pre-existing retired-session response.
 Resolve it in the deployed Gateway/authorization candidate, then run the remaining
 lifecycle matrix against a compatible frozen deployment. Do not weaken the expected
 rejection or report this plan as fully accepted before those checks pass.
+
+
+## Initial preparation follow-up — October 6, 2026
+
+The first registration prefill now uses the validated, issued registration
+response for its initial session facts. It no longer waits for another
+`/wallet/session/status` request before starting preparation. The scope binds the
+relayer, credential, session, and quota. A changed identity fails reconciliation.
+Every refill request still checks current server authorization. Later publication
+and unlock retain their existing status reads. Prepare and finalize are unchanged.
+
+The issued response parser already requires a positive initial quota and validates
+its authorization identities. The new scope consumes this parsed domain value.
+It introduces no raw response parser, cache TTL, compatibility flag, or scheduler.
+
+[Comparison evidence](evidence/r155-first-preparation-20261006.json) records all
+samples. Each arm registered three fresh wallets and immediately signed three
+times per wallet. All **18 signatures** verified. Both arms used the reusable DO
+SigningWorker, the same APAC deployment, and a native NRT browser.
+
+| Metric | Control median / max | Candidate median / max |
+| --- | ---: | ---: |
+| Initial prefill scheduling | 238.7ms / 239.6ms | **19.6ms / 22.3ms** |
+| Immediate first signing | 4.248s / 5.429s | **3.867s / 4.277s** |
+| First-signature refill wait | 2.224s / 3.726s | **1.723s / 2.190s** |
+| Following two signatures, six samples | 2.162s / 4.825s | **2.002s / 2.550s** |
+| Registration duration | 6.464s / 7.298s | 8.038s / 21.268s |
+
+The direct scheduling saving is **219ms median**. First signing improved about
+9% in this small cohort. Network and startup variance prevent attributing the
+entire difference to the removed request. The candidate's slowest registration
+spent 6.276s in registration intent and 9.994s in the Gateway response stage,
+before the changed prefill call. Its Deriver B span was 7.719s. These outliers
+remain in the evidence. Registration-to-sign completion did not demonstrate an
+overall improvement in this run.
+
+The first presignature still requires DO initialization and the cryptographic
+message exchanges. This change advances preparation; it does not reduce the
+protocol's required work. The following-signature workload overlaps deferred
+registration and is separate from the ready-material benchmark above.
+
+Validation: TypeScript checking, SDK/site builds, and the bloat check passed.
+The hosted test is `hosted first preparation: immediate registration and
+consecutive signing` in private `mpc-signing-latency.test.ts`, run with
+`--repeat-each 3 --workers 1`. The frozen SDK differs only in the initial
+registration status scope. All six staging versions were restored and verified.
+The earlier lifecycle acceptance gaps remain open.
