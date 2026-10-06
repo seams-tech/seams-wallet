@@ -113,6 +113,7 @@ export interface AuthorizationEvidencePort {
 }
 
 export interface AuthorizationGrantPort {
+  readWalletSessionIssuanceGeneration(walletId: WalletId): Promise<number>;
   retireWalletSessionAuthorizationsForAuthMethod(input: {
     readonly tenantId: TenantId;
     readonly walletId: WalletId;
@@ -518,9 +519,13 @@ export class AuthorizationService {
   }
 
   async prepareDirectWalletSessionCredential(prepared: PreparedWalletSessionAuthorizationV2) {
+    const ownershipGeneration = await this.ports.grants.readWalletSessionIssuanceGeneration(
+      prepared.session.walletId,
+    );
     const token = `wst_${secureRandomBase64Url(32, 'direct V2 Wallet Session operation credentials')}`;
     const operationCredential = parseWalletSessionOperationCredentialV1({
       kind: 'opaque_wallet_session_operation_credential_v1',
+      ownershipGeneration,
       home: this.ports.sessionRouting?.home() ?? { kind: 'direct' },
       token,
       walletSessionId: prepared.session.walletSessionId,

@@ -17,3 +17,11 @@ const arbitraryHome: WalletSessionHome = { kind: 'regional', region: 'https://un
 void missingHome;
 void mixedHome;
 void arbitraryHome;
+
+declare const credentialWithoutGeneration: Omit<
+  WalletSessionOperationCredentialV1,
+  'ownershipGeneration'
+>;
+// @ts-expect-error Credential construction requires its execution generation.
+const missingGeneration: WalletSessionOperationCredentialV1 = { ...credentialWithoutGeneration };
+void missingGeneration;

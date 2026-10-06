@@ -612,7 +612,11 @@ export async function replaceExactActiveWalletSessionAuthorizationInTransaction(
       current.authorizationId === incoming.authorizationId &&
       parsedCurrent.operationCredential.walletSessionId === operationCredential.walletSessionId
     ) {
-      if (parsedCurrent.operationCredential.token !== operationCredential.token) {
+      if (
+        parsedCurrent.operationCredential.token !== operationCredential.token ||
+        parsedCurrent.operationCredential.ownershipGeneration !==
+          operationCredential.ownershipGeneration
+      ) {
         throw new Error('Stored Wallet Session conflicts with the issued operation credential');
       }
       requiresWrite = !activeWalletSessionV1RecordsEqual(current, incoming);

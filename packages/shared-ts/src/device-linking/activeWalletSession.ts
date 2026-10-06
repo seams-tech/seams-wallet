@@ -106,6 +106,7 @@ function walletSessionOperationCredentialV1() {
   return wireObject(
     {
       kind: wireLiteral('opaque_wallet_session_operation_credential_v1'),
+      ownershipGeneration: parseNonNegativeSafeInteger,
       home: parseWalletSessionHome,
       token: (raw, label): string => {
         if (typeof raw !== 'string' || raw.length > 8192) throw new Error(`${label} is invalid`);
@@ -114,6 +115,9 @@ function walletSessionOperationCredentialV1() {
       walletSessionId: keyLabeled(walletSessionId),
     },
     (credential, label) => {
+      if (credential.ownershipGeneration === 0) {
+        throw new Error(`${label} ownership generation must be positive`);
+      }
       if (!/^wst_[A-Za-z0-9_-]{43}$/.test(credential.token)) {
         throw new Error(`${label} opaque token is invalid`);
       }

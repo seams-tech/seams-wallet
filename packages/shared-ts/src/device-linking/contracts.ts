@@ -805,6 +805,7 @@ export type WalletSessionHome =
 /** The bearer used to authenticate ordinary operations for an active session. */
 export type WalletSessionOperationCredentialV1 = {
   readonly kind: 'opaque_wallet_session_operation_credential_v1';
+  readonly ownershipGeneration: number;
   readonly home: WalletSessionHome;
   readonly token: string;
   readonly walletSessionId: WalletSessionId;

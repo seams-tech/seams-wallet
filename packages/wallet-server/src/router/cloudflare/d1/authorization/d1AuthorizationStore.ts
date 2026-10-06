@@ -1217,6 +1217,25 @@ export class CloudflareD1AuthorizationStore
     });
   }
 
+  async readWalletSessionIssuanceGeneration(walletId: WalletId): Promise<number> {
+    const row = await this.database
+      .prepare(
+        `SELECT generation FROM wallet_execution_generations
+       WHERE namespace = ? AND org_id = ? AND project_id = ? AND env_id = ?
+         AND wallet_id = ? AND state IN ('registering', 'active')`,
+      )
+      .bind(
+        this.namespace,
+        this.walletSignerScope.orgId,
+        this.walletSignerScope.projectId,
+        this.walletSignerScope.envId,
+        walletId,
+      )
+      .first<D1Row>();
+    if (!row) throw new Error('Wallet session issuance requires an open execution generation');
+    return requirePositiveInteger(row.generation, 'Wallet Session ownership generation');
+  }
+
   /** The service validates the committed winner against its caller-specific replay contract. */
   async commitDirectReplayableWalletSessionAuthorizationV2(input: {
     readonly persisted: PersistedActiveWalletSessionAuthorizationV2;

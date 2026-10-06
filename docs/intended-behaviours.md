@@ -1980,6 +1980,18 @@ client reconciliation remain outside this scenario.
 
 ### Keep owner presign work retired after a return move
 
+Fresh owner and linked-device operation credentials carry a required positive
+`ownershipGeneration`. Issuance reads the local wallet execution record. Inactive
+destinations and retired sources cannot issue fresh credentials. Registration may
+issue its initial credential while its execution record is registering.
+The client preserves this generation with the credential and rejects a different
+generation for the same stored session and token. Credentials without a generation
+require fresh authentication. This does not delete durable presignatures.
+
+The authorization transfer E2E verifies generation 1 at the source and generation
+2 after destination activation. Client presignature selection does not yet use
+this field, so this check does not establish client relocation reconciliation.
+
 Owner presign authorities record the ownership generation at initialization. Each
 protocol step requires that exact current generation. Returning to the original
 region cannot reactivate an unfinished ceremony from an earlier generation.

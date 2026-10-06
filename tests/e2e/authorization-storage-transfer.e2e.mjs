@@ -172,6 +172,7 @@ try {
     walletId: fixture.authority.walletId,
   });
   const issued = await issueDeviceSession(source, sourceService, fixture, issuedAtMs);
+  assert.equal(issued.operationCredential.ownershipGeneration, 1);
   const relocationChallenges = await verifyRelocationChallenges(source, fixture, issued, issuedAtMs);
   const offlineFixture = await api.buildLinkedDeviceManagementAuthorityFixture({
     label: 'storage-transfer-offline-device',
@@ -400,7 +401,7 @@ try {
       issuedAtMs: issuedAtMs + 20,
       expiresAtMs: issued.session.expiresAtMs,
     }),
-    /wallet_authorization_destination_inactive/u,
+    /Wallet session issuance requires an open execution generation/u,
   );
 
   const relocationPasskey = await verifyRelocationPasskey(source);
@@ -426,6 +427,7 @@ try {
     expiresAtMs: issued.session.expiresAtMs,
   });
   assert.equal(resumedSession.session.walletId, fixture.authority.walletId);
+  assert.equal(resumedSession.operationCredential.ownershipGeneration, 2);
   const authorizationCleanup = await cleanupAuthorizationThroughCommand({
     api, database: source, scope, identity: sessionSource,
     manifest: snapshot.evidence.manifest, tables,
@@ -510,6 +512,8 @@ try {
       executionBeforeActivation,
       executionAfterCleanup,
       destinationOperationGeneration,
+      sourceCredentialGeneration: issued.operationCredential.ownershipGeneration,
+      destinationCredentialGeneration: resumedSession.operationCredential.ownershipGeneration,
       operationHistoryBeforeActivation,
       operationHistoryAfterActivation,
       operationHistoryCleanup,
@@ -2028,7 +2032,7 @@ async function verifyWalletSessionRetirement(input) {
   });
   await assert.rejects(
     issueDeviceSession(source, sourceService, lateFixture, issuedAtMs + 10),
-    /wallet_relocation_session_admission_closed/u,
+    /Wallet session issuance requires an open execution generation/u,
   );
   const unrelated = await api.buildLinkedDeviceManagementAuthorityFixture({
     label: 'unrelated-relocation-session',

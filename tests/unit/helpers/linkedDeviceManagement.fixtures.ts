@@ -388,6 +388,7 @@ export async function buildLinkedDeviceManagementAuthorityFixture(input: {
     activeWalletSession: projectActiveWalletSession(issuedSession),
     operationCredential: parseWalletSessionOperationCredentialV1({
       kind: 'opaque_wallet_session_operation_credential_v1',
+      ownershipGeneration: 1,
       home: { kind: 'direct' },
       token: `wst_${base64UrlEncode(new Uint8Array(32).fill((input.label.length % 254) + 1))}`,
       walletSessionId,
