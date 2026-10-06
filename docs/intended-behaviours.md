@@ -1657,7 +1657,12 @@ relocation operation list, POST, JSON, and bounded bodies. It uses its configure
 Gateway-to-Router credential and ignores caller-supplied credentials. Public origins
 and unknown operations cannot select this transport. The Ed25519 Worker scenario
 executes source relocation through the production Runtime handler and real Router
-and SigningWorker Workers. Coordinator journal authorization remains unconnected.
+and SigningWorker Workers. Console source-command authorization now checks the
+running freeze attempt, source Runtime deployment, and pinned resource verification.
+It builds Ed25519 settlement/capture and ECDSA freeze commands from the journal,
+including one stable invalidation timestamp. The directory E2E verifies exact
+replies and rejects the destination Runtime and Gateway. Runtime consumption of
+these authorized commands remains unconnected.
 The same Router transport accepts typed ECDSA freeze, export, and
 transfer commands. The ECDSA Worker scenario verifies freeze, export, activation,
 and activation replay through this boundary. A SigningWorker credential cannot
