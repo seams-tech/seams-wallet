@@ -154,6 +154,18 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         }
     }
 
+    pub(crate) fn require_execution_generation(
+        &self,
+        scope: &CloudflareSigningWorkerWalletScopeV1,
+        ownership_generation: u64,
+    ) -> RouterAbProtocolResult<()> {
+        crate::router_wallet::validate_wallet_ownership_generation(ownership_generation)?;
+        if self.activated_ecdsa_generation(scope)? != ownership_generation {
+            return Err(wallet_error("ECDSA execution ownership generation differs"));
+        }
+        Ok(())
+    }
+
     pub(super) fn activated_ecdsa_generation(
         &self,
         scope: &CloudflareSigningWorkerWalletScopeV1,

@@ -573,6 +573,7 @@ impl<'a, Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'a, Sql>
         if !existing.is_empty() {
             return Err(wallet_error("ECDSA effect lookup returned duplicate rows"));
         }
+        self.require_execution_generation(&scope, request.ownership_generation)?;
         request.request.validate_at(now_unix_ms)?;
         // A linked device's revocation commits in this store too: once it
         // is revoked, no presignature is consumed for its material.
@@ -658,6 +659,7 @@ impl<'a, Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'a, Sql>
                 response_json: terminal_json.clone(),
             });
         }
+        self.require_execution_generation(scope, request.ownership_generation)?;
         let response_json = serde_json::to_string(response)
             .map_err(|error| wallet_error(format!("ECDSA terminal is invalid: {error}")))?;
         let written = self.sql.query::<WrittenEcdsaEffectRowV1>(

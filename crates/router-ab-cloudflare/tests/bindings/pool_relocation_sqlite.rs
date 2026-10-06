@@ -367,6 +367,21 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         router_ab_ecdsa_derivation_digest_signing_finalize_request(),
     );
     effect.wallet_scope = Some(owner.clone());
+    let mut missing_generation = serde_json::to_value(&effect)?;
+    missing_generation
+        .as_object_mut()
+        .unwrap()
+        .remove("ownership_generation");
+    assert!(serde_json::from_value::<
+        CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1,
+    >(missing_generation)
+    .is_err());
+    for generation in [0, 9_007_199_254_740_992] {
+        let mut invalid = effect.clone();
+        invalid.ownership_generation = generation;
+        assert!(invalid.validate().is_err());
+    }
+
     mutate(
         &path,
         &env,
@@ -561,6 +576,7 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         "fresh_store_accepts_generation_three": true,
         "exact_ciphertext_and_terminal_result_preserved": true,
         "old_generations_remain_closed_after_cleanup": true,
+        "stale_prepare_rejected_at_destination_and_return": true,
         "each_cleanup_deletes_at_most_sixteen_import_chunks": true,
     });
     std::fs::write(
@@ -934,6 +950,7 @@ fn verify_snapshot_export(
         activated
     );
     assert_eq!(rows(&destination), expected_rows);
+    reject_stale_prepare(&destination, env, &receipt.scope, 1)?;
     let mut fresh_presign = presign_request.clone();
     fresh_presign.presign_session_id = format!("ecdsa-presign-v2:2000:{}", b64u(&[0x44; 32]));
     fresh_presign.ceremony_expires_at_ms = 2_000;
@@ -1089,6 +1106,8 @@ fn verify_snapshot_export(
     with_store(&returned, env, |store| {
         store.require_mutation_admission(&receipt.scope)
     })?;
+    reject_stale_prepare(&returned, env, &receipt.scope, 1)?;
+    reject_stale_prepare(&returned, env, &receipt.scope, 2)?;
     let replay = with_store(&returned, env, |store| {
         store.claim_and_consume_effect(receipt.scope.clone(), effect.clone(), 2_000)
     })?;
@@ -1177,5 +1196,31 @@ fn restore_returned_wallet(
         ))?,
         activated
     );
+    Ok(())
+}
+
+fn reject_stale_prepare(
+    path: &std::path::Path,
+    env: &CloudflareEnvMapV1,
+    scope: &CloudflareSigningWorkerWalletScopeV1,
+    ownership_generation: u64,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut request = admitted_router_ab_ecdsa_derivation_digest_signing_request(
+        router_ab_ecdsa_derivation_digest_signing_request(),
+    );
+    request.wallet_scope = Some(scope.clone());
+    request.ownership_generation = ownership_generation;
+    let before = rows(path);
+    let error = with_store(path, env, |store| {
+        router_ab_cloudflare::prepare_signing_worker_wallet_ecdsa_from_pool_v1(
+            store, request, 1_500, [0x33; 32],
+        )
+    })
+    .unwrap_err();
+    assert!(
+        error.to_string().contains("ownership generation differs"),
+        "{error}"
+    );
+    assert_eq!(rows(path), before, "stale preparation preserves pool bytes");
     Ok(())
 }

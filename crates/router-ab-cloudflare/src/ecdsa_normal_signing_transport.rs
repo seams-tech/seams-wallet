@@ -308,7 +308,7 @@ mod tests {
         let admission =
             trusted_admission(&request.scope, request.request_digest().expect("digest"));
         CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningRequestV1::new(
-            request, admission,
+            1, request, admission,
         )
         .expect("admitted prepare")
     }
@@ -369,6 +369,7 @@ mod tests {
             }
         };
         CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1::new(
+            1,
             request,
             admission,
             authorized_operation_identity,

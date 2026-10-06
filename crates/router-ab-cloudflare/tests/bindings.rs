@@ -1744,6 +1744,7 @@ fn admitted_router_ab_ecdsa_derivation_digest_signing_request(
 ) -> CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningRequestV1 {
     let trusted_admission = router_ab_ecdsa_derivation_trusted_admission(&request);
     CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningRequestV1::new(
+        1,
         request,
         trusted_admission,
     )
@@ -1757,6 +1758,7 @@ fn admitted_router_ab_ecdsa_derivation_digest_finalize_request(
     let effect_claim = ecdsa_effect_claim(&request);
     let effect_identity = ecdsa_effect_identity(&request);
     CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1::new(
+        1,
         request,
         trusted_admission,
         effect_identity,
@@ -6002,6 +6004,7 @@ fn router_ab_ecdsa_derivation_admitted_request_rejects_trusted_admission_drift()
     trusted_admission.metadata.intent_digest = digest(0x55);
 
     let err = CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningRequestV1::new(
+        1,
         request,
         trusted_admission,
     )
@@ -6026,6 +6029,7 @@ fn router_ab_ecdsa_derivation_admitted_request_accepts_reusable_wallet_session_d
 
     let admitted =
         CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningRequestV1::new(
+            1,
             request,
             router_ab_ecdsa_derivation_trusted_admission(
                 &router_ab_ecdsa_derivation_digest_signing_request(),
@@ -6047,6 +6051,7 @@ fn router_ab_ecdsa_derivation_admitted_request_rejects_wrong_reusable_wallet_ses
             .expect("wrong Wallet Session auth context");
 
     let err = CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningRequestV1::new(
+        1,
         request,
         trusted_admission,
     )
@@ -6063,6 +6068,7 @@ fn router_ab_ecdsa_derivation_admitted_request_accepts_operation_step_up_only_wi
 
     let admitted =
         CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningRequestV1::new(
+            1,
             request,
             trusted_admission,
         )
@@ -6085,6 +6091,7 @@ fn router_ab_ecdsa_derivation_admitted_finalize_request_rejects_trusted_admissio
 
     let err =
         CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1::new(
+            1,
             request,
             trusted_admission,
             effect_identity,
@@ -6104,6 +6111,7 @@ fn router_ab_ecdsa_derivation_admitted_finalize_accepts_reusable_wallet_session_
 
     let admitted =
         CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1::new(
+            1,
             request.clone(),
             router_ab_ecdsa_derivation_finalize_trusted_admission(&request),
             effect_identity,
@@ -6144,6 +6152,7 @@ fn router_ab_ecdsa_derivation_admitted_finalize_rejects_owner_wallet_session_aut
 
     let err =
         CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1::new(
+            1,
             request,
             trusted_admission,
             effect_identity,
