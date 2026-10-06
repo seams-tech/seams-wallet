@@ -112,18 +112,7 @@ class SourceDirectory {
         ? { command: 'capture', source: this.source }
         : this.source;
     if (input.operation === 'router-freeze') {
-      payload = {
-        owner: {
-          org_id: this.source.scope.org_id,
-          project_id: this.source.scope.project_id,
-          env_id: this.source.scope.project_environment_id,
-          wallet_id: this.source.scope.wallet_id,
-        },
-        move_id: this.source.request.move_id,
-        request_digest_hex: 'a'.repeat(64),
-        source_generation: this.source.request.source_generation,
-        destination_generation: this.source.request.source_generation + 1,
-      };
+      payload = routerMoveRequest(this.source);
     }
     return Response.json({
       ok: true,
@@ -339,7 +328,39 @@ export async function runtimeRelocationSource(topology, credential, command) {
   return source;
 }
 
+function routerMoveRequest(source) {
+  return {
+    owner: {
+      org_id: source.scope.org_id,
+      project_id: source.scope.project_id,
+      env_id: source.scope.project_environment_id,
+      wallet_id: source.scope.wallet_id,
+    },
+    move_id: source.request.move_id,
+    request_digest_hex: 'a'.repeat(64),
+    source_generation: source.request.source_generation,
+    destination_generation: source.request.source_generation + 1,
+  };
+}
+
 export async function verifyRuntimeRouterExport(runtime, activation, topology) {
+  const destination = new RuntimeRelocationSource(
+    runtime.handler,
+    await topology.getWorker('router-relocation-destination'),
+    runtime.env.ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET,
+    runtime.env.WALLET_CONSOLE.source,
+  );
+  const preparation = {
+    kind: 'prepare',
+    request: routerMoveRequest(runtime.env.WALLET_CONSOLE.source),
+    chunk_bytes: 4096,
+  };
+  const prepared = await runtimeRouterCommand(destination, 'router-transfer', preparation);
+  assert.equal(prepared.kind, 'prepared');
+  assert.deepEqual(
+    await runtimeRouterCommand(destination, 'router-transfer', preparation),
+    prepared,
+  );
   const binding = activation.envelope.target.binding;
   const consumed = await runtime.env.MPC_ROUTER.fetch(
     new Request(
@@ -375,19 +396,7 @@ export async function verifyRuntimeRouterExport(runtime, activation, topology) {
   assert.equal(freeze.status, 200, JSON.stringify(frozen));
   assert.equal(frozen.state, 'frozen');
   assert.ok(frozen.receipt.record_count > 0);
-  const destination = new RuntimeRelocationSource(
-    runtime.handler,
-    await topology.getWorker('router-relocation-destination'),
-    runtime.env.ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET,
-    runtime.env.WALLET_CONSOLE.source,
-  );
   destination.env.WALLET_CONSOLE.receipt = frozen.receipt;
-  const prepared = await runtimeRouterCommand(destination, 'router-transfer', {
-    kind: 'prepare',
-    request: frozen.receipt.request,
-    chunk_bytes: 4096,
-  });
-  assert.equal(prepared.kind, 'prepared');
   const status = await runtimeRouterCommand(destination, 'router-status', envelope);
   assert.equal(status.kind, 'receiving');
   assert.equal(status.next_record, 0);
@@ -497,6 +506,7 @@ export async function verifyRuntimeRouterExport(runtime, activation, topology) {
     destinationActivatedThroughRuntime: true,
     activationReceiptLostReplyRecovered: true,
     sourceCleanupPreservesDestinationActivation: true,
+    destinationPreparedBeforeSourceFinalizationAndFreeze: true,
     sourceDigestHex: frozen.receipt.records_digest_hex,
   };
 }
