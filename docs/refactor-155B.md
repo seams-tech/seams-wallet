@@ -1470,3 +1470,62 @@ counter database remains pending under the infrastructure constraint and $25 bud
 The old Console counter table must be removed after coordinated Gateway cutover.
 This evidence uses local regional D1 stores and a shared local custody backend.
 It does not prove hosted placement, regional latency, or the remaining R155B gates.
+
+
+### Authority-path audit and remaining gates — 2026-10-07
+
+This audit reads the current private entrypoints and public custody sources. It
+separates a source inspection from executed acceptance. The local OTP outage gate
+above is closed. The full refactor remains open.
+
+| Execution path | Current authority and Console boundary | Evidence and remaining limit |
+| --- | --- | --- |
+| Gateway request, including forwarded requests | `d1GatewayWorker.ts` resolves `D1RegionalDeploymentAdmission` locally. `DeploymentFencedDatabase` keeps the admitted writer and binding and inserts a guard in the same D1 batch as each statement. | Composed writer-retirement and post-custody retirement checks cover rejection of stale Gateway writers. A matching hosted candidate remains unverified. |
+| Known-session routing | `gatewaySession.ts` validates the catalog and regional hint, then reads the local session locator. Missing local state with a selected home returns `wallet_home_discovery_required`. | Wrong-home, malformed-region, wallet mismatch, owner, linked-device, and OTP outage evidence exists. An unhinted nonlocal session can still use explicit Console discovery. |
+| Owner/linked signing and ECDSA refill | The bound Gateway supplies regional authorization storage and Router/SigningWorker service bindings. Shared OTP counters now use their isolated D1 binding. | Owner and linked-device evidence covers both curves during Console outage. OTP and passkey step-up evidence covers shared-budget exhaustion. This does not prove every relocation race in a full browser flow. |
+| Gateway scheduled prewarm | `scheduled()` calls `resolveBoundTenantDeploymentRuntimeEnvironmentV1`, which reads local deployment admission and returns the fenced D1 wrapper. | Source inspection confirms no Console lookup here. Scheduled prewarm is not itself wallet signing or authorization. |
+| ECDSA activation background warm-up | `lib.rs` starts `warm_owner_presign_host` only after activation commits. The task retains the wallet scope and material activation and addresses that exact material host. | `durable_object/worker_storage.rs` sends only the prewarm request. The prewarm handler creates no signing session or authority. This source inspection does not replace a hosted timing measurement. |
+| NEAR Deriver B background protocol | `ed25519_yao_lifecycle.rs` captures the tenant-root context and pair binding in `wait_until`. Completion and failure commands return through the same wallet-pair scope. | Native pair execution and replay evidence exists. Complete-pair persistence checks the running record inside a transaction. The deployable candidate must retain these exact fences and feature choices. |
+| Presignature expiry alarm | `durable_object/mod.rs::alarm` removes expired live sessions and calls `owner_presign_storage::expire_authorities`. Storage keys include expiry and a session-id digest. | Source inspection shows bounded deletion and rescheduling only. The alarm neither creates material nor calls Console. Direct alarm execution during a move has not been demonstrated by the retained artifacts. |
+| Private Runtime identity lookup | `d1WalletRuntimeWorker.ts` uses the Console directory for the explicit wallet-identities operation. Other ordinary runtime requests receive locally admitted deployment context. | This is an identity-discovery dependency. It is not a routine signing/refill dependency. Tenant-root control and relocation handlers remain separate control-plane operations. |
+| Registration reservation and shared claims | `ConsoleRegistrationHomeAdmission` reserves a stable operation/home through `WalletHomeServiceClient`. Identity and credential claims remain shared. | Concurrent setup and lost-response evidence covers one operation/home and stable identities. Global claim/cancellation evidence remains separate from protocol continuation evidence. |
+| Registration continuations | Gateway dispatch first calls `resolveLocalRegistrationContinuation`; protocol handlers use persisted regional admission. | NEAR-only and mixed-wallet lost provisioning/setup replies have local composed evidence. These results do not establish every Google registration failure path. |
+
+The following gates are still required. They consolidate the unchecked work above;
+they do not add a new refactor scope.
+
+1. **Finish the enforcement inventory.** Close direct alarm coverage and any
+   uncovered internal completion paths. Use existing race scenarios; add no
+   source-text guards or duplicate authority mechanism.
+2. **Finish composed relocation acceptance.** Existing evidence joins the real
+   coordinator, native custody, NEAR pending signing, terminal replay, and browser
+   session invalidation. Full browser fresh authentication after the move and
+   equivalent composed ECDSA/refill race evidence remain open. Native ECDSA
+   relocation evidence is useful but has a narrower boundary.
+3. **Freeze a deployable candidate.** The public checkout is on
+   `codex/ml-dsa-experiments`; R155B commits are on `dev`. Tested custody sources
+   still differ from committed `dev`, including relocation files. Preserve their
+   ownership and review/integrate them before claiming a committed candidate.
+   Record production feature flags: local wallet-object harness builds alone do
+   not validate the deployed feature set. `build-strict-worker.sh` enables the
+   wallet-object features only when `ROUTER_AB_WALLET_DO_HARNESS=enabled`.
+   In `execute_deriver_b_role_session_command`, the build without
+   `wallet-do-b-harness` discards the supplied wallet-pair scope and uses the
+   session command path. Therefore the scoped wallet-object race proof cannot
+   be attributed to that default build. Align the production candidate and its
+   acceptance topology before deployment.
+4. **Complete the counter-database deployment decision and cutover.** The isolated
+   counter binding is implemented and locally verified. New live infrastructure
+   still needs approval under the plan's existing constraint. Preserve one global
+   counter authority and remove the old Console table after cutover.
+5. **Run Phase 6 on that candidate.** All four regions, same-wallet travel, ready
+   signing, immediate registration-to-sign, and three-signature sequences need
+   controlled hosted measurements. Record calls, refill waits, actual served
+   regions, medians, maxima, and restoration evidence within the $25 budget.
+6. **Close Phase 7 against those results.** Update contracts/examples where the
+   final deployment changes them, remove obsolete paths, rerun relevant checks,
+   and commit only owned work. Keep the completion criteria unchanged.
+
+The referenced R153 chat is currently about a separate regional-replication
+feasibility experiment. Its retained result is not evidence that the relocation
+sources used here have been integrated or that R155B is ready to deploy.
