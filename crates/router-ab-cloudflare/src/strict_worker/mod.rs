@@ -253,7 +253,7 @@ pub async fn fetch(request: Request, env: Env, _ctx: Context) -> worker::Result<
     }
     #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     {
-        return handle_strict_signing_worker_fetch_v1(request, env).await;
+        return handle_strict_signing_worker_fetch_v1(request, env, _ctx).await;
     }
     #[cfg(feature = "strict-worker-tenant-root-control-plane-entrypoint")]
     {

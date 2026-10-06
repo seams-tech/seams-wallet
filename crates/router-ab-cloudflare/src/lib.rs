@@ -11313,6 +11313,7 @@ pub async fn handle_cloudflare_router_ab_ecdsa_derivation_signing_worker_activat
     mut request: worker::Request,
     env: &worker::Env,
     runtime: &CloudflareSigningWorkerRuntimeV1,
+    ctx: &worker::Context,
 ) -> worker::Result<worker::Response> {
     if request.method() != worker::Method::Post {
         return worker::Response::error(
@@ -11357,6 +11358,7 @@ pub async fn handle_cloudflare_router_ab_ecdsa_derivation_signing_worker_activat
         }
     };
     let activate_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
+    let wallet_scope = activation.pending.wallet_scope.clone();
     match activate_cloudflare_router_ab_ecdsa_derivation_signing_worker_output_v1(
         env,
         runtime,
@@ -11366,6 +11368,12 @@ pub async fn handle_cloudflare_router_ab_ecdsa_derivation_signing_worker_activat
     .await
     {
         Ok(response) => {
+            ctx.wait_until(durable_object::warm_owner_presign_host(
+                env.clone(),
+                runtime.bindings().presign_session.clone(),
+                wallet_scope,
+                response.ecdsa_activation.material_activation.clone(),
+            ));
             timing.mark("activate", activate_started_at_ms);
             timing.mark("total", total_started_at_ms);
             let response = worker::Response::from_json(&response)?;
@@ -12007,7 +12015,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_init_private
             CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_DO_INIT_PATH,
             durable_object::PresignHost::Owner {
                 wallet: do_request.request.authority.wallet_scope(),
-                material: &do_request.request.scope,
+                material: &do_request.request.scope.material_activation,
             },
             &do_request,
         )
@@ -12353,7 +12361,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_step_private
             CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_DO_STEP_PATH,
             durable_object::PresignHost::Owner {
                 wallet: do_request.request.authority.wallet_scope(),
-                material: &do_request.request.scope,
+                material: &do_request.request.scope.material_activation,
             },
             &do_request,
         )

@@ -4,6 +4,7 @@ use super::*;
 pub(super) async fn handle_strict_signing_worker_fetch_v1(
     request: Request,
     env: Env,
+    ctx: Context,
 ) -> worker::Result<Response> {
     let path = request.path();
     let auth = if path
@@ -313,7 +314,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
         }
         CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_ACTIVATION_PATH => {
             handle_cloudflare_router_ab_ecdsa_derivation_signing_worker_activation_fetch_v1(
-                request, &env, &runtime,
+                request, &env, &runtime, &ctx,
             )
             .await
         }

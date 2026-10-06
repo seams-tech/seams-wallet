@@ -3,7 +3,7 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     encode_base64url_bytes_v1, require_non_empty, CloudflareSigningWorkerPresignSessionBindingV1,
-    CloudflareSigningWorkerWalletScopeV1, RouterAbEcdsaDerivationNormalSigningScopeV1,
+    CloudflareSigningWorkerWalletScopeV1, MpcMaterialActivationRefV1,
     RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult,
 };
 
@@ -11,9 +11,36 @@ use crate::{
 pub(crate) enum PresignHost<'a> {
     Owner {
         wallet: &'a CloudflareSigningWorkerWalletScopeV1,
-        material: &'a RouterAbEcdsaDerivationNormalSigningScopeV1,
+        material: &'a MpcMaterialActivationRefV1,
     },
     LinkedSession(&'a str),
+}
+
+/// Activation has committed before this task starts. Warming creates no session or authority.
+pub(crate) async fn warm_owner_presign_host(
+    env: worker::Env,
+    binding: CloudflareSigningWorkerPresignSessionBindingV1,
+    wallet: CloudflareSigningWorkerWalletScopeV1,
+    material: MpcMaterialActivationRefV1,
+) {
+    let started_at = worker::Date::now().as_millis();
+    let result: RouterAbProtocolResult<bool> =
+        execute_cloudflare_durable_object_custom_json_call_v1(
+            &env,
+            &binding,
+            crate::CLOUDFLARE_INTERNAL_PREWARM_PATH,
+            PresignHost::Owner {
+                wallet: &wallet,
+                material: &material,
+            },
+            &(),
+        )
+        .await;
+    worker::console_log!(
+        "presign_host_warm success={} duration_ms={}",
+        matches!(result, Ok(true)),
+        worker::Date::now().as_millis().saturating_sub(started_at),
+    );
 }
 
 pub(crate) struct CloudflareDurableObjectJsonResponseV1<TResponse> {
@@ -121,7 +148,7 @@ fn presign_object_name(
         PresignHost::Owner { wallet, material } => {
             wallet.validate()?;
             material.validate()?;
-            if wallet.wallet_id != material.wallet_id {
+            if wallet.wallet_id != material.material_owner {
                 return Err(RouterAbProtocolError::new(
                     RouterAbProtocolErrorCode::InvalidGateDecision,
                     "Presign host wallet differs from material owner",

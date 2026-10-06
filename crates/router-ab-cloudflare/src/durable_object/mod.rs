@@ -125,6 +125,7 @@ pub(crate) use tenant_root_creation::{
 #[cfg(feature = "workers-rs")]
 pub(crate) use worker_storage::{
     PresignHost,
+    warm_owner_presign_host,
     execute_cloudflare_durable_object_custom_json_call_v1,
     execute_cloudflare_durable_object_custom_json_call_with_timing_v1,
 };
@@ -172,6 +173,12 @@ impl worker::DurableObject for RouterAbSigningWorkerPresignSessionDurableObject 
 
     async fn fetch(&self, request: worker::Request) -> worker::Result<worker::Response> {
         let path = request.path();
+        if path == crate::CLOUDFLARE_INTERNAL_PREWARM_PATH {
+            if request.method() != worker::Method::Post {
+                return worker::Response::error("Presign host prewarm requires POST", 405);
+            }
+            return worker::Response::from_json(&true);
+        }
         if matches!(path.as_str(), presign_session_relocation::INTERNAL_FREEZE_PATH
             | presign_session_relocation::INTERNAL_FENCE_PATH
             | presign_session_relocation::INTERNAL_EXPORT_PATH | presign_session_relocation::import::INTERNAL_PATH)

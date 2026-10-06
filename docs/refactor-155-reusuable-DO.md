@@ -332,3 +332,63 @@ consecutive signing` in private `mpc-signing-latency.test.ts`, run with
 `--repeat-each 3 --workers 1`. The frozen SDK differs only in the initial
 registration status scope. All six staging versions were restored and verified.
 The earlier lifecycle acceptance gaps remain open.
+
+
+## Start the registration host in the background — October 6, 2026
+
+Successful SigningWorker activation now schedules one `wait_until` task that
+contacts the wallet's exact presignature DO. The activation response does not
+await this task. Failure is logged and does not fail registration. The call uses
+the existing internal prewarm path through the private DO binding. It creates no
+session, authority claim, presignature, or durable wallet record. It adds no
+keepalive, public endpoint, configuration flag, or infrastructure resource.
+
+The DO address now hashes the canonical tenant/wallet scope and the complete
+material-activation reference. That reference binds the activation, capability,
+material owner, key, lifecycle, and SigningWorker. These facts exist during server
+activation. They are also carried by every later refill request. This replaces
+hashing the entire normal-signing scope, which also included SDK-assigned labels
+unavailable during server activation. Session admission and protocol execution
+still validate the complete normal-signing scope. Regional namespace separation
+and request-bound linked-session routing remain unchanged.
+
+This changes the owner-host address. The experiment uses fresh test wallets.
+There is no old-host lookup or migration path. An in-progress ceremony addressed
+by the previous layout must restart with a fresh identity after deployment.
+Previously completed material remains governed by its existing pool state.
+
+[Evidence](evidence/r155-registration-host-startup-20261006.json) contains all
+samples and the exact hosted versions. Both arms use the preceding SDK change
+that starts prefill from the issued registration response. Each arm registers
+three fresh APAC wallets from an NRT browser, then immediately signs three times.
+
+| Metric | Control median / max | Startup candidate median / max |
+| --- | ---: | ---: |
+| First Worker-to-DO initialization span | 820ms / 859ms | **597ms / 627ms** |
+| First presignature generation | 3.844s / 3.893s | **3.565s / 3.927s** |
+| Immediate first signing | 4.011s / 4.618s | **3.924s / 4.344s** |
+| First-signature refill wait | 2.370s / 2.663s | 2.274s / 2.703s |
+| Following signatures, six samples | 1.953s / 4.048s | 2.048s / 4.151s |
+| Registration duration | 6.488s / 6.608s | 5.819s / 6.481s |
+
+The measured initialization median improved by **223ms (27%)**. First-generation
+median improved by 279ms (7%). Full first signing improved only 87ms (2%) in this
+small cohort. Following signatures and maximum generation time did not improve.
+The result supports a modest startup benefit, not a large signing-speed claim.
+
+The three background startup calls completed in 627ms, 763ms, and 803ms. A
+separate diagnostic wallet proved identical hashed host addresses for startup
+and subsequent initialization. Startup completed 1.327s before initialization
+began, yet its first Worker-to-DO span still took 481ms. That wallet signed in
+2.839s and verified three signatures. It is excluded from the comparison table.
+The remaining delay is not explained by warming a different host. Transport and
+runtime startup costs need separate measurement before further optimization.
+
+Verification: both Worker WASM configurations compile. Local protocol E2E
+verified eight signatures, startup before first signing, zero additional DOs at
+first signing, tenant/wallet isolation, concurrent preparation, selective expiry,
+replay rejection, and recovery after eviction. Hosted checks verified 21
+signatures across comparison and diagnostic runs. Temporary host-address logging
+exists only in the diagnostic build and is absent from the committed source.
+All six original staging versions were restored and verified after the trial.
+The broader lifecycle acceptance gaps recorded above remain open.

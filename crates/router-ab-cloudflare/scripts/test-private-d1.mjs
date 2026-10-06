@@ -5585,9 +5585,10 @@ async function main() {
       const workerName = ecdsa.executionHome.workerName;
       const objectClass = 'RouterAbSigningWorkerPresignSessionDurableObject';
       const before = await topology.listDurableObjectIds(objectClass, workerName);
+      assert.equal(before.length, 1, 'registration must start the exact material host before signing');
       const first = await testEcdsaNormalSigning(topology, ecdsa, 'pool', false);
       const afterFirst = await topology.listDurableObjectIds(objectClass, workerName);
-      assert.equal(afterFirst.length, before.length + 1);
+      assert.deepEqual(afterFirst, before, 'first signing must use the host started by registration');
       const second = await testEcdsaNormalSigning(topology, ecdsa, 'prepare', false);
       assert.deepEqual(await topology.listDurableObjectIds(objectClass, workerName), afterFirst);
       const concurrent = await Promise.all([
@@ -5635,6 +5636,7 @@ async function main() {
         newSessionAfterEvictionVerified: true,
         burnedIdentityReplayRejected: true,
         tenantIsolationVerified: true,
+        registrationStartedExactHost: true,
         newHosts: afterFirst.length - before.length,
         completedPoolAndBundledPrepare: true,
         signatureDigests: [first, second, ...concurrent, ...separateWallets, afterEviction, recovered].map(signingSignatureDigest),
