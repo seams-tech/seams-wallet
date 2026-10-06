@@ -187,7 +187,7 @@ must not be enabled before this gate passes.
 
 ## Phase 3 — Route sessions and remove routine Console calls
 
-- [ ] Add region metadata to existing registration/session issuance and restore
+- [x] Add region metadata to existing registration/session issuance and restore
   boundaries. Update shared types, SDK persistence, transport, and response parsers together.
 - [x] Forward through existing regional bindings using catalog-validated hints.
   Preserve the public entrypoint and enforce a bounded forwarding path.
@@ -502,3 +502,19 @@ local execution admission with zero central ordinary reads before destination
 activation and after cleanup, immutable generation, and one quota charge on
 exact retry. This test does not execute MPC signing or prove a complete
 Console-outage signing flow.
+
+### Mixed-curve browser acceptance — October 6
+
+The existing mixed-curve contract passed with the rebuilt server bundle: one
+Chromium E2E, 38.6 seconds total test time. It registers an Ed25519 wallet,
+adds ECDSA signing, signs NEAR/Tempo/Arc, unlocks and signs again, and injects
+a lost finalize response. Use the same isolated command above with
+`--grep "public ECDSA add-signer"` to repeat it. Both curve contracts now pass.
+These local tests verify transport and lifecycle behavior. They do not establish
+regional latency or Console-outage independence.
+
+Registration coordination still needs local continuation routing and a durable
+terminal decision. The current completion order calls the directory before
+updating local execution state. A registering-state fast path alone could admit
+work during that cancellation window. Close that window before removing the
+pending-ceremony directory check.
