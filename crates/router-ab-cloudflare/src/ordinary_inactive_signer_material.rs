@@ -232,7 +232,7 @@ pub struct CloudflareEcdsaReservationDeactivationResponseV1 {
     pub revoked_at_ms: u64,
 }
 
-#[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+#[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
 enum EcdsaReservationActivationResultV1 {
     Ordinary(CloudflareSigningWorkerOutputActivationReceiptV1),
     SourcePreserving(CloudflareEcdsaSourcePreservingReservationActivationResponseV1),
@@ -331,7 +331,7 @@ pub(crate) enum EcdsaReservationStateV1 {
 
 impl EcdsaReservationStateV1 {
     /// A linked device's reservation, as opposed to an ordinary one.
-    #[cfg_attr(feature = "wallet-do-signing-worker-harness", allow(dead_code))]
+    #[cfg_attr(feature = "strict-worker-signing-worker-entrypoint", allow(dead_code))]
     pub(crate) fn is_source_preserving(&self) -> bool {
         matches!(
             self,
@@ -547,15 +547,15 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_reserve_inactive_source_pres
             invalid_reservation("source-preserving ECDSA inactive reservation JSON is malformed")
         })?;
     reservation.validate()?;
-    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     return crate::durable_object::call_signing_worker_wallet_do_v1(
         env,
         crate::durable_object::SigningWorkerWalletDoRequestV1::ReserveLinkedEcdsa(reservation),
     )
     .await;
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     let response = reserve_source_preserving_ecdsa_inactive_v1(env, &reservation).await?;
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     Response::from_json(&response).map_err(|_| {
         invalid_reservation(
             "source-preserving ECDSA inactive reservation response could not be encoded",
@@ -576,7 +576,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_activate_reservation_v1(
         .await
         .map_err(|_| invalid_reservation("ECDSA reservation activation JSON is malformed"))?;
     activation.validate()?;
-    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     {
         let _ = runtime;
         return crate::durable_object::call_signing_worker_wallet_do_v1(
@@ -585,7 +585,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_activate_reservation_v1(
         )
         .await;
     }
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     match activate_ecdsa_reservation_v1(env, runtime, &activation).await? {
         EcdsaReservationActivationResultV1::Ordinary(receipt) => {
             Response::from_json(&CloudflareEcdsaReservationActivationResponseV1 { receipt })
@@ -607,15 +607,15 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_deactivate_reservation_v1(
         .await
         .map_err(|_| invalid_reservation("ECDSA reservation deactivation JSON is malformed"))?;
     deactivation.validate()?;
-    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     return crate::durable_object::call_signing_worker_wallet_do_v1(
         env,
         crate::durable_object::SigningWorkerWalletDoRequestV1::DeactivateLinkedEcdsa(deactivation),
     )
     .await;
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     let response = deactivate_ecdsa_reservation_v1(env, &deactivation).await?;
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     Response::from_json(&response)
         .map_err(|_| invalid_reservation("ECDSA deactivation response could not be encoded"))
 }
@@ -758,7 +758,7 @@ async fn reserve_ecdsa_inactive_v1(
 
 #[cfg(all(
     feature = "workers-rs",
-    not(feature = "wallet-do-signing-worker-harness")
+    not(feature = "strict-worker-signing-worker-entrypoint")
 ))]
 async fn reserve_source_preserving_ecdsa_inactive_v1(
     env: &Env,
@@ -1254,7 +1254,7 @@ pub(crate) fn settle_linked_ecdsa_deactivation_v1(
 pub(crate) enum SourcePreservingPhaseV1 {
     /// D1 only: its activation takes two writes. The wallet store
     /// activates in one.
-    #[cfg_attr(feature = "wallet-do-signing-worker-harness", allow(dead_code))]
+    #[cfg_attr(feature = "strict-worker-signing-worker-entrypoint", allow(dead_code))]
     Activating,
     Active,
 }
@@ -1744,7 +1744,7 @@ fn validate_client_package_v1(
 
 #[cfg(all(
     feature = "workers-rs",
-    not(feature = "wallet-do-signing-worker-harness")
+    not(feature = "strict-worker-signing-worker-entrypoint")
 ))]
 async fn activate_ecdsa_reservation_v1(
     env: &Env,
@@ -2014,7 +2014,7 @@ async fn activate_ecdsa_reservation_v1(
 
 #[cfg(all(
     feature = "workers-rs",
-    not(feature = "wallet-do-signing-worker-harness")
+    not(feature = "strict-worker-signing-worker-entrypoint")
 ))]
 async fn deactivate_ecdsa_reservation_v1(
     env: &Env,

@@ -1923,11 +1923,11 @@ impl DeriverAYaoSessionD1V1 {
 
 pub(crate) struct DeriverBYaoSessionD1V1 {
     env: Env,
-    #[cfg(feature = "wallet-do-b-harness")]
+    #[cfg(feature = "strict-worker-deriver-b-entrypoint")]
     wallet_do: Option<DeriverBWalletDoStorageV1>,
 }
 
-#[cfg(feature = "wallet-do-b-harness")]
+#[cfg(feature = "strict-worker-deriver-b-entrypoint")]
 struct DeriverBWalletDoStorageV1 {
     sql: worker::SqlStorage,
     object_name: String,
@@ -1938,12 +1938,12 @@ impl DeriverBYaoSessionD1V1 {
     fn new(env: Env) -> Self {
         Self {
             env,
-            #[cfg(feature = "wallet-do-b-harness")]
+            #[cfg(feature = "strict-worker-deriver-b-entrypoint")]
             wallet_do: None,
         }
     }
 
-    #[cfg(feature = "wallet-do-b-harness")]
+    #[cfg(feature = "strict-worker-deriver-b-entrypoint")]
     pub(crate) fn for_wallet_do(
         env: Env,
         sql: worker::SqlStorage,
@@ -1962,7 +1962,7 @@ impl DeriverBYaoSessionD1V1 {
 
     /// The wallet object that holds this role's pair records, if any.
     fn pair_object_name(&self) -> Option<String> {
-        #[cfg(feature = "wallet-do-b-harness")]
+        #[cfg(feature = "strict-worker-deriver-b-entrypoint")]
         if let Some(wallet_do) = &self.wallet_do {
             return Some(wallet_do.object_name.clone());
         }
@@ -1970,7 +1970,7 @@ impl DeriverBYaoSessionD1V1 {
     }
 
     fn storage(&self, session: [u8; 32]) -> worker::Result<role_d1::RolePairD1StorageV1> {
-        #[cfg(feature = "wallet-do-b-harness")]
+        #[cfg(feature = "strict-worker-deriver-b-entrypoint")]
         if let Some(wallet_do) = &self.wallet_do {
             return role_d1::RolePairD1StorageV1::from_deriver_b_wallet_do(
                 &self.env,
@@ -2707,7 +2707,7 @@ pub async fn handle_cloudflare_ed25519_yao_deriver_a_prepare_pair_v1(
     json_response(&receipt)
 }
 
-#[cfg(feature = "wallet-do-harness")]
+#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 pub(crate) async fn prepare_deriver_a_pair_readiness_for_wallet_do_v1(
     env: &Env,
     request: &CloudflareEd25519YaoPairPrepareRequestV1,
@@ -2745,7 +2745,7 @@ pub(crate) async fn prepare_deriver_a_pair_readiness_for_wallet_do_v1(
     )
 }
 
-#[cfg(feature = "wallet-do-harness")]
+#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 pub(crate) async fn fail_deriver_b_pair_after_a_error_v1(
     env: &Env,
     scope: &CloudflareDeriverBWalletPairScopeV1,
@@ -3652,12 +3652,12 @@ async fn execute_deriver_b_role(
         &transport_result,
     );
     let mut transport = transport_result?;
-    #[cfg(feature = "wallet-do-b-harness")]
+    #[cfg(feature = "strict-worker-deriver-b-entrypoint")]
     let pair_object = Some(
         crate::durable_object::deriver_b_wallet_object_name_v1(&scope)
             .map_err(|error| invalid_lifecycle(error.to_string()))?,
     );
-    #[cfg(not(feature = "wallet-do-b-harness"))]
+    #[cfg(not(feature = "strict-worker-deriver-b-entrypoint"))]
     let pair_object = None;
     let (custody_binding, role_share, stable_context, root_metadata_digest) =
         load_ed25519_yao_tenant_root_role_share_v2(
@@ -3987,12 +3987,12 @@ async fn execute_deriver_b_role_session_command(
     command: DeriverBYaoSessionCommandV1,
     trace_id: RoleTraceContextV1,
 ) -> RouterAbProtocolResult<DeriverBYaoSessionResponseV1> {
-    #[cfg(not(feature = "wallet-do-b-harness"))]
+    #[cfg(not(feature = "strict-worker-deriver-b-entrypoint"))]
     {
         let _ = scope;
         execute_deriver_b_session_command(env, command, trace_id).await
     }
-    #[cfg(feature = "wallet-do-b-harness")]
+    #[cfg(feature = "strict-worker-deriver-b-entrypoint")]
     {
         command.validate()?;
         scope.validate()?;

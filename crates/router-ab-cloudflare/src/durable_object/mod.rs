@@ -17,14 +17,14 @@ use crate::{
     CloudflareSigningWorkerEcdsaPoolCommandV1, CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1,
     CloudflareSigningWorkerRecipientProofBundleActivationRequestV1,
 };
-#[cfg(all(feature = "workers-rs", any(feature = "strict-worker-deriver-a-entrypoint", feature = "wallet-do-b-harness", test)))]
+#[cfg(all(feature = "workers-rs", any(feature = "strict-worker-deriver-a-entrypoint", feature = "strict-worker-deriver-b-entrypoint", test)))]
 mod deriver_relocation;
 #[cfg(all(
     feature = "workers-rs",
     any(feature = "strict-worker-deriver-a-entrypoint", test)
 ))]
 mod deriver_a_pair;
-#[cfg(all(feature = "workers-rs", feature = "wallet-do-b-harness"))]
+#[cfg(all(feature = "workers-rs", feature = "strict-worker-deriver-b-entrypoint"))]
 mod deriver_b_pair;
 #[cfg(feature = "workers-rs")]
 mod ecdsa_presign_live_session;
@@ -40,7 +40,7 @@ pub(crate) use router_wallet::{
 };
 #[cfg(feature = "workers-rs")]
 pub use router_wallet::RouterAbRouterWalletDurableObject;
-#[cfg(all(feature = "workers-rs", feature = "wallet-do-signing-worker-harness"))]
+#[cfg(all(feature = "workers-rs", feature = "strict-worker-signing-worker-entrypoint"))]
 mod signing_worker_wallet;
 #[cfg(all(
     feature = "workers-rs",
@@ -62,16 +62,16 @@ pub(crate) use deriver_a_pair::{
     PREPARATION_PATH as DERIVER_A_PREPARATION_PATH, DeriverAPairDoCommandV1, DeriverAPairDoResponseV1,
     DeriverAPairPayloadV1, DeriverAWalletOwnerV1,
 };
-#[cfg(all(feature = "workers-rs", feature = "wallet-do-harness"))]
+#[cfg(all(feature = "workers-rs", feature = "strict-worker-deriver-a-entrypoint"))]
 pub(crate) use deriver_a_pair::{
     call_deriver_a_wallet_do_lookup_v1, call_deriver_a_wallet_do_work_v1,
     deriver_a_wallet_do_burn_work_path_v1, deriver_a_wallet_do_execute_work_path_v1,
     deriver_a_wallet_do_prepare_work_path_v1, deriver_a_wallet_do_status_work_path_v1,
     reconcile_deriver_a_wallet_pair_v1,
 };
-#[cfg(all(feature = "workers-rs", feature = "wallet-do-b-harness"))]
+#[cfg(all(feature = "workers-rs", feature = "strict-worker-deriver-b-entrypoint"))]
 pub use deriver_b_pair::RouterAbDeriverBWalletDurableObject;
-#[cfg(all(feature = "workers-rs", feature = "wallet-do-b-harness"))]
+#[cfg(all(feature = "workers-rs", feature = "strict-worker-deriver-b-entrypoint"))]
 pub(crate) use deriver_b_pair::{
     call_deriver_b_wallet_do_v1, deriver_b_wallet_object_name_v1,
     call_preparation as prepare_deriver_b_wallet_relocation,
@@ -84,9 +84,9 @@ pub(crate) use deriver_b_pair::{
     PREPARATION_PATH as DERIVER_B_PREPARATION_PATH,
     reconcile_deriver_b_wallet_pair_v1, DeriverBWalletDoRequestV1,
 };
-#[cfg(all(feature = "workers-rs", feature = "wallet-do-signing-worker-harness"))]
+#[cfg(all(feature = "workers-rs", feature = "strict-worker-signing-worker-entrypoint"))]
 pub use signing_worker_wallet::RouterAbSigningWorkerWalletDurableObject;
-#[cfg(all(feature = "workers-rs", feature = "wallet-do-signing-worker-harness"))]
+#[cfg(all(feature = "workers-rs", feature = "strict-worker-signing-worker-entrypoint"))]
 pub(crate) use signing_worker_wallet::{
     call_signing_worker_wallet_do_v1, SigningWorkerWalletDoRequestV1,
 };

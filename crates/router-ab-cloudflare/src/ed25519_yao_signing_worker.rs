@@ -664,13 +664,13 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_packages_v1(
     let scoped =
         parse_request::<CloudflareScopedEd25519YaoPackagePairDeliveryV1>(&mut request).await?;
     scoped.validate()?;
-    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     return crate::durable_object::call_signing_worker_wallet_do_v1(
         env,
         crate::durable_object::SigningWorkerWalletDoRequestV1::DeliverPackages(scoped),
     )
     .await;
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     let response = execute_signing_worker_yao_command(
         env,
         SigningWorkerYaoCommandV1::DeliverPackages {
@@ -679,7 +679,7 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_packages_v1(
         },
     )
     .await?;
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     json_response(&http_response_from_command(response)?)
 }
 
@@ -694,15 +694,15 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_initial_registration_f
         )
         .await?;
     lookup.validate()?;
-    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     return crate::durable_object::call_signing_worker_wallet_do_v1(
         env,
         crate::durable_object::SigningWorkerWalletDoRequestV1::LookupRegistration(lookup),
     )
     .await;
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     let response = read_initial_registration_finalization_v1(env, &lookup).await?;
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     json_response(&response)
 }
 
@@ -803,13 +803,13 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_recovery_promote_v1(
     let scoped =
         parse_request::<CloudflareScopedEd25519YaoRecoveryPromotionRequestV1>(&mut request).await?;
     scoped.validate()?;
-    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     return crate::durable_object::call_signing_worker_wallet_do_v1(
         env,
         crate::durable_object::SigningWorkerWalletDoRequestV1::PromoteRecovery(scoped),
     )
     .await;
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     let response = execute_signing_worker_yao_command(
         env,
         SigningWorkerYaoCommandV1::PromoteRecovery {
@@ -817,7 +817,7 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_recovery_promote_v1(
         },
     )
     .await?;
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     json_response(&http_response_from_command(response)?)
 }
 
@@ -858,13 +858,13 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_reserve_inactive_sourc
     reservation.validate()?;
     // A linked device's material is reserved, activated and revoked with the
     // wallet's own material, in the wallet object.
-    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     return crate::durable_object::call_signing_worker_wallet_do_v1(
         env,
         crate::durable_object::SigningWorkerWalletDoRequestV1::ReserveLinkedEd25519(reservation),
     )
     .await;
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     let (
         reservation_id,
         participant_ids,
@@ -872,7 +872,7 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_reserve_inactive_sourc
         deriver_a_client_package,
         deriver_b_client_package,
     ) = reserve_source_preserving_inactive_ed25519_yao_v1(env, &reservation).await?;
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     json_response(&CloudflareEd25519YaoInactiveReservationResponseV1 {
         state: "inactive".to_owned(),
         reservation_id,
@@ -891,15 +891,15 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_activate_reservation_v
     let activation =
         parse_request::<CloudflareEd25519YaoActivateReservationRequestV1>(&mut request).await?;
     activation.validate()?;
-    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     return crate::durable_object::call_signing_worker_wallet_do_v1(
         env,
         crate::durable_object::SigningWorkerWalletDoRequestV1::ActivateLinkedEd25519(activation),
     )
     .await;
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     let receipt = activate_ed25519_yao_reservation_v1(env, &activation).await?;
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     json_response(&CloudflareEd25519YaoReservationActivationResponseV1 { receipt })
 }
 
@@ -911,7 +911,7 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_deactivate_reservation
     let deactivation =
         parse_request::<CloudflareEd25519YaoDeactivateReservationRequestV1>(&mut request).await?;
     deactivation.validate()?;
-    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     return crate::durable_object::call_signing_worker_wallet_do_v1(
         env,
         crate::durable_object::SigningWorkerWalletDoRequestV1::DeactivateLinkedEd25519(
@@ -919,9 +919,9 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_deactivate_reservation
         ),
     )
     .await;
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     let response = deactivate_ed25519_yao_reservation_v1(env, &deactivation).await?;
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     json_response(&response)
 }
 
@@ -1247,7 +1247,7 @@ async fn reserve_inactive_ed25519_yao_v1(
     .await
 }
 
-#[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+#[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
 #[cfg(feature = "workers-rs")]
 async fn reserve_source_preserving_inactive_ed25519_yao_v1(
     env: &Env,
@@ -1359,7 +1359,7 @@ async fn reserve_inactive_ed25519_yao_parts_v1(
     ))
 }
 
-#[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+#[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
 #[cfg(feature = "workers-rs")]
 async fn activate_ed25519_yao_reservation_v1(
     env: &Env,
@@ -1530,7 +1530,7 @@ async fn activate_ed25519_yao_reservation_v1(
     ))
 }
 
-#[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+#[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
 #[cfg(feature = "workers-rs")]
 async fn deactivate_ed25519_yao_reservation_v1(
     env: &Env,

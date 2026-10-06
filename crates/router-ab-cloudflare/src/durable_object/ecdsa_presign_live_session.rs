@@ -15,7 +15,7 @@ use router_ab_ecdsa_wire::{CompressedPointBytes, ScalarBytes};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-#[cfg(any(not(feature = "wallet-do-signing-worker-harness"), test))]
+#[cfg(any(not(feature = "strict-worker-signing-worker-entrypoint"), test))]
 use crate::CloudflareSigningWorkerEcdsaPresignAuthorityV1;
 
 pub(super) type CloudflareSigningWorkerEcdsaPresignLiveSessionsV1 =
@@ -147,13 +147,13 @@ pub(super) async fn handle_cloudflare_signing_worker_ecdsa_presign_session_do_fe
             super::owner_presign_storage::schedule_expiry(
                 storage, parsed.request.ceremony_expires_at_ms,
             ).await?;
-            #[cfg(feature = "wallet-do-signing-worker-harness")]
+            #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
             if let Err(error) =
                 claim_wallet_presign_authority(_env, &parsed.request).await
             {
                 return presign_do_error_response(error);
             }
-            #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+            #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
             {
                 // Claim before emitting any server message; failed or interrupted ceremonies also burn the identity.
                 let claimed = Rc::new(std::cell::Cell::new(false));
@@ -208,7 +208,7 @@ pub(super) async fn handle_cloudflare_signing_worker_ecdsa_presign_session_do_fe
                 }
             };
             let parsed = parsed.request;
-            #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+            #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
             {
                 let pinned: CloudflareSigningWorkerEcdsaPresignAuthorityV1 =
                     match storage.get(&super::owner_presign_storage::authority_key(
@@ -235,7 +235,7 @@ pub(super) async fn handle_cloudflare_signing_worker_ecdsa_presign_session_do_fe
                     ));
                 }
             }
-            #[cfg(feature = "wallet-do-signing-worker-harness")]
+            #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
             if let Err(error) = admit_wallet_presign_step(_env, &parsed).await {
                 if error.code() == RouterAbProtocolErrorCode::LifecycleTransitionInProgress {
                     sessions.borrow_mut().remove(&parsed.presign_session_id);
@@ -258,7 +258,7 @@ pub(super) async fn handle_cloudflare_signing_worker_ecdsa_presign_session_do_fe
     }
 }
 
-#[cfg(feature = "wallet-do-signing-worker-harness")]
+#[cfg(feature = "strict-worker-signing-worker-entrypoint")]
 async fn claim_wallet_presign_authority(
     env: &worker::Env,
     request: &crate::CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1,
@@ -275,7 +275,7 @@ async fn claim_wallet_presign_authority(
     .await
 }
 
-#[cfg(feature = "wallet-do-signing-worker-harness")]
+#[cfg(feature = "strict-worker-signing-worker-entrypoint")]
 async fn admit_wallet_presign_step(
     env: &worker::Env,
     request: &crate::CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1,
@@ -292,7 +292,7 @@ async fn admit_wallet_presign_step(
     .await
 }
 
-#[cfg(feature = "wallet-do-signing-worker-harness")]
+#[cfg(feature = "strict-worker-signing-worker-entrypoint")]
 async fn register_wallet_linked_presign_session(
     env: &worker::Env,
     request: &crate::CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1,
@@ -309,7 +309,7 @@ async fn register_wallet_linked_presign_session(
     .await
 }
 
-#[cfg(feature = "wallet-do-signing-worker-harness")]
+#[cfg(feature = "strict-worker-signing-worker-entrypoint")]
 async fn require_pool_admission(
     env: &worker::Env,
     scope: &crate::CloudflareSigningWorkerWalletScopeV1,
@@ -398,7 +398,7 @@ pub(super) async fn handle_cloudflare_signing_worker_linked_ecdsa_presign_sessio
             if let Err(error) = parsed.request.validate_at(now_unix_ms) {
                 return presign_do_error_response(error);
             }
-            #[cfg(feature = "wallet-do-signing-worker-harness")]
+            #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
             if let Err(error) = register_wallet_linked_presign_session(env, &parsed.request).await {
                 return presign_do_error_response(error);
             }
@@ -603,7 +603,7 @@ async fn step_linked_presign_session(
             "linked ECDSA presign terminal step does not match the completed request",
         ));
     }
-    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     if let Err(error) = require_pool_admission(_env, &pinned.wallet_scope).await {
         if error.code() == RouterAbProtocolErrorCode::LifecycleTransitionInProgress {
             sessions.borrow_mut().remove(&input.presign_session_id);
@@ -775,7 +775,7 @@ async fn consume_linked_presignature(
         "linked ECDSA presignature consume now_unix_ms",
         input.now_unix_ms,
     )?;
-    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     {
         let pinned = load_linked_presign_authority(storage).await?;
         if pinned.request.client_presignature_id != input.server_presignature_id {

@@ -243,7 +243,7 @@ async fn handle_strict_deriver_fetch_v1(
     if path == crate::durable_object::DERIVER_A_PREPARATION_PATH {
         return crate::durable_object::prepare_deriver_a_wallet_relocation(request, &env).await;
     }
-    #[cfg(all(feature = "strict-worker-deriver-b-entrypoint", feature = "wallet-do-b-harness"))]
+    #[cfg(all(feature = "strict-worker-deriver-b-entrypoint", feature = "strict-worker-deriver-b-entrypoint"))]
     if path == crate::durable_object::DERIVER_B_PREPARATION_PATH {
         return crate::durable_object::prepare_deriver_b_wallet_relocation(request, &env).await;
     }
@@ -251,7 +251,7 @@ async fn handle_strict_deriver_fetch_v1(
     if path == crate::durable_object::DERIVER_A_CONTEXT_PATH {
         return crate::durable_object::read_deriver_a_relocation_context(request, &env).await;
     }
-    #[cfg(all(feature = "strict-worker-deriver-b-entrypoint", feature = "wallet-do-b-harness"))]
+    #[cfg(all(feature = "strict-worker-deriver-b-entrypoint", feature = "strict-worker-deriver-b-entrypoint"))]
     if path == crate::durable_object::DERIVER_B_CONTEXT_PATH {
         return crate::durable_object::read_deriver_b_relocation_context(request, &env).await;
     }
@@ -259,7 +259,7 @@ async fn handle_strict_deriver_fetch_v1(
     if path == crate::durable_object::DERIVER_A_SOURCE_FENCE_PATH {
         return crate::durable_object::fence_deriver_a_wallet_source(request, &env).await;
     }
-    #[cfg(all(feature = "strict-worker-deriver-b-entrypoint", feature = "wallet-do-b-harness"))]
+    #[cfg(all(feature = "strict-worker-deriver-b-entrypoint", feature = "strict-worker-deriver-b-entrypoint"))]
     if path == crate::durable_object::DERIVER_B_SOURCE_FENCE_PATH {
         return crate::durable_object::fence_deriver_b_wallet_source(request, &env).await;
     }
@@ -267,7 +267,7 @@ async fn handle_strict_deriver_fetch_v1(
     if path == crate::durable_object::DERIVER_A_SNAPSHOT_PATH {
         return crate::durable_object::snapshot_deriver_a_wallet_source(request, &env).await;
     }
-    #[cfg(all(feature = "strict-worker-deriver-b-entrypoint", feature = "wallet-do-b-harness"))]
+    #[cfg(all(feature = "strict-worker-deriver-b-entrypoint", feature = "strict-worker-deriver-b-entrypoint"))]
     if path == crate::durable_object::DERIVER_B_SNAPSHOT_PATH {
         return crate::durable_object::snapshot_deriver_b_wallet_source(request, &env).await;
     }
@@ -717,7 +717,7 @@ async fn handle_strict_deriver_fetch_v1(
         };
     }
 
-    #[cfg(feature = "wallet-do-harness")]
+    #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
     if path == CLOUDFLARE_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH {
         let work: crate::CloudflareEd25519YaoPairPrepareRequestV1 =
             match parse_strict_deriver_json_v1(
@@ -739,7 +739,7 @@ async fn handle_strict_deriver_fetch_v1(
         .await;
     }
 
-    #[cfg(feature = "wallet-do-harness")]
+    #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
     if path == CLOUDFLARE_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH {
         let work: crate::CloudflareEd25519YaoPairExecuteRequestV1 =
             match parse_strict_deriver_json_v1(&mut request, "Deriver A wallet DO execution".into())
@@ -758,29 +758,7 @@ async fn handle_strict_deriver_fetch_v1(
         .await;
     }
 
-    #[cfg(all(
-        feature = "strict-worker-deriver-a-entrypoint",
-        not(feature = "wallet-do-harness")
-    ))]
-    if path == CLOUDFLARE_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH {
-        return match handle_cloudflare_ed25519_yao_deriver_a_prepare_pair_v1(request, &env).await {
-            Ok(response) => Ok(response),
-            Err(error) => cloudflare_role_failure_response_v1(error),
-        };
-    }
-
-    #[cfg(all(
-        feature = "strict-worker-deriver-a-entrypoint",
-        not(feature = "wallet-do-harness")
-    ))]
-    if path == CLOUDFLARE_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH {
-        return match handle_cloudflare_ed25519_yao_deriver_a_execute_pair_v1(request, &env).await {
-            Ok(response) => Ok(response),
-            Err(error) => cloudflare_role_failure_response_v1(error),
-        };
-    }
-
-    #[cfg(feature = "wallet-do-harness")]
+    #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
     if path == CLOUDFLARE_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH {
         let lookup: crate::CloudflareDeriverAWalletPairStatusRequestV1 =
             match parse_strict_deriver_json_v1(&mut request, "Deriver A wallet DO status".into())
@@ -799,7 +777,7 @@ async fn handle_strict_deriver_fetch_v1(
         .await;
     }
 
-    #[cfg(feature = "wallet-do-harness")]
+    #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
     if path == CLOUDFLARE_DERIVER_A_ED25519_YAO_BURN_PAIR_PATH {
         let lookup: crate::CloudflareDeriverAWalletPairBurnRequestV1 =
             match parse_strict_deriver_json_v1(&mut request, "Deriver A wallet DO burn".into())
@@ -816,30 +794,6 @@ async fn handle_strict_deriver_fetch_v1(
             &lookup,
         )
         .await;
-    }
-
-    #[cfg(all(
-        feature = "strict-worker-deriver-a-entrypoint",
-        not(feature = "wallet-do-harness")
-    ))]
-    if path == CLOUDFLARE_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH {
-        return match handle_cloudflare_ed25519_yao_deriver_a_read_pair_status_v1(request, &env)
-            .await
-        {
-            Ok(response) => Ok(response),
-            Err(error) => cloudflare_role_failure_response_v1(error),
-        };
-    }
-
-    #[cfg(all(
-        feature = "strict-worker-deriver-a-entrypoint",
-        not(feature = "wallet-do-harness")
-    ))]
-    if path == CLOUDFLARE_DERIVER_A_ED25519_YAO_BURN_PAIR_PATH {
-        return match handle_cloudflare_ed25519_yao_deriver_a_burn_pair_v1(request, &env).await {
-            Ok(response) => Ok(response),
-            Err(error) => cloudflare_role_failure_response_v1(error),
-        };
     }
 
     #[cfg(feature = "strict-worker-deriver-b-entrypoint")]

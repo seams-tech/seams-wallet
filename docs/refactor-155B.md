@@ -1657,3 +1657,18 @@ passed across all four regions, including shared counter and claim contention.
 These results close the source-content mismatch concern. They do not establish
 hosted timing, full browser reauthentication after relocation, or the remaining
 composed ECDSA/coordinator race coverage. Live provisioning remains pending.
+
+
+### Required wallet ownership at Worker entrypoints — 2026-10-07
+
+Removed the four optional wallet-ownership Cargo features. Router, Deriver A,
+Deriver B, and SigningWorker now select their wallet-object code through the
+corresponding Worker entrypoint feature. A manual entrypoint build cannot omit
+wallet ownership by forgetting a second flag. The standard build script no longer
+adds those switches. Four unreachable Deriver A fallback routes are deleted.
+
+WASM-target compilation passed for all five entrypoint configurations. Shell
+syntax and the bloat gate passed. Fresh optimized builds are running; their
+acceptance results remain pending. Earlier release evidence identifies the
+preceding source revision. The development-only completion fault remains an
+explicit test feature and stays excluded from release builds.

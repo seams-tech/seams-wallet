@@ -246,7 +246,7 @@ pub(crate) async fn handle_freeze(
     Ok(receipt)
 }
 
-#[cfg(feature = "wallet-do-signing-worker-harness")]
+#[cfg(feature = "strict-worker-signing-worker-entrypoint")]
 async fn record_wallet_freeze(
     env: &worker::Env,
     receipt: &LinkedPresignFreezeReceipt,
@@ -265,7 +265,7 @@ async fn record_wallet_freeze(
     .await
 }
 
-#[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+#[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
 async fn record_wallet_freeze(
     _env: &worker::Env,
     _receipt: &LinkedPresignFreezeReceipt,
@@ -602,7 +602,7 @@ async fn fence_initialization(
     registered_initialization(env, command).await
 }
 
-#[cfg(feature = "wallet-do-signing-worker-harness")]
+#[cfg(feature = "strict-worker-signing-worker-entrypoint")]
 async fn registered_initialization(
     env: &worker::Env,
     command: &LinkedPresignRelocationRequest,
@@ -625,7 +625,7 @@ async fn registered_initialization(
     Ok(Initialization::Registered { request_digest_hex })
 }
 
-#[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+#[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
 async fn registered_initialization(
     _env: &worker::Env,
     _command: &LinkedPresignRelocationRequest,

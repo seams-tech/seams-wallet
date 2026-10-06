@@ -515,13 +515,13 @@ mod strict_worker;
 
 #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 pub use durable_object::RouterAbDeriverAWalletDurableObject;
-#[cfg(all(feature = "workers-rs", feature = "wallet-do-b-harness"))]
+#[cfg(all(feature = "workers-rs", feature = "strict-worker-deriver-b-entrypoint"))]
 pub use durable_object::RouterAbDeriverBWalletDurableObject;
 #[cfg(feature = "workers-rs")]
 pub use durable_object::RouterAbRouterWalletDurableObject;
 #[cfg(feature = "workers-rs")]
 pub use durable_object::RouterAbSigningWorkerPresignSessionDurableObject;
-#[cfg(all(feature = "workers-rs", feature = "wallet-do-signing-worker-harness"))]
+#[cfg(all(feature = "workers-rs", feature = "strict-worker-signing-worker-entrypoint"))]
 pub use durable_object::RouterAbSigningWorkerWalletDurableObject;
 pub use durable_object::{
     CloudflareActiveSigningWorkerStateLookupV1, CloudflareEd25519Round1StateV1,
@@ -8757,7 +8757,7 @@ pub async fn activate_cloudflare_router_ab_ecdsa_derivation_signing_worker_outpu
         activation,
     )?;
     let (generic_activation, material) = opened.stored_parts();
-    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     let signing_worker_output: CloudflareSigningWorkerOutputActivationReceiptV1 = {
         let response = durable_object::call_signing_worker_wallet_do_v1(
             env,
@@ -8775,7 +8775,7 @@ pub async fn activate_cloudflare_router_ab_ecdsa_derivation_signing_worker_outpu
         )
         .await?
     };
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     let signing_worker_output = {
         let call = runtime.signing_worker_output_activate_request(
             generic_activation.clone(),
@@ -11495,7 +11495,7 @@ where
             cloudflare_router_error_status(err.code()),
         );
     }
-    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     if matches!(
         &parsed.material_source,
         CloudflareSigningWorkerNormalSigningMaterialSourceV1::RegistrationActivation { .. }
@@ -11599,7 +11599,7 @@ async fn load_cloudflare_signing_worker_active_ecdsa_derivation_material_v1(
     ActiveSigningWorkerStateV1,
     CloudflareServerOutputMaterialRecordV1,
 )> {
-    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     if let Some(wallet_scope) = wallet_scope {
         if wallet_scope.wallet_id != scope.wallet_id {
             return Err(RouterAbProtocolError::new(
@@ -12396,7 +12396,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_step_private
             let server_presignature_id = pool_put_request.server_presignature_id.clone();
             let server_big_r33_b64u = pool_put_request.server_big_r33_b64u.clone();
             let admission_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
-            #[cfg(feature = "wallet-do-signing-worker-harness")]
+            #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
             let admission = publish_cloudflare_wallet_presignature(
                 env,
                 authority.wallet_scope(),
@@ -12405,7 +12405,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_step_private
                 pool_put_request,
             )
             .await;
-            #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+            #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
             let admission = admit_cloudflare_signing_worker_ecdsa_presignature_v1(
                 pool_put_request,
                 Some(authority.wallet_scope().clone()),
@@ -12700,7 +12700,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_presign
     }
 }
 
-#[cfg(all(feature = "workers-rs", feature = "wallet-do-signing-worker-harness"))]
+#[cfg(all(feature = "workers-rs", feature = "strict-worker-signing-worker-entrypoint"))]
 async fn publish_cloudflare_wallet_presignature(
     env: &worker::Env,
     scope: &CloudflareSigningWorkerWalletScopeV1,
@@ -12734,7 +12734,7 @@ async fn admit_cloudflare_signing_worker_ecdsa_presignature_v1(
     now_unix_ms: u64,
 ) -> RouterAbProtocolResult<CloudflareSigningWorkerEcdsaPoolAdmissionReceiptV1> {
     request.validate_at(now_unix_ms)?;
-    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     if wallet_scope.is_none() {
         return Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidGateDecision,
@@ -12883,7 +12883,7 @@ where
             cloudflare_router_error_status(err.code()),
         );
     }
-    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     if matches!(
         &parsed.material_source,
         CloudflareSigningWorkerNormalSigningMaterialSourceV1::RegistrationActivation { .. }
@@ -13295,7 +13295,7 @@ async fn execute_cloudflare_signing_worker_ecdsa_pool_mutation_v1(
     require_signing_worker_ecdsa_pool_mutate_response_v1(&call, response)
 }
 
-#[cfg(feature = "wallet-do-signing-worker-harness")]
+#[cfg(feature = "strict-worker-signing-worker-entrypoint")]
 async fn parse_cloudflare_signing_worker_wallet_do_json_response_v1<
     T: serde::de::DeserializeOwned,
 >(
@@ -13330,7 +13330,7 @@ async fn execute_cloudflare_signing_worker_ecdsa_pool_mutation_for_wallet_v1(
     wallet_scope: Option<&CloudflareSigningWorkerWalletScopeV1>,
     command: CloudflareSigningWorkerEcdsaPoolCommandV1,
 ) -> RouterAbProtocolResult<CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1> {
-    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     {
         let _ = runtime;
         let wallet_scope = wallet_scope.ok_or_else(|| {
@@ -13356,7 +13356,7 @@ async fn execute_cloudflare_signing_worker_ecdsa_pool_mutation_for_wallet_v1(
         outcome.validate()?;
         return Ok(outcome);
     }
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     {
         let _ = wallet_scope;
         execute_cloudflare_signing_worker_ecdsa_pool_mutation_v1(env, runtime, command).await
@@ -13370,7 +13370,7 @@ async fn commit_cloudflare_signing_worker_ecdsa_terminal_for_wallet_v1(
     response: &RouterAbEcdsaDerivationEvmDigestSigningResponseV1,
     now_unix_ms: u64,
 ) -> RouterAbProtocolResult<CloudflareSigningWorkerTerminalResponseCommitV1> {
-    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     {
         let scope = &request.wallet_scope;
         let do_response = durable_object::call_signing_worker_wallet_do_v1(
@@ -13389,7 +13389,7 @@ async fn commit_cloudflare_signing_worker_ecdsa_terminal_for_wallet_v1(
         )
         .await;
     }
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     {
         let response_json = serde_json::to_string(response).map_err(|error| {
             RouterAbProtocolError::new(

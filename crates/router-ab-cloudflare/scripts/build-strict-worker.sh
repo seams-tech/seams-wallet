@@ -42,18 +42,6 @@ run_worker_build() {
 }
 
 worker_features="strict-worker-$role-entrypoint"
-if [[ "$role" == "deriver-a" ]]; then
-  worker_features+=",wallet-do-harness"
-fi
-if [[ "$role" == "router" ]]; then
-  worker_features+=",wallet-do-router-harness"
-fi
-if [[ "$role" == "deriver-b" ]]; then
-  worker_features+=",wallet-do-b-harness"
-fi
-if [[ "$role" == "signing-worker" ]]; then
-  worker_features+=",wallet-do-signing-worker-harness"
-fi
 # Local only: a dev Router can end a registration burned when the local
 # Gateway's terminal-failure fault asks, and records it like any answer.
 if [[ "$worker_build_profile" == "dev" && "$role" == "router" ]]; then

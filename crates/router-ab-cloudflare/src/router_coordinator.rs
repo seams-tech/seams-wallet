@@ -32,19 +32,19 @@ use crate::{
     validate_source_preserving_reservation_response_v1, validate_source_target_identity_v1,
     CloudflareRouterEd25519YaoSourcePreservingExecuteRequestV1,
 };
-#[cfg(feature = "wallet-do-router-harness")]
+#[cfg(feature = "strict-worker-router-entrypoint")]
 use crate::{
     CloudflareDeriverAWalletPairOutcomeResponseV1, CloudflareDeriverAWalletPairStatusRequestV1,
     CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1,
     CloudflareEd25519YaoInitialRegistrationFinalizationLookupResponseV1,
     CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_INITIAL_REGISTRATION_FINALIZATION_LOOKUP_PATH,
 };
-#[cfg(not(feature = "wallet-do-router-harness"))]
+#[cfg(not(feature = "strict-worker-router-entrypoint"))]
 use crate::{
     CLOUDFLARE_DERIVER_A_ED25519_YAO_BURN_PAIR_PATH,
     CLOUDFLARE_DERIVER_B_ED25519_YAO_BURN_PAIR_PATH,
 };
-#[cfg(feature = "wallet-do-router-harness")]
+#[cfg(feature = "strict-worker-router-entrypoint")]
 use router_ab_core::TenantRootSignedActivationReceiptV1;
 use router_ab_core::{
     ed25519_yao_recipient_set_digest_v1, Ed25519YaoCeremonyBindingV1, Ed25519YaoDeriverRoleV1,
@@ -325,7 +325,7 @@ pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
         });
         return finish_router_execution_response(env, claimed.as_ref(), result).await;
     }
-    #[cfg(feature = "wallet-do-router-harness")]
+    #[cfg(feature = "strict-worker-router-entrypoint")]
     if replay && execute_request.operation() == Ed25519YaoOperationV1::Registration {
         let result = execute_historical_registration_replay_v1(
             env,
@@ -1164,7 +1164,7 @@ async fn execute_router_ceremony_with_finalization_v1(
     .await
 }
 
-#[cfg(feature = "wallet-do-router-harness")]
+#[cfg(feature = "strict-worker-router-entrypoint")]
 async fn execute_historical_registration_replay_v1(
     env: &Env,
     runtime: &CloudflareRouterWorkerRuntimeV1,
@@ -1341,7 +1341,7 @@ async fn reconcile_router_replay_v1(
     timing: &mut RouterExecutionTimingV1,
 ) -> RouterAbProtocolResult<Option<RouterCeremonyOutcomeV1>> {
     let reconciliation_started_at_ms = cloudflare_now_unix_ms_v1()?;
-    #[cfg(feature = "wallet-do-router-harness")]
+    #[cfg(feature = "strict-worker-router-entrypoint")]
     let outcome_a = match read_deriver_a_wallet_pair_outcome_v1(
         env,
         runtime.deriver_a_peer().binding_name.as_str(),
@@ -1363,7 +1363,7 @@ async fn reconcile_router_replay_v1(
             return Err(error);
         }
     };
-    #[cfg(feature = "wallet-do-router-harness")]
+    #[cfg(feature = "strict-worker-router-entrypoint")]
     if let CloudflareDeriverAWalletPairOutcomeResponseV1::Completed { outcome, .. } = &outcome_a {
         outcome.deriver_a_execution.validate()?;
         crate::validate_router_ed25519_yao_role_execution_v1(
@@ -1405,9 +1405,9 @@ async fn reconcile_router_replay_v1(
         .await
         .map(Some);
     }
-    #[cfg(feature = "wallet-do-router-harness")]
+    #[cfg(feature = "strict-worker-router-entrypoint")]
     let status_a = async { wallet_pair_outcome_status(outcome_a) };
-    #[cfg(not(feature = "wallet-do-router-harness"))]
+    #[cfg(not(feature = "strict-worker-router-entrypoint"))]
     let a_lookup = CloudflareEd25519YaoPairLookupRequestV1 {
         session: pair_binding.session(),
         pair_digest: pair_binding.pair_digest().bytes,
@@ -1416,7 +1416,7 @@ async fn reconcile_router_replay_v1(
         root_identity: root_identity.clone(),
         pair_binding: pair_binding.clone(),
     };
-    #[cfg(not(feature = "wallet-do-router-harness"))]
+    #[cfg(not(feature = "strict-worker-router-entrypoint"))]
     let status_a = read_pair_status_v1(
         env,
         runtime.deriver_a_peer().binding_name.as_str(),
@@ -1426,7 +1426,7 @@ async fn reconcile_router_replay_v1(
         &a_lookup,
         trace_id,
     );
-    #[cfg(not(feature = "wallet-do-router-harness"))]
+    #[cfg(not(feature = "strict-worker-router-entrypoint"))]
     let _ = root_identity;
     let statuses = futures::try_join!(
         status_a,
@@ -1501,14 +1501,14 @@ async fn reconcile_router_replay_v1(
         || pair_status_is_completed(&status_a)
         || pair_status_is_completed(&status_b)
     {
-        #[cfg(feature = "wallet-do-router-harness")]
+        #[cfg(feature = "strict-worker-router-entrypoint")]
         return Ok(Some(RouterCeremonyOutcomeV1::Standard(
             RouterEd25519YaoExecuteResultV1::recoverable(
                 router_ab_core::RouterEd25519YaoExecuteFailureCodeV1::ServiceUnavailable,
                 1_000,
             )?,
         )));
-        #[cfg(not(feature = "wallet-do-router-harness"))]
+        #[cfg(not(feature = "strict-worker-router-entrypoint"))]
         {
             let _ = burn_pair_v1(
                 env,
@@ -1568,7 +1568,7 @@ async fn reconcile_router_replay_v1(
     Ok(None)
 }
 
-#[cfg(feature = "wallet-do-router-harness")]
+#[cfg(feature = "strict-worker-router-entrypoint")]
 async fn read_deriver_a_wallet_pair_outcome_v1(
     env: &Env,
     binding_name: &str,
@@ -1591,7 +1591,7 @@ async fn read_deriver_a_wallet_pair_outcome_v1(
     .await
 }
 
-#[cfg(feature = "wallet-do-router-harness")]
+#[cfg(feature = "strict-worker-router-entrypoint")]
 fn wallet_pair_outcome_status(
     outcome: CloudflareDeriverAWalletPairOutcomeResponseV1,
 ) -> RouterAbProtocolResult<CloudflareEd25519YaoPairStatusResponseV1> {
@@ -1679,7 +1679,7 @@ async fn read_pair_status_v1<TRequest: Serialize>(
     .await
 }
 
-#[cfg(not(feature = "wallet-do-router-harness"))]
+#[cfg(not(feature = "strict-worker-router-entrypoint"))]
 async fn burn_pair_v1<TRequest: Serialize>(
     env: &Env,
     binding_name: &str,

@@ -44,7 +44,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
             cloudflare_router_error_status(err.code()),
         );
     }
-    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     {
         let response = durable_object::call_signing_worker_wallet_do_v1(
             env,
@@ -61,7 +61,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
             Err(error) => cloudflare_signing_worker_presign_error_response_v1(error),
         }
     }
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     {
         let client_presignature_id = parsed.request.client_presignature_id.clone();
         let material_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
@@ -458,7 +458,7 @@ where
             );
         }
     };
-    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     if let Ok(flag) = env.var("R150_TEST_ECDSA_INTERRUPT_AFTER_CLAIM") {
         if flag.to_string() == "enabled" {
             return worker::Response::error("R150 test interrupted after ECDSA claim", 503);
@@ -534,7 +534,7 @@ async fn prepare_ecdsa_finalize(
     request: &CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1,
     now_unix_ms: u64,
 ) -> RouterAbProtocolResult<EcdsaFinalizePreparation> {
-    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     {
         let (active, material) = load_cloudflare_signing_worker_ecdsa_normal_signing_material_v1(
             env,
@@ -579,6 +579,6 @@ async fn prepare_ecdsa_finalize(
             }
         });
     }
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     prepare_cloudflare_signing_worker_ecdsa_finalize_v1(env, runtime, request, now_unix_ms).await
 }

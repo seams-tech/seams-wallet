@@ -64,7 +64,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
                 Err(error) => cloudflare_protocol_error_response_v1(error),
             }
         }
-        #[cfg(feature = "wallet-do-signing-worker-harness")]
+        #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
         crate::SIGNING_WORKER_LINKED_PRESIGN_PREPARATION_INVENTORY_PATH_V1 => {
             if request.method() != Method::Post {
                 return Response::error("Linked presign preparation inventory requires POST", 405);
@@ -82,7 +82,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
                 Err(error) => cloudflare_protocol_error_response_v1(error),
             }
         }
-        #[cfg(feature = "wallet-do-signing-worker-harness")]
+        #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
         crate::SIGNING_WORKER_LINKED_PRESIGN_INVENTORY_PATH_V1 => {
             if request.method() != Method::Post {
                 return Response::error("Linked presign inventory requires POST", 405);
@@ -110,7 +110,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
         crate::durable_object::presign_session_relocation::FENCE_PATH => {
             crate::durable_object::presign_session_relocation::forward_fence(request, &env, &runtime).await
         }
-        #[cfg(feature = "wallet-do-signing-worker-harness")]
+        #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
         crate::SIGNING_WORKER_ECDSA_TRANSFER_PATH_V1 => {
             if request.method() != Method::Post {
                 return Response::error("ECDSA transfer requires POST", 405);
@@ -128,7 +128,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
                 Err(error) => cloudflare_protocol_error_response_v1(error),
             }
         }
-        #[cfg(feature = "wallet-do-signing-worker-harness")]
+        #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
         crate::SIGNING_WORKER_ECDSA_EXPORT_PATH_V1 => {
             if request.method() != Method::Post {
                 return Response::error("ECDSA export requires POST", 405);
@@ -146,7 +146,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
                 Err(error) => cloudflare_protocol_error_response_v1(error),
             }
         }
-        #[cfg(feature = "wallet-do-signing-worker-harness")]
+        #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
         crate::SIGNING_WORKER_ED25519_SNAPSHOT_PATH_V1 => {
             if request.method() != Method::Post {
                 return Response::error("Ed25519 snapshot requires POST", 405);
@@ -162,7 +162,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
                 Err(error) => cloudflare_protocol_error_response_v1(error),
             }
         }
-        #[cfg(feature = "wallet-do-signing-worker-harness")]
+        #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
         crate::SIGNING_WORKER_ED25519_FENCE_PATH_V1 | crate::SIGNING_WORKER_ED25519_SETTLE_PATH_V1 => {
             if request.method() != Method::Post {
                 return Response::error("Ed25519 fence requires POST", 405);
@@ -182,7 +182,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
                 Err(error) => cloudflare_protocol_error_response_v1(error),
             }
         }
-        #[cfg(feature = "wallet-do-signing-worker-harness")]
+        #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
         crate::SIGNING_WORKER_POOL_FREEZE_PATH_V1 => {
             if request.method() != Method::Post {
                 return Response::error("Pool freeze requires POST", 405);

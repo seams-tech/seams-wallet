@@ -1725,7 +1725,7 @@ pub async fn tenant_root_deriver_fence_peer_pair_v1<Host: TenantRootDeriverHostV
 
 /// A wallet object that could not answer leaves its admission pending; the
 /// cleanup is retried.
-#[cfg(any(feature = "wallet-do-harness", feature = "wallet-do-b-harness"))]
+#[cfg(any(feature = "strict-worker-deriver-a-entrypoint", feature = "strict-worker-deriver-b-entrypoint"))]
 fn wallet_object_unreachable_error_v1(error: worker::Error) -> RouterAbProtocolError {
     RouterAbProtocolError::new(
         RouterAbProtocolErrorCode::LifecycleTransitionInProgress,
@@ -2012,7 +2012,7 @@ impl<'a> TenantRootDeriverHostV1 for CloudflareTenantRootDeriverHostV1<'a> {
         pair_object_name: &str,
         request: &crate::tenant_root_role_d1::TenantRootWalletPairReconcileRequestV1,
     ) -> RouterAbProtocolResult<crate::tenant_root_role_d1::TenantRootWalletPairReconciliationV1> {
-        #[cfg(feature = "wallet-do-harness")]
+        #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
         if matches!(self.worker_role, crate::CloudflareWorkerRoleV1::DeriverA) {
             return crate::durable_object::reconcile_deriver_a_wallet_pair_v1(
                 self.env,
@@ -2022,7 +2022,7 @@ impl<'a> TenantRootDeriverHostV1 for CloudflareTenantRootDeriverHostV1<'a> {
             .await
             .map_err(wallet_object_unreachable_error_v1);
         }
-        #[cfg(feature = "wallet-do-b-harness")]
+        #[cfg(feature = "strict-worker-deriver-b-entrypoint")]
         if matches!(self.worker_role, crate::CloudflareWorkerRoleV1::DeriverB) {
             return crate::durable_object::reconcile_deriver_b_wallet_pair_v1(
                 self.env,

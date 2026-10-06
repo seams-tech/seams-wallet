@@ -21,11 +21,11 @@ use crate::{
     CloudflareDeriverAWorkerRuntimeV1, CloudflareEd25519YaoPairExecuteResponseV1,
     CloudflareEd25519YaoPairWorkV1, CloudflareEd25519YaoTenantRootContextV2,
 };
-#[cfg(feature = "wallet-do-harness")]
+#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 use crate::tenant_root_role_d1::{
     TenantRootWalletPairReconcileRequestV1, TenantRootWalletPairReconciliationV1,
 };
-#[cfg(feature = "wallet-do-harness")]
+#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 use crate::{
     ed25519_yao_lifecycle::{
         execute_deriver_a_role, fail_deriver_b_pair_after_a_error_v1,
@@ -48,15 +48,15 @@ pub(crate) const SOURCE_FENCE_PATH: &str = "/router-ab/internal/deriver-a/wallet
 pub(crate) const PREPARATION_PATH: &str = "/router-ab/internal/deriver-a/wallet/prepare-relocation";
 
 const PAIR_DO_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair";
-#[cfg(feature = "wallet-do-harness")]
+#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 const PREPARE_WORK_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair/prepare-work";
-#[cfg(feature = "wallet-do-harness")]
+#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 const EXECUTE_WORK_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair/execute-work";
-#[cfg(feature = "wallet-do-harness")]
+#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 const STATUS_WORK_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair/status-work";
-#[cfg(feature = "wallet-do-harness")]
+#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 const BURN_WORK_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair/burn-work";
-#[cfg(feature = "wallet-do-harness")]
+#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 const RECONCILE_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair/reconcile";
 const PAIR_DO_BINDING: &str = "DERIVER_A_WALLET_DO";
 const OWNER_SCHEMA: &str = "
@@ -112,7 +112,7 @@ impl DeriverAWalletOwnerV1 {
         })
     }
 
-    #[cfg(feature = "wallet-do-harness")]
+    #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
     pub(crate) fn from_context(
         env: &Env,
         tenant_root: &CloudflareEd25519YaoTenantRootContextV2,
@@ -267,7 +267,7 @@ pub(crate) async fn call_deriver_a_pair_do_v1(
     response.json::<DeriverAPairDoResponseV1>().await
 }
 
-#[cfg(feature = "wallet-do-harness")]
+#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 pub(crate) async fn call_deriver_a_wallet_do_work_v1<T: Serialize>(
     env: &Env,
     path: &str,
@@ -286,7 +286,7 @@ pub(crate) async fn call_deriver_a_wallet_do_work_v1<T: Serialize>(
     stub.fetch_with_request(request).await
 }
 
-#[cfg(feature = "wallet-do-harness")]
+#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 pub(crate) async fn call_deriver_a_wallet_do_lookup_v1<T: Serialize>(
     env: &Env,
     path: &str,
@@ -308,22 +308,22 @@ pub(crate) async fn call_deriver_a_wallet_do_lookup_v1<T: Serialize>(
     stub.fetch_with_request(request).await
 }
 
-#[cfg(feature = "wallet-do-harness")]
+#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 pub(crate) const fn deriver_a_wallet_do_prepare_work_path_v1() -> &'static str {
     PREPARE_WORK_PATH
 }
 
-#[cfg(feature = "wallet-do-harness")]
+#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 pub(crate) const fn deriver_a_wallet_do_execute_work_path_v1() -> &'static str {
     EXECUTE_WORK_PATH
 }
 
-#[cfg(feature = "wallet-do-harness")]
+#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 pub(crate) const fn deriver_a_wallet_do_status_work_path_v1() -> &'static str {
     STATUS_WORK_PATH
 }
 
-#[cfg(feature = "wallet-do-harness")]
+#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 pub(crate) const fn deriver_a_wallet_do_burn_work_path_v1() -> &'static str {
     BURN_WORK_PATH
 }
@@ -435,29 +435,29 @@ impl DurableObject for RouterAbDeriverAWalletDurableObject {
                 let response = self.execute(command)?;
                 Response::from_json(&response)
             }
-            #[cfg(feature = "wallet-do-harness")]
+            #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
             PREPARE_WORK_PATH => {
                 let work: CloudflareEd25519YaoPairPrepareRequestV1 = request.json().await?;
                 let receipt = self.prepare_work(work).await?;
                 Response::from_json(&receipt)
             }
-            #[cfg(feature = "wallet-do-harness")]
+            #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
             EXECUTE_WORK_PATH => {
                 let work: CloudflareEd25519YaoPairExecuteRequestV1 = request.json().await?;
                 let outcome = self.execute_work(work).await?;
                 Response::from_json(&outcome)
             }
-            #[cfg(feature = "wallet-do-harness")]
+            #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
             STATUS_WORK_PATH => {
                 let lookup: CloudflareDeriverAWalletPairStatusRequestV1 = request.json().await?;
                 Response::from_json(&self.status_work(lookup)?)
             }
-            #[cfg(feature = "wallet-do-harness")]
+            #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
             BURN_WORK_PATH => {
                 let lookup: CloudflareDeriverAWalletPairBurnRequestV1 = request.json().await?;
                 Response::from_json(&self.burn_work(lookup)?)
             }
-            #[cfg(feature = "wallet-do-harness")]
+            #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
             RECONCILE_PATH => {
                 let reconcile: TenantRootWalletPairReconcileRequestV1 = request.json().await?;
                 Response::from_json(&self.reconcile(&reconcile)?)
@@ -475,7 +475,7 @@ impl RouterAbDeriverAWalletDurableObject {
     /// answered that it completed the pair or can no longer complete it, a
     /// claimed pair can be fenced too: this executor cannot complete without
     /// B.
-    #[cfg(feature = "wallet-do-harness")]
+    #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
     fn reconcile(
         &self,
         request: &TenantRootWalletPairReconcileRequestV1,
@@ -525,7 +525,7 @@ impl RouterAbDeriverAWalletDurableObject {
             .is_empty())
     }
 
-    #[cfg(feature = "wallet-do-harness")]
+    #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
     fn status_work(
         &self,
         request: CloudflareDeriverAWalletPairStatusRequestV1,
@@ -550,7 +550,7 @@ impl RouterAbDeriverAWalletDurableObject {
         })
     }
 
-    #[cfg(feature = "wallet-do-harness")]
+    #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
     fn burn_work(
         &self,
         request: CloudflareDeriverAWalletPairBurnRequestV1,
@@ -601,7 +601,7 @@ impl RouterAbDeriverAWalletDurableObject {
         }
     }
 
-    #[cfg(feature = "wallet-do-harness")]
+    #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
     async fn prepare_work(
         &self,
         request: CloudflareEd25519YaoPairPrepareRequestV1,
@@ -661,7 +661,7 @@ impl RouterAbDeriverAWalletDurableObject {
         }
     }
 
-    #[cfg(feature = "wallet-do-harness")]
+    #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
     async fn execute_work(
         &self,
         request: CloudflareEd25519YaoPairExecuteRequestV1,
@@ -1101,7 +1101,7 @@ impl RouterAbDeriverAWalletDurableObject {
         Ok(Some(selected))
     }
 
-    #[cfg(feature = "wallet-do-harness")]
+    #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
     fn read_scoped(
         &self,
         owner: &DeriverAWalletOwnerV1,
@@ -1248,7 +1248,7 @@ fn pair_record_lifecycle(record: &PairRecord) -> &'static str {
     }
 }
 
-#[cfg(feature = "wallet-do-harness")]
+#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 fn validate_session_hex(session_hex: &str) -> worker::Result<()> {
     if session_hex.len() != 64 || !session_hex.bytes().all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f')) {
         return Err(pair_error("Deriver A pair session must be 64 lowercase hex characters"));
@@ -1256,7 +1256,7 @@ fn validate_session_hex(session_hex: &str) -> worker::Result<()> {
     Ok(())
 }
 
-#[cfg(feature = "wallet-do-harness")]
+#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 fn pair_error_of(error: impl ToString) -> worker::Error {
     pair_error(error.to_string())
 }
@@ -1264,7 +1264,7 @@ fn pair_error_of(error: impl ToString) -> worker::Error {
 /// Asks the wallet object that holds one of this role's pair sessions to
 /// report it, and to fence it when asked
 /// ([`RouterAbDeriverAWalletDurableObject::reconcile`]).
-#[cfg(feature = "wallet-do-harness")]
+#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 pub(crate) async fn reconcile_deriver_a_wallet_pair_v1(
     env: &Env,
     object_name: &str,
@@ -1323,7 +1323,7 @@ fn initial_root_identity_digest(record: &PairRecord) -> worker::Result<String> {
     Ok(encode_hex(*digest.as_bytes()))
 }
 
-#[cfg(feature = "wallet-do-harness")]
+#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 fn pair_status(record: &PairRecord) -> CloudflareEd25519YaoPairStatusResponseV1 {
     let session = record.pair_binding().session();
     let pair_digest = record.pair_binding().pair_digest().bytes;
@@ -1354,7 +1354,7 @@ fn pair_status(record: &PairRecord) -> CloudflareEd25519YaoPairStatusResponseV1 
     }
 }
 
-#[cfg(feature = "wallet-do-harness")]
+#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 fn pair_outcome_status(record: &PairRecord) -> CloudflareDeriverAWalletPairOutcomeResponseV1 {
     let session = record.pair_binding().session();
     let pair_digest = record.pair_binding().pair_digest().bytes;
