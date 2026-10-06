@@ -5,11 +5,38 @@ pub(crate) const INTERNAL_PATH: &str =
     "/router-ab/internal/signing-worker/linked-ecdsa-presign-session/transfer";
 const IMPORT_KEY: &str = "linked-presign-relocation-import";
 
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct Preparation {
+    wallet_scope: crate::CloudflareSigningWorkerWalletScopeV1,
+    presign_session_id: String,
+    server_presignature_id: String,
+    request: crate::SigningWorkerRelocationIdentityV1,
+}
+
+impl Preparation {
+    fn from_source(command: &LinkedPresignRelocationRequest) -> Self {
+        Self {
+            wallet_scope: command.wallet_scope.clone(),
+            presign_session_id: command.presign_session_id.clone(),
+            server_presignature_id: command.server_presignature_id.clone(),
+            request: command.request.identity(),
+        }
+    }
+
+    fn validate(&self) -> RouterAbProtocolResult<()> {
+        self.wallet_scope.validate()?;
+        self.request.validate()?;
+        crate::require_non_empty("Linked presign session", &self.presign_session_id)?;
+        crate::require_non_empty("Linked server presignature", &self.server_presignature_id)
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub(crate) enum Command {
     Prepare {
-        command: LinkedPresignRelocationRequest,
+        command: Preparation,
         chunk_bytes: u32,
     },
     Import {
@@ -21,11 +48,19 @@ pub(crate) enum Command {
 }
 
 impl Command {
-    fn identity(&self) -> &LinkedPresignRelocationRequest {
+    fn validate(&self) -> RouterAbProtocolResult<()> {
         match self {
-            Self::Prepare { command, .. } => command,
-            Self::Import { chunk } => &chunk.receipt.command,
-            Self::Verify { receipt } => &receipt.command,
+            Self::Prepare { command, .. } => command.validate(),
+            Self::Import { chunk } => chunk.receipt.command.validate(),
+            Self::Verify { receipt } => receipt.command.validate(),
+        }
+    }
+
+    fn identity(&self) -> Preparation {
+        match self {
+            Self::Prepare { command, .. } => command.clone(),
+            Self::Import { chunk } => Preparation::from_source(&chunk.receipt.command),
+            Self::Verify { receipt } => Preparation::from_source(&receipt.command),
         }
     }
 }
@@ -34,7 +69,7 @@ impl Command {
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub(crate) enum Receipt {
     Prepared {
-        command: LinkedPresignRelocationRequest,
+        command: Preparation,
         chunk_bytes: u32,
     },
     Imported {
@@ -50,7 +85,7 @@ pub(crate) enum Receipt {
 #[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
 enum ImportState {
     Prepared {
-        command: LinkedPresignRelocationRequest,
+        command: Preparation,
         chunk_bytes: u32,
     },
     Importing {
@@ -86,7 +121,7 @@ pub(crate) async fn forward(
             return worker::Response::error("Linked presign transfer request is malformed", 400)
         }
     };
-    if let Err(error) = command.identity().validate() {
+    if let Err(error) = command.validate() {
         return presign_do_error_response(error);
     }
     let result: RouterAbProtocolResult<Receipt> =
@@ -112,7 +147,7 @@ pub(super) async fn handle(
         return Err(storage_error("Linked presign transfer requires POST"));
     }
     let command: Command = request.json().await.map_err(storage_error)?;
-    command.identity().validate()?;
+    command.validate()?;
     let outcome = Rc::new(RefCell::new(None));
     let result = Rc::clone(&outcome);
     storage
@@ -139,7 +174,7 @@ pub(super) async fn handle(
 
 async fn prepare(
     transaction: &worker::Transaction,
-    command: LinkedPresignRelocationRequest,
+    command: Preparation,
     chunk_bytes: u32,
 ) -> worker::Result<Receipt> {
     validate_chunk_bytes(chunk_bytes).map_err(transaction_error)?;
@@ -158,7 +193,7 @@ async fn prepare(
                 receipt,
                 chunk_bytes: size,
             },
-        ) if receipt.command == command && size == chunk_bytes => {}
+        ) if Preparation::from_source(&receipt.command) == command && size == chunk_bytes => {}
         None => {
             if transaction
                 .list_with_options(worker::ListOptions::new().limit(1))
@@ -170,15 +205,6 @@ async fn prepare(
                     "Linked presign import requires a fresh destination",
                 ));
             }
-            transaction
-                .put(
-                    FENCE_KEY,
-                    &LinkedPresignFenceReceipt {
-                        command: command.clone(),
-                        initialization: Initialization::DestinationPrepared,
-                    },
-                )
-                .await?;
             transaction
                 .put(
                     IMPORT_KEY,
@@ -244,7 +270,7 @@ async fn import(
         Some(ImportState::Prepared {
             command,
             chunk_bytes,
-        }) if command == chunk.receipt.command
+        }) if command == Preparation::from_source(&chunk.receipt.command)
             && chunk_bytes == chunk.chunk_bytes
             && chunk.segment_index == 0 => {}
         Some(ImportState::Importing {
@@ -391,6 +417,10 @@ async fn verify(
             }
         }
     }
+    transaction.put(FENCE_KEY, &LinkedPresignFenceReceipt {
+        command: receipt.command.clone(),
+        initialization: Initialization::Imported,
+    }).await?;
     transaction
         .put(
             SNAPSHOT_KEY,
@@ -410,4 +440,12 @@ async fn verify(
         )
         .await?;
     Ok(Receipt::Verified { receipt })
+}
+
+pub(super) async fn has_import(storage: &worker::Storage) -> RouterAbProtocolResult<bool> {
+    storage.get::<ImportState>(IMPORT_KEY).await.map(|state| state.is_some()).map_err(storage_error)
+}
+
+pub(super) async fn has_import_transaction(transaction: &worker::Transaction) -> worker::Result<bool> {
+    Ok(transaction_get_optional::<ImportState>(transaction, IMPORT_KEY).await?.is_some())
 }

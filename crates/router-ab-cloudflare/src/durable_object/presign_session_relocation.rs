@@ -181,7 +181,7 @@ pub(crate) struct LinkedPresignFenceReceipt {
 enum Initialization {
     Initialized,
     Registered { request_digest_hex: String },
-    DestinationPrepared,
+    Imported,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -633,7 +633,7 @@ async fn registered_initialization(
 }
 
 pub(super) async fn require_open(storage: &worker::Storage) -> RouterAbProtocolResult<()> {
-    if storage
+    if import::has_import(storage).await? || storage
         .get::<LinkedPresignFenceReceipt>(FENCE_KEY)
         .await
         .map_err(storage_error)?
@@ -651,7 +651,7 @@ pub(super) async fn require_open(storage: &worker::Storage) -> RouterAbProtocolR
 pub(super) async fn require_open_transaction(
     transaction: &worker::Transaction,
 ) -> worker::Result<()> {
-    if transaction_get_optional::<LinkedPresignFenceReceipt>(transaction, FENCE_KEY)
+    if import::has_import_transaction(transaction).await? || transaction_get_optional::<LinkedPresignFenceReceipt>(transaction, FENCE_KEY)
         .await?
         .is_some()
     {

@@ -468,8 +468,13 @@ together; they provide no legacy command path. ECDSA preparation now uses the sa
 timestamp-free move identity. Its first accepted chunk pins the complete source
 receipt. The Worker E2E verifies timestamp conflict rejection, destination signing
 before and after cleanup, and a return move prepared before its invalidation time.
-Linked-presign preparation still needs the same identity change before its adapter
-can be connected.
+Linked-presign preparation also uses the timestamp-free identity and binds both
+session identifiers. Durable import state closes destination writes before the
+source has frozen. Verification records the full frozen receipt for historical
+replay. The Worker scenario prepares the destination, rejects destination
+initialization, completes source presigning, and then assigns the invalidation
+time. It rejects a changed timestamp after the first imported segment. Production
+admission, participant adapters, and coordinator integration remain unfinished.
 
 The Router registration store now has a transactional source fence on both native
 SQLite and the wallet Durable Object. Its private freeze route requires the
