@@ -1,4 +1,4 @@
-import { buildWalletSessionAuthorizationHeaders } from '../../../core/rpcClients/relayer/relayerHttp';
+import { buildWalletHomeRoutingHeaders, buildWalletSessionAuthorizationHeaders } from '../../../core/rpcClients/relayer/relayerHttp';
 import { recordWalletCustodyTiming } from '@/core/signingEngine/walletCustody/ceremonyDriver';
 import { registrationSelectionIncludesNear } from './registrationSignerSet';
 import { walletSessionPreservesCapabilities } from '@shared/device-linking/activeWalletSession';
@@ -4446,7 +4446,7 @@ async function registerEmailOtpEd25519YaoWalletOnly(
         registrationCeremonyId: setup.registrationCeremonyId,
         signerPlanKind: 'near_ed25519',
         signedSetup: setup.signedSetup,
-        headers: registrationRouteHeaders(),
+        headers: { ...registrationRouteHeaders(), ...buildWalletHomeRoutingHeaders(setup.home) },
         kind: 'email_otp',
         emailOtpRegistrationProof: emailAuthority.proof,
       }),
@@ -4538,7 +4538,7 @@ async function registerEmailOtpEd25519YaoWalletOnly(
       registrationCeremonyId: setup.registrationCeremonyId,
       signerPlanKind: 'near_ed25519',
       signedSetup: setup.signedSetup,
-      headers: registrationRouteHeaders(),
+      headers: { ...registrationRouteHeaders(), ...buildWalletHomeRoutingHeaders(setup.home) },
       idempotencyKey: finalizeIdempotencyKey,
       emailOtpEnrollment: materialForActivate.emailOtpEnrollment,
     });
@@ -4589,7 +4589,7 @@ async function registerEmailOtpEd25519YaoWalletOnly(
         relayerUrl,
         registrationCeremonyId: setup.registrationCeremonyId,
         signedSetup: setup.signedSetup,
-        headers: registrationRouteHeaders(),
+        headers: { ...registrationRouteHeaders(), ...buildWalletHomeRoutingHeaders(setup.home) },
         /* Its own key: a separate effect from activate's. */
         idempotencyKey: nearProvisioningIdempotencyKey,
         ed25519: { activationReference: established.activationReference },
@@ -4885,7 +4885,10 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
       registrationCeremonyId: setup.registrationCeremonyId,
       signerPlanKind: 'near_ed25519',
       signedSetup: setup.signedSetup,
-      headers: registrationRouteHeaders(traceContext),
+      headers: {
+        ...registrationRouteHeaders(traceContext),
+        ...buildWalletHomeRoutingHeaders(setup.home),
+      },
       kind: 'passkey',
       webauthnRegistration: passkeyAuthority.webauthnRegistration,
     });
@@ -4988,7 +4991,10 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
       registrationCeremonyId: setup.registrationCeremonyId,
       signerPlanKind: 'near_ed25519',
       signedSetup: setup.signedSetup,
-      headers: registrationRouteHeaders(traceContext),
+      headers: {
+        ...registrationRouteHeaders(traceContext),
+        ...buildWalletHomeRoutingHeaders(setup.home),
+      },
       idempotencyKey: finalizeIdempotencyKey,
     });
     registrationTiming.markNearStage(setup.registrationCeremonyId, 'near_only.activate');
@@ -5051,7 +5057,10 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
       relayerUrl,
       registrationCeremonyId: setup.registrationCeremonyId,
       signedSetup: setup.signedSetup,
-      headers: registrationRouteHeaders(traceContext),
+      headers: {
+        ...registrationRouteHeaders(traceContext),
+        ...buildWalletHomeRoutingHeaders(setup.home),
+      },
       idempotencyKey: nearProvisioningIdempotencyKey,
       ed25519: { activationReference: established.activationReference },
       auth: { kind: 'passkey' },

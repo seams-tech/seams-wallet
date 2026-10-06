@@ -1,3 +1,4 @@
+import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import type { SponsoredNamedNearAccountInput } from '../near/d1SponsoredNearAccount';
 import {
   completeRegistrationReservation,
@@ -1990,7 +1991,10 @@ export class CloudflareD1WalletRegistrationService {
   private readonly getLinkedDeviceEd25519AuthorityReader: () => D1LinkedDeviceEd25519AuthorityReaderV1 | null;
   private readonly yaoLifecycleDecisions: CloudflareD1Ed25519YaoLifecycleDecisionStoreV1;
 
+  private readonly home: WalletSessionHome;
+
   constructor(input: {
+    readonly home: WalletSessionHome;
     readonly registrationAuthority: WalletRegistrationReservationAuthority | null;
     readonly authorizationService: AuthorizationService;
     readonly authorizationTenantId: TenantId;
@@ -2009,6 +2013,7 @@ export class CloudflareD1WalletRegistrationService {
     readonly getLinkedDeviceEd25519AuthorityReader: () => D1LinkedDeviceEd25519AuthorityReaderV1 | null;
     readonly yaoLifecycleDecisions: CloudflareD1Ed25519YaoLifecycleDecisionStoreV1;
   }) {
+    this.home = input.home;
     this.registrationAuthority = input.registrationAuthority;
     this.authorizationService = input.authorizationService;
     this.authorizationTenantId = input.authorizationTenantId;
@@ -3057,6 +3062,7 @@ export class CloudflareD1WalletRegistrationService {
     input: WalletRegistrationSetupInput,
   ): Promise<WalletRegistrationSetupResponseV2> {
     return executeD1WalletRegistrationSetup(input, {
+      home: this.home,
       reservation: this.registrationAuthority,
       store: this.getRegistrationCeremonyIntentStore(),
       ecdsaStrictRegistration: this.ecdsaStrictRegistration,

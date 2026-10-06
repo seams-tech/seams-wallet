@@ -1009,3 +1009,38 @@ Wallet Session, lost initial setup, and post-MPC relocation races remain separat
 
 Evidence and final command results are recorded in
 [the retry evidence](./evidence/r155b-registration-retry-20261007.json).
+
+
+### NEAR-only setup home and lost-response recovery — October 7, 2026
+
+Setup now returns a required `home` using the existing direct/regional routing
+union. The value comes from the admitted Gateway's routing publisher. The SDK
+parses it at the response boundary. Passkey and Email OTP NEAR-only respond,
+activation and provisioning requests carry the home hint before a Wallet Session
+exists. The hint grants no authority; normal setup and local-generation checks remain.
+
+The composed passkey test discards the successful provisioning reply at US and
+replays the unchanged request through WEUR with Console unavailable. An unauthenticated
+NEAR-only replay correctly requires exact-method unlock; the replay never issues a
+replacement operation credential. Testing exposed a separate startup recovery gap:
+credential-free publication demanded a session that the lost response never delivered.
+For that exact NEAR-only pending completion, missing-session recovery now atomically
+publishes the committed identity and sealed material, creates a locked selection when
+needed, and removes its completed journal. It installs no session or credential.
+Existing selections remain unchanged. Corrupt/future session storage still rejects.
+Mixed-wallet publication still requires its exact existing session.
+
+The test then permits Console for the explicit fresh unlock and disables it again
+for three NEAR signatures through WEUR, APAC and OC. This separates registration
+recovery from the routine signing outage claim. The harness injects the lost-reply
+retry; it does not prove automatic SDK network retries. Email OTP header propagation
+is implemented, but this passkey test does not establish OTP outage support.
+
+The final composed run passed both scenarios (1.4 minutes): six independently
+verified NEAR signatures, with zero Console calls during replay and signing.
+SDK/server types and builds, type fixtures, and bloat checks passed.
+
+[Verification evidence](./evidence/r155b-near-only-home-20261007.json) records the
+commands and scope. Yao admission/execution transport home hints, persisted pre-session
+routing metadata, global OTP counters, relocation races and hosted acceptance remain
+outside this slice and require their own completion evidence.

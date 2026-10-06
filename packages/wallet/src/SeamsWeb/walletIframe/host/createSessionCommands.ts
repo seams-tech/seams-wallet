@@ -1,6 +1,7 @@
 import { unlockPendingRegistration } from '@/SeamsWeb/operations/auth/unlockPendingRegistration';
 import {
   readPendingEcdsaRegistrationForWallet,
+  resumePendingNearRegistrations,
   type PendingRegistrationRecoverySigningSurface,
 } from '@/SeamsWeb/operations/registration/pendingRegistrationRecovery';
 import type { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
@@ -75,13 +76,21 @@ function walletUnlockCapabilityScope(
 }
 
 async function requireWalletUnlockSubjectSet(args: {
+  relayerUrl: string;
   walletId: string;
   selection: LoginHooksOptions['unlockSelection'] | undefined;
 }): Promise<WalletUnlockSubjectSet> {
-  const resolution = await resolveWalletUnlockSubjectSet({
+  let resolution = await resolveWalletUnlockSubjectSet({
     walletId: args.walletId,
     requestedCapabilityFamilies: walletUnlockCapabilityScope(args.selection),
   });
+  if (resolution.kind === 'missing_requested_capability_subject') {
+    await resumePendingNearRegistrations({ relayerUrl: args.relayerUrl });
+    resolution = await resolveWalletUnlockSubjectSet({
+      walletId: args.walletId,
+      requestedCapabilityFamilies: walletUnlockCapabilityScope(args.selection),
+    });
+  }
   switch (resolution.kind) {
     case 'resolved':
       return resolution.subjectSet;
@@ -121,6 +130,7 @@ async function unlock(
   if (pending) return await unlockPendingRegistration({ context, pending, options });
 
   const subjectSet = await requireWalletUnlockSubjectSet({
+    relayerUrl: context.configs.network.relayer.url,
     walletId: resolvedWalletId,
     selection: options?.unlockSelection,
   });

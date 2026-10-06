@@ -1,3 +1,5 @@
+import { parseWalletSessionHome } from '@shared/device-linking/activeWalletSession';
+import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import {
   registrationSetupRepository,
   registrationSetupScopeDigest,
@@ -637,6 +639,7 @@ export type WalletRegistrationStartResponse = WalletRegistrationStartResponseBas
  * challenge the WebAuthn create must sign.
  */
 type WalletRegistrationSetupSuccessBase = {
+  readonly home: WalletSessionHome;
   ok: true;
   registrationCeremonyId: string;
   walletId: WalletId;
@@ -2343,6 +2346,7 @@ function parseWalletRegistrationSetupResponseV2(value: unknown): WalletRegistrat
       'registrationIntentDigestB64u',
       'intent',
       'signedSetup',
+      'home',
       'kind',
       ...(carriesEcdsa ? ['ecdsa'] : []),
     ],
@@ -2380,6 +2384,7 @@ function parseWalletRegistrationSetupResponseV2(value: unknown): WalletRegistrat
   } catch {
     throw new Error(`${responseName} response has an invalid registrationIntentDigestB64u`);
   }
+  const home = parseWalletSessionHome(readWalletRegistrationResponseField(response, 'home', responseName));
   const signedSetup = readWalletRegistrationResponseField(response, 'signedSetup', responseName);
   if (typeof signedSetup !== 'string' || !signedSetup.trim()) {
     throw new Error(`${responseName} response missing signedSetup`);
@@ -2396,6 +2401,7 @@ function parseWalletRegistrationSetupResponseV2(value: unknown): WalletRegistrat
       registrationIntentDigestB64u,
       intent,
       signedSetup,
+      home,
       kind: 'near_ed25519',
     };
   }
@@ -2420,6 +2426,7 @@ function parseWalletRegistrationSetupResponseV2(value: unknown): WalletRegistrat
     registrationIntentDigestB64u,
     intent,
     signedSetup,
+    home,
     kind,
     ecdsa,
   };

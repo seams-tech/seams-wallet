@@ -1,3 +1,4 @@
+import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import type {
   WalletRegistrationEcdsaPreparePayload,
@@ -192,6 +193,7 @@ export type WalletRegistrationRouteErrorV2 = {
  * both methods.
  */
 type WalletRegistrationSetupSuccessBase = {
+  readonly home: WalletSessionHome;
   ok: true;
   registrationCeremonyId: string;
   walletId: string;

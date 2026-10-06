@@ -538,6 +538,7 @@ type WalletRegistrationSessionPublicationV1 =
   | {
       readonly kind: 'credential_free_projection';
       readonly walletSession: ActiveWalletSessionV1;
+      readonly operationCredential?: never;
     };
 
 export type PublishPendingWalletRegistrationCommitInputV1 = {
@@ -4868,7 +4869,7 @@ export class SeamsWalletRepositories {
 
   private async persistFoundingWalletAuthorityInTransaction(
     input: ValidatedFoundingWalletAuthorityInputV1,
-    selectionPolicy: 'activate' | 'preserve',
+    selectionPolicy: 'activate' | 'preserve' | 'restore_locked',
     ctx: SeamsWalletTransactionContext,
   ): Promise<void> {
     if (selectionPolicy === 'preserve') {
@@ -4891,6 +4892,21 @@ export class SeamsWalletRepositories {
       await walletAuthMethodV2StorageRowForStore(authMethodStore, input.authMethod),
     );
     if (selectionPolicy === 'preserve') return;
+    if (selectionPolicy === 'restore_locked') {
+      const selections = ctx.store(SEAMS_WALLET_STORES.walletSelections);
+      const existing = await selections.get(input.authority.walletId);
+      if (!existing) {
+        await selections.put(walletSelectionStorageRow({
+          kind: 'wallet_selection_v1',
+          walletId: input.authority.walletId,
+          walletAuthMethodId: input.authMethod.walletAuthMethodId,
+          lockGeneration: 0,
+          lockState: 'locked',
+          updatedAtMs: input.authMethod.activatedAtMs,
+        }));
+      }
+      return;
+    }
     await ctx.store(SEAMS_WALLET_STORES.walletSelections).put(
       walletSelectionStorageRow({
         kind: 'wallet_selection_v1',
@@ -7301,8 +7317,9 @@ export class SeamsWalletRepositories {
     ) {
       throw new Error('stored pending wallet registration commit does not match the expected row');
     }
-    let credentialFreeSessionReconciled = false;
+    let sessionPublication: 'issued' | 'reconciled' | 'locked_identity';
     if (input.walletSessionPublication.kind === 'issued') {
+      sessionPublication = 'issued';
       await replaceExactActiveWalletSessionAuthorizationInTransaction({
         ctx,
         active: input.walletSessionPublication.walletSession,
@@ -7315,31 +7332,58 @@ export class SeamsWalletRepositories {
         authorityId: input.foundingAuthority.authority.authorityId,
         authMethodId: input.pending.walletAuthMethodId,
       });
-      if (existingSession.kind !== 'found') {
-        throw new Error(
-          'Credential-free registration projection has no exact local Wallet Session',
-        );
+      switch (existingSession.kind) {
+        case 'found':
+          assertCredentialFreeRegistrationSessionProjectionMatchesExisting({
+            incoming: input.walletSessionPublication.walletSession,
+            existing: existingSession.record,
+          });
+          await replaceExactActiveWalletSessionAuthorizationInTransaction({
+            ctx,
+            active: input.walletSessionPublication.walletSession,
+            operationCredential: existingSession.operationCredential,
+          });
+          sessionPublication = 'reconciled';
+          break;
+        case 'missing':
+          if (
+            input.pending.operation !== 'near_provisioning' ||
+            input.pending.signerPlanKind !== 'near_ed25519'
+          ) {
+            throw new Error('Credential-free registration projection has no exact local Wallet Session');
+          }
+          // A lost first reply can restore identity for unlock without issuing a session.
+          // No replayed session or operation credential is installed.
+          sessionPublication = 'locked_identity';
+          break;
+        case 'corrupt':
+        case 'upgrade_required':
+          throw new Error('Credential-free registration projection cannot read the exact local Wallet Session');
+        default:
+          return assertNever(existingSession);
       }
-      assertCredentialFreeRegistrationSessionProjectionMatchesExisting({
-        incoming: input.walletSessionPublication.walletSession,
-        existing: existingSession.record,
-      });
-      await replaceExactActiveWalletSessionAuthorizationInTransaction({
-        ctx,
-        active: input.walletSessionPublication.walletSession,
-        operationCredential: existingSession.operationCredential,
-      });
-      credentialFreeSessionReconciled = true;
     }
     const result = await this.persistWalletRegistrationFinalizeInTransaction(
       input.registration,
       ctx,
     );
+    let selectionPolicy: 'activate' | 'preserve' | 'restore_locked';
+    switch (sessionPublication) {
+      case 'issued':
+        selectionPolicy = 'activate';
+        break;
+      case 'reconciled':
+        selectionPolicy = 'preserve';
+        break;
+      case 'locked_identity':
+        selectionPolicy = 'restore_locked';
+        break;
+      default:
+        return assertNever(sessionPublication);
+    }
     await this.persistFoundingWalletAuthorityInTransaction(
       input.foundingAuthority,
-      input.walletSessionPublication.kind === 'credential_free_projection'
-        ? 'preserve'
-        : 'activate',
+      selectionPolicy,
       ctx,
     );
     for (const continuity of input.ecdsaContinuity) {
@@ -7347,9 +7391,8 @@ export class SeamsWalletRepositories {
     }
     const shouldDeletePending =
       input.deletePending &&
-      (input.walletSessionPublication.kind === 'issued'
-        ? shouldDeletePublishedPendingWalletRegistrationCommit(input.pending)
-        : credentialFreeSessionReconciled);
+      (sessionPublication !== 'issued' ||
+        shouldDeletePublishedPendingWalletRegistrationCommit(input.pending));
     if (shouldDeletePending) {
       await ctx.store(SEAMS_WALLET_STORES.appState).delete(pendingKey);
     }

@@ -1,3 +1,4 @@
+import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import { deriveSigningRootId } from '@shared/threshold/signingRootScope';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import {
@@ -37,6 +38,7 @@ import {
 export async function executeD1WalletRegistrationSetup(
   input: WalletRegistrationSetupInput,
   dependencies: {
+    readonly home: WalletSessionHome;
     readonly reservation: WalletRegistrationReservationAuthority | null;
     readonly store: CloudflareD1RegistrationCeremonyIntentStore;
     readonly ecdsaStrictRegistration: RouterAbEcdsaStrictRegistrationPort;
@@ -112,7 +114,7 @@ export async function executeD1WalletRegistrationSetup(
           'Registration setup conflicts with its reservation',
         );
       if (admitted.lifecycle === 'reserved') await dependencies.store.ensureSetupCeremony(existing);
-      return await setupResponseFromCeremony(input, existing);
+      return await setupResponseFromCeremony(input, dependencies.home, existing);
     }
     if (admitted.lifecycle === 'established')
       return walletRegistrationSetupError(
@@ -210,7 +212,7 @@ export async function executeD1WalletRegistrationSetup(
       signerState: { kind: 'signer_set_registration', branches: storedBranches },
     };
     const stored = await dependencies.store.reserveSetupCeremony(ceremony);
-    return await setupResponseFromCeremony(input, stored);
+    return await setupResponseFromCeremony(input, dependencies.home, stored);
   } catch (error: unknown) {
     return walletRegistrationSetupError(
       'internal',
@@ -221,6 +223,7 @@ export async function executeD1WalletRegistrationSetup(
 
 async function setupResponseFromCeremony(
   input: WalletRegistrationSetupInput,
+  home: WalletSessionHome,
   ceremony: StoredWalletRegistrationCeremony,
 ): Promise<WalletRegistrationSetupResponseV2> {
   const { signedSetup } = await buildWalletRegistrationSetupSignature({
@@ -231,6 +234,7 @@ async function setupResponseFromCeremony(
   const branches = registrationIntentSignerBranches(ceremony.intent);
   if (!branches.ok) return branches;
   const success = {
+    home,
     ok: true as const,
     registrationCeremonyId: ceremony.registrationCeremonyId,
     walletId: String(ceremony.intent.walletId),

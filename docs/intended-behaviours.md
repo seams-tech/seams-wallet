@@ -423,6 +423,15 @@ throughout the resize. Reduced-motion behavior remains immediate.
 
 ### Registration setup delivery
 
+- After a lost NEAR-only completion reply, credential-free replay may restore
+  the committed wallet identity and sealed local material for exact-method unlock.
+  When no local session exists, restoration creates a locked selection and installs
+  no Wallet Session or operation credential. Publication and journal removal are
+  atomic. Existing selections remain unchanged; corrupt session records fail closed.
+- Successful setup returns its required `home`: either a direct endpoint or an
+  existing regional home. NEAR-only respond, activation and provisioning carry
+  that routing hint before a Wallet Session exists. The hint selects a handler;
+  the signed setup, tenant binding and current local authority still authorize work.
 - Before the first setup request, the SDK durably records a random
   `registrationOperationId`, scoped to Gateway URL, publishable key, environment
   and the normalized registration request. Matching retries and concurrent tabs

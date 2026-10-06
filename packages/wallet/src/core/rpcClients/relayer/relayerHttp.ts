@@ -1,3 +1,4 @@
+import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking/contracts';
 import { isPlainObject } from '@shared/utils/validation';
 import { stripTrailingSlashes } from '@shared/utils/normalize';
@@ -44,11 +45,15 @@ export function buildWalletSessionAuthorizationHeaders(
     token: credential.token,
     missingMessage: 'Wallet Session token is required',
   });
-  switch (credential.home.kind) {
+  return { ...headers, ...buildWalletHomeRoutingHeaders(credential.home) };
+}
+
+export function buildWalletHomeRoutingHeaders(home: WalletSessionHome): Record<string, string> {
+  switch (home.kind) {
     case 'direct':
-      return headers;
+      return {};
     case 'regional':
-      return { ...headers, 'X-Seams-Wallet-Region': credential.home.region };
+      return { 'X-Seams-Wallet-Region': home.region };
   }
 }
 

@@ -1373,6 +1373,7 @@ function createCloudflareD1RouterApiAuthAssembly(
   const walletCustodyCommitStore = createD1WalletCustodyStore(options);
   const signedDelegateExecutor = new CloudflareD1SignedDelegateExecutor(options);
   const walletRegistrations = new CloudflareD1WalletRegistrationService({
+    home: options.sessionRouting?.home() ?? { kind: 'direct' },
     registrationAuthority: options.registrationAuthority ?? null,
     authorizationService,
     authorizationTenantId: authorizationTenantId.value,
