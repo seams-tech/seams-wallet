@@ -1,6 +1,6 @@
 {
   "kind": "local_session_routing_evidence_v1",
-  "productionBundleSha256": "a20416081f5f5794900297cdcb21ceaf76d3ac9e7decc3d6eb366124aae1490e",
+  "productionBundleSha256": "9ae988c81d769d57bafae592c2a668477bb3696f0c4939947cb8d27df772daf1",
   "localCredentialConsoleCalls": 0,
   "directAndHostedCredentialsFound": true,
   "exchangeFound": true,
@@ -16,5 +16,6 @@
   "arbitraryRoutingTargetRejected": true,
   "browserRoutingMetadataAllowedAndExposed": true,
   "issuedAndHostedCredentialsRetainRegionalHome": true,
-  "restoredSdkCredentialEmitsRegionalHint": true
+  "restoredSdkCredentialEmitsRegionalHint": true,
+  "exchangeIframePayloadRetainsHome": true
 }

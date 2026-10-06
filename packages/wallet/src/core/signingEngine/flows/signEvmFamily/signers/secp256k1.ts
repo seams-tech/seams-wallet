@@ -45,11 +45,16 @@ function routerAbTransportCredential(
 ): RouterAbOwnerNormalSigningCredential {
   switch (credential.kind) {
     case 'reusable_wallet_session':
-      return { kind: 'wallet_session_opaque', walletSessionToken: credential.walletSessionToken };
+      return {
+        kind: 'wallet_session_opaque',
+        walletSessionToken: credential.walletSessionToken,
+        home: credential.home,
+      };
     case 'operation_step_up':
       return {
         kind: 'wallet_session_opaque',
         walletSessionToken: credential.walletSessionToken,
+        home: credential.home,
       };
   }
   credential satisfies never;

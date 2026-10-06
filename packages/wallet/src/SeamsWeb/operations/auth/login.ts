@@ -1,3 +1,4 @@
+import { parseWalletSessionHome } from '@shared/device-linking/activeWalletSession';
 import { emitUnlockEvent, finalizeLoginSuccess, finalizeLoginError } from './unlockCompletion';
 import { resolveUnlockSessionPolicy } from './unlockSessionPolicy';
 import { buildAnonymousWalletSession } from '@/SeamsWeb/publicApi/session';
@@ -1450,6 +1451,7 @@ function parseLoginEcdsaInventoryOperationCredential(
   }
   return {
     kind: value.kind,
+    home: parseWalletSessionHome(value.home),
     token: value.token,
     walletSessionId: walletSessionId.value,
   };
@@ -5680,6 +5682,7 @@ async function openAndActivatePasskeyEd25519CustodyLogin(
       signingRootVersion: capability.lifecycle.rootShareEpoch,
       routerAbNormalSigning: input.routerAbNormalSigning,
       walletSessionToken: requireLoginWarmEd25519OperationCredential(input.walletSession).token,
+      home: requireLoginWarmEd25519OperationCredential(input.walletSession).home,
       nowMs: Math.min(Date.now(), input.walletSession.expiresAtMs - 1),
     });
     if (!signingWalletSession.ok) {

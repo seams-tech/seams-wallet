@@ -103,6 +103,7 @@ const callbackBearingExternalRequest: HostedAuthMenuExternalAuthRequest = {
 void callbackBearingExternalRequest;
 
 const hostedRedemption = buildPMRedeemHostedWalletSeamsSessionPayload({
+  home: { kind: 'direct' },
   exchangeCode: 'exchange-code',
   nonce: 'exchange-nonce',
   appOrigin: 'https://app.example.test',
@@ -113,6 +114,7 @@ const exactHostedRedemption: PMRedeemHostedWalletSeamsSessionPayload = hostedRed
 void exactHostedRedemption;
 
 buildPMRedeemHostedWalletSeamsSessionPayload({
+  home: { kind: 'direct' },
   exchangeCode: 'exchange-code',
   nonce: 'exchange-nonce',
   appOrigin: 'https://app.example.test',
@@ -123,6 +125,7 @@ buildPMRedeemHostedWalletSeamsSessionPayload({
 });
 
 const unbrandedHostedRedemption: PMRedeemHostedWalletSeamsSessionPayload = {
+  home: { kind: 'direct' },
   // @ts-expect-error Exchange codes enter through the hosted redemption builder/parser.
   exchangeCode: 'exchange-code',
   // @ts-expect-error Exchange nonces enter through the hosted redemption builder/parser.

@@ -659,6 +659,7 @@ export async function createEvmFamilySigningFlowRuntime(
                 prepared,
                 material,
                 walletSessionToken: session.credential.token,
+                home: session.credential.home,
               });
             },
           },

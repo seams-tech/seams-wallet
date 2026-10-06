@@ -469,6 +469,7 @@ export async function handleHostedWalletSessionExchangeIssue(
       ok: true,
       delivery: {
         exchangeCode: delivery.exchangeCode,
+        home: delivery.home,
         nonce: delivery.nonce,
         appOrigin: delivery.appOrigin,
         walletOrigin: delivery.walletOrigin,

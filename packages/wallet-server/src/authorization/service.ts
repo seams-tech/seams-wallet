@@ -348,6 +348,7 @@ export class AuthorizationService {
     });
     return {
       kind: 'hosted_wallet_session_exchange_delivery_v2',
+      home: this.ports.sessionRouting?.home() ?? { kind: 'direct' },
       exchangeCode,
       nonce,
       appOrigin: input.appOrigin,

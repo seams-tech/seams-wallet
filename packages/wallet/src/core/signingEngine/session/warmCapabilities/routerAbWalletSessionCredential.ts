@@ -119,6 +119,7 @@ export function requireRouterAbEd25519NormalSigningReadyState(args: {
     credential: {
       kind: 'wallet_session_opaque',
       walletSessionToken,
+      home: signingWalletSession.auth.credential.home,
     },
   };
 }

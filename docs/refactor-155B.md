@@ -189,7 +189,7 @@ must not be enabled before this gate passes.
 
 - [ ] Add region metadata to existing registration/session issuance and restore
   boundaries. Update shared types, SDK persistence, transport, and response parsers together.
-- [ ] Forward through existing regional bindings using catalog-validated hints.
+- [x] Forward through existing regional bindings using catalog-validated hints.
   Preserve the public entrypoint and enforce a bounded forwarding path.
 - [ ] Authenticate locally and reject wrong wallet, tenant, resource, generation,
   revoked session, and frozen-home combinations.
@@ -441,3 +441,25 @@ pass; bloat checks pass. The retained local-session artifact records this bounda
 Remaining SDK work includes normal-signing and refill credential projections, hosted
 request consumers, exchange routing before redemption, and complete linked-device and
 reload acceptance. Do not treat this checkpoint as full client routing completion.
+
+## Signing, refill, and exchange propagation — October 6, 2026
+
+The SDK now requires home metadata in both ECDSA and Ed25519 protocol credentials.
+Owner, linked-device, login-prefill, recovery, restore, and step-up projections retain
+that metadata. Prepare/finalize, presignature pool requests, and Ed25519 step-up use
+the shared session-header builder. Existing prepare-based session reconciliation remains.
+
+Hosted exchange issuance returns the home. Its response parser, iframe message, and
+redemption request retain it. Both exchange minting and redemption send the regional hint.
+Hosted credential inventory requests also retain the home. Linked-device encrypted
+delivery now requires the canonical credential type instead of a handwritten subset.
+
+Public server and SDK type checks, private server type checks, and the focused routing
+E2E pass. The E2E also verifies home preservation across the exchange iframe payload.
+Bloat checks pass. The intended browser registration/refresh and mixed ECDSA/Ed25519
+signing cases are running against the local backend; no browser result is claimed yet.
+This remains an implementation checkpoint, not full regional MPC outage acceptance.
+
+Remaining gates include bounded stale-route rediscovery, registration continuation
+admission, custody/deferred-path review, complete outage/concurrency acceptance, and
+the hosted ECDSA/Ed25519 comparison. No new latency result is claimed.

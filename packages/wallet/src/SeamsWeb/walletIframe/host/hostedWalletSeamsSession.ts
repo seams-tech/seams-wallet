@@ -226,7 +226,12 @@ export async function redeemHostedWalletSeamsSession(
     joinNormalizedUrl(requestedRelayUrl, '/wallet/session/exchange/redeem'),
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(payload.home.kind === 'regional'
+          ? { 'X-Seams-Wallet-Region': payload.home.region }
+          : {}),
+      },
       body: redemptionBody(payload),
     },
   );

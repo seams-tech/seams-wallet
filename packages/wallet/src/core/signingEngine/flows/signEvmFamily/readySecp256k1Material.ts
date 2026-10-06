@@ -1,3 +1,4 @@
+import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import type { SignRequest, SignatureBytes } from '../../interfaces/signing';
 import type { EvmFamilyThresholdEcdsaOperation } from './thresholdAdmission';
 import type { OperationDigestSet } from '@shared/authorization/operationFingerprint';
@@ -60,11 +61,13 @@ export type ReusableEcdsaSigningAuthorization = Extract<
 type ReusableEcdsaSigningCredential = {
   readonly kind: 'reusable_wallet_session';
   readonly walletSessionToken: string;
+  readonly home: WalletSessionHome;
 };
 
 type OperationStepUpEcdsaSigningCredential = {
   readonly kind: 'operation_step_up';
   readonly walletSessionToken: string;
+  readonly home: WalletSessionHome;
 };
 
 type ReadySecp256k1SigningMaterialBase = {
@@ -356,6 +359,7 @@ export function attachExactEcdsaWalletSessionAuthorization(args: {
     credential: {
       kind: 'reusable_wallet_session',
       walletSessionToken: operationCredential.token,
+      home: operationCredential.home,
     },
     expiresAtMs: session.expiresAtMs,
     singleUseEmailOtpSession: false,
@@ -443,6 +447,7 @@ export function buildActiveWalletAuthorityReadySecp256k1Material(args: {
     credential: {
       kind: 'reusable_wallet_session',
       walletSessionToken: operationCredential.token,
+      home: operationCredential.home,
     },
     expiresAtMs: session.expiresAtMs,
     singleUseEmailOtpSession: false,

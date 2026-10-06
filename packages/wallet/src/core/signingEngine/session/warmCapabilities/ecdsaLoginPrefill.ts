@@ -113,6 +113,7 @@ export async function scheduleRouterAbEcdsaDerivationLoginPresignaturePrefill(
       credential: {
         kind: 'wallet_session_opaque',
         walletSessionToken: operationCredential.token,
+        home: operationCredential.home,
       },
       authorization: {
         kind: 'reusable_wallet_session',

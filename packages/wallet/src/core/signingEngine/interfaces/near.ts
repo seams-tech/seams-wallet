@@ -1,3 +1,4 @@
+import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import type { SignedTransaction } from '@/core/rpcClients/near/NearClient';
 import type { AccountId } from '@/core/types/accountIds';
 import type { TransactionInputWasm } from '@/core/types/actions';
@@ -49,6 +50,7 @@ import type { SigningOperationStateRef } from '../flows/shared/signingStateMachi
 import type { ExclusiveUnion } from '@shared/utils/variant';
 type NearResolvedEd25519WalletSessionAuth = {
   kind: 'wallet_session_opaque';
+  home: WalletSessionHome;
   walletSessionToken: string;
 };
 

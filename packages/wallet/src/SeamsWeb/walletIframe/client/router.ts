@@ -1,3 +1,6 @@
+import { createIframePlacementCommands } from './placementCommands';
+import { parseWalletSessionHome } from '@shared/device-linking/activeWalletSession';
+import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import type { AuthCapability } from '@/SeamsWeb/publicApi/types';
 import type {
   SigningEngineResolveExactKeyExportLaneInput as ResolveExactKeyExportLaneInput,
@@ -836,6 +839,7 @@ type HostedWalletSeamsSessionSource = {
 };
 
 type HostedWalletSeamsSessionExchangeDelivery = {
+  readonly home: WalletSessionHome;
   readonly exchangeCode: string;
   readonly nonce: string;
   readonly appOrigin: string;
@@ -905,6 +909,7 @@ function parseHostedWalletExchangeDelivery(
     throw new Error('session exchange response must contain one delivery');
   }
   const deliveryFields = new Set([
+    'home',
     'exchangeCode',
     'nonce',
     'appOrigin',
@@ -929,6 +934,7 @@ function parseHostedWalletExchangeDelivery(
     throw new Error('session exchange delivery is expired');
   }
   return {
+    home: parseWalletSessionHome(delivery.home),
     exchangeCode: requireCompactExchangeValue(delivery.exchangeCode, 'delivery.exchangeCode'),
     nonce: requireCompactExchangeValue(delivery.nonce, 'delivery.nonce'),
     appOrigin,
@@ -1243,6 +1249,7 @@ function assertNeverSdkLifecycleEventName(value: never): never {
 }
 
 export class WalletIframeRouter {
+  readonly placement = createIframePlacementCommands(this.post.bind(this));
   private readonly walletSessionReads = new Map<string, Promise<WalletSession>>();
   private opts: Required<WalletIframeRouterOptions>;
   // Low-level transport handling iframe mount + handshake
@@ -2603,6 +2610,9 @@ export class WalletIframeRouter {
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${operationCredential.token}`,
+        ...(operationCredential.home.kind === 'regional'
+          ? { 'X-Seams-Wallet-Region': operationCredential.home.region }
+          : {}),
       },
       body: JSON.stringify({
         appOrigin,
@@ -2619,6 +2629,7 @@ export class WalletIframeRouter {
       type: 'PM_REDEEM_HOSTED_WALLET_SEAMS_SESSION',
       payload: buildPMRedeemHostedWalletSeamsSessionPayload({
         exchangeCode: delivery.exchangeCode,
+        home: delivery.home,
         nonce: delivery.nonce,
         appOrigin: delivery.appOrigin,
         walletOrigin: delivery.walletOrigin,

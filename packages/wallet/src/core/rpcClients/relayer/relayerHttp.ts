@@ -37,7 +37,7 @@ export function buildRelayerJsonPostRequestInit(args: {
 }
 
 export function buildWalletSessionAuthorizationHeaders(
-  credential: WalletSessionOperationCredentialV1,
+  credential: Pick<WalletSessionOperationCredentialV1, 'token' | 'home'>,
 ): Record<string, string> {
   const headers = buildBearerAuthorizationHeader({
     token: credential.token,

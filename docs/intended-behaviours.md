@@ -454,6 +454,21 @@ throughout the resize. Reduced-motion behavior remains immediate.
   Shared identity routing, deployment-set activation, expiry reconciliation and
   explicit fresh attempts remain release gates.
 
+### Established-session home routing
+
+- Issued primary and hosted credentials include an explicit direct or regional home.
+  Regional metadata names US, WEUR, APAC, or OC. It never contains a destination URL.
+  The SDK retains the home when it serializes and restores the credential.
+- Signing, refill, and hosted exchange carry the regional hint through their request
+  boundaries. The hint selects a configured service binding and grants no authority.
+  The receiving home still checks the exact credential, wallet, tenant, ownership
+  generation, revocation, expiry, budget, and material state.
+- A request can forward once. A missing credential at a hinted or forwarded home
+  returns `wallet_home_discovery_required`. It cannot trigger automatic region probing.
+  Ordinary authorization failures do not trigger discovery or replay a signing operation.
+- Hosted exchange retains the home across the parent-to-iframe message and redemption.
+  Its existing origin, nonce, expiry, and one-use checks remain required.
+
 ### Hosted recovery/export lifecycle routing
 
 - Direct Yao recovery and export entry requests resolve the scoped wallet home.

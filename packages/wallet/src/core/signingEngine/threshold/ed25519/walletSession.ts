@@ -27,7 +27,7 @@ import type {
   RouterAbEd25519OperationStepUpMaterialRecoveryResponse,
 } from '@shared/utils/routerAbNormalSigningIdentity';
 import {
-  buildBearerAuthorizationHeader,
+  buildWalletSessionAuthorizationHeaders,
   buildRelayerJsonPostRequestInit,
 } from '@/core/rpcClients/relayer/relayerHttp';
 import type { PasskeyWalletAuthAuthority } from '@shared/utils/walletAuthAuthority';
@@ -670,11 +670,11 @@ export async function issueEd25519OperationStepUpAuthorization(
     args.credential.kind === 'wallet_session_opaque'
       ? {
           token: args.credential.walletSessionToken,
-          missingMessage: 'walletSessionToken is required',
+          home: args.credential.home,
         }
       : null;
   const requestInit = buildRelayerJsonPostRequestInit({
-    ...(bearer ? { headers: buildBearerAuthorizationHeader(bearer) } : {}),
+    ...(bearer ? { headers: buildWalletSessionAuthorizationHeaders(bearer) } : {}),
     body: {
       kind: 'router_ab_ed25519_yao_operation_step_up_grant_v1',
       normalSigningRequest: args.normalSigningRequest,

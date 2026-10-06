@@ -100,6 +100,7 @@ export function buildEmailOtpRouterAbEd25519WalletSessionState(
   );
   const walletSessionAuth = {
     kind: 'wallet_session_opaque' as const,
+    home: input.signingWalletSession.auth.credential.home,
     walletSessionToken,
   };
   return {
@@ -149,6 +150,7 @@ export function buildPasskeyRouterAbEd25519WalletSessionState(
   return {
     walletSessionAuth: {
       kind: 'wallet_session_opaque',
+      home: input.signingWalletSession.auth.credential.home,
       walletSessionToken,
     },
     walletSessionId: input.signingWalletSession.walletSessionId,
@@ -227,6 +229,7 @@ export async function rebindRouterAbEd25519WalletSessionStateFromExactRuntime(ar
     signingRootVersion: args.runtime.signingRootVersion,
     routerAbNormalSigning: args.runtime.routerAbNormalSigning,
     walletSessionToken,
+    home: args.authorization.operationCredential.home,
     nowMs: args.nowMs,
   });
   if (!signingWalletSession.ok) {
@@ -332,6 +335,7 @@ function authorizeRouterAbEd25519WalletSessionState(args: {
     signingRootVersion: state.signingRootVersion,
     routerAbNormalSigning: state.routerAbNormalSigning,
     walletSessionToken,
+    home: args.operationCredential.home,
     nowMs: args.nowMs,
   });
   if (!signingWalletSession.ok) return null;

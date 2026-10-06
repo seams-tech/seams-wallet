@@ -1,3 +1,4 @@
+import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import type { TxExecutionStatus } from '@near-js/types';
 import type { ConfirmationConfig } from './signer-worker';
 import type { EcdsaSignerProvisioningDefaults } from './ecdsaSignerProvisioningDefaults';
@@ -30,6 +31,7 @@ export type EcdsaKeyFactsInventoryWalletSessionCredential =
   | WalletSessionOperationCredentialV1
   | {
       readonly kind: 'opaque_hosted_wallet_session_operation_credential_v1';
+      readonly home: WalletSessionHome;
       readonly token: string;
       readonly walletSessionId: WalletSessionId;
     };

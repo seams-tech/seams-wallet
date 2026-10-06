@@ -1,3 +1,5 @@
+import { parseWalletSessionHome } from '@shared/device-linking/activeWalletSession';
+import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import type {
   SigningEngineResolveExactKeyExportLaneInput as ResolveExactKeyExportLaneInput,
 } from '@/core/signingEngine/flows/recovery/public';
@@ -825,6 +827,7 @@ export type ParentToChildType =
   | 'PM_UNLOCK'
   | 'PM_LOCK'
   | 'PM_LOCK_EXACT_WALLET_SESSION'
+  | 'PM_GET_WALLET_PLACEMENT'
   | 'PM_GET_WALLET_SESSION'
   | 'PM_GET_EXACT_WALLET_SESSION_STATE'
   | 'PM_GET_NEAR_PROVISIONING_STATE'
@@ -919,6 +922,7 @@ type HostedWalletExchangeNonce = string & {
 };
 
 export type PMRedeemHostedWalletSeamsSessionPayload = {
+  readonly home: WalletSessionHome;
   readonly exchangeCode: HostedWalletExchangeCode;
   readonly nonce: HostedWalletExchangeNonce;
   readonly appOrigin: string;
@@ -927,6 +931,7 @@ export type PMRedeemHostedWalletSeamsSessionPayload = {
 };
 
 const HOSTED_WALLET_REDEMPTION_PAYLOAD_FIELDS = [
+  'home',
   'exchangeCode',
   'nonce',
   'appOrigin',
@@ -985,6 +990,7 @@ export function parsePMRedeemHostedWalletSeamsSessionPayload(
     }
   }
   return {
+    home: parseWalletSessionHome(value.home),
     exchangeCode: compactHostedWalletExchangeValue<HostedWalletExchangeCode>(
       value.exchangeCode,
       'exchangeCode',
@@ -997,6 +1003,7 @@ export function parsePMRedeemHostedWalletSeamsSessionPayload(
 }
 
 export function buildPMRedeemHostedWalletSeamsSessionPayload(input: {
+  readonly home: unknown;
   readonly exchangeCode: unknown;
   readonly nonce: unknown;
   readonly appOrigin: unknown;
@@ -1602,6 +1609,7 @@ export type ParentToChildEnvelope =
   | RpcEnvelope<'PM_UNLOCK', PMUnlockPayload>
   | RpcEnvelope<'PM_LOCK'>
   | RpcEnvelope<'PM_LOCK_EXACT_WALLET_SESSION', WalletIframeExactSessionIdentity>
+  | RpcEnvelope<'PM_GET_WALLET_PLACEMENT', { readonly walletId: string }>
   | RpcEnvelope<'PM_GET_WALLET_SESSION', PMGetWalletSessionPayload>
   | RpcEnvelope<'PM_GET_EXACT_WALLET_SESSION_STATE', PMGetExactWalletSessionStatePayload>
   | RpcEnvelope<'PM_GET_NEAR_PROVISIONING_STATE', PMGetNearProvisioningStatePayload>

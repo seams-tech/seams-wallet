@@ -1568,6 +1568,7 @@ async function passkeyWalletSessionStateFromPublicLane(args: {
     signingRootVersion: facts.signingRootVersion,
     routerAbNormalSigning: facts.routerAbNormalSigning,
     walletSessionToken: args.authorization.operationCredential.token,
+    home: args.authorization.operationCredential.home,
     nowMs: Date.now(),
   });
   if (!signingWalletSession.ok) {
@@ -2059,6 +2060,7 @@ async function emailOtpWalletSessionStateFromPublicLane(args: {
     signingRootVersion: facts.signingRootVersion,
     routerAbNormalSigning: facts.routerAbNormalSigning,
     walletSessionToken: args.authorization.operationCredential.token,
+    home: args.authorization.operationCredential.home,
     nowMs: Date.now(),
   });
   if (!signingWalletSession.ok) {
@@ -2756,6 +2758,7 @@ export class BrowserSigningSurface {
     return {
       kind: 'wallet_session_opaque',
       walletSessionToken: operationCredential.token,
+      home: operationCredential.home,
     };
   }
 

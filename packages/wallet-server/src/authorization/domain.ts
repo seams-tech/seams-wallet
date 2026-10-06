@@ -157,6 +157,7 @@ export type IssuedHostedWalletSeamsSessionExchangeV2 = {
 
 export type HostedWalletSeamsSessionExchangeDeliveryV2 = {
   readonly kind: 'hosted_wallet_session_exchange_delivery_v2';
+  readonly home: WalletSessionHome;
   readonly exchangeCode: HostedWalletSeamsSessionExchangeCode;
   readonly nonce: HostedWalletSeamsSessionExchangeNonce;
   readonly appOrigin: SessionOrigin;

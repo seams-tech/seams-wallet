@@ -1,3 +1,4 @@
+import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking/contracts';
 import {
   reservePasskeyCredential,
   type PasskeyCredentialClaims,
@@ -3629,11 +3630,7 @@ async function sealLinkedDeviceWalletSessionCredentialV1(input: {
   readonly issuedAtMs: number;
   readonly expiresAtMs: number;
   readonly installationReceiptDigestB64u: DigestB64u;
-  readonly operationCredential: {
-    readonly kind: 'opaque_wallet_session_operation_credential_v1';
-    readonly token: string;
-    readonly walletSessionId: LinkedDeviceWalletSessionCredentialDeliveryAadV1['walletSessionId'];
-  };
+  readonly operationCredential: WalletSessionOperationCredentialV1;
 }): Promise<LinkedDeviceWalletSessionCredentialDeliveryV1> {
   const recipientPublicKey = requireP256PublicKey(
     input.recipientPublicKey65B64u,

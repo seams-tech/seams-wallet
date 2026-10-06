@@ -1,3 +1,4 @@
+import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import { parseEcdsaPrepareSessionResponse, type EcdsaPrepareSessionResult } from './ecdsaPrepareSession';
 import { alphabetizeStringify } from '@shared/utils/digests';
 import { base64Decode, base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
@@ -16,7 +17,7 @@ import type {
   RouterAbEd25519OperationStepUpPreparationV1Wire,
 } from '@shared/utils/routerAbNormalSigningIdentity';
 import {
-  buildBearerAuthorizationHeader,
+  buildWalletSessionAuthorizationHeaders,
   buildRelayerJsonPostRequestInit,
   normalizeRelayerBaseUrl,
 } from './relayerHttp';
@@ -106,6 +107,7 @@ function routerAbNormalSigningAdmissionErrorFromPayload(args: {
 
 type RouterAbOpaqueWalletSessionCredential = {
   kind: 'wallet_session_opaque';
+  home: WalletSessionHome;
   walletSessionToken: string;
 };
 
@@ -1041,11 +1043,11 @@ function buildRouterAbRequestInit(args: {
     args.credential.kind === 'wallet_session_opaque'
       ? {
           token: args.credential.walletSessionToken,
-          missingMessage: 'walletSessionToken is required',
+          home: args.credential.home,
         }
       : null;
   const init = buildRelayerJsonPostRequestInit({
-    ...(bearer ? { headers: buildBearerAuthorizationHeader(bearer) } : {}),
+    ...(bearer ? { headers: buildWalletSessionAuthorizationHeaders(bearer) } : {}),
     body: args.body,
   });
   return init;

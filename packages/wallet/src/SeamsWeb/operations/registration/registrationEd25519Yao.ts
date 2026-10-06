@@ -199,6 +199,7 @@ export async function buildRegistrationEmailOtpEd25519SessionState(args: {
     signingRootVersion,
     routerAbNormalSigning: token.routerAbNormalSigning,
     walletSessionToken: args.registrationEstablishedSession.operationCredential.token,
+    home: args.registrationEstablishedSession.operationCredential.home,
     nowMs: Date.now(),
   });
   if (!signingWalletSession.ok) {

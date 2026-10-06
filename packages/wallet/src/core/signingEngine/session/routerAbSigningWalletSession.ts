@@ -1,3 +1,4 @@
+import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import type { RouterAbWalletSessionCredential } from '@/core/rpcClients/relayer/routerAbNormalSigning';
 import type { RouterAbEd25519NormalSigningState } from '../threshold/ed25519/routerAbNormalSigningState';
 import type { ThresholdRuntimePolicyScope } from '../threshold/sessionPolicy';
@@ -76,7 +77,10 @@ function inactiveSigningSessionState(args: {
   return null;
 }
 
-function buildWalletSessionOpaqueAuth(tokenRaw: unknown): RouterAbSigningWalletSessionAuth | null {
+function buildWalletSessionOpaqueAuth(
+  tokenRaw: unknown,
+  home: WalletSessionHome,
+): RouterAbSigningWalletSessionAuth | null {
   const walletSessionToken = nonEmptyString(tokenRaw);
   if (!walletSessionToken) return null;
   return {
@@ -85,6 +89,7 @@ function buildWalletSessionOpaqueAuth(tokenRaw: unknown): RouterAbSigningWalletS
     credential: {
       kind: 'wallet_session_opaque',
       walletSessionToken,
+      home,
     },
   };
 }
@@ -104,6 +109,7 @@ type BuildRouterAbEd25519SigningWalletSessionInput = {
   signingRootVersion: string;
   routerAbNormalSigning: RouterAbEd25519NormalSigningState;
   walletSessionToken: string;
+  home: WalletSessionHome;
   nowMs: number;
 };
 
@@ -111,7 +117,7 @@ export function buildRouterAbEd25519SigningWalletSession(
   input: BuildRouterAbEd25519SigningWalletSessionInput,
 ): RouterAbSigningWalletSessionResult<RouterAbEd25519SigningWalletSession> {
   const walletSessionToken = nonEmptyString(input.walletSessionToken);
-  const auth = buildWalletSessionOpaqueAuth(walletSessionToken);
+  const auth = buildWalletSessionOpaqueAuth(walletSessionToken, input.home);
   if (!auth) return { ok: false, reason: 'missing_wallet_session_token' };
   const walletId = nonEmptyString(input.walletId);
   const nearAccountId = nonEmptyString(input.nearAccountId);

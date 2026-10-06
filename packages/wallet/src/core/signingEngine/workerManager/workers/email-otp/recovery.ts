@@ -235,6 +235,7 @@ export async function rehydrateEmailOtpEd25519YaoOperationMaterial(
   const credential: Ed25519OperationStepUpCredential = {
     kind: 'wallet_session_opaque',
     walletSessionToken: operationCredential.token,
+    home: operationCredential.home,
   };
   const material: EmailOtpEd25519OperationRecoveryMaterialRequest = {
     kind: 'ed25519_yao_operation_recovery',

@@ -127,6 +127,7 @@ import {
 } from '@shared/utils/walletManagementProtocol';
 import {
   buildBearerAuthorizationHeader,
+  buildWalletSessionAuthorizationHeaders,
   buildRelayerJsonPostRequestInit,
   normalizeRelayerBaseUrl,
 } from './relayerHttp';
@@ -4688,11 +4689,7 @@ export async function fetchWalletEcdsaKeyFactsInventoryWithOperationCredential(a
   const response = await postJson({
     relayerUrl: args.relayerUrl,
     path: `/wallets/${encodeURIComponent(walletId)}/signers/ecdsa/key-facts/inventory`,
-    headers: buildBearerAuthorizationHeader({
-      token: operationCredential.token,
-      missingMessage:
-        'Wallet Session operation credential is required for ECDSA key-facts inventory',
-    }),
+    headers: buildWalletSessionAuthorizationHeaders(operationCredential),
     body: {
       rpId,
       keyTargets: args.keyTargets,
