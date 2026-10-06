@@ -1,4 +1,4 @@
-import type { PreparedWalletSessionStatus } from '@/core/rpcClients/relayer/ecdsaPrepareSession';
+import type { PreparedWalletSessionStatus } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import { isEd25519ExtensionOfEcdsaWalletAuthority } from '@shared/authorization/walletAuthority';
 import {

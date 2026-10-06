@@ -699,8 +699,10 @@ Evidence: [ECDSA-led](./evidence/r155b-revocation-outage-ecdsa.json) and
 and rejected after revocation in each case. This verifies ordinary linked-device
 revocation during an outage, not an in-flight revocation race.
 
-NEAR optimization parity remains partial: regional execution and outage enforcement
-are covered, while its prepare response still lacks ECDSA's fresh session-status
-projection. Removing NEAR's separate status reads requires implementing that response
-and SDK reconciliation together. Registration and local signing measurements are
-recorded in [the NEAR-only benchmark](./optimization-12-NEAR-only-20261006.md).
+NEAR prepare now returns the fresh session-status projection through the shared
+Gateway response builder. Its SDK reconciles the exact selected authority before
+creating a signature share for transaction and signature-only signing. The separate
+status-read removal remains pending: signing planning must be isolated from export
+and restoration readers before using local observations. Registration, local signing
+measurements, and verification are recorded in
+[the NEAR-only benchmark](./optimization-12-NEAR-only-20261006.md).

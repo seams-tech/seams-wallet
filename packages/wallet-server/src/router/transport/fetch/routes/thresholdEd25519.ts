@@ -1,3 +1,4 @@
+import { signingPrepareSessionResponse } from '../../../domains/signingOperations/signingPrepareSession';
 import type { PinnedOwnerWalletScope } from '../../../../authorization/ecdsaWalletSessionAdmission';
 import {
   buildAuthorizedOperationWire,
@@ -1651,17 +1652,21 @@ async function handleRouterAbEd25519NormalSigningRoute(input: {
         });
         return requireCompletedEd25519OperationResponse(completed);
       }
+      const headers = new Headers(upstream.headers);
+      headers.delete('content-length');
       return new Response(
-        JSON.stringify({
-          ...upstreamBody,
-          authorized_operation: buildEd25519VerifiedStepUpAuthorizedOperationReceipt({
-            authorization,
-          }),
-        }),
+        JSON.stringify(
+          signingPrepareSessionResponse({
+            ...upstreamBody,
+            authorized_operation: buildEd25519VerifiedStepUpAuthorizedOperationReceipt({
+              authorization,
+            }),
+          }, authorization),
+        ),
         {
           status: upstream.status,
           statusText: upstream.statusText,
-          headers: new Headers(upstream.headers),
+          headers,
         },
       );
     }
@@ -1803,15 +1808,19 @@ async function handleRouterAbEd25519NormalSigningRoute(input: {
       });
       return requireCompletedEd25519OperationResponse(completed);
     }
+    const headers = new Headers(upstream.headers);
+    headers.delete('content-length');
     return new Response(
-      JSON.stringify({
-        ...upstreamBody,
-        authorized_operation: authorized.admission.receipt,
-      }),
+      JSON.stringify(
+        signingPrepareSessionResponse({
+          ...upstreamBody,
+          authorized_operation: authorized.admission.receipt,
+        }, authorization),
+      ),
       {
         status: upstream.status,
         statusText: upstream.statusText,
-        headers: new Headers(upstream.headers),
+        headers,
       },
     );
   }

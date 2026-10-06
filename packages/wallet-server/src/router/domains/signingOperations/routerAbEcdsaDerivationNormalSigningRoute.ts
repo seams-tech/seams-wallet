@@ -1,4 +1,4 @@
-import { ecdsaPrepareSessionResponse } from './ecdsaPrepareSession';
+import { signingPrepareSessionResponse } from './signingPrepareSession';
 import type { D1EcdsaAdmissionPolicyRead } from '../../cloudflare/d1/signingAdmission/d1RouterAbNormalSigningAdmissionStore';
 import type { EcdsaMaterialRead } from '../../../core/d1EcdsaSignerRead';
 import type { EcdsaWalletSessionAdmissionInput, EcdsaWalletSessionPhaseAdmission } from '../../../authorization/ecdsaWalletSessionAdmission';
@@ -1431,7 +1431,7 @@ export async function handleRouterAbEcdsaDerivationNormalSigningRouteCore(input:
       });
     }
     return forwarded.ok
-      ? { status: 200, body: ecdsaPrepareSessionResponse(forwarded.body, authorization) }
+      ? { status: 200, body: signingPrepareSessionResponse(forwarded.body, authorization) }
       : { status: forwarded.status, body: forwarded.body };
   }
   const forwarded = await postRouterAbSigningWorkerJson({

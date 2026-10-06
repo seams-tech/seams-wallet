@@ -102,11 +102,46 @@ reports are in `.artifacts/near-registration-seal/`.
   Gateway/role restart recovery have NEAR acceptance evidence in R155B.
 - Reusing the initial lane read now applies to NEAR transaction signing.
 - Early prepared-session sealing now applies to NEAR-only passkey registration.
-- Prepare-based session-status reconciliation remains an ECDSA-only optimization.
-  `prepareRouterAbNormalSigningV2` still returns the Ed25519 protocol response alone.
-  Its required follow-up must carry fresh session facts and reconcile exact authority
-  before removing redundant status reads. Preserve expiry, revocation, quota, and
-  material checks for transaction and signature-only paths.
+- NEAR prepare now carries fresh session facts. The common transaction and
+  signature-only path checks the exact selected authority before creating a share.
+  The separate status-read removal remains pending. Its reader also serves export
+  and restoration, so a global cache change would exceed the signing boundary.
 - ECDSA's presignature pool and reusable presignature DO are protocol-specific.
   NEAR nonce/material preparation needs its own measured audit, including immediate
   registration-to-sign and consecutive signatures. Do not claim pool optimization parity.
+
+## NEAR prepare session reconciliation — 2026-10-07
+
+Both curves now use the same Gateway response builder for prepare. Reusable
+sessions carry their admitted session projection and quota snapshot. Step-up
+responses cannot carry reusable session state. The SDK parses this envelope at
+its HTTP boundary and rejects a mismatched authorization kind.
+
+For NEAR transactions, delegated actions, and message signatures, the common
+signing path resolves the selected local authority again after prepare. It compares
+that authority with the returned session, quota identity, active budget, and expiry.
+A mismatch fails before the client creates a signature share. Server admission and
+finalize checks remain in place. The old ECDSA-specific server builder was removed.
+
+This change closes the response/reconciliation gap. It does not yet remove a NEAR
+status request or establish a latency gain. The next optimization must isolate
+signing confirmation planning from readers used by export and restoration, then
+measure request counts and matched registration/first/warm signing cohorts.
+
+Source, logs, frozen SDK assets, and reproduction scripts are retained under
+`.artifacts/near-prepare-session/`. No hosted deployment or Cloudflare provisioning
+was performed for this change.
+
+Verification passes:
+- NEAR-only registration, immediate transaction signing, and reload signing.
+- NEAR message signatures against the registered key before and after reload.
+- Mixed-curve unlock, export, shared-budget signing, and NEAR step-up.
+- A changed prepare authority causes the exact SDK rejection and zero finalize
+  requests. Reload then permits a valid transaction and message signature.
+- SDK/server type-checks, builds, lifecycle type fixtures, and bloat check.
+
+[Sanitized rejection evidence](./evidence/near-prepare-session-20261007.json) is
+produced by the existing NEAR contract file. Run its `NEAR rejects changed prepare
+authority` case with the intended-behaviour CI configuration. Initial test attempts
+needed harness filename registration, fresh D1 state, and reload after the error
+dialog. They are excluded from passing evidence.

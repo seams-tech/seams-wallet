@@ -1,5 +1,5 @@
 import { finishRouterAbEcdsaSigningResponse } from '../../../domains/signingOperations/ecdsaSigningResponse';
-import { ecdsaPrepareSessionResponse } from '../../../domains/signingOperations/ecdsaPrepareSession';
+import { signingPrepareSessionResponse } from '../../../domains/signingOperations/signingPrepareSession';
 import type { PinnedOwnerWalletScope } from '../../../../authorization/ecdsaWalletSessionAdmission';
 import {
   buildAuthorizedOperationWire,
@@ -586,7 +586,7 @@ async function executeRouterAbEcdsaDerivationNormalSigningRoute(
           body: admittedBody,
         });
   if (input.phase === 'prepare' && upstream.ok) {
-    const body = ecdsaPrepareSessionResponse(await upstream.json(), authorization);
+    const body = signingPrepareSessionResponse(await upstream.json(), authorization);
     timing.proxy = performance.now() - proxyStartedAt;
     const headers = new Headers(upstream.headers);
     headers.delete('content-length');

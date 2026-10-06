@@ -502,6 +502,7 @@ export async function signNearSignatureOnlyOperation(
           ctx: operation.ctx,
           thresholdSessionId: material.thresholdSessionId,
           activeClient: material.resolved.material.activeClient,
+          sessionCoordinator: signingSessionCoordinator,
           walletSessionState: requireAuthorizedWalletSessionState(
             await signingSessionCoordinator.resolveActiveAuthorizedRouterAbEd25519WalletSessionState(
               {

@@ -1,3 +1,7 @@
+import { parseWalletSessionId, parseMpcWalletSigningQuotaId } from '@shared/authorization/capabilityKinds';
+import { requireRecord } from '@shared/utils/validation';
+import { parseExactWalletSessionStatusResponse } from './walletSessionAuthorizationStatus';
+import type { PreparedWalletSessionStatus } from './walletSessionAuthorizationStatus';
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import { parseEcdsaPrepareSessionResponse, type EcdsaPrepareSessionResult } from './ecdsaPrepareSession';
 import { alphabetizeStringify } from '@shared/utils/digests';
@@ -1353,17 +1357,62 @@ async function postRouterAbNormalSigningJson<T>(args: {
   return args.parse(await response.json());
 }
 
+type Ed25519PrepareSessionResult =
+  | {
+      readonly kind: 'reusable_wallet_session';
+      readonly signing: RouterAbNormalSigningPrepareResponseV1Wire;
+      readonly sessionStatus: PreparedWalletSessionStatus;
+    }
+  | {
+      readonly kind: 'operation_step_up';
+      readonly signing: RouterAbNormalSigningPrepareResponseV1Wire;
+      readonly sessionStatus?: never;
+    };
+
+function parseEd25519PrepareSessionResponse(
+  request: RouterAbNormalSigningPrepareRequestV2Wire,
+  value: unknown,
+): Ed25519PrepareSessionResult {
+  const response = requireRecord(value, 'Ed25519 prepare response');
+  if (response.kind !== request.scope.authorization.kind) {
+    throw new Error('Ed25519 prepare authorization kind does not match the request');
+  }
+  const signing = parsePrepareResponse(response.signing);
+  if (request.scope.authorization.kind === 'operation_step_up') {
+    requireExactRecordFields(response, ['kind', 'signing'], 'Ed25519 step-up prepare response');
+    return { kind: 'operation_step_up', signing };
+  }
+  requireExactRecordFields(
+    response,
+    ['kind', 'signing', 'session_status'],
+    'Ed25519 session prepare response',
+  );
+  const snapshot = requireRecord(response.session_status, 'Ed25519 prepare session status');
+  const walletSessionId = parseWalletSessionId(request.scope.authorization.wallet_session_id);
+  const quotaId = parseMpcWalletSigningQuotaId(snapshot.quotaId);
+  if (!walletSessionId.ok || !quotaId.ok)
+    throw new Error('Invalid Ed25519 prepare session identity');
+  const status = parseExactWalletSessionStatusResponse(snapshot, {
+    walletSessionId: walletSessionId.value,
+    quotaId: quotaId.value,
+  });
+  if (!status || status.status !== 'active') {
+    throw new Error('Ed25519 prepare did not return an active Wallet Session');
+  }
+  return { kind: 'reusable_wallet_session', signing, sessionStatus: status };
+}
+
 export async function prepareRouterAbNormalSigningV2(args: {
   relayServerUrl: string;
   credential: RouterAbEd25519NormalSigningCredential;
   request: RouterAbNormalSigningPrepareRequestV2Wire;
-}): Promise<RouterAbNormalSigningPrepareResponseV1Wire> {
+}): Promise<Ed25519PrepareSessionResult> {
   return postRouterAbNormalSigningJson({
     relayServerUrl: args.relayServerUrl,
     path: '/router-ab/ed25519/sign/prepare',
     credential: args.credential,
     body: args.request,
-    parse: parsePrepareResponse,
+    parse: parseEd25519PrepareSessionResponse.bind(null, args.request),
   });
 }
 

@@ -1,3 +1,4 @@
+import type { Variant } from '@shared/utils/variant';
 import {
   parseMpcWalletSigningQuotaId,
   parseWalletSessionId,
@@ -82,6 +83,8 @@ export type ExactWalletSessionStatus =
       readonly authorization?: never;
     });
 
+export type PreparedWalletSessionStatus = Variant<ExactWalletSessionStatus, 'status', 'active'>;
+
 interface ExactWalletSessionStatusPort {
   read(input: ExactWalletSessionStatusIdentity): Promise<ExactWalletSessionStatus>;
 }
@@ -151,12 +154,12 @@ export class WalletSessionStatusReadScope {
     | {
         readonly kind: 'server_response';
         readonly key: string;
-        readonly status: Extract<ExactWalletSessionStatus, { readonly status: 'active' }>;
+        readonly status: Variant<ExactWalletSessionStatus, 'status', 'active'>;
       } = { kind: 'remote' };
 
   static fromPrepare(
     options: RelayerExactWalletSessionStatusPortOptions,
-    status: Extract<ExactWalletSessionStatus, { readonly status: 'active' }>,
+    status: Variant<ExactWalletSessionStatus, 'status', 'active'>,
   ): WalletSessionStatusReadScope {
     const scope = new WalletSessionStatusReadScope();
     scope.suppliedStatus = { kind: 'server_response', key: statusIdentityKey(options, status), status };
@@ -169,7 +172,7 @@ export class WalletSessionStatusReadScope {
     relayerUrl: string,
     session: RegistrationEstablishedSessionV2,
   ): WalletSessionStatusReadScope {
-    const status: Extract<ExactWalletSessionStatus, { readonly status: 'active' }> = {
+    const status: Variant<ExactWalletSessionStatus, 'status', 'active'> = {
       status: 'active',
       walletSessionId: session.walletSessionId,
       quotaId: session.quotaId,

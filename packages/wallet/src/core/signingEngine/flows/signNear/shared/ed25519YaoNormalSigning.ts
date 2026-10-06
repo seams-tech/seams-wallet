@@ -1,3 +1,5 @@
+import type { SigningSessionCoordinator } from '../../../session/SigningSessionCoordinator';
+import { activeWalletSessionV1RecordsEqual } from '@shared/device-linking/activeWalletSession';
 import { resolveNearNetwork } from '@/core/config/chains';
 import { PASSKEY_MANAGER_DEFAULT_CONFIGS } from '@/core/config/defaultConfigs';
 import type { ThresholdEd25519KeyMaterial } from '@/core/accountData/near/nearAccountData.types';
@@ -46,7 +48,6 @@ import { SigningSessionIds } from '@/core/signingEngine/session/operationState/t
 import { requireRouterAbEd25519NormalSigningReadyState } from '../../../session/warmCapabilities/routerAbWalletSessionCredential';
 import type {
   AuthorizedRouterAbEd25519WalletSessionState,
-  ResolvedRouterAbEd25519WalletSessionState,
 } from '../../../session/warmCapabilities/routerAbEd25519WalletSessionState';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { base58Decode } from '@shared/utils/base58';
@@ -598,13 +599,15 @@ type RouterAbEd25519NormalSigningSignatureArgs = RouterAbEd25519NormalSigningSig
   (
     | {
         authorization: 'reusable_wallet_session';
-        walletSessionState: ResolvedRouterAbEd25519WalletSessionState;
+        walletSessionState: AuthorizedRouterAbEd25519WalletSessionState;
+        sessionCoordinator: SigningSessionCoordinator;
         materialFacts?: never;
       }
     | {
         authorization: 'operation_step_up';
         materialFacts: NearEd25519YaoOperationMaterialFacts;
         walletSessionState?: never;
+        sessionCoordinator?: never;
       }
   );
 
@@ -660,12 +663,37 @@ async function finalizeRouterAbEd25519NormalSigningSignature(
         }
       : args.materialFacts;
   const prepareStartedAt = performance.now();
-  const prepareResponse = await prepareRouterAbNormalSigningV2({
+  const prepared = await prepareRouterAbNormalSigningV2({
     relayServerUrl: materialFacts.relayerUrl,
     credential: args.credential,
     request: args.prepare.request,
   });
   emitEd25519SigningTiming(operationId, 'prepare', prepareStartedAt);
+  if (args.authorization === 'reusable_wallet_session') {
+    if (prepared.kind !== 'reusable_wallet_session') {
+      throw new Error('Ed25519 prepare returned the wrong authorization kind');
+    }
+    const current =
+      await args.sessionCoordinator.resolveActiveAuthorizedRouterAbEd25519WalletSessionState({
+        state: args.walletSessionState,
+        nowMs: Date.now(),
+      });
+    const status = prepared.sessionStatus;
+    if (
+      !current ||
+      status.walletSessionId !== current.walletSessionOperationCredential.walletSessionId ||
+      status.quotaId !== current.walletSessionAuthorization.quotaId ||
+      status.quotaLifecycle !== 'active' ||
+      status.remainingUses <= 0 ||
+      status.expiresAtMs <= Date.now() ||
+      !activeWalletSessionV1RecordsEqual(status.authorization, current.walletSessionAuthorization)
+    ) {
+      throw new Error('Wallet Session authority changed before Ed25519 client signing');
+    }
+  } else if (prepared.kind !== 'operation_step_up') {
+    throw new Error('Ed25519 step-up prepare returned a reusable Wallet Session');
+  }
+  const prepareResponse = prepared.signing;
   requireRouterAbNormalSigningPrepareMatchesRequest({
     request: args.prepare.request,
     signingPayloadDigest: args.prepare.admissionMaterial.signingPayloadDigest,
@@ -750,11 +778,13 @@ type RouterAbEd25519SignatureOnlyNormalSigningArgs = RouterAbEd25519SignatureOnl
   (
     | {
         walletSessionState: AuthorizedRouterAbEd25519WalletSessionState;
+        sessionCoordinator: SigningSessionCoordinator;
         authorization: { kind: 'reusable_wallet_session' };
       }
     | {
         materialFacts: NearEd25519YaoOperationMaterialFacts;
         walletSessionState?: never;
+        sessionCoordinator?: never;
         authorization: {
           kind: 'operation_step_up';
           prepared: Extract<PreparedNearOperationStepUp, { kind: 'near_signature_only' }>;
@@ -1083,6 +1113,7 @@ export async function tryFinalizeRouterAbEd25519SignatureOnlyNormalSigning(
   const finalized = await tryFinalizeRouterAbEd25519NormalSigningSignature({
     thresholdSessionId: args.thresholdSessionId,
     walletSessionState: args.walletSessionState,
+    sessionCoordinator: args.sessionCoordinator,
     thresholdKeyMaterial: args.thresholdKeyMaterial,
     walletId: args.walletId,
     nearAccountId: args.nearAccountId,
@@ -1203,11 +1234,13 @@ type RouterAbEd25519NearTransactionNormalSigningArgs =
     (
       | {
           walletSessionState: AuthorizedRouterAbEd25519WalletSessionState;
+          sessionCoordinator: SigningSessionCoordinator;
           authorization: { kind: 'reusable_wallet_session' };
         }
       | {
           materialFacts: NearEd25519YaoOperationMaterialFacts;
           walletSessionState?: never;
+          sessionCoordinator?: never;
           authorization: {
             kind: 'operation_step_up';
             prepared: Extract<PreparedNearOperationStepUp, { kind: 'near_transaction' }>;
@@ -1371,6 +1404,7 @@ export async function tryFinalizeRouterAbEd25519NearTransactionNormalSigning(
     : await tryFinalizeRouterAbEd25519NormalSigningSignature({
         thresholdSessionId: args.thresholdSessionId,
         walletSessionState: args.walletSessionState,
+        sessionCoordinator: args.sessionCoordinator,
         thresholdKeyMaterial: args.thresholdKeyMaterial,
         walletId: args.walletId,
         nearAccountId: args.nearAccountId,

@@ -10,13 +10,8 @@ import {
 import { requireRecord } from '@shared/utils/validation';
 import {
   parseExactWalletSessionStatusResponse,
-  type ExactWalletSessionStatus,
+  type PreparedWalletSessionStatus,
 } from './walletSessionAuthorizationStatus';
-
-export type PreparedWalletSessionStatus = Extract<
-  ExactWalletSessionStatus,
-  { readonly status: 'active' }
->;
 
 export type EcdsaPrepareSessionResult =
   | {

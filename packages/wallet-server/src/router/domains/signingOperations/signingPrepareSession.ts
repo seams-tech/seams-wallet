@@ -1,10 +1,16 @@
+import type { Variant } from '@shared/utils/variant';
 import { projectExactWalletSessionAuthorizationV1 } from '../../../authorization/domain';
+import type { RouterAbEd25519NormalSigningAuthorizationResult } from './routerAbEd25519NormalSigningRoute';
 import type { RouterAbEcdsaNormalSigningAuthorizationResult } from './routerAbEcdsaDerivationNormalSigningRoute';
 
 /** The session snapshot validated for this admission, before its quota claim. */
-export function ecdsaPrepareSessionResponse(
+export function signingPrepareSessionResponse(
   signing: unknown,
-  authorization: Extract<RouterAbEcdsaNormalSigningAuthorizationResult, { readonly ok: true }>,
+  authorization: Variant<
+    RouterAbEcdsaNormalSigningAuthorizationResult | RouterAbEd25519NormalSigningAuthorizationResult,
+    'ok',
+    true
+  >,
 ) {
   switch (authorization.kind) {
     case 'operation_step_up':

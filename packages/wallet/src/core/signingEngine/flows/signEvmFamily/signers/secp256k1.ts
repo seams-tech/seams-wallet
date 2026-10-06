@@ -1,4 +1,4 @@
-import type { PreparedWalletSessionStatus } from '@/core/rpcClients/relayer/ecdsaPrepareSession';
+import type { PreparedWalletSessionStatus } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import type { SignRequest, SignatureBytes } from '../../../interfaces/signing';
 import type { WorkerOperationContext } from '../../../workerManager/executeWorkerOperation';
 import {

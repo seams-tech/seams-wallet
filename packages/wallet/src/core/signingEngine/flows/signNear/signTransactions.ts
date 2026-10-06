@@ -1178,6 +1178,7 @@ async function runAuthorizedNearTransactionWithActionsSigning({
             ctx,
             thresholdSessionId: canonicalThresholdSessionId,
             activeClient: yaoClient,
+            sessionCoordinator,
             walletSessionState: await requireActiveAuthorizedWalletSessionState({
               state: walletSessionState,
               coordinator: sessionCoordinator,

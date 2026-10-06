@@ -1,3 +1,4 @@
+import type { Variant } from '../../packages/shared-ts/src/utils/variant';
 import type { NearEd25519WalletSessionAuthorizationDisposition } from '../../packages/wallet/src/core/signingEngine/session/material/nearEd25519YaoSigningPreparation';
 import type { EcdsaSessionPresignaturePrefillInput } from '../../packages/wallet/src/core/signingEngine/session/warmCapabilities/ecdsaLoginPrefill';
 import type { RouterAbEcdsaDerivationClientPresignatureRefillInput } from '../../packages/wallet/src/core/signingEngine/routerAb/ecdsaDerivation/presignaturePool';
@@ -71,3 +72,18 @@ const { keyHandle: _keyHandle, ...refillWithoutKeyHandle } = refillInput;
 const missingRefillKeyHandle: RouterAbEcdsaDerivationClientPresignatureRefillInput =
   refillWithoutKeyHandle;
 void missingRefillKeyHandle;
+
+// A step-up response cannot carry reusable session facts, even through a spread.
+type NearPrepareResult = Awaited<ReturnType<typeof import('../../packages/wallet/src/core/rpcClients/relayer/routerAbNormalSigning').prepareRouterAbNormalSigningV2>>;
+declare const reusableNearPrepare: Variant<NearPrepareResult, 'kind', 'reusable_wallet_session'>;
+// @ts-expect-error Changing only the branch cannot retain session authority.
+const stepUpWithSession: NearPrepareResult = { ...reusableNearPrepare, kind: 'operation_step_up' };
+// @ts-expect-error A reusable prepare result requires its admitted session facts.
+const reusableWithoutSession: NearPrepareResult = { kind: 'reusable_wallet_session', signing: reusableNearPrepare.signing };
+// @ts-expect-error A direct step-up literal cannot carry session authority.
+const stepUpLiteral: NearPrepareResult = {
+  kind: 'operation_step_up',
+  signing: reusableNearPrepare.signing,
+  sessionStatus: reusableNearPrepare.sessionStatus,
+};
+void [stepUpWithSession, reusableWithoutSession, stepUpLiteral];

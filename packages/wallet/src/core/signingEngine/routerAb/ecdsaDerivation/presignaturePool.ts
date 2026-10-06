@@ -1,7 +1,7 @@
 import { assertCurrentWalletOwnershipGeneration } from '@/core/indexedDB/seamsWalletDB/walletOwnershipGeneration';
 import { WalletSessionQuotaAdmissionError } from '../../session/operationState/authorizationAdmission';
 import { WalletSessionFailureError } from '../../session/lifecycle/walletSessionFailure';
-import type { PreparedWalletSessionStatus } from '@/core/rpcClients/relayer/ecdsaPrepareSession';
+import type { PreparedWalletSessionStatus } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import { ROUTER_AB_ECDSA_PRESIGN_CEREMONY_MAX_LIFETIME_MS } from '@shared/utils/routerAbEcdsaDerivation';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { secureRandomId } from '@shared/utils/secureRandomId';
