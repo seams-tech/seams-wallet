@@ -1,0 +1,12 @@
+{
+  "kind": "local_session_routing_evidence_v1",
+  "productionBundleSha256": "20c90fa84577a0f3a945beb9ca75c7a8fd39c09cb87d913b63595c5e04136bb3",
+  "localCredentialConsoleCalls": 0,
+  "directAndHostedCredentialsFound": true,
+  "exchangeFound": true,
+  "wrongTenantRejected": true,
+  "retiredCredentialStillHandledLocally": true,
+  "retiredCredentialAuthorizationRejected": true,
+  "quotaPreserved": 3,
+  "unknownCredentialDiscoveryCalls": 1
+}

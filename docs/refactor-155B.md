@@ -369,3 +369,32 @@ Remaining gates: complete session-home metadata and forwarding, remove routine d
 reads, verify all signing/refill paths during a Console outage, audit custody-side deferred
 execution, reduce registration continuation lookups, and run the controlled hosted comparison.
 No new signing-latency result is claimed.
+
+## Local session routing — October 6, 2026
+
+Gateway now checks the regional session tables before requesting Console discovery.
+The lookup uses the exact tenant and credential digest. It returns the wallet identity
+for the existing dispatcher scope checks. It uses the deployment-fenced database.
+
+A matching record selects the local handler. The existing authorization service still
+checks credential validity, revocation, budget, and execution generation. Retired records
+also select local handling, so revocation cannot cause directory rediscovery. Unknown
+credentials retain directory discovery. No new table, cache, secret, or SDK token is added.
+
+Verification:
+
+- Private server type check and deployment-binding E2E pass.
+- `node tests/relayer/local-session-routing.e2e.mjs` passes against real Miniflare D1
+  with production routing and authorization code.
+- Known direct credentials make zero Console routing calls during a simulated outage.
+  Hosted credentials and exchange codes resolve to the correct local wallet.
+- Wrong-tenant lookup fails. Revoked credentials remain local and fail authorization.
+  The initial three-use quota remains intact. Unknown credentials attempt discovery once.
+- The runner emits a repeatable artifact with a production bundle digest. The retained
+  copy is [local session evidence](evidence/r155b-local-session-routing-20261006.json).
+- Public bloat check passes.
+
+This adds one local D1 lookup and removes the Console discovery request for known local
+sessions. End-to-end latency remains unmeasured. This test does not execute an MPC signature.
+Cross-region discovery, complete Console-outage signing/refill acceptance, custody deferred
+execution, registration continuation lookups, and hosted measurements remain open.
