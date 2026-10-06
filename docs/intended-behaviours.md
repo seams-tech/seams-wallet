@@ -941,6 +941,23 @@ Expected behaviour:
 
 ## Step-Up Auth
 
+### Regional execution
+
+An established passkey Wallet Session can authorize an exact NEAR or ECDSA
+operation after its shared signing budget is exhausted. Fresh factor verification
+is required. Exhaustion does not invalidate the identity used for step-up, and
+step-up does not renew that session or replenish its reusable budget.
+
+With the regional home and custody services available, this flow must succeed
+while Console is unavailable. Requests retain the admitted home and authenticate
+locally. Another ingress must forward to that home. A request naming a different
+wallet must fail before execution. Revocation, expiry, material retirement, and
+ownership fences still apply.
+
+The private composed regional contract verifies three shared-budget signatures,
+including concurrent ECDSA signatures, followed by fresh NEAR and ECDSA step-up.
+It asserts zero Console requests and five home-owned operation records.
+
 ### Admission expiry
 
 - New step-up claims require matching, unexpired evidence at the atomic

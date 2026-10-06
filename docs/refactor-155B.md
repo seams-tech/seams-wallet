@@ -229,6 +229,8 @@ change does not make unrelated authentication failures obsolete.
   a three-signature sequence that forces refill. Assert zero attempted Console calls.
 - [ ] Repeat for owner and linked-device signing, relevant ECDSA/Ed25519 paths,
   session restore, and step-up paths with otherwise available prerequisites.
+- [x] Verify shared-budget exhaustion followed by fresh passkey step-up for both
+  NEAR and ECDSA through remote ingress with zero Console calls.
 - [ ] During the outage, verify revocation, budget exhaustion, material retirement,
   wrong-region hints, malformed metadata, and concurrent double-use rejection.
 - [ ] Restart Gateways/DOs and verify authority survives without in-memory Console
@@ -706,3 +708,49 @@ status-read removal remains pending: signing planning must be isolated from expo
 and restoration readers before using local observations. Registration, local signing
 measurements, and verification are recorded in
 [the NEAR-only benchmark](./optimization-12-NEAR-only-20261006.md).
+
+### Shared budget and passkey step-up during Console outage — 2026-10-07
+
+Private commit `304f2d7` adds one mixed-curve browser scenario. A US wallet unlocks,
+Console becomes unavailable, and WEUR ingress completes one NEAR signature plus
+concurrent Tempo/Arc signatures. The independent home budget check confirms
+exhaustion. APAC ingress then completes NEAR step-up. OC ingress completes ECDSA
+step-up. All five signatures verify independently.
+
+The scenario exposed three production gaps:
+
+1. ECDSA step-up issuance omitted the session token and regional home. It now
+   requires the canonical credential and uses the existing bounded home-discovery
+   transport. Session-based export issuance uses that transport too. Fresh
+   factor-proof exports remain explicit. The optional legacy-cookie transport and
+   its nested fetch wrapper were removed.
+2. The destination Gateway still queried Console for authenticated ECDSA step-up.
+   It now uses the resolved local wallet and rejects a different request wallet.
+   The operation handler still verifies the factor proof and material.
+3. ECDSA step-up used an active-quota reader, which threw after exhaustion. It now
+   uses the existing exact-operation context reader. It verifies live authority,
+   expiry, material, and fresh evidence without granting reusable quota. The
+   existing complete-session equality helper replaces a duplicate field comparison.
+
+The passing artifact records zero Console attempts, three authorization-grant
+operations, and two verified-step-up operations in US. WEUR, APAC, and OC contain
+no operation records. All recorded requests avoid server errors. Awaited refill
+work is included. Evidence: [step-up outage](./evidence/r155b-step-up-outage.json).
+
+Reproduce from the private repository with the candidate server and frozen SDK
+configured, using `tests/scripts/run-regional-real.mjs` and
+`passkey.registration.contract.test.ts --grep 'shared budget exhaustion'`.
+Private raw runs are `/tmp/r155b-stepup*.log`. Public build and verification logs
+are `.artifacts/r155b-step-up/`. The first attempt's independent status request
+bypassed the regional harness; that fixture was corrected before the production
+failures above were diagnosed. A build attempt during the server edit failed on
+an import and stale type uses; it is excluded from passing evidence.
+
+This result covers passkey step-up and shared-budget exhaustion. Email OTP step-up,
+material-retirement races, relocation/cutover races, deferred alarm acceptance,
+registration conflicts, and the matched hosted comparison remain separate gates.
+
+Verification also passes for the rebuilt candidate's public passkey unlock/export
+and shared-budget lifecycle E2E (33.9 seconds), SDK and server type-checks/builds,
+Wallet lifecycle type fixtures, private Console-server type-check, and the bloat
+gate. No hosted deployment or npm publication was performed.

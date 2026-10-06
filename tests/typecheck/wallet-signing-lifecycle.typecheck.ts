@@ -87,3 +87,11 @@ const stepUpLiteral: NearPrepareResult = {
   sessionStatus: reusableNearPrepare.sessionStatus,
 };
 void [stepUpWithSession, reusableWithoutSession, stepUpLiteral];
+
+type EcdsaStepUpTransport = import('../../packages/wallet/src/core/signingEngine/threshold/ecdsa/operationStepUp').EcdsaOperationStepUpTransport;
+declare const authenticatedStepUp: Variant<EcdsaStepUpTransport, 'kind', 'wallet_session'>;
+// @ts-expect-error A session transport requires its canonical operation credential.
+const credentiallessStepUp: EcdsaStepUpTransport = { kind: 'wallet_session' };
+// @ts-expect-error A factor-only export cannot carry session authority through a spread.
+const factorOnlyWithSession: EcdsaStepUpTransport = { ...authenticatedStepUp, kind: 'factor_proof' };
+void [credentiallessStepUp, factorOnlyWithSession];

@@ -1,4 +1,4 @@
-import type { WalletSessionHome } from '@shared/device-linking/contracts';
+import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking/contracts';
 import type { OperationDigestSet } from '@shared/authorization/operationFingerprint';
 import type { TransactionSigningIntent } from '../../session/operationState/transactionState';
 import type { SigningAuthPlan } from '../../stepUpConfirmation/types';
@@ -67,9 +67,7 @@ export async function authorizeEvmFamilyEcdsaOperationStepUp(args: {
   readonly authorization: EvmFamilyEcdsaOperationStepUpAuthorization;
   readonly prepared: PreparedEcdsaOperationStepUp;
   readonly material: HydratedEcdsaSignerMaterial;
-  readonly walletSessionToken: string;
-  readonly home: WalletSessionHome;
-  readonly ownershipGeneration: number;
+  readonly operationCredential: WalletSessionOperationCredentialV1;
 }): Promise<ReadySecp256k1SigningMaterial> {
   const proof = operationStepUpProof({
     authority: args.authority,
@@ -77,6 +75,7 @@ export async function authorizeEvmFamilyEcdsaOperationStepUp(args: {
   });
   const authorization = await issueEcdsaOperationStepUpAuthorization({
     relayerUrl: args.relayerUrl,
+    transport: { kind: 'wallet_session', credential: args.operationCredential },
     request: {
       kind: 'router_ab_ecdsa_operation_step_up_v1',
       operation: args.prepared.operation,
@@ -85,9 +84,9 @@ export async function authorizeEvmFamilyEcdsaOperationStepUp(args: {
   });
   const credential = {
     kind: 'operation_step_up' as const,
-    walletSessionToken: args.walletSessionToken,
-    home: args.home,
-    ownershipGeneration: args.ownershipGeneration,
+    walletSessionToken: args.operationCredential.token,
+    home: args.operationCredential.home,
+    ownershipGeneration: args.operationCredential.ownershipGeneration,
   };
   return buildReadySecp256k1SigningMaterial({
     walletId: args.material.walletId,

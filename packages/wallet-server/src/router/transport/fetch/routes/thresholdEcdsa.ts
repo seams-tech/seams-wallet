@@ -1,3 +1,8 @@
+import { resolveWalletSessionAuthorizationV2Admission } from '../../../domains/signingOperations/walletExecutionAdmission';
+import {
+  walletSessionAuthorizationV2RecordsEqual,
+  type WalletSessionExactOperationContext,
+} from '../../../../authorization/domain';
 import { finishRouterAbEcdsaSigningResponse } from '../../../domains/signingOperations/ecdsaSigningResponse';
 import { signingPrepareSessionResponse } from '../../../domains/signingOperations/signingPrepareSession';
 import type { PinnedOwnerWalletScope } from '../../../../authorization/ecdsaWalletSessionAdmission';
@@ -622,14 +627,14 @@ type RouterAbEcdsaV2OperationStepUpResolution =
   | {
       readonly kind: 'admitted';
       readonly operationKind: 'evm.sign_transaction';
-      readonly admission: WalletSessionOperationCredentialAdmission;
+      readonly context: WalletSessionExactOperationContext;
       readonly activeMaterial: RouterAbEcdsaResolvedMaterialActivation;
       readonly exportTopology?: never;
     }
   | {
       readonly kind: 'admitted';
       readonly operationKind: 'evm.export_key';
-      readonly admission: WalletSessionOperationCredentialAdmission;
+      readonly context: WalletSessionExactOperationContext;
       readonly activeMaterial: RouterAbEcdsaResolvedMaterialActivation;
       readonly exportTopology: RouterAbEcdsaOperationStepUpExportTopologyV1Wire;
     }
@@ -642,35 +647,42 @@ async function resolveV2EcdsaOperationStepUpAdmission(input: {
 }): Promise<RouterAbEcdsaV2OperationStepUpResolution> {
   const token = extractBearerCredential(input.ctx.request.headers);
   if (!token) return { kind: 'not_found' };
-  let resolution: Awaited<ReturnType<typeof resolveWalletSessionOperationCredentialAdmission>>;
+  let context: WalletSessionExactOperationContext | null;
   try {
-    resolution = await resolveWalletSessionOperationCredentialAdmission({
-      authorizationSessions: input.ctx.service.authorizationSessions,
-      token,
-      nowMs: Date.now(),
-      operation: {
-        keyFamily: 'ecdsa_secp256k1',
-        operationKind: input.operation.operation_kind,
-      },
-    });
+    context =
+      await input.ctx.service.authorizationSessions.readWalletSessionExactOperationContextByCredential({
+        tenantId: input.ctx.service.authorizationSessions.tenantId,
+        token,
+        nowMs: Date.now(),
+      });
   } catch {
     return { kind: 'unavailable' };
   }
-  if (resolution.kind === 'not_found') return { kind: 'not_found' };
-  if (resolution.kind === 'rejected') {
+  if (!context) {
+    return { kind: 'rejected', message: 'ECDSA operation step-up Wallet Session is unavailable' };
+  }
+  const session = context.session;
+  const admission = resolveWalletSessionAuthorizationV2Admission({
+    authorization: session,
+    authority: context.authority,
+    authMethod: context.authMethod,
+    retiredAtMs: context.retiredAtMs,
+    nowMs: Date.now(),
+    operation: {
+      tenantId: session.tenantId,
+      principalId: session.principalId,
+      walletId: session.walletId,
+      keyFamily: 'ecdsa_secp256k1',
+      operationKind: input.operation.operation_kind,
+    },
+  });
+  if (!admission.ok || admission.keyFamily !== 'ecdsa_secp256k1') {
     return {
       kind: 'rejected',
       message: 'ECDSA operation step-up Wallet Session authorization is invalid',
     };
   }
-  if (resolution.admission.curve !== 'ecdsa') {
-    return {
-      kind: 'rejected',
-      message: 'ECDSA operation step-up Wallet Session family is invalid',
-    };
-  }
-  const session = resolution.admission.context.authorization.session;
-  const admittedSigner = resolution.admission.admission.signer;
+  const admittedSigner = admission.signer;
   if (
     input.operation.wallet_id !== String(session.walletId) ||
     input.operation.material_activation.material_owner !== String(session.walletId) ||
@@ -707,7 +719,7 @@ async function resolveV2EcdsaOperationStepUpAdmission(input: {
     ) ||
     !sameRouterAbMpcMaterialActivationRef(
       input.operation.material_activation,
-      routerAbMpcMaterialActivationRefToWire(resolution.admission.admission.materialActivation),
+      routerAbMpcMaterialActivationRefToWire(admission.materialActivation),
     )
   ) {
     return {
@@ -718,7 +730,7 @@ async function resolveV2EcdsaOperationStepUpAdmission(input: {
   const activeMaterial: RouterAbEcdsaResolvedMaterialActivation = {
     ok: true,
     materialActivation: routerAbMpcMaterialActivationRefToWire(
-      resolution.admission.admission.materialActivation,
+      admission.materialActivation,
     ),
     keyHandle: signer.walletKey.keyHandle,
     relayerKeyId: signer.walletKey.relayerKeyId,
@@ -729,14 +741,14 @@ async function resolveV2EcdsaOperationStepUpAdmission(input: {
     return {
       kind: 'admitted',
       operationKind: 'evm.sign_transaction',
-      admission: resolution.admission,
+      context,
       activeMaterial,
     };
   }
   return {
     kind: 'admitted',
     operationKind: 'evm.export_key',
-    admission: resolution.admission,
+    context,
     activeMaterial,
     exportTopology: {
       signer_set: signer.walletKey.publicCapability.signer_set,
@@ -845,8 +857,8 @@ async function issueEcdsaOperationStepUpAuthorization(input: {
   let v2AuthorityRef: WalletAuthAuthorityRef | undefined;
   if (v2Resolution.kind === 'admitted') {
     v2AuthorityRef = await walletAuthAuthorityRef({ authority });
-    const session = v2Resolution.admission.context.authorization.session;
-    const context = v2Resolution.admission.context;
+    const session = v2Resolution.context.session;
+    const context = v2Resolution.context;
     if (
       authority.walletId !== String(session.walletId) ||
       authority.bindingId !== context.authMethod.walletAuthMethodId ||
@@ -888,10 +900,10 @@ async function issueEcdsaOperationStepUpAuthorization(input: {
           ok: true as const,
           authorizedOperations: proofAuthenticated.authorizedOperations,
           session: {
-            tenantId: v2Resolution.admission.context.authorization.session.tenantId,
-            principalId: v2Resolution.admission.context.authorization.session.principalId,
-            sessionId: String(v2Resolution.admission.context.authorization.session.authorizationId),
-            walletId: String(v2Resolution.admission.context.authorization.session.walletId),
+            tenantId: v2Resolution.context.session.tenantId,
+            principalId: v2Resolution.context.session.principalId,
+            sessionId: String(v2Resolution.context.session.authorizationId),
+            walletId: String(v2Resolution.context.session.walletId),
             runtimePolicyScope: activeMaterial.runtimePolicyScope,
             laneAuthorization: {
               kind: 'authority_ref' as const,
@@ -950,9 +962,9 @@ async function issueEcdsaOperationStepUpAuthorization(input: {
     }
     if (
       refreshedV2Resolution.kind !== 'admitted' ||
-      !sameWalletSessionOperationCredentialAdmission(
-        v2Resolution.admission,
-        refreshedV2Resolution.admission,
+      !walletSessionAuthorizationV2RecordsEqual(
+        v2Resolution.context.session,
+        refreshedV2Resolution.context.session,
       )
     ) {
       return json(
@@ -2270,36 +2282,6 @@ async function admitStrictEcdsaExportOperationStepUp(
   }
 }
 
-function sameWalletSessionOperationCredentialAdmission(
-  left: WalletSessionOperationCredentialAdmission,
-  right: WalletSessionOperationCredentialAdmission,
-): boolean {
-  const leftSession = left.context.authorization.session;
-  const rightSession = right.context.authorization.session;
-  return (
-    leftSession.tenantId === rightSession.tenantId &&
-    leftSession.principalId === rightSession.principalId &&
-    leftSession.walletId === rightSession.walletId &&
-    leftSession.authorityId === rightSession.authorityId &&
-    leftSession.walletAuthMethodId === rightSession.walletAuthMethodId &&
-    leftSession.authorityDigestB64u === rightSession.authorityDigestB64u &&
-    leftSession.authorityRevocationEpoch === rightSession.authorityRevocationEpoch &&
-    leftSession.authorizationId === rightSession.authorizationId &&
-    leftSession.walletSessionId === rightSession.walletSessionId &&
-    leftSession.quotaId === rightSession.quotaId &&
-    leftSession.expiresAtMs === rightSession.expiresAtMs &&
-    left.context.authority.authorityId === right.context.authority.authorityId &&
-    left.context.authority.authorityDigestB64u === right.context.authority.authorityDigestB64u &&
-    left.context.authMethod.walletAuthMethodId === right.context.authMethod.walletAuthMethodId &&
-    left.context.authMethod.walletAuthorityId === right.context.authMethod.walletAuthorityId &&
-    left.context.retiredAtMs === right.context.retiredAtMs &&
-    sameRouterAbMpcMaterialActivationRef(
-      routerAbMpcMaterialActivationRefToWire(left.admission.materialActivation),
-      routerAbMpcMaterialActivationRefToWire(right.admission.materialActivation),
-    )
-  );
-}
-
 async function authorizeStrictEcdsaV2ExportOperationStepUp(input: {
   readonly ctx: FetchRouterApiContext;
   readonly request: RouterAbEcdsaDerivationExplicitExportRequestV1;
@@ -2335,9 +2317,9 @@ async function authorizeStrictEcdsaV2ExportOperationStepUp(input: {
     );
   }
   if (
-    !sameWalletSessionOperationCredentialAdmission(
-      input.authorization.v2Admission,
-      resolution.admission,
+    !walletSessionAuthorizationV2RecordsEqual(
+      input.authorization.v2Admission.context.authorization.session,
+      resolution.context.session,
     )
   ) {
     return strictEcdsaExportFailure(
@@ -2346,7 +2328,7 @@ async function authorizeStrictEcdsaV2ExportOperationStepUp(input: {
       'ECDSA export operation step-up Wallet Session changed',
     );
   }
-  const session = resolution.admission.context.authorization.session;
+  const session = resolution.context.session;
   const activeMaterial = resolution.activeMaterial;
   if (
     input.request.authorization.kind !== 'operation_step_up' ||

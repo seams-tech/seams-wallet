@@ -632,11 +632,11 @@ async function issueExplicitEcdsaExportAuthorization(args: {
   readonly relayerUrl: string;
   readonly prepared: PreparedEcdsaOperationStepUp;
   readonly proof: ReturnType<typeof passkeyExportProof> | ReturnType<typeof emailOtpExportProof>;
-  readonly transport?: EcdsaOperationStepUpTransport;
+  readonly transport: EcdsaOperationStepUpTransport;
 }): Promise<ActiveWalletAuthorityEcdsaExportAuthorization> {
   const authorization = await issueEcdsaOperationStepUpAuthorization({
     relayerUrl: args.relayerUrl,
-    ...(args.transport ? { transport: args.transport } : {}),
+    transport: args.transport,
     request: {
       kind: 'router_ab_ecdsa_operation_step_up_v1',
       operation: args.prepared.operation,
@@ -743,7 +743,7 @@ async function prepareFreshPasskeyEcdsaExportMaterial(
   const authorization = await issueExplicitEcdsaExportAuthorization({
     relayerUrl: args.material.relayerUrl,
     prepared,
-    transport: { kind: 'legacy_cookie' },
+    transport: { kind: 'factor_proof' },
     proof: passkeyExportProof({
       authority,
       credential: exportCredential.credential,
@@ -854,8 +854,8 @@ async function prepareActiveWalletAuthorityPasskeyEcdsaExport(args: {
     relayerUrl: args.material.relayerUrl,
     prepared,
     transport: {
-      kind: 'wallet_session_bearer',
-      token: runtime.operationCredential.token,
+      kind: 'wallet_session',
+      credential: runtime.operationCredential,
     },
     proof: passkeyExportProof({
       authority: runtime.factorAuthority,
@@ -926,8 +926,8 @@ async function prepareActiveWalletAuthorityEmailOtpEcdsaExport(args: {
     relayerUrl: args.material.relayerUrl,
     prepared,
     transport: {
-      kind: 'wallet_session_bearer',
-      token: runtime.operationCredential.token,
+      kind: 'wallet_session',
+      credential: runtime.operationCredential,
     },
     proof: emailOtpExportProof({
       authority: runtime.factorAuthority,
@@ -1077,7 +1077,7 @@ export async function exportThresholdEcdsaKeyWithFreshEmailOtpRouteAuth(
   const explicitExportAuthorization = await issueExplicitEcdsaExportAuthorization({
     relayerUrl: args.material.relayerUrl,
     prepared,
-    transport: { kind: 'legacy_cookie' },
+    transport: { kind: 'factor_proof' },
     proof: emailOtpExportProof({
       authority: args.material.authorization.authority,
       challengeId: authorization.challengeId,
