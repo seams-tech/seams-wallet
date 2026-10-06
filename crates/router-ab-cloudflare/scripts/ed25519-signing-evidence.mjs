@@ -35,9 +35,9 @@ async function accepted(router, path, body, credential) {
 }
 
 export async function verifyEd25519DestinationSigning({
-  topology, activation, identity, clientRecipientSeed, credential, repoRoot, scope, destinationName, ownershipGeneration,
+  topology, routerName, activation, identity, clientRecipientSeed, credential, repoRoot, scope, destinationName, ownershipGeneration,
 }) {
-  const router = await topology.getWorker('router');
+  const router = await topology.getWorker(routerName);
   const fixture = signingFixture(repoRoot, {
     command: 'prepare', activation, identity,
     ownership_generation: ownershipGeneration, expires_at_ms: Date.now() + 120_000,

@@ -1346,3 +1346,35 @@ Workers, then run the complete move.
 [Setup evidence and repeat command](./evidence/r155b-composed-custody-20261007.json).
 This uses current local custody sources, including concurrent R153 changes. It
 does not establish hosted latency or a deployable committed-source candidate.
+
+### Composed NEAR relocation and empty ECDSA inventory — 2026-10-07
+
+The private composed acceptance now completes a WEUR-to-APAC move for a NEAR-only
+wallet. It uses the production directory journal, Gateway authorization handlers,
+Runtime handlers, migrated regional D1 stores, and separate native custody object
+namespaces. The fixture acknowledges native registration and supplies a real
+session and signed WebAuthn owner approval. The authority manifest uses the
+registered NEAR public key and exact material activation.
+
+The run exposed a production defect: presignature preparation required ECDSA
+execution authority even when the NEAR-only wallet had no ECDSA material. The
+preparation reader now applies the same empty-store condition as ECDSA freeze.
+Missing authority still fails if snapshot records or an import activation exist.
+Generation checks, relocation fences, cursor validation, and page limits remain.
+This read creates no execution authority.
+
+The final run completed source freeze, verified transfer, destination activation,
+and source cleanup. A generation-2 NEAR signature verified at the destination.
+The old generation was rejected. Prepare and finalize replay succeeded after
+SigningWorker object eviction. The existing ECDSA pool acceptance also passed,
+including delayed-refill rejection, terminal replay, and move/return checks.
+All five native Worker roles were rebuilt. The bloat check passed.
+
+This is local native composition evidence. It does not close hosted regional
+comparison, full browser SDK relocation, in-flight signing races, or Email OTP
+Console-outage acceptance. No Cloudflare deployment or spending occurred.
+
+[Sanitized evidence and reproduction commands](./evidence/r155b-near-empty-presign-20261007.json).
+Private acceptance commit: `ac66d14`. Current local custody sources include
+concurrent R153 changes. Build hashes identify the tested binaries. A frozen,
+fully committed deployment candidate remains a separate gate.

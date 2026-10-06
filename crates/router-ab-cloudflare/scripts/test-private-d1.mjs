@@ -4314,6 +4314,7 @@ async function signRelocatedEd25519(topology, activation, fixture, destinationNa
   try {
     return await verifyEd25519DestinationSigning({
       topology,
+      routerName: 'router',
       activation: activation.result.result.result,
       identity: fixture.tenant_root_creation.identity,
       clientRecipientSeed: fixture.activation.client_recipient_seed,

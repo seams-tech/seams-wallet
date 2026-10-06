@@ -107,10 +107,18 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         request.scope.validate()?;
         crate::router_wallet::validate_wallet_ownership_generation(request.source_generation)?;
         self.require_mutation_admission(&request.scope)?;
-        let authority = self.execution_authority(&request.scope)?
-            .ok_or_else(|| wallet_error("Linked presign preparation requires execution authority"))?;
-        if authority.generation()? != request.source_generation {
-            return Err(wallet_error("Linked presign preparation ownership generation differs"));
+        match self.execution_authority(&request.scope)? {
+            Some(authority) if authority.generation()? != request.source_generation => {
+                return Err(wallet_error("Linked presign preparation ownership generation differs"));
+            }
+            None => {
+                if self.ecdsa_snapshot_record_count(&request.scope)? != 0
+                    || self.import_activation(&request.scope)?.is_some()
+                {
+                    return Err(wallet_error("Linked presign preparation requires execution authority"));
+                }
+            }
+            Some(_) => {}
         }
         self.list_linked_presign_sessions(
             &request.scope, request.source_generation, request.cursor, request.limit,
