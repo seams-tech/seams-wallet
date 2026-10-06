@@ -1658,7 +1658,9 @@ raw export bypass. The Worker scenario exports a real finalized registration
 through Runtime, checks exact chunk replay, and reconstructs the Router digest.
 It imports into a separate Router and requests destination status and verification
 through Console-authorized Runtime commands. Raw status and verification commands
-are rejected. Destination preparation and import authorization remain unfinished.
+are rejected. Runtime now authorizes imports against the same pinned receipt,
+rejects mismatched chunks before Router dispatch, and keeps chunk data out of
+Console. Destination preparation authorization remains unfinished.
 Console remains a response fixture in that scenario; its journal has separate
 D1 E2E coverage. The Worker E2E uses a directory response fixture and proves that denied
 or malformed authorization reaches no Router call. The actual directory journal

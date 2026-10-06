@@ -50,6 +50,12 @@ class SourceDirectory {
       return Response.json({ ok: false, code: 'attempt_conflict' }, { status: 409 });
     if (request.url.endsWith('/relocation-router-destination')) {
       assert.ok(this.receipt);
+      assert.equal(Object.keys(input).length, 3, 'Console receives no chunk data');
+      if (input.operation === 'import')
+        return Response.json({
+          ok: true,
+          command: { kind: 'import', receipt: this.receipt, chunk_bytes: 4096 },
+        });
       if (input.operation === 'status')
         return Response.json({
           ok: true,
@@ -393,14 +399,27 @@ export async function verifyRuntimeRouterExport(runtime, activation, topology) {
       assert.deepEqual(await replay.json(), exported);
       const segment = Buffer.from(exported.chunk.data_b64u, 'base64url');
       assert.ok(segment.length <= 4096);
-      const imported = await runtimeRouterCommand(destination, 'router-transfer', {
-        kind: 'import',
+      const wrongReceipt = structuredClone(exported.chunk);
+      wrongReceipt.receipt.records_digest_hex = '0'.repeat(64);
+      const callsBeforeWrongReceipt = destination.env.MPC_ROUTER.calls;
+      const denied = await destination.handler(
+        new Request(`${runtimeOrigin}${runtimeBase}/router-import`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ ...envelope, chunk: wrongReceipt }),
+        }),
+        destination.env,
+      );
+      assert.equal(denied.status, 400);
+      assert.equal(destination.env.MPC_ROUTER.calls, callsBeforeWrongReceipt);
+      const imported = await runtimeRouterCommand(destination, 'router-import', {
+        ...envelope,
         chunk: exported.chunk,
       });
       assert.equal(imported.kind, 'imported');
       assert.deepEqual(
-        await runtimeRouterCommand(destination, 'router-transfer', {
-          kind: 'import',
+        await runtimeRouterCommand(destination, 'router-import', {
+          ...envelope,
           chunk: exported.chunk,
         }),
         imported,

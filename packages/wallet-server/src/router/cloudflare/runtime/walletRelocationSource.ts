@@ -8,7 +8,8 @@ export type RuntimeSourceOperation =
   | 'router-freeze'
   | 'router-export'
   | 'router-status'
-  | 'router-verify';
+  | 'router-verify'
+  | 'router-import';
 export type RuntimeSourceDirectory = {
   readonly WALLET_CONSOLE: WalletConsoleServiceBinding;
   readonly CF_VERSION_METADATA: { readonly id: unknown };
@@ -29,9 +30,12 @@ export async function authorizeRuntimeSource(
   operation: RuntimeSourceOperation,
   env: RuntimeSourceDirectory,
 ): Promise<SourceAuthorization> {
+  let fieldCount = 2;
+  if (operation === 'router-export') fieldCount = 4;
+  else if (operation === 'router-import') fieldCount = 3;
   if (
     !isPlainObject(input) ||
-    Object.keys(input).length !== (operation === 'router-export' ? 4 : 2) ||
+    Object.keys(input).length !== fieldCount ||
     !isPlainObject(input.wallet) ||
     !isPlainObject(input.attempt)
   )
@@ -39,7 +43,8 @@ export async function authorizeRuntimeSource(
   const version = env.CF_VERSION_METADATA.id;
   if (typeof version !== 'string' || !version)
     return { ok: false, code: 'source_command_unavailable' };
-  const destination = operation === 'router-status' || operation === 'router-verify';
+  const destination =
+    operation === 'router-status' || operation === 'router-verify' || operation === 'router-import';
   const transfer = destination || operation === 'router-export';
   let endpoint = 'relocation-runtime-source';
   let commandBody = JSON.stringify({ wallet: input.wallet, attempt: input.attempt, operation });
@@ -53,10 +58,13 @@ export async function authorizeRuntimeSource(
     });
   } else if (destination) {
     endpoint = 'relocation-router-destination';
+    let destinationOperation = 'verify';
+    if (operation === 'router-status') destinationOperation = 'status';
+    else if (operation === 'router-import') destinationOperation = 'import';
     commandBody = JSON.stringify({
       wallet: input.wallet,
       attempt: input.attempt,
-      operation: operation === 'router-status' ? 'status' : 'verify',
+      operation: destinationOperation,
     });
   }
   let response: Response;
@@ -121,10 +129,10 @@ export async function authorizeRuntimeSource(
           input.segmentIndex > 4294967295
         )
           return { ok: false, code: 'source_command_unavailable' };
-      } else if (operation === 'router-status') {
+      } else if (operation === 'router-status' || operation === 'router-import') {
         if (
           Object.keys(payload).length !== 3 ||
-          payload.kind !== 'status' ||
+          payload.kind !== (operation === 'router-status' ? 'status' : 'import') ||
           payload.chunk_bytes !== 4096
         )
           return { ok: false, code: 'source_command_unavailable' };
@@ -152,6 +160,7 @@ export async function authorizeRuntimeSource(
       request.destination_generation !== request.source_generation + 1
     )
       return { ok: false, code: 'source_command_unavailable' };
+    if (operation === 'router-import') return authorizeImportChunk(input.chunk, payload.receipt);
     return { ok: true, body: JSON.stringify(payload) };
   }
   const source = operation === 'ed25519-capture' ? payload.source : payload;
@@ -257,4 +266,33 @@ function receiptUnavailable(): Response {
       headers: { 'Cache-Control': 'no-store' },
     },
   );
+}
+
+function authorizeImportChunk(chunk: unknown, receipt: unknown): SourceAuthorization {
+  if (
+    !isPlainObject(receipt) ||
+    !isPlainObject(chunk) ||
+    Object.keys(chunk).length !== 6 ||
+    !isPlainObject(chunk.receipt) ||
+    !sameReceipt(receipt, chunk.receipt) ||
+    typeof chunk.record_index !== 'number' ||
+    !Number.isSafeInteger(chunk.record_index) ||
+    chunk.record_index < 0 ||
+    typeof receipt.record_count !== 'number' ||
+    chunk.record_index >= receipt.record_count ||
+    typeof chunk.segment_index !== 'number' ||
+    !Number.isSafeInteger(chunk.segment_index) ||
+    chunk.segment_index < 0 ||
+    typeof chunk.segment_count !== 'number' ||
+    !Number.isSafeInteger(chunk.segment_count) ||
+    chunk.segment_count < 1 ||
+    chunk.segment_count > 4294967295 ||
+    chunk.segment_index >= chunk.segment_count ||
+    chunk.chunk_bytes !== 4096 ||
+    typeof chunk.data_b64u !== 'string' ||
+    chunk.data_b64u.length > 5462 ||
+    !/^[A-Za-z0-9_-]+$/u.test(chunk.data_b64u)
+  )
+    return { ok: false, code: 'invalid_input' };
+  return { ok: true, body: JSON.stringify({ kind: 'import', chunk }) };
 }
