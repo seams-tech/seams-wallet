@@ -1,3 +1,4 @@
+use super::deriver_preparation as preparation;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use worker::{DurableObject, Env, Request, Response, SqlStorage, SqlStorageValue, State};
@@ -11,6 +12,8 @@ use crate::{
     },
     CloudflareDeriverBWalletPairScopeV1,
 };
+
+pub(crate) const PREPARATION_PATH: &str = "/router-ab/internal/deriver-b/wallet/prepare-relocation";
 
 const BINDING: &str = "DERIVER_B_WALLET_DO";
 const COMMAND_PATH: &str = "/router-ab/internal/deriver-b/wallet-pair";
@@ -125,18 +128,29 @@ impl DurableObject for RouterAbDeriverBWalletDurableObject {
     async fn fetch(&self, mut request: Request) -> worker::Result<Response> {
         let path = request.path();
         if request.method() != worker::Method::Post
-            || (path != COMMAND_PATH && path != RECONCILE_PATH)
+            || (path != COMMAND_PATH && path != RECONCILE_PATH && path != PREPARATION_PATH)
         {
             return Response::error("Unknown Deriver B wallet object request", 404);
         }
         self.sql.exec(OWNER_SCHEMA, None)?;
         self.sql.exec(PAIR_SCHEMA, None)?;
         self.sql.exec(FENCE_SCHEMA, None)?;
+        self.sql.exec(preparation::SCHEMA, None)?;
+        if path == PREPARATION_PATH {
+            let command: preparation::Preparation<DeriverBWalletOwnerV1> = request.json().await?;
+            command.validate()?;
+            self.check_owner(&command.owner, true)?;
+            return preparation::reserve(&self.sql, command);
+        }
         if path == RECONCILE_PATH {
+            preparation::require_open::<DeriverBWalletOwnerV1>(&self.sql)?;
             let reconcile: TenantRootWalletPairReconcileRequestV1 = request.json().await?;
             return Response::from_json(&self.reconcile(&reconcile)?);
         }
         let request: DeriverBWalletDoRequestV1 = request.json().await?;
+        if !matches!(request.command, DeriverBYaoSessionCommandV1::ReadPairStatus { .. }) {
+            preparation::require_open::<DeriverBWalletOwnerV1>(&self.sql)?;
+        }
         self.execute(request).await
     }
 }
@@ -348,4 +362,20 @@ pub(crate) async fn reconcile_deriver_b_wallet_pair_v1(
 
 fn pair_error(error: impl ToString) -> worker::Error {
     worker::Error::RustError(error.to_string())
+}
+
+impl preparation::WalletOwner for DeriverBWalletOwnerV1 {
+    const LABEL: &'static str = "Deriver B";
+
+    fn parts(&self) -> [&str; 4] {
+        [&self.org_id, &self.project_id, &self.env_id, &self.wallet_id]
+    }
+
+    fn object_name(&self) -> worker::Result<String> {
+        DeriverBWalletOwnerV1::object_name(self)
+    }
+}
+
+pub(crate) async fn call_preparation(request: Request, env: &Env) -> worker::Result<Response> {
+    preparation::call_preparation::<DeriverBWalletOwnerV1>(request, env, BINDING, PREPARATION_PATH).await
 }

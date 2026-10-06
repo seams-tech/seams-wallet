@@ -1904,18 +1904,21 @@ imports the source history into the reserved destination. This component evidenc
 does not establish preparation or activation of every wallet participant.
 
 
-### Reserve a Deriver A wallet destination
+### Reserve Deriver wallet destinations
 
-The private Runtime forwards destination preparation through the authenticated
-Deriver A service boundary. Preparation requires an empty wallet pair store and
-binds its reservation to the wallet owner, move, request digest, and generations.
-Exact retries retain the same receipt after object restart. A nonempty store or
-conflicting reservation is rejected. Ordinary pair commands cannot write to a
-reserved destination. SQL guards also reject deferred writes to pair records and
-admission fences. Read-only inspection remains available.
+The private Runtime forwards destination preparation through each authenticated
+Deriver service boundary. Both roles use one reservation protocol while retaining
+their separate owner types and physical objects. Preparation requires an empty
+wallet pair store and binds its reservation to the wallet owner, move, request
+digest, and generations. Exact retries retain the same receipt after object
+restart. A nonempty store or conflicting reservation is rejected. Ordinary pair
+commands cannot write to a reserved destination. SQL guards also reject deferred
+writes to pair records and admission fences. Empty-store inspection remains
+available through the existing read commands.
 
-The Worker pair-execution E2E exercises a separate destination object for the same
-wallet. It verifies private Runtime preparation, authentication, restart replay,
-conflict rejection, and rejection of a valid ordinary pair preparation. This
-contract covers Deriver A destination reservation. Deriver state transfer, key
-continuity checks, activation, and the aggregate preparation adapter remain open.
+The Worker pair-execution E2E exercises separate destination objects for the same
+wallet in both roles. It verifies private Runtime preparation, authentication,
+restart replay, conflict rejection, and rejection of ordinary pair writes. It also
+verifies that Deriver B reconciliation cannot add a fence to its reserved store.
+Deriver state transfer, key continuity checks, activation, and the aggregate
+preparation adapter remain open.

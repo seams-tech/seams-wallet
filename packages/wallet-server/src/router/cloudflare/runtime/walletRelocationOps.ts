@@ -13,6 +13,7 @@ const BASE_PATH = '/internal/wallet-runtime/v1/relocation';
 // The private Runtime binding carries trusted coordinator commands. The Router
 // parses each role's command and the participant enforces its durable move state.
 const OPERATIONS = {
+  'deriver-b-prepare': '/router-ab/internal/deriver-b/wallet/prepare-relocation',
   'deriver-a-prepare': '/router-ab/internal/deriver-a/wallet/prepare-relocation',
   'router-freeze': '/router-ab/router/wallet/freeze',
   'router-cleanup': '/router-ab/router/wallet/transfer',
@@ -38,6 +39,7 @@ const OPERATIONS = {
 export type WalletRelocationRuntimeBindings = RuntimeSourceDirectory & {
   readonly MPC_ROUTER: CloudflareServiceBindingFetcher;
   readonly DERIVER_A: CloudflareServiceBindingFetcher;
+  readonly DERIVER_B: CloudflareServiceBindingFetcher;
   readonly ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET?: string;
   readonly ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET?: string;
 };
@@ -57,7 +59,7 @@ export async function handleWalletRelocationRequest(
   const contentType = request.headers.get('content-type') || '';
   if (!contentType.toLowerCase().startsWith('application/json'))
     return failure('unsupported_media_type', 415);
-  const deriverPreparation = operation === 'deriver-a-prepare';
+  const deriverPreparation = operation === 'deriver-a-prepare' || operation === 'deriver-b-prepare';
   const credential = deriverPreparation
     ? env.ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET?.trim()
     : env.ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET?.trim();
@@ -109,8 +111,15 @@ export async function handleWalletRelocationRequest(
   ) {
     return failure('source_command_required', 400);
   }
-  const transport = deriverPreparation ? env.DERIVER_A : env.MPC_ROUTER;
-  const origin = deriverPreparation ? 'https://deriver-a.router-ab.internal' : 'https://mpc-router.router-ab.internal';
+  let transport = env.MPC_ROUTER;
+  let origin = 'https://mpc-router.router-ab.internal';
+  if (operation === 'deriver-a-prepare') {
+    transport = env.DERIVER_A;
+    origin = 'https://deriver-a.router-ab.internal';
+  } else if (operation === 'deriver-b-prepare') {
+    transport = env.DERIVER_B;
+    origin = 'https://deriver-b.router-ab.internal';
+  }
   const response = await transport.fetch(
     new Request(`${origin}${path}`, {
       method: 'POST',

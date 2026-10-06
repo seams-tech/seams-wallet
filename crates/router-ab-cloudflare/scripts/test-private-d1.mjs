@@ -5423,7 +5423,10 @@ async function main() {
         testWalletDoLostReply,
       ),
       deriverAWorker(fixture),
-      ...(testWalletDoExecution ? [{ ...deriverAWorker(fixture), name: 'deriver-a-relocation-destination' }] : []),
+      ...(testWalletDoExecution ? [
+        { ...deriverAWorker(fixture), name: 'deriver-a-relocation-destination' },
+        { ...deriverBWorker(fixture), name: 'deriver-b-relocation-destination' },
+      ] : []),
       deriverBWorker(fixture),
       tenantRootControlPlaneWorker(fixture),
       signingWorker('fixture-signing-worker', 'fixture-signing-worker-d1', fixture),

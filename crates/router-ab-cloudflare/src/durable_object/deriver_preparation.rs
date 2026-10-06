@@ -1,30 +1,29 @@
-use super::{pair_error, DeriverAWalletOwnerV1};
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use worker::{Env, Method, Request, Response, SqlStorage, SqlStorageValue};
 
-pub(super) const SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_relocation_preparation (id INTEGER PRIMARY KEY CHECK (id = 1), request_json TEXT NOT NULL)";
+pub(crate) const SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_relocation_preparation (id INTEGER PRIMARY KEY CHECK (id = 1), request_json TEXT NOT NULL)";
 
-pub(crate) const PREPARATION_PATH: &str = "/router-ab/internal/deriver-a/wallet/prepare-relocation";
+pub(crate) trait WalletOwner: Serialize + DeserializeOwned {
+    const LABEL: &'static str;
+    fn parts(&self) -> [&str; 4];
+    fn object_name(&self) -> worker::Result<String>;
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(super) struct Preparation {
-    pub(super) owner: DeriverAWalletOwnerV1,
+pub(crate) struct Preparation<Owner> {
+    pub(crate) owner: Owner,
     move_id: String,
     request_digest_hex: String,
     source_generation: u64,
     destination_generation: u64,
 }
 
-impl Preparation {
-    pub(super) fn validate(&self) -> worker::Result<()> {
-        for value in [
-            &self.owner.org_id,
-            &self.owner.project_id,
-            &self.owner.env_id,
-            &self.owner.wallet_id,
-        ] {
-            crate::require_non_empty("Deriver A wallet owner", value)
+impl<Owner: WalletOwner> Preparation<Owner> {
+    pub(crate) fn validate(&self) -> worker::Result<()> {
+        for value in self.owner.parts() {
+            crate::require_non_empty("Deriver wallet owner", value)
                 .map_err(|error| pair_error(error.to_string()))?;
         }
         if self.move_id.len() != 49
@@ -41,7 +40,7 @@ impl Preparation {
             || self.source_generation >= 9_007_199_254_740_991
             || self.destination_generation != self.source_generation + 1
         {
-            return Err(pair_error("Deriver A relocation identity is invalid"));
+            return Err(pair_error("Deriver relocation identity is invalid"));
         }
         Ok(())
     }
@@ -53,17 +52,22 @@ struct ReservationRow {
 }
 
 #[derive(Serialize)]
-struct Receipt {
+struct Receipt<Owner> {
     kind: &'static str,
-    request: Preparation,
+    request: Preparation<Owner>,
     destination_object: String,
 }
 
-pub(crate) async fn call_preparation(mut request: Request, env: &Env) -> worker::Result<Response> {
+pub(crate) async fn call_preparation<Owner: WalletOwner>(
+    mut request: Request,
+    env: &Env,
+    binding: &str,
+    path: &str,
+) -> worker::Result<Response> {
     if request.method() != Method::Post {
-        return Response::error("Deriver A relocation preparation requires POST", 405);
+        return Response::error("Deriver relocation preparation requires POST", 405);
     }
-    let command: Preparation =
+    let command: Preparation<Owner> =
         match crate::durable_object::tenant_root_creation::decode_bounded_json_request(
             &mut request,
             8192,
@@ -74,11 +78,11 @@ pub(crate) async fn call_preparation(mut request: Request, env: &Env) -> worker:
             Err(error) => return crate::router_coordinator::protocol_error_response(error),
         };
     command.validate()?;
-    let namespace = env.durable_object(super::PAIR_DO_BINDING)?;
+    let namespace = env.durable_object(binding)?;
     let stub = namespace.get_by_name(&command.owner.object_name()?)?;
     let body = serde_json::to_string(&command).map_err(|error| pair_error(error.to_string()))?;
     let forwarded = Request::new_with_init(
-        &format!("https://router-ab-do.internal{PREPARATION_PATH}"),
+        &format!("https://router-ab-do.internal{path}"),
         &worker::RequestInit::new()
             .with_method(Method::Post)
             .with_body(Some(body.into())),
@@ -86,11 +90,14 @@ pub(crate) async fn call_preparation(mut request: Request, env: &Env) -> worker:
     stub.fetch_with_request(forwarded).await
 }
 
-pub(super) fn reserve(sql: &SqlStorage, command: Preparation) -> worker::Result<Response> {
+pub(crate) fn reserve<Owner: WalletOwner>(
+    sql: &SqlStorage,
+    command: Preparation<Owner>,
+) -> worker::Result<Response> {
     // SQL guards also reject deferred writers that entered before preparation.
     for table in ["yao_pair_sessions", "yao_pair_admission_fences"] {
         for operation in ["INSERT", "UPDATE", "DELETE"] {
-            sql.exec(&format!("CREATE TRIGGER IF NOT EXISTS relocation_{table}_{operation} BEFORE {operation} ON {table} WHEN EXISTS (SELECT 1 FROM wallet_relocation_preparation) BEGIN SELECT RAISE(ABORT, 'Deriver A destination is reserved'); END"), None)?;
+            sql.exec(&format!("CREATE TRIGGER IF NOT EXISTS relocation_{table}_{operation} BEFORE {operation} ON {table} WHEN EXISTS (SELECT 1 FROM wallet_relocation_preparation) BEGIN SELECT RAISE(ABORT, 'Deriver destination is reserved'); END"), None)?;
         }
     }
     let request_json =
@@ -112,13 +119,13 @@ pub(super) fn reserve(sql: &SqlStorage, command: Preparation) -> worker::Result<
             request: command,
         }),
         _ => Response::error(
-            "Deriver A destination is nonempty or reserved for another move",
+            "Deriver destination is nonempty or reserved for another move",
             409,
         ),
     }
 }
 
-pub(super) fn require_open(sql: &SqlStorage) -> worker::Result<()> {
+pub(crate) fn require_open<Owner: WalletOwner>(sql: &SqlStorage) -> worker::Result<()> {
     let rows = sql
         .exec(
             "SELECT request_json FROM wallet_relocation_preparation WHERE id = 1",
@@ -126,7 +133,14 @@ pub(super) fn require_open(sql: &SqlStorage) -> worker::Result<()> {
         )?
         .to_array::<ReservationRow>()?;
     if !rows.is_empty() {
-        return Err(pair_error("Deriver A destination is reserved"));
+        return Err(pair_error(format!(
+            "{} destination is reserved",
+            Owner::LABEL
+        )));
     }
     Ok(())
+}
+
+fn pair_error(message: impl Into<String>) -> worker::Error {
+    worker::Error::RustError(message.into())
 }

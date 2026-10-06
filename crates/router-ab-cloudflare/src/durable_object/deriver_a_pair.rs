@@ -35,8 +35,10 @@ use crate::{
     CloudflareEd25519YaoPairPrepareRequestV1, CloudflareEd25519YaoPairStatusResponseV1,
 };
 
-mod preparation;
-pub(crate) use preparation::{call_preparation, PREPARATION_PATH};
+use super::deriver_preparation as preparation;
+
+
+pub(crate) const PREPARATION_PATH: &str = "/router-ab/internal/deriver-a/wallet/prepare-relocation";
 
 const PAIR_DO_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair";
 #[cfg(feature = "wallet-do-harness")]
@@ -390,11 +392,11 @@ impl DurableObject for RouterAbDeriverAWalletDurableObject {
         self.sql.exec(FENCE_SCHEMA, None)?;
         self.sql.exec(preparation::SCHEMA, None)?;
         if path != PREPARATION_PATH && path != PAIR_DO_PATH {
-            preparation::require_open(&self.sql)?;
+            preparation::require_open::<DeriverAWalletOwnerV1>(&self.sql)?;
         }
         match path.as_str() {
             PREPARATION_PATH => {
-                let command: preparation::Preparation = request.json().await?;
+                let command: preparation::Preparation<DeriverAWalletOwnerV1> = request.json().await?;
                 command.validate()?;
                 self.check_owner(&command.owner, true)?;
                 preparation::reserve(&self.sql, command)
@@ -402,7 +404,7 @@ impl DurableObject for RouterAbDeriverAWalletDurableObject {
             PAIR_DO_PATH => {
                 let command: DeriverAPairDoCommandV1 = request.json().await?;
                 if !matches!(command, DeriverAPairDoCommandV1::Read { .. }) {
-                    preparation::require_open(&self.sql)?;
+                    preparation::require_open::<DeriverAWalletOwnerV1>(&self.sql)?;
                 }
                 let response = self.execute(command)?;
                 Response::from_json(&response)
@@ -1436,4 +1438,20 @@ mod tests {
             other_wallet.object_name().expect("name")
         );
     }
+}
+
+impl preparation::WalletOwner for DeriverAWalletOwnerV1 {
+    const LABEL: &'static str = "Deriver A";
+
+    fn parts(&self) -> [&str; 4] {
+        [&self.org_id, &self.project_id, &self.env_id, &self.wallet_id]
+    }
+
+    fn object_name(&self) -> worker::Result<String> {
+        DeriverAWalletOwnerV1::object_name(self)
+    }
+}
+
+pub(crate) async fn call_preparation(request: Request, env: &Env) -> worker::Result<Response> {
+    preparation::call_preparation::<DeriverAWalletOwnerV1>(request, env, PAIR_DO_BINDING, PREPARATION_PATH).await
 }
