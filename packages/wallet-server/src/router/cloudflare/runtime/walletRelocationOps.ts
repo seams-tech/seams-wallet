@@ -1,3 +1,4 @@
+import { ed25519RuntimeOperation, forwardEd25519Snapshot } from './walletRelocationEd25519';
 import { forwardDeriverRelocation, deriverRuntimeOperation } from './walletRelocationDeriver';
 import {
   authorizeRuntimeSource,
@@ -42,6 +43,10 @@ const OPERATIONS = {
   'router-verify': '/router-ab/router/wallet/transfer',
   'router-export': '/router-ab/router/wallet/transfer',
   'router-transfer': '/router-ab/router/wallet/transfer',
+  'ed25519-export': '/router-ab/signing-worker/wallet/ed25519/snapshot',
+  'ed25519-import': '/router-ab/signing-worker/wallet/ed25519/snapshot',
+  'ed25519-status': '/router-ab/signing-worker/wallet/ed25519/snapshot',
+  'ed25519-verify': '/router-ab/signing-worker/wallet/ed25519/snapshot',
   'ed25519-capture': '/router-ab/signing-worker/wallet/ed25519/snapshot',
   'ed25519-settle': '/router-ab/signing-worker/wallet/ed25519/settle',
   'ed25519-snapshot': '/router-ab/signing-worker/wallet/ed25519/snapshot',
@@ -98,6 +103,8 @@ export async function handleWalletRelocationRequest(
     const binding = deriverAction.role === 'deriver-a' ? env.DERIVER_A : env.DERIVER_B;
     return forwardDeriverRelocation(input, deriverAction.role, deriverAction.operation, binding, credential, env);
   }
+  const ed25519Action = ed25519RuntimeOperation(operation);
+  if (ed25519Action) return forwardEd25519Snapshot(input, ed25519Action, env.MPC_ROUTER, credential, env);
   let body: BodyInit = bytes;
   if (
     operation === 'router-cleanup' ||
@@ -108,7 +115,6 @@ export async function handleWalletRelocationRequest(
     operation === 'router-export' ||
     operation === 'router-freeze' ||
     operation === 'ed25519-settle' ||
-    operation === 'ed25519-capture' ||
     operation === 'ecdsa-freeze'
   ) {
     const authorized = await authorizeRuntimeSource(input, operation, env);
@@ -133,7 +139,8 @@ export async function handleWalletRelocationRequest(
   } else if (
     operation === 'ed25519-snapshot' &&
     isPlainObject(input) &&
-    input.command === 'capture'
+    (input.command === 'capture' || input.command === 'export' || input.command === 'import' ||
+      input.command === 'status' || input.command === 'verify')
   ) {
     return failure('source_command_required', 400);
   }

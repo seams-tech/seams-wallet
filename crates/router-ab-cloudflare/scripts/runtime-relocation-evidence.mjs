@@ -29,6 +29,7 @@ class SourceDirectory {
   mode = 'authorized';
   receiptMode = 'available';
   receipt = null;
+  ed25519Receipt = null;
   activationReceipt = null;
   constructor(source) {
     this.source = source;
@@ -36,7 +37,9 @@ class SourceDirectory {
 
   async fetch(request) {
     assert.ok(
-      request.url.endsWith('/relocation-runtime-source') ||
+      request.url.endsWith('/relocation-ed25519-receipt') ||
+        request.url.endsWith('/relocation-ed25519-transfer') ||
+        request.url.endsWith('/relocation-runtime-source') ||
         request.url.endsWith('/relocation-router-receipt') ||
         request.url.endsWith('/relocation-router-export') ||
         request.url.endsWith('/relocation-router-destination') ||
@@ -51,6 +54,21 @@ class SourceDirectory {
     const input = await request.json();
     if (this.mode === 'denied' || input.attempt.moveId !== this.source.request.move_id)
       return Response.json({ ok: false, code: 'attempt_conflict' }, { status: 409 });
+    if (request.url.endsWith('/relocation-ed25519-receipt')) {
+      assert.deepEqual(input.receipt.source, this.source);
+      if (this.ed25519Receipt) assert.deepEqual(input.receipt, this.ed25519Receipt);
+      this.ed25519Receipt = input.receipt;
+      if (this.receiptMode === 'lost_reply') throw new Error('Recorded Ed25519 receipt reply was lost');
+      return Response.json({ ok: true, receipt: this.ed25519Receipt });
+    }
+    if (request.url.endsWith('/relocation-ed25519-transfer')) {
+      assert.ok(this.ed25519Receipt);
+      assert.equal(Object.keys(input).length, 3, 'Console receives no segment data');
+      const command = { command: input.request.operation, receipt: structuredClone(this.ed25519Receipt) };
+      if (this.mode === 'corrupt') command.receipt.source.scope.wallet_id = 'another-wallet';
+      if (input.request.operation === 'export') command.segment_index = input.request.segmentIndex;
+      return Response.json({ ok: true, command });
+    }
     if (request.url.endsWith('/relocation-router-cleanup')) {
       assert.ok(this.activationReceipt);
       return Response.json({
@@ -171,8 +189,15 @@ class RuntimeRelocationSource {
         forwardedBody = sourceEnvelope(body);
         break;
       case '/router-ab/signing-worker/wallet/ed25519/snapshot':
-        operation = body.command === 'capture' ? 'ed25519-capture' : 'ed25519-snapshot';
+        operation = ['capture', 'export', 'import', 'status', 'verify'].includes(body.command)
+          ? `ed25519-${body.command}` : 'ed25519-snapshot';
         if (body.command === 'capture') forwardedBody = sourceEnvelope(body.source);
+        else if (operation !== 'ed25519-snapshot') {
+          forwardedBody = sourceEnvelope(body.receipt.source);
+          forwardedBody.attempt.phase = 'copying';
+          if (body.command === 'export') forwardedBody.segmentIndex = body.segment_index;
+          if (body.command === 'import') forwardedBody.segment = body.segment;
+        }
         break;
       default:
         throw new Error(`Unsupported relocation evidence request: ${path}`);
@@ -527,4 +552,14 @@ async function runtimeRouterCommand(runtime, operation, body) {
   const result = await response.json();
   assert.equal(response.status, 200, JSON.stringify(result));
   return result;
+}
+
+export async function runtimeEd25519Destination(topology, source) {
+  const destination = new RuntimeRelocationSource(source.handler,
+    await topology.getWorker('router-relocation-destination'),
+    source.env.ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET,
+    source.env.WALLET_CONSOLE.source);
+  destination.env.WALLET_CONSOLE = source.env.WALLET_CONSOLE;
+  destination.env.SEAMS_D1_HOME_DATABASE_ID = '33333333-3333-4333-8333-333333333333';
+  return destination;
 }

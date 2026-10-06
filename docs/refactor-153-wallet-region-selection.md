@@ -1829,3 +1829,17 @@ Console E2E separately checks activation persistence and cleanup authorization
 after restart. These are component scenarios. Production coordinator assembly,
 tenant-root settlement, fresh physical resources for return moves, and real signing
 through the assembled relocation remain open.
+
+### Ed25519 snapshot journal transport (2026-10-06)
+
+Runtime records each frozen native Ed25519 snapshot receipt in the Console journal
+before reporting capture success. Receipt persistence requires the current source
+Runtime and freezing attempt. Exact retries retain the original receipt. Changed
+receipts conflict. The receipt binds the admitted invalidation timestamp.
+
+Export, import, status, and verification now use commands authorized from that
+stored receipt. Console checks the current attempt, phase, and regional Runtime.
+The Runtime rejects raw snapshot transfer commands and sends chunk data directly
+to the role. Console stores receipt metadata only. Native Ed25519 activation and
+cleanup still require journal transport integration. The production coordinator
+and assembled relocation acceptance remain unfinished.

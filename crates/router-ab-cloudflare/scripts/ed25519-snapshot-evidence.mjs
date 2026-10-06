@@ -1,4 +1,4 @@
-import { runtimeRelocationSource, verifyRuntimeRouterExport } from './runtime-relocation-evidence.mjs';
+import { runtimeRelocationSource, runtimeEd25519Destination, verifyRuntimeRouterExport } from './runtime-relocation-evidence.mjs';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { evictTransferredWallet } from './linked-presign-transfer-evidence.mjs';
@@ -90,10 +90,19 @@ export async function verifyEd25519Snapshot(topology, activation, fixture, crede
   assert.deepEqual(await accepted(worker, settlePath, source, sourceCredential), {
     state: 'settled', command: source,
   });
+  worker.env.WALLET_CONSOLE.receiptMode = 'lost_reply';
+  let lostReceiptReply = false;
   let frozen;
   let captureCalls = 0;
   for (; captureCalls < 64; captureCalls += 1) {
-    const result = await accepted(worker, snapshotPath, capture, sourceCredential);
+    const response = await post(worker, snapshotPath, capture, sourceCredential);
+    if (response.status === 503 && worker.env.WALLET_CONSOLE.ed25519Receipt) {
+      lostReceiptReply = true;
+      worker.env.WALLET_CONSOLE.receiptMode = 'available';
+      continue;
+    }
+    assert.equal(response.status, 200, await response.clone().text());
+    const result = await response.json();
     await evictTransferredWallet(topology, workerName, scope);
     if (result.state === 'frozen') {
       frozen = result;
@@ -102,6 +111,7 @@ export async function verifyEd25519Snapshot(topology, activation, fixture, crede
     assert.equal(result.state, 'capturing');
   }
   assert.ok(frozen, 'Snapshot capture must finish within 64 bounded commands');
+  assert.equal(lostReceiptReply, true);
   assert.deepEqual(await accepted(worker, snapshotPath, capture, sourceCredential), frozen);
   const { receipt } = frozen;
   assert.equal(receipt.record_count, 1, 'This registered wallet has one registration');
@@ -134,7 +144,7 @@ export async function verifyEd25519Snapshot(topology, activation, fixture, crede
   assert.equal(typeof record.row.ciphertext_json, 'string');
   const changed = structuredClone(receipt);
   changed.digest_hex = '00'.repeat(32);
-  const changedReceipt = await post(worker, snapshotPath, {
+  const changedReceipt = await post(await topology.getWorker('router'), snapshotPath, {
     command: 'export', receipt: changed, segment_index: 0,
   }, sourceCredential);
   assert.notEqual(changedReceipt.status, 200, await changedReceipt.text());
@@ -150,7 +160,7 @@ export async function verifyEd25519Snapshot(topology, activation, fixture, crede
   assert.notEqual(changedMove.status, 200, await changedMove.text());
   assert.deepEqual(await accepted(worker, snapshotPath, capture, sourceCredential), frozen);
   const restoration = await verifyDestinationRestoration({
-    topology, destination, destinationName, receipt, segments,
+    topology, destination, transport: await runtimeEd25519Destination(topology, worker), destinationName, receipt, segments,
     originalBytes: Buffer.concat(bytes), credential, sourceCredential, delivery, registrationCredential,
     activation, fixture, signDestination,
   });
@@ -165,6 +175,8 @@ export async function verifyEd25519Snapshot(topology, activation, fixture, crede
     settlementRequired: true,
     boundedSegments: true,
     captureAndExportResumeAfterEviction: true,
+    sourceReceiptLostReplyRecovered: true,
+    transferUsesJournalAuthorizedRuntime: true,
     exactDigestReconstructed: true,
     changedMoveAndReceiptRejected: true,
     bothCurvesPreparedInSameDestinationBeforeSourceSettlement: true,
@@ -182,7 +194,7 @@ async function rejectDestinationDelivery(destination, delivery, credential) {
 }
 
 async function verifyDestinationRestoration({
-  topology, destination, destinationName, receipt, segments,
+  topology, destination, transport, destinationName, receipt, segments,
   originalBytes, credential, sourceCredential, delivery, registrationCredential,
   activation, fixture, signDestination,
 }) {
@@ -198,7 +210,14 @@ async function verifyDestinationRestoration({
   }, credential);
   assert.notEqual(outOfOrder.status, 200, await outOfOrder.text());
   const acknowledgements = [];
-  let progress = await accepted(destination, snapshotPath, { command: 'status', receipt }, credential);
+  const callsBeforeStatus = transport.env.MPC_ROUTER.calls;
+  transport.env.WALLET_CONSOLE.mode = 'denied';
+  assert.equal((await post(transport, snapshotPath, { command: 'status', receipt }, credential)).status, 409);
+  transport.env.WALLET_CONSOLE.mode = 'corrupt';
+  assert.equal((await post(transport, snapshotPath, { command: 'status', receipt }, credential)).status, 503);
+  assert.equal(transport.env.MPC_ROUTER.calls, callsBeforeStatus);
+  transport.env.WALLET_CONSOLE.mode = 'authorized';
+  let progress = await accepted(transport, snapshotPath, { command: 'status', receipt }, credential);
   assert.deepEqual(progress, { state: 'receiving', next_segment: 0, segment_count: segments.length });
   while (progress.state === 'receiving' && progress.next_segment < progress.segment_count) {
     const segment = segments[progress.next_segment];
@@ -213,7 +232,7 @@ async function verifyDestinationRestoration({
       assert.notEqual(rejected.status, 200, await rejected.text());
     }
     const command = { command: 'import', receipt, segment };
-    const acknowledgement = await accepted(destination, snapshotPath, command, credential);
+    const acknowledgement = await accepted(transport, snapshotPath, command, credential);
     assert.deepEqual(acknowledgement, {
       state: 'imported', segment_index: segment.segment_index,
       input_digest_hex: digest(segment),
@@ -228,15 +247,15 @@ async function verifyDestinationRestoration({
     }
     acknowledgements.push(acknowledgement);
     await evictTransferredWallet(topology, destinationName, receipt.source.scope);
-    assert.deepEqual(await accepted(destination, snapshotPath, command, credential), acknowledgement);
-    progress = await accepted(destination, snapshotPath, { command: 'status', receipt }, credential);
+    assert.deepEqual(await accepted(transport, snapshotPath, command, credential), acknowledgement);
+    progress = await accepted(transport, snapshotPath, { command: 'status', receipt }, credential);
     assert.deepEqual(progress, {
       state: 'receiving', next_segment: segment.segment_index + 1, segment_count: receipt.segment_count,
     });
   }
   let verified;
   for (let attempt = 0; attempt < 64; attempt += 1) {
-    const result = await accepted(destination, snapshotPath, verify, credential);
+    const result = await accepted(transport, snapshotPath, verify, credential);
     await evictTransferredWallet(topology, destinationName, receipt.source.scope);
     if (result.state === 'verified') {
       verified = result;
@@ -245,8 +264,8 @@ async function verifyDestinationRestoration({
     assert.equal(result.state, 'restoring');
   }
   assert.deepEqual(verified, { state: 'verified', receipt });
-  assert.deepEqual(await accepted(destination, snapshotPath, { command: 'status', receipt }, credential), verified);
-  assert.deepEqual(await accepted(destination, snapshotPath, verify, credential), verified);
+  assert.deepEqual(await accepted(transport, snapshotPath, { command: 'status', receipt }, credential), verified);
+  assert.deepEqual(await accepted(transport, snapshotPath, verify, credential), verified);
   const registrationReplay = await accepted(destination,
     '/router-ab/signing-worker/ed25519-yao/activation/packages', delivery, registrationCredential);
   const activated = await accepted(destination, snapshotPath, activate, credential);

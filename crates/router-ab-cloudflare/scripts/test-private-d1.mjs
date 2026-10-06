@@ -714,7 +714,7 @@ function recoveryRouterWorker(fixture) {
 /// A Router with no active-root read binding and a wallet object of its own:
 /// its first run of a registration fails before any pair effect, and a
 /// retry after the claim's lease lapses replays from the roles' records.
-function historicalReplayRouterWorker(fixture, name, deriverAName = 'deriver-a') {
+function historicalReplayRouterWorker(fixture, name, deriverAName = 'deriver-a', signingWorkerBinding = captureSigningWorkerForHistoricalReplay) {
   const worker = routerWorker(fixture, false, true);
   return {
     ...worker,
@@ -728,7 +728,7 @@ function historicalReplayRouterWorker(fixture, name, deriverAName = 'deriver-a')
     serviceBindings: {
       ...worker.serviceBindings,
       DERIVER_A: deriverAName,
-      SIGNING_WORKER: captureSigningWorkerForHistoricalReplay,
+      SIGNING_WORKER: signingWorkerBinding,
     },
   };
 }
@@ -5455,7 +5455,7 @@ async function main() {
         fixture,
       ),
       recoveryRouterWorker(fixture),
-      ...(testWalletDoExecution ? [historicalReplayRouterWorker(fixture, 'router-relocation-destination')] : []),
+      ...(testWalletDoExecution ? [historicalReplayRouterWorker(fixture, 'router-relocation-destination', 'deriver-a', 'fixture-signing-worker-after-refresh')] : []),
       lateWritingDeriverAWorker(fixture),
       ...(testHistoricalReplay || testHistoricalStartingReplay
         ? [
