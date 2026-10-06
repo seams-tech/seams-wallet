@@ -1339,6 +1339,11 @@ impl RouterAbSigningWorkerWalletDurableObject {
             now_unix_ms,
         )?;
         stored.record.validate_for_lookup(&lookup)?;
+        if stored.request.ownership_generation != request.ownership_generation {
+            return Err(replay_error(
+                "SigningWorker finalize generation differs from prepared round-1",
+            ));
+        }
         if stored.request.scope != request.request.scope {
             return Err(replay_error(
                 "SigningWorker finalize scope differs from prepared round-1",

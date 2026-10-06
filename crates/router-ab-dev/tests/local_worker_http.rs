@@ -7425,6 +7425,19 @@ fn product_near_signing_process_flow(
         expires_at_ms,
     )?;
     let finalize_body = gateway_signing_body(&finalize_request, &authorized_operation)?;
+    let mut changed_generation = finalize_body.clone();
+    changed_generation["authorized_operation"]["binding"]["ownership_generation"] = json!(2);
+    let (changed_generation_status, changed_generation_body) = post_json_to_path_with_headers(
+        router_url,
+        LOCAL_ROUTER_NORMAL_SIGNING_PATH,
+        &changed_generation,
+        &gateway_headers,
+    )?;
+    assert_ne!(changed_generation_status, 200, "{changed_generation_body}");
+    assert!(
+        changed_generation_body.contains("generation differs from prepared round-1"),
+        "{changed_generation_body}"
+    );
 
     // A second SigningWorker process on the same role store, fronted by a
     // second Router process: the same finalize races through both paths.
@@ -7555,6 +7568,7 @@ fn product_near_signing_process_flow(
             "completed_round1_rows": completed_count,
             "router_admitted": true,
             "gateway_ownership_generation": 1,
+            "changed_finalize_generation_status": changed_generation_status,
             "invalid_ownership_generation_statuses": invalid_generation_statuses,
             "worker_restarts": 2,
             "independent_router_signing_worker_paths": 2,

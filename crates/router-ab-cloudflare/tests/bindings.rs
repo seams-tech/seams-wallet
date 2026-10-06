@@ -7453,6 +7453,7 @@ fn signing_worker_production_v2_prepare_returns_router_admitted_public_material(
     )
     .expect("trusted admission");
     let admitted = CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2::new(
+        1,
         request.scope.clone(),
         request.expires_at_ms,
         admission.clone(),
@@ -7595,6 +7596,7 @@ fn signing_worker_production_v2_finalize_signs_router_admitted_digest_from_round
             operation_fingerprint_digest: "fingerprint-1".to_owned(),
         };
     let admitted = CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2::new(
+        1,
         request.clone(),
         finalize_admission,
         trusted_admission,
@@ -7713,6 +7715,7 @@ fn normal_signing_step_up_admission_derives_the_exact_authorized_operation() {
             operation_fingerprint_digest: "fingerprint-1".to_owned(),
         };
     let admitted = CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2::new(
+        1,
         request,
         admission,
         trusted_admission,
@@ -7992,6 +7995,7 @@ fn normal_signing_effect_digest_binds_policy_principal_capability_and_terminal_f
             operation_fingerprint_digest: "fingerprint-1".to_owned(),
         };
     let admitted = CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2::new(
+        1,
         request.clone(),
         admission.clone(),
         trusted,
@@ -8027,6 +8031,7 @@ fn normal_signing_effect_digest_binds_policy_principal_capability_and_terminal_f
     )
     .expect("changed trusted admission");
     let changed = CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2::new(
+        1,
         request,
         changed_admission,
         changed_trusted,
@@ -8070,6 +8075,7 @@ fn normal_signing_effect_digest_binds_policy_principal_capability_and_terminal_f
     )
     .expect("changed capability trusted admission");
     let changed_capability = CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2::new(
+        1,
         changed_capability_request,
         changed_capability_admission,
         changed_capability_trusted,

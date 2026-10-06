@@ -142,6 +142,11 @@ pub(crate) fn finalize(
         now_ms,
     )?;
     prepared.record.validate_for_lookup(&lookup)?;
+    if prepared.request.ownership_generation != request.ownership_generation {
+        return Err(replayed(
+            "SigningWorker finalize generation differs from prepared round-1",
+        ));
+    }
     if prepared.request.scope != request.request.scope {
         return Err(replayed(
             "SigningWorker finalize scope differs from prepared round-1",

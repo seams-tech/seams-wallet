@@ -5847,6 +5847,7 @@ pub enum CloudflareRouterEd25519AcceptedCapabilityBindingV1 {
     },
     /// Linked-device Wallet Session admission resolved by the trusted Gateway.
     GatewayLinkedDeviceWalletSession {
+        ownership_generation: u64,
         subject_id: String,
         account_id: String,
         authorization_id: String,
@@ -6125,11 +6126,13 @@ impl CloudflareRouterEd25519AcceptedAuthorizedOperationV1 {
                     signing_worker_id,
                     expires_at_ms,
                     material_source,
+                    ownership_generation,
                 },
                 CloudflareRouterEd25519AuthorizedOperationV1::ReusableWalletSessionAuthorizedOperationV1 {
                     ..
                 },
             ) => {
+                crate::router_wallet::validate_wallet_ownership_generation(*ownership_generation)?;
                 require_non_empty("accepted Ed25519 linked-device subject_id", subject_id)?;
                 require_non_empty("accepted Ed25519 linked-device account_id", account_id)?;
                 require_non_empty("accepted Ed25519 linked-device authorization_id", authorization_id)?;
@@ -7773,6 +7776,7 @@ where
     }
     let wallet_scope = authorized_operation.wallet_scope()?;
     let mut admitted = CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2::new(
+        authorized_operation.ownership_generation()?,
         request.scope.clone(),
         request.expires_at_ms,
         admission,
@@ -8024,6 +8028,7 @@ pub async fn handle_cloudflare_router_normal_signing_prepare_internal_linked_dev
     }
     let admitted =
         CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2::new_with_material_source(
+            authorized_operation.ownership_generation()?,
             request.scope.clone(),
             request.expires_at_ms,
             admission,
@@ -8070,12 +8075,14 @@ pub async fn handle_cloudflare_router_normal_signing_finalize_internal_linked_de
     }
     let authorized_operation_identity =
         authorized_operation.into_signing_worker_authorized_operation_identity()?;
+    let ownership_generation = authorized_operation.ownership_generation()?;
     let effect_claim = authorized_operation
         .authorized_operation
         .into_signing_worker_effect_claim(wallet_session_id, authorization_id)?;
     material_source.validate_for_normal_scope(&request.scope)?;
     let admitted =
         CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2::new_with_material_source(
+            ownership_generation,
             request,
             admission,
             trusted_admission,
@@ -8244,6 +8251,7 @@ pub fn admit_cloudflare_router_normal_signing_step_up_prepare_v2(
         ));
     }
     let mut admitted = CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2::new(
+        authorized_operation.ownership_generation()?,
         request.scope.clone(),
         request.expires_at_ms,
         admission,
@@ -8285,10 +8293,12 @@ pub fn admit_cloudflare_router_normal_signing_step_up_finalize_v2(
     }
     let authorized_operation_identity =
         authorized_operation.into_signing_worker_authorized_operation_identity()?;
+    let ownership_generation = authorized_operation.ownership_generation()?;
     let effect_claim = authorized_operation
         .authorized_operation
         .into_step_up_signing_worker_effect_claim()?;
     let mut admitted = CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2::new(
+        ownership_generation,
         request,
         admission,
         trusted_admission,
@@ -8648,6 +8658,7 @@ where
         authorized_operation.into_signing_worker_authorized_operation_identity()?;
     let authorization_id = authorized_operation.reusable_authorization_id()?.to_owned();
     let wallet_scope = authorized_operation.wallet_scope()?;
+    let ownership_generation = authorized_operation.ownership_generation()?;
     let effect_claim = authorized_operation
         .authorized_operation
         .into_signing_worker_effect_claim(
@@ -8655,6 +8666,7 @@ where
             authorization_id,
         )?;
     let mut admitted = CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2::new(
+        ownership_generation,
         request,
         admission,
         trusted_admission,

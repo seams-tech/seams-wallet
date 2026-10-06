@@ -1570,6 +1570,11 @@ The Gateway includes the pinned generation in owner Wallet Session and step-up
 bindings for Ed25519 and ECDSA. The Router requires that field and rejects zero
 or values above JavaScript's maximum safe integer before forwarding signing work.
 The generation remains execution metadata, separate from wallet cipher identity.
+Ed25519 prepare and finalize commands retain that generation through SigningWorker
+admission. Prepared round-1 material records it. A finalize command with another
+generation cannot consume that material. The original command can still complete
+and replay its terminal result after a worker restart.
+
 
 ### Restore authorization history during relocation
 
