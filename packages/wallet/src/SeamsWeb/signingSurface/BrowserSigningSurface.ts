@@ -1,3 +1,4 @@
+import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import { isActiveEd25519WalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import type { EmailOtpWorkerOperationMap } from '@/core/signingEngine/workerManager/workerTypes';
 import type { DurableRecordStore, RuntimePorts } from '@/core/platform';
@@ -2788,6 +2789,7 @@ export class BrowserSigningSurface {
    * with the same trace context — only the root behind it changed.
    */
   async establishWalletCustodyNearEd25519KeySet(args: {
+    readonly home: WalletSessionHome;
     walletId: string;
     factorJson: string;
     factorSecret: ArrayBuffer;
@@ -2803,6 +2805,7 @@ export class BrowserSigningSurface {
   }): Promise<EstablishedWalletCustodyNearEd25519KeySetV1> {
     const transport = new RouterAbEd25519YaoHttpActivationTransportV1({
       routerOrigin: args.routerOrigin,
+      routing: args.home,
       authorization: { kind: 'bearer', value: args.authorization },
       fetch: globalThis.fetch,
       ...(args.traceContext ? { traceContext: args.traceContext } : {}),
@@ -2895,6 +2898,7 @@ export class BrowserSigningSurface {
   }
 
   async joinWalletCustodyNearEd25519KeySet(args: {
+    readonly routing: WalletSessionHome | { readonly kind: 'discovery' };
     preparation:
       | { readonly kind: 'fresh' }
       | { readonly kind: 'checkpoint'; readonly checkpointJson: string };
@@ -2912,6 +2916,7 @@ export class BrowserSigningSurface {
   }): Promise<JoinedWalletCustodyNearEd25519KeySetV1> {
     const transport = new RouterAbEd25519YaoHttpActivationTransportV1({
       routerOrigin: args.routerOrigin,
+      routing: args.routing,
       authorization: { kind: 'bearer', value: args.authorization },
       fetch: globalThis.fetch,
       ...(args.traceContext ? { traceContext: args.traceContext } : {}),
@@ -2967,6 +2972,7 @@ export class BrowserSigningSurface {
   }): Promise<JoinedWalletCustodyNearEd25519KeySetV1> {
     const transport = new RouterAbEd25519YaoHttpActivationTransportV1({
       routerOrigin: args.routerOrigin,
+      routing: { kind: 'discovery' },
       authorization: { kind: 'bearer', value: `Bearer ${args.walletSessionToken}` },
       fetch: globalThis.fetch,
     });

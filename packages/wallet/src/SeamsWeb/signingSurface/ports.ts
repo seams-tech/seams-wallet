@@ -1,3 +1,4 @@
+import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import type { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import type { NonceCoordinator } from '@/core/signingEngine/nonce/NonceCoordinator';
 import type { EmailOtpAuthorityUnlockEd25519Request } from '@/core/signingEngine/session/emailOtp/walletUnlock';
@@ -405,6 +406,7 @@ export interface WalletCustodyCeremonySurface {
   }): Promise<RecoveredWalletCustodyManifestV1>;
 
   establishWalletCustodyNearEd25519KeySet(args: {
+    readonly home: WalletSessionHome;
     walletId: string;
     factorJson: string;
     factorSecret: ArrayBuffer;
@@ -420,6 +422,7 @@ export interface WalletCustodyCeremonySurface {
   }): Promise<EstablishedWalletCustodyNearEd25519KeySetV1>;
 
   joinWalletCustodyNearEd25519KeySet(args: {
+    readonly routing: WalletSessionHome | { readonly kind: 'discovery' };
     preparation:
       | { readonly kind: 'fresh' }
       | { readonly kind: 'checkpoint'; readonly checkpointJson: string };

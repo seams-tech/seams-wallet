@@ -1044,3 +1044,35 @@ SDK/server types and builds, type fixtures, and bloat checks passed.
 commands and scope. Yao admission/execution transport home hints, persisted pre-session
 routing metadata, global OTP counters, relocation races and hosted acceptance remain
 outside this slice and require their own completion evidence.
+
+### NEAR registration protocol home — 2026-10-07
+
+The SDK now supplies the setup home to Yao admission and execution for NEAR-only
+and mixed registration. Deferred mixed work carries that home. Resumed work reads
+it from the saved session credential. The shared transport requires either a known
+home or explicit discovery; existing recovery, export and add-signer callers use
+discovery when their inputs lack home metadata. No authorization check is removed.
+
+The first composed acceptance attempt disabled Console during Yao admission. It
+reached the US home through WEUR, then returned HTTP 503 (`admission_failed`).
+The registration backend still resolves tenant-root context through Console.
+This is a `valid_test_needs_update` failure: the outage assertion exceeded this
+routing change and the plan permits registration control-plane dependencies.
+The revised scenario keeps Console available during registration and disables it
+for three subsequent NEAR signatures. It records the registration Console paths
+separately. This change does not establish Console-free registration or a hosted
+latency improvement.
+
+The revised NEAR-only scenario passed. Admission entered WEUR and execution
+entered APAC; both completed at the US home. Admission made one
+`/internal/wallet-console/v1/tenant-root/active-lineage` request. Execution made
+zero Console requests. Three subsequent signatures verified through WEUR, APAC
+and OC while Console was unavailable. SDK type-check, the required-routing type
+fixture, SDK build and bloat check passed. Mixed and Email OTP propagation compile
+but are not additional behavioral claims from this NEAR-only scenario.
+
+[Sanitized evidence](./evidence/r155b-yao-home-20261007.json). Repeat with the private
+regional-real runner, `passkey.registration.contract.test.ts --grep
+'NEAR-only Yao registration'`, and the exact SDK/server candidate. Local logs and
+frozen SDK are under `.artifacts/r155b-yao-home/`; private request evidence is under
+`.artifacts/r155b/console-outage/near-registration-protocol-home/`.

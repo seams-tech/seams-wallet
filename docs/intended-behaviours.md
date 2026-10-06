@@ -432,6 +432,11 @@ throughout the resize. Reduced-motion behavior remains immediate.
   existing regional home. NEAR-only respond, activation and provisioning carry
   that routing hint before a Wallet Session exists. The hint selects a handler;
   the signed setup, tenant binding and current local authority still authorize work.
+- NEAR Yao registration admission and execution carry the setup home in both
+  NEAR-only and mixed registration. Resumed mixed work uses its session credential
+  home. Requests can enter another region without a Console directory lookup.
+  Recovery, export and add-signer transports explicitly request discovery when
+  their current inputs do not contain a known home.
 - Before the first setup request, the SDK durably records a random
   `registrationOperationId`, scoped to Gateway URL, publishable key, environment
   and the normalized registration request. Matching retries and concurrent tabs

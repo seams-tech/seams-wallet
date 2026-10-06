@@ -681,6 +681,7 @@ async function runEd25519YaoExportWithUi(
       },
       authorization: { kind: 'passkey', webauthnAuthentication: credential },
       transport: new RouterAbEd25519YaoHttpActivationTransportV1({
+        routing: { kind: 'discovery' },
         routerOrigin: new URL(payload.relayerUrl).origin,
         authorization: {
           kind: 'bearer',

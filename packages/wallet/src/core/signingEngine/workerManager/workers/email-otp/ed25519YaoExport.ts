@@ -183,6 +183,7 @@ export async function exportEmailOtpEd25519YaoSeed(args: {
       },
       resolveCustodyEnvelope: args.resolveCustodyEnvelope,
       transport: new RouterAbEd25519YaoHttpActivationTransportV1({
+        routing: { kind: 'discovery' },
         routerOrigin: new URL(args.relayUrl).origin,
         authorization: { kind: 'cookies' },
         fetch: globalThis.fetch.bind(globalThis),

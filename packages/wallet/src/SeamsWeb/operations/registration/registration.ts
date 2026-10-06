@@ -1,3 +1,4 @@
+import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import { buildWalletHomeRoutingHeaders, buildWalletSessionAuthorizationHeaders } from '../../../core/rpcClients/relayer/relayerHttp';
 import { recordWalletCustodyTiming } from '@/core/signingEngine/walletCustody/ceremonyDriver';
 import { registrationSelectionIncludesNear } from './registrationSignerSet';
@@ -1511,6 +1512,7 @@ type NearRegistrationAdmission = {
 };
 
 async function startNearRegistrationAdmission(args: {
+  readonly home: WalletSessionHome;
   readonly relayerUrl: string;
   readonly registrationCeremonyId: string;
   readonly signedSetup: string;
@@ -1521,6 +1523,7 @@ async function startNearRegistrationAdmission(args: {
   try {
     const admissionReceipt = await admitDeferredNearRegistration(args.deferredNear, {
       routerOrigin: new URL(args.relayerUrl).origin,
+      routing: args.home,
       authorization: { kind: 'bearer', value: `Bearer ${args.signedSetup}` },
       fetch: globalThis.fetch,
       ...(args.traceContext ? { traceContext: args.traceContext } : {}),
@@ -1815,6 +1818,7 @@ function ecdsaRegistrationClientCeremonyOperation(args: {
    branches before Route 3, while user-facing NEAR provisioning remains
    deferred after the ECDSA branch is committed. */
 async function runEcdsaEnabledThreeRouteRegistrationCeremony(args: {
+  readonly home: WalletSessionHome;
   context: RegistrationWebContext;
   relayerUrl: string;
   registrationCeremonyId: string;
@@ -1908,6 +1912,7 @@ async function runEcdsaEnabledThreeRouteRegistrationCeremony(args: {
       responded.kind === 'near_ed25519_and_evm_family_ecdsa' ? responded.ed25519 : null;
     const nearAdmission = deferredNear
       ? startNearRegistrationAdmission({
+          home: args.home,
           relayerUrl: args.relayerUrl,
           registrationCeremonyId: ceremonyId,
           signedSetup: args.signedSetup,
@@ -2484,6 +2489,7 @@ function ignoreNearCustodyFailure(): void {}
 
 async function startDeferredNearWalletCustody(
   base: {
+    readonly home: WalletSessionHome;
     context: RegistrationWebContext;
     factorSecretOwner: { value: ArrayBuffer | null };
     registrationCeremonyId: string;
@@ -2535,6 +2541,7 @@ async function startDeferredNearWalletCustody(
       preAdmittedReceipt = undefined;
     }
     const { joined, admissionReceipt } = await continueNearRegistrationCustody({
+      home: base.home,
       pending,
       signingEngine: base.context.signingEngine,
       relayerUrl: base.relayerUrl,
@@ -2569,6 +2576,7 @@ async function startDeferredNearWalletCustody(
 }
 
 async function resolveNearRegistrationAdmissionReceipt(args: {
+  readonly home: WalletSessionHome;
   readonly pending: PendingNearRegistrationContinuationV1;
   readonly admitted?: Awaited<ReturnType<typeof admitDeferredNearRegistration>>;
   readonly relayerUrl: string;
@@ -2581,6 +2589,7 @@ async function resolveNearRegistrationAdmissionReceipt(args: {
     { status: 'deferred', admissionRequest: args.pending.admissionRequest },
     {
       routerOrigin: new URL(args.relayerUrl).origin,
+      routing: args.home,
       authorization: { kind: 'bearer', value: `Bearer ${args.credential}` },
       fetch: globalThis.fetch,
       traceContext: args.traceContext,
@@ -2589,6 +2598,7 @@ async function resolveNearRegistrationAdmissionReceipt(args: {
 }
 
 async function continueNearRegistrationCustody(args: {
+  readonly home: WalletSessionHome;
   readonly pending:
     | PendingNearRegistrationContinuationV1
     | Extract<PendingWalletRegistrationCommitV1, { readonly phase: 'joined' }>;
@@ -2614,6 +2624,7 @@ async function continueNearRegistrationCustody(args: {
   const admission = pending.admissionRequest;
   const admissionStartedAt = performance.now();
   const admissionReceipt = await resolveNearRegistrationAdmissionReceipt({
+    home: args.home,
     pending,
     relayerUrl: args.relayerUrl,
     credential: args.credential,
@@ -2622,6 +2633,7 @@ async function continueNearRegistrationCustody(args: {
   });
   recordWalletCustodyTiming(pending.registrationCeremonyId, 'admission', admissionStartedAt);
   const joined = await args.signingEngine.joinWalletCustodyNearEd25519KeySet({
+    routing: args.home,
     ...(pending.phase === 'planned'
       ? {
           preparation: { kind: 'fresh' as const },
@@ -2798,6 +2810,7 @@ async function resumeNearRegistrationCustodyWork(args: {
     args.pending.phase === 'joined' ? args.pending.completion.prepared : args.pending;
   if (!prepared) throw new Error('NEAR continuation has no encrypted checkpoint');
   const result = await continueNearRegistrationCustody({
+    home: args.sessionAuthority.operationCredential.home,
     pending: args.pending,
     signingEngine: args.context.signingEngine,
     relayerUrl: args.relayerUrl,
@@ -3956,6 +3969,7 @@ async function registerEcdsaOrMixedWallet(
     try {
       ceremony = await registrationTiming.measure('ecdsaRegistrationTotalMs', () =>
         runEcdsaEnabledThreeRouteRegistrationCeremony({
+          home: setup.home,
           context,
           relayerUrl,
           registrationCeremonyId: setup.registrationCeremonyId,
@@ -4043,6 +4057,7 @@ async function registerEcdsaOrMixedWallet(
             });
           },
           startDeferredNearCustody: startDeferredNearWalletCustody.bind(undefined, {
+            home: setup.home,
             context,
             factorSecretOwner: walletCustodyNearJoinFactorSecretOwner,
             registrationCeremonyId: setup.registrationCeremonyId,
@@ -4463,6 +4478,7 @@ async function registerEmailOtpEd25519YaoWalletOnly(
     >;
     try {
       established = await context.signingEngine.establishWalletCustodyNearEd25519KeySet({
+        home: setup.home,
         walletId: String(walletId),
         factorJson: JSON.stringify({
           envelopeId: `wallet-custody-envelope:${crypto.randomUUID()}`,
@@ -4483,6 +4499,7 @@ async function registerEmailOtpEd25519YaoWalletOnly(
         admissionRequest: responded.ed25519.admissionRequest,
         admissionReceipt: await admitDeferredNearRegistration(responded.ed25519, {
           routerOrigin: new URL(relayerUrl).origin,
+          routing: setup.home,
           authorization: { kind: 'bearer', value: `Bearer ${String(setup.signedSetup)}` },
           fetch: globalThis.fetch,
         }),
@@ -4915,6 +4932,7 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
     >;
     try {
       established = await context.signingEngine.establishWalletCustodyNearEd25519KeySet({
+        home: setup.home,
         walletId: String(intent.walletId),
         factorJson: JSON.stringify({
           envelopeId: `wallet-custody-envelope:${crypto.randomUUID()}`,
@@ -4931,6 +4949,7 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
         admissionRequest: responded.ed25519.admissionRequest,
         admissionReceipt: await admitDeferredNearRegistration(responded.ed25519, {
           routerOrigin: new URL(relayerUrl).origin,
+          routing: setup.home,
           authorization: { kind: 'bearer', value: `Bearer ${String(setup.signedSetup)}` },
           fetch: globalThis.fetch,
         }),
@@ -5658,6 +5677,7 @@ async function addPasskeyEd25519YaoWalletSigner(
     if (!custodyWire.ok) throw new Error(custodyWire.reason);
     factorSecret = Uint8Array.from(base64UrlDecode(input.passkeyPrfFirstB64u)).buffer;
     const joined = await input.context.signingEngine.joinWalletCustodyNearEd25519KeySet({
+      routing: { kind: 'discovery' },
       preparation: { kind: 'fresh' },
       custodyJson: custodyWire.custodyJson,
       factorSecret,
