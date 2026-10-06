@@ -619,7 +619,9 @@ manifest with its receipt. Export checks page digests and reads at most 17 pages
 It does not reconstruct or rescan live inventory. Changed receipts, altered sealed
 pages, missing segments, and oversized requests fail. Live inventory changes leave
 the sealed export unchanged. Cleanup removes pages in bounded batches after
-activation. Source invalidation and sealing now read batches of 16 records. The
+activation. Source invalidation commits at most 16 records per freeze call. Its saved cursor
+resumes after restart and rolls back with failed writes. Sealing reads batches of
+16 records. The
 source snapshot and restored-inventory digest stream directly from these batches.
 Destination decoding now reads one staged chunk at a time and restores individual
 typed records. Verification checks the input digest and restored inventory before

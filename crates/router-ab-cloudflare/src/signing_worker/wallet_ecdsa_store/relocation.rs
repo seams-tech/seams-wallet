@@ -36,6 +36,7 @@ pub enum SigningWorkerPoolFreezeResponseV1 {
         pending_effects: u64,
         pending_linked_sessions: u64,
     },
+    Invalidating,
     Frozen {
         receipt: SigningWorkerPoolFreezeReceiptV1,
     },
@@ -52,6 +53,10 @@ pub(super) enum Fence {
     },
     Draining {
         request: SigningWorkerRelocationRequestV1,
+    },
+    Invalidating {
+        request: SigningWorkerRelocationRequestV1,
+        after_pool_key: String,
     },
     Frozen {
         receipt: SigningWorkerPoolFreezeReceiptV1,
@@ -186,6 +191,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
             }
             Some(_) => {}
         }
+        let mut after = String::new();
         match self.pool_fence(&scope)? {
             Some(
                 Fence::Frozen { receipt }
@@ -197,10 +203,11 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
                 }
                 return Err(wallet_error("Pool relocation inputs changed"));
             }
-            Some(Fence::Draining { request: prior }) if prior != request => {
-                return Err(wallet_error("Pool relocation inputs changed"))
-            }
+            Some(
+                Fence::Draining { request: prior } | Fence::Invalidating { request: prior, .. },
+            ) if prior != request => return Err(wallet_error("Pool relocation inputs changed")),
             Some(Fence::Draining { .. }) => {}
+            Some(Fence::Invalidating { after_pool_key, .. }) => after = after_pool_key,
             Some(Fence::Prepared { .. } | Fence::Importing { .. } | Fence::Verified { .. }) => {
                 return Err(wallet_error(
                     "An import destination cannot freeze as a source",
@@ -228,16 +235,13 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
                 pending_linked_sessions,
             });
         }
-        let mut after = String::new();
-        loop {
+        {
             let rows = self.sql.query::<PoolRow>(
                 "SELECT pool_key, ciphertext_json FROM wallet_ecdsa_pool
                  WHERE owner_json = ? AND pool_key > ? ORDER BY pool_key LIMIT 16",
                 vec![text(owner.clone()), text(after.clone())],
             )?;
-            if rows.is_empty() {
-                break;
-            }
+            let full_batch = rows.len() == 16;
             for row in rows {
                 after = row.pool_key.clone();
                 let record: CloudflareSigningWorkerEcdsaPoolLifecycleRecordV1 = self.cipher.open(
@@ -261,6 +265,16 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
                     ));
                 }
                 self.mutate_pool_record(scope.clone(), command)?;
+            }
+            if full_batch {
+                self.save_pool_fence(
+                    &scope,
+                    &Fence::Invalidating {
+                        request,
+                        after_pool_key: after,
+                    },
+                )?;
+                return Ok(SigningWorkerPoolFreezeResponseV1::Invalidating);
             }
         }
         let receipt = self.seal_ecdsa_snapshot(&scope, request)?;

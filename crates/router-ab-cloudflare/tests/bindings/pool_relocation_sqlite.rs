@@ -555,6 +555,26 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
     assert!(with_store(&path, &env, |store| store
         .record_linked_presign_freeze(changed_linked_freeze))
     .is_err());
+    let rolled_back: router_ab_core::RouterAbProtocolResult<()> = with_store(&path, &env, |store| {
+        assert_eq!(
+            store.freeze_pool_for_relocation(owner.clone(), freeze_request.clone())?,
+            router_ab_cloudflare::SigningWorkerPoolFreezeResponseV1::Invalidating
+        );
+        Err(sql_error("Injected invalidation transaction failure"))
+    });
+    assert!(rolled_back.is_err());
+    for _ in 0..2 {
+        let progress = with_store(&path, &env, |store| {
+            store.freeze_pool_for_relocation(owner.clone(), freeze_request.clone())
+        })?;
+        assert_eq!(
+            progress,
+            router_ab_cloudflare::SigningWorkerPoolFreezeResponseV1::Invalidating
+        );
+        assert!(with_store(&path, &env, |store| {
+            store.require_mutation_admission(&owner)
+        }).is_err());
+    }
     let frozen = freeze(&path, &env, &owner, freeze_request.clone())?;
     let router_ab_cloudflare::SigningWorkerPoolFreezeResponseV1::Frozen { receipt } = &frozen
     else {
@@ -672,6 +692,7 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         "presign_steps_require_pinned_authority_expiry_and_open_wallet": true,
         "scope": "Production wallet store and cipher on SQLite; excludes wallet-wide fencing and HTTP authorization"
     });
+    artifact["invalidation_cursor_survives_reopen_and_rolls_back_atomically"] = true.into();
     artifact["source_capture_crosses_multiple_record_batches"] = true.into();
     artifact["late_digest_failure_rolls_back_streamed_restore"] = true.into();
     artifact["linked_presign_settlement"] = serde_json::json!({
@@ -724,9 +745,14 @@ fn freeze(
     request: router_ab_cloudflare::SigningWorkerRelocationRequestV1,
 ) -> router_ab_core::RouterAbProtocolResult<router_ab_cloudflare::SigningWorkerPoolFreezeResponseV1>
 {
-    with_store(path, env, |store| {
-        store.freeze_pool_for_relocation(owner.clone(), request)
-    })
+    loop {
+        let response = with_store(path, env, |store| {
+            store.freeze_pool_for_relocation(owner.clone(), request.clone())
+        })?;
+        if response != router_ab_cloudflare::SigningWorkerPoolFreezeResponseV1::Invalidating {
+            return Ok(response);
+        }
+    }
 }
 
 fn verify_snapshot_export(

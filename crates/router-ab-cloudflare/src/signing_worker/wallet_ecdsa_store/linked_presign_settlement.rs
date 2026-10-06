@@ -67,7 +67,10 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
     ) -> RouterAbProtocolResult<()> {
         request.validate()?;
         match self.pool_fence(scope)? {
-            Some(relocation::Fence::Draining { request: prior }) if prior == *request => Ok(()),
+            Some(
+                relocation::Fence::Draining { request: prior }
+                | relocation::Fence::Invalidating { request: prior, .. },
+            ) if prior == *request => Ok(()),
             Some(relocation::Fence::Frozen { receipt }) if receipt.request == *request => Ok(()),
             _ => Err(wallet_error(
                 "Linked presign fence requires its source wallet move",

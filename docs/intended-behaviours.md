@@ -1582,8 +1582,10 @@ The ECDSA source commits immutable snapshot pages with its frozen receipt.
 Export reads the sealed pages and checks their digests. Each response contains
 at most 65,536 bytes and reads at most 17 pages of 4,096 bytes. Live inventory
 changes cannot alter the sealed bytes. Source cleanup removes these pages in
-bounded batches after destination activation. Source invalidation and snapshot
-serialization read at most 16 records per batch. Source sealing and the restored
+bounded batches after destination activation. Each source invalidation call commits
+at most 16 records with its progress cursor. Restart resumes from that cursor.
+A failed transaction rolls back both invalidation and progress. Snapshot
+serialization reads at most 16 records per batch. Source sealing and the restored
 inventory digest check stream their bytes without a complete-inventory buffer.
 Destination decoding reads one staged chunk at a time and restores one typed
 record at a time. It checks the complete input digest and restored inventory
