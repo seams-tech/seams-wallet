@@ -1945,3 +1945,23 @@ and a private key that does not match the configured public key.
 
 Deriver state transfer, tenant-root and peer-key continuity checks, activation,
 and the aggregate preparation adapter remain open.
+
+### Read wallet placement from the application
+
+`wallet.placement.get(walletId)` reads placement through the wallet host. The host
+uses its existing owner credential and requires the matching authenticated wallet.
+The parent request carries only the wallet identity. A lock or authentication
+change during the request discards the response. A locked read sends no request.
+
+The result distinguishes a settled home, a moving wallet, and unavailable placement.
+Transfer stages report paused availability. Cleanup reports active availability,
+including when cleanup waits for a retry. Invalid response combinations fail at
+the boundary. Unauthorized reads fail before the directory receives a request.
+This explicit read does not run during signing or refill.
+
+`node tests/e2e/authorization-storage-transfer.e2e.mjs` exercises the application
+commands, host handler, and Gateway with real D1 authorization. It checks cleanup
+availability, invalid responses, and a lock during a pending read. Evidence is in
+`.artifacts/r153/authorization-storage-transfer/placement-client-evidence.json`.
+The scenario simulates the directory and host credential adapter. It does not
+verify browser startup, settings, or local credential selection.

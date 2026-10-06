@@ -1,3 +1,5 @@
+import type { WalletPlacementCapability } from './publicApi/placement';
+import { createApplicationPlacementCommands } from './walletIframe/client/placementCommands';
 import type { KeyExportDomainMethods } from '@/SeamsWeb/publicApi/keyExport';
 import { ClientPreferenceState } from '@/SeamsWeb/walletIframe/client/preferenceState';
 import { createApplicationPreferences } from '@/SeamsWeb/walletIframe/client/preferences';
@@ -72,6 +74,7 @@ export class SeamsWeb {
   readonly keys: KeyExportCapability;
   readonly preferences: PreferencesCapability;
   readonly auth: AuthCapability;
+  readonly placement: WalletPlacementCapability;
   readonly registration: RegistrationCapability;
   readonly near: NearSignerCapability;
   readonly tempo: TempoSignerCapability;
@@ -116,6 +119,7 @@ export class SeamsWeb {
         this.walletIframe,
       ),
     };
+    this.placement = createApplicationPlacementCommands(this.walletIframe);
     const preferences = createApplicationPreferences(userPreferences, this.walletIframe);
     this.disposePreferences = preferences.dispose;
     const deviceDomain = createApplicationDeviceCommands(this.walletIframe);

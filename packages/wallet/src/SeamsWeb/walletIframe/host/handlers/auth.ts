@@ -1,3 +1,4 @@
+import { createPlacementWalletIframeHandlers } from './placement';
 import type { LoginHooksOptions } from '@/core/types/sdkSentEvents';
 import type { WalletSession } from '@/core/types/seams';
 import type { HandlerDeps, HandlerMap, Req } from './walletIframeHandler.types';
@@ -147,6 +148,8 @@ export function createAuthWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
       await pm.auth.lock();
       respondOkResult(deps, req.requestId, { kind: 'locked', identity: expected });
     },
+
+    ...createPlacementWalletIframeHandlers(deps),
 
     PM_GET_WALLET_SESSION: async (req: Req<'PM_GET_WALLET_SESSION'>) => {
       const pm = deps.getWalletRuntime();

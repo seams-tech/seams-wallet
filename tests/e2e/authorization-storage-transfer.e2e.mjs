@@ -1,3 +1,4 @@
+import { verifyPlacementClient } from './wallet-placement-client.scenario.mjs';
 import {
   seedExecutionGeneration,
   prepareExecutionGeneration,
@@ -960,6 +961,20 @@ async function verifyRelocationPasskey(database) {
     authorizationSessions,
     directory: submissionDirectory,
   });
+  const placementClient = await verifyPlacementClient({
+    output,
+    binding,
+    token: issued.operationCredential.token,
+    routeOptions: {
+      emailOtp: relocationEmailOtpServices(database),
+      database,
+      scope,
+      tenantId: issued.session.tenantId,
+      allowedOrigins: [binding.origin],
+      authorizationSessions,
+    },
+    WalletPlacementRoutes: api.WalletPlacementRoutes,
+  });
   const sourceSubmission = new Request(
     'https://gateway.example.test/wallet/placement/v1/relocations',
     {
@@ -1400,6 +1415,7 @@ async function verifyRelocationPasskey(database) {
   assert.equal((await store.read(secondBinding)).state, 'issued');
   assert.equal((await api.verifyWalletRelocationPasskey(freshInput)).kind, 'denied');
   return {
+    placementClient,
     retiredInitiatingSessionRejectsApprovalWithoutConsumingProof: true,
     moveReadSurvivesSessionRetirementButRejectsRevocation: true,
     httpMoveReadDispatchIsAuthenticatedAndNeverStartsWork: true,

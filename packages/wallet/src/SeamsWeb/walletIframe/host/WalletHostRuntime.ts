@@ -1,3 +1,9 @@
+import { createWalletHostPlacementCommands } from './createPlacementCommands';
+import type { WalletPlacementCapability } from '@/SeamsWeb/publicApi/placement';
+import { createBrowserHostPlatformRuntime } from '@/SeamsWeb/assembly/createBrowserSigningRuntime';
+import { createWalletHostOwnerAuthoritiesV1 } from '@/SeamsWeb/operations/devices/walletHostOwnerAuthority';
+import { walletSessionAuthorizations } from '@/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
+import { readUnlockedEd25519ExportRootLinkingCapabilityV1 } from '@/core/signingEngine/walletCustody/unlockedEd25519ExportRootCapability';
 import {
   requireKeyExportCapability,
   type KeyExportDomainMethods,
@@ -145,6 +151,7 @@ export class WalletHostRuntime {
       'setConfirmationConfig' | 'setConfirmationBehavior' | 'onCurrentWalletChange'
     >;
   readonly auth: WalletAuthCommands;
+  readonly placement: WalletPlacementCapability;
   readonly registration: RegistrationCapability;
   readonly near: NearSignerCapability;
   readonly tempo: TempoSignerCapability;
@@ -175,7 +182,25 @@ export class WalletHostRuntime {
       this.signingEngine.setAppearance(this.appearance);
     } catch {}
     const userPreferences = this.signingEngine.getUserPreferences();
+    const platform = createBrowserHostPlatformRuntime(browserSigningSurface.getSignerWorkerContext());
+    const ownerAuthorities = createWalletHostOwnerAuthoritiesV1({
+      http: platform.http,
+      relayerUrl: String(this.configs.network.relayer?.url || '').trim(),
+      walletSessions: walletSessionAuthorizations,
+      resolveSelectedWalletAuthority:
+        IndexedDBManager.resolveSelectedWalletAuthority.bind(IndexedDBManager),
+      readWalletAuthenticationState:
+        browserSigningSurface.readWalletAuthenticationState.bind(browserSigningSurface),
+      readUnlockedEd25519ExportRootCapabilityV1: readUnlockedEd25519ExportRootLinkingCapabilityV1,
+    });
+    this.placement = createWalletHostPlacementCommands({
+      managementRequest: ownerAuthorities.managementRequest,
+      readAuthentication:
+        browserSigningSurface.readWalletAuthenticationState.bind(browserSigningSurface),
+    });
     const deviceDomain = createWalletHostDeviceDomain({
+      platform,
+      ownerAuthorities,
       configs: this.configs,
       signingEngine: browserSigningSurface,
       getContext: this.getContext.bind(this),

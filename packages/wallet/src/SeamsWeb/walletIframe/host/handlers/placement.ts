@@ -1,0 +1,21 @@
+import { parseWalletId } from '@shared/utils/domainIds';
+import { requireRecord } from '@shared/utils/validation';
+import type { HandlerDeps, HandlerMap, Req } from './walletIframeHandler.types';
+import { respondOkResult } from './shared';
+
+export function createPlacementWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
+  return { PM_GET_WALLET_PLACEMENT: getWalletPlacement.bind(null, deps) };
+}
+
+async function getWalletPlacement(
+  deps: HandlerDeps,
+  request: Req<'PM_GET_WALLET_PLACEMENT'>,
+): Promise<void> {
+  const payload = requireRecord(request.payload, 'Wallet placement request');
+  const wallet = parseWalletId(payload.walletId);
+  if (!wallet.ok || Object.keys(payload).length !== 1)
+    throw new Error('Wallet placement identity is invalid');
+  const result = await deps.getWalletRuntime().placement.get(wallet.value);
+  if (deps.respondIfCancelled(request.requestId)) return;
+  respondOkResult(deps, request.requestId, result);
+}

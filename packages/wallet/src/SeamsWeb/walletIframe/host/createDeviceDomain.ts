@@ -5,10 +5,9 @@ import type { DeviceCommands } from '@/SeamsWeb/publicApi/devices';
 import { DeviceLinkingDomain } from '@/SeamsWeb/operations/devices/linkDevice';
 import type { DeviceLinkingWebContext } from '@/SeamsWeb/signingSurface/types';
 import { IndexedDBManager } from '@/core/indexedDB';
-import { walletSessionAuthorizations } from '@/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
-import { createBrowserHostPlatformRuntime } from '@/SeamsWeb/assembly/createBrowserSigningRuntime';
+import type { createBrowserHostPlatformRuntime } from '@/SeamsWeb/assembly/createBrowserSigningRuntime';
 import { createWalletHostCompositionV1 } from '@/SeamsWeb/operations/devices/walletHostComposition';
-import { createWalletHostOwnerAuthoritiesV1 } from '@/SeamsWeb/operations/devices/walletHostOwnerAuthority';
+import type { WalletHostOwnerAuthoritiesV1 } from '@/SeamsWeb/operations/devices/walletHostOwnerAuthority';
 import type {
   LinkSessionOwnerApprovalUpdatesPortV1,
   LinkSessionOwnerAuthenticatedRequestPortV1,
@@ -17,10 +16,7 @@ import { LINKED_DEVICE_SESSION_HTTP_BASE_PATH_V1 } from '@/SeamsWeb/operations/d
 import { IndexedDbEcdsaCapabilityManifestStore } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
 import { resolveAmbiguousEcdsaActivationForSelectedAuthMethod } from '@/SeamsWeb/assembly/browserSigningSurfaceAssembly';
 import { resolveLinkedEcdsaHolderRuntimeV1 } from '@/core/signingEngine/session/material/linkedEcdsaHolderRuntime';
-import {
-  walletCustodyCeremonyTransportFromWorkerContextV1,
-  readUnlockedEd25519ExportRootLinkingCapabilityV1,
-} from '@/core/signingEngine/walletCustody/unlockedEd25519ExportRootCapability';
+import { walletCustodyCeremonyTransportFromWorkerContextV1 } from '@/core/signingEngine/walletCustody/unlockedEd25519ExportRootCapability';
 import {
   createDeviceLinkingEcdsaSourceContributionMetadataReaderV1,
   createDeviceLinkingEd25519SourceContributionPortV1,
@@ -62,20 +58,10 @@ export function createWalletHostDeviceDomain(args: {
   readonly configs: SeamsConfigsReadonly;
   readonly signingEngine: BrowserSigningSurface;
   readonly getContext: () => DeviceLinkingWebContext;
+  readonly platform: ReturnType<typeof createBrowserHostPlatformRuntime>;
+  readonly ownerAuthorities: WalletHostOwnerAuthoritiesV1;
 }): WalletHostDeviceDomain {
-  const relayerUrl = String(args.configs.network.relayer?.url || '').trim();
-  const platform = createBrowserHostPlatformRuntime(args.signingEngine.getSignerWorkerContext());
-  const ownerAuthorities = createWalletHostOwnerAuthoritiesV1({
-    http: platform.http,
-    relayerUrl,
-    walletSessions: walletSessionAuthorizations,
-    resolveSelectedWalletAuthority:
-      IndexedDBManager.resolveSelectedWalletAuthority.bind(IndexedDBManager),
-    readWalletAuthenticationState: args.signingEngine.readWalletAuthenticationState.bind(
-      args.signingEngine,
-    ),
-    readUnlockedEd25519ExportRootCapabilityV1: readUnlockedEd25519ExportRootLinkingCapabilityV1,
-  });
+  const { platform, ownerAuthorities } = args;
   const sourceContribution = createWalletHostDeviceLinkingSourceContributionPortV1({
     signingEngine: args.signingEngine,
     ownerRequest: ownerAuthorities.ownerRequest,
