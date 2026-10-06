@@ -143,7 +143,9 @@ function assertNever(value: never): never {
 
 async function submit(
   context: MoveContext,
-  body: WalletMoveRequest & { readonly sourceProof: Awaited<ReturnType<typeof collectProof>> },
+  body: WalletMoveRequest & {
+    readonly sourceProof: Awaited<ReturnType<typeof collectProof>> | null;
+  },
 ) {
   assertAuthentication(context);
   return context.host.managementRequest.request({
@@ -173,6 +175,17 @@ export async function requestWalletMove(
   if (existing.status === 401 || existing.status === 403)
     return { ok: false, code: 'unauthorized' };
   if (existing.status !== 404) return { ok: false, code: 'transport_unavailable' };
+  const resumed = await submit(context, {
+    walletId: request.walletId,
+    moveId: request.moveId,
+    destinationRegion: request.destinationRegion,
+    expectedGeneration: request.expectedGeneration,
+    sourceProof: null,
+  });
+  assertAuthentication(context);
+  if (resumed.status === 200) return matchingMove(resumed.body, request);
+  if (resumed.status === 401 || resumed.status === 403) return { ok: false, code: 'unauthorized' };
+  if (!requiresOwnerApproval(resumed)) return { ok: false, code: 'transport_unavailable' };
   const challenge = await requestChallenge(context);
   const sourceProof = await collectProof(context, challenge);
   assertAuthentication(context);
@@ -211,5 +224,18 @@ function matchingMove(raw: unknown, request: WalletMoveRequest): WalletMoveStatu
     return { ok: true, status };
   } catch {
     return { ok: false, code: 'invalid_response' };
+  }
+}
+
+function requiresOwnerApproval(response: {
+  readonly status: number;
+  readonly body: unknown;
+}): boolean {
+  if (response.status !== 409) return false;
+  try {
+    const body = requireRecord(response.body, 'Wallet relocation approval result');
+    return body.ok === false && body.code === 'owner_approval_required';
+  } catch {
+    return false;
   }
 }

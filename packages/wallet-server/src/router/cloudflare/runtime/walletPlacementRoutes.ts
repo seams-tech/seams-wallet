@@ -297,6 +297,7 @@ export class WalletPlacementRoutes implements RouterApiRouteExtension {
     }
     if (!approval) {
       if (!owner) return failure('unauthorized', 401);
+      if (intent.sourceProof === null) return failure('owner_approval_required', 409);
       const challenge = await new D1WalletRelocationChallenges(
         this.options.database,
         this.options.scope,

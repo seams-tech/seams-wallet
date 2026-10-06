@@ -1980,8 +1980,11 @@ client reconciliation remain outside this scenario.
 
 `wallet.placement.move(request)` requires the wallet, move identity, destination,
 and expected source generation. The host first reads that exact move. An existing
-matching move returns without another factor prompt. A new request collects a
-fresh owner proof inside the wallet iframe. Proofs and owner credentials do not
+matching move returns without another factor prompt. If no move exists, the host
+first attempts to resume an existing owner approval. Preparation failure can
+therefore retry the same approved request without issuing another challenge.
+The Gateway requires fresh owner approval when none exists. A new request then
+collects its proof inside the wallet iframe. Proofs and owner credentials do not
 cross into parent messages. A lost submission reply gets one retry with the same
 intent and proof. An authentication change during approval prevents submission.
 

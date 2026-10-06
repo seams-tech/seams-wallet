@@ -312,6 +312,7 @@ export async function verifyRetiredMoveClient({
 }
 
 class SubmissionDirectory {
+  failNextPreparation = false;
   status = null;
   submissions = 0;
   constructor(binding) {
@@ -337,6 +338,10 @@ class SubmissionDirectory {
     assert.ok(path.endsWith('/relocation-replay'));
     assert.equal(body.requestDigest, this.binding.requestDigestHex);
     this.submissions += 1;
+    if (this.failNextPreparation) {
+      this.failNextPreparation = false;
+      return Response.json({ ok: false, code: 'preparation_unavailable' }, { status: 503 });
+    }
     this.status = movingPlacement(this.binding, {
       state: 'freezing',
       availability: 'paused',
@@ -367,7 +372,11 @@ class LostMoveReplyJourney extends PlacementClientJourney {
   submittedBodies = [];
   async request(input) {
     const response = await super.request(input);
-    if (input.method === 'POST' && input.canonicalPath.endsWith('/relocations')) {
+    if (
+      response.status === 200 &&
+      input.method === 'POST' &&
+      input.canonicalPath.endsWith('/relocations')
+    ) {
       this.submittedBodies.push(structuredClone(input.body));
       if (!this.lost) {
         this.lost = true;
@@ -436,7 +445,35 @@ export async function verifyMoveSubmissionClient({
   assert.equal(blockedDirectory.submissions, 0);
   assert.equal(JSON.stringify(client.messages).includes(token), false);
   assert.equal(JSON.stringify(client.messages).includes('sourceProof'), false);
+  const retryBinding = {
+    ...binding,
+    moveId: `wmove_${Buffer.alloc(32, 104).toString('base64url')}`,
+  };
+  const retryDirectory = new SubmissionDirectory(retryBinding);
+  retryDirectory.failNextPreparation = true;
+  const retryRoutes = new WalletPlacementRoutes({ ...routeOptions, directory: retryDirectory });
+  const retryPrompt = new MoveApprovalPrompt(routeOptions.emailOtp.emailOtpChallenges);
+  const retryClient = new PlacementClientJourney(
+    api,
+    retryRoutes,
+    retryBinding,
+    token,
+    retryPrompt,
+  );
+  assert.deepEqual(await retryClient.application.move(moveRequest(retryBinding)), {
+    ok: false,
+    code: 'transport_unavailable',
+  });
+  assert.equal(retryPrompt.calls, 1);
+  assert.equal(retryDirectory.status, null);
+  assert.deepEqual(await retryClient.application.move(moveRequest(retryBinding)), {
+    ok: true,
+    status: retryDirectory.status,
+  });
+  assert.equal(retryPrompt.calls, 1);
+  assert.equal(retryDirectory.submissions, 2);
   const evidence = {
+    approvedMoveResumesAfterPreparationFailureWithoutAnotherPrompt: true,
     scope:
       'Production application, iframe handlers and Gateway with real D1 owner approval and OTP verification. Console admission and the user prompt are simulated.',
     bundleSha256,
