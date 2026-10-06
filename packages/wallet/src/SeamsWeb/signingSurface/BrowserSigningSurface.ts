@@ -460,6 +460,7 @@ import {
   resolveBrowserActiveEcdsaCapabilityRuntimeForChain,
   resolveBrowserNearEd25519PasskeyAuthorityForMaterial,
   readBrowserExactNearEd25519WalletSessionAuthorization,
+  readBrowserNearEd25519SigningCandidate,
   resolveBrowserActiveNearEd25519WalletSessionAuthorization,
   type BrowserSigningSurfaceEnginePorts,
 } from '../assembly/browserSigningSurfaceAssembly';
@@ -2454,6 +2455,13 @@ export class BrowserSigningSurface {
 
   readonly seamsWebConfigs: SeamsConfigsReadonly;
 
+  private readNearEd25519SigningCandidate(walletId: WalletId) {
+    return readBrowserNearEd25519SigningCandidate(
+      String(this.seamsWebConfigs.network.relayer?.url || '').trim(),
+      walletId,
+    );
+  }
+
   private readExactNearEd25519WalletSessionAuthorization(
     walletId: WalletId,
   ): ReturnType<typeof readBrowserExactNearEd25519WalletSessionAuthorization> {
@@ -3648,7 +3656,7 @@ export class BrowserSigningSurface {
       });
     const passkeyAuthorizationRead =
       identity.auth.kind === WALLET_AUTH_METHODS.passkey
-        ? await this.readExactNearEd25519WalletSessionAuthorization(args.walletId)
+        ? await this.readNearEd25519SigningCandidate(args.walletId)
         : null;
     const passkeyAuthorization = passkeyAuthorizationRead
       ? classifyNearEd25519WalletSessionAuthorization(passkeyAuthorizationRead)
@@ -3847,7 +3855,7 @@ export class BrowserSigningSurface {
       nearAccountId: args.nearAccountId,
       materialActivation: args.materialActivation,
     });
-    const authorizationRead = await this.readExactNearEd25519WalletSessionAuthorization(
+    const authorizationRead = await this.readNearEd25519SigningCandidate(
       args.walletId,
     );
     let authority: WalletAuthAuthorityRef;
@@ -4067,7 +4075,7 @@ export class BrowserSigningSurface {
       let preparation = await this.prepareMaterialIdentityNearEd25519YaoSigning(
         authNeutralNearEd25519BoundaryInput(args),
       );
-      const authorizationRead = await this.readExactNearEd25519WalletSessionAuthorization(
+      const authorizationRead = await this.readNearEd25519SigningCandidate(
         args.walletId,
       );
       if (
@@ -4098,7 +4106,7 @@ export class BrowserSigningSurface {
           preparation.hydration satisfies never;
           throw new Error('[SigningEngine][near] unsupported Email OTP hydration state');
       }
-      const currentAuthorizationRead = await this.readExactNearEd25519WalletSessionAuthorization(
+      const currentAuthorizationRead = await this.readNearEd25519SigningCandidate(
         args.walletId,
       );
       if (
@@ -4117,7 +4125,7 @@ export class BrowserSigningSurface {
     if (args.laneIdentity === undefined) {
       return await this.prepareMaterialIdentityNearEd25519YaoSigning(args);
     }
-    const authorizationRead = await this.readExactNearEd25519WalletSessionAuthorization(
+    const authorizationRead = await this.readNearEd25519SigningCandidate(
       args.walletId,
     );
     switch (authorizationRead.kind) {
@@ -4565,7 +4573,7 @@ export class BrowserSigningSurface {
           case WALLET_AUTH_METHODS.passkey: {
             const material = await this.rehydrateExactPasskeyEd25519YaoCapabilityForSigning(args);
             try {
-              const authorizationRead = await this.readExactNearEd25519WalletSessionAuthorization(
+              const authorizationRead = await this.readNearEd25519SigningCandidate(
                 args.walletId,
               );
               if (
@@ -4640,7 +4648,7 @@ export class BrowserSigningSurface {
       if (!material) {
         throw new Error('[SigningEngine][near] active Email OTP Ed25519 material is unavailable');
       }
-      const authorizationRead = await this.readExactNearEd25519WalletSessionAuthorization(
+      const authorizationRead = await this.readNearEd25519SigningCandidate(
         args.walletId,
       );
       if (
@@ -4693,7 +4701,7 @@ export class BrowserSigningSurface {
         input: args,
         expectedActivation: context.materialActivation,
       });
-      const authorizationRead = await this.readExactNearEd25519WalletSessionAuthorization(
+      const authorizationRead = await this.readNearEd25519SigningCandidate(
         args.walletId,
       );
       if (
@@ -4718,9 +4726,14 @@ export class BrowserSigningSurface {
       );
     }
     const runtime = runtimeResolution.runtime;
-    return await walletSessionStateFromExactEd25519Runtime({
+    const authorization = await this.readNearEd25519SigningCandidate(args.walletId);
+    if (authorization.kind !== 'found') {
+      throw new Error(`[SigningEngine][near] Wallet Session authorization is ${authorization.kind}`);
+    }
+    return await rebindRouterAbEd25519WalletSessionStateFromExactRuntime({
       runtime,
-      relayerUrl: String(this.seamsWebConfigs.network.relayer?.url || '').trim(),
+      authorization: authorization.authorization,
+      nowMs: Date.now(),
     });
   }
 

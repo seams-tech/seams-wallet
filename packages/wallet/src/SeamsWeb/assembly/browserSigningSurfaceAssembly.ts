@@ -1,3 +1,4 @@
+import { activeWalletSessionV1RecordsEqual } from '@shared/device-linking/activeWalletSession';
 import type { RuntimePorts } from '@/core/platform';
 import { IndexedDBManager, walletSessionAuthorizations } from '@/core/indexedDB';
 import type { OwnerLaneScope } from '@/core/signingEngine/session/identity/signingLaneAuthBinding';
@@ -421,6 +422,51 @@ function nearEd25519ReadResultFromRemoteStatus(
       status satisfies never;
       throw new Error('[SigningEngine][near] unsupported Wallet Session status');
   }
+}
+
+/** Local observations plan signing. Prepare must reconcile fresh server authority
+ * before the client creates a signature share. Never use this reader for export. */
+export async function readBrowserNearEd25519SigningCandidate(
+  relayerUrl: string,
+  walletId: ReturnType<typeof toWalletId>,
+): Promise<NearEd25519WalletSessionAuthorizationReadResult> {
+  const exact = await readExactWalletSessionAuthorization(walletId);
+  if (exact.kind !== 'found') return exact;
+  const selected = exactSelectedWalletAuthority(
+    await IndexedDBManager.resolveSelectedWalletAuthority(String(walletId)),
+    walletId,
+  );
+  if (!selected) return { kind: 'missing' };
+  if (exact.record.expiresAtMs <= Date.now()) return { kind: 'expired' };
+  const observation = WalletSessionStatusReadScope.observationForConfirmation(
+    { relayerUrl, operationCredential: exact.operationCredential },
+    { walletSessionId: exact.operationCredential.walletSessionId, quotaId: exact.record.quotaId },
+  );
+  if (
+    !observation ||
+    (observation.status.status === 'active' &&
+      (!activeWalletSessionV1RecordsEqual(observation.status.authorization, exact.record) ||
+        !walletSessionMatchesSelectedAuthority(exact.record, selected)))
+  ) {
+    return readBrowserExactNearEd25519WalletSessionAuthorization(
+      relayerUrl,
+      new WalletSessionStatusReadScope(),
+      walletId,
+    );
+  }
+  const status = observation.status;
+  if (status.status !== 'active') return nearEd25519ReadResultFromRemoteStatus(status);
+  const selectedFactorAuthority = await resolveBrowserSelectedFactorAuthority(selected);
+  const authorization = buildActiveNearEd25519WalletSessionAuthorization({
+    selectedAuthority: selected.authority,
+    selectedAuthMethod: selected.authMethod,
+    selectedFactorAuthority,
+    session: exact.record,
+    operationCredential: exact.operationCredential,
+    status,
+    nowMs: Date.now(),
+  });
+  return { kind: 'found', authorization };
 }
 
 /**

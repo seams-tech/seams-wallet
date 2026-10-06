@@ -831,3 +831,19 @@ SDK is `.artifacts/r155b-email-outage/stepup-dist` in `seams-wallet`. The test w
 `rejections.json` and `console-outage.json` under the private
 `.artifacts/r155b/console-outage/routing-rejections/` directory.
 [Sanitized combined evidence](./evidence/r155b-routing-rejections.json).
+
+### NEAR prepare-based planning consolidation — 2026-10-07
+
+NEAR signing preparation now consumes existing local status observations and
+requires fresh prepare reconciliation before creating a signature share. It
+falls back to a fresh read when the full session projection differs. Cached
+observations never overwrite persisted authority. Export/funding/restoration
+readers remain fresh.
+
+In matched browser scenarios, full-scenario status calls fall 29→19, 25→17, and
+27→18. Actual SDK signing intervals in the transaction case fall 5→2, 5→2, and
+9→5 status requests. Prepare/finalize counts remain unchanged. Both arms pass all
+three NEAR cases. Linked revocation and shared-budget passkey step-up also pass
+through regional ingress during Console outage. No hosted latency gain is claimed.
+See [NEAR results](./optimization-12-NEAR-only-20261006.md#signing-preparation-uses-existing-observations--2026-10-07)
+and [evidence](./evidence/near-signing-observation-20261007.json).

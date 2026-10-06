@@ -1,3 +1,4 @@
+import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import type { SigningSessionCoordinator } from '../../../session/SigningSessionCoordinator';
 import { activeWalletSessionV1RecordsEqual } from '@shared/device-linking/activeWalletSession';
 import { resolveNearNetwork } from '@/core/config/chains';
@@ -690,6 +691,14 @@ async function finalizeRouterAbEd25519NormalSigningSignature(
     ) {
       throw new Error('Wallet Session authority changed before Ed25519 client signing');
     }
+    const statusOptions = {
+      relayerUrl: materialFacts.relayerUrl,
+      operationCredential: current.walletSessionOperationCredential,
+    };
+    await WalletSessionStatusReadScope.fromPrepare(statusOptions, status).read(statusOptions, {
+      walletSessionId: status.walletSessionId,
+      quotaId: status.quotaId,
+    });
   } else if (prepared.kind !== 'operation_step_up') {
     throw new Error('Ed25519 step-up prepare returned a reusable Wallet Session');
   }
