@@ -1,0 +1,46 @@
+{
+  "environment": "local composed browser acceptance with real custody processes and regional D1 emulation",
+  "passed": 2,
+  "duration": "1.5m",
+  "samples": [
+    {
+      "signerSet": "mixed",
+      "statuses": [
+        200,
+        200
+      ],
+      "lostReplyBeforeClientAcceptance": true,
+      "browserReloaded": true,
+      "identicalOperationWalletAndCeremony": true,
+      "ingress": [
+        "US",
+        "APAC"
+      ],
+      "home": "US",
+      "directoryRows": 1,
+      "verifiedSignatures": 3,
+      "signingConsoleCalls": 0,
+      "scope": "Actual SDK retry after a caller retries registration following a lost response and browser reload; no automatic network retry is claimed."
+    },
+    {
+      "signerSet": "near-only",
+      "statuses": [
+        200,
+        200
+      ],
+      "lostReplyBeforeClientAcceptance": true,
+      "browserReloaded": true,
+      "identicalOperationWalletAndCeremony": true,
+      "ingress": [
+        "US",
+        "APAC"
+      ],
+      "home": "US",
+      "directoryRows": 1,
+      "verifiedSignatures": 3,
+      "signingConsoleCalls": 0,
+      "scope": "Actual SDK retry after a caller retries registration following a lost response and browser reload; no automatic network retry is claimed."
+    }
+  ],
+  "hostedLatencyMeasured": false
+}

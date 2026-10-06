@@ -1112,3 +1112,30 @@ Repeat with the private regional-real runner:
 Use the exact SDK/server candidate. Private artifacts are under
 `.artifacts/r155b/console-outage/post-custody-retirement-{ecdsa,ed25519}/`.
 The SDK was frozen at `.artifacts/r155b-yao-home/dist`.
+
+### Registration setup reply recovery and obsolete retry removal — 2026-10-07
+
+Removed the SDK retry branch for the retired `/wallets/register/prepare` route.
+No current call to the private JSON transport uses that route. The obsolete
+Wrangler error matcher, attempt loop and attempt-count diagnostic are deleted.
+Current setup errors still reach the caller. The persisted registration operation
+remains the recovery anchor when the caller retries.
+
+The composed scenario loses a successful setup reply before client acceptance,
+reloads the browser, and retries through APAC after the first request entered US.
+It covers mixed and NEAR-only registration. It requires identical operation,
+wallet and ceremony identities, one established US directory row, and three
+verified signatures during a subsequent Console outage. This tests caller-driven
+recovery after reload; it does not claim automatic network retries.
+
+Both cases passed (2 tests, 1.5 minutes). Each reused the original operation,
+wallet, ceremony and US home after reload and APAC retry. Each left exactly one
+established directory row. Three ECDSA signatures and three NEAR signatures
+verified with zero Console calls. SDK type-check, build, bloat and diff checks
+passed. Google/email registration and conflicting claims remain separate gates.
+
+[Sanitized evidence](./evidence/r155b-setup-retry-20261007.json). Repeat using the
+private regional-real runner, `passkey.registration.contract.test.ts --grep
+'setup reply loss'`. The exact frozen SDK is under
+`.artifacts/r155b-setup-retry/dist`; private evidence is under
+`.artifacts/r155b/console-outage/setup-retry-{mixed,near-only}/`.

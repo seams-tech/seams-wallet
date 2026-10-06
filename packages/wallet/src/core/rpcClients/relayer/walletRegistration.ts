@@ -159,8 +159,6 @@ const WALLET_REGISTRATION_ACTIVATE_PATH = '/wallets/register/activate';
 const WALLET_REGISTRATION_NEAR_PROVISIONING_PATH = '/wallets/register/near-provisioning';
 /** Managed environment id header for Router API `api_credentials` auth. */
 const ROUTER_API_ENVIRONMENT_ID_HEADER = 'X-Seams-Environment-Id';
-const WALLET_REGISTRATION_PREPARE_PATH = '/wallets/register/prepare';
-const WRANGLER_WORKER_RESTARTED_MID_REQUEST = 'Your worker restarted mid-request';
 
 function utf8Bytes(value: string): number {
   try {
@@ -239,24 +237,6 @@ async function readResponseText(response: Response): Promise<string> {
   }
 }
 
-function walletRegistrationPostMaxAttempts(path: string): number {
-  return path === WALLET_REGISTRATION_PREPARE_PATH ? 2 : 1;
-}
-
-function isWranglerWorkerRestartedMidRequestResponse(input: {
-  path: string;
-  status: number;
-  responseText: string;
-  attempt: number;
-}): boolean {
-  return (
-    input.path === WALLET_REGISTRATION_PREPARE_PATH &&
-    input.attempt === 0 &&
-    input.status === 503 &&
-    input.responseText.includes(WRANGLER_WORKER_RESTARTED_MID_REQUEST)
-  );
-}
-
 async function postJson(args: {
   relayerUrl: string;
   path: string;
@@ -271,63 +251,48 @@ async function postJson(args: {
 }): Promise<unknown> {
   const startedAt = Date.now();
   const requestBody = JSON.stringify(args.body);
-  const maxAttempts = walletRegistrationPostMaxAttempts(args.path);
-  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    const response = await fetch(
-      `${normalizeRelayerBaseUrl(args.relayerUrl, { trim: false })}${args.path}`,
-      buildRelayerJsonPostRequestInit({
-        headers: {
-          ...args.headers,
-          [WALLET_MANAGEMENT_PROTOCOL_HEADER]: WALLET_MANAGEMENT_PROTOCOL_VERSION,
-        },
-        body: args.body,
-        bodyJson: requestBody,
-      }),
-    );
-    if (args.onServerTiming) {
-      try {
-        args.onServerTiming(response.headers.get('Server-Timing'));
-      } catch {
-        // Diagnostics must never change registration behavior.
-      }
+  const response = await fetch(
+    `${normalizeRelayerBaseUrl(args.relayerUrl, { trim: false })}${args.path}`,
+    buildRelayerJsonPostRequestInit({
+      headers: {
+        ...args.headers,
+        [WALLET_MANAGEMENT_PROTOCOL_HEADER]: WALLET_MANAGEMENT_PROTOCOL_VERSION,
+      },
+      body: args.body,
+      bodyJson: requestBody,
+    }),
+  );
+  if (args.onServerTiming) {
+    try {
+      args.onServerTiming(response.headers.get('Server-Timing'));
+    } catch {
+      // Diagnostics must never change registration behavior.
     }
-    const responseText = await readResponseText(response);
-    const data = parseJsonText(responseText);
-    if (registrationBenchmarkDiagnosticsEnabled()) {
-      console.info(REGISTRATION_ROUTE_PAYLOAD_DIAGNOSTICS_LABEL, {
-        path: args.path,
-        status: response.status,
-        attempt,
-        requestBytes: utf8Bytes(requestBody),
-        requestSizeBreakdown: payloadSizeBreakdown(args.body),
-        responseBytes: utf8Bytes(responseText),
-        responseSizeBreakdown: payloadSizeBreakdown(data),
-        totalMs: Date.now() - startedAt,
-      });
-    }
-    if (
-      isWranglerWorkerRestartedMidRequestResponse({
-        path: args.path,
-        status: response.status,
-        responseText,
-        attempt,
-      })
-    ) {
-      continue;
-    }
-    if (!response.ok || readParsedJsonField(data, 'ok') === false) {
-      throw new Error(
-        String(
-          readParsedJsonField(data, 'message') ||
-            readParsedJsonField(data, 'error') ||
-            readParsedJsonField(data, 'code') ||
-            `HTTP ${response.status}`,
-        ),
-      );
-    }
-    return data;
   }
-  throw new Error('wallet registration request exhausted retry attempts');
+  const responseText = await readResponseText(response);
+  const data = parseJsonText(responseText);
+  if (registrationBenchmarkDiagnosticsEnabled()) {
+    console.info(REGISTRATION_ROUTE_PAYLOAD_DIAGNOSTICS_LABEL, {
+      path: args.path,
+      status: response.status,
+      requestBytes: utf8Bytes(requestBody),
+      requestSizeBreakdown: payloadSizeBreakdown(args.body),
+      responseBytes: utf8Bytes(responseText),
+      responseSizeBreakdown: payloadSizeBreakdown(data),
+      totalMs: Date.now() - startedAt,
+    });
+  }
+  if (!response.ok || readParsedJsonField(data, 'ok') === false) {
+    throw new Error(
+      String(
+        readParsedJsonField(data, 'message') ||
+          readParsedJsonField(data, 'error') ||
+          readParsedJsonField(data, 'code') ||
+          `HTTP ${response.status}`,
+      ),
+    );
+  }
+  return data;
 }
 
 export type CreateRegistrationIntentResponse = {
