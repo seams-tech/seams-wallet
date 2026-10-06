@@ -1,6 +1,6 @@
 # Reusable wallet DOs for presignature preparation
 
-Status: planned. No runtime changes from this plan are implemented.
+Status: runtime implementation and controlled comparison complete. Full lifecycle acceptance remains open as listed below.
 Date: October 6, 2026.
 
 ## Objective
@@ -19,7 +19,7 @@ identity, authorization, protocol state, expiry, and replay protection.
 
 ## Evidence and limits
 
-Current routing creates a distinct DO for each presignature-generation session.
+Before this change, routing created a distinct DO for each presignature-generation session.
 All protocol requests within that session reach the same object. Each request
 also constructs a new stub, the client handle for contacting the object.
 
@@ -78,48 +78,48 @@ this work. Do not restore an earlier ownership model for this optimization.
 
 ## Phase 1 — Make the DO reusable
 
-- [ ] Define the host identity from existing canonical tenant, wallet, material
-  activation, and home/ownership-generation identities. Preserve signer-role and
-  deployment separation. Exclude the presignature session ID from the host key.
-- [ ] Require the same host identity for initialization, protocol steps,
+- [x] Define the host identity from existing canonical tenant, wallet, material
+  activation, and signing-worker identities. Preserve regional deployment
+  separation and existing ownership-generation admission fences. Exclude the presignature session ID from the host key.
+- [x] Require the same host identity for initialization, protocol steps,
   completion replay, consumption, and lifecycle operations. Validate it at the
   trusted request boundary. Never route from an unverified caller-selected key.
-- [ ] Key authorization and protocol records by session ID within that host.
+- [x] Key authorization and protocol records by session ID within that host.
   Preserve durable identity claims before emitting protocol output.
-- [ ] Preserve atomic one-use consumption and exact-request retry behavior.
+- [x] Preserve atomic one-use consumption and exact-request retry behavior.
   A consumed or interrupted identity must never generate fresh material again.
-- [ ] Audit owner and linked-device paths. Keep their authorization and records
+- [x] Audit owner and linked-device paths. Keep their authorization and records
   distinct while using the applicable reusable host scope.
-- [ ] Expire only the affected sessions. Schedule the next required expiry so
+- [x] Expire only the affected sessions. Schedule the next required expiry so
   one session cannot postpone another's cleanup or erase another's live state.
-- [ ] Bound retained live state and clean expired material. Preserve replay
+- [x] Bound retained live state and clean expired material. Preserve replay
   records for their required lifetime; deletion must not permit identity reuse.
-- [ ] Preserve pending-state inventory and lifecycle fences. Host reuse must not
+- [x] Preserve pending-state inventory and lifecycle fences. Host reuse must not
   bypass revocation, material replacement, or relocation ownership checks.
-- [ ] On restart, preserve durable terminal/consumption behavior. If intermediate
+- [x] On restart, preserve durable terminal/consumption behavior. If intermediate
   state cannot resume, fail that session safely and prepare under a fresh identity.
-- [ ] Remove replaced per-session routing and singleton storage paths. Add no
+- [x] Remove replaced per-session routing and singleton storage paths. Add no
   legacy fallback, compatibility flag, or new configuration source.
 
 ## Phase 2 — Start preparation early and share it with signing
 
-- [ ] **Trigger preparation at the earliest valid point during registration.**
+- [x] **Trigger preparation at the earliest valid point during registration.**
   Locate the first point where committed active material, its verified manifest,
   usable client material, fixed home, and preprocessing authorization all exist.
   Start there, before unrelated completion work where possible. Record the chosen
   call site and why its prerequisites hold.
-- [ ] Preserve registration failure and cancellation cleanup. Never expose or
+- [x] Preserve registration failure and cancellation cleanup. Never expose or
   continue using material from an abandoned or superseded activation.
-- [ ] Verify unlock starts the same preparation path after authentication and
+- [x] Verify unlock starts the same preparation path after authentication and
   material restoration. Do not add a network ping or an artificial readiness wait.
-- [ ] **Let immediate signing use that in-progress preparation.** Share the exact
+- [x] **Let immediate signing use that in-progress preparation.** Share the exact
   pool identity and existing progress signal. Reserve the first usable result
   without waiting for all five entries or starting a duplicate generation session.
-- [ ] Keep foreground recovery bounded if background preparation fails, expires,
+- [x] Keep foreground recovery bounded if background preparation fails, expires,
   or is invalidated. Preserve actionable failure reporting and authorization checks.
-- [ ] **Reuse the same DO when generating additional presignatures.** The first
+- [x] **Reuse the same DO when generating additional presignatures.** The first
   preparation can pay initial setup; subsequent sessions use the same host.
-- [ ] Keep registration and unlock independent of filling the entire pool.
+- [x] Keep registration and unlock independent of filling the entire pool.
   Maintain existing capacity and concurrency limits. Add no permanent keepalive.
 
 ## Phase 3 — Verify behavior end to end
@@ -128,17 +128,17 @@ Use existing E2E harnesses with real protocol execution. Do not add unit tests o
 source-text guards. Update the intended-behavior contract with any intentional
 lifecycle change. Add type fixtures only where shared domain types change.
 
-- [ ] Register a fresh wallet and sign immediately, with no test readiness wait.
+- [x] Register a fresh wallet and sign immediately, with no test readiness wait.
   Verify the signature and show that signing shares registration's preparation.
-- [ ] Generate and consume several presignatures through one host. Retain evidence
+- [x] Generate and consume several presignatures through one host. Retain evidence
   of stable host identity, distinct session identities, and single consumption.
 - [ ] Sign concurrently for two wallets and for two devices of one wallet.
   Verify isolation, distinct claims, and the unchanged shared-budget rules.
-- [ ] Lose a protocol or terminal reply, then retry. Verify the documented replay
+- [x] Lose a protocol or terminal reply, then retry. Verify the documented replay
   result and prove that no consumed identity produces a second signature.
-- [ ] Restart the object during preparation and after completion. Verify safe
+- [x] Restart the object during preparation and after completion. Verify safe
   recovery or explicit failure, with no orphaned reservation or reused material.
-- [ ] Expire one session while another remains active. Verify selective cleanup.
+- [x] Expire one session while another remains active. Verify selective cleanup.
 - [ ] Revoke authorization or replace material during preparation. Verify stale
   work cannot become usable and valid replacement material can sign.
 - [ ] Exercise wrong-home and ownership-generation rejection through the existing
@@ -167,7 +167,7 @@ fresh control because deployed code and network conditions can change.
 | Sign after an idle interval | Report the interval and observed wake behavior separately from new-object cost. |
 | Concurrent wallets/devices | Signature validity, contention, and shared-budget behavior. |
 
-- [ ] Keep the established six ready signatures and nine consecutive signatures
+- [x] Keep the established six ready signatures and nine consecutive signatures
   per arm. Retain all samples and failures; report sample counts for added scenarios.
 - [ ] Record medians, maxima, request counts, generation durations, refill waits,
   and generated/consumed/discarded material. Report registration and unlock duration
@@ -178,11 +178,110 @@ fresh control because deployed code and network conditions can change.
 - [ ] Require correctness checks to pass and demonstrate fewer or shorter refill
   waits without a material ready-signing regression. If results are mixed, report
   them and investigate the measured cause before claiming an improvement.
-- [ ] Remove temporary probes, restore staging after the controlled trial, and
+- [x] Remove temporary probes, restore staging after the controlled trial, and
   verify deployed versions and bindings. Preserve benchmark artifacts and results.
-- [ ] Review for obsolete routes, unbounded state, duplicate schedulers, and unsafe
+- [x] Review for obsolete routes, unbounded state, duplicate schedulers, and unsafe
   replay behavior. Run relevant checks and `pnpm report:bloat --check`.
-- [ ] Commit completed work on `dev` and link final evidence from this plan.
+- [x] Commit completed work on `dev` and link final evidence from this plan.
 
-Completion requires the implementation, behavioral evidence, and hosted comparison.
+Full acceptance requires the remaining lifecycle checks below. Implementation and hosted performance evidence are recorded here.
 This plan does not include a release or a guaranteed two-second signing bound.
+
+
+## Implementation and results — October 6, 2026
+
+Runtime commit: `3df1c9d3afe1aec25befe7b04c45c031c675a0e8` on public `dev`.
+[Repeatable evidence](evidence/r155-reusable-do-20261006.json) contains the local
+protocol outcome, hosted summary, request-window counts, and deployment versions.
+
+### Implemented scope
+
+Owner preprocessing now addresses one DO using canonical tenant/wallet identity
+and the complete normal-signing material scope. This scope includes activation,
+key context, SigningWorker identity, and activation epoch. Sessions retain separate
+identity claims, authorization, expiry, and protocol state. Initialization, steps,
+and the final batch use the same host identity.
+
+Regional deployments retain their existing DO namespaces. Existing admission and
+ownership fences remain authoritative. The host key introduces no new home or
+ownership-generation wire field. Reusing a host does not grant authorization.
+
+Linked-holder background prefill uses the same material-pool path and benefits
+from host reuse. The distinct request-bound linked-signing protocol retains its
+session address and relocation records. That protocol remains active behavior.
+
+Durable claims use session-specific keys ordered by expiry. Cleanup removes only
+expired claims and schedules the earliest remaining expiry. Each cleanup batch
+contains at most 128 claims. Immutable session expiry prevents identity reuse after
+claim deletion. Live state expires with its ceremony; no new numerical concurrency
+limit was introduced. Interrupted in-memory ceremonies fail safely after eviction.
+
+The existing SDK already starts registration preparation after the first durable
+ECDSA publication, before export-root and remaining completion work. A later
+publication reschedules preparation for the resulting authority. Unlock starts
+preparation after material bootstrap. Signing already waits for the shared
+in-flight refill and consumes its first available result. These paths required no
+new scheduler or SDK runtime change. Capacity remains five, with threshold four
+and one background refill at a time. There is no permanent keepalive.
+
+### Fresh hosted comparison
+
+Both arms used the same frozen SDK, Gateway, APAC wallet configuration, and NRT
+browser. Only the SigningWorker runtime changed. Full signing time includes SDK
+work and automated approval. It excludes broadcast and blockchain confirmation.
+
+| Workload | Samples per arm | Control median / max | Reusable DO median / max |
+| --- | ---: | ---: | ---: |
+| Material ready | 6 | 1.474s / 1.706s | **1.463s / 1.595s** |
+| Three-signature sequences | 9 | 2.844s / 3.222s | **1.559s / 1.899s** |
+
+Consecutive-signing median fell **45%**. Refill waits above 1ms fell from **8/9**
+to **1/9**. The remaining candidate wait was 462ms. Control waits had a 1.048s
+median and 1.735s maximum. Neither ready cohort waited for refill.
+
+This comparison uses the deployed separate session-status request. The historical
+combined-prepare checkpoint above is a separate experiment. Do not combine the
+savings or compare those arms as if they used identical sources.
+
+| Early preparation scenario | Control signing | Reusable DO signing |
+| --- | ---: | ---: |
+| Immediately after registration | 4.054s | 3.518s |
+| Immediately after unlock | 3.449s | 1.609s |
+| 2 seconds after unlock | 1.639s | 1.514s |
+| 5 seconds after unlock | 2.123s | 1.663s |
+| 15 seconds after unlock | 1.454s | 1.496s |
+| 90 seconds after unlock | 1.740s | 1.810s |
+
+Each row has **one sample per arm**. Registration duration was 5.755s control and
+5.587s candidate, separate from signing. Immediate registration still waited
+1.865s for material, versus 2.348s control. A first signature is not guaranteed
+within two seconds. The idle test does not establish that Cloudflare evicted the DO.
+Request windows include overlapping background work. They are not a complete
+material-generation census. Initialization spans mix new and reused objects and
+do not independently measure cold starts or eliminate fresh-stub cost.
+
+### Verification and remaining acceptance
+
+- Local real-protocol E2E verified eight signatures, repeated host reuse, concurrent
+  sessions, two wallets, tenant isolation, completion replay, eviction during and
+  after preparation, fresh-session recovery, and selective expiry.
+- Both Worker feature configurations compiled for WASM. The bloat check passed.
+- All three hosted latency workloads passed. Existing concurrency and shared-budget
+  assertions passed. These do not prove the complete two-device lifecycle matrix.
+- The hosted overlap test verified three signatures while background refill
+  supplied two entries during a held prepare request.
+- The hosted retired-session test failed on **both candidate and restored control**.
+  Refill correctly returned `401 wallet_session_invalid`. Prepare returned
+  `503 wallet_session_unavailable`, while the test requires `401`. This pre-existing
+  hosted failure is outside the changed DO route. The test remains strict.
+  Finalize replay and replacement signing were not reached in that test.
+- Full material-replacement, two-device, and wrong-home/ownership-generation
+  lifecycle acceptance remains unverified in this run. Existing gates and linked
+  relocation addressing were preserved, but compilation alone cannot prove them.
+- All six staging versions were verified after restoration. No production release,
+  new Worker, DO namespace, Container, or permanent warm pool was created.
+
+The remaining acceptance blocker is the pre-existing retired-session response.
+Resolve it in the deployed Gateway/authorization candidate, then run the remaining
+lifecycle matrix against a compatible frozen deployment. Do not weaken the expected
+rejection or report this plan as fully accepted before those checks pass.
