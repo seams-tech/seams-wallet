@@ -225,7 +225,7 @@ text guards. Update the intended-behavior specification with the implementation.
 Classify existing outage assertions before changing them: a deliberate contract
 change does not make unrelated authentication failures obsolete.
 
-- [ ] Establish a session, make Console unavailable, and verify ready signing and
+- [x] Establish a session, make Console unavailable, and verify ready signing and
   a three-signature sequence that forces refill. Assert zero attempted Console calls.
 - [ ] Repeat for owner and linked-device signing, relevant ECDSA/Ed25519 paths,
   session restore, and step-up paths with otherwise available prerequisites.
@@ -587,3 +587,23 @@ a maximum of two attempts when discovery is refused again. It checks exact body
 and token preservation. The existing regional D1 routing scenario also passes.
 SDK type-checking passes. Both browser contracts passed after local registration
 admission; the discovery transport still needs composed browser acceptance.
+
+### Composed Console-outage acceptance — October 6
+
+Two regional browser contracts passed (1.5 minutes total suite time). Each
+registers a real mixed-curve wallet, disables both Console services, and completes
+three signatures. The ECDSA sequence records three prepare/finalize pairs plus
+seven refill-init and 35 successful refill-step requests during the outage. The
+Ed25519 sequence records three prepare/finalize pairs. Both record zero attempted
+Console calls, including awaited background work.
+
+Repeat from the private repository:
+`SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server
+SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-regional-real.mjs
+passkey.registration.contract.test.ts` after building the candidate runtime.
+Evidence: `docs/evidence/r155b-console-outage-ecdsa.json` and
+`docs/evidence/r155b-console-outage-ed25519.json`. The harness uses production
+session resolution, regional dispatch, Gateway handlers, D1, and local custody
+Workers. Deployment admission is fixture configuration. These results do not
+prove physical regional latency, linked-device/step-up outage behavior, restart,
+or relocation concurrency.
