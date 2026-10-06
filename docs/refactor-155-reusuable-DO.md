@@ -507,3 +507,68 @@ the browser; its signing results remain separate from the alternating comparison
 No new signing-latency improvement is claimed for the telemetry correction.
 All six original staging versions were restored and verified. The tail stopped.
 Temporary logging and raw traces remain outside the committed source.
+
+## First-use DO lookup and placement probes — October 6, 2026
+
+A temporary staging build compared named objects with randomly allocated object
+IDs. It also compared default placement with an `apac` location hint. The probe
+used the existing presign DO class and its no-op prewarm endpoint. It created no
+wallet material, sessions, storage records, or alarms. Real wallet routing stayed
+unchanged. No additional Worker, namespace, Container, or keepalive was created.
+
+Each registration started the probes after warming its real owner host. Four
+probe groups rotated the four arm orders. Each object received three sequential
+calls, with a new stub for each call. The first two-wallet test passed, but the
+tail omitted one registration invocation. One additional wallet supplied a second
+complete trace. All **nine signatures** verified across the three wallets.
+
+The captured comparison contains **96 successful no-op calls**: eight fresh
+objects and sixteen repeat calls per arm. The missing invocation is excluded.
+These are Worker-to-DO response-header waits, not full signing measurements.
+
+| Lookup and placement | First-call median / max | Repeat-call median / max |
+| --- | ---: | ---: |
+| Named, default | 742.5ms / 1,176ms | 14.5ms / 51ms |
+| Random ID, default | 222.5ms / 11,074ms | 7.5ms / 48ms |
+| Named, APAC hint | 600.5ms / 811ms | 12.5ms / 59ms |
+| Random ID, APAC hint | 247.5ms / 933ms | 12.5ms / 51ms |
+
+The named first-use penalty appeared in both captured invocations. Their default
+placement medians were 640.5ms versus 191ms, then 783ms versus 246ms. This supports
+Cloudflare's documented global uniqueness check as one source of first-use cost.
+See [the namespace API](https://developers.cloudflare.com/durable-objects/api/namespace/#newuniqueid).
+The experiment does not isolate every component of those waits.
+
+Random IDs did not eliminate stalls: one first call took 11.074 seconds. The
+platform captured 95 prewarm DO events, including real registration warm calls.
+Their CPU median/max was 6ms/25ms; elapsed median/max was 8ms/499ms. These events
+are not individually correlated to the Worker spans. Do not subtract their clocks
+or use them to assign the outlier to a specific platform component.
+
+The APAC hint did not give a consistent benefit. For named objects, the first
+invocation changed 640.5ms to 646ms; the second changed 783ms to 600.5ms. Actual
+execution locations were not verified. Cloudflare applies location hints only
+on first access and treats them as best effort. See
+[data location](https://developers.cloudflare.com/durable-objects/reference/data-location/).
+
+**Decision:** retain deterministic wallet/material routing and registration
+prewarm. The existing prewarm already starts the named lookup before signing.
+These probes do not show how much additional signing latency random IDs would
+save. Random routing would require an authoritative persisted wallet/material
+locator and its concurrency and relocation rules. This result does not justify
+that added state or a hardcoded APAC placement change. It also does not explain
+every slow call to an owner host that already completed prewarm.
+
+No production optimization or new full-signing speedup is claimed. The next
+optimization should target the remaining first-preparation critical path using
+the existing signing traces. Do not treat a no-op lookup saving as an equal
+signing saving.
+
+[Evidence](evidence/r155-do-lookup-20261006.json) includes all captured samples,
+limits, per-invocation medians, and reproduction details. The
+[temporary probe patch](evidence/r155-do-lookup-probe-20261006.patch) applies to
+the response-timing helper at commit `84385597`. It is an experiment artifact;
+it is not part of the production build. The strict Worker release build and
+bloat check passed. All six original staging versions were restored and verified.
+The tail stopped, and the temporary diagnostic code was not retained in runtime
+source.

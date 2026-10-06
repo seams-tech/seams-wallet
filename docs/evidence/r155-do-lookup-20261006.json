@@ -1,0 +1,888 @@
+{
+  "schema": "do-lookup-probe/v1",
+  "date": "2026-10-06",
+  "candidateVersion": "42319d5f-5bff-4a52-a2d1-eda06d4ca62f",
+  "registrationCount": 3,
+  "capturedProbeInvocations": 2,
+  "verifiedSignatures": 9,
+  "arms": {
+    "named_default": {
+      "first": {
+        "count": 8,
+        "medianMs": 742.5,
+        "minimumMs": 547,
+        "maximumMs": 1176
+      },
+      "repeat": {
+        "count": 16,
+        "medianMs": 14.5,
+        "minimumMs": 9,
+        "maximumMs": 51
+      }
+    },
+    "random_default": {
+      "first": {
+        "count": 8,
+        "medianMs": 222.5,
+        "minimumMs": 157,
+        "maximumMs": 11074
+      },
+      "repeat": {
+        "count": 16,
+        "medianMs": 7.5,
+        "minimumMs": 3,
+        "maximumMs": 48
+      }
+    },
+    "named_apac": {
+      "first": {
+        "count": 8,
+        "medianMs": 600.5,
+        "minimumMs": 491,
+        "maximumMs": 811
+      },
+      "repeat": {
+        "count": 16,
+        "medianMs": 12.5,
+        "minimumMs": 5,
+        "maximumMs": 59
+      }
+    },
+    "random_apac": {
+      "first": {
+        "count": 8,
+        "medianMs": 247.5,
+        "minimumMs": 161,
+        "maximumMs": 933
+      },
+      "repeat": {
+        "count": 16,
+        "medianMs": 12.5,
+        "minimumMs": 4,
+        "maximumMs": 51
+      }
+    }
+  },
+  "samples": [
+    {
+      "arm": "named_default",
+      "group": 0,
+      "repeat": 0,
+      "headersMs": 732,
+      "totalMs": 732,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "random_default",
+      "group": 0,
+      "repeat": 0,
+      "headersMs": 157,
+      "totalMs": 157,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "named_apac",
+      "group": 0,
+      "repeat": 0,
+      "headersMs": 692,
+      "totalMs": 692,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "random_apac",
+      "group": 0,
+      "repeat": 0,
+      "headersMs": 266,
+      "totalMs": 266,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "named_default",
+      "group": 0,
+      "repeat": 1,
+      "headersMs": 48,
+      "totalMs": 48,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "random_default",
+      "group": 0,
+      "repeat": 1,
+      "headersMs": 11,
+      "totalMs": 11,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "named_apac",
+      "group": 0,
+      "repeat": 1,
+      "headersMs": 48,
+      "totalMs": 48,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "random_apac",
+      "group": 0,
+      "repeat": 1,
+      "headersMs": 51,
+      "totalMs": 51,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "named_default",
+      "group": 0,
+      "repeat": 2,
+      "headersMs": 45,
+      "totalMs": 45,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "random_default",
+      "group": 0,
+      "repeat": 2,
+      "headersMs": 15,
+      "totalMs": 15,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "named_apac",
+      "group": 0,
+      "repeat": 2,
+      "headersMs": 45,
+      "totalMs": 45,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "random_apac",
+      "group": 0,
+      "repeat": 2,
+      "headersMs": 49,
+      "totalMs": 49,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "random_default",
+      "group": 1,
+      "repeat": 0,
+      "headersMs": 213,
+      "totalMs": 213,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "named_apac",
+      "group": 1,
+      "repeat": 0,
+      "headersMs": 491,
+      "totalMs": 491,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "random_apac",
+      "group": 1,
+      "repeat": 0,
+      "headersMs": 238,
+      "totalMs": 238,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "named_default",
+      "group": 1,
+      "repeat": 0,
+      "headersMs": 577,
+      "totalMs": 577,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "random_default",
+      "group": 1,
+      "repeat": 1,
+      "headersMs": 10,
+      "totalMs": 10,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "named_apac",
+      "group": 1,
+      "repeat": 1,
+      "headersMs": 18,
+      "totalMs": 18,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "random_apac",
+      "group": 1,
+      "repeat": 1,
+      "headersMs": 21,
+      "totalMs": 21,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "named_default",
+      "group": 1,
+      "repeat": 1,
+      "headersMs": 11,
+      "totalMs": 11,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "random_default",
+      "group": 1,
+      "repeat": 2,
+      "headersMs": 16,
+      "totalMs": 16,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "named_apac",
+      "group": 1,
+      "repeat": 2,
+      "headersMs": 12,
+      "totalMs": 12,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "random_apac",
+      "group": 1,
+      "repeat": 2,
+      "headersMs": 18,
+      "totalMs": 18,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "named_default",
+      "group": 1,
+      "repeat": 2,
+      "headersMs": 14,
+      "totalMs": 14,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "named_apac",
+      "group": 2,
+      "repeat": 0,
+      "headersMs": 600,
+      "totalMs": 600,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "random_apac",
+      "group": 2,
+      "repeat": 0,
+      "headersMs": 181,
+      "totalMs": 181,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "named_default",
+      "group": 2,
+      "repeat": 0,
+      "headersMs": 704,
+      "totalMs": 704,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "random_default",
+      "group": 2,
+      "repeat": 0,
+      "headersMs": 169,
+      "totalMs": 169,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "named_apac",
+      "group": 2,
+      "repeat": 1,
+      "headersMs": 18,
+      "totalMs": 18,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "random_apac",
+      "group": 2,
+      "repeat": 1,
+      "headersMs": 9,
+      "totalMs": 9,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "named_default",
+      "group": 2,
+      "repeat": 1,
+      "headersMs": 43,
+      "totalMs": 43,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "random_default",
+      "group": 2,
+      "repeat": 1,
+      "headersMs": 15,
+      "totalMs": 15,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "named_apac",
+      "group": 2,
+      "repeat": 2,
+      "headersMs": 59,
+      "totalMs": 59,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "random_apac",
+      "group": 2,
+      "repeat": 2,
+      "headersMs": 13,
+      "totalMs": 13,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "named_default",
+      "group": 2,
+      "repeat": 2,
+      "headersMs": 51,
+      "totalMs": 51,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "random_default",
+      "group": 2,
+      "repeat": 2,
+      "headersMs": 17,
+      "totalMs": 17,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "random_apac",
+      "group": 3,
+      "repeat": 0,
+      "headersMs": 161,
+      "totalMs": 161,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "named_default",
+      "group": 3,
+      "repeat": 0,
+      "headersMs": 547,
+      "totalMs": 547,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "random_default",
+      "group": 3,
+      "repeat": 0,
+      "headersMs": 259,
+      "totalMs": 259,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "named_apac",
+      "group": 3,
+      "repeat": 0,
+      "headersMs": 723,
+      "totalMs": 723,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "random_apac",
+      "group": 3,
+      "repeat": 1,
+      "headersMs": 19,
+      "totalMs": 19,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "named_default",
+      "group": 3,
+      "repeat": 1,
+      "headersMs": 20,
+      "totalMs": 20,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "random_default",
+      "group": 3,
+      "repeat": 1,
+      "headersMs": 48,
+      "totalMs": 48,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "named_apac",
+      "group": 3,
+      "repeat": 1,
+      "headersMs": 46,
+      "totalMs": 46,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "random_apac",
+      "group": 3,
+      "repeat": 2,
+      "headersMs": 13,
+      "totalMs": 13,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "named_default",
+      "group": 3,
+      "repeat": 2,
+      "headersMs": 15,
+      "totalMs": 15,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "random_default",
+      "group": 3,
+      "repeat": 2,
+      "headersMs": 40,
+      "totalMs": 40,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "named_apac",
+      "group": 3,
+      "repeat": 2,
+      "headersMs": 52,
+      "totalMs": 52,
+      "capturedInvocation": 0
+    },
+    {
+      "arm": "named_default",
+      "group": 0,
+      "repeat": 0,
+      "headersMs": 781,
+      "totalMs": 781,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "random_default",
+      "group": 0,
+      "repeat": 0,
+      "headersMs": 223,
+      "totalMs": 223,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "named_apac",
+      "group": 0,
+      "repeat": 0,
+      "headersMs": 600,
+      "totalMs": 600,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "random_apac",
+      "group": 0,
+      "repeat": 0,
+      "headersMs": 554,
+      "totalMs": 554,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "named_default",
+      "group": 0,
+      "repeat": 1,
+      "headersMs": 13,
+      "totalMs": 13,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "random_default",
+      "group": 0,
+      "repeat": 1,
+      "headersMs": 4,
+      "totalMs": 4,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "named_apac",
+      "group": 0,
+      "repeat": 1,
+      "headersMs": 6,
+      "totalMs": 6,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "random_apac",
+      "group": 0,
+      "repeat": 1,
+      "headersMs": 16,
+      "totalMs": 16,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "named_default",
+      "group": 0,
+      "repeat": 2,
+      "headersMs": 10,
+      "totalMs": 10,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "random_default",
+      "group": 0,
+      "repeat": 2,
+      "headersMs": 4,
+      "totalMs": 4,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "named_apac",
+      "group": 0,
+      "repeat": 2,
+      "headersMs": 6,
+      "totalMs": 6,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "random_apac",
+      "group": 0,
+      "repeat": 2,
+      "headersMs": 12,
+      "totalMs": 12,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "random_default",
+      "group": 1,
+      "repeat": 0,
+      "headersMs": 269,
+      "totalMs": 269,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "named_apac",
+      "group": 1,
+      "repeat": 0,
+      "headersMs": 563,
+      "totalMs": 563,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "random_apac",
+      "group": 1,
+      "repeat": 0,
+      "headersMs": 236,
+      "totalMs": 236,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "named_default",
+      "group": 1,
+      "repeat": 0,
+      "headersMs": 785,
+      "totalMs": 785,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "random_default",
+      "group": 1,
+      "repeat": 1,
+      "headersMs": 3,
+      "totalMs": 3,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "named_apac",
+      "group": 1,
+      "repeat": 1,
+      "headersMs": 8,
+      "totalMs": 8,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "random_apac",
+      "group": 1,
+      "repeat": 1,
+      "headersMs": 5,
+      "totalMs": 5,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "named_default",
+      "group": 1,
+      "repeat": 1,
+      "headersMs": 9,
+      "totalMs": 9,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "random_default",
+      "group": 1,
+      "repeat": 2,
+      "headersMs": 4,
+      "totalMs": 4,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "named_apac",
+      "group": 1,
+      "repeat": 2,
+      "headersMs": 6,
+      "totalMs": 6,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "random_apac",
+      "group": 1,
+      "repeat": 2,
+      "headersMs": 5,
+      "totalMs": 5,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "named_default",
+      "group": 1,
+      "repeat": 2,
+      "headersMs": 11,
+      "totalMs": 11,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "named_apac",
+      "group": 2,
+      "repeat": 0,
+      "headersMs": 811,
+      "totalMs": 811,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "random_apac",
+      "group": 2,
+      "repeat": 0,
+      "headersMs": 257,
+      "totalMs": 257,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "named_default",
+      "group": 2,
+      "repeat": 0,
+      "headersMs": 1176,
+      "totalMs": 1176,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "random_default",
+      "group": 2,
+      "repeat": 0,
+      "headersMs": 11074,
+      "totalMs": 11074,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "named_apac",
+      "group": 2,
+      "repeat": 1,
+      "headersMs": 13,
+      "totalMs": 13,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "random_apac",
+      "group": 2,
+      "repeat": 1,
+      "headersMs": 8,
+      "totalMs": 8,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "named_default",
+      "group": 2,
+      "repeat": 1,
+      "headersMs": 15,
+      "totalMs": 15,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "random_default",
+      "group": 2,
+      "repeat": 1,
+      "headersMs": 4,
+      "totalMs": 4,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "named_apac",
+      "group": 2,
+      "repeat": 2,
+      "headersMs": 11,
+      "totalMs": 11,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "random_apac",
+      "group": 2,
+      "repeat": 2,
+      "headersMs": 4,
+      "totalMs": 4,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "named_default",
+      "group": 2,
+      "repeat": 2,
+      "headersMs": 15,
+      "totalMs": 15,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "random_default",
+      "group": 2,
+      "repeat": 2,
+      "headersMs": 4,
+      "totalMs": 4,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "random_apac",
+      "group": 3,
+      "repeat": 0,
+      "headersMs": 933,
+      "totalMs": 933,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "named_default",
+      "group": 3,
+      "repeat": 0,
+      "headersMs": 753,
+      "totalMs": 753,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "random_default",
+      "group": 3,
+      "repeat": 0,
+      "headersMs": 222,
+      "totalMs": 222,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "named_apac",
+      "group": 3,
+      "repeat": 0,
+      "headersMs": 601,
+      "totalMs": 601,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "random_apac",
+      "group": 3,
+      "repeat": 1,
+      "headersMs": 6,
+      "totalMs": 6,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "named_default",
+      "group": 3,
+      "repeat": 1,
+      "headersMs": 10,
+      "totalMs": 10,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "random_default",
+      "group": 3,
+      "repeat": 1,
+      "headersMs": 5,
+      "totalMs": 5,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "named_apac",
+      "group": 3,
+      "repeat": 1,
+      "headersMs": 6,
+      "totalMs": 6,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "random_apac",
+      "group": 3,
+      "repeat": 2,
+      "headersMs": 5,
+      "totalMs": 5,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "named_default",
+      "group": 3,
+      "repeat": 2,
+      "headersMs": 10,
+      "totalMs": 10,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "random_default",
+      "group": 3,
+      "repeat": 2,
+      "headersMs": 4,
+      "totalMs": 4,
+      "capturedInvocation": 1
+    },
+    {
+      "arm": "named_apac",
+      "group": 3,
+      "repeat": 2,
+      "headersMs": 5,
+      "totalMs": 5,
+      "capturedInvocation": 1
+    }
+  ],
+  "limits": [
+    "No-op prewarm calls, not signing-latency measurements.",
+    "Four rotated arm orders per registration; three calls per object with a new stub per call.",
+    "APAC is a best-effort hint. Actual Worker and DO execution locations were not verified.",
+    "Probes run sequentially after real registration prewarm and overlap normal first signing.",
+    "One temporary deployment, three registrations, 2 complete captured probe invocations, 8 fresh objects per arm.",
+    "One registration trace was absent after the first two-wallet test; one extra wallet was tested for a second complete trace.",
+    "No wallet material, storage writes, alarms, or persistent keepalive in the probes."
+  ],
+  "byInvocation": {
+    "0": {
+      "named_default": 640.5,
+      "random_default": 191.0,
+      "named_apac": 646.0,
+      "random_apac": 209.5
+    },
+    "1": {
+      "named_default": 783.0,
+      "random_default": 246.0,
+      "named_apac": 600.5,
+      "random_apac": 405.5
+    }
+  },
+  "platformPrewarm": {
+    "capturedCalls": 95,
+    "cpuMedianMs": 6,
+    "cpuMaxMs": 25,
+    "wallMedianMs": 8,
+    "wallMaxMs": 499,
+    "note": "Includes real registration warm calls. Tail did not capture every event. These calls are not individually correlated to Worker spans."
+  },
+  "restoration": {
+    "allSixOriginalVersionsVerified": true,
+    "tailStopped": true,
+    "permanentInfrastructureCreated": false,
+    "runtimeChangeRetained": false
+  },
+  "conclusion": [
+    "Named first-use lookup contributes substantial latency in this no-op comparison. It cannot explain every slow access to an already warmed owner host.",
+    "Random IDs reduced the median first-use wait but produced an 11074ms outlier. They would require a durable authoritative wallet/material locator before use for real signing.",
+    "APAC hints did not consistently help across the two captured invocations. This test does not support a hardcoded placement change.",
+    "Retain deterministic owner host routing and the existing registration prewarm. No new full-signing speedup was measured."
+  ],
+  "reproduction": {
+    "probePatch": "r155-do-lookup-probe-20261006.patch",
+    "helperBaseCommit": "84385597",
+    "sourceHelperSha256": "9c2c57ca5aa58be00944313427ef0effcbb94fbf8d1800c38fe6a7e37a8a6bb7",
+    "build": "bash scripts/build-strict-worker.sh signing-worker",
+    "trigger": "Existing hosted first preparation: immediate registration and consecutive signing E2E, repeat-each 2, then repeat-each 1 after missing trace. One worker. Same frozen SDK and staging topology as the preceding alternating trial.",
+    "selection": "Only full invocations with 48 successful boolean responses are included. No partial invocation is used.",
+    "probeOrder": "For group 0..3 and repeat 0..2, visit arm (group + offset) % 4 for offset 0..3. Create four new objects per group. Recreate the stub for each call. Log header wait and total wait using the same Worker clock."
+  }
+}
