@@ -627,7 +627,7 @@ function isNewObject(previous, id) {
   return !previous.includes(id);
 }
 
-export async function activateTransferredWallet(topology, credential, receipt, destinationName) {
+async function activateTransferredWallet(topology, credential, receipt, destinationName) {
   const destination = await topology.getWorker(destinationName);
   const path = '/router-ab/signing-worker/wallet/ecdsa/transfer';
   const command = { kind: 'activate', receipt };

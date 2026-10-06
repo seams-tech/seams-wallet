@@ -1652,7 +1652,10 @@ The Router accepts typed Ed25519 settlement and snapshot commands with
 Gateway-to-Router authentication and bounded JSON input. It forwards them through
 its SigningWorker binding with the separate Router-to-SigningWorker credential.
 The Worker E2E sends source settlement, capture, export, and cleanup through this
-transport.
+transport. The same Router transport accepts typed ECDSA freeze, export, and
+transfer commands. The ECDSA Worker scenario verifies freeze, export, activation,
+and activation replay through this boundary. A SigningWorker credential cannot
+authorize the Router request.
 An authenticated status command returns the destination cursor or its verified or
 activated state under the exact receipt. It does not change import state. The
 Worker E2E resumes transfer from this cursor after each eviction.
