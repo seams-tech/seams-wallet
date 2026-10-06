@@ -991,6 +991,7 @@ async function withThresholdEd25519CommitQueue<T>(args: {
 
 async function prepareNearAuthorizationRequiredTransaction(args: {
   deps: NearSigningApiDeps;
+  availableLanes: AvailableSigningLanes | null;
   input: SignTransactionWithActionsInput;
   commandSubject: NearCommandSubject;
   operationId: SigningOperationId;
@@ -1001,11 +1002,7 @@ async function prepareNearAuthorizationRequiredTransaction(args: {
   passkeyEd25519OperationStepUp: NearPasskeyEd25519OperationStepUpHook | null;
   emailOtpEd25519StepUp: NearEmailOtpEd25519StepUpHook | null;
 } | null> {
-  const availableLanes = await readNearEd25519AvailableSigningLanes({
-    deps: args.deps,
-    commandSubject: args.commandSubject,
-    authMethod: null,
-  });
+  const availableLanes = args.availableLanes;
   const materialSelection = selectNearEd25519MaterialCandidate({
     availableLanes,
     intent: nearEd25519TransactionSigningIntent({
@@ -1290,6 +1287,7 @@ async function prepareNearEd25519TransactionOperation(args: {
 
 async function prepareNearEd25519TransactionSigningSession(args: {
   deps: NearSigningApiDeps;
+  availableLanes: AvailableSigningLanes | null;
   input: SignTransactionWithActionsInput;
   commandSubject: NearCommandSubject;
   signingSessionCoordinator: SigningSessionCoordinator;
@@ -1298,11 +1296,7 @@ async function prepareNearEd25519TransactionSigningSession(args: {
 }): Promise<PreparedNearEd25519TransactionSigningSession> {
   const nearAccountId = args.commandSubject.nearAccount.accountId;
   const operationUsesNeeded = requiredNearTransactionSignatureUses(args.input.transaction);
-  let availableLanes = await readNearEd25519AvailableSigningLanes({
-    deps: args.deps,
-    commandSubject: args.commandSubject,
-    authMethod: null,
-  });
+  let availableLanes = args.availableLanes;
   let selectedLane = selectSelectedEd25519LaneFromAvailableLanes({
     commandSubject: args.commandSubject,
     availableLanes,
@@ -1477,8 +1471,14 @@ async function signTransactionWithActionsAttempt(
   const signingSessionCoordinator =
     attempt.signingSessionCoordinator || deps.signingSessionCoordinator;
   const authorizationProbeStartedAt = performance.now();
+  const availableLanes = await readNearEd25519AvailableSigningLanes({
+    deps,
+    commandSubject: args.commandSubject,
+    authMethod: null,
+  });
   const authorizationRequired = await prepareNearAuthorizationRequiredTransaction({
     deps,
+    availableLanes,
     input: args,
     commandSubject: args.commandSubject,
     operationId: confirmationOperationId,
@@ -1530,6 +1530,7 @@ async function signTransactionWithActionsAttempt(
   const lanePreparationStartedAt = performance.now();
   const preparedSigningSession = await prepareNearEd25519TransactionSigningSession({
     deps,
+    availableLanes,
     input: args,
     commandSubject: args.commandSubject,
     signingSessionCoordinator,
