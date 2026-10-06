@@ -52,7 +52,7 @@ const failedAdmission: WalletRegistrationSetupReservationResult = {
 };
 void [missingLifecycle, cancelledAdmission, failedAdmission];
 
-import type { WalletRegistrationReservationAuthority } from '../../packages/wallet-server/src/router/domains/walletRegistration/walletRegistrationReservation';
+import type { WalletExecutionAuthority, WalletRegistrationReservationAuthority } from '../../packages/wallet-server/src/router/domains/walletRegistration/walletRegistrationReservation';
 type HomeAdmission = Awaited<ReturnType<WalletRegistrationReservationAuthority['admitHome']>>;
 // @ts-expect-error Successful admission must retain its ownership generation and purpose.
 const admissionWithoutGeneration: HomeAdmission = { ok: true };
@@ -82,7 +82,7 @@ const erasedIntentGeneration: RouterAbEd25519YaoVerifiedActivationIntentV1 = {
   ownershipGeneration: undefined,
 };
 type EstablishedHomeAdmission = Awaited<
-  ReturnType<WalletRegistrationReservationAuthority['admitEstablishedHome']>
+  ReturnType<WalletExecutionAuthority['admitEstablishedHome']>
 >;
 const registrationAuthorityForEstablishedWallet: EstablishedHomeAdmission = {
   ok: true,
@@ -173,3 +173,12 @@ declare const exportClaimWithoutGeneration: Omit<
 const unpinnedExportExecution: RouterAbEd25519YaoExportExecuteClaimV1 =
   exportClaimWithoutGeneration;
 void [exportWithoutHome, rejectedExportWithHome, unpinnedExportExecution];
+
+// Registration coordination cannot authorize an established wallet.
+declare const registrationAuthority: WalletRegistrationReservationAuthority;
+// @ts-expect-error Registration authority has no established-wallet admission.
+const executionFromRegistration: WalletExecutionAuthority = registrationAuthority;
+// @ts-expect-error Spreading registration authority cannot grant execution authority.
+const executionFromRegistrationSpread: WalletExecutionAuthority = { ...registrationAuthority };
+void executionFromRegistration;
+void executionFromRegistrationSpread;

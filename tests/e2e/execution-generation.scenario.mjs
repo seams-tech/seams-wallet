@@ -76,6 +76,9 @@ export async function prepareExecutionGeneration({ api, database, scope, walletI
     ownershipGeneration: 1,
   });
   assert.equal((await authority.complete({ ...identity, outcome: 'established' })).ok, true);
+  assert.deepEqual(await api.admitD1EstablishedWalletHome(database, scope, { walletId }), {
+    ok: true, purpose: 'ordinary', ownershipGeneration: 1,
+  });
   assert.equal(registration.ordinaryReads, 0);
   return { authority, registration, identity };
 }
@@ -91,6 +94,7 @@ export async function verifyExecutionDestination({
   const { walletId } = setup.identity;
   const receiver = new api.D1WalletExecutionAuthority(destination, scope, setup.registration);
   assert.equal((await setup.authority.admitEstablishedHome({ walletId })).ok, false);
+  assert.equal((await api.admitD1EstablishedWalletHome(source, scope, { walletId })).ok, false);
   const admitted = await receiver.admitEstablishedHome({ walletId });
   if (active) {
     assert.deepEqual(admitted, { ok: true, purpose: 'ordinary', ownershipGeneration: 2 });

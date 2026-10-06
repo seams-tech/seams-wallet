@@ -103,7 +103,7 @@ const bundle = await build({
       export { D1WalletAuthorizationFreeze } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationFreeze';
       export { D1WalletAuthorizationIntake } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationIntake';
       export { D1WalletAuthorizationHistory } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationHistory';
-      export { D1WalletExecutionAuthority } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletExecutionAuthority';
+      export { D1WalletExecutionAuthority, admitD1EstablishedWalletHome } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletExecutionAuthority';
       export { D1WalletRelocationSessions, WalletRelocationSessionSource } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationSessions';
       export { CloudflareD1WebAuthnStore } from './packages/wallet-server/src/router/cloudflare/d1/webauthn/d1WebAuthnStore';
       export { walletRelocationEmailOtpBinding, verifyWalletRelocationEmailOtp } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationEmailOtp';

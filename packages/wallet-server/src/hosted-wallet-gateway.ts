@@ -595,8 +595,7 @@ async function resolveStagingRecoveryAuthorizationServices(
   context: StagingServiceLoader,
 ): Promise<StagingRecoveryAuthorizationServices> {
   const { service } = await loadStagingRouterApiAuthComposition(context);
-  const authority = context.dependencies.registrationAuthority;
-  if (!authority) throw new Error('Recovery requires wallet home authority');
+  const authority = service.walletExecution;
   return {
     admitEstablishedHome: authority.admitEstablishedHome.bind(authority),
     authorizationSessions: service.authorizationSessions,
@@ -1272,7 +1271,6 @@ async function handlePartitionedD1Operation(
           env,
           service,
           tenantRootCustodyLineage,
-          dependencies,
         ),
       });
     }
@@ -1388,15 +1386,13 @@ export function createStagingExportRequestScopedDependencies(
   env: CloudflareD1GatewayBaseEnv,
   service: ReturnType<typeof createCloudflareD1RouterApiAuthService>,
   tenantRootCustodyLineage: CloudflareD1RouterApiAuthServiceOptions['tenantRootCustodyLineage'],
-  dependencies: HostedWalletGatewayDependenciesV1,
 ): {
   readonly store: ReturnType<typeof createStagingYaoPartitionedStateStore>;
   readonly backend: ReturnType<typeof createStagingEd25519YaoBackend>;
   readonly authorization: RouterAbEd25519YaoExportOwnerProofAuthorizationAdapter;
   readonly capabilities: RouterAbEd25519YaoProductRegistrationRuntimeV1;
 } {
-  const authority = dependencies.registrationAuthority;
-  if (!authority) throw new Error('Export requires wallet home authority');
+  const authority = service.walletExecution;
   const scope = stagingTenantScope(env);
   const registrationTenantRootResolver = createStagingRegistrationTenantRootResolver(
     scope,

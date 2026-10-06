@@ -1,15 +1,15 @@
 import { prepareD1TenantStatement, type D1TenantScope } from '../../../../core/d1TenantStore';
 import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
 import type { D1DatabaseLike } from '../../../../storage/tenantRoute';
-import type { WalletRegistrationReservationAuthority } from '../../../domains/walletRegistration/walletRegistrationReservation';
+import type { WalletExecutionAuthority, WalletRegistrationReservationAuthority } from '../../../domains/walletRegistration/walletRegistrationReservation';
 
 type Authority = WalletRegistrationReservationAuthority;
 type HomeAdmission = Awaited<ReturnType<Authority['admitHome']>>;
-type OrdinaryAdmission = Awaited<ReturnType<Authority['admitEstablishedHome']>>;
+type OrdinaryAdmission = Awaited<ReturnType<WalletExecutionAuthority['admitEstablishedHome']>>;
 
 // Console admits registration. The local database retains execution identity
 // across requests and closes it in the same transaction as session retirement.
-export class D1WalletExecutionAuthority implements Authority {
+export class D1WalletExecutionAuthority implements Authority, WalletExecutionAuthority {
   constructor(
     private readonly database: D1DatabaseLike,
     private readonly scope: D1TenantScope,
@@ -88,22 +88,30 @@ export class D1WalletExecutionAuthority implements Authority {
   }
 
   async admitEstablishedHome(
-    input: Parameters<Authority['admitEstablishedHome']>[0],
+    input: Parameters<WalletExecutionAuthority['admitEstablishedHome']>[0],
   ): Promise<OrdinaryAdmission> {
-    const row = await prepareD1TenantStatement(
-      this.database,
-      this.scope,
-      `SELECT generation FROM wallet_execution_generations
-       WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
-         AND wallet_id = ?5 AND state = 'active'`,
-      [input.walletId],
-    ).first<{ readonly generation: number }>();
-    if (!row)
-      return {
-        ok: false,
-        code: 'wallet_home_unavailable',
-        message: 'Wallet execution is not active at this home',
-      };
-    return { ok: true, purpose: 'ordinary', ownershipGeneration: row.generation };
+    return admitD1EstablishedWalletHome(this.database, this.scope, input);
   }
+}
+
+export async function admitD1EstablishedWalletHome(
+  database: D1DatabaseLike,
+  scope: D1TenantScope,
+  input: Parameters<WalletExecutionAuthority['admitEstablishedHome']>[0],
+): Promise<OrdinaryAdmission> {
+  const row = await prepareD1TenantStatement(
+    database,
+    scope,
+    `SELECT generation FROM wallet_execution_generations
+     WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
+       AND wallet_id = ?5 AND state = 'active'`,
+    [input.walletId],
+  ).first<{ readonly generation: number }>();
+  if (!row)
+    return {
+      ok: false,
+      code: 'wallet_home_unavailable',
+      message: 'Wallet execution is not active at this home',
+    };
+  return { ok: true, purpose: 'ordinary', ownershipGeneration: row.generation };
 }

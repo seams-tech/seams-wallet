@@ -1,6 +1,6 @@
 # Regional execution without routine Console calls
 
-Status: planned. Implementation has not started.
+Status: implementation in progress. Local wallet execution authority is separated from registration coordination. Routine signing still requires the remaining deployment and routing changes.
 Date: October 6, 2026.
 
 ## Objective
@@ -297,3 +297,33 @@ required result; a particular millisecond saving is not promised in advance.
 Related plans: [R152](refactor-152-regional-D1.md),
 [R153](refactor-153-wallet-region-selection.md),
 [R155](refactor-155-reusuable-DO.md).
+
+## Implementation evidence — October 6, 2026
+
+The first implementation slice separates `WalletExecutionAuthority` from
+`WalletRegistrationReservationAuthority`. Recovery, export, and signer installation
+now receive the D1 service's local execution authority. They cannot obtain ordinary
+execution authority through the registration adapter.
+
+The local query requires the exact tenant, wallet, and active ownership generation.
+The existing registration wrapper retains completion reconciliation and generation
+fences. The obsolete Console ordinary-admission adapter and standalone registration
+receipt lookup are removed. Registration retries can still consult the shared directory.
+
+Verification:
+
+- Wallet server type check and wallet-state type fixtures pass. Type fixtures reject
+  registration authority as execution authority, including object spreads.
+- `node tests/e2e/authorization-storage-transfer.e2e.mjs` passes. Its repeatable artifact
+  is `.artifacts/r153/authorization-storage-transfer/evidence.json`. It verifies
+  registration completion retry, destination activation, source retirement, and tenant
+  separation. The standalone local admission query is exercised against active and
+  retired homes.
+- Private Console server type check passes.
+- Private `wallet-relocation-directory.e2e.test.ts` passes (1 test). Its directory
+  assertions now call the shared directory client directly.
+- `pnpm report:bloat --check` passes. No ratcheted measure grew.
+
+This slice does not establish Console-independent signing. Local deployment writer
+admission, cutover fencing, regional session routing, outage acceptance, and hosted
+measurements remain open. No latency gain is claimed for this slice.

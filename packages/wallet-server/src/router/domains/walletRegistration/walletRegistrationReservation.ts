@@ -61,10 +61,13 @@ type RegistrationHomeAdmission<
       readonly purpose?: never;
     };
 
-export interface WalletRegistrationReservationAuthority {
+export interface WalletExecutionAuthority {
   admitEstablishedHome(input: {
     readonly walletId: WalletId;
   }): Promise<RegistrationHomeAdmission<'ordinary'>>;
+}
+
+export interface WalletRegistrationReservationAuthority {
   reserve(input: WalletRegistrationSetupInput): Promise<WalletRegistrationSetupReservationResult>;
   admitHome(input: {
     readonly ceremonyId: string;

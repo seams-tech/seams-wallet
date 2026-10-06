@@ -9,8 +9,8 @@ import type { WalletLifecycleRoutingPublisher } from '../../../../authorization/
 import type { WalletRecoveryRoutingPublisher } from '../../../../authorization/recoveryRouting';
 import type { WalletSessionRoutingPublisher } from '../../../../authorization/sessionRouting';
 import type { WalletRegistrationSetupDispatcher } from '../../../framework/registrationSetupDispatch';
-import type { WalletRegistrationReservationAuthority } from '../../../domains/walletRegistration/walletRegistrationReservation';
-import { D1WalletExecutionAuthority } from '../registration/d1WalletExecutionAuthority';
+import type { WalletExecutionAuthority, WalletRegistrationReservationAuthority } from '../../../domains/walletRegistration/walletRegistrationReservation';
+import { admitD1EstablishedWalletHome, D1WalletExecutionAuthority } from '../registration/d1WalletExecutionAuthority';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import { parseWebAuthnRpId } from '@shared/utils/domainIds';
 import type { LinkedDevicePasskeyTargetConfigurationFieldsV1 } from '@shared/device-linking/contracts';
@@ -292,6 +292,7 @@ export type NormalizedCloudflareD1RouterApiAuthServiceOptions = Omit<
   | 'emailOtpGoogleRegistrationAttemptRateLimitWindowMs'
   | 'routerAbEcdsaPresignRuntime'
 > & {
+  readonly walletExecution: WalletExecutionAuthority;
   readonly relayerAccount?: string;
   readonly relayerPublicKey?: string;
   readonly relayerPrivateKey?: string;
@@ -356,6 +357,9 @@ export function normalizeD1RouterApiAuthOptions(
   }
   return {
     database: input.database,
+    walletExecution: {
+      admitEstablishedHome: admitD1EstablishedWalletHome.bind(undefined, input.database, scope),
+    },
     identityStore: input.identityStore,
     emailOtpRateLimitCounter: input.emailOtpRateLimitCounter,
     credentialClaims: input.credentialClaims,

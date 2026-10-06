@@ -1,4 +1,4 @@
-import type { WalletRegistrationReservationAuthority } from '../../walletRegistration/walletRegistrationReservation';
+import type { WalletExecutionAuthority } from '../../walletRegistration/walletRegistrationReservation';
 import {
   ROUTER_AB_ED25519_YAO_EXPORT_ADMISSION_PATH_V1,
   ROUTER_AB_ED25519_YAO_EXPORT_EXECUTE_PATH_V1,
@@ -1902,7 +1902,7 @@ export class RouterAbEd25519YaoExportOwnerProofAuthorizationAdapter implements R
     >,
     private readonly authorizedOperations: RouterApiAuthorizedOperationService,
     private readonly resolveEd25519MaterialActivation: RouterApiWalletRegistrationService['resolveEd25519MaterialActivation'],
-    private readonly admitEstablishedHome: WalletRegistrationReservationAuthority['admitEstablishedHome'],
+    private readonly admitEstablishedHome: WalletExecutionAuthority['admitEstablishedHome'],
   ) {}
 
   async authorizeAdmission(
@@ -1921,7 +1921,7 @@ export class RouterAbEd25519YaoExportOwnerProofAuthorizationAdapter implements R
       authorizedOperations: this.authorizedOperations,
     });
     if (!checked.ok) return checked;
-    let home: Awaited<ReturnType<WalletRegistrationReservationAuthority['admitEstablishedHome']>>;
+    let home: Awaited<ReturnType<WalletExecutionAuthority['admitEstablishedHome']>>;
     try {
       home = await this.admitEstablishedHome({ walletId: checked.walletId });
     } catch {

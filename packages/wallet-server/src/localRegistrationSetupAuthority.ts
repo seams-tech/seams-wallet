@@ -15,7 +15,7 @@ export class LocalRegistrationSetupAuthority implements WalletRegistrationReserv
   private readonly storage: D1RegistrationCeremonyRecordStore;
 
   constructor(
-    private readonly database: D1DatabaseLike,
+    database: D1DatabaseLike,
     private readonly scope: D1TenantScope,
   ) {
     this.storage = new D1RegistrationCeremonyRecordStore({
@@ -23,37 +23,6 @@ export class LocalRegistrationSetupAuthority implements WalletRegistrationReserv
       scope,
       keyPrefix: 'local-registration-authority:',
     });
-  }
-
-  async admitEstablishedHome(
-    input: Parameters<WalletRegistrationReservationAuthority['admitEstablishedHome']>[0],
-  ): Promise<Awaited<ReturnType<WalletRegistrationReservationAuthority['admitEstablishedHome']>>> {
-    const terminal = await this.database
-      .prepare(
-        `SELECT 1 AS established FROM registration_ceremony_records
-       WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
-         AND record_scope = 'setup-terminal'
-         AND substr(record_id, 1, 29) = 'local-registration-authority:'
-         AND json_extract(record_json, '$.walletId') = ?5
-         AND json_extract(record_json, '$.outcome') = 'established'
-         AND expires_at_ms > ?6 LIMIT 1`,
-      )
-      .bind(
-        this.scope.namespace,
-        this.scope.orgId,
-        this.scope.projectId,
-        this.scope.envId,
-        input.walletId,
-        Date.now(),
-      )
-      .first();
-    if (!terminal)
-      return {
-        ok: false,
-        code: 'wallet_home_unavailable',
-        message: 'Wallet home is not established',
-      };
-    return { ok: true, ownershipGeneration: 1, purpose: 'ordinary' };
   }
 
   async reserve(

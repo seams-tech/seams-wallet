@@ -184,6 +184,7 @@ export type {
 } from './d1RouterApiAuthConfig';
 
 export type CloudflareD1RouterApiAuthService = Omit<RouterApiServiceBag, 'thresholdRuntime'> & {
+  readonly walletExecution: NormalizedCloudflareD1RouterApiAuthServiceOptions['walletExecution'];
   readonly relocationEmailOtp: WalletRelocationEmailOtpServices;
   readonly thresholdRuntime: RouterApiServiceBag['thresholdRuntime'];
   readonly executeSignedDelegate: (
@@ -1391,7 +1392,7 @@ function createCloudflareD1RouterApiAuthAssembly(
     yaoLifecycleDecisions,
   });
   const walletAddSigners = new CloudflareD1WalletAddSignerService({
-    registrationAuthority: options.registrationAuthority ?? null,
+    executionAuthority: options.walletExecution,
     getRegistrationCeremonyIntentStore,
     getEd25519YaoProductRegistration: () => resolveEd25519YaoProductRegistration(options),
     ecdsaStrictRegistration: options.ecdsaStrictRegistration,
@@ -2142,6 +2143,7 @@ export function createCloudflareD1RouterApiAuthService(
 ): CloudflareD1RouterApiAuthService {
   const assembly = createCloudflareD1RouterApiAuthAssembly(input);
   return {
+    walletExecution: assembly.options.walletExecution,
     relocationEmailOtp: assembly.relocationEmailOtp,
     walletRegistration: createD1WalletRegistrationRouteService(assembly),
     walletAuthMethods: createD1WalletAuthMethodRouteService(assembly),

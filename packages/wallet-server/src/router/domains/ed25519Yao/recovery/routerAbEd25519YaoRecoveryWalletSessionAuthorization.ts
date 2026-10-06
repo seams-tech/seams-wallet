@@ -1,5 +1,5 @@
 import { parseWalletId } from '@shared/utils/domainIds';
-import type { WalletRegistrationReservationAuthority } from '../../walletRegistration/walletRegistrationReservation';
+import type { WalletExecutionAuthority } from '../../walletRegistration/walletRegistrationReservation';
 import {
   ROUTER_AB_ED25519_YAO_RECOVERY_CHALLENGE_ID_HEADER_V1,
   sameRouterAbEd25519YaoByteSequence,
@@ -59,7 +59,7 @@ type RecoveryCredentialAuthorizationResult =
   | RecoveryAuthorizationFailure;
 
 export type RouterAbEd25519YaoRecoveryAuthorizationServicesV1 = {
-  readonly admitEstablishedHome: WalletRegistrationReservationAuthority['admitEstablishedHome'];
+  readonly admitEstablishedHome: WalletExecutionAuthority['admitEstablishedHome'];
   readonly authorizationSessions: RouterApiAuthorizationSessionService;
   readonly preparedRecoveryAdmission: PreparedEd25519RecoveryAdmissionReaderV1;
   readonly resolveEd25519MaterialActivation: RouterApiWalletRegistrationService['resolveEd25519MaterialActivation'];
@@ -695,7 +695,7 @@ export class RouterAbEd25519YaoRecoveryWalletSessionAuthorizationAdapter impleme
         message: 'Recovery wallet identity is invalid',
       });
     }
-    let home: Awaited<ReturnType<WalletRegistrationReservationAuthority['admitEstablishedHome']>>;
+    let home: Awaited<ReturnType<WalletExecutionAuthority['admitEstablishedHome']>>;
     try {
       home = await services.admitEstablishedHome({ walletId: walletId.value });
     } catch {
