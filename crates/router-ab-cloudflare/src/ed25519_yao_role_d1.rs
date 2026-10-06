@@ -852,14 +852,18 @@ impl RolePairD1TransactionV1 {
     }
 }
 
-fn pending_pair(value: PairYaoSessionRecordV1) -> worker::Result<PendingPairV1> {
-    let lifecycle = match &value {
+fn pair_lifecycle(value: &PairYaoSessionRecordV1) -> &'static str {
+    match value {
         PairYaoSessionRecordV1::Prepared { .. } => "prepared",
         PairYaoSessionRecordV1::Running { .. } => "running",
         PairYaoSessionRecordV1::Completed { .. } => "completed",
         PairYaoSessionRecordV1::Burned { .. } => "burned",
         PairYaoSessionRecordV1::Expired { .. } => "expired",
-    };
+    }
+}
+
+fn pending_pair(value: PairYaoSessionRecordV1) -> worker::Result<PendingPairV1> {
+    let lifecycle = pair_lifecycle(&value);
     let expires_at_ms = match &value {
         PairYaoSessionRecordV1::Prepared { expires_at_ms, .. } => *expires_at_ms,
         PairYaoSessionRecordV1::Running { started_at_ms, .. } => {
@@ -889,6 +893,10 @@ fn validate_pending_scope(record_json: &str, scope: &RolePairRecordScopeV1) -> w
             "role-private D1 Yao record scope validation failed: {error}"
         ))
     })?;
+    validate_record_scope(&record, scope)
+}
+
+fn validate_record_scope(record: &PairYaoSessionRecordV1, scope: &RolePairRecordScopeV1) -> worker::Result<()> {
     let record_root_metadata_digest = match record {
         PairYaoSessionRecordV1::Prepared {
             root_metadata_digest,
@@ -901,7 +909,7 @@ fn validate_pending_scope(record_json: &str, scope: &RolePairRecordScopeV1) -> w
         | PairYaoSessionRecordV1::Completed {
             root_metadata_digest,
             ..
-        } => Some(root_metadata_digest),
+        } => Some(*root_metadata_digest),
         PairYaoSessionRecordV1::Burned { .. } | PairYaoSessionRecordV1::Expired { .. } => None,
     };
     if record_root_metadata_digest
@@ -986,4 +994,15 @@ mod tests {
         let tampered = serde_json::to_string(&envelope).expect("tampered envelope encodes");
         assert!(cipher.open("session-1", &tampered).is_err());
     }
+}
+
+
+pub(crate) fn validate_terminal_wallet_record(opened: &OpenedRolePairRecordV1, pair_digest_hex: &str, lifecycle: &str) -> worker::Result<()> {
+    let record: PairYaoSessionRecordV1 = serde_json::from_str(&opened.record_json)
+        .map_err(|error| role_d1_error(format!("Deriver B imported record is malformed: {error}")))?;
+    validate_record_scope(&record, &opened.scope)?;
+    if !matches!(record, PairYaoSessionRecordV1::Completed { .. } | PairYaoSessionRecordV1::Burned { .. } | PairYaoSessionRecordV1::Expired { .. })
+        || pair_lifecycle(&record) != lifecycle || encode_hex(record.pair_digest()) != pair_digest_hex
+    { return Err(role_d1_error("Deriver B imported lifecycle or pair digest differs")); }
+    Ok(())
 }

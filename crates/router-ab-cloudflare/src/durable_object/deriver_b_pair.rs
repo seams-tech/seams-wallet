@@ -1,4 +1,5 @@
-use super::deriver_preparation as preparation;
+mod snapshot;
+use super::deriver_relocation as relocation;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use worker::{DurableObject, Env, Request, Response, SqlStorage, SqlStorageValue, State};
@@ -120,6 +121,7 @@ pub(crate) async fn call_deriver_b_wallet_do_v1(
 #[worker::durable_object]
 pub struct RouterAbDeriverBWalletDurableObject {
     sql: SqlStorage,
+    storage: worker::Storage,
     env: Env,
 }
 
@@ -127,6 +129,7 @@ impl DurableObject for RouterAbDeriverBWalletDurableObject {
     fn new(state: State, env: Env) -> Self {
         Self {
             sql: state.storage().sql(),
+            storage: state.storage(),
             env,
         }
     }
@@ -141,38 +144,38 @@ impl DurableObject for RouterAbDeriverBWalletDurableObject {
         self.sql.exec(OWNER_SCHEMA, None)?;
         self.sql.exec(PAIR_SCHEMA, None)?;
         self.sql.exec(FENCE_SCHEMA, None)?;
-        self.sql.exec(preparation::SCHEMA, None)?;
-        self.sql.exec(preparation::SOURCE_SCHEMA, None)?;
+        self.sql.exec(relocation::SCHEMA, None)?;
+        self.sql.exec(relocation::SOURCE_SCHEMA, None)?;
         if path == SNAPSHOT_PATH {
-            let command: preparation::snapshot::Command<DeriverBWalletOwnerV1> = request.json().await?;
+            let command: relocation::snapshot::Command<DeriverBWalletOwnerV1> = request.json().await?;
             command.source().validate()?;
             if !command.source().context_matches(&self.env)? {
                 return Response::error("Deriver encryption context differs from source", 409);
             }
             self.check_owner(&command.source().owner, false)?;
-            return preparation::snapshot::execute(&self.sql, command);
+            return relocation::snapshot::execute(&self.storage, self.sql.clone(), self.env.clone(), command).await;
         }
         if path == PREPARATION_PATH || path == SOURCE_FENCE_PATH {
-            let command: preparation::Preparation<DeriverBWalletOwnerV1> = request.json().await?;
+            let command: relocation::Preparation<DeriverBWalletOwnerV1> = request.json().await?;
             command.validate()?;
             if !command.context_matches(&self.env)? {
                 return Response::error("Deriver encryption context differs from source", 409);
             }
             self.check_owner(&command.owner, true)?;
             return if path == SOURCE_FENCE_PATH {
-                preparation::fence_settled_source(&self.sql, command)
+                relocation::fence_settled_source(&self.sql, command)
             } else {
-                preparation::reserve(&self.sql, command)
+                relocation::reserve(&self.sql, command)
             };
         }
         if path == RECONCILE_PATH {
-            preparation::require_open::<DeriverBWalletOwnerV1>(&self.sql)?;
+            relocation::require_open::<DeriverBWalletOwnerV1>(&self.sql)?;
             let reconcile: TenantRootWalletPairReconcileRequestV1 = request.json().await?;
             return Response::from_json(&self.reconcile(&reconcile)?);
         }
         let request: DeriverBWalletDoRequestV1 = request.json().await?;
         if !matches!(request.command, DeriverBYaoSessionCommandV1::ReadPairStatus { .. }) {
-            preparation::require_open::<DeriverBWalletOwnerV1>(&self.sql)?;
+            relocation::require_open::<DeriverBWalletOwnerV1>(&self.sql)?;
         }
         self.execute(request).await
     }
@@ -387,7 +390,8 @@ fn pair_error(error: impl ToString) -> worker::Error {
     worker::Error::RustError(error.to_string())
 }
 
-impl preparation::WalletOwner for DeriverBWalletOwnerV1 {
+impl relocation::WalletOwner for DeriverBWalletOwnerV1 {
+    type Pair = snapshot::PairRow;
     fn cipher(env: &Env) -> worker::Result<crate::ed25519_yao_lifecycle::role_d1::RolePairCipherV1> {
         crate::ed25519_yao_lifecycle::role_d1::RolePairCipherV1::from_env_for_deriver_b_wallet_do(env)
     }
@@ -405,17 +409,17 @@ impl preparation::WalletOwner for DeriverBWalletOwnerV1 {
 }
 
 pub(crate) async fn call_preparation(request: Request, env: &Env) -> worker::Result<Response> {
-    preparation::call_preparation::<DeriverBWalletOwnerV1>(request, env, BINDING, PREPARATION_PATH).await
+    relocation::call_preparation::<DeriverBWalletOwnerV1>(request, env, BINDING, PREPARATION_PATH).await
 }
 
 pub(crate) async fn read_relocation_context(request: Request, env: &Env) -> worker::Result<Response> {
-    preparation::read_context::<DeriverBWalletOwnerV1>(request, env).await
+    relocation::read_context::<DeriverBWalletOwnerV1>(request, env).await
 }
 
 pub(crate) async fn call_source_fence(request: Request, env: &Env) -> worker::Result<Response> {
-    preparation::call_preparation::<DeriverBWalletOwnerV1>(request, env, BINDING, SOURCE_FENCE_PATH).await
+    relocation::call_preparation::<DeriverBWalletOwnerV1>(request, env, BINDING, SOURCE_FENCE_PATH).await
 }
 
 pub(crate) async fn call_snapshot(request: Request, env: &Env) -> worker::Result<Response> {
-    preparation::snapshot::forward::<DeriverBWalletOwnerV1>(request, env, BINDING, SNAPSHOT_PATH).await
+    relocation::snapshot::forward::<DeriverBWalletOwnerV1>(request, env, BINDING, SNAPSHOT_PATH).await
 }

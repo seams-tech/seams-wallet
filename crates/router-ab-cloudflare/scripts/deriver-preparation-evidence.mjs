@@ -221,7 +221,7 @@ export async function verifyDeriverSourceFences(topology, owner, rootIdentity, p
     const contextResponse = await post(source, `/router-ab/internal/deriver-${role}/wallet/relocation-context`, {}, credential);
     const context = await contextResponse.json();
     const command = {
-      owner, move_id: `wmove_${'f'.repeat(43)}`, request_digest_hex: 'ab'.repeat(32),
+      owner, move_id: `wmove_${'d'.repeat(43)}`, request_digest_hex: 'ad'.repeat(32),
       cipher_context_digest_hex: context.digest_hex, source_generation: 1, destination_generation: 2,
     };
     const namespace = await topology.getDurableObjectNamespace(roles[role].binding, workerName);
@@ -274,10 +274,10 @@ export async function verifyDeriverSourceFences(topology, owner, rootIdentity, p
       } };
     await assert.rejects(post(object, `/router-ab/internal/deriver-${role}/wallet-pair`, mutation, credential),
       new RegExp(`${roles[role].label} source is frozen`, 'u'));
-    const snapshot = await verifyDeriverSnapshot(topology, source, role, command, receipt.source_object, credential);
+    const snapshot = await verifyDeriverSnapshot(topology, source, role, command, receipt.source_object, credential, rootIdentity, preparation);
     receipts.push({ fence: receipt, snapshot });
   }
-  return { scope: 'Terminal pair stores and sealed source snapshots only; tenant-root obligations and destination restore are not covered',
+  return { scope: 'Terminal pair stores and inactive destination restore; tenant-root settlement, activation, cleanup, and assembled relocation are not covered',
     receipts, livePairsDeferFence: true, settlementRemainsOpenUntilFence: true,
     runtimeRequiresDirectoryAuthorization: true, deniedOrCorruptCommandsDoNotReachFence: true,
     exactReplayAfterEviction: true, conflictingMoveRejected: true, ordinaryMutationRejected: true };

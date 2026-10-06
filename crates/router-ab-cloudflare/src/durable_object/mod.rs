@@ -18,7 +18,7 @@ use crate::{
     CloudflareSigningWorkerRecipientProofBundleActivationRequestV1,
 };
 #[cfg(all(feature = "workers-rs", any(feature = "strict-worker-deriver-a-entrypoint", feature = "wallet-do-b-harness", test)))]
-mod deriver_preparation;
+mod deriver_relocation;
 #[cfg(all(
     feature = "workers-rs",
     any(feature = "strict-worker-deriver-a-entrypoint", test)

@@ -498,12 +498,26 @@ cursor. SQLite slices encoded record bytes before returning them to WASM. Intege
 columns use decimal strings, and ciphertext remains unchanged. Exact segment
 replays survive an interrupted capture. Export requires a sealed snapshot and the
 exact source move. The receipt binds the role, source command, ordered segments,
-and record count. Destination restore, cipher validation through destination
-readers, tenant-root settlement, and production coordinator wiring remain open.
+and record count. Destination imports use the exact prepared move and restore
+terminal records through each role's cipher and record parser. Each completed
+record must reproduce its source snapshot bytes. Records stay behind the destination
+reservation. A transaction commits the restored row, import cursor and chunk
+acknowledgement together. Failed decryption or a final digest mismatch rolls back
+that command. Exact historical chunk retries retain their original acknowledgements.
+Verification requires the complete digest and exact restored inventory. Tenant-root
+settlement, activation, cleanup and production coordinator wiring remain open.
 The Worker E2E reconstructs both roles' multi-segment pair records and admission
 fences, checks the snapshot digest, and resumes capture and export after eviction.
 It rejects an unfenced source, early export, changed moves, and invalid credentials.
 Evidence remains under `.artifacts/r153/deriver-source-snapshot-20261006/`.
+The destination Worker scenario also rejects incomplete and reordered imports,
+retries after decryption and digest failures, restarts between chunks, and compares
+ordinary destination reads with source reads. Verification leaves ordinary writes
+blocked. Import evidence remains under `.artifacts/r153/deriver-import-20261006/`.
+Shared preparation, source fencing and transfer code now live under
+`durable_object/deriver_relocation`. Each role keeps its own record schema and
+restore code under its existing pair module. The protocol bounds each encoded
+record to 2 MiB and each transported segment to 4 KiB.
 
 The Router registration store now has a transactional source fence on both native
 SQLite and the wallet Durable Object. Its private freeze route requires the

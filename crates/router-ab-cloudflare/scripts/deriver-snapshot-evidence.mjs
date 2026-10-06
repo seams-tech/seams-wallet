@@ -1,3 +1,4 @@
+import { verifyDeriverImport } from './deriver-import-evidence.mjs';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 
@@ -14,7 +15,7 @@ function digest(role, value) {
     .update(`Deriver ${role.toUpperCase()}`).update(JSON.stringify(value)).digest('hex');
 }
 
-export async function verifyDeriverSnapshot(topology, source, role, command, sourceObject, credential) {
+export async function verifyDeriverSnapshot(topology, source, role, command, sourceObject, credential, rootIdentity, preparation) {
   const path = `/router-ab/internal/deriver-${role}/wallet/snapshot`;
   const capture = { operation: 'capture', source: command };
   const exportFirst = { operation: 'export', source: command, segment_index: 0 };
@@ -50,6 +51,7 @@ export async function verifyDeriverSnapshot(topology, source, role, command, sou
   let chain = digest(role, command);
   let parts = [];
   const records = [];
+  const segments = [];
   let first;
   for (let index = 0; index < receipt.segment_count; index += 1) {
     const response = await post(source, path, { ...exportFirst, segment_index: index }, credential);
@@ -61,6 +63,7 @@ export async function verifyDeriverSnapshot(topology, source, role, command, sou
     const wire = exported.segment;
     const segment = { segment_index: wire.segment_index, record_index: wire.record_index,
       part_index: wire.part_index, part_count: wire.part_count, data_b64u: wire.data_b64u };
+    segments.push(segment);
     assert.equal(segment.segment_index, index);
     assert.equal(segment.record_index, records.length);
     assert.equal(segment.part_index, parts.length);
@@ -94,7 +97,8 @@ export async function verifyDeriverSnapshot(topology, source, role, command, sou
   assert.deepEqual(await (await post(source, path, exportFirst, credential)).json(), first);
   assert.equal((await post(source, path, { ...exportFirst, segment_index: receipt.segment_count }, credential)).status, 409);
   assert.equal((await post(source, path, { ...exportFirst, source: wrongMove }, credential)).status, 409);
-  return { receipt, captureCalls: calls, restartDuringCapture: true, sealedReplayAfterRestart: true,
+  const imported = await verifyDeriverImport(topology, role, receipt, segments, records, credential, rootIdentity, preparation);
+  return { imported, receipt, captureCalls: calls, restartDuringCapture: true, sealedReplayAfterRestart: true,
     boundedSegments: true, reconstructedDigestMatches: true, conflictingMoveRejected: true,
     admissionFenceHistoryPreserved: true };
 }

@@ -3,7 +3,11 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use worker::{Env, Method, Request, Response, SqlStorage, SqlStorageValue};
 
+pub(crate) mod import;
+
 const SEGMENT_BYTES: u32 = 4096;
+const MAX_RECORD_BYTES: usize = 2 * 1024 * 1024;
+const FENCE_SNAPSHOT_JSON: &str = "json_object('kind', 'admission_fence', 'session_hex', session_hex, 'fenced_at_ms', CAST(fenced_at_ms AS TEXT))";
 const STATE_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_relocation_snapshot (
     id INTEGER PRIMARY KEY CHECK (id = 1), state_json TEXT NOT NULL)";
 const SEGMENT_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_relocation_snapshot_segments (
@@ -15,6 +19,16 @@ pub(crate) enum Command<Owner> {
     Capture {
         source: Preparation<Owner>,
     },
+    Import {
+        receipt: Receipt<Owner>,
+        segment: Segment,
+    },
+    Status {
+        receipt: Receipt<Owner>,
+    },
+    Verify {
+        receipt: Receipt<Owner>,
+    },
     Export {
         source: Preparation<Owner>,
         segment_index: u32,
@@ -25,6 +39,9 @@ impl<Owner> Command<Owner> {
     pub(crate) fn source(&self) -> &Preparation<Owner> {
         match self {
             Self::Capture { source } | Self::Export { source, .. } => source,
+            Self::Import { receipt, .. } | Self::Status { receipt } | Self::Verify { receipt } => {
+                &receipt.source
+            }
         }
     }
 }
@@ -41,9 +58,9 @@ enum State<Owner> {
     },
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct Receipt<Owner> {
+pub(crate) struct Receipt<Owner> {
     source: Preparation<Owner>,
     source_object: String,
     record_count: u32,
@@ -72,7 +89,7 @@ enum Family {
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct Segment {
+pub(crate) struct Segment {
     segment_index: u32,
     record_index: u32,
     part_index: u32,
@@ -130,7 +147,7 @@ pub(crate) async fn forward<Owner: WalletOwner>(
     stub.fetch_with_request(forwarded).await
 }
 
-pub(crate) fn execute<Owner: WalletOwner>(
+fn execute_source<Owner: WalletOwner>(
     sql: &SqlStorage,
     command: Command<Owner>,
 ) -> worker::Result<Response> {
@@ -169,6 +186,9 @@ pub(crate) fn execute<Owner: WalletOwner>(
     match command {
         Command::Capture { source } => capture(sql, source, state),
         Command::Export { segment_index, .. } => export(sql, state, segment_index),
+        Command::Import { .. } | Command::Status { .. } | Command::Verify { .. } => Err(
+            pair_error("Deriver destination command reached source capture"),
+        ),
     }
 }
 
@@ -194,7 +214,7 @@ fn capture<Owner: WalletOwner>(
     // One bounded segment per command. The source tables remain fenced throughout capture.
     let query = match progress.family {
         Family::Pair => Some(("yao_pair_sessions", Owner::PAIR_SNAPSHOT_JSON)),
-        Family::AdmissionFence => Some(("yao_pair_admission_fences", "json_object('kind', 'admission_fence', 'session_hex', session_hex, 'fenced_at_ms', CAST(fenced_at_ms AS TEXT))")),
+        Family::AdmissionFence => Some(("yao_pair_admission_fences", FENCE_SNAPSHOT_JSON)),
         Family::Complete => None,
     };
     if let Some((table, record)) = query {
@@ -208,6 +228,7 @@ fn capture<Owner: WalletOwner>(
                 if bytes.is_empty()
                     || bytes.len() > SEGMENT_BYTES as usize
                     || offset >= u64::from(row.byte_count)
+                    || row.byte_count as usize > MAX_RECORD_BYTES
                 {
                     return Err(pair_error("Deriver snapshot record part is invalid"));
                 }
@@ -338,4 +359,30 @@ fn encode(value: &impl Serialize) -> worker::Result<String> {
 
 fn encoding_error(error: serde_json::Error) -> worker::Error {
     pair_error(error.to_string())
+}
+
+pub(crate) async fn execute<Owner: WalletOwner>(
+    storage: &worker::Storage,
+    sql: SqlStorage,
+    env: Env,
+    command: Command<Owner>,
+) -> worker::Result<Response> {
+    let response = std::rc::Rc::new(std::cell::RefCell::new(None));
+    let returned = std::rc::Rc::clone(&response);
+    storage
+        .transaction(move |_| async move {
+            let outcome = match command {
+                Command::Import { receipt, segment } => {
+                    import::receive(&sql, &env, receipt, segment)
+                }
+                Command::Status { receipt } => import::status(&sql, receipt),
+                Command::Verify { receipt } => import::verify(&sql, receipt),
+                source => execute_source(&sql, source),
+            }?;
+            *returned.borrow_mut() = Some(outcome);
+            Ok(())
+        })
+        .await?;
+    let result = response.borrow_mut().take();
+    result.ok_or_else(|| pair_error("Deriver snapshot transaction returned no response"))
 }
