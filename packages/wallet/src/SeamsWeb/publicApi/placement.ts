@@ -1,6 +1,6 @@
 import { requireRecord } from '@shared/utils/validation';
 import { parseNonNegativeSafeInteger } from '@shared/device-linking/wireFields';
-import type { WalletId } from '@shared/utils/domainIds';
+import { parseWalletId, type WalletId } from '@shared/utils/domainIds';
 import type { ExclusiveUnion, Variant } from '@shared/utils/variant';
 
 declare const moveIdBrand: unique symbol;
@@ -90,7 +90,28 @@ export type WalletMoveStatusResult = ExclusiveUnion<
   | Variant<WalletPlacementResult, 'ok', false>
 >;
 
+export type WalletMoveRequest = {
+  readonly walletId: WalletId;
+  readonly moveId: WalletMoveId;
+  readonly destinationRegion: WalletRegion;
+  readonly expectedGeneration: number;
+};
+
+export function parseWalletMoveRequest(raw: unknown): WalletMoveRequest {
+  const value = requireRecord(raw, 'Wallet move request');
+  const wallet = parseWalletId(value.walletId);
+  if (!wallet.ok || Object.keys(value).length !== 4)
+    throw new Error('Wallet move request is invalid');
+  return {
+    walletId: wallet.value,
+    moveId: parseWalletMoveId(value.moveId),
+    destinationRegion: region(value.destinationRegion),
+    expectedGeneration: positivePlacementValue(value.expectedGeneration),
+  };
+}
+
 export interface WalletPlacementCapability {
+  move(request: WalletMoveRequest): Promise<WalletMoveStatusResult>;
   get(walletId: WalletId): Promise<WalletPlacementResult>;
   getMove(walletId: WalletId, moveId: WalletMoveId): Promise<WalletMoveStatusResult>;
 }

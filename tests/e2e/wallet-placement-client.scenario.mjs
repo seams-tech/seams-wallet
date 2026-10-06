@@ -28,13 +28,14 @@ class PlacementClientJourney {
   reply = null;
   requests = 0;
 
-  constructor(api, routes, binding, token) {
+  constructor(api, routes, binding, token, signingEngine = {}) {
     this.routes = routes;
     this.binding = binding;
     this.token = token;
     this.unlock();
     const host = api.createWalletHostPlacementCommands({
       managementRequest: { request: this.request.bind(this) },
+      signingEngine,
       readAuthentication: this.readAuthentication.bind(this),
     });
     this.handlers = api.createPlacementWalletIframeHandlers({
@@ -78,6 +79,7 @@ class PlacementClientJourney {
       new Request(`https://gateway.example.test${input.canonicalPath}`, {
         method: input.method,
         headers: { Origin: this.binding.origin, Authorization: `Bearer ${this.token}` },
+        ...(input.method === 'POST' ? { body: JSON.stringify(input.body) } : {}),
       }),
     );
     assert.equal(response.headers.get('cache-control'), 'no-store');
@@ -208,6 +210,7 @@ async function loadPlacementClient(output) {
       contents: `
         export { createApplicationPlacementCommands, createIframePlacementCommands } from './packages/wallet/src/SeamsWeb/walletIframe/client/placementCommands';
         export { createWalletHostPlacementCommands } from './packages/wallet/src/SeamsWeb/walletIframe/host/createPlacementCommands';
+        export { WalletHostOwnerRequestTransportError } from './packages/wallet/src/SeamsWeb/operations/devices/walletHostOwnerAuthority';
         export { createPlacementWalletIframeHandlers } from './packages/wallet/src/SeamsWeb/walletIframe/host/handlers/placement';
       `,
     },
@@ -304,6 +307,149 @@ export async function verifyRetiredMoveClient({
   await writeFile(
     resolve(output, 'retired-move-client-evidence.json'),
     `${JSON.stringify(evidence, null, 2)}\n`,
+  );
+  return evidence;
+}
+
+class SubmissionDirectory {
+  status = null;
+  submissions = 0;
+  constructor(binding) {
+    this.binding = binding;
+  }
+  async fetch(request) {
+    const path = new URL(request.url).pathname;
+    const body = await request.json();
+    assert.equal(body.moveId, this.binding.moveId);
+    if (path.endsWith('/relocation-status')) {
+      return this.status
+        ? Response.json(this.status)
+        : Response.json({ state: 'unavailable', code: 'not_found' }, { status: 404 });
+    }
+    if (path.endsWith('/relocation-request')) {
+      return Response.json({
+        kind: 'resolved',
+        requestDigest: this.binding.requestDigestHex,
+        sourceGeneration: 1,
+        destinationRegion: 'APAC',
+      });
+    }
+    assert.ok(path.endsWith('/relocation-replay'));
+    assert.equal(body.requestDigest, this.binding.requestDigestHex);
+    this.submissions += 1;
+    this.status = movingPlacement(this.binding, {
+      state: 'freezing',
+      availability: 'paused',
+      execution: { state: 'running' },
+    });
+    return Response.json(this.status);
+  }
+}
+
+class MoveApprovalPrompt {
+  calls = 0;
+  constructor(challenges) {
+    this.challenges = challenges;
+  }
+  async requestEmailOtpEnrollmentConfirmation(input) {
+    this.calls += 1;
+    assert.equal(input.confirmerText.title, 'Move wallet region');
+    const record = await this.challenges.read(input.challengeId);
+    assert.ok(record);
+    assert.equal(record.operation, 'wallet_relocation');
+    if (this.beforeReturn) this.beforeReturn();
+    return { challengeId: input.challengeId, otpCode: record.otpCode };
+  }
+}
+
+class LostMoveReplyJourney extends PlacementClientJourney {
+  lost = false;
+  submittedBodies = [];
+  async request(input) {
+    const response = await super.request(input);
+    if (input.method === 'POST' && input.canonicalPath.endsWith('/relocations')) {
+      this.submittedBodies.push(structuredClone(input.body));
+      if (!this.lost) {
+        this.lost = true;
+        throw new this.TransportError('network_error', 'Injected committed reply loss');
+      }
+    }
+    return response;
+  }
+}
+
+function moveRequest(binding) {
+  return {
+    walletId: binding.walletId,
+    moveId: binding.moveId,
+    destinationRegion: binding.destinationRegion,
+    expectedGeneration: binding.sourceGeneration,
+  };
+}
+
+export async function verifyMoveSubmissionClient({
+  output,
+  binding,
+  token,
+  routeOptions,
+  WalletPlacementRoutes,
+}) {
+  const { api, bundleSha256 } = await loadPlacementClient(output);
+  const directory = new SubmissionDirectory(binding);
+  const routes = new WalletPlacementRoutes({ ...routeOptions, directory });
+  const prompt = new MoveApprovalPrompt(routeOptions.emailOtp.emailOtpChallenges);
+  const client = new LostMoveReplyJourney(api, routes, binding, token, prompt);
+  client.TransportError = api.WalletHostOwnerRequestTransportError;
+  const intent = moveRequest(binding);
+  assert.deepEqual(await client.application.move(intent), { ok: true, status: directory.status });
+  assert.equal(client.lost, true);
+  assert.equal(directory.submissions, 2);
+  assert.equal(prompt.calls, 1);
+  assert.deepEqual(client.submittedBodies[0], client.submittedBodies[1]);
+  assert.deepEqual(await client.application.move(intent), { ok: true, status: directory.status });
+  assert.equal(prompt.calls, 1);
+  assert.equal(directory.submissions, 2);
+  assert.deepEqual(await client.application.move({ ...intent, destinationRegion: 'WEUR' }), {
+    ok: false,
+    code: 'invalid_response',
+  });
+  assert.equal(prompt.calls, 1);
+  const blockedBinding = {
+    ...binding,
+    moveId: `wmove_${Buffer.alloc(32, 103).toString('base64url')}`,
+  };
+  const blockedDirectory = new SubmissionDirectory(blockedBinding);
+  const blockedRoutes = new WalletPlacementRoutes({ ...routeOptions, directory: blockedDirectory });
+  const blockedPrompt = new MoveApprovalPrompt(routeOptions.emailOtp.emailOtpChallenges);
+  const blockedClient = new PlacementClientJourney(
+    api,
+    blockedRoutes,
+    blockedBinding,
+    token,
+    blockedPrompt,
+  );
+  blockedPrompt.beforeReturn = blockedClient.lock.bind(blockedClient);
+  await assert.rejects(
+    blockedClient.application.move(moveRequest(blockedBinding)),
+    /authentication changed/u,
+  );
+  assert.equal(blockedDirectory.submissions, 0);
+  assert.equal(JSON.stringify(client.messages).includes(token), false);
+  assert.equal(JSON.stringify(client.messages).includes('sourceProof'), false);
+  const evidence = {
+    scope:
+      'Production application, iframe handlers and Gateway with real D1 owner approval and OTP verification. Console admission and the user prompt are simulated.',
+    bundleSha256,
+    freshApprovalInsideHost: true,
+    lostReplyRetriesIdenticalProofAndIntent: true,
+    existingMoveReplayDoesNotPrompt: true,
+    conflictingDestinationRejected: true,
+    authenticationChangePreventsSubmission: true,
+    proofAndCredentialAbsentFromParentMessages: true,
+  };
+  await writeFile(
+    resolve(output, 'move-submission-client-evidence.json'),
+    JSON.stringify(evidence, null, 2),
   );
   return evidence;
 }

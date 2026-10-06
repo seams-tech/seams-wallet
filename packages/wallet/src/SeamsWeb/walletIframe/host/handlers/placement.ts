@@ -1,4 +1,4 @@
-import { parseWalletMoveId } from '@/SeamsWeb/publicApi/placement';
+import { parseWalletMoveId, parseWalletMoveRequest } from '@/SeamsWeb/publicApi/placement';
 import { parseWalletId } from '@shared/utils/domainIds';
 import { requireRecord } from '@shared/utils/validation';
 import type { HandlerDeps, HandlerMap, Req } from './walletIframeHandler.types';
@@ -6,6 +6,7 @@ import { respondOkResult } from './shared';
 
 export function createPlacementWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
   return {
+    PM_MOVE_WALLET: moveWallet.bind(null, deps),
     PM_GET_WALLET_PLACEMENT: getWalletPlacement.bind(null, deps),
     PM_GET_WALLET_MOVE: getWalletMove.bind(null, deps),
   };
@@ -31,6 +32,13 @@ async function getWalletMove(deps: HandlerDeps, request: Req<'PM_GET_WALLET_MOVE
   if (!wallet.ok || Object.keys(payload).length !== 2)
     throw new Error('Wallet move request is invalid');
   const result = await deps.getWalletRuntime().placement.getMove(wallet.value, moveId);
+  if (deps.respondIfCancelled(request.requestId)) return;
+  respondOkResult(deps, request.requestId, result);
+}
+
+async function moveWallet(deps: HandlerDeps, request: Req<'PM_MOVE_WALLET'>): Promise<void> {
+  const intent = parseWalletMoveRequest(request.payload);
+  const result = await deps.getWalletRuntime().placement.move(intent);
   if (deps.respondIfCancelled(request.requestId)) return;
   respondOkResult(deps, request.requestId, result);
 }

@@ -1,4 +1,9 @@
-import type { WalletPlacement, WalletPlacementResult, WalletMoveStatus } from './placement';
+import type {
+  WalletPlacement,
+  WalletPlacementResult,
+  WalletMoveStatus,
+  WalletMoveRequest,
+} from './placement';
 import type { SeamsWeb } from '../SeamsWeb';
 import type { Variant } from '@shared/utils/variant';
 import type { WalletId } from '@shared/utils/domainIds';
@@ -47,3 +52,10 @@ declare const completedMove: Variant<WalletMoveStatus, 'state', 'completed'>;
 // @ts-expect-error A completed move cannot retain live transfer progress.
 const mixedMove: WalletMoveStatus = { ...completedMove, move: moving.move };
 void mixedMove;
+
+declare const moveRequest: WalletMoveRequest;
+void wallet.placement.move(moveRequest);
+// @ts-expect-error Move submission requires the expected ownership generation.
+void wallet.placement.move({ walletId, moveId: moveRequest.moveId, destinationRegion: 'APAC' });
+// @ts-expect-error Applications cannot supply an owner credential with a move request.
+void wallet.placement.move({ ...moveRequest, credential: 'parent-supplied-token' });

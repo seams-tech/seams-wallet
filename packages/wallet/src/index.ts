@@ -1,6 +1,6 @@
 export { parseWalletMoveId } from './SeamsWeb/publicApi/placement';
 export type {
-  WalletMoveId, WalletMoveStatus, WalletMoveStatusResult,
+  WalletMoveId, WalletMoveRequest, WalletMoveStatus, WalletMoveStatusResult,
   WalletPlacement, WalletPlacementCapability, WalletPlacementResult, WalletRegion,
 } from './SeamsWeb/publicApi/placement';
 export { SeamsWeb } from './SeamsWeb';

@@ -827,6 +827,7 @@ export type ParentToChildType =
   | 'PM_UNLOCK'
   | 'PM_LOCK'
   | 'PM_LOCK_EXACT_WALLET_SESSION'
+  | 'PM_MOVE_WALLET'
   | 'PM_GET_WALLET_MOVE'
   | 'PM_GET_WALLET_PLACEMENT'
   | 'PM_GET_WALLET_SESSION'
@@ -1610,6 +1611,15 @@ export type ParentToChildEnvelope =
   | RpcEnvelope<'PM_UNLOCK', PMUnlockPayload>
   | RpcEnvelope<'PM_LOCK'>
   | RpcEnvelope<'PM_LOCK_EXACT_WALLET_SESSION', WalletIframeExactSessionIdentity>
+  | RpcEnvelope<
+      'PM_MOVE_WALLET',
+      {
+        readonly walletId: string;
+        readonly moveId: string;
+        readonly destinationRegion: string;
+        readonly expectedGeneration: number;
+      }
+    >
   | RpcEnvelope<'PM_GET_WALLET_MOVE', { readonly walletId: string; readonly moveId: string }>
   | RpcEnvelope<'PM_GET_WALLET_PLACEMENT', { readonly walletId: string }>
   | RpcEnvelope<'PM_GET_WALLET_SESSION', PMGetWalletSessionPayload>

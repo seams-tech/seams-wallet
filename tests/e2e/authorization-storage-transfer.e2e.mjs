@@ -1,4 +1,4 @@
-import { verifyPlacementClient, verifyRetiredMoveClient } from './wallet-placement-client.scenario.mjs';
+import { verifyPlacementClient, verifyRetiredMoveClient, verifyMoveSubmissionClient } from './wallet-placement-client.scenario.mjs';
 import {
   seedExecutionGeneration,
   prepareExecutionGeneration,
@@ -1685,7 +1685,22 @@ async function verifyRelocationEmailOtp(database) {
       nowMs: nowMs + 40_000,
     }),
   );
+  const clientMoveSubmission = await verifyMoveSubmissionClient({
+    output,
+    binding: { ...binding, moveId: `wmove_${Buffer.alloc(32, 102).toString('base64url')}` },
+    token: issued.operationCredential.token,
+    routeOptions: {
+      database,
+      scope,
+      emailOtp: { verifier, emailOtpChallenges, issuer },
+      tenantId: issued.session.tenantId,
+      allowedOrigins: [binding.origin],
+      authorizationSessions,
+    },
+    WalletPlacementRoutes: api.WalletPlacementRoutes,
+  });
   return {
+    clientMoveSubmission,
     scope:
       'OTP verification and atomic approval through production stores; excludes email delivery, factor unsealing, owner HTTP authentication and Console admission',
     initiatingSessionGuardUsesIssuedCredential: true,

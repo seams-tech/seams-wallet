@@ -194,6 +194,7 @@ export class WalletHostRuntime {
       readUnlockedEd25519ExportRootCapabilityV1: readUnlockedEd25519ExportRootLinkingCapabilityV1,
     });
     this.placement = createWalletHostPlacementCommands({
+      signingEngine: browserSigningSurface,
       managementRequest: ownerAuthorities.managementRequest,
       readAuthentication:
         browserSigningSurface.readWalletAuthenticationState.bind(browserSigningSurface),

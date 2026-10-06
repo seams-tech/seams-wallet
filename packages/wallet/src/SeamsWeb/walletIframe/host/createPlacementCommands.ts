@@ -1,3 +1,5 @@
+import { requestWalletMove } from './requestWalletMove';
+import type { BrowserSigningSurface } from '@/SeamsWeb/signingSurface/BrowserSigningSurface';
 import { DeviceLinkingError, DeviceLinkingErrorCode } from '@/core/types/linkDevice';
 import {
   parseWalletPlacement,
@@ -13,12 +15,17 @@ import type { Variant } from '@shared/utils/variant';
 import type { WalletId } from '@shared/utils/domainIds';
 
 type Context = {
+  readonly signingEngine: BrowserSigningSurface;
   readonly managementRequest: WalletHostManagementRequestV1;
   readonly readAuthentication: () => WalletAuthenticationState;
 };
 
 export function createWalletHostPlacementCommands(context: Context): WalletPlacementCapability {
-  return { get: getPlacement.bind(null, context), getMove: getMove.bind(null, context) };
+  return {
+    move: requestWalletMove.bind(null, context),
+    get: getPlacement.bind(null, context),
+    getMove: getMove.bind(null, context),
+  };
 }
 
 async function getPlacement(context: Context, walletId: WalletId): Promise<WalletPlacementResult> {

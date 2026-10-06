@@ -2,6 +2,7 @@ import {
   parseWalletPlacementResult,
   parseWalletMoveStatusResult,
   type WalletMoveId,
+  type WalletMoveRequest,
   type WalletPlacementCapability,
 } from '@/SeamsWeb/publicApi/placement';
 import type { WalletIframeCoordinator } from '../coordinator';
@@ -9,6 +10,7 @@ import type { WalletId } from '@shared/utils/domainIds';
 
 type PlacementPost = (
   request:
+    | { readonly type: 'PM_MOVE_WALLET'; readonly payload: WalletMoveRequest }
     | {
         readonly type: 'PM_GET_WALLET_PLACEMENT';
         readonly payload: { readonly walletId: WalletId };
@@ -20,7 +22,11 @@ type PlacementPost = (
 ) => Promise<{ readonly result: unknown }>;
 
 export function createIframePlacementCommands(post: PlacementPost): WalletPlacementCapability {
-  return { get: readFromHost.bind(null, post), getMove: readMoveFromHost.bind(null, post) };
+  return {
+    move: moveFromHost.bind(null, post),
+    get: readFromHost.bind(null, post),
+    getMove: readMoveFromHost.bind(null, post),
+  };
 }
 
 async function readFromHost(post: PlacementPost, walletId: WalletId) {
@@ -31,7 +37,11 @@ async function readFromHost(post: PlacementPost, walletId: WalletId) {
 export function createApplicationPlacementCommands(
   iframe: Pick<WalletIframeCoordinator, 'requireRouter'>,
 ): WalletPlacementCapability {
-  return { get: readFromIframe.bind(null, iframe), getMove: readMoveFromIframe.bind(null, iframe) };
+  return {
+    move: moveFromIframe.bind(null, iframe),
+    get: readFromIframe.bind(null, iframe),
+    getMove: readMoveFromIframe.bind(null, iframe),
+  };
 }
 
 async function readFromIframe(
@@ -54,4 +64,17 @@ async function readMoveFromIframe(
 ) {
   const router = await iframe.requireRouter();
   return router.placement.getMove(walletId, moveId);
+}
+
+async function moveFromHost(post: PlacementPost, request: WalletMoveRequest) {
+  const response = await post({ type: 'PM_MOVE_WALLET', payload: request });
+  return parseWalletMoveStatusResult(response.result, request.moveId);
+}
+
+async function moveFromIframe(
+  iframe: Pick<WalletIframeCoordinator, 'requireRouter'>,
+  request: WalletMoveRequest,
+) {
+  const router = await iframe.requireRouter();
+  return router.placement.move(request);
 }

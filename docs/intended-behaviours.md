@@ -1978,6 +1978,19 @@ this client path. It records results in `retired-move-client-evidence.json` besi
 the placement evidence. Local credential retention across reload and post-move
 client reconciliation remain outside this scenario.
 
+`wallet.placement.move(request)` requires the wallet, move identity, destination,
+and expected source generation. The host first reads that exact move. An existing
+matching move returns without another factor prompt. A new request collects a
+fresh owner proof inside the wallet iframe. Proofs and owner credentials do not
+cross into parent messages. A lost submission reply gets one retry with the same
+intent and proof. An authentication change during approval prevents submission.
+
+The authorization transfer E2E verifies this command through production client
+factories, iframe handlers, Gateway authentication, and D1 OTP approval. It
+simulates the prompt and Console admission. Evidence is in
+`move-submission-client-evidence.json`. Actual move admission, the passkey browser
+prompt, region settings, and progress after local lock remain unfinished.
+
 ### Keep owner presign work retired after a return move
 
 Fresh owner and linked-device operation credentials carry a required positive
