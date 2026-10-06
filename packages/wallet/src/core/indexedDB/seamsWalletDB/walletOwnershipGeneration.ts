@@ -1,3 +1,4 @@
+import { seamsWalletDB } from '../singletons';
 import { requireRecord } from '@shared/utils/validation';
 import { SEAMS_WALLET_STORES, SEAMS_WALLET_INDEXES } from '../schemaNames';
 import type { SeamsWalletTransactionContext } from './manager';
@@ -56,4 +57,23 @@ export async function acceptWalletOwnershipGeneration(
     if (obsolete) await cursor.delete();
     cursor = await cursor.continue();
   }
+}
+
+export async function assertCurrentWalletOwnershipGeneration(
+  walletId: string,
+  generation: number,
+): Promise<void> {
+  await seamsWalletDB.runTransaction(
+    [SEAMS_WALLET_STORES.appState],
+    'readonly',
+    assertGenerationInTransaction.bind(null, walletId, generation),
+  );
+}
+
+function assertGenerationInTransaction(
+  walletId: string,
+  generation: number,
+  context: SeamsWalletTransactionContext,
+): Promise<void> {
+  return assertWalletOwnershipGeneration(context, walletId, generation);
 }

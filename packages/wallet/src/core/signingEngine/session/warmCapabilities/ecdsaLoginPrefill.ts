@@ -1,9 +1,9 @@
+import { resolveRouterAbEcdsaDerivationPresignaturePoolPolicy } from '../../routerAb/ecdsaDerivation/presignaturePoolPolicy';
 import type {
   RouterAbEcdsaDerivationPresignaturePoolPolicy,
   RouterAbEcdsaDerivationPresignaturePoolPolicyInput,
 } from '@/core/types/seams';
 import {
-  resolveRouterAbEcdsaDerivationPresignaturePoolPolicy,
   scheduleRouterAbEcdsaDerivationClientPresignaturePoolRefill,
   waitForRouterAbEcdsaDerivationClientPresignaturePoolReady,
   type RouterAbEcdsaDerivationClientSigningMaterialSource,

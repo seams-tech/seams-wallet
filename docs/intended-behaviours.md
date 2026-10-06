@@ -2002,8 +2002,14 @@ locking preserves this generation and usable durable material. The browser stora
 contract uses a real registered presignature to verify deletion, delayed old
 admission rejection, exact advancement retries, rollback rejection, and current
 generation consumption. Its generation transition is local and does not prove
-regional relocation. Resident pool invalidation and full client reconciliation
-remain unfinished.
+regional relocation.
+
+Resident pool hydration, refill, and signing check the persisted ownership
+generation. A stale pool stops maintenance, invalidates pending results, and
+destroys resident handles. Hydration and refill check again before publishing
+results. An old pool's invalidation does not clear a newer generation's pool.
+The in-flight resident refill race and full client reconciliation still require
+composed browser verification.
 
 Owner presign authorities record the ownership generation at initialization. Each
 protocol step requires that exact current generation. Returning to the original
