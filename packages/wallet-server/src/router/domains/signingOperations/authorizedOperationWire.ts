@@ -10,6 +10,7 @@ export type AuthorizedOperationBindingWire =
     }
   | {
       readonly kind: 'gateway_owner_wallet_session';
+      readonly ownership_generation: number;
       readonly subject_id: string;
       readonly account_id: string;
       readonly authorization_id: string;
@@ -25,6 +26,7 @@ export type AuthorizedOperationBindingWire =
     }
   | {
       readonly kind: 'operation_step_up';
+      readonly ownership_generation: number;
       readonly authorization_session_id: string;
       readonly org_id: string;
       readonly project_id: string;
@@ -47,6 +49,7 @@ export type AuthorizedOperationWireInput =
       readonly operation: AuthorizedOperation;
       readonly binding: {
         readonly kind: 'gateway_owner_wallet_session';
+        readonly ownershipGeneration: number;
         readonly subjectId: string;
         readonly accountId: string;
         readonly authorizationId: string;
@@ -68,6 +71,7 @@ export type AuthorizedOperationWireInput =
 
 export type OperationStepUpBinding = {
   readonly kind: 'operation_step_up';
+  readonly ownershipGeneration: number;
   readonly authorizationSessionId: string;
   readonly orgId: string;
   readonly projectId: string;
@@ -138,6 +142,7 @@ export function buildAuthorizedOperationWire<T extends AuthorizedOperationFields
       return {
         binding: {
           kind: 'gateway_owner_wallet_session',
+          ownership_generation: input.binding.ownershipGeneration,
           subject_id: input.binding.subjectId,
           account_id: input.binding.accountId,
           authorization_id: input.binding.authorizationId,
@@ -166,6 +171,7 @@ export function buildAuthorizedOperationWire<T extends AuthorizedOperationFields
       return {
         binding: {
           kind: 'operation_step_up',
+          ownership_generation: input.binding.ownershipGeneration,
           authorization_session_id: input.binding.authorizationSessionId,
           org_id: input.binding.orgId,
           project_id: input.binding.projectId,

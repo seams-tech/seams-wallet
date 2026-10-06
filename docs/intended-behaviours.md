@@ -1558,6 +1558,11 @@ The persistence migration leaves older records without a proven generation uncha
 Such records cannot produce a pinned execution scope. The system must not infer a
 generation from the current home to dispatch an older operation.
 
+The Gateway includes the pinned generation in owner Wallet Session and step-up
+bindings for Ed25519 and ECDSA. The Router requires that field and rejects zero
+or values above JavaScript's maximum safe integer before forwarding signing work.
+The generation remains execution metadata, separate from wallet cipher identity.
+
 ### Restore authorization history during relocation
 
 The internal restore path accepts authorities, auth methods, session quotas,

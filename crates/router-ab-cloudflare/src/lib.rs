@@ -5831,6 +5831,7 @@ pub enum CloudflareRouterEd25519AcceptedCapabilityBindingV1 {
     },
     /// Wallet Session admission resolved by the trusted Gateway.
     GatewayOwnerWalletSession {
+        ownership_generation: u64,
         subject_id: String,
         account_id: String,
         authorization_id: String,
@@ -5862,6 +5863,7 @@ pub enum CloudflareRouterEd25519AcceptedCapabilityBindingV1 {
     /// wallet and its Console project environment are the ones the Gateway
     /// pinned when it claimed the step-up operation.
     OperationStepUp {
+        ownership_generation: u64,
         authorization_session_id: String,
         org_id: String,
         project_id: String,
@@ -6021,6 +6023,20 @@ impl CloudflareRouterEd25519AcceptedAuthorizedOperationV1 {
     }
 
     fn validate(&self) -> RouterAbProtocolResult<()> {
+        match &self.binding {
+            CloudflareRouterEd25519AcceptedCapabilityBindingV1::GatewayOwnerWalletSession {
+                ownership_generation,
+                ..
+            }
+            | CloudflareRouterEd25519AcceptedCapabilityBindingV1::OperationStepUp {
+                ownership_generation,
+                ..
+            } => {
+                crate::router_wallet::validate_wallet_ownership_generation(*ownership_generation)?;
+            }
+            CloudflareRouterEd25519AcceptedCapabilityBindingV1::ReusableWalletSession { .. }
+            | CloudflareRouterEd25519AcceptedCapabilityBindingV1::GatewayLinkedDeviceWalletSession { .. } => {}
+        }
         self.authorized_operation.validate()?;
         match (&self.binding, &self.authorized_operation) {
             (
@@ -6049,6 +6065,7 @@ impl CloudflareRouterEd25519AcceptedAuthorizedOperationV1 {
             }
             (
                 CloudflareRouterEd25519AcceptedCapabilityBindingV1::GatewayOwnerWalletSession {
+                    ownership_generation: _,
                     subject_id,
                     account_id,
                     authorization_id,
@@ -6145,6 +6162,7 @@ impl CloudflareRouterEd25519AcceptedAuthorizedOperationV1 {
             }
             (
                 CloudflareRouterEd25519AcceptedCapabilityBindingV1::OperationStepUp {
+                    ownership_generation: _,
                     authorization_session_id,
                     org_id,
                     project_id,
@@ -6242,6 +6260,7 @@ impl CloudflareRouterEd25519AcceptedAuthorizedOperationV1 {
     ) -> RouterAbProtocolResult<CloudflareRouterWalletSessionCredentialV1> {
         self.validate()?;
         let CloudflareRouterEd25519AcceptedCapabilityBindingV1::GatewayOwnerWalletSession {
+            ownership_generation: _,
             subject_id,
             account_id,
             authorization_id,
@@ -6560,6 +6579,7 @@ pub enum CloudflareRouterEcdsaAcceptedCapabilityBindingV1 {
     },
     /// Wallet Session admission resolved by the trusted Gateway.
     GatewayOwnerWalletSession {
+        ownership_generation: u64,
         subject_id: String,
         account_id: String,
         authorization_id: String,
@@ -6577,6 +6597,7 @@ pub enum CloudflareRouterEcdsaAcceptedCapabilityBindingV1 {
     /// wallet and its Console project environment are the ones the Gateway
     /// pinned when it claimed the step-up operation.
     OperationStepUp {
+        ownership_generation: u64,
         authorization_session_id: String,
         org_id: String,
         project_id: String,
@@ -6782,6 +6803,19 @@ impl CloudflareRouterEcdsaAcceptedAuthorizedOperationV1 {
     }
 
     fn validate(&self) -> RouterAbProtocolResult<()> {
+        match &self.binding {
+            CloudflareRouterEcdsaAcceptedCapabilityBindingV1::GatewayOwnerWalletSession {
+                ownership_generation,
+                ..
+            }
+            | CloudflareRouterEcdsaAcceptedCapabilityBindingV1::OperationStepUp {
+                ownership_generation,
+                ..
+            } => {
+                crate::router_wallet::validate_wallet_ownership_generation(*ownership_generation)?;
+            }
+            CloudflareRouterEcdsaAcceptedCapabilityBindingV1::ReusableWalletSession { .. } => {}
+        }
         self.authorized_operation.validate()?;
         match (&self.binding, &self.authorized_operation) {
             (
@@ -6810,6 +6844,7 @@ impl CloudflareRouterEcdsaAcceptedAuthorizedOperationV1 {
             }
             (
                 CloudflareRouterEcdsaAcceptedCapabilityBindingV1::GatewayOwnerWalletSession {
+                    ownership_generation: _,
                     subject_id,
                     account_id,
                     authorization_id,
@@ -6858,6 +6893,7 @@ impl CloudflareRouterEcdsaAcceptedAuthorizedOperationV1 {
             }
             (
                 CloudflareRouterEcdsaAcceptedCapabilityBindingV1::OperationStepUp {
+                    ownership_generation: _,
                     authorization_session_id,
                     org_id,
                     project_id,
@@ -6964,6 +7000,7 @@ impl CloudflareRouterEcdsaAcceptedAuthorizedOperationV1 {
         self.validate()?;
         self.wallet_scope()?;
         let CloudflareRouterEcdsaAcceptedCapabilityBindingV1::GatewayOwnerWalletSession {
+            ownership_generation: _,
             subject_id,
             account_id,
             authorization_id,

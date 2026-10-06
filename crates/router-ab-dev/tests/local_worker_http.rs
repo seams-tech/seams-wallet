@@ -7326,6 +7326,33 @@ fn product_near_signing_process_flow(
         TEST_GATEWAY_TO_ROUTER_AUTH,
     )];
 
+    let mut invalid_generation_statuses = Vec::new();
+    for generation in [None, Some(0_u64), Some(9_007_199_254_740_992)] {
+        let mut invalid = prepare_body.clone();
+        let binding = invalid["authorized_operation"]["binding"]
+            .as_object_mut()
+            .ok_or("Gateway binding must be an object")?;
+        match generation {
+            Some(value) => {
+                binding.insert("ownership_generation".to_owned(), json!(value));
+            }
+            None => {
+                binding.remove("ownership_generation");
+            }
+        }
+        let (status, body) = post_json_to_path_with_headers(
+            router_url,
+            LOCAL_ROUTER_NORMAL_SIGNING_PREPARE_PATH,
+            &invalid,
+            &gateway_headers,
+        )?;
+        assert_ne!(
+            status, 200,
+            "invalid ownership generation reached signing: {body}"
+        );
+        invalid_generation_statuses.push(status);
+    }
+
     // Boundary checks the Router enforces before any SigningWorker work.
     let (role_shared_status, _) = post_json_to_path_with_headers(
         router_url,
@@ -7527,6 +7554,8 @@ fn product_near_signing_process_flow(
             "signature_digest_hex": hex::encode(Sha256::digest(signature_bytes)),
             "completed_round1_rows": completed_count,
             "router_admitted": true,
+            "gateway_ownership_generation": 1,
+            "invalid_ownership_generation_statuses": invalid_generation_statuses,
             "worker_restarts": 2,
             "independent_router_signing_worker_paths": 2,
             "concurrent_claims": true,
@@ -7614,6 +7643,7 @@ fn product_near_gateway_authorized_operation(
     let material = request.admission_material()?;
     Ok(CloudflareRouterEd25519AcceptedAuthorizedOperationV1 {
         binding: CloudflareRouterEd25519AcceptedCapabilityBindingV1::GatewayOwnerWalletSession {
+            ownership_generation: 1,
             subject_id: "product-user-1".to_owned(),
             account_id: activation.binding().lifecycle.account_id.clone(),
             authorization_id: format!("authorization-{}", activation.binding().lifecycle.account_id),

@@ -1,3 +1,4 @@
+import type { PinnedOwnerWalletScope } from '../../../../authorization/ecdsaWalletSessionAdmission';
 import {
   buildAuthorizedOperationWire,
   type AuthorizedOperationBindingWire,
@@ -69,10 +70,7 @@ import type {
   RouterAbEcdsaDerivationPoolFillInitRequest,
   RouterAbEcdsaDerivationPoolFillStepRequest,
 } from '../../../../core/types';
-import type {
-  RouterAbEcdsaDerivationPoolFillBinding,
-  RouterAbEcdsaOwnerWalletScope,
-} from '../../../../core/ThresholdService/routerAb/ecdsaDerivationPoolFillHandlers';
+import type { RouterAbEcdsaDerivationPoolFillBinding } from '../../../../core/ThresholdService/routerAb/ecdsaDerivationPoolFillHandlers';
 import type {
   RouterAbEcdsaStrictPostRegistrationPort,
   RouterAbEcdsaStrictExportResult,
@@ -222,6 +220,7 @@ async function ecdsaOperationStepUpBinding(
   const pinned = await readPinnedEcdsaStepUpWalletScope(ctx, session, operation);
   return {
     kind: 'operation_step_up',
+    ownershipGeneration: pinned.ownershipGeneration,
     authorizationSessionId: session.sessionId,
     orgId: scope.orgId,
     projectId: scope.projectId,
@@ -239,7 +238,7 @@ async function readPinnedEcdsaStepUpWalletScope(
     readonly runtimePolicyScope: RuntimePolicyScope;
   },
   operation: AuthorizedOperation,
-): Promise<RouterAbEcdsaOwnerWalletScope> {
+): Promise<PinnedOwnerWalletScope & { readonly walletId: string }> {
   const walletId = parseWalletId(session.walletId);
   if (!walletId.ok) throw new Error('ECDSA step-up wallet identity is invalid');
   const pinned = await ctx.service.authorizedOperations.readPinnedOwnerWalletScope({
@@ -250,7 +249,13 @@ async function readPinnedEcdsaStepUpWalletScope(
   if (pinned.orgId !== scope.orgId || pinned.projectId !== scope.projectId) {
     throw new Error('Step-up wallet scope differs from the Wallet Session scope');
   }
-  return { ...pinned, walletId: session.walletId };
+  return {
+    orgId: pinned.orgId,
+    projectId: pinned.projectId,
+    projectEnvironmentId: pinned.projectEnvironmentId,
+    ownershipGeneration: pinned.ownershipGeneration,
+    walletId: session.walletId,
+  };
 }
 
 function buildRouterAbEcdsaAuthorizedOperationWire(
@@ -518,6 +523,7 @@ async function executeRouterAbEcdsaDerivationNormalSigningRoute(
       operation: authorizedOperation,
       binding: {
         kind: 'gateway_owner_wallet_session',
+        ownershipGeneration: pinnedOwnerScope.ownershipGeneration,
         subjectId: String(session.principalId),
         accountId: String(session.walletId),
         authorizationId: String(session.authorizationId),

@@ -77,15 +77,20 @@ pub struct RouterWalletOwnerV1 {
     pub wallet_id: String,
 }
 
+pub(crate) fn validate_wallet_ownership_generation(generation: u64) -> RouterAbProtocolResult<()> {
+    if generation == 0 || generation > 9_007_199_254_740_991 {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::MalformedWirePayload,
+            "Router wallet ownership generation is invalid",
+        ));
+    }
+    Ok(())
+}
+
 impl RouterWalletOwnerV1 {
     /// Each ownership generation has a separate physical object, including return moves.
     pub fn object_name(&self, ownership_generation: u64) -> RouterAbProtocolResult<String> {
-        if ownership_generation == 0 || ownership_generation > 9_007_199_254_740_991 {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MalformedWirePayload,
-                "Router wallet ownership generation is invalid",
-            ));
-        }
+        validate_wallet_ownership_generation(ownership_generation)?;
         let encoded = serde_json::to_vec(&(self, ownership_generation)).map_err(|error| {
             RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::MalformedWirePayload,

@@ -1,3 +1,4 @@
+import type { PinnedOwnerWalletScope } from '../../../../authorization/ecdsaWalletSessionAdmission';
 import {
   buildAuthorizedOperationWire,
   type AuthorizedOperationBindingWire,
@@ -191,12 +192,13 @@ function ed25519ReusableWalletSessionIdentity(
 
 function buildEd25519GatewayOwnerWalletSessionBinding(
   authorization: AcceptedEd25519WalletSessionAuthorization,
-  projectEnvironmentId: string,
+  pinned: PinnedOwnerWalletScope,
 ) {
   const session = ed25519ReusableWalletSession(authorization);
   const runtimePolicyScope = authorization.activeMaterial.runtimePolicyScope;
   return {
     kind: 'gateway_owner_wallet_session' as const,
+    ownershipGeneration: pinned.ownershipGeneration,
     subjectId: String(session.principalId),
     accountId: String(session.walletId),
     authorizationId: String(session.authorizationId),
@@ -206,17 +208,17 @@ function buildEd25519GatewayOwnerWalletSessionBinding(
     orgId: runtimePolicyScope.orgId,
     projectId: runtimePolicyScope.projectId,
     environment: runtimePolicyScope.envId,
-    projectEnvironmentId,
+    projectEnvironmentId: pinned.projectEnvironmentId,
     signingWorkerId: authorization.activeMaterial.signingWorkerId,
     expiresAtMs: session.expiresAtMs,
   };
 }
 
-async function readPinnedEd25519WalletProjectEnvironmentId(
+async function readPinnedEd25519WalletScope(
   ctx: FetchRouterApiContext,
   authorization: AcceptedEd25519WalletSessionAuthorization,
   operation: AuthorizedOperation,
-): Promise<string> {
+): Promise<PinnedOwnerWalletScope> {
   const session = ed25519ReusableWalletSession(authorization);
   const scope = authorization.activeMaterial.runtimePolicyScope;
   const pinned = await ctx.service.authorizedOperations.readPinnedOwnerWalletScope({
@@ -226,7 +228,7 @@ async function readPinnedEd25519WalletProjectEnvironmentId(
   if (pinned.orgId !== scope.orgId || pinned.projectId !== scope.projectId) {
     throw new Error('Pinned owner Wallet Session scope differs from active material');
   }
-  return pinned.projectEnvironmentId;
+  return pinned;
 }
 
 /**
@@ -254,6 +256,7 @@ async function ed25519OperationStepUpBinding(
   }
   return {
     kind: 'operation_step_up',
+    ownershipGeneration: pinned.ownershipGeneration,
     authorizationSessionId: session.sessionId,
     orgId: scope.orgId,
     projectId: scope.projectId,
@@ -1766,16 +1769,10 @@ async function handleRouterAbEd25519NormalSigningRoute(input: {
         ...input.body,
         authorized_operation: buildRouterAbEd25519AuthorizedOperationWire({
           operation: execution.operation,
-          binding: {
-            ...buildEd25519GatewayOwnerWalletSessionBinding(
-              authorization,
-              await readPinnedEd25519WalletProjectEnvironmentId(
-                input.ctx,
-                authorization,
-                execution.operation,
-              ),
-            ),
-          },
+          binding: buildEd25519GatewayOwnerWalletSessionBinding(
+            authorization,
+            await readPinnedEd25519WalletScope(input.ctx, authorization, execution.operation),
+          ),
         }),
       },
     });
@@ -1834,16 +1831,14 @@ async function handleRouterAbEd25519NormalSigningRoute(input: {
       ...input.body,
       authorized_operation: buildRouterAbEd25519AuthorizedOperationWire({
         operation: validatedAuthorization.operation,
-        binding: {
-          ...buildEd25519GatewayOwnerWalletSessionBinding(
+        binding: buildEd25519GatewayOwnerWalletSessionBinding(
+          authorization,
+          await readPinnedEd25519WalletScope(
+            input.ctx,
             authorization,
-            await readPinnedEd25519WalletProjectEnvironmentId(
-              input.ctx,
-              authorization,
-              validatedAuthorization.operation,
-            ),
+            validatedAuthorization.operation,
           ),
-        },
+        ),
       }),
     },
   });

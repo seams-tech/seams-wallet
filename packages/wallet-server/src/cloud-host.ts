@@ -84,8 +84,6 @@ export * from './router/domains/ed25519Yao/recovery/routerAbEd25519YaoRecoveryWa
 export * from './router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationRequestScopedCloudflare';
 export * from './router/domains/signingOperations/routerAbNormalSigningAdmissionCore';
 export {
-  buildRouterAbEcdsaAcceptedAuthorizedOperationV1,
-  buildRouterAbEd25519AcceptedAuthorizedOperationV1,
   evaluateRouterAbNormalSigningAdmission,
   type RouterAbEcdsaOperationAdmission,
   type RouterAbEcdsaOperationAdmissionKind,
