@@ -133,7 +133,7 @@ export async function verifyEd25519Snapshot(topology, activation, fixture, crede
     captureAndExportResumeAfterEviction: true,
     exactDigestReconstructed: true,
     changedMoveAndReceiptRejected: true,
-    scope: 'Worker registration transfer and fresh Ed25519 signing; excludes linked-device transfer, cleanup and assembled relocation',
+    scope: 'Worker registration transfer and fresh Ed25519 signing; excludes linked-device transfer and assembled relocation',
   };
 }
 
@@ -201,6 +201,7 @@ async function verifyDestinationRestoration({
   assert.deepEqual(activated, { state: 'activated', receipt });
   await evictTransferredWallet(topology, destinationName, receipt.source.scope);
   assert.deepEqual(await accepted(destination, snapshotPath, activate, credential), activated);
+  const cleanup = await verifySourceCleanup(topology, receipt, credential, delivery, registrationCredential);
   const signing = await signDestination(topology, activation, fixture);
   const oldGeneration = await post(destination, settlePath, receipt.source, credential);
   assert.notEqual(oldGeneration.status, 200, await oldGeneration.text());
@@ -246,6 +247,7 @@ async function verifyDestinationRestoration({
     kind: 'success', response: signing.response,
   });
   return {
+    cleanup,
     signatureSha256Hex: signing.signatureSha256Hex,
     freshSignatureVerified: true,
     staleGenerationRejected: signing.staleGenerationRejected,
@@ -262,5 +264,43 @@ async function verifyDestinationRestoration({
     ownershipGeneration: nextSource.request.source_generation,
     activationReplayPreservesLaterFence: true,
     lateKnownChunkPreservesRestoredRows: true,
+  };
+}
+
+async function verifySourceCleanup(topology, receipt, credential, delivery, registrationCredential) {
+  const source = await topology.getWorker(workerName);
+  const command = { command: 'cleanup', activation: receipt };
+  const changed = structuredClone(command);
+  changed.activation.digest_hex = '00'.repeat(32);
+  const rejected = await post(source, snapshotPath, changed, credential);
+  assert.notEqual(rejected.status, 200, await rejected.text());
+  const unauthorized = await post(source, snapshotPath, command, 'wrong-credential');
+  assert.equal(unauthorized.status, 403);
+  let cleaned;
+  let calls = 0;
+  for (; calls < 64; calls += 1) {
+    const result = await accepted(source, snapshotPath, command, credential);
+    await evictTransferredWallet(topology, workerName, receipt.source.scope);
+    if (result.state === 'cleaned') {
+      cleaned = result;
+      break;
+    }
+    assert.deepEqual(result, { state: 'cleaning', receipt });
+  }
+  assert.deepEqual(cleaned, { state: 'cleaned', receipt });
+  assert.ok(calls > 0, 'Cleanup must persist progress across bounded commands');
+  assert.deepEqual(await accepted(source, snapshotPath, command, credential), cleaned);
+  await rejectDestinationDelivery(source, delivery, registrationCredential);
+  const exported = await post(source, snapshotPath, {
+    command: 'export', receipt, segment_index: 0,
+  }, credential);
+  assert.notEqual(exported.status, 200, await exported.text());
+  return {
+    calls: calls + 1,
+    resumesAfterEviction: true,
+    exactCompletionReplay: true,
+    changedReceiptRejected: true,
+    sourceRegistrationCannotReopen: true,
+    cleanedSnapshotUnavailable: true,
   };
 }

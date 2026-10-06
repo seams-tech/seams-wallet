@@ -1655,7 +1655,12 @@ activation retry preserves a later move fence. The restored wallet signs a fresh
 Ed25519 transaction through the Router and SigningWorker. The scenario verifies
 the signature, rejects the old ownership generation, and repeats prepare and
 finalize after eviction. The next snapshot includes the exact terminal result.
-Transfer of pre-existing signing history and linked devices, source cleanup,
+Source cleanup deletes at most 16 records per transaction and retains the source
+execution authority and write fence. The authenticated coordinator must supply the
+activated destination receipt. The Worker scenario resumes cleanup after each
+eviction, rejects changed receipts, and verifies fresh destination signing after
+cleanup. The cleaned source rejects registration and snapshot export.
+Transfer of pre-existing signing history and linked devices, return relocation,
 and full relocation remain unfinished.
 
 ### Required scenarios

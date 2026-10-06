@@ -38,6 +38,9 @@ pub enum SigningWorkerEd25519SnapshotCommandV1 {
     Activate {
         receipt: SigningWorkerEd25519SnapshotReceiptV1,
     },
+    Cleanup {
+        activation: SigningWorkerEd25519SnapshotReceiptV1,
+    },
     Capture {
         source: SigningWorkerEd25519FenceCommandV1,
     },
@@ -50,6 +53,7 @@ pub enum SigningWorkerEd25519SnapshotCommandV1 {
 impl SigningWorkerEd25519SnapshotCommandV1 {
     pub(crate) fn source(&self) -> &SigningWorkerEd25519FenceCommandV1 {
         match self {
+            Self::Cleanup { activation } => &activation.source,
             Self::Capture { source } | Self::Prepare { source } => source,
             Self::Export { receipt, .. }
             | Self::Import { receipt, .. }
@@ -74,6 +78,12 @@ pub enum SigningWorkerEd25519SnapshotResponseV1 {
         receipt: SigningWorkerEd25519SnapshotReceiptV1,
     },
     Activated {
+        receipt: SigningWorkerEd25519SnapshotReceiptV1,
+    },
+    Cleaning {
+        receipt: SigningWorkerEd25519SnapshotReceiptV1,
+    },
+    Cleaned {
         receipt: SigningWorkerEd25519SnapshotReceiptV1,
     },
     Capturing,

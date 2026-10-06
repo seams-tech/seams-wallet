@@ -1658,7 +1658,12 @@ activation retry preserves a later source fence. The restored wallet accepts fre
 signing under the new generation and rejects the old generation. Prepare and
 finalize return exact results after eviction. The next snapshot preserves the
 completed signing result. The Worker E2E verifies the resulting Ed25519 signature.
-Source cleanup and full relocation still require composed verification.
+Source cleanup deletes at most 16 records per transaction. It requires the exact
+frozen receipt supplied by the authenticated coordinator after destination
+activation. It retains execution authority, settlement, and the write fence.
+The Worker E2E resumes cleanup across eviction and repeats its completed receipt.
+The cleaned source rejects registration and snapshot export. Fresh destination
+signing succeeds after cleanup. Full relocation still requires composed verification.
 
 The same fence prevents new Ed25519 recovery and linked-device mutations. Native
 refresh deliveries also check the fence. Each mutation commits with its fence check

@@ -5,6 +5,7 @@ use crate::{
     SigningWorkerEd25519SnapshotSegmentV1,
 };
 use sha2::{Digest, Sha256};
+mod cleanup;
 mod import;
 mod records;
 mod restore;
@@ -35,6 +36,12 @@ enum SnapshotState {
         progress: CaptureProgress,
     },
     Frozen {
+        receipt: SigningWorkerEd25519SnapshotReceiptV1,
+    },
+    Cleaning {
+        receipt: SigningWorkerEd25519SnapshotReceiptV1,
+    },
+    Cleaned {
         receipt: SigningWorkerEd25519SnapshotReceiptV1,
     },
 }
@@ -96,6 +103,9 @@ impl RouterAbSigningWorkerWalletDurableObject {
                 .require_settlement(command.source())?;
         }
         let response = match command {
+            SigningWorkerEd25519SnapshotCommandV1::Cleanup { activation } => {
+                self.cleanup_ed25519_source(activation)?
+            }
             SigningWorkerEd25519SnapshotCommandV1::Prepare { source } => {
                 self.prepare_ed25519_import(source)?
             }
@@ -208,6 +218,9 @@ impl RouterAbSigningWorkerWalletDurableObject {
             )
             .map_err(sql_error)?;
         Ok(match state {
+            SnapshotState::Cleaning { .. } | SnapshotState::Cleaned { .. } => {
+                return Err(wallet_error("Ed25519 snapshot is being cleaned"));
+            }
             SnapshotState::Capturing { .. } => SigningWorkerEd25519SnapshotResponseV1::Capturing,
             SnapshotState::Frozen { receipt } => {
                 SigningWorkerEd25519SnapshotResponseV1::Frozen { receipt }
