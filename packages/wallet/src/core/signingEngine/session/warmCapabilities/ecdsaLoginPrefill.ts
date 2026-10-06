@@ -114,6 +114,7 @@ export async function scheduleRouterAbEcdsaDerivationLoginPresignaturePrefill(
         kind: 'wallet_session_opaque',
         walletSessionToken: operationCredential.token,
         home: operationCredential.home,
+        ownershipGeneration: operationCredential.ownershipGeneration,
       },
       authorization: {
         kind: 'reusable_wallet_session',
@@ -128,6 +129,7 @@ export async function scheduleRouterAbEcdsaDerivationLoginPresignaturePrefill(
     if (!schedule.scheduled) {
       if (args.waitForPoolReady && schedule.reason === 'in_flight_for_pool_key') {
         await waitForRouterAbEcdsaDerivationClientPresignaturePoolReady({
+          ownershipGeneration: operationCredential.ownershipGeneration,
           relayerUrl,
           scope: runtime.normalSigning.scope,
           materialActivation: routerAbMpcMaterialActivationRefToWire(runtime.materialActivation),
@@ -144,6 +146,7 @@ export async function scheduleRouterAbEcdsaDerivationLoginPresignaturePrefill(
 
     if (args.waitForPoolReady) {
       await waitForRouterAbEcdsaDerivationClientPresignaturePoolReady({
+        ownershipGeneration: operationCredential.ownershipGeneration,
         relayerUrl,
         scope: runtime.normalSigning.scope,
         materialActivation: routerAbMpcMaterialActivationRefToWire(runtime.materialActivation),

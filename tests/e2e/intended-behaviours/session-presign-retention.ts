@@ -6,12 +6,13 @@ import { walletFrame } from './session-restore-lock';
 
 // Return presignature identifiers only. Signing material stays in the wallet origin.
 class DurablePresignatureProbe {
-  static read(walletId: string): Promise<string[]> {
-    return new Promise(DurablePresignatureProbe.open.bind(null, walletId));
+  static read(walletId: string, format: 'current' | 'initial' = 'current'): Promise<string[]> {
+    return new Promise(DurablePresignatureProbe.open.bind(null, walletId, format));
   }
 
   static open(
     walletId: string,
+    format: 'current' | 'initial',
     resolve: (keys: string[]) => void,
     reject: (error: unknown) => void,
   ): void {
@@ -19,6 +20,7 @@ class DurablePresignatureProbe {
     request.onsuccess = DurablePresignatureProbe.opened.bind(
       null,
       walletId,
+      format,
       request,
       resolve,
       reject,
@@ -32,17 +34,29 @@ class DurablePresignatureProbe {
 
   static opened(
     walletId: string,
+    format: 'current' | 'initial',
     request: IDBOpenDBRequest,
     resolve: (keys: string[]) => void,
     reject: (error: unknown) => void,
   ): void {
     const database = request.result;
-    const transaction = database.transaction('ecdsa_client_presignatures', 'readonly');
+    const transaction = database.transaction(
+      'ecdsa_client_presignatures',
+      format === 'initial' ? 'readwrite' : 'readonly',
+    );
     const keys = transaction
       .objectStore('ecdsa_client_presignatures')
       .index('wallet_id')
       .getAll(walletId);
-    keys.onsuccess = DurablePresignatureProbe.keysRead.bind(null, database, keys, resolve, reject);
+    keys.onsuccess = DurablePresignatureProbe.keysRead.bind(
+      null,
+      database,
+      transaction,
+      format,
+      keys,
+      resolve,
+      reject,
+    );
     keys.onerror = DurablePresignatureProbe.readFailed.bind(null, database, keys, reject);
   }
 
@@ -57,6 +71,8 @@ class DurablePresignatureProbe {
 
   static keysRead(
     database: IDBDatabase,
+    transaction: IDBTransaction,
+    format: 'current' | 'initial',
     request: IDBRequest<unknown[]>,
     resolve: (keys: string[]) => void,
     reject: (error: unknown) => void,
@@ -73,20 +89,45 @@ class DurablePresignatureProbe {
         reject(new Error('Durable presignature identifier is not a string'));
         return;
       }
+      if (format === 'initial') {
+        DurablePresignatureProbe.useInitialFormat(row);
+        transaction.objectStore('ecdsa_client_presignatures').put(row);
+      }
       keys.push(row.presignature_id);
     }
-    resolve(keys.sort());
+    transaction.oncomplete = resolve.bind(null, keys.sort());
+    transaction.onabort = reject.bind(null, new Error('Presignature storage probe aborted'));
+  }
+
+  static useInitialFormat(row: object): void {
+    if (
+      !('pool_identity' in row) ||
+      typeof row.pool_identity !== 'object' ||
+      row.pool_identity === null ||
+      !('ownershipGeneration' in row.pool_identity) ||
+      row.pool_identity.ownershipGeneration !== 1 ||
+      !('pool_identity_key' in row) ||
+      typeof row.pool_identity_key !== 'string' ||
+      !row.pool_identity_key.endsWith('|1')
+    )
+      throw new Error('Expected a current generation-1 presignature');
+    Reflect.deleteProperty(row.pool_identity, 'ownershipGeneration');
+    row.pool_identity_key = row.pool_identity_key.slice(0, -2);
   }
 }
 
-async function readPresignatureIds(page: Page, walletId: string): Promise<string[]> {
+async function readPresignatureIds(
+  page: Page,
+  walletId: string,
+  format: 'current' | 'initial' = 'current',
+): Promise<string[]> {
   const frame = await walletFrame(page);
   return await frame.evaluate(
-    ({ source, walletId }) => {
+    ({ source, walletId, format }) => {
       const probe = eval(`(${source})`) as typeof DurablePresignatureProbe;
-      return probe.read(walletId);
+      return probe.read(walletId, format);
     },
-    { source: DurablePresignatureProbe.toString(), walletId },
+    { source: DurablePresignatureProbe.toString(), walletId, format },
   );
 }
 
@@ -100,7 +141,7 @@ export async function verifyLockPreservesPresignatures(
   await expect
     .poll(readPresignatureCount.bind(null, page, harness.walletId), { timeout: 30_000 })
     .toBeGreaterThan(0);
-  const before = await readPresignatureIds(page, harness.walletId);
+  const before = await readPresignatureIds(page, harness.walletId, 'initial');
   await harness.lockWallet();
   await harness.assertWalletLocked();
   const locked = await readPresignatureIds(page, harness.walletId);
@@ -126,6 +167,7 @@ export async function verifyLockPreservesPresignatures(
         afterUnlock: unlocked.length,
         allOriginalRecordsRetained: true,
         signingConsumedRetainedPresignature: true,
+        initialGenerationStorageUpgrade: true,
         postUnlockTempoSigning: 'passed',
         scope: 'Immediate lock and fresh unlock; the separate 30-day return gate remains open.',
       },

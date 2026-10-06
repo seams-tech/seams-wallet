@@ -45,6 +45,7 @@ export async function scheduleLinkedDevicePresignaturePrefill(args: {
         kind: 'wallet_session_opaque',
         walletSessionToken: args.operationCredential.token,
         home: args.operationCredential.home,
+        ownershipGeneration: args.operationCredential.ownershipGeneration,
       },
       authorization: {
         kind: 'reusable_wallet_session',

@@ -27,6 +27,7 @@ const reusable: BuildReadySecp256k1SigningMaterialInput = {
   credential: {
     kind: 'reusable_wallet_session',
     home: { kind: 'direct' },
+    ownershipGeneration: 1,
     walletSessionToken: 'wallet-session-token',
   },
 };
@@ -37,6 +38,7 @@ const operation: BuildReadySecp256k1SigningMaterialInput = {
   credential: {
     kind: 'operation_step_up',
     home: { kind: 'direct' },
+    ownershipGeneration: 1,
     walletSessionToken: 'opaque-token',
   },
   operationStepUpPreparation: operationPreparation,

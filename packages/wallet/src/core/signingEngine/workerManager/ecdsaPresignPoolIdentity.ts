@@ -1,9 +1,20 @@
+import { base64UrlEncode } from '@shared/utils/base64';
+import {
+  parseRouterAbEcdsaDerivationNormalSigningScopeV1,
+  routerAbEcdsaDerivationNormalSigningScopeCanonicalBytesV1,
+  type RouterAbEcdsaDerivationNormalSigningScopeV1,
+} from '@shared/utils/routerAbEcdsaDerivation';
+import {
+  canonicalRouterAbMpcMaterialActivationRefBytes,
+  type RouterAbMpcMaterialActivationRefWire,
+} from '@shared/utils/routerAbNormalSigningIdentity';
 import { parseRootShareEpoch, type RootShareEpoch } from '@shared/utils/domainIds';
 
 export const FIXED_ECDSA_PRESIGN_PROTOCOL_ID =
   'seams/router-ab-ecdsa-presign/fixed-2of2/v1' as const;
 
 export type EcdsaClientPresignPoolIdentity = {
+  readonly ownershipGeneration: number;
   readonly relayerUrl: string;
   readonly materialActivationB64u: string;
   readonly materialActivationId: string;
@@ -30,6 +41,9 @@ export function parseEcdsaClientPresignPoolIdentity(
     throw new Error('poolIdentity is required');
   }
   const raw = value as Record<string, unknown>;
+  if (!Number.isSafeInteger(raw.ownershipGeneration) || Number(raw.ownershipGeneration) < 1) {
+    throw new Error('poolIdentity.ownershipGeneration must be a positive safe integer');
+  }
   if (raw.pairRole !== 'client') throw new Error('poolIdentity.pairRole must be client');
   if (raw.protocolId !== FIXED_ECDSA_PRESIGN_PROTOCOL_ID) {
     throw new Error('poolIdentity.protocolId is unsupported');
@@ -39,6 +53,7 @@ export function parseEcdsaClientPresignPoolIdentity(
     throw new Error('poolIdentity.relayerUrl must be canonical');
   }
   return {
+    ownershipGeneration: Number(raw.ownershipGeneration),
     relayerUrl,
     materialActivationB64u: requireIdentityString(
       raw.materialActivationB64u,
@@ -70,6 +85,7 @@ export function equalEcdsaClientPresignPoolIdentity(
   right: EcdsaClientPresignPoolIdentity,
 ): boolean {
   return (
+    left.ownershipGeneration === right.ownershipGeneration &&
     left.relayerUrl === right.relayerUrl &&
     left.materialActivationB64u === right.materialActivationB64u &&
     left.materialActivationId === right.materialActivationId &&
@@ -90,5 +106,37 @@ export function ecdsaClientPresignPoolKey(identity: EcdsaClientPresignPoolIdenti
     identity.relayerUrl,
     identity.signingScopeB64u,
     identity.materialActivationB64u,
+    identity.ownershipGeneration,
   ].join('|');
+}
+
+export function makeClientPresignPoolIdentity(args: {
+  ownershipGeneration: number;
+  relayerUrl: string;
+  scope: RouterAbEcdsaDerivationNormalSigningScopeV1;
+  materialActivation: RouterAbMpcMaterialActivationRefWire;
+}): EcdsaClientPresignPoolIdentity {
+  const parsedScope = parseRouterAbEcdsaDerivationNormalSigningScopeV1(args.scope);
+  const materialActivation = args.materialActivation;
+  const relayerUrl = String(args.relayerUrl || '')
+    .trim()
+    .replace(/\/+$/g, '');
+  return {
+    ownershipGeneration: args.ownershipGeneration,
+    relayerUrl,
+    materialActivationB64u: base64UrlEncode(
+      canonicalRouterAbMpcMaterialActivationRefBytes(materialActivation),
+    ),
+    materialActivationId: materialActivation.activation_id,
+    capability: materialActivation.capability,
+    keyBinding: materialActivation.key_binding,
+    walletId: parsedScope.wallet_id,
+    signingScopeB64u: base64UrlEncode(
+      routerAbEcdsaDerivationNormalSigningScopeCanonicalBytesV1(parsedScope),
+    ),
+    pairRole: 'client',
+    keyEpoch: parsedScope.signing_worker.key_epoch,
+    activationEpoch: parsedScope.activation_epoch,
+    protocolId: FIXED_ECDSA_PRESIGN_PROTOCOL_ID,
+  };
 }

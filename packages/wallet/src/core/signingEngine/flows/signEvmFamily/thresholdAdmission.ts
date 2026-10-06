@@ -69,6 +69,7 @@ export async function authorizeEvmFamilyEcdsaOperationStepUp(args: {
   readonly material: HydratedEcdsaSignerMaterial;
   readonly walletSessionToken: string;
   readonly home: WalletSessionHome;
+  readonly ownershipGeneration: number;
 }): Promise<ReadySecp256k1SigningMaterial> {
   const proof = operationStepUpProof({
     authority: args.authority,
@@ -86,6 +87,7 @@ export async function authorizeEvmFamilyEcdsaOperationStepUp(args: {
     kind: 'operation_step_up' as const,
     walletSessionToken: args.walletSessionToken,
     home: args.home,
+    ownershipGeneration: args.ownershipGeneration,
   };
   return buildReadySecp256k1SigningMaterial({
     walletId: args.material.walletId,

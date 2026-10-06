@@ -1989,8 +1989,12 @@ generation for the same stored session and token. Credentials without a generati
 require fresh authentication. This does not delete durable presignatures.
 
 The authorization transfer E2E verifies generation 1 at the source and generation
-2 after destination activation. Client presignature selection does not yet use
-this field, so this check does not establish client relocation reconciliation.
+2 after destination activation. ECDSA signing and refill carry this generation
+into resident and durable pool identities. A pool cannot select material from a
+different generation. The persistence boundary upgrades initial-generation rows
+without changing their authenticated ciphertext. The browser lock E2E exercises
+this upgrade and signs with a retained presignature. Full client relocation
+reconciliation and removal of obsolete pools remain unfinished.
 
 Owner presign authorities record the ownership generation at initialization. Each
 protocol step requires that exact current generation. Returning to the original

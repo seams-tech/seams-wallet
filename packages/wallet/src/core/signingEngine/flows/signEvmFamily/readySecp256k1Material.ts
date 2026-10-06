@@ -60,12 +60,14 @@ export type ReusableEcdsaSigningAuthorization = Extract<
 
 type ReusableEcdsaSigningCredential = {
   readonly kind: 'reusable_wallet_session';
+  readonly ownershipGeneration: number;
   readonly walletSessionToken: string;
   readonly home: WalletSessionHome;
 };
 
 type OperationStepUpEcdsaSigningCredential = {
   readonly kind: 'operation_step_up';
+  readonly ownershipGeneration: number;
   readonly walletSessionToken: string;
   readonly home: WalletSessionHome;
 };
@@ -360,6 +362,7 @@ export function attachExactEcdsaWalletSessionAuthorization(args: {
       kind: 'reusable_wallet_session',
       walletSessionToken: operationCredential.token,
       home: operationCredential.home,
+      ownershipGeneration: operationCredential.ownershipGeneration,
     },
     expiresAtMs: session.expiresAtMs,
     singleUseEmailOtpSession: false,
@@ -448,6 +451,7 @@ export function buildActiveWalletAuthorityReadySecp256k1Material(args: {
       kind: 'reusable_wallet_session',
       walletSessionToken: operationCredential.token,
       home: operationCredential.home,
+      ownershipGeneration: operationCredential.ownershipGeneration,
     },
     expiresAtMs: session.expiresAtMs,
     singleUseEmailOtpSession: false,

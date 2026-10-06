@@ -123,6 +123,10 @@ export type RouterAbEd25519NormalSigningCredential =
 export type RouterAbOwnerNormalSigningCredential =
   RouterAbOpaqueWalletSessionCredential | { kind: 'operation_step_up' };
 
+export type RouterAbEcdsaPresignCredential = RouterAbOwnerNormalSigningCredential & {
+  readonly ownershipGeneration: number;
+};
+
 export type RouterAbPublicDigest32Wire = {
   bytes: readonly number[];
 };

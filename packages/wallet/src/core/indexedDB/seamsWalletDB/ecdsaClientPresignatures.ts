@@ -228,6 +228,12 @@ export async function readAvailableClientPresignatureRows(
   const rows = await store
     .index(SEAMS_WALLET_INDEXES.poolIdentityKey)
     .getAll(ecdsaClientPresignPoolKey(poolIdentity));
+  if (poolIdentity.ownershipGeneration === 1) {
+    rows.push(
+      ...await store.index(SEAMS_WALLET_INDEXES.poolIdentityKey)
+        .getAll(initialGenerationPoolKey(poolIdentity)),
+    );
+  }
   const available: SealedAvailableClientPresignatureRow[] = [];
   for (const raw of rows) {
     try {
@@ -235,6 +241,7 @@ export async function readAvailableClientPresignatureRows(
       if (row.expires_at_ms <= nowMs) {
         await store.delete(row.record_id);
       } else {
+        if (raw.pool_identity_key !== row.pool_identity_key) await store.put(row);
         available.push(row);
       }
     } catch {
@@ -246,10 +253,12 @@ export async function readAvailableClientPresignatureRows(
 }
 
 function presignatureAadProjection(metadata: DurableClientPresignatureMetadata): unknown {
+  // Initial-generation seals predate the explicit generation field.
+  const { ownershipGeneration, ...initialIdentity } = metadata.poolIdentity;
   return {
     domain: CLIENT_PRESIGNATURE_AAD_DOMAIN,
     version: 1,
-    pool_identity: metadata.poolIdentity,
+    pool_identity: ownershipGeneration === 1 ? initialIdentity : metadata.poolIdentity,
     durable_material_ref: metadata.durableMaterialRef,
     presignature_id: metadata.presignatureId,
     group_public_key33_b64u: metadata.groupPublicKey33B64u,
@@ -258,6 +267,15 @@ function presignatureAadProjection(metadata: DurableClientPresignatureMetadata):
     expires_at_ms: metadata.expiresAtMs,
     sealing_key_id: metadata.sealingKeyId,
   };
+}
+
+function initialGenerationPoolKey(identity: EcdsaClientPresignPoolIdentity): string {
+  return [
+    identity.protocolId,
+    identity.relayerUrl,
+    identity.signingScopeB64u,
+    identity.materialActivationB64u,
+  ].join('|');
 }
 
 export function parseSealedAvailableClientPresignatureRow(
@@ -286,7 +304,9 @@ export function parseSealedAvailableClientPresignatureRow(
     record.pool_identity,
     'ECDSA durable presignature pool identity',
   );
+  const initialGenerationRecord = !Object.hasOwn(poolIdentityRecord, 'ownershipGeneration');
   requireExactKeys(poolIdentityRecord, 'ECDSA durable presignature pool identity', [
+    ...(initialGenerationRecord ? [] : ['ownershipGeneration']),
     'activationEpoch',
     'capability',
     'keyBinding',
@@ -299,10 +319,17 @@ export function parseSealedAvailableClientPresignatureRow(
     'signingScopeB64u',
     'walletId',
   ]);
-  const poolIdentity = parseEcdsaClientPresignPoolIdentity(poolIdentityRecord);
+  const poolIdentity = parseEcdsaClientPresignPoolIdentity(
+    initialGenerationRecord
+      ? { ...poolIdentityRecord, ownershipGeneration: 1 }
+      : poolIdentityRecord,
+  );
   const recordId = parseDurableClientPresignatureRecordId(record.record_id);
   const poolIdentityKeyValue = String(record.pool_identity_key ?? '');
-  if (poolIdentityKeyValue !== ecdsaClientPresignPoolKey(poolIdentity)) {
+  if (
+    poolIdentityKeyValue !== ecdsaClientPresignPoolKey(poolIdentity) &&
+    !(initialGenerationRecord && poolIdentityKeyValue === initialGenerationPoolKey(poolIdentity))
+  ) {
     throw new Error('ECDSA durable presignature pool identity index is inconsistent');
   }
   const walletId = String(record.wallet_id ?? '').trim();
@@ -349,7 +376,7 @@ export function parseSealedAvailableClientPresignatureRow(
     kind: 'sealed_available_client_presignature_v1',
     record_id: recordId,
     pool_identity: poolIdentity,
-    pool_identity_key: poolIdentityKeyValue,
+    pool_identity_key: ecdsaClientPresignPoolKey(poolIdentity),
     wallet_id: walletId,
     material_activation_id: materialActivationId,
     durable_material_ref: durableMaterialRef,

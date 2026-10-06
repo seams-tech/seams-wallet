@@ -417,6 +417,7 @@ const ecdsaPresignInitRequest: EcdsaPresignClientSessionInitRequest = {
   ceremonyExpiresAtMs: 900,
   materialExpiresAtMs: 1_000,
   poolIdentity: {
+    ownershipGeneration: 1,
     relayerUrl: 'https://relay.example',
     materialActivationB64u: 'activation-ref',
     materialActivationId: 'activation-1',

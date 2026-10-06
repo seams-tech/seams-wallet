@@ -18,7 +18,7 @@ import type {
 } from '../readySecp256k1Material';
 import { routerAbMpcMaterialActivationRefToWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import type { OperationDigestSet } from '@shared/authorization/operationFingerprint';
-import type { RouterAbOwnerNormalSigningCredential } from '@/core/rpcClients/relayer/routerAbNormalSigning';
+import type { RouterAbEcdsaPresignCredential } from '@/core/rpcClients/relayer/routerAbNormalSigning';
 import {
   emitEcdsaSigningTiming,
   emitSigningSessionFlowTrace,
@@ -42,19 +42,21 @@ function requireEvmSigningOperationId(operation: EvmFamilyThresholdEcdsaOperatio
 
 function routerAbTransportCredential(
   credential: ReadySecp256k1SigningMaterial['credential'],
-): RouterAbOwnerNormalSigningCredential {
+): RouterAbEcdsaPresignCredential {
   switch (credential.kind) {
     case 'reusable_wallet_session':
       return {
         kind: 'wallet_session_opaque',
         walletSessionToken: credential.walletSessionToken,
         home: credential.home,
+        ownershipGeneration: credential.ownershipGeneration,
       };
     case 'operation_step_up':
       return {
         kind: 'wallet_session_opaque',
         walletSessionToken: credential.walletSessionToken,
         home: credential.home,
+        ownershipGeneration: credential.ownershipGeneration,
       };
   }
   credential satisfies never;
@@ -65,7 +67,7 @@ function scheduleRouterAbEcdsaDerivationSigningRefill(args: {
   operationId: string;
   loadedMaterial: LoadedRouterAbEcdsaDerivationSigningMaterialSource;
   workerCtx: WorkerOperationContext;
-  credential: RouterAbOwnerNormalSigningCredential;
+  credential: RouterAbEcdsaPresignCredential;
   expiresAtMs: number;
   authorization: ReusableEcdsaSigningAuthorization;
 }): void {
