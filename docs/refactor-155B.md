@@ -1687,3 +1687,31 @@ acceptance now probes the route directly in source and destination SigningWorker
 objects and requires HTTP 404 in release. That behavioral check is pending the
 new optimized builds. The preceding build loop was deliberately terminated after
 this issue was identified; it is not release acceptance evidence.
+
+### Mixed-wallet coordinator acceptance — 2026-10-07
+
+All five optimized Worker builds completed. The composed relocation check passed
+with NEAR and ECDSA registered under the exact same wallet scope. The real
+directory coordinator drained a pending NEAR signature, moved custody, and
+completed source cleanup. Both curves then signed at the destination. ECDSA
+signatures were independently verified before and after the move. A completed
+source refill could not publish after cleanup because its authority was removed.
+The release activation-fault endpoint returned HTTP 404 in both namespaces.
+
+Reproduce from `seams-monorepo` with `ROUTER_AB_WORKER_BUILD_PROFILE=release`,
+`SEAMS_WALLET_SERVER_CANDIDATE` set to the local Wallet server package, and
+`node tests/e2e/relocation-custody.e2e.mjs --with-ecdsa`. Evidence is written to
+`.artifacts/r155b/composed-mixed-relocation/`, including `ecdsa-signing.json`,
+`destination-signing.json`, `coordinator-bindings.json`, and `custody-topology.json`.
+
+The initial fixture used different project-environment scopes for the two curves.
+Correcting that fixture and the expected post-cleanup rejection required no
+production changes. The standalone ECDSA pool scenario also passed with release
+builds: `ROUTER_AB_WORKER_BUILD_PROFILE=release node scripts/test-private-d1.mjs
+--ecdsa-wallet-do-pool` from `crates/router-ab-cloudflare`. Its embedded reproduction
+hint still names the development profile; this run explicitly used release.
+The bloat gate passed.
+
+This is local composition evidence. It excludes browser ECDSA authorization,
+an in-flight ECDSA finalize during freeze, and hosted latency. Dedicated shared
+OTP-counter provisioning and hosted regional acceptance remain pending.

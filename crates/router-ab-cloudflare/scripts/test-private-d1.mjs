@@ -264,7 +264,7 @@ export function loadFixture() {
   return JSON.parse(output);
 }
 
-function configureRouterJwt(fixture) {
+export function configureRouterJwt(fixture) {
   const { privateKey, publicKey } = generateKeyPairSync('ed25519');
   const keyId = 'private-d1-router-jwt-v1';
   const publicJwk = publicKey.export({ format: 'jwk' });
@@ -1322,8 +1322,14 @@ export async function testTenantRootCreationOperatingPath(topology, fixture, dat
 /// ceremony that must be freed, its request, binding and bearer token. Each
 /// `label` names a distinct lifecycle, session and replay nonce; `identity`
 /// names the tenant root's organisation, project and environment.
-function buildEcdsaRegistration(fixture, jwtSigner, label = 'ecdsa-live', identity = null) {
-  const accountId = `${label}-account`;
+function buildEcdsaRegistration(
+  fixture,
+  jwtSigner,
+  label = 'ecdsa-live',
+  identity = null,
+  accountId = `${label}-account`,
+  projectEnvironmentId = 'project-environment-miniflare',
+) {
   const clientId = `${label}-client`;
   const sessionId = `${label}-session`;
   const lifecycleId = `${label}-lifecycle`;
@@ -1409,7 +1415,7 @@ function buildEcdsaRegistration(fixture, jwtSigner, label = 'ecdsa-live', identi
       org_id: identity?.orgId ?? 'org-miniflare',
       project_id: identity?.projectId ?? 'project-r120',
       environment: identity?.envId ?? 'test',
-      project_environment_id: 'project-environment-miniflare',
+      project_environment_id: projectEnvironmentId,
       account_id: accountId,
       routerAbRequestPolicy: {
         policyVersion: 'router-ab-ecdsa-registration-v1',
@@ -1436,7 +1442,15 @@ function buildEcdsaRegistration(fixture, jwtSigner, label = 'ecdsa-live', identi
   }
 }
 
-async function testEcdsaRegistrationAndActivation(topology, fixture, tenantRoot, jwtSigner, label = 'ecdsa-live') {
+export async function testEcdsaRegistrationAndActivation(
+  topology,
+  fixture,
+  tenantRoot,
+  jwtSigner,
+  label = 'ecdsa-live',
+  walletId = `${label}-account`,
+  projectEnvironmentId = 'project-environment-miniflare',
+) {
   ensureEcdsaClientWasm();
   const router = await topology.getWorker('router');
   const {
@@ -1450,7 +1464,7 @@ async function testEcdsaRegistrationAndActivation(topology, fixture, tenantRoot,
     registrationRequest,
     binding,
     token,
-  } = buildEcdsaRegistration(fixture, jwtSigner, label);
+  } = buildEcdsaRegistration(fixture, jwtSigner, label, null, walletId, projectEnvironmentId);
   try {
     const registrationBytes = await expectOk(
       await postWorkerJson(
@@ -1608,6 +1622,7 @@ async function testEcdsaRegistrationAndActivation(topology, fixture, tenantRoot,
       'exact live activation retry must preserve the complete public identity',
     );
     return {
+      walletScope: activationBody.pending.wallet_scope,
       executionHome: { workerName: 'fixture-signing-worker', ownershipGeneration: 1 },
       activation,
       activationBody,
@@ -1668,12 +1683,7 @@ async function runEcdsaPresignSession(topology, ecdsa, mode = 'pool', checkRejec
   const scope = buildEcdsaNormalSigningScope(ecdsa);
   const authority = {
     kind: 'owner_wallet_session',
-    wallet_scope: {
-      org_id: 'org-miniflare',
-      project_id: 'project-r120',
-      project_environment_id: 'project-environment-miniflare',
-      wallet_id: ecdsa.accountId,
-    },
+    wallet_scope: ecdsa.walletScope,
   };
   const groupPublicKey = Buffer.from(
     scope.public_identity.threshold_public_key33_b64u,
@@ -1864,14 +1874,15 @@ function signingSignatureDigest(signing) {
     .digest('hex');
 }
 
-async function testEcdsaNormalSigning(
+export async function testEcdsaNormalSigning(
   topology,
   ecdsa,
   mode = 'pool',
   checkRejections = true,
   interruptAfterClaim = false,
+  routerName = 'router',
 ) {
-  const router = await topology.getWorker('router');
+  const router = await topology.getWorker(routerName);
   const presign = await runEcdsaPresignSession(topology, ecdsa, mode, checkRejections);
   try {
     const operationId = `ecdsa-live-normal-sign-operation-${randomBytes(16).toString('hex')}`;
@@ -1898,10 +1909,10 @@ async function testEcdsaNormalSigning(
       wallet_session_id: authorization.wallet_session_id,
       quota_id: 'ecdsa-live-normal-quota',
       threshold_session_id: 'ecdsa-live-normal-threshold-session',
-      org_id: 'org-miniflare',
-      project_id: 'project-r120',
+      org_id: ecdsa.walletScope.org_id,
+      project_id: ecdsa.walletScope.project_id,
       environment: 'test',
-      project_environment_id: 'project-environment-miniflare',
+      project_environment_id: ecdsa.walletScope.project_environment_id,
       signing_worker_id: ecdsa.selectedServerId,
       expires_at_ms: expiresAtMs,
     };
@@ -2012,9 +2023,9 @@ async function testEcdsaNormalSigning(
     const prepareBytes = await expectOk(prepareResponse, 'live ECDSA normal-signing prepare');
     if (ecdsa.executionHome.ownershipGeneration > 1) {
       await evictTransferredWallet(topology, ecdsa.executionHome.workerName, {
-        org_id: 'org-miniflare',
-        project_id: 'project-r120',
-        project_environment_id: 'project-environment-miniflare',
+        org_id: ecdsa.walletScope.org_id,
+        project_id: ecdsa.walletScope.project_id,
+        project_environment_id: ecdsa.walletScope.project_environment_id,
         wallet_id: ecdsa.accountId,
       });
       const replayResponse = await postWorkerJson(router, ecdsaSigningPreparePath, prepareRequest);
@@ -2219,7 +2230,7 @@ function isDelayedPresignAuthority(presignSessionId, record) {
   return record.kind === 'presign_authority' && record.row.presign_session_id === presignSessionId;
 }
 
-async function completeOwnerPresignBeforePublication(topology, ecdsa, fixture) {
+export async function completeOwnerPresignBeforePublication(topology, ecdsa, fixture) {
   const pending = await runEcdsaPresignSession(topology, ecdsa, 'prepare', false);
   try {
     const namespace = await topology.getDurableObjectNamespace(
@@ -2267,7 +2278,7 @@ async function publishOwnerPresignature(topology, publication) {
   return postWorkerJson(wallet, '/router-ab/internal/signing-worker/wallet', publication);
 }
 
-async function rejectDelayedPresignPublication(topology, publication, expectedError) {
+export async function rejectDelayedPresignPublication(topology, publication, expectedError) {
   const response = await publishOwnerPresignature(topology, publication);
   assert.equal(response.ok, false, 'Old completed presign work cannot enter the wallet pool');
   assert.match(await response.text(), expectedError);
