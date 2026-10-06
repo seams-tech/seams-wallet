@@ -4119,15 +4119,17 @@ async function deriverBPairStatus(topology, rootIdentity, pairBinding) {
   return JSON.parse(bytes.toString('utf8'));
 }
 
-async function signRelocatedEd25519(topology, activation, fixture) {
+async function signRelocatedEd25519(topology, activation, fixture, destinationName, ownershipGeneration) {
   const priorTarget = signingWorkerDeliveryTarget;
-  signingWorkerDeliveryTarget = 'fixture-signing-worker-after-refresh';
+  signingWorkerDeliveryTarget = destinationName;
   try {
     return await verifyEd25519DestinationSigning({
       topology,
       activation: activation.result.result.result,
       identity: fixture.tenant_root_creation.identity,
       clientRecipientSeed: fixture.activation.client_recipient_seed,
+      destinationName,
+      ownershipGeneration,
       credential: gatewayToRouterAuthSecret,
       repoRoot,
       scope: JSON.parse(activation.delivery).scope,

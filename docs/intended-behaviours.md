@@ -1663,7 +1663,12 @@ frozen receipt supplied by the authenticated coordinator after destination
 activation. It retains execution authority, settlement, and the write fence.
 The Worker E2E resumes cleanup across eviction and repeats its completed receipt.
 The cleaned source rejects registration and snapshot export. Fresh destination
-signing succeeds after cleanup. Full relocation still requires composed verification.
+signing succeeds after cleanup. A cleaned location can prepare for a higher
+source generation with a different move ID. Preparation archives its old cleanup
+receipt and replaces authority atomically. Delayed cleanup returns that receipt
+without deleting new data. The Worker E2E restores registration and terminal history
+to the original location and verifies fresh generation-3 signing after delayed
+cleanup retries and eviction. Full relocation still requires composed verification.
 
 The same fence prevents new Ed25519 recovery and linked-device mutations. Native
 refresh deliveries also check the fence. Each mutation commits with its fence check

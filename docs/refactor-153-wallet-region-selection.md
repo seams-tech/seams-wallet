@@ -1660,8 +1660,12 @@ execution authority and write fence. The authenticated coordinator must supply t
 activated destination receipt. The Worker scenario resumes cleanup after each
 eviction, rejects changed receipts, and verifies fresh destination signing after
 cleanup. The cleaned source rejects registration and snapshot export.
-Transfer of pre-existing signing history and linked devices, return relocation,
-and full relocation remain unfinished.
+A cleaned Ed25519 location can prepare for a newer move. Preparation archives
+its completed cleanup receipt before replacing local execution authority. Delayed
+cleanup then returns the old receipt without changing returned wallet data.
+The Worker scenario restores registration and terminal signing history into the
+original location, repeats the old cleanup after eviction, and verifies a fresh
+generation-3 signature. Linked-device transfer and full relocation remain unfinished.
 
 ### Required scenarios
 

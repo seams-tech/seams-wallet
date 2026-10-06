@@ -202,12 +202,16 @@ async function verifyDestinationRestoration({
   await evictTransferredWallet(topology, destinationName, receipt.source.scope);
   assert.deepEqual(await accepted(destination, snapshotPath, activate, credential), activated);
   const cleanup = await verifySourceCleanup(topology, receipt, credential, delivery, registrationCredential);
-  const signing = await signDestination(topology, activation, fixture);
+  const signing = await signDestination(topology, activation, fixture, destinationName, 2);
   const oldGeneration = await post(destination, settlePath, receipt.source, credential);
   assert.notEqual(oldGeneration.status, 200, await oldGeneration.text());
   const nextSource = structuredClone(receipt.source);
   nextSource.request.move_id = `wmove_${'u'.repeat(43)}`;
   nextSource.request.source_generation += 1;
+  const returnDestination = await topology.getWorker(workerName);
+  assert.deepEqual(await accepted(returnDestination, snapshotPath, {
+    command: 'prepare', source: nextSource,
+  }, credential), { state: 'prepared', source: nextSource });
   assert.deepEqual(await accepted(destination, settlePath, nextSource, credential), {
     state: 'settled', command: nextSource,
   });
@@ -230,10 +234,12 @@ async function verifyDestinationRestoration({
   }
   assert.ok(recaptured);
   const restoredRecords = new Map();
+  const returnSegments = [];
   for (let segmentIndex = 0; segmentIndex < recaptured.segment_count; segmentIndex += 1) {
     const result = await accepted(destination, snapshotPath, {
       command: 'export', receipt: recaptured, segment_index: segmentIndex,
     }, credential);
+    returnSegments.push(result.segment);
     const recordIndex = result.segment.record_index;
     if (!restoredRecords.has(recordIndex)) restoredRecords.set(recordIndex, []);
     restoredRecords.get(recordIndex).push(Buffer.from(result.segment.data_b64u, 'base64url'));
@@ -246,7 +252,13 @@ async function verifyDestinationRestoration({
   assert.deepEqual(JSON.parse(round1.row.terminal_json), {
     kind: 'success', response: signing.response,
   });
+  const returned = await verifyReturnRestoration({
+    topology, destination: returnDestination, receipt: recaptured,
+    segments: returnSegments, oldReceipt: receipt, credential,
+    activation, fixture, signDestination,
+  });
   return {
+    returned,
     cleanup,
     signatureSha256Hex: signing.signatureSha256Hex,
     freshSignatureVerified: true,
@@ -302,5 +314,47 @@ async function verifySourceCleanup(topology, receipt, credential, delivery, regi
     changedReceiptRejected: true,
     sourceRegistrationCannotReopen: true,
     cleanedSnapshotUnavailable: true,
+  };
+}
+
+async function verifyReturnRestoration({
+  topology, destination, receipt, segments, oldReceipt, credential,
+  activation, fixture, signDestination,
+}) {
+  for (const segment of segments) {
+    const command = { command: 'import', receipt, segment };
+    const result = await accepted(destination, snapshotPath, command, credential);
+    await evictTransferredWallet(topology, workerName, receipt.source.scope);
+    assert.deepEqual(await accepted(destination, snapshotPath, command, credential), result);
+  }
+  let verified;
+  for (let attempt = 0; attempt < 64; attempt += 1) {
+    const result = await accepted(destination, snapshotPath, { command: 'verify', receipt }, credential);
+    await evictTransferredWallet(topology, workerName, receipt.source.scope);
+    if (result.state === 'verified') {
+      verified = result;
+      break;
+    }
+    assert.equal(result.state, 'restoring');
+  }
+  assert.deepEqual(verified, { state: 'verified', receipt });
+  assert.deepEqual(await accepted(destination, snapshotPath, { command: 'activate', receipt }, credential), {
+    state: 'activated', receipt,
+  });
+  const oldCleanup = { command: 'cleanup', activation: oldReceipt };
+  assert.deepEqual(await accepted(destination, snapshotPath, oldCleanup, credential), {
+    state: 'cleaned', receipt: oldReceipt,
+  });
+  await evictTransferredWallet(topology, workerName, receipt.source.scope);
+  assert.deepEqual(await accepted(destination, snapshotPath, oldCleanup, credential), {
+    state: 'cleaned', receipt: oldReceipt,
+  });
+  const signing = await signDestination(topology, activation, fixture, workerName, 3);
+  return {
+    ownershipGeneration: 3,
+    registrationAndTerminalHistoryRestored: true,
+    oldCleanupReplayPreservesReturnedWallet: true,
+    signatureSha256Hex: signing.signatureSha256Hex,
+    freshSignatureVerified: true,
   };
 }
