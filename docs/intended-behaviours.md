@@ -1571,6 +1571,14 @@ generation 1. A checked empty source can record closed authority for its move,
 which grants no signing permission. Execution authority stays local and does not
 form part of the transferred historical inventory.
 
+Linked presign inventory is available while the ECDSA wallet drains. Each entry
+records its creation generation. The wallet cannot seal its snapshot until every
+linked session from the source generation has a durable freeze acknowledgement.
+The session stores its immutable snapshot before acknowledging the wallet. Lost
+replies replay that acknowledgement. Changed receipts fail, and exact receipts
+remain replayable after cleanup. Imported inventory remains historical and does
+not hold a later generation open.
+
 
 
 Each new operation claim reads the active local generation in its insert statement.

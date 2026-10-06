@@ -12,8 +12,7 @@ use super::ecdsa_presign_live_session::{presign_do_error_response, transaction_g
 
 use crate::{
     CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1,
-    CloudflareSigningWorkerRuntimeV1, CloudflareSigningWorkerWalletScopeV1,
-    SigningWorkerRelocationRequestV1,
+    CloudflareSigningWorkerRuntimeV1,
 };
 
 pub(crate) const FENCE_PATH: &str = "/router-ab/signing-worker/linked-presign-session/fence";
@@ -73,7 +72,7 @@ pub(crate) async fn handle_relocation(
             worker::Response::from_json(&handle_fence(request, storage, env).await?)
         }
         INTERNAL_FREEZE_PATH => {
-            worker::Response::from_json(&handle_freeze(request, storage).await?)
+            worker::Response::from_json(&handle_freeze(request, storage, env).await?)
         }
         INTERNAL_EXPORT_PATH => {
             worker::Response::from_json(&handle_export(request, storage).await?)
@@ -164,23 +163,10 @@ fn snapshot_digest(bytes: &[u8]) -> String {
     format!("{:x}", digest.finalize())
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct LinkedPresignRelocationRequest {
-    wallet_scope: CloudflareSigningWorkerWalletScopeV1,
-    presign_session_id: String,
-    server_presignature_id: String,
-    request: SigningWorkerRelocationRequestV1,
-}
-
-impl LinkedPresignRelocationRequest {
-    fn validate(&self) -> RouterAbProtocolResult<()> {
-        self.wallet_scope.validate()?;
-        self.request.validate()?;
-        crate::require_non_empty("Linked presign session", &self.presign_session_id)?;
-        crate::require_non_empty("Linked server presignature", &self.server_presignature_id)
-    }
-}
+use crate::{
+    SigningWorkerLinkedPresignRelocationRequestV1 as LinkedPresignRelocationRequest,
+    SigningWorkerLinkedPresignFreezeReceiptV1 as LinkedPresignFreezeReceipt,
+};
 
 /// Proves linked-session KV writes are closed. Material invalidation and sealing are separate.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -196,14 +182,6 @@ enum Initialization {
     Initialized,
     Registered { request_digest_hex: String },
     DestinationPrepared,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct LinkedPresignFreezeReceipt {
-    command: LinkedPresignRelocationRequest,
-    records_digest_hex: String,
-    record_count: u64,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -239,6 +217,7 @@ enum Snapshot {
 pub(crate) async fn handle_freeze(
     mut request: worker::Request,
     storage: &worker::Storage,
+    env: &worker::Env,
 ) -> RouterAbProtocolResult<LinkedPresignFreezeReceipt> {
     if request.method() != worker::Method::Post {
         return Err(RouterAbProtocolError::new(
@@ -261,8 +240,36 @@ pub(crate) async fn handle_freeze(
     let receipt = outcome
         .borrow_mut()
         .take()
-        .ok_or_else(|| storage_error("Missing freeze outcome"))?;
-    receipt
+        .ok_or_else(|| storage_error("Missing freeze outcome"))??;
+    record_wallet_freeze(env, &receipt).await?;
+    Ok(receipt)
+}
+
+#[cfg(feature = "wallet-do-signing-worker-harness")]
+async fn record_wallet_freeze(
+    env: &worker::Env,
+    receipt: &LinkedPresignFreezeReceipt,
+) -> RouterAbProtocolResult<()> {
+    let response = super::call_signing_worker_wallet_do_v1(
+        env,
+        super::SigningWorkerWalletDoRequestV1::RecordLinkedPresignFreeze(receipt.clone()),
+    )
+    .await?;
+    crate::parse_cloudflare_signing_worker_wallet_do_json_response_v1(
+        response,
+        "Linked presign freeze acknowledgement",
+    )
+    .await
+}
+
+#[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+async fn record_wallet_freeze(
+    _env: &worker::Env,
+    _receipt: &LinkedPresignFreezeReceipt,
+) -> RouterAbProtocolResult<()> {
+    Err(storage_error(
+        "Linked presign freeze requires wallet move authority",
+    ))
 }
 
 async fn freeze_transaction(

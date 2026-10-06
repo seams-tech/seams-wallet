@@ -848,7 +848,7 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
                 "fixed_home_history_replays_and_transfers": true,
                 "pool_freeze_transport_authenticated_and_replayed": true,
                 "linked_inventory_empty_page_replays_after_restart": true,
-                "linked_inventory_rejects_unrelated_credentials_and_changed_receipt": true,
+                "linked_inventory_rejects_unrelated_credentials_and_changed_move": true,
                 "ecdsa_empty_destination_verified_after_restart": true,
                 "ecdsa_import_acknowledgement_replayed_after_restart": true,
                 "ecdsa_transfer_rejects_unrelated_credentials": true,
@@ -1302,7 +1302,8 @@ fn verify_pool_freeze_transport(
     assert_eq!(receipt.scope, command.scope);
     assert_eq!(receipt.record_count, 0);
     let inventory_request = router_ab_cloudflare::SigningWorkerLinkedPresignInventoryRequestV1 {
-        receipt: receipt.clone(),
+        scope: receipt.scope.clone(),
+        request: receipt.request.clone(),
         cursor: router_ab_cloudflare::SigningWorkerLinkedPresignCursorV1::Start,
         limit: 1,
     };
@@ -1327,7 +1328,7 @@ fn verify_pool_freeze_transport(
         json!({ "state": "complete", "sessions": [] })
     );
     let mut changed_inventory = inventory_request.clone();
-    changed_inventory.receipt.record_count += 1;
+    changed_inventory.request.invalidated_at_ms += 1;
     let (changed_inventory_status, _) = post_json_to_path_with_headers(
         &stack.signing_worker_url,
         router_ab_cloudflare::SIGNING_WORKER_LINKED_PRESIGN_INVENTORY_PATH_V1,

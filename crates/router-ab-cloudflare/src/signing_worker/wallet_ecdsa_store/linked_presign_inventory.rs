@@ -13,7 +13,8 @@ pub enum SigningWorkerLinkedPresignCursorV1 {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SigningWorkerLinkedPresignInventoryRequestV1 {
-    pub receipt: SigningWorkerPoolFreezeReceiptV1,
+    pub scope: CloudflareSigningWorkerWalletScopeV1,
+    pub request: SigningWorkerRelocationRequestV1,
     pub cursor: SigningWorkerLinkedPresignCursorV1,
     pub limit: u32,
 }
@@ -42,11 +43,13 @@ pub(super) const SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_linked_presig
     presign_session_id TEXT PRIMARY KEY,
     server_presignature_id TEXT NOT NULL UNIQUE,
     owner_json TEXT NOT NULL,
-    request_digest_hex TEXT NOT NULL)";
+    request_digest_hex TEXT NOT NULL,
+    ownership_generation INTEGER NOT NULL CHECK (ownership_generation > 0))";
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct LinkedPresignSessionRow {
+    ownership_generation: u64,
     presign_session_id: String,
     server_presignature_id: String,
     owner_json: String,
@@ -55,6 +58,7 @@ pub(super) struct LinkedPresignSessionRow {
 
 impl LinkedPresignSessionRow {
     fn validate(&self, scope: &CloudflareSigningWorkerWalletScopeV1) -> RouterAbProtocolResult<()> {
+        crate::router_wallet::validate_wallet_ownership_generation(self.ownership_generation)?;
         crate::require_non_empty("Linked presign session", &self.presign_session_id)?;
         crate::require_non_empty("Linked server presignature", &self.server_presignature_id)?;
         if self.owner_json != owner_json(scope, "linked presign inventory")?
@@ -73,7 +77,7 @@ impl LinkedPresignSessionRow {
 }
 
 impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
-    pub fn list_frozen_linked_presign_sessions(
+    pub fn list_relocating_linked_presign_sessions(
         &self,
         request: SigningWorkerLinkedPresignInventoryRequestV1,
     ) -> RouterAbProtocolResult<SigningWorkerLinkedPresignInventoryPageV1> {
@@ -82,7 +86,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
                 "Linked presign inventory limit must be 1 through 128",
             ));
         }
-        self.require_frozen_receipt(&request.receipt)?;
+        self.require_linked_presign_move(&request.scope, &request.request)?;
         let after = match request.cursor {
             SigningWorkerLinkedPresignCursorV1::Start => String::new(),
             SigningWorkerLinkedPresignCursorV1::After { presign_session_id } => {
@@ -91,14 +95,15 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
             }
         };
         let rows = self.sql.query::<LinkedPresignSessionRow>(
-            "SELECT presign_session_id, server_presignature_id, owner_json, request_digest_hex
-             FROM wallet_linked_presign_sessions WHERE owner_json = ? AND presign_session_id > ?
+            "SELECT presign_session_id, server_presignature_id, owner_json, request_digest_hex, ownership_generation
+             FROM wallet_linked_presign_sessions WHERE owner_json = ? AND ownership_generation = ? AND presign_session_id > ?
              ORDER BY presign_session_id LIMIT ?",
             vec![
                 text(owner_json(
-                    &request.receipt.scope,
+                    &request.scope,
                     "linked presign inventory",
                 )?),
+                SigningWorkerWalletSqlValueV1::Integer(request.request.source_generation as i64),
                 text(after),
                 SigningWorkerWalletSqlValueV1::Integer(i64::from(request.limit) + 1),
             ],
@@ -106,7 +111,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         let more = rows.len() > request.limit as usize;
         let mut sessions = Vec::new();
         for row in rows.into_iter().take(request.limit as usize) {
-            row.validate(&request.receipt.scope)?;
+            row.validate(&request.scope)?;
             sessions.push(SigningWorkerLinkedPresignIdentityV1 {
                 presign_session_id: row.presign_session_id,
                 server_presignature_id: row.server_presignature_id,
@@ -131,18 +136,9 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         server_presignature_id: &str,
         request: &SigningWorkerRelocationRequestV1,
     ) -> RouterAbProtocolResult<String> {
-        request.validate()?;
-        match self.pool_fence(scope)? {
-            Some(relocation::Fence::Draining { request: prior }) if prior == *request => {}
-            Some(relocation::Fence::Frozen { receipt }) if receipt.request == *request => {}
-            _ => {
-                return Err(wallet_error(
-                    "Linked presign fence requires its source wallet move",
-                ))
-            }
-        }
+        self.require_linked_presign_move(scope, request)?;
         let rows = self.sql.query::<LinkedPresignSessionRow>(
-            "SELECT presign_session_id, server_presignature_id, owner_json, request_digest_hex
+            "SELECT presign_session_id, server_presignature_id, owner_json, request_digest_hex, ownership_generation
              FROM wallet_linked_presign_sessions WHERE presign_session_id = ? AND server_presignature_id = ?",
             vec![text(presign_session_id.to_owned()), text(server_presignature_id.to_owned())],
         )?;
@@ -152,6 +148,11 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
             ));
         };
         row.validate(scope)?;
+        if row.ownership_generation != request.source_generation {
+            return Err(wallet_error(
+                "Linked presign source ownership generation differs",
+            ));
+        }
         Ok(row.request_digest_hex.clone())
     }
 
@@ -165,14 +166,19 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         self.require_mutation_admission(&request.wallet_scope)?;
         let encoded =
             serde_json::to_vec(request).map_err(|error| wallet_error(error.to_string()))?;
+        let ownership_generation = self
+            .execution_authority(&request.wallet_scope)?
+            .ok_or_else(|| wallet_error("Linked presign execution authority is missing"))?
+            .generation()?;
         let row = LinkedPresignSessionRow {
+            ownership_generation,
             presign_session_id: request.presign_session_id.clone(),
             server_presignature_id: request.request.client_presignature_id.clone(),
             owner_json: owner_json(&request.wallet_scope, "linked presign inventory")?,
             request_digest_hex: hex_slice(&Sha256::digest(encoded)),
         };
         let prior = self.sql.query::<LinkedPresignSessionRow>(
-            "SELECT presign_session_id, server_presignature_id, owner_json, request_digest_hex
+            "SELECT presign_session_id, server_presignature_id, owner_json, request_digest_hex, ownership_generation
              FROM wallet_linked_presign_sessions WHERE presign_session_id = ? OR server_presignature_id = ?",
             vec![text(row.presign_session_id.clone()), text(row.server_presignature_id.clone())],
         )?;
@@ -188,7 +194,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         scope: &CloudflareSigningWorkerWalletScopeV1,
     ) -> RouterAbProtocolResult<Vec<LinkedPresignSessionRow>> {
         let rows = self.sql.query::<LinkedPresignSessionRow>(
-            "SELECT presign_session_id, server_presignature_id, owner_json, request_digest_hex
+            "SELECT presign_session_id, server_presignature_id, owner_json, request_digest_hex, ownership_generation
              FROM wallet_linked_presign_sessions WHERE owner_json = ? ORDER BY presign_session_id",
             vec![text(owner_json(scope, "linked presign inventory")?)],
         )?;
@@ -216,8 +222,8 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
     ) -> RouterAbProtocolResult<()> {
         self.sql.query::<serde::de::IgnoredAny>(
             "INSERT INTO wallet_linked_presign_sessions
-             (presign_session_id, server_presignature_id, owner_json, request_digest_hex) VALUES (?, ?, ?, ?)",
-            vec![text(row.presign_session_id), text(row.server_presignature_id), text(row.owner_json), text(row.request_digest_hex)],
+             (presign_session_id, server_presignature_id, owner_json, request_digest_hex, ownership_generation) VALUES (?, ?, ?, ?, ?)",
+            vec![text(row.presign_session_id), text(row.server_presignature_id), text(row.owner_json), text(row.request_digest_hex), SigningWorkerWalletSqlValueV1::Integer(row.ownership_generation as i64)],
         )?;
         Ok(())
     }

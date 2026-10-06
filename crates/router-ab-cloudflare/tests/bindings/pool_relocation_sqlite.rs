@@ -432,10 +432,32 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         claimed,
         router_ab_cloudflare::CloudflareSigningWorkerEcdsaClaimAndConsumeV1::Claimed { .. }
     ));
+    let linked_freeze = router_ab_cloudflare::SigningWorkerLinkedPresignFreezeReceiptV1 {
+        command: router_ab_cloudflare::SigningWorkerLinkedPresignRelocationRequestV1 {
+            wallet_scope: owner.clone(),
+            presign_session_id: "linked-session-relocation".to_owned(),
+            server_presignature_id: "linked-presignature-relocation".to_owned(),
+            request: freeze_request.clone(),
+        },
+        records_digest_hex: "ab".repeat(32),
+        record_count: 1,
+    };
+    // The session service's registered identity and returned freeze receipt.
+    // This scenario exercises the wallet store, not that remote service.
+    Connection::open(&path)?.execute(
+        "INSERT INTO wallet_linked_presign_sessions
+         (presign_session_id, server_presignature_id, owner_json, request_digest_hex, ownership_generation)
+         VALUES (?1, ?2, ?3, ?4, 1)",
+        rusqlite::params![linked_freeze.command.presign_session_id, linked_freeze.command.server_presignature_id,
+            serde_json::to_string(&owner)?, "cd".repeat(32)],
+    )?;
     let draining = freeze(&path, &env, &owner, freeze_request.clone())?;
     assert_eq!(
         draining,
-        router_ab_cloudflare::SigningWorkerPoolFreezeResponseV1::Draining { pending_effects: 1 }
+        router_ab_cloudflare::SigningWorkerPoolFreezeResponseV1::Draining {
+            pending_effects: 1,
+            pending_linked_sessions: 1
+        }
     );
     assert_eq!(
         freeze(&path, &env, &owner, freeze_request.clone())?,
@@ -477,12 +499,57 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
     with_store(&path, &env, |store| {
         store.commit_terminal(&owner, &effect, &response, 1_700)
     })?;
+    assert_eq!(
+        freeze(&path, &env, &owner, freeze_request.clone())?,
+        router_ab_cloudflare::SigningWorkerPoolFreezeResponseV1::Draining {
+            pending_effects: 0,
+            pending_linked_sessions: 1,
+        },
+    );
+    let inventory = with_store(&path, &env, |store| {
+        store.list_relocating_linked_presign_sessions(
+            router_ab_cloudflare::SigningWorkerLinkedPresignInventoryRequestV1 {
+                scope: owner.clone(),
+                request: freeze_request.clone(),
+                cursor: router_ab_cloudflare::SigningWorkerLinkedPresignCursorV1::Start,
+                limit: 1,
+            },
+        )
+    })?;
+    let inventory = serde_json::to_value(inventory)?;
+    assert_eq!(
+        inventory["sessions"][0]["presign_session_id"],
+        linked_freeze.command.presign_session_id
+    );
+    let interrupted = with_store(&path, &env, |store| {
+        store.record_linked_presign_freeze(linked_freeze.clone())?;
+        Err::<(), _>(sql_error("lost transaction before acknowledgement commit"))
+    });
+    assert!(interrupted.is_err());
+    assert!(matches!(
+        freeze(&path, &env, &owner, freeze_request.clone())?,
+        router_ab_cloudflare::SigningWorkerPoolFreezeResponseV1::Draining {
+            pending_linked_sessions: 1,
+            ..
+        }
+    ));
+    with_store(&path, &env, |store| {
+        store.record_linked_presign_freeze(linked_freeze.clone())
+    })?;
+    with_store(&path, &env, |store| {
+        store.record_linked_presign_freeze(linked_freeze.clone())
+    })?;
+    let mut changed_linked_freeze = linked_freeze.clone();
+    changed_linked_freeze.records_digest_hex = "ef".repeat(32);
+    assert!(with_store(&path, &env, |store| store
+        .record_linked_presign_freeze(changed_linked_freeze))
+    .is_err());
     let frozen = freeze(&path, &env, &owner, freeze_request.clone())?;
     let router_ab_cloudflare::SigningWorkerPoolFreezeResponseV1::Frozen { receipt } = &frozen
     else {
         panic!("settled pool must freeze");
     };
-    assert_eq!(receipt.record_count, 10);
+    assert_eq!(receipt.record_count, 11);
     assert_eq!(receipt.scope, owner);
     let activation_error = with_store(&path, &env, |store| {
         store.activate(
@@ -552,6 +619,9 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
     })?;
     let exported_segments =
         verify_snapshot_export(&path, &env, receipt, &effect, &response, &presign_request)?;
+    with_store(&path, &env, |store| {
+        store.record_linked_presign_freeze(linked_freeze.clone())
+    })?;
     let mut artifact = serde_json::json!({
         "scenario": "encrypted_pool_relocation", "records": 7,
         "available_and_reserved_destroyed": true, "reserved_binding_preserved": true,
@@ -588,6 +658,12 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         "presign_claims_fenced_and_other_wallet_claims_excluded": true,
         "presign_steps_require_pinned_authority_expiry_and_open_wallet": true,
         "scope": "Production wallet store and cipher on SQLite; excludes wallet-wide fencing and HTTP authorization"
+    });
+    artifact["linked_presign_settlement"] = serde_json::json!({
+        "linked_session_freeze_acknowledgement_required": true,
+        "linked_session_acknowledgement_rollback_and_exact_retry": true,
+        "linked_session_acknowledgement_replays_after_cleanup": true,
+        "return_move_excludes_imported_linked_session_history_from_draining": true,
     });
     artifact["activation"] = serde_json::json!({
         "activation_commit_opens_admission": true,

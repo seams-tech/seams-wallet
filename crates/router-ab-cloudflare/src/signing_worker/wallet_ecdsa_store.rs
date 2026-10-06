@@ -14,6 +14,10 @@ mod execution;
 mod relocation;
 mod presign_authority;
 mod linked_presign_inventory;
+mod linked_presign_settlement;
+pub use linked_presign_settlement::{
+    SigningWorkerLinkedPresignRelocationRequestV1, SigningWorkerLinkedPresignFreezeReceiptV1,
+};
 pub use linked_presign_inventory::{
     SigningWorkerLinkedPresignCursorV1, SigningWorkerLinkedPresignInventoryRequestV1,
     SigningWorkerLinkedPresignInventoryPageV1, SigningWorkerLinkedPresignIdentityV1,
@@ -87,7 +91,7 @@ const LINKED_ECDSA_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_linked_ecds
     owner_json TEXT NOT NULL,
     ciphertext_json TEXT NOT NULL)";
 /// The wallet store's ECDSA tables.
-pub(crate) const SIGNING_WORKER_WALLET_ECDSA_SCHEMA_V1: [&str; 10] = [
+pub(crate) const SIGNING_WORKER_WALLET_ECDSA_SCHEMA_V1: [&str; 11] = [
     ECDSA_POOL_SCHEMA,
     ECDSA_EFFECT_SCHEMA,
     ECDSA_ACTIVATION_SCHEMA,
@@ -98,6 +102,7 @@ pub(crate) const SIGNING_WORKER_WALLET_ECDSA_SCHEMA_V1: [&str; 10] = [
     execution::SCHEMA,
     presign_authority::SCHEMA,
     linked_presign_inventory::SCHEMA,
+    linked_presign_settlement::SCHEMA,
 ];
 
 /// The outcome of claiming one signing effect and consuming its presignature.

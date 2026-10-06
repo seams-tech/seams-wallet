@@ -34,6 +34,7 @@ pub struct SigningWorkerPoolFreezeReceiptV1 {
 pub enum SigningWorkerPoolFreezeResponseV1 {
     Draining {
         pending_effects: u64,
+        pending_linked_sessions: u64,
     },
     Frozen {
         receipt: SigningWorkerPoolFreezeReceiptV1,
@@ -220,9 +221,11 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         let [pending] = pending.as_slice() else {
             return Err(wallet_error("Pool effect inventory is invalid"));
         };
-        if pending.count != 0 {
+        let pending_linked_sessions = self.pending_linked_presign_sessions(&scope, &request)?;
+        if pending.count != 0 || pending_linked_sessions != 0 {
             return Ok(SigningWorkerPoolFreezeResponseV1::Draining {
                 pending_effects: pending.count,
+                pending_linked_sessions,
             });
         }
         let rows = self.sql.query::<PoolRow>(

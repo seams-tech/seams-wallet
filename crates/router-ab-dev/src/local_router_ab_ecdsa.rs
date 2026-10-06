@@ -240,7 +240,7 @@ pub fn local_router_ab_ecdsa_route_v1(
                 |command: router_ab_cloudflare::SigningWorkerLinkedPresignInventoryRequestV1| {
                     let page = with_local_signing_worker_wallet_store_v1(
                         signing_worker,
-                        |store, _| store.list_frozen_linked_presign_sessions(command),
+                        |store, _| store.list_relocating_linked_presign_sessions(command),
                     )?;
                     json(&page)
                 },
