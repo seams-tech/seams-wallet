@@ -629,3 +629,32 @@ The adapter now requires local established-home admission and sends that
 generation in the target. It refuses retired ownership before remote execution.
 Server type-checking and the bloat gate pass. Linked-device browser acceptance
 is being repeated; no linked-device outage success is claimed yet.
+
+### Linked-device Console-outage acceptance (2026-10-06)
+
+The composed browser E2E now passes for linked ECDSA and Ed25519. Each case
+registers an owner in US, installs a linked device through WEUR, disables both
+Console transports, and completes three signatures. Each records three successful
+home prepare/finalize pairs and zero attempted Console calls. ECDSA also completes
+presignature refill steps during the outage.
+
+The ECDSA test exposed a production regression: linked reusable sessions received
+the operation-step-up reconciliation callback. Commit `69b17933` selects linked
+session reconciliation instead. It checks the current selected authority, exact
+session record, quota identity, remaining uses, and expiry against prepare's
+response before client signing. It adds no session-status request.
+
+Verification: SDK type-check, SDK build, bloat check, and both linked browser cases
+pass. The first rerun stopped before tests because local Worker ports were occupied;
+the same command passed after those ports became free.
+
+Repeat from the private repository:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-regional-real.mjs passkey.registration.contract.test.ts --grep 'linked (ecdsa|ed25519)'
+```
+
+Evidence: [ECDSA](./evidence/r155b-console-outage-linked-ecdsa.json) and
+[Ed25519](./evidence/r155b-console-outage-linked-ed25519.json). These are local
+composition results. Hosted latency, restart, revocation, and relocation-race
+acceptance remain separate gates.
