@@ -2187,6 +2187,7 @@ async function verifyEcdsaWalletRelocation(topology, fixture, ecdsa) {
     internalAuthSecret,
     fixture.linked_presign_init,
     ecdsa,
+    gatewayToRouterAuthSecret,
   );
   const receipt = linkedImportRejection.initializedTransfer.walletInventory.sourceFreezeReceipt;
   await activateEcdsaThroughRouter(topology, receipt);

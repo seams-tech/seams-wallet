@@ -34,7 +34,7 @@ async function rejected(worker, path, body, credential, message) {
   assert.match(text, message);
 }
 
-export async function verifyLinkedImportRejection(topology, credential, sharedCredential, initialization, ecdsa) {
+export async function verifyLinkedImportRejection(topology, credential, sharedCredential, initialization, ecdsa, routerCredential) {
   const worker = await topology.getWorker(workerName);
   const before = await topology.listDurableObjectIds(objectClass, workerName);
   const command = {
@@ -95,7 +95,7 @@ export async function verifyLinkedImportRejection(topology, credential, sharedCr
   await rejected(worker, exportPath, { receipt, segment_index: 0, chunk_bytes: 1 }, credential, /requires a frozen snapshot/);
   await rejected(worker, freezePath, command, credential, /No such value|not found|does not exist/);
   const uninitializedImport = await verifyUninitializedImport(topology, credential, command);
-  const initializedTransfer = await verifyInitializedTransfer(topology, credential, initialization, ecdsa);
+  const initializedTransfer = await verifyInitializedTransfer(topology, credential, initialization, ecdsa, routerCredential);
   return {
     sharedCredentialRejected: true,
     exactPreparationReplayed: true,
@@ -111,8 +111,8 @@ export async function verifyLinkedImportRejection(topology, credential, sharedCr
   };
 }
 
-async function verifyInitializedTransfer(topology, credential, fixture, ecdsa) {
-  const source = await topology.getWorker(workerName);
+async function verifyInitializedTransfer(topology, credential, fixture, ecdsa, routerCredential) {
+  const source = await topology.getWorker('router');
   const destinationName = 'fixture-signing-worker-after-refresh';
   const destination = await topology.getWorker(destinationName);
   const initialization = structuredClone(fixture);
@@ -140,7 +140,7 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa) {
   const walletClass = 'RouterAbSigningWorkerWalletDurableObject';
   const walletsBefore = await topology.listDurableObjectIds(walletClass, workerName);
   const before = await topology.listDurableObjectIds(objectClass, workerName);
-  await rejected(source, fencePath, command, credential, /requires its source wallet move/);
+  await rejected(source, fencePath, command, routerCredential, /requires its source wallet move/);
   const after = await topology.listDurableObjectIds(objectClass, workerName);
   const created = after.filter(isNewObject.bind(undefined, before));
   assert.equal(created.length, 1);
@@ -148,7 +148,7 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa) {
   const session = namespace.get(namespace.idFromString(created[0]));
   const initPath = '/router-ab/internal/signing-worker/linked-ecdsa-presign-session/init';
   const initialProgress = await accepted(session, initPath, initialization, credential);
-  await rejected(source, fencePath, command, credential, /requires its source wallet move/);
+  await rejected(source, fencePath, command, routerCredential, /requires its source wallet move/);
   const completed = await completeLinkedPresign(session, credential, initialization, initialProgress, ecdsa.finalized.stateBlob.stateBlobB64u, groupPublicKey);
   const walletsAfter = await topology.listDurableObjectIds(walletClass, workerName);
   const walletsCreated = walletsAfter.filter(isNewObject.bind(undefined, walletsBefore));
@@ -184,7 +184,7 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa) {
       scope: command.wallet_scope,
       request: command.request,
     },
-    credential,
+    routerCredential,
   );
   assert.deepEqual(drainingWallet, {
     state: 'draining',
@@ -200,17 +200,17 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa) {
       cursor: { kind: 'start' },
       limit: 2,
     },
-    credential,
+    routerCredential,
   );
   assert.equal(drainingInventory.sessions.length, 2);
   const changedMove = structuredClone(command);
   changedMove.request.source_generation += 1;
-  await rejected(source, fencePath, changedMove, credential, /requires its source wallet move/);
-  const terminalRace = await verifyTerminalFenceRace(source, session, credential, command, completed);
+  await rejected(source, fencePath, changedMove, routerCredential, /requires its source wallet move/);
+  const terminalRace = await verifyTerminalFenceRace(source, session, credential, routerCredential, command, completed);
   assert.equal(terminalRace.fence.initialization.state, 'initialized');
   await rejected(session, initPath, initialization, credential, /fenced for relocation/);
   await rejected(session, '/router-ab/internal/signing-worker/linked-ecdsa-presign-session/step', completed.terminalStep, credential, /fenced for relocation/);
-  const receipt = await accepted(source, freezePath, command, credential);
+  const receipt = await accepted(source, freezePath, command, routerCredential);
   assert.equal(receipt.record_count, 2);
   assert.deepEqual(
     await accepted(
@@ -220,7 +220,7 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa) {
         scope: command.wallet_scope,
         request: command.request,
       },
-      credential,
+      routerCredential,
     ),
     { state: 'draining', pending_effects: 0, pending_linked_sessions: 1 },
   );
@@ -233,18 +233,18 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa) {
         scope: command.wallet_scope,
         request: command.request,
       },
-      credential,
+      routerCredential,
     ),
     { state: 'draining', pending_effects: 0, pending_linked_sessions: 1 },
   );
   await topology.unsafeEvictDurableObject(workerName, objectClass, { id: created[0] });
-  assert.deepEqual(await accepted(source, freezePath, command, credential), receipt);
+  assert.deepEqual(await accepted(source, freezePath, command, routerCredential), receipt);
   const chunkBytes = 1024;
   await accepted(destination, transferPath, { kind: 'prepare', command, chunk_bytes: chunkBytes }, credential);
-  const first = await accepted(source, exportPath, { receipt, segment_index: 0, chunk_bytes: chunkBytes }, credential);
+  const first = await accepted(source, exportPath, { receipt, segment_index: 0, chunk_bytes: chunkBytes }, routerCredential);
   const chunks = [];
   for (let index = 0; index < first.segment_count; index += 1) {
-    const chunk = index === 0 ? first : await accepted(source, exportPath, { receipt, segment_index: index, chunk_bytes: chunkBytes }, credential);
+    const chunk = index === 0 ? first : await accepted(source, exportPath, { receipt, segment_index: index, chunk_bytes: chunkBytes }, routerCredential);
     chunks.push(Buffer.from(chunk.data_b64u, 'base64url'));
     await accepted(destination, transferPath, { kind: 'import', chunk }, credential);
   }
@@ -263,7 +263,7 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa) {
     now_unix_ms: completed.response.prepared_response.prepared_at_ms,
   };
   await rejected(session, consumePath, delayedConsume, credential, /fenced for relocation/);
-  assert.deepEqual(await accepted(source, exportPath, { receipt, segment_index: 0, chunk_bytes: chunkBytes }, credential), first);
+  assert.deepEqual(await accepted(source, exportPath, { receipt, segment_index: 0, chunk_bytes: chunkBytes }, routerCredential), first);
 
   const verified = await accepted(destination, transferPath, { kind: 'verify', receipt }, credential);
   assert.deepEqual(verified, { kind: 'verified', receipt });
@@ -295,10 +295,10 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa) {
       scope: command.wallet_scope,
       request: command.request,
     },
-    credential,
+    routerCredential,
   );
   assert.equal(walletFreeze.state, 'frozen');
-  assert.deepEqual(await accepted(source, freezePath, command, credential), receipt);
+  assert.deepEqual(await accepted(source, freezePath, command, routerCredential), receipt);
   const walletInventory = await verifyWalletInventoryTransfer(
     topology,
     credential,
@@ -308,6 +308,7 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa) {
   return {
     scope:
       'Production presign completion, wallet registration, freeze and role-to-role import; excludes full device linking and concurrent consumption',
+    sourceSessionCommandsUseAuthenticatedRouter: true,
     walletWaitsForBothSessionAcknowledgements: true,
     partialAcknowledgementSurvivesWalletEviction: true,
     inventoryAvailableDuringDraining: true,
@@ -327,10 +328,10 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa) {
   };
 }
 
-async function verifyTerminalFenceRace(source, session, credential, command, completed) {
+async function verifyTerminalFenceRace(source, session, credential, routerCredential, command, completed) {
   const [terminalResponse, fenceResponse] = await Promise.all([
     post(session, '/router-ab/internal/signing-worker/linked-ecdsa-presign-session/step', completed.terminalStep, credential),
-    post(source, '/router-ab/signing-worker/linked-presign-session/fence', command, credential),
+    post(source, '/router-ab/signing-worker/linked-presign-session/fence', command, routerCredential),
   ]);
   const fenceBody = await fenceResponse.text();
   assert.equal(fenceResponse.ok, true, fenceBody);

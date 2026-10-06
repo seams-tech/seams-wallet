@@ -1655,7 +1655,10 @@ The Worker E2E sends source settlement, capture, export, and cleanup through thi
 transport. The same Router transport accepts typed ECDSA freeze, export, and
 transfer commands. The ECDSA Worker scenario verifies freeze, export, activation,
 and activation replay through this boundary. A SigningWorker credential cannot
-authorize the Router request.
+authorize the Router request. Linked-presignature inventory, fence, freeze, export,
+and transfer commands use the same typed transport. The ECDSA Worker scenario
+settles and exports source sessions through the Router, including the race with
+terminal replay and the requirement for both session acknowledgements.
 An authenticated status command returns the destination cursor or its verified or
 activated state under the exact receipt. It does not change import state. The
 Worker E2E resumes transfer from this cursor after each eviction.

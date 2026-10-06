@@ -1639,6 +1639,7 @@ Each row below assigns distinct coverage to an existing or extended scenario.
 The Ed25519 SigningWorker now persists source settlement separately from its
 preparation fence. The Router accepts typed settlement and snapshot commands
 through Gateway-to-Router authentication. The same transport accepts ECDSA freeze,
+export, and transfer commands, plus linked-presignature inventory, fence, freeze,
 export, and transfer commands. It forwards typed, bounded requests through its
 existing SigningWorker binding with the separate Router-to-SigningWorker credential. Native SQLite and wallet-DO hosts count pending rounds inside
 the transaction that commits settlement. Claimed rounds and unexpired preparations

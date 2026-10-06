@@ -1,12 +1,15 @@
+use crate::durable_object::presign_session_relocation as linked;
 use crate::{
     SigningWorkerEcdsaExportRequestV1, SigningWorkerEcdsaSnapshotChunkV1,
     SigningWorkerEcdsaTransferRequestV1, SigningWorkerEcdsaTransferResponseV1,
     SigningWorkerEd25519FenceCommandV1, SigningWorkerEd25519SettlementV1,
     SigningWorkerEd25519SnapshotCommandV1, SigningWorkerEd25519SnapshotResponseV1,
+    SigningWorkerLinkedPresignFreezeReceiptV1, SigningWorkerLinkedPresignInventoryPageV1,
+    SigningWorkerLinkedPresignInventoryRequestV1, SigningWorkerLinkedPresignRelocationRequestV1,
     SigningWorkerPoolFreezeCommandV1, SigningWorkerPoolFreezeResponseV1,
     SIGNING_WORKER_ECDSA_EXPORT_PATH_V1, SIGNING_WORKER_ECDSA_TRANSFER_PATH_V1,
     SIGNING_WORKER_ED25519_SETTLE_PATH_V1, SIGNING_WORKER_ED25519_SNAPSHOT_PATH_V1,
-    SIGNING_WORKER_POOL_FREEZE_PATH_V1,
+    SIGNING_WORKER_LINKED_PRESIGN_INVENTORY_PATH_V1, SIGNING_WORKER_POOL_FREEZE_PATH_V1,
 };
 use worker::{Env, Method, Request, Response};
 
@@ -23,6 +26,11 @@ pub(crate) fn handles(path: &str) -> bool {
             | SIGNING_WORKER_POOL_FREEZE_PATH_V1
             | SIGNING_WORKER_ECDSA_EXPORT_PATH_V1
             | SIGNING_WORKER_ECDSA_TRANSFER_PATH_V1
+            | SIGNING_WORKER_LINKED_PRESIGN_INVENTORY_PATH_V1
+            | linked::FENCE_PATH
+            | linked::FREEZE_PATH
+            | linked::EXPORT_PATH
+            | linked::import::PATH
     )
 }
 
@@ -73,11 +81,52 @@ pub(crate) async fn handle(request: Request, env: &Env) -> worker::Result<Respon
             )
             .await
         }
+        SIGNING_WORKER_LINKED_PRESIGN_INVENTORY_PATH_V1 => {
+            forward::<
+                SigningWorkerLinkedPresignInventoryRequestV1,
+                SigningWorkerLinkedPresignInventoryPageV1,
+            >(request, env, CONTROL_REQUEST_BYTES)
+            .await
+        }
+        linked::FENCE_PATH => {
+            forward::<
+                SigningWorkerLinkedPresignRelocationRequestV1,
+                linked::LinkedPresignFenceReceipt,
+            >(request, env, CONTROL_REQUEST_BYTES)
+            .await
+        }
+        linked::FREEZE_PATH => {
+            forward::<
+                SigningWorkerLinkedPresignRelocationRequestV1,
+                SigningWorkerLinkedPresignFreezeReceiptV1,
+            >(request, env, CONTROL_REQUEST_BYTES)
+            .await
+        }
+        linked::EXPORT_PATH => {
+            forward::<linked::ExportRequest, linked::SnapshotChunk>(
+                request,
+                env,
+                CONTROL_REQUEST_BYTES,
+            )
+            .await
+        }
+        linked::import::PATH => {
+            forward::<linked::import::Command, linked::import::Receipt>(
+                request,
+                env,
+                ECDSA_CHUNK_REQUEST_BYTES,
+            )
+            .await
+        }
         _ => Response::error("SigningWorker relocation route is absent", 404),
     }
 }
 
-async fn forward<T, R>(mut request: Request, env: &Env, max_bytes: usize) -> worker::Result<Response>
+async fn forward<T, R>(
+    mut request: Request,
+    env: &Env,
+    max_bytes: usize,
+) -> worker::Result<Response>
 where
     T: serde::de::DeserializeOwned + serde::Serialize,
     R: serde::de::DeserializeOwned + serde::Serialize,

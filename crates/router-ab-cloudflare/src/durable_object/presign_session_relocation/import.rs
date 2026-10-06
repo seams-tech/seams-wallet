@@ -7,7 +7,7 @@ const IMPORT_KEY: &str = "linked-presign-relocation-import";
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-enum Command {
+pub(crate) enum Command {
     Prepare {
         command: LinkedPresignRelocationRequest,
         chunk_bytes: u32,
@@ -32,7 +32,7 @@ impl Command {
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-enum Receipt {
+pub(crate) enum Receipt {
     Prepared {
         command: LinkedPresignRelocationRequest,
         chunk_bytes: u32,

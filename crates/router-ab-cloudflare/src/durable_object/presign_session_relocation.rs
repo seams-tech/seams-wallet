@@ -29,7 +29,7 @@ pub(crate) const INTERNAL_EXPORT_PATH: &str =
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct ExportRequest {
+pub(crate) struct ExportRequest {
     receipt: LinkedPresignFreezeReceipt,
     segment_index: u32,
     chunk_bytes: u32,
@@ -53,7 +53,7 @@ fn validate_chunk_bytes(size: u32) -> RouterAbProtocolResult<()> {
 
 #[derive(PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct SnapshotChunk {
+pub(crate) struct SnapshotChunk {
     receipt: LinkedPresignFreezeReceipt,
     segment_index: u32,
     segment_count: u32,
