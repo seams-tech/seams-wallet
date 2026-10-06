@@ -444,3 +444,66 @@ loop. It does not establish constant-time behavior of the JavaScript/WASM runtim
 The broader lifecycle acceptance gaps above remain separate.
 All six original staging versions were restored and verified after the trial.
 No production release or permanent infrastructure change was made.
+
+## Alternating protocol comparison and timing correction — October 6, 2026
+
+The previous three-wallet trial could not establish that the arithmetic change
+caused its slower first signatures. A follow-up alternated control, candidate,
+control, and candidate deployments. Each deployment registered two fresh APAC
+wallets from NRT and immediately signed three times. The SDK, Gateway, Console,
+Router, and Derivers remained fixed. All **24 signatures** verified.
+
+| Metric | Control median / max | Candidate median / max |
+| --- | ---: | ---: |
+| Immediate first signing, four wallets per arm | 4.400s / 4.811s | 3.849s / 4.083s |
+| First presignature generation | 3.821s / 4.226s | 3.401s / 4.018s |
+| First-signature refill wait | 2.457s / 3.052s | 2.012s / 2.310s |
+| Sum of DO CPU time for six initial requests | 204.5ms / 261ms | 209.5ms / 232ms |
+| Sum of DO elapsed time for six initial requests | 289ms / 350ms | 299.5ms / 322ms |
+
+The earlier regression did not repeat. Candidate first signing was faster in
+both alternating pairs. These samples still do not establish a reliable speedup
+from arithmetic: DO CPU distributions overlap, and request timing varies much
+more than the native computation saving. Retain both experiments as evidence.
+Do not present the latest cohort as a guaranteed 551ms improvement.
+
+The old `ecdsa_presign_sw_do_total` metric was misleading. Cloudflare's application
+clocks advance on I/O, so synchronous protocol work can report zero elapsed time.
+The platform trace reported real CPU and elapsed time inside those same DO calls.
+See [Cloudflare's timer documentation](https://developers.cloudflare.com/workers/runtime-apis/performance/).
+
+The code removes that metric and its helper. It adds two spans around actual I/O:
+`ecdsa_presign_sw_do_response_headers` measures the DO fetch through response
+headers. `ecdsa_presign_sw_do_response_body` measures reading the response body.
+These are I/O boundary spans, not CPU measurements. The shared parser now admits
+these names and removes the obsolete name. The deployed Gateway still uses its
+old parser, so the diagnostic build logs the spans directly for this experiment.
+Temporary logging is excluded from the source change.
+
+The direct diagnostic captured 42 owner-presign calls, including later refill
+work. Header-wait median was 54ms and maximum was 777ms. Body-read median was
+0ms and maximum was 18ms. The four header waits above 300ms were 777ms, 585ms,
+487ms, and 444ms; all four body-read spans were zero. The delay therefore occurs
+before response headers. This rules out response-body delivery as the cause of
+those stalls. It does not distinguish name resolution, network transit, runtime
+startup, and scheduling. Cross-host event timestamps must not be subtracted as
+if they shared a synchronized clock.
+
+The next latency experiment should target first-use DO routing and placement.
+The owner host currently uses `getByName`. Cloudflare documents that named DOs
+can incur a global uniqueness check on first access. That is a hypothesis for
+part of the delay, not a demonstrated explanation for every slow later call.
+See [the namespace API](https://developers.cloudflare.com/durable-objects/api/namespace/#newuniqueid).
+Measure this before adding a persistent host locator or changing the transport.
+Random object IDs would require an authoritative wallet/material mapping and
+must not replace deterministic routing without that ownership contract.
+
+[Evidence](evidence/r155-protocol-alternating-20261006.json) contains all alternating
+samples and sanitized diagnostic spans. Both Worker WASM configurations and
+shared TypeScript checking passed. The bloat check passed. Two diagnostic runs
+verified another 12 signatures, for **36 hosted signatures** in this follow-up.
+The old header filter prevented the first diagnostic's new metrics from reaching
+the browser; its signing results remain separate from the alternating comparison.
+No new signing-latency improvement is claimed for the telemetry correction.
+All six original staging versions were restored and verified. The tail stopped.
+Temporary logging and raw traces remain outside the committed source.

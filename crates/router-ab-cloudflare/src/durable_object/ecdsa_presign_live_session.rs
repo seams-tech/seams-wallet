@@ -120,7 +120,6 @@ pub(super) async fn handle_cloudflare_signing_worker_ecdsa_presign_session_do_fe
     storage: &worker::Storage,
     _env: &worker::Env,
 ) -> worker::Result<worker::Response> {
-    let started_at_ms = cloudflare_now_unix_ms_v1().unwrap_or_default();
     if request.method() != worker::Method::Post {
         return worker::Response::error("SigningWorker ECDSA presign session requires POST", 405);
     }
@@ -254,7 +253,7 @@ pub(super) async fn handle_cloudflare_signing_worker_ecdsa_presign_session_do_fe
         }
     };
     match result {
-        Ok(progress) => presign_do_json_response(&progress, started_at_ms),
+        Ok(progress) => worker::Response::from_json(&progress),
         Err(error) => presign_do_error_response(error),
     }
 }
@@ -335,21 +334,6 @@ async fn require_pool_admission(
             "Wallet relocation has closed ECDSA pool admission",
         )),
     }
-}
-
-#[cfg(feature = "workers-rs")]
-fn presign_do_json_response<T: Serialize>(
-    value: &T,
-    started_at_ms: u64,
-) -> worker::Result<worker::Response> {
-    let response = worker::Response::from_json(value)?;
-    let elapsed_ms = cloudflare_now_unix_ms_v1()
-        .unwrap_or_default()
-        .saturating_sub(started_at_ms);
-    response
-        .headers()
-        .set("Server-Timing", &format!("do_total;dur={elapsed_ms}"))?;
-    Ok(response)
 }
 
 #[cfg(feature = "workers-rs")]

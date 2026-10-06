@@ -113,12 +113,15 @@ where
             format!("Durable Object custom request construction failed: {error}"),
         )
     })?;
+    let mut io_timing = crate::CloudflareEcdsaBoundaryTimingV1::new();
+    let headers_started_at_ms = crate::CloudflareEcdsaBoundaryTimingV1::now_ms();
     let mut response = stub.fetch_with_request(request).await.map_err(|error| {
         RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
             format!("Durable Object custom request failed: {error}"),
         )
     })?;
+    io_timing.mark("do_response_headers", headers_started_at_ms);
     let status = response.status_code();
     if !(200..=299).contains(&status) {
         let body = response.text().await.unwrap_or_default();
@@ -127,16 +130,21 @@ where
             format!("Durable Object custom request returned HTTP {status}: {body}"),
         ));
     }
-    let server_timing = response.headers().get("Server-Timing").ok().flatten();
+    io_timing.merge_role(
+        "do_handler",
+        response.headers().get("Server-Timing").ok().flatten(),
+    );
+    let body_started_at_ms = crate::CloudflareEcdsaBoundaryTimingV1::now_ms();
     let value = response.json::<TResponse>().await.map_err(|error| {
         RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::MalformedWirePayload,
             format!("Durable Object custom response JSON is invalid: {error}"),
         )
     })?;
+    io_timing.mark("do_response_body", body_started_at_ms);
     Ok(CloudflareDurableObjectJsonResponseV1 {
         value,
-        server_timing,
+        server_timing: Some(io_timing.server_timing()),
     })
 }
 
