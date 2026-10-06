@@ -477,3 +477,21 @@ a different ceremony. Regional hints also apply to requests without session toke
 which allows bounded forwarding of registration continuations. Handler authorization
 remains required. Server types, the focused routing E2E, and bloat checks pass.
 Browser lifecycle and authorization-transfer verification are still running.
+
+### Signing proxy ownership contract repair — October 6
+
+The local Ed25519 browser contract exposed a production regression: the Gateway
+proxy matched an obsolete owner-admission field list. The required
+`ownership_generation` field prevented that match, so the proxy forwarded the
+browser bearer token. The custody Router correctly rejected it. The proxy now
+requires the current generation field and strips the token for owner admission.
+The custody rejection remains unchanged. Server type-checking and the bloat
+check pass. The immediate-signing/refresh browser contract is being rerun;
+its result is pending.
+
+The authorization-storage-transfer E2E passed. Its repeatable artifact is
+`.artifacts/r153/authorization-storage-transfer/evidence.json`. It verifies
+local execution admission with zero central ordinary reads before destination
+activation and after cleanup, immutable generation, and one quota charge on
+exact retry. This test does not execute MPC signing or prove a complete
+Console-outage signing flow.

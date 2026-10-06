@@ -83,6 +83,7 @@ type NormalSigningReusableBindingRecord = {
 
 type NormalSigningGatewayOwnerBindingRecord = {
   readonly kind: unknown;
+  readonly ownership_generation: unknown;
   readonly subject_id: unknown;
   readonly account_id: unknown;
   readonly authorization_id: unknown;
@@ -141,7 +142,7 @@ function isNormalSigningGatewayOwnerBindingRecord(
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
   return (
     Object.keys(value).sort().join('|') ===
-    'account_id|authorization_id|environment|expires_at_ms|kind|org_id|project_environment_id|project_id|quota_id|signing_worker_id|subject_id|threshold_session_id|wallet_session_id'
+    'account_id|authorization_id|environment|expires_at_ms|kind|org_id|ownership_generation|project_environment_id|project_id|quota_id|signing_worker_id|subject_id|threshold_session_id|wallet_session_id'
   );
 }
 
@@ -166,6 +167,10 @@ function isNormalSigningGatewayOwnerBindingValues(
   record: NormalSigningGatewayOwnerBindingRecord,
 ): boolean {
   return (
+    record.kind === 'gateway_owner_wallet_session' &&
+    typeof record.ownership_generation === 'number' &&
+    Number.isSafeInteger(record.ownership_generation) &&
+    record.ownership_generation > 0 &&
     typeof record.subject_id === 'string' &&
     record.subject_id.trim().length > 0 &&
     typeof record.account_id === 'string' &&
