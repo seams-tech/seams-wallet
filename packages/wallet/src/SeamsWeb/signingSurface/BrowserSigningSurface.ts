@@ -2249,7 +2249,6 @@ async function hydrateOwnerNearEd25519ExecutionLane(args: {
   ) {
     throw new Error('Owner Ed25519 execution-lane material changed');
   }
-  const walletSessionToken = args.authorization.operationCredential.token;
   const exactMaterial = validateExactNearEd25519YaoOperationMaterial({
     material: args.material,
     input: args.input,
@@ -2288,7 +2287,7 @@ async function hydrateOwnerNearEd25519ExecutionLane(args: {
   };
   const projection = await readOwnerWalletExecutionLaneProjectionV1({
     relayerUrl: exactMaterial.facts.relayerUrl,
-    walletSessionToken,
+    operationCredential: args.authorization.operationCredential,
     curve: 'ed25519',
     expectedMaterialActivation: materialActivation,
   });

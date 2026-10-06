@@ -1097,7 +1097,7 @@ async function getBrowserEcdsaSigningCapability(
   const canonical = await resolveBrowserCanonicalEcdsaSigningCapability(args, input);
   const projection = await readOwnerWalletExecutionLaneProjectionV1({
     relayerUrl: String(args.seamsWebConfigs.network.relayer?.url || '').trim(),
-    walletSessionToken: browserAuthorization.operationCredential.token,
+    operationCredential: browserAuthorization.operationCredential,
     curve: 'ecdsa_secp256k1',
     expectedMaterialActivation: canonical.capability.manifest.activation.materialActivation,
   });

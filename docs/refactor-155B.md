@@ -607,3 +607,16 @@ session resolution, regional dispatch, Gateway handlers, D1, and local custody
 Workers. Deployment admission is fixture configuration. These results do not
 prove physical regional latency, linked-device/step-up outage behavior, restart,
 or relocation concurrency.
+
+### Owner preflight routing repair — October 6
+
+Travel acceptance exposed an Ed25519 production regression: owner execution-lane
+preflight sent the token without its home. A remote Gateway therefore tried
+Console discovery during the outage. Preflight now requires the canonical
+operation credential and uses its home metadata and bounded discovery transport.
+Both Ed25519 and ECDSA callers pass that credential.
+
+After rebuilding the SDK, both owner browser cases complete signatures through
+WEUR, APAC, and OC ingress for a US wallet with Console disabled. Type-checking
+and the bloat gate pass. Linked-device cases are running. This tests regional
+routing in local Workers, not physical travel latency.

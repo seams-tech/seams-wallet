@@ -1,3 +1,4 @@
+import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking/contracts';
 import { parseSigningLaneRecord, parseWalletKeyRecord } from '@shared/signing-lanes/recordParsers';
 import type { OwnerWalletExecutionLaneProjectionV1 } from '@shared/signing-lanes';
 import {
@@ -6,7 +7,8 @@ import {
 } from '@shared/utils/domainIds';
 import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import {
-  buildBearerAuthorizationHeader,
+  buildWalletSessionAuthorizationHeaders,
+  fetchWithWalletHomeDiscovery,
   buildRelayerJsonPostRequestInit,
   normalizeRelayerBaseUrl,
 } from './relayerHttp';
@@ -17,22 +19,21 @@ export type { OwnerWalletExecutionLaneProjectionV1 };
 
 export async function readOwnerWalletExecutionLaneProjectionV1(input: {
   readonly relayerUrl: string;
-  readonly walletSessionToken: string;
+  readonly operationCredential: WalletSessionOperationCredentialV1;
   readonly curve: 'ed25519' | 'ecdsa_secp256k1';
   readonly expectedMaterialActivation: MpcMaterialActivationRef;
 }): Promise<OwnerWalletExecutionLaneProjectionV1> {
-  const response = await fetch(
-    `${normalizeRelayerBaseUrl(input.relayerUrl)}${OWNER_WALLET_EXECUTION_LANE_PREFLIGHT_PATH}`,
-    buildRelayerJsonPostRequestInit({
-      headers: buildBearerAuthorizationHeader({
-        token: input.walletSessionToken,
-        missingMessage: 'Owner execution-lane preflight requires a Wallet Session token',
+  const response = await fetchWithWalletHomeDiscovery(
+    new Request(
+      `${normalizeRelayerBaseUrl(input.relayerUrl)}${OWNER_WALLET_EXECUTION_LANE_PREFLIGHT_PATH}`,
+      buildRelayerJsonPostRequestInit({
+        headers: buildWalletSessionAuthorizationHeaders(input.operationCredential),
+        body: {
+          curve: input.curve,
+          expectedMaterialActivation: input.expectedMaterialActivation,
+        },
       }),
-      body: {
-        curve: input.curve,
-        expectedMaterialActivation: input.expectedMaterialActivation,
-      },
-    }),
+    ),
   );
   const raw: unknown = await response.json().catch(() => null);
   if (!response.ok) {
