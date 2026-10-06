@@ -31,10 +31,10 @@ function digest(value) {
     .digest('hex');
 }
 
-export async function verifyEd25519Snapshot(topology, activation, fixture, credential, registrationCredential, signDestination) {
+export async function verifyEd25519Snapshot(topology, activation, fixture, credential, sourceCredential, registrationCredential, signDestination) {
   const delivery = JSON.parse(activation.delivery);
   const scope = delivery.scope;
-  const worker = await topology.getWorker(workerName);
+  const worker = await topology.getWorker('router');
   const source = {
     scope,
     request: {
@@ -51,17 +51,17 @@ export async function verifyEd25519Snapshot(topology, activation, fixture, crede
   await evictTransferredWallet(topology, destinationName, scope);
   assert.deepEqual(await accepted(destination, snapshotPath, preparation, credential), prepared);
   const capture = { command: 'capture', source };
-  const premature = await post(worker, snapshotPath, capture, credential);
+  const premature = await post(worker, snapshotPath, capture, sourceCredential);
   assert.notEqual(premature.status, 200, await premature.text());
   const unauthorized = await post(worker, snapshotPath, capture, 'wrong-credential');
   assert.equal(unauthorized.status, 403);
-  assert.deepEqual(await accepted(worker, settlePath, source, credential), {
+  assert.deepEqual(await accepted(worker, settlePath, source, sourceCredential), {
     state: 'settled', command: source,
   });
   let frozen;
   let captureCalls = 0;
   for (; captureCalls < 64; captureCalls += 1) {
-    const result = await accepted(worker, snapshotPath, capture, credential);
+    const result = await accepted(worker, snapshotPath, capture, sourceCredential);
     await evictTransferredWallet(topology, workerName, scope);
     if (result.state === 'frozen') {
       frozen = result;
@@ -70,7 +70,7 @@ export async function verifyEd25519Snapshot(topology, activation, fixture, crede
     assert.equal(result.state, 'capturing');
   }
   assert.ok(frozen, 'Snapshot capture must finish within 64 bounded commands');
-  assert.deepEqual(await accepted(worker, snapshotPath, capture, credential), frozen);
+  assert.deepEqual(await accepted(worker, snapshotPath, capture, sourceCredential), frozen);
   const { receipt } = frozen;
   assert.equal(receipt.record_count, 1, 'This registered wallet has one registration');
   assert.ok(receipt.segment_count > 1, 'Encrypted registration must span multiple segments');
@@ -79,7 +79,7 @@ export async function verifyEd25519Snapshot(topology, activation, fixture, crede
   const segments = [];
   for (let segmentIndex = 0; segmentIndex < receipt.segment_count; segmentIndex += 1) {
     const request = { command: 'export', receipt, segment_index: segmentIndex };
-    const result = await accepted(worker, snapshotPath, request, credential);
+    const result = await accepted(worker, snapshotPath, request, sourceCredential);
     assert.equal(result.state, 'segment');
     assert.deepEqual(result.receipt, receipt);
     const { segment } = result;
@@ -93,7 +93,7 @@ export async function verifyEd25519Snapshot(topology, activation, fixture, crede
     segments.push(segment);
     rollingDigest = digest([rollingDigest, segment]);
     await evictTransferredWallet(topology, workerName, scope);
-    assert.deepEqual(await accepted(worker, snapshotPath, request, credential), result);
+    assert.deepEqual(await accepted(worker, snapshotPath, request, sourceCredential), result);
   }
   assert.equal(rollingDigest, receipt.digest_hex);
   const record = JSON.parse(Buffer.concat(bytes).toString('utf8'));
@@ -104,22 +104,22 @@ export async function verifyEd25519Snapshot(topology, activation, fixture, crede
   changed.digest_hex = '00'.repeat(32);
   const changedReceipt = await post(worker, snapshotPath, {
     command: 'export', receipt: changed, segment_index: 0,
-  }, credential);
+  }, sourceCredential);
   assert.notEqual(changedReceipt.status, 200, await changedReceipt.text());
   const missingSegment = await post(worker, snapshotPath, {
     command: 'export', receipt, segment_index: receipt.segment_count,
-  }, credential);
+  }, sourceCredential);
   assert.notEqual(missingSegment.status, 200, await missingSegment.text());
   const changedSource = structuredClone(source);
   changedSource.request.move_id = `wmove_${'t'.repeat(43)}`;
   const changedMove = await post(worker, snapshotPath, {
     command: 'capture', source: changedSource,
-  }, credential);
+  }, sourceCredential);
   assert.notEqual(changedMove.status, 200, await changedMove.text());
-  assert.deepEqual(await accepted(worker, snapshotPath, capture, credential), frozen);
+  assert.deepEqual(await accepted(worker, snapshotPath, capture, sourceCredential), frozen);
   const restoration = await verifyDestinationRestoration({
     topology, destination, destinationName, receipt, segments,
-    originalBytes: Buffer.concat(bytes), credential, delivery, registrationCredential,
+    originalBytes: Buffer.concat(bytes), credential, sourceCredential, delivery, registrationCredential,
     activation, fixture, signDestination,
   });
   return {
@@ -147,7 +147,7 @@ async function rejectDestinationDelivery(destination, delivery, credential) {
 
 async function verifyDestinationRestoration({
   topology, destination, destinationName, receipt, segments,
-  originalBytes, credential, delivery, registrationCredential,
+  originalBytes, credential, sourceCredential, delivery, registrationCredential,
   activation, fixture, signDestination,
 }) {
   const activate = { command: 'activate', receipt };
@@ -210,7 +210,7 @@ async function verifyDestinationRestoration({
   await evictTransferredWallet(topology, destinationName, receipt.source.scope);
   assert.deepEqual(await accepted(destination, snapshotPath, activate, credential), activated);
   assert.deepEqual(await accepted(destination, snapshotPath, { command: 'status', receipt }, credential), activated);
-  const cleanup = await verifySourceCleanup(topology, receipt, credential, delivery, registrationCredential);
+  const cleanup = await verifySourceCleanup(topology, receipt, sourceCredential, delivery, registrationCredential);
   const signing = await signDestination(topology, activation, fixture, destinationName, 2);
   const oldGeneration = await post(destination, settlePath, receipt.source, credential);
   assert.notEqual(oldGeneration.status, 200, await oldGeneration.text());
@@ -282,6 +282,7 @@ async function verifyDestinationRestoration({
     finalDigestFailureRollsBackImportProgress: true,
     exactAcknowledgementsAfterEviction: true,
     transferResumesFromDestinationCursor: true,
+    sourceCommandsUseAuthenticatedRouterTransport: true,
     exactCiphertextAndIndexesRestored: true,
     ownershipGeneration: nextSource.request.source_generation,
     activationReplayPreservesLaterFence: true,
@@ -290,7 +291,7 @@ async function verifyDestinationRestoration({
 }
 
 async function verifySourceCleanup(topology, receipt, credential, delivery, registrationCredential) {
-  const source = await topology.getWorker(workerName);
+  const source = await topology.getWorker('router');
   const command = { command: 'cleanup', activation: receipt };
   const changed = structuredClone(command);
   changed.activation.digest_hex = '00'.repeat(32);
@@ -312,7 +313,7 @@ async function verifySourceCleanup(topology, receipt, credential, delivery, regi
   assert.deepEqual(cleaned, { state: 'cleaned', receipt });
   assert.ok(calls > 0, 'Cleanup must persist progress across bounded commands');
   assert.deepEqual(await accepted(source, snapshotPath, command, credential), cleaned);
-  await rejectDestinationDelivery(source, delivery, registrationCredential);
+  await rejectDestinationDelivery(await topology.getWorker(workerName), delivery, registrationCredential);
   const exported = await post(source, snapshotPath, {
     command: 'export', receipt, segment_index: 0,
   }, credential);

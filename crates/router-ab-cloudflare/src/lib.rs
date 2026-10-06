@@ -337,6 +337,8 @@ pub use router::*;
 mod router_wallet;
 pub use router_wallet::*;
 mod router_wallet_relocation;
+#[cfg(feature = "workers-rs")]
+mod signing_worker_relocation_transport;
 mod router_wallet_transfer;
 pub use router_wallet_transfer::{
     transfer_router_wallet_v1, RouterWalletActivationReceiptV1, RouterWalletTransferChunkV1,

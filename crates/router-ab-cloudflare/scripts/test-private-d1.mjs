@@ -4278,7 +4278,7 @@ async function testDeriverAWalletDoExecution(
   assert.equal(aRowsAfterSecondTenant.count, 0);
   assert.ok(activation.publicReceipt, 'Router registration must complete through A wallet DO');
   const ed25519Snapshot = await verifyEd25519Snapshot(
-    topology, activation, fixture, routerToSigningWorkerEcdsaAuthSecret, internalAuthSecret, signRelocatedEd25519,
+    topology, activation, fixture, routerToSigningWorkerEcdsaAuthSecret, gatewayToRouterAuthSecret, internalAuthSecret, signRelocatedEd25519,
   );
   const artifact = {
     kind: 'deriver_a_wallet_do_execution_e2e_v1',

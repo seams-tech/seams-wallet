@@ -1637,7 +1637,9 @@ Each row below assigns distinct coverage to an existing or extended scenario.
   They do not duplicate source-text or implementation-shape assertions.
 
 The Ed25519 SigningWorker now persists source settlement separately from its
-preparation fence. Native SQLite and wallet-DO hosts count pending rounds inside
+preparation fence. The Router accepts typed settlement and snapshot commands
+through Gateway-to-Router authentication. It forwards them through its existing
+SigningWorker binding with the separate Router-to-SigningWorker credential. Native SQLite and wallet-DO hosts count pending rounds inside
 the transaction that commits settlement. Claimed rounds and unexpired preparations
 keep it draining. Exact terminal replay remains available after settlement and
 restart. The native signing E2E covers draining, completion, and restart replay.
