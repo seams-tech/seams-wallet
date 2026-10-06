@@ -65,8 +65,22 @@ export async function verifyEd25519Snapshot(topology, activation, fixture, crede
   assert.deepEqual(prepared, { state: 'prepared', source: preparation.source, destination_object: prepared.destination_object });
   assert.equal(typeof prepared.destination_object, 'string');
   assert.equal(prepared.destination_object, preparedObjectName(source.scope));
+  const ecdsaPreparation = {
+    kind: 'prepare',
+    scope,
+    request: preparation.source.request,
+    chunk_bytes: 4096,
+  };
+  const ecdsaPrepared = await accepted(destination,
+    '/router-ab/signing-worker/wallet/ecdsa/transfer', ecdsaPreparation, credential);
+  assert.deepEqual(ecdsaPrepared, {
+    kind: 'prepared', scope, request: preparation.source.request, chunk_bytes: 4096,
+    destination_object: prepared.destination_object,
+  });
   await evictTransferredWallet(topology, destinationName, scope);
   assert.deepEqual(await accepted(destination, snapshotPath, preparation, credential), prepared);
+  assert.deepEqual(await accepted(destination,
+    '/router-ab/signing-worker/wallet/ecdsa/transfer', ecdsaPreparation, credential), ecdsaPrepared);
   source.request.invalidated_at_ms = Date.now();
   const capture = { command: 'capture', source };
   const premature = await post(worker, snapshotPath, capture, sourceCredential);
@@ -153,6 +167,8 @@ export async function verifyEd25519Snapshot(topology, activation, fixture, crede
     captureAndExportResumeAfterEviction: true,
     exactDigestReconstructed: true,
     changedMoveAndReceiptRejected: true,
+    bothCurvesPreparedInSameDestinationBeforeSourceSettlement: true,
+    bothPreparationReceiptsSurviveEviction: true,
     scope: 'Worker registration transfer and fresh Ed25519 signing; excludes linked-device transfer and assembled relocation',
   };
 }
