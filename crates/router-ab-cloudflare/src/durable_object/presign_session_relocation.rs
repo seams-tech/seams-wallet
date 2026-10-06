@@ -252,7 +252,9 @@ async fn record_wallet_freeze(
 ) -> RouterAbProtocolResult<()> {
     let response = super::call_signing_worker_wallet_do_v1(
         env,
-        super::SigningWorkerWalletDoRequestV1::RecordLinkedPresignFreeze(receipt.clone()),
+        super::SigningWorkerWalletDoRequestV1::RecordLinkedPresignFreeze {
+            receipt: receipt.clone(),
+        },
     )
     .await?;
     crate::parse_cloudflare_signing_worker_wallet_do_json_response_v1(

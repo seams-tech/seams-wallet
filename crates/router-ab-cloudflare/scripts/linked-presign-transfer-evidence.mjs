@@ -152,19 +152,57 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa) {
   const completed = await completeLinkedPresign(session, credential, initialization, initialProgress, ecdsa.finalized.stateBlob.stateBlobB64u, groupPublicKey);
   const walletsAfter = await topology.listDurableObjectIds(walletClass, workerName);
   const walletsCreated = walletsAfter.filter(isNewObject.bind(undefined, walletsBefore));
-  assert.equal(walletsCreated.length, 1);
-  const walletNamespace = await topology.getDurableObjectNamespace('SIGNING_WORKER_WALLET_DO', workerName);
-  const wallet = walletNamespace.get(walletNamespace.idFromString(walletsCreated[0]));
+  assert.equal(walletsCreated.length, 0);
+  const walletNamespace = await topology.getDurableObjectNamespace(
+    'SIGNING_WORKER_WALLET_DO',
+    workerName,
+  );
+  const walletDigest = createHash('sha256')
+    .update('seams/signing-worker/wallet-do/v1')
+    .update(JSON.stringify(command.wallet_scope))
+    .digest('hex');
+  const walletIdentity = walletNamespace.idFromName(`signing-worker-wallet-${walletDigest}`);
+  const walletId = walletIdentity.toString();
+  assert.ok(walletsBefore.includes(walletId), 'The source wallet must already own execution');
+  const wallet = walletNamespace.get(walletIdentity);
   const pending = structuredClone(initialization);
   pending.request.presign_session_id += '-pending';
   pending.request.request.client_presignature_id += '-pending';
-  await accepted(wallet, '/router-ab/internal/signing-worker/wallet', {
-    command: 'register_linked_presign_session', ...pending.request,
-  }, credential);
-  const walletFreeze = await accepted(source, '/router-ab/signing-worker/wallet/pool/freeze', {
-    scope: command.wallet_scope, request: command.request,
-  }, credential);
-  assert.equal(walletFreeze.state, 'frozen');
+  await accepted(
+    wallet,
+    '/router-ab/internal/signing-worker/wallet',
+    {
+      command: 'register_linked_presign_session',
+      ...pending.request,
+    },
+    credential,
+  );
+  const drainingWallet = await accepted(
+    source,
+    '/router-ab/signing-worker/wallet/pool/freeze',
+    {
+      scope: command.wallet_scope,
+      request: command.request,
+    },
+    credential,
+  );
+  assert.deepEqual(drainingWallet, {
+    state: 'draining',
+    pending_effects: 0,
+    pending_linked_sessions: 2,
+  });
+  const drainingInventory = await accepted(
+    source,
+    '/router-ab/signing-worker/wallet/linked-presign-inventory',
+    {
+      scope: command.wallet_scope,
+      request: command.request,
+      cursor: { kind: 'start' },
+      limit: 2,
+    },
+    credential,
+  );
+  assert.equal(drainingInventory.sessions.length, 2);
   const changedMove = structuredClone(command);
   changedMove.request.source_generation += 1;
   await rejected(source, fencePath, changedMove, credential, /requires its source wallet move/);
@@ -174,6 +212,31 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa) {
   await rejected(session, '/router-ab/internal/signing-worker/linked-ecdsa-presign-session/step', completed.terminalStep, credential, /fenced for relocation/);
   const receipt = await accepted(source, freezePath, command, credential);
   assert.equal(receipt.record_count, 2);
+  assert.deepEqual(
+    await accepted(
+      source,
+      '/router-ab/signing-worker/wallet/pool/freeze',
+      {
+        scope: command.wallet_scope,
+        request: command.request,
+      },
+      credential,
+    ),
+    { state: 'draining', pending_effects: 0, pending_linked_sessions: 1 },
+  );
+  await topology.unsafeEvictDurableObject(workerName, walletClass, { id: walletId });
+  assert.deepEqual(
+    await accepted(
+      source,
+      '/router-ab/signing-worker/wallet/pool/freeze',
+      {
+        scope: command.wallet_scope,
+        request: command.request,
+      },
+      credential,
+    ),
+    { state: 'draining', pending_effects: 0, pending_linked_sessions: 1 },
+  );
   await topology.unsafeEvictDurableObject(workerName, objectClass, { id: created[0] });
   assert.deepEqual(await accepted(source, freezePath, command, credential), receipt);
   const chunkBytes = 1024;
@@ -212,11 +275,42 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa) {
   const restored = destinationNamespace.get(destinationNamespace.idFromString(destinationIds[0]));
   await rejected(restored, initPath, initialization, credential, /fenced for relocation/);
   await rejected(restored, consumePath, delayedConsume, credential, /fenced for relocation/);
-  await rejected(restored, '/router-ab/internal/signing-worker/linked-ecdsa-presign-session/step', completed.terminalStep, credential, /fenced for relocation/);
-  const pendingRegistration = await verifyPendingRegistration(topology, credential, pending, command.request);
-  const walletInventory = await verifyWalletInventoryTransfer(topology, credential, walletFreeze.receipt, [initialization.request, pending.request]);
+  await rejected(
+    restored,
+    '/router-ab/internal/signing-worker/linked-ecdsa-presign-session/step',
+    completed.terminalStep,
+    credential,
+    /fenced for relocation/,
+  );
+  const pendingRegistration = await verifyPendingRegistration(
+    topology,
+    credential,
+    pending,
+    command.request,
+  );
+  const walletFreeze = await accepted(
+    source,
+    '/router-ab/signing-worker/wallet/pool/freeze',
+    {
+      scope: command.wallet_scope,
+      request: command.request,
+    },
+    credential,
+  );
+  assert.equal(walletFreeze.state, 'frozen');
+  assert.deepEqual(await accepted(source, freezePath, command, credential), receipt);
+  const walletInventory = await verifyWalletInventoryTransfer(
+    topology,
+    credential,
+    walletFreeze.receipt,
+    [initialization.request, pending.request],
+  );
   return {
-    scope: 'Production presign completion, wallet registration, freeze and role-to-role import; excludes full device linking and concurrent consumption',
+    scope:
+      'Production presign completion, wallet registration, freeze and role-to-role import; excludes full device linking and concurrent consumption',
+    walletWaitsForBothSessionAcknowledgements: true,
+    partialAcknowledgementSurvivesWalletEviction: true,
+    inventoryAvailableDuringDraining: true,
     completedPresignatureRetired: true,
     initializedFenceRequiresExactWalletMove: true,
     terminalReplayFenceRace: terminalRace.outcome,
@@ -275,29 +369,56 @@ async function verifyWalletInventoryTransfer(topology, credential, receipt, requ
   const [scope, move, snapshot] = JSON.parse(Buffer.concat(pieces).toString('utf8'));
   assert.deepEqual(scope, receipt.scope);
   assert.deepEqual(move, receipt.request);
-  assert.equal(receipt.record_count, requests.length);
+  assert.ok(receipt.record_count > requests.length);
+  assert.equal(snapshot.activations.length, 1);
   assert.equal(snapshot.linked_presign_sessions.length, requests.length);
   const inventoryPath = '/router-ab/signing-worker/wallet/linked-presign-inventory';
-  const firstPageRequest = { receipt, cursor: { kind: 'start' }, limit: 1 };
+  const firstPageRequest = {
+    scope: receipt.scope,
+    request: receipt.request,
+    cursor: { kind: 'start' },
+    limit: 1,
+  };
   const firstPage = await accepted(source, inventoryPath, firstPageRequest, credential);
   assert.equal(firstPage.state, 'more');
   assert.equal(firstPage.sessions.length, 1);
   assert.deepEqual(await accepted(source, inventoryPath, firstPageRequest, credential), firstPage);
-  const lastPage = await accepted(source, inventoryPath, {
-    receipt, cursor: { kind: 'after', presign_session_id: firstPage.next_presign_session_id }, limit: 1,
-  }, credential);
+  const lastPage = await accepted(
+    source,
+    inventoryPath,
+    {
+      scope: receipt.scope,
+      request: receipt.request,
+      cursor: { kind: 'after', presign_session_id: firstPage.next_presign_session_id },
+      limit: 1,
+    },
+    credential,
+  );
   assert.equal(lastPage.state, 'complete');
   assert.equal(lastPage.sessions.length, 1);
   const inventory = [...firstPage.sessions, ...lastPage.sessions];
   assert.deepEqual(inventory, snapshot.linked_presign_sessions.map(inventoryIdentity));
-  const changedReceipt = structuredClone(receipt);
-  changedReceipt.record_count += 1;
-  await rejected(source, inventoryPath, { receipt: changedReceipt, cursor: { kind: 'start' }, limit: 1 }, credential, /frozen source receipt/);
-  await rejected(source, inventoryPath, { receipt, cursor: { kind: 'start' }, limit: 0 }, credential, /limit must be/);
+  const changedMove = structuredClone(receipt.request);
+  changedMove.invalidated_at_ms += 1;
+  await rejected(
+    source,
+    inventoryPath,
+    { scope: receipt.scope, request: changedMove, cursor: { kind: 'start' }, limit: 1 },
+    credential,
+    /requires its source wallet move/,
+  );
+  await rejected(
+    source,
+    inventoryPath,
+    { scope: receipt.scope, request: receipt.request, cursor: { kind: 'start' }, limit: 0 },
+    credential,
+    /limit must be/,
+  );
   for (const request of requests) {
     const row = snapshot.linked_presign_sessions.find(matchesSession.bind(undefined, request.presign_session_id));
     assert.ok(row, 'Every registered session must remain discoverable');
     assert.equal(row.server_presignature_id, request.request.client_presignature_id);
+    assert.equal(row.ownership_generation, receipt.request.source_generation);
     assert.deepEqual(JSON.parse(row.owner_json), request.wallet_scope);
   }
   const verification = { kind: 'verify', receipt };
@@ -322,7 +443,7 @@ async function verifyWalletInventoryTransfer(topology, credential, receipt, requ
     verifiedInventorySurvivedEviction: true,
     destinationAdmissionRemainsClosed: true,
     frozenInventoryPagesMatchSnapshot: true,
-    changedInventoryReceiptRejected: true,
+    changedInventoryMoveRejected: true,
   };
 }
 
@@ -412,7 +533,7 @@ async function verifyPendingRegistration(topology, credential, initialization, m
   await accepted(destination, transferPath, { kind: 'import', chunk }, credential);
   assert.deepEqual(await accepted(destination, transferPath, { kind: 'verify', receipt }, credential), { kind: 'verified', receipt });
   return {
-    schedule: 'Registration commits; wallet freezes; session fences; delayed initialization arrives',
+    schedule: 'Registration commits; wallet drains; session fences; delayed initialization arrives',
     wrongMoveRejected: true,
     delayedInitializationRejected: true,
     fenceAndFreezeReplayedAfterEviction: true,

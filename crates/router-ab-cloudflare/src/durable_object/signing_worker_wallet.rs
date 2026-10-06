@@ -146,7 +146,9 @@ pub(crate) enum SigningWorkerWalletDoRequestV1 {
     FreezeEcdsaPool(crate::SigningWorkerPoolFreezeCommandV1),
     ExportEcdsaSnapshot(crate::SigningWorkerEcdsaExportRequestV1),
     ListLinkedPresignSessions(crate::SigningWorkerLinkedPresignInventoryRequestV1),
-    RecordLinkedPresignFreeze(crate::SigningWorkerLinkedPresignFreezeReceiptV1),
+    RecordLinkedPresignFreeze {
+        receipt: crate::SigningWorkerLinkedPresignFreezeReceiptV1,
+    },
     TransferEcdsaSnapshot(crate::SigningWorkerEcdsaTransferRequestV1),
     EcdsaPoolMutate {
         scope: CloudflareSigningWorkerWalletScopeV1,
@@ -266,7 +268,7 @@ impl SigningWorkerWalletDoRequestV1 {
             Self::FreezeEcdsaPool(command) => &command.scope,
             Self::ExportEcdsaSnapshot(command) => &command.receipt.scope,
             Self::ListLinkedPresignSessions(command) => &command.scope,
-            Self::RecordLinkedPresignFreeze(receipt) => &receipt.command.wallet_scope,
+            Self::RecordLinkedPresignFreeze { receipt } => &receipt.command.wallet_scope,
             Self::TransferEcdsaSnapshot(command) => command.scope(),
             Self::CheckEcdsaPoolAdmission { scope } => scope,
             Self::ClaimEcdsaPresignAuthority(request) => request.authority.wallet_scope(),
@@ -281,7 +283,7 @@ impl SigningWorkerWalletDoRequestV1 {
     fn validate(&self) -> Result<(), RouterAbProtocolError> {
         match self {
             Self::ListLinkedPresignSessions(command) => command.scope.validate(),
-            Self::RecordLinkedPresignFreeze(receipt) => receipt.validate(),
+            Self::RecordLinkedPresignFreeze { receipt } => receipt.validate(),
             Self::AuthorizeLinkedPresignFence {
                 scope,
                 presign_session_id,
@@ -742,7 +744,7 @@ impl RouterAbSigningWorkerWalletDurableObject {
             SigningWorkerWalletDoRequestV1::ExportEcdsaSnapshot(command) => {
                 self.with_ecdsa_transaction(move |store| store.export_ecdsa_snapshot(command)).await
             }
-            SigningWorkerWalletDoRequestV1::RecordLinkedPresignFreeze(receipt) => {
+            SigningWorkerWalletDoRequestV1::RecordLinkedPresignFreeze { receipt } => {
                 self.with_ecdsa_transaction(move |store| {
                     store.record_linked_presign_freeze(receipt)
                 })

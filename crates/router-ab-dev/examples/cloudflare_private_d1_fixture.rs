@@ -59,7 +59,8 @@ fn linked_presign_init_fixture() -> Result<LinkedPresignFixture, Box<dyn std::er
         NormalSigningAuthorizationV1, RouterAbEcdsaDerivationLinkedDeviceEvmDigestSigningRequestV1,
         RouterAbEcdsaDerivationOperationDigestsV1,
     };
-    let scope = linked_scope::scope();
+    let mut scope = linked_scope::scope();
+    scope.wallet_id = "ecdsa-live-account".to_owned();
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis() as u64;
     let expires_at_ms = now + 120_000;
     let request = CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1 {

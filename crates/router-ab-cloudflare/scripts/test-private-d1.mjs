@@ -1875,6 +1875,7 @@ async function testEcdsaNormalSigning(
     };
     const acceptedBinding = {
       kind: 'gateway_owner_wallet_session',
+      ownership_generation: 1,
       subject_id: ecdsa.accountId,
       account_id: ecdsa.accountId,
       authorization_id: 'ecdsa-live-normal-authorization',
