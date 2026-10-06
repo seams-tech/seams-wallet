@@ -1,0 +1,54 @@
+{
+  "date": "2026-10-07",
+  "environment": "Local Workers, Chromium, virtual WebAuthn, no broadcast",
+  "comparison": "Frozen SDK artifacts, same existing three E2E cases, POST request counts across complete scenarios",
+  "counts": {
+    "baseline": {
+      "e2e-intended-behaviours-pa-3870c-ts-the-next-valid-operation-chromium": {
+        "/wallet/session/status": 32,
+        "/router-ab/ed25519/sign/prepare": 4,
+        "/router-ab/ed25519/sign": 2
+      },
+      "e2e-intended-behaviours-pa-6cc61-gistered-key-across-refresh-chromium": {
+        "/wallet/session/status": 29,
+        "/router-ab/ed25519/sign/prepare": 3,
+        "/router-ab/ed25519/sign": 3
+      },
+      "e2e-intended-behaviours-pa-a03c6-mediately-and-after-refresh-chromium": {
+        "/wallet/session/status": 35,
+        "/router-ab/ed25519/sign/prepare": 3,
+        "/router-ab/ed25519/sign": 3
+      }
+    },
+    "candidate": {
+      "e2e-intended-behaviours-pa-3870c-ts-the-next-valid-operation-chromium": {
+        "/wallet/session/status": 27,
+        "/router-ab/ed25519/sign/prepare": 4,
+        "/router-ab/ed25519/sign": 2
+      },
+      "e2e-intended-behaviours-pa-6cc61-gistered-key-across-refresh-chromium": {
+        "/wallet/session/status": 25,
+        "/router-ab/ed25519/sign/prepare": 3,
+        "/router-ab/ed25519/sign": 3
+      },
+      "e2e-intended-behaviours-pa-a03c6-mediately-and-after-refresh-chromium": {
+        "/wallet/session/status": 29,
+        "/router-ab/ed25519/sign/prepare": 3,
+        "/router-ab/ed25519/sign": 3
+      }
+    }
+  },
+  "verification": {
+    "baselinePassed": 3,
+    "candidatePassed": 3,
+    "changedAuthorityRejectedBeforeFinalize": true,
+    "mixedUnlockExportSharedBudgetPassed": true
+  },
+  "limitations": [
+    "Counts include registration, reload and harness reads; they are not per-signature totals.",
+    "No hosted latency gain is claimed.",
+    "Other signing status reads remain."
+  ],
+  "baselineDistSha256": "c2d6872d1fda963928186d2839855784a11f5ac895e1d59ad12cb72ffafa816a",
+  "candidateDistSha256": "fa876cb9ef5ebbdaa72f05c6f6252e6d835bd7f0083976f6d9f0f95d7ca6922e"
+}

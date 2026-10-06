@@ -754,3 +754,15 @@ Verification also passes for the rebuilt candidate's public passkey unlock/expor
 and shared-budget lifecycle E2E (33.9 seconds), SDK and server type-checks/builds,
 Wallet lifecycle type fixtures, private Console-server type-check, and the bloat
 gate. No hosted deployment or npm publication was performed.
+
+### NEAR status-read reuse — 2026-10-07
+
+NEAR exact signing preparation now passes its freshly read authorization directly
+to sealed-runtime binding. This removes the duplicate HTTP read at that boundary.
+The three existing NEAR browser scenarios pass before and after the change.
+Complete-scenario status calls fall 35→29, 29→25, and 32→27. Prepare/finalize counts
+and changed-authority rejection remain unchanged. Other status-read removal is
+still pending. No hosted latency reduction is claimed.
+
+See [NEAR measurements](./optimization-12-NEAR-only-20261006.md#near-duplicate-status-read-removal--2026-10-07)
+and [repeatable evidence](./evidence/near-status-reuse-20261007.json).

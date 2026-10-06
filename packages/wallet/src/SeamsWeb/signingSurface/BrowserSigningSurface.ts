@@ -4182,9 +4182,10 @@ export class BrowserSigningSurface {
         }
         const sealedRuntime = sealedRuntimeResolution.runtime;
         const materialActivation = sealedRuntime.sealedRecord.ed25519Restore.materialActivation;
-        const walletSessionState = await walletSessionStateFromExactEd25519Runtime({
+        const walletSessionState = await rebindRouterAbEd25519WalletSessionStateFromExactRuntime({
           runtime: sealedRuntime,
-          relayerUrl: String(this.seamsWebConfigs.network.relayer?.url || '').trim(),
+          authorization,
+          nowMs: Date.now(),
         });
         const signer = walletSessionState.signingLane.identity.signer;
         const publicLocator = {

@@ -145,3 +145,34 @@ produced by the existing NEAR contract file. Run its `NEAR rejects changed prepa
 authority` case with the intended-behaviour CI configuration. Initial test attempts
 needed harness filename registration, fresh D1 state, and reload after the error
 dialog. They are excluded from passing evidence.
+
+## NEAR duplicate status-read removal — 2026-10-07
+
+Exact NEAR signing preparation now reuses the authorization it just read when
+binding the sealed runtime. Previously, that binding helper fetched the same
+status again. The shared binding function still checks wallet, factor, authority,
+session identity, and expiry. Fresh prepare reconciliation and finalize admission
+remain unchanged. Export, funding, and restoration status readers remain unchanged.
+No cross-operation cache was added.
+
+The same three existing browser scenarios passed with frozen baseline and candidate
+SDK artifacts. Network traces give these complete-scenario POST counts:
+
+| Scenario | Status calls before | Status calls after | Prepare / finalize calls, unchanged |
+| --- | ---: | ---: | ---: |
+| Registration, two immediate signatures, reload signature | 35 | 29 | 3 / 3 |
+| Message signatures across reload, then transaction | 29 | 25 | 3 / 3 |
+| Changed prepare authority rejected, then valid signing | 32 | 27 | 4 / 2 |
+
+These totals include lifecycle and harness reads. They are not per-signature
+budgets. The rejection case continues to prove zero finalize requests after the
+changed authority response. Remaining status requests need separate analysis.
+This bounded comparison establishes request removal, not hosted latency savings.
+
+The mixed-wallet unlock, export, and shared-budget signing case also passes.
+SDK type-check, build, and bloat checks pass. Reproduce with the intended-behaviour
+CI configuration and `passkey.ed25519-yao-local.contract.test.ts`, selecting
+`registration signs immediately|NEAR message signatures|NEAR rejects changed prepare authority`.
+Enable `--trace=on` to count POST requests from the trace network records.
+Raw traces and the runner remain in `.artifacts/near-status-reuse/`.
+[Sanitized counts and SDK fingerprints](./evidence/near-status-reuse-20261007.json).
