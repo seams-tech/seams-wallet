@@ -3,6 +3,8 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use worker::{Env, Method, Request, Response, SqlStorage, SqlStorageValue};
 
+pub(crate) const SOURCE_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_relocation_source (id INTEGER PRIMARY KEY CHECK (id = 1), request_json TEXT NOT NULL)";
+
 pub(crate) const SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_relocation_preparation (id INTEGER PRIMARY KEY CHECK (id = 1), request_json TEXT NOT NULL)";
 
 pub(crate) trait WalletOwner: Serialize + DeserializeOwned {
@@ -118,7 +120,7 @@ pub(crate) fn reserve<Owner: WalletOwner>(
     let request_json =
         serde_json::to_string(&command).map_err(|error| pair_error(error.to_string()))?;
     sql.exec(
-        "INSERT INTO wallet_relocation_preparation (id, request_json) SELECT 1, ? WHERE NOT EXISTS (SELECT 1 FROM yao_pair_sessions) AND NOT EXISTS (SELECT 1 FROM yao_pair_admission_fences) ON CONFLICT DO NOTHING",
+        "INSERT INTO wallet_relocation_preparation (id, request_json) SELECT 1, ? WHERE NOT EXISTS (SELECT 1 FROM yao_pair_sessions) AND NOT EXISTS (SELECT 1 FROM yao_pair_admission_fences) AND NOT EXISTS (SELECT 1 FROM wallet_relocation_source) ON CONFLICT DO NOTHING",
         vec![SqlStorageValue::String(request_json.clone())],
     )?;
     let rows = sql
@@ -141,6 +143,12 @@ pub(crate) fn reserve<Owner: WalletOwner>(
 }
 
 pub(crate) fn require_open<Owner: WalletOwner>(sql: &SqlStorage) -> worker::Result<()> {
+    let frozen = sql.exec("SELECT request_json FROM wallet_relocation_source WHERE id = 1", None)?
+        .to_array::<ReservationRow>()?;
+    if !frozen.is_empty() {
+        return Err(pair_error(format!("{} source is frozen", Owner::LABEL)));
+    }
+
     let rows = sql
         .exec(
             "SELECT request_json FROM wallet_relocation_preparation WHERE id = 1",
@@ -191,4 +199,50 @@ pub(crate) async fn read_context<Owner: WalletOwner>(
         kind: "deriver_cipher_context",
         digest_hex: Owner::cipher(env)?.relocation_context_digest()?,
     })
+}
+
+#[derive(Deserialize)]
+struct PendingPairs {
+    count: u64,
+}
+
+pub(crate) fn fence_settled_source<Owner: WalletOwner>(
+    sql: &SqlStorage,
+    command: Preparation<Owner>,
+) -> worker::Result<Response> {
+    let request_json = serde_json::to_string(&command)
+        .map_err(|error| pair_error(error.to_string()))?;
+    let existing = sql.exec("SELECT request_json FROM wallet_relocation_source WHERE id = 1", None)?
+        .to_array::<ReservationRow>()?;
+    if let [row] = existing.as_slice() {
+        if row.request_json != request_json {
+            return Response::error("Deriver source is fenced for another move", 409);
+        }
+    } else {
+        require_open::<Owner>(sql)?;
+        let pending = sql.exec(
+            "SELECT COUNT(*) AS count FROM yao_pair_sessions WHERE lifecycle NOT IN ('completed', 'burned', 'expired')",
+            None,
+        )?.to_array::<PendingPairs>()?;
+        let [pending] = pending.as_slice() else {
+            return Err(pair_error("Deriver source inventory is unavailable"));
+        };
+        if pending.count != 0 {
+            return Response::from_json(&serde_json::json!({
+                "kind": "pending", "pending_pairs": pending.count,
+            }));
+        }
+        // Synchronous SQL runs without an await between the inventory check and fence.
+        // Guards also cover deferred writes that entered before this request.
+        for table in ["yao_pair_sessions", "yao_pair_admission_fences"] {
+            for operation in ["INSERT", "UPDATE", "DELETE"] {
+                sql.exec(&format!("CREATE TRIGGER IF NOT EXISTS relocation_source_{table}_{operation} BEFORE {operation} ON {table} WHEN EXISTS (SELECT 1 FROM wallet_relocation_source) BEGIN SELECT RAISE(ABORT, 'Deriver source is frozen'); END"), None)?;
+            }
+        }
+        sql.exec("INSERT INTO wallet_relocation_source (id, request_json) VALUES (1, ?)",
+            vec![SqlStorageValue::String(request_json)])?;
+    }
+    Response::from_json(&serde_json::json!({
+        "kind": "settled_fence", "source_object": command.owner.object_name()?, "request": command,
+    }))
 }

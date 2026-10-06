@@ -40,6 +40,8 @@ use super::deriver_preparation as preparation;
 
 pub(crate) const CONTEXT_PATH: &str = "/router-ab/internal/deriver-a/wallet/relocation-context";
 
+pub(crate) const SOURCE_FENCE_PATH: &str = "/router-ab/internal/deriver-a/wallet/fence-relocation";
+
 pub(crate) const PREPARATION_PATH: &str = "/router-ab/internal/deriver-a/wallet/prepare-relocation";
 
 const PAIR_DO_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair";
@@ -393,18 +395,23 @@ impl DurableObject for RouterAbDeriverAWalletDurableObject {
         self.sql.exec(PAIR_SCHEMA, None)?;
         self.sql.exec(FENCE_SCHEMA, None)?;
         self.sql.exec(preparation::SCHEMA, None)?;
-        if path != PREPARATION_PATH && path != PAIR_DO_PATH {
+        self.sql.exec(preparation::SOURCE_SCHEMA, None)?;
+        if path != PREPARATION_PATH && path != SOURCE_FENCE_PATH && path != PAIR_DO_PATH {
             preparation::require_open::<DeriverAWalletOwnerV1>(&self.sql)?;
         }
         match path.as_str() {
-            PREPARATION_PATH => {
+            PREPARATION_PATH | SOURCE_FENCE_PATH => {
                 let command: preparation::Preparation<DeriverAWalletOwnerV1> = request.json().await?;
                 command.validate()?;
                 if !command.context_matches(&self.env)? {
                     return Response::error("Deriver encryption context differs from source", 409);
                 }
                 self.check_owner(&command.owner, true)?;
-                preparation::reserve(&self.sql, command)
+                if path == SOURCE_FENCE_PATH {
+                    preparation::fence_settled_source(&self.sql, command)
+                } else {
+                    preparation::reserve(&self.sql, command)
+                }
             }
             PAIR_DO_PATH => {
                 let command: DeriverAPairDoCommandV1 = request.json().await?;
@@ -1467,4 +1474,8 @@ pub(crate) async fn call_preparation(request: Request, env: &Env) -> worker::Res
 
 pub(crate) async fn read_relocation_context(request: Request, env: &Env) -> worker::Result<Response> {
     preparation::read_context::<DeriverAWalletOwnerV1>(request, env).await
+}
+
+pub(crate) async fn call_source_fence(request: Request, env: &Env) -> worker::Result<Response> {
+    preparation::call_preparation::<DeriverAWalletOwnerV1>(request, env, PAIR_DO_BINDING, SOURCE_FENCE_PATH).await
 }

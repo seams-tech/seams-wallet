@@ -116,20 +116,7 @@ export async function verifyDeriverPreparation(topology, owner, rootIdentity, pr
   const runtime = await loadRuntime();
   const a = await reserveDestination(topology, 'a', owner, credential, runtime);
   const { request, receipt: readiness } = preparation;
-  const ordinary = {
-    operation: 'prepare',
-    owner,
-    root_identity: rootIdentity,
-    record: {
-      status: 'prepared',
-      pair_binding: request.pair_binding,
-      root_metadata_digest: readiness.root_metadata_digest.bytes,
-      expires_at_ms: readiness.expires_at_ms,
-      receipt: readiness,
-      payload: { tenant_root: request.tenant_root, work: request.work, input: request.input },
-    },
-    now_ms: readiness.prepared_at_ms,
-  };
+  const ordinary = preparedCommand(owner, rootIdentity, preparation);
   await assert.rejects(
     post(a.object, '/router-ab/internal/deriver-a/wallet-pair', ordinary, credential),
     /Deriver A destination is reserved/u,
@@ -197,4 +184,80 @@ class DeriverBinding {
       body: await request.arrayBuffer(),
     });
   }
+}
+
+export async function verifyDeriverSourceFences(topology, owner, rootIdentity, preparation, credential) {
+  const liveWorkerName = 'deriver-a-relocation-wrong-environment';
+  const liveWorker = await topology.getWorker(liveWorkerName);
+  const liveNamespace = await topology.getDurableObjectNamespace(roles.a.binding, liveWorkerName);
+  const digest = createHash('sha256').update('seams/deriver-a/wallet-do/v1').update(JSON.stringify(owner)).digest('hex');
+  const liveObject = liveNamespace.get(liveNamespace.idFromName(`deriver-a-wallet-${digest}`));
+  const pairPath = '/router-ab/internal/deriver-a/wallet-pair';
+  const prepare = await post(liveObject, pairPath, preparedCommand(owner, rootIdentity, preparation), credential);
+  assert.equal(prepare.status, 200, await prepare.clone().text());
+  const read = { operation: 'read', owner, pair_binding: preparation.request.pair_binding };
+  assert.equal((await (await post(liveObject, pairPath, read, credential)).json()).record.status, 'prepared');
+  const context = await (await post(liveWorker, '/router-ab/internal/deriver-a/wallet/relocation-context', {}, credential)).json();
+  const liveCommand = { owner, move_id: `wmove_${'p'.repeat(43)}`, request_digest_hex: 'de'.repeat(32),
+    cipher_context_digest_hex: context.digest_hex, source_generation: 1, destination_generation: 2 };
+  const livePath = '/router-ab/internal/deriver-a/wallet/fence-relocation';
+  assert.deepEqual(await (await post(liveWorker, livePath, liveCommand, credential)).json(), { kind: 'pending', pending_pairs: 1 });
+  const expired = await post(liveObject, pairPath, { operation: 'expire', owner,
+    pair_binding: preparation.request.pair_binding, now_ms: preparation.receipt.expires_at_ms + 1 }, credential);
+  assert.equal(expired.status, 200, await expired.clone().text());
+  assert.equal((await (await post(liveObject, pairPath, read, credential)).json()).record.status, 'expired');
+  assert.equal((await (await post(liveWorker, livePath, liveCommand, credential)).json()).kind, 'settled_fence');
+  const receipts = [];
+  for (const role of ['a', 'b']) {
+    const workerName = `deriver-${role}`;
+    const source = await topology.getWorker(workerName);
+    const contextResponse = await post(source, `/router-ab/internal/deriver-${role}/wallet/relocation-context`, {}, credential);
+    const context = await contextResponse.json();
+    const command = {
+      owner, move_id: `wmove_${'f'.repeat(43)}`, request_digest_hex: 'ab'.repeat(32),
+      cipher_context_digest_hex: context.digest_hex, source_generation: 1, destination_generation: 2,
+    };
+    const path = `/router-ab/internal/deriver-${role}/wallet/fence-relocation`;
+    const response = await post(source, path, command, credential);
+    assert.equal(response.status, 200, await response.clone().text());
+    const receipt = await response.json();
+    assert.equal(receipt.kind, 'settled_fence');
+    assert.deepEqual(receipt.request, command);
+    const namespace = await topology.getDurableObjectNamespace(roles[role].binding, workerName);
+    const id = namespace.idFromName(receipt.source_object);
+    await topology.unsafeEvictDurableObject(workerName, roles[role].className, { id: id.toString() });
+    assert.deepEqual(await (await post(source, path, command, credential)).json(), receipt);
+    assert.equal((await post(source, path, { ...command, request_digest_hex: 'cd'.repeat(32) }, credential)).status, 409);
+    const object = namespace.get(id);
+    const pair = preparation.request.pair_binding;
+    const mutation = role === 'a'
+      ? { operation: 'expire', owner, pair_binding: pair, now_ms: preparation.receipt.expires_at_ms + 1 }
+      : { scope: { root_identity: rootIdentity, pair_binding: pair }, command: {
+        command: 'fail_pair', session: pair.ceremony.binding.session_id, pair_digest: pair.pair_digest.bytes,
+      } };
+    await assert.rejects(post(object, `/router-ab/internal/deriver-${role}/wallet-pair`, mutation, credential),
+      new RegExp(`${roles[role].label} source is frozen`, 'u'));
+    receipts.push(receipt);
+  }
+  return { scope: 'Terminal pair stores only; tenant-root obligations and snapshot transfer are not covered',
+    receipts, livePairsDeferFence: true, settlementRemainsOpenUntilFence: true,
+    exactReplayAfterEviction: true, conflictingMoveRejected: true, ordinaryMutationRejected: true };
+}
+
+function preparedCommand(owner, rootIdentity, preparation) {
+  const { request, receipt: readiness } = preparation;
+  return {
+    operation: 'prepare',
+    owner,
+    root_identity: rootIdentity,
+    record: {
+      status: 'prepared',
+      pair_binding: request.pair_binding,
+      root_metadata_digest: readiness.root_metadata_digest.bytes,
+      expires_at_ms: readiness.expires_at_ms,
+      receipt: readiness,
+      payload: { tenant_root: request.tenant_root, work: request.work, input: request.input },
+    },
+    now_ms: readiness.prepared_at_ms,
+  };
 }

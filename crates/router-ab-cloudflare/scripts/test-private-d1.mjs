@@ -1,4 +1,4 @@
-import { verifyDeriverPreparation } from './deriver-preparation-evidence.mjs';
+import { verifyDeriverPreparation, verifyDeriverSourceFences } from './deriver-preparation-evidence.mjs';
 import { verifyEd25519DestinationSigning } from './ed25519-signing-evidence.mjs';
 import { verifyEd25519Snapshot } from './ed25519-snapshot-evidence.mjs';
 import assert from 'node:assert/strict';
@@ -4340,8 +4340,12 @@ async function testDeriverAWalletDoExecution(
   const ed25519Snapshot = await verifyEd25519Snapshot(
     topology, activation, fixture, routerToSigningWorkerEcdsaAuthSecret, gatewayToRouterAuthSecret, internalAuthSecret, signRelocatedEd25519,
   );
+  const deriverSourceFences = await verifyDeriverSourceFences(
+    topology, secondOwner, secondIdentity, capturedDeriverAPreparation, internalAuthSecret,
+  );
   const artifact = {
     kind: 'deriver_a_wallet_do_execution_e2e_v1',
+    deriverSourceFences,
     deriverPreparation,
     ed25519Snapshot,
     reproduce: 'ROUTER_AB_WALLET_DO_HARNESS=enabled ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --do-pair-execution',

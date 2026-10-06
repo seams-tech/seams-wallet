@@ -15,6 +15,8 @@ use crate::{
 
 pub(crate) const CONTEXT_PATH: &str = "/router-ab/internal/deriver-b/wallet/relocation-context";
 
+pub(crate) const SOURCE_FENCE_PATH: &str = "/router-ab/internal/deriver-b/wallet/fence-relocation";
+
 pub(crate) const PREPARATION_PATH: &str = "/router-ab/internal/deriver-b/wallet/prepare-relocation";
 
 const BINDING: &str = "DERIVER_B_WALLET_DO";
@@ -130,7 +132,7 @@ impl DurableObject for RouterAbDeriverBWalletDurableObject {
     async fn fetch(&self, mut request: Request) -> worker::Result<Response> {
         let path = request.path();
         if request.method() != worker::Method::Post
-            || (path != COMMAND_PATH && path != RECONCILE_PATH && path != PREPARATION_PATH)
+            || (path != COMMAND_PATH && path != RECONCILE_PATH && path != PREPARATION_PATH && path != SOURCE_FENCE_PATH)
         {
             return Response::error("Unknown Deriver B wallet object request", 404);
         }
@@ -138,14 +140,19 @@ impl DurableObject for RouterAbDeriverBWalletDurableObject {
         self.sql.exec(PAIR_SCHEMA, None)?;
         self.sql.exec(FENCE_SCHEMA, None)?;
         self.sql.exec(preparation::SCHEMA, None)?;
-        if path == PREPARATION_PATH {
+        self.sql.exec(preparation::SOURCE_SCHEMA, None)?;
+        if path == PREPARATION_PATH || path == SOURCE_FENCE_PATH {
             let command: preparation::Preparation<DeriverBWalletOwnerV1> = request.json().await?;
             command.validate()?;
             if !command.context_matches(&self.env)? {
                 return Response::error("Deriver encryption context differs from source", 409);
             }
             self.check_owner(&command.owner, true)?;
-            return preparation::reserve(&self.sql, command);
+            return if path == SOURCE_FENCE_PATH {
+                preparation::fence_settled_source(&self.sql, command)
+            } else {
+                preparation::reserve(&self.sql, command)
+            };
         }
         if path == RECONCILE_PATH {
             preparation::require_open::<DeriverBWalletOwnerV1>(&self.sql)?;
@@ -391,4 +398,8 @@ pub(crate) async fn call_preparation(request: Request, env: &Env) -> worker::Res
 
 pub(crate) async fn read_relocation_context(request: Request, env: &Env) -> worker::Result<Response> {
     preparation::read_context::<DeriverBWalletOwnerV1>(request, env).await
+}
+
+pub(crate) async fn call_source_fence(request: Request, env: &Env) -> worker::Result<Response> {
+    preparation::call_preparation::<DeriverBWalletOwnerV1>(request, env, BINDING, SOURCE_FENCE_PATH).await
 }
