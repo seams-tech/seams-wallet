@@ -1,3 +1,5 @@
+import { WalletSessionQuotaAdmissionError } from '../../session/operationState/authorizationAdmission';
+import { WalletSessionFailureError } from '../../session/lifecycle/walletSessionFailure';
 import type { PreparedWalletSessionStatus } from '@/core/rpcClients/relayer/ecdsaPrepareSession';
 import { ROUTER_AB_ECDSA_PRESIGN_CEREMONY_MAX_LIFETIME_MS } from '@shared/utils/routerAbEcdsaDerivation';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
@@ -1794,6 +1796,9 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
       recId: signature65[64],
     };
   } catch (e: unknown) {
+    if (e instanceof WalletSessionQuotaAdmissionError || e instanceof WalletSessionFailureError) {
+      throw e;
+    }
     const msg = String(
       e && typeof e === 'object' && 'message' in e
         ? (e as { message?: unknown }).message
