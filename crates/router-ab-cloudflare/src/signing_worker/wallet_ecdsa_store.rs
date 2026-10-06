@@ -10,6 +10,7 @@ use super::*;
 use crate::ordinary_inactive_signer_material as linked;
 use serde::de::DeserializeOwned;
 
+mod execution;
 mod relocation;
 mod presign_authority;
 mod linked_presign_inventory;
@@ -86,7 +87,7 @@ const LINKED_ECDSA_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_linked_ecds
     owner_json TEXT NOT NULL,
     ciphertext_json TEXT NOT NULL)";
 /// The wallet store's ECDSA tables.
-pub(crate) const SIGNING_WORKER_WALLET_ECDSA_SCHEMA_V1: [&str; 9] = [
+pub(crate) const SIGNING_WORKER_WALLET_ECDSA_SCHEMA_V1: [&str; 10] = [
     ECDSA_POOL_SCHEMA,
     ECDSA_EFFECT_SCHEMA,
     ECDSA_ACTIVATION_SCHEMA,
@@ -94,6 +95,7 @@ pub(crate) const SIGNING_WORKER_WALLET_ECDSA_SCHEMA_V1: [&str; 9] = [
     relocation::SCHEMA,
     import::SCHEMA,
     import::ACTIVATION_SCHEMA,
+    execution::SCHEMA,
     presign_authority::SCHEMA,
     linked_presign_inventory::SCHEMA,
 ];
@@ -281,6 +283,14 @@ impl<'a, Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'a, Sql>
         };
         call.validate()?;
         self.require_mutation_admission(&scope)?;
+        if self.execution_authority(&scope)?.is_none()
+            && (self.ecdsa_snapshot(&scope)?.record_count() != 0
+                || self.import_activation(&scope)?.is_some())
+        {
+            return Err(wallet_error(
+                "ECDSA registration cannot infer missing execution authority",
+            ));
+        }
         let material_key = call.storage_key();
         let active_key = call.active_state_index_key()?;
         let active = crate::cloudflare_active_signing_worker_state_from_activation_request_v1(
@@ -312,6 +322,14 @@ impl<'a, Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'a, Sql>
             ],
         )?;
         let stored = if written.len() == 1 && written[0].material_key == material_key {
+            if self.execution_authority(&scope)?.is_none() {
+                self.install_execution_authority(
+                    &scope,
+                    execution::ExecutionAuthority::Registration {
+                        material_key: material_key.clone(),
+                    },
+                )?;
+            }
             candidate
         } else {
             let stored = self

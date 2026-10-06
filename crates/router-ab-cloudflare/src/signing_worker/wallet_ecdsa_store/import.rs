@@ -130,7 +130,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         }
     }
 
-    fn import_activation(
+    pub(super) fn import_activation(
         &self,
         scope: &CloudflareSigningWorkerWalletScopeV1,
     ) -> RouterAbProtocolResult<Option<(SigningWorkerPoolFreezeReceiptV1, u32)>> {
@@ -154,28 +154,6 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         }
     }
 
-    pub(crate) fn require_execution_generation(
-        &self,
-        scope: &CloudflareSigningWorkerWalletScopeV1,
-        ownership_generation: u64,
-    ) -> RouterAbProtocolResult<()> {
-        crate::router_wallet::validate_wallet_ownership_generation(ownership_generation)?;
-        if self.activated_ecdsa_generation(scope)? != ownership_generation {
-            return Err(wallet_error("ECDSA execution ownership generation differs"));
-        }
-        Ok(())
-    }
-
-    pub(super) fn activated_ecdsa_generation(
-        &self,
-        scope: &CloudflareSigningWorkerWalletScopeV1,
-    ) -> RouterAbProtocolResult<u64> {
-        Ok(match self.import_activation(scope)? {
-            Some((receipt, _)) => receipt.request.source_generation + 1,
-            None => 1,
-        })
-    }
-
     fn activate_ecdsa_import(
         &self,
         receipt: SigningWorkerPoolFreezeReceiptV1,
@@ -185,6 +163,10 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
             if prior != receipt {
                 return Err(wallet_error("ECDSA import activation changed"));
             }
+            self.require_execution_generation(
+                &receipt.scope,
+                receipt.request.source_generation + 1,
+            )?;
             // An exact retry must never remove a later move's source fence.
             return Ok(SigningWorkerEcdsaTransferResponseV1::Activated { receipt });
         }
@@ -199,6 +181,12 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
                 ))
             }
         };
+        self.install_execution_authority(
+            &receipt.scope,
+            execution::ExecutionAuthority::Relocation {
+                request: receipt.request.clone(),
+            },
+        )?;
         let owner = owner_json(&receipt.scope, "ECDSA import activation")?;
         let encoded =
             serde_json::to_string(&receipt).map_err(|error| wallet_error(error.to_string()))?;

@@ -190,8 +190,24 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
     ) -> RouterAbProtocolResult<SigningWorkerPoolFreezeResponseV1> {
         scope.validate()?;
         request.validate()?;
-        if request.source_generation != self.activated_ecdsa_generation(&scope)? {
-            return Err(wallet_error("ECDSA source ownership generation differs"));
+        match self.execution_authority(&scope)? {
+            Some(authority) if authority.generation()? != request.source_generation => {
+                return Err(wallet_error("ECDSA source ownership generation differs"));
+            }
+            None => {
+                if self.ecdsa_snapshot(&scope)?.record_count() != 0
+                    || self.import_activation(&scope)?.is_some()
+                {
+                    return Err(wallet_error("ECDSA source execution authority is missing"));
+                }
+                self.install_execution_authority(
+                    &scope,
+                    execution::ExecutionAuthority::EmptySource {
+                        request: request.clone(),
+                    },
+                )?;
+            }
+            Some(_) => {}
         }
         match self.pool_fence(&scope)? {
             Some(

@@ -642,7 +642,12 @@ impl RouterAbSigningWorkerWalletDurableObject {
                 activation,
                 material,
                 activated_at_ms,
-            } => self.activate_ecdsa(scope, activation, material, activated_at_ms),
+            } => {
+                self.with_ecdsa_transaction(move |store| {
+                    store.activate(scope, activation, material, activated_at_ms)
+                })
+                .await
+            }
             SigningWorkerWalletDoRequestV1::LoadEcdsaPresignActivation { scope, lookup } => {
                 let sql = DurableObjectWalletSqlV1(&self.sql);
                 self.open_ecdsa_store(&sql)?
@@ -722,20 +727,6 @@ impl RouterAbSigningWorkerWalletDurableObject {
                 now_unix_ms,
             } => self.commit_ecdsa_terminal(scope, request, response, now_unix_ms),
         }
-    }
-
-    fn activate_ecdsa(
-        &self,
-        scope: CloudflareSigningWorkerWalletScopeV1,
-        activation: CloudflareSigningWorkerRecipientProofBundleActivationRequestV1,
-        material: CloudflareServerOutputMaterialRecordV1,
-        activated_at_ms: u64,
-    ) -> Result<Response, RouterAbProtocolError> {
-        let sql = DurableObjectWalletSqlV1(&self.sql);
-        let receipt =
-            self.open_ecdsa_store(&sql)?
-                .activate(scope, activation, material, activated_at_ms)?;
-        Response::from_json(&receipt).map_err(sql_error)
     }
 
     fn load_ecdsa_activation(

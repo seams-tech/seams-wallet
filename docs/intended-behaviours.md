@@ -1555,6 +1555,14 @@ The wallet store checks the active local generation before reserving or consumin
 a presignature and before recording a new terminal result. Exact terminal-result
 replays remain available after transfer and return. The generation does not change
 the wallet scope used to authenticate stored ciphertext.
+The ECDSA wallet store requires an explicit local execution-authority record.
+Initial registration commits this record with its material. Verified import
+activation commits destination authority with its activation receipt. Cleanup
+retains local authority and source fences. Missing authority never implies
+generation 1. A checked empty source can record closed authority for its move,
+which grants no signing permission. Execution authority stays local and does not
+form part of the transferred historical inventory.
+
 
 
 Each new operation claim reads the active local generation in its insert statement.

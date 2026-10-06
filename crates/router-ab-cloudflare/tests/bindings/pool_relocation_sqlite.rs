@@ -143,6 +143,27 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
     let activation = router_ab_ecdsa_derivation_activation_request();
     let activation_material = router_ab_ecdsa_derivation_server_material_record(&activation);
     let activation_request = activation.to_recipient_proof_bundle_activation_request()?;
+    with_store(&path, &env, |_| Ok(()))?;
+    let interrupted_registration = with_store(&path, &env, |store| {
+        store.activate(
+            owner.clone(),
+            activation_request.clone(),
+            activation_material.clone(),
+            1_000,
+        )?;
+        Err::<(), _>(sql_error("interrupted registration before commit"))
+    });
+    assert!(interrupted_registration.is_err());
+    let authority_count: u64 = Connection::open(&path)?.query_row(
+        "SELECT COUNT(*) FROM wallet_ecdsa_execution",
+        [],
+        |row| row.get(0),
+    )?;
+    assert_eq!(
+        authority_count, 0,
+        "registration and execution authority roll back together"
+    );
+    reject_prepare_generation(&path, &env, &owner, 1, "execution authority is missing")?;
     with_store(&path, &env, |store| {
         store.activate(
             owner.clone(),
@@ -570,6 +591,9 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
     });
     artifact["activation"] = serde_json::json!({
         "activation_commit_opens_admission": true,
+        "registration_and_authority_rollback_together": true,
+        "missing_authority_cannot_execute_as_generation_one": true,
+        "inactive_destination_has_no_execution_authority": true,
         "fresh_presign_authority_admitted_after_activation": true,
         "activation_rollback_preserves_closed_admission": true,
         "activation_retry_never_reopens_later_source_fence": true,
@@ -929,6 +953,13 @@ fn verify_snapshot_export(
         .transfer_ecdsa_snapshot(late.clone()))
     .is_ok());
     assert_eq!(rows(&destination), expected_rows);
+    reject_prepare_generation(
+        &destination,
+        env,
+        &receipt.scope,
+        2,
+        "execution authority is missing",
+    )?;
     let interrupted_activation = with_store(&destination, env, |store| {
         store.transfer_ecdsa_snapshot(activate.clone())?;
         Err::<(), _>(sql_error("interrupted activation before commit"))
@@ -960,7 +991,13 @@ fn verify_snapshot_export(
         activated
     );
     assert_eq!(rows(&destination), expected_rows);
-    reject_stale_prepare(&destination, env, &receipt.scope, 1)?;
+    reject_prepare_generation(
+        &destination,
+        env,
+        &receipt.scope,
+        1,
+        "ownership generation differs",
+    )?;
     let mut fresh_presign = presign_request.clone();
     fresh_presign.presign_session_id = format!("ecdsa-presign-v2:2000:{}", b64u(&[0x44; 32]));
     fresh_presign.ceremony_expires_at_ms = 2_000;
@@ -1116,8 +1153,20 @@ fn verify_snapshot_export(
     with_store(&returned, env, |store| {
         store.require_mutation_admission(&receipt.scope)
     })?;
-    reject_stale_prepare(&returned, env, &receipt.scope, 1)?;
-    reject_stale_prepare(&returned, env, &receipt.scope, 2)?;
+    reject_prepare_generation(
+        &returned,
+        env,
+        &receipt.scope,
+        1,
+        "ownership generation differs",
+    )?;
+    reject_prepare_generation(
+        &returned,
+        env,
+        &receipt.scope,
+        2,
+        "ownership generation differs",
+    )?;
     let replay = with_store(&returned, env, |store| {
         store.claim_and_consume_effect(receipt.scope.clone(), effect.clone(), 2_000)
     })?;
@@ -1209,11 +1258,12 @@ fn restore_returned_wallet(
     Ok(())
 }
 
-fn reject_stale_prepare(
+fn reject_prepare_generation(
     path: &std::path::Path,
     env: &CloudflareEnvMapV1,
     scope: &CloudflareSigningWorkerWalletScopeV1,
     ownership_generation: u64,
+    message: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut request = admitted_router_ab_ecdsa_derivation_digest_signing_request(
         router_ab_ecdsa_derivation_digest_signing_request(),
@@ -1227,10 +1277,7 @@ fn reject_stale_prepare(
         )
     })
     .unwrap_err();
-    assert!(
-        error.to_string().contains("ownership generation differs"),
-        "{error}"
-    );
+    assert!(error.to_string().contains(message), "{error}");
     assert_eq!(rows(path), before, "stale preparation preserves pool bytes");
     Ok(())
 }
