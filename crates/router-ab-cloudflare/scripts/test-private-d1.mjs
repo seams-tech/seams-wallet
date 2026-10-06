@@ -4,6 +4,8 @@ import {
   verifyLinkedImportRejection,
   activateTransferredWallet,
   cleanupTransferredWalletSource,
+  evictTransferredWallet,
+  returnTransferredWallet,
 } from './linked-presign-transfer-evidence.mjs';
 import { execFileSync } from 'node:child_process';
 import {
@@ -2000,11 +2002,12 @@ async function testEcdsaNormalSigning(
     );
     const prepareBytes = await expectOk(prepareResponse, 'live ECDSA normal-signing prepare');
     if (ecdsa.executionHome.ownershipGeneration > 1) {
-      const walletClass = 'RouterAbSigningWorkerWalletDurableObject';
-      const ids = await topology.listDurableObjectIds(walletClass, ecdsa.executionHome.workerName);
-      assert.equal(ids.length, 1);
-      const [id] = ids;
-      await topology.unsafeEvictDurableObject(ecdsa.executionHome.workerName, walletClass, { id });
+      await evictTransferredWallet(topology, ecdsa.executionHome.workerName, {
+        org_id: 'org-miniflare',
+        project_id: 'project-r120',
+        project_environment_id: 'project-environment-miniflare',
+        wallet_id: ecdsa.accountId,
+      });
       const replayResponse = await postWorkerJson(router, ecdsaSigningPreparePath, prepareRequest);
       const replayBytes = await expectOk(replayResponse, 'destination ECDSA prepare retry');
       assert.deepEqual(replayBytes, prepareBytes, 'Prepare retry must preserve the exact response');
@@ -2151,7 +2154,12 @@ async function verifyEcdsaWalletRelocation(topology, fixture, ecdsa) {
     ecdsa,
   );
   const receipt = linkedImportRejection.initializedTransfer.walletInventory.sourceFreezeReceipt;
-  await activateTransferredWallet(topology, routerToSigningWorkerEcdsaAuthSecret, receipt);
+  await activateTransferredWallet(
+    topology,
+    routerToSigningWorkerEcdsaAuthSecret,
+    receipt,
+    'fixture-signing-worker-after-refresh',
+  );
   ecdsa.executionHome = {
     workerName: 'fixture-signing-worker-after-refresh',
     ownershipGeneration: receipt.request.source_generation + 1,
@@ -2162,14 +2170,32 @@ async function verifyEcdsaWalletRelocation(topology, fixture, ecdsa) {
     topology,
     routerToSigningWorkerEcdsaAuthSecret,
     receipt,
+    'fixture-signing-worker',
   );
   const afterCleanup = await testEcdsaNormalSigning(topology, ecdsa, 'pool', false);
+  const returned = await returnTransferredWallet(
+    topology,
+    routerToSigningWorkerEcdsaAuthSecret,
+    receipt,
+  );
+  ecdsa.executionHome = {
+    workerName: 'fixture-signing-worker',
+    ownershipGeneration: returned.receipt.request.source_generation + 1,
+  };
+  signingWorkerDeliveryTarget = ecdsa.executionHome.workerName;
+  const afterReturn = await testEcdsaNormalSigning(topology, ecdsa, 'pool', false);
+  const returnCleanup = await cleanupTransferredWalletSource(
+    topology,
+    routerToSigningWorkerEcdsaAuthSecret,
+    returned.receipt,
+    'fixture-signing-worker-after-refresh',
+  );
   return {
     linkedImportRejection,
     signingAfterRelocation: {
       scope:
         'SigningWorker transfer and fresh ECDSA execution; Gateway routing is selected by the harness. Excludes the complete wallet coordinator.',
-      ownershipGeneration: ecdsa.executionHome.ownershipGeneration,
+      ownershipGeneration: receipt.request.source_generation + 1,
       freshPresignatureAndSignatureBeforeCleanup: true,
       freshPresignatureAndSignatureAfterCleanup: true,
       staleGenerationRejectedBeforeReservation: true,
@@ -2181,6 +2207,16 @@ async function verifyEcdsaWalletRelocation(topology, fixture, ecdsa) {
         .update(Buffer.from(afterCleanup.response.signature65_b64u, 'base64url'))
         .digest('hex'),
       cleanup,
+      returnTransfer: {
+        ownershipGeneration: ecdsa.executionHome.ownershipGeneration,
+        segments: returned.segments,
+        historicalSessionsPreservedWithoutBlockingFreeze: true,
+        delayedOldCleanupReplayedWithoutDeletingReturnedWallet: true,
+        freshSignatureSha256Hex: createHash('sha256')
+          .update(Buffer.from(afterReturn.response.signature65_b64u, 'base64url'))
+          .digest('hex'),
+        cleanup: returnCleanup,
+      },
     },
   };
 }

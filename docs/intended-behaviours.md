@@ -1571,6 +1571,13 @@ generation 1. A checked empty source can record closed authority for its move,
 which grants no signing permission. Execution authority stays local and does not
 form part of the transferred historical inventory.
 
+A later move can prepare a completely cleaned ECDSA resource as its destination.
+Preparation replaces the old local authority and fence with inactive import state.
+It requires a later source generation and durable evidence of completed cleanup.
+The old cleanup receipt remains local history. Exact cleanup retries return that
+receipt without deleting the returned wallet. Changed cleanup receipts fail.
+Verified activation installs the new generation before fresh signing can start.
+
 Linked presign inventory is available while the ECDSA wallet drains. Each entry
 records its creation generation. The wallet cannot seal its snapshot until every
 linked session from the source generation has a durable freeze acknowledgement.

@@ -346,6 +346,53 @@ async function verifyTerminalFenceRace(source, session, credential, command, com
   return { fence: JSON.parse(fenceBody), outcome };
 }
 
+async function transferWalletSnapshot(source, destination, credential, receipt) {
+  const transfer = '/router-ab/signing-worker/wallet/ecdsa/transfer';
+  const exportSnapshot = '/router-ab/signing-worker/wallet/ecdsa/export';
+  const chunkBytes = 256;
+  const preparation = {
+    kind: 'prepare',
+    scope: receipt.scope,
+    request: receipt.request,
+    chunk_bytes: chunkBytes,
+  };
+  const prepared = await accepted(destination, transfer, preparation, credential);
+  assert.deepEqual(await accepted(destination, transfer, preparation, credential), prepared);
+  const first = await accepted(
+    source,
+    exportSnapshot,
+    { receipt, segment_index: 0, chunk_bytes: chunkBytes },
+    credential,
+  );
+  const pieces = [];
+  for (let index = 0; index < first.segment_count; index += 1) {
+    const chunk =
+      index === 0
+        ? first
+        : await accepted(
+            source,
+            exportSnapshot,
+            { receipt, segment_index: index, chunk_bytes: chunkBytes },
+            credential,
+          );
+    pieces.push(Buffer.from(chunk.data_b64u, 'base64url'));
+    const acknowledgement = await accepted(
+      destination,
+      transfer,
+      { kind: 'import', chunk },
+      credential,
+    );
+    assert.deepEqual(
+      await accepted(destination, transfer, { kind: 'import', chunk }, credential),
+      acknowledgement,
+    );
+  }
+  const [scope, move, snapshot] = JSON.parse(Buffer.concat(pieces).toString('utf8'));
+  assert.deepEqual(scope, receipt.scope);
+  assert.deepEqual(move, receipt.request);
+  return { snapshot, first };
+}
+
 async function verifyWalletInventoryTransfer(topology, credential, receipt, requests) {
   const source = await topology.getWorker(workerName);
   const destinationName = 'fixture-signing-worker-after-refresh';
@@ -353,22 +400,7 @@ async function verifyWalletInventoryTransfer(topology, credential, receipt, requ
   const walletClass = 'RouterAbSigningWorkerWalletDurableObject';
   const before = await topology.listDurableObjectIds(walletClass, destinationName);
   const transfer = '/router-ab/signing-worker/wallet/ecdsa/transfer';
-  const exportSnapshot = '/router-ab/signing-worker/wallet/ecdsa/export';
-  const chunkBytes = 256;
-  const preparation = { kind: 'prepare', scope: receipt.scope, request: receipt.request, chunk_bytes: chunkBytes };
-  const prepared = await accepted(destination, transfer, preparation, credential);
-  assert.deepEqual(await accepted(destination, transfer, preparation, credential), prepared);
-  const first = await accepted(source, exportSnapshot, { receipt, segment_index: 0, chunk_bytes: chunkBytes }, credential);
-  const pieces = [];
-  for (let index = 0; index < first.segment_count; index += 1) {
-    const chunk = index === 0 ? first : await accepted(source, exportSnapshot, { receipt, segment_index: index, chunk_bytes: chunkBytes }, credential);
-    pieces.push(Buffer.from(chunk.data_b64u, 'base64url'));
-    const acknowledgement = await accepted(destination, transfer, { kind: 'import', chunk }, credential);
-    assert.deepEqual(await accepted(destination, transfer, { kind: 'import', chunk }, credential), acknowledgement);
-  }
-  const [scope, move, snapshot] = JSON.parse(Buffer.concat(pieces).toString('utf8'));
-  assert.deepEqual(scope, receipt.scope);
-  assert.deepEqual(move, receipt.request);
+  const { snapshot, first } = await transferWalletSnapshot(source, destination, credential, receipt);
   assert.ok(receipt.record_count > requests.length);
   assert.equal(snapshot.activations.length, 1);
   assert.equal(snapshot.linked_presign_sessions.length, requests.length);
@@ -595,23 +627,18 @@ function isNewObject(previous, id) {
   return !previous.includes(id);
 }
 
-export async function activateTransferredWallet(topology, credential, receipt) {
-  const destinationName = 'fixture-signing-worker-after-refresh';
+export async function activateTransferredWallet(topology, credential, receipt, destinationName) {
   const destination = await topology.getWorker(destinationName);
   const path = '/router-ab/signing-worker/wallet/ecdsa/transfer';
   const command = { kind: 'activate', receipt };
   const activated = await accepted(destination, path, command, credential);
   assert.deepEqual(activated, { kind: 'activated', receipt });
-  const walletClass = 'RouterAbSigningWorkerWalletDurableObject';
-  const ids = await topology.listDurableObjectIds(walletClass, destinationName);
-  assert.equal(ids.length, 1);
-  const [id] = ids;
-  await topology.unsafeEvictDurableObject(destinationName, walletClass, { id });
+  await evictTransferredWallet(topology, destinationName, receipt.scope);
   assert.deepEqual(await accepted(destination, path, command, credential), activated);
 }
 
-export async function cleanupTransferredWalletSource(topology, credential, receipt) {
-  const source = await topology.getWorker(workerName);
+export async function cleanupTransferredWalletSource(topology, credential, receipt, sourceName) {
+  const source = await topology.getWorker(sourceName);
   const path = '/router-ab/signing-worker/wallet/ecdsa/transfer';
   const command = { kind: 'cleanup', activation: receipt };
   for (let attempt = 1; attempt <= 64; attempt += 1) {
@@ -623,4 +650,74 @@ export async function cleanupTransferredWalletSource(topology, credential, recei
     assert.equal(result.kind, 'cleaning');
   }
   assert.fail('Source cleanup did not finish within 64 bounded calls');
+}
+
+export async function evictTransferredWallet(topology, name, scope) {
+  const namespace = await topology.getDurableObjectNamespace('SIGNING_WORKER_WALLET_DO', name);
+  const digest = createHash('sha256')
+    .update('seams/signing-worker/wallet-do/v1')
+    .update(JSON.stringify(scope))
+    .digest('hex');
+  const id = namespace.idFromName(`signing-worker-wallet-${digest}`).toString();
+  const walletClass = 'RouterAbSigningWorkerWalletDurableObject';
+  const ids = await topology.listDurableObjectIds(walletClass, name);
+  assert.ok(ids.includes(id), 'The scoped wallet must already exist before eviction');
+  await topology.unsafeEvictDurableObject(name, walletClass, { id });
+}
+
+export async function returnTransferredWallet(topology, credential, previousReceipt) {
+  const sourceName = 'fixture-signing-worker-after-refresh';
+  const destinationName = 'fixture-signing-worker';
+  const source = await topology.getWorker(sourceName);
+  const destination = await topology.getWorker(destinationName);
+  const scope = previousReceipt.scope;
+  const request = {
+    move_id: `wmove_${randomBytes(32).toString('base64url')}`,
+    source_generation: previousReceipt.request.source_generation + 1,
+    invalidated_at_ms: Date.now(),
+  };
+  const transfer = '/router-ab/signing-worker/wallet/ecdsa/transfer';
+  const preparation = { kind: 'prepare', scope, request, chunk_bytes: 256 };
+  const prepared = await accepted(destination, transfer, preparation, credential);
+  assert.deepEqual(await accepted(destination, transfer, preparation, credential), prepared);
+  const freeze = { scope, request };
+  const frozen = await accepted(
+    source,
+    '/router-ab/signing-worker/wallet/pool/freeze',
+    freeze,
+    credential,
+  );
+  assert.equal(frozen.state, 'frozen', 'Imported historical sessions must not block the next move');
+  await evictTransferredWallet(topology, sourceName, scope);
+  assert.deepEqual(
+    await accepted(source, '/router-ab/signing-worker/wallet/pool/freeze', freeze, credential),
+    frozen,
+  );
+  const { snapshot, first } = await transferWalletSnapshot(
+    source,
+    destination,
+    credential,
+    frozen.receipt,
+  );
+  assert.equal(snapshot.linked_presign_sessions.length, 2);
+  for (const session of snapshot.linked_presign_sessions) {
+    assert.equal(session.ownership_generation, previousReceipt.request.source_generation);
+  }
+  const verification = { kind: 'verify', receipt: frozen.receipt };
+  const verified = await accepted(destination, transfer, verification, credential);
+  assert.deepEqual(verified, { kind: 'verified', receipt: frozen.receipt });
+  await evictTransferredWallet(topology, destinationName, scope);
+  assert.deepEqual(await accepted(destination, transfer, verification, credential), verified);
+  await activateTransferredWallet(topology, credential, frozen.receipt, destinationName);
+  assert.deepEqual(
+    await accepted(destination, transfer, { kind: 'cleanup', activation: previousReceipt }, credential),
+    { kind: 'cleaned', receipt: previousReceipt },
+    'Delayed cleanup of the first move must only replay its historical result',
+  );
+  const changedCleanup = structuredClone(previousReceipt);
+  changedCleanup.wallet_records_digest_hex = '0'.repeat(64);
+  await rejected(destination, transfer, { kind: 'cleanup', activation: changedCleanup }, credential,
+    /completed cleanup receipt changed/);
+
+  return { receipt: frozen.receipt, segments: first.segment_count };
 }
