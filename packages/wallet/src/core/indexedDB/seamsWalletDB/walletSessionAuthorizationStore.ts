@@ -1,3 +1,4 @@
+import { acceptWalletOwnershipGeneration } from './walletOwnershipGeneration';
 import {
   parseWalletSessionAuthorizationId,
   parseMpcWalletSigningQuotaId,
@@ -582,6 +583,11 @@ export async function replaceExactActiveWalletSessionAuthorizationInTransaction(
     throw new Error('Active Wallet Session v1 is invalid');
   }
   const operationCredential = parseWalletSessionOperationCredentialV1(args.operationCredential);
+  await acceptWalletOwnershipGeneration(
+    args.ctx,
+    incoming.walletId,
+    operationCredential.ownershipGeneration,
+  );
   const incomingRow = toStoredExactWalletSessionAuthorizationRowV6(incoming, operationCredential);
   let requiresWrite = true;
   const store = args.ctx.store(STORE);
@@ -602,6 +608,21 @@ export async function replaceExactActiveWalletSessionAuthorizationInTransaction(
     }
     const current = parsedCurrent.record;
     if (
+      parsedCurrent.operationCredential.walletSessionId === operationCredential.walletSessionId &&
+      (parsedCurrent.operationCredential.token !== operationCredential.token ||
+        parsedCurrent.operationCredential.ownershipGeneration !==
+          operationCredential.ownershipGeneration)
+    ) {
+      throw new Error('Stored Wallet Session conflicts with the issued operation credential');
+    }
+    if (
+      parsedCurrent.operationCredential.ownershipGeneration <
+      operationCredential.ownershipGeneration
+    ) {
+      await store.delete(parsedCurrent.physicalKey);
+      continue;
+    }
+    if (
       current.kind !== 'active_wallet_session_v1' ||
       current.authorityId !== incoming.authorityId ||
       current.authMethodId !== incoming.authMethodId
@@ -612,13 +633,6 @@ export async function replaceExactActiveWalletSessionAuthorizationInTransaction(
       current.authorizationId === incoming.authorizationId &&
       parsedCurrent.operationCredential.walletSessionId === operationCredential.walletSessionId
     ) {
-      if (
-        parsedCurrent.operationCredential.token !== operationCredential.token ||
-        parsedCurrent.operationCredential.ownershipGeneration !==
-          operationCredential.ownershipGeneration
-      ) {
-        throw new Error('Stored Wallet Session conflicts with the issued operation credential');
-      }
       requiresWrite = !activeWalletSessionV1RecordsEqual(current, incoming);
       continue;
     }
@@ -793,7 +807,7 @@ export class WalletSessionAuthorizationRepository {
     readonly operationCredential: WalletSessionOperationCredentialV1;
   }): Promise<ActiveWalletSessionV1> {
     return this.manager.runTransaction(
-      [STORE],
+      [STORE, SEAMS_WALLET_STORES.appState, SEAMS_WALLET_STORES.ecdsaClientPresignatures],
       'readwrite',
       replaceExactSessionInTransaction.bind(null, args),
     );

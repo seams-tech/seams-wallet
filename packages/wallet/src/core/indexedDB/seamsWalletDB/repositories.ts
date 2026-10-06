@@ -895,6 +895,7 @@ const WALLET_REGISTRATION_PUBLICATION_STORES = [
   SEAMS_WALLET_STORES.signerOpsOutbox,
   SEAMS_WALLET_STORES.keyMaterial,
   SEAMS_WALLET_STORES.walletSessionAuthorizations,
+  SEAMS_WALLET_STORES.ecdsaClientPresignatures,
   SEAMS_WALLET_STORES.ecdsaCapabilityManifests,
   SEAMS_WALLET_STORES.ecdsaCurrentCapabilityManifests,
   SEAMS_WALLET_STORES.ecdsaRoleLocalMaterial,
@@ -5472,8 +5473,10 @@ export class SeamsWalletRepositories {
   }): Promise<{ readonly kind: 'replaced' } | { readonly kind: 'superseded' }> {
     return await this.manager.runTransaction(
       [
+        SEAMS_WALLET_STORES.appState,
         SEAMS_WALLET_STORES.walletAuthorities,
         SEAMS_WALLET_STORES.walletSessionAuthorizations,
+        SEAMS_WALLET_STORES.ecdsaClientPresignatures,
         SEAMS_WALLET_STORES.walletSelections,
       ],
       'readwrite',
@@ -5559,6 +5562,7 @@ export class SeamsWalletRepositories {
           SEAMS_WALLET_STORES.appState,
           SEAMS_WALLET_STORES.walletAuthorities,
           SEAMS_WALLET_STORES.walletSessionAuthorizations,
+          SEAMS_WALLET_STORES.ecdsaClientPresignatures,
           SEAMS_WALLET_STORES.walletSelections,
         ],
         'readwrite',
@@ -5640,6 +5644,7 @@ export class SeamsWalletRepositories {
         SEAMS_WALLET_STORES.appState,
         SEAMS_WALLET_STORES.wallets,
         SEAMS_WALLET_STORES.walletSessionAuthorizations,
+        SEAMS_WALLET_STORES.ecdsaClientPresignatures,
         SEAMS_WALLET_STORES.walletSelections,
       ],
       'readwrite',

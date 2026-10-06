@@ -1993,8 +1993,17 @@ The authorization transfer E2E verifies generation 1 at the source and generatio
 into resident and durable pool identities. A pool cannot select material from a
 different generation. The persistence boundary upgrades initial-generation rows
 without changing their authenticated ciphertext. The browser lock E2E exercises
-this upgrade and signs with a retained presignature. Full client relocation
-reconciliation and removal of obsolete pools remain unfinished.
+this upgrade and signs with a retained presignature.
+
+Accepting a newer session generation persists that generation and removes older
+session credentials and durable presignatures in one transaction. Durable
+admission, listing, and consumption require the accepted generation. Ordinary
+locking preserves this generation and usable durable material. The browser storage
+contract uses a real registered presignature to verify deletion, delayed old
+admission rejection, exact advancement retries, rollback rejection, and current
+generation consumption. Its generation transition is local and does not prove
+regional relocation. Resident pool invalidation and full client reconciliation
+remain unfinished.
 
 Owner presign authorities record the ownership generation at initialization. Each
 protocol step requires that exact current generation. Returning to the original

@@ -5555,6 +5555,7 @@ function lifecycleFlowFromTestFile(filePath: string): IntendedLifecycleFlow {
       normalized,
     ) ||
     normalized.endsWith('passkey.presign-pool.contract.test.ts') ||
+    normalized.endsWith('presign-generation-storage.contract.test.ts') ||
     normalized.endsWith('passkey.ed25519-yao-local.contract.test.ts') ||
     normalized.endsWith('passkey.add-email-otp.contract.test.ts') ||
     normalized.endsWith('passkey.device-linking.contract.test.ts') ||
