@@ -673,6 +673,7 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         "scope": "Production wallet store and cipher on SQLite; excludes wallet-wide fencing and HTTP authorization"
     });
     artifact["source_capture_crosses_multiple_record_batches"] = true.into();
+    artifact["late_digest_failure_rolls_back_streamed_restore"] = true.into();
     artifact["linked_presign_settlement"] = serde_json::json!({
         "linked_session_freeze_acknowledgement_required": true,
         "linked_session_acknowledgement_rollback_and_exact_retry": true,
@@ -990,6 +991,32 @@ fn verify_snapshot_export(
         .transfer_ecdsa_snapshot(verify.clone()))
     .is_err());
     assert!(rows(&destination).is_empty());
+    let intake = Connection::open(&destination)?;
+    let last_segment = first.segment_count - 1;
+    let original_chunk: String = intake.query_row(
+        "SELECT chunk_json FROM wallet_ecdsa_import_chunks WHERE owner_json = ? AND segment_index = ?",
+        rusqlite::params![owner_json, last_segment],
+        |row| row.get(0),
+    )?;
+    let mut altered: router_ab_cloudflare::SigningWorkerEcdsaSnapshotChunkV1 =
+        serde_json::from_str(&original_chunk)?;
+    let mut tail = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(&altered.data_b64u)?;
+    assert!(tail.len() < altered.chunk_bytes as usize);
+    tail.push(b' ');
+    altered.data_b64u = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(tail);
+    intake.execute(
+        "UPDATE wallet_ecdsa_import_chunks SET chunk_json = ? WHERE owner_json = ? AND segment_index = ?",
+        rusqlite::params![serde_json::to_string(&altered)?, owner_json, last_segment],
+    )?;
+    let late_failure = with_store(&destination, env, |store| {
+        store.transfer_ecdsa_snapshot(verify.clone())
+    }).unwrap_err();
+    assert!(late_failure.message().contains("staged inventory digest differs from source"));
+    assert!(rows(&destination).is_empty(), "A late digest failure must roll back streamed row writes");
+    intake.execute(
+        "UPDATE wallet_ecdsa_import_chunks SET chunk_json = ? WHERE owner_json = ? AND segment_index = ?",
+        rusqlite::params![original_chunk, owner_json, last_segment],
+    )?;
     let interrupted = with_store(&destination, env, |store| {
         store.transfer_ecdsa_snapshot(verify.clone())?;
         Err::<(), _>(sql_error(

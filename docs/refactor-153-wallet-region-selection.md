@@ -621,9 +621,12 @@ pages, missing segments, and oversized requests fail. Live inventory changes lea
 the sealed export unchanged. Cleanup removes pages in bounded batches after
 activation. Source invalidation and sealing now read batches of 16 records. The
 source snapshot and restored-inventory digest stream directly from these batches.
-Source sealing still runs in one transaction. Destination decoding and restoration
-still load the complete imported snapshot; bounding those operations remains
-required. Complete participant assembly and coordinator authority remain unfinished.
+Destination decoding now reads one staged chunk at a time and restores individual
+typed records. Verification checks the input digest and restored inventory before
+committing. Late failures roll back all writes. Source sealing and destination
+verification still run in one transaction each; bounded resumable work across
+transactions remains unfinished. Complete participant assembly and coordinator
+authority also remain unfinished.
 
 Wallet ECDSA destinations now support preparation and durable segment staging
 through the native and wallet-DO transports. Preparation requires an empty wallet

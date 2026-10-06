@@ -105,16 +105,13 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         Ok(authority)
     }
 
-    pub(super) fn restore_presign_authorities(
+    pub(super) fn restore_presign_authority(
         &self,
         scope: &CloudflareSigningWorkerWalletScopeV1,
-        rows: Vec<PresignAuthorityRow>,
+        row: PresignAuthorityRow,
     ) -> RouterAbProtocolResult<()> {
-        for row in rows {
-            row.authority(scope)?;
-            self.insert_presign_authority(row)?;
-        }
-        Ok(())
+        row.authority(scope)?;
+        self.insert_presign_authority(row)
     }
 
     fn insert_presign_authority(&self, row: PresignAuthorityRow) -> RouterAbProtocolResult<()> {

@@ -189,16 +189,13 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         }
     }
 
-    pub(super) fn restore_linked_presign_inventory(
+    pub(super) fn restore_linked_presign_session(
         &self,
         scope: &CloudflareSigningWorkerWalletScopeV1,
-        rows: Vec<LinkedPresignSessionRow>,
+        row: LinkedPresignSessionRow,
     ) -> RouterAbProtocolResult<()> {
-        for row in rows {
-            row.validate(scope)?;
-            self.insert_linked_presign_session(row)?;
-        }
-        Ok(())
+        row.validate(scope)?;
+        self.insert_linked_presign_session(row)
     }
 
     fn insert_linked_presign_session(

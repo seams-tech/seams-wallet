@@ -1585,8 +1585,11 @@ changes cannot alter the sealed bytes. Source cleanup removes these pages in
 bounded batches after destination activation. Source invalidation and snapshot
 serialization read at most 16 records per batch. Source sealing and the restored
 inventory digest check stream their bytes without a complete-inventory buffer.
-Initial sealing still completes in one transaction. Destination decoding and
-restoration still load the complete imported snapshot.
+Destination decoding reads one staged chunk at a time and restores one typed
+record at a time. It checks the complete input digest and restored inventory
+before verification commits. Any late parse, binding, or digest failure rolls
+back all restored records. Initial sealing and destination verification still
+complete in one transaction each.
 
 Linked presign inventory is available while the ECDSA wallet drains. Each entry
 records its creation generation. The wallet cannot seal its snapshot until every

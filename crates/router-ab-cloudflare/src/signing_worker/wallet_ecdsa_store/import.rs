@@ -1,6 +1,7 @@
 use super::relocation::Fence;
 use super::transfer::validate_chunk_bytes;
 use super::*;
+mod stream;
 
 pub const SIGNING_WORKER_ECDSA_TRANSFER_PATH_V1: &str =
     "/router-ab/signing-worker/wallet/ecdsa/transfer";
@@ -476,51 +477,14 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
                 ))
             }
         };
-        let chunks = self.sql.query::<StoredChunk>(
-            "SELECT chunk_json, acknowledgement_json FROM wallet_ecdsa_import_chunks
-             WHERE owner_json = ? ORDER BY segment_index",
-            vec![text(owner_json(&receipt.scope, "ECDSA import")?)],
-        )?;
-        if chunks.len() != segment_count as usize {
-            return Err(wallet_error("ECDSA staged segment count changed"));
-        }
-        let mut bytes = Vec::new();
-        for (index, stored) in chunks.into_iter().enumerate() {
-            let chunk: SigningWorkerEcdsaSnapshotChunkV1 = serde_json::from_str(&stored.chunk_json)
-                .map_err(|error| wallet_error(error.to_string()))?;
-            if chunk.receipt != receipt
-                || chunk.segment_index as usize != index
-                || chunk.segment_count != segment_count
-                || chunk.chunk_bytes != chunk_bytes
-            {
-                return Err(wallet_error("ECDSA staged segment identity changed"));
-            }
-            bytes.extend(decode_chunk(&chunk)?);
-        }
-        if snapshot::snapshot_digest(&bytes) != receipt.wallet_records_digest_hex {
-            return Err(wallet_error(
-                "ECDSA staged inventory digest differs from source",
-            ));
-        }
-        let (scope, request, snapshot): (
-            CloudflareSigningWorkerWalletScopeV1,
-            SigningWorkerRelocationRequestV1,
-            snapshot::EcdsaSnapshot,
-        ) = serde_json::from_slice(&bytes).map_err(|error| wallet_error(error.to_string()))?;
-        if scope != receipt.scope
-            || request != receipt.request
-            || snapshot.record_count() != receipt.record_count
-        {
-            return Err(wallet_error(
-                "ECDSA staged inventory binding differs from source",
-            ));
-        }
+        let scope = receipt.scope.clone();
+        let request = receipt.request.clone();
         if self.ecdsa_snapshot_record_count(&scope)? != 0 {
-            return Err(wallet_error(
-                "ECDSA restore destination contains ordinary records",
-            ));
+            return Err(wallet_error("ECDSA restore destination contains ordinary records"));
         }
-        self.restore_ecdsa_snapshot(&scope, snapshot)?;
+        let mut reader = stream::ChunkReader::new(self.sql, &receipt, segment_count, chunk_bytes)?;
+        self.restore_ecdsa_snapshot(&receipt, &mut reader)?;
+        reader.verify()?;
         if self.ecdsa_snapshot_digest(&scope, &request)? != receipt.wallet_records_digest_hex {
             return Err(wallet_error("Restored ECDSA inventory differs from source"));
         }
