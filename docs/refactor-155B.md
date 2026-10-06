@@ -1486,7 +1486,7 @@ above is closed. The full refactor remains open.
 | Gateway scheduled prewarm | `scheduled()` calls `resolveBoundTenantDeploymentRuntimeEnvironmentV1`, which reads local deployment admission and returns the fenced D1 wrapper. | Source inspection confirms no Console lookup here. Scheduled prewarm is not itself wallet signing or authorization. |
 | ECDSA activation background warm-up | `lib.rs` starts `warm_owner_presign_host` only after activation commits. The task retains the wallet scope and material activation and addresses that exact material host. | `durable_object/worker_storage.rs` sends only the prewarm request. The prewarm handler creates no signing session or authority. This source inspection does not replace a hosted timing measurement. |
 | NEAR Deriver B background protocol | `ed25519_yao_lifecycle.rs` captures the tenant-root context and pair binding in `wait_until`. Completion and failure commands return through the same wallet-pair scope. | Native pair execution and replay evidence exists. Complete-pair persistence checks the running record inside a transaction. The deployable candidate must retain these exact fences and feature choices. |
-| Presignature expiry alarm | `durable_object/mod.rs::alarm` removes expired live sessions and calls `owner_presign_storage::expire_authorities`. Storage keys include expiry and a session-id digest. | Source inspection shows bounded deletion and rescheduling only. The alarm neither creates material nor calls Console. Direct alarm execution during a move has not been demonstrated by the retained artifacts. |
+| Presignature expiry alarm | `durable_object/mod.rs::alarm` removes expired live sessions and calls `owner_presign_storage::expire_authorities`. Storage keys include expiry and a session-id digest. | Release authority records belong to the wallet DO. The reusable host alarm expires live protocol sessions. The mixed-wallet coordinator scenario now observes the production alarm during source freeze, rejects the expired refill, and verifies destination signing. See the alarm acceptance evidence below. |
 | Private Runtime identity lookup | `d1WalletRuntimeWorker.ts` uses the Console directory for the explicit wallet-identities operation. Other ordinary runtime requests receive locally admitted deployment context. | This is an identity-discovery dependency. It is not a routine signing/refill dependency. Tenant-root control and relocation handlers remain separate control-plane operations. |
 | Registration reservation and shared claims | `ConsoleRegistrationHomeAdmission` reserves a stable operation/home through `WalletHomeServiceClient`. Identity and credential claims remain shared. | Concurrent setup and lost-response evidence covers one operation/home and stable identities. Global claim/cancellation evidence remains separate from protocol continuation evidence. |
 | Registration continuations | Gateway dispatch first calls `resolveLocalRegistrationContinuation`; protocol handlers use persisted regional admission. | NEAR-only and mixed-wallet lost provisioning/setup replies have local composed evidence. These results do not establish every Google registration failure path. |
@@ -1494,7 +1494,7 @@ above is closed. The full refactor remains open.
 The following gates are still required. They consolidate the unchecked work above;
 they do not add a new refactor scope.
 
-1. **Finish the enforcement inventory.** Close direct alarm coverage and any
+1. **Finish the enforcement inventory.** Direct alarm coverage is now recorded below. Review any
    uncovered internal completion paths. Use existing race scenarios; add no
    source-text guards or duplicate authority mechanism.
 2. **Finish composed relocation acceptance.** Existing evidence joins the real
@@ -1715,3 +1715,28 @@ The bloat gate passed.
 This is local composition evidence. It excludes browser ECDSA authorization,
 an in-flight ECDSA finalize during freeze, and hosted latency. Dedicated shared
 OTP-counter provisioning and hosted regional acceptance remain pending.
+
+
+### Presignature expiry during source freeze — 2026-10-07
+
+The release mixed-wallet coordinator scenario now starts an ECDSA refill before
+relocation and pauses its protocol continuation past expiry. An unfinished NEAR
+signature keeps source settlement open. A test-only wrapper observes the actual
+compiled presign host alarm; it delegates requests and alarms to production code.
+No production hook, configuration switch, or endpoint was added.
+
+The alarm completed with HTTP 200 after source freeze began. The delayed refill
+failed with `ExpiredLocalRequest`. No further alarm was scheduled. The pending
+NEAR signature then settled, relocation completed, source cleanup finished, and
+both NEAR and ECDSA signed at the destination. The complete scenario exited zero.
+
+Reproduce with the release `--with-ecdsa` command in the preceding section.
+Additional evidence is `.artifacts/r155b/composed-mixed-relocation/presign-expiry-alarm.json`
+in the private repository. It records freeze/alarm timestamps, alarm status,
+next-alarm state, and late-refill rejection. The test wrapper reports no authority
+records or secret material. The bloat gate and syntax checks passed.
+
+The initial assertion expected host-local authority keys. That was an obsolete
+fixture assumption: release builds keep authority in the wallet DO. The corrected
+check observes alarm execution and expiry rejection. It does not claim a direct
+inspection of the Rust live-session map or any hosted latency result.

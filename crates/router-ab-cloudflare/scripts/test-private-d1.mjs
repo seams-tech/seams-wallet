@@ -1678,7 +1678,7 @@ function parseEcdsaPresignProgress(bytes, sessionId, label) {
   return progress;
 }
 
-async function runEcdsaPresignSession(topology, ecdsa, mode = 'pool', checkRejections = true, lifetimeMs = 120_000, pauseAfterInitMs = 0, onInitialized = null) {
+export async function runEcdsaPresignSession(topology, ecdsa, mode = 'pool', checkRejections = true, lifetimeMs = 120_000, pauseAfterInitMs = 0, onInitialized = null) {
   const signingWorker = await topology.getWorker(ecdsa.executionHome.workerName);
   const scope = buildEcdsaNormalSigningScope(ecdsa);
   const authority = {
