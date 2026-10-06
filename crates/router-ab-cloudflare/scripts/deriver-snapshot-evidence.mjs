@@ -15,7 +15,7 @@ function digest(role, value) {
     .update(`Deriver ${role.toUpperCase()}`).update(JSON.stringify(value)).digest('hex');
 }
 
-export async function verifyDeriverSnapshot(topology, source, role, command, sourceObject, credential, rootIdentity, preparation) {
+export async function verifyDeriverSnapshot(topology, source, role, command, sourceObject, credential, rootIdentity, preparation, transport) {
   const path = `/router-ab/internal/deriver-${role}/wallet/snapshot`;
   const capture = { operation: 'capture', source: command };
   const exportFirst = { operation: 'export', source: command, segment_index: 0 };
@@ -29,7 +29,11 @@ export async function verifyDeriverSnapshot(topology, source, role, command, sou
   const namespace = await topology.getDurableObjectNamespace(`DERIVER_${role.toUpperCase()}_WALLET_DO`, workerName);
   const id = namespace.idFromName(sourceObject);
   do {
-    const response = await post(source, path, capture, credential);
+    let response = await post(transport.source, path, capture, credential);
+    if (response.status === 503) {
+      assert.equal(transport.directory.receiptReplyLost, true);
+      response = await post(transport.source, path, capture, credential);
+    }
     assert.equal(response.status, 200, await response.clone().text());
     result = await response.json();
     calls += 1;
@@ -47,14 +51,23 @@ export async function verifyDeriverSnapshot(topology, source, role, command, sou
   assert.ok(receipt.record_count > 0);
   assert.ok(receipt.segment_count >= receipt.record_count);
   await topology.unsafeEvictDurableObject(workerName, `RouterAbDeriver${role.toUpperCase()}WalletDurableObject`, { id: id.toString() });
-  assert.deepEqual(await (await post(source, path, capture, credential)).json(), result);
+  assert.deepEqual(await (await post(transport.source, path, capture, credential)).json(), result);
+  assert.equal(transport.directory.receiptReplyLost, true);
+  transport.directory.beginCopy();
   let chain = digest(role, command);
   let parts = [];
   const records = [];
   const segments = [];
   let first;
+  const dispatched = transport.binding.snapshotCalls;
+  transport.directory.mode = 'denied';
+  assert.equal((await post(transport.source, path, exportFirst, credential)).status, 409);
+  transport.directory.mode = 'corrupt';
+  assert.equal((await post(transport.source, path, exportFirst, credential)).status, 503);
+  assert.equal(transport.binding.snapshotCalls, dispatched);
+  transport.directory.mode = 'accepted';
   for (let index = 0; index < receipt.segment_count; index += 1) {
-    const response = await post(source, path, { ...exportFirst, segment_index: index }, credential);
+    const response = await post(transport.source, path, { ...exportFirst, segment_index: index }, credential);
     assert.equal(response.status, 200, await response.clone().text());
     const exported = await response.json();
     assert.equal(exported.kind, 'segment');
@@ -97,8 +110,9 @@ export async function verifyDeriverSnapshot(topology, source, role, command, sou
   assert.deepEqual(await (await post(source, path, exportFirst, credential)).json(), first);
   assert.equal((await post(source, path, { ...exportFirst, segment_index: receipt.segment_count }, credential)).status, 409);
   assert.equal((await post(source, path, { ...exportFirst, source: wrongMove }, credential)).status, 409);
-  const imported = await verifyDeriverImport(topology, role, receipt, segments, records, credential, rootIdentity, preparation);
+  const imported = await verifyDeriverImport(topology, role, receipt, segments, records, credential, rootIdentity, preparation, transport);
   return { imported, receipt, captureCalls: calls, restartDuringCapture: true, sealedReplayAfterRestart: true,
     boundedSegments: true, reconstructedDigestMatches: true, conflictingMoveRejected: true,
-    admissionFenceHistoryPreserved: true };
+    admissionFenceHistoryPreserved: true, journalReceiptReplyRecovered: true,
+    sourceCommandsUseAuthorizedRuntime: true };
 }

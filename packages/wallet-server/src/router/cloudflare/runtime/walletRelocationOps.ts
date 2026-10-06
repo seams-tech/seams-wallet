@@ -1,4 +1,4 @@
-import { forwardDeriverSourceFence } from './walletRelocationDeriver';
+import { forwardDeriverRelocation, deriverRuntimeOperation } from './walletRelocationDeriver';
 import {
   authorizeRuntimeSource,
   recordRuntimeRouterReceipt,
@@ -14,6 +14,16 @@ const BASE_PATH = '/internal/wallet-runtime/v1/relocation';
 // The private Runtime binding carries trusted coordinator commands. The Router
 // parses each role's command and the participant enforces its durable move state.
 const OPERATIONS = {
+  'deriver-a-capture': '/router-ab/internal/deriver-a/wallet/snapshot',
+  'deriver-a-export': '/router-ab/internal/deriver-a/wallet/snapshot',
+  'deriver-a-import': '/router-ab/internal/deriver-a/wallet/snapshot',
+  'deriver-a-status': '/router-ab/internal/deriver-a/wallet/snapshot',
+  'deriver-a-verify': '/router-ab/internal/deriver-a/wallet/snapshot',
+  'deriver-b-capture': '/router-ab/internal/deriver-b/wallet/snapshot',
+  'deriver-b-export': '/router-ab/internal/deriver-b/wallet/snapshot',
+  'deriver-b-import': '/router-ab/internal/deriver-b/wallet/snapshot',
+  'deriver-b-status': '/router-ab/internal/deriver-b/wallet/snapshot',
+  'deriver-b-verify': '/router-ab/internal/deriver-b/wallet/snapshot',
   'deriver-a-fence': '/router-ab/internal/deriver-a/wallet/fence-relocation',
   'deriver-b-fence': '/router-ab/internal/deriver-b/wallet/fence-relocation',
   'deriver-a-context': '/router-ab/internal/deriver-a/wallet/relocation-context',
@@ -65,7 +75,8 @@ export async function handleWalletRelocationRequest(
   const contentType = request.headers.get('content-type') || '';
   if (!contentType.toLowerCase().startsWith('application/json'))
     return failure('unsupported_media_type', 415);
-  const deriverOperation = operation === 'deriver-a-fence' || operation === 'deriver-b-fence' || operation === 'deriver-a-prepare' || operation === 'deriver-b-prepare' ||
+  const deriverAction = deriverRuntimeOperation(operation);
+  const deriverOperation = deriverAction !== null || operation === 'deriver-a-prepare' || operation === 'deriver-b-prepare' ||
     operation === 'deriver-a-context' || operation === 'deriver-b-context';
   const credential = deriverOperation
     ? env.ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET?.trim()
@@ -79,10 +90,9 @@ export async function handleWalletRelocationRequest(
   } catch {
     return failure('invalid_input', 400);
   }
-  if (operation === 'deriver-a-fence' || operation === 'deriver-b-fence') {
-    const role = operation === 'deriver-a-fence' ? 'deriver-a' : 'deriver-b';
-    const source = operation === 'deriver-a-fence' ? env.DERIVER_A : env.DERIVER_B;
-    return forwardDeriverSourceFence(input, role, source, credential, env);
+  if (deriverAction) {
+    const binding = deriverAction.role === 'deriver-a' ? env.DERIVER_A : env.DERIVER_B;
+    return forwardDeriverRelocation(input, deriverAction.role, deriverAction.operation, binding, credential, env);
   }
   let body: BodyInit = bytes;
   if (

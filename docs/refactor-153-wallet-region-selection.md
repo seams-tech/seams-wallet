@@ -489,8 +489,8 @@ Exact fence retries survive object eviction. This local fence does not prove
 that tenant-root obligations settled.
 Runtime now requests each source command from Console. Console checks the running
 freeze attempt, pinned source deployment and prepared cipher-context digest. Runtime
-rejects raw commands and malformed authorization responses. Tenant-root settlement,
-snapshot transfer and the complete coordinator remain unfinished.
+rejects raw commands and malformed authorization responses. Tenant-root settlement
+and the complete coordinator remain unfinished.
 
 Both Derivers now capture their fenced pair rows and admission fences into durable
 4 KiB segments. Each capture command stores at most one segment and persists its
@@ -518,6 +518,19 @@ Shared preparation, source fencing and transfer code now live under
 `durable_object/deriver_relocation`. Each role keeps its own record schema and
 restore code under its existing pair module. The protocol bounds each encoded
 record to 2 MiB and each transported segment to 4 KiB.
+
+Runtime now obtains Deriver capture and transfer commands from Console. A sealed
+capture receipt is returned as successful only after Console records the exact
+receipt for that role and move. A lost Console acknowledgement can repeat capture
+and receipt recording. Console binds each receipt to the admitted request,
+prepared object, cipher context, source Runtime version and running freeze attempt.
+During copying, export requires the source Runtime; import, status and verification
+require the destination Runtime. Each command uses the stored receipt. Raw Runtime
+commands and malformed Console responses do not reach a Deriver snapshot endpoint.
+Private Console E2Es and the public Worker transfer E2E verify these boundaries
+separately. Evidence remains in each repository under
+`.artifacts/r153/deriver-journal-transfer-20261006/`. They do not prove the assembled
+coordinator or destination activation.
 
 The Router registration store now has a transactional source fence on both native
 SQLite and the wallet Durable Object. Its private freeze route requires the

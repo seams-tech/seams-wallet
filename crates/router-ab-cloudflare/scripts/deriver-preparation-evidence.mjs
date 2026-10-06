@@ -178,10 +178,12 @@ class DeriverBinding {
   constructor(worker) {
     this.worker = worker;
     this.fenceCalls = 0;
+    this.snapshotCalls = 0;
   }
 
   async fetch(request) {
     if (new URL(request.url).pathname.endsWith('/fence-relocation')) this.fenceCalls += 1;
+    if (new URL(request.url).pathname.endsWith('/snapshot')) this.snapshotCalls += 1;
     return this.worker.fetch(request.url, {
       method: request.method,
       headers: Object.fromEntries(request.headers),
@@ -274,7 +276,16 @@ export async function verifyDeriverSourceFences(topology, owner, rootIdentity, p
       } };
     await assert.rejects(post(object, `/router-ab/internal/deriver-${role}/wallet-pair`, mutation, credential),
       new RegExp(`${roles[role].label} source is frozen`, 'u'));
-    const snapshot = await verifyDeriverSnapshot(topology, source, role, command, receipt.source_object, credential, rootIdentity, preparation);
+    const destinationWorker = await topology.getWorker(`deriver-${role}-relocation-destination`);
+    const destinationBinding = new DeriverBinding(destinationWorker);
+    const destinationEnv = { ...env, DERIVER_A: destinationBinding, DERIVER_B: destinationBinding,
+      SEAMS_D1_HOME_DATABASE_ID: '33333333-3333-4333-8333-333333333333' };
+    const transport = {
+      source: new DeriverRuntimeClient(runtime, role, env, directory, source),
+      destination: new DeriverRuntimeClient(runtime, role, destinationEnv, directory, destinationWorker),
+      directory, binding, destinationBinding,
+    };
+    const snapshot = await verifyDeriverSnapshot(topology, source, role, command, receipt.source_object, credential, rootIdentity, preparation, transport);
     receipts.push({ fence: receipt, snapshot });
   }
   return { scope: 'Terminal pair stores and inactive destination restore; tenant-root settlement, activation, cleanup, and assembled relocation are not covered',
@@ -311,19 +322,84 @@ class DeriverFenceDirectory {
     this.role = role;
     this.command = command;
     this.mode = 'accepted';
+    this.receipt = null;
+    this.dropReceiptReply = true;
+    this.receiptReplyLost = false;
+  }
+
+  beginCopy() {
+    const { wallet, attempt } = this.envelope;
+    this.envelope = { wallet, attempt: {
+      wallet, moveId: attempt.moveId, phase: 'copying', id: `wattempt_${'b'.repeat(43)}`,
+      revision: 2, run: 1, number: 1, startedAtMs: attempt.startedAtMs + 1,
+    } };
   }
 
   async fetch(request) {
-    assert.equal(request.url, 'https://wallet-placement.internal/internal/wallet-placement/v1/relocation-deriver-source');
+    const path = new URL(request.url).pathname;
+    const body = await request.json();
+    const destination = path.endsWith('/relocation-deriver-transfer') && body.request.operation !== 'export';
     assert.equal(request.headers.get('x-seams-writer-role'), 'walletRuntime');
     assert.equal(request.headers.get('x-seams-writer-version'), '11111111-1111-4111-8111-111111111111');
     assert.equal(request.headers.get('x-seams-writer-account'), 'a'.repeat(32));
-    assert.equal(request.headers.get('x-seams-writer-database'), '22222222-2222-4222-8222-222222222222');
-    assert.deepEqual(await request.json(), { wallet: this.envelope.wallet, attempt: this.envelope.attempt,
-      role: this.role === 'a' ? 'deriverA' : 'deriverB', cipherContextDigest: this.command.cipher_context_digest_hex });
+    assert.equal(request.headers.get('x-seams-writer-database'), destination
+      ? '33333333-3333-4333-8333-333333333333' : '22222222-2222-4222-8222-222222222222');
+    assert.deepEqual(body.wallet, this.envelope.wallet);
+    assert.deepEqual(body.attempt, this.envelope.attempt);
+    assert.equal(body.role, this.role === 'a' ? 'deriverA' : 'deriverB');
     if (this.mode === 'denied') return Response.json({ ok: false }, { status: 403 });
-    const command = structuredClone(this.command);
-    if (this.mode === 'corrupt') command.owner.wallet_id = 'another-wallet';
+    if (path.endsWith('/relocation-deriver-source')) {
+      assert.equal(Object.keys(body).length, 4);
+      assert.equal(this.envelope.attempt.phase, 'freezing');
+      assert.equal(body.cipherContextDigest, this.command.cipher_context_digest_hex);
+      const command = structuredClone(this.command);
+      if (this.mode === 'corrupt') command.owner.wallet_id = 'another-wallet';
+      return Response.json({ ok: true, command });
+    }
+    if (path.endsWith('/relocation-deriver-receipt')) {
+      assert.equal(this.envelope.attempt.phase, 'freezing');
+      assert.equal(Object.keys(body).length, 4);
+      assert.deepEqual(body.receipt.source, this.command);
+      if (this.receipt) assert.deepEqual(body.receipt, this.receipt);
+      else this.receipt = body.receipt;
+      if (this.dropReceiptReply) {
+        this.dropReceiptReply = false;
+        this.receiptReplyLost = true;
+        throw new Error('Simulated lost Console receipt acknowledgement');
+      }
+      return Response.json({ ok: true, receipt: this.receipt });
+    }
+    assert.ok(path.endsWith('/relocation-deriver-transfer'));
+    assert.equal(this.envelope.attempt.phase, 'copying');
+    assert.equal(Object.keys(body).length, 4);
+    assert.ok(this.receipt);
+    const command = body.request.operation === 'export'
+      ? { operation: 'export', source: structuredClone(this.receipt.source), segment_index: body.request.segmentIndex }
+      : { operation: body.request.operation, receipt: structuredClone(this.receipt) };
+    if (this.mode === 'corrupt') {
+      if (command.operation === 'export') command.source.owner.wallet_id = 'another-wallet';
+      else command.receipt.source.owner.wallet_id = 'another-wallet';
+    }
     return Response.json({ ok: true, command });
+  }
+}
+
+class DeriverRuntimeClient {
+  constructor(runtime, role, env, directory, worker) {
+    this.runtime = runtime;
+    this.role = role;
+    this.env = env;
+    this.directory = directory;
+    this.worker = worker;
+  }
+
+  async fetch(url, init) {
+    if (!new URL(url).pathname.endsWith('/snapshot')) return this.worker.fetch(url, init);
+    const command = JSON.parse(init.body);
+    const body = { wallet: this.directory.envelope.wallet, attempt: this.directory.envelope.attempt };
+    if (command.operation === 'export') body.segmentIndex = command.segment_index;
+    if (command.operation === 'import') body.segment = command.segment;
+    return this.runtime.handleWalletRelocationRequest(runtimeRequest(
+      `https://wallet-runtime.internal/internal/wallet-runtime/v1/relocation/deriver-${this.role}-${command.operation}`, body), this.env);
   }
 }
