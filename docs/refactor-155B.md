@@ -847,3 +847,27 @@ three NEAR cases. Linked revocation and shared-budget passkey step-up also pass
 through regional ingress during Console outage. No hosted latency gain is claimed.
 See [NEAR results](./optimization-12-NEAR-only-20261006.md#signing-preparation-uses-existing-observations--2026-10-07)
 and [evidence](./evidence/near-signing-observation-20261007.json).
+
+### Rejected NEAR lane-selection optimization — 2026-10-07
+
+A diagnostic trace located one remaining status read in signing lane selection.
+An experimental change reused the existing checked session observation there.
+The three local NEAR contracts passed. Immediate signing status calls fell from
+two to one; the reload signature fell from five to four.
+
+The composed Console-outage acceptance rejected this candidate. Linked-device
+revocation passed, but shared-budget exhaustion and step-up failed twice at
+`/wallet/execution-lane/owner`. The home returned HTTP 503 with
+`wallet_session_unavailable`. The previous frozen SDK passed that same budget
+scenario against the current server. This is classified as a production regression.
+The experimental source changes were reverted before commit.
+
+The demonstrated boundary is lane selection followed by owner-lane preflight
+during budget step-up. The exact server rejection cause still needs tracing.
+Before removing this read, make preflight and prepare handle an exhausted
+observation through the existing step-up path. Preserve fresh authority checks
+before generating a client signature share. Do not weaken revocation or budget checks.
+
+[Sanitized experimental request counts](./evidence/near-lane-observation-20261007.json).
+These lower counts describe a rejected candidate, not shipped behavior or a
+hosted latency improvement. Current immediate-signature status calls remain two.
