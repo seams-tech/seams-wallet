@@ -398,3 +398,25 @@ This adds one local D1 lookup and removes the Console discovery request for know
 sessions. End-to-end latency remains unmeasured. This test does not execute an MPC signature.
 Cross-region discovery, complete Console-outage signing/refill acceptance, custody deferred
 execution, registration continuation lookups, and hosted measurements remain open.
+
+## Bounded forwarding and response metadata — October 6, 2026
+
+Gateway accepts `X-Seams-Wallet-Region` only for US, WEUR, APAC, or OC. It resolves
+the hint against the admitted resource catalog and forwards through existing service
+bindings. A forwarding marker prevents a second hop. The destination still checks
+local session and execution authority. The hint grants no authority.
+
+A missing credential at a hinted or forwarded destination returns
+`wallet_home_discovery_required` with HTTP 409. It does not contact Console or probe
+other regions. Requests without a hint retain explicit directory discovery.
+Local Gateway responses expose their serving region through the same header. CORS
+allows the request header and exposes the response header to browser clients.
+
+The local routing E2E verifies one-hop transport, destination-local credential lookup,
+loop rejection, invalid-target rejection, explicit discovery on a route miss, and CORS
+metadata. Server type checks and the existing deployment-binding E2E pass. Bloat checks
+pass. Updated evidence remains in the local session routing artifact.
+
+SDK ingestion and persistence of this metadata remain incomplete. No automatic client
+routing or full MPC outage result is claimed. The next integration must retain the
+home with each session across owner, linked-device, hosted exchange, and restore flows.

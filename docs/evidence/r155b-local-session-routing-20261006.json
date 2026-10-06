@@ -1,6 +1,6 @@
 {
   "kind": "local_session_routing_evidence_v1",
-  "productionBundleSha256": "20c90fa84577a0f3a945beb9ca75c7a8fd39c09cb87d913b63595c5e04136bb3",
+  "productionBundleSha256": "0aba01528341b6afd576ace65ba2e046a5d3c2f83b36bf306a4357a741e23405",
   "localCredentialConsoleCalls": 0,
   "directAndHostedCredentialsFound": true,
   "exchangeFound": true,
@@ -8,5 +8,11 @@
   "retiredCredentialStillHandledLocally": true,
   "retiredCredentialAuthorizationRejected": true,
   "quotaPreserved": 3,
-  "unknownCredentialDiscoveryCalls": 1
+  "unknownCredentialDiscoveryCalls": 1,
+  "hintedTravelConsoleCalls": 0,
+  "forwardingLoopRejected": true,
+  "destinationHandlesForwardedCredentialLocally": true,
+  "missingHintedCredentialRequiresExplicitDiscovery": true,
+  "arbitraryRoutingTargetRejected": true,
+  "browserRoutingMetadataAllowedAndExposed": true
 }

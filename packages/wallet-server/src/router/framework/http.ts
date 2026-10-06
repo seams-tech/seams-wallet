@@ -12,6 +12,7 @@ const CORS_ALLOW_HEADERS = [
   'Content-Type',
   WALLET_MANAGEMENT_PROTOCOL_HEADER,
   'Authorization',
+  'X-Seams-Wallet-Region',
   'X-Seams-Benchmark-Diagnostics',
   LINKED_DEVICE_REQUEST_PROOF_HEADER_V1,
   ROUTER_AB_ED25519_YAO_RECOVERY_CHALLENGE_ID_HEADER_V1,
@@ -84,9 +85,7 @@ export function withCors(headers: Headers, opts?: RouterApiOptions, request?: Re
   if (allowedOrigin && request?.method === 'OPTIONS') {
     headers.set('Access-Control-Max-Age', String(CORS_PREFLIGHT_MAX_AGE_SECONDS));
   }
-  if (headers.has('Server-Timing')) {
-    headers.set('Access-Control-Expose-Headers', 'Server-Timing');
-  }
+  headers.set('Access-Control-Expose-Headers', 'Server-Timing, X-Seams-Wallet-Region');
   // Only advertise credentials when we echo back a specific origin (not '*')
   if (allowedOrigin && allowedOrigin !== '*') {
     headers.set('Access-Control-Allow-Credentials', 'true');
