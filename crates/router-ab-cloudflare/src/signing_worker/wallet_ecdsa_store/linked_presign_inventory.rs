@@ -129,7 +129,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         scope: &CloudflareSigningWorkerWalletScopeV1,
         presign_session_id: &str,
         server_presignature_id: &str,
-        request: &SigningWorkerPoolFreezeRequestV1,
+        request: &SigningWorkerRelocationRequestV1,
     ) -> RouterAbProtocolResult<String> {
         request.validate()?;
         match self.pool_fence(scope)? {

@@ -7453,9 +7453,66 @@ fn product_near_signing_process_flow(
         "{changed_generation_body}"
     );
 
+    let signing_worker_env_path = temp.join(router_ab_dev::LOCAL_SIGNING_WORKER_ENV_FILE_V1);
+    let config = parse_local_worker_role_config_for_role_v1(
+        LocalServiceRoleV1::SigningWorker,
+        parse_local_env_file_contents_v1(&fs::read_to_string(&signing_worker_env_path)?)?,
+    )?;
+    let LocalWorkerRoleConfigV1::SigningWorker(config) = config else {
+        return Err("SigningWorker env parsed as another role".into());
+    };
+    let fence = router_ab_cloudflare::SigningWorkerEd25519FenceCommandV1 {
+        scope: router_ab_cloudflare::CloudflareSigningWorkerWalletScopeV1::from_tenant_root(
+            root_identity,
+            &activation.binding().lifecycle.account_id,
+        )?,
+        request: router_ab_cloudflare::SigningWorkerRelocationRequestV1 {
+            move_id: format!("wmove_{}", "e".repeat(43)),
+            source_generation: 1,
+            invalidated_at_ms: expires_at_ms,
+        },
+    };
+    let fence_headers = [(
+        LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+        config.router_to_signing_worker_ecdsa_auth.as_str(),
+    )];
+    let (unauthorized_fence, _) = post_json_to_path_with_headers(
+        signing_worker_url,
+        router_ab_cloudflare::SIGNING_WORKER_ED25519_FENCE_PATH_V1,
+        &fence,
+        &gateway_headers,
+    )?;
+    assert_eq!(unauthorized_fence, 401);
+    let (fence_status, fence_body) = post_json_to_path_with_headers(
+        signing_worker_url,
+        router_ab_cloudflare::SIGNING_WORKER_ED25519_FENCE_PATH_V1,
+        &fence,
+        &fence_headers,
+    )?;
+    assert_eq!(fence_status, 200, "{fence_body}");
+    let mut changed_fence = fence.clone();
+    changed_fence.request.move_id = format!("wmove_{}", "f".repeat(43));
+    let (changed_fence_status, _) = post_json_to_path_with_headers(
+        signing_worker_url,
+        router_ab_cloudflare::SIGNING_WORKER_ED25519_FENCE_PATH_V1,
+        &changed_fence,
+        &fence_headers,
+    )?;
+    assert_ne!(changed_fence_status, 200);
+    let (fenced_prepare_status, fenced_prepare_body) = post_json_to_path_with_headers(
+        router_url,
+        LOCAL_ROUTER_NORMAL_SIGNING_PREPARE_PATH,
+        &prepare_body,
+        &gateway_headers,
+    )?;
+    assert_ne!(fenced_prepare_status, 200, "{fenced_prepare_body}");
+    assert!(
+        fenced_prepare_body.contains("closed Ed25519 preparation"),
+        "{fenced_prepare_body}"
+    );
+
     // A second SigningWorker process on the same role store, fronted by a
     // second Router process: the same finalize races through both paths.
-    let signing_worker_env_path = temp.join(router_ab_dev::LOCAL_SIGNING_WORKER_ENV_FILE_V1);
     let replica_url = format!("http://127.0.0.1:{}", free_port()?);
     let primary_env = fs::read_to_string(&signing_worker_env_path)?;
     let replica_env = primary_env.replace(signing_worker_url, &replica_url);
@@ -7557,14 +7614,30 @@ fn product_near_signing_process_flow(
         &gateway_headers,
     )?;
     assert_eq!(retry_status, 200, "VM Router terminal replay: {retry_body}");
-    assert_eq!(body, retry_body, "restart must preserve the signed terminal result");
-    let config = parse_local_worker_role_config_for_role_v1(
-        LocalServiceRoleV1::SigningWorker,
-        parse_local_env_file_contents_v1(&fs::read_to_string(&signing_worker_env_path)?)?,
+    assert_eq!(
+        body, retry_body,
+        "restart must preserve the signed terminal result"
+    );
+    let (restarted_fence_status, restarted_fence_body) = post_json_to_path_with_headers(
+        signing_worker_url,
+        router_ab_cloudflare::SIGNING_WORKER_ED25519_FENCE_PATH_V1,
+        &fence,
+        &fence_headers,
     )?;
-    let LocalWorkerRoleConfigV1::SigningWorker(config) = config else {
-        return Err("SigningWorker env parsed as another role".into());
-    };
+    assert_eq!(restarted_fence_status, 200, "{restarted_fence_body}");
+    assert_eq!(restarted_fence_body, fence_body);
+    let (restarted_prepare_status, restarted_prepare_body) = post_json_to_path_with_headers(
+        router_url,
+        LOCAL_ROUTER_NORMAL_SIGNING_PREPARE_PATH,
+        &prepare_body,
+        &gateway_headers,
+    )?;
+    assert_ne!(restarted_prepare_status, 200, "{restarted_prepare_body}");
+    assert!(
+        restarted_prepare_body.contains("closed Ed25519 preparation"),
+        "{restarted_prepare_body}"
+    );
+
     let connection = Connection::open(temp.join(config.role_private_storage_path))?;
     // This wallet's signing operation, among any others the worker holds.
     let completed_count: i64 = connection.query_row(
@@ -7584,6 +7657,10 @@ fn product_near_signing_process_flow(
             "gateway_ownership_generation": 1,
             "changed_finalize_generation_status": changed_generation_status,
             "wrong_home_prepare_status": wrong_home_status,
+            "fenced_prepare_status": fenced_prepare_status,
+            "source_fence_replays_after_restart": true,
+            "admitted_finalize_settles_while_fenced": true,
+            "changed_move_rejected": true,
             "invalid_ownership_generation_statuses": invalid_generation_statuses,
             "worker_restarts": 2,
             "independent_router_signing_worker_paths": 2,

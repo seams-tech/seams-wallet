@@ -379,7 +379,7 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         material: other_material,
     };
     mutate(&path, &env, &other_owner, other_command.clone())?;
-    let freeze_request = router_ab_cloudflare::SigningWorkerPoolFreezeRequestV1 {
+    let freeze_request = router_ab_cloudflare::SigningWorkerRelocationRequestV1 {
         move_id: format!("wmove_{}", "a".repeat(43)),
         source_generation: 1,
         invalidated_at_ms: 1_600,
@@ -630,7 +630,7 @@ fn freeze(
     path: &std::path::Path,
     env: &CloudflareEnvMapV1,
     owner: &CloudflareSigningWorkerWalletScopeV1,
-    request: router_ab_cloudflare::SigningWorkerPoolFreezeRequestV1,
+    request: router_ab_cloudflare::SigningWorkerRelocationRequestV1,
 ) -> router_ab_core::RouterAbProtocolResult<router_ab_cloudflare::SigningWorkerPoolFreezeResponseV1>
 {
     with_store(path, env, |store| {
@@ -793,7 +793,7 @@ fn verify_snapshot_export(
     }
     let (scope, move_request, snapshot): (
         CloudflareSigningWorkerWalletScopeV1,
-        router_ab_cloudflare::SigningWorkerPoolFreezeRequestV1,
+        router_ab_cloudflare::SigningWorkerRelocationRequestV1,
         serde_json::Value,
     ) = serde_json::from_slice(&bytes)?;
     assert_eq!(scope, receipt.scope);
@@ -1073,7 +1073,7 @@ fn verify_snapshot_export(
             receipt: receipt.clone()
         }
     );
-    let next_move = router_ab_cloudflare::SigningWorkerPoolFreezeRequestV1 {
+    let next_move = router_ab_cloudflare::SigningWorkerRelocationRequestV1 {
         move_id: format!("wmove_{}", "r".repeat(43)),
         source_generation: receipt.request.source_generation + 1,
         invalidated_at_ms: receipt.request.invalidated_at_ms + 1,

@@ -13,7 +13,7 @@ use super::ecdsa_presign_live_session::{presign_do_error_response, transaction_g
 use crate::{
     CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1,
     CloudflareSigningWorkerRuntimeV1, CloudflareSigningWorkerWalletScopeV1,
-    SigningWorkerPoolFreezeRequestV1,
+    SigningWorkerRelocationRequestV1,
 };
 
 pub(crate) const FENCE_PATH: &str = "/router-ab/signing-worker/linked-presign-session/fence";
@@ -170,7 +170,7 @@ pub(crate) struct LinkedPresignRelocationRequest {
     wallet_scope: CloudflareSigningWorkerWalletScopeV1,
     presign_session_id: String,
     server_presignature_id: String,
-    request: SigningWorkerPoolFreezeRequestV1,
+    request: SigningWorkerRelocationRequestV1,
 }
 
 impl LinkedPresignRelocationRequest {

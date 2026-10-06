@@ -97,6 +97,7 @@ const HARNESS_FAULT_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS harness_activatio
 #[serde(tag = "command", rename_all = "snake_case", deny_unknown_fields)]
 pub(crate) enum SigningWorkerWalletDoRequestV1 {
     DeliverPackages(CloudflareScopedEd25519YaoPackagePairDeliveryV1),
+    FenceEd25519(crate::SigningWorkerEd25519FenceCommandV1),
     PromoteRecovery(CloudflareScopedEd25519YaoRecoveryPromotionRequestV1),
     LookupRegistration(CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1),
     ReserveLinkedEd25519(CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1),
@@ -121,7 +122,7 @@ pub(crate) enum SigningWorkerWalletDoRequestV1 {
         scope: CloudflareSigningWorkerWalletScopeV1,
         presign_session_id: String,
         server_presignature_id: String,
-        request: crate::SigningWorkerPoolFreezeRequestV1,
+        request: crate::SigningWorkerRelocationRequestV1,
     },
     AdmitEcdsaPresignStep(crate::CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1),
     LoadEcdsaActivation {
@@ -246,6 +247,7 @@ impl SigningWorkerWalletDoRequestV1 {
     fn scope(&self) -> &CloudflareSigningWorkerWalletScopeV1 {
         match self {
             Self::DeliverPackages(request) => &request.scope,
+            Self::FenceEd25519(command) => &command.scope,
             Self::PromoteRecovery(request) => &request.scope,
             Self::LookupRegistration(request) => &request.scope,
             Self::ReserveLinkedEd25519(request) => &request.scope,
@@ -290,6 +292,7 @@ impl SigningWorkerWalletDoRequestV1 {
                 request.validate_at(crate::cloudflare_now_unix_ms_v1()?)
             }
             Self::DeliverPackages(request) => request.validate(),
+            Self::FenceEd25519(command) => command.validate(),
             Self::PromoteRecovery(request) => request.validate(),
             Self::LookupRegistration(request) => request.validate(),
             Self::ReserveLinkedEd25519(request) => request.validate(),
@@ -575,6 +578,8 @@ impl DurableObject for RouterAbSigningWorkerWalletDurableObject {
         self.sql.exec(ROUND1_SCHEMA, None)?;
         self.sql
             .exec(crate::SIGNING_WORKER_ED25519_EXECUTION_SCHEMA_V1, None)?;
+        self.sql
+            .exec(crate::SIGNING_WORKER_ED25519_FENCE_SCHEMA_V1, None)?;
         for schema in crate::SIGNING_WORKER_WALLET_ECDSA_SCHEMA_V1 {
             self.sql.exec(schema, None)?;
         }
@@ -594,6 +599,15 @@ impl RouterAbSigningWorkerWalletDurableObject {
         command: SigningWorkerWalletDoRequestV1,
     ) -> Result<Response, RouterAbProtocolError> {
         match command {
+            SigningWorkerWalletDoRequestV1::FenceEd25519(command) => {
+                self.with_wallet_transaction(move |wallet| {
+                    let sql = DurableObjectWalletSqlV1(&wallet.sql);
+                    let receipt =
+                        crate::SigningWorkerEd25519ExecutionStoreV1::new(&sql).fence(command)?;
+                    Response::from_json(&receipt).map_err(sql_error)
+                })
+                .await
+            }
             SigningWorkerWalletDoRequestV1::DeliverPackages(request) => {
                 match request.delivery.deriver_a.binding.operation {
                     Ed25519YaoOperationV1::Registration => self.with_wallet_transaction(move |wallet| wallet.deliver_registration(request)).await,
@@ -1181,6 +1195,7 @@ impl RouterAbSigningWorkerWalletDurableObject {
         let sql = DurableObjectWalletSqlV1(&self.sql);
         crate::SigningWorkerEd25519ExecutionStoreV1::new(&sql)
             .require_generation(&scope, request.ownership_generation)?;
+        crate::SigningWorkerEd25519ExecutionStoreV1::new(&sql).require_unfenced(&scope)?;
         // A prepare needs an activation that still signs, replay or not.
         let activation = self.load_near_activation(&scope, &request.material_source)?;
         let binding_key = digest_hex(request.round1_binding_digest()?);

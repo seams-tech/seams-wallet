@@ -7,7 +7,7 @@ pub const SIGNING_WORKER_ED25519_EXECUTION_SCHEMA_V1: &str =
 
 /// Local execution authority, committed separately from transferable signing history.
 pub struct SigningWorkerEd25519ExecutionStoreV1<'a, Sql> {
-    sql: &'a Sql,
+    pub(super) sql: &'a Sql,
 }
 
 #[derive(Deserialize)]
@@ -25,6 +25,7 @@ impl<'a, Sql: SigningWorkerWalletSqlV1> SigningWorkerEd25519ExecutionStoreV1<'a,
         &self,
         scope: &CloudflareSigningWorkerWalletScopeV1,
     ) -> RouterAbProtocolResult<()> {
+        self.require_unfenced(scope)?;
         self.sql.query::<serde::de::IgnoredAny>(
             "INSERT INTO wallet_ed25519_execution (owner_json, ownership_generation)
              VALUES (?, 1) ON CONFLICT(owner_json) DO NOTHING",
@@ -54,11 +55,13 @@ impl<'a, Sql: SigningWorkerWalletSqlV1> SigningWorkerEd25519ExecutionStoreV1<'a,
     }
 }
 
-fn execution_owner(scope: &CloudflareSigningWorkerWalletScopeV1) -> RouterAbProtocolResult<String> {
+pub(super) fn execution_owner(
+    scope: &CloudflareSigningWorkerWalletScopeV1,
+) -> RouterAbProtocolResult<String> {
     scope.validate()?;
     serde_json::to_string(scope).map_err(|error| execution_error(&error.to_string()))
 }
 
-fn execution_error(message: &str) -> RouterAbProtocolError {
+pub(super) fn execution_error(message: &str) -> RouterAbProtocolError {
     RouterAbProtocolError::new(RouterAbProtocolErrorCode::InvalidLifecycleState, message)
 }

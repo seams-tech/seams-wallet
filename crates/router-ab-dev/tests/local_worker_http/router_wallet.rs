@@ -1261,7 +1261,7 @@ fn verify_pool_freeze_transport(
             "router-wallet-object",
             "account-router-wallet-object",
         )?,
-        request: router_ab_cloudflare::SigningWorkerPoolFreezeRequestV1 {
+        request: router_ab_cloudflare::SigningWorkerRelocationRequestV1 {
             move_id: format!("wmove_{}", "p".repeat(43)),
             source_generation: 1,
             invalidated_at_ms: 1_900_000_000_000,

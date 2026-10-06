@@ -6,7 +6,7 @@ pub const SIGNING_WORKER_POOL_FREEZE_PATH_V1: &str = "/router-ab/signing-worker/
 #[serde(deny_unknown_fields)]
 pub struct SigningWorkerPoolFreezeCommandV1 {
     pub scope: CloudflareSigningWorkerWalletScopeV1,
-    pub request: SigningWorkerPoolFreezeRequestV1,
+    pub request: SigningWorkerRelocationRequestV1,
 }
 
 pub(super) const SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_ecdsa_pool_relocation (
@@ -22,33 +22,9 @@ pub enum SigningWorkerPoolAdmissionV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct SigningWorkerPoolFreezeRequestV1 {
-    pub move_id: String,
-    pub source_generation: u64,
-    pub invalidated_at_ms: u64,
-}
-
-impl SigningWorkerPoolFreezeRequestV1 {
-    pub(crate) fn validate(&self) -> RouterAbProtocolResult<()> {
-        if self.move_id.len() != 49
-            || !self.move_id.starts_with("wmove_")
-            || !self.move_id.as_bytes()[6..]
-                .iter()
-                .all(|byte| byte.is_ascii_alphanumeric() || *byte == b'_' || *byte == b'-')
-            || self.source_generation == 0
-            || self.source_generation >= 9_007_199_254_740_991
-        {
-            return Err(wallet_error("Pool relocation identity is invalid"));
-        }
-        crate::require_positive_ms("Pool relocation time", self.invalidated_at_ms)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct SigningWorkerPoolFreezeReceiptV1 {
     pub scope: CloudflareSigningWorkerWalletScopeV1,
-    pub request: SigningWorkerPoolFreezeRequestV1,
+    pub request: SigningWorkerRelocationRequestV1,
     pub record_count: u64,
     pub wallet_records_digest_hex: String,
 }
@@ -74,13 +50,13 @@ pub(super) enum Fence {
         receipt: SigningWorkerPoolFreezeReceiptV1,
     },
     Draining {
-        request: SigningWorkerPoolFreezeRequestV1,
+        request: SigningWorkerRelocationRequestV1,
     },
     Frozen {
         receipt: SigningWorkerPoolFreezeReceiptV1,
     },
     Prepared {
-        request: SigningWorkerPoolFreezeRequestV1,
+        request: SigningWorkerRelocationRequestV1,
         chunk_bytes: u32,
     },
     Importing {
@@ -186,7 +162,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
     pub fn freeze_pool_for_relocation(
         &self,
         scope: CloudflareSigningWorkerWalletScopeV1,
-        request: SigningWorkerPoolFreezeRequestV1,
+        request: SigningWorkerRelocationRequestV1,
     ) -> RouterAbProtocolResult<SigningWorkerPoolFreezeResponseV1> {
         scope.validate()?;
         request.validate()?;

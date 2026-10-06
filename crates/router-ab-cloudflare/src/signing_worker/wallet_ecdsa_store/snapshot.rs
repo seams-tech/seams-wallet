@@ -15,7 +15,7 @@ impl EcdsaSnapshot {
     pub(super) fn encode(
         &self,
         scope: &CloudflareSigningWorkerWalletScopeV1,
-        request: &SigningWorkerPoolFreezeRequestV1,
+        request: &SigningWorkerRelocationRequestV1,
     ) -> RouterAbProtocolResult<Vec<u8>> {
         serde_json::to_vec(&(scope, request, self)).map_err(|error| wallet_error(error.to_string()))
     }

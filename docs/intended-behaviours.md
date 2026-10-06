@@ -1587,6 +1587,12 @@ The native and wallet-DO stores commit initial Ed25519 execution authority with
 registration. Prepare and fresh finalize check that stored generation in the same
 transaction as their signing writes. Missing authority cannot default to generation
 1. Historical terminal replay remains available without creating new signing work.
+The Ed25519 source fence records the exact move identity under dedicated
+Router-to-SigningWorker authentication. It closes new preparation and registration
+writes. Repeated commands return the stored identity after restart. Changed move
+inputs fail. Admitted finalize can settle while this fence is draining, and exact
+terminal replay stays available. This fence alone does not attest a sealed snapshot.
+
 
 
 

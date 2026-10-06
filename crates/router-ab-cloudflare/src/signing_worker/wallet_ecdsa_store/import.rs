@@ -29,7 +29,7 @@ struct ImportActivationRow {
 pub enum SigningWorkerEcdsaTransferRequestV1 {
     Prepare {
         scope: CloudflareSigningWorkerWalletScopeV1,
-        request: SigningWorkerPoolFreezeRequestV1,
+        request: SigningWorkerRelocationRequestV1,
         chunk_bytes: u32,
     },
     Status {
@@ -68,7 +68,7 @@ impl SigningWorkerEcdsaTransferRequestV1 {
 pub enum SigningWorkerEcdsaTransferResponseV1 {
     Prepared {
         scope: CloudflareSigningWorkerWalletScopeV1,
-        request: SigningWorkerPoolFreezeRequestV1,
+        request: SigningWorkerRelocationRequestV1,
         chunk_bytes: u32,
     },
     Receiving {
@@ -204,7 +204,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
     fn prepare_ecdsa_import(
         &self,
         scope: CloudflareSigningWorkerWalletScopeV1,
-        request: SigningWorkerPoolFreezeRequestV1,
+        request: SigningWorkerRelocationRequestV1,
         chunk_bytes: u32,
     ) -> RouterAbProtocolResult<SigningWorkerEcdsaTransferResponseV1> {
         scope.validate()?;
@@ -485,7 +485,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         }
         let (scope, request, snapshot): (
             CloudflareSigningWorkerWalletScopeV1,
-            SigningWorkerPoolFreezeRequestV1,
+            SigningWorkerRelocationRequestV1,
             snapshot::EcdsaSnapshot,
         ) = serde_json::from_slice(&bytes).map_err(|error| wallet_error(error.to_string()))?;
         if scope != receipt.scope

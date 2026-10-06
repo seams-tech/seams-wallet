@@ -11,10 +11,10 @@ pub(super) enum ExecutionAuthority {
         material_key: String,
     },
     Relocation {
-        request: SigningWorkerPoolFreezeRequestV1,
+        request: SigningWorkerRelocationRequestV1,
     },
     EmptySource {
-        request: SigningWorkerPoolFreezeRequestV1,
+        request: SigningWorkerRelocationRequestV1,
     },
 }
 
