@@ -682,3 +682,25 @@ Evidence: [ECDSA requests](./evidence/r155b-console-outage-ecdsa-restart.json),
 [ECDSA restart](./evidence/r155b-restart-evidence-ecdsa-restart.json),
 [Ed25519 requests](./evidence/r155b-console-outage-ed25519-restart.json), and
 [Ed25519 restart](./evidence/r155b-restart-evidence-ed25519-restart.json).
+
+### Linked revocation during Console outage
+
+Private commit `dc8f441` extends the linked-device browser acceptance cases.
+Both pass: the linked device completes three signatures, the owner revokes it
+while Console is unavailable, and both NEAR and ECDSA signing then fail.
+The existing harness verifies that the owner no longer lists the revoked device.
+Each case still has exactly three successful home prepare/finalize pairs and zero
+attempted Console calls. The ECDSA case also records rejected refill and prepare
+requests with HTTP 401 after revocation.
+
+Run the same regional browser command with `--grep 'linked (ecdsa|ed25519)'`.
+Evidence: [ECDSA-led](./evidence/r155b-revocation-outage-ecdsa.json) and
+[Ed25519-led](./evidence/r155b-revocation-outage-ed25519.json). Both curves are tried
+and rejected after revocation in each case. This verifies ordinary linked-device
+revocation during an outage, not an in-flight revocation race.
+
+NEAR optimization parity remains partial: regional execution and outage enforcement
+are covered, while its prepare response still lacks ECDSA's fresh session-status
+projection. Removing NEAR's separate status reads requires implementing that response
+and SDK reconciliation together. Registration and local signing measurements are
+recorded in [the NEAR-only benchmark](./optimization-12-NEAR-only-20261006.md).
