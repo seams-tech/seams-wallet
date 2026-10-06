@@ -1,3 +1,4 @@
+import { forwardDeriverSourceFence } from './walletRelocationDeriver';
 import {
   authorizeRuntimeSource,
   recordRuntimeRouterReceipt,
@@ -13,6 +14,8 @@ const BASE_PATH = '/internal/wallet-runtime/v1/relocation';
 // The private Runtime binding carries trusted coordinator commands. The Router
 // parses each role's command and the participant enforces its durable move state.
 const OPERATIONS = {
+  'deriver-a-fence': '/router-ab/internal/deriver-a/wallet/fence-relocation',
+  'deriver-b-fence': '/router-ab/internal/deriver-b/wallet/fence-relocation',
   'deriver-a-context': '/router-ab/internal/deriver-a/wallet/relocation-context',
   'deriver-b-context': '/router-ab/internal/deriver-b/wallet/relocation-context',
   'deriver-b-prepare': '/router-ab/internal/deriver-b/wallet/prepare-relocation',
@@ -62,7 +65,7 @@ export async function handleWalletRelocationRequest(
   const contentType = request.headers.get('content-type') || '';
   if (!contentType.toLowerCase().startsWith('application/json'))
     return failure('unsupported_media_type', 415);
-  const deriverOperation = operation === 'deriver-a-prepare' || operation === 'deriver-b-prepare' ||
+  const deriverOperation = operation === 'deriver-a-fence' || operation === 'deriver-b-fence' || operation === 'deriver-a-prepare' || operation === 'deriver-b-prepare' ||
     operation === 'deriver-a-context' || operation === 'deriver-b-context';
   const credential = deriverOperation
     ? env.ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET?.trim()
@@ -75,6 +78,11 @@ export async function handleWalletRelocationRequest(
     input = JSON.parse(new TextDecoder().decode(bytes));
   } catch {
     return failure('invalid_input', 400);
+  }
+  if (operation === 'deriver-a-fence' || operation === 'deriver-b-fence') {
+    const role = operation === 'deriver-a-fence' ? 'deriver-a' : 'deriver-b';
+    const source = operation === 'deriver-a-fence' ? env.DERIVER_A : env.DERIVER_B;
+    return forwardDeriverSourceFence(input, role, source, credential, env);
   }
   let body: BodyInit = bytes;
   if (

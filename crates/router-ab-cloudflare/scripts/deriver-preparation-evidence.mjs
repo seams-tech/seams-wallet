@@ -1,3 +1,4 @@
+import { sourceEnvelope } from './runtime-relocation-evidence.mjs';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { build } from 'esbuild';
@@ -175,9 +176,11 @@ export async function verifyDeriverPreparation(topology, owner, rootIdentity, pr
 class DeriverBinding {
   constructor(worker) {
     this.worker = worker;
+    this.fenceCalls = 0;
   }
 
   async fetch(request) {
+    if (new URL(request.url).pathname.endsWith('/fence-relocation')) this.fenceCalls += 1;
     return this.worker.fetch(request.url, {
       method: request.method,
       headers: Object.fromEntries(request.headers),
@@ -187,6 +190,7 @@ class DeriverBinding {
 }
 
 export async function verifyDeriverSourceFences(topology, owner, rootIdentity, preparation, credential) {
+  const runtime = await loadRuntime();
   const liveWorkerName = 'deriver-a-relocation-wrong-environment';
   const liveWorker = await topology.getWorker(liveWorkerName);
   const liveNamespace = await topology.getDurableObjectNamespace(roles.a.binding, liveWorkerName);
@@ -218,7 +222,30 @@ export async function verifyDeriverSourceFences(topology, owner, rootIdentity, p
       cipher_context_digest_hex: context.digest_hex, source_generation: 1, destination_generation: 2,
     };
     const path = `/router-ab/internal/deriver-${role}/wallet/fence-relocation`;
-    const response = await post(source, path, command, credential);
+    const envelope = sourceEnvelope({
+      scope: { org_id: owner.org_id, project_id: owner.project_id,
+        project_environment_id: owner.env_id, wallet_id: owner.wallet_id },
+      request: { move_id: command.move_id, invalidated_at_ms: Date.now() },
+    });
+    const directory = new DeriverFenceDirectory(envelope, role, command);
+    const binding = new DeriverBinding(source);
+    const env = {
+      WALLET_CONSOLE: directory, DERIVER_A: binding, DERIVER_B: binding,
+      CF_VERSION_METADATA: { id: '11111111-1111-4111-8111-111111111111' },
+      SEAMS_D1_HOME_ACCOUNT_ID: 'a'.repeat(32),
+      SEAMS_D1_HOME_DATABASE_ID: '22222222-2222-4222-8222-222222222222',
+      ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET: credential,
+    };
+    const runtimeUrl = `https://wallet-runtime.internal/internal/wallet-runtime/v1/relocation/deriver-${role}-fence`;
+    directory.mode = 'denied';
+    assert.equal((await runtime.handleWalletRelocationRequest(runtimeRequest(runtimeUrl, envelope), env)).status, 409);
+    directory.mode = 'corrupt';
+    assert.equal((await runtime.handleWalletRelocationRequest(runtimeRequest(runtimeUrl, envelope), env)).status, 503);
+    assert.equal(binding.fenceCalls, 0);
+    directory.mode = 'accepted';
+    assert.equal((await runtime.handleWalletRelocationRequest(runtimeRequest(runtimeUrl, command), env)).status, 400);
+    const response = await runtime.handleWalletRelocationRequest(runtimeRequest(runtimeUrl, envelope), env);
+
     assert.equal(response.status, 200, await response.clone().text());
     const receipt = await response.json();
     assert.equal(receipt.kind, 'settled_fence');
@@ -226,7 +253,7 @@ export async function verifyDeriverSourceFences(topology, owner, rootIdentity, p
     const namespace = await topology.getDurableObjectNamespace(roles[role].binding, workerName);
     const id = namespace.idFromName(receipt.source_object);
     await topology.unsafeEvictDurableObject(workerName, roles[role].className, { id: id.toString() });
-    assert.deepEqual(await (await post(source, path, command, credential)).json(), receipt);
+    assert.deepEqual(await (await runtime.handleWalletRelocationRequest(runtimeRequest(runtimeUrl, envelope), env)).json(), receipt);
     assert.equal((await post(source, path, { ...command, request_digest_hex: 'cd'.repeat(32) }, credential)).status, 409);
     const object = namespace.get(id);
     const pair = preparation.request.pair_binding;
@@ -241,6 +268,7 @@ export async function verifyDeriverSourceFences(topology, owner, rootIdentity, p
   }
   return { scope: 'Terminal pair stores only; tenant-root obligations and snapshot transfer are not covered',
     receipts, livePairsDeferFence: true, settlementRemainsOpenUntilFence: true,
+    runtimeRequiresDirectoryAuthorization: true, deniedOrCorruptCommandsDoNotReachFence: true,
     exactReplayAfterEviction: true, conflictingMoveRejected: true, ordinaryMutationRejected: true };
 }
 
@@ -260,4 +288,31 @@ function preparedCommand(owner, rootIdentity, preparation) {
     },
     now_ms: readiness.prepared_at_ms,
   };
+}
+
+function runtimeRequest(url, body) {
+  return new Request(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+}
+
+class DeriverFenceDirectory {
+  constructor(envelope, role, command) {
+    this.envelope = envelope;
+    this.role = role;
+    this.command = command;
+    this.mode = 'accepted';
+  }
+
+  async fetch(request) {
+    assert.equal(request.url, 'https://wallet-placement.internal/internal/wallet-placement/v1/relocation-deriver-source');
+    assert.equal(request.headers.get('x-seams-writer-role'), 'walletRuntime');
+    assert.equal(request.headers.get('x-seams-writer-version'), '11111111-1111-4111-8111-111111111111');
+    assert.equal(request.headers.get('x-seams-writer-account'), 'a'.repeat(32));
+    assert.equal(request.headers.get('x-seams-writer-database'), '22222222-2222-4222-8222-222222222222');
+    assert.deepEqual(await request.json(), { wallet: this.envelope.wallet, attempt: this.envelope.attempt,
+      role: this.role === 'a' ? 'deriverA' : 'deriverB', cipherContextDigest: this.command.cipher_context_digest_hex });
+    if (this.mode === 'denied') return Response.json({ ok: false }, { status: 403 });
+    const command = structuredClone(this.command);
+    if (this.mode === 'corrupt') command.owner.wallet_id = 'another-wallet';
+    return Response.json({ ok: true, command });
+  }
 }

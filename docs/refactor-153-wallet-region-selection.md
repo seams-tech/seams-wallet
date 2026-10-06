@@ -487,7 +487,10 @@ pair returns pending and can still settle. Once all pairs are terminal, synchron
 SQL pins the move and guards both pair tables against inserts, updates and deletes.
 Exact fence retries survive object eviction. This local fence does not prove
 that tenant-root obligations settled, and it does not capture or transfer a snapshot.
-Coordinator authorization and those remaining steps are still required.
+Runtime now requests each source command from Console. Console checks the running
+freeze attempt, pinned source deployment and prepared cipher-context digest. Runtime
+rejects raw commands and malformed authorization responses. Tenant-root settlement,
+snapshot transfer and the complete coordinator remain unfinished.
 
 The Router registration store now has a transactional source fence on both native
 SQLite and the wallet Durable Object. Its private freeze route requires the

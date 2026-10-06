@@ -124,7 +124,7 @@ class SourceDirectory {
   }
 }
 
-function sourceEnvelope(source) {
+export function sourceEnvelope(source) {
   const wallet = {
     namespace: 'fixture',
     organizationId: source.scope.org_id,
