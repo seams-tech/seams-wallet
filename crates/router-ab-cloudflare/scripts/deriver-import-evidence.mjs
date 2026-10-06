@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { verifyDeriverActivation } from './deriver-activation-evidence.mjs';
 
 async function post(worker, path, body, credential) {
   return worker.fetch(`https://deriver.internal${path}`, {
@@ -49,6 +50,7 @@ export async function verifyDeriverImport(topology, role, receipt, segments, rec
   assert.equal(transport.destinationBinding.snapshotCalls, dispatched);
   transport.directory.mode = 'accepted';
   assert.equal((await accepted(transport.destination, path, status, credential)).kind, 'prepared');
+  assert.notEqual((await post(destination, path, { operation: 'activate', receipt }, credential)).status, 200);
   assert.notEqual((await post(destination, path, verify, credential)).status, 200);
   assert.notEqual((await post(destination, path, { operation: 'import', receipt, segment: segments[1] }, credential)).status, 200);
   assert.equal((await accepted(transport.destination, path, status, credential)).next_segment, 0);
@@ -114,8 +116,9 @@ export async function verifyDeriverImport(topology, role, receipt, segments, rec
   await assert.rejects(post(object, pairPath, mutation, credential), /destination is reserved/u);
   const prepare = await accepted(destination, `/router-ab/internal/deriver-${role}/wallet/prepare-relocation`, receipt.source, credential);
   assert.equal(prepare.kind, 'prepared');
-  return { verified, exactAcknowledgementsAfterRestart: true, corruptedCiphertextRollsBack: true,
+  const activation = await verifyDeriverActivation(topology, role, receipt, segments[0], acknowledgements[0], credential, transport);
+  return { verified, activation, exactAcknowledgementsAfterRestart: true, corruptedCiphertextRollsBack: true,
     finalDigestFailureRollsBack: true, incompleteAndOutOfOrderRejected: true,
-    ordinaryReadersMatchSource: true, destinationRemainsInactive: true,
+    ordinaryReadersMatchSource: true, destinationInactiveUntilActivation: true,
     destinationCommandsUseAuthorizedRuntime: true };
 }

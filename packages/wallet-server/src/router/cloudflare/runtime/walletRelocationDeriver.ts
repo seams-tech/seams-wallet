@@ -4,7 +4,7 @@ import type { CloudflareServiceBindingFetcher } from './routerAbServiceBindings'
 import type { RuntimeSourceDirectory } from './walletRelocationSource';
 
 type Role = 'deriver-a' | 'deriver-b';
-type Operation = 'fence' | 'capture' | 'export' | 'import' | 'status' | 'verify';
+type Operation = 'fence' | 'capture' | 'export' | 'import' | 'status' | 'verify' | 'activate' | 'cleanup';
 type Envelope = { wallet: Record<string, unknown>; attempt: Record<string, unknown> };
 type Source = {
   owner: { org_id: string; project_id: string; env_id: string; wallet_id: string };
@@ -20,7 +20,7 @@ export function deriverRuntimeOperation(value: string): { role: Role; operation:
   else return null;
   const operation = value.slice(role.length + 1);
   switch (operation) {
-    case 'fence': case 'capture': case 'export': case 'import': case 'status': case 'verify':
+    case 'fence': case 'capture': case 'export': case 'import': case 'status': case 'verify': case 'activate': case 'cleanup':
       return { role, operation };
     default: return null;
   }
@@ -60,6 +60,11 @@ export async function forwardDeriverRelocation(
       source = parseSource(authorized, envelope, context.digest_hex);
       if (!source) return failure('source_command_unavailable', 503);
       body = operation === 'fence' ? source : { operation: 'capture', source };
+    } else if (operation === 'cleanup') {
+      const activation = parseActivation(authorized.activation, role, envelope, context.digest_hex);
+      if (!activation || Object.keys(authorized).length !== 2 || authorized.operation !== 'cleanup')
+        return failure('source_command_unavailable', 503);
+      return await postRole(binding, role, 'snapshot', { operation: 'cleanup', activation }, credential);
     } else if (operation === 'export') {
       source = parseSource(authorized.source, envelope, context.digest_hex);
       if (!source || Object.keys(authorized).length !== 3 || authorized.operation !== 'export' ||
@@ -70,6 +75,10 @@ export async function forwardDeriverRelocation(
       if (!receipt || Object.keys(authorized).length !== 2 || authorized.operation !== operation)
         return failure('source_command_unavailable', 503);
       source = receipt.source;
+      if (operation === 'activate') {
+        const response = await postRole(binding, role, 'snapshot', { operation: 'activate', receipt }, credential);
+        return await confirmActivation(response, receipt, role, envelope, context.digest_hex, directory);
+      }
       if (operation === 'import') {
         const segment = parseSegment(input.segment, receipt);
         if (!segment) return failure('invalid_input', 400);
@@ -161,4 +170,30 @@ function postRole(binding: CloudflareServiceBindingFetcher, role: Role,
 
 function failure(code: string, status: number): Response {
   return Response.json({ ok: false, code }, { status, headers: { 'Cache-Control': 'no-store' } });
+}
+
+
+function parseActivation(raw: unknown, role: Role, envelope: Envelope, contextDigest: string) {
+  if (!isPlainObject(raw) || Object.keys(raw).length !== 2) return null;
+  const source = parseReceipt(raw.source, role, envelope, contextDigest);
+  if (!source || raw.destination_object !== source.source_object) return null;
+  return { source, destination_object: source.source_object };
+}
+
+async function confirmActivation(response: Response, expected: Receipt, role: Role, envelope: Envelope,
+  contextDigest: string, directory: RuntimeSourceDirectory): Promise<Response> {
+  if (!response.ok) return response;
+  const raw: unknown = await response.clone().json();
+  if (!isPlainObject(raw) || Object.keys(raw).length !== 2 || raw.kind !== 'activated') return failure('activation_receipt_unavailable', 503);
+  const receipt = parseActivation(raw.receipt, role, envelope, contextDigest);
+  if (!receipt || JSON.stringify(receipt.source) !== JSON.stringify(expected)) return failure('activation_receipt_unavailable', 503);
+  const stored = await postDirectory(directory, 'relocation-deriver-activation', {
+    wallet: envelope.wallet, attempt: envelope.attempt, role: role === 'deriver-a' ? 'deriverA' : 'deriverB', receipt,
+  });
+  if (!stored.ok) return failure('activation_receipt_unavailable', 503);
+  const result: unknown = await stored.json();
+  if (!isPlainObject(result) || Object.keys(result).length !== 2 || result.ok !== true) return failure('activation_receipt_unavailable', 503);
+  const confirmed = parseActivation(result.receipt, role, envelope, contextDigest);
+  if (!confirmed || JSON.stringify(confirmed) !== JSON.stringify(receipt)) return failure('activation_receipt_unavailable', 503);
+  return response;
 }

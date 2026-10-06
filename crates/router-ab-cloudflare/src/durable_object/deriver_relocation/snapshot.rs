@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use worker::{Env, Method, Request, Response, SqlStorage, SqlStorageValue};
 
+mod cleanup;
 pub(crate) mod import;
 
 const SEGMENT_BYTES: u32 = 4096;
@@ -16,6 +17,12 @@ const SEGMENT_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_relocation_snaps
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "operation", rename_all = "snake_case", deny_unknown_fields)]
 pub(crate) enum Command<Owner> {
+    Activate {
+        receipt: Receipt<Owner>,
+    },
+    Cleanup {
+        activation: Activation<Owner>,
+    },
     Capture {
         source: Preparation<Owner>,
     },
@@ -39,9 +46,11 @@ impl<Owner> Command<Owner> {
     pub(crate) fn source(&self) -> &Preparation<Owner> {
         match self {
             Self::Capture { source } | Self::Export { source, .. } => source,
-            Self::Import { receipt, .. } | Self::Status { receipt } | Self::Verify { receipt } => {
-                &receipt.source
-            }
+            Self::Activate { receipt }
+            | Self::Import { receipt, .. }
+            | Self::Status { receipt }
+            | Self::Verify { receipt } => &receipt.source,
+            Self::Cleanup { activation } => &activation.source.source,
         }
     }
 }
@@ -49,6 +58,12 @@ impl<Owner> Command<Owner> {
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
 enum State<Owner> {
+    Cleaning {
+        activation: Activation<Owner>,
+    },
+    Cleaned {
+        activation: Activation<Owner>,
+    },
     Capturing {
         source: Preparation<Owner>,
         progress: Progress,
@@ -56,6 +71,13 @@ enum State<Owner> {
     Frozen {
         receipt: Receipt<Owner>,
     },
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct Activation<Owner> {
+    source: Receipt<Owner>,
+    destination_object: String,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -178,15 +200,19 @@ fn execute_source<Owner: WalletOwner>(
         let stored = match state {
             State::Capturing { source, .. } => source,
             State::Frozen { receipt } => &receipt.source,
+            State::Cleaning { activation } | State::Cleaned { activation } => {
+                &activation.source.source
+            }
         };
         if encode(stored)? != source_json {
             return Response::error("Deriver snapshot move differs", 409);
         }
     }
     match command {
+        Command::Cleanup { activation } => cleanup::cleanup(sql, activation, state),
         Command::Capture { source } => capture(sql, source, state),
         Command::Export { segment_index, .. } => export(sql, state, segment_index),
-        Command::Import { .. } | Command::Status { .. } | Command::Verify { .. } => Err(
+        Command::Activate { .. } | Command::Import { .. } | Command::Status { .. } | Command::Verify { .. } => Err(
             pair_error("Deriver destination command reached source capture"),
         ),
     }
@@ -198,6 +224,9 @@ fn capture<Owner: WalletOwner>(
     state: Option<State<Owner>>,
 ) -> worker::Result<Response> {
     let mut progress = match state {
+        Some(State::Cleaning { .. } | State::Cleaned { .. }) => {
+            return Err(pair_error("Deriver source snapshot is being cleaned"))
+        }
         Some(State::Frozen { receipt }) => {
             return Response::from_json(&serde_json::json!({"kind": "frozen", "receipt": receipt}))
         }
@@ -287,6 +316,9 @@ fn capture<Owner: WalletOwner>(
     sql.exec("INSERT INTO wallet_relocation_snapshot (id, state_json) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET state_json = excluded.state_json",
         vec![SqlStorageValue::String(encode(&state)?)])?;
     match state {
+        State::Cleaning { .. } | State::Cleaned { .. } => {
+            Err(pair_error("Deriver source snapshot is being cleaned"))
+        }
         State::Frozen { receipt } => {
             Response::from_json(&serde_json::json!({"kind": "frozen", "receipt": receipt}))
         }
@@ -372,6 +404,7 @@ pub(crate) async fn execute<Owner: WalletOwner>(
     storage
         .transaction(move |_| async move {
             let outcome = match command {
+                Command::Activate { receipt } => import::activate(&sql, receipt),
                 Command::Import { receipt, segment } => {
                     import::receive(&sql, &env, receipt, segment)
                 }

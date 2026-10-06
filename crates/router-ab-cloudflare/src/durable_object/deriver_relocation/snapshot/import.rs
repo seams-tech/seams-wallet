@@ -15,6 +15,9 @@ pub(crate) trait Pair<Owner>: Serialize + DeserializeOwned {
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
 enum ImportState<Owner> {
+    Activated {
+        activation: Activation<Owner>,
+    },
     Receiving {
         receipt: Receipt<Owner>,
         progress: ImportProgress,
@@ -30,6 +33,7 @@ enum ImportState<Owner> {
 impl<Owner> ImportState<Owner> {
     fn receipt(&self) -> &Receipt<Owner> {
         match self {
+            Self::Activated { activation } => &activation.source,
             Self::Receiving { receipt, .. }
             | Self::Received { receipt }
             | Self::Verified { receipt } => receipt,
@@ -255,6 +259,7 @@ pub(super) fn status<Owner: WalletOwner>(
         Some(ImportState::Receiving { progress, .. }) => ("receiving", progress.next_segment),
         Some(ImportState::Received { .. }) => ("received", receipt.segment_count),
         Some(ImportState::Verified { .. }) => ("verified", receipt.segment_count),
+        Some(ImportState::Activated { .. }) => ("activated", receipt.segment_count),
     };
     Response::from_json(
         &serde_json::json!({"kind": kind, "receipt": receipt, "next_segment": next_segment}),
@@ -266,6 +271,11 @@ pub(super) fn verify<Owner: WalletOwner>(
     receipt: Receipt<Owner>,
 ) -> worker::Result<Response> {
     match load(sql, &receipt)? {
+        Some(ImportState::Activated { .. }) => {
+            return Response::from_json(
+                &serde_json::json!({"kind": "verified", "receipt": receipt}),
+            )
+        }
         Some(ImportState::Received { .. }) | Some(ImportState::Verified { .. }) => {}
         None if receipt.segment_count == 0
             && receipt.digest_hex == initial_progress(&receipt)?.digest_hex => {}
@@ -297,6 +307,15 @@ fn load<Owner: WalletOwner>(
     {
         return Err(pair_error("Deriver snapshot receipt is invalid"));
     }
+    let state = read_state(sql)?;
+    if let Some(state) = &state {
+        if encode(state.receipt())? != encode(receipt)? {
+            return Err(pair_error("Deriver imported snapshot receipt differs"));
+        }
+    }
+    if matches!(&state, Some(ImportState::Activated { .. })) {
+        return Ok(state);
+    }
     let prepared = sql
         .exec(
             "SELECT request_json FROM wallet_relocation_preparation WHERE id = 1",
@@ -308,24 +327,6 @@ fn load<Owner: WalletOwner>(
         return Err(pair_error(
             "Deriver import requires its exact destination reservation",
         ));
-    }
-    sql.exec(STATE_SCHEMA, None)?;
-    sql.exec(SEGMENT_SCHEMA, None)?;
-    let rows = sql
-        .exec(
-            "SELECT state_json FROM wallet_relocation_import WHERE id = 1",
-            None,
-        )?
-        .to_array::<StateRow>()?;
-    let state: Option<ImportState<Owner>> = rows
-        .first()
-        .map(|row| serde_json::from_str(&row.state_json))
-        .transpose()
-        .map_err(encoding_error)?;
-    if let Some(state) = &state {
-        if encode(state.receipt())? != encode(receipt)? {
-            return Err(pair_error("Deriver imported snapshot receipt differs"));
-        }
     }
     Ok(state)
 }
@@ -429,4 +430,89 @@ fn require_exact_record<Owner: WalletOwner>(
         ));
     }
     Ok(())
+}
+
+pub(super) fn ensure_schema(sql: &SqlStorage) -> worker::Result<()> {
+    sql.exec(STATE_SCHEMA, None)?;
+    sql.exec(SEGMENT_SCHEMA, None)?;
+    Ok(())
+}
+
+fn read_state<Owner: WalletOwner>(sql: &SqlStorage) -> worker::Result<Option<ImportState<Owner>>> {
+    ensure_schema(sql)?;
+    let rows = sql
+        .exec(
+            "SELECT state_json FROM wallet_relocation_import WHERE id = 1",
+            None,
+        )?
+        .to_array::<StateRow>()?;
+    rows.first()
+        .map(|row| serde_json::from_str(&row.state_json))
+        .transpose()
+        .map_err(encoding_error)
+}
+
+pub(crate) fn activated_preparation<Owner: WalletOwner>(
+    sql: &SqlStorage,
+    source: &Preparation<Owner>,
+) -> worker::Result<bool> {
+    if let Some(ImportState::Activated { activation }) = read_state::<Owner>(sql)? {
+        if encode(&activation.source.source)? != encode(source)? {
+            return Err(pair_error(
+                "Deriver destination already activated another move",
+            ));
+        }
+        return Ok(true);
+    }
+    Ok(false)
+}
+
+pub(crate) fn require_source_generation<Owner: WalletOwner>(
+    sql: &SqlStorage,
+    source: &Preparation<Owner>,
+) -> worker::Result<()> {
+    let expected = match read_state::<Owner>(sql)? {
+        Some(ImportState::Activated { activation }) => {
+            activation.source.source.destination_generation
+        }
+        _ => 1,
+    };
+    if source.source_generation != expected {
+        return Err(pair_error("Deriver source generation differs"));
+    }
+    Ok(())
+}
+
+pub(super) fn activate<Owner: WalletOwner>(
+    sql: &SqlStorage,
+    receipt: Receipt<Owner>,
+) -> worker::Result<Response> {
+    match load(sql, &receipt)? {
+        Some(ImportState::Activated { activation }) => {
+            return Response::from_json(
+                &serde_json::json!({"kind": "activated", "receipt": activation}),
+            );
+        }
+        Some(ImportState::Verified { .. }) => {}
+        _ => {
+            return Err(pair_error(
+                "Deriver activation requires its verified snapshot",
+            ))
+        }
+    }
+    let activation = Activation {
+        destination_object: receipt.source.owner.object_name()?,
+        source: receipt,
+    };
+    sql.exec(
+        "DELETE FROM wallet_relocation_preparation WHERE id = 1",
+        None,
+    )?;
+    save(
+        sql,
+        &ImportState::Activated {
+            activation: activation.clone(),
+        },
+    )?;
+    Response::from_json(&serde_json::json!({"kind": "activated", "receipt": activation}))
 }

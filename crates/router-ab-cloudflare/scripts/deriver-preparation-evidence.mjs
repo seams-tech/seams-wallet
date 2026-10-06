@@ -288,7 +288,7 @@ export async function verifyDeriverSourceFences(topology, owner, rootIdentity, p
     const snapshot = await verifyDeriverSnapshot(topology, source, role, command, receipt.source_object, credential, rootIdentity, preparation, transport);
     receipts.push({ fence: receipt, snapshot });
   }
-  return { scope: 'Terminal pair stores and inactive destination restore; tenant-root settlement, activation, cleanup, and assembled relocation are not covered',
+  return { scope: 'Terminal pair stores, destination activation, and resumable cleanup; tenant-root settlement and assembled relocation are not covered',
     receipts, livePairsDeferFence: true, settlementRemainsOpenUntilFence: true,
     runtimeRequiresDirectoryAuthorization: true, deniedOrCorruptCommandsDoNotReachFence: true,
     exactReplayAfterEviction: true, conflictingMoveRejected: true, ordinaryMutationRejected: true };
@@ -325,6 +325,8 @@ class DeriverFenceDirectory {
     this.receipt = null;
     this.dropReceiptReply = true;
     this.receiptReplyLost = false;
+    this.activation = null;
+    this.dropActivationReply = true;
   }
 
   beginCopy() {
@@ -335,10 +337,19 @@ class DeriverFenceDirectory {
     } };
   }
 
+  beginActivation() {
+    const { wallet, attempt } = this.envelope;
+    this.envelope = { wallet, attempt: {
+      wallet, moveId: attempt.moveId, phase: 'cutover', id: `wattempt_${'c'.repeat(43)}`,
+      revision: 3, run: 1, number: 1, startedAtMs: attempt.startedAtMs + 1,
+    } };
+  }
+
   async fetch(request) {
     const path = new URL(request.url).pathname;
     const body = await request.json();
-    const destination = path.endsWith('/relocation-deriver-transfer') && body.request.operation !== 'export';
+    const destination = path.endsWith('/relocation-deriver-activation') ||
+      (path.endsWith('/relocation-deriver-transfer') && !['export', 'cleanup'].includes(body.request.operation));
     assert.equal(request.headers.get('x-seams-writer-role'), 'walletRuntime');
     assert.equal(request.headers.get('x-seams-writer-version'), '11111111-1111-4111-8111-111111111111');
     assert.equal(request.headers.get('x-seams-writer-account'), 'a'.repeat(32));
@@ -369,8 +380,26 @@ class DeriverFenceDirectory {
       }
       return Response.json({ ok: true, receipt: this.receipt });
     }
+    if (path.endsWith('/relocation-deriver-activation')) {
+      assert.equal(this.envelope.attempt.phase, 'cutover');
+      assert.deepEqual(body.receipt.source, this.receipt);
+      assert.equal(body.receipt.destination_object, this.receipt.source_object);
+      if (this.activation) assert.deepEqual(body.receipt, this.activation);
+      else this.activation = body.receipt;
+      if (this.dropActivationReply) {
+        this.dropActivationReply = false;
+        throw new Error('Simulated lost activation acknowledgement');
+      }
+      return Response.json({ ok: true, receipt: this.activation });
+    }
     assert.ok(path.endsWith('/relocation-deriver-transfer'));
-    assert.equal(this.envelope.attempt.phase, 'copying');
+    if (body.request.operation === 'activate' || body.request.operation === 'cleanup') {
+      assert.equal(this.envelope.attempt.phase, 'cutover');
+      if (body.request.operation === 'cleanup') {
+        if (!this.activation) return Response.json({ ok: false }, { status: 409 });
+        return Response.json({ ok: true, command: { operation: 'cleanup', activation: this.activation } });
+      }
+    } else assert.equal(this.envelope.attempt.phase, 'copying');
     assert.equal(Object.keys(body).length, 4);
     assert.ok(this.receipt);
     const command = body.request.operation === 'export'

@@ -1813,3 +1813,19 @@ placement and measured latency. A few seconds remains a pause target, without an
 unmeasured hard deadline. Five minutes remains the admission limit. Change these
 values only when measurements justify it. Dedicated load tuning and exhaustive
 regional benchmarking are follow-up work if the hosted run exposes a problem.
+
+### Deriver activation and cleanup evidence (2026-10-06)
+
+Deriver A and B now activate only a verified local snapshot. Exact activation
+retries preserve destination writes. Replayed preparation and known import chunks
+cannot reserve the destination again or overwrite new records. Runtime records
+each activation receipt in the Console journal before it reports success.
+Console authorizes source cleanup only after aggregate activation is durable.
+Cleanup deletes at most 16 rows per command and retains the source fence.
+
+The Worker E2E loses an activation acknowledgement, resumes cleanup after object
+eviction, and checks destination writes after cleanup for both roles. The private
+Console E2E separately checks activation persistence and cleanup authorization
+after restart. These are component scenarios. Production coordinator assembly,
+tenant-root settlement, fresh physical resources for return moves, and real signing
+through the assembled relocation remain open.

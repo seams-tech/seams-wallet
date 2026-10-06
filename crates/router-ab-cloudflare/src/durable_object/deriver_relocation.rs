@@ -115,6 +115,9 @@ pub(crate) fn reserve<Owner: WalletOwner>(
     sql: &SqlStorage,
     command: Preparation<Owner>,
 ) -> worker::Result<Response> {
+    if snapshot::import::activated_preparation(sql, &command)? {
+        return Response::from_json(&Receipt { kind: "prepared", destination_object: command.owner.object_name()?, request: command });
+    }
     // SQL guards also reject deferred writers that entered before preparation.
     for table in ["yao_pair_sessions", "yao_pair_admission_fences"] {
         for operation in ["INSERT", "UPDATE", "DELETE"] {
@@ -214,6 +217,7 @@ pub(crate) fn fence_settled_source<Owner: WalletOwner>(
     sql: &SqlStorage,
     command: Preparation<Owner>,
 ) -> worker::Result<Response> {
+    snapshot::import::require_source_generation(sql, &command)?;
     let request_json = serde_json::to_string(&command)
         .map_err(|error| pair_error(error.to_string()))?;
     let existing = sql.exec("SELECT request_json FROM wallet_relocation_source WHERE id = 1", None)?
