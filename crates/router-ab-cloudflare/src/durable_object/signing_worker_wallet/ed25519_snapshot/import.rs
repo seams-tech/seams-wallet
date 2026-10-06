@@ -305,6 +305,34 @@ impl RouterAbSigningWorkerWalletDurableObject {
         Ok(first)
     }
 
+    pub(super) fn ed25519_import_status(
+        &self,
+        receipt: SigningWorkerEd25519SnapshotReceiptV1,
+    ) -> Result<SigningWorkerEd25519SnapshotResponseV1, RouterAbProtocolError> {
+        validate_receipt(&receipt)?;
+        let state = self.read_ed25519_import(&receipt.source.scope)?
+            .ok_or_else(|| wallet_error("Ed25519 destination is not prepared"))?;
+        state.require_receipt(&receipt)?;
+        let segment_count = receipt.segment_count;
+        Ok(match state {
+            ImportState::Prepared { .. } => SigningWorkerEd25519SnapshotResponseV1::Receiving {
+                next_segment: 0,
+                segment_count,
+            },
+            ImportState::Receiving { progress, .. } => SigningWorkerEd25519SnapshotResponseV1::Receiving {
+                next_segment: progress.next_segment,
+                segment_count,
+            },
+            ImportState::Received { .. } => SigningWorkerEd25519SnapshotResponseV1::Receiving {
+                next_segment: segment_count,
+                segment_count,
+            },
+            ImportState::Restoring { .. } => SigningWorkerEd25519SnapshotResponseV1::Restoring,
+            ImportState::Verified { .. } => SigningWorkerEd25519SnapshotResponseV1::Verified { receipt },
+            ImportState::Activated { .. } => SigningWorkerEd25519SnapshotResponseV1::Activated { receipt },
+        })
+    }
+
     pub(super) fn import_ed25519_segment(
         &self,
         receipt: SigningWorkerEd25519SnapshotReceiptV1,

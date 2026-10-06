@@ -115,6 +115,9 @@ impl RouterAbSigningWorkerWalletDurableObject {
             SigningWorkerEd25519SnapshotCommandV1::Import { receipt, segment } => {
                 self.import_ed25519_segment(receipt, segment)?
             }
+            SigningWorkerEd25519SnapshotCommandV1::Status { receipt } => {
+                self.ed25519_import_status(receipt)?
+            }
             SigningWorkerEd25519SnapshotCommandV1::Verify { receipt } => {
                 self.verify_ed25519_import(receipt)?
             }

@@ -1648,7 +1648,9 @@ digest. Export reads one stored segment under the exact frozen receipt. The Work
 registration scenario verifies settlement, capture across eviction, exact segment
 replay, and reconstruction of the final digest. The same Worker scenario now prepares a destination before source settlement,
 imports exact segments across eviction, restores and verifies encrypted rows, and
-activates generation 2. Verification processes at most 16 segments per command.
+activates generation 2. The destination exposes its durable import cursor and
+verification state through the same snapshot endpoint. Coordinator retries can
+resume at that cursor without replaying completed chunks. Verification processes at most 16 segments per command.
 A corrupted final segment fails without advancing import progress. The scenario
 recaptures the destination to compare exact historical bytes and checks that an
 activation retry preserves a later move fence. The restored wallet signs a fresh

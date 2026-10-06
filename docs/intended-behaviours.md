@@ -1648,6 +1648,9 @@ and missing segments fail. Unsettled registration material cannot enter a snapsh
 The destination prepares before source settlement and closes ordinary writes.
 Each imported segment commits with its acknowledgement and progress. Exact retries
 return that acknowledgement after restart. Changed or out-of-order segments fail.
+An authenticated status command returns the destination cursor or its verified or
+activated state under the exact receipt. It does not change import state. The
+Worker E2E resumes transfer from this cursor after each eviction.
 The final segment must complete the expected record count and digest. Verification
 restores at most 16 segments per command and retains an incomplete record across
 calls. Production readers validate each record before insertion. Stored values

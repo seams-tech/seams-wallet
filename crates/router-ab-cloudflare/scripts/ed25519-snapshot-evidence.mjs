@@ -162,7 +162,10 @@ async function verifyDestinationRestoration({
   }, credential);
   assert.notEqual(outOfOrder.status, 200, await outOfOrder.text());
   const acknowledgements = [];
-  for (const segment of segments) {
+  let progress = await accepted(destination, snapshotPath, { command: 'status', receipt }, credential);
+  assert.deepEqual(progress, { state: 'receiving', next_segment: 0, segment_count: segments.length });
+  while (progress.state === 'receiving' && progress.next_segment < progress.segment_count) {
+    const segment = segments[progress.next_segment];
     if (segment.segment_index + 1 === receipt.segment_count) {
       const corrupt = structuredClone(segment);
       const bytes = Buffer.from(corrupt.data_b64u, 'base64url');
@@ -182,6 +185,10 @@ async function verifyDestinationRestoration({
     acknowledgements.push(acknowledgement);
     await evictTransferredWallet(topology, destinationName, receipt.source.scope);
     assert.deepEqual(await accepted(destination, snapshotPath, command, credential), acknowledgement);
+    progress = await accepted(destination, snapshotPath, { command: 'status', receipt }, credential);
+    assert.deepEqual(progress, {
+      state: 'receiving', next_segment: segment.segment_index + 1, segment_count: receipt.segment_count,
+    });
   }
   let verified;
   for (let attempt = 0; attempt < 64; attempt += 1) {
@@ -194,6 +201,7 @@ async function verifyDestinationRestoration({
     assert.equal(result.state, 'restoring');
   }
   assert.deepEqual(verified, { state: 'verified', receipt });
+  assert.deepEqual(await accepted(destination, snapshotPath, { command: 'status', receipt }, credential), verified);
   assert.deepEqual(await accepted(destination, snapshotPath, verify, credential), verified);
   const registrationReplay = await accepted(destination,
     '/router-ab/signing-worker/ed25519-yao/activation/packages', delivery, registrationCredential);
@@ -201,6 +209,7 @@ async function verifyDestinationRestoration({
   assert.deepEqual(activated, { state: 'activated', receipt });
   await evictTransferredWallet(topology, destinationName, receipt.source.scope);
   assert.deepEqual(await accepted(destination, snapshotPath, activate, credential), activated);
+  assert.deepEqual(await accepted(destination, snapshotPath, { command: 'status', receipt }, credential), activated);
   const cleanup = await verifySourceCleanup(topology, receipt, credential, delivery, registrationCredential);
   const signing = await signDestination(topology, activation, fixture, destinationName, 2);
   const oldGeneration = await post(destination, settlePath, receipt.source, credential);
@@ -272,6 +281,7 @@ async function verifyDestinationRestoration({
     incompleteAndOutOfOrderImportsRejected: true,
     finalDigestFailureRollsBackImportProgress: true,
     exactAcknowledgementsAfterEviction: true,
+    transferResumesFromDestinationCursor: true,
     exactCiphertextAndIndexesRestored: true,
     ownershipGeneration: nextSource.request.source_generation,
     activationReplayPreservesLaterFence: true,

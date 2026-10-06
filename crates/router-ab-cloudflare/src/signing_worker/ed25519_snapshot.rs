@@ -32,6 +32,9 @@ pub enum SigningWorkerEd25519SnapshotCommandV1 {
         receipt: SigningWorkerEd25519SnapshotReceiptV1,
         segment: SigningWorkerEd25519SnapshotSegmentV1,
     },
+    Status {
+        receipt: SigningWorkerEd25519SnapshotReceiptV1,
+    },
     Verify {
         receipt: SigningWorkerEd25519SnapshotReceiptV1,
     },
@@ -57,6 +60,7 @@ impl SigningWorkerEd25519SnapshotCommandV1 {
             Self::Capture { source } | Self::Prepare { source } => source,
             Self::Export { receipt, .. }
             | Self::Import { receipt, .. }
+            | Self::Status { receipt }
             | Self::Verify { receipt }
             | Self::Activate { receipt } => &receipt.source,
         }
@@ -72,6 +76,10 @@ pub enum SigningWorkerEd25519SnapshotResponseV1 {
     Imported {
         segment_index: u32,
         input_digest_hex: String,
+    },
+    Receiving {
+        next_segment: u32,
+        segment_count: u32,
     },
     Restoring,
     Verified {
