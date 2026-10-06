@@ -289,16 +289,23 @@ pub fn signing_worker_ecdsa_presign_session_start_v1(
 pub fn admit_signing_worker_wallet_ecdsa_presignature_v1<Sql: SigningWorkerWalletSqlV1>(
     store: &SigningWorkerWalletEcdsaStoreV1<'_, Sql>,
     wallet_scope: &CloudflareSigningWorkerWalletScopeV1,
+    presign_session_id: &str,
+    completed_at_ms: u64,
     request: CloudflareSigningWorkerRouterAbEcdsaDerivationPresignaturePoolPutRequestV1,
     now_unix_ms: u64,
 ) -> RouterAbProtocolResult<CloudflareSigningWorkerEcdsaPoolAdmissionReceiptV1> {
     request.validate_at(now_unix_ms)?;
+    crate::require_positive_ms("Presign completion time", completed_at_ms)?;
+    if completed_at_ms > now_unix_ms {
+        return Err(presign_protocol_error("Presign completion time is in the future"));
+    }
+    store.load_presign_authority(wallet_scope, presign_session_id, now_unix_ms)?;
     let (active, material) = store.load_normal_signing_material(
         wallet_scope,
         &request.scope,
         &request.material_source,
     )?;
-    let record = request.to_pool_record(active, &material, now_unix_ms)?;
+    let record = request.to_pool_record(active, &material, completed_at_ms)?;
     let outcome = store.mutate_pool(
         wallet_scope.clone(),
         CloudflareSigningWorkerEcdsaPoolCommandV1::PutAvailable {

@@ -2240,7 +2240,74 @@ function isDelayedPresignAuthority(presignSessionId, record) {
   return record.kind === 'presign_authority' && record.row.presign_session_id === presignSessionId;
 }
 
+async function completeOwnerPresignBeforePublication(topology, ecdsa, fixture) {
+  const pending = await runEcdsaPresignSession(topology, ecdsa, 'prepare', false);
+  try {
+    const namespace = await topology.getDurableObjectNamespace(
+      'SIGNING_WORKER_PRESIGN_SESSION_DO',
+      ecdsa.executionHome.workerName,
+    );
+    const hostDigest = createHash('sha256').update(JSON.stringify([
+      'owner-presign-host/v1',
+      pending.presignSource.batch.authority.wallet_scope,
+      pending.scope.material_activation,
+    ])).digest('base64url');
+    const hostName = `${fixture.signing_worker_env.SIGNING_WORKER_PRESIGN_SESSION_DO_OBJECT}-${hostDigest}`;
+    const host = namespace.get(namespace.idFromName(hostName));
+    const response = await postWorkerJson(
+      host,
+      '/router-ab/internal/signing-worker/ecdsa-presign-session/step',
+      {
+        request: pending.presignSource.batch,
+      },
+    );
+    const completed = JSON.parse(
+      (await expectOk(response, 'owner presign completion before publication')).toString('utf8'),
+    );
+    assert.equal(completed.kind, 'complete');
+    return {
+      command: 'publish_ecdsa_presignature',
+      completed_at_ms: Date.now(),
+      scope: completed.authority.wallet_scope,
+      presign_session_id: pending.presignSource.batch.presign_session_id,
+      request: completed.pool_put_request,
+    };
+  } finally {
+    pending.client.free();
+  }
+}
+
+async function publishOwnerPresignature(topology, publication) {
+  const namespace = await topology.getDurableObjectNamespace(
+    signingWorkerWalletDoBinding,
+    'fixture-signing-worker',
+  );
+  const wallet = namespace.get(
+    namespace.idFromName(signingWorkerWalletDoObjectName(publication.scope)),
+  );
+  return postWorkerJson(wallet, '/router-ab/internal/signing-worker/wallet', publication);
+}
+
+async function rejectDelayedPresignPublication(topology, publication, expectedError) {
+  const response = await publishOwnerPresignature(topology, publication);
+  assert.equal(response.ok, false, 'Old completed presign work cannot enter the wallet pool');
+  assert.match(await response.text(), expectedError);
+}
+
 async function verifyEcdsaWalletRelocation(topology, fixture, ecdsa) {
+  const readyPublication = await completeOwnerPresignBeforePublication(topology, ecdsa, fixture);
+  const firstPublicationResponse = await publishOwnerPresignature(topology, readyPublication);
+  const firstPublication = JSON.parse(
+    (await expectOk(firstPublicationResponse, 'fresh owner publication')).toString('utf8'),
+  );
+  assert.equal(firstPublication.stored, true);
+  await evictTransferredWallet(topology, 'fixture-signing-worker', readyPublication.scope);
+  const repeatedPublicationResponse = await publishOwnerPresignature(topology, readyPublication);
+  const repeatedPublication = JSON.parse(
+    (await expectOk(repeatedPublicationResponse, 'owner publication after lost reply')).toString('utf8'),
+  );
+  assert.deepEqual(repeatedPublication, { ...firstPublication, stored: false });
+  const delayedPublication = await completeOwnerPresignBeforePublication(topology, ecdsa, fixture);
   const delayedPresign = await runEcdsaPresignSession(topology, ecdsa, 'prepare', false);
   const delayedBatch = delayedPresign.presignSource.batch;
   delayedPresign.client.free();
@@ -2272,6 +2339,7 @@ async function verifyEcdsaWalletRelocation(topology, fixture, ecdsa) {
   const duringMove = await postWorkerJson(frozenSource, ecdsaPresignSessionStepPath, delayedBatch);
   assert.equal(duringMove.ok, false, 'A delayed owner refill cannot publish into the frozen source');
   assert.match(await duringMove.text(), /closed ECDSA pool admission/);
+  await rejectDelayedPresignPublication(topology, delayedPublication, /closed ECDSA pool admission/);
   const runtime = await activateEcdsaThroughRouter(topology, receipt);
   ecdsa.executionHome = {
     workerName: 'fixture-signing-worker-after-refresh',
@@ -2296,6 +2364,7 @@ async function verifyEcdsaWalletRelocation(topology, fixture, ecdsa) {
   const afterReturnRefillBody = await afterReturnRefill.text();
   assert.equal(afterReturnRefill.ok, false, `A delayed owner refill must remain retired after a return move: ${afterReturnRefillBody}`);
   assert.match(afterReturnRefillBody, /ownership generation differs/);
+  await rejectDelayedPresignPublication(topology, delayedPublication, /ownership generation differs/);
   const afterReturn = await testEcdsaNormalSigning(topology, ecdsa, 'pool', false);
   const returnCleanup = await cleanupTransferredWalletSource(
     topology,
@@ -2317,6 +2386,8 @@ async function verifyEcdsaWalletRelocation(topology, fixture, ecdsa) {
       staleGenerationRejectedBeforeReservation: true,
       delayedOwnerRefillRejectedAfterReturn: true,
       delayedOwnerAuthorityPreservedInSnapshot: true,
+      completedPresignPublicationRejectedDuringMoveAndAfterReturn: true,
+      ownerPublicationReplayAfterWalletEviction: true,
       exactPrepareReplayAfterEviction: true,
       beforeCleanupSignatureSha256Hex: createHash('sha256')
         .update(Buffer.from(beforeCleanup.response.signature65_b64u, 'base64url'))

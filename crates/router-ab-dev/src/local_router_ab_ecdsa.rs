@@ -935,6 +935,8 @@ fn step_presign_session(
                 admit_signing_worker_wallet_ecdsa_presignature_v1(
                     store,
                     &wallet_scope,
+                    &presign_session_id,
+                    now_ms,
                     pool_put_request,
                     now_ms,
                 )

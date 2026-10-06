@@ -130,6 +130,12 @@ pub(crate) enum SigningWorkerWalletDoRequestV1 {
         request: crate::SigningWorkerRelocationRequestV1,
     },
     AdmitEcdsaPresignStep(crate::CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1),
+    PublishEcdsaPresignature {
+        scope: CloudflareSigningWorkerWalletScopeV1,
+        presign_session_id: String,
+        completed_at_ms: u64,
+        request: crate::CloudflareSigningWorkerRouterAbEcdsaDerivationPresignaturePoolPutRequestV1,
+    },
     LoadEcdsaActivation {
         scope: CloudflareSigningWorkerWalletScopeV1,
         lookup: CloudflareActiveSigningWorkerStateLookupV1,
@@ -276,7 +282,9 @@ impl SigningWorkerWalletDoRequestV1 {
             | Self::LoadEcdsaPresignActivation { scope, .. } => scope,
             Self::PrepareNear { scope, .. } | Self::FinalizeNear { scope, .. } => scope,
             Self::PrepareEcdsa { request, .. } => &request.wallet_scope,
-            Self::EcdsaPoolMutate { scope, .. } => scope,
+            Self::EcdsaPoolMutate { scope, .. } | Self::PublishEcdsaPresignature { scope, .. } => {
+                scope
+            }
             Self::FreezeEcdsaPool(command) => &command.scope,
             Self::ExportEcdsaSnapshot(command) => &command.receipt.scope,
             Self::ListLinkedPresignSessions(command) => &command.scope,
@@ -389,7 +397,26 @@ impl SigningWorkerWalletDoRequestV1 {
             Self::ExportEcdsaSnapshot(command) => command.receipt.scope.validate(),
             Self::TransferEcdsaSnapshot(command) => command.scope().validate(),
             Self::CheckEcdsaPoolAdmission { scope } => scope.validate(),
+            Self::PublishEcdsaPresignature {
+                scope,
+                presign_session_id,
+                completed_at_ms,
+                request,
+            } => {
+                scope.validate()?;
+                crate::require_non_empty("Presign session identity", presign_session_id)?;
+                crate::require_positive_ms("Presign completion time", *completed_at_ms)?;
+                request.validate_at(crate::cloudflare_now_unix_ms_v1()?)
+            }
             Self::EcdsaPoolMutate { scope, mutation } => {
+                if matches!(
+                    mutation,
+                    CloudflareSigningWorkerEcdsaPoolCommandV1::PutAvailable { .. }
+                ) {
+                    return Err(wallet_error(
+                        "Presign publication requires its original session identity",
+                    ));
+                }
                 scope.validate()?;
                 mutation.validate()?;
                 if scope.wallet_id != mutation.scope().wallet_id {
@@ -779,8 +806,39 @@ impl RouterAbSigningWorkerWalletDurableObject {
                 let now_unix_ms = crate::cloudflare_now_unix_ms_v1()?;
                 self.with_ecdsa_transaction(move |store| store.register_linked_presign_session(&request, now_unix_ms)).await
             }
-            SigningWorkerWalletDoRequestV1::AuthorizeLinkedPresignFence { scope, presign_session_id, server_presignature_id, request } => {
-                self.with_ecdsa_transaction(move |store| store.authorize_linked_presign_fence(&scope, &presign_session_id, &server_presignature_id, &request)).await
+            SigningWorkerWalletDoRequestV1::AuthorizeLinkedPresignFence {
+                scope,
+                presign_session_id,
+                server_presignature_id,
+                request,
+            } => {
+                self.with_ecdsa_transaction(move |store| {
+                    store.authorize_linked_presign_fence(
+                        &scope,
+                        &presign_session_id,
+                        &server_presignature_id,
+                        &request,
+                    )
+                })
+                .await
+            }
+            SigningWorkerWalletDoRequestV1::PublishEcdsaPresignature {
+                scope,
+                presign_session_id,
+                completed_at_ms,
+                request,
+            } => {
+                self.with_ecdsa_transaction(move |store| {
+                    crate::admit_signing_worker_wallet_ecdsa_presignature_v1(
+                        store,
+                        &scope,
+                        &presign_session_id,
+                        completed_at_ms,
+                        request,
+                        crate::cloudflare_now_unix_ms_v1()?,
+                    )
+                })
+                .await
             }
             SigningWorkerWalletDoRequestV1::AdmitEcdsaPresignStep(request) => {
                 let sql = DurableObjectWalletSqlV1(&self.sql);

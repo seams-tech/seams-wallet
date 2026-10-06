@@ -1993,5 +1993,14 @@ The native ECDSA relocation scenario holds a real final presign batch before
 source freeze. It rejects that batch during the move and after return at generation
 3, then verifies a fresh signature. Run `scripts/test-private-d1.mjs
 --ecdsa-wallet-do-pool` from `crates/router-ab-cloudflare` with the wallet-DO
-harness and development Worker builds enabled. This scenario does not yet cover
-a completed result delayed between protocol completion and pool publication.
+harness and development Worker builds enabled.
+
+Pool publication also requires the original presign session identity. Its stored
+generation check and pool insertion run in one wallet transaction. A completed
+result from an earlier generation cannot enter the pool after a return move.
+Unbound pool-fill commands are rejected at the wallet object boundary.
+The VM adapter uses the same store admission function.
+
+The native scenario separately completes a real owner presign protocol, holds its
+result before publication, and attempts publication during freeze and after return.
+Both attempts fail. Fresh owner presigning and signing still succeed.

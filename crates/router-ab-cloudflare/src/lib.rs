@@ -12396,16 +12396,25 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_step_private
             let server_presignature_id = pool_put_request.server_presignature_id.clone();
             let server_big_r33_b64u = pool_put_request.server_big_r33_b64u.clone();
             let admission_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
-            let wallet_scope = Some(authority.wallet_scope().clone());
-            if let Err(error) = admit_cloudflare_signing_worker_ecdsa_presignature_v1(
+            #[cfg(feature = "wallet-do-signing-worker-harness")]
+            let admission = publish_cloudflare_wallet_presignature(
+                env,
+                authority.wallet_scope(),
+                &presign_session_id,
+                now_unix_ms,
                 pool_put_request,
-                wallet_scope,
+            )
+            .await;
+            #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+            let admission = admit_cloudflare_signing_worker_ecdsa_presignature_v1(
+                pool_put_request,
+                Some(authority.wallet_scope().clone()),
                 env,
                 runtime,
                 now_unix_ms,
             )
-            .await
-            {
+            .await;
+            if let Err(error) = admission {
                 return cloudflare_signing_worker_presign_error_response_v1(error);
             }
             timing.mark("ecdsa_presign_sw_admit", admission_started_at_ms);
@@ -12689,6 +12698,31 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_presign
         Ok(receipt) => worker::Response::from_json(&receipt),
         Err(error) => cloudflare_signing_worker_presign_error_response_v1(error),
     }
+}
+
+#[cfg(all(feature = "workers-rs", feature = "wallet-do-signing-worker-harness"))]
+async fn publish_cloudflare_wallet_presignature(
+    env: &worker::Env,
+    scope: &CloudflareSigningWorkerWalletScopeV1,
+    presign_session_id: &str,
+    completed_at_ms: u64,
+    request: CloudflareSigningWorkerRouterAbEcdsaDerivationPresignaturePoolPutRequestV1,
+) -> RouterAbProtocolResult<CloudflareSigningWorkerEcdsaPoolAdmissionReceiptV1> {
+    let response = durable_object::call_signing_worker_wallet_do_v1(
+        env,
+        durable_object::SigningWorkerWalletDoRequestV1::PublishEcdsaPresignature {
+            scope: scope.clone(),
+            presign_session_id: presign_session_id.to_owned(),
+            completed_at_ms,
+            request,
+        },
+    )
+    .await?;
+    parse_cloudflare_signing_worker_wallet_do_json_response_v1(
+        response,
+        "Wallet presignature publication",
+    )
+    .await
 }
 
 #[cfg(feature = "workers-rs")]
