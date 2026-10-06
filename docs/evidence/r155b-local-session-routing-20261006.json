@@ -1,6 +1,6 @@
 {
   "kind": "local_session_routing_evidence_v1",
-  "productionBundleSha256": "a1580eb3892d4fb1fa07eca98d99fb93f43560f1dae01cf5f3010e127c4cf95c",
+  "productionBundleSha256": "05be2e4e28c866ee63e5884a934e49ec2f7fe5976ec7393ea4dcac36706f88cc",
   "localCredentialConsoleCalls": 0,
   "directAndHostedCredentialsFound": true,
   "exchangeFound": true,
@@ -19,5 +19,15 @@
   "restoredSdkCredentialEmitsRegionalHint": true,
   "exchangeIframePayloadRetainsHome": true,
   "completedRegistrationAdmissionUsesLocalState": true,
-  "sessionlessContinuationHintUsesBoundedForwarding": true
+  "registrationTerminalDecisionSurvivesLostReply": true,
+  "localRegistrationContinuationRouting": true,
+  "explicitHomeDiscoveryRetriesOnceWithExactRequest": true,
+  "pendingRegistrationAdmissionSurvivesRestartWithoutConsole": true,
+  "terminalRegistrationAdmissionReconcilesLostReplies": true,
+  "cancelledRegistrationRejectsLateWritesAndRecreation": true,
+  "cancelledRegistrationRejectsLifecycleWritesAndSessionPublication": true,
+  "conflictingRegistrationCompletionRejectedBeforeConsole": true,
+  "sessionlessContinuationHintUsesBoundedForwarding": true,
+  "lastVerified": "2026-10-07",
+  "scope": "Local production routing, registration admission, and SDK request composition. Excludes hosted latency and full custody relocation."
 }

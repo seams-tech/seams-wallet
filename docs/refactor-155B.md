@@ -1,6 +1,6 @@
 # Regional execution without routine Console calls
 
-Status: implementation in progress. Local wallet execution authority is separated from registration coordination. Regional deployment admission and transactional D1 writer fences are implemented. Routine signing still requires the remaining routing changes.
+Status: implementation and local acceptance in progress. Established-session routing, regional deployment admission, and transactional D1 writer fences are implemented. Local owner, linked-device, and step-up signing pass during Console outage. Source integration, remaining relocation coverage, final cleanup, and hosted comparison remain open.
 Date: October 6, 2026.
 
 ## Objective
@@ -195,7 +195,7 @@ must not be enabled before this gate passes.
   revoked session, and frozen-home combinations.
 - [ ] Remove the unconditional combined Console lookup from signing and refill,
   including forwarded destination requests and internal/deferred execution.
-- [ ] Keep explicit discovery for missing/stale routing. Avoid treating all
+- [x] Keep explicit discovery for missing/stale routing. Avoid treating all
   signing failures as routing failures. Bound rediscovery and preserve retry identity.
 - [ ] Preserve prepare-based session reconciliation. Do not reintroduce the
   separate session-status request or increase routine D1 round trips accidentally.
@@ -206,7 +206,7 @@ Exit: ordinary signing/refill and their background work make zero Console calls.
 
 - [ ] Reserve the wallet, home, and stable operation identities through the
   existing directory authority. Retries through another ingress reuse the reservation.
-- [ ] Persist local registration admission and route continuations from that state.
+- [x] Persist local registration admission and route continuations from that state.
   Remove repeated directory checks whose guarantees now have local enforcement.
 - [ ] Retain global identity and credential claims. Batch related statements
   within their owning database when that preserves their existing semantics.
@@ -1607,3 +1607,18 @@ The remaining fresh-unlock acceptance needs a wallet created through the browser
 registration harness. The existing composed relocation fixture installs an owner
 authority and session directly; it does not establish the sealed custody data
 required for a complete browser unlock. That gap remains open.
+
+
+### Routing checklist verification — 2026-10-07
+
+Repeated `node tests/relayer/local-session-routing.e2e.mjs` against the current
+source. It passed and refreshed the [routing evidence](evidence/r155b-local-session-routing-20261006.json).
+The scenario verifies bounded explicit discovery with the exact retry request,
+zero Console calls for known local credentials and hinted travel, rejection of
+forwarding loops, and preserved routing metadata after SDK restoration.
+
+It also verifies persisted pending registration admission after restart, terminal
+completion recovery, local continuation routing, and rejection of late lifecycle
+writes after cancellation. These checks close the corresponding Phase 3 discovery
+and Phase 4 local-continuation items. Broader authentication, custody relocation,
+registration claims/completion, and hosted gates remain as listed.
