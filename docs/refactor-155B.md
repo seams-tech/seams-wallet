@@ -1218,3 +1218,30 @@ acceptance remain separate gates. No Cloudflare resources were created or used.
 [Acceptance evidence and repeat commands](./evidence/r155b-custody-acceptance-20261007.json).
 Raw artifacts remain under `.artifacts/r150/`; logs are under
 `.artifacts/r155b-custody-acceptance/`.
+
+### Concurrent registration and competing wallet reservation — 2026-10-07
+
+The composed browser scenario sends one NEAR-only SDK setup request concurrently
+through US, APAC and OC. All three replies returned HTTP 200 with the same wallet,
+ceremony and US home. Before releasing setup to the browser, the scenario submits
+a different registration operation for that reserved wallet through WEUR and OC.
+Both requests return HTTP 409 `wallet_conflict`.
+
+The original registration then completes. The directory contains one established
+wallet. Three NEAR signatures verify through WEUR, APAC and OC with Console
+unavailable and zero attempted Console calls. The final scenario passed in
+56.0 seconds. No production change was required.
+
+An earlier extension used a UUID for the competing operation. The boundary
+correctly returned HTTP 400 because registration operation IDs use the existing
+`wreg_` format. This was `valid_test_needs_update`; the scenario now uses the
+production ID builder. It does not weaken the parser.
+
+This proves concurrent setup convergence and rejection of a different operation
+against the reserved wallet. It does not prove competing passkey/provider claims
+or cancellation cleanup. Those parts of the uniqueness checklist remain open.
+
+[Sanitized evidence](./evidence/r155b-concurrent-setup-20261007.json). The private
+scenario is committed as `57781b8`. Repeat with `tests/scripts/run-regional-real.mjs
+passkey.registration.contract.test.ts --grep 'concurrent NEAR-only setup'`, using
+the server candidate and the SDK under `.artifacts/r155b-setup-retry/dist`.
