@@ -135,6 +135,11 @@ pub(crate) enum SigningWorkerWalletDoRequestV1 {
         request: CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2,
         now_unix_ms: u64,
     },
+    PrepareEcdsa {
+        request:
+            crate::CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningRequestV1,
+        now_unix_ms: u64,
+    },
     FinalizeNear {
         scope: CloudflareSigningWorkerWalletScopeV1,
         request: CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2,
@@ -264,6 +269,7 @@ impl SigningWorkerWalletDoRequestV1 {
             | Self::LoadEcdsaActivation { scope, .. }
             | Self::LoadEcdsaPresignActivation { scope, .. } => scope,
             Self::PrepareNear { scope, .. } | Self::FinalizeNear { scope, .. } => scope,
+            Self::PrepareEcdsa { request, .. } => &request.wallet_scope,
             Self::EcdsaPoolMutate { scope, .. } => scope,
             Self::FreezeEcdsaPool(command) => &command.scope,
             Self::ExportEcdsaSnapshot(command) => &command.receipt.scope,
@@ -347,6 +353,13 @@ impl SigningWorkerWalletDoRequestV1 {
                     &request.trusted_admission.metadata,
                     &request.scope.account_id,
                 )?;
+                crate::require_positive_ms("SigningWorker prepare time", *now_unix_ms)
+            }
+            Self::PrepareEcdsa {
+                request,
+                now_unix_ms,
+            } => {
+                request.validate()?;
                 crate::require_positive_ms("SigningWorker prepare time", *now_unix_ms)
             }
             Self::FinalizeNear {
@@ -698,6 +711,22 @@ impl RouterAbSigningWorkerWalletDurableObject {
             } => {
                 self.with_wallet_transaction(move |wallet| {
                     wallet.prepare_near(scope, request, now_unix_ms)
+                })
+                .await
+            }
+            SigningWorkerWalletDoRequestV1::PrepareEcdsa {
+                request,
+                now_unix_ms,
+            } => {
+                let mut contribution = [0u8; 32];
+                contribution.copy_from_slice(&crate::cloudflare_random_bytes_v1(32)?);
+                self.with_ecdsa_transaction(move |store| {
+                    crate::prepare_signing_worker_wallet_ecdsa_from_pool_v1(
+                        store,
+                        request,
+                        now_unix_ms,
+                        contribution,
+                    )
                 })
                 .await
             }

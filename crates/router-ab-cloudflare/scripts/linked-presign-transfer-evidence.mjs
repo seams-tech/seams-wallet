@@ -436,6 +436,7 @@ async function verifyWalletInventoryTransfer(topology, credential, receipt, requ
   }, credential);
   assert.equal(admission, 'closed');
   return {
+    sourceFreezeReceipt: receipt,
     registeredSessions: requests.length,
     segments: first.segment_count,
     initializedAndPendingIdentitiesTransferred: true,
@@ -592,4 +593,34 @@ async function verifyUninitializedImport(topology, credential, previousCommand) 
 
 function isNewObject(previous, id) {
   return !previous.includes(id);
+}
+
+export async function activateTransferredWallet(topology, credential, receipt) {
+  const destinationName = 'fixture-signing-worker-after-refresh';
+  const destination = await topology.getWorker(destinationName);
+  const path = '/router-ab/signing-worker/wallet/ecdsa/transfer';
+  const command = { kind: 'activate', receipt };
+  const activated = await accepted(destination, path, command, credential);
+  assert.deepEqual(activated, { kind: 'activated', receipt });
+  const walletClass = 'RouterAbSigningWorkerWalletDurableObject';
+  const ids = await topology.listDurableObjectIds(walletClass, destinationName);
+  assert.equal(ids.length, 1);
+  const [id] = ids;
+  await topology.unsafeEvictDurableObject(destinationName, walletClass, { id });
+  assert.deepEqual(await accepted(destination, path, command, credential), activated);
+}
+
+export async function cleanupTransferredWalletSource(topology, credential, receipt) {
+  const source = await topology.getWorker(workerName);
+  const path = '/router-ab/signing-worker/wallet/ecdsa/transfer';
+  const command = { kind: 'cleanup', activation: receipt };
+  for (let attempt = 1; attempt <= 64; attempt += 1) {
+    const result = await accepted(source, path, command, credential);
+    if (result.kind === 'cleaned') {
+      assert.deepEqual(await accepted(source, path, command, credential), result);
+      return { boundedCalls: attempt, exactCompletionReplay: true };
+    }
+    assert.equal(result.kind, 'cleaning');
+  }
+  assert.fail('Source cleanup did not finish within 64 bounded calls');
 }

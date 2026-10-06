@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { dispatchEcdsaSigningWithStorageFaults } from './ecdsa-storage-evidence.mjs';
-import { verifyLinkedImportRejection } from './linked-presign-transfer-evidence.mjs';
+import {
+  verifyLinkedImportRejection,
+  activateTransferredWallet,
+  cleanupTransferredWalletSource,
+} from './linked-presign-transfer-evidence.mjs';
 import { execFileSync } from 'node:child_process';
 import {
   createHash,
@@ -1605,6 +1609,7 @@ async function testEcdsaRegistrationAndActivation(topology, fixture, tenantRoot,
       'exact live activation retry must preserve the complete public identity',
     );
     return {
+      executionHome: { workerName: 'fixture-signing-worker', ownershipGeneration: 1 },
       activation,
       activationBody,
       activationBytes,
@@ -1660,7 +1665,7 @@ function parseEcdsaPresignProgress(bytes, sessionId, label) {
 }
 
 async function runEcdsaPresignSession(topology, ecdsa, mode = 'pool', checkRejections = true) {
-  const signingWorker = await topology.getWorker('fixture-signing-worker');
+  const signingWorker = await topology.getWorker(ecdsa.executionHome.workerName);
   const scope = buildEcdsaNormalSigningScope(ecdsa);
   const authority = {
     kind: 'owner_wallet_session',
@@ -1789,12 +1794,12 @@ async function runEcdsaPresignSession(topology, ecdsa, mode = 'pool', checkRejec
     assert.equal(client.stage(), 'done');
     if (checkRejections) {
     const objectIds = await topology.listDurableObjectIds(
-      'SIGNING_WORKER_PRESIGN_SESSION_DO', 'fixture-signing-worker',
+      'SIGNING_WORKER_PRESIGN_SESSION_DO', ecdsa.executionHome.workerName,
     );
     assert.ok(objectIds.length > 0);
     for (const id of objectIds) {
       await topology.unsafeEvictDurableObject(
-        'fixture-signing-worker', 'RouterAbSigningWorkerPresignSessionDurableObject', { id },
+        ecdsa.executionHome.workerName, 'RouterAbSigningWorkerPresignSessionDurableObject', { id },
       );
     }
     const replay = await postWorkerJson(signingWorker, ecdsaPresignSessionInitPath, initRequest);
@@ -1875,7 +1880,7 @@ async function testEcdsaNormalSigning(
     };
     const acceptedBinding = {
       kind: 'gateway_owner_wallet_session',
-      ownership_generation: 1,
+      ownership_generation: ecdsa.executionHome.ownershipGeneration,
       subject_id: ecdsa.accountId,
       account_id: ecdsa.accountId,
       authorization_id: 'ecdsa-live-normal-authorization',
@@ -1929,7 +1934,7 @@ async function testEcdsaNormalSigning(
       assert.equal(bundled.ok, false, 'Bundled final batch must be gated before signing admission');
       assert.match(await bundled.text(), /Bundled final presign batch is gated/);
 
-      const signingWorker = await topology.getWorker('fixture-signing-worker');
+      const signingWorker = await topology.getWorker(ecdsa.executionHome.workerName);
       if (checkRejections) {
         assert.ok(capturedEcdsaSigningWorkerPrepare, 'A prior Router admission must be available');
         const forgedWorkerPrepare = await postWorkerJson(
@@ -1976,6 +1981,17 @@ async function testEcdsaNormalSigning(
       assert.equal(presign.client.stage(), 'done');
       assert.deepEqual(Buffer.from(presign.client.presignature_big_r_33()), presign.clientBigR);
       delete prepareRequest.presign_source;
+    }
+    if (ecdsa.executionHome.ownershipGeneration > 1) {
+      const stale = structuredClone(prepareRequest);
+      stale.authorized_operation.binding.ownership_generation -= 1;
+      const rejected = await postWorkerJson(router, ecdsaSigningPreparePath, stale);
+      assert.equal(
+        rejected.ok,
+        false,
+        'The previous ownership generation cannot reserve destination material',
+      );
+      assert.match(await rejected.text(), /execution ownership generation differs/);
     }
     const prepareResponse = await postWorkerJson(
       router,
@@ -2038,11 +2054,11 @@ async function testEcdsaNormalSigning(
       assert.match(interruptedBody, /R150 test interrupted after ECDSA claim/);
       const objectIds = await topology.listDurableObjectIds(
         'RouterAbSigningWorkerWalletDurableObject',
-        'fixture-signing-worker',
+        ecdsa.executionHome.workerName,
       );
       assert.equal(objectIds.length, 1);
       await topology.unsafeEvictDurableObject(
-        'fixture-signing-worker',
+        ecdsa.executionHome.workerName,
         'RouterAbSigningWorkerWalletDurableObject',
         { id: objectIds[0] },
       );
@@ -2053,7 +2069,7 @@ async function testEcdsaNormalSigning(
       assert.equal(retry.status, 409, `interrupted retry response: ${retryBody}`);
       assert.match(retryBody, /^ReplayedLocalRequest: /);
       assert.match(retryBody, /SigningWorker ECDSA effect is already in progress/);
-      const signingWorker = await topology.getWorker('fixture-signing-worker');
+      const signingWorker = await topology.getWorker(ecdsa.executionHome.workerName);
       const consumedPrepare = await postWorkerJson(
         signingWorker,
         ecdsaSigningWorkerPreparePath,
@@ -2097,7 +2113,7 @@ async function testEcdsaNormalSigning(
       });
       assert.equal(substituted.ok, false, 'Consumed material cannot be rebound to different finalization input');
       if (process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled') {
-        const signingWorker = await topology.getWorker('fixture-signing-worker');
+        const signingWorker = await topology.getWorker(ecdsa.executionHome.workerName);
         const consumedPrepare = await postWorkerJson(
           signingWorker,
           ecdsaSigningWorkerPreparePath,
@@ -2114,6 +2130,48 @@ async function testEcdsaNormalSigning(
   } finally {
     presign.client.free();
   }
+}
+
+async function verifyEcdsaWalletRelocation(topology, fixture, ecdsa) {
+  const linkedImportRejection = await verifyLinkedImportRejection(
+    topology,
+    routerToSigningWorkerEcdsaAuthSecret,
+    internalAuthSecret,
+    fixture.linked_presign_init,
+    ecdsa,
+  );
+  const receipt = linkedImportRejection.initializedTransfer.walletInventory.sourceFreezeReceipt;
+  await activateTransferredWallet(topology, routerToSigningWorkerEcdsaAuthSecret, receipt);
+  ecdsa.executionHome = {
+    workerName: 'fixture-signing-worker-after-refresh',
+    ownershipGeneration: receipt.request.source_generation + 1,
+  };
+  signingWorkerDeliveryTarget = ecdsa.executionHome.workerName;
+  const beforeCleanup = await testEcdsaNormalSigning(topology, ecdsa, 'pool', false);
+  const cleanup = await cleanupTransferredWalletSource(
+    topology,
+    routerToSigningWorkerEcdsaAuthSecret,
+    receipt,
+  );
+  const afterCleanup = await testEcdsaNormalSigning(topology, ecdsa, 'pool', false);
+  return {
+    linkedImportRejection,
+    signingAfterRelocation: {
+      scope:
+        'SigningWorker transfer and fresh ECDSA execution; Gateway routing is selected by the harness. Excludes the complete wallet coordinator.',
+      ownershipGeneration: ecdsa.executionHome.ownershipGeneration,
+      freshPresignatureAndSignatureBeforeCleanup: true,
+      freshPresignatureAndSignatureAfterCleanup: true,
+      staleGenerationRejectedBeforeReservation: true,
+      beforeCleanupSignatureSha256Hex: createHash('sha256')
+        .update(Buffer.from(beforeCleanup.response.signature65_b64u, 'base64url'))
+        .digest('hex'),
+      afterCleanupSignatureSha256Hex: createHash('sha256')
+        .update(Buffer.from(afterCleanup.response.signature65_b64u, 'base64url'))
+        .digest('hex'),
+      cleanup,
+    },
+  };
 }
 
 function buildEd25519ExecuteRequest(fixture, fixtureKey, tenantRoot, source = fixture[fixtureKey]) {
@@ -5493,6 +5551,9 @@ async function main() {
           .first();
         assert.equal(terminalRows.count, 0, 'Wallet-DO ECDSA signing must not commit D1 terminals');
       }
+      const walletRelocation = walletDoPool
+        ? await verifyEcdsaWalletRelocation(topology, fixture, ecdsa)
+        : {};
       const artifact = {
         kind: walletDoPool
           ? 'signing_worker_wallet_do_ecdsa_pool_e2e_v1'
@@ -5515,7 +5576,7 @@ async function main() {
               consumedWalletDoMaterialRejected: true,
               terminalReplayAfterWalletDoEviction: true,
               lostReplyAfterCommitReplayed: true,
-              linkedImportRejection: await verifyLinkedImportRejection(topology, routerToSigningWorkerEcdsaAuthSecret, internalAuthSecret, fixture.linked_presign_init, ecdsa),
+              ...walletRelocation,
             }
           : {}),
         signatureSha256Hex: createHash('sha256')

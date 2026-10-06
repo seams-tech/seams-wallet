@@ -45,38 +45,47 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
         );
     }
     #[cfg(feature = "wallet-do-signing-worker-harness")]
-    if !matches!(
-        parsed.presign_source,
-        CloudflareEcdsaPrepareSourceV1::AvailablePool
-    ) {
-        return worker::Response::error(
-            "Wallet-DO ECDSA prepare requires available pool material",
-            403,
-        );
-    }
-    let client_presignature_id = parsed.request.client_presignature_id.clone();
-    let material_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
-    let (active_signing_worker, material) =
-        match load_cloudflare_signing_worker_ecdsa_normal_signing_material_v1(
+    {
+        let response = durable_object::call_signing_worker_wallet_do_v1(
             env,
-            runtime,
-            &parsed.request.scope,
-            &parsed.material_source,
-            Some(&parsed.wallet_scope),
-            now_unix_ms,
+            durable_object::SigningWorkerWalletDoRequestV1::PrepareEcdsa {
+                request: parsed,
+                now_unix_ms,
+            },
         )
-        .await
-        {
-            Ok(value) => value,
-            Err(err) => {
-                return worker::Response::error(
-                    format!("{:?}: {}", err.code(), err.message()),
-                    cloudflare_router_error_status(err.code()),
-                );
-            }
-        };
-    timing.mark("worker_prepare_material", material_started_at_ms);
-    let materialized =
+        .await;
+        timing.mark("worker_prepare_total", started_at_ms);
+        timing.emit_io_diagnostic();
+        match response {
+            Ok(response) => Ok(response),
+            Err(error) => cloudflare_signing_worker_presign_error_response_v1(error),
+        }
+    }
+    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    {
+        let client_presignature_id = parsed.request.client_presignature_id.clone();
+        let material_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
+        let (active_signing_worker, material) =
+            match load_cloudflare_signing_worker_ecdsa_normal_signing_material_v1(
+                env,
+                runtime,
+                &parsed.request.scope,
+                &parsed.material_source,
+                Some(&parsed.wallet_scope),
+                now_unix_ms,
+            )
+            .await
+            {
+                Ok(value) => value,
+                Err(err) => {
+                    return worker::Response::error(
+                        format!("{:?}: {}", err.code(), err.message()),
+                        cloudflare_router_error_status(err.code()),
+                    );
+                }
+            };
+        timing.mark("worker_prepare_material", material_started_at_ms);
+        let materialized =
         match CloudflareSigningWorkerMaterializedRouterAbEcdsaDerivationEvmDigestSigningRequestV1::new(
             parsed,
             active_signing_worker.clone(),
@@ -91,228 +100,238 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
                 );
             }
         };
-    let signing_worker_rerandomization_contribution32_b64u = match cloudflare_random_bytes_v1(32) {
-        Ok(bytes) => encode_base64url_bytes_v1(&bytes),
-        Err(err) => {
-            return worker::Response::error(
-                format!("{:?}: {}", err.code(), err.message()),
-                cloudflare_router_error_status(err.code()),
-            );
-        }
-    };
-    let prepare_request_digest = match materialized.request.request.request_digest() {
-        Ok(digest) => digest,
-        Err(err) => {
-            return worker::Response::error(
-                format!("{:?}: {}", err.code(), err.message()),
-                cloudflare_router_error_status(err.code()),
-            );
-        }
-    };
-    let signing_digest = match materialized.request.request.signing_digest() {
-        Ok(digest) => digest,
-        Err(err) => {
-            return worker::Response::error(
-                format!("{:?}: {}", err.code(), err.message()),
-                cloudflare_router_error_status(err.code()),
-            );
-        }
-    };
-    let (reserve_command, final_messages, reserved_at_ms) = match &materialized
-        .request
-        .presign_source
-    {
-        CloudflareEcdsaPrepareSourceV1::AvailablePool => {
-            let command = CloudflareSigningWorkerEcdsaPoolCommandV1::Reserve {
-                scope: materialized.request.request.scope.clone(),
-                server_presignature_id: client_presignature_id.clone(),
-                expected_revision: 0,
-                request_digest: prepare_request_digest,
-                admitted_signing_digest: signing_digest,
-                signing_worker_rerandomization_contribution32_b64u,
-                reserved_at_ms: now_unix_ms,
-                request_expires_at_ms: materialized.request.request.expires_at_ms,
+        let signing_worker_rerandomization_contribution32_b64u =
+            match cloudflare_random_bytes_v1(32) {
+                Ok(bytes) => encode_base64url_bytes_v1(&bytes),
+                Err(err) => {
+                    return worker::Response::error(
+                        format!("{:?}: {}", err.code(), err.message()),
+                        cloudflare_router_error_status(err.code()),
+                    );
+                }
             };
-            (command, None, now_unix_ms)
-        }
-        CloudflareEcdsaPrepareSourceV1::FinalPresignBatch { batch } => {
-            if let Err(error) = batch.validate_at(now_unix_ms) {
-                return cloudflare_signing_worker_presign_error_response_v1(error);
+        let prepare_request_digest = match materialized.request.request.request_digest() {
+            Ok(digest) => digest,
+            Err(err) => {
+                return worker::Response::error(
+                    format!("{:?}: {}", err.code(), err.message()),
+                    cloudflare_router_error_status(err.code()),
+                );
             }
-            let progress =
-                match durable_object::execute_cloudflare_durable_object_custom_json_call_v1(
-                    env,
-                    &runtime.bindings().presign_session,
-                    CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_DO_STEP_PATH,
-                    &batch.presign_session_id,
-                    batch,
-                )
-                .await
-                {
-                    Ok(progress) => progress,
-                    Err(error) => {
-                        return cloudflare_signing_worker_presign_error_response_v1(error)
+        };
+        let signing_digest = match materialized.request.request.signing_digest() {
+            Ok(digest) => digest,
+            Err(err) => {
+                return worker::Response::error(
+                    format!("{:?}: {}", err.code(), err.message()),
+                    cloudflare_router_error_status(err.code()),
+                );
+            }
+        };
+        let (reserve_command, final_messages, reserved_at_ms) =
+            match &materialized.request.presign_source {
+                CloudflareEcdsaPrepareSourceV1::AvailablePool => {
+                    let command = CloudflareSigningWorkerEcdsaPoolCommandV1::Reserve {
+                        scope: materialized.request.request.scope.clone(),
+                        server_presignature_id: client_presignature_id.clone(),
+                        expected_revision: 0,
+                        request_digest: prepare_request_digest,
+                        admitted_signing_digest: signing_digest,
+                        signing_worker_rerandomization_contribution32_b64u,
+                        reserved_at_ms: now_unix_ms,
+                        request_expires_at_ms: materialized.request.request.expires_at_ms,
+                    };
+                    (command, None, now_unix_ms)
+                }
+                CloudflareEcdsaPrepareSourceV1::FinalPresignBatch { batch } => {
+                    if let Err(error) = batch.validate_at(now_unix_ms) {
+                        return cloudflare_signing_worker_presign_error_response_v1(error);
                     }
-                };
-            let CloudflareSigningWorkerEcdsaPresignSessionDoProgressV1::Complete {
-                authority: _,
-                pool_put_request,
-                outgoing_messages_b64u,
-            } = progress
-            else {
-                return worker::Response::error(
-                    "Signing prepare requires the final presign batch",
-                    409,
-                );
+                    let progress =
+                        match durable_object::execute_cloudflare_durable_object_custom_json_call_v1(
+                            env,
+                            &runtime.bindings().presign_session,
+                            CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_DO_STEP_PATH,
+                            &batch.presign_session_id,
+                            batch,
+                        )
+                        .await
+                        {
+                            Ok(progress) => progress,
+                            Err(error) => {
+                                return cloudflare_signing_worker_presign_error_response_v1(error)
+                            }
+                        };
+                    let CloudflareSigningWorkerEcdsaPresignSessionDoProgressV1::Complete {
+                        authority: _,
+                        pool_put_request,
+                        outgoing_messages_b64u,
+                    } = progress
+                    else {
+                        return worker::Response::error(
+                            "Signing prepare requires the final presign batch",
+                            409,
+                        );
+                    };
+                    if pool_put_request.scope != materialized.request.request.scope
+                        || pool_put_request.server_presignature_id != client_presignature_id
+                    {
+                        return worker::Response::error(
+                            "Completed presign identity does not match admitted prepare",
+                            409,
+                        );
+                    }
+                    let reserved_at_ms = match cloudflare_now_unix_ms_v1() {
+                        Ok(now) => now,
+                        Err(error) => {
+                            return cloudflare_signing_worker_presign_error_response_v1(error)
+                        }
+                    };
+                    let record = match pool_put_request.to_pool_record(
+                        active_signing_worker,
+                        &materialized.material,
+                        reserved_at_ms,
+                    ) {
+                        Ok(record) => record,
+                        Err(error) => {
+                            return cloudflare_signing_worker_presign_error_response_v1(error)
+                        }
+                    };
+                    (
+                        CloudflareSigningWorkerEcdsaPoolCommandV1::PutReserved {
+                            material: record,
+                            request_digest: prepare_request_digest,
+                            admitted_signing_digest: signing_digest,
+                            signing_worker_rerandomization_contribution32_b64u,
+                            reserved_at_ms,
+                            request_expires_at_ms: materialized.request.request.expires_at_ms,
+                        },
+                        Some(outgoing_messages_b64u),
+                        reserved_at_ms,
+                    )
+                }
             };
-            if pool_put_request.scope != materialized.request.request.scope
-                || pool_put_request.server_presignature_id != client_presignature_id
-            {
-                return worker::Response::error(
-                    "Completed presign identity does not match admitted prepare",
-                    409,
-                );
-            }
-            let reserved_at_ms = match cloudflare_now_unix_ms_v1() {
-                Ok(now) => now,
-                Err(error) => return cloudflare_signing_worker_presign_error_response_v1(error),
-            };
-            let record = match pool_put_request.to_pool_record(
-                active_signing_worker,
-                &materialized.material,
-                reserved_at_ms,
-            ) {
-                Ok(record) => record,
-                Err(error) => return cloudflare_signing_worker_presign_error_response_v1(error),
-            };
-            (
-                CloudflareSigningWorkerEcdsaPoolCommandV1::PutReserved {
-                    material: record,
-                    request_digest: prepare_request_digest,
-                    admitted_signing_digest: signing_digest,
-                    signing_worker_rerandomization_contribution32_b64u,
-                    reserved_at_ms,
-                    request_expires_at_ms: materialized.request.request.expires_at_ms,
-                },
-                Some(outgoing_messages_b64u),
-                reserved_at_ms,
-            )
-        }
-    };
-    let reserve_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
-    let reserve_outcome = match execute_cloudflare_signing_worker_ecdsa_pool_mutation_for_wallet_v1(
-        env,
-        runtime,
-        Some(&materialized.request.wallet_scope),
-        reserve_command,
-    )
-    .await
-    {
-        Ok(outcome) => outcome,
-        Err(err) => {
-            return worker::Response::error(
-                format!("{:?}: {}", err.code(), err.message()),
-                cloudflare_router_error_status(err.code()),
-            );
-        }
-    };
-    timing.mark("worker_prepare_reserve", reserve_started_at_ms);
-    let CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1::Reserved { record } = reserve_outcome
-    else {
-        return worker::Response::error(
-            "SigningWorker ECDSA pool reserve returned the wrong lifecycle outcome",
-            cloudflare_router_error_status(RouterAbProtocolErrorCode::InvalidLocalServiceConfig),
-        );
-    };
-    let reserved_material = match record.reserved_material() {
-        Ok(material) => material.clone(),
-        Err(err) => {
-            return burn_cloudflare_signing_worker_ecdsa_reservation_after_prepare_failure_v1(
+        let reserve_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
+        let reserve_outcome =
+            match execute_cloudflare_signing_worker_ecdsa_pool_mutation_for_wallet_v1(
                 env,
                 runtime,
                 Some(&materialized.request.wallet_scope),
-                materialized.request.request.scope.clone(),
-                client_presignature_id.clone(),
-                prepare_request_digest,
-                reserved_at_ms,
-                err,
-            )
-            .await;
-        }
-    };
-    let response = match RouterAbEcdsaDerivationEvmDigestSigningPrepareResponseV1::new_for_request(
-        &materialized.request.request,
-        reserved_material.server_presignature_id.clone(),
-        reserved_material.server_big_r33_b64u.clone(),
-        reserved_material
-            .signing_worker_rerandomization_contribution32_b64u
-            .clone(),
-        reserved_at_ms,
-    ) {
-        Ok(response) => response,
-        Err(err) => {
-            return burn_cloudflare_signing_worker_ecdsa_reservation_after_prepare_failure_v1(
-                env,
-                runtime,
-                Some(&materialized.request.wallet_scope),
-                materialized.request.request.scope.clone(),
-                client_presignature_id.clone(),
-                prepare_request_digest,
-                reserved_at_ms,
-                err,
-            )
-            .await;
-        }
-    };
-    let prepared = match CloudflareSigningWorkerRouterAbEcdsaDerivationEvmDigestPreparedV1::new(
-        response,
-        reserved_material,
-        &materialized,
-    ) {
-        Ok(prepared) => prepared,
-        Err(err) => {
-            return burn_cloudflare_signing_worker_ecdsa_reservation_after_prepare_failure_v1(
-                env,
-                runtime,
-                Some(&materialized.request.wallet_scope),
-                materialized.request.request.scope.clone(),
-                client_presignature_id.clone(),
-                prepare_request_digest,
-                reserved_at_ms,
-                err,
-            )
-            .await;
-        }
-    };
-    timing.mark("worker_prepare_total", started_at_ms);
-    timing.emit_io_diagnostic();
-    let response = match final_messages {
-        Some(outgoing_messages_b64u) => CloudflareEcdsaPrepareResponseV1::FinalPresignBatch {
-            prepared_response: prepared.response,
-            outgoing_messages_b64u,
-        },
-        None => CloudflareEcdsaPrepareResponseV1::AvailablePool(prepared.response),
-    };
-    match worker::Response::from_json(&response) {
-        Ok(response) => Ok(response),
-        Err(err) => {
-            burn_cloudflare_signing_worker_ecdsa_reservation_after_prepare_failure_v1(
-                env,
-                runtime,
-                Some(&materialized.request.wallet_scope),
-                materialized.request.request.scope,
-                client_presignature_id,
-                prepare_request_digest,
-                reserved_at_ms,
-                RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::MalformedWirePayload,
-                    format!("SigningWorker ECDSA prepare response encoding failed: {err}"),
-                ),
+                reserve_command,
             )
             .await
+            {
+                Ok(outcome) => outcome,
+                Err(err) => {
+                    return worker::Response::error(
+                        format!("{:?}: {}", err.code(), err.message()),
+                        cloudflare_router_error_status(err.code()),
+                    );
+                }
+            };
+        timing.mark("worker_prepare_reserve", reserve_started_at_ms);
+        let CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1::Reserved { record } =
+            reserve_outcome
+        else {
+            return worker::Response::error(
+                "SigningWorker ECDSA pool reserve returned the wrong lifecycle outcome",
+                cloudflare_router_error_status(
+                    RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                ),
+            );
+        };
+        let reserved_material = match record.reserved_material() {
+            Ok(material) => material.clone(),
+            Err(err) => {
+                return burn_cloudflare_signing_worker_ecdsa_reservation_after_prepare_failure_v1(
+                    env,
+                    runtime,
+                    Some(&materialized.request.wallet_scope),
+                    materialized.request.request.scope.clone(),
+                    client_presignature_id.clone(),
+                    prepare_request_digest,
+                    reserved_at_ms,
+                    err,
+                )
+                .await;
+            }
+        };
+        let response =
+            match RouterAbEcdsaDerivationEvmDigestSigningPrepareResponseV1::new_for_request(
+                &materialized.request.request,
+                reserved_material.server_presignature_id.clone(),
+                reserved_material.server_big_r33_b64u.clone(),
+                reserved_material
+                    .signing_worker_rerandomization_contribution32_b64u
+                    .clone(),
+                reserved_at_ms,
+            ) {
+                Ok(response) => response,
+                Err(err) => {
+                    return burn_cloudflare_signing_worker_ecdsa_reservation_after_prepare_failure_v1(
+                env,
+                runtime,
+                Some(&materialized.request.wallet_scope),
+                materialized.request.request.scope.clone(),
+                client_presignature_id.clone(),
+                prepare_request_digest,
+                reserved_at_ms,
+                err,
+            )
+            .await;
+                }
+            };
+        let prepared = match CloudflareSigningWorkerRouterAbEcdsaDerivationEvmDigestPreparedV1::new(
+            response,
+            reserved_material,
+            &materialized,
+        ) {
+            Ok(prepared) => prepared,
+            Err(err) => {
+                return burn_cloudflare_signing_worker_ecdsa_reservation_after_prepare_failure_v1(
+                    env,
+                    runtime,
+                    Some(&materialized.request.wallet_scope),
+                    materialized.request.request.scope.clone(),
+                    client_presignature_id.clone(),
+                    prepare_request_digest,
+                    reserved_at_ms,
+                    err,
+                )
+                .await;
+            }
+        };
+        timing.mark("worker_prepare_total", started_at_ms);
+        timing.emit_io_diagnostic();
+        let response = match final_messages {
+            Some(outgoing_messages_b64u) => CloudflareEcdsaPrepareResponseV1::FinalPresignBatch {
+                prepared_response: prepared.response,
+                outgoing_messages_b64u,
+            },
+            None => CloudflareEcdsaPrepareResponseV1::AvailablePool(prepared.response),
+        };
+        match worker::Response::from_json(&response) {
+            Ok(response) => Ok(response),
+            Err(err) => {
+                burn_cloudflare_signing_worker_ecdsa_reservation_after_prepare_failure_v1(
+                    env,
+                    runtime,
+                    Some(&materialized.request.wallet_scope),
+                    materialized.request.request.scope,
+                    client_presignature_id,
+                    prepare_request_digest,
+                    reserved_at_ms,
+                    RouterAbProtocolError::new(
+                        RouterAbProtocolErrorCode::MalformedWirePayload,
+                        format!("SigningWorker ECDSA prepare response encoding failed: {err}"),
+                    ),
+                )
+                .await
+            }
         }
     }
 }
+
 
 /// Handles SigningWorker's private Router A/B ECDSA derivation normal-signing finalize route.
 #[cfg(feature = "workers-rs")]
