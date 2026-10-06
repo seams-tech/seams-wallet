@@ -1,3 +1,4 @@
+import type { PreparedWalletSessionStatus } from '@/core/rpcClients/relayer/ecdsaPrepareSession';
 import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import { isEd25519ExtensionOfEcdsaWalletAuthority } from '@shared/authorization/walletAuthority';
 import { walletSessionPreservesCapabilities } from '@shared/device-linking/activeWalletSession';
@@ -451,8 +452,7 @@ function ecdsaSigningAuthorizationSupersession(args: {
 
 async function resolveEcdsaSigningMaterialHydrationPlan(args: {
   capability: CanonicalEvmFamilyEcdsaSigningCapability;
-  preparedAuthorization: ExactEvmFamilyWalletSessionAuthorization | null;
-  currentAuthorization: ExactEvmFamilyWalletSessionAuthorization | null;
+  candidateAuthorization: ExactEvmFamilyWalletSessionAuthorization | null;
   walletId: WalletId;
   chainTarget: ThresholdEcdsaChainTarget;
   materialActivation: EvmFamilyEcdsaMaterialActivation;
@@ -478,16 +478,6 @@ async function resolveEcdsaSigningMaterialHydrationPlan(args: {
     currentManifest: activeRuntimeResolution.manifest,
   });
   if (superseded) return { kind: 'superseded', replacement: superseded };
-  if (args.preparedAuthorization) {
-    const authorizationSupersession = ecdsaSigningAuthorizationSupersession({
-      preparedAuthorization: args.preparedAuthorization,
-      currentAuthorization: args.currentAuthorization,
-      materialActivation: args.materialActivation,
-    });
-    if (authorizationSupersession) {
-      return { kind: 'superseded', replacement: authorizationSupersession };
-    }
-  }
   const resolution = await resolveHydratedSecp256k1SigningMaterial({
     capability: args.capability,
     runtime: activeRuntimeResolution.runtime,
@@ -498,23 +488,12 @@ async function resolveEcdsaSigningMaterialHydrationPlan(args: {
   if (resolution.kind === 'unavailable') {
     return { kind: 'failed', failure: resolution };
   }
-  if (!args.preparedAuthorization) {
+  if (!args.candidateAuthorization) {
     return {
       kind: 'authorization_required',
       requirement: {
         kind: 'material_for_step_up',
         material: resolution.material,
-      },
-    };
-  }
-  if (!args.currentAuthorization) {
-    return {
-      kind: 'superseded',
-      replacement: {
-        kind: 'superseded',
-        supersessionKind: 'reusable_authorization_replaced',
-        preparedMaterialActivation: args.materialActivation,
-        currentMaterialActivation: args.materialActivation,
       },
     };
   }
@@ -525,11 +504,41 @@ async function resolveEcdsaSigningMaterialHydrationPlan(args: {
       material: attachExactEcdsaWalletSessionAuthorization({
         material: resolution.material,
         capability: args.capability,
-        authorization: args.currentAuthorization,
+        authorization: args.candidateAuthorization,
         nowMs: Date.now(),
       }),
     },
   };
+}
+
+async function reconcilePreparedEcdsaSession(
+  input: {
+    readonly resolve: EvmFamilySigningDeps['resolveActiveEcdsaWalletSessionAuthorization'];
+    readonly scope: Parameters<
+      EvmFamilySigningDeps['resolveActiveEcdsaWalletSessionAuthorization']
+    >[0];
+    readonly prepared: ExactEvmFamilyWalletSessionAuthorization;
+    readonly relayerUrl: string;
+  },
+  status: PreparedWalletSessionStatus,
+): Promise<void> {
+  const current = await input.resolve(
+    input.scope,
+    WalletSessionStatusReadScope.fromPrepare(
+      { relayerUrl: input.relayerUrl, operationCredential: input.prepared.operationCredential },
+      status,
+    ),
+  );
+  const superseded = ecdsaSigningAuthorizationSupersession({
+    preparedAuthorization: input.prepared,
+    currentAuthorization: current,
+    materialActivation: input.scope.materialActivation,
+  });
+  if (superseded) throw new Error('Wallet Session authority changed before client signing');
+}
+
+async function rejectUnexpectedReusableSession(): Promise<never> {
+  throw new Error('Operation step-up cannot reconcile a reusable Wallet Session');
 }
 
 export async function createEvmFamilySigningFlowRuntime(
@@ -590,8 +599,8 @@ export async function createEvmFamilySigningFlowRuntime(
           materialActivation: resolvedSigner.materialActivation,
         })
       : undefined;
-  // Preparation can use local session facts to plan confirmation. Only the
-  // fresh post-approval read inside the material-use queue authorizes signing.
+  // Local session facts permit confirmation and material hydration. Prepare
+  // admits the operation and returns fresh authority before client signing.
   const preparedAuthorization =
     args.preparedSession?.kind === 'authorized'
       ? args.preparedSession.selection.lane.authorization
@@ -659,7 +668,17 @@ export async function createEvmFamilySigningFlowRuntime(
         }
       : undefined;
 
+  const reconcileSession =
+    activeAuthorization && exactOperationCredentialScope
+      ? reconcilePreparedEcdsaSession.bind(null, {
+          resolve: args.deps.resolveActiveEcdsaWalletSessionAuthorization,
+          scope: exactOperationCredentialScope,
+          prepared: activeAuthorization,
+          relayerUrl,
+        })
+      : rejectUnexpectedReusableSession;
   const secp256k1Engine = new Secp256k1Engine({
+    reconcileSession,
     beforeSigning: args.deps.beforeSigning,
     getRpId: () => ctx.touchIdPrompt.getRpId(),
     workerCtx,
@@ -740,17 +759,7 @@ export async function createEvmFamilySigningFlowRuntime(
           resolveEcdsaSigningMaterialPlan: async () =>
             await resolveEcdsaSigningMaterialHydrationPlan({
               capability,
-              preparedAuthorization: activeAuthorization,
-              currentAuthorization: activeAuthorization
-                ? await args.deps.resolveActiveEcdsaWalletSessionAuthorization(
-                    {
-                      walletId: resolvedSigner.walletId,
-                      chainTarget: resolvedSigner.chainTarget,
-                      materialActivation: resolvedSigner.materialActivation,
-                    },
-                    new WalletSessionStatusReadScope(),
-                  )
-                : null,
+              candidateAuthorization: activeAuthorization,
               walletId: resolvedSigner.walletId,
               chainTarget: resolvedSigner.chainTarget,
               materialActivation: resolvedSigner.materialActivation,

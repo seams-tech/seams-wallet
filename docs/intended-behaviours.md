@@ -178,6 +178,14 @@ The SDK owns transient read retry and RPC handling. The browser contract is
   under the existing lease. Exact completed finalization replay returns the
   durable first result, while altered finalization input is rejected.
 
+- Reusable-session ECDSA prepare returns the exact active session projection
+  validated for admission, including its pre-claim quota balance. The SDK reconciles
+  this projection before committing the client presignature or computing its share.
+  Signing requires no separate post-approval session-status request. Prepare still
+  checks live revocation, expiry, policy, material identity, and atomic quota admission.
+  An unavailable prepare or mismatched projection stops signing before finalization.
+  Finalization retains its independent live authorization checks.
+
 - Reusable-session ECDSA prepare, finalize, and completed replay evaluate live
   signing policy. Project denial takes precedence over abuse denial; abuse
   rejection and rate limiting return their respective errors. Policy denial

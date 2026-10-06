@@ -1,3 +1,4 @@
+import type { PreparedWalletSessionStatus } from '@/core/rpcClients/relayer/ecdsaPrepareSession';
 import { ROUTER_AB_ECDSA_PRESIGN_CEREMONY_MAX_LIFETIME_MS } from '@shared/utils/routerAbEcdsaDerivation';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { secureRandomId } from '@shared/utils/secureRandomId';
@@ -101,6 +102,7 @@ type RouterAbEcdsaDerivationSigningAuthorization =
         RouterAbNormalSigningAuthorizationWire,
         { readonly kind: 'reusable_wallet_session' }
       >;
+      readonly reconcileSession: (status: PreparedWalletSessionStatus) => Promise<void>;
       readonly operation?: never;
     }
   | {
@@ -109,6 +111,7 @@ type RouterAbEcdsaDerivationSigningAuthorization =
         { readonly kind: 'operation_step_up' }
       >;
       readonly operation: RouterAbEcdsaOperationStepUpPreparationV1Wire;
+      readonly reconcileSession?: never;
     };
 
 function ecdsaPoolFillAuthorization(
@@ -258,10 +261,12 @@ type RouterAbEcdsaDerivationCoordinatorOk = {
 };
 
 type RouterAbEcdsaDerivationCoordinatorResult =
-  RouterAbEcdsaDerivationCoordinatorOk | RouterAbEcdsaDerivationCoordinatorError;
+  | RouterAbEcdsaDerivationCoordinatorOk
+  | RouterAbEcdsaDerivationCoordinatorError;
 
 type RouterAbEcdsaDerivationSigningPreparationState =
-  { readonly kind: 'before_prepare' } | { readonly kind: 'prepare_submitted' };
+  | { readonly kind: 'before_prepare' }
+  | { readonly kind: 'prepare_submitted' };
 
 type ClientPresignatureCleanupState =
   | { readonly kind: 'unclaimed' }
@@ -1529,8 +1534,7 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
             trafficClass: 'foreground',
           });
         }
-        if (!refill.ok && refill.code !== 'pool_full')
-          return refill;
+        if (!refill.ok && refill.code !== 'pool_full') return refill;
         if (!refill.ok && refill.code === 'pool_full') {
           await hydrateClientPresignaturePool({
             poolKey,
@@ -1656,13 +1660,18 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
     armPresignatureMaintenance(poolKey, 0);
     preparationState = { kind: 'prepare_submitted' };
     const prepareStartedAt = performance.now();
-    const prepareResponse = await prepareRouterAbEcdsaDerivationEvmDigestSigningV1({
+    const prepared = await prepareRouterAbEcdsaDerivationEvmDigestSigningV1({
       relayServerUrl: relayerUrl,
       credential: args.credential,
       request: prepareRequest,
       onServerTiming: emitEcdsaServerTiming.bind(undefined, args.operationId, 'prepare'),
     });
     emitEcdsaSigningTiming(args.operationId, 'prepare', prepareStartedAt);
+    if (prepared.kind === 'reusable_wallet_session') {
+      if (!args.reconcileSession) throw new Error('Wallet Session reconciliation is required');
+      await args.reconcileSession(prepared.sessionStatus);
+    }
+    const prepareResponse = prepared.signing;
     if (prepareResponse.server_big_r33_b64u !== presignature.bigRB64u) {
       return {
         ok: false,

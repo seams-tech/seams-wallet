@@ -1,9 +1,11 @@
 import { expect, test } from '@playwright/test';
 import type { RouterApiAuthorizedOperationService } from '../../packages/wallet-server/src/router/framework/authServicePort';
-import { finishRouterAbEcdsaSigningResponse } from '../../packages/wallet-server/src/router/transport/fetch/routes/thresholdEcdsa';
+import { finishRouterAbEcdsaSigningResponse } from '../../packages/wallet-server/src/router/domains/signingOperations/ecdsaSigningResponse';
 import { buildClaimedSigningOperationFixture } from './helpers/authorizedOperation.fixtures';
 
-type CompletionInput = Parameters<RouterApiAuthorizedOperationService['completeAuthorizedOperation']>[0];
+type CompletionInput = Parameters<
+  RouterApiAuthorizedOperationService['completeAuthorizedOperation']
+>[0];
 type ClaimedOperation = Awaited<ReturnType<typeof buildClaimedSigningOperationFixture>>;
 
 async function unexpectedServiceCall(): Promise<never> {
@@ -33,20 +35,6 @@ class CompletionService implements RouterApiAuthorizedOperationService {
   }
 }
 
-class PendingBody implements UnderlyingDefaultSource<Uint8Array> {
-  private controller: ReadableStreamDefaultController<Uint8Array> | null = null;
-
-  start(controller: ReadableStreamDefaultController<Uint8Array>) {
-    this.controller = controller;
-  }
-
-  finish(text: string) {
-    if (!this.controller) throw new Error('Body stream has not started');
-    this.controller.enqueue(new TextEncoder().encode(text));
-    this.controller.close();
-  }
-}
-
 async function fixture() {
   const operation = await buildClaimedSigningOperationFixture();
   return {
@@ -57,29 +45,11 @@ async function fixture() {
   };
 }
 
-test('successful prepare forwards the pending body without completing the operation', async () => {
-  test.setTimeout(5_000);
-  const input = await fixture();
-  const body = new PendingBody();
-  const upstream = new Response(new ReadableStream(body));
-  const response = await finishRouterAbEcdsaSigningResponse({
-    ...input,
-    phase: 'prepare',
-    upstream,
-  });
-  expect(response).toBe(upstream);
-  expect(upstream.bodyUsed).toBe(false);
-  expect(input.authorizedOperations.completions).toHaveLength(0);
-  expect(input.timing.complete).toBeNull();
-  body.finish('{"prepared":true}');
-  expect(await response.text()).toBe('{"prepared":true}');
-});
-
 test('final signatures and errors retain their full durable replay response', async () => {
   for (const sample of [
-    { phase: 'finalize' as const, status: 200, result: 'succeeded' },
-    { phase: 'prepare' as const, status: 403, result: 'failed_before_side_effect' },
-    { phase: 'prepare' as const, status: 503, result: 'failed_after_side_effect' },
+    { status: 200, result: 'succeeded' },
+    { status: 403, result: 'failed_before_side_effect' },
+    { status: 503, result: 'failed_after_side_effect' },
   ]) {
     const input = await fixture();
     const bodyText = '{"fixture":"complete response"}';
@@ -89,7 +59,6 @@ test('final signatures and errors retain their full durable replay response', as
     });
     const response = await finishRouterAbEcdsaSigningResponse({
       ...input,
-      phase: sample.phase,
       upstream,
     });
     expect(input.authorizedOperations.completions).toHaveLength(1);
@@ -102,11 +71,12 @@ test('final signatures and errors retain their full durable replay response', as
   }
   const input = await fixture();
   input.authorizedOperations.rejectCompletion = true;
-  await expect(finishRouterAbEcdsaSigningResponse({
-    ...input,
-    phase: 'finalize',
-    upstream: new Response('{"fixture":"signature"}'),
-  })).rejects.toThrow('Durable completion failed');
+  await expect(
+    finishRouterAbEcdsaSigningResponse({
+      ...input,
+      upstream: new Response('{"fixture":"signature"}'),
+    }),
+  ).rejects.toThrow('Durable completion failed');
 });
 
 test('an in-progress effect remains pending without durable completion', async () => {
@@ -117,7 +87,6 @@ test('an in-progress effect remains pending without durable completion', async (
   );
   const response = await finishRouterAbEcdsaSigningResponse({
     ...input,
-    phase: 'prepare',
     upstream,
   });
   expect(response).toBe(upstream);

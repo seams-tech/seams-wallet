@@ -1179,8 +1179,8 @@ async function resolveBrowserEcdsaCapabilityAvailability(
   return { kind: 'authorization_required', capability };
 }
 
-/** Local facts plan confirmation only. The signing runtime reads fresh status
- * after approval before it attaches authorization to signing material. */
+/** Local facts plan confirmation. Prepare returns fresh session authority,
+ * which the signing runtime reconciles before it creates a signature share. */
 async function resolveBrowserEcdsaConfirmationCandidate(
   args: BrowserEcdsaCapabilityReaderContext,
   chainTargets: readonly ThresholdEcdsaChainTarget[],

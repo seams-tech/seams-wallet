@@ -1,3 +1,4 @@
+import type { PreparedWalletSessionStatus } from '@/core/rpcClients/relayer/ecdsaPrepareSession';
 import type { SignRequest, SignatureBytes } from '../../../interfaces/signing';
 import type { WorkerOperationContext } from '../../../workerManager/executeWorkerOperation';
 import {
@@ -101,8 +102,10 @@ export class Secp256k1Engine {
   private readonly beforeSigning?: () => void;
   private readonly shouldAbort?: () => boolean;
   private readonly workerCtx: WorkerOperationContext;
+  private readonly reconcileSession: (status: PreparedWalletSessionStatus) => Promise<void>;
 
   constructor(opts: {
+    reconcileSession: (status: PreparedWalletSessionStatus) => Promise<void>;
     beforeSigning?: () => void;
     getRpId?: () => string | null;
     shouldAbort?: () => boolean;
@@ -111,6 +114,7 @@ export class Secp256k1Engine {
     this.beforeSigning = opts.beforeSigning;
     this.shouldAbort = opts.shouldAbort;
     this.workerCtx = opts.workerCtx;
+    this.reconcileSession = opts.reconcileSession;
   }
 
   private async signReadySecp256k1Digest(
@@ -175,6 +179,7 @@ export class Secp256k1Engine {
         signed = await signRouterAbEcdsaDerivationDigestWithPool({
           ...signingInput,
           authorization: material.authorization,
+          reconcileSession: this.reconcileSession,
         });
       } else {
         const operationStepUpPreparation = material.operationStepUpPreparation;

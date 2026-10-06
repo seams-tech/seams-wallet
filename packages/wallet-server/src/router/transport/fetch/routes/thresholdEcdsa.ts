@@ -1,3 +1,5 @@
+import { finishRouterAbEcdsaSigningResponse } from '../../../domains/signingOperations/ecdsaSigningResponse';
+import { ecdsaPrepareSessionResponse } from '../../../domains/signingOperations/ecdsaPrepareSession';
 import type { PinnedOwnerWalletScope } from '../../../../authorization/ecdsaWalletSessionAdmission';
 import {
   buildAuthorizedOperationWire,
@@ -50,7 +52,6 @@ import {
   authorizeRouterAbEcdsaDerivationNormalSigningRoute,
   admitRouterAbEcdsaReusableWalletSessionOperation,
   claimRouterAbEcdsaOperationStepUp,
-  completeRouterAbEcdsaOperation,
   routerAbEcdsaOperationInProgressResult,
   routerAbEcdsaReplayHttpResponse,
   routerAbEcdsaReplayUnavailableResult,
@@ -584,71 +585,21 @@ async function executeRouterAbEcdsaDerivationNormalSigningRoute(
           walletRegistration: input.ctx.service.walletRegistration,
           body: admittedBody,
         });
+  if (input.phase === 'prepare' && upstream.ok) {
+    const body = ecdsaPrepareSessionResponse(await upstream.json(), authorization);
+    timing.proxy = performance.now() - proxyStartedAt;
+    const headers = new Headers(upstream.headers);
+    headers.delete('content-length');
+    headers.delete('content-encoding');
+    return new Response(JSON.stringify(body), { status: upstream.status, headers });
+  }
   return finishRouterAbEcdsaSigningResponse({
-    phase: input.phase,
     upstream,
     operation: authorizedOperation,
     authorizedOperations: input.ctx.service.authorizedOperations,
     timing,
     proxyStartedAt,
   });
-}
-
-export async function finishRouterAbEcdsaSigningResponse(input: {
-  readonly phase: 'prepare' | 'finalize';
-  readonly upstream: Response;
-  readonly operation: AuthorizedOperation;
-  readonly authorizedOperations: RouterApiAuthorizedOperationService;
-  readonly timing: Pick<EcdsaSigningGatewayTiming, 'proxy' | 'complete'>;
-  readonly proxyStartedAt: number;
-}): Promise<Response> {
-  const upstream = input.upstream;
-  // Prepare leaves the operation pending until finalize; its body is only needed by the client.
-  if (input.phase === 'prepare' && upstream.ok) {
-    input.timing.proxy = performance.now() - input.proxyStartedAt;
-    return upstream;
-  }
-  const upstreamBodyText = await upstream
-    .clone()
-    .text()
-    .catch(() => '');
-  input.timing.proxy = performance.now() - input.proxyStartedAt;
-  if (
-    isRouterAbEcdsaOperationInProgressResponse({
-      status: upstream.status,
-      bodyText: upstreamBodyText,
-    })
-  ) {
-    return upstream;
-  }
-  const completionStartedAt = performance.now();
-  await completeRouterAbEcdsaOperation({
-    authorizedOperations: input.authorizedOperations,
-    operation: input.operation,
-    result: upstream.ok
-      ? 'succeeded'
-      : upstream.status < 500
-        ? 'failed_before_side_effect'
-        : 'failed_after_side_effect',
-    response: {
-      status: upstream.status,
-      contentType: upstream.headers.get('content-type') || 'application/json',
-      bodyText: upstreamBodyText,
-    },
-  });
-  input.timing.complete = performance.now() - completionStartedAt;
-  return upstream;
-}
-
-function isRouterAbEcdsaOperationInProgressResponse(input: {
-  readonly status: number;
-  readonly bodyText: string;
-}): boolean {
-  return (
-    input.status === 409 &&
-    input.bodyText.includes('ReplayedLocalRequest:') &&
-    input.bodyText.includes('SigningWorker ECDSA effect is already in progress')
-  );
 }
 
 function routerAbEcdsaReplayResponse(operation: AuthorizedOperation): Response {

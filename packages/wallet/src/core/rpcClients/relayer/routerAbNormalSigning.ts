@@ -1,13 +1,12 @@
+import { parseEcdsaPrepareSessionResponse, type EcdsaPrepareSessionResult } from './ecdsaPrepareSession';
 import { alphabetizeStringify } from '@shared/utils/digests';
 import { base64Decode, base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import {
   routerAbEcdsaDerivationEvmDigestSigningFinalizeCoreRequestDigestV1,
   routerAbEcdsaDerivationEvmDigestSigningRequestDigestV1,
-  parseRouterAbEcdsaDerivationEvmDigestSigningPrepareResponseForRequestV1,
   parseRouterAbEcdsaDerivationEvmDigestSigningResponseForCoreRequestV1,
   parseRouterAbEcdsaOperationStepUpPreparationV1,
   type RouterAbEcdsaDerivationEvmDigestSigningFinalizeRequestV1Wire,
-  type RouterAbEcdsaDerivationEvmDigestSigningPrepareResponseV1Wire,
   type RouterAbEcdsaDerivationEvmDigestSigningRequestV1Wire,
   type RouterAbEcdsaDerivationEvmDigestSigningResponseV1Wire,
   type RouterAbOwnerOperationAuthorizationDecisionV1Wire,
@@ -1364,7 +1363,7 @@ export async function prepareRouterAbEcdsaDerivationEvmDigestSigningV1(args: {
   credential: RouterAbEd25519NormalSigningCredential;
   request: RouterAbEcdsaDerivationEvmDigestSigningRequestV1Wire;
   onServerTiming?: (header: string | null) => void;
-}): Promise<RouterAbEcdsaDerivationEvmDigestSigningPrepareResponseV1Wire> {
+}): Promise<EcdsaPrepareSessionResult> {
   await routerAbEcdsaDerivationEvmDigestSigningRequestDigestV1(args.request);
   return postRouterAbNormalSigningJson({
     relayServerUrl: args.relayServerUrl,
@@ -1372,8 +1371,7 @@ export async function prepareRouterAbEcdsaDerivationEvmDigestSigningV1(args: {
     onServerTiming: args.onServerTiming,
     credential: args.credential,
     body: args.request,
-    parse: (value) =>
-      parseRouterAbEcdsaDerivationEvmDigestSigningPrepareResponseForRequestV1(args.request, value),
+    parse: parseEcdsaPrepareSessionResponse.bind(null, args.request),
   });
 }
 

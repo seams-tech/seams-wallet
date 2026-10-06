@@ -99,8 +99,8 @@ type LocalWalletSessionObservation = {
   readonly status: ExactWalletSessionStatus;
 };
 
-// These observations plan confirmation only. Fresh authorization always uses
-// read() with a new scope. Bound the retained credentials and keep fetch mocks isolated.
+// These observations plan confirmation only. Signing uses fresh prepare admission.
+// Bound the retained credentials and keep fetch mocks isolated.
 const observationsByFetch = new WeakMap<typeof fetch, Map<string, LocalWalletSessionObservation>>();
 let observationSequence = 0;
 
@@ -145,6 +145,23 @@ export class WalletSessionStatusReadScope {
     Map<string, Promise<ExactWalletSessionStatus>>
   >();
 
+  private suppliedStatus:
+    | { readonly kind: 'remote' }
+    | {
+        readonly kind: 'prepare';
+        readonly key: string;
+        readonly status: ExactWalletSessionStatus;
+      } = { kind: 'remote' };
+
+  static fromPrepare(
+    options: RelayerExactWalletSessionStatusPortOptions,
+    status: Extract<ExactWalletSessionStatus, { readonly status: 'active' }>,
+  ): WalletSessionStatusReadScope {
+    const scope = new WalletSessionStatusReadScope();
+    scope.suppliedStatus = { kind: 'prepare', key: statusIdentityKey(options, status), status };
+    return scope;
+  }
+
   static observationForConfirmation(
     options: RelayerExactWalletSessionStatusPortOptions,
     identity: ExactWalletSessionStatusIdentity,
@@ -160,6 +177,19 @@ export class WalletSessionStatusReadScope {
     options: RelayerExactWalletSessionStatusPortOptions,
     identity: ExactWalletSessionStatusIdentity,
   ): Promise<ExactWalletSessionStatus> {
+    if (this.suppliedStatus.kind === 'prepare') {
+      if (this.suppliedStatus.key !== statusIdentityKey(options, identity)) {
+        throw new Error('Prepared Wallet Session identity changed before reconciliation');
+      }
+      return Promise.resolve(
+        recordStatusObservation(
+          options.fetchImpl ?? defaultStatusFetch,
+          this.suppliedStatus.key,
+          ++observationSequence,
+          this.suppliedStatus.status,
+        ),
+      );
+    }
     const fetchImpl = options.fetchImpl ?? defaultStatusFetch;
     let reads = this.readsByFetch.get(fetchImpl);
     if (!reads) {

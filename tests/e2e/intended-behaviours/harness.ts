@@ -1,3 +1,8 @@
+import {
+  captureWalletBudgetStatusRequest,
+  capturePreparedWalletBudgetStatus,
+  type CapturedWalletBudgetStatusRequest,
+} from './wallet-budget-evidence';
 import type {
   SignNEP413MessageParams,
   SignNEP413MessageResult,
@@ -273,7 +278,6 @@ const ROUTER_AB_ED25519_YAO_EXPORT_PATHS = [
   ROUTER_AB_ED25519_YAO_EXPORT_EXECUTE_PATH_V1,
 ] as const;
 
-const ROUTER_AB_WALLET_BUDGET_STATUS_PATH = '/wallet/session/status';
 const ROUTER_AB_WALLET_RECOVERY_PREPARE_PATH = '/wallets/recovery/prepare';
 const ROUTER_AB_WALLET_RECOVERY_FINALIZE_PATH = '/wallets/recovery/finalize';
 const ROUTER_AB_WALLET_RECOVERY_GOOGLE_EMAIL_OTP_FINALIZE_PATH =
@@ -875,15 +879,6 @@ type SigningAuthEventSummary = {
   thresholdReconnectSucceeded: boolean;
 };
 
-type CapturedWalletBudgetStatusRequest = {
-  url: string;
-  authorization: string;
-  contentType: string;
-  body: string;
-  walletSessionId: string;
-  quotaId: string;
-};
-
 type RecoveryAuthorityProjection = {
   readonly walletId: string;
   readonly authorityId: string;
@@ -1214,6 +1209,7 @@ export class IntendedBehaviourHarness {
   private latestSigningRemainingUses: number | null = null;
 
   private latestWalletBudgetStatusRequest: CapturedWalletBudgetStatusRequest | null = null;
+  private preparedWalletBudgetStatus: Promise<void> | null = null;
 
   private sourceWalletBudgetStatusRequest: CapturedWalletBudgetStatusRequest | null = null;
 
@@ -3582,6 +3578,7 @@ export class IntendedBehaviourHarness {
     if (!recoveryCode) {
       throw new Error(`${input.action.target} recovery requires a captured recovery code`);
     }
+    await this.preparedWalletBudgetStatus;
     this.sourceWalletBudgetStatusRequest = this.latestWalletBudgetStatusRequest;
     if (!this.sourceWalletBudgetStatusRequest) {
       throw new Error('Source Wallet Session authorization was not captured before recovery');
@@ -4025,6 +4022,7 @@ export class IntendedBehaviourHarness {
     const registration = this.requireRegisteredWalletForSigning();
     await this.ensureIntendedPageOpen();
     this.latestWalletBudgetStatusRequest = null;
+    this.preparedWalletBudgetStatus = null;
     await this.page.evaluate(installIntendedConcurrentActionObserver);
     const diagnostics: WalletIframeAutoConfirmDiagnostics = { attempts: 0, clicked: false };
     let rawSnapshots: unknown[];
@@ -4085,7 +4083,7 @@ export class IntendedBehaviourHarness {
       this.recordService('signing remaining spend already exhausted');
       return;
     }
-    if (this.latestWalletBudgetStatusRequest) {
+    if (this.latestWalletBudgetStatusRequest || this.preparedWalletBudgetStatus) {
       const replay = await this.replayLatestWalletBudgetStatus();
       if (replay.kind === 'exhausted') {
         this.latestSigningRemainingUses = 0;
@@ -4104,7 +4102,7 @@ export class IntendedBehaviourHarness {
       if (remainingUses === 0) {
         return;
       }
-      if (this.latestWalletBudgetStatusRequest) {
+      if (this.latestWalletBudgetStatusRequest || this.preparedWalletBudgetStatus) {
         const replay = await this.replayLatestWalletBudgetStatus();
         if (replay.kind === 'exhausted') {
           this.latestSigningRemainingUses = 0;
@@ -4940,6 +4938,7 @@ export class IntendedBehaviourHarness {
   }
 
   async readCurrentWalletSessionStatus() {
+    await this.preparedWalletBudgetStatus;
     const captured = this.latestWalletBudgetStatusRequest;
     if (!captured) throw new Error('Signing has not read Wallet Session status');
     const walletSessionId = parseWalletSessionId(captured.walletSessionId);
@@ -4958,9 +4957,10 @@ export class IntendedBehaviourHarness {
   }
 
   private async replayLatestWalletBudgetStatus(): Promise<AuthoritativeWalletBudgetReplay> {
+    await this.preparedWalletBudgetStatus;
     const captured = this.latestWalletBudgetStatusRequest;
     if (!captured) {
-      throw new Error('Signing did not issue an authenticated wallet budget status request');
+      throw new Error('Signing did not expose an authenticated Wallet Session identity');
     }
     return await this.replayWalletBudgetStatus(captured);
   }
@@ -4995,7 +4995,19 @@ export class IntendedBehaviourHarness {
     return this.request.post(captured.url, { headers, data: captured.body });
   }
 
+  private async capturePreparedWalletBudget(response: Response): Promise<void> {
+    const captured = await capturePreparedWalletBudgetStatus(response);
+    if (captured) this.latestWalletBudgetStatusRequest = captured;
+  }
+
   private handleResponse(response: Response): void {
+    if (
+      response.ok() &&
+      routePathAtRouter(response.url(), this.config.routerUrl) ===
+        '/router-ab/ecdsa-derivation/sign/prepare'
+    ) {
+      this.preparedWalletBudgetStatus = this.capturePreparedWalletBudget(response);
+    }
     const status = response.status();
     const faultProof = response.headers()[LOCAL_INTENDED_YAO_FAULT_PROOF_HEADER_V1];
     if (faultProof) this.intendedYaoFaultProofs.push(faultProof);
@@ -7650,59 +7662,6 @@ function routerAbEd25519YaoExportPath(
     if (url.pathname === path) return path;
   }
   return null;
-}
-
-function captureWalletBudgetStatusRequest(
-  request: Request,
-  routerUrl: string,
-): CapturedWalletBudgetStatusRequest | null {
-  if (request.method() !== 'POST') return null;
-  let requestUrl: URL;
-  let routerOrigin: string;
-  try {
-    requestUrl = new URL(request.url());
-    routerOrigin = new URL(routerUrl).origin;
-  } catch {
-    return null;
-  }
-  if (
-    requestUrl.origin !== routerOrigin ||
-    requestUrl.pathname !== ROUTER_AB_WALLET_BUDGET_STATUS_PATH
-  ) {
-    return null;
-  }
-
-  const headers = request.headers();
-  const authorization = headers.authorization?.trim() ?? '';
-  const contentType = headers['content-type']?.trim() ?? 'application/json';
-  const body = request.postData();
-  if (!authorization.startsWith('Bearer ') || !body) return null;
-
-  let walletSessionId: string;
-  let quotaId: string;
-  try {
-    const parsed: unknown = JSON.parse(body);
-    const requestBody = requireRecord(parsed, 'wallet budget status request body');
-    if (
-      Object.keys(requestBody).length !== 2 ||
-      typeof requestBody.walletSessionId !== 'string' ||
-      typeof requestBody.quotaId !== 'string'
-    )
-      return null;
-    walletSessionId = requestBody.walletSessionId;
-    quotaId = requestBody.quotaId;
-  } catch {
-    return null;
-  }
-
-  return {
-    url: request.url(),
-    authorization,
-    contentType,
-    body,
-    walletSessionId,
-    quotaId,
-  };
 }
 
 function parseAuthoritativeWalletBudgetStatus(args: {
