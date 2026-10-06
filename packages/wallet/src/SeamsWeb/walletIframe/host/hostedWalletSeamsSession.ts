@@ -1,3 +1,5 @@
+import { parseWalletSessionHome } from '@shared/device-linking/activeWalletSession';
+import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import { joinNormalizedUrl, stripTrailingSlashes } from '@shared/utils/normalize';
 import { parseWalletSessionId, type WalletSessionId } from '@shared/authorization/capabilityKinds';
 import {
@@ -13,6 +15,7 @@ export type HostedWalletSessionOperationCredentialToken = string & {
 
 export type HostedWalletSessionOperationCredentialV1 = {
   readonly kind: 'opaque_hosted_wallet_session_operation_credential_v1';
+  readonly home: WalletSessionHome;
   readonly token: HostedWalletSessionOperationCredentialToken;
   readonly walletSessionId: WalletSessionId;
 };
@@ -123,7 +126,7 @@ function parseHostedOperationCredential(value: unknown): HostedWalletSessionOper
   const record = recordFromBoundary(value);
   assertExactFields(
     record,
-    new Set(['kind', 'token', 'walletSessionId']),
+    new Set(['kind', 'home', 'token', 'walletSessionId']),
     'hosted-wallet operationCredential',
   );
   if (record.kind !== 'opaque_hosted_wallet_session_operation_credential_v1') {
@@ -131,6 +134,7 @@ function parseHostedOperationCredential(value: unknown): HostedWalletSessionOper
   }
   return {
     kind: record.kind,
+    home: parseWalletSessionHome(record.home),
     token: parseHostedOperationCredentialToken(record.token),
     walletSessionId: requireWalletSessionId(record.walletSessionId),
   };

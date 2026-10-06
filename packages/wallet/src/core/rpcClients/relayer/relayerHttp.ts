@@ -1,3 +1,4 @@
+import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking/contracts';
 import { stripTrailingSlashes } from '@shared/utils/normalize';
 
 type RelayerHttpHeaders = Readonly<Record<string, string>>;
@@ -33,4 +34,19 @@ export function buildRelayerJsonPostRequestInit(args: {
     credentials: 'omit',
     body: args.bodyJson ?? JSON.stringify(args.body),
   };
+}
+
+export function buildWalletSessionAuthorizationHeaders(
+  credential: WalletSessionOperationCredentialV1,
+): Record<string, string> {
+  const headers = buildBearerAuthorizationHeader({
+    token: credential.token,
+    missingMessage: 'Wallet Session token is required',
+  });
+  switch (credential.home.kind) {
+    case 'direct':
+      return headers;
+    case 'regional':
+      return { ...headers, 'X-Seams-Wallet-Region': credential.home.region };
+  }
 }

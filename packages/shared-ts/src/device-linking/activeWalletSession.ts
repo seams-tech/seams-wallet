@@ -2,11 +2,12 @@ import type {
   ActiveWalletSessionV1,
   WalletCapabilitySubjectV1,
   WalletSessionOperationCredentialV1,
+  WalletSessionHome,
 } from './contracts';
 import { mpcMaterialActivationRefsEqual } from '../utils/domainIds';
 import { requireRecord } from '../utils/validation';
 import { rejectUnknownFields } from '../utils/exactRecord';
-import { wireLiteral, wireObject, type AllTrue, type ParsesExactly } from '../utils/wireSchema';
+import { wireLiteral, wireObject, wireUnion, type AllTrue, type ParsesExactly } from '../utils/wireSchema';
 import {
   digest,
   keyLabeled,
@@ -92,10 +93,20 @@ export function walletSessionPreservesCapabilities(
   return true;
 }
 
+const walletSessionHome = wireUnion('kind', [
+  wireObject({ kind: wireLiteral('direct') }),
+  wireObject({ kind: wireLiteral('regional'), region: wireLiteral('US', 'WEUR', 'APAC', 'OC') }),
+]);
+
+export function parseWalletSessionHome(raw: unknown): WalletSessionHome {
+  return walletSessionHome(raw, 'Wallet Session home');
+}
+
 function walletSessionOperationCredentialV1() {
   return wireObject(
     {
       kind: wireLiteral('opaque_wallet_session_operation_credential_v1'),
+      home: parseWalletSessionHome,
       token: (raw, label): string => {
         if (typeof raw !== 'string' || raw.length > 8192) throw new Error(`${label} is invalid`);
         return raw;

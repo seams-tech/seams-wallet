@@ -1,4 +1,4 @@
-import type { ActiveWalletSessionV1 } from './contracts';
+import type { ActiveWalletSessionV1, WalletSessionHome, WalletSessionOperationCredentialV1 } from './contracts';
 
 declare const activeWithoutQuota: Omit<ActiveWalletSessionV1, 'quotaId'>;
 
@@ -6,3 +6,14 @@ declare const activeWithoutQuota: Omit<ActiveWalletSessionV1, 'quotaId'>;
 const invalidActive: ActiveWalletSessionV1 = activeWithoutQuota;
 
 void invalidActive;
+
+declare const credentialWithoutHome: Omit<WalletSessionOperationCredentialV1, 'home'>;
+// @ts-expect-error Session credentials require explicit routing metadata, including through spreads.
+const missingHome: WalletSessionOperationCredentialV1 = { ...credentialWithoutHome };
+// @ts-expect-error A direct endpoint cannot also select a region.
+const mixedHome: WalletSessionHome = { kind: 'direct', region: 'US' };
+// @ts-expect-error Regional routing accepts catalog regions, never arbitrary URLs.
+const arbitraryHome: WalletSessionHome = { kind: 'regional', region: 'https://untrusted.test' };
+void missingHome;
+void mixedHome;
+void arbitraryHome;

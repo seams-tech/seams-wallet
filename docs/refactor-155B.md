@@ -420,3 +420,24 @@ pass. Updated evidence remains in the local session routing artifact.
 SDK ingestion and persistence of this metadata remain incomplete. No automatic client
 routing or full MPC outage result is claimed. The next integration must retain the
 home with each session across owner, linked-device, hosted exchange, and restore flows.
+
+## Session home persistence — October 6, 2026
+
+Primary and hosted credentials now carry required home metadata: a direct endpoint
+or one configured regional home. Managed issuance reads the home from its existing
+regional publisher. Standalone issuance uses the direct endpoint. No token format,
+secret, or routing cache is added. Parsers reject missing or invalid metadata.
+
+The SDK credential parser preserves the home in the existing authorization row.
+Session status and ECDSA activation requests send the regional hint from that credential.
+The hosted-session parser also retains it. Static fixtures reject missing home data,
+mixed direct/regional states, and arbitrary target URLs.
+
+The routing E2E verifies issuance, hosted exchange, serialization through the SDK
+record writer/parser, and request-header construction. It does not simulate a browser
+reload or perform an MPC signature. Public server, SDK, and private server type checks
+pass; bloat checks pass. The retained local-session artifact records this boundary test.
+
+Remaining SDK work includes normal-signing and refill credential projections, hosted
+request consumers, exchange routing before redemption, and complete linked-device and
+reload acceptance. Do not treat this checkpoint as full client routing completion.

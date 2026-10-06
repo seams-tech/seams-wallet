@@ -391,6 +391,7 @@ export class AuthorizationService {
     if (persisted.kind !== 'redeemed') return persisted;
     const operationCredential = parseHostedWalletSessionOperationCredentialV1({
       kind: 'opaque_hosted_wallet_session_operation_credential_v1',
+      home: this.ports.sessionRouting?.home() ?? { kind: 'direct' },
       token: hostedCredentialToken,
       walletSessionId: persisted.walletSessionId,
     });
@@ -519,6 +520,7 @@ export class AuthorizationService {
     const token = `wst_${secureRandomBase64Url(32, 'direct V2 Wallet Session operation credentials')}`;
     const operationCredential = parseWalletSessionOperationCredentialV1({
       kind: 'opaque_wallet_session_operation_credential_v1',
+      home: this.ports.sessionRouting?.home() ?? { kind: 'direct' },
       token,
       walletSessionId: prepared.session.walletSessionId,
     });

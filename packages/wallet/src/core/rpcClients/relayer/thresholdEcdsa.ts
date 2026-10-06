@@ -19,6 +19,7 @@ import type {
 } from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
 import {
   buildBearerAuthorizationHeader,
+  buildWalletSessionAuthorizationHeaders,
   buildRelayerJsonPostRequestInit,
   normalizeRelayerBaseUrl,
 } from './relayerHttp';
@@ -316,6 +317,12 @@ function buildRelayRequestInit(args: {
   publishableKeyAuth?: string;
   body: unknown;
 }): RequestInit {
+  if (args.auth?.kind === 'opaque_wallet_session_operation_credential_v1') {
+    return buildRelayerJsonPostRequestInit({
+      headers: buildWalletSessionAuthorizationHeaders(args.auth),
+      body: args.body,
+    });
+  }
   const bearerToken = resolveBearerToken(args.auth);
   const publishableKeyAuth = String(args.publishableKeyAuth || '').trim();
   const headers = bearerToken

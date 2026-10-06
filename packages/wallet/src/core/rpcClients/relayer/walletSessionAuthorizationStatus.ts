@@ -14,7 +14,7 @@ import type {
 } from '@shared/device-linking/contracts';
 import type { RegistrationEstablishedSessionV2 } from '@shared/utils/registrationEstablishedSession';
 import {
-  buildBearerAuthorizationHeader,
+  buildWalletSessionAuthorizationHeaders,
   buildRelayerJsonPostRequestInit,
   normalizeRelayerBaseUrl,
 } from './relayerHttp';
@@ -454,10 +454,7 @@ class RelayerExactWalletSessionStatusPort implements ExactWalletSessionStatusPor
           walletSessionId: input.walletSessionId,
           quotaId: input.quotaId,
         },
-        headers: buildBearerAuthorizationHeader({
-          token: this.operationCredential.token,
-          missingMessage: 'Wallet Session token is required for Wallet Session status',
-        }),
+        headers: buildWalletSessionAuthorizationHeaders(this.operationCredential),
       }),
       credentials: 'omit',
     });

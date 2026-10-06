@@ -1,3 +1,4 @@
+import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import type { WalletId } from '@shared/utils/domainIds';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 
@@ -19,5 +20,6 @@ export type WalletSessionLocatorPublication =
 
 /** Publishes digest-to-wallet metadata; home-local storage authorizes its use. */
 export interface WalletSessionRoutingPublisher {
+  home(): WalletSessionHome;
   publish(input: WalletSessionLocatorPublication): Promise<void>;
 }

@@ -1,3 +1,5 @@
+import { parseWalletSessionHome } from '@shared/device-linking/activeWalletSession';
+import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import type { Variant } from '@shared/utils/variant';
 import type {
   ActiveWalletAuthMethodRecordV2,
@@ -205,6 +207,7 @@ export type RedeemHostedWalletSeamsSessionExchangeV2Input = {
 
 export type HostedWalletSessionOperationCredentialV1 = {
   readonly kind: 'opaque_hosted_wallet_session_operation_credential_v1';
+  readonly home: WalletSessionHome;
   readonly token: HostedWalletSessionOperationCredentialToken;
   readonly walletSessionId: WalletSessionId;
 };
@@ -1201,6 +1204,7 @@ export function parseHostedWalletSessionOperationCredentialV1(
   }
   return {
     kind: raw.kind,
+    home: parseWalletSessionHome(raw.home),
     token,
     walletSessionId: walletSessionId.value,
   };
@@ -1214,7 +1218,7 @@ function isHostedWalletSessionOperationCredentialRecordV1(
   value: unknown,
 ): value is HostedWalletSessionOperationCredentialRecordV1 {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
-  return Object.keys(value).sort().join('|') === 'kind|token|walletSessionId';
+  return Object.keys(value).sort().join('|') === 'home|kind|token|walletSessionId';
 }
 
 export function parsePrimaryWalletSessionOperationCredentialToken(

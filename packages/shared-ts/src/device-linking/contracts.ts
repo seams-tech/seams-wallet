@@ -797,9 +797,15 @@ export type ActiveWalletSessionV1 = {
   readonly expiresAtMs: number;
 };
 
+/** Routing metadata selects an endpoint and grants no execution authority. */
+export type WalletSessionHome =
+  | { readonly kind: 'direct'; readonly region?: never }
+  | { readonly kind: 'regional'; readonly region: 'US' | 'WEUR' | 'APAC' | 'OC' };
+
 /** The bearer used to authenticate ordinary operations for an active session. */
 export type WalletSessionOperationCredentialV1 = {
   readonly kind: 'opaque_wallet_session_operation_credential_v1';
+  readonly home: WalletSessionHome;
   readonly token: string;
   readonly walletSessionId: WalletSessionId;
 };
