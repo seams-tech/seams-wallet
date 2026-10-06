@@ -65,6 +65,8 @@ class SourceDirectory {
             chunk_bytes: 4096,
           },
         });
+      if (input.operation === 'activate')
+        return Response.json({ ok: true, command: { kind: 'activate', receipt: this.receipt } });
       assert.equal(input.operation, 'verify');
       return Response.json({ ok: true, command: { kind: 'verify', receipt: this.receipt } });
     }
@@ -440,6 +442,11 @@ export async function verifyRuntimeRouterExport(runtime, activation, topology) {
   assert.equal(verified.kind, 'verified');
   assert.deepEqual(verified.receipt, frozen.receipt);
   assert.deepEqual(await runtimeRouterCommand(destination, 'router-status', envelope), verified);
+  const activated = await runtimeRouterCommand(destination, 'router-activate', envelope);
+  assert.equal(activated.kind, 'activated');
+  assert.deepEqual(activated.activation.source, frozen.receipt);
+  assert.equal(typeof activated.activation.destination_object, 'string');
+  assert.deepEqual(await runtimeRouterCommand(destination, 'router-activate', envelope), activated);
 
   return {
     recordCount: records.length,
@@ -447,6 +454,7 @@ export async function verifyRuntimeRouterExport(runtime, activation, topology) {
     exactReplay: true,
     storedReceiptMatchesExport: true,
     destinationVerifiedThroughRuntime: true,
+    destinationActivatedThroughRuntime: true,
     sourceDigestHex: frozen.receipt.records_digest_hex,
   };
 }

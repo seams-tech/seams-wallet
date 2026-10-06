@@ -9,7 +9,8 @@ export type RuntimeSourceOperation =
   | 'router-export'
   | 'router-status'
   | 'router-verify'
-  | 'router-import';
+  | 'router-import'
+  | 'router-activate';
 export type RuntimeSourceDirectory = {
   readonly WALLET_CONSOLE: WalletConsoleServiceBinding;
   readonly CF_VERSION_METADATA: { readonly id: unknown };
@@ -44,7 +45,10 @@ export async function authorizeRuntimeSource(
   if (typeof version !== 'string' || !version)
     return { ok: false, code: 'source_command_unavailable' };
   const destination =
-    operation === 'router-status' || operation === 'router-verify' || operation === 'router-import';
+    operation === 'router-status' ||
+    operation === 'router-verify' ||
+    operation === 'router-import' ||
+    operation === 'router-activate';
   const transfer = destination || operation === 'router-export';
   let endpoint = 'relocation-runtime-source';
   let commandBody = JSON.stringify({ wallet: input.wallet, attempt: input.attempt, operation });
@@ -61,6 +65,7 @@ export async function authorizeRuntimeSource(
     let destinationOperation = 'verify';
     if (operation === 'router-status') destinationOperation = 'status';
     else if (operation === 'router-import') destinationOperation = 'import';
+    else if (operation === 'router-activate') destinationOperation = 'activate';
     commandBody = JSON.stringify({
       wallet: input.wallet,
       attempt: input.attempt,
@@ -136,7 +141,10 @@ export async function authorizeRuntimeSource(
           payload.chunk_bytes !== 4096
         )
           return { ok: false, code: 'source_command_unavailable' };
-      } else if (Object.keys(payload).length !== 2 || payload.kind !== 'verify') {
+      } else if (
+        Object.keys(payload).length !== 2 ||
+        payload.kind !== (operation === 'router-activate' ? 'activate' : 'verify')
+      ) {
         return { ok: false, code: 'source_command_unavailable' };
       }
       request = payload.receipt.request;

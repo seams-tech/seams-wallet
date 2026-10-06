@@ -1660,7 +1660,9 @@ It imports into a separate Router and requests destination status and verificati
 through Console-authorized Runtime commands. Raw status and verification commands
 are rejected. Runtime now authorizes imports against the same pinned receipt,
 rejects mismatched chunks before Router dispatch, and keeps chunk data out of
-Console. Destination preparation authorization remains unfinished.
+Console. Runtime also requests Router activation from Console only after
+the ownership switch. The Worker scenario verifies activation and exact replay.
+Destination preparation authorization and activation-receipt aggregation remain unfinished.
 Console remains a response fixture in that scenario; its journal has separate
 D1 E2E coverage. The Worker E2E uses a directory response fixture and proves that denied
 or malformed authorization reaches no Router call. The actual directory journal
