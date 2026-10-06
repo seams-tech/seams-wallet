@@ -1271,3 +1271,30 @@ cleanup. The broader conflict-and-cleanup checklist therefore remains open.
 [Sanitized evidence](./evidence/r155b-credential-conflict-20261007.json). Repeat the
 `concurrent NEAR-only setup` scenario using the regional-real runner and the
 SDK frozen under `.artifacts/r155b-setup-retry/dist`.
+
+### Remove obsolete Console session lookup adapters — 2026-10-07
+
+The old `resolveSessionHome` function had no production callers. Only older
+regional test fixtures used it. Those fixtures now use the production
+`resolveGatewayDeployment` path, which checks local session rows before explicit
+discovery. The registration-only fixture uses its known application-auth state.
+
+Removed the unused resolver, both `findSession` client adapters, and the
+`find-session` Console endpoint. Explicit discovery remains through
+`gateway-session`; session locator publication and authorization remain intact.
+
+The older regional scenario also required current fixture contracts: an open
+execution generation, a routing publisher with `home()`, and the deployment's
+tenant identity. These were `valid_test_needs_update` failures. The fixes reuse
+the existing generation helper, registration authority and shared factory.
+Production enforcement was not changed to accommodate fixtures.
+
+The regional session-routing scenario, local session-routing acceptance and
+wallet-home-directory E2E all passed. The broad scenario covers production
+regional routing and directory/authorization behavior, including shared identity,
+passkey claims, linking, expiry and recovery. Its terminal protocol execution and
+tenant writer admission are controlled. It does not prove browser signing or
+hosted placement.
+
+Private implementation commit: `a2c187c`.
+[Sanitized evidence](./evidence/r155b-lookup-cleanup-20261007.json).
