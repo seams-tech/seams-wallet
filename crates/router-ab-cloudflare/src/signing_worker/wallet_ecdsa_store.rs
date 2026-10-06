@@ -24,6 +24,7 @@ pub use linked_presign_inventory::{
     SIGNING_WORKER_LINKED_PRESIGN_INVENTORY_PATH_V1,
 };
 mod snapshot;
+mod sealed_snapshot;
 mod sql_integer;
 mod transfer;
 mod import;
@@ -91,7 +92,7 @@ const LINKED_ECDSA_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_linked_ecds
     owner_json TEXT NOT NULL,
     ciphertext_json TEXT NOT NULL)";
 /// The wallet store's ECDSA tables.
-pub(crate) const SIGNING_WORKER_WALLET_ECDSA_SCHEMA_V1: [&str; 12] = [
+pub(crate) const SIGNING_WORKER_WALLET_ECDSA_SCHEMA_V1: [&str; 14] = [
     ECDSA_POOL_SCHEMA,
     ECDSA_EFFECT_SCHEMA,
     ECDSA_ACTIVATION_SCHEMA,
@@ -101,6 +102,8 @@ pub(crate) const SIGNING_WORKER_WALLET_ECDSA_SCHEMA_V1: [&str; 12] = [
     import::ACTIVATION_SCHEMA,
     execution::SCHEMA,
     cleanup::SCHEMA,
+    sealed_snapshot::PAGES_SCHEMA,
+    sealed_snapshot::MANIFEST_SCHEMA,
     presign_authority::SCHEMA,
     linked_presign_inventory::SCHEMA,
     linked_presign_settlement::SCHEMA,

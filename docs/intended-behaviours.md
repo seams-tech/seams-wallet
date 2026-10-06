@@ -1578,6 +1578,13 @@ The old cleanup receipt remains local history. Exact cleanup retries return that
 receipt without deleting the returned wallet. Changed cleanup receipts fail.
 Verified activation installs the new generation before fresh signing can start.
 
+The ECDSA source commits immutable snapshot pages with its frozen receipt.
+Export reads the sealed pages and checks their digests. Each response contains
+at most 65,536 bytes and reads at most 17 pages of 4,096 bytes. Live inventory
+changes cannot alter the sealed bytes. Source cleanup removes these pages in
+bounded batches after destination activation. Initial sealing and destination
+verification still load the complete wallet inventory.
+
 Linked presign inventory is available while the ECDSA wallet drains. Each entry
 records its creation generation. The wallet cannot seal its snapshot until every
 linked session from the source generation has a durable freeze acknowledgement.

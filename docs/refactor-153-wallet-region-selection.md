@@ -611,20 +611,17 @@ coverage. This inventory is not yet exported through bounded chunks, and it does
 not cover the other SigningWorker stores or the separate presign-session objects.
 Evidence remains in `.artifacts/r153/ecdsa-snapshot-20261005/`.
 
-Frozen wallet ECDSA inventories now export through the native SigningWorker and
-wallet-DO transports. The endpoint requires the dedicated Router-to-SigningWorker
-ECDSA credential. Each request names the exact stored receipt, segment position,
-and a size of 1 through 65,536 bytes. The store recomputes the complete inventory
-digest before returning a segment. Changed receipts, changed source rows, missing
-segments, and oversized requests fail. The production-store E2E reopens storage
-for every segment and exact retry, reconstructs the inventory, and detects changed
-SQL versions. The HTTP E2E rejects an unrelated credential and repeats the same
-export after SigningWorker restart. Native and both WASM builds, these focused
-E2Es, and the bloat check pass. Evidence remains in
-`.artifacts/r153/ecdsa-export-20261005/`. The export currently reads the complete
-wallet inventory to verify each segment. Destination preparation, transactional
-import acknowledgements, verification, and coordinator command authority remain
-unfinished for this inventory.
+Frozen wallet ECDSA inventories export through native SigningWorker and wallet-DO
+transports. The endpoint requires the dedicated Router-to-SigningWorker ECDSA
+credential. Each request names the exact stored receipt, segment position, and a
+size of 1 through 65,536 bytes. Freeze commits immutable 4,096-byte pages and their
+manifest with its receipt. Export checks page digests and reads at most 17 pages.
+It does not reconstruct or rescan live inventory. Changed receipts, altered sealed
+pages, missing segments, and oversized requests fail. Live inventory changes leave
+the sealed export unchanged. Cleanup removes pages in bounded batches after
+activation. Initial sealing and destination verification still load the complete
+wallet inventory; bounding those operations remains required. Complete participant
+assembly and coordinator authority also remain unfinished.
 
 Wallet ECDSA destinations now support preparation and durable segment staging
 through the native and wallet-DO transports. Preparation requires an empty wallet

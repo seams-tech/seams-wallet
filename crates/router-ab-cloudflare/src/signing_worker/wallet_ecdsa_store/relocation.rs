@@ -256,13 +256,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
             self.mutate_pool_record(scope.clone(), command)?;
         }
         let snapshot = self.ecdsa_snapshot(&scope)?;
-        let encoded = snapshot.encode(&scope, &request)?;
-        let receipt = SigningWorkerPoolFreezeReceiptV1 {
-            scope: scope.clone(),
-            request,
-            record_count: snapshot.record_count(),
-            wallet_records_digest_hex: snapshot::snapshot_digest(&encoded),
-        };
+        let receipt = self.seal_ecdsa_snapshot(&scope, request, &snapshot)?;
         self.save_pool_fence(
             &scope,
             &Fence::Frozen {

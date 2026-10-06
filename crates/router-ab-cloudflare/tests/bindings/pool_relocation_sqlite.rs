@@ -652,7 +652,9 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         "late_known_chunk_does_not_overwrite_restored_records": true,
         "export_exact_after_reopen": true,
         "export_rejects_changed_receipt_and_bounds": true,
-        "export_rejects_changed_source_inventory": true,
+        "export_preserves_sealed_bytes_after_live_inventory_change": true,
+        "export_rejects_changed_sealed_page": true,
+        "unaligned_and_maximum_chunks_preserve_exact_bytes": true,
         "other_wallet_pool_admission_preserved": true,
         "expired_presign_identity_history_restored": true,
         "presign_claims_fenced_and_other_wallet_claims_excluded": true,
@@ -867,6 +869,22 @@ fn verify_snapshot_export(
         assert!(!data.is_empty() && data.len() <= 1_024);
         bytes.extend(data);
     }
+    for chunk_bytes in [4_093, 65_536] {
+        let segment_count = bytes.len().div_ceil(chunk_bytes as usize);
+        for segment_index in 0..segment_count {
+            let chunk = with_store(path, env, |store| {
+                store.export_ecdsa_snapshot(router_ab_cloudflare::SigningWorkerEcdsaExportRequestV1 {
+                    receipt: receipt.clone(),
+                    segment_index: segment_index as u32,
+                    chunk_bytes,
+                })
+            })?;
+            let actual = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(chunk.data_b64u)?;
+            let start = segment_index * chunk_bytes as usize;
+            let end = (start + chunk_bytes as usize).min(bytes.len());
+            assert_eq!(actual, bytes[start..end], "Chunk boundaries must not change sealed bytes");
+        }
+    }
     let (scope, move_request, snapshot): (
         CloudflareSigningWorkerWalletScopeV1,
         router_ab_cloudflare::SigningWorkerRelocationRequestV1,
@@ -905,9 +923,11 @@ fn verify_snapshot_export(
         "UPDATE wallet_ecdsa_pool SET version = version + 1 WHERE owner_json = ?",
         [&owner_json],
     )?;
-    assert!(with_store(path, env, |store| store
-        .export_ecdsa_snapshot(request.clone()))
-    .is_err());
+    assert_eq!(
+        with_store(path, env, |store| store.export_ecdsa_snapshot(request.clone()))?,
+        first,
+        "Export must read the sealed bytes rather than reconstruct live rows",
+    );
     database.execute(
         "UPDATE wallet_ecdsa_pool SET version = version - 1 WHERE owner_json = ?",
         [&owner_json],
@@ -917,6 +937,21 @@ fn verify_snapshot_export(
             .export_ecdsa_snapshot(request.clone()))?,
         first,
     );
+    let page_digest: String = database.query_row(
+        "SELECT digest_hex FROM wallet_ecdsa_snapshot_pages WHERE owner_json = ? AND move_id = ? AND page_index = 0",
+        rusqlite::params![owner_json, receipt.request.move_id],
+        |row| row.get(0),
+    )?;
+    database.execute(
+        "UPDATE wallet_ecdsa_snapshot_pages SET digest_hex = ? WHERE owner_json = ? AND move_id = ? AND page_index = 0",
+        rusqlite::params!["0".repeat(64), owner_json, receipt.request.move_id],
+    )?;
+    assert!(with_store(path, env, |store| store.export_ecdsa_snapshot(request.clone())).is_err());
+    database.execute(
+        "UPDATE wallet_ecdsa_snapshot_pages SET digest_hex = ? WHERE owner_json = ? AND move_id = ? AND page_index = 0",
+        rusqlite::params![page_digest, owner_json, receipt.request.move_id],
+    )?;
+    assert_eq!(with_store(path, env, |store| store.export_ecdsa_snapshot(request.clone()))?, first);
     assert!(with_store(&destination, env, |store| {
         store.require_mutation_admission(&receipt.scope)
     })

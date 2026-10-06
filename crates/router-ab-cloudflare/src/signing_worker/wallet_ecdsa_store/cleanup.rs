@@ -48,6 +48,8 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
             "wallet_ecdsa_activations",
             "wallet_linked_presign_sessions",
             "wallet_ecdsa_import_chunks",
+            "wallet_ecdsa_snapshot_pages",
+            "wallet_ecdsa_snapshot_manifest",
         ] {
             let deleted = self.sql.query::<serde::de::IgnoredAny>(
                 &format!("DELETE FROM {table} WHERE rowid IN (SELECT rowid FROM {table} WHERE owner_json = ? ORDER BY rowid LIMIT 16) RETURNING rowid"),

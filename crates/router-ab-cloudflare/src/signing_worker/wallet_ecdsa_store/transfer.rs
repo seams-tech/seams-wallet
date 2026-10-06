@@ -29,29 +29,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
     ) -> RouterAbProtocolResult<SigningWorkerEcdsaSnapshotChunkV1> {
         validate_chunk_bytes(request.chunk_bytes)?;
         self.require_frozen_receipt(&request.receipt)?;
-        let snapshot = self.ecdsa_snapshot(&request.receipt.scope)?;
-        let bytes = snapshot.encode(&request.receipt.scope, &request.receipt.request)?;
-        if snapshot.record_count() != request.receipt.record_count
-            || snapshot::snapshot_digest(&bytes) != request.receipt.wallet_records_digest_hex
-        {
-            return Err(wallet_error(
-                "ECDSA source inventory differs from its frozen receipt",
-            ));
-        }
-        let segment_count = u32::try_from(bytes.len().div_ceil(request.chunk_bytes as usize))
-            .map_err(|_| wallet_error("ECDSA snapshot has too many segments"))?;
-        if request.segment_index >= segment_count {
-            return Err(wallet_error("ECDSA export segment is absent"));
-        }
-        let start = request.segment_index as usize * request.chunk_bytes as usize;
-        let end = (start + request.chunk_bytes as usize).min(bytes.len());
-        Ok(SigningWorkerEcdsaSnapshotChunkV1 {
-            receipt: request.receipt,
-            segment_index: request.segment_index,
-            segment_count,
-            chunk_bytes: request.chunk_bytes,
-            data_b64u: crate::encode_base64url_bytes_v1(&bytes[start..end]),
-        })
+        self.read_ecdsa_snapshot_chunk(request)
     }
 }
 
