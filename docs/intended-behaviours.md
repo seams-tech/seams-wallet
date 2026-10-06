@@ -1632,6 +1632,12 @@ Router-to-SigningWorker authentication. It closes new preparation and registrati
 writes. Repeated commands return the stored identity after restart. Changed move
 inputs fail. Admitted finalize can settle while this fence is draining, and exact
 terminal replay stays available. This fence alone does not attest a sealed snapshot.
+The settlement command counts admitted rounds in the transaction that closes
+preparation. A claimed round or an unexpired preparation keeps settlement draining.
+Expired unclaimed preparations do not block settlement. When no round remains,
+the source stores the exact settlement identity and rejects fresh finalization.
+Known terminal results remain replayable. Exact settlement retries survive restart.
+Settlement permits subsequent snapshot capture; it does not attest that snapshot.
 
 The same fence prevents new Ed25519 recovery and linked-device mutations. Native
 refresh deliveries also check the fence. Each mutation commits with its fence check

@@ -66,3 +66,22 @@ pub(super) fn verify_rejected_wallet_delivery(
     );
     Ok(())
 }
+
+pub(super) fn verify_settlement(
+    signing_worker_url: &str,
+    auth: &str,
+    command: &router_ab_cloudflare::SigningWorkerEd25519FenceCommandV1,
+    expected: router_ab_cloudflare::SigningWorkerEd25519SettlementV1,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let (status, body) = post_json_to_path_with_headers(
+        signing_worker_url,
+        router_ab_cloudflare::SIGNING_WORKER_ED25519_SETTLE_PATH_V1,
+        command,
+        &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, auth)],
+    )?;
+    assert_eq!(status, 200, "{body}");
+    let actual: router_ab_cloudflare::SigningWorkerEd25519SettlementV1 =
+        serde_json::from_str(&body)?;
+    assert_eq!(actual, expected);
+    Ok(())
+}

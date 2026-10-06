@@ -122,6 +122,8 @@ impl LocalEd25519YaoSqliteHostV1 {
                 .execute_batch(router_ab_cloudflare::SIGNING_WORKER_ED25519_EXECUTION_SCHEMA_V1)?;
             connection
                 .execute_batch(router_ab_cloudflare::SIGNING_WORKER_ED25519_FENCE_SCHEMA_V1)?;
+            connection
+                .execute_batch(router_ab_cloudflare::SIGNING_WORKER_ED25519_SETTLEMENT_SCHEMA_V1)?;
         }
         Ok(Self {
             connection: RefCell::new(connection),

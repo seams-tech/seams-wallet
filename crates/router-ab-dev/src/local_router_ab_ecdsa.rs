@@ -245,6 +245,19 @@ pub fn local_router_ab_ecdsa_route_v1(
                     json(&page)
                 },
             )),
+            router_ab_cloudflare::SIGNING_WORKER_ED25519_SETTLE_PATH_V1 => Some(authorized(
+                &signing_worker.router_to_signing_worker_ecdsa_auth,
+                request,
+                |command: router_ab_cloudflare::SigningWorkerEd25519FenceCommandV1| {
+                    let receipt = with_local_signing_worker_wallet_store_v1(
+                        signing_worker,
+                        |_, sql| crate::local_signing_worker_near_sqlite::settle_for_relocation(
+                            sql.0, command, local_now_ms_v1()?,
+                        ),
+                    )?;
+                    json(&receipt)
+                },
+            )),
             router_ab_cloudflare::SIGNING_WORKER_ED25519_FENCE_PATH_V1 => Some(authorized(
                 &signing_worker.router_to_signing_worker_ecdsa_auth,
                 request,

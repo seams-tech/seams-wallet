@@ -1636,6 +1636,15 @@ Each row below assigns distinct coverage to an existing or extended scenario.
   authenticated identity, parser rejection, persisted effects, and restart.
   They do not duplicate source-text or implementation-shape assertions.
 
+The Ed25519 SigningWorker now persists source settlement separately from its
+preparation fence. Native SQLite and wallet-DO hosts count pending rounds inside
+the transaction that commits settlement. Claimed rounds and unexpired preparations
+keep it draining. Exact terminal replay remains available after settlement and
+restart. The native signing E2E covers draining, completion, and restart replay.
+Ed25519 snapshot capture, transfer, destination activation, and composed Worker
+signing coverage remain unfinished. The wallet-DO inventory scan reads batches of
+16 records but completes in one transaction.
+
 ### Required scenarios
 
 | Scenario / owner | Distinct behavior to verify |

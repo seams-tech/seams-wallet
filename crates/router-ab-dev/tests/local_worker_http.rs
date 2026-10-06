@@ -7492,6 +7492,12 @@ fn product_near_signing_process_flow(
         &fence_headers,
     )?;
     assert_eq!(fence_status, 200, "{fence_body}");
+    ed25519_fence::verify_settlement(
+        signing_worker_url,
+        &config.router_to_signing_worker_ecdsa_auth,
+        &fence,
+        router_ab_cloudflare::SigningWorkerEd25519SettlementV1::Draining { pending_rounds: 1 },
+    )?;
     let mut changed_fence = fence.clone();
     changed_fence.request.move_id = format!("wmove_{}", "f".repeat(43));
     let (changed_fence_status, _) = post_json_to_path_with_headers(
@@ -7607,6 +7613,12 @@ fn product_near_signing_process_flow(
     )?;
     use ed25519_dalek::Verifier;
     verifying_key.verify(&Sha256::digest(&unsigned), &signature)?;
+    ed25519_fence::verify_settlement(
+        signing_worker_url,
+        &config.router_to_signing_worker_ecdsa_auth,
+        &fence,
+        router_ab_cloudflare::SigningWorkerEd25519SettlementV1::Settled { command: fence.clone() },
+    )?;
 
     drop(signing_worker);
     let mut signing_worker = ChildGuard::spawn_in_root(
@@ -7635,6 +7647,12 @@ fn product_near_signing_process_flow(
     )?;
     assert_eq!(restarted_fence_status, 200, "{restarted_fence_body}");
     assert_eq!(restarted_fence_body, fence_body);
+    ed25519_fence::verify_settlement(
+        signing_worker_url,
+        &config.router_to_signing_worker_ecdsa_auth,
+        &fence,
+        router_ab_cloudflare::SigningWorkerEd25519SettlementV1::Settled { command: fence.clone() },
+    )?;
     let (restarted_prepare_status, restarted_prepare_body) = post_json_to_path_with_headers(
         router_url,
         LOCAL_ROUTER_NORMAL_SIGNING_PREPARE_PATH,
@@ -7669,6 +7687,7 @@ fn product_near_signing_process_flow(
             "fenced_prepare_status": fenced_prepare_status,
             "source_fence_replays_after_restart": true,
             "admitted_finalize_settles_while_fenced": true,
+            "settlement_waits_for_admitted_round_and_replays_after_restart": true,
             "changed_move_rejected": true,
             "delayed_delivery_preserves_durable_role_state": true,
             "invalid_ownership_generation_statuses": invalid_generation_statuses,
