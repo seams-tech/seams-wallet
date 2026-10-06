@@ -167,6 +167,10 @@ export function lifecycleWriteFenceStatements(
         SELECT 1 FROM wallet_relocation_authorization_fences
         WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
           AND wallet_id = ?5
+      ) OR EXISTS (
+        SELECT 1 FROM wallet_execution_generations
+        WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
+          AND wallet_id = ?5 AND registration_completion = 'cancelled'
       )`,
         )
         .bind(

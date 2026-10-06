@@ -546,3 +546,14 @@ verifies late-write rejection after a lost cancellation reply, prevents recreati
 after cleanup, and preserves exact completion retry. The bloat gate passes.
 Custody and session-publication write coverage still needs verification before
 pending registration admission can become fully local.
+
+### Registration lifecycle and session cancellation guards — October 6
+
+The shared transactional lifecycle guard now rejects cancelled registrations.
+The custody state store and registration operation journal already include this
+guard in their write batches. Migration 0069 also blocks Wallet Session insertion
+for a cancelled registration, including issuance admitted before cancellation.
+The real-D1 scenario verifies guard rejection, calls the production authorization
+service after cancellation, and confirms no session row was persisted. Server
+type-checking and the bloat gate pass. Pending registration still uses Console
+admission; remote custody effects and completion reconciliation remain under review.
