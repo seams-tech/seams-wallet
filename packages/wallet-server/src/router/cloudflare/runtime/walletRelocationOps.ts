@@ -13,6 +13,8 @@ const BASE_PATH = '/internal/wallet-runtime/v1/relocation';
 // The private Runtime binding carries trusted coordinator commands. The Router
 // parses each role's command and the participant enforces its durable move state.
 const OPERATIONS = {
+  'deriver-a-context': '/router-ab/internal/deriver-a/wallet/relocation-context',
+  'deriver-b-context': '/router-ab/internal/deriver-b/wallet/relocation-context',
   'deriver-b-prepare': '/router-ab/internal/deriver-b/wallet/prepare-relocation',
   'deriver-a-prepare': '/router-ab/internal/deriver-a/wallet/prepare-relocation',
   'router-freeze': '/router-ab/router/wallet/freeze',
@@ -59,8 +61,9 @@ export async function handleWalletRelocationRequest(
   const contentType = request.headers.get('content-type') || '';
   if (!contentType.toLowerCase().startsWith('application/json'))
     return failure('unsupported_media_type', 415);
-  const deriverPreparation = operation === 'deriver-a-prepare' || operation === 'deriver-b-prepare';
-  const credential = deriverPreparation
+  const deriverOperation = operation === 'deriver-a-prepare' || operation === 'deriver-b-prepare' ||
+    operation === 'deriver-a-context' || operation === 'deriver-b-context';
+  const credential = deriverOperation
     ? env.ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET?.trim()
     : env.ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET?.trim();
   if (!credential) return failure('relocation_transport_unavailable', 503);
@@ -113,10 +116,10 @@ export async function handleWalletRelocationRequest(
   }
   let transport = env.MPC_ROUTER;
   let origin = 'https://mpc-router.router-ab.internal';
-  if (operation === 'deriver-a-prepare') {
+  if (operation === 'deriver-a-prepare' || operation === 'deriver-a-context') {
     transport = env.DERIVER_A;
     origin = 'https://deriver-a.router-ab.internal';
-  } else if (operation === 'deriver-b-prepare') {
+  } else if (operation === 'deriver-b-prepare' || operation === 'deriver-b-context') {
     transport = env.DERIVER_B;
     origin = 'https://deriver-b.router-ab.internal';
   }

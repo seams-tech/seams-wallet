@@ -1920,5 +1920,13 @@ The Worker pair-execution E2E exercises separate destination objects for the sam
 wallet in both roles. It verifies private Runtime preparation, authentication,
 restart replay, conflict rejection, and rejection of ordinary pair writes. It also
 verifies that Deriver B reconciliation cannot add a fence to its reserved store.
-Deriver state transfer, key continuity checks, activation, and the aggregate
-preparation adapter remain open.
+Before reservation, the source reports a digest of its pair-encryption public key,
+key version, environment label, role, and schema. Each role checks that its private
+key opens ciphertext sealed with its configured public key. The destination must
+match the source digest before it creates any reservation. The reservation retains
+that digest, including during exact retries. No encryption key material is returned.
+The E2E rejects a context from the other role, a changed encryption environment,
+and a private key that does not match the configured public key.
+
+Deriver state transfer, tenant-root and peer-key continuity checks, activation,
+and the aggregate preparation adapter remain open.

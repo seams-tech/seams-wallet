@@ -247,6 +247,14 @@ async fn handle_strict_deriver_fetch_v1(
     if path == crate::durable_object::DERIVER_B_PREPARATION_PATH {
         return crate::durable_object::prepare_deriver_b_wallet_relocation(request, &env).await;
     }
+    #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
+    if path == crate::durable_object::DERIVER_A_CONTEXT_PATH {
+        return crate::durable_object::read_deriver_a_relocation_context(request, &env).await;
+    }
+    #[cfg(all(feature = "strict-worker-deriver-b-entrypoint", feature = "wallet-do-b-harness"))]
+    if path == crate::durable_object::DERIVER_B_CONTEXT_PATH {
+        return crate::durable_object::read_deriver_b_relocation_context(request, &env).await;
+    }
     let worker_role = runtime.worker_role();
     let label = runtime.label();
     let now_unix_ms = match cloudflare_now_unix_ms_v1() {

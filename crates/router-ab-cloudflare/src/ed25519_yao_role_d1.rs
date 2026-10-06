@@ -244,6 +244,32 @@ impl RolePairCipherV1 {
         })
     }
 
+    pub(crate) fn relocation_context_digest(&self) -> worker::Result<String> {
+        use sha2::{Digest, Sha256};
+
+        let context = serde_json::to_vec(&(
+            "seams/deriver/wallet-relocation/cipher-context/v1",
+            &self.environment,
+            self.role,
+            &self.key_version,
+            CloudflareHpkeKemV1::pk_to_bytes(&self.public_key),
+            self.schema,
+        ))
+        .map_err(|error| role_d1_error(error.to_string()))?;
+        let digest = encode_hex_slice(&Sha256::digest(context));
+        let scope = RolePairRecordScopeV1 {
+            signer_set_id: "wallet-relocation-preparation".to_owned(),
+            root_share_epoch: "cipher-key-check".to_owned(),
+            root_metadata_digest_hex: digest.clone(),
+        };
+        let identity = "seams/deriver/wallet-relocation/key-check/v1";
+        let ciphertext = self.seal(identity, &scope, &digest)?;
+        if self.open(identity, &ciphertext)?.record_json != digest {
+            return Err(role_d1_error("Deriver relocation cipher key check failed"));
+        }
+        Ok(digest)
+    }
+
     pub(crate) fn seal(
         &self,
         identity: &str,

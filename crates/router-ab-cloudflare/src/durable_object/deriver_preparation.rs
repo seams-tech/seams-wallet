@@ -1,3 +1,4 @@
+use crate::ed25519_yao_lifecycle::role_d1::RolePairCipherV1;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use worker::{Env, Method, Request, Response, SqlStorage, SqlStorageValue};
@@ -7,6 +8,7 @@ pub(crate) const SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_relocation_pr
 pub(crate) trait WalletOwner: Serialize + DeserializeOwned {
     const LABEL: &'static str;
     fn parts(&self) -> [&str; 4];
+    fn cipher(env: &Env) -> worker::Result<RolePairCipherV1>;
     fn object_name(&self) -> worker::Result<String>;
 }
 
@@ -16,6 +18,7 @@ pub(crate) struct Preparation<Owner> {
     pub(crate) owner: Owner,
     move_id: String,
     request_digest_hex: String,
+    cipher_context_digest_hex: String,
     source_generation: u64,
     destination_generation: u64,
 }
@@ -36,6 +39,11 @@ impl<Owner: WalletOwner> Preparation<Owner> {
                 .request_digest_hex
                 .bytes()
                 .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+            || self.cipher_context_digest_hex.len() != 64
+            || !self
+                .cipher_context_digest_hex
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
             || self.source_generation == 0
             || self.source_generation >= 9_007_199_254_740_991
             || self.destination_generation != self.source_generation + 1
@@ -43,6 +51,10 @@ impl<Owner: WalletOwner> Preparation<Owner> {
             return Err(pair_error("Deriver relocation identity is invalid"));
         }
         Ok(())
+    }
+
+    pub(crate) fn context_matches(&self, env: &Env) -> worker::Result<bool> {
+        Ok(Owner::cipher(env)?.relocation_context_digest()? == self.cipher_context_digest_hex)
     }
 }
 
@@ -78,6 +90,9 @@ pub(crate) async fn call_preparation<Owner: WalletOwner>(
             Err(error) => return crate::router_coordinator::protocol_error_response(error),
         };
     command.validate()?;
+    if !command.context_matches(env)? {
+        return Response::error("Deriver encryption context differs from source", 409);
+    }
     let namespace = env.durable_object(binding)?;
     let stub = namespace.get_by_name(&command.owner.object_name()?)?;
     let body = serde_json::to_string(&command).map_err(|error| pair_error(error.to_string()))?;
@@ -143,4 +158,37 @@ pub(crate) fn require_open<Owner: WalletOwner>(sql: &SqlStorage) -> worker::Resu
 
 fn pair_error(message: impl Into<String>) -> worker::Error {
     worker::Error::RustError(message.into())
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ContextRequest {}
+
+#[derive(Serialize)]
+struct CipherContext {
+    kind: &'static str,
+    digest_hex: String,
+}
+
+pub(crate) async fn read_context<Owner: WalletOwner>(
+    mut request: Request,
+    env: &Env,
+) -> worker::Result<Response> {
+    if request.method() != Method::Post {
+        return Response::error("Deriver encryption context requires POST", 405);
+    }
+    let _: ContextRequest =
+        match crate::durable_object::tenant_root_creation::decode_bounded_json_request(
+            &mut request,
+            8192,
+        )
+        .await
+        {
+            Ok(command) => command,
+            Err(error) => return crate::router_coordinator::protocol_error_response(error),
+        };
+    Response::from_json(&CipherContext {
+        kind: "deriver_cipher_context",
+        digest_hex: Owner::cipher(env)?.relocation_context_digest()?,
+    })
 }

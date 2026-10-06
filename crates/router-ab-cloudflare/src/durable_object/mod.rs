@@ -53,6 +53,8 @@ pub use deriver_a_pair::RouterAbDeriverAWalletDurableObject;
 ))]
 pub(crate) use deriver_a_pair::{
     call_deriver_a_pair_do_v1, call_preparation as prepare_deriver_a_wallet_relocation,
+    read_relocation_context as read_deriver_a_relocation_context,
+    CONTEXT_PATH as DERIVER_A_CONTEXT_PATH,
     PREPARATION_PATH as DERIVER_A_PREPARATION_PATH, DeriverAPairDoCommandV1, DeriverAPairDoResponseV1,
     DeriverAPairPayloadV1, DeriverAWalletOwnerV1,
 };
@@ -69,6 +71,8 @@ pub use deriver_b_pair::RouterAbDeriverBWalletDurableObject;
 pub(crate) use deriver_b_pair::{
     call_deriver_b_wallet_do_v1, deriver_b_wallet_object_name_v1,
     call_preparation as prepare_deriver_b_wallet_relocation,
+    read_relocation_context as read_deriver_b_relocation_context,
+    CONTEXT_PATH as DERIVER_B_CONTEXT_PATH,
     PREPARATION_PATH as DERIVER_B_PREPARATION_PATH,
     reconcile_deriver_b_wallet_pair_v1, DeriverBWalletDoRequestV1,
 };

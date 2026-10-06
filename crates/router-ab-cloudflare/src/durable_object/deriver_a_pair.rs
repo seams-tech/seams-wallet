@@ -38,6 +38,8 @@ use crate::{
 use super::deriver_preparation as preparation;
 
 
+pub(crate) const CONTEXT_PATH: &str = "/router-ab/internal/deriver-a/wallet/relocation-context";
+
 pub(crate) const PREPARATION_PATH: &str = "/router-ab/internal/deriver-a/wallet/prepare-relocation";
 
 const PAIR_DO_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair";
@@ -398,6 +400,9 @@ impl DurableObject for RouterAbDeriverAWalletDurableObject {
             PREPARATION_PATH => {
                 let command: preparation::Preparation<DeriverAWalletOwnerV1> = request.json().await?;
                 command.validate()?;
+                if !command.context_matches(&self.env)? {
+                    return Response::error("Deriver encryption context differs from source", 409);
+                }
                 self.check_owner(&command.owner, true)?;
                 preparation::reserve(&self.sql, command)
             }
@@ -1441,6 +1446,10 @@ mod tests {
 }
 
 impl preparation::WalletOwner for DeriverAWalletOwnerV1 {
+    fn cipher(env: &Env) -> worker::Result<crate::ed25519_yao_lifecycle::role_d1::RolePairCipherV1> {
+        crate::ed25519_yao_lifecycle::role_d1::RolePairCipherV1::from_env_for_wallet_do(env)
+    }
+
     const LABEL: &'static str = "Deriver A";
 
     fn parts(&self) -> [&str; 4] {
@@ -1454,4 +1463,8 @@ impl preparation::WalletOwner for DeriverAWalletOwnerV1 {
 
 pub(crate) async fn call_preparation(request: Request, env: &Env) -> worker::Result<Response> {
     preparation::call_preparation::<DeriverAWalletOwnerV1>(request, env, PAIR_DO_BINDING, PREPARATION_PATH).await
+}
+
+pub(crate) async fn read_relocation_context(request: Request, env: &Env) -> worker::Result<Response> {
+    preparation::read_context::<DeriverAWalletOwnerV1>(request, env).await
 }

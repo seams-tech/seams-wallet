@@ -13,6 +13,8 @@ use crate::{
     CloudflareDeriverBWalletPairScopeV1,
 };
 
+pub(crate) const CONTEXT_PATH: &str = "/router-ab/internal/deriver-b/wallet/relocation-context";
+
 pub(crate) const PREPARATION_PATH: &str = "/router-ab/internal/deriver-b/wallet/prepare-relocation";
 
 const BINDING: &str = "DERIVER_B_WALLET_DO";
@@ -139,6 +141,9 @@ impl DurableObject for RouterAbDeriverBWalletDurableObject {
         if path == PREPARATION_PATH {
             let command: preparation::Preparation<DeriverBWalletOwnerV1> = request.json().await?;
             command.validate()?;
+            if !command.context_matches(&self.env)? {
+                return Response::error("Deriver encryption context differs from source", 409);
+            }
             self.check_owner(&command.owner, true)?;
             return preparation::reserve(&self.sql, command);
         }
@@ -365,6 +370,10 @@ fn pair_error(error: impl ToString) -> worker::Error {
 }
 
 impl preparation::WalletOwner for DeriverBWalletOwnerV1 {
+    fn cipher(env: &Env) -> worker::Result<crate::ed25519_yao_lifecycle::role_d1::RolePairCipherV1> {
+        crate::ed25519_yao_lifecycle::role_d1::RolePairCipherV1::from_env_for_deriver_b_wallet_do(env)
+    }
+
     const LABEL: &'static str = "Deriver B";
 
     fn parts(&self) -> [&str; 4] {
@@ -378,4 +387,8 @@ impl preparation::WalletOwner for DeriverBWalletOwnerV1 {
 
 pub(crate) async fn call_preparation(request: Request, env: &Env) -> worker::Result<Response> {
     preparation::call_preparation::<DeriverBWalletOwnerV1>(request, env, BINDING, PREPARATION_PATH).await
+}
+
+pub(crate) async fn read_relocation_context(request: Request, env: &Env) -> worker::Result<Response> {
+    preparation::read_context::<DeriverBWalletOwnerV1>(request, env).await
 }

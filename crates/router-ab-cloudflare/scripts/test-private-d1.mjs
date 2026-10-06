@@ -468,6 +468,19 @@ function deriverAWorker(fixture) {
   };
 }
 
+function deriverAWithRelocationCipherFault(fixture, fault) {
+  const worker = deriverAWorker(fixture);
+  const bindings = { ...worker.bindings };
+  if (fault === 'wrong-key') {
+    bindings[fixture.deriver_a_env.DERIVER_ROLE_PRIVATE_D1_KEK_BINDING] =
+      `hpke-x25519-role-private-d1-private-v1:${'11'.repeat(32)}`;
+  } else {
+    assert.equal(fault, 'wrong-environment');
+    bindings.DERIVER_ROLE_PRIVATE_D1_ENVIRONMENT = 'relocation-wrong-environment';
+  }
+  return { ...worker, name: `deriver-a-relocation-${fault}`, bindings };
+}
+
 function deriverBWorker(fixture) {
   const bindings = {
     ...fixture.deriver_b_env,
@@ -5426,6 +5439,8 @@ async function main() {
       ...(testWalletDoExecution ? [
         { ...deriverAWorker(fixture), name: 'deriver-a-relocation-destination' },
         { ...deriverBWorker(fixture), name: 'deriver-b-relocation-destination' },
+        deriverAWithRelocationCipherFault(fixture, 'wrong-key'),
+        deriverAWithRelocationCipherFault(fixture, 'wrong-environment'),
       ] : []),
       deriverBWorker(fixture),
       tenantRootControlPlaneWorker(fixture),
