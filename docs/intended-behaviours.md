@@ -1582,8 +1582,11 @@ The ECDSA source commits immutable snapshot pages with its frozen receipt.
 Export reads the sealed pages and checks their digests. Each response contains
 at most 65,536 bytes and reads at most 17 pages of 4,096 bytes. Live inventory
 changes cannot alter the sealed bytes. Source cleanup removes these pages in
-bounded batches after destination activation. Initial sealing and destination
-verification still load the complete wallet inventory.
+bounded batches after destination activation. Source invalidation and snapshot
+serialization read at most 16 records per batch. Source sealing and the restored
+inventory digest check stream their bytes without a complete-inventory buffer.
+Initial sealing still completes in one transaction. Destination decoding and
+restoration still load the complete imported snapshot.
 
 Linked presign inventory is available while the ECDSA wallet drains. Each entry
 records its creation generation. The wallet cannot seal its snapshot until every

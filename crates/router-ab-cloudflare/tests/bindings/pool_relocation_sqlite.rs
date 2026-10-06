@@ -9,6 +9,7 @@ use serde::de::DeserializeOwned;
 
 // This odd integer cannot round-trip through a JavaScript number.
 const HISTORICAL_SQL_VERSION: i64 = 9_007_199_254_740_993;
+const EXTRA_POOL_RECORDS: usize = 33;
 
 struct Sqlite<'a>(&'a Connection);
 
@@ -367,6 +368,16 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         3,
         "consumed, retired, and unrelated rows must retain exact ciphertext and versions"
     );
+    for index in 0..EXTRA_POOL_RECORDS {
+        let mut material = base.clone();
+        material.server_presignature_id = format!("streamed-presign-{index:03}");
+        mutate(
+            &path,
+            &env,
+            &owner,
+            CloudflareSigningWorkerEcdsaPoolCommandV1::PutAvailable { material },
+        )?;
+    }
     let other_owner = CloudflareSigningWorkerWalletScopeV1::new(
         "other-org",
         "project",
@@ -549,7 +560,7 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
     else {
         panic!("settled pool must freeze");
     };
-    assert_eq!(receipt.record_count, 11);
+    assert_eq!(receipt.record_count, 11 + EXTRA_POOL_RECORDS as u64);
     assert_eq!(receipt.scope, owner);
     let activation_error = with_store(&path, &env, |store| {
         store.activate(
@@ -623,7 +634,7 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         store.record_linked_presign_freeze(linked_freeze.clone())
     })?;
     let mut artifact = serde_json::json!({
-        "scenario": "encrypted_pool_relocation", "records": 7,
+        "scenario": "encrypted_pool_relocation", "records": (7 + EXTRA_POOL_RECORDS),
         "available_and_reserved_destroyed": true, "reserved_binding_preserved": true,
         "consumed_retired_and_unrelated_bytes_preserved": true, "exact_retry_after_reopen": true,
         "changed_retry_rejected": true, "terminal_ids_cannot_be_repopulated": true,
@@ -661,6 +672,7 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         "presign_steps_require_pinned_authority_expiry_and_open_wallet": true,
         "scope": "Production wallet store and cipher on SQLite; excludes wallet-wide fencing and HTTP authorization"
     });
+    artifact["source_capture_crosses_multiple_record_batches"] = true.into();
     artifact["linked_presign_settlement"] = serde_json::json!({
         "linked_session_freeze_acknowledgement_required": true,
         "linked_session_acknowledgement_rollback_and_exact_retry": true,
@@ -892,7 +904,7 @@ fn verify_snapshot_export(
     ) = serde_json::from_slice(&bytes)?;
     assert_eq!(scope, receipt.scope);
     assert_eq!(move_request, receipt.request);
-    assert_eq!(snapshot["pools"].as_array().unwrap().len(), 6);
+    assert_eq!(snapshot["pools"].as_array().unwrap().len(), 6 + EXTRA_POOL_RECORDS);
     assert_eq!(snapshot["activations"].as_array().unwrap().len(), 1);
     assert_eq!(snapshot["effects"].as_array().unwrap().len(), 1);
     assert_eq!(snapshot["presign_authorities"].as_array().unwrap().len(), 2);

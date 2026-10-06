@@ -172,7 +172,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
                 return Err(wallet_error("ECDSA source ownership generation differs"));
             }
             None => {
-                if self.ecdsa_snapshot(&scope)?.record_count() != 0
+                if self.ecdsa_snapshot_record_count(&scope)? != 0
                     || self.import_activation(&scope)?.is_some()
                 {
                     return Err(wallet_error("ECDSA source execution authority is missing"));
@@ -228,35 +228,42 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
                 pending_linked_sessions,
             });
         }
-        let rows = self.sql.query::<PoolRow>(
-            "SELECT pool_key, ciphertext_json FROM wallet_ecdsa_pool WHERE owner_json = ? ORDER BY pool_key",
-            vec![text(owner)],
-        )?;
-        for row in rows {
-            let record: CloudflareSigningWorkerEcdsaPoolLifecycleRecordV1 = self.cipher.open(
-                "ecdsa_pool",
-                &wallet_row_identity(&scope, &row.pool_key)?,
-                &row.ciphertext_json,
+        let mut after = String::new();
+        loop {
+            let rows = self.sql.query::<PoolRow>(
+                "SELECT pool_key, ciphertext_json FROM wallet_ecdsa_pool
+                 WHERE owner_json = ? AND pool_key > ? ORDER BY pool_key LIMIT 16",
+                vec![text(owner.clone()), text(after.clone())],
             )?;
-            let command = CloudflareSigningWorkerEcdsaPoolCommandV1::InvalidateForRelocation {
-                scope: record.scope.clone(),
-                server_presignature_id: record.server_presignature_id.clone(),
-                expected_revision: record.lifecycle.revision().value(),
-                now_unix_ms: request.invalidated_at_ms,
-            };
-            let key = CloudflareSigningWorkerPrivateD1RequestV1::EcdsaPoolMutate {
-                command: command.clone(),
+            if rows.is_empty() {
+                break;
             }
-            .storage_key();
-            if key != row.pool_key {
-                return Err(wallet_error(
-                    "Pool record identity differs from its stored key",
-                ));
+            for row in rows {
+                after = row.pool_key.clone();
+                let record: CloudflareSigningWorkerEcdsaPoolLifecycleRecordV1 = self.cipher.open(
+                    "ecdsa_pool",
+                    &wallet_row_identity(&scope, &row.pool_key)?,
+                    &row.ciphertext_json,
+                )?;
+                let command = CloudflareSigningWorkerEcdsaPoolCommandV1::InvalidateForRelocation {
+                    scope: record.scope.clone(),
+                    server_presignature_id: record.server_presignature_id.clone(),
+                    expected_revision: record.lifecycle.revision().value(),
+                    now_unix_ms: request.invalidated_at_ms,
+                };
+                let key = CloudflareSigningWorkerPrivateD1RequestV1::EcdsaPoolMutate {
+                    command: command.clone(),
+                }
+                .storage_key();
+                if key != row.pool_key {
+                    return Err(wallet_error(
+                        "Pool record identity differs from its stored key",
+                    ));
+                }
+                self.mutate_pool_record(scope.clone(), command)?;
             }
-            self.mutate_pool_record(scope.clone(), command)?;
         }
-        let snapshot = self.ecdsa_snapshot(&scope)?;
-        let receipt = self.seal_ecdsa_snapshot(&scope, request, &snapshot)?;
+        let receipt = self.seal_ecdsa_snapshot(&scope, request)?;
         self.save_pool_fence(
             &scope,
             &Fence::Frozen {

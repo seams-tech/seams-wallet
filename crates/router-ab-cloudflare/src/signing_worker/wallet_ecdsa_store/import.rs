@@ -260,7 +260,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
                     "SELECT chunk_json, acknowledgement_json FROM wallet_ecdsa_import_chunks WHERE owner_json = ? LIMIT 1",
                     vec![text(owner_json(&scope, "ECDSA import")?)],
                 )?;
-                if self.ecdsa_snapshot(&scope)?.record_count() != 0 || !chunks.is_empty() {
+                if self.ecdsa_snapshot_record_count(&scope)? != 0 || !chunks.is_empty() {
                     return Err(wallet_error("ECDSA import requires a fresh destination"));
                 }
                 self.save_pool_fence(
@@ -515,14 +515,13 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
                 "ECDSA staged inventory binding differs from source",
             ));
         }
-        if self.ecdsa_snapshot(&scope)?.record_count() != 0 {
+        if self.ecdsa_snapshot_record_count(&scope)? != 0 {
             return Err(wallet_error(
                 "ECDSA restore destination contains ordinary records",
             ));
         }
         self.restore_ecdsa_snapshot(&scope, snapshot)?;
-        let restored = self.ecdsa_snapshot(&scope)?.encode(&scope, &request)?;
-        if snapshot::snapshot_digest(&restored) != receipt.wallet_records_digest_hex {
+        if self.ecdsa_snapshot_digest(&scope, &request)? != receipt.wallet_records_digest_hex {
             return Err(wallet_error("Restored ECDSA inventory differs from source"));
         }
         self.save_pool_fence(

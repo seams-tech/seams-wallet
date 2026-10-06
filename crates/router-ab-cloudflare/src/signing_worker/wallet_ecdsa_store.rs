@@ -293,7 +293,7 @@ impl<'a, Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'a, Sql>
         call.validate()?;
         self.require_mutation_admission(&scope)?;
         if self.execution_authority(&scope)?.is_none()
-            && (self.ecdsa_snapshot(&scope)?.record_count() != 0
+            && (self.ecdsa_snapshot_record_count(&scope)? != 0
                 || self.import_activation(&scope)?.is_some())
         {
             return Err(wallet_error(

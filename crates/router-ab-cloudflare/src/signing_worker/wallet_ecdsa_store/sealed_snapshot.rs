@@ -95,11 +95,9 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         &self,
         scope: &CloudflareSigningWorkerWalletScopeV1,
         request: SigningWorkerRelocationRequestV1,
-        snapshot: &snapshot::EcdsaSnapshot,
     ) -> RouterAbProtocolResult<SigningWorkerPoolFreezeReceiptV1> {
         let owner = owner_json(scope, "ECDSA sealed snapshot")?;
-        let mut digest = Sha256::new();
-        digest.update(b"seams/signing-worker/wallet-ecdsa-snapshot/v1");
+        let digest = snapshot::snapshot_hasher();
         let mut writer = PageWriter {
             sql: self.sql,
             owner: owner.clone(),
@@ -109,13 +107,12 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
             byte_length: 0,
             digest,
         };
-        serde_json::to_writer(&mut writer, &(scope, &request, snapshot))
-            .map_err(|error| wallet_error(error.to_string()))?;
+        let record_count = self.write_ecdsa_snapshot(scope, &request, &mut writer)?;
         writer.persist_page()?;
         let receipt = SigningWorkerPoolFreezeReceiptV1 {
             scope: scope.clone(),
             request,
-            record_count: snapshot.record_count(),
+            record_count,
             wallet_records_digest_hex: hex_slice(&writer.digest.finalize()),
         };
         let encoded =

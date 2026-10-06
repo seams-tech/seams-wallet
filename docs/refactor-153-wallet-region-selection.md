@@ -619,9 +619,11 @@ manifest with its receipt. Export checks page digests and reads at most 17 pages
 It does not reconstruct or rescan live inventory. Changed receipts, altered sealed
 pages, missing segments, and oversized requests fail. Live inventory changes leave
 the sealed export unchanged. Cleanup removes pages in bounded batches after
-activation. Initial sealing and destination verification still load the complete
-wallet inventory; bounding those operations remains required. Complete participant
-assembly and coordinator authority also remain unfinished.
+activation. Source invalidation and sealing now read batches of 16 records. The
+source snapshot and restored-inventory digest stream directly from these batches.
+Source sealing still runs in one transaction. Destination decoding and restoration
+still load the complete imported snapshot; bounding those operations remains
+required. Complete participant assembly and coordinator authority remain unfinished.
 
 Wallet ECDSA destinations now support preparation and durable segment staging
 through the native and wallet-DO transports. Preparation requires an empty wallet

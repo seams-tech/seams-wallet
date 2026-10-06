@@ -8,14 +8,14 @@ pub(super) const SCHEMA: &str = "CREATE TABLE IF NOT EXISTS signing_worker_presi
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct PresignAuthorityRow {
-    presign_session_id: String,
+    pub(super) presign_session_id: String,
     authority_json: String,
     #[serde(with = "sql_integer")]
     ceremony_expires_at_ms: i64,
 }
 
 impl PresignAuthorityRow {
-    fn authority(
+    pub(super) fn authority(
         &self,
         scope: &CloudflareSigningWorkerWalletScopeV1,
     ) -> RouterAbProtocolResult<CloudflareSigningWorkerEcdsaPresignAuthorityV1> {
@@ -103,32 +103,6 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
             ));
         }
         Ok(authority)
-    }
-
-    pub(super) fn presign_authority_snapshot(
-        &self,
-        scope: &CloudflareSigningWorkerWalletScopeV1,
-    ) -> RouterAbProtocolResult<Vec<PresignAuthorityRow>> {
-        let rows = self.sql.query::<PresignAuthorityRow>(
-            "SELECT presign_session_id, authority_json,
-                    CAST(ceremony_expires_at_ms AS TEXT) AS ceremony_expires_at_ms
-             FROM signing_worker_presign_authorities
-             WHERE json_extract(authority_json, '$.wallet_scope.org_id') = ?
-               AND json_extract(authority_json, '$.wallet_scope.project_id') = ?
-               AND json_extract(authority_json, '$.wallet_scope.project_environment_id') = ?
-               AND json_extract(authority_json, '$.wallet_scope.wallet_id') = ?
-             ORDER BY presign_session_id",
-            vec![
-                text(scope.org_id.clone()),
-                text(scope.project_id.clone()),
-                text(scope.project_environment_id.clone()),
-                text(scope.wallet_id.clone()),
-            ],
-        )?;
-        for row in &rows {
-            row.authority(scope)?;
-        }
-        Ok(rows)
     }
 
     pub(super) fn restore_presign_authorities(

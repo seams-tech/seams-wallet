@@ -50,14 +50,14 @@ pub(super) const SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_linked_presig
 #[serde(deny_unknown_fields)]
 pub(super) struct LinkedPresignSessionRow {
     ownership_generation: u64,
-    presign_session_id: String,
+    pub(super) presign_session_id: String,
     server_presignature_id: String,
     owner_json: String,
     request_digest_hex: String,
 }
 
 impl LinkedPresignSessionRow {
-    fn validate(&self, scope: &CloudflareSigningWorkerWalletScopeV1) -> RouterAbProtocolResult<()> {
+    pub(super) fn validate(&self, scope: &CloudflareSigningWorkerWalletScopeV1) -> RouterAbProtocolResult<()> {
         crate::router_wallet::validate_wallet_ownership_generation(self.ownership_generation)?;
         crate::require_non_empty("Linked presign session", &self.presign_session_id)?;
         crate::require_non_empty("Linked server presignature", &self.server_presignature_id)?;
@@ -187,21 +187,6 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
             [stored] if stored == &row => Ok(()),
             _ => Err(replay_error("Linked presign inventory identity changed")),
         }
-    }
-
-    pub(super) fn linked_presign_inventory(
-        &self,
-        scope: &CloudflareSigningWorkerWalletScopeV1,
-    ) -> RouterAbProtocolResult<Vec<LinkedPresignSessionRow>> {
-        let rows = self.sql.query::<LinkedPresignSessionRow>(
-            "SELECT presign_session_id, server_presignature_id, owner_json, request_digest_hex, ownership_generation
-             FROM wallet_linked_presign_sessions WHERE owner_json = ? ORDER BY presign_session_id",
-            vec![text(owner_json(scope, "linked presign inventory")?)],
-        )?;
-        for row in &rows {
-            row.validate(scope)?;
-        }
-        Ok(rows)
     }
 
     pub(super) fn restore_linked_presign_inventory(
