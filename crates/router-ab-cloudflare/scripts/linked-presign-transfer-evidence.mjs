@@ -159,7 +159,7 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa, r
   const initPath = '/router-ab/internal/signing-worker/linked-ecdsa-presign-session/init';
   const initialProgress = await accepted(session, initPath, initialization, credential);
   await rejected(source, fencePath, command, routerCredential, /requires its source wallet move/);
-  const chunkBytes = 1024;
+  const chunkBytes = 4096;
   await accepted(destination, transferPath, { kind: 'prepare', command: linkedPreparation(command), chunk_bytes: chunkBytes }, credential);
   const preparedIds = await topology.listDurableObjectIds(objectClass, destinationName);
   assert.equal(preparedIds.length, 1);
@@ -299,54 +299,7 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa, r
   await topology.unsafeEvictDurableObject(workerName, objectClass, { id: created[0] });
   assert.deepEqual(await accepted(walletSource, freezePath, command, routerCredential), receipt);
 
-  const first = await accepted(source, exportPath, { receipt, segment_index: 0, chunk_bytes: chunkBytes }, routerCredential);
-  const chunks = [];
-  for (let index = 0; index < first.segment_count; index += 1) {
-    const chunk = index === 0 ? first : await accepted(source, exportPath, { receipt, segment_index: index, chunk_bytes: chunkBytes }, routerCredential);
-    chunks.push(Buffer.from(chunk.data_b64u, 'base64url'));
-    await accepted(destination, transferPath, { kind: 'import', chunk }, credential);
-    if (index === 0) {
-      const changed = structuredClone(chunk);
-      changed.receipt.command.request.invalidated_at_ms += 1;
-      await rejected(destination, transferPath, { kind: 'import', chunk: changed }, credential,
-        /changed|differs/);
-    }
-  }
-  const snapshot = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-  assert.equal(snapshot.state, 'initialized');
-  assert.deepEqual(snapshot.authority, initialization.request);
-  assert.equal(snapshot.completion.state, 'retired');
-  assert.equal(snapshot.completion.completion.retirement.reason, 'wallet_relocated');
-  assert.deepEqual(snapshot.completion.completion.response, completed.response);
-  const consumePath = '/router-ab/internal/signing-worker/linked-ecdsa-presignature/consume';
-  const delayedConsume = {
-    server_presignature_id: command.server_presignature_id,
-    scope_digest: snapshot.completion.completion.scope_digest,
-    request_digest: completed.response.prepared_response.request_digest,
-    signing_digest: completed.response.prepared_response.signing_digest,
-    now_unix_ms: completed.response.prepared_response.prepared_at_ms,
-  };
-  await rejected(session, consumePath, delayedConsume, credential, /fenced for relocation/);
-  assert.deepEqual(await accepted(source, exportPath, { receipt, segment_index: 0, chunk_bytes: chunkBytes }, routerCredential), first);
-
-  const verified = await accepted(destination, transferPath, { kind: 'verify', receipt }, credential);
-  assert.deepEqual(verified, { kind: 'verified', receipt });
-  const destinationIds = await topology.listDurableObjectIds(objectClass, destinationName);
-  assert.equal(destinationIds.length, 1);
-  await topology.unsafeEvictDurableObject(destinationName, objectClass, { id: destinationIds[0] });
-  assert.deepEqual(await accepted(destination, transferPath, { kind: 'verify', receipt }, credential), verified);
-  const destinationNamespace = await topology.getDurableObjectNamespace('SIGNING_WORKER_PRESIGN_SESSION_DO', destinationName);
-  const restored = destinationNamespace.get(destinationNamespace.idFromString(destinationIds[0]));
-  await rejected(restored, initPath, initialization, credential, /fenced for relocation/);
-  await rejected(restored, consumePath, delayedConsume, credential, /fenced for relocation/);
-  await rejected(
-    restored,
-    '/router-ab/internal/signing-worker/linked-ecdsa-presign-session/step',
-    completed.terminalStep,
-    credential,
-    /fenced for relocation/,
-  );
-  const pendingRegistration = await verifyPendingRegistration(
+  const pendingFrozen = await freezePendingRegistration(
     topology,
     credential,
     pending,
@@ -372,6 +325,55 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa, r
   );
   assert.equal(walletFreeze.state, 'frozen');
   assert.deepEqual(await accepted(walletSource, freezePath, command, routerCredential), receipt);
+  const walletDestination = await runtimeRelocationDestination(topology, walletSource);
+  const first = await accepted(walletSource, exportPath, { receipt, segment_index: 0, chunk_bytes: chunkBytes }, routerCredential);
+  const chunks = [];
+  for (let index = 0; index < first.segment_count; index += 1) {
+    const chunk = index === 0 ? first : await accepted(walletSource, exportPath, { receipt, segment_index: index, chunk_bytes: chunkBytes }, routerCredential);
+    chunks.push(Buffer.from(chunk.data_b64u, 'base64url'));
+    await accepted(walletDestination, transferPath, { kind: 'import', chunk }, credential);
+    if (index === 0) {
+      const changed = structuredClone(chunk);
+      changed.receipt.command.request.invalidated_at_ms += 1;
+      await rejected(walletDestination, transferPath, { kind: 'import', chunk: changed }, credential,
+        /invalid_input/);
+    }
+  }
+  const snapshot = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  assert.equal(snapshot.state, 'initialized');
+  assert.deepEqual(snapshot.authority, initialization.request);
+  assert.equal(snapshot.completion.state, 'retired');
+  assert.equal(snapshot.completion.completion.retirement.reason, 'wallet_relocated');
+  assert.deepEqual(snapshot.completion.completion.response, completed.response);
+  const consumePath = '/router-ab/internal/signing-worker/linked-ecdsa-presignature/consume';
+  const delayedConsume = {
+    server_presignature_id: command.server_presignature_id,
+    scope_digest: snapshot.completion.completion.scope_digest,
+    request_digest: completed.response.prepared_response.request_digest,
+    signing_digest: completed.response.prepared_response.signing_digest,
+    now_unix_ms: completed.response.prepared_response.prepared_at_ms,
+  };
+  await rejected(session, consumePath, delayedConsume, credential, /fenced for relocation/);
+  assert.deepEqual(await accepted(walletSource, exportPath, { receipt, segment_index: 0, chunk_bytes: chunkBytes }, routerCredential), first);
+
+  const verified = await accepted(walletDestination, transferPath, { kind: 'verify', receipt }, credential);
+  assert.deepEqual(verified, { kind: 'verified', receipt });
+  const destinationIds = await topology.listDurableObjectIds(objectClass, destinationName);
+  assert.equal(destinationIds.length, 1);
+  await topology.unsafeEvictDurableObject(destinationName, objectClass, { id: destinationIds[0] });
+  assert.deepEqual(await accepted(walletDestination, transferPath, { kind: 'verify', receipt }, credential), verified);
+  const destinationNamespace = await topology.getDurableObjectNamespace('SIGNING_WORKER_PRESIGN_SESSION_DO', destinationName);
+  const restored = destinationNamespace.get(destinationNamespace.idFromString(destinationIds[0]));
+  await rejected(restored, initPath, initialization, credential, /fenced for relocation/);
+  await rejected(restored, consumePath, delayedConsume, credential, /fenced for relocation/);
+  await rejected(
+    restored,
+    '/router-ab/internal/signing-worker/linked-ecdsa-presign-session/step',
+    completed.terminalStep,
+    credential,
+    /fenced for relocation/,
+  );
+  const pendingRegistration = await transferPendingRegistration(walletSource, walletDestination, pendingFrozen, routerCredential);
   const walletInventory = await verifyWalletInventoryTransfer(
     topology,
     credential,
@@ -625,7 +627,7 @@ function base64urlMessage(bytes) {
   return Buffer.from(bytes).toString('base64url');
 }
 
-async function verifyPendingRegistration(topology, credential, initialization, move, runtime, routerCredential) {
+async function freezePendingRegistration(topology, credential, initialization, move, runtime, routerCredential) {
   const source = await topology.getWorker(workerName);
   const command = {
     wallet_scope: initialization.request.wallet_scope,
@@ -650,13 +652,17 @@ async function verifyPendingRegistration(topology, credential, initialization, m
   await topology.unsafeEvictDurableObject(workerName, objectClass, { id: created[0] });
   assert.deepEqual(await accepted(runtime, fencePath, command, routerCredential), fence);
   assert.deepEqual(await accepted(runtime, freezePath, command, routerCredential), receipt);
-  const chunk = await accepted(source, exportPath, { receipt, segment_index: 0, chunk_bytes: 65536 }, credential);
+  return { command, receipt, fence };
+}
+
+async function transferPendingRegistration(source, destination, frozen, credential) {
+  const { command, receipt, fence } = frozen;
+  const chunk = await accepted(source, exportPath, { receipt, segment_index: 0, chunk_bytes: 4096 }, credential);
   assert.equal(chunk.segment_count, 1);
   const snapshot = JSON.parse(Buffer.from(chunk.data_b64u, 'base64url').toString('utf8'));
   assert.equal(snapshot.state, 'uninitialized');
   assert.equal(snapshot.request_digest_hex, fence.initialization.request_digest_hex);
-  const destination = await topology.getWorker('fixture-signing-worker-after-refresh');
-  await accepted(destination, transferPath, { kind: 'prepare', command: linkedPreparation(command), chunk_bytes: 65536 }, credential);
+  await accepted(destination, transferPath, { kind: 'prepare', command: linkedPreparation(command), chunk_bytes: 4096 }, credential);
   await accepted(destination, transferPath, { kind: 'import', chunk }, credential);
   assert.deepEqual(await accepted(destination, transferPath, { kind: 'verify', receipt }, credential), { kind: 'verified', receipt });
   return {

@@ -3,13 +3,16 @@ import { ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1 } from '../../../core/Thresho
 import type { CloudflareServiceBindingFetcher } from './routerAbServiceBindings';
 import type { RuntimeSourceDirectory } from './walletRelocationSource';
 
-type Operation = 'inventory' | 'fence' | 'freeze';
+type Operation = 'inventory' | 'fence' | 'freeze' | 'export' | 'import' | 'verify';
 
 export function presignSourceOperation(operation: string): Operation | null {
   switch (operation) {
     case 'presign-inventory': return 'inventory';
     case 'presign-fence': return 'fence';
     case 'presign-freeze': return 'freeze';
+    case 'presign-export': return 'export';
+    case 'presign-import': return 'import';
+    case 'presign-verify': return 'verify';
     default: return null;
   }
 }
@@ -18,6 +21,8 @@ export async function forwardPresignSource(
   input: unknown, operation: Operation, router: CloudflareServiceBindingFetcher,
   credential: string, directory: RuntimeSourceDirectory,
 ): Promise<Response> {
+  if (operation === 'export' || operation === 'import' || operation === 'verify')
+    return forwardPresignTransfer(input, operation, router, credential, directory);
   if (!isPlainObject(input) || Object.keys(input).length !== (operation === 'inventory' ? 4 : 3) ||
       !isPlainObject(input.wallet) || !isPlainObject(input.attempt)) return failure('invalid_input', 400);
   const request = operation === 'inventory'
@@ -104,4 +109,76 @@ function postDirectory(directory: RuntimeSourceDirectory, endpoint: string, body
 
 function failure(code: string, status: number): Response {
   return Response.json({ ok: false, code }, { status, headers: { 'Cache-Control': 'no-store' } });
+}
+
+async function forwardPresignTransfer(
+  input: unknown, operation: 'export' | 'import' | 'verify', router: CloudflareServiceBindingFetcher,
+  credential: string, directory: RuntimeSourceDirectory,
+): Promise<Response> {
+  if (!isPlainObject(input) || Object.keys(input).length !== (operation === 'verify' ? 3 : 4) ||
+      !isPlainObject(input.wallet) || !isPlainObject(input.attempt) || !isPlainObject(input.session) ||
+      Object.keys(input.session).length !== 2 || typeof input.session.presignSessionId !== 'string' ||
+      !input.session.presignSessionId.trim() || typeof input.session.serverPresignatureId !== 'string' ||
+      !input.session.serverPresignatureId.trim()) return failure('invalid_input', 400);
+  if (operation === 'export' && !segmentIndex(input.segmentIndex)) return failure('invalid_input', 400);
+  const request = operation === 'export'
+    ? { operation, session: input.session, segmentIndex: input.segmentIndex }
+    : { operation, session: input.session };
+  try {
+    const authorized = await postDirectory(directory, 'relocation-presign-transfer', {
+      wallet: input.wallet, attempt: input.attempt, request,
+    });
+    if (!authorized.ok) return failure('source_command_denied', 409);
+    const result: unknown = await authorized.json();
+    if (!isPlainObject(result) || Object.keys(result).length !== 2 || result.ok !== true ||
+        !isPlainObject(result.command) || result.command.kind !== operation ||
+        Object.keys(result.command).length !== (operation === 'export' ? 4 : operation === 'import' ? 3 : 2))
+      return failure('source_command_unavailable', 503);
+    const command = result.command;
+    const receipt = command.receipt;
+    if (!isPlainObject(receipt) || Object.keys(receipt).length !== 3 || !positiveInteger(receipt.record_count) ||
+        typeof receipt.records_digest_hex !== 'string' || !/^[a-f0-9]{64}$/u.test(receipt.records_digest_hex) ||
+        !isPlainObject(receipt.command) || Object.keys(receipt.command).length !== 4)
+      return failure('source_command_unavailable', 503);
+    const source = receipt.command;
+    const scope = source.wallet_scope;
+    const move = source.request;
+    if (!isPlainObject(scope) || Object.keys(scope).length !== 4 ||
+        scope.org_id !== input.wallet.organizationId || scope.project_id !== input.wallet.projectId ||
+        scope.project_environment_id !== input.wallet.environmentId || scope.wallet_id !== input.wallet.walletId ||
+        !isPlainObject(move) || Object.keys(move).length !== 3 || move.move_id !== input.attempt.moveId ||
+        !positiveInteger(move.source_generation) || !positiveInteger(move.invalidated_at_ms) ||
+        source.presign_session_id !== input.session.presignSessionId ||
+        source.server_presignature_id !== input.session.serverPresignatureId ||
+        (operation !== 'verify' && command.chunk_bytes !== 4096))
+      return failure('source_command_unavailable', 503);
+    let payload: unknown;
+    if (operation === 'export') {
+      if (command.segment_index !== input.segmentIndex) return failure('source_command_unavailable', 503);
+      payload = { receipt, segment_index: command.segment_index, chunk_bytes: 4096 };
+    } else if (operation === 'import') {
+      const chunk = input.chunk;
+      if (!isPlainObject(chunk) || Object.keys(chunk).length !== 5 || !sameFields(chunk.receipt, receipt) ||
+          !segmentIndex(chunk.segment_index) || !positiveInteger(chunk.segment_count) ||
+          chunk.segment_count > 4294967295 || chunk.segment_index >= chunk.segment_count ||
+          chunk.chunk_bytes !== 4096 || typeof chunk.data_b64u !== 'string' ||
+          chunk.data_b64u.length > 5462 || !/^[A-Za-z0-9_-]+$/u.test(chunk.data_b64u))
+        return failure('invalid_input', 400);
+      payload = { kind: 'import', chunk };
+    } else {
+      payload = { kind: 'verify', receipt };
+    }
+    const path = operation === 'export' ? 'export' : 'transfer';
+    return await router.fetch(new Request(`https://mpc-router.router-ab.internal/router-ab/signing-worker/linked-presign-session/${path}`, {
+      method: 'POST', redirect: 'manual',
+      headers: { 'content-type': 'application/json', [ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1]: credential },
+      body: JSON.stringify(payload),
+    }));
+  } catch {
+    return failure('source_command_unavailable', 503);
+  }
+}
+
+function segmentIndex(raw: unknown): raw is number {
+  return typeof raw === 'number' && Number.isInteger(raw) && raw >= 0 && raw <= 4294967295;
 }

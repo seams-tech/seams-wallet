@@ -66,6 +66,8 @@ const OPERATIONS = {
   'presign-inventory': '/router-ab/signing-worker/wallet/linked-presign-inventory',
   'presign-fence': '/router-ab/signing-worker/linked-presign-session/fence',
   'presign-freeze': '/router-ab/signing-worker/linked-presign-session/freeze',
+  'presign-import': '/router-ab/signing-worker/linked-presign-session/transfer',
+  'presign-verify': '/router-ab/signing-worker/linked-presign-session/transfer',
   'presign-export': '/router-ab/signing-worker/linked-presign-session/export',
   'presign-transfer': '/router-ab/signing-worker/linked-presign-session/transfer',
 } as const;
@@ -148,7 +150,8 @@ export async function handleWalletRelocationRequest(
       input.kind === 'cleanup')
   ) {
     return failure('source_command_required', 400);
-  } else if (operation === 'ecdsa-transfer' && isPlainObject(input) && input.kind !== 'prepare') {
+  } else if ((operation === 'ecdsa-transfer' || operation === 'presign-transfer') &&
+    (!isPlainObject(input) || input.kind !== 'prepare')) {
     return failure('source_command_required', 400);
   } else if (
     operation === 'ed25519-snapshot' &&

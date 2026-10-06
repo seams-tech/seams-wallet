@@ -41,6 +41,7 @@ class SourceDirectory {
 
   async fetch(request) {
     assert.ok(
+      request.url.endsWith('/relocation-presign-transfer') ||
       request.url.endsWith('/relocation-presign-source') ||
         request.url.endsWith('/relocation-presign-receipt') ||
         request.url.endsWith('/relocation-ecdsa-activation') ||
@@ -64,6 +65,17 @@ class SourceDirectory {
     const input = await request.json();
     if (this.mode === 'denied' || input.attempt.moveId !== this.source.request.move_id)
       return Response.json({ ok: false, code: 'attempt_conflict' }, { status: 409 });
+    if (request.url.endsWith('/relocation-presign-transfer')) {
+      assert.ok(this.ecdsaReceipt, 'Wallet snapshot must be sealed before session transfer');
+      const receipt = structuredClone(this.presignReceipts.get(input.request.session.presignSessionId));
+      assert.ok(receipt);
+      assert.equal(receipt.command.server_presignature_id, input.request.session.serverPresignatureId);
+      const command = { kind: input.request.operation, receipt };
+      if (this.mode === 'corrupt') receipt.command.wallet_scope.wallet_id = 'another-wallet';
+      if (input.request.operation === 'export') command.segment_index = input.request.segmentIndex;
+      if (input.request.operation !== 'verify') command.chunk_bytes = 4096;
+      return Response.json({ ok: true, command });
+    }
     if (request.url.endsWith('/relocation-presign-source')) {
       const operation = input.request.operation;
       const payload = operation === 'inventory'
@@ -261,6 +273,25 @@ class RuntimeRelocationSource {
         forwardedBody = sourceEnvelope({ scope: body.wallet_scope, request: body.request });
         forwardedBody.session = { presignSessionId: body.presign_session_id, serverPresignatureId: body.server_presignature_id };
         break;
+      case '/router-ab/signing-worker/linked-presign-session/export':
+      case '/router-ab/signing-worker/linked-presign-session/transfer': {
+        if (body.kind === 'prepare') {
+          operation = 'presign-transfer';
+          break;
+        }
+        const kind = path.endsWith('/export') ? 'export' : body.kind;
+        const receipt = kind === 'import' ? body.chunk.receipt : body.receipt;
+        operation = `presign-${kind}`;
+        forwardedBody = sourceEnvelope({ scope: receipt.command.wallet_scope, request: receipt.command.request });
+        forwardedBody.attempt.phase = 'copying';
+        forwardedBody.session = {
+          presignSessionId: receipt.command.presign_session_id,
+          serverPresignatureId: receipt.command.server_presignature_id,
+        };
+        if (kind === 'export') forwardedBody.segmentIndex = body.segment_index;
+        if (kind === 'import') forwardedBody.chunk = body.chunk;
+        break;
+      }
       case '/router-ab/signing-worker/wallet/pool/freeze':
         operation = 'ecdsa-freeze';
         forwardedBody = sourceEnvelope(body);
