@@ -1248,7 +1248,7 @@ fn handle_yao_control_request(
             let (active, material) = state.signing_worker.normal_signing_material(
                 config,
                 &admitted.scope,
-                admitted.wallet_scope.as_ref(),
+                &admitted.wallet_scope,
                 &admitted.trusted_admission.metadata,
             )?;
             let response = host.prepare_near(admitted, active, material, now_ms)?;
@@ -1267,7 +1267,7 @@ fn handle_yao_control_request(
             let (active, material) = state.signing_worker.normal_signing_material(
                 config,
                 &admitted.request.scope,
-                admitted.wallet_scope.as_ref(),
+                &admitted.wallet_scope,
                 &admitted.trusted_admission.metadata,
             )?;
             let response = host.finalize_near(admitted, active, material, now_ms)?;

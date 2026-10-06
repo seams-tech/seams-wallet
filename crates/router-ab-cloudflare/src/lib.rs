@@ -7775,16 +7775,14 @@ where
         ));
     }
     let wallet_scope = authorized_operation.wallet_scope()?;
-    let mut admitted = CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2::new(
+    CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2::new(
         authorized_operation.ownership_generation()?,
+        wallet_scope,
         request.scope.clone(),
         request.expires_at_ms,
         admission,
         trusted_admission,
-    )?;
-    admitted.wallet_scope = Some(wallet_scope);
-    admitted.validate()?;
-    Ok(admitted)
+    )
 }
 
 /// Handles an authenticated public Router normal-signing v2 prepare request.
@@ -8029,6 +8027,7 @@ pub async fn handle_cloudflare_router_normal_signing_prepare_internal_linked_dev
     let admitted =
         CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2::new_with_material_source(
             authorized_operation.ownership_generation()?,
+            authorized_operation.wallet_scope()?,
             request.scope.clone(),
             request.expires_at_ms,
             admission,
@@ -8076,6 +8075,7 @@ pub async fn handle_cloudflare_router_normal_signing_finalize_internal_linked_de
     let authorized_operation_identity =
         authorized_operation.into_signing_worker_authorized_operation_identity()?;
     let ownership_generation = authorized_operation.ownership_generation()?;
+    let wallet_scope = authorized_operation.wallet_scope()?;
     let effect_claim = authorized_operation
         .authorized_operation
         .into_signing_worker_effect_claim(wallet_session_id, authorization_id)?;
@@ -8083,6 +8083,7 @@ pub async fn handle_cloudflare_router_normal_signing_finalize_internal_linked_de
     let admitted =
         CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2::new_with_material_source(
             ownership_generation,
+            wallet_scope,
             request,
             admission,
             trusted_admission,
@@ -8250,16 +8251,14 @@ pub fn admit_cloudflare_router_normal_signing_step_up_prepare_v2(
             "normal-signing v2 prepare Router admission did not allow SigningWorker forwarding",
         ));
     }
-    let mut admitted = CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2::new(
+    CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2::new(
         authorized_operation.ownership_generation()?,
+        wallet_scope,
         request.scope.clone(),
         request.expires_at_ms,
         admission,
         trusted_admission,
-    )?;
-    admitted.wallet_scope = Some(wallet_scope);
-    admitted.validate()?;
-    Ok(admitted)
+    )
 }
 
 /// Router admission for a Gateway-verified operation step-up NEAR finalize,
@@ -8297,17 +8296,15 @@ pub fn admit_cloudflare_router_normal_signing_step_up_finalize_v2(
     let effect_claim = authorized_operation
         .authorized_operation
         .into_step_up_signing_worker_effect_claim()?;
-    let mut admitted = CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2::new(
+    CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2::new(
         ownership_generation,
+        wallet_scope,
         request,
         admission,
         trusted_admission,
         authorized_operation_identity,
         effect_claim,
-    )?;
-    admitted.wallet_scope = Some(wallet_scope);
-    admitted.validate()?;
-    Ok(admitted)
+    )
 }
 
 /// A step-up binding's wallet must be the wallet the request signs for.
@@ -8665,17 +8662,15 @@ where
             wallet_session.wallet_session_id.clone(),
             authorization_id,
         )?;
-    let mut admitted = CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2::new(
+    CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2::new(
         ownership_generation,
+        wallet_scope,
         request,
         admission,
         trusted_admission,
         authorized_operation_identity,
         effect_claim,
-    )?;
-    admitted.wallet_scope = Some(wallet_scope);
-    admitted.validate()?;
-    Ok(admitted)
+    )
 }
 
 /// Handles an authenticated public Router normal-signing v2 finalize request.
@@ -11495,9 +11490,7 @@ where
         &parsed.material_source,
         CloudflareSigningWorkerNormalSigningMaterialSourceV1::RegistrationActivation { .. }
     ) {
-        let scope = parsed.wallet_scope.clone().ok_or_else(|| {
-            worker::Error::RustError("SigningWorker wallet scope is required".to_owned())
-        })?;
+        let scope = parsed.wallet_scope.clone();
         return crate::durable_object::call_signing_worker_wallet_do_v1(
             env,
             crate::durable_object::SigningWorkerWalletDoRequestV1::PrepareNear {
@@ -12845,9 +12838,7 @@ where
         &parsed.material_source,
         CloudflareSigningWorkerNormalSigningMaterialSourceV1::RegistrationActivation { .. }
     ) {
-        let scope = parsed.wallet_scope.clone().ok_or_else(|| {
-            worker::Error::RustError("SigningWorker wallet scope is required".to_owned())
-        })?;
+        let scope = parsed.wallet_scope.clone();
         return crate::durable_object::call_signing_worker_wallet_do_v1(
             env,
             crate::durable_object::SigningWorkerWalletDoRequestV1::FinalizeNear {
@@ -13878,13 +13869,13 @@ pub async fn execute_cloudflare_signing_worker_normal_signing_prepare_service_ca
 /// with the trusted admission for the signing wallet.
 pub fn require_signing_worker_normal_signing_wallet_scope_v1(
     registered: &CloudflareSigningWorkerWalletScopeV1,
-    pinned: Option<&CloudflareSigningWorkerWalletScopeV1>,
+    pinned: &CloudflareSigningWorkerWalletScopeV1,
     metadata: &CloudflareRouterNormalSigningTrustedMetadataV1,
     wallet_id: &str,
 ) -> RouterAbProtocolResult<()> {
     registered.validate()?;
     metadata.validate()?;
-    if pinned != Some(registered) {
+    if pinned != registered {
         return Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidGateDecision,
             "SigningWorker normal-signing wallet scope differs from the registered wallet",

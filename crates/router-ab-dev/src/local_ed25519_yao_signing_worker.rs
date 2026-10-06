@@ -651,7 +651,7 @@ impl LocalEd25519YaoSigningWorkerStateV1 {
         &self,
         config: &LocalSigningWorkerConfigV1,
         scope: &NormalSigningScopeV1,
-        pinned_wallet_scope: Option<&CloudflareSigningWorkerWalletScopeV1>,
+        pinned_wallet_scope: &CloudflareSigningWorkerWalletScopeV1,
         metadata: &router_ab_cloudflare::CloudflareRouterNormalSigningTrustedMetadataV1,
     ) -> RouterAbProtocolResult<(
         ActiveSigningWorkerStateV1,
@@ -1000,7 +1000,7 @@ impl LocalEd25519YaoSigningWorkerStateV1 {
         &self,
         config: &LocalSigningWorkerConfigV1,
         scope: &NormalSigningScopeV1,
-        pinned_wallet_scope: Option<&CloudflareSigningWorkerWalletScopeV1>,
+        pinned_wallet_scope: &CloudflareSigningWorkerWalletScopeV1,
         metadata: &router_ab_cloudflare::CloudflareRouterNormalSigningTrustedMetadataV1,
     ) -> RouterAbProtocolResult<
         Option<(

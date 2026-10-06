@@ -1739,9 +1739,9 @@ fn router_ab_ecdsa_derivation_wallet_session(
     .expect("Router A/B ECDSA derivation Wallet Session")
 }
 
-fn ecdsa_signing_wallet_scope(wallet_id: &str) -> CloudflareSigningWorkerWalletScopeV1 {
+fn signing_wallet_scope(wallet_id: &str) -> CloudflareSigningWorkerWalletScopeV1 {
     CloudflareSigningWorkerWalletScopeV1::new("org-1", "project-1", "dev", wallet_id)
-        .expect("ECDSA signing wallet scope")
+        .expect("signing wallet scope")
 }
 
 fn admitted_router_ab_ecdsa_derivation_digest_signing_request(
@@ -1750,7 +1750,7 @@ fn admitted_router_ab_ecdsa_derivation_digest_signing_request(
     let trusted_admission = router_ab_ecdsa_derivation_trusted_admission(&request);
     CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningRequestV1::new(
         1,
-        ecdsa_signing_wallet_scope(&request.scope.wallet_id),
+        signing_wallet_scope(&request.scope.wallet_id),
         request,
         trusted_admission,
     )
@@ -1765,7 +1765,7 @@ fn admitted_router_ab_ecdsa_derivation_digest_finalize_request(
     let effect_identity = ecdsa_effect_identity(&request);
     CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1::new(
         1,
-        ecdsa_signing_wallet_scope(&request.scope.wallet_id),
+        signing_wallet_scope(&request.scope.wallet_id),
         request,
         trusted_admission,
         effect_identity,
@@ -6012,7 +6012,7 @@ fn router_ab_ecdsa_derivation_admitted_request_rejects_trusted_admission_drift()
 
     let err = CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningRequestV1::new(
         1,
-        ecdsa_signing_wallet_scope(&request.scope.wallet_id),
+        signing_wallet_scope(&request.scope.wallet_id),
         request,
         trusted_admission,
     )
@@ -6038,7 +6038,7 @@ fn router_ab_ecdsa_derivation_admitted_request_accepts_reusable_wallet_session_d
     let admitted =
         CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningRequestV1::new(
             1,
-            ecdsa_signing_wallet_scope(&request.scope.wallet_id),
+            signing_wallet_scope(&request.scope.wallet_id),
             request,
             router_ab_ecdsa_derivation_trusted_admission(
                 &router_ab_ecdsa_derivation_digest_signing_request(),
@@ -6061,7 +6061,7 @@ fn router_ab_ecdsa_derivation_admitted_request_rejects_wrong_reusable_wallet_ses
 
     let err = CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningRequestV1::new(
         1,
-        ecdsa_signing_wallet_scope(&request.scope.wallet_id),
+        signing_wallet_scope(&request.scope.wallet_id),
         request,
         trusted_admission,
     )
@@ -6079,7 +6079,7 @@ fn router_ab_ecdsa_derivation_admitted_request_accepts_operation_step_up_only_wi
     let admitted =
         CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningRequestV1::new(
             1,
-            ecdsa_signing_wallet_scope(&request.scope.wallet_id),
+            signing_wallet_scope(&request.scope.wallet_id),
             request,
             trusted_admission,
         )
@@ -6103,7 +6103,7 @@ fn router_ab_ecdsa_derivation_admitted_finalize_request_rejects_trusted_admissio
     let err =
         CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1::new(
             1,
-            ecdsa_signing_wallet_scope(&request.scope.wallet_id),
+            signing_wallet_scope(&request.scope.wallet_id),
             request,
             trusted_admission,
             effect_identity,
@@ -6124,7 +6124,7 @@ fn router_ab_ecdsa_derivation_admitted_finalize_accepts_reusable_wallet_session_
     let admitted =
         CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1::new(
             1,
-            ecdsa_signing_wallet_scope(&request.scope.wallet_id),
+            signing_wallet_scope(&request.scope.wallet_id),
             request.clone(),
             router_ab_ecdsa_derivation_finalize_trusted_admission(&request),
             effect_identity,
@@ -6166,7 +6166,7 @@ fn router_ab_ecdsa_derivation_admitted_finalize_rejects_owner_wallet_session_aut
     let err =
         CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1::new(
             1,
-            ecdsa_signing_wallet_scope(&request.scope.wallet_id),
+            signing_wallet_scope(&request.scope.wallet_id),
             request,
             trusted_admission,
             effect_identity,
@@ -7468,6 +7468,7 @@ fn signing_worker_production_v2_prepare_returns_router_admitted_public_material(
     .expect("trusted admission");
     let admitted = CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2::new(
         1,
+        signing_wallet_scope("account.near"),
         request.scope.clone(),
         request.expires_at_ms,
         admission.clone(),
@@ -7611,6 +7612,7 @@ fn signing_worker_production_v2_finalize_signs_router_admitted_digest_from_round
         };
     let admitted = CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2::new(
         1,
+        signing_wallet_scope("account.near"),
         request.clone(),
         finalize_admission,
         trusted_admission,
@@ -7730,6 +7732,7 @@ fn normal_signing_step_up_admission_derives_the_exact_authorized_operation() {
         };
     let admitted = CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2::new(
         1,
+        signing_wallet_scope("account.near"),
         request,
         admission,
         trusted_admission,
@@ -8010,6 +8013,7 @@ fn normal_signing_effect_digest_binds_policy_principal_capability_and_terminal_f
         };
     let admitted = CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2::new(
         1,
+        signing_wallet_scope("account.near"),
         request.clone(),
         admission.clone(),
         trusted,
@@ -8046,6 +8050,7 @@ fn normal_signing_effect_digest_binds_policy_principal_capability_and_terminal_f
     .expect("changed trusted admission");
     let changed = CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2::new(
         1,
+        signing_wallet_scope("account.near"),
         request,
         changed_admission,
         changed_trusted,
@@ -8090,6 +8095,7 @@ fn normal_signing_effect_digest_binds_policy_principal_capability_and_terminal_f
     .expect("changed capability trusted admission");
     let changed_capability = CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2::new(
         1,
+        signing_wallet_scope("account.near"),
         changed_capability_request,
         changed_capability_admission,
         changed_capability_trusted,

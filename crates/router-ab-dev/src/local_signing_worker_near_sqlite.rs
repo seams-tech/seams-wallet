@@ -59,10 +59,7 @@ pub(crate) fn prepare(
     now_ms: u64,
 ) -> RouterAbProtocolResult<String> {
     request.validate()?;
-    let wallet_scope = request
-        .wallet_scope
-        .as_ref()
-        .ok_or_else(|| invalid_state("Ed25519 execution requires a wallet scope"))?;
+    let wallet_scope = &request.wallet_scope;
     require_execution_generation(connection, wallet_scope, request.ownership_generation)?;
     let sql = crate::local_signing_worker_wallet_sqlite::LocalWalletSqlV1(connection);
     router_ab_cloudflare::SigningWorkerEd25519ExecutionStoreV1::new(&sql)
@@ -124,10 +121,7 @@ pub(crate) fn finalize(
     }
     require_execution_generation(
         connection,
-        request
-            .wallet_scope
-            .as_ref()
-            .ok_or_else(|| invalid_state("Ed25519 execution requires a wallet scope"))?,
+        &request.wallet_scope,
         request.ownership_generation,
     )?;
     request.request.validate_at(now_ms)?;

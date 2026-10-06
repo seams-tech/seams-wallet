@@ -333,7 +333,7 @@ impl SigningWorkerWalletDoRequestV1 {
                 request.validate()?;
                 crate::require_signing_worker_normal_signing_wallet_scope_v1(
                     scope,
-                    request.wallet_scope.as_ref(),
+                    &request.wallet_scope,
                     &request.trusted_admission.metadata,
                     &request.scope.account_id,
                 )?;
@@ -347,7 +347,7 @@ impl SigningWorkerWalletDoRequestV1 {
                 request.validate()?;
                 crate::require_signing_worker_normal_signing_wallet_scope_v1(
                     scope,
-                    request.wallet_scope.as_ref(),
+                    &request.wallet_scope,
                     &request.trusted_admission.metadata,
                     &request.request.scope.account_id,
                 )?;

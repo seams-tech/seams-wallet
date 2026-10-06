@@ -13,8 +13,7 @@ pub struct CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2 {
     pub trusted_admission: CloudflareRouterNormalSigningTrustedAdmissionV1,
     /// Exact active material source selected by the Gateway.
     pub material_source: CloudflareSigningWorkerNormalSigningMaterialSourceV1,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub wallet_scope: Option<CloudflareSigningWorkerWalletScopeV1>,
+    pub wallet_scope: CloudflareSigningWorkerWalletScopeV1,
     pub ownership_generation: u64,
 }
 
@@ -22,6 +21,7 @@ impl CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2 {
     /// Creates a validated admitted v2 prepare service request.
     pub fn new(
         ownership_generation: u64,
+        wallet_scope: CloudflareSigningWorkerWalletScopeV1,
         scope: NormalSigningScopeV1,
         expires_at_ms: u64,
         admission_candidate: CloudflareRouterNormalSigningPrepareAdmissionCandidateV2,
@@ -35,7 +35,7 @@ impl CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2 {
             admission_candidate,
             trusted_admission,
             material_source,
-            wallet_scope: None,
+            wallet_scope,
             ownership_generation,
         };
         request.validate()?;
@@ -45,6 +45,7 @@ impl CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2 {
     /// Creates a request with the Gateway-admitted source branch.
     pub fn new_with_material_source(
         ownership_generation: u64,
+        wallet_scope: CloudflareSigningWorkerWalletScopeV1,
         scope: NormalSigningScopeV1,
         expires_at_ms: u64,
         admission_candidate: CloudflareRouterNormalSigningPrepareAdmissionCandidateV2,
@@ -57,7 +58,7 @@ impl CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2 {
             admission_candidate,
             trusted_admission,
             material_source,
-            wallet_scope: None,
+            wallet_scope,
             ownership_generation,
         };
         request.validate()?;
@@ -67,17 +68,16 @@ impl CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2 {
     /// Validates Router admission accepted this exact v2 prepare request.
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
         crate::router_wallet::validate_wallet_ownership_generation(self.ownership_generation)?;
-        if let Some(wallet_scope) = &self.wallet_scope {
-            wallet_scope.validate()?;
-            if wallet_scope.org_id != self.admission_candidate.org_id
-                || wallet_scope.project_id != self.admission_candidate.project_id
-                || wallet_scope.wallet_id != self.scope.account_id
-            {
-                return Err(RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::InvalidGateDecision,
-                    "normal-signing wallet scope differs from Router admission",
-                ));
-            }
+        let wallet_scope = &self.wallet_scope;
+        wallet_scope.validate()?;
+        if wallet_scope.org_id != self.admission_candidate.org_id
+            || wallet_scope.project_id != self.admission_candidate.project_id
+            || wallet_scope.wallet_id != self.scope.account_id
+        {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidGateDecision,
+                "normal-signing wallet scope differs from Router admission",
+            ));
         }
         self.scope.validate()?;
         self.material_source
@@ -149,8 +149,7 @@ pub struct CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2 {
     pub effect_claim: CloudflareSigningWorkerNormalSigningEffectClaimV1,
     /// Exact active material source selected by the Gateway.
     pub material_source: CloudflareSigningWorkerNormalSigningMaterialSourceV1,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub wallet_scope: Option<CloudflareSigningWorkerWalletScopeV1>,
+    pub wallet_scope: CloudflareSigningWorkerWalletScopeV1,
     pub ownership_generation: u64,
 }
 
@@ -158,6 +157,7 @@ impl CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2 {
     /// Creates a validated admitted v2 finalize service request.
     pub fn new(
         ownership_generation: u64,
+        wallet_scope: CloudflareSigningWorkerWalletScopeV1,
         request: RouterAbEd25519NormalSigningFinalizeRequestV2,
         admission_candidate: CloudflareRouterNormalSigningFinalizeAdmissionCandidateV2,
         trusted_admission: CloudflareRouterNormalSigningTrustedAdmissionV1,
@@ -175,7 +175,7 @@ impl CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2 {
             authorized_operation_identity,
             effect_claim,
             material_source,
-            wallet_scope: None,
+            wallet_scope,
             ownership_generation,
         };
         request.validate()?;
@@ -185,6 +185,7 @@ impl CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2 {
     /// Creates a finalize request with the Gateway-admitted source branch.
     pub fn new_with_material_source(
         ownership_generation: u64,
+        wallet_scope: CloudflareSigningWorkerWalletScopeV1,
         request: RouterAbEd25519NormalSigningFinalizeRequestV2,
         admission_candidate: CloudflareRouterNormalSigningFinalizeAdmissionCandidateV2,
         trusted_admission: CloudflareRouterNormalSigningTrustedAdmissionV1,
@@ -199,7 +200,7 @@ impl CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2 {
             authorized_operation_identity,
             effect_claim,
             material_source,
-            wallet_scope: None,
+            wallet_scope,
             ownership_generation,
         };
         request.validate()?;
@@ -209,17 +210,16 @@ impl CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2 {
     /// Validates Router admission accepted this exact v2 finalize request.
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
         crate::router_wallet::validate_wallet_ownership_generation(self.ownership_generation)?;
-        if let Some(wallet_scope) = &self.wallet_scope {
-            wallet_scope.validate()?;
-            if wallet_scope.org_id != self.admission_candidate.org_id
-                || wallet_scope.project_id != self.admission_candidate.project_id
-                || wallet_scope.wallet_id != self.request.scope.account_id
-            {
-                return Err(RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::InvalidGateDecision,
-                    "normal-signing wallet scope differs from Router admission",
-                ));
-            }
+        let wallet_scope = &self.wallet_scope;
+        wallet_scope.validate()?;
+        if wallet_scope.org_id != self.admission_candidate.org_id
+            || wallet_scope.project_id != self.admission_candidate.project_id
+            || wallet_scope.wallet_id != self.request.scope.account_id
+        {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidGateDecision,
+                "normal-signing wallet scope differs from Router admission",
+            ));
         }
         self.request.validate()?;
         self.material_source

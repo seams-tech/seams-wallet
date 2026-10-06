@@ -7,6 +7,30 @@ pub(super) fn verify_rejected_wallet_delivery(
     wallet_id: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let connection = Connection::open(temp.join(&config.role_private_storage_path))?;
+    let stored_prepare: String = connection.query_row(
+        "SELECT prepare_json FROM local_signing_worker_near_round1 WHERE json_extract(prepare_json, '$.wallet_scope.wallet_id') = ?1",
+        [wallet_id],
+        |row| row.get(0),
+    )?;
+    let mut incomplete_prepare: serde_json::Value = serde_json::from_str(&stored_prepare)?;
+    incomplete_prepare
+        .as_object_mut()
+        .ok_or("stored prepare must be an object")?
+        .remove("wallet_scope");
+    let (missing_scope_status, missing_scope_body) = post_json_to_path_with_headers(
+        signing_worker_url,
+        router_ab_dev::LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PREPARE_PATH,
+        &incomplete_prepare,
+        &[(
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+            config.internal_service_auth.as_str(),
+        )],
+    )?;
+    assert_eq!(missing_scope_status, 400, "{missing_scope_body}");
+    assert!(
+        missing_scope_body.contains("missing field `wallet_scope`"),
+        "{missing_scope_body}"
+    );
     let storage = router_ab_dev::LocalRolePrivateSqliteStorageV1::new(&connection)?;
     let before = storage
         .get_bytes("ed25519-yao/worker-state-v2")?
