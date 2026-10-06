@@ -1,7 +1,6 @@
 use super::*;
-use std::io::Read;
 
-pub(super) struct ChunkReader<'a, Sql> {
+pub(in crate::signing_worker::wallet_ecdsa_store) struct ChunkReader<'a, Sql> {
     sql: &'a Sql,
     owner: String,
     receipt: &'a SigningWorkerPoolFreezeReceiptV1,
@@ -10,28 +9,22 @@ pub(super) struct ChunkReader<'a, Sql> {
     next_segment: u32,
     bytes: Vec<u8>,
     offset: usize,
-    digest: Sha256,
-}
-
-#[derive(Deserialize)]
-struct ChunkCount {
-    count: u32,
+    position: u64,
 }
 
 impl<'a, Sql: SigningWorkerWalletSqlV1> ChunkReader<'a, Sql> {
-    pub(super) fn new(
+    pub(in crate::signing_worker::wallet_ecdsa_store) fn new(
         sql: &'a Sql,
         receipt: &'a SigningWorkerPoolFreezeReceiptV1,
         segment_count: u32,
         chunk_bytes: u32,
+        position: u64,
     ) -> RouterAbProtocolResult<Self> {
         let owner = owner_json(&receipt.scope, "ECDSA import")?;
-        let rows = sql.query::<ChunkCount>(
-            "SELECT COUNT(*) AS count FROM wallet_ecdsa_import_chunks WHERE owner_json = ?",
-            vec![text(owner.clone())],
-        )?;
-        if !matches!(rows.as_slice(), [row] if row.count == segment_count) {
-            return Err(wallet_error("ECDSA staged segment count changed"));
+        if position > u64::from(segment_count) * u64::from(chunk_bytes) {
+            return Err(wallet_error(
+                "ECDSA restore cursor exceeds the staged inventory",
+            ));
         }
         Ok(Self {
             sql,
@@ -39,10 +32,11 @@ impl<'a, Sql: SigningWorkerWalletSqlV1> ChunkReader<'a, Sql> {
             receipt,
             segment_count,
             chunk_bytes,
-            next_segment: 0,
+            next_segment: u32::try_from(position / u64::from(chunk_bytes))
+                .map_err(|_| wallet_error("ECDSA restore cursor overflowed"))?,
             bytes: Vec::new(),
-            offset: 0,
-            digest: snapshot::snapshot_hasher(),
+            offset: (position % u64::from(chunk_bytes)) as usize,
+            position,
         })
     }
 
@@ -64,38 +58,44 @@ impl<'a, Sql: SigningWorkerWalletSqlV1> ChunkReader<'a, Sql> {
             return Err(wallet_error("ECDSA staged segment identity changed"));
         }
         self.bytes = decode_chunk(&chunk)?;
-        self.digest.update(&self.bytes);
-        self.offset = 0;
         self.next_segment += 1;
         Ok(())
     }
 
-    pub(super) fn verify(self) -> RouterAbProtocolResult<()> {
-        if self.next_segment != self.segment_count
-            || self.offset != self.bytes.len()
-            || hex_slice(&self.digest.finalize()) != self.receipt.wallet_records_digest_hex
-        {
-            return Err(wallet_error(
-                "ECDSA staged inventory digest differs from source",
-            ));
-        }
-        Ok(())
+    pub(in crate::signing_worker::wallet_ecdsa_store) fn position(&self) -> u64 {
+        self.position
     }
-}
-impl<Sql: SigningWorkerWalletSqlV1> Read for ChunkReader<'_, Sql> {
-    fn read(&mut self, output: &mut [u8]) -> std::io::Result<usize> {
-        if output.is_empty() {
-            return Ok(0);
-        }
-        if self.offset == self.bytes.len() {
-            if self.next_segment == self.segment_count {
-                return Ok(0);
+
+    pub(in crate::signing_worker::wallet_ecdsa_store) fn record(
+        &mut self,
+    ) -> RouterAbProtocolResult<Option<Vec<u8>>> {
+        let mut line = Vec::new();
+        loop {
+            if self.bytes.is_empty() || self.offset == self.bytes.len() {
+                if self.next_segment == self.segment_count {
+                    if !line.is_empty() {
+                        return Err(wallet_error("ECDSA snapshot record is incomplete"));
+                    }
+                    return Ok(None);
+                }
+                if !self.bytes.is_empty() {
+                    self.offset = 0;
+                }
+                self.load_chunk()?;
+                if self.offset > self.bytes.len() {
+                    return Err(wallet_error("ECDSA restore cursor exceeds its segment"));
+                }
             }
-            self.load_chunk().map_err(std::io::Error::other)?;
+            let remaining = &self.bytes[self.offset..];
+            let newline = remaining.iter().position(|byte| *byte == b'\n');
+            let length = newline.unwrap_or(remaining.len());
+            line.extend_from_slice(&remaining[..length]);
+            let consumed = length + usize::from(newline.is_some());
+            self.offset += consumed;
+            self.position += consumed as u64;
+            if newline.is_some() {
+                return Ok(Some(line));
+            }
         }
-        let count = output.len().min(self.bytes.len() - self.offset);
-        output[..count].copy_from_slice(&self.bytes[self.offset..self.offset + count]);
-        self.offset += count;
-        Ok(count)
     }
 }

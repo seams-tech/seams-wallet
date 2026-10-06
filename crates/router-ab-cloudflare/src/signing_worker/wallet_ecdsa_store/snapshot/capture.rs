@@ -3,6 +3,7 @@ use std::io::Write;
 
 trait SnapshotRow: Serialize + DeserializeOwned {
     const SELECT: &'static str;
+    fn into_record(self) -> SnapshotRecord;
     fn key(&self) -> &str;
     fn parameters(
         scope: &CloudflareSigningWorkerWalletScopeV1,
@@ -23,6 +24,9 @@ trait SnapshotRow: Serialize + DeserializeOwned {
 }
 
 impl SnapshotRow for PoolSnapshotRow {
+    fn into_record(self) -> SnapshotRecord {
+        SnapshotRecord::Pool(self)
+    }
     const SELECT: &'static str =
         "SELECT pool_key, owner_json, ciphertext_json, CAST(version AS TEXT) AS version
         FROM wallet_ecdsa_pool WHERE owner_json = ? AND pool_key > ? ORDER BY pool_key LIMIT 16";
@@ -31,6 +35,9 @@ impl SnapshotRow for PoolSnapshotRow {
     }
 }
 impl SnapshotRow for ActivationSnapshotRow {
+    fn into_record(self) -> SnapshotRecord {
+        SnapshotRecord::Activation(self)
+    }
     const SELECT: &'static str = "SELECT material_key, active_key, owner_json, ciphertext_json
         FROM wallet_ecdsa_activations WHERE owner_json = ? AND material_key > ? ORDER BY material_key LIMIT 16";
     fn key(&self) -> &str {
@@ -48,6 +55,9 @@ impl SnapshotRow for ActivationSnapshotRow {
     }
 }
 impl SnapshotRow for LinkedSnapshotRow {
+    fn into_record(self) -> SnapshotRecord {
+        SnapshotRecord::LinkedReservation(self)
+    }
     const SELECT: &'static str = "SELECT record_key, active_key, owner_json, ciphertext_json
         FROM wallet_linked_ecdsa WHERE owner_json = ? AND record_key > ? ORDER BY record_key LIMIT 16";
     fn key(&self) -> &str {
@@ -65,6 +75,9 @@ impl SnapshotRow for LinkedSnapshotRow {
     }
 }
 impl SnapshotRow for EffectSnapshotRow {
+    fn into_record(self) -> SnapshotRecord {
+        SnapshotRecord::Effect(self)
+    }
     const SELECT: &'static str = "SELECT operation_key, authorization_key, owner_json, request_digest_hex,
         authorization_json, CAST(claimed_at_ms AS TEXT) AS claimed_at_ms,
         terminal_json, CAST(committed_at_ms AS TEXT) AS committed_at_ms
@@ -74,6 +87,9 @@ impl SnapshotRow for EffectSnapshotRow {
     }
 }
 impl SnapshotRow for presign_authority::PresignAuthorityRow {
+    fn into_record(self) -> SnapshotRecord {
+        SnapshotRecord::PresignAuthority(self)
+    }
     const SELECT: &'static str = "SELECT presign_session_id, authority_json,
         CAST(ceremony_expires_at_ms AS TEXT) AS ceremony_expires_at_ms FROM signing_worker_presign_authorities
         WHERE json_extract(authority_json, '$.wallet_scope.org_id') = ?
@@ -106,6 +122,9 @@ impl SnapshotRow for presign_authority::PresignAuthorityRow {
     }
 }
 impl SnapshotRow for linked_presign_inventory::LinkedPresignSessionRow {
+    fn into_record(self) -> SnapshotRecord {
+        SnapshotRecord::LinkedPresignSession(self)
+    }
     const SELECT: &'static str = "SELECT presign_session_id, server_presignature_id, owner_json, request_digest_hex, ownership_generation
         FROM wallet_linked_presign_sessions WHERE owner_json = ? AND presign_session_id > ? ORDER BY presign_session_id LIMIT 16";
     fn key(&self) -> &str {
@@ -125,7 +144,6 @@ fn write_rows<Row: SnapshotRow, Sql: SigningWorkerWalletSqlV1>(
     scope: &CloudflareSigningWorkerWalletScopeV1,
     writer: &mut impl Write,
 ) -> RouterAbProtocolResult<u64> {
-    write_bytes(writer, b"[")?;
     let mut after = String::new();
     let mut count = 0;
     loop {
@@ -141,15 +159,12 @@ fn write_rows<Row: SnapshotRow, Sql: SigningWorkerWalletSqlV1>(
                 return Err(wallet_error("ECDSA snapshot row order changed"));
             }
             after = row.key().to_owned();
-            if count != 0 {
-                write_bytes(writer, b",")?;
-            }
-            serde_json::to_writer(&mut *writer, &row)
+            serde_json::to_writer(&mut *writer, &row.into_record())
                 .map_err(|error| wallet_error(error.to_string()))?;
+            write_bytes(writer, b"\n")?;
             count += 1;
         }
     }
-    write_bytes(writer, b"]")?;
     Ok(count)
 }
 
@@ -194,16 +209,6 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         Ok(row.count)
     }
 
-    pub(crate) fn ecdsa_snapshot_digest(
-        &self,
-        scope: &CloudflareSigningWorkerWalletScopeV1,
-        request: &SigningWorkerRelocationRequestV1,
-    ) -> RouterAbProtocolResult<String> {
-        let mut writer = SnapshotDigestWriter(snapshot_hasher());
-        self.write_ecdsa_snapshot(scope, request, &mut writer)?;
-        Ok(hex_slice(&writer.0.finalize()))
-    }
-
     pub(crate) fn write_ecdsa_snapshot(
         &self,
         scope: &CloudflareSigningWorkerWalletScopeV1,
@@ -212,27 +217,17 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
     ) -> RouterAbProtocolResult<u64> {
         scope.validate()?;
         request.validate()?;
-        write_bytes(writer, b"[")?;
-        serde_json::to_writer(&mut *writer, scope)
+        serde_json::to_writer(&mut *writer, &(scope, request))
             .map_err(|error| wallet_error(error.to_string()))?;
-        write_bytes(writer, b",")?;
-        serde_json::to_writer(&mut *writer, request)
-            .map_err(|error| wallet_error(error.to_string()))?;
-        write_bytes(writer, b",{\"pools\":")?;
+        write_bytes(writer, b"\n")?;
         let mut count = write_rows::<PoolSnapshotRow, Sql>(self, scope, writer)?;
-        write_bytes(writer, b",\"activations\":")?;
         count += write_rows::<ActivationSnapshotRow, Sql>(self, scope, writer)?;
-        write_bytes(writer, b",\"linked_reservations\":")?;
         count += write_rows::<LinkedSnapshotRow, Sql>(self, scope, writer)?;
-        write_bytes(writer, b",\"effects\":")?;
         count += write_rows::<EffectSnapshotRow, Sql>(self, scope, writer)?;
-        write_bytes(writer, b",\"presign_authorities\":")?;
         count += write_rows::<presign_authority::PresignAuthorityRow, Sql>(self, scope, writer)?;
-        write_bytes(writer, b",\"linked_presign_sessions\":")?;
         count += write_rows::<linked_presign_inventory::LinkedPresignSessionRow, Sql>(
             self, scope, writer,
         )?;
-        write_bytes(writer, b"}]")?;
         Ok(count)
     }
 }

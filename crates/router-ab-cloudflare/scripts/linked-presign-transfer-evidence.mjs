@@ -217,6 +217,16 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa, r
   }, routerCredential);
   assert.equal(preparationLastPage.state, 'complete');
   assert.equal(preparationLastPage.sessions.length, 1);
+  const extraRegistrations = [];
+  for (let index = 0; index < 16; index += 1) {
+    const extra = structuredClone(pending);
+    extra.request.presign_session_id += `-${index}`;
+    extra.request.request.client_presignature_id += `-${index}`;
+    await accepted(wallet, '/router-ab/internal/signing-worker/wallet', {
+      command: 'register_linked_presign_session', ...extra.request,
+    }, credential);
+    extraRegistrations.push(extra);
+  }
   command.request.invalidated_at_ms = Date.now();
   const walletSource = await runtimeRelocationSource(topology, routerCredential, {
     scope: command.wallet_scope, request: command.request,
@@ -233,7 +243,7 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa, r
   assert.deepEqual(drainingWallet, {
     state: 'draining',
     pending_effects: 0,
-    pending_linked_sessions: 2,
+    pending_linked_sessions: 2 + extraRegistrations.length,
   });
   const drainingInventory = await accepted(
     walletSource,
@@ -281,7 +291,7 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa, r
       },
       routerCredential,
     ),
-    { state: 'draining', pending_effects: 0, pending_linked_sessions: 1 },
+    { state: 'draining', pending_effects: 0, pending_linked_sessions: 1 + extraRegistrations.length },
   );
   await topology.unsafeEvictDurableObject(workerName, walletClass, { id: walletId });
   assert.deepEqual(
@@ -294,7 +304,7 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa, r
       },
       routerCredential,
     ),
-    { state: 'draining', pending_effects: 0, pending_linked_sessions: 1 },
+    { state: 'draining', pending_effects: 0, pending_linked_sessions: 1 + extraRegistrations.length },
   );
   await topology.unsafeEvictDurableObject(workerName, objectClass, { id: created[0] });
   assert.deepEqual(await accepted(walletSource, freezePath, command, routerCredential), receipt);
@@ -307,6 +317,9 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa, r
     walletSource,
     routerCredential,
   );
+  for (const extra of extraRegistrations) {
+    await freezePendingRegistration(topology, credential, extra, command.request, walletSource, routerCredential);
+  }
   walletSource.env.WALLET_CONSOLE.receiptMode = 'lost_reply';
   const lostReceipt = await post(walletSource, '/router-ab/signing-worker/wallet/pool/freeze', {
     scope: command.wallet_scope, request: command.request,
@@ -408,7 +421,7 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa, r
     topology,
     credential,
     walletFreeze.receipt,
-    [initialization.request, pending.request],
+    [initialization.request, pending.request, ...extraRegistrations.map(registrationRequest)],
     { source: walletSource, destination: await runtimeRelocationDestination(topology, walletSource), credential: routerCredential },
   );
   return {
@@ -517,7 +530,15 @@ async function transferWalletSnapshot(source, destination, credential, receipt) 
         /inputs changed|invalid_input/);
     }
   }
-  const [scope, move, snapshot] = JSON.parse(Buffer.concat(pieces).toString('utf8'));
+  const lines = Buffer.concat(pieces).toString('utf8').trimEnd().split('\n');
+  const [scope, move] = JSON.parse(lines.shift());
+  const snapshot = { pools: [], activations: [], linked_reservations: [], effects: [], presign_authorities: [], linked_presign_sessions: [] };
+  const families = { pool: 'pools', activation: 'activations', linked_reservation: 'linked_reservations', effect: 'effects', presign_authority: 'presign_authorities', linked_presign_session: 'linked_presign_sessions' };
+  for (const line of lines) {
+    const record = JSON.parse(line);
+    assert.ok(Object.hasOwn(families, record.kind));
+    snapshot[families[record.kind]].push(record.row);
+  }
   assert.deepEqual(scope, receipt.scope);
   assert.deepEqual(move, receipt.request);
   return { snapshot, first };
@@ -552,12 +573,12 @@ async function verifyWalletInventoryTransfer(topology, credential, receipt, requ
       scope: receipt.scope,
       request: receipt.request,
       cursor: { kind: 'after', presign_session_id: firstPage.next_presign_session_id },
-      limit: 1,
+      limit: 128,
     },
     credential,
   );
   assert.equal(lastPage.state, 'complete');
-  assert.equal(lastPage.sessions.length, 1);
+  assert.equal(lastPage.sessions.length, requests.length - 1);
   const inventory = [...firstPage.sessions, ...lastPage.sessions];
   assert.deepEqual(inventory, snapshot.linked_presign_sessions.map(inventoryIdentity));
   const changedMove = structuredClone(receipt.request);
@@ -584,7 +605,15 @@ async function verifyWalletInventoryTransfer(topology, credential, receipt, requ
     assert.deepEqual(JSON.parse(row.owner_json), request.wallet_scope);
   }
   const verification = { kind: 'verify', receipt };
-  const verified = await accepted(transport.destination, transfer, verification, transport.credential);
+  const checkpoint = await accepted(transport.destination, transfer, verification, transport.credential);
+  assert.deepEqual(checkpoint, { kind: 'restoring', receipt, restored_records: 16 });
+  await rejected(transport.destination, transfer, { kind: 'activate', receipt }, transport.credential,
+    /verified destination/);
+  await evictTransferredWallet(topology, destinationName, receipt.scope);
+  assert.deepEqual(await accepted(transport.destination, transfer, {
+    kind: 'status', receipt, chunk_bytes: 4096,
+  }, transport.credential), checkpoint);
+  const verified = await finishWalletRestore(transport.destination, transfer, verification, transport.credential);
   assert.deepEqual(verified, { kind: 'verified', receipt });
   const after = await topology.listDurableObjectIds(walletClass, destinationName);
   const created = after.filter(isNewObject.bind(undefined, before));
@@ -605,6 +634,8 @@ async function verifyWalletInventoryTransfer(topology, credential, receipt, requ
     segments: first.segment_count,
     initializedAndPendingIdentitiesTransferred: true,
     chunkAcknowledgementsReplayed: true,
+    restoreCheckpointSurvivedEviction: true,
+    activationBeforeRestoreCompletionRejected: true,
     verifiedInventorySurvivedEviction: true,
     destinationAdmissionRemainsClosed: true,
     frozenInventoryPagesMatchSnapshot: true,
@@ -836,12 +867,12 @@ export async function returnTransferredWallet(topology, credential, previousRece
     credential,
     frozen.receipt,
   );
-  assert.equal(snapshot.linked_presign_sessions.length, 2);
+  assert.equal(snapshot.linked_presign_sessions.length, 18);
   for (const session of snapshot.linked_presign_sessions) {
     assert.equal(session.ownership_generation, previousReceipt.request.source_generation);
   }
   const verification = { kind: 'verify', receipt: frozen.receipt };
-  const verified = await accepted(destination, transfer, verification, credential);
+  const verified = await finishWalletRestore(destination, transfer, verification, credential);
   assert.deepEqual(verified, { kind: 'verified', receipt: frozen.receipt });
   await evictTransferredWallet(topology, destinationName, scope);
   assert.deepEqual(await accepted(destination, transfer, verification, credential), verified);
@@ -857,4 +888,17 @@ export async function returnTransferredWallet(topology, credential, previousRece
     /completed cleanup receipt changed/);
 
   return { receipt: frozen.receipt, segments: first.segment_count, preparationWithoutInvalidationTime: true };
+}
+
+function registrationRequest(initialization) {
+  return initialization.request;
+}
+
+async function finishWalletRestore(destination, path, command, credential) {
+  for (let step = 0; step < 16; step += 1) {
+    const result = await accepted(destination, path, command, credential);
+    if (result.kind === 'verified') return result;
+    assert.equal(result.kind, 'restoring');
+  }
+  assert.fail('Wallet restoration did not finish within the scenario bound');
 }

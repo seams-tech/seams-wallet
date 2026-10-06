@@ -40,7 +40,7 @@ struct PageWriter<'a, Sql> {
     page_index: u32,
     bytes: Vec<u8>,
     byte_length: i64,
-    digest: Sha256,
+    digest: snapshot::SnapshotDigestWriter,
 }
 
 impl<Sql: SigningWorkerWalletSqlV1> PageWriter<'_, Sql> {
@@ -72,7 +72,7 @@ impl<Sql: SigningWorkerWalletSqlV1> Write for PageWriter<'_, Sql> {
         while !remaining.is_empty() {
             let count = remaining.len().min(PAGE_BYTES - self.bytes.len());
             self.bytes.extend_from_slice(&remaining[..count]);
-            self.digest.update(&remaining[..count]);
+            self.digest.write_all(&remaining[..count])?;
             self.byte_length = self
                 .byte_length
                 .checked_add(count as i64)
@@ -97,7 +97,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         request: SigningWorkerRelocationRequestV1,
     ) -> RouterAbProtocolResult<SigningWorkerPoolFreezeReceiptV1> {
         let owner = owner_json(scope, "ECDSA sealed snapshot")?;
-        let digest = snapshot::snapshot_hasher();
+        let digest = snapshot::SnapshotDigestWriter::new();
         let mut writer = PageWriter {
             sql: self.sql,
             owner: owner.clone(),
@@ -113,7 +113,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
             scope: scope.clone(),
             request,
             record_count,
-            wallet_records_digest_hex: hex_slice(&writer.digest.finalize()),
+            wallet_records_digest_hex: writer.digest.finish()?,
         };
         let encoded =
             serde_json::to_string(&receipt).map_err(|error| wallet_error(error.to_string()))?;

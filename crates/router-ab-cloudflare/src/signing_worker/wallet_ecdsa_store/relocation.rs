@@ -71,6 +71,12 @@ pub(super) enum Fence {
         segment_count: u32,
         next_segment: u32,
     },
+    Restoring {
+        receipt: SigningWorkerPoolFreezeReceiptV1,
+        chunk_bytes: u32,
+        segment_count: u32,
+        cursor: snapshot::RestoreCursor,
+    },
     Verified {
         receipt: SigningWorkerPoolFreezeReceiptV1,
         chunk_bytes: u32,
@@ -208,7 +214,12 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
             ) if prior != request => return Err(wallet_error("Pool relocation inputs changed")),
             Some(Fence::Draining { .. }) => {}
             Some(Fence::Invalidating { after_pool_key, .. }) => after = after_pool_key,
-            Some(Fence::Prepared { .. } | Fence::Importing { .. } | Fence::Verified { .. }) => {
+            Some(
+                Fence::Prepared { .. }
+                | Fence::Importing { .. }
+                | Fence::Restoring { .. }
+                | Fence::Verified { .. },
+            ) => {
                 return Err(wallet_error(
                     "An import destination cannot freeze as a source",
                 ));

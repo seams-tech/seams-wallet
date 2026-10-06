@@ -1,7 +1,7 @@
 use super::relocation::Fence;
 use super::transfer::validate_chunk_bytes;
 use super::*;
-mod stream;
+pub(super) mod stream;
 
 pub const SIGNING_WORKER_ECDSA_TRANSFER_PATH_V1: &str =
     "/router-ab/signing-worker/wallet/ecdsa/transfer";
@@ -82,6 +82,10 @@ pub enum SigningWorkerEcdsaTransferResponseV1 {
     Imported {
         segment_index: u32,
         input_digest_hex: String,
+    },
+    Restoring {
+        receipt: SigningWorkerPoolFreezeReceiptV1,
+        restored_records: u64,
     },
     Verified {
         receipt: SigningWorkerPoolFreezeReceiptV1,
@@ -217,7 +221,9 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
                 || request.move_id == receipt.request.move_id
                 || !self.completed_cleanup(&receipt)?
             {
-                return Err(wallet_error("ECDSA return requires a later ownership generation"));
+                return Err(wallet_error(
+                    "ECDSA return requires a later ownership generation",
+                ));
             }
             let owner = owner_json(&scope, "ECDSA return preparation")?;
             for table in ["wallet_ecdsa_execution", "wallet_ecdsa_import_activation"] {
@@ -226,10 +232,13 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
                     vec![text(owner.clone())],
                 )?;
             }
-            self.save_pool_fence(&scope, &Fence::Prepared {
-                request: request.clone(),
-                chunk_bytes,
-            })?;
+            self.save_pool_fence(
+                &scope,
+                &Fence::Prepared {
+                    request: request.clone(),
+                    chunk_bytes,
+                },
+            )?;
         }
         if let Some((receipt, size)) = self.import_activation(&scope)? {
             if receipt.request.identity() != request || size != chunk_bytes {
@@ -249,6 +258,11 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
             }) if prior == request && size == chunk_bytes => {}
             Some(
                 Fence::Importing {
+                    receipt,
+                    chunk_bytes: size,
+                    ..
+                }
+                | Fence::Restoring {
                     receipt,
                     chunk_bytes: size,
                     ..
@@ -321,6 +335,17 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
                     chunk_bytes,
                     segment_count,
                     next_segment,
+                })
+            }
+            Some(Fence::Restoring {
+                receipt: stored,
+                chunk_bytes: size,
+                cursor,
+                ..
+            }) if stored == receipt && size == chunk_bytes => {
+                Ok(SigningWorkerEcdsaTransferResponseV1::Restoring {
+                    receipt,
+                    restored_records: cursor.restored,
                 })
             }
             Some(Fence::Verified {
@@ -461,7 +486,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
             }
             return Ok(SigningWorkerEcdsaTransferResponseV1::Verified { receipt });
         }
-        let (chunk_bytes, segment_count) = match self.pool_fence(&receipt.scope)? {
+        let (chunk_bytes, segment_count, mut cursor) = match self.pool_fence(&receipt.scope)? {
             Some(Fence::Verified {
                 receipt: stored, ..
             }) if stored == receipt => {
@@ -473,8 +498,19 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
                 segment_count,
                 next_segment,
             }) if stored == receipt && next_segment == segment_count => {
-                (chunk_bytes, segment_count)
+                if self.ecdsa_snapshot_record_count(&receipt.scope)? != 0 {
+                    return Err(wallet_error(
+                        "ECDSA restore destination contains ordinary records",
+                    ));
+                }
+                (chunk_bytes, segment_count, snapshot::RestoreCursor::new())
             }
+            Some(Fence::Restoring {
+                receipt: stored,
+                chunk_bytes,
+                segment_count,
+                cursor,
+            }) if stored == receipt => (chunk_bytes, segment_count, cursor),
             _ => {
                 return Err(wallet_error(
                     "ECDSA verification requires all staged segments",
@@ -482,15 +518,28 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
             }
         };
         let scope = receipt.scope.clone();
-        let request = receipt.request.clone();
-        if self.ecdsa_snapshot_record_count(&scope)? != 0 {
-            return Err(wallet_error("ECDSA restore destination contains ordinary records"));
-        }
-        let mut reader = stream::ChunkReader::new(self.sql, &receipt, segment_count, chunk_bytes)?;
-        self.restore_ecdsa_snapshot(&receipt, &mut reader)?;
-        reader.verify()?;
-        if self.ecdsa_snapshot_digest(&scope, &request)? != receipt.wallet_records_digest_hex {
-            return Err(wallet_error("Restored ECDSA inventory differs from source"));
+        let mut reader = stream::ChunkReader::new(
+            self.sql,
+            &receipt,
+            segment_count,
+            chunk_bytes,
+            cursor.position,
+        )?;
+        if !self.restore_ecdsa_batch(&receipt, &mut reader, &mut cursor)? {
+            let restored_records = cursor.restored;
+            self.save_pool_fence(
+                &scope,
+                &Fence::Restoring {
+                    receipt: receipt.clone(),
+                    chunk_bytes,
+                    segment_count,
+                    cursor,
+                },
+            )?;
+            return Ok(SigningWorkerEcdsaTransferResponseV1::Restoring {
+                receipt,
+                restored_records,
+            });
         }
         self.save_pool_fence(
             &scope,

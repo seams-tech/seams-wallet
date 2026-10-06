@@ -1,6 +1,7 @@
 use super::*;
 mod capture;
 mod restore;
+pub(super) use restore::RestoreCursor;
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -45,23 +46,73 @@ struct EffectSnapshotRow {
     committed_at_ms: i64,
 }
 
-pub(super) fn snapshot_hasher() -> Sha256 {
-    let mut digest = Sha256::new();
-    digest.update(b"seams/signing-worker/wallet-ecdsa-snapshot/v1");
-    digest
+// Each canonical record extends the commitment. Persisting this commitment and
+// the byte cursor lets restoration resume without rereading earlier records.
+pub(super) fn initial_digest() -> [u8; 32] {
+    Sha256::digest(b"seams/signing-worker/wallet-ecdsa-record-stream/v1").into()
 }
 
-struct SnapshotDigestWriter(Sha256);
+pub(super) fn extend_digest(previous: &[u8; 32], record: &[u8]) -> [u8; 32] {
+    let mut digest = Sha256::new();
+    digest.update(previous);
+    digest.update((record.len() as u64).to_be_bytes());
+    digest.update(record);
+    digest.finalize().into()
+}
+
+pub(super) struct SnapshotDigestWriter {
+    digest: [u8; 32],
+    pending: Vec<u8>,
+}
+
+impl SnapshotDigestWriter {
+    pub(super) fn new() -> Self {
+        Self {
+            digest: initial_digest(),
+            pending: Vec::new(),
+        }
+    }
+
+    pub(super) fn finish(self) -> RouterAbProtocolResult<String> {
+        if !self.pending.is_empty() {
+            return Err(wallet_error("ECDSA snapshot record is incomplete"));
+        }
+        Ok(hex_slice(&self.digest))
+    }
+}
 
 impl std::io::Write for SnapshotDigestWriter {
     fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
-        self.0.update(bytes);
+        for byte in bytes {
+            if *byte == b'\n' {
+                self.digest = extend_digest(&self.digest, &self.pending);
+                self.pending.clear();
+            } else {
+                self.pending.push(*byte);
+            }
+        }
         Ok(bytes.len())
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
         Ok(())
     }
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(
+    tag = "kind",
+    content = "row",
+    rename_all = "snake_case",
+    deny_unknown_fields
+)]
+enum SnapshotRecord {
+    Pool(PoolSnapshotRow),
+    Activation(ActivationSnapshotRow),
+    LinkedReservation(LinkedSnapshotRow),
+    Effect(EffectSnapshotRow),
+    PresignAuthority(presign_authority::PresignAuthorityRow),
+    LinkedPresignSession(linked_presign_inventory::LinkedPresignSessionRow),
 }
 
 impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
