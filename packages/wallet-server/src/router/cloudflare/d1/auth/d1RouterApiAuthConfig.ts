@@ -10,6 +10,7 @@ import type { WalletRecoveryRoutingPublisher } from '../../../../authorization/r
 import type { WalletSessionRoutingPublisher } from '../../../../authorization/sessionRouting';
 import type { WalletRegistrationSetupDispatcher } from '../../../framework/registrationSetupDispatch';
 import type { WalletRegistrationReservationAuthority } from '../../../domains/walletRegistration/walletRegistrationReservation';
+import { D1WalletExecutionAuthority } from '../registration/d1WalletExecutionAuthority';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import { parseWebAuthnRpId } from '@shared/utils/domainIds';
 import type { LinkedDevicePasskeyTargetConfigurationFieldsV1 } from '@shared/device-linking/contracts';
@@ -333,6 +334,12 @@ export function parseBooleanFlag(input: unknown, fallback: boolean, field: strin
 export function normalizeD1RouterApiAuthOptions(
   input: CloudflareD1RouterApiAuthServiceOptions,
 ): NormalizedCloudflareD1RouterApiAuthServiceOptions {
+  const scope = {
+    namespace: requireD1RouterApiAuthScopeString(input.namespace, 'namespace'),
+    orgId: requireD1RouterApiAuthScopeString(input.orgId, 'orgId'),
+    projectId: requireD1RouterApiAuthScopeString(input.projectId, 'projectId'),
+    envId: requireD1RouterApiAuthScopeString(input.envId, 'envId'),
+  };
   const githubClientId = toOptionalTrimmedString(input.githubOAuth?.clientId);
   const githubClientSecret = toOptionalTrimmedString(input.githubOAuth?.clientSecret);
   const githubCallbackUrl = toOptionalTrimmedString(input.githubOAuth?.callbackUrl);
@@ -359,12 +366,14 @@ export function normalizeD1RouterApiAuthOptions(
     sessionRouting: input.sessionRouting,
     recoveryRouting: input.recoveryRouting,
     lifecycleRouting: input.lifecycleRouting,
-    registrationAuthority: input.registrationAuthority,
+    registrationAuthority: input.registrationAuthority
+      ? new D1WalletExecutionAuthority(input.database, scope, input.registrationAuthority)
+      : undefined,
     registrationSetupDispatcher: input.registrationSetupDispatcher,
-    namespace: requireD1RouterApiAuthScopeString(input.namespace, 'namespace'),
-    orgId: requireD1RouterApiAuthScopeString(input.orgId, 'orgId'),
-    projectId: requireD1RouterApiAuthScopeString(input.projectId, 'projectId'),
-    envId: requireD1RouterApiAuthScopeString(input.envId, 'envId'),
+    namespace: scope.namespace,
+    orgId: scope.orgId,
+    projectId: scope.projectId,
+    envId: scope.envId,
     relayerAccount: toOptionalTrimmedString(input.relayerAccount),
     relayerPublicKey: toOptionalTrimmedString(input.relayerPublicKey),
     relayerPrivateKey: toOptionalTrimmedString(input.relayerPrivateKey),

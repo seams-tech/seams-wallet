@@ -1532,6 +1532,22 @@ Cancellation during submission rejects because the host already owns that operat
 A successful submission ends the flow. Recoverable failures permit a retry while
 the challenge remains valid. The hosted Google flow uses the same execution path.
 
+### Persist local execution generations
+
+The D1 execution-authority adapter records the generation admitted for registration.
+Registration completion enables local execution. A lost local completion write can
+resume from the registration authority's confirmed completion, using the same
+wallet, ceremony, and generation. A conflicting registration cannot replace it.
+
+Destination preparation installs the move's next generation as inactive.
+Verified destination activation enables it in the same database transaction.
+Source session retirement permanently closes its local generation. Cleanup retains
+that execution record. A late registration reply cannot reopen the source.
+
+Ordinary reads through this adapter use local storage. They reject missing,
+inactive, retired, or differently scoped homes. They do not query Console or derive
+an ownership generation from a signing key, cipher identity, or client connection.
+
 ### Restore authorization history during relocation
 
 The internal restore path accepts authorities, auth methods, session quotas,

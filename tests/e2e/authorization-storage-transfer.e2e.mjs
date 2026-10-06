@@ -1,4 +1,8 @@
 import {
+  prepareExecutionGeneration,
+  verifyExecutionDestination,
+} from './execution-generation.scenario.mjs';
+import {
   seedOperationHistory,
   verifyImportedOperationHistory,
   verifyOperationHistoryCleanup,
@@ -97,6 +101,7 @@ const bundle = await build({
       export { D1WalletAuthorizationFreeze } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationFreeze';
       export { D1WalletAuthorizationIntake } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationIntake';
       export { D1WalletAuthorizationHistory } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationHistory';
+      export { D1WalletExecutionAuthority } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletExecutionAuthority';
       export { D1WalletRelocationSessions, WalletRelocationSessionSource } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationSessions';
       export { CloudflareD1WebAuthnStore } from './packages/wallet-server/src/router/cloudflare/d1/webauthn/d1WebAuthnStore';
       export { walletRelocationEmailOtpBinding, verifyWalletRelocationEmailOtp } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationEmailOtp';
@@ -156,6 +161,12 @@ try {
     permissions: api.buildFullOwnerPermissionsV1(),
     provenance: 'wallet_registration',
     expiresAtMs: issuedAtMs + 3_600_000,
+  });
+  const executionSetup = await prepareExecutionGeneration({
+    api,
+    database: source,
+    scope,
+    walletId: fixture.authority.walletId,
   });
   const issued = await issueDeviceSession(source, sourceService, fixture, issuedAtMs);
   const relocationChallenges = await verifyRelocationChallenges(source, fixture, issued, issuedAtMs);
@@ -320,6 +331,14 @@ try {
     api, source, destination, scope, identity: sessionSource, snapshot, service, issueDeviceSession,
   });
 
+  const executionBeforeActivation = await verifyExecutionDestination({
+    api,
+    source,
+    destination,
+    scope,
+    setup: executionSetup,
+    active: false,
+  });
   const operationHistoryBeforeActivation = await verifyImportedOperationHistory({
     api,
     database: destination,
@@ -409,6 +428,14 @@ try {
     scope,
     history: operationHistory,
   });
+  const executionAfterCleanup = await verifyExecutionDestination({
+    api,
+    source,
+    destination,
+    scope,
+    setup: executionSetup,
+    active: true,
+  });
   const operationHistoryAfterCleanup = await verifyImportedOperationHistory({
     api,
     database: destination,
@@ -464,6 +491,8 @@ try {
       sessionRetirement,
       authorizationFreeze,
       authorizationActivation,
+      executionBeforeActivation,
+      executionAfterCleanup,
       operationHistoryBeforeActivation,
       operationHistoryAfterActivation,
       operationHistoryCleanup,
