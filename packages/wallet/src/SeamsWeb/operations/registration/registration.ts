@@ -4828,6 +4828,7 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
   );
   const traceContext = createRouterAbTraceContextV1();
   let postTouchIdCompletedAt: number | null = null;
+  let sealPreparation: NearRegistrationSealPreparation = { kind: 'none' };
   emitRegistrationEvent(options.onEvent, initialEventAccountId, {
     authMethod: 'passkey',
     phase: RegistrationEventPhase.STEP_01_STARTED,
@@ -4891,6 +4892,12 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
     if (responded.kind !== 'near_ed25519') {
       throw new Error('Ed25519-only registration respond returned a different signer branch');
     }
+    sealPreparation = startNearRegistrationSealPreparation({
+      signingEngine: context.signingEngine,
+      ceremonyId: setup.registrationCeremonyId,
+      thresholdSessionId: responded.ed25519.admissionRequest.scope.threshold_session_id,
+      prfFirstB64u: passkeyAuthority.prfFirstB64u,
+    });
     const parsedCredentialId = parseWebAuthnCredentialIdB64u(
       String(passkeyAuthority.credential.rawId || passkeyAuthority.credential.id || '').trim(),
     );
@@ -5030,6 +5037,15 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
       setup.registrationCeremonyId,
       'near_only.provision_checkpoint',
     );
+    if (sealPreparation.kind !== 'preparing') {
+      throw new Error('NEAR registration session seal preparation is missing');
+    }
+    const sealPreparationResult = await sealPreparation.result;
+    if (sealPreparationResult.kind === 'failed') throw sealPreparationResult.error;
+    const clientSeal = await context.signingEngine.readPreparedSigningSessionHydration({
+      thresholdSessionId: sealPreparation.thresholdSessionId,
+      preparationId: sealPreparation.preparationId,
+    });
     const finalized = await completeWalletRegistrationNearProvisioning({
       relayerUrl,
       registrationCeremonyId: setup.registrationCeremonyId,
@@ -5038,6 +5054,10 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
       idempotencyKey: nearProvisioningIdempotencyKey,
       ed25519: { activationReference: established.activationReference },
       auth: { kind: 'passkey' },
+      sessionSeal: {
+        thresholdSessionId: sealPreparation.thresholdSessionId,
+        ciphertext: clientSeal.ciphertext,
+      },
       /* The projection, not the ceremony's output: the continuity cache and
            any role-local material stay on this device. */
       walletCustodyCommit,
@@ -5045,6 +5065,9 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
     registrationTiming.markNearStage(setup.registrationCeremonyId, 'near_only.finalize');
     if (!finalized.ok || finalized.kind !== 'near_ed25519') {
       throw new Error('Deferred NEAR provisioning returned a different signer branch');
+    }
+    if (!finalized.sessionSeal) {
+      throw new Error('NEAR finalization did not return the prepared session seal');
     }
     // A reported-ready wallet must have committed its recovery material.
     if (established.commitPayload && finalized.walletCustody?.status !== 'committed') {
@@ -5154,7 +5177,10 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
         walletId: String(finalized.walletId),
         relayerUrl,
         prfFirstB64u: passkeyAuthority.prfFirstB64u,
-        preparedServerSeal: null,
+        preparedServerSeal: {
+          preparationId: sealPreparation.preparationId,
+          ...finalized.sessionSeal,
+        },
         restore: {
           rpId: finalizedPasskey.rpId,
           nearAccountId: String(nearAccountId),
@@ -5288,6 +5314,16 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
     };
     options.afterCall?.(false);
     return result;
+  } finally {
+    if (sealPreparation.kind === 'preparing') {
+      await sealPreparation.result;
+      await context.signingEngine
+        .discardSigningSessionHydration({
+          thresholdSessionId: sealPreparation.thresholdSessionId,
+          preparationId: sealPreparation.preparationId,
+        })
+        .catch(ignoreNearCustodyFailure);
+    }
   }
 }
 
