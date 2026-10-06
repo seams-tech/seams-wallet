@@ -130,7 +130,7 @@ pub(crate) async fn prepare_cloudflare_signing_worker_ecdsa_finalize_v1(
                     runtime,
                     scope,
                     &request.material_source,
-                    request.wallet_scope.as_ref(),
+                    Some(&request.wallet_scope),
                     now_unix_ms,
                 )
                 .await?

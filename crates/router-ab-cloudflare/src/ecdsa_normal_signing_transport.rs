@@ -370,6 +370,13 @@ mod tests {
         };
         CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1::new(
             1,
+            CloudflareSigningWorkerWalletScopeV1::new(
+                "org-1",
+                "project-1",
+                "dev",
+                &request.scope.wallet_id,
+            )
+            .expect("wallet scope"),
             request,
             admission,
             authorized_operation_identity,

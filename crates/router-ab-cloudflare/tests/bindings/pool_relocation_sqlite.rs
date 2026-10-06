@@ -366,7 +366,16 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
     let mut effect = admitted_router_ab_ecdsa_derivation_digest_finalize_request(
         router_ab_ecdsa_derivation_digest_signing_finalize_request(),
     );
-    effect.wallet_scope = Some(owner.clone());
+    effect.wallet_scope = owner.clone();
+    let mut missing_scope = serde_json::to_value(&effect)?;
+    missing_scope
+        .as_object_mut()
+        .unwrap()
+        .remove("wallet_scope");
+    assert!(serde_json::from_value::<
+        CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1,
+    >(missing_scope)
+    .is_err());
     let mut missing_generation = serde_json::to_value(&effect)?;
     missing_generation
         .as_object_mut()
@@ -529,6 +538,7 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         "changed_retry_rejected": true, "terminal_ids_cannot_be_repopulated": true,
         "pool_fence_survives_reopen": true,
         "pending_effect_blocks_freeze_until_commit": true,
+        "admitted_effect_requires_wallet_scope": true,
         "presign_admission_closed_while_draining_and_frozen": true,
         "unrecorded_delayed_refill_rejected": true,
         "activation_writes_rejected_while_draining_and_frozen": true,
@@ -1208,7 +1218,7 @@ fn reject_stale_prepare(
     let mut request = admitted_router_ab_ecdsa_derivation_digest_signing_request(
         router_ab_ecdsa_derivation_digest_signing_request(),
     );
-    request.wallet_scope = Some(scope.clone());
+    request.wallet_scope = scope.clone();
     request.ownership_generation = ownership_generation;
     let before = rows(path);
     let error = with_store(path, env, |store| {

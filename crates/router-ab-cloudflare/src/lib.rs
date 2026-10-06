@@ -13340,12 +13340,7 @@ async fn commit_cloudflare_signing_worker_ecdsa_terminal_for_wallet_v1(
 ) -> RouterAbProtocolResult<CloudflareSigningWorkerTerminalResponseCommitV1> {
     #[cfg(feature = "wallet-do-signing-worker-harness")]
     {
-        let scope = request.wallet_scope.as_ref().ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidGateDecision,
-                "Wallet-DO ECDSA terminal requires a Router-admitted wallet scope",
-            )
-        })?;
+        let scope = &request.wallet_scope;
         let do_response = durable_object::call_signing_worker_wallet_do_v1(
             env,
             durable_object::SigningWorkerWalletDoRequestV1::CommitEcdsaTerminal {

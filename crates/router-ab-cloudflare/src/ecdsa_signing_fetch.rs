@@ -45,14 +45,12 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
         );
     }
     #[cfg(feature = "wallet-do-signing-worker-harness")]
-    if parsed.wallet_scope.is_none()
-        || !matches!(
-            parsed.presign_source,
-            CloudflareEcdsaPrepareSourceV1::AvailablePool
-        )
-    {
+    if !matches!(
+        parsed.presign_source,
+        CloudflareEcdsaPrepareSourceV1::AvailablePool
+    ) {
         return worker::Response::error(
-            "Wallet-DO ECDSA prepare requires a Router-admitted wallet scope and available pool material",
+            "Wallet-DO ECDSA prepare requires available pool material",
             403,
         );
     }
@@ -64,7 +62,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
             runtime,
             &parsed.request.scope,
             &parsed.material_source,
-            parsed.wallet_scope.as_ref(),
+            Some(&parsed.wallet_scope),
             now_unix_ms,
         )
         .await
@@ -205,7 +203,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
     let reserve_outcome = match execute_cloudflare_signing_worker_ecdsa_pool_mutation_for_wallet_v1(
         env,
         runtime,
-        materialized.request.wallet_scope.as_ref(),
+        Some(&materialized.request.wallet_scope),
         reserve_command,
     )
     .await
@@ -232,7 +230,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
             return burn_cloudflare_signing_worker_ecdsa_reservation_after_prepare_failure_v1(
                 env,
                 runtime,
-                materialized.request.wallet_scope.as_ref(),
+                Some(&materialized.request.wallet_scope),
                 materialized.request.request.scope.clone(),
                 client_presignature_id.clone(),
                 prepare_request_digest,
@@ -256,7 +254,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
             return burn_cloudflare_signing_worker_ecdsa_reservation_after_prepare_failure_v1(
                 env,
                 runtime,
-                materialized.request.wallet_scope.as_ref(),
+                Some(&materialized.request.wallet_scope),
                 materialized.request.request.scope.clone(),
                 client_presignature_id.clone(),
                 prepare_request_digest,
@@ -276,7 +274,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
             return burn_cloudflare_signing_worker_ecdsa_reservation_after_prepare_failure_v1(
                 env,
                 runtime,
-                materialized.request.wallet_scope.as_ref(),
+                Some(&materialized.request.wallet_scope),
                 materialized.request.request.scope.clone(),
                 client_presignature_id.clone(),
                 prepare_request_digest,
@@ -301,7 +299,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
             burn_cloudflare_signing_worker_ecdsa_reservation_after_prepare_failure_v1(
                 env,
                 runtime,
-                materialized.request.wallet_scope.as_ref(),
+                Some(&materialized.request.wallet_scope),
                 materialized.request.request.scope,
                 client_presignature_id,
                 prepare_request_digest,
@@ -383,13 +381,6 @@ where
         return worker::Response::error(
             format!("{:?}: {}", err.code(), err.message()),
             cloudflare_router_error_status(err.code()),
-        );
-    }
-    #[cfg(feature = "wallet-do-signing-worker-harness")]
-    if parsed.wallet_scope.is_none() {
-        return worker::Response::error(
-            "Wallet-DO ECDSA finalize requires a Router-admitted wallet scope",
-            403,
         );
     }
     let claim_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
@@ -528,16 +519,11 @@ async fn prepare_ecdsa_finalize(
             runtime,
             &request.request.scope,
             &request.material_source,
-            request.wallet_scope.as_ref(),
+            Some(&request.wallet_scope),
             now_unix_ms,
         )
         .await?;
-        let scope = request.wallet_scope.as_ref().ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidGateDecision,
-                "Wallet-DO ECDSA effect requires a Router-admitted wallet scope",
-            )
-        })?;
+        let scope = &request.wallet_scope;
         let response = durable_object::call_signing_worker_wallet_do_v1(
             env,
             durable_object::SigningWorkerWalletDoRequestV1::ClaimAndConsumeEcdsaEffect {

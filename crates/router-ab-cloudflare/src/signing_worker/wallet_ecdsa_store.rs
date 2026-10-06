@@ -1037,7 +1037,7 @@ pub(crate) fn validate_wallet_ecdsa_effect_scope_v1(
     request: &CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1,
 ) -> RouterAbProtocolResult<()> {
     request.validate()?;
-    if request.wallet_scope.as_ref() != Some(scope) {
+    if &request.wallet_scope != scope {
         return Err(wallet_error(
             "SigningWorker ECDSA effect wallet scope changed",
         ));

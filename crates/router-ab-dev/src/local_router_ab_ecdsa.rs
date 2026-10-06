@@ -53,10 +53,9 @@ use router_ab_cloudflare::{
     parse_cloudflare_signing_worker_bindings_v1, prepare_cloudflare_deriver_ecdsa_registration_v1,
     prepare_signing_worker_wallet_ecdsa_from_pool_v1, router_ab_service_credential_matches_v1,
     router_trusted_source_digest_v1, signing_worker_ecdsa_presign_session_start_v1,
-    signing_worker_ecdsa_stored_terminal_response_v1, signing_worker_wallet_ecdsa_scope_v1,
-    step_signing_worker_ecdsa_presign_session_v1, CloudflareDeriverAWorkerRuntimeV1,
-    CloudflareDeriverBWorkerRuntimeV1, CloudflareDeriverSignerRuntimeV1,
-    CloudflareEcdsaPrepareResponseV1,
+    signing_worker_ecdsa_stored_terminal_response_v1, step_signing_worker_ecdsa_presign_session_v1,
+    CloudflareDeriverAWorkerRuntimeV1, CloudflareDeriverBWorkerRuntimeV1,
+    CloudflareDeriverSignerRuntimeV1, CloudflareEcdsaPrepareResponseV1,
     CloudflareRoleSeparatedRouterAbEcdsaDerivationEvmDigestFinalizeHandlerV1,
     CloudflareRouterAbEcdsaDerivationDeriverRegistrationPrivateRequestV1,
     CloudflareRouterAbEcdsaDerivationSigningWorkerActivationReceiptV1,
@@ -1091,8 +1090,7 @@ fn finalize_at_signing_worker(
 ) -> RouterAbProtocolResult<String> {
     let now_ms = local_now_ms_v1()?;
     admitted.validate()?;
-    let wallet_scope =
-        signing_worker_wallet_ecdsa_scope_v1(admitted.wallet_scope.as_ref())?.clone();
+    let wallet_scope = admitted.wallet_scope.clone();
     // Stale material fails before the one-use claim. The claim and the
     // presignature it consumes commit before any signing work, as in the
     // wallet's Durable Object.

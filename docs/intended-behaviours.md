@@ -1548,8 +1548,9 @@ Ordinary reads through this adapter use local storage. They reject missing,
 inactive, retired, or differently scoped homes. They do not query Console or derive
 an ownership generation from a signing key, cipher identity, or client connection.
 
-Router-admitted ECDSA prepare and finalize commands carry the Gateway-pinned
-ownership generation. Missing, zero, and unsafe integer generations are invalid.
+Router-admitted ECDSA prepare and finalize commands require the complete wallet
+scope and the Gateway-pinned ownership generation. Constructors validate that
+scope against the admitted tenant and wallet. Missing scope cannot reach execution. Missing, zero, and unsafe integer generations are invalid.
 The wallet store checks the active local generation before reserving or consuming
 a presignature and before recording a new terminal result. Exact terminal-result
 replays remain available after transfer and return. The generation does not change

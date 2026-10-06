@@ -41,12 +41,7 @@ where
     authorized_operation
         .authorized_operation
         .validate_for_prepare_request(&request)?;
-    let wallet_scope = match &authorized_operation.binding {
-        CloudflareRouterEcdsaAcceptedCapabilityBindingV1::GatewayOwnerWalletSession { .. } => {
-            Some(authorized_operation.wallet_scope()?)
-        }
-        _ => None,
-    };
+    let wallet_scope = authorized_operation.wallet_scope()?;
     let candidate =
         CloudflareRouterAbEcdsaDerivationEvmDigestPrepareAdmissionCandidateV1::from_prepare_request(
             &wallet_session,
@@ -68,11 +63,11 @@ where
     let mut admitted =
         CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningRequestV1::new(
             authorized_operation.ownership_generation()?,
+            wallet_scope,
             request,
             trusted_admission,
         )?;
     admitted.presign_source = presign_source;
-    admitted.wallet_scope = wallet_scope;
     admitted.validate()?;
     Ok(admitted)
 }
@@ -109,12 +104,7 @@ where
     authorized_operation
         .authorized_operation
         .validate_for_finalize_request_with_session(&request, None)?;
-    let wallet_scope = match &authorized_operation.binding {
-        CloudflareRouterEcdsaAcceptedCapabilityBindingV1::GatewayOwnerWalletSession { .. } => {
-            Some(authorized_operation.wallet_scope()?)
-        }
-        _ => None,
-    };
+    let wallet_scope = authorized_operation.wallet_scope()?;
     let candidate =
         CloudflareRouterAbEcdsaDerivationEvmDigestFinalizeAdmissionCandidateV1::from_finalize_request(
             &wallet_session,
@@ -136,22 +126,19 @@ where
     let authorized_operation_identity =
         authorized_operation.into_signing_worker_authorized_operation_identity()?;
     let authorization_id = authorized_operation.reusable_authorization_id()?.to_owned();
-    let mut admitted =
-        CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1::new(
-            authorized_operation.ownership_generation()?,
-            request,
-            trusted_admission,
-            authorized_operation_identity,
-            authorized_operation
-                .authorized_operation
-                .into_signing_worker_effect_claim(
-                    wallet_session.wallet_session_id.clone(),
-                    authorization_id,
-                )?,
-        )?;
-    admitted.wallet_scope = wallet_scope;
-    admitted.validate()?;
-    Ok(admitted)
+    CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1::new(
+        authorized_operation.ownership_generation()?,
+        wallet_scope,
+        request,
+        trusted_admission,
+        authorized_operation_identity,
+        authorized_operation
+            .authorized_operation
+            .into_signing_worker_effect_claim(
+                wallet_session.wallet_session_id.clone(),
+                authorization_id,
+            )?,
+    )
 }
 
 /// Admits one Gateway-verified operation step-up ECDSA prepare at the Router.
@@ -186,11 +173,11 @@ pub fn admit_cloudflare_router_ab_ecdsa_derivation_evm_digest_step_up_prepare_v1
     let mut admitted =
         CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningRequestV1::new(
             authorized_operation.ownership_generation()?,
+            wallet_scope,
             request,
             trusted_admission,
         )?;
     admitted.presign_source = presign_source;
-    admitted.wallet_scope = Some(wallet_scope);
     admitted.validate()?;
     Ok(admitted)
 }
@@ -230,30 +217,14 @@ pub fn admit_cloudflare_router_ab_ecdsa_derivation_evm_digest_step_up_finalize_v
     let effect_claim = authorized_operation
         .authorized_operation
         .into_step_up_signing_worker_effect_claim()?;
-    let mut admitted =
-        CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1::new(
-            ownership_generation,
-            request,
-            trusted_admission,
-            authorized_operation_identity,
-            effect_claim,
-        )?;
-    admitted.wallet_scope = Some(wallet_scope);
-    admitted.validate()?;
-    Ok(admitted)
-}
-
-/// The wallet a SigningWorker wallet-store signing request belongs to: the
-/// Router admits one for an owner Wallet Session and for a verified step-up.
-pub fn signing_worker_wallet_ecdsa_scope_v1(
-    wallet_scope: Option<&CloudflareSigningWorkerWalletScopeV1>,
-) -> RouterAbProtocolResult<&CloudflareSigningWorkerWalletScopeV1> {
-    wallet_scope.ok_or_else(|| {
-        RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidGateDecision,
-            "wallet-store ECDSA signing requires a Router-admitted wallet scope",
-        )
-    })
+    CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1::new(
+        ownership_generation,
+        wallet_scope,
+        request,
+        trusted_admission,
+        authorized_operation_identity,
+        effect_claim,
+    )
 }
 
 /// Prepares one owner ECDSA signature from the wallet's available pool:
@@ -266,7 +237,7 @@ pub fn prepare_signing_worker_wallet_ecdsa_from_pool_v1<Sql: SigningWorkerWallet
     signing_worker_rerandomization_contribution32: [u8; 32],
 ) -> RouterAbProtocolResult<CloudflareEcdsaPrepareResponseV1> {
     request.validate()?;
-    let wallet_scope = signing_worker_wallet_ecdsa_scope_v1(request.wallet_scope.as_ref())?.clone();
+    let wallet_scope = request.wallet_scope.clone();
     store.require_execution_generation(&wallet_scope, request.ownership_generation)?;
     if !matches!(
         request.presign_source,
