@@ -1651,9 +1651,12 @@ imports exact segments across eviction, restores and verifies encrypted rows, an
 activates generation 2. Verification processes at most 16 segments per command.
 A corrupted final segment fails without advancing import progress. The scenario
 recaptures the destination to compare exact historical bytes and checks that an
-activation retry preserves a later move fence. Signing-history and linked-device
-coverage, fresh Ed25519 signing after relocation, source cleanup, and full
-relocation remain unfinished.
+activation retry preserves a later move fence. The restored wallet signs a fresh
+Ed25519 transaction through the Router and SigningWorker. The scenario verifies
+the signature, rejects the old ownership generation, and repeats prepare and
+finalize after eviction. The next snapshot includes the exact terminal result.
+Transfer of pre-existing signing history and linked devices, source cleanup,
+and full relocation remain unfinished.
 
 ### Required scenarios
 

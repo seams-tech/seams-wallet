@@ -1654,8 +1654,11 @@ calls. Production readers validate each record before insertion. Stored values
 must equal the original values, including nullable indexes and terminal history.
 The destination remains inactive until verification finishes. Activation installs
 the next execution generation and removes only its preparation fence. An exact
-activation retry preserves a later source fence. Source cleanup and fresh signing
-from the relocated Ed25519 wallet still require composed verification.
+activation retry preserves a later source fence. The restored wallet accepts fresh
+signing under the new generation and rejects the old generation. Prepare and
+finalize return exact results after eviction. The next snapshot preserves the
+completed signing result. The Worker E2E verifies the resulting Ed25519 signature.
+Source cleanup and full relocation still require composed verification.
 
 The same fence prevents new Ed25519 recovery and linked-device mutations. Native
 refresh deliveries also check the fence. Each mutation commits with its fence check

@@ -31,8 +31,8 @@ function digest(value) {
     .digest('hex');
 }
 
-export async function verifyEd25519Snapshot(topology, deliveryJson, credential, registrationCredential) {
-  const delivery = JSON.parse(deliveryJson);
+export async function verifyEd25519Snapshot(topology, activation, fixture, credential, registrationCredential, signDestination) {
+  const delivery = JSON.parse(activation.delivery);
   const scope = delivery.scope;
   const worker = await topology.getWorker(workerName);
   const source = {
@@ -117,10 +117,11 @@ export async function verifyEd25519Snapshot(topology, deliveryJson, credential, 
   }, credential);
   assert.notEqual(changedMove.status, 200, await changedMove.text());
   assert.deepEqual(await accepted(worker, snapshotPath, capture, credential), frozen);
-  const restoration = await verifyDestinationRestoration(
+  const restoration = await verifyDestinationRestoration({
     topology, destination, destinationName, receipt, segments,
-    Buffer.concat(bytes), credential, delivery, registrationCredential,
-  );
+    originalBytes: Buffer.concat(bytes), credential, delivery, registrationCredential,
+    activation, fixture, signDestination,
+  });
   return {
     restoration,
     recordCount: receipt.record_count,
@@ -132,7 +133,7 @@ export async function verifyEd25519Snapshot(topology, deliveryJson, credential, 
     captureAndExportResumeAfterEviction: true,
     exactDigestReconstructed: true,
     changedMoveAndReceiptRejected: true,
-    scope: 'Registered wallet Worker capture, restore and activation; excludes fresh signing, history families and cleanup',
+    scope: 'Worker registration transfer and fresh Ed25519 signing; excludes linked-device transfer, cleanup and assembled relocation',
   };
 }
 
@@ -144,10 +145,11 @@ async function rejectDestinationDelivery(destination, delivery, credential) {
   assert.match(text, /closed new Ed25519 work/);
 }
 
-async function verifyDestinationRestoration(
+async function verifyDestinationRestoration({
   topology, destination, destinationName, receipt, segments,
   originalBytes, credential, delivery, registrationCredential,
-) {
+  activation, fixture, signDestination,
+}) {
   const activate = { command: 'activate', receipt };
   const verify = { command: 'verify', receipt };
   const prematureActivation = await post(destination, snapshotPath, activate, credential);
@@ -199,6 +201,7 @@ async function verifyDestinationRestoration(
   assert.deepEqual(activated, { state: 'activated', receipt });
   await evictTransferredWallet(topology, destinationName, receipt.source.scope);
   assert.deepEqual(await accepted(destination, snapshotPath, activate, credential), activated);
+  const signing = await signDestination(topology, activation, fixture);
   const oldGeneration = await post(destination, settlePath, receipt.source, credential);
   assert.notEqual(oldGeneration.status, 200, await oldGeneration.text());
   const nextSource = structuredClone(receipt.source);
@@ -225,15 +228,30 @@ async function verifyDestinationRestoration(
     assert.equal(result.state, 'capturing');
   }
   assert.ok(recaptured);
-  const restoredBytes = [];
+  const restoredRecords = new Map();
   for (let segmentIndex = 0; segmentIndex < recaptured.segment_count; segmentIndex += 1) {
     const result = await accepted(destination, snapshotPath, {
       command: 'export', receipt: recaptured, segment_index: segmentIndex,
     }, credential);
-    restoredBytes.push(Buffer.from(result.segment.data_b64u, 'base64url'));
+    const recordIndex = result.segment.record_index;
+    if (!restoredRecords.has(recordIndex)) restoredRecords.set(recordIndex, []);
+    restoredRecords.get(recordIndex).push(Buffer.from(result.segment.data_b64u, 'base64url'));
   }
-  assert.deepEqual(Buffer.concat(restoredBytes), originalBytes);
+  assert.equal(recaptured.record_count, 2);
+  assert.deepEqual(Buffer.concat(restoredRecords.get(0)), originalBytes);
+  const round1 = JSON.parse(Buffer.concat(restoredRecords.get(1)).toString('utf8'));
+  assert.equal(round1.kind, 'round1');
+  assert.equal(round1.row.state, 'completed');
+  assert.deepEqual(JSON.parse(round1.row.terminal_json), {
+    kind: 'success', response: signing.response,
+  });
   return {
+    signatureSha256Hex: signing.signatureSha256Hex,
+    freshSignatureVerified: true,
+    staleGenerationRejected: signing.staleGenerationRejected,
+    prepareReplayAfterEviction: signing.prepareReplayAfterEviction,
+    finalizeReplayAfterEviction: signing.finalizeReplayAfterEviction,
+    newTerminalIncludedInNextSnapshot: true,
     destinationPreparedBeforeSourceSettlement: true,
     initialRegistrationWriteBlockedDuringPreparation: true,
     historicalRegistrationReplayPreserved: true,

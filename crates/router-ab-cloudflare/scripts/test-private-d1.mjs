@@ -1,3 +1,4 @@
+import { verifyEd25519DestinationSigning } from './ed25519-signing-evidence.mjs';
 import { verifyEd25519Snapshot } from './ed25519-snapshot-evidence.mjs';
 import assert from 'node:assert/strict';
 import { dispatchEcdsaSigningWithStorageFaults } from './ecdsa-storage-evidence.mjs';
@@ -4118,6 +4119,24 @@ async function deriverBPairStatus(topology, rootIdentity, pairBinding) {
   return JSON.parse(bytes.toString('utf8'));
 }
 
+async function signRelocatedEd25519(topology, activation, fixture) {
+  const priorTarget = signingWorkerDeliveryTarget;
+  signingWorkerDeliveryTarget = 'fixture-signing-worker-after-refresh';
+  try {
+    return await verifyEd25519DestinationSigning({
+      topology,
+      activation: activation.result.result.result,
+      identity: fixture.tenant_root_creation.identity,
+      clientRecipientSeed: fixture.activation.client_recipient_seed,
+      credential: gatewayToRouterAuthSecret,
+      repoRoot,
+      scope: JSON.parse(activation.delivery).scope,
+    });
+  } finally {
+    signingWorkerDeliveryTarget = priorTarget;
+  }
+}
+
 async function testDeriverAWalletDoExecution(
   topology,
   fixture,
@@ -4257,7 +4276,7 @@ async function testDeriverAWalletDoExecution(
   assert.equal(aRowsAfterSecondTenant.count, 0);
   assert.ok(activation.publicReceipt, 'Router registration must complete through A wallet DO');
   const ed25519Snapshot = await verifyEd25519Snapshot(
-    topology, activation.delivery, routerToSigningWorkerEcdsaAuthSecret, internalAuthSecret,
+    topology, activation, fixture, routerToSigningWorkerEcdsaAuthSecret, internalAuthSecret, signRelocatedEd25519,
   );
   const artifact = {
     kind: 'deriver_a_wallet_do_execution_e2e_v1',

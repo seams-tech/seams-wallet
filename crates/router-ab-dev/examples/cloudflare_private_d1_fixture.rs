@@ -1,3 +1,6 @@
+#[path = "cloudflare_private_d1_fixture/ed25519_signing.rs"]
+mod ed25519_signing;
+
 use base64::Engine;
 use router_ab_core::{
     LocalServiceRoleV1, MpcMaterialActivationRefV1, RootShareEpoch,
@@ -118,6 +121,7 @@ fn linked_presign_init_fixture() -> Result<LinkedPresignFixture, Box<dyn std::er
 
 #[derive(Serialize)]
 struct RequestFixture {
+    client_recipient_seed: [u8; 32],
     gateway_request: RouterEd25519YaoGatewayExecuteTargetV2,
     application: RouterAbEd25519YaoApplicationBindingFactsV1,
     participant_ids: [u16; 2],
@@ -179,6 +183,9 @@ struct TenantRootCreationRequestFixture {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.as_slice() == ["--ed25519-signing"] {
+        return ed25519_signing::run();
+    }
     if let [mode, label, lifetime_ms] = args.as_slice() {
         if mode == "--creation-grant" {
             return print_recovery_creation_grant(label, lifetime_ms.parse()?);
@@ -512,6 +519,7 @@ fn request_fixture(
         input_b,
     )?;
     Ok(RequestFixture {
+        client_recipient_seed: [client_root_bytes[0].wrapping_add(0x40); 32],
         gateway_request,
         application: application_binding,
         participant_ids: [1, 2],
