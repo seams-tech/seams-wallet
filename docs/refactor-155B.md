@@ -1740,3 +1740,33 @@ The initial assertion expected host-local authority keys. That was an obsolete
 fixture assumption: release builds keep authority in the wallet DO. The corrected
 check observes alarm execution and expiry rejection. It does not claim a direct
 inspection of the Rust live-session map or any hosted latency result.
+
+
+### Frozen browser candidate and authentication boundary — 2026-10-07
+
+The SDK JavaScript build, Wallet server build, and SDK freshness check passed.
+A direct Git blob audit matched all 3,549 tracked public files to committed `dev`
+at `298ffc602aa6775b54ca0325d585b4a76e9c2c62`. The local snapshot under
+`.artifacts/r155b-current-candidate` contains 5,668 hashed files: SDK distribution,
+server distribution, and all five optimized custody roles. It includes the existing
+client WASM binaries used by the SDK build. The source audit and complete hash
+inventory remain beside those frozen artifacts.
+
+Passkey unlock still uses shared challenge publication and route discovery, even
+when the browser previously used the wallet. A new browser check initially required
+that operation to succeed during Console outage and correctly received
+`wallet_home_unavailable`. The existing factor contract requires that coordination.
+This is outside the established-session signing outage guarantee. The check now
+allows directory coordination during fresh unlock and measures signing separately.
+
+The extended regional browser scenario preserves one signing operation during
+Console outage, resets browser runtime state, unlocks through APAC with Console
+available, then disables Console again for signing through APAC and OC. It records
+unlock directory calls separately from signing calls. Both curve cases passed
+(1.5 minutes): three verified signatures per curve and zero Console calls during
+signing. Each fresh unlock made six recorded directory calls. This does not close fresh
+browser authentication after custody relocation or establish hosted timing.
+
+[Candidate hashes and current validation results](evidence/r155b-frozen-candidate-20261007.json).
+Hosted deployment-version pinning, served-region measurement, and the controlled
+control/candidate comparison remain open.

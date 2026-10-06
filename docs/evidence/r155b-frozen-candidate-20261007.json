@@ -1,0 +1,125 @@
+{
+  "date": "2026-10-07",
+  "scope": "Local frozen SDK, server and optimized custody candidate; no live deployment. SDK build reuses existing client WASM outputs, which are included in the file hashes.",
+  "publicRevision": "298ffc602aa6775b54ca0325d585b4a76e9c2c62",
+  "privateRevision": "104a37e0c6378e61590ff97d888d2407968ff0ec",
+  "sourceAudit": {
+    "revision": "298ffc602aa6775b54ca0325d585b4a76e9c2c62",
+    "checkedFiles": 3549,
+    "mismatches": []
+  },
+  "localArtifactDirectory": ".artifacts/r155b-current-candidate",
+  "fileCount": 5668,
+  "fileHashInventorySha256": "91e17dd766f2f9c2806773e03788195c2f32f6e69171d296b727218b7d18636e",
+  "walletBuildInputsSha256": "775d6de4e4897fa6f29eb3534b296a4d7bbf546aa8be7deccbcd033061ec791b",
+  "custody": {
+    "deriver-a": {
+      "build": {
+        "profile": "release",
+        "wallet_objects": true,
+        "features": "strict-worker-deriver-a-entrypoint",
+        "started_at_ms": 1791322621000
+      },
+      "javascriptSha256": "e5c2f1fe5570ec87969630808ca64d0ea2c1abc55f212c4ef50af2a5583c39eb",
+      "wasmSha256": "4c6d4c3f836f03019c91f4b79abcaa03087a08c92caa997e6b091030c01a3b72"
+    },
+    "deriver-b": {
+      "build": {
+        "profile": "release",
+        "wallet_objects": true,
+        "features": "strict-worker-deriver-b-entrypoint",
+        "started_at_ms": 1791322746000
+      },
+      "javascriptSha256": "785c2935db36019c1e06e2a1d4b8dbd68006c89624206209513ae32176ed64fb",
+      "wasmSha256": "d03c888110a91a5c0b46a7db513d4eec049fb4abe5b2d83985d4abfd75632844"
+    },
+    "router": {
+      "build": {
+        "profile": "release",
+        "wallet_objects": true,
+        "features": "strict-worker-router-entrypoint",
+        "started_at_ms": 1791322500000
+      },
+      "javascriptSha256": "b64507f266a3358ab8057bdef23eb08968d4722659703ff9c83d3fe32b093859",
+      "wasmSha256": "8c415f0ce9d9350d8f022e725b89899cc142d0508642278e33184bee39285b2f"
+    },
+    "signing-worker": {
+      "build": {
+        "profile": "release",
+        "wallet_objects": true,
+        "features": "strict-worker-signing-worker-entrypoint",
+        "started_at_ms": 1791322854000
+      },
+      "javascriptSha256": "2e2792496a6812939987388ca58b6022256c24038cab298853fb635af315b9ef",
+      "wasmSha256": "bdd851961e73f005105e1bcc33d145c04672eb89c798667b7f925e46e37d4073"
+    },
+    "tenant-root-control-plane": {
+      "build": {
+        "profile": "release",
+        "wallet_objects": false,
+        "features": "strict-worker-tenant-root-control-plane-entrypoint",
+        "started_at_ms": 1791322981000
+      },
+      "javascriptSha256": "7aeff5feb7eb226b74129ccf642e4deee8f202142dbf266e679e821de942dc65",
+      "wasmSha256": "1fa17935d9d4457eb9d5be25ade90337b0481ee0c6486e4ac75adce5ee44e884"
+    }
+  },
+  "checks": {
+    "sdkBuild": "passed",
+    "sdkFreshness": "passed",
+    "serverBuild": "passed",
+    "browserFreshUnlockThenConsoleOutage": "passed: two browser cases, three signatures per curve, zero Console calls during signing",
+    "bloat": "passed"
+  },
+  "limitations": [
+    "Hosted Gateway/Runtime/Console deployment versions and D1 served regions remain unpinned.",
+    "Browser relocation with fresh authentication remains unverified.",
+    "Passkey unlock currently requires shared directory challenge publication; signing outage tests permit that coordination during unlock."
+  ],
+  "acceptancePrivateRevision": "c2995c0c74b0a5b5efbc10d45fdf359383fe27e7",
+  "browserEvidence": {
+    "ecdsa": {
+      "artifactSha256": "b2d5a6943df7fe8822877107b24d15f69222407492e847ce29aa0fa37586af73",
+      "result": {
+        "curve": "ecdsa",
+        "home": "US",
+        "unlockIngress": "APAC",
+        "freshUnlockAfterRuntimeReset": true,
+        "signaturesBeforeUnlock": 1,
+        "signaturesAfterUnlock": 2,
+        "consoleRequests": 0,
+        "unlockDirectoryRequests": [
+          "/internal/wallet-placement/v1/find",
+          "/internal/wallet-placement/v1/find",
+          "/internal/wallet-placement/v1/publish-routes",
+          "/internal/wallet-placement/v1/find-route",
+          "/internal/wallet-placement/v1/find-route",
+          "/internal/wallet-placement/v1/publish-session"
+        ],
+        "scope": "Browser registration, runtime reset and passkey unlock with directory coordination available. Console is unavailable for signing before and after unlock through foreign ingress. Excludes relocation and Console-independent unlock."
+      }
+    },
+    "ed25519": {
+      "artifactSha256": "bd3702b13896b74e8280d1aac4a968dde461bec1c9b5dfdbd7d7e413aac21662",
+      "result": {
+        "curve": "ed25519",
+        "home": "US",
+        "unlockIngress": "APAC",
+        "freshUnlockAfterRuntimeReset": true,
+        "signaturesBeforeUnlock": 1,
+        "signaturesAfterUnlock": 2,
+        "consoleRequests": 0,
+        "unlockDirectoryRequests": [
+          "/internal/wallet-placement/v1/find",
+          "/internal/wallet-placement/v1/find",
+          "/internal/wallet-placement/v1/publish-routes",
+          "/internal/wallet-placement/v1/find-route",
+          "/internal/wallet-placement/v1/find-route",
+          "/internal/wallet-placement/v1/publish-session"
+        ],
+        "scope": "Browser registration, runtime reset and passkey unlock with directory coordination available. Console is unavailable for signing before and after unlock through foreign ingress. Excludes relocation and Console-independent unlock."
+      }
+    }
+  },
+  "reproduce": "ROUTER_AB_WORKER_BUILD_PROFILE=release SEAMS_INTENDED_SKIP_BUILD=1 SEAMS_INTENDED_WALLET_DIST_ROOT=<public-repo>/.artifacts/r155b-current-candidate/wallet-dist SEAMS_WALLET_SERVER_CANDIDATE=<public-repo>/packages/wallet-server node tests/scripts/run-regional-real.mjs passkey.registration.contract.test.ts --grep \"(ecdsa|ed25519) signs through\" (private repository)"
+}
