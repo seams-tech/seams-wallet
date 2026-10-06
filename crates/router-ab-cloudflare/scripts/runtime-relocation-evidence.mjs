@@ -35,7 +35,8 @@ class SourceDirectory {
   async fetch(request) {
     assert.ok(
       request.url.endsWith('/relocation-runtime-source') ||
-        request.url.endsWith('/relocation-router-receipt'),
+        request.url.endsWith('/relocation-router-receipt') ||
+        request.url.endsWith('/relocation-router-export'),
     );
     assert.equal(request.headers.get('x-seams-writer-role'), 'walletRuntime');
     assert.equal(
@@ -45,6 +46,10 @@ class SourceDirectory {
     const input = await request.json();
     if (this.mode === 'denied' || input.attempt.moveId !== this.source.request.move_id)
       return Response.json({ ok: false, code: 'attempt_conflict' }, { status: 409 });
+    if (request.url.endsWith('/relocation-router-export')) {
+      assert.equal(this.receipt.record_count, 0);
+      return Response.json({ ok: false, code: 'invalid_cursor' }, { status: 409 });
+    }
     if (request.url.endsWith('/relocation-router-receipt')) {
       if (this.receipt !== null) assert.deepEqual(input.receipt, this.receipt);
       this.receipt = input.receipt;
@@ -252,5 +257,33 @@ export async function runtimeRelocationSource(topology, credential, command) {
     routerRuntime.env,
   );
   assert.deepEqual(await replayRouter.json(), frozen);
+  const exportInit = {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ ...sourceEnvelope(routerSource), recordIndex: 0, segmentIndex: 0 }),
+  };
+  const callsBeforeExport = routerRuntime.env.MPC_ROUTER.calls;
+  const emptyExport = await routerRuntime.handler(
+    new Request(`${runtimeOrigin}${runtimeBase}/router-export`, exportInit),
+    routerRuntime.env,
+  );
+  assert.equal(emptyExport.status, 409);
+  const rawExport = await routerRuntime.handler(
+    new Request(`${runtimeOrigin}${runtimeBase}/router-transfer`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        kind: 'export',
+        receipt: frozen.receipt,
+        record_index: 0,
+        segment_index: 0,
+        chunk_bytes: 4096,
+      }),
+    }),
+    routerRuntime.env,
+  );
+  assert.equal(rawExport.status, 400);
+  assert.equal(routerRuntime.env.MPC_ROUTER.calls, callsBeforeExport);
+
   return source;
 }

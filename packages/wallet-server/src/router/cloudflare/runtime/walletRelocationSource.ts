@@ -5,7 +5,8 @@ export type RuntimeSourceOperation =
   | 'ed25519-settle'
   | 'ed25519-capture'
   | 'ecdsa-freeze'
-  | 'router-freeze';
+  | 'router-freeze'
+  | 'router-export';
 export type RuntimeSourceDirectory = {
   readonly WALLET_CONSOLE: WalletConsoleServiceBinding;
   readonly CF_VERSION_METADATA: { readonly id: unknown };
@@ -28,7 +29,7 @@ export async function authorizeRuntimeSource(
 ): Promise<SourceAuthorization> {
   if (
     !isPlainObject(input) ||
-    Object.keys(input).length !== 2 ||
+    Object.keys(input).length !== (operation === 'router-export' ? 4 : 2) ||
     !isPlainObject(input.wallet) ||
     !isPlainObject(input.attempt)
   )
@@ -41,7 +42,7 @@ export async function authorizeRuntimeSource(
   try {
     response = await env.WALLET_CONSOLE.fetch(
       new Request(
-        'https://wallet-placement.internal/internal/wallet-placement/v1/relocation-runtime-source',
+        `https://wallet-placement.internal/internal/wallet-placement/v1/${operation === 'router-export' ? 'relocation-router-export' : 'relocation-runtime-source'}`,
         {
           method: 'POST',
           headers: {
@@ -51,7 +52,16 @@ export async function authorizeRuntimeSource(
             'x-seams-writer-account': env.SEAMS_D1_HOME_ACCOUNT_ID,
             'x-seams-writer-database': env.SEAMS_D1_HOME_DATABASE_ID,
           },
-          body: JSON.stringify({ wallet: input.wallet, attempt: input.attempt, operation }),
+          body: JSON.stringify(
+            operation === 'router-export'
+              ? {
+                  wallet: input.wallet,
+                  attempt: input.attempt,
+                  recordIndex: input.recordIndex,
+                  segmentIndex: input.segmentIndex,
+                }
+              : { wallet: input.wallet, attempt: input.attempt, operation },
+          ),
         },
       ),
     );
@@ -64,29 +74,57 @@ export async function authorizeRuntimeSource(
     !isPlainObject(result) ||
     result.ok !== true ||
     !isPlainObject(result.command) ||
-    result.command.operation !== operation ||
-    !isPlainObject(result.command.payload)
+    (operation !== 'router-export' &&
+      (result.command.operation !== operation || !isPlainObject(result.command.payload)))
   )
     return { ok: false, code: 'source_command_unavailable' };
-  const payload = result.command.payload;
-  if (operation === 'router-freeze') {
+  const payload = operation === 'router-export' ? result.command : result.command.payload;
+  if (!isPlainObject(payload)) return { ok: false, code: 'source_command_unavailable' };
+  if (operation === 'router-freeze' || operation === 'router-export') {
+    let request = payload;
+    if (operation === 'router-export') {
+      if (
+        Object.keys(payload).length !== 5 ||
+        payload.kind !== 'export' ||
+        payload.record_index !== input.recordIndex ||
+        payload.segment_index !== input.segmentIndex ||
+        payload.chunk_bytes !== 4096 ||
+        !isPlainObject(payload.receipt) ||
+        Object.keys(payload.receipt).length !== 3 ||
+        !isPlainObject(payload.receipt.request) ||
+        typeof payload.receipt.records_digest_hex !== 'string' ||
+        !/^[a-f0-9]{64}$/u.test(payload.receipt.records_digest_hex) ||
+        typeof payload.receipt.record_count !== 'number' ||
+        !Number.isSafeInteger(payload.receipt.record_count) ||
+        typeof input.recordIndex !== 'number' ||
+        !Number.isSafeInteger(input.recordIndex) ||
+        input.recordIndex < 0 ||
+        input.recordIndex >= payload.receipt.record_count ||
+        typeof input.segmentIndex !== 'number' ||
+        !Number.isSafeInteger(input.segmentIndex) ||
+        input.segmentIndex < 0 ||
+        input.segmentIndex > 4294967295
+      )
+        return { ok: false, code: 'source_command_unavailable' };
+      request = payload.receipt.request;
+    }
     if (
-      Object.keys(payload).length !== 5 ||
-      !isPlainObject(payload.owner) ||
-      Object.keys(payload.owner).length !== 4 ||
-      payload.owner.org_id !== input.wallet.organizationId ||
-      payload.owner.project_id !== input.wallet.projectId ||
-      payload.owner.env_id !== input.wallet.environmentId ||
-      payload.owner.wallet_id !== input.wallet.walletId ||
-      payload.move_id !== input.attempt.moveId ||
-      typeof payload.request_digest_hex !== 'string' ||
-      !/^[0-9a-f]{64}$/.test(payload.request_digest_hex) ||
-      typeof payload.source_generation !== 'number' ||
-      !Number.isSafeInteger(payload.source_generation) ||
-      payload.source_generation < 1 ||
-      typeof payload.destination_generation !== 'number' ||
-      !Number.isSafeInteger(payload.destination_generation) ||
-      payload.destination_generation !== payload.source_generation + 1
+      Object.keys(request).length !== 5 ||
+      !isPlainObject(request.owner) ||
+      Object.keys(request.owner).length !== 4 ||
+      request.owner.org_id !== input.wallet.organizationId ||
+      request.owner.project_id !== input.wallet.projectId ||
+      request.owner.env_id !== input.wallet.environmentId ||
+      request.owner.wallet_id !== input.wallet.walletId ||
+      request.move_id !== input.attempt.moveId ||
+      typeof request.request_digest_hex !== 'string' ||
+      !/^[0-9a-f]{64}$/.test(request.request_digest_hex) ||
+      typeof request.source_generation !== 'number' ||
+      !Number.isSafeInteger(request.source_generation) ||
+      request.source_generation < 1 ||
+      typeof request.destination_generation !== 'number' ||
+      !Number.isSafeInteger(request.destination_generation) ||
+      request.destination_generation !== request.source_generation + 1
     )
       return { ok: false, code: 'source_command_unavailable' };
     return { ok: true, body: JSON.stringify(payload) };

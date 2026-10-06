@@ -1652,7 +1652,10 @@ Runtime now requests these commands through its configured Console binding and
 forwards only the authorized payload. Raw snapshot capture cannot bypass this
 check. Runtime records a frozen Router receipt in Console before returning success.
 A lost receipt acknowledgement returns a retryable failure; exact freeze replay
-resubmits the same receipt. The Worker E2E uses a directory response fixture and proves that denied
+resubmits the same receipt. Console builds bounded Router export commands from
+the stored receipt during copying. Runtime consumes those commands and rejects
+raw export bypass. Successful record export through this composed path still
+needs acceptance coverage. The Worker E2E uses a directory response fixture and proves that denied
 or malformed authorization reaches no Router call. The actual directory journal
 has separate E2E coverage; the assembled coordinator remains unfinished.
 Native SQLite and wallet-DO hosts count pending rounds inside
