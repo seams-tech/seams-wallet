@@ -451,6 +451,27 @@ This verifies the D1 resource/version subset with synthetic provider checkpoints
 It does not complete owner approval, schema/key checks, Rust role preparation,
 participant effects, or the full preparation gate.
 
+Preparation integration status (2026-10-06): Console now has a source Gateway
+approval reader and a Router preparation adapter. The Router response includes its
+destination object identity. Worker evidence verifies preparation before source
+finalization and confirms that activation returns the same object identity.
+Console admission evidence uses a synthetic Runtime response; production admission
+and the remaining participant adapters are still incomplete.
+
+The next prerequisite is to separate preparation identity from source invalidation
+time. `SigningWorkerEd25519SnapshotCommandV1::Prepare` currently requires a full
+`SigningWorkerEd25519FenceCommandV1`. Its request includes `invalidated_at_ms`.
+The prepared import state compares that full command with the incoming receipt.
+Console sets this timestamp from `move.admittedAtMs`, after preparation completes.
+Thus, the current transport cannot prepare with the final command before admission.
+The Worker fixture supplies the timestamp in advance and does not prove this
+production ordering. Preparation must bind wallet, move, and generations without a
+future invalidation timestamp. The first accepted source receipt must then pin the
+actual timestamp and immutable snapshot. Later imports must match the full receipt.
+Keep the destination closed throughout preparation and import. Apply the same
+identity review to ECDSA and linked-presign preparation before wiring their adapters.
+Do not invent an early invalidation timestamp or pause the source to obtain one.
+
 The Router registration store now has a transactional source fence on both native
 SQLite and the wallet Durable Object. Its private freeze route requires the
 existing Gateway-to-Router authentication. It stops new registration claims,
