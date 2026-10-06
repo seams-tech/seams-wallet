@@ -39,6 +39,17 @@ These preliminary measurements remain separate from the established baseline.
 No server-side outlier reduction or status-call saving is claimed. See the
 [results, limitations, and repeatable evidence](refactor-152-results.md#refill-scheduling-checkpoint-october-6-2026).
 
+## Worker-to-DO refill investigation (October 6)
+
+Paired requests measured a **769.5ms** initialization round-trip median, including
+**185ms** of DO wall time. Later steps measured **72.5ms**, including **12ms** of
+DO wall time. Platform dispatch, startup, queueing and transport remain unresolved.
+
+A staging trial placed SigningWorker near Hong Kong. Full consecutive signing
+regressed from **2.390s to 3.035s** median, with nine verified signatures per cohort.
+The trial was rejected and the exact original Worker version restored. No latency
+fix is claimed. See the [paired evidence and remaining limitation](refactor-152-results.md#paired-worker-to-do-refill-investigation-october-6-2026).
+
 ## Latest consecutive-signing result (October 6)
 
 **Consecutive signing measured 3.411s median across eighteen verified signatures.**

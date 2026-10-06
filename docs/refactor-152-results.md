@@ -7021,3 +7021,82 @@ Repeat with `tests/playwright.hosted-product.config.mjs` and
 patch, asset hashes, raw traces, tail events, build logs, analysis script, and
 version snapshots. Tracked summary and observations:
 [`r152-refill-scheduling-20261006.json`](evidence/r152-refill-scheduling-20261006.json).
+
+## Paired Worker-to-DO refill investigation (October 6, 2026)
+
+**No latency fix was retained from this investigation.** Explicit placement near
+Hong Kong made the measured full-signing cohort slower. The original SigningWorker
+version was restored after the trial. Earlier successful SDK optimizations remain.
+
+Temporary diagnostic wrappers gave each private DO request a random correlation
+ID. This pairs a Worker-side round-trip timer with Cloudflare's wall and CPU
+measurements for the exact DO invocation. It avoids subtracting unrelated event
+populations or comparing absolute clocks across machines.
+
+| Paired control measurement | Samples | Median | Maximum |
+| --- | ---: | ---: | ---: |
+| Initialization round trip | 16 | 769.5ms | 950ms |
+| Initialization DO wall time | 16 | 185ms | 245ms |
+| Initialization time outside DO wall measurement | 16 | 565ms | 793ms |
+| Later-step round trip | 38 | 72.5ms | 571ms |
+| Later-step DO wall time | 38 | 12ms | 73ms |
+| Later-step time outside DO wall measurement | 38 | 47.5ms | 513ms |
+
+The last quantity is a paired residual, calculated before aggregation. It includes
+platform routing, object startup, queueing and transport. It does not establish
+which component caused the delay. The Worker timer ends when response headers
+arrive. Missing pairs in the tail stream are excluded. DO CPU medians were 98ms
+for initialization and 11ms for later steps.
+
+The control SigningWorker had no placement setting. The trial added
+`placement.region = "aws:ap-east-1"`, matching the APAC Gateway's placement target.
+It retained the same Worker code, diagnostic wrapper, database, DO namespace,
+credentials and browser assets.
+
+| Full SDK consecutive signing | Samples | Median | Range | Affected refill-wait median |
+| --- | ---: | ---: | ---: | ---: |
+| Fresh diagnostic control | 9 | 2.390s | 1.593–2.920s | 0.864s |
+| Explicit Hong Kong Worker placement | 9 | 3.035s | 1.904–4.007s | 1.524s |
+
+Eight signatures waited for refill in each cohort. All eighteen signatures and
+the shared-budget concurrency checks passed. Placement reduced the paired
+later-step residual median to 11ms, but initialization round-trip median rose to
+905ms and the largest later-step round trip reached 1.484s. These small cohorts
+justify rejecting this trial; they do not prove placement always hurts.
+
+A separate hosted overlap test probed Cloudflare trace egress locations and
+response sizes. All six sampled DO probes reported HKG. Worker probes reported
+HKG three times and BOM once. These are outbound trace observations, not a
+physical colocation guarantee or complete location history. Slow calls appeared
+with responses as small as 2.4KB and 5.9KB. Sampled 66KB responses had 16–23ms
+round trips. Payload size alone does not explain the observed outliers. This
+probe's extra background requests affect platform wall time, so it is excluded
+from the timing comparison above.
+
+The concrete remaining problem is time outside DO execution, especially the
+first call to each new presign session object. The precise split between object
+creation, dispatch, queueing and transport remains unresolved. Changing crypto,
+adding authority caches, or retaining this placement setting has no supporting
+latency evidence. Reusing an object for multiple refill sessions would require
+careful changes to per-session identity claims, replay records, alarms and
+ownership. That change was not made during this investigation.
+
+The trial used existing staging resources under the **$25 total Cloudflare
+budget**. It created no Worker, namespace or Container application. It changed no
+production deployment or npm package. The restored SigningWorker version is
+`137dfce9-8ac7-4dbf-be2b-de0b1171f01d`. Its bindings and empty placement setting
+match the original. Temporary wrappers and tail processes were removed from live
+execution. All six backend versions returned to their original values. The
+restored deployment passed refill overlap and fresh-status failure enforcement.
+The first authorization-check attempt hit a 15-second Tempo nonce RPC timeout
+(`environment_or_infrastructure_failure`). Its unchanged targeted retry passed.
+The public bloat check passed. No runtime source change was committed.
+
+Evidence: [paired requests, full-signing samples, probe observations and source
+hashes](evidence/r152-worker-do-hop-20261006.json). Reproduction scripts, frozen
+configuration, logs and test traces are under
+`seams-monorepo/.artifacts/mpc-do-hop-20261006/`. Use the same hosted latency and
+refill-overlap tests described in the preceding checkpoint. Restore the original
+Worker after diagnostic runs. Cloudflare documents the relevant
+[Worker placement behavior](https://developers.cloudflare.com/workers/configuration/placement/)
+and [DO placement limits](https://developers.cloudflare.com/durable-objects/reference/data-location/).

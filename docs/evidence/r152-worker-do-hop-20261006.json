@@ -1,0 +1,2541 @@
+{
+  "kind": "r152_worker_do_hop_investigation_v1",
+  "date": "2026-10-06",
+  "result": "No latency fix retained. Explicit Worker placement regressed this full-signing cohort. Original Worker version restored.",
+  "scope": "Native NRT browser, APAC wallet, same frozen refill-scheduling candidate assets. Three unlocks with three signatures each. No deliberate prefill wait.",
+  "timingBoundary": "SDK call includes automated approval and assembly; excludes blockchain broadcast and confirmation. Paired hop timer ends at response headers. DO wall/CPU come from Cloudflare tail. The residual includes platform routing, startup, queueing and transport; it is not a pure network measurement.",
+  "cohorts": {
+    "control": {
+      "pairs": [
+        {
+          "correlation": "283b23df-6c5d-4290-b97d-92ac3736a8bb",
+          "phase": "init",
+          "roundTripMs": 896,
+          "doWallMs": 186,
+          "doCpuMs": 105,
+          "outsideDoMs": 710,
+          "first": true
+        },
+        {
+          "correlation": "ee183da0-4f09-4320-ac2d-c0cc582f3a97",
+          "phase": "step",
+          "roundTripMs": 72,
+          "doWallMs": 65,
+          "doCpuMs": 64,
+          "outsideDoMs": 7,
+          "first": false
+        },
+        {
+          "correlation": "83c72995-eee7-4499-b3bd-bf13f6302722",
+          "phase": "step",
+          "roundTripMs": 16,
+          "doWallMs": 9,
+          "doCpuMs": 9,
+          "outsideDoMs": 7,
+          "first": false
+        },
+        {
+          "correlation": "aaf3607d-854f-4122-bbd6-c44e301b20b1",
+          "phase": "step",
+          "roundTripMs": 524,
+          "doWallMs": 11,
+          "doCpuMs": 10,
+          "outsideDoMs": 513,
+          "first": false
+        },
+        {
+          "correlation": "24d40390-eda2-4a68-b714-3a2f7c9649ab",
+          "phase": "step",
+          "roundTripMs": 10,
+          "doWallMs": 4,
+          "doCpuMs": 4,
+          "outsideDoMs": 6,
+          "first": false
+        },
+        {
+          "correlation": "4d759784-c96c-4f6c-9018-278e2a4d41ec",
+          "phase": "step",
+          "roundTripMs": 73,
+          "doWallMs": 25,
+          "doCpuMs": 25,
+          "outsideDoMs": 48,
+          "first": false
+        },
+        {
+          "correlation": "0a19a49a-0f13-4ad6-b0fc-a7fb541aeeb0",
+          "phase": "init",
+          "roundTripMs": 821,
+          "doWallMs": 178,
+          "doCpuMs": 96,
+          "outsideDoMs": 643,
+          "first": true
+        },
+        {
+          "correlation": "6c3572a5-2d9f-4bba-adb5-6cc0f2bf33d9",
+          "phase": "step",
+          "roundTripMs": 504,
+          "doWallMs": 49,
+          "doCpuMs": 48,
+          "outsideDoMs": 455,
+          "first": false
+        },
+        {
+          "correlation": "a29ed557-f52c-48b0-8ec2-f3efa0b8daa9",
+          "phase": "step",
+          "roundTripMs": 55,
+          "doWallMs": 8,
+          "doCpuMs": 8,
+          "outsideDoMs": 47,
+          "first": false
+        },
+        {
+          "correlation": "1d127b74-faad-4ddc-a66d-9a3a0165593d",
+          "phase": "step",
+          "roundTripMs": 18,
+          "doWallMs": 8,
+          "doCpuMs": 8,
+          "outsideDoMs": 10,
+          "first": false
+        },
+        {
+          "correlation": "4653326f-c417-4b8d-8ada-d34a971b3e71",
+          "phase": "step",
+          "roundTripMs": 26,
+          "doWallMs": 17,
+          "doCpuMs": 17,
+          "outsideDoMs": 9,
+          "first": false
+        },
+        {
+          "correlation": "eb7c3d11-c7fa-4f29-9fab-1dab32fdbaa9",
+          "phase": "step",
+          "roundTripMs": 571,
+          "doWallMs": 73,
+          "doCpuMs": 73,
+          "outsideDoMs": 498,
+          "first": false
+        },
+        {
+          "correlation": "9b445385-93a6-4d2c-8415-4ab72cdb1e09",
+          "phase": "init",
+          "roundTripMs": 661,
+          "doWallMs": 188,
+          "doCpuMs": 108,
+          "outsideDoMs": 473,
+          "first": true
+        },
+        {
+          "correlation": "f84b9528-9177-4673-9e98-2b67b394da3b",
+          "phase": "step",
+          "roundTripMs": 357,
+          "doWallMs": 73,
+          "doCpuMs": 72,
+          "outsideDoMs": 284,
+          "first": false
+        },
+        {
+          "correlation": "9185e551-171b-4f68-a806-74ecba52f486",
+          "phase": "step",
+          "roundTripMs": 300,
+          "doWallMs": 10,
+          "doCpuMs": 9,
+          "outsideDoMs": 290,
+          "first": false
+        },
+        {
+          "correlation": "6e547ebf-0b8a-4908-a3ca-b4ad00e6808b",
+          "phase": "init",
+          "roundTripMs": 735,
+          "doWallMs": 193,
+          "doCpuMs": 113,
+          "outsideDoMs": 542,
+          "first": true
+        },
+        {
+          "correlation": "cc8fdd62-308b-4c7f-9a40-22ad7cdb11a3",
+          "phase": "init",
+          "roundTripMs": 635,
+          "doWallMs": 176,
+          "doCpuMs": 92,
+          "outsideDoMs": 459,
+          "first": true
+        },
+        {
+          "correlation": "7cf7b0f1-9cea-48a5-8cab-2ebde5bae567",
+          "phase": "step",
+          "roundTripMs": 61,
+          "doWallMs": 49,
+          "doCpuMs": 48,
+          "outsideDoMs": 12,
+          "first": false
+        },
+        {
+          "correlation": "4f9eefff-d87c-4364-9d15-e7b7f0ea6885",
+          "phase": "step",
+          "roundTripMs": 341,
+          "doWallMs": 7,
+          "doCpuMs": 7,
+          "outsideDoMs": 334,
+          "first": false
+        },
+        {
+          "correlation": "53b059da-ee40-456a-a1c8-f7fd09ca3164",
+          "phase": "step",
+          "roundTripMs": 17,
+          "doWallMs": 7,
+          "doCpuMs": 7,
+          "outsideDoMs": 10,
+          "first": false
+        },
+        {
+          "correlation": "cf369499-47c1-4056-9518-3f186255f404",
+          "phase": "step",
+          "roundTripMs": 27,
+          "doWallMs": 17,
+          "doCpuMs": 17,
+          "outsideDoMs": 10,
+          "first": false
+        },
+        {
+          "correlation": "ac165a02-bebd-4235-9bfd-98eeb3a0bc9c",
+          "phase": "step",
+          "roundTripMs": 7,
+          "doWallMs": 2,
+          "doCpuMs": 2,
+          "outsideDoMs": 5,
+          "first": false
+        },
+        {
+          "correlation": "0bfc58d1-8396-4fb7-b081-efb6e22da78a",
+          "phase": "init",
+          "roundTripMs": 708,
+          "doWallMs": 165,
+          "doCpuMs": 87,
+          "outsideDoMs": 543,
+          "first": true
+        },
+        {
+          "correlation": "87c2b7dd-672d-4d73-97ab-e0ef55709168",
+          "phase": "step",
+          "roundTripMs": 458,
+          "doWallMs": 54,
+          "doCpuMs": 54,
+          "outsideDoMs": 404,
+          "first": false
+        },
+        {
+          "correlation": "e3fcb1b7-cb5a-42e8-87b8-3437261525c9",
+          "phase": "init",
+          "roundTripMs": 711,
+          "doWallMs": 167,
+          "doCpuMs": 90,
+          "outsideDoMs": 544,
+          "first": true
+        },
+        {
+          "correlation": "c4e54b4f-7a50-4261-9663-5d15982a0270",
+          "phase": "init",
+          "roundTripMs": 791,
+          "doWallMs": 245,
+          "doCpuMs": 92,
+          "outsideDoMs": 546,
+          "first": true
+        },
+        {
+          "correlation": "a2c38ae2-f431-4a2b-8b69-def02dc281b7",
+          "phase": "step",
+          "roundTripMs": 455,
+          "doWallMs": 46,
+          "doCpuMs": 46,
+          "outsideDoMs": 409,
+          "first": false
+        },
+        {
+          "correlation": "8e4b570f-aaba-4038-9b2a-4940fbd4cb45",
+          "phase": "init",
+          "roundTripMs": 752,
+          "doWallMs": 168,
+          "doCpuMs": 90,
+          "outsideDoMs": 584,
+          "first": true
+        },
+        {
+          "correlation": "c05858e0-bba2-4775-9ccb-9afeed4b8068",
+          "phase": "step",
+          "roundTripMs": 55,
+          "doWallMs": 47,
+          "doCpuMs": 47,
+          "outsideDoMs": 8,
+          "first": false
+        },
+        {
+          "correlation": "afff46f0-4baa-41d7-8a13-c42d7790b718",
+          "phase": "step",
+          "roundTripMs": 487,
+          "doWallMs": 8,
+          "doCpuMs": 7,
+          "outsideDoMs": 479,
+          "first": false
+        },
+        {
+          "correlation": "6ae7f074-f285-4331-bc5e-797ee5bbb6ba",
+          "phase": "init",
+          "roundTripMs": 631,
+          "doWallMs": 160,
+          "doCpuMs": 82,
+          "outsideDoMs": 471,
+          "first": true
+        },
+        {
+          "correlation": "a1e363a2-a19b-4b47-a33f-894f947f4ebc",
+          "phase": "step",
+          "roundTripMs": 398,
+          "doWallMs": 58,
+          "doCpuMs": 57,
+          "outsideDoMs": 340,
+          "first": false
+        },
+        {
+          "correlation": "db3e02a6-24b3-4c18-8ea7-eee8d42e8a64",
+          "phase": "step",
+          "roundTripMs": 20,
+          "doWallMs": 9,
+          "doCpuMs": 8,
+          "outsideDoMs": 11,
+          "first": false
+        },
+        {
+          "correlation": "51908085-2bf9-4a0d-977f-4e9594bd813c",
+          "phase": "init",
+          "roundTripMs": 734,
+          "doWallMs": 206,
+          "doCpuMs": 123,
+          "outsideDoMs": 528,
+          "first": true
+        },
+        {
+          "correlation": "750ef2b2-4bda-465d-ac5b-537e1123fe69",
+          "phase": "step",
+          "roundTripMs": 435,
+          "doWallMs": 58,
+          "doCpuMs": 58,
+          "outsideDoMs": 377,
+          "first": false
+        },
+        {
+          "correlation": "7129cf2f-016b-44e6-8194-f4deeef00f39",
+          "phase": "step",
+          "roundTripMs": 440,
+          "doWallMs": 13,
+          "doCpuMs": 12,
+          "outsideDoMs": 427,
+          "first": false
+        },
+        {
+          "correlation": "4af6b75d-a847-4964-b5bb-224ec1683cca",
+          "phase": "init",
+          "roundTripMs": 950,
+          "doWallMs": 157,
+          "doCpuMs": 80,
+          "outsideDoMs": 793,
+          "first": true
+        },
+        {
+          "correlation": "c470f5f1-1dad-4a1d-9335-d4c852628529",
+          "phase": "step",
+          "roundTripMs": 514,
+          "doWallMs": 46,
+          "doCpuMs": 45,
+          "outsideDoMs": 468,
+          "first": false
+        },
+        {
+          "correlation": "f73074da-7ef4-4e28-b375-ffadb21e89f3",
+          "phase": "step",
+          "roundTripMs": 15,
+          "doWallMs": 6,
+          "doCpuMs": 6,
+          "outsideDoMs": 9,
+          "first": false
+        },
+        {
+          "correlation": "c0adfdd3-828e-4919-92ae-7b4707510aa9",
+          "phase": "step",
+          "roundTripMs": 463,
+          "doWallMs": 3,
+          "doCpuMs": 3,
+          "outsideDoMs": 460,
+          "first": false
+        },
+        {
+          "correlation": "170e261c-4d1c-4903-bf22-c1afa70a324b",
+          "phase": "init",
+          "roundTripMs": 787,
+          "doWallMs": 187,
+          "doCpuMs": 102,
+          "outsideDoMs": 600,
+          "first": true
+        },
+        {
+          "correlation": "0be408bd-147a-4b40-a435-d8bcb4b80f04",
+          "phase": "step",
+          "roundTripMs": 15,
+          "doWallMs": 9,
+          "doCpuMs": 9,
+          "outsideDoMs": 6,
+          "first": false
+        },
+        {
+          "correlation": "3493c673-5b57-417a-9faf-24e806e5c977",
+          "phase": "init",
+          "roundTripMs": 819,
+          "doWallMs": 184,
+          "doCpuMs": 100,
+          "outsideDoMs": 635,
+          "first": true
+        },
+        {
+          "correlation": "d49fcdb4-72f7-4508-8b85-ba1a2a3b2de5",
+          "phase": "init",
+          "roundTripMs": 917,
+          "doWallMs": 218,
+          "doCpuMs": 131,
+          "outsideDoMs": 699,
+          "first": true
+        },
+        {
+          "correlation": "864ad70d-e486-4d62-9036-558e024b6c02",
+          "phase": "step",
+          "roundTripMs": 520,
+          "doWallMs": 71,
+          "doCpuMs": 70,
+          "outsideDoMs": 449,
+          "first": false
+        },
+        {
+          "correlation": "4a39444a-cfc3-4041-8216-8c34da2cde79",
+          "phase": "step",
+          "roundTripMs": 17,
+          "doWallMs": 10,
+          "doCpuMs": 9,
+          "outsideDoMs": 7,
+          "first": false
+        },
+        {
+          "correlation": "09ec318c-b34e-455f-b537-663bb164b215",
+          "phase": "step",
+          "roundTripMs": 485,
+          "doWallMs": 13,
+          "doCpuMs": 12,
+          "outsideDoMs": 472,
+          "first": false
+        },
+        {
+          "correlation": "030bd619-997d-46dc-a6f7-57b3747de205",
+          "phase": "init",
+          "roundTripMs": 846,
+          "doWallMs": 232,
+          "doCpuMs": 153,
+          "outsideDoMs": 614,
+          "first": true
+        },
+        {
+          "correlation": "029a5b6e-97c4-49c3-907d-3c026c50a8a3",
+          "phase": "step",
+          "roundTripMs": 501,
+          "doWallMs": 68,
+          "doCpuMs": 67,
+          "outsideDoMs": 433,
+          "first": false
+        },
+        {
+          "correlation": "06385711-8a20-4292-985a-f7587f34e600",
+          "phase": "step",
+          "roundTripMs": 18,
+          "doWallMs": 9,
+          "doCpuMs": 9,
+          "outsideDoMs": 9,
+          "first": false
+        },
+        {
+          "correlation": "9ee6fde0-3c9a-494b-9d9b-bfdb66d1a3d8",
+          "phase": "step",
+          "roundTripMs": 18,
+          "doWallMs": 11,
+          "doCpuMs": 10,
+          "outsideDoMs": 7,
+          "first": false
+        },
+        {
+          "correlation": "ec8e23bc-4017-4253-8cc5-42336e26154c",
+          "phase": "step",
+          "roundTripMs": 27,
+          "doWallMs": 19,
+          "doCpuMs": 19,
+          "outsideDoMs": 8,
+          "first": false
+        },
+        {
+          "correlation": "bcfd873e-25e8-454b-9bf6-fe52986a3dc4",
+          "phase": "step",
+          "roundTripMs": 11,
+          "doWallMs": 5,
+          "doCpuMs": 4,
+          "outsideDoMs": 6,
+          "first": false
+        },
+        {
+          "correlation": "c9f76ad1-2cba-4ada-a922-d3852f861931",
+          "phase": "step",
+          "roundTripMs": 308,
+          "doWallMs": 2,
+          "doCpuMs": 2,
+          "outsideDoMs": 306,
+          "first": false
+        }
+      ],
+      "phases": {
+        "init": {
+          "roundTripMs": {
+            "count": 16,
+            "medianMs": 769.5,
+            "minMs": 631,
+            "maxMs": 950
+          },
+          "doWallMs": {
+            "count": 16,
+            "medianMs": 185.0,
+            "minMs": 157,
+            "maxMs": 245
+          },
+          "doCpuMs": {
+            "count": 16,
+            "medianMs": 98.0,
+            "minMs": 80,
+            "maxMs": 153
+          },
+          "outsideDoMs": {
+            "count": 16,
+            "medianMs": 565.0,
+            "minMs": 459,
+            "maxMs": 793
+          }
+        },
+        "step": {
+          "roundTripMs": {
+            "count": 38,
+            "medianMs": 72.5,
+            "minMs": 7,
+            "maxMs": 571
+          },
+          "doWallMs": {
+            "count": 38,
+            "medianMs": 12.0,
+            "minMs": 2,
+            "maxMs": 73
+          },
+          "doCpuMs": {
+            "count": 38,
+            "medianMs": 11.0,
+            "minMs": 2,
+            "maxMs": 73
+          },
+          "outsideDoMs": {
+            "count": 38,
+            "medianMs": 47.5,
+            "minMs": 5,
+            "maxMs": 513
+          }
+        }
+      },
+      "back_to_back": {
+        "sdk": {
+          "count": 9,
+          "medianMs": 2389.689999997616,
+          "minMs": 1593.375,
+          "maxMs": 2920.0299999713898
+        },
+        "refillWait": {
+          "count": 8,
+          "medianMs": 863.8499999940395,
+          "minMs": 355.30000001192093,
+          "maxMs": 1431.300000011921
+        },
+        "allVerified": true,
+        "concurrentVerified": true
+      },
+      "samples": [
+        {
+          "batch": 0,
+          "index": 0,
+          "sdkMs": 1593.375,
+          "verified": true
+        },
+        {
+          "batch": 0,
+          "index": 1,
+          "sdkMs": 2435.2450000047684,
+          "verified": true
+        },
+        {
+          "batch": 0,
+          "index": 2,
+          "sdkMs": 2304.464999973774,
+          "verified": true
+        },
+        {
+          "batch": 1,
+          "index": 0,
+          "sdkMs": 2717.1599999666214,
+          "verified": true
+        },
+        {
+          "batch": 1,
+          "index": 1,
+          "sdkMs": 2340.9500000476837,
+          "verified": true
+        },
+        {
+          "batch": 1,
+          "index": 2,
+          "sdkMs": 2389.689999997616,
+          "verified": true
+        },
+        {
+          "batch": 2,
+          "index": 0,
+          "sdkMs": 2896.8700000047684,
+          "verified": true
+        },
+        {
+          "batch": 2,
+          "index": 1,
+          "sdkMs": 2285.175000011921,
+          "verified": true
+        },
+        {
+          "batch": 2,
+          "index": 2,
+          "sdkMs": 2920.0299999713898,
+          "verified": true
+        }
+      ],
+      "hopEventsSha256": "6086383a41355115d747f7c94622279ed089622317d4a33999a0b07bc293139e",
+      "signatureEvidenceSha256": "e477f917e916df89cfc20b1e837082b33063157c138ba5e502c3adc0531b2dcc"
+    },
+    "placement": {
+      "pairs": [
+        {
+          "correlation": "ca7f2813-0d06-40e0-aa34-09632d201df5",
+          "phase": "init",
+          "roundTripMs": 946,
+          "doWallMs": 341,
+          "doCpuMs": 87,
+          "outsideDoMs": 605,
+          "first": true
+        },
+        {
+          "correlation": "7b1d469b-caa8-4022-9821-40de6ed1393d",
+          "phase": "step",
+          "roundTripMs": 517,
+          "doWallMs": 52,
+          "doCpuMs": 51,
+          "outsideDoMs": 465,
+          "first": false
+        },
+        {
+          "correlation": "915f4a79-7b27-4ee1-8f72-3baa05167de6",
+          "phase": "step",
+          "roundTripMs": 15,
+          "doWallMs": 6,
+          "doCpuMs": 5,
+          "outsideDoMs": 9,
+          "first": false
+        },
+        {
+          "correlation": "08ee7218-6eb6-44cb-995f-679138fb8a9c",
+          "phase": "step",
+          "roundTripMs": 25,
+          "doWallMs": 17,
+          "doCpuMs": 16,
+          "outsideDoMs": 8,
+          "first": false
+        },
+        {
+          "correlation": "052c0e0f-59a9-4dfa-b744-560d4d954803",
+          "phase": "step",
+          "roundTripMs": 457,
+          "doWallMs": 7,
+          "doCpuMs": 6,
+          "outsideDoMs": 450,
+          "first": false
+        },
+        {
+          "correlation": "a185e2b0-96c2-47bb-bc47-8b44ee6b8e5d",
+          "phase": "step",
+          "roundTripMs": 10,
+          "doWallMs": 2,
+          "doCpuMs": 2,
+          "outsideDoMs": 8,
+          "first": false
+        },
+        {
+          "correlation": "abbe38b3-1c99-4888-ac58-a17a9e89133c",
+          "phase": "init",
+          "roundTripMs": 1217,
+          "doWallMs": 567,
+          "doCpuMs": 71,
+          "outsideDoMs": 650,
+          "first": true
+        },
+        {
+          "correlation": "2aec215f-3653-4757-9364-65bd4e125cf4",
+          "phase": "step",
+          "roundTripMs": 523,
+          "doWallMs": 52,
+          "doCpuMs": 52,
+          "outsideDoMs": 471,
+          "first": false
+        },
+        {
+          "correlation": "7a732ea6-b228-437d-94cf-a51877582cc3",
+          "phase": "step",
+          "roundTripMs": 13,
+          "doWallMs": 6,
+          "doCpuMs": 6,
+          "outsideDoMs": 7,
+          "first": false
+        },
+        {
+          "correlation": "9c2c23a9-4bbb-4e11-b01c-7e41acb14f05",
+          "phase": "step",
+          "roundTripMs": 479,
+          "doWallMs": 8,
+          "doCpuMs": 7,
+          "outsideDoMs": 471,
+          "first": false
+        },
+        {
+          "correlation": "0fbf9975-833a-4ddc-8a82-b3a4f4356323",
+          "phase": "step",
+          "roundTripMs": 25,
+          "doWallMs": 17,
+          "doCpuMs": 17,
+          "outsideDoMs": 8,
+          "first": false
+        },
+        {
+          "correlation": "307f2a02-09c7-45b9-9b6c-b080b5861c54",
+          "phase": "step",
+          "roundTripMs": 10,
+          "doWallMs": 3,
+          "doCpuMs": 3,
+          "outsideDoMs": 7,
+          "first": false
+        },
+        {
+          "correlation": "f04b27b9-cc1a-45f8-a482-aa62784e1b11",
+          "phase": "init",
+          "roundTripMs": 679,
+          "doWallMs": 158,
+          "doCpuMs": 80,
+          "outsideDoMs": 521,
+          "first": true
+        },
+        {
+          "correlation": "e4bfa27e-41b2-4fac-9ce8-e8516124a306",
+          "phase": "step",
+          "roundTripMs": 434,
+          "doWallMs": 49,
+          "doCpuMs": 49,
+          "outsideDoMs": 385,
+          "first": false
+        },
+        {
+          "correlation": "08dad2ea-22c9-4170-9884-fb38d97b77d4",
+          "phase": "step",
+          "roundTripMs": 17,
+          "doWallMs": 6,
+          "doCpuMs": 6,
+          "outsideDoMs": 11,
+          "first": false
+        },
+        {
+          "correlation": "836c1653-a99e-4e68-93f5-97dacd8d5125",
+          "phase": "step",
+          "roundTripMs": 18,
+          "doWallMs": 7,
+          "doCpuMs": 6,
+          "outsideDoMs": 11,
+          "first": false
+        },
+        {
+          "correlation": "471bced8-bc42-49ee-a332-ba36791e2b37",
+          "phase": "step",
+          "roundTripMs": 400,
+          "doWallMs": 13,
+          "doCpuMs": 13,
+          "outsideDoMs": 387,
+          "first": false
+        },
+        {
+          "correlation": "2ae98402-d8ee-4d59-b914-843d02166de3",
+          "phase": "step",
+          "roundTripMs": 10,
+          "doWallMs": 3,
+          "doCpuMs": 3,
+          "outsideDoMs": 7,
+          "first": false
+        },
+        {
+          "correlation": "e6180963-eb92-49f3-8244-9153181b0879",
+          "phase": "init",
+          "roundTripMs": 850,
+          "doWallMs": 429,
+          "doCpuMs": 82,
+          "outsideDoMs": 421,
+          "first": true
+        },
+        {
+          "correlation": "f66225d6-d8ba-40eb-88fd-c8ce7b4437d6",
+          "phase": "step",
+          "roundTripMs": 56,
+          "doWallMs": 48,
+          "doCpuMs": 47,
+          "outsideDoMs": 8,
+          "first": false
+        },
+        {
+          "correlation": "fd6427fd-114b-4c7d-8d92-b4cacbd3ccb3",
+          "phase": "init",
+          "roundTripMs": 1066,
+          "doWallMs": 481,
+          "doCpuMs": 87,
+          "outsideDoMs": 585,
+          "first": true
+        },
+        {
+          "correlation": "a9b3eee4-2806-43e9-b47d-cd5c6d0aec9e",
+          "phase": "init",
+          "roundTripMs": 885,
+          "doWallMs": 366,
+          "doCpuMs": 74,
+          "outsideDoMs": 519,
+          "first": true
+        },
+        {
+          "correlation": "7bdc322e-6f82-4954-97db-3caf64d4a4ab",
+          "phase": "step",
+          "roundTripMs": 484,
+          "doWallMs": 48,
+          "doCpuMs": 47,
+          "outsideDoMs": 436,
+          "first": false
+        },
+        {
+          "correlation": "ccdeb364-877a-459d-a5c6-cf2c2103bde8",
+          "phase": "step",
+          "roundTripMs": 13,
+          "doWallMs": 6,
+          "doCpuMs": 6,
+          "outsideDoMs": 7,
+          "first": false
+        },
+        {
+          "correlation": "0495512e-1a54-42ad-bf19-c6f37fd4e1c5",
+          "phase": "step",
+          "roundTripMs": 426,
+          "doWallMs": 9,
+          "doCpuMs": 8,
+          "outsideDoMs": 417,
+          "first": false
+        },
+        {
+          "correlation": "bc38ec7b-3647-4cab-acfd-1d8f85c523b1",
+          "phase": "step",
+          "roundTripMs": 21,
+          "doWallMs": 13,
+          "doCpuMs": 12,
+          "outsideDoMs": 8,
+          "first": false
+        },
+        {
+          "correlation": "d4d2392a-654d-46eb-b197-5abd69257a98",
+          "phase": "init",
+          "roundTripMs": 838,
+          "doWallMs": 213,
+          "doCpuMs": 129,
+          "outsideDoMs": 625,
+          "first": true
+        },
+        {
+          "correlation": "24df2368-6b53-4c0c-8b4e-4b7a6d66068a",
+          "phase": "step",
+          "roundTripMs": 1484,
+          "doWallMs": 15,
+          "doCpuMs": 14,
+          "outsideDoMs": 1469,
+          "first": false
+        },
+        {
+          "correlation": "3d06e6a4-a6fe-434f-b10a-f76be9c2aed7",
+          "phase": "init",
+          "roundTripMs": 853,
+          "doWallMs": 193,
+          "doCpuMs": 109,
+          "outsideDoMs": 660,
+          "first": true
+        },
+        {
+          "correlation": "5ee2febc-d32c-4f70-acd5-ba4f15a695fc",
+          "phase": "step",
+          "roundTripMs": 19,
+          "doWallMs": 10,
+          "doCpuMs": 10,
+          "outsideDoMs": 9,
+          "first": false
+        },
+        {
+          "correlation": "f3820893-c2c5-46c7-be44-2ac05eccf874",
+          "phase": "step",
+          "roundTripMs": 485,
+          "doWallMs": 12,
+          "doCpuMs": 11,
+          "outsideDoMs": 473,
+          "first": false
+        },
+        {
+          "correlation": "ddc5ef89-6c37-4a05-950b-ebaecf61b561",
+          "phase": "init",
+          "roundTripMs": 905,
+          "doWallMs": 346,
+          "doCpuMs": 80,
+          "outsideDoMs": 559,
+          "first": true
+        },
+        {
+          "correlation": "757fa50a-2a5b-4142-bb77-e83825778dfd",
+          "phase": "init",
+          "roundTripMs": 622,
+          "doWallMs": 150,
+          "doCpuMs": 72,
+          "outsideDoMs": 472,
+          "first": true
+        },
+        {
+          "correlation": "e0fd3bf8-223b-4ef5-9b92-f36910bc1a8e",
+          "phase": "step",
+          "roundTripMs": 381,
+          "doWallMs": 44,
+          "doCpuMs": 43,
+          "outsideDoMs": 337,
+          "first": false
+        },
+        {
+          "correlation": "97477dc7-2e61-4e71-8668-daf34ad70584",
+          "phase": "step",
+          "roundTripMs": 350,
+          "doWallMs": 6,
+          "doCpuMs": 6,
+          "outsideDoMs": 344,
+          "first": false
+        },
+        {
+          "correlation": "b376161b-c9d8-408c-93ba-e7cd31292f45",
+          "phase": "step",
+          "roundTripMs": 413,
+          "doWallMs": 6,
+          "doCpuMs": 6,
+          "outsideDoMs": 407,
+          "first": false
+        },
+        {
+          "correlation": "35f873c2-654a-487f-9161-3c87131a398b",
+          "phase": "step",
+          "roundTripMs": 417,
+          "doWallMs": 9,
+          "doCpuMs": 9,
+          "outsideDoMs": 408,
+          "first": false
+        },
+        {
+          "correlation": "95c98f05-bb5d-4561-83d1-1bbe2bcbb74c",
+          "phase": "step",
+          "roundTripMs": 25,
+          "doWallMs": 17,
+          "doCpuMs": 17,
+          "outsideDoMs": 8,
+          "first": false
+        },
+        {
+          "correlation": "a1c20739-4460-474e-818b-e5b87c378fe5",
+          "phase": "step",
+          "roundTripMs": 14,
+          "doWallMs": 4,
+          "doCpuMs": 3,
+          "outsideDoMs": 10,
+          "first": false
+        },
+        {
+          "correlation": "cac44832-23fc-457d-9a7d-3c5684390408",
+          "phase": "init",
+          "roundTripMs": 925,
+          "doWallMs": 393,
+          "doCpuMs": 66,
+          "outsideDoMs": 532,
+          "first": true
+        },
+        {
+          "correlation": "1ea3aa5e-ef5b-421b-a5b9-1a92975d770a",
+          "phase": "step",
+          "roundTripMs": 529,
+          "doWallMs": 41,
+          "doCpuMs": 41,
+          "outsideDoMs": 488,
+          "first": false
+        },
+        {
+          "correlation": "32f0b948-3e4a-4cfd-94af-abfbc0e18cb1",
+          "phase": "init",
+          "roundTripMs": 945,
+          "doWallMs": 355,
+          "doCpuMs": 88,
+          "outsideDoMs": 590,
+          "first": true
+        },
+        {
+          "correlation": "e120128c-928a-4cf2-bd14-71df1f465770",
+          "phase": "init",
+          "roundTripMs": 758,
+          "doWallMs": 162,
+          "doCpuMs": 78,
+          "outsideDoMs": 596,
+          "first": true
+        },
+        {
+          "correlation": "db04b85f-39de-49bd-8e89-58b69c6eb2f6",
+          "phase": "step",
+          "roundTripMs": 55,
+          "doWallMs": 48,
+          "doCpuMs": 48,
+          "outsideDoMs": 7,
+          "first": false
+        },
+        {
+          "correlation": "f14ddbf7-93e6-42aa-95de-cfc808a3a205",
+          "phase": "step",
+          "roundTripMs": 11,
+          "doWallMs": 6,
+          "doCpuMs": 6,
+          "outsideDoMs": 5,
+          "first": false
+        },
+        {
+          "correlation": "c543dd51-3451-4ee0-af72-5e16f5ed39e9",
+          "phase": "step",
+          "roundTripMs": 467,
+          "doWallMs": 7,
+          "doCpuMs": 7,
+          "outsideDoMs": 460,
+          "first": false
+        },
+        {
+          "correlation": "97a623c3-a3e2-47ad-b9a5-c601ecc22923",
+          "phase": "step",
+          "roundTripMs": 491,
+          "doWallMs": 3,
+          "doCpuMs": 3,
+          "outsideDoMs": 488,
+          "first": false
+        },
+        {
+          "correlation": "1c8bd4ae-714a-4be7-a77e-52c4ae961e1f",
+          "phase": "init",
+          "roundTripMs": 917,
+          "doWallMs": 331,
+          "doCpuMs": 83,
+          "outsideDoMs": 586,
+          "first": true
+        },
+        {
+          "correlation": "be807555-0ce8-40d3-9e2a-985fe609b115",
+          "phase": "step",
+          "roundTripMs": 532,
+          "doWallMs": 54,
+          "doCpuMs": 54,
+          "outsideDoMs": 478,
+          "first": false
+        },
+        {
+          "correlation": "125505e9-4fe4-4a75-ada6-ad8a0bbae0c9",
+          "phase": "step",
+          "roundTripMs": 494,
+          "doWallMs": 7,
+          "doCpuMs": 6,
+          "outsideDoMs": 487,
+          "first": false
+        },
+        {
+          "correlation": "a4451c48-94f2-4dff-8ed0-210077dcd8e5",
+          "phase": "step",
+          "roundTripMs": 20,
+          "doWallMs": 9,
+          "doCpuMs": 8,
+          "outsideDoMs": 11,
+          "first": false
+        },
+        {
+          "correlation": "37a0a16e-bcdd-4263-9bac-2572c7c414eb",
+          "phase": "step",
+          "roundTripMs": 27,
+          "doWallMs": 18,
+          "doCpuMs": 18,
+          "outsideDoMs": 9,
+          "first": false
+        },
+        {
+          "correlation": "9634d342-de2d-4368-aead-768d91e386f7",
+          "phase": "step",
+          "roundTripMs": 11,
+          "doWallMs": 3,
+          "doCpuMs": 3,
+          "outsideDoMs": 8,
+          "first": false
+        },
+        {
+          "correlation": "f717411f-ddea-4ff8-bb1f-40ba1f5efdbd",
+          "phase": "init",
+          "roundTripMs": 1222,
+          "doWallMs": 610,
+          "doCpuMs": 87,
+          "outsideDoMs": 612,
+          "first": true
+        }
+      ],
+      "phases": {
+        "init": {
+          "roundTripMs": {
+            "count": 15,
+            "medianMs": 905,
+            "minMs": 622,
+            "maxMs": 1222
+          },
+          "doWallMs": {
+            "count": 15,
+            "medianMs": 346,
+            "minMs": 150,
+            "maxMs": 610
+          },
+          "doCpuMs": {
+            "count": 15,
+            "medianMs": 82,
+            "minMs": 66,
+            "maxMs": 129
+          },
+          "outsideDoMs": {
+            "count": 15,
+            "medianMs": 586,
+            "minMs": 421,
+            "maxMs": 660
+          }
+        },
+        "step": {
+          "roundTripMs": {
+            "count": 39,
+            "medianMs": 56,
+            "minMs": 10,
+            "maxMs": 1484
+          },
+          "doWallMs": {
+            "count": 39,
+            "medianMs": 9,
+            "minMs": 2,
+            "maxMs": 54
+          },
+          "doCpuMs": {
+            "count": 39,
+            "medianMs": 8,
+            "minMs": 2,
+            "maxMs": 54
+          },
+          "outsideDoMs": {
+            "count": 39,
+            "medianMs": 11,
+            "minMs": 5,
+            "maxMs": 1469
+          }
+        }
+      },
+      "back_to_back": {
+        "sdk": {
+          "count": 9,
+          "medianMs": 3035.1699999570847,
+          "minMs": 1903.6800000071526,
+          "maxMs": 4007.210000038147
+        },
+        "refillWait": {
+          "count": 8,
+          "medianMs": 1524.0999999940395,
+          "minMs": 613.4000000357628,
+          "maxMs": 2109.800000011921
+        },
+        "allVerified": true,
+        "concurrentVerified": true
+      },
+      "samples": [
+        {
+          "batch": 0,
+          "index": 0,
+          "sdkMs": 1903.6800000071526,
+          "verified": true
+        },
+        {
+          "batch": 0,
+          "index": 1,
+          "sdkMs": 3685.550000011921,
+          "verified": true
+        },
+        {
+          "batch": 0,
+          "index": 2,
+          "sdkMs": 2166.860000014305,
+          "verified": true
+        },
+        {
+          "batch": 1,
+          "index": 0,
+          "sdkMs": 3467.9200000166893,
+          "verified": true
+        },
+        {
+          "batch": 1,
+          "index": 1,
+          "sdkMs": 4007.210000038147,
+          "verified": true
+        },
+        {
+          "batch": 1,
+          "index": 2,
+          "sdkMs": 2905.585000038147,
+          "verified": true
+        },
+        {
+          "batch": 2,
+          "index": 0,
+          "sdkMs": 3241.770000040531,
+          "verified": true
+        },
+        {
+          "batch": 2,
+          "index": 1,
+          "sdkMs": 2573.0699999928474,
+          "verified": true
+        },
+        {
+          "batch": 2,
+          "index": 2,
+          "sdkMs": 3035.1699999570847,
+          "verified": true
+        }
+      ],
+      "hopEventsSha256": "8abf15ec8513a22200d1314f3acf7be2dc5092178ffc49cf712e3e86bab03e0f",
+      "signatureEvidenceSha256": "4a1ebfcd39cf175532141d86ed768331de9fa826155602f22ce8b719e2da312e"
+    }
+  },
+  "locationProbe": {
+    "scope": "Separate overlap E2E with additional background trace and payload probes. Excluded from latency comparisons because waitUntil changes platform wall time. Trace colo reports outbound Cloudflare trace location, not a physical colocation guarantee.",
+    "events": [
+      {
+        "event": "refill_hop",
+        "side": "worker-location",
+        "correlation": null,
+        "colo": "HKG",
+        "cpuMs": 70,
+        "wallMs": 239,
+        "timestamp": 1791247393706,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "a95f47a6-e9c1-4eb3-96e8-7c19ac56b145",
+        "side": "do",
+        "first": true,
+        "elapsedMs": 0,
+        "status": 200,
+        "cpuMs": 84,
+        "wallMs": 161,
+        "timestamp": 1791247396586,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "payload",
+        "correlation": "a95f47a6-e9c1-4eb3-96e8-7c19ac56b145",
+        "responseBytes": 6844,
+        "stage": "triples",
+        "protocolEvent": "none",
+        "cpuMs": 84,
+        "wallMs": 161,
+        "timestamp": 1791247396586,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "do-location",
+        "correlation": "a95f47a6-e9c1-4eb3-96e8-7c19ac56b145",
+        "colo": "HKG",
+        "cpuMs": 84,
+        "wallMs": 161,
+        "timestamp": 1791247396586,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "worker-location",
+        "correlation": null,
+        "colo": "HKG",
+        "cpuMs": 134,
+        "wallMs": 939,
+        "timestamp": 1791247395721,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "a95f47a6-e9c1-4eb3-96e8-7c19ac56b145",
+        "side": "worker",
+        "path": "/router-ab/internal/signing-worker/ecdsa-presign-session/init",
+        "elapsedMs": 819,
+        "status": 200,
+        "serverTiming": "do_total;dur=0",
+        "cpuMs": 134,
+        "wallMs": 939,
+        "timestamp": 1791247395721,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "af9fa0ed-9d8d-40fa-a30d-0eb923804216",
+        "side": "do",
+        "first": false,
+        "elapsedMs": 0,
+        "status": 200,
+        "cpuMs": 55,
+        "wallMs": 56,
+        "timestamp": 1791247396982,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "payload",
+        "correlation": "af9fa0ed-9d8d-40fa-a30d-0eb923804216",
+        "responseBytes": 22274,
+        "stage": "triples",
+        "protocolEvent": "none",
+        "cpuMs": 55,
+        "wallMs": 56,
+        "timestamp": 1791247396982,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "af9fa0ed-9d8d-40fa-a30d-0eb923804216",
+        "side": "worker",
+        "path": "/router-ab/internal/signing-worker/ecdsa-presign-session/step",
+        "elapsedMs": 64,
+        "status": 200,
+        "serverTiming": "do_total;dur=0",
+        "cpuMs": 6,
+        "wallMs": 73,
+        "timestamp": 1791247397029,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "5c695fc8-9d48-4761-a3e5-7b42e0fb4c13",
+        "side": "do",
+        "first": false,
+        "elapsedMs": 0,
+        "status": 200,
+        "cpuMs": 7,
+        "wallMs": 7,
+        "timestamp": 1791247397728,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "payload",
+        "correlation": "5c695fc8-9d48-4761-a3e5-7b42e0fb4c13",
+        "responseBytes": 5933,
+        "stage": "triples",
+        "protocolEvent": "none",
+        "cpuMs": 7,
+        "wallMs": 7,
+        "timestamp": 1791247397728,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "5c695fc8-9d48-4761-a3e5-7b42e0fb4c13",
+        "side": "worker",
+        "path": "/router-ab/internal/signing-worker/ecdsa-presign-session/step",
+        "elapsedMs": 483,
+        "status": 200,
+        "serverTiming": "do_total;dur=0",
+        "cpuMs": 8,
+        "wallMs": 489,
+        "timestamp": 1791247397307,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "aa134b96-3e50-49fa-8a31-3fb22573aa88",
+        "side": "do",
+        "first": false,
+        "elapsedMs": 1,
+        "status": 200,
+        "cpuMs": 8,
+        "wallMs": 10,
+        "timestamp": 1791247397957,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "payload",
+        "correlation": "aa134b96-3e50-49fa-8a31-3fb22573aa88",
+        "responseBytes": 66093,
+        "stage": "triples",
+        "protocolEvent": "none",
+        "cpuMs": 8,
+        "wallMs": 10,
+        "timestamp": 1791247397957,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "aa134b96-3e50-49fa-8a31-3fb22573aa88",
+        "side": "worker",
+        "path": "/router-ab/internal/signing-worker/ecdsa-presign-session/step",
+        "elapsedMs": 16,
+        "status": 200,
+        "serverTiming": "do_total;dur=1",
+        "cpuMs": 6,
+        "wallMs": 24,
+        "timestamp": 1791247397999,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "8922191f-1633-44e1-8450-da7a4f6978d9",
+        "side": "do",
+        "first": false,
+        "elapsedMs": 0,
+        "status": 200,
+        "cpuMs": 15,
+        "wallMs": 16,
+        "timestamp": 1791247398783,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "payload",
+        "correlation": "8922191f-1633-44e1-8450-da7a4f6978d9",
+        "responseBytes": 1479,
+        "stage": "presign",
+        "protocolEvent": "triples_done",
+        "cpuMs": 15,
+        "wallMs": 16,
+        "timestamp": 1791247398783,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "d9b1bdc8-4fc0-446f-b30b-40c620d7c790",
+        "side": "do",
+        "first": false,
+        "elapsedMs": 0,
+        "status": 200,
+        "cpuMs": 2,
+        "wallMs": 2,
+        "timestamp": 1791247398975,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "payload",
+        "correlation": "d9b1bdc8-4fc0-446f-b30b-40c620d7c790",
+        "responseBytes": 2445,
+        "cpuMs": 2,
+        "wallMs": 2,
+        "timestamp": 1791247398975,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "worker-location",
+        "correlation": null,
+        "colo": "HKG",
+        "cpuMs": 46,
+        "wallMs": 521,
+        "timestamp": 1791247398229,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "8922191f-1633-44e1-8450-da7a4f6978d9",
+        "side": "worker",
+        "path": "/router-ab/internal/signing-worker/ecdsa-presign-session/step",
+        "elapsedMs": 491,
+        "status": 200,
+        "serverTiming": "do_total;dur=0",
+        "cpuMs": 46,
+        "wallMs": 521,
+        "timestamp": 1791247398229,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "d9b1bdc8-4fc0-446f-b30b-40c620d7c790",
+        "side": "worker",
+        "path": "/router-ab/internal/signing-worker/ecdsa-presign-session/step",
+        "elapsedMs": 10,
+        "status": 200,
+        "serverTiming": "do_total;dur=0",
+        "cpuMs": 35,
+        "wallMs": 225,
+        "timestamp": 1791247399004,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "462dc89a-a01b-49ef-ac59-672547ffa206",
+        "side": "worker",
+        "path": "/router-ab/internal/signing-worker/ecdsa-presign-session/init",
+        "elapsedMs": 913,
+        "status": 200,
+        "serverTiming": "do_total;dur=0",
+        "cpuMs": 6,
+        "wallMs": 987,
+        "timestamp": 1791247404276,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "462dc89a-a01b-49ef-ac59-672547ffa206",
+        "side": "do",
+        "first": true,
+        "elapsedMs": 0,
+        "status": 200,
+        "cpuMs": 61,
+        "wallMs": 351,
+        "timestamp": 1791247404911,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "payload",
+        "correlation": "462dc89a-a01b-49ef-ac59-672547ffa206",
+        "responseBytes": 6844,
+        "stage": "triples",
+        "protocolEvent": "none",
+        "cpuMs": 61,
+        "wallMs": 351,
+        "timestamp": 1791247404911,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "do-location",
+        "correlation": "462dc89a-a01b-49ef-ac59-672547ffa206",
+        "colo": "HKG",
+        "cpuMs": 61,
+        "wallMs": 351,
+        "timestamp": 1791247404911,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "8561aa09-e448-4672-b402-7f8db0dd239a",
+        "side": "do",
+        "first": false,
+        "elapsedMs": 0,
+        "status": 200,
+        "cpuMs": 47,
+        "wallMs": 47,
+        "timestamp": 1791247405446,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "payload",
+        "correlation": "8561aa09-e448-4672-b402-7f8db0dd239a",
+        "responseBytes": 22274,
+        "stage": "triples",
+        "protocolEvent": "none",
+        "cpuMs": 47,
+        "wallMs": 47,
+        "timestamp": 1791247405446,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "8561aa09-e448-4672-b402-7f8db0dd239a",
+        "side": "worker",
+        "path": "/router-ab/internal/signing-worker/ecdsa-presign-session/step",
+        "elapsedMs": 54,
+        "status": 200,
+        "serverTiming": "do_total;dur=0",
+        "cpuMs": 4,
+        "wallMs": 58,
+        "timestamp": 1791247405483,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "afdc54fe-a17c-46fc-a91a-0d2d32dd5af8",
+        "side": "do",
+        "first": false,
+        "elapsedMs": 0,
+        "status": 200,
+        "cpuMs": 5,
+        "wallMs": 6,
+        "timestamp": 1791247406100,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "payload",
+        "correlation": "afdc54fe-a17c-46fc-a91a-0d2d32dd5af8",
+        "responseBytes": 5933,
+        "stage": "triples",
+        "protocolEvent": "none",
+        "cpuMs": 5,
+        "wallMs": 6,
+        "timestamp": 1791247406100,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "afdc54fe-a17c-46fc-a91a-0d2d32dd5af8",
+        "side": "worker",
+        "path": "/router-ab/internal/signing-worker/ecdsa-presign-session/step",
+        "elapsedMs": 419,
+        "status": 200,
+        "serverTiming": "do_total;dur=0",
+        "cpuMs": 2,
+        "wallMs": 420,
+        "timestamp": 1791247405738,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "f54a28c1-1978-4077-beb3-02b9a6216928",
+        "side": "do",
+        "first": false,
+        "elapsedMs": 0,
+        "status": 200,
+        "cpuMs": 6,
+        "wallMs": 7,
+        "timestamp": 1791247406308,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "payload",
+        "correlation": "f54a28c1-1978-4077-beb3-02b9a6216928",
+        "responseBytes": 66093,
+        "stage": "triples",
+        "protocolEvent": "none",
+        "cpuMs": 6,
+        "wallMs": 7,
+        "timestamp": 1791247406308,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "f54a28c1-1978-4077-beb3-02b9a6216928",
+        "side": "worker",
+        "path": "/router-ab/internal/signing-worker/ecdsa-presign-session/step",
+        "elapsedMs": 18,
+        "status": 200,
+        "serverTiming": "do_total;dur=0",
+        "cpuMs": 8,
+        "wallMs": 28,
+        "timestamp": 1791247406338,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "3e7fd259-02da-4dfa-98fa-0d9843cdfc94",
+        "side": "do",
+        "first": false,
+        "elapsedMs": 0,
+        "status": 200,
+        "cpuMs": 12,
+        "wallMs": 13,
+        "timestamp": 1791247406530,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "payload",
+        "correlation": "3e7fd259-02da-4dfa-98fa-0d9843cdfc94",
+        "responseBytes": 1479,
+        "stage": "presign",
+        "protocolEvent": "triples_done",
+        "cpuMs": 12,
+        "wallMs": 13,
+        "timestamp": 1791247406530,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "3e7fd259-02da-4dfa-98fa-0d9843cdfc94",
+        "side": "worker",
+        "path": "/router-ab/internal/signing-worker/ecdsa-presign-session/step",
+        "elapsedMs": 20,
+        "status": 200,
+        "serverTiming": "do_total;dur=0",
+        "cpuMs": 2,
+        "wallMs": 23,
+        "timestamp": 1791247406565,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "c3955d14-42fa-4b25-8c2d-8996c313f9d2",
+        "side": "do",
+        "first": false,
+        "elapsedMs": 0,
+        "status": 200,
+        "cpuMs": 1,
+        "wallMs": 1,
+        "timestamp": 1791247406740,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "payload",
+        "correlation": "c3955d14-42fa-4b25-8c2d-8996c313f9d2",
+        "responseBytes": 2445,
+        "cpuMs": 1,
+        "wallMs": 1,
+        "timestamp": 1791247406740,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "c3955d14-42fa-4b25-8c2d-8996c313f9d2",
+        "side": "worker",
+        "path": "/router-ab/internal/signing-worker/ecdsa-presign-session/step",
+        "elapsedMs": 7,
+        "status": 200,
+        "serverTiming": "do_total;dur=0",
+        "cpuMs": 6,
+        "wallMs": 193,
+        "timestamp": 1791247406780,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "bfa5e265-35dc-456b-8a41-090ae1d6fead",
+        "side": "worker",
+        "path": "/router-ab/internal/signing-worker/ecdsa-presign-session/init",
+        "elapsedMs": 945,
+        "status": 200,
+        "serverTiming": "do_total;dur=0",
+        "cpuMs": 12,
+        "wallMs": 996,
+        "timestamp": 1791247407161,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "bfa5e265-35dc-456b-8a41-090ae1d6fead",
+        "side": "do",
+        "first": true,
+        "elapsedMs": 0,
+        "status": 200,
+        "cpuMs": 119,
+        "wallMs": 370,
+        "timestamp": 1791247407789,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "payload",
+        "correlation": "bfa5e265-35dc-456b-8a41-090ae1d6fead",
+        "responseBytes": 6844,
+        "stage": "triples",
+        "protocolEvent": "none",
+        "cpuMs": 119,
+        "wallMs": 370,
+        "timestamp": 1791247407789,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "do-location",
+        "correlation": "bfa5e265-35dc-456b-8a41-090ae1d6fead",
+        "colo": "HKG",
+        "cpuMs": 119,
+        "wallMs": 370,
+        "timestamp": 1791247407789,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "9da1b20a-a9b9-4ae8-9ecd-ce77ecb4fe58",
+        "side": "do",
+        "first": false,
+        "elapsedMs": 0,
+        "status": 200,
+        "cpuMs": 57,
+        "wallMs": 58,
+        "timestamp": 1791247408331,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "payload",
+        "correlation": "9da1b20a-a9b9-4ae8-9ecd-ce77ecb4fe58",
+        "responseBytes": 22274,
+        "stage": "triples",
+        "protocolEvent": "none",
+        "cpuMs": 57,
+        "wallMs": 58,
+        "timestamp": 1791247408331,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "9da1b20a-a9b9-4ae8-9ecd-ce77ecb4fe58",
+        "side": "worker",
+        "path": "/router-ab/internal/signing-worker/ecdsa-presign-session/step",
+        "elapsedMs": 68,
+        "status": 200,
+        "serverTiming": "do_total;dur=0",
+        "cpuMs": 2,
+        "wallMs": 71,
+        "timestamp": 1791247408407,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "81a17bd5-f7d0-490b-a07f-6d63d16de4da",
+        "side": "do",
+        "first": false,
+        "elapsedMs": 0,
+        "status": 200,
+        "cpuMs": 8,
+        "wallMs": 9,
+        "timestamp": 1791247409014,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "payload",
+        "correlation": "81a17bd5-f7d0-490b-a07f-6d63d16de4da",
+        "responseBytes": 5933,
+        "stage": "triples",
+        "protocolEvent": "none",
+        "cpuMs": 8,
+        "wallMs": 9,
+        "timestamp": 1791247409014,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "81a17bd5-f7d0-490b-a07f-6d63d16de4da",
+        "side": "worker",
+        "path": "/router-ab/internal/signing-worker/ecdsa-presign-session/step",
+        "elapsedMs": 432,
+        "status": 200,
+        "serverTiming": "do_total;dur=0",
+        "cpuMs": 2,
+        "wallMs": 434,
+        "timestamp": 1791247408668,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "2179cd52-a831-4a90-a817-5cea6ab5d606",
+        "side": "do",
+        "first": false,
+        "elapsedMs": 1,
+        "status": 200,
+        "cpuMs": 11,
+        "wallMs": 12,
+        "timestamp": 1791247409240,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "payload",
+        "correlation": "2179cd52-a831-4a90-a817-5cea6ab5d606",
+        "responseBytes": 66093,
+        "stage": "triples",
+        "protocolEvent": "none",
+        "cpuMs": 11,
+        "wallMs": 12,
+        "timestamp": 1791247409240,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "2179cd52-a831-4a90-a817-5cea6ab5d606",
+        "side": "worker",
+        "path": "/router-ab/internal/signing-worker/ecdsa-presign-session/step",
+        "elapsedMs": 23,
+        "status": 200,
+        "serverTiming": "do_total;dur=1",
+        "cpuMs": 3,
+        "wallMs": 38,
+        "timestamp": 1791247409300,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "84fd3d69-9f6b-4d29-853f-9592ec1d7b54",
+        "side": "worker",
+        "path": "/router-ab/internal/signing-worker/ecdsa-presign-session/step",
+        "elapsedMs": 24,
+        "status": 200,
+        "serverTiming": "do_total;dur=0",
+        "cpuMs": 1,
+        "wallMs": 26,
+        "timestamp": 1791247409545,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "69c460bb-2583-47bc-ae4b-584dc62b914e",
+        "side": "do",
+        "first": false,
+        "elapsedMs": 0,
+        "status": 200,
+        "cpuMs": 5,
+        "wallMs": 5,
+        "timestamp": 1791247410153,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "payload",
+        "correlation": "69c460bb-2583-47bc-ae4b-584dc62b914e",
+        "responseBytes": 2445,
+        "cpuMs": 5,
+        "wallMs": 5,
+        "timestamp": 1791247410153,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "69c460bb-2583-47bc-ae4b-584dc62b914e",
+        "side": "worker",
+        "path": "/router-ab/internal/signing-worker/ecdsa-presign-session/step",
+        "elapsedMs": 435,
+        "status": 200,
+        "serverTiming": "do_total;dur=0",
+        "cpuMs": 23,
+        "wallMs": 595,
+        "timestamp": 1791247409766,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "b883e720-d186-4e04-94fd-4404e1fa2b6a",
+        "side": "worker",
+        "path": "/router-ab/internal/signing-worker/ecdsa-presign-session/init",
+        "elapsedMs": 746,
+        "status": 200,
+        "serverTiming": "do_total;dur=0",
+        "cpuMs": 4,
+        "wallMs": 794,
+        "timestamp": 1791247410547,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "b883e720-d186-4e04-94fd-4404e1fa2b6a",
+        "side": "do",
+        "first": true,
+        "elapsedMs": 0,
+        "status": 200,
+        "cpuMs": 84,
+        "wallMs": 166,
+        "timestamp": 1791247411175,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "payload",
+        "correlation": "b883e720-d186-4e04-94fd-4404e1fa2b6a",
+        "responseBytes": 6844,
+        "stage": "triples",
+        "protocolEvent": "none",
+        "cpuMs": 84,
+        "wallMs": 166,
+        "timestamp": 1791247411175,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "do-location",
+        "correlation": "b883e720-d186-4e04-94fd-4404e1fa2b6a",
+        "colo": "HKG",
+        "cpuMs": 84,
+        "wallMs": 166,
+        "timestamp": 1791247411175,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "33f209d0-a7ca-4093-b035-cacecbb65cd5",
+        "side": "do",
+        "first": false,
+        "elapsedMs": 0,
+        "status": 200,
+        "cpuMs": 48,
+        "wallMs": 48,
+        "timestamp": 1791247411989,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "payload",
+        "correlation": "33f209d0-a7ca-4093-b035-cacecbb65cd5",
+        "responseBytes": 22274,
+        "stage": "triples",
+        "protocolEvent": "none",
+        "cpuMs": 48,
+        "wallMs": 48,
+        "timestamp": 1791247411989,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "33f209d0-a7ca-4093-b035-cacecbb65cd5",
+        "side": "worker",
+        "path": "/router-ab/internal/signing-worker/ecdsa-presign-session/step",
+        "elapsedMs": 503,
+        "status": 200,
+        "serverTiming": "do_total;dur=0",
+        "cpuMs": 2,
+        "wallMs": 505,
+        "timestamp": 1791247411574,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "82060908-70f9-4986-ae70-e727f96282ba",
+        "side": "do",
+        "first": false,
+        "elapsedMs": 0,
+        "status": 200,
+        "cpuMs": 6,
+        "wallMs": 6,
+        "timestamp": 1791247412216,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "payload",
+        "correlation": "82060908-70f9-4986-ae70-e727f96282ba",
+        "responseBytes": 5933,
+        "stage": "triples",
+        "protocolEvent": "none",
+        "cpuMs": 6,
+        "wallMs": 6,
+        "timestamp": 1791247412216,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "82060908-70f9-4986-ae70-e727f96282ba",
+        "side": "worker",
+        "path": "/router-ab/internal/signing-worker/ecdsa-presign-session/step",
+        "elapsedMs": 15,
+        "status": 200,
+        "serverTiming": "do_total;dur=0",
+        "cpuMs": 3,
+        "wallMs": 19,
+        "timestamp": 1791247412277,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "cf24e01e-39a9-4d87-ba32-924c32c2cb1a",
+        "side": "do",
+        "first": false,
+        "elapsedMs": 1,
+        "status": 200,
+        "cpuMs": 10,
+        "wallMs": 11,
+        "timestamp": 1791247412453,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "payload",
+        "correlation": "cf24e01e-39a9-4d87-ba32-924c32c2cb1a",
+        "responseBytes": 66093,
+        "stage": "triples",
+        "protocolEvent": "none",
+        "cpuMs": 10,
+        "wallMs": 11,
+        "timestamp": 1791247412453,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "cf24e01e-39a9-4d87-ba32-924c32c2cb1a",
+        "side": "worker",
+        "path": "/router-ab/internal/signing-worker/ecdsa-presign-session/step",
+        "elapsedMs": 17,
+        "status": 200,
+        "serverTiming": "do_total;dur=1",
+        "cpuMs": 5,
+        "wallMs": 23,
+        "timestamp": 1791247412507,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "32e22300-77ca-4053-99d9-268db57127cd",
+        "side": "worker",
+        "path": "/router-ab/internal/signing-worker/ecdsa-presign-session/step",
+        "elapsedMs": 21,
+        "status": 200,
+        "serverTiming": "do_total;dur=0",
+        "cpuMs": 1,
+        "wallMs": 22,
+        "timestamp": 1791247412740,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "32e22300-77ca-4053-99d9-268db57127cd",
+        "side": "do",
+        "first": false,
+        "elapsedMs": 0,
+        "status": 200,
+        "cpuMs": 13,
+        "wallMs": 14,
+        "timestamp": 1791247412689,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "payload",
+        "correlation": "32e22300-77ca-4053-99d9-268db57127cd",
+        "responseBytes": 1479,
+        "stage": "presign",
+        "protocolEvent": "triples_done",
+        "cpuMs": 13,
+        "wallMs": 14,
+        "timestamp": 1791247412689,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "2e891e60-0c05-43cc-9893-ea42740ae067",
+        "side": "worker",
+        "path": "/router-ab/internal/signing-worker/ecdsa-presign-session/step",
+        "elapsedMs": 466,
+        "status": 200,
+        "serverTiming": "do_total;dur=0",
+        "cpuMs": 10,
+        "wallMs": 611,
+        "timestamp": 1791247412963,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "worker-location",
+        "correlation": null,
+        "colo": "BOM",
+        "cpuMs": 50,
+        "wallMs": 53,
+        "timestamp": 1791247412844,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "039deb6e-8302-4278-9696-aa15c04c619c",
+        "side": "worker",
+        "path": "/router-ab/internal/signing-worker/ecdsa-presign-session/init",
+        "elapsedMs": 693,
+        "status": 200,
+        "serverTiming": "do_total;dur=0",
+        "cpuMs": 4,
+        "wallMs": 767,
+        "timestamp": 1791247413762,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "039deb6e-8302-4278-9696-aa15c04c619c",
+        "side": "do",
+        "first": true,
+        "elapsedMs": 0,
+        "status": 200,
+        "cpuMs": 80,
+        "wallMs": 163,
+        "timestamp": 1791247414365,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "payload",
+        "correlation": "039deb6e-8302-4278-9696-aa15c04c619c",
+        "responseBytes": 6844,
+        "stage": "triples",
+        "protocolEvent": "none",
+        "cpuMs": 80,
+        "wallMs": 163,
+        "timestamp": 1791247414365,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "do-location",
+        "correlation": "039deb6e-8302-4278-9696-aa15c04c619c",
+        "colo": "HKG",
+        "cpuMs": 80,
+        "wallMs": 163,
+        "timestamp": 1791247414365,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "3bbc6ca8-7307-458d-9752-1c028ebb0506",
+        "side": "worker",
+        "path": "/router-ab/internal/signing-worker/ecdsa-presign-session/step",
+        "elapsedMs": 457,
+        "status": 200,
+        "serverTiming": "do_total;dur=0",
+        "cpuMs": 2,
+        "wallMs": 459,
+        "timestamp": 1791247414822,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "756ec7de-5fab-4f7c-8284-c24ee520b2d5",
+        "side": "worker",
+        "path": "/router-ab/internal/signing-worker/ecdsa-presign-session/step",
+        "elapsedMs": 17,
+        "status": 200,
+        "serverTiming": "do_total;dur=1",
+        "cpuMs": 3,
+        "wallMs": 21,
+        "timestamp": 1791247415718,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "0ff81299-03a3-4330-ac56-ea701a2f82ac",
+        "side": "worker",
+        "path": "/router-ab/internal/signing-worker/ecdsa-presign-session/step",
+        "elapsedMs": 22,
+        "status": 200,
+        "serverTiming": "do_total;dur=0",
+        "cpuMs": 2,
+        "wallMs": 24,
+        "timestamp": 1791247415934,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "f32ca9da-71f3-4e24-8f46-e045ee71b882",
+        "side": "worker",
+        "path": "/router-ab/internal/signing-worker/ecdsa-presign-session/step",
+        "elapsedMs": 430,
+        "status": 200,
+        "serverTiming": "do_total;dur=0",
+        "cpuMs": 8,
+        "wallMs": 575,
+        "timestamp": 1791247416155,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "correlation": "27ce8173-7294-4be0-a463-69bc04c307ed",
+        "side": "do",
+        "first": true,
+        "elapsedMs": 0,
+        "status": 200,
+        "cpuMs": 117,
+        "wallMs": 435,
+        "timestamp": 1791247417401,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "payload",
+        "correlation": "27ce8173-7294-4be0-a463-69bc04c307ed",
+        "responseBytes": 6844,
+        "stage": "triples",
+        "protocolEvent": "none",
+        "cpuMs": 117,
+        "wallMs": 435,
+        "timestamp": 1791247417401,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      },
+      {
+        "event": "refill_hop",
+        "side": "do-location",
+        "correlation": "27ce8173-7294-4be0-a463-69bc04c307ed",
+        "colo": "HKG",
+        "cpuMs": 117,
+        "wallMs": 435,
+        "timestamp": 1791247417401,
+        "version": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+        "outcome": "ok"
+      }
+    ]
+  },
+  "versions": {
+    "baseline": "137dfce9-8ac7-4dbf-be2b-de0b1171f01d",
+    "diagnosticControl": "3504b92c-13c0-4349-a4ed-4cbfc40e148d",
+    "placementTrial": "28075614-3088-4f9e-82cd-3fcaeb39559b",
+    "locationProbe": "128296af-b1b0-49d4-96d1-bdde5acbf6da",
+    "restored": "137dfce9-8ac7-4dbf-be2b-de0b1171f01d"
+  },
+  "reproduction": {
+    "artifactRoot": "seams-monorepo/.artifacts/mpc-do-hop-20261006",
+    "filesSha256": {
+      "diagnostic-original.mjs": "dcb55c9bcda32f08a6783568242fd7a57879623214258c5144b0abe48e34811e",
+      "diagnostic.mjs": "746b2e75193db9370869471d1a00e9ab9addcd0212db4651e4f629a095e949be",
+      "capture.py": "2e6f5af6b9e0c77e0f51f53a3c9c3650a47f467c4f3a2c3186186739ef2015eb",
+      "analyze.py": "eec65ab4e37c8cdb3c1ad768fdba72d4abfbd78d7d6034c502714ad7e3141b28"
+    },
+    "tests": [
+      "mpc-signing-latency.test.ts --grep back_to_back",
+      "mpc-refill-overlap.test.ts",
+      "signing-approval.test.ts"
+    ]
+  },
+  "newCloudflareResources": 0,
+  "cloudflareBudgetUsd": 25,
+  "productionDeployed": false,
+  "npmReleased": false,
+  "settingsRestored": {
+    "bindingsUnchanged": true,
+    "placementRestored": true,
+    "placement": {}
+  },
+  "versionsBefore": [
+    {
+      "script": "seams-sdk-d1-gateway-staging",
+      "versions": [
+        {
+          "version_id": "cebc5a92-875f-4b52-8c42-2fa4b499b398",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "seams-sdk-d1-console-staging",
+      "versions": [
+        {
+          "version_id": "55ec63ea-d332-4ada-a181-8f968aed3b59",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-signing-worker-staging",
+      "versions": [
+        {
+          "version_id": "137dfce9-8ac7-4dbf-be2b-de0b1171f01d",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-mpc-router-staging",
+      "versions": [
+        {
+          "version_id": "2eafdb55-95e8-4d20-b091-c3e744d3aa05",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-deriver-a-staging",
+      "versions": [
+        {
+          "version_id": "9fdd3b52-b26a-4125-854a-ff1f5701662c",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-deriver-b-staging",
+      "versions": [
+        {
+          "version_id": "5c5de8e7-3bb6-46de-bdfb-25deb77387ba",
+          "percentage": 100
+        }
+      ]
+    }
+  ],
+  "versionsAfter": [
+    {
+      "script": "seams-sdk-d1-gateway-staging",
+      "versions": [
+        {
+          "version_id": "cebc5a92-875f-4b52-8c42-2fa4b499b398",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "seams-sdk-d1-console-staging",
+      "versions": [
+        {
+          "version_id": "55ec63ea-d332-4ada-a181-8f968aed3b59",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-signing-worker-staging",
+      "versions": [
+        {
+          "version_id": "137dfce9-8ac7-4dbf-be2b-de0b1171f01d",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-mpc-router-staging",
+      "versions": [
+        {
+          "version_id": "2eafdb55-95e8-4d20-b091-c3e744d3aa05",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-deriver-a-staging",
+      "versions": [
+        {
+          "version_id": "9fdd3b52-b26a-4125-854a-ff1f5701662c",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-deriver-b-staging",
+      "versions": [
+        {
+          "version_id": "5c5de8e7-3bb6-46de-bdfb-25deb77387ba",
+          "percentage": 100
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "diagnosticControl": "passed: nine measured signatures plus NEAR and shared-budget concurrency",
+    "placementTrial": "passed correctness; rejected latency regression",
+    "locationProbe": "passed: refill overlap and three verified signatures",
+    "restoredOverlap": "passed: refill overlap and three verified signatures",
+    "restoredAuthorization": "passed on unchanged retry: fresh status failure prevents prepare; successful retry signs",
+    "bloatCheck": "passed",
+    "failedAttempts": [
+      {
+        "run": "restored/signing-approval.test.ts",
+        "classification": "environment_or_infrastructure_failure",
+        "detail": "Tempo eth_getTransactionCount timed out after 15000ms. Unchanged targeted retry passed in 20.7s."
+      }
+    ]
+  }
+}
