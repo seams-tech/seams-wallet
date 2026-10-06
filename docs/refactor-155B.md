@@ -1770,3 +1770,49 @@ browser authentication after custody relocation or establish hosted timing.
 [Candidate hashes and current validation results](evidence/r155b-frozen-candidate-20261007.json).
 Hosted deployment-version pinning, served-region measurement, and the controlled
 control/candidate comparison remain open.
+
+
+### Browser relocation and fresh authentication — 2026-10-07
+
+Full browser acceptance exposed a production transfer omission. The coordinator
+completed the move, but the destination lacked passkey bindings and encrypted
+custody envelopes. Fresh unlock first failed with `unknown_credential`, then
+with `custody_envelope_unavailable` after the binding fix.
+
+The authorization snapshot now includes wallet and signer metadata, passkey
+bindings, authenticator counters, and the exact wallet's passkey custody records.
+The custody selection includes envelopes, recovery sets, backup acknowledgements,
+and credential activity. It preserves encrypted contents, versions, and counters.
+Console credential claims remain shared. Other versioned-JSON partitions are
+outside this added selector; this change does not establish complete relocation
+coverage for every lifecycle record in the ownership inventory.
+
+Migration `0070_wallet_passkey_relocation.sql` fences writes to the added records.
+Inactive destinations accept only the admitted import. Source cleanup removes the
+transferred records after activation. The migration rejects existing relocation
+snapshots/imports because their pinned schema must not change during an upgrade.
+No compatibility path or manual record copying was added.
+
+The composed Chromium check passed for ECDSA and NEAR: **2 passed (3.2m)**.
+Each case registered a wallet, signed through foreign ingress during a Console
+outage, reset the browser runtime, and performed a fresh passkey unlock. The real
+browser passkey then approved a US-to-APAC move. The production coordinator
+transferred custody between independent Router, Deriver A, Deriver B, and
+SigningWorker wallet DO namespaces and completed source cleanup.
+
+After the move, each wallet unlocked again and produced a verified signature
+through WEUR ingress. Signing made **zero Console requests**. Unlock used the
+existing directory coordination. Record hashes matched before and after transfer.
+The selected source records were absent after cleanup. An attempted authenticator
+counter update during source freeze failed at the database boundary.
+
+Wallet-server type-checking, changed-file lint, and the public bloat gate passed.
+Public implementation: `455857d620fb8fa5a6eb5de61fde9c5cda1ac4d1`.
+Private acceptance: `90dd0f5`.
+[Sanitized results and repeat command](evidence/r155b-browser-custody-relocation-20261007.json).
+
+This is local acceptance. Both custody deployments share tenant-root D1/R2 state;
+the wallet DO namespaces and regional authorization databases are independent.
+The SDK uses the previously frozen current-candidate bundle. No live resources
+were changed. Final ownership/enforcement review, the OTP database deployment
+decision, and controlled hosted comparisons remain open.

@@ -1,0 +1,283 @@
+{
+  "date": "2026-10-07",
+  "publicImplementationCommit": "455857d620fb8fa5a6eb5de61fde9c5cda1ac4d1",
+  "privateAcceptanceCommit": "90dd0f5",
+  "result": "2 passed (3.2m)",
+  "verification": {
+    "walletServerTypecheck": "passed",
+    "privateChangedFileLint": "passed",
+    "publicBloatGate": "passed"
+  },
+  "candidate": {
+    "sdk": "Existing frozen .artifacts/r155b-current-candidate/wallet-dist, source 298ffc602aa6775b54ca0325d585b4a76e9c2c62",
+    "custody": "Release Workers from the same frozen-candidate build; independent source and destination wallet DO namespaces",
+    "gatewayAndCoordinator": "Current sources, bundled by the private acceptance helpers"
+  },
+  "scope": "Local browser registration, owner passkey approval, production relocation coordinator, independent custody namespaces, full cleanup, fresh passkey unlock and verified destination signing during Console outage. Tenant-root D1 and R2 state are shared between the two local custody deployments. No hosted placement or latency claim.",
+  "reproduction": "ROUTER_AB_WORKER_BUILD_PROFILE=release SEAMS_INTENDED_SKIP_BUILD=1 SEAMS_INTENDED_WALLET_DIST_ROOT=<public-repo>/.artifacts/r155b-current-candidate/wallet-dist SEAMS_WALLET_SERVER_CANDIDATE=<public-repo>/packages/wallet-server node tests/scripts/run-regional-real.mjs passkey.registration.contract.test.ts --grep \"(ecdsa|ed25519) signs through\"",
+  "results": {
+    "ecdsa": {
+      "result": {
+        "curve": "ecdsa",
+        "walletId": "azure-raven-buxmu2",
+        "moveId": "wmove_XDxtmvj0x6T7JrYxUgWxIgO9wtOrU4AWc9XgTHwO60c",
+        "source": "US",
+        "destination": "APAC",
+        "approval": "Registered browser passkey",
+        "freshUnlockAfterMove": true,
+        "signaturesAfterMove": 1,
+        "signingIngress": "WEUR",
+        "consoleRequestsDuringDestinationSigning": 0,
+        "custodyNamespaces": [
+          {
+            "role": "router",
+            "independent": true
+          },
+          {
+            "role": "deriver-a",
+            "independent": true
+          },
+          {
+            "role": "deriver-b",
+            "independent": true
+          },
+          {
+            "role": "signing-worker",
+            "independent": true
+          }
+        ],
+        "scope": "Local production coordinator, browser registration and passkey approval, independent custody namespaces, fresh unlock and destination signing. Excludes hosted latency."
+      },
+      "authenticationTransfer": {
+        "sourceRecords": {
+          "wallets": {
+            "count": 1,
+            "sha256": "14d5b44dea0ba47db0d88a813c209f5e54a81109fe6562887ded42503f493557"
+          },
+          "wallet_signers": {
+            "count": 3,
+            "sha256": "f0c90d9abc0818df45bfb569fdef443e809a81da6d5b5c7375b31b4eb6dd1745"
+          },
+          "webauthn_credential_bindings": {
+            "count": 1,
+            "sha256": "1272045caf4ddc9f9da109048a11b2d0580fe172f634a5506fab2af360ed07ab"
+          },
+          "webauthn_authenticators": {
+            "count": 1,
+            "sha256": "b40191becaf8e023f45491c99a23ff7c5f33d84dc6ad0ae0023194b591a584bc"
+          },
+          "router_ab_yao_versioned_json_records": {
+            "count": 4,
+            "sha256": "8ffa369e9644bae89268efe87265c3e27bdeca569623437c725f3b1ac64b114a"
+          }
+        },
+        "destinationRecords": {
+          "wallets": {
+            "count": 1,
+            "sha256": "14d5b44dea0ba47db0d88a813c209f5e54a81109fe6562887ded42503f493557"
+          },
+          "wallet_signers": {
+            "count": 3,
+            "sha256": "f0c90d9abc0818df45bfb569fdef443e809a81da6d5b5c7375b31b4eb6dd1745"
+          },
+          "webauthn_credential_bindings": {
+            "count": 1,
+            "sha256": "1272045caf4ddc9f9da109048a11b2d0580fe172f634a5506fab2af360ed07ab"
+          },
+          "webauthn_authenticators": {
+            "count": 1,
+            "sha256": "b40191becaf8e023f45491c99a23ff7c5f33d84dc6ad0ae0023194b591a584bc"
+          },
+          "router_ab_yao_versioned_json_records": {
+            "count": 4,
+            "sha256": "8ffa369e9644bae89268efe87265c3e27bdeca569623437c725f3b1ac64b114a"
+          }
+        },
+        "sourceAfterCleanup": {
+          "wallets": {
+            "count": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "wallet_signers": {
+            "count": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "webauthn_credential_bindings": {
+            "count": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "webauthn_authenticators": {
+            "count": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "router_ab_yao_versioned_json_records": {
+            "count": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        },
+        "frozenCounterWriteRejected": true
+      },
+      "coordinatorSteps": 61,
+      "finalCoordinatorState": {
+        "state": "completed",
+        "moveId": "wmove_XDxtmvj0x6T7JrYxUgWxIgO9wtOrU4AWc9XgTHwO60c",
+        "sourceRegion": "US",
+        "destinationRegion": "APAC",
+        "sourceGeneration": 1,
+        "destinationGeneration": 2,
+        "admittedAtMs": 1791326345600,
+        "completedAtMs": 1791326385837
+      },
+      "artifacts": {
+        "browser-relocation.json": {
+          "path": ".artifacts/r155b/console-outage/ecdsa/browser-relocation.json",
+          "sha256": "2ed46b211dc9214278e21bfb2997af23f7b376a0b92181d4710001a6e9034886"
+        },
+        "authentication-transfer.json": {
+          "path": ".artifacts/r155b/console-outage/ecdsa/authentication-transfer.json",
+          "sha256": "4678324a51c9bebdfcbe1a3e5ba871aa4f9480293dd58d9afe0c820eb9a56519"
+        },
+        "browser-relocation-progress.json": {
+          "path": ".artifacts/r155b/console-outage/ecdsa/browser-relocation-progress.json",
+          "sha256": "6100cfd1acba43069835221a8b256e709c82e7286ace919f0d6e4f20c41e8020"
+        },
+        "fresh-unlock.json": {
+          "path": ".artifacts/r155b/console-outage/ecdsa/fresh-unlock.json",
+          "sha256": "667766b0660b7fd379bd346264a469f1f6464d281615581f22942fb594edc1ef"
+        }
+      }
+    },
+    "ed25519": {
+      "result": {
+        "curve": "ed25519",
+        "walletId": "humble-solstice-rtd3e9",
+        "moveId": "wmove_CjBwFHn0yK-Yp1RSXsBCHEqgwj9xjRWqTP91_3_TN5A",
+        "source": "US",
+        "destination": "APAC",
+        "approval": "Registered browser passkey",
+        "freshUnlockAfterMove": true,
+        "signaturesAfterMove": 1,
+        "signingIngress": "WEUR",
+        "consoleRequestsDuringDestinationSigning": 0,
+        "custodyNamespaces": [
+          {
+            "role": "router",
+            "independent": true
+          },
+          {
+            "role": "deriver-a",
+            "independent": true
+          },
+          {
+            "role": "deriver-b",
+            "independent": true
+          },
+          {
+            "role": "signing-worker",
+            "independent": true
+          }
+        ],
+        "scope": "Local production coordinator, browser registration and passkey approval, independent custody namespaces, fresh unlock and destination signing. Excludes hosted latency."
+      },
+      "authenticationTransfer": {
+        "sourceRecords": {
+          "wallets": {
+            "count": 1,
+            "sha256": "25ad97cabd8996e6064ec457755eeaf0d7d818948dd23bcf7cc90b8c84994a08"
+          },
+          "wallet_signers": {
+            "count": 3,
+            "sha256": "aee8a7650d37362cb44540c4b2a2e808b69bc8a241575ff60fd4ad7948b106f8"
+          },
+          "webauthn_credential_bindings": {
+            "count": 1,
+            "sha256": "4a70d7cec4729882a7754ee2eb68789a71a839024627fbdef0364b58527d0a28"
+          },
+          "webauthn_authenticators": {
+            "count": 1,
+            "sha256": "23d838307c6b428311fbd8e8c8ef70f7f2ea181c33fe5eabbcb06e97f96a2407"
+          },
+          "router_ab_yao_versioned_json_records": {
+            "count": 4,
+            "sha256": "1007596155117851bfbda8c6ec95af5b08331a2adcea6226573268926c9f2ae4"
+          }
+        },
+        "destinationRecords": {
+          "wallets": {
+            "count": 1,
+            "sha256": "25ad97cabd8996e6064ec457755eeaf0d7d818948dd23bcf7cc90b8c84994a08"
+          },
+          "wallet_signers": {
+            "count": 3,
+            "sha256": "aee8a7650d37362cb44540c4b2a2e808b69bc8a241575ff60fd4ad7948b106f8"
+          },
+          "webauthn_credential_bindings": {
+            "count": 1,
+            "sha256": "4a70d7cec4729882a7754ee2eb68789a71a839024627fbdef0364b58527d0a28"
+          },
+          "webauthn_authenticators": {
+            "count": 1,
+            "sha256": "23d838307c6b428311fbd8e8c8ef70f7f2ea181c33fe5eabbcb06e97f96a2407"
+          },
+          "router_ab_yao_versioned_json_records": {
+            "count": 4,
+            "sha256": "1007596155117851bfbda8c6ec95af5b08331a2adcea6226573268926c9f2ae4"
+          }
+        },
+        "sourceAfterCleanup": {
+          "wallets": {
+            "count": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "wallet_signers": {
+            "count": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "webauthn_credential_bindings": {
+            "count": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "webauthn_authenticators": {
+            "count": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "router_ab_yao_versioned_json_records": {
+            "count": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        },
+        "frozenCounterWriteRejected": true
+      },
+      "coordinatorSteps": 60,
+      "finalCoordinatorState": {
+        "state": "completed",
+        "moveId": "wmove_CjBwFHn0yK-Yp1RSXsBCHEqgwj9xjRWqTP91_3_TN5A",
+        "sourceRegion": "US",
+        "destinationRegion": "APAC",
+        "sourceGeneration": 1,
+        "destinationGeneration": 2,
+        "admittedAtMs": 1791326430017,
+        "completedAtMs": 1791326469597
+      },
+      "artifacts": {
+        "browser-relocation.json": {
+          "path": ".artifacts/r155b/console-outage/ed25519/browser-relocation.json",
+          "sha256": "3b159454a590951a5a46a39365a64e351a18254553ec4789a268705e3677d8c9"
+        },
+        "authentication-transfer.json": {
+          "path": ".artifacts/r155b/console-outage/ed25519/authentication-transfer.json",
+          "sha256": "d70616f0c45a08d2eb7369f0b68e0f8ca2344531c27a9d51184bd76da2cebd23"
+        },
+        "browser-relocation-progress.json": {
+          "path": ".artifacts/r155b/console-outage/ed25519/browser-relocation-progress.json",
+          "sha256": "31b68b759b9a239b1a3ddd8c6ee9a5d35ca996c312a2a3054b08fbaf00cc107a"
+        },
+        "fresh-unlock.json": {
+          "path": ".artifacts/r155b/console-outage/ed25519/fresh-unlock.json",
+          "sha256": "7c0167f71882eeebc4930617034102eba018902819b8a5668322038a5c3ec2c6"
+        }
+      }
+    }
+  },
+  "deployment": "No live changes or Cloudflare spend."
+}
