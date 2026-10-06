@@ -37,7 +37,8 @@ class SourceDirectory {
     assert.ok(
       request.url.endsWith('/relocation-runtime-source') ||
         request.url.endsWith('/relocation-router-receipt') ||
-        request.url.endsWith('/relocation-router-export'),
+        request.url.endsWith('/relocation-router-export') ||
+        request.url.endsWith('/relocation-router-destination'),
     );
     assert.equal(request.headers.get('x-seams-writer-role'), 'walletRuntime');
     assert.equal(
@@ -47,6 +48,20 @@ class SourceDirectory {
     const input = await request.json();
     if (this.mode === 'denied' || input.attempt.moveId !== this.source.request.move_id)
       return Response.json({ ok: false, code: 'attempt_conflict' }, { status: 409 });
+    if (request.url.endsWith('/relocation-router-destination')) {
+      assert.ok(this.receipt);
+      if (input.operation === 'status')
+        return Response.json({
+          ok: true,
+          command: {
+            kind: 'status',
+            receipt: this.receipt,
+            chunk_bytes: 4096,
+          },
+        });
+      assert.equal(input.operation, 'verify');
+      return Response.json({ ok: true, command: { kind: 'verify', receipt: this.receipt } });
+    }
     if (request.url.endsWith('/relocation-router-export')) {
       if (input.recordIndex >= this.receipt.record_count)
         return Response.json({ ok: false, code: 'invalid_cursor' }, { status: 409 });
@@ -299,7 +314,7 @@ export async function runtimeRelocationSource(topology, credential, command) {
   return source;
 }
 
-export async function verifyRuntimeRouterExport(runtime, activation) {
+export async function verifyRuntimeRouterExport(runtime, activation, topology) {
   const binding = activation.envelope.target.binding;
   const consumed = await runtime.env.MPC_ROUTER.fetch(
     new Request(
@@ -335,6 +350,22 @@ export async function verifyRuntimeRouterExport(runtime, activation) {
   assert.equal(freeze.status, 200, JSON.stringify(frozen));
   assert.equal(frozen.state, 'frozen');
   assert.ok(frozen.receipt.record_count > 0);
+  const destination = new RuntimeRelocationSource(
+    runtime.handler,
+    await topology.getWorker('router-relocation-destination'),
+    runtime.env.ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET,
+    runtime.env.WALLET_CONSOLE.source,
+  );
+  destination.env.WALLET_CONSOLE.receipt = frozen.receipt;
+  const prepared = await runtimeRouterCommand(destination, 'router-transfer', {
+    kind: 'prepare',
+    request: frozen.receipt.request,
+    chunk_bytes: 4096,
+  });
+  assert.equal(prepared.kind, 'prepared');
+  const status = await runtimeRouterCommand(destination, 'router-status', envelope);
+  assert.equal(status.kind, 'receiving');
+  assert.equal(status.next_record, 0);
   const records = [];
   let chunks = 0;
   for (let recordIndex = 0; recordIndex < frozen.receipt.record_count; recordIndex += 1) {
@@ -362,6 +393,18 @@ export async function verifyRuntimeRouterExport(runtime, activation) {
       assert.deepEqual(await replay.json(), exported);
       const segment = Buffer.from(exported.chunk.data_b64u, 'base64url');
       assert.ok(segment.length <= 4096);
+      const imported = await runtimeRouterCommand(destination, 'router-transfer', {
+        kind: 'import',
+        chunk: exported.chunk,
+      });
+      assert.equal(imported.kind, 'imported');
+      assert.deepEqual(
+        await runtimeRouterCommand(destination, 'router-transfer', {
+          kind: 'import',
+          chunk: exported.chunk,
+        }),
+        imported,
+      );
       bytes.push(segment);
       chunks += 1;
       if (segmentIndex + 1 === exported.chunk.segment_count) break;
@@ -374,11 +417,31 @@ export async function verifyRuntimeRouterExport(runtime, activation) {
     .update(JSON.stringify([frozen.receipt.request, records]))
     .digest('hex');
   assert.equal(digest, frozen.receipt.records_digest_hex);
+  const verified = await runtimeRouterCommand(destination, 'router-verify', envelope);
+  assert.equal(verified.kind, 'verified');
+  assert.deepEqual(verified.receipt, frozen.receipt);
+  assert.deepEqual(await runtimeRouterCommand(destination, 'router-status', envelope), verified);
+
   return {
     recordCount: records.length,
     chunkCount: chunks,
     exactReplay: true,
     storedReceiptMatchesExport: true,
+    destinationVerifiedThroughRuntime: true,
     sourceDigestHex: frozen.receipt.records_digest_hex,
   };
+}
+
+async function runtimeRouterCommand(runtime, operation, body) {
+  const response = await runtime.handler(
+    new Request(`${runtimeOrigin}${runtimeBase}/${operation}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+    runtime.env,
+  );
+  const result = await response.json();
+  assert.equal(response.status, 200, JSON.stringify(result));
+  return result;
 }

@@ -6,7 +6,9 @@ export type RuntimeSourceOperation =
   | 'ed25519-capture'
   | 'ecdsa-freeze'
   | 'router-freeze'
-  | 'router-export';
+  | 'router-export'
+  | 'router-status'
+  | 'router-verify';
 export type RuntimeSourceDirectory = {
   readonly WALLET_CONSOLE: WalletConsoleServiceBinding;
   readonly CF_VERSION_METADATA: { readonly id: unknown };
@@ -37,33 +39,41 @@ export async function authorizeRuntimeSource(
   const version = env.CF_VERSION_METADATA.id;
   if (typeof version !== 'string' || !version)
     return { ok: false, code: 'source_command_unavailable' };
+  const destination = operation === 'router-status' || operation === 'router-verify';
+  const transfer = destination || operation === 'router-export';
+  let endpoint = 'relocation-runtime-source';
+  let commandBody = JSON.stringify({ wallet: input.wallet, attempt: input.attempt, operation });
+  if (operation === 'router-export') {
+    endpoint = 'relocation-router-export';
+    commandBody = JSON.stringify({
+      wallet: input.wallet,
+      attempt: input.attempt,
+      recordIndex: input.recordIndex,
+      segmentIndex: input.segmentIndex,
+    });
+  } else if (destination) {
+    endpoint = 'relocation-router-destination';
+    commandBody = JSON.stringify({
+      wallet: input.wallet,
+      attempt: input.attempt,
+      operation: operation === 'router-status' ? 'status' : 'verify',
+    });
+  }
   let response: Response;
   let result: unknown;
   try {
     response = await env.WALLET_CONSOLE.fetch(
-      new Request(
-        `https://wallet-placement.internal/internal/wallet-placement/v1/${operation === 'router-export' ? 'relocation-router-export' : 'relocation-runtime-source'}`,
-        {
-          method: 'POST',
-          headers: {
-            'content-type': 'application/json',
-            'x-seams-writer-role': 'walletRuntime',
-            'x-seams-writer-version': version,
-            'x-seams-writer-account': env.SEAMS_D1_HOME_ACCOUNT_ID,
-            'x-seams-writer-database': env.SEAMS_D1_HOME_DATABASE_ID,
-          },
-          body: JSON.stringify(
-            operation === 'router-export'
-              ? {
-                  wallet: input.wallet,
-                  attempt: input.attempt,
-                  recordIndex: input.recordIndex,
-                  segmentIndex: input.segmentIndex,
-                }
-              : { wallet: input.wallet, attempt: input.attempt, operation },
-          ),
+      new Request(`https://wallet-placement.internal/internal/wallet-placement/v1/${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-seams-writer-role': 'walletRuntime',
+          'x-seams-writer-version': version,
+          'x-seams-writer-account': env.SEAMS_D1_HOME_ACCOUNT_ID,
+          'x-seams-writer-database': env.SEAMS_D1_HOME_DATABASE_ID,
         },
-      ),
+        body: commandBody,
+      }),
     );
     if (!response.ok) return { ok: false, code: 'source_command_denied' };
     result = await response.json();
@@ -74,21 +84,16 @@ export async function authorizeRuntimeSource(
     !isPlainObject(result) ||
     result.ok !== true ||
     !isPlainObject(result.command) ||
-    (operation !== 'router-export' &&
+    (!transfer &&
       (result.command.operation !== operation || !isPlainObject(result.command.payload)))
   )
     return { ok: false, code: 'source_command_unavailable' };
-  const payload = operation === 'router-export' ? result.command : result.command.payload;
+  const payload = transfer ? result.command : result.command.payload;
   if (!isPlainObject(payload)) return { ok: false, code: 'source_command_unavailable' };
-  if (operation === 'router-freeze' || operation === 'router-export') {
+  if (operation === 'router-freeze' || transfer) {
     let request = payload;
-    if (operation === 'router-export') {
+    if (transfer) {
       if (
-        Object.keys(payload).length !== 5 ||
-        payload.kind !== 'export' ||
-        payload.record_index !== input.recordIndex ||
-        payload.segment_index !== input.segmentIndex ||
-        payload.chunk_bytes !== 4096 ||
         !isPlainObject(payload.receipt) ||
         Object.keys(payload.receipt).length !== 3 ||
         !isPlainObject(payload.receipt.request) ||
@@ -96,16 +101,36 @@ export async function authorizeRuntimeSource(
         !/^[a-f0-9]{64}$/u.test(payload.receipt.records_digest_hex) ||
         typeof payload.receipt.record_count !== 'number' ||
         !Number.isSafeInteger(payload.receipt.record_count) ||
-        typeof input.recordIndex !== 'number' ||
-        !Number.isSafeInteger(input.recordIndex) ||
-        input.recordIndex < 0 ||
-        input.recordIndex >= payload.receipt.record_count ||
-        typeof input.segmentIndex !== 'number' ||
-        !Number.isSafeInteger(input.segmentIndex) ||
-        input.segmentIndex < 0 ||
-        input.segmentIndex > 4294967295
+        payload.receipt.record_count < 0
       )
         return { ok: false, code: 'source_command_unavailable' };
+      if (operation === 'router-export') {
+        if (
+          Object.keys(payload).length !== 5 ||
+          payload.kind !== 'export' ||
+          payload.record_index !== input.recordIndex ||
+          payload.segment_index !== input.segmentIndex ||
+          payload.chunk_bytes !== 4096 ||
+          typeof input.recordIndex !== 'number' ||
+          !Number.isSafeInteger(input.recordIndex) ||
+          input.recordIndex < 0 ||
+          input.recordIndex >= payload.receipt.record_count ||
+          typeof input.segmentIndex !== 'number' ||
+          !Number.isSafeInteger(input.segmentIndex) ||
+          input.segmentIndex < 0 ||
+          input.segmentIndex > 4294967295
+        )
+          return { ok: false, code: 'source_command_unavailable' };
+      } else if (operation === 'router-status') {
+        if (
+          Object.keys(payload).length !== 3 ||
+          payload.kind !== 'status' ||
+          payload.chunk_bytes !== 4096
+        )
+          return { ok: false, code: 'source_command_unavailable' };
+      } else if (Object.keys(payload).length !== 2 || payload.kind !== 'verify') {
+        return { ok: false, code: 'source_command_unavailable' };
+      }
       request = payload.receipt.request;
     }
     if (

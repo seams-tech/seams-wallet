@@ -1656,6 +1656,9 @@ resubmits the same receipt. Console builds bounded Router export commands from
 the stored receipt during copying. Runtime consumes those commands and rejects
 raw export bypass. The Worker scenario exports a real finalized registration
 through Runtime, checks exact chunk replay, and reconstructs the Router digest.
+It imports into a separate Router and requests destination status and verification
+through Console-authorized Runtime commands. Raw status and verification commands
+are rejected. Destination preparation and import authorization remain unfinished.
 Console remains a response fixture in that scenario; its journal has separate
 D1 E2E coverage. The Worker E2E uses a directory response fixture and proves that denied
 or malformed authorization reaches no Router call. The actual directory journal

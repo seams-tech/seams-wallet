@@ -5414,6 +5414,7 @@ async function main() {
         fixture,
       ),
       recoveryRouterWorker(fixture),
+      ...(testWalletDoExecution ? [historicalReplayRouterWorker(fixture, 'router-relocation-destination')] : []),
       lateWritingDeriverAWorker(fixture),
       ...(testHistoricalReplay || testHistoricalStartingReplay
         ? [

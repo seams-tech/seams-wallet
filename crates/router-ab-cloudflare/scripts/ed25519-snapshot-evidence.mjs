@@ -123,7 +123,7 @@ export async function verifyEd25519Snapshot(topology, activation, fixture, crede
     originalBytes: Buffer.concat(bytes), credential, sourceCredential, delivery, registrationCredential,
     activation, fixture, signDestination,
   });
-  const routerExport = await verifyRuntimeRouterExport(worker, activation);
+  const routerExport = await verifyRuntimeRouterExport(worker, activation, topology);
   return {
     routerExport,
     restoration,
