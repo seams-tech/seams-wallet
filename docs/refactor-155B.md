@@ -1506,14 +1506,11 @@ they do not add a new refactor scope.
    `codex/ml-dsa-experiments`; R155B commits are on `dev`. Tested custody sources
    still differ from committed `dev`, including relocation files. Preserve their
    ownership and review/integrate them before claiming a committed candidate.
-   Record production feature flags: local wallet-object harness builds alone do
-   not validate the deployed feature set. `build-strict-worker.sh` enables the
-   wallet-object features only when `ROUTER_AB_WALLET_DO_HARNESS=enabled`.
-   In `execute_deriver_b_role_session_command`, the build without
-   `wallet-do-b-harness` discards the supplied wallet-pair scope and uses the
-   session command path. Therefore the scoped wallet-object race proof cannot
-   be attributed to that default build. Align the production candidate and its
-   acceptance topology before deployment.
+   The standard build now selects wallet-object ownership in both dev and
+   release profiles. Optimized release binaries passed the same native NEAR
+   coordinator and ECDSA pool scenarios. Record these feature selections with
+   the integrated source candidate before deployment. Alternate Rust feature
+   paths still need review during final cleanup.
 4. **Complete the counter-database deployment decision and cutover.** The isolated
    counter binding is implemented and locally verified. New live infrastructure
    still needs approval under the plan's existing constraint. Preserve one global
@@ -1565,9 +1562,13 @@ Console requests. Its first run completed those checks but failed during teardow
 when a late refill reached a disposed database. Waiting for browser route handlers
 before disposal repaired that fixture failure; the repeat passed (1.2 minutes).
 
-Syntax checks, patch checks, and the bloat gate pass. Optimized role builds are
-still running at this checkpoint. Their results and release-binary acceptance must
-be recorded before this candidate is used for hosted acceptance.
+Syntax checks, patch checks, and the bloat gate pass. Optimized builds completed
+for all five roles. The release binaries passed the composed NEAR relocation
+scenario and the native ECDSA pool scenario, each with exit code zero. The evidence
+records the build features, binary hashes, commands, and resulting artifact hashes.
+These local checks establish behavior only. Hosted latency remains unmeasured for
+this candidate. The ECDSA scenario still uses harness-selected Gateway routing;
+the NEAR browser check covers session invalidation, rather than fresh authentication.
 [Repeatable local evidence](./evidence/r155b-standard-wallet-objects-20261007.json).
 The public checkout still contains relocation changes outside committed `dev`.
 This change fixes the default build selection and manifest mismatch. It does not
