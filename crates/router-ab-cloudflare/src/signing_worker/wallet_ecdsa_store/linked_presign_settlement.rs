@@ -69,7 +69,8 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         match self.pool_fence(scope)? {
             Some(
                 relocation::Fence::Draining { request: prior }
-                | relocation::Fence::Invalidating { request: prior, .. },
+                | relocation::Fence::Invalidating { request: prior, .. }
+                | relocation::Fence::Sealing { request: prior, .. },
             ) if prior == *request => Ok(()),
             Some(relocation::Fence::Frozen { receipt }) if receipt.request == *request => Ok(()),
             _ => Err(wallet_error(

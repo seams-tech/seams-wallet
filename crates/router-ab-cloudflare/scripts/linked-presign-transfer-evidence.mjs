@@ -320,6 +320,23 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa, r
   for (const extra of extraRegistrations) {
     await freezePendingRegistration(topology, credential, extra, command.request, walletSource, routerCredential);
   }
+  const sealing = await accepted(walletSource, '/router-ab/signing-worker/wallet/pool/freeze', {
+    scope: command.wallet_scope, request: command.request,
+  }, routerCredential);
+  assert.deepEqual(sealing, { state: 'sealing' });
+  await topology.unsafeEvictDurableObject(workerName, walletClass, { id: walletId });
+  const changedSeal = structuredClone(command.request);
+  changedSeal.invalidated_at_ms += 1;
+  await rejected(source, '/router-ab/signing-worker/wallet/pool/freeze', {
+    scope: command.wallet_scope, request: changedSeal,
+  }, routerCredential, /inputs changed/);
+  await rejected(source, '/router-ab/signing-worker/wallet/ecdsa/export', {
+    receipt: { scope: command.wallet_scope, request: command.request, record_count: 0,
+      wallet_records_digest_hex: '0'.repeat(64) }, segment_index: 0, chunk_bytes: 4096,
+  }, routerCredential, /frozen/);
+  await rejected(wallet, '/router-ab/internal/signing-worker/wallet', {
+    command: 'register_linked_presign_session', ...pending.request,
+  }, credential, /closed ECDSA pool admission/);
   walletSource.env.WALLET_CONSOLE.receiptMode = 'lost_reply';
   const lostReceipt = await post(walletSource, '/router-ab/signing-worker/wallet/pool/freeze', {
     scope: command.wallet_scope, request: command.request,
@@ -427,6 +444,10 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa, r
   return {
     scope:
       'Production presign completion, wallet registration, freeze and role-to-role import; excludes full device linking and concurrent consumption',
+    sourceSealCheckpointSurvivedEviction: true,
+    changedSealIdentityRejected: true,
+    unfinishedSnapshotExportRejected: true,
+    sessionRegistrationDuringSealingRejected: true,
     sourceSessionCommandsUseAuthenticatedRouter: true,
     sourceSessionCommandsUseJournalAuthority: true,
     frozenSessionReceiptLostReplyRecovered: true,
@@ -849,12 +870,7 @@ export async function returnTransferredWallet(topology, credential, previousRece
   assert.deepEqual(await accepted(destination, transfer, preparation, credential), prepared);
   request.invalidated_at_ms = Date.now();
   const freeze = { scope, request };
-  const frozen = await accepted(
-    source,
-    '/router-ab/signing-worker/wallet/pool/freeze',
-    freeze,
-    credential,
-  );
+  const frozen = await finishWalletFreeze(source, freeze, credential);
   assert.equal(frozen.state, 'frozen', 'Imported historical sessions must not block the next move');
   await evictTransferredWallet(topology, sourceName, scope);
   assert.deepEqual(
@@ -901,4 +917,13 @@ async function finishWalletRestore(destination, path, command, credential) {
     assert.equal(result.kind, 'restoring');
   }
   assert.fail('Wallet restoration did not finish within the scenario bound');
+}
+
+async function finishWalletFreeze(source, command, credential) {
+  for (let step = 0; step < 16; step += 1) {
+    const result = await accepted(source, '/router-ab/signing-worker/wallet/pool/freeze', command, credential);
+    if (result.state === 'frozen') return result;
+    assert.ok(result.state === 'sealing' || result.state === 'invalidating');
+  }
+  assert.fail('Wallet snapshot sealing did not finish within the scenario bound');
 }

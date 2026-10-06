@@ -29,7 +29,7 @@ impl SnapshotRow for PoolSnapshotRow {
     }
     const SELECT: &'static str =
         "SELECT pool_key, owner_json, ciphertext_json, CAST(version AS TEXT) AS version
-        FROM wallet_ecdsa_pool WHERE owner_json = ? AND pool_key > ? ORDER BY pool_key LIMIT 16";
+        FROM wallet_ecdsa_pool WHERE owner_json = ? AND pool_key > ? ORDER BY pool_key LIMIT ?";
     fn key(&self) -> &str {
         &self.pool_key
     }
@@ -39,7 +39,7 @@ impl SnapshotRow for ActivationSnapshotRow {
         SnapshotRecord::Activation(self)
     }
     const SELECT: &'static str = "SELECT material_key, active_key, owner_json, ciphertext_json
-        FROM wallet_ecdsa_activations WHERE owner_json = ? AND material_key > ? ORDER BY material_key LIMIT 16";
+        FROM wallet_ecdsa_activations WHERE owner_json = ? AND material_key > ? ORDER BY material_key LIMIT ?";
     fn key(&self) -> &str {
         &self.material_key
     }
@@ -59,7 +59,7 @@ impl SnapshotRow for LinkedSnapshotRow {
         SnapshotRecord::LinkedReservation(self)
     }
     const SELECT: &'static str = "SELECT record_key, active_key, owner_json, ciphertext_json
-        FROM wallet_linked_ecdsa WHERE owner_json = ? AND record_key > ? ORDER BY record_key LIMIT 16";
+        FROM wallet_linked_ecdsa WHERE owner_json = ? AND record_key > ? ORDER BY record_key LIMIT ?";
     fn key(&self) -> &str {
         &self.record_key
     }
@@ -81,7 +81,7 @@ impl SnapshotRow for EffectSnapshotRow {
     const SELECT: &'static str = "SELECT operation_key, authorization_key, owner_json, request_digest_hex,
         authorization_json, CAST(claimed_at_ms AS TEXT) AS claimed_at_ms,
         terminal_json, CAST(committed_at_ms AS TEXT) AS committed_at_ms
-        FROM wallet_ecdsa_effects WHERE owner_json = ? AND operation_key > ? ORDER BY operation_key LIMIT 16";
+        FROM wallet_ecdsa_effects WHERE owner_json = ? AND operation_key > ? ORDER BY operation_key LIMIT ?";
     fn key(&self) -> &str {
         &self.operation_key
     }
@@ -96,7 +96,7 @@ impl SnapshotRow for presign_authority::PresignAuthorityRow {
         AND json_extract(authority_json, '$.wallet_scope.project_id') = ?
         AND json_extract(authority_json, '$.wallet_scope.project_environment_id') = ?
         AND json_extract(authority_json, '$.wallet_scope.wallet_id') = ?
-        AND presign_session_id > ? ORDER BY presign_session_id LIMIT 16";
+        AND presign_session_id > ? ORDER BY presign_session_id LIMIT ?";
     fn key(&self) -> &str {
         &self.presign_session_id
     }
@@ -126,7 +126,7 @@ impl SnapshotRow for linked_presign_inventory::LinkedPresignSessionRow {
         SnapshotRecord::LinkedPresignSession(self)
     }
     const SELECT: &'static str = "SELECT presign_session_id, server_presignature_id, owner_json, request_digest_hex, ownership_generation
-        FROM wallet_linked_presign_sessions WHERE owner_json = ? AND presign_session_id > ? ORDER BY presign_session_id LIMIT 16";
+        FROM wallet_linked_presign_sessions WHERE owner_json = ? AND presign_session_id > ? ORDER BY presign_session_id LIMIT ?";
     fn key(&self) -> &str {
         &self.presign_session_id
     }
@@ -142,36 +142,27 @@ impl SnapshotRow for linked_presign_inventory::LinkedPresignSessionRow {
 fn write_rows<Row: SnapshotRow, Sql: SigningWorkerWalletSqlV1>(
     store: &SigningWorkerWalletEcdsaStoreV1<'_, Sql>,
     scope: &CloudflareSigningWorkerWalletScopeV1,
+    after: &mut String,
+    limit: u32,
     writer: &mut impl Write,
-) -> RouterAbProtocolResult<u64> {
-    let mut after = String::new();
-    let mut count = 0;
-    loop {
-        let rows = store
-            .sql
-            .query::<Row>(Row::SELECT, Row::parameters(scope, after.clone())?)?;
-        if rows.is_empty() {
-            break;
+) -> RouterAbProtocolResult<u32> {
+    let mut parameters = Row::parameters(scope, after.clone())?;
+    parameters.push(SigningWorkerWalletSqlValueV1::Integer(i64::from(limit)));
+    let rows = store.sql.query::<Row>(Row::SELECT, parameters)?;
+    let count = rows.len() as u32;
+    for row in rows {
+        row.validate(store, scope)?;
+        if row.key() <= after.as_str() {
+            return Err(wallet_error("ECDSA snapshot row order changed"));
         }
-        for row in rows {
-            row.validate(store, scope)?;
-            if row.key() <= after.as_str() {
-                return Err(wallet_error("ECDSA snapshot row order changed"));
-            }
-            after = row.key().to_owned();
-            serde_json::to_writer(&mut *writer, &row.into_record())
-                .map_err(|error| wallet_error(error.to_string()))?;
-            write_bytes(writer, b"\n")?;
-            count += 1;
-        }
+        *after = row.key().to_owned();
+        serde_json::to_writer(&mut *writer, &row.into_record())
+            .map_err(|error| wallet_error(error.to_string()))?;
+        writer
+            .write_all(b"\n")
+            .map_err(|error| wallet_error(error.to_string()))?;
     }
     Ok(count)
-}
-
-fn write_bytes(writer: &mut impl Write, bytes: &[u8]) -> RouterAbProtocolResult<()> {
-    writer
-        .write_all(bytes)
-        .map_err(|error| wallet_error(error.to_string()))
 }
 
 #[derive(Deserialize)]
@@ -209,25 +200,48 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         Ok(row.count)
     }
 
-    pub(crate) fn write_ecdsa_snapshot(
+    pub(in crate::signing_worker::wallet_ecdsa_store) fn write_ecdsa_snapshot_batch(
         &self,
         scope: &CloudflareSigningWorkerWalletScopeV1,
-        request: &SigningWorkerRelocationRequestV1,
+        family: &mut SnapshotFamily,
+        after: &mut String,
         writer: &mut impl Write,
-    ) -> RouterAbProtocolResult<u64> {
-        scope.validate()?;
-        request.validate()?;
-        serde_json::to_writer(&mut *writer, &(scope, request))
-            .map_err(|error| wallet_error(error.to_string()))?;
-        write_bytes(writer, b"\n")?;
-        let mut count = write_rows::<PoolSnapshotRow, Sql>(self, scope, writer)?;
-        count += write_rows::<ActivationSnapshotRow, Sql>(self, scope, writer)?;
-        count += write_rows::<LinkedSnapshotRow, Sql>(self, scope, writer)?;
-        count += write_rows::<EffectSnapshotRow, Sql>(self, scope, writer)?;
-        count += write_rows::<presign_authority::PresignAuthorityRow, Sql>(self, scope, writer)?;
-        count += write_rows::<linked_presign_inventory::LinkedPresignSessionRow, Sql>(
-            self, scope, writer,
-        )?;
-        Ok(count)
+    ) -> RouterAbProtocolResult<(u32, bool)> {
+        const RECORDS_PER_STEP: u32 = 16;
+        let mut count = 0;
+        while count < RECORDS_PER_STEP {
+            let limit = RECORDS_PER_STEP - count;
+            let written = match family {
+                SnapshotFamily::Pools => {
+                    write_rows::<PoolSnapshotRow, Sql>(self, scope, after, limit, writer)?
+                }
+                SnapshotFamily::Activations => {
+                    write_rows::<ActivationSnapshotRow, Sql>(self, scope, after, limit, writer)?
+                }
+                SnapshotFamily::LinkedReservations => {
+                    write_rows::<LinkedSnapshotRow, Sql>(self, scope, after, limit, writer)?
+                }
+                SnapshotFamily::Effects => {
+                    write_rows::<EffectSnapshotRow, Sql>(self, scope, after, limit, writer)?
+                }
+                SnapshotFamily::PresignAuthorities => {
+                    write_rows::<presign_authority::PresignAuthorityRow, Sql>(
+                        self, scope, after, limit, writer,
+                    )?
+                }
+                SnapshotFamily::LinkedPresignSessions => {
+                    write_rows::<linked_presign_inventory::LinkedPresignSessionRow, Sql>(
+                        self, scope, after, limit, writer,
+                    )?
+                }
+                SnapshotFamily::Complete => return Ok((count, true)),
+            };
+            count += written;
+            if written < limit {
+                *family = family.next();
+                after.clear();
+            }
+        }
+        Ok((count, false))
     }
 }

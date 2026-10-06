@@ -37,6 +37,7 @@ pub enum SigningWorkerPoolFreezeResponseV1 {
         pending_linked_sessions: u64,
     },
     Invalidating,
+    Sealing,
     Frozen {
         receipt: SigningWorkerPoolFreezeReceiptV1,
     },
@@ -57,6 +58,10 @@ pub(super) enum Fence {
     Invalidating {
         request: SigningWorkerRelocationRequestV1,
         after_pool_key: String,
+    },
+    Sealing {
+        request: SigningWorkerRelocationRequestV1,
+        cursor: sealed_snapshot::SealCursor,
     },
     Frozen {
         receipt: SigningWorkerPoolFreezeReceiptV1,
@@ -212,6 +217,15 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
             Some(
                 Fence::Draining { request: prior } | Fence::Invalidating { request: prior, .. },
             ) if prior != request => return Err(wallet_error("Pool relocation inputs changed")),
+            Some(Fence::Sealing {
+                request: prior,
+                cursor,
+            }) => {
+                if prior != request {
+                    return Err(wallet_error("Pool relocation inputs changed"));
+                }
+                return self.seal_ecdsa_snapshot(&scope, request, cursor);
+            }
             Some(Fence::Draining { .. }) => {}
             Some(Fence::Invalidating { after_pool_key, .. }) => after = after_pool_key,
             Some(
@@ -288,13 +302,6 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
                 return Ok(SigningWorkerPoolFreezeResponseV1::Invalidating);
             }
         }
-        let receipt = self.seal_ecdsa_snapshot(&scope, request)?;
-        self.save_pool_fence(
-            &scope,
-            &Fence::Frozen {
-                receipt: receipt.clone(),
-            },
-        )?;
-        Ok(SigningWorkerPoolFreezeResponseV1::Frozen { receipt })
+        self.seal_ecdsa_snapshot(&scope, request, sealed_snapshot::SealCursor::new())
     }
 }

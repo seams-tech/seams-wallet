@@ -33,6 +33,32 @@ struct PageRow {
     digest_hex: String,
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct SealCursor {
+    family: snapshot::SnapshotFamily,
+    after: String,
+    record_count: u64,
+    page_index: u32,
+    partial_page: Vec<u8>,
+    byte_length: i64,
+    digest: [u8; 32],
+}
+
+impl SealCursor {
+    pub(super) fn new() -> Self {
+        Self {
+            family: snapshot::SnapshotFamily::Pools,
+            after: String::new(),
+            record_count: 0,
+            page_index: 0,
+            partial_page: Vec::new(),
+            byte_length: 0,
+            digest: snapshot::initial_digest(),
+        }
+    }
+}
+
 struct PageWriter<'a, Sql> {
     sql: &'a Sql,
     owner: String,
@@ -86,7 +112,7 @@ impl<Sql: SigningWorkerWalletSqlV1> Write for PageWriter<'_, Sql> {
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
-        self.persist_page().map_err(std::io::Error::other)
+        Ok(())
     }
 }
 
@@ -95,25 +121,67 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         &self,
         scope: &CloudflareSigningWorkerWalletScopeV1,
         request: SigningWorkerRelocationRequestV1,
-    ) -> RouterAbProtocolResult<SigningWorkerPoolFreezeReceiptV1> {
+        mut cursor: SealCursor,
+    ) -> RouterAbProtocolResult<SigningWorkerPoolFreezeResponseV1> {
         let owner = owner_json(scope, "ECDSA sealed snapshot")?;
-        let digest = snapshot::SnapshotDigestWriter::new();
+        if cursor.partial_page.len() >= PAGE_BYTES
+            || cursor.byte_length < 0
+            || cursor.byte_length as u64
+                != u64::from(cursor.page_index) * PAGE_BYTES as u64
+                    + cursor.partial_page.len() as u64
+        {
+            return Err(wallet_error("ECDSA sealing cursor is invalid"));
+        }
         let mut writer = PageWriter {
             sql: self.sql,
             owner: owner.clone(),
             move_id: request.move_id.clone(),
-            page_index: 0,
-            bytes: Vec::with_capacity(PAGE_BYTES),
-            byte_length: 0,
-            digest,
+            page_index: cursor.page_index,
+            bytes: cursor.partial_page,
+            byte_length: cursor.byte_length,
+            digest: snapshot::SnapshotDigestWriter::resume(cursor.digest),
         };
-        let record_count = self.write_ecdsa_snapshot(scope, &request, &mut writer)?;
+        if writer.byte_length == 0 {
+            serde_json::to_writer(&mut writer, &(scope, &request))
+                .map_err(|error| wallet_error(error.to_string()))?;
+            writer
+                .write_all(b"\n")
+                .map_err(|error| wallet_error(error.to_string()))?;
+        }
+        let (count, complete) = self.write_ecdsa_snapshot_batch(
+            scope,
+            &mut cursor.family,
+            &mut cursor.after,
+            &mut writer,
+        )?;
+        cursor.record_count = cursor
+            .record_count
+            .checked_add(u64::from(count))
+            .ok_or_else(|| wallet_error("ECDSA snapshot record count overflowed"))?;
+        if !complete {
+            self.save_pool_fence(
+                scope,
+                &relocation::Fence::Sealing {
+                    request,
+                    cursor: SealCursor {
+                        family: cursor.family,
+                        after: cursor.after,
+                        record_count: cursor.record_count,
+                        page_index: writer.page_index,
+                        partial_page: writer.bytes,
+                        byte_length: writer.byte_length,
+                        digest: writer.digest.checkpoint()?,
+                    },
+                },
+            )?;
+            return Ok(SigningWorkerPoolFreezeResponseV1::Sealing);
+        }
         writer.persist_page()?;
         let receipt = SigningWorkerPoolFreezeReceiptV1 {
             scope: scope.clone(),
             request,
-            record_count,
-            wallet_records_digest_hex: writer.digest.finish()?,
+            record_count: cursor.record_count,
+            wallet_records_digest_hex: hex_slice(&writer.digest.checkpoint()?),
         };
         let encoded =
             serde_json::to_string(&receipt).map_err(|error| wallet_error(error.to_string()))?;
@@ -122,7 +190,13 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
             vec![text(owner), text(receipt.request.move_id.clone()), text(encoded),
                 SigningWorkerWalletSqlValueV1::Integer(writer.byte_length)],
         )?;
-        Ok(receipt)
+        self.save_pool_fence(
+            scope,
+            &relocation::Fence::Frozen {
+                receipt: receipt.clone(),
+            },
+        )?;
+        Ok(SigningWorkerPoolFreezeResponseV1::Frozen { receipt })
     }
 
     pub(super) fn read_ecdsa_snapshot_chunk(

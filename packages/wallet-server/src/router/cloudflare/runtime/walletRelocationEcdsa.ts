@@ -37,7 +37,7 @@ export async function forwardEcdsaRelocation(
       if (!response.ok) return response;
       const raw: unknown = await response.clone().json();
       if (isPlainObject(raw)) {
-        if (Object.keys(raw).length === 1 && raw.state === 'invalidating') return response;
+        if (Object.keys(raw).length === 1 && (raw.state === 'invalidating' || raw.state === 'sealing')) return response;
         if (Object.keys(raw).length === 3 && raw.state === 'draining' &&
             safeCount(raw.pending_effects) && safeCount(raw.pending_linked_sessions)) return response;
       }

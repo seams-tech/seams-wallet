@@ -66,18 +66,18 @@ pub(super) struct SnapshotDigestWriter {
 }
 
 impl SnapshotDigestWriter {
-    pub(super) fn new() -> Self {
+    pub(super) fn resume(digest: [u8; 32]) -> Self {
         Self {
-            digest: initial_digest(),
+            digest,
             pending: Vec::new(),
         }
     }
 
-    pub(super) fn finish(self) -> RouterAbProtocolResult<String> {
+    pub(super) fn checkpoint(self) -> RouterAbProtocolResult<[u8; 32]> {
         if !self.pending.is_empty() {
             return Err(wallet_error("ECDSA snapshot record is incomplete"));
         }
-        Ok(hex_slice(&self.digest))
+        Ok(self.digest)
     }
 }
 
@@ -96,6 +96,31 @@ impl std::io::Write for SnapshotDigestWriter {
 
     fn flush(&mut self) -> std::io::Result<()> {
         Ok(())
+    }
+}
+
+#[derive(Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(super) enum SnapshotFamily {
+    Pools,
+    Activations,
+    LinkedReservations,
+    Effects,
+    PresignAuthorities,
+    LinkedPresignSessions,
+    Complete,
+}
+
+impl SnapshotFamily {
+    fn next(self) -> Self {
+        match self {
+            Self::Pools => Self::Activations,
+            Self::Activations => Self::LinkedReservations,
+            Self::LinkedReservations => Self::Effects,
+            Self::Effects => Self::PresignAuthorities,
+            Self::PresignAuthorities => Self::LinkedPresignSessions,
+            Self::LinkedPresignSessions | Self::Complete => Self::Complete,
+        }
     }
 }
 
