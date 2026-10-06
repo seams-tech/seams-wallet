@@ -1,3 +1,5 @@
+import { authorizeRuntimeSource, type RuntimeSourceDirectory } from './walletRelocationSource';
+import { isPlainObject } from '@shared/utils/validation';
 import { ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1 } from '../../../core/ThresholdService/routerAb/internalServiceHttp';
 import type { CloudflareServiceBindingFetcher } from './routerAbServiceBindings';
 
@@ -9,6 +11,7 @@ const BASE_PATH = '/internal/wallet-runtime/v1/relocation';
 const OPERATIONS = {
   'router-freeze': '/router-ab/router/wallet/freeze',
   'router-transfer': '/router-ab/router/wallet/transfer',
+  'ed25519-capture': '/router-ab/signing-worker/wallet/ed25519/snapshot',
   'ed25519-settle': '/router-ab/signing-worker/wallet/ed25519/settle',
   'ed25519-snapshot': '/router-ab/signing-worker/wallet/ed25519/snapshot',
   'ecdsa-freeze': '/router-ab/signing-worker/wallet/pool/freeze',
@@ -21,7 +24,7 @@ const OPERATIONS = {
   'presign-transfer': '/router-ab/signing-worker/linked-presign-session/transfer',
 } as const;
 
-export type WalletRelocationRuntimeBindings = {
+export type WalletRelocationRuntimeBindings = RuntimeSourceDirectory & {
   readonly MPC_ROUTER: CloudflareServiceBindingFetcher;
   readonly ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET?: string;
 };
@@ -43,17 +46,46 @@ export async function handleWalletRelocationRequest(
     return failure('unsupported_media_type', 415);
   const credential = env.ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET?.trim();
   if (!credential) return failure('relocation_transport_unavailable', 503);
-  const body = await request.arrayBuffer();
-  if (body.byteLength > 131072) return failure('request_too_large', 413);
-  return env.MPC_ROUTER.fetch(new Request(`https://mpc-router.router-ab.internal${path}`, {
-    method: 'POST',
-    redirect: 'manual',
-    headers: {
-      'content-type': 'application/json',
-      [ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1]: credential,
-    },
-    body,
-  }));
+  const bytes = await request.arrayBuffer();
+  if (bytes.byteLength > 131072) return failure('request_too_large', 413);
+  let input: unknown;
+  try {
+    input = JSON.parse(new TextDecoder().decode(bytes));
+  } catch {
+    return failure('invalid_input', 400);
+  }
+  let body: BodyInit = bytes;
+  if (
+    operation === 'ed25519-settle' ||
+    operation === 'ed25519-capture' ||
+    operation === 'ecdsa-freeze'
+  ) {
+    const authorized = await authorizeRuntimeSource(input, operation, env);
+    if (!authorized.ok) {
+      let status = 503;
+      if (authorized.code === 'invalid_input') status = 400;
+      else if (authorized.code === 'source_command_denied') status = 409;
+      return failure(authorized.code, status);
+    }
+    body = authorized.body;
+  } else if (
+    operation === 'ed25519-snapshot' &&
+    isPlainObject(input) &&
+    input.command === 'capture'
+  ) {
+    return failure('source_command_required', 400);
+  }
+  return env.MPC_ROUTER.fetch(
+    new Request(`https://mpc-router.router-ab.internal${path}`, {
+      method: 'POST',
+      redirect: 'manual',
+      headers: {
+        'content-type': 'application/json',
+        [ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1]: credential,
+      },
+      body,
+    }),
+  );
 }
 
 function failure(code: string, status: number): Response {

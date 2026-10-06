@@ -1648,7 +1648,12 @@ this transport. Console now authorizes Ed25519 settlement/capture and ECDSA free
 commands from a running freeze attempt and the pinned source Runtime deployment.
 It constructs wallet identity, move, generation, and timestamp from the journal.
 The directory E2E verifies exact replies and rejects other participant resources.
-Runtime consumption of these authorized commands remains to be connected. Native SQLite and wallet-DO hosts count pending rounds inside
+Runtime now requests these commands through its configured Console binding and
+forwards only the authorized payload. Raw snapshot capture cannot bypass this
+check. The Worker E2E uses a directory response fixture and proves that denied
+or malformed authorization reaches no Router call. The actual directory journal
+has separate E2E coverage; the assembled coordinator remains unfinished.
+Native SQLite and wallet-DO hosts count pending rounds inside
 the transaction that commits settlement. Claimed rounds and unexpired preparations
 keep it draining. Exact terminal replay remains available after settlement and
 restart. The native signing E2E covers draining, completion, and restart replay.

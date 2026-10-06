@@ -35,7 +35,6 @@ function digest(value) {
 export async function verifyEd25519Snapshot(topology, activation, fixture, credential, sourceCredential, registrationCredential, signDestination) {
   const delivery = JSON.parse(activation.delivery);
   const scope = delivery.scope;
-  const worker = await runtimeRelocationSource(topology, sourceCredential);
   const source = {
     scope,
     request: {
@@ -44,6 +43,7 @@ export async function verifyEd25519Snapshot(topology, activation, fixture, crede
       invalidated_at_ms: Date.now(),
     },
   };
+  const worker = await runtimeRelocationSource(topology, sourceCredential, source);
   const destinationName = 'fixture-signing-worker-after-refresh';
   const destination = await topology.getWorker(destinationName);
   const preparation = { command: 'prepare', source };
@@ -285,6 +285,8 @@ async function verifyDestinationRestoration({
     transferResumesFromDestinationCursor: true,
     sourceCommandsUseAuthenticatedRouterTransport: true,
     sourceCommandsUsePrivateRuntimeTransport: true,
+    sourceCommandsRequireDirectoryAuthorization: true,
+    deniedOrCorruptAuthorizationDoesNotReachRouter: true,
     exactCiphertextAndIndexesRestored: true,
     ownershipGeneration: nextSource.request.source_generation,
     activationReplayPreservesLaterFence: true,
@@ -293,7 +295,7 @@ async function verifyDestinationRestoration({
 }
 
 async function verifySourceCleanup(topology, receipt, credential, delivery, registrationCredential) {
-  const source = await runtimeRelocationSource(topology, credential);
+  const source = await runtimeRelocationSource(topology, credential, receipt.source);
   const command = { command: 'cleanup', activation: receipt };
   const changed = structuredClone(command);
   changed.activation.digest_hex = '00'.repeat(32);
