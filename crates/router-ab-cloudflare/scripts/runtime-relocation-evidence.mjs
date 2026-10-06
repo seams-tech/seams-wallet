@@ -40,10 +40,24 @@ class SourceDirectory {
     const input = await request.json();
     if (this.mode === 'denied' || input.attempt.moveId !== this.source.request.move_id)
       return Response.json({ ok: false, code: 'attempt_conflict' }, { status: 409 });
-    const payload =
+    let payload =
       input.operation === 'ed25519-capture'
         ? { command: 'capture', source: this.source }
         : this.source;
+    if (input.operation === 'router-freeze') {
+      payload = {
+        owner: {
+          org_id: this.source.scope.org_id,
+          project_id: this.source.scope.project_id,
+          env_id: this.source.scope.project_environment_id,
+          wallet_id: this.source.scope.wallet_id,
+        },
+        move_id: this.source.request.move_id,
+        request_digest_hex: 'a'.repeat(64),
+        source_generation: this.source.request.source_generation,
+        destination_generation: this.source.request.source_generation + 1,
+      };
+    }
     return Response.json({
       ok: true,
       command: {
@@ -184,5 +198,40 @@ export async function runtimeRelocationSource(topology, credential, command) {
   );
   assert.equal(source.env.MPC_ROUTER.calls, 0);
   source.env.WALLET_CONSOLE.mode = 'authorized';
+  const routerSource = {
+    scope: { ...command.scope, wallet_id: `${command.scope.wallet_id}-router-authorization` },
+    request: command.request,
+  };
+  const routerRuntime = new RuntimeRelocationSource(
+    module.handleWalletControlRequest,
+    await topology.getWorker('router'),
+    credential,
+    routerSource,
+  );
+  const routerInit = {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(sourceEnvelope(routerSource)),
+  };
+  routerRuntime.env.WALLET_CONSOLE.mode = 'denied';
+  const deniedRouter = await routerRuntime.handler(
+    new Request(`${runtimeOrigin}${runtimeBase}/router-freeze`, routerInit),
+    routerRuntime.env,
+  );
+  assert.equal(deniedRouter.status, 409);
+  assert.equal(routerRuntime.env.MPC_ROUTER.calls, 0);
+  routerRuntime.env.WALLET_CONSOLE.mode = 'authorized';
+  const frozenRouter = await routerRuntime.handler(
+    new Request(`${runtimeOrigin}${runtimeBase}/router-freeze`, routerInit),
+    routerRuntime.env,
+  );
+  assert.equal(frozenRouter.status, 200);
+  const frozen = await frozenRouter.json();
+  assert.equal(frozen.state, 'frozen');
+  const replayRouter = await routerRuntime.handler(
+    new Request(`${runtimeOrigin}${runtimeBase}/router-freeze`, routerInit),
+    routerRuntime.env,
+  );
+  assert.deepEqual(await replayRouter.json(), frozen);
   return source;
 }

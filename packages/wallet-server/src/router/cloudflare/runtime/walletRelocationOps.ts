@@ -56,6 +56,7 @@ export async function handleWalletRelocationRequest(
   }
   let body: BodyInit = bytes;
   if (
+    operation === 'router-freeze' ||
     operation === 'ed25519-settle' ||
     operation === 'ed25519-capture' ||
     operation === 'ecdsa-freeze'

@@ -1644,7 +1644,7 @@ export, and transfer commands. It forwards typed, bounded requests through its
 existing SigningWorker binding with the separate Router-to-SigningWorker credential. The private Wallet Runtime dispatcher now
 accepts an explicit relocation operation list and forwards it with the configured
 Gateway-to-Router credential. Public origins and unknown operations do not enter
-this transport. Console now authorizes Ed25519 settlement/capture and ECDSA freeze
+this transport. Console now authorizes Router freeze, Ed25519 settlement/capture, and ECDSA freeze
 commands from a running freeze attempt and the pinned source Runtime deployment.
 It constructs wallet identity, move, generation, and timestamp from the journal.
 The directory E2E verifies exact replies and rejects other participant resources.

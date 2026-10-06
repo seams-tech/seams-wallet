@@ -1,7 +1,11 @@
 import { isPlainObject } from '@shared/utils/validation';
 import type { WalletConsoleServiceBinding } from './walletConsoleOpsClient';
 
-export type RuntimeSourceOperation = 'ed25519-settle' | 'ed25519-capture' | 'ecdsa-freeze';
+export type RuntimeSourceOperation =
+  | 'ed25519-settle'
+  | 'ed25519-capture'
+  | 'ecdsa-freeze'
+  | 'router-freeze';
 export type RuntimeSourceDirectory = {
   readonly WALLET_CONSOLE: WalletConsoleServiceBinding;
   readonly CF_VERSION_METADATA: { readonly id: unknown };
@@ -65,6 +69,28 @@ export async function authorizeRuntimeSource(
   )
     return { ok: false, code: 'source_command_unavailable' };
   const payload = result.command.payload;
+  if (operation === 'router-freeze') {
+    if (
+      Object.keys(payload).length !== 5 ||
+      !isPlainObject(payload.owner) ||
+      Object.keys(payload.owner).length !== 4 ||
+      payload.owner.org_id !== input.wallet.organizationId ||
+      payload.owner.project_id !== input.wallet.projectId ||
+      payload.owner.env_id !== input.wallet.environmentId ||
+      payload.owner.wallet_id !== input.wallet.walletId ||
+      payload.move_id !== input.attempt.moveId ||
+      typeof payload.request_digest_hex !== 'string' ||
+      !/^[0-9a-f]{64}$/.test(payload.request_digest_hex) ||
+      typeof payload.source_generation !== 'number' ||
+      !Number.isSafeInteger(payload.source_generation) ||
+      payload.source_generation < 1 ||
+      typeof payload.destination_generation !== 'number' ||
+      !Number.isSafeInteger(payload.destination_generation) ||
+      payload.destination_generation !== payload.source_generation + 1
+    )
+      return { ok: false, code: 'source_command_unavailable' };
+    return { ok: true, body: JSON.stringify(payload) };
+  }
   const source = operation === 'ed25519-capture' ? payload.source : payload;
   if (
     (operation === 'ed25519-capture' &&
