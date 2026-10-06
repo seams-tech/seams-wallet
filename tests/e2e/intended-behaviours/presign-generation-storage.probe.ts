@@ -97,3 +97,8 @@ export async function run(walletId: string) {
     input.bigR33.fill(0);
   }
 }
+
+export async function advance(walletId: string): Promise<void> {
+  configureIndexedDB({ mode: 'wallet' });
+  await accept(walletId, 2);
+}

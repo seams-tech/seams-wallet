@@ -2008,8 +2008,10 @@ Resident pool hydration, refill, and signing check the persisted ownership
 generation. A stale pool stops maintenance, invalidates pending results, and
 destroys resident handles. Hydration and refill check again before publishing
 results. An old pool's invalidation does not clear a newer generation's pool.
-The in-flight resident refill race and full client reconciliation still require
-composed browser verification.
+The browser refill contract holds a real Gateway completion reply, advances the
+local generation, and then releases the reply. The refill fails with zero resident
+pool depth and no durable presignatures. Full regional relocation and offline
+device reconciliation still require composed verification.
 
 Owner presign authorities record the ownership generation at initialization. Each
 protocol step requires that exact current generation. Returning to the original
