@@ -3,7 +3,6 @@ import { verifyDeriverPreparation, verifyDeriverSourceFences } from './deriver-p
 import { verifyEd25519DestinationSigning } from './ed25519-signing-evidence.mjs';
 import { verifyEd25519Snapshot } from './ed25519-snapshot-evidence.mjs';
 import assert from 'node:assert/strict';
-import { dispatchEcdsaSigningWithStorageFaults } from './ecdsa-storage-evidence.mjs';
 import {
   verifyLinkedImportRejection,
   cleanupTransferredWalletSource,
@@ -316,7 +315,6 @@ if (workerBuildProfile !== 'dev' && workerBuildProfile !== 'release') {
     "set ROUTER_AB_WORKER_BUILD_PROFILE to 'dev' or 'release': the run loads that profile's Worker builds",
   );
 }
-const walletObjectBuild = process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled';
 // `--yao-acceptance-skew <ms>`: a dev Deriver B signs its start acceptances
 // that far ahead of the other roles' clocks.
 const yaoAcceptanceSkewMs = yaoAcceptanceSkewArgument();
@@ -337,11 +335,7 @@ function yaoAcceptanceSkewArgument() {
 }
 
 function workerBuildRoot(role) {
-  // Release wallet-object builds have their own directory; dev builds of
-  // either variant share one, so the stamp tells them apart.
-  return workerBuildProfile === 'release' && walletObjectBuild && role !== 'tenant-root-control-plane'
-    ? join(packageRoot, 'build/wallet-do', role)
-    : join(packageRoot, workerBuildProfile === 'dev' ? 'build/dev' : 'build', role);
+  return join(packageRoot, workerBuildProfile === 'dev' ? 'build/dev' : 'build', role);
 }
 
 // The newest source file of the Worker crate and every workspace crate it
@@ -379,11 +373,9 @@ function newestWorkerSource() {
 const checkedWorkerBuilds = new Set();
 function requireCurrentWorkerBuild(role, buildRoot) {
   if (checkedWorkerBuilds.has(buildRoot)) return;
-  const walletObjects = walletObjectBuild && role !== 'tenant-root-control-plane';
+  const walletObjects = role !== 'tenant-root-control-plane';
   const variant = (objects) => (objects ? 'wallet-object' : 'role-store');
-  const rebuild = `ROUTER_AB_WORKER_BUILD_PROFILE=${workerBuildProfile}${
-    walletObjectBuild ? ' ROUTER_AB_WALLET_DO_HARNESS=enabled' : ''
-  } bash scripts/build-strict-worker.sh ${role}`;
+  const rebuild = `ROUTER_AB_WORKER_BUILD_PROFILE=${workerBuildProfile} bash scripts/build-strict-worker.sh ${role}`;
   const stampPath = join(buildRoot, 'build-stamp.json');
   if (!existsSync(stampPath)) {
     throw new Error(`${buildRoot} has no build stamp; rebuild it: ${rebuild}`);
@@ -509,14 +501,10 @@ export function deriverBWorker(fixture) {
         useSQLite: true,
       },
       // A wallet-object build keeps Deriver B's pairs in its own objects.
-      ...(process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled'
-        ? {
-            DERIVER_B_WALLET_DO: {
-              className: 'RouterAbDeriverBWalletDurableObject',
-              useSQLite: true,
-            },
-          }
-        : {}),
+      DERIVER_B_WALLET_DO: {
+        className: 'RouterAbDeriverBWalletDurableObject',
+        useSQLite: true,
+      },
     },
     serviceBindings: { DERIVER_A: 'deriver-a' },
   };
@@ -541,14 +529,10 @@ export function signingWorker(name, databaseId, fixture) {
         className: 'RouterAbSigningWorkerPresignSessionDurableObject',
         useSQLite: true,
       },
-      ...(process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled'
-        ? {
-            SIGNING_WORKER_WALLET_DO: {
-              className: 'RouterAbSigningWorkerWalletDurableObject',
-              useSQLite: true,
-            },
-          }
-        : {}),
+      SIGNING_WORKER_WALLET_DO: {
+        className: 'RouterAbSigningWorkerWalletDurableObject',
+        useSQLite: true,
+      },
     },
   };
 }
@@ -792,9 +776,7 @@ async function captureSigningWorkerDelivery(request, miniflare) {
     signingWorkerFinalizationLookups += 1;
   }
   const worker = await miniflare.getWorker(signingWorkerDeliveryTarget);
-  const response = path === ecdsaSigningWorkerFinalizePath
-    ? await dispatchEcdsaSigningWithStorageFaults(request, worker, miniflare)
-    : await worker.fetch(request);
+  const response = await worker.fetch(request);
   if (path === ecdsaSigningWorkerFinalizePath && loseNextEcdsaSigningWorkerFinalizeReply) {
     loseNextEcdsaSigningWorkerFinalizeReply = false;
     assert.equal(response.ok, true, 'Simulated lost reply requires a committed signature');
@@ -1519,19 +1501,17 @@ async function testEcdsaRegistrationAndActivation(topology, fixture, tenantRoot,
       'live Router ECDSA activation',
     );
     const activation = JSON.parse(activationBytes.toString('utf8'));
-    if (process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled') {
-      const changedOwner = JSON.parse(JSON.stringify(activationBody));
-      changedOwner.pending.wallet_scope.project_environment_id = 'another-project-environment';
-      const rejected = await postWorkerJson(router, ecdsaActivationPath, changedOwner, {
-        authorization: `Bearer ${token}`,
-      });
-      const rejectedBody = Buffer.from(await rejected.arrayBuffer()).toString('utf8');
-      assert.equal(rejected.status, 500, rejectedBody);
-      assert.match(
-        rejectedBody,
-        /ECDSA activation owner differs from the verified ceremony session/,
-      );
-    }
+    const changedOwner = JSON.parse(JSON.stringify(activationBody));
+    changedOwner.pending.wallet_scope.project_environment_id = 'another-project-environment';
+    const rejected = await postWorkerJson(router, ecdsaActivationPath, changedOwner, {
+      authorization: `Bearer ${token}`,
+    });
+    const rejectedBody = Buffer.from(await rejected.arrayBuffer()).toString('utf8');
+    assert.equal(rejected.status, 500, rejectedBody);
+    assert.match(
+      rejectedBody,
+      /ECDSA activation owner differs from the verified ceremony session/,
+    );
     assert.equal(activation.activated, true);
     assert.equal(
       activation.lifecycle_id,
@@ -2154,19 +2134,17 @@ async function testEcdsaNormalSigning(
         ...finalizeRequest, client_signature_share32_b64u: base64urlBytes(Buffer.alloc(32, 0x66)),
       });
       assert.equal(substituted.ok, false, 'Consumed material cannot be rebound to different finalization input');
-      if (process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled') {
-        const signingWorker = await topology.getWorker(ecdsa.executionHome.workerName);
-        const consumedPrepare = await postWorkerJson(
-          signingWorker,
-          ecdsaSigningWorkerPreparePath,
-          capturedEcdsaSigningWorkerPrepare,
-        );
-        assert.equal(
-          consumedPrepare.ok,
-          false,
-          'Consumed wallet-DO material cannot be prepared again',
-        );
-      }
+      const signingWorker = await topology.getWorker(ecdsa.executionHome.workerName);
+      const consumedPrepare = await postWorkerJson(
+        signingWorker,
+        ecdsaSigningWorkerPreparePath,
+        capturedEcdsaSigningWorkerPrepare,
+      );
+      assert.equal(
+        consumedPrepare.ok,
+        false,
+        'Consumed wallet-DO material cannot be prepared again',
+      );
     }
     return { prepare: prepared, response: signed, finalizeRequest };
   } finally {
@@ -3423,7 +3401,6 @@ async function rootLifecycleHelpers(topology, fixture, databases) {
 }
 
 async function testWalletObjectAdmissionSettlement(topology, fixture, databases) {
-  assert.equal(process.env.ROUTER_AB_WALLET_DO_HARNESS, 'enabled');
   const { create, refresh, register, succeeded, admissions, retire, objectReport } =
     await rootLifecycleHelpers(topology, fixture, databases);
   const races = fixture.admission_race;
@@ -3594,7 +3571,7 @@ async function testRetirementTrigger(topology, fixture, databases) {
   assert.deepEqual(replayed.retirement, erased.retirement);
   return {
     kind: 'tenant_root_retirement_trigger_workers_e2e_v1',
-    build: process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled' ? 'wallet_objects' : 'role_store',
+    build: 'wallet_objects',
     graceMs: 1000,
     firstRefresh: retirementKinds(first.retirement),
     afterGraceWhileWorkHeld: [retirementKinds(whileHeld.retirement), whileHeld.retirement.deriver_b.reason],
@@ -3695,7 +3672,7 @@ async function testReplayAfterErasure(topology, fixture, databases) {
   assert.deepEqual(await statuses(root), settled);
   return {
     kind: 'tenant_root_replay_after_erasure_workers_e2e_v1',
-    build: process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled' ? 'wallet_objects' : 'role_store',
+    build: 'wallet_objects',
     registration: 'succeeded on epoch 1',
     retired: retired.map((cleanup) => [cleanup.kind, cleanup.cancelled_admissions]),
     epochOneShares,
@@ -4481,7 +4458,7 @@ async function testDeriverAWalletDoExecution(
     deriverSourceFences,
     deriverPreparation,
     ed25519Snapshot,
-    reproduce: 'ROUTER_AB_WALLET_DO_HARNESS=enabled ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --do-pair-execution',
+    reproduce: 'ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --do-pair-execution',
     registeredPublicKey: activation.publicReceipt.registered_public_key,
     outcomeSha256Hex: createHash('sha256').update(JSON.stringify(firstResponse)).digest('hex'),
     aD1PairRows: aRows.count,
@@ -4656,7 +4633,7 @@ async function testHistoricalRegistrationReplay(topology, fixture, tenantRoot, d
   const artifact = {
     kind: 'yao_historical_registration_replay_e2e_v1',
     reproduce:
-      'ROUTER_AB_WALLET_DO_HARNESS=enabled ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --do-historical-replay',
+      'ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --do-historical-replay',
     exactResponseSha256Hex: createHash('sha256').update(replayBytes).digest('hex'),
     replayAfterLapsedClaimWithEvictedAAndUnavailableRoot: true,
     bUnavailableAndUnchanged: true,
@@ -5036,10 +5013,10 @@ async function testYaoAcceptanceSkew(topology, fixture, tenantRoot, skewMs) {
     assert.equal(capturedSigningWorkerDelivery, undefined);
     outcome = 'refused';
   }
-  const build = walletObjectBuild ? 'wallet_objects' : 'role_store';
+  const build = 'wallet_objects';
   const artifact = {
     kind: 'yao_acceptance_clock_skew_e2e_v1',
-    reproduce: `${walletObjectBuild ? 'ROUTER_AB_WALLET_DO_HARNESS=enabled ' : ''}ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --yao-acceptance-skew ${skewMs}`,
+    reproduce: `ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --yao-acceptance-skew ${skewMs}`,
     build,
     skewMs,
     boundMs: yaoPeerMaxFutureSkewMs,
@@ -5691,8 +5668,7 @@ async function main() {
       return;
     }
     if (walletObjectClaimedRecoveryRun) {
-      assert.equal(process.env.ROUTER_AB_WALLET_DO_HARNESS, 'enabled');
-      const summary = await testWalletObjectClaimedRecovery(topology, fixture, databases);
+          const summary = await testWalletObjectClaimedRecovery(topology, fixture, databases);
       console.log(`R150_WORKERS_WALLET_OBJECT_CLAIMED_RECOVERY ${JSON.stringify(summary)}`);
       return;
     }
@@ -5816,8 +5792,7 @@ async function main() {
       return;
     }
     if (process.argv.includes('--ecdsa-wallet-do-interruption')) {
-      assert.equal(process.env.ROUTER_AB_WALLET_DO_HARNESS, 'enabled');
-      const interrupted = await testEcdsaNormalSigning(topology, ecdsa, 'prepare', false, true);
+          const interrupted = await testEcdsaNormalSigning(topology, ecdsa, 'prepare', false, true);
       const poolRows = await signingWorkerDatabase
         .prepare('SELECT COUNT(*) AS count FROM signing_worker_ecdsa_pool')
         .first();
@@ -5833,7 +5808,7 @@ async function main() {
       const artifact = {
         kind: 'signing_worker_wallet_do_ecdsa_interruption_e2e_v1',
         reproduce:
-          'ROUTER_AB_WALLET_DO_HARNESS=enabled ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --ecdsa-wallet-do-interruption',
+          'ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --ecdsa-wallet-do-interruption',
         operationId: interrupted.finalizeRequest.operation_id,
         noSignatureReply: true,
         pendingAfterEviction: interrupted.pendingAfterEviction,
@@ -5854,9 +5829,6 @@ async function main() {
       process.argv.includes('--ecdsa-wallet-do-pool')
     ) {
       const walletDoPool = process.argv.includes('--ecdsa-wallet-do-pool');
-      if (walletDoPool) {
-        assert.equal(process.env.ROUTER_AB_WALLET_DO_HARNESS, 'enabled');
-      }
       const priorSigning = await testEcdsaNormalSigning(topology, ecdsa, 'pool', false);
       assert.ok(priorSigning.response.signature65_b64u);
       const objectIds = walletDoPool
@@ -5904,7 +5876,7 @@ async function main() {
           ? 'signing_worker_wallet_do_ecdsa_pool_e2e_v1'
           : 'gateway_router_normal_signing_auth_e2e_v1',
         reproduce: walletDoPool
-          ? 'ROUTER_AB_WALLET_DO_HARNESS=enabled ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --ecdsa-wallet-do-pool'
+          ? 'ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --ecdsa-wallet-do-pool'
           : 'ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --ecdsa-presign-handoff',
         sharedRoleBearerRejected: true,
         dedicatedGatewayBearerSigned: true,

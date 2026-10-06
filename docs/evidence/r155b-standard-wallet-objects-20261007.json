@@ -1,0 +1,24 @@
+{
+  "date": "2026-10-07",
+  "scope": "Default wallet-object topology; local dev-profile production Workers. Optimized release builds remain in progress. No live deployment.",
+  "checks": {
+    "nativeNearCoordinatorAndBrowserSession": "passed",
+    "nativeEcdsaPoolRelocationReplayAndCleanup": "passed",
+    "browserOtpOutage": "passed: two NEAR signatures, three ECDSA signatures, two OTP step-ups, zero Console requests",
+    "allManifestWalletBindingsAndMigrations": "passed",
+    "syntaxAndPatchChecks": "passed",
+    "bloat": "passed"
+  },
+  "artifactSha256": {
+    "near": "3d21d3f1e0a61f592ac7825a6b08a95222461b5e6adfaa166ae43ff61d6c0e7d",
+    "ecdsa": "498e67b010773b54ce87407d8e29fbdeb58b744e545b81906d843d8dd9665d96",
+    "browser": "ecdffc03e95f3704a3045a4d9357238fd92013bb58686ec898cda0839930ad49"
+  },
+  "sourceQualification": "The shared public checkout includes relocation changes outside committed dev. Integration and optimized-binary acceptance remain required.",
+  "initialBrowserFailure": "Late browser refill reached a disposed Miniflare database during teardown. Waiting for route handlers before disposal repaired the test lifecycle; the same scenario then passed.",
+  "commands": [
+    "ROUTER_AB_WORKER_BUILD_PROFILE=dev SEAMS_WALLET_SERVER_CANDIDATE=<wallet-server> node tests/e2e/relocation-custody.e2e.mjs (private repository)",
+    "ROUTER_AB_WORKER_BUILD_PROFILE=dev node scripts/test-private-d1.mjs --ecdsa-wallet-do-pool (router-ab-cloudflare)",
+    "SEAMS_WALLET_SERVER_CANDIDATE=<wallet-server> ROUTER_AB_WORKER_BUILD_PROFILE=dev node tests/scripts/run-regional-real.mjs google-email-otp.recovery.contract.test.ts --grep \"Email OTP budget exhaustion\" (private repository)"
+  ]
+}

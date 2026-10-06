@@ -25,9 +25,6 @@ case "$worker_build_profile" in
     ;;
   release)
     worker_output="build/$role"
-    if [[ "${ROUTER_AB_WALLET_DO_HARNESS:-}" == "enabled" && "$role" != "tenant-root-control-plane" ]]; then
-      worker_output="build/wallet-do/$role"
-    fi
     worker_build_flags=(--release)
     ;;
   *)
@@ -45,24 +42,17 @@ run_worker_build() {
 }
 
 worker_features="strict-worker-$role-entrypoint"
-if [[ "$role" == "deriver-a" && "${ROUTER_AB_WALLET_DO_HARNESS:-}" == "enabled" ]]; then
+if [[ "$role" == "deriver-a" ]]; then
   worker_features+=",wallet-do-harness"
 fi
-if [[ "$role" == "router" && "${ROUTER_AB_WALLET_DO_HARNESS:-}" == "enabled" ]]; then
+if [[ "$role" == "router" ]]; then
   worker_features+=",wallet-do-router-harness"
 fi
-if [[ "$role" == "deriver-b" && "${ROUTER_AB_WALLET_DO_HARNESS:-}" == "enabled" ]]; then
+if [[ "$role" == "deriver-b" ]]; then
   worker_features+=",wallet-do-b-harness,wallet-do-b-completion-harness"
 fi
-if [[ "$role" == "signing-worker" && "${ROUTER_AB_WALLET_DO_HARNESS:-}" == "enabled" ]]; then
+if [[ "$role" == "signing-worker" ]]; then
   worker_features+=",wallet-do-signing-worker-harness"
-fi
-# Local only: a dev D1 SigningWorker can hold a NEAR finalize between signing
-# and committing, for the intended suite. The wallet object signs and commits
-# in one step, so it has no such hold, and no release build has it.
-if [[ "$worker_build_profile" == "dev" && "$role" == "signing-worker" \
-  && "${ROUTER_AB_WALLET_DO_HARNESS:-}" != "enabled" ]]; then
-  worker_features+=",local-intended-signing-hold"
 fi
 # Local only: a dev Router can end a registration burned when the local
 # Gateway's terminal-failure fault asks, and records it like any answer.
@@ -76,7 +66,7 @@ if [[ "$worker_build_profile" == "dev" && "$role" == "deriver-b" ]]; then
 fi
 
 wallet_objects=false
-if [[ "${ROUTER_AB_WALLET_DO_HARNESS:-}" == "enabled" && "$role" != "tenant-root-control-plane" ]]; then
+if [[ "$role" != "tenant-root-control-plane" ]]; then
   wallet_objects=true
 fi
 # Whole seconds, rounded down: a source saved in the build's first second

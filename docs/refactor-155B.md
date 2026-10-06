@@ -1529,3 +1529,46 @@ they do not add a new refactor scope.
 The referenced R153 chat is currently about a separate regional-replication
 feasibility experiment. Its retained result is not evidence that the relocation
 sources used here have been integrated or that R155B is ready to deploy.
+
+
+### Standard wallet-object builds — 2026-10-07
+
+The standard Worker build now selects wallet-object ownership for Router,
+Deriver A, Deriver B, and SigningWorker. Dev and release use the same ownership
+features. Release output uses the normal `build/<role>` directory. The
+`ROUTER_AB_WALLET_DO_HARNESS` opt-in is removed from build and runtime-test scripts.
+
+Deriver B and SigningWorker wallet-object bindings and SQLite migrations now live
+in their standard Wrangler manifests, including staging and production-testnet.
+The local configuration builder no longer injects a different custody topology.
+All four role manifests passed binding/migration checks for each environment.
+No live deployment or namespace provisioning occurred.
+
+Local acceptance passed without the opt-in variable:
+
+- The composed native NEAR relocation scenario verified pending-signature
+  settlement, exact finalization replay, cleanup, destination signing, and browser
+  session invalidation.
+- The native ECDSA wallet-object pool scenario verified signing, replay after
+  eviction, delayed refill rejection, transfer, return transfer, and cleanup.
+
+Removed the old D1-only ECDSA storage-fault helper and the browser recovery test
+that required signing and commit to occur in separate D1 steps. These are
+`obsolete_test_or_fixture`: the active wallet-object path signs and commits inside
+one object operation. Existing wallet-object interruption, replay, retirement,
+and relocation scenarios remain. The old recovery hold helper is also removed.
+Benchmark labels now identify the standard local wallet-object backend.
+
+The composed browser OTP check also passed with the standard local wallet-object
+backend: two NEAR signatures, three ECDSA signatures, two step-ups, and zero
+Console requests. Its first run completed those checks but failed during teardown
+when a late refill reached a disposed database. Waiting for browser route handlers
+before disposal repaired that fixture failure; the repeat passed (1.2 minutes).
+
+Syntax checks, patch checks, and the bloat gate pass. Optimized role builds are
+still running at this checkpoint. Their results and release-binary acceptance must
+be recorded before this candidate is used for hosted acceptance.
+[Repeatable local evidence](./evidence/r155b-standard-wallet-objects-20261007.json).
+The public checkout still contains relocation changes outside committed `dev`.
+This change fixes the default build selection and manifest mismatch. It does not
+close source integration, all composed relocation coverage, or hosted acceptance.

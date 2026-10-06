@@ -642,10 +642,7 @@ function requestedEcdsaBackendProfile(): string {
     return `hosted_${arm}`;
   }
   if (process.env.SEAMS_INTENDED_WALLET_HOST === 'vm') return 'local_vm';
-  const walletDoRequested =
-    process.env.ROUTER_AB_WORKER_BUILD_PROFILE === 'dev' &&
-    process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled';
-  return walletDoRequested ? 'local_wallet_do_harness_requested' : 'local_default_d1';
+  return 'local_wallet_objects';
 }
 
 async function measureFirstWarmAndBurstSigning(
