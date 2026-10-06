@@ -81,6 +81,8 @@ pub(crate) mod tenant_root_creation;
 #[cfg(feature = "workers-rs")]
 mod worker_storage;
 #[cfg(feature = "workers-rs")]
+mod owner_presign_storage;
+#[cfg(feature = "workers-rs")]
 use ecdsa_presign_live_session::{
     handle_cloudflare_signing_worker_ecdsa_presign_session_do_fetch_v1,
     handle_cloudflare_signing_worker_linked_ecdsa_presign_session_do_fetch_v1,
@@ -121,6 +123,7 @@ pub(crate) use tenant_root_creation::{
 };
 #[cfg(feature = "workers-rs")]
 pub(crate) use worker_storage::{
+    PresignHost,
     execute_cloudflare_durable_object_custom_json_call_v1,
     execute_cloudflare_durable_object_custom_json_call_with_timing_v1,
 };
@@ -150,8 +153,19 @@ impl worker::DurableObject for RouterAbSigningWorkerPresignSessionDurableObject 
     }
 
     async fn alarm(&self) -> worker::Result<worker::Response> {
-        // Expiry discards live protocol state while preserving immutable identity history.
-        self.ecdsa_presign_sessions.borrow_mut().clear();
+        let now_ms = crate::cloudflare_now_unix_ms_v1()
+            .map_err(|error| worker::Error::RustError(error.to_string()))?;
+        let next_live_expiry = {
+            let mut sessions = self.ecdsa_presign_sessions.borrow_mut();
+            sessions.retain(|_, session| session.expires_at_ms() > now_ms);
+            sessions.values().map(|session| session.expires_at_ms()).min()
+        };
+        let next_stored_expiry =
+            owner_presign_storage::expire_authorities(&self.storage, now_ms).await?;
+        if let Some(deadline) = next_live_expiry.into_iter().chain(next_stored_expiry).min() {
+            // During an alarm, get_alarm() reports no scheduled alarm.
+            owner_presign_storage::schedule_expiry(&self.storage, deadline).await?;
+        }
         worker::Response::ok("expired")
     }
 

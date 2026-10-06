@@ -28,6 +28,12 @@ pub struct CloudflareSigningWorkerEcdsaPresignLiveSessionV1 {
     session: SigningWorkerPresignSession,
 }
 
+impl CloudflareSigningWorkerEcdsaPresignLiveSessionV1 {
+    pub(crate) fn expires_at_ms(&self) -> u64 {
+        self.ceremony_expires_at_ms
+    }
+}
+
 /// Live sessions by presignature-session id.
 pub type CloudflareSigningWorkerEcdsaPresignLiveSessionMapV1 =
     BTreeMap<String, CloudflareSigningWorkerEcdsaPresignLiveSessionV1>;

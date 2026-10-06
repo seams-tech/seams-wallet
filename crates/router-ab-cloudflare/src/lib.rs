@@ -12005,7 +12005,10 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_init_private
             env,
             &runtime.bindings().presign_session,
             CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_DO_INIT_PATH,
-            &do_request.request.presign_session_id,
+            durable_object::PresignHost::Owner {
+                wallet: do_request.request.authority.wallet_scope(),
+                material: &do_request.request.scope,
+            },
             &do_request,
         )
         .await
@@ -12102,7 +12105,7 @@ pub async fn handle_cloudflare_signing_worker_linked_ecdsa_presign_session_init_
         env,
         &runtime.bindings().presign_session,
         CLOUDFLARE_SIGNING_WORKER_LINKED_ECDSA_PRESIGN_SESSION_DO_INIT_PATH,
-        &do_request.request.request.client_presignature_id,
+        durable_object::PresignHost::LinkedSession(&do_request.request.request.client_presignature_id),
         &do_request,
     )
     .await
@@ -12348,7 +12351,10 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_step_private
             env,
             &runtime.bindings().presign_session,
             CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_DO_STEP_PATH,
-            &do_request.request.presign_session_id,
+            durable_object::PresignHost::Owner {
+                wallet: do_request.request.authority.wallet_scope(),
+                material: &do_request.request.scope,
+            },
             &do_request,
         )
         .await
@@ -12455,7 +12461,7 @@ pub async fn handle_cloudflare_signing_worker_linked_ecdsa_presign_session_step_
         env,
         &runtime.bindings().presign_session,
         CLOUDFLARE_SIGNING_WORKER_LINKED_ECDSA_PRESIGN_SESSION_DO_STEP_PATH,
-        &parsed.request.client_presignature_id,
+        durable_object::PresignHost::LinkedSession(&parsed.request.client_presignature_id),
         &parsed,
     )
     .await
@@ -12617,7 +12623,7 @@ pub(crate) async fn consume_cloudflare_signing_worker_linked_ecdsa_presignature_
             env,
             &runtime.bindings().presign_session,
             CLOUDFLARE_SIGNING_WORKER_LINKED_ECDSA_PRESIGNATURE_DO_CONSUME_PATH,
-            &request.server_presignature_id,
+            durable_object::PresignHost::LinkedSession(&request.server_presignature_id),
             &request,
         )
         .await?;

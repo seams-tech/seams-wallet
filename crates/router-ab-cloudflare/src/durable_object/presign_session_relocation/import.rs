@@ -94,7 +94,7 @@ pub(crate) async fn forward(
             env,
             &runtime.bindings().presign_session,
             INTERNAL_PATH,
-            &command.identity().server_presignature_id,
+            super::super::PresignHost::LinkedSession(&command.identity().server_presignature_id),
             &command,
         )
         .await;

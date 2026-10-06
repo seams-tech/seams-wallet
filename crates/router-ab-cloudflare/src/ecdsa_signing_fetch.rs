@@ -152,7 +152,10 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
                             env,
                             &runtime.bindings().presign_session,
                             CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_DO_STEP_PATH,
-                            &batch.presign_session_id,
+                            durable_object::PresignHost::Owner {
+                                wallet: batch.authority.wallet_scope(),
+                                material: &batch.scope,
+                            },
                             batch,
                         )
                         .await

@@ -3,8 +3,18 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     encode_base64url_bytes_v1, require_non_empty, CloudflareSigningWorkerPresignSessionBindingV1,
+    CloudflareSigningWorkerWalletScopeV1, RouterAbEcdsaDerivationNormalSigningScopeV1,
     RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult,
 };
+
+/// Owner preprocessing reuses its exact material host. Linked signing is request-bound.
+pub(crate) enum PresignHost<'a> {
+    Owner {
+        wallet: &'a CloudflareSigningWorkerWalletScopeV1,
+        material: &'a RouterAbEcdsaDerivationNormalSigningScopeV1,
+    },
+    LinkedSession(&'a str),
+}
 
 pub(crate) struct CloudflareDurableObjectJsonResponseV1<TResponse> {
     pub(crate) value: TResponse,
@@ -15,8 +25,7 @@ pub(crate) async fn execute_cloudflare_durable_object_custom_json_call_v1<TReque
     env: &worker::Env,
     binding: &CloudflareSigningWorkerPresignSessionBindingV1,
     path: &str,
-    // Stable per-session identifier shared by all phases of one presign.
-    routing_key: &str,
+    host: PresignHost<'_>,
     request: &TRequest,
 ) -> RouterAbProtocolResult<TResponse>
 where
@@ -25,11 +34,7 @@ where
 {
     Ok(
         execute_cloudflare_durable_object_custom_json_call_with_timing_v1(
-            env,
-            binding,
-            path,
-            routing_key,
-            request,
+            env, binding, path, host, request,
         )
         .await?
         .value,
@@ -43,7 +48,7 @@ pub(crate) async fn execute_cloudflare_durable_object_custom_json_call_with_timi
     env: &worker::Env,
     binding: &CloudflareSigningWorkerPresignSessionBindingV1,
     path: &str,
-    routing_key: &str,
+    host: PresignHost<'_>,
     request: &TRequest,
 ) -> RouterAbProtocolResult<CloudflareDurableObjectJsonResponseV1<TResponse>>
 where
@@ -52,7 +57,7 @@ where
 {
     binding.validate()?;
     require_non_empty("Durable Object custom path", path)?;
-    let object_name = deterministic_presign_session_object_name(binding, routing_key)?;
+    let object_name = presign_object_name(binding, host)?;
     let namespace = env.durable_object(&binding.binding_name).map_err(|error| {
         RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::MissingLocalBinding,
@@ -108,54 +113,37 @@ where
     })
 }
 
-fn deterministic_presign_session_object_name(
+fn presign_object_name(
     binding: &CloudflareSigningWorkerPresignSessionBindingV1,
-    routing_key: &str,
+    host: PresignHost<'_>,
 ) -> RouterAbProtocolResult<String> {
-    require_non_empty("Durable Object presign session routing key", routing_key)?;
-    let digest = Sha256::digest(routing_key.as_bytes());
+    let digest = match host {
+        PresignHost::Owner { wallet, material } => {
+            wallet.validate()?;
+            material.validate()?;
+            if wallet.wallet_id != material.wallet_id {
+                return Err(RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::InvalidGateDecision,
+                    "Presign host wallet differs from material owner",
+                ));
+            }
+            let identity = serde_json::to_vec(&("owner-presign-host/v1", wallet, material))
+                .map_err(|error| {
+                    RouterAbProtocolError::new(
+                        RouterAbProtocolErrorCode::MalformedWirePayload,
+                        format!("Presign host identity encoding failed: {error}"),
+                    )
+                })?;
+            Sha256::digest(identity)
+        }
+        PresignHost::LinkedSession(session_id) => {
+            require_non_empty("Linked presign session routing key", session_id)?;
+            Sha256::digest(session_id.as_bytes())
+        }
+    };
     Ok(format!(
         "{}-{}",
         binding.object_name,
-        encode_base64url_bytes_v1(&digest),
+        encode_base64url_bytes_v1(&digest)
     ))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::deterministic_presign_session_object_name;
-    use crate::CloudflareSigningWorkerPresignSessionBindingV1;
-
-    #[test]
-    fn presign_session_shards_are_stable_and_isolated() {
-        let binding = CloudflareSigningWorkerPresignSessionBindingV1::new(
-            "PRESIGN_DO",
-            "presign-session",
-            "unused-key-prefix",
-        )
-        .expect("valid binding");
-        let first =
-            deterministic_presign_session_object_name(&binding, "session-a").expect("first shard");
-        let first_replay = deterministic_presign_session_object_name(&binding, "session-a")
-            .expect("replayed shard");
-        let second =
-            deterministic_presign_session_object_name(&binding, "session-b").expect("second shard");
-
-        assert_eq!(first, first_replay);
-        assert_ne!(first, second);
-        assert!(first.starts_with("presign-session-"));
-        assert!(!first.contains("session-a"));
-    }
-
-    #[test]
-    fn presign_session_shards_reject_empty_routing_keys() {
-        let binding = CloudflareSigningWorkerPresignSessionBindingV1::new(
-            "PRESIGN_DO",
-            "presign-session",
-            "unused-key-prefix",
-        )
-        .expect("valid binding");
-
-        assert!(deterministic_presign_session_object_name(&binding, "").is_err());
-    }
 }

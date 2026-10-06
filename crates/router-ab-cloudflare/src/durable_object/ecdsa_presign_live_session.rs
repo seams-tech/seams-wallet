@@ -145,6 +145,9 @@ pub(super) async fn handle_cloudflare_signing_worker_ecdsa_presign_session_do_fe
             if let Err(error) = parsed.request.validate_at(now_unix_ms) {
                 return presign_do_error_response(error);
             }
+            super::owner_presign_storage::schedule_expiry(
+                storage, parsed.request.ceremony_expires_at_ms,
+            ).await?;
             #[cfg(feature = "wallet-do-signing-worker-harness")]
             if let Err(error) =
                 claim_wallet_presign_authority(_env, &parsed.request).await
@@ -157,12 +160,15 @@ pub(super) async fn handle_cloudflare_signing_worker_ecdsa_presign_session_do_fe
                 let claimed = Rc::new(std::cell::Cell::new(false));
                 let claim_result = Rc::clone(&claimed);
                 let authority = parsed.request.authority.clone();
+                let key = super::owner_presign_storage::authority_key(
+                    &parsed.request.presign_session_id, parsed.request.ceremony_expires_at_ms,
+                );
                 storage
                     .transaction(move |transaction| async move {
                         claim_result.set(false);
                         if transaction_get_optional::<CloudflareSigningWorkerEcdsaPresignAuthorityV1>(
                             &transaction,
-                            "owner-presign-authority",
+                            &key,
                         )
                         .await?
                         .is_some()
@@ -170,7 +176,7 @@ pub(super) async fn handle_cloudflare_signing_worker_ecdsa_presign_session_do_fe
                             return Ok(());
                         }
                         transaction
-                            .put("owner-presign-authority", &authority)
+                            .put(&key, &authority)
                             .await?;
                         claim_result.set(true);
                         Ok(())
@@ -183,15 +189,6 @@ pub(super) async fn handle_cloudflare_signing_worker_ecdsa_presign_session_do_fe
                     ));
                 }
             }
-            storage
-                .set_alarm(std::time::Duration::from_millis(
-                    parsed
-                        .request
-                        .ceremony_expires_at_ms
-                        .saturating_sub(now_unix_ms)
-                        + 1,
-                ))
-                .await?;
             crate::create_signing_worker_ecdsa_presign_session_v1(
                 parsed,
                 &mut sessions.borrow_mut(),
@@ -215,7 +212,9 @@ pub(super) async fn handle_cloudflare_signing_worker_ecdsa_presign_session_do_fe
             #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
             {
                 let pinned: CloudflareSigningWorkerEcdsaPresignAuthorityV1 =
-                    match storage.get("owner-presign-authority").await {
+                    match storage.get(&super::owner_presign_storage::authority_key(
+                        &parsed.presign_session_id, parsed.ceremony_expires_at_ms,
+                    )).await {
                         Ok(Some(value)) => value,
                         Ok(None) => {
                             return presign_do_error_response(RouterAbProtocolError::new(

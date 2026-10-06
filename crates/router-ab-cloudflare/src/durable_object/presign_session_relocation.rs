@@ -146,7 +146,7 @@ pub(crate) async fn forward_export(
             env,
             &runtime.bindings().presign_session,
             INTERNAL_EXPORT_PATH,
-            &command.receipt.command.server_presignature_id,
+            super::PresignHost::LinkedSession(&command.receipt.command.server_presignature_id),
             &command,
         )
         .await;
@@ -473,7 +473,7 @@ async fn forward_command<Receipt: DeserializeOwned + Serialize>(
             env,
             &runtime.bindings().presign_session,
             internal_path,
-            &command.server_presignature_id,
+            super::PresignHost::LinkedSession(&command.server_presignature_id),
             &command,
         )
         .await;

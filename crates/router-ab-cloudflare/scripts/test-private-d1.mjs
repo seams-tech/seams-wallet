@@ -1438,7 +1438,7 @@ function buildEcdsaRegistration(fixture, jwtSigner, label = 'ecdsa-live', identi
   }
 }
 
-async function testEcdsaRegistrationAndActivation(topology, fixture, tenantRoot, jwtSigner) {
+async function testEcdsaRegistrationAndActivation(topology, fixture, tenantRoot, jwtSigner, label = 'ecdsa-live') {
   ensureEcdsaClientWasm();
   const router = await topology.getWorker('router');
   const {
@@ -1452,7 +1452,7 @@ async function testEcdsaRegistrationAndActivation(topology, fixture, tenantRoot,
     registrationRequest,
     binding,
     token,
-  } = buildEcdsaRegistration(fixture, jwtSigner);
+  } = buildEcdsaRegistration(fixture, jwtSigner, label);
   try {
     const registrationBytes = await expectOk(
       await postWorkerJson(
@@ -1667,7 +1667,7 @@ function parseEcdsaPresignProgress(bytes, sessionId, label) {
   return progress;
 }
 
-async function runEcdsaPresignSession(topology, ecdsa, mode = 'pool', checkRejections = true) {
+async function runEcdsaPresignSession(topology, ecdsa, mode = 'pool', checkRejections = true, lifetimeMs = 120_000, pauseAfterInitMs = 0, onInitialized = null) {
   const signingWorker = await topology.getWorker(ecdsa.executionHome.workerName);
   const scope = buildEcdsaNormalSigningScope(ecdsa);
   const authority = {
@@ -1684,7 +1684,7 @@ async function runEcdsaPresignSession(topology, ecdsa, mode = 'pool', checkRejec
     'base64url',
   );
   assert.equal(groupPublicKey.length, 33, 'ECDSA aggregate public key must be compressed secp256k1');
-  const expiresAtMs = Date.now() + 120_000;
+  const expiresAtMs = Date.now() + lifetimeMs;
   const presignSessionId = `ecdsa-presign-v2:${expiresAtMs}:${randomBytes(32).toString("base64url")}`;
   const client = new EcdsaRoleLocalPresignSessionV1(
     ecdsa.finalized.stateBlob.stateBlobB64u,
@@ -1728,6 +1728,8 @@ async function runEcdsaPresignSession(topology, ecdsa, mode = 'pool', checkRejec
       'ECDSA presign session init',
     );
     assert.equal(progress.outgoing_messages_b64u.length, 2);
+    if (onInitialized) onInitialized();
+    if (pauseAfterInitMs > 0) await new Promise(resolvePause.bind(null, pauseAfterInitMs));
     let exchanges = 1;
     while (progress.kind !== 'complete' && exchanges < 8) {
       for (const message of progress.outgoing_messages_b64u) {
@@ -1776,7 +1778,7 @@ async function runEcdsaPresignSession(topology, ecdsa, mode = 'pool', checkRejec
           },
         });
         assert.equal(changedTenant.ok, false, 'A changed tenant must not advance presigning');
-        assert.match(await changedTenant.text(), walletObjectBuild ? /ExpiredLocalRequest: Presign authority is unavailable/ : /authority does not match initialized session/);
+        assert.match(await changedTenant.text(), /ExpiredLocalRequest: (Presign authority is unavailable|SigningWorker ECDSA presign authority is unavailable)/);
         const peerBearer = await postWorkerJson(signingWorker, ecdsaPresignSessionStepPath, stepRequest, {
           [internalAuthHeader]: internalAuthSecret,
         });
@@ -1854,6 +1856,16 @@ function buildEcdsaAuthorizedOperation(operationId, operationDigests) {
     display_digest_b64u: operationDigests.display_digest_b64u,
     operation_fingerprint_digest: hashBase64url(`ecdsa-live-fingerprint:${operationId}`),
   };
+}
+
+function resolvePause(delayMs, resolve) {
+  setTimeout(resolve, delayMs);
+}
+
+function signingSignatureDigest(signing) {
+  return createHash('sha256')
+    .update(Buffer.from(signing.response.signature65_b64u, 'base64url'))
+    .digest('hex');
 }
 
 async function testEcdsaNormalSigning(
@@ -5560,6 +5572,71 @@ async function main() {
     if (process.argv.includes('--ecdsa-across-refresh')) {
       const summary = await testEcdsaWorkAcrossRefresh(topology, fixture, jwtSigner, databases);
       console.log(`R150_WORKERS_ECDSA_ACROSS_REFRESH ${JSON.stringify(summary)}`);
+      return;
+    }
+    if (process.argv.includes('--reusable-owner-presign-host')) {
+      const workerName = ecdsa.executionHome.workerName;
+      const objectClass = 'RouterAbSigningWorkerPresignSessionDurableObject';
+      const before = await topology.listDurableObjectIds(objectClass, workerName);
+      const first = await testEcdsaNormalSigning(topology, ecdsa, 'pool', false);
+      const afterFirst = await topology.listDurableObjectIds(objectClass, workerName);
+      assert.equal(afterFirst.length, before.length + 1);
+      const second = await testEcdsaNormalSigning(topology, ecdsa, 'prepare', false);
+      assert.deepEqual(await topology.listDurableObjectIds(objectClass, workerName), afterFirst);
+      const concurrent = await Promise.all([
+        testEcdsaNormalSigning(topology, ecdsa, 'pool', false),
+        testEcdsaNormalSigning(topology, ecdsa, 'pool', false),
+      ]);
+      assert.deepEqual(await topology.listDurableObjectIds(objectClass, workerName), afterFirst);
+      const otherWallet = await testEcdsaRegistrationAndActivation(
+        topology, fixture, tenantRoot, jwtSigner, 'ecdsa-other-wallet',
+      );
+      const separateWallets = await Promise.all([
+        testEcdsaNormalSigning(topology, ecdsa, 'pool', false),
+        testEcdsaNormalSigning(topology, otherWallet, 'pool', false),
+      ]);
+      assert.equal((await topology.listDurableObjectIds(objectClass, workerName)).length, afterFirst.length + 1);
+      await topology.unsafeEvictDurableObject(workerName, objectClass, { id: afterFirst[0] });
+      const afterEviction = await testEcdsaNormalSigning(topology, ecdsa, 'pool', true);
+      const expiryResults = await Promise.allSettled([
+        runEcdsaPresignSession(topology, ecdsa, 'pool', false, 2_000, 3_000),
+        runEcdsaPresignSession(topology, ecdsa, 'pool', false, 15_000, 4_000),
+      ]);
+      const [expired, surviving] = expiryResults;
+      assert.equal(expired.status, 'rejected');
+      assert.match(String(expired.reason), /ExpiredLocalRequest/);
+      assert.equal(surviving.status, 'fulfilled', String(surviving.reason));
+      surviving.value.client.free();
+      const initialized = Promise.withResolvers();
+      const interrupted = Promise.allSettled([
+        runEcdsaPresignSession(topology, ecdsa, 'pool', false, 15_000, 2_000, initialized.resolve),
+      ]);
+      await initialized.promise;
+      await topology.unsafeEvictDurableObject(workerName, objectClass, { id: afterFirst[0] });
+      const [interruptedResult] = await interrupted;
+      assert.equal(interruptedResult.status, 'rejected');
+      assert.match(String(interruptedResult.reason), /presign session is missing/);
+      const recovered = await testEcdsaNormalSigning(topology, ecdsa, 'pool', false);
+      const artifact = {
+        kind: 'reusable_owner_presign_host_e2e_v1',
+        reproduce: 'ROUTER_AB_WORKER_BUILD_PROFILE=dev node scripts/test-private-d1.mjs --reusable-owner-presign-host',
+        verifiedSignatures: 8,
+        interruptedSessionFailedSafelyAndFreshSessionSigned: true,
+        separateWalletsVerified: true,
+        concurrentPreparationVerified: true,
+        expiredSessionRejectedAndOtherSessionSurvived: true,
+        newSessionAfterEvictionVerified: true,
+        burnedIdentityReplayRejected: true,
+        tenantIsolationVerified: true,
+        newHosts: afterFirst.length - before.length,
+        completedPoolAndBundledPrepare: true,
+        signatureDigests: [first, second, ...concurrent, ...separateWallets, afterEviction, recovered].map(signingSignatureDigest),
+      };
+      assert.equal(new Set(artifact.signatureDigests).size, 8);
+      const artifactPath = join(repoRoot, '.artifacts/r155/reusable-owner-presign-host.json');
+      await mkdir(dirname(artifactPath), { recursive: true });
+      await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
+      console.log(JSON.stringify({ ...artifact, artifactPath }));
       return;
     }
     if (process.argv.includes('--ecdsa-presign-handoff-benchmark')) {
