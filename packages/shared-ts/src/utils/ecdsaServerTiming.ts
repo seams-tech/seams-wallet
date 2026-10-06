@@ -1,4 +1,8 @@
 const ECDSA_TIMING_METRICS = new Set([
+  'wallet_gateway_binding',
+  'wallet_gateway_total',
+  'wallet_console_binding_d1',
+  'wallet_console_binding_sql',
   'ecdsa_sign_authorize',
   'ecdsa_sign_admit',
   'ecdsa_sign_proxy',

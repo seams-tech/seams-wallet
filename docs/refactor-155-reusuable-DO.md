@@ -572,3 +572,96 @@ it is not part of the production build. The strict Worker release build and
 bloat check passed. All six original staging versions were restored and verified.
 The tail stopped, and the temporary diagnostic code was not retained in runtime
 source.
+
+## Refill and signing call-path follow-up — October 6, 2026
+
+**This follow-up found no new production latency reduction.** It rejected a
+Console placement change, corrected the benchmark interpretation, and retained
+Gateway/Console timings in the SDK diagnostics. The three optimization areas
+have these outcomes:
+
+1. **Overhead between presign requests:** the current scheduler already carries
+   eleven protocol message rounds in six HTTP requests. The existing scheduling
+   integration verifies identical transcripts and one-use output across the
+   eight-, seven-, and six-request schedules. Moving Console to the Gateway's
+   placement increased binding latency. That deployment change was reverted.
+2. **Work before signing commit:** the frozen benchmark includes a separate
+   session-status request during material authorization. Current source already
+   removes it in `30efde86`, reconciles authority from prepare, and retains fresh
+   server authorization. The earlier controlled result was **1.594s → 1.441s**
+   for ready signing and **2.635s → 2.393s** for three-signature sequences.
+   These are historical cohorts, not new gains from this follow-up. See
+   [combined-prepare evidence](evidence/r152-prepare-session-20261006.json).
+3. **Prepare and finalize:** current code already shares credential, material,
+   and policy reads and uses the consolidated finalize snapshot. The remaining
+   writes enforce admission, exclusive reservation, consumption, and durable
+   completion. This review found no additional redundant read that could safely
+   be removed. No new prepare/finalize optimization was implemented.
+
+Two timing gaps must stay separate. `outsidePublicSdkCallMs` is test-harness
+work outside the measured SDK call. It must not be added to the signing result.
+The SDK time outside `commit_total` includes confirmation and preparation.
+Earlier combined-prepare traces recorded automated click dispatch at 279–306ms
+from the confirmation loop start. The harness polls at 250ms by default.
+This does not attribute every millisecond before commit, but it rules out treating
+that entire gap as a removable network request. Faster test automation would
+change the benchmark; it would not prove a production signing improvement.
+
+### Controlled Console placement comparison
+
+The native NRT browser registered two fresh APAC wallets per run and immediately
+signed three times per wallet. Client assets and the SigningWorker candidate
+remained fixed. Gateway targeted `aws:ap-east-1`. Console moved from
+`aws:ap-northeast-1` to `aws:ap-east-1`, then returned to its original placement.
+The SDK predates combined-prepare reconciliation, so its absolute timings do not
+represent the current optimized SDK. All three arms share that limitation.
+
+| Median | Original placement, first run | Console with Gateway | Original placement, restored |
+| --- | ---: | ---: | ---: |
+| Immediate first signing, two wallets | 3.266s | 3.304s | 3.088s |
+| Following signing, four signatures | 1.874s | 1.897s | 1.772s |
+| Prepare browser span | 557ms | 575ms | 458ms |
+| Finalize browser span | 586ms | 623ms | 579ms |
+| Prepare Gateway binding lookup | 102ms | 153ms | 92ms |
+| Prepare Console D1 read | 14.5ms | 67ms | 12.5ms |
+| Finalize Gateway binding lookup | 95ms | 142.5ms | 93ms |
+| Finalize Console D1 read | 15ms | 64ms | 15ms |
+| Refill-step Gateway binding lookup | 91.5ms | 149.5ms | 88.5ms |
+| Refill-step Console D1 read | 13.5ms | 66ms | 13ms |
+
+The placement change increased Console D1 time by about 50ms. The increase
+reversed after restoring placement. This supports D1 distance as the cause of the
+binding regression; the test does not identify D1's exact city. Following
+signatures can include refill waits and are not a ready-material benchmark.
+Refill request statistics include background work throughout registration and
+signing. Nested spans overlap; do not add or subtract their medians.
+
+The primary comparison verified **18 signatures**. Another six signatures passed
+between the candidate and restored control, but their run was excluded: rolling
+back the Console version did not restore its placement setting. Cleanup therefore
+restored placement explicitly before restoring the original version. The final
+readback verified all six original deployments and the Console placement target.
+No production release, npm publication, new resource, or keepalive was introduced.
+The existing **$25 Cloudflare budget** remained the constraint.
+
+### Changes retained and remaining work
+
+The shared timing parser now preserves four existing Gateway and Console metrics.
+The first-registration E2E artifact now records those response headers, as the
+ready/consecutive benchmark already did. The parser preserved **940 captured
+metrics**. Shared TypeScript checking, the protocol scheduling integration,
+all eight hosted test invocations, and the bloat check passed.
+
+**Further latency reduction remains open.** The next substantive option is to
+carry the final presign batch through prepare. Rust already defines that branch,
+but the public parser and SDK expose only available-pool preparation. Completion
+requires a coordinated SDK, Gateway, and protocol-state change with cancellation,
+lost-response, replay, and single-use verification. It must verify the final
+protocol message before treating client material as usable. This follow-up did
+not implement or measure that option. Do not label all three optimization goals
+complete or count the existing session-validation saving twice.
+
+[Evidence](evidence/r155-call-path-20261006.json) records samples, maxima, request
+counts, cohort limits, historical confirmation timings, and restoration details.
+Raw artifacts and the repeat runner remain in
+`seams-monorepo/.artifacts/r155-call-path/`.
