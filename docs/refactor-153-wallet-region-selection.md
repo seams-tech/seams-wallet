@@ -1641,9 +1641,14 @@ preparation fence. Native SQLite and wallet-DO hosts count pending rounds inside
 the transaction that commits settlement. Claimed rounds and unexpired preparations
 keep it draining. Exact terminal replay remains available after settlement and
 restart. The native signing E2E covers draining, completion, and restart replay.
-Ed25519 snapshot capture, transfer, destination activation, and composed Worker
-signing coverage remain unfinished. The wallet-DO inventory scan reads batches of
-16 records but completes in one transaction.
+The wallet-DO settlement inventory scan reads batches of 16 records but completes
+in one transaction. Its separate snapshot capture now commits at most 16 records
+per call. It stores immutable 4,096-byte segments with a durable cursor and rolling
+digest. Export reads one stored segment under the exact frozen receipt. The Worker
+registration scenario verifies settlement, capture across eviction, exact segment
+replay, and reconstruction of the final digest. Signing-history and linked-device
+snapshot coverage, destination restoration, activation, and full relocation remain
+unfinished.
 
 ### Required scenarios
 

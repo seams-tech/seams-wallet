@@ -27,6 +27,8 @@ mod private_d1;
 pub use private_d1::*;
 mod wallet_relocation;
 pub use wallet_relocation::*;
+mod ed25519_snapshot;
+pub use ed25519_snapshot::*;
 mod ed25519_relocation;
 pub use ed25519_relocation::*;
 mod ed25519_execution;

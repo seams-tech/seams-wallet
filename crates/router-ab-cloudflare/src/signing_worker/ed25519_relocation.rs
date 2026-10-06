@@ -101,6 +101,22 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerEd25519ExecutionStoreV1<'_, Sql
         Ok(SigningWorkerEd25519SettlementV1::Settled { command })
     }
 
+    pub fn require_settlement(
+        &self,
+        command: &SigningWorkerEd25519FenceCommandV1,
+    ) -> RouterAbProtocolResult<()> {
+        command.validate()?;
+        self.require_generation(&command.scope, command.request.source_generation)?;
+        if self.read_fence(&command.scope)?.as_ref() != Some(&command.request)
+            || self.read_settlement(&command.scope)?.as_ref() != Some(&command.request)
+        {
+            return Err(execution_error(
+                "Ed25519 snapshot requires its settled source move",
+            ));
+        }
+        Ok(())
+    }
+
     pub fn require_finalization_admission(
         &self,
         scope: &CloudflareSigningWorkerWalletScopeV1,

@@ -1,3 +1,4 @@
+import { verifyEd25519Snapshot } from './ed25519-snapshot-evidence.mjs';
 import assert from 'node:assert/strict';
 import { dispatchEcdsaSigningWithStorageFaults } from './ecdsa-storage-evidence.mjs';
 import {
@@ -4255,9 +4256,13 @@ async function testDeriverAWalletDoExecution(
     .first();
   assert.equal(aRowsAfterSecondTenant.count, 0);
   assert.ok(activation.publicReceipt, 'Router registration must complete through A wallet DO');
+  const ed25519Snapshot = await verifyEd25519Snapshot(
+    topology, activation.delivery, routerToSigningWorkerEcdsaAuthSecret,
+  );
   const artifact = {
     kind: 'deriver_a_wallet_do_execution_e2e_v1',
-    reproduce: 'ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --do-pair-execution',
+    ed25519Snapshot,
+    reproduce: 'ROUTER_AB_WALLET_DO_HARNESS=enabled ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --do-pair-execution',
     registeredPublicKey: activation.publicReceipt.registered_public_key,
     outcomeSha256Hex: createHash('sha256').update(JSON.stringify(firstResponse)).digest('hex'),
     aD1PairRows: aRows.count,

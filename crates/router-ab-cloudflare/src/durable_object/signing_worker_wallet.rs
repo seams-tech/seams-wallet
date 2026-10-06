@@ -1,4 +1,5 @@
 mod ed25519_settlement;
+mod ed25519_snapshot;
 mod linked_ed25519;
 mod transaction;
 
@@ -101,6 +102,7 @@ pub(crate) enum SigningWorkerWalletDoRequestV1 {
     DeliverPackages(CloudflareScopedEd25519YaoPackagePairDeliveryV1),
     FenceEd25519(crate::SigningWorkerEd25519FenceCommandV1),
     SettleEd25519(crate::SigningWorkerEd25519FenceCommandV1),
+    Ed25519Snapshot { request: crate::SigningWorkerEd25519SnapshotCommandV1 },
     PromoteRecovery(CloudflareScopedEd25519YaoRecoveryPromotionRequestV1),
     LookupRegistration(CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1),
     ReserveLinkedEd25519(CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1),
@@ -259,6 +261,7 @@ impl SigningWorkerWalletDoRequestV1 {
         match self {
             Self::DeliverPackages(request) => &request.scope,
             Self::FenceEd25519(command) | Self::SettleEd25519(command) => &command.scope,
+            Self::Ed25519Snapshot { request } => &request.source().scope,
             Self::PromoteRecovery(request) => &request.scope,
             Self::LookupRegistration(request) => &request.scope,
             Self::ReserveLinkedEd25519(request) => &request.scope,
@@ -312,6 +315,7 @@ impl SigningWorkerWalletDoRequestV1 {
             }
             Self::DeliverPackages(request) => request.validate(),
             Self::FenceEd25519(command) | Self::SettleEd25519(command) => command.validate(),
+            Self::Ed25519Snapshot { request } => request.source().validate(),
             Self::PromoteRecovery(request) => request.validate(),
             Self::LookupRegistration(request) => request.validate(),
             Self::ReserveLinkedEd25519(request) => request.validate(),
@@ -452,7 +456,7 @@ struct PreparedRound1V1 {
     record: CloudflareSigningWorkerRound1RecordV1,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 struct Round1RowV1 {
     binding_key: String,
     handle: String,
@@ -608,6 +612,8 @@ impl DurableObject for RouterAbSigningWorkerWalletDurableObject {
             .exec(crate::SIGNING_WORKER_ED25519_FENCE_SCHEMA_V1, None)?;
         self.sql
             .exec(crate::SIGNING_WORKER_ED25519_SETTLEMENT_SCHEMA_V1, None)?;
+        self.sql.exec(ed25519_snapshot::STATE_SCHEMA, None)?;
+        self.sql.exec(ed25519_snapshot::SEGMENT_SCHEMA, None)?;
         for schema in crate::SIGNING_WORKER_WALLET_ECDSA_SCHEMA_V1 {
             self.sql.exec(schema, None)?;
         }
@@ -627,6 +633,9 @@ impl RouterAbSigningWorkerWalletDurableObject {
         command: SigningWorkerWalletDoRequestV1,
     ) -> Result<Response, RouterAbProtocolError> {
         match command {
+            SigningWorkerWalletDoRequestV1::Ed25519Snapshot { request } => {
+                self.with_wallet_transaction(move |wallet| wallet.ed25519_snapshot(request)).await
+            }
             SigningWorkerWalletDoRequestV1::SettleEd25519(command) => {
                 self.with_wallet_transaction(move |wallet| wallet.settle_ed25519(command))
                     .await

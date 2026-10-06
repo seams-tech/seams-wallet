@@ -1638,6 +1638,14 @@ Expired unclaimed preparations do not block settlement. When no round remains,
 the source stores the exact settlement identity and rejects fresh finalization.
 Known terminal results remain replayable. Exact settlement retries survive restart.
 Settlement permits subsequent snapshot capture; it does not attest that snapshot.
+The wallet-DO source captures registrations, retired activation indexes, linked
+material, and round-1 history only after that exact move has settled. Each capture
+command reads at most 16 records from one collection. It commits immutable 4,096-byte
+segments with its cursor and rolling digest. Restart resumes that cursor. The final
+receipt binds the source, record count, segment count, and digest. Export requires
+the exact final receipt and returns one stored segment. Changed moves, receipts,
+and missing segments fail. Unsettled registration material cannot enter a snapshot.
+Destination restoration and activation for this snapshot remain incomplete.
 
 The same fence prevents new Ed25519 recovery and linked-device mutations. Native
 refresh deliveries also check the fence. Each mutation commits with its fence check
