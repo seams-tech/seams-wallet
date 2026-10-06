@@ -6,6 +6,8 @@ use crate::{
     SigningWorkerEd25519SnapshotCommandV1, SigningWorkerEd25519SnapshotResponseV1,
     SigningWorkerLinkedPresignFreezeReceiptV1, SigningWorkerLinkedPresignInventoryPageV1,
     SigningWorkerLinkedPresignInventoryRequestV1, SigningWorkerLinkedPresignRelocationRequestV1,
+    SigningWorkerLinkedPresignPreparationInventoryRequestV1,
+    SIGNING_WORKER_LINKED_PRESIGN_PREPARATION_INVENTORY_PATH_V1,
     SigningWorkerPoolFreezeCommandV1, SigningWorkerPoolFreezeResponseV1,
     SIGNING_WORKER_ECDSA_EXPORT_PATH_V1, SIGNING_WORKER_ECDSA_TRANSFER_PATH_V1,
     SIGNING_WORKER_ED25519_SETTLE_PATH_V1, SIGNING_WORKER_ED25519_SNAPSHOT_PATH_V1,
@@ -27,6 +29,7 @@ pub(crate) fn handles(path: &str) -> bool {
             | SIGNING_WORKER_ECDSA_EXPORT_PATH_V1
             | SIGNING_WORKER_ECDSA_TRANSFER_PATH_V1
             | SIGNING_WORKER_LINKED_PRESIGN_INVENTORY_PATH_V1
+            | SIGNING_WORKER_LINKED_PRESIGN_PREPARATION_INVENTORY_PATH_V1
             | linked::FENCE_PATH
             | linked::FREEZE_PATH
             | linked::EXPORT_PATH
@@ -79,6 +82,13 @@ pub(crate) async fn handle(request: Request, env: &Env) -> worker::Result<Respon
                 env,
                 ECDSA_CHUNK_REQUEST_BYTES,
             )
+            .await
+        }
+        SIGNING_WORKER_LINKED_PRESIGN_PREPARATION_INVENTORY_PATH_V1 => {
+            forward::<
+                SigningWorkerLinkedPresignPreparationInventoryRequestV1,
+                SigningWorkerLinkedPresignInventoryPageV1,
+            >(request, env, CONTROL_REQUEST_BYTES)
             .await
         }
         SIGNING_WORKER_LINKED_PRESIGN_INVENTORY_PATH_V1 => {

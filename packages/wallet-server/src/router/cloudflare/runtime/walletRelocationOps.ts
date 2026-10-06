@@ -31,6 +31,7 @@ const OPERATIONS = {
   'ecdsa-freeze': '/router-ab/signing-worker/wallet/pool/freeze',
   'ecdsa-export': '/router-ab/signing-worker/wallet/ecdsa/export',
   'ecdsa-transfer': '/router-ab/signing-worker/wallet/ecdsa/transfer',
+  'presign-preparation-inventory': '/router-ab/signing-worker/wallet/linked-presign-preparation-inventory',
   'presign-inventory': '/router-ab/signing-worker/wallet/linked-presign-inventory',
   'presign-fence': '/router-ab/signing-worker/linked-presign-session/fence',
   'presign-freeze': '/router-ab/signing-worker/linked-presign-session/freeze',

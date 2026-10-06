@@ -165,6 +165,20 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa, r
   const preparedNamespace = await topology.getDurableObjectNamespace('SIGNING_WORKER_PRESIGN_SESSION_DO', destinationName);
   const preparedSession = preparedNamespace.get(preparedNamespace.idFromString(preparedIds[0]));
   await rejected(preparedSession, initPath, initialization, credential, /fenced for relocation/);
+  const preparationInventoryPath = '/router-ab/signing-worker/wallet/linked-presign-preparation-inventory';
+  const preparationInventoryRequest = {
+    scope: command.wallet_scope,
+    source_generation: command.request.source_generation,
+    cursor: { kind: 'start' },
+    limit: 1,
+  };
+  const beforeCompletion = await accepted(source, preparationInventoryPath, preparationInventoryRequest, routerCredential);
+  assert.equal(beforeCompletion.state, 'complete');
+  assert.equal(beforeCompletion.sessions.length, 1);
+  assert.equal(beforeCompletion.sessions[0].presign_session_id, command.presign_session_id);
+  await rejected(source, preparationInventoryPath, {
+    ...preparationInventoryRequest, source_generation: command.request.source_generation + 1,
+  }, routerCredential, /ownership generation differs/);
   const completed = await completeLinkedPresign(session, credential, initialization, initialProgress, ecdsa.finalized.stateBlob.stateBlobB64u, groupPublicKey);
   const walletsAfter = await topology.listDurableObjectIds(walletClass, workerName);
   const walletsCreated = walletsAfter.filter(isNewObject.bind(undefined, walletsBefore));
@@ -193,6 +207,15 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa, r
     },
     credential,
   );
+  const preparationPage = await accepted(source, preparationInventoryPath, preparationInventoryRequest, routerCredential);
+  assert.equal(preparationPage.state, 'more');
+  assert.equal(preparationPage.sessions.length, 1);
+  const preparationLastPage = await accepted(source, preparationInventoryPath, {
+    ...preparationInventoryRequest,
+    cursor: { kind: 'after', presign_session_id: preparationPage.next_presign_session_id },
+  }, routerCredential);
+  assert.equal(preparationLastPage.state, 'complete');
+  assert.equal(preparationLastPage.sessions.length, 1);
   command.request.invalidated_at_ms = Date.now();
   const drainingWallet = await accepted(
     source,
@@ -223,6 +246,8 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa, r
   const changedMove = structuredClone(command);
   changedMove.request.source_generation += 1;
   await rejected(source, fencePath, changedMove, routerCredential, /requires its source wallet move/);
+  await rejected(source, preparationInventoryPath, preparationInventoryRequest, routerCredential,
+    /closed ECDSA pool admission/);
   const terminalRace = await verifyTerminalFenceRace(source, session, credential, routerCredential, command, completed);
   assert.equal(terminalRace.fence.initialization.state, 'initialized');
   await rejected(session, initPath, initialization, credential, /fenced for relocation/);
@@ -334,6 +359,8 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa, r
     walletWaitsForBothSessionAcknowledgements: true,
     partialAcknowledgementSurvivesWalletEviction: true,
     inventoryAvailableDuringDraining: true,
+    preparationInventoryLeavesCompletionAndRegistrationOpen: true,
+    preparationInventoryRequiresActiveGeneration: true,
     completedPresignatureRetired: true,
     initializedFenceRequiresExactWalletMove: true,
     terminalReplayFenceRace: terminalRace.outcome,

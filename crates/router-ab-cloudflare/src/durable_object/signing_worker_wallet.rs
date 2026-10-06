@@ -155,6 +155,7 @@ pub(crate) enum SigningWorkerWalletDoRequestV1 {
     FreezeEcdsaPool(crate::SigningWorkerPoolFreezeCommandV1),
     ExportEcdsaSnapshot(crate::SigningWorkerEcdsaExportRequestV1),
     ListLinkedPresignSessions(crate::SigningWorkerLinkedPresignInventoryRequestV1),
+    ListPreparingLinkedPresignSessions(crate::SigningWorkerLinkedPresignPreparationInventoryRequestV1),
     RecordLinkedPresignFreeze {
         receipt: crate::SigningWorkerLinkedPresignFreezeReceiptV1,
     },
@@ -279,6 +280,7 @@ impl SigningWorkerWalletDoRequestV1 {
             Self::FreezeEcdsaPool(command) => &command.scope,
             Self::ExportEcdsaSnapshot(command) => &command.receipt.scope,
             Self::ListLinkedPresignSessions(command) => &command.scope,
+            Self::ListPreparingLinkedPresignSessions(command) => &command.scope,
             Self::RecordLinkedPresignFreeze { receipt } => &receipt.command.wallet_scope,
             Self::TransferEcdsaSnapshot(command) => command.scope(),
             Self::CheckEcdsaPoolAdmission { scope } => scope,
@@ -294,6 +296,7 @@ impl SigningWorkerWalletDoRequestV1 {
     fn validate(&self) -> Result<(), RouterAbProtocolError> {
         match self {
             Self::ListLinkedPresignSessions(command) => command.scope.validate(),
+            Self::ListPreparingLinkedPresignSessions(command) => command.scope.validate(),
             Self::RecordLinkedPresignFreeze { receipt } => receipt.validate(),
             Self::AuthorizeLinkedPresignFence {
                 scope,
@@ -796,6 +799,12 @@ impl RouterAbSigningWorkerWalletDurableObject {
             SigningWorkerWalletDoRequestV1::RecordLinkedPresignFreeze { receipt } => {
                 self.with_ecdsa_transaction(move |store| {
                     store.record_linked_presign_freeze(receipt)
+                })
+                .await
+            }
+            SigningWorkerWalletDoRequestV1::ListPreparingLinkedPresignSessions(command) => {
+                self.with_ecdsa_transaction(move |store| {
+                    store.list_preparing_linked_presign_sessions(command)
                 })
                 .await
             }

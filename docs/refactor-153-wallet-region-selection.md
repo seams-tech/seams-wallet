@@ -468,6 +468,12 @@ together; they provide no legacy command path. ECDSA preparation now uses the sa
 timestamp-free move identity. Its first accepted chunk pins the complete source
 receipt. The Worker E2E verifies timestamp conflict rejection, destination signing
 before and after cleanup, and a return move prepared before its invalidation time.
+Linked-presign preparation now has a bounded, read-only inventory route for an
+active source generation. It does not pause the source or stop new sessions.
+Its pages can change before admission. Transfer must enumerate the fenced source
+again and reconcile sessions created after the preparation read. The aggregate
+presign preparation adapter and that reconciliation remain unfinished.
+
 Linked-presign preparation also uses the timestamp-free identity and binds both
 session identifiers. Durable import state closes destination writes before the
 source has frozen. Verification records the full frozen receipt for historical

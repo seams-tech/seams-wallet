@@ -3,6 +3,18 @@ use super::*;
 pub const SIGNING_WORKER_LINKED_PRESIGN_INVENTORY_PATH_V1: &str =
     "/router-ab/signing-worker/wallet/linked-presign-inventory";
 
+pub const SIGNING_WORKER_LINKED_PRESIGN_PREPARATION_INVENTORY_PATH_V1: &str =
+    "/router-ab/signing-worker/wallet/linked-presign-preparation-inventory";
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SigningWorkerLinkedPresignPreparationInventoryRequestV1 {
+    pub scope: CloudflareSigningWorkerWalletScopeV1,
+    pub source_generation: u64,
+    pub cursor: SigningWorkerLinkedPresignCursorV1,
+    pub limit: u32,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum SigningWorkerLinkedPresignCursorV1 {
@@ -81,13 +93,41 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         &self,
         request: SigningWorkerLinkedPresignInventoryRequestV1,
     ) -> RouterAbProtocolResult<SigningWorkerLinkedPresignInventoryPageV1> {
-        if !(1..=128).contains(&request.limit) {
-            return Err(wallet_error(
-                "Linked presign inventory limit must be 1 through 128",
-            ));
-        }
         self.require_linked_presign_move(&request.scope, &request.request)?;
-        let after = match request.cursor {
+        self.list_linked_presign_sessions(
+            &request.scope, request.request.source_generation, request.cursor, request.limit,
+        )
+    }
+
+    // This read does not fence writers. Transfer must enumerate again after admission.
+    pub fn list_preparing_linked_presign_sessions(
+        &self,
+        request: SigningWorkerLinkedPresignPreparationInventoryRequestV1,
+    ) -> RouterAbProtocolResult<SigningWorkerLinkedPresignInventoryPageV1> {
+        request.scope.validate()?;
+        crate::router_wallet::validate_wallet_ownership_generation(request.source_generation)?;
+        self.require_mutation_admission(&request.scope)?;
+        let authority = self.execution_authority(&request.scope)?
+            .ok_or_else(|| wallet_error("Linked presign preparation requires execution authority"))?;
+        if authority.generation()? != request.source_generation {
+            return Err(wallet_error("Linked presign preparation ownership generation differs"));
+        }
+        self.list_linked_presign_sessions(
+            &request.scope, request.source_generation, request.cursor, request.limit,
+        )
+    }
+
+    fn list_linked_presign_sessions(
+        &self,
+        scope: &CloudflareSigningWorkerWalletScopeV1,
+        source_generation: u64,
+        cursor: SigningWorkerLinkedPresignCursorV1,
+        limit: u32,
+    ) -> RouterAbProtocolResult<SigningWorkerLinkedPresignInventoryPageV1> {
+        if !(1..=128).contains(&limit) {
+            return Err(wallet_error("Linked presign inventory limit must be 1 through 128"));
+        }
+        let after = match cursor {
             SigningWorkerLinkedPresignCursorV1::Start => String::new(),
             SigningWorkerLinkedPresignCursorV1::After { presign_session_id } => {
                 crate::require_non_empty("Linked presign inventory cursor", &presign_session_id)?;
@@ -100,18 +140,18 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
              ORDER BY presign_session_id LIMIT ?",
             vec![
                 text(owner_json(
-                    &request.scope,
+                    scope,
                     "linked presign inventory",
                 )?),
-                SigningWorkerWalletSqlValueV1::Integer(request.request.source_generation as i64),
+                SigningWorkerWalletSqlValueV1::Integer(source_generation as i64),
                 text(after),
-                SigningWorkerWalletSqlValueV1::Integer(i64::from(request.limit) + 1),
+                SigningWorkerWalletSqlValueV1::Integer(i64::from(limit) + 1),
             ],
         )?;
-        let more = rows.len() > request.limit as usize;
+        let more = rows.len() > limit as usize;
         let mut sessions = Vec::new();
-        for row in rows.into_iter().take(request.limit as usize) {
-            row.validate(&request.scope)?;
+        for row in rows.into_iter().take(limit as usize) {
+            row.validate(scope)?;
             sessions.push(SigningWorkerLinkedPresignIdentityV1 {
                 presign_session_id: row.presign_session_id,
                 server_presignature_id: row.server_presignature_id,

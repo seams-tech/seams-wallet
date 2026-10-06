@@ -20,6 +20,8 @@ pub use linked_presign_settlement::{
 };
 pub use linked_presign_inventory::{
     SigningWorkerLinkedPresignCursorV1, SigningWorkerLinkedPresignInventoryRequestV1,
+    SigningWorkerLinkedPresignPreparationInventoryRequestV1,
+    SIGNING_WORKER_LINKED_PRESIGN_PREPARATION_INVENTORY_PATH_V1,
     SigningWorkerLinkedPresignInventoryPageV1, SigningWorkerLinkedPresignIdentityV1,
     SIGNING_WORKER_LINKED_PRESIGN_INVENTORY_PATH_V1,
 };
