@@ -21,37 +21,55 @@ export class D1WalletExecutionAuthority implements Authority, WalletExecutionAut
   }
 
   async admitHome(input: Parameters<Authority['admitHome']>[0]): Promise<HomeAdmission> {
-    const completed = await prepareD1TenantStatement(
+    const local = await prepareD1TenantStatement(
       this.database,
       this.scope,
-      `SELECT generation FROM wallet_execution_generations
+      `SELECT generation, state, registration_completion FROM wallet_execution_generations
        WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
-         AND wallet_id = ?5 AND origin = 'registration' AND origin_id = ?6
-         AND state = 'active'`,
+         AND wallet_id = ?5 AND origin = 'registration' AND origin_id = ?6`,
       [input.walletId, input.ceremonyId],
-    ).first<{ readonly generation: number }>();
-    if (completed) {
-      return { ok: true, purpose: 'ordinary', ownershipGeneration: completed.generation };
+    ).first<{
+      readonly generation: number;
+      readonly state: string;
+      readonly registration_completion: string;
+    }>();
+    if (local) {
+      switch (local.state) {
+        case 'active':
+          return { ok: true, purpose: 'ordinary', ownershipGeneration: local.generation };
+        case 'registering':
+          if (local.registration_completion === 'pending') {
+            return { ok: true, purpose: 'registration', ownershipGeneration: local.generation };
+          }
+          if (local.registration_completion !== 'established') {
+            throw new Error('Registration completion state is invalid');
+          }
+          // Republish the fixed decision after a lost reply before enabling signing.
+          const completed = await this.complete({ ...input, outcome: 'established' });
+          if (!completed.ok) return completed;
+          return this.admitEstablishedHome({ walletId: input.walletId });
+        case 'retired':
+          if (local.registration_completion === 'cancelled') {
+            const published = await this.complete({ ...input, outcome: 'cancelled' });
+            if (!published.ok) return published;
+          }
+          return {
+            ok: false,
+            code: 'wallet_home_unavailable',
+            message: 'Registration execution is retired at this home',
+          };
+        default:
+          throw new Error('Registration execution state is invalid');
+      }
     }
     const admitted = await this.registration.admitHome(input);
     if (!admitted.ok) return admitted;
     if (admitted.purpose === 'ordinary') {
-      // A reply can be lost after Console commits completion and before the
-      // local completion write. Its next admission proves the same home.
-      await prepareD1TenantStatement(
-        this.database,
-        this.scope,
-        `UPDATE wallet_execution_generations SET state = 'active'
-         WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
-           AND wallet_id = ?5 AND generation = ?6 AND origin = 'registration'
-           AND origin_id = ?7 AND state = 'registering'`,
-        [input.walletId, admitted.ownershipGeneration, input.ceremonyId],
-      ).run();
-      const local = await this.admitEstablishedHome({ walletId: input.walletId });
-      if (!local.ok) return local;
-      if (local.ownershipGeneration !== admitted.ownershipGeneration)
-        throw new Error('Wallet execution generation differs from its admitted home');
-      return local;
+      return {
+        ok: false,
+        code: 'wallet_home_unavailable',
+        message: 'Completed registration has no local execution identity',
+      };
     }
     const generation = admitted.ownershipGeneration;
     if (!Number.isSafeInteger(generation) || generation < 1)

@@ -557,3 +557,19 @@ The real-D1 scenario verifies guard rejection, calls the production authorizatio
 service after cancellation, and confirms no session row was persisted. Server
 type-checking and the bloat gate pass. Pending registration still uses Console
 admission; remote custody effects and completion reconciliation remain under review.
+
+### Local pending registration admission — October 6
+
+An exact local registration generation now admits pending continuations without
+a Console read. Initial admission still establishes the reserved home through
+Console. Completed local generations admit ordinary execution. Retired local
+generations reject execution. A fixed establishment or cancellation decision
+is republished on continuation retry after an uncertain completion reply.
+The former directory-based activation recovery branch was removed.
+
+The real-D1 scenario passes after recreating the authority object with the
+directory configured to reject any second admission lookup. It also verifies
+terminal reconciliation, conflicting completion, cancellation write guards,
+and session publication refusal. Type-checking and the bloat gate pass.
+Browser contracts and authorization-transfer verification are running. Full
+hosted Console-outage acceptance and remote-effect cancellation remain unproven.
