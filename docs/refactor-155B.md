@@ -979,3 +979,33 @@ An initial ECDSA attempt did not inject retirement because the fixture still
 matched the NEAR endpoint. It was classified as a test-fixture defect, corrected,
 and rerun for both curves. A run started before that correction was applied was
 stopped and is excluded. No production behavior was changed to satisfy this test.
+
+
+### Deferred NEAR provisioning retry — October 7, 2026
+
+The composed cross-region retry exposed two production defects:
+
+- The mixed-wallet NEAR continuation sent its session token without its home hint.
+  A foreign ingress therefore needed Console discovery. Registration and persisted
+  NEAR recovery now use the existing session authorization header builder.
+- The local execution authority contacted the directory again when registration
+  was already active and its establishment was acknowledged. An exact established
+  retry now uses that durable local state. Pending publication still reconciles
+  through the directory. Conflicting cancellation still fails before a directory call.
+
+The D1 routing scenario verifies lost publication replies, eventual reconciliation,
+local established replay, conflicting terminal decisions, and cancellation fences.
+Its session-publication assertion now expects the current early generation rejection;
+the old assertion expected the later cancellation SQL error. It still requires zero
+published sessions for a cancelled registration.
+
+The browser acceptance discards a successful mixed-wallet NEAR provisioning response
+at US, then replays the identical request through WEUR with Console unavailable.
+The SDK receives only the replay. The test requires the same wallet and signer,
+unchanged budget and operation records, and three valid NEAR signatures through
+WEUR, APAC, and OC. The harness injects the retry; this does not prove automatic SDK
+network retry or browser-reload recovery. NEAR-only registration without an existing
+Wallet Session, lost initial setup, and post-MPC relocation races remain separate gates.
+
+Evidence and final command results are recorded in
+[the retry evidence](./evidence/r155b-registration-retry-20261007.json).

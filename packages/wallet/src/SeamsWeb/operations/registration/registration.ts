@@ -1,3 +1,4 @@
+import { buildWalletSessionAuthorizationHeaders } from '../../../core/rpcClients/relayer/relayerHttp';
 import { recordWalletCustodyTiming } from '@/core/signingEngine/walletCustody/ceremonyDriver';
 import { registrationSelectionIncludesNear } from './registrationSignerSet';
 import { walletSessionPreservesCapabilities } from '@shared/device-linking/activeWalletSession';
@@ -3294,7 +3295,7 @@ async function commitDeferredEd25519Registration(args: {
       signedSetup: args.signedSetup,
       headers: {
         ...args.headers,
-        Authorization: `Bearer ${args.sessionAuthority.operationCredential.token}`,
+        ...buildWalletSessionAuthorizationHeaders(args.sessionAuthority.operationCredential),
       },
       /* Deterministic, and distinct from activate's key: the server derives
          its side-effect key from {ceremonyId, idempotencyKey}, so sharing

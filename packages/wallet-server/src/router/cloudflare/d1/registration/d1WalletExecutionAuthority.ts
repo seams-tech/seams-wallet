@@ -99,6 +99,19 @@ export class D1WalletExecutionAuthority implements Authority, WalletExecutionAut
   }
 
   async complete(input: Parameters<Authority['complete']>[0]) {
+    if (input.outcome === 'established') {
+      const published = await prepareD1TenantStatement(
+        this.database,
+        this.scope,
+        `SELECT 1 AS published FROM wallet_execution_generations
+         WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
+           AND wallet_id = ?5 AND origin = 'registration' AND origin_id = ?6
+           AND state = 'active' AND registration_completion = 'established'`,
+        [input.walletId, input.ceremonyId],
+      ).first<{ readonly published: number }>();
+      // Activation follows the acknowledged directory write. Its exact retry is local.
+      if (published) return { ok: true as const };
+    }
     // Fix the terminal decision before crossing the database boundary. Exact
     // retries may publish it again; a conflicting outcome never reaches Console.
     await this.database.batch([

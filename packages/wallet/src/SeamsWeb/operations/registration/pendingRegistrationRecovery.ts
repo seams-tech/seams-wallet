@@ -1,3 +1,4 @@
+import { buildWalletSessionAuthorizationHeaders } from '../../../core/rpcClients/relayer/relayerHttp';
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking/contracts';
 import type { JoinedWalletCustodyNearEd25519KeySetV1 } from '@/SeamsWeb/signingSurface/ports';
 import {
@@ -424,7 +425,7 @@ export async function restorePendingNearRegistrationMaterial(args: {
   const request = pendingNearProvisioningRequest(args.relayerUrl, args.pending);
   const response = await completeWalletRegistrationNearProvisioning({
     ...request,
-    headers: { Authorization: `Bearer ${args.operationCredential.token}` },
+    headers: buildWalletSessionAuthorizationHeaders(args.operationCredential),
   });
   const finalized = requireFinalizedNearProvisioningResponse(args.pending, response);
   const session = finalized.registrationEstablishedSession.session;
@@ -448,7 +449,7 @@ export async function restorePendingNearRegistrationMaterial(args: {
     {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${args.operationCredential.token}`,
+        ...buildWalletSessionAuthorizationHeaders(args.operationCredential),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(bootstrapRequest.value),
