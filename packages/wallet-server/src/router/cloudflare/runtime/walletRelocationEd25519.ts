@@ -3,7 +3,7 @@ import { ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1 } from '../../../core/Thresho
 import type { CloudflareServiceBindingFetcher } from './routerAbServiceBindings';
 import { authorizeRuntimeSource, type RuntimeSourceDirectory } from './walletRelocationSource';
 
-type Operation = 'capture' | 'export' | 'import' | 'status' | 'verify';
+type Operation = 'capture' | 'export' | 'import' | 'status' | 'verify' | 'activate' | 'cleanup';
 type Envelope = { readonly wallet: Record<string, unknown>; readonly attempt: Record<string, unknown> };
 
 export function ed25519RuntimeOperation(operation: string): Operation | null {
@@ -13,6 +13,8 @@ export function ed25519RuntimeOperation(operation: string): Operation | null {
     case 'ed25519-import': return 'import';
     case 'ed25519-status': return 'status';
     case 'ed25519-verify': return 'verify';
+    case 'ed25519-activate': return 'activate';
+    case 'ed25519-cleanup': return 'cleanup';
     default: return null;
   }
 }
@@ -54,8 +56,22 @@ export async function forwardEd25519Snapshot(
         !isPlainObject(result.command) || result.command.command !== operation ||
         Object.keys(result.command).length !== (operation === 'export' ? 3 : 2))
       return failure('source_command_unavailable', 503);
-    const receipt = parseReceipt(result.command.receipt, envelope);
+    const receipt = parseReceipt(operation === 'cleanup' ? result.command.activation : result.command.receipt, envelope);
     if (!receipt) return failure('source_command_unavailable', 503);
+    if (operation === 'cleanup') return await postSnapshot(router, { command: 'cleanup', activation: receipt }, credential);
+    if (operation === 'activate') {
+      const response = await postSnapshot(router, { command: 'activate', receipt }, credential);
+      if (!response.ok) return response;
+      const activated: unknown = await response.clone().json();
+      if (!isPlainObject(activated) || Object.keys(activated).length !== 2 || activated.state !== 'activated' ||
+          !sameFields(receipt, activated.receipt)) return failure('activation_receipt_unavailable', 503);
+      const recorded = await postDirectory(directory, 'relocation-ed25519-activation', { ...envelope, receipt });
+      if (!recorded.ok) return failure('activation_receipt_unavailable', 503);
+      const confirmed: unknown = await recorded.json();
+      if (!isPlainObject(confirmed) || Object.keys(confirmed).length !== 2 || confirmed.ok !== true ||
+          !sameFields(receipt, confirmed.receipt)) return failure('activation_receipt_unavailable', 503);
+      return response;
+    }
     if (operation === 'export') {
       if (!count(input.segmentIndex) || input.segmentIndex >= receipt.segment_count || result.command.segment_index !== input.segmentIndex)
         return failure('source_command_unavailable', 503);

@@ -1841,5 +1841,15 @@ Export, import, status, and verification now use commands authorized from that
 stored receipt. Console checks the current attempt, phase, and regional Runtime.
 The Runtime rejects raw snapshot transfer commands and sends chunk data directly
 to the role. Console stores receipt metadata only. Native Ed25519 activation and
-cleanup still require journal transport integration. The production coordinator
-and assembled relocation acceptance remain unfinished.
+cleanup also use journal-authorized commands. Runtime persists the exact local
+activation receipt before reporting success. Cleanup requires that receipt and
+durable aggregate activation. Raw activation and cleanup commands are rejected.
+The production coordinator and assembled relocation acceptance remain unfinished.
+
+The Worker scenario loses an Ed25519 activation acknowledgement, evicts the
+destination, and retries activation exactly. It then resumes source cleanup after
+eviction and produces a fresh destination signature. The private Console scenario
+separately verifies premature-cleanup rejection, immutable activation receipts,
+regional writer checks, and cleanup authorization after journal restart.
+Evidence is retained under `.artifacts/r153/ed25519-activation-20261006/` in both
+repositories. Component evidence does not establish assembled relocation safety.

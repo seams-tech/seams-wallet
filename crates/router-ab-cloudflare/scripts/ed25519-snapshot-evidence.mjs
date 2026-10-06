@@ -160,7 +160,7 @@ export async function verifyEd25519Snapshot(topology, activation, fixture, crede
   assert.notEqual(changedMove.status, 200, await changedMove.text());
   assert.deepEqual(await accepted(worker, snapshotPath, capture, sourceCredential), frozen);
   const restoration = await verifyDestinationRestoration({
-    topology, destination, transport: await runtimeEd25519Destination(topology, worker), destinationName, receipt, segments,
+    topology, destination, sourceTransport: worker, transport: await runtimeEd25519Destination(topology, worker), destinationName, receipt, segments,
     originalBytes: Buffer.concat(bytes), credential, sourceCredential, delivery, registrationCredential,
     activation, fixture, signDestination,
   });
@@ -176,6 +176,7 @@ export async function verifyEd25519Snapshot(topology, activation, fixture, crede
     boundedSegments: true,
     captureAndExportResumeAfterEviction: true,
     sourceReceiptLostReplyRecovered: true,
+    activationReceiptLostReplyRecovered: true,
     transferUsesJournalAuthorizedRuntime: true,
     exactDigestReconstructed: true,
     changedMoveAndReceiptRejected: true,
@@ -194,7 +195,7 @@ async function rejectDestinationDelivery(destination, delivery, credential) {
 }
 
 async function verifyDestinationRestoration({
-  topology, destination, transport, destinationName, receipt, segments,
+  topology, destination, sourceTransport, transport, destinationName, receipt, segments,
   originalBytes, credential, sourceCredential, delivery, registrationCredential,
   activation, fixture, signDestination,
 }) {
@@ -268,12 +269,20 @@ async function verifyDestinationRestoration({
   assert.deepEqual(await accepted(transport, snapshotPath, verify, credential), verified);
   const registrationReplay = await accepted(destination,
     '/router-ab/signing-worker/ed25519-yao/activation/packages', delivery, registrationCredential);
-  const activated = await accepted(destination, snapshotPath, activate, credential);
+  const prematureCleanup = await post(sourceTransport, snapshotPath, { command: 'cleanup', activation: receipt }, sourceCredential);
+  assert.equal(prematureCleanup.status, 409);
+  transport.env.WALLET_CONSOLE.receiptMode = 'lost_reply';
+  const lostActivation = await post(transport, snapshotPath, activate, credential);
+  assert.equal(lostActivation.status, 503);
+  assert.deepEqual(transport.env.WALLET_CONSOLE.ed25519Activation, receipt);
+  await evictTransferredWallet(topology, destinationName, receipt.source.scope);
+  transport.env.WALLET_CONSOLE.receiptMode = 'available';
+  const activated = await accepted(transport, snapshotPath, activate, credential);
   assert.deepEqual(activated, { state: 'activated', receipt });
   await evictTransferredWallet(topology, destinationName, receipt.source.scope);
   assert.deepEqual(await accepted(destination, snapshotPath, activate, credential), activated);
   assert.deepEqual(await accepted(destination, snapshotPath, { command: 'status', receipt }, credential), activated);
-  const cleanup = await verifySourceCleanup(topology, receipt, sourceCredential, delivery, registrationCredential);
+  const cleanup = await verifySourceCleanup(topology, sourceTransport, receipt, sourceCredential, delivery, registrationCredential);
   const signing = await signDestination(topology, activation, fixture, destinationName, 2);
   const oldGeneration = await post(destination, settlePath, receipt.source, credential);
   assert.notEqual(oldGeneration.status, 200, await oldGeneration.text());
@@ -359,12 +368,11 @@ async function verifyDestinationRestoration({
   };
 }
 
-async function verifySourceCleanup(topology, receipt, credential, delivery, registrationCredential) {
-  const source = await runtimeRelocationSource(topology, credential, receipt.source);
+async function verifySourceCleanup(topology, source, receipt, credential, delivery, registrationCredential) {
   const command = { command: 'cleanup', activation: receipt };
   const changed = structuredClone(command);
   changed.activation.digest_hex = '00'.repeat(32);
-  const rejected = await post(source, snapshotPath, changed, credential);
+  const rejected = await post(await topology.getWorker('router'), snapshotPath, changed, credential);
   assert.notEqual(rejected.status, 200, await rejected.text());
   const unauthorized = await post(await topology.getWorker('router'), snapshotPath, command, 'wrong-credential');
   assert.equal(unauthorized.status, 403);
@@ -393,6 +401,7 @@ async function verifySourceCleanup(topology, receipt, credential, delivery, regi
     exactCompletionReplay: true,
     changedReceiptRejected: true,
     sourceRegistrationCannotReopen: true,
+    commandsUseJournalActivation: true,
     cleanedSnapshotUnavailable: true,
   };
 }

@@ -30,6 +30,7 @@ class SourceDirectory {
   receiptMode = 'available';
   receipt = null;
   ed25519Receipt = null;
+  ed25519Activation = null;
   activationReceipt = null;
   constructor(source) {
     this.source = source;
@@ -37,7 +38,8 @@ class SourceDirectory {
 
   async fetch(request) {
     assert.ok(
-      request.url.endsWith('/relocation-ed25519-receipt') ||
+      request.url.endsWith('/relocation-ed25519-activation') ||
+        request.url.endsWith('/relocation-ed25519-receipt') ||
         request.url.endsWith('/relocation-ed25519-transfer') ||
         request.url.endsWith('/relocation-runtime-source') ||
         request.url.endsWith('/relocation-router-receipt') ||
@@ -54,6 +56,12 @@ class SourceDirectory {
     const input = await request.json();
     if (this.mode === 'denied' || input.attempt.moveId !== this.source.request.move_id)
       return Response.json({ ok: false, code: 'attempt_conflict' }, { status: 409 });
+    if (request.url.endsWith('/relocation-ed25519-activation')) {
+      assert.deepEqual(input.receipt, this.ed25519Receipt);
+      this.ed25519Activation = input.receipt;
+      if (this.receiptMode === 'lost_reply') throw new Error('Recorded Ed25519 activation reply was lost');
+      return Response.json({ ok: true, receipt: this.ed25519Activation });
+    }
     if (request.url.endsWith('/relocation-ed25519-receipt')) {
       assert.deepEqual(input.receipt.source, this.source);
       if (this.ed25519Receipt) assert.deepEqual(input.receipt, this.ed25519Receipt);
@@ -64,6 +72,10 @@ class SourceDirectory {
     if (request.url.endsWith('/relocation-ed25519-transfer')) {
       assert.ok(this.ed25519Receipt);
       assert.equal(Object.keys(input).length, 3, 'Console receives no segment data');
+      if (input.request.operation === 'cleanup') {
+        if (!this.ed25519Activation) return Response.json({ ok: false }, { status: 409 });
+        return Response.json({ ok: true, command: { command: 'cleanup', activation: this.ed25519Activation } });
+      }
       const command = { command: input.request.operation, receipt: structuredClone(this.ed25519Receipt) };
       if (this.mode === 'corrupt') command.receipt.source.scope.wallet_id = 'another-wallet';
       if (input.request.operation === 'export') command.segment_index = input.request.segmentIndex;
@@ -189,12 +201,12 @@ class RuntimeRelocationSource {
         forwardedBody = sourceEnvelope(body);
         break;
       case '/router-ab/signing-worker/wallet/ed25519/snapshot':
-        operation = ['capture', 'export', 'import', 'status', 'verify'].includes(body.command)
+        operation = ['capture', 'export', 'import', 'status', 'verify', 'activate', 'cleanup'].includes(body.command)
           ? `ed25519-${body.command}` : 'ed25519-snapshot';
         if (body.command === 'capture') forwardedBody = sourceEnvelope(body.source);
         else if (operation !== 'ed25519-snapshot') {
-          forwardedBody = sourceEnvelope(body.receipt.source);
-          forwardedBody.attempt.phase = 'copying';
+          forwardedBody = sourceEnvelope(body.command === 'cleanup' ? body.activation.source : body.receipt.source);
+          forwardedBody.attempt.phase = body.command === 'activate' || body.command === 'cleanup' ? 'cutover' : 'copying';
           if (body.command === 'export') forwardedBody.segmentIndex = body.segment_index;
           if (body.command === 'import') forwardedBody.segment = body.segment;
         }

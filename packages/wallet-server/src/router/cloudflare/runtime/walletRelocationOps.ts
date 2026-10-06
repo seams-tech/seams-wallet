@@ -43,6 +43,8 @@ const OPERATIONS = {
   'router-verify': '/router-ab/router/wallet/transfer',
   'router-export': '/router-ab/router/wallet/transfer',
   'router-transfer': '/router-ab/router/wallet/transfer',
+  'ed25519-activate': '/router-ab/signing-worker/wallet/ed25519/snapshot',
+  'ed25519-cleanup': '/router-ab/signing-worker/wallet/ed25519/snapshot',
   'ed25519-export': '/router-ab/signing-worker/wallet/ed25519/snapshot',
   'ed25519-import': '/router-ab/signing-worker/wallet/ed25519/snapshot',
   'ed25519-status': '/router-ab/signing-worker/wallet/ed25519/snapshot',
@@ -140,7 +142,7 @@ export async function handleWalletRelocationRequest(
     operation === 'ed25519-snapshot' &&
     isPlainObject(input) &&
     (input.command === 'capture' || input.command === 'export' || input.command === 'import' ||
-      input.command === 'status' || input.command === 'verify')
+      input.command === 'status' || input.command === 'verify' || input.command === 'activate' || input.command === 'cleanup')
   ) {
     return failure('source_command_required', 400);
   }
