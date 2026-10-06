@@ -106,6 +106,7 @@ pub enum RouterWalletTransferResponseV1 {
     Prepared {
         request: RouterWalletFreezeRequestV1,
         chunk_bytes: u32,
+        destination_object: String,
     },
     Receiving {
         receipt: RouterWalletFreezeReceiptV1,
@@ -176,6 +177,7 @@ async fn prepare<Store: RouterWalletStoreV1>(
 ) -> RouterAbProtocolResult<RouterWalletTransferResponseV1> {
     validate_request(&request)?;
     validate_chunk_size(chunk_bytes)?;
+    let destination_object = request.owner.object_name(request.destination_generation)?;
     if let Some(activated) = store
         .get_json::<ActivatedDestination>(ACTIVATION_KEY)
         .await?
@@ -186,6 +188,7 @@ async fn prepare<Store: RouterWalletStoreV1>(
         return Ok(RouterWalletTransferResponseV1::Prepared {
             request,
             chunk_bytes,
+            destination_object,
         });
     }
     match store.get_json::<Fence>(FENCE_KEY).await? {
@@ -236,6 +239,7 @@ async fn prepare<Store: RouterWalletStoreV1>(
     Ok(RouterWalletTransferResponseV1::Prepared {
         request,
         chunk_bytes,
+        destination_object,
     })
 }
 

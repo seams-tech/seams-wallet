@@ -357,6 +357,8 @@ export async function verifyRuntimeRouterExport(runtime, activation, topology) {
   };
   const prepared = await runtimeRouterCommand(destination, 'router-transfer', preparation);
   assert.equal(prepared.kind, 'prepared');
+  assert.equal(typeof prepared.destination_object, 'string');
+  assert.ok(prepared.destination_object.length > 0);
   assert.deepEqual(
     await runtimeRouterCommand(destination, 'router-transfer', preparation),
     prepared,
@@ -482,6 +484,7 @@ export async function verifyRuntimeRouterExport(runtime, activation, topology) {
   destination.env.WALLET_CONSOLE.receiptMode = 'available';
   const activated = await runtimeRouterCommand(destination, 'router-activate', envelope);
   assert.equal(activated.kind, 'activated');
+  assert.equal(activated.activation.destination_object, prepared.destination_object);
   assert.deepEqual(activated.activation.source, frozen.receipt);
   assert.equal(typeof activated.activation.destination_object, 'string');
   assert.deepEqual(await runtimeRouterCommand(destination, 'router-activate', envelope), activated);
@@ -507,6 +510,7 @@ export async function verifyRuntimeRouterExport(runtime, activation, topology) {
     activationReceiptLostReplyRecovered: true,
     sourceCleanupPreservesDestinationActivation: true,
     destinationPreparedBeforeSourceFinalizationAndFreeze: true,
+    activatedObjectMatchesPreparedObject: true,
     sourceDigestHex: frozen.receipt.records_digest_hex,
   };
 }
