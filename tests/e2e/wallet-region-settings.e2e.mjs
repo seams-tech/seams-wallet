@@ -134,15 +134,14 @@ try {
   await expect(page.getByRole('status')).toContainText('needs service recovery');
   await page.evaluate(advance, 'cleanup');
   await expect(page.getByRole('status')).toContainText('Source cleanup continues');
-  await expect(page.getByRole('button', { name: 'Export keys' })).toBeDisabled();
-  await expect(
-    page.getByText('Lock this wallet, then unlock it again before signing.'),
-  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Export keys' })).toBeEnabled();
+  await expect(page.getByText('Your wallet is active in the new region.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Move wallet', exact: true })).toHaveCount(0);
   await page.setViewportSize({ width: 320, height: 800 });
   assert.equal(await page.evaluate(fitsViewport), true);
   await mkdir(output, { recursive: true });
   await page.screenshot({
-    path: resolve(output, 'activation-awaiting-unlock.png'),
+    path: resolve(output, 'active-during-cleanup.png'),
     fullPage: true,
   });
   await page.getByRole('button', { name: 'Lock wallet' }).click();
@@ -157,9 +156,10 @@ try {
         nativeRegionSelectionAndEnterSubmission: true,
         sameRegionHasNoMove: true,
         exactRetryAfterUnknownOutcome: true,
-        availabilityCallbackBlocksActionsThroughCleanup: true,
+        availabilityCallbackBlocksActionsBeforeActivation: true,
+        activeDestinationAllowsActionsDuringCleanup: true,
         blockedStageVisible: true,
-        activationPromptsFreshUnlock: true,
+        cleanupDoesNotOfferAnotherMove: true,
         localLockAvailable: true,
         narrowViewportFits: true,
       },

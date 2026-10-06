@@ -92,6 +92,24 @@ function statusText(state: State): string {
   }
 }
 
+function permitsWalletActions(state: State): boolean {
+  switch (state.kind) {
+    case 'ready':
+      return true;
+    case 'progress':
+      return (
+        state.status.state === 'completed' || state.status.move.progress.availability === 'active'
+      );
+    case 'loading':
+    case 'submitting':
+    case 'uncertain':
+    case 'unavailable':
+      return false;
+    default:
+      return assertNever(state);
+  }
+}
+
 function assertNever(value: never): never {
   throw new Error(`Unexpected wallet region state: ${String(value)}`);
 }
@@ -116,7 +134,7 @@ export class WalletRegionSection extends Component<Props, { readonly view: State
   private commit(state: State): void {
     if (!this.mounted) return;
     this.setState({ view: state });
-    this.props.onAvailability(state.kind === 'ready');
+    this.props.onAvailability(permitsWalletActions(state));
   }
 
   private load = async (): Promise<void> => {
@@ -309,7 +327,7 @@ export class WalletRegionSection extends Component<Props, { readonly view: State
         return (
           <p>
             {active
-              ? 'Lock this wallet, then unlock it again before signing. Another move must wait until cleanup completes.'
+              ? 'Your wallet is active in the new region. Another move must wait until cleanup completes.'
               : 'Signing and wallet changes are paused. Closing or locking this wallet does not cancel the move.'}
           </p>
         );

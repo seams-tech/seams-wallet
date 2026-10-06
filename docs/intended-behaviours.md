@@ -2028,8 +2028,9 @@ submission. Selecting the current region sends no move. A pending move keeps oth
 settings disabled and leaves local lock available. The view shows transfer stages,
 service recovery for a blocked stage, and separate activation and cleanup messages.
 Unknown outcomes keep the exact request for explicit retry. Automatic polling only
-reads progress. An activated destination still requires local lock and fresh unlock
-before this view enables protected actions.
+reads progress. The host locks obsolete sessions when it observes activation.
+After fresh unlock, active-destination progress enables other settings while cleanup
+continues. Another move remains unavailable until cleanup completes.
 The region-settings browser journey verifies selection, an uncertain submission,
 exact retry, blocked-stage reporting, cleanup, local lock, and narrow-screen layout.
 It uses the production component with simulated placement and surrounding actions.
