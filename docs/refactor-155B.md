@@ -950,3 +950,32 @@ not close the full MPC/DO relocation race or deferred-alarm acceptance gate.
 Remaining enforcement acceptance must compose retirement/relocation with live
 signing and custody effects. The tests above verify their individual boundaries
 and ordinary signing with deployment fences; they do not establish that full race.
+
+### Live signing versus deployment retirement — 2026-10-07
+
+Both curve contracts now retire the US writer during a real browser prepare
+request entering through WEUR. Retirement happens after the home has resolved
+its active deployment and routed the request, before the production handler
+accesses signing state. The request retains its original database fence.
+
+Each case first verifies one valid signature. During Console outage, the next
+prepare causes the fixture to activate newer writer proofs through the production
+regional admission store. That in-flight request returns HTTP 503. It does not
+retry, finalize, spend budget, or create/change an operation record. The artifact
+contains matching before/after hashes of complete quota and operation rows.
+No credential values or row bodies are published. Both final tests passed in
+1.4 minutes; the bloat check also passed.
+
+[Repeatable retirement evidence](./evidence/r155b-live-deployment-retirement-20261007.json).
+The existing private regional browser runner selects these cases with
+`--grep 'in-flight .* signing'`.
+
+This closes the deployment-retirement race at the regional signing-handler
+boundary for NEAR and ECDSA. It does not establish custody-effect fencing after
+MPC execution starts, wallet-relocation races, or deferred alarm behavior.
+Those broader Phase 2 and Phase 5 items remain open.
+
+An initial ECDSA attempt did not inject retirement because the fixture still
+matched the NEAR endpoint. It was classified as a test-fixture defect, corrected,
+and rerun for both curves. A run started before that correction was applied was
+stopped and is excluded. No production behavior was changed to satisfy this test.
