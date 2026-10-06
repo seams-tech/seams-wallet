@@ -267,6 +267,10 @@ try {
     requestDigestHex: 'cd'.repeat(32),
     sourceGeneration: 1,
   });
+  const destinationPreparation = await verifyDestinationPreparation({
+    source, destination, scope, identity: sessionSource, fixture,
+  });
+  assert.equal((await api.readWalletSessionSigningCandidate(sourceService, signingInput)).kind, 'active');
   await assert.rejects(
     new api.D1WalletAuthorizationFreeze(source, scope).freeze(sessionSource, issuedAtMs + 3),
     /wallet_authorization_freeze_requires_retirement/u,
@@ -494,6 +498,7 @@ try {
     copied,
     authorizationId: issued.session.authorizationId,
     observations: {
+      destinationPreparation,
       relocationChallenges,
       relocationPasskey,
       relocationEmailOtp,
@@ -535,6 +540,51 @@ try {
   console.log(`Authorization transfer passed. Evidence: ${resolve(output, 'evidence.json')}`);
 } finally {
   await worker.dispose();
+}
+
+async function verifyDestinationPreparation({ source, destination, scope, identity, fixture }) {
+  const directory = new PlacementDirectoryRecorder(null);
+  const sourceRoutes = new api.WalletAuthorizationRelocationRoutes({ database: source, scope, directory });
+  const destinationRoutes = new api.WalletAuthorizationRelocationRoutes({ database: destination, scope, directory });
+  const base = 'https://wallet-relocation.internal/internal/wallet-relocation/v1/authorization';
+  const schemaResponse = await sourceRoutes.handle(new Request(`${base}/schema`, {
+    method: 'POST', body: '{}',
+  }));
+  assert.equal(schemaResponse.status, 200);
+  const schema = await schemaResponse.json();
+  assert.equal(schema.kind, 'authorization_schema');
+  const mismatch = await destinationRoutes.handle(new Request(`${base}/reserve`, {
+    method: 'POST', body: JSON.stringify({ source: identity, schemaDigestHex: '0'.repeat(64) }),
+  }));
+  assert.equal(mismatch.status, 409);
+  const before = await destination.prepare('SELECT COUNT(*) AS count FROM wallet_relocation_authorization_imports').first();
+  assert.equal(before.count, 0);
+  const request = new Request(`${base}/reserve`, {
+    method: 'POST', body: JSON.stringify({ source: identity, schemaDigestHex: schema.schemaDigestHex }),
+  });
+  const reserved = await destinationRoutes.handle(request.clone());
+  assert.equal(reserved.status, 200);
+  const receipt = await reserved.json();
+  assert.deepEqual(receipt, { kind: 'authorization_reserved', source: JSON.parse(JSON.stringify(identity)), schemaDigestHex: schema.schemaDigestHex });
+  assert.deepEqual(await (await destinationRoutes.handle(request.clone())).json(), receipt);
+  await assert.rejects(destination.batch([
+    api.prepareD1WalletAuthorityPutStatement({ database: destination, scope, authority: fixture.authority }),
+  ]));
+  const changed = await destinationRoutes.handle(new Request(`${base}/reserve`, {
+    method: 'POST', body: JSON.stringify({
+      source: { ...identity, moveId: `wmove_${'z'.repeat(43)}` }, schemaDigestHex: schema.schemaDigestHex,
+    }),
+  }));
+  assert.equal(changed.status, 503);
+  assert.equal(directory.requests.length, 0);
+  return {
+    schemaMismatchLeavesDestinationUnreserved: true,
+    reservationBeforeSourceRetirement: true,
+    exactReservationReplay: true,
+    ordinaryDestinationAuthorityWriteRejected: true,
+    changedMoveRejected: true,
+    noAdmittedJournalRequired: true,
+  };
 }
 
 function service(database, walletScope) {

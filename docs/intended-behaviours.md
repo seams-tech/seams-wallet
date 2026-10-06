@@ -1888,3 +1888,17 @@ capture, exact export, a record larger than one segment, and an integer beyond
 JavaScript's exact range. The transfer scenario consumes exported snapshot records.
 All nine authorization tables use production restore. This component contract
 does not establish a complete wallet move or signing after relocation.
+
+
+### Reserve the authorization destination before source pause
+
+Gateway preparation compares the source and destination authorization schema digests.
+A schema mismatch leaves the destination unreserved. A matching destination reserves
+its empty authorization store for the exact wallet, move, request digest, and source
+generation. Exact retries return the same reservation. Conflicting moves fail.
+The reservation blocks ordinary destination authority writes and requires no frozen
+source snapshot. The source remains usable until admission pauses it.
+
+`tests/e2e/authorization-storage-transfer.e2e.mjs` verifies these boundaries and then
+imports the source history into the reserved destination. This component evidence
+does not establish preparation or activation of every wallet participant.

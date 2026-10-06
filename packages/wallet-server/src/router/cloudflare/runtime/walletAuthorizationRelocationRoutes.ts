@@ -1,3 +1,5 @@
+import { D1WalletAuthorizationHistory } from '../d1/wallet/d1WalletAuthorizationHistory';
+import { AuthorizationSnapshotLayout } from '../d1/wallet/authorizationSnapshotLayout';
 import { D1WalletRelocationApprovals } from '../d1/wallet/d1WalletRelocationApprovals';
 import { D1WalletCeremonyActivity } from '../d1/ed25519Yao/d1WalletCeremonyActivity';
 import { D1WalletAuthorizationIntake } from '../d1/wallet/d1WalletAuthorizationIntake';
@@ -38,6 +40,18 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
   readonly kind = 'fetch_route_extension';
   readonly id = 'wallet_authorization_relocation';
   readonly routes: RouterApiRouteExtension['routes'] = [
+    {
+      id: 'wallet_authorization_schema', surface: 'relay', method: 'POST',
+      path: `${BASE_PATH}/schema`,
+      auth: { plane: 'public', rationale: 'The private Console binding checks source schema before relocation preparation.' },
+      metering: { kind: 'none' }, summary: 'Read authorization transfer schema identity',
+    },
+    {
+      id: 'wallet_authorization_reserve', surface: 'relay', method: 'POST',
+      path: `${BASE_PATH}/reserve`,
+      auth: { plane: 'public', rationale: 'The private Console binding prepares an empty destination before source pause.' },
+      metering: { kind: 'none' }, summary: 'Reserve inactive authorization destination',
+    },
     {
       id: 'wallet_relocation_owner_approval', surface: 'relay', method: 'POST',
       path: `${BASE_PATH}/owner-approval`,
@@ -179,6 +193,33 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
     );
   }
 
+  private async prepareDestination(body: Record<string, unknown>, reserve: boolean): Promise<Response> {
+    let source: WalletRelocationSessionSource | null = null;
+    try {
+      if (reserve) {
+        if (Object.keys(body).length !== 2 || typeof body.schemaDigestHex !== 'string' ||
+          !/^[a-f0-9]{64}$/u.test(body.schemaDigestHex)) return failure('invalid_input', 400);
+        source = WalletRelocationSessionSource.parse(body.source);
+      } else if (Object.keys(body).length !== 0) return failure('invalid_input', 400);
+    } catch {
+      return failure('invalid_input', 400);
+    }
+    try {
+      const layout = await AuthorizationSnapshotLayout.read(this.options.database);
+      const schemaDigestHex = await sha256HexUtf8(JSON.stringify(layout));
+      if (source) {
+        if (schemaDigestHex !== body.schemaDigestHex) return failure('authorization_schema_conflict', 409);
+        await new D1WalletAuthorizationHistory(this.options.database, this.options.scope).prepare(source);
+        return Response.json({ kind: 'authorization_reserved', source, schemaDigestHex },
+          { headers: { 'Cache-Control': 'no-store' } });
+      }
+      return Response.json({ kind: 'authorization_schema', schemaDigestHex },
+        { headers: { 'Cache-Control': 'no-store' } });
+    } catch {
+      return failure('authorization_preparation_unavailable', 503);
+    }
+  }
+
   handleFetchRoute(input: RouterApiFetchRouteExtensionInput): Promise<Response> {
     return this.handle(input.request);
   }
@@ -198,6 +239,8 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
       return failure('invalid_input', 400);
     }
     if (!isPlainObject(body)) return failure('invalid_input', 400);
+    if (url.pathname === `${BASE_PATH}/schema`) return this.prepareDestination(body, false);
+    if (url.pathname === `${BASE_PATH}/reserve`) return this.prepareDestination(body, true);
     if (url.pathname === `${BASE_PATH}/owner-approval`) return this.ownerApproval(body);
     let requested: AuthorizationOperation;
     try {
