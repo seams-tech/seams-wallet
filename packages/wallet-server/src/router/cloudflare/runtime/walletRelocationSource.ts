@@ -10,7 +10,8 @@ export type RuntimeSourceOperation =
   | 'router-status'
   | 'router-verify'
   | 'router-import'
-  | 'router-activate';
+  | 'router-activate'
+  | 'router-cleanup';
 export type RuntimeSourceDirectory = {
   readonly WALLET_CONSOLE: WalletConsoleServiceBinding;
   readonly CF_VERSION_METADATA: { readonly id: unknown };
@@ -49,7 +50,7 @@ export async function authorizeRuntimeSource(
     operation === 'router-verify' ||
     operation === 'router-import' ||
     operation === 'router-activate';
-  const transfer = destination || operation === 'router-export';
+  const transfer = destination || operation === 'router-export' || operation === 'router-cleanup';
   let endpoint = 'relocation-runtime-source';
   let commandBody = JSON.stringify({ wallet: input.wallet, attempt: input.attempt, operation });
   if (operation === 'router-export') {
@@ -60,6 +61,9 @@ export async function authorizeRuntimeSource(
       recordIndex: input.recordIndex,
       segmentIndex: input.segmentIndex,
     });
+  } else if (operation === 'router-cleanup') {
+    endpoint = 'relocation-router-cleanup';
+    commandBody = JSON.stringify({ wallet: input.wallet, attempt: input.attempt });
   } else if (destination) {
     endpoint = 'relocation-router-destination';
     let destinationOperation = 'verify';
@@ -106,15 +110,29 @@ export async function authorizeRuntimeSource(
   if (operation === 'router-freeze' || transfer) {
     let request = payload;
     if (transfer) {
+      let receipt = payload.receipt;
+      if (operation === 'router-cleanup') {
+        if (
+          Object.keys(payload).length !== 2 ||
+          payload.kind !== 'cleanup' ||
+          !isPlainObject(payload.activation) ||
+          Object.keys(payload.activation).length !== 2 ||
+          typeof payload.activation.destination_object !== 'string' ||
+          payload.activation.destination_object.length === 0 ||
+          payload.activation.destination_object.length > 512
+        )
+          return { ok: false, code: 'source_command_unavailable' };
+        receipt = payload.activation.source;
+      }
       if (
-        !isPlainObject(payload.receipt) ||
-        Object.keys(payload.receipt).length !== 3 ||
-        !isPlainObject(payload.receipt.request) ||
-        typeof payload.receipt.records_digest_hex !== 'string' ||
-        !/^[a-f0-9]{64}$/u.test(payload.receipt.records_digest_hex) ||
-        typeof payload.receipt.record_count !== 'number' ||
-        !Number.isSafeInteger(payload.receipt.record_count) ||
-        payload.receipt.record_count < 0
+        !isPlainObject(receipt) ||
+        Object.keys(receipt).length !== 3 ||
+        !isPlainObject(receipt.request) ||
+        typeof receipt.records_digest_hex !== 'string' ||
+        !/^[a-f0-9]{64}$/u.test(receipt.records_digest_hex) ||
+        typeof receipt.record_count !== 'number' ||
+        !Number.isSafeInteger(receipt.record_count) ||
+        receipt.record_count < 0
       )
         return { ok: false, code: 'source_command_unavailable' };
       if (operation === 'router-export') {
@@ -127,7 +145,7 @@ export async function authorizeRuntimeSource(
           typeof input.recordIndex !== 'number' ||
           !Number.isSafeInteger(input.recordIndex) ||
           input.recordIndex < 0 ||
-          input.recordIndex >= payload.receipt.record_count ||
+          input.recordIndex >= receipt.record_count ||
           typeof input.segmentIndex !== 'number' ||
           !Number.isSafeInteger(input.segmentIndex) ||
           input.segmentIndex < 0 ||
@@ -142,12 +160,13 @@ export async function authorizeRuntimeSource(
         )
           return { ok: false, code: 'source_command_unavailable' };
       } else if (
-        Object.keys(payload).length !== 2 ||
-        payload.kind !== (operation === 'router-activate' ? 'activate' : 'verify')
+        operation !== 'router-cleanup' &&
+        (Object.keys(payload).length !== 2 ||
+          payload.kind !== (operation === 'router-activate' ? 'activate' : 'verify'))
       ) {
         return { ok: false, code: 'source_command_unavailable' };
       }
-      request = payload.receipt.request;
+      request = receipt.request;
     }
     if (
       Object.keys(request).length !== 5 ||

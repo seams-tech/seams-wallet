@@ -40,7 +40,8 @@ class SourceDirectory {
         request.url.endsWith('/relocation-router-receipt') ||
         request.url.endsWith('/relocation-router-export') ||
         request.url.endsWith('/relocation-router-destination') ||
-        request.url.endsWith('/relocation-router-activation'),
+        request.url.endsWith('/relocation-router-activation') ||
+        request.url.endsWith('/relocation-router-cleanup'),
     );
     assert.equal(request.headers.get('x-seams-writer-role'), 'walletRuntime');
     assert.equal(
@@ -50,6 +51,13 @@ class SourceDirectory {
     const input = await request.json();
     if (this.mode === 'denied' || input.attempt.moveId !== this.source.request.move_id)
       return Response.json({ ok: false, code: 'attempt_conflict' }, { status: 409 });
+    if (request.url.endsWith('/relocation-router-cleanup')) {
+      assert.ok(this.activationReceipt);
+      return Response.json({
+        ok: true,
+        command: { kind: 'cleanup', activation: this.activationReceipt },
+      });
+    }
     if (request.url.endsWith('/relocation-router-activation')) {
       assert.deepEqual(input.receipt.source, this.receipt);
       if (this.activationReceipt !== null) assert.deepEqual(input.receipt, this.activationReceipt);
@@ -468,6 +476,17 @@ export async function verifyRuntimeRouterExport(runtime, activation, topology) {
   assert.deepEqual(activated.activation.source, frozen.receipt);
   assert.equal(typeof activated.activation.destination_object, 'string');
   assert.deepEqual(await runtimeRouterCommand(destination, 'router-activate', envelope), activated);
+  runtime.env.WALLET_CONSOLE.activationReceipt = destination.env.WALLET_CONSOLE.activationReceipt;
+  let cleanup;
+  for (let step = 0; step < 64; step += 1) {
+    cleanup = await runtimeRouterCommand(runtime, 'router-cleanup', envelope);
+    if (cleanup.kind === 'cleaned') break;
+    assert.equal(cleanup.kind, 'cleaning');
+  }
+  assert.equal(cleanup.kind, 'cleaned');
+  assert.deepEqual(cleanup.activation, activated.activation);
+  assert.deepEqual(await runtimeRouterCommand(runtime, 'router-cleanup', envelope), cleanup);
+  assert.deepEqual(await runtimeRouterCommand(destination, 'router-activate', envelope), activated);
 
   return {
     recordCount: records.length,
@@ -477,6 +496,7 @@ export async function verifyRuntimeRouterExport(runtime, activation, topology) {
     destinationVerifiedThroughRuntime: true,
     destinationActivatedThroughRuntime: true,
     activationReceiptLostReplyRecovered: true,
+    sourceCleanupPreservesDestinationActivation: true,
     sourceDigestHex: frozen.receipt.records_digest_hex,
   };
 }

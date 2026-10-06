@@ -1664,7 +1664,10 @@ Console. Runtime also requests Router activation from Console only after
 the ownership switch. Runtime persists the activation receipt before reporting
 success and retries its submission after a lost acknowledgement. Console binds
 the stored receipt to the prepared Router object. The Worker scenario verifies
-activation, exact replay, and lost-acknowledgement recovery. Destination preparation
+activation, exact replay, and lost-acknowledgement recovery. Console authorizes
+Router cleanup only after aggregate activation, using the stored Router activation
+receipt. Runtime rejects raw cleanup and the Worker scenario verifies source
+cleanup while destination activation remains replayable. Destination preparation
 authorization and full participant receipt aggregation remain unfinished.
 Console remains a response fixture in that scenario; its journal has separate
 D1 E2E coverage. The Worker E2E uses a directory response fixture and proves that denied

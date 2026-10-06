@@ -14,6 +14,7 @@ const BASE_PATH = '/internal/wallet-runtime/v1/relocation';
 // parses each role's command and the participant enforces its durable move state.
 const OPERATIONS = {
   'router-freeze': '/router-ab/router/wallet/freeze',
+  'router-cleanup': '/router-ab/router/wallet/transfer',
   'router-activate': '/router-ab/router/wallet/transfer',
   'router-import': '/router-ab/router/wallet/transfer',
   'router-status': '/router-ab/router/wallet/transfer',
@@ -65,6 +66,7 @@ export async function handleWalletRelocationRequest(
   }
   let body: BodyInit = bytes;
   if (
+    operation === 'router-cleanup' ||
     operation === 'router-activate' ||
     operation === 'router-import' ||
     operation === 'router-status' ||
@@ -90,7 +92,8 @@ export async function handleWalletRelocationRequest(
       input.kind === 'status' ||
       input.kind === 'verify' ||
       input.kind === 'import' ||
-      input.kind === 'activate')
+      input.kind === 'activate' ||
+      input.kind === 'cleanup')
   ) {
     return failure('source_command_required', 400);
   } else if (
