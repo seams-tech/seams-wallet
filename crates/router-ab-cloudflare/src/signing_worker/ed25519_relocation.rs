@@ -42,6 +42,17 @@ impl SigningWorkerEd25519FenceCommandV1 {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
+pub(crate) enum Ed25519RelocationFence {
+    Prepared {
+        request: SigningWorkerRelocationIdentityV1,
+    },
+    Source {
+        request: SigningWorkerRelocationRequestV1,
+    },
+}
+
 #[derive(Deserialize)]
 struct FenceRow {
     request_json: String,
@@ -56,8 +67,10 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerEd25519ExecutionStoreV1<'_, Sql
     ) -> RouterAbProtocolResult<SigningWorkerEd25519FenceCommandV1> {
         command.validate()?;
         self.require_generation(&command.scope, command.request.source_generation)?;
-        let encoded = serde_json::to_string(&command.request)
-            .map_err(|error| execution_error(&error.to_string()))?;
+        let encoded = serde_json::to_string(&Ed25519RelocationFence::Source {
+            request: command.request.clone(),
+        })
+        .map_err(|error| execution_error(&error.to_string()))?;
         self.sql.query::<serde::de::IgnoredAny>(
             "INSERT INTO wallet_ed25519_relocation (owner_json, request_json)
              VALUES (?, ?) ON CONFLICT(owner_json) DO NOTHING",
@@ -66,7 +79,11 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerEd25519ExecutionStoreV1<'_, Sql
                 SigningWorkerWalletSqlValueV1::Text(encoded),
             ],
         )?;
-        if self.read_fence(&command.scope)?.as_ref() != Some(&command.request) {
+        if self.read_fence(&command.scope)?
+            != Some(Ed25519RelocationFence::Source {
+                request: command.request.clone(),
+            })
+        {
             return Err(execution_error("Ed25519 relocation inputs changed"));
         }
         Ok(command)
@@ -107,7 +124,10 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerEd25519ExecutionStoreV1<'_, Sql
     ) -> RouterAbProtocolResult<()> {
         command.validate()?;
         self.require_generation(&command.scope, command.request.source_generation)?;
-        if self.read_fence(&command.scope)?.as_ref() != Some(&command.request)
+        if self.read_fence(&command.scope)?
+            != Some(Ed25519RelocationFence::Source {
+                request: command.request.clone(),
+            })
             || self.read_settlement(&command.scope)?.as_ref() != Some(&command.request)
         {
             return Err(execution_error(
@@ -154,12 +174,24 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerEd25519ExecutionStoreV1<'_, Sql
     fn read_fence(
         &self,
         scope: &CloudflareSigningWorkerWalletScopeV1,
-    ) -> RouterAbProtocolResult<Option<SigningWorkerRelocationRequestV1>> {
+    ) -> RouterAbProtocolResult<Option<Ed25519RelocationFence>> {
         let rows = self.sql.query::<FenceRow>(
             "SELECT request_json FROM wallet_ed25519_relocation WHERE owner_json = ?",
             vec![SigningWorkerWalletSqlValueV1::Text(execution_owner(scope)?)],
         )?;
-        decode_relocation_request(&rows)
+        match rows.as_slice() {
+            [] => Ok(None),
+            [row] => {
+                let fence: Ed25519RelocationFence = serde_json::from_str(&row.request_json)
+                    .map_err(|error| execution_error(&error.to_string()))?;
+                match &fence {
+                    Ed25519RelocationFence::Prepared { request } => request.validate()?,
+                    Ed25519RelocationFence::Source { request } => request.validate()?,
+                }
+                Ok(Some(fence))
+            }
+            _ => Err(execution_error("Ed25519 relocation state is duplicated")),
+        }
     }
 }
 

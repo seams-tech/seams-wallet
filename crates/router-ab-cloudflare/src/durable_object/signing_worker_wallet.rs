@@ -261,7 +261,7 @@ impl SigningWorkerWalletDoRequestV1 {
         match self {
             Self::DeliverPackages(request) => &request.scope,
             Self::FenceEd25519(command) | Self::SettleEd25519(command) => &command.scope,
-            Self::Ed25519Snapshot { request } => &request.source().scope,
+            Self::Ed25519Snapshot { request } => request.scope(),
             Self::PromoteRecovery(request) => &request.scope,
             Self::LookupRegistration(request) => &request.scope,
             Self::ReserveLinkedEd25519(request) => &request.scope,
@@ -315,7 +315,7 @@ impl SigningWorkerWalletDoRequestV1 {
             }
             Self::DeliverPackages(request) => request.validate(),
             Self::FenceEd25519(command) | Self::SettleEd25519(command) => command.validate(),
-            Self::Ed25519Snapshot { request } => request.source().validate(),
+            Self::Ed25519Snapshot { request } => request.validate(),
             Self::PromoteRecovery(request) => request.validate(),
             Self::LookupRegistration(request) => request.validate(),
             Self::ReserveLinkedEd25519(request) => request.validate(),

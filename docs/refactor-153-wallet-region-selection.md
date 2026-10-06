@@ -458,19 +458,14 @@ finalization and confirms that activation returns the same object identity.
 Console admission evidence uses a synthetic Runtime response; production admission
 and the remaining participant adapters are still incomplete.
 
-The next prerequisite is to separate preparation identity from source invalidation
-time. `SigningWorkerEd25519SnapshotCommandV1::Prepare` currently requires a full
-`SigningWorkerEd25519FenceCommandV1`. Its request includes `invalidated_at_ms`.
-The prepared import state compares that full command with the incoming receipt.
-Console sets this timestamp from `move.admittedAtMs`, after preparation completes.
-Thus, the current transport cannot prepare with the final command before admission.
-The Worker fixture supplies the timestamp in advance and does not prove this
-production ordering. Preparation must bind wallet, move, and generations without a
-future invalidation timestamp. The first accepted source receipt must then pin the
-actual timestamp and immutable snapshot. Later imports must match the full receipt.
-Keep the destination closed throughout preparation and import. Apply the same
-identity review to ECDSA and linked-presign preparation before wiring their adapters.
-Do not invent an early invalidation timestamp or pause the source to obtain one.
+Ed25519 preparation now binds the wallet, move ID, and source generation without
+an invalidation timestamp. The destination stores an explicit preparation fence
+and rejects ordinary new Ed25519 work. Its first imported source receipt pins the
+actual invalidation time and immutable snapshot. Subsequent segments require that
+full receipt. Source fencing and settlement retain their exact timestamp checks.
+The private preparation wire shape and destination fence representation change
+together; they provide no legacy command path. ECDSA and linked-presign preparation
+still need the same identity review before their adapters can be connected.
 
 The Router registration store now has a transactional source fence on both native
 SQLite and the wallet Durable Object. Its private freeze route requires the

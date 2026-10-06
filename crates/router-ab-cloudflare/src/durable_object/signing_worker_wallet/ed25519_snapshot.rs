@@ -1,6 +1,6 @@
 use super::*;
 use crate::{
-    SigningWorkerEd25519FenceCommandV1, SigningWorkerEd25519SnapshotCommandV1,
+    SigningWorkerEd25519PreparationV1, SigningWorkerEd25519FenceCommandV1, SigningWorkerEd25519SnapshotCommandV1,
     SigningWorkerEd25519SnapshotReceiptV1, SigningWorkerEd25519SnapshotResponseV1,
     SigningWorkerEd25519SnapshotSegmentV1,
 };
@@ -95,15 +95,15 @@ impl RouterAbSigningWorkerWalletDurableObject {
         &self,
         command: SigningWorkerEd25519SnapshotCommandV1,
     ) -> Result<Response, RouterAbProtocolError> {
-        command.source().validate()?;
-        if matches!(
-            &command,
-            SigningWorkerEd25519SnapshotCommandV1::Capture { .. }
-                | SigningWorkerEd25519SnapshotCommandV1::Export { .. }
-        ) {
+        command.validate()?;
+        let source = match &command {
+            SigningWorkerEd25519SnapshotCommandV1::Capture { source } => Some(source),
+            SigningWorkerEd25519SnapshotCommandV1::Export { receipt, .. } => Some(&receipt.source),
+            _ => None,
+        };
+        if let Some(source) = source {
             let sql = DurableObjectWalletSqlV1(&self.sql);
-            crate::SigningWorkerEd25519ExecutionStoreV1::new(&sql)
-                .require_settlement(command.source())?;
+            crate::SigningWorkerEd25519ExecutionStoreV1::new(&sql).require_settlement(source)?;
         }
         let response = match command {
             SigningWorkerEd25519SnapshotCommandV1::Cleanup { activation } => {

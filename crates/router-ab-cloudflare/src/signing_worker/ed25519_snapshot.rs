@@ -5,6 +5,27 @@ pub const SIGNING_WORKER_ED25519_SNAPSHOT_PATH_V1: &str =
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct SigningWorkerEd25519PreparationV1 {
+    pub scope: CloudflareSigningWorkerWalletScopeV1,
+    pub request: SigningWorkerRelocationIdentityV1,
+}
+
+impl SigningWorkerEd25519PreparationV1 {
+    pub(crate) fn validate(&self) -> RouterAbProtocolResult<()> {
+        self.scope.validate()?;
+        self.request.validate()
+    }
+
+    pub(crate) fn from_source(source: &SigningWorkerEd25519FenceCommandV1) -> Self {
+        Self {
+            scope: source.scope.clone(),
+            request: source.request.identity(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SigningWorkerEd25519SnapshotReceiptV1 {
     pub source: SigningWorkerEd25519FenceCommandV1,
     pub record_count: u32,
@@ -26,7 +47,7 @@ pub struct SigningWorkerEd25519SnapshotSegmentV1 {
 #[serde(tag = "command", rename_all = "snake_case", deny_unknown_fields)]
 pub enum SigningWorkerEd25519SnapshotCommandV1 {
     Prepare {
-        source: SigningWorkerEd25519FenceCommandV1,
+        source: SigningWorkerEd25519PreparationV1,
     },
     Import {
         receipt: SigningWorkerEd25519SnapshotReceiptV1,
@@ -54,15 +75,29 @@ pub enum SigningWorkerEd25519SnapshotCommandV1 {
 }
 
 impl SigningWorkerEd25519SnapshotCommandV1 {
-    pub(crate) fn source(&self) -> &SigningWorkerEd25519FenceCommandV1 {
+    pub(crate) fn scope(&self) -> &CloudflareSigningWorkerWalletScopeV1 {
         match self {
-            Self::Cleanup { activation } => &activation.source,
-            Self::Capture { source } | Self::Prepare { source } => source,
+            Self::Prepare { source } => &source.scope,
+            Self::Capture { source } => &source.scope,
+            Self::Cleanup { activation } => &activation.source.scope,
             Self::Export { receipt, .. }
             | Self::Import { receipt, .. }
             | Self::Status { receipt }
             | Self::Verify { receipt }
-            | Self::Activate { receipt } => &receipt.source,
+            | Self::Activate { receipt } => &receipt.source.scope,
+        }
+    }
+
+    pub(crate) fn validate(&self) -> RouterAbProtocolResult<()> {
+        match self {
+            Self::Prepare { source } => source.validate(),
+            Self::Capture { source } => source.validate(),
+            Self::Cleanup { activation } => activation.source.validate(),
+            Self::Export { receipt, .. }
+            | Self::Import { receipt, .. }
+            | Self::Status { receipt }
+            | Self::Verify { receipt }
+            | Self::Activate { receipt } => receipt.source.validate(),
         }
     }
 }
@@ -71,7 +106,7 @@ impl SigningWorkerEd25519SnapshotCommandV1 {
 #[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
 pub enum SigningWorkerEd25519SnapshotResponseV1 {
     Prepared {
-        source: SigningWorkerEd25519FenceCommandV1,
+        source: SigningWorkerEd25519PreparationV1,
     },
     Imported {
         segment_index: u32,

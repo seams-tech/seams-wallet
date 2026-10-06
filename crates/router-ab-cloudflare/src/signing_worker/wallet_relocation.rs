@@ -8,7 +8,14 @@ pub struct SigningWorkerRelocationRequestV1 {
     pub invalidated_at_ms: u64,
 }
 
-impl SigningWorkerRelocationRequestV1 {
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SigningWorkerRelocationIdentityV1 {
+    pub move_id: String,
+    pub source_generation: u64,
+}
+
+impl SigningWorkerRelocationIdentityV1 {
     pub(crate) fn validate(&self) -> RouterAbProtocolResult<()> {
         if self.move_id.len() != 49
             || !self.move_id.starts_with("wmove_")
@@ -23,6 +30,20 @@ impl SigningWorkerRelocationRequestV1 {
                 "SigningWorker relocation identity is invalid",
             ));
         }
+        Ok(())
+    }
+}
+
+impl SigningWorkerRelocationRequestV1 {
+    pub(crate) fn identity(&self) -> SigningWorkerRelocationIdentityV1 {
+        SigningWorkerRelocationIdentityV1 {
+            move_id: self.move_id.clone(),
+            source_generation: self.source_generation,
+        }
+    }
+
+    pub(crate) fn validate(&self) -> RouterAbProtocolResult<()> {
+        self.identity().validate()?;
         crate::require_positive_ms("SigningWorker relocation time", self.invalidated_at_ms)
     }
 }

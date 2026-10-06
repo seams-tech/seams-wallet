@@ -4,7 +4,7 @@ use super::*;
 #[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
 pub(super) enum ImportState {
     Prepared {
-        source: SigningWorkerEd25519FenceCommandV1,
+        source: SigningWorkerEd25519PreparationV1,
     },
     Receiving {
         receipt: SigningWorkerEd25519SnapshotReceiptV1,
@@ -26,14 +26,14 @@ pub(super) enum ImportState {
 }
 
 impl ImportState {
-    pub(super) fn source(&self) -> &SigningWorkerEd25519FenceCommandV1 {
+    pub(super) fn preparation(&self) -> SigningWorkerEd25519PreparationV1 {
         match self {
-            Self::Prepared { source } => source,
+            Self::Prepared { source } => source.clone(),
             Self::Receiving { receipt, .. }
             | Self::Received { receipt }
             | Self::Restoring { receipt, .. }
             | Self::Verified { receipt }
-            | Self::Activated { receipt } => &receipt.source,
+            | Self::Activated { receipt } => SigningWorkerEd25519PreparationV1::from_source(&receipt.source),
         }
     }
     pub(super) fn require_receipt(
@@ -41,7 +41,7 @@ impl ImportState {
         expected: &SigningWorkerEd25519SnapshotReceiptV1,
     ) -> Result<(), RouterAbProtocolError> {
         let matches = match self {
-            Self::Prepared { source } => *source == expected.source,
+            Self::Prepared { source } => *source == SigningWorkerEd25519PreparationV1::from_source(&expected.source),
             Self::Receiving { receipt, .. }
             | Self::Received { receipt }
             | Self::Restoring { receipt, .. }
@@ -172,7 +172,7 @@ impl RouterAbSigningWorkerWalletDurableObject {
             ON CONFLICT(owner_json) DO UPDATE SET state_json = excluded.state_json",
                 vec![
                     SqlStorageValue::String(
-                        serde_json::to_string(&state.source().scope)
+                        serde_json::to_string(&state.preparation().scope)
                             .map_err(snapshot_encoding_error)?,
                     ),
                     SqlStorageValue::String(
@@ -208,10 +208,10 @@ impl RouterAbSigningWorkerWalletDurableObject {
 
     pub(super) fn prepare_ed25519_import(
         &self,
-        source: SigningWorkerEd25519FenceCommandV1,
+        source: SigningWorkerEd25519PreparationV1,
     ) -> Result<SigningWorkerEd25519SnapshotResponseV1, RouterAbProtocolError> {
         if let Some(state) = self.read_ed25519_import(&source.scope)? {
-            if *state.source() != source {
+            if state.preparation() != source {
                 return Err(wallet_error("Ed25519 destination preparation changed"));
             }
             return Ok(SigningWorkerEd25519SnapshotResponseV1::Prepared { source });
@@ -234,7 +234,9 @@ impl RouterAbSigningWorkerWalletDurableObject {
                         serde_json::to_string(&source.scope).map_err(snapshot_encoding_error)?,
                     ),
                     SqlStorageValue::String(
-                        serde_json::to_string(&source.request).map_err(snapshot_encoding_error)?,
+                        serde_json::to_string(&crate::Ed25519RelocationFence::Prepared {
+                            request: source.request.clone(),
+                        }).map_err(snapshot_encoding_error)?,
                     ),
                 ],
             )
@@ -247,7 +249,7 @@ impl RouterAbSigningWorkerWalletDurableObject {
 
     fn prepare_cleaned_ed25519_destination(
         &self,
-        source: &SigningWorkerEd25519FenceCommandV1,
+        source: &SigningWorkerEd25519PreparationV1,
     ) -> Result<(), RouterAbProtocolError> {
         let owner = serde_json::to_string(&source.scope).map_err(snapshot_encoding_error)?;
         let Some(SnapshotState::Cleaned { receipt }) = self.read_ed25519_snapshot(&owner)? else {
@@ -457,7 +459,9 @@ impl RouterAbSigningWorkerWalletDurableObject {
         self.sql.exec("INSERT INTO wallet_ed25519_execution (owner_json, ownership_generation) VALUES (?, ?)",
             vec![SqlStorageValue::String(owner.clone()), SqlStorageValue::Integer(i64::try_from(generation).map_err(|_| wallet_error("Ed25519 generation overflowed"))?)]).map_err(sql_error)?;
         let removed = self.sql.exec("DELETE FROM wallet_ed25519_relocation WHERE owner_json = ? AND request_json = ? RETURNING request_json AS state_json",
-            vec![SqlStorageValue::String(owner), SqlStorageValue::String(serde_json::to_string(&receipt.source.request).map_err(snapshot_encoding_error)?)]).map_err(sql_error)?.to_array::<StateRow>().map_err(sql_error)?;
+            vec![SqlStorageValue::String(owner), SqlStorageValue::String(serde_json::to_string(&crate::Ed25519RelocationFence::Prepared {
+                request: receipt.source.request.identity(),
+            }).map_err(snapshot_encoding_error)?)]).map_err(sql_error)?.to_array::<StateRow>().map_err(sql_error)?;
         if removed.len() != 1 {
             return Err(wallet_error("Ed25519 destination fence differs"));
         }

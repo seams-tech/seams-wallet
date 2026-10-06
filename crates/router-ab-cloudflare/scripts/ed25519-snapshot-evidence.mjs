@@ -32,6 +32,16 @@ function digest(value) {
     .digest('hex');
 }
 
+function preparationIdentity(source) {
+  return {
+    scope: source.scope,
+    request: {
+      move_id: source.request.move_id,
+      source_generation: source.request.source_generation,
+    },
+  };
+}
+
 export async function verifyEd25519Snapshot(topology, activation, fixture, credential, sourceCredential, registrationCredential, signDestination) {
   const delivery = JSON.parse(activation.delivery);
   const scope = delivery.scope;
@@ -46,11 +56,12 @@ export async function verifyEd25519Snapshot(topology, activation, fixture, crede
   const worker = await runtimeRelocationSource(topology, sourceCredential, source);
   const destinationName = 'fixture-signing-worker-after-refresh';
   const destination = await topology.getWorker(destinationName);
-  const preparation = { command: 'prepare', source };
+  const preparation = { command: 'prepare', source: preparationIdentity(source) };
   const prepared = await accepted(destination, snapshotPath, preparation, credential);
-  assert.deepEqual(prepared, { state: 'prepared', source });
+  assert.deepEqual(prepared, { state: 'prepared', source: preparation.source });
   await evictTransferredWallet(topology, destinationName, scope);
   assert.deepEqual(await accepted(destination, snapshotPath, preparation, credential), prepared);
+  source.request.invalidated_at_ms = Date.now();
   const capture = { command: 'capture', source };
   const premature = await post(worker, snapshotPath, capture, sourceCredential);
   assert.notEqual(premature.status, 200, await premature.text());
@@ -185,6 +196,14 @@ async function verifyDestinationRestoration({
       state: 'imported', segment_index: segment.segment_index,
       input_digest_hex: digest(segment),
     });
+    if (segment.segment_index === 0) {
+      const changedTime = structuredClone(receipt);
+      changedTime.source.request.invalidated_at_ms += 1;
+      const rejected = await post(destination, snapshotPath, {
+        command: 'import', receipt: changedTime, segment,
+      }, credential);
+      assert.notEqual(rejected.status, 200, await rejected.text());
+    }
     acknowledgements.push(acknowledgement);
     await evictTransferredWallet(topology, destinationName, receipt.source.scope);
     assert.deepEqual(await accepted(destination, snapshotPath, command, credential), acknowledgement);
@@ -222,8 +241,8 @@ async function verifyDestinationRestoration({
   nextSource.request.source_generation += 1;
   const returnDestination = await topology.getWorker(workerName);
   assert.deepEqual(await accepted(returnDestination, snapshotPath, {
-    command: 'prepare', source: nextSource,
-  }, credential), { state: 'prepared', source: nextSource });
+    command: 'prepare', source: preparationIdentity(nextSource),
+  }, credential), { state: 'prepared', source: preparationIdentity(nextSource) });
   assert.deepEqual(await accepted(destination, settlePath, nextSource, credential), {
     state: 'settled', command: nextSource,
   });
@@ -276,6 +295,8 @@ async function verifyDestinationRestoration({
     freshSignatureVerified: true,
     staleGenerationRejected: signing.staleGenerationRejected,
     prepareReplayAfterEviction: signing.prepareReplayAfterEviction,
+    preparationDoesNotRequireFutureInvalidationTime: true,
+    firstReceiptPinsInvalidationTime: true,
     finalizeReplayAfterEviction: signing.finalizeReplayAfterEviction,
     newTerminalIncludedInNextSnapshot: true,
     destinationPreparedBeforeSourceSettlement: true,
