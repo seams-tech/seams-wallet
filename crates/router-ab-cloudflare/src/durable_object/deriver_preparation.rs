@@ -3,12 +3,15 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use worker::{Env, Method, Request, Response, SqlStorage, SqlStorageValue};
 
+pub(crate) mod snapshot;
+
 pub(crate) const SOURCE_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_relocation_source (id INTEGER PRIMARY KEY CHECK (id = 1), request_json TEXT NOT NULL)";
 
 pub(crate) const SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_relocation_preparation (id INTEGER PRIMARY KEY CHECK (id = 1), request_json TEXT NOT NULL)";
 
 pub(crate) trait WalletOwner: Serialize + DeserializeOwned {
     const LABEL: &'static str;
+    const PAIR_SNAPSHOT_JSON: &'static str;
     fn parts(&self) -> [&str; 4];
     fn cipher(env: &Env) -> worker::Result<RolePairCipherV1>;
     fn object_name(&self) -> worker::Result<String>;

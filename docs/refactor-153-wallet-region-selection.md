@@ -486,11 +486,24 @@ Both Derivers now expose a local source fence for settled pair stores. A live
 pair returns pending and can still settle. Once all pairs are terminal, synchronous
 SQL pins the move and guards both pair tables against inserts, updates and deletes.
 Exact fence retries survive object eviction. This local fence does not prove
-that tenant-root obligations settled, and it does not capture or transfer a snapshot.
+that tenant-root obligations settled.
 Runtime now requests each source command from Console. Console checks the running
 freeze attempt, pinned source deployment and prepared cipher-context digest. Runtime
 rejects raw commands and malformed authorization responses. Tenant-root settlement,
 snapshot transfer and the complete coordinator remain unfinished.
+
+Both Derivers now capture their fenced pair rows and admission fences into durable
+4 KiB segments. Each capture command stores at most one segment and persists its
+cursor. SQLite slices encoded record bytes before returning them to WASM. Integer
+columns use decimal strings, and ciphertext remains unchanged. Exact segment
+replays survive an interrupted capture. Export requires a sealed snapshot and the
+exact source move. The receipt binds the role, source command, ordered segments,
+and record count. Destination restore, cipher validation through destination
+readers, tenant-root settlement, and production coordinator wiring remain open.
+The Worker E2E reconstructs both roles' multi-segment pair records and admission
+fences, checks the snapshot digest, and resumes capture and export after eviction.
+It rejects an unfenced source, early export, changed moves, and invalid credentials.
+Evidence remains under `.artifacts/r153/deriver-source-snapshot-20261006/`.
 
 The Router registration store now has a transactional source fence on both native
 SQLite and the wallet Durable Object. Its private freeze route requires the

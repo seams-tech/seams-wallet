@@ -1,3 +1,4 @@
+import { verifyDeriverSnapshot } from './deriver-snapshot-evidence.mjs';
 import { sourceEnvelope } from './runtime-relocation-evidence.mjs';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -206,6 +207,8 @@ export async function verifyDeriverSourceFences(topology, owner, rootIdentity, p
     cipher_context_digest_hex: context.digest_hex, source_generation: 1, destination_generation: 2 };
   const livePath = '/router-ab/internal/deriver-a/wallet/fence-relocation';
   assert.deepEqual(await (await post(liveWorker, livePath, liveCommand, credential)).json(), { kind: 'pending', pending_pairs: 1 });
+  assert.equal((await post(liveWorker, '/router-ab/internal/deriver-a/wallet/snapshot',
+    { operation: 'capture', source: liveCommand }, credential)).status, 409);
   const expired = await post(liveObject, pairPath, { operation: 'expire', owner,
     pair_binding: preparation.request.pair_binding, now_ms: preparation.receipt.expires_at_ms + 1 }, credential);
   assert.equal(expired.status, 200, await expired.clone().text());
@@ -221,6 +224,14 @@ export async function verifyDeriverSourceFences(topology, owner, rootIdentity, p
       owner, move_id: `wmove_${'f'.repeat(43)}`, request_digest_hex: 'ab'.repeat(32),
       cipher_context_digest_hex: context.digest_hex, source_generation: 1, destination_generation: 2,
     };
+    const namespace = await topology.getDurableObjectNamespace(roles[role].binding, workerName);
+    const sourceDigest = createHash('sha256').update(`seams/deriver-${role}/wallet-do/v1`)
+      .update(JSON.stringify(owner)).digest('hex');
+    const sourceObject = namespace.get(namespace.idFromName(`deriver-${role}-wallet-${sourceDigest}`));
+    const history = await post(sourceObject, `/router-ab/internal/deriver-${role}/wallet-pair/reconcile`, {
+      session_hex: '00'.repeat(32), now_ms: Number.MAX_SAFE_INTEGER, fence: true, peer_settled: true,
+    }, credential);
+    assert.equal(history.status, 200, await history.clone().text());
     const path = `/router-ab/internal/deriver-${role}/wallet/fence-relocation`;
     const envelope = sourceEnvelope({
       scope: { org_id: owner.org_id, project_id: owner.project_id,
@@ -250,7 +261,6 @@ export async function verifyDeriverSourceFences(topology, owner, rootIdentity, p
     const receipt = await response.json();
     assert.equal(receipt.kind, 'settled_fence');
     assert.deepEqual(receipt.request, command);
-    const namespace = await topology.getDurableObjectNamespace(roles[role].binding, workerName);
     const id = namespace.idFromName(receipt.source_object);
     await topology.unsafeEvictDurableObject(workerName, roles[role].className, { id: id.toString() });
     assert.deepEqual(await (await runtime.handleWalletRelocationRequest(runtimeRequest(runtimeUrl, envelope), env)).json(), receipt);
@@ -264,9 +274,10 @@ export async function verifyDeriverSourceFences(topology, owner, rootIdentity, p
       } };
     await assert.rejects(post(object, `/router-ab/internal/deriver-${role}/wallet-pair`, mutation, credential),
       new RegExp(`${roles[role].label} source is frozen`, 'u'));
-    receipts.push(receipt);
+    const snapshot = await verifyDeriverSnapshot(topology, source, role, command, receipt.source_object, credential);
+    receipts.push({ fence: receipt, snapshot });
   }
-  return { scope: 'Terminal pair stores only; tenant-root obligations and snapshot transfer are not covered',
+  return { scope: 'Terminal pair stores and sealed source snapshots only; tenant-root obligations and destination restore are not covered',
     receipts, livePairsDeferFence: true, settlementRemainsOpenUntilFence: true,
     runtimeRequiresDirectoryAuthorization: true, deniedOrCorruptCommandsDoNotReachFence: true,
     exactReplayAfterEviction: true, conflictingMoveRejected: true, ordinaryMutationRejected: true };

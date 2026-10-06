@@ -40,6 +40,8 @@ use super::deriver_preparation as preparation;
 
 pub(crate) const CONTEXT_PATH: &str = "/router-ab/internal/deriver-a/wallet/relocation-context";
 
+pub(crate) const SNAPSHOT_PATH: &str = "/router-ab/internal/deriver-a/wallet/snapshot";
+
 pub(crate) const SOURCE_FENCE_PATH: &str = "/router-ab/internal/deriver-a/wallet/fence-relocation";
 
 pub(crate) const PREPARATION_PATH: &str = "/router-ab/internal/deriver-a/wallet/prepare-relocation";
@@ -396,7 +398,16 @@ impl DurableObject for RouterAbDeriverAWalletDurableObject {
         self.sql.exec(FENCE_SCHEMA, None)?;
         self.sql.exec(preparation::SCHEMA, None)?;
         self.sql.exec(preparation::SOURCE_SCHEMA, None)?;
-        if path != PREPARATION_PATH && path != SOURCE_FENCE_PATH && path != PAIR_DO_PATH {
+        if path == SNAPSHOT_PATH {
+            let command: preparation::snapshot::Command<DeriverAWalletOwnerV1> = request.json().await?;
+            command.source().validate()?;
+            if !command.source().context_matches(&self.env)? {
+                return Response::error("Deriver encryption context differs from source", 409);
+            }
+            self.check_owner(&command.source().owner, false)?;
+            return preparation::snapshot::execute(&self.sql, command);
+        }
+        if path != PREPARATION_PATH && path != SOURCE_FENCE_PATH && path != SNAPSHOT_PATH && path != PAIR_DO_PATH {
             preparation::require_open::<DeriverAWalletOwnerV1>(&self.sql)?;
         }
         match path.as_str() {
@@ -1458,6 +1469,7 @@ impl preparation::WalletOwner for DeriverAWalletOwnerV1 {
     }
 
     const LABEL: &'static str = "Deriver A";
+    const PAIR_SNAPSHOT_JSON: &'static str = "json_object('kind', 'pair', 'session_hex', session_hex, 'revision_text', revision_text, 'root_identity_digest_hex', root_identity_digest_hex, 'ciphertext_json', ciphertext_json, 'lifecycle', lifecycle, 'claimed', CAST(claimed AS TEXT))";
 
     fn parts(&self) -> [&str; 4] {
         [&self.org_id, &self.project_id, &self.env_id, &self.wallet_id]
@@ -1478,4 +1490,8 @@ pub(crate) async fn read_relocation_context(request: Request, env: &Env) -> work
 
 pub(crate) async fn call_source_fence(request: Request, env: &Env) -> worker::Result<Response> {
     preparation::call_preparation::<DeriverAWalletOwnerV1>(request, env, PAIR_DO_BINDING, SOURCE_FENCE_PATH).await
+}
+
+pub(crate) async fn call_snapshot(request: Request, env: &Env) -> worker::Result<Response> {
+    preparation::snapshot::forward::<DeriverAWalletOwnerV1>(request, env, PAIR_DO_BINDING, SNAPSHOT_PATH).await
 }
