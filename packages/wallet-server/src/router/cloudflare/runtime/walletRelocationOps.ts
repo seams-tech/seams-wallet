@@ -1,4 +1,8 @@
-import { authorizeRuntimeSource, type RuntimeSourceDirectory } from './walletRelocationSource';
+import {
+  authorizeRuntimeSource,
+  recordRuntimeRouterReceipt,
+  type RuntimeSourceDirectory,
+} from './walletRelocationSource';
 import { isPlainObject } from '@shared/utils/validation';
 import { ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1 } from '../../../core/ThresholdService/routerAb/internalServiceHttp';
 import type { CloudflareServiceBindingFetcher } from './routerAbServiceBindings';
@@ -76,7 +80,7 @@ export async function handleWalletRelocationRequest(
   ) {
     return failure('source_command_required', 400);
   }
-  return env.MPC_ROUTER.fetch(
+  const response = await env.MPC_ROUTER.fetch(
     new Request(`https://mpc-router.router-ab.internal${path}`, {
       method: 'POST',
       redirect: 'manual',
@@ -87,6 +91,8 @@ export async function handleWalletRelocationRequest(
       body,
     }),
   );
+  if (operation === 'router-freeze') return recordRuntimeRouterReceipt(input, response, env);
+  return response;
 }
 
 function failure(code: string, status: number): Response {

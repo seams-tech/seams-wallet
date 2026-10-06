@@ -286,6 +286,7 @@ async function verifyDestinationRestoration({
     sourceCommandsUseAuthenticatedRouterTransport: true,
     sourceCommandsUsePrivateRuntimeTransport: true,
     sourceCommandsRequireDirectoryAuthorization: true,
+      routerReceiptLostAcknowledgementRetries: true,
     deniedOrCorruptAuthorizationDoesNotReachRouter: true,
     exactCiphertextAndIndexesRestored: true,
     ownershipGeneration: nextSource.request.source_generation,

@@ -26,12 +26,17 @@ class MiniflareRouterBinding {
 // response while this scenario exercises the production Runtime and Rust roles.
 class SourceDirectory {
   mode = 'authorized';
+  receiptMode = 'available';
+  receipt = null;
   constructor(source) {
     this.source = source;
   }
 
   async fetch(request) {
-    assert.ok(request.url.endsWith('/relocation-runtime-source'));
+    assert.ok(
+      request.url.endsWith('/relocation-runtime-source') ||
+        request.url.endsWith('/relocation-router-receipt'),
+    );
     assert.equal(request.headers.get('x-seams-writer-role'), 'walletRuntime');
     assert.equal(
       request.headers.get('x-seams-writer-version'),
@@ -40,6 +45,12 @@ class SourceDirectory {
     const input = await request.json();
     if (this.mode === 'denied' || input.attempt.moveId !== this.source.request.move_id)
       return Response.json({ ok: false, code: 'attempt_conflict' }, { status: 409 });
+    if (request.url.endsWith('/relocation-router-receipt')) {
+      if (this.receipt !== null) assert.deepEqual(input.receipt, this.receipt);
+      this.receipt = input.receipt;
+      if (this.receiptMode === 'lost_reply') throw new Error('Recorded receipt reply was lost');
+      return Response.json({ ok: true, receipt: this.receipt });
+    }
     let payload =
       input.operation === 'ed25519-capture'
         ? { command: 'capture', source: this.source }
@@ -221,6 +232,14 @@ export async function runtimeRelocationSource(topology, credential, command) {
   assert.equal(deniedRouter.status, 409);
   assert.equal(routerRuntime.env.MPC_ROUTER.calls, 0);
   routerRuntime.env.WALLET_CONSOLE.mode = 'authorized';
+  routerRuntime.env.WALLET_CONSOLE.receiptMode = 'lost_reply';
+  const lostReceipt = await routerRuntime.handler(
+    new Request(`${runtimeOrigin}${runtimeBase}/router-freeze`, routerInit),
+    routerRuntime.env,
+  );
+  assert.equal(lostReceipt.status, 503);
+  assert.ok(routerRuntime.env.WALLET_CONSOLE.receipt);
+  routerRuntime.env.WALLET_CONSOLE.receiptMode = 'available';
   const frozenRouter = await routerRuntime.handler(
     new Request(`${runtimeOrigin}${runtimeBase}/router-freeze`, routerInit),
     routerRuntime.env,
