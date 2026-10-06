@@ -208,6 +208,7 @@ async function loadPlacementClient(output) {
       resolveDir: process.cwd(),
       loader: 'ts',
       contents: `
+        export { IndexedDBManager } from './packages/wallet/src/core/indexedDB';
         export { createApplicationPlacementCommands, createIframePlacementCommands } from './packages/wallet/src/SeamsWeb/walletIframe/client/placementCommands';
         export { createWalletHostPlacementCommands } from './packages/wallet/src/SeamsWeb/walletIframe/host/createPlacementCommands';
         export { WalletHostOwnerRequestTransportError } from './packages/wallet/src/SeamsWeb/operations/devices/walletHostOwnerAuthority';
@@ -409,8 +410,17 @@ export async function verifyMoveSubmissionClient({
   const prompt = new MoveApprovalPrompt(routeOptions.emailOtp.emailOtpChallenges);
   const client = new LostMoveReplyJourney(api, routes, binding, token, prompt);
   client.TransportError = api.WalletHostOwnerRequestTransportError;
+  const localState = new Map();
+  api.IndexedDBManager.getAppState = readLocalState.bind(null, localState);
+  api.IndexedDBManager.setAppState = writeLocalState.bind(null, localState);
   const intent = moveRequest(binding);
   assert.deepEqual(await client.application.move(intent), { ok: true, status: directory.status });
+  assert.deepEqual(await client.application.getLastMoveRequest(binding.walletId), intent);
+  client.lock();
+  const beforeLocatorRead = client.requests;
+  assert.deepEqual(await client.application.getLastMoveRequest(binding.walletId), intent);
+  assert.equal(client.requests, beforeLocatorRead);
+  client.unlock();
   assert.equal(client.lost, true);
   assert.equal(directory.submissions, 2);
   assert.equal(prompt.calls, 1);
@@ -473,9 +483,11 @@ export async function verifyMoveSubmissionClient({
   assert.equal(retryPrompt.calls, 1);
   assert.equal(retryDirectory.submissions, 2);
   const evidence = {
+    lockedLocatorReadDoesNotContactServer: true,
+    locatorContainsOnlyCanonicalRequestFields: true,
     approvedMoveResumesAfterPreparationFailureWithoutAnotherPrompt: true,
     scope:
-      'Production application, iframe handlers and Gateway with real D1 owner approval and OTP verification. Console admission and the user prompt are simulated.',
+      'Production application, iframe handlers and Gateway with real D1 owner approval and OTP verification. Console admission, local storage and the user prompt are simulated.',
     bundleSha256,
     freshApprovalInsideHost: true,
     lostReplyRetriesIdenticalProofAndIntent: true,
@@ -489,4 +501,13 @@ export async function verifyMoveSubmissionClient({
     JSON.stringify(evidence, null, 2),
   );
   return evidence;
+}
+
+function readLocalState(state, key) {
+  return Promise.resolve(structuredClone(state.get(key)));
+}
+
+function writeLocalState(state, key, value) {
+  state.set(key, structuredClone(value));
+  return Promise.resolve();
 }

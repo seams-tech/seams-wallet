@@ -1,3 +1,4 @@
+import { saveWalletMoveRequest } from './walletMoveLocator';
 import type { Variant } from '@shared/utils/variant';
 import { requireRecord, requireCanonicalString } from '@shared/utils/validation';
 import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
@@ -175,6 +176,8 @@ export async function requestWalletMove(
   if (existing.status === 401 || existing.status === 403)
     return { ok: false, code: 'unauthorized' };
   if (existing.status !== 404) return { ok: false, code: 'transport_unavailable' };
+  await saveWalletMoveRequest(request);
+  assertAuthentication(context);
   const resumed = await submit(context, {
     walletId: request.walletId,
     moveId: request.moveId,

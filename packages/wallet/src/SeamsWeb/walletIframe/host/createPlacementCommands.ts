@@ -1,3 +1,4 @@
+import { readLastWalletMoveRequest } from './walletMoveLocator';
 import { requestWalletMove } from './requestWalletMove';
 import type { BrowserSigningSurface } from '@/SeamsWeb/signingSurface/BrowserSigningSurface';
 import { DeviceLinkingError, DeviceLinkingErrorCode } from '@/core/types/linkDevice';
@@ -22,6 +23,7 @@ type Context = {
 
 export function createWalletHostPlacementCommands(context: Context): WalletPlacementCapability {
   return {
+    getLastMoveRequest: readLastWalletMoveRequest,
     move: requestWalletMove.bind(null, context),
     get: getPlacement.bind(null, context),
     getMove: getMove.bind(null, context),

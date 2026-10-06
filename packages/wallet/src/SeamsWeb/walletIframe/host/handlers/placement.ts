@@ -6,6 +6,7 @@ import { respondOkResult } from './shared';
 
 export function createPlacementWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
   return {
+    PM_GET_LAST_WALLET_MOVE_REQUEST: getLastWalletMoveRequest.bind(null, deps),
     PM_MOVE_WALLET: moveWallet.bind(null, deps),
     PM_GET_WALLET_PLACEMENT: getWalletPlacement.bind(null, deps),
     PM_GET_WALLET_MOVE: getWalletMove.bind(null, deps),
@@ -39,6 +40,19 @@ async function getWalletMove(deps: HandlerDeps, request: Req<'PM_GET_WALLET_MOVE
 async function moveWallet(deps: HandlerDeps, request: Req<'PM_MOVE_WALLET'>): Promise<void> {
   const intent = parseWalletMoveRequest(request.payload);
   const result = await deps.getWalletRuntime().placement.move(intent);
+  if (deps.respondIfCancelled(request.requestId)) return;
+  respondOkResult(deps, request.requestId, result);
+}
+
+async function getLastWalletMoveRequest(
+  deps: HandlerDeps,
+  request: Req<'PM_GET_LAST_WALLET_MOVE_REQUEST'>,
+): Promise<void> {
+  const payload = requireRecord(request.payload, 'Wallet move locator request');
+  const wallet = parseWalletId(payload.walletId);
+  if (!wallet.ok || Object.keys(payload).length !== 1)
+    throw new Error('Wallet move locator identity is invalid');
+  const result = await deps.getWalletRuntime().placement.getLastMoveRequest(wallet.value);
   if (deps.respondIfCancelled(request.requestId)) return;
   respondOkResult(deps, request.requestId, result);
 }

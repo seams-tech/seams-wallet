@@ -1,5 +1,6 @@
 import {
   parseWalletPlacementResult,
+  parseWalletMoveRequest,
   parseWalletMoveStatusResult,
   type WalletMoveId,
   type WalletMoveRequest,
@@ -10,6 +11,10 @@ import type { WalletId } from '@shared/utils/domainIds';
 
 type PlacementPost = (
   request:
+    | {
+        readonly type: 'PM_GET_LAST_WALLET_MOVE_REQUEST';
+        readonly payload: { readonly walletId: WalletId };
+      }
     | { readonly type: 'PM_MOVE_WALLET'; readonly payload: WalletMoveRequest }
     | {
         readonly type: 'PM_GET_WALLET_PLACEMENT';
@@ -23,6 +28,7 @@ type PlacementPost = (
 
 export function createIframePlacementCommands(post: PlacementPost): WalletPlacementCapability {
   return {
+    getLastMoveRequest: readLastMoveFromHost.bind(null, post),
     move: moveFromHost.bind(null, post),
     get: readFromHost.bind(null, post),
     getMove: readMoveFromHost.bind(null, post),
@@ -38,6 +44,7 @@ export function createApplicationPlacementCommands(
   iframe: Pick<WalletIframeCoordinator, 'requireRouter'>,
 ): WalletPlacementCapability {
   return {
+    getLastMoveRequest: readLastMoveFromIframe.bind(null, iframe),
     move: moveFromIframe.bind(null, iframe),
     get: readFromIframe.bind(null, iframe),
     getMove: readMoveFromIframe.bind(null, iframe),
@@ -77,4 +84,20 @@ async function moveFromIframe(
 ) {
   const router = await iframe.requireRouter();
   return router.placement.move(request);
+}
+
+async function readLastMoveFromHost(post: PlacementPost, walletId: WalletId) {
+  const response = await post({ type: 'PM_GET_LAST_WALLET_MOVE_REQUEST', payload: { walletId } });
+  if (response.result === null) return null;
+  const request = parseWalletMoveRequest(response.result);
+  if (request.walletId !== walletId) throw new Error('Wallet move locator identity changed');
+  return request;
+}
+
+async function readLastMoveFromIframe(
+  iframe: Pick<WalletIframeCoordinator, 'requireRouter'>,
+  walletId: WalletId,
+) {
+  const router = await iframe.requireRouter();
+  return router.placement.getLastMoveRequest(walletId);
 }

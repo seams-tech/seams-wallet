@@ -1992,7 +1992,18 @@ The authorization transfer E2E verifies this command through production client
 factories, iframe handlers, Gateway authentication, and D1 OTP approval. It
 simulates the prompt and Console admission. Evidence is in
 `move-submission-client-evidence.json`. Actual move admission, the passkey browser
-prompt, region settings, and progress after local lock remain unfinished.
+prompt, region settings, and the reconnect view remain unfinished.
+
+The wallet host saves the last submitted move request before sending a relocation
+POST. `wallet.placement.getLastMoveRequest(walletId)` reads this local locator,
+including after lock or reload. The record contains only the wallet ID, move ID,
+destination, and expected generation. It contains no credential or approval proof.
+Reading it makes no server request and grants no authority. The caller can use the
+same request to reconnect after authentication becomes available. The locator is
+not authoritative progress and does not show whether admission succeeded.
+The Chromium move-locator journey verifies an uncertain submission, lock, reload,
+exact reconnect, and wallet isolation using real IndexedDB and simulated server
+responses. Local lock continues to prevent authenticated progress reads.
 
 ### Keep owner presign work retired after a return move
 

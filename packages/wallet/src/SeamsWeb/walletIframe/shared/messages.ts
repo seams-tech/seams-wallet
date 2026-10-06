@@ -827,6 +827,7 @@ export type ParentToChildType =
   | 'PM_UNLOCK'
   | 'PM_LOCK'
   | 'PM_LOCK_EXACT_WALLET_SESSION'
+  | 'PM_GET_LAST_WALLET_MOVE_REQUEST'
   | 'PM_MOVE_WALLET'
   | 'PM_GET_WALLET_MOVE'
   | 'PM_GET_WALLET_PLACEMENT'
@@ -1620,6 +1621,7 @@ export type ParentToChildEnvelope =
         readonly expectedGeneration: number;
       }
     >
+  | RpcEnvelope<'PM_GET_LAST_WALLET_MOVE_REQUEST', { readonly walletId: string }>
   | RpcEnvelope<'PM_GET_WALLET_MOVE', { readonly walletId: string; readonly moveId: string }>
   | RpcEnvelope<'PM_GET_WALLET_PLACEMENT', { readonly walletId: string }>
   | RpcEnvelope<'PM_GET_WALLET_SESSION', PMGetWalletSessionPayload>

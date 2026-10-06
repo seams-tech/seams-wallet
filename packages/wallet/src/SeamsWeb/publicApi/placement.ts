@@ -111,6 +111,8 @@ export function parseWalletMoveRequest(raw: unknown): WalletMoveRequest {
 }
 
 export interface WalletPlacementCapability {
+  /** Local locator only. Reading it does not authenticate or contact the server. */
+  getLastMoveRequest(walletId: WalletId): Promise<WalletMoveRequest | null>;
   move(request: WalletMoveRequest): Promise<WalletMoveStatusResult>;
   get(walletId: WalletId): Promise<WalletPlacementResult>;
   getMove(walletId: WalletId, moveId: WalletMoveId): Promise<WalletMoveStatusResult>;
