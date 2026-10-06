@@ -289,7 +289,7 @@ pub fn prepare_signing_worker_wallet_ecdsa_from_pool_v1<Sql: SigningWorkerWallet
         reserved_material
             .signing_worker_rerandomization_contribution32_b64u
             .clone(),
-        now_unix_ms,
+        reserved_material.created_at_ms,
     )?;
     let prepared = CloudflareSigningWorkerRouterAbEcdsaDerivationEvmDigestPreparedV1::new(
         response,

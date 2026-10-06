@@ -1999,6 +1999,16 @@ async function testEcdsaNormalSigning(
       prepareRequest,
     );
     const prepareBytes = await expectOk(prepareResponse, 'live ECDSA normal-signing prepare');
+    if (ecdsa.executionHome.ownershipGeneration > 1) {
+      const walletClass = 'RouterAbSigningWorkerWalletDurableObject';
+      const ids = await topology.listDurableObjectIds(walletClass, ecdsa.executionHome.workerName);
+      assert.equal(ids.length, 1);
+      const [id] = ids;
+      await topology.unsafeEvictDurableObject(ecdsa.executionHome.workerName, walletClass, { id });
+      const replayResponse = await postWorkerJson(router, ecdsaSigningPreparePath, prepareRequest);
+      const replayBytes = await expectOk(replayResponse, 'destination ECDSA prepare retry');
+      assert.deepEqual(replayBytes, prepareBytes, 'Prepare retry must preserve the exact response');
+    }
     const response = JSON.parse(prepareBytes.toString('utf8'));
     const prepared = response;
     assert.equal(prepared.request_id, prepareRequest.request_id);
@@ -2163,6 +2173,7 @@ async function verifyEcdsaWalletRelocation(topology, fixture, ecdsa) {
       freshPresignatureAndSignatureBeforeCleanup: true,
       freshPresignatureAndSignatureAfterCleanup: true,
       staleGenerationRejectedBeforeReservation: true,
+      exactPrepareReplayAfterEviction: true,
       beforeCleanupSignatureSha256Hex: createHash('sha256')
         .update(Buffer.from(beforeCleanup.response.signature65_b64u, 'base64url'))
         .digest('hex'),

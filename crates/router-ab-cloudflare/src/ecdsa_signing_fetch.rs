@@ -264,7 +264,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
                 reserved_material
                     .signing_worker_rerandomization_contribution32_b64u
                     .clone(),
-                reserved_at_ms,
+                reserved_material.created_at_ms,
             ) {
                 Ok(response) => response,
                 Err(err) => {

@@ -501,6 +501,23 @@ pub fn apply_cloudflare_signing_worker_ecdsa_pool_command_v1(
             request_expires_at_ms,
         } => {
             let current = require_current(current)?;
+            if let CloudflareSigningWorkerEcdsaPoolMaterialStateV1::Reserved { material } =
+                &current.material_state
+            {
+                if current.scope == scope
+                    && current.server_presignature_id == server_presignature_id
+                    && expected_revision.checked_add(1)
+                        == Some(current.lifecycle.revision().value())
+                    && material.request_digest == request_digest
+                    && material.admitted_signing_digest == admitted_signing_digest
+                    && material.expires_at_ms == request_expires_at_ms
+                {
+                    current.validate()?;
+                    return Ok(CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1::Reserved {
+                        record: current,
+                    });
+                }
+            }
             validate_command_identity(
                 &current,
                 &scope,

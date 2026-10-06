@@ -1965,8 +1965,7 @@ impl CloudflareSigningWorkerRouterAbEcdsaDerivationEvmDigestPreparedV1 {
         self.record.validate()?;
         let request_digest = request.request.request.request_digest()?;
         let signing_digest = request.request.request.signing_digest()?;
-        if self.response.prepared_at_ms >= request.materialized_at_ms
-            && self.response.expires_at_ms == request.request.request.expires_at_ms
+        if self.response.expires_at_ms == request.request.request.expires_at_ms
             && self.record.active_signing_worker_state == request.active_signing_worker
             && self.record.server_presignature_id == self.response.server_presignature_id
             && self.record.request_digest == request_digest
