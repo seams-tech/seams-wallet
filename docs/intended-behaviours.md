@@ -1977,3 +1977,21 @@ The same authorization E2E retires the initiating session in D1 before exercisin
 this client path. It records results in `retired-move-client-evidence.json` beside
 the placement evidence. Local credential retention across reload and post-move
 client reconciliation remain outside this scenario.
+
+### Keep owner presign work retired after a return move
+
+Owner presign authorities record the ownership generation at initialization. Each
+protocol step requires that exact current generation. Returning to the original
+region cannot reactivate an unfinished ceremony from an earlier generation.
+Historical restore preserves these authorities without granting new execution.
+It rejects an authority whose generation exceeds the source generation. Older
+persisted authorities without a generation remain readable as history and cannot
+resume protocol work. Completed durable presignatures and ordinary locking keep
+their existing lifecycle.
+
+The native ECDSA relocation scenario holds a real final presign batch before
+source freeze. It rejects that batch during the move and after return at generation
+3, then verifies a fresh signature. Run `scripts/test-private-d1.mjs
+--ecdsa-wallet-do-pool` from `crates/router-ab-cloudflare` with the wallet-DO
+harness and development Worker builds enabled. This scenario does not yet cover
+a completed result delayed between protocol completion and pool publication.

@@ -14,14 +14,47 @@ pub(super) struct PresignAuthorityRow {
     ceremony_expires_at_ms: i64,
 }
 
+// Older persisted authorities remain history, but cannot resume protocol work.
+#[derive(Serialize, Deserialize)]
+#[serde(untagged, deny_unknown_fields)]
+enum StoredPresignAuthority {
+    Bound {
+        ownership_generation: u64,
+        authority: CloudflareSigningWorkerEcdsaPresignAuthorityV1,
+    },
+    Historical(CloudflareSigningWorkerEcdsaPresignAuthorityV1),
+}
+
+impl StoredPresignAuthority {
+    fn authority(&self) -> &CloudflareSigningWorkerEcdsaPresignAuthorityV1 {
+        match self {
+            Self::Bound { authority, .. } | Self::Historical(authority) => authority,
+        }
+    }
+}
+
 impl PresignAuthorityRow {
     pub(super) fn authority(
         &self,
         scope: &CloudflareSigningWorkerWalletScopeV1,
     ) -> RouterAbProtocolResult<CloudflareSigningWorkerEcdsaPresignAuthorityV1> {
-        let authority: CloudflareSigningWorkerEcdsaPresignAuthorityV1 =
-            serde_json::from_str(&self.authority_json)
-                .map_err(|error| wallet_error(error.to_string()))?;
+        Ok(self.decode(scope)?.authority().clone())
+    }
+
+    fn decode(
+        &self,
+        scope: &CloudflareSigningWorkerWalletScopeV1,
+    ) -> RouterAbProtocolResult<StoredPresignAuthority> {
+        let stored: StoredPresignAuthority = serde_json::from_str(&self.authority_json)
+            .map_err(|error| wallet_error(error.to_string()))?;
+        if let StoredPresignAuthority::Bound {
+            ownership_generation,
+            ..
+        } = &stored
+        {
+            crate::router_wallet::validate_wallet_ownership_generation(*ownership_generation)?;
+        }
+        let authority = stored.authority();
         authority.wallet_scope().validate()?;
         if authority.wallet_scope() != scope || self.ceremony_expires_at_ms <= 0 {
             return Err(wallet_error(
@@ -32,7 +65,7 @@ impl PresignAuthorityRow {
             &self.presign_session_id,
             self.ceremony_expires_at_ms as u64,
         )?;
-        Ok(authority)
+        Ok(stored)
     }
 }
 
@@ -68,8 +101,14 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         self.require_mutation_admission(request.authority.wallet_scope())?;
         let row = PresignAuthorityRow {
             presign_session_id: request.presign_session_id.clone(),
-            authority_json: serde_json::to_string(&request.authority)
-                .map_err(|error| wallet_error(error.to_string()))?,
+            authority_json: serde_json::to_string(&StoredPresignAuthority::Bound {
+                ownership_generation: self
+                    .execution_authority(request.authority.wallet_scope())?
+                    .ok_or_else(|| wallet_error("Presign execution authority is missing"))?
+                    .generation()?,
+                authority: request.authority.clone(),
+            })
+            .map_err(|error| wallet_error(error.to_string()))?,
             ceremony_expires_at_ms: i64::try_from(request.ceremony_expires_at_ms)
                 .map_err(|_| wallet_error("Presign expiry exceeds SQL integer range"))?,
         };
@@ -95,22 +134,46 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
                 "Presign authority is unavailable",
             ));
         };
-        let authority = row.authority(scope)?;
+        let stored = row.decode(scope)?;
+        match &stored {
+            StoredPresignAuthority::Bound {
+                ownership_generation,
+                ..
+            } => {
+                self.require_execution_generation(scope, *ownership_generation)?;
+            }
+            StoredPresignAuthority::Historical(_) => {
+                return Err(wallet_error(
+                    "Historical presign authority cannot resume protocol work",
+                ));
+            }
+        }
         if row.ceremony_expires_at_ms as u64 <= now_unix_ms {
             return Err(RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::ExpiredLocalRequest,
                 "Presign authority expired",
             ));
         }
-        Ok(authority)
+        Ok(stored.authority().clone())
     }
 
     pub(super) fn restore_presign_authority(
         &self,
         scope: &CloudflareSigningWorkerWalletScopeV1,
+        source_generation: u64,
         row: PresignAuthorityRow,
     ) -> RouterAbProtocolResult<()> {
-        row.authority(scope)?;
+        if let StoredPresignAuthority::Bound {
+            ownership_generation,
+            ..
+        } = row.decode(scope)?
+        {
+            if ownership_generation > source_generation {
+                return Err(wallet_error(
+                    "Imported presign authority exceeds its source generation",
+                ));
+            }
+        }
         self.insert_presign_authority(row)
     }
 

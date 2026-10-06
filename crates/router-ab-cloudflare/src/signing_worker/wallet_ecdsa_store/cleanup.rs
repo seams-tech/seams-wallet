@@ -64,10 +64,10 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         let deleted = self.sql.query::<serde::de::IgnoredAny>(
             "DELETE FROM signing_worker_presign_authorities WHERE presign_session_id IN (
                 SELECT presign_session_id FROM signing_worker_presign_authorities
-                WHERE json_extract(authority_json, '$.wallet_scope.org_id') = ?
-                  AND json_extract(authority_json, '$.wallet_scope.project_id') = ?
-                  AND json_extract(authority_json, '$.wallet_scope.project_environment_id') = ?
-                  AND json_extract(authority_json, '$.wallet_scope.wallet_id') = ?
+                WHERE COALESCE(json_extract(authority_json, '$.authority.wallet_scope.org_id'), json_extract(authority_json, '$.wallet_scope.org_id')) = ?
+                  AND COALESCE(json_extract(authority_json, '$.authority.wallet_scope.project_id'), json_extract(authority_json, '$.wallet_scope.project_id')) = ?
+                  AND COALESCE(json_extract(authority_json, '$.authority.wallet_scope.project_environment_id'), json_extract(authority_json, '$.wallet_scope.project_environment_id')) = ?
+                  AND COALESCE(json_extract(authority_json, '$.authority.wallet_scope.wallet_id'), json_extract(authority_json, '$.wallet_scope.wallet_id')) = ?
                 ORDER BY presign_session_id LIMIT 16) RETURNING presign_session_id",
             vec![
                 text(scope.org_id.clone()),

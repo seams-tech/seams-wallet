@@ -35,14 +35,17 @@ impl SnapshotRecord {
     fn restore<Sql: SigningWorkerWalletSqlV1>(
         self,
         store: &SigningWorkerWalletEcdsaStoreV1<'_, Sql>,
-        scope: &CloudflareSigningWorkerWalletScopeV1,
+        receipt: &SigningWorkerPoolFreezeReceiptV1,
     ) -> RouterAbProtocolResult<()> {
+        let scope = &receipt.scope;
         match self {
             Self::Pool(row) => store.restore_pool_record(scope, row),
             Self::Activation(row) => store.restore_activation_record(scope, row),
             Self::LinkedReservation(row) => store.restore_linked_reservation(scope, row),
             Self::Effect(row) => store.restore_effect_record(scope, row),
-            Self::PresignAuthority(row) => store.restore_presign_authority(scope, row),
+            Self::PresignAuthority(row) => {
+                store.restore_presign_authority(scope, receipt.request.source_generation, row)
+            }
             Self::LinkedPresignSession(row) => store.restore_linked_presign_session(scope, row),
         }
     }
@@ -101,7 +104,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
                 return Err(wallet_error("ECDSA snapshot record order differs"));
             }
             cursor.previous = Some((family, key.to_owned()));
-            row.restore(self, &receipt.scope)?;
+            row.restore(self, receipt)?;
             cursor.digest = extend_digest(&cursor.digest, &line);
             cursor.restored += 1;
             cursor.position = reader.position();

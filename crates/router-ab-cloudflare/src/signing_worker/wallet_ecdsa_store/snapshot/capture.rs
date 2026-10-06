@@ -92,10 +92,10 @@ impl SnapshotRow for presign_authority::PresignAuthorityRow {
     }
     const SELECT: &'static str = "SELECT presign_session_id, authority_json,
         CAST(ceremony_expires_at_ms AS TEXT) AS ceremony_expires_at_ms FROM signing_worker_presign_authorities
-        WHERE json_extract(authority_json, '$.wallet_scope.org_id') = ?
-        AND json_extract(authority_json, '$.wallet_scope.project_id') = ?
-        AND json_extract(authority_json, '$.wallet_scope.project_environment_id') = ?
-        AND json_extract(authority_json, '$.wallet_scope.wallet_id') = ?
+        WHERE COALESCE(json_extract(authority_json, '$.authority.wallet_scope.org_id'), json_extract(authority_json, '$.wallet_scope.org_id')) = ?
+        AND COALESCE(json_extract(authority_json, '$.authority.wallet_scope.project_id'), json_extract(authority_json, '$.wallet_scope.project_id')) = ?
+        AND COALESCE(json_extract(authority_json, '$.authority.wallet_scope.project_environment_id'), json_extract(authority_json, '$.wallet_scope.project_environment_id')) = ?
+        AND COALESCE(json_extract(authority_json, '$.authority.wallet_scope.wallet_id'), json_extract(authority_json, '$.wallet_scope.wallet_id')) = ?
         AND presign_session_id > ? ORDER BY presign_session_id LIMIT ?";
     fn key(&self) -> &str {
         &self.presign_session_id
@@ -182,10 +182,10 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
              + (SELECT COUNT(*) FROM wallet_ecdsa_effects WHERE owner_json = ?1)
              + (SELECT COUNT(*) FROM wallet_linked_presign_sessions WHERE owner_json = ?1)
              + (SELECT COUNT(*) FROM signing_worker_presign_authorities
-                WHERE json_extract(authority_json, '$.wallet_scope.org_id') = ?2
-                AND json_extract(authority_json, '$.wallet_scope.project_id') = ?3
-                AND json_extract(authority_json, '$.wallet_scope.project_environment_id') = ?4
-                AND json_extract(authority_json, '$.wallet_scope.wallet_id') = ?5) AS count",
+                WHERE COALESCE(json_extract(authority_json, '$.authority.wallet_scope.org_id'), json_extract(authority_json, '$.wallet_scope.org_id')) = ?2
+                AND COALESCE(json_extract(authority_json, '$.authority.wallet_scope.project_id'), json_extract(authority_json, '$.wallet_scope.project_id')) = ?3
+                AND COALESCE(json_extract(authority_json, '$.authority.wallet_scope.project_environment_id'), json_extract(authority_json, '$.wallet_scope.project_environment_id')) = ?4
+                AND COALESCE(json_extract(authority_json, '$.authority.wallet_scope.wallet_id'), json_extract(authority_json, '$.wallet_scope.wallet_id')) = ?5) AS count",
             vec![
                 text(owner_json(scope, "ECDSA inventory")?),
                 text(scope.org_id.clone()),
