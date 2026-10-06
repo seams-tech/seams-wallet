@@ -1646,9 +1646,14 @@ in one transaction. Its separate snapshot capture now commits at most 16 records
 per call. It stores immutable 4,096-byte segments with a durable cursor and rolling
 digest. Export reads one stored segment under the exact frozen receipt. The Worker
 registration scenario verifies settlement, capture across eviction, exact segment
-replay, and reconstruction of the final digest. Signing-history and linked-device
-snapshot coverage, destination restoration, activation, and full relocation remain
-unfinished.
+replay, and reconstruction of the final digest. The same Worker scenario now prepares a destination before source settlement,
+imports exact segments across eviction, restores and verifies encrypted rows, and
+activates generation 2. Verification processes at most 16 segments per command.
+A corrupted final segment fails without advancing import progress. The scenario
+recaptures the destination to compare exact historical bytes and checks that an
+activation retry preserves a later move fence. Signing-history and linked-device
+coverage, fresh Ed25519 signing after relocation, source cleanup, and full
+relocation remain unfinished.
 
 ### Required scenarios
 

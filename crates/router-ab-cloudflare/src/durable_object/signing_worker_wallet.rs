@@ -614,6 +614,8 @@ impl DurableObject for RouterAbSigningWorkerWalletDurableObject {
             .exec(crate::SIGNING_WORKER_ED25519_SETTLEMENT_SCHEMA_V1, None)?;
         self.sql.exec(ed25519_snapshot::STATE_SCHEMA, None)?;
         self.sql.exec(ed25519_snapshot::SEGMENT_SCHEMA, None)?;
+        self.sql.exec(ed25519_snapshot::IMPORT_SCHEMA, None)?;
+        self.sql.exec(ed25519_snapshot::IMPORT_SEGMENT_SCHEMA, None)?;
         for schema in crate::SIGNING_WORKER_WALLET_ECDSA_SCHEMA_V1 {
             self.sql.exec(schema, None)?;
         }

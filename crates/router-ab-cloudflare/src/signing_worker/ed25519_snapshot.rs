@@ -25,6 +25,19 @@ pub struct SigningWorkerEd25519SnapshotSegmentV1 {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "command", rename_all = "snake_case", deny_unknown_fields)]
 pub enum SigningWorkerEd25519SnapshotCommandV1 {
+    Prepare {
+        source: SigningWorkerEd25519FenceCommandV1,
+    },
+    Import {
+        receipt: SigningWorkerEd25519SnapshotReceiptV1,
+        segment: SigningWorkerEd25519SnapshotSegmentV1,
+    },
+    Verify {
+        receipt: SigningWorkerEd25519SnapshotReceiptV1,
+    },
+    Activate {
+        receipt: SigningWorkerEd25519SnapshotReceiptV1,
+    },
     Capture {
         source: SigningWorkerEd25519FenceCommandV1,
     },
@@ -37,8 +50,11 @@ pub enum SigningWorkerEd25519SnapshotCommandV1 {
 impl SigningWorkerEd25519SnapshotCommandV1 {
     pub(crate) fn source(&self) -> &SigningWorkerEd25519FenceCommandV1 {
         match self {
-            Self::Capture { source } => source,
-            Self::Export { receipt, .. } => &receipt.source,
+            Self::Capture { source } | Self::Prepare { source } => source,
+            Self::Export { receipt, .. }
+            | Self::Import { receipt, .. }
+            | Self::Verify { receipt }
+            | Self::Activate { receipt } => &receipt.source,
         }
     }
 }
@@ -46,6 +62,20 @@ impl SigningWorkerEd25519SnapshotCommandV1 {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
 pub enum SigningWorkerEd25519SnapshotResponseV1 {
+    Prepared {
+        source: SigningWorkerEd25519FenceCommandV1,
+    },
+    Imported {
+        segment_index: u32,
+        input_digest_hex: String,
+    },
+    Restoring,
+    Verified {
+        receipt: SigningWorkerEd25519SnapshotReceiptV1,
+    },
+    Activated {
+        receipt: SigningWorkerEd25519SnapshotReceiptV1,
+    },
     Capturing,
     Frozen {
         receipt: SigningWorkerEd25519SnapshotReceiptV1,

@@ -170,3 +170,71 @@ impl SnapshotRow for Round1RowV1 {
         SnapshotRecord::Round1(self)
     }
 }
+
+impl SnapshotRecord {
+    pub(super) fn restore(
+        &self,
+        wallet: &RouterAbSigningWorkerWalletDurableObject,
+        scope: &CloudflareSigningWorkerWalletScopeV1,
+    ) -> Result<(), RouterAbProtocolError> {
+        match self {
+            Self::Registration(row) => restore_row(wallet, scope, row,
+                "INSERT INTO wallet_registrations (registration_key, active_key, owner_json, ciphertext_json) VALUES (?, ?, ?, ?) RETURNING *",
+                vec![text_value(&row.registration_key), text_value(&row.active_key), text_value(&row.owner_json), text_value(&row.ciphertext_json)]),
+            Self::RetiredActivation(row) => restore_row(wallet, scope, row,
+                "INSERT INTO wallet_retired_activations (active_key, registration_key) VALUES (?, ?) RETURNING *",
+                vec![text_value(&row.active_key), text_value(&row.registration_key)]),
+            Self::LinkedDevice(row) => restore_row(wallet, scope, row,
+                "INSERT INTO wallet_linked_ed25519 (record_key, active_key, owner_json, ciphertext_json) VALUES (?, ?, ?, ?) RETURNING *",
+                vec![text_value(&row.record_key), nullable_text(&row.active_key), text_value(&row.owner_json), text_value(&row.ciphertext_json)]),
+            Self::Round1(row) => restore_row(wallet, scope, row,
+                "INSERT INTO wallet_round1 (binding_key, handle, request_digest_hex, ciphertext_json, state,
+                    effect_operation_key, authorization_key, authorization_json, effect_request_digest_hex, terminal_json)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *",
+                vec![text_value(&row.binding_key), text_value(&row.handle), text_value(&row.request_digest_hex),
+                    text_value(&row.ciphertext_json), text_value(&row.state), nullable_text(&row.effect_operation_key),
+                    nullable_text(&row.authorization_key), nullable_text(&row.authorization_json),
+                    nullable_text(&row.effect_request_digest_hex), nullable_text(&row.terminal_json)]),
+        }
+    }
+}
+
+fn restore_row<Row: SnapshotRow>(
+    wallet: &RouterAbSigningWorkerWalletDurableObject,
+    scope: &CloudflareSigningWorkerWalletScopeV1,
+    row: &Row,
+    statement: &str,
+    values: Vec<SqlStorageValue>,
+) -> Result<(), RouterAbProtocolError> {
+    row.validate(wallet, scope)?;
+    let stored = wallet
+        .sql
+        .exec(statement, values)
+        .map_err(sql_error)?
+        .to_array::<Row>()
+        .map_err(sql_error)?;
+    let [stored] = stored.as_slice() else {
+        return Err(wallet_error(
+            "Ed25519 historical restoration inserted no unique row",
+        ));
+    };
+    if serde_json::to_vec(stored).map_err(snapshot_encoding_error)?
+        != serde_json::to_vec(row).map_err(snapshot_encoding_error)?
+    {
+        return Err(wallet_error(
+            "Ed25519 historical restoration changed the row",
+        ));
+    }
+    Ok(())
+}
+
+fn text_value(value: &str) -> SqlStorageValue {
+    SqlStorageValue::String(value.to_owned())
+}
+
+fn nullable_text(value: &Option<String>) -> SqlStorageValue {
+    match value {
+        Some(value) => text_value(value),
+        None => SqlStorageValue::Null,
+    }
+}

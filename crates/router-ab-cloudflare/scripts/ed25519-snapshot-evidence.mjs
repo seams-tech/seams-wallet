@@ -31,7 +31,7 @@ function digest(value) {
     .digest('hex');
 }
 
-export async function verifyEd25519Snapshot(topology, deliveryJson, credential) {
+export async function verifyEd25519Snapshot(topology, deliveryJson, credential, registrationCredential) {
   const delivery = JSON.parse(deliveryJson);
   const scope = delivery.scope;
   const worker = await topology.getWorker(workerName);
@@ -43,6 +43,13 @@ export async function verifyEd25519Snapshot(topology, deliveryJson, credential) 
       invalidated_at_ms: Date.now(),
     },
   };
+  const destinationName = 'fixture-signing-worker-after-refresh';
+  const destination = await topology.getWorker(destinationName);
+  const preparation = { command: 'prepare', source };
+  const prepared = await accepted(destination, snapshotPath, preparation, credential);
+  assert.deepEqual(prepared, { state: 'prepared', source });
+  await evictTransferredWallet(topology, destinationName, scope);
+  assert.deepEqual(await accepted(destination, snapshotPath, preparation, credential), prepared);
   const capture = { command: 'capture', source };
   const premature = await post(worker, snapshotPath, capture, credential);
   assert.notEqual(premature.status, 200, await premature.text());
@@ -69,6 +76,7 @@ export async function verifyEd25519Snapshot(topology, deliveryJson, credential) 
   assert.ok(receipt.segment_count > 1, 'Encrypted registration must span multiple segments');
   let rollingDigest = digest(source);
   const bytes = [];
+  const segments = [];
   for (let segmentIndex = 0; segmentIndex < receipt.segment_count; segmentIndex += 1) {
     const request = { command: 'export', receipt, segment_index: segmentIndex };
     const result = await accepted(worker, snapshotPath, request, credential);
@@ -82,6 +90,7 @@ export async function verifyEd25519Snapshot(topology, deliveryJson, credential) 
     const part = Buffer.from(segment.data_b64u, 'base64url');
     assert.ok(part.length > 0 && part.length <= 4096);
     bytes.push(part);
+    segments.push(segment);
     rollingDigest = digest([rollingDigest, segment]);
     await evictTransferredWallet(topology, workerName, scope);
     assert.deepEqual(await accepted(worker, snapshotPath, request, credential), result);
@@ -108,7 +117,12 @@ export async function verifyEd25519Snapshot(topology, deliveryJson, credential) 
   }, credential);
   assert.notEqual(changedMove.status, 200, await changedMove.text());
   assert.deepEqual(await accepted(worker, snapshotPath, capture, credential), frozen);
+  const restoration = await verifyDestinationRestoration(
+    topology, destination, destinationName, receipt, segments,
+    Buffer.concat(bytes), credential, delivery, registrationCredential,
+  );
   return {
+    restoration,
     recordCount: receipt.record_count,
     segmentCount: receipt.segment_count,
     snapshotDigestHex: receipt.digest_hex,
@@ -118,6 +132,117 @@ export async function verifyEd25519Snapshot(topology, deliveryJson, credential) 
     captureAndExportResumeAfterEviction: true,
     exactDigestReconstructed: true,
     changedMoveAndReceiptRejected: true,
-    scope: 'Registered wallet Worker capture/export; excludes signing history and destination restore',
+    scope: 'Registered wallet Worker capture, restore and activation; excludes fresh signing, history families and cleanup',
+  };
+}
+
+async function rejectDestinationDelivery(destination, delivery, credential) {
+  const response = await post(destination,
+    '/router-ab/signing-worker/ed25519-yao/activation/packages', delivery, credential);
+  const text = await response.text();
+  assert.notEqual(response.status, 200, text);
+  assert.match(text, /closed new Ed25519 work/);
+}
+
+async function verifyDestinationRestoration(
+  topology, destination, destinationName, receipt, segments,
+  originalBytes, credential, delivery, registrationCredential,
+) {
+  const activate = { command: 'activate', receipt };
+  const verify = { command: 'verify', receipt };
+  const prematureActivation = await post(destination, snapshotPath, activate, credential);
+  assert.notEqual(prematureActivation.status, 200, await prematureActivation.text());
+  const prematureVerify = await post(destination, snapshotPath, verify, credential);
+  assert.notEqual(prematureVerify.status, 200, await prematureVerify.text());
+  await rejectDestinationDelivery(destination, delivery, registrationCredential);
+  const outOfOrder = await post(destination, snapshotPath, {
+    command: 'import', receipt, segment: segments[1],
+  }, credential);
+  assert.notEqual(outOfOrder.status, 200, await outOfOrder.text());
+  const acknowledgements = [];
+  for (const segment of segments) {
+    if (segment.segment_index + 1 === receipt.segment_count) {
+      const corrupt = structuredClone(segment);
+      const bytes = Buffer.from(corrupt.data_b64u, 'base64url');
+      bytes[0] ^= 1;
+      corrupt.data_b64u = bytes.toString('base64url');
+      const rejected = await post(destination, snapshotPath, {
+        command: 'import', receipt, segment: corrupt,
+      }, credential);
+      assert.notEqual(rejected.status, 200, await rejected.text());
+    }
+    const command = { command: 'import', receipt, segment };
+    const acknowledgement = await accepted(destination, snapshotPath, command, credential);
+    assert.deepEqual(acknowledgement, {
+      state: 'imported', segment_index: segment.segment_index,
+      input_digest_hex: digest(segment),
+    });
+    acknowledgements.push(acknowledgement);
+    await evictTransferredWallet(topology, destinationName, receipt.source.scope);
+    assert.deepEqual(await accepted(destination, snapshotPath, command, credential), acknowledgement);
+  }
+  let verified;
+  for (let attempt = 0; attempt < 64; attempt += 1) {
+    const result = await accepted(destination, snapshotPath, verify, credential);
+    await evictTransferredWallet(topology, destinationName, receipt.source.scope);
+    if (result.state === 'verified') {
+      verified = result;
+      break;
+    }
+    assert.equal(result.state, 'restoring');
+  }
+  assert.deepEqual(verified, { state: 'verified', receipt });
+  assert.deepEqual(await accepted(destination, snapshotPath, verify, credential), verified);
+  const registrationReplay = await accepted(destination,
+    '/router-ab/signing-worker/ed25519-yao/activation/packages', delivery, registrationCredential);
+  const activated = await accepted(destination, snapshotPath, activate, credential);
+  assert.deepEqual(activated, { state: 'activated', receipt });
+  await evictTransferredWallet(topology, destinationName, receipt.source.scope);
+  assert.deepEqual(await accepted(destination, snapshotPath, activate, credential), activated);
+  const oldGeneration = await post(destination, settlePath, receipt.source, credential);
+  assert.notEqual(oldGeneration.status, 200, await oldGeneration.text());
+  const nextSource = structuredClone(receipt.source);
+  nextSource.request.move_id = `wmove_${'u'.repeat(43)}`;
+  nextSource.request.source_generation += 1;
+  assert.deepEqual(await accepted(destination, settlePath, nextSource, credential), {
+    state: 'settled', command: nextSource,
+  });
+  assert.deepEqual(await accepted(destination, snapshotPath, activate, credential), activated);
+  assert.deepEqual(await accepted(destination,
+    '/router-ab/signing-worker/ed25519-yao/activation/packages', delivery, registrationCredential), registrationReplay);
+  assert.deepEqual(await accepted(destination, snapshotPath, {
+    command: 'import', receipt, segment: segments[0],
+  }, credential), acknowledgements[0]);
+  let recaptured;
+  for (let attempt = 0; attempt < 64; attempt += 1) {
+    const result = await accepted(destination, snapshotPath, {
+      command: 'capture', source: nextSource,
+    }, credential);
+    if (result.state === 'frozen') {
+      recaptured = result.receipt;
+      break;
+    }
+    assert.equal(result.state, 'capturing');
+  }
+  assert.ok(recaptured);
+  const restoredBytes = [];
+  for (let segmentIndex = 0; segmentIndex < recaptured.segment_count; segmentIndex += 1) {
+    const result = await accepted(destination, snapshotPath, {
+      command: 'export', receipt: recaptured, segment_index: segmentIndex,
+    }, credential);
+    restoredBytes.push(Buffer.from(result.segment.data_b64u, 'base64url'));
+  }
+  assert.deepEqual(Buffer.concat(restoredBytes), originalBytes);
+  return {
+    destinationPreparedBeforeSourceSettlement: true,
+    initialRegistrationWriteBlockedDuringPreparation: true,
+    historicalRegistrationReplayPreserved: true,
+    incompleteAndOutOfOrderImportsRejected: true,
+    finalDigestFailureRollsBackImportProgress: true,
+    exactAcknowledgementsAfterEviction: true,
+    exactCiphertextAndIndexesRestored: true,
+    ownershipGeneration: nextSource.request.source_generation,
+    activationReplayPreservesLaterFence: true,
+    lateKnownChunkPreservesRestoredRows: true,
   };
 }

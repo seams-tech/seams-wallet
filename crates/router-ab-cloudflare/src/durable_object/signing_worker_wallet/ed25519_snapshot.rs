@@ -5,10 +5,20 @@ use crate::{
     SigningWorkerEd25519SnapshotSegmentV1,
 };
 use sha2::{Digest, Sha256};
+mod import;
 mod records;
+mod restore;
 use records::{LinkedSnapshotRow, RegistrationSnapshotRow, RetiredSnapshotRow, SnapshotRow};
 
 const SEGMENT_BYTES: usize = 4096;
+pub(super) const IMPORT_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_ed25519_import (
+    owner_json TEXT PRIMARY KEY, state_json TEXT NOT NULL)";
+pub(super) const IMPORT_SEGMENT_SCHEMA: &str =
+    "CREATE TABLE IF NOT EXISTS wallet_ed25519_import_segments (
+    owner_json TEXT NOT NULL, segment_index INTEGER NOT NULL,
+    segment_json TEXT NOT NULL, acknowledgement_json TEXT NOT NULL,
+    PRIMARY KEY (owner_json, segment_index))";
+
 pub(super) const STATE_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_ed25519_snapshot (
     owner_json TEXT PRIMARY KEY, state_json TEXT NOT NULL)";
 pub(super) const SEGMENT_SCHEMA: &str =
@@ -75,10 +85,30 @@ impl RouterAbSigningWorkerWalletDurableObject {
         &self,
         command: SigningWorkerEd25519SnapshotCommandV1,
     ) -> Result<Response, RouterAbProtocolError> {
-        let sql = DurableObjectWalletSqlV1(&self.sql);
-        crate::SigningWorkerEd25519ExecutionStoreV1::new(&sql)
-            .require_settlement(command.source())?;
+        command.source().validate()?;
+        if matches!(
+            &command,
+            SigningWorkerEd25519SnapshotCommandV1::Capture { .. }
+                | SigningWorkerEd25519SnapshotCommandV1::Export { .. }
+        ) {
+            let sql = DurableObjectWalletSqlV1(&self.sql);
+            crate::SigningWorkerEd25519ExecutionStoreV1::new(&sql)
+                .require_settlement(command.source())?;
+        }
         let response = match command {
+            SigningWorkerEd25519SnapshotCommandV1::Prepare { source } => {
+                self.prepare_ed25519_import(source)?
+            }
+            SigningWorkerEd25519SnapshotCommandV1::Import { receipt, segment } => {
+                self.import_ed25519_segment(receipt, segment)?
+            }
+            SigningWorkerEd25519SnapshotCommandV1::Verify { receipt } => {
+                self.verify_ed25519_import(receipt)?
+            }
+            SigningWorkerEd25519SnapshotCommandV1::Activate { receipt } => {
+                self.activate_ed25519_import(receipt)?
+            }
+
             SigningWorkerEd25519SnapshotCommandV1::Capture { source } => {
                 self.capture_ed25519_snapshot(source)?
             }

@@ -1645,7 +1645,17 @@ segments with its cursor and rolling digest. Restart resumes that cursor. The fi
 receipt binds the source, record count, segment count, and digest. Export requires
 the exact final receipt and returns one stored segment. Changed moves, receipts,
 and missing segments fail. Unsettled registration material cannot enter a snapshot.
-Destination restoration and activation for this snapshot remain incomplete.
+The destination prepares before source settlement and closes ordinary writes.
+Each imported segment commits with its acknowledgement and progress. Exact retries
+return that acknowledgement after restart. Changed or out-of-order segments fail.
+The final segment must complete the expected record count and digest. Verification
+restores at most 16 segments per command and retains an incomplete record across
+calls. Production readers validate each record before insertion. Stored values
+must equal the original values, including nullable indexes and terminal history.
+The destination remains inactive until verification finishes. Activation installs
+the next execution generation and removes only its preparation fence. An exact
+activation retry preserves a later source fence. Source cleanup and fresh signing
+from the relocated Ed25519 wallet still require composed verification.
 
 The same fence prevents new Ed25519 recovery and linked-device mutations. Native
 refresh deliveries also check the fence. Each mutation commits with its fence check
