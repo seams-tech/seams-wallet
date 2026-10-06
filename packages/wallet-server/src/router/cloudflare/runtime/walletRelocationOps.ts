@@ -1,3 +1,4 @@
+import { ecdsaRuntimeOperation, forwardEcdsaRelocation } from './walletRelocationEcdsa';
 import { ed25519RuntimeOperation, forwardEd25519Snapshot } from './walletRelocationEd25519';
 import { forwardDeriverRelocation, deriverRuntimeOperation } from './walletRelocationDeriver';
 import {
@@ -52,6 +53,11 @@ const OPERATIONS = {
   'ed25519-capture': '/router-ab/signing-worker/wallet/ed25519/snapshot',
   'ed25519-settle': '/router-ab/signing-worker/wallet/ed25519/settle',
   'ed25519-snapshot': '/router-ab/signing-worker/wallet/ed25519/snapshot',
+  'ecdsa-import': '/router-ab/signing-worker/wallet/ecdsa/transfer',
+  'ecdsa-status': '/router-ab/signing-worker/wallet/ecdsa/transfer',
+  'ecdsa-verify': '/router-ab/signing-worker/wallet/ecdsa/transfer',
+  'ecdsa-activate': '/router-ab/signing-worker/wallet/ecdsa/transfer',
+  'ecdsa-cleanup': '/router-ab/signing-worker/wallet/ecdsa/transfer',
   'ecdsa-freeze': '/router-ab/signing-worker/wallet/pool/freeze',
   'ecdsa-export': '/router-ab/signing-worker/wallet/ecdsa/export',
   'ecdsa-transfer': '/router-ab/signing-worker/wallet/ecdsa/transfer',
@@ -107,6 +113,8 @@ export async function handleWalletRelocationRequest(
   }
   const ed25519Action = ed25519RuntimeOperation(operation);
   if (ed25519Action) return forwardEd25519Snapshot(input, ed25519Action, env.MPC_ROUTER, credential, env);
+  const ecdsaAction = ecdsaRuntimeOperation(operation);
+  if (ecdsaAction) return forwardEcdsaRelocation(input, ecdsaAction, env.MPC_ROUTER, credential, env);
   let body: BodyInit = bytes;
   if (
     operation === 'router-cleanup' ||
@@ -116,8 +124,7 @@ export async function handleWalletRelocationRequest(
     operation === 'router-verify' ||
     operation === 'router-export' ||
     operation === 'router-freeze' ||
-    operation === 'ed25519-settle' ||
-    operation === 'ecdsa-freeze'
+    operation === 'ed25519-settle'
   ) {
     const authorized = await authorizeRuntimeSource(input, operation, env);
     if (!authorized.ok) {
@@ -137,6 +144,8 @@ export async function handleWalletRelocationRequest(
       input.kind === 'activate' ||
       input.kind === 'cleanup')
   ) {
+    return failure('source_command_required', 400);
+  } else if (operation === 'ecdsa-transfer' && isPlainObject(input) && input.kind !== 'prepare') {
     return failure('source_command_required', 400);
   } else if (
     operation === 'ed25519-snapshot' &&

@@ -29,6 +29,8 @@ class SourceDirectory {
   mode = 'authorized';
   receiptMode = 'available';
   receipt = null;
+  ecdsaReceipt = null;
+  ecdsaActivation = null;
   ed25519Receipt = null;
   ed25519Activation = null;
   activationReceipt = null;
@@ -38,7 +40,10 @@ class SourceDirectory {
 
   async fetch(request) {
     assert.ok(
-      request.url.endsWith('/relocation-ed25519-activation') ||
+      request.url.endsWith('/relocation-ecdsa-activation') ||
+        request.url.endsWith('/relocation-ecdsa-receipt') ||
+        request.url.endsWith('/relocation-ecdsa-transfer') ||
+        request.url.endsWith('/relocation-ed25519-activation') ||
         request.url.endsWith('/relocation-ed25519-receipt') ||
         request.url.endsWith('/relocation-ed25519-transfer') ||
         request.url.endsWith('/relocation-runtime-source') ||
@@ -56,6 +61,33 @@ class SourceDirectory {
     const input = await request.json();
     if (this.mode === 'denied' || input.attempt.moveId !== this.source.request.move_id)
       return Response.json({ ok: false, code: 'attempt_conflict' }, { status: 409 });
+    if (request.url.endsWith('/relocation-ecdsa-receipt')) {
+      assert.deepEqual(input.receipt.scope, this.source.scope);
+      assert.deepEqual(input.receipt.request, this.source.request);
+      if (this.ecdsaReceipt) assert.deepEqual(input.receipt, this.ecdsaReceipt);
+      this.ecdsaReceipt = input.receipt;
+      if (this.receiptMode === 'lost_reply') throw new Error('Recorded ECDSA receipt reply was lost');
+      return Response.json({ ok: true, receipt: this.ecdsaReceipt });
+    }
+    if (request.url.endsWith('/relocation-ecdsa-activation')) {
+      assert.deepEqual(input.receipt, this.ecdsaReceipt);
+      this.ecdsaActivation = input.receipt;
+      if (this.receiptMode === 'lost_reply') throw new Error('Recorded ECDSA activation reply was lost');
+      return Response.json({ ok: true, receipt: this.ecdsaActivation });
+    }
+    if (request.url.endsWith('/relocation-ecdsa-transfer')) {
+      assert.ok(this.ecdsaReceipt);
+      assert.equal(Object.keys(input).length, 3, 'Console receives no chunk data');
+      if (input.request.operation === 'cleanup') {
+        if (!this.ecdsaActivation) return Response.json({ ok: false }, { status: 409 });
+        return Response.json({ ok: true, command: { kind: 'cleanup', activation: this.ecdsaActivation } });
+      }
+      const command = { kind: input.request.operation, receipt: structuredClone(this.ecdsaReceipt) };
+      if (this.mode === 'corrupt') command.receipt.scope.wallet_id = 'another-wallet';
+      if (input.request.operation === 'export') command.segment_index = input.request.segmentIndex;
+      if (['export', 'status', 'import'].includes(input.request.operation)) command.chunk_bytes = 4096;
+      return Response.json({ ok: true, command });
+    }
     if (request.url.endsWith('/relocation-ed25519-activation')) {
       assert.deepEqual(input.receipt, this.ed25519Receipt);
       this.ed25519Activation = input.receipt;
@@ -196,6 +228,25 @@ class RuntimeRelocationSource {
     const body = JSON.parse(init.body);
     let forwardedBody = body;
     switch (path) {
+      case '/router-ab/signing-worker/wallet/pool/freeze':
+        operation = 'ecdsa-freeze';
+        forwardedBody = sourceEnvelope(body);
+        break;
+      case '/router-ab/signing-worker/wallet/ecdsa/export':
+        operation = 'ecdsa-export';
+        forwardedBody = sourceEnvelope(body.receipt);
+        forwardedBody.attempt.phase = 'copying';
+        forwardedBody.segmentIndex = body.segment_index;
+        break;
+      case '/router-ab/signing-worker/wallet/ecdsa/transfer':
+        operation = body.kind === 'prepare' ? 'ecdsa-transfer' : `ecdsa-${body.kind}`;
+        if (body.kind !== 'prepare') {
+          const receipt = body.kind === 'cleanup' ? body.activation : body.kind === 'import' ? body.chunk.receipt : body.receipt;
+          forwardedBody = sourceEnvelope(receipt);
+          forwardedBody.attempt.phase = body.kind === 'activate' || body.kind === 'cleanup' ? 'cutover' : 'copying';
+          if (body.kind === 'import') forwardedBody.chunk = body.chunk;
+        }
+        break;
       case '/router-ab/signing-worker/wallet/ed25519/settle':
         operation = 'ed25519-settle';
         forwardedBody = sourceEnvelope(body);
@@ -566,7 +617,7 @@ async function runtimeRouterCommand(runtime, operation, body) {
   return result;
 }
 
-export async function runtimeEd25519Destination(topology, source) {
+export async function runtimeRelocationDestination(topology, source) {
   const destination = new RuntimeRelocationSource(source.handler,
     await topology.getWorker('router-relocation-destination'),
     source.env.ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET,

@@ -1,4 +1,4 @@
-import { runtimeRelocationSource, runtimeEd25519Destination, verifyRuntimeRouterExport } from './runtime-relocation-evidence.mjs';
+import { runtimeRelocationSource, runtimeRelocationDestination, verifyRuntimeRouterExport } from './runtime-relocation-evidence.mjs';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { evictTransferredWallet } from './linked-presign-transfer-evidence.mjs';
@@ -160,7 +160,7 @@ export async function verifyEd25519Snapshot(topology, activation, fixture, crede
   assert.notEqual(changedMove.status, 200, await changedMove.text());
   assert.deepEqual(await accepted(worker, snapshotPath, capture, sourceCredential), frozen);
   const restoration = await verifyDestinationRestoration({
-    topology, destination, sourceTransport: worker, transport: await runtimeEd25519Destination(topology, worker), destinationName, receipt, segments,
+    topology, destination, sourceTransport: worker, transport: await runtimeRelocationDestination(topology, worker), destinationName, receipt, segments,
     originalBytes: Buffer.concat(bytes), credential, sourceCredential, delivery, registrationCredential,
     activation, fixture, signDestination,
   });

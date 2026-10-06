@@ -1853,3 +1853,21 @@ separately verifies premature-cleanup rejection, immutable activation receipts,
 regional writer checks, and cleanup authorization after journal restart.
 Evidence is retained under `.artifacts/r153/ed25519-activation-20261006/` in both
 repositories. Component evidence does not establish assembled relocation safety.
+
+### ECDSA snapshot journal authority (2026-10-06)
+
+Console now stores the exact ECDSA freeze receipt and activation receipt. Runtime
+records the freeze receipt before reporting frozen success. It obtains export,
+import, status, verification, activation, and cleanup commands from the journal.
+Commands bind the current attempt and regional Runtime. Transfer uses 4 KiB chunks.
+Raw Runtime transfer commands cannot bypass the journal. Preparation remains a
+separate operation before admission.
+
+Activation success requires durable receipt acknowledgement. Cleanup requires the
+stored activation receipt and aggregate activation. The Worker scenario exercises
+lost receipt replies, destination activation after eviction, source cleanup, and
+fresh ECDSA signing before and after cleanup. The private Console scenario checks
+receipt conflicts, regional authority, premature cleanup, and restart recovery.
+These remain separate component scenarios. Full coordinator assembly, linked
+presign-session command authority, and bounded ECDSA seal/final verification remain
+unfinished. Evidence is retained under `.artifacts/r153/ecdsa-journal-20261006/`.

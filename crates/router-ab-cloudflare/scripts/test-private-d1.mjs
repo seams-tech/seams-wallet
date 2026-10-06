@@ -1,3 +1,4 @@
+import { runtimeRelocationSource, runtimeRelocationDestination } from './runtime-relocation-evidence.mjs';
 import { verifyDeriverPreparation, verifyDeriverSourceFences } from './deriver-preparation-evidence.mjs';
 import { verifyEd25519DestinationSigning } from './ed25519-signing-evidence.mjs';
 import { verifyEd25519Snapshot } from './ed25519-snapshot-evidence.mjs';
@@ -2173,34 +2174,63 @@ async function testEcdsaNormalSigning(
 }
 
 async function activateEcdsaThroughRouter(topology, receipt) {
-  const router = await topology.getWorker('router');
-  const previousTarget = signingWorkerDeliveryTarget;
+  const source = await runtimeRelocationSource(topology, gatewayToRouterAuthSecret, { scope: receipt.scope, request: receipt.request });
+  const destination = await runtimeRelocationDestination(topology, source);
   const headers = { [internalAuthHeader]: gatewayToRouterAuthSecret };
+  const previousTarget = signingWorkerDeliveryTarget;
   try {
     signingWorkerDeliveryTarget = 'fixture-signing-worker';
-    const frozen = await postWorkerJson(router, '/router-ab/signing-worker/wallet/pool/freeze', {
+    const frozen = await postWorkerJson(source, '/router-ab/signing-worker/wallet/pool/freeze', {
       scope: receipt.scope, request: receipt.request,
     }, headers);
     assert.deepEqual(await frozen.json(), { state: 'frozen', receipt });
-    const exported = await postWorkerJson(router, '/router-ab/signing-worker/wallet/ecdsa/export', {
-      receipt, segment_index: 0, chunk_bytes: 256,
+    const exported = await postWorkerJson(source, '/router-ab/signing-worker/wallet/ecdsa/export', {
+      receipt, segment_index: 0, chunk_bytes: 4096,
     }, headers);
     const chunk = await exported.json();
     assert.equal(exported.status, 200, JSON.stringify(chunk));
     assert.deepEqual(chunk.receipt, receipt);
     assert.equal(chunk.segment_index, 0);
-    signingWorkerDeliveryTarget = 'fixture-signing-worker-after-refresh';
     const path = '/router-ab/signing-worker/wallet/ecdsa/transfer';
     const command = { kind: 'activate', receipt };
-    const denied = await postWorkerJson(router, path, command, {
-      [internalAuthHeader]: routerToSigningWorkerEcdsaAuthSecret,
-    });
-    assert.equal(denied.status, 403);
-    const activated = await postWorkerJson(router, path, command, headers);
+    const premature = await postWorkerJson(source, path, { kind: 'cleanup', activation: receipt }, headers);
+    assert.equal(premature.status, 409);
+    destination.env.WALLET_CONSOLE.receiptMode = 'lost_reply';
+    const lost = await postWorkerJson(destination, path, command, headers);
+    assert.equal(lost.status, 503);
+    assert.deepEqual(destination.env.WALLET_CONSOLE.ecdsaActivation, receipt);
+    await evictTransferredWallet(topology, 'fixture-signing-worker-after-refresh', receipt.scope);
+    destination.env.WALLET_CONSOLE.receiptMode = 'available';
+    const activated = await postWorkerJson(destination, path, command, headers);
     assert.deepEqual(await activated.json(), { kind: 'activated', receipt });
-    await evictTransferredWallet(topology, signingWorkerDeliveryTarget, receipt.scope);
-    const replay = await postWorkerJson(router, path, command, headers);
+    const replay = await postWorkerJson(destination, path, command, headers);
     assert.deepEqual(await replay.json(), { kind: 'activated', receipt });
+    return source;
+  } finally {
+    signingWorkerDeliveryTarget = previousTarget;
+  }
+}
+
+async function cleanupEcdsaThroughRuntime(topology, runtime, receipt) {
+  const previousTarget = signingWorkerDeliveryTarget;
+  const path = '/router-ab/signing-worker/wallet/ecdsa/transfer';
+  const command = { kind: 'cleanup', activation: receipt };
+  const headers = { [internalAuthHeader]: gatewayToRouterAuthSecret };
+  try {
+    signingWorkerDeliveryTarget = 'fixture-signing-worker';
+    for (let step = 1; step <= 64; step += 1) {
+      const response = await postWorkerJson(runtime, path, command, headers);
+      const result = await response.json();
+      assert.equal(response.status, 200, JSON.stringify(result));
+      await evictTransferredWallet(topology, 'fixture-signing-worker', receipt.scope);
+      if (result.kind === 'cleaned') {
+        const replay = await postWorkerJson(runtime, path, command, headers);
+        assert.deepEqual(await replay.json(), result);
+        return { boundedCalls: step, exactCompletionReplay: true, runtimeUsesStoredActivation: true };
+      }
+      assert.equal(result.kind, 'cleaning');
+    }
+    assert.fail('ECDSA cleanup must complete within 64 bounded commands');
   } finally {
     signingWorkerDeliveryTarget = previousTarget;
   }
@@ -2216,19 +2246,14 @@ async function verifyEcdsaWalletRelocation(topology, fixture, ecdsa) {
     gatewayToRouterAuthSecret,
   );
   const receipt = linkedImportRejection.initializedTransfer.walletInventory.sourceFreezeReceipt;
-  await activateEcdsaThroughRouter(topology, receipt);
+  const runtime = await activateEcdsaThroughRouter(topology, receipt);
   ecdsa.executionHome = {
     workerName: 'fixture-signing-worker-after-refresh',
     ownershipGeneration: receipt.request.source_generation + 1,
   };
   signingWorkerDeliveryTarget = ecdsa.executionHome.workerName;
   const beforeCleanup = await testEcdsaNormalSigning(topology, ecdsa, 'pool', false);
-  const cleanup = await cleanupTransferredWalletSource(
-    topology,
-    routerToSigningWorkerEcdsaAuthSecret,
-    receipt,
-    'fixture-signing-worker',
-  );
+  const cleanup = await cleanupEcdsaThroughRuntime(topology, runtime, receipt);
   const afterCleanup = await testEcdsaNormalSigning(topology, ecdsa, 'pool', false);
   const returned = await returnTransferredWallet(
     topology,
@@ -2251,6 +2276,8 @@ async function verifyEcdsaWalletRelocation(topology, fixture, ecdsa) {
     linkedImportRejection,
     signingAfterRelocation: {
       freezeExportAndActivationUseAuthenticatedRouter: true,
+      activationReceiptLostReplyRecovered: true,
+      activationAndCleanupUseJournalAuthority: true,
       scope:
         'SigningWorker transfer and fresh ECDSA execution; Gateway routing is selected by the harness. Excludes the complete wallet coordinator.',
       ownershipGeneration: receipt.request.source_generation + 1,
@@ -5455,7 +5482,7 @@ async function main() {
         fixture,
       ),
       recoveryRouterWorker(fixture),
-      ...(testWalletDoExecution ? [historicalReplayRouterWorker(fixture, 'router-relocation-destination', 'deriver-a', 'fixture-signing-worker-after-refresh')] : []),
+      ...((testWalletDoExecution || process.argv.includes('--ecdsa-wallet-do-pool')) ? [historicalReplayRouterWorker(fixture, 'router-relocation-destination', 'deriver-a', 'fixture-signing-worker-after-refresh')] : []),
       lateWritingDeriverAWorker(fixture),
       ...(testHistoricalReplay || testHistoricalStartingReplay
         ? [
