@@ -1,9 +1,11 @@
 import {
+  seedExecutionGeneration,
   prepareExecutionGeneration,
   verifyExecutionDestination,
 } from './execution-generation.scenario.mjs';
 import {
   seedOperationHistory,
+  verifyDestinationOperationGeneration,
   verifyImportedOperationHistory,
   verifyOperationHistoryCleanup,
 } from './operation-history-transfer.scenario.mjs';
@@ -436,6 +438,14 @@ try {
     setup: executionSetup,
     active: true,
   });
+  const destinationOperationGeneration = await verifyDestinationOperationGeneration({
+    api,
+    database: destination,
+    scope,
+    service: destinationService,
+    fixture: offlineFixture,
+    nowMs: issuedAtMs + 31,
+  });
   const operationHistoryAfterCleanup = await verifyImportedOperationHistory({
     api,
     database: destination,
@@ -493,6 +503,7 @@ try {
       authorizationActivation,
       executionBeforeActivation,
       executionAfterCleanup,
+      destinationOperationGeneration,
       operationHistoryBeforeActivation,
       operationHistoryAfterActivation,
       operationHistoryCleanup,
@@ -543,6 +554,7 @@ function service(database, walletScope) {
 }
 
 async function issueDeviceSession(database, authorizationService, fixture, issuedAtMs) {
+  await seedExecutionGeneration({ api, database, scope, walletId: fixture.authority.walletId });
   await database.batch([
     api.prepareD1WalletAuthorityPutStatement({ database, scope, authority: fixture.authority }),
     api.prepareD1WalletAuthMethodV2PutStatement({ database, scope, record: fixture.authMethod }),

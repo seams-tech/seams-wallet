@@ -1604,11 +1604,7 @@ export interface RouterApiAuthorizedOperationService {
   readPinnedOwnerWalletScope(input: {
     readonly operation: AuthorizedOperation;
     readonly walletId: WalletId;
-  }): Promise<{
-    readonly orgId: string;
-    readonly projectId: string;
-    readonly projectEnvironmentId: string;
-  }>;
+  }): Promise<import('../../authorization/ecdsaWalletSessionAdmission').PinnedOwnerWalletScope>;
   buildVerifiedOwnerProof(input: VerifiedOwnerProofInput): Promise<VerifiedOwnerProof>;
   recordVerifiedWalletOperationFactorEvidenceSet(
     input: VerifiedWalletOperationFactorEvidenceSetInput,

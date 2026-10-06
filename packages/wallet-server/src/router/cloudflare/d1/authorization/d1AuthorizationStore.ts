@@ -2383,6 +2383,10 @@ export class CloudflareD1AuthorizationStore
         throw new Error('Verified step-up operation is not claimed');
       }
       return {
+        ownershipGeneration: requirePositiveInteger(
+          row.ownership_generation,
+          'operation.ownershipGeneration',
+        ),
         orgId: this.walletSignerScope.orgId,
         projectId: this.walletSignerScope.projectId,
         projectEnvironmentId: this.walletSignerScope.envId,
@@ -2399,6 +2403,10 @@ export class CloudflareD1AuthorizationStore
       throw new Error('Pinned owner Wallet Session scope is unavailable');
     }
     return {
+      ownershipGeneration: requirePositiveInteger(
+        row.ownership_generation,
+        'operation.ownershipGeneration',
+      ),
       orgId: requireString(row.owner_scope_org_id, 'operation.ownerScope.orgId'),
       projectId: requireString(row.owner_scope_project_id, 'operation.ownerScope.projectId'),
       projectEnvironmentId: requireString(

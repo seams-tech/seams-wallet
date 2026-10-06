@@ -11,6 +11,13 @@ declare const material: EcdsaWalletSessionAdmissionInput['material'];
 declare const generalInput: AuthorizedOperationInput;
 declare const raw: unknown;
 
+// @ts-expect-error Dispatch requires the generation pinned with the operation.
+const unpinnedScope: PinnedOwnerWalletScope = {
+  orgId: 'org',
+  projectId: 'project',
+  projectEnvironmentId: 'environment',
+};
+
 const claimed = { kind: 'claimed', operation, ownerScope } satisfies EcdsaWalletSessionAdmissionResult;
 const replayed = { kind: 'replayed', operation } satisfies EcdsaWalletSessionAdmissionResult;
 
@@ -27,4 +34,14 @@ const broadInput: EcdsaWalletSessionAdmissionInput = { operation: generalInput, 
 // @ts-expect-error Raw storage values must be parsed before becoming admission results.
 const rawResult: EcdsaWalletSessionAdmissionResult = raw;
 
-void [claimed, replayed, missingScope, replayWithScope, rejectedClaim, unscopedProgress, broadInput, rawResult];
+void [
+  claimed,
+  replayed,
+  missingScope,
+  replayWithScope,
+  rejectedClaim,
+  unscopedProgress,
+  broadInput,
+  rawResult,
+  unpinnedScope,
+];

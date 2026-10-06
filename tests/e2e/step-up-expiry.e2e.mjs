@@ -1,3 +1,4 @@
+import { seedExecutionGeneration } from './execution-generation.scenario.mjs';
 // Run from the repository root: node tests/e2e/step-up-expiry.e2e.mjs
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
@@ -23,6 +24,7 @@ const bundle = await build({
     resolveDir: process.cwd(),
     loader: 'ts',
     contents: `
+      export { D1WalletExecutionAuthority } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletExecutionAuthority';
       export { D1WalletRelocationSessions, WalletRelocationSessionSource } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationSessions';
       export { buildAdditionalStepUpOperationInputFixture } from './tests/unit/helpers/authorizedOperation.fixtures';
       export { handleThresholdEcdsa } from './packages/wallet-server/src/router/transport/fetch/routes/thresholdEcdsa';
@@ -344,6 +346,17 @@ async function scenario(host, method, pause) {
 
 async function exerciseStepUpExpiry({ database, migrations }, host, method, pause) {
   const base = await api.buildEcdsaSigningRequestFixture();
+  await seedExecutionGeneration({
+    api,
+    database,
+    walletId: base.scope.wallet_id,
+    scope: {
+      namespace: 'expiry-e2e',
+      orgId: 'tenant:expiry-e2e',
+      projectId: 'expiry-e2e',
+      envId: 'test',
+    },
+  });
   const nowMs = Date.now();
   let evidenceLifetimeMs = 500;
   let grantLifetimeMs = 500;
@@ -585,6 +598,15 @@ async function verifyStepUpRelocation(database, store, state, operation) {
     sourceGeneration: 1,
   });
   const sessions = new api.D1WalletRelocationSessions(database, scope);
+  assert.equal(
+    (await store.readPinnedOwnerWalletScope({ operation, walletId: source.walletId }))
+      .ownershipGeneration,
+    1,
+  );
+  await assert.rejects(
+    database.prepare('UPDATE authorized_operations SET ownership_generation = 2').run(),
+    /wallet_operation_execution_generation_immutable/u,
+  );
   assert.equal(await sessions.hasPendingOperations(source.walletId), true);
   await assert.rejects(sessions.retire(source, Date.now()), /wallet_operations_unsettled/u);
   const foreignScope = { ...scope, envId: 'foreign' };
@@ -724,11 +746,11 @@ async function verifyStepUpScopeMigration(database, scope, operation) {
     const signer = await database.prepare('SELECT * FROM wallet_signers').first();
     await insertStoredRow(historical, 'verified_wallet_operation_evidence_sets', oldEvidence);
     await insertStoredRow(historical, 'wallet_signers', signer);
-    await insertStoredRow(
-      historical,
-      'authorized_operations',
-      await database.prepare('SELECT * FROM authorized_operations').first(),
-    );
+    const { ownership_generation, ...oldOperation } = await database
+      .prepare('SELECT * FROM authorized_operations')
+      .first();
+    assert.equal(ownership_generation, 1);
+    await insertStoredRow(historical, 'authorized_operations', oldOperation);
     await insertStoredRow(historical, 'wallet_signers', { ...signer, env_id: 'ambiguous-scope' });
     assert.throws(
       () => api.applySignerSqlMigrationsV1(connection, signerMigrationsDirectory, Date.now()),

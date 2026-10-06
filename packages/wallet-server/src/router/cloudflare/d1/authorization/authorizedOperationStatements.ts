@@ -294,10 +294,30 @@ export function prepareAuthorizedOperationInsert(input: {
           material_activation_owner, material_activation_key_binding,
           material_activation_lifecycle_binding, material_activation_signing_worker,
           owner_scope_org_id, owner_scope_project_id,
-          owner_scope_env_id
+          owner_scope_env_id, ownership_generation
         ) SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                   'claimed', 'pending', NULL, NULL, NULL, NULL, ?, NULL, ?,
-                  ?, ?, ?, ?, ?, ?, ?, ?
+                  ?, ?, ?, ?, ?, ?, ?, ?,
+                  (SELECT execution.generation FROM wallet_operation_authorizations AS owner
+                   JOIN wallet_execution_generations AS execution
+                     USING(namespace, org_id, project_id, env_id, wallet_id)
+                   WHERE owner.namespace = ? AND owner.tenant_id = ? AND owner.source_kind = ?
+                     AND owner.source_id = ? AND owner.org_id = ? AND owner.project_id = ?
+                     AND owner.env_id = ? AND execution.state = 'active')
            WHERE (${condition.sql}) AND (${absence.sql})`,
-  ).bind(...values, ...condition.bindings, ...absence.bindings);
+    )
+    .bind(
+      ...values,
+      namespace,
+      operation.tenantId,
+      source.kind,
+      source.kind === 'authorization_grant'
+        ? source.authorizationGrantRef.authorizationId
+        : source.evidenceSetDigest,
+      walletSignerScope.orgId,
+      walletSignerScope.projectId,
+      walletSignerScope.envId,
+      ...condition.bindings,
+      ...absence.bindings,
+    );
 }

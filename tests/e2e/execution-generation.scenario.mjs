@@ -27,6 +27,25 @@ class ApprovedRegistrationAuthority {
   }
 }
 
+export async function seedExecutionGeneration({ api, database, scope, walletId }) {
+  const existing = await database
+    .prepare(
+      `SELECT 1 FROM wallet_execution_generations
+    WHERE namespace = ? AND org_id = ? AND project_id = ? AND env_id = ? AND wallet_id = ?`,
+    )
+    .bind(scope.namespace, scope.orgId, scope.projectId, scope.envId, walletId)
+    .first();
+  if (existing) return;
+  const authority = new api.D1WalletExecutionAuthority(
+    database,
+    scope,
+    new ApprovedRegistrationAuthority(),
+  );
+  const identity = { walletId, ceremonyId: 'fixture-execution-registration' };
+  assert.equal((await authority.admitHome(identity)).ok, true);
+  assert.equal((await authority.complete({ ...identity, outcome: 'established' })).ok, true);
+}
+
 export async function prepareExecutionGeneration({ api, database, scope, walletId }) {
   const registration = new ApprovedRegistrationAuthority();
   const authority = new api.D1WalletExecutionAuthority(database, scope, registration);

@@ -44,6 +44,7 @@ export async function seedOperationHistory({ api, database, scope, session, auth
     completedAtMs: nowMs + 2,
   });
   return {
+    walletId: session.walletId,
     sessionResult,
     stepUpResult,
     stepUpInput: stepUp.operation,
@@ -59,6 +60,11 @@ export async function verifyImportedOperationHistory({ api, database, scope, his
     walletSignerScope: scope,
   });
   for (const expected of [history.sessionResult, history.stepUpResult]) {
+    const pinned = await store.readPinnedOwnerWalletScope({
+      operation: expected,
+      walletId: history.walletId,
+    });
+    assert.equal(pinned.ownershipGeneration, 1);
     assert.deepEqual(
       await store.readAuthorizedOperation({
         tenantId: expected.tenantId,
@@ -105,6 +111,7 @@ export async function verifyImportedOperationHistory({ api, database, scope, his
     terminalResultCannotBeReplaced: true,
     importedUnexpiredEvidenceCannotAuthorizeNewOperation: true,
     exactStepUpReplayPreserved: true,
+    originalOwnershipGenerationPreserved: true,
     auditCount,
   };
 }
@@ -136,4 +143,76 @@ export async function verifyOperationHistoryCleanup({ database, scope, history }
     0,
   );
   return { sourceOperationsRemoved: true, sourceAuditsRemoved: true, sourceEvidenceRemoved: true };
+}
+
+export async function verifyDestinationOperationGeneration({
+  api,
+  database,
+  scope,
+  service,
+  fixture,
+  nowMs,
+}) {
+  const issued = await service.issueDirectWalletSessionAuthorizationV2({
+    tenantId: fixture.issuedSession.session.tenantId,
+    principalId: fixture.issuedSession.session.principalId,
+    walletId: fixture.authority.walletId,
+    authority: fixture.authority,
+    walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
+    mintId: 'wallet-mint:destination-operation-generation',
+    remainingUses: 5,
+    issuedAtMs: nowMs,
+    expiresAtMs: fixture.issuedSession.session.expiresAtMs,
+  });
+  const store = new api.CloudflareD1AuthorizationStore({
+    database,
+    namespace: scope.namespace,
+    walletSignerScope: scope,
+  });
+  const input = api.buildSessionSigningOperationInputFixture({
+    session: issued.session,
+    label: 'destination-generation-operation',
+    nowMs,
+  });
+  const claimed = await store.admitAuthorizedOperation({ operation: input });
+  assert.equal(claimed.kind, 'claimed');
+  assert.equal(
+    (
+      await store.readPinnedOwnerWalletScope({
+        operation: claimed.operation,
+        walletId: issued.session.walletId,
+      })
+    ).ownershipGeneration,
+    2,
+  );
+  const retry = await store.admitAuthorizedOperation({ operation: input });
+  assert.equal(retry.kind, 'operation_in_progress');
+  assert.equal(
+    (
+      await store.readPinnedOwnerWalletScope({
+        operation: retry.operation,
+        walletId: issued.session.walletId,
+      })
+    ).ownershipGeneration,
+    2,
+  );
+  const remaining = await database
+    .prepare(
+      `SELECT remaining_uses FROM authorization_wallet_session_quotas
+    WHERE namespace = ? AND tenant_id = ? AND quota_id = ?`,
+    )
+    .bind(scope.namespace, issued.session.tenantId, issued.session.quotaId)
+    .first('remaining_uses');
+  assert.equal(remaining, 4);
+  await store.completeAuthorizedOperation({
+    operation: claimed.operation,
+    result: 'failed_before_side_effect',
+    response: {
+      status: 409,
+      contentType: 'application/json',
+      bodyText: '{"code":"symbolic_backend_rejected"}',
+    },
+    completedAtMs: nowMs + 1,
+  });
+  return { newClaimGeneration: 2, exactRetryGeneration: 2, quotaChargedOnce: true };
 }

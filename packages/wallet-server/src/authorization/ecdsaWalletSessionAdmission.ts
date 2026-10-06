@@ -17,6 +17,7 @@ export type EcdsaWalletSessionAdmissionInput = {
 };
 
 export type PinnedOwnerWalletScope = {
+  readonly ownershipGeneration: number;
   readonly orgId: string;
   readonly projectId: string;
   readonly projectEnvironmentId: string;

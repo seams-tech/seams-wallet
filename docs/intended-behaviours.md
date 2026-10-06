@@ -1548,6 +1548,16 @@ Ordinary reads through this adapter use local storage. They reject missing,
 inactive, retired, or differently scoped homes. They do not query Console or derive
 an ownership generation from a signing key, cipher identity, or client connection.
 
+Each new operation claim reads the active local generation in its insert statement.
+The database rejects an absent or inactive home before the claim can consume quota.
+The stored generation cannot change. In-progress retries read that stored generation.
+Historical restore preserves it, even when the destination now uses a later generation.
+New destination claims use the activated destination generation.
+
+The persistence migration leaves older records without a proven generation unchanged.
+Such records cannot produce a pinned execution scope. The system must not infer a
+generation from the current home to dispatch an older operation.
+
 ### Restore authorization history during relocation
 
 The internal restore path accepts authorities, auth methods, session quotas,
