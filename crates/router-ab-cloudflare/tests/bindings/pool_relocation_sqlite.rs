@@ -775,7 +775,10 @@ fn verify_snapshot_export(
     let destination = path.with_file_name("destination.sqlite");
     let preparation = router_ab_cloudflare::SigningWorkerEcdsaTransferRequestV1::Prepare {
         scope: receipt.scope.clone(),
-        request: receipt.request.clone(),
+        request: router_ab_cloudflare::SigningWorkerRelocationIdentityV1 {
+            move_id: receipt.request.move_id.clone(),
+            source_generation: receipt.request.source_generation,
+        },
         chunk_bytes: 1_024,
     };
     let prepared = with_store(&destination, env, |store| {

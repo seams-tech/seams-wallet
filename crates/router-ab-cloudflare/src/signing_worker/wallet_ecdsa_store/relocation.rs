@@ -62,7 +62,7 @@ pub(super) enum Fence {
         receipt: SigningWorkerPoolFreezeReceiptV1,
     },
     Prepared {
-        request: SigningWorkerRelocationRequestV1,
+        request: SigningWorkerRelocationIdentityV1,
         chunk_bytes: u32,
     },
     Importing {

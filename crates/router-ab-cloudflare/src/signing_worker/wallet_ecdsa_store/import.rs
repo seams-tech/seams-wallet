@@ -30,7 +30,7 @@ struct ImportActivationRow {
 pub enum SigningWorkerEcdsaTransferRequestV1 {
     Prepare {
         scope: CloudflareSigningWorkerWalletScopeV1,
-        request: SigningWorkerRelocationRequestV1,
+        request: SigningWorkerRelocationIdentityV1,
         chunk_bytes: u32,
     },
     Status {
@@ -69,7 +69,7 @@ impl SigningWorkerEcdsaTransferRequestV1 {
 pub enum SigningWorkerEcdsaTransferResponseV1 {
     Prepared {
         scope: CloudflareSigningWorkerWalletScopeV1,
-        request: SigningWorkerRelocationRequestV1,
+        request: SigningWorkerRelocationIdentityV1,
         chunk_bytes: u32,
     },
     Receiving {
@@ -205,7 +205,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
     fn prepare_ecdsa_import(
         &self,
         scope: CloudflareSigningWorkerWalletScopeV1,
-        request: SigningWorkerRelocationRequestV1,
+        request: SigningWorkerRelocationIdentityV1,
         chunk_bytes: u32,
     ) -> RouterAbProtocolResult<SigningWorkerEcdsaTransferResponseV1> {
         scope.validate()?;
@@ -231,7 +231,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
             })?;
         }
         if let Some((receipt, size)) = self.import_activation(&scope)? {
-            if receipt.request != request || size != chunk_bytes {
+            if receipt.request.identity() != request || size != chunk_bytes {
                 return Err(wallet_error("ECDSA destination preparation changed"));
             }
             return Ok(SigningWorkerEcdsaTransferResponseV1::Prepared {
@@ -255,7 +255,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
                     receipt,
                     chunk_bytes: size,
                 },
-            ) if receipt.request == request && size == chunk_bytes => {}
+            ) if receipt.request.identity() == request && size == chunk_bytes => {}
             None => {
                 let chunks = self.sql.query::<StoredChunk>(
                     "SELECT chunk_json, acknowledgement_json FROM wallet_ecdsa_import_chunks WHERE owner_json = ? LIMIT 1",
@@ -299,7 +299,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
             Some(Fence::Prepared {
                 request,
                 chunk_bytes: size,
-            }) if request == receipt.request && size == chunk_bytes => {
+            }) if request == receipt.request.identity() && size == chunk_bytes => {
                 Ok(SigningWorkerEcdsaTransferResponseV1::Prepared {
                     scope: receipt.scope,
                     request,
@@ -357,7 +357,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
             Some(Fence::Prepared {
                 request,
                 chunk_bytes,
-            }) if request == chunk.receipt.request
+            }) if request == chunk.receipt.request.identity()
                 && chunk_bytes == chunk.chunk_bytes
                 && chunk.segment_index == 0 => {}
             Some(Fence::Importing {

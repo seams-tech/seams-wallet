@@ -2252,6 +2252,7 @@ async function verifyEcdsaWalletRelocation(topology, fixture, ecdsa) {
         .digest('hex'),
       cleanup,
       returnTransfer: {
+        preparationWithoutInvalidationTime: returned.preparationWithoutInvalidationTime,
         ownershipGeneration: ecdsa.executionHome.ownershipGeneration,
         segments: returned.segments,
         historicalSessionsPreservedWithoutBlockingFreeze: true,

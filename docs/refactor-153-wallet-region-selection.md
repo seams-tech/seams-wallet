@@ -464,8 +464,12 @@ and rejects ordinary new Ed25519 work. Its first imported source receipt pins th
 actual invalidation time and immutable snapshot. Subsequent segments require that
 full receipt. Source fencing and settlement retain their exact timestamp checks.
 The private preparation wire shape and destination fence representation change
-together; they provide no legacy command path. ECDSA and linked-presign preparation
-still need the same identity review before their adapters can be connected.
+together; they provide no legacy command path. ECDSA preparation now uses the same
+timestamp-free move identity. Its first accepted chunk pins the complete source
+receipt. The Worker E2E verifies timestamp conflict rejection, destination signing
+before and after cleanup, and a return move prepared before its invalidation time.
+Linked-presign preparation still needs the same identity change before its adapter
+can be connected.
 
 The Router registration store now has a transactional source fence on both native
 SQLite and the wallet Durable Object. Its private freeze route requires the

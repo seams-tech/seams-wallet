@@ -347,6 +347,10 @@ async function verifyTerminalFenceRace(source, session, credential, routerCreden
   return { fence: JSON.parse(fenceBody), outcome };
 }
 
+function relocationIdentity(request) {
+  return { move_id: request.move_id, source_generation: request.source_generation };
+}
+
 async function transferWalletSnapshot(source, destination, credential, receipt) {
   const transfer = '/router-ab/signing-worker/wallet/ecdsa/transfer';
   const exportSnapshot = '/router-ab/signing-worker/wallet/ecdsa/export';
@@ -354,7 +358,7 @@ async function transferWalletSnapshot(source, destination, credential, receipt) 
   const preparation = {
     kind: 'prepare',
     scope: receipt.scope,
-    request: receipt.request,
+    request: relocationIdentity(receipt.request),
     chunk_bytes: chunkBytes,
   };
   const prepared = await accepted(destination, transfer, preparation, credential);
@@ -387,6 +391,12 @@ async function transferWalletSnapshot(source, destination, credential, receipt) 
       await accepted(destination, transfer, { kind: 'import', chunk }, credential),
       acknowledgement,
     );
+    if (index === 0) {
+      const changed = structuredClone(chunk);
+      changed.receipt.request.invalidated_at_ms += 1;
+      await rejected(destination, transfer, { kind: 'import', chunk: changed }, credential,
+        /inputs changed/);
+    }
   }
   const [scope, move, snapshot] = JSON.parse(Buffer.concat(pieces).toString('utf8'));
   assert.deepEqual(scope, receipt.scope);
@@ -678,9 +688,10 @@ export async function returnTransferredWallet(topology, credential, previousRece
     invalidated_at_ms: Date.now(),
   };
   const transfer = '/router-ab/signing-worker/wallet/ecdsa/transfer';
-  const preparation = { kind: 'prepare', scope, request, chunk_bytes: 256 };
+  const preparation = { kind: 'prepare', scope, request: relocationIdentity(request), chunk_bytes: 256 };
   const prepared = await accepted(destination, transfer, preparation, credential);
   assert.deepEqual(await accepted(destination, transfer, preparation, credential), prepared);
+  request.invalidated_at_ms = Date.now();
   const freeze = { scope, request };
   const frozen = await accepted(
     source,
@@ -720,5 +731,5 @@ export async function returnTransferredWallet(topology, credential, previousRece
   await rejected(destination, transfer, { kind: 'cleanup', activation: changedCleanup }, credential,
     /completed cleanup receipt changed/);
 
-  return { receipt: frozen.receipt, segments: first.segment_count };
+  return { receipt: frozen.receipt, segments: first.segment_count, preparationWithoutInvalidationTime: true };
 }
