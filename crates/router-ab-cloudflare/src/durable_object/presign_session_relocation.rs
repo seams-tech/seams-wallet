@@ -1,6 +1,7 @@
 //! Local barriers serialize relocation with linked-session KV writers.
 
 pub(crate) mod import;
+mod cleanup;
 
 use std::{cell::RefCell, rc::Rc};
 
@@ -284,6 +285,8 @@ async fn freeze_transaction(
         LINKED_PRESIGN_AUTHORITY_STORAGE_KEY,
     };
     use super::linked_presign_history::{RetiredCompletion, Retirement};
+
+    cleanup::require_not_started(transaction).await?;
 
     let fence =
         transaction_get_optional::<LinkedPresignFenceReceipt>(transaction, FENCE_KEY).await?;

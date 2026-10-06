@@ -73,7 +73,7 @@ class SourceDirectory {
       const command = { kind: input.request.operation, receipt };
       if (this.mode === 'corrupt') receipt.command.wallet_scope.wallet_id = 'another-wallet';
       if (input.request.operation === 'export') command.segment_index = input.request.segmentIndex;
-      if (input.request.operation !== 'verify') command.chunk_bytes = 4096;
+      if (input.request.operation !== 'verify' && input.request.operation !== 'cleanup') command.chunk_bytes = 4096;
       return Response.json({ ok: true, command });
     }
     if (request.url.endsWith('/relocation-presign-source')) {
@@ -283,7 +283,7 @@ class RuntimeRelocationSource {
         const receipt = kind === 'import' ? body.chunk.receipt : body.receipt;
         operation = `presign-${kind}`;
         forwardedBody = sourceEnvelope({ scope: receipt.command.wallet_scope, request: receipt.command.request });
-        forwardedBody.attempt.phase = 'copying';
+        forwardedBody.attempt.phase = kind === 'cleanup' ? 'cutover' : 'copying';
         forwardedBody.session = {
           presignSessionId: receipt.command.presign_session_id,
           serverPresignatureId: receipt.command.server_presignature_id,

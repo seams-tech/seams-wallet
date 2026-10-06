@@ -45,6 +45,9 @@ pub(crate) enum Command {
     Verify {
         receipt: LinkedPresignFreezeReceipt,
     },
+    Cleanup {
+        receipt: LinkedPresignFreezeReceipt,
+    },
     Status {
         receipt: LinkedPresignFreezeReceipt,
         chunk_bytes: u32,
@@ -56,7 +59,7 @@ impl Command {
         match self {
             Self::Prepare { command, .. } => command.validate(),
             Self::Import { chunk } => chunk.receipt.command.validate(),
-            Self::Verify { receipt } | Self::Status { receipt, .. } => receipt.command.validate(),
+            Self::Verify { receipt } | Self::Status { receipt, .. } | Self::Cleanup { receipt } => receipt.command.validate(),
         }
     }
 
@@ -64,7 +67,7 @@ impl Command {
         match self {
             Self::Prepare { command, .. } => command.clone(),
             Self::Import { chunk } => Preparation::from_source(&chunk.receipt.command),
-            Self::Verify { receipt } | Self::Status { receipt, .. } => Preparation::from_source(&receipt.command),
+            Self::Verify { receipt } | Self::Status { receipt, .. } | Self::Cleanup { receipt } => Preparation::from_source(&receipt.command),
         }
     }
 }
@@ -87,6 +90,10 @@ pub(crate) enum Receipt {
         input_digest_hex: String,
     },
     Verified {
+        receipt: LinkedPresignFreezeReceipt,
+    },
+    Cleaning,
+    Cleaned {
         receipt: LinkedPresignFreezeReceipt,
     },
 }
@@ -167,6 +174,7 @@ pub(super) async fn handle(
                     command,
                     chunk_bytes,
                 } => prepare(&transaction, command, chunk_bytes).await?,
+                Command::Cleanup { receipt } => super::cleanup::advance(&transaction, receipt).await?,
                 Command::Import { chunk } => import(&transaction, chunk).await?,
                 Command::Verify { receipt } => verify(&transaction, receipt).await?,
                 Command::Status { receipt, chunk_bytes } => status(&transaction, receipt, chunk_bytes).await?,

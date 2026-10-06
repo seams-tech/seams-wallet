@@ -381,6 +381,28 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa, r
     credential,
     /fenced for relocation/,
   );
+  // Console phase authorization is covered by the private directory E2E.
+  // This path uses the real Runtime transport and real native source storage.
+  const changedCleanup = structuredClone(receipt);
+  changedCleanup.records_digest_hex = '0'.repeat(64);
+  await rejected(source, transferPath, { kind: 'cleanup', receipt: changedCleanup }, routerCredential, /requires its frozen source/);
+  await rejected(destination, transferPath, { kind: 'cleanup', receipt }, credential, /requires its frozen source/);
+  let cleaned;
+  for (let step = 0; step < 32; step += 1) {
+    cleaned = await accepted(walletSource, transferPath, { kind: 'cleanup', receipt }, routerCredential);
+    if (cleaned.kind === 'cleaned') break;
+    assert.deepEqual(cleaned, { kind: 'cleaning' });
+    await topology.unsafeEvictDurableObject(workerName, objectClass, { id: created[0] });
+  }
+  assert.deepEqual(cleaned, { kind: 'cleaned', receipt });
+  await topology.unsafeEvictDurableObject(workerName, objectClass, { id: created[0] });
+  assert.deepEqual(await accepted(walletSource, transferPath, { kind: 'cleanup', receipt }, routerCredential), cleaned);
+  await rejected(source, transferPath, { kind: 'cleanup', receipt: changedCleanup }, routerCredential, /receipt changed/);
+  await rejected(source, exportPath, { receipt, segment_index: 0, chunk_bytes: chunkBytes }, routerCredential, /requires a frozen snapshot/);
+  await rejected(source, freezePath, command, routerCredential, /cleanup already started/);
+  await rejected(session, initPath, initialization, credential, /fenced for relocation/);
+  await rejected(session, consumePath, delayedConsume, credential, /fenced for relocation/);
+  assert.deepEqual(await accepted(walletDestination, transferPath, { kind: 'verify', receipt }, credential), verified);
   const pendingRegistration = await transferPendingRegistration(walletSource, walletDestination, pendingFrozen, routerCredential);
   const walletInventory = await verifyWalletInventoryTransfer(
     topology,
@@ -415,6 +437,9 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa, r
     journalAuthorizedDestinationStatus: true,
     destinationCursorSurvivesEviction: true,
     changedStatusChunkSizeRejected: true,
+    sourceSessionCleanupReplaysAfterEviction: true,
+    cleanedSourceCannotExportOrReopen: true,
+    destinationHistorySurvivesSourceCleanup: true,
     delayedInitializationRejectedAtBothHomes: true,
     segments: first.segment_count,
     pendingRegistration,

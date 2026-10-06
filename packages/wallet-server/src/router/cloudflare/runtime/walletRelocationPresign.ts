@@ -3,7 +3,7 @@ import { ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1 } from '../../../core/Thresho
 import type { CloudflareServiceBindingFetcher } from './routerAbServiceBindings';
 import type { RuntimeSourceDirectory } from './walletRelocationSource';
 
-type Operation = 'inventory' | 'fence' | 'freeze' | 'export' | 'import' | 'verify' | 'status';
+type Operation = 'inventory' | 'fence' | 'freeze' | 'export' | 'import' | 'verify' | 'status' | 'cleanup';
 
 export function presignSourceOperation(operation: string): Operation | null {
   switch (operation) {
@@ -14,6 +14,7 @@ export function presignSourceOperation(operation: string): Operation | null {
     case 'presign-import': return 'import';
     case 'presign-verify': return 'verify';
     case 'presign-status': return 'status';
+    case 'presign-cleanup': return 'cleanup';
     default: return null;
   }
 }
@@ -22,7 +23,7 @@ export async function forwardPresignSource(
   input: unknown, operation: Operation, router: CloudflareServiceBindingFetcher,
   credential: string, directory: RuntimeSourceDirectory,
 ): Promise<Response> {
-  if (operation === 'export' || operation === 'import' || operation === 'verify' || operation === 'status')
+  if (operation === 'export' || operation === 'import' || operation === 'verify' || operation === 'status' || operation === 'cleanup')
     return forwardPresignTransfer(input, operation, router, credential, directory);
   if (!isPlainObject(input) || Object.keys(input).length !== (operation === 'inventory' ? 4 : 3) ||
       !isPlainObject(input.wallet) || !isPlainObject(input.attempt)) return failure('invalid_input', 400);
@@ -113,10 +114,10 @@ function failure(code: string, status: number): Response {
 }
 
 async function forwardPresignTransfer(
-  input: unknown, operation: 'export' | 'import' | 'verify' | 'status', router: CloudflareServiceBindingFetcher,
+  input: unknown, operation: 'export' | 'import' | 'verify' | 'status' | 'cleanup', router: CloudflareServiceBindingFetcher,
   credential: string, directory: RuntimeSourceDirectory,
 ): Promise<Response> {
-  if (!isPlainObject(input) || Object.keys(input).length !== (operation === 'verify' || operation === 'status' ? 3 : 4) ||
+  if (!isPlainObject(input) || Object.keys(input).length !== (operation === 'verify' || operation === 'status' || operation === 'cleanup' ? 3 : 4) ||
       !isPlainObject(input.wallet) || !isPlainObject(input.attempt) || !isPlainObject(input.session) ||
       Object.keys(input.session).length !== 2 || typeof input.session.presignSessionId !== 'string' ||
       !input.session.presignSessionId.trim() || typeof input.session.serverPresignatureId !== 'string' ||
@@ -151,7 +152,7 @@ async function forwardPresignTransfer(
         !positiveInteger(move.source_generation) || !positiveInteger(move.invalidated_at_ms) ||
         source.presign_session_id !== input.session.presignSessionId ||
         source.server_presignature_id !== input.session.serverPresignatureId ||
-        (operation !== 'verify' && command.chunk_bytes !== 4096))
+        (operation !== 'verify' && operation !== 'cleanup' && command.chunk_bytes !== 4096))
       return failure('source_command_unavailable', 503);
     let payload: unknown;
     if (operation === 'export') {
@@ -169,7 +170,7 @@ async function forwardPresignTransfer(
     } else if (operation === 'status') {
       payload = { kind: 'status', receipt, chunk_bytes: 4096 };
     } else {
-      payload = { kind: 'verify', receipt };
+      payload = { kind: operation, receipt };
     }
     const path = operation === 'export' ? 'export' : 'transfer';
     return await router.fetch(new Request(`https://mpc-router.router-ab.internal/router-ab/signing-worker/linked-presign-session/${path}`, {
