@@ -1370,7 +1370,14 @@ fn router_ab_ecdsa_derivation_activation_refresh_request_with_aad_bound_envelope
 
 fn router_ab_ecdsa_derivation_activation_request(
 ) -> CloudflareRouterAbEcdsaDerivationSigningWorkerActivationRequestV1 {
-    let registration = router_ab_ecdsa_derivation_registration_request();
+    router_ab_ecdsa_derivation_activation_for_registration(
+        router_ab_ecdsa_derivation_registration_request(),
+    )
+}
+
+fn router_ab_ecdsa_derivation_activation_for_registration(
+    registration: RouterAbEcdsaDerivationRegistrationBootstrapRequestV1,
+) -> CloudflareRouterAbEcdsaDerivationSigningWorkerActivationRequestV1 {
     let public_request = registration
         .to_threshold_prf_request()
         .expect("Router A/B ECDSA derivation public request");

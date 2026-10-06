@@ -134,6 +134,45 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
             encode_cloudflare_server_output_hpke_private_key_secret_v1(&private_key)?,
         ),
     ]);
+    let context = router_ab_cloudflare::signing_worker_relocation_context_v1(&env)?;
+    assert_eq!(context.digest_hex.len(), 64);
+    assert_eq!(
+        context.digest_hex,
+        router_ab_cloudflare::signing_worker_relocation_context_v1(&env)?.digest_hex
+    );
+    for (name, value) in [
+        ("SIGNING_WORKER_PRIVATE_D1_ENVIRONMENT", "other-environment"),
+        ("SIGNING_WORKER_PRIVATE_D1_KEK_VERSION", "other-version"),
+    ] {
+        let changed = env.clone().with_overrides(vec![(name, value.to_owned())]);
+        assert_ne!(
+            context.digest_hex,
+            router_ab_cloudflare::signing_worker_relocation_context_v1(&changed)?.digest_hex
+        );
+    }
+    let (other_private, other_public) = hpke_keypair(0x79);
+    let mismatched = env.clone().with_overrides(vec![(
+        "SIGNING_WORKER_PRIVATE_D1_KEK_PUBLIC_KEY",
+        other_public.clone(),
+    )]);
+    assert!(router_ab_cloudflare::signing_worker_relocation_context_v1(&mismatched).is_err());
+    let other_key = mismatched.with_overrides(vec![(
+        "SIGNING_WORKER_PRIVATE_D1_KEK",
+        encode_cloudflare_server_output_hpke_private_key_secret_v1(&other_private)?,
+    )]);
+    assert_ne!(
+        context.digest_hex,
+        router_ab_cloudflare::signing_worker_relocation_context_v1(&other_key)?.digest_hex
+    );
+    std::fs::write(
+        directory.join("cipher-context.json"),
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "sameContextIsStable": true,
+            "environmentVersionAndRecipientChangesDetected": true,
+            "mismatchedKeyPairRejected": true,
+            "contextDigest": context.digest_hex,
+        }))?,
+    )?;
     let base = router_ab_ecdsa_derivation_presignature_pool_record();
     let owner = CloudflareSigningWorkerWalletScopeV1::new(
         "org-1",
@@ -384,6 +423,23 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
         "env",
         &base.scope.wallet_id,
     )?;
+    let mut other_registration = router_ab_ecdsa_derivation_registration_request();
+    other_registration.lifecycle.lifecycle_id = "other-owner-registration".to_owned();
+    let other_activation_request =
+        router_ab_ecdsa_derivation_activation_for_registration(other_registration);
+    let other_activation_material =
+        router_ab_ecdsa_derivation_server_material_record(&other_activation_request);
+    let mut other_activation =
+        other_activation_request.to_recipient_proof_bundle_activation_request()?;
+    other_activation.material_activation.activation_id = "other-owner-activation".to_owned();
+    with_store(&path, &env, |store| {
+        store.activate(
+            other_owner.clone(),
+            other_activation,
+            other_activation_material,
+            1_000,
+        )
+    })?;
     let mut other_material = base.clone();
     other_material.server_presignature_id = "other-owner".into();
     let other_command = CloudflareSigningWorkerEcdsaPoolCommandV1::PutAvailable {
@@ -694,7 +750,7 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
     });
     artifact["invalidation_cursor_survives_reopen_and_rolls_back_atomically"] = true.into();
     artifact["source_capture_crosses_multiple_record_batches"] = true.into();
-    artifact["late_digest_failure_rolls_back_streamed_restore"] = true.into();
+    artifact["failed_restore_batch_rolls_back_prior_batches_stay_inactive"] = true.into();
     artifact["linked_presign_settlement"] = serde_json::json!({
         "linked_session_freeze_acknowledgement_required": true,
         "linked_session_acknowledgement_rollback_and_exact_retry": true,
@@ -745,14 +801,19 @@ fn freeze(
     request: router_ab_cloudflare::SigningWorkerRelocationRequestV1,
 ) -> router_ab_core::RouterAbProtocolResult<router_ab_cloudflare::SigningWorkerPoolFreezeResponseV1>
 {
-    loop {
+    for _ in 0..256 {
         let response = with_store(path, env, |store| {
             store.freeze_pool_for_relocation(owner.clone(), request.clone())
         })?;
-        if response != router_ab_cloudflare::SigningWorkerPoolFreezeResponseV1::Invalidating {
-            return Ok(response);
+        match response {
+            router_ab_cloudflare::SigningWorkerPoolFreezeResponseV1::Invalidating
+            | router_ab_cloudflare::SigningWorkerPoolFreezeResponseV1::Sealing => {}
+            _ => return Ok(response),
         }
     }
+    Err(sql_error(
+        "ECDSA snapshot exceeded the fixture's bounded retries",
+    ))
 }
 
 fn verify_snapshot_export(
@@ -927,18 +988,29 @@ fn verify_snapshot_export(
             assert_eq!(actual, bytes[start..end], "Chunk boundaries must not change sealed bytes");
         }
     }
-    let (scope, move_request, snapshot): (
+    let mut lines = bytes.split(|byte| *byte == b'\n');
+    let header = lines.next().ok_or("snapshot header missing")?;
+    let (scope, move_request): (
         CloudflareSigningWorkerWalletScopeV1,
         router_ab_cloudflare::SigningWorkerRelocationRequestV1,
-        serde_json::Value,
-    ) = serde_json::from_slice(&bytes)?;
+    ) = serde_json::from_slice(header)?;
     assert_eq!(scope, receipt.scope);
     assert_eq!(move_request, receipt.request);
-    assert_eq!(snapshot["pools"].as_array().unwrap().len(), 6 + EXTRA_POOL_RECORDS);
-    assert_eq!(snapshot["activations"].as_array().unwrap().len(), 1);
-    assert_eq!(snapshot["effects"].as_array().unwrap().len(), 1);
-    assert_eq!(snapshot["presign_authorities"].as_array().unwrap().len(), 2);
-    assert!(snapshot["effects"][0]["terminal_json"].as_str().is_some());
+    let mut records = Vec::new();
+    for line in lines {
+        if !line.is_empty() {
+            records.push(serde_json::from_slice::<serde_json::Value>(line)?);
+        }
+    }
+    assert_eq!(records.len() as u64, receipt.record_count);
+    let pools = snapshot_rows(&records, "pool");
+    assert_eq!(pools.len(), 6 + EXTRA_POOL_RECORDS);
+    assert_eq!(snapshot_rows(&records, "activation").len(), 1);
+    assert_eq!(snapshot_rows(&records, "effect").len(), 1);
+    assert_eq!(snapshot_rows(&records, "presign_authority").len(), 2);
+    assert!(snapshot_rows(&records, "effect")[0]["terminal_json"]
+        .as_str()
+        .is_some());
     request.segment_index = first.segment_count;
     assert!(with_store(path, env, |store| store
         .export_ecdsa_snapshot(request.clone()))
@@ -1020,32 +1092,6 @@ fn verify_snapshot_export(
         .transfer_ecdsa_snapshot(verify.clone()))
     .is_err());
     assert!(rows(&destination).is_empty());
-    let intake = Connection::open(&destination)?;
-    let last_segment = first.segment_count - 1;
-    let original_chunk: String = intake.query_row(
-        "SELECT chunk_json FROM wallet_ecdsa_import_chunks WHERE owner_json = ? AND segment_index = ?",
-        rusqlite::params![owner_json, last_segment],
-        |row| row.get(0),
-    )?;
-    let mut altered: router_ab_cloudflare::SigningWorkerEcdsaSnapshotChunkV1 =
-        serde_json::from_str(&original_chunk)?;
-    let mut tail = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(&altered.data_b64u)?;
-    assert!(tail.len() < altered.chunk_bytes as usize);
-    tail.push(b' ');
-    altered.data_b64u = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(tail);
-    intake.execute(
-        "UPDATE wallet_ecdsa_import_chunks SET chunk_json = ? WHERE owner_json = ? AND segment_index = ?",
-        rusqlite::params![serde_json::to_string(&altered)?, owner_json, last_segment],
-    )?;
-    let late_failure = with_store(&destination, env, |store| {
-        store.transfer_ecdsa_snapshot(verify.clone())
-    }).unwrap_err();
-    assert!(late_failure.message().contains("staged inventory digest differs from source"));
-    assert!(rows(&destination).is_empty(), "A late digest failure must roll back streamed row writes");
-    intake.execute(
-        "UPDATE wallet_ecdsa_import_chunks SET chunk_json = ? WHERE owner_json = ? AND segment_index = ?",
-        rusqlite::params![original_chunk, owner_json, last_segment],
-    )?;
     let interrupted = with_store(&destination, env, |store| {
         store.transfer_ecdsa_snapshot(verify.clone())?;
         Err::<(), _>(sql_error(
@@ -1065,9 +1111,48 @@ fn verify_snapshot_export(
         },
         "a rolled-back verification retains the completed import cursor"
     );
-    let verified = with_store(&destination, env, |store| {
-        store.transfer_ecdsa_snapshot(verify.clone())
-    })?;
+    let intake = Connection::open(&destination)?;
+    let last_segment = first.segment_count - 1;
+    let original_chunk: String = intake.query_row(
+        "SELECT chunk_json FROM wallet_ecdsa_import_chunks WHERE owner_json = ? AND segment_index = ?",
+        rusqlite::params![owner_json, last_segment],
+        |row| row.get(0),
+    )?;
+    let mut altered: router_ab_cloudflare::SigningWorkerEcdsaSnapshotChunkV1 =
+        serde_json::from_str(&original_chunk)?;
+    let mut tail = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(&altered.data_b64u)?;
+    assert!(tail.len() < altered.chunk_bytes as usize);
+    tail.push(b' ');
+    altered.data_b64u = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(tail);
+    intake.execute(
+        "UPDATE wallet_ecdsa_import_chunks SET chunk_json = ? WHERE owner_json = ? AND segment_index = ?",
+        rusqlite::params![serde_json::to_string(&altered)?, owner_json, last_segment],
+    )?;
+    assert!(verify_to_completion(&destination, env, receipt).is_err());
+    let partial_rows = rows(&destination);
+    assert!(
+        !partial_rows.is_empty(),
+        "Earlier restore batches remain durable"
+    );
+    assert!(with_store(&destination, env, |store| {
+        store.require_mutation_admission(&receipt.scope)
+    })
+    .is_err());
+    assert!(with_store(&destination, env, |store| {
+        store.transfer_ecdsa_snapshot(activate.clone())
+    })
+    .is_err());
+    assert!(verify_to_completion(&destination, env, receipt).is_err());
+    assert_eq!(
+        rows(&destination),
+        partial_rows,
+        "Failed restore batch rolls back"
+    );
+    intake.execute(
+        "UPDATE wallet_ecdsa_import_chunks SET chunk_json = ? WHERE owner_json = ? AND segment_index = ?",
+        rusqlite::params![original_chunk, owner_json, last_segment],
+    )?;
+    let verified = verify_to_completion(&destination, env, receipt)?;
     assert_eq!(
         with_store(&destination, env, |store| store
             .transfer_ecdsa_snapshot(verify.clone()))?,
@@ -1079,9 +1164,7 @@ fn verify_snapshot_export(
         verified,
         "a restarted transfer loop observes durable verification"
     );
-    let expected_rows: Vec<(String, String, i64)> = snapshot["pools"]
-        .as_array()
-        .unwrap()
+    let expected_rows: Vec<(String, String, i64)> = pools
         .iter()
         .map(|row| {
             (
@@ -1092,20 +1175,21 @@ fn verify_snapshot_export(
         })
         .collect();
     assert_eq!(rows(&destination), expected_rows);
-    assert_eq!(
-        with_store(&destination, env, |store| {
-            store.load_presign_authority(&receipt.scope, &presign_request.presign_session_id, 1_000)
-        })?,
-        presign_request.authority
-    );
-    let expired = with_store(&destination, env, |store| {
-        store.load_presign_authority(&receipt.scope, &presign_request.presign_session_id, 1_700)
+    let source_authority: String = Connection::open(path)?.query_row(
+        "SELECT authority_json FROM signing_worker_presign_authorities WHERE presign_session_id = ?",
+        [&presign_request.presign_session_id],
+        |row| row.get(0),
+    )?;
+    let destination_authority: String = Connection::open(&destination)?.query_row(
+        "SELECT authority_json FROM signing_worker_presign_authorities WHERE presign_session_id = ?",
+        [&presign_request.presign_session_id],
+        |row| row.get(0),
+    )?;
+    assert_eq!(destination_authority, source_authority);
+    assert!(with_store(&destination, env, |store| {
+        store.load_presign_authority(&receipt.scope, &presign_request.presign_session_id, 1_000)
     })
-    .unwrap_err();
-    assert_eq!(
-        expired.code(),
-        RouterAbProtocolErrorCode::ExpiredLocalRequest
-    );
+    .is_err());
     assert!(expected_rows
         .iter()
         .any(|row| row.2 == HISTORICAL_SQL_VERSION));
@@ -1177,6 +1261,13 @@ fn verify_snapshot_export(
         1,
         "ownership generation differs",
     )?;
+    assert!(
+        with_store(&destination, env, |store| {
+            store.load_presign_authority(&receipt.scope, &presign_request.presign_session_id, 1_000)
+        })
+        .is_err(),
+        "Source-generation presign authority stays retired after activation"
+    );
     let mut fresh_presign = presign_request.clone();
     fresh_presign.presign_session_id = format!("ecdsa-presign-v2:2000:{}", b64u(&[0x44; 32]));
     fresh_presign.ceremony_expires_at_ms = 2_000;
@@ -1374,7 +1465,10 @@ fn restore_returned_wallet(
     with_store(destination, env, |store| {
         store.transfer_ecdsa_snapshot(Command::Prepare {
             scope: receipt.scope.clone(),
-            request: receipt.request.clone(),
+            request: router_ab_cloudflare::SigningWorkerRelocationIdentityV1 {
+                move_id: receipt.request.move_id.clone(),
+                source_generation: receipt.request.source_generation,
+            },
             chunk_bytes: 1_024,
         })
     })?;
@@ -1410,11 +1504,7 @@ fn restore_returned_wallet(
             store.transfer_ecdsa_snapshot(Command::Import { chunk })
         })?;
     }
-    with_store(destination, env, |store| {
-        store.transfer_ecdsa_snapshot(Command::Verify {
-            receipt: receipt.clone(),
-        })
-    })?;
+    verify_to_completion(destination, env, receipt)?;
     let activated = with_store(destination, env, |store| {
         store.transfer_ecdsa_snapshot(Command::Activate {
             receipt: receipt.clone(),
@@ -1459,4 +1549,42 @@ fn reject_prepare_generation(
     assert!(error.to_string().contains(message), "{error}");
     assert_eq!(rows(path), before, "stale preparation preserves pool bytes");
     Ok(())
+}
+
+fn snapshot_rows<'a>(records: &'a [serde_json::Value], kind: &str) -> Vec<&'a serde_json::Value> {
+    let mut rows = Vec::new();
+    for record in records {
+        if record["kind"] == kind {
+            rows.push(&record["row"]);
+        }
+    }
+    rows
+}
+
+fn verify_to_completion(
+    path: &std::path::Path,
+    env: &CloudflareEnvMapV1,
+    receipt: &router_ab_cloudflare::SigningWorkerPoolFreezeReceiptV1,
+) -> router_ab_core::RouterAbProtocolResult<
+    router_ab_cloudflare::SigningWorkerEcdsaTransferResponseV1,
+> {
+    use router_ab_cloudflare::{
+        SigningWorkerEcdsaTransferRequestV1 as Command,
+        SigningWorkerEcdsaTransferResponseV1 as Response,
+    };
+    for _ in 0..256 {
+        let response = with_store(path, env, |store| {
+            store.transfer_ecdsa_snapshot(Command::Verify {
+                receipt: receipt.clone(),
+            })
+        })?;
+        match response {
+            Response::Restoring { .. } => {}
+            Response::Verified { .. } => return Ok(response),
+            _ => return Err(sql_error("Unexpected snapshot verification state")),
+        }
+    }
+    Err(sql_error(
+        "ECDSA restore exceeded the fixture's bounded retries",
+    ))
 }

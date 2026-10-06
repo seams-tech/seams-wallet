@@ -33,6 +33,7 @@ const OPERATIONS = {
   'deriver-b-verify': '/router-ab/internal/deriver-b/wallet/snapshot',
   'deriver-a-fence': '/router-ab/internal/deriver-a/wallet/fence-relocation',
   'deriver-b-fence': '/router-ab/internal/deriver-b/wallet/fence-relocation',
+  'signing-worker-context': '/router-ab/signing-worker/wallet/relocation-context',
   'deriver-a-context': '/router-ab/internal/deriver-a/wallet/relocation-context',
   'deriver-b-context': '/router-ab/internal/deriver-b/wallet/relocation-context',
   'deriver-b-prepare': '/router-ab/internal/deriver-b/wallet/prepare-relocation',

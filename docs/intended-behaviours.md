@@ -2067,6 +2067,15 @@ reports for admitted transactions remain available. Server writer fences remain
 authoritative for requests already in flight and devices that have not observed
 the move.
 
+### Verify SigningWorker encryption context before admission
+
+SigningWorker preparation compares source and destination wallet encryption contexts
+before reserving either signing curve at the destination. The context identifies
+the environment, wallet storage schema, key version, and recipient public key.
+Each role checks its configured key pair through its existing seal and open methods.
+A missing context, a different context, or a mismatched key pair prevents admission.
+The source remains active. The context digest contains no private key material.
+
 ### Keep owner presign work retired after a return move
 
 Fresh owner and linked-device operation credentials carry a required positive

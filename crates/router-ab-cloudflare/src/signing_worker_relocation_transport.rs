@@ -23,7 +23,8 @@ const ECDSA_CHUNK_REQUEST_BYTES: usize = 131072;
 pub(crate) fn handles(path: &str) -> bool {
     matches!(
         path,
-        SIGNING_WORKER_ED25519_SNAPSHOT_PATH_V1
+        crate::SIGNING_WORKER_RELOCATION_CONTEXT_PATH_V1
+            | SIGNING_WORKER_ED25519_SNAPSHOT_PATH_V1
             | SIGNING_WORKER_ED25519_SETTLE_PATH_V1
             | SIGNING_WORKER_POOL_FREEZE_PATH_V1
             | SIGNING_WORKER_ECDSA_EXPORT_PATH_V1
@@ -45,6 +46,13 @@ pub(crate) async fn handle(request: Request, env: &Env) -> worker::Result<Respon
         return Response::error("SigningWorker relocation requires POST", 405);
     }
     match request.path().as_str() {
+        crate::SIGNING_WORKER_RELOCATION_CONTEXT_PATH_V1 => {
+            forward::<
+                crate::SigningWorkerRelocationContextRequestV1,
+                crate::SigningWorkerRelocationContextV1,
+            >(request, env, CONTROL_REQUEST_BYTES)
+            .await
+        }
         SIGNING_WORKER_ED25519_SNAPSHOT_PATH_V1 => forward::<
             SigningWorkerEd25519SnapshotCommandV1,
             SigningWorkerEd25519SnapshotResponseV1,

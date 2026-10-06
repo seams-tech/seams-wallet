@@ -89,6 +89,32 @@ impl SigningWorkerPrivateD1CipherV1 {
         })
     }
 
+    fn relocation_context_digest(&self) -> RouterAbProtocolResult<String> {
+        let context = encode_json(
+            "SigningWorker relocation context",
+            &(
+                "seams/signing-worker/wallet-relocation/cipher-context/v1",
+                &self.environment,
+                self.schema,
+                &self.key_version,
+                CloudflareHpkeKemV1::pk_to_bytes(&self.public_key),
+            ),
+        )?;
+        let digest = Sha256::digest(context.as_bytes());
+        let mut encoded = String::with_capacity(64);
+        for byte in digest {
+            use std::fmt::Write;
+            write!(&mut encoded, "{byte:02x}").expect("String formatting cannot fail");
+        }
+        let purpose = "wallet-relocation-key-check";
+        let ciphertext = self.seal(purpose, &encoded, &encoded)?;
+        let opened: String = self.open(purpose, &encoded, &ciphertext)?;
+        if opened != encoded {
+            return Err(d1_error("SigningWorker relocation cipher key check failed"));
+        }
+        Ok(encoded)
+    }
+
     pub(crate) fn seal<T: Serialize>(
         &self,
         purpose: &'static str,
@@ -207,4 +233,26 @@ fn encode_json<T: Serialize>(label: &'static str, value: &T) -> RouterAbProtocol
 fn decode_json<T: DeserializeOwned>(label: &'static str, value: &str) -> RouterAbProtocolResult<T> {
     serde_json::from_str(value)
         .map_err(|error| d1_error(format!("{label} decoding failed: {error}")))
+}
+
+pub const SIGNING_WORKER_RELOCATION_CONTEXT_PATH_V1: &str =
+    "/router-ab/signing-worker/wallet/relocation-context";
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SigningWorkerRelocationContextRequestV1 {}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SigningWorkerRelocationContextV1 {
+    pub digest_hex: String,
+}
+
+pub fn signing_worker_relocation_context_v1(
+    env: &(impl CloudflareEnvReaderV1 + CloudflareSecretReaderV1),
+) -> RouterAbProtocolResult<SigningWorkerRelocationContextV1> {
+    Ok(SigningWorkerRelocationContextV1 {
+        digest_hex: SigningWorkerPrivateD1CipherV1::for_wallet_do(env)?
+            .relocation_context_digest()?,
+    })
 }
