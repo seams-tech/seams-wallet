@@ -1329,6 +1329,14 @@ export const resolveBrowserActiveEcdsaCapabilityRuntime =
 export const resolveBrowserActiveEcdsaCapabilityRuntimeForChain =
   createActiveEcdsaCapabilityRuntimeForChainResolver(browserActiveEcdsaCapabilityRuntimeReadPorts);
 
+async function requireEmailOtpStepUpCredential(walletId: ReturnType<typeof toWalletId>) {
+  const exact = await readExactWalletSessionAuthorization(walletId);
+  if (exact.kind !== 'found' || exact.record.expiresAtMs <= Date.now()) {
+    throw new Error('Email OTP step-up requires the exact unexpired Wallet Session');
+  }
+  return exact.operationCredential;
+}
+
 async function requestEmailOtpEcdsaStepUpChallenge(args: {
   coordinator: EmailOtpWalletSessionCoordinator;
   walletSession: WalletSessionRef;
@@ -1347,7 +1355,8 @@ async function requestEmailOtpEcdsaStepUpChallenge(args: {
       });
     case 'capability_step_up':
       return await args.coordinator.requestTransactionSigningChallenge({
-        kind: 'wallet_login_challenge',
+        kind: 'wallet_operation_challenge',
+        operationCredential: await requireEmailOtpStepUpCredential(args.walletSession.walletId),
         walletSession: args.walletSession,
         chain: args.chain,
         operationFingerprintDigest: args.operationFingerprintDigest,
@@ -1449,9 +1458,10 @@ export function createBrowserSigningSurfaceEnginePorts(
         authority: challengeArgs.authority,
         operationFingerprintDigest: challengeArgs.operationFingerprintDigest,
       }),
-    requestEmailOtpEd25519SigningChallenge: ({ walletSession, operationFingerprintDigest }) =>
+    requestEmailOtpEd25519SigningChallenge: async ({ walletSession, operationFingerprintDigest }) =>
       args.emailOtpSessions.requestTransactionSigningChallenge({
-        kind: 'wallet_login_challenge',
+        kind: 'wallet_operation_challenge',
+        operationCredential: await requireEmailOtpStepUpCredential(walletSession.walletId),
         walletSession,
         chain: 'near',
         operationFingerprintDigest,

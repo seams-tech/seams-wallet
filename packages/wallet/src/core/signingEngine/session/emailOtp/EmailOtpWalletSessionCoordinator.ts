@@ -20,7 +20,7 @@ import {
   type EmailOtpEcdsaExportArtifact,
   type ExportEcdsaKeyWithDurableAuthorizationArgs,
   type ExportEd25519YaoSeedWithFreshEmailOtpLaneArgs,
-  type RequestEmailOtpChallengeArgs,
+  type RequestEmailOtpTransactionChallengeArgs,
   type RequestEmailOtpExportChallengeArgs,
 } from './exportRecoveryRuntime';
 import { EmailOtpRuntimeConfig } from './runtimeConfig';
@@ -180,7 +180,7 @@ export class EmailOtpWalletSessionCoordinator {
   }
 
   async requestTransactionSigningChallenge(
-    args: RequestEmailOtpChallengeArgs,
+    args: RequestEmailOtpTransactionChallengeArgs,
   ): Promise<EmailOtpTransactionSigningChallenge> {
     return await this.exportRecoveryRuntime.requestTransactionSigningChallenge(args);
   }

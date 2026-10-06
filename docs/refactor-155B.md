@@ -766,3 +766,42 @@ still pending. No hosted latency reduction is claimed.
 
 See [NEAR measurements](./optimization-12-NEAR-only-20261006.md#near-duplicate-status-read-removal--2026-10-07)
 and [repeatable evidence](./evidence/near-status-reuse-20261007.json).
+
+### Email OTP step-up routing and remaining shared limiter — 2026-10-07
+
+The composed Email OTP outage scenario registers and unlocks a mixed wallet in US,
+then exhausts its shared budget through WEUR ingress. NEAR step-up enters through
+APAC. The intended final ECDSA step-up enters through OC.
+
+Two routing defects were identified and corrected in the candidate:
+- The signing challenge used the unauthenticated login request variant. Signing
+  now requires an explicit operation-step-up variant with the exact unexpired
+  session credential. Transaction challenge types reject the login/export variants.
+- The OTP Worker sent only the bearer token. It now uses the existing regional
+  header builder and bounded discovery transport. A locally matched session routes
+  challenge/factor-release directly, with request-wallet equality enforced.
+
+The scenario remains incomplete. Three reusable signatures verify and the shared
+budget reaches zero. The next OTP challenge reaches the home handler but fails
+closed because the shared rate limiter calls `/internal/wallet-placement/v1/rate-limit`
+on the unavailable Console. The home returns 500; forwarding reports 503. The test
+attaches the exact attempted Console paths. No OTP or credential bodies are published.
+[Sanitized dependency evidence](./evidence/r155b-email-otp-dependency.json).
+
+Do not replace global counters with independent regional counters: the existing
+IP, subject, wallet, provider, and organization limits must remain global. Direct
+access to the current Console D1 would expand Gateway access beyond those counters.
+The existing Gateway intentionally has no Console DB binding. The proposed isolated
+rate-limit D1 requires an explicit update to the no-new-infrastructure constraint.
+Cloudflare documents a proxy Worker for table-specific access restrictions:
+[official D1 access-control guidance](https://developers.cloudflare.com/d1/tutorials/build-an-api-to-access-d1/).
+
+The first attempt stopped before registration due to an expired Google test token.
+The existing token-refresh script repaired that environment prerequisite. Later
+failures exposed the routing defects and then the shared limiter dependency. These
+are failed acceptance attempts, not evidence that Email OTP outage support is done.
+Source snapshots, builds and logs are under `.artifacts/r155b-email-outage/`.
+
+The normal Email OTP registration/unlock lifecycle E2E passes (47.7s), including
+NEAR/ECDSA step-up, reload, and key export. SDK/private Console type checks, lifecycle
+type fixtures, and the bloat gate pass. This does not close the outage gate.

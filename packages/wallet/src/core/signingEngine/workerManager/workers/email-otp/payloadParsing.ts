@@ -124,6 +124,13 @@ export function readRoutePlan(value: unknown, label: string): EmailOtpRoutePlan 
     case 'registration':
       rejectUnknownEmailOtpYaoFields(record, ['routeFamily', 'operation'], `${label}.routePlan`);
       break;
+    case 'operation_step_up':
+      rejectUnknownEmailOtpYaoFields(
+        record,
+        ['routeFamily', 'operation', 'operationCredential'],
+        `${label}.routePlan`,
+      );
+      break;
     case 'signing_session':
       rejectUnknownEmailOtpYaoFields(
         record,
