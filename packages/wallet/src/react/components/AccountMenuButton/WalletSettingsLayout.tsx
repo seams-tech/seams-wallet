@@ -1,3 +1,6 @@
+import { WalletRegionSection } from './WalletRegionSection';
+import type { WalletPlacementCapability } from '@/SeamsWeb/publicApi/placement';
+import type { WalletId } from '@shared/utils/domainIds';
 import React, { Component, type ReactNode } from 'react';
 import { SEAMS_STANDARD_WORDMARK_PATH } from '@/core/signingEngine/uiConfirm/ui/seamsWordmarkPaths';
 import { blinkMenuItem } from '@/utils/menuItemBlink';
@@ -18,6 +21,12 @@ import { MoonIcon } from './icons/MoonIcon';
 import './WalletSettingsLayout.css';
 
 const SETTINGS_ITEMS = [
+  {
+    id: PROFILE_MENU_ITEM_IDS.WALLET_REGION,
+    label: 'Wallet region',
+    description: 'Choose where your wallet runs',
+    icon: <GlobeIcon />,
+  },
   {
     id: PROFILE_MENU_ITEM_IDS.ACCOUNTS,
     label: 'Accounts',
@@ -95,14 +104,18 @@ export function WalletSettingsHeader() {
 }
 
 interface WalletSettingsLayoutProps {
-  readonly walletId: string;
+  readonly walletId: WalletId;
+  readonly placement: WalletPlacementCapability;
   readonly menuItems: readonly MenuItem[];
-  readonly sections: Readonly<Record<ProfileSettingsMenuItemId, ReactNode>>;
+  readonly sections: Readonly<
+    Record<Exclude<ProfileSettingsMenuItemId, 'wallet-region'>, ReactNode>
+  >;
   readonly onLock: () => Promise<void>;
   readonly error: string | null;
 }
 
 type LayoutState = {
+  readonly regionReady: boolean;
   readonly selected: ProfileSettingsMenuItemId;
   readonly mobileMenuOpen: boolean;
   readonly lock: { kind: 'idle' } | { kind: 'locking' } | { kind: 'failed'; message: string };
@@ -110,10 +123,15 @@ type LayoutState = {
 
 export class WalletSettingsLayout extends Component<WalletSettingsLayoutProps, LayoutState> {
   state: LayoutState = {
+    regionReady: true,
     selected: 'authentication-methods',
     mobileMenuOpen: false,
     lock: { kind: 'idle' },
   };
+  private regionAvailability = (regionReady: boolean): void => {
+    this.setState({ regionReady });
+  };
+
   private heading = React.createRef<HTMLHeadingElement>();
 
   private select = (event: React.MouseEvent<HTMLButtonElement>): void => {
@@ -165,8 +183,13 @@ export class WalletSettingsLayout extends Component<WalletSettingsLayoutProps, L
       key={item.id}
       type="button"
       data-section={item.id}
+      disabled={!this.state.regionReady && item.id !== 'wallet-region'}
       onClick={this.select}
-      aria-current={this.state.selected === item.id ? 'page' : undefined}
+      aria-current={
+        (this.state.regionReady ? this.state.selected : 'wallet-region') === item.id
+          ? 'page'
+          : undefined
+      }
     >
       <span className="seams-settings-nav-icon" aria-hidden="true">
         {item.icon}
@@ -179,7 +202,9 @@ export class WalletSettingsLayout extends Component<WalletSettingsLayoutProps, L
   );
 
   render() {
-    const selected = SETTINGS_ITEMS.find(this.matchesSelection.bind(null, this.state.selected))!;
+    const selectedId = this.state.regionReady ? this.state.selected : 'wallet-region';
+    const selected = SETTINGS_ITEMS.find(this.matchesSelection.bind(null, selectedId))!;
+    const regionAllowed = this.props.menuItems.some(regionSettingAvailable);
     const available = this.props.menuItems.find(this.isAvailableSelection);
     return (
       <div className="seams-settings-page">
@@ -231,17 +256,35 @@ export class WalletSettingsLayout extends Component<WalletSettingsLayoutProps, L
             {this.state.lock.kind === 'failed' ? (
               <p role="alert">{this.state.lock.message}</p>
             ) : null}
-            <div className="seams-settings-content" key={selected.id}>
-              {available && !available.disabled ? (
-                this.props.sections[selected.id]
+            <div className="seams-settings-content" hidden={selected.id !== 'wallet-region'}>
+              {regionAllowed ? (
+                <WalletRegionSection
+                  key={this.props.walletId}
+                  walletId={this.props.walletId}
+                  placement={this.props.placement}
+                  onAvailability={this.regionAvailability}
+                />
               ) : (
-                <p role="status">This setting is unavailable for the current wallet or device.</p>
+                <p>This setting is unavailable for the current wallet or device.</p>
               )}
             </div>
+            {selected.id !== 'wallet-region' ? (
+              <div className="seams-settings-content" key={selected.id}>
+                {available && !available.disabled ? (
+                  this.props.sections[selected.id]
+                ) : (
+                  <p role="status">This setting is unavailable for the current wallet or device.</p>
+                )}
+              </div>
+            ) : null}
             <footer>Your wallet. Your control.</footer>
           </main>
         </div>
       </div>
     );
   }
+}
+
+function regionSettingAvailable(item: MenuItem): boolean {
+  return item.id === 'wallet-region' && !item.disabled;
 }

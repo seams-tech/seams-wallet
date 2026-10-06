@@ -22,6 +22,7 @@ export const PROFILE_MENU_ITEM_IDS = {
   SCAN_LINK_DEVICE: 'scan-link-device',
   LINKED_DEVICES: 'linked-devices',
   TRANSACTION_SETTINGS: 'transaction-settings',
+  WALLET_REGION: 'wallet-region',
 } as const;
 
 /** Which threshold key set an Export Keys row exports. */

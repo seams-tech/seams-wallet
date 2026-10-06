@@ -1991,8 +1991,8 @@ intent and proof. An authentication change during approval prevents submission.
 The authorization transfer E2E verifies this command through production client
 factories, iframe handlers, Gateway authentication, and D1 OTP approval. It
 simulates the prompt and Console admission. Evidence is in
-`move-submission-client-evidence.json`. Actual move admission, the passkey browser
-prompt, region settings, and the reconnect view remain unfinished.
+`move-submission-client-evidence.json`. Actual move admission and the passkey browser
+prompt remain unfinished. Settings evidence appears below.
 
 The wallet host saves the last submitted move request before sending a relocation
 POST. `wallet.placement.getLastMoveRequest(walletId)` reads this local locator,
@@ -2004,6 +2004,20 @@ not authoritative progress and does not show whether admission succeeded.
 The Chromium move-locator journey verifies an uncertain submission, lock, reload,
 exact reconnect, and wallet isolation using real IndexedDB and simulated server
 responses. Local lock continues to prevent authenticated progress reads.
+
+The owner settings page includes Wallet region. It reads placement before enabling
+other settings, displays the current region, and explains session retirement before
+submission. Selecting the current region sends no move. A pending move keeps other
+settings disabled and leaves local lock available. The view shows transfer stages,
+service recovery for a blocked stage, and separate activation and cleanup messages.
+Unknown outcomes keep the exact request for explicit retry. Automatic polling only
+reads progress. An activated destination still requires local lock and fresh unlock
+before this view enables protected actions.
+The region-settings browser journey verifies selection, an uncertain submission,
+exact retry, blocked-stage reporting, cleanup, local lock, and narrow-screen layout.
+It uses the production component with simulated placement and surrounding actions.
+Global application signing controls, automatic activation reconciliation, and the
+assembled regional move remain outside this UI evidence.
 
 ### Keep owner presign work retired after a return move
 

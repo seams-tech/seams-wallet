@@ -505,6 +505,15 @@ const AccountMenuButtonInner: React.FC<
       );
     }
 
+    if (presentation === 'page') {
+      items.push({
+        id: PROFILE_MENU_ITEM_IDS.WALLET_REGION,
+        icon: <GlobeIcon />,
+        label: 'Wallet region',
+        description: 'Choose where your wallet runs',
+        disabled: accountMenuCapabilities.kind !== 'owner',
+      });
+    }
     items.push({
       id: PROFILE_MENU_ITEM_IDS.TRANSACTION_SETTINGS,
       icon: <SlidersIcon />,
@@ -517,6 +526,7 @@ const AccountMenuButtonInner: React.FC<
     return items;
   }, [
     accountsRows.length,
+    presentation,
     accountMenuCapabilities,
     canShowRecoveryCodes,
     exportLoadingChain,
@@ -563,7 +573,8 @@ const AccountMenuButtonInner: React.FC<
     return (
       <>
         <WalletSettingsLayout
-          walletId={walletId}
+          walletId={toWalletId(walletId)}
+          placement={seams.placement}
           menuItems={MENU_ITEMS}
           onLock={handleLock}
           error={settingsError}
