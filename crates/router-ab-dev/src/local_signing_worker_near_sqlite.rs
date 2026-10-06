@@ -59,6 +59,14 @@ pub(crate) fn prepare(
     now_ms: u64,
 ) -> RouterAbProtocolResult<String> {
     request.validate()?;
+    require_execution_generation(
+        connection,
+        request
+            .wallet_scope
+            .as_ref()
+            .ok_or_else(|| invalid_state("Ed25519 execution requires a wallet scope"))?,
+        request.ownership_generation,
+    )?;
     let binding = request
         .admission_candidate
         .round1_binding_digest
@@ -114,6 +122,14 @@ pub(crate) fn finalize(
     if let Some(response) = read_terminal(connection, &request)? {
         return Ok(response);
     }
+    require_execution_generation(
+        connection,
+        request
+            .wallet_scope
+            .as_ref()
+            .ok_or_else(|| invalid_state("Ed25519 execution requires a wallet scope"))?,
+        request.ownership_generation,
+    )?;
     request.request.validate_at(now_ms)?;
     let authorization_key = authorization_key(&request)?;
     if read_row(connection, "authorization_key", &authorization_key)?.is_some() {
@@ -354,4 +370,14 @@ fn invalid_state(message: impl Into<String>) -> RouterAbProtocolError {
 
 fn replayed(message: &'static str) -> RouterAbProtocolError {
     RouterAbProtocolError::new(RouterAbProtocolErrorCode::ReplayedLocalRequest, message)
+}
+
+fn require_execution_generation(
+    connection: &Connection,
+    scope: &router_ab_cloudflare::CloudflareSigningWorkerWalletScopeV1,
+    generation: u64,
+) -> RouterAbProtocolResult<()> {
+    let sql = crate::local_signing_worker_wallet_sqlite::LocalWalletSqlV1(connection);
+    router_ab_cloudflare::SigningWorkerEd25519ExecutionStoreV1::new(&sql)
+        .require_generation(scope, generation)
 }

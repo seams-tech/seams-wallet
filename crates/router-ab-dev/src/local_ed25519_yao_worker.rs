@@ -1179,8 +1179,14 @@ fn handle_yao_control_request(
             let delivery = serde_json::from_slice::<
                 LocalEd25519YaoSigningWorkerPackagePairDeliveryV1,
             >(&request.body)?;
+            let scope = delivery.scope.clone();
+            let initial = delivery.deriver_a.binding.operation == router_ab_core::Ed25519YaoOperationV1::Registration;
             let receipt = state.signing_worker.accept_package_pair(config, delivery)?;
-            host.persist_state(LocalServiceRoleV1::SigningWorker, state)?;
+            if initial {
+                host.persist_initial_ed25519_registration(state, scope)?;
+            } else {
+                host.persist_state(LocalServiceRoleV1::SigningWorker, state)?;
+            }
             write_local_dev_http_response_v1(stream, 200, &serde_json::to_string(&receipt)?)
         }
         (

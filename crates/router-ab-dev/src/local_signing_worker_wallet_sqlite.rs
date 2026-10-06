@@ -18,7 +18,7 @@ use std::time::Duration;
 use super::LocalSigningWorkerConfigV1;
 
 /// One SQLite connection as the wallet store's statement executor.
-pub(crate) struct LocalWalletSqlV1<'a>(&'a Connection);
+pub(crate) struct LocalWalletSqlV1<'a>(pub(crate) &'a Connection);
 
 impl SigningWorkerWalletSqlV1 for LocalWalletSqlV1<'_> {
     fn query<T: DeserializeOwned>(

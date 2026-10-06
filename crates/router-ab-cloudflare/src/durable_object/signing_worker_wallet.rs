@@ -1,3 +1,5 @@
+mod transaction;
+
 use router_ab_core::{
     Ed25519YaoOperationV1, NormalSigningRound1PrepareResponseV1, PublicDigest32,
     RouterAbEcdsaDerivationEvmDigestSigningResponseV1, RouterAbProtocolError,
@@ -541,13 +543,13 @@ pub(crate) async fn call_signing_worker_wallet_do_v1(
 #[worker::durable_object]
 pub struct RouterAbSigningWorkerWalletDurableObject {
     sql: SqlStorage,
-    storage: Storage,
+    storage: Rc<Storage>,
     env: Env,
 }
 
 impl DurableObject for RouterAbSigningWorkerWalletDurableObject {
     fn new(state: State, env: Env) -> Self {
-        let storage = state.storage();
+        let storage = Rc::new(state.storage());
         Self {
             sql: storage.sql(),
             storage,
@@ -571,6 +573,8 @@ impl DurableObject for RouterAbSigningWorkerWalletDurableObject {
         self.sql.exec(RETIRED_ACTIVATION_SCHEMA, None)?;
         self.sql.exec(LINKED_ED25519_SCHEMA, None)?;
         self.sql.exec(ROUND1_SCHEMA, None)?;
+        self.sql
+            .exec(crate::SIGNING_WORKER_ED25519_EXECUTION_SCHEMA_V1, None)?;
         for schema in crate::SIGNING_WORKER_WALLET_ECDSA_SCHEMA_V1 {
             self.sql.exec(schema, None)?;
         }
@@ -592,7 +596,7 @@ impl RouterAbSigningWorkerWalletDurableObject {
         match command {
             SigningWorkerWalletDoRequestV1::DeliverPackages(request) => {
                 match request.delivery.deriver_a.binding.operation {
-                    Ed25519YaoOperationV1::Registration => self.deliver_registration(request),
+                    Ed25519YaoOperationV1::Registration => self.with_wallet_transaction(move |wallet| wallet.deliver_registration(request)).await,
                     Ed25519YaoOperationV1::Recovery => self.deliver_recovery(request),
                     _ => Err(wallet_error(
                         "SigningWorker wallet object accepts registration and recovery deliveries only",
@@ -661,12 +665,22 @@ impl RouterAbSigningWorkerWalletDurableObject {
                 scope,
                 request,
                 now_unix_ms,
-            } => self.prepare_near(scope, request, now_unix_ms),
+            } => {
+                self.with_wallet_transaction(move |wallet| {
+                    wallet.prepare_near(scope, request, now_unix_ms)
+                })
+                .await
+            }
             SigningWorkerWalletDoRequestV1::FinalizeNear {
                 scope,
                 request,
                 now_unix_ms,
-            } => self.finalize_near(scope, request, now_unix_ms),
+            } => {
+                self.with_wallet_transaction(move |wallet| {
+                    wallet.finalize_near(scope, request, now_unix_ms)
+                })
+                .await
+            }
             SigningWorkerWalletDoRequestV1::CheckEcdsaPoolAdmission { scope } => {
                 let sql = DurableObjectWalletSqlV1(&self.sql);
                 Response::from_json(&self.open_ecdsa_store(&sql)?.pool_admission(&scope)?)
@@ -751,48 +765,6 @@ impl RouterAbSigningWorkerWalletDurableObject {
             store.claim_and_consume_effect(scope, request, now_unix_ms)
         })
         .await
-    }
-
-    async fn with_ecdsa_transaction<T: Serialize + 'static>(
-        &self,
-        operation: impl FnOnce(
-                &crate::SigningWorkerWalletEcdsaStoreV1<'_, DurableObjectWalletSqlV1<'_>>,
-            ) -> Result<T, RouterAbProtocolError>
-            + 'static,
-    ) -> Result<Response, RouterAbProtocolError> {
-        let sql = self.sql.clone();
-        let env = self.env.clone();
-        let result = Rc::new(RefCell::new(None));
-        let transaction_result = Rc::clone(&result);
-        let committed = self
-            .storage
-            .transaction(move |_| async move {
-                let sql = DurableObjectWalletSqlV1(&sql);
-                let attempt = crate::SigningWorkerWalletEcdsaStoreV1::open(
-                    &sql,
-                    &crate::CloudflareWorkerEnvReaderV1::new(&env),
-                )
-                .and_then(|store| operation(&store));
-                match attempt {
-                    Ok(outcome) => {
-                        *transaction_result.borrow_mut() = Some(Ok(outcome));
-                        Ok(())
-                    }
-                    Err(error) => {
-                        let message = error.to_string();
-                        *transaction_result.borrow_mut() = Some(Err(error));
-                        Err(worker::Error::RustError(message))
-                    }
-                }
-            })
-            .await;
-        let outcome = result.borrow_mut().take();
-        match (committed, outcome) {
-            (Ok(()), Some(Ok(outcome))) => Response::from_json(&outcome).map_err(sql_error),
-            (Err(_), Some(Err(error))) => Err(error),
-            (Err(error), _) => Err(sql_error(error)),
-            (Ok(()), _) => Err(wallet_error("ECDSA wallet transaction returned no outcome")),
-        }
     }
 
     fn commit_ecdsa_terminal(
@@ -894,6 +866,8 @@ impl RouterAbSigningWorkerWalletDurableObject {
             ],
         ).map_err(sql_error)?.to_array::<InsertedRowV1>().map_err(sql_error)?;
         if inserted.len() == 1 && inserted[0].registration_key == registration_key {
+            let sql = DurableObjectWalletSqlV1(&self.sql);
+            crate::SigningWorkerEd25519ExecutionStoreV1::new(&sql).register(&request.scope)?;
             return Response::from_json(&http_active_receipt(receipt)).map_err(sql_error);
         }
         let existing = self
@@ -1204,6 +1178,9 @@ impl RouterAbSigningWorkerWalletDurableObject {
         request: CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2,
         now_unix_ms: u64,
     ) -> Result<Response, RouterAbProtocolError> {
+        let sql = DurableObjectWalletSqlV1(&self.sql);
+        crate::SigningWorkerEd25519ExecutionStoreV1::new(&sql)
+            .require_generation(&scope, request.ownership_generation)?;
         // A prepare needs an activation that still signs, replay or not.
         let activation = self.load_near_activation(&scope, &request.material_source)?;
         let binding_key = digest_hex(request.round1_binding_digest()?);
@@ -1299,6 +1276,9 @@ impl RouterAbSigningWorkerWalletDurableObject {
         if let Some(row) = self.read_round1("effect_operation_key", &operation_key)? {
             return replay_terminal(&request, &effect_digest_hex, &row);
         }
+        let sql = DurableObjectWalletSqlV1(&self.sql);
+        crate::SigningWorkerEd25519ExecutionStoreV1::new(&sql)
+            .require_generation(&scope, request.ownership_generation)?;
         // Before expiry: a delayed request for a retired activation is refused
         // as retired.
         let activation = self.load_near_activation(&scope, &request.material_source)?;

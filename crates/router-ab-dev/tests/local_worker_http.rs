@@ -7353,6 +7353,20 @@ fn product_near_signing_process_flow(
         invalid_generation_statuses.push(status);
     }
 
+    let mut wrong_home = prepare_body.clone();
+    wrong_home["authorized_operation"]["binding"]["ownership_generation"] = json!(2);
+    let (wrong_home_status, wrong_home_body) = post_json_to_path_with_headers(
+        router_url,
+        LOCAL_ROUTER_NORMAL_SIGNING_PREPARE_PATH,
+        &wrong_home,
+        &gateway_headers,
+    )?;
+    assert_ne!(wrong_home_status, 200, "{wrong_home_body}");
+    assert!(
+        wrong_home_body.contains("execution ownership generation differs"),
+        "{wrong_home_body}"
+    );
+
     // Boundary checks the Router enforces before any SigningWorker work.
     let (role_shared_status, _) = post_json_to_path_with_headers(
         router_url,
@@ -7435,7 +7449,7 @@ fn product_near_signing_process_flow(
     )?;
     assert_ne!(changed_generation_status, 200, "{changed_generation_body}");
     assert!(
-        changed_generation_body.contains("generation differs from prepared round-1"),
+        changed_generation_body.contains("execution ownership generation differs"),
         "{changed_generation_body}"
     );
 
@@ -7569,6 +7583,7 @@ fn product_near_signing_process_flow(
             "router_admitted": true,
             "gateway_ownership_generation": 1,
             "changed_finalize_generation_status": changed_generation_status,
+            "wrong_home_prepare_status": wrong_home_status,
             "invalid_ownership_generation_statuses": invalid_generation_statuses,
             "worker_restarts": 2,
             "independent_router_signing_worker_paths": 2,

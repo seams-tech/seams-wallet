@@ -25,6 +25,8 @@ use signer_core::near_threshold_ed25519::{
 mod private_d1;
 #[cfg(feature = "workers-rs")]
 pub use private_d1::*;
+mod ed25519_execution;
+pub use ed25519_execution::*;
 mod ed25519_admission;
 pub use ed25519_admission::*;
 mod ecdsa_admission;

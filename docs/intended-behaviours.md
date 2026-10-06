@@ -1583,6 +1583,11 @@ Ed25519 prepare and finalize commands retain that generation through SigningWork
 admission. Prepared round-1 material records it. A finalize command with another
 generation cannot consume that material. The original command can still complete
 and replay its terminal result after a worker restart.
+The native and wallet-DO stores commit initial Ed25519 execution authority with
+registration. Prepare and fresh finalize check that stored generation in the same
+transaction as their signing writes. Missing authority cannot default to generation
+1. Historical terminal replay remains available without creating new signing work.
+
 
 
 ### Restore authorization history during relocation

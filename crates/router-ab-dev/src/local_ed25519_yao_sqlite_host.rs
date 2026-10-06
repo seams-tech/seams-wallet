@@ -79,6 +79,13 @@ pub(crate) fn ensure_local_deriver_b_pair_schema_v1(
         .map_err(pair_lookup_error)
 }
 
+enum RoleStateCommit {
+    Ordinary,
+    InitialEd25519 {
+        scope: router_ab_cloudflare::CloudflareSigningWorkerWalletScopeV1,
+    },
+}
+
 pub struct LocalEd25519YaoSqliteHostV1 {
     connection: RefCell<Connection>,
     role_state_snapshot: RefCell<Option<Vec<u8>>>,
@@ -108,6 +115,8 @@ impl LocalEd25519YaoSqliteHostV1 {
             ensure_local_deriver_b_pair_schema_v1(&connection)?;
         } else if config.role() == LocalServiceRoleV1::SigningWorker {
             local_signing_worker_near_sqlite::ensure_schema(&connection)?;
+            connection
+                .execute_batch(router_ab_cloudflare::SIGNING_WORKER_ED25519_EXECUTION_SCHEMA_V1)?;
         }
         Ok(Self {
             connection: RefCell::new(connection),
@@ -139,6 +148,27 @@ impl LocalEd25519YaoSqliteHostV1 {
         role: LocalServiceRoleV1,
         state: &LocalEd25519YaoWorkerStateV1,
     ) -> RouterAbProtocolResult<()> {
+        self.persist_state_with_authority(role, state, RoleStateCommit::Ordinary)
+    }
+
+    pub fn persist_initial_ed25519_registration(
+        &self,
+        state: &LocalEd25519YaoWorkerStateV1,
+        scope: router_ab_cloudflare::CloudflareSigningWorkerWalletScopeV1,
+    ) -> RouterAbProtocolResult<()> {
+        self.persist_state_with_authority(
+            LocalServiceRoleV1::SigningWorker,
+            state,
+            RoleStateCommit::InitialEd25519 { scope },
+        )
+    }
+
+    fn persist_state_with_authority(
+        &self,
+        role: LocalServiceRoleV1,
+        state: &LocalEd25519YaoWorkerStateV1,
+        purpose: RoleStateCommit,
+    ) -> RouterAbProtocolResult<()> {
         let bytes = state.encode_durable_state_for_role_v1(role)?;
         if matches!(
             role,
@@ -155,6 +185,11 @@ impl LocalEd25519YaoSqliteHostV1 {
                 ));
             }
             storage.put_bytes(STATE_KEY, &bytes)?;
+            if let RoleStateCommit::InitialEd25519 { scope } = purpose {
+                let sql = crate::local_signing_worker_wallet_sqlite::LocalWalletSqlV1(&transaction);
+                router_ab_cloudflare::SigningWorkerEd25519ExecutionStoreV1::new(&sql)
+                    .register(&scope)?;
+            }
             transaction.commit().map_err(pair_lookup_error)?;
             *self.role_state_snapshot.borrow_mut() = Some(bytes);
             return Ok(());
@@ -170,8 +205,19 @@ impl LocalEd25519YaoSqliteHostV1 {
         material: CloudflareServerOutputMaterialRecordV1,
         now_ms: u64,
     ) -> RouterAbProtocolResult<String> {
-        let connection = self.connection.borrow();
-        local_signing_worker_near_sqlite::prepare(&connection, request, active, material, now_ms)
+        let mut connection = self.connection.borrow_mut();
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(pair_lookup_error)?;
+        let result = local_signing_worker_near_sqlite::prepare(
+            &transaction,
+            request,
+            active,
+            material,
+            now_ms,
+        )?;
+        transaction.commit().map_err(pair_lookup_error)?;
+        Ok(result)
     }
 
     pub fn finalize_near(
@@ -181,8 +227,19 @@ impl LocalEd25519YaoSqliteHostV1 {
         material: CloudflareServerOutputMaterialRecordV1,
         now_ms: u64,
     ) -> RouterAbProtocolResult<String> {
-        let connection = self.connection.borrow();
-        local_signing_worker_near_sqlite::finalize(&connection, request, active, material, now_ms)
+        let mut connection = self.connection.borrow_mut();
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(pair_lookup_error)?;
+        let result = local_signing_worker_near_sqlite::finalize(
+            &transaction,
+            request,
+            active,
+            material,
+            now_ms,
+        )?;
+        transaction.commit().map_err(pair_lookup_error)?;
+        Ok(result)
     }
 
     pub fn read_near_terminal(
