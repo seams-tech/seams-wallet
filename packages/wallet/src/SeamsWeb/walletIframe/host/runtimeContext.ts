@@ -1,3 +1,4 @@
+import { assertWalletHostMutationAllowed } from './walletMutationGuard';
 import { WalletHostSessionObserver } from './sessionObserver';
 import type { WalletIframeExactSessionSnapshot } from '../shared/exactSessionState';
 import type { PMGetExactWalletSessionStatePayload } from '../shared/messages';
@@ -353,6 +354,8 @@ export async function handleWalletHostRuntimeRequestWithHandlers(
   }
 
   try {
+    const runtime = getRequestWalletRuntime(ctx, input);
+    await assertWalletHostMutationAllowed(input.req, runtime.preferences.getCurrentWalletId());
     let handlers = handlerMaps.get(createHandlers);
     if (!handlers) {
       handlers = createHandlers(buildHandlerDeps(ctx, input));

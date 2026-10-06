@@ -169,3 +169,55 @@ test('a delayed completed refill cannot publish after ownership advancement', as
     await context.unroute(route, intercept);
   }
 });
+
+class ProtectedOperationRequests {
+  readonly paths: string[] = [];
+
+  record(request: import('@playwright/test').Request): void {
+    const path = new URL(request.url()).pathname;
+    if (/\/(?:sign|export)\/(?:prepare|start|finalize)$/u.test(path)) this.paths.push(path);
+  }
+}
+
+test('observed relocation blocks both signing curves and export before remote dispatch', async ({
+  harness,
+  page,
+  context,
+}, info) => {
+  info.setTimeout(180_000);
+  await installProbe(page);
+  await harness.registerPasskeyWallet();
+  await harness.awaitNearReady();
+  await harness.signTempoTransaction('post_registration');
+  await harness.signNearTransaction('post_registration');
+  const frame = await walletFrame(page);
+  await frame.evaluate(advanceInBrowser, harness.walletId);
+  const requests = new ProtectedOperationRequests();
+  const record = requests.record.bind(requests);
+  context.on('request', record);
+  try {
+    const refusal = /ownership generation requires fresh authentication/u;
+    await expect(harness.signTempoTransaction('post_registration')).rejects.toThrow(refusal);
+    await expect(harness.signNearTransaction('post_registration')).rejects.toThrow(refusal);
+    await expect(harness.exportEcdsaKey()).rejects.toThrow(refusal);
+    expect(requests.paths).toEqual([]);
+    await harness.lockWallet();
+    await writeFile(
+      info.outputPath('host-relocation-guard.json'),
+      JSON.stringify(
+        {
+          scope:
+            'Real registered wallet and public iframe signing/export commands after a parsed simulated relocation observation. The server remains at the source generation.',
+          currentGenerationSignsBothCurves: true,
+          obsoleteGenerationRejectsBothCurvesAndExport: true,
+          remoteProtectedOperationRequests: requests.paths,
+          localLockRemainsAvailable: true,
+        },
+        null,
+        2,
+      ),
+    );
+  } finally {
+    context.off('request', record);
+  }
+});

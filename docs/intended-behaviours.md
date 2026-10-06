@@ -2028,6 +2028,16 @@ from the source generation. Historical completed-move reads cannot lower this
 local generation. This observation does not issue a destination credential.
 Ordinary locking does not advance the generation or invoke this invalidation path.
 
+The iframe request boundary checks the selected session's ownership generation
+before new signing, export, recovery, factor changes, or owner device changes.
+The check uses the requested wallet and local IndexedDB state. It makes no Console
+request. A session from an obsolete generation fails before its operation handler
+runs. Ordinary authentication checks still handle missing or expired sessions.
+Move reads, exact move replay, local lock, fresh authentication, and completion
+reports for admitted transactions remain available. Server writer fences remain
+authoritative for requests already in flight and devices that have not observed
+the move.
+
 ### Keep owner presign work retired after a return move
 
 Fresh owner and linked-device operation credentials carry a required positive
