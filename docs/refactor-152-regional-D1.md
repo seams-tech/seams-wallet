@@ -17,6 +17,39 @@ maximum or p95 guarantee.
 This is the baseline for the next refill optimizations, focused on two or three
 consecutive signatures. See the [measurement boundaries and tracked evidence](refactor-152-results.md#full-mpc-signing-baseline-october-6-2026).
 
+## Fresh session validation in prepare (October 6)
+
+The SDK now reconciles the session projection returned by fresh ECDSA prepare.
+It does this before committing its presignature or computing its signature share.
+The separate post-approval status request is removed. Foreground signing now
+uses **two requests: prepare and finalize**. The original baseline above remains
+unchanged.
+
+| Full MPC workload | Fresh control median / maximum | Candidate median / maximum |
+| --- | ---: | ---: |
+| Ready material, six signatures per cohort | 1.594s / 1.988s | **1.441s / 1.709s** |
+| Three-signature sequences, nine signatures per cohort | 2.635s / 3.412s | **2.393s / 3.029s** |
+
+- [x] Return the exact admitted session projection and validate it against the
+  SDK's selected authority. Retain live budget, revocation and failure checks.
+- [x] Preserve typed prepare failures so exhausted sessions require fresh approval
+  for one operation without renewing the reusable quota.
+- [x] Verify unavailable and wrong-session responses cannot reach finalization.
+- [x] Verify retired credentials fail refill, prepare and finalize, while their
+  replacement session signs successfully.
+- [x] Repeat ready and three-signature workloads, concurrency and shared-budget
+  checks. Retain medians, maxima, refill waits and request counts.
+- [x] Verify two spare pool entries can arrive during pending prepare, followed
+  by three verified signatures. Keep the existing five-entry target.
+
+Eight of nine consecutive signatures still waited for refill. The affected-wait
+median was **1.136s**, and the maximum was **1.669s**. Material arrival timing
+remains the constraint. These samples establish no two-second consecutive-signing
+guarantee. Ready signing improved by **153ms median** in the paired run.
+
+The coordinated SDK/Gateway release remains separate from this staging trial.
+See [the measurements, source boundaries and acceptance evidence](refactor-152-results.md#fresh-session-validation-in-prepare-october-6-2026).
+
 ## Refill scheduling follow-up (October 6)
 
 Public `dev` checkpoint **`4ccc5650`** preserves the baseline table above.
@@ -33,8 +66,8 @@ These preliminary measurements remain separate from the established baseline.
   retry. Preserve the existing five-entry target and infrastructure.
 - [x] Collect Cloudflare CPU and wall timings for slow refill diagnosis. The
   earlier 3.502s step did not recur. Its exact cause remains unresolved.
-- [x] Evaluate combining status with prepare. Retain the status call until prepare
-  can supply the authorization projection required for client reconciliation.
+- [x] Evaluate combining status with prepare. This checkpoint retained the status
+  call. The later combined-prepare implementation above removes it.
 
 No server-side outlier reduction or status-call saving is claimed. See the
 [results, limitations, and repeatable evidence](refactor-152-results.md#refill-scheduling-checkpoint-october-6-2026).
@@ -50,7 +83,7 @@ regressed from **2.390s to 3.035s** median, with nine verified signatures per co
 The trial was rejected and the exact original Worker version restored. No latency
 fix is claimed. See the [paired evidence and remaining limitation](refactor-152-results.md#paired-worker-to-do-refill-investigation-october-6-2026).
 
-## Latest consecutive-signing result (October 6)
+## Consecutive-signing baseline checkpoint (October 6)
 
 **Consecutive signing measured 3.411s median across eighteen verified signatures.**
 The two cohorts measured 3.706s and 3.198s. The combined range was **1.962–7.164s**.
@@ -69,7 +102,7 @@ remaining bottleneck for consecutive calls. See the
 [remeasurement and evidence](refactor-152-results.md#consecutive-signing-remeasurement-october-6-2026).
 
 
-## Latest Gateway lookup result (October 6)
+## Gateway lookup checkpoint (October 6)
 
 **Ready-signing median is 1.745s across twelve candidate signatures**, versus
 **1.870s** in the fresh six-signature control. Candidate calls ranged from
@@ -151,8 +184,10 @@ for exact boundaries, sample counts, failure evidence, source hashes and command
 - [x] Verify hosted ready/consecutive signing, concurrent signing and budget limits.
 - [x] Fix retired ECDSA credentials being classified as availability failures in
   development, and verify the D1 boundary through the storage-transfer scenario.
-- [ ] Deploy that narrow Gateway error-classification fix and pass the expanded
-  hosted retirement gate. Staging still returns 503 for the retired prepare.
+- [x] Deploy the Gateway error-classification fix for controlled acceptance and
+  pass the expanded hosted retirement gate. The combined-prepare candidate returns
+  401 for retired refill, prepare and finalize requests. The prior Gateway is
+  restored after this trial; permanent rollout must pair the new SDK and Gateway.
 - [x] Consolidate custody material reads while retaining lifecycle and identity checks.
 - [x] Commit the ECDSA effect claim and reservation consumption atomically.
 - [x] Add inner finalize timings and measure the staging candidate.

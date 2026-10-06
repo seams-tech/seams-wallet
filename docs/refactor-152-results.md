@@ -7100,3 +7100,89 @@ refill-overlap tests described in the preceding checkpoint. Restore the original
 Worker after diagnostic runs. Cloudflare documents the relevant
 [Worker placement behavior](https://developers.cloudflare.com/workers/configuration/placement/)
 and [DO placement limits](https://developers.cloudflare.com/durable-objects/reference/data-location/).
+
+## Fresh session validation in prepare (October 6, 2026)
+
+ECDSA prepare now returns the exact session projection used for its fresh admission.
+The SDK reconciles this projection before committing its presignature or computing
+its signature share. This removes the separate post-approval status request.
+The returned quota balance describes admission **before** the atomic claim.
+It is not a post-signature remaining-balance query. Prepare and finalize retain
+live revocation, expiry, material, policy, quota and replay checks.
+
+| Full MPC workload | Cohort | Samples | Median | Maximum | Refill waits | Affected wait median / maximum |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Ready material | Control | 6 | 1.594s | 1.988s | 0/6 | 0 / 0 |
+| Ready material | Combined prepare | 6 | 1.441s | 1.709s | 0/6 | 0 / 0 |
+| Three-signature sequences | Control | 9 | 2.635s | 3.412s | 8/9 | 1.087s / 1.937s |
+| Three-signature sequences | Combined prepare | 9 | 2.393s | 3.029s | 8/9 | 1.136s / 1.669s |
+
+The ready-signing median fell by **153ms** in this paired run.
+This measures the combined change; it is not a fixed per-request latency guarantee.
+The historical **1.745s ready / 3.411s consecutive** checkpoint remains unchanged.
+All samples use a native NRT browser and an APAC wallet. The timer covers the
+public SDK call through the assembled signature, including automated confirmation.
+Blockchain broadcast and confirmation are excluded. Each workload uses three
+unlocks. Ready samples wait for three available entries after a warm-up signature.
+Consecutive samples request three signatures per unlock without that deliberate wait.
+The frozen configuration remains login prefill one and SDK maintenance target five.
+
+The critical browser signing requests fall from **three to two**: prepare and
+finalize. Each measured candidate signature made exactly one of each and no
+session-status request. Across the ready cohort, status/prepare/finalize totals
+were **6/6/6 → 0/6/6**. Across the consecutive cohort they were
+**9/9/9 → 0/9/9**. Background refill requests remain separate. The evidence
+counts requests initiated inside each measurement window; unfinished requests
+are included. It does not equate HTTP requests with D1 calls.
+
+The pool can supply three signatures when material has accumulated. The overlap
+scenario held prepare until two spare entries became available, then verified
+three signatures. Immediate two-to-three-signature sessions still encountered
+refill waits. Increasing the pool target is not supported by these measurements.
+The existing five-entry target exceeds the session workload; generation and
+arrival timing remain the constraint. Refill-wait frequency stayed at eight of
+nine signatures. The affected-wait median changed from 1.087s to 1.136s, while
+its maximum fell from 1.937s to 1.669s. These samples do not establish a refill
+latency improvement. A two-second consecutive-signing guarantee remains unmet.
+
+Hosted verification passed: unavailable prepare and a wrong-session response
+produced no finalization; a valid response produced a verified signature with
+zero separate status requests. Retired credentials received HTTP 401 for refill,
+prepare and finalize, while the replacement session signed successfully.
+After quota exhaustion, an explicit fresh passkey approval completed one signature
+without renewing the reusable quota. If local state still appears usable,
+prepare can discover exhaustion after the first warm approval. The user then
+approves a second, passkey confirmation in the transaction receipt. The SDK does
+not silently authorize that operation or renew its reusable session.
+Typed authorization failures now reach the existing retry policy instead of
+becoming generic signing errors.
+Concurrent Tempo/Arc signatures exhausted their shared budget. The harness now
+captures the session identity from prepare and performs an independent status
+query after the concurrency check. This verification query is outside the timed
+signing samples.
+
+The first candidate run exposed an obsolete harness assumption that signing
+must emit a status request. It also exposed a frozen-source assembly error:
+the test package omitted existing retired-session guards. The measured final
+cohort retained the admission guard omission, so its retirement test failed.
+The complete committed reader was restored for the separate final authorization
+acceptance. This changed the retired-session error path; timings were not rerun.
+The added step-up check also required an explicit click in the receipt frame.
+The general test driver only clicked the original wallet overlay.
+The harness assumptions were classified as `valid_test_needs_update`. The
+missing frozen guards were `environment_or_infrastructure_failure`. The committed
+server implementation already contained them. Earlier cohorts remain in the
+evidence as diagnostics. Their failures are not counted as successful acceptance.
+Wallet, server and intended-harness type checks, type fixtures, focused lint and
+the public bloat check passed.
+
+The implementation requires a coordinated SDK and Gateway rollout because the
+prepare response format changed. The experiment used existing staging resources
+under the $25 Cloudflare budget. It added no infrastructure and published no npm
+package. The prior Gateway version was restored and reactivated after testing.
+
+Evidence: [controlled samples, request counts, failures and source hashes](evidence/r152-prepare-session-20261006.json).
+Frozen sources, logs and traces remain in
+`seams-monorepo/.artifacts/mpc-prepare-session-20261006/`. Repeat with the existing
+hosted `mpc-signing-latency`, `mpc-refill-overlap`, `signing-approval` and
+`refill-session` tests and matching SDK/Gateway builds.
