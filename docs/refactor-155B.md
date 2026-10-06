@@ -1573,3 +1573,17 @@ the NEAR browser check covers session invalidation, rather than fresh authentica
 The public checkout still contains relocation changes outside committed `dev`.
 This change fixes the default build selection and manifest mismatch. It does not
 close source integration, all composed relocation coverage, or hosted acceptance.
+
+
+### Obsolete finalize-hold removal — 2026-10-07
+
+Removed the unused `local-intended-signing-hold` Rust feature, D1 hold-table
+implementation, internal route, and Gateway arm/read commands. Its retired browser
+test depended on separate signing and commit operations. Standard wallet-object
+execution commits them within one object operation. Capture, withhold, and exact
+replay commands remain for the active recovery scenarios.
+
+Validation passed: wallet-server TypeScript checking, SigningWorker WASM-target
+`cargo check` with standard wallet-object features, and the bloat gate. This
+cleanup changes no enabled production path. The preceding optimized-binary E2E
+evidence predates this deletion; no new hosted or timing claim follows from it.

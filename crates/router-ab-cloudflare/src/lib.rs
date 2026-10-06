@@ -13027,15 +13027,6 @@ where
         }
         CloudflareSigningWorkerNormalSigningMaterialSourceV1::RotatableLane { .. } => None,
     };
-    #[cfg(feature = "local-intended-signing-hold")]
-    if let Some(activation) = activation {
-        if let Err(error) = hold_cloudflare_signing_worker_near_finalize_v1(env, activation).await {
-            return worker::Response::error(
-                format!("{:?}: {}", error.code(), error.message()),
-                cloudflare_router_error_status(error.code()),
-            );
-        }
-    }
     match commit_cloudflare_signing_worker_terminal_response_v1(
         env,
         &effect_operation_key,
