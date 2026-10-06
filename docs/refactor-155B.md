@@ -1,0 +1,299 @@
+# Regional execution without routine Console calls
+
+Status: planned. Implementation has not started.
+Date: October 6, 2026.
+
+## Objective
+
+Remove synchronous Console calls from established-session signing and presignature
+refill. Regional Gateways, Wallet Runtimes, and custody roles must enforce execution
+authority using their admitted local state. Keep shared coordination for directory
+changes, registration reservations, deployment changes, and relocation.
+
+Reduce registration's Console dependency to operations that need shared ownership
+or discovery coordination. Run registration continuations at the reserved home.
+Console availability must not determine whether an already admitted wallet can
+sign at its active home.
+
+This is a separation of responsibilities within the existing deployment. It does
+not require another Worker, database, signing secret, environment-variable family,
+or configuration framework. It does not guarantee physical colocation of custody
+Workers, DOs, Containers, and D1. Their remaining network hops are separate work.
+
+## Terms and boundaries
+
+- **Shared directory:** cross-region records that identify a wallet's home and
+  enforce existing identity, credential, and registration claims. Console hosts it today.
+- **Regional execution:** authentication, operation admission, protocol execution,
+  budget accounting, reservations, and durable completion at an admitted home.
+- **Ownership generation:** a version identifying one period of wallet ownership
+  at a home. Relocation installs a later generation. It is not a browser connection generation.
+- **Fence:** durable state that prevents an inactive home or deployment from
+  admitting or committing unauthorized work.
+- **Routing hint:** a suggested region supplied by the client. It grants no authority.
+
+The directory coordinates ownership changes. Local fences enforce execution.
+A previously issued session or routing response cannot reopen a fenced home.
+
+## Evidence and present coupling
+
+The October 6 comparison measured roughly 90–100ms for the Gateway binding lookup
+on ordinary APAC requests. Moving Console toward the Gateway increased Console
+D1 reads by about 50ms and gave no signing improvement. That change was reverted.
+
+The comparison used a frozen SDK that still made a separate status request.
+Current SDK code already reconciles session authority from prepare. Preserve that
+optimization and use matching current SDK/Gateway builds for the new comparison.
+Do not count its earlier saving again or treat the binding span as a guaranteed
+end-to-end saving. See [the call-path evidence](evidence/r155-call-path-20261006.json)
+and [the R155 results](refactor-155-reusuable-DO.md).
+
+Current calls do more than inspect dashboard configuration:
+
+| Current responsibility | Owner today | Required destination |
+| --- | --- | --- |
+| Resolve active deployment and verify writer version/resource | Console, before Gateway dispatch | Regional deployment admission installed during activation |
+| Resolve session locator to wallet home | Console on routine requests | Session routing metadata, with local authorization |
+| Supply tenant identity to the Gateway | Console binding response | Validated regional deployment configuration |
+| Reserve one registration allocation and home | Shared directory | Keep shared reservation; reuse it for continuations |
+| Enforce cross-region identity and passkey claims | Shared directory | Keep existing uniqueness and ownership rules |
+| Publish discovery and lifecycle locators | Shared directory | Keep at the lifecycle transitions that require them |
+| Check session, revocation, policy, budget, and one-use material | Regional authorization and custody state | Keep fresh local enforcement |
+| Coordinate relocation | Console plus regional participants | Keep coordination; require local fences before ownership changes |
+
+Registration has no cryptographic requirement to call Console. Its current shared
+reservation prevents the same registration from creating different wallets when
+a lost response is retried through another region. Its identity and credential
+claims prevent conflicting records in independent regional databases.
+Retain those guarantees without putting directory reads before every continuation.
+
+## Target request paths
+
+```mermaid
+flowchart LR
+    SDK[SDK with home hint] --> Ingress[Gateway ingress]
+    Ingress --> Regional[Home Gateway and Wallet Runtime]
+    Regional --> Local[Regional authorization and execution state]
+    Regional --> Custody[Custody Workers and wallet DOs]
+    Directory[Shared directory in Console] -. registration and ownership changes .-> Regional
+    Deploy[Deployment activation] -. regional admission .-> Regional
+```
+
+Normal signing and refill must make zero Console requests, including internal
+forwarding, background writes, alarms, and continuations. The first ingress may
+use the existing regional service bindings to forward once. New public regional
+hostnames are not required.
+
+| Flow | Directory involvement in the target design |
+| --- | --- |
+| Established-session signing and refill | None on the normal path |
+| Registration setup | Reserve the exact wallet, operation, and home |
+| Registration continuations | None where persisted local reservation and authority are sufficient |
+| Registration claims and completion | Commit shared claims and discovery at their required transitions |
+| Unlock with a known home | Regional execution where existing factor/identity contracts permit it |
+| New-device discovery or missing routing information | Explicit directory discovery |
+| Stale route after relocation | Controlled rediscovery, separate from ordinary authorization failures |
+| Deployment activation and retirement | Install or fence regional deployment authority |
+| Wallet relocation | Coordinate source freeze, transfer, destination activation, and directory update |
+
+## Design rules
+
+1. Return home routing metadata with existing registration and authenticated
+   session responses. Carry the ownership generation where the execution contract
+   requires it. Reuse existing wallet, session, home, and generation types.
+2. Treat client routing metadata as untrusted input. Parse a region from the
+   configured catalog once. Authenticate the operation at the selected home and
+   compare its authoritative local ownership state. Never accept a client URL,
+   region, generation, or forwarding marker as execution authority.
+3. Keep fresh regional session and policy checks. Preserve revocation, expiry,
+   budget, material retirement, exclusive reservation, and terminal replay.
+   Combine ownership/deployment predicates with existing admission transactions
+   where possible. Avoid adding one separate D1 request per new check.
+4. Install tenant identity and admitted deployment/resource identity through the
+   existing deployment workflow. Regional state must reject an old writer after
+   retirement. A cached Console response or static configuration alone cannot
+   preserve immediate retirement semantics.
+5. Use the existing registration reservation as the durable anchor for local
+   continuations. Keep shared credential claims at the point their inputs become
+   available. Do not assume every registration variant has all claims at setup.
+6. Preserve explicit pending and terminal registration states across local and
+   directory writes. A lost reply must resume the same operation. Registration
+   success requires the ownership and discovery records needed for later access.
+   Do not replace these records with an untracked background publication.
+7. Reuse R153's ownership generations and local execution fences. Freeze source
+   admission and settle or fence admitted work before activating the destination.
+   A route refresh cannot make an inactive destination executable.
+8. Directory discovery must be bounded. Ordinary 401 responses, exhausted budgets,
+   and protocol failures must not trigger region probing or automatic rediscovery.
+   Preserve operation identity on permitted retries, including uncertain finalize replies.
+9. Keep the current shared uniqueness rules. Removing all directory coordination
+   from registration is outside this plan. Moving a directory endpoint to another
+   Worker would not by itself reduce coordination or latency.
+10. Use one final implementation. Add no legacy routing flags, stale-authority
+    fallback, alternate token scheme, or compatibility path for disposable test wallets.
+
+## Change inventory
+
+Paths below are repository-relative. Confirm moved files before editing. R153
+work is active; listed local authority components are integration points, not a
+claim that their full relocation contract is already complete.
+
+| Repository and area | Existing sources | Required change |
+| --- | --- | --- |
+| Private Gateway entry | `packages/wallet-console-server-ts/src/router/cloudflare/d1GatewayWorker.ts` | Remove unconditional Console resolution from routine execution; use locally admitted deployment context |
+| Private Console lookup | `walletPlacement/gatewaySession.ts`, `tenantDeployment/runtimeBinding.ts`, under the same package | Replace combined request-time lookup; retain only directory/control uses with real callers |
+| Private regional routing | `walletPlacement/regionalDispatch.ts`, `authenticationDispatch.ts`, `sessionLocators.ts` | Route from bounded metadata; keep explicit discovery and remove obsolete session-locator reads/publications when no consumers remain |
+| Private registration | `walletPlacement/registrationAdmission.ts`, `d1.ts`, `passkeyClaims.ts`, `identityService.ts`, registration offer client/service | Separate shared claims from local continuation admission and completion recovery |
+| Private activation | `tenantDeployment/d1.ts`, `resourceVerification.ts`, `deployment/wallet-system/targets.json` and existing render/activation scripts | Install regional scope and writer admission; enforce retirement without per-request Console calls |
+| Private relocation | `walletPlacement/executionAuthority.ts`, relocation coordinator and participant modules | Make directory observations control-plane inputs; preserve source and destination execution fences |
+| Public runtime/auth | `packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletExecutionAuthority.ts`, `d1WalletOperationStore.ts`, authorization stores/statements | Enforce admitted local generation and deployment at real operation boundaries |
+| Public SDK/wire | Existing session responses, relayer clients, registration flow, signing and refill callers | Carry home routing metadata through owner, linked-device, restored, and step-up flows |
+| Public custody | `crates/router-ab-cloudflare/src/` signing, pool, DO, and relocation modules | Preserve exact wallet/generation context across requests, deferred work, and terminal replay |
+| Public specifications | `docs/intended-behaviours.md`, R153 and R155 plans | Specify Console-outage behavior and the new routing/authority contract |
+| Private acceptance | `tests/e2e/regional-*`, `tests/relayer/wallet-relocation-directory.e2e.test.ts`, `tests/e2e/hosted-product/` | Verify composed routing, outages, relocation, registration retries, and hosted timings |
+
+## Phase 1 — Freeze the authority and call inventory
+
+- [ ] Trace owner and linked-device ECDSA, Ed25519, step-up signing, and refill.
+  Include internal dispatch, alarms, continuations, completion, and error paths.
+- [ ] Inventory every Console read/write on those paths. Identify its data,
+  enforcement guarantee, existing local equivalent, and replacement owner.
+- [ ] Trace passkey and Google/email registration separately. Classify each
+  directory call as reservation, global claim, discovery publication, or repeated read.
+- [ ] Pin the R153 generation/fence contract and the deployment retirement contract.
+  Record whether each required local enforcement path is implemented and verified.
+- [ ] Define typed outcomes for local execution, discovery required, relocation
+  paused, retired authority, and ordinary auth failure. Keep routing separate from authorization.
+
+Exit: each removed call has an explicit replacement or evidence that it is redundant.
+
+## Phase 2 — Install and enforce regional execution authority
+
+- [ ] Extend the existing activation workflow to install required local tenant,
+  resource, and writer admission before enabling regional traffic.
+- [ ] Reuse local wallet-generation state. Keep identity fields required and
+  represent admission/retirement states with exhaustive domain types.
+- [ ] Enforce current authority at operation admission and durable side effects.
+  A read performed before a freeze is insufficient to authorize a later write.
+- [ ] Define deployment cutover failure handling. Do not complete retirement
+  while an old regional writer remains authorized. Rollback must not revive a
+  retired wallet generation or discard terminal operation history.
+- [ ] Preserve valid terminal replay while rejecting new execution under retired
+  authority. Use existing replay and relocation rules rather than parallel logic.
+
+Exit: regional enforcement provides the safety previously supplied by Console
+lookups, including concurrent cutover and relocation. Console-independent signing
+must not be enabled before this gate passes.
+
+## Phase 3 — Route sessions and remove routine Console calls
+
+- [ ] Add region metadata to existing registration/session issuance and restore
+  boundaries. Update shared types, SDK persistence, transport, and response parsers together.
+- [ ] Forward through existing regional bindings using catalog-validated hints.
+  Preserve the public entrypoint and enforce a bounded forwarding path.
+- [ ] Authenticate locally and reject wrong wallet, tenant, resource, generation,
+  revoked session, and frozen-home combinations.
+- [ ] Remove the unconditional combined Console lookup from signing and refill,
+  including forwarded destination requests and internal/deferred execution.
+- [ ] Keep explicit discovery for missing/stale routing. Avoid treating all
+  signing failures as routing failures. Bound rediscovery and preserve retry identity.
+- [ ] Preserve prepare-based session reconciliation. Do not reintroduce the
+  separate session-status request or increase routine D1 round trips accidentally.
+
+Exit: ordinary signing/refill and their background work make zero Console calls.
+
+## Phase 4 — Reduce registration coordination
+
+- [ ] Reserve the wallet, home, and stable operation identities through the
+  existing directory authority. Retries through another ingress reuse the reservation.
+- [ ] Persist local registration admission and route continuations from that state.
+  Remove repeated directory checks whose guarantees now have local enforcement.
+- [ ] Retain global identity and credential claims. Batch related statements
+  within their owning database when that preserves their existing semantics.
+- [ ] Make completion recoverable across regional and directory writes. Verify
+  lost replies, cancellation, conflicting retries, and cleanup of incomplete attempts.
+- [ ] Publish required discovery information before registration success. Return
+  the admitted home with the initial session and preserve early presign preparation.
+
+Exit: each remaining registration Console call changes or discovers shared state
+for a documented reason. Protocol continuations use their reserved regional authority.
+
+## Phase 5 — Verify behavior and Console independence
+
+Extend existing E2E scenarios and type fixtures. Add no unit-test suite or source
+text guards. Update the intended-behavior specification with the implementation.
+Classify existing outage assertions before changing them: a deliberate contract
+change does not make unrelated authentication failures obsolete.
+
+- [ ] Establish a session, make Console unavailable, and verify ready signing and
+  a three-signature sequence that forces refill. Assert zero attempted Console calls.
+- [ ] Repeat for owner and linked-device signing, relevant ECDSA/Ed25519 paths,
+  session restore, and step-up paths with otherwise available prerequisites.
+- [ ] During the outage, verify revocation, budget exhaustion, material retirement,
+  wrong-region hints, malformed metadata, and concurrent double-use rejection.
+- [ ] Restart Gateways/DOs and verify authority survives without in-memory Console
+  caches. Check deferred refill, alarms, and background completion explicitly.
+- [ ] Race signing/refill with R153 source freeze and destination activation.
+  Verify no two homes execute the same ownership generation and no late write escapes a fence.
+- [ ] Exercise stale routing and an uncertain finalize reply across relocation.
+  Preserve exact replay rules and prevent duplicate budget or material consumption.
+- [ ] Retry registration through two regions with lost setup/completion replies.
+  Verify one allocation, one home, stable identities, and discoverable completion.
+- [ ] Race conflicting identity/credential claims across regions. Verify existing
+  uniqueness rules and cancellation cleanup remain intact.
+- [ ] Exercise partial deployment activation, old-writer traffic, retirement, and
+  rollback. Verify denied writers cannot regain execution through stale local state.
+- [ ] Produce repeatable artifacts with request counts, state transitions, and
+  independently verified signatures. Exclude secrets and credential bodies.
+
+Exit: the composed E2E evidence proves the new dependency boundary and retained guarantees.
+
+## Phase 6 — Controlled staging comparison
+
+- [ ] Freeze matching SDK, Gateway, Runtime, Console, and custody candidates.
+  Record source revisions, deployment versions, actual D1 regions, and placement settings.
+- [ ] Capture a fresh control with the current prepare-based session validation.
+  Hold protocol, pool target, prewarm, client location, and workload constant.
+- [ ] Compare ready signing, immediate registration-to-sign, and three consecutive
+  signatures. Record medians, maxima, refill waits, HTTP requests, D1 calls, and
+  attempted Console calls. Keep confirmation and test automation timing separate.
+- [ ] Verify all four regional routes and same-wallet travel. Run a bounded
+  Console-outage acceptance scenario without disturbing concurrent experiments.
+- [ ] Repeat the control/candidate comparison before claiming a latency gain.
+  Record failures and rejected candidates alongside successful measurements.
+- [ ] Use existing staging resources within the **$25 total Cloudflare budget**.
+  Add no keepalive or new infrastructure. Preserve exact restoration instructions
+  for deployment versions and non-versioned settings. Production deployment and npm publication are outside this plan.
+
+Exit: publish measured results and limitations. Zero routine Console calls is a
+required result; a particular millisecond saving is not promised in advance.
+
+## Phase 7 — Remove obsolete paths and close the refactor
+
+- [ ] Delete replaced session lookup adapters, remote admission wrappers, unused
+  DTOs, dead exports, and redundant publications. Keep directory locators still
+  needed by discovery, recovery, registration, or relocation.
+- [ ] Remove old request shapes and disposable-test-state assumptions. Keep any
+  unavoidable storage conversion at the persistence boundary, then retire it.
+- [ ] Update public contracts, deployment documentation, examples, and R153
+  integration notes. Name the remaining Console dependencies explicitly.
+- [ ] Run relevant type fixtures, composed E2E checks, and the bloat gate. Review
+  the final implementation for duplicate authority sources and hidden Console calls.
+- [ ] Commit only owned changes on `dev` in each repository. Preserve concurrent
+  R153 work. Record final evidence and any separate unfinished work honestly.
+
+## Completion criteria
+
+- Existing admitted sessions sign and refill during a Console outage.
+- Regional checks enforce current authorization, deployment admission, ownership,
+  budgets, and one-use material without relying on a stale directory snapshot.
+- Registration retains cross-region retry and ownership guarantees with fewer
+  repeated directory calls; discovery remains correct after completion.
+- Relocation and deployment retirement cannot leave two active execution owners.
+- All four regional routes pass acceptance, with measured latency and request counts.
+- The old routine Console path is deleted. No compatibility switch or second
+  authority mechanism remains beside its replacement.
+
+Related plans: [R152](refactor-152-regional-D1.md),
+[R153](refactor-153-wallet-region-selection.md),
+[R155](refactor-155-reusuable-DO.md).
