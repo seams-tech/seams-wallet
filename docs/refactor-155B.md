@@ -1245,3 +1245,29 @@ or cancellation cleanup. Those parts of the uniqueness checklist remain open.
 scenario is committed as `57781b8`. Repeat with `tests/scripts/run-regional-real.mjs
 passkey.registration.contract.test.ts --grep 'concurrent NEAR-only setup'`, using
 the server candidate and the SDK under `.artifacts/r155b-setup-retry/dist`.
+
+### Conflicting passkey claim and directory cancellation — 2026-10-07
+
+The concurrent registration scenario now reserves a second wallet in APAC. After
+the original wallet registers, its home client replays its passkey claim while
+the APAC client claims the same credential for the second wallet. The production
+directory accepts the owner replay and rejects the competing claim.
+
+The APAC registration authority cancels the second directory reservation. The
+original passkey claim remains unchanged. Another claim from the cancelled wallet
+fails. The original wallet then verifies three NEAR signatures through foreign
+ingress with Console unavailable and zero attempted Console calls.
+
+The corrected scenario passed. An initial test omitted the ceremony ID required
+by cancellation and received HTTP 400. This was `valid_test_needs_update`; the
+helper now retains that ID from setup and uses the typed registration authority.
+No production change was required.
+
+This covers the production directory ownership/cancellation boundary within a
+real browser registration/signing scenario. It does not simulate browser reuse
+of a passkey, Google/provider identity conflicts, or regional cancellation
+cleanup. The broader conflict-and-cleanup checklist therefore remains open.
+
+[Sanitized evidence](./evidence/r155b-credential-conflict-20261007.json). Repeat the
+`concurrent NEAR-only setup` scenario using the regional-real runner and the
+SDK frozen under `.artifacts/r155b-setup-retry/dist`.
