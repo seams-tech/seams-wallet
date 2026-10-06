@@ -2004,3 +2004,11 @@ The VM adapter uses the same store admission function.
 The native scenario separately completes a real owner presign protocol, holds its
 result before publication, and attempts publication during freeze and after return.
 Both attempts fail. Fresh owner presigning and signing still succeed.
+
+### Explicit home discovery during signing
+
+For signing prepare/finalize and ECDSA refill requests, an HTTP 409 with code
+`wallet_home_discovery_required` permits one retry without the region hint.
+The retry uses the same public URL, serialized body, operation identity, bearer
+token, and abort signal. It cannot retry again. Authentication, revocation, quota,
+other conflicts, and network failures do not trigger this routing retry.

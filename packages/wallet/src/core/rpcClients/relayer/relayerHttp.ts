@@ -1,4 +1,5 @@
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking/contracts';
+import { isPlainObject } from '@shared/utils/validation';
 import { stripTrailingSlashes } from '@shared/utils/normalize';
 
 type RelayerHttpHeaders = Readonly<Record<string, string>>;
@@ -49,4 +50,21 @@ export function buildWalletSessionAuthorizationHeaders(
     case 'regional':
       return { ...headers, 'X-Seams-Wallet-Region': credential.home.region };
   }
+}
+
+// Only the Gateway's explicit pre-admission routing refusal permits rediscovery.
+// Preserve the exact operation body and bearer token through the public entrypoint.
+export async function fetchWithWalletHomeDiscovery(request: Request): Promise<Response> {
+  const response = await fetch(request.clone());
+  if (response.status !== 409 || !request.headers.has('X-Seams-Wallet-Region')) return response;
+  let body: unknown;
+  try {
+    body = await response.clone().json();
+  } catch {
+    return response;
+  }
+  if (!isPlainObject(body) || body.code !== 'wallet_home_discovery_required') return response;
+  const headers = new Headers(request.headers);
+  headers.delete('X-Seams-Wallet-Region');
+  return fetch(new Request(request, { headers }));
 }

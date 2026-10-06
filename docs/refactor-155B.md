@@ -573,3 +573,17 @@ terminal reconciliation, conflicting completion, cancellation write guards,
 and session publication refusal. Type-checking and the bloat gate pass.
 Browser contracts and authorization-transfer verification are running. Full
 hosted Console-outage acceptance and remote-effect cancellation remain unproven.
+
+### Bounded explicit home discovery — October 6
+
+Signing prepare/finalize and ECDSA refill transports now retry once without the
+region hint when the Gateway explicitly returns `wallet_home_discovery_required`.
+The same URL, body, bearer token, and abort signal are retained. Other errors
+remain terminal. This does not add a routing cache or change the stored credential.
+A moved session can require discovery again until its routing metadata is renewed.
+
+The network scenario verifies successful discovery, no retry on HTTP 401, and
+a maximum of two attempts when discovery is refused again. It checks exact body
+and token preservation. The existing regional D1 routing scenario also passes.
+SDK type-checking passes. Both browser contracts passed after local registration
+admission; the discovery transport still needs composed browser acceptance.

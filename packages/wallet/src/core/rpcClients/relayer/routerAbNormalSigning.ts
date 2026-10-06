@@ -18,6 +18,7 @@ import type {
 } from '@shared/utils/routerAbNormalSigningIdentity';
 import {
   buildWalletSessionAuthorizationHeaders,
+  fetchWithWalletHomeDiscovery,
   buildRelayerJsonPostRequestInit,
   normalizeRelayerBaseUrl,
 } from './relayerHttp';
@@ -1326,10 +1327,12 @@ async function postRouterAbNormalSigningJson<T>(args: {
     throw new Error('fetch is not available for Router A/B normal-signing request');
   }
   const base = normalizeRelayerBaseUrl(coerceNonEmptyString(args.relayServerUrl, 'relayServerUrl'));
-  const response = await fetch(`${base}${args.path}`, {
-    ...buildRouterAbRequestInit({ credential: args.credential, body: args.body }),
-    signal: args.signal,
-  });
+  const response = await fetchWithWalletHomeDiscovery(
+    new Request(`${base}${args.path}`, {
+      ...buildRouterAbRequestInit({ credential: args.credential, body: args.body }),
+      signal: args.signal,
+    }),
+  );
   try {
     args.onServerTiming?.(response.headers.get('Server-Timing'));
   } catch {
