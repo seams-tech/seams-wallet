@@ -2758,3 +2758,28 @@ and repeatable local fault artifacts are in
 Next, measure the Router claim/finish object calls separately before changing their
 execution boundary. Durable admission and completion must remain on the required
 success path. No latency saving for that follow-up is claimed yet.
+
+### Phase 6E — Measure Router wallet dispatch
+
+Separate the Router's registration claim and finish calls before changing their
+execution boundary. Add an exhaustive command label at the caller and the wallet
+object. Record caller elapsed time through response decoding. Correlate each object
+invocation with Cloudflare CPU and wall time. Include consumption as a separate
+measurement because it follows setup during registration finalization.
+
+The diagnostic logs contain operation names, home regions, durations, and outcomes.
+They contain no request bodies, wallet identifiers, credentials, or key material.
+The existing four-region lost-reply E2E verifies two claims and one finish across
+an original completion and its exact replay.
+
+- Build all strict release roles and run the relevant lifecycle E2E checks.
+- Use two rounds of three fresh NEAR-only wallets on existing staging resources.
+- Keep Phase 6D A/B, browser assets, and the browser harness fixed.
+- Record claim, finish, and consume separately. Record the paired claim-plus-finish
+  duration per registration; do not add independent medians.
+- Restore every changed deployment and commit sanitized evidence.
+- Choose the next optimization from the measured critical path.
+
+Caller clocks follow the Workers runtime and can omit CPU time. Provider wall time
+covers the whole object invocation. Neither measurement independently proves physical
+placement. Subtracting these measurements does not isolate network latency exactly.

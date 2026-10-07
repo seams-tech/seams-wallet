@@ -13,7 +13,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use worker::{durable_object, DurableObject, Env, Method, Request, Response, State};
 
 use crate::router_wallet::{
-    router_wallet_serve_v1, RouterWalletOwnerV1, RouterWalletRegistrationRecordV1,
+    router_wallet_serve_v1, RouterWalletCommandV1, RouterWalletOwnerV1, RouterWalletRegistrationRecordV1,
     RouterWalletRequestV1, RouterWalletResponseV1, RouterWalletStoreV1, REGISTRATION_KEY_PREFIX,
 };
 use crate::{
@@ -85,6 +85,15 @@ impl DurableObject for RouterAbRouterWalletDurableObject {
                 ))
             }
         };
+        let operation = match &command {
+            WalletCall::Ordinary(request) => command_label(&request.command),
+            WalletCall::Freeze(_) => "freeze",
+            WalletCall::Transfer(_) => "transfer",
+        };
+        worker::console_log!("{}", serde_json::json!({
+            "event": "router_wallet_operation",
+            "operation": operation,
+        }));
         let outcome = Rc::new(RefCell::new(None));
         let captured = Rc::clone(&outcome);
         self.state
@@ -138,7 +147,8 @@ pub(crate) async fn call_router_wallet_v1(
     wallet_home: crate::WalletHomeRegion,
     request: &RouterWalletRequestV1,
 ) -> RouterAbProtocolResult<RouterWalletResponseV1> {
-    call_wallet(
+    let started_ms = worker::Date::now().as_millis();
+    let result = call_wallet(
         env,
         wallet_home,
         &request.owner,
@@ -146,7 +156,25 @@ pub(crate) async fn call_router_wallet_v1(
         COMMAND_PATH,
         request,
     )
-    .await
+    .await;
+    worker::console_log!("{}", serde_json::json!({
+        "event": "router_wallet_dispatch_timing",
+        "operation": command_label(&request.command),
+        "wallet_home": wallet_home,
+        "duration_ms": worker::Date::now().as_millis().saturating_sub(started_ms),
+        "outcome": if result.is_ok() { "success" } else { "failure" },
+    }));
+    result
+}
+
+fn command_label(command: &RouterWalletCommandV1) -> &'static str {
+    match command {
+        RouterWalletCommandV1::PendingRegistration { .. } => "pending_registration",
+        RouterWalletCommandV1::AdmitSettlement => "admit_settlement",
+        RouterWalletCommandV1::ClaimRegistration { .. } => "claim_registration",
+        RouterWalletCommandV1::FinishRegistration { .. } => "finish_registration",
+        RouterWalletCommandV1::ConsumeRegistration { .. } => "consume_registration",
+    }
 }
 
 pub(crate) async fn call_router_wallet_freeze_v1(

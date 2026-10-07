@@ -29,6 +29,7 @@ const hints = { US: 'enam', WEUR: 'weur', APAC: 'apac', OC: 'oc' };
 class PlacementLog extends Log {
   placements = [];
   commands = [];
+  routerDispatches = [];
 
   constructor() {
     super(LogLevel.INFO);
@@ -48,6 +49,7 @@ class PlacementLog extends Log {
       const value = JSON.parse(message.slice(start));
       if (value.event === 'wallet_do_placement_requested') this.placements.push(value);
       if (value.event === 'wallet_do_command_timing') this.commands.push(value);
+      if (value.event === 'router_wallet_dispatch_timing') this.routerDispatches.push(value);
     } catch {
       // Other Worker diagnostics are not placement observations.
     }
@@ -210,6 +212,14 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
     const retried = await lost.fetch(executeRequest(envelope, credential, foreignHome));
     const result = await retried.json();
     assert.equal(result.status, 'succeeded');
+    assert.deepEqual(log.routerDispatches.map(event => event.operation),
+      ['claim_registration', 'finish_registration', 'claim_registration'],
+      'Lost-reply replay must claim the stored answer without another finish');
+    for (const event of log.routerDispatches) {
+      assert.equal(event.outcome, 'success');
+      assert.equal(event.wallet_home, home);
+      assert.ok(event.duration_ms >= 0);
+    }
     assert.equal(log.placements.filter(event => event.role !== 'router').length,
       firstPlacements.filter(event => event.role !== 'router').length,
       'Completed Router replay must not rerun custody');
@@ -243,7 +253,8 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
       assert.equal(namespace.idFromName(admission.pair_object_name).toString(), roleObjects[role].objectId);
     }
     return {
-      home, generation, admissions, roleObjects, firstStatusLookups: [...a.observations, ...b.observations],
+      home, generation, admissions, roleObjects, routerDispatches: log.routerDispatches,
+      firstStatusLookups: [...a.observations, ...b.observations],
       invalidHomeRejectedBeforePlacement: true,
       unauthorizedHomeRejected: true,
       callerHomeOverwritten: true,
