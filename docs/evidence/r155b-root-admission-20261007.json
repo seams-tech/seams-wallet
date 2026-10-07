@@ -1,0 +1,173 @@
+{
+  "candidate": "2bee39abb947a6524a42e8c74c6ff7b89c1a7acb plus bound-root batching",
+  "normalLoad": {
+    "roundTripsBefore": 5,
+    "roundTripsAfter": 2,
+    "statementsBefore": 5,
+    "statementsAfter": 5,
+    "countBasis": "code path; hosted instrumentation pending"
+  },
+  "passed": [
+    {
+      "kind": "tenant_root_replay_after_erasure_workers_e2e_v1",
+      "build": "wallet_objects",
+      "registration": "succeeded on epoch 1",
+      "retired": [
+        [
+          "retired_deleted",
+          0
+        ],
+        [
+          "retired_deleted",
+          0
+        ]
+      ],
+      "epochOneShares": [
+        0,
+        0
+      ],
+      "routerReplay": [
+        200,
+        "original result"
+      ],
+      "deriverAExecuteReplay": [
+        200,
+        "stored response"
+      ],
+      "changedExecute": [
+        500,
+        "INTERNAL SERVER ERROR"
+      ],
+      "admissionsAfter": [
+        [
+          [
+            1,
+            "settled"
+          ]
+        ],
+        [
+          [
+            1,
+            "settled"
+          ]
+        ]
+      ]
+    },
+    {
+      "kind": "tenant_root_wallet_object_admission_workers_e2e_v1",
+      "fence": {
+        "admissionsWhileHeld": [
+          [
+            [
+              1,
+              "admitted",
+              true
+            ]
+          ],
+          [
+            [
+              1,
+              "admitted",
+              true
+            ]
+          ]
+        ],
+        "deriverBRetired": [
+          "retired_deleted",
+          1
+        ],
+        "objectsAfterRetirement": {
+          "deriverA": "fenced",
+          "deriverB": "fenced"
+        },
+        "heldRegistration": [
+          500,
+          "InvalidLocalServiceConfig: Deriver A pair execution service returned HTTP 500"
+        ],
+        "deriverARetired": [
+          "retired_deleted",
+          1
+        ],
+        "freshRegistration": "succeeded",
+        "admissionsAfter": [
+          [
+            [
+              1,
+              "cancelled",
+              true
+            ],
+            [
+              2,
+              "settled",
+              true
+            ]
+          ],
+          [
+            [
+              1,
+              "cancelled",
+              true
+            ],
+            [
+              2,
+              "settled",
+              true
+            ]
+          ]
+        ]
+      },
+      "lostAcknowledgement": {
+        "admissionsAfterRevert": [
+          [
+            [
+              1,
+              "admitted",
+              true
+            ]
+          ],
+          [
+            [
+              1,
+              "admitted",
+              true
+            ]
+          ]
+        ],
+        "retired": [
+          [
+            "retired_deleted",
+            0
+          ],
+          [
+            "retired_deleted",
+            0
+          ]
+        ],
+        "admissionsAfterReconciliation": [
+          [
+            [
+              1,
+              "settled",
+              true
+            ]
+          ],
+          [
+            [
+              1,
+              "settled",
+              true
+            ]
+          ]
+        ],
+        "objectReports": [
+          "completed",
+          "completed"
+        ]
+      }
+    }
+  ],
+  "open": {
+    "admissionRace": "Root retirement is refused correctly; wallet DO drops the retryable error into HTTP 500. Fix and rerun pending.",
+    "claimedRecovery": "Excluded: release build does not enable the dev-only Deriver B completion-burn fault."
+  }
+}
