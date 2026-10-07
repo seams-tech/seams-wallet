@@ -1,22 +1,42 @@
 # Refactor 153: owner-controlled wallet region selection
 
-Status: manual relocation implementation and scoped hosted acceptance are complete.
-Local SDK-driven relocation reaches owner
-approval, fresh resource verification, preparation, transfer, activation, and cleanup.
-The ECDSA and Ed25519 browser runs passed with fresh unlock and destination signing.
-Two-device moves pass for both curves, including an offline enrolled device.
-Fresh-browser recovery and both signing curves pass after relocation.
-The composed US → APAC → US move passes, including fresh unlock and both signing
-curves after return. Physical custody routing now uses distinct generation targets
-within the deployed namespaces. Admission records account, namespace, object, and
-Worker version identities. Hosted APAC → US → APAC acceptance passed with fresh
-unlock, both signing curves, source cleanup, and measured pause/refill/signing times.
-Broader load suitability, transferred-byte totals, and publication remain separate.
+Status: **Complete — implementation and scoped hosted acceptance.**
+Completed: October 7, 2026.
 
-Performance follow-up: [R153B](refactor-153B.md) is implemented and supersedes the
-per-record D1 transport and scheduler-driven normal execution described below.
-Its hosted round trip reached the first signature after fresh unlock in 47.5 seconds
-outbound and 57.9 seconds returning. Both meet its 60-second pause target.
+## Completion record
+
+- [x] Owner-authorized region selection, destination preparation, and physical custody routing.
+- [x] Wallet-local write block, immutable transfer, exact retries, and recovery after interruption.
+- [x] Destination activation before source cleanup, with old sources kept fenced.
+- [x] Fresh destination authentication and signing with ECDSA and Ed25519.
+- [x] Linked-device, offline-device, and fresh-browser recovery acceptance.
+- [x] Preserve valid durable presignatures during ordinary lock. Invalidate them separately for relocation.
+- [x] Deploy matching staging candidates and required migrations with existing credentials.
+- [x] Pass the hosted APAC → US → APAC round trip and the R153B 60-second pause limit.
+- [x] Complete affected builds, scoped type checks, composed E2Es, and the bloat check. Commit the work on `dev`.
+
+The final hosted pause through fresh unlock and first signature measured
+**43.845 seconds to US** and **43.326 seconds back to APAC**. Both signing curves
+and cleanup passed in both regions. These are single observations, not percentiles.
+Routine signing/refill routing remains unchanged.
+
+[R153B](refactor-153B.md) defines the final transport and execution behavior.
+It supersedes the per-record D1 transport and scheduler-driven normal execution
+in the historical checkpoints below. Its final correction also batches ECDSA
+custody transport and advances bounded freeze/capture steps locally.
+
+The private repository records the final measurements and deployed versions in
+`docs/evidence/r153b-latency-hosted-20261007.md` and its JSON receipt.
+Implementation commits include public `b3db1161` and private `654f65a`.
+Completion evidence is committed as public `d8a6a630` and private `142e73b`.
+
+Package publication, production adoption, broader load/interference testing, total
+bytes across all custody stores, and R154 notifications remain separate work.
+This completion does not claim those broader results.
+
+The dated checkpoints below retain their original observations and limitations.
+This completion record controls current status. The detailed implementation lists
+are retained as design requirements, rather than an open task queue.
 
 ## Implementation order and prerequisites
 
@@ -1195,15 +1215,15 @@ not establish safe relocation.
 R152 supplies implemented home routing, verified composition, and the closed
 revision-13 ownership contract. Before integrating an executable move:
 
-- [x] Freeze R152's [wallet/shared ownership inventory](refactor-152-state-ownership.md),
+- Freeze R152's [wallet/shared ownership inventory](refactor-152-state-ownership.md),
   with revision 12 closing signer selectors and DO/Container/role-private material
   accounting. The original inventory counted 56 signer and 84 shared Console
   tables; apply subsequent schema changes through signer migration 0048.
   Shared identity bindings should continue resolving to the same wallet through
   the updated directory.
-- [ ] Extend R152's fixed-home execution context and admitted resource catalog
+- Extend R152's fixed-home execution context and admitted resource catalog
   with relocation generations, local fences, and destination activation evidence.
-- [ ] Pin the source and destination builds, schema revisions, and resource set
+- Pin the source and destination builds, schema revisions, and resource set
   used by the move. Coordinate changes to shared files during implementation.
 
 Use existing directory/services, wallet stores, role boundaries, and request
@@ -1670,18 +1690,18 @@ than inventing a new owner or promising a bounded recovery time.
 
 ## Implementation stages
 
-The move contract above is settled. Use this checklist for remaining implementation
-work. Acceptance ownership appears below. Do not create separate deliverables for
-the same requirement in each section.
+The move contract above is implemented within the completed scope recorded at the
+start of this document. These lists retain the original design requirements.
+Acceptance ownership appears below; broader suitability and release work are separate.
 
 ### 0. Use the committed implementation
 
-- [x] R170/R171 are complete within their approved scope. Their completion receipt
+- R170/R171 are complete within their approved scope. Their completion receipt
   records source revision `8ecbea72` and matching protocol `14.0.0`.
   Build R153 on committed `dev` and reuse that evidence for unchanged behavior.
-- [x] Map SDK/settings work to the established host lifecycle and final public API.
+- Map SDK/settings work to the established host lifecycle and final public API.
   Keep ordinary-lock retention separate from relocation-driven invalidation.
-- [ ] Extend existing type fixtures when shared domain types change. Cover missing
+- Extend existing type fixtures when shared domain types change. Cover missing
   activation receipts, premature cleanup, forged construction, broad spreads,
   and move-only access passed as signing authority. Check runtime identity values
   at boundary parsers through behavioral tests. Explicit unsafe assertions remain
@@ -1689,25 +1709,25 @@ the same requirement in each section.
 
 ### 1. Directory authority, move admission, and regional execution
 
-- [x] Extend the existing Console wallet directory with persistent ownership
+- Extend the existing Console wallet directory with persistent ownership
   generation, one active move, progress/recovery state, and wallet-wide cooldown.
   Preserve immutable wallet and founding-registration identities. Replace the
   blanket immutable-home rule with changes permitted only by a verified move.
-- [ ] Prepare inactive regional D1 resources and fresh physical per-role DO
+- Prepare inactive regional D1 resources and fresh physical per-role DO
   identities before admission pauses the wallet. Apply intended location hints
   on first creation. Verify schema/import support, logical identities, required
   key versions, server-seal continuity, and authenticated transport access.
   Pin the checked resources at admission without exposing keys to a central mover.
   Complete the explicit physical custody routing tasks in stage 1a.
-- [ ] Admit moves through the authenticated owner path and configured region
+- Admit moves through the authenticated owner path and configured region
   catalog. Persist the move before transfer effects. Bind retries to the same
   canonical request; changed destinations/requests conflict. Selecting the
   current home performs no transfer, session retirement, or presignature regeneration.
-- [ ] Carry the admitted home/generation through the existing regional service
+- Carry the admitted home/generation through the existing regional service
   graph. Require authority at every mutation boundary, including direct/internal
   requests, recovery, linking, revocation, quota changes, refills, jobs, and alarms.
   Read authoritative state after a lost ownership-switch response.
-- [x] Persist conditional progress transitions and recover unfinished stages after
+- Persist conditional progress transitions and recover unfinished stages after
   process restart. Extend the existing journal with participant command evidence
   and independent activation persistence. Preserve stage budgets across chunk
   progress, restart, and UI polling.
@@ -1792,36 +1812,36 @@ HKG return targets. Move-read approvals now belong to the authorization snapshot
 and source cleanup. Both signing curves passed after each move. The evidence
 records the exact targets, candidate versions, pause durations, and refill samples.
 
-- [x] **Define and persist the target set.** Extend the existing placement and
+- **Define and persist the target set.** Extend the existing placement and
   participant records with typed source and destination locators. Cover Router,
   Deriver A, Deriver B, SigningWorker, and wallet-owned presign/session objects.
   Give each physical store one owner. Validate raw locators once at the boundary.
-- [x] **Prepare distinct destinations.** Resolve actual deployed bindings and create
+- **Prepare distinct destinations.** Resolve actual deployed bindings and create
   inactive targets before source pause. Apply regional location hints on creation.
   Reject a destination that equals its source account/namespace/object tuple.
   Verify scope, schema, inactive state, and role key continuity. Pin the complete
   target set to the move. Exact retries must reuse it after restart or lost replies.
-- [x] **Use one routing path.** Make ordinary signing, refill, recovery, linking,
+- **Use one routing path.** Make ordinary signing, refill, recovery, linking,
   internal role calls, callbacks, and alarms resolve the same admitted targets as
   transfer commands. Use existing regional execution authority and generation
   checks. Preserve R155B's zero-Console-call requirement for routine signing/refill.
   Remove fixed-object lookup paths as their replacements land.
-- [x] **Preserve cryptographic identity.** Change physical lookup independently of
+- **Preserve cryptographic identity.** Change physical lookup independently of
   logical object names, encrypted-row identities, keys, and protocol role/server IDs.
   Do not append a generation to a name authenticated by stored ciphertext.
   Keep shared tenant-root and revocation authority at their existing owners.
   Reconcile their physical references through the admitted placement.
-- [x] **Bind ownership and cleanup to exact targets.** Include the target set in
+- **Bind ownership and cleanup to exact targets.** Include the target set in
   preparation and transfer evidence. Activate only its verified destination after
   the directory switch. Keep the old source fenced. Cleanup retries address only
   the recorded source. A return move receives fresh physical targets and cannot
   reuse a retained source snapshot as active storage.
-- [x] **Make deployment enforce the contract.** Extend existing deployment rendering
+- **Make deployment enforce the contract.** Extend existing deployment rendering
   and resource verification to resolve each role's actual namespace/object mapping.
   Reject incomplete or conflicting mappings before admission. Preserve existing
   role secrets and authenticated environment labels. Add no relocation credential,
   parallel configuration registry, or separate deployment workflow.
-- [x] **Extend the existing composed/hosted E2E.** Use production routing configuration
+- **Extend the existing composed/hosted E2E.** Use production routing configuration
   instead of supplying independent namespaces as a fixture assumption. Exercise a
   colliding destination, verify rejection before pause, and sign again at source.
   With valid targets, complete the move and return, sign with both curves, and
@@ -1831,91 +1851,91 @@ records the exact targets, candidate versions, pause durations, and refill sampl
 
 ### 2. Source quiescence and session/pool retirement
 
-- [ ] Keep prepared destinations inactive. Stop new source admissions, drain already
+- Keep prepared destinations inactive. Stop new source admissions, drain already
   admitted effects, and reconcile unfinished claims. If an effect's outcome or
   source quiescence is uncertain, retain the pause and reconcile before switching.
-- [ ] Fence Router, Deriver A/B, SigningWorker, and presign session/deferred paths.
+- Fence Router, Deriver A/B, SigningWorker, and presign session/deferred paths.
   Keep role-local material with its existing role. Include shared tenant-root
   admission/retirement references in the cutover contract.
-- [ ] Retire all devices' signing sessions after admitted effects settle. Reject
+- Retire all devices' signing sessions after admitted effects settle. Reject
   old primary/hosted credentials, exchange codes, linked credential deliveries,
   refresh, and saved/sealed-session restore. Keep device/factor enrollment active.
-- [ ] Add explicit presignature invalidation independent of key/activation
+- Add explicit presignature invalidation independent of key/activation
   retirement. Burn usable secrets while preserving claimed/consumed identities,
   tombstones, request bindings, and terminal results. Account for both wallet SQL
   pools and linked-device presign-session KV/one-use records.
-- [ ] Reject delayed source rounds and pool admissions. An in-flight refill whose
+- Reject delayed source rounds and pool admissions. An in-flight refill whose
   identity was never stored must not repopulate a pool after invalidation.
-- [ ] Seal the common manifest only after every participant is quiescent and
+- Seal the common manifest only after every participant is quiescent and
   session retirement and pool invalidation are complete. Keep snapshot bytes
   stable through retries and expiry.
 
 ### 3. Exact state transfer and destination verification
 
-- [ ] Extract the wallet-owned subset from the frozen R152 inventory. Preserve
+- Extract the wallet-owned subset from the frozen R152 inventory. Preserve
   indirect records, dependency order, exact bytes, integer precision, nulls,
   expiry times, revisions, retirement decisions, historical quota accounting,
   and completed/replayed outcomes. Import no usable old signing sessions or pools.
-- [ ] Implement bounded, authenticated same-role chunks. Atomically commit each
+- Implement bounded, authenticated same-role chunks. Atomically commit each
   local import and acknowledgement. Prove exact replay, conflict rejection, mixed
   partition isolation, and rejection of late imports after the gate closes.
-- [ ] Transfer DO SQL and KV explicitly; decide destination alarm work/deadlines
+- Transfer DO SQL and KV explicitly; decide destination alarm work/deadlines
   separately. Live MPC memory is drained or abandoned with identities burned.
   Repeated imports resume the same move without executing authorization again.
-- [ ] Restore historical states through the validated scoped import path. Preserve
+- Restore historical states through the validated scoped import path. Preserve
   consumed hosted exchanges and operation claims/results without reissuing
   credentials, charging quota again, or bypassing unrelated wallets' guards.
-- [ ] Verify destination schema, scope, logical identities, record counts,
+- Verify destination schema, scope, logical identities, record counts,
   revisions, and content digests before it can write. Reject partial/conflicting
   copies. Verify ciphertext through each role's own readers.
-- [ ] Keep shared uniqueness, policy, aggregate limits, and tenant-root authority
+- Keep shared uniqueness, policy, aggregate limits, and tenant-root authority
   at their existing owners. Reconcile physical references through the agreed
   directory resolution so concurrent retirement/revocation reaches the right home.
 
 ### 4. Ownership switch, client resume, and cleanup
 
-- [ ] Conditionally switch the directory only after all source fences and
+- Conditionally switch the directory only after all source fences and
   destination verification are durable. Activate destination writes only after
   confirming that authoritative outcome and every participant's readiness.
   Persist activation before cleanup; every obsolete generation stays fenced.
-- [ ] Use stable public endpoints for fresh authentication after activation.
+- Use stable public endpoints for fresh authentication after activation.
   New sessions have fresh IDs; old grants remain retired. Authorize retrieval of
   an original operation result without changing its identity or spending quota.
   Prove linked devices can obtain fresh sessions without replacement enrollment.
-- [ ] Reconcile authoritative placement before using durable or resident client
+- Reconcile authoritative placement before using durable or resident client
   presignatures. Cancel stale refill work and clear old sessions, credentials,
   sealed-session restores, and pool caches across tabs and reloads. Authenticate
   again before ordinary refill. Offline devices resume independently. Keep this
   relocation invalidation separate from ordinary lock, which preserves otherwise-valid
   durable presignatures.
-- [ ] Add Wallet region to the existing settings surface. Show actual home,
+- Add Wallet region to the existing settings surface. Show actual home,
   selected region, pending progress, temporary mutation pause, recoverable failure,
   cooldown retry time, and fresh authentication on all devices. Expose supported
   regions and eligible owner controls. Region-change notifications remain
   R154's follow-up.
-- [ ] Implement the blocking progress view and reconnect behavior above. Preserve
+- Implement the blocking progress view and reconnect behavior above. Preserve
   local lock and bounded move-only status access. Show ordinary unlock after
   destination activation and client reconciliation. Show blocked recovery explicitly.
-- [x] Delete obsolete source wallet state after destination activation. Retain
+- Delete obsolete source wallet state after destination activation. Retain
   the authority fence and move outcome needed for cleanup/retry. Failed cleanup is
   resumable and cannot reopen the source. A later move back uses fresh resources.
 
 ### 5. Integration, measured suitability, and completion
 
-- [ ] Pass the E2E matrix below, including real ECDSA/Ed25519 signing and both
+- Pass the E2E matrix below, including real ECDSA/Ed25519 signing and both
   passkey and Email OTP fresh authentication where supported. Reject old sealed
   signing sessions and delayed linked credential deliveries.
-- [x] Run hosted APAC → US → APAC placement, pause, refill, and signing verification.
+- Run hosted APAC → US → APAC placement, pause, refill, and signing verification.
   Preserve exact locators and deployed versions with the measured evidence.
-- [ ] Complete transferred-byte and unrelated-wallet interference measurements
+- Complete transferred-byte and unrelated-wallet interference measurements
   before closing the broader hosted regional suitability requirement.
-- [ ] Update intended-behavior specification and matching contracts together.
+- Update intended-behavior specification and matching contracts together.
   Freeze the public package candidate and pin private consumers to its exact
   artifact through the existing integration workflow.
-- [ ] Remove superseded fixed-home mutation restrictions, direct writer paths,
+- Remove superseded fixed-home mutation restrictions, direct writer paths,
   cache assumptions, fixtures, and exports as their replacements land. Preserve
   ordinary identity immutability and registration replay guarantees.
-- [ ] Run affected type checks, Rust/wire verification when affected, and the
+- Run affected type checks, Rust/wire verification when affected, and the
   required bloat check. Run behavioral scenarios through their assigned owners.
   Broaden checks for shared behavior changes or unresolved failures. Retain results
   for the final tested revisions. Deployments and publication follow the existing

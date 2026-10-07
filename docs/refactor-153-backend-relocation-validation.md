@@ -1,7 +1,14 @@
 # R153: backend relocation validation
 
-Status: initial platform, source, and local-runtime validation, October 2, 2026.
-Hosted placement and complete wallet relocation remain unverified.
+Status: **Complete — initial investigation, retained as historical evidence.**
+Investigation date: October 2, 2026. Implementation closed: October 7, 2026.
+
+The subsequent [R153 completion record](refactor-153-wallet-region-selection.md#completion-record)
+and [R153B final acceptance](refactor-153B.md#final-acceptance) supersede the open
+implementation and hosted-verification observations below. The final hosted round
+trip passed both signing curves and cleanup, with pauses of 43.845 seconds to US
+and 43.326 seconds back to APAC. Publication and broader load suitability remain
+separate work.
 
 October 5 lifecycle decision: R153 retires all signing sessions and invalidates
 all usable presignatures before transfer. Devices authenticate again after

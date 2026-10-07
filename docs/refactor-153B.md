@@ -1,7 +1,25 @@
 # R153B: simple, fast wallet relocation
 
-Status: implementation and scoped hosted acceptance complete. Package publication and adoption remain separate.
-Date: October 7, 2026.
+Status: **Complete — implementation, review fixes, and scoped hosted acceptance.**
+Completed: October 7, 2026.
+
+## Final acceptance
+
+- [x] Transfer each immutable D1 snapshot with one export and one import.
+- [x] Advance the move continuously with exact retries and one active driver.
+- [x] Check final capacity under a short wallet-local write block after destination preparation.
+- [x] Recover abandoned checks and resume partially committed custody batches.
+- [x] Deploy matching staging candidates and migrations using existing credentials.
+- [x] Pass both signing curves, cleanup, and the unchanged 60-second pause limit in both directions.
+
+Final pause through fresh unlock and first signature: **43.845 seconds to US** and
+**43.326 seconds back to APAC**. These are single hosted observations.
+Routine signing/refill routes remain unchanged. Package publication and production
+adoption remain separate release work.
+
+The private completion receipt is `docs/evidence/r153b-latency-hosted-20261007.json`.
+The dated results below document earlier candidates; the final acceptance above
+and the return latency correction at the end of this plan control current status.
 
 ## Goal
 
