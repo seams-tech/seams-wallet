@@ -20,18 +20,12 @@ import {
   type SigningSessionReadiness,
 } from './planning/planner';
 import {
-  buildWalletSessionStatusCheck,
-  walletSessionStatusOwnerForLane,
   type SigningSessionStatusCheck,
   type SigningSessionStatusReader,
-  type WalletSessionStatusIdentity,
 } from './lifecycle/walletSessionStatus';
 import type { SigningAdmissionQueueKey } from './operationState/authorizationAdmission';
-import { signingLaneAuthMethod } from './identity/signingLaneAuthBinding';
-import { unknownSigningSessionStatus } from './lifecycle/walletSessionStatus';
 import { SigningOperationIdBindingRegistry } from './planning/operationIdBinding';
 import {
-  applyWalletSessionStatusToSigningSessionReadiness,
   clearWalletSession,
   discoverLanesForWallet,
   normalizeNonEmpty,
@@ -77,11 +71,8 @@ export type { SigningSessionReadiness };
 type ResolveSigningSessionAuthPlanFromReadinessOptions = {
   expiresAtMs?: number;
   remainingUses?: number;
-  usesNeeded?: number;
-  trustedStatusAuth?: WalletSessionStatusIdentity;
   forceFreshAuth?: boolean;
   sensitiveOperationPolicy?: SigningSessionPlannerInput['sensitiveOperationPolicy'];
-  missingWhenExpiresAtMissing?: boolean;
 };
 
 type ResolveEd25519SigningSessionAuthPlanFromReadinessInput =
@@ -132,7 +123,6 @@ type SigningSessionStatusPort = {
     walletSessionId: WalletSessionId;
     quotaId: MpcWalletSigningQuotaId;
     targetThresholdSessionIds?: string[];
-    trustedStatusAuth?: WalletSessionStatusIdentity;
     sessionStatusCheck?: SigningSessionStatusCheck;
   }): Promise<SigningSessionStatus | null>;
   getLaneClaimsForWallet(
@@ -148,10 +138,6 @@ type SigningSessionStatusPort = {
 type SigningSessionStatusState = {
   statusOverrides: Map<string, WalletSessionStatusOverride>;
 };
-
-type WalletSessionStatusReadResult =
-  | { readonly kind: 'authorization_missing' }
-  | { readonly kind: 'status'; readonly status: SigningSessionStatus };
 
 type SigningSessionCoordinatorDeps = WalletSessionReadinessDeps &
   ClientWalletSessionInvalidationReadinessDeps & {
@@ -320,13 +306,24 @@ export class SigningSessionCoordinator implements SigningSessionStatusPort {
     onTrace?: (event: SigningPlannerDecisionTraceEvent) => void,
   ): Promise<ResolveSigningSessionAuthPlanFromReadinessResult> {
     if (isEd25519SigningSessionAuthPlanInput(input)) {
-      const sessionStatusAware = await this.applyWalletSessionStatusToEd25519Readiness(input);
+      const expiresAtMs =
+        input.readiness.status === 'ready' ||
+        input.readiness.status === 'exhausted' ||
+        input.readiness.status === 'expired'
+          ? input.readiness.expiresAtMs
+          : 0;
+      const remainingUses =
+        input.readiness.status === 'ready' || input.readiness.status === 'exhausted'
+          ? input.readiness.remainingUses
+          : 0;
       return {
-        ...sessionStatusAware,
+        readiness: input.readiness,
+        expiresAtMs,
+        remainingUses,
         signingSessionPlan: this.resolveAuthPlan(
           {
             lane: input.lane,
-            readiness: sessionStatusAware.readiness,
+            readiness: input.readiness,
             forceFreshAuth: input.forceFreshAuth,
             sensitiveOperationPolicy: input.sensitiveOperationPolicy,
           },
@@ -453,35 +450,6 @@ export class SigningSessionCoordinator implements SigningSessionStatusPort {
     this.operationIdBindings.bindCallerProvidedOperationIdToFingerprint(args);
   }
 
-  private async readWalletSessionStatus(
-    sessionStatusCheck: SigningSessionStatusCheck | null,
-  ): Promise<WalletSessionStatusReadResult> {
-    const walletSessionId = sessionStatusCheck?.authorization.walletSessionId;
-    if (!walletSessionId) {
-      return { kind: 'authorization_missing' };
-    }
-    if (!this.walletSessionStatusReader) {
-      return {
-        kind: 'status',
-        status: unknownSigningSessionStatus({
-          walletSessionId,
-          reason: 'adapter_unavailable',
-        }),
-      };
-    }
-    const status = await this.walletSessionStatusReader(sessionStatusCheck);
-    if (!status) {
-      return {
-        kind: 'status',
-        status: unknownSigningSessionStatus({
-          walletSessionId,
-          reason: 'missing_trusted_status',
-        }),
-      };
-    }
-    return { kind: 'status', status };
-  }
-
   async runWalletSessionQuotaAdmissionRetry<TValue>(args: {
     queueKey: SigningAdmissionQueueKey;
     refresh: () => Promise<TValue>;
@@ -504,142 +472,4 @@ export class SigningSessionCoordinator implements SigningSessionStatusPort {
     this.walletSessionQuotaAdmissionRefreshQueues.set(queueKey, queueEntry);
     return await refreshPromise;
   }
-
-  private async applyWalletSessionStatusToEd25519Readiness(
-    input: ResolveEd25519SigningSessionAuthPlanFromReadinessInput,
-  ): Promise<{
-    readiness: Ed25519SigningSessionReadiness;
-    expiresAtMs: number;
-    remainingUses: number;
-  }> {
-    const walletSessionId = String(input.lane.walletSessionId).trim();
-    const sessionStatusCheck = await buildSessionStatusCheckForLane({
-      lane: input.lane,
-      trustedStatusAuth: input.trustedStatusAuth,
-      nowMs: Date.now(),
-      exactWalletSessionReadPorts: this.exactWalletSessionReadPorts,
-    });
-    const statusRead = await this.readWalletSessionStatus(sessionStatusCheck).catch(
-      (): WalletSessionStatusReadResult =>
-        sessionStatusCheck
-          ? {
-              kind: 'status',
-              status: {
-                sessionId: String(sessionStatusCheck.authorization.walletSessionId),
-                status: 'unavailable',
-              },
-            }
-          : { kind: 'authorization_missing' },
-    );
-    if (statusRead.kind === 'authorization_missing') {
-      return applyWalletSessionStatusToSigningSessionReadiness({
-        status: 'missing_session',
-        thresholdSessionId: input.readiness.thresholdSessionId,
-        walletSessionStatus: null,
-        expiresAtMs: Math.floor(Number(input.expiresAtMs) || 0),
-        remainingUses: 0,
-        usesNeeded: input.usesNeeded,
-        missingWhenExpiresAtMissing: input.missingWhenExpiresAtMissing,
-      });
-    }
-    const walletSessionStatus = statusRead.status;
-    const emailOtpEd25519PreflightUnavailable =
-      signingLaneAuthMethod(input.lane.auth) === 'email_otp' &&
-      input.lane.curve === 'ed25519' &&
-      (walletSessionStatus?.status === 'status_unknown' ||
-        walletSessionStatus?.status === 'unavailable');
-    const passkeyEd25519PreflightUnavailable =
-      signingLaneAuthMethod(input.lane.auth) === 'passkey' &&
-      input.readiness.status === 'ready' &&
-      (walletSessionStatus?.status === 'status_unknown' ||
-        walletSessionStatus?.status === 'unavailable');
-    // Email OTP can mint a fresh Ed25519 session at step-up. Treat an
-    // unreadable preflight as reauthable so server-side authorize remains
-    // the session-status enforcement point instead of failing before the prompt.
-    let sessionStatusForPlanning: SigningSessionStatus | null = walletSessionStatus;
-    if (passkeyEd25519PreflightUnavailable) {
-      sessionStatusForPlanning = null;
-    } else if (emailOtpEd25519PreflightUnavailable) {
-      sessionStatusForPlanning = {
-        sessionId: walletSessionId,
-        status: 'not_found',
-        statusCode: walletSessionStatus.status,
-      };
-    }
-    if (emailOtpEd25519PreflightUnavailable) {
-      console.warn(
-        '[SigningSessionCoordinator][email-otp-ed25519] session-status preflight unavailable',
-        {
-          walletSessionId,
-          thresholdSessionId: input.lane.thresholdSessionId,
-          sessionStatus: walletSessionStatus.status,
-          readiness: input.readiness.status,
-          remainingUses: input.remainingUses,
-          usesNeeded: input.usesNeeded,
-        },
-      );
-    }
-    if (passkeyEd25519PreflightUnavailable) {
-      console.debug(
-        '[SigningSessionCoordinator][passkey-ed25519] session-status preflight deferred',
-        {
-          walletSessionId,
-          thresholdSessionId: input.lane.thresholdSessionId,
-          sessionStatus: walletSessionStatus.status,
-          readiness: input.readiness.status,
-          remainingUses: input.remainingUses,
-          usesNeeded: input.usesNeeded,
-        },
-      );
-    }
-    return applyWalletSessionStatusToSigningSessionReadiness({
-      status: input.readiness.status,
-      thresholdSessionId: input.readiness.thresholdSessionId,
-      walletSessionStatus: sessionStatusForPlanning,
-      expiresAtMs: Math.floor(Number(input.expiresAtMs) || 0),
-      remainingUses: Math.floor(Number(input.remainingUses) || 0),
-      usesNeeded: input.usesNeeded,
-      missingWhenExpiresAtMissing: input.missingWhenExpiresAtMissing,
-    });
-  }
-}
-
-async function buildSessionStatusCheckForLane(args: {
-  lane: SelectedEd25519SigningSessionPlanningLane;
-  trustedStatusAuth?: WalletSessionStatusIdentity;
-  nowMs: number;
-  exactWalletSessionReadPorts: ExactWalletSessionReadPorts;
-}): Promise<SigningSessionStatusCheck | null> {
-  const owner = walletSessionStatusOwnerForLane(args.lane);
-  if (args.trustedStatusAuth) {
-    return buildWalletSessionStatusCheck({
-      owner,
-      authorization: {
-        walletSessionId: args.trustedStatusAuth.walletSessionId,
-        quotaId: args.trustedStatusAuth.quotaId,
-      },
-    });
-  }
-  // Without a caller-verified identity, the lane's own session is only usable
-  // once the exact record for the selected authority and auth method proves it
-  // is still active and still authorizes this lane's Ed25519 material.
-  const credential = await resolveExactWalletSessionOperationCredential({
-    ports: args.exactWalletSessionReadPorts,
-    input: {
-      walletId: owner.walletId,
-      authMethod: signingLaneAuthMethod(args.lane.auth),
-      walletSessionId: args.lane.walletSessionId,
-      quotaId: args.lane.quotaId,
-      requiredSigningSubject: requiredSigningSubjectForExactSigningLane(args.lane.identity),
-      expiry: { kind: 'unexpired', nowMs: args.nowMs },
-    },
-  });
-  if (credential.kind !== 'resolved') return null;
-  return buildWalletSessionStatusCheck({
-    owner,
-    authorization: {
-      walletSessionId: credential.resolved.walletSessionId,
-      quotaId: credential.resolved.session.quotaId,
-    },
-  });
 }

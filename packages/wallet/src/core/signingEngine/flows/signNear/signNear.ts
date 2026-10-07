@@ -100,7 +100,6 @@ import {
   waitForWalletSessionQuotaAdmissionRetry,
 } from '../../session/operationState/authorizationAdmission';
 import type { RouterAbEd25519OwnerOperationAuthorizationDecisionV1Wire } from '@shared/utils/routerAbNormalSigningIdentity';
-import type { WalletSessionStatusIdentity } from '../../session/lifecycle/walletSessionStatus';
 import {} from '../../threshold/sessionPolicy';
 import { signingAuthPlanFromSigningSessionPlan } from '../shared/signingConfirmation';
 import { resolveNearSigningSessionAuthContext } from './shared/signingSessionAuthMode';
@@ -511,17 +510,6 @@ function requireResolvedNearEd25519SigningLane(
     walletSessionId: SigningSessionIds.walletSession(walletSessionId),
     quotaId: SigningSessionIds.walletSessionQuota(quotaId),
     thresholdSessionId: SigningSessionIds.thresholdEd25519Session(thresholdSessionId),
-  };
-}
-
-function walletSessionStatusIdentityFromNearPreparation(
-  preparation: NearEd25519YaoSigningPreparation,
-): WalletSessionStatusIdentity | null {
-  if (preparation.authorization.kind !== 'authorized') return null;
-  const authorization = preparation.authorization.authorization;
-  return {
-    walletSessionId: authorization.operationCredential.walletSessionId,
-    quotaId: authorization.session.quotaId,
   };
 }
 
@@ -1256,18 +1244,14 @@ async function prepareNearEd25519TransactionOperation(args: {
       readiness: readiness.readiness,
       expiresAtMs: readiness.expiresAtMs,
       remainingUses: readiness.remainingUses,
-      usesNeeded: operationUsesNeeded,
     }),
   );
   const transactionOperation = prepareTransactionOperationFromReadiness(transactionReadinessState);
   const identity = requireResolvedNearEd25519SigningLane(lane);
-  const trustedStatusAuth = walletSessionStatusIdentityFromNearPreparation(args.preparation);
   const readinessInput = {
     readiness: readiness.readiness,
     expiresAtMs: readiness.expiresAtMs,
     remainingUses: readiness.remainingUses,
-    usesNeeded: operationUsesNeeded,
-    ...(trustedStatusAuth ? { trustedStatusAuth } : {}),
   };
   return {
     lane,

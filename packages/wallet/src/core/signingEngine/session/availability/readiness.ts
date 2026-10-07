@@ -40,8 +40,6 @@ import type {
   MpcWalletSigningQuotaId,
   WalletSessionId,
 } from '@shared/authorization/capabilityKinds';
-import type { Ed25519SigningSessionReadiness } from '../planning/planner';
-import type { ThresholdEd25519SessionId } from '../operationState/types';
 import {
   mpcMaterialActivationRefsEqual,
   type MpcMaterialActivationRef,
@@ -90,12 +88,6 @@ type WalletSessionClaimReaderDeps = {
   getEmailOtpWarmSessionStatus?: (thresholdSessionId: string) => Promise<WarmSessionStatusResult>;
 };
 
-type SigningSessionReadinessWithStatus = {
-  readiness: Ed25519SigningSessionReadiness;
-  expiresAtMs: number;
-  remainingUses: number;
-};
-
 export function normalizeNonEmpty(value: unknown): string {
   return String(value || '').trim();
 }
@@ -115,78 +107,6 @@ export function warmClaimFromRecordPolicy(args: {
     thresholdSessionId,
     remainingUses,
     expiresAtMs,
-  };
-}
-
-export function applyWalletSessionStatusToSigningSessionReadiness(args: {
-  status: Ed25519SigningSessionReadiness['status'];
-  thresholdSessionId: ThresholdEd25519SessionId;
-  expiresAtMs: number;
-  remainingUses: number;
-  walletSessionStatus?: SigningSessionStatus | null;
-  usesNeeded?: number;
-  nowMs?: number;
-  missingWhenExpiresAtMissing?: boolean;
-}): SigningSessionReadinessWithStatus {
-  let status = args.status;
-  let expiresAtMs = Math.floor(Number(args.expiresAtMs) || 0);
-  let remainingUses = Math.max(0, Math.floor(Number(args.remainingUses) || 0));
-  const walletSessionStatus = args.walletSessionStatus;
-  if (walletSessionStatus) {
-    if (walletSessionStatus.status === 'not_found') {
-      status = 'missing_session';
-      remainingUses = 0;
-    } else if (walletSessionStatus.status === 'status_unknown' && status === 'ready') {
-      status = 'status_unknown';
-      remainingUses = 0;
-    } else if (walletSessionStatus.status === 'unavailable') {
-      status = 'status_unavailable';
-      remainingUses = 0;
-    } else if (walletSessionStatus.status === 'expired') {
-      status = 'expired';
-      remainingUses = 0;
-    } else if (walletSessionStatus.status === 'exhausted') {
-      status = 'exhausted';
-      remainingUses = 0;
-    } else if (walletSessionStatus.status === 'active') {
-      const sessionRemainingUses = Math.max(
-        0,
-        Math.floor(Number(walletSessionStatus.remainingUses) || 0),
-      );
-      const sessionExpiresAtMs = Math.floor(Number(walletSessionStatus.expiresAtMs) || 0);
-      // Local/session-store counters are availability hints after restore. The
-      // session status service is the trusted source for terminal budget state.
-      // Same-projection local availability can gate admission, but it must not
-      // turn a server-active session into step-up reauth.
-      remainingUses = sessionRemainingUses;
-      if (sessionExpiresAtMs > 0) expiresAtMs = sessionExpiresAtMs;
-      if (status === 'exhausted') {
-        status = 'ready';
-      }
-    }
-  }
-  const usesNeeded = Math.max(1, Math.floor(Number(args.usesNeeded) || 1));
-  if (status === 'ready' && args.missingWhenExpiresAtMissing && expiresAtMs <= 0) {
-    status = 'missing_session';
-  }
-  if (status === 'ready' && expiresAtMs <= (args.nowMs ?? Date.now())) status = 'expired';
-  if (status === 'ready' && remainingUses < usesNeeded) status = 'exhausted';
-  const readiness: Ed25519SigningSessionReadiness =
-    status === 'ready' || status === 'exhausted'
-      ? {
-          status,
-          curve: 'ed25519',
-          thresholdSessionId: args.thresholdSessionId,
-          remainingUses,
-          expiresAtMs,
-        }
-      : status === 'expired'
-        ? { status, curve: 'ed25519', thresholdSessionId: args.thresholdSessionId, expiresAtMs }
-        : { status, curve: 'ed25519', thresholdSessionId: args.thresholdSessionId };
-  return {
-    readiness,
-    expiresAtMs,
-    remainingUses,
   };
 }
 

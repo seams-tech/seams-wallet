@@ -347,7 +347,8 @@ required result; a particular millisecond saving is not promised in advance.
 
 Status: root-store consolidation and controlled hosted verification are complete.
 The measured Yao setup median fell to 5.414 seconds. The two-second target and
-remaining DO boundary and SDK preflight work keep this phase open.
+remaining authenticated placement and DO boundary work keep this phase open.
+SDK transaction preflight now uses one status read and one owner-lane read.
 
 ### Baseline and scope
 
@@ -430,9 +431,10 @@ alone do not prove cold starts or a Cloudflare fault.
 - [ ] Split the observed 627–1,130 ms delivery span into transport, verification,
   combination, D1 and wallet-DO persistence. Batch dependent writes and remove
   repeated same-attempt reads. Preserve durable, idempotent delivery.
-- [ ] Trace the two session-status and two owner-lane requests before each measured
-  NEAR signature. Consolidate same-operation session/lane resolution through the
-  existing prepare response. Preserve revocation, budget and relocation fences.
+- [x] Trace and remove repeated same-operation session/lane resolution. Ordinary
+  NEAR signing now uses one status read, one owner-lane read, prepare and finalize.
+  Planning reuses authenticated preparation; fresh prepare enforcement remains.
+  Hosted request counts and revocation/budget E2E evidence are recorded below.
 - [x] Verify whether current SDK changes already remove any measured duplicates
   before adding another implementation. Freeze a matching candidate for comparison.
 
@@ -2196,7 +2198,61 @@ The isolated SDK build and bloat check passed. Test-environment failures before
 SDK execution are recorded separately and excluded from acceptance evidence.
 [Source hash, request counts and test artifact hashes](./evidence/near-material-reuse-20261007.json).
 
-Remaining Phase 6A work is explicit: integrate authenticated initial placement
-with R153, resolve the remaining caller/DO delay, and consolidate the two session
-status reads without repeating the rejected budget/confirmation shortcut.
+The follow-up below closes duplicate session-status reads. Remaining Phase 6A
+work is authenticated initial placement and the unresolved caller/DO delay.
 The two-second Yao setup target is still unmet.
+
+
+### Phase 6A single-status NEAR planning — 2026-10-07
+
+NEAR transaction planning now uses readiness from that operation's authenticated
+material preparation. Lane selection keeps its fresh status read. Server prepare
+still checks current authority before the client produces its signature share.
+Budget, expiry, revocation and changed-prepare handling remain enforced. This change
+adds no cross-operation status cache. It deletes the second status-reader path,
+its unused helpers and its forwarded metadata: 318 lines removed, 14 added.
+
+Six new hosted wallets verified 42 signatures, split equally between the previous
+SDK and the candidate. Every warm and consecutive signature used **four Gateway
+POSTs instead of five**: status, owner lane, prepare and finalize. With the preceding
+material-reuse change, ordinary requests have fallen from six to four.
+
+| SDK signing workload | Samples per arm | Previous SDK median / range | Candidate median / range |
+| --- | ---: | --- | --- |
+| Warm | 6 | 2.772s / 2.193–3.084s | 2.551s / 2.161–3.472s |
+| Three-signature sequences | 9 | 2.138s / 1.575–3.635s | 1.952s / 1.503–3.071s |
+| First after unlock | 3 | 1.721s / 1.694–2.493s | 2.177s / 1.344–2.558s |
+| First after registration | 3 | 7.293s / 6.909–8.048s | 8.047s / 7.672–8.323s |
+
+These values measure the SDK signing call. Registration, funding, unlock, and test
+cleanup are separate workflow costs. The first-sign rows do not measure Yao setup.
+The evidence file also preserves workflow totals.
+
+The request reduction is established. A general latency improvement is not.
+The candidate ran before the control, and local correctness tests overlapped part
+of its run. Backend version snapshots were not captured. Ranges overlap, and both
+first-sign medians increased. Keep these limitations with the timing figures.
+No deployment or infrastructure resources changed during this SDK comparison.
+Gateway D1 and backend Console counts remain unavailable; browser Console calls
+were zero in both arms.
+
+The final SDK passes linked-device revocation and shared-budget exhaustion with
+NEAR and ECDSA step-up. Public contracts cover transaction and message signing after
+reload, plus changed prepare authority rejected before finalize and a later valid
+operation. Type checking, the SDK build, and the bloat check pass.
+[Samples, request paths, source hashes and verification artifacts](./evidence/near-single-status-20261007.json).
+
+The next placement change has a concrete authority source: the private Gateway's
+`ConsoleRegistrationHomeAdmission.home()` identifies the configured regional D1
+resource. Regional dispatch and local execution admission already check the wallet
+against that resource. Propagate that trusted home through the authenticated custody
+request, then apply it when creating the generation-specific A, B and signing-worker
+objects. Preserve R153's logical identity and physical ownership-generation mapping.
+Do not accept a client-selected placement header or derive home from a tenant id.
+Validate fresh objects in each region before claiming a placement gain.
+
+The remaining DO gap still needs attribution. The existing delivery path already
+uses one DO transaction, and Deriver B returns durable completion on its WebSocket.
+Neither finding supports deleting another durability boundary. Initial placement
+is not implemented in this change. The controlled Yao setup median remains 5.414s;
+its two-second target remains open.

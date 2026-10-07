@@ -1,0 +1,1942 @@
+{
+  "kind": "near_single_status_preflight_v1",
+  "date": "2026-10-07",
+  "behavior": "Transaction planning uses readiness from this operation\u2019s authenticated preparation. Lane selection keeps its fresh status read. Prepare and finalize keep fresh server authority checks. No cross-operation status cache is added.",
+  "publicDevBase": "9c904f2315c15c7ecf965763688c9d33ea24bd70",
+  "frozenBase": "2bee39abb947a6524a42e8c74c6ff7b89c1a7acb",
+  "sourceHashes": {
+    "packages/wallet/src/core/signingEngine/session/SigningSessionCoordinator.ts": "e37a64a6fa31d4f79add091a0845edd3840924e861c4601e439deeb30e1e8e9b",
+    "packages/wallet/src/core/signingEngine/session/availability/readiness.ts": "738a7a39764d7eee7ea5c5111c5d2ea46501d6f417222bd07467e49f2059614b",
+    "packages/wallet/src/core/signingEngine/session/operationState/preparedOperation.ts": "fbc2c72a94b7e13b711688f337eb2fe7c2ae3cc892eb2dbf3b79d9d9d357e903",
+    "packages/wallet/src/core/signingEngine/session/operationState/transactionState.ts": "5ceaef590f2691334d2f751dff0160ce66e2faa754c0c0a855dbfcf471a5f37f",
+    "packages/wallet/src/core/signingEngine/flows/signNear/signNear.ts": "09d27d738638bb2a48a7498905d6888b83803eb6900d34f5ac782d4764b495b4",
+    "packages/wallet/src/core/signingEngine/flows/signEvmFamily/preparedSigning.ts": "c21ad2880e2666c34b934a78f7b84164c7425e2616872bb1f6386e186055e896",
+    "packages/wallet/src/core/signingEngine/session/lifecycle/walletSessionStatus.ts": "80bbb56249810e56709004cbb932bfffad4f30cda7d30250dbf1bc9376db1743"
+  },
+  "hosted": {
+    "candidate": {
+      "wallets": 3,
+      "verifiedSignatures": 21,
+      "artifactSha256": {
+        "near-1.json": "aa4d8003dccde15b54f08ae68da1fc0d84543f97765391d6bed9b7cbfec40a4b",
+        "near-2.json": "08bceab9348e52d83fd8424f44211c04311e875b43753df426c31cd9e4a3def8",
+        "near-3.json": "a06ba79f620ed7fd364c6aec750f8dbc7e50ca40eb5afdb7108fd7db306da046"
+      },
+      "observedBrowserConsoleCalls": 0,
+      "gatewayD1Calls": null,
+      "backendConsoleCalls": null,
+      "sdkSigningStatistics": {
+        "registration_to_first_verified": {
+          "count": 3,
+          "medianMs": 8047.324999928474,
+          "minimumMs": 7672.389999985695,
+          "maximumMs": 8322.925000071526
+        },
+        "warm_signing": {
+          "count": 6,
+          "medianMs": 2551.207500040531,
+          "minimumMs": 2160.814999938011,
+          "maximumMs": 3472.305000066757
+        },
+        "unlock_to_first_verified": {
+          "count": 3,
+          "medianMs": 2177.164999961853,
+          "minimumMs": 1343.5049999952316,
+          "maximumMs": 2557.5599999427795
+        },
+        "three_consecutive": {
+          "count": 9,
+          "medianMs": 1952.0499999523163,
+          "minimumMs": 1503.1100000143051,
+          "maximumMs": 3070.5449999570847
+        }
+      },
+      "samples": [
+        {
+          "walletSample": "near-1",
+          "workload": "registration_to_first_verified",
+          "verified": true,
+          "sdkSigningMs": 8047.324999928474,
+          "workflowToVerifiedMs": 22088.673584,
+          "gatewayRequests": [
+            {
+              "path": "/wallets/register/setup",
+              "durationMs": 1125.663,
+              "status": 200
+            },
+            {
+              "path": "/wallets/register/respond",
+              "durationMs": 1305.178,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/yao/registration/admit",
+              "durationMs": 506.378,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/yao/registration/execute",
+              "durationMs": 5536.141,
+              "status": 200
+            },
+            {
+              "path": "/wallets/register/activate",
+              "durationMs": 708.345,
+              "status": 200
+            },
+            {
+              "path": "/wallets/register/near-provisioning",
+              "durationMs": 2560.596,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 403.19,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 361.368,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 131.379,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 135.322,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 134.558,
+              "status": 200
+            },
+            {
+              "path": "/wallets/vivid-peak-q7d9mr/near/implicit-account/fund",
+              "durationMs": 3770.48,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 391.188,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 1126.944,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-1",
+          "workload": "warm_signing",
+          "verified": true,
+          "sdkSigningMs": 3289.8550000190735,
+          "workflowToVerifiedMs": 3798.9296670000003,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 165.023,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 146.871,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 716.656,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 1158.243,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-1",
+          "workload": "warm_signing",
+          "verified": true,
+          "sdkSigningMs": 3472.305000066757,
+          "workflowToVerifiedMs": 3802.7605829999993,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 135.594,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 143.722,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 1078.38,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 419.157,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-1",
+          "workload": "unlock_to_first_verified",
+          "verified": true,
+          "sdkSigningMs": 2177.164999961853,
+          "workflowToVerifiedMs": 5775.979041999999,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/unlock/challenge",
+              "durationMs": 476.781,
+              "status": 200
+            },
+            {
+              "path": "/wallet/unlock/verify",
+              "durationMs": 743.848,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 163.831,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 121.627,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 128.751,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 134.826,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 190.027,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 342.291,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 1116.035,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-1",
+          "workload": "three_consecutive",
+          "verified": true,
+          "sdkSigningMs": 1503.1100000143051,
+          "workflowToVerifiedMs": 2261.197791999999,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 162.837,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 169.188,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 319.487,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 456.086,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-1",
+          "workload": "three_consecutive",
+          "verified": true,
+          "sdkSigningMs": 1699.2350000143051,
+          "workflowToVerifiedMs": 2279.266416000006,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 155.04,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 137.104,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 315.871,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 383.41,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-1",
+          "workload": "three_consecutive",
+          "verified": true,
+          "sdkSigningMs": 2586.475000023842,
+          "workflowToVerifiedMs": 3069.8305829999954,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 120.623,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 134.495,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 914.42,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 479.942,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-2",
+          "workload": "registration_to_first_verified",
+          "verified": true,
+          "sdkSigningMs": 8322.925000071526,
+          "workflowToVerifiedMs": 20696.316749999998,
+          "gatewayRequests": [
+            {
+              "path": "/wallets/register/setup",
+              "durationMs": 858.596,
+              "status": 200
+            },
+            {
+              "path": "/wallets/register/respond",
+              "durationMs": 892.277,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/yao/registration/admit",
+              "durationMs": 453.787,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/yao/registration/execute",
+              "durationMs": 5530.383,
+              "status": 200
+            },
+            {
+              "path": "/wallets/register/activate",
+              "durationMs": 655.857,
+              "status": 200
+            },
+            {
+              "path": "/wallets/register/near-provisioning",
+              "durationMs": 2058.466,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 126.069,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 125.04,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 119.588,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 116.048,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 140.508,
+              "status": 200
+            },
+            {
+              "path": "/wallets/crimson-aurora-428a5f/near/implicit-account/fund",
+              "durationMs": 3842.805,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 800.764,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 868.981,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-2",
+          "workload": "warm_signing",
+          "verified": true,
+          "sdkSigningMs": 2622.399999976158,
+          "workflowToVerifiedMs": 3037.157957999996,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 152.081,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 149.64,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 540.449,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 420.996,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-2",
+          "workload": "warm_signing",
+          "verified": true,
+          "sdkSigningMs": 2429.9500000476837,
+          "workflowToVerifiedMs": 3039.237333000012,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 159.354,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 127.419,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 818.432,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 400.947,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-2",
+          "workload": "unlock_to_first_verified",
+          "verified": true,
+          "sdkSigningMs": 1343.5049999952316,
+          "workflowToVerifiedMs": 4976.3345830000035,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/unlock/challenge",
+              "durationMs": 367.54,
+              "status": 200
+            },
+            {
+              "path": "/wallet/unlock/verify",
+              "durationMs": 1177.321,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 122.457,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 136.357,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 119.998,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 131.338,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 130.86,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 318.713,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 334.848,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-2",
+          "workload": "three_consecutive",
+          "verified": true,
+          "sdkSigningMs": 1860.1699999570847,
+          "workflowToVerifiedMs": 2234.1072080000013,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 135.134,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 155.951,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 764.748,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 433.65,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-2",
+          "workload": "three_consecutive",
+          "verified": true,
+          "sdkSigningMs": 2027.2999999523163,
+          "workflowToVerifiedMs": 2280.022708999997,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 133.337,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 137.943,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 766.347,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 386.476,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-2",
+          "workload": "three_consecutive",
+          "verified": true,
+          "sdkSigningMs": 1952.0499999523163,
+          "workflowToVerifiedMs": 2282.255999999994,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 139.552,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 140.85,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 311.079,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 348.927,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-3",
+          "workload": "registration_to_first_verified",
+          "verified": true,
+          "sdkSigningMs": 7672.389999985695,
+          "workflowToVerifiedMs": 20670.682125000007,
+          "gatewayRequests": [
+            {
+              "path": "/wallets/register/setup",
+              "durationMs": 662.332,
+              "status": 200
+            },
+            {
+              "path": "/wallets/register/respond",
+              "durationMs": 758.34,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/yao/registration/admit",
+              "durationMs": 609.942,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/yao/registration/execute",
+              "durationMs": 6090.396,
+              "status": 200
+            },
+            {
+              "path": "/wallets/register/activate",
+              "durationMs": 810.207,
+              "status": 200
+            },
+            {
+              "path": "/wallets/register/near-provisioning",
+              "durationMs": 2189.095,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 140.965,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 139.926,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 143.599,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 143.045,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 143.873,
+              "status": 200
+            },
+            {
+              "path": "/wallets/azure-reef-t2rsve/near/implicit-account/fund",
+              "durationMs": 3787.203,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 434.547,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 879.932,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-3",
+          "workload": "warm_signing",
+          "verified": true,
+          "sdkSigningMs": 2160.814999938011,
+          "workflowToVerifiedMs": 3056.439584000007,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 130.922,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 138.839,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 797.91,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 367.425,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-3",
+          "workload": "warm_signing",
+          "verified": true,
+          "sdkSigningMs": 2480.015000104904,
+          "workflowToVerifiedMs": 3051.4032920000027,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 150.9,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 169.442,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 805.205,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 381.295,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-3",
+          "workload": "unlock_to_first_verified",
+          "verified": true,
+          "sdkSigningMs": 2557.5599999427795,
+          "workflowToVerifiedMs": 5742.757874999996,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/unlock/challenge",
+              "durationMs": 415.262,
+              "status": 200
+            },
+            {
+              "path": "/wallet/unlock/verify",
+              "durationMs": 879.69,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 136.314,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 154.313,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 121.998,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 137.156,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 161.553,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 328.898,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 838.831,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-3",
+          "workload": "three_consecutive",
+          "verified": true,
+          "sdkSigningMs": 2643.195000052452,
+          "workflowToVerifiedMs": 3011.714208999998,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 123.858,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 157.843,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 799.173,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 397.238,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-3",
+          "workload": "three_consecutive",
+          "verified": true,
+          "sdkSigningMs": 1818.8799999952316,
+          "workflowToVerifiedMs": 2279.3132909999986,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 151.747,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 156.119,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 375.451,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 509.491,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-3",
+          "workload": "three_consecutive",
+          "verified": true,
+          "sdkSigningMs": 3070.5449999570847,
+          "workflowToVerifiedMs": 3813.978000000003,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 209.67,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 184.179,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 313.918,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 1470.515,
+              "status": 200
+            }
+          ]
+        }
+      ],
+      "sdkAssetManifestSha256": "d08721ad237efd29fc963c284d8dd7e7386fc9725a1c7f737caa0289ded0b06e"
+    },
+    "control": {
+      "wallets": 3,
+      "verifiedSignatures": 21,
+      "artifactSha256": {
+        "near-1.json": "5d8eb67733582d40a431d45e5bdf6a7c1dd577df0e2d895d4d754f4ea45e0cf3",
+        "near-2.json": "65dbafe23bad850f0be005a9385f6fb322b9d8c7bf66323c9b4ef75abba7f114",
+        "near-3.json": "a57f8b2b68b63d13e61b7c636a7296209d5196324d3071a6cb85118e49440a6f"
+      },
+      "observedBrowserConsoleCalls": 0,
+      "gatewayD1Calls": null,
+      "backendConsoleCalls": null,
+      "sdkSigningStatistics": {
+        "registration_to_first_verified": {
+          "count": 3,
+          "medianMs": 7292.634999990463,
+          "minimumMs": 6908.8949999809265,
+          "maximumMs": 8048.2300000190735
+        },
+        "warm_signing": {
+          "count": 6,
+          "medianMs": 2771.639999985695,
+          "minimumMs": 2193.270000100136,
+          "maximumMs": 3083.639999985695
+        },
+        "unlock_to_first_verified": {
+          "count": 3,
+          "medianMs": 1720.875,
+          "minimumMs": 1694.054999947548,
+          "maximumMs": 2493.444999933243
+        },
+        "three_consecutive": {
+          "count": 9,
+          "medianMs": 2138.0049999952316,
+          "minimumMs": 1575.2000000476837,
+          "maximumMs": 3634.5400000810623
+        }
+      },
+      "samples": [
+        {
+          "walletSample": "near-1",
+          "workload": "registration_to_first_verified",
+          "verified": true,
+          "sdkSigningMs": 8048.2300000190735,
+          "workflowToVerifiedMs": 19993.064125,
+          "gatewayRequests": [
+            {
+              "path": "/wallets/register/setup",
+              "durationMs": 586.729,
+              "status": 200
+            },
+            {
+              "path": "/wallets/register/respond",
+              "durationMs": 655.229,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/yao/registration/admit",
+              "durationMs": 578.282,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/yao/registration/execute",
+              "durationMs": 5535.916,
+              "status": 200
+            },
+            {
+              "path": "/wallets/register/activate",
+              "durationMs": 548.054,
+              "status": 200
+            },
+            {
+              "path": "/wallets/register/near-provisioning",
+              "durationMs": 2319.099,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 126.783,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 124.685,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 147.809,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 120.433,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 126.224,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 119.481,
+              "status": 200
+            },
+            {
+              "path": "/wallets/bright-arbor-3v8wbd/near/implicit-account/fund",
+              "durationMs": 3806.091,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 789.353,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 893.914,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-1",
+          "workload": "warm_signing",
+          "verified": true,
+          "sdkSigningMs": 2822.9950000047684,
+          "workflowToVerifiedMs": 3801.751,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 159.778,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 122.456,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 121.396,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 751.669,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 950.283,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-1",
+          "workload": "warm_signing",
+          "verified": true,
+          "sdkSigningMs": 2238.0650000572205,
+          "workflowToVerifiedMs": 3030.8079579999976,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 127.423,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 180.347,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 125.545,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 373.236,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 419.297,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-1",
+          "workload": "unlock_to_first_verified",
+          "verified": true,
+          "sdkSigningMs": 2493.444999933243,
+          "workflowToVerifiedMs": 5800.197375,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/unlock/challenge",
+              "durationMs": 392.326,
+              "status": 200
+            },
+            {
+              "path": "/wallet/unlock/verify",
+              "durationMs": 866.168,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 120.564,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 146.911,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 143.489,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 158.517,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 133.253,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 128.063,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 723.88,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 441.498,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-1",
+          "workload": "three_consecutive",
+          "verified": true,
+          "sdkSigningMs": 1575.2000000476837,
+          "workflowToVerifiedMs": 2216.4775420000005,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 146.519,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 127.974,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 174.553,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 319.326,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 367.482,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-1",
+          "workload": "three_consecutive",
+          "verified": true,
+          "sdkSigningMs": 1679.195000052452,
+          "workflowToVerifiedMs": 2247.9945000000007,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 133.094,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 138.421,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 121.283,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 310.832,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 360.793,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-1",
+          "workload": "three_consecutive",
+          "verified": true,
+          "sdkSigningMs": 3634.5400000810623,
+          "workflowToVerifiedMs": 4048.2587090000015,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 376.749,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 479.57,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 523.536,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 297.843,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 778.423,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-2",
+          "workload": "registration_to_first_verified",
+          "verified": true,
+          "sdkSigningMs": 6908.8949999809265,
+          "workflowToVerifiedMs": 19604.557374999997,
+          "gatewayRequests": [
+            {
+              "path": "/wallets/register/setup",
+              "durationMs": 745.779,
+              "status": 200
+            },
+            {
+              "path": "/wallets/register/respond",
+              "durationMs": 685.092,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/yao/registration/admit",
+              "durationMs": 392.572,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/yao/registration/execute",
+              "durationMs": 6222.546,
+              "status": 200
+            },
+            {
+              "path": "/wallets/register/activate",
+              "durationMs": 546.69,
+              "status": 200
+            },
+            {
+              "path": "/wallets/register/near-provisioning",
+              "durationMs": 2310.63,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 358.666,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 315.642,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 136.025,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 159.375,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 163.233,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 236.09,
+              "status": 200
+            },
+            {
+              "path": "/wallets/glowing-badger-t9kptw/near/implicit-account/fund",
+              "durationMs": 3355.407,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 797.182,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 928.447,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-2",
+          "workload": "warm_signing",
+          "verified": true,
+          "sdkSigningMs": 2193.270000100136,
+          "workflowToVerifiedMs": 3031.0688329999975,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 118.006,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 118.007,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 131.626,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 319.35,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 881.454,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-2",
+          "workload": "warm_signing",
+          "verified": true,
+          "sdkSigningMs": 2728.4099999666214,
+          "workflowToVerifiedMs": 3016.282291999989,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 122.16,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 129.885,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 194.48,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 319.955,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 858.753,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-2",
+          "workload": "unlock_to_first_verified",
+          "verified": true,
+          "sdkSigningMs": 1720.875,
+          "workflowToVerifiedMs": 4963.185375000001,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/unlock/challenge",
+              "durationMs": 477.405,
+              "status": 200
+            },
+            {
+              "path": "/wallet/unlock/verify",
+              "durationMs": 741.706,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 131.35,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 122.998,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 119.352,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 129.224,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 198.014,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 122.62,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 443.914,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 361.662,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-2",
+          "workload": "three_consecutive",
+          "verified": true,
+          "sdkSigningMs": 2189.0599999427795,
+          "workflowToVerifiedMs": 3007.2314590000024,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 163.471,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 150.011,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 146.12,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 332.477,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 385.041,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-2",
+          "workload": "three_consecutive",
+          "verified": true,
+          "sdkSigningMs": 2292.460000038147,
+          "workflowToVerifiedMs": 3028.8213749999995,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 148.766,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 135.006,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 146.839,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 324.273,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 910.535,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-2",
+          "workload": "three_consecutive",
+          "verified": true,
+          "sdkSigningMs": 2099.4800000190735,
+          "workflowToVerifiedMs": 3037.3075420000096,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 150.536,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 124.888,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 118.449,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 381.919,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 365.094,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-3",
+          "workload": "registration_to_first_verified",
+          "verified": true,
+          "sdkSigningMs": 7292.634999990463,
+          "workflowToVerifiedMs": 19965.912333,
+          "gatewayRequests": [
+            {
+              "path": "/wallets/register/setup",
+              "durationMs": 646.763,
+              "status": 200
+            },
+            {
+              "path": "/wallets/register/respond",
+              "durationMs": 666.748,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/yao/registration/admit",
+              "durationMs": 445.657,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/yao/registration/execute",
+              "durationMs": 6844.304,
+              "status": 200
+            },
+            {
+              "path": "/wallets/register/activate",
+              "durationMs": 537.822,
+              "status": 200
+            },
+            {
+              "path": "/wallets/register/near-provisioning",
+              "durationMs": 2054.465,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 128.403,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 244.937,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 125.549,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 122.02,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 128.19,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 149.137,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 133.014,
+              "status": 200
+            },
+            {
+              "path": "/wallets/wild-feather-f3z7a6/near/implicit-account/fund",
+              "durationMs": 2774.843,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 986.461,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 811.795,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-3",
+          "workload": "warm_signing",
+          "verified": true,
+          "sdkSigningMs": 2814.8700000047684,
+          "workflowToVerifiedMs": 3827.185209000003,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 165.925,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 135.652,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 136.656,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 899.683,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 772.475,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-3",
+          "workload": "warm_signing",
+          "verified": true,
+          "sdkSigningMs": 3083.639999985695,
+          "workflowToVerifiedMs": 3812.232874999987,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 136.66,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 128.326,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 130.83,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 1046.283,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 357.422,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-3",
+          "workload": "unlock_to_first_verified",
+          "verified": true,
+          "sdkSigningMs": 1694.054999947548,
+          "workflowToVerifiedMs": 4951.098166999989,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/unlock/challenge",
+              "durationMs": 396.326,
+              "status": 200
+            },
+            {
+              "path": "/wallet/unlock/verify",
+              "durationMs": 858.711,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 122.237,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 134.429,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 131.74,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 120.975,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 164.254,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 122.683,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 483.587,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 405.529,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-3",
+          "workload": "three_consecutive",
+          "verified": true,
+          "sdkSigningMs": 1927.0800000429153,
+          "workflowToVerifiedMs": 2232.5967919999966,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 221.769,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 175.431,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 310.702,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 363.712,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 418.699,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-3",
+          "workload": "three_consecutive",
+          "verified": true,
+          "sdkSigningMs": 2636.625,
+          "workflowToVerifiedMs": 3052.402958000006,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 261.018,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 148.549,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 132.696,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 406.056,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 970.816,
+              "status": 200
+            }
+          ]
+        },
+        {
+          "walletSample": "near-3",
+          "workload": "three_consecutive",
+          "verified": true,
+          "sdkSigningMs": 2138.0049999952316,
+          "workflowToVerifiedMs": 3049.1723340000026,
+          "gatewayRequests": [
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 121.389,
+              "status": 200
+            },
+            {
+              "path": "/wallet/execution-lane/owner",
+              "durationMs": 130.406,
+              "status": 200
+            },
+            {
+              "path": "/wallet/session/status",
+              "durationMs": 152.695,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign/prepare",
+              "durationMs": 405.238,
+              "status": 200
+            },
+            {
+              "path": "/router-ab/ed25519/sign",
+              "durationMs": 440.259,
+              "status": 200
+            }
+          ]
+        }
+      ],
+      "sdkAssetManifestSha256": "f0a8182dd5595f9b4485640b82a439e53b978d42359044dc7805e354d929e6b1"
+    },
+    "requestCounts": {
+      "control": {
+        "status": 2,
+        "ownerLane": 1,
+        "prepare": 1,
+        "finalize": 1
+      },
+      "candidate": {
+        "status": 1,
+        "ownerLane": 1,
+        "prepare": 1,
+        "finalize": 1
+      }
+    }
+  },
+  "limitations": [
+    "Three new wallets per SDK arm; candidate ran before control. Local correctness tests overlapped part of the candidate run. This is a request-count comparison with exploratory timing, not an isolated causal latency experiment.",
+    "Existing staging services were used without deployment changes. Backend version snapshots were not captured for this SDK comparison.",
+    "Warm and consecutive ranges overlap. Unlock-first and registration-first SDK signing did not improve in this sample.",
+    "Gateway D1 counts and backend Console call counts were unavailable. Browser Console calls were observed separately.",
+    "The hosted candidate precedes deletion of unreachable status helpers and unused type/input fields. Final correctness tests and the final SDK build cover that cleanup.",
+    "The two-second Yao setup target remains unmet. This change removes an SDK preflight request; it does not reduce Yao setup or resolve initial DO placement."
+  ],
+  "verification": {
+    "regionalE2E": {
+      "outcome": "2 passed (1.9m)",
+      "cases": [
+        "Linked Ed25519 signing then revocation rejection during Console outage",
+        "Shared budget exhaustion and NEAR/ECDSA fresh-auth step-up during Console outage"
+      ],
+      "logSha256": "27a053f164b99044100f93ef335ee76ca2494a9a36806efcf440ba7d2d69a725"
+    },
+    "publicContracts": {
+      "outcome": "3 passed (41.5s)",
+      "cases": [
+        "NEAR transactions immediately after registration and reload",
+        "NEAR messages verified across reload",
+        "Changed prepare authority rejected before finalize, then a valid operation"
+      ],
+      "logSha256": "353451ce0fda3bec98593aa4ba45dddb4e29a3d385a7d4a88fd1f8307a8218b1",
+      "artifactHashes": {
+        "e2e-intended-behaviours-pa-6cc61-gistered-key-across-refresh-chromium/near-message-signatures.json": "fb9e999745083eae47d3a2b7e2b7fb6779ae052ee3af96e584352c755c508676",
+        "e2e-intended-behaviours-pa-3870c-ts-the-next-valid-operation-chromium/near-prepare-authority.json": "c7b2dfbe1155697739146b7be313b7d9526294dc05ee1c530a9d1e44af5b8d5a"
+      }
+    },
+    "typeCheck": {
+      "outcome": "passed",
+      "logSha256": "8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92"
+    },
+    "sdkBuild": {
+      "outcome": "passed",
+      "logSha256": "7b81283d5738f13b228196c744a42543fb31e67b3e15db9d1a234dd7b488d57e"
+    },
+    "bloatCheck": {
+      "outcome": "passed; no ratcheted measure grew",
+      "logSha256": "fcf5db3534a76219cb91e2795824e60ffd44a8f103caeb787d0496190c47a0ce"
+    }
+  },
+  "excludedAttempts": [
+    {
+      "classification": "environment_or_infrastructure_failure",
+      "detail": "A final public-contract rerun reused a local tenant-root bootstrap directory. Bootstrap rejected the existing state before SDK execution. A fresh runtime directory passed all three contracts.",
+      "logSha256": "e49cc0b390fce97c8465bc65582e1482fa462e01773a5f74568cf9d0069bba09"
+    }
+  ]
+}
