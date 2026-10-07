@@ -1,0 +1,214 @@
+{
+  "kind": "near_custody_overlapped_setup_v1",
+  "date": "2026-10-07",
+  "change": "Run A bound-root loading alongside B connection establishment; close opened sockets on setup and protocol failure.",
+  "controlCommit": "ace09a0249433304eff94ad41c3283e8edacdaca",
+  "sourceDifference": [
+    {
+      "path": "crates/router-ab-cloudflare/src/ed25519_yao_lifecycle.rs",
+      "beforeSha256": "52b8995f699ec4b19ac385ecc6f25de115ab37dae5ae2380bd636c88eb001e54",
+      "candidateSha256": "fbf990a5b26e97e8ac93cee5db99764fbc6972cd34454faa7f4b9dc840e912ec"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/ed25519_yao_websocket.rs",
+      "beforeSha256": "888b116fe15ad28e458a034ef38404eaf6a393f769f66cf58f62fbec536e9cbe",
+      "candidateSha256": "349878e52c4e993ff7001e30385c75dd215d34af62512154d1cd8cfe9888a0ee"
+    }
+  ],
+  "localChecks": [
+    {
+      "case": "protocol-disconnect",
+      "command": [
+        "node",
+        "crates/router-ab-cloudflare/scripts/yao-peer-disconnect-evidence.mjs",
+        "protocol-disconnect"
+      ],
+      "exitCode": 0
+    },
+    {
+      "case": "cancelled-root",
+      "command": [
+        "node",
+        "crates/router-ab-cloudflare/scripts/yao-peer-disconnect-evidence.mjs",
+        "cancelled-root"
+      ],
+      "exitCode": 0
+    },
+    {
+      "case": "connection-refused",
+      "command": [
+        "node",
+        "crates/router-ab-cloudflare/scripts/yao-peer-disconnect-evidence.mjs",
+        "connection-refused"
+      ],
+      "exitCode": 0
+    },
+    {
+      "case": "invalid-acceptance",
+      "command": [
+        "node",
+        "crates/router-ab-cloudflare/scripts/yao-peer-disconnect-evidence.mjs",
+        "invalid-acceptance"
+      ],
+      "exitCode": 0
+    },
+    {
+      "case": "forged-acceptance",
+      "command": [
+        "node",
+        "crates/router-ab-cloudflare/scripts/yao-peer-disconnect-evidence.mjs",
+        "forged-acceptance"
+      ],
+      "exitCode": 0
+    },
+    {
+      "case": "placement",
+      "command": [
+        "node",
+        "crates/router-ab-cloudflare/scripts/wallet-home-placement-evidence.mjs"
+      ],
+      "exitCode": 0
+    },
+    {
+      "case": "settlement",
+      "command": [
+        "node",
+        "crates/router-ab-cloudflare/scripts/test-private-d1.mjs",
+        "--do-admission-settlement"
+      ],
+      "exitCode": 0
+    },
+    {
+      "case": "execution",
+      "command": [
+        "node",
+        "crates/router-ab-cloudflare/scripts/test-private-d1.mjs",
+        "--do-pair-execution"
+      ],
+      "exitCode": 0
+    },
+    {
+      "case": "lost-reply",
+      "command": [
+        "node",
+        "crates/router-ab-cloudflare/scripts/test-private-d1.mjs",
+        "--do-pair-lost-reply"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "faultScenarios": [
+    {
+      "kind": "yao_peer_disconnect_e2e_v1",
+      "scenario": "cancelled-root",
+      "interrupted": {
+        "connectionAttempts": 1,
+        "connections": 1,
+        "aMessages": 0,
+        "bMessages": 0,
+        "disconnected": false,
+        "aClosed": true,
+        "bClosed": true
+      },
+      "roleStatesAfterFailure": {
+        "deriverA": "burned",
+        "deriverB": "burned"
+      },
+      "exactRetryDidNotRestartProtocol": true,
+      "independentWalletCompletedAfterDisconnect": true,
+      "reproduce": "ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/yao-peer-disconnect-evidence.mjs cancelled-root"
+    },
+    {
+      "kind": "yao_peer_disconnect_e2e_v1",
+      "scenario": "connection-refused",
+      "interrupted": {
+        "connectionAttempts": 1,
+        "connections": 0,
+        "aMessages": 0,
+        "bMessages": 0,
+        "disconnected": false,
+        "aClosed": false,
+        "bClosed": false
+      },
+      "roleStatesAfterFailure": {
+        "deriverA": "burned",
+        "deriverB": "prepared"
+      },
+      "exactRetryDidNotRestartProtocol": true,
+      "independentWalletCompletedAfterDisconnect": true,
+      "reproduce": "ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/yao-peer-disconnect-evidence.mjs connection-refused"
+    },
+    {
+      "kind": "yao_peer_disconnect_e2e_v1",
+      "scenario": "forged-acceptance",
+      "interrupted": {
+        "connectionAttempts": 1,
+        "connections": 1,
+        "aMessages": 0,
+        "bMessages": 0,
+        "disconnected": false,
+        "aClosed": true,
+        "bClosed": true
+      },
+      "roleStatesAfterFailure": {
+        "deriverA": "burned",
+        "deriverB": "burned"
+      },
+      "exactRetryDidNotRestartProtocol": true,
+      "independentWalletCompletedAfterDisconnect": true,
+      "reproduce": "ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/yao-peer-disconnect-evidence.mjs forged-acceptance"
+    },
+    {
+      "kind": "yao_peer_disconnect_e2e_v1",
+      "scenario": "invalid-acceptance",
+      "interrupted": {
+        "connectionAttempts": 1,
+        "connections": 1,
+        "aMessages": 0,
+        "bMessages": 0,
+        "disconnected": false,
+        "aClosed": true,
+        "bClosed": true
+      },
+      "roleStatesAfterFailure": {
+        "deriverA": "burned",
+        "deriverB": "burned"
+      },
+      "exactRetryDidNotRestartProtocol": true,
+      "independentWalletCompletedAfterDisconnect": true,
+      "reproduce": "ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/yao-peer-disconnect-evidence.mjs invalid-acceptance"
+    },
+    {
+      "kind": "yao_peer_disconnect_e2e_v1",
+      "scenario": "protocol-disconnect",
+      "interrupted": {
+        "connectionAttempts": 1,
+        "connections": 1,
+        "aMessages": 1,
+        "bMessages": 2,
+        "disconnected": true,
+        "aClosed": true,
+        "bClosed": true
+      },
+      "roleStatesAfterFailure": {
+        "deriverA": "burned",
+        "deriverB": "burned"
+      },
+      "exactRetryDidNotRestartProtocol": true,
+      "independentWalletCompletedAfterDisconnect": true,
+      "reproduce": "ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/yao-peer-disconnect-evidence.mjs protocol-disconnect"
+    }
+  ],
+  "releaseBuilds": [
+    "deriver-a",
+    "deriver-b",
+    "router",
+    "signing-worker",
+    "tenant-root-control-plane"
+  ],
+  "hostedStatus": "pending controlled comparison",
+  "limitations": [
+    "Local E2E proves lifecycle behavior, not hosted latency or physical colocation.",
+    "Connection refusal leaves B prepared; A is burned and an exact A retry cannot restart the pair."
+  ]
+}

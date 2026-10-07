@@ -2684,11 +2684,18 @@ measurements are in [the evidence](evidence/near-custody-background-settlement-2
 The runner restored all thirteen tracked deployments. No new resources or keepalive
 traffic were introduced. The exact source comparison found only the two intended Rust changes.
 
-### Next optimization: overlap independent setup work
+### Phase 6D — Overlap independent setup work
 
-A currently finishes its root read and proof preparation before connecting to B.
-B then loads its root. Investigate overlap between A's root load and B's connection
-and root preparation. Keep the existing reads, signatures, expiry checks, and durable claims.
+A previously finished its root read and proof preparation before connecting to B.
+The candidate starts A's root read and B's connection together. B can load its root
+while A waits for D1. Both operations finish before A checks its root metadata,
+prepares its proof, verifies B's signed acceptance, and claims execution.
+The existing reads, signatures, expiry checks, and durable claims remain.
+
+The connection owns socket cleanup through the complete A execution. Malformed
+upgrade headers also close the received socket. Normal protocol completion keeps
+its existing close. Failed execution keeps the existing pair burn and reconciliation
+path. No cache, schema change, extra Worker, or keepalive traffic is introduced.
 
 - Await both started operations. Do not abandon a peer connection when the local read fails.
 - If either operation fails, close any opened socket and preserve the existing pair burn/reconciliation path.
@@ -2697,6 +2704,12 @@ and root preparation. Keep the existing reads, signatures, expiry checks, and du
   and exact retry through E2E before hosted comparison.
 - Compare this independently against the accepted candidate. Do not combine a cache,
   database schema redesign, or cryptographic algorithm change into this experiment.
+
+A refused connection leaves B in its existing `Prepared` state because B never
+started. A is burned and cannot restart that pair. The new E2E checks this state
+explicitly. If B started, both roles must be burned after failure. Cancellation,
+malformed acceptance, forged acceptance, and mid-protocol failure must close both
+sides of every opened connection. Each fault run then completes a separate wallet.
 
 Also retain Router claim/finish dispatch as a separate measurement target. Those
 remote object calls remain on registration's response path. Their individual

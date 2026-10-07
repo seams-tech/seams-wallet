@@ -2994,15 +2994,33 @@ where
         pair_execution.pair_digest,
     )
     .map_err(map_websocket_error)?;
-    let (custody_binding, role_share, stable_context, root_metadata_digest) =
+    let scope = CloudflareDeriverBWalletPairScopeV1 {
+        wallet_home: pair_execution.tenant_root.wallet_home,
+        ownership_generation: pair_execution.tenant_root.ownership_generation,
+        root_identity: pair_execution.tenant_root.identity.clone(),
+        pair_binding: pair_execution.pair_binding.clone(),
+    };
+    // Both operations must finish, including when the root read fails. The
+    // connection owns socket cleanup until protocol execution ends.
+    let (root_result, connection_result) = futures::join!(
         load_ed25519_yao_tenant_root_role_share_v2(
             env,
             CloudflareWorkerRoleV1::DeriverA,
             pair_execution.tenant_root,
             pair_execution.pair_binding,
             pair_execution.pair_object.clone(),
-        )
-        .await?;
+        ),
+        connect_deriver_b(
+            env,
+            websocket_binding,
+            trace_id,
+            pair_execution.readiness.local(),
+            pair_execution.execution_id,
+            &scope,
+        ),
+    );
+    let connection = connection_result?;
+    let (custody_binding, role_share, stable_context, root_metadata_digest) = root_result?;
     validate_expected_root_metadata_digest(
         pair_execution.expected_root_metadata_digest,
         root_metadata_digest,
@@ -3018,23 +3036,10 @@ where
         &pair_execution.tenant_root.outer_binding,
         preface.outbound_plaintext(),
     )?;
-    let (socket, acceptance) = connect_deriver_b(
-        env,
-        websocket_binding,
-        trace_id,
-        pair_execution.readiness.local(),
-        pair_execution.execution_id,
-        &CloudflareDeriverBWalletPairScopeV1 {
-            wallet_home: pair_execution.tenant_root.wallet_home,
-            ownership_generation: pair_execution.tenant_root.ownership_generation,
-            root_identity: pair_execution.tenant_root.identity.clone(),
-            pair_binding: pair_execution.pair_binding.clone(),
-        },
-    )
-    .await?;
-    confirm_start(acceptance).await?;
-    let mut transport = CloudflareEd25519YaoWebSocketTransportV1::deriver_a(&socket, session)
-        .map_err(map_websocket_error)?;
+    confirm_start(connection.acceptance.clone()).await?;
+    let mut transport =
+        CloudflareEd25519YaoWebSocketTransportV1::deriver_a(&connection.socket, session)
+            .map_err(map_websocket_error)?;
     let incoming = transport
         .exchange_deriver_a_target_proof_preface_v2(&outbound)
         .await
@@ -3188,7 +3193,7 @@ async fn connect_deriver_b(
     peer_receipt: &Ed25519YaoRoleReadinessReceiptV1,
     execution_id: Ed25519YaoExecutionIdV1,
     scope: &CloudflareDeriverBWalletPairScopeV1,
-) -> RouterAbProtocolResult<(worker::WebSocket, Ed25519YaoRoleStartAcceptanceV1)> {
+) -> RouterAbProtocolResult<crate::CloudflareEd25519YaoPairStartConnectionV1> {
     let started_at_ms = role_span_started_at_ms();
     let result = crate::connect_cloudflare_ed25519_yao_deriver_b_with_start_acceptance_v1(
         env,
@@ -3199,7 +3204,6 @@ async fn connect_deriver_b(
         scope,
     )
     .await
-    .map(|connection| (connection.socket, connection.acceptance))
     .map_err(map_websocket_error);
     emit_role_span_v1(
         trace_id,
