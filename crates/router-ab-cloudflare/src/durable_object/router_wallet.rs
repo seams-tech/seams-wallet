@@ -24,6 +24,15 @@ use crate::{
 
 const BINDING: &str = "ROUTER_WALLET_DO";
 const COMMAND_PATH: &str = "/router-wallet/v1/command";
+const START_PATH: &str = "/router-wallet/v1/start";
+
+#[cfg(feature = "strict-worker-router-entrypoint")]
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct RouterWalletStartup {
+    pub owner: RouterWalletOwnerV1,
+    pub ownership_generation: u64,
+}
 
 enum WalletCall {
     Ordinary(RouterWalletRequestV1),
@@ -42,14 +51,27 @@ struct RouterWalletRefusalV1 {
 #[durable_object]
 pub struct RouterAbRouterWalletDurableObject {
     state: State,
+    timing: super::command_timing::WalletCommandTiming,
 }
 
 impl DurableObject for RouterAbRouterWalletDurableObject {
     fn new(state: State, _env: Env) -> Self {
-        Self { state }
+        let timing = super::command_timing::WalletCommandTiming::new(state.id().to_string());
+        Self { state, timing }
     }
 
-    async fn fetch(&self, mut request: Request) -> worker::Result<Response> {
+    async fn fetch(&self, request: Request) -> worker::Result<Response> {
+        let observation = self.timing.begin("router", request.path());
+        observation.finish(self.handle_request(request).await)
+    }
+}
+
+impl RouterAbRouterWalletDurableObject {
+    async fn handle_request(&self, mut request: Request) -> worker::Result<Response> {
+        if request.method() == Method::Post && request.path() == START_PATH {
+            // A private wake-up has no authority and performs no storage operation.
+            return Response::from_json(&true);
+        }
         if request.path() == super::custody_target::OBSERVE_PATH {
             return super::custody_target::observe_location().await;
         }
@@ -131,6 +153,37 @@ impl DurableObject for RouterAbRouterWalletDurableObject {
             )),
         }
     }
+}
+
+#[cfg(feature = "strict-worker-router-entrypoint")]
+pub(crate) async fn start_router_wallet(
+    env: &Env,
+    home: crate::WalletHomeRegion,
+    request: &RouterWalletStartup,
+) -> RouterAbProtocolResult<()> {
+    for value in [
+        &request.owner.org_id,
+        &request.owner.project_id,
+        &request.owner.env_id,
+        &request.owner.wallet_id,
+    ] {
+        if value.is_empty() || value.len() > 256 || value.trim() != value {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                "Router wallet startup identity is invalid",
+            ));
+        }
+    }
+    let _: bool = call_wallet(
+        env,
+        home,
+        &request.owner,
+        request.ownership_generation,
+        START_PATH,
+        request,
+    )
+    .await?;
+    Ok(())
 }
 
 fn refusal_response(error: &RouterAbProtocolError) -> worker::Result<Response> {

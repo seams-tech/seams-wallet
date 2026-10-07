@@ -2848,3 +2848,25 @@ It must overlap independent registration work to reduce user-visible waiting.
 
 The observed 832 ms includes required state work and transport. It is not a promised
 saving. Evaluate this bounded change before moving the whole coordinator into the DO.
+
+#### Implementation and local verification — 2026-10-08
+
+The Gateway schedules one background startup request after it persists a newly
+verified registration intent. Exact retries do not schedule another request.
+The request uses the existing Gateway credential and authenticated home binding.
+It addresses the same wallet and ownership generation used by the registration claim.
+The Router DO returns without reading or writing storage. Startup has a three-second
+caller timeout and cannot authorize execution or reserve a registration.
+
+Router commands now report their ordinal within a live object instance. The first
+command after construction is explicit; elapsed dispatch time alone does not prove
+a cold start. The diagnostics do not affect lifecycle decisions.
+
+All five release Workers build. Server type checking, package build, and bloat checks
+pass. The four-home E2E verifies rejected credentials and homes before object access,
+caller-home overwrite, a discarded startup reply, immediate execution during startup,
+reuse of the same live object, and exact replay after a discarded completed reply.
+The existing lost-reply/eviction and concurrent-execution/relocation E2Es also pass.
+
+A bounded staging control/candidate/control comparison is in progress. The complete
+setup target remains **1–2 seconds**. No hosted gain is claimed from local tests.

@@ -153,6 +153,25 @@ function executeRequest(envelope, credential, home) {
   });
 }
 
+function startupRequest(envelope, credential, home) {
+  const identity = envelope.tenant_root.identity;
+  const headers = { 'content-type': 'application/json', [authHeader]: credential };
+  if (home !== null) headers[homeHeader] = home;
+  return new Request('https://custody.test/router-ab/router/wallet/start', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      owner: {
+        org_id: identity.orgId,
+        project_id: identity.projectId,
+        env_id: identity.envId,
+        wallet_id: envelope.target.binding.lifecycle.account_id,
+      },
+      ownership_generation: envelope.target.ownership_generation,
+    }),
+  });
+}
+
 async function settledAdmissions(database) {
   for (let attempt = 0; attempt < 100; attempt += 1) {
     const { results } = await database.prepare(
@@ -199,14 +218,26 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
     for (const invalid of [null, 'invalid', 'apac']) {
       const rejected = await worker.fetch(executeRequest(envelope, credential, invalid));
       assert.equal(rejected.status, 400, await rejected.text());
+      const rejectedStartup = await worker.fetch(startupRequest(envelope, credential, invalid));
+      assert.equal(rejectedStartup.status, 400, await rejectedStartup.text());
     }
     const unauthorized = await worker.fetch(executeRequest(envelope, 'wrong-secret', home));
     assert.ok(unauthorized.status === 401 || unauthorized.status === 403);
+    const unauthorizedStartup = await worker.fetch(startupRequest(envelope, 'wrong-secret', home));
+    assert.ok(unauthorizedStartup.status === 401 || unauthorizedStartup.status === 403);
     assert.equal(log.placements.length, 0, 'Rejected requests must not touch wallet objects');
 
-    const lost = new LostCompletedReply(new WalletHomeCustodyBinding(worker, home));
+    const binding = new WalletHomeCustodyBinding(worker, home);
+    const lost = new LostCompletedReply(binding);
     const foreignHome = home === 'OC' ? 'WEUR' : 'OC';
-    await assert.rejects(lost.fetch(executeRequest(envelope, credential, foreignHome)), /discarded the completed/);
+    // Discard the startup reply. Execution must need neither its body nor a startup token.
+    const startup = await binding.fetch(startupRequest(envelope, credential, foreignHome));
+    assert.equal(startup.status, 200, await startup.text());
+    const immediate = await Promise.all([
+      binding.fetch(startupRequest(envelope, credential, foreignHome)),
+      assert.rejects(lost.fetch(executeRequest(envelope, credential, foreignHome)), /discarded the completed/),
+    ]);
+    assert.equal(immediate[0].status, 200, await immediate[0].text());
     const firstPlacements = [...log.placements];
     const firstCommands = [...log.commands];
     const retried = await lost.fetch(executeRequest(envelope, credential, foreignHome));
@@ -227,6 +258,12 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
     assert.equal(b.observations.length, 1);
     assert.equal(a.forgedReadinessRejected, true);
     const bCommands = firstCommands.filter(command => command.role === 'deriver_b');
+    const routerCommands = firstCommands.filter(command => command.role === 'router');
+    assert.equal(routerCommands[0].path, '/router-wallet/v1/start');
+    assert.equal(routerCommands[0].first_command_after_constructor, true);
+    assert.ok(routerCommands.filter(command => command.path.endsWith('/command'))
+      .every(command => command.first_command_after_constructor === false),
+    'Registration commands must reuse the live object reached by startup');
     assert.equal(bCommands.filter(command => command.path.endsWith('/ed25519-yao/duplex')).length, 1,
       'B must execute the pair WebSocket in its wallet object');
     assert.equal(bCommands.filter(command => command.path.endsWith('/wallet-pair')).length, 2,
@@ -254,6 +291,8 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
     }
     return {
       home, generation, admissions, roleObjects, routerDispatches: log.routerDispatches,
+      routerCommands,
+      lostStartupReplyAndImmediateExecution: true,
       firstStatusLookups: [...a.observations, ...b.observations],
       invalidHomeRejectedBeforePlacement: true,
       unauthorizedHomeRejected: true,

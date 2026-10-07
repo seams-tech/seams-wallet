@@ -72,6 +72,7 @@ import {
   ROUTER_AB_SIGNING_WORKER_ORIGIN,
   type RouterAbServiceBindingEnv,
 } from './cloud-host';
+import type { WalletId } from '@shared/utils/registrationIntent';
 import { handleRouterAbEd25519YaoRegistrationRequestScopedCloudflareV1 } from './cloud-host';
 import { createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1 } from './cloud-host';
 import { RouterAbEd25519YaoRecoveryWalletSessionAuthorizationAdapter } from './cloud-host';
@@ -724,6 +725,7 @@ function stagingLinkedDeviceSessionComposition(
 export async function createHostedWalletGatewayCompositionV1(
   env: CloudflareD1GatewayEnv,
   dependencies: HostedWalletGatewayDependenciesV1 = {},
+  background: CfExecutionContext | null = null,
 ) {
   const scope = stagingTenantScope(env);
   const session = stagingSessionAdapter(env);
@@ -733,6 +735,7 @@ export async function createHostedWalletGatewayCompositionV1(
   const yaoRuntime = createStagingYaoRequestScopedRuntime(
     env,
     createStagingRegistrationTenantRootResolver(scope, tenantRootCustodyLineage),
+    background ? scheduleRegistrationRouterStartup.bind(undefined, env, background) : undefined,
   );
   const { service, ecdsaStrictPostRegistration } = await createStagingRouterApiAuthComposition(
     env,
@@ -794,8 +797,9 @@ export async function createHostedWalletGatewayCompositionV1(
 export async function createSplitGatewayRouterHandler(
   env: CloudflareD1GatewayEnv,
   dependencies: HostedWalletGatewayDependenciesV1 = {},
+  background: CfExecutionContext | null = null,
 ): Promise<FetchHandler> {
-  const composition = await createHostedWalletGatewayCompositionV1(env, dependencies);
+  const composition = await createHostedWalletGatewayCompositionV1(env, dependencies, background);
   return composition.handler;
 }
 
@@ -919,7 +923,7 @@ export async function handleSplitGatewayRequest(
     withCors(response.headers, { corsOrigins: readCsvList(env.RELAY_CORS_ORIGINS) }, request);
     return response;
   }
-  const handler = await createSplitGatewayRouterHandler(env, dependencies);
+  const handler = await createSplitGatewayRouterHandler(env, dependencies, ctx);
   return await handler(request, env, ctx);
 }
 
@@ -1304,13 +1308,68 @@ async function loadStagingPersistedActiveCapability(
 function createStagingYaoRequestScopedRuntime(
   env: CloudflareD1GatewayBaseEnv,
   resolveTenantRoot: RouterAbEd25519YaoTenantRootResolverV1,
+  onRegistrationIntentBound?: Parameters<
+    typeof createRouterAbEd25519YaoProductRegistrationRequestScopedRuntimeV1
+  >[0]['onRegistrationIntentBound'],
 ): RouterAbEd25519YaoProductRegistrationRuntimeV1 {
   return createRouterAbEd25519YaoProductRegistrationRequestScopedRuntimeV1({
     signingWorkerId: requireEnvString(env, 'SIGNING_WORKER_ID'),
     store: createStagingYaoPartitionedStateStore(env),
     registrationBackend: createStagingEd25519YaoBackend(env, resolveTenantRoot),
+    onRegistrationIntentBound,
     loadPersistedActiveCapability: loadStagingPersistedActiveCapability.bind(undefined, env),
   });
+}
+
+function scheduleRegistrationRouterStartup(
+  env: CloudflareD1GatewayBaseEnv,
+  background: CfExecutionContext,
+  registration: { readonly walletId: WalletId; readonly ownershipGeneration: number },
+): void {
+  background.waitUntil(startRegistrationRouter(env, registration));
+}
+
+async function startRegistrationRouter(
+  env: CloudflareD1GatewayBaseEnv,
+  registration: { readonly walletId: WalletId; readonly ownershipGeneration: number },
+): Promise<void> {
+  const started = Date.now();
+  let outcome: 'success' | 'failure' = 'failure';
+  try {
+    const scope = stagingTenantScope(env);
+    const response = await env.MPC_ROUTER.fetch(
+      `${ROUTER_AB_MPC_ROUTER_ORIGIN}/router-ab/router/wallet/start`,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-router-ab-internal-service-auth': requireEnvString(
+            env,
+            'ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET',
+          ),
+        },
+        body: JSON.stringify({
+          owner: {
+            org_id: scope.orgId,
+            project_id: scope.projectId,
+            env_id: scope.envId,
+            wallet_id: registration.walletId,
+          },
+          ownership_generation: registration.ownershipGeneration,
+        }),
+        signal: AbortSignal.timeout(3_000),
+      },
+    );
+    await response.arrayBuffer();
+    if (response.ok) outcome = 'success';
+  } catch {
+    // Startup has no authority or durable effects. Execution still claims the wallet normally.
+  }
+  console.log(JSON.stringify({
+    event: 'registration_router_startup',
+    outcome,
+    duration_ms: Date.now() - started,
+  }));
 }
 
 /**

@@ -479,6 +479,9 @@ pub(super) async fn handle_strict_router_fetch_v1(
     env: Env,
 ) -> worker::Result<Response> {
     let path = request.path();
+    if path == "/router-ab/router/wallet/start" {
+        return handle_router_wallet_start(&mut request, &env).await;
+    }
     if path == CLOUDFLARE_INTERNAL_PREWARM_PATH {
         return handle_router_prewarm_v1(&request, &env).await;
     }
@@ -1683,6 +1686,28 @@ async fn execute_strict_router_normal_signing_request_v1(
             .await;
             router_json_cors_response_v1(response, request, env)
         }
+    }
+}
+
+#[cfg(feature = "strict-worker-router-entrypoint")]
+async fn handle_router_wallet_start(request: &mut Request, env: &Env) -> worker::Result<Response> {
+    if let Err(error) = require_cloudflare_gateway_to_router_auth_request_v1(request, env) {
+        return cloudflare_private_service_auth_error_response_v1(error);
+    }
+    if request.method() != Method::Post {
+        return Response::error("Router wallet startup requires POST", 405);
+    }
+    let home = match crate::WalletHomeRegion::from_gateway_request(request) {
+        Ok(home) => home,
+        Err(error) => return cloudflare_protocol_error_response_v1(error),
+    };
+    let startup = match decode_bounded_json_request::<crate::durable_object::RouterWalletStartup>(request, 2048).await {
+        Ok(startup) => startup,
+        Err(error) => return cloudflare_protocol_error_response_v1(error),
+    };
+    match crate::durable_object::start_router_wallet(env, home, &startup).await {
+        Ok(()) => Response::from_json(&true),
+        Err(error) => cloudflare_protocol_error_response_v1(error),
     }
 }
 

@@ -40,12 +40,18 @@ import {
   routerAbEd25519YaoRegistrationResultFromRouterAnswerV1,
 } from '../registration/routerAbEd25519YaoRegistrationExecutionRecord';
 import type { RouterAbEd25519YaoTenantRootWireV1 } from '../routerAbEd25519YaoGatewayEnvelope';
+import type { WalletId } from '@shared/utils/registrationIntent';
 
 export type RouterAbEd25519YaoProductRegistrationRequestScopedRuntimeInputV1 = {
   readonly signingWorkerId: string;
   readonly store: RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1;
   /** The Router, which owns each registration's execution and its consumption. */
   readonly registrationBackend: RouterAbEd25519YaoPinnedRegistrationBackend;
+  /** Best-effort startup after a new verified registration intent is persisted. */
+  readonly onRegistrationIntentBound?: (input: {
+    readonly walletId: WalletId;
+    readonly ownershipGeneration: number;
+  }) => void;
   /** Loads one canonical signer record for an existing-wallet capability miss. */
   readonly loadPersistedActiveCapability?: (
     input: RouterAbEd25519YaoActiveCapabilityLookupV1,
@@ -94,10 +100,17 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
   async bindVerifiedIntent(
     input: RouterAbEd25519YaoVerifiedActivationIntentV1,
   ): Promise<RouterAbEd25519YaoRegistrationIntentBindingResult> {
-    return await this.commitUntilReconciled(
+    const bound = await this.commitUntilReconciled(
       input.admissionRequest.scope.lifecycle_id,
       bindVerifiedIntentMutation.bind(undefined, input),
     );
+    if (bound.created && input.kind === 'verified_registration_intent') {
+      this.input.onRegistrationIntentBound?.({
+        walletId: input.intent.walletId,
+        ownershipGeneration: input.ownershipGeneration,
+      });
+    }
+    return bound.result;
   }
 
   async bindAndAdmitVerifiedRegistration(
@@ -313,11 +326,19 @@ async function bindAndAdmitVerifiedRegistration(input: {
 async function bindVerifiedIntentMutation(
   input: RouterAbEd25519YaoVerifiedActivationIntentV1,
   state: RouterAbEd25519YaoProductRegistrationStateV1,
-): Promise<RequestScopedMutationResult<RouterAbEd25519YaoRegistrationIntentBindingResult>> {
+): Promise<RequestScopedMutationResult<{
+  readonly result: RouterAbEd25519YaoRegistrationIntentBindingResult;
+  readonly created: boolean;
+}>> {
+  const authorityCount = state.authorization.authorities.length;
   const result = await new InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter(
     state.authorization,
   ).bindVerifiedIntent(input);
-  return result.ok ? { kind: 'commit', value: result } : { kind: 'reject', value: result };
+  const value = {
+    result,
+    created: result.ok && state.authorization.authorities.length > authorityCount,
+  };
+  return result.ok ? { kind: 'commit', value } : { kind: 'reject', value };
 }
 
 async function installRegistrationFinalizeCapabilityMutation(
