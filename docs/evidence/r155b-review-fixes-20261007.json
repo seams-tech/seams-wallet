@@ -1,0 +1,42 @@
+{
+  "recordedAt": "2026-10-07T02:28:04.572213+00:00",
+  "scope": "R155B review fixes; local acceptance only",
+  "checks": {
+    "serverBuild": "passed",
+    "publicTypecheck": "passed",
+    "privateTypecheck": "passed",
+    "privateLint": "passed",
+    "bloat": "passed",
+    "authorizationTransfer": "passed",
+    "regionalSessionRouting": "passed"
+  },
+  "authorizationEvidence": {
+    "path": "/Users/pta/Dev/rust/seams-wallet/.artifacts/r153/authorization-storage-transfer/evidence.json",
+    "sha256": "483d943eaa673da5c93573491d6aac6a5334ec32963222558c131ee7b6b2f1d7",
+    "migrationUpgrade": {
+      "importingRejected": true,
+      "closedRejected": true,
+      "activatedPreserved": true
+    },
+    "walletOtpRelocation": {
+      "batchedCounterShortCircuit": true,
+      "exhaustedAllowancePreserved": true,
+      "expiryPreserved": true,
+      "expiredRowsExcluded": true,
+      "frozenSourceRejected": true,
+      "inactiveDestinationRejected": true,
+      "regionalCountersExcluded": true,
+      "neighborPreserved": true,
+      "sourceCleanupComplete": true
+    }
+  },
+  "regionalEvidence": {
+    "path": "/Users/pta/Dev/rust/seams-monorepo/.artifacts/r152/session-routing-20261003/regional-session-routing-evidence.json",
+    "sha256": "53896cdec2f7df9033ca2b82c166408ad0fc87feba49b06cc052d9da70b2c219"
+  },
+  "limits": [
+    "No hosted latency measurement or live deployment.",
+    "Migration upgrade scenario covers 0070 and 0071; concurrent R153 migration 0072 is outside this change.",
+    "Console counter deletion remains an explicit post-rollout operation."
+  ]
+}

@@ -1,8 +1,16 @@
 -- Snapshot inventories must not change during an in-progress transfer.
 CREATE TABLE wallet_otp_relocation_upgrade_guard (count INTEGER NOT NULL CHECK (count = 0));
 INSERT INTO wallet_otp_relocation_upgrade_guard
-SELECT (SELECT COUNT(*) FROM wallet_relocation_authorization_snapshots)
-     + (SELECT COUNT(*) FROM wallet_relocation_authorization_imports);
+SELECT (SELECT COUNT(*) FROM wallet_relocation_authorization_snapshots AS snapshot
+        WHERE NOT EXISTS (
+          SELECT 1 FROM wallet_relocation_authorization_cleanups AS cleanup
+          WHERE cleanup.namespace = snapshot.namespace AND cleanup.org_id = snapshot.org_id
+            AND cleanup.project_id = snapshot.project_id AND cleanup.env_id = snapshot.env_id
+            AND cleanup.wallet_id = snapshot.wallet_id AND cleanup.move_id = snapshot.move_id
+            AND cleanup.request_digest_hex = snapshot.request_digest_hex
+            AND cleanup.source_generation = snapshot.source_generation
+            AND cleanup.state = 'cleaned'))
+     + (SELECT COUNT(*) FROM wallet_relocation_authorization_imports WHERE state != 'activated');
 DROP TABLE wallet_otp_relocation_upgrade_guard;
 
 CREATE TABLE wallet_email_otp_rate_limits (

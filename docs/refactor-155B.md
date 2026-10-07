@@ -1930,7 +1930,7 @@ unexpired at the persisted source freeze time. Destination imports preserve coun
 and reset time. The destination does not require a source freeze record. Cleanup
 removes wallet counters while retaining unrelated wallets and regional counters.
 
-Console cleanup migration `0088_remove_shared_otp_counters.sql` removes the old
+The separate post-rollout script `scripts/remove-shared-otp-counters.sql` removes the old
 counter table. Apply it only after old Gateway consumers stop serving. No live
 migration or deployment ran in this change. Historical migrations remain intact.
 
@@ -1944,3 +1944,22 @@ separate from the browser signing scenario; neither establishes hosted latency.
 [Evidence and repeat commands](evidence/r155b-regional-otp-20261007.json).
 The earlier dedicated-counter bundles are superseded. Freeze rebuilt matching
 inputs before Phase 6. The database-approval blocker no longer applies.
+
+
+### October 7 review fixes
+
+- Migrations 0070/0071 reject unfinished transfers and preserve completed receipts.
+  Source snapshots require matching completed cleanup. Destination imports require activation.
+- Console counter deletion is a separate post-rollout SQL script in the private
+  package. Ordinary schema migration no longer deletes the old table.
+- Forwarded registration preserves the destination region response header.
+- OTP counters use one D1 batch. A successful four-counter request needs one
+  database roundtrip. SQLite `changes()` prevents later counter updates after the
+  first exhausted allowance. Rejected requests read that counter for retry timing.
+
+Server build, package type checks, lint, bloat, authorization-transfer acceptance,
+and four-region routing acceptance passed. Upgrade acceptance verifies rejection
+of importing/closed destinations and retention of activated receipts. Counter
+acceptance verifies one batch and no later updates after exhaustion. These are
+local results; hosted latency remains unmeasured. See
+[evidence](evidence/r155b-review-fixes-20261007.json).

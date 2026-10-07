@@ -4,6 +4,7 @@ const policy = { limit: 2, windowMs: 600_000 };
 
 function limiter(api, database, scope) {
   return new api.CloudflareD1EmailOtpRateLimitStore({
+    batch: database.batch.bind(database),
     prepare: api.prepareD1TenantStatement.bind(null, database, scope),
     rateLimits: {
       challenge: policy,
@@ -18,7 +19,66 @@ function walletRequest(walletId) {
   return { kind: 'wallet', scope: 'challenge', action: 'relocation-counter', walletId };
 }
 
+class CountingCounterBatch {
+  calls = 0;
+  constructor(database) {
+    this.database = database;
+  }
+  async batch(statements) {
+    this.calls += 1;
+    return this.database.batch(statements);
+  }
+}
+
+async function verifyCounterBatch(api, database, scope) {
+  const counting = new CountingCounterBatch(database);
+  const store = new api.CloudflareD1EmailOtpRateLimitStore({
+    prepare: api.prepareD1TenantStatement.bind(null, database, scope),
+    batch: counting.batch.bind(counting),
+    rateLimits: {
+      challenge: policy,
+      verify: policy,
+      grant: policy,
+      googleRegistrationAttempt: policy,
+    },
+  });
+  const input = {
+    kind: 'wallet',
+    scope: 'challenge',
+    action: 'batch-review',
+    walletId: 'batch-wallet',
+    clientIp: '192.0.2.55',
+    userId: 'batch-user',
+    orgId: 'batch-org',
+  };
+  assert.equal((await store.consume(input)).ok, true);
+  assert.equal(counting.calls, 1, 'Four counter updates use one D1 batch');
+  assert.equal((await store.consume(input)).ok, true);
+  assert.equal(
+    (
+      await store.consume({
+        ...input,
+        walletId: 'another-batch-wallet',
+        userId: 'unused-user',
+        orgId: 'unused-org',
+      })
+    ).code,
+    'rate_limited',
+  );
+  const rows = await database
+    .prepare(
+      `SELECT rate_key, consumed_count FROM email_otp_rate_limits
+    WHERE namespace = ?1 AND rate_key LIKE '%action=batch-review:%'`,
+    )
+    .bind(scope.namespace)
+    .all();
+  assert.equal(rows.results.length, 3);
+  for (const row of rows.results) assert.equal(row.consumed_count, 2);
+  assert.equal(counting.calls, 3);
+}
+
 export async function seedWalletOtpCounters(api, source, scope, walletId) {
+  await verifyCounterBatch(api, source, scope);
   const store = limiter(api, source, scope);
   const input = walletRequest(walletId);
   assert.equal((await store.consume(input)).ok, true);
@@ -26,12 +86,25 @@ export async function seedWalletOtpCounters(api, source, scope, walletId) {
   assert.equal((await store.consume(input)).code, 'rate_limited');
   assert.equal((await store.consume(walletRequest('neighbor-wallet'))).ok, true);
   assert.equal(
-    (await store.consume({ kind: 'regional', scope: 'challenge', action: 'regional-only', clientIp: '192.0.2.8' }))
-      .ok,
+    (
+      await store.consume({
+        kind: 'regional',
+        scope: 'challenge',
+        action: 'regional-only',
+        clientIp: '192.0.2.8',
+      })
+    ).ok,
     true,
   );
   assert.equal(
-    (await store.consume({ kind: 'wallet', scope: 'challenge', action: 'expired-counter', walletId })).ok,
+    (
+      await store.consume({
+        kind: 'wallet',
+        scope: 'challenge',
+        action: 'expired-counter',
+        walletId,
+      })
+    ).ok,
     true,
   );
   await api
@@ -115,6 +188,7 @@ export async function verifyCleanedWalletOtp(api, source, scope, walletId) {
       0,
   );
   return {
+    batchedCounterShortCircuit: true,
     exhaustedAllowancePreserved: true,
     expiryPreserved: true,
     expiredRowsExcluded: true,

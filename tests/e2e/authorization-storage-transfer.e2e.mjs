@@ -153,7 +153,11 @@ const api = await import(pathToFileURL(bundlePath));
 const worker = new Miniflare({
   modules: true,
   script: 'export default { fetch() { return new Response("local authorization probe"); } };',
-  d1Databases: { SOURCE: 'authorization-source', DESTINATION: 'authorization-destination' },
+  d1Databases: {
+    SOURCE: 'authorization-source',
+    DESTINATION: 'authorization-destination',
+    UPGRADE: 'authorization-upgrade',
+  },
   compatibilityDate: '2026-06-12',
   port: 0,
 });
@@ -163,6 +167,7 @@ try {
   const destination = await worker.getD1Database('DESTINATION');
   const migrations = await migrate(source);
   assert.deepEqual(await migrate(destination), migrations);
+  await migrate(await worker.getD1Database('UPGRADE'), true);
   const sourceService = service(source, scope);
   const issuedAtMs = Date.now();
   const fixture = await api.buildLinkedDeviceManagementAuthorityFixture({
@@ -513,6 +518,7 @@ try {
     authorizationId: issued.session.authorizationId,
     observations: {
       walletOtpRelocation,
+      migrationUpgrade: { importingRejected: true, closedRejected: true, activatedPreserved: true },
       destinationPreparation,
       relocationChallenges,
       relocationPasskey,
@@ -641,10 +647,11 @@ async function issueDeviceSession(database, authorizationService, fixture, issue
   return issued;
 }
 
-async function migrate(database) {
+async function migrate(database, verifyUpgrade = false) {
   const directory = 'packages/wallet-server/migrations/d1-signer';
   const migrations = [];
   for (const name of (await readdir(directory)).filter(isSql).sort()) {
+    if (verifyUpgrade && name > '0071_regional_wallet_otp_counters.sql') break;
     const preservedChallenge = name === '0051_wallet_relocation_email_otp.sql'
       ? api.emailOtpChallengeRecord({
           challengeId: 'otp:migration', challengeSubjectId: 'google:migration',
@@ -657,6 +664,9 @@ async function migrate(database) {
     const challengeStore = new api.CloudflareD1EmailOtpChallengeStore({ database, ...scope });
     if (preservedChallenge) await challengeStore.put(preservedChallenge);
     const original = await readFile(`${directory}/${name}`, 'utf8');
+    if (verifyUpgrade && (name.startsWith('0070_') || name.startsWith('0071_'))) {
+      await verifyRetainedImportUpgrade(database, original, name);
+    }
     let sql = original;
     if (name === '0028_r103f_phase1_additive_schema_bridge.sql') {
       sql = buildWorkerdCompatiblePhase1Bridge(sql);
@@ -670,6 +680,64 @@ async function migrate(database) {
     migrations.push({ name, sha256: digest(original), ...(preservedChallenge ? { existingOtpChallengePreserved: true } : {}) });
   }
   return migrations;
+}
+
+async function verifyRetainedImportUpgrade(database, sql, walletId) {
+  await database
+    .prepare(
+      `INSERT INTO wallet_relocation_authorization_imports
+    VALUES ('upgrade', 'org', 'project', 'env', ?1, 'move', ?2, 1, 'importing')`,
+    )
+    .bind(walletId, 'a'.repeat(64))
+    .run();
+  const guardEnd = sql.indexOf(';', sql.indexOf('DROP TABLE')) + 1;
+  const statements = [];
+  for (const query of unstable_splitSqlQuery(sql.slice(0, guardEnd))) {
+    statements.push(database.prepare(query));
+  }
+  await assert.rejects(database.batch(statements), /CHECK constraint failed/);
+  await database
+    .prepare(
+      `UPDATE wallet_relocation_authorization_imports SET state = 'closed'
+    WHERE namespace = 'upgrade' AND wallet_id = ?1`,
+    )
+    .bind(walletId)
+    .run();
+  await assert.rejects(database.batch(statements), /CHECK constraint failed/);
+  await database
+    .prepare(
+      `INSERT INTO wallet_relocation_authorization_intakes
+    (namespace, org_id, project_id, env_id, wallet_id, move_id, request_digest_hex,
+     source_generation, manifest_json, digest_hex, state)
+    VALUES ('upgrade', 'org', 'project', 'env', ?1, 'move', ?2, 1, '{}', ?2, 'verified')`,
+    )
+    .bind(walletId, 'a'.repeat(64))
+    .run();
+  await database
+    .prepare(
+      `INSERT INTO wallet_relocation_authorization_activations
+    VALUES ('upgrade', 'org', 'project', 'env', ?1, 'move', ?2, 1, ?2, '{}', 1)`,
+    )
+    .bind(walletId, 'a'.repeat(64))
+    .run();
+  await database
+    .prepare(
+      `UPDATE wallet_relocation_authorization_imports SET state = 'activated'
+    WHERE namespace = 'upgrade' AND wallet_id = ?1`,
+    )
+    .bind(walletId)
+    .run();
+  await database.batch(statements);
+  await assert.rejects(
+    database
+      .prepare(
+        `DELETE FROM wallet_relocation_authorization_imports
+    WHERE namespace = 'upgrade' AND wallet_id = ?1`,
+      )
+      .bind(walletId)
+      .run(),
+    /history_import_retained/,
+  );
 }
 
 function isSql(name) {
@@ -778,6 +846,7 @@ function relocationEmailOtpServices(database) {
   const policy = { limit: 100, windowMs: 60_000 };
   const emailOtpRateLimits = new api.CloudflareD1EmailOtpRateLimitStore({
     prepare,
+    batch: database.batch.bind(database),
     rateLimits: {
       challenge: policy,
       verify: policy,
