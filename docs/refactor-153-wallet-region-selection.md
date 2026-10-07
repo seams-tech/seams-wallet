@@ -180,13 +180,10 @@ The hosted acceptance test correctly remains failing at admission.
 
 Remaining implementation and acceptance:
 
-- [ ] Give destination custody state distinct physical locators. Preserve stable
-  logical wallet identities and encryption identities. US and APAC currently bind
-  the same Deriver A/B and SigningWorker services, which use stable wallet names.
-  Changing only the regional D1 selection cannot move those objects.
-- [ ] Route ordinary calls and relocation commands through the same admitted
-  physical locators. Verify each role's namespace, object identity, and placement
-  before source pause. Preserve shared tenant-root authority at its existing owner.
+- [ ] Complete [physical custody routing](#1a-physical-custody-routing) before
+  repeating hosted acceptance. US and APAC currently resolve the same Deriver A/B
+  and SigningWorker wallet objects. Changing regional D1 selection leaves those
+  custody objects in place.
 - [ ] Rerun hosted relocation and record destination signing, pause duration,
   first-signature refill, transfer bytes, and unrelated-wallet interference.
 - [ ] Close hosted suitability only after that run passes. Retain the existing local
@@ -1691,6 +1688,7 @@ the same requirement in each section.
   on first creation. Verify schema/import support, logical identities, required
   key versions, server-seal continuity, and authenticated transport access.
   Pin the checked resources at admission without exposing keys to a central mover.
+  Complete the explicit physical custody routing tasks in stage 1a.
 - [ ] Admit moves through the authenticated owner path and configured region
   catalog. Persist the move before transfer effects. Bind retries to the same
   canonical request; changed destinations/requests conflict. Selecting the
@@ -1703,6 +1701,58 @@ the same requirement in each section.
   process restart. Extend the existing journal with participant command evidence
   and independent activation persistence. Preserve stage budgets across chunk
   progress, restart, and UI polling.
+
+### 1a. Physical custody routing
+
+Fresh physical destinations and stable logical identities are existing R153
+requirements. Hosted acceptance exposed missing implementation detail and a test
+coverage gap: local fixtures supplied separate namespaces that deployment did not.
+Complete this work through the existing owners below before hosted suitability.
+
+A **physical locator** identifies the actual storage target. For a Durable Object,
+record its Cloudflare account, namespace ID, and physical object ID. Bind that
+locator to the wallet, custody role, ownership generation, and selected region.
+Keep the logical wallet/object name used by encryption separate from this locator.
+A Worker name, service binding, or region label alone does not identify the target.
+Shared Workers or namespaces are permitted when physical targets remain distinct.
+Location hints guide initial creation; they are not proof of actual placement.
+
+- [ ] **Define and persist the target set.** Extend the existing placement and
+  participant records with typed source and destination locators. Cover Router,
+  Deriver A, Deriver B, SigningWorker, and wallet-owned presign/session objects.
+  Give each physical store one owner. Validate raw locators once at the boundary.
+- [ ] **Prepare distinct destinations.** Resolve actual deployed bindings and create
+  inactive targets before source pause. Apply regional location hints on creation.
+  Reject a destination that equals its source account/namespace/object tuple.
+  Verify scope, schema, inactive state, and role key continuity. Pin the complete
+  target set to the move. Exact retries must reuse it after restart or lost replies.
+- [ ] **Use one routing path.** Make ordinary signing, refill, recovery, linking,
+  internal role calls, callbacks, and alarms resolve the same admitted targets as
+  transfer commands. Use existing regional execution authority and generation
+  checks. Preserve R155B's zero-Console-call requirement for routine signing/refill.
+  Remove fixed-object lookup paths as their replacements land.
+- [ ] **Preserve cryptographic identity.** Change physical lookup independently of
+  logical object names, encrypted-row identities, keys, and protocol role/server IDs.
+  Do not append a generation to a name authenticated by stored ciphertext.
+  Keep shared tenant-root and revocation authority at their existing owners.
+  Reconcile their physical references through the admitted placement.
+- [ ] **Bind ownership and cleanup to exact targets.** Include the target set in
+  preparation and transfer evidence. Activate only its verified destination after
+  the directory switch. Keep the old source fenced. Cleanup retries address only
+  the recorded source. A return move receives fresh physical targets and cannot
+  reuse a retained source snapshot as active storage.
+- [ ] **Make deployment enforce the contract.** Extend existing deployment rendering
+  and resource verification to resolve each role's actual namespace/object mapping.
+  Reject incomplete or conflicting mappings before admission. Preserve existing
+  role secrets and authenticated environment labels. Add no relocation credential,
+  parallel configuration registry, or separate deployment workflow.
+- [ ] **Extend the existing composed/hosted E2E.** Use production routing configuration
+  instead of supplying independent namespaces as a fixture assumption. Exercise a
+  colliding destination, verify rejection before pause, and sign again at source.
+  With valid targets, complete the move and return, sign with both curves, and
+  reject stale source writes and cleanup. Record exact source/destination locators,
+  deployment revisions, and observed placement in the existing evidence artifact.
+  Reuse the current retry/fault coverage and hosted timing scenario.
 
 ### 2. Source quiescence and session/pool retirement
 
@@ -1801,11 +1851,11 @@ requiring a fixed team size or parallel implementation.
 
 | Owner | Surfaces and responsibility |
 | --- | --- |
-| Coordinator | Private `walletPlacement/relocation*.ts`, directory migrations, and narrow Gateway/Runtime composition. Own admission, journal transitions, retries, and authenticated participant receipts. |
-| Custody roles | Public `crates/router-ab-cloudflare/src/` role stores and Durable Objects, plus `router-ab-ecdsa-pool`. Own local fences, invalidation, transfer, verification, activation, and cleanup. |
+| Coordinator | Private `walletPlacement/relocation*.ts`, directory migrations, and narrow Gateway/Runtime composition. Own admission, pinned physical target sets, journal transitions, retries, and authenticated participant receipts. |
+| Custody roles | Public `crates/router-ab-cloudflare/src/` role stores and Durable Objects, plus `router-ab-ecdsa-pool`. Own physical object lookup separately from logical encryption identity, local fences, invalidation, transfer, verification, activation, and cleanup. |
 | D1 stores | Public `packages/wallet-server/src/router/cloudflare/d1/` and signer migrations. Own exact selection, chunk transactions, historical restore, and stored-data verification. |
 | Client host and settings | The completed R170/R171 host owns reconciliation and session cleanup. Existing SDK commands and settings expose region selection and progress. |
-| Deployment | Existing private `tenantDeployment/` and deployment scripts own regional eligibility and identity-preserving resource configuration. |
+| Deployment | Existing private `tenantDeployment/` and deployment scripts own regional eligibility, actual role namespace/object resolution, and identity-preserving resource configuration. |
 | Acceptance | Public product E2Es own Wallet behavior. Private E2Es own Console composition and the directory. Keep one owner for each assertion. |
 
 The coordinator consumes typed service operations. Stores and signing flows never
@@ -1925,7 +1975,7 @@ generation-3 signature. Linked-device transfer and full relocation remain unfini
 | Frozen transfer and exact restore / production-store E2E | Delay refill through freeze, restart source roles, and run overdue alarms. No delayed material enters the frozen snapshot. Transfer binary values, NULL, full-width integers, consumed exchanges, expired/retired parents, exhausted quotas, and operation history. Exercise D1, DO SQL/KV, and mixed partitions. Lose chunk acknowledgements and replay after crashes before/after commit. Preserve exact digests, audit/quota state, and unrelated-wallet guards. Reject altered or mismatched chunks, missing/extra selected records, and wrong encryption context through production readers. Clear scoped restore permission atomically. |
 | Handover and recovery / composed E2E | Restart at the distinct boundaries above and reconcile concurrent coordinators using the same commands. An unresolved external effect keeps freeze incomplete. Direct calls, jobs, callbacks, and alarms cannot reopen the source. Lose directory-switch and activation replies, then fail cleanup. Fresh authentication and signing work after durable activation while another move stays blocked. Late known chunks return stored acknowledgements without overwriting new data. Unknown chunks fail. After a blocked attempt, repaired execution resumes the same manifest, resources, and committed chunks. |
 | Shared authority and return move / composed E2E | Change shared revocation/tenant-root authority during transfer and keep an unrelated wallet active. Activation/use must obey current authority. After cleanup and cooldown, return using a fresh generation and physical resources. Restore an old source snapshot in isolation and prove it cannot write, including when the directory is unavailable. |
-| Regional suitability / hosted E2E | Verify actual destination resource/configuration identities and placement independently from ingress location. Compare before/after signing from the same client location. Record pause duration, first-signature refill delay, subsequent signing latency, transfer bytes, and unrelated-wallet interference. Use existing telemetry for regeneration compute and transfer load. Do not create a separate benchmark framework or repeat the local fault matrix on every region. |
+| Regional suitability / hosted E2E | Resolve custody targets through production bindings. Reject a source/destination object collision before pause and verify source signing still works. Record distinct physical locators and actual destination placement independently from ingress location. Compare before/after signing from the same client location. Record pause duration, first-signature refill delay, subsequent signing latency, transfer bytes, and unrelated-wallet interference. Use existing telemetry for regeneration compute and transfer load. Do not create a separate benchmark framework or repeat the local fault matrix on every region. |
 
 One assertion may satisfy several requirements. Reuse its result instead of adding
 another scenario. Narrow store/role scenarios use production paths and retain
