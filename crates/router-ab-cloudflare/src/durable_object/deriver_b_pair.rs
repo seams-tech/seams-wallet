@@ -2,11 +2,14 @@ mod snapshot;
 use super::deriver_relocation as relocation;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::{future::Future, rc::Rc};
 use worker::{DurableObject, Env, Request, Response, SqlStorage, SqlStorageValue, State};
 
 use crate::{
     ed25519_yao_lifecycle::{
-        role_d1::encode_hex_slice, DeriverBYaoSessionCommandV1, DeriverBYaoSessionD1V1,
+        deriver_b_websocket_scope, execute_deriver_b_websocket, role_d1::encode_hex_slice,
+        DeriverBExecutionHostV1, DeriverBYaoSessionCommandV1, DeriverBYaoSessionD1V1,
+        CLOUDFLARE_DERIVER_B_ED25519_YAO_DUPLEX_PATH,
     },
     tenant_root_role_d1::{
         TenantRootWalletPairReconcileRequestV1, TenantRootWalletPairReconciliationV1,
@@ -125,9 +128,11 @@ pub(crate) async fn call_deriver_b_wallet_do_v1(
 }
 
 #[worker::durable_object]
+#[derive(Clone)]
 pub struct RouterAbDeriverBWalletDurableObject {
+    state: Rc<State>,
     sql: SqlStorage,
-    storage: worker::Storage,
+    storage: Rc<worker::Storage>,
     env: Env,
     timing: super::command_timing::WalletCommandTiming,
 }
@@ -137,7 +142,8 @@ impl DurableObject for RouterAbDeriverBWalletDurableObject {
         Self {
             timing: super::command_timing::WalletCommandTiming::new(state.id().to_string()),
             sql: state.storage().sql(),
-            storage: state.storage(),
+            storage: Rc::new(state.storage()),
+            state: Rc::new(state),
             env,
         }
     }
@@ -154,10 +160,42 @@ impl DurableObject for RouterAbDeriverBWalletDurableObject {
 }
 
 impl RouterAbDeriverBWalletDurableObject {
+    pub(crate) async fn forward_websocket(request: Request, env: &Env) -> worker::Result<Response> {
+        let scope = deriver_b_websocket_scope(&request).map_err(pair_error)?;
+        let namespace = env.durable_object(BINDING)?;
+        let stub = scope.wallet_home.wallet_stub(
+            &namespace,
+            &deriver_b_wallet_object_name_v1(&scope)?,
+            "deriver_b",
+        )?;
+        stub.fetch_with_request(request).await
+    }
+
+    pub(crate) fn wait_until<F: Future<Output = ()> + 'static>(&self, future: F) {
+        self.state.wait_until(future);
+    }
+
+    pub(crate) async fn execute_protocol_command(
+        &self,
+        scope: CloudflareDeriverBWalletPairScopeV1,
+        command: DeriverBYaoSessionCommandV1,
+    ) -> worker::Result<Response> {
+        relocation::require_open::<DeriverBWalletOwnerV1>(&self.sql)?;
+        self.execute(DeriverBWalletDoRequestV1 { scope, command })
+            .await
+    }
+
     async fn fetch_wallet_request(&self, mut request: Request) -> worker::Result<Response> {
         let path = request.path();
-        if request.method() != worker::Method::Post
-            || (path != COMMAND_PATH && path != RECONCILE_PATH && path != PREPARATION_PATH && path != SOURCE_FENCE_PATH && path != SNAPSHOT_PATH)
+        let websocket = path == CLOUDFLARE_DERIVER_B_ED25519_YAO_DUPLEX_PATH
+            && request.method() == worker::Method::Get;
+        if !websocket
+            && (request.method() != worker::Method::Post
+                || (path != COMMAND_PATH
+                    && path != RECONCILE_PATH
+                    && path != PREPARATION_PATH
+                    && path != SOURCE_FENCE_PATH
+                    && path != SNAPSHOT_PATH))
         {
             return Response::error("Unknown Deriver B wallet object request", 404);
         }
@@ -166,6 +204,19 @@ impl RouterAbDeriverBWalletDurableObject {
         self.sql.exec(FENCE_SCHEMA, None)?;
         self.sql.exec(relocation::SCHEMA, None)?;
         self.sql.exec(relocation::SOURCE_SCHEMA, None)?;
+        if websocket {
+            relocation::require_open::<DeriverBWalletOwnerV1>(&self.sql)?;
+            let runtime = crate::CloudflareDeriverBWorkerRuntimeV1::from_worker_env(&self.env)
+                .map_err(pair_error)?;
+            return execute_deriver_b_websocket(
+                request,
+                self.env.clone(),
+                runtime,
+                DeriverBExecutionHostV1::Wallet(self.clone()),
+            )
+            .await
+            .map_err(pair_error);
+        }
         if path == SNAPSHOT_PATH {
             let command: relocation::snapshot::Command<DeriverBWalletOwnerV1> = request.json().await?;
             command.source().validate()?;

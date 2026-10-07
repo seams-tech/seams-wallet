@@ -27,6 +27,7 @@ const hints = { US: 'enam', WEUR: 'weur', APAC: 'apac', OC: 'oc' };
 
 class PlacementLog extends Log {
   placements = [];
+  commands = [];
 
   constructor() {
     super(LogLevel.INFO);
@@ -45,6 +46,7 @@ class PlacementLog extends Log {
     try {
       const value = JSON.parse(message.slice(start));
       if (value.event === 'wallet_do_placement_requested') this.placements.push(value);
+      if (value.event === 'wallet_do_command_timing') this.commands.push(value);
     } catch {
       // Other Worker diagnostics are not placement observations.
     }
@@ -53,6 +55,7 @@ class PlacementLog extends Log {
 
 class StatusBeforePreparation {
   observations = [];
+  forgedReadinessRejected = false;
 
   constructor(worker, role, home) {
     this.worker = worker;
@@ -84,6 +87,18 @@ class StatusBeforePreparation {
       const result = await status.json();
       assert.equal(result.status, 'missing');
       this.observations.push({ role: this.role, generation: lookup.ownership_generation, firstStatus: result.status });
+    }
+    if (this.role === 'deriver_a' && path.endsWith('/execute-pair')) {
+      const forged = await request.clone().json();
+      forged.peer_receipt.signature.bytes[0] ^= 1;
+      const rejected = await worker.fetch(request.url, {
+        method: 'POST',
+        headers: request.headers,
+        body: JSON.stringify(forged),
+      });
+      assert.equal(rejected.ok, false, 'Forged readiness must fail before reservation');
+      await rejected.text();
+      this.forgedReadinessRejected = true;
     }
     return worker.fetch(request);
   }
@@ -175,6 +190,7 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
     const foreignHome = home === 'OC' ? 'WEUR' : 'OC';
     await assert.rejects(lost.fetch(executeRequest(envelope, credential, foreignHome)), /discarded the completed/);
     const firstPlacements = [...log.placements];
+    const firstCommands = [...log.commands];
     const retried = await lost.fetch(executeRequest(envelope, credential, foreignHome));
     const result = await retried.json();
     assert.equal(result.status, 'succeeded');
@@ -183,6 +199,12 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
       'Completed Router replay must not rerun custody');
     assert.equal(a.observations.length, 1);
     assert.equal(b.observations.length, 1);
+    assert.equal(a.forgedReadinessRejected, true);
+    const bCommands = firstCommands.filter(command => command.role === 'deriver_b');
+    assert.equal(bCommands.filter(command => command.path.endsWith('/ed25519-yao/duplex')).length, 1,
+      'B must execute the pair WebSocket in its wallet object');
+    assert.equal(bCommands.filter(command => command.path.endsWith('/wallet-pair')).length, 2,
+      'Only status and preparation may cross the B session-command boundary');
     const roleObjects = {};
     for (const role of ['router', 'deriver_a', 'deriver_b', 'signing_worker']) {
       const events = firstPlacements.filter(event => event.role === role);
@@ -202,6 +224,9 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
       callerHomeOverwritten: true,
       completedReplyLossReplayedExactly: true,
       replayRanNoAdditionalCustody: true,
+      forgedReadinessRejectedBeforeValidExecution: a.forgedReadinessRejected,
+      bProtocolRunsInWalletObject: true,
+      bRemoteBeginAndCompleteCalls: 0,
     };
   } finally {
     await topology.dispose();
