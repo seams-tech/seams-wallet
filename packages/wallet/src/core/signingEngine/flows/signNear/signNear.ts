@@ -329,6 +329,7 @@ type NearEd25519SelectedTransactionLane = TransactionLaneSelectedState<
 
 type PreparedNearEd25519TransactionSigningSession = {
   preparation: NearEd25519YaoSigningPreparation;
+  executor: NearEd25519YaoMaterialExecutor;
   signingAuthPlan: SigningAuthPlan;
   signingLane: NearTransactionSigningLane;
   transactionLane: SelectedEd25519Lane;
@@ -1402,6 +1403,7 @@ async function prepareNearEd25519TransactionSigningSession(args: {
   });
   return {
     preparation: initialMaterialBoundary.preparation,
+    executor: initialMaterialBoundary.executor,
     signingAuthPlan,
     signingLane,
     transactionLane,
@@ -1561,11 +1563,7 @@ async function signTransactionWithActionsAttempt(
       ),
       task: async () => {
         const ctx = deps.getSignerWorkerContext();
-        const materialBoundary = await prepareNearEd25519YaoMaterialBoundary({
-          deps,
-          commandSubject: args.commandSubject,
-          selectedLane: transactionLane,
-        });
+        const materialBoundary = preparedSigningSession;
         const passkeyEd25519OperationStepUp = buildNearPasskeyEd25519OperationStepUp({
           auth: transactionLane.auth,
           signer: transactionLane.identity.signer,

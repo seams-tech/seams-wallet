@@ -413,7 +413,7 @@ alone do not prove cold starts or a Cloudflare fault.
 - [x] Compare first, subsequent and post-idle commands on exact wallet objects.
   Separate new-object and warm-object samples; avoid absolute clock subtraction
   across machines.
-- [ ] Audit first-touch routing against the authenticated wallet home. Coordinate
+- [x] Audit first-touch routing against the authenticated wallet home. Coordinate
   with R153 physical custody ownership; preserve its resource/generation identity.
 - [ ] Compare supported initial location hints using fresh test objects where
   placement evidence warrants it. Hints do not move existing objects or guarantee
@@ -433,7 +433,7 @@ alone do not prove cold starts or a Cloudflare fault.
 - [ ] Trace the two session-status and two owner-lane requests before each measured
   NEAR signature. Consolidate same-operation session/lane resolution through the
   existing prepare response. Preserve revocation, budget and relocation fences.
-- [ ] Verify whether current SDK changes already remove any measured duplicates
+- [x] Verify whether current SDK changes already remove any measured duplicates
   before adding another implementation. Freeze a matching candidate for comparison.
 
 ### 6A.4 — Verify correctness and hosted gains
@@ -2156,3 +2156,47 @@ The private report and sanitized evidence are `seams-monorepo/docs/`
 `evidence/r155b-near-phase6a-20261007.json`. Frozen sources, protected raw tails,
 comparison samples and restoration checks remain in each repository's
 `.artifacts/r155b-near-phase6a/` directory.
+
+
+### Phase 6A first-touch routing audit — 2026-10-07
+
+Deriver A and B create stubs with `get_by_name`. Their call boundaries carry
+custody identity and ownership generation, with no authenticated region hint.
+R153 is changing physical object lookup to include ownership generation while
+keeping the logical identity stable. Preserve that distinction.
+
+An initial-location comparison still needs an authenticated home-to-custody-resource
+mapping at these boundaries. A tenant identifier or a D1 label cannot supply it.
+Adding an unsigned caller hint would create a second placement authority.
+The current experiment therefore leaves initial routing unchanged. No exact-city
+colocation or placement improvement is claimed. Integrate that mapping with R153
+before testing hints on fresh objects. Existing objects cannot be moved with hints.
+
+
+### Phase 6A same-operation NEAR material reuse — 2026-10-07
+
+Transaction planning now passes its existing material preparation and executor
+into execution. This deletes the repeated material preparation before confirmation.
+Fresh prepare authority reconciliation still runs before the client produces its
+signature share. Finalization and both current status reads remain unchanged.
+The prepared material belongs to one transaction. No shared authority cache is added.
+
+One hosted wallet verified seven signatures. Ordinary signing used **five Gateway
+POSTs instead of six**: two status reads, one owner-lane read, prepare and finalize.
+Warm signatures took 2.056 and 2.232 seconds. Three consecutive signatures took
+1.690, 1.772 and 1.964 seconds. First signing after unlock took 1.895 seconds.
+Custody deployments were already restored for this SDK run. These samples establish
+the request reduction, with no controlled latency improvement claimed.
+
+Composed acceptance passed linked Ed25519 revocation and shared-budget exhaustion
+with NEAR and ECDSA step-up during Console outage. Three focused public contracts
+passed in 43.8 seconds: signing after reload, message verification across reload,
+and rejection of changed prepare authority followed by a valid signature.
+The isolated SDK build and bloat check passed. Test-environment failures before
+SDK execution are recorded separately and excluded from acceptance evidence.
+[Source hash, request counts and test artifact hashes](./evidence/near-material-reuse-20261007.json).
+
+Remaining Phase 6A work is explicit: integrate authenticated initial placement
+with R153, resolve the remaining caller/DO delay, and consolidate the two session
+status reads without repeating the rejected budget/confirmation shortcut.
+The two-second Yao setup target is still unmet.
