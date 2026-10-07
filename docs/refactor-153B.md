@@ -170,7 +170,25 @@ again. An admitted move keeps its fence and resumes the forward-only transfer.
 
 Local authorization-transfer and directory E2Es verify capacity growth after the early
 check, admitted-operation settlement, wallet isolation, exact retries, lost replies,
-and abandoned-check recovery. Apply signer migration `0076` and Console migration
-`0090` (with driver migration `0089`) before deploying matching Gateway and Console
-candidates. This follow-up is locally verified; hosted pause measurements above belong
-to the earlier candidate and must not be presented as measurements of this change.
+and abandoned-check recovery. Signer migration `0076` and Console migrations
+`0089`–`0090` are applied in staging. Matching Gateway and Console candidates are
+deployed. Activation and readiness workflow `37626903530` passed.
+
+The latest hosted round trip completed both signing curves and cleanup in both
+directions. Pause through fresh unlock and first signature measured **49,186 ms to
+US** and **73,811 ms back to APAC**. Each direction used one snapshot export and
+one import. The return exceeded the 60-second requirement. The earlier candidate's
+passing measurements do not close this requirement for the latest candidate.
+
+- [x] Deploy matching candidates and migrations with existing credentials.
+- [x] Verify hosted relocation, signing, and cleanup in both regions.
+- [ ] Meet the 60-second pause requirement in both directions with these fixes.
+
+The return spent 26,860 ms freezing, 27,373 ms copying, 318 ms committing ownership,
+and 5,561 ms activating. Unlock and first signing added 13,699 ms. Cleanup completed
+separately after 141,314 ms, including recovery after Cloudflare cancelled background
+work. The existing cron resumed cleanup while destination signing remained available.
+The measured slow stages are freeze and copy; their underlying delay is not yet
+isolated. Do not change routine signing routes to address this relocation-only gap.
+
+The private receipt is `docs/evidence/r153b-capacity-hosted-20261007.json`.
