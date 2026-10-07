@@ -1,7 +1,7 @@
 # Regional execution without routine Console calls
 
-Status: implementation and local acceptance in progress. Established-session routing, regional deployment admission, and transactional D1 writer fences are implemented. Local owner, linked-device, and step-up signing pass during Console outage. Remaining relocation coverage, final cleanup, and hosted comparison remain open. The tested source contents now match committed dev.
-Date: October 6, 2026.
+Status: implementation and local acceptance in progress. Regional OTP counters in existing signer D1 databases are the approved target. The dedicated shared-counter database design is superseded and must be removed. No new D1 allocation or approval is required for this approach. Earlier OTP acceptance covers the superseded implementation; regional-counter acceptance remains open. Final cleanup and hosted comparison remain open.
+Date: October 6, 2026. Updated: October 7, 2026.
 
 ## Objective
 
@@ -19,6 +19,39 @@ This is a separation of responsibilities within the existing deployment. It does
 not require another Worker, database, signing secret, environment-variable family,
 or configuration framework. It does not guarantee physical colocation of custody
 Workers, DOs, Containers, and D1. Their remaining network hops are separate work.
+
+## Approved OTP design — October 7, 2026
+
+Regional Gateways own OTP spam limits. Use each home's existing signer D1 database.
+Do not provision an OTP database, bind Console D1, or call Console to consume a
+counter. No cross-region counter replication or globally exact spam limit is required.
+Ordinary signing with an admitted session does not consume OTP spam counters.
+
+Wallet-specific limits follow the wallet's fixed home. Foreign ingress forwards
+the request to that home before consuming its wallet counter. Persist explicit
+wallet ownership so relocation can select unexpired counters without parsing keys.
+Transfer those counters with the wallet, preserving counts and reset times.
+
+IP, organization, recipient/subject, and provider limits that span wallets remain
+regional. They also protect registration before a wallet exists. Do not copy them
+when one wallet moves. A sender using several regions can receive several regional
+allowances. This approximation is accepted for email-spam control. Once registration
+has a reserved home, continue the wallet flow there using the existing reservation.
+
+Retain existing local atomic counter operations where useful. Relaxing global
+consistency does not require weaker local writes or an eventual-replication service.
+Keep OTP expiry, per-challenge verification-attempt limits, single-use consumption,
+and authorization checks separate and unchanged. Never issue an authentication
+success because a spam counter permits the request.
+
+The Console retains directory discovery, registration reservations and uniqueness
+claims, deployment management, and relocation coordination. It has no OTP counter
+responsibility. OTP latency has not been established as a material bottleneck.
+This change simplifies ownership; measure its latency before claiming a gain.
+
+This decision supersedes earlier shared-counter requirements and provisioning
+instructions in the implementation history below. Existing frozen bundles contain
+the superseded binding and must be rebuilt before deployment.
 
 ## Terms and boundaries
 
@@ -87,6 +120,7 @@ hostnames are not required.
 | Flow | Directory involvement in the target design |
 | --- | --- |
 | Established-session signing and refill | None on the normal path |
+| OTP spam counters | None; wallet counters use the fixed home, broader counters use regional storage |
 | Registration setup | Reserve the exact wallet, operation, and home |
 | Registration continuations | None where persisted local reservation and authority are sufficient |
 | Registration claims and completion | Commit shared claims and discovery at their required transitions |
@@ -202,6 +236,45 @@ must not be enabled before this gate passes.
 
 Exit: ordinary signing/refill and their background work make zero Console calls.
 
+## Phase 3A — Regional OTP ownership and counter cleanup
+
+- [ ] Inventory challenge issuance, resend, verification, grant, recovery, and
+  registration counter consumers. Classify each key as wallet-owned or regional.
+  Keep authentication attempt enforcement distinct from email-spam limits.
+- [ ] Replace the shared binding with the admitted Gateway's existing signer D1.
+  Reuse existing scope and counter helpers. Require wallet identity for wallet
+  counters. Represent regional counters separately; do not infer ownership from
+  optional fields or encoded counter keys.
+- [ ] Route wallet counter writes through the current home and existing deployment
+  and ownership fences. Use regional recipient/IP limits before a wallet exists.
+  Preserve those broader regional limits after home assignment without copying
+  them into wallet-owned state.
+- [ ] Add exact tenant-and-wallet selectors for unexpired wallet counters to the
+  relocation inventory. Cover snapshot, import, activation, retry, and source
+  cleanup. Preserve count and reset time. Frozen sources must reject new wallet
+  counter writes; unrelated wallets and regional counters must remain usable.
+- [ ] Remove `emailOtpRateLimitD1`, `EMAIL_OTP_RATE_LIMIT_DB`, dedicated-counter
+  migrations, allocation gates, fixtures, and obsolete shared-counter wrappers.
+  Keep the deleted Console rate-limit RPC deleted. Update renderers, readiness
+  checks, examples, and deployment documentation to use existing regional D1.
+- [ ] Update composed E2E acceptance: register before wallet creation, issue OTPs
+  through foreign ingress, exhaust a wallet limit, relocate, and verify the same
+  unexpired allowance at the destination. Include lost replies, wrong-home writes,
+  tenant isolation, expiry, and OTP step-up for NEAR and ECDSA during Console outage.
+  Verify independent regional spam allowances are expected behavior. Produce a
+  repeatable artifact. Do not retain tests requiring one globally exact counter.
+- [ ] Replace the previous counter cutover instructions. Never deploy the frozen
+  shared-counter candidate. Stop serving old counter consumers before removing the
+  obsolete Console table. Approximate spam counters need no exact global-history
+  transfer. Preserve authentication records and their existing safety checks.
+  Keep historical migrations only where the migration boundary requires them.
+- [ ] Rerun relevant checks, rebuild matching bundles, and record OTP counter time,
+  request counts, and Console calls separately from email-provider delivery time.
+  No latency target or new infrastructure is required for this phase.
+
+Exit: Gateways enforce regional spam limits without Console or another database.
+Wallet counters survive relocation. Authentication guarantees remain intact.
+
 ## Phase 4 — Reduce registration coordination
 
 - [ ] Reserve the wallet, home, and stable operation identities through the
@@ -287,6 +360,8 @@ required result; a particular millisecond saving is not promised in advance.
 ## Completion criteria
 
 - Existing admitted sessions sign and refill during a Console outage.
+- OTP counters use existing regional D1 without Console calls. Wallet counters
+  transfer with the wallet; broader regional limits have accepted approximate totals.
 - Regional checks enforce current authorization, deployment admission, ownership,
   budgets, and one-use material without relying on a stale directory snapshot.
 - Registration retains cross-region retry and ownership guarantees with fewer
@@ -299,6 +374,14 @@ required result; a particular millisecond saving is not promised in advance.
 Related plans: [R152](refactor-152-regional-D1.md),
 [R153](refactor-153-wallet-region-selection.md),
 [R155](refactor-155-reusuable-DO.md).
+
+## Implementation history
+
+The following entries record results at the time of each experiment. They are not
+current deployment instructions. Phase 3A supersedes all dedicated/shared OTP
+counter requirements, approval blockers, cutover procedures, and corresponding
+acceptance claims. Preserve those results as historical evidence; rerun acceptance
+for the regional design before marking Phase 3A complete.
 
 ## Implementation evidence — October 6, 2026
 
@@ -788,13 +871,9 @@ on the unavailable Console. The home returns 500; forwarding reports 503. The te
 attaches the exact attempted Console paths. No OTP or credential bodies are published.
 [Sanitized dependency evidence](./evidence/r155b-email-otp-dependency.json).
 
-Do not replace global counters with independent regional counters: the existing
-IP, subject, wallet, provider, and organization limits must remain global. Direct
-access to the current Console D1 would expand Gateway access beyond those counters.
-The existing Gateway intentionally has no Console DB binding. The proposed isolated
-rate-limit D1 requires an explicit update to the no-new-infrastructure constraint.
-Cloudflare documents a proxy Worker for table-specific access restrictions:
-[official D1 access-control guidance](https://developers.cloudflare.com/d1/tutorials/build-an-api-to-access-d1/).
+Historical decision, superseded by Phase 3A: this attempt required globally exact
+spam counters and proposed a dedicated D1 database. The user subsequently accepted
+regional limits and wallet-owned counter transfer. No dedicated database is needed.
 
 The first attempt stopped before registration due to an expired Google test token.
 The existing token-refresh script repaired that environment prerequisite. Later
@@ -1509,10 +1588,9 @@ they do not add a new refactor scope.
    session-burn fault excluded from release. Preserve these source revisions and
    binary hashes when rendering the hosted candidate. SDK bundle and deployment
    version pinning still belong to Phase 6.
-4. **Complete the counter-database deployment decision and cutover.** The isolated
-   counter binding is implemented and locally verified. New live infrastructure
-   still needs approval under the plan's existing constraint. Preserve one global
-   counter authority and remove the old Console table after cutover.
+4. **Implement Phase 3A.** Replace the superseded dedicated-counter binding with
+   regional counters and wallet-owned relocation records. Remove its allocation
+   requirement, rerun composed acceptance, and rebuild the deployment candidate.
 5. **Run Phase 6 on that candidate.** All four regions, same-wallet travel, ready
    signing, immediate registration-to-sign, and three-signature sequences need
    controlled hosted measurements. Record calls, refill waits, actual served
