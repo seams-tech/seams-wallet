@@ -239,6 +239,9 @@ use tenant_root_control_plane::handle_strict_tenant_root_control_plane_fetch_v1;
 /// Deployable workers-rs fetch entrypoint for strict Router/A/B proof-bundle Workers.
 #[worker::event(fetch)]
 pub async fn fetch(request: Request, env: Env, _ctx: Context) -> worker::Result<Response> {
+    if request.path() == crate::durable_object::custody_target::PATH {
+        return crate::durable_object::custody_target::inspect(request, &env).await;
+    }
     #[cfg(feature = "strict-worker-router-entrypoint")]
     {
         return handle_strict_router_fetch_v1(request, env).await;

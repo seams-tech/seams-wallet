@@ -50,6 +50,9 @@ impl DurableObject for RouterAbRouterWalletDurableObject {
     }
 
     async fn fetch(&self, mut request: Request) -> worker::Result<Response> {
+        if request.path() == super::custody_target::OBSERVE_PATH {
+            return super::custody_target::observe_location().await;
+        }
         if request.method() != Method::Post
             || (request.path() != COMMAND_PATH
                 && request.path() != ROUTER_WALLET_FREEZE_PATH_V1

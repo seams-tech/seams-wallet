@@ -17,6 +17,7 @@ const BASE_PATH = '/internal/wallet-runtime/v1/relocation';
 // The private Runtime binding carries trusted coordinator commands. The Router
 // parses each role's command and the participant enforces its durable move state.
 const OPERATIONS = {
+  'custody-target': '/router-ab/internal/custody-target',
   'deriver-a-activate': '/router-ab/internal/deriver-a/wallet/snapshot',
   'deriver-a-cleanup': '/router-ab/internal/deriver-a/wallet/snapshot',
   'deriver-b-activate': '/router-ab/internal/deriver-b/wallet/snapshot',

@@ -139,6 +139,9 @@ impl DurableObject for RouterAbDeriverBWalletDurableObject {
     }
 
     async fn fetch(&self, request: Request) -> worker::Result<Response> {
+        if request.path() == super::custody_target::OBSERVE_PATH {
+            return super::custody_target::observe_location().await;
+        }
         let path = request.path();
         let observation = self.timing.begin("deriver_b", path);
         let result = self.fetch_wallet_request(request).await;

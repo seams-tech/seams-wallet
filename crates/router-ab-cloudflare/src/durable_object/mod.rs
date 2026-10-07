@@ -1,3 +1,5 @@
+#[cfg(feature = "workers-rs")]
+pub(crate) mod custody_target;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use router_ab_core::{
     ActiveSigningWorkerStateV1, Ed25519YaoCeremonyBindingV1,
@@ -190,6 +192,9 @@ impl worker::DurableObject for RouterAbSigningWorkerPresignSessionDurableObject 
     }
 
     async fn fetch(&self, request: worker::Request) -> worker::Result<worker::Response> {
+        if request.path() == custody_target::OBSERVE_PATH {
+            return custody_target::observe_location().await;
+        }
         let path = request.path();
         if path == crate::CLOUDFLARE_INTERNAL_PREWARM_PATH {
             if request.method() != worker::Method::Post {
