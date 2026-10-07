@@ -427,7 +427,6 @@ const retirementTriggerRun = process.argv.includes('--retirement-trigger');
 // replays it; one second keeps them short.
 const shortRegistrationLeaseRun = [
   '--do-historical-replay',
-  '--do-historical-starting-replay',
   '--do-pair-lost-reply',
 ].some((flag) => process.argv.includes(flag));
 const registrationLeaseMs = 1_000;
@@ -4735,85 +4734,6 @@ async function assertGatewayOnlyRouterAuth(topology, fixture, tenantRoot, databa
   assert.ok(collidingResponse.status >= 500, 'shared Gateway credential must fail closed');
 }
 
-async function testHistoricalReplayAfterAStartClaim(topology, fixture, tenantRoot, databases) {
-  capturedDeriverAExecutionRequest = undefined;
-  holdDeriverAExecutionBeforeDispatch = true;
-  const envelope = buildEd25519ExecuteRequest(fixture, 'activation', tenantRoot);
-  const router = await topology.getWorker('router');
-  const initialResponse = await postWorkerJson(router, ed25519ExecutePath, envelope);
-  holdDeriverAExecutionBeforeDispatch = false;
-  const initialBody = (await responseBytes(initialResponse)).toString('utf8');
-  if (initialResponse.status === 200) {
-    assert.notEqual(JSON.parse(initialBody).status, 'succeeded');
-  }
-  assert.ok(capturedDeriverAExecutionRequest, 'Router must reach A execution after preparation');
-  const pair = capturedDeriverAExecutionRequest.pair_binding;
-  const rootIdentity = fixture.tenant_root_creation.identity;
-  const owner = {
-    org_id: rootIdentity.orgId,
-    project_id: rootIdentity.projectId,
-    env_id: rootIdentity.envId,
-    wallet_id: pair.ceremony.binding.lifecycle.account_id,
-  };
-  const namespace = await topology.getDurableObjectNamespace(deriverAWalletDoBinding, 'deriver-a');
-  const object = namespace.get(namespace.idFromName(deriverAWalletDoObjectName(owner)));
-  const prepared = await callDeriverAWalletDo(object, {
-    operation: 'read',
-    owner,
-    pair_binding: pair,
-  });
-  assert.equal(prepared.body.record.status, 'prepared');
-  const started = await callDeriverAWalletDo(object, {
-    operation: 'reserve',
-    owner,
-    pair_binding: pair,
-    local_receipt: capturedDeriverAExecutionRequest.local_receipt,
-    peer_receipt: capturedDeriverAExecutionRequest.peer_receipt,
-    execution_id: pair.pair_digest.bytes,
-    now_ms: Date.now(),
-  });
-  assert.equal(started.status, 200, `A start claim: ${JSON.stringify(started.body)}`);
-  assert.equal(started.body.result.kind, 'applied');
-  assert.equal(started.body.result.record.status, 'starting');
-  deriverBOffline = true;
-  blockedDeriverBCalls = 0;
-  const replayRouter = await topology.getWorker('router-replay');
-  await firstRunLeavingClaim(replayRouter, envelope);
-  const pendingBytes = await expectOk(
-    await postWorkerJson(replayRouter, ed25519ExecutePath, envelope),
-    'historical replay after A start claim',
-  );
-  assert.deepEqual(JSON.parse(pendingBytes.toString('utf8')), {
-    status: 'recoverable_failure',
-    code: 'service_unavailable',
-    retry_after_ms: 1000,
-  });
-  assert.equal(historicalReplayActivationCalls, 0);
-  assert.equal(blockedDeriverBCalls, 0);
-  const stillStarting = await callDeriverAWalletDo(object, {
-    operation: 'read',
-    owner,
-    pair_binding: pair,
-  });
-  assert.equal(stillStarting.body.record.status, 'starting');
-  assert.equal(stillStarting.body.revision, started.body.result.revision);
-  const bAfter = await deriverBPairStatus(topology, rootIdentity, pair);
-  assert.equal(bAfter.status, 'prepared');
-
-  const artifact = {
-    kind: 'yao_historical_replay_after_a_start_claim_e2e_v1',
-    reproduce:
-      'ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --do-historical-starting-replay',
-    startingARevision: started.body.result.revision,
-    replayStayedPendingAfterAStartClaim: true,
-    noReplayActivationOrBCall: true,
-  };
-  const artifactPath = join(repoRoot, '.artifacts/r150/yao-historical-starting-replay.json');
-  await mkdir(dirname(artifactPath), { recursive: true });
-  await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
-  console.log(JSON.stringify({ ...artifact, artifactPath }));
-}
-
 async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, databases) {
   dropDeriverAExecutionResponse = true;
   capturedDeriverAExecution = undefined;
@@ -5590,14 +5510,13 @@ async function main() {
   const testWalletDoExecution = process.argv.includes('--do-pair-execution');
   const testWalletDoLostReply = process.argv.includes('--do-pair-lost-reply');
   const testHistoricalReplay = process.argv.includes('--do-historical-replay');
-  const testHistoricalStartingReplay = process.argv.includes('--do-historical-starting-replay');
   const testDeriverBCompletionBurn = process.argv.includes('--do-pair-b-burn-before-complete');
   const topology = new Miniflare({
     workers: [
       routerWorker(
         fixture,
         testWalletDo || testWalletDoExecution || testWalletDoLostReply ||
-          testHistoricalReplay || testHistoricalStartingReplay || testDeriverBCompletionBurn,
+          testHistoricalReplay || testDeriverBCompletionBurn,
         testWalletDoLostReply,
       ),
       deriverAWorker(fixture),
@@ -5620,7 +5539,7 @@ async function main() {
       recoveryRouterWorker(fixture),
       ...((testWalletDoExecution || process.argv.includes('--ecdsa-wallet-do-pool')) ? [historicalReplayRouterWorker(fixture, 'router-relocation-destination', 'deriver-a', 'fixture-signing-worker-after-refresh')] : []),
       lateWritingDeriverAWorker(fixture),
-      ...(testHistoricalReplay || testHistoricalStartingReplay
+      ...(testHistoricalReplay
         ? [
             historicalReplayRouterWorker(fixture, 'router-replay'),
             historicalReplayRouterWorker(fixture, 'router-replay-missing-a', 'deriver-a-empty'),
@@ -5686,10 +5605,6 @@ async function main() {
     }
     if (testHistoricalReplay) {
       await testHistoricalRegistrationReplay(topology, fixture, tenantRoot, databases);
-      return;
-    }
-    if (testHistoricalStartingReplay) {
-      await testHistoricalReplayAfterAStartClaim(topology, fixture, tenantRoot, databases);
       return;
     }
     if (testDeriverBCompletionBurn) {

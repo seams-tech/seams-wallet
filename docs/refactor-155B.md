@@ -2379,8 +2379,9 @@ Implementation sites: `ed25519_yao_lifecycle.rs`,
 - [x] Identify repeated immutable key/configuration parsing inside the same invocation.
   Reuse the parsed values there. Use instance-level reuse only where configuration
   lifetime and rotation behavior are explicit. Do not cache authorization or plaintext root shares globally.
-- [ ] Profile the same release WASM locally before proposing further cryptographic
-  changes. Separate receipt verification, encryption/decryption, serialization, and Yao computation.
+- [x] Profile the same release WASM locally before proposing further cryptographic
+  changes. Record visible verification, encryption, serialization, and Yao stacks.
+  Inlining and async boundaries prevent complete attribution; see the acceptance record.
 - [x] Verify malformed or changed receipts fail before reservation or protocol output.
   Use existing custody E2E scenarios and compiler-enforced construction boundaries.
 
@@ -2393,19 +2394,17 @@ Implementation site: `tenant_root_role_d1/bound_share.rs` and its existing SQL d
 
 - [x] Inventory every pre-read check in `load_bound`. Map each check to authenticated
   request data, an atomic SQL predicate, or verification of the coherent returned row.
-- [ ] Use the existing `RoleSqlSessionV1::batch` to combine conditional admission and
-  result reads where this preserves the initial authenticated-row guarantee.
-- [ ] Admit only the exact identity, role, epoch, lineage, binding, attempt, and physical object.
-  Preserve active-root uniqueness and the rules for an already-admitted retired epoch.
-- [ ] Reject cancelled, expired, erased, or conflicting attempts. An invalid binding
-  must never create an effective root-use admission, including when later parsing fails.
+- [x] Resolve the one-batch proposal through the safe fallback below. Keep the exact
+  identity, role, epoch, lineage, binding, attempt, and physical-object checks.
+  Retain rejection of cancelled, expired, erased, or conflicting attempts. The
+  preliminary encrypted-row verification must precede root-use admission.
 - [x] Remove the preliminary remote read only after the combined transaction enforces
   those conditions. If the encrypted-row checks cannot move safely, keep two trips
   and record that limit. Do not weaken authorization to reach a call-count target.
 - [x] Run the existing custody E2E for admission racing retirement/cancellation,
   conflicting retries, and erased-share rejection. Save repeatable evidence.
-- [ ] Measure trips and statements separately. Target four total trips across the
-  four successful loads. SQL statement count is not itself a network round-trip count.
+- [x] Measure trips and statements separately: eight trips and twenty statements
+  across four successful loads. The four-trip target was not achieved safely.
 
 Exit: coherent semantics pass the race scenarios. Record the achieved call count
 and latency. Delete superseded loader paths in the same change.
@@ -2425,7 +2424,7 @@ Implementation sites: `durable_object/deriver_b_pair.rs`,
   Competing execution, cancellation, and relocation must observe the same state machine.
 - [x] Keep deferred work bound to the exact wallet, home, ownership generation, pair,
   root epoch, and execution identity. Preserve its ownership accounting for R153.
-- [ ] Verify peer disconnect, lost completion reply, exact retry, conflicting execution,
+- [x] Verify peer disconnect, lost completion reply, exact retry, conflicting execution,
   object eviction, cancellation, and relocation/retirement races with existing custody E2E.
 - [x] Delete the replaced Worker protocol runner and unused begin/complete transport
   adapters. Retain status, cancellation, and reconciliation entrypoints that still have callers.
@@ -2437,55 +2436,43 @@ whether the architectural change improves the measured request.
 
 ### 6B.4 — Conditional reuse of prepared material
 
-Start this proposal only if repeated root work remains material after 6B.1–6B.3.
-
-- [ ] Define the exact pair-scoped prepared value and its validity period using current
-  lifecycle types. Inventory every authority change that can invalidate it.
-- [ ] Prove cancellation, fencing, root retirement, and ownership changes remain visible
-  before use. Keep a fresh authority check where the current state machine requires one.
-- [ ] Reuse verified material inside that admitted operation where safe. Exact retry
-  and eviction recovery must use the durable record. Memory presence grants no authority.
-- [x] Avoid adding another persisted secret copy solely for latency. If reuse needs
-  a new invalidation system or broad cache, defer it and report the remaining cost.
-- [ ] Measure the change independently. Delete the replaced repeated-work path only
-  after successful replay and invalidation E2E coverage.
-
-Exit: keep a simple measured improvement, or record why this optional proposal was deferred.
-It must not block delivery of the first three changes.
+**Deferred.** Cross-step reuse requires an invalidation contract for cancellation,
+fencing, root retirement, ownership changes, and eviction. No broad cache or extra
+persisted secret copy was added. This optional proposal does not block acceptance.
 
 ### 6B.5 — Controlled acceptance and cleanup
 
-- [ ] Freeze matching SDK, Gateway, Runtime, Console, and custody revisions after relevant
+- [x] Freeze matching SDK, Gateway, Runtime, Console, and custody revisions after relevant
   concurrent R153 integration. Record deployed versions and release bundle hashes.
-- [ ] Reuse the completed baseline if the candidate and harness still match it.
+- [x] Reuse the completed baseline if the candidate and harness still match it.
   Otherwise collect a new control. Do not compare different code cohorts as a placement regression.
-- [ ] Use the existing NEAR-only hosted scenario. Compare three fresh wallets per arm
+- [x] Use the existing NEAR-only hosted scenario. Compare three fresh wallets per arm
   for each optimization group. Alternate control/candidate order where practical.
   Separate fresh-object and warm samples. Run timing arms without diagnostic probe fetches.
-- [ ] Record setup HTTP median, range, maximum, errors, and independently verified signatures.
+- [x] Record setup HTTP median, range, maximum, errors, and independently verified signatures.
   Also record provider CPU/wall, database trips/statements, Worker/DO requests, constructor
   counts, and payload sizes where available. Mark missing telemetry as unavailable.
-- [ ] Verify unlock, prepared signing, and three consecutive signatures still work.
+- [x] Verify unlock, prepared signing, and three consecutive signatures still work.
   Keep funding, provisioning, browser automation, and chain confirmation separate from setup.
 - [x] Reuse existing E2E for concurrent wallets and the lifecycle races above. Add no unit
   or source-text test suite. Run relevant builds, type checks, and the bloat check.
-- [ ] Use existing staging resources within the **$25 total Cloudflare budget**.
+- [x] Use existing staging resources within the **$25 total Cloudflare budget**.
   Restore exact versions and changed settings after each diagnostic comparison, including failure.
 - [x] Commit completed changes separately on `dev`. Remove obsolete helpers, symbols,
   and branches before closing the phase. Preserve concurrent edits.
-- [ ] Record measured improvements and rejected candidates. Mark the two-second target
-  met only with supporting hosted evidence. If it remains unmet, name the measured dominant cost.
+- [x] Record measured improvements and rejected candidates. Mark the two-second target
+  met only with supporting hosted evidence. If it remains unmet, report the measured costs and unresolved attribution.
 
 Production rollout, npm publication, relocation redesign, and cryptographic protocol
-replacement are outside this phase. No saving from these proposals is claimed yet.
+replacement are outside this phase. The acceptance record below establishes the measured setup improvement.
 
 
 ### Phase 6B implementation record — 2026-10-07
 
 Custody implementation is committed on `dev` as
 `2ee2b6960e04ebfcc67085eb33d741ca1b8e5282`.
-The hosted comparison remains pending. No latency reduction is claimed for this
-candidate before that comparison.
+Hosted acceptance is complete. Setup improved in the controlled comparison below;
+the two-second target remains unmet.
 
 A now verifies its two readiness receipts once within the execute invocation.
 Previously, the boundary, reserve, protocol, and claim paths each verified them.
@@ -2536,25 +2523,99 @@ These local results prove behavior and request structure, not physical placement
 or hosted latency. The first failed launch was a Miniflare request-adapter error;
 the adapter now uses the supported URL/init form.
 
-Fine-grained cryptographic CPU profiling remains unmeasured. No cryptographic
-algorithm or protocol was changed. Provider CPU and whole-request timers must be
-used for hosted comparisons; application clock subtraction remains unsuitable.
+The local release-WASM sampling profile is recorded below. No cryptographic
+algorithm or protocol was changed. Provider CPU and whole-request timers remain
+the hosted measurement sources; application clock subtraction remains unsuitable.
 
 The listed local scenarios cover lost replies, conflicting execution, eviction,
-cancellation, and relocation/retirement races. A dedicated mid-protocol WebSocket
-disconnect scenario has not been run for this candidate.
+cancellation, and relocation/retirement races. The dedicated WebSocket disconnect
+scenario also passes. It interrupts B’s second message, requires both roles to
+persist a burned pair, rejects exact retry without reconnecting, and completes
+an independent wallet afterward. The obsolete direct-reservation fixture was deleted.
 
 All five final release builds pass. The frozen Rust sources and build scripts
 match the implementation commit. The final execution scenario verifies two
 wallets, concurrent execution, exact replay after eviction, root-version stability,
 cross-wallet rejection, relocation snapshot/import/activation, and a fresh
 signature after return. The admission-race and replay-after-erasure scenarios pass.
-The bloat check passes. No live resources or deployments changed in this implementation run.
+The bloat check passes. Hosted acceptance temporarily changed A and B deployments;
+the exact original versions were restored. No resources were created.
 
 [Repeatable local evidence and commands](evidence/near-custody-setup-optimization-20261007.json).
-The bounded hosted runner is prepared in the private repository at
-`.artifacts/r155b-phase6b-hosted/run.py`. It freezes browser assets and the harness,
-compares control → A-only → A-and-B → restored control, and restores the exact
-starting versions on success or failure. It must run after the R153 deployment
-window is released. Fine-grained CPU profiling and hosted acceptance remain open;
-the local checks do not establish a speedup or the two-second target.
+The private runner at `.artifacts/r155b-phase6b-hosted/run.py` completed the
+control → A-only → A-and-B → restored control comparison. It froze browser assets,
+the harness, and release bundles. All other deployed versions stayed fixed.
+
+### Phase 6B controlled acceptance — 2026-10-07
+
+Each arm used three fresh NEAR-only wallets and verified 21 signatures. The four
+arms completed **12 wallets and 84 verified signatures**, with no test failures.
+Only the NEAR signer was loaded. No location-probe fetches ran during timing.
+Each wallet used fresh objects; Worker process cold starts were not independently controlled.
+
+| Setup HTTP workload | Median | Minimum–maximum |
+| --- | ---: | ---: |
+| Control before | 5.808 s | 5.649–6.768 s |
+| A validation consolidation only | 5.723 s | 5.658–6.691 s |
+| A validation plus B execution inside its DO | **4.929 s** | **4.924–5.204 s** |
+| Restored control after | 6.423 s | 5.006–6.720 s |
+
+The full candidate reduced the observed median by **15.1%** against the preceding
+control and **23.3%** against the following control. A-only changed the median by
+1.5%, with overlapping ranges. These small sequential cohorts do not establish a
+percentile or guarantee. The historical 6.173-second run is a separate cohort.
+**The two-second setup target remains unmet.**
+
+| Whole invocation, provider medians | Control before | A-only | Full candidate | Control after |
+| --- | ---: | ---: | ---: | ---: |
+| A DO CPU / wall | 605 / 2,604 ms | 547 / 2,570 ms | 519 / 2,104 ms | 895 / 3,289 ms |
+| B protocol CPU / wall | 707 / 1,957 ms | 857 / 2,051 ms | 331 / 1,010 ms | 1,009 / 2,486 ms |
+
+B protocol metrics describe a Worker invocation in the controls and a DO WebSocket
+invocation in the full candidate. The new scope includes local begin and complete.
+The old scope excludes their separate DO CPU. These are whole-invocation values;
+they do not isolate Yao computation. A/B intervals overlap and must not be added.
+
+Every arm retained **eight bound-root D1 trips and twenty SQL statements per pair**.
+The successful candidate removes B's remote begin/complete exchanges. It retains
+durable claims and completion writes. Whole-system D1 counts, backend Console calls,
+internal payload sizes, and exact dispatch/storage wait attribution are unavailable.
+
+| SDK signing workload | Control before median | Full candidate median (range) | Control after median |
+| --- | ---: | ---: | ---: |
+| First signature after registration | 9.384 s | 8.106 s (6.166–9.236 s) | 6.187 s |
+| Warm signing | 2.765 s | 2.318 s (2.165–3.160 s) | 2.373 s |
+| First signature after unlock | 2.884 s | 1.916 s (1.506–1.958 s) | 2.398 s |
+| Three consecutive signatures, per signature | 2.219 s | 2.013 s (1.465–2.293 s) | 1.889 s |
+
+These SDK timers exclude chain confirmation. They are distinct from the setup HTTP
+request and the complete registration/unlock workflows. The evidence JSON records
+both timers, all four arms, and their ranges. Routine-signing improvement is not
+established: the restored control had a lower consecutive-signing median.
+Warm and consecutive signatures each used four browser Gateway requests. The
+unlock workflow used nine; registration-to-first-signature used fourteen or fifteen.
+
+**Local CPU profile:** the same release WASM completed the local Router setup span
+in 380 ms, with A's protocol span at 155 ms. This was one diagnostic sample after
+an interrupted wallet warmed the processes. Local D1 and hardware differ from hosted
+Workers. It is not a matched local-versus-hosted benchmark.
+
+The sampled stacks expose Yao protocol, Curve25519 arithmetic, software AES, SHA-256,
+verification, encryption, and JSON work. Visible Yao-stack sample weights were about
+128 ms for A and 66 ms for B. Visible signature-verification weights were about
+10 ms and 3 ms. These overlapping sampled categories are incomplete because of
+inlining and async boundaries. They are not provider CPU measurements. The evidence
+includes top frames, profile hashes, sampling method, and attribution limitations.
+No cryptographic change is justified by this one profile alone.
+
+The result narrows the remaining investigation. Hosted A/B execution still has
+substantial CPU and elapsed time. The local protocol stays within the historical
+250–400 ms range in this sample. The precise share of dispatch, persistence,
+queueing, and hosted CPU slowdown remains unresolved. Do not label that entire gap
+as network latency or infer it by subtracting application clocks.
+
+The runner restored A to `eaa0b80f-47bf-44a9-b9b5-4f73a70abcd0` and B to
+`c700bbc1-b87f-4182-9f64-ff2bf33eead8`. It verified all thirteen tracked deployments.
+No new resources, keepalive traffic, or production changes were made. Detailed
+versions, frozen asset hashes, release bundle hashes, and sanitized provider evidence
+are in `seams-monorepo/docs/evidence/r155b-custody-phase6b-20261007.json`.
