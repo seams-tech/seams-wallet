@@ -608,19 +608,30 @@ pub struct RouterAbSigningWorkerWalletDurableObject {
     sql: SqlStorage,
     storage: Rc<Storage>,
     env: Env,
+    timing: super::command_timing::WalletCommandTiming,
 }
 
 impl DurableObject for RouterAbSigningWorkerWalletDurableObject {
     fn new(state: State, env: Env) -> Self {
         let storage = Rc::new(state.storage());
         Self {
+            timing: super::command_timing::WalletCommandTiming::new(state.id().to_string()),
             sql: storage.sql(),
             storage,
             env,
         }
     }
 
-    async fn fetch(&self, mut request: Request) -> worker::Result<Response> {
+    async fn fetch(&self, request: Request) -> worker::Result<Response> {
+        let path = request.path();
+        let observation = self.timing.begin("signing_worker", path);
+        let result = self.fetch_wallet_request(request).await;
+        observation.finish(result)
+    }
+}
+
+impl RouterAbSigningWorkerWalletDurableObject {
+    async fn fetch_wallet_request(&self, mut request: Request) -> worker::Result<Response> {
         #[cfg(debug_assertions)]
         if request.method() == worker::Method::Post && request.path() == HARNESS_FAULT_PATH {
             return self.record_harness_activation_fault(request.json().await?);
@@ -658,9 +669,7 @@ impl DurableObject for RouterAbSigningWorkerWalletDurableObject {
             ),
         }
     }
-}
 
-impl RouterAbSigningWorkerWalletDurableObject {
     async fn execute(
         &self,
         command: SigningWorkerWalletDoRequestV1,

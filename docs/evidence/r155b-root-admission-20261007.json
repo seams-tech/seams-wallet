@@ -1,14 +1,128 @@
 {
-  "candidate": "2bee39abb947a6524a42e8c74c6ff7b89c1a7acb plus bound-root batching",
+  "source": {
+    "base": "2bee39abb947a6524a42e8c74c6ff7b89c1a7acb",
+    "files": {
+      "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs": "5e70494c6d67cd7b07ed742831b9fdd6c8f6d882ebc4b86e3b697ef56299e235",
+      "crates/router-ab-cloudflare/src/tenant_root_role_d1/bound_share.rs": "8db5003eb35c2cd5eb6546b5899312364e50eddd4b4e4fc6e708deb7c88dbd49",
+      "crates/router-ab-cloudflare/src/durable_object/command_timing.rs": "df5ed4771b91860fa0d2a256ea41337932d40f7542280e70499ebd8be62679e1",
+      "crates/router-ab-cloudflare/src/durable_object/deriver_a_pair.rs": "47cb041a39a13018162d6517fe1670d447289d1cb58efe94c0a38db67fd8d497",
+      "crates/router-ab-cloudflare/src/durable_object/deriver_b_pair.rs": "0df9175a81ec6239d4166f6af57152c109e4177fac13886ac74cda04a40cd66f",
+      "crates/router-ab-cloudflare/src/durable_object/signing_worker_wallet.rs": "0b0f38a77acf2c734237bc534ef76d79f34c7f334129d20663e066e622bbf36d",
+      "crates/router-ab-cloudflare/src/durable_object/signing_worker_wallet/transaction.rs": "528018061b89745510d5736ef91e3d8bfd61414d89e5c44de782b0041d11dc50",
+      "crates/router-ab-cloudflare/src/durable_object/mod.rs": "975ffa19d12ba883c8d4c8ff7576977b3b73f941f2b3c346fab6bae4a5ea1375",
+      "crates/router-ab-cloudflare/src/strict_worker/mod.rs": "6d0c80c36affa663803f20536f3ba40f9e62d93d0e83e7f52bf1b6ad44e93257"
+    },
+    "groups": [
+      "atomic bound-root admission/read batch",
+      "one active snapshot decryption",
+      "wallet DO timing",
+      "preserve retryable Deriver A lifecycle errors"
+    ]
+  },
   "normalLoad": {
     "roundTripsBefore": 5,
     "roundTripsAfter": 2,
     "statementsBefore": 5,
     "statementsAfter": 5,
-    "countBasis": "code path; hosted instrumentation pending"
+    "rowDecryptionsBefore": 3,
+    "rowDecryptionsAfter": 2,
+    "countBasis": "active-epoch load path and local D1 diagnostic events; hosted verification pending"
   },
-  "passed": [
-    {
+  "passed": {
+    "admission-races": {
+      "kind": "tenant_root_admission_race_workers_e2e_v1",
+      "unusedBinding": {
+        "heldBefore": "deriver_a_prepare_pair",
+        "refreshStatus": 200,
+        "deriverAPreparationStatus": 503,
+        "deriverAPreparationBody": "{\"status\":\"recoverable_failure\",\"code\":\"service_unavailable\",\"retry_after_ms\":1000}",
+        "registrationStatus": 200,
+        "registrationBody": "{\"status\":\"recoverable_failure\",\"code\":\"service_unavailable\",\"retry_after_ms\":1000}",
+        "admissionsAfterRefusal": {
+          "deriverA": [],
+          "deriverB": [
+            1
+          ]
+        },
+        "freshRegistration": "succeeded",
+        "admissionsAfterFresh": {
+          "deriverA": [
+            2
+          ],
+          "deriverB": [
+            1,
+            2
+          ]
+        },
+        "statusesAfterFresh": {
+          "deriverA": [
+            [
+              2,
+              "settled"
+            ]
+          ],
+          "deriverB": [
+            [
+              1,
+              "admitted"
+            ],
+            [
+              2,
+              "settled"
+            ]
+          ]
+        },
+        "deriverAEpochOneRetirement": [
+          200,
+          "retired_deleted"
+        ],
+        "deriverBEpochOneRetirement": [
+          503,
+          "LifecycleTransitionInProgress: retirement of epoch 1 is pending here: 1 admitted operation(s) are not settled"
+        ]
+      },
+      "deliveryGate": {
+        "fault": "deriver_b_unreachable_for_refresh_activation",
+        "refreshStatus": 500,
+        "deliveryAfterRefresh": {
+          "deriverA": "delivered",
+          "deriverB": "pending"
+        },
+        "registrationWhilePendingStatus": 503,
+        "admissionsWhilePending": {
+          "deriverA": [],
+          "deriverB": []
+        },
+        "registrationAfterReachable": "succeeded",
+        "deliveryAfter": {
+          "deriverA": "delivered",
+          "deriverB": "delivered"
+        },
+        "admissionsAfter": {
+          "deriverA": [
+            2
+          ],
+          "deriverB": [
+            2
+          ]
+        },
+        "statusesAfter": {
+          "deriverA": [
+            [
+              2,
+              "settled"
+            ]
+          ],
+          "deriverB": [
+            [
+              2,
+              "settled"
+            ]
+          ]
+        }
+      }
+    },
+    "replay-after-erasure": {
       "kind": "tenant_root_replay_after_erasure_workers_e2e_v1",
       "build": "wallet_objects",
       "registration": "succeeded on epoch 1",
@@ -35,8 +149,8 @@
         "stored response"
       ],
       "changedExecute": [
-        500,
-        "INTERNAL SERVER ERROR"
+        503,
+        "{\"status\":\"recoverable_failure\",\"code\":\"service_unavailable\",\"retry_after_ms\":1000}"
       ],
       "admissionsAfter": [
         [
@@ -53,7 +167,7 @@
         ]
       ]
     },
-    {
+    "do-admission-settlement": {
       "kind": "tenant_root_wallet_object_admission_workers_e2e_v1",
       "fence": {
         "admissionsWhileHeld": [
@@ -81,8 +195,8 @@
           "deriverB": "fenced"
         },
         "heldRegistration": [
-          500,
-          "InvalidLocalServiceConfig: Deriver A pair execution service returned HTTP 500"
+          200,
+          "{\"status\":\"recoverable_failure\",\"code\":\"service_unavailable\",\"retry_after_ms\":1000}"
         ],
         "deriverARetired": [
           "retired_deleted",
@@ -164,10 +278,49 @@
           "completed"
         ]
       }
+    },
+    "ecdsa-across-refresh": {
+      "work": "ecdsa_registration",
+      "heldBefore": "deriver_b_ecdsa_registration",
+      "epochs": [
+        1,
+        2
+      ],
+      "refreshStatus": 200,
+      "deriverBStatus": 503,
+      "registrationStatus": 503,
+      "admittedOnOldEpoch": {
+        "deriverA": true,
+        "deriverB": false
+      },
+      "retryStatus": 200,
+      "retryResult": "forwarded",
+      "admittedOnNewEpoch": {
+        "deriverA": true,
+        "deriverB": true
+      },
+      "admissionStatuses": {
+        "deriverA": [
+          [
+            1,
+            "settled"
+          ],
+          [
+            2,
+            "settled"
+          ]
+        ],
+        "deriverB": [
+          [
+            2,
+            "settled"
+          ]
+        ]
+      }
     }
-  ],
-  "open": {
-    "admissionRace": "Root retirement is refused correctly; wallet DO drops the retryable error into HTTP 500. Fix and rerun pending.",
-    "claimedRecovery": "Excluded: release build does not enable the dev-only Deriver B completion-burn fault."
-  }
+  },
+  "excluded": {
+    "claimedRecovery": "Release build lacks the development-only completion-burn fault; that invocation is not acceptance evidence."
+  },
+  "boundaryFix": "Deriver A prepare/execute returns the existing typed role failure instead of dropping a retryable lifecycle refusal into a platform HTTP 500."
 }

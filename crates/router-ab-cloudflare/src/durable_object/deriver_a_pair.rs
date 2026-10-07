@@ -380,18 +380,42 @@ pub struct RouterAbDeriverAWalletDurableObject {
     sql: SqlStorage,
     storage: worker::Storage,
     env: Env,
+    timing: super::command_timing::WalletCommandTiming,
 }
 
 impl DurableObject for RouterAbDeriverAWalletDurableObject {
     fn new(state: State, env: Env) -> Self {
         Self {
+            timing: super::command_timing::WalletCommandTiming::new(state.id().to_string()),
             sql: state.storage().sql(),
             storage: state.storage(),
             env,
         }
     }
 
-    async fn fetch(&self, mut request: Request) -> worker::Result<Response> {
+    async fn fetch(&self, request: Request) -> worker::Result<Response> {
+        let path = request.path();
+        let observation = self.timing.begin("deriver_a", path.clone());
+        let result = self.fetch_wallet_request(request).await;
+        #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
+        let result = match result {
+            Err(error) if path == PREPARE_WORK_PATH || path == EXECUTE_WORK_PATH => {
+                let message = error.to_string();
+                crate::strict_worker::cloudflare_role_failure_response_v1(
+                    router_ab_core::RouterAbProtocolError::new(
+                        crate::router_ab_peer_error_code_v1(&message),
+                        message,
+                    ),
+                )
+            }
+            result => result,
+        };
+        observation.finish(result)
+    }
+}
+
+impl RouterAbDeriverAWalletDurableObject {
+    async fn fetch_wallet_request(&self, mut request: Request) -> worker::Result<Response> {
         if request.method() != worker::Method::Post {
             return Response::error("Unknown Deriver A wallet object request", 404);
         }
@@ -465,9 +489,7 @@ impl DurableObject for RouterAbDeriverAWalletDurableObject {
             _ => Response::error("Unknown Deriver A wallet object request", 404),
         }
     }
-}
 
-impl RouterAbDeriverAWalletDurableObject {
     /// Answers the role store that owns a pair session's admission. When
     /// asked, it first fences the pair unless its executor claimed it or it
     /// completed. Both checks and the fence run in one statement. A fence

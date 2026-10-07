@@ -123,18 +123,29 @@ pub struct RouterAbDeriverBWalletDurableObject {
     sql: SqlStorage,
     storage: worker::Storage,
     env: Env,
+    timing: super::command_timing::WalletCommandTiming,
 }
 
 impl DurableObject for RouterAbDeriverBWalletDurableObject {
     fn new(state: State, env: Env) -> Self {
         Self {
+            timing: super::command_timing::WalletCommandTiming::new(state.id().to_string()),
             sql: state.storage().sql(),
             storage: state.storage(),
             env,
         }
     }
 
-    async fn fetch(&self, mut request: Request) -> worker::Result<Response> {
+    async fn fetch(&self, request: Request) -> worker::Result<Response> {
+        let path = request.path();
+        let observation = self.timing.begin("deriver_b", path);
+        let result = self.fetch_wallet_request(request).await;
+        observation.finish(result)
+    }
+}
+
+impl RouterAbDeriverBWalletDurableObject {
+    async fn fetch_wallet_request(&self, mut request: Request) -> worker::Result<Response> {
         let path = request.path();
         if request.method() != worker::Method::Post
             || (path != COMMAND_PATH && path != RECONCILE_PATH && path != PREPARATION_PATH && path != SOURCE_FENCE_PATH && path != SNAPSHOT_PATH)
@@ -179,9 +190,7 @@ impl DurableObject for RouterAbDeriverBWalletDurableObject {
         }
         self.execute(request).await
     }
-}
 
-impl RouterAbDeriverBWalletDurableObject {
     /// Answers the role store that owns a pair session's admission. When
     /// asked, it first fences the pair unless it completed, in one statement.
     /// Deriver A cannot complete without B's completion, so B never waits on

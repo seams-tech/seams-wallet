@@ -34,6 +34,7 @@ impl RouterAbSigningWorkerWalletDurableObject {
         operation: impl FnOnce(&Self) -> Result<T, RouterAbProtocolError> + 'static,
     ) -> Result<T, RouterAbProtocolError> {
         let wallet = Self {
+            timing: self.timing.clone(),
             sql: self.sql.clone(),
             storage: self.storage.clone(),
             env: self.env.clone(),

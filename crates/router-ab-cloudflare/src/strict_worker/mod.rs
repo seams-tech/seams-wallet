@@ -281,7 +281,7 @@ pub(super) fn cloudflare_prewarm_response_v1(request: &Request) -> worker::Resul
     feature = "strict-worker-deriver-a-entrypoint",
     feature = "strict-worker-deriver-b-entrypoint"
 ))]
-pub(super) fn cloudflare_role_failure_response_v1(
+pub(crate) fn cloudflare_role_failure_response_v1(
     err: RouterAbProtocolError,
 ) -> worker::Result<Response> {
     worker::console_error!("{:?}: {}", err.code(), err.message());

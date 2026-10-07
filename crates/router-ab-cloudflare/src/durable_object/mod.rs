@@ -96,6 +96,8 @@ pub(crate) use signing_worker_wallet::{
 pub(crate) mod tenant_root_creation;
 #[cfg(any(feature = "workers-rs", test))]
 #[cfg(feature = "workers-rs")]
+mod command_timing;
+#[cfg(feature = "workers-rs")]
 mod worker_storage;
 #[cfg(feature = "workers-rs")]
 mod owner_presign_storage;

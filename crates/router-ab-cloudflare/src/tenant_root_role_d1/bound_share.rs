@@ -53,6 +53,8 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
             .map_err(|error| store_error(error.message()))?;
         // Only a retired share is ever erased. Without its row, every outcome
         // below is a refusal, so the binding is not checked against it.
+        #[cfg(feature = "workers-rs")]
+        let initial_read_started_ms = worker::Date::now().as_millis();
         let stored = self
             .load_epoch_by_identity_digest(
                 custody_binding.identity_digest(),
@@ -60,6 +62,10 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                 custody_binding.epoch(),
             )
             .await?;
+        #[cfg(feature = "workers-rs")]
+        let initial_read_ms = worker::Date::now()
+            .as_millis()
+            .saturating_sub(initial_read_started_ms);
         let lifecycle_is_active = match stored.as_ref().map(|stored| stored.record().lifecycle()) {
             Some(CloudflareTenantRootRoleShareLifecycleV1::Pending(_)) => {
                 return Ok(TenantRootBoundShareV1::NotYetActive);
@@ -147,7 +153,23 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                 .bind_refs([RoleSqlValue::Text(&identity_digest_hex)].iter())?,
         );
         let expected_results = statements.len();
+        #[cfg(feature = "workers-rs")]
+        let batch_started_ms = worker::Date::now().as_millis();
         let results = self.session.batch(statements).await?;
+        #[cfg(feature = "workers-rs")]
+        worker::console_log!(
+            "{}",
+            serde_json::json!({
+                "event": "bound_root_d1_timing",
+                "role": self.cipher.role.as_str(),
+                "attempt_kind": attempt_kind,
+                "attempt_key": attempt_key_hex,
+                "round_trips": 2,
+                "statements": expected_results + 1,
+                "initial_read_and_open_ms": initial_read_ms,
+                "batch_ms": worker::Date::now().as_millis().saturating_sub(batch_started_ms),
+            })
+        );
         if results.len() != expected_results || results.iter().any(|result| !result.success()) {
             return Err(store_error("bound-root admission batch failed"));
         }
@@ -157,14 +179,13 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         }
         let admission: Option<TenantRootRootUseAdmissionRowV1> =
             one_row(results.next(), "bound-root admission")?;
-        let row = one_row(results.next(), "bound-root epoch")?;
+        let row: Option<TenantRootRoleD1RowV1> = one_row(results.next(), "bound-root epoch")?;
         let active_rows = results
             .next()
             .ok_or_else(|| store_error("missing active-root snapshot"))?
             .results::<TenantRootRoleD1RowV1>()?;
         // Read the share and its admission in the same transaction. A refresh,
         // cancellation or erasure cannot interleave these observations.
-        let stored = self.open_row(row).await?;
         match admission {
             Some(admission) => {
                 if admission.tenant_root_share_epoch.to_string() != epoch
@@ -174,18 +195,23 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                 {
                     return Ok(TenantRootBoundShareV1::AttemptConflict);
                 }
+                if admission.status == "cancelled" {
+                    return Ok(TenantRootBoundShareV1::Cancelled);
+                }
+                // The active snapshot includes the epoch row from this same
+                // transaction. Resolve and decrypt it once, including uniqueness.
+                let stored = match row {
+                    Some(row) if row.lifecycle == "active" => Some(
+                        self.resolve_active_rows(custody_binding.identity_digest(), active_rows)
+                            .await?
+                            .require_active()?,
+                    ),
+                    row => self.open_row(row).await?,
+                };
                 match (admission.status.as_str(), stored) {
-                    ("cancelled", _) => Ok(TenantRootBoundShareV1::Cancelled),
                     (_, Some(stored)) => match stored.record().lifecycle() {
-                        CloudflareTenantRootRoleShareLifecycleV1::Active(_) => {
-                            let active = self
-                                .resolve_active_rows(custody_binding.identity_digest(), active_rows)
-                                .await?
-                                .require_active()?;
-                            self.verify_bound_row(&active, custody_binding)?;
-                            Ok(TenantRootBoundShareV1::Readable(active))
-                        }
-                        CloudflareTenantRootRoleShareLifecycleV1::Retired(_) => {
+                        CloudflareTenantRootRoleShareLifecycleV1::Active(_)
+                        | CloudflareTenantRootRoleShareLifecycleV1::Retired(_) => {
                             self.verify_bound_row(&stored, custody_binding)?;
                             Ok(TenantRootBoundShareV1::Readable(stored))
                         }
@@ -201,7 +227,7 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
             }
             // The conditional insert found the epoch no longer active: a
             // refresh retired it before this operation was admitted.
-            None if stored.is_some() => Ok(TenantRootBoundShareV1::EpochClosed),
+            None if row.is_some() => Ok(TenantRootBoundShareV1::EpochClosed),
             // Neither the share nor an admission: the epoch closed here before
             // this operation was admitted if a later one is active here.
             None => {
