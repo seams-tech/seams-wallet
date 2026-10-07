@@ -5,7 +5,8 @@ approval, fresh resource verification, preparation, transfer, activation, and cl
 The ECDSA and Ed25519 browser runs passed with fresh unlock and destination signing.
 Two-device moves pass for both curves, including an offline enrolled device.
 Fresh-browser recovery and both signing curves pass after relocation.
-Return moves and hosted placement/latency acceptance remain open.
+The composed US → APAC → US move passes, including fresh unlock and both signing
+curves after return. Hosted placement/latency acceptance remains open.
 
 ## Implementation order and prerequisites
 
@@ -120,7 +121,29 @@ Recovery acceptance exposed an omitted regional recovery-code locator table.
 Its transfer and cleanup now preserve the exact locator records. Recovery also
 reuses the existing migrated auth-method store, so a live request does not attempt
 schema creation. Fresh-browser recovery now passes on APAC, followed by both
-signing curves without Console calls. Return-move acceptance remains open.
+signing curves without Console calls. The return checkpoint below extends this proof.
+
+## Return acceptance checkpoint — October 7, 2026
+
+The browser scenario now completes US → APAC → US after the normal cooldown.
+It covers two enrolled devices, an offline device, fresh-browser recovery on APAC,
+and fresh unlock with ECDSA and Ed25519 signing after return. Signing makes no
+Console calls. Both moves recover from a lost activation acknowledgement and a
+cleanup failure. An old cleanup command is rejected after return without changing
+the returned authentication records.
+
+Authorization storage and both Deriver roles accept a later ownership generation
+only after their previous cleanup completes. They retain completed cleanup receipts.
+Source cleanup also removes that wallet's regional Ed25519 capability cache. This
+prevents the old region from selecting a pre-recovery capability after return.
+Canonical signer records and unrelated wallet cache entries remain unchanged.
+
+The release-Worker browser run passed in 8.7 minutes, including the five-minute
+cooldown. Authorization storage E2E, server type checking, both Deriver Worker
+builds, and the bloat check passed. Evidence is under
+`.artifacts/r153/return-20261007/` in `seams-monorepo`. The private aggregate
+intended-test type check remains blocked by shared-module paths from the repository
+split. Hosted resource placement and latency remain unverified.
 
 ## Implemented baseline
 
