@@ -174,22 +174,23 @@ and abandoned-check recovery. Signer migration `0076` and Console migrations
 `0089`–`0090` are applied in staging. Matching Gateway and Console candidates are
 deployed. Activation and readiness workflow `37626903530` passed.
 
-The latest hosted round trip completed both signing curves and cleanup in both
+The first hosted round trip with the write block completed both signing curves and cleanup in both
 directions. Pause through fresh unlock and first signature measured **49,186 ms to
 US** and **73,811 ms back to APAC**. Each direction used one snapshot export and
 one import. The return exceeded the 60-second requirement. The earlier candidate's
-passing measurements do not close this requirement for the latest candidate.
+passing measurements did not close this requirement for that candidate.
 
 - [x] Deploy matching candidates and migrations with existing credentials.
 - [x] Verify hosted relocation, signing, and cleanup in both regions.
-- [ ] Meet the 60-second pause requirement in both directions with these fixes.
+- [x] Meet the 60-second pause requirement in both directions with these fixes.
+  The return latency correction below closes this requirement.
 
 The return spent 26,860 ms freezing, 27,373 ms copying, 318 ms committing ownership,
 and 5,561 ms activating. Unlock and first signing added 13,699 ms. Cleanup completed
 separately after 141,314 ms, including recovery after Cloudflare cancelled background
 work. The existing cron resumed cleanup while destination signing remained available.
-The measured slow stages are freeze and copy; their underlying delay is not yet
-isolated. Do not change routine signing routes to address this relocation-only gap.
+This run identified freeze and copy as the slow stages. The correction below removes
+repeated regional authorization trips. Routine signing routes remain unchanged.
 
 The private receipt is `docs/evidence/r153b-capacity-hosted-20261007.json`.
 
@@ -206,5 +207,20 @@ request. A draining participant returns immediately to let admitted work settle.
 The existing coordinator resumes unfinished steps. No timer, flag, configuration,
 or change to routine signing/refill routing is added.
 
-The composed relocation E2E passes partial-batch reply loss and restart. Hosted
-verification of this correction is pending.
+The composed relocation E2E passes partial-batch reply loss and restart. The matching
+staging Runtime and Console candidates are deployed. Activation and readiness
+workflow `37631869120` passed.
+
+The hosted round trip passed the unchanged 60-second requirement: **43,845 ms to US**
+and **43,326 ms back to APAC**, including pause, fresh unlock, and first signature.
+Both signing curves and cleanup passed in both regions. These are single observations.
+
+The return freeze fell from 26,860 to 14,252 ms. Copy fell from 27,373 to 13,970 ms.
+ECDSA transfer authorization calls through activation fell from 51 to 11. Each D1
+snapshot still used one export and one import. Return cleanup completed separately
+after 156,642 ms and did not block destination signing.
+
+The private receipt is `docs/evidence/r153b-latency-hosted-20261007.json`. Builds,
+scoped type checks, the composed E2E, and the bloat check pass. All 13 recorded
+runtime versions stayed unchanged during the hosted run. No Rust protocol, schema,
+credential, regional placement, or routine signing/refill route changed.
