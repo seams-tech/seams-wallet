@@ -192,3 +192,19 @@ The measured slow stages are freeze and copy; their underlying delay is not yet
 isolated. Do not change routine signing routes to address this relocation-only gap.
 
 The private receipt is `docs/evidence/r153b-capacity-hosted-20261007.json`.
+
+## Return latency correction
+
+ECDSA custody transport groups up to eight existing native segments into each Runtime
+export/import request. The Runtime authorizes the batch once and retains each native
+segment's durable receipt. A lost reply resumes at the destination's saved segment
+cursor, including when only part of a batch committed. Each request stays below the
+existing Runtime request limit. Native wire formats and custody storage stay unchanged.
+
+ECDSA freeze and Deriver capture advance up to eight local steps per authorized
+request. A draining participant returns immediately to let admitted work settle.
+The existing coordinator resumes unfinished steps. No timer, flag, configuration,
+or change to routine signing/refill routing is added.
+
+The composed relocation E2E passes partial-batch reply loss and restart. Hosted
+verification of this correction is pending.

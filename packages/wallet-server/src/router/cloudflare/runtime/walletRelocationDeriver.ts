@@ -85,9 +85,17 @@ export async function forwardDeriverRelocation(
         body = { operation: 'import', receipt, segment };
       } else body = { operation, receipt };
     }
-    const response = await postRole(binding, role, operation === 'fence' ? 'fence-relocation' : 'snapshot', body, credential);
+    let response = await postRole(binding, role, operation === 'fence' ? 'fence-relocation' : 'snapshot', body, credential);
     if (operation !== 'capture' || !response.ok) return response;
-    const captured: unknown = await response.clone().json();
+    let captured: unknown = await response.clone().json();
+    // The source is fenced. Advance its durable capture locally under this authorization.
+    for (let step = 1; step < 8 && isPlainObject(captured) &&
+        Object.keys(captured).length === 2 && captured.kind === 'capturing' &&
+        count(captured.segment_count); step += 1) {
+      response = await postRole(binding, role, 'snapshot', body, credential);
+      if (!response.ok) return response;
+      captured = await response.clone().json();
+    }
     if (isPlainObject(captured) && Object.keys(captured).length === 2 && captured.kind === 'capturing' && count(captured.segment_count)) return response;
     if (!isPlainObject(captured) || Object.keys(captured).length !== 2 || captured.kind !== 'frozen')
       return failure('source_receipt_unavailable', 503);

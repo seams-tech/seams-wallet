@@ -3,6 +3,9 @@ import { ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1 } from '../../../core/Thresho
 import type { CloudflareServiceBindingFetcher } from './routerAbServiceBindings';
 import { authorizeRuntimeSource, type RuntimeSourceDirectory } from './walletRelocationSource';
 
+// Eight native segments fit below the existing Runtime request limit.
+const TRANSFER_BATCH_SEGMENTS = 8;
+
 type Operation = 'freeze' | 'export' | 'import' | 'status' | 'verify' | 'activate' | 'cleanup';
 type Envelope = { readonly wallet: Record<string, unknown>; readonly attempt: Record<string, unknown> };
 
@@ -33,9 +36,17 @@ export async function forwardEcdsaRelocation(
       if (!authorization.ok) return failure(authorization.code, authorization.code === 'source_command_denied' ? 409 : 503);
       const source: unknown = JSON.parse(authorization.body);
       if (!isPlainObject(source)) return failure('source_command_unavailable', 503);
-      const response = await postRole(router, 'pool/freeze', source, credential);
+      let response = await postRole(router, 'pool/freeze', source, credential);
+      let raw: unknown = await response.clone().json();
+      // Continue durable local progress without another Console authorization trip.
+      // Draining means existing work must settle, so return it immediately.
+      for (let step = 1; step < TRANSFER_BATCH_SEGMENTS && response.ok &&
+          isPlainObject(raw) && Object.keys(raw).length === 1 &&
+          (raw.state === 'invalidating' || raw.state === 'sealing'); step += 1) {
+        response = await postRole(router, 'pool/freeze', source, credential);
+        raw = await response.clone().json();
+      }
       if (!response.ok) return response;
-      const raw: unknown = await response.clone().json();
       if (isPlainObject(raw)) {
         if (Object.keys(raw).length === 1 && (raw.state === 'invalidating' || raw.state === 'sealing')) return response;
         if (Object.keys(raw).length === 3 && raw.state === 'draining' &&
@@ -66,16 +77,44 @@ export async function forwardEcdsaRelocation(
     if (operation === 'export') {
       if (!safeCount(input.segmentIndex) || input.segmentIndex > 4294967295 || command.segment_index !== input.segmentIndex)
         return failure('source_command_unavailable', 503);
-      return await postRole(router, 'ecdsa/export', { receipt, segment_index: input.segmentIndex, chunk_bytes: 4096 }, credential);
+      const chunks: NonNullable<ReturnType<typeof parseChunk>>[] = [];
+      let segmentIndex = input.segmentIndex;
+      for (let step = 0; step < TRANSFER_BATCH_SEGMENTS; step += 1) {
+        const response = await postRole(router, 'ecdsa/export', {
+          receipt, segment_index: segmentIndex, chunk_bytes: 4096,
+        }, credential);
+        if (!response.ok) return response;
+        const chunk = parseChunk(await response.json(), receipt);
+        if (!chunk || chunk.segment_index !== segmentIndex ||
+            (chunks.length > 0 && chunk.segment_count !== chunks[0].segment_count))
+          return failure('source_receipt_unavailable', 503);
+        chunks.push(chunk);
+        segmentIndex += 1;
+        if (segmentIndex === chunk.segment_count) break;
+      }
+      return Response.json({ chunks });
     }
     if (operation === 'import') {
-      const chunk = input.chunk;
-      if (!isPlainObject(chunk) || Object.keys(chunk).length !== 5 || !sameFields(chunk.receipt, receipt) ||
-          chunk.chunk_bytes !== 4096 || !safeCount(chunk.segment_index) || !safeCount(chunk.segment_count) ||
-          chunk.segment_count === 0 || chunk.segment_count > 4294967295 || chunk.segment_index >= chunk.segment_count ||
-          typeof chunk.data_b64u !== 'string' || chunk.data_b64u.length === 0 || chunk.data_b64u.length > 5462 ||
-          !/^[A-Za-z0-9_-]+$/u.test(chunk.data_b64u)) return failure('invalid_input', 400);
-      return await postRole(router, 'ecdsa/transfer', { kind: 'import', chunk }, credential);
+      if (!Array.isArray(input.chunks) || input.chunks.length === 0 ||
+          input.chunks.length > TRANSFER_BATCH_SEGMENTS) return failure('invalid_input', 400);
+      const chunks: NonNullable<ReturnType<typeof parseChunk>>[] = [];
+      for (const raw of input.chunks) {
+        const chunk = parseChunk(raw, receipt);
+        const previous = chunks.at(-1);
+        if (!chunk || (previous && (chunk.segment_index !== previous.segment_index + 1 ||
+            chunk.segment_count !== previous.segment_count))) return failure('invalid_input', 400);
+        chunks.push(chunk);
+      }
+      let response: Response = failure('invalid_input', 400);
+      for (const chunk of chunks) {
+        response = await postRole(router, 'ecdsa/transfer', { kind: 'import', chunk }, credential);
+        if (!response.ok) return response;
+        const accepted: unknown = await response.clone().json();
+        if (!isPlainObject(accepted) || accepted.kind !== 'imported' ||
+            accepted.segment_index !== chunk.segment_index || typeof accepted.input_digest_hex !== 'string' ||
+            !/^[a-f0-9]{64}$/u.test(accepted.input_digest_hex)) return failure('source_receipt_unavailable', 503);
+      }
+      return response;
     }
     if (operation === 'cleanup') return await postRole(router, 'ecdsa/transfer', { kind: 'cleanup', activation: receipt }, credential);
     if (operation === 'status') return await postRole(router, 'ecdsa/transfer', { kind: 'status', receipt, chunk_bytes: 4096 }, credential);
@@ -90,6 +129,16 @@ export async function forwardEcdsaRelocation(
   } catch {
     return failure('source_command_unavailable', 503);
   }
+}
+
+function parseChunk(raw: unknown, receipt: NonNullable<ReturnType<typeof parseReceipt>>) {
+  if (!isPlainObject(raw) || Object.keys(raw).length !== 5 || !sameFields(raw.receipt, receipt) ||
+      raw.chunk_bytes !== 4096 || !safeCount(raw.segment_index) || !safeCount(raw.segment_count) ||
+      raw.segment_count === 0 || raw.segment_count > 4294967295 || raw.segment_index >= raw.segment_count ||
+      typeof raw.data_b64u !== 'string' || raw.data_b64u.length === 0 || raw.data_b64u.length > 5462 ||
+      !/^[A-Za-z0-9_-]+$/u.test(raw.data_b64u)) return null;
+  return { receipt, chunk_bytes: 4096, segment_index: raw.segment_index,
+    segment_count: raw.segment_count, data_b64u: raw.data_b64u };
 }
 
 function parseReceipt(raw: unknown, envelope: Envelope) {
