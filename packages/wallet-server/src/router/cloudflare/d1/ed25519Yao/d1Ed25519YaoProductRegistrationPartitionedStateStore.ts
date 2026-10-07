@@ -13,6 +13,8 @@ import {
 import type { VersionedJsonObject } from '../../../framework/versionedJsonRecordStore';
 import {
   createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1,
+  encodeRouterAbEd25519YaoProductRegistrationPartitionRecordV1,
+  ROUTER_AB_ED25519_YAO_SHARED_STATE_RECORD_KEY_V1,
   parseRouterAbEd25519YaoProductRegistrationPartitionRecordV1,
   parseRouterAbEd25519YaoProductRegistrationPartitionRecordJsonV1,
   type RouterAbEd25519YaoProductRegistrationPartitionRecordStoreV1,
@@ -27,11 +29,7 @@ export type RouterAbEd25519YaoProductRegistrationPartitionedStateD1OptionsV1 = O
 export function createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1(
   options: RouterAbEd25519YaoProductRegistrationPartitionedStateD1OptionsV1,
 ): RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1 {
-  const records = createCloudflareD1VersionedJsonRecordStore<VersionedJsonObject>({
-    ...options,
-    encode: identityVersionedJsonObject,
-    parse: parseRouterAbEd25519YaoProductRegistrationPartitionRecordJsonV1,
-  });
+  const records = createLifecycleRecords(options);
   const store = new D1LifecycleRecords(options, records);
   return createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1(store);
 }
@@ -76,7 +74,13 @@ class D1LifecycleRecords implements RouterAbEd25519YaoProductRegistrationPartiti
       if (after.kind === 'router_ab_ed25519_yao_product_registration_ceremony_record_v1') {
         if (changedWallets.size > 1) throw new Error('Ceremony wallet owner changed');
         for (const walletId of changedWallets) {
-          projections.push(activity.project(this.records.storageKey(mutation.key), walletId, ceremonySettled(after.value)));
+          projections.push(
+            activity.project(
+              this.records.storageKey(mutation.key),
+              walletId,
+              ceremonySettled(after.value),
+            ),
+          );
         }
       }
     }
@@ -98,4 +102,56 @@ function readPartition(value: VersionedJsonObject) {
   const record = parseRouterAbEd25519YaoProductRegistrationPartitionRecordV1(value);
   if (!record) throw new Error('Lifecycle mutation contains an invalid partition record');
   return record;
+}
+
+// Retire only this wallet's regional cache. Canonical signer records rehydrate it
+// after a later relocation, and unrelated wallets retain their shared state.
+export async function evictWalletEd25519CapabilityCache(
+  options: RouterAbEd25519YaoProductRegistrationPartitionedStateD1OptionsV1,
+  walletId: string,
+): Promise<void> {
+  const records = createLifecycleRecords(options);
+  const key = ROUTER_AB_ED25519_YAO_SHARED_STATE_RECORD_KEY_V1;
+  const current = await records.read(key);
+  if (current.kind !== 'present') return;
+  const partition = readPartition(current.value);
+  if (partition.kind !== 'router_ab_ed25519_yao_product_registration_shared_record_v1')
+    throw new Error('Capability cache has an invalid partition kind');
+  const capabilities = new Map(partition.value.recoveryCapabilities);
+  const identities = new Map(partition.value.recoveryIdentityCapabilities);
+  const removed = new Set<string>();
+  for (const [capabilityKey, capability] of capabilities) {
+    if (capability.identity.applicationBinding.wallet_id !== walletId) continue;
+    if (capability.kind === 'suspended')
+      throw new Error('Relocation cleanup cannot evict an unsettled capability');
+    capabilities.delete(capabilityKey);
+    removed.add(capabilityKey);
+  }
+  if (removed.size === 0) return;
+  for (const [identity, capabilityKey] of identities) {
+    if (removed.has(capabilityKey)) identities.delete(identity);
+  }
+  const value = encodeRouterAbEd25519YaoProductRegistrationPartitionRecordV1({
+    kind: 'router_ab_ed25519_yao_product_registration_shared_record_v1',
+    value: {
+      kind: partition.value.kind,
+      recoveryCapabilities: capabilities,
+      recoveryIdentityCapabilities: identities,
+      recoverySessions: partition.value.recoverySessions,
+      exportAuthorizationNonceOwners: partition.value.exportAuthorizationNonceOwners,
+      exportAuthorizationUncertainOwners: partition.value.exportAuthorizationUncertainOwners,
+    },
+  });
+  const result = await records.putMany([{ key, value, expectedVersion: current.version }]);
+  if (result.kind !== 'stored') throw new Error('Capability cache changed during cleanup');
+}
+
+function createLifecycleRecords(
+  options: RouterAbEd25519YaoProductRegistrationPartitionedStateD1OptionsV1,
+) {
+  return createCloudflareD1VersionedJsonRecordStore<VersionedJsonObject>({
+    ...options,
+    encode: identityVersionedJsonObject,
+    parse: parseRouterAbEd25519YaoProductRegistrationPartitionRecordJsonV1,
+  });
 }

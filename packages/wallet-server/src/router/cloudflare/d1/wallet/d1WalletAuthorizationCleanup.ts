@@ -1,3 +1,4 @@
+import { evictWalletEd25519CapabilityCache } from '../ed25519Yao/d1Ed25519YaoProductRegistrationPartitionedStateStore';
 import { parseNonNegativeSafeInteger } from '@shared/device-linking/wireFields';
 import { parseUnixMs } from '@shared/passkey-custody/primitives';
 import { requireCanonicalString, requireRecord } from '@shared/utils/validation';
@@ -149,6 +150,10 @@ export class D1WalletAuthorizationCleanup {
       await this.database.batch(statements);
       return { state: 'cleaning' };
     }
+    await evictWalletEd25519CapabilityCache(
+      { database: this.database, scope: this.scope },
+      source.walletId,
+    );
     await this.database.batch([
       prepareD1TenantStatement(
         this.database,
