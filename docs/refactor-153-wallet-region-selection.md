@@ -13,6 +13,10 @@ Worker version identities. Hosted APAC → US → APAC acceptance passed with fr
 unlock, both signing curves, source cleanup, and measured pause/refill/signing times.
 Broader load suitability, transferred-byte totals, and publication remain separate.
 
+Performance follow-up: [R153B](refactor-153B.md) replaces per-record transfer and
+scheduler-driven normal execution. The measured multi-minute pauses do not meet
+its 60-second pause-to-first-signature target.
+
 ## Implementation order and prerequisites
 
 Follow **R152 → R170/R171 → R153 → slim R154**.
