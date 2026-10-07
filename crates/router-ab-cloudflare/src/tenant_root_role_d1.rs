@@ -1,4 +1,5 @@
 mod bound_share;
+pub(crate) use bound_share::RootUseAccess;
 pub(crate) mod recovery;
 
 use core::{fmt, future::Future, pin::Pin};

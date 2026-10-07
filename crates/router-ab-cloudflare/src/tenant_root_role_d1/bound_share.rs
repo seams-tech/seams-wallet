@@ -1,6 +1,12 @@
 //! Bound-root admission and coherent share reads.
 use super::*;
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RootUseAccess {
+    Admit,
+    ReadAdmitted,
+}
+
 fn one_row<T: serde::de::DeserializeOwned, O: RoleSqlOutcomeV1>(
     result: Option<O>,
     label: &str,
@@ -48,6 +54,22 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         attempt: &TenantRootRootUseAttemptV1,
         admitted_at_ms: u64,
     ) -> RoleStoreResult<TenantRootBoundShareV1> {
+        self.load_bound_with_access(
+            custody_binding,
+            attempt,
+            admitted_at_ms,
+            RootUseAccess::Admit,
+        )
+        .await
+    }
+
+    pub(crate) async fn load_bound_with_access(
+        &self,
+        custody_binding: &TenantRootCustodyBindingV1,
+        attempt: &TenantRootRootUseAttemptV1,
+        admitted_at_ms: u64,
+        access: RootUseAccess,
+    ) -> RoleStoreResult<TenantRootBoundShareV1> {
         custody_binding
             .validate()
             .map_err(|error| store_error(error.message()))?;
@@ -55,27 +77,32 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         // below is a refusal, so the binding is not checked against it.
         #[cfg(feature = "workers-rs")]
         let initial_read_started_ms = worker::Date::now().as_millis();
-        let stored = self
-            .load_epoch_by_identity_digest(
-                custody_binding.identity_digest(),
-                custody_binding.custody_lineage(),
-                custody_binding.epoch(),
-            )
-            .await?;
+        let lifecycle_is_active = if access == RootUseAccess::Admit {
+            let stored = self
+                .load_epoch_by_identity_digest(
+                    custody_binding.identity_digest(),
+                    custody_binding.custody_lineage(),
+                    custody_binding.epoch(),
+                )
+                .await?;
+            let active = match stored.as_ref().map(|stored| stored.record().lifecycle()) {
+                Some(CloudflareTenantRootRoleShareLifecycleV1::Pending(_)) => {
+                    return Ok(TenantRootBoundShareV1::NotYetActive);
+                }
+                Some(CloudflareTenantRootRoleShareLifecycleV1::Active(_)) => true,
+                Some(CloudflareTenantRootRoleShareLifecycleV1::Retired(_)) | None => false,
+            };
+            if let Some(stored) = &stored {
+                self.verify_bound_row(stored, custody_binding)?;
+            }
+            active
+        } else {
+            false
+        };
         #[cfg(feature = "workers-rs")]
         let initial_read_ms = worker::Date::now()
             .as_millis()
             .saturating_sub(initial_read_started_ms);
-        let lifecycle_is_active = match stored.as_ref().map(|stored| stored.record().lifecycle()) {
-            Some(CloudflareTenantRootRoleShareLifecycleV1::Pending(_)) => {
-                return Ok(TenantRootBoundShareV1::NotYetActive);
-            }
-            Some(CloudflareTenantRootRoleShareLifecycleV1::Active(_)) => true,
-            Some(CloudflareTenantRootRoleShareLifecycleV1::Retired(_)) | None => false,
-        };
-        if let Some(stored) = &stored {
-            self.verify_bound_row(stored, custody_binding)?;
-        }
         let identity_digest_hex = encode_hex(custody_binding.identity_digest().as_bytes());
         let custody_lineage_b64u = custody_binding.custody_lineage().to_base64url();
         let binding_digest_hex = encode_hex(
@@ -164,8 +191,9 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                 "role": self.cipher.role.as_str(),
                 "attempt_kind": attempt_kind,
                 "attempt_key": attempt_key_hex,
-                "round_trips": 2,
-                "statements": expected_results + 1,
+                "access": if access == RootUseAccess::Admit { "admit" } else { "read_admitted" },
+                "round_trips": if access == RootUseAccess::Admit { 2 } else { 1 },
+                "statements": expected_results + usize::from(access == RootUseAccess::Admit),
                 "initial_read_and_open_ms": initial_read_ms,
                 "batch_ms": worker::Date::now().as_millis().saturating_sub(batch_started_ms),
             })
@@ -186,6 +214,9 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
             .results::<TenantRootRoleD1RowV1>()?;
         // Read the share and its admission in the same transaction. A refresh,
         // cancellation or erasure cannot interleave these observations.
+        if access == RootUseAccess::ReadAdmitted && admission.is_none() {
+            return Err(store_error("prepared root-use admission is missing"));
+        }
         match admission {
             Some(admission) => {
                 if admission.tenant_root_share_epoch.to_string() != epoch

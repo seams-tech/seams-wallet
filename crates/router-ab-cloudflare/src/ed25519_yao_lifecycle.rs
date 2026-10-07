@@ -1,3 +1,6 @@
+mod bound_root;
+use bound_root::load_ed25519_yao_tenant_root_role_share_v2;
+use crate::tenant_root_role_d1::RootUseAccess;
 use core::{fmt, future::Future, pin::Pin};
 use std::time::Duration;
 
@@ -61,7 +64,6 @@ use zeroize::{Zeroize, Zeroizing};
 use crate::ed25519_yao_websocket::WALLET_PAIR_SCOPE_HEADER;
 use crate::{
     decode_cloudflare_signer_envelope_hpke_private_key_secret_v1,
-    load_cloudflare_bound_tenant_root_role_share_v1,
     parse_cloudflare_signer_envelope_hpke_public_key_set_v1,
     parse_cloudflare_trace_id_from_request_v1, CloudflareDeriverAWorkerRuntimeV1,
     CloudflareDeriverBWalletPairScopeV1, CloudflareDeriverBWorkerRuntimeV1,
@@ -1577,6 +1579,7 @@ impl DeriverAYaoSessionD1V1 {
             &request.tenant_root,
             &request.pair_binding,
             None,
+            RootUseAccess::Admit,
         )
         .await
         .map_err(|error| worker::Error::RustError(error.to_string()))?;
@@ -2126,6 +2129,7 @@ impl DeriverBYaoSessionD1V1 {
             &request.tenant_root,
             &request.pair_binding,
             self.pair_object_name(),
+            RootUseAccess::Admit,
         )
         .await
         .map_err(|error| worker::Error::RustError(error.to_string()))?;
@@ -2723,6 +2727,7 @@ pub(crate) async fn prepare_deriver_a_pair_readiness_for_wallet_do_v1(
         &request.tenant_root,
         &request.pair_binding,
         Some(pair_object),
+        RootUseAccess::Admit,
     )
     .await?;
     drop(role_share);
@@ -3009,6 +3014,7 @@ where
             pair_execution.tenant_root,
             pair_execution.pair_binding,
             pair_execution.pair_object.clone(),
+            RootUseAccess::ReadAdmitted,
         ),
         connect_deriver_b(
             env,
@@ -3797,6 +3803,7 @@ async fn execute_deriver_b_role(
             &tenant_root,
             &pair_binding,
             pair_object,
+            RootUseAccess::ReadAdmitted,
         )
         .await?;
     validate_expected_root_metadata_digest(expected_root_metadata_digest, root_metadata_digest)?;
@@ -4607,73 +4614,6 @@ fn validate_expected_root_metadata_digest(
         ));
     }
     Ok(())
-}
-
-/// Reads this role's tenant-root share for one pair, admitting the pair's
-/// session. `pair_object` names the wallet object that holds this role's pair
-/// record, or is `None` when the record is in the role store; the admission
-/// is bound to it.
-async fn load_ed25519_yao_tenant_root_role_share_v2(
-    env: &Env,
-    worker_role: CloudflareWorkerRoleV1,
-    tenant_root: &crate::CloudflareEd25519YaoTenantRootContextV2,
-    pair_binding: &Ed25519YaoInputPairBindingV1,
-    pair_object: Option<String>,
-) -> RouterAbProtocolResult<(
-    TenantRootCustodyBindingV1,
-    VerifiedTenantRootOnlineRoleShareV1,
-    Ed25519YaoStableKeyDerivationContextV1,
-    [u8; 32],
-)> {
-    tenant_root.validate_for_pair(pair_binding)?;
-    let now_unix_ms =
-        cloudflare_yao_now_unix_ms().map_err(|_| invalid_lifecycle("Yao clock is unavailable"))?;
-    let custody_binding = tenant_root.custody_binding.authenticate_for_ed25519_yao_v1(
-        &CloudflareWorkerEnvReaderV1::new(env),
-        pair_binding,
-        &tenant_root.application,
-        tenant_root.participant_ids,
-        now_unix_ms,
-    )?;
-    if tenant_root
-        .identity
-        .digest()
-        .map_err(super::map_root_share_to_protocol)?
-        != custody_binding.identity_digest()
-    {
-        return Err(invalid_lifecycle(
-            "Yao root identity differs from authenticated custody",
-        ));
-    }
-    let role_share =
-        load_cloudflare_bound_tenant_root_role_share_v1(
-            env,
-            worker_role,
-            &custody_binding,
-            &crate::tenant_root_role_d1::TenantRootRootUseAttemptV1::Ed25519YaoPairSession {
-                session: pair_binding.session(),
-                pair_object,
-            },
-        )
-            .await?;
-    let root_metadata_digest = *role_share
-        .binding()
-        .digest()
-        .map_err(super::map_root_share_to_protocol)?
-        .as_bytes();
-    let stable_context =
-        stable_key_derivation_context_v1(&tenant_root.application, tenant_root.participant_ids)
-            .map_err(|error| {
-                invalid_lifecycle(format!(
-                    "Ed25519 Yao stable context construction failed: {error}"
-                ))
-            })?;
-    Ok((
-        custody_binding,
-        role_share,
-        stable_context,
-        root_metadata_digest,
-    ))
 }
 
 fn seal_ed25519_yao_target_proof_v2(

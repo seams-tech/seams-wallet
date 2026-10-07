@@ -22,7 +22,7 @@ const authHeader = 'x-router-ab-internal-service-auth';
 const executePath = '/router-ab/router/ed25519-yao/execute';
 const scenario = process.argv[2] ?? 'protocol-disconnect';
 assert.ok([
-  'protocol-disconnect', 'cancelled-root', 'connection-refused', 'invalid-acceptance', 'forged-acceptance',
+  'protocol-disconnect', 'cancelled-root', 'missing-admission', 'connection-refused', 'invalid-acceptance', 'forged-acceptance',
 ].includes(scenario), `Unknown scenario: ${scenario}`);
 const proxySource = `
 const evidence = {
@@ -106,12 +106,13 @@ class CaptureExecution {
   async fetch(request, topology) {
     if (new URL(request.url).pathname.endsWith('/execute-pair')) {
       this.request = await request.clone().json();
-      if (scenario === 'cancelled-root' && !this.cancelled) {
+      if ((scenario === 'cancelled-root' || scenario === 'missing-admission') && !this.cancelled) {
         const database = await topology.getD1Database('DERIVER_ROLE_PRIVATE_DB', 'deriver-a');
-        const result = await database.prepare(
-          "UPDATE tenant_root_root_use_admissions SET status = 'cancelled' WHERE attempt_kind = 'ed25519_yao_pair_session' AND status = 'admitted'",
-        ).run();
-        assert.equal(result.meta.changes, 1, 'Cancel exactly the prepared A admission');
+        const sql = scenario === 'missing-admission'
+          ? "DELETE FROM tenant_root_root_use_admissions WHERE attempt_kind = 'ed25519_yao_pair_session' AND status = 'admitted'"
+          : "UPDATE tenant_root_root_use_admissions SET status = 'cancelled' WHERE attempt_kind = 'ed25519_yao_pair_session' AND status = 'admitted'";
+        const result = await database.prepare(sql).run();
+        assert.equal(result.meta.changes, 1, 'Change exactly the prepared A admission');
         this.cancelled = true;
       }
     }
