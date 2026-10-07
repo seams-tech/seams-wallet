@@ -118,18 +118,24 @@ pub(crate) async fn reserve<Owner: WalletOwner>(
 ) -> worker::Result<Response> {
     let response = std::rc::Rc::new(std::cell::RefCell::new(None));
     let returned = std::rc::Rc::clone(&response);
-    storage
+    let committed = storage
         .transaction(move |_| async move {
             let outcome = reserve_destination(&sql, command)?;
-            if outcome.status_code() >= 400 {
+            let rejected = outcome.status_code() >= 400;
+            *returned.borrow_mut() = Some(outcome);
+            if rejected {
                 return Err(pair_error("Deriver destination preparation conflicts"));
             }
-            *returned.borrow_mut() = Some(outcome);
             Ok(())
         })
-        .await?;
+        .await;
     let result = response.borrow_mut().take();
-    result.ok_or_else(|| pair_error("Deriver preparation returned no response"))
+    match (committed, result) {
+        (Ok(()), Some(outcome)) => Ok(outcome),
+        (Err(_), Some(outcome)) if outcome.status_code() >= 400 => Ok(outcome),
+        (Err(error), _) => Err(error),
+        (Ok(()), None) => Err(pair_error("Deriver preparation returned no response")),
+    }
 }
 
 fn reserve_destination<Owner: WalletOwner>(
