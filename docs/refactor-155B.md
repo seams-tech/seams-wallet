@@ -2311,7 +2311,9 @@ remains open until a fresh-wallet hosted comparison measures the deployed change
 
 ## Phase 6B — Remove NEAR custody setup overhead
 
-Status: planned on October 7, 2026. Implementation and measured gains remain open.
+Status: A validation consolidation and B execution in the wallet DO are implemented.
+Release builds and custody E2E pass. Hosted acceptance remains open while R153
+uses the shared staging deployment. The two-second setup target remains unmet.
 This phase owns the unresolved setup work from Phase 6A. Do not duplicate its
 placement or warm-object experiments without new evidence.
 
@@ -2369,17 +2371,17 @@ Keep the existing A/B trust separation and WebSocket transport over private serv
 Implementation sites: `ed25519_yao_lifecycle.rs`,
 `durable_object/deriver_a_pair.rs`, and existing runtime configuration parsers.
 
-- [ ] Replace the repeated readiness verification between `execute_work` and
+- [x] Replace the repeated readiness verification between `execute_work` and
   `execute_deriver_a_role` with one validated execution context. Keep construction
   private to the existing boundary validation path. Core execution requires that context.
-- [ ] Retain independent verification at separate Worker/DO trust boundaries.
+- [x] Retain independent verification at separate Worker/DO trust boundaries.
   Keep current ownership, expiry, root metadata, and lifecycle checks at transitions.
-- [ ] Identify repeated immutable key/configuration parsing inside the same invocation.
+- [x] Identify repeated immutable key/configuration parsing inside the same invocation.
   Reuse the parsed values there. Use instance-level reuse only where configuration
   lifetime and rotation behavior are explicit. Do not cache authorization or plaintext root shares globally.
 - [ ] Profile the same release WASM locally before proposing further cryptographic
   changes. Separate receipt verification, encryption/decryption, serialization, and Yao computation.
-- [ ] Verify malformed or changed receipts fail before reservation or protocol output.
+- [x] Verify malformed or changed receipts fail before reservation or protocol output.
   Use existing custody E2E scenarios and compiler-enforced construction boundaries.
 
 Exit: duplicated internal verification is removed. Provider CPU and hosted setup
@@ -2389,7 +2391,7 @@ measurements show the effect. No parallel raw/validated execution path remains.
 
 Implementation site: `tenant_root_role_d1/bound_share.rs` and its existing SQL definitions.
 
-- [ ] Inventory every pre-read check in `load_bound`. Map each check to authenticated
+- [x] Inventory every pre-read check in `load_bound`. Map each check to authenticated
   request data, an atomic SQL predicate, or verification of the coherent returned row.
 - [ ] Use the existing `RoleSqlSessionV1::batch` to combine conditional admission and
   result reads where this preserves the initial authenticated-row guarantee.
@@ -2397,10 +2399,10 @@ Implementation site: `tenant_root_role_d1/bound_share.rs` and its existing SQL d
   Preserve active-root uniqueness and the rules for an already-admitted retired epoch.
 - [ ] Reject cancelled, expired, erased, or conflicting attempts. An invalid binding
   must never create an effective root-use admission, including when later parsing fails.
-- [ ] Remove the preliminary remote read only after the combined transaction enforces
+- [x] Remove the preliminary remote read only after the combined transaction enforces
   those conditions. If the encrypted-row checks cannot move safely, keep two trips
   and record that limit. Do not weaken authorization to reach a call-count target.
-- [ ] Extend the existing custody E2E for admission racing retirement/cancellation,
+- [x] Run the existing custody E2E for admission racing retirement/cancellation,
   conflicting retries, and erased-share rejection. Save repeatable evidence.
 - [ ] Measure trips and statements separately. Target four total trips across the
   four successful loads. SQL statement count is not itself a network round-trip count.
@@ -2413,19 +2415,19 @@ and latency. Delete superseded loader paths in the same change.
 Implementation sites: `durable_object/deriver_b_pair.rs`,
 `ed25519_yao_lifecycle.rs`, `ed25519_yao_websocket.rs`, and their current session engine.
 
-- [ ] Route B's authenticated pair WebSocket to its existing generation-specific wallet DO.
+- [x] Route B's authenticated pair WebSocket to its existing generation-specific wallet DO.
   Preserve the wallet home supplied by authenticated custody admission.
-- [ ] Run B's protocol in that object. Perform begin and complete through the existing
+- [x] Run B's protocol in that object. Perform begin and complete through the existing
   local state engine. Remove Worker-to-DO serialization of the prepared execution payload.
-- [ ] Persist the winning execution claim before protocol output. Persist completion
+- [x] Persist the winning execution claim before protocol output. Persist completion
   before sending the existing sealed completion response. Keep the readiness exchange.
-- [ ] Preserve per-pair serialization without locking the whole object across peer network waits.
+- [x] Preserve per-pair serialization without locking the whole object across peer network waits.
   Competing execution, cancellation, and relocation must observe the same state machine.
-- [ ] Keep deferred work bound to the exact wallet, home, ownership generation, pair,
+- [x] Keep deferred work bound to the exact wallet, home, ownership generation, pair,
   root epoch, and execution identity. Preserve its ownership accounting for R153.
 - [ ] Verify peer disconnect, lost completion reply, exact retry, conflicting execution,
   object eviction, cancellation, and relocation/retirement races with existing custody E2E.
-- [ ] Delete the replaced Worker protocol runner and unused begin/complete transport
+- [x] Delete the replaced Worker protocol runner and unused begin/complete transport
   adapters. Retain status, cancellation, and reconciliation entrypoints that still have callers.
   Add no feature switch, compatibility runner, or shared A/B object.
 
@@ -2443,7 +2445,7 @@ Start this proposal only if repeated root work remains material after 6B.1–6B.
   before use. Keep a fresh authority check where the current state machine requires one.
 - [ ] Reuse verified material inside that admitted operation where safe. Exact retry
   and eviction recovery must use the durable record. Memory presence grants no authority.
-- [ ] Avoid adding another persisted secret copy solely for latency. If reuse needs
+- [x] Avoid adding another persisted secret copy solely for latency. If reuse needs
   a new invalidation system or broad cache, defer it and report the remaining cost.
 - [ ] Measure the change independently. Delete the replaced repeated-work path only
   after successful replay and invalidation E2E coverage.
@@ -2465,14 +2467,94 @@ It must not block delivery of the first three changes.
   counts, and payload sizes where available. Mark missing telemetry as unavailable.
 - [ ] Verify unlock, prepared signing, and three consecutive signatures still work.
   Keep funding, provisioning, browser automation, and chain confirmation separate from setup.
-- [ ] Reuse existing E2E for concurrent wallets and the lifecycle races above. Add no unit
+- [x] Reuse existing E2E for concurrent wallets and the lifecycle races above. Add no unit
   or source-text test suite. Run relevant builds, type checks, and the bloat check.
 - [ ] Use existing staging resources within the **$25 total Cloudflare budget**.
   Restore exact versions and changed settings after each diagnostic comparison, including failure.
-- [ ] Commit completed changes separately on `dev`. Remove obsolete helpers, symbols,
+- [x] Commit completed changes separately on `dev`. Remove obsolete helpers, symbols,
   and branches before closing the phase. Preserve concurrent edits.
 - [ ] Record measured improvements and rejected candidates. Mark the two-second target
   met only with supporting hosted evidence. If it remains unmet, name the measured dominant cost.
 
 Production rollout, npm publication, relocation redesign, and cryptographic protocol
 replacement are outside this phase. No saving from these proposals is claimed yet.
+
+
+### Phase 6B implementation record — 2026-10-07
+
+Custody implementation is committed on `dev` as
+`2ee2b6960e04ebfcc67085eb33d741ca1b8e5282`.
+The hosted comparison remains pending. No latency reduction is claimed for this
+candidate before that comparison.
+
+A now verifies its two readiness receipts once within the execute invocation.
+Previously, the boundary, reserve, protocol, and claim paths each verified them.
+The new private validated context removes six repeated signature verifications.
+Reservation and claim reuse the parsed runtime and pair cipher. Their expiry,
+identity, ownership, and state-transition checks remain. The claim still verifies
+B's signed start acceptance. Exact completed retries retain their early replay path.
+The obsolete serialized reserve and claim commands were deleted.
+
+B's authenticated WebSocket now terminates in the existing wallet DO. Its begin,
+complete, and failure transitions call the existing local state engine. The
+protocol no longer sends the prepared execution payload back to a separate Worker.
+The state engine still serializes a local response; no claim is made that all JSON
+copies are removed. A and B remain separate roles and separate wallet objects.
+The existing role-store build remains supported; no runtime compatibility flag was added.
+
+B persists the execution claim before protocol output. It persists completion
+before the sealed completion response. DO-owned deferred execution retains the
+exact home, ownership generation, root identity, pair, and execution identity.
+Relocation and cancellation fences still guard its state transitions.
+
+**Database decision:** retain the current two-trip loader. The preliminary read
+opens an encrypted record and verifies its role commitment and activation binding.
+Those authenticated fields are absent from the SQL projection used by admission.
+A single batch cannot establish that guarantee before its write with the current
+schema. This resolves 6B.2 through its explicit safe fallback. The subsystem still
+uses four loads, eight round trips, and twenty statements per successful pair.
+
+| Loader check | Existing enforcement | Decision |
+| --- | --- | --- |
+| Identity, lineage, epoch and role | Exact SQL selection plus authenticated decrypted row | Retain both checks |
+| Role share commitment and activation binding | `verify_bound_row` checks decrypted state against the custody binding | Keep the preliminary read before admission |
+| Active lifecycle at admission | Conditional SQL insert | Retain atomic predicate |
+| Attempt, epoch, receipt and physical object | Coherent admission result and returned row | Retain conflict rejection |
+| Cancellation, retirement, erasure and active uniqueness | Coherent batch result plus lifecycle resolution | Retain current rejection and replay rules |
+
+**Conditional material reuse:** deferred under 6B.4. Reusing plaintext across
+preparation and execution would need an additional invalidation contract for
+cancellation, relocation fencing, retirement and eviction. No global root cache,
+extra secret copy, environment variable, resource, warm pool or keepalive was added.
+
+The four-region placement scenario passes for US, WEUR, APAC and OC. It injects a
+forged readiness signature before valid execution, discards a completed Router
+reply, and requires exact replay. B has one WebSocket invocation and zero separate
+remote begin/complete exchanges. Lost-reply and admission-settlement scenarios also
+pass, including object eviction, cancellation, retirement and lost acknowledgement.
+These local results prove behavior and request structure, not physical placement
+or hosted latency. The first failed launch was a Miniflare request-adapter error;
+the adapter now uses the supported URL/init form.
+
+Fine-grained cryptographic CPU profiling remains unmeasured. No cryptographic
+algorithm or protocol was changed. Provider CPU and whole-request timers must be
+used for hosted comparisons; application clock subtraction remains unsuitable.
+
+The listed local scenarios cover lost replies, conflicting execution, eviction,
+cancellation, and relocation/retirement races. A dedicated mid-protocol WebSocket
+disconnect scenario has not been run for this candidate.
+
+All five final release builds pass. The frozen Rust sources and build scripts
+match the implementation commit. The final execution scenario verifies two
+wallets, concurrent execution, exact replay after eviction, root-version stability,
+cross-wallet rejection, relocation snapshot/import/activation, and a fresh
+signature after return. The admission-race and replay-after-erasure scenarios pass.
+The bloat check passes. No live resources or deployments changed in this implementation run.
+
+[Repeatable local evidence and commands](evidence/near-custody-setup-optimization-20261007.json).
+The bounded hosted runner is prepared in the private repository at
+`.artifacts/r155b-phase6b-hosted/run.py`. It freezes browser assets and the harness,
+compares control → A-only → A-and-B → restored control, and restores the exact
+starting versions on success or failure. It must run after the R153 deployment
+window is released. Fine-grained CPU profiling and hosted acceptance remain open;
+the local checks do not establish a speedup or the two-second target.

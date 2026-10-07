@@ -1,0 +1,904 @@
+{
+  "candidateCommit": "2ee2b6960e04ebfcc67085eb33d741ca1b8e5282",
+  "localE2E": {
+    "regionalPlacement": {
+      "kind": "authenticated_wallet_home_placement_e2e_v1",
+      "regions": [
+        {
+          "home": "US",
+          "roleObjects": {
+            "router": {
+              "objectId": "4492c4e322d3c5295184a7a0ac6d824fbaff97e4776bf7d6bf0612f5ccbed79e",
+              "calls": 2,
+              "hint": "enam"
+            },
+            "deriver_a": {
+              "objectId": "cbc42e539329113e4fc8180a0955718aa694058aaf297200c39560afb72eb3ec",
+              "calls": 4,
+              "hint": "enam"
+            },
+            "deriver_b": {
+              "objectId": "539e8ffa5d967892cd52aae2b4fec633ee4c3f01708373c35db986b6de71fc37",
+              "calls": 3,
+              "hint": "enam"
+            },
+            "signing_worker": {
+              "objectId": "32248dea68c63a6f386b9362e9397ea13b5ece90229b315cee808ad62de849e8",
+              "calls": 1,
+              "hint": "enam"
+            }
+          },
+          "firstStatusLookups": [
+            {
+              "role": "deriver_a",
+              "generation": 1,
+              "firstStatus": "missing"
+            },
+            {
+              "role": "deriver_b",
+              "generation": 1,
+              "firstStatus": "missing"
+            }
+          ],
+          "invalidHomeRejectedBeforePlacement": true,
+          "unauthorizedHomeRejected": true,
+          "callerHomeOverwritten": true,
+          "completedReplyLossReplayedExactly": true,
+          "replayRanNoAdditionalCustody": true,
+          "forgedReadinessRejectedBeforeValidExecution": true,
+          "bProtocolRunsInWalletObject": true,
+          "bRemoteBeginAndCompleteCalls": 0
+        },
+        {
+          "home": "WEUR",
+          "roleObjects": {
+            "router": {
+              "objectId": "4492c4e322d3c5295184a7a0ac6d824fbaff97e4776bf7d6bf0612f5ccbed79e",
+              "calls": 2,
+              "hint": "weur"
+            },
+            "deriver_a": {
+              "objectId": "cbc42e539329113e4fc8180a0955718aa694058aaf297200c39560afb72eb3ec",
+              "calls": 4,
+              "hint": "weur"
+            },
+            "deriver_b": {
+              "objectId": "539e8ffa5d967892cd52aae2b4fec633ee4c3f01708373c35db986b6de71fc37",
+              "calls": 3,
+              "hint": "weur"
+            },
+            "signing_worker": {
+              "objectId": "32248dea68c63a6f386b9362e9397ea13b5ece90229b315cee808ad62de849e8",
+              "calls": 1,
+              "hint": "weur"
+            }
+          },
+          "firstStatusLookups": [
+            {
+              "role": "deriver_a",
+              "generation": 1,
+              "firstStatus": "missing"
+            },
+            {
+              "role": "deriver_b",
+              "generation": 1,
+              "firstStatus": "missing"
+            }
+          ],
+          "invalidHomeRejectedBeforePlacement": true,
+          "unauthorizedHomeRejected": true,
+          "callerHomeOverwritten": true,
+          "completedReplyLossReplayedExactly": true,
+          "replayRanNoAdditionalCustody": true,
+          "forgedReadinessRejectedBeforeValidExecution": true,
+          "bProtocolRunsInWalletObject": true,
+          "bRemoteBeginAndCompleteCalls": 0
+        },
+        {
+          "home": "APAC",
+          "roleObjects": {
+            "router": {
+              "objectId": "4492c4e322d3c5295184a7a0ac6d824fbaff97e4776bf7d6bf0612f5ccbed79e",
+              "calls": 2,
+              "hint": "apac"
+            },
+            "deriver_a": {
+              "objectId": "cbc42e539329113e4fc8180a0955718aa694058aaf297200c39560afb72eb3ec",
+              "calls": 4,
+              "hint": "apac"
+            },
+            "deriver_b": {
+              "objectId": "539e8ffa5d967892cd52aae2b4fec633ee4c3f01708373c35db986b6de71fc37",
+              "calls": 3,
+              "hint": "apac"
+            },
+            "signing_worker": {
+              "objectId": "32248dea68c63a6f386b9362e9397ea13b5ece90229b315cee808ad62de849e8",
+              "calls": 1,
+              "hint": "apac"
+            }
+          },
+          "firstStatusLookups": [
+            {
+              "role": "deriver_a",
+              "generation": 1,
+              "firstStatus": "missing"
+            },
+            {
+              "role": "deriver_b",
+              "generation": 1,
+              "firstStatus": "missing"
+            }
+          ],
+          "invalidHomeRejectedBeforePlacement": true,
+          "unauthorizedHomeRejected": true,
+          "callerHomeOverwritten": true,
+          "completedReplyLossReplayedExactly": true,
+          "replayRanNoAdditionalCustody": true,
+          "forgedReadinessRejectedBeforeValidExecution": true,
+          "bProtocolRunsInWalletObject": true,
+          "bRemoteBeginAndCompleteCalls": 0
+        },
+        {
+          "home": "OC",
+          "roleObjects": {
+            "router": {
+              "objectId": "4492c4e322d3c5295184a7a0ac6d824fbaff97e4776bf7d6bf0612f5ccbed79e",
+              "calls": 2,
+              "hint": "oc"
+            },
+            "deriver_a": {
+              "objectId": "cbc42e539329113e4fc8180a0955718aa694058aaf297200c39560afb72eb3ec",
+              "calls": 4,
+              "hint": "oc"
+            },
+            "deriver_b": {
+              "objectId": "539e8ffa5d967892cd52aae2b4fec633ee4c3f01708373c35db986b6de71fc37",
+              "calls": 3,
+              "hint": "oc"
+            },
+            "signing_worker": {
+              "objectId": "32248dea68c63a6f386b9362e9397ea13b5ece90229b315cee808ad62de849e8",
+              "calls": 1,
+              "hint": "oc"
+            }
+          },
+          "firstStatusLookups": [
+            {
+              "role": "deriver_a",
+              "generation": 1,
+              "firstStatus": "missing"
+            },
+            {
+              "role": "deriver_b",
+              "generation": 1,
+              "firstStatus": "missing"
+            }
+          ],
+          "invalidHomeRejectedBeforePlacement": true,
+          "unauthorizedHomeRejected": true,
+          "callerHomeOverwritten": true,
+          "completedReplyLossReplayedExactly": true,
+          "replayRanNoAdditionalCustody": true,
+          "forgedReadinessRejectedBeforeValidExecution": true,
+          "bProtocolRunsInWalletObject": true,
+          "bRemoteBeginAndCompleteCalls": 0
+        }
+      ],
+      "limitation": "Local Workers verify the requested hints and real custody lifecycle. They do not prove physical Cloudflare locations or hosted latency gains.",
+      "reproduce": "ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/wallet-home-placement-evidence.mjs"
+    },
+    "lostReply": {
+      "kind": "deriver_a_wallet_do_lost_reply_e2e_v1",
+      "reproduce": "ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --do-pair-lost-reply",
+      "outcomeSha256Hex": "3b1db590dc1a7a1b0b526e2226ce65dd4ed710a334708074579920e998fea442",
+      "aD1PairRows": 0,
+      "bPairLifecycle": "completed",
+      "bExecutionUnchangedOnReplay": true,
+      "bOfflineDuringRouterReplay": true,
+      "routerScopedReplayStayedPendingWithoutActivation": true,
+      "wrongTenantRootAndExecutionCancellationLeftStateUnchanged": true,
+      "exactReplayAfterLostReplyAndEviction": true
+    },
+    "admissionSettlement": {
+      "kind": "tenant_root_wallet_object_admission_workers_e2e_v1",
+      "fence": {
+        "admissionsWhileHeld": [
+          [
+            [
+              1,
+              "admitted",
+              true
+            ]
+          ],
+          [
+            [
+              1,
+              "admitted",
+              true
+            ]
+          ]
+        ],
+        "deriverBRetired": [
+          "retired_deleted",
+          1
+        ],
+        "objectsAfterRetirement": {
+          "deriverA": "fenced",
+          "deriverB": "fenced"
+        },
+        "heldRegistration": [
+          200,
+          "{\"status\":\"recoverable_failure\",\"code\":\"service_unavailable\",\"retry_after_ms\":1000}"
+        ],
+        "deriverARetired": [
+          "retired_deleted",
+          1
+        ],
+        "freshRegistration": "succeeded",
+        "admissionsAfter": [
+          [
+            [
+              1,
+              "cancelled",
+              true
+            ],
+            [
+              2,
+              "settled",
+              true
+            ]
+          ],
+          [
+            [
+              1,
+              "cancelled",
+              true
+            ],
+            [
+              2,
+              "settled",
+              true
+            ]
+          ]
+        ]
+      },
+      "lostAcknowledgement": {
+        "admissionsAfterRevert": [
+          [
+            [
+              1,
+              "admitted",
+              true
+            ]
+          ],
+          [
+            [
+              1,
+              "admitted",
+              true
+            ]
+          ]
+        ],
+        "retired": [
+          [
+            "retired_deleted",
+            0
+          ],
+          [
+            "retired_deleted",
+            0
+          ]
+        ],
+        "admissionsAfterReconciliation": [
+          [
+            [
+              1,
+              "settled",
+              true
+            ]
+          ],
+          [
+            [
+              1,
+              "settled",
+              true
+            ]
+          ]
+        ],
+        "objectReports": [
+          "completed",
+          "completed"
+        ]
+      }
+    },
+    "executionAndRelocation": {
+      "kind": "deriver_a_wallet_do_execution_e2e_v1",
+      "deriverSourceFences": {
+        "scope": "Terminal pair stores, destination activation, and resumable cleanup; tenant-root settlement and assembled relocation are not covered",
+        "receipts": [
+          {
+            "fence": {
+              "kind": "settled_fence",
+              "request": {
+                "cipher_context_digest_hex": "c20af6e3a0996cb84fd52c89902d872c5778b72043c04eaeab8f663ccf407261",
+                "destination_generation": 2,
+                "move_id": "wmove_ddddddddddddddddddddddddddddddddddddddddddd",
+                "owner": {
+                  "env_id": "test",
+                  "org_id": "org-miniflare-second",
+                  "project_id": "project-r120-second",
+                  "wallet_id": "second-tenant-ed25519-account"
+                },
+                "request_digest_hex": "adadadadadadadadadadadadadadadadadadadadadadadadadadadadadadadad",
+                "source_generation": 1
+              },
+              "source_object": "deriver-a-wallet-5696ef60bc7df789506f64acbf639ac747abbf1a3efbf7074aaf2b3bb87bf7aa"
+            },
+            "snapshot": {
+              "imported": {
+                "verified": {
+                  "kind": "verified",
+                  "receipt": {
+                    "digest_hex": "a06c5fd29aa9bc9e79d0a41886c5254f2734b7e37e05684107b667f61c1c7b57",
+                    "record_count": 2,
+                    "segment_count": 9,
+                    "source": {
+                      "cipher_context_digest_hex": "c20af6e3a0996cb84fd52c89902d872c5778b72043c04eaeab8f663ccf407261",
+                      "destination_generation": 2,
+                      "move_id": "wmove_ddddddddddddddddddddddddddddddddddddddddddd",
+                      "owner": {
+                        "env_id": "test",
+                        "org_id": "org-miniflare-second",
+                        "project_id": "project-r120-second",
+                        "wallet_id": "second-tenant-ed25519-account"
+                      },
+                      "request_digest_hex": "adadadadadadadadadadadadadadadadadadadadadadadadadadadadadadadad",
+                      "source_generation": 1
+                    },
+                    "source_object": "deriver-a-wallet-5696ef60bc7df789506f64acbf639ac747abbf1a3efbf7074aaf2b3bb87bf7aa"
+                  }
+                },
+                "activation": {
+                  "receipt": {
+                    "destination_object": "deriver-a-wallet-5696ef60bc7df789506f64acbf639ac747abbf1a3efbf7074aaf2b3bb87bf7aa",
+                    "source": {
+                      "digest_hex": "a06c5fd29aa9bc9e79d0a41886c5254f2734b7e37e05684107b667f61c1c7b57",
+                      "record_count": 2,
+                      "segment_count": 9,
+                      "source": {
+                        "cipher_context_digest_hex": "c20af6e3a0996cb84fd52c89902d872c5778b72043c04eaeab8f663ccf407261",
+                        "destination_generation": 2,
+                        "move_id": "wmove_ddddddddddddddddddddddddddddddddddddddddddd",
+                        "owner": {
+                          "env_id": "test",
+                          "org_id": "org-miniflare-second",
+                          "project_id": "project-r120-second",
+                          "wallet_id": "second-tenant-ed25519-account"
+                        },
+                        "request_digest_hex": "adadadadadadadadadadadadadadadadadadadadadadadadadadadadadadadad",
+                        "source_generation": 1
+                      },
+                      "source_object": "deriver-a-wallet-5696ef60bc7df789506f64acbf639ac747abbf1a3efbf7074aaf2b3bb87bf7aa"
+                    }
+                  },
+                  "cleanupCommands": 4,
+                  "lostActivationReplyRecovered": true,
+                  "preparationReplayPreservesActivation": true,
+                  "lateImportPreservesActivation": true,
+                  "cleanupResumesAfterEviction": true,
+                  "sourceRemainsFenced": true,
+                  "destinationWritableAfterCleanup": true,
+                  "freshReturnObjectId": "46d2c8125791b4491f94f31d23bac1ee20221ea582b8508555889ffdf94cf4df",
+                  "delayedCleanupPreservesReturnReservation": true,
+                  "ordinaryLookupUsesDestinationGeneration": true,
+                  "staleGenerationCannotReadDestination": true
+                },
+                "exactAcknowledgementsAfterRestart": true,
+                "corruptedCiphertextRollsBack": true,
+                "finalDigestFailureRollsBack": true,
+                "incompleteAndOutOfOrderRejected": true,
+                "ordinaryReadersMatchSource": true,
+                "destinationInactiveUntilActivation": true,
+                "destinationCommandsUseAuthorizedRuntime": true
+              },
+              "receipt": {
+                "digest_hex": "a06c5fd29aa9bc9e79d0a41886c5254f2734b7e37e05684107b667f61c1c7b57",
+                "record_count": 2,
+                "segment_count": 9,
+                "source": {
+                  "cipher_context_digest_hex": "c20af6e3a0996cb84fd52c89902d872c5778b72043c04eaeab8f663ccf407261",
+                  "destination_generation": 2,
+                  "move_id": "wmove_ddddddddddddddddddddddddddddddddddddddddddd",
+                  "owner": {
+                    "env_id": "test",
+                    "org_id": "org-miniflare-second",
+                    "project_id": "project-r120-second",
+                    "wallet_id": "second-tenant-ed25519-account"
+                  },
+                  "request_digest_hex": "adadadadadadadadadadadadadadadadadadadadadadadadadadadadadadadad",
+                  "source_generation": 1
+                },
+                "source_object": "deriver-a-wallet-5696ef60bc7df789506f64acbf639ac747abbf1a3efbf7074aaf2b3bb87bf7aa"
+              },
+              "captureCalls": 11,
+              "restartDuringCapture": true,
+              "sealedReplayAfterRestart": true,
+              "boundedSegments": true,
+              "reconstructedDigestMatches": true,
+              "conflictingMoveRejected": true,
+              "admissionFenceHistoryPreserved": true,
+              "journalReceiptReplyRecovered": true,
+              "sourceCommandsUseAuthorizedRuntime": true
+            }
+          },
+          {
+            "fence": {
+              "kind": "settled_fence",
+              "request": {
+                "cipher_context_digest_hex": "efd1bdc7e1f3857e9c703c0a9062db187cb6bee5ae7580836e2517da1a3a467f",
+                "destination_generation": 2,
+                "move_id": "wmove_ddddddddddddddddddddddddddddddddddddddddddd",
+                "owner": {
+                  "env_id": "test",
+                  "org_id": "org-miniflare-second",
+                  "project_id": "project-r120-second",
+                  "wallet_id": "second-tenant-ed25519-account"
+                },
+                "request_digest_hex": "adadadadadadadadadadadadadadadadadadadadadadadadadadadadadadadad",
+                "source_generation": 1
+              },
+              "source_object": "deriver-b-wallet-5e373dd34aa6097e98987e083158b7796bb301a21a1b919c7310e43c536fc340"
+            },
+            "snapshot": {
+              "imported": {
+                "verified": {
+                  "kind": "verified",
+                  "receipt": {
+                    "digest_hex": "78b0b6e415a777eefcbe9a2e66ec437c4f5d45ccd1732dc65123fddaa9ddd1c0",
+                    "record_count": 2,
+                    "segment_count": 3,
+                    "source": {
+                      "cipher_context_digest_hex": "efd1bdc7e1f3857e9c703c0a9062db187cb6bee5ae7580836e2517da1a3a467f",
+                      "destination_generation": 2,
+                      "move_id": "wmove_ddddddddddddddddddddddddddddddddddddddddddd",
+                      "owner": {
+                        "env_id": "test",
+                        "org_id": "org-miniflare-second",
+                        "project_id": "project-r120-second",
+                        "wallet_id": "second-tenant-ed25519-account"
+                      },
+                      "request_digest_hex": "adadadadadadadadadadadadadadadadadadadadadadadadadadadadadadadad",
+                      "source_generation": 1
+                    },
+                    "source_object": "deriver-b-wallet-5e373dd34aa6097e98987e083158b7796bb301a21a1b919c7310e43c536fc340"
+                  }
+                },
+                "activation": {
+                  "receipt": {
+                    "destination_object": "deriver-b-wallet-5e373dd34aa6097e98987e083158b7796bb301a21a1b919c7310e43c536fc340",
+                    "source": {
+                      "digest_hex": "78b0b6e415a777eefcbe9a2e66ec437c4f5d45ccd1732dc65123fddaa9ddd1c0",
+                      "record_count": 2,
+                      "segment_count": 3,
+                      "source": {
+                        "cipher_context_digest_hex": "efd1bdc7e1f3857e9c703c0a9062db187cb6bee5ae7580836e2517da1a3a467f",
+                        "destination_generation": 2,
+                        "move_id": "wmove_ddddddddddddddddddddddddddddddddddddddddddd",
+                        "owner": {
+                          "env_id": "test",
+                          "org_id": "org-miniflare-second",
+                          "project_id": "project-r120-second",
+                          "wallet_id": "second-tenant-ed25519-account"
+                        },
+                        "request_digest_hex": "adadadadadadadadadadadadadadadadadadadadadadadadadadadadadadadad",
+                        "source_generation": 1
+                      },
+                      "source_object": "deriver-b-wallet-5e373dd34aa6097e98987e083158b7796bb301a21a1b919c7310e43c536fc340"
+                    }
+                  },
+                  "cleanupCommands": 4,
+                  "lostActivationReplyRecovered": true,
+                  "preparationReplayPreservesActivation": true,
+                  "lateImportPreservesActivation": true,
+                  "cleanupResumesAfterEviction": true,
+                  "sourceRemainsFenced": true,
+                  "destinationWritableAfterCleanup": true,
+                  "freshReturnObjectId": "e37fcd216678c8bbcfabdb8710cdcb86320d70dff98922f3e300d7b1667636ee",
+                  "delayedCleanupPreservesReturnReservation": true,
+                  "ordinaryLookupUsesDestinationGeneration": true,
+                  "staleGenerationCannotReadDestination": true
+                },
+                "exactAcknowledgementsAfterRestart": true,
+                "corruptedCiphertextRollsBack": true,
+                "finalDigestFailureRollsBack": true,
+                "incompleteAndOutOfOrderRejected": true,
+                "ordinaryReadersMatchSource": true,
+                "destinationInactiveUntilActivation": true,
+                "destinationCommandsUseAuthorizedRuntime": true
+              },
+              "receipt": {
+                "digest_hex": "78b0b6e415a777eefcbe9a2e66ec437c4f5d45ccd1732dc65123fddaa9ddd1c0",
+                "record_count": 2,
+                "segment_count": 3,
+                "source": {
+                  "cipher_context_digest_hex": "efd1bdc7e1f3857e9c703c0a9062db187cb6bee5ae7580836e2517da1a3a467f",
+                  "destination_generation": 2,
+                  "move_id": "wmove_ddddddddddddddddddddddddddddddddddddddddddd",
+                  "owner": {
+                    "env_id": "test",
+                    "org_id": "org-miniflare-second",
+                    "project_id": "project-r120-second",
+                    "wallet_id": "second-tenant-ed25519-account"
+                  },
+                  "request_digest_hex": "adadadadadadadadadadadadadadadadadadadadadadadadadadadadadadadad",
+                  "source_generation": 1
+                },
+                "source_object": "deriver-b-wallet-5e373dd34aa6097e98987e083158b7796bb301a21a1b919c7310e43c536fc340"
+              },
+              "captureCalls": 5,
+              "restartDuringCapture": true,
+              "sealedReplayAfterRestart": true,
+              "boundedSegments": true,
+              "reconstructedDigestMatches": true,
+              "conflictingMoveRejected": true,
+              "admissionFenceHistoryPreserved": true,
+              "journalReceiptReplyRecovered": true,
+              "sourceCommandsUseAuthorizedRuntime": true
+            }
+          }
+        ],
+        "livePairsDeferFence": true,
+        "settlementRemainsOpenUntilFence": true,
+        "runtimeRequiresDirectoryAuthorization": true,
+        "deniedOrCorruptCommandsDoNotReachFence": true,
+        "exactReplayAfterEviction": true,
+        "conflictingMoveRejected": true,
+        "ordinaryMutationRejected": true
+      },
+      "deriverPreparation": {
+        "deriverA": {
+          "kind": "prepared",
+          "request": {
+            "owner": {
+              "org_id": "org-miniflare-second",
+              "project_id": "project-r120-second",
+              "env_id": "test",
+              "wallet_id": "second-tenant-ed25519-account"
+            },
+            "move_id": "wmove_ddddddddddddddddddddddddddddddddddddddddddd",
+            "request_digest_hex": "adadadadadadadadadadadadadadadadadadadadadadadadadadadadadadadad",
+            "cipher_context_digest_hex": "c20af6e3a0996cb84fd52c89902d872c5778b72043c04eaeab8f663ccf407261",
+            "source_generation": 1,
+            "destination_generation": 2
+          },
+          "destination_object": "deriver-a-wallet-5696ef60bc7df789506f64acbf639ac747abbf1a3efbf7074aaf2b3bb87bf7aa"
+        },
+        "deriverB": {
+          "kind": "prepared",
+          "request": {
+            "owner": {
+              "org_id": "org-miniflare-second",
+              "project_id": "project-r120-second",
+              "env_id": "test",
+              "wallet_id": "second-tenant-ed25519-account"
+            },
+            "move_id": "wmove_ddddddddddddddddddddddddddddddddddddddddddd",
+            "request_digest_hex": "adadadadadadadadadadadadadadadadadadadadadadadadadadadadadadadad",
+            "cipher_context_digest_hex": "efd1bdc7e1f3857e9c703c0a9062db187cb6bee5ae7580836e2517da1a3a467f",
+            "source_generation": 1,
+            "destination_generation": 2
+          },
+          "destination_object": "deriver-b-wallet-5e373dd34aa6097e98987e083158b7796bb301a21a1b919c7310e43c536fc340"
+        },
+        "physicalObjects": {
+          "deriverA": {
+            "source": "c567a377992c4acf719b3b0690300074f5cba1b1a7970570413407ceecf7f250",
+            "destination": "c8c8bf190af7c679840f77c33e6ff91a2c650cc42eb6ea6352115dab43928db8"
+          },
+          "deriverB": {
+            "source": "cf0da4b5930a7245f67be5da99b3f049cd3bf5264f52446c0ea01fae73331dda",
+            "destination": "e94cb95612fde33a2e26bdc6a3e823cbb0b9227f2a34b0e4ae4da4ce7ca70ac7"
+          }
+        },
+        "sourceAndDestinationShareNamespace": true,
+        "privateRuntimePreparation": true,
+        "cipherContextsCheckedBeforeReservation": true,
+        "mismatchedPrivateKeyRejected": true,
+        "changedEncryptionEnvironmentRejected": true,
+        "freshDestinationReservedInSourceNamespace": true,
+        "wrongCredentialsRejected": true,
+        "exactReplayAfterEviction": true,
+        "changedDigestsRejected": true,
+        "ordinaryPairWritesRejected": true,
+        "reconciliationWriteRejected": true,
+        "destinationsRemainEmpty": true
+      },
+      "ed25519Snapshot": {
+        "routerExport": {
+          "recordCount": 1,
+          "chunkCount": 6,
+          "exactReplay": true,
+          "storedReceiptMatchesExport": true,
+          "destinationVerifiedThroughRuntime": true,
+          "destinationActivatedThroughRuntime": true,
+          "activationReceiptLostReplyRecovered": true,
+          "sourceCleanupPreservesDestinationActivation": true,
+          "destinationPreparedBeforeSourceFinalizationAndFreeze": true,
+          "activatedObjectMatchesPreparedObject": true,
+          "sourceDigestHex": "cb432151f3ba180f3d92f4707e19846e31aedffbc49c65b4970642ce60419e7e"
+        },
+        "restoration": {
+          "returned": {
+            "ownershipGeneration": 3,
+            "registrationAndTerminalHistoryRestored": true,
+            "oldCleanupReplayPreservesReturnedWallet": true,
+            "signatureSha256Hex": "7429b702cf33ad09a255da260f1591f355de5b0efc2003283b3507fb75042617",
+            "freshSignatureVerified": true
+          },
+          "cleanup": {
+            "calls": 3,
+            "resumesAfterEviction": true,
+            "exactCompletionReplay": true,
+            "changedReceiptRejected": true,
+            "sourceRegistrationCannotReopen": true,
+            "commandsUseJournalActivation": true,
+            "cleanedSnapshotUnavailable": true
+          },
+          "signatureSha256Hex": "98d4599d92949827935fcceacdcdb1aabfa8cbfe37aec2ff040ea2e52d2fd793",
+          "freshSignatureVerified": true,
+          "staleGenerationRejected": true,
+          "prepareReplayAfterEviction": true,
+          "preparationDoesNotRequireFutureInvalidationTime": true,
+          "firstReceiptPinsInvalidationTime": true,
+          "finalizeReplayAfterEviction": true,
+          "newTerminalIncludedInNextSnapshot": true,
+          "destinationPreparedBeforeSourceSettlement": true,
+          "initialRegistrationWriteBlockedDuringPreparation": true,
+          "historicalRegistrationReplayPreserved": true,
+          "incompleteAndOutOfOrderImportsRejected": true,
+          "finalDigestFailureRollsBackImportProgress": true,
+          "exactAcknowledgementsAfterEviction": true,
+          "transferResumesFromDestinationCursor": true,
+          "sourceCommandsUseAuthenticatedRouterTransport": true,
+          "sourceCommandsUsePrivateRuntimeTransport": true,
+          "sourceCommandsRequireDirectoryAuthorization": true,
+          "routerReceiptLostAcknowledgementRetries": true,
+          "deniedOrCorruptAuthorizationDoesNotReachRouter": true,
+          "exactCiphertextAndIndexesRestored": true,
+          "ownershipGeneration": 2,
+          "activationReplayPreservesLaterFence": true,
+          "lateKnownChunkPreservesRestoredRows": true
+        },
+        "recordCount": 1,
+        "segmentCount": 4,
+        "snapshotDigestHex": "888200892c7619863e184ce6e37a977c0f1e044ec8b8bb98a28e8ec0ff86dee6",
+        "captureCalls": 5,
+        "settlementRequired": true,
+        "boundedSegments": true,
+        "captureAndExportResumeAfterEviction": true,
+        "sourceReceiptLostReplyRecovered": true,
+        "activationReceiptLostReplyRecovered": true,
+        "transferUsesJournalAuthorizedRuntime": true,
+        "exactDigestReconstructed": true,
+        "changedMoveAndReceiptRejected": true,
+        "bothCurvesPreparedInSameDestinationBeforeSourceSettlement": true,
+        "sharedNamespaceGenerationRouting": true,
+        "bothPreparationReceiptsSurviveEviction": true,
+        "scope": "Worker registration transfer and fresh Ed25519 signing; excludes linked-device transfer and assembled relocation"
+      },
+      "reproduce": "ROUTER_AB_WORKER_BUILD_PROFILE=release node ./scripts/test-private-d1.mjs --do-pair-execution",
+      "registeredPublicKey": [
+        245,
+        151,
+        110,
+        172,
+        59,
+        199,
+        147,
+        49,
+        50,
+        193,
+        179,
+        64,
+        140,
+        147,
+        197,
+        208,
+        13,
+        163,
+        117,
+        247,
+        34,
+        110,
+        193,
+        87,
+        207,
+        80,
+        32,
+        9,
+        46,
+        85,
+        93,
+        210
+      ],
+      "outcomeSha256Hex": "54d2c71834ed5961faed32d1059fef5807b3053b769b6630c3081f7b70002dd2",
+      "aD1PairRows": 0,
+      "bPairLifecycle": "completed",
+      "bExecutionUnchangedOnReplay": true,
+      "aPairRevisionAfterConcurrentCalls": 4,
+      "replayAfterObjectEviction": true,
+      "exactReplayAfterBCompleted": true,
+      "stableOwnerDerivationAcrossRootVersions": true,
+      "crossTenantAndWalletReadsRejected": true,
+      "secondTenantRegistrationUsedSeparateWalletObject": true,
+      "mismatchedRootReceiptRejectedWithoutWrite": true
+    },
+    "admissionRaces": {
+      "kind": "tenant_root_admission_race_workers_e2e_v1",
+      "unusedBinding": {
+        "heldBefore": "deriver_a_prepare_pair",
+        "refreshStatus": 200,
+        "deriverAPreparationStatus": 503,
+        "deriverAPreparationBody": "{\"status\":\"recoverable_failure\",\"code\":\"service_unavailable\",\"retry_after_ms\":1000}",
+        "registrationStatus": 200,
+        "registrationBody": "{\"status\":\"recoverable_failure\",\"code\":\"service_unavailable\",\"retry_after_ms\":1000}",
+        "admissionsAfterRefusal": {
+          "deriverA": [],
+          "deriverB": [
+            1
+          ]
+        },
+        "freshRegistration": "succeeded",
+        "admissionsAfterFresh": {
+          "deriverA": [
+            2
+          ],
+          "deriverB": [
+            1,
+            2
+          ]
+        },
+        "statusesAfterFresh": {
+          "deriverA": [
+            [
+              2,
+              "settled"
+            ]
+          ],
+          "deriverB": [
+            [
+              1,
+              "admitted"
+            ],
+            [
+              2,
+              "settled"
+            ]
+          ]
+        },
+        "deriverAEpochOneRetirement": [
+          200,
+          "retired_deleted"
+        ],
+        "deriverBEpochOneRetirement": [
+          503,
+          "LifecycleTransitionInProgress: retirement of epoch 1 is pending here: 1 admitted operation(s) are not settled"
+        ]
+      },
+      "deliveryGate": {
+        "fault": "deriver_b_unreachable_for_refresh_activation",
+        "refreshStatus": 500,
+        "deliveryAfterRefresh": {
+          "deriverA": "delivered",
+          "deriverB": "pending"
+        },
+        "registrationWhilePendingStatus": 503,
+        "admissionsWhilePending": {
+          "deriverA": [],
+          "deriverB": []
+        },
+        "registrationAfterReachable": "succeeded",
+        "deliveryAfter": {
+          "deriverA": "delivered",
+          "deriverB": "delivered"
+        },
+        "admissionsAfter": {
+          "deriverA": [
+            2
+          ],
+          "deriverB": [
+            2
+          ]
+        },
+        "statusesAfter": {
+          "deriverA": [
+            [
+              2,
+              "settled"
+            ]
+          ],
+          "deriverB": [
+            [
+              2,
+              "settled"
+            ]
+          ]
+        }
+      }
+    },
+    "replayAfterErasure": {
+      "kind": "tenant_root_replay_after_erasure_workers_e2e_v1",
+      "build": "wallet_objects",
+      "registration": "succeeded on epoch 1",
+      "retired": [
+        [
+          "retired_deleted",
+          0
+        ],
+        [
+          "retired_deleted",
+          0
+        ]
+      ],
+      "epochOneShares": [
+        0,
+        0
+      ],
+      "routerReplay": [
+        200,
+        "original result"
+      ],
+      "deriverAExecuteReplay": [
+        200,
+        "stored response"
+      ],
+      "changedExecute": [
+        503,
+        "{\"status\":\"recoverable_failure\",\"code\":\"service_unavailable\",\"retry_after_ms\":1000}"
+      ],
+      "admissionsAfter": [
+        [
+          [
+            1,
+            "settled"
+          ]
+        ],
+        [
+          [
+            1,
+            "settled"
+          ]
+        ]
+      ]
+    }
+  },
+  "hostedStatus": "pending exclusive staging window",
+  "databaseDecision": {
+    "roundTripsPerBoundRootLoad": 2,
+    "roundTripsPerPair": 8,
+    "sqlStatementsPerPair": 20,
+    "reason": "The decrypted row supplies the role commitment and authenticated activation metadata. SQL admission cannot verify those fields before writing without additional persistence design."
+  },
+  "preparedMaterialReuse": "Deferred; no broad cache or additional invalidation system added",
+  "verification": {
+    "releaseWorkers": [
+      "router",
+      "deriver-a",
+      "deriver-b",
+      "signing-worker",
+      "tenant-root-control-plane"
+    ],
+    "bloatCheck": "passed",
+    "newResources": 0,
+    "deploymentsChanged": false
+  },
+  "commands": [
+    "ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/wallet-home-placement-evidence.mjs",
+    "ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --do-pair-execution",
+    "ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --do-pair-lost-reply",
+    "ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --do-admission-settlement",
+    "ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --admission-races",
+    "ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --replay-after-erasure"
+  ]
+}
