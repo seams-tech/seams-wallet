@@ -2645,3 +2645,59 @@ does not delay the request's completion. This change still relies on durable
 completion and existing reconciliation if a background acknowledgement is lost.
 The background update uses the same role database and exact physical object name.
 It cannot authorize new work or change another generation's admission.
+
+### Phase 6C result — 2026-10-07
+
+Implementation commit: `ace09a0249433304eff94ad41c3283e8edacdaca`.
+All five release roles build. Five local E2E scenarios pass: four-region placement
+with exact-object settlement, interrupted protocol, lost reply, admission
+reconciliation, and concurrent execution with eviction and relocation.
+The regional cases use generation one. Existing relocation cases exercise later
+object generations, but this change adds no fresh custody ceremony after relocation.
+
+| Setup HTTP request | Median | Minimum–maximum |
+| --- | ---: | ---: |
+| Phase 6B control before | 6.540 s | 5.898–7.294 s |
+| Background-settlement candidate | **5.898 s** | **5.583–6.626 s** |
+| Phase 6B control after | 5.950 s | 5.834–6.283 s |
+
+The candidate median was 642 ms below the preceding control and 52 ms below the
+following control. All ranges overlap. **A stable latency gain is not established.**
+The earlier 4.929 s result remains a separate historical cohort. Do not describe
+this run as a measured regression from that historical sample or a new 4.9 s guarantee.
+The two-second target remains unmet.
+
+All nine wallets completed and **63 signatures verified**. Bound-root work remains
+four loads, eight D1 trips, and twenty statements per pair. Warm and consecutive
+signing still use four browser Gateway requests per signature. Background settlement
+keeps the two acknowledgement writes; it changes response dependencies.
+
+A DO CPU/wall medians were 582/2,429 ms before, 597/2,058 ms for the candidate,
+and 561/2,330 ms after. B DO CPU/wall medians were 423/1,262 ms, 558/1,324 ms,
+and 336/1,284 ms respectively. Candidate invocation wall time can include background
+settlement after the response. These figures cannot isolate transport savings.
+
+The candidate SDK signing medians were 2.531 s warm, 2.366 s after unlock, and
+2.088 s per consecutive signature. These figures exclude blockchain confirmation.
+They do not establish a general signing improvement. All arm ranges and workflow
+measurements are in [the evidence](evidence/near-custody-background-settlement-20261007.json).
+The runner restored all thirteen tracked deployments. No new resources or keepalive
+traffic were introduced. The exact source comparison found only the two intended Rust changes.
+
+### Next optimization: overlap independent setup work
+
+A currently finishes its root read and proof preparation before connecting to B.
+B then loads its root. Investigate overlap between A's root load and B's connection
+and root preparation. Keep the existing reads, signatures, expiry checks, and durable claims.
+
+- Await both started operations. Do not abandon a peer connection when the local read fails.
+- If either operation fails, close any opened socket and preserve the existing pair burn/reconciliation path.
+- Confirm B's acceptance and A's durable claim before A sends protocol material.
+- Verify cancellation during root loading, connection failure, conflicting execution,
+  and exact retry through E2E before hosted comparison.
+- Compare this independently against the accepted candidate. Do not combine a cache,
+  database schema redesign, or cryptographic algorithm change into this experiment.
+
+Also retain Router claim/finish dispatch as a separate measurement target. Those
+remote object calls remain on registration's response path. Their individual
+contribution is not yet established by the available provider traces.
