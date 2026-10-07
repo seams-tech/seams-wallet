@@ -1721,9 +1721,24 @@ Implementation checkpoint: Deriver A/B context replies now resolve the physical
 object ID through the deployed namespace binding. Admission compares source and
 destination IDs before reservation and rejects a collision. The journal stores
 both IDs and binds them into preparation evidence. The Console admission E2E
-covers this rejection and confirms that the source stays active. This is partial
-preflight work. Account/namespace locators, fresh destination routing, and the
-shared-namespace hosted move remain unfinished.
+covers this rejection and confirms that the source stays active.
+
+Deriver A/B now select physical objects by ownership generation. Generation one
+keeps its existing physical name. Each later generation receives a fresh name.
+Logical encryption identities stay unchanged. Preparation, normal execution,
+status, callbacks, transfer, and shared-root references use the same routing.
+Historical registration replay uses the current authorized generation. Stored
+generation-one records receive missing routing metadata only after authenticated
+decryption at the persistence boundary. Retained sources remain fenced.
+
+The composed Worker E2E uses one namespace for both regional bindings. It checks
+source-to-generation-two transfer, activation, ordinary destination reads, source
+write rejection, and cleanup retries. It also reserves a fresh generation-three
+return target and checks that delayed cleanup cannot change it. A full return
+transfer remains part of hosted acceptance.
+
+SigningWorker and presign/session generation routing, account/namespace locators,
+regional placement, and the shared-namespace hosted move remain unfinished.
 
 - [ ] **Define and persist the target set.** Extend the existing placement and
   participant records with typed source and destination locators. Cover Router,

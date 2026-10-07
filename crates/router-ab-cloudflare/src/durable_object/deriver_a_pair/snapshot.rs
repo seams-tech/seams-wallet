@@ -67,7 +67,8 @@ pub(super) fn decode_pair(
         .ok_or_else(|| pair_error("Deriver A pair revision is invalid"))?;
     let identity = format!("{}:{session_hex}", owner.object_name()?);
     let opened = cipher.open(&identity, &row.ciphertext_json)?;
-    let record: PairRecord = serde_json::from_str(&opened.record_json)
+    let record_json = crate::ed25519_yao_lifecycle::role_d1::migrate_wallet_generation(&opened.record_json)?;
+    let record: PairRecord = serde_json::from_str(&record_json)
         .map_err(|error| pair_error(format!("Deriver A pair record is malformed: {error}")))?;
     let pair = record.pair_binding();
     owner.check_pair(pair)?;

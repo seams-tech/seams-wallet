@@ -4288,6 +4288,7 @@ async function deriverBPairStatus(topology, rootIdentity, pairBinding) {
   const deriverB = await topology.getWorker('deriver-b');
   const bytes = await expectOk(
     await postWorkerJson(deriverB, deriverBPairStatusPath, {
+      ownership_generation: 1,
       root_identity: rootIdentity,
       pair_binding: pairBinding,
     }),
@@ -4469,7 +4470,7 @@ async function testDeriverAWalletDoExecution(
     deriverSourceFences,
     deriverPreparation,
     ed25519Snapshot,
-    reproduce: 'ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --do-pair-execution',
+    reproduce: `ROUTER_AB_WORKER_BUILD_PROFILE=${workerBuildProfile} node ./scripts/test-private-d1.mjs --do-pair-execution`,
     registeredPublicKey: activation.publicReceipt.registered_public_key,
     outcomeSha256Hex: createHash('sha256').update(JSON.stringify(firstResponse)).digest('hex'),
     aD1PairRows: aRows.count,
@@ -4836,6 +4837,7 @@ async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, data
   });
   assert.equal(stored.body.record.status, 'completed');
   const scopedLookup = {
+    ownership_generation: 1,
     root_identity: rootIdentity,
     pair_binding: capturedDeriverAExecution.request.pair_binding,
   };
@@ -5543,6 +5545,17 @@ async function testConcurrentActivationAndLostResponse(fixture, delivery) {
   }
 }
 
+function deriverRelocationDestination(worker, binding) {
+  return {
+    ...worker,
+    name: `${worker.name}-relocation-destination`,
+    durableObjects: {
+      ...worker.durableObjects,
+      [binding]: { ...worker.durableObjects[binding], scriptName: worker.name },
+    },
+  };
+}
+
 async function main() {
   const fixture = loadFixture();
   const jwtSigner = configureRouterJwt(fixture);
@@ -5562,8 +5575,8 @@ async function main() {
       ),
       deriverAWorker(fixture),
       ...(testWalletDoExecution ? [
-        { ...deriverAWorker(fixture), name: 'deriver-a-relocation-destination' },
-        { ...deriverBWorker(fixture), name: 'deriver-b-relocation-destination' },
+        deriverRelocationDestination(deriverAWorker(fixture), deriverAWalletDoBinding),
+        deriverRelocationDestination(deriverBWorker(fixture), 'DERIVER_B_WALLET_DO'),
         deriverAWithRelocationCipherFault(fixture, 'wrong-key'),
         deriverAWithRelocationCipherFault(fixture, 'wrong-environment'),
       ] : []),

@@ -56,7 +56,10 @@ struct DeriverBWalletOwnerV1 {
 pub(crate) fn deriver_b_wallet_object_name_v1(
     scope: &CloudflareDeriverBWalletPairScopeV1,
 ) -> worker::Result<String> {
-    DeriverBWalletOwnerV1::from_scope(scope)?.object_name()
+    relocation::WalletOwner::physical_object_name(
+        &DeriverBWalletOwnerV1::from_scope(scope)?,
+        scope.ownership_generation,
+    )
 }
 
 impl DeriverBWalletOwnerV1 {
@@ -104,9 +107,8 @@ pub(crate) async fn call_deriver_b_wallet_do_v1(
     env: &Env,
     request: DeriverBWalletDoRequestV1,
 ) -> worker::Result<Response> {
-    let owner = DeriverBWalletOwnerV1::from_scope(&request.scope)?;
     let namespace = env.durable_object(BINDING)?;
-    let stub = namespace.get_by_name(&owner.object_name()?)?;
+    let stub = namespace.get_by_name(&deriver_b_wallet_object_name_v1(&request.scope)?)?;
     let body = serde_json::to_string(&request).map_err(pair_error)?;
     let mut init = worker::RequestInit::new();
     init.with_method(worker::Method::Post)
@@ -418,7 +420,7 @@ impl relocation::WalletOwner for DeriverBWalletOwnerV1 {
 }
 
 pub(crate) async fn call_preparation(request: Request, env: &Env) -> worker::Result<Response> {
-    relocation::call_preparation::<DeriverBWalletOwnerV1>(request, env, BINDING, PREPARATION_PATH).await
+    relocation::call_preparation::<DeriverBWalletOwnerV1>(request, env, BINDING, PREPARATION_PATH, relocation::PreparationTarget::Destination).await
 }
 
 pub(crate) async fn read_relocation_context(request: Request, env: &Env) -> worker::Result<Response> {
@@ -426,7 +428,7 @@ pub(crate) async fn read_relocation_context(request: Request, env: &Env) -> work
 }
 
 pub(crate) async fn call_source_fence(request: Request, env: &Env) -> worker::Result<Response> {
-    relocation::call_preparation::<DeriverBWalletOwnerV1>(request, env, BINDING, SOURCE_FENCE_PATH).await
+    relocation::call_preparation::<DeriverBWalletOwnerV1>(request, env, BINDING, SOURCE_FENCE_PATH, relocation::PreparationTarget::Source).await
 }
 
 pub(crate) async fn call_snapshot(request: Request, env: &Env) -> worker::Result<Response> {

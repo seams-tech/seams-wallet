@@ -158,7 +158,15 @@ pub(crate) async fn forward<Owner: WalletOwner>(
         return Response::error("Deriver encryption context differs from source", 409);
     }
     let namespace = env.durable_object(binding)?;
-    let stub = namespace.get_by_name(&command.source().owner.object_name()?)?;
+    let generation = match &command {
+        Command::Capture { .. } | Command::Export { .. } | Command::Cleanup { .. } => {
+            command.source().source_generation
+        }
+        Command::Import { .. } | Command::Status { .. } | Command::Verify { .. } | Command::Activate { .. } => {
+            command.source().destination_generation
+        }
+    };
+    let stub = namespace.get_by_name(&command.source().owner.physical_object_name(generation)?)?;
     let body = encode(&command)?;
     let forwarded = Request::new_with_init(
         &format!("https://router-ab-do.internal{path}"),
@@ -173,11 +181,6 @@ fn execute_source<Owner: WalletOwner>(
     sql: &SqlStorage,
     command: Command<Owner>,
 ) -> worker::Result<Response> {
-    if let Command::Cleanup { activation } = &command {
-        if cleanup::completed(sql, activation)? {
-            return Response::from_json(&serde_json::json!({"kind": "cleaned", "receipt": activation}));
-        }
-    }
     let source_json = encode(command.source())?;
     let rows = sql
         .exec(

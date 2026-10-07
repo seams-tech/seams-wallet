@@ -1582,6 +1582,7 @@ impl router_ab_cloudflare::TenantRootControlPlaneHostV1 for LocalTenantRootContr
 /// the published role verifying keys, as on Cloudflare.
 #[allow(clippy::too_many_arguments)]
 pub fn resolve_local_router_tenant_root_context_v1(
+    ownership_generation: u64,
     config: &LocalRouterTenantRootConfigV1,
     identity: &router_ab_core::TenantRootIdentityV1,
     coordinates: &router_ab_cloudflare::CloudflareTenantRootCoordinatesV1,
@@ -1607,6 +1608,7 @@ pub fn resolve_local_router_tenant_root_context_v1(
     let derivers =
         parse_cloudflare_tenant_root_creation_role_verifying_keys_v1(&config.env)?.deriver_identities()?;
     router_ab_cloudflare::cloudflare_ed25519_yao_tenant_root_context_v2(
+        ownership_generation,
         identity.clone(),
         receipt,
         derivers,

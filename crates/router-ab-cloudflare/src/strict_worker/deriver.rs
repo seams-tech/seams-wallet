@@ -770,6 +770,7 @@ async fn handle_strict_deriver_fetch_v1(
         return crate::durable_object::call_deriver_a_wallet_do_lookup_v1(
             &env,
             crate::durable_object::deriver_a_wallet_do_status_work_path_v1(),
+            lookup.ownership_generation,
             &lookup.root_identity,
             &lookup.pair_binding,
             &lookup,
@@ -789,6 +790,7 @@ async fn handle_strict_deriver_fetch_v1(
         return crate::durable_object::call_deriver_a_wallet_do_lookup_v1(
             &env,
             crate::durable_object::deriver_a_wallet_do_burn_work_path_v1(),
+            lookup.ownership_generation,
             &lookup.root_identity,
             &lookup.pair_binding,
             &lookup,

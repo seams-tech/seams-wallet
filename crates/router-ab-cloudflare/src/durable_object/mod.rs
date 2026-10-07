@@ -52,7 +52,7 @@ pub use deriver_a_pair::RouterAbDeriverAWalletDurableObject;
     any(feature = "strict-worker-deriver-a-entrypoint", test)
 ))]
 pub(crate) use deriver_a_pair::{
-    call_deriver_a_pair_do_v1, call_preparation as prepare_deriver_a_wallet_relocation,
+    call_preparation as prepare_deriver_a_wallet_relocation,
     read_relocation_context as read_deriver_a_relocation_context,
     call_source_fence as fence_deriver_a_wallet_source,
     call_snapshot as snapshot_deriver_a_wallet_source,

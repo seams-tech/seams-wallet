@@ -16,6 +16,15 @@ pub(crate) trait WalletOwner: Serialize + DeserializeOwned + Clone + 'static {
     fn parts(&self) -> [&str; 4];
     fn cipher(env: &Env) -> worker::Result<RolePairCipherV1>;
     fn object_name(&self) -> worker::Result<String>;
+    fn physical_object_name(&self, generation: u64) -> worker::Result<String> {
+        crate::wallet_object::physical_wallet_object_name(&self.object_name()?, generation)
+            .map_err(|error| pair_error(error.to_string()))
+    }
+}
+
+pub(crate) enum PreparationTarget {
+    Source,
+    Destination,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -81,6 +90,7 @@ pub(crate) async fn call_preparation<Owner: WalletOwner>(
     env: &Env,
     binding: &str,
     path: &str,
+    target: PreparationTarget,
 ) -> worker::Result<Response> {
     if request.method() != Method::Post {
         return Response::error("Deriver relocation preparation requires POST", 405);
@@ -100,7 +110,11 @@ pub(crate) async fn call_preparation<Owner: WalletOwner>(
         return Response::error("Deriver encryption context differs from source", 409);
     }
     let namespace = env.durable_object(binding)?;
-    let stub = namespace.get_by_name(&command.owner.object_name()?)?;
+    let generation = match target {
+        PreparationTarget::Source => command.source_generation,
+        PreparationTarget::Destination => command.destination_generation,
+    };
+    let stub = namespace.get_by_name(&command.owner.physical_object_name(generation)?)?;
     let body = serde_json::to_string(&command).map_err(|error| pair_error(error.to_string()))?;
     let forwarded = Request::new_with_init(
         &format!("https://router-ab-do.internal{path}"),
@@ -142,7 +156,6 @@ fn reserve_destination<Owner: WalletOwner>(
     sql: &SqlStorage,
     command: Preparation<Owner>,
 ) -> worker::Result<Response> {
-    snapshot::cleanup::prepare_return(sql, &command)?;
     if snapshot::import::activated_preparation(sql, &command)? {
         return Response::from_json(&Receipt { kind: "prepared", destination_object: command.owner.object_name()?, request: command });
     }
@@ -204,16 +217,17 @@ fn pair_error(message: impl Into<String>) -> worker::Error {
 }
 
 #[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct ContextRequest<Owner> {
-    owner: Owner,
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+enum ContextRequest<Owner> {
+    Cipher,
+    Wallet { owner: Owner, ownership_generation: u64 },
 }
 
 #[derive(Serialize)]
-struct CipherContext {
-    kind: &'static str,
-    digest_hex: String,
-    object_id: String,
+#[serde(tag = "kind", rename_all = "snake_case")]
+enum CipherContext {
+    DeriverCipherContext { digest_hex: String },
+    DeriverWalletContext { digest_hex: String, object_id: String },
 }
 
 pub(crate) async fn read_context<Owner: WalletOwner>(
@@ -234,12 +248,16 @@ pub(crate) async fn read_context<Owner: WalletOwner>(
             Ok(command) => command,
             Err(error) => return crate::router_coordinator::protocol_error_response(error),
         };
-    Response::from_json(&CipherContext {
-        kind: "deriver_cipher_context",
-        digest_hex: Owner::cipher(env)?.relocation_context_digest()?,
-        object_id: env.durable_object(binding)?
-            .id_from_name(&context.owner.object_name()?)?.to_string(),
-    })
+    let digest_hex = Owner::cipher(env)?.relocation_context_digest()?;
+    let response = match context {
+        ContextRequest::Cipher => CipherContext::DeriverCipherContext { digest_hex },
+        ContextRequest::Wallet { owner, ownership_generation } => {
+            let object_id = env.durable_object(binding)?
+                .id_from_name(&owner.physical_object_name(ownership_generation)?)?.to_string();
+            CipherContext::DeriverWalletContext { digest_hex, object_id }
+        }
+    };
+    Response::from_json(&response)
 }
 
 #[derive(Deserialize)]

@@ -374,6 +374,27 @@ impl RolePairCipherV1 {
     }
 }
 
+// Generation-one records predate physical routing metadata. Normalize only after
+// authenticated decryption; wire requests must supply their admitted generation.
+pub(crate) fn migrate_wallet_generation(encoded: &str) -> worker::Result<String> {
+    let mut record: serde_json::Value = serde_json::from_str(encoded)
+        .map_err(|error| role_d1_error(format!("role-private record is malformed: {error}")))?;
+    let mut changed = false;
+    for path in ["/tenant_root", "/payload/tenant_root"] {
+        if let Some(context) = record.pointer_mut(path).and_then(serde_json::Value::as_object_mut) {
+            if !context.contains_key("ownership_generation") {
+                context.insert("ownership_generation".to_owned(), serde_json::json!(1));
+                changed = true;
+            }
+        }
+    }
+    if !changed {
+        return Ok(encoded.to_owned());
+    }
+    serde_json::to_string(&record)
+        .map_err(|error| role_d1_error(format!("role-private record migration failed: {error}")))
+}
+
 fn required_env_var(env: &Env, name: &'static str) -> worker::Result<String> {
     let value = env
         .var(name)
@@ -617,11 +638,11 @@ impl RolePairD1StorageV1 {
             .map(|row| {
                 self.cipher
                     .open(&self.record_identity, &row.ciphertext_json)
-                    .map(|opened| CachedPairV1 {
-                        record_json: opened.record_json,
+                    .and_then(|opened| Ok(CachedPairV1 {
+                        record_json: migrate_wallet_generation(&opened.record_json)?,
                         revision: row.revision,
                         scope: opened.scope,
-                    })
+                    }))
             })
             .transpose()?;
         self.cached.replace(Some(row.clone()));

@@ -76,6 +76,7 @@ const ROUTER_AUTHORITY_TTL_MS: u64 = 60_000;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareRouterEd25519YaoLaneExecuteRequestV2 {
+    pub ownership_generation: u64,
     pub tenant_root: CloudflareRouterEd25519YaoTenantRootV1,
     pub application: RouterAbEd25519YaoApplicationBindingFactsV1,
     pub participant_ids: [u16; 2],
@@ -84,6 +85,7 @@ pub struct CloudflareRouterEd25519YaoLaneExecuteRequestV2 {
 
 impl CloudflareRouterEd25519YaoLaneExecuteRequestV2 {
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
+        crate::router_wallet::validate_wallet_ownership_generation(self.ownership_generation)?;
         self.target.validate()?;
         self.tenant_root.resolve()?;
         validate_source_preserving_participant_ids_v1(self.participant_ids)?;
@@ -231,6 +233,7 @@ pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
     if let Err(error) = gateway_envelope.validate() {
         return protocol_error_response(error);
     }
+    let ownership_generation = gateway_envelope.target.ownership_generation();
     if let Some(admission) = crate::RouterWalletRequestV1::settlement_admission(&gateway_envelope) {
         match crate::durable_object::call_router_wallet_v1(env, &admission).await {
             Ok(crate::RouterWalletResponseV1::SettlementAdmitted) => {}
@@ -329,6 +332,7 @@ pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
     if replay && execute_request.operation() == Ed25519YaoOperationV1::Registration {
         let result = execute_historical_registration_replay_v1(
             env,
+            ownership_generation,
             &runtime,
             &execute_request,
             &tenant_root,
@@ -342,6 +346,7 @@ pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
     }
     let tenant_root = match resolve_ed25519_yao_tenant_root_context_v2(
         env,
+        ownership_generation,
         tenant_root,
         application,
         participant_ids,
@@ -537,6 +542,7 @@ pub async fn handle_cloudflare_router_ed25519_yao_source_preserving_execute_priv
         Ok(digest) => digest,
         Err(error) => return protocol_error_response(error),
     };
+    let ownership_generation = target.ownership_generation();
     let execute_request = match target.into_execute_request(
         recipient_set_digest,
         now_ms,
@@ -547,6 +553,7 @@ pub async fn handle_cloudflare_router_ed25519_yao_source_preserving_execute_priv
     };
     let tenant_root = match resolve_ed25519_yao_tenant_root_context_v2(
         env,
+        ownership_generation,
         tenant_root,
         application,
         participant_ids,
@@ -628,6 +635,7 @@ pub async fn handle_cloudflare_router_ed25519_yao_lane_execute_private_fetch_v1(
         return protocol_error_response(error);
     }
     let CloudflareRouterEd25519YaoLaneExecuteRequestV2 {
+        ownership_generation,
         tenant_root,
         application,
         participant_ids,
@@ -661,6 +669,7 @@ pub async fn handle_cloudflare_router_ed25519_yao_lane_execute_private_fetch_v1(
     };
     let tenant_root = match resolve_ed25519_yao_tenant_root_context_v2(
         env,
+        ownership_generation,
         tenant_root,
         application,
         participant_ids,
@@ -834,6 +843,7 @@ pub async fn handle_cloudflare_router_ed25519_yao_recovery_promote_private_fetch
 
 async fn resolve_ed25519_yao_tenant_root_context_v2(
     env: &Env,
+    ownership_generation: u64,
     root: CloudflareRouterEd25519YaoTenantRootV1,
     application: RouterAbEd25519YaoApplicationBindingFactsV1,
     participant_ids: [u16; 2],
@@ -861,6 +871,7 @@ async fn resolve_ed25519_yao_tenant_root_context_v2(
         now_ms.saturating_add(ROUTER_AUTHORITY_TTL_MS),
     )?;
     let context = CloudflareEd25519YaoTenantRootContextV2 {
+        ownership_generation,
         identity: root.identity,
         custody_binding,
         outer_binding,
@@ -973,6 +984,7 @@ async fn execute_router_ceremony_with_finalization_v1(
     if replay {
         if let Some(result) = reconcile_router_replay_v1(
             env,
+            tenant_root.ownership_generation,
             runtime,
             &request,
             &binding,
@@ -1167,6 +1179,7 @@ async fn execute_router_ceremony_with_finalization_v1(
 #[cfg(feature = "strict-worker-router-entrypoint")]
 async fn execute_historical_registration_replay_v1(
     env: &Env,
+    ownership_generation: u64,
     runtime: &CloudflareRouterWorkerRuntimeV1,
     request: &RouterEd25519YaoExecuteRequestV1,
     root: &CloudflareRouterEd25519YaoTenantRootV1,
@@ -1189,6 +1202,7 @@ async fn execute_historical_registration_replay_v1(
     }
     let outcome_a = read_deriver_a_wallet_pair_outcome_v1(
         env,
+        ownership_generation,
         runtime.deriver_a_peer().binding_name.as_str(),
         pair_binding,
         &root.identity,
@@ -1331,6 +1345,7 @@ async fn execute_historical_registration_replay_v1(
 
 async fn reconcile_router_replay_v1(
     env: &Env,
+    ownership_generation: u64,
     runtime: &CloudflareRouterWorkerRuntimeV1,
     request: &RouterEd25519YaoExecuteRequestV1,
     binding: &router_ab_core::Ed25519YaoCeremonyBindingV1,
@@ -1344,6 +1359,7 @@ async fn reconcile_router_replay_v1(
     #[cfg(feature = "strict-worker-router-entrypoint")]
     let outcome_a = match read_deriver_a_wallet_pair_outcome_v1(
         env,
+        ownership_generation,
         runtime.deriver_a_peer().binding_name.as_str(),
         pair_binding,
         root_identity,
@@ -1413,6 +1429,7 @@ async fn reconcile_router_replay_v1(
         pair_digest: pair_binding.pair_digest().bytes,
     };
     let b_scope = CloudflareDeriverBWalletPairScopeV1 {
+        ownership_generation,
         root_identity: root_identity.clone(),
         pair_binding: pair_binding.clone(),
     };
@@ -1530,6 +1547,7 @@ async fn reconcile_router_replay_v1(
                 CLOUDFLARE_DERIVER_B_ED25519_YAO_BURN_PAIR_PATH,
                 "Deriver B pair burn",
                 &CloudflareDeriverBWalletPairScopeV1 {
+                    ownership_generation,
                     root_identity: root_identity.clone(),
                     pair_binding: pair_binding.clone(),
                 },
@@ -1571,6 +1589,7 @@ async fn reconcile_router_replay_v1(
 #[cfg(feature = "strict-worker-router-entrypoint")]
 async fn read_deriver_a_wallet_pair_outcome_v1(
     env: &Env,
+    ownership_generation: u64,
     binding_name: &str,
     pair_binding: &Ed25519YaoInputPairBindingV1,
     root_identity: &TenantRootIdentityV1,
@@ -1583,6 +1602,7 @@ async fn read_deriver_a_wallet_pair_outcome_v1(
         CLOUDFLARE_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH,
         "Deriver A wallet pair status",
         &CloudflareDeriverAWalletPairStatusRequestV1 {
+            ownership_generation,
             root_identity: root_identity.clone(),
             pair_binding: pair_binding.clone(),
         },

@@ -213,6 +213,7 @@ pub fn cloudflare_ed25519_yao_tenant_root_bindings_v2(
 /// Builds the exact V2 context after the local or Worker boundary has
 /// authenticated the active receipt and selected server-owned application facts.
 pub fn cloudflare_ed25519_yao_tenant_root_context_v2(
+    ownership_generation: u64,
     identity: TenantRootIdentityV1,
     activation_receipt: &VerifiedTenantRootSignedActivationReceiptV1,
     derivers: TenantRootDeriverIdentitiesV1,
@@ -242,6 +243,7 @@ pub fn cloudflare_ed25519_yao_tenant_root_context_v2(
         expires_at_ms,
     )?;
     let context = CloudflareEd25519YaoTenantRootContextV2 {
+        ownership_generation,
         identity,
         custody_binding,
         outer_binding,
@@ -507,6 +509,7 @@ fn invalid_target_preface(message: impl Into<String>) -> RouterAbProtocolError {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareEd25519YaoTenantRootContextV2 {
+    pub ownership_generation: u64,
     pub identity: TenantRootIdentityV1,
     pub custody_binding: CloudflareTenantRootCustodyBindingWireV1,
     pub outer_binding: Ed25519YaoOuterBindingV2,
@@ -519,6 +522,7 @@ impl CloudflareEd25519YaoTenantRootContextV2 {
         &self,
         pair_binding: &Ed25519YaoInputPairBindingV1,
     ) -> RouterAbProtocolResult<()> {
+        crate::router_wallet::validate_wallet_ownership_generation(self.ownership_generation)?;
         self.custody_binding.validate()?;
         self.outer_binding.validate()?;
         pair_binding.validate()?;
@@ -621,12 +625,14 @@ pub struct CloudflareEd25519YaoPairLookupRequestV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareDeriverBWalletPairScopeV1 {
+    pub ownership_generation: u64,
     pub root_identity: TenantRootIdentityV1,
     pub pair_binding: Ed25519YaoInputPairBindingV1,
 }
 
 impl CloudflareDeriverBWalletPairScopeV1 {
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
+        crate::router_wallet::validate_wallet_ownership_generation(self.ownership_generation)?;
         self.root_identity.digest().map_err(|error| {
             RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidLifecycleState,
@@ -642,6 +648,7 @@ impl CloudflareDeriverBWalletPairScopeV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareDeriverAWalletPairStatusRequestV1 {
+    pub ownership_generation: u64,
     pub root_identity: TenantRootIdentityV1,
     pub pair_binding: Ed25519YaoInputPairBindingV1,
 }
@@ -649,6 +656,7 @@ pub struct CloudflareDeriverAWalletPairStatusRequestV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareDeriverAWalletPairBurnRequestV1 {
+    pub ownership_generation: u64,
     pub root_identity: TenantRootIdentityV1,
     pub pair_binding: Ed25519YaoInputPairBindingV1,
     pub execution_id: Ed25519YaoExecutionIdV1,

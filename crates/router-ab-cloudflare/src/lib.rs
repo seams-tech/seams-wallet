@@ -335,6 +335,7 @@ pub use tenant_root_revision_manifest::*;
 mod router;
 pub use router::*;
 mod router_wallet;
+mod wallet_object;
 pub use router_wallet::*;
 mod router_wallet_relocation;
 #[cfg(feature = "workers-rs")]

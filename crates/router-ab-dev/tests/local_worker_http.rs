@@ -4693,6 +4693,7 @@ fn direct_deriver_b_preparation_for_v1(
         router_ab_cloudflare::parse_cloudflare_tenant_root_creation_role_verifying_keys_v1(&env)?
             .deriver_identities()?;
     let tenant_root = router_ab_cloudflare::cloudflare_ed25519_yao_tenant_root_context_v2(
+        registration.target.ownership_generation(),
         identity.clone(),
         &receipt,
         derivers,

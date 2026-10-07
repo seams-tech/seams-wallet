@@ -657,6 +657,14 @@ impl<'de> Deserialize<'de> for RouterEd25519YaoGatewayExecuteTargetV2 {
 }
 
 impl RouterEd25519YaoGatewayExecuteTargetV2 {
+    pub const fn ownership_generation(&self) -> u64 {
+        match self {
+            Self::Registration { ownership_generation, .. }
+            | Self::Recovery { ownership_generation, .. }
+            | Self::Export { ownership_generation, .. } => *ownership_generation,
+        }
+    }
+
     /// Builds a validated registration target.
     pub fn registration(
         ownership_generation: u64,

@@ -58,9 +58,9 @@ wallet_objects=false
 if [[ "$role" != "tenant-root-control-plane" ]]; then
   wallet_objects=true
 fi
-# Whole seconds, rounded down: a source saved in the build's first second
-# counts as newer, so the harness errs toward rebuilding.
-started_at_ms="$(( $(date +%s) * 1000 ))"
+# Use the same millisecond precision as the harness filesystem timestamps.
+# Rounding to seconds incorrectly rejects sources saved just before this build.
+started_at_ms="$(node -p 'Date.now()')"
 
 run_worker_build \
   "${worker_build_flags[@]}" \

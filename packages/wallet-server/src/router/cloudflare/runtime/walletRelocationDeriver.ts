@@ -37,19 +37,11 @@ export async function forwardDeriverRelocation(
   const envelope: Envelope = { wallet: input.wallet, attempt: input.attempt };
   const journalRole = role === 'deriver-a' ? 'deriverA' : 'deriverB';
   try {
-    const contextResponse = await postRole(binding, role, 'relocation-context', {
-      owner: {
-        org_id: envelope.wallet.organizationId,
-        project_id: envelope.wallet.projectId,
-        env_id: envelope.wallet.environmentId,
-        wallet_id: envelope.wallet.walletId,
-      },
-    }, credential);
+    const contextResponse = await postRole(binding, role, 'relocation-context', { kind: 'cipher' }, credential);
     if (!contextResponse.ok) return failure('source_command_unavailable', 503);
     const context: unknown = await contextResponse.json();
-    if (!isPlainObject(context) || Object.keys(context).length !== 3 ||
-        context.kind !== 'deriver_cipher_context' || !digest(context.digest_hex) ||
-        !digest(context.object_id)) return failure('source_command_unavailable', 503);
+    if (!isPlainObject(context) || Object.keys(context).length !== 2 ||
+        context.kind !== 'deriver_cipher_context' || !digest(context.digest_hex)) return failure('source_command_unavailable', 503);
     const freezing = operation === 'fence' || operation === 'capture';
     const request = operation === 'export' ? { operation, segmentIndex: input.segmentIndex } : { operation };
     const authorization = await postDirectory(directory,
