@@ -46,7 +46,7 @@ type CleanupProgress =
   | { readonly state: 'cleaning'; readonly completedAtMs?: never }
   | { readonly state: 'cleaned'; readonly completedAtMs: number };
 
-// Only the Console-authorized cleanup command can start deletion. Fences remain permanent.
+// Cleanup receipts remain available after a newer generation returns to this location.
 export class D1WalletAuthorizationCleanup {
   constructor(
     private readonly database: D1DatabaseLike,
@@ -172,8 +172,20 @@ export class D1WalletAuthorizationCleanup {
     const row = await prepareD1TenantStatement(
       this.database,
       this.scope,
-      `SELECT * FROM wallet_relocation_authorization_snapshots WHERE ${SCOPE} AND state = 'sealed'`,
-      [source.walletId],
+      `SELECT wallet_id, move_id, request_digest_hex, source_generation,
+          schema_json, chunk_count, record_count, digest_hex
+       FROM wallet_relocation_authorization_snapshots
+       WHERE ${SCOPE} AND move_id = ?6 AND state = 'sealed'
+       UNION ALL
+       SELECT wallet_id, move_id, request_digest_hex, source_generation,
+          json_extract(manifest_json, '$.schemaJson') AS schema_json,
+          json_extract(manifest_json, '$.chunkCount') AS chunk_count,
+          json_extract(manifest_json, '$.recordCount') AS record_count,
+          json_extract(manifest_json, '$.digestHex') AS digest_hex
+       FROM wallet_relocation_authorization_cleanups
+       WHERE ${SCOPE} AND move_id = ?6 AND state = 'cleaned'
+       LIMIT 1`,
+      [source.walletId, source.moveId],
     ).first<Record<string, unknown>>();
     if (!row || !source.matches(row)) throw new Error('Authorization cleanup snapshot conflicts');
     const manifest = {

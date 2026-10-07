@@ -111,10 +111,32 @@ pub(crate) async fn call_preparation<Owner: WalletOwner>(
     stub.fetch_with_request(forwarded).await
 }
 
-pub(crate) fn reserve<Owner: WalletOwner>(
+pub(crate) async fn reserve<Owner: WalletOwner>(
+    storage: &worker::Storage,
+    sql: SqlStorage,
+    command: Preparation<Owner>,
+) -> worker::Result<Response> {
+    let response = std::rc::Rc::new(std::cell::RefCell::new(None));
+    let returned = std::rc::Rc::clone(&response);
+    storage
+        .transaction(move |_| async move {
+            let outcome = reserve_destination(&sql, command)?;
+            if outcome.status_code() >= 400 {
+                return Err(pair_error("Deriver destination preparation conflicts"));
+            }
+            *returned.borrow_mut() = Some(outcome);
+            Ok(())
+        })
+        .await?;
+    let result = response.borrow_mut().take();
+    result.ok_or_else(|| pair_error("Deriver preparation returned no response"))
+}
+
+fn reserve_destination<Owner: WalletOwner>(
     sql: &SqlStorage,
     command: Preparation<Owner>,
 ) -> worker::Result<Response> {
+    snapshot::cleanup::prepare_return(sql, &command)?;
     if snapshot::import::activated_preparation(sql, &command)? {
         return Response::from_json(&Receipt { kind: "prepared", destination_object: command.owner.object_name()?, request: command });
     }

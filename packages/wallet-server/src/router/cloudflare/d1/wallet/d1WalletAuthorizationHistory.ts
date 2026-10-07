@@ -2,7 +2,7 @@ import { requireCanonicalString } from '@shared/utils/validation';
 import { sha256HexUtf8 } from '@shared/utils/digests';
 import { prepareD1TenantStatement, type D1TenantScope } from '../../../../core/d1TenantStore';
 import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
-import type { D1DatabaseLike } from '../../../../storage/tenantRoute';
+import type { D1DatabaseLike, D1PreparedStatementLike } from '../../../../storage/tenantRoute';
 import { AuthorizationSnapshotLayout } from './authorizationSnapshotLayout';
 import { WalletRelocationSessionSource } from './d1WalletRelocationSessions';
 
@@ -31,6 +31,7 @@ export class D1WalletAuthorizationHistory {
         WHERE ${layout.expressions().ownership})`);
     }
     await this.database.batch([
+      ...prepareCleanedDestinationReturn(this.database, this.scope, source),
       prepareD1TenantStatement(
         this.database,
         this.scope,
@@ -180,9 +181,14 @@ export class D1WalletAuthorizationHistory {
       WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4 AND wallet_id = ?5`,
       [source.walletId],
     ).first<Record<string, unknown>>();
-    if (row && !source.matches(row))
-      throw new Error('Authorization history import identity conflicts');
-    return row !== null;
+    if (!row) return false;
+    if (source.matches(row)) return true;
+    if (
+      typeof row.source_generation === 'number' &&
+      row.source_generation + 1 < source.sourceGeneration
+    )
+      return false;
+    throw new Error('Authorization history import identity conflicts');
   }
 
   private async readReceipt(
@@ -263,4 +269,77 @@ export class D1WalletAuthorizationHistory {
       digest: await sha256HexUtf8(JSON.stringify([table, raw])),
     };
   }
+}
+
+function prepareCleanedDestinationReturn(
+  database: D1DatabaseLike,
+  scope: D1TenantScope,
+  source: WalletRelocationSessionSource,
+): readonly D1PreparedStatementLike[] {
+  const identity = [
+    source.walletId,
+    source.moveId,
+    source.requestDigestHex,
+    source.sourceGeneration,
+  ];
+  const statements = [
+    prepareD1TenantStatement(
+      database,
+      scope,
+      `
+    INSERT INTO wallet_relocation_authorization_returns
+      (namespace, org_id, project_id, env_id, wallet_id, move_id, request_digest_hex,
+       source_generation, previous_move_id, previous_request_digest_hex, retired_generation)
+    SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, cleanup.move_id, cleanup.request_digest_hex, execution.generation
+    FROM wallet_relocation_authorization_cleanups AS cleanup
+    JOIN wallet_execution_generations AS execution USING (namespace, org_id, project_id, env_id, wallet_id)
+    WHERE cleanup.namespace = ?1 AND cleanup.org_id = ?2 AND cleanup.project_id = ?3
+      AND cleanup.env_id = ?4 AND cleanup.wallet_id = ?5 AND cleanup.state = 'cleaned'
+      AND execution.state = 'retired' AND execution.generation = cleanup.source_generation
+      AND execution.generation < ?8
+    ON CONFLICT (namespace, org_id, project_id, env_id, wallet_id, move_id) DO NOTHING`,
+      identity,
+    ),
+  ];
+  for (const table of [
+    'wallet_relocation_authorization_imports',
+    'wallet_relocation_authorization_intakes',
+    'wallet_relocation_authorization_snapshots',
+    'wallet_relocation_authorization_fences',
+    'wallet_relocation_session_fences',
+    'wallet_execution_generations',
+  ]) {
+    let priorIdentity: string;
+    switch (table) {
+      case 'wallet_relocation_authorization_imports':
+      case 'wallet_relocation_authorization_intakes':
+        priorIdentity = 'target.source_generation + 1 = returned.retired_generation';
+        break;
+      case 'wallet_execution_generations':
+        priorIdentity =
+          "target.generation = returned.retired_generation AND target.state = 'retired'";
+        break;
+      default:
+        priorIdentity = `target.source_generation = returned.retired_generation
+          AND target.move_id = returned.previous_move_id
+          AND target.request_digest_hex = returned.previous_request_digest_hex`;
+    }
+    statements.push(
+      prepareD1TenantStatement(
+        database,
+        scope,
+        `
+      DELETE FROM ${table} AS target
+      WHERE target.namespace = ?1 AND target.org_id = ?2 AND target.project_id = ?3
+        AND target.env_id = ?4 AND target.wallet_id = ?5 AND EXISTS (
+          SELECT 1 FROM wallet_relocation_authorization_returns AS returned
+          WHERE returned.namespace = ?1 AND returned.org_id = ?2 AND returned.project_id = ?3
+            AND returned.env_id = ?4 AND returned.wallet_id = ?5 AND returned.move_id = ?6
+            AND returned.request_digest_hex = ?7 AND returned.source_generation = ?8
+            AND ${priorIdentity})`,
+        identity,
+      ),
+    );
+  }
+  return statements;
 }

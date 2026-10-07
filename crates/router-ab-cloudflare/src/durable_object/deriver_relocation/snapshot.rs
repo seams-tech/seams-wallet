@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use worker::{Env, Method, Request, Response, SqlStorage, SqlStorageValue};
 
-mod cleanup;
+pub(super) mod cleanup;
 pub(crate) mod import;
 
 const SEGMENT_BYTES: u32 = 4096;
@@ -173,6 +173,11 @@ fn execute_source<Owner: WalletOwner>(
     sql: &SqlStorage,
     command: Command<Owner>,
 ) -> worker::Result<Response> {
+    if let Command::Cleanup { activation } = &command {
+        if cleanup::completed(sql, activation)? {
+            return Response::from_json(&serde_json::json!({"kind": "cleaned", "receipt": activation}));
+        }
+    }
     let source_json = encode(command.source())?;
     let rows = sql
         .exec(

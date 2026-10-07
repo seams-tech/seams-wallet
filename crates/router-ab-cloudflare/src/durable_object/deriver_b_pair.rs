@@ -165,7 +165,7 @@ impl DurableObject for RouterAbDeriverBWalletDurableObject {
             return if path == SOURCE_FENCE_PATH {
                 relocation::fence_settled_source(&self.sql, command)
             } else {
-                relocation::reserve(&self.sql, command)
+                relocation::reserve(&self.storage, self.sql.clone(), command).await
             };
         }
         if path == RECONCILE_PATH {
