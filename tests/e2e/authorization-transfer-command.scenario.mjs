@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { authorizationRowsQuery } from './authorization-transfer-freeze.scenario.mjs';
+import { seedExecutionGeneration } from './execution-generation.scenario.mjs';
 
 const URL = 'https://wallet-relocation.internal/internal/wallet-relocation/v1/authorization/freeze';
 
@@ -147,6 +148,8 @@ export async function freezeAuthorizationThroughCommand({ api, database, scope, 
       /requires_frozen_source/u,
     );
   }
+  await seedExecutionGeneration({ api, database, scope, walletId: identity.walletId });
+  assert.equal(await new api.D1WalletRelocationWriteBlock(database, scope).check(identity, Date.now()), 'ready');
   const response = await handler.handle(request(scope, identity));
   assert.equal(response.status, 200, await response.clone().text());
   const receipt = await response.json();
@@ -627,6 +630,7 @@ export async function verifyPendingCeremonyFreeze({ api, database, scope }) {
     /wallet_ceremony_admission_closed/u,
   );
   assert.equal((await store.load(lifecycleId)).state.registration.admissionClaims.size, 0);
+  await new api.D1WalletAuthorizationFreeze(database, scope).freeze(identity, Date.now());
   const completed = await handler.handle(original.clone());
   assert.equal(completed.status, 200, await completed.clone().text());
   assert.equal((await completed.json()).kind, 'authorization_frozen');
@@ -702,6 +706,8 @@ async function verifyCompletedGatewayAdmission({ api, database, scope }) {
   const completedOperation = await operation.run();
   assert.equal(completedOperation.kind, 'executed');
   assert.equal(operation.preparations, 1);
+  await seedExecutionGeneration({ api, database, scope, walletId: identity.walletId });
+  assert.equal(await new api.D1WalletRelocationWriteBlock(database, scope).check(identity, Date.now()), 'ready');
   const response = await handler.handle(request(scope, identity));
   assert.equal(response.status, 200, await response.clone().text());
   assert.equal((await response.json()).kind, 'authorization_frozen');
@@ -940,13 +946,8 @@ export async function verifyPendingSessionOperationFreeze({
     nowMs,
   });
   const raced = new RetirementRaceDatabase(database, store, lateInput);
-  const raceResponse = await new api.WalletAuthorizationRelocationRoutes({
-    database: raced,
-    scope,
-    directory,
-  }).handle(original.clone());
-  assert.equal(raceResponse.status, 202);
-  assert.deepEqual(await raceResponse.json(), waiting);
+  await assert.rejects(new api.D1WalletRelocationSessions(raced, scope).retire(identity, nowMs + 4),
+    /wallet_operations_unsettled/u);
   assert.ok(raced.claimed);
   assert.equal(await liveSessions(database, scope, identity), 1);
   assert.equal(
@@ -994,6 +995,7 @@ export async function verifyPendingSessionOperationFreeze({
     }),
   });
   assert.equal(neighborClaim.kind, 'claimed');
+  assert.equal(await new api.D1WalletRelocationWriteBlock(database, scope).check(identity, Date.now()), 'ready');
   const frozenResponse = await new api.WalletAuthorizationRelocationRoutes({
     database,
     scope,

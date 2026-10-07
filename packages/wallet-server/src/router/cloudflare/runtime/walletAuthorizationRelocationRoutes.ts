@@ -17,7 +17,7 @@ import {
   D1WalletRelocationSessions,
   WalletRelocationSessionSource,
 } from '../d1/wallet/d1WalletRelocationSessions';
-import { D1WalletAuthorizationFreeze } from '../d1/wallet/d1WalletAuthorizationFreeze';
+import { D1WalletRelocationWriteBlock } from '../d1/wallet/d1WalletRelocationWriteBlock';
 import { D1WalletAuthorizationSnapshot } from '../d1/wallet/d1WalletAuthorizationSnapshot';
 import type { WalletConsoleServiceBinding } from './walletConsoleOpsClient';
 
@@ -33,6 +33,16 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
   readonly kind = 'fetch_route_extension';
   readonly id = 'wallet_authorization_relocation';
   readonly routes: RouterApiRouteExtension['routes'] = [
+    {
+      id: 'wallet_authorization_block', surface: 'relay', method: 'POST', path: `${BASE_PATH}/block`,
+      auth: { plane: 'public', rationale: 'The private Console binding holds a wallet-local capacity block after destination preparation.' },
+      metering: { kind: 'none' }, summary: 'Reserve source snapshot capacity',
+    },
+    {
+      id: 'wallet_authorization_release', surface: 'relay', method: 'POST', path: `${BASE_PATH}/release`,
+      auth: { plane: 'public', rationale: 'Console durably rejects admission before releasing the source block.' },
+      metering: { kind: 'none' }, summary: 'Release an unadmitted source block',
+    },
     {
       id: 'wallet_authorization_schema', surface: 'relay', method: 'POST',
       path: `${BASE_PATH}/schema`,
@@ -190,6 +200,28 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
     return this.handle(input.request);
   }
 
+  private async capacityBlock(body: Record<string, unknown>, release: boolean): Promise<Response> {
+    let source: WalletRelocationSessionSource;
+    try {
+      if (Object.keys(body).length !== 1) return failure('invalid_input', 400);
+      source = WalletRelocationSessionSource.parse(body.source);
+    } catch {
+      return failure('invalid_input', 400);
+    }
+    const block = new D1WalletRelocationWriteBlock(this.options.database, this.options.scope);
+    try {
+      if (release) {
+        await block.release(source, Date.now());
+        return Response.json({ kind: 'authorization_released' });
+      }
+      const state = await block.check(source, Date.now());
+      return Response.json({ kind: state === 'ready' ? 'authorization_blocked' : 'authorization_draining' },
+        { status: state === 'ready' ? 200 : 202 });
+    } catch {
+      return failure('authorization_capacity_unavailable', 409);
+    }
+  }
+
   async handle(request: Request): Promise<Response> {
     const url = new URL(request.url);
     if (
@@ -205,6 +237,8 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
       return failure('invalid_input', 400);
     }
     if (!isPlainObject(body)) return failure('invalid_input', 400);
+    if (url.pathname === `${BASE_PATH}/block` || url.pathname === `${BASE_PATH}/release`)
+      return this.capacityBlock(body, url.pathname === `${BASE_PATH}/release`);
     if (url.pathname === `${BASE_PATH}/schema`) return this.prepareDestination(body, false);
     if (url.pathname === `${BASE_PATH}/reserve`) return this.prepareDestination(body, true);
     if (url.pathname === `${BASE_PATH}/owner-approval`) return this.ownerApproval(body);
@@ -382,10 +416,8 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
         return pendingAuthorization(commandDigest, 'ceremonies_unsettled');
       if (await sessions.hasPendingOperations(source.walletId))
         return pendingAuthorization(commandDigest, 'operations_unsettled');
-      const retiredAtMs = await sessions.retire(source, Date.now());
-      const frozenAtMs = await new D1WalletAuthorizationFreeze(
-        this.options.database,
-        this.options.scope,
+      const { retiredAtMs, frozenAtMs } = await new D1WalletRelocationWriteBlock(
+        this.options.database, this.options.scope,
       ).freeze(source, Date.now());
       const manifest = await new D1WalletAuthorizationSnapshot(
         this.options.database,

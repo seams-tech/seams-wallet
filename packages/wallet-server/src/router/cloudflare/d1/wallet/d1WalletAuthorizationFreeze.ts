@@ -1,7 +1,7 @@
 import { parseUnixMs } from '@shared/passkey-custody/primitives';
 import { prepareD1TenantStatement, type D1TenantScope } from '../../../../core/d1TenantStore';
 import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
-import type { D1DatabaseLike } from '../../../../storage/tenantRoute';
+import type { D1DatabaseLike, D1PreparedStatementLike } from '../../../../storage/tenantRoute';
 import { WalletRelocationSessionSource } from './d1WalletRelocationSessions';
 
 // The admitted coordinator calls this after session retirement and settlement.
@@ -16,13 +16,21 @@ export class D1WalletAuthorizationFreeze {
     parseUnixMs(nowMs, 'authorization freeze time');
     const existing = await this.read(source);
     if (existing !== null) return existing;
+    await this.database.batch(this.freezeStatements(source, nowMs));
+    const frozenAtMs = await this.read(source);
+    if (frozenAtMs === null) throw new Error('Authorization freeze disappeared');
+    return frozenAtMs;
+  }
+
+  freezeStatements(source: WalletRelocationSessionSource, nowMs: number): readonly D1PreparedStatementLike[] {
+    parseUnixMs(nowMs, 'authorization freeze time');
     const identity = [
       source.walletId,
       source.moveId,
       source.requestDigestHex,
       source.sourceGeneration,
     ];
-    await this.database.batch([
+    return [
       prepareD1TenantStatement(
         this.database,
         this.scope,
@@ -46,10 +54,7 @@ export class D1WalletAuthorizationFreeze {
         identity,
       ),
       this.database.prepare(D1_BATCH_CAS_GUARD_SQL),
-    ]);
-    const frozenAtMs = await this.read(source);
-    if (frozenAtMs === null) throw new Error('Authorization freeze disappeared');
-    return frozenAtMs;
+    ];
   }
 
   private async read(source: WalletRelocationSessionSource): Promise<number | null> {

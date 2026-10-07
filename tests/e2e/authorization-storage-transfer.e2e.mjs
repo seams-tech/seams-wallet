@@ -10,6 +10,7 @@ import {
   prepareExecutionGeneration,
   verifyExecutionDestination,
 } from './execution-generation.scenario.mjs';
+import { verifyTemporaryWriteBlock } from './relocation-write-block.scenario.mjs';
 import {
   seedOperationHistory,
   verifyDestinationOperationGeneration,
@@ -110,6 +111,7 @@ const bundle = await build({
       export { InMemoryRouterAbEd25519YaoRegistrationService } from './packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistration';
       export { buildNearRecoveryCacheFixture } from './tests/unit/helpers/nearRecovery.fixtures';
       export { D1WalletAuthorizationSnapshot } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationSnapshot';
+      export { D1WalletRelocationWriteBlock } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationWriteBlock';
       export { D1WalletAuthorizationFreeze } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationFreeze';
       export { D1WalletAuthorizationIntake } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationIntake';
       export { D1WalletAuthorizationHistory } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationHistory';
@@ -159,6 +161,7 @@ const worker = new Miniflare({
     SOURCE: 'authorization-source',
     DESTINATION: 'authorization-destination',
     UPGRADE: 'authorization-upgrade',
+    CAPACITY: 'authorization-capacity',
   },
   compatibilityDate: '2026-06-12',
   port: 0,
@@ -172,6 +175,10 @@ try {
   await migrate(await worker.getD1Database('UPGRADE'), true);
   const sourceService = service(source, scope);
   const issuedAtMs = Date.now();
+  const capacityDatabase = await worker.getD1Database('CAPACITY');
+  await migrate(capacityDatabase);
+  const temporaryWriteBlock = await verifyTemporaryWriteBlock({ api, database: capacityDatabase, scope,
+    service: service(capacityDatabase, scope), issueDeviceSession, nowMs: issuedAtMs });
   const fixture = await api.buildLinkedDeviceManagementAuthorityFixture({
     label: 'storage-transfer-owner',
     keyFamily: 'ecdsa_secp256k1',
@@ -537,6 +544,7 @@ try {
       relocationEmailOtp,
       relocationOwnerRequest,
       sessionRetirement,
+      temporaryWriteBlock,
       authorizationFreeze,
       authorizationActivation,
       executionBeforeActivation,

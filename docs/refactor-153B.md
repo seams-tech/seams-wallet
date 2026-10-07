@@ -151,3 +151,26 @@ The private repository records exact measurements, deployed revisions, commands,
 and artifact hashes in `docs/evidence/r153b-20261007.md` and its JSON receipt.
 The staging backend is deployed. Hosted verification used frozen candidate SDK assets.
 Package publication and application adoption remain separate release work.
+
+## Review follow-up: short source write block
+
+After every destination participant is prepared, block new operations for the migrating
+wallet and its current ownership generation. Let admitted operations settle. Hold the
+wallet's authorization history fixed while checking the final snapshot capacity.
+Other wallets remain writable. Ordinary signing and refill add no Console calls.
+
+If the check fails, release the block without retiring sessions or invalidating
+presignatures. If admission succeeds, convert the temporary block into the existing
+permanent relocation fence in the same transaction as session retirement.
+
+Console records the admission decision before the source can release its block.
+The existing cron recovers abandoned checks after their 30-second admission deadline.
+Release retains an exact-move tombstone, so a delayed request cannot block the wallet
+again. An admitted move keeps its fence and resumes the forward-only transfer.
+
+Local authorization-transfer and directory E2Es verify capacity growth after the early
+check, admitted-operation settlement, wallet isolation, exact retries, lost replies,
+and abandoned-check recovery. Apply signer migration `0076` and Console migration
+`0090` (with driver migration `0089`) before deploying matching Gateway and Console
+candidates. This follow-up is locally verified; hosted pause measurements above belong
+to the earlier candidate and must not be presented as measurements of this change.

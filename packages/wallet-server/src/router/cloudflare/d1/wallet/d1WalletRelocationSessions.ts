@@ -3,7 +3,7 @@ import { parseUnixMs } from '@shared/passkey-custody/primitives';
 import { parseWalletId, type WalletId } from '@shared/utils/domainIds';
 import { prepareD1TenantStatement, type D1TenantScope } from '../../../../core/d1TenantStore';
 import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
-import type { D1DatabaseLike } from '../../../../storage/tenantRoute';
+import type { D1DatabaseLike, D1PreparedStatementLike } from '../../../../storage/tenantRoute';
 
 // This identity is supplied by admitted move orchestration after outstanding
 // effects settle. Parsing it grants no owner or execution authority.
@@ -76,13 +76,21 @@ export class D1WalletRelocationSessions {
     parseUnixMs(nowMs, 'session relocation time');
     const existing = await this.read(source);
     if (existing !== null) return existing;
+    await this.database.batch(this.retirementStatements(source, nowMs));
+    const retiredAtMs = await this.read(source);
+    if (retiredAtMs === null) throw new Error('Session relocation retirement disappeared');
+    return retiredAtMs;
+  }
+
+  retirementStatements(source: WalletRelocationSessionSource, nowMs: number): readonly D1PreparedStatementLike[] {
+    parseUnixMs(nowMs, 'session relocation time');
     const identity = [
       source.walletId,
       source.moveId,
       source.requestDigestHex,
       source.sourceGeneration,
     ];
-    await this.database.batch([
+    return [
       prepareD1TenantStatement(
         this.database,
         this.scope,
@@ -136,10 +144,7 @@ export class D1WalletRelocationSessions {
           AND wallet_id = ?5 AND retired_at_ms IS NULL`,
         [source.walletId, nowMs],
       ),
-    ]);
-    const retiredAtMs = await this.read(source);
-    if (retiredAtMs === null) throw new Error('Session relocation retirement disappeared');
-    return retiredAtMs;
+    ];
   }
 
   private async read(source: WalletRelocationSessionSource): Promise<number | null> {

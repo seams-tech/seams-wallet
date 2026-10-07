@@ -36,7 +36,7 @@ export class D1WalletExecutionAuthority implements Authority, WalletExecutionAut
     if (local) {
       switch (local.state) {
         case 'active':
-          return { ok: true, purpose: 'ordinary', ownershipGeneration: local.generation };
+          return this.admitEstablishedHome({ walletId: input.walletId });
         case 'registering':
           if (local.registration_completion === 'pending') {
             return { ok: true, purpose: 'registration', ownershipGeneration: local.generation };
@@ -166,7 +166,11 @@ export async function admitD1EstablishedWalletHome(
     scope,
     `SELECT generation FROM wallet_execution_generations
      WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
-       AND wallet_id = ?5 AND state = 'active'`,
+       AND wallet_id = ?5 AND state = 'active'
+       AND NOT EXISTS (SELECT 1 FROM wallet_relocation_write_blocks block
+         WHERE block.namespace = ?1 AND block.org_id = ?2 AND block.project_id = ?3
+           AND block.env_id = ?4 AND block.wallet_id = ?5 AND block.source_generation = generation
+           AND block.state IN ('draining', 'checked'))`,
     [input.walletId],
   ).first<{ readonly generation: number }>();
   if (!row)
