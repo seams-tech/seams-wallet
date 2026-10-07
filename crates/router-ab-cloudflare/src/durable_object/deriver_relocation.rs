@@ -199,22 +199,26 @@ fn pair_error(message: impl Into<String>) -> worker::Error {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct ContextRequest {}
+struct ContextRequest<Owner> {
+    owner: Owner,
+}
 
 #[derive(Serialize)]
 struct CipherContext {
     kind: &'static str,
     digest_hex: String,
+    object_id: String,
 }
 
 pub(crate) async fn read_context<Owner: WalletOwner>(
     mut request: Request,
     env: &Env,
+    binding: &str,
 ) -> worker::Result<Response> {
     if request.method() != Method::Post {
         return Response::error("Deriver encryption context requires POST", 405);
     }
-    let _: ContextRequest =
+    let context: ContextRequest<Owner> =
         match crate::durable_object::tenant_root_creation::decode_bounded_json_request(
             &mut request,
             8192,
@@ -227,6 +231,8 @@ pub(crate) async fn read_context<Owner: WalletOwner>(
     Response::from_json(&CipherContext {
         kind: "deriver_cipher_context",
         digest_hex: Owner::cipher(env)?.relocation_context_digest()?,
+        object_id: env.durable_object(binding)?
+            .id_from_name(&context.owner.object_name()?)?.to_string(),
     })
 }
 

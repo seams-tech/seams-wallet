@@ -46,7 +46,7 @@ async function reserveDestination(topology, role, owner, credential, runtime) {
   const contextPath = `/internal/wallet-runtime/v1/relocation/deriver-${role}-context`;
   const contextResponse = await runtime.handleWalletRelocationRequest(
     new Request(`https://wallet-runtime.internal${contextPath}`, {
-      method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}',
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ owner }),
     }), sourceEnvironment,
   );
   assert.equal(contextResponse.status, 200, await contextResponse.clone().text());
@@ -54,7 +54,13 @@ async function reserveDestination(topology, role, owner, credential, runtime) {
   assert.equal(context.kind, 'deriver_cipher_context');
   assert.match(context.digest_hex, /^[a-f0-9]{64}$/u);
   const directContextPath = `/router-ab/internal/deriver-${role}/wallet/relocation-context`;
-  assert.deepEqual(await (await post(source, directContextPath, {}, credential)).json(), context);
+  assert.deepEqual(await (await post(source, directContextPath, { owner }, credential)).json(), context);
+  const sourceNamespace = await topology.getDurableObjectNamespace(roles[role].binding, `deriver-${role}`);
+  const logicalName = `deriver-${role}-wallet-${createHash('sha256')
+    .update(`seams/deriver-${role}/wallet-do/v1${JSON.stringify(owner)}`).digest('hex')}`;
+  assert.equal(context.object_id, sourceNamespace.idFromName(logicalName).toString());
+  const destinationContext = await (await post(destination, directContextPath, { owner }, credential)).json();
+  assert.notEqual(destinationContext.object_id, context.object_id);
   const command = {
     owner,
     move_id: `wmove_${'d'.repeat(43)}`,
@@ -68,7 +74,7 @@ async function reserveDestination(topology, role, owner, credential, runtime) {
   const otherRole = role === 'a' ? 'b' : 'a';
   const otherSource = await topology.getWorker(`deriver-${otherRole}`);
   const otherRoleContext = await (await post(otherSource,
-    `/router-ab/internal/deriver-${otherRole}/wallet/relocation-context`, {}, credential)).json();
+    `/router-ab/internal/deriver-${otherRole}/wallet/relocation-context`, { owner }, credential)).json();
   assert.notEqual(otherRoleContext.digest_hex, context.digest_hex);
   const wrongContext = { ...command, cipher_context_digest_hex: otherRoleContext.digest_hex };
   assert.equal((await post(destination, path, wrongContext, credential)).status, 409);
@@ -111,7 +117,10 @@ async function reserveDestination(topology, role, owner, credential, runtime) {
   assert.deepEqual(await (await post(destination, path, command, credential)).json(), receipt);
   const changed = { ...command, request_digest_hex: 'bc'.repeat(32) };
   assert.equal((await post(destination, path, changed, credential)).status, 409);
-  return { object: namespace.get(id), destination, path, command, receipt };
+  return {
+    object: namespace.get(id), destination, path, command, receipt,
+    physicalObjects: { source: context.object_id, destination: destinationContext.object_id },
+  };
 }
 
 export async function verifyDeriverPreparation(topology, owner, rootIdentity, preparation, credential) {
@@ -160,6 +169,7 @@ export async function verifyDeriverPreparation(topology, owner, rootIdentity, pr
   return {
     deriverA: a.receipt,
     deriverB: b.receipt,
+    physicalObjects: { deriverA: a.physicalObjects, deriverB: b.physicalObjects },
     privateRuntimePreparation: true,
     cipherContextsCheckedBeforeReservation: true,
     mismatchedPrivateKeyRejected: true,

@@ -1470,7 +1470,7 @@ pub(crate) async fn call_preparation(request: Request, env: &Env) -> worker::Res
 }
 
 pub(crate) async fn read_relocation_context(request: Request, env: &Env) -> worker::Result<Response> {
-    relocation::read_context::<DeriverAWalletOwnerV1>(request, env).await
+    relocation::read_context::<DeriverAWalletOwnerV1>(request, env, PAIR_DO_BINDING).await
 }
 
 pub(crate) async fn call_source_fence(request: Request, env: &Env) -> worker::Result<Response> {

@@ -1717,6 +1717,14 @@ A Worker name, service binding, or region label alone does not identify the targ
 Shared Workers or namespaces are permitted when physical targets remain distinct.
 Location hints guide initial creation; they are not proof of actual placement.
 
+Implementation checkpoint: Deriver A/B context replies now resolve the physical
+object ID through the deployed namespace binding. Admission compares source and
+destination IDs before reservation and rejects a collision. The journal stores
+both IDs and binds them into preparation evidence. The Console admission E2E
+covers this rejection and confirms that the source stays active. This is partial
+preflight work. Account/namespace locators, fresh destination routing, and the
+shared-namespace hosted move remain unfinished.
+
 - [ ] **Define and persist the target set.** Extend the existing placement and
   participant records with typed source and destination locators. Cover Router,
   Deriver A, Deriver B, SigningWorker, and wallet-owned presign/session objects.
