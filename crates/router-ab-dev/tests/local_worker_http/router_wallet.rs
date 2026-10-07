@@ -1439,7 +1439,10 @@ fn verify_ecdsa_destination_transport(
     let credential = &config.router_to_signing_worker_ecdsa_auth;
     let preparation = Command::Prepare {
         scope: receipt.scope.clone(),
-        request: receipt.request.clone(),
+        request: router_ab_cloudflare::SigningWorkerRelocationIdentityV1 {
+            move_id: receipt.request.move_id.clone(),
+            source_generation: receipt.request.source_generation,
+        },
         chunk_bytes: 1_024,
     };
     for unrelated in [
