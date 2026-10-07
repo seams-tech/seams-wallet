@@ -3041,3 +3041,46 @@ All thirteen original Worker versions were restored and verified. No Gateway
 activation or new resource was needed for this comparison.
 [Sanitized evidence](evidence/near-prepared-root-admission-20261008.json) includes
 all raw arms, actual serving versions, exclusions, D1 counts, and repeatable E2E commands.
+
+### Phase 6J — Measure combined startup and prepared-admission reads
+
+- [x] Use the frozen parallel-startup Router and read-admitted A/B builds together.
+- [x] Keep the SDK, broad APAC hint, and existing staging resources fixed.
+- [x] Verify actual invocation versions before accepting timing samples.
+- [x] Restore the original deployments and record the complete evidence.
+
+Three fresh NEAR-only wallets completed 21 verified signatures. Browser Yao setup
+measured **3.466 s median**, with a **2.276–3.802 s** range. All captured role and
+Gateway versions matched the candidate. Every role reused its already-started
+wallet object. This is the combined baseline, without a concurrent control arm.
+The two-second setup target remains unmet.
+
+All thirteen original deployments were restored. Tenant activation and restoration
+both passed. [Sanitized evidence](evidence/near-combined-startup-admission-20261008.json)
+records the complete timing boundaries, counts, version audit, and limitations.
+
+### Phase 6K — Continue preparation through execution in A's wallet object
+
+The first experiment removes A's separate preparation request. The Router sends
+both sealed input envelopes to A's wallet object. That object prepares A and B in
+parallel, verifies both readiness receipts, and executes through its existing
+state machine. A cannot decrypt B's envelope. B retains its independent store and
+protocol connection. This experiment removes one external entry into A's object.
+
+- [ ] Replace the strict Worker preparation route with the continuous ceremony request.
+- [ ] Reject changed inputs and terminal states before new preparation. Replay a
+  completed request before reading roots, including after root erasure.
+- [ ] Preserve cancellation, retirement, relocation fences, readiness signatures,
+  durable execution claims, and durable completion before successful replies.
+- [ ] Exercise lost replies, concurrent requests, forged readiness, cancellation,
+  peer connection failure, and four-home routing through existing E2E scenarios.
+- [ ] Compare the candidate with the combined baseline using matching versions.
+- [ ] Inspect Signing Worker delivery against its object wall time. Change that
+  boundary only when the trace identifies removable work.
+- [ ] Decide whether coordinator placement warrants a separate experiment.
+
+The shared Router uses service bindings from regional Gateways. Cloudflare normally
+runs service-bound Workers on the same server thread. Separate regional Router
+deployments alone do not establish a placement benefit. Moving orchestration into
+the Router DO would remove its separate finish dispatch, measured near 50 ms.
+Any larger placement benefit remains unmeasured.
