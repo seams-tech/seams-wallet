@@ -2256,3 +2256,53 @@ uses one DO transaction, and Deriver B returns durable completion on its WebSock
 Neither finding supports deleting another durability boundary. Initial placement
 is not implemented in this change. The controlled Yao setup median remains 5.414s;
 its two-second target remains open.
+
+
+### Phase 6A authenticated initial placement — 2026-10-07
+
+The regional Gateway now supplies the wallet home after regional dispatch and local
+execution admission. It obtains that home from the admitted D1 resource catalog.
+The Runtime uses the same resource lookup for relocation control and pending
+registration replay. Neither path adds a directory request or an environment variable.
+
+`WalletHomeCustodyBinding` overwrites the private custody header. The Router checks
+its existing Gateway credential before parsing the required home. Client hints,
+missing homes, and invalid region spellings cannot select a wallet object's home.
+
+The typed home follows Router admission, A/B preparation, status and burn lookups,
+execution, deferred B work, and signing-worker delivery. Historical finalization
+lookups also receive it. All initial Yao wallet-object lookups request these hints:
+
+| Admitted home | Requested Cloudflare hint |
+| --- | --- |
+| US | `enam` |
+| WEUR | `weur` |
+| APAC | `apac` |
+| OC | `oc` |
+
+Logical wallet identity and R153 ownership-generation names remain unchanged.
+Custom Cloudflare hosts must wrap custody bindings with their admitted home too.
+Gateway and custody packages must deploy together. The local fixture declares US.
+No compatibility fallback infers a home from an untrusted header or tenant identifier.
+
+Verification is recorded in `docs/evidence/near-authenticated-home-placement-20261007.json`.
+Use the four-region `wallet-home-placement-evidence.mjs` scenario to reproduce it.
+The scenario checks status-before-preparation, successful Yao setup, a discarded
+completed reply, exact retry replay, caller-header overwrite, and rejected requests.
+
+All four region scenarios pass. Browser registration through foreign Gateways
+passes, followed by three verified NEAR signatures during a Console outage.
+Existing lost-reply/eviction and custody-relocation scenarios also pass, including
+fresh signatures after relocation and return. All five release Workers build.
+The server package build, integrated Rust checks, and bloat check pass.
+
+The private type check has six pre-existing API integration errors. Its output
+is identical before and after this patch. The additional historical-replay fault
+harness cannot complete against release binaries because its development-only
+fault endpoint is absent. No production endpoint was added to satisfy that harness.
+
+This change requests initial placement. It does not relocate existing objects,
+guarantee one Cloudflare data centre, or establish a hosted latency improvement.
+R153's independent snapshot/import placement remains outside this Yao setup change.
+The latest controlled hosted Yao median remains **5.414s**. The **2s** setup target
+remains open until a fresh-wallet hosted comparison measures the deployed change.

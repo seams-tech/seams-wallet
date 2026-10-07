@@ -257,7 +257,9 @@ pub(crate) async fn call_deriver_a_wallet_do_work_v1<T: Serialize>(
         &owner,
         tenant_root.ownership_generation,
     )?;
-    let stub = namespace.get_by_name(&physical_name)?;
+    let stub = tenant_root
+        .wallet_home
+        .wallet_stub(&namespace, &physical_name, "deriver_a")?;
     let body = serde_json::to_string(body).map_err(|error| pair_error(error.to_string()))?;
     let mut init = worker::RequestInit::new();
     init.with_method(worker::Method::Post)
@@ -271,6 +273,7 @@ pub(crate) async fn call_deriver_a_wallet_do_lookup_v1<T: Serialize>(
     env: &Env,
     path: &str,
     ownership_generation: u64,
+    wallet_home: crate::WalletHomeRegion,
     root_identity: &TenantRootIdentityV1,
     pair: &Ed25519YaoInputPairBindingV1,
     body: &T,
@@ -281,7 +284,7 @@ pub(crate) async fn call_deriver_a_wallet_do_lookup_v1<T: Serialize>(
     )?;
     let namespace = env.durable_object(PAIR_DO_BINDING)?;
     let physical_name = relocation::WalletOwner::physical_object_name(&owner, ownership_generation)?;
-    let stub = namespace.get_by_name(&physical_name)?;
+    let stub = wallet_home.wallet_stub(&namespace, &physical_name, "deriver_a")?;
     let body = serde_json::to_string(body).map_err(|error| pair_error(error.to_string()))?;
     let mut init = worker::RequestInit::new();
     init.with_method(worker::Method::Post)
@@ -800,6 +803,7 @@ impl RouterAbDeriverAWalletDurableObject {
                 fail_deriver_b_pair_after_a_error_v1(
                     &self.env,
                     &crate::CloudflareDeriverBWalletPairScopeV1 {
+                        wallet_home: request.tenant_root.wallet_home,
                         ownership_generation: request.tenant_root.ownership_generation,
                         root_identity: request.tenant_root.identity.clone(),
                         pair_binding: pair.clone(),

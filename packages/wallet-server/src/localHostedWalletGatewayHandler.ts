@@ -1,4 +1,5 @@
 import { LocalRegistrationSetupAuthority } from './localRegistrationSetupAuthority';
+import { WalletHomeCustodyBinding } from './router/cloudflare/runtime/routerAbServiceBindings';
 import { requireCanonicalString } from '@shared/utils/validation';
 import { localPresignCancellationProbe } from './localIntendedPresignCancellation';
 import { localMaterialAdmissionFault } from './localIntendedMaterialAdmissionFault';
@@ -263,6 +264,8 @@ export async function handleLocalHostedWalletGatewayRequestV1(
   };
   const gatewayEnv: CloudflareD1GatewayEnv = {
     ...env,
+    MPC_ROUTER: new WalletHomeCustodyBinding(env.MPC_ROUTER, 'US'),
+    SIGNING_WORKER: new WalletHomeCustodyBinding(env.SIGNING_WORKER, 'US'),
     WALLET_CONSOLE: createStaticWalletConsoleBindingV1(config),
   };
   const canceledPresign = await localPresignCancellationProbe(

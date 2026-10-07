@@ -204,6 +204,10 @@ pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
     if let Err(error) = require_cloudflare_gateway_to_router_auth_request_v1(&request, env) {
         return crate::cloudflare_private_service_auth_error_response_v1(error);
     }
+    let wallet_home = match crate::WalletHomeRegion::from_gateway_request(&request) {
+        Ok(home) => home,
+        Err(error) => return protocol_error_response(error),
+    };
     let parse_started_at_ms = cloudflare_now_unix_ms_v1().unwrap_or_default();
     let trace_id = match parse_cloudflare_trace_id_from_request_v1(&request) {
         Ok(trace_id) => trace_id,
@@ -235,7 +239,7 @@ pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
     }
     let ownership_generation = gateway_envelope.target.ownership_generation();
     if let Some(admission) = crate::RouterWalletRequestV1::settlement_admission(&gateway_envelope) {
-        match crate::durable_object::call_router_wallet_v1(env, &admission).await {
+        match crate::durable_object::call_router_wallet_v1(env, wallet_home, &admission).await {
             Ok(crate::RouterWalletResponseV1::SettlementAdmitted) => {}
             Ok(_) => {
                 return protocol_error_response(invalid_coordinator(
@@ -265,7 +269,7 @@ pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
             Ok(claim) => claim,
             Err(error) => return protocol_error_response(error),
         };
-        match crate::durable_object::call_router_wallet_v1(env, &claim).await {
+        match crate::durable_object::call_router_wallet_v1(env, wallet_home, &claim).await {
             Ok(crate::RouterWalletResponseV1::Run {
                 request_json,
                 replay: takes_over,
@@ -326,12 +330,13 @@ pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
                 router_ab_core::RouterEd25519YaoBurnReasonV1::ProtocolFailure,
             )
         });
-        return finish_router_execution_response(env, claimed.as_ref(), result).await;
+        return finish_router_execution_response(env, wallet_home, claimed.as_ref(), result).await;
     }
     #[cfg(feature = "strict-worker-router-entrypoint")]
     if replay && execute_request.operation() == Ed25519YaoOperationV1::Registration {
         let result = execute_historical_registration_replay_v1(
             env,
+            wallet_home,
             ownership_generation,
             &runtime,
             &execute_request,
@@ -342,10 +347,11 @@ pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
             trace_id,
         )
         .await;
-        return finish_router_execution_response(env, claimed.as_ref(), result).await;
+        return finish_router_execution_response(env, wallet_home, claimed.as_ref(), result).await;
     }
     let tenant_root = match resolve_ed25519_yao_tenant_root_context_v2(
         env,
+        wallet_home,
         ownership_generation,
         tenant_root,
         application,
@@ -386,7 +392,7 @@ pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
         started_at_ms,
         if result.is_ok() { "success" } else { "failure" },
     );
-    let response = finish_router_execution_response(env, claimed.as_ref(), result).await?;
+    let response = finish_router_execution_response(env, wallet_home, claimed.as_ref(), result).await?;
     response
         .headers()
         .set("Server-Timing", &timing.server_timing())?;
@@ -400,6 +406,7 @@ pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
 /// leaves the claim to lapse.
 async fn finish_router_execution_response(
     env: &Env,
+    wallet_home: crate::WalletHomeRegion,
     claimed: Option<&(crate::RouterWalletRegistrationV1, u64)>,
     result: RouterAbProtocolResult<RouterEd25519YaoExecuteResultV1>,
 ) -> worker::Result<Response> {
@@ -417,7 +424,7 @@ async fn finish_router_execution_response(
         Ok(None) => return Response::from_json(&result),
         Err(error) => return protocol_error_response(error),
     };
-    match crate::durable_object::call_router_wallet_v1(env, &finish).await {
+    match crate::durable_object::call_router_wallet_v1(env, wallet_home, &finish).await {
         Ok(answer) => router_wallet_answer_response(answer),
         Err(error) => protocol_error_response(error),
     }
@@ -463,6 +470,10 @@ pub async fn handle_cloudflare_router_ed25519_yao_registration_consume_private_f
     if let Err(error) = require_cloudflare_gateway_to_router_auth_request_v1(&request, env) {
         return crate::cloudflare_private_service_auth_error_response_v1(error);
     }
+    let wallet_home = match crate::WalletHomeRegion::from_gateway_request(&request) {
+        Ok(home) => home,
+        Err(error) => return protocol_error_response(error),
+    };
     let consume = match request
         .json::<crate::CloudflareRouterEd25519YaoRegistrationConsumeRequestV1>()
         .await
@@ -478,7 +489,7 @@ pub async fn handle_cloudflare_router_ed25519_yao_registration_consume_private_f
     if let Err(error) = consume.tenant_root.resolve() {
         return protocol_error_response(error);
     }
-    match crate::durable_object::call_router_wallet_v1(env, &consume.into_wallet_request()).await {
+    match crate::durable_object::call_router_wallet_v1(env, wallet_home, &consume.into_wallet_request()).await {
         Ok(response) => Response::from_json(&response),
         Err(error) => protocol_error_response(error),
     }
@@ -498,6 +509,10 @@ pub async fn handle_cloudflare_router_ed25519_yao_source_preserving_execute_priv
     if let Err(error) = require_cloudflare_gateway_to_router_auth_request_v1(&request, env) {
         return crate::cloudflare_private_service_auth_error_response_v1(error);
     }
+    let wallet_home = match crate::WalletHomeRegion::from_gateway_request(&request) {
+        Ok(home) => home,
+        Err(error) => return protocol_error_response(error),
+    };
     let parse_started_at_ms = cloudflare_now_unix_ms_v1().unwrap_or_default();
     let trace_id = match parse_cloudflare_trace_id_from_request_v1(&request) {
         Ok(trace_id) => trace_id,
@@ -553,6 +568,7 @@ pub async fn handle_cloudflare_router_ed25519_yao_source_preserving_execute_priv
     };
     let tenant_root = match resolve_ed25519_yao_tenant_root_context_v2(
         env,
+        wallet_home,
         ownership_generation,
         tenant_root,
         application,
@@ -615,6 +631,10 @@ pub async fn handle_cloudflare_router_ed25519_yao_lane_execute_private_fetch_v1(
     if let Err(error) = require_cloudflare_gateway_to_router_auth_request_v1(&request, env) {
         return crate::cloudflare_private_service_auth_error_response_v1(error);
     }
+    let wallet_home = match crate::WalletHomeRegion::from_gateway_request(&request) {
+        Ok(home) => home,
+        Err(error) => return protocol_error_response(error),
+    };
     let trace_id = match parse_cloudflare_trace_id_from_request_v1(&request) {
         Ok(trace_id) => trace_id,
         Err(error) => return protocol_error_response(error),
@@ -669,6 +689,7 @@ pub async fn handle_cloudflare_router_ed25519_yao_lane_execute_private_fetch_v1(
     };
     let tenant_root = match resolve_ed25519_yao_tenant_root_context_v2(
         env,
+        wallet_home,
         ownership_generation,
         tenant_root,
         application,
@@ -845,6 +866,7 @@ pub async fn handle_cloudflare_router_ed25519_yao_recovery_promote_private_fetch
 
 async fn resolve_ed25519_yao_tenant_root_context_v2(
     env: &Env,
+    wallet_home: crate::WalletHomeRegion,
     ownership_generation: u64,
     root: CloudflareRouterEd25519YaoTenantRootV1,
     application: RouterAbEd25519YaoApplicationBindingFactsV1,
@@ -873,6 +895,7 @@ async fn resolve_ed25519_yao_tenant_root_context_v2(
         now_ms.saturating_add(ROUTER_AUTHORITY_TTL_MS),
     )?;
     let context = CloudflareEd25519YaoTenantRootContextV2 {
+        wallet_home,
         ownership_generation,
         identity: root.identity,
         custody_binding,
@@ -982,11 +1005,13 @@ async fn execute_router_ceremony_with_finalization_v1(
     let pair_binding = request.pair_binding().clone();
     let work = pair_work(&request);
     let ownership_generation = tenant_root.ownership_generation;
+    let wallet_home = tenant_root.wallet_home;
     let root_identity = tenant_root.identity.clone();
 
     if replay {
         if let Some(result) = reconcile_router_replay_v1(
             env,
+            wallet_home,
             tenant_root.ownership_generation,
             runtime,
             &request,
@@ -1166,6 +1191,7 @@ async fn execute_router_ceremony_with_finalization_v1(
 
     finalize_router_result_v1(
         env,
+        wallet_home,
         ownership_generation,
         runtime,
         &request,
@@ -1183,6 +1209,7 @@ async fn execute_router_ceremony_with_finalization_v1(
 #[cfg(feature = "strict-worker-router-entrypoint")]
 async fn execute_historical_registration_replay_v1(
     env: &Env,
+    wallet_home: crate::WalletHomeRegion,
     ownership_generation: u64,
     runtime: &CloudflareRouterWorkerRuntimeV1,
     request: &RouterEd25519YaoExecuteRequestV1,
@@ -1206,6 +1233,7 @@ async fn execute_historical_registration_replay_v1(
     }
     let outcome_a = read_deriver_a_wallet_pair_outcome_v1(
         env,
+        wallet_home,
         ownership_generation,
         runtime.deriver_a_peer().binding_name.as_str(),
         pair_binding,
@@ -1274,6 +1302,7 @@ async fn execute_historical_registration_replay_v1(
     let activation_a = crate::ed25519_yao_activation_role_execution_v1(&outcome.deriver_a_execution)?;
     let activation_b = crate::ed25519_yao_activation_role_execution_v1(&execution_b)?;
     let lookup = CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1 {
+        wallet_home,
         ownership_generation,
         scope: CloudflareSigningWorkerWalletScopeV1::from_tenant_root(
             &root.identity,
@@ -1350,6 +1379,7 @@ async fn execute_historical_registration_replay_v1(
 
 async fn reconcile_router_replay_v1(
     env: &Env,
+    wallet_home: crate::WalletHomeRegion,
     ownership_generation: u64,
     runtime: &CloudflareRouterWorkerRuntimeV1,
     request: &RouterEd25519YaoExecuteRequestV1,
@@ -1364,6 +1394,7 @@ async fn reconcile_router_replay_v1(
     #[cfg(feature = "strict-worker-router-entrypoint")]
     let outcome_a = match read_deriver_a_wallet_pair_outcome_v1(
         env,
+        wallet_home,
         ownership_generation,
         runtime.deriver_a_peer().binding_name.as_str(),
         pair_binding,
@@ -1413,6 +1444,7 @@ async fn reconcile_router_replay_v1(
         );
         return finalize_router_result_v1(
             env,
+            wallet_home,
             ownership_generation,
             runtime,
             request,
@@ -1435,6 +1467,7 @@ async fn reconcile_router_replay_v1(
         pair_digest: pair_binding.pair_digest().bytes,
     };
     let b_scope = CloudflareDeriverBWalletPairScopeV1 {
+        wallet_home,
         ownership_generation,
         root_identity: root_identity.clone(),
         pair_binding: pair_binding.clone(),
@@ -1505,6 +1538,7 @@ async fn reconcile_router_replay_v1(
         )?;
         return finalize_router_result_v1(
             env,
+            wallet_home,
             ownership_generation,
             runtime,
             request,
@@ -1554,6 +1588,7 @@ async fn reconcile_router_replay_v1(
                 CLOUDFLARE_DERIVER_B_ED25519_YAO_BURN_PAIR_PATH,
                 "Deriver B pair burn",
                 &CloudflareDeriverBWalletPairScopeV1 {
+                    wallet_home,
                     ownership_generation,
                     root_identity: root_identity.clone(),
                     pair_binding: pair_binding.clone(),
@@ -1596,6 +1631,7 @@ async fn reconcile_router_replay_v1(
 #[cfg(feature = "strict-worker-router-entrypoint")]
 async fn read_deriver_a_wallet_pair_outcome_v1(
     env: &Env,
+    wallet_home: crate::WalletHomeRegion,
     ownership_generation: u64,
     binding_name: &str,
     pair_binding: &Ed25519YaoInputPairBindingV1,
@@ -1609,6 +1645,7 @@ async fn read_deriver_a_wallet_pair_outcome_v1(
         CLOUDFLARE_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH,
         "Deriver A wallet pair status",
         &CloudflareDeriverAWalletPairStatusRequestV1 {
+            wallet_home,
             ownership_generation,
             root_identity: root_identity.clone(),
             pair_binding: pair_binding.clone(),
@@ -1730,6 +1767,7 @@ async fn burn_pair_v1<TRequest: Serialize>(
 
 async fn finalize_router_result_v1(
     env: &Env,
+    wallet_home: crate::WalletHomeRegion,
     ownership_generation: u64,
     runtime: &CloudflareRouterWorkerRuntimeV1,
     request: &RouterEd25519YaoExecuteRequestV1,
@@ -1754,6 +1792,7 @@ async fn finalize_router_result_v1(
                 RouterCeremonyFinalizationV1::Standard => {
                     let delivery_started_at_ms = cloudflare_now_unix_ms_v1()?;
                     let scoped_delivery = CloudflareScopedEd25519YaoPackagePairDeliveryV1 {
+                        wallet_home,
                         ownership_generation,
                         scope: CloudflareSigningWorkerWalletScopeV1::from_tenant_root(
                             root_identity,

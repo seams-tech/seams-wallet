@@ -7,6 +7,22 @@ export interface RouterAbServiceBindingEnv {
   readonly SIGNING_WORKER: CloudflareServiceBindingFetcher;
 }
 
+export type WalletHomeRegion = 'US' | 'WEUR' | 'APAC' | 'OC';
+
+/** Apply only after the host admits this request to the wallet's fixed home. */
+export class WalletHomeCustodyBinding implements CloudflareServiceBindingFetcher {
+  constructor(
+    private readonly binding: CloudflareServiceBindingFetcher,
+    private readonly home: WalletHomeRegion,
+  ) {}
+
+  async fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+    const request = new Request(input, init);
+    request.headers.set('x-seams-wallet-home-region', this.home);
+    return this.binding.fetch(request);
+  }
+}
+
 export const ROUTER_AB_MPC_ROUTER_ORIGIN = 'https://mpc-router.router-ab.internal';
 export const ROUTER_AB_SIGNING_WORKER_ORIGIN = 'https://signing-worker.router-ab.internal';
 

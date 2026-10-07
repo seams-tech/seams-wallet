@@ -1608,6 +1608,7 @@ pub fn resolve_local_router_tenant_root_context_v1(
     let derivers =
         parse_cloudflare_tenant_root_creation_role_verifying_keys_v1(&config.env)?.deriver_identities()?;
     router_ab_cloudflare::cloudflare_ed25519_yao_tenant_root_context_v2(
+        router_ab_cloudflare::WalletHomeRegion::US,
         ownership_generation,
         identity.clone(),
         receipt,

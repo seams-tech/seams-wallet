@@ -1,0 +1,308 @@
+{
+  "kind": "near_authenticated_home_placement_20261007",
+  "source": {
+    "base": "4261ce02e425dafc0027aa42ed5e4a0caeb83826",
+    "tree": "ab0e5007f0501b047aaa0772e7643f39416daeb0",
+    "paths": [
+      "crates/router-ab-cloudflare/src/lib.rs",
+      "crates/router-ab-cloudflare/src/ed25519_yao_pair_protocol.rs",
+      "crates/router-ab-cloudflare/src/router_coordinator.rs",
+      "crates/router-ab-cloudflare/src/ed25519_yao_lifecycle.rs",
+      "crates/router-ab-cloudflare/src/ed25519_yao_signing_worker.rs",
+      "crates/router-ab-cloudflare/src/durable_object/deriver_a_pair.rs",
+      "crates/router-ab-cloudflare/src/durable_object/deriver_b_pair.rs",
+      "crates/router-ab-cloudflare/src/durable_object/signing_worker_wallet.rs",
+      "crates/router-ab-cloudflare/src/strict_worker/deriver.rs",
+      "crates/router-ab-cloudflare/scripts/test-private-d1.mjs",
+      "crates/router-ab-dev/src/local_ed25519_yao_worker.rs",
+      "packages/wallet-server/src/router/cloudflare/runtime/routerAbServiceBindings.ts",
+      "packages/wallet-server/src/localHostedWalletGatewayHandler.ts",
+      "docs/refactor-155B.md",
+      "crates/router-ab-dev/src/local_tenant_root.rs",
+      "crates/router-ab-dev/tests/local_worker_http.rs",
+      "crates/router-ab-cloudflare/src/durable_object/router_wallet.rs",
+      "crates/router-ab-cloudflare/src/router_wallet_relocation.rs",
+      "crates/router-ab-cloudflare/src/router_wallet_transfer.rs",
+      "crates/router-ab-cloudflare/scripts/runtime-relocation-evidence.mjs",
+      "crates/router-ab-cloudflare/src/wallet_home.rs",
+      "crates/router-ab-cloudflare/scripts/wallet-home-placement-evidence.mjs"
+    ]
+  },
+  "placement": {
+    "kind": "authenticated_wallet_home_placement_e2e_v1",
+    "regions": [
+      {
+        "home": "US",
+        "roleObjects": {
+          "router": {
+            "objectId": "4492c4e322d3c5295184a7a0ac6d824fbaff97e4776bf7d6bf0612f5ccbed79e",
+            "calls": 2,
+            "hint": "enam"
+          },
+          "deriver_a": {
+            "objectId": "cbc42e539329113e4fc8180a0955718aa694058aaf297200c39560afb72eb3ec",
+            "calls": 3,
+            "hint": "enam"
+          },
+          "deriver_b": {
+            "objectId": "539e8ffa5d967892cd52aae2b4fec633ee4c3f01708373c35db986b6de71fc37",
+            "calls": 4,
+            "hint": "enam"
+          },
+          "signing_worker": {
+            "objectId": "32248dea68c63a6f386b9362e9397ea13b5ece90229b315cee808ad62de849e8",
+            "calls": 1,
+            "hint": "enam"
+          }
+        },
+        "firstStatusLookups": [
+          {
+            "role": "deriver_a",
+            "generation": 1,
+            "firstStatus": "missing"
+          },
+          {
+            "role": "deriver_b",
+            "generation": 1,
+            "firstStatus": "missing"
+          }
+        ],
+        "invalidHomeRejectedBeforePlacement": true,
+        "unauthorizedHomeRejected": true,
+        "callerHomeOverwritten": true,
+        "completedReplyLossReplayedExactly": true,
+        "replayRanNoAdditionalCustody": true
+      },
+      {
+        "home": "WEUR",
+        "roleObjects": {
+          "router": {
+            "objectId": "4492c4e322d3c5295184a7a0ac6d824fbaff97e4776bf7d6bf0612f5ccbed79e",
+            "calls": 2,
+            "hint": "weur"
+          },
+          "deriver_a": {
+            "objectId": "cbc42e539329113e4fc8180a0955718aa694058aaf297200c39560afb72eb3ec",
+            "calls": 3,
+            "hint": "weur"
+          },
+          "deriver_b": {
+            "objectId": "539e8ffa5d967892cd52aae2b4fec633ee4c3f01708373c35db986b6de71fc37",
+            "calls": 4,
+            "hint": "weur"
+          },
+          "signing_worker": {
+            "objectId": "32248dea68c63a6f386b9362e9397ea13b5ece90229b315cee808ad62de849e8",
+            "calls": 1,
+            "hint": "weur"
+          }
+        },
+        "firstStatusLookups": [
+          {
+            "role": "deriver_a",
+            "generation": 1,
+            "firstStatus": "missing"
+          },
+          {
+            "role": "deriver_b",
+            "generation": 1,
+            "firstStatus": "missing"
+          }
+        ],
+        "invalidHomeRejectedBeforePlacement": true,
+        "unauthorizedHomeRejected": true,
+        "callerHomeOverwritten": true,
+        "completedReplyLossReplayedExactly": true,
+        "replayRanNoAdditionalCustody": true
+      },
+      {
+        "home": "APAC",
+        "roleObjects": {
+          "router": {
+            "objectId": "4492c4e322d3c5295184a7a0ac6d824fbaff97e4776bf7d6bf0612f5ccbed79e",
+            "calls": 2,
+            "hint": "apac"
+          },
+          "deriver_a": {
+            "objectId": "cbc42e539329113e4fc8180a0955718aa694058aaf297200c39560afb72eb3ec",
+            "calls": 3,
+            "hint": "apac"
+          },
+          "deriver_b": {
+            "objectId": "539e8ffa5d967892cd52aae2b4fec633ee4c3f01708373c35db986b6de71fc37",
+            "calls": 4,
+            "hint": "apac"
+          },
+          "signing_worker": {
+            "objectId": "32248dea68c63a6f386b9362e9397ea13b5ece90229b315cee808ad62de849e8",
+            "calls": 1,
+            "hint": "apac"
+          }
+        },
+        "firstStatusLookups": [
+          {
+            "role": "deriver_a",
+            "generation": 1,
+            "firstStatus": "missing"
+          },
+          {
+            "role": "deriver_b",
+            "generation": 1,
+            "firstStatus": "missing"
+          }
+        ],
+        "invalidHomeRejectedBeforePlacement": true,
+        "unauthorizedHomeRejected": true,
+        "callerHomeOverwritten": true,
+        "completedReplyLossReplayedExactly": true,
+        "replayRanNoAdditionalCustody": true
+      },
+      {
+        "home": "OC",
+        "roleObjects": {
+          "router": {
+            "objectId": "4492c4e322d3c5295184a7a0ac6d824fbaff97e4776bf7d6bf0612f5ccbed79e",
+            "calls": 2,
+            "hint": "oc"
+          },
+          "deriver_a": {
+            "objectId": "cbc42e539329113e4fc8180a0955718aa694058aaf297200c39560afb72eb3ec",
+            "calls": 3,
+            "hint": "oc"
+          },
+          "deriver_b": {
+            "objectId": "539e8ffa5d967892cd52aae2b4fec633ee4c3f01708373c35db986b6de71fc37",
+            "calls": 4,
+            "hint": "oc"
+          },
+          "signing_worker": {
+            "objectId": "32248dea68c63a6f386b9362e9397ea13b5ece90229b315cee808ad62de849e8",
+            "calls": 1,
+            "hint": "oc"
+          }
+        },
+        "firstStatusLookups": [
+          {
+            "role": "deriver_a",
+            "generation": 1,
+            "firstStatus": "missing"
+          },
+          {
+            "role": "deriver_b",
+            "generation": 1,
+            "firstStatus": "missing"
+          }
+        ],
+        "invalidHomeRejectedBeforePlacement": true,
+        "unauthorizedHomeRejected": true,
+        "callerHomeOverwritten": true,
+        "completedReplyLossReplayedExactly": true,
+        "replayRanNoAdditionalCustody": true
+      }
+    ],
+    "limitation": "Local Workers verify the requested hints and real custody lifecycle. They do not prove physical Cloudflare locations or hosted latency gains.",
+    "reproduce": "ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/wallet-home-placement-evidence.mjs"
+  },
+  "browser": {
+    "signerSet": "near-only",
+    "requests": [
+      {
+        "path": "/router-ab/ed25519/yao/registration/admit",
+        "ingress": "WEUR",
+        "home": "US",
+        "status": 200,
+        "consolePaths": [
+          "/internal/wallet-console/v1/tenant-root/active-lineage"
+        ]
+      },
+      {
+        "path": "/router-ab/ed25519/yao/registration/execute",
+        "ingress": "APAC",
+        "home": "US",
+        "status": 200,
+        "consolePaths": []
+      }
+    ],
+    "verifiedSignatures": 3,
+    "signingConsoleCalls": 0,
+    "scope": "Console is unavailable during subsequent signing. Registration retains its tenant-root context dependency; admission and execution carry the known home through foreign ingress."
+  },
+  "checks": {
+    "workerReleaseBuilds": [
+      "router",
+      "deriver-a",
+      "deriver-b",
+      "signing-worker",
+      "tenant-root-control-plane"
+    ],
+    "walletServerBuild": "passed",
+    "bloatCheck": "passed in main checkout",
+    "privateTypecheck": "six existing errors; candidate and unchanged baseline output identical",
+    "existingCustodyScenarios": {
+      "do-pair-lost-reply": "passed",
+      "do-pair-execution": "passed",
+      "do-historical-replay": "environment_or_infrastructure_failure: release binaries exclude the development-only harness-activation-fault endpoint (404); no production change made to enable it"
+    },
+    "privateTypecheckDiagnosticsEqualBaseline": true,
+    "integratedWithR153": {
+      "devBase": "cf37b54ab988331ead7c6796ee7dc5ba0d74f52c",
+      "rustWasmChecks": [
+        "router",
+        "deriver-a",
+        "deriver-b",
+        "signing-worker"
+      ],
+      "result": "passed"
+    }
+  },
+  "deployment": "No live resources changed; no hosted latency result for this change.",
+  "notes": [
+    "Each region uses fresh isolated local Worker storage. Repeated object IDs across regions reflect identical fixture identities in separate namespaces.",
+    "The SDK and non-custody WASM assets were reused from the previous measured Phase 6A candidate. No cryptographic algorithm changed."
+  ],
+  "latestHostedYaoSetupMedianMs": 5414,
+  "hostedSetupTargetMs": 2000,
+  "existingCustodyEvidence": {
+    "deriver-a-wallet-do-lost-reply": {
+      "artifact": "/Users/pta/Dev/rust/seams-wallet/.artifacts/r155b-home-placement/source/.artifacts/r150/deriver-a-wallet-do-lost-reply.json",
+      "sha256": "135196fc034322c9be34ee229b0440bea91865853008aff0a0de463c577b87eb",
+      "result": "passed",
+      "bExecutionUnchangedOnReplay": true,
+      "bOfflineDuringRouterReplay": true,
+      "exactReplayAfterLostReplyAndEviction": true
+    },
+    "deriver-a-wallet-do-execution": {
+      "artifact": "/Users/pta/Dev/rust/seams-wallet/.artifacts/r155b-home-placement/source/.artifacts/r150/deriver-a-wallet-do-execution.json",
+      "sha256": "f47e9f71af87ee8a9798795415da0e12a0e7751e377e0b3e947d6fc16716349f",
+      "result": "passed",
+      "freshSignatureAfterRelocationVerified": true,
+      "freshSignatureAfterReturnVerified": true
+    }
+  },
+  "verifiedFileSha256": {
+    "crates/router-ab-cloudflare/src/lib.rs": "043ddf5f2a355784bdc2fde5ef68ac042ebbc5f252c21cad14208dd4854f00f6",
+    "crates/router-ab-cloudflare/src/ed25519_yao_pair_protocol.rs": "f367d49c786bf7f2d38ba0ba54f10cff5b20c1cef99652781c68fd361a7232c4",
+    "crates/router-ab-cloudflare/src/router_coordinator.rs": "623c729612de767e525ca63f4edfbee3d701f19a6a5834581f0239808e3411dc",
+    "crates/router-ab-cloudflare/src/ed25519_yao_lifecycle.rs": "ab860feafacb615f90643f3971b28a4d4d77107422330126dd164c523f5618c2",
+    "crates/router-ab-cloudflare/src/ed25519_yao_signing_worker.rs": "b7b1d4cedec0df1e0e7c70924a883a1ff92ee4586b65249dda803cec5f492daf",
+    "crates/router-ab-cloudflare/src/durable_object/deriver_a_pair.rs": "44e097200f99de53c8f67589063ac29e04ca7f9a107b8e4cfdb86a85c8562f38",
+    "crates/router-ab-cloudflare/src/durable_object/deriver_b_pair.rs": "fb38b634d8f7bb2d735a8c3deec171d1d10d2b4a87ebfad92fec81c7dde231e7",
+    "crates/router-ab-cloudflare/src/durable_object/signing_worker_wallet.rs": "4ebd0e4ceebbbf6d1f23df847da67d8b671abda43a48aa1cc2666b6f29b98ece",
+    "crates/router-ab-cloudflare/src/strict_worker/deriver.rs": "a513bed82af1d6c8566c3f3053fe36c0209b1c8e177b53ad205bf8b87c84fe9d",
+    "crates/router-ab-cloudflare/scripts/test-private-d1.mjs": "eae2f874aa4520580aa542c546e6717e890fa5f066c79d2b2553dcd2be9d6d2e",
+    "crates/router-ab-dev/src/local_ed25519_yao_worker.rs": "f36e2a43fc601ce91dabd623760a4b0922ddb97005ff13679109dd5051b7c38e",
+    "packages/wallet-server/src/router/cloudflare/runtime/routerAbServiceBindings.ts": "9399d03c072679c78aeffe6a576196c47119bbd2c92ce6823890f98fb0caae7e",
+    "packages/wallet-server/src/localHostedWalletGatewayHandler.ts": "198540d3b936af51adff4a01c60904fa6fe723db657aecc8152f3e007d05fe88",
+    "crates/router-ab-dev/src/local_tenant_root.rs": "46b93ac346aa2b5e7d474d3c53a9f3170200a00543fa70545b6381c04b0703f4",
+    "crates/router-ab-dev/tests/local_worker_http.rs": "f38cbbabad799967aec6a5b84bacbfe06feea48666c9e7a22134743a00949144",
+    "crates/router-ab-cloudflare/src/durable_object/router_wallet.rs": "1841b58e66a205da67642f1681c4d1cc6fc6d81ffb20b47ae850cdf99d22c257",
+    "crates/router-ab-cloudflare/src/router_wallet_relocation.rs": "cb5ace386ab04134b7879951daa9de51a0b4ccd79441a6cebe90775a11b8cbd9",
+    "crates/router-ab-cloudflare/src/router_wallet_transfer.rs": "7460fb2ee2283f9e6474f131dcfdc8290c17481cdd056573d44381292b07607e",
+    "crates/router-ab-cloudflare/scripts/runtime-relocation-evidence.mjs": "b541ead80a8553d16fa62d96b97b006577de371caea32845ae7ace81b3ee6465",
+    "crates/router-ab-cloudflare/scripts/deriver-preparation-evidence.mjs": "51b4058fca5971acce2f75abfb236f7ad30fdc9db756eb33fc6e4c81192d649a",
+    "crates/router-ab-cloudflare/scripts/deriver-import-evidence.mjs": "69e51a283a9762af71bed40a5789577c17743ba95406769e8bcc305b5a3a9540",
+    "crates/router-ab-cloudflare/scripts/deriver-activation-evidence.mjs": "c0d895cc55f728e9ecde2ef3019ea67c27f622dc10985e1f9729dded1ddd3d39",
+    "crates/router-ab-cloudflare/src/wallet_home.rs": "333f84cd504c1b94d9d716bff5c7d59b61506aa25157f7b6a0eaa21981a272ef",
+    "crates/router-ab-cloudflare/scripts/wallet-home-placement-evidence.mjs": "7a1ddf2f2913245f03ccd9719768bef4516b66e1860c535a8cc823a9500433d1"
+  }
+}

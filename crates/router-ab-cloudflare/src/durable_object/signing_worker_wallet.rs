@@ -634,7 +634,16 @@ pub(crate) async fn call_signing_worker_wallet_do_v1(
     let namespace = env.durable_object(BINDING).map_err(|error| {
         wallet_error(format!("SigningWorker wallet binding is missing: {error}"))
     })?;
-    let stub = namespace.get_by_name(&name).map_err(|error| {
+    let stub = match &command {
+        SigningWorkerWalletDoRequestV1::DeliverPackages(request) => {
+            request.wallet_home.wallet_stub(&namespace, &name, "signing_worker")
+        }
+        SigningWorkerWalletDoRequestV1::LookupRegistration(request) => {
+            request.wallet_home.wallet_stub(&namespace, &name, "signing_worker")
+        }
+        _ => namespace.get_by_name(&name),
+    }
+    .map_err(|error| {
         wallet_error(format!("SigningWorker wallet identity is invalid: {error}"))
     })?;
     let body = serde_json::to_string(&command).map_err(|error| {

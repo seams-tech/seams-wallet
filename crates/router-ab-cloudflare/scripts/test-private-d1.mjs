@@ -918,6 +918,7 @@ function authenticatedJsonRequest(body, additionalHeaders = {}) {
     headers: {
       'content-type': 'application/json',
       [internalAuthHeader]: internalAuthSecret,
+      'x-seams-wallet-home-region': 'US',
       ...additionalHeaders,
     },
     body: JSON.stringify(body),
@@ -2424,7 +2425,7 @@ async function verifyEcdsaWalletRelocation(topology, fixture, ecdsa) {
   };
 }
 
-function buildEd25519ExecuteRequest(fixture, fixtureKey, tenantRoot, source = fixture[fixtureKey]) {
+export function buildEd25519ExecuteRequest(fixture, fixtureKey, tenantRoot, source = fixture[fixtureKey]) {
   const identity = tenantRoot.identity ?? (fixtureKey.startsWith('second_tenant')
     ? fixture.tenant_root_creation.second_tenant_identity
     : fixture.tenant_root_creation.identity);
@@ -4312,6 +4313,7 @@ async function deriverBPairStatus(topology, rootIdentity, pairBinding) {
   const deriverB = await topology.getWorker('deriver-b');
   const bytes = await expectOk(
     await postWorkerJson(deriverB, deriverBPairStatusPath, {
+      wallet_home: 'US',
       ownership_generation: 1,
       root_identity: rootIdentity,
       pair_binding: pairBinding,
@@ -4861,6 +4863,7 @@ async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, data
   });
   assert.equal(stored.body.record.status, 'completed');
   const scopedLookup = {
+    wallet_home: 'US',
     ownership_generation: 1,
     root_identity: rootIdentity,
     pair_binding: capturedDeriverAExecution.request.pair_binding,

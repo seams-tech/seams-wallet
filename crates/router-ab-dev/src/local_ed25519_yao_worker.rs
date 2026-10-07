@@ -3208,6 +3208,7 @@ mod tests {
         )
         .expect("outer binding");
         router_ab_cloudflare::CloudflareEd25519YaoTenantRootContextV2 {
+            wallet_home: router_ab_cloudflare::WalletHomeRegion::US,
             ownership_generation: 1,
             identity: router_ab_core::TenantRootIdentityV1::new(
                 "org",

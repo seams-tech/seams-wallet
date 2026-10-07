@@ -16,7 +16,7 @@ class MiniflareRouterBinding {
     this.calls += 1;
     return this.router.fetch(request.url, {
       method: request.method,
-      headers: Object.fromEntries(request.headers),
+      headers: { ...Object.fromEntries(request.headers), 'x-seams-wallet-home-region': 'US' },
       redirect: request.redirect,
       body: await request.arrayBuffer(),
     });

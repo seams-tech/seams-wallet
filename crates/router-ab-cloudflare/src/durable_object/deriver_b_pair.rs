@@ -108,7 +108,11 @@ pub(crate) async fn call_deriver_b_wallet_do_v1(
     request: DeriverBWalletDoRequestV1,
 ) -> worker::Result<Response> {
     let namespace = env.durable_object(BINDING)?;
-    let stub = namespace.get_by_name(&deriver_b_wallet_object_name_v1(&request.scope)?)?;
+    let stub = request.scope.wallet_home.wallet_stub(
+        &namespace,
+        &deriver_b_wallet_object_name_v1(&request.scope)?,
+        "deriver_b",
+    )?;
     let body = serde_json::to_string(&request).map_err(pair_error)?;
     let mut init = worker::RequestInit::new();
     init.with_method(worker::Method::Post)

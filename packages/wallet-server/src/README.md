@@ -48,6 +48,28 @@ The hosted-wallet exchange routes deliver one opaque Wallet Session token
 through a short-lived, origin-bound, single-use capability. They do not create
 an application session, and the outer application never receives the token.
 
+## Initial Cloudflare wallet placement
+
+The regional host must admit each request to the wallet's fixed home before calling
+custody services. Wrap the existing `MPC_ROUTER` and `SIGNING_WORKER` bindings with
+`WalletHomeCustodyBinding` from `@seams/wallet-server/cloud-host`. Pass the admitted
+`US`, `WEUR`, `APAC`, or `OC` home. Never use an incoming client header as this value.
+This applies to custom hosts that call the exported hosted Gateway Worker as well.
+
+The binding overwrites `x-seams-wallet-home-region`. The Router accepts this header
+only after checking the existing private Gateway credential. Missing or invalid
+values fail before wallet-object access. Gateway and custody versions must deploy
+together. No additional environment variable or service credential is required.
+
+The Router carries the home through Yao setup, status lookups, retries, deferred
+execution, and signing-worker delivery. Initial object lookups request `enam`,
+`weur`, `apac`, or `oc`, respectively. Wallet identity and ownership generation
+remain unchanged. The local fixture explicitly uses `US`.
+
+Cloudflare location hints are advisory and apply to initial placement. They do not
+move existing objects or guarantee D1, Workers, and objects share one data centre.
+Use fresh wallets when measuring this change.
+
 ## PRF Session Seal Module
 
 `signingSessionSeal` is optional and preserves sealed signing refresh material.

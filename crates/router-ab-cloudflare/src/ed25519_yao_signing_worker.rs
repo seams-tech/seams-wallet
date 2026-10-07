@@ -126,6 +126,7 @@ pub struct CloudflareEd25519YaoPackagePairDeliveryV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareScopedEd25519YaoPackagePairDeliveryV1 {
+    pub wallet_home: crate::WalletHomeRegion,
     pub ownership_generation: u64,
     pub scope: CloudflareSigningWorkerWalletScopeV1,
     pub delivery: CloudflareEd25519YaoPackagePairDeliveryV1,
@@ -180,6 +181,7 @@ impl CloudflareEd25519YaoPackagePairDeliveryV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1 {
+    pub wallet_home: crate::WalletHomeRegion,
     pub ownership_generation: u64,
     pub scope: CloudflareSigningWorkerWalletScopeV1,
     pub delivery: CloudflareEd25519YaoPackagePairDeliveryV1,

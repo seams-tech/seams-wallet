@@ -103,7 +103,7 @@ export async function verifyDeriverImport(topology, role, receipt, segments, rec
   const pair = preparation.request.pair_binding;
   const read = role === 'a'
     ? { operation: 'read', owner: receipt.source.owner, pair_binding: pair }
-    : { scope: { ownership_generation: receipt.source.destination_generation, root_identity: rootIdentity, pair_binding: pair }, command: {
+    : { scope: { wallet_home: preparation.request.tenant_root.wallet_home, ownership_generation: receipt.source.destination_generation, root_identity: rootIdentity, pair_binding: pair }, command: {
       command: 'read_pair_status', session: pair.ceremony.binding.session_id, pair_digest: pair.pair_digest.bytes,
     } };
   const sourceNamespace = await topology.getDurableObjectNamespace(`DERIVER_${role.toUpperCase()}_WALLET_DO`, `deriver-${role}`);

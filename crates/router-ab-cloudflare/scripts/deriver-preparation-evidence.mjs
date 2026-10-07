@@ -138,7 +138,7 @@ export async function verifyDeriverPreparation(topology, owner, rootIdentity, pr
   const empty = await post(a.object, '/router-ab/internal/deriver-a/wallet-pair', read, credential);
   assert.deepEqual(await empty.json(), { kind: 'missing' });
   const b = await reserveDestination(topology, 'b', owner, credential, runtime);
-  const scope = { ownership_generation: 2, root_identity: rootIdentity, pair_binding: request.pair_binding };
+  const scope = { wallet_home: request.tenant_root.wallet_home, ownership_generation: 2, root_identity: rootIdentity, pair_binding: request.pair_binding };
   const session = request.pair_binding.ceremony.binding.session_id;
   const pairDigest = request.pair_binding.pair_digest.bytes;
   await assert.rejects(
@@ -284,7 +284,7 @@ export async function verifyDeriverSourceFences(topology, owner, rootIdentity, p
     const pair = preparation.request.pair_binding;
     const mutation = role === 'a'
       ? { operation: 'expire', owner, pair_binding: pair, now_ms: preparation.receipt.expires_at_ms + 1 }
-      : { scope: { ownership_generation: command.source_generation, root_identity: rootIdentity, pair_binding: pair }, command: {
+      : { scope: { wallet_home: preparation.request.tenant_root.wallet_home, ownership_generation: command.source_generation, root_identity: rootIdentity, pair_binding: pair }, command: {
         command: 'fail_pair', session: pair.ceremony.binding.session_id, pair_digest: pair.pair_digest.bytes,
       } };
     await assert.rejects(post(object, `/router-ab/internal/deriver-${role}/wallet-pair`, mutation, credential),

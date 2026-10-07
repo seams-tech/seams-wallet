@@ -39,6 +39,7 @@ export async function verifyDeriverActivation(topology, role, receipt, segment, 
   assert.equal((await accepted(destination, path, { operation: 'status', receipt }, credential)).kind, 'activated');
   const statusPath = `/router-ab/deriver-${role}/ed25519-yao/read-pair-status`;
   const lookup = {
+    wallet_home: preparation.request.tenant_root.wallet_home,
     ownership_generation: receipt.source.destination_generation,
     root_identity: rootIdentity,
     pair_binding: preparation.request.pair_binding,

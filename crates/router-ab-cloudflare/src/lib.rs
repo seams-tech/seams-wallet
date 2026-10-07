@@ -336,6 +336,8 @@ mod router;
 pub use router::*;
 mod router_wallet;
 mod wallet_object;
+mod wallet_home;
+pub use wallet_home::WalletHomeRegion;
 #[cfg(feature = "workers-rs")]
 use wallet_object::SigningWorkerWalletRoute;
 pub use router_wallet::*;

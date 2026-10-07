@@ -3010,6 +3010,7 @@ where
         pair_execution.local_receipt,
         pair_execution.execution_id,
         &CloudflareDeriverBWalletPairScopeV1 {
+            wallet_home: pair_execution.tenant_root.wallet_home,
             ownership_generation: pair_execution.tenant_root.ownership_generation,
             root_identity: pair_execution.tenant_root.identity.clone(),
             pair_binding: pair_execution.pair_binding.clone(),
@@ -3205,6 +3206,7 @@ pub async fn handle_cloudflare_ed25519_yao_deriver_b_prepare_pair_v1(
     let expected_kind = input_kind_for_circuit(request.pair_binding.binding().circuit_family());
     request.validate_for_role(Ed25519YaoDeriverRoleV1::DeriverB, expected_kind)?;
     let scope = CloudflareDeriverBWalletPairScopeV1 {
+        wallet_home: request.tenant_root.wallet_home,
         ownership_generation: request.tenant_root.ownership_generation,
         root_identity: request.tenant_root.identity.clone(),
         pair_binding: request.pair_binding.clone(),
@@ -3564,6 +3566,7 @@ async fn handle_pair_bound_deriver_b_websocket(
     context.wait_until(async move {
         let role_started_at_ms = role_span_started_at_ms();
         let running_scope = CloudflareDeriverBWalletPairScopeV1 {
+            wallet_home: tenant_root.wallet_home,
             ownership_generation: tenant_root.ownership_generation,
             root_identity: tenant_root.identity.clone(),
             pair_binding: (*pair_binding).clone(),
@@ -3629,6 +3632,7 @@ async fn execute_deriver_b_role(
     work: crate::CloudflareEd25519YaoPairWorkV1,
 ) -> RouterAbProtocolResult<()> {
     let scope = CloudflareDeriverBWalletPairScopeV1 {
+        wallet_home: tenant_root.wallet_home,
         ownership_generation: tenant_root.ownership_generation,
         root_identity: tenant_root.identity.clone(),
         pair_binding: pair_binding.clone(),
@@ -4923,6 +4927,7 @@ mod tests {
         pair: &Ed25519YaoInputPairBindingV1,
     ) -> crate::CloudflareEd25519YaoTenantRootContextV2 {
         crate::CloudflareEd25519YaoTenantRootContextV2 {
+            wallet_home: crate::WalletHomeRegion::US,
             ownership_generation: 1,
             identity: router_ab_core::TenantRootIdentityV1::new(
                 "org", "project", "env", "root", "v1",
