@@ -38,6 +38,7 @@ const TABLES = [
   'wallet_recovery_code_locators',
   'wallets',
   'wallet_auth_methods',
+  'wallet_relocation_approvals',
   'wallet_authorities',
   'wallet_relocation_authorization_import_receipts',
   'wallet_relocation_authorization_chunks',

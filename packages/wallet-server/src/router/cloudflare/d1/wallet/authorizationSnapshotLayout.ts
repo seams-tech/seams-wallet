@@ -10,6 +10,7 @@ const TABLES = [
   'wallet_recovery_code_locators',
   'wallet_authorities',
   'wallet_auth_methods',
+  'wallet_relocation_approvals',
   'webauthn_credential_bindings',
   'webauthn_authenticators',
   'router_ab_yao_versioned_json_records',
