@@ -144,7 +144,7 @@ pub(crate) use tenant_root_creation::{
 };
 #[cfg(feature = "workers-rs")]
 pub(crate) use worker_storage::{
-    PresignHost,
+    PresignHost, PresignPlacement,
     warm_owner_presign_host,
     execute_cloudflare_durable_object_custom_json_call_v1,
     execute_cloudflare_durable_object_custom_json_call_with_timing_v1,

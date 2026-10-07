@@ -17,6 +17,11 @@ pub(crate) enum PresignHost<'a> {
     LinkedSession { session_id: &'a str, ownership_generation: u64 },
 }
 
+pub(crate) enum PresignPlacement {
+    Existing,
+    Home(crate::WalletHomeRegion),
+}
+
 /// Activation has committed before this task starts. Warming creates no session or authority.
 pub(crate) async fn warm_owner_presign_host(
     env: worker::Env,
@@ -64,7 +69,7 @@ where
 {
     Ok(
         execute_cloudflare_durable_object_custom_json_call_with_timing_v1(
-            env, binding, path, host, request,
+            env, binding, path, host, PresignPlacement::Existing, request,
         )
         .await?
         .value,
@@ -79,6 +84,7 @@ pub(crate) async fn execute_cloudflare_durable_object_custom_json_call_with_timi
     binding: &CloudflareSigningWorkerPresignSessionBindingV1,
     path: &str,
     host: PresignHost<'_>,
+    placement: PresignPlacement,
     request: &TRequest,
 ) -> RouterAbProtocolResult<CloudflareDurableObjectJsonResponseV1<TResponse>>
 where
@@ -94,7 +100,10 @@ where
             format!("Durable Object namespace lookup failed: {error}"),
         )
     })?;
-    let stub = namespace.get_by_name(&object_name).map_err(|error| {
+    let stub = match placement {
+        PresignPlacement::Existing => namespace.get_by_name(&object_name),
+        PresignPlacement::Home(home) => home.wallet_stub(&namespace, &object_name, "ownerPresign"),
+    }.map_err(|error| {
         RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
             format!("Durable Object stub lookup failed: {error}"),

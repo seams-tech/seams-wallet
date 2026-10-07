@@ -11983,6 +11983,10 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_init_private
     {
         return worker::Response::error("SigningWorker ECDSA presign init route not found", 404);
     }
+    let home = match WalletHomeRegion::from_gateway_request(&request) {
+        Ok(home) => home,
+        Err(error) => return cloudflare_signing_worker_presign_error_response_v1(error),
+    };
     let parsed = match request
         .json::<CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1>()
         .await
@@ -12034,6 +12038,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_init_private
                 wallet: do_request.request.authority.wallet_scope(),
                 material: &do_request.request.scope.material_activation,
             },
+            durable_object::PresignPlacement::Home(home),
             &do_request,
         )
         .await
@@ -12352,6 +12357,10 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_step_private
     {
         return worker::Response::error("SigningWorker ECDSA presign step route not found", 404);
     }
+    let home = match WalletHomeRegion::from_gateway_request(&request) {
+        Ok(home) => home,
+        Err(error) => return cloudflare_signing_worker_presign_error_response_v1(error),
+    };
     let parsed = match request
         .json::<CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1>()
         .await
@@ -12381,6 +12390,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_step_private
                 wallet: do_request.request.authority.wallet_scope(),
                 material: &do_request.request.scope.material_activation,
             },
+            durable_object::PresignPlacement::Home(home),
             &do_request,
         )
         .await
