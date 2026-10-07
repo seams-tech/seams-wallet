@@ -343,6 +343,120 @@ Exit: the composed E2E evidence proves the new dependency boundary and retained 
 Exit: publish measured results and limitations. Zero routine Console calls is a
 required result; a particular millisecond saving is not promised in advance.
 
+## Phase 6A — Reduce NEAR setup and first-sign latency
+
+Status: diagnosed and planned. Implementation and comparative hosted verification
+remain open. Run this phase before final cleanup in Phase 7.
+
+### Baseline and scope
+
+The October 7 hosted candidate used public source
+`2bee39abb947a6524a42e8c74c6ff7b89c1a7acb`. Three new NEAR-only wallets recorded
+Yao execute requests of 7.475, 6.400 and 5.752 seconds. Deriver A protocol spans
+were 1.414, 0.353 and 0.184 seconds within those requests. Protocol spans include
+peer I/O; they are not CPU-only measurements. Earlier local Router execution was
+approximately 316 ms and is a separate environment.
+
+The fastest hosted setup divides as follows:
+
+| Stage | Duration |
+| --- | ---: |
+| Authorization and root admission | 946 ms |
+| Prepare both parties, already parallel | 1,642 ms |
+| Deriver A execution, including protocol | 2,319 ms |
+| Signing-worker delivery | 627 ms |
+| Remaining request overhead | 218 ms |
+
+Funding is a separate user step and is outside the MPC optimization target.
+NEAR provisioning at approximately 2–3 seconds is acceptable for this phase.
+Continue to report both costs separately. Keep NEAR-only loading and measure SDK
+completion before test cleanup. The 5.705-second unlock workflow includes a page
+reload and 785 ms of signing automation cleanup in its median-total sample.
+Its signing SDK call took 2.179 seconds. Do not label workflow time as SDK time.
+
+Private hosted evidence and the complete diagnosis live in `seams-monorepo`:
+`docs/r155b-near-hosted-benchmarks-20261007.md` and its two October 7 NEAR JSON
+artifacts in `docs/evidence/`. Preserve their raw samples and frozen candidate.
+
+### 6A.1 — Consolidate root admission and retrieval
+
+Cause: `load_bound` composes `admit_bound`, an epoch reread and `load_active`.
+Admission itself reads the epoch, inserts the admission conditionally and reads
+it back. The active-epoch path makes five sequential D1 calls. Each party runs
+it during preparation and again during execution: twenty calls across four loads.
+Preparation decrypts the share and drops it; execution repeats the work.
+
+- [ ] Extract bound-root admission/retrieval along the existing store-module seam.
+  Reuse `RoleSqlSessionV1::batch`; introduce no parallel persistence framework.
+- [ ] Preserve the initial authenticated row check. Batch conditional admission
+  and dependent reads into one transaction with a coherent lifecycle outcome.
+- [ ] Target five to at most two remote D1 round trips per load, or twenty to
+  eight across the four loads. Record SQL statement counts separately.
+- [ ] Preserve active-root uniqueness, exact binding checks, admitted access to
+  retired epochs, cancellation, erased-share rejection and conflicting retries.
+- [ ] Remove redundant rereads and row decryption where the transaction snapshot
+  supplies the same verified facts. Delete replaced helpers and fallback paths.
+- [ ] Keep secrets out of diagnostics. Do not add a global plaintext-share cache
+  or extend authority lifetime to avoid fresh execution checks.
+
+### 6A.2 — Reduce Worker-to-DO delay
+
+Cause partly established: handlers perform D1 work, while substantial additional
+latency occurs outside them. Deriver B preparation took 1,370 ms with a 622 ms
+handler. Its later begin call took 542 ms with a 52 ms handler. Routing,
+scheduling, startup and transport remain unresolved contributors. These gaps
+alone do not prove cold starts or a Cloudflare fault.
+
+- [ ] Extend existing spans with attempt correlation, constructor occurrence,
+  handler duration, D1 calls/duration, and correctly scoped placement evidence.
+- [ ] Compare first, subsequent and post-idle commands on exact wallet objects.
+  Separate new-object and warm-object samples; avoid absolute clock subtraction
+  across machines.
+- [ ] Audit first-touch routing against the authenticated wallet home. Coordinate
+  with R153 physical custody ownership; preserve its resource/generation identity.
+- [ ] Compare supported initial location hints using fresh test objects where
+  placement evidence warrants it. Hints do not move existing objects or guarantee
+  an exact city. Regional D1 labels alone do not prove physical colocation.
+- [ ] Eliminate repeated admission/status hops within one operation when verified
+  results already supply the required authority. Keep durable claims before
+  protocol messages and durable completion before returning success.
+- [ ] If constructor evidence shows a material cost, start the exact wallet
+  objects at the earliest authorized registration point. Use bounded preparation;
+  add no permanent warm pool, keepalive or new infrastructure.
+
+### 6A.3 — Reduce signing-worker delivery and signing preflight
+
+- [ ] Split the observed 627–1,130 ms delivery span into transport, verification,
+  combination, D1 and wallet-DO persistence. Batch dependent writes and remove
+  repeated same-attempt reads. Preserve durable, idempotent delivery.
+- [ ] Trace the two session-status and two owner-lane requests before each measured
+  NEAR signature. Consolidate same-operation session/lane resolution through the
+  existing prepare response. Preserve revocation, budget and relocation fences.
+- [ ] Verify whether current SDK changes already remove any measured duplicates
+  before adding another implementation. Freeze a matching candidate for comparison.
+
+### 6A.4 — Verify correctness and hosted gains
+
+- [ ] Run existing custody integration/E2E scenarios for refresh during setup,
+  cancellation, conflicting retries, exact replay after lost replies, and verified
+  NEAR signing. Retain repeatable artifacts; add no source-text or unit-test suite.
+- [ ] Freeze matching release builds and preserve concurrent R153 edits. Run bloat
+  and relevant build/type checks. Keep each completed change committed on `dev`.
+- [ ] Alternate baseline and candidate runs on existing staging resources, within
+  the $25 Cloudflare budget. Change one optimization group at a time.
+- [ ] Measure fresh registration setup, unlock to first signature, prepared signing
+  and three consecutive signatures. Separate user funding, provisioning, test
+  overhead and cold/warm cohorts. Record medians, ranges, maxima, errors, D1
+  trips/statements, HTTP counts, preparation waits and Console calls.
+- [ ] First target hosted Yao setup below two seconds median. Then pursue
+  0.5–1 second. These are engineering targets; no saving is claimed until measured.
+- [ ] Keep changes that improve the measured workload without weakening ownership
+  or authorization. Record rejected candidates and unresolved bottlenecks.
+
+Exit: repeatable hosted evidence shows the achieved latency and call-count changes,
+correctness checks pass, and replaced code is removed. Mark any unmet target
+explicitly. A faster local run alone does not complete this phase.
+
 ## Phase 7 — Remove obsolete paths and close the refactor
 
 - [ ] Delete replaced session lookup adapters, remote admission wrappers, unused
