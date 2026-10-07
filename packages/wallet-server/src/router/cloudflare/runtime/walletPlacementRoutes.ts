@@ -54,7 +54,7 @@ export class WalletPlacementRoutes implements RouterApiRouteExtension {
           'The handler authenticates an owner or bounded move-read credential before exact replay.',
       },
       metering: { kind: 'none' },
-      summary: 'Replay an admitted wallet relocation',
+      summary: 'Admit or replay an exact wallet relocation',
     },
     {
       id: 'wallet_placement_get',
@@ -344,10 +344,13 @@ export class WalletPlacementRoutes implements RouterApiRouteExtension {
       intent.expectedGeneration !== approval.binding.sourceGeneration
     )
       return failure('request_conflict', 409);
-    return this.dispatch('relocation-replay', {
+    return this.dispatch('relocation-admit', {
       wallet: this.walletKey(intent.walletId),
       moveId: intent.moveId,
       requestDigest: approval.binding.requestDigestHex,
+      destinationRegion: approval.binding.destinationRegion,
+      expectedGeneration: approval.binding.sourceGeneration,
+      authorityId: approval.binding.authorityId,
     });
   }
 
@@ -362,7 +365,7 @@ export class WalletPlacementRoutes implements RouterApiRouteExtension {
   }
 
   private async dispatch(
-    path: 'placement-status' | 'relocation-status' | 'relocation-replay' | 'relocation-request',
+    path: 'placement-status' | 'relocation-status' | 'relocation-admit' | 'relocation-request',
     body: object,
   ): Promise<Response> {
     const response = await this.options.directory.fetch(

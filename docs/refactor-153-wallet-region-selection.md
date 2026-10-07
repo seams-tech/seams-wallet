@@ -1,8 +1,9 @@
 # Refactor 153: owner-controlled wallet region selection
 
-Status: implementation started, October 3, 2026. The private directory control
-plane is implemented. Backend state transfer, writer fencing, owner API, client
-reconciliation, settings, and hosted placement remain unfinished.
+Status: implementation in progress. Local SDK-driven relocation now reaches owner
+approval, fresh resource verification, preparation, transfer, activation, and cleanup.
+The ECDSA and Ed25519 browser runs passed with fresh unlock and destination signing.
+Full two-device, recovery, return-move, and hosted placement/latency acceptance remain open.
 
 ## Implementation order and prerequisites
 
@@ -71,6 +72,34 @@ Session continuity, sealed-session restoration, and pool restoration are exclude
 | Historical inserts can consume quota or reject terminal records. | Define a narrowly scoped restore context and preserve ordinary admission guards. Prove it against production stores. |
 | `cutover` could not express an active destination awaiting cleanup. | Persist activation independently of cleanup and expose readiness from authenticated evidence. |
 | Running-attempt recovery and paused authentication were underspecified. | Reconcile existing participant commands without timer takeover or credential mutation. |
+
+## Public admission checkpoint — October 7, 2026
+
+The SDK owner path now admits new moves through Console after fresh approval,
+resource verification, and participant preparation. Exact admitted retries return
+the stored result without repeating preparation. The obsolete replay-only endpoint
+is removed. A preparation failure leaves the source active and creates no move.
+
+Console refreshes resource evidence on demand. It checks each serving Gateway and
+Runtime deployment before and after a new D1 challenge through both actual service
+bindings. Deployment changes, wrong versions, and partial rollouts prevent admission.
+The verifier removes challenge rows after failure, including a lost insert reply.
+The deployment E2E checks this with real local Workers and simulated provider replies.
+
+Hosted admission requires the Console secret
+`CLOUDFLARE_RELOCATION_VERIFICATION_TOKEN`. Scope it to inspect the configured Worker
+deployments and query the regional signer D1 databases. Missing credentials prevent
+new admission before source pause. This change does not provision that credential.
+Actual Cloudflare verification and hosted latency remain unverified.
+
+The private browser scenario now calls `seams.placement.move()`. It checks an initial
+preparation outage, approval reuse, exact admission retry, immutable authentication
+records, source cleanup, fresh passkey unlock, and destination signing during a
+Console outage. Evidence is under
+`.artifacts/r153/public-admission-20261007/` in `seams-monorepo`.
+
+Earlier component checkpoints below describe their original scope. They do not
+replace the remaining composed and hosted acceptance gates.
 
 ## Implemented baseline
 

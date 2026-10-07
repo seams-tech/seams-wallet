@@ -1017,7 +1017,7 @@ async function verifyRelocationPasskey(database) {
   assert.ok(await approvals.read(binding));
   assert.equal(
     submissionDirectory.requests[0].path,
-    '/internal/wallet-placement/v1/relocation-replay',
+    '/internal/wallet-placement/v1/relocation-admit',
   );
   assert.equal(submissionDirectory.requests[0].body.requestDigest, binding.requestDigestHex);
   nowMs = Date.now();
@@ -1280,11 +1280,14 @@ async function verifyRelocationPasskey(database) {
   assert.equal(replay.headers.get('cache-control'), 'no-store');
   assert.equal(directory.requests.length, 2);
   assert.deepEqual(directory.requests[1], {
-    path: '/internal/wallet-placement/v1/relocation-replay',
+    path: '/internal/wallet-placement/v1/relocation-admit',
     body: {
       wallet: directory.requests[0].body.wallet,
       moveId: binding.moveId,
       requestDigest: binding.requestDigestHex,
+      authorityId: binding.authorityId,
+      expectedGeneration: binding.sourceGeneration,
+      destinationRegion: binding.destinationRegion,
     },
   });
 
@@ -1672,7 +1675,7 @@ async function verifyRelocationEmailOtp(database) {
   assert.ok(await approvals.read(binding));
   assert.equal(
     submissionDirectory.requests[0].path,
-    '/internal/wallet-placement/v1/relocation-replay',
+    '/internal/wallet-placement/v1/relocation-admit',
   );
 
   const approved = await approvals.approveEmailOtp(input);

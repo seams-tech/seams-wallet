@@ -340,7 +340,7 @@ class SubmissionDirectory {
         destinationRegion: 'APAC',
       });
     }
-    assert.ok(path.endsWith('/relocation-replay'));
+    assert.ok(path.endsWith('/relocation-admit'));
     assert.equal(body.requestDigest, this.binding.requestDigestHex);
     this.submissions += 1;
     if (this.failNextPreparation) {
