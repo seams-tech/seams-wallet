@@ -3,6 +3,8 @@ import type { D1DatabaseLike } from '../../../../storage/tenantRoute';
 
 const TABLES = [
   'wallet_email_otp_rate_limits',
+  'email_otp_wallet_enrollments',
+  'email_otp_auth_states',
   'wallets',
   'wallet_signers',
   'wallet_authorities',

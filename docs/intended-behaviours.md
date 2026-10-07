@@ -1427,6 +1427,13 @@ and authorization checks remain enforced independently of these spam limits.
 No dedicated OTP database, shared counter RPC, or cross-region counter replication
 is required.
 
+Email-OTP enrollment and authentication state move with the wallet. The destination
+preserves the sealed factor, provider identity, failure count, and lockout deadline.
+Frozen sources and inactive destinations reject ordinary enrollment and auth-state
+writes. Only the exact admitted import can install destination records. Source
+cleanup removes these records after activation. A new destination OTP challenge
+must honor the copied lockout and retain single-use verification.
+
 ### Hosted passkey ownership reservation
 
 Before a hosted regional credential-binding write, the assigned home writer claims

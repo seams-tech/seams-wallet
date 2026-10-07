@@ -49,6 +49,8 @@ const scope = {
 };
 const tables = [
   'wallet_email_otp_rate_limits',
+  'email_otp_wallet_enrollments',
+  'email_otp_auth_states',
   'wallet_authorities',
   'wallet_auth_methods',
   'authorization_wallet_session_quotas',
@@ -310,6 +312,7 @@ try {
     .bind(' '.repeat(1_200_000), sessionSource.walletId)
     .run();
   const walletOtpBefore = await seedWalletOtpCounters(api, source, scope, sessionSource.walletId);
+  const otpEnrollmentBefore = await seedRelocationEmailEnrollment(source, sessionSource.walletId);
   const authorizationFreeze = await verifyAuthorizationFreeze({
     api,
     source,
@@ -353,6 +356,7 @@ try {
   });
 
   await verifyInactiveWalletOtp(api, source, destination, scope, sessionSource.walletId, walletOtpBefore);
+  await verifyRelocatedEnrollmentFences(source, destination, otpEnrollmentBefore);
   const executionBeforeActivation = await verifyExecutionDestination({
     api,
     source,
@@ -502,6 +506,9 @@ try {
     await destinationService.readWalletSessionAdmissionSnapshotByOperationCredential(primaryInput),
     null,
   );
+  const relocatedEmailAuthentication = await verifyFreshRelocatedEmailAuthentication(
+    source, destination, otpEnrollmentBefore,
+  );
   const relocationEmailOtp = await verifyRelocationEmailOtp(source);
   const relocationOwnerRequest = await verifyRelocationOwnerRequest(source);
   const artifact = {
@@ -518,6 +525,7 @@ try {
     authorizationId: issued.session.authorizationId,
     observations: {
       walletOtpRelocation,
+      relocatedEmailAuthentication,
       migrationUpgrade: { importingRejected: true, closedRejected: true, activatedPreserved: true },
       destinationPreparation,
       relocationChallenges,
@@ -837,6 +845,103 @@ function placementReadRequest(binding, token, path) {
       headers: { Authorization: `Bearer ${token}`, Origin: binding.origin },
     },
   );
+}
+
+function enrollmentStore(database) {
+  return new api.CloudflareD1EmailOtpEnrollmentStore({
+    prepare: api.prepareD1TenantStatement.bind(null, database, scope),
+  });
+}
+
+async function seedRelocationEmailEnrollment(database, walletId) {
+  const store = enrollmentStore(database);
+  const enrollment = api.buildEmailOtpEnrollmentFixture({
+    walletId,
+    orgId: scope.orgId,
+    providerUserId: 'relocated-email-owner',
+    email: 'relocated@example.test',
+    nowMs: Date.now(),
+  });
+  await store.putEnrollment(enrollment);
+  const state = await store.putAuthStateForEnrollment(enrollment, {
+    otpFailureCount: 3,
+    lastOtpFailureAtMs: Date.now(),
+    otpLockedUntilMs: Date.now() + 600_000,
+  });
+  const neighbor = api.buildEmailOtpEnrollmentFixture({
+    walletId: 'otp-enrollment-neighbor',
+    orgId: scope.orgId,
+    providerUserId: 'neighbor-email-owner',
+    email: 'neighbor@example.test',
+    nowMs: Date.now(),
+  });
+  await store.putEnrollment(neighbor);
+  return { enrollment, state, neighbor };
+}
+
+async function verifyRelocatedEnrollmentFences(source, destination, before) {
+  for (const database of [source, destination]) {
+    const store = enrollmentStore(database);
+    assert.deepEqual(await store.readEnrollment(before.enrollment.walletId), before.enrollment);
+    assert.deepEqual(await store.readAuthState(before.enrollment.walletId), before.state);
+    await assert.rejects(store.putEnrollment(before.enrollment), /wallet_authorization_/);
+    await assert.rejects(
+      store.putAuthStateForEnrollment(before.enrollment, { otpFailureCount: 0 }),
+      /wallet_authorization_/,
+    );
+    await assert.rejects(
+      store.deleteEnrollment(before.enrollment.walletId),
+      /wallet_authorization_/,
+    );
+  }
+  assert.equal(await enrollmentStore(destination).readEnrollment(before.neighbor.walletId), null);
+}
+
+async function verifyFreshRelocatedEmailAuthentication(source, destination, before) {
+  const store = enrollmentStore(destination);
+  const services = relocationEmailOtpServices(destination);
+  const request = {
+    userId: before.enrollment.providerUserId,
+    walletId: before.enrollment.walletId,
+    orgId: scope.orgId,
+    otpChannel: 'email_otp',
+    ownerProofBindingDigest: 'relocated-unlock-proof',
+    action: 'wallet_email_otp_login',
+    operation: 'wallet_unlock',
+    clientIp: '192.0.2.89',
+    requestOrigin: 'https://wallet.example.test',
+  };
+  assert.equal((await services.issuer.create(request)).code, 'otp_locked_out');
+  // Model the end of the copied lockout without waiting ten minutes.
+  await store.putAuthStateForEnrollment(before.enrollment, { otpLockedUntilMs: Date.now() - 1 });
+  const issued = await services.issuer.create(request);
+  assert.equal(issued.ok, true, JSON.stringify(issued));
+  const delivered = services.deliveryProvider.attempts.at(-1);
+  assert.equal(delivered.challengeId, issued.challenge.challengeId);
+  const verification = {
+    ...request,
+    challengeId: delivered.challengeId,
+    otpCode: delivered.otpCode,
+  };
+  assert.equal((await services.verifier.verifyExisting(verification)).ok, true);
+  assert.equal((await services.verifier.verifyExisting(verification)).ok, false);
+  assert.equal((await store.readAuthState(before.enrollment.walletId)).otpFailureCount, 0);
+  assert.equal(await enrollmentStore(source).readEnrollment(before.enrollment.walletId), null);
+  assert.equal(await enrollmentStore(source).readAuthState(before.enrollment.walletId), null);
+  assert.deepEqual(
+    await enrollmentStore(source).readEnrollment(before.neighbor.walletId),
+    before.neighbor,
+  );
+  return {
+    sealedFactorPreserved: true,
+    lockoutPreserved: true,
+    freshChallengeVerified: true,
+    singleUsePreserved: true,
+    sourceCleaned: true,
+    neighborPreserved: true,
+    scope:
+      'Production OTP challenge and verification after authorization relocation; email delivery and encrypted factor bytes use fixtures. Full browser unlock/MPC signing is not exercised here.',
+  };
 }
 
 function relocationEmailOtpServices(database) {

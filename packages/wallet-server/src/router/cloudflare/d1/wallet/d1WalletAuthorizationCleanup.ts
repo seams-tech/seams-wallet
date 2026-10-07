@@ -22,6 +22,8 @@ const TABLES = [
   'linked_device_authority_allocations',
   'linked_device_sessions',
   'wallet_email_otp_rate_limits',
+  'email_otp_wallet_enrollments',
+  'email_otp_auth_states',
   'authorized_operation_audit_events',
   'authorized_operations',
   'verified_wallet_operation_evidence_sets',

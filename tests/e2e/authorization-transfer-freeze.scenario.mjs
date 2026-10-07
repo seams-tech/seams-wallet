@@ -126,7 +126,13 @@ export async function verifyAuthorizationFreeze({
       table === 'authorized_operations' || table === 'authorized_operation_audit_events';
     let timestamp = 'expires_at_ms';
     let movedIdentity = 'wallet_id';
-    if (table === 'wallet_authorities' || table === 'wallet_auth_methods' || table === 'wallet_email_otp_rate_limits')
+    if (
+      table === 'wallet_authorities' ||
+      table === 'wallet_auth_methods' ||
+      table === 'wallet_email_otp_rate_limits' ||
+      table === 'email_otp_wallet_enrollments' ||
+      table === 'email_otp_auth_states'
+    )
       timestamp = 'updated_at_ms';
     if (operationHistory) {
       timestamp = 'completed_at_ms';

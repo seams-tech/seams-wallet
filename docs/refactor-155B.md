@@ -1963,3 +1963,23 @@ of importing/closed destinations and retention of activated receipts. Counter
 acceptance verifies one batch and no later updates after exhaustion. These are
 local results; hosted latency remains unmeasured. See
 [evidence](evidence/r155b-review-fixes-20261007.json).
+
+
+### October 7 — preserve Email-OTP authentication across relocation
+
+Authorization transfer now includes `email_otp_wallet_enrollments` and
+`email_otp_auth_states`. Exact tenant/wallet selection preserves the sealed factor,
+provider identity, failure count, and lockout deadline. Migration
+`0074_email_otp_relocation.sql` adds source freeze, exact destination import,
+inactive-write, immutable-owner, and admitted-cleanup fences using the existing
+relocation contract. Completed relocation receipts remain intact during upgrade.
+
+The authorization-transfer scenario seeds enrollment and lockout state before the
+move. It checks source/destination write rejection, exact copied values, a fresh
+OTP challenge after lockout expiry, successful verification, replay rejection,
+source cleanup, and isolation from another wallet. Email delivery and encrypted
+factor bytes use fixtures. This scenario does not prove complete browser seed
+unsealing or MPC signing after an Email-OTP relocation.
+
+Authorization-transfer acceptance passed with migration 0074. Server type checks
+and bloat checks passed. See [evidence](evidence/r155b-email-relocation-fix-20261007.json).
