@@ -345,8 +345,9 @@ required result; a particular millisecond saving is not promised in advance.
 
 ## Phase 6A — Reduce NEAR setup and first-sign latency
 
-Status: diagnosed and planned. Implementation and comparative hosted verification
-remain open. Run this phase before final cleanup in Phase 7.
+Status: root-store consolidation and controlled hosted verification are complete.
+The measured Yao setup median fell to 5.414 seconds. The two-second target and
+remaining DO boundary and SDK preflight work keep this phase open.
 
 ### Baseline and scope
 
@@ -386,17 +387,17 @@ it back. The active-epoch path makes five sequential D1 calls. Each party runs
 it during preparation and again during execution: twenty calls across four loads.
 Preparation decrypts the share and drops it; execution repeats the work.
 
-- [ ] Extract bound-root admission/retrieval along the existing store-module seam.
+- [x] Extract bound-root admission/retrieval along the existing store-module seam.
   Reuse `RoleSqlSessionV1::batch`; introduce no parallel persistence framework.
-- [ ] Preserve the initial authenticated row check. Batch conditional admission
+- [x] Preserve the initial authenticated row check. Batch conditional admission
   and dependent reads into one transaction with a coherent lifecycle outcome.
-- [ ] Target five to at most two remote D1 round trips per load, or twenty to
+- [x] Target five to at most two remote D1 round trips per load, or twenty to
   eight across the four loads. Record SQL statement counts separately.
-- [ ] Preserve active-root uniqueness, exact binding checks, admitted access to
+- [x] Preserve active-root uniqueness, exact binding checks, admitted access to
   retired epochs, cancellation, erased-share rejection and conflicting retries.
-- [ ] Remove redundant rereads and row decryption where the transaction snapshot
+- [x] Remove redundant rereads and row decryption where the transaction snapshot
   supplies the same verified facts. Delete replaced helpers and fallback paths.
-- [ ] Keep secrets out of diagnostics. Do not add a global plaintext-share cache
+- [x] Keep secrets out of diagnostics. Do not add a global plaintext-share cache
   or extend authority lifetime to avoid fresh execution checks.
 
 ### 6A.2 — Reduce Worker-to-DO delay
@@ -409,7 +410,7 @@ alone do not prove cold starts or a Cloudflare fault.
 
 - [ ] Extend existing spans with attempt correlation, constructor occurrence,
   handler duration, D1 calls/duration, and correctly scoped placement evidence.
-- [ ] Compare first, subsequent and post-idle commands on exact wallet objects.
+- [x] Compare first, subsequent and post-idle commands on exact wallet objects.
   Separate new-object and warm-object samples; avoid absolute clock subtraction
   across machines.
 - [ ] Audit first-touch routing against the authenticated wallet home. Coordinate
@@ -437,12 +438,12 @@ alone do not prove cold starts or a Cloudflare fault.
 
 ### 6A.4 — Verify correctness and hosted gains
 
-- [ ] Run existing custody integration/E2E scenarios for refresh during setup,
+- [x] Run existing custody integration/E2E scenarios for refresh during setup,
   cancellation, conflicting retries, exact replay after lost replies, and verified
   NEAR signing. Retain repeatable artifacts; add no source-text or unit-test suite.
-- [ ] Freeze matching release builds and preserve concurrent R153 edits. Run bloat
+- [x] Freeze matching release builds and preserve concurrent R153 edits. Run bloat
   and relevant build/type checks. Keep each completed change committed on `dev`.
-- [ ] Alternate baseline and candidate runs on existing staging resources, within
+- [x] Alternate baseline and candidate runs on existing staging resources, within
   the $25 Cloudflare budget. Change one optimization group at a time.
 - [ ] Measure fresh registration setup, unlock to first signature, prepared signing
   and three consecutive signatures. Separate user funding, provisioning, test
@@ -2097,3 +2098,61 @@ unsealing or MPC signing after an Email-OTP relocation.
 
 Authorization-transfer acceptance passed with migration 0074. Server type checks
 and bloat checks passed. See [evidence](evidence/r155b-email-relocation-fix-20261007.json).
+
+
+### Phase 6A root-store result — 2026-10-07
+
+The accepted custody implementation batches admission and bound-root reads into
+one transaction after the initial authenticated row read. Four loads per setup
+now use **8 remote D1 trips instead of 20**. SQL statements remain **20**.
+Hosted diagnostics confirm 24 trips and 60 statements across three registrations.
+Each load opens two encrypted rows instead of three. The replaced reread and
+retirement fallback paths are deleted. Fresh execution admission remains enforced.
+
+| Controlled arm | Wallets | Yao execute median | Range / maximum |
+| --- | ---: | ---: | ---: |
+| Original source before | 3 | 6.316 s | 5.314–6.638 s |
+| Batching only | 3 | 6.457 s | 5.834–6.460 s |
+| Final custody candidate | 3 | **5.414 s** | **5.278–5.653 s** |
+| Original source after | 3 | 6.165 s | 5.279–7.012 s |
+
+The observed reduction is 0.75–0.90 seconds, approximately 12–14%.
+Ranges overlap and samples are small. The two-second setup target remains unmet.
+Yao execute excludes funding and NEAR provisioning. The final candidate also
+includes reduced decryption, diagnostics and lifecycle error mapping. The full
+latency change cannot be assigned to one subchange.
+
+Admission-race E2E exposed a retryable lifecycle refusal lost at the Deriver A
+DO boundary. The implementation now preserves the existing typed role failure.
+Admission races, replay after erasure, DO admission settlement and ECDSA across
+refresh pass with release builds. A development-only claimed-recovery fault
+cannot run in those release builds and is excluded from acceptance evidence.
+[Custody correctness and source hashes](./evidence/r155b-root-admission-20261007.json).
+Implementation commits on `dev`: `9d4e3388`, `3690a15d`.
+
+The final candidate verified 21 signatures. All four controlled arms plus a
+separate idle comparison verified 93 signatures. Final SDK signing medians were
+2.726 seconds for six warm signatures, 1.645 seconds for three unlock-first
+signatures, and 1.979 seconds for nine consecutive signatures. Routine signing
+was unchanged except diagnostics. These differences are not attributed to root batching.
+Every ordinary signature still used six Gateway POSTs. Gateway D1 and Console
+counts were unavailable in the current response headers.
+
+The post-idle comparison reused one wallet with a fresh grant. After 65 seconds,
+the signing DO was reconstructed. Its first handler took 46 ms, versus 44 ms warm.
+The SDK call increased from 1.721 to 2.617 seconds. The HTTP timeline only partly
+attributes that increase. This evidence does not justify keepalive or a warm pool.
+
+The signing-worker delivery already performs one wallet-DO transaction and no
+D1 write sequence. Deriver B sends its sealed durable completion over the existing
+WebSocket. It does not perform an extra completion-status fetch. Further reductions
+must preserve durable claims and completion. Caller/handler gaps remain unresolved;
+use Cloudflare wall/CPU measurements alongside Worker-clock spans.
+
+All original staging WASM bundles and bindings were restored and verified after
+the comparison. No resource, permanent warm pool or keepalive was created.
+The private report and sanitized evidence are `seams-monorepo/docs/`
+`r155b-near-hosted-benchmarks-20261007.md` and
+`evidence/r155b-near-phase6a-20261007.json`. Frozen sources, protected raw tails,
+comparison samples and restoration checks remain in each repository's
+`.artifacts/r155b-near-phase6a/` directory.

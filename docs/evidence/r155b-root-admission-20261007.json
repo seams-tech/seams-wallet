@@ -26,7 +26,7 @@
     "statementsAfter": 5,
     "rowDecryptionsBefore": 3,
     "rowDecryptionsAfter": 2,
-    "countBasis": "active-epoch load path and local D1 diagnostic events; hosted verification pending"
+    "countBasis": "Twelve successful hosted bound-root loads across three final registrations: 24 remote trips and 60 SQL statements. Counts exclude other custody and Gateway D1 work."
   },
   "passed": {
     "admission-races": {
