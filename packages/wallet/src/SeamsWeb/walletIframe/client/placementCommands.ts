@@ -24,6 +24,7 @@ type PlacementPost = (
         readonly type: 'PM_GET_WALLET_MOVE';
         readonly payload: { readonly walletId: WalletId; readonly moveId: WalletMoveId };
       },
+  options?: { readonly timeout: 'interactive' },
 ) => Promise<{ readonly result: unknown }>;
 
 export function createIframePlacementCommands(post: PlacementPost): WalletPlacementCapability {
@@ -74,7 +75,7 @@ async function readMoveFromIframe(
 }
 
 async function moveFromHost(post: PlacementPost, request: WalletMoveRequest) {
-  const response = await post({ type: 'PM_MOVE_WALLET', payload: request });
+  const response = await post({ type: 'PM_MOVE_WALLET', payload: request }, { timeout: 'interactive' });
   return parseWalletMoveStatusResult(response.result, request.moveId);
 }
 
