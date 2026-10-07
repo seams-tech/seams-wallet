@@ -1,6 +1,6 @@
 # R153B: simple, fast wallet relocation
 
-Status: planned. Implementation has not started.
+Status: implementation and scoped hosted acceptance complete. Package publication and adoption remain separate.
 Date: October 7, 2026.
 
 ## Goal
@@ -93,13 +93,13 @@ Ordinary locking must still preserve valid durable presignatures.
 
 ## Three implementation steps
 
-- [ ] **Replace D1 transport.** Measure snapshot bytes. Send the existing immutable
+- [x] **Replace D1 transport.** Measure snapshot bytes. Send the existing immutable
   D1 snapshot as one bounded payload and import it transactionally. Reuse existing
   encodings, digests, and receipts. Leave custody transport formats unchanged.
-- [ ] **Remove scheduling gaps.** Make the existing driver advance continuously.
+- [x] **Remove scheduling gaps.** Make the existing driver advance continuously.
   Skip completed participants and run independent work concurrently. Preserve exact
   retry identities, fences, and activation-before-cleanup behavior.
-- [ ] **Prove the result and delete leftovers.** Extend the existing relocation E2E
+- [x] **Prove the result and delete leftovers.** Extend the existing relocation E2E
   and hosted timing scenario. Remove superseded code and reconcile the R153 checklist.
 
 Change the current modules in place: private `walletPlacement/` owns coordination;
@@ -123,3 +123,31 @@ separately. Automated authentication time must remain visible in the measurement
 Use existing E2Es, affected type checks/builds, and the required bloat check. Add no
 unit tests, source-text guards, benchmark framework, or duplicate verification suite.
 A safe but multi-minute transfer does not satisfy this plan.
+
+## Completion record — October 7, 2026
+
+The hosted APAC → US → APAC round trip passed. Pause through fresh unlock and
+first signature measured **47,496 ms outbound** and **57,926 ms returning**.
+Both signing curves passed in both destinations. Source cleanup completed, including
+an independent transport retry while destination signing remained available.
+
+D1 snapshot payloads measured 153,194 and 216,706 bytes. Each attempt used one
+whole-snapshot export and import. Cron overlap caused one exact retry per direction.
+Admission enforces a 512 KiB payload limit and 80 encoded chunks before pause.
+The internal segments remain encoding details inside one request.
+
+The existing relocation driver runs independent custody transfers and presignature
+settlement concurrently. It skips completed work and advances from acknowledged
+cursors. A lost reply or restart resumes from durable destination state. The SDK
+uses its existing interactive request policy for relocation, including preparation
+and owner confirmation. Routine signing/refill routing and Rust custody formats
+remain unchanged.
+
+Existing D1, composed relocation, and hosted E2Es pass. Affected builds, the hosted
+test type check, and public bloat checks pass. The aggregate private type check
+retains six unrelated existing errors. No unit tests or source-text guards were added.
+
+The private repository records exact measurements, deployed revisions, commands,
+and artifact hashes in `docs/evidence/r153b-20261007.md` and its JSON receipt.
+The staging backend is deployed. Hosted verification used frozen candidate SDK assets.
+Package publication and application adoption remain separate release work.

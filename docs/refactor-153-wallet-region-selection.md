@@ -13,9 +13,10 @@ Worker version identities. Hosted APAC → US → APAC acceptance passed with fr
 unlock, both signing curves, source cleanup, and measured pause/refill/signing times.
 Broader load suitability, transferred-byte totals, and publication remain separate.
 
-Performance follow-up: [R153B](refactor-153B.md) replaces per-record transfer and
-scheduler-driven normal execution. The measured multi-minute pauses do not meet
-its 60-second pause-to-first-signature target.
+Performance follow-up: [R153B](refactor-153B.md) is implemented and supersedes the
+per-record D1 transport and scheduler-driven normal execution described below.
+Its hosted round trip reached the first signature after fresh unlock in 47.5 seconds
+outbound and 57.9 seconds returning. Both meet its 60-second pause target.
 
 ## Implementation order and prerequisites
 
@@ -184,7 +185,7 @@ invalidation and ordinary-lock presignature retention.
 The final hosted E2E passed in 28.5 minutes. Both moves completed source cleanup.
 The outbound pause was 513,190 ms (8.55 minutes). The return pause was 744,056 ms
 (12.40 minutes). Admission through cleanup took 670,515 ms and 922,834 ms.
-These multi-minute pauses remain a performance limitation.
+These historical pauses are superseded by the R153B results recorded above.
 
 From the Japan browser, public SDK ECDSA signing took 1,755–2,614 ms before the
 move, 2,255–2,883 ms in the US, and 1,155 ms on the first return signature.
