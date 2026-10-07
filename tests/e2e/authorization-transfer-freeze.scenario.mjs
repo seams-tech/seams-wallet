@@ -2,6 +2,22 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 
 export function authorizationRowsQuery(table) {
+  if (table === 'linked_device_sessions') {
+    return `SELECT target.* FROM ${table} AS target
+      WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
+        AND json_extract(record_json, '$.claimTranscript.value.walletId') = ?5 ORDER BY target.rowid`;
+  }
+  if ([
+    'linked_device_target_commit_reservations',
+    'linked_device_session_transcripts',
+    'linked_device_request_proof_nonces',
+    'linked_device_bootstrap_imports',
+  ].includes(table)) {
+    return `SELECT target.* FROM ${table} AS target
+      JOIN linked_device_sessions AS session USING (namespace, org_id, project_id, env_id, link_session_id)
+      WHERE target.namespace = ?1 AND target.org_id = ?2 AND target.project_id = ?3 AND target.env_id = ?4
+        AND json_extract(session.record_json, '$.claimTranscript.value.walletId') = ?5 ORDER BY target.rowid`;
+  }
   if (table === 'wallet_email_otp_rate_limits') {
     return `SELECT target.* FROM ${table} AS target
       WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4 AND wallet_id = ?5

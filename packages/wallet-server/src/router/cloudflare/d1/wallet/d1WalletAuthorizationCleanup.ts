@@ -10,6 +10,17 @@ import { WalletRelocationSessionSource } from './d1WalletRelocationSessions';
 const SCOPE =
   'namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4 AND wallet_id = ?5';
 const TABLES = [
+  'linked_device_wallet_session_credential_deliveries_v1',
+  'linked_device_bootstrap_imports',
+  'linked_device_request_proof_nonces',
+  'linked_device_email_otp_grants',
+  'linked_device_ed25519_export_root_transfers',
+  'linked_device_session_transcripts',
+  'linked_device_target_commit_reservations',
+  'linked_device_target_credentials',
+  'linked_device_authority_installations',
+  'linked_device_authority_allocations',
+  'linked_device_sessions',
   'wallet_email_otp_rate_limits',
   'authorized_operation_audit_events',
   'authorized_operations',
@@ -77,7 +88,12 @@ export class D1WalletAuthorizationCleanup {
         table === 'authorized_operation_audit_events' ||
         table === 'webauthn_authenticators' ||
         table === 'webauthn_credential_bindings' ||
-        table === 'router_ab_yao_versioned_json_records'
+        table === 'router_ab_yao_versioned_json_records' ||
+        table === 'linked_device_sessions' ||
+        table === 'linked_device_target_commit_reservations' ||
+        table === 'linked_device_session_transcripts' ||
+        table === 'linked_device_request_proof_nonces' ||
+        table === 'linked_device_bootstrap_imports'
           ? AuthorizationSnapshotLayout.ownership(table)
           : 'target.namespace = ?1 AND target.org_id = ?2 AND target.project_id = ?3 AND target.env_id = ?4 AND target.wallet_id = ?5';
       const quota =

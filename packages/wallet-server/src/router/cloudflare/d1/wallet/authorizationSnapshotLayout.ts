@@ -17,6 +17,17 @@ const TABLES = [
   'verified_wallet_operation_evidence_sets',
   'authorized_operations',
   'authorized_operation_audit_events',
+  'linked_device_sessions',
+  'linked_device_authority_allocations',
+  'linked_device_authority_installations',
+  'linked_device_target_credentials',
+  'linked_device_target_commit_reservations',
+  'linked_device_session_transcripts',
+  'linked_device_ed25519_export_root_transfers',
+  'linked_device_email_otp_grants',
+  'linked_device_request_proof_nonces',
+  'linked_device_bootstrap_imports',
+  'linked_device_wallet_session_credential_deliveries_v1',
 ] as const;
 
 type Table = (typeof TABLES)[number];
@@ -100,6 +111,19 @@ export class AuthorizationSnapshotLayout {
 
   static ownership(table: Table): string {
     switch (table) {
+      case 'linked_device_sessions':
+        return `target.namespace = ?1 AND target.org_id = ?2 AND target.project_id = ?3
+          AND target.env_id = ?4 AND json_extract(target.record_json, '$.claimTranscript.value.walletId') = ?5`;
+      case 'linked_device_target_commit_reservations':
+      case 'linked_device_session_transcripts':
+      case 'linked_device_request_proof_nonces':
+      case 'linked_device_bootstrap_imports':
+        return `target.namespace = ?1 AND target.org_id = ?2 AND target.project_id = ?3
+          AND target.env_id = ?4 AND EXISTS (SELECT 1 FROM linked_device_sessions AS parent
+            WHERE parent.namespace = target.namespace AND parent.org_id = target.org_id
+              AND parent.project_id = target.project_id AND parent.env_id = target.env_id
+              AND parent.link_session_id = target.link_session_id
+              AND json_extract(parent.record_json, '$.claimTranscript.value.walletId') = ?5)`;
       case 'router_ab_yao_versioned_json_records':
         return `target.namespace = ?1 AND target.org_id = ?2 AND target.project_id = ?3
           AND target.env_id = ?4 AND json_extract(target.record_json, '$.walletId') = ?5
