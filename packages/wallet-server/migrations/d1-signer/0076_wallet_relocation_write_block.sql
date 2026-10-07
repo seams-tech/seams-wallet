@@ -103,9 +103,10 @@ WHEN EXISTS (
     AND selected.wallet_id = fence.wallet_id
 )
 BEGIN
-  SELECT CASE WHEN NEW.authorization_source_kind = 'verified_step_up'
-    THEN RAISE(ABORT, 'authorization_evidence_claim_rejected')
-    ELSE RAISE(ABORT, 'authorization_wallet_session_rejected') END;
+  SELECT RAISE(ABORT, 'authorization_evidence_claim_rejected')
+    WHERE NEW.authorization_source_kind = 'verified_step_up';
+  SELECT RAISE(ABORT, 'authorization_wallet_session_rejected')
+    WHERE NEW.authorization_source_kind IS NOT 'verified_step_up';
 END;
 
 CREATE TRIGGER linked_device_sessions_capacity_insert BEFORE INSERT ON linked_device_sessions
