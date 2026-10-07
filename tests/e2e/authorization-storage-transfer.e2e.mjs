@@ -311,6 +311,10 @@ try {
     .prepare('UPDATE wallet_authorities SET record_json = record_json || ? WHERE wallet_id = ?')
     .bind(' '.repeat(1_200_000), sessionSource.walletId)
     .run();
+  await assert.rejects(new api.D1WalletAuthorizationSnapshot(source, scope).assertCapacity(sessionSource.walletId), /capacity/u);
+  await source.prepare('UPDATE wallet_authorities SET record_json = rtrim(record_json) || ? WHERE wallet_id = ?')
+    .bind(' '.repeat(40_000), sessionSource.walletId).run();
+  await new api.D1WalletAuthorizationSnapshot(source, scope).assertCapacity(sessionSource.walletId);
   const walletOtpBefore = await seedWalletOtpCounters(api, source, scope, sessionSource.walletId);
   const otpEnrollmentBefore = await seedRelocationEmailEnrollment(source, sessionSource.walletId);
   const authorizationFreeze = await verifyAuthorizationFreeze({
@@ -579,7 +583,7 @@ async function verifyDestinationPreparation({ source, destination, scope, identi
   const destinationRoutes = new api.WalletAuthorizationRelocationRoutes({ database: destination, scope, directory });
   const base = 'https://wallet-relocation.internal/internal/wallet-relocation/v1/authorization';
   const schemaResponse = await sourceRoutes.handle(new Request(`${base}/schema`, {
-    method: 'POST', body: '{}',
+    method: 'POST', body: JSON.stringify({ walletId: identity.walletId }),
   }));
   assert.equal(schemaResponse.status, 200);
   const schema = await schemaResponse.json();

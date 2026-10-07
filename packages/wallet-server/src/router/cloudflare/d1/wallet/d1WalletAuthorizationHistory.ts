@@ -1,4 +1,3 @@
-import { requireCanonicalString } from '@shared/utils/validation';
 import { sha256HexUtf8 } from '@shared/utils/digests';
 import { prepareD1TenantStatement, type D1TenantScope } from '../../../../core/d1TenantStore';
 import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
@@ -58,28 +57,30 @@ export class D1WalletAuthorizationHistory {
     ]);
   }
 
-  async restore(
+  async restoreSnapshot(
     source: WalletRelocationSessionSource,
-    table: AuthorizationSnapshotLayout['table'],
-    rawRecord: unknown,
-  ): Promise<string> {
-    const row = await this.parseRow(source, table, rawRecord);
-    const existing = await this.readReceipt(source, row);
-    if (existing) return existing;
-    const identity = [
-      source.walletId,
-      source.moveId,
-      source.requestDigestHex,
-      source.sourceGeneration,
-      table,
-      row.key,
-      row.digest,
-    ];
+    records: readonly { readonly table: AuthorizationSnapshotLayout; readonly recordKey: string; readonly recordJson: string }[],
+    completion: readonly D1PreparedStatementLike[],
+  ): Promise<void> {
+    const statements: D1PreparedStatementLike[] = [];
+    for (const record of records) {
+      const row = { layout: record.table, key: record.recordKey, json: record.recordJson,
+        digest: await sha256HexUtf8(JSON.stringify([record.table.table, record.recordJson])) };
+      statements.push(this.validateRow(source, row), this.database.prepare(D1_BATCH_CAS_GUARD_SQL),
+        ...this.restoreStatements(source, row));
+    }
+    statements.push(...this.closeStatements(source), ...completion);
+    await this.database.batch(statements);
+  }
+
+  private restoreStatements(source: WalletRelocationSessionSource, row: HistoryRow): readonly D1PreparedStatementLike[] {
+    const table = row.layout.table;
+    const identity = [source.walletId, source.moveId, source.requestDigestHex,
+      source.sourceGeneration, table, row.key, row.digest];
     const values: string[] = [];
     for (const column of row.layout.columns) values.push(`json_extract(?6, '$.${column}')`);
     const expressions = row.layout.expressions();
-    try {
-      await this.database.batch([
+    return [
         prepareD1TenantStatement(
           this.database,
           this.scope,
@@ -132,21 +133,11 @@ export class D1WalletAuthorizationHistory {
             AND table_name = ?9 AND record_key = ?10 AND record_digest = ?11`,
           identity,
         ),
-      ]);
-    } catch (error) {
-      const raced = await this.readReceipt(source, row);
-      if (raced) return raced;
-      throw error;
-    }
-    const receipt = await this.readReceipt(source, row);
-    if (!receipt) throw new Error('Authorization history acknowledgement disappeared');
-    return receipt;
+      ];
   }
 
-  // Closure requires all imported quotas to have their retired wallet parent.
-  // It closes writes; it does not attest the complete manifest or activate a wallet.
-  async close(source: WalletRelocationSessionSource): Promise<void> {
-    await this.database.batch([
+  private closeStatements(source: WalletRelocationSessionSource): readonly D1PreparedStatementLike[] {
+    return [
       prepareD1TenantStatement(
         this.database,
         this.scope,
@@ -168,7 +159,7 @@ export class D1WalletAuthorizationHistory {
         [source.walletId, source.moveId, source.requestDigestHex, source.sourceGeneration],
       ),
       this.database.prepare(D1_BATCH_CAS_GUARD_SQL),
-    ]);
+    ];
   }
 
   private async readImport(source: WalletRelocationSessionSource): Promise<boolean> {
@@ -191,38 +182,12 @@ export class D1WalletAuthorizationHistory {
     throw new Error('Authorization history import identity conflicts');
   }
 
-  private async readReceipt(
-    source: WalletRelocationSessionSource,
-    row: HistoryRow,
-  ): Promise<string | null> {
-    const receipt = await prepareD1TenantStatement(
-      this.database,
-      this.scope,
-      `
-      SELECT wallet_id, move_id, request_digest_hex, source_generation, record_digest
-      FROM wallet_relocation_authorization_import_receipts
-      WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
-        AND wallet_id = ?5 AND move_id = ?6 AND table_name = ?7 AND record_key = ?8`,
-      [source.walletId, source.moveId, row.layout.table, row.key],
-    ).first<Record<string, unknown>>();
-    if (!receipt) return null;
-    if (!source.matches(receipt) || receipt.record_digest !== row.digest)
-      throw new Error('Authorization history import content conflicts');
-    return row.digest;
-  }
-
-  private async parseRow(
-    source: WalletRelocationSessionSource,
-    table: AuthorizationSnapshotLayout['table'],
-    raw: unknown,
-  ): Promise<HistoryRow> {
+  private validateRow(source: WalletRelocationSessionSource, row: HistoryRow): D1PreparedStatementLike {
+    const layout = row.layout;
+    const raw = row.json;
     if (typeof raw !== 'string' || new TextEncoder().encode(raw).byteLength > MAX_RECORD_BYTES)
       throw new Error('Authorization history requires a bounded assembled record');
-    let layout: AuthorizationSnapshotLayout | null = null;
-    for (const candidate of await AuthorizationSnapshotLayout.read(this.database)) {
-      if (candidate.table === table) layout = candidate;
-    }
-    if (!layout) throw new Error('Authorization history table is invalid');
+    const table = layout.table;
     const fields: string[] = [];
     const keys: string[] = [];
     for (const column of layout.columns)
@@ -243,12 +208,14 @@ export class D1WalletAuthorizationHistory {
     if (table === 'authorized_operations') lifecycle = "target.lifecycle_kind = 'completed'";
     if (table === 'authorized_operation_audit_events')
       lifecycle = "target.result_kind != 'pending'";
-    const metadata = await prepareD1TenantStatement(
+    return prepareD1TenantStatement(
       this.database,
       this.scope,
       `
-      SELECT json_array(${keys.join(', ')}) AS record_key
-      FROM (SELECT ${projectedColumns.join(', ')}) AS target
+      UPDATE wallet_relocation_authorization_imports SET state = state
+      WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4 AND wallet_id = ?5
+        AND move_id = ?7 AND request_digest_hex = ?8 AND source_generation = ?9 AND state = 'importing'
+        AND EXISTS (SELECT 1 FROM (SELECT ${projectedColumns.join(', ')}) AS target
       WHERE json_valid(?6) AND json_type(?6) = 'object' AND ${ownership} AND ${lifecycle}
         AND (SELECT COUNT(*) FROM json_each(?6)) = ${layout.columns.length}
         AND (SELECT COUNT(DISTINCT key) FROM json_each(?6)) = ${layout.columns.length}
@@ -257,17 +224,10 @@ export class D1WalletAuthorizationHistory {
           WHERE field.name IS NULL OR NOT (value.type = 'null'
             OR (field.type = 'TEXT' AND value.type = 'text')
             OR (field.type = 'INTEGER' AND value.type = 'integer' AND typeof(value.atom) = 'integer')))
-        AND json_object(${fields.join(', ')}) = ?6`,
-      [source.walletId, raw],
-    ).first<Record<string, unknown>>();
-    if (!metadata)
-      throw new Error('Authorization history record scope, shape or lifecycle conflicts');
-    return {
-      layout,
-      key: requireCanonicalString(metadata.record_key, 'authorization history record key'),
-      json: raw,
-      digest: await sha256HexUtf8(JSON.stringify([table, raw])),
-    };
+        AND json_object(${fields.join(', ')}) = ?6
+        AND json_array(${keys.join(', ')}) = ?10)`,
+      [source.walletId, raw, source.moveId, source.requestDigestHex, source.sourceGeneration, row.key],
+    );
   }
 }
 

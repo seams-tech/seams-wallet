@@ -6,6 +6,7 @@ import { requireCanonicalString, requireRecord } from '@shared/utils/validation'
 import { prepareD1TenantStatement, type D1TenantScope } from '../../../../core/d1TenantStore';
 import type { D1DatabaseLike } from '../../../../storage/tenantRoute';
 import { AuthorizationSnapshotLayout } from './authorizationSnapshotLayout';
+import { AUTHORIZATION_SNAPSHOT_MAX_BYTES, AUTHORIZATION_SNAPSHOT_MAX_CHUNKS } from './d1WalletAuthorizationSnapshot';
 import { D1WalletAuthorizationHistory } from './d1WalletAuthorizationHistory';
 import { WalletRelocationSessionSource } from './d1WalletRelocationSessions';
 
@@ -39,6 +40,7 @@ type Chunk = {
   recordKey: string;
   segmentIndex: number;
   segmentCount: number;
+  bytesHex: string;
 };
 
 // The authenticated participant supplies the admitted identity and pinned manifest.
@@ -104,149 +106,74 @@ export class D1WalletAuthorizationIntake {
     return intakeProgress(saved);
   }
 
-  async accept(source: WalletRelocationSessionSource, rawChunk: unknown): Promise<string> {
+  async acceptSnapshot(source: WalletRelocationSessionSource, raw: unknown): Promise<string> {
+    if (!Array.isArray(raw) || raw.length > AUTHORIZATION_SNAPSHOT_MAX_CHUNKS ||
+        new TextEncoder().encode(JSON.stringify(raw)).byteLength > AUTHORIZATION_SNAPSHOT_MAX_BYTES)
+      throw new Error('Authorization snapshot exceeds supported capacity');
     const state = await this.read(source);
     if (!state) throw new Error('Authorization intake is absent');
     const manifest = state.manifest;
-    const chunk = parseChunk(
-      rawChunk,
-      AuthorizationSnapshotLayout.parse(JSON.parse(manifest.schemaJson)),
-    );
-    const next = state.nextIndex;
-    const existing = await this.readChunk(source, chunk.index);
-    if (
-      existing &&
-      (existing.chunk_json !== chunk.chunkJson || existing.digest_hex !== chunk.digestHex)
-    )
-      throw new Error('Authorization intake chunk conflicts');
-    if (chunk.index < next && existing) return chunk.digestHex;
-    if (state.state !== 'receiving' || chunk.index !== next || chunk.index >= manifest.chunkCount)
-      throw new Error('Authorization intake chunk is out of order');
-    const expected = await sha256HexUtf8(
-      JSON.stringify([state.digestHex, chunk.index, chunk.chunkJson]),
-    );
-    if (expected !== chunk.digestHex) throw new Error('Authorization intake digest conflicts');
-    if (chunk.index === 0) {
-      if (chunk.segmentIndex !== 0) throw new Error('Authorization intake first segment is absent');
-    } else {
-      const previous = await this.readChunk(source, chunk.index - 1);
-      if (!previous) throw new Error('Authorization intake previous chunk is absent');
-      const prior = requireRecord(
-        JSON.parse(requireCanonicalString(previous.chunk_json, 'previous chunk')),
-        'previous chunk',
-      );
-      const final = Number(prior.segmentIndex) + 1 === prior.segmentCount;
-      if (
-        final
-          ? chunk.segmentIndex !== 0
-          : chunk.segmentIndex !== Number(prior.segmentIndex) + 1 ||
-            chunk.segmentCount !== prior.segmentCount ||
-            chunk.recordKey !== prior.recordKey ||
-            chunk.table.table !== prior.table
-      )
-        throw new Error('Authorization intake record segments conflict');
-    }
-    if (!existing) {
-      try {
-        await prepareD1TenantStatement(
-          this.database,
-          this.scope,
-          `
+    if (raw.length !== manifest.chunkCount) throw new Error('Authorization snapshot count conflicts');
+    const layouts = AuthorizationSnapshotLayout.parse(JSON.parse(manifest.schemaJson));
+    let digest = await sha256HexUtf8(JSON.stringify([
+      'seams/wallet-authorization-snapshot/v1', this.scope.namespace, this.scope.orgId,
+      this.scope.projectId, this.scope.envId, source.walletId, source.moveId,
+      source.requestDigestHex, source.sourceGeneration, manifest.schemaJson,
+    ]));
+    const records = [];
+    const completion = [];
+    let previous: Chunk | null = null;
+    let recordHex = '';
+    for (const [index, value] of raw.entries()) {
+      const chunk = parseChunk(value, layouts);
+      const firstSegment = previous === null || previous.segmentIndex + 1 === previous.segmentCount;
+      if (chunk.index !== index || (firstSegment ? chunk.segmentIndex !== 0 :
+          previous === null || chunk.segmentIndex !== previous.segmentIndex + 1 ||
+          chunk.segmentCount !== previous.segmentCount || chunk.recordKey !== previous.recordKey ||
+          chunk.table.table !== previous.table.table))
+        throw new Error('Authorization snapshot segments conflict');
+      digest = await sha256HexUtf8(JSON.stringify([digest, index, chunk.chunkJson]));
+      if (digest !== chunk.digestHex) throw new Error('Authorization snapshot digest conflicts');
+      recordHex += chunk.bytesHex;
+      const completed = chunk.segmentIndex + 1 === chunk.segmentCount;
+      if (completed) {
+        const bytes = new Uint8Array(recordHex.length / 2);
+        for (let offset = 0; offset < bytes.length; offset += 1)
+          bytes[offset] = Number.parseInt(recordHex.slice(offset * 2, offset * 2 + 2), 16);
+        records.push({ table: chunk.table, recordKey: chunk.recordKey,
+          recordJson: new TextDecoder('utf-8', { fatal: true }).decode(bytes) });
+        recordHex = '';
+      }
+      completion.push(prepareD1TenantStatement(this.database, this.scope, `
         INSERT INTO wallet_relocation_authorization_intake_chunks
         (namespace, org_id, project_id, env_id, wallet_id, chunk_index, chunk_json, digest_hex)
-        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8) ON CONFLICT DO NOTHING`,
-          [source.walletId, chunk.index, chunk.chunkJson, chunk.digestHex],
-        ).run();
-      } catch (error) {
-        const raced = await this.readChunk(source, chunk.index);
-        if (!raced || raced.chunk_json !== chunk.chunkJson || raced.digest_hex !== chunk.digestHex)
-          throw error;
-      }
-      const saved = await this.readChunk(source, chunk.index);
-      if (!saved || saved.chunk_json !== chunk.chunkJson || saved.digest_hex !== chunk.digestHex)
-        throw new Error('Authorization intake staged chunk conflicts');
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)`,
+        [source.walletId, index, chunk.chunkJson, chunk.digestHex]),
+        prepareD1TenantStatement(this.database, this.scope, `
+        UPDATE wallet_relocation_authorization_intakes SET next_index = next_index + 1,
+          record_count = record_count + ?8, digest_hex = ?7
+        WHERE ${SCOPE} AND next_index = ?6 AND state = 'receiving'`,
+        [source.walletId, index, chunk.digestHex, completed ? 1 : 0]),
+        this.database.prepare(D1_BATCH_CAS_GUARD_SQL));
+      previous = chunk;
     }
-    const completed = chunk.segmentIndex + 1 === chunk.segmentCount;
-    if (completed) {
-      const record = await prepareD1TenantStatement(
-        this.database,
-        this.scope,
-        `
-        SELECT group_concat(payload, '') AS record_json FROM (
-          SELECT CAST(unhex(json_extract(chunk_json, '$.bytesHex')) AS TEXT) AS payload
-          FROM wallet_relocation_authorization_intake_chunks WHERE ${SCOPE}
-            AND chunk_index BETWEEN ?6 AND ?7 ORDER BY chunk_index)`,
-        [source.walletId, chunk.index - chunk.segmentIndex, chunk.index],
-      ).first<Record<string, unknown>>();
-      const json = requireCanonicalString(record?.record_json, 'assembled authorization record');
-      const keys: string[] = [];
-      for (const key of chunk.table.keyColumns) keys.push(`json_extract(?1, '$.${key}')`);
-      const identity = await this.database
-        .prepare(`SELECT json_array(${keys.join(', ')}) AS record_key`)
-        .bind(json)
-        .first<Record<string, unknown>>();
-      if (identity?.record_key !== chunk.recordKey)
-        throw new Error('Authorization intake record key conflicts');
-      await new D1WalletAuthorizationHistory(this.database, this.scope).restore(
-        source,
-        chunk.table.table,
-        json,
-      );
-    }
-    await prepareD1TenantStatement(
-      this.database,
-      this.scope,
-      `
-      UPDATE wallet_relocation_authorization_intakes SET next_index = next_index + 1,
-        record_count = record_count + ?8, digest_hex = ?7
-      WHERE ${SCOPE} AND next_index = ?6 AND state = 'receiving'`,
-      [source.walletId, chunk.index, chunk.digestHex, completed ? 1 : 0],
-    ).run();
-    const acknowledged = await this.read(source);
-    if (!acknowledged || acknowledged.nextIndex <= chunk.index)
-      throw new Error('Authorization intake acknowledgement disappeared');
-    return chunk.digestHex;
-  }
-
-  async verify(source: WalletRelocationSessionSource): Promise<string> {
-    const state = await this.read(source);
-    if (!state) throw new Error('Authorization intake is absent');
-    const manifest = state.manifest;
-    if (state.state === 'verified') return manifest.digestHex;
-    if (
-      state.nextIndex !== manifest.chunkCount ||
-      state.recordCount !== manifest.recordCount ||
-      state.digestHex !== manifest.digestHex
-    )
-      throw new Error('Authorization intake is incomplete');
-    if (manifest.chunkCount > 0) {
-      const last = await this.readChunk(source, manifest.chunkCount - 1);
-      const chunk = requireRecord(
-        JSON.parse(requireCanonicalString(last?.chunk_json, 'last chunk')),
-        'last chunk',
-      );
-      if (Number(chunk.segmentIndex) + 1 !== chunk.segmentCount)
-        throw new Error('Authorization intake record is incomplete');
-    }
-    await new D1WalletAuthorizationHistory(this.database, this.scope).close(source);
-    const count = await prepareD1TenantStatement(
-      this.database,
-      this.scope,
-      `
-      SELECT COUNT(*) AS count FROM wallet_relocation_authorization_import_receipts WHERE ${SCOPE} AND move_id = ?6`,
-      [source.walletId, source.moveId],
-    ).first<Record<string, unknown>>();
-    if (count?.count !== manifest.recordCount)
-      throw new Error('Authorization intake record count conflicts');
-    await prepareD1TenantStatement(
-      this.database,
-      this.scope,
-      `
+    if (recordHex !== '' || records.length !== manifest.recordCount || digest !== manifest.digestHex)
+      throw new Error('Authorization snapshot is incomplete');
+    if (state.state === 'verified') return digest;
+    if (state.nextIndex !== 0) throw new Error('Authorization snapshot intake is not empty');
+    completion.push(prepareD1TenantStatement(this.database, this.scope, `
       UPDATE wallet_relocation_authorization_intakes SET state = 'verified'
-      WHERE ${SCOPE} AND state = 'receiving'`,
-      [source.walletId],
-    ).run();
-    return manifest.digestHex;
+      WHERE ${SCOPE} AND state = 'receiving' AND next_index = ?6 AND record_count = ?7 AND digest_hex = ?8`,
+      [source.walletId, manifest.chunkCount, manifest.recordCount, digest]),
+      this.database.prepare(D1_BATCH_CAS_GUARD_SQL));
+    try {
+      await new D1WalletAuthorizationHistory(this.database, this.scope).restoreSnapshot(source, records, completion);
+    } catch (error) {
+      const concurrent = await this.read(source);
+      if (concurrent?.state === 'verified' && concurrent.manifest.digestHex === digest) return digest;
+      throw error;
+    }
+    return digest;
   }
 
   async activate(
@@ -355,19 +282,7 @@ export class D1WalletAuthorizationIntake {
     }
   }
 
-  private async readChunk(
-    source: WalletRelocationSessionSource,
-    index: number,
-  ): Promise<Record<string, unknown> | null> {
-    return prepareD1TenantStatement(
-      this.database,
-      this.scope,
-      `
-      SELECT chunk_json, digest_hex FROM wallet_relocation_authorization_intake_chunks
-      WHERE ${SCOPE} AND chunk_index = ?6`,
-      [source.walletId, index],
-    ).first<Record<string, unknown>>();
-  }
+
 }
 
 function parseManifest(raw: unknown): Manifest {
@@ -419,6 +334,7 @@ function parseChunk(raw: unknown, layouts: readonly AuthorizationSnapshotLayout[
     recordKey: requireCanonicalString(payload.recordKey, 'record key'),
     segmentIndex,
     segmentCount,
+    bytesHex: hex,
   };
 }
 

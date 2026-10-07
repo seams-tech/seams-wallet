@@ -50,12 +50,12 @@ export class AuthorizationSnapshotLayout {
 
   static async read(database: D1DatabaseLike): Promise<readonly AuthorizationSnapshotLayout[]> {
     const layout: unknown[] = [];
-    for (const table of TABLES) {
-      const result = await database.prepare(`PRAGMA table_info(${table})`).all<{
-        name: string;
-        type: string;
-        pk: number;
-      }>();
+    const statements = [];
+    for (const table of TABLES) statements.push(database.prepare(`PRAGMA table_info(${table})`));
+    const results = await database.batch<{ results?: { name: string; type: string; pk: number }[] }>(statements);
+    for (const [index, table] of TABLES.entries()) {
+      const result = results[index];
+      if (!result) throw new Error('Authorization snapshot schema is incomplete');
       const columns: string[] = [];
       const keys: string[] = [];
       for (const field of result.results ?? []) {

@@ -200,12 +200,11 @@ function sourceFence(scope, identity) {
   };
 }
 
-function exportRequest(scope, identity, index, origin) {
+function exportRequest(scope, identity, origin) {
   return new Request(origin, {
     method: 'POST',
     body: JSON.stringify({
       walletId: identity.walletId,
-      index,
       attempt: {
         wallet: sourceCommand(scope, identity, 'freeze').wallet,
         moveId: identity.moveId,
@@ -220,157 +219,38 @@ function exportRequest(scope, identity, index, origin) {
   });
 }
 
-export async function transferAuthorizationThroughCommands({
-  api,
-  source,
-  destination,
-  scope,
-  identity,
-  manifest,
-}) {
+export async function transferAuthorizationThroughCommands({ api, source, destination, scope, identity, manifest }) {
   const url = URL.replace('/freeze', '/export');
-  const directory = new SourceDirectory(scope, identity, 'authorized', {
-    kind: 'captured',
-    manifest,
-  });
-  const handler = new api.WalletAuthorizationRelocationRoutes({
-    database: source,
-    scope,
-    directory,
-  });
-  const denied = new api.WalletAuthorizationRelocationRoutes({
-    database: source,
-    scope,
-    directory: new SourceDirectory(scope, identity, 'denied', { kind: 'uncaptured' }),
-  });
-  assert.equal((await denied.handle(exportRequest(scope, identity, 0, url))).status, 403);
-  assert.equal(
-    (
-      await handler.handle(
-        exportRequest(
-          scope,
-          identity,
-          0,
-          url.replace('wallet-relocation.internal', 'wallet.example.test'),
-        ),
-      )
-    ).status,
-    404,
-  );
-  assert.equal(directory.calls, 0);
-  assert.equal((await handler.handle(exportRequest(scope, identity, -1, url))).status, 400);
-  assert.equal(directory.calls, 0);
-  const receiver = new api.WalletAuthorizationRelocationRoutes({
-    database: destination,
-    scope,
-    directory,
-  });
-  const deniedReceiver = new api.WalletAuthorizationRelocationRoutes({
-    database: destination,
-    scope,
-    directory: new SourceDirectory(scope, identity, 'denied', { kind: 'captured', manifest }),
-  });
-  assert.equal(
-    (await deniedReceiver.handle(destinationRequest(scope, identity, { kind: 'prepare' }))).status,
-    403,
-  );
-  const untrusted = await destinationRequest(scope, identity, { kind: 'prepare' }).json();
+  const directory = new SourceDirectory(scope, identity, 'authorized', { kind: 'captured', manifest });
+  const handler = new api.WalletAuthorizationRelocationRoutes({ database: source, scope, directory });
+  const denied = new api.WalletAuthorizationRelocationRoutes({ database: source, scope,
+    directory: new SourceDirectory(scope, identity, 'denied', { kind: 'uncaptured' }) });
+  assert.equal((await denied.handle(exportRequest(scope, identity, url))).status, 403);
+  assert.equal((await handler.handle(exportRequest(scope, identity,
+    url.replace('wallet-relocation.internal', 'wallet.example.test')))).status, 404);
+  const response = await handler.handle(exportRequest(scope, identity, url));
+  assert.equal(response.status, 200, await response.clone().text());
+  const received = await response.json();
+  assert.equal(received.kind, 'authorization_snapshot');
+  const receiver = new api.WalletAuthorizationRelocationRoutes({ database: destination, scope, directory });
+  assert.equal((await receiver.handle(destinationRequest(scope, identity, { kind: 'activate' }))).status, 503);
+  const operation = { kind: 'import', snapshot: received.snapshot };
+  const untrusted = await destinationRequest(scope, identity, operation).json();
   untrusted.manifest = manifest;
-  assert.equal(
-    (
-      await receiver.handle(
-        new Request(URL.replace('/freeze', '/prepare'), {
-          method: 'POST',
-          body: JSON.stringify(untrusted),
-        }),
-      )
-    ).status,
-    400,
-  );
-  assert.equal(
-    await destination
-      .prepare(
-        'SELECT COUNT(*) AS count FROM wallet_relocation_authorization_imports WHERE wallet_id = ?',
-      )
-      .bind(identity.walletId)
-      .first('count'),
-    0,
-  );
-  const prepared = await receiver.handle(destinationRequest(scope, identity, { kind: 'prepare' }));
-  assert.equal(prepared.status, 200);
-  assert.deepEqual((await prepared.json()).progress, {
-    state: 'receiving',
-    nextIndex: 0,
-    chunkCount: manifest.chunkCount,
-  });
-  assert.equal(
-    (await receiver.handle(destinationRequest(scope, identity, { kind: 'verify' }))).status,
-    503,
-  );
-  assert.equal(
-    (await receiver.handle(destinationRequest(scope, identity, { kind: 'activate' }))).status,
-    503,
-  );
-  for (let index = 0; index < manifest.chunkCount; index += 1) {
-    const response = await handler.handle(exportRequest(scope, identity, index, url));
-    assert.equal(response.status, 200, await response.clone().text());
-    const received = await response.json();
-    assert.equal(received.kind, 'authorization_chunk');
-    assert.ok(Buffer.byteLength(received.chunk.chunkJson) <= 131072);
-    const replay = await new api.WalletAuthorizationRelocationRoutes({
-      database: source,
-      scope,
-      directory,
-    }).handle(exportRequest(scope, identity, index, url));
-    const replayed = await replay.json();
-    assert.deepEqual(replayed, received);
-    const accepted = await receiver.handle(
-      destinationRequest(scope, identity, { kind: 'accept', chunk: received.chunk }),
-    );
-    assert.equal(accepted.status, 200, await accepted.clone().text());
-    const acknowledgement = await accepted.json();
-    assert.equal(acknowledgement.digestHex, received.chunk.digestHex);
-    const acceptedAgain = await new api.WalletAuthorizationRelocationRoutes({
-      database: destination,
-      scope,
-      directory,
-    }).handle(destinationRequest(scope, identity, { kind: 'accept', chunk: received.chunk }));
-    assert.deepEqual(await acceptedAgain.json(), acknowledgement);
-    const resumed = await new api.WalletAuthorizationRelocationRoutes({
-      database: destination,
-      scope,
-      directory,
-    }).handle(destinationRequest(scope, identity, { kind: 'prepare' }));
-    assert.equal(resumed.status, 200);
-    assert.deepEqual((await resumed.json()).progress, {
-      state: 'receiving',
-      nextIndex: index + 1,
-      chunkCount: manifest.chunkCount,
-    });
-  }
-  const verified = await receiver.handle(destinationRequest(scope, identity, { kind: 'verify' }));
-  assert.equal(verified.status, 200, await verified.clone().text());
-  assert.equal((await verified.json()).digestHex, manifest.digestHex);
-  const completed = await new api.WalletAuthorizationRelocationRoutes({
-    database: destination,
-    scope,
-    directory,
-  }).handle(destinationRequest(scope, identity, { kind: 'prepare' }));
-  assert.equal(completed.status, 200);
-  assert.deepEqual((await completed.json()).progress, {
-    state: 'verified',
-    digestHex: manifest.digestHex,
-  });
-  return {
-    durableResumePositionAfterAcknowledgementLoss: true,
-    chunksTransferred: manifest.chunkCount,
-    destinationDigest: manifest.digestHex,
-    deniedAndPublicExportRejected: true,
-    boundedExactExportReplay: true,
-    allChunksRestoredThroughAuthorizedDestinationRoute: true,
-    callerCannotChooseDestinationManifest: true,
-    incompleteImportCannotVerify: true,
-  };
+  assert.equal((await receiver.handle(new Request(URL.replace('/freeze', '/import'), {
+    method: 'POST', body: JSON.stringify(untrusted),
+  }))).status, 400);
+  const accepted = await receiver.handle(destinationRequest(scope, identity, operation));
+  assert.equal(accepted.status, 200, await accepted.clone().text());
+  const acknowledgement = await accepted.json();
+  assert.equal(acknowledgement.digestHex, manifest.digestHex);
+  const replay = await new api.WalletAuthorizationRelocationRoutes({ database: destination, scope, directory })
+    .handle(destinationRequest(scope, identity, operation));
+  assert.deepEqual(await replay.json(), acknowledgement);
+  return { snapshotBytes: Buffer.byteLength(JSON.stringify(received.snapshot)),
+    transferRequests: 1, destinationDigest: manifest.digestHex,
+    deniedAndPublicExportRejected: true, callerCannotChooseDestinationManifest: true,
+    restartedImportAfterLostAcknowledgementExact: true };
 }
 
 export async function activateAuthorizationThroughCommand({
@@ -626,8 +506,8 @@ function destinationRequest(scope, identity, operation) {
     startedAtMs: Date.now(),
   };
   const body =
-    operation.kind === 'accept'
-      ? { walletId: identity.walletId, attempt, chunk: operation.chunk }
+    operation.kind === 'import'
+      ? { walletId: identity.walletId, attempt, snapshot: operation.snapshot }
       : { walletId: identity.walletId, attempt };
   return new Request(URL.replace('/freeze', `/${operation.kind}`), {
     method: 'POST',

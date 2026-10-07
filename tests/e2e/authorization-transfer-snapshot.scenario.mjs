@@ -39,12 +39,10 @@ async function readSnapshot(api, database, scope, identity, manifest) {
   let currentKey = null;
   let currentTable = null;
   let multiSegmentRecords = 0;
+  const exportedSnapshot = await store.exportSnapshot(identity);
+  assert.deepEqual(await new api.D1WalletAuthorizationSnapshot(database, scope).exportSnapshot(identity), exportedSnapshot);
   for (let index = 0; index < manifest.chunkCount; index += 1) {
-    const exported = await store.exportChunk(identity, index);
-    assert.deepEqual(
-      await new api.D1WalletAuthorizationSnapshot(database, scope).exportChunk(identity, index),
-      exported,
-    );
+    const exported = exportedSnapshot[index];
     assert.equal(exported.index, index);
     assert.ok(Buffer.byteLength(exported.chunkJson) <= 131_072);
     digest = sha256(JSON.stringify([digest, index, exported.chunkJson]));
@@ -100,7 +98,7 @@ export async function verifyAuthorizationSnapshot({ api, source, scope, identity
       .first('count'),
     1,
   );
-  await assert.rejects(store.exportChunk(identity, 0), /not sealed/u);
+  await assert.rejects(store.exportSnapshot(identity), /not sealed/u);
   await source.exec('DROP TRIGGER fail_authorization_snapshot_chunk');
   await source
     .prepare(
@@ -122,7 +120,7 @@ export async function verifyAuthorizationSnapshot({ api, source, scope, identity
       .first('count'),
     JSON.parse(firstChunk.chunk_json).segmentCount,
   );
-  await assert.rejects(store.exportChunk(identity, 0), /not sealed/u);
+  await assert.rejects(store.exportSnapshot(identity), /not sealed/u);
   await source.exec('DROP TRIGGER fail_authorization_snapshot_chunk');
   const [manifest, concurrent] = await Promise.all([
     new api.D1WalletAuthorizationSnapshot(source, scope).seal(identity),
@@ -165,8 +163,6 @@ export async function verifyAuthorizationSnapshot({ api, source, scope, identity
     recordCount += rows.length;
   }
   assert.equal(recordCount, manifest.recordCount);
-  for (const index of [-1, '0', manifest.chunkCount])
-    await assert.rejects(store.exportChunk(identity, index));
   await assert.rejects(
     store.seal(
       api.WalletRelocationSessionSource.parse({

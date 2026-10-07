@@ -8,6 +8,8 @@ import { WalletRelocationSessionSource } from './d1WalletRelocationSessions';
 import { AuthorizationSnapshotLayout } from './authorizationSnapshotLayout';
 
 const CHUNK_BYTES = 32_768;
+export const AUTHORIZATION_SNAPSHOT_MAX_BYTES = 524_288;
+export const AUTHORIZATION_SNAPSHOT_MAX_CHUNKS = 80;
 type Manifest = {
   readonly schemaJson: string;
   readonly chunkCount: number;
@@ -120,34 +122,48 @@ export class D1WalletAuthorizationSnapshot {
     return sealed.manifest;
   }
 
-  async exportChunk(
-    source: WalletRelocationSessionSource,
-    rawIndex: unknown,
-  ): Promise<{
-    readonly index: number;
-    readonly chunkJson: string;
-    readonly digestHex: string;
-  }> {
-    const index = parseNonNegativeSafeInteger(rawIndex, 'snapshot chunk index');
+  async exportSnapshot(source: WalletRelocationSessionSource): Promise<readonly {
+    readonly index: number; readonly chunkJson: string; readonly digestHex: string;
+  }[]> {
     const state = await this.read(source);
     if (state?.state !== 'sealed') throw new Error('Authorization snapshot is not sealed');
-    if (index >= state.manifest.chunkCount)
-      throw new Error('Authorization snapshot chunk is absent');
-    const row = await prepareD1TenantStatement(
-      this.database,
-      this.scope,
-      `
-      SELECT chunk_json, digest_hex FROM wallet_relocation_authorization_chunks
+    const result = await prepareD1TenantStatement(this.database, this.scope, `
+      SELECT chunk_index, chunk_json, digest_hex FROM wallet_relocation_authorization_chunks
       WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
-        AND wallet_id = ?5 AND chunk_index = ?6`,
-      [source.walletId, index],
-    ).first<Record<string, unknown>>();
-    if (!row) throw new Error('Authorization snapshot chunk disappeared');
-    return Object.freeze({
-      index,
+        AND wallet_id = ?5 ORDER BY chunk_index`, [source.walletId]).all<Record<string, unknown>>();
+    const chunks = [];
+    for (const row of result.results ?? []) chunks.push({
+      index: parseNonNegativeSafeInteger(row.chunk_index, 'snapshot chunk index'),
       chunkJson: requireCanonicalString(row.chunk_json, 'snapshot chunk'),
       digestHex: requireCanonicalString(row.digest_hex, 'snapshot chunk digest'),
     });
+    if (chunks.length !== state.manifest.chunkCount || chunks.length > AUTHORIZATION_SNAPSHOT_MAX_CHUNKS ||
+        new TextEncoder().encode(JSON.stringify(chunks)).byteLength > AUTHORIZATION_SNAPSHOT_MAX_BYTES)
+      throw new Error('Authorization snapshot exceeds supported capacity');
+    return chunks;
+  }
+
+  async assertCapacity(walletId: string): Promise<void> {
+    const statements = [];
+    for (const layout of await AuthorizationSnapshotLayout.read(this.database)) {
+      const expressions = layout.expressions();
+      statements.push(prepareD1TenantStatement(this.database, this.scope, `
+        SELECT COALESCE(SUM(length(CAST(${expressions.record} AS BLOB))), 0) AS bytes,
+          COALESCE(SUM((length(CAST(${expressions.record} AS BLOB)) + 512 + 32767) / 32768), 0) AS chunks
+        FROM ${layout.table} AS target WHERE ${expressions.ownership}`, [walletId]));
+    }
+    const results = await this.database.batch<{ results: { bytes: number; chunks: number }[] }>(statements);
+    let bytes = 0;
+    let chunks = 0;
+    for (const result of results) {
+      const row = result.results[0];
+      if (!row) throw new Error('Authorization capacity observation is absent');
+      bytes += parseNonNegativeSafeInteger(row.bytes, 'authorization bytes');
+      chunks += parseNonNegativeSafeInteger(row.chunks, 'authorization chunks');
+    }
+    // Reserve envelope and retirement-field space in addition to hex-encoded records.
+    if (chunks > AUTHORIZATION_SNAPSHOT_MAX_CHUNKS || bytes * 2 + chunks * 2048 > AUTHORIZATION_SNAPSHOT_MAX_BYTES)
+      throw new Error('Authorization snapshot exceeds supported capacity');
   }
 
   private async prepare(source: WalletRelocationSessionSource): Promise<SnapshotState> {

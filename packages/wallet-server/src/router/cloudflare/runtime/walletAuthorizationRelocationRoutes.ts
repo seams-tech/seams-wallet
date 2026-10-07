@@ -4,7 +4,6 @@ import { D1WalletRelocationApprovals } from '../d1/wallet/d1WalletRelocationAppr
 import { D1WalletCeremonyActivity } from '../d1/ed25519Yao/d1WalletCeremonyActivity';
 import { D1WalletAuthorizationIntake } from '../d1/wallet/d1WalletAuthorizationIntake';
 import { D1WalletAuthorizationCleanup } from '../d1/wallet/d1WalletAuthorizationCleanup';
-import { parseNonNegativeSafeInteger } from '@shared/device-linking/wireFields';
 import { isPlainObject, requireRecord } from '@shared/utils/validation';
 import { parseWalletId } from '@shared/utils/domainIds';
 import { sha256HexUtf8 } from '@shared/utils/digests';
@@ -24,14 +23,8 @@ import type { WalletConsoleServiceBinding } from './walletConsoleOpsClient';
 
 const BASE_PATH = '/internal/wallet-relocation/v1/authorization';
 type AuthorizationOperation =
-  | { readonly kind: 'freeze'; readonly index?: never; readonly chunk?: never }
-  | { readonly kind: 'export'; readonly index: number; readonly chunk?: never }
-  | {
-      readonly kind: 'prepare' | 'verify' | 'activate' | 'cleanup';
-      readonly index?: never;
-      readonly chunk?: never;
-    }
-  | { readonly kind: 'accept'; readonly chunk: unknown; readonly index?: never };
+  | { readonly kind: 'freeze' | 'export' | 'activate' | 'cleanup'; readonly snapshot?: never }
+  | { readonly kind: 'import'; readonly snapshot: unknown };
 const ORIGIN = 'https://wallet-relocation.internal';
 
 // This receipt covers authorization storage only. The coordinator must settle
@@ -108,43 +101,13 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
           'The handler requires an internal origin and a live Console-authorized source export command.',
       },
       metering: { kind: 'none' },
-      summary: 'Export one sealed authorization snapshot chunk',
+      summary: 'Export the sealed authorization snapshot',
     },
     {
-      id: 'wallet_authorization_prepare',
-      surface: 'relay',
-      method: 'POST',
-      path: `${BASE_PATH}/prepare`,
-      auth: {
-        plane: 'public',
-        rationale: 'Console must authorize destination import with its pinned source manifest.',
-      },
-      metering: { kind: 'none' },
-      summary: 'Prepare inactive authorization intake',
-    },
-    {
-      id: 'wallet_authorization_accept',
-      surface: 'relay',
-      method: 'POST',
-      path: `${BASE_PATH}/accept`,
-      auth: {
-        plane: 'public',
-        rationale: 'Console must authorize destination import with its pinned source manifest.',
-      },
-      metering: { kind: 'none' },
-      summary: 'Restore one authorization snapshot chunk',
-    },
-    {
-      id: 'wallet_authorization_verify',
-      surface: 'relay',
-      method: 'POST',
-      path: `${BASE_PATH}/verify`,
-      auth: {
-        plane: 'public',
-        rationale: 'Console must authorize destination import with its pinned source manifest.',
-      },
-      metering: { kind: 'none' },
-      summary: 'Verify the complete authorization import',
+      id: 'wallet_authorization_import', surface: 'relay', method: 'POST',
+      path: `${BASE_PATH}/import`,
+      auth: { plane: 'public', rationale: 'Console authorizes an atomic import of the pinned snapshot.' },
+      metering: { kind: 'none' }, summary: 'Import and verify the complete authorization snapshot',
     },
   ];
 
@@ -200,7 +163,7 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
         if (Object.keys(body).length !== 2 || typeof body.schemaDigestHex !== 'string' ||
           !/^[a-f0-9]{64}$/u.test(body.schemaDigestHex)) return failure('invalid_input', 400);
         source = WalletRelocationSessionSource.parse(body.source);
-      } else if (Object.keys(body).length !== 0) return failure('invalid_input', 400);
+      } else if (Object.keys(body).length !== 1 || !parseWalletId(body.walletId).ok) return failure('invalid_input', 400);
     } catch {
       return failure('invalid_input', 400);
     }
@@ -213,6 +176,9 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
         return Response.json({ kind: 'authorization_reserved', source, schemaDigestHex },
           { headers: { 'Cache-Control': 'no-store' } });
       }
+      const walletId = parseWalletId(body.walletId);
+      if (!walletId.ok) return failure('invalid_input', 400);
+      await new D1WalletAuthorizationSnapshot(this.options.database, this.options.scope).assertCapacity(walletId.value);
       return Response.json({ kind: 'authorization_schema', schemaDigestHex },
         { headers: { 'Cache-Control': 'no-store' } });
     } catch {
@@ -384,47 +350,25 @@ export class WalletAuthorizationRelocationRoutes implements RouterApiRouteExtens
         return failure('authorization_activation_incomplete', 503);
       }
     }
-    if (
-      requested.kind === 'prepare' ||
-      requested.kind === 'accept' ||
-      requested.kind === 'verify'
-    ) {
+    if (requested.kind === 'import') {
       try {
         const intake = new D1WalletAuthorizationIntake(this.options.database, this.options.scope);
-        const progress = await intake.prepare(source, pinnedManifest);
-        switch (requested.kind) {
-          case 'prepare':
-            return Response.json(
-              { kind: 'authorization_prepared', commandDigest, progress },
-              { headers: { 'Cache-Control': 'no-store' } },
-            );
-          case 'accept': {
-            const digestHex = await intake.accept(source, requested.chunk);
-            return Response.json(
-              { kind: 'authorization_chunk_accepted', commandDigest, digestHex },
-              { headers: { 'Cache-Control': 'no-store' } },
-            );
-          }
-          case 'verify': {
-            const digestHex = await intake.verify(source);
-            return Response.json(
-              { kind: 'authorization_verified', commandDigest, digestHex },
-              { headers: { 'Cache-Control': 'no-store' } },
-            );
-          }
-        }
+        await intake.prepare(source, pinnedManifest);
+        const digestHex = await intake.acceptSnapshot(source, requested.snapshot);
+        return Response.json({ kind: 'authorization_verified', commandDigest, digestHex },
+          { headers: { 'Cache-Control': 'no-store' } });
       } catch {
         return failure('authorization_import_incomplete', 503);
       }
     }
     if (requested.kind === 'export') {
       try {
-        const chunk = await new D1WalletAuthorizationSnapshot(
+        const snapshot = await new D1WalletAuthorizationSnapshot(
           this.options.database,
           this.options.scope,
-        ).exportChunk(source, requested.index);
+        ).exportSnapshot(source);
         return Response.json(
-          { kind: 'authorization_chunk', commandDigest, chunk },
+          { kind: 'authorization_snapshot', commandDigest, snapshot },
           { headers: { 'Cache-Control': 'no-store' } },
         );
       } catch {
@@ -500,20 +444,10 @@ function parseAuthorizationOperation(
       if (fields === 2) return { kind: 'freeze' };
       break;
     case `${BASE_PATH}/export`:
-      if (fields === 3)
-        return {
-          kind: 'export',
-          index: parseNonNegativeSafeInteger(body.index, 'snapshot chunk index'),
-        };
+      if (fields === 2) return { kind: 'export' };
       break;
-    case `${BASE_PATH}/prepare`:
-      if (fields === 2) return { kind: 'prepare' };
-      break;
-    case `${BASE_PATH}/accept`:
-      if (fields === 3 && 'chunk' in body) return { kind: 'accept', chunk: body.chunk };
-      break;
-    case `${BASE_PATH}/verify`:
-      if (fields === 2) return { kind: 'verify' };
+    case `${BASE_PATH}/import`:
+      if (fields === 3 && 'snapshot' in body) return { kind: 'import', snapshot: body.snapshot };
       break;
     case `${BASE_PATH}/activate`:
       if (fields === 2) return { kind: 'activate' };
@@ -532,9 +466,7 @@ function authorizationCommandKind(kind: AuthorizationOperation['kind']) {
     case 'activate':
     case 'cleanup':
       return kind;
-    case 'prepare':
-    case 'accept':
-    case 'verify':
+    case 'import':
       return 'import_authorization';
     default:
       return assertNever(kind);
