@@ -197,6 +197,7 @@ export interface RouterAbEd25519YaoRecoveryBackend {
   activateRecovery(
     request: RouterAbEd25519YaoRecoveryActivationRequestV1,
     dispatchRoot: RouterAbEd25519YaoTenantRootWireV1,
+    ownershipGeneration: number,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRecoveryBackendResult> | RouterAbEd25519YaoRecoveryBackendResult;
 }
@@ -315,6 +316,7 @@ interface RouterAbEd25519YaoRecoveryExecuteBoundaryV1 {
 }
 
 export type RouterAbEd25519YaoRecoveryActivationClaimV1 = {
+  readonly ownershipGeneration: number;
   readonly kind: 'router_ab_ed25519_yao_recovery_activation_claim_v1';
   readonly lifecycleId: string;
   readonly recoveryKey: string;
@@ -2582,6 +2584,7 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
             result: await this.backend.activateRecovery(
               request,
               preparation.claim.dispatchRoot,
+              preparation.claim.ownershipGeneration,
               traceContext,
             ),
           };
@@ -2875,6 +2878,7 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
   ): RouterAbEd25519YaoRecoveryActivationClaimV1 {
     return {
       kind: 'router_ab_ed25519_yao_recovery_activation_claim_v1',
+      ownershipGeneration: state.context.authorization.ownershipGeneration,
       lifecycleId: state.context.admissionRequest.scope.lifecycle_id,
       recoveryKey: state.context.recoveryKey,
       sessionId: bytesToHex(state.admissionReceipt.binding.session_id),

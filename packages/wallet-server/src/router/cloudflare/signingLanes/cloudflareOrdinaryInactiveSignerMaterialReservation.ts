@@ -155,10 +155,12 @@ export function createCloudflareLinkedDeviceEd25519SourcePreservingRouterEndpoin
 
 export type CloudflareOrdinaryInactiveSignerMaterialActivationEndpointV1 = {
   activateInactiveEd25519SignerMaterialV1(input: {
+    readonly ownershipGeneration: number;
     readonly sourceContribution: OrdinaryEd25519SignerMaterialReservationPreparationV1['sourceContribution'];
     readonly reservationId: string;
   }): Promise<unknown>;
   activateInactiveEcdsaSignerMaterialV1(input: {
+    readonly ownershipGeneration: number;
     readonly preparation: OrdinaryEcdsaSignerMaterialReservationPreparationV1;
     readonly reservationId: string;
   }): Promise<unknown>;
@@ -222,6 +224,7 @@ function ecdsaReservationRequestToWireV1(
   tenant: CloudflareSigningWorkerTenantV1,
 ): Record<string, unknown> {
   return {
+    ownership_generation: request.ownershipGeneration,
     // The wallet whose active material the linked device's shares come from,
     // as this Gateway planned the device's activation.
     scope: signingWorkerWalletScopeWireV1(
@@ -260,12 +263,14 @@ function ed25519ReservationFromSourceContributionV1(
 
 function ed25519ActivationRequestToWireV1(
   input: {
+    readonly ownershipGeneration: number;
     readonly sourceContribution: OrdinaryEd25519SignerMaterialReservationPreparationV1['sourceContribution'];
     readonly reservationId: string;
   },
   tenant: CloudflareSigningWorkerTenantV1,
 ): Record<string, unknown> {
   return {
+    ownership_generation: input.ownershipGeneration,
     // The wallet the installed authority's reserved material belongs to.
     scope: signingWorkerWalletScopeWireV1(
       tenant,
@@ -278,6 +283,7 @@ function ed25519ActivationRequestToWireV1(
 
 function ecdsaActivationRequestToWireV1(
   input: {
+    readonly ownershipGeneration: number;
     readonly preparation: OrdinaryEcdsaSignerMaterialReservationPreparationV1;
     readonly reservationId: string;
   },
@@ -285,6 +291,7 @@ function ecdsaActivationRequestToWireV1(
 ): Record<string, unknown> {
   const materialActivation = input.preparation.sourceContribution.binding.target.activation;
   return {
+    ownership_generation: input.ownershipGeneration,
     // The wallet that owns the reserved material.
     scope: signingWorkerWalletScopeWireV1(tenant, String(materialActivation.materialOwner)),
     material_activation: routerAbMpcMaterialActivationRefToWire(materialActivation),
@@ -575,6 +582,7 @@ async function postRouterJsonRequestV1(
 }
 
 export function createCloudflareOrdinaryInactiveSignerMaterialDeactivationEndpointV1(input: {
+  readonly admitEstablishedHome: WalletExecutionAuthority['admitEstablishedHome'];
   readonly fetch: typeof fetch;
   readonly internalServiceAuthSecret: string;
   readonly tenant: CloudflareSigningWorkerTenantV1;
@@ -587,6 +595,7 @@ export function createCloudflareOrdinaryInactiveSignerMaterialDeactivationEndpoi
         materialActivation,
         'ed25519',
         signingWorkerWalletScopeWireV1(input.tenant, String(materialActivation.materialOwner)),
+        await establishedGeneration(input.admitEstablishedHome, String(materialActivation.materialOwner)),
       ),
     deactivateInactiveEcdsaSignerMaterialV1: async ({ materialActivation }) =>
       await postDeactivationRequestV1(
@@ -595,6 +604,7 @@ export function createCloudflareOrdinaryInactiveSignerMaterialDeactivationEndpoi
         materialActivation,
         'ecdsa_secp256k1',
         signingWorkerWalletScopeWireV1(input.tenant, String(materialActivation.materialOwner)),
+        await establishedGeneration(input.admitEstablishedHome, String(materialActivation.materialOwner)),
       ),
   };
 }
@@ -608,6 +618,7 @@ async function postDeactivationRequestV1(
   materialActivation: MpcMaterialActivationRef,
   keyFamily: 'ed25519' | 'ecdsa_secp256k1',
   scope: Record<string, string>,
+  ownershipGeneration: number,
 ): Promise<unknown> {
   const response = await input.fetch(
     new Request(`https://signing-worker.router-ab.internal${path}`, {
@@ -617,6 +628,7 @@ async function postDeactivationRequestV1(
         'x-router-ab-internal-service-auth': input.internalServiceAuthSecret,
       },
       body: JSON.stringify({
+        ownership_generation: ownershipGeneration,
         scope,
         material_activation: routerAbMpcMaterialActivationRefToWire(materialActivation),
       }),
@@ -922,6 +934,7 @@ class CloudflareOrdinaryInactiveSignerMaterialActivationWorkerV1 implements Ordi
   ) {}
 
   async activateOrdinaryInactiveSignerMaterialV1(input: {
+    readonly ownershipGeneration: number;
     readonly keyFamily: 'ed25519' | 'ecdsa_secp256k1';
     readonly reservationId: string;
     readonly materialActivation: MpcMaterialActivationRef;
@@ -955,6 +968,7 @@ class CloudflareOrdinaryInactiveSignerMaterialActivationWorkerV1 implements Ordi
       await this.endpoint.activateInactiveEd25519SignerMaterialV1({
         sourceContribution: prepared.sourceContribution,
         reservationId: input.reservationId,
+        ownershipGeneration: input.ownershipGeneration,
       });
       return;
     }
@@ -970,6 +984,18 @@ class CloudflareOrdinaryInactiveSignerMaterialActivationWorkerV1 implements Ordi
     await this.endpoint.activateInactiveEcdsaSignerMaterialV1({
       preparation: prepared,
       reservationId: input.reservationId,
+      ownershipGeneration: input.ownershipGeneration,
     });
   }
+}
+
+async function establishedGeneration(
+  admit: WalletExecutionAuthority['admitEstablishedHome'],
+  walletId: string,
+): Promise<number> {
+  const parsed = parseWalletId(walletId);
+  if (!parsed.ok) throw new Error(parsed.error.message);
+  const admitted = await admit({ walletId: parsed.value });
+  if (!admitted.ok) throw new Error(admitted.message);
+  return admitted.ownershipGeneration;
 }

@@ -510,7 +510,7 @@ export function deriverBWorker(fixture) {
   };
 }
 
-export function signingWorker(name, databaseId, fixture) {
+export function signingWorker(name, databaseId, fixture, namespaceOwner = name) {
   return {
     ...strictWorker(name, 'signing-worker', {
       ...fixture.signing_worker_env,
@@ -527,10 +527,12 @@ export function signingWorker(name, databaseId, fixture) {
     durableObjects: {
       SIGNING_WORKER_PRESIGN_SESSION_DO: {
         className: 'RouterAbSigningWorkerPresignSessionDurableObject',
+        scriptName: namespaceOwner,
         useSQLite: true,
       },
       SIGNING_WORKER_WALLET_DO: {
         className: 'RouterAbSigningWorkerWalletDurableObject',
+        scriptName: namespaceOwner,
         useSQLite: true,
       },
     },
@@ -1417,6 +1419,7 @@ function buildEcdsaRegistration(
       environment: identity?.envId ?? 'test',
       project_environment_id: projectEnvironmentId,
       account_id: accountId,
+      ownership_generation: 1,
       routerAbRequestPolicy: {
         policyVersion: 'router-ab-ecdsa-registration-v1',
         workKind: 'registration_prepare',
@@ -1683,6 +1686,7 @@ export async function runEcdsaPresignSession(topology, ecdsa, mode = 'pool', che
   const scope = buildEcdsaNormalSigningScope(ecdsa);
   const authority = {
     kind: 'owner_wallet_session',
+    ownership_generation: ecdsa.executionHome.ownershipGeneration,
     wallet_scope: ecdsa.walletScope,
   };
   const groupPublicKey = Buffer.from(
@@ -1714,6 +1718,7 @@ export async function runEcdsaPresignSession(topology, ecdsa, mode = 'pool', che
         ...initRequest,
         authority: {
           kind: 'owner_wallet_session',
+          ownership_generation: authority.ownership_generation,
           wallet_scope: { ...authority.wallet_scope, wallet_id: 'another-wallet' },
         },
       });
@@ -1772,7 +1777,7 @@ export async function runEcdsaPresignSession(topology, ecdsa, mode = 'pool', che
       if (checkRejections && exchanges === 1) {
         const changedAuthority = await postWorkerJson(signingWorker, ecdsaPresignSessionStepPath, {
           ...stepRequest,
-          authority: { kind: 'operation_step_up', wallet_scope: authority.wallet_scope },
+          authority: { kind: 'operation_step_up', ownership_generation: authority.ownership_generation, wallet_scope: authority.wallet_scope },
         });
         assert.equal(changedAuthority.ok, false, 'A changed authority must not advance presigning');
         assert.match(await changedAuthority.text(), /authority does not match initialized session/);
@@ -1780,6 +1785,7 @@ export async function runEcdsaPresignSession(topology, ecdsa, mode = 'pool', che
           ...stepRequest,
           authority: {
             kind: 'owner_wallet_session',
+            ownership_generation: authority.ownership_generation,
             wallet_scope: { ...authority.wallet_scope, org_id: 'another-org' },
           },
         });
@@ -2013,7 +2019,7 @@ export async function testEcdsaNormalSigning(
         false,
         'The previous ownership generation cannot reserve destination material',
       );
-      assert.match(await rejected.text(), /execution ownership generation differs/);
+      assert.match(await rejected.text(), /Wallet relocation has closed ECDSA pool admission|ECDSA wallet activation material is missing/);
     }
     const prepareResponse = await postWorkerJson(
       router,
@@ -2027,7 +2033,7 @@ export async function testEcdsaNormalSigning(
         project_id: ecdsa.walletScope.project_id,
         project_environment_id: ecdsa.walletScope.project_environment_id,
         wallet_id: ecdsa.accountId,
-      });
+      }, ecdsa.executionHome.ownershipGeneration);
       const replayResponse = await postWorkerJson(router, ecdsaSigningPreparePath, prepareRequest);
       const replayBytes = await expectOk(replayResponse, 'destination ECDSA prepare retry');
       assert.deepEqual(replayBytes, prepareBytes, 'Prepare retry must preserve the exact response');
@@ -2189,7 +2195,7 @@ async function activateEcdsaThroughRouter(topology, receipt) {
     const lost = await postWorkerJson(destination, path, command, headers);
     assert.equal(lost.status, 503);
     assert.deepEqual(destination.env.WALLET_CONSOLE.ecdsaActivation, receipt);
-    await evictTransferredWallet(topology, 'fixture-signing-worker-after-refresh', receipt.scope);
+    await evictTransferredWallet(topology, 'fixture-signing-worker-after-refresh', receipt.scope, receipt.request.source_generation + 1);
     destination.env.WALLET_CONSOLE.receiptMode = 'available';
     const activated = await postWorkerJson(destination, path, command, headers);
     assert.deepEqual(await activated.json(), { kind: 'activated', receipt });
@@ -2212,7 +2218,7 @@ async function cleanupEcdsaThroughRuntime(topology, runtime, receipt) {
       const response = await postWorkerJson(runtime, path, command, headers);
       const result = await response.json();
       assert.equal(response.status, 200, JSON.stringify(result));
-      await evictTransferredWallet(topology, 'fixture-signing-worker', receipt.scope);
+      await evictTransferredWallet(topology, 'fixture-signing-worker', receipt.scope, receipt.request.source_generation);
       if (result.kind === 'cleaned') {
         const replay = await postWorkerJson(runtime, path, command, headers);
         assert.deepEqual(await replay.json(), result);
@@ -2243,7 +2249,9 @@ export async function completeOwnerPresignBeforePublication(topology, ecdsa, fix
       pending.scope.material_activation,
     ])).digest('base64url');
     const hostName = `${fixture.signing_worker_env.SIGNING_WORKER_PRESIGN_SESSION_DO_OBJECT}-${hostDigest}`;
-    const host = namespace.get(namespace.idFromName(hostName));
+    const generation = pending.presignSource.batch.authority.ownership_generation;
+    const physicalHost = generation === 1 ? hostName : `${hostName}/generation/${generation}`;
+    const host = namespace.get(namespace.idFromName(physicalHost));
     const response = await postWorkerJson(
       host,
       '/router-ab/internal/signing-worker/ecdsa-presign-session/step',
@@ -2257,6 +2265,7 @@ export async function completeOwnerPresignBeforePublication(topology, ecdsa, fix
     assert.equal(completed.kind, 'complete');
     return {
       command: 'publish_ecdsa_presignature',
+      ownership_generation: completed.authority.ownership_generation,
       completed_at_ms: Date.now(),
       scope: completed.authority.wallet_scope,
       presign_session_id: pending.presignSource.batch.presign_session_id,
@@ -2273,7 +2282,7 @@ async function publishOwnerPresignature(topology, publication) {
     'fixture-signing-worker',
   );
   const wallet = namespace.get(
-    namespace.idFromName(signingWorkerWalletDoObjectName(publication.scope)),
+    namespace.idFromName(signingWorkerWalletDoObjectName(publication.scope, publication.ownership_generation)),
   );
   return postWorkerJson(wallet, '/router-ab/internal/signing-worker/wallet', publication);
 }
@@ -2291,7 +2300,7 @@ async function verifyEcdsaWalletRelocation(topology, fixture, ecdsa) {
     (await expectOk(firstPublicationResponse, 'fresh owner publication')).toString('utf8'),
   );
   assert.equal(firstPublication.stored, true);
-  await evictTransferredWallet(topology, 'fixture-signing-worker', readyPublication.scope);
+  await evictTransferredWallet(topology, 'fixture-signing-worker', readyPublication.scope, readyPublication.ownership_generation);
   const repeatedPublicationResponse = await publishOwnerPresignature(topology, readyPublication);
   const repeatedPublication = JSON.parse(
     (await expectOk(repeatedPublicationResponse, 'owner publication after lost reply')).toString('utf8'),
@@ -2337,8 +2346,14 @@ async function verifyEcdsaWalletRelocation(topology, fixture, ecdsa) {
   };
   signingWorkerDeliveryTarget = ecdsa.executionHome.workerName;
   const beforeCleanup = await testEcdsaNormalSigning(topology, ecdsa, 'pool', false);
+  const generationTwoHosts = await topology.listDurableObjectIds(
+    'RouterAbSigningWorkerPresignSessionDurableObject', 'fixture-signing-worker',
+  );
   const cleanup = await cleanupEcdsaThroughRuntime(topology, runtime, receipt);
   const afterCleanup = await testEcdsaNormalSigning(topology, ecdsa, 'pool', false);
+  assert.deepEqual((await topology.listDurableObjectIds(
+    'RouterAbSigningWorkerPresignSessionDurableObject', 'fixture-signing-worker',
+  )).sort(), [...generationTwoHosts].sort(), 'Repeated destination refill must reuse its generation host');
   const returned = await returnTransferredWallet(
     topology,
     routerToSigningWorkerEcdsaAuthSecret,
@@ -2353,9 +2368,14 @@ async function verifyEcdsaWalletRelocation(topology, fixture, ecdsa) {
   const afterReturnRefill = await postWorkerJson(returnedSource, ecdsaPresignSessionStepPath, delayedBatch);
   const afterReturnRefillBody = await afterReturnRefill.text();
   assert.equal(afterReturnRefill.ok, false, `A delayed owner refill must remain retired after a return move: ${afterReturnRefillBody}`);
-  assert.match(afterReturnRefillBody, /ownership generation differs/);
-  await rejectDelayedPresignPublication(topology, delayedPublication, /ownership generation differs/);
+  assert.match(afterReturnRefillBody, /Presign authority is unavailable/);
+  await rejectDelayedPresignPublication(topology, delayedPublication, /Presign authority is unavailable/);
   const afterReturn = await testEcdsaNormalSigning(topology, ecdsa, 'pool', false);
+  const generationThreeHosts = await topology.listDurableObjectIds(
+    'RouterAbSigningWorkerPresignSessionDurableObject', 'fixture-signing-worker',
+  );
+  assert.equal(generationThreeHosts.length, generationTwoHosts.length + 1,
+    'The return generation must create one fresh reusable owner host');
   const returnCleanup = await cleanupTransferredWalletSource(
     topology,
     routerToSigningWorkerEcdsaAuthSecret,
@@ -2371,6 +2391,9 @@ async function verifyEcdsaWalletRelocation(topology, fixture, ecdsa) {
       scope:
         'SigningWorker transfer and fresh ECDSA execution; Gateway routing is selected by the harness. Excludes the complete wallet coordinator.',
       ownershipGeneration: receipt.request.source_generation + 1,
+      sharedSigningWorkerAndPresignNamespaces: true,
+      repeatedDestinationRefillReusesHost: true,
+      returnGenerationCreatesOneFreshOwnerHost: true,
       freshPresignatureAndSignatureBeforeCleanup: true,
       freshPresignatureAndSignatureAfterCleanup: true,
       staleGenerationRejectedBeforeReservation: true,
@@ -4253,11 +4276,12 @@ function deriverAWalletDoObjectName(owner) {
 
 /// The SigningWorker's wallet object for one wallet scope, whose fields are
 /// in the order the SigningWorker serializes them.
-function signingWorkerWalletDoObjectName(scope) {
-  return `signing-worker-wallet-${createHash('sha256')
+function signingWorkerWalletDoObjectName(scope, generation = 1) {
+  const logicalName = `signing-worker-wallet-${createHash('sha256')
     .update('seams/signing-worker/wallet-do/v1')
     .update(JSON.stringify(scope))
     .digest('hex')}`;
+  return generation === 1 ? logicalName : `${logicalName}/generation/${generation}`;
 }
 
 /// Loses or fences one registration activation in the SigningWorker's
@@ -5587,6 +5611,8 @@ async function main() {
         'fixture-signing-worker-after-refresh',
         'fixture-signing-worker-after-refresh-d1',
         fixture,
+        testWalletDoExecution || process.argv.includes('--ecdsa-wallet-do-pool')
+          ? 'fixture-signing-worker' : 'fixture-signing-worker-after-refresh',
       ),
       recoveryRouterWorker(fixture),
       ...((testWalletDoExecution || process.argv.includes('--ecdsa-wallet-do-pool')) ? [historicalReplayRouterWorker(fixture, 'router-relocation-destination', 'deriver-a', 'fixture-signing-worker-after-refresh')] : []),

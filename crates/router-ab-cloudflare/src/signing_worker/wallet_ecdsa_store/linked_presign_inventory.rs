@@ -218,6 +218,9 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
             .execution_authority(&request.wallet_scope)?
             .ok_or_else(|| wallet_error("Linked presign execution authority is missing"))?
             .generation()?;
+        if ownership_generation != request.ownership_generation {
+            return Err(wallet_error("Linked presign execution ownership generation differs"));
+        }
         let row = LinkedPresignSessionRow {
             ownership_generation,
             presign_session_id: request.presign_session_id.clone(),

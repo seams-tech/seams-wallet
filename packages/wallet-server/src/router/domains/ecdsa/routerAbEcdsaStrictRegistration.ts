@@ -118,6 +118,7 @@ export type RouterAbEcdsaRegistrationRequestPolicyV1 = {
 };
 
 export type RouterAbEcdsaRegistrationTenantRootV1 = {
+  readonly ownershipGeneration: number;
   readonly identityDigestB64u: string;
   readonly custodyLineageB64u: string;
   readonly projectEnvironmentId: string;
@@ -209,6 +210,7 @@ export interface RouterAbEcdsaStrictPostRegistrationPort {
 }
 
 export type RouterAbEcdsaCeremonyTokenClaims = {
+  readonly ownershipGeneration: number;
   readonly subjectId: string;
   readonly sessionId: string;
   readonly orgId: string;
@@ -405,6 +407,7 @@ class StrictRegistrationForwarder implements RouterAbEcdsaStrictRegistrationPort
         input.authority,
         this.config.tokenScope,
         input.projectEnvironmentId,
+        input.kind === 'activation' ? pendingOwnershipGeneration(input.pendingActivation) : input.tenantRoot.ownershipGeneration,
       ),
       requestPolicy,
     );
@@ -559,6 +562,7 @@ class StrictPostRegistrationForwarder implements RouterAbEcdsaStrictPostRegistra
         input.authority,
         this.config.tokenScope,
         input.tenantRoot.projectEnvironmentId,
+        input.tenantRoot.ownershipGeneration,
       ),
       postRegistrationRequestPolicy(
         input.kind === 'explicit_export'
@@ -731,6 +735,7 @@ function assertNeverStrictForwardBody(value: never): never {
 function canonicalPendingActivationJson(value: unknown): RouterAbEcdsaPendingActivationJsonV1 {
   const record = exactObject(value, [
     'registration',
+    'ownership_generation',
     'tenant_root_custody_binding_digest',
     'wallet_scope',
     'environment_key',
@@ -741,6 +746,15 @@ function canonicalPendingActivationJson(value: unknown): RouterAbEcdsaPendingAct
     throw new Error('MPCRouter pending activation has an invalid envelope');
   }
   return canonicalJson(value) as RouterAbEcdsaPendingActivationJsonV1;
+}
+
+function pendingOwnershipGeneration(pending: RouterAbEcdsaPendingActivationV1): number {
+  const record = objectValue(JSON.parse(pending.canonicalPayloadJson));
+  const generation = record?.ownership_generation;
+  if (typeof generation !== 'number' || !Number.isSafeInteger(generation) || generation < 1) {
+    throw new Error('Stored ECDSA pending activation has an invalid ownership generation');
+  }
+  return generation;
 }
 
 function pendingProjectEnvironmentId(pending: RouterAbEcdsaPendingActivationV1): string {
@@ -765,11 +779,13 @@ export function parseStoredRouterAbEcdsaPendingActivationV1(
   ) {
     throw new Error('Stored MPCRouter ECDSA pending activation is invalid');
   }
-  const parsed = JSON.parse(record.canonicalPayloadJson) as unknown;
-  const canonicalPayloadJson = canonicalPendingActivationJson(parsed);
-  if (canonicalPayloadJson !== record.canonicalPayloadJson) {
+  const parsed = objectValue(JSON.parse(record.canonicalPayloadJson));
+  if (!parsed || canonicalJson(parsed) !== record.canonicalPayloadJson) {
     throw new Error('Stored MPCRouter ECDSA pending activation is not canonical');
   }
+  // Existing persisted registrations belong to the first ownership generation.
+  if (!Object.hasOwn(parsed, 'ownership_generation')) parsed.ownership_generation = 1;
+  const canonicalPayloadJson = canonicalPendingActivationJson(parsed);
   return {
     kind: 'router_ab_ecdsa_pending_activation_v1',
     canonicalPayloadJson,
@@ -848,8 +864,10 @@ function ceremonyTokenClaimsForAuthority(
   authority: RouterAbEcdsaStrictRegistrationAuthority,
   scope: StrictRegistrationForwarderConfig['tokenScope'],
   projectEnvironmentId: string,
+  ownershipGeneration: number,
 ): RouterAbEcdsaCeremonyTokenClaims {
   return {
+    ownershipGeneration,
     subjectId: authority.subjectId,
     sessionId: authority.sessionId,
     orgId: scope.orgId,
@@ -1037,6 +1055,7 @@ class Ed25519CeremonyTokenIssuer implements RouterAbEcdsaCeremonyTokenIssuer {
       project_id: claims.projectId,
       environment: claims.environment,
       project_environment_id: claims.projectEnvironmentId,
+      ownership_generation: claims.ownershipGeneration,
       account_id: claims.accountId,
       ...(requestPolicy ? { routerAbRequestPolicy: requestPolicy } : {}),
     });
@@ -1246,6 +1265,8 @@ function validateCeremonyTokenIssuerConfig(
 
 function validateCeremonyTokenClaims(claims: RouterAbEcdsaCeremonyTokenClaims): void {
   if (
+    !Number.isSafeInteger(claims.ownershipGeneration) ||
+    claims.ownershipGeneration < 1 ||
     !nonEmptyString(claims.subjectId) ||
     !nonEmptyString(claims.sessionId) ||
     !nonEmptyString(claims.orgId) ||

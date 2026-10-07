@@ -94,7 +94,7 @@ const LINKED_ECDSA_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_linked_ecds
     owner_json TEXT NOT NULL,
     ciphertext_json TEXT NOT NULL)";
 /// The wallet store's ECDSA tables.
-pub(crate) const SIGNING_WORKER_WALLET_ECDSA_SCHEMA_V1: [&str; 14] = [
+pub(crate) const SIGNING_WORKER_WALLET_ECDSA_SCHEMA_V1: [&str; 13] = [
     ECDSA_POOL_SCHEMA,
     ECDSA_EFFECT_SCHEMA,
     ECDSA_ACTIVATION_SCHEMA,
@@ -103,7 +103,6 @@ pub(crate) const SIGNING_WORKER_WALLET_ECDSA_SCHEMA_V1: [&str; 14] = [
     import::SCHEMA,
     import::ACTIVATION_SCHEMA,
     execution::SCHEMA,
-    cleanup::SCHEMA,
     sealed_snapshot::PAGES_SCHEMA,
     sealed_snapshot::MANIFEST_SCHEMA,
     presign_authority::SCHEMA,

@@ -71,7 +71,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
                 runtime,
                 &parsed.request.scope,
                 &parsed.material_source,
-                Some(&parsed.wallet_scope),
+                Some(SigningWorkerWalletRoute { scope: &parsed.wallet_scope, ownership_generation: parsed.ownership_generation }),
                 now_unix_ms,
             )
             .await
@@ -153,6 +153,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
                             &runtime.bindings().presign_session,
                             CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_DO_STEP_PATH,
                             durable_object::PresignHost::Owner {
+                                ownership_generation: materialized.request.ownership_generation,
                                 wallet: batch.authority.wallet_scope(),
                                 material: &batch.scope.material_activation,
                             },
@@ -219,7 +220,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
             match execute_cloudflare_signing_worker_ecdsa_pool_mutation_for_wallet_v1(
                 env,
                 runtime,
-                Some(&materialized.request.wallet_scope),
+                Some(SigningWorkerWalletRoute { scope: &materialized.request.wallet_scope, ownership_generation: materialized.request.ownership_generation }),
                 reserve_command,
             )
             .await
@@ -249,7 +250,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
                 return burn_cloudflare_signing_worker_ecdsa_reservation_after_prepare_failure_v1(
                     env,
                     runtime,
-                    Some(&materialized.request.wallet_scope),
+                    Some(SigningWorkerWalletRoute { scope: &materialized.request.wallet_scope, ownership_generation: materialized.request.ownership_generation }),
                     materialized.request.request.scope.clone(),
                     client_presignature_id.clone(),
                     prepare_request_digest,
@@ -274,7 +275,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
                     return burn_cloudflare_signing_worker_ecdsa_reservation_after_prepare_failure_v1(
                 env,
                 runtime,
-                Some(&materialized.request.wallet_scope),
+                Some(SigningWorkerWalletRoute { scope: &materialized.request.wallet_scope, ownership_generation: materialized.request.ownership_generation }),
                 materialized.request.request.scope.clone(),
                 client_presignature_id.clone(),
                 prepare_request_digest,
@@ -294,7 +295,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
                 return burn_cloudflare_signing_worker_ecdsa_reservation_after_prepare_failure_v1(
                     env,
                     runtime,
-                    Some(&materialized.request.wallet_scope),
+                    Some(SigningWorkerWalletRoute { scope: &materialized.request.wallet_scope, ownership_generation: materialized.request.ownership_generation }),
                     materialized.request.request.scope.clone(),
                     client_presignature_id.clone(),
                     prepare_request_digest,
@@ -319,7 +320,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
                 burn_cloudflare_signing_worker_ecdsa_reservation_after_prepare_failure_v1(
                     env,
                     runtime,
-                    Some(&materialized.request.wallet_scope),
+                    Some(SigningWorkerWalletRoute { scope: &materialized.request.wallet_scope, ownership_generation: materialized.request.ownership_generation }),
                     materialized.request.request.scope,
                     client_presignature_id,
                     prepare_request_digest,
@@ -541,7 +542,7 @@ async fn prepare_ecdsa_finalize(
             runtime,
             &request.request.scope,
             &request.material_source,
-            Some(&request.wallet_scope),
+            Some(crate::SigningWorkerWalletRoute { scope: &request.wallet_scope, ownership_generation: request.ownership_generation }),
             now_unix_ms,
         )
         .await?;

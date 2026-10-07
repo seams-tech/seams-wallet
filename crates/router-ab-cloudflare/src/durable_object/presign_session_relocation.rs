@@ -147,7 +147,7 @@ pub(crate) async fn forward_export(
             env,
             &runtime.bindings().presign_session,
             INTERNAL_EXPORT_PATH,
-            super::PresignHost::LinkedSession(&command.receipt.command.server_presignature_id),
+            super::PresignHost::LinkedSession { session_id: &command.receipt.command.server_presignature_id, ownership_generation: command.receipt.command.request.source_generation },
             &command,
         )
         .await;
@@ -206,6 +206,7 @@ enum CompletionHistory {
 enum Snapshot {
     Initialized {
         command: LinkedPresignRelocationRequest,
+        #[serde(deserialize_with = "super::linked_presign_history::deserialize_stored_authority")]
         authority: CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1,
         completion: CompletionHistory,
     },
@@ -317,7 +318,7 @@ async fn freeze_transaction(
     }
     if let Initialization::Registered { request_digest_hex } = initialization {
         if transaction_get_optional::<
-            CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1,
+            super::linked_presign_history::StoredAuthority,
         >(transaction, LINKED_PRESIGN_AUTHORITY_STORAGE_KEY)
         .await?
         .is_some()
@@ -334,12 +335,13 @@ async fn freeze_transaction(
             .await
             .map(Ok);
     }
-    let authority: CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1 =
-        transaction
-            .get(LINKED_PRESIGN_AUTHORITY_STORAGE_KEY)
-            .await?;
+    let authority = transaction
+        .get::<super::linked_presign_history::StoredAuthority>(LINKED_PRESIGN_AUTHORITY_STORAGE_KEY)
+        .await?
+        .into_request();
     authority.validate().map_err(transaction_error)?;
-    if authority.wallet_scope != command.wallet_scope
+    if authority.ownership_generation != command.request.source_generation
+        || authority.wallet_scope != command.wallet_scope
         || authority.presign_session_id != command.presign_session_id
         || authority.request.client_presignature_id != command.server_presignature_id
     {
@@ -476,7 +478,7 @@ async fn forward_command<Receipt: DeserializeOwned + Serialize>(
             env,
             &runtime.bindings().presign_session,
             internal_path,
-            super::PresignHost::LinkedSession(&command.server_presignature_id),
+            super::PresignHost::LinkedSession { session_id: &command.server_presignature_id, ownership_generation: command.request.source_generation },
             &command,
         )
         .await;
@@ -535,7 +537,7 @@ async fn fence_transaction(
         });
     }
     let authority = transaction_get_optional::<
-        CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1,
+        super::linked_presign_history::StoredAuthority,
     >(
         transaction,
         super::ecdsa_presign_live_session::LINKED_PRESIGN_AUTHORITY_STORAGE_KEY,
@@ -554,7 +556,10 @@ async fn fence_transaction(
             "Linked presign initialized authority disappeared",
         ));
     };
-    if authority.wallet_scope != command.wallet_scope
+    let authority_bytes = serde_json::to_vec(&authority).map_err(transaction_error)?;
+    let authority = authority.into_request();
+    if authority.ownership_generation != command.request.source_generation
+        || authority.wallet_scope != command.wallet_scope
         || authority.request.scope.wallet_id != command.wallet_scope.wallet_id
         || authority.presign_session_id != command.presign_session_id
         || authority.request.client_presignature_id != command.server_presignature_id
@@ -567,7 +572,6 @@ async fn fence_transaction(
     let Initialization::Registered { request_digest_hex } = initialization else {
         return Err(transaction_error("Linked presign fence lacks wallet move authority"));
     };
-    let authority_bytes = serde_json::to_vec(&authority).map_err(transaction_error)?;
     if format!("{:x}", Sha256::digest(&authority_bytes)) != request_digest_hex {
         return Err(transaction_error(
             "Linked presign authority differs from its wallet registration",

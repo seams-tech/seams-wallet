@@ -146,7 +146,14 @@ pub(crate) async fn forward(
             env,
             &runtime.bindings().presign_session,
             INTERNAL_PATH,
-            super::super::PresignHost::LinkedSession(&command.identity().server_presignature_id),
+            super::super::PresignHost::LinkedSession {
+                session_id: &command.identity().server_presignature_id,
+                ownership_generation: match &command {
+                    Command::Cleanup { receipt } => receipt.command.request.source_generation,
+                    Command::Prepare { .. } | Command::Import { .. }
+                    | Command::Verify { .. } | Command::Status { .. } => command.identity().request.source_generation + 1,
+                },
+            },
             &command,
         )
         .await;
@@ -427,6 +434,7 @@ async fn verify(
         } => {
             authority.validate().map_err(transaction_error)?;
             if command != receipt.command
+                || authority.ownership_generation != receipt.command.request.source_generation
                 || authority.wallet_scope != receipt.command.wallet_scope
                 || authority.presign_session_id != receipt.command.presign_session_id
                 || authority.request.client_presignature_id

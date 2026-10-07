@@ -87,6 +87,7 @@ impl CloudflareEcdsaInactiveMaterialReservationRequestV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareEcdsaSourcePreservingInactiveMaterialReservationRequestV1 {
+    pub ownership_generation: u64,
     /// The wallet whose active material is the source, and which holds the
     /// linked material.
     pub scope: CloudflareSigningWorkerWalletScopeV1,
@@ -96,6 +97,7 @@ pub struct CloudflareEcdsaSourcePreservingInactiveMaterialReservationRequestV1 {
 
 impl CloudflareEcdsaSourcePreservingInactiveMaterialReservationRequestV1 {
     pub(crate) fn validate(&self) -> RouterAbProtocolResult<()> {
+        crate::router_wallet::validate_wallet_ownership_generation(self.ownership_generation)?;
         self.scope.validate()?;
         self.source_derivation.validate()?;
         self.source_contribution.validate().map_err(|error| {
@@ -124,6 +126,7 @@ impl CloudflareEcdsaSourcePreservingInactiveMaterialReservationRequestV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareEcdsaActivateReservationRequestV1 {
+    pub ownership_generation: u64,
     /// The wallet that owns the reserved material.
     pub scope: CloudflareSigningWorkerWalletScopeV1,
     pub material_activation: MpcMaterialActivationRefV1,
@@ -132,6 +135,7 @@ pub struct CloudflareEcdsaActivateReservationRequestV1 {
 
 impl CloudflareEcdsaActivateReservationRequestV1 {
     pub(crate) fn validate(&self) -> RouterAbProtocolResult<()> {
+        crate::router_wallet::validate_wallet_ownership_generation(self.ownership_generation)?;
         self.scope.validate()?;
         self.material_activation.validate()?;
         if self.material_activation.material_owner != self.scope.wallet_id {
@@ -154,6 +158,7 @@ impl CloudflareEcdsaActivateReservationRequestV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareEcdsaDeactivateReservationRequestV1 {
+    pub ownership_generation: u64,
     /// The wallet that owns the reserved material.
     pub scope: CloudflareSigningWorkerWalletScopeV1,
     pub material_activation: MpcMaterialActivationRefV1,
@@ -161,6 +166,7 @@ pub struct CloudflareEcdsaDeactivateReservationRequestV1 {
 
 impl CloudflareEcdsaDeactivateReservationRequestV1 {
     pub(crate) fn validate(&self) -> RouterAbProtocolResult<()> {
+        crate::router_wallet::validate_wallet_ownership_generation(self.ownership_generation)?;
         self.scope.validate()?;
         self.material_activation.validate()?;
         if self.material_activation.material_owner != self.scope.wallet_id {

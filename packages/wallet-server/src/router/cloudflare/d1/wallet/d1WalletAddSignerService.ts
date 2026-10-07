@@ -1448,9 +1448,11 @@ export class CloudflareD1WalletAddSignerService {
           message: 'ECDSA add-signer tenant root is not active',
         };
       }
+      const home = await this.executionAuthority.admitEstablishedHome({ walletId: ceremony.intent.walletId });
+      if (!home.ok) return home;
       const registered = await this.ecdsaStrictRegistration.registerWithTenantRoot({
         request: request.ecdsa.strictRegistration,
-        tenantRoot,
+        tenantRoot: { ...tenantRoot, ownershipGeneration: home.ownershipGeneration },
         requestPolicy: {
           policyVersion: WALLET_ADD_SIGNER_ROUTER_POLICY_VERSION,
           requestDigestB64u: request.ecdsa.requestDigestB64u,

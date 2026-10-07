@@ -41,6 +41,7 @@ export type RouterAbEcdsaOwnerWalletScope = {
 };
 
 export type RouterAbEcdsaDerivationPoolFillBinding = {
+  readonly ownershipGeneration: number;
   readonly walletId: string;
   readonly relayerKeyId: string;
   readonly keyHandle: string;
@@ -82,8 +83,8 @@ function presignAuthorityForBinding(
     wallet_id: scope.walletId,
   };
   return binding.authorization.kind === 'operation_step_up'
-    ? { kind: 'operation_step_up', wallet_scope: walletScope }
-    : { kind: 'owner_wallet_session', wallet_scope: walletScope };
+    ? { kind: 'operation_step_up', ownership_generation: binding.ownershipGeneration, wallet_scope: walletScope }
+    : { kind: 'owner_wallet_session', ownership_generation: binding.ownershipGeneration, wallet_scope: walletScope };
 }
 
 export function resolveRouterAbEcdsaPresignDeadlines(input: {

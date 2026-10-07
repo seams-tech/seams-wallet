@@ -45,7 +45,17 @@ impl PresignAuthorityRow {
         &self,
         scope: &CloudflareSigningWorkerWalletScopeV1,
     ) -> RouterAbProtocolResult<StoredPresignAuthority> {
-        let stored: StoredPresignAuthority = serde_json::from_str(&self.authority_json)
+        let mut value: serde_json::Value = serde_json::from_str(&self.authority_json)
+            .map_err(|error| wallet_error(error.to_string()))?;
+        // Normalize only persisted authority records written before routing carried generation.
+        let generation = value.get("ownership_generation").cloned().unwrap_or(serde_json::json!(1));
+        let authority = if value.get("authority").is_some() {
+            value.get_mut("authority").and_then(serde_json::Value::as_object_mut)
+        } else {
+            value.as_object_mut()
+        }.ok_or_else(|| wallet_error("Stored presign authority is not an object"))?;
+        authority.entry("ownership_generation").or_insert(generation);
+        let stored: StoredPresignAuthority = serde_json::from_value(value)
             .map_err(|error| wallet_error(error.to_string()))?;
         if let StoredPresignAuthority::Bound {
             ownership_generation,
@@ -99,13 +109,17 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
     ) -> RouterAbProtocolResult<()> {
         request.validate_at(now_unix_ms)?;
         self.require_mutation_admission(request.authority.wallet_scope())?;
+        let ownership_generation = self
+            .execution_authority(request.authority.wallet_scope())?
+            .ok_or_else(|| wallet_error("Presign execution authority is missing"))?
+            .generation()?;
+        if ownership_generation != request.authority.ownership_generation() {
+            return Err(wallet_error("Presign execution ownership generation differs"));
+        }
         let row = PresignAuthorityRow {
             presign_session_id: request.presign_session_id.clone(),
             authority_json: serde_json::to_string(&StoredPresignAuthority::Bound {
-                ownership_generation: self
-                    .execution_authority(request.authority.wallet_scope())?
-                    .ok_or_else(|| wallet_error("Presign execution authority is missing"))?
-                    .generation()?,
+                ownership_generation,
                 authority: request.authority.clone(),
             })
             .map_err(|error| wallet_error(error.to_string()))?,

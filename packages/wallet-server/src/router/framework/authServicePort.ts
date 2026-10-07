@@ -1193,6 +1193,7 @@ export interface RouterApiWalletRegistrationService {
   }): Promise<
     | {
         readonly ok: true;
+        readonly ownershipGeneration: number;
         readonly identityDigestB64u: string;
         readonly custodyLineageB64u: string;
         readonly projectEnvironmentId: string;

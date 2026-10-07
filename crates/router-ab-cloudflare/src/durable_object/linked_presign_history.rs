@@ -179,3 +179,47 @@ fn inconsistent() -> RouterAbProtocolError {
         "Linked presign public completion history is inconsistent",
     )
 }
+
+// The old shape exists only at the storage boundary. Its serialization remains
+// the input to the wallet inventory digest until that record is relocated.
+#[derive(Serialize, Deserialize)]
+#[serde(untagged)]
+pub(super) enum StoredAuthority {
+    Current(crate::CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1),
+    GenerationOne(GenerationOneAuthority),
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct GenerationOneAuthority {
+    wallet_scope: crate::CloudflareSigningWorkerWalletScopeV1,
+    request: router_ab_core::RouterAbEcdsaDerivationLinkedDeviceEvmDigestSigningRequestV1,
+    material_source: crate::CloudflareSigningWorkerNormalSigningMaterialSourceV1,
+    presign_session_id: String,
+    expires_at_ms: u64,
+}
+
+impl StoredAuthority {
+    pub(super) fn into_request(self) -> crate::CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1 {
+        match self {
+            Self::Current(request) => request,
+            Self::GenerationOne(stored) => crate::CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1 {
+                ownership_generation: 1,
+                wallet_scope: stored.wallet_scope,
+                request: stored.request,
+                material_source: stored.material_source,
+                presign_session_id: stored.presign_session_id,
+                expires_at_ms: stored.expires_at_ms,
+            },
+        }
+    }
+}
+
+pub(super) fn deserialize_stored_authority<'de, D>(
+    deserializer: D,
+) -> Result<crate::CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    StoredAuthority::deserialize(deserializer).map(StoredAuthority::into_request)
+}

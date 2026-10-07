@@ -67,6 +67,7 @@ fn linked_presign_init_fixture() -> Result<LinkedPresignFixture, Box<dyn std::er
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis() as u64;
     let expires_at_ms = now + 120_000;
     let request = CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1 {
+        ownership_generation: 1,
         wallet_scope: CloudflareSigningWorkerWalletScopeV1::new(
             "org-miniflare",
             "project-r120",

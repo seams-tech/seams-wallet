@@ -52,6 +52,21 @@ pub enum SigningWorkerEcdsaTransferRequestV1 {
 }
 
 impl SigningWorkerEcdsaTransferRequestV1 {
+    pub(crate) fn ownership_generation(&self) -> RouterAbProtocolResult<u64> {
+        let identity = match self {
+            Self::Prepare { request, .. } => request.clone(),
+            Self::Cleanup { activation } => {
+                activation.request.validate()?;
+                return Ok(activation.request.source_generation);
+            }
+            Self::Import { chunk } => chunk.receipt.request.identity(),
+            Self::Status { receipt, .. } | Self::Verify { receipt }
+            | Self::Activate { receipt } => receipt.request.identity(),
+        };
+        identity.validate()?;
+        Ok(identity.source_generation + 1)
+    }
+
     pub fn scope(&self) -> &CloudflareSigningWorkerWalletScopeV1 {
         match self {
             Self::Prepare { scope, .. } => scope,
@@ -216,36 +231,12 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         scope.validate()?;
         request.validate()?;
         validate_chunk_bytes(chunk_bytes)?;
-        if let Some(Fence::Cleaned { receipt }) = self.pool_fence(&scope)? {
-            if request.source_generation <= receipt.request.source_generation
-                || request.move_id == receipt.request.move_id
-                || !self.completed_cleanup(&receipt)?
-            {
-                return Err(wallet_error(
-                    "ECDSA return requires a later ownership generation",
-                ));
-            }
-            let owner = owner_json(&scope, "ECDSA return preparation")?;
-            for table in ["wallet_ecdsa_execution", "wallet_ecdsa_import_activation"] {
-                self.sql.query::<serde::de::IgnoredAny>(
-                    &format!("DELETE FROM {table} WHERE owner_json = ?"),
-                    vec![text(owner.clone())],
-                )?;
-            }
-            self.save_pool_fence(
-                &scope,
-                &Fence::Prepared {
-                    request: request.clone(),
-                    chunk_bytes,
-                },
-            )?;
-        }
         if let Some((receipt, size)) = self.import_activation(&scope)? {
             if receipt.request.identity() != request || size != chunk_bytes {
                 return Err(wallet_error("ECDSA destination preparation changed"));
             }
             return Ok(SigningWorkerEcdsaTransferResponseV1::Prepared {
-                destination_object: signing_worker_wallet_object_name_v1(&scope)?,
+                destination_object: crate::wallet_object::physical_wallet_object_name(&signing_worker_wallet_object_name_v1(&scope)?, request.source_generation + 1)?,
                 scope,
                 request,
                 chunk_bytes,
@@ -291,7 +282,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
             _ => return Err(wallet_error("ECDSA destination preparation changed")),
         }
         Ok(SigningWorkerEcdsaTransferResponseV1::Prepared {
-            destination_object: signing_worker_wallet_object_name_v1(&scope)?,
+            destination_object: crate::wallet_object::physical_wallet_object_name(&signing_worker_wallet_object_name_v1(&scope)?, request.source_generation + 1)?,
             scope,
             request,
             chunk_bytes,
@@ -318,7 +309,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
                 chunk_bytes: size,
             }) if request == receipt.request.identity() && size == chunk_bytes => {
                 Ok(SigningWorkerEcdsaTransferResponseV1::Prepared {
-                    destination_object: signing_worker_wallet_object_name_v1(&receipt.scope)?,
+                    destination_object: crate::wallet_object::physical_wallet_object_name(&signing_worker_wallet_object_name_v1(&receipt.scope)?, request.source_generation + 1)?,
                     scope: receipt.scope,
                     request,
                     chunk_bytes,

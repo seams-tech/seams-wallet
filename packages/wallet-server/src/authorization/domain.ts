@@ -327,6 +327,7 @@ export type WalletSessionExactOperationContext = {
   readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly retiredAtMs: null;
   readonly ownerWalletScope: {
+    readonly ownershipGeneration: number;
     readonly orgId: string;
     readonly projectId: string;
     readonly projectEnvironmentId: string;

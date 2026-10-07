@@ -75,6 +75,18 @@ pub enum SigningWorkerEd25519SnapshotCommandV1 {
 }
 
 impl SigningWorkerEd25519SnapshotCommandV1 {
+    pub(crate) fn ownership_generation(&self) -> RouterAbProtocolResult<u64> {
+        self.validate()?;
+        Ok(match self {
+            Self::Capture { source } => source.request.source_generation,
+            Self::Export { receipt, .. } => receipt.source.request.source_generation,
+            Self::Cleanup { activation } => activation.source.request.source_generation,
+            Self::Prepare { source } => source.request.source_generation + 1,
+            Self::Import { receipt, .. } | Self::Status { receipt }
+            | Self::Verify { receipt } | Self::Activate { receipt } => receipt.source.request.source_generation + 1,
+        })
+    }
+
     pub(crate) fn scope(&self) -> &CloudflareSigningWorkerWalletScopeV1 {
         match self {
             Self::Prepare { source } => &source.scope,

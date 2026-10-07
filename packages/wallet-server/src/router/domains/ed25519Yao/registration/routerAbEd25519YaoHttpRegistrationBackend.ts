@@ -1122,12 +1122,13 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
   async activateRecovery(
     request: RouterAbEd25519YaoRecoveryActivationRequestV1,
     dispatchRoot: RouterAbEd25519YaoTenantRootWireV1,
+    ownershipGeneration: number,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRegistrationBackendResult> {
     // The root names the wallet's SigningWorker, as it did for the delivery.
     const promoted = await this.post(
       ROUTER_RECOVERY_PROMOTE_PATH,
-      { ...request, tenant_root: dispatchRoot },
+      { ...request, tenant_root: dispatchRoot, ownership_generation: ownershipGeneration },
       (traceContext ?? createRouterAbTraceContextV1()).value,
     );
     if (!promoted.ok) return promoted;

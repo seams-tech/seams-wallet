@@ -109,6 +109,7 @@ export class RouterAbEcdsaPresignRuntime {
   }
 
   async initializeLinkedDevicePresign(input: {
+    readonly ownershipGeneration: number;
     readonly walletScope: RouterAbEcdsaPresignAuthorityV1['wallet_scope'];
     readonly request: Record<string, unknown>;
     readonly materialSource: Record<string, unknown>;
@@ -120,6 +121,7 @@ export class RouterAbEcdsaPresignRuntime {
       signingWorkerBaseUrl: transport.signingWorkerBaseUrl,
       request: input.request,
       walletScope: input.walletScope,
+      ownershipGeneration: input.ownershipGeneration,
       materialSource: input.materialSource,
       presignSessionId: input.presignSessionId,
       expiresAtMs: input.expiresAtMs,
@@ -129,6 +131,7 @@ export class RouterAbEcdsaPresignRuntime {
   }
 
   async advanceLinkedDevicePresign(input: {
+    readonly ownershipGeneration: number;
     readonly walletScope: RouterAbEcdsaPresignAuthorityV1['wallet_scope'];
     readonly request: Record<string, unknown>;
     readonly materialSource: Record<string, unknown>;
@@ -142,6 +145,7 @@ export class RouterAbEcdsaPresignRuntime {
       signingWorkerBaseUrl: transport.signingWorkerBaseUrl,
       request: input.request,
       walletScope: input.walletScope,
+      ownershipGeneration: input.ownershipGeneration,
       materialSource: input.materialSource,
       presignSessionId: input.presignSessionId,
       requestedStage: input.requestedStage,

@@ -10,10 +10,11 @@ use crate::{
 /// Owner preprocessing reuses its exact material host. Linked signing is request-bound.
 pub(crate) enum PresignHost<'a> {
     Owner {
+        ownership_generation: u64,
         wallet: &'a CloudflareSigningWorkerWalletScopeV1,
         material: &'a MpcMaterialActivationRefV1,
     },
-    LinkedSession(&'a str),
+    LinkedSession { session_id: &'a str, ownership_generation: u64 },
 }
 
 /// Activation has committed before this task starts. Warming creates no session or authority.
@@ -21,6 +22,7 @@ pub(crate) async fn warm_owner_presign_host(
     env: worker::Env,
     binding: CloudflareSigningWorkerPresignSessionBindingV1,
     wallet: CloudflareSigningWorkerWalletScopeV1,
+    ownership_generation: u64,
     material: MpcMaterialActivationRefV1,
 ) {
     let started_at = worker::Date::now().as_millis();
@@ -30,6 +32,7 @@ pub(crate) async fn warm_owner_presign_host(
             &binding,
             crate::CLOUDFLARE_INTERNAL_PREWARM_PATH,
             PresignHost::Owner {
+                ownership_generation,
                 wallet: &wallet,
                 material: &material,
             },
@@ -152,8 +155,12 @@ fn presign_object_name(
     binding: &CloudflareSigningWorkerPresignSessionBindingV1,
     host: PresignHost<'_>,
 ) -> RouterAbProtocolResult<String> {
+    let ownership_generation = match &host {
+        PresignHost::Owner { ownership_generation, .. }
+        | PresignHost::LinkedSession { ownership_generation, .. } => *ownership_generation,
+    };
     let digest = match host {
-        PresignHost::Owner { wallet, material } => {
+        PresignHost::Owner { wallet, material, .. } => {
             wallet.validate()?;
             material.validate()?;
             if wallet.wallet_id != material.material_owner {
@@ -171,14 +178,13 @@ fn presign_object_name(
                 })?;
             Sha256::digest(identity)
         }
-        PresignHost::LinkedSession(session_id) => {
+        PresignHost::LinkedSession { session_id, .. } => {
             require_non_empty("Linked presign session routing key", session_id)?;
             Sha256::digest(session_id.as_bytes())
         }
     };
-    Ok(format!(
-        "{}-{}",
-        binding.object_name,
-        encode_base64url_bytes_v1(&digest)
-    ))
+    crate::wallet_object::physical_wallet_object_name(
+        &format!("{}-{}", binding.object_name, encode_base64url_bytes_v1(&digest)),
+        ownership_generation,
+    )
 }

@@ -1417,6 +1417,7 @@ async function authorizeEcdsaPoolFillOperationStepUp(input: {
         materialExpiresAtMs: input.operation.expires_at_ms,
       },
       ownerWalletScope,
+      ownershipGeneration: ownerWalletScope.ownershipGeneration,
       routerAbEcdsaDerivationNormalSigning: {
         kind: ROUTER_AB_ECDSA_DERIVATION_NORMAL_SIGNING_STATE_KIND_V1,
         scope: input.operation.normal_signing_scope,
@@ -1537,6 +1538,7 @@ export async function authorizeEcdsaPoolFill(input: {
           thresholdExpiresAtMs: session.expiresAtMs,
           authorization: { kind: 'wallet_session' },
           ownerWalletScope: validated.ownerWalletScope,
+          ownershipGeneration: validated.ownerWalletScope.ownershipGeneration,
           routerAbEcdsaDerivationNormalSigning: normalSigning,
         },
       };

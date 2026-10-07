@@ -260,9 +260,11 @@ fn validate_presign_material_expiry(
 pub enum CloudflareSigningWorkerEcdsaPresignAuthorityV1 {
     OwnerWalletSession {
         wallet_scope: CloudflareSigningWorkerWalletScopeV1,
+        ownership_generation: u64,
     },
     OperationStepUp {
         wallet_scope: CloudflareSigningWorkerWalletScopeV1,
+        ownership_generation: u64,
     },
 }
 
@@ -270,9 +272,16 @@ impl CloudflareSigningWorkerEcdsaPresignAuthorityV1 {
     /// The wallet whose pool this authority fills.
     pub fn wallet_scope(&self) -> &CloudflareSigningWorkerWalletScopeV1 {
         match self {
-            Self::OwnerWalletSession { wallet_scope } | Self::OperationStepUp { wallet_scope } => {
+            Self::OwnerWalletSession { wallet_scope, .. } | Self::OperationStepUp { wallet_scope, .. } => {
                 wallet_scope
             }
+        }
+    }
+
+    pub fn ownership_generation(&self) -> u64 {
+        match self {
+            Self::OwnerWalletSession { ownership_generation, .. }
+            | Self::OperationStepUp { ownership_generation, .. } => *ownership_generation,
         }
     }
 
@@ -280,6 +289,7 @@ impl CloudflareSigningWorkerEcdsaPresignAuthorityV1 {
         &self,
         scope: &RouterAbEcdsaDerivationNormalSigningScopeV1,
     ) -> RouterAbProtocolResult<()> {
+        crate::router_wallet::validate_wallet_ownership_generation(self.ownership_generation())?;
         let wallet_scope = self.wallet_scope();
         wallet_scope.validate()?;
         if wallet_scope.wallet_id != scope.wallet_id {
@@ -386,6 +396,7 @@ impl CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1 {
+    pub ownership_generation: u64,
     pub wallet_scope: CloudflareSigningWorkerWalletScopeV1,
     pub request: RouterAbEcdsaDerivationLinkedDeviceEvmDigestSigningRequestV1,
     pub material_source: CloudflareSigningWorkerNormalSigningMaterialSourceV1,
@@ -395,6 +406,7 @@ pub struct CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1 {
 
 impl CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1 {
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
+        crate::router_wallet::validate_wallet_ownership_generation(self.ownership_generation)?;
         self.wallet_scope.validate()?;
         if self.wallet_scope.wallet_id != self.request.scope.wallet_id {
             return Err(RouterAbProtocolError::new(
@@ -430,6 +442,7 @@ impl CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionStepRequestV1 {
+    pub ownership_generation: u64,
     pub wallet_scope: CloudflareSigningWorkerWalletScopeV1,
     pub request: RouterAbEcdsaDerivationLinkedDeviceEvmDigestSigningRequestV1,
     pub material_source: CloudflareSigningWorkerNormalSigningMaterialSourceV1,
@@ -441,6 +454,7 @@ pub struct CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionStepRequestV1 {
 
 impl CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionStepRequestV1 {
     pub fn validate_at(&self, now_unix_ms: u64) -> RouterAbProtocolResult<()> {
+        crate::router_wallet::validate_wallet_ownership_generation(self.ownership_generation)?;
         self.wallet_scope.validate()?;
         if self.wallet_scope.wallet_id != self.request.scope.wallet_id {
             return Err(RouterAbProtocolError::new(

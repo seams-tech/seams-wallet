@@ -9,17 +9,6 @@ impl RouterAbSigningWorkerWalletDurableObject {
         import::validate_receipt(&activation)?;
         let owner = serde_json::to_string(&activation.source.scope)
             .map_err(snapshot_encoding_error)?;
-        let history = self.sql.exec(
-            "SELECT state_json FROM wallet_ed25519_completed_cleanup WHERE owner_json = ? AND move_id = ?",
-            vec![SqlStorageValue::String(owner.clone()), SqlStorageValue::String(activation.source.request.move_id.clone())],
-        ).map_err(sql_error)?.to_array::<StateRow>().map_err(sql_error)?;
-        if let [row] = history.as_slice() {
-            let stored: SigningWorkerEd25519SnapshotReceiptV1 = serde_json::from_str(&row.state_json).map_err(snapshot_encoding_error)?;
-            if stored != activation {
-                return Err(wallet_error("Ed25519 completed cleanup receipt changed"));
-            }
-            return Ok(SigningWorkerEd25519SnapshotResponseV1::Cleaned { receipt: stored });
-        }
         match self.read_ed25519_snapshot(&owner)? {
             Some(SnapshotState::Cleaned { receipt }) if receipt == activation => {
                 return Ok(SigningWorkerEd25519SnapshotResponseV1::Cleaned { receipt });

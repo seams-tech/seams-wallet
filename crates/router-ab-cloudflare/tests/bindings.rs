@@ -856,6 +856,7 @@ type TestCompositeAdmissionProvider = CloudflareRouterCompositeAdmissionProvider
 
 fn verified_jwt_claims(session_id: &str, account_id: &str) -> CloudflareRouterVerifiedJwtClaimsV1 {
     CloudflareRouterVerifiedJwtClaimsV1::new(
+        1,
         "user-1",
         session_id,
         "org-1",
@@ -967,6 +968,7 @@ fn valid_router_jwt_claims() -> serde_json::Value {
         "project_id": "project-1",
         "environment": "dev",
         "account_id": "account.near",
+        "ownership_generation": 1,
         "routerAbRequestPolicy": {
             "policyVersion": "policy-v1",
             "workKind": request.lifecycle.work_kind,
@@ -1392,6 +1394,7 @@ fn router_ab_ecdsa_derivation_activation_for_registration(
     )
     .expect("Router A/B ECDSA derivation SigningWorker proof-bundle activation");
     let pending = CloudflareRouterAbEcdsaDerivationPendingSigningWorkerActivationV1::new(
+        1,
         registration.clone(),
         TenantRootProtocolDigestV1::from_bytes([0x55; 32]).expect("custody binding digest"),
         CloudflareSigningWorkerWalletScopeV1::new(

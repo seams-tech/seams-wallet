@@ -161,7 +161,8 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa, r
   await rejected(source, fencePath, command, routerCredential, /requires its source wallet move/);
   const chunkBytes = 4096;
   await accepted(destination, transferPath, { kind: 'prepare', command: linkedPreparation(command), chunk_bytes: chunkBytes }, credential);
-  const preparedIds = await topology.listDurableObjectIds(objectClass, destinationName);
+  const preparedIds = (await topology.listDurableObjectIds(objectClass, workerName))
+    .filter(isNewObject.bind(undefined, after));
   assert.equal(preparedIds.length, 1);
   const preparedNamespace = await topology.getDurableObjectNamespace('SIGNING_WORKER_PRESIGN_SESSION_DO', destinationName);
   const preparedSession = preparedNamespace.get(preparedNamespace.idFromString(preparedIds[0]));
@@ -177,13 +178,14 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa, r
   assert.equal(beforeCompletion.state, 'complete');
   assert.equal(beforeCompletion.sessions.length, 1);
   assert.equal(beforeCompletion.sessions[0].presign_session_id, command.presign_session_id);
-  await rejected(source, preparationInventoryPath, {
+  assert.deepEqual(await accepted(source, preparationInventoryPath, {
     ...preparationInventoryRequest, source_generation: command.request.source_generation + 1,
-  }, routerCredential, /ownership generation differs/);
+  }, routerCredential), { state: 'complete', sessions: [] });
+  assert.deepEqual(await accepted(source, preparationInventoryPath, preparationInventoryRequest, routerCredential), beforeCompletion);
   const completed = await completeLinkedPresign(session, credential, initialization, initialProgress, ecdsa.finalized.stateBlob.stateBlobB64u, groupPublicKey);
   const walletsAfter = await topology.listDurableObjectIds(walletClass, workerName);
   const walletsCreated = walletsAfter.filter(isNewObject.bind(undefined, walletsBefore));
-  assert.equal(walletsCreated.length, 0);
+  assert.equal(walletsCreated.length, 1, 'The next generation inventory must use a distinct wallet object');
   const walletNamespace = await topology.getDurableObjectNamespace(
     'SIGNING_WORKER_WALLET_DO',
     workerName,
@@ -366,7 +368,7 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa, r
     const chunk = index === 0 ? first : await accepted(walletSource, exportPath, { receipt, segment_index: index, chunk_bytes: chunkBytes }, routerCredential);
     chunks.push(Buffer.from(chunk.data_b64u, 'base64url'));
     await accepted(walletDestination, transferPath, { kind: 'import', chunk }, credential);
-    if (index === 0) await topology.unsafeEvictDurableObject(destinationName, objectClass, { id: preparedIds[0] });
+    if (index === 0) await topology.unsafeEvictDurableObject(workerName, objectClass, { id: preparedIds[0] });
     const progress = await accepted(walletDestination, transferPath, { kind: 'status', receipt, chunk_bytes: chunkBytes }, routerCredential);
     assert.deepEqual(progress, { kind: 'receiving', receipt, chunk_bytes: chunkBytes, segment_count: first.segment_count, next_segment: index + 1 });
     if (index === 0) {
@@ -396,9 +398,9 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa, r
   const verified = await accepted(walletDestination, transferPath, { kind: 'verify', receipt }, credential);
   assert.deepEqual(verified, { kind: 'verified', receipt });
   assert.deepEqual(await accepted(walletDestination, transferPath, { kind: 'status', receipt, chunk_bytes: chunkBytes }, routerCredential), verified);
-  const destinationIds = await topology.listDurableObjectIds(objectClass, destinationName);
-  assert.equal(destinationIds.length, 1);
-  await topology.unsafeEvictDurableObject(destinationName, objectClass, { id: destinationIds[0] });
+  const destinationIds = preparedIds;
+  assert.ok((await topology.listDurableObjectIds(objectClass, workerName)).includes(destinationIds[0]));
+  await topology.unsafeEvictDurableObject(workerName, objectClass, { id: destinationIds[0] });
   assert.deepEqual(await accepted(walletDestination, transferPath, { kind: 'verify', receipt }, credential), verified);
   const destinationNamespace = await topology.getDurableObjectNamespace('SIGNING_WORKER_PRESIGN_SESSION_DO', destinationName);
   const restored = destinationNamespace.get(destinationNamespace.idFromString(destinationIds[0]));
@@ -416,7 +418,7 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa, r
   const changedCleanup = structuredClone(receipt);
   changedCleanup.records_digest_hex = '0'.repeat(64);
   await rejected(source, transferPath, { kind: 'cleanup', receipt: changedCleanup }, routerCredential, /requires its frozen source/);
-  await rejected(destination, transferPath, { kind: 'cleanup', receipt }, credential, /requires its frozen source/);
+  await rejected(restored, '/router-ab/internal/signing-worker/linked-ecdsa-presign-session/transfer', { kind: 'cleanup', receipt }, credential, /requires its frozen source/);
   let cleaned;
   for (let step = 0; step < 32; step += 1) {
     cleaned = await accepted(walletSource, transferPath, { kind: 'cleanup', receipt }, routerCredential);
@@ -455,7 +457,7 @@ async function verifyInitializedTransfer(topology, credential, fixture, ecdsa, r
     partialAcknowledgementSurvivesWalletEviction: true,
     inventoryAvailableDuringDraining: true,
     preparationInventoryLeavesCompletionAndRegistrationOpen: true,
-    preparationInventoryRequiresActiveGeneration: true,
+    preparationInventoryIsolatedByGeneration: true,
     completedPresignatureRetired: true,
     initializedFenceRequiresExactWalletMove: true,
     terminalReplayFenceRace: terminalRace.outcome,
@@ -570,7 +572,7 @@ async function verifyWalletInventoryTransfer(topology, credential, receipt, requ
   const destinationName = 'fixture-signing-worker-after-refresh';
   const destination = await topology.getWorker(destinationName);
   const walletClass = 'RouterAbSigningWorkerWalletDurableObject';
-  const before = await topology.listDurableObjectIds(walletClass, destinationName);
+  const before = await topology.listDurableObjectIds(walletClass, workerName);
   const transfer = '/router-ab/signing-worker/wallet/ecdsa/transfer';
   const { snapshot, first } = await transferWalletSnapshot(transport.source, transport.destination, transport.credential, receipt);
   assert.ok(receipt.record_count > requests.length);
@@ -630,21 +632,23 @@ async function verifyWalletInventoryTransfer(topology, credential, receipt, requ
   assert.deepEqual(checkpoint, { kind: 'restoring', receipt, restored_records: 16 });
   await rejected(transport.destination, transfer, { kind: 'activate', receipt }, transport.credential,
     /verified destination/);
-  await evictTransferredWallet(topology, destinationName, receipt.scope);
+  await evictTransferredWallet(topology, destinationName, receipt.scope, receipt.request.source_generation + 1);
   assert.deepEqual(await accepted(transport.destination, transfer, {
     kind: 'status', receipt, chunk_bytes: 4096,
   }, transport.credential), checkpoint);
   const verified = await finishWalletRestore(transport.destination, transfer, verification, transport.credential);
   assert.deepEqual(verified, { kind: 'verified', receipt });
-  const after = await topology.listDurableObjectIds(walletClass, destinationName);
-  const created = after.filter(isNewObject.bind(undefined, before));
-  assert.equal(created.length, 1);
-  await topology.unsafeEvictDurableObject(destinationName, walletClass, { id: created[0] });
+  const after = await topology.listDurableObjectIds(walletClass, workerName);
+  assert.deepEqual(after, before, 'Import must reuse the prepared destination object');
+  const destinationId = await evictTransferredWallet(
+    topology, destinationName, receipt.scope, receipt.request.source_generation + 1,
+  );
   assert.deepEqual(await accepted(transport.destination, transfer, verification, transport.credential), verified);
   const namespace = await topology.getDurableObjectNamespace('SIGNING_WORKER_WALLET_DO', destinationName);
-  const wallet = namespace.get(namespace.idFromString(created[0]));
+  const wallet = namespace.get(namespace.idFromString(destinationId));
   const admission = await accepted(wallet, '/router-ab/internal/signing-worker/wallet', {
     command: 'check_ecdsa_pool_admission', scope: receipt.scope,
+    ownership_generation: receipt.request.source_generation + 1,
   }, credential);
   assert.equal(admission, 'closed');
   return {
@@ -688,6 +692,7 @@ async function completeLinkedPresign(session, credential, initialization, initia
       }
       if (progress.outgoing_messages_b64u.length > 0) outgoing.push(...client.poll().outgoing.map(base64urlMessage));
       const step = {
+        ownership_generation: initialization.request.ownership_generation,
         wallet_scope: initialization.request.wallet_scope,
         request: initialization.request.request,
         material_source: initialization.request.material_source,
@@ -724,10 +729,10 @@ async function freezePendingRegistration(topology, credential, initialization, m
     request: move,
   };
   const fencePath = '/router-ab/signing-worker/linked-presign-session/fence';
-  const before = await topology.listDurableObjectIds(objectClass, workerName);
   const wrongMove = structuredClone(command);
   wrongMove.request.source_generation += 1;
   await rejected(source, fencePath, wrongMove, credential, /requires its source wallet move/);
+  const before = await topology.listDurableObjectIds(objectClass, workerName);
   const fence = await accepted(runtime, fencePath, command, routerCredential);
   assert.equal(fence.initialization.state, 'registered');
   const after = await topology.listDurableObjectIds(objectClass, workerName);
@@ -795,9 +800,11 @@ async function verifyUninitializedImport(topology, credential, previousCommand) 
   assert.equal(created.length, 1);
   await topology.unsafeEvictDurableObject(workerName, objectClass, { id: created[0] });
   assert.deepEqual(await accepted(worker, transferPath, { kind: 'verify', receipt }, credential), verified);
+  const namespace = await topology.getDurableObjectNamespace('SIGNING_WORKER_PRESIGN_SESSION_DO', workerName);
+  const imported = namespace.get(namespace.idFromString(created[0]));
   const exported = [];
   for (let index = 0; index < segmentCount; index += 1) {
-    const chunk = await accepted(worker, exportPath, { receipt, segment_index: index, chunk_bytes: chunkBytes }, credential);
+    const chunk = await accepted(imported, '/router-ab/internal/signing-worker/linked-ecdsa-presign-session/export', { receipt, segment_index: index, chunk_bytes: chunkBytes }, credential);
     assert.equal(chunk.segment_count, segmentCount);
     assert.deepEqual(chunk.receipt, receipt);
     exported.push(Buffer.from(chunk.data_b64u, 'base64url'));
@@ -821,7 +828,7 @@ async function activateTransferredWallet(topology, credential, receipt, destinat
   const command = { kind: 'activate', receipt };
   const activated = await accepted(destination, path, command, credential);
   assert.deepEqual(activated, { kind: 'activated', receipt });
-  await evictTransferredWallet(topology, destinationName, receipt.scope);
+  await evictTransferredWallet(topology, destinationName, receipt.scope, receipt.request.source_generation + 1);
   assert.deepEqual(await accepted(destination, path, command, credential), activated);
 }
 
@@ -840,17 +847,21 @@ export async function cleanupTransferredWalletSource(topology, credential, recei
   assert.fail('Source cleanup did not finish within 64 bounded calls');
 }
 
-export async function evictTransferredWallet(topology, name, scope) {
+export async function evictTransferredWallet(topology, name, scope, generation) {
+  assert.ok(Number.isSafeInteger(generation) && generation > 0);
   const namespace = await topology.getDurableObjectNamespace('SIGNING_WORKER_WALLET_DO', name);
   const digest = createHash('sha256')
     .update('seams/signing-worker/wallet-do/v1')
     .update(JSON.stringify(scope))
     .digest('hex');
-  const id = namespace.idFromName(`signing-worker-wallet-${digest}`).toString();
+  const logicalName = `signing-worker-wallet-${digest}`;
+  const physicalName = generation === 1 ? logicalName : `${logicalName}/generation/${generation}`;
+  const id = namespace.idFromName(physicalName).toString();
   const walletClass = 'RouterAbSigningWorkerWalletDurableObject';
-  const ids = await topology.listDurableObjectIds(walletClass, name);
+  const ids = await topology.listDurableObjectIds(walletClass, workerName);
   assert.ok(ids.includes(id), 'The scoped wallet must already exist before eviction');
-  await topology.unsafeEvictDurableObject(name, walletClass, { id });
+  await topology.unsafeEvictDurableObject(workerName, walletClass, { id });
+  return id;
 }
 
 export async function returnTransferredWallet(topology, credential, previousReceipt) {
@@ -872,7 +883,7 @@ export async function returnTransferredWallet(topology, credential, previousRece
   const freeze = { scope, request };
   const frozen = await finishWalletFreeze(source, freeze, credential);
   assert.equal(frozen.state, 'frozen', 'Imported historical sessions must not block the next move');
-  await evictTransferredWallet(topology, sourceName, scope);
+  await evictTransferredWallet(topology, sourceName, scope, request.source_generation);
   assert.deepEqual(
     await accepted(source, '/router-ab/signing-worker/wallet/pool/freeze', freeze, credential),
     frozen,
@@ -890,7 +901,7 @@ export async function returnTransferredWallet(topology, credential, previousRece
   const verification = { kind: 'verify', receipt: frozen.receipt };
   const verified = await finishWalletRestore(destination, transfer, verification, credential);
   assert.deepEqual(verified, { kind: 'verified', receipt: frozen.receipt });
-  await evictTransferredWallet(topology, destinationName, scope);
+  await evictTransferredWallet(topology, destinationName, scope, request.source_generation + 1);
   assert.deepEqual(await accepted(destination, transfer, verification, credential), verified);
   await activateTransferredWallet(topology, credential, frozen.receipt, destinationName);
   assert.deepEqual(
@@ -901,7 +912,7 @@ export async function returnTransferredWallet(topology, credential, previousRece
   const changedCleanup = structuredClone(previousReceipt);
   changedCleanup.wallet_records_digest_hex = '0'.repeat(64);
   await rejected(destination, transfer, { kind: 'cleanup', activation: changedCleanup }, credential,
-    /completed cleanup receipt changed/);
+    /cleanup requires the exact frozen source/);
 
   return { receipt: frozen.receipt, segments: first.segment_count, preparationWithoutInvalidationTime: true };
 }

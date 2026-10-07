@@ -313,10 +313,12 @@ async fn register_wallet_linked_presign_session(
 async fn require_pool_admission(
     env: &worker::Env,
     scope: &crate::CloudflareSigningWorkerWalletScopeV1,
+    ownership_generation: u64,
 ) -> RouterAbProtocolResult<()> {
     let response = super::call_signing_worker_wallet_do_v1(
         env,
         super::SigningWorkerWalletDoRequestV1::CheckEcdsaPoolAdmission {
+            ownership_generation,
             scope: scope.clone(),
         },
     )
@@ -451,9 +453,10 @@ async fn load_linked_presign_authority(
     storage: &worker::Storage,
 ) -> RouterAbProtocolResult<CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1> {
     storage
-        .get(LINKED_PRESIGN_AUTHORITY_STORAGE_KEY)
+        .get::<super::linked_presign_history::StoredAuthority>(LINKED_PRESIGN_AUTHORITY_STORAGE_KEY)
         .await
         .map_err(durable_storage_protocol_error)?
+        .map(super::linked_presign_history::StoredAuthority::into_request)
         .ok_or_else(|| {
             RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::ExpiredLocalRequest,
@@ -474,7 +477,7 @@ async fn claim_linked_presign_authority(
             super::presign_session_relocation::require_open_transaction(&transaction).await?;
             claim_result.set(false);
             if transaction_get_optional::<
-                CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1,
+                super::linked_presign_history::StoredAuthority,
             >(&transaction, LINKED_PRESIGN_AUTHORITY_STORAGE_KEY)
             .await?
             .is_some()
@@ -563,7 +566,8 @@ async fn step_linked_presign_session(
 ) -> RouterAbProtocolResult<CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionDoProgressV1> {
     input.validate_at(now_unix_ms)?;
     let pinned = load_linked_presign_authority(storage).await?;
-    if pinned.wallet_scope != input.wallet_scope
+    if pinned.ownership_generation != input.ownership_generation
+        || pinned.wallet_scope != input.wallet_scope
         || pinned.presign_session_id != input.presign_session_id
         || pinned.request != input.request
         || pinned.material_source != input.material_source
@@ -604,7 +608,7 @@ async fn step_linked_presign_session(
         ));
     }
     #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
-    if let Err(error) = require_pool_admission(_env, &pinned.wallet_scope).await {
+    if let Err(error) = require_pool_admission(_env, &pinned.wallet_scope, pinned.ownership_generation).await {
         if error.code() == RouterAbProtocolErrorCode::LifecycleTransitionInProgress {
             sessions.borrow_mut().remove(&input.presign_session_id);
         }
@@ -784,7 +788,7 @@ async fn consume_linked_presignature(
                 "Linked ECDSA consume identity does not match initialized authority",
             ));
         }
-        require_pool_admission(_env, &pinned.wallet_scope).await?;
+        require_pool_admission(_env, &pinned.wallet_scope, pinned.ownership_generation).await?;
     }
     completed_records
         .borrow_mut()
@@ -1044,6 +1048,7 @@ mod tests {
         scope: &RouterAbEcdsaDerivationNormalSigningScopeV1,
     ) -> CloudflareSigningWorkerEcdsaPresignAuthorityV1 {
         CloudflareSigningWorkerEcdsaPresignAuthorityV1::OperationStepUp {
+            ownership_generation: 1,
             wallet_scope: crate::CloudflareSigningWorkerWalletScopeV1::new(
                 "org",
                 "project",

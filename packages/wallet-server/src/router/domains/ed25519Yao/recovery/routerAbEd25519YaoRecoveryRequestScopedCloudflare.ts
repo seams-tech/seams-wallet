@@ -349,6 +349,7 @@ class RecoveryActivationRequestRun {
         value: await this.context.input.backend.activateRecovery(
           this.request,
           claim.dispatchRoot,
+          claim.ownershipGeneration,
           this.context.trace,
         ),
       };

@@ -210,14 +210,13 @@ impl RouterAbSigningWorkerWalletDurableObject {
         &self,
         source: SigningWorkerEd25519PreparationV1,
     ) -> Result<SigningWorkerEd25519SnapshotResponseV1, RouterAbProtocolError> {
-        let destination_object = crate::signing_worker_wallet_object_name_v1(&source.scope)?;
+        let destination_object = crate::wallet_object::physical_wallet_object_name(&crate::signing_worker_wallet_object_name_v1(&source.scope)?, source.request.source_generation + 1)?;
         if let Some(state) = self.read_ed25519_import(&source.scope)? {
             if state.preparation() != source {
                 return Err(wallet_error("Ed25519 destination preparation changed"));
             }
             return Ok(SigningWorkerEd25519SnapshotResponseV1::Prepared { source, destination_object });
         }
-        self.prepare_cleaned_ed25519_destination(&source)?;
         let authority_count = self.ed25519_count(
             "SELECT (SELECT COUNT(*) FROM wallet_ed25519_execution)
             + (SELECT COUNT(*) FROM wallet_ed25519_relocation)
@@ -246,38 +245,6 @@ impl RouterAbSigningWorkerWalletDurableObject {
             source: source.clone(),
         })?;
         Ok(SigningWorkerEd25519SnapshotResponseV1::Prepared { source, destination_object })
-    }
-
-    fn prepare_cleaned_ed25519_destination(
-        &self,
-        source: &SigningWorkerEd25519PreparationV1,
-    ) -> Result<(), RouterAbProtocolError> {
-        let owner = serde_json::to_string(&source.scope).map_err(snapshot_encoding_error)?;
-        let Some(SnapshotState::Cleaned { receipt }) = self.read_ed25519_snapshot(&owner)? else {
-            return Ok(());
-        };
-        if receipt.source.scope != source.scope
-            || source.request.source_generation <= receipt.source.request.source_generation
-            || source.request.move_id == receipt.source.request.move_id
-            || self.ed25519_inventory_count()? != 0
-        {
-            return Err(wallet_error("Ed25519 return preparation requires a newer move and empty destination"));
-        }
-        let sql = DurableObjectWalletSqlV1(&self.sql);
-        crate::SigningWorkerEd25519ExecutionStoreV1::new(&sql)
-            .require_settlement(&receipt.source)?;
-        self.sql.exec(
-            "INSERT INTO wallet_ed25519_completed_cleanup (owner_json, move_id, state_json) VALUES (?, ?, ?)",
-            vec![SqlStorageValue::String(owner.clone()),
-                SqlStorageValue::String(receipt.source.request.move_id.clone()),
-                SqlStorageValue::String(serde_json::to_string(&receipt).map_err(snapshot_encoding_error)?)],
-        ).map_err(sql_error)?;
-        for table in ["wallet_ed25519_snapshot", "wallet_ed25519_settlement",
-            "wallet_ed25519_relocation", "wallet_ed25519_execution"] {
-            self.sql.exec(&format!("DELETE FROM {table} WHERE owner_json = ?"),
-                vec![SqlStorageValue::String(owner.clone())]).map_err(sql_error)?;
-        }
-        Ok(())
     }
 
     pub(super) fn read_ed25519_import_segment(

@@ -611,6 +611,7 @@ pub trait CloudflareRouterAdmissionProviderV1 {
 /// Already verified JWT/session claims at the Router auth boundary.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CloudflareRouterVerifiedJwtClaimsV1 {
+    pub ownership_generation: u64,
     /// Canonical subject id from verified auth.
     pub subject_id: String,
     /// Canonical session id from verified auth.
@@ -632,6 +633,7 @@ pub struct CloudflareRouterVerifiedJwtClaimsV1 {
 impl CloudflareRouterVerifiedJwtClaimsV1 {
     /// Creates validated claims from an already verified JWT/session boundary.
     pub fn new(
+        ownership_generation: u64,
         subject_id: impl Into<String>,
         session_id: impl Into<String>,
         org_id: impl Into<String>,
@@ -641,6 +643,7 @@ impl CloudflareRouterVerifiedJwtClaimsV1 {
         trusted_source_digest: PublicDigest32,
     ) -> RouterAbProtocolResult<Self> {
         let claims = Self {
+            ownership_generation,
             subject_id: subject_id.into(),
             session_id: session_id.into(),
             org_id: org_id.into(),
@@ -656,6 +659,7 @@ impl CloudflareRouterVerifiedJwtClaimsV1 {
 
     /// Validates branch identity and policy-scope fields.
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
+        crate::router_wallet::validate_wallet_ownership_generation(self.ownership_generation)?;
         require_non_empty("subject_id", &self.subject_id)?;
         require_non_empty("session_id", &self.session_id)?;
         require_non_empty("org_id", &self.org_id)?;
@@ -1502,6 +1506,7 @@ impl CloudflareRouterCompactJwtV1 {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct CloudflareRouterJwtClaimsPayloadV1 {
+    ownership_generation: u64,
     iss: String,
     sub: String,
     aud: CloudflareRouterJwtAudienceV1,
@@ -1615,6 +1620,7 @@ impl CloudflareRouterJwtClaimsPayloadV1 {
         require_non_empty("jwt sid", &self.sid)?;
         let session_id = self.sid;
         let mut claims = CloudflareRouterVerifiedJwtClaimsV1::new(
+            self.ownership_generation,
             self.sub,
             session_id,
             self.org_id,
@@ -1703,7 +1709,7 @@ impl<Verifier> CloudflareRouterJwtSessionProviderV1<Verifier> {
     pub fn verify_ecdsa_ceremony_session(
         &mut self,
         request: &EcdsaThresholdPrfRequestV1,
-    ) -> RouterAbProtocolResult<(CloudflareRouterTrustedRequestMetadataV1, String)>
+    ) -> RouterAbProtocolResult<(CloudflareRouterTrustedRequestMetadataV1, String, u64)>
     where
         Verifier: CloudflareRouterJwtVerifierV1,
     {
@@ -1716,10 +1722,11 @@ impl<Verifier> CloudflareRouterJwtSessionProviderV1<Verifier> {
             self.now_unix_ms,
             self.trusted_source_digest,
         )?;
+        let ownership_generation = claims.ownership_generation;
         let project_environment_id = claims.require_project_environment_id()?.to_owned();
         let metadata = claims.to_trusted_metadata(request)?;
         metadata.validate_for_request(request)?;
-        Ok((metadata, project_environment_id))
+        Ok((metadata, project_environment_id, ownership_generation))
     }
 }
 

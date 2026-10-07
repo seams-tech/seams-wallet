@@ -1910,6 +1910,7 @@ export class CloudflareD1AuthorizationStore
       authMethod,
       retiredAtMs: null,
       ownerWalletScope: {
+        ownershipGeneration: requirePositiveInteger(row.execution_generation, 'session.ownershipGeneration'),
         orgId: requireString(row.session_org_id, 'session.ownerWalletScope.orgId'),
         projectId: requireString(row.session_project_id, 'session.ownerWalletScope.projectId'),
         projectEnvironmentId: requireString(
@@ -2233,6 +2234,13 @@ export class CloudflareD1AuthorizationStore
       .prepare(
         `SELECT ${materialProjection}
            authority.*,
+           (SELECT execution.generation FROM wallet_execution_generations AS execution
+             WHERE execution.namespace = session.namespace
+               AND execution.org_id = session.org_id
+               AND execution.project_id = session.project_id
+               AND execution.env_id = session.env_id
+               AND execution.wallet_id = session.wallet_id
+               AND execution.state = 'active') AS execution_generation,
            session.namespace AS session_namespace,
            session.record_json AS session_record_json,
            session.capability_subjects_json AS session_capability_subjects_json,

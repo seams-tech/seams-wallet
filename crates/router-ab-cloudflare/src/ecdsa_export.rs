@@ -68,7 +68,7 @@ where
         request.request_digest()?,
         verifier,
     )?;
-    let (verified_metadata, project_environment_id) =
+    let (verified_metadata, project_environment_id, ownership_generation) =
         session.verify_ecdsa_ceremony_session(&public_request)?;
     let wallet_scope = CloudflareSigningWorkerWalletScopeV1::new(
         &verified_metadata.org_id,
@@ -106,6 +106,7 @@ where
         }
     };
     let signing_worker = CloudflareSigningWorkerEcdsaExportShareRequestV1 {
+        ownership_generation,
         request: request.clone(),
         export_authority,
         material_source,

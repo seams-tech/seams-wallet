@@ -690,6 +690,7 @@ function stagingLinkedDeviceSessionComposition(
           tenant: scope,
         }),
         deactivationEndpoint: createCloudflareOrdinaryInactiveSignerMaterialDeactivationEndpointV1({
+          admitEstablishedHome: admitD1EstablishedWalletHome.bind(undefined, env.SIGNER_DB, scope),
           fetch: serviceFetch,
           internalServiceAuthSecret,
           tenant: scope,

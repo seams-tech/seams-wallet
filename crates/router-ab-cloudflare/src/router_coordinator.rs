@@ -762,6 +762,7 @@ fn router_recipient_set_digest_v1(env: &Env) -> RouterAbProtocolResult<PublicDig
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareRouterEd25519YaoRecoveryPromotionRequestV1 {
+    pub ownership_generation: u64,
     pub binding: router_ab_core::Ed25519YaoCeremonyBindingV1,
     pub public_receipt: router_ab_core::RouterAbEd25519YaoActivationPublicReceiptV1,
     pub tenant_root: CloudflareRouterEd25519YaoTenantRootV1,
@@ -773,6 +774,7 @@ impl CloudflareRouterEd25519YaoRecoveryPromotionRequestV1 {
     ) -> RouterAbProtocolResult<CloudflareScopedEd25519YaoRecoveryPromotionRequestV1> {
         self.tenant_root.coordinates()?;
         let scoped = CloudflareScopedEd25519YaoRecoveryPromotionRequestV1 {
+            ownership_generation: self.ownership_generation,
             scope: CloudflareSigningWorkerWalletScopeV1::from_tenant_root(
                 &self.tenant_root.identity,
                 &self.binding.lifecycle.account_id,
@@ -979,6 +981,7 @@ async fn execute_router_ceremony_with_finalization_v1(
     let operation = request.operation();
     let pair_binding = request.pair_binding().clone();
     let work = pair_work(&request);
+    let ownership_generation = tenant_root.ownership_generation;
     let root_identity = tenant_root.identity.clone();
 
     if replay {
@@ -1163,6 +1166,7 @@ async fn execute_router_ceremony_with_finalization_v1(
 
     finalize_router_result_v1(
         env,
+        ownership_generation,
         runtime,
         &request,
         &binding,
@@ -1270,6 +1274,7 @@ async fn execute_historical_registration_replay_v1(
     let activation_a = crate::ed25519_yao_activation_role_execution_v1(&outcome.deriver_a_execution)?;
     let activation_b = crate::ed25519_yao_activation_role_execution_v1(&execution_b)?;
     let lookup = CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1 {
+        ownership_generation,
         scope: CloudflareSigningWorkerWalletScopeV1::from_tenant_root(
             &root.identity,
             &pair_binding.binding().lifecycle.account_id,
@@ -1408,6 +1413,7 @@ async fn reconcile_router_replay_v1(
         );
         return finalize_router_result_v1(
             env,
+            ownership_generation,
             runtime,
             request,
             binding,
@@ -1499,6 +1505,7 @@ async fn reconcile_router_replay_v1(
         )?;
         return finalize_router_result_v1(
             env,
+            ownership_generation,
             runtime,
             request,
             binding,
@@ -1723,6 +1730,7 @@ async fn burn_pair_v1<TRequest: Serialize>(
 
 async fn finalize_router_result_v1(
     env: &Env,
+    ownership_generation: u64,
     runtime: &CloudflareRouterWorkerRuntimeV1,
     request: &RouterEd25519YaoExecuteRequestV1,
     binding: &router_ab_core::Ed25519YaoCeremonyBindingV1,
@@ -1746,6 +1754,7 @@ async fn finalize_router_result_v1(
                 RouterCeremonyFinalizationV1::Standard => {
                     let delivery_started_at_ms = cloudflare_now_unix_ms_v1()?;
                     let scoped_delivery = CloudflareScopedEd25519YaoPackagePairDeliveryV1 {
+                        ownership_generation,
                         scope: CloudflareSigningWorkerWalletScopeV1::from_tenant_root(
                             root_identity,
                             &binding.lifecycle.account_id,
@@ -1847,6 +1856,7 @@ async fn finalize_router_result_v1(
                         CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_RESERVE_INACTIVE_SOURCE_PRESERVING_PATH,
                         "SigningWorker source-preserving Yao reservation",
                         &CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1 {
+                            ownership_generation,
                             // The wallet the admitted binding names, under
                             // the tenant root this execution was admitted
                             // with: the SigningWorker checks it against the

@@ -472,6 +472,7 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
                 router_ab_cloudflare::CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_RESERVE_INACTIVE_SOURCE_PRESERVING_PATH,
                 &config.internal_service_auth,
                 &CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1 {
+                    ownership_generation: request.tenant_root.ownership_generation,
                     // The wallet the admitted binding names, under the tenant
                     // root this execution was admitted with.
                     scope: router_ab_cloudflare::CloudflareSigningWorkerWalletScopeV1::from_tenant_root(

@@ -318,7 +318,7 @@ pub fn signing_worker_ecdsa_stored_terminal_response_v1(
 }
 
 impl CloudflareRouterEcdsaAcceptedAuthorizedOperationV1 {
-    fn ownership_generation(&self) -> RouterAbProtocolResult<u64> {
+    pub(crate) fn ownership_generation(&self) -> RouterAbProtocolResult<u64> {
         let generation = match &self.binding {
             CloudflareRouterEcdsaAcceptedCapabilityBindingV1::GatewayOwnerWalletSession {
                 ownership_generation,

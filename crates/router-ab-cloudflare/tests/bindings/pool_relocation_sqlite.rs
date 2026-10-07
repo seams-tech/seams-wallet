@@ -215,6 +215,7 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
     let presign_request = router_ab_cloudflare::CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1 {
         scope: base.scope.clone(),
         authority: router_ab_cloudflare::CloudflareSigningWorkerEcdsaPresignAuthorityV1::OwnerWalletSession {
+            ownership_generation: 1,
             wallet_scope: owner.clone(),
         },
         presign_session_id: format!("ecdsa-presign-v2:1500:{}", b64u(&[0x41; 32])),
@@ -259,6 +260,7 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
     let mut changed_step = presign_step.clone();
     changed_step.authority =
         router_ab_cloudflare::CloudflareSigningWorkerEcdsaPresignAuthorityV1::OperationStepUp {
+            ownership_generation: 1,
             wallet_scope: owner.clone(),
         };
     assert!(with_store(&path, &env, |store| store
@@ -699,6 +701,7 @@ fn encrypted_pool_relocation_survives_reopen_and_preserves_history(
     );
     later_presign.authority =
         router_ab_cloudflare::CloudflareSigningWorkerEcdsaPresignAuthorityV1::OwnerWalletSession {
+            ownership_generation: 1,
             wallet_scope: other_owner.clone(),
         };
     with_store(&path, &env, |store| {

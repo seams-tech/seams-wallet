@@ -250,7 +250,7 @@ import type {
   WalletRegistrationRespondInput,
   WalletRegistrationSetupInput,
 } from '../../../domains/walletRegistration/walletRegistrationInputs';
-import type { WalletRegistrationReservationAuthority } from '../../../domains/walletRegistration/walletRegistrationReservation';
+import type { WalletExecutionAuthority, WalletRegistrationReservationAuthority } from '../../../domains/walletRegistration/walletRegistrationReservation';
 import type { WalletRegistrationSetupClaimsV1 } from '../../../domains/walletRegistration/walletRegistrationSetupPayload';
 import {
   computeWalletRegistrationSetupDigestB64u,
@@ -1970,6 +1970,7 @@ async function recordRegistrationPromiseTiming<T>(args: {
 }
 
 export class CloudflareD1WalletRegistrationService {
+  private readonly executionAuthority: WalletExecutionAuthority;
   private readonly registrationAuthority: WalletRegistrationReservationAuthority | null;
   private readonly authorizationService: AuthorizationService;
   private readonly authorizationTenantId: TenantId;
@@ -1995,6 +1996,7 @@ export class CloudflareD1WalletRegistrationService {
 
   constructor(input: {
     readonly home: WalletSessionHome;
+    readonly executionAuthority: WalletExecutionAuthority;
     readonly registrationAuthority: WalletRegistrationReservationAuthority | null;
     readonly authorizationService: AuthorizationService;
     readonly authorizationTenantId: TenantId;
@@ -2014,6 +2016,7 @@ export class CloudflareD1WalletRegistrationService {
     readonly yaoLifecycleDecisions: CloudflareD1Ed25519YaoLifecycleDecisionStoreV1;
   }) {
     this.home = input.home;
+    this.executionAuthority = input.executionAuthority;
     this.registrationAuthority = input.registrationAuthority;
     this.authorizationService = input.authorizationService;
     this.authorizationTenantId = input.authorizationTenantId;
@@ -2364,6 +2367,7 @@ export class CloudflareD1WalletRegistrationService {
   }): Promise<
     | {
         readonly ok: true;
+        readonly ownershipGeneration: number;
         readonly identityDigestB64u: string;
         readonly custodyLineageB64u: string;
         readonly projectEnvironmentId: string;
@@ -2404,7 +2408,11 @@ export class CloudflareD1WalletRegistrationService {
           message: 'ECDSA tenant root is not active',
         };
       }
-      return { ok: true, ...tenantRoot };
+      const home = await this.executionAuthority.admitEstablishedHome({
+        walletId: walletIdFromString(input.walletId),
+      });
+      if (!home.ok) return { ok: false, code: 'invalid_state', message: home.message };
+      return { ok: true, ownershipGeneration: home.ownershipGeneration, ...tenantRoot };
     } catch (error: unknown) {
       return {
         ok: false,
@@ -3391,6 +3399,7 @@ export class CloudflareD1WalletRegistrationService {
         return { ok: false, code: 'invalid_state', message: 'ECDSA response claim is invalid' };
       }
       const tenantRoot = {
+        ownershipGeneration: homeAdmission.ownershipGeneration,
         projectEnvironmentId: claimedBranch.projectEnvironmentId,
         identityDigestB64u: claimedBranch.tenantRootIdentityDigestB64u,
         custodyLineageB64u: claimedBranch.tenantRootCustodyLineageB64u,

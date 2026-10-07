@@ -1737,8 +1737,36 @@ write rejection, and cleanup retries. It also reserves a fresh generation-three
 return target and checks that delayed cleanup cannot change it. A full return
 transfer remains part of hosted acceptance.
 
-SigningWorker and presign/session generation routing, account/namespace locators,
-regional placement, and the shared-namespace hosted move remain unfinished.
+SigningWorker wallet objects and owner/linked presign hosts now use the admitted
+ownership generation for physical routing. Generation one retains its stored
+name. Activation, refill, publication, signing, callbacks, and transfer commands
+carry that generation. Linked-device activation retains the reservation's saved
+generation. Return moves use fresh objects. Source cleanup keeps the source fence
+and its exact retry receipt. The previous source-reopening path is removed.
+
+Routine signing and refill add no Console calls or D1 round trips. The existing
+session read returns the local execution generation. Physical name selection is
+local. Owner presign sessions reuse one host per wallet, material, and generation.
+Logical encryption identities and ordinary-lock presignature retention stay
+unchanged. Relocation keeps its separate invalidation rules.
+
+Release-build Worker E2Es passed with shared SigningWorker and presign namespaces.
+Both curves signed after generation-two transfer and generation-three return.
+Delayed requests stayed on retained sources. Cleanup retries preserved returned
+wallets. Linked-presign history survived transfer and restart. The owner-host E2E
+verified eight signatures, concurrent work, expiry, and restart without creating
+extra hosts for repeated work on the same wallet and material.
+
+Repeat from `crates/router-ab-cloudflare` with
+`ROUTER_AB_WORKER_BUILD_PROFILE=release node scripts/test-private-d1.mjs` and each
+of `--do-pair-execution`, `--ecdsa-wallet-do-pool`, and
+`--reusable-owner-presign-host`. The scripts write JSON evidence under
+`.artifacts/r150/` and `.artifacts/r155/`. Console admission, wallet-server type
+checks, and the bloat check also passed.
+
+Account/namespace locators, regional placement, and the shared-namespace hosted
+move remain unfinished. Local E2Es select the regional Gateway in the harness.
+They do not establish deployed placement or hosted latency.
 
 - [ ] **Define and persist the target set.** Extend the existing placement and
   participant records with typed source and destination locators. Cover Router,

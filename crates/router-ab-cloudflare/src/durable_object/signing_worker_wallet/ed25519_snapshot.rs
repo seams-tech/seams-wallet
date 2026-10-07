@@ -12,9 +12,6 @@ mod restore;
 use records::{LinkedSnapshotRow, RegistrationSnapshotRow, RetiredSnapshotRow, SnapshotRow};
 
 const SEGMENT_BYTES: usize = 4096;
-pub(super) const CLEANUP_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_ed25519_completed_cleanup (
-    owner_json TEXT NOT NULL, move_id TEXT NOT NULL, state_json TEXT NOT NULL,
-    PRIMARY KEY (owner_json, move_id))";
 pub(super) const IMPORT_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_ed25519_import (
     owner_json TEXT PRIMARY KEY, state_json TEXT NOT NULL)";
 pub(super) const IMPORT_SEGMENT_SCHEMA: &str =

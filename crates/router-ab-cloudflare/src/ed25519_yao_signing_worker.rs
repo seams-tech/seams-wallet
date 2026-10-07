@@ -97,12 +97,14 @@ impl CloudflareEd25519YaoRecoveryPromotionRequestV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareScopedEd25519YaoRecoveryPromotionRequestV1 {
+    pub ownership_generation: u64,
     pub scope: CloudflareSigningWorkerWalletScopeV1,
     pub promotion: CloudflareEd25519YaoRecoveryPromotionRequestV1,
 }
 
 impl CloudflareScopedEd25519YaoRecoveryPromotionRequestV1 {
     pub(crate) fn validate(&self) -> RouterAbProtocolResult<()> {
+        crate::router_wallet::validate_wallet_ownership_generation(self.ownership_generation)?;
         self.scope.validate()?;
         self.promotion.validate()?;
         if self.scope.wallet_id != self.promotion.binding.lifecycle.account_id {
@@ -124,6 +126,7 @@ pub struct CloudflareEd25519YaoPackagePairDeliveryV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareScopedEd25519YaoPackagePairDeliveryV1 {
+    pub ownership_generation: u64,
     pub scope: CloudflareSigningWorkerWalletScopeV1,
     pub delivery: CloudflareEd25519YaoPackagePairDeliveryV1,
     /// The Gateway's attempt a recovery's packages come from, as the Router
@@ -133,6 +136,7 @@ pub struct CloudflareScopedEd25519YaoPackagePairDeliveryV1 {
 
 impl CloudflareScopedEd25519YaoPackagePairDeliveryV1 {
     pub(crate) fn validate(&self) -> RouterAbProtocolResult<()> {
+        crate::router_wallet::validate_wallet_ownership_generation(self.ownership_generation)?;
         self.scope.validate()?;
         self.delivery.validate()?;
         if self.scope.wallet_id != self.delivery.deriver_a.binding.lifecycle.account_id {
@@ -176,6 +180,7 @@ impl CloudflareEd25519YaoPackagePairDeliveryV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1 {
+    pub ownership_generation: u64,
     pub scope: CloudflareSigningWorkerWalletScopeV1,
     pub delivery: CloudflareEd25519YaoPackagePairDeliveryV1,
     pub deriver_a_client_package: Ed25519YaoEncryptedPackageV1,
@@ -184,6 +189,7 @@ pub struct CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1 {
 
 impl CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1 {
     pub(crate) fn validate(&self) -> RouterAbProtocolResult<()> {
+        crate::router_wallet::validate_wallet_ownership_generation(self.ownership_generation)?;
         self.scope.validate()?;
         self.delivery.validate()?;
         let binding = &self.delivery.deriver_a.binding;
@@ -252,6 +258,7 @@ impl CloudflareEd25519YaoInactiveReservationRequestV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1 {
+    pub ownership_generation: u64,
     /// The wallet whose material the reservation is made from. The Router
     /// derives it from the tenant root the execution was admitted under.
     pub scope: CloudflareSigningWorkerWalletScopeV1,
@@ -264,6 +271,7 @@ pub struct CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1 {
 
 impl CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1 {
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
+        crate::router_wallet::validate_wallet_ownership_generation(self.ownership_generation)?;
         self.source_binding.validate()?;
         if self.source_binding.operation != Ed25519YaoOperationV1::Registration {
             return Err(invalid_lifecycle(
@@ -299,6 +307,7 @@ impl CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareEd25519YaoActivateReservationRequestV1 {
+    pub ownership_generation: u64,
     /// The wallet the reserved material belongs to, from the Gateway's
     /// authorized installation.
     pub scope: CloudflareSigningWorkerWalletScopeV1,
@@ -308,6 +317,7 @@ pub struct CloudflareEd25519YaoActivateReservationRequestV1 {
 
 impl CloudflareEd25519YaoActivateReservationRequestV1 {
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
+        crate::router_wallet::validate_wallet_ownership_generation(self.ownership_generation)?;
         self.binding.validate()?;
         if self.binding.operation != Ed25519YaoOperationV1::Registration {
             return Err(invalid_lifecycle(
@@ -327,6 +337,7 @@ impl CloudflareEd25519YaoActivateReservationRequestV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareEd25519YaoDeactivateReservationRequestV1 {
+    pub ownership_generation: u64,
     /// The wallet the reserved material belongs to, from the Gateway's
     /// authorized revocation.
     pub scope: CloudflareSigningWorkerWalletScopeV1,
@@ -335,6 +346,7 @@ pub struct CloudflareEd25519YaoDeactivateReservationRequestV1 {
 
 impl CloudflareEd25519YaoDeactivateReservationRequestV1 {
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
+        crate::router_wallet::validate_wallet_ownership_generation(self.ownership_generation)?;
         self.material_activation.validate()?;
         self.scope.validate()?;
         if self.scope.wallet_id != self.material_activation.material_owner {
@@ -2898,6 +2910,7 @@ mod tests {
         );
         let delivery = source_preserving_test_delivery(target_binding.clone());
         let request = CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1 {
+            ownership_generation: 1,
             scope: CloudflareSigningWorkerWalletScopeV1::new(
                 "org",
                 "project",

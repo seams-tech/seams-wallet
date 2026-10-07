@@ -24,6 +24,7 @@ const replacementOperation: RouterAbEd25519YaoCapabilityReplacementOperationV1 =
 
 const activationClaim: RouterAbEd25519YaoRecoveryActivationClaimV1 = {
   kind: 'router_ab_ed25519_yao_recovery_activation_claim_v1',
+  ownershipGeneration: 1,
   lifecycleId: replacementOperation.operationId,
   recoveryKey: 'recovery-key-1',
   sessionId: 'session-1',
@@ -65,6 +66,7 @@ const lookupWithChainProjection: RouterAbEd25519YaoActiveCapabilityLookupV1 = {
 // @ts-expect-error activation claims always state whether work is initial or reconciliation
 const claimWithoutDisposition: RouterAbEd25519YaoRecoveryActivationClaimV1 = {
   kind: 'router_ab_ed25519_yao_recovery_activation_claim_v1',
+  ownershipGeneration: 1,
   lifecycleId: activationClaim.lifecycleId,
   recoveryKey: activationClaim.recoveryKey,
   sessionId: activationClaim.sessionId,
@@ -90,3 +92,24 @@ void activeCapabilityLookup;
 void lookupWithChainProjection;
 void successWithoutDisposition;
 void uncertainWithoutDisposition;
+
+// @ts-expect-error delayed activation must retain its admitted ownership generation
+const claimWithoutGeneration: RouterAbEd25519YaoRecoveryActivationClaimV1 = {
+  kind: 'router_ab_ed25519_yao_recovery_activation_claim_v1',
+  lifecycleId: activationClaim.lifecycleId,
+  recoveryKey: activationClaim.recoveryKey,
+  sessionId: activationClaim.sessionId,
+  activationFingerprint: activationClaim.activationFingerprint,
+  authorityProjection: activationClaim.authorityProjection,
+  disposition: 'initial',
+  dispatchRoot: activationClaim.dispatchRoot,
+};
+
+const claimWithErasedGeneration: RouterAbEd25519YaoRecoveryActivationClaimV1 = {
+  ...activationClaim,
+  // @ts-expect-error a broad spread cannot erase the pinned generation
+  ownershipGeneration: undefined,
+};
+
+void claimWithoutGeneration;
+void claimWithErasedGeneration;

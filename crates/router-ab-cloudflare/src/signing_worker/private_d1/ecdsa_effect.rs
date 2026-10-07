@@ -130,7 +130,7 @@ pub(crate) async fn prepare_cloudflare_signing_worker_ecdsa_finalize_v1(
                     runtime,
                     scope,
                     &request.material_source,
-                    Some(&request.wallet_scope),
+                    Some(crate::SigningWorkerWalletRoute { scope: &request.wallet_scope, ownership_generation: request.ownership_generation }),
                     now_unix_ms,
                 )
                 .await?

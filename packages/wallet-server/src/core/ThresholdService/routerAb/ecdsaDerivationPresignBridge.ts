@@ -27,6 +27,7 @@ export type RouterAbEcdsaDerivationPresignaturePoolFillAuth = {
 export type RouterAbEcdsaPresignAuthorityV1 =
   | {
       readonly kind: 'owner_wallet_session';
+      readonly ownership_generation: number;
       readonly wallet_scope: {
         readonly org_id: string;
         readonly project_id: string;
@@ -36,6 +37,7 @@ export type RouterAbEcdsaPresignAuthorityV1 =
     }
   | {
       readonly kind: 'operation_step_up';
+      readonly ownership_generation: number;
       readonly wallet_scope: {
         readonly org_id: string;
         readonly project_id: string;
@@ -299,6 +301,7 @@ export async function stepRouterAbEcdsaPresignSession(input: {
  * uses a separate private-worker route from the owner pool-fill protocol.
  */
 export async function startRouterAbLinkedDeviceEcdsaPresignSession(input: {
+  ownershipGeneration: number;
   walletScope: RouterAbEcdsaPresignAuthorityV1['wallet_scope'];
   signingWorkerBaseUrl: string;
   request: Record<string, unknown>;
@@ -314,6 +317,7 @@ export async function startRouterAbLinkedDeviceEcdsaPresignSession(input: {
     body: {
       request: input.request,
       wallet_scope: input.walletScope,
+      ownership_generation: input.ownershipGeneration,
       material_source: input.materialSource,
       presign_session_id: input.presignSessionId,
       expires_at_ms: input.expiresAtMs,
@@ -324,6 +328,7 @@ export async function startRouterAbLinkedDeviceEcdsaPresignSession(input: {
 }
 
 export async function stepRouterAbLinkedDeviceEcdsaPresignSession(input: {
+  ownershipGeneration: number;
   walletScope: RouterAbEcdsaPresignAuthorityV1['wallet_scope'];
   signingWorkerBaseUrl: string;
   request: Record<string, unknown>;
@@ -341,6 +346,7 @@ export async function stepRouterAbLinkedDeviceEcdsaPresignSession(input: {
     body: {
       request: input.request,
       wallet_scope: input.walletScope,
+      ownership_generation: input.ownershipGeneration,
       material_source: input.materialSource,
       presign_session_id: input.presignSessionId,
       requested_stage: input.requestedStage,
