@@ -2783,3 +2783,68 @@ an original completion and its exact replay.
 Caller clocks follow the Workers runtime and can omit CPU time. Provider wall time
 covers the whole object invocation. Neither measurement independently proves physical
 placement. Subtracting these measurements does not isolate network latency exactly.
+
+### Phase 6E result — 2026-10-07
+
+Diagnostic implementation `c09a7a89c8d9202588206507327339e864911bdf` labels Router
+wallet operations and records caller dispatch time. It preserves registration behavior.
+All five strict release builds, the bloat check, and three lifecycle E2E checks passed.
+The tests cover four-region placement, lost-reply replay, concurrent execution,
+eviction, and relocation. A stale capture assertion was updated in separate commit
+`24439587b786c5c0589a269baea38a9c69525ad1`. The test still interrupts capture inside
+its DO before the production transport advances several steps in one request.
+
+Two staging rounds completed six fresh NEAR-only wallets and **42 verified signatures**.
+Phase 6D A/B, the harness, and all 167 browser assets stayed fixed. All thirteen
+original deployment versions were restored and verified. No resources were added.
+
+| Router wallet operation | Caller median | Caller range | DO wall median | DO CPU median |
+|---|---:|---:|---:|---:|
+| Registration claim | **776 ms** | 596–1,101 ms | 75 ms | 22.5 ms |
+| Registration finish | **56 ms** | 53–62 ms | 44 ms | 2.5 ms |
+| Registration consume | **399 ms** | 59–537 ms | 51 ms | 10 ms |
+
+Each row contains six samples. Claim plus finish, paired within each registration,
+measured **832 ms median**, with a **649–1,154 ms** range. Consumption belongs to
+subsequent registration finalization and is excluded from that total.
+
+The browser Yao execute request measured **5.449 s median** across all six wallets
+(range **4.808–7.463 s**). The two round medians were 5.200 s and 5.597 s.
+This diagnostic run does not establish a new speedup. The two-second target remains unmet.
+
+The existing Router spans measured 1.444 s median for parallel A/B preparation,
+2.191 s for A execution, and 792 ms for Signing Worker delivery. Parse/authorization
+measured 859 ms and includes the claim. These spans overlap or nest; their separate
+medians must not be added into an end-to-end result. A zero clock span for receipt
+verification does not mean zero CPU work.
+
+**Finding:** claim dispatch is material. The caller/DO timing gap points toward
+waiting outside the handler, including dispatch, placement, or startup. The clocks
+do not separate these causes. The later consume call also has a substantial gap.
+The current label cannot prove whether its live object instance survived between calls.
+
+[Sanitized measurements and repeatable local evidence](evidence/near-router-dispatch-20261007.json)
+include every range, request count, build hash, and the paired aggregate.
+
+### Phase 6F — Test earlier startup of the exact Router wallet object
+
+The existing `/internal/prewarm` fan-out touches Workers. It does not address the
+wallet's Router DO. Test one bounded wake-up after registration has a validated
+reservation, canonical wallet identity, fixed home, and ownership generation.
+It must overlap independent registration work to reduce user-visible waiting.
+
+- Use the existing authenticated Gateway-to-Router binding and home routing.
+  Add no new infrastructure, configuration flag, cron, or continuous keepalive.
+- Address the same generation-specific object that the later claim uses.
+  The wake-up must grant no authority, claim no registration, and consume no budget.
+- Start once for newly admitted work through the existing background-work mechanism.
+  Preserve normal claim and finish checks when startup fails or signing starts immediately.
+- Record the object instance's first-command marker. Separate cold and already-running
+  instances before attributing a result to startup.
+- E2E must cover wrong home, rejected admission, lost warm-up reply, immediate execution,
+  and concurrent exact registration retries.
+- Repeat control/candidate/control measurements. Record total registration-to-first-signature
+  time as well as claim latency, so a shifted wait cannot appear as an improvement.
+
+The observed 832 ms includes required state work and transport. It is not a promised
+saving. Evaluate this bounded change before moving the whole coordinator into the DO.
