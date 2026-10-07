@@ -1,14 +1,17 @@
 # Refactor 153: owner-controlled wallet region selection
 
-Status: implementation in progress. Local SDK-driven relocation now reaches owner
+Status: manual relocation implementation and scoped hosted acceptance are complete.
+Local SDK-driven relocation reaches owner
 approval, fresh resource verification, preparation, transfer, activation, and cleanup.
 The ECDSA and Ed25519 browser runs passed with fresh unlock and destination signing.
 Two-device moves pass for both curves, including an offline enrolled device.
 Fresh-browser recovery and both signing curves pass after relocation.
 The composed US → APAC → US move passes, including fresh unlock and both signing
-curves after return. Hosted admission now exposes an implementation gap: regional
-runtimes share custody namespaces. Physical custody routing remains incomplete.
-Hosted post-move placement and latency acceptance remain open.
+curves after return. Physical custody routing now uses distinct generation targets
+within the deployed namespaces. Admission records account, namespace, object, and
+Worker version identities. Hosted APAC → US → APAC acceptance passed with fresh
+unlock, both signing curves, source cleanup, and measured pause/refill/signing times.
+Broader load suitability, transferred-byte totals, and publication remain separate.
 
 ## Implementation order and prerequisites
 
@@ -149,57 +152,59 @@ split. Hosted resource placement and latency remain unverified.
 
 ## Hosted acceptance checkpoint — October 7, 2026
 
-The staging candidate is deployed. Hosted relocation fails before admission because
-US and APAC select the same custody Workers and wallet objects. The local browser
-scenario used separate custody namespaces, so its success did not prove the deployed
-topology. R153 still requires physical custody routing implementation.
+The physical custody candidate is deployed and activated on staging. Preparation
+pins the Cloudflare account, namespace, Worker version, and exact source and
+destination object IDs. Observations from inside the transferred Durable Objects
+confirm distinct APAC and US locations. D1 primary observations confirm IAD, LHR,
+HKG, and SYD for US, WEUR, APAC, and OC. These observations establish broad regions,
+not city-level co-location.
 
 Completed and verified:
 
-- [x] Deploy the return-generation and capability-cache fixes to staging.
-- [x] Apply signer migration `0075` to US, WEUR, APAC, and OC.
-- [x] Supply the existing `CLOUDFLARE_API_TOKEN` binding through the Console workflow.
-  No relocation-specific credential was added.
-- [x] Activate the staging candidate. Console workflow `37570096077` and activation
-  workflow `37570333311` passed.
-- [x] Verify D1 primary locations independently from Gateway ingress: IAD, LHR, HKG,
-  and SYD, respectively.
-- [x] Run the hosted browser scenario. Runtime and Router preparation return 200.
-  Deriver A preparation returns 500 with `Deriver destination preparation conflicts`.
-  Admission fails before source pause. The source wallet signs again afterward.
-- [x] Fix the scheduler's one-step-per-minute delay. Admission starts a bounded
-  background batch. Cron resumes unfinished work. Stored stage budgets still apply.
-  Directory E2E and Console type checking pass.
-- [x] Use the supported Worker redirect mode for provider verification. Redirect
-  responses remain rejected. The resource-verification E2E passes.
+- [x] Deploy generation-specific custody routing and regional placement.
+- [x] Apply signer migration `0075` in all four regions and Console migration `0088`.
+- [x] Reuse the existing credential binding. No relocation-specific secret was added.
+- [x] Pin account, namespace, deployment version, and physical object identity before pause.
+- [x] Persist late linked-presign targets across exact retries.
+- [x] Verify release-Worker transfer, owner-presign reuse, provider bindings, and
+  directory recovery through existing E2E scenarios.
+- [x] Transfer bounded relocation approvals so progress reads survive cutover.
+- [x] Complete a hosted APAC → US move, including source cleanup.
+- [x] Complete hosted destination signing and the US → APAC return move.
+- [x] Record final pause, refill, and signing measurements for the same candidate.
 
-The final browser run recorded two pre-move public SDK signing durations of 901 ms
-and 2,041 ms. Signing after rejected admission took 1,455 ms. These samples include
-automated confirmation and diagnostics. They do not establish post-move latency.
-The hosted acceptance test correctly remains failing at admission.
+The hosted test must unlock after cutover because the SDK locks the old-generation
+session. It then resumes the same move ID. This preserves relocation-driven
+invalidation and ordinary-lock presignature retention.
 
-Remaining implementation and acceptance:
+The final hosted E2E passed in 28.5 minutes. Both moves completed source cleanup.
+The outbound pause was 513,190 ms (8.55 minutes). The return pause was 744,056 ms
+(12.40 minutes). Admission through cleanup took 670,515 ms and 922,834 ms.
+These multi-minute pauses remain a performance limitation.
 
-- [ ] Complete [physical custody routing](#1a-physical-custody-routing) before
-  repeating hosted acceptance. US and APAC currently resolve the same Deriver A/B
-  and SigningWorker wallet objects. Changing regional D1 selection leaves those
-  custody objects in place.
-- [ ] Rerun hosted relocation and record destination signing, pause duration,
-  first-signature refill, transfer bytes, and unrelated-wallet interference.
-- [ ] Close hosted suitability only after that run passes. Retain the existing local
-  round-trip evidence. Publication remains a separate release step.
+From the Japan browser, public SDK ECDSA signing took 1,755–2,614 ms before the
+move, 2,255–2,883 ms in the US, and 1,155 ms on the first return signature.
+These samples include automated confirmation. US signatures that waited for
+background refill waited 975 ms and 1,020 ms. A missing refill-wait observation
+is not a zero-duration refill. NEAR message signatures verified against the
+original wallet public key after each move, including altered-message rejection.
 
-Private evidence: `docs/evidence/r153-hosted-20261007.json` in `seams-monorepo`.
-It records deployment versions, measured samples, the failed participant, checks,
-and hashes of local artifacts under `.artifacts/r153/hosted-20261007/`.
-The repeatable test is `tests/e2e/hosted-product/wallet-relocation.test.ts`.
-Use the existing hosted candidate setup with `SEAMS_INTENDED_SIGNING_SESSION_DEBUG=1`
-for its timing evidence. Source and destination preparation must not be bypassed.
+Private evidence is `docs/evidence/r153-custody-targets-20261007.json` and its
+Markdown report in `seams-monorepo`. Raw artifacts and an exact rerun command are
+under `.artifacts/r153/custody-targets/`. The repeatable test is
+`tests/e2e/hosted-product/wallet-relocation.test.ts`. The earlier admission-collision
+evidence in `docs/evidence/r153-hosted-20261007.json` is historical.
 
-The implementation-stage checklist below retains the full requirement inventory.
-The physical-resource preparation and hosted suitability requirements remain open.
+Total transferred bytes and hosted unrelated-wallet interference remain unmeasured.
+Fresh owner-presign hosts use the admitted regional hint, but this hosted scenario
+does not independently observe their physical location. Keep these limits separate
+from the four transferred wallet-object location observations. Publication remains
+a separate release step.
 
 ## Implemented baseline
+
+The following implementation checkpoints retain their historical scope. Use the
+hosted acceptance checkpoint above for the current verified status.
 
 Authorization source capture now has an internal Gateway route. It obtains a live
 Console gateway freeze command before retirement, freeze, or snapshot writes.
@@ -1764,40 +1769,54 @@ of `--do-pair-execution`, `--ecdsa-wallet-do-pool`, and
 `.artifacts/r150/` and `.artifacts/r155/`. Console admission, wallet-server type
 checks, and the bloat check also passed.
 
-Account/namespace locators, regional placement, and the shared-namespace hosted
-move remain unfinished. Local E2Es select the regional Gateway in the harness.
-They do not establish deployed placement or hosted latency.
+Admission now resolves actual role bindings and namespace IDs from serving
+Cloudflare versions. It pins that graph and each transferred target to the move.
+Destination inspection applies the selected region before preparation. Observations
+come from requests inside each Durable Object, separately from Gateway ingress.
+The verifier resolves the observed datacenter code, because trace `loc` can retain
+the request IP's country. Unknown datacenter codes fail before source pause.
 
-- [ ] **Define and persist the target set.** Extend the existing placement and
+Linked-presign locators use the server presignature identity used by transfer
+commands. Late linked sessions receive immutable target records before freeze.
+Owner presignatures are invalidated. Their contents are not transferred. Fresh
+owner hosts use the admitted region and ownership generation during refill.
+Routine signing and refill add no network calls for this selection.
+
+The hosted round trip passed with HKG sources, distinct US destinations, and fresh
+HKG return targets. Move-read approvals now belong to the authorization snapshot
+and source cleanup. Both signing curves passed after each move. The evidence
+records the exact targets, candidate versions, pause durations, and refill samples.
+
+- [x] **Define and persist the target set.** Extend the existing placement and
   participant records with typed source and destination locators. Cover Router,
   Deriver A, Deriver B, SigningWorker, and wallet-owned presign/session objects.
   Give each physical store one owner. Validate raw locators once at the boundary.
-- [ ] **Prepare distinct destinations.** Resolve actual deployed bindings and create
+- [x] **Prepare distinct destinations.** Resolve actual deployed bindings and create
   inactive targets before source pause. Apply regional location hints on creation.
   Reject a destination that equals its source account/namespace/object tuple.
   Verify scope, schema, inactive state, and role key continuity. Pin the complete
   target set to the move. Exact retries must reuse it after restart or lost replies.
-- [ ] **Use one routing path.** Make ordinary signing, refill, recovery, linking,
+- [x] **Use one routing path.** Make ordinary signing, refill, recovery, linking,
   internal role calls, callbacks, and alarms resolve the same admitted targets as
   transfer commands. Use existing regional execution authority and generation
   checks. Preserve R155B's zero-Console-call requirement for routine signing/refill.
   Remove fixed-object lookup paths as their replacements land.
-- [ ] **Preserve cryptographic identity.** Change physical lookup independently of
+- [x] **Preserve cryptographic identity.** Change physical lookup independently of
   logical object names, encrypted-row identities, keys, and protocol role/server IDs.
   Do not append a generation to a name authenticated by stored ciphertext.
   Keep shared tenant-root and revocation authority at their existing owners.
   Reconcile their physical references through the admitted placement.
-- [ ] **Bind ownership and cleanup to exact targets.** Include the target set in
+- [x] **Bind ownership and cleanup to exact targets.** Include the target set in
   preparation and transfer evidence. Activate only its verified destination after
   the directory switch. Keep the old source fenced. Cleanup retries address only
   the recorded source. A return move receives fresh physical targets and cannot
   reuse a retained source snapshot as active storage.
-- [ ] **Make deployment enforce the contract.** Extend existing deployment rendering
+- [x] **Make deployment enforce the contract.** Extend existing deployment rendering
   and resource verification to resolve each role's actual namespace/object mapping.
   Reject incomplete or conflicting mappings before admission. Preserve existing
   role secrets and authenticated environment labels. Add no relocation credential,
   parallel configuration registry, or separate deployment workflow.
-- [ ] **Extend the existing composed/hosted E2E.** Use production routing configuration
+- [x] **Extend the existing composed/hosted E2E.** Use production routing configuration
   instead of supplying independent namespaces as a fixture assumption. Exercise a
   colliding destination, verify rejection before pause, and sign again at source.
   With valid targets, complete the move and return, sign with both curves, and
@@ -1881,8 +1900,10 @@ They do not establish deployed placement or hosted latency.
 - [ ] Pass the E2E matrix below, including real ECDSA/Ed25519 signing and both
   passkey and Email OTP fresh authentication where supported. Reject old sealed
   signing sessions and delayed linked credential deliveries.
-- [ ] Run the hosted regional suitability scenario below. Reuse its placement,
-  timing, and load evidence instead of creating a second measurement campaign.
+- [x] Run hosted APAC → US → APAC placement, pause, refill, and signing verification.
+  Preserve exact locators and deployed versions with the measured evidence.
+- [ ] Complete transferred-byte and unrelated-wallet interference measurements
+  before closing the broader hosted regional suitability requirement.
 - [ ] Update intended-behavior specification and matching contracts together.
   Freeze the public package candidate and pin private consumers to its exact
   artifact through the existing integration workflow.
