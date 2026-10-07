@@ -6,7 +6,9 @@ The ECDSA and Ed25519 browser runs passed with fresh unlock and destination sign
 Two-device moves pass for both curves, including an offline enrolled device.
 Fresh-browser recovery and both signing curves pass after relocation.
 The composed US → APAC → US move passes, including fresh unlock and both signing
-curves after return. Hosted placement/latency acceptance remains open.
+curves after return. Hosted admission now exposes an implementation gap: regional
+runtimes share custody namespaces. Physical custody routing remains incomplete.
+Hosted post-move placement and latency acceptance remain open.
 
 ## Implementation order and prerequisites
 
@@ -145,32 +147,60 @@ builds, and the bloat check passed. Evidence is under
 intended-test type check remains blocked by shared-module paths from the repository
 split. Hosted resource placement and latency remain unverified.
 
-## Remaining completion steps — October 7, 2026
+## Hosted acceptance checkpoint — October 7, 2026
 
-The composed local round trip is complete. Reuse its recorded evidence. Do not
-repeat the local fault matrix for each hosted region.
+The staging candidate is deployed. Hosted relocation fails before admission because
+US and APAC select the same custody Workers and wallet objects. The local browser
+scenario used separate custody namespaces, so its success did not prove the deployed
+topology. R153 still requires physical custody routing implementation.
 
-1. Deploy the matching staging candidate and apply signer migration `0075`.
-   Include the return-generation and Ed25519 capability-cache fixes.
-   Supply the existing `CLOUDFLARE_API_TOKEN` through the Console deployment workflow.
-   No relocation-specific credential is required.
-2. Run one hosted relocation from a fixed client location. Verify destination
-   resource identities and actual placement. Record signing before and after the
-   move, pause duration, first-signature refill, transfer bytes, and neighbor impact.
-3. Match the acceptance matrix to retained evidence. Close verified requirements
-   and identify any uncovered behavior. Publication remains a separate release step.
+Completed and verified:
 
-The updated server, Gateway, Runtime, and Console candidate builds passed.
-Candidate source revisions, bundle hashes, and deployment gaps are recorded in
-`.artifacts/r153/hosted-20261007/readiness.json` in `seams-monorepo`.
-Staging has not changed. Its Console lacks the existing credential binding, and
-remote private `dev` still has the older secret writer. The corrected writer is
-committed locally in `8352ce5`. The hosted candidate also predates the return fixes
-and migration `0075`. Hosted acceptance remains pending until deployment is complete.
+- [x] Deploy the return-generation and capability-cache fixes to staging.
+- [x] Apply signer migration `0075` to US, WEUR, APAC, and OC.
+- [x] Supply the existing `CLOUDFLARE_API_TOKEN` binding through the Console workflow.
+  No relocation-specific credential was added.
+- [x] Activate the staging candidate. Console workflow `37570096077` and activation
+  workflow `37570333311` passed.
+- [x] Verify D1 primary locations independently from Gateway ingress: IAD, LHR, HKG,
+  and SYD, respectively.
+- [x] Run the hosted browser scenario. Runtime and Router preparation return 200.
+  Deriver A preparation returns 500 with `Deriver destination preparation conflicts`.
+  Admission fails before source pause. The source wallet signs again afterward.
+- [x] Fix the scheduler's one-step-per-minute delay. Admission starts a bounded
+  background batch. Cron resumes unfinished work. Stored stage budgets still apply.
+  Directory E2E and Console type checking pass.
+- [x] Use the supported Worker redirect mode for provider verification. Redirect
+  responses remain rejected. The resource-verification E2E passes.
+
+The final browser run recorded two pre-move public SDK signing durations of 901 ms
+and 2,041 ms. Signing after rejected admission took 1,455 ms. These samples include
+automated confirmation and diagnostics. They do not establish post-move latency.
+The hosted acceptance test correctly remains failing at admission.
+
+Remaining implementation and acceptance:
+
+- [ ] Give destination custody state distinct physical locators. Preserve stable
+  logical wallet identities and encryption identities. US and APAC currently bind
+  the same Deriver A/B and SigningWorker services, which use stable wallet names.
+  Changing only the regional D1 selection cannot move those objects.
+- [ ] Route ordinary calls and relocation commands through the same admitted
+  physical locators. Verify each role's namespace, object identity, and placement
+  before source pause. Preserve shared tenant-root authority at its existing owner.
+- [ ] Rerun hosted relocation and record destination signing, pause duration,
+  first-signature refill, transfer bytes, and unrelated-wallet interference.
+- [ ] Close hosted suitability only after that run passes. Retain the existing local
+  round-trip evidence. Publication remains a separate release step.
+
+Private evidence: `docs/evidence/r153-hosted-20261007.json` in `seams-monorepo`.
+It records deployment versions, measured samples, the failed participant, checks,
+and hashes of local artifacts under `.artifacts/r153/hosted-20261007/`.
+The repeatable test is `tests/e2e/hosted-product/wallet-relocation.test.ts`.
+Use the existing hosted candidate setup with `SEAMS_INTENDED_SIGNING_SESSION_DEBUG=1`
+for its timing evidence. Source and destination preparation must not be bypassed.
 
 The implementation-stage checklist below retains the full requirement inventory.
-Its unchecked items must be reconciled with the dated acceptance evidence above.
-They are not a count of outstanding coding tasks.
+The physical-resource preparation and hosted suitability requirements remain open.
 
 ## Implemented baseline
 
@@ -1642,7 +1672,7 @@ the same requirement in each section.
 - [x] R170/R171 are complete within their approved scope. Their completion receipt
   records source revision `8ecbea72` and matching protocol `14.0.0`.
   Build R153 on committed `dev` and reuse that evidence for unchanged behavior.
-- [ ] Map SDK/settings work to the established host lifecycle and final public API.
+- [x] Map SDK/settings work to the established host lifecycle and final public API.
   Keep ordinary-lock retention separate from relocation-driven invalidation.
 - [ ] Extend existing type fixtures when shared domain types change. Cover missing
   activation receipts, premature cleanup, forged construction, broad spreads,
@@ -1669,7 +1699,7 @@ the same requirement in each section.
   graph. Require authority at every mutation boundary, including direct/internal
   requests, recovery, linking, revocation, quota changes, refills, jobs, and alarms.
   Read authoritative state after a lost ownership-switch response.
-- [ ] Persist conditional progress transitions and recover unfinished stages after
+- [x] Persist conditional progress transitions and recover unfinished stages after
   process restart. Extend the existing journal with participant command evidence
   and independent activation persistence. Preserve stage budgets across chunk
   progress, restart, and UI polling.
@@ -1741,7 +1771,7 @@ the same requirement in each section.
 - [ ] Implement the blocking progress view and reconnect behavior above. Preserve
   local lock and bounded move-only status access. Show ordinary unlock after
   destination activation and client reconciliation. Show blocked recovery explicitly.
-- [ ] Delete obsolete source wallet state after destination activation. Retain
+- [x] Delete obsolete source wallet state after destination activation. Retain
   the authority fence and move outcome needed for cleanup/retry. Failed cleanup is
   resumable and cannot reopen the source. A later move back uses fresh resources.
 
