@@ -206,9 +206,524 @@
     "signing-worker",
     "tenant-root-control-plane"
   ],
-  "hostedStatus": "pending controlled comparison",
+  "hostedStatus": "passed and restored",
   "limitations": [
     "Local E2E proves lifecycle behavior, not hosted latency or physical colocation.",
     "Connection refusal leaves B prepared; A is burned and an exact A retry cannot restart the pair."
-  ]
+  ],
+  "candidateCommit": "3152581198bafe21291cb3a29e6d28eaaac04a0c",
+  "hostedComparison": {
+    "method": "Three fresh NEAR-only wallets per arm, Phase 6C control before and after the overlapping-setup candidate. Fixed browser assets, harness, and other deployments.",
+    "completed": {
+      "freshWallets": 9,
+      "verifiedSignatures": 63,
+      "allVersionsRestored": true
+    },
+    "limitations": [
+      "Provider CPU and wall times describe whole invocations, not individual cryptographic operations.",
+      "Application clocks freeze during CPU work; application spans are not transport timers.",
+      "Small sequential samples do not establish a latency percentile or placement success rate.",
+      "D1 counts cover bound-root loads only; total Gateway D1 and backend Console calls are unavailable.",
+      "No diagnostic location fetches were added. Physical colocation is not proved.",
+      "Per-operation CPU profiles and internal payload-byte counts are unavailable.",
+      "Provider invocation wall time can include background settlement after the response. It is not a response-delivery timer."
+    ],
+    "arms": [
+      {
+        "name": "control-before",
+        "result": "passed",
+        "completedWallets": 3,
+        "verifiedSignatures": 21,
+        "timings": [
+          {
+            "workload": "registration_to_first_verified",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 3,
+            "medianMs": 24930.817,
+            "minimumMs": 21318.495,
+            "maximumMs": 25283.233
+          },
+          {
+            "workload": "registration_to_first_verified",
+            "metric": "sdkSigningMs",
+            "samples": 3,
+            "medianMs": 10060.73,
+            "minimumMs": 7002.79,
+            "maximumMs": 10655.86
+          },
+          {
+            "workload": "registration",
+            "metric": "yaoExecuteHttpMs",
+            "samples": 3,
+            "medianMs": 5856.216,
+            "minimumMs": 5460.482,
+            "maximumMs": 7446.534
+          },
+          {
+            "workload": "warm_signing",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 6,
+            "medianMs": 3813.169,
+            "minimumMs": 3046.02,
+            "maximumMs": 5343.144
+          },
+          {
+            "workload": "warm_signing",
+            "metric": "sdkSigningMs",
+            "samples": 6,
+            "medianMs": 3225.503,
+            "minimumMs": 2252.31,
+            "maximumMs": 4459.115
+          },
+          {
+            "workload": "unlock_to_first_verified",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 3,
+            "medianMs": 6745.89,
+            "minimumMs": 5034.982,
+            "maximumMs": 6761.17
+          },
+          {
+            "workload": "unlock_to_first_verified",
+            "metric": "sdkSigningMs",
+            "samples": 3,
+            "medianMs": 2123.48,
+            "minimumMs": 1605.105,
+            "maximumMs": 2245.665
+          },
+          {
+            "workload": "three_consecutive",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 9,
+            "medianMs": 3046.11,
+            "minimumMs": 2234.819,
+            "maximumMs": 3817.942
+          },
+          {
+            "workload": "three_consecutive",
+            "metric": "sdkSigningMs",
+            "samples": 9,
+            "medianMs": 2784.02,
+            "minimumMs": 1470.17,
+            "maximumMs": 3244.175
+          }
+        ],
+        "requestCounts": {
+          "registration_to_first_verified": [
+            15,
+            15,
+            15
+          ],
+          "warm_signing": [
+            4,
+            4,
+            4,
+            4,
+            4,
+            4
+          ],
+          "unlock_to_first_verified": [
+            9,
+            9,
+            9
+          ],
+          "three_consecutive": [
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4
+          ]
+        }
+      },
+      {
+        "name": "overlapped-setup",
+        "result": "passed",
+        "completedWallets": 3,
+        "verifiedSignatures": 21,
+        "timings": [
+          {
+            "workload": "registration_to_first_verified",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 3,
+            "medianMs": 19914.665,
+            "minimumMs": 19875.378,
+            "maximumMs": 24503.856
+          },
+          {
+            "workload": "registration_to_first_verified",
+            "metric": "sdkSigningMs",
+            "samples": 3,
+            "medianMs": 7495.705,
+            "minimumMs": 6894.32,
+            "maximumMs": 9853.8
+          },
+          {
+            "workload": "registration",
+            "metric": "yaoExecuteHttpMs",
+            "samples": 3,
+            "medianMs": 5416.105,
+            "minimumMs": 5118.006,
+            "maximumMs": 6491.991
+          },
+          {
+            "workload": "warm_signing",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 6,
+            "medianMs": 3054.633,
+            "minimumMs": 3032.339,
+            "maximumMs": 4580.189
+          },
+          {
+            "workload": "warm_signing",
+            "metric": "sdkSigningMs",
+            "samples": 6,
+            "medianMs": 2683.705,
+            "minimumMs": 2127.94,
+            "maximumMs": 3896.87
+          },
+          {
+            "workload": "unlock_to_first_verified",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 3,
+            "medianMs": 4993.05,
+            "minimumMs": 4961.628,
+            "maximumMs": 6755.247
+          },
+          {
+            "workload": "unlock_to_first_verified",
+            "metric": "sdkSigningMs",
+            "samples": 3,
+            "medianMs": 2057.615,
+            "minimumMs": 1769.385,
+            "maximumMs": 2487.51
+          },
+          {
+            "workload": "three_consecutive",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 9,
+            "medianMs": 3032.337,
+            "minimumMs": 2251.748,
+            "maximumMs": 3813.058
+          },
+          {
+            "workload": "three_consecutive",
+            "metric": "sdkSigningMs",
+            "samples": 9,
+            "medianMs": 2085.89,
+            "minimumMs": 1507.075,
+            "maximumMs": 2925.465
+          }
+        ],
+        "requestCounts": {
+          "registration_to_first_verified": [
+            15,
+            15,
+            15
+          ],
+          "warm_signing": [
+            4,
+            4,
+            4,
+            4,
+            4,
+            4
+          ],
+          "unlock_to_first_verified": [
+            9,
+            9,
+            9
+          ],
+          "three_consecutive": [
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4
+          ]
+        }
+      },
+      {
+        "name": "control-after",
+        "result": "passed",
+        "completedWallets": 3,
+        "verifiedSignatures": 21,
+        "timings": [
+          {
+            "workload": "registration_to_first_verified",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 3,
+            "medianMs": 21419.124,
+            "minimumMs": 18227.46,
+            "maximumMs": 21589.142
+          },
+          {
+            "workload": "registration_to_first_verified",
+            "metric": "sdkSigningMs",
+            "samples": 3,
+            "medianMs": 8513.69,
+            "minimumMs": 6049.035,
+            "maximumMs": 8871.67
+          },
+          {
+            "workload": "registration",
+            "metric": "yaoExecuteHttpMs",
+            "samples": 3,
+            "medianMs": 5731.069,
+            "minimumMs": 4958.615,
+            "maximumMs": 5797.663
+          },
+          {
+            "workload": "warm_signing",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 6,
+            "medianMs": 3033.712,
+            "minimumMs": 2264.668,
+            "maximumMs": 3053.152
+          },
+          {
+            "workload": "warm_signing",
+            "metric": "sdkSigningMs",
+            "samples": 6,
+            "medianMs": 2238.39,
+            "minimumMs": 1720.06,
+            "maximumMs": 2706.14
+          },
+          {
+            "workload": "unlock_to_first_verified",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 3,
+            "medianMs": 6044.907,
+            "minimumMs": 4985.781,
+            "maximumMs": 6776.172
+          },
+          {
+            "workload": "unlock_to_first_verified",
+            "metric": "sdkSigningMs",
+            "samples": 3,
+            "medianMs": 1706.735,
+            "minimumMs": 1659.425,
+            "maximumMs": 2184.865
+          },
+          {
+            "workload": "three_consecutive",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 9,
+            "medianMs": 3036.781,
+            "minimumMs": 2236.947,
+            "maximumMs": 3065.66
+          },
+          {
+            "workload": "three_consecutive",
+            "metric": "sdkSigningMs",
+            "samples": 9,
+            "medianMs": 2127.165,
+            "minimumMs": 1459.755,
+            "maximumMs": 2456.35
+          }
+        ],
+        "requestCounts": {
+          "registration_to_first_verified": [
+            14,
+            15,
+            15
+          ],
+          "warm_signing": [
+            4,
+            4,
+            4,
+            4,
+            4,
+            4
+          ],
+          "unlock_to_first_verified": [
+            9,
+            9,
+            9
+          ],
+          "three_consecutive": [
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4
+          ]
+        }
+      }
+    ],
+    "releaseWorkers": {
+      "router": {
+        "stamp": {
+          "profile": "release",
+          "wallet_objects": true,
+          "features": "strict-worker-router-entrypoint",
+          "started_at_ms": 1791379666200
+        },
+        "files": {
+          "worker/shim.mjs": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728",
+          "index.js": "e0baee38df45c375003409bcf5447406a7cef40d5ccc95f38f41c31fc5bb99c0",
+          "index_bg.wasm": "c7fe7517068d43c36c7d887828a86ef991ca8c69aadfd3c210ce0ec9811947fb"
+        }
+      },
+      "deriver-a": {
+        "stamp": {
+          "profile": "release",
+          "wallet_objects": true,
+          "features": "strict-worker-deriver-a-entrypoint",
+          "started_at_ms": 1791379368321
+        },
+        "files": {
+          "worker/shim.mjs": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728",
+          "index.js": "e79c98d8c744280c6ec0db5bdec6fbf8f1c6270ed2744aa86b99db41bd8480ee",
+          "index_bg.wasm": "5132256d7e8a98bc36d1b8ec82a562118aa4638c5286d9827beceab6bbb190b3"
+        }
+      },
+      "deriver-b": {
+        "stamp": {
+          "profile": "release",
+          "wallet_objects": true,
+          "features": "strict-worker-deriver-b-entrypoint",
+          "started_at_ms": 1791379542457
+        },
+        "files": {
+          "worker/shim.mjs": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728",
+          "index.js": "09246be5ee8a454a446b42bec7851774951d4cfa3886d6341e5fd5b1d108b00f",
+          "index_bg.wasm": "d01b32e30ae8d6cb68081708156cd6b083bebc03b274dabe3c35347adebce670"
+        }
+      },
+      "signing-worker": {
+        "stamp": {
+          "profile": "release",
+          "wallet_objects": true,
+          "features": "strict-worker-signing-worker-entrypoint",
+          "started_at_ms": 1791379801044
+        },
+        "files": {
+          "worker/shim.mjs": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728",
+          "index.js": "d87ab11a84eafbe0d2e970018801555c84fd196525273c4a2e7e60817b5dda42",
+          "index_bg.wasm": "c04163f9b2eb0c1572e291f36a0ee54429a20a7dfe74ff167a562731623c4dd0"
+        }
+      },
+      "tenant-root-control-plane": {
+        "stamp": {
+          "profile": "release",
+          "wallet_objects": false,
+          "features": "strict-worker-tenant-root-control-plane-entrypoint",
+          "started_at_ms": 1791379940934
+        },
+        "files": {
+          "worker/shim.mjs": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728",
+          "index.js": "a6d41332c2140b96da29800d9fbd227f4547291836a7ab012bd951e66462dcbb",
+          "index_bg.wasm": "65b27c8698755aa36bb93e1018807fe8451e4e9661c868e950da378336d5dbf0"
+        }
+      }
+    },
+    "sourceDifference": [
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_lifecycle.rs",
+        "beforeSha256": "52b8995f699ec4b19ac385ecc6f25de115ab37dae5ae2380bd636c88eb001e54",
+        "candidateSha256": "fbf990a5b26e97e8ac93cee5db99764fbc6972cd34454faa7f4b9dc840e912ec"
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_websocket.rs",
+        "beforeSha256": "888b116fe15ad28e458a034ef38404eaf6a393f769f66cf58f62fbec536e9cbe",
+        "candidateSha256": "349878e52c4e993ff7001e30385c75dd215d34af62512154d1cd8cfe9888a0ee"
+      }
+    ],
+    "restoredOriginalVersions": {
+      "seams-sdk-d1-console-staging": [
+        {
+          "version_id": "40803007-50f9-4d93-855a-e6f2bdc11253",
+          "percentage": 100
+        }
+      ],
+      "router-ab-deriver-a-staging": [
+        {
+          "version_id": "eaa0b80f-47bf-44a9-b9b5-4f73a70abcd0",
+          "percentage": 100
+        }
+      ],
+      "router-ab-deriver-b-staging": [
+        {
+          "version_id": "c700bbc1-b87f-4182-9f64-ff2bf33eead8",
+          "percentage": 100
+        }
+      ],
+      "router-ab-mpc-router-staging": [
+        {
+          "version_id": "cff2b41d-1fa2-4311-a8ce-56364c7ddf1a",
+          "percentage": 100
+        }
+      ],
+      "router-ab-signing-worker-staging": [
+        {
+          "version_id": "c18b2202-8063-4c96-9772-fb1a268494fc",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-gateway-staging": [
+        {
+          "version_id": "12f48c20-df36-4d15-8355-33c2ac72338f",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-gateway-staging-oc": [
+        {
+          "version_id": "d997446e-77de-4b55-90fb-20e7549c5a39",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-gateway-staging-us": [
+        {
+          "version_id": "991403ec-65e5-4885-a1a0-847e662e3871",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-gateway-staging-weur": [
+        {
+          "version_id": "b4614e86-1ae0-4f1e-bf78-bdf620b63731",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-wallet-runtime-staging": [
+        {
+          "version_id": "ba435195-8e73-4aad-8fe2-fe4233d50092",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-wallet-runtime-staging-oc": [
+        {
+          "version_id": "d43c21e9-3c86-469e-8755-c5745fcb49a7",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-wallet-runtime-staging-us": [
+        {
+          "version_id": "27675e94-13a6-4c2d-9c83-cc746af61387",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-wallet-runtime-staging-weur": [
+        {
+          "version_id": "3879a02b-1f34-4541-8983-96f1998d9a0a",
+          "percentage": 100
+        }
+      ]
+    },
+    "privateEvidence": "seams-monorepo/docs/evidence/r155b-custody-overlapped-setup-20261007.json",
+    "interpretation": "Candidate median 5416.105 ms versus controls 5856.216 and 5731.069 ms: an observed 315\u2013440 ms (5.5\u20137.5%) reduction. Three samples per arm and overlapping ranges do not establish a stable gain. The two-second setup target remains unmet."
+  },
+  "interpretation": "Candidate median 5416.105 ms versus controls 5856.216 and 5731.069 ms: an observed 315\u2013440 ms (5.5\u20137.5%) reduction. Three samples per arm and overlapping ranges do not establish a stable gain. The two-second setup target remains unmet."
 }

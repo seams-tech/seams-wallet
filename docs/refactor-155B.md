@@ -2714,3 +2714,47 @@ sides of every opened connection. Each fault run then completes a separate walle
 Also retain Router claim/finish dispatch as a separate measurement target. Those
 remote object calls remain on registration's response path. Their individual
 contribution is not yet established by the available provider traces.
+
+### Phase 6D result — 2026-10-07
+
+Public `dev` commit `3152581198bafe21291cb3a29e6d28eaaac04a0c` implements the overlap
+and connection cleanup. All five strict release builds and the bloat check passed.
+Nine E2E checks passed: five peer-failure scenarios, four-region placement, admission
+settlement/retirement, concurrent execution with relocation, and lost-reply replay.
+The fault scenarios include cancelled root admission, refused upgrade, missing
+acceptance, forged acceptance, and mid-protocol disconnect. Each scenario verifies
+that an independent wallet can complete after the failure.
+
+The controlled staging comparison used three fresh NEAR-only wallets per arm.
+The control is Phase 6C before and after the candidate. All 167 browser assets and
+the harness stayed fixed. Only the A/B custody deployments changed.
+
+| Registration Yao execute request | Median | Observed range |
+|---|---:|---:|
+| Phase 6C control before | 5.856 s | 5.460–7.447 s |
+| Overlapped-setup candidate | **5.416 s** | **5.118–6.492 s** |
+| Phase 6C control after | 5.731 s | 4.959–5.798 s |
+
+The observed median reduction was **315–440 ms (5.5–7.5%)**. The ranges overlap,
+and each arm has only three samples. A stable gain remains unproven.
+The two-second setup target remains unmet. These timings cover the registration
+Yao execute request, excluding funding and blockchain confirmation.
+
+All nine wallets completed and **63 signatures verified**. Each pair still has
+four bound-root loads, eight D1 trips, and twenty statements in that subsystem.
+This change overlaps waits and does not remove these database operations.
+Warm and consecutive signing still use four browser Gateway requests per signature.
+Candidate SDK signing medians were 2.684 s warm, 2.058 s after unlock, and 2.086 s
+per consecutive signature. The later control was faster on warm signing, so these
+samples do not establish a routine-signing improvement.
+
+The runner restored and verified all thirteen original deployment versions.
+Current role settings matched the deployment configurations before the experiment.
+No new resources or keepalive traffic were introduced. The source comparison found
+only the two intended Rust changes. Full timings, ranges, request counts, build hashes,
+and repeatable local fault artifacts are in
+[the evidence](evidence/near-custody-overlapped-setup-20261007.json).
+
+Next, measure the Router claim/finish object calls separately before changing their
+execution boundary. Durable admission and completion must remain on the required
+success path. No latency saving for that follow-up is claimed yet.
