@@ -28,6 +28,14 @@ export async function verifyDeriverSnapshot(topology, source, role, command, sou
   const workerName = `deriver-${role}`;
   const namespace = await topology.getDurableObjectNamespace(`DERIVER_${role.toUpperCase()}_WALLET_DO`, workerName);
   const id = namespace.idFromName(sourceObject);
+  // Interrupt the object's first capture step before the production transport
+  // advances multiple steps within one request.
+  const partial = await post(source, path, capture, credential);
+  assert.equal(partial.status, 200, await partial.clone().text());
+  assert.equal((await partial.json()).kind, 'capturing');
+  assert.equal((await post(source, path, exportFirst, credential)).status, 409);
+  await topology.unsafeEvictDurableObject(workerName, `RouterAbDeriver${role.toUpperCase()}WalletDurableObject`, { id: id.toString() });
+  calls += 1;
   do {
     let response = await post(transport.source, path, capture, credential);
     if (response.status === 503) {
@@ -38,11 +46,6 @@ export async function verifyDeriverSnapshot(topology, source, role, command, sou
     result = await response.json();
     calls += 1;
     assert.ok(calls < 20000, 'Snapshot capture must terminate');
-    if (calls === 1) {
-      assert.equal(result.kind, 'capturing');
-      assert.equal((await post(source, path, exportFirst, credential)).status, 409);
-      await topology.unsafeEvictDurableObject(workerName, `RouterAbDeriver${role.toUpperCase()}WalletDurableObject`, { id: id.toString() });
-    }
   } while (result.kind === 'capturing');
   assert.equal(result.kind, 'frozen');
   const { receipt } = result;
