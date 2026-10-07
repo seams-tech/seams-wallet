@@ -2868,5 +2868,26 @@ caller-home overwrite, a discarded startup reply, immediate execution during sta
 reuse of the same live object, and exact replay after a discarded completed reply.
 The existing lost-reply/eviction and concurrent-execution/relocation E2Es also pass.
 
-A bounded staging control/candidate/control comparison is in progress. The complete
-setup target remains **1–2 seconds**. No hosted gain is claimed from local tests.
+The hosted control completed three fresh NEAR-only wallets and 21 verified signatures.
+Yao setup measured **5.317 seconds median**, with a **4.998–5.332 second** range.
+Registration through the first verified signature measured **21.481 seconds median**.
+These are different request boundaries.
+
+The local four-home E2E measured Router execution at **420–427 ms**. This covers the
+Router request through its completed response body and excludes the browser and Gateway.
+It verifies correctness and the local execution cost. It does not establish hosted savings.
+
+The candidate has no hosted samples yet. New Gateway versions require tenant activation.
+A successful activation's registration canary left two unfinished US ceremony records
+for the same wallet. They were unexpired during the next semantic-readiness rejection.
+Earlier checks missed US. All four regions must be checked before another activation.
+After those records expired, GitHub workflow dispatch returned HTTP 500. No new run appeared.
+All 13 original Worker versions were restored and verified. Gateway health and the
+public tenant projection returned HTTP 200.
+
+The next measurement keeps one admitted Gateway fixed and changes only the Router
+startup implementation for the control/candidate/control arms. Cleanup must also wait
+for genuinely unfinished ceremonies, rather than every completed registration's TTL.
+The complete setup target remains **1–2 seconds** and is **unmet**.
+[Sanitized control and local measurements](evidence/near-router-startup-20261008.json)
+record the boundaries, ranges, and deployment limitations.

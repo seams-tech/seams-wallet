@@ -125,18 +125,21 @@ class MiniflareWorkerBinding {
 class LostCompletedReply {
   completed = null;
   drop = true;
+  firstExecutionMs = null;
 
   constructor(binding) {
     this.binding = binding;
   }
 
   async fetch(input, init) {
+    const started = performance.now();
     const response = await this.binding.fetch(input, init);
     const body = await response.clone().text();
     assert.equal(response.status, 200, body);
     assert.equal(JSON.parse(body).status, 'succeeded', body);
     if (this.drop) {
       this.drop = false;
+      this.firstExecutionMs = performance.now() - started;
       this.completed = body;
       throw new Error('Test discarded the completed Router reply');
     }
@@ -292,6 +295,7 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
     return {
       home, generation, admissions, roleObjects, routerDispatches: log.routerDispatches,
       routerCommands,
+      routerExecuteHttpMs: lost.firstExecutionMs,
       lostStartupReplyAndImmediateExecution: true,
       firstStatusLookups: [...a.observations, ...b.observations],
       invalidHomeRejectedBeforePlacement: true,

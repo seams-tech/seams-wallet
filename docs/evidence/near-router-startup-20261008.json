@@ -1,0 +1,128 @@
+{
+  "date": "2026-10-08",
+  "implementationCommit": "eddb696a5912df6ef5e9dccadcc81b56718ef095",
+  "objective": {
+    "hostedYaoSetupTargetMs": [
+      1000,
+      2000
+    ],
+    "achieved": false
+  },
+  "hostedControl": {
+    "freshWallets": 3,
+    "verifiedSignatures": 21,
+    "timings": [
+      {
+        "workload": "registration_to_first_verified",
+        "metric": "elapsedToVerifiedMs",
+        "samples": 3,
+        "medianMs": 21480.609,
+        "minimumMs": 20678.183,
+        "maximumMs": 22374.582
+      },
+      {
+        "workload": "registration_to_first_verified",
+        "metric": "sdkSigningMs",
+        "samples": 3,
+        "medianMs": 8401.275,
+        "minimumMs": 8285.005,
+        "maximumMs": 9073.455
+      },
+      {
+        "workload": "registration",
+        "metric": "yaoExecuteHttpMs",
+        "samples": 3,
+        "medianMs": 5316.868,
+        "minimumMs": 4998.066,
+        "maximumMs": 5332.255
+      },
+      {
+        "workload": "warm_signing",
+        "metric": "elapsedToVerifiedMs",
+        "samples": 6,
+        "medianMs": 3435.85,
+        "minimumMs": 3024.376,
+        "maximumMs": 3824.268
+      },
+      {
+        "workload": "warm_signing",
+        "metric": "sdkSigningMs",
+        "samples": 6,
+        "medianMs": 2670.98,
+        "minimumMs": 2165.91,
+        "maximumMs": 3051.865
+      },
+      {
+        "workload": "unlock_to_first_verified",
+        "metric": "elapsedToVerifiedMs",
+        "samples": 3,
+        "medianMs": 5765.17,
+        "minimumMs": 5749.212,
+        "maximumMs": 5773.425
+      },
+      {
+        "workload": "unlock_to_first_verified",
+        "metric": "sdkSigningMs",
+        "samples": 3,
+        "medianMs": 2294.485,
+        "minimumMs": 2152.115,
+        "maximumMs": 2453.36
+      },
+      {
+        "workload": "three_consecutive",
+        "metric": "elapsedToVerifiedMs",
+        "samples": 9,
+        "medianMs": 2310.051,
+        "minimumMs": 2256.807,
+        "maximumMs": 3819.245
+      },
+      {
+        "workload": "three_consecutive",
+        "metric": "sdkSigningMs",
+        "samples": 9,
+        "medianMs": 1989.19,
+        "minimumMs": 1449.615,
+        "maximumMs": 3026.06
+      }
+    ]
+  },
+  "localRouterExecution": {
+    "boundary": "Router HTTP request through completed response body; excludes browser and Gateway",
+    "samples": [
+      {
+        "home": "US",
+        "elapsedMs": 420.238
+      },
+      {
+        "home": "WEUR",
+        "elapsedMs": 427.219
+      },
+      {
+        "home": "APAC",
+        "elapsedMs": 426.496
+      },
+      {
+        "home": "OC",
+        "elapsedMs": 424.983
+      }
+    ],
+    "reproduce": "ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/wallet-home-placement-evidence.mjs"
+  },
+  "candidateHostedResult": {
+    "completedWallets": 0,
+    "latencyGainVerified": false
+  },
+  "deploymentFindings": [
+    "New Gateway versions require normal tenant activation. The runtime admission checks the exact deployed version.",
+    "The registration canary from successful activation leaves an unfinished ceremony. Two US rows for the same canary remained unexpired during the next rejected activation.",
+    "The US canary was absent from earlier APAC, WEUR and OC checks. Future readiness checks must cover all four regions.",
+    "After all regional unfinished records expired, GitHub workflow dispatch returned HTTP 500. No new run appeared in the workflow list.",
+    "All 13 original Worker versions were verified restored. Gateway healthz and tenant projection returned HTTP 200."
+  ],
+  "limits": [
+    "Three hosted wallets are a small sequential sample, not a percentile estimate.",
+    "Local execution and browser-measured hosted setup have different request boundaries.",
+    "Application clocks do not isolate CPU time from transport. Nested stage medians must not be added.",
+    "The candidate has local correctness evidence only; the 1\u20132 second hosted target remains unmet."
+  ]
+}
