@@ -2877,7 +2877,7 @@ The local four-home E2E measured Router execution at **420–427 ms**. This cove
 Router request through its completed response body and excludes the browser and Gateway.
 It verifies correctness and the local execution cost. It does not establish hosted savings.
 
-The candidate has no hosted samples yet. New Gateway versions require tenant activation.
+The first candidate attempt produced no hosted samples. New Gateway versions require tenant activation.
 A successful activation's registration canary left two unfinished US ceremony records
 for the same wallet. They were unexpired during the next semantic-readiness rejection.
 Earlier checks missed US. All four regions must be checked before another activation.
@@ -2885,9 +2885,159 @@ After those records expired, GitHub workflow dispatch returned HTTP 500. No new 
 All 13 original Worker versions were restored and verified. Gateway health and the
 public tenant projection returned HTTP 200.
 
-The next measurement keeps one admitted Gateway fixed and changes only the Router
-startup implementation for the control/candidate/control arms. Cleanup must also wait
-for genuinely unfinished ceremonies, rather than every completed registration's TTL.
-The complete setup target remains **1–2 seconds** and is **unmet**.
+The completed comparison below keeps one admitted Gateway fixed and changes only the
+Router startup implementation. Cleanup waits for genuinely unfinished ceremonies,
+rather than every completed registration's TTL. The complete setup target remains
+**1–2 seconds** and is **unmet**.
 [Sanitized control and local measurements](evidence/near-router-startup-20261008.json)
 record the boundaries, ranges, and deployment limitations.
+
+#### Controlled Router startup result — 2026-10-08
+
+Both tenant activation and restoration succeeded. Nine fresh NEAR-only wallets
+completed **63 verified signatures**. A/B, Signing Worker, Gateway, SDK assets, and
+the browser harness stayed fixed. Only the Router changed between arms.
+
+| Arm | Browser Yao setup median | Range | Router claim median |
+|---|---:|---:|---:|
+| Control before | 4.893 s | 4.337–5.210 s | 660 ms |
+| Exact Router startup | 4.644 s | 4.237–4.756 s | 455 ms |
+| Control after, two matching wallets | 4.148 s | 4.060–4.236 s | 611 ms |
+
+All three candidate claims used an already-started object instance. Router claim
+dispatch improved by 156–205 ms against the two controls. The later control had
+faster complete setup, so this run establishes **no overall setup speedup**.
+All thirteen original Worker versions were restored and verified. The evidence
+retains the earlier failed deployment attempts separately from this comparison.
+The first final-control wallet served the preceding Router DO version during rollout.
+It completed successfully and is excluded from the version-matched timing comparison.
+
+### Phase 6G — Start all exact registration objects in parallel
+
+Implementation: `cf2c270628482f2bf38a129af9265969a5a2b967`.
+
+- [x] Extend the existing bounded startup request to Router, A, B, and Signing Worker.
+- [x] Use each role's existing wallet and ownership-generation object name.
+- [x] Preserve authentication, fixed-home routing, and normal lifecycle admission.
+  Startup performs no storage mutation and grants no authority.
+- [x] Verify all four roles receive startup and subsequently execute on the same
+  live instance. Verify lost startup replies, immediate execution, and exact replay.
+- [x] Build all five strict release Workers and pass the bloat check.
+- [x] Compare hosted Router-only startup with parallel startup, then repeat controls.
+- [x] Separate Signing Worker delivery from object startup using its own tail.
+
+### Phase 6H — Test narrower APAC placement
+
+- [x] Freeze a separate candidate that changes only the APAC DO hint to `apac-ne`.
+- [x] Build all five release Workers and pass the four-home placement E2E.
+- [x] Measure fresh wallets with fixed SDK, Gateway, and startup behavior.
+- [x] Repeat the broad-APAC control. Keep the existing hint because the narrower hint
+  did not improve this comparison.
+
+The hint applies to new object placement. It does not move existing objects or
+guarantee physical colocation. No extra resources or keepalive traffic are required.
+
+#### Parallel startup and placement results — 2026-10-08
+
+Fourteen fresh wallets completed **98 verified NEAR signatures**. A fifteenth wallet
+completed Yao, then failed during first-sign funding with an upstream RPC 408.
+Its complete browser timing sample is unavailable. The final control has two browser
+samples and three server traces; the evidence keeps those counts separate.
+
+| Arm | Complete browser samples | Yao setup median | Range |
+|---|---:|---:|---:|
+| Router-only startup, control before | 3 | 3.965 s | 3.563–5.375 s |
+| Parallel startup, broad APAC | 3 | 2.455 s | 2.266–3.837 s |
+| Parallel startup, `apac-ne` | 3 | 4.083 s | 4.018–4.847 s |
+| Parallel startup, repeated broad APAC | 2 | 3.852 s | 3.847–3.857 s |
+| Router-only startup, control after | 2 | 4.239 s | 4.205–4.273 s |
+
+The first repeated broad-APAC wallet served the preceding B DO version during rollout.
+It completed successfully and is excluded from the table and aggregate below.
+The evidence retains its raw measurements. Deployment API state alone did not
+establish which code served the request; the audit uses invocation version IDs.
+
+Pooling the two broad-APAC parallel arms gives **3.837 s median** across five samples.
+Pooling the Router-only controls gives **4.205 s** across five samples: an observed
+**8.7% median reduction**. The sample is small and sequential. The first 2.455 s
+median was not stable across the repeat. The **1–2 s target remains unmet**.
+
+Startup reached the exact Router, A, B, and Signing Worker objects before required
+work in all nine parallel-startup wallets, including the placement arm. Every role's
+first required command reused an already-started instance. The repeated broad-APAC
+arm still had substantial caller delay, so cold construction cannot explain all of it.
+
+| Coordinator stage | Router-only control before | Parallel first arm |
+|---|---:|---:|
+| A/B preparation | 1,269 ms | 344 ms |
+| A execution | 1,450 ms | 1,511 ms |
+| Signing Worker delivery | 701 ms | 137 ms |
+
+These stage timers overlap or nest and must not be added. Signing Worker's first
+required object call used 24 ms median CPU and 120 ms median wall time in
+the first parallel arm. The larger caller times point to work or waiting
+outside that handler; these clocks do not isolate exact network latency.
+
+Keep parallel startup and the existing broad `apac` hint. The narrower candidate
+remains an experiment artifact and is absent from production sources. Moving the
+whole coordinator into the Router DO would retain the initial dispatch. It could
+remove the approximately 50 ms finish dispatch; larger placement benefits remain
+unmeasured. This comparison does not justify that larger rewrite.
+
+All thirteen original Worker versions were restored and verified through normal
+tenant activation. No resources or continuous keepalive traffic were added.
+[Sanitized measurements](evidence/near-parallel-startup-20261008.json) include every
+arm, stage range, request count, build hash, failure, and sample limitation.
+
+### Phase 6I — Reuse prepared root-use admission during execution
+
+Preparation already admits each exact pair and verifies its root share. Execution
+must read that admission and the current root snapshot coherently. It need not
+repeat the preliminary root read or try admission again.
+
+- [x] Execute one read-only batch for the admission, epoch, and active-root snapshot.
+- [x] Preserve cancellation, retirement, erasure, object binding, uniqueness, and
+  authenticated decryption checks. Refuse a missing prepared admission.
+- [x] Verify normal execution, missing/cancelled admission, refresh races, lost replies,
+  and completed replay after erasure through the existing end-to-end scenarios.
+- [x] Measure bound-root calls and complete hosted setup against a fixed control.
+
+The expected bound-root reduction is **8 → 6 D1 round trips** and **20 → 16 SQL
+statements per A/B setup**. These counts exclude other stores and are not a latency
+promise. This change adds no secret cache or invalidation protocol.
+
+Implementation `fa9efc2897221ead980e69f95f8abdc654220861` passes all five release builds,
+the bloat check, and seven E2E scenarios. Two local execution attempts each recorded
+four loads, **six round trips**, and **sixteen statements**. Each had two admission
+loads and two reads of the prepared admissions. Execution keeps the existing fresh
+`first-primary` session. Its first read therefore uses current primary state; the
+batch reads one coherent transaction. See [Cloudflare's D1 session and batch semantics](https://developers.cloudflare.com/d1/worker-api/d1-database/).
+
+#### Prepared-admission hosted result — 2026-10-08
+
+Nine fresh wallets completed **63 verified signatures**. This isolated comparison
+kept the original Gateway, Router, Signing Worker, SDK, and broad APAC hint fixed.
+That Gateway did not invoke early startup. Only A/B root loading changed.
+
+| Arm | Wallets with matching versions | Yao setup median | Range |
+|---|---:|---:|---:|
+| Control before | 3 | 4.735 s | 4.597–4.985 s |
+| Read the prepared admission | 2 | 4.196 s | 4.039–4.353 s |
+| Control after | 3 | 4.351 s | 4.030–4.383 s |
+
+The first candidate wallet served new A and preceding B during rollout. Its 4.178 s
+setup completed successfully, but is excluded from the comparison. The two matching
+candidate wallets each recorded **6 bound-root round trips and 16 statements**.
+Every control wallet recorded **8 and 20**. The mixed wallet recorded **7 and 18**.
+Execution could not recreate a missing admission in the local fault scenario.
+
+The candidate was faster than both control medians, with overlapping ranges and
+only two eligible samples. The reduction in database work is confirmed. A stable
+latency saving is not established. The combined startup and read-only implementation
+passes local E2E verification; its combined hosted latency has not been measured.
+Do not add the gains from these separate comparisons. The **1–2 s target remains unmet**.
+
+All thirteen original Worker versions were restored and verified. No Gateway
+activation or new resource was needed for this comparison.
+[Sanitized evidence](evidence/near-prepared-root-admission-20261008.json) includes
+all raw arms, actual serving versions, exclusions, D1 counts, and repeatable E2E commands.
