@@ -97,6 +97,18 @@ pub(crate) struct DeriverAWalletOwnerV1 {
     wallet_id: String,
 }
 
+pub(super) fn startup_object_name(
+    request: &super::wallet_startup::WalletStartup,
+) -> worker::Result<String> {
+    let owner = DeriverAWalletOwnerV1 {
+        org_id: request.owner.org_id.clone(),
+        project_id: request.owner.project_id.clone(),
+        env_id: request.owner.env_id.clone(),
+        wallet_id: request.owner.wallet_id.clone(),
+    };
+    relocation::WalletOwner::physical_object_name(&owner, request.ownership_generation)
+}
+
 impl DeriverAWalletOwnerV1 {
     pub(crate) fn from_root_identity(
         root: &TenantRootIdentityV1,
@@ -388,6 +400,9 @@ impl DurableObject for RouterAbDeriverAWalletDurableObject {
 
 impl RouterAbDeriverAWalletDurableObject {
     async fn fetch_wallet_request(&self, mut request: Request) -> worker::Result<Response> {
+        if request.method() == worker::Method::Post && request.path() == super::wallet_startup::PATH {
+            return Response::from_json(&true);
+        }
         if request.method() != worker::Method::Post {
             return Response::error("Unknown Deriver A wallet object request", 404);
         }

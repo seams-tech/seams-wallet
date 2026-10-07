@@ -691,6 +691,9 @@ impl DurableObject for RouterAbSigningWorkerWalletDurableObject {
 
 impl RouterAbSigningWorkerWalletDurableObject {
     async fn fetch_wallet_request(&self, mut request: Request) -> worker::Result<Response> {
+        if request.method() == worker::Method::Post && request.path() == super::wallet_startup::PATH {
+            return Response::from_json(&true);
+        }
         #[cfg(debug_assertions)]
         if request.method() == worker::Method::Post && request.path() == HARNESS_FAULT_PATH {
             return self.record_harness_activation_fault(request.json().await?);

@@ -239,6 +239,9 @@ async fn handle_strict_deriver_fetch_v1(
     _context: Context,
 ) -> worker::Result<Response> {
     let path = request.path();
+    if path == crate::durable_object::wallet_startup::PATH {
+        return crate::durable_object::wallet_startup::handle_role_request(request, &env, runtime.worker_role()).await;
+    }
     #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
     if path == crate::durable_object::DERIVER_A_PREPARATION_PATH {
         return crate::durable_object::prepare_deriver_a_wallet_relocation(request, &env).await;

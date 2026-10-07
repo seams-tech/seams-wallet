@@ -1701,14 +1701,11 @@ async fn handle_router_wallet_start(request: &mut Request, env: &Env) -> worker:
         Ok(home) => home,
         Err(error) => return cloudflare_protocol_error_response_v1(error),
     };
-    let startup = match decode_bounded_json_request::<crate::durable_object::RouterWalletStartup>(request, 2048).await {
+    let startup = match decode_bounded_json_request::<crate::durable_object::wallet_startup::WalletStartup>(request, 2048).await {
         Ok(startup) => startup,
         Err(error) => return cloudflare_protocol_error_response_v1(error),
     };
-    match crate::durable_object::start_router_wallet(env, home, &startup).await {
-        Ok(()) => Response::from_json(&true),
-        Err(error) => cloudflare_protocol_error_response_v1(error),
-    }
+    crate::durable_object::start_registration_wallets(env, home, startup).await
 }
 
 #[cfg(feature = "strict-worker-router-entrypoint")]

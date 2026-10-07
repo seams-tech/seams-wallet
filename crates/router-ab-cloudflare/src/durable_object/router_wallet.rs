@@ -24,15 +24,6 @@ use crate::{
 
 const BINDING: &str = "ROUTER_WALLET_DO";
 const COMMAND_PATH: &str = "/router-wallet/v1/command";
-const START_PATH: &str = "/router-wallet/v1/start";
-
-#[cfg(feature = "strict-worker-router-entrypoint")]
-#[derive(Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct RouterWalletStartup {
-    pub owner: RouterWalletOwnerV1,
-    pub ownership_generation: u64,
-}
 
 enum WalletCall {
     Ordinary(RouterWalletRequestV1),
@@ -68,7 +59,7 @@ impl DurableObject for RouterAbRouterWalletDurableObject {
 
 impl RouterAbRouterWalletDurableObject {
     async fn handle_request(&self, mut request: Request) -> worker::Result<Response> {
-        if request.method() == Method::Post && request.path() == START_PATH {
+        if request.method() == Method::Post && request.path() == super::wallet_startup::PATH {
             // A private wake-up has no authority and performs no storage operation.
             return Response::from_json(&true);
         }
@@ -155,36 +146,6 @@ impl RouterAbRouterWalletDurableObject {
     }
 }
 
-#[cfg(feature = "strict-worker-router-entrypoint")]
-pub(crate) async fn start_router_wallet(
-    env: &Env,
-    home: crate::WalletHomeRegion,
-    request: &RouterWalletStartup,
-) -> RouterAbProtocolResult<()> {
-    for value in [
-        &request.owner.org_id,
-        &request.owner.project_id,
-        &request.owner.env_id,
-        &request.owner.wallet_id,
-    ] {
-        if value.is_empty() || value.len() > 256 || value.trim() != value {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MalformedWirePayload,
-                "Router wallet startup identity is invalid",
-            ));
-        }
-    }
-    let _: bool = call_wallet(
-        env,
-        home,
-        &request.owner,
-        request.ownership_generation,
-        START_PATH,
-        request,
-    )
-    .await?;
-    Ok(())
-}
 
 fn refusal_response(error: &RouterAbProtocolError) -> worker::Result<Response> {
     Response::from_json(&RouterWalletRefusalV1 {

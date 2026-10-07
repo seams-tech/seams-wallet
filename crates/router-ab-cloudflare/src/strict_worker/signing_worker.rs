@@ -37,6 +37,9 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
     if let Err(err) = auth {
         return cloudflare_private_service_auth_error_response_v1(err);
     }
+    if path == crate::durable_object::wallet_startup::PATH {
+        return crate::durable_object::wallet_startup::handle_role_request(request, &env, crate::CloudflareWorkerRoleV1::SigningWorker).await;
+    }
     if path == CLOUDFLARE_INTERNAL_PREWARM_PATH {
         if request.method() != Method::Post {
             return cloudflare_prewarm_response_v1(&request);

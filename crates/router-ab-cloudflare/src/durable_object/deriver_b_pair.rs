@@ -65,6 +65,18 @@ pub(crate) fn deriver_b_wallet_object_name_v1(
     )
 }
 
+pub(super) fn startup_object_name(
+    request: &super::wallet_startup::WalletStartup,
+) -> worker::Result<String> {
+    let owner = DeriverBWalletOwnerV1 {
+        org_id: request.owner.org_id.clone(),
+        project_id: request.owner.project_id.clone(),
+        env_id: request.owner.env_id.clone(),
+        wallet_id: request.owner.wallet_id.clone(),
+    };
+    relocation::WalletOwner::physical_object_name(&owner, request.ownership_generation)
+}
+
 impl DeriverBWalletOwnerV1 {
     fn from_scope(scope: &CloudflareDeriverBWalletPairScopeV1) -> worker::Result<Self> {
         scope.validate().map_err(pair_error)?;
@@ -186,6 +198,9 @@ impl RouterAbDeriverBWalletDurableObject {
     }
 
     async fn fetch_wallet_request(&self, mut request: Request) -> worker::Result<Response> {
+        if request.method() == worker::Method::Post && request.path() == super::wallet_startup::PATH {
+            return Response::from_json(&true);
+        }
         let path = request.path();
         let websocket = path == CLOUDFLARE_DERIVER_B_ED25519_YAO_DUPLEX_PATH
             && request.method() == worker::Method::Get;

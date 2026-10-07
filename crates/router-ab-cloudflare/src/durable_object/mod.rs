@@ -41,7 +41,9 @@ pub(crate) use router_wallet::{
     call_router_wallet_freeze_v1, call_router_wallet_transfer_v1, call_router_wallet_v1,
 };
 #[cfg(all(feature = "workers-rs", feature = "strict-worker-router-entrypoint"))]
-pub(crate) use router_wallet::{start_router_wallet, RouterWalletStartup};
+pub(crate) use wallet_startup::start_registration_wallets;
+#[cfg(feature = "workers-rs")]
+pub(crate) mod wallet_startup;
 #[cfg(feature = "workers-rs")]
 pub use router_wallet::RouterAbRouterWalletDurableObject;
 #[cfg(all(feature = "workers-rs", feature = "strict-worker-signing-worker-entrypoint"))]

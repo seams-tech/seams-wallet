@@ -228,6 +228,16 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
     assert.ok(unauthorized.status === 401 || unauthorized.status === 403);
     const unauthorizedStartup = await worker.fetch(startupRequest(envelope, 'wrong-secret', home));
     assert.ok(unauthorizedStartup.status === 401 || unauthorizedStartup.status === 403);
+    for (const ownershipGeneration of [0, -1, Number.MAX_SAFE_INTEGER + 1]) {
+      const malformed = startupRequest(envelope, credential, home);
+      const body = await malformed.json();
+      body.ownership_generation = ownershipGeneration;
+      const rejected = await worker.fetch(new Request(malformed.url, {
+        method: 'POST', headers: malformed.headers, body: JSON.stringify(body),
+      }));
+      assert.equal(rejected.ok, false);
+      await rejected.text();
+    }
     assert.equal(log.placements.length, 0, 'Rejected requests must not touch wallet objects');
 
     const binding = new WalletHomeCustodyBinding(worker, home);
@@ -262,7 +272,7 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
     assert.equal(a.forgedReadinessRejected, true);
     const bCommands = firstCommands.filter(command => command.role === 'deriver_b');
     const routerCommands = firstCommands.filter(command => command.role === 'router');
-    assert.equal(routerCommands[0].path, '/router-wallet/v1/start');
+    assert.equal(routerCommands[0].path, '/router-ab/internal/wallet/start');
     assert.equal(routerCommands[0].first_command_after_constructor, true);
     assert.ok(routerCommands.filter(command => command.path.endsWith('/command'))
       .every(command => command.first_command_after_constructor === false),
@@ -281,7 +291,13 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
       }
       const objects = [...new Set(events.map(event => event.object_id))];
       assert.equal(objects.length, 1, `${role} must reuse the exact wallet object`);
-      roleObjects[role] = { objectId: objects[0], calls: events.length, hint: hints[home] };
+      const commands = firstCommands.filter(command => command.role === role);
+      assert.equal(commands[0].path, '/router-ab/internal/wallet/start');
+      assert.equal(commands[0].first_command_after_constructor, true);
+      assert.ok(commands.filter(command => command.path !== '/router-ab/internal/wallet/start')
+        .every(command => command.first_command_after_constructor === false),
+      `${role} must execute in the live object reached by startup`);
+      roleObjects[role] = { objectId: objects[0], calls: events.length, hint: hints[home], commands };
     }
     const admissions = {
       deriverA: await settledAdmissions(databases.deriverA),
