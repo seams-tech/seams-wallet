@@ -344,6 +344,7 @@ struct SelectedPairV1 {
 /// and CAS.
 #[worker::durable_object]
 pub struct RouterAbDeriverAWalletDurableObject {
+    state: State,
     sql: SqlStorage,
     storage: worker::Storage,
     env: Env,
@@ -356,6 +357,7 @@ impl DurableObject for RouterAbDeriverAWalletDurableObject {
             timing: super::command_timing::WalletCommandTiming::new(state.id().to_string()),
             sql: state.storage().sql(),
             storage: state.storage(),
+            state,
             env,
         }
     }
@@ -773,7 +775,10 @@ impl RouterAbDeriverAWalletDurableObject {
             deriver_a_execution: role_result.deriver_a_execution,
             deriver_b_sealed_execution_json: role_result.deriver_b_sealed_execution_json,
         };
-        let object_name = owner.object_name()?;
+        let object_name = relocation::WalletOwner::physical_object_name(
+            &owner,
+            request.tenant_root.ownership_generation,
+        )?;
         let completed = self.execute(DeriverAPairDoCommandV1::Complete {
             owner,
             pair_binding: pair.clone(),
@@ -793,21 +798,24 @@ impl RouterAbDeriverAWalletDurableObject {
                         ..
                     },
             } => {
-                // The admission's owner settles it now. If this is lost, the
-                // admission stays unsettled until the owner reconciles it
-                // with this object, which reports the same completion.
-                if let Err(error) = crate::ed25519_yao_lifecycle::role_d1::settle_wallet_object_admission_v1(
-                    &self.env,
-                    "deriver_a",
-                    &encode_hex(pair.session()),
-                    &object_name,
-                )
-                .await
-                {
-                    worker::console_error!(
-                        "Deriver A pair completed, but its admission settlement was not acknowledged: {error}"
-                    );
-                }
+                // The durable outcome is authoritative. A lost acknowledgement is
+                // reconciled from this exact physical object during retirement.
+                let env = self.env.clone();
+                let session_hex = encode_hex(pair.session());
+                self.state.wait_until(async move {
+                    if let Err(error) = crate::ed25519_yao_lifecycle::role_d1::settle_wallet_object_admission_v1(
+                        &env,
+                        "deriver_a",
+                        &session_hex,
+                        &object_name,
+                    )
+                    .await
+                    {
+                        worker::console_error!(
+                            "Deriver A pair completed, but its admission settlement was not acknowledged: {error}"
+                        );
+                    }
+                });
                 Ok(outcome)
             }
             _ => Err(pair_error("Deriver A pair completion did not commit")),

@@ -3483,7 +3483,11 @@ impl DeriverBExecutionHostV1 {
                     .await
                     .map_err(|_| invalid_lifecycle("Deriver B local pair response is malformed"))?;
                 if matches!(result, DeriverBYaoSessionResponseV1::PairCompleted { .. }) {
-                    settle_deriver_b_wallet_admission(env, scope).await;
+                    let env = env.clone();
+                    let scope = scope.clone();
+                    object.wait_until(async move {
+                        settle_deriver_b_wallet_admission(&env, &scope).await;
+                    });
                 }
                 let _ = trace_id;
                 Ok(result)

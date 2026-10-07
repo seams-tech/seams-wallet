@@ -2619,3 +2619,29 @@ The runner restored A to `eaa0b80f-47bf-44a9-b9b5-4f73a70abcd0` and B to
 No new resources, keepalive traffic, or production changes were made. Detailed
 versions, frozen asset hashes, release bundle hashes, and sanitized provider evidence
 are in `seams-monorepo/docs/evidence/r155b-custody-phase6b-20261007.json`.
+
+### Phase 6C — Remove completion acknowledgements from the response path
+
+Baseline: Phase 6B full candidate, 4.929 s median setup. Preserve its evidence.
+
+1. Schedule A/B root-use settlement with the owning DO's `wait_until` after durable
+   completion. Retain the exact environment, session, and physical object generation.
+   Failed or lost acknowledgements remain recoverable through retirement reconciliation.
+   The D1 call count stays unchanged; two serial waits leave the success response path.
+2. Verify admission settlement, interruption, lost replies, eviction, and relocation.
+   Include a generation above one. A previously selected the generation-one name
+   for settlement, which could leave a later generation's admission unsettled.
+3. Compare the Phase 6B candidate against this candidate using the same hosted NEAR
+   harness and frozen assets. Restore original staging versions after comparison.
+4. Evaluate overlap between A root loading and B connection setup separately.
+   A currently authenticates its root before starting B. Preserve that ordering
+   until an E2E proves early peer startup handles cancellation and load failure.
+
+No cache, new resource, or weaker durability barrier is required. The numerical
+saving remains unmeasured until hosted acceptance finishes.
+
+Cloudflare documents that [`DurableObjectState.waitUntil`](https://developers.cloudflare.com/durable-objects/api/state/#waituntil)
+does not delay the request's completion. This change still relies on durable
+completion and existing reconciliation if a background acknowledgement is lost.
+The background update uses the same role database and exact physical object name.
+It cannot authorize new work or change another generation's admission.

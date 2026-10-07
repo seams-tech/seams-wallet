@@ -4,6 +4,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 import { createInterface } from 'node:readline';
+import { setTimeout } from 'node:timers/promises';
 import { Log, LogLevel, Miniflare } from 'miniflare';
 import {
   loadFixture,
@@ -150,6 +151,20 @@ function executeRequest(envelope, credential, home) {
   });
 }
 
+async function settledAdmissions(database) {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const { results } = await database.prepare(
+      "SELECT status, pair_object_name FROM tenant_root_root_use_admissions WHERE attempt_kind = 'ed25519_yao_pair_session'",
+    ).all();
+    assert.equal(results.length, 1, 'The ceremony must have exactly one admission per role');
+    const admission = results[0];
+    if (admission.status === 'settled') return admission;
+    assert.equal(admission.status, 'admitted');
+    await setTimeout(20);
+  }
+  assert.fail('The completed wallet object did not settle its admission');
+}
+
 async function verifyRegion(home, WalletHomeCustodyBinding) {
   const fixture = loadFixture();
   configureRouterJwt(fixture);
@@ -176,6 +191,7 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
     await applyMigrations(topology, 'SIGNING_WORKER_PRIVATE_DB', 'fixture-signing-worker', resolve(migrationRoot, 'signing-worker'));
     const { tenantRoot } = await testTenantRootCreationOperatingPath(topology, fixture, databases);
     const envelope = buildEd25519ExecuteRequest(fixture, 'activation', tenantRoot);
+    const generation = envelope.target.ownership_generation;
     const worker = new MiniflareWorkerBinding(await topology.getWorker('router'));
     const credential = fixture.router_env.ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET;
     for (const invalid of [null, 'invalid', 'apac']) {
@@ -217,8 +233,17 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
       assert.equal(objects.length, 1, `${role} must reuse the exact wallet object`);
       roleObjects[role] = { objectId: objects[0], calls: events.length, hint: hints[home] };
     }
+    const admissions = {
+      deriverA: await settledAdmissions(databases.deriverA),
+      deriverB: await settledAdmissions(databases.deriverB),
+    };
+    for (const [role, admission] of [['deriver_a', admissions.deriverA], ['deriver_b', admissions.deriverB]]) {
+      const binding = role === 'deriver_a' ? 'DERIVER_A_WALLET_DO' : 'DERIVER_B_WALLET_DO';
+      const namespace = await topology.getDurableObjectNamespace(binding, role.replace('_', '-'));
+      assert.equal(namespace.idFromName(admission.pair_object_name).toString(), roleObjects[role].objectId);
+    }
     return {
-      home, roleObjects, firstStatusLookups: [...a.observations, ...b.observations],
+      home, generation, admissions, roleObjects, firstStatusLookups: [...a.observations, ...b.observations],
       invalidHomeRejectedBeforePlacement: true,
       unauthorizedHomeRejected: true,
       callerHomeOverwritten: true,
