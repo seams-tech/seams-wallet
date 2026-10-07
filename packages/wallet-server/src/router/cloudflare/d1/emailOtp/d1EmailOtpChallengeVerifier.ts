@@ -287,6 +287,7 @@ export class CloudflareD1EmailOtpChallengeVerifier {
       }
 
       const rateLimit = await this.emailOtpRateLimits.consume({
+        kind: 'wallet',
         scope: 'verify',
         action,
         userId,
@@ -501,6 +502,7 @@ export class CloudflareD1EmailOtpChallengeVerifier {
       }
 
       const rateLimit = await this.emailOtpRateLimits.consume({
+        kind: 'wallet',
         scope: 'verify',
         action: recoveryBootstrap
           ? WALLET_EMAIL_OTP_ACTIONS.recoveryBootstrap

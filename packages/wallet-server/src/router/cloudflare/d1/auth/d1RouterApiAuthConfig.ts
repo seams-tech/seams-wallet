@@ -2,7 +2,6 @@ import type { LinkedDeviceBootstrapStore } from '../../../../core/deviceLinking/
 import type { LinkedDeviceRequestProofNonceStoreV1 } from '../../../../core/deviceLinking/requestProof';
 import type { WebAuthnSyncChallengeStore } from '../../../../core/WebAuthnSyncChallengeStore';
 import type { PasskeyCredentialClaims } from '../../../../core/passkeyCredentialClaims';
-import type { EmailOtpRateLimitCounter } from '../emailOtp/d1EmailOtpRateLimitStore';
 import type { GoogleEmailOtpRegistrationAttemptStore } from '../emailOtp/d1GoogleEmailOtpRegistrationAttemptStore';
 import type { IdentityStore } from '../../../../core/IdentityStore';
 import type { WalletLifecycleRoutingPublisher } from '../../../../authorization/lifecycleRouting';
@@ -158,7 +157,6 @@ export type CloudflareD1GithubOAuthConfig = {
 
 export interface CloudflareD1RouterApiAuthServiceOptions {
   readonly identityStore?: IdentityStore;
-  readonly emailOtpRateLimitCounter?: EmailOtpRateLimitCounter;
   readonly credentialClaims?: PasskeyCredentialClaims;
   readonly linkedDeviceBootstrap?: LinkedDeviceBootstrapStore;
   readonly linkedDeviceProofNonces?: LinkedDeviceRequestProofNonceStoreV1;
@@ -361,7 +359,6 @@ export function normalizeD1RouterApiAuthOptions(
       admitEstablishedHome: admitD1EstablishedWalletHome.bind(undefined, input.database, scope),
     },
     identityStore: input.identityStore,
-    emailOtpRateLimitCounter: input.emailOtpRateLimitCounter,
     credentialClaims: input.credentialClaims,
     syncChallenges: input.syncChallenges,
     linkedDeviceProofNonces: input.linkedDeviceProofNonces,

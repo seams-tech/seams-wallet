@@ -1,0 +1,80 @@
+{
+  "date": "2026-10-07",
+  "kind": "r155b_regional_otp_acceptance_v1",
+  "scope": "Local acceptance of existing regional D1 counters and wallet-owned relocation. No hosted deployment or latency claim.",
+  "sourceNote": "Acceptance ran on the shared checkout with concurrent R153 admission changes. OTP commits exclude those changes. Browser reused existing SDK/custody outputs and rebuilt wallet-server.",
+  "regionalCounters": {
+    "totalRequests": 128,
+    "accepted": 48,
+    "limited": 80,
+    "regions": [
+      "US",
+      "WEUR",
+      "APAC",
+      "OC"
+    ],
+    "policyScopes": [
+      "challenge",
+      "verify",
+      "grant",
+      "googleRegistrationAttempt"
+    ],
+    "regionalAllowancesIndependent": true,
+    "projectScopesIndependent": true,
+    "consoleOutageAccepted": true,
+    "counterStorageFailureFailsClosed": true,
+    "scope": "Production OTP spam limits use each regional signer D1 during Console outage. No shared counter database. Wallet relocation is verified by authorization-transfer acceptance."
+  },
+  "walletCounterRelocation": {
+    "exhaustedAllowancePreserved": true,
+    "expiryPreserved": true,
+    "expiredRowsExcluded": true,
+    "frozenSourceRejected": true,
+    "inactiveDestinationRejected": true,
+    "regionalCountersExcluded": true,
+    "neighborPreserved": true,
+    "sourceCleanupComplete": true
+  },
+  "browser": {
+    "result": "passed",
+    "duration": "1.2m",
+    "consoleRequests": 0,
+    "httpRequests": 123,
+    "home": "US",
+    "authorizationOwnership": {
+      "US": {
+        "authorization_grant": 3,
+        "verified_step_up": 2
+      },
+      "WEUR": {},
+      "APAC": {},
+      "OC": {}
+    },
+    "scenario": "Google registration, budget exhaustion, NEAR and ECDSA Email OTP step-up while Console is unavailable; external email delivery uses the local test mailbox."
+  },
+  "checks": {
+    "serverBuild": "passed",
+    "serverTypeFixtures": "passed",
+    "privateTypecheck": "passed",
+    "gatewayLint": "passed",
+    "regionalManifestRendering": "passed; nine manifests, one signer D1 per Gateway",
+    "bloat": "passed"
+  },
+  "artifactSha256": {
+    "authorizationTransfer": "19a1c88af8046b4bb23ac6b37795dc1331efdba47a16e22a77c3028d6695edd9",
+    "regionalRouting": "57a8c5bb4bb8b37feeab4e30d9fc7c48b6da636b37b37360817d5d014bca399f",
+    "browser": "6be3ce2076fd14dab4f7d2612c936199cdd2abe5f3617948b967989fa7515ebc"
+  },
+  "authorizationBundleSha256": "dd0ed503ecef607c1aad5ee0e38b0eb94a55acf586e7693a3aaf24b11cb71b70",
+  "reproduce": {
+    "public": "node tests/e2e/authorization-storage-transfer.e2e.mjs",
+    "privateRegional": "SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server node tests/e2e/regional-session-routing.e2e.mjs",
+    "privateBrowser": "SEAMS_INTENDED_SKIP_BUILD=1 SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server node tests/scripts/run-regional-real.mjs google-email-otp.recovery.contract.test.ts --grep \"Email OTP budget exhaustion\" --reporter=line",
+    "browserPrerequisites": "Build matching SDK, server, local tools and custody roles; refresh the Google test token; ensure ports 4100\u20134105 and 4201\u20134202 are available."
+  },
+  "remaining": [
+    "Freeze updated deployable inputs after concurrent source integration",
+    "Coordinated existing-staging migration and rollout",
+    "Controlled hosted regional comparison and final evidence"
+  ]
+}

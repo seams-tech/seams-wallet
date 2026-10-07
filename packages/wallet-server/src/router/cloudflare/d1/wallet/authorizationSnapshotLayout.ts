@@ -2,6 +2,7 @@ import { requireArray, requireRecord } from '@shared/utils/validation';
 import type { D1DatabaseLike } from '../../../../storage/tenantRoute';
 
 const TABLES = [
+  'wallet_email_otp_rate_limits',
   'wallets',
   'wallet_signers',
   'wallet_authorities',
@@ -87,6 +88,14 @@ export class AuthorizationSnapshotLayout {
       record: `json_object(${fields.join(', ')})`,
       ownership: AuthorizationSnapshotLayout.ownership(this.table),
     };
+  }
+
+  snapshotSelection(): string {
+    const ownership = AuthorizationSnapshotLayout.ownership(this.table);
+    if (this.table !== 'wallet_email_otp_rate_limits') return ownership;
+    return `${ownership} AND target.reset_at_ms > (
+      SELECT frozen_at_ms FROM wallet_relocation_authorization_fences
+      WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4 AND wallet_id = ?5)`;
   }
 
   static ownership(table: Table): string {

@@ -239,6 +239,7 @@ export class CloudflareD1EmailOtpChallengeIssuer {
       }
 
       const rateLimit = await this.emailOtpRateLimits.consume({
+        kind: 'wallet',
         scope: 'challenge',
         action,
         userId,

@@ -107,6 +107,5 @@ export function createD1EmailOtpRateLimits(
   return new CloudflareD1EmailOtpRateLimitStore({
     prepare,
     rateLimits: options.emailOtp.rateLimits,
-    counter: options.emailOtpRateLimitCounter,
   });
 }

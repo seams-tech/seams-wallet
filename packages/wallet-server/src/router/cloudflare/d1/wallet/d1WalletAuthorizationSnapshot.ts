@@ -304,7 +304,7 @@ export class D1WalletAuthorizationSnapshot {
       this.scope,
       `
       SELECT ${sql.key} AS record_key, length(CAST(${sql.record} AS BLOB)) AS byte_length
-      FROM ${table.table} AS target WHERE ${sql.ownership} AND ${sql.key} ${comparison} ?6
+      FROM ${table.table} AS target WHERE ${table.snapshotSelection()} AND ${sql.key} ${comparison} ?6
       ORDER BY record_key COLLATE BINARY LIMIT 1`,
       [source.walletId, cursor.key],
     ).first<Record<string, unknown>>();
@@ -326,7 +326,7 @@ export class D1WalletAuthorizationSnapshot {
       this.scope,
       `
       SELECT hex(substr(CAST(${sql.record} AS BLOB), ?7, ?8)) AS bytes_hex
-      FROM ${table.table} AS target WHERE ${sql.ownership} AND ${sql.key} = ?6`,
+      FROM ${table.table} AS target WHERE ${table.snapshotSelection()} AND ${sql.key} = ?6`,
       [source.walletId, key, segmentIndex * CHUNK_BYTES + 1, CHUNK_BYTES],
     ).first<Record<string, unknown>>();
     if (!row) throw new Error('Authorization snapshot record disappeared');

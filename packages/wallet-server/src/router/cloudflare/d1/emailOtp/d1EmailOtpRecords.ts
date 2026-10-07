@@ -165,32 +165,46 @@ export function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
   return difference === 0;
 }
 
-export function emailOtpRateLimitKeys(input: {
+export type EmailOtpCounterKey =
+  | { readonly kind: 'wallet'; readonly walletId: string; readonly key: string }
+  | { readonly kind: 'regional'; readonly walletId?: never; readonly key: string };
+
+export type EmailOtpRateLimitConsumeInput = {
   readonly scope: EmailOtpRateLimitScope;
   readonly action?: string;
-  readonly policy: {
-    readonly limit: number;
-    readonly windowMs: number;
-  };
   readonly userId?: string;
-  readonly walletId?: string;
   readonly providerSubject?: string;
   readonly orgId?: string;
   readonly clientIp?: string;
-}): readonly string[] {
+} & (
+  | { readonly kind: 'wallet'; readonly walletId: string }
+  | { readonly kind: 'regional'; readonly walletId?: never }
+);
+
+export function emailOtpRateLimitKeys(
+  input: EmailOtpRateLimitConsumeInput,
+  policy: { readonly limit: number; readonly windowMs: number },
+): readonly EmailOtpCounterKey[] {
   const keySuffix = [
     `scope=${input.scope}`,
     `action=${input.action || 'default'}`,
-    `limit=${input.policy.limit}`,
-    `windowMs=${input.policy.windowMs}`,
+    `limit=${policy.limit}`,
+    `windowMs=${policy.windowMs}`,
   ].join(':');
-  return [
+  const counters: EmailOtpCounterKey[] = [];
+  if (input.kind === 'wallet') {
+    counters.push({ kind: 'wallet', walletId: input.walletId, key: keySuffix });
+  }
+  const regionalKeys = [
     input.clientIp ? `${keySuffix}:ip:${input.clientIp}` : '',
     input.userId ? `${keySuffix}:user:${input.userId}` : '',
-    input.walletId ? `${keySuffix}:wallet:${input.walletId}` : '',
     input.providerSubject ? `${keySuffix}:provider:${input.providerSubject}` : '',
     input.orgId ? `${keySuffix}:org:${input.orgId}` : '',
-  ].filter(Boolean);
+  ];
+  for (const key of regionalKeys) {
+    if (key) counters.push({ kind: 'regional', key });
+  }
+  return counters;
 }
 
 export function emailOtpRateLimitExceeded(row: D1EmailOtpRateLimitRow | null): {

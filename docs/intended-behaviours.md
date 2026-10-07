@@ -1408,10 +1408,24 @@ Cancellation atomically releases pending shared Google registration offers and
 retains the immutable home tombstone. An active shared offer prevents cancellation.
 The writer must reconcile regional custody before choosing a terminal outcome.
 
-Hosted Email OTP challenge, verification, grant and Google-registration policies
-consume counters in shared tenant authority. Requests through different regional
-Gateways share an allowance; tenant scopes remain independent. An unavailable
-shared counter fails the request without a regional counter fallback.
+Hosted Email OTP spam limits use the admitted Gateway's existing regional signer D1.
+Wallet-specific counters have explicit tenant and wallet ownership. Foreign ingress
+routes wallet requests to the fixed home before consuming those counters.
+Relocation transfers counters unexpired at source freeze, preserving counts and
+reset times. Snapshot retries use that fixed freeze time. Frozen sources and
+inactive destinations reject ordinary wallet counter writes. Source cleanup removes
+wallet counters after the destination activates.
+
+IP, organization, provider, and subject counters are regional. They protect flows
+before wallet creation and stay in their region when one wallet moves. Requests
+served in different regions may receive independent allowances. This approximation
+is intentional for spam control. Tenant scopes remain independent. Storage errors
+fail the request without a Console or shared-database fallback.
+
+OTP expiration, per-challenge verification-attempt limits, single-use consumption,
+and authorization checks remain enforced independently of these spam limits.
+No dedicated OTP database, shared counter RPC, or cross-region counter replication
+is required.
 
 ### Hosted passkey ownership reservation
 

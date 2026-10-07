@@ -1,6 +1,6 @@
 # Regional execution without routine Console calls
 
-Status: implementation and local acceptance in progress. Regional OTP counters in existing signer D1 databases are the approved target. The dedicated shared-counter database design is superseded and must be removed. No new D1 allocation or approval is required for this approach. Earlier OTP acceptance covers the superseded implementation; regional-counter acceptance remains open. Final cleanup and hosted comparison remain open.
+Status: regional OTP counters and wallet-counter relocation are implemented. Local regional, authorization-transfer, and browser OTP acceptance pass. The dedicated counter binding and allocation requirement are removed. No new database approval is required. Rebuilding the deployable candidate, coordinated staging rollout, and hosted measurements remain open.
 Date: October 6, 2026. Updated: October 7, 2026.
 
 ## Objective
@@ -238,32 +238,32 @@ Exit: ordinary signing/refill and their background work make zero Console calls.
 
 ## Phase 3A — Regional OTP ownership and counter cleanup
 
-- [ ] Inventory challenge issuance, resend, verification, grant, recovery, and
+- [x] Inventory challenge issuance, resend, verification, grant, recovery, and
   registration counter consumers. Classify each key as wallet-owned or regional.
   Keep authentication attempt enforcement distinct from email-spam limits.
-- [ ] Replace the shared binding with the admitted Gateway's existing signer D1.
+- [x] Replace the shared binding with the admitted Gateway's existing signer D1.
   Reuse existing scope and counter helpers. Require wallet identity for wallet
   counters. Represent regional counters separately; do not infer ownership from
   optional fields or encoded counter keys.
-- [ ] Route wallet counter writes through the current home and existing deployment
+- [x] Route wallet counter writes through the current home and existing deployment
   and ownership fences. Use regional recipient/IP limits before a wallet exists.
   Preserve those broader regional limits after home assignment without copying
   them into wallet-owned state.
-- [ ] Add exact tenant-and-wallet selectors for unexpired wallet counters to the
+- [x] Add exact tenant-and-wallet selectors for unexpired wallet counters to the
   relocation inventory. Cover snapshot, import, activation, retry, and source
   cleanup. Preserve count and reset time. Frozen sources must reject new wallet
   counter writes; unrelated wallets and regional counters must remain usable.
-- [ ] Remove `emailOtpRateLimitD1`, `EMAIL_OTP_RATE_LIMIT_DB`, dedicated-counter
+- [x] Remove `emailOtpRateLimitD1`, `EMAIL_OTP_RATE_LIMIT_DB`, dedicated-counter
   migrations, allocation gates, fixtures, and obsolete shared-counter wrappers.
   Keep the deleted Console rate-limit RPC deleted. Update renderers, readiness
   checks, examples, and deployment documentation to use existing regional D1.
-- [ ] Update composed E2E acceptance: register before wallet creation, issue OTPs
+- [x] Update composed E2E acceptance: register before wallet creation, issue OTPs
   through foreign ingress, exhaust a wallet limit, relocate, and verify the same
   unexpired allowance at the destination. Include lost replies, wrong-home writes,
   tenant isolation, expiry, and OTP step-up for NEAR and ECDSA during Console outage.
   Verify independent regional spam allowances are expected behavior. Produce a
   repeatable artifact. Do not retain tests requiring one globally exact counter.
-- [ ] Replace the previous counter cutover instructions. Never deploy the frozen
+- [x] Replace the previous counter cutover instructions. Never deploy the frozen
   shared-counter candidate. Stop serving old counter consumers before removing the
   obsolete Console table. Approximate spam counters need no exact global-history
   transfer. Preserve authentication records and their existing safety checks.
@@ -1915,3 +1915,32 @@ database would grant Gateway code access to all its tables. The implemented
 dedicated-counter binding avoids that broader access while preserving shared
 limits. Provisioning remains pending authorization. Current candidate capture,
 coordinated staging deployment, and controlled hosted comparisons remain open.
+
+### Regional OTP counters implemented — October 7, 2026
+
+Gateways now use their existing regional signer D1. Counter consumption requires an
+explicit wallet-owned or regional branch. The shared counter adapter, public
+injection option, dedicated database allocation, binding, migration directory,
+readiness checks, and obsolete fixtures are removed. No replacement Console RPC
+or configuration flag was added.
+
+Signer migration `0071_regional_wallet_otp_counters.sql` adds explicit wallet-owned
+counters and the existing relocation write fences. Snapshots select counters
+unexpired at the persisted source freeze time. Destination imports preserve count
+and reset time. The destination does not require a source freeze record. Cleanup
+removes wallet counters while retaining unrelated wallets and regional counters.
+
+Console cleanup migration `0088_remove_shared_otp_counters.sql` removes the old
+counter table. Apply it only after old Gateway consumers stop serving. No live
+migration or deployment ran in this change. Historical migrations remain intact.
+
+Local acceptance covers independent regional spam allowances, tenant isolation,
+Console outage, counter-storage failure, lost transfer acknowledgements, inactive
+home rejection, expiry, and source cleanup. A separate Chromium scenario verifies
+NEAR and ECDSA OTP step-up during Console outage. The transfer scenario uses real
+authorization stores and relocation commands with fixture wallet authority. It is
+separate from the browser signing scenario; neither establishes hosted latency.
+
+[Evidence and repeat commands](evidence/r155b-regional-otp-20261007.json).
+The earlier dedicated-counter bundles are superseded. Freeze rebuilt matching
+inputs before Phase 6. The database-approval blocker no longer applies.

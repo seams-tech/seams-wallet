@@ -1,3 +1,9 @@
+import {
+  seedWalletOtpCounters,
+  verifyInactiveWalletOtp,
+  verifyActivatedWalletOtp,
+  verifyCleanedWalletOtp,
+} from './regional-wallet-otp.scenario.mjs';
 import { verifyPlacementClient, verifyRetiredMoveClient, verifyMoveSubmissionClient } from './wallet-placement-client.scenario.mjs';
 import {
   seedExecutionGeneration,
@@ -42,6 +48,7 @@ const scope = {
   envId: 'production',
 };
 const tables = [
+  'wallet_email_otp_rate_limits',
   'wallet_authorities',
   'wallet_auth_methods',
   'authorization_wallet_session_quotas',
@@ -297,6 +304,7 @@ try {
     .prepare('UPDATE wallet_authorities SET record_json = record_json || ? WHERE wallet_id = ?')
     .bind(' '.repeat(1_200_000), sessionSource.walletId)
     .run();
+  const walletOtpBefore = await seedWalletOtpCounters(api, source, scope, sessionSource.walletId);
   const authorizationFreeze = await verifyAuthorizationFreeze({
     api,
     source,
@@ -339,6 +347,7 @@ try {
     api, source, destination, scope, identity: sessionSource, snapshot, service, issueDeviceSession,
   });
 
+  await verifyInactiveWalletOtp(api, source, destination, scope, sessionSource.walletId, walletOtpBefore);
   const executionBeforeActivation = await verifyExecutionDestination({
     api,
     source,
@@ -409,6 +418,7 @@ try {
     api, database: destination, scope, identity: sessionSource,
     manifest: snapshot.evidence.manifest,
   });
+  await verifyActivatedWalletOtp(api, source, destination, scope, sessionSource.walletId, walletOtpBefore);
   const operationHistoryAfterActivation = await verifyImportedOperationHistory({
     api,
     database: destination,
@@ -432,6 +442,7 @@ try {
     api, database: source, scope, identity: sessionSource,
     manifest: snapshot.evidence.manifest, tables,
   });
+  const walletOtpRelocation = await verifyCleanedWalletOtp(api, source, scope, sessionSource.walletId);
   const operationHistoryCleanup = await verifyOperationHistoryCleanup({
     database: source,
     scope,
@@ -501,6 +512,7 @@ try {
     copied,
     authorizationId: issued.session.authorizationId,
     observations: {
+      walletOtpRelocation,
       destinationPreparation,
       relocationChallenges,
       relocationPasskey,

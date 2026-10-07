@@ -10,6 +10,7 @@ import { WalletRelocationSessionSource } from './d1WalletRelocationSessions';
 const SCOPE =
   'namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4 AND wallet_id = ?5';
 const TABLES = [
+  'wallet_email_otp_rate_limits',
   'authorized_operation_audit_events',
   'authorized_operations',
   'verified_wallet_operation_evidence_sets',

@@ -250,6 +250,7 @@ export class CloudflareD1GoogleEmailOtpSessionResolver {
     }
     const restartOffer = isTrueFlag(input.restartRegistrationOffer);
     return await this.emailOtpRateLimits.consume({
+      kind: 'regional',
       scope: 'googleRegistrationAttempt',
       action: restartOffer
         ? 'google_email_otp_registration_offer_restart'

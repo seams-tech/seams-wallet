@@ -507,12 +507,20 @@ export async function cleanupAuthorizationThroughCommand({
     BEGIN SELECT RAISE(ABORT, 'injected_cleanup_failure'); END`,
     )
     .run();
-  const interrupted = await new api.WalletAuthorizationRelocationRoutes({
-    database,
-    scope,
-    directory,
-  }).handle(destinationRequest(scope, identity, { kind: 'cleanup' }));
-  assert.equal(interrupted.status, 503);
+  let interrupted = false;
+  for (let attempt = 0; attempt < 32; attempt += 1) {
+    const response = await new api.WalletAuthorizationRelocationRoutes({
+      database,
+      scope,
+      directory,
+    }).handle(destinationRequest(scope, identity, { kind: 'cleanup' }));
+    if (response.status === 503) {
+      interrupted = true;
+      break;
+    }
+    assert.equal(response.status, 202, await response.clone().text());
+  }
+  assert.equal(interrupted, true, 'Cleanup must reach the injected deletion failure');
   await database.exec('DROP TRIGGER injected_authorization_cleanup_failure');
   let completion = null;
   let calls = 0;

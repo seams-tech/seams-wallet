@@ -69,7 +69,9 @@ for the baseline, grouped only where the selector and obligations agree.
 | `router_ab_yao_capability_replacements` | Wallet: migration 0045 requires exact scoped `wallet_id`. Copy old/new capability decisions and replay fingerprints together, including terminal receipts after lifecycle cleanup. Retries verify the same wallet. |
 | `router_ab_yao_versioned_json_records` | Mixed ownership: use the supported prefix/record selectors below, including entry-level selection in the default shared partition. Includes custody/recovery secrets and replay state. Unknown prefixes or ambiguous/orphaned records block extraction; never copy all namespace rows or omit the table. |
 | `router_ab_normal_signing_admission_records` | Explicit split after migration 0046: `abuse` rows require scoped `wallet_id`; `project_policy` rows require NULL wallet ownership and remain tenant policy. Select all wallet abuse rows across signing-root versions, retaining authority-specific keys and decisions. Retired quota records and columns are removed; active quota state lives in `authorization_wallet_session_quotas`. Existing atomic credential/policy SQL reads are preserved. |
-| `identity_links`, `email_otp_registration_attempts`, `email_otp_rate_limits`, `linked_device_request_proof_nonces` | Hosted shared authority is Console. Do not relocate or independently reset/consume these signer-schema copies. Verify every hosted caller uses the injected shared service; table existence also supports self-hosted composition. |
+| `wallet_email_otp_rate_limits` | Exact tenant + wallet owner. Transfer counters unexpired at source freeze, preserve counts/reset times, fence inactive writes, and clean source records after activation. |
+| `email_otp_rate_limits` | Regional spam counters for IP, organization, subject, and provider. Do not transfer with one wallet. Independent regional allowances are accepted under R155B. |
+| `identity_links`, `email_otp_registration_attempts`, `linked_device_request_proof_nonces` | Hosted shared authority is Console. Do not relocate or independently reset/consume these signer-schema copies. Verify every hosted caller uses the injected shared service; table existence also supports self-hosted composition. |
 | `vault_proxy_secrets` | Shared tenant/vault/item state, no wallet ownership. Excluded from wallet relocation. |
 | `deployment_resource_challenges` | Resource-local deployment proof, excluded; the destination must prove its own identity. |
 | `lane_cas_guard`, `linked_device_session_cas_guard`, `registration_ceremony_cas_guard`, `router_ab_yao_versioned_json_cas_guard`, `wallet_authority_cas_guard` | Schema guard tables, excluded from row copy. Destination migrations install them and their triggers. |
@@ -174,8 +176,8 @@ The placement-sensitive subset is:
 - `wallet_session_locators`: opaque session/exchange credential → wallet and expiry.
 - `wallet_passkey_claims`: scoped RP/credential → wallet; relocation does not release
   or reassign credential ownership.
-- `identity_links`, `email_otp_registration_attempts`, `email_otp_rate_limits`:
-  identity uniqueness, pre-wallet offers and cross-region rate consumption.
+- `identity_links`, `email_otp_registration_attempts`:
+  identity uniqueness and pre-wallet offers. OTP spam counters are regional.
 - `wallet_sync_challenges`, `linked_device_bootstrap`,
   `linked_device_request_proof_nonces`: shared pre-wallet discovery/bootstrap and
   one-use request protection. Retain consumption history during a move.

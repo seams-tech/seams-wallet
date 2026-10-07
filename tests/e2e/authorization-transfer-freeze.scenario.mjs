@@ -2,6 +2,13 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 
 export function authorizationRowsQuery(table) {
+  if (table === 'wallet_email_otp_rate_limits') {
+    return `SELECT target.* FROM ${table} AS target
+      WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4 AND wallet_id = ?5
+        AND reset_at_ms > COALESCE((SELECT frozen_at_ms FROM wallet_relocation_authorization_fences
+          WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4 AND wallet_id = ?5), 0)
+      ORDER BY target.rowid`;
+  }
   if (table === 'webauthn_authenticators' || table === 'webauthn_credential_bindings') {
     return `SELECT target.* FROM ${table} AS target
       WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
@@ -103,7 +110,7 @@ export async function verifyAuthorizationFreeze({
       table === 'authorized_operations' || table === 'authorized_operation_audit_events';
     let timestamp = 'expires_at_ms';
     let movedIdentity = 'wallet_id';
-    if (table === 'wallet_authorities' || table === 'wallet_auth_methods')
+    if (table === 'wallet_authorities' || table === 'wallet_auth_methods' || table === 'wallet_email_otp_rate_limits')
       timestamp = 'updated_at_ms';
     if (operationHistory) {
       timestamp = 'completed_at_ms';
@@ -119,7 +126,7 @@ export async function verifyAuthorizationFreeze({
     ]) {
       await assert.rejects(
         api.prepareD1TenantStatement(source, scope, mutation, [identity.walletId]).run(),
-        /wallet_authorization_history_frozen|wallet_operation_(history_import_required|terminal_immutable|identity_immutable|evidence_immutable|evidence_referenced|audit_parent_conflicts)|authorization_evidence_claim_rejected|authorization_wallet_session_rejected|wallet_session_hosted_(credential|exchange)_(parent|initial_state)_rejected/u,
+        /wallet_authorization_history_frozen|wallet_record_owner_changed|wallet_operation_(history_import_required|terminal_immutable|identity_immutable|evidence_immutable|evidence_referenced|audit_parent_conflicts)|authorization_evidence_claim_rejected|authorization_wallet_session_rejected|wallet_session_hosted_(credential|exchange)_(parent|initial_state)_rejected/u,
       );
     }
     const after = (
