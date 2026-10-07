@@ -34,6 +34,7 @@ const TABLES = [
   'webauthn_authenticators',
   'webauthn_credential_bindings',
   'wallet_signers',
+  'wallet_recovery_code_locators',
   'wallets',
   'wallet_auth_methods',
   'wallet_authorities',

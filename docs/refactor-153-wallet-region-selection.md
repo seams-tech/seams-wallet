@@ -3,7 +3,9 @@
 Status: implementation in progress. Local SDK-driven relocation now reaches owner
 approval, fresh resource verification, preparation, transfer, activation, and cleanup.
 The ECDSA and Ed25519 browser runs passed with fresh unlock and destination signing.
-Full two-device, recovery, return-move, and hosted placement/latency acceptance remain open.
+Two-device moves pass for both curves, including an offline enrolled device.
+Fresh-browser recovery and both signing curves pass after relocation.
+Return moves and hosted placement/latency acceptance remain open.
 
 ## Implementation order and prerequisites
 
@@ -86,11 +88,10 @@ bindings. Deployment changes, wrong versions, and partial rollouts prevent admis
 The verifier removes challenge rows after failure, including a lost insert reply.
 The deployment E2E checks this with real local Workers and simulated provider replies.
 
-Hosted admission requires the Console secret
-`CLOUDFLARE_RELOCATION_VERIFICATION_TOKEN`. Scope it to inspect the configured Worker
-deployments and query the regional signer D1 databases. Missing credentials prevent
-new admission before source pause. This change does not provision that credential.
-Actual Cloudflare verification and hosted latency remain unverified.
+Hosted admission uses the existing `CLOUDFLARE_API_TOKEN` credential through the
+Console deployment. It verifies the configured Worker deployments and regional
+signer D1 databases before source pause. No relocation-specific credential is
+required. Actual Cloudflare verification and hosted latency remain unverified.
 
 The private browser scenario now calls `seams.placement.move()`. It checks an initial
 preparation outage, approval reuse, exact admission retry, immutable authentication
@@ -100,6 +101,26 @@ Console outage. Evidence is under
 
 Earlier component checkpoints below describe their original scope. They do not
 replace the remaining composed and hosted acceptance gates.
+
+## Linked-device acceptance checkpoint — October 7, 2026
+
+The real browser flow now enrolls a second device and keeps it offline through
+activation. Both devices unlock and sign at the destination without replacing
+their enrollment. ECDSA and Ed25519 pass independently. Signing makes no Console
+calls after fresh unlock.
+
+Authorization transfer now includes linked-device installation and delivery history.
+Cleanup removes child records before their retired signing sessions. The transfer
+keeps the original record digests. Imported installation history remains immutable.
+The Ed25519 flow also loses an activation acknowledgement and fails cleanup once.
+Exact retries finish the same move, and the cleanup outage leaves placement active.
+Evidence is under `.artifacts/r153/linked-device-20261007/` in `seams-monorepo`.
+
+Recovery acceptance exposed an omitted regional recovery-code locator table.
+Its transfer and cleanup now preserve the exact locator records. Recovery also
+reuses the existing migrated auth-method store, so a live request does not attempt
+schema creation. Fresh-browser recovery now passes on APAC, followed by both
+signing curves without Console calls. Return-move acceptance remains open.
 
 ## Implemented baseline
 

@@ -7,6 +7,7 @@ const TABLES = [
   'email_otp_auth_states',
   'wallets',
   'wallet_signers',
+  'wallet_recovery_code_locators',
   'wallet_authorities',
   'wallet_auth_methods',
   'webauthn_credential_bindings',
