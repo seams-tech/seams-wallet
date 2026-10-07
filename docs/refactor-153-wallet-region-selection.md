@@ -145,6 +145,33 @@ builds, and the bloat check passed. Evidence is under
 intended-test type check remains blocked by shared-module paths from the repository
 split. Hosted resource placement and latency remain unverified.
 
+## Remaining completion steps — October 7, 2026
+
+The composed local round trip is complete. Reuse its recorded evidence. Do not
+repeat the local fault matrix for each hosted region.
+
+1. Deploy the matching staging candidate and apply signer migration `0075`.
+   Include the return-generation and Ed25519 capability-cache fixes.
+   Supply the existing `CLOUDFLARE_API_TOKEN` through the Console deployment workflow.
+   No relocation-specific credential is required.
+2. Run one hosted relocation from a fixed client location. Verify destination
+   resource identities and actual placement. Record signing before and after the
+   move, pause duration, first-signature refill, transfer bytes, and neighbor impact.
+3. Match the acceptance matrix to retained evidence. Close verified requirements
+   and identify any uncovered behavior. Publication remains a separate release step.
+
+The updated server, Gateway, Runtime, and Console candidate builds passed.
+Candidate source revisions, bundle hashes, and deployment gaps are recorded in
+`.artifacts/r153/hosted-20261007/readiness.json` in `seams-monorepo`.
+Staging has not changed. Its Console lacks the existing credential binding, and
+remote private `dev` still has the older secret writer. The corrected writer is
+committed locally in `8352ce5`. The hosted candidate also predates the return fixes
+and migration `0075`. Hosted acceptance remains pending until deployment is complete.
+
+The implementation-stage checklist below retains the full requirement inventory.
+Its unchecked items must be reconciled with the dated acceptance evidence above.
+They are not a count of outstanding coding tasks.
+
 ## Implemented baseline
 
 Authorization source capture now has an internal Gateway route. It obtains a live
