@@ -4654,3 +4654,51 @@ percentiles, cold-start guarantees or a regional service-level objective.
 
 
 [Sanitized timings, signature proofs, projection audit and restoration evidence](evidence/near-registration-atomic-console-completion-20261009.json).
+
+
+### Phase 6AD — early A/B connection rejected (2026-10-09)
+
+The candidate opened A's connection to B during pair preparation. Router also kept
+its connection to A open across preparation and execution. It preserved fresh root
+checks, signed readiness, admission claims, relocation fencing and durable replay.
+
+Twelve local Worker/DO scenarios passed. These covered connection loss, forged
+messages, missing admissions, cancellation, concurrent admission, lost replies,
+replay after key erasure and complete signing. Nine fresh hosted wallets produced
+independently verified NEP-413 signatures. Altered signed fields were rejected.
+
+Three fresh implicit, unfunded NEAR wallets ran in each sequential arm. SDK,
+Gateway, Runtime, Console, Signing Worker, configuration and requested APAC
+placement stayed fixed. Only Router and A/B transport changed. The final control
+restored the baseline custody versions.
+
+| Workload | Baseline median (range) | Candidate median (range) | Final control median (range) |
+| --- | ---: | ---: | ---: |
+| Yao execute HTTP | 4.167 s (3.828–4.780) | 4.791 s (3.874–5.107) | 4.008 s (3.900–4.684) |
+| SDK registration | 8.520 s (8.472–12.233) | 8.791 s (7.710–9.911) | 8.214 s (7.940–9.010) |
+| Browser registration → verified signature | 11.483 s (11.427–15.432) | 11.347 s (10.499–13.106) | 10.832 s (10.594–11.459) |
+
+**Reject this candidate.** Yao median increased by 624 ms (15.0%) against the
+baseline and 783 ms (19.5%) against the final control. The full-flow result does
+not establish a gain. No experimental transport code was merged.
+
+The prepare-pair median increased from 1.106 s to 1.686 s. A execution decreased
+from 1.699 s to 1.287 s. Opening B from A extended preparation enough to erase the
+execution saving. The candidate's A-to-B opening took 755 ms (736–779 ms).
+Nested span medians overlap and must not be added. Protocol spans include network
+waits and do not measure cryptographic CPU time alone.
+
+Changed execution paths used the intended candidate versions. Four Router
+active-state reads reached the prior version during rollout. That endpoint's
+source was byte-identical between arms. The evidence records this limitation.
+Three samples per arm cannot establish percentiles or a regional latency guarantee.
+
+All thirteen original Worker versions and all five placement settings were
+restored and verified. Restoration activation `37810044293` succeeded. Tail
+processes stopped. No new Cloudflare resources were provisioned.
+
+The next experiment will open Signing Worker delivery during the complete Yao
+ceremony. It will send packages only after role execution succeeds and retain
+durable installation before success.
+
+[Sanitized comparison and verification evidence](evidence/near-early-yao-connection-20261009.json).
