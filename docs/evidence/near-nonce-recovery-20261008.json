@@ -1,0 +1,4461 @@
+{
+  "schema": "near_nonce_recovery_evidence_v1",
+  "date": "2026-10-08",
+  "source": {
+    "base": "564fad3cc8e8f3c47bffff2907469b27f9d74c88",
+    "tree": "6206dccc4cfb4596e7685f6455149b9f3e147904",
+    "paths": [
+      "packages/wallet/src/core/signingEngine/nonce/NonceCoordinator.ts",
+      "tests/e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts",
+      "docs/intended-behaviours.md",
+      "docs/refactor-155B.md"
+    ],
+    "builtTree": "a1da9c0157db5f4ff5be41a3edd385fc7ae289ba"
+  },
+  "implementationCommit": {
+    "base": "564fad3cc8e8f3c47bffff2907469b27f9d74c88",
+    "tree": "a6acbaa5828af7235258a1b86072acc040d68af1",
+    "paths": [
+      "packages/wallet/src/core/signingEngine/nonce/NonceCoordinator.ts",
+      "tests/e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts",
+      "docs/intended-behaviours.md"
+    ],
+    "commit": "fa0648d897e8021f471b111a6a1e822a8ad37e76"
+  },
+  "scope": "Existing staging testnet. Frozen baseline and candidate SDK assets served only to the test browser. All thirteen backend versions stayed unchanged. No deployment, activation, new resource, or package publication.",
+  "method": "Sequential baseline/candidate/baseline. Three fresh NEAR-only wallets and twenty-one verified signatures per arm. The candidate shares one fresh access-key observation across durable reservations of an exact wallet/key lane within each recovery pass. It does not cache between passes.",
+  "outcome": {
+    "freshWallets": 9,
+    "verifiedSignatures": 63,
+    "liveVersionsChanged": false
+  },
+  "localVerification": {
+    "bloat": {
+      "passed": true,
+      "tree": "a6acbaa5828af7235258a1b86072acc040d68af1",
+      "logSha256": "32e4ff6acb80abebeaf2f3a2563cfcfd27d479ade1d6a8d45c20d9a3fda50d8a"
+    },
+    "walletTypecheck": {
+      "passed": true,
+      "command": "pnpm -C packages/wallet type-check",
+      "logSha256": "8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92"
+    },
+    "intendedTypecheck": {
+      "passed": true,
+      "command": "pnpm -C tests type-check:intended",
+      "logSha256": "9a53fe5e9e4be3f236a50d6550933e51ff85209471f6fdc87d027193a3d57d62"
+    },
+    "e2e": {
+      "passed": 1,
+      "command": "Build the candidate SDK and local Gateway; run passkey.ed25519-yao-local.contract.test.ts with grep \"NEAR nonce recovery\".",
+      "logSha256": "6ddf912efbc927238bc8dd0d54702042adcfd52913635ff3fd5cb37a9cc3b2c0",
+      "nonceEvidence": {
+        "signatures": [
+          {
+            "nonce": "2",
+            "atMs": 1791440510933,
+            "accessKeyRequests": 1
+          },
+          {
+            "nonce": "3",
+            "atMs": 1791440511685,
+            "accessKeyRequests": 2
+          },
+          {
+            "nonce": "4",
+            "atMs": 1791440512918,
+            "accessKeyRequests": 2
+          }
+        ],
+        "failedAccessKeyRequests": 1
+      }
+    }
+  },
+  "builds": {
+    "baseline": {
+      "sdkDist": {
+        "files": 3615,
+        "sha256OfSortedPathsAndContentHashes": "ccf2020df464a8ed00a01f3a308048a5ad784d8ab46d56337575b51aa5936669"
+      },
+      "browserSite": {
+        "files": 167,
+        "sha256OfSortedPathsAndContentHashes": "35a1745b580b64c78da9c26ec5fb79c9f8825d79741043cec983d7d13a868dd1"
+      },
+      "sdkBuildLogSha256": "a597e409d9dffd3edc0a5a1050f96c8ffbd945cd3c6c644755d31d36b0f5c1c2",
+      "siteBuildLogSha256": "2574a12765aa0262a791e6f98a8c8c444921e77924e335ae955a17b28b4cc425"
+    },
+    "candidate": {
+      "sdkDist": {
+        "files": 3615,
+        "sha256OfSortedPathsAndContentHashes": "f1f4c868cee67c7562bdbdd13d01a8cd6c39d2783749aa7d19fbde65af9f7a66"
+      },
+      "browserSite": {
+        "files": 167,
+        "sha256OfSortedPathsAndContentHashes": "cd1fde6c3374c6eaa981a9867c9f62887c2d9b0b870df10fb29c98fbd2a64c06"
+      },
+      "sdkBuildLogSha256": "0aa84106fcdc9befbdb2b56c1a77d5baa5a57ece1b397a348f410cde1c2cd1ef",
+      "siteBuildLogSha256": "30c27b94b8ba0d3430a03ccf1819664dc476a29586bc4178e5a2ab5cfce22c27"
+    }
+  },
+  "arms": [
+    {
+      "name": "control-before",
+      "sdk": "baseline",
+      "result": "passed",
+      "wallets": 3,
+      "verifiedSignatures": 21,
+      "workloads": {
+        "registration_to_first_verified": {
+          "verifiedSignatures": 3,
+          "sdkSigningMs": {
+            "samples": 3,
+            "median": 6984.33,
+            "minimum": 6390.73,
+            "maximum": 8203.365
+          },
+          "elapsedToVerifiedMs": {
+            "samples": 3,
+            "median": 22186.611,
+            "minimum": 19178.557,
+            "maximum": 23567.071
+          },
+          "gatewayHttpCalls": {
+            "samples": 3,
+            "median": 12,
+            "minimum": 12,
+            "maximum": 13
+          },
+          "nearAccessKeyCalls": {
+            "samples": 3,
+            "median": 4,
+            "minimum": 4,
+            "maximum": 4
+          },
+          "statusHttpCalls": {
+            "samples": 3,
+            "median": 3,
+            "minimum": 3,
+            "maximum": 4
+          },
+          "stagesMs": {
+            "authorization_probe": {
+              "samples": 3,
+              "median": 5.5,
+              "minimum": 4.7,
+              "maximum": 6.5
+            },
+            "lane_preparation": {
+              "samples": 3,
+              "median": 8.1,
+              "minimum": 5,
+              "maximum": 8.9
+            },
+            "confirmation": {
+              "samples": 3,
+              "median": 1010.3,
+              "minimum": 321.4,
+              "maximum": 1235
+            },
+            "durable_lease_recovery_wait": {
+              "samples": 3,
+              "median": 0,
+              "minimum": 0,
+              "maximum": 0
+            },
+            "material_resolution_wait": {
+              "samples": 3,
+              "median": 0,
+              "minimum": 0,
+              "maximum": 0
+            },
+            "transaction_context": {
+              "samples": 3,
+              "median": 4756.6,
+              "minimum": 4586.8,
+              "maximum": 5160
+            },
+            "prepare": {
+              "samples": 3,
+              "median": 888.2,
+              "minimum": 458.7,
+              "maximum": 901.2
+            },
+            "client_share": {
+              "samples": 3,
+              "median": 3.6,
+              "minimum": 3.4,
+              "maximum": 3.7
+            },
+            "finalize": {
+              "samples": 3,
+              "median": 519.1,
+              "minimum": 462.1,
+              "maximum": 1051.5
+            },
+            "signature_total": {
+              "samples": 3,
+              "median": 1412.4,
+              "minimum": 925.8,
+              "maximum": 1957.6
+            },
+            "confirmed_to_signed": {
+              "samples": 3,
+              "median": 6015.3,
+              "minimum": 5698.9,
+              "maximum": 7134.8
+            }
+          },
+          "httpMsByPath": {
+            "/wallets/register/setup": {
+              "samples": 3,
+              "median": 877.529,
+              "minimum": 701.029,
+              "maximum": 1695.398
+            },
+            "/wallets/register/respond": {
+              "samples": 3,
+              "median": 1311.555,
+              "minimum": 921.43,
+              "maximum": 1598.985
+            },
+            "/router-ab/ed25519/yao/registration/admit": {
+              "samples": 3,
+              "median": 560.152,
+              "minimum": 461.94,
+              "maximum": 1201.753
+            },
+            "/router-ab/ed25519/yao/registration/execute": {
+              "samples": 3,
+              "median": 5710.032,
+              "minimum": 5499.437,
+              "maximum": 5840.527
+            },
+            "/wallets/register/activate": {
+              "samples": 3,
+              "median": 692.181,
+              "minimum": 662.177,
+              "maximum": 857.421
+            },
+            "/wallets/register/near-provisioning": {
+              "samples": 3,
+              "median": 2910.595,
+              "minimum": 2375.841,
+              "maximum": 3776.286
+            },
+            "/wallet/session/status": {
+              "samples": 10,
+              "median": 153.81,
+              "minimum": 124.239,
+              "maximum": 621.454
+            },
+            "/wallets/frost-falcon-4hpged/near/implicit-account/fund": {
+              "samples": 1,
+              "median": 2749.764,
+              "minimum": 2749.764,
+              "maximum": 2749.764
+            },
+            "/router-ab/ed25519/sign/prepare": {
+              "samples": 3,
+              "median": 887.148,
+              "minimum": 457.431,
+              "maximum": 899.862
+            },
+            "/router-ab/ed25519/sign": {
+              "samples": 3,
+              "median": 518.29,
+              "minimum": 461.284,
+              "maximum": 1050.789
+            },
+            "/wallets/frost-delta-zwdjt6/near/implicit-account/fund": {
+              "samples": 1,
+              "median": 2614.268,
+              "minimum": 2614.268,
+              "maximum": 2614.268
+            },
+            "/wallets/silver-quartz-upsdbh/near/implicit-account/fund": {
+              "samples": 1,
+              "median": 3103.296,
+              "minimum": 3103.296,
+              "maximum": 3103.296
+            }
+          }
+        },
+        "three_consecutive": {
+          "verifiedSignatures": 9,
+          "sdkSigningMs": {
+            "samples": 9,
+            "median": 1675.94,
+            "minimum": 1217.26,
+            "maximum": 2790.27
+          },
+          "elapsedToVerifiedMs": {
+            "samples": 9,
+            "median": 2287.643,
+            "minimum": 1452.579,
+            "maximum": 3085.352
+          },
+          "gatewayHttpCalls": {
+            "samples": 9,
+            "median": 2,
+            "minimum": 2,
+            "maximum": 2
+          },
+          "nearAccessKeyCalls": {
+            "samples": 9,
+            "median": 2,
+            "minimum": 1,
+            "maximum": 3
+          },
+          "statusHttpCalls": {
+            "samples": 9,
+            "median": 0,
+            "minimum": 0,
+            "maximum": 0
+          },
+          "stagesMs": {
+            "authorization_probe": {
+              "samples": 9,
+              "median": 3.6,
+              "minimum": 3,
+              "maximum": 6.9
+            },
+            "lane_preparation": {
+              "samples": 9,
+              "median": 4.5,
+              "minimum": 2.6,
+              "maximum": 7.5
+            },
+            "confirmation": {
+              "samples": 9,
+              "median": 600.3,
+              "minimum": 297.1,
+              "maximum": 976.3
+            },
+            "durable_lease_recovery_wait": {
+              "samples": 9,
+              "median": 0,
+              "minimum": 0,
+              "maximum": 353.8
+            },
+            "material_resolution_wait": {
+              "samples": 9,
+              "median": 0,
+              "minimum": 0,
+              "maximum": 0
+            },
+            "transaction_context": {
+              "samples": 9,
+              "median": 0,
+              "minimum": 0,
+              "maximum": 0.1
+            },
+            "prepare": {
+              "samples": 9,
+              "median": 487.2,
+              "minimum": 402.5,
+              "maximum": 1170.8
+            },
+            "client_share": {
+              "samples": 9,
+              "median": 1.3,
+              "minimum": 1.2,
+              "maximum": 3.7
+            },
+            "finalize": {
+              "samples": 9,
+              "median": 496,
+              "minimum": 402.2,
+              "maximum": 766.8
+            },
+            "signature_total": {
+              "samples": 9,
+              "median": 982.6,
+              "minimum": 847.3,
+              "maximum": 1669.2
+            },
+            "confirmed_to_signed": {
+              "samples": 9,
+              "median": 1245.8,
+              "minimum": 864.4,
+              "maximum": 2026.6
+            }
+          },
+          "httpMsByPath": {
+            "/router-ab/ed25519/sign/prepare": {
+              "samples": 9,
+              "median": 486.506,
+              "minimum": 401.807,
+              "maximum": 1170.204
+            },
+            "/router-ab/ed25519/sign": {
+              "samples": 9,
+              "median": 495.43,
+              "minimum": 401.422,
+              "maximum": 766.215
+            }
+          }
+        },
+        "unlock_to_first_verified": {
+          "verifiedSignatures": 3,
+          "sdkSigningMs": {
+            "samples": 3,
+            "median": 2041.305,
+            "minimum": 1742.78,
+            "maximum": 2527.27
+          },
+          "elapsedToVerifiedMs": {
+            "samples": 3,
+            "median": 5740.176,
+            "minimum": 4962.977,
+            "maximum": 5941.568
+          },
+          "gatewayHttpCalls": {
+            "samples": 3,
+            "median": 7,
+            "minimum": 7,
+            "maximum": 7
+          },
+          "nearAccessKeyCalls": {
+            "samples": 3,
+            "median": 1,
+            "minimum": 1,
+            "maximum": 1
+          },
+          "statusHttpCalls": {
+            "samples": 3,
+            "median": 3,
+            "minimum": 3,
+            "maximum": 3
+          },
+          "stagesMs": {
+            "authorization_probe": {
+              "samples": 3,
+              "median": 4,
+              "minimum": 3.5,
+              "maximum": 5
+            },
+            "lane_preparation": {
+              "samples": 3,
+              "median": 4.8,
+              "minimum": 4.5,
+              "maximum": 7.8
+            },
+            "confirmation": {
+              "samples": 3,
+              "median": 853.5,
+              "minimum": 407.3,
+              "maximum": 1053.8
+            },
+            "durable_lease_recovery_wait": {
+              "samples": 3,
+              "median": 0,
+              "minimum": 0,
+              "maximum": 0
+            },
+            "material_resolution_wait": {
+              "samples": 3,
+              "median": 0,
+              "minimum": 0,
+              "maximum": 0
+            },
+            "transaction_context": {
+              "samples": 3,
+              "median": 0,
+              "minimum": 0,
+              "maximum": 0.1
+            },
+            "prepare": {
+              "samples": 3,
+              "median": 492.4,
+              "minimum": 402.8,
+              "maximum": 1189.3
+            },
+            "client_share": {
+              "samples": 3,
+              "median": 3.3,
+              "minimum": 3.2,
+              "maximum": 3.6
+            },
+            "finalize": {
+              "samples": 3,
+              "median": 417.7,
+              "minimum": 413.4,
+              "maximum": 863.3
+            },
+            "signature_total": {
+              "samples": 3,
+              "median": 1270.7,
+              "minimum": 915.1,
+              "maximum": 1607.4
+            },
+            "confirmed_to_signed": {
+              "samples": 3,
+              "median": 1286.9,
+              "minimum": 931.1,
+              "maximum": 1623.4
+            }
+          },
+          "httpMsByPath": {
+            "/wallet/unlock/challenge": {
+              "samples": 3,
+              "median": 616.849,
+              "minimum": 603.05,
+              "maximum": 638.439
+            },
+            "/wallet/unlock/verify": {
+              "samples": 3,
+              "median": 1039.905,
+              "minimum": 1025.374,
+              "maximum": 1068.505
+            },
+            "/wallet/session/status": {
+              "samples": 9,
+              "median": 155.664,
+              "minimum": 135.007,
+              "maximum": 232.721
+            },
+            "/router-ab/ed25519/sign/prepare": {
+              "samples": 3,
+              "median": 491.169,
+              "minimum": 401.519,
+              "maximum": 1188.016
+            },
+            "/router-ab/ed25519/sign": {
+              "samples": 3,
+              "median": 416.837,
+              "minimum": 412.59,
+              "maximum": 862.69
+            }
+          }
+        },
+        "warm_signing": {
+          "verifiedSignatures": 6,
+          "sdkSigningMs": {
+            "samples": 6,
+            "median": 2384.467,
+            "minimum": 2134.32,
+            "maximum": 3608.69
+          },
+          "elapsedToVerifiedMs": {
+            "samples": 6,
+            "median": 3054.835,
+            "minimum": 3010.035,
+            "maximum": 4559.783
+          },
+          "gatewayHttpCalls": {
+            "samples": 6,
+            "median": 2.0,
+            "minimum": 2,
+            "maximum": 2
+          },
+          "nearAccessKeyCalls": {
+            "samples": 6,
+            "median": 2.5,
+            "minimum": 2,
+            "maximum": 3
+          },
+          "statusHttpCalls": {
+            "samples": 6,
+            "median": 0.0,
+            "minimum": 0,
+            "maximum": 0
+          },
+          "stagesMs": {
+            "authorization_probe": {
+              "samples": 6,
+              "median": 3.3,
+              "minimum": 3,
+              "maximum": 4.1
+            },
+            "lane_preparation": {
+              "samples": 6,
+              "median": 3.6,
+              "minimum": 3.3,
+              "maximum": 3.8
+            },
+            "confirmation": {
+              "samples": 6,
+              "median": 624.5,
+              "minimum": 561.9,
+              "maximum": 928.5
+            },
+            "durable_lease_recovery_wait": {
+              "samples": 6,
+              "median": 137.05,
+              "minimum": 0,
+              "maximum": 297.2
+            },
+            "material_resolution_wait": {
+              "samples": 6,
+              "median": 0.0,
+              "minimum": 0,
+              "maximum": 0
+            },
+            "transaction_context": {
+              "samples": 6,
+              "median": 0.0,
+              "minimum": 0,
+              "maximum": 0
+            },
+            "prepare": {
+              "samples": 6,
+              "median": 896.05,
+              "minimum": 482.1,
+              "maximum": 1173.1
+            },
+            "client_share": {
+              "samples": 6,
+              "median": 1.4,
+              "minimum": 1,
+              "maximum": 1.5
+            },
+            "finalize": {
+              "samples": 6,
+              "median": 734.9,
+              "minimum": 416.9,
+              "maximum": 1801.4
+            },
+            "signature_total": {
+              "samples": 6,
+              "median": 1475.05,
+              "minimum": 1264,
+              "maximum": 2977.3
+            },
+            "confirmed_to_signed": {
+              "samples": 6,
+              "median": 1655.1,
+              "minimum": 1418.7,
+              "maximum": 2979.9
+            }
+          },
+          "httpMsByPath": {
+            "/router-ab/ed25519/sign/prepare": {
+              "samples": 6,
+              "median": 895.27,
+              "minimum": 481.448,
+              "maximum": 1172.509
+            },
+            "/router-ab/ed25519/sign": {
+              "samples": 6,
+              "median": 734.221,
+              "minimum": 416.06,
+              "maximum": 1800.837
+            }
+          }
+        }
+      },
+      "repeatedSigning": {
+        "verifiedSignatures": 15,
+        "sdkSigningMs": {
+          "samples": 15,
+          "median": 2249.415,
+          "minimum": 1217.26,
+          "maximum": 3608.69
+        },
+        "elapsedToVerifiedMs": {
+          "samples": 15,
+          "median": 3030.74,
+          "minimum": 1452.579,
+          "maximum": 4559.783
+        },
+        "gatewayHttpCalls": {
+          "samples": 15,
+          "median": 2,
+          "minimum": 2,
+          "maximum": 2
+        },
+        "nearAccessKeyCalls": {
+          "samples": 15,
+          "median": 2,
+          "minimum": 1,
+          "maximum": 3
+        },
+        "statusHttpCalls": {
+          "samples": 15,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "stagesMs": {
+          "authorization_probe": {
+            "samples": 15,
+            "median": 3.6,
+            "minimum": 3,
+            "maximum": 6.9
+          },
+          "lane_preparation": {
+            "samples": 15,
+            "median": 3.6,
+            "minimum": 2.6,
+            "maximum": 7.5
+          },
+          "confirmation": {
+            "samples": 15,
+            "median": 600.3,
+            "minimum": 297.1,
+            "maximum": 976.3
+          },
+          "durable_lease_recovery_wait": {
+            "samples": 15,
+            "median": 0,
+            "minimum": 0,
+            "maximum": 353.8
+          },
+          "material_resolution_wait": {
+            "samples": 15,
+            "median": 0,
+            "minimum": 0,
+            "maximum": 0
+          },
+          "transaction_context": {
+            "samples": 15,
+            "median": 0,
+            "minimum": 0,
+            "maximum": 0.1
+          },
+          "prepare": {
+            "samples": 15,
+            "median": 520.3,
+            "minimum": 402.5,
+            "maximum": 1173.1
+          },
+          "client_share": {
+            "samples": 15,
+            "median": 1.4,
+            "minimum": 1,
+            "maximum": 3.7
+          },
+          "finalize": {
+            "samples": 15,
+            "median": 521.1,
+            "minimum": 402.2,
+            "maximum": 1801.4
+          },
+          "signature_total": {
+            "samples": 15,
+            "median": 1301.9,
+            "minimum": 847.3,
+            "maximum": 2977.3
+          },
+          "confirmed_to_signed": {
+            "samples": 15,
+            "median": 1483.1,
+            "minimum": 864.4,
+            "maximum": 2979.9
+          }
+        },
+        "httpMsByPath": {
+          "/router-ab/ed25519/sign/prepare": {
+            "samples": 15,
+            "median": 519.551,
+            "minimum": 401.807,
+            "maximum": 1172.509
+          },
+          "/router-ab/ed25519/sign": {
+            "samples": 15,
+            "median": 520.416,
+            "minimum": 401.422,
+            "maximum": 1800.837
+          }
+        }
+      },
+      "rawSamples": [
+        {
+          "file": "near-1.json",
+          "sha256": "8efce25d03fedd7b577bcd8c4895287ebe1d659e73c8055c5967cb57466ac8d5",
+          "outcome": "succeeded",
+          "browserConsoleCalls": [],
+          "samples": [
+            {
+              "workload": "registration_to_first_verified",
+              "verified": true,
+              "sdkSigningMs": 6984.329999923706,
+              "elapsedToVerifiedMs": 23567.071207999998,
+              "stagesMs": {
+                "authorization_probe": 4.699999928474426,
+                "lane_preparation": 5,
+                "confirmation": 1235,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 4756.600000023842,
+                "prepare": 458.7000000476837,
+                "client_share": 3.399999976158142,
+                "finalize": 462.10000002384186,
+                "signature_total": 925.7999999523163,
+                "confirmed_to_signed": 5698.899999976158
+              },
+              "gatewayHttpCalls": 12,
+              "httpPaths": {
+                "/wallets/register/setup": 1,
+                "/wallets/register/respond": 1,
+                "/router-ab/ed25519/yao/registration/admit": 1,
+                "/router-ab/ed25519/yao/registration/execute": 1,
+                "/wallets/register/activate": 1,
+                "/wallets/register/near-provisioning": 1,
+                "/wallet/session/status": 3,
+                "/wallets/frost-falcon-4hpged/near/implicit-account/fund": 1,
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 4,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "warm_signing",
+              "verified": true,
+              "sdkSigningMs": 3608.6900000572205,
+              "elapsedToVerifiedMs": 4559.782999999999,
+              "stagesMs": {
+                "authorization_probe": 4.099999904632568,
+                "lane_preparation": 3.3000000715255737,
+                "confirmation": 585.3000000715256,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 1173.1000000238419,
+                "client_share": 1.399999976158142,
+                "finalize": 1801.3999999761581,
+                "signature_total": 2977.3000000715256,
+                "confirmed_to_signed": 2979.899999976158
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 2,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "warm_signing",
+              "verified": true,
+              "sdkSigningMs": 2410.6549999713898,
+              "elapsedToVerifiedMs": 3058.6398330000047,
+              "stagesMs": {
+                "authorization_probe": 3.5,
+                "lane_preparation": 3.399999976158142,
+                "confirmation": 561.8999999761581,
+                "durable_lease_recovery_wait": 285,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 520.2999999523163,
+                "client_share": 1,
+                "finalize": 994.3999999761581,
+                "signature_total": 1516.6999999284744,
+                "confirmed_to_signed": 1806.7000000476837
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 3,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "unlock_to_first_verified",
+              "verified": true,
+              "sdkSigningMs": 2527.270000100136,
+              "elapsedToVerifiedMs": 5740.176124999998,
+              "stagesMs": {
+                "authorization_probe": 3.5,
+                "lane_preparation": 4.799999952316284,
+                "confirmation": 853.5,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0.10000002384185791,
+                "prepare": 1189.2999999523163,
+                "client_share": 3.200000047683716,
+                "finalize": 413.39999997615814,
+                "signature_total": 1607.3999999761581,
+                "confirmed_to_signed": 1623.3999999761581
+              },
+              "gatewayHttpCalls": 7,
+              "httpPaths": {
+                "/wallet/unlock/challenge": 1,
+                "/wallet/unlock/verify": 1,
+                "/wallet/session/status": 3,
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 1,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "three_consecutive",
+              "verified": true,
+              "sdkSigningMs": 1217.2599999904633,
+              "elapsedToVerifiedMs": 1452.5790419999976,
+              "stagesMs": {
+                "authorization_probe": 3.600000023841858,
+                "lane_preparation": 5,
+                "confirmation": 303,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 407.2999999523163,
+                "client_share": 3.3000000715255737,
+                "finalize": 435.5,
+                "signature_total": 847.2999999523163,
+                "confirmed_to_signed": 864.4000000953674
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 1,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "three_consecutive",
+              "verified": true,
+              "sdkSigningMs": 1554.2150000333786,
+              "elapsedToVerifiedMs": 2287.6434579999986,
+              "stagesMs": {
+                "authorization_probe": 3,
+                "lane_preparation": 2.600000023841858,
+                "confirmation": 646.2000000476837,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 459.7999999523163,
+                "client_share": 1.3000000715255737,
+                "finalize": 402.2000000476837,
+                "signature_total": 864.6000000238419,
+                "confirmed_to_signed": 867.2999999523163
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 2,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "three_consecutive",
+              "verified": true,
+              "sdkSigningMs": 2790.2699999809265,
+              "elapsedToVerifiedMs": 3030.740458,
+              "stagesMs": {
+                "authorization_probe": 3.600000023841858,
+                "lane_preparation": 7.5,
+                "confirmation": 718.6000000238419,
+                "durable_lease_recovery_wait": 353.7999999523163,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 1170.7999999523163,
+                "client_share": 1.3000000715255737,
+                "finalize": 496,
+                "signature_total": 1669.2000000476837,
+                "confirmed_to_signed": 2026.6000000238419
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 3,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            }
+          ]
+        },
+        {
+          "file": "near-2.json",
+          "sha256": "fe56214b9c94d8e006c9bd1196907332514cdd8855a0d792654cf53c3855557d",
+          "outcome": "succeeded",
+          "browserConsoleCalls": [],
+          "samples": [
+            {
+              "workload": "registration_to_first_verified",
+              "verified": true,
+              "sdkSigningMs": 8203.365000009537,
+              "elapsedToVerifiedMs": 22186.610667,
+              "stagesMs": {
+                "authorization_probe": 6.5,
+                "lane_preparation": 8.100000023841858,
+                "confirmation": 1010.2999999523163,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 5160,
+                "prepare": 901.2000000476837,
+                "client_share": 3.5999999046325684,
+                "finalize": 1051.5,
+                "signature_total": 1957.6000000238419,
+                "confirmed_to_signed": 7134.799999952316
+              },
+              "gatewayHttpCalls": 12,
+              "httpPaths": {
+                "/wallets/register/setup": 1,
+                "/wallets/register/respond": 1,
+                "/router-ab/ed25519/yao/registration/admit": 1,
+                "/router-ab/ed25519/yao/registration/execute": 1,
+                "/wallets/register/activate": 1,
+                "/wallets/register/near-provisioning": 1,
+                "/wallet/session/status": 3,
+                "/wallets/frost-delta-zwdjt6/near/implicit-account/fund": 1,
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 4,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "warm_signing",
+              "verified": true,
+              "sdkSigningMs": 2548.7200000286102,
+              "elapsedToVerifiedMs": 3051.029957999999,
+              "stagesMs": {
+                "authorization_probe": 3,
+                "lane_preparation": 3.600000023841858,
+                "confirmation": 928.5,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 877.7999999523163,
+                "client_share": 1.5,
+                "finalize": 690.3999999761581,
+                "signature_total": 1570.6999999284744,
+                "confirmed_to_signed": 1576.6000000238419
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 2,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "warm_signing",
+              "verified": true,
+              "sdkSigningMs": 2358.2799999713898,
+              "elapsedToVerifiedMs": 3063.8312080000032,
+              "stagesMs": {
+                "authorization_probe": 3.100000023841858,
+                "lane_preparation": 3.5999999046325684,
+                "confirmation": 581.2999999523163,
+                "durable_lease_recovery_wait": 297.2000000476837,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 1014.1000000238419,
+                "client_share": 1.2000000476837158,
+                "finalize": 416.89999997615814,
+                "signature_total": 1433.4000000953674,
+                "confirmed_to_signed": 1733.6000000238419
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 3,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "unlock_to_first_verified",
+              "verified": true,
+              "sdkSigningMs": 2041.304999947548,
+              "elapsedToVerifiedMs": 4962.976708000002,
+              "stagesMs": {
+                "authorization_probe": 5,
+                "lane_preparation": 7.799999952316284,
+                "confirmation": 1053.7999999523163,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 492.39999997615814,
+                "client_share": 3.600000023841858,
+                "finalize": 417.7000000476837,
+                "signature_total": 915.1000000238419,
+                "confirmed_to_signed": 931.1000000238419
+              },
+              "gatewayHttpCalls": 7,
+              "httpPaths": {
+                "/wallet/unlock/challenge": 1,
+                "/wallet/unlock/verify": 1,
+                "/wallet/session/status": 3,
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 1,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "three_consecutive",
+              "verified": true,
+              "sdkSigningMs": 1350.8250000476837,
+              "elapsedToVerifiedMs": 2247.558250000002,
+              "stagesMs": {
+                "authorization_probe": 4.700000047683716,
+                "lane_preparation": 7.299999952316284,
+                "confirmation": 297.10000002384186,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 455.40000009536743,
+                "client_share": 3.600000023841858,
+                "finalize": 521.1000000238419,
+                "signature_total": 981.5999999046326,
+                "confirmed_to_signed": 997.5
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 1,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "three_consecutive",
+              "verified": true,
+              "sdkSigningMs": 1501.039999961853,
+              "elapsedToVerifiedMs": 2300.6297080000077,
+              "stagesMs": {
+                "authorization_probe": 3.299999952316284,
+                "lane_preparation": 3.3000000715255737,
+                "confirmation": 580.3999999761581,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0.10000002384185791,
+                "prepare": 402.5,
+                "client_share": 1.2999999523162842,
+                "finalize": 470.60000002384186,
+                "signature_total": 875.5999999046326,
+                "confirmed_to_signed": 878.1999999284744
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 2,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "three_consecutive",
+              "verified": true,
+              "sdkSigningMs": 2371.2699999809265,
+              "elapsedToVerifiedMs": 3085.351834000001,
+              "stagesMs": {
+                "authorization_probe": 6.200000047683716,
+                "lane_preparation": 4.5,
+                "confirmation": 717,
+                "durable_lease_recovery_wait": 300.2000000476837,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 769.2000000476837,
+                "client_share": 1.2000000476837158,
+                "finalize": 530.6000000238419,
+                "signature_total": 1301.8999999761581,
+                "confirmed_to_signed": 1606.5
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 3,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            }
+          ]
+        },
+        {
+          "file": "near-3.json",
+          "sha256": "946635ace010ee935f4808813a45f7fb2226a5c97266bca6dc4f72db6325bd93",
+          "outcome": "succeeded",
+          "browserConsoleCalls": [],
+          "samples": [
+            {
+              "workload": "registration_to_first_verified",
+              "verified": true,
+              "sdkSigningMs": 6390.7300000190735,
+              "elapsedToVerifiedMs": 19178.55679199999,
+              "stagesMs": {
+                "authorization_probe": 5.5,
+                "lane_preparation": 8.899999976158142,
+                "confirmation": 321.39999997615814,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 4586.799999952316,
+                "prepare": 888.2000000476837,
+                "client_share": 3.6999999284744263,
+                "finalize": 519.1000000238419,
+                "signature_total": 1412.3999999761581,
+                "confirmed_to_signed": 6015.300000071526
+              },
+              "gatewayHttpCalls": 13,
+              "httpPaths": {
+                "/wallets/register/setup": 1,
+                "/wallets/register/respond": 1,
+                "/router-ab/ed25519/yao/registration/admit": 1,
+                "/router-ab/ed25519/yao/registration/execute": 1,
+                "/wallets/register/activate": 1,
+                "/wallets/register/near-provisioning": 1,
+                "/wallet/session/status": 4,
+                "/wallets/silver-quartz-upsdbh/near/implicit-account/fund": 1,
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 4,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "warm_signing",
+              "verified": true,
+              "sdkSigningMs": 2134.320000052452,
+              "elapsedToVerifiedMs": 3046.2018339999922,
+              "stagesMs": {
+                "authorization_probe": 3,
+                "lane_preparation": 3.600000023841858,
+                "confirmation": 671.3999999761581,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 914.2999999523163,
+                "client_share": 1.5,
+                "finalize": 498.7000000476837,
+                "signature_total": 1415.6999999284744,
+                "confirmed_to_signed": 1418.6999999284744
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 2,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "warm_signing",
+              "verified": true,
+              "sdkSigningMs": 2249.4150000810623,
+              "elapsedToVerifiedMs": 3010.035499999998,
+              "stagesMs": {
+                "authorization_probe": 3.700000047683716,
+                "lane_preparation": 3.799999952316284,
+                "confirmation": 663.6999999284744,
+                "durable_lease_recovery_wait": 274.10000002384186,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 482.10000002384186,
+                "client_share": 1.399999976158142,
+                "finalize": 779.3999999761581,
+                "signature_total": 1264,
+                "confirmed_to_signed": 1542.8999999761581
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 3,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "unlock_to_first_verified",
+              "verified": true,
+              "sdkSigningMs": 1742.7799999713898,
+              "elapsedToVerifiedMs": 5941.567875000008,
+              "stagesMs": {
+                "authorization_probe": 4,
+                "lane_preparation": 4.5,
+                "confirmation": 407.2999999523163,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 402.7999999523163,
+                "client_share": 3.3000000715255737,
+                "finalize": 863.2999999523163,
+                "signature_total": 1270.7000000476837,
+                "confirmed_to_signed": 1286.8999999761581
+              },
+              "gatewayHttpCalls": 7,
+              "httpPaths": {
+                "/wallet/unlock/challenge": 1,
+                "/wallet/unlock/verify": 1,
+                "/wallet/session/status": 3,
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 1,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "three_consecutive",
+              "verified": true,
+              "sdkSigningMs": 1675.9400000572205,
+              "elapsedToVerifiedMs": 2266.3364169999986,
+              "stagesMs": {
+                "authorization_probe": 5,
+                "lane_preparation": 7,
+                "confirmation": 375.10000002384186,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 510.09999990463257,
+                "client_share": 3.700000047683716,
+                "finalize": 714.1000000238419,
+                "signature_total": 1229.5,
+                "confirmed_to_signed": 1245.7999999523163
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 1,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "three_consecutive",
+              "verified": true,
+              "sdkSigningMs": 2500.6299999952316,
+              "elapsedToVerifiedMs": 3065.3892090000154,
+              "stagesMs": {
+                "authorization_probe": 3.399999976158142,
+                "lane_preparation": 3.3000000715255737,
+                "confirmation": 976.3000000715256,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 711,
+                "client_share": 1.5,
+                "finalize": 766.8000000715256,
+                "signature_total": 1480.2999999523163,
+                "confirmed_to_signed": 1483.0999999046326
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 2,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "three_consecutive",
+              "verified": true,
+              "sdkSigningMs": 1983.9650000333786,
+              "elapsedToVerifiedMs": 2278.693333000003,
+              "stagesMs": {
+                "authorization_probe": 6.899999976158142,
+                "lane_preparation": 3.100000023841858,
+                "confirmation": 600.2999999523163,
+                "durable_lease_recovery_wait": 353,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 487.2000000476837,
+                "client_share": 1.3000000715255737,
+                "finalize": 493,
+                "signature_total": 982.6000000238419,
+                "confirmed_to_signed": 1338.8000000715256
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 3,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "nonce-recovery",
+      "sdk": "candidate",
+      "result": "passed",
+      "wallets": 3,
+      "verifiedSignatures": 21,
+      "workloads": {
+        "registration_to_first_verified": {
+          "verifiedSignatures": 3,
+          "sdkSigningMs": {
+            "samples": 3,
+            "median": 7743.145,
+            "minimum": 6554.47,
+            "maximum": 8911.835
+          },
+          "elapsedToVerifiedMs": {
+            "samples": 3,
+            "median": 20582.767,
+            "minimum": 18273.379,
+            "maximum": 23096.39
+          },
+          "gatewayHttpCalls": {
+            "samples": 3,
+            "median": 13,
+            "minimum": 12,
+            "maximum": 13
+          },
+          "nearAccessKeyCalls": {
+            "samples": 3,
+            "median": 4,
+            "minimum": 4,
+            "maximum": 5
+          },
+          "statusHttpCalls": {
+            "samples": 3,
+            "median": 4,
+            "minimum": 3,
+            "maximum": 4
+          },
+          "stagesMs": {
+            "authorization_probe": {
+              "samples": 3,
+              "median": 4.7,
+              "minimum": 4.6,
+              "maximum": 5.3
+            },
+            "lane_preparation": {
+              "samples": 3,
+              "median": 5.4,
+              "minimum": 5,
+              "maximum": 5.4
+            },
+            "confirmation": {
+              "samples": 3,
+              "median": 846.7,
+              "minimum": 371.4,
+              "maximum": 1009.7
+            },
+            "durable_lease_recovery_wait": {
+              "samples": 3,
+              "median": 0,
+              "minimum": 0,
+              "maximum": 0.1
+            },
+            "material_resolution_wait": {
+              "samples": 3,
+              "median": 0,
+              "minimum": 0,
+              "maximum": 0
+            },
+            "transaction_context": {
+              "samples": 3,
+              "median": 5422.2,
+              "minimum": 4151.6,
+              "maximum": 6031.5
+            },
+            "prepare": {
+              "samples": 3,
+              "median": 926.8,
+              "minimum": 887.9,
+              "maximum": 1003
+            },
+            "client_share": {
+              "samples": 3,
+              "median": 3.6,
+              "minimum": 3.5,
+              "maximum": 3.8
+            },
+            "finalize": {
+              "samples": 3,
+              "median": 911.2,
+              "minimum": 478.7,
+              "maximum": 949.5
+            },
+            "signature_total": {
+              "samples": 3,
+              "median": 1803.9,
+              "minimum": 1487.1,
+              "maximum": 1881.2
+            },
+            "confirmed_to_signed": {
+              "samples": 3,
+              "median": 7319.6,
+              "minimum": 5655.9,
+              "maximum": 7852.3
+            }
+          },
+          "httpMsByPath": {
+            "/wallets/register/setup": {
+              "samples": 3,
+              "median": 647.518,
+              "minimum": 618.088,
+              "maximum": 856.949
+            },
+            "/wallets/register/respond": {
+              "samples": 3,
+              "median": 805.908,
+              "minimum": 768.362,
+              "maximum": 1026.166
+            },
+            "/router-ab/ed25519/yao/registration/admit": {
+              "samples": 3,
+              "median": 553.331,
+              "minimum": 483.007,
+              "maximum": 576.369
+            },
+            "/router-ab/ed25519/yao/registration/execute": {
+              "samples": 3,
+              "median": 5628.814,
+              "minimum": 4985.398,
+              "maximum": 6886.169
+            },
+            "/wallets/register/activate": {
+              "samples": 3,
+              "median": 830.499,
+              "minimum": 676.067,
+              "maximum": 867.629
+            },
+            "/wallets/register/near-provisioning": {
+              "samples": 3,
+              "median": 2437.986,
+              "minimum": 2320.822,
+              "maximum": 2441.262
+            },
+            "/wallet/session/status": {
+              "samples": 11,
+              "median": 173.584,
+              "minimum": 135.21,
+              "maximum": 200.416
+            },
+            "/wallets/coral-thunder-wcbgp5/near/implicit-account/fund": {
+              "samples": 1,
+              "median": 4814.566,
+              "minimum": 4814.566,
+              "maximum": 4814.566
+            },
+            "/router-ab/ed25519/sign/prepare": {
+              "samples": 3,
+              "median": 925.579,
+              "minimum": 886.646,
+              "maximum": 1001.903
+            },
+            "/router-ab/ed25519/sign": {
+              "samples": 3,
+              "median": 910.458,
+              "minimum": 477.854,
+              "maximum": 948.66
+            },
+            "/wallets/calm-giant-6p3dpu/near/implicit-account/fund": {
+              "samples": 1,
+              "median": 2866.176,
+              "minimum": 2866.176,
+              "maximum": 2866.176
+            },
+            "/wallets/bright-solstice-3pfqtm/near/implicit-account/fund": {
+              "samples": 1,
+              "median": 3353.846,
+              "minimum": 3353.846,
+              "maximum": 3353.846
+            }
+          }
+        },
+        "three_consecutive": {
+          "verifiedSignatures": 9,
+          "sdkSigningMs": {
+            "samples": 9,
+            "median": 1636.37,
+            "minimum": 1279.585,
+            "maximum": 2480.155
+          },
+          "elapsedToVerifiedMs": {
+            "samples": 9,
+            "median": 2281.645,
+            "minimum": 1477.665,
+            "maximum": 3033.657
+          },
+          "gatewayHttpCalls": {
+            "samples": 9,
+            "median": 2,
+            "minimum": 2,
+            "maximum": 2
+          },
+          "nearAccessKeyCalls": {
+            "samples": 9,
+            "median": 2,
+            "minimum": 1,
+            "maximum": 2
+          },
+          "statusHttpCalls": {
+            "samples": 9,
+            "median": 0,
+            "minimum": 0,
+            "maximum": 0
+          },
+          "stagesMs": {
+            "authorization_probe": {
+              "samples": 9,
+              "median": 3.5,
+              "minimum": 2.9,
+              "maximum": 4.9
+            },
+            "lane_preparation": {
+              "samples": 9,
+              "median": 3.2,
+              "minimum": 2.5,
+              "maximum": 5.6
+            },
+            "confirmation": {
+              "samples": 9,
+              "median": 609.5,
+              "minimum": 315.1,
+              "maximum": 1404.6
+            },
+            "durable_lease_recovery_wait": {
+              "samples": 9,
+              "median": 0,
+              "minimum": 0,
+              "maximum": 0
+            },
+            "material_resolution_wait": {
+              "samples": 9,
+              "median": 0,
+              "minimum": 0,
+              "maximum": 0
+            },
+            "transaction_context": {
+              "samples": 9,
+              "median": 0,
+              "minimum": 0,
+              "maximum": 0.1
+            },
+            "prepare": {
+              "samples": 9,
+              "median": 383.7,
+              "minimum": 351.1,
+              "maximum": 525.7
+            },
+            "client_share": {
+              "samples": 9,
+              "median": 1.3,
+              "minimum": 1.1,
+              "maximum": 3.6
+            },
+            "finalize": {
+              "samples": 9,
+              "median": 538.9,
+              "minimum": 380.7,
+              "maximum": 888.5
+            },
+            "signature_total": {
+              "samples": 9,
+              "median": 933.1,
+              "minimum": 781.9,
+              "maximum": 1322.9
+            },
+            "confirmed_to_signed": {
+              "samples": 9,
+              "median": 936.2,
+              "minimum": 787,
+              "maximum": 1325.9
+            }
+          },
+          "httpMsByPath": {
+            "/router-ab/ed25519/sign/prepare": {
+              "samples": 9,
+              "median": 382.959,
+              "minimum": 349.922,
+              "maximum": 524.526
+            },
+            "/router-ab/ed25519/sign": {
+              "samples": 9,
+              "median": 538.086,
+              "minimum": 379.962,
+              "maximum": 887.806
+            }
+          }
+        },
+        "unlock_to_first_verified": {
+          "verifiedSignatures": 3,
+          "sdkSigningMs": {
+            "samples": 3,
+            "median": 1910.66,
+            "minimum": 1266.15,
+            "maximum": 2630.09
+          },
+          "elapsedToVerifiedMs": {
+            "samples": 3,
+            "median": 4920.909,
+            "minimum": 4229.526,
+            "maximum": 5745.821
+          },
+          "gatewayHttpCalls": {
+            "samples": 3,
+            "median": 7,
+            "minimum": 7,
+            "maximum": 7
+          },
+          "nearAccessKeyCalls": {
+            "samples": 3,
+            "median": 1,
+            "minimum": 1,
+            "maximum": 1
+          },
+          "statusHttpCalls": {
+            "samples": 3,
+            "median": 3,
+            "minimum": 3,
+            "maximum": 3
+          },
+          "stagesMs": {
+            "authorization_probe": {
+              "samples": 3,
+              "median": 4.8,
+              "minimum": 3.6,
+              "maximum": 5.1
+            },
+            "lane_preparation": {
+              "samples": 3,
+              "median": 5.5,
+              "minimum": 4.8,
+              "maximum": 7.7
+            },
+            "confirmation": {
+              "samples": 3,
+              "median": 418.4,
+              "minimum": 384,
+              "maximum": 1008.5
+            },
+            "durable_lease_recovery_wait": {
+              "samples": 3,
+              "median": 0,
+              "minimum": 0,
+              "maximum": 0
+            },
+            "material_resolution_wait": {
+              "samples": 3,
+              "median": 0,
+              "minimum": 0,
+              "maximum": 0
+            },
+            "transaction_context": {
+              "samples": 3,
+              "median": 0,
+              "minimum": 0,
+              "maximum": 0.1
+            },
+            "prepare": {
+              "samples": 3,
+              "median": 369.4,
+              "minimum": 361.8,
+              "maximum": 851.6
+            },
+            "client_share": {
+              "samples": 3,
+              "median": 3.6,
+              "minimum": 3.4,
+              "maximum": 3.7
+            },
+            "finalize": {
+              "samples": 3,
+              "median": 687.5,
+              "minimum": 444.9,
+              "maximum": 1053.2
+            },
+            "signature_total": {
+              "samples": 3,
+              "median": 1427.4,
+              "minimum": 811.8,
+              "maximum": 1544.5
+            },
+            "confirmed_to_signed": {
+              "samples": 3,
+              "median": 1443.8,
+              "minimum": 828.4,
+              "maximum": 1565.5
+            }
+          },
+          "httpMsByPath": {
+            "/wallet/unlock/challenge": {
+              "samples": 3,
+              "median": 430.897,
+              "minimum": 430.882,
+              "maximum": 471.89
+            },
+            "/wallet/unlock/verify": {
+              "samples": 3,
+              "median": 931.53,
+              "minimum": 877.47,
+              "maximum": 998.171
+            },
+            "/wallet/session/status": {
+              "samples": 9,
+              "median": 144.902,
+              "minimum": 135.392,
+              "maximum": 186.503
+            },
+            "/router-ab/ed25519/sign/prepare": {
+              "samples": 3,
+              "median": 367.854,
+              "minimum": 360.597,
+              "maximum": 850.465
+            },
+            "/router-ab/ed25519/sign": {
+              "samples": 3,
+              "median": 686.709,
+              "minimum": 444.068,
+              "maximum": 1052.428
+            }
+          }
+        },
+        "warm_signing": {
+          "verifiedSignatures": 6,
+          "sdkSigningMs": {
+            "samples": 6,
+            "median": 2384.625,
+            "minimum": 1704.035,
+            "maximum": 2634.655
+          },
+          "elapsedToVerifiedMs": {
+            "samples": 6,
+            "median": 3021.522,
+            "minimum": 2267.085,
+            "maximum": 3079.235
+          },
+          "gatewayHttpCalls": {
+            "samples": 6,
+            "median": 2.0,
+            "minimum": 2,
+            "maximum": 2
+          },
+          "nearAccessKeyCalls": {
+            "samples": 6,
+            "median": 2.0,
+            "minimum": 2,
+            "maximum": 2
+          },
+          "statusHttpCalls": {
+            "samples": 6,
+            "median": 0.0,
+            "minimum": 0,
+            "maximum": 0
+          },
+          "stagesMs": {
+            "authorization_probe": {
+              "samples": 6,
+              "median": 3.7,
+              "minimum": 2.7,
+              "maximum": 4.2
+            },
+            "lane_preparation": {
+              "samples": 6,
+              "median": 3.6,
+              "minimum": 3,
+              "maximum": 3.8
+            },
+            "confirmation": {
+              "samples": 6,
+              "median": 676.65,
+              "minimum": 569.2,
+              "maximum": 1071.5
+            },
+            "durable_lease_recovery_wait": {
+              "samples": 6,
+              "median": 0.0,
+              "minimum": 0,
+              "maximum": 0
+            },
+            "material_resolution_wait": {
+              "samples": 6,
+              "median": 0.0,
+              "minimum": 0,
+              "maximum": 0
+            },
+            "transaction_context": {
+              "samples": 6,
+              "median": 0.0,
+              "minimum": 0,
+              "maximum": 0
+            },
+            "prepare": {
+              "samples": 6,
+              "median": 641.85,
+              "minimum": 458.5,
+              "maximum": 952.5
+            },
+            "client_share": {
+              "samples": 6,
+              "median": 1.3,
+              "minimum": 1.3,
+              "maximum": 1.4
+            },
+            "finalize": {
+              "samples": 6,
+              "median": 825.15,
+              "minimum": 631.2,
+              "maximum": 976.2
+            },
+            "signature_total": {
+              "samples": 6,
+              "median": 1469.5,
+              "minimum": 1092.1,
+              "maximum": 1902.1
+            },
+            "confirmed_to_signed": {
+              "samples": 6,
+              "median": 1474.6,
+              "minimum": 1094.8,
+              "maximum": 1904.8
+            }
+          },
+          "httpMsByPath": {
+            "/router-ab/ed25519/sign/prepare": {
+              "samples": 6,
+              "median": 641.038,
+              "minimum": 457.704,
+              "maximum": 951.719
+            },
+            "/router-ab/ed25519/sign": {
+              "samples": 6,
+              "median": 824.456,
+              "minimum": 630.691,
+              "maximum": 975.62
+            }
+          }
+        }
+      },
+      "repeatedSigning": {
+        "verifiedSignatures": 15,
+        "sdkSigningMs": {
+          "samples": 15,
+          "median": 1828.605,
+          "minimum": 1279.585,
+          "maximum": 2634.655
+        },
+        "elapsedToVerifiedMs": {
+          "samples": 15,
+          "median": 2301.589,
+          "minimum": 1477.665,
+          "maximum": 3079.235
+        },
+        "gatewayHttpCalls": {
+          "samples": 15,
+          "median": 2,
+          "minimum": 2,
+          "maximum": 2
+        },
+        "nearAccessKeyCalls": {
+          "samples": 15,
+          "median": 2,
+          "minimum": 1,
+          "maximum": 2
+        },
+        "statusHttpCalls": {
+          "samples": 15,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "stagesMs": {
+          "authorization_probe": {
+            "samples": 15,
+            "median": 3.5,
+            "minimum": 2.7,
+            "maximum": 4.9
+          },
+          "lane_preparation": {
+            "samples": 15,
+            "median": 3.5,
+            "minimum": 2.5,
+            "maximum": 5.6
+          },
+          "confirmation": {
+            "samples": 15,
+            "median": 612.6,
+            "minimum": 315.1,
+            "maximum": 1404.6
+          },
+          "durable_lease_recovery_wait": {
+            "samples": 15,
+            "median": 0,
+            "minimum": 0,
+            "maximum": 0
+          },
+          "material_resolution_wait": {
+            "samples": 15,
+            "median": 0,
+            "minimum": 0,
+            "maximum": 0
+          },
+          "transaction_context": {
+            "samples": 15,
+            "median": 0,
+            "minimum": 0,
+            "maximum": 0.1
+          },
+          "prepare": {
+            "samples": 15,
+            "median": 432.2,
+            "minimum": 351.1,
+            "maximum": 952.5
+          },
+          "client_share": {
+            "samples": 15,
+            "median": 1.3,
+            "minimum": 1.1,
+            "maximum": 3.6
+          },
+          "finalize": {
+            "samples": 15,
+            "median": 692.5,
+            "minimum": 380.7,
+            "maximum": 976.2
+          },
+          "signature_total": {
+            "samples": 15,
+            "median": 1203.8,
+            "minimum": 781.9,
+            "maximum": 1902.1
+          },
+          "confirmed_to_signed": {
+            "samples": 15,
+            "median": 1206.8,
+            "minimum": 787,
+            "maximum": 1904.8
+          }
+        },
+        "httpMsByPath": {
+          "/router-ab/ed25519/sign/prepare": {
+            "samples": 15,
+            "median": 431.41,
+            "minimum": 349.922,
+            "maximum": 951.719
+          },
+          "/router-ab/ed25519/sign": {
+            "samples": 15,
+            "median": 691.626,
+            "minimum": 379.962,
+            "maximum": 975.62
+          }
+        }
+      },
+      "rawSamples": [
+        {
+          "file": "near-1.json",
+          "sha256": "136bed3f30f6c985ed2b786cb5662803a08af1d46b13daf5553c12f2dbe65f16",
+          "outcome": "succeeded",
+          "browserConsoleCalls": [],
+          "samples": [
+            {
+              "workload": "registration_to_first_verified",
+              "verified": true,
+              "sdkSigningMs": 8911.835000038147,
+              "elapsedToVerifiedMs": 23096.390458,
+              "stagesMs": {
+                "authorization_probe": 4.600000023841858,
+                "lane_preparation": 5.399999976158142,
+                "confirmation": 1009.7000000476837,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 6031.5,
+                "prepare": 887.9000000953674,
+                "client_share": 3.5,
+                "finalize": 911.2000000476837,
+                "signature_total": 1803.8999999761581,
+                "confirmed_to_signed": 7852.299999952316
+              },
+              "gatewayHttpCalls": 12,
+              "httpPaths": {
+                "/wallets/register/setup": 1,
+                "/wallets/register/respond": 1,
+                "/router-ab/ed25519/yao/registration/admit": 1,
+                "/router-ab/ed25519/yao/registration/execute": 1,
+                "/wallets/register/activate": 1,
+                "/wallets/register/near-provisioning": 1,
+                "/wallet/session/status": 3,
+                "/wallets/coral-thunder-wcbgp5/near/implicit-account/fund": 1,
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 4,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "warm_signing",
+              "verified": true,
+              "sdkSigningMs": 2560.0500000715256,
+              "elapsedToVerifiedMs": 3018.7824580000015,
+              "stagesMs": {
+                "authorization_probe": 4.199999928474426,
+                "lane_preparation": 3.600000023841858,
+                "confirmation": 612.5999999046326,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 952.5,
+                "client_share": 1.399999976158142,
+                "finalize": 947.2000000476837,
+                "signature_total": 1902.1000000238419,
+                "confirmed_to_signed": 1904.8000000715256
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 2,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "warm_signing",
+              "verified": true,
+              "sdkSigningMs": 2634.6549999713898,
+              "elapsedToVerifiedMs": 3047.686708000001,
+              "stagesMs": {
+                "authorization_probe": 3.5,
+                "lane_preparation": 3.600000023841858,
+                "confirmation": 694.6000000238419,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 915.8999999761581,
+                "client_share": 1.3000000715255737,
+                "finalize": 976.1999999284744,
+                "signature_total": 1894.3999999761581,
+                "confirmed_to_signed": 1897.7999999523163
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 2,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "unlock_to_first_verified",
+              "verified": true,
+              "sdkSigningMs": 2630.0900000333786,
+              "elapsedToVerifiedMs": 5745.820833000002,
+              "stagesMs": {
+                "authorization_probe": 5.100000023841858,
+                "lane_preparation": 7.700000047683716,
+                "confirmation": 1008.5,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 851.5999999046326,
+                "client_share": 3.6999999284744263,
+                "finalize": 687.5,
+                "signature_total": 1544.5,
+                "confirmed_to_signed": 1565.5
+              },
+              "gatewayHttpCalls": 7,
+              "httpPaths": {
+                "/wallet/unlock/challenge": 1,
+                "/wallet/unlock/verify": 1,
+                "/wallet/session/status": 3,
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 1,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "three_consecutive",
+              "verified": true,
+              "sdkSigningMs": 1279.585000038147,
+              "elapsedToVerifiedMs": 1477.6647079999966,
+              "stagesMs": {
+                "authorization_probe": 4.899999976158142,
+                "lane_preparation": 5.399999976158142,
+                "confirmation": 315.10000002384186,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 351.10000002384186,
+                "client_share": 3.600000023841858,
+                "finalize": 538.8999999761581,
+                "signature_total": 895.2000000476837,
+                "confirmed_to_signed": 911.2999999523163
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 2,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "three_consecutive",
+              "verified": true,
+              "sdkSigningMs": 1419.0149999856949,
+              "elapsedToVerifiedMs": 2301.589082999999,
+              "stagesMs": {
+                "authorization_probe": 3.100000023841858,
+                "lane_preparation": 3.299999952316284,
+                "confirmation": 587.7999999523163,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 356.2999999523163,
+                "client_share": 1.2999999523162842,
+                "finalize": 423.2000000476837,
+                "signature_total": 781.8999999761581,
+                "confirmed_to_signed": 787
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 2,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "three_consecutive",
+              "verified": true,
+              "sdkSigningMs": 1828.6050000190735,
+              "elapsedToVerifiedMs": 2302.472416999997,
+              "stagesMs": {
+                "authorization_probe": 3.0999999046325684,
+                "lane_preparation": 3,
+                "confirmation": 578.2000000476837,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 383.6999999284744,
+                "client_share": 1.2999999523162842,
+                "finalize": 818,
+                "signature_total": 1203.7999999523163,
+                "confirmed_to_signed": 1206.7999999523163
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 2,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            }
+          ]
+        },
+        {
+          "file": "near-2.json",
+          "sha256": "a0242b5d92386759421457cfe0cbdbda1d141c345387d28f015499f11a7f31a0",
+          "outcome": "succeeded",
+          "browserConsoleCalls": [],
+          "samples": [
+            {
+              "workload": "registration_to_first_verified",
+              "verified": true,
+              "sdkSigningMs": 6554.47000002861,
+              "elapsedToVerifiedMs": 18273.378791999996,
+              "stagesMs": {
+                "authorization_probe": 4.700000047683716,
+                "lane_preparation": 5,
+                "confirmation": 846.7000000476837,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 4151.600000023842,
+                "prepare": 1003,
+                "client_share": 3.8000000715255737,
+                "finalize": 478.7000000476837,
+                "signature_total": 1487.1000000238419,
+                "confirmed_to_signed": 5655.899999976158
+              },
+              "gatewayHttpCalls": 13,
+              "httpPaths": {
+                "/wallets/register/setup": 1,
+                "/wallets/register/respond": 1,
+                "/router-ab/ed25519/yao/registration/admit": 1,
+                "/router-ab/ed25519/yao/registration/execute": 1,
+                "/wallets/register/activate": 1,
+                "/wallets/register/near-provisioning": 1,
+                "/wallet/session/status": 4,
+                "/wallets/calm-giant-6p3dpu/near/implicit-account/fund": 1,
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 4,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "warm_signing",
+              "verified": true,
+              "sdkSigningMs": 2253.320000052452,
+              "elapsedToVerifiedMs": 3079.235332999997,
+              "stagesMs": {
+                "authorization_probe": 3.5,
+                "lane_preparation": 3.5,
+                "confirmation": 658.7000000476837,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 768.3999999761581,
+                "client_share": 1.4000000953674316,
+                "finalize": 772.6999999284744,
+                "signature_total": 1543.6000000238419,
+                "confirmed_to_signed": 1548.8999999761581
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 2,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "warm_signing",
+              "verified": true,
+              "sdkSigningMs": 1950.9500000476837,
+              "elapsedToVerifiedMs": 2279.6875419999997,
+              "stagesMs": {
+                "authorization_probe": 3.9000000953674316,
+                "lane_preparation": 3.799999952316284,
+                "confirmation": 699.1999999284744,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 459.6999999284744,
+                "client_share": 1.2999999523162842,
+                "finalize": 744.2999999523163,
+                "signature_total": 1206.2999999523163,
+                "confirmed_to_signed": 1209.5
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 2,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "unlock_to_first_verified",
+              "verified": true,
+              "sdkSigningMs": 1266.1499999761581,
+              "elapsedToVerifiedMs": 4229.525750000001,
+              "stagesMs": {
+                "authorization_probe": 4.800000071525574,
+                "lane_preparation": 5.5,
+                "confirmation": 384,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0.10000002384185791,
+                "prepare": 361.7999999523163,
+                "client_share": 3.600000023841858,
+                "finalize": 444.89999997615814,
+                "signature_total": 811.8000000715256,
+                "confirmed_to_signed": 828.3999999761581
+              },
+              "gatewayHttpCalls": 7,
+              "httpPaths": {
+                "/wallet/unlock/challenge": 1,
+                "/wallet/unlock/verify": 1,
+                "/wallet/session/status": 3,
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 1,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "three_consecutive",
+              "verified": true,
+              "sdkSigningMs": 1711.1699999570847,
+              "elapsedToVerifiedMs": 2239.534415999995,
+              "stagesMs": {
+                "authorization_probe": 3.8000000715255737,
+                "lane_preparation": 5.100000023841858,
+                "confirmation": 854.2999999523163,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0.09999990463256836,
+                "prepare": 403.10000002384186,
+                "client_share": 3.200000047683716,
+                "finalize": 380.7000000476837,
+                "signature_total": 788.7999999523163,
+                "confirmed_to_signed": 804.6000000238419
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 1,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "three_consecutive",
+              "verified": true,
+              "sdkSigningMs": 1636.3700000047684,
+              "elapsedToVerifiedMs": 2280.839374999996,
+              "stagesMs": {
+                "authorization_probe": 3.5,
+                "lane_preparation": 3.1999999284744263,
+                "confirmation": 612.2000000476837,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 369.7000000476837,
+                "client_share": 1.100000023841858,
+                "finalize": 608.1999999284744,
+                "signature_total": 980.1000000238419,
+                "confirmed_to_signed": 982.7999999523163
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 2,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "three_consecutive",
+              "verified": true,
+              "sdkSigningMs": 1586.0599999427795,
+              "elapsedToVerifiedMs": 2281.644625000001,
+              "stagesMs": {
+                "authorization_probe": 3.899999976158142,
+                "lane_preparation": 2.899999976158142,
+                "confirmation": 609.5,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 408.89999997615814,
+                "client_share": 1.2000000476837158,
+                "finalize": 521.3999999761581,
+                "signature_total": 933.1000000238419,
+                "confirmed_to_signed": 936.1999999284744
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 2,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            }
+          ]
+        },
+        {
+          "file": "near-3.json",
+          "sha256": "0c319f4ae320ad2b41ba14f6c4c5a3d4153c16d47a42e5666fd38a91bec34bae",
+          "outcome": "succeeded",
+          "browserConsoleCalls": [],
+          "samples": [
+            {
+              "workload": "registration_to_first_verified",
+              "verified": true,
+              "sdkSigningMs": 7743.1449999809265,
+              "elapsedToVerifiedMs": 20582.76675000001,
+              "stagesMs": {
+                "authorization_probe": 5.300000071525574,
+                "lane_preparation": 5.399999976158142,
+                "confirmation": 371.39999997615814,
+                "durable_lease_recovery_wait": 0.10000002384185791,
+                "material_resolution_wait": 0,
+                "transaction_context": 5422.199999928474,
+                "prepare": 926.7999999523163,
+                "client_share": 3.600000023841858,
+                "finalize": 949.5,
+                "signature_total": 1881.2000000476837,
+                "confirmed_to_signed": 7319.600000023842
+              },
+              "gatewayHttpCalls": 13,
+              "httpPaths": {
+                "/wallets/register/setup": 1,
+                "/wallets/register/respond": 1,
+                "/router-ab/ed25519/yao/registration/admit": 1,
+                "/router-ab/ed25519/yao/registration/execute": 1,
+                "/wallets/register/activate": 1,
+                "/wallets/register/near-provisioning": 1,
+                "/wallet/session/status": 4,
+                "/wallets/bright-solstice-3pfqtm/near/implicit-account/fund": 1,
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 5,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "warm_signing",
+              "verified": true,
+              "sdkSigningMs": 2515.930000066757,
+              "elapsedToVerifiedMs": 3024.260791000008,
+              "stagesMs": {
+                "authorization_probe": 4,
+                "lane_preparation": 3.700000047683716,
+                "confirmation": 1071.5,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 515.3000000715256,
+                "client_share": 1.2999999523162842,
+                "finalize": 877.6000000238419,
+                "signature_total": 1395.4000000953674,
+                "confirmed_to_signed": 1400.2999999523163
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 2,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "warm_signing",
+              "verified": true,
+              "sdkSigningMs": 1704.0350000858307,
+              "elapsedToVerifiedMs": 2267.084541000004,
+              "stagesMs": {
+                "authorization_probe": 2.6999999284744263,
+                "lane_preparation": 3,
+                "confirmation": 569.1999999284744,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 458.5,
+                "client_share": 1.3000000715255737,
+                "finalize": 631.1999999284744,
+                "signature_total": 1092.1000000238419,
+                "confirmed_to_signed": 1094.8000000715256
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 2,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "unlock_to_first_verified",
+              "verified": true,
+              "sdkSigningMs": 1910.6599999666214,
+              "elapsedToVerifiedMs": 4920.908624999996,
+              "stagesMs": {
+                "authorization_probe": 3.5999999046325684,
+                "lane_preparation": 4.800000071525574,
+                "confirmation": 418.39999997615814,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 369.39999997615814,
+                "client_share": 3.399999976158142,
+                "finalize": 1053.2000000476837,
+                "signature_total": 1427.3999999761581,
+                "confirmed_to_signed": 1443.7999999523163
+              },
+              "gatewayHttpCalls": 7,
+              "httpPaths": {
+                "/wallet/unlock/challenge": 1,
+                "/wallet/unlock/verify": 1,
+                "/wallet/session/status": 3,
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 1,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "three_consecutive",
+              "verified": true,
+              "sdkSigningMs": 1617.2300000190735,
+              "elapsedToVerifiedMs": 2217.5759580000013,
+              "stagesMs": {
+                "authorization_probe": 4,
+                "lane_preparation": 5.600000023841858,
+                "confirmation": 326.10000002384186,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 525.7000000476837,
+                "client_share": 3.399999976158142,
+                "finalize": 692.5,
+                "signature_total": 1222.8999999761581,
+                "confirmed_to_signed": 1239.1000000238419
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 1,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "three_consecutive",
+              "verified": true,
+              "sdkSigningMs": 2330.389999985695,
+              "elapsedToVerifiedMs": 3032.692041000002,
+              "stagesMs": {
+                "authorization_probe": 3.1999999284744263,
+                "lane_preparation": 3,
+                "confirmation": 1404.6000000238419,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 376.90000009536743,
+                "client_share": 1.2999999523162842,
+                "finalize": 500.5,
+                "signature_total": 879.7000000476837,
+                "confirmed_to_signed": 883.8999999761581
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 2,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "three_consecutive",
+              "verified": true,
+              "sdkSigningMs": 2480.1549999713898,
+              "elapsedToVerifiedMs": 3033.6573339999886,
+              "stagesMs": {
+                "authorization_probe": 2.899999976158142,
+                "lane_preparation": 2.5,
+                "confirmation": 1113.2999999523163,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0.10000002384185791,
+                "prepare": 432.1999999284744,
+                "client_share": 1.1999999284744263,
+                "finalize": 888.5,
+                "signature_total": 1322.8999999761581,
+                "confirmed_to_signed": 1325.9000000953674
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 2,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "control-after",
+      "sdk": "baseline",
+      "result": "passed",
+      "wallets": 3,
+      "verifiedSignatures": 21,
+      "workloads": {
+        "registration_to_first_verified": {
+          "verifiedSignatures": 3,
+          "sdkSigningMs": {
+            "samples": 3,
+            "median": 7365.27,
+            "minimum": 7108.705,
+            "maximum": 8288.42
+          },
+          "elapsedToVerifiedMs": {
+            "samples": 3,
+            "median": 20497.628,
+            "minimum": 19860.111,
+            "maximum": 21292.096
+          },
+          "gatewayHttpCalls": {
+            "samples": 3,
+            "median": 13,
+            "minimum": 12,
+            "maximum": 13
+          },
+          "nearAccessKeyCalls": {
+            "samples": 3,
+            "median": 4,
+            "minimum": 3,
+            "maximum": 4
+          },
+          "statusHttpCalls": {
+            "samples": 3,
+            "median": 4,
+            "minimum": 3,
+            "maximum": 4
+          },
+          "stagesMs": {
+            "authorization_probe": {
+              "samples": 3,
+              "median": 5.5,
+              "minimum": 4.3,
+              "maximum": 5.8
+            },
+            "lane_preparation": {
+              "samples": 3,
+              "median": 6.7,
+              "minimum": 5.3,
+              "maximum": 7.5
+            },
+            "confirmation": {
+              "samples": 3,
+              "median": 865.7,
+              "minimum": 310.8,
+              "maximum": 1063.6
+            },
+            "durable_lease_recovery_wait": {
+              "samples": 3,
+              "median": 0,
+              "minimum": 0,
+              "maximum": 0
+            },
+            "material_resolution_wait": {
+              "samples": 3,
+              "median": 0,
+              "minimum": 0,
+              "maximum": 0
+            },
+            "transaction_context": {
+              "samples": 3,
+              "median": 4810.5,
+              "minimum": 4459.9,
+              "maximum": 6399.1
+            },
+            "prepare": {
+              "samples": 3,
+              "median": 884.3,
+              "minimum": 844.4,
+              "maximum": 908.7
+            },
+            "client_share": {
+              "samples": 3,
+              "median": 3.3,
+              "minimum": 3.2,
+              "maximum": 3.6
+            },
+            "finalize": {
+              "samples": 3,
+              "median": 658.7,
+              "minimum": 447.7,
+              "maximum": 878
+            },
+            "signature_total": {
+              "samples": 3,
+              "median": 1507.9,
+              "minimum": 1360.9,
+              "maximum": 1767.5
+            },
+            "confirmed_to_signed": {
+              "samples": 3,
+              "median": 6245.5,
+              "minimum": 6189.5,
+              "maximum": 7924.6
+            }
+          },
+          "httpMsByPath": {
+            "/wallets/register/setup": {
+              "samples": 3,
+              "median": 697.031,
+              "minimum": 624.937,
+              "maximum": 830.192
+            },
+            "/wallets/register/respond": {
+              "samples": 3,
+              "median": 893.34,
+              "minimum": 758.752,
+              "maximum": 943.938
+            },
+            "/router-ab/ed25519/yao/registration/admit": {
+              "samples": 3,
+              "median": 553.226,
+              "minimum": 458.648,
+              "maximum": 555.446
+            },
+            "/router-ab/ed25519/yao/registration/execute": {
+              "samples": 3,
+              "median": 5573.509,
+              "minimum": 5383.529,
+              "maximum": 6743.377
+            },
+            "/wallets/register/activate": {
+              "samples": 3,
+              "median": 619.056,
+              "minimum": 610.041,
+              "maximum": 623.049
+            },
+            "/wallets/register/near-provisioning": {
+              "samples": 3,
+              "median": 2630.166,
+              "minimum": 2385.523,
+              "maximum": 2757.299
+            },
+            "/wallet/session/status": {
+              "samples": 11,
+              "median": 144.173,
+              "minimum": 136.838,
+              "maximum": 171.948
+            },
+            "/wallets/copper-anchor-pqhy2r/near/implicit-account/fund": {
+              "samples": 1,
+              "median": 3237.971,
+              "minimum": 3237.971,
+              "maximum": 3237.971
+            },
+            "/router-ab/ed25519/sign/prepare": {
+              "samples": 3,
+              "median": 883.285,
+              "minimum": 843.168,
+              "maximum": 907.285
+            },
+            "/router-ab/ed25519/sign": {
+              "samples": 3,
+              "median": 657.712,
+              "minimum": 446.722,
+              "maximum": 877.133
+            },
+            "/wallets/winter-bloom-jvemx4/near/implicit-account/fund": {
+              "samples": 1,
+              "median": 4759.426,
+              "minimum": 4759.426,
+              "maximum": 4759.426
+            },
+            "/wallets/glacier-reef-ryak8k/near/implicit-account/fund": {
+              "samples": 1,
+              "median": 3160.726,
+              "minimum": 3160.726,
+              "maximum": 3160.726
+            }
+          }
+        },
+        "three_consecutive": {
+          "verifiedSignatures": 9,
+          "sdkSigningMs": {
+            "samples": 9,
+            "median": 1818.975,
+            "minimum": 1598.075,
+            "maximum": 2515.835
+          },
+          "elapsedToVerifiedMs": {
+            "samples": 9,
+            "median": 2283.195,
+            "minimum": 2209.728,
+            "maximum": 3029.968
+          },
+          "gatewayHttpCalls": {
+            "samples": 9,
+            "median": 2,
+            "minimum": 2,
+            "maximum": 2
+          },
+          "nearAccessKeyCalls": {
+            "samples": 9,
+            "median": 2,
+            "minimum": 1,
+            "maximum": 3
+          },
+          "statusHttpCalls": {
+            "samples": 9,
+            "median": 0,
+            "minimum": 0,
+            "maximum": 0
+          },
+          "stagesMs": {
+            "authorization_probe": {
+              "samples": 9,
+              "median": 3.7,
+              "minimum": 2.6,
+              "maximum": 8.7
+            },
+            "lane_preparation": {
+              "samples": 9,
+              "median": 3.4,
+              "minimum": 2.3,
+              "maximum": 5.9
+            },
+            "confirmation": {
+              "samples": 9,
+              "median": 577.4,
+              "minimum": 296.1,
+              "maximum": 747.3
+            },
+            "durable_lease_recovery_wait": {
+              "samples": 9,
+              "median": 0,
+              "minimum": 0,
+              "maximum": 308.2
+            },
+            "material_resolution_wait": {
+              "samples": 9,
+              "median": 0,
+              "minimum": 0,
+              "maximum": 0
+            },
+            "transaction_context": {
+              "samples": 9,
+              "median": 0,
+              "minimum": 0,
+              "maximum": 0
+            },
+            "prepare": {
+              "samples": 9,
+              "median": 455.1,
+              "minimum": 364.2,
+              "maximum": 979.7
+            },
+            "client_share": {
+              "samples": 9,
+              "median": 1.4,
+              "minimum": 1.1,
+              "maximum": 3.6
+            },
+            "finalize": {
+              "samples": 9,
+              "median": 531.1,
+              "minimum": 392.8,
+              "maximum": 1111.7
+            },
+            "signature_total": {
+              "samples": 9,
+              "median": 1088.4,
+              "minimum": 806.2,
+              "maximum": 1929.6
+            },
+            "confirmed_to_signed": {
+              "samples": 9,
+              "median": 1370.1,
+              "minimum": 808.9,
+              "maximum": 1945.2
+            }
+          },
+          "httpMsByPath": {
+            "/router-ab/ed25519/sign/prepare": {
+              "samples": 9,
+              "median": 453.697,
+              "minimum": 363.419,
+              "maximum": 978.565
+            },
+            "/router-ab/ed25519/sign": {
+              "samples": 9,
+              "median": 530.441,
+              "minimum": 392.186,
+              "maximum": 1111.123
+            }
+          }
+        },
+        "unlock_to_first_verified": {
+          "verifiedSignatures": 3,
+          "sdkSigningMs": {
+            "samples": 3,
+            "median": 1893.85,
+            "minimum": 1589.965,
+            "maximum": 2488.215
+          },
+          "elapsedToVerifiedMs": {
+            "samples": 3,
+            "median": 4980.652,
+            "minimum": 4962.015,
+            "maximum": 5729.094
+          },
+          "gatewayHttpCalls": {
+            "samples": 3,
+            "median": 7,
+            "minimum": 7,
+            "maximum": 7
+          },
+          "nearAccessKeyCalls": {
+            "samples": 3,
+            "median": 1,
+            "minimum": 1,
+            "maximum": 1
+          },
+          "statusHttpCalls": {
+            "samples": 3,
+            "median": 3,
+            "minimum": 3,
+            "maximum": 3
+          },
+          "stagesMs": {
+            "authorization_probe": {
+              "samples": 3,
+              "median": 4.3,
+              "minimum": 3.9,
+              "maximum": 5.3
+            },
+            "lane_preparation": {
+              "samples": 3,
+              "median": 6.2,
+              "minimum": 5,
+              "maximum": 7.7
+            },
+            "confirmation": {
+              "samples": 3,
+              "median": 295.9,
+              "minimum": 291.2,
+              "maximum": 850.8
+            },
+            "durable_lease_recovery_wait": {
+              "samples": 3,
+              "median": 0,
+              "minimum": 0,
+              "maximum": 0
+            },
+            "material_resolution_wait": {
+              "samples": 3,
+              "median": 0,
+              "minimum": 0,
+              "maximum": 0
+            },
+            "transaction_context": {
+              "samples": 3,
+              "median": 0,
+              "minimum": 0,
+              "maximum": 0.1
+            },
+            "prepare": {
+              "samples": 3,
+              "median": 523.1,
+              "minimum": 345.3,
+              "maximum": 976.1
+            },
+            "client_share": {
+              "samples": 3,
+              "median": 3.4,
+              "minimum": 3.4,
+              "maximum": 3.8
+            },
+            "finalize": {
+              "samples": 3,
+              "median": 877.9,
+              "minimum": 586.4,
+              "maximum": 998.3
+            },
+            "signature_total": {
+              "samples": 3,
+              "median": 1526.1,
+              "minimum": 1227.9,
+              "maximum": 1567.7
+            },
+            "confirmed_to_signed": {
+              "samples": 3,
+              "median": 1545.4,
+              "minimum": 1244.1,
+              "maximum": 1584.2
+            }
+          },
+          "httpMsByPath": {
+            "/wallet/unlock/challenge": {
+              "samples": 3,
+              "median": 481.634,
+              "minimum": 441.501,
+              "maximum": 484.082
+            },
+            "/wallet/unlock/verify": {
+              "samples": 3,
+              "median": 940.413,
+              "minimum": 856.954,
+              "maximum": 1037.795
+            },
+            "/wallet/session/status": {
+              "samples": 9,
+              "median": 145.981,
+              "minimum": 129.612,
+              "maximum": 214.008
+            },
+            "/router-ab/ed25519/sign/prepare": {
+              "samples": 3,
+              "median": 521.739,
+              "minimum": 343.943,
+              "maximum": 974.763
+            },
+            "/router-ab/ed25519/sign": {
+              "samples": 3,
+              "median": 877.23,
+              "minimum": 585.643,
+              "maximum": 997.414
+            }
+          }
+        },
+        "warm_signing": {
+          "verifiedSignatures": 6,
+          "sdkSigningMs": {
+            "samples": 6,
+            "median": 1885.465,
+            "minimum": 1701.975,
+            "maximum": 2331.425
+          },
+          "elapsedToVerifiedMs": {
+            "samples": 6,
+            "median": 2283.44,
+            "minimum": 2270.281,
+            "maximum": 3030.202
+          },
+          "gatewayHttpCalls": {
+            "samples": 6,
+            "median": 2.0,
+            "minimum": 2,
+            "maximum": 2
+          },
+          "nearAccessKeyCalls": {
+            "samples": 6,
+            "median": 2.5,
+            "minimum": 2,
+            "maximum": 3
+          },
+          "statusHttpCalls": {
+            "samples": 6,
+            "median": 0.0,
+            "minimum": 0,
+            "maximum": 0
+          },
+          "stagesMs": {
+            "authorization_probe": {
+              "samples": 6,
+              "median": 3.5,
+              "minimum": 3.2,
+              "maximum": 3.9
+            },
+            "lane_preparation": {
+              "samples": 6,
+              "median": 3.5,
+              "minimum": 3,
+              "maximum": 3.8
+            },
+            "confirmation": {
+              "samples": 6,
+              "median": 598.85,
+              "minimum": 573.7,
+              "maximum": 700.9
+            },
+            "durable_lease_recovery_wait": {
+              "samples": 6,
+              "median": 139.3,
+              "minimum": 0,
+              "maximum": 330.8
+            },
+            "material_resolution_wait": {
+              "samples": 6,
+              "median": 0.0,
+              "minimum": 0,
+              "maximum": 0
+            },
+            "transaction_context": {
+              "samples": 6,
+              "median": 0.0,
+              "minimum": 0,
+              "maximum": 0
+            },
+            "prepare": {
+              "samples": 6,
+              "median": 514.05,
+              "minimum": 330.5,
+              "maximum": 854.1
+            },
+            "client_share": {
+              "samples": 6,
+              "median": 1.3,
+              "minimum": 1.1,
+              "maximum": 1.4
+            },
+            "finalize": {
+              "samples": 6,
+              "median": 496.1,
+              "minimum": 380.2,
+              "maximum": 967.7
+            },
+            "signature_total": {
+              "samples": 6,
+              "median": 1189.95,
+              "minimum": 783.2,
+              "maximum": 1449.2
+            },
+            "confirmed_to_signed": {
+              "samples": 6,
+              "median": 1215.95,
+              "minimum": 1065,
+              "maximum": 1587.8
+            }
+          },
+          "httpMsByPath": {
+            "/router-ab/ed25519/sign/prepare": {
+              "samples": 6,
+              "median": 513.362,
+              "minimum": 329.636,
+              "maximum": 853.431
+            },
+            "/router-ab/ed25519/sign": {
+              "samples": 6,
+              "median": 495.364,
+              "minimum": 379.337,
+              "maximum": 966.868
+            }
+          }
+        }
+      },
+      "repeatedSigning": {
+        "verifiedSignatures": 15,
+        "sdkSigningMs": {
+          "samples": 15,
+          "median": 1885.035,
+          "minimum": 1598.075,
+          "maximum": 2515.835
+        },
+        "elapsedToVerifiedMs": {
+          "samples": 15,
+          "median": 2283.195,
+          "minimum": 2209.728,
+          "maximum": 3030.202
+        },
+        "gatewayHttpCalls": {
+          "samples": 15,
+          "median": 2,
+          "minimum": 2,
+          "maximum": 2
+        },
+        "nearAccessKeyCalls": {
+          "samples": 15,
+          "median": 2,
+          "minimum": 1,
+          "maximum": 3
+        },
+        "statusHttpCalls": {
+          "samples": 15,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "stagesMs": {
+          "authorization_probe": {
+            "samples": 15,
+            "median": 3.6,
+            "minimum": 2.6,
+            "maximum": 8.7
+          },
+          "lane_preparation": {
+            "samples": 15,
+            "median": 3.5,
+            "minimum": 2.3,
+            "maximum": 5.9
+          },
+          "confirmation": {
+            "samples": 15,
+            "median": 588.4,
+            "minimum": 296.1,
+            "maximum": 747.3
+          },
+          "durable_lease_recovery_wait": {
+            "samples": 15,
+            "median": 0,
+            "minimum": 0,
+            "maximum": 330.8
+          },
+          "material_resolution_wait": {
+            "samples": 15,
+            "median": 0,
+            "minimum": 0,
+            "maximum": 0
+          },
+          "transaction_context": {
+            "samples": 15,
+            "median": 0,
+            "minimum": 0,
+            "maximum": 0
+          },
+          "prepare": {
+            "samples": 15,
+            "median": 479,
+            "minimum": 330.5,
+            "maximum": 979.7
+          },
+          "client_share": {
+            "samples": 15,
+            "median": 1.3,
+            "minimum": 1.1,
+            "maximum": 3.6
+          },
+          "finalize": {
+            "samples": 15,
+            "median": 531.1,
+            "minimum": 380.2,
+            "maximum": 1111.7
+          },
+          "signature_total": {
+            "samples": 15,
+            "median": 1143.2,
+            "minimum": 783.2,
+            "maximum": 1929.6
+          },
+          "confirmed_to_signed": {
+            "samples": 15,
+            "median": 1239.6,
+            "minimum": 808.9,
+            "maximum": 1945.2
+          }
+        },
+        "httpMsByPath": {
+          "/router-ab/ed25519/sign/prepare": {
+            "samples": 15,
+            "median": 478.383,
+            "minimum": 329.636,
+            "maximum": 978.565
+          },
+          "/router-ab/ed25519/sign": {
+            "samples": 15,
+            "median": 530.441,
+            "minimum": 379.337,
+            "maximum": 1111.123
+          }
+        }
+      },
+      "rawSamples": [
+        {
+          "file": "near-1.json",
+          "sha256": "0e4c660fd281926dbcb2cc859aa44207c41fe603437cd032568dd44dc23060e2",
+          "outcome": "succeeded",
+          "browserConsoleCalls": [],
+          "samples": [
+            {
+              "workload": "registration_to_first_verified",
+              "verified": true,
+              "sdkSigningMs": 7108.705000042915,
+              "elapsedToVerifiedMs": 19860.110959,
+              "stagesMs": {
+                "authorization_probe": 5.5,
+                "lane_preparation": 6.699999928474426,
+                "confirmation": 865.7000000476837,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 4810.5,
+                "prepare": 908.7000000476837,
+                "client_share": 3.1999999284744263,
+                "finalize": 447.7000000476837,
+                "signature_total": 1360.8999999761581,
+                "confirmed_to_signed": 6189.5
+              },
+              "gatewayHttpCalls": 13,
+              "httpPaths": {
+                "/wallets/register/setup": 1,
+                "/wallets/register/respond": 1,
+                "/router-ab/ed25519/yao/registration/admit": 1,
+                "/router-ab/ed25519/yao/registration/execute": 1,
+                "/wallets/register/activate": 1,
+                "/wallets/register/near-provisioning": 1,
+                "/wallet/session/status": 4,
+                "/wallets/copper-anchor-pqhy2r/near/implicit-account/fund": 1,
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 3,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "warm_signing",
+              "verified": true,
+              "sdkSigningMs": 1885.0350000858307,
+              "elapsedToVerifiedMs": 2283.9891659999994,
+              "stagesMs": {
+                "authorization_probe": 3.1999999284744263,
+                "lane_preparation": 3.5,
+                "confirmation": 694.3000000715256,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 549.1000000238419,
+                "client_share": 1.2999999523162842,
+                "finalize": 591.8000000715256,
+                "signature_total": 1143.2000000476837,
+                "confirmed_to_signed": 1148.3999999761581
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 2,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "warm_signing",
+              "verified": true,
+              "sdkSigningMs": 2331.4250000715256,
+              "elapsedToVerifiedMs": 3030.2019169999985,
+              "stagesMs": {
+                "authorization_probe": 3.600000023841858,
+                "lane_preparation": 3.100000023841858,
+                "confirmation": 700.8999999761581,
+                "durable_lease_recovery_wait": 330.8000000715256,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 849.7999999523163,
+                "client_share": 1.100000023841858,
+                "finalize": 401.60000002384186,
+                "signature_total": 1253.7000000476837,
+                "confirmed_to_signed": 1587.8000000715256
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 3,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "unlock_to_first_verified",
+              "verified": true,
+              "sdkSigningMs": 2488.2150000333786,
+              "elapsedToVerifiedMs": 5729.094000000001,
+              "stagesMs": {
+                "authorization_probe": 4.300000071525574,
+                "lane_preparation": 6.199999928474426,
+                "confirmation": 850.8000000715256,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 976.1000000238419,
+                "client_share": 3.8000000715255737,
+                "finalize": 586.3999999761581,
+                "signature_total": 1567.6999999284744,
+                "confirmed_to_signed": 1584.1999999284744
+              },
+              "gatewayHttpCalls": 7,
+              "httpPaths": {
+                "/wallet/unlock/challenge": 1,
+                "/wallet/unlock/verify": 1,
+                "/wallet/session/status": 3,
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 1,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "three_consecutive",
+              "verified": true,
+              "sdkSigningMs": 1975.8300000429153,
+              "elapsedToVerifiedMs": 2209.7281250000015,
+              "stagesMs": {
+                "authorization_probe": 7.299999952316284,
+                "lane_preparation": 5.899999976158142,
+                "confirmation": 346.89999997615814,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 616.2000000476837,
+                "client_share": 3.600000023841858,
+                "finalize": 936,
+                "signature_total": 1557.1999999284744,
+                "confirmed_to_signed": 1573.1000000238419
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 1,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "three_consecutive",
+              "verified": true,
+              "sdkSigningMs": 1640.070000052452,
+              "elapsedToVerifiedMs": 2283.195209000005,
+              "stagesMs": {
+                "authorization_probe": 3.399999976158142,
+                "lane_preparation": 2.3000000715255737,
+                "confirmation": 712.3000000715256,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 364.2000000476837,
+                "client_share": 1.2000000476837158,
+                "finalize": 517.5,
+                "signature_total": 884,
+                "confirmed_to_signed": 886.5
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 2,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "three_consecutive",
+              "verified": true,
+              "sdkSigningMs": 1724.1499999761581,
+              "elapsedToVerifiedMs": 2283.3634170000005,
+              "stagesMs": {
+                "authorization_probe": 3.5,
+                "lane_preparation": 3.200000047683716,
+                "confirmation": 588.3999999761581,
+                "durable_lease_recovery_wait": 282.2000000476837,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 375.8000000715256,
+                "client_share": 1.2999999523162842,
+                "finalize": 430.5,
+                "signature_total": 808.7000000476837,
+                "confirmed_to_signed": 1094.1000000238419
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 3,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            }
+          ]
+        },
+        {
+          "file": "near-2.json",
+          "sha256": "9707c336b0a1d1864cd5062828a2335e543a256e100af0a2971d64179f794ef9",
+          "outcome": "succeeded",
+          "browserConsoleCalls": [],
+          "samples": [
+            {
+              "workload": "registration_to_first_verified",
+              "verified": true,
+              "sdkSigningMs": 8288.419999957085,
+              "elapsedToVerifiedMs": 21292.095917000006,
+              "stagesMs": {
+                "authorization_probe": 4.299999952316284,
+                "lane_preparation": 5.300000071525574,
+                "confirmation": 310.7999999523163,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 6399.100000023842,
+                "prepare": 844.3999999761581,
+                "client_share": 3.299999952316284,
+                "finalize": 658.7000000476837,
+                "signature_total": 1507.8999999761581,
+                "confirmed_to_signed": 7924.600000023842
+              },
+              "gatewayHttpCalls": 13,
+              "httpPaths": {
+                "/wallets/register/setup": 1,
+                "/wallets/register/respond": 1,
+                "/router-ab/ed25519/yao/registration/admit": 1,
+                "/router-ab/ed25519/yao/registration/execute": 1,
+                "/wallets/register/activate": 1,
+                "/wallets/register/near-provisioning": 1,
+                "/wallet/session/status": 4,
+                "/wallets/winter-bloom-jvemx4/near/implicit-account/fund": 1,
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 4,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "warm_signing",
+              "verified": true,
+              "sdkSigningMs": 1885.8950001001358,
+              "elapsedToVerifiedMs": 2279.3633749999863,
+              "stagesMs": {
+                "authorization_probe": 3.399999976158142,
+                "lane_preparation": 3.5,
+                "confirmation": 603.4000000953674,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 854.1000000238419,
+                "client_share": 1.3000000715255737,
+                "finalize": 380.1999999284744,
+                "signature_total": 1236.6999999284744,
+                "confirmed_to_signed": 1239.5999999046326
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 2,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "warm_signing",
+              "verified": true,
+              "sdkSigningMs": 1701.9750000238419,
+              "elapsedToVerifiedMs": 2282.891042000003,
+              "stagesMs": {
+                "authorization_probe": 3.899999976158142,
+                "lane_preparation": 3.8000000715255737,
+                "confirmation": 594.2999999523163,
+                "durable_lease_recovery_wait": 278.60000002384186,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 330.5,
+                "client_share": 1.2000000476837158,
+                "finalize": 450.5,
+                "signature_total": 783.2000000476837,
+                "confirmed_to_signed": 1065
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 3,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "unlock_to_first_verified",
+              "verified": true,
+              "sdkSigningMs": 1893.8500000238419,
+              "elapsedToVerifiedMs": 4980.652291999999,
+              "stagesMs": {
+                "authorization_probe": 3.899999976158142,
+                "lane_preparation": 5,
+                "confirmation": 295.89999997615814,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0.10000002384185791,
+                "prepare": 523.1000000238419,
+                "client_share": 3.399999976158142,
+                "finalize": 998.3000000715256,
+                "signature_total": 1526.1000000238419,
+                "confirmed_to_signed": 1545.3999999761581
+              },
+              "gatewayHttpCalls": 7,
+              "httpPaths": {
+                "/wallet/unlock/challenge": 1,
+                "/wallet/unlock/verify": 1,
+                "/wallet/session/status": 3,
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 1,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "three_consecutive",
+              "verified": true,
+              "sdkSigningMs": 1818.9750000238419,
+              "elapsedToVerifiedMs": 2214.863209000003,
+              "stagesMs": {
+                "authorization_probe": 3.8000000715255737,
+                "lane_preparation": 4.699999928474426,
+                "confirmation": 296.10000002384186,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 455.10000002384186,
+                "client_share": 3.100000023841858,
+                "finalize": 996.9000000953674,
+                "signature_total": 1456.4000000953674,
+                "confirmed_to_signed": 1474.1000000238419
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 1,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "three_consecutive",
+              "verified": true,
+              "sdkSigningMs": 1598.0750000476837,
+              "elapsedToVerifiedMs": 2286.897291999994,
+              "stagesMs": {
+                "authorization_probe": 2.600000023841858,
+                "lane_preparation": 2.899999976158142,
+                "confirmation": 747.3000000715256,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 411,
+                "client_share": 1.399999976158142,
+                "finalize": 392.8000000715256,
+                "signature_total": 806.2000000476837,
+                "confirmed_to_signed": 808.8999999761581
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 2,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "three_consecutive",
+              "verified": true,
+              "sdkSigningMs": 2515.835000038147,
+              "elapsedToVerifiedMs": 3029.9675419999985,
+              "stagesMs": {
+                "authorization_probe": 8.700000047683716,
+                "lane_preparation": 3.399999976158142,
+                "confirmation": 669.9000000953674,
+                "durable_lease_recovery_wait": 308.1999999284744,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 373.60000002384186,
+                "client_share": 1.100000023841858,
+                "finalize": 1111.7000000476837,
+                "signature_total": 1487.5,
+                "confirmed_to_signed": 1799.1999999284744
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 3,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            }
+          ]
+        },
+        {
+          "file": "near-3.json",
+          "sha256": "163d4badcc21a22544346d30790271a50c48f6d51b7066668a5b6063ef1cdfca",
+          "outcome": "succeeded",
+          "browserConsoleCalls": [],
+          "samples": [
+            {
+              "workload": "registration_to_first_verified",
+              "verified": true,
+              "sdkSigningMs": 7365.2699999809265,
+              "elapsedToVerifiedMs": 20497.628375,
+              "stagesMs": {
+                "authorization_probe": 5.800000071525574,
+                "lane_preparation": 7.5,
+                "confirmation": 1063.6000000238419,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 4459.900000095367,
+                "prepare": 884.2999999523163,
+                "client_share": 3.600000023841858,
+                "finalize": 878,
+                "signature_total": 1767.5,
+                "confirmed_to_signed": 6245.5
+              },
+              "gatewayHttpCalls": 12,
+              "httpPaths": {
+                "/wallets/register/setup": 1,
+                "/wallets/register/respond": 1,
+                "/router-ab/ed25519/yao/registration/admit": 1,
+                "/router-ab/ed25519/yao/registration/execute": 1,
+                "/wallets/register/activate": 1,
+                "/wallets/register/near-provisioning": 1,
+                "/wallet/session/status": 3,
+                "/wallets/glacier-reef-ryak8k/near/implicit-account/fund": 1,
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 4,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "warm_signing",
+              "verified": true,
+              "sdkSigningMs": 2068.695000052452,
+              "elapsedToVerifiedMs": 3027.493291999999,
+              "stagesMs": {
+                "authorization_probe": 3.399999976158142,
+                "lane_preparation": 3.5,
+                "confirmation": 573.7000000476837,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 479,
+                "client_share": 1.399999976158142,
+                "finalize": 967.7000000476837,
+                "signature_total": 1449.2000000476837,
+                "confirmed_to_signed": 1452
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 2,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "warm_signing",
+              "verified": true,
+              "sdkSigningMs": 1817.8550000190735,
+              "elapsedToVerifiedMs": 2270.2808749999967,
+              "stagesMs": {
+                "authorization_probe": 3.899999976158142,
+                "lane_preparation": 3,
+                "confirmation": 582.8000000715256,
+                "durable_lease_recovery_wait": 286.59999990463257,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 358.5,
+                "client_share": 1.2999999523162842,
+                "finalize": 541.7000000476837,
+                "signature_total": 902.7000000476837,
+                "confirmed_to_signed": 1192.2999999523163
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 3,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "unlock_to_first_verified",
+              "verified": true,
+              "sdkSigningMs": 1589.9650000333786,
+              "elapsedToVerifiedMs": 4962.015333000003,
+              "stagesMs": {
+                "authorization_probe": 5.299999952316284,
+                "lane_preparation": 7.699999928474426,
+                "confirmation": 291.2000000476837,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 345.3000000715256,
+                "client_share": 3.4000000953674316,
+                "finalize": 877.9000000953674,
+                "signature_total": 1227.8999999761581,
+                "confirmed_to_signed": 1244.1000000238419
+              },
+              "gatewayHttpCalls": 7,
+              "httpPaths": {
+                "/wallet/unlock/challenge": 1,
+                "/wallet/unlock/verify": 1,
+                "/wallet/session/status": 3,
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 1,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "three_consecutive",
+              "verified": true,
+              "sdkSigningMs": 2359.530000090599,
+              "elapsedToVerifiedMs": 2987.8060000000114,
+              "stagesMs": {
+                "authorization_probe": 3.700000047683716,
+                "lane_preparation": 4.299999952316284,
+                "confirmation": 365.7000000476837,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 979.7000000476837,
+                "client_share": 3.5,
+                "finalize": 945.0999999046326,
+                "signature_total": 1929.6000000238419,
+                "confirmed_to_signed": 1945.1999999284744
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 1,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "three_consecutive",
+              "verified": true,
+              "sdkSigningMs": 1683.289999961853,
+              "elapsedToVerifiedMs": 2281.1997919999994,
+              "stagesMs": {
+                "authorization_probe": 3.1999999284744263,
+                "lane_preparation": 3.5,
+                "confirmation": 577.3999999761581,
+                "durable_lease_recovery_wait": 0,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 629,
+                "client_share": 1.5,
+                "finalize": 429.2000000476837,
+                "signature_total": 1060.5,
+                "confirmed_to_signed": 1063.1999999284744
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 2,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            },
+            {
+              "workload": "three_consecutive",
+              "verified": true,
+              "sdkSigningMs": 1971.5049999952316,
+              "elapsedToVerifiedMs": 2265.8466670000053,
+              "stagesMs": {
+                "authorization_probe": 3.700000047683716,
+                "lane_preparation": 3.1999999284744263,
+                "confirmation": 562,
+                "durable_lease_recovery_wait": 278.2000000476837,
+                "material_resolution_wait": 0,
+                "transaction_context": 0,
+                "prepare": 555,
+                "client_share": 1.2999999523162842,
+                "finalize": 531.1000000238419,
+                "signature_total": 1088.4000000953674,
+                "confirmed_to_signed": 1370.0999999046326
+              },
+              "gatewayHttpCalls": 2,
+              "httpPaths": {
+                "/router-ab/ed25519/sign/prepare": 1,
+                "/router-ab/ed25519/sign": 1
+              },
+              "nearAccessKeyCalls": 3,
+              "gatewayD1Calls": null,
+              "gatewayConsoleCalls": null
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "servingVersionAudit": [
+    {
+      "arm": "control-before",
+      "roles": [
+        {
+          "role": "router",
+          "expectedVersionIds": [
+            "cff2b41d-1fa2-4311-a8ce-56364c7ddf1a"
+          ],
+          "actualInvocationCounts": {
+            "cff2b41d-1fa2-4311-a8ce-56364c7ddf1a": 68
+          },
+          "allMatched": true
+        },
+        {
+          "role": "deriver-a",
+          "expectedVersionIds": [
+            "eaa0b80f-47bf-44a9-b9b5-4f73a70abcd0"
+          ],
+          "actualInvocationCounts": {
+            "eaa0b80f-47bf-44a9-b9b5-4f73a70abcd0": 18
+          },
+          "allMatched": true
+        },
+        {
+          "role": "deriver-b",
+          "expectedVersionIds": [
+            "c700bbc1-b87f-4182-9f64-ff2bf33eead8"
+          ],
+          "actualInvocationCounts": {
+            "c700bbc1-b87f-4182-9f64-ff2bf33eead8": 20
+          },
+          "allMatched": true
+        },
+        {
+          "role": "signing-worker",
+          "expectedVersionIds": [
+            "c18b2202-8063-4c96-9772-fb1a268494fc"
+          ],
+          "actualInvocationCounts": {
+            "c18b2202-8063-4c96-9772-fb1a268494fc": 97
+          },
+          "allMatched": true
+        },
+        {
+          "role": "gateway",
+          "expectedVersionIds": [
+            "12f48c20-df36-4d15-8355-33c2ac72338f"
+          ],
+          "actualInvocationCounts": {
+            "12f48c20-df36-4d15-8355-33c2ac72338f": 146
+          },
+          "allMatched": true
+        }
+      ],
+      "allMatched": true,
+      "invocationTimings": {
+        "deriver-a./router-ab/internal/deriver-a/wallet-pair/prepare-work": {
+          "cpu": {
+            "samples": 2,
+            "medianMs": 179.0,
+            "minimumMs": 161,
+            "maximumMs": 197
+          },
+          "wall": {
+            "samples": 2,
+            "medianMs": 397.0,
+            "minimumMs": 387,
+            "maximumMs": 407
+          }
+        },
+        "deriver-a./router-ab/internal/deriver-a/wallet-pair/execute-work": {
+          "cpu": {
+            "samples": 2,
+            "medianMs": 606.0,
+            "minimumMs": 550,
+            "maximumMs": 662
+          },
+          "wall": {
+            "samples": 2,
+            "medianMs": 2217.5,
+            "minimumMs": 2021,
+            "maximumMs": 2414
+          }
+        },
+        "deriver-b./router-ab/internal/deriver-b/wallet-pair": {
+          "cpu": {
+            "samples": 6,
+            "medianMs": 11.0,
+            "minimumMs": 9,
+            "maximumMs": 224
+          },
+          "wall": {
+            "samples": 6,
+            "medianMs": 52.0,
+            "minimumMs": 48,
+            "maximumMs": 429
+          }
+        },
+        "signing-worker./router-ab/internal/signing-worker/wallet": {
+          "cpu": {
+            "samples": 45,
+            "medianMs": 13,
+            "minimumMs": 7,
+            "maximumMs": 103
+          },
+          "wall": {
+            "samples": 45,
+            "medianMs": 55,
+            "minimumMs": 46,
+            "maximumMs": 490
+          }
+        },
+        "signing_worker.package_worker": {
+          "cpu": {
+            "samples": 2,
+            "medianMs": 6.0,
+            "minimumMs": 6,
+            "maximumMs": 6
+          },
+          "wall": {
+            "samples": 2,
+            "medianMs": 929.0,
+            "minimumMs": 848,
+            "maximumMs": 1010
+          }
+        }
+      }
+    },
+    {
+      "arm": "nonce-recovery",
+      "roles": [
+        {
+          "role": "router",
+          "expectedVersionIds": [
+            "cff2b41d-1fa2-4311-a8ce-56364c7ddf1a"
+          ],
+          "actualInvocationCounts": {
+            "cff2b41d-1fa2-4311-a8ce-56364c7ddf1a": 72
+          },
+          "allMatched": true
+        },
+        {
+          "role": "deriver-a",
+          "expectedVersionIds": [
+            "eaa0b80f-47bf-44a9-b9b5-4f73a70abcd0"
+          ],
+          "actualInvocationCounts": {
+            "eaa0b80f-47bf-44a9-b9b5-4f73a70abcd0": 22
+          },
+          "allMatched": true
+        },
+        {
+          "role": "deriver-b",
+          "expectedVersionIds": [
+            "c700bbc1-b87f-4182-9f64-ff2bf33eead8"
+          ],
+          "actualInvocationCounts": {
+            "c700bbc1-b87f-4182-9f64-ff2bf33eead8": 25
+          },
+          "allMatched": true
+        },
+        {
+          "role": "signing-worker",
+          "expectedVersionIds": [
+            "c18b2202-8063-4c96-9772-fb1a268494fc"
+          ],
+          "actualInvocationCounts": {
+            "c18b2202-8063-4c96-9772-fb1a268494fc": 98
+          },
+          "allMatched": true
+        },
+        {
+          "role": "gateway",
+          "expectedVersionIds": [
+            "12f48c20-df36-4d15-8355-33c2ac72338f"
+          ],
+          "actualInvocationCounts": {
+            "12f48c20-df36-4d15-8355-33c2ac72338f": 152
+          },
+          "allMatched": true
+        }
+      ],
+      "allMatched": true,
+      "invocationTimings": {
+        "deriver-a./router-ab/internal/deriver-a/wallet-pair/prepare-work": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 207,
+            "minimumMs": 192,
+            "maximumMs": 296
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 415,
+            "minimumMs": 400,
+            "maximumMs": 531
+          }
+        },
+        "deriver-a./router-ab/internal/deriver-a/wallet-pair/execute-work": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 606,
+            "minimumMs": 539,
+            "maximumMs": 808
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 2555,
+            "minimumMs": 2065,
+            "maximumMs": 3565
+          }
+        },
+        "deriver-b./router-ab/internal/deriver-b/wallet-pair": {
+          "cpu": {
+            "samples": 9,
+            "medianMs": 21,
+            "minimumMs": 9,
+            "maximumMs": 317
+          },
+          "wall": {
+            "samples": 9,
+            "medianMs": 64,
+            "minimumMs": 53,
+            "maximumMs": 645
+          }
+        },
+        "signing_worker.package_worker": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 4,
+            "minimumMs": 2,
+            "maximumMs": 13
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 801,
+            "minimumMs": 767,
+            "maximumMs": 837
+          }
+        },
+        "signing-worker./router-ab/internal/signing-worker/wallet": {
+          "cpu": {
+            "samples": 45,
+            "medianMs": 12,
+            "minimumMs": 5,
+            "maximumMs": 83
+          },
+          "wall": {
+            "samples": 45,
+            "medianMs": 53,
+            "minimumMs": 43,
+            "maximumMs": 183
+          }
+        }
+      }
+    },
+    {
+      "arm": "control-after",
+      "roles": [
+        {
+          "role": "router",
+          "expectedVersionIds": [
+            "cff2b41d-1fa2-4311-a8ce-56364c7ddf1a"
+          ],
+          "actualInvocationCounts": {
+            "cff2b41d-1fa2-4311-a8ce-56364c7ddf1a": 72
+          },
+          "allMatched": true
+        },
+        {
+          "role": "deriver-a",
+          "expectedVersionIds": [
+            "eaa0b80f-47bf-44a9-b9b5-4f73a70abcd0"
+          ],
+          "actualInvocationCounts": {
+            "eaa0b80f-47bf-44a9-b9b5-4f73a70abcd0": 22
+          },
+          "allMatched": true
+        },
+        {
+          "role": "deriver-b",
+          "expectedVersionIds": [
+            "c700bbc1-b87f-4182-9f64-ff2bf33eead8"
+          ],
+          "actualInvocationCounts": {
+            "c700bbc1-b87f-4182-9f64-ff2bf33eead8": 25
+          },
+          "allMatched": true
+        },
+        {
+          "role": "signing-worker",
+          "expectedVersionIds": [
+            "c18b2202-8063-4c96-9772-fb1a268494fc"
+          ],
+          "actualInvocationCounts": {
+            "c18b2202-8063-4c96-9772-fb1a268494fc": 98
+          },
+          "allMatched": true
+        },
+        {
+          "role": "gateway",
+          "expectedVersionIds": [
+            "12f48c20-df36-4d15-8355-33c2ac72338f"
+          ],
+          "actualInvocationCounts": {
+            "12f48c20-df36-4d15-8355-33c2ac72338f": 154
+          },
+          "allMatched": true
+        }
+      ],
+      "allMatched": true,
+      "invocationTimings": {
+        "deriver-a./router-ab/internal/deriver-a/wallet-pair/prepare-work": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 168,
+            "minimumMs": 148,
+            "maximumMs": 261
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 365,
+            "minimumMs": 362,
+            "maximumMs": 467
+          }
+        },
+        "deriver-a./router-ab/internal/deriver-a/wallet-pair/execute-work": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 590,
+            "minimumMs": 555,
+            "maximumMs": 991
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 2464,
+            "minimumMs": 2374,
+            "maximumMs": 3357
+          }
+        },
+        "deriver-b./router-ab/internal/deriver-b/wallet-pair": {
+          "cpu": {
+            "samples": 9,
+            "medianMs": 12,
+            "minimumMs": 9,
+            "maximumMs": 210
+          },
+          "wall": {
+            "samples": 9,
+            "medianMs": 54,
+            "minimumMs": 51,
+            "maximumMs": 533
+          }
+        },
+        "signing_worker.package_worker": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 5,
+            "minimumMs": 1,
+            "maximumMs": 8
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 848,
+            "minimumMs": 789,
+            "maximumMs": 908
+          }
+        },
+        "signing-worker./router-ab/internal/signing-worker/wallet": {
+          "cpu": {
+            "samples": 45,
+            "medianMs": 14,
+            "minimumMs": 6,
+            "maximumMs": 130
+          },
+          "wall": {
+            "samples": 45,
+            "medianMs": 54,
+            "minimumMs": 44,
+            "maximumMs": 180
+          }
+        }
+      }
+    }
+  ],
+  "unchangedStaging": {
+    "workers": 13,
+    "versions": {
+      "seams-sdk-d1-console-staging": [
+        {
+          "version_id": "29d08e63-3d81-4fa0-adf2-123ecbbe5641",
+          "percentage": 100
+        }
+      ],
+      "router-ab-deriver-a-staging": [
+        {
+          "version_id": "eaa0b80f-47bf-44a9-b9b5-4f73a70abcd0",
+          "percentage": 100
+        }
+      ],
+      "router-ab-deriver-b-staging": [
+        {
+          "version_id": "c700bbc1-b87f-4182-9f64-ff2bf33eead8",
+          "percentage": 100
+        }
+      ],
+      "router-ab-mpc-router-staging": [
+        {
+          "version_id": "cff2b41d-1fa2-4311-a8ce-56364c7ddf1a",
+          "percentage": 100
+        }
+      ],
+      "router-ab-signing-worker-staging": [
+        {
+          "version_id": "c18b2202-8063-4c96-9772-fb1a268494fc",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-gateway-staging": [
+        {
+          "version_id": "12f48c20-df36-4d15-8355-33c2ac72338f",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-gateway-staging-oc": [
+        {
+          "version_id": "d997446e-77de-4b55-90fb-20e7549c5a39",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-gateway-staging-us": [
+        {
+          "version_id": "991403ec-65e5-4885-a1a0-847e662e3871",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-gateway-staging-weur": [
+        {
+          "version_id": "b4614e86-1ae0-4f1e-bf78-bdf620b63731",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-wallet-runtime-staging": [
+        {
+          "version_id": "b068efef-5043-4072-b1fe-0c6dbce1c902",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-wallet-runtime-staging-oc": [
+        {
+          "version_id": "3f48c537-0d1e-4b3e-9595-f1c586fc3ab6",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-wallet-runtime-staging-us": [
+        {
+          "version_id": "273942f8-a9d8-45d0-a616-cf467043073d",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-wallet-runtime-staging-weur": [
+        {
+          "version_id": "3431e054-ca39-4032-a830-96b2a615b406",
+          "percentage": 100
+        }
+      ]
+    },
+    "verifiedAt": "2026-10-08T06:29:00.255816+00:00"
+  },
+  "limitations": [
+    "Three candidate wallets. Sequential samples do not establish a percentile or a guaranteed whole-flow saving.",
+    "sdkSigningMs includes automated confirmation, required nonce/RPC work and MPC. It excludes blockchain submission and confirmation.",
+    "elapsedToVerifiedMs also includes browser interaction and independent signature verification. Registration includes funding and provisioning. Unlock includes the unlock lifecycle.",
+    "Access-key RPC counts cover browser queries during signing, including recovery and fresh transaction context. They are not D1 calls.",
+    "Gateway counts cover POST requests overlapping each workload. Lifecycle counts can include background requests.",
+    "D1 and Gateway-to-Console counters were unavailable. Null does not mean zero. Browser-to-Console requests were zero.",
+    "No Yao protocol, DO initialization, placement or deployed backend change was made. Registration setup variation is not an optimization result.",
+    "The local scenario covers three signatures across reload and a transient RPC failure within one unlocked session. Concurrent tabs are not newly exercised; per-lane locks and reservation accounting remain unchanged.",
+    "The existing auth.lock path clears durable nonce reservations. An exploratory lock/unlock test reused nonce 2 after non-broadcast signatures 2 through 5. That lifecycle behavior predates this change and is not part of the within-session recovery guarantee.",
+    "The independent ECDSA confirmation timeout reproduced on the unchanged baseline in Phase 6R remains outside this NEAR change."
+  ],
+  "reproduction": {
+    "build": "Public .artifacts/r155b-phase6s/build.py builds baseline and candidate SDKs from source.json. WASM artifacts are unchanged.",
+    "local": "Public .artifacts/r155b-phase6s/test-local.py runs the focused nonce lifecycle scenario with fresh local state. Startup initially lacked a package link. The new test was moved into the existing lifecycle file required by the harness. Test development corrected assumptions that step-up renewed reusable quota and that auth.lock preserved signed reservations. The final scenario directly verifies failed recovery and reload within one session.",
+    "hosted": "Private .artifacts/r155b-phase6s-hosted/run.py runs the existing NEAR-only browser harness, guards backend versions around every arm, and closes its tails in finally.",
+    "rawArtifacts": "Private .artifacts/r155b-phase6s-hosted and public .artifacts/r155b-phase6s"
+  },
+  "rawTailSha256": {
+    "router": "3ab40dd9db733d841ef1d6b957c8a2112b9f09b4a65bada72de485791117a451",
+    "deriver-a": "d486f6505194f09827f776b61d857592d3e4334d2ed8e3c87be7661a157e3d91",
+    "deriver-b": "e63f4beeec9be041f418cb01ac3bd1f3e918aba577b1d6e61d70c7091631c91c",
+    "signing-worker": "a668ae5100245489619ef4d8370bd1edd4a0dcc3caa8e092b3f2495c7706e3e4",
+    "gateway": "401a79a6cb486ae71a883612ea6253e2265a86b28e7024e7c09740015f2926d4"
+  }
+}

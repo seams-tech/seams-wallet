@@ -3678,3 +3678,101 @@ alone would not address that wait.
 [Sanitized evidence](evidence/near-direct-prepare-20261008.json) preserves the
 samples, request counts, build hashes, retirement result, version audits, and
 baseline-reproduced regional failure.
+
+### Phase 6S — share NEAR nonce recovery reads within each pass
+
+Recovery currently repeats the same access-key RPC for every saved reservation.
+Consecutive signing adds reservations, so recovery can add serial network waits.
+Use one fresh chain observation per exact wallet/key lane in each recovery pass.
+A failed read retains unexpired reservations. Later passes retry the chain read.
+The map lasts only for that pass. Existing lane locks and expiry rules remain.
+
+- [x] Replace per-reservation NEAR chain reads with one read per lane per pass.
+- [x] Verify distinct signed nonces through reload and a transient RPC failure.
+- [x] Compare frozen SDKs against unchanged staging backends. Record access-key
+  RPC counts, signature times, recovery waits, ranges, and maximums.
+- [x] Review the change, record evidence, run the bloat check, and commit.
+
+The next server candidate is the duplicate authorized-operation read in finalize.
+Authorization reads by operation ID, then the route reads it by fingerprint.
+Carry the already validated operation through that boundary while preserving live
+authority, material, replay, quota, and transactional admission checks. This phase
+does not change that path or Yao setup.
+
+#### Measured result — 2026-10-08
+
+All **63 signatures verified across nine fresh NEAR-only wallets**. Each arm used
+three wallets and twenty-one signatures. Baseline/candidate/baseline browser SDKs
+used the same thirteen staging Worker versions. Every captured serving version
+matched. No live resource, deployment, activation, or package release changed.
+
+Recovery now makes **one access-key RPC per exact wallet/key lane per pass**.
+Fresh transaction context can make another RPC. The third signature in each tested
+session used **two access-key calls**, compared with three in both controls.
+Across fifteen repeated signatures, the candidate made **28 calls**, versus
+**33 in each control**: **15% fewer observed calls**. These are NEAR blockchain
+RPC calls, not D1 calls. Counts include fresh transaction context and overlapping
+browser RPC work. The change adds no cache between recovery passes.
+
+| SDK signing, per signature | Control before: median (range) | Candidate: median (range) | Control after: median (range) |
+| --- | --- | --- | --- |
+| Warm, 6 signatures per arm | 2.384 s (2.134–3.609) | **2.385 s (1.704–2.635)** | 1.885 s (1.702–2.331) |
+| Three-signature sequences, 9 signatures per arm | 1.676 s (1.217–2.790) | **1.636 s (1.280–2.480)** | 1.819 s (1.598–2.516) |
+| Both repeated workloads, 15 signatures per arm | 2.249 s (1.217–3.609) | **1.829 s (1.280–2.635)** | 1.885 s (1.598–2.516) |
+
+SDK timing includes automated confirmation, nonce/RPC work, and MPC. It ends at
+signed output, before blockchain submission or confirmation. Each range ends at
+the observed maximum. Independent signature verification runs after this timer.
+
+The maximum wait for durable recovery after confirmation fell from **353.8 ms**
+and **330.8 ms** in the controls to **0 ms** across all fifteen candidate repeated
+signatures. All three arms already had a **0 ms median**. Recovery already overlaps
+confirmation; this change reduces its serial RPC work. It does not add overlap.
+
+Keep the request reduction. The run does **not** establish a consistent warm-signing
+latency gain: the candidate matched the first control and was slower than the last.
+Combined medians were 3–19% lower, but these sequential samples include transport
+and confirmation variation. They do not establish a percentile or guaranteed saving.
+
+Candidate prepare and finalize measured **432.2 / 692.5 ms median**, with maxima
+of **952.5 / 976.2 ms**. Prepare, client share creation, and finalize together measured
+**1.204 s median**, range **0.782–1.902 s**. Approval through signed output measured
+**1.207 s median**, range **0.787–1.905 s**. Client share creation was **1.3 ms median**.
+Material-resolution wait was **0 ms**. Stage medians must not be added.
+
+Registration through verified signature measured **20.583 s median**, range
+**18.273–23.096 s**. Unlock through verified signature measured **4.921 s**, range
+**4.230–5.746 s**. These lifecycle values include browser automation; registration
+also includes funding and provisioning. No registration or Yao setup gain is claimed.
+The **1–2 second Yao setup target remains unmet**.
+
+Every repeated signature retained two Gateway POST calls: prepare and finalize.
+Status and owner-lane preflight calls remained zero. Registration used twelve or
+thirteen Gateway calls; unlock used seven. D1 and Gateway-to-Console counters were
+unavailable. Browser-to-Console requests were zero. Only the NEAR signer loaded.
+
+The local browser scenario verified signatures with nonces **2, 3, 4** across one
+injected HTTP 503 and page reload, within **1.985 s**. The post-reload pass made a
+fresh chain query and retained distinct nonces. Wallet and intended-test type checks
+passed. The exact implementation tree passed the bloat check. Review confirmed
+that lane locks, expiry, chain-consumption checks, and EVM behavior remain unchanged.
+The observation map is local to one pass. A stale observation can retain extra
+reservations; it cannot free a nonce above the observed chain nonce.
+
+Verification scope: this scenario preserves one unlocked session across reload.
+The existing lock path clears durable reservations. An exploratory lock/unlock
+scenario reused nonce 2 after non-broadcast signatures 2–5. The test harness calls
+`auth.lock()` before unlock. Step-up authorizes one operation and does not refill
+the reusable budget. This phase changes neither lifecycle rule. Concurrent tabs
+were not newly exercised. The independent ECDSA confirmation timeout recorded in
+Phase 6R also remains outside this NEAR change.
+
+Next optimization: remove the second authorized-operation read in finalize. Keep
+its live authority, material, replay, quota, and transactional admission checks.
+A later candidate can investigate sharing the fresh recovery observation with
+transaction-context acquisition; it must preserve freshness and exact key scope.
+Both proposals need their own measurements. No saving is assumed.
+
+[Sanitized evidence](evidence/near-nonce-recovery-20261008.json) preserves all
+samples, RPC counts, waits, maxima, build hashes, the local failure/reload artifact,
+and serving-version audits. Implementation commit: `fa0648d8` on `dev`.
