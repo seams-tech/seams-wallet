@@ -4952,3 +4952,84 @@ checked. Restoration activation `37838708308` passed. All tail processes stopped
 No new Cloudflare resources were created.
 
 [Sanitized timings, source hashes, proofs and restoration evidence](evidence/near-wallet-coordinator-20261009.json).
+
+### Phase 6AH — remove repeated bound-root validation (2026-10-09)
+
+Implementation: `b72d9c32e6570eee1a4929f2805afd2ead6b2eb5` on `dev`.
+
+The bound-root loader now returns the sealed online share from the record it
+already authenticated. It removes two repeated record checks and two repeated
+activation-binding checks from each successful load. The patch deletes two
+conversion methods and reduces the implementation by 32 net lines.
+
+The database boundary still decrypts and validates the complete persisted row.
+Exact custody matching still checks identity, lineage, epoch, role, commitment,
+and activation receipt. Admission keeps its authenticated preliminary read and
+conditional write. Execution keeps fresh cancellation, retirement, erasure, and
+active-root uniqueness checks. The provider still decrypts the secret share and
+verifies its public commitment. ECDSA settlement still races cancellation before use.
+
+Five release Worker builds, the generic Workers check, eleven local Worker/DO E2E
+scenarios, and the exact-tree bloat check passed. The E2E scenarios cover all four
+homes, interrupted delivery, lost replies, replay after erasure, admission races,
+settlement, cancelled roots, missing admissions, forged acceptance, and ECDSA
+presignature handoff with verified signing. Existing tests required no repair.
+
+**Keep the code simplification. No end-to-end speedup was established.** The
+candidate removes real duplicate work without adding a cache, request, schema,
+configuration setting, or resource. The three sequential samples per arm cannot
+establish a latency guarantee or isolate provider scheduling effects.
+
+Three fresh implicit, unfunded NEAR wallets ran in each arm. The corrected NEP-413
+SDK, Gateway, Runtime, Console, Router, Signing Worker, configuration, and requested
+APAC placement stayed fixed. Only Deriver A and B changed. All builds and local
+checks completed before timing began.
+
+| Workload | Baseline median (range) | Candidate median (range) | Restored control median (range) |
+| --- | ---: | ---: | ---: |
+| Yao execute HTTP | 3.223 s (3.181–4.357) | 3.275 s (2.966–3.925) | 2.962 s (2.892–2.997) |
+| SDK registration | 7.472 s (7.114–7.873) | 7.740 s (6.566–7.854) | 6.687 s (6.492–7.001) |
+| Browser registration → verified signature | 9.973 s (9.927–10.111) | 9.951 s (9.187–10.825) | 9.276 s (9.176–9.956) |
+| Server finalization HTTP | 1.521 s (1.245–1.903) | 1.624 s (1.373–1.786) | 1.553 s (1.528–1.807) |
+
+| Whole-invocation CPU median | Baseline | Candidate | Restored control |
+| --- | ---: | ---: | ---: |
+| A preparation object | 107 ms | 64 ms | 72 ms |
+| B preparation object | 91 ms | 79 ms | 91 ms |
+| A execution object | 594 ms | 382 ms | 391 ms |
+| B execution object | 234 ms | 226 ms | 234 ms |
+
+These CPU observations include the full object invocation. They do not isolate
+validation. Parallel preparation measured 787 / 884 / 739 ms. A-to-B connection
+measured 748 / 748 / 703 ms. Smaller CPU work did not produce a repeatable complete
+Yao gain. Application clocks omit synchronous CPU work, and nested spans overlap.
+
+Each arm retained **six bound-root D1 round trips and sixteen SQL statements per
+registration**. These counts exclude other database work. Observed Gateway calls
+were 9–10 / 10 / 9–10 per registration. Captured Console HTTP calls were 33 in
+each arm. No claim is made that the total database or HTTP count fell.
+
+All captured serving versions matched the intended cohorts. All nine signatures
+passed independent Node.js Ed25519 verification with separate NEP-413 Borsh
+encoding. Changed message, recipient, nonce, and callback fields were rejected.
+Fresh wallets do not prove cold Workers or physical colocation.
+
+The first setup attempt stopped before candidate deployment because GitHub's OIDC
+token endpoint returned HTTP 504. It restored the original cohort and activation
+before one retry. The failure was classified as infrastructure failure. Temporary
+registration leases expired through the existing readiness guard. No guard was
+bypassed. All thirteen original Worker versions and placement settings were restored.
+Final activation [37844020524](https://github.com/seams-tech/seams-monorepo/actions/runs/37844020524)
+passed. All six observation tails stopped. No new infrastructure was created.
+
+The registration-to-signature target remains unmet. The next bounded investigation
+is the backend dependency chain of registration setup and credential submission.
+The preceding restored control measured those HTTP calls at 602 ms and 674 ms
+median. Their internal waits require measurement before another request change.
+
+
+[Sanitized evidence](evidence/near-bound-root-validation-20261009.json) retains
+all samples, exact source and bundle hashes, invocation CPU and wall times,
+independent signature checks, serving versions, reproduction commands, and
+restoration evidence. Raw artifacts remain in `.artifacts/r155b-phase6ah` and the
+private `.artifacts/r155b-phase6ah-hosted` directory.
