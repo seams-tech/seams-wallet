@@ -4566,3 +4566,91 @@ The artifacts retain both failures. No new resources or package release were req
 All thirteen original Worker versions and the five regional placement settings were
 restored and checked. Restoration activation run `37795353494` succeeded.
 The timing instrumentation is committed on public `dev` as `fbc8be904fdeebb096a6ed055bb23d2ffdec6c30`.
+
+
+### Phase 6AC — commit the Console display row with the wallet home (2026-10-09)
+
+The fresh registration path now completes its home and creates its Console display
+row in one authenticated call. One D1 transaction contains the guarded home update
+and display insert. Both use the reserved tenant, wallet, ceremony and physical home.
+The insert uses the stored completion time. Exact retries preserve later display
+changes, including wallet status and balance. A failed insert rolls back home completion.
+Cancelled or mismatched registrations cannot create the display row.
+
+- [x] Combine home completion and display creation without a new schema or resource.
+- [x] Remove the separate Gateway projection callback, Console endpoint and adapter.
+- [x] Exercise lost replies, exact retries, rollback, cancellation and regional routing
+  through the production Console home service and persistent local D1.
+- [x] Recheck relocation and Console credential service behavior.
+- [x] Build and type-check the public server; check the exact public Git tree for bloat.
+- [x] Complete the controlled hosted comparison and restore the original deployment.
+
+| Fresh completion plus display creation | Before | After |
+| --- | ---: | ---: |
+| Gateway → Console requests | 2 | 1 |
+| Console D1 requests | 4 | 1 |
+| SQL statements | 4 | 2 |
+
+These counts cover this bounded path. The previous path ran a completion update,
+environment lookup, display upsert and display readback. The replacement batches
+its update and insert. These are implementation-derived counts, not Gateway-wide
+D1 measurements. Required custody, capability, session and receipt writes still
+complete before registration returns success.
+
+Public code: `655ad03c734a1e6eeef1a9576c344e268b6bf400`.
+Private code: `4ee9c31`.
+
+Local directory, relocation and Console credential E2E checks passed. The public
+server build, server type-check and intended-contract type-check passed. Six private
+integration type errors are identical in baseline and candidate. Three public browser
+contracts passed: mixed registration, overlapping NEAR admission and immediate owner
+signing on NEAR and ECDSA. An initial attempt reached occupied default local Worker
+ports and failed during bootstrap. The rerun used separate ports. Hosted verification
+uses the frozen matching staging cohort.
+
+The next candidate is session issuance. It currently reads the mint record and
+ownership generation separately before its existing commit transaction. Check whether
+one store operation can return the exact replay result or the current issuance context.
+Preserve fresh authority checks, revocation, ownership generation and concurrent mint
+replay. Router-to-DO response-header waits remain the larger unresolved transport cost.
+
+
+The controlled staging comparison used three new implicit, unfunded NEAR wallets
+per arm. Both arms loaded the same corrected NEP-413 SDK and used the same custody
+versions and placement. The baseline private source matches the previous Phase 6AB
+cohort. Only Console completion/projection and its Gateway call path changed.
+
+| Workload | Baseline median (range) | Candidate median (range) |
+| --- | ---: | ---: |
+| Finalization HTTP | 2.427 s (2.230–2.595) | 2.297 s (2.049–2.386) |
+| SDK registration | 10.452 s (9.243–10.532) | 9.856 s (9.263–10.141) |
+| Browser registration → independently verified signature | 12.990 s (12.870–13.151) | 12.897 s (12.113–12.980) |
+| Yao execute HTTP | 4.341 s (4.012–4.778) | 4.386 s (4.112–4.694) |
+
+Finalization improved by **130 ms (5.3%)** in this small sample. Full-flow median
+changed by only **93 ms (0.7%)**. This does not establish a material full-flow gain.
+The 3–4 second registration-to-signature target remains unmet. Do not combine this
+experiment's reductions with earlier experiments or attribute all SDK variation to
+this change. Nested spans overlap and cannot be added.
+
+Console tails recorded **three separate projection calls before, zero after**.
+The home-completion span was 278 ms before and 295 ms after; it now includes the
+additional display write. A hosted D1 read confirmed all three candidate homes had
+exactly matching tenant-scoped display rows and identical completion/create/update
+timestamps. All captured role invocation versions matched each arm's frozen versions.
+Independent Node verification accepted all six standard NEP-413 signatures and
+rejected altered messages, recipients, nonces and callback URLs.
+
+Other candidate HTTP medians were setup **986 ms**, respond **1.127 s**, signing
+prepare **870 ms** and signing execute **549 ms**. These are individual HTTP request
+durations. They do not measure browser work between requests. Use the full-flow
+samples for total time. Yao execute remains the largest single registration request
+at **4.386 s**.
+
+All thirteen original Worker versions and all five placement settings were restored
+and verified. Restoration activation `37802617976` succeeded. Tail processes stopped.
+No new Cloudflare resources were provisioned. Three samples per arm do not measure
+percentiles, cold-start guarantees or a regional service-level objective.
+
+
+[Sanitized timings, signature proofs, projection audit and restoration evidence](evidence/near-registration-atomic-console-completion-20261009.json).
