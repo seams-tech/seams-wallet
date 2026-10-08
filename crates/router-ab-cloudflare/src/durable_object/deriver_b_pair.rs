@@ -199,9 +199,6 @@ impl RouterAbDeriverBWalletDurableObject {
     }
 
     async fn fetch_wallet_request(&self, mut request: Request) -> worker::Result<Response> {
-        if request.method() == worker::Method::Post && request.path() == super::wallet_startup::PATH {
-            return Response::from_json(&true);
-        }
         let path = request.path();
         let websocket = path == CLOUDFLARE_DERIVER_B_ED25519_YAO_DUPLEX_PATH
             && request.method() == worker::Method::Get;
@@ -211,7 +208,8 @@ impl RouterAbDeriverBWalletDurableObject {
                     && path != RECONCILE_PATH
                     && path != PREPARATION_PATH
                     && path != SOURCE_FENCE_PATH
-                    && path != SNAPSHOT_PATH))
+                    && path != SNAPSHOT_PATH
+                    && path != super::wallet_startup::PATH))
         {
             return Response::error("Unknown Deriver B wallet object request", 404);
         }
@@ -220,6 +218,9 @@ impl RouterAbDeriverBWalletDurableObject {
         self.sql.exec(FENCE_SCHEMA, None)?;
         self.sql.exec(relocation::SCHEMA, None)?;
         self.sql.exec(relocation::SOURCE_SCHEMA, None)?;
+        if path == super::wallet_startup::PATH {
+            return Response::from_json(&true);
+        }
         if websocket {
             relocation::require_open::<DeriverBWalletOwnerV1>(&self.sql)?;
             let runtime = crate::CloudflareDeriverBWorkerRuntimeV1::from_worker_env(&self.env)

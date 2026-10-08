@@ -400,9 +400,6 @@ impl DurableObject for RouterAbDeriverAWalletDurableObject {
 
 impl RouterAbDeriverAWalletDurableObject {
     async fn fetch_wallet_request(&self, mut request: Request) -> worker::Result<Response> {
-        if request.method() == worker::Method::Post && request.path() == super::wallet_startup::PATH {
-            return Response::from_json(&true);
-        }
         if request.method() != worker::Method::Post {
             return Response::error("Unknown Deriver A wallet object request", 404);
         }
@@ -412,6 +409,9 @@ impl RouterAbDeriverAWalletDurableObject {
         self.sql.exec(FENCE_SCHEMA, None)?;
         self.sql.exec(relocation::SCHEMA, None)?;
         self.sql.exec(relocation::SOURCE_SCHEMA, None)?;
+        if path == super::wallet_startup::PATH {
+            return Response::from_json(&true);
+        }
         if path == SNAPSHOT_PATH {
             let command: relocation::snapshot::Command<DeriverAWalletOwnerV1> = request.json().await?;
             command.source().validate()?;

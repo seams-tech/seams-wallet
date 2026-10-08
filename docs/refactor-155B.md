@@ -3420,3 +3420,28 @@ in [run 37724107697](https://github.com/seams-tech/seams-monorepo/actions/runs/3
 [Sanitized evidence](evidence/near-overlapped-target-20261008.json) records source
 and build hashes, all samples, request counts, E2E results, placement correlations,
 serving-version audits, limitations, and restoration evidence.
+
+### Phase 6P — initialize role storage during wallet startup
+
+The existing startup request wakes each wallet object. A, B, and the Signing
+Worker return before creating their SQLite tables. Their first normal request
+creates those tables before starting its required work. Move that existing
+initialization into the early startup path as well. Startup must create no owner,
+admission, activation, or protocol records.
+
+This is a measured candidate, with no promised latency saving. Cloudflare holds
+outbound messages until preceding storage writes complete. Earlier table creation
+may move this first-write wait away from Yao preparation and package delivery.
+Keep normal-request initialization for wallets that receive no startup request.
+
+- [x] Initialize A and B schemas before the startup response.
+- [x] Share Signing Worker schema initialization between startup and valid commands.
+- [x] Extend the four-region E2E to inspect initialized, empty role stores after
+  startup. Preserve concurrent execution, lost replies, and forged-receipt checks.
+- [ ] Build the five strict roles and run the relevant E2Es.
+- [ ] Compare complete setup, startup, and delivery with controls before and after.
+  Keep the SDK, Gateway, runtime, role keys, and APAC hints fixed.
+- [ ] Record results and restore all original staging versions.
+
+Other candidates remain session-status read consolidation and fewer D1 waits
+under the existing admission rules. This phase changes only storage startup.

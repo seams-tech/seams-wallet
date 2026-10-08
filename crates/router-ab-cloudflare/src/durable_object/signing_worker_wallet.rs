@@ -702,6 +702,7 @@ impl DurableObject for RouterAbSigningWorkerWalletDurableObject {
 impl RouterAbSigningWorkerWalletDurableObject {
     async fn fetch_wallet_request(&self, mut request: Request) -> worker::Result<Response> {
         if request.method() == worker::Method::Post && request.path() == super::wallet_startup::PATH {
+            self.initialize_schema()?;
             return Response::from_json(&true);
         }
         #[cfg(debug_assertions)]
@@ -715,6 +716,17 @@ impl RouterAbSigningWorkerWalletDurableObject {
         if let Err(error) = command.validate() {
             return Response::error(error.message(), 400);
         }
+        self.initialize_schema()?;
+        match self.execute(command).await {
+            Ok(response) => Ok(response),
+            Err(error) => Response::error(
+                format!("{:?}: {}", error.code(), error.message()),
+                crate::cloudflare_router_error_status(error.code()),
+            ),
+        }
+    }
+
+    fn initialize_schema(&self) -> worker::Result<()> {
         self.sql.exec(REGISTRATION_SCHEMA, None)?;
         self.sql.exec(RETIRED_ACTIVATION_SCHEMA, None)?;
         self.sql.exec(LINKED_ED25519_SCHEMA, None)?;
@@ -732,13 +744,7 @@ impl RouterAbSigningWorkerWalletDurableObject {
         for schema in crate::SIGNING_WORKER_WALLET_ECDSA_SCHEMA_V1 {
             self.sql.exec(schema, None)?;
         }
-        match self.execute(command).await {
-            Ok(response) => Ok(response),
-            Err(error) => Response::error(
-                format!("{:?}: {}", error.code(), error.message()),
-                crate::cloudflare_router_error_status(error.code()),
-            ),
-        }
+        Ok(())
     }
 
     async fn execute(

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { resolve, dirname } from 'node:path';
+import { resolve, dirname, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 import { createInterface } from 'node:readline';
@@ -30,6 +30,7 @@ class PlacementLog extends Log {
   placements = [];
   commands = [];
   routerDispatches = [];
+  storageReadiness = [];
 
   constructor() {
     super(LogLevel.INFO);
@@ -50,10 +51,65 @@ class PlacementLog extends Log {
       if (value.event === 'wallet_do_placement_requested') this.placements.push(value);
       if (value.event === 'wallet_do_command_timing') this.commands.push(value);
       if (value.event === 'router_wallet_dispatch_timing') this.routerDispatches.push(value);
+      if (value.event === 'wallet_startup_storage_observation') {
+        this.storageReadiness.push(value);
+        if (!value.initialized) console.error(JSON.stringify(value));
+      }
     } catch {
       // Other Worker diagnostics are not placement observations.
     }
   }
+}
+
+async function observeStartupStorage(worker, className, requiredTable) {
+  const scriptPath = resolve(output, `${worker.name}-storage.mjs`);
+  const source = `./${relative(output, worker.scriptPath).replaceAll('\\', '/')}`;
+  await writeFile(scriptPath, `
+import { ${className} as WalletObject } from ${JSON.stringify(source)};
+export * from ${JSON.stringify(source)};
+export { default } from ${JSON.stringify(source)};
+
+export class ${className} extends WalletObject {
+  constructor(state, env) {
+    super(state, env);
+    this.storageSql = state.storage.sql;
+    this.startupChecked = false;
+  }
+
+  async fetch(request) {
+    const response = await super.fetch(request);
+    const startup = new URL(request.url).pathname === '/router-ab/internal/wallet/start';
+    if (!startup || response.status !== 200 || this.startupChecked) return response;
+    const tables = this.storageSql.exec(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE '_cf_%' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+    ).toArray();
+    const initialized = tables.some(hasRequiredTable);
+    let rows = 0;
+    const names = [];
+    for (const table of tables) {
+      const identifier = table.name.replaceAll('"', '""');
+      rows += this.storageSql.exec('SELECT count(*) AS total FROM "' + identifier + '"').one().total;
+      names.push(table.name);
+    }
+    console.log(JSON.stringify({
+      event: 'wallet_startup_storage_observation',
+      role: ${JSON.stringify(worker.name)},
+      tables: names,
+      initialized,
+      rows,
+    }));
+    if (!initialized) throw new Error('Wallet startup left storage uninitialized');
+    if (rows !== 0) throw new Error('Wallet startup must not create authority or protocol records');
+    this.startupChecked = true;
+    return response;
+  }
+}
+
+function hasRequiredTable(table) {
+  return table.name === ${JSON.stringify(requiredTable)};
+}
+`);
+  return { ...worker, scriptPath };
 }
 
 class StatusBeforePreparation {
@@ -198,12 +254,16 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
   const router = routerWorker(fixture);
   router.serviceBindings.DERIVER_A = a.fetch.bind(a);
   router.serviceBindings.DERIVER_B = b.fetch.bind(b);
+  const roleWorkers = [
+    await observeStartupStorage(deriverAWorker(fixture), 'RouterAbDeriverAWalletDurableObject', 'yao_pair_sessions'),
+    await observeStartupStorage(deriverBWorker(fixture), 'RouterAbDeriverBWalletDurableObject', 'yao_pair_sessions'),
+    await observeStartupStorage(signingWorker('fixture-signing-worker', 'placement-signing-worker', fixture),
+      'RouterAbSigningWorkerWalletDurableObject', 'wallet_registrations'),
+  ];
   const topology = new Miniflare({
     log,
     handleRuntimeStdio: log.connect.bind(log),
-    workers: [router, deriverAWorker(fixture), deriverBWorker(fixture),
-      tenantRootControlPlaneWorker(fixture),
-      signingWorker('fixture-signing-worker', 'placement-signing-worker', fixture)],
+    workers: [router, ...roleWorkers, tenantRootControlPlaneWorker(fixture)],
   });
   try {
     await topology.ready;
@@ -246,6 +306,7 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
     // Discard the startup reply. Execution must need neither its body nor a startup token.
     const startup = await binding.fetch(startupRequest(envelope, credential, foreignHome));
     assert.equal(startup.status, 200, await startup.text());
+    assert.equal(log.storageReadiness.length, 3, 'Startup must initialize all three role stores');
     const immediate = await Promise.all([
       binding.fetch(startupRequest(envelope, credential, foreignHome)),
       assert.rejects(lost.fetch(executeRequest(envelope, credential, foreignHome)), /discarded the completed/),
@@ -322,6 +383,7 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
       forgedReadinessRejectedBeforeValidExecution: a.forgedReadinessRejected,
       bProtocolRunsInWalletObject: true,
       bRemoteBeginAndCompleteCalls: 0,
+      startupStorageReadiness: log.storageReadiness,
     };
   } finally {
     await topology.dispose();
