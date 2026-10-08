@@ -1,7 +1,4 @@
 mod snapshot;
-#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
-mod ceremony_connection;
-use std::rc::Rc;
 use router_ab_core::{
     burn_ed25519_yao_pair_v1, claim_ed25519_yao_pair_v1, complete_ed25519_yao_pair_v1,
     expire_ed25519_yao_pair_v1, prepare_ed25519_yao_pair_v1, reserve_ed25519_yao_pair_v1,
@@ -52,6 +49,10 @@ pub(crate) const SOURCE_FENCE_PATH: &str = "/router-ab/internal/deriver-a/wallet
 pub(crate) const PREPARATION_PATH: &str = "/router-ab/internal/deriver-a/wallet/prepare-relocation";
 
 const PAIR_DO_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair";
+#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
+const PREPARE_WORK_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair/prepare-work";
+#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
+const EXECUTE_WORK_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair/execute-work";
 #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 const STATUS_WORK_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair/status-work";
 #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
@@ -237,6 +238,31 @@ impl DeriverAPairDoCommandV1 {
 }
 
 #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
+pub(crate) async fn call_deriver_a_wallet_do_work_v1<T: Serialize>(
+    env: &Env,
+    path: &str,
+    pair: &Ed25519YaoInputPairBindingV1,
+    tenant_root: &CloudflareEd25519YaoTenantRootContextV2,
+    body: &T,
+) -> worker::Result<Response> {
+    let owner = DeriverAWalletOwnerV1::from_context(env, tenant_root, pair)?;
+    let namespace = env.durable_object(PAIR_DO_BINDING)?;
+    let physical_name = relocation::WalletOwner::physical_object_name(
+        &owner,
+        tenant_root.ownership_generation,
+    )?;
+    let stub = tenant_root
+        .wallet_home
+        .wallet_stub(&namespace, &physical_name, "deriver_a")?;
+    let body = serde_json::to_string(body).map_err(|error| pair_error(error.to_string()))?;
+    let mut init = worker::RequestInit::new();
+    init.with_method(worker::Method::Post)
+        .with_body(Some(worker::wasm_bindgen::JsValue::from_str(&body)));
+    let request = Request::new_with_init(&format!("https://router-ab-do.internal{path}"), &init)?;
+    stub.fetch_with_request(request).await
+}
+
+#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 pub(crate) async fn call_deriver_a_wallet_do_lookup_v1<T: Serialize>(
     env: &Env,
     path: &str,
@@ -259,6 +285,16 @@ pub(crate) async fn call_deriver_a_wallet_do_lookup_v1<T: Serialize>(
         .with_body(Some(worker::wasm_bindgen::JsValue::from_str(&body)));
     let request = Request::new_with_init(&format!("https://router-ab-do.internal{path}"), &init)?;
     stub.fetch_with_request(request).await
+}
+
+#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
+pub(crate) const fn deriver_a_wallet_do_prepare_work_path_v1() -> &'static str {
+    PREPARE_WORK_PATH
+}
+
+#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
+pub(crate) const fn deriver_a_wallet_do_execute_work_path_v1() -> &'static str {
+    EXECUTE_WORK_PATH
 }
 
 #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
@@ -319,11 +355,10 @@ struct SelectedPairV1 {
 /// conditional SQL statement is atomic; no network call occurs between read
 /// and CAS.
 #[worker::durable_object]
-#[derive(Clone)]
 pub struct RouterAbDeriverAWalletDurableObject {
-    state: Rc<State>,
+    state: State,
     sql: SqlStorage,
-    storage: Rc<worker::Storage>,
+    storage: worker::Storage,
     env: Env,
     timing: super::command_timing::WalletCommandTiming,
 }
@@ -333,8 +368,8 @@ impl DurableObject for RouterAbDeriverAWalletDurableObject {
         Self {
             timing: super::command_timing::WalletCommandTiming::new(state.id().to_string()),
             sql: state.storage().sql(),
-            storage: Rc::new(state.storage()),
-            state: Rc::new(state),
+            storage: state.storage(),
+            state,
             env,
         }
     }
@@ -348,7 +383,7 @@ impl DurableObject for RouterAbDeriverAWalletDurableObject {
         let result = self.fetch_wallet_request(request).await;
         #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
         let result = match result {
-            Err(error) if path == crate::ed25519_yao_ceremony_connection::PATH => {
+            Err(error) if path == PREPARE_WORK_PATH || path == EXECUTE_WORK_PATH => {
                 let message = error.to_string();
                 crate::strict_worker::cloudflare_role_failure_response_v1(
                     router_ab_core::RouterAbProtocolError::new(
@@ -364,30 +399,19 @@ impl DurableObject for RouterAbDeriverAWalletDurableObject {
 }
 
 impl RouterAbDeriverAWalletDurableObject {
-    fn ensure_schema(&self) -> worker::Result<()> {
-        self.sql.exec(OWNER_SCHEMA, None)?;
-        self.sql.exec(PAIR_SCHEMA, None)?;
-        self.sql.exec(FENCE_SCHEMA, None)?;
-        self.sql.exec(relocation::SCHEMA, None)?;
-        self.sql.exec(relocation::SOURCE_SCHEMA, None)?;
-        Ok(())
-    }
-
     async fn fetch_wallet_request(&self, mut request: Request) -> worker::Result<Response> {
         if request.method() == worker::Method::Post && request.path() == super::wallet_startup::PATH {
             return Response::from_json(&true);
-        }
-        #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
-        if request.path() == crate::ed25519_yao_ceremony_connection::PATH {
-            self.ensure_schema()?;
-            relocation::require_open::<DeriverAWalletOwnerV1>(&self.sql)?;
-            return self.open_ceremony_connection(request).await;
         }
         if request.method() != worker::Method::Post {
             return Response::error("Unknown Deriver A wallet object request", 404);
         }
         let path = request.path();
-        self.ensure_schema()?;
+        self.sql.exec(OWNER_SCHEMA, None)?;
+        self.sql.exec(PAIR_SCHEMA, None)?;
+        self.sql.exec(FENCE_SCHEMA, None)?;
+        self.sql.exec(relocation::SCHEMA, None)?;
+        self.sql.exec(relocation::SOURCE_SCHEMA, None)?;
         if path == SNAPSHOT_PATH {
             let command: relocation::snapshot::Command<DeriverAWalletOwnerV1> = request.json().await?;
             command.source().validate()?;
@@ -421,6 +445,18 @@ impl RouterAbDeriverAWalletDurableObject {
                 }
                 let response = self.execute(command)?;
                 Response::from_json(&response)
+            }
+            #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
+            PREPARE_WORK_PATH => {
+                let work: CloudflareEd25519YaoPairPrepareRequestV1 = request.json().await?;
+                let receipt = self.prepare_work(work).await?;
+                Response::from_json(&receipt)
+            }
+            #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
+            EXECUTE_WORK_PATH => {
+                let work: CloudflareEd25519YaoPairExecuteRequestV1 = request.json().await?;
+                let outcome = self.execute_work(work).await?;
+                Response::from_json(&outcome)
             }
             #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
             STATUS_WORK_PATH => {
@@ -605,13 +641,6 @@ impl RouterAbDeriverAWalletDurableObject {
                         < expires_at_ms =>
                 {
                     Ok(receipt)
-                }
-                PairRecord::Completed { claim_identity, payload, .. }
-                    if payload.tenant_root == request.tenant_root
-                        && payload.work == request.work
-                        && payload.input == request.input =>
-                {
-                    Ok(claim_identity.local_receipt)
                 }
                 _ => Err(pair_error("Deriver A pair is conflicting or terminal")),
             };

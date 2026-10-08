@@ -1,5 +1,3 @@
-import { CapturedCeremony } from './yao-captured-ceremony.mjs';
-import { ceremonyPath, ceremonyPreparation, executeCeremony, interceptCeremony } from './yao-ceremony-evidence-transport.mjs';
 import { runtimeRelocationSource, runtimeRelocationDestination } from './runtime-relocation-evidence.mjs';
 import { verifyDeriverPreparation, verifyDeriverSourceFences } from './deriver-preparation-evidence.mjs';
 import { verifyEd25519DestinationSigning } from './ed25519-signing-evidence.mjs';
@@ -83,7 +81,7 @@ const tenantRootRefreshPath = '/router-ab/internal/tenant-root/refresh/v1/execut
 const controlPlaneRefreshActivationPath = '/tenant-root-control-plane/refresh/v1/activate';
 const creationStateRefreshActivationPath = '/router-ab/internal/tenant-root/refresh/v1/activation';
 const deriverRefreshActivationPath = '/router-ab/internal/deriver/tenant-root/refresh/v1/activate';
-const deriverAYaoPreparePath = 'ceremony_preparation';
+const deriverAYaoPreparePath = '/router-ab/deriver-a/ed25519-yao/prepare-pair';
 const deriverCleanupPath = '/router-ab/internal/deriver/tenant-root/cleanup/v1/execute';
 const controlPlaneCleanupCommandPath = '/tenant-root-control-plane/creation/v1/cleanup-command';
 const deriverBEcdsaRegistrationPath = '/router-ab/deriver-b/ecdsa-derivation/register';
@@ -149,7 +147,12 @@ const ecdsaClientWasmPath = resolve(
 let capturedSigningWorkerDelivery;
 let capturedEcdsaSigningWorkerPrepare;
 let loseNextEcdsaSigningWorkerFinalizeReply = false;
-const captureA = new CapturedCeremony();
+let capturedDeriverAPreparation;
+let capturedDeriverAExecution;
+let capturedDeriverAExecutionRequest;
+let competeDeriverAExecution = false;
+let dropDeriverAExecutionResponse = false;
+let holdDeriverAExecutionBeforeDispatch = false;
 let deriverBOffline = false;
 let blockedDeriverBCalls = 0;
 let signingWorkerDeliveryTarget = 'fixture-signing-worker';
@@ -568,7 +571,7 @@ export function routerWorker(fixture, capturePairPreparation = false, gateDerive
       },
     },
     serviceBindings: {
-      DERIVER_A: capturePairPreparation ? captureA.fetch.bind(captureA) : 'deriver-a',
+      DERIVER_A: capturePairPreparation ? captureDeriverAPreparation : 'deriver-a',
       DERIVER_B: gateDeriverB ? routeDeriverBWithOfflineGate : 'deriver-b',
       SIGNING_WORKER: captureSigningWorkerDelivery,
       TENANT_ROOT_CONTROL_PLANE: 'tenant-root-control-plane',
@@ -576,41 +579,9 @@ export function routerWorker(fixture, capturePairPreparation = false, gateDerive
   };
 }
 
-class HeldRecoveryCeremony {
-  async beforePreparation(preparation) {
-    await this.hold('ceremony_preparation', preparation);
-  }
-  async beforeStart(execution) {
-    await this.hold('ceremony_start', execution);
-  }
-  async hold(stage, work) {
-    const hold = recoveryHoldNextOnPath['deriver-a'];
-    if (hold?.path !== stage) return;
-    recoveryHoldNextOnPath['deriver-a'] = null;
-    this.held = hold;
-    hold.markHeld(work);
-    await hold.released;
-  }
-  async rejected(response) {
-    if (this.held) this.held.answer = { status: response.status, body: await response.text() };
-  }
-  finished(_execution, outcome) {
-    if (!this.held) return;
-    const completed = outcome.status === 'completed';
-    this.held.answer = {
-      status: completed ? 200 : 409,
-      body: JSON.stringify(completed ? outcome.execution : outcome.failure),
-    };
-  }
-}
-
 function recoveryPeer(workerName, faultPath) {
   return async (request, miniflare) => {
     const path = new URL(request.url).pathname;
-    if (workerName === 'deriver-a' && path === ceremonyPath) {
-      const worker = await miniflare.getWorker(recoveryDeriverA);
-      return interceptCeremony(request, worker, new HeldRecoveryCeremony());
-    }
     if (recoveryDropEveryOnPath[workerName] === path) {
       return new Response(`simulated unreachable ${workerName} for ${path}`, { status: 503 });
     }
@@ -823,6 +794,53 @@ async function captureSigningWorkerForHistoricalReplay(request, miniflare) {
   return captureSigningWorkerDelivery(request, miniflare);
 }
 
+async function captureDeriverAPreparation(request, miniflare) {
+  const path = new URL(request.url).pathname;
+  const isPreparation = path.endsWith('/ed25519-yao/prepare-pair');
+  const isExecution = path.endsWith('/ed25519-yao/execute-pair');
+  const preparation = isPreparation ? await request.clone().json() : null;
+  const execution = isExecution ? await request.clone().json() : null;
+  if (execution) {
+    capturedDeriverAExecutionRequest = execution;
+    if (holdDeriverAExecutionBeforeDispatch) {
+      return new Response('simulated held Deriver A execution', { status: 503 });
+    }
+  }
+  const worker = await miniflare.getWorker('deriver-a');
+  let response;
+  if (execution && competeDeriverAExecution) {
+    const attempts = await Promise.all([worker.fetch(request.clone()), worker.fetch(request)]);
+    const outcomes = await Promise.all(attempts.map(async (attempt) => ({
+      status: attempt.status,
+      body: await attempt.clone().text(),
+    })));
+    assert.deepEqual(
+      outcomes.map((outcome) => outcome.status),
+      [200, 200],
+      `identical concurrent A calls must replay the one outcome: ${JSON.stringify(outcomes)}`,
+    );
+    assert.deepEqual(JSON.parse(outcomes[0].body), JSON.parse(outcomes[1].body));
+    response = attempts[0];
+  } else {
+    response = await worker.fetch(request);
+  }
+  if (preparation && response.ok) {
+    capturedDeriverAPreparation = {
+      request: preparation,
+      receipt: await response.clone().json(),
+    };
+  }
+  if (execution && response.ok) {
+    capturedDeriverAExecution = {
+      request: execution,
+      response: await response.clone().json(),
+    };
+    if (dropDeriverAExecutionResponse) {
+      return new Response('simulated lost Deriver A response', { status: 503 });
+    }
+  }
+  return response;
+}
 
 export async function applyMigrations(miniflare, binding, workerName, migrationsPath) {
   const database = await miniflare.getD1Database(binding, workerName);
@@ -923,9 +941,6 @@ async function expectOk(response, label) {
 const retirementKinds = (retirement) => [retirement.deriver_a.kind, retirement.deriver_b.kind];
 
 async function postWorkerJson(worker, path, body, additionalHeaders = {}) {
-  if (path === 'ceremony_start') {
-    return executeCeremony(worker, body, authenticatedJsonRequest(body, additionalHeaders).headers);
-  }
   const authHeaders = gatewayOnlyRouterPaths.has(path)
     ? { [internalAuthHeader]: gatewayToRouterAuthSecret }
     : gatewayOnlyPresignPaths.has(path)
@@ -3427,7 +3442,7 @@ async function testWalletObjectAdmissionSettlement(topology, fixture, databases)
   // Root R: a held registration is fenced in both objects.
   const fenced = recoveryCreationGrant('do-admission-fence', 60_000);
   await create(fenced);
-  const hold = holdNextRecoveryRequest('deriver-a', 'ceremony_start');
+  const hold = holdNextRecoveryRequest('deriver-a', '/router-ab/deriver-a/ed25519-yao/execute-pair');
   const heldRegistration = register(fenced, races.held_preparation);
   await hold.held;
   const whileHeld = await admissions(fenced);
@@ -3555,7 +3570,7 @@ async function testRetirementTrigger(topology, fixture, databases) {
     );
 
   // 1. Work admitted on epoch 1 is held over the refresh.
-  const hold = holdNextRecoveryRequest('deriver-a', 'ceremony_start');
+  const hold = holdNextRecoveryRequest('deriver-a', '/router-ab/deriver-a/ed25519-yao/execute-pair');
   const registering = register(root, races.after_delivery);
   await hold.held;
   assert.deepEqual(await statuses(root), [[[1, 'admitted']], [[1, 'admitted']]]);
@@ -3620,7 +3635,7 @@ async function testReplayAfterErasure(topology, fixture, databases) {
   );
   const router = await topology.getWorker('router-recovery');
   const deriverA = await topology.getWorker('deriver-a');
-  const executePairPath = 'ceremony_start';
+  const executePairPath = '/router-ab/deriver-a/ed25519-yao/execute-pair';
   const statuses = async (ceremony) =>
     (await admissions(ceremony)).map((role) => role.map(([epoch, status]) => [epoch, status]));
   const root = recoveryCreationGrant('replay-after-erasure', 60_000);
@@ -4171,8 +4186,8 @@ async function testTenantRootRefreshAbandonmentAfterExpiry(topology, databases) 
 }
 
 async function testDeriverAWalletDoPreparation(topology, rootIdentity) {
-  assert.ok(captureA.preparation, 'Deriver A preparation fixture is required');
-  const { request, receipt } = captureA.preparation;
+  assert.ok(capturedDeriverAPreparation, 'Deriver A preparation fixture is required');
+  const { request, receipt } = capturedDeriverAPreparation;
   const walletId = request.pair_binding.ceremony.binding.lifecycle.account_id;
   const owner = {
     org_id: rootIdentity.orgId,
@@ -4335,10 +4350,10 @@ async function testDeriverAWalletDoExecution(
   secondTenantRoot,
   databases,
 ) {
-  captureA.compete = true;
+  competeDeriverAExecution = true;
   const activation = await captureValidActivationDelivery(topology, fixture, tenantRoot);
-  captureA.compete = false;
-  assert.ok(captureA.execution, 'Deriver A execute request must be captured');
+  competeDeriverAExecution = false;
+  assert.ok(capturedDeriverAExecution, 'Deriver A execute request must be captured');
   const aRows = await databases.deriverA
     .prepare('SELECT COUNT(*) AS count FROM yao_pair_sessions')
     .first();
@@ -4346,19 +4361,19 @@ async function testDeriverAWalletDoExecution(
   const bBefore = await deriverBPairStatus(
     topology,
     fixture.tenant_root_creation.identity,
-    captureA.execution.request.pair_binding,
+    capturedDeriverAExecution.request.pair_binding,
   );
   assert.equal(bBefore.status, 'completed', 'B must finish before A replay');
 
-  const firstResponse = captureA.execution.response;
+  const firstResponse = capturedDeriverAExecution.response;
   const rootIdentity = fixture.tenant_root_creation.identity;
-  assert.deepEqual(captureA.execution.request.tenant_root.identity, rootIdentity);
+  assert.deepEqual(capturedDeriverAExecution.request.tenant_root.identity, rootIdentity);
   const owner = {
     org_id: rootIdentity.orgId,
     project_id: rootIdentity.projectId,
     env_id: rootIdentity.envId,
     wallet_id:
-      captureA.execution.request.pair_binding.ceremony.binding.lifecycle.account_id,
+      capturedDeriverAExecution.request.pair_binding.ceremony.binding.lifecycle.account_id,
   };
   const namespace = await topology.getDurableObjectNamespace(deriverAWalletDoBinding, 'deriver-a');
   const objectId = namespace.idFromName(deriverAWalletDoObjectName(owner));
@@ -4383,7 +4398,7 @@ async function testDeriverAWalletDoExecution(
   const recovered = await callDeriverAWalletDo(object, {
     operation: 'read',
     owner,
-    pair_binding: captureA.execution.request.pair_binding,
+    pair_binding: capturedDeriverAExecution.request.pair_binding,
   });
   assert.equal(recovered.status, 200);
   assert.equal(recovered.body.kind, 'read');
@@ -4393,49 +4408,49 @@ async function testDeriverAWalletDoExecution(
   const wrongTenant = await callDeriverAWalletDo(object, {
     operation: 'read',
     owner: { ...owner, org_id: `${owner.org_id}-other` },
-    pair_binding: captureA.execution.request.pair_binding,
+    pair_binding: capturedDeriverAExecution.request.pair_binding,
   });
   assert.notEqual(wrongTenant.status, 200, 'another tenant cannot read this wallet DO');
   const wrongWallet = await callDeriverAWalletDo(object, {
     operation: 'read',
     owner: { ...owner, wallet_id: `${owner.wallet_id}-other` },
-    pair_binding: captureA.execution.request.pair_binding,
+    pair_binding: capturedDeriverAExecution.request.pair_binding,
   });
   assert.notEqual(wrongWallet.status, 200, 'another wallet cannot read this wallet DO');
   const deriverA = await topology.getWorker('deriver-a');
   const replay = await postWorkerJson(
     deriverA,
-    'ceremony_start',
-    captureA.execution.request,
+    '/router-ab/deriver-a/ed25519-yao/execute-pair',
+    capturedDeriverAExecution.request,
   );
   const replayBytes = await expectOk(replay, 'Deriver A wallet DO replay after B completed');
   assert.deepEqual(JSON.parse(replayBytes.toString('utf8')), firstResponse);
   const bAfter = await deriverBPairStatus(
     topology,
     rootIdentity,
-    captureA.execution.request.pair_binding,
+    capturedDeriverAExecution.request.pair_binding,
   );
   assert.deepEqual(bAfter, bBefore, 'A replay must not request a new B execution');
-  const changedRequest = structuredClone(captureA.execution.request);
+  const changedRequest = structuredClone(capturedDeriverAExecution.request);
   changedRequest.tenant_root.custody_binding.issued_at_ms += 1;
   const changed = await postWorkerJson(
     deriverA,
-    'ceremony_start',
+    '/router-ab/deriver-a/ed25519-yao/execute-pair',
     changedRequest,
   );
   assert.notEqual(changed.status, 200, 'changed request identity must not replay the outcome');
-  const mismatchedRoot = structuredClone(captureA.execution.request);
+  const mismatchedRoot = structuredClone(capturedDeriverAExecution.request);
   mismatchedRoot.tenant_root.identity = rotatedIdentity;
   const mismatched = await postWorkerJson(
     deriverA,
-    'ceremony_start',
+    '/router-ab/deriver-a/ed25519-yao/execute-pair',
     mismatchedRoot,
   );
   assert.notEqual(mismatched.status, 200, 'root identity must match its signed receipt');
   const afterMismatch = await callDeriverAWalletDo(object, {
     operation: 'read',
     owner,
-    pair_binding: captureA.execution.request.pair_binding,
+    pair_binding: capturedDeriverAExecution.request.pair_binding,
   });
   assert.equal(afterMismatch.body.revision, recovered.body.revision);
   const secondActivation = await captureValidActivationDelivery(
@@ -4451,14 +4466,14 @@ async function testDeriverAWalletDoExecution(
     project_id: secondIdentity.projectId,
     env_id: secondIdentity.envId,
     wallet_id:
-      captureA.execution.request.pair_binding.ceremony.binding.lifecycle.account_id,
+      capturedDeriverAExecution.request.pair_binding.ceremony.binding.lifecycle.account_id,
   };
   const secondObjectId = namespace.idFromName(deriverAWalletDoObjectName(secondOwner));
   assert.notEqual(secondObjectId.toString(), objectId.toString());
   const secondRecord = await callDeriverAWalletDo(namespace.get(secondObjectId), {
     operation: 'read',
     owner: secondOwner,
-    pair_binding: captureA.execution.request.pair_binding,
+    pair_binding: capturedDeriverAExecution.request.pair_binding,
   });
   assert.equal(secondRecord.body.record.status, 'completed');
   const aRowsAfterSecondTenant = await databases.deriverA
@@ -4467,13 +4482,13 @@ async function testDeriverAWalletDoExecution(
   assert.equal(aRowsAfterSecondTenant.count, 0);
   assert.ok(activation.publicReceipt, 'Router registration must complete through A wallet DO');
   const deriverPreparation = await verifyDeriverPreparation(
-    topology, secondOwner, secondIdentity, captureA.preparation, internalAuthSecret,
+    topology, secondOwner, secondIdentity, capturedDeriverAPreparation, internalAuthSecret,
   );
   const ed25519Snapshot = await verifyEd25519Snapshot(
     topology, activation, fixture, routerToSigningWorkerEcdsaAuthSecret, gatewayToRouterAuthSecret, internalAuthSecret, signRelocatedEd25519,
   );
   const deriverSourceFences = await verifyDeriverSourceFences(
-    topology, secondOwner, secondIdentity, captureA.preparation, internalAuthSecret,
+    topology, secondOwner, secondIdentity, capturedDeriverAPreparation, internalAuthSecret,
   );
   const artifact = {
     kind: 'deriver_a_wallet_do_execution_e2e_v1',
@@ -4514,9 +4529,9 @@ async function firstRunLeavingClaim(router, envelope) {
 async function testHistoricalRegistrationReplay(topology, fixture, tenantRoot, databases) {
   await assertGatewayOnlyRouterAuth(topology, fixture, tenantRoot, databases);
   const activation = await captureValidActivationDelivery(topology, fixture, tenantRoot);
-  assert.ok(captureA.execution, 'historical replay requires a completed A outcome');
+  assert.ok(capturedDeriverAExecution, 'historical replay requires a completed A outcome');
   const rootIdentity = fixture.tenant_root_creation.identity;
-  const pair = captureA.execution.request.pair_binding;
+  const pair = capturedDeriverAExecution.request.pair_binding;
   const owner = {
     org_id: rootIdentity.orgId,
     project_id: rootIdentity.projectId,
@@ -4695,7 +4710,7 @@ async function assertGatewayOnlyRouterAuth(topology, fixture, tenantRoot, databa
     });
     assert.equal(missingBearer.status, 403, `${path} must reject a missing bearer`);
   }
-  assert.equal(captureA.preparation, undefined);
+  assert.equal(capturedDeriverAPreparation, undefined);
   const bRows = await databases.deriverB
     .prepare('SELECT COUNT(*) AS count FROM yao_pair_sessions')
     .first();
@@ -4720,8 +4735,8 @@ async function assertGatewayOnlyRouterAuth(topology, fixture, tenantRoot, databa
 }
 
 async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, databases) {
-  captureA.dropReply = true;
-  captureA.execution = undefined;
+  dropDeriverAExecutionResponse = true;
+  capturedDeriverAExecution = undefined;
   const router = await topology.getWorker('router');
   const envelope = buildEd25519ExecuteRequest(fixture, 'activation', tenantRoot);
   const routerResponse = await postWorkerJson(router, ed25519ExecutePath, envelope);
@@ -4733,8 +4748,8 @@ async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, data
       'Router must observe the simulated lost A response',
     );
   }
-  captureA.dropReply = false;
-  assert.ok(captureA.execution, 'A must commit before the harness drops its response');
+  dropDeriverAExecutionResponse = false;
+  assert.ok(capturedDeriverAExecution, 'A must commit before the harness drops its response');
   const aRows = await databases.deriverA
     .prepare('SELECT COUNT(*) AS count FROM yao_pair_sessions')
     .first();
@@ -4742,7 +4757,7 @@ async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, data
   const bTerminal = await deriverBPairStatus(
     topology,
     fixture.tenant_root_creation.identity,
-    captureA.execution.request.pair_binding,
+    capturedDeriverAExecution.request.pair_binding,
   );
   assert.equal(bTerminal.status, 'completed');
 
@@ -4752,7 +4767,7 @@ async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, data
     project_id: rootIdentity.projectId,
     env_id: rootIdentity.envId,
     wallet_id:
-      captureA.execution.request.pair_binding.ceremony.binding.lifecycle.account_id,
+      capturedDeriverAExecution.request.pair_binding.ceremony.binding.lifecycle.account_id,
   };
   const namespace = await topology.getDurableObjectNamespace(deriverAWalletDoBinding, 'deriver-a');
   const objectId = namespace.idFromName(deriverAWalletDoObjectName(owner));
@@ -4764,20 +4779,20 @@ async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, data
   const stored = await callDeriverAWalletDo(object, {
     operation: 'read',
     owner,
-    pair_binding: captureA.execution.request.pair_binding,
+    pair_binding: capturedDeriverAExecution.request.pair_binding,
   });
   assert.equal(stored.body.record.status, 'completed');
   const scopedLookup = {
     wallet_home: 'US',
     ownership_generation: 1,
     root_identity: rootIdentity,
-    pair_binding: captureA.execution.request.pair_binding,
+    pair_binding: capturedDeriverAExecution.request.pair_binding,
   };
   const scopedStatus = await postWorkerJson(deriverA, deriverAWalletStatusPath, scopedLookup);
   const scopedStatusBytes = await expectOk(scopedStatus, 'scoped Deriver A wallet status');
   const scopedOutcome = JSON.parse(scopedStatusBytes.toString('utf8'));
   assert.equal(scopedOutcome.status, 'completed');
-  assert.deepEqual(scopedOutcome.outcome, captureA.execution.response);
+  assert.deepEqual(scopedOutcome.outcome, capturedDeriverAExecution.response);
   const wrongTenant = await postWorkerJson(deriverA, deriverAWalletStatusPath, {
     ...scopedLookup,
     root_identity: { ...rootIdentity, orgId: `${rootIdentity.orgId}-other` },
@@ -4828,31 +4843,31 @@ async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, data
   assert.equal(signingWorkerActivationCalls, 0);
   const replay = await postWorkerJson(
     deriverA,
-    'ceremony_start',
-    captureA.execution.request,
+    '/router-ab/deriver-a/ed25519-yao/execute-pair',
+    capturedDeriverAExecution.request,
   );
   const replayBytes = await expectOk(replay, 'Deriver A replay after lost reply and eviction');
   assert.deepEqual(
     JSON.parse(replayBytes.toString('utf8')),
-    captureA.execution.response,
+    capturedDeriverAExecution.response,
   );
   const bAfter = await deriverBPairStatus(
     topology,
     rootIdentity,
-    captureA.execution.request.pair_binding,
+    capturedDeriverAExecution.request.pair_binding,
   );
   assert.deepEqual(bAfter, bTerminal);
   const afterReplay = await callDeriverAWalletDo(object, {
     operation: 'read',
     owner,
-    pair_binding: captureA.execution.request.pair_binding,
+    pair_binding: capturedDeriverAExecution.request.pair_binding,
   });
   assert.equal(afterReplay.body.revision, stored.body.revision);
   const artifact = {
     kind: 'deriver_a_wallet_do_lost_reply_e2e_v1',
     reproduce: 'ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --do-pair-lost-reply',
     outcomeSha256Hex: createHash('sha256')
-      .update(JSON.stringify(captureA.execution.response))
+      .update(JSON.stringify(capturedDeriverAExecution.response))
       .digest('hex'),
     aD1PairRows: aRows.count,
     bPairLifecycle: bTerminal.status,
@@ -4870,7 +4885,7 @@ async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, data
 
 async function testDeriverBBurnBeforeCompletion(topology, fixture, tenantRoot, databases) {
   capturedSigningWorkerDelivery = undefined;
-  captureA.preparation = undefined;
+  capturedDeriverAPreparation = undefined;
   const router = await topology.getWorker('router');
   const envelope = buildEd25519ExecuteRequest(fixture, 'activation', tenantRoot);
   const response = await postWorkerJson(router, ed25519ExecutePath, envelope);
@@ -4878,20 +4893,20 @@ async function testDeriverBBurnBeforeCompletion(topology, fixture, tenantRoot, d
   if (response.status === 200) {
     assert.notEqual(JSON.parse(responseBody).status, 'succeeded');
   }
-  assert.ok(captureA.preparation, 'A pair preparation must reach the wallet DO');
+  assert.ok(capturedDeriverAPreparation, 'A pair preparation must reach the wallet DO');
   assert.equal(capturedSigningWorkerDelivery, undefined);
 
   const bTerminal = await deriverBPairStatus(
     topology,
     fixture.tenant_root_creation.identity,
-    captureA.preparation.request.pair_binding,
+    capturedDeriverAPreparation.request.pair_binding,
   );
   assert.equal(bTerminal.status, 'burned', 'B must persist the injected burn');
   const aRows = await databases.deriverA
     .prepare('SELECT COUNT(*) AS count FROM yao_pair_sessions')
     .first();
   assert.equal(aRows.count, 0);
-  const pair = captureA.preparation.request.pair_binding;
+  const pair = capturedDeriverAPreparation.request.pair_binding;
   const rootIdentity = fixture.tenant_root_creation.identity;
   const owner = {
     org_id: rootIdentity.orgId,

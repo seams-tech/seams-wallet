@@ -1,4 +1,3 @@
-import { ceremonyPath, ceremonyPreparation, interceptCeremony, executeCeremony } from './yao-ceremony-evidence-transport.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
@@ -61,18 +60,17 @@ class StatusBeforePreparation {
   observations = [];
   forgedReadinessRejected = false;
 
-  constructor(worker, role, home, peerPreparation) {
+  constructor(worker, role, home) {
     this.worker = worker;
     this.role = role;
     this.home = home;
-    this.peerPreparation = peerPreparation;
   }
 
   async fetch(request, topology) {
     const worker = await topology.getWorker(this.worker);
     const path = new URL(request.url).pathname;
-    if (path.endsWith('/prepare-pair') || path === ceremonyPath) {
-      const preparation = path === ceremonyPath ? ceremonyPreparation(request) : await request.clone().json();
+    if (path.endsWith('/prepare-pair')) {
+      const preparation = await request.clone().json();
       assert.equal(preparation.tenant_root.wallet_home, this.home);
       const lookup = {
         wallet_home: preparation.tenant_root.wallet_home,
@@ -93,31 +91,20 @@ class StatusBeforePreparation {
       assert.equal(result.status, 'missing');
       this.observations.push({ role: this.role, generation: lookup.ownership_generation, firstStatus: result.status });
     }
-    if (path === ceremonyPath) {
-      this.binding = worker;
-      this.headers = request.headers;
-      await Promise.race([this.peerPreparation.promise, setTimeout(5_000).then(parallelPreparationTimeout)]);
-      return interceptCeremony(request, worker, this);
+    if (this.role === 'deriver_a' && path.endsWith('/execute-pair')) {
+      const forged = await request.clone().json();
+      forged.peer_receipt.signature.bytes[0] ^= 1;
+      const rejected = await worker.fetch(request.url, {
+        method: 'POST',
+        headers: request.headers,
+        body: JSON.stringify(forged),
+      });
+      assert.equal(rejected.ok, false, 'Forged readiness must fail before reservation');
+      await rejected.text();
+      this.forgedReadinessRejected = true;
     }
-    const response = await worker.fetch(request);
-    if (path.endsWith('/prepare-pair')) {
-      assert.equal(response.status, 200, await response.clone().text());
-      this.peerPreparation.resolve();
-    }
-    return response;
+    return worker.fetch(request);
   }
-  async beforeStart(execution) {
-    const forged = structuredClone(execution);
-    forged.peer_receipt.signature.bytes[0] ^= 1;
-    const rejected = await executeCeremony(this.binding, forged, this.headers);
-    assert.equal(rejected.ok, false, 'Forged readiness must fail before reservation');
-    this.forgedReadinessRejected = true;
-  }
-
-}
-
-function parallelPreparationTimeout() {
-  assert.fail('B preparation must complete while A dispatch is held');
 }
 
 class MiniflareWorkerBinding {
@@ -206,9 +193,8 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
   const fixture = loadFixture();
   configureRouterJwt(fixture);
   const log = new PlacementLog();
-  const peerPreparation = Promise.withResolvers();
-  const a = new StatusBeforePreparation('deriver-a', 'deriver_a', home, peerPreparation);
-  const b = new StatusBeforePreparation('deriver-b', 'deriver_b', home, peerPreparation);
+  const a = new StatusBeforePreparation('deriver-a', 'deriver_a', home);
+  const b = new StatusBeforePreparation('deriver-b', 'deriver_b', home);
   const router = routerWorker(fixture);
   router.serviceBindings.DERIVER_A = a.fetch.bind(a);
   router.serviceBindings.DERIVER_B = b.fetch.bind(b);
@@ -283,7 +269,6 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
       'Completed Router replay must not rerun custody');
     assert.equal(a.observations.length, 1);
     assert.equal(b.observations.length, 1);
-    assert.ifError(a.error);
     assert.equal(a.forgedReadinessRejected, true);
     const bCommands = firstCommands.filter(command => command.role === 'deriver_b');
     const routerCommands = firstCommands.filter(command => command.role === 'router');
@@ -334,7 +319,6 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
       callerHomeOverwritten: true,
       completedReplyLossReplayedExactly: true,
       replayRanNoAdditionalCustody: true,
-      bPreparedWhileADispatchWasHeld: true,
       forgedReadinessRejectedBeforeValidExecution: a.forgedReadinessRejected,
       bProtocolRunsInWalletObject: true,
       bRemoteBeginAndCompleteCalls: 0,

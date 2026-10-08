@@ -1,4 +1,3 @@
-import { ceremonyPath, interceptCeremony, executeCeremony } from './yao-ceremony-evidence-transport.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
@@ -115,22 +114,20 @@ class CaptureExecution {
   request = null;
   cancelled = false;
   async fetch(request, topology) {
-    const worker = await topology.getWorker('deriver-a');
-    if (new URL(request.url).pathname !== ceremonyPath) return worker.fetch(request);
-    this.topology = topology;
-    return interceptCeremony(request, worker, this);
-  }
-  async beforeStart(execution) {
-    this.request = execution;
-    if ((scenario === 'cancelled-root' || scenario === 'missing-admission') && !this.cancelled) {
-      const database = await this.topology.getD1Database('DERIVER_ROLE_PRIVATE_DB', 'deriver-a');
-      const sql = scenario === 'missing-admission'
-        ? "DELETE FROM tenant_root_root_use_admissions WHERE attempt_kind = 'ed25519_yao_pair_session' AND status = 'admitted'"
-        : "UPDATE tenant_root_root_use_admissions SET status = 'cancelled' WHERE attempt_kind = 'ed25519_yao_pair_session' AND status = 'admitted'";
-      const result = await database.prepare(sql).run();
-      assert.equal(result.meta.changes, 1, 'Change exactly the prepared A admission');
-      this.cancelled = true;
+    if (new URL(request.url).pathname.endsWith('/execute-pair')) {
+      this.request = await request.clone().json();
+      if ((scenario === 'cancelled-root' || scenario === 'missing-admission') && !this.cancelled) {
+        const database = await topology.getD1Database('DERIVER_ROLE_PRIVATE_DB', 'deriver-a');
+        const sql = scenario === 'missing-admission'
+          ? "DELETE FROM tenant_root_root_use_admissions WHERE attempt_kind = 'ed25519_yao_pair_session' AND status = 'admitted'"
+          : "UPDATE tenant_root_root_use_admissions SET status = 'cancelled' WHERE attempt_kind = 'ed25519_yao_pair_session' AND status = 'admitted'";
+        const result = await database.prepare(sql).run();
+        assert.equal(result.meta.changes, 1, 'Change exactly the prepared A admission');
+        this.cancelled = true;
+      }
     }
+    const worker = await topology.getWorker('deriver-a');
+    return worker.fetch(request);
   }
 }
 
@@ -206,8 +203,7 @@ try {
   const envelope = buildEd25519ExecuteRequest(fixture, 'activation', roots.tenantRoot);
   const failed = await post(routerBinding, executePath, envelope, gatewayCredential);
   assert.notEqual(failed.body.status, 'succeeded');
-  assert.ifError(capture.error);
-  assert.ok(capture.request, JSON.stringify(failed));
+  assert.ok(capture.request);
   const execution = capture.request;
   const scope = {
     wallet_home: execution.tenant_root.wallet_home,
@@ -232,7 +228,7 @@ try {
   } else {
     assert.equal(interrupted.aMessages, 0, 'A must validate its root and B acceptance before sending protocol data');
   }
-  const retried = await executeCeremony(aBinding, execution, { [authHeader]: roleCredential });
+  const retried = await post(aBinding, '/router-ab/deriver-a/ed25519-yao/execute-pair', execution, roleCredential);
   assert.ok(retried.status >= 400, 'A burned pair cannot return successful custody');
   const afterRetry = await (await proxy.fetch('https://custody.test/evidence')).json();
   assert.equal(afterRetry.connectionAttempts, interrupted.connectionAttempts, 'A burned pair must not restart the protocol');
