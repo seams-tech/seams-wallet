@@ -4150,3 +4150,84 @@ release occurred. Raw artifacts remain in `.artifacts/r155b-phase6w` (public) an
 `.artifacts/r155b-phase6w-hosted` (private).
 
 [Sanitized samples, query plans and deployment audits](evidence/near-registration-joined-identity-20261008.json).
+
+## Phase 6X — read the committed Wallet Session in its issuance transaction
+
+Implementation: `40120cddf020e65f823875eed2a1450d18572907` on `dev`.
+
+Direct Wallet Session creation previously sent a six-statement write batch, then
+made a separate request to read the exact committed session. The candidate appends
+that read to the same batch. Both ordinary mint reads and transaction readback use
+one query builder and one row parser. The parser still checks the stored columns,
+capability subjects, exact wallet identity and credential digest.
+
+The bounded source-level change is **two D1 calls to one** for session commit and
+readback. Both versions execute seven SQL statements. This saves a network round
+trip; it does not remove a persistence check or reduce the number of browser calls.
+Active authority and method checks remain inside the write transaction. Quota and
+session changes must agree. Strict and replayable issuance retain their existing
+identity, credential and retry rules. No cache, migration or new resource was added.
+
+- [x] Append exact mint readback to the existing direct-issuance batch.
+- [x] Reuse the query and row parser; remove the separate post-commit request.
+- [x] Keep the six-statement builder used by linked-device installation unchanged.
+- [x] Pass nine browser scenarios covering lost replies, reload recovery, NEAR
+  signing, quota exhaustion, Email OTP and ECDSA/mixed registration.
+- [x] Pass the server build, intended TypeScript and exact-tree bloat check.
+- [x] Compare three fresh implicit wallets per arm on staging.
+- [x] Audit serving versions, restore staging, and record measured results.
+
+### Phase 6X hosted result — 2026-10-08
+
+The saved D1 round trip produced **no measured finalization speedup** in this
+comparison. Finalization changed by **+11.9ms (0.45%)**. Its internal side-effect
+span changed from **1.647s to 1.640s**. Keep the single D1 request and transactional
+readback, without claiming a latency gain from this change.
+
+Three fresh implicit wallets ran per arm. One SDK and browser harness served both
+arms. Private Gateway source and all four custody Worker versions stayed fixed.
+Only the Gateway session-commit implementation changed. All six wallets produced
+independently verified NEP-413 messages. Funding and named-account provisioning
+were absent.
+
+| Measurement | Baseline median (range) | Candidate median (range) |
+| --- | ---: | ---: |
+| SDK registration | 9.232s (8.279–12.245s) | 8.912s (8.506–9.539s) |
+| Browser registration | 10.028s (8.486–12.457s) | 9.235s (9.171–10.176s) |
+| Registration → verified message | 13.018s (11.495–14.706s) | 12.207s (11.377–13.182s) |
+| Yao execute HTTP, unchanged custody code | 4.428s (3.433–5.166s) | 4.048s (3.584–4.127s) |
+| Finalization HTTP | 2.649s (2.380–3.704s) | 2.661s (2.531–2.963s) |
+| Registration protocol requests | 4 | 4 |
+| All Gateway requests through first message | 10 (9–10) | 9 (9–10) |
+
+The total median decreased by **811ms**, while unchanged Yao execution also ran
+faster. These sequential samples cannot attribute the total decrease to batching.
+No browser request was removed. The varying total request count includes the
+surrounding browser flow; registration uses four requests in every sample.
+The **3–4 second registration target and 1–2 second Yao target remain unmet**.
+
+All nine local browser scenarios passed. The server build, intended TypeScript and
+exact-tree bloat check passed. Both hosted serving-version audits matched all five
+participating Worker versions. The row parser still rejects disagreement between
+persisted columns, the serialized session, its capability subjects and the caller's
+identity. The linked-device six-statement transaction builder is unchanged.
+
+The remaining dominant measured work is custody setup and finalization persistence.
+In the baseline, the Router's parallel A/B preparation span measured **899ms** median,
+and its A execution call measured **1.779s**. These nested spans must not be added to
+end-to-end stage medians. A smaller session-write request count alone has not met
+the registration target.
+
+Three samples per arm establish neither percentiles nor a maximum guarantee.
+Browser totals include automation and UI settlement. Fresh wallets do not prove
+cold Workers or Durable Objects. Application clocks omit some CPU work. Gateway-wide
+D1 and backend Console counts remain unknown. Physical colocation was not remeasured.
+
+All thirteen original Worker versions were restored and compared with the saved
+versions. Tenant activation passed in run `37770282730`. No new
+resources, production deployment or package release occurred.
+
+Raw artifacts remain in `.artifacts/r155b-phase6x` (public) and
+`.artifacts/r155b-phase6x-hosted` (private).
+
+[Sanitized samples, signature proofs and deployment audits](evidence/near-registration-batched-session-20261008.json).
