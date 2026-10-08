@@ -5033,3 +5033,88 @@ all samples, exact source and bundle hashes, invocation CPU and wall times,
 independent signature checks, serving versions, reproduction commands, and
 restoration evidence. Raw artifacts remain in `.artifacts/r155b-phase6ah` and the
 private `.artifacts/r155b-phase6ah-hosted` directory.
+
+### Phase 6AI — remove repeated registration lookups (2026-10-09)
+
+**Keep the request reduction. No full-flow latency improvement was demonstrated.**
+The public implementation is `15b59d0c9997ead7846f997c54630acd87b0a9b6`.
+The private Gateway implementation and E2E verification are `475d5d6`.
+Both commits are on `dev`.
+
+Registration setup now returns the exact canonical record after a successful first
+insert. It keeps the stored-winner read when another request already inserted the
+record. Expiry handling remains unchanged. For the two setup records, this removes
+two immediate D1 readbacks: four database API calls become two on the fresh path.
+This is a count of the exercised persistence path, not a hosted total-D1 measurement.
+
+The Gateway consumes the home assignment that routing resolved within that request.
+It uses that result once. The subsequent Console execution-admission call still
+checks the current home, generation, registration identity, and terminal state.
+A local Worker/D1 E2E test cancels the reservation between routing and admission.
+Admission rejects it. Repeated admission reloads the assignment.
+
+The hosted trace confirms **33 → 30 Console HTTP calls** across three registrations.
+Home lookups fall from six to three. Fresh execution-admission calls remain three.
+The browser still makes one setup request and one credential-submission request.
+Captured Gateway totals were 9–10 calls per baseline wallet and 9 per candidate
+wallet; variable background status calls explain that separate count.
+
+Three fresh implicit, unfunded NEAR wallets ran in each measured arm. Only the
+four regional Gateway bundles changed. The corrected NEP-413 SDK, Runtime,
+Console, Router, Deriver A/B, Signing Worker, configuration, and requested APAC
+placement stayed fixed. Builds and local tests finished before measurements.
+
+| Workload | Baseline median (range) | Candidate median (range) |
+| --- | ---: | ---: |
+| Registration setup HTTP | 0.588 s (0.516–0.747) | 0.608 s (0.535–0.761) |
+| Credential submission HTTP | 0.688 s (0.681–0.722) | 0.945 s (0.604–0.976) |
+| Yao execute HTTP | 3.015 s (2.952–3.069) | 2.904 s (2.487–2.978) |
+| Server finalization HTTP | 1.725 s (1.550–1.780) | 1.954 s (1.722–1.990) |
+| SDK registration | 6.881 s (6.814–6.986) | 6.931 s (6.791–7.406) |
+| Browser registration → verified signature | 9.950 s (9.923–10.024) | 9.980 s (9.176–10.074) |
+
+Three samples per arm cannot establish a latency guarantee. These sequential arms
+also have no restored-baseline measurement. The full-flow median rose by 29 ms.
+The observed ranges overlap. Smaller request counts did not establish a faster
+complete registration.
+
+The first candidate submission reached its first Console invocation 282 ms after
+the Gateway event. The baseline offsets were 47–50 ms. Its Gateway invocation used
+133 ms CPU, against 30–63 ms in the baseline. These observations do not establish
+cold-start or network causation. Invocation wall time includes background work.
+Event offsets can include transit, scheduling, execution, and clock skew.
+
+Finalization's Router consume step measured 602 ms median in the candidate.
+Complete finalization measured 1.954 s. Neither path changed in this candidate.
+The next investigation should measure the remaining credential-submission stages
+and the Router consume dispatch boundary before another structural change. Setup
+also still makes separate Console calls for application-key validation, active
+project scope, and home reservation. Combining validation and scope resolution is
+a smaller follow-up candidate; it must preserve fresh revocation and scope checks.
+The 3–4 second full-registration target remains unmet.
+
+The server build, server type-check, Gateway bundle, bloat check, formatting,
+private production lint, and four targeted E2E scenarios passed. Browser scenarios
+cover concurrent setup replay and reload, immediate owner signing, and NEAR-only
+recovery after a lost finalization credential response. The private Worker/D1
+scenario covers regional routing, persistence, restart, and fresh cancellation.
+The private type-check reports the same six existing integration errors as its
+baseline. No production behavior was changed to satisfy those diagnostics.
+
+The first baseline log stream omitted Console events. Its three successful samples
+remain in the evidence as an instrumentation failure. The Console stream restarted
+once, and three fresh baseline wallets ran before candidate deployment. All six
+Worker streams for the measured arms matched their expected serving versions.
+All nine NEP-413 signatures passed independent Node.js Ed25519 verification with a
+separate Borsh encoder. Modified message, recipient, nonce, and callback fields
+failed verification. Only the NEAR signer loaded; no account funding occurred.
+
+All thirteen original Worker version assignments and placement settings were
+restored. Restoration activation [37848816704](https://github.com/seams-tech/seams-monorepo/actions/runs/37848816704)
+passed. Registration leases expired through the existing deployment guard. No
+guard was bypassed. All observation tails stopped. No new infrastructure was created.
+
+[Sanitized evidence](evidence/near-registration-request-reuse-20261009.json) retains every sample, the incomplete observation
+run, source and bundle hashes, invocation evidence, verification, and restoration.
+Raw artifacts remain in the public `.artifacts/r155b-phase6ai` directory and the
+private `.artifacts/r155b-phase6ai-hosted` directory.
