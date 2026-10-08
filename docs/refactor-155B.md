@@ -3240,14 +3240,86 @@ reads fresh cancellation state. Root creation, other D1 work, local DO SQL, and
 Worker dispatches are outside this count. The proposed six-to-four reduction did
 not have a safe implementation under these admission rules, so it was not applied.
 
-The next call-reduction candidate is one open A connection for preparation and
-execution, with B preparation still running independently. It must preserve signed
-readiness, the single execution claim, cancellation, lost-reply handling, and
-completion before success. The rejected Phase 6K design serialized preparation.
-Do not repeat that dependency. This connection change is not implemented here.
+The follow-up candidate was one open A connection for preparation and execution,
+with B preparation still starting independently. Phase 6K put B preparation behind
+the initial A dispatch, although A and B then prepared in parallel. Phase 6N below
+tests independent dispatch and records the rejection of connection reuse.
 
 Retain the simpler start path and request-local root reuse for their lower observed
 CPU cost. Do not advertise a setup speedup from this comparison. The **1–2 second
 hosted setup target remains unmet**. [Sanitized evidence](evidence/near-bound-root-start-20261008.json)
 contains samples, request counts, payload sizes, source and build hashes, local
 checks, serving-version audits, limitations, and restoration evidence.
+
+
+### Phase 6N — one A connection: measured and rejected (2026-10-08)
+
+The candidate showed no repeatable end-to-end improvement. It is removed from
+active `dev` sources. Keep the Phase 6M baseline. The **1–2 second hosted Yao setup
+target remains unmet**.
+
+The candidate kept preparation and execution on one authenticated A connection.
+B preparation started independently at the Router. A checked the wallet's signed
+home before object placement. It retained fresh cancellation reads, signed peer
+receipts, the single execution claim, relocation fences, and completion before
+success. Connections and messages had explicit bounds.
+
+- [x] Build all five strict release roles and check the other Workers host.
+- [x] Pass twelve local E2E scenarios. Cover cancellation, forged peer messages,
+  disconnects, concurrent claims, lost replies, root erasure, and relocation state.
+- [x] Verify all four homes. Hold A dispatch until B finishes preparation to prove
+  that B does not depend on A dispatch.
+- [x] Finish local builds and checks before running any hosted arm.
+- [x] Compare three fresh NEAR-only wallets per arm with the same SDK, Gateway,
+  runtime, role keys, and authenticated APAC hints.
+- [x] Verify 63 signatures and audit every captured serving version.
+- [x] Remove the candidate and its test adapters. Restore the exact baseline tree.
+- [x] Restore all thirteen original staging versions and pass activation in
+  [run 37718977503](https://github.com/seams-tech/seams-monorepo/actions/runs/37718977503).
+
+These timings cover the browser's Yao execute request. They exclude funding and
+NEAR account provisioning. Each arm verified 21 signatures.
+
+| Arm | Fresh wallets | Median Yao setup | Range |
+| --- | ---: | ---: | ---: |
+| Baseline before | 3 | **4.136 s** | 4.057–5.026 s |
+| One A connection | 3 | **3.932 s** | 3.445–3.987 s |
+| Baseline after | 3 | **3.589 s** | 3.043–3.934 s |
+
+The candidate was 205 ms faster than the first control and 343 ms slower than the
+second. The controls moved by 548 ms. These small sequential samples do not
+establish a saving or a regression. They do not justify the added connection code.
+
+| Measured stage | Baseline before | Candidate | Baseline after |
+| --- | ---: | ---: | ---: |
+| Parallel preparation | 1,153 ms | 988 ms | 843 ms |
+| Router's A execution stage | 1,567 ms | 1,431 ms | 1,733 ms |
+| A's connection to B | 665 ms | 720 ms | 808 ms |
+| Signing Worker delivery | 582 ms | 595 ms | 494 ms |
+
+These are stage medians from different requests. Do not add them to reconstruct
+whole-request latency. The spans include processing, storage completion, and
+transport. Application clocks freeze during CPU work. The candidate's A invocation
+covers preparation and execution together, so its CPU cannot be compared with the
+baseline preparation invocation alone.
+
+The candidate reduced Router-to-A HTTP requests from two to one. It also reduced
+A Worker-to-object requests from two to one. **Logical exchanges remained:** the
+Router still waited for both readiness receipts before sending the start message.
+Connection reuse did not remove that dependency or the A-to-B protocol exchange.
+Bound-root work remained **six D1 calls and sixteen SQL statements per setup**.
+These counts exclude other D1 work and local DO SQL. Browser signing counts stayed
+at four Gateway requests per warm or consecutive signature, and nine for unlock
+through the first verified signature.
+
+All first required object calls reused the instances observed during startup.
+Physical Worker and DO locations remain unmeasured. The test added no live
+resources. The candidate is reproducible at
+`9eab3375e10d33477ac793ce108c219efedecfce`. Revert
+`9d808eb233a5928b6c7728f9eeba63d7ea07d2f3` restores the exact pre-experiment tree.
+
+[Sanitized evidence](evidence/near-ceremony-connection-20261008.json) retains all
+samples, request counts, bounded D1 counts, build hashes, local checks, serving
+versions, and restoration evidence. A future optimization must remove measured
+work or a required interaction. This experiment does not support another
+connection-reuse rewrite.
