@@ -54,7 +54,7 @@ pub(crate) async fn load_role_share_with_access<Host: TenantRootDeriverHostV1>(
             error,
         )
     })?;
-    let stored = match store
+    let sealed = match store
         .load_bound_with_access(authenticated_custody_binding, attempt, now_ms, access)
         .await
         .map_err(|error| {
@@ -63,7 +63,7 @@ pub(crate) async fn load_role_share_with_access<Host: TenantRootDeriverHostV1>(
                 error,
             )
         })? {
-        crate::tenant_root_role_d1::TenantRootBoundShareV1::Readable(stored) => stored,
+        crate::tenant_root_role_d1::TenantRootBoundShareV1::Readable(sealed) => sealed,
         crate::tenant_root_role_d1::TenantRootBoundShareV1::EpochClosed => {
             return Err(tenant_root_epoch_closed_error_v1());
         }
@@ -80,14 +80,6 @@ pub(crate) async fn load_role_share_with_access<Host: TenantRootDeriverHostV1>(
             return Err(tenant_root_epoch_erased_error_v1());
         }
     };
-    let sealed = stored
-        .into_bound_online_role_share_artifact()
-        .map_err(|error| {
-            crate::map_cloudflare_tenant_root_role_store_error_v1(
-                "tenant-root online role-share reconstruction",
-                error,
-            )
-        })?;
     if sealed.binding().role() != expected_role {
         return Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidRole,

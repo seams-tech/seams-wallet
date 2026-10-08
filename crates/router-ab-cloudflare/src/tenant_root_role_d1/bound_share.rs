@@ -273,15 +273,27 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                     .resolve_bound_snapshot(row, active_rows, initial_snapshot, custody_binding)
                     .await?;
                 match (admission.status.as_str(), stored) {
-                    (_, Some(stored)) => match stored.record().lifecycle() {
-                        CloudflareTenantRootRoleShareLifecycleV1::Active(_)
-                        | CloudflareTenantRootRoleShareLifecycleV1::Retired(_) => {
-                            Ok(TenantRootBoundShareV1::Readable(stored))
-                        }
-                        CloudflareTenantRootRoleShareLifecycleV1::Pending(_) => {
-                            Ok(TenantRootBoundShareV1::NotYetActive)
-                        }
-                    },
+                    (_, Some(stored)) => {
+                        let installation_evidence_digest = match stored.record().lifecycle() {
+                            CloudflareTenantRootRoleShareLifecycleV1::Active(active) => {
+                                active.pending.installation_evidence_digest()
+                            }
+                            CloudflareTenantRootRoleShareLifecycleV1::Retired(retired) => {
+                                retired.active.pending.installation_evidence_digest()
+                            }
+                            CloudflareTenantRootRoleShareLifecycleV1::Pending(_) => {
+                                return Ok(TenantRootBoundShareV1::NotYetActive);
+                            }
+                        };
+                        // The decrypted row and activation are already verified. Consume
+                        // that exact record without validating its unchanged fields again.
+                        let sealed = stored
+                            .record
+                            .into_online_role_share_artifact_with_installation_evidence_digest(
+                                installation_evidence_digest,
+                            )?;
+                        Ok(TenantRootBoundShareV1::Readable(sealed))
+                    }
                     ("settled", None) => Ok(TenantRootBoundShareV1::Erased),
                     (_, None) => Err(store_error(
                         "tenant-root root-use admission is unsettled but its role share is gone",
@@ -344,5 +356,50 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
             }
         }
         Ok(stored)
+    }
+    /// Checks an activated row against every custody-binding field: identity,
+    /// lineage, epoch, role, this role's commitment, and the activation
+    /// receipt that made the epoch active. Both callers supply records already
+    /// authenticated by `open_row` in this request.
+    fn verify_bound_row(
+        &self,
+        stored: &CloudflareStoredTenantRootRoleShareV1,
+        custody_binding: &TenantRootCustodyBindingV1,
+    ) -> RoleStoreResult<()> {
+        let record = stored.record();
+        let activation_receipt_digest = match record.lifecycle() {
+            CloudflareTenantRootRoleShareLifecycleV1::Active(active) => {
+                active.activation.activation_receipt_digest
+            }
+            CloudflareTenantRootRoleShareLifecycleV1::Retired(retired) => {
+                retired.active.activation.activation_receipt_digest
+            }
+            CloudflareTenantRootRoleShareLifecycleV1::Pending(_) => {
+                return Err(store_error(
+                    "tenant-root role share named by the custody binding is not active",
+                ));
+            }
+        };
+        let expected_role = self.cipher.role.managed_restore_role();
+        let expected_commitment = match expected_role {
+            TenantRootManagedRestoreRoleV1::DeriverA => custody_binding.commitments().deriver_a(),
+            TenantRootManagedRestoreRoleV1::DeriverB => custody_binding.commitments().deriver_b(),
+        };
+        let identity_digest = record
+            .identity()
+            .digest()
+            .map_err(|error| store_error(error.message()))?;
+        if identity_digest != custody_binding.identity_digest()
+            || record.custody_lineage() != custody_binding.custody_lineage()
+            || record.epoch() != custody_binding.epoch()
+            || record.role().managed_restore_role() != expected_role
+            || record.share_commitment() != expected_commitment
+            || activation_receipt_digest != custody_binding.activation_receipt_digest()
+        {
+            return Err(store_error(
+                "tenant-root role share does not match authenticated custody binding",
+            ));
+        }
+        Ok(())
     }
 }
