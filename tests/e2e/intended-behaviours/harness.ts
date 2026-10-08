@@ -1137,9 +1137,10 @@ function ignoreNearDemoStatusReadError(): null {
 
 type IntendedGatewayRequests = {
   get: APIRequestContext['get'];
-  post(url: string, options?: Parameters<APIRequestContext['post']>[1]): Promise<
-    Pick<APIResponse, 'status' | 'ok' | 'text' | 'json'>
-  >;
+  post(
+    url: string,
+    options?: Parameters<APIRequestContext['post']>[1],
+  ): Promise<Pick<APIResponse, 'status' | 'ok' | 'text' | 'json'>>;
 };
 
 export class IntendedBehaviourHarness {
@@ -2084,7 +2085,10 @@ export class IntendedBehaviourHarness {
     const finalizePath = /\/wallets\/[^/]+\/signers\/finalize$/;
     const attempts: { readonly idempotencyKey: string; readonly body: string }[] = [];
     const handler = async (route: Route): Promise<void> => {
-      if (route.request().method() !== 'POST' || !finalizePath.test(new URL(route.request().url()).pathname)) {
+      if (
+        route.request().method() !== 'POST' ||
+        !finalizePath.test(new URL(route.request().url()).pathname)
+      ) {
         await route.fallback();
         return;
       }
@@ -2108,13 +2112,17 @@ export class IntendedBehaviourHarness {
       assertReplayed: () => {
         const [lost, replayed] = attempts;
         if (attempts.length !== 2 || !lost || !replayed) {
-          throw new Error(`Add-signer finalize expected one lost and one replayed response, saw ${attempts.length}`);
+          throw new Error(
+            `Add-signer finalize expected one lost and one replayed response, saw ${attempts.length}`,
+          );
         }
         if (!lost.idempotencyKey || lost.idempotencyKey !== replayed.idempotencyKey) {
           throw new Error('Add-signer finalize retry changed its idempotency key');
         }
         expect(JSON.parse(replayed.body)).toEqual(JSON.parse(lost.body));
-        this.recordService('add-signer finalize lost its response and replayed the committed outcome');
+        this.recordService(
+          'add-signer finalize lost its response and replayed the committed outcome',
+        );
       },
     };
   }
@@ -3746,29 +3754,7 @@ export class IntendedBehaviourHarness {
       this.requireRegisteredWalletForSigning(),
       'NEAR message signing',
     );
-    const params = { message, recipient: 'checkout.example', state: 'quote-170' };
-    const result = await autoConfirmWalletIframeUntil(
-      this.page,
-      this.page.evaluate(invokeIntendedSignMessage, params),
-    );
-    if (!result.success) throw new Error(result.error);
-    expect(result.accountId).toBe(registration.nearAccountId);
-    expect(result.publicKey).toBe(registration.operationalPublicKey);
-    expect(result.state).toBe(params.state);
-    const nonce = Buffer.from(result.nonce, 'base64');
-    const signature = Buffer.from(result.signature, 'base64');
-    expect(nonce.length).toBe(32);
-    expect(signature.length).toBe(64);
-    const digest = nearMessageSigningDigest(params, nonce);
-    const publicKey = parseNearEd25519PublicKey(result.publicKey).keyData32;
-    expect(await ed25519.verifyAsync(signature, digest, publicKey)).toBe(true);
-    const changedMessage = nearMessageSigningDigest(
-      { ...params, message: message + ' altered' },
-      nonce,
-    );
-    expect(await ed25519.verifyAsync(signature, changedMessage, publicKey)).toBe(false);
-    await waitForWalletIframeConfirmationSettlement(this.page);
-    return { ...params, ...result, digestHex: Buffer.from(digest).toString('hex') };
+    return await signAndVerifyNearMessage(this.page, message, registration);
   }
 
   async signNearTransaction(stage: IntendedNearSigningStage): Promise<SigningAuthEventSummary> {
@@ -4544,8 +4530,9 @@ export class IntendedBehaviourHarness {
     try {
       const snapshot = await autoConfirmWalletIframeUntil(
         this.page,
-        this.waitForIntendedPageActionCompletion(action, opts?.expectedOutcome ?? 'success')
-          .then(timing.complete.bind(timing)),
+        this.waitForIntendedPageActionCompletion(action, opts?.expectedOutcome ?? 'success').then(
+          timing.complete.bind(timing),
+        ),
         {
           timeoutMs: 120_000,
           intervalMs: 250,
@@ -5467,6 +5454,7 @@ function lifecycleFlowFromTestFile(filePath: string): IntendedLifecycleFlow {
     normalized.endsWith('passkey.presign-pool.contract.test.ts') ||
     normalized.endsWith('presign-generation-storage.contract.test.ts') ||
     normalized.endsWith('passkey.ed25519-yao-local.contract.test.ts') ||
+    normalized.endsWith('passkey.near-registration-commit.contract.test.ts') ||
     normalized.endsWith('passkey.add-email-otp.contract.test.ts') ||
     normalized.endsWith('passkey.device-linking.contract.test.ts') ||
     normalized.endsWith('auth-method-addition.matrix.contract.test.ts') ||
@@ -8775,12 +8763,43 @@ function isNearProvisioningFinalizeResponse(response: Response): boolean {
   );
 }
 
-async function invokeIntendedSignMessage(
-  params: SignNEP413MessageParams,
-): Promise<SignNEP413MessageResult> {
+export async function signAndVerifyNearMessage(
+  page: Page,
+  message: string,
+  registration: { readonly nearAccountId: string; readonly operationalPublicKey: string },
+) {
+  const params = { message, recipient: 'checkout.example', state: 'quote-170' };
+  const result = await autoConfirmWalletIframeUntil(
+    page,
+    page.evaluate(invokeIntendedSignMessage, { nearAccountId: registration.nearAccountId, params }),
+  );
+  if (!result.success) throw new Error(result.error);
+  expect(result.accountId).toBe(registration.nearAccountId);
+  expect(result.publicKey).toBe(registration.operationalPublicKey);
+  expect(result.state).toBe(params.state);
+  const nonce = Buffer.from(result.nonce, 'base64');
+  const signature = Buffer.from(result.signature, 'base64');
+  expect(nonce.length).toBe(32);
+  expect(signature.length).toBe(64);
+  const digest = nearMessageSigningDigest(params, nonce);
+  const publicKey = parseNearEd25519PublicKey(result.publicKey).keyData32;
+  expect(await ed25519.verifyAsync(signature, digest, publicKey)).toBe(true);
+  const changedMessage = nearMessageSigningDigest(
+    { ...params, message: message + ' altered' },
+    nonce,
+  );
+  expect(await ed25519.verifyAsync(signature, changedMessage, publicKey)).toBe(false);
+  await waitForWalletIframeConfirmationSettlement(page);
+  return { ...params, ...result, digestHex: Buffer.from(digest).toString('hex') };
+}
+
+async function invokeIntendedSignMessage(input: {
+  nearAccountId: string;
+  params: SignNEP413MessageParams;
+}): Promise<SignNEP413MessageResult> {
   const sign = window.__seamsIntendedE2ESignMessage;
   if (!sign) throw new Error('Intended message-signing helper is unavailable');
-  return await sign(params);
+  return await sign(input);
 }
 
 function encodeNearMessageString(value: string): Buffer {
@@ -8797,12 +8816,14 @@ function nearMessageSigningDigest(
   const tag = Buffer.alloc(4);
   tag.writeUInt32LE(2 ** 31 + 413);
   // Independently encode the wallet's message/recipient/nonce/state Borsh payload.
-  return sha256Bytes(Buffer.concat([
-    tag,
-    encodeNearMessageString(params.message),
-    encodeNearMessageString(params.recipient),
-    nonce,
-    Buffer.from([1]),
-    encodeNearMessageString(params.state),
-  ]));
+  return sha256Bytes(
+    Buffer.concat([
+      tag,
+      encodeNearMessageString(params.message),
+      encodeNearMessageString(params.recipient),
+      nonce,
+      Buffer.from([1]),
+      encodeNearMessageString(params.state),
+    ]),
+  );
 }

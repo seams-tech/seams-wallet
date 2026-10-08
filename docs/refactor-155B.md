@@ -3978,16 +3978,35 @@ a maximum latency guarantee.
 Implementation commits on `dev`: `e62c1513` and `3b1a169b`.
 [Sanitized samples, protocol spans, source hashes and deployment audits](evidence/near-registration-critical-path-20261008.json).
 
-### Remaining critical registration changes
+### Follow-up from Phase 6U
 
 1. Consolidate pure-NEAR pending activation and finalization into one idempotent
    operation. Remove the separate activation request and duplicate client checkpoint.
    Retain recovery acknowledgement, identity reservations, lost-reply recovery,
    cleanup and session issuance. ECDSA and mixed registration still require their
-   real activation behavior. This change is not implemented.
+   real activation behavior. Implemented in Phase 6V below.
 2. Combine passkey response verification with Yao admission. Return the existing
    bound admission receipt after proof verification. Preserve home, authority and
-   replay checks. This change is not implemented.
+   replay checks. Implemented in Phase 6V below.
 3. Reduce role preparation and B connection delays while preserving role isolation
    and durable replay checks. Prior rejected single-connection experiments remain
    rejected. Measure transport changes before claiming a setup saving.
+
+## Phase 6V — remove intermediate NEAR registration work
+
+- [x] Remove pure-NEAR activation from the SDK, Gateway request/response types,
+  persisted receipts and client checkpoints. Keep ECDSA/mixed activation.
+- [x] Commit wallet projection through NEAR finalization. Verify lost replies,
+  recovery, signing and mixed registration with the browser contracts.
+- [x] Return Yao admission with the authenticated pure-NEAR response. Preserve
+  exact admission identity, verified authority, home and replay checks.
+- [ ] Build matching SDK and Gateway candidates. Repeat the implicit-account
+  measurements on existing staging resources and restore all prior versions.
+- [ ] Record request counts, stage medians, ranges, limits and verification evidence.
+
+Local verification passed nine browser scenarios: admitted response replay, exact
+finalization replay, lost finalization credential with reload and verified signing,
+NEAR signing and quota checks, deferred finalization recovery, public message
+verification, ECDSA/mixed activation recovery, and NEAR-only Email OTP unlock.
+The type fixtures reject the removed pure-NEAR activation path. SDK and Gateway
+builds and the exact-tree bloat check passed. Hosted timings remain pending.

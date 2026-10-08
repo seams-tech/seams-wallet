@@ -75,9 +75,8 @@ export type WalletRegistrationActivateInput = {
    * request, so the client has nothing to cross-check against and asking it
    * to supply one would be theatre.
    */
-  readonly planKind: 'evm_family_ecdsa' | 'near_ed25519_and_evm_family_ecdsa' | 'near_ed25519';
-  /** Absent exactly when the plan is Ed25519-only. */
-  readonly ecdsa?: {
+  readonly planKind: 'evm_family_ecdsa' | 'near_ed25519_and_evm_family_ecdsa';
+  readonly ecdsa: {
     readonly activationCorrelationId: CorrelationId;
     readonly activationRequestDigestB64u: string;
     readonly clientActivation: RouterAbEcdsaVerifiedClientActivationFactsV1;
@@ -101,10 +100,8 @@ export type WalletRegistrationNearProvisioningInput = {
   >['ed25519'];
   readonly emailOtpEnrollment?: unknown;
   /**
-   * The custody ceremony's sealed output. An Ed25519-only wallet establishes
-   * its custody *here* rather than at activate: activate returns
-   * `near_pending` with no Yao result yet, so this deferred leg is the first
-   * point at which that wallet has a key set to seal against.
+   * The custody ceremony's sealed output. NEAR-only registration commits its
+   * wallet and custody here after Yao and recovery backup complete.
    */
   readonly walletCustodyCommit?: unknown;
   readonly verifier: WalletRegistrationSetupVerifier;

@@ -28,6 +28,8 @@ import {
   createRouterAbEd25519YaoRegistrationModule,
   InMemoryRouterAbEd25519YaoRegistrationStateV1,
   type RouterAbEd25519YaoRegistrationAuthorizationAdapter,
+  type RouterAbEd25519YaoRegistrationAuthorizationResult,
+  type RouterAbEd25519YaoRegistrationAuthorizationFailure,
   type RouterAbEd25519YaoRegistrationService,
 } from '../registration/routerAbEd25519YaoRegistration';
 import {
@@ -138,9 +140,14 @@ export type RouterAbEd25519YaoProductRegistrationRuntimeV1 =
 
 export type RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1 =
   | Extract<RouterAbEd25519YaoRegistrationIntentBindingResult, { readonly ok: false }>
-  | RouterAbEd25519YaoRegistrationServiceResult<
-      RouterAbEd25519YaoActivationAdmissionReceiptV1<'registration'>
-    >;
+  | Extract<RouterAbEd25519YaoRegistrationAuthorizationResult, { readonly ok: false }>
+  | Extract<RouterAbEd25519YaoRegistrationServiceResult<never>, { readonly ok: false }>
+  | {
+      readonly ok: true;
+      readonly status: 200;
+      readonly admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1;
+      readonly value: RouterAbEd25519YaoActivationAdmissionReceiptV1<'registration'>;
+    };
 
 export type RouterAbEd25519YaoProductRegistrationCompositionV1 = {
   readonly kind: 'router_ab_ed25519_yao_product_registration_composition_v1';
@@ -158,6 +165,12 @@ export interface RouterAbEd25519YaoProductRegistrationServicePortV1
   extends RouterAbEd25519YaoRegistrationService, RouterAbEd25519YaoActivationConsumerV1 {}
 
 export interface RouterAbEd25519YaoProductRegistrationAuthorizationPortV1 extends RouterAbEd25519YaoRegistrationAuthorizationAdapter {
+  bindAndAuthorizeAdmission(
+    input: RouterAbEd25519YaoVerifiedActivationIntentV1,
+  ): Promise<
+    | RouterAbEd25519YaoRegistrationIntentBindingResult
+    | RouterAbEd25519YaoRegistrationAuthorizationFailure
+  >;
   bindVerifiedIntent(
     input: RouterAbEd25519YaoVerifiedActivationIntentV1,
   ): Promise<RouterAbEd25519YaoRegistrationIntentBindingResult>;
@@ -515,9 +528,16 @@ class RouterAbEd25519YaoProductRegistrationRuntime implements RouterAbEd25519Yao
   async bindAndAdmitVerifiedRegistration(
     input: RouterAbEd25519YaoVerifiedActivationIntentV1,
   ): Promise<RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1> {
-    const bound = await this.input.authorization.bindVerifiedIntent(input);
+    const bound = await this.input.authorization.bindAndAuthorizeAdmission(input);
     if (!bound.ok) return bound;
-    return await this.input.registrationService.admit(bound.admissionRequest);
+    const admitted = await this.input.registrationService.admit(bound.admissionRequest);
+    if (!admitted.ok) return admitted;
+    return {
+      ok: true,
+      status: 200,
+      admissionRequest: bound.admissionRequest,
+      value: admitted.value,
+    };
   }
 
   async consumeActivated(

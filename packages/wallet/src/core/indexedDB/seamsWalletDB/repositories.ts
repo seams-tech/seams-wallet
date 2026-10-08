@@ -782,17 +782,6 @@ function assertPendingWalletRecoveryPublicationMatchesProjection(
   }
 }
 
-function shouldDeletePublishedPendingWalletRegistrationCommit(
-  pending: PendingWalletRegistrationCommitV1,
-): boolean {
-  switch (pending.operation) {
-    case 'near_provisioning':
-      return true;
-    case 'registration_activate':
-      return pending.signerPlanKind !== 'near_ed25519';
-  }
-}
-
 function assertCredentialFreeRegistrationSessionProjectionMatchesExisting(input: {
   readonly incoming: ActiveWalletSessionV1;
   readonly existing: ActiveWalletSessionV1;
@@ -4896,14 +4885,16 @@ export class SeamsWalletRepositories {
       const selections = ctx.store(SEAMS_WALLET_STORES.walletSelections);
       const existing = await selections.get(input.authority.walletId);
       if (!existing) {
-        await selections.put(walletSelectionStorageRow({
-          kind: 'wallet_selection_v1',
-          walletId: input.authority.walletId,
-          walletAuthMethodId: input.authMethod.walletAuthMethodId,
-          lockGeneration: 0,
-          lockState: 'locked',
-          updatedAtMs: input.authMethod.activatedAtMs,
-        }));
+        await selections.put(
+          walletSelectionStorageRow({
+            kind: 'wallet_selection_v1',
+            walletId: input.authority.walletId,
+            walletAuthMethodId: input.authMethod.walletAuthMethodId,
+            lockGeneration: 0,
+            lockState: 'locked',
+            updatedAtMs: input.authMethod.activatedAtMs,
+          }),
+        );
       }
       return;
     }
@@ -5467,7 +5458,9 @@ export class SeamsWalletRepositories {
         }
         if (current.record.authorityDigestB64u === next.authorityDigestB64u) return;
         if (!isEcdsaExtensionOfEd25519WalletAuthority(current.record, next)) {
-          throw new Error('Added ECDSA signer authority is not an extension of the local authority');
+          throw new Error(
+            'Added ECDSA signer authority is not an extension of the local authority',
+          );
         }
         await store.put(walletAuthorityStorageRow(next));
       },
@@ -7350,7 +7343,9 @@ export class SeamsWalletRepositories {
             input.pending.operation !== 'near_provisioning' ||
             input.pending.signerPlanKind !== 'near_ed25519'
           ) {
-            throw new Error('Credential-free registration projection has no exact local Wallet Session');
+            throw new Error(
+              'Credential-free registration projection has no exact local Wallet Session',
+            );
           }
           // A lost first reply can restore identity for unlock without issuing a session.
           // No replayed session or operation credential is installed.
@@ -7358,7 +7353,9 @@ export class SeamsWalletRepositories {
           break;
         case 'corrupt':
         case 'upgrade_required':
-          throw new Error('Credential-free registration projection cannot read the exact local Wallet Session');
+          throw new Error(
+            'Credential-free registration projection cannot read the exact local Wallet Session',
+          );
         default:
           return assertNever(existingSession);
       }
@@ -7389,11 +7386,7 @@ export class SeamsWalletRepositories {
     for (const continuity of input.ecdsaContinuity) {
       await persistPreparedImportedWalletCustodyEcdsaContinuityInTransaction(ctx, continuity);
     }
-    const shouldDeletePending =
-      input.deletePending &&
-      (sessionPublication !== 'issued' ||
-        shouldDeletePublishedPendingWalletRegistrationCommit(input.pending));
-    if (shouldDeletePending) {
+    if (input.deletePending) {
       await ctx.store(SEAMS_WALLET_STORES.appState).delete(pendingKey);
     }
     return result;

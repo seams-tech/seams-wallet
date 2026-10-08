@@ -611,9 +611,10 @@ declare global {
     __seamsIntendedE2ELockWallet?: () => Promise<void>;
     __seamsIntendedE2EMoveWallet?: (request: WalletMoveRequest) => Promise<WalletMoveStatusResult>;
     __seamsIntendedE2EReadWalletMove?: (moveId: string) => Promise<WalletMoveStatusResult>;
-    __seamsIntendedE2ESignMessage?: (
-      params: SignNEP413MessageParams,
-    ) => Promise<SignNEP413MessageResult>;
+    __seamsIntendedE2ESignMessage?: (input: {
+      nearAccountId: string;
+      params: SignNEP413MessageParams;
+    }) => Promise<SignNEP413MessageResult>;
     __seamsIntendedE2ECancelDeviceLink?: () => Promise<void>;
     __seamsIntendedE2EReadWalletLockState?: () => Promise<{
       authenticationKind: WalletSession['authentication']['kind'];
@@ -1205,18 +1206,21 @@ class IntendedPageController {
     };
   };
 
-  async signMessageForIntendedTest(
-    params: SignNEP413MessageParams,
-  ): Promise<SignNEP413MessageResult> {
+  async signMessageForIntendedTest(input: {
+    nearAccountId: string;
+    params: SignNEP413MessageParams;
+  }): Promise<SignNEP413MessageResult> {
     return await this.seams.near.signMessage({
       walletSession: this.walletId,
-      nearAccount: requireNearAccountId(this.nearAccountId),
-      params,
+      nearAccount: requireNearAccountId(input.nearAccountId),
+      params: input.params,
       options: { signerSlot: this.nearSignerSlot, onEvent: this.recordLifecycleEvent },
     });
   }
 
-  moveWalletForIntendedTest = async (request: WalletMoveRequest): Promise<WalletMoveStatusResult> => {
+  moveWalletForIntendedTest = async (
+    request: WalletMoveRequest,
+  ): Promise<WalletMoveStatusResult> => {
     return this.seams.placement.move(request);
   };
 
@@ -2562,9 +2566,13 @@ class IntendedPageController {
         onEvent: this.recordLifecycleEvent,
       },
     });
-    console.info('[Intended ECDSA benchmark]', JSON.stringify({
-      event: 'ecdsa_sdk_call', durationMs: performance.now() - sdkStartedAt,
-    }));
+    console.info(
+      '[Intended ECDSA benchmark]',
+      JSON.stringify({
+        event: 'ecdsa_sdk_call',
+        durationMs: performance.now() - sdkStartedAt,
+      }),
+    );
     if (result.chain !== 'tempo' || result.kind !== 'tempoTransaction') {
       throw new Error(`Tempo signing returned unexpected result: ${result.chain}/${result.kind}`);
     }
@@ -2590,9 +2598,13 @@ class IntendedPageController {
         onEvent: this.recordLifecycleEvent,
       },
     });
-    console.info('[Intended ECDSA benchmark]', JSON.stringify({
-      event: 'ecdsa_sdk_call', durationMs: performance.now() - sdkStartedAt,
-    }));
+    console.info(
+      '[Intended ECDSA benchmark]',
+      JSON.stringify({
+        event: 'ecdsa_sdk_call',
+        durationMs: performance.now() - sdkStartedAt,
+      }),
+    );
     if (result.chain !== 'evm' || result.kind !== 'eip1559') {
       throw new Error(`Arc/EVM signing returned unexpected result: ${result.chain}/${result.kind}`);
     }
@@ -2982,10 +2994,7 @@ function intendedPasskeySignerSelection(
   }
   return {
     kind: 'signer_set',
-    signers: [
-      ...near.signers,
-      { kind: 'evm_family_ecdsa', chainTargets, participantIds: [1, 2] },
-    ],
+    signers: [...near.signers, { kind: 'evm_family_ecdsa', chainTargets, participantIds: [1, 2] }],
   };
 }
 

@@ -19,6 +19,7 @@ import {
   type RouterAbTraceContextV1,
 } from '@shared/utils/routerAbTraceContext';
 import { sameRouterAbMpcMaterialActivationRef } from '@shared/utils/routerAbNormalSigningIdentity';
+import type { Variant } from '@shared/utils/variant';
 import { json, readJson } from '../../../framework/http';
 import { createRouterApiModule, type RouterApiModule } from '../../../framework/modules';
 import { defineRoute } from '../../../framework/routeDefinitions';
@@ -219,6 +220,12 @@ export type RouterAbEd25519YaoRegistrationAuthorizationResult =
       code: string;
       message: string;
     };
+
+export type RouterAbEd25519YaoRegistrationAuthorizationFailure = Variant<
+  RouterAbEd25519YaoRegistrationAuthorizationResult,
+  'ok',
+  false
+>;
 
 export interface RouterAbEd25519YaoRegistrationAuthorizationAdapter {
   authorize(

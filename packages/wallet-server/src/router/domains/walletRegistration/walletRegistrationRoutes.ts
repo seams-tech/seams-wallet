@@ -2319,7 +2319,7 @@ function parseRegistrationRequestDigestB64u(raw: unknown): string | null {
   }
 }
 
-async function projectActivatedWallet(input: {
+async function projectRegisteredWallet(input: {
   readonly registrationCeremonyId: string;
   readonly services: RouterApiWalletRegistrationServices;
   readonly signedSetup: unknown;
@@ -2378,16 +2378,8 @@ export async function handleRouterApiWalletRegistrationActivate(
   const idempotencyKey = String(body.idempotencyKey || '').trim();
   if (!idempotencyKey) return routeError(400, 'invalid_body', 'idempotencyKey is required');
   const planKind = String(body.kind || '').trim();
-  if (
-    planKind !== 'evm_family_ecdsa' &&
-    planKind !== 'near_ed25519_and_evm_family_ecdsa' &&
-    planKind !== 'near_ed25519'
-  ) {
-    return routeError(400, 'invalid_body', 'kind must name the signer plan');
-  }
-  const ed25519Only = planKind === 'near_ed25519';
-  if (ed25519Only && body.ecdsa !== undefined) {
-    return routeError(400, 'invalid_body', 'an Ed25519-only activate carries no ECDSA activation');
+  if (planKind !== 'evm_family_ecdsa' && planKind !== 'near_ed25519_and_evm_family_ecdsa') {
+    return routeError(400, 'invalid_body', 'activation requires an ECDSA signer plan');
   }
   const ecdsa = isPlainObject(body.ecdsa) ? body.ecdsa : null;
   const unknownEcdsaField = ecdsa
@@ -2405,33 +2397,30 @@ export async function handleRouterApiWalletRegistrationActivate(
     );
   }
   if (
-    !ed25519Only &&
-    (!ecdsa ||
-      typeof ecdsa.activationCorrelationId !== 'string' ||
-      typeof ecdsa.activationRequestDigestB64u !== 'string' ||
-      !isPlainObject(ecdsa.clientActivation))
+    !ecdsa ||
+    typeof ecdsa.activationCorrelationId !== 'string' ||
+    typeof ecdsa.activationRequestDigestB64u !== 'string' ||
+    !isPlainObject(ecdsa.clientActivation)
   ) {
     return routeError(400, 'invalid_body', 'browser-verified clientActivation is required');
   }
   let parsedActivation: WalletRegistrationActivateInput['ecdsa'];
-  if (ecdsa) {
-    try {
-      const parsed = parseRouterAbEcdsaRegistrationActivationRequestV1({
-        registrationCeremonyId,
-        ecdsa: {
-          kind: 'router_ab_ecdsa_registration_activation_v1',
-          activationCorrelationId: ecdsa.activationCorrelationId,
-          publicFacts: ecdsa.clientActivation,
-        },
-      });
-      parsedActivation = {
-        activationCorrelationId: parsed.ecdsa.activationCorrelationId,
-        activationRequestDigestB64u: parseDigestB64u(ecdsa.activationRequestDigestB64u),
-        clientActivation: parsed.ecdsa.publicFacts,
-      };
-    } catch {
-      return routeError(400, 'invalid_body', 'ECDSA activation facts are invalid');
-    }
+  try {
+    const parsed = parseRouterAbEcdsaRegistrationActivationRequestV1({
+      registrationCeremonyId,
+      ecdsa: {
+        kind: 'router_ab_ecdsa_registration_activation_v1',
+        activationCorrelationId: ecdsa.activationCorrelationId,
+        publicFacts: ecdsa.clientActivation,
+      },
+    });
+    parsedActivation = {
+      activationCorrelationId: parsed.ecdsa.activationCorrelationId,
+      activationRequestDigestB64u: parseDigestB64u(ecdsa.activationRequestDigestB64u),
+      clientActivation: parsed.ecdsa.publicFacts,
+    };
+  } catch {
+    return routeError(400, 'invalid_body', 'ECDSA activation facts are invalid');
   }
   const serverTiming: Array<readonly [string, number]> = [];
   const result = await input.services.walletRegistration.activateWalletRegistration(
@@ -2440,7 +2429,7 @@ export async function handleRouterApiWalletRegistrationActivate(
       signedSetup,
       idempotencyKey,
       planKind,
-      ...(parsedActivation ? { ecdsa: parsedActivation } : {}),
+      ecdsa: parsedActivation,
       ...(body.emailOtpEnrollment ? { emailOtpEnrollment: body.emailOtpEnrollment } : {}),
       /* Passed through untouched. Rejecting a malformed custody payload at the
          route would fail an activation the wallet's registration survives, and
@@ -2464,7 +2453,7 @@ export async function handleRouterApiWalletRegistrationActivate(
       'Wallet registration activation returned an invalid authority',
     );
   }
-  const projectionError = await projectActivatedWallet({
+  const projectionError = await projectRegisteredWallet({
     registrationCeremonyId,
     services: input.services,
     signedSetup,
@@ -2482,9 +2471,7 @@ export async function handleRouterApiWalletRegistrationActivate(
 }
 
 /**
- * `POST /wallets/register/near-provisioning` — the non-blocking completion
- * the client calls after activate, once its already-running Yao computation
- * produces an activation.
+ * Commits a NEAR-only wallet or completes a mixed wallet's deferred signer.
  */
 export async function handleRouterApiWalletRegistrationNearProvisioning(
   input: RouterApiWalletRegistrationInput,
@@ -2528,6 +2515,20 @@ export async function handleRouterApiWalletRegistrationNearProvisioning(
     serverTiming,
   );
   if (!result.ok) return routeJson(400, result);
+  if (result.registrationEstablishedSession.session.tokens.kind === 'near_ed25519') {
+    const projectionError = await projectRegisteredWallet({
+      registrationCeremonyId,
+      services: input.services,
+      signedSetup,
+    });
+    if (projectionError) {
+      return routeError(
+        500,
+        'internal',
+        `Wallet was created but its Console projection failed: ${projectionError}`,
+      );
+    }
+  }
   if (sessionSeal.value) {
     if (!isPasskeyWalletRegistrationNearProvisioningSuccessV2(result)) {
       return routeError(

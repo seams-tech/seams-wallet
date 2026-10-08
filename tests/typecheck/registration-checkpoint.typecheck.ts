@@ -65,6 +65,17 @@ const joinedWithCheckpoint = { ...joined, checkpointJson: prepared.checkpointJso
 const invalidJoined: PendingWalletRegistrationCommitV1 = joinedWithCheckpoint;
 void [invalidPlanned, invalidMixed, invalidPrepared, invalidJoined];
 
+type PendingActivation = Extract<
+  PendingWalletRegistrationCommitV1,
+  { readonly operation: 'registration_activate' }
+>;
+// @ts-expect-error NEAR-only registration has one finalization checkpoint.
+const nearOnlyActivation: PendingActivation['signerPlanKind'] = 'near_ed25519';
+const changedActivationPlan = { ...mixed, signerPlanKind: 'near_ed25519' as const };
+// @ts-expect-error A broad spread cannot restore the removed NEAR activation branch.
+const invalidNearActivation: PendingWalletRegistrationCommitV1 = changedActivationPlan;
+void [nearOnlyActivation, invalidNearActivation];
+
 import type {
   IssuedWalletSessionAuthorizationV2,
   LiveWalletSessionAuthorizationProjectionV2,
@@ -84,8 +95,14 @@ void spreadRegistrationAllowance;
 import type { PendingEcdsaRegistrationUnlockMaterial } from '../../packages/wallet/src/SeamsWeb/operations/registration/pendingEcdsaRegistrationRecoveryValidation';
 import type { LoginAndCreateSessionResult } from '../../packages/wallet/src/core/types/seams';
 
-declare const pendingEmailUnlock: Extract<PendingEcdsaRegistrationUnlockMaterial, { kind: 'email_otp' }>;
-declare const pendingPasskeyUnlock: Extract<PendingEcdsaRegistrationUnlockMaterial, { kind: 'passkey' }>;
+declare const pendingEmailUnlock: Extract<
+  PendingEcdsaRegistrationUnlockMaterial,
+  { kind: 'email_otp' }
+>;
+declare const pendingPasskeyUnlock: Extract<
+  PendingEcdsaRegistrationUnlockMaterial,
+  { kind: 'passkey' }
+>;
 
 // @ts-expect-error A passkey continuation requires its verified credential and custody envelope.
 const missingPasskeyProof: PendingEcdsaRegistrationUnlockMaterial = {

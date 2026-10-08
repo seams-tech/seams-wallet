@@ -11,7 +11,6 @@ type NearProvisioningArgs = Parameters<typeof completeWalletRegistrationNearProv
 declare const validRespondEcdsa: RespondArgs & { signerPlanKind: 'evm_family_ecdsa' };
 declare const validRespondNear: RespondArgs & { signerPlanKind: 'near_ed25519' };
 declare const validActivateEcdsa: ActivateArgs & { signerPlanKind: 'evm_family_ecdsa' };
-declare const validActivateNear: ActivateArgs & { signerPlanKind: 'near_ed25519' };
 declare const validPasskeyNearProvisioningWithSeal: NearProvisioningArgs & {
   auth: { kind: 'passkey' };
   sessionSeal: {
@@ -23,7 +22,6 @@ declare const validPasskeyNearProvisioningWithSeal: NearProvisioningArgs & {
 const validRespond: RespondArgs = validRespondEcdsa;
 const validNearRespond: RespondArgs = validRespondNear;
 const validActivate: ActivateArgs = validActivateEcdsa;
-const validNearActivate: ActivateArgs = validActivateNear;
 
 // @ts-expect-error Ed25519-only respond requests cannot carry ECDSA proof bundles.
 const mixedRespond: RespondArgs = {
@@ -37,17 +35,16 @@ const missingRespondEcdsa: RespondArgs = {
   signerPlanKind: 'evm_family_ecdsa',
 };
 
-// @ts-expect-error Ed25519-only activation requests cannot carry ECDSA activation facts.
 const mixedActivate: ActivateArgs = {
   ...validActivate,
+  // @ts-expect-error NEAR-only registration has no activation request.
   signerPlanKind: 'near_ed25519',
 };
 
+const { ecdsa: removedEcdsa, ...withoutEcdsa } = validActivate;
 // @ts-expect-error ECDSA activation requests must carry their activation facts.
-const missingActivateEcdsa: ActivateArgs = {
-  ...validNearActivate,
-  signerPlanKind: 'evm_family_ecdsa',
-};
+const missingActivateEcdsa: ActivateArgs = withoutEcdsa;
+void removedEcdsa;
 
 const emailOtpProvisioningWithSessionSeal: NearProvisioningArgs = {
   ...validPasskeyNearProvisioningWithSeal,

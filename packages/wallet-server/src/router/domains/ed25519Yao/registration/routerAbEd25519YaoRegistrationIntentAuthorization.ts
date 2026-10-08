@@ -21,6 +21,7 @@ import { failure } from '@shared/utils/failure';
 import type {
   RouterAbEd25519YaoRegistrationAuthorizationAdapter,
   RouterAbEd25519YaoRegistrationAuthorizationInput,
+  RouterAbEd25519YaoRegistrationAuthorizationFailure,
   RouterAbEd25519YaoRegistrationAuthorizationResult,
 } from './routerAbEd25519YaoRegistration';
 
@@ -542,6 +543,27 @@ export class InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter im
       ok: true,
       admissionRequest: copyAdmissionRequest(existing.authority.admissionRequest),
     };
+  }
+
+  async bindAndAuthorizeAdmission(
+    input: RouterAbEd25519YaoVerifiedActivationIntentV1,
+  ): Promise<
+    | RouterAbEd25519YaoRegistrationIntentBindingResult
+    | RouterAbEd25519YaoRegistrationAuthorizationFailure
+  > {
+    const bound = await this.bindVerifiedIntent(input);
+    if (!bound.ok) return bound;
+    const credential =
+      input.kind === 'verified_registration_intent'
+        ? input.registrationIntentGrant
+        : input.addSignerIntentGrant;
+    const digest = await credentialDigestSha256(credential);
+    try {
+      const authorized = this.authorizeAdmission(bound.admissionRequest, digest);
+      return authorized.ok ? bound : authorized;
+    } finally {
+      digest.fill(0);
+    }
   }
 
   async authorize(

@@ -1,5 +1,8 @@
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
-import { buildWalletHomeRoutingHeaders, buildWalletSessionAuthorizationHeaders } from '../../../core/rpcClients/relayer/relayerHttp';
+import {
+  buildWalletHomeRoutingHeaders,
+  buildWalletSessionAuthorizationHeaders,
+} from '../../../core/rpcClients/relayer/relayerHttp';
 import { recordWalletCustodyTiming } from '@/core/signingEngine/walletCustody/ceremonyDriver';
 import { registrationSelectionIncludesNear } from './registrationSignerSet';
 import { walletSessionPreservesCapabilities } from '@shared/device-linking/activeWalletSession';
@@ -2829,7 +2832,9 @@ async function resumeNearRegistrationCustodyWork(args: {
 
 /** Owns the factor copy; ordinary unlock is already complete when this starts. */
 export async function resumeNearRegistrationAfterUnlock(args: {
-  readonly context: NearRegistrationContext & { readonly configs: RegistrationWebContext['configs'] };
+  readonly context: NearRegistrationContext & {
+    readonly configs: RegistrationWebContext['configs'];
+  };
   readonly sessionAuthority: NearRegistrationSessionAuthority;
   readonly factor: UnlockedNearRegistrationFactor;
   readonly ownedFactorSecret: ArrayBuffer;
@@ -3387,7 +3392,7 @@ async function commitDeferredEd25519Registration(args: {
       });
     }
     const materialFacts = registrationEd25519MaterialFacts({
-      deferredNear: { status: 'deferred', admissionRequest: nearCustody.admissionRequest },
+      admissionRequest: nearCustody.admissionRequest,
       finalized: finalized.ed25519,
       walletId: args.walletId,
       expectedRuntimePolicyScope: normalizeRuntimePolicyScope(finalized.ed25519.runtimePolicyScope),
@@ -4411,9 +4416,6 @@ async function registerEmailOtpEd25519YaoWalletOnly(
   });
 
   try {
-    const finalizeIdempotencyKey = createRegistrationOperationIdempotencyKey(
-      'wallet-registration-finalize',
-    );
     const prepared = await setupThreeRouteRegistration({
       context,
       authMethod: args.authMethod,
@@ -4469,9 +4471,9 @@ async function registerEmailOtpEd25519YaoWalletOnly(
     if (responded.kind !== 'near_ed25519') {
       throw new Error('Ed25519-only registration respond returned a different signer branch');
     }
-    const materialForActivate = await requireEmailOtpRegistrationEnrollmentMaterial({
+    const materialForFinalize = await requireEmailOtpRegistrationEnrollmentMaterial({
       material: enrollmentMaterial,
-      operation: 'activate',
+      operation: 'finalize',
     });
     let established: Awaited<
       ReturnType<RegistrationWebContext['signingEngine']['establishWalletCustodyNearEd25519KeySet']>
@@ -4483,8 +4485,8 @@ async function registerEmailOtpEd25519YaoWalletOnly(
         factorJson: JSON.stringify({
           envelopeId: `wallet-custody-envelope:${crypto.randomUUID()}`,
           factor: buildEmailOtpEnvelopeFactor({
-            enrollmentId: materialForActivate.enrollmentId,
-            enrollmentSealKeyVersion: materialForActivate.enrollmentSealKeyVersion,
+            enrollmentId: materialForFinalize.enrollmentId,
+            enrollmentSealKeyVersion: materialForFinalize.enrollmentSealKeyVersion,
           }),
           /* The wallet's first auth method, from the intent that allocated it.
              The seal binds the envelope to this exact method, and finalize
@@ -4497,12 +4499,7 @@ async function registerEmailOtpEd25519YaoWalletOnly(
           responded.ed25519.admissionRequest.application_binding.near_ed25519_signing_key_id,
         registrationCeremonyId: setup.registrationCeremonyId,
         admissionRequest: responded.ed25519.admissionRequest,
-        admissionReceipt: await admitDeferredNearRegistration(responded.ed25519, {
-          routerOrigin: new URL(relayerUrl).origin,
-          routing: setup.home,
-          authorization: { kind: 'bearer', value: `Bearer ${String(setup.signedSetup)}` },
-          fetch: globalThis.fetch,
-        }),
+        admissionReceipt: responded.ed25519.admissionReceipt,
         participantIds: responded.ed25519.admissionRequest.participant_ids,
         routerOrigin: new URL(relayerUrl).origin,
         authorization: `Bearer ${String(setup.signedSetup)}`,
@@ -4522,49 +4519,6 @@ async function registerEmailOtpEd25519YaoWalletOnly(
     if (!established.localMaterial) {
       throw new Error('Email OTP registration produced no sealed local custody material');
     }
-    await persistPendingRegistrationCommit({
-      operation: 'registration_activate',
-      signerPlanKind: 'near_ed25519',
-      registrationCeremonyId: setup.registrationCeremonyId,
-      idempotencyKey: finalizeIdempotencyKey,
-      walletId: String(walletId),
-      walletAuthMethodId: String(setup.intent.foundingWalletAuthMethodId),
-      signedSetup: String(setup.signedSetup),
-      auth: {
-        kind: 'email_otp',
-        email: emailAuthority.email,
-        registrationAuthorityId: emailAuthority.registrationAuthorityId,
-        providerSubject: emailAuthority.providerSubject,
-        enrollment: materialForActivate.emailOtpEnrollment,
-      },
-      localMaterial: {
-        keyFamilies: ['ed25519'],
-        custodyCommit: walletCustodyCommit,
-        ed25519: {
-          activationReference: established.activationReference,
-          localMaterial: established.localMaterial,
-          metadata: pendingRegistrationEd25519MetadataFromJoined(established),
-        },
-      },
-    });
-    /* The custody ceremony and local recovery backup finish before activate.
-       Activate stages the wallet as `near_pending`; Route 4 then commits the
-       signer, custody envelope, and recovery set together. */
-    const activated = await activateWalletRegistration({
-      relayerUrl,
-      registrationCeremonyId: setup.registrationCeremonyId,
-      signerPlanKind: 'near_ed25519',
-      signedSetup: setup.signedSetup,
-      headers: { ...registrationRouteHeaders(), ...buildWalletHomeRoutingHeaders(setup.home) },
-      idempotencyKey: finalizeIdempotencyKey,
-      emailOtpEnrollment: materialForActivate.emailOtpEnrollment,
-    });
-    if (
-      activated.kind !== 'near_ed25519' ||
-      activated.nearProvisioning?.status !== 'near_pending'
-    ) {
-      throw new Error('Ed25519-only activate did not return a wallet pending NEAR provisioning');
-    }
     const nearProvisioningIdempotencyKey = await deriveNearProvisioningIdempotencyKey({
       registrationCeremonyId: setup.registrationCeremonyId,
       activationReference: established.activationReference,
@@ -4583,7 +4537,7 @@ async function registerEmailOtpEd25519YaoWalletOnly(
         email: emailAuthority.email,
         registrationAuthorityId: emailAuthority.registrationAuthorityId,
         providerSubject: emailAuthority.providerSubject,
-        enrollment: materialForActivate.emailOtpEnrollment,
+        enrollment: materialForFinalize.emailOtpEnrollment,
       },
       localMaterial: {
         keyFamilies: ['ed25519'],
@@ -4594,10 +4548,6 @@ async function registerEmailOtpEd25519YaoWalletOnly(
           metadata: pendingRegistrationEd25519MetadataFromJoined(established),
         },
       },
-    });
-    await IndexedDBManager.deletePendingWalletRegistrationCommit({
-      registrationCeremonyId: setup.registrationCeremonyId,
-      operation: 'registration_activate',
     });
     const clientPublicKey = `ed25519:${base58Encode(established.metadata.registeredPublicKey)}`;
     const finalized = await registrationTiming.measure(
@@ -4612,7 +4562,7 @@ async function registerEmailOtpEd25519YaoWalletOnly(
         ed25519: { activationReference: established.activationReference },
         auth: {
           kind: 'email_otp',
-          enrollment: materialForActivate.emailOtpEnrollment,
+          enrollment: materialForFinalize.emailOtpEnrollment,
         },
         walletCustodyCommit,
       }),
@@ -4668,7 +4618,7 @@ async function registerEmailOtpEd25519YaoWalletOnly(
       status: 'running',
     });
     const materialFacts = registrationEd25519MaterialFacts({
-      deferredNear: responded.ed25519,
+      admissionRequest: responded.ed25519.admissionRequest,
       finalized: finalized.ed25519,
       walletId,
       expectedRuntimePolicyScope: normalizeRuntimePolicyScope(setup.intent.runtimePolicyScope),
@@ -4853,9 +4803,6 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
     status: 'started',
   });
   try {
-    const finalizeIdempotencyKey = createRegistrationOperationIdempotencyKey(
-      'wallet-registration-finalize',
-    );
     const registrationTiming = new RegistrationTimingRecorder(performance.now());
     const prepared = await setupRegistrationForPasskeyExecution({
       context,
@@ -4947,12 +4894,7 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
           responded.ed25519.admissionRequest.application_binding.near_ed25519_signing_key_id,
         registrationCeremonyId: setup.registrationCeremonyId,
         admissionRequest: responded.ed25519.admissionRequest,
-        admissionReceipt: await admitDeferredNearRegistration(responded.ed25519, {
-          routerOrigin: new URL(relayerUrl).origin,
-          routing: setup.home,
-          authorization: { kind: 'bearer', value: `Bearer ${String(setup.signedSetup)}` },
-          fetch: globalThis.fetch,
-        }),
+        admissionReceipt: responded.ed25519.admissionReceipt,
         participantIds: responded.ed25519.admissionRequest.participant_ids,
         routerOrigin: new URL(relayerUrl).origin,
         authorization: `Bearer ${String(setup.signedSetup)}`,
@@ -4973,55 +4915,6 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
     );
     if (!established.localMaterial) {
       throw new Error('Passkey registration produced no sealed local custody material');
-    }
-    await persistPendingRegistrationCommit({
-      operation: 'registration_activate',
-      signerPlanKind: 'near_ed25519',
-      registrationCeremonyId: setup.registrationCeremonyId,
-      idempotencyKey: finalizeIdempotencyKey,
-      walletId: String(intent.walletId),
-      walletAuthMethodId: String(setup.intent.foundingWalletAuthMethodId),
-      signedSetup: String(setup.signedSetup),
-      auth: {
-        kind: 'passkey',
-        rpId: args.authMethod.rpId,
-        credentialIdB64u: parsedCredentialId.value,
-        transports: [...passkeyAuthority.webauthnRegistration.response.transports],
-      },
-      localMaterial: {
-        keyFamilies: ['ed25519'],
-        custodyCommit: walletCustodyCommit,
-        ed25519: {
-          activationReference: established.activationReference,
-          localMaterial: established.localMaterial,
-          metadata: pendingRegistrationEd25519MetadataFromJoined(established),
-        },
-      },
-    });
-    /* The custody ceremony and local recovery backup finish before activate.
-       Activate stages the wallet as `near_pending`; Route 4 then commits the
-       signer, custody envelope, and recovery set together. */
-    registrationTiming.markNearStage(
-      setup.registrationCeremonyId,
-      'near_only.backup_and_checkpoint',
-    );
-    const activated = await activateWalletRegistration({
-      relayerUrl,
-      registrationCeremonyId: setup.registrationCeremonyId,
-      signerPlanKind: 'near_ed25519',
-      signedSetup: setup.signedSetup,
-      headers: {
-        ...registrationRouteHeaders(traceContext),
-        ...buildWalletHomeRoutingHeaders(setup.home),
-      },
-      idempotencyKey: finalizeIdempotencyKey,
-    });
-    registrationTiming.markNearStage(setup.registrationCeremonyId, 'near_only.activate');
-    if (
-      activated.kind !== 'near_ed25519' ||
-      activated.nearProvisioning?.status !== 'near_pending'
-    ) {
-      throw new Error('Ed25519-only activate did not return a wallet pending NEAR provisioning');
     }
     const nearProvisioningIdempotencyKey = await deriveNearProvisioningIdempotencyKey({
       registrationCeremonyId: setup.registrationCeremonyId,
@@ -5052,13 +4945,7 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
         },
       },
     });
-    await IndexedDBManager.deletePendingWalletRegistrationCommit({
-      registrationCeremonyId: setup.registrationCeremonyId,
-      operation: 'registration_activate',
-    });
     const clientPublicKey = `ed25519:${base58Encode(established.metadata.registeredPublicKey)}`;
-    /* Route 4 — its own idempotency key: a separate effect from activate's,
-         and sharing one would let a retry replay activate's commit. */
     registrationTiming.markNearStage(
       setup.registrationCeremonyId,
       'near_only.provision_checkpoint',
@@ -5122,7 +5009,7 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
       credential: passkeyAuthority.credential,
     });
     const materialFacts = registrationEd25519MaterialFacts({
-      deferredNear: responded.ed25519,
+      admissionRequest: responded.ed25519.admissionRequest,
       finalized: finalized.ed25519,
       walletId: intent.walletId,
       expectedRuntimePolicyScope: normalizeRuntimePolicyScope(intent.runtimePolicyScope),
@@ -5990,9 +5877,7 @@ async function dispatchPasskeyWalletAddSigner(args: {
   }
 }
 
-export async function addSigner(
-  args: AddWalletSignerOperationArgs,
-): Promise<RegistrationResult> {
+export async function addSigner(args: AddWalletSignerOperationArgs): Promise<RegistrationResult> {
   const { context, signerSelection } = args;
   const options = args.options || {};
   const walletId = walletIdFromString(String(args.walletId || '').trim());

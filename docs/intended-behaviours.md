@@ -570,6 +570,12 @@ Expected behaviour:
 - For a mixed signer set, Ed25519/NEAR provisioning continues under the same
   authenticated ceremony and publishes one of `near_pending`,
   `near_provisioning`, `near_ready`, or `near_failed_retryable`.
+- NEAR-only registration completes Yao and confirms recovery backup before one
+  finalization request commits its wallet, signer, custody and session. It stores
+  one finalization checkpoint for retry. It does not create an intermediate
+  wallet without a signer. The same rule applies to Email OTP registration.
+  Its authenticated response includes the admitted Yao request and receipt.
+  An exact response retry retains the same admission and execution identity.
 - NEAR admission and Yao execution cannot delay EVM registration or EVM signing.
   EVM activation and the NEAR continuation are saved atomically as separate records.
   Authorized NEAR admission overlaps ECDSA respond. Yao execution starts only

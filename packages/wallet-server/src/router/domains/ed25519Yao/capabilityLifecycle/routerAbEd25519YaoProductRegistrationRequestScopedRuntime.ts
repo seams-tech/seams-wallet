@@ -47,7 +47,7 @@ export type RouterAbEd25519YaoProductRegistrationRequestScopedRuntimeInputV1 = {
   readonly store: RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1;
   /** The Router, which owns each registration's execution and its consumption. */
   readonly registrationBackend: RouterAbEd25519YaoPinnedRegistrationBackend;
-  /** Best-effort startup after a new verified registration intent is persisted. */
+  /** Best-effort startup after the registration proof and wallet binding are verified. */
   readonly onRegistrationIntentBound?: (input: {
     readonly walletId: WalletId;
     readonly ownershipGeneration: number;
@@ -120,6 +120,7 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
       input,
       store: this.input.store,
       backend: this.input.registrationBackend,
+      onRegistrationIntentBound: this.input.onRegistrationIntentBound,
     });
   }
 
@@ -251,6 +252,7 @@ async function bindAndAdmitVerifiedRegistration(input: {
   readonly input: RouterAbEd25519YaoVerifiedActivationIntentV1;
   readonly store: RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1;
   readonly backend: RouterAbEd25519YaoPinnedRegistrationBackend;
+  readonly onRegistrationIntentBound: RouterAbEd25519YaoProductRegistrationRequestScopedRuntimeInputV1['onRegistrationIntentBound'];
 }): Promise<RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1> {
   const lifecycleId = input.input.admissionRequest.scope.lifecycle_id;
   let backendResult: RouterAbEd25519YaoRegistrationBackendResult | null = null;
@@ -259,7 +261,7 @@ async function bindAndAdmitVerifiedRegistration(input: {
     const loaded = await input.store.load(lifecycleId);
     const bound = await new InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter(
       loaded.state.authorization,
-    ).bindVerifiedIntent(input.input);
+    ).bindAndAuthorizeAdmission(input.input);
     if (!bound.ok) return bound;
 
     const service = new InMemoryRouterAbEd25519YaoRegistrationService(
@@ -268,15 +270,25 @@ async function bindAndAdmitVerifiedRegistration(input: {
     );
     const preparation = service.prepareAdmit(bound.admissionRequest);
     if (preparation.kind === 'completed') {
-      return { ok: true, status: 200, value: preparation.value };
+      return {
+        ok: true,
+        status: 200,
+        admissionRequest: bound.admissionRequest,
+        value: preparation.value,
+      };
     }
     if (preparation.kind === 'failed') return preparation.failure;
 
+    if (attempt === 0 && input.input.kind === 'verified_registration_intent') {
+      input.onRegistrationIntentBound?.({
+        walletId: input.input.intent.walletId,
+        ownershipGeneration: input.input.ownershipGeneration,
+      });
+    }
+
     if (dispatchRoot === null) {
       try {
-        dispatchRoot = await input.backend.resolveRegistrationDispatchRoot(
-          bound.admissionRequest,
-        );
+        dispatchRoot = await input.backend.resolveRegistrationDispatchRoot(bound.admissionRequest);
       } catch (error: unknown) {
         return {
           ok: false,
@@ -313,7 +325,14 @@ async function bindAndAdmitVerifiedRegistration(input: {
     );
 
     const committed = await input.store.commit(commitInput(lifecycleId, loaded));
-    if (committed.kind === 'stored') return admitted;
+    if (committed.kind === 'stored') {
+      return {
+        ok: true,
+        status: 200,
+        admissionRequest: bound.admissionRequest,
+        value: admitted.value,
+      };
+    }
   }
   return {
     ok: false,
@@ -326,10 +345,12 @@ async function bindAndAdmitVerifiedRegistration(input: {
 async function bindVerifiedIntentMutation(
   input: RouterAbEd25519YaoVerifiedActivationIntentV1,
   state: RouterAbEd25519YaoProductRegistrationStateV1,
-): Promise<RequestScopedMutationResult<{
-  readonly result: RouterAbEd25519YaoRegistrationIntentBindingResult;
-  readonly created: boolean;
-}>> {
+): Promise<
+  RequestScopedMutationResult<{
+    readonly result: RouterAbEd25519YaoRegistrationIntentBindingResult;
+    readonly created: boolean;
+  }>
+> {
   const authorityCount = state.authorization.authorities.length;
   const result = await new InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter(
     state.authorization,

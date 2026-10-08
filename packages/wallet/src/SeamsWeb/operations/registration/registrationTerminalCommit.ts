@@ -333,11 +333,6 @@ type PendingRegistrationCommitBuilderInput = PendingRegistrationCommitBuilderCom
   (
     | {
         operation: 'registration_activate';
-        signerPlanKind: 'near_ed25519';
-        localMaterial: PendingRegistrationEd25519LocalMaterialInput;
-      }
-    | {
-        operation: 'registration_activate';
         signerPlanKind: 'evm_family_ecdsa';
         localMaterial: PendingRegistrationEcdsaLocalMaterialInput;
       }
@@ -382,22 +377,6 @@ export function buildPendingRegistrationCommit(
     updatedAtMs: args.updatedAtMs,
   };
   if (args.operation === 'registration_activate') {
-    if (args.signerPlanKind === 'near_ed25519') {
-      return buildValidatedPendingRegistrationCommit({
-        ...common,
-        operation: args.operation,
-        signerPlanKind: args.signerPlanKind,
-        localMaterial: args.localMaterial,
-      });
-    }
-    if (args.signerPlanKind === 'evm_family_ecdsa') {
-      return buildValidatedPendingRegistrationCommit({
-        ...common,
-        operation: args.operation,
-        signerPlanKind: args.signerPlanKind,
-        localMaterial: args.localMaterial,
-      });
-    }
     return buildValidatedPendingRegistrationCommit({
       ...common,
       operation: args.operation,

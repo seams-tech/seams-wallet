@@ -21,7 +21,11 @@ import {
   parsePrincipalId,
   parseWalletSessionMintId,
 } from '@shared/authorization/capabilityKinds';
-import { parseWalletAuthMethodId, parseWalletAuthorityId, parseWalletId } from '@shared/utils/domainIds';
+import {
+  parseWalletAuthMethodId,
+  parseWalletAuthorityId,
+  parseWalletId,
+} from '@shared/utils/domainIds';
 import type { WalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import {
   DEFAULT_WALLET_SESSION_REMAINING_USES,
@@ -129,9 +133,7 @@ import {
   type D1WalletAddSignerStartSideEffectStore,
 } from '../wallet/d1WalletAddSignerService';
 import { CloudflareD1RegistrationIntentService } from '../registration/d1RegistrationIntentService';
-import {
-  fundImplicitNearAccountWithRelayer,
-} from '../../../../core/nearRelayerAccountProvisioning';
+import { fundImplicitNearAccountWithRelayer } from '../../../../core/nearRelayerAccountProvisioning';
 import {
   parseRouterAbEd25519YaoRegistrationSideEffectRecordV2,
   type RouterAbEd25519YaoRegistrationSideEffectRecordV2,
@@ -1091,7 +1093,6 @@ function registrationReceiptMatchesJournal(
   if (!('walletAuthMethodId' in receipt)) return false;
   if (receipt.walletId !== record.prepared.walletId) return false;
   if (receipt.walletAuthMethodId !== record.prepared.walletAuthMethodId) return false;
-  if (receipt.committed.kind === 'near_pending') return true;
   return (
     'foundingAuthority' in receipt &&
     receipt.foundingAuthority.authorityId === record.prepared.walletAuthorityId
@@ -1191,7 +1192,6 @@ async function readD1Ed25519KeyManifestBySlot(
   const signer = await walletStore.getEd25519SignerBySlot(input);
   return signer ? { custodyKeyManifestDigestB64u: signer.custodyKeyManifestDigestB64u } : null;
 }
-
 
 function createCloudflareD1RouterApiAuthAssembly(
   input: CloudflareD1RouterApiAuthServiceOptions,
@@ -2185,7 +2185,11 @@ export function createCloudflareD1RouterApiAuthService(
   };
 }
 
-function registrationOperationWallet(record: D1WalletRegistrationActivateSideEffectRecord | D1WalletRegistrationNearProvisioningSideEffectRecord) {
+function registrationOperationWallet(
+  record:
+    | D1WalletRegistrationActivateSideEffectRecord
+    | D1WalletRegistrationNearProvisioningSideEffectRecord,
+) {
   return record.prepared.walletId;
 }
 
