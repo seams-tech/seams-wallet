@@ -3323,3 +3323,100 @@ samples, request counts, bounded D1 counts, build hashes, local checks, serving
 versions, and restoration evidence. A future optimization must remove measured
 work or a required interaction. This experiment does not support another
 connection-reuse rewrite.
+
+### Phase 6O — overlap target preparation and reuse runtimes (2026-10-08)
+
+**Implemented and verified. The hosted comparison did not establish a setup
+speedup.** The candidate median exceeded both controls. The **1–2 second hosted
+Yao setup target remains unmet**.
+
+Implementation: `ff2c4aecb864bea39ea5b35615ba336b4733cdc7` on `dev`.
+
+- [x] Reuse the parsed Signing Worker runtime for package combination and
+  activation construction within one request. Update recovery and linked-device
+  callers to use the same explicit runtime input.
+- [x] Reuse B's parsed runtime through its command and continuation handlers.
+  Preserve fresh cancellation reads, signed readiness checks, the durable
+  execution claim, and relocation checks. Add no cross-request secret cache.
+- [x] Prepare and encrypt A's target proof while B's connection opens. Previously,
+  only the root read overlapped the connection. Send the proof only after signed
+  acceptance verification and the durable execution claim succeed.
+- [x] Evaluate combining the target proof with the opening request. Keep the
+  required exchange. A must read the fresh root before constructing its proof.
+  Including that proof in the opening request would delay B's connection.
+  Both parties still need the proof exchange to derive their server contribution.
+- [x] Pass five strict release builds, the other Workers host check, thirteen
+  local E2E scenarios, and the exact-tree bloat check.
+- [x] Run three latency arms, each with three fresh NEAR-only wallets and
+  twenty-one verified signatures. Run a separate placement arm with one wallet
+  and seven verified signatures. Finish all builds and local checks first.
+- [x] Correlate actual execution locations through Cloudflare analytics. Check
+  D1 primary locations separately. Audit all captured serving versions.
+- [x] Restore all thirteen original staging versions and pass tenant activation.
+
+The new delayed-acceptance E2E proves that A prepares its target before the delayed
+B connection returns. A then rejects a forged acceptance signature. It sends zero
+protocol messages, closes both connections, and burns both pair states. An exact
+retry does not restart execution. A separate wallet still completes.
+
+These timings cover the browser's complete Yao execute HTTP request. Funding,
+NEAR provisioning, and the first signature are separate work. Each row contains
+three fresh wallets. The placement arm contains outbound probes and is excluded.
+
+| Arm | Median Yao setup | Observed range |
+| --- | ---: | ---: |
+| Control before | **3.863 s** | 3.141–4.760 s |
+| Candidate | **4.206 s** | 2.523–4.233 s |
+| Control after | **3.728 s** | 2.653–4.290 s |
+
+| Stage median | Control before | Candidate | Control after |
+| --- | ---: | ---: | ---: |
+| Parallel preparation | 909 ms | 887 ms | 725 ms |
+| A execution request | 2,021 ms | 1,656 ms | 1,784 ms |
+| A connection to B | 744 ms | 755 ms | 386 ms |
+| Signing Worker delivery | 581 ms | 539 ms | 606 ms |
+
+The candidate's A execution stage was shorter in this sample. Its complete setup
+request was slower by median. These small sequential samples do not establish a
+repeatable improvement or regression. Stage medians describe different requests
+and cannot be added. Provider CPU covers whole invocations. Application clocks
+freeze during CPU work. A zero target-preparation span does not mean zero cost.
+
+HTTP and logical protocol exchanges remain unchanged. Bound-root loading still
+uses **six D1 calls and sixteen SQL statements per setup**. This excludes root
+creation, other D1 work, and local DO SQL. Warm and consecutive signing each use
+four Gateway requests. Unlock through the first verified signature uses nine.
+Registration through the first signature uses fourteen or fifteen. The extra
+request is a session-status poll. Candidate samples contain five status polls.
+Controls contain four or five. The evidence retains every workload and sample.
+
+The placement measurement resolves part of the earlier uncertainty:
+
+| Component | Observed execution location |
+| --- | --- |
+| A, B, Signing Worker, and Router wallet objects | HKG for all 40 matched object IDs |
+| Critical Worker requests | HKG in 51 matched second-level buckets, 9 unavailable |
+| A private D1 primary | APAC, KIX |
+| B private D1 primary | APAC, SIN |
+| Signing Worker private D1 primary | APAC, ICN |
+
+Object IDs match provider analytics exactly. Worker requests match script version
+and second-level time buckets. Adaptive sampling can omit requests. These data
+do not establish a general placement success rate. Other registration and
+management requests appeared in FRA within the broader measurement windows.
+
+The D1 observations came from separate read-only `SELECT 1` API queries before
+the benchmark. All three databases reported primary execution with replication
+disabled. These are placement snapshots, rather than location traces for every
+setup query. Cloudflare defines `served_by_colo` as the site that handled the
+query. Thus, the APAC label does not establish same-site D1 placement.
+[D1 metadata definition](https://developers.cloudflare.com/api/resources/d1/subresources/database/methods/raw/).
+
+Retain the direct runtime cleanup and verified scheduling overlap. Do not claim
+a hosted setup speedup. No new live resources, production deployment, or npm
+release was required. All 70 signatures verified. Restoration activation passed
+in [run 37724107697](https://github.com/seams-tech/seams-monorepo/actions/runs/37724107697).
+
+[Sanitized evidence](evidence/near-overlapped-target-20261008.json) records source
+and build hashes, all samples, request counts, E2E results, placement correlations,
+serving-version audits, limitations, and restoration evidence.
