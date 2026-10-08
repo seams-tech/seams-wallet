@@ -100,17 +100,27 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
   async bindVerifiedIntent(
     input: RouterAbEd25519YaoVerifiedActivationIntentV1,
   ): Promise<RouterAbEd25519YaoRegistrationIntentBindingResult> {
-    const bound = await this.commitUntilReconciled(
-      input.admissionRequest.scope.lifecycle_id,
-      bindVerifiedIntentMutation.bind(undefined, input),
-    );
-    if (bound.created && input.kind === 'verified_registration_intent') {
-      this.input.onRegistrationIntentBound?.({
-        walletId: input.intent.walletId,
-        ownershipGeneration: input.ownershipGeneration,
-      });
+    for (let attempt = 0; attempt < MAX_DETERMINISTIC_COMMIT_ATTEMPTS; attempt += 1) {
+      const loaded = await this.input.store.loadRegistration(
+        input.admissionRequest.scope.lifecycle_id,
+      );
+      const authorityCount = loaded.state.authorization.authorities.length;
+      const result = await new InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter(
+        loaded.state.authorization,
+      ).bindVerifiedIntent(input);
+      if (!result.ok) return result;
+      const created = loaded.state.authorization.authorities.length > authorityCount;
+      const committed = await this.input.store.commitRegistration(loaded);
+      if (committed.kind !== 'stored') continue;
+      if (created && input.kind === 'verified_registration_intent') {
+        this.input.onRegistrationIntentBound?.({
+          walletId: input.intent.walletId,
+          ownershipGeneration: input.ownershipGeneration,
+        });
+      }
+      return result;
     }
-    return bound.result;
+    throw new Error('Registration intent remained contended after one reconciliation');
   }
 
   async bindAndAdmitVerifiedRegistration(
@@ -135,7 +145,7 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
     input: RouterAbEd25519YaoActivationConsumptionRequestV1,
   ): Promise<RouterAbEd25519YaoActivationConsumptionResultV1> {
     const lifecycleId = input.reference.lifecycleId;
-    const loaded = await this.input.store.load(lifecycleId);
+    const loaded = await this.input.store.loadRegistration(lifecycleId);
     const authority = routerAbEd25519YaoAdmittedRegistrationAuthorityV1(loaded.state, lifecycleId);
     if (!authority) {
       return {
@@ -258,7 +268,7 @@ async function bindAndAdmitVerifiedRegistration(input: {
   let backendResult: RouterAbEd25519YaoRegistrationBackendResult | null = null;
   let dispatchRoot: RouterAbEd25519YaoTenantRootWireV1 | null = null;
   for (let attempt = 0; attempt < MAX_DETERMINISTIC_COMMIT_ATTEMPTS; attempt += 1) {
-    const loaded = await input.store.load(lifecycleId);
+    const loaded = await input.store.loadRegistration(lifecycleId);
     const bound = await new InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter(
       loaded.state.authorization,
     ).bindAndAuthorizeAdmission(input.input);
@@ -324,7 +334,7 @@ async function bindAndAdmitVerifiedRegistration(input: {
       dispatchRoot,
     );
 
-    const committed = await input.store.commit(commitInput(lifecycleId, loaded));
+    const committed = await input.store.commitRegistration(loaded);
     if (committed.kind === 'stored') {
       return {
         ok: true,
@@ -340,26 +350,6 @@ async function bindAndAdmitVerifiedRegistration(input: {
     code: 'admission_uncertain',
     message: 'Yao verified registration admission remained contended after one reconciliation',
   };
-}
-
-async function bindVerifiedIntentMutation(
-  input: RouterAbEd25519YaoVerifiedActivationIntentV1,
-  state: RouterAbEd25519YaoProductRegistrationStateV1,
-): Promise<
-  RequestScopedMutationResult<{
-    readonly result: RouterAbEd25519YaoRegistrationIntentBindingResult;
-    readonly created: boolean;
-  }>
-> {
-  const authorityCount = state.authorization.authorities.length;
-  const result = await new InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter(
-    state.authorization,
-  ).bindVerifiedIntent(input);
-  const value = {
-    result,
-    created: result.ok && state.authorization.authorities.length > authorityCount,
-  };
-  return result.ok ? { kind: 'commit', value } : { kind: 'reject', value };
 }
 
 async function installRegistrationFinalizeCapabilityMutation(

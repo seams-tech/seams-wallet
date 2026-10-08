@@ -46,7 +46,10 @@ import {
 
 export type RouterAbEd25519YaoRegistrationRequestScopedCloudflareInputV1 = {
   readonly request: Request;
-  readonly authorizeContinuation?: (input: { readonly lifecycleId: string; readonly credential: string }) => Promise<VerifiedNearRegistrationContinuationV1 | null>;
+  readonly authorizeContinuation?: (input: {
+    readonly lifecycleId: string;
+    readonly credential: string;
+  }) => Promise<VerifiedNearRegistrationContinuationV1 | null>;
   readonly store: RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1;
   readonly backend: RouterAbEd25519YaoPinnedRegistrationBackend;
 };
@@ -143,16 +146,27 @@ async function refreshContinuationAuthority(
   input: RouterAbEd25519YaoRegistrationRequestScopedCloudflareInputV1,
   lifecycleId: string,
 ): Promise<AuthorizationFailure | null> {
-  const match = /^Bearer (wst_[A-Za-z0-9_-]+)$/.exec(input.request.headers.get('authorization') || '');
+  const match = /^Bearer (wst_[A-Za-z0-9_-]+)$/.exec(
+    input.request.headers.get('authorization') || '',
+  );
   if (!match) return null;
   const credential = match[1];
-  const verified = credential && input.authorizeContinuation
-    ? await input.authorizeContinuation({ lifecycleId, credential })
-    : null;
-  if (!verified) return { ok: false, status: 403, code: 'registration_continuation_rejected', message: 'NEAR registration requires the active founding authentication method' };
+  const verified =
+    credential && input.authorizeContinuation
+      ? await input.authorizeContinuation({ lifecycleId, credential })
+      : null;
+  if (!verified)
+    return {
+      ok: false,
+      status: 403,
+      code: 'registration_continuation_rejected',
+      message: 'NEAR registration requires the active founding authentication method',
+    };
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const loaded = await input.store.load(lifecycleId);
-    const result = await new InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter(loaded.state.authorization).bindVerifiedContinuation(verified);
+    const result = await new InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter(
+      loaded.state.authorization,
+    ).bindVerifiedContinuation(verified);
     if (!result.ok) return { ok: false, status: 403, code: result.code, message: result.message };
     const committed = await input.store.commit({
       lifecycleId,
@@ -162,7 +176,12 @@ async function refreshContinuationAuthority(
     });
     if (committed.kind === 'stored') return null;
   }
-  return { ok: false, status: 409, code: 'registration_continuation_contended', message: 'NEAR registration continuation changed concurrently' };
+  return {
+    ok: false,
+    status: 409,
+    code: 'registration_continuation_contended',
+    message: 'NEAR registration continuation changed concurrently',
+  };
 }
 
 async function runAdmissionRequest(
@@ -249,7 +268,11 @@ async function runAdmissionRequest(
         if (dispatchRoot === null) {
           throw new Error('registration admission resolved no tenant root to pin');
         }
-        pinRouterAbEd25519YaoRegistrationDispatchRootV1(state.registration, lifecycleId, dispatchRoot);
+        pinRouterAbEd25519YaoRegistrationDispatchRootV1(
+          state.registration,
+          lifecycleId,
+          dispatchRoot,
+        );
       }
       return { kind: 'state', state, value: admitted };
     },
@@ -283,7 +306,7 @@ async function runExecutionRequest(
   };
   if (!credential.ok) return timedExecutionResult(credential.result, timing);
   const admissionStartedAt = performance.now();
-  const loaded = await input.store.load(lifecycleId);
+  const loaded = await input.store.loadRegistration(lifecycleId);
   const authority = routerAbEd25519YaoAdmittedRegistrationAuthorityV1(loaded.state, lifecycleId);
   const timingBeforeRouter = { ...timing, d1AdmissionReadMs: elapsedMs(admissionStartedAt) };
   if (!authority) {
@@ -319,11 +342,7 @@ async function runExecutionRequest(
   let backend: RouterAbEd25519YaoRegistrationBackendResult;
   const routerExecutionStartedAt = performance.now();
   try {
-    backend = await input.backend.executePinnedRegistration(
-      request,
-      authority,
-      trace,
-    );
+    backend = await input.backend.executePinnedRegistration(request, authority, trace);
   } catch (error: unknown) {
     return timedExecutionResult(
       {
@@ -347,7 +366,10 @@ async function runExecutionRequest(
     );
   }
   if (!backend.ok && backend.code === 'execution_mismatch') {
-    return timedExecutionResult(executionRefusal('binding_mismatch', backend.message), routerTiming);
+    return timedExecutionResult(
+      executionRefusal('binding_mismatch', backend.message),
+      routerTiming,
+    );
   }
   if (isRetryableRegistrationBackendFailure(backend)) {
     return timedExecutionResult(
