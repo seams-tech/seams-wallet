@@ -12,7 +12,6 @@ import {
   routerWorker,
   deriverAWorker,
   deriverBWorker,
-  deriverBPreparationProxy,
   signingWorker,
   tenantRootControlPlaneWorker,
   applyMigrations,
@@ -59,6 +58,7 @@ class PlacementLog extends Log {
 
 class StatusBeforePreparation {
   observations = [];
+  forgedReadinessRejected = false;
 
   constructor(worker, role, home) {
     this.worker = worker;
@@ -69,7 +69,7 @@ class StatusBeforePreparation {
   async fetch(request, topology) {
     const worker = await topology.getWorker(this.worker);
     const path = new URL(request.url).pathname;
-    if (path.endsWith('/prepare-pair') || path.endsWith('/execute-pair')) {
+    if (path.endsWith('/prepare-pair')) {
       const preparation = await request.clone().json();
       assert.equal(preparation.tenant_root.wallet_home, this.home);
       const lookup = {
@@ -90,6 +90,18 @@ class StatusBeforePreparation {
       const result = await status.json();
       assert.equal(result.status, 'missing');
       this.observations.push({ role: this.role, generation: lookup.ownership_generation, firstStatus: result.status });
+    }
+    if (this.role === 'deriver_a' && path.endsWith('/execute-pair')) {
+      const forged = await request.clone().json();
+      forged.peer_receipt.signature.bytes[0] ^= 1;
+      const rejected = await worker.fetch(request.url, {
+        method: 'POST',
+        headers: request.headers,
+        body: JSON.stringify(forged),
+      });
+      assert.equal(rejected.ok, false, 'Forged readiness must fail before reservation');
+      await rejected.text();
+      this.forgedReadinessRejected = true;
     }
     return worker.fetch(request);
   }
@@ -186,13 +198,10 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
   const router = routerWorker(fixture);
   router.serviceBindings.DERIVER_A = a.fetch.bind(a);
   router.serviceBindings.DERIVER_B = b.fetch.bind(b);
-  const deriverA = deriverAWorker(fixture);
-  const preparationProxy = deriverBPreparationProxy(b.fetch.bind(b));
-  deriverA.serviceBindings.DERIVER_B = preparationProxy.name;
   const topology = new Miniflare({
     log,
     handleRuntimeStdio: log.connect.bind(log),
-    workers: [router, deriverA, preparationProxy, deriverBWorker(fixture),
+    workers: [router, deriverAWorker(fixture), deriverBWorker(fixture),
       tenantRootControlPlaneWorker(fixture),
       signingWorker('fixture-signing-worker', 'placement-signing-worker', fixture)],
   });
@@ -260,6 +269,7 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
       'Completed Router replay must not rerun custody');
     assert.equal(a.observations.length, 1);
     assert.equal(b.observations.length, 1);
+    assert.equal(a.forgedReadinessRejected, true);
     const bCommands = firstCommands.filter(command => command.role === 'deriver_b');
     const routerCommands = firstCommands.filter(command => command.role === 'router');
     assert.equal(routerCommands[0].path, '/router-ab/internal/wallet/start');
@@ -309,6 +319,7 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
       callerHomeOverwritten: true,
       completedReplyLossReplayedExactly: true,
       replayRanNoAdditionalCustody: true,
+      forgedReadinessRejectedBeforeValidExecution: a.forgedReadinessRejected,
       bProtocolRunsInWalletObject: true,
       bRemoteBeginAndCompleteCalls: 0,
     };

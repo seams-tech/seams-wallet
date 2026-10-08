@@ -4,13 +4,13 @@ use crate::{
     build_cloudflare_router_public_keyset_v2, cloudflare_now_unix_ms_v1,
     cloudflare_router_error_status, cloudflare_service_json_request_body_v1,
     cloudflare_tenant_root_ed25519_yao_binding_v2, encode_base64url_bytes_v1,
-    parse_cloudflare_trace_id_from_request_v1,
+    parse_cloudflare_deriver_peer_verifying_key_set_v1, parse_cloudflare_trace_id_from_request_v1,
     require_cloudflare_gateway_to_router_auth_request_v1,
     set_cloudflare_internal_service_auth_header_v1, set_cloudflare_trace_id_header_v1,
     CloudflareDeriverBWalletPairScopeV1, CloudflareEd25519YaoInactiveReservationResponseV1,
-    CloudflareEd25519YaoPackagePairDeliveryV1, CloudflareEd25519YaoPairCeremonyRequestV1,
+    CloudflareEd25519YaoPackagePairDeliveryV1, CloudflareEd25519YaoPairExecuteRequestV1,
     CloudflareEd25519YaoPairExecuteResponseV1, CloudflareEd25519YaoPairLookupRequestV1,
-    CloudflareEd25519YaoPairStatusResponseV1,
+    CloudflareEd25519YaoPairPrepareRequestV1, CloudflareEd25519YaoPairStatusResponseV1,
     CloudflareEd25519YaoRoleFailureResponseV1,
     CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1,
     CloudflareEd25519YaoTenantRootContextV2, CloudflareRouterEd25519YaoExecuteRequestV2,
@@ -18,7 +18,9 @@ use crate::{
     CloudflareRouterWorkerRuntimeV1, CloudflareScopedEd25519YaoPackagePairDeliveryV1,
     CloudflareScopedEd25519YaoRecoveryPromotionRequestV1, CloudflareSigningWorkerWalletScopeV1,
     CloudflareWorkerEnvReaderV1, CLOUDFLARE_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
+    CLOUDFLARE_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH,
     CLOUDFLARE_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH,
+    CLOUDFLARE_DERIVER_B_ED25519_YAO_PREPARE_PAIR_PATH,
     CLOUDFLARE_DERIVER_B_ED25519_YAO_READ_PAIR_STATUS_PATH,
     CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_PACKAGES_PATH,
     CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_RECOVERY_PROMOTE_PATH,
@@ -46,7 +48,7 @@ use crate::{
 use router_ab_core::TenantRootSignedActivationReceiptV1;
 use router_ab_core::{
     ed25519_yao_recipient_set_digest_v1, Ed25519YaoCeremonyBindingV1, Ed25519YaoDeriverRoleV1,
-    Ed25519YaoInputPairBindingV1, Ed25519YaoOperationV1,
+    Ed25519YaoInputPairBindingV1, Ed25519YaoOperationV1, Ed25519YaoRoleReadinessReceiptV1,
     PublicDigest32, RouterAbEd25519YaoActivationPublicReceiptV1,
     RouterAbEd25519YaoActivationResultV1, RouterAbEd25519YaoApplicationBindingFactsV1,
     RouterAbEd25519YaoExportResultV1, RouterAbEd25519YaoLaneDispatchRequestV1,
@@ -123,6 +125,8 @@ enum RouterCeremonyOutcomeV1 {
 
 #[derive(Default)]
 struct RouterExecutionTimingV1 {
+    prepare_pair_ms: u64,
+    verify_readiness_ms: u64,
     role_execution_ms: u64,
     signing_worker_delivery_ms: u64,
 }
@@ -130,7 +134,10 @@ struct RouterExecutionTimingV1 {
 impl RouterExecutionTimingV1 {
     fn server_timing(&self) -> String {
         format!(
-            "yao_router_role_execution;dur={}, yao_router_signing_worker_delivery;dur={}",
+            "yao_router_prepare_pair;dur={}, yao_router_verify_readiness;dur={}, \
+             yao_router_role_execution;dur={}, yao_router_signing_worker_delivery;dur={}",
+            self.prepare_pair_ms,
+            self.verify_readiness_ms,
             self.role_execution_ms,
             self.signing_worker_delivery_ms,
         )
@@ -992,6 +999,8 @@ async fn execute_router_ceremony_with_finalization_v1(
             )?,
         ));
     }
+    let verifying_keys =
+        parse_cloudflare_deriver_peer_verifying_key_set_v1(&CloudflareWorkerEnvReaderV1::new(env))?;
     let operation = request.operation();
     let pair_binding = request.pair_binding().clone();
     let work = pair_work(&request);
@@ -1019,6 +1028,95 @@ async fn execute_router_ceremony_with_finalization_v1(
         }
     }
 
+    let prepare_started_at_ms = cloudflare_now_unix_ms_v1()?;
+    let prepare_request_a = CloudflareEd25519YaoPairPrepareRequestV1 {
+        pair_binding: pair_binding.clone(),
+        tenant_root: tenant_root.clone(),
+        work: work.clone(),
+        input: input_a.clone(),
+    };
+    let prepare_request_b = CloudflareEd25519YaoPairPrepareRequestV1 {
+        pair_binding: pair_binding.clone(),
+        tenant_root: tenant_root.clone(),
+        work: work.clone(),
+        input: input_b,
+    };
+    let prepare_a = post_role_json_for_ceremony_with_span::<_, Ed25519YaoRoleReadinessReceiptV1>(
+        env,
+        runtime.deriver_a_peer().binding_name.as_str(),
+        DERIVER_A_SERVICE_URL,
+        CLOUDFLARE_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH,
+        "Deriver A pair preparation",
+        &prepare_request_a,
+        trace_id,
+        "router.prepare_pair.deriver_a",
+        operation_label(operation),
+    );
+    let prepare_b = post_role_json_for_ceremony_with_span::<_, Ed25519YaoRoleReadinessReceiptV1>(
+        env,
+        runtime.deriver_b_peer().binding_name.as_str(),
+        DERIVER_B_SERVICE_URL,
+        CLOUDFLARE_DERIVER_B_ED25519_YAO_PREPARE_PAIR_PATH,
+        "Deriver B pair preparation",
+        &prepare_request_b,
+        trace_id,
+        "router.prepare_pair.deriver_b",
+        operation_label(operation),
+    );
+    let (receipt_a, receipt_b) = match futures::try_join!(prepare_a, prepare_b) {
+        Ok(receipts) => receipts,
+        Err(error) => {
+            emit_span(
+                trace_id,
+                "router.prepare_pair",
+                operation_label(operation),
+                prepare_started_at_ms,
+                "failure",
+            );
+            return resolve_role_call_error(error, &pair_binding)
+                .map(RouterCeremonyOutcomeV1::Standard);
+        }
+    };
+    emit_span(
+        trace_id,
+        "router.prepare_pair",
+        operation_label(operation),
+        prepare_started_at_ms,
+        "success",
+    );
+    timing.prepare_pair_ms = cloudflare_now_unix_ms_v1()?.saturating_sub(prepare_started_at_ms);
+    let readiness_now_ms = cloudflare_now_unix_ms_v1()?;
+    let readiness_started_at_ms = cloudflare_now_unix_ms_v1()?;
+    let readiness_result = crate::validate_router_ed25519_yao_readiness_v1(
+        &receipt_a,
+        &pair_binding,
+        readiness_now_ms,
+        Ed25519YaoDeriverRoleV1::DeriverA,
+        &verifying_keys,
+    )
+    .and_then(|()| {
+        crate::validate_router_ed25519_yao_readiness_v1(
+            &receipt_b,
+            &pair_binding,
+            readiness_now_ms,
+            Ed25519YaoDeriverRoleV1::DeriverB,
+            &verifying_keys,
+        )
+    });
+    emit_span(
+        trace_id,
+        "router.verify_readiness_receipts",
+        operation_label(operation),
+        readiness_started_at_ms,
+        if readiness_result.is_ok() {
+            "success"
+        } else {
+            "failure"
+        },
+    );
+    timing.verify_readiness_ms =
+        cloudflare_now_unix_ms_v1()?.saturating_sub(readiness_started_at_ms);
+    readiness_result?;
     let execute_started_at_ms = cloudflare_now_unix_ms_v1()?;
     let execution = match post_role_json_for_ceremony_with_span::<
         _,
@@ -1029,12 +1127,13 @@ async fn execute_router_ceremony_with_finalization_v1(
         DERIVER_A_SERVICE_URL,
         CLOUDFLARE_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
         "Deriver A pair execution",
-        &CloudflareEd25519YaoPairCeremonyRequestV1 {
+        &CloudflareEd25519YaoPairExecuteRequestV1 {
             pair_binding: pair_binding.clone(),
             tenant_root,
             work,
-            input_a,
-            input_b,
+            input: input_a,
+            local_receipt: receipt_a,
+            peer_receipt: receipt_b,
         },
         trace_id,
         "router.deriver_a_execute.http",

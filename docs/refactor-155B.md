@@ -3059,28 +3059,57 @@ All thirteen original deployments were restored. Tenant activation and restorati
 both passed. [Sanitized evidence](evidence/near-combined-startup-admission-20261008.json)
 records the complete timing boundaries, counts, version audit, and limitations.
 
-### Phase 6K — Continue preparation through execution in A's wallet object
+### Phase 6K — Continuous preparation experiment: rejected
 
-The first experiment removes A's separate preparation request. The Router sends
-both sealed input envelopes to A's wallet object. That object prepares A and B in
-parallel, verifies both readiness receipts, and executes through its existing
-state machine. A cannot decrypt B's envelope. B retains its independent store and
-protocol connection. This experiment removes one external entry into A's object.
+The hosted comparison did not establish a repeatable latency gain. The continuous
+ceremony candidate was reverted. The code retains the combined startup and
+prepared-admission baseline from Phase 6J. The two-second setup target remains unmet.
 
-- [ ] Replace the strict Worker preparation route with the continuous ceremony request.
-- [ ] Reject changed inputs and terminal states before new preparation. Replay a
-  completed request before reading roots, including after root erasure.
-- [ ] Preserve cancellation, retirement, relocation fences, readiness signatures,
-  durable execution claims, and durable completion before successful replies.
-- [ ] Exercise lost replies, concurrent requests, forged readiness, cancellation,
-  peer connection failure, and four-home routing through existing E2E scenarios.
-- [ ] Compare the candidate with the combined baseline using matching versions.
-- [ ] Inspect Signing Worker delivery against its object wall time. Change that
-  boundary only when the trace identifies removable work.
-- [ ] Decide whether coordinator placement warrants a separate experiment.
+The candidate sent both sealed inputs to A's wallet object. It prepared A and B
+in parallel, verified both readiness receipts, and executed within the same A
+request. B retained its independent store and protocol connection. This removed
+one entry into A's object. B preparation then depended on the initial A dispatch.
 
-The shared Router uses service bindings from regional Gateways. Cloudflare normally
-runs service-bound Workers on the same server thread. Separate regional Router
-deployments alone do not establish a placement benefit. Moving orchestration into
-the Router DO would remove its separate finish dispatch, measured near 50 ms.
-Any larger placement benefit remains unmeasured.
+- [x] Build the candidate with one continuous A ceremony request.
+- [x] Reject changed inputs before peer preparation and completed-result replay.
+- [x] Verify replay after root erasure, cancellation, retirement, relocation
+  fences, readiness signatures, durable claims, and durable completion.
+- [x] Pass all five release builds and twelve local E2E scenarios. Cover lost
+  replies, concurrency, forged messages, peer failures, and four wallet homes.
+- [x] Compare three fresh wallets per arm with the same SDK, site, and APAC hints.
+- [x] Audit actual serving versions and verify all 63 NEAR signatures.
+- [x] Assess Signing Worker delivery and coordinator placement from the traces.
+- [x] Revert the unproven candidate. Restore all thirteen original deployments
+  and pass tenant activation after restoration.
+
+Measured on 2026-10-08. These timings cover the browser's Yao execute request.
+Funding and NEAR account provisioning are separate steps.
+
+| Arm | Fresh wallets | Median Yao setup | Observed range |
+| --- | ---: | ---: | ---: |
+| Combined baseline, before | 3 | **3.548 s** | 3.217–4.854 s |
+| Continuous A ceremony | 3 | **3.379 s** | 3.208–3.986 s |
+| Combined baseline, after | 3 | **3.354 s** | 2.788–3.802 s |
+
+The candidate was 169 ms faster than the first control and 25 ms slower than the
+second. The ranges overlap substantially. These small samples do not establish a
+latency improvement or a population percentile. Every role reused its already-started
+wallet object in all three arms. Bound-root work remained six D1 round trips and
+sixteen statements per setup. These counts exclude other system D1 operations.
+
+Signing Worker delivery medians were **572 / 553 / 529 ms** in arm order. Its first
+object-work medians were **123 / 99 / 129 ms** wall time. The outer package handler's
+CPU medians were **5 / 2 / 3 ms**, with one 77 ms control outlier. The trace does not
+identify a serialization change that would remove the larger delay around the
+object call. These overlapping clocks cannot isolate network time by subtraction.
+
+Router finish-dispatch medians were **49 / 54 / 52 ms**. Moving orchestration would
+remove that separate finish dispatch. A larger benefit from coordinator placement
+remains unmeasured. This result does not justify another coordinator rewrite or
+new regional resources. Both conditional changes remain unapplied.
+
+The rejected candidate is reproducible at commit
+`3cdcce98cc1316eb6f1a2f0cb93b5dbabc253c1f`. The frozen source and raw hosted artifacts
+remain available locally. [Sanitized evidence](evidence/near-continuous-ceremony-20261008.json)
+records all workloads, request counts, stage timings, serving versions, build
+hashes, local E2E commands, limitations, and restoration checks.

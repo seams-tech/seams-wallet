@@ -48,7 +48,7 @@ fn local_worker_routes_match_cloudflare_worker_routes() {
 }
 
 #[test]
-fn native_pair_lifecycle_routes_are_owned_by_role_workers() {
+fn local_pair_lifecycle_routes_match_strict_worker_paths_and_are_owned_by_role_workers() {
     let role_routes = [
         (
             router_ab_core::LocalServiceRoleV1::DeriverA,

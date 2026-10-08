@@ -81,8 +81,7 @@ const tenantRootRefreshPath = '/router-ab/internal/tenant-root/refresh/v1/execut
 const controlPlaneRefreshActivationPath = '/tenant-root-control-plane/refresh/v1/activate';
 const creationStateRefreshActivationPath = '/router-ab/internal/tenant-root/refresh/v1/activation';
 const deriverRefreshActivationPath = '/router-ab/internal/deriver/tenant-root/refresh/v1/activate';
-const deriverAYaoExecutePath = '/router-ab/deriver-a/ed25519-yao/execute-pair';
-const deriverBYaoPreparePath = '/router-ab/deriver-b/ed25519-yao/prepare-pair';
+const deriverAYaoPreparePath = '/router-ab/deriver-a/ed25519-yao/prepare-pair';
 const deriverCleanupPath = '/router-ab/internal/deriver/tenant-root/cleanup/v1/execute';
 const controlPlaneCleanupCommandPath = '/tenant-root-control-plane/creation/v1/cleanup-command';
 const deriverBEcdsaRegistrationPath = '/router-ab/deriver-b/ecdsa-derivation/register';
@@ -188,7 +187,7 @@ const recoveryDropEveryOnPath = {
   'deriver-a': null,
   'deriver-b': null,
 };
-function holdNextRecoveryRequest(workerName, path, phase = 'request') {
+function holdNextRecoveryRequest(workerName, path) {
   let markHeld;
   let release;
   const held = new Promise((resolve) => {
@@ -197,7 +196,7 @@ function holdNextRecoveryRequest(workerName, path, phase = 'request') {
   const released = new Promise((resolve) => {
     release = resolve;
   });
-  const hold = { path, phase, markHeld, released, answer: null };
+  const hold = { path, markHeld, released, answer: null };
   recoveryHoldNextOnPath[workerName] = hold;
   return {
     held,
@@ -587,7 +586,7 @@ function recoveryPeer(workerName, faultPath) {
       return new Response(`simulated unreachable ${workerName} for ${path}`, { status: 503 });
     }
     const hold = recoveryHoldNextOnPath[workerName];
-    if (hold && hold.path === path && hold.phase === 'request') {
+    if (hold && hold.path === path) {
       recoveryHoldNextOnPath[workerName] = null;
       hold.markHeld(await request.clone().json());
       await hold.released;
@@ -620,37 +619,9 @@ function recoveryPeer(workerName, faultPath) {
     const worker = await miniflare.getWorker(
       workerName === 'deriver-a' ? recoveryDeriverA : workerName,
     );
-    const heldResponseRequest = hold && hold.path === path && hold.phase === 'response'
-      ? await request.clone().json()
-      : null;
     const response = await worker.fetch(request);
-    if (heldResponseRequest) {
-      recoveryHoldNextOnPath[workerName] = null;
-      await waitForDeriverAPreparedRecord(miniflare, heldResponseRequest);
-      hold.markHeld(heldResponseRequest);
-      await hold.released;
-    }
     recoveryAnsweredSignal(workerName, path).resolve();
     return response;
-  };
-}
-
-export function deriverBPreparationProxy(prepare) {
-  return {
-    name: 'deriver-b-preparation-proxy',
-    modules: true,
-    compatibilityDate: '2026-06-12',
-    // Keep WebSocket traffic inside workerd. The Node fault callback handles
-    // JSON preparation only and must not renegotiate WebSocket extensions.
-    script: `export default {
-      fetch(request, env) {
-        if (new URL(request.url).pathname.endsWith('/ed25519-yao/prepare-pair')) {
-          return env.PREPARATION.fetch(request);
-        }
-        return env.DERIVER_B.fetch(request);
-      }
-    };`,
-    serviceBindings: { DERIVER_B: 'deriver-b', PREPARATION: prepare },
   };
 }
 
@@ -825,7 +796,9 @@ async function captureSigningWorkerForHistoricalReplay(request, miniflare) {
 
 async function captureDeriverAPreparation(request, miniflare) {
   const path = new URL(request.url).pathname;
+  const isPreparation = path.endsWith('/ed25519-yao/prepare-pair');
   const isExecution = path.endsWith('/ed25519-yao/execute-pair');
+  const preparation = isPreparation ? await request.clone().json() : null;
   const execution = isExecution ? await request.clone().json() : null;
   if (execution) {
     capturedDeriverAExecutionRequest = execution;
@@ -851,18 +824,13 @@ async function captureDeriverAPreparation(request, miniflare) {
   } else {
     response = await worker.fetch(request);
   }
-  if (execution && response.ok) {
-    const record = await readDeriverAPairRecord(miniflare, execution);
-    assert.equal(record.status, 'completed');
+  if (preparation && response.ok) {
     capturedDeriverAPreparation = {
-      request: {
-        pair_binding: record.pair_binding,
-        tenant_root: record.payload.tenant_root,
-        work: record.payload.work,
-        input: record.payload.input,
-      },
-      receipt: record.claim_identity.local_receipt,
+      request: preparation,
+      receipt: await response.clone().json(),
     };
+  }
+  if (execution && response.ok) {
     capturedDeriverAExecution = {
       request: execution,
       response: await response.clone().json(),
@@ -872,33 +840,6 @@ async function captureDeriverAPreparation(request, miniflare) {
     }
   }
   return response;
-}
-
-async function readDeriverAPairRecord(topology, request) {
-  const identity = request.tenant_root.identity;
-  const owner = {
-    org_id: identity.orgId,
-    project_id: identity.projectId,
-    env_id: identity.envId,
-    wallet_id: request.pair_binding.ceremony.binding.lifecycle.account_id,
-  };
-  const namespace = await topology.getDurableObjectNamespace(deriverAWalletDoBinding, 'deriver-a');
-  const object = namespace.get(namespace.idFromName(deriverAWalletDoObjectName(owner)));
-  const response = await callDeriverAWalletDo(object, {
-    operation: 'read', owner, pair_binding: request.pair_binding,
-  });
-  assert.equal(response.status, 200);
-  return response.body.kind === 'read' ? response.body.record : null;
-}
-
-async function waitForDeriverAPreparedRecord(topology, preparation) {
-  for (let attempt = 0; attempt < 200; attempt += 1) {
-    const record = await readDeriverAPairRecord(topology, preparation);
-    if (record?.status === 'prepared') return;
-    assert.ok(record === null, 'A must remain unstarted before B preparation returns');
-    await sleep(10);
-  }
-  assert.fail('A did not persist preparation while B response was held');
 }
 
 export async function applyMigrations(miniflare, binding, workerName, migrationsPath) {
@@ -3216,7 +3157,7 @@ async function testTenantRootAdmissionRaces(topology, fixture, databases) {
   let result = await create(unused);
   assert.equal(result.status, 200, result.body);
   const epochOneReceipt = (await activeState(unused)).activation_receipt_b64u;
-  const hold = holdNextRecoveryRequest('deriver-a', deriverAYaoExecutePath);
+  const hold = holdNextRecoveryRequest('deriver-a', deriverAYaoPreparePath);
   const heldRegistration = register(unused, races.held_preparation);
   const heldPreparation = await hold.held;
   assert.equal(
@@ -3224,7 +3165,11 @@ async function testTenantRootAdmissionRaces(topology, fixture, databases) {
     epochOneReceipt,
     'the held preparation is bound to epoch 1',
   );
-  assert.deepEqual(await admissions(unused), [[], []]);
+  for (let attempt = 0; (await admissions(unused))[1].length === 0; attempt += 1) {
+    assert.ok(attempt < 500, 'Deriver B must admit the registration');
+    await sleep(10);
+  }
+  assert.deepEqual(await admissions(unused), [[], [1]]);
   const unusedRefresh = await refresh(unused, 'harness-admission-race-unused');
   assert.equal(unusedRefresh.status, 200, unusedRefresh.body);
   assert.deepEqual(await bothEpochs(unused), [retiredThenActive, retiredThenActive]);
@@ -3236,28 +3181,34 @@ async function testTenantRootAdmissionRaces(topology, fixture, databases) {
   const preparationAnswer = hold.answer();
   assert.notEqual(preparationAnswer.status, 200, preparationAnswer.body);
   assert.equal(JSON.parse(refused.body).status, 'recoverable_failure', refused.body);
-  assert.deepEqual(await admissions(unused), [[], []]);
+  assert.deepEqual(await admissions(unused), [[], [1]]);
   const fresh = await register(unused, races.after_refresh);
   assert.ok(succeeded(fresh), fresh.body);
-  assert.deepEqual(await admissions(unused), [[2], [2]]);
-  // Only the fresh epoch was admitted. Both objects settled their completed pair.
+  assert.deepEqual(await admissions(unused), [[2], [1, 2]]);
+  // The completed registration settled its admission at each role, in the D1
+  // batch that made that role's pair record terminal. B's epoch-1 admission,
+  // from the preparation A refused, is still unsettled.
   const statusesAfterFresh = await admissionStatuses(unused);
   assert.deepEqual(statusesAfterFresh, [
     [[2, 'settled']],
-    [[2, 'settled']],
+    [[1, 'admitted'], [2, 'settled']],
   ]);
-  // Neither role holds an epoch-1 admission, so both can erase the retired epoch.
+  // Erasing epoch 1: A holds no admission on it and erases it. B answers
+  // that retirement is pending and keeps its retired row.
   const aRetired = await retire(unused, 'deriver_a');
   assert.equal(aRetired.status, 200, aRetired.body);
   const aRetiredBody = JSON.parse(aRetired.body);
   assert.equal(aRetiredBody.kind, 'retired_deleted', aRetired.body);
   assert.equal(aRetiredBody.cancelled_admissions, 0, aRetired.body);
-  const bRetired = await retire(unused, 'deriver_b');
-  assert.equal(bRetired.status, 200, bRetired.body);
-  const bRetiredBody = JSON.parse(bRetired.body);
-  assert.equal(bRetiredBody.kind, 'retired_deleted', bRetired.body);
-  assert.equal(bRetiredBody.cancelled_admissions, 0, bRetired.body);
-  assert.deepEqual(await bothEpochs(unused), [[[2, 'active']], [[2, 'active']]]);
+  const bPending = await retire(unused, 'deriver_b');
+  assert.equal(bPending.status, 503, bPending.body);
+  assert.ok(
+    bPending.body.includes(
+      'retirement of epoch 1 is pending here: 1 admitted operation(s) are not settled',
+    ),
+    bPending.body,
+  );
+  assert.deepEqual(await bothEpochs(unused), [[[2, 'active']], retiredThenActive]);
 
   // 2. New work waits for the committed epoch's delivery.
   const gated = recoveryCreationGrant('admission-race-delivery', 60_000);
@@ -3294,18 +3245,18 @@ async function testTenantRootAdmissionRaces(topology, fixture, databases) {
 
   return {
     unusedBinding: {
-      heldBefore: 'deriver_a_execute_pair',
+      heldBefore: 'deriver_a_prepare_pair',
       refreshStatus: unusedRefresh.status,
       deriverAPreparationStatus: preparationAnswer.status,
       deriverAPreparationBody: preparationAnswer.body.slice(0, 200),
       registrationStatus: refused.status,
       registrationBody: refused.body.slice(0, 200),
-      admissionsAfterRefusal: { deriverA: [], deriverB: [] },
+      admissionsAfterRefusal: { deriverA: [], deriverB: [1] },
       freshRegistration: 'succeeded',
-      admissionsAfterFresh: { deriverA: [2], deriverB: [2] },
+      admissionsAfterFresh: { deriverA: [2], deriverB: [1, 2] },
       statusesAfterFresh: { deriverA: statusesAfterFresh[0], deriverB: statusesAfterFresh[1] },
       deriverAEpochOneRetirement: [aRetired.status, aRetiredBody.kind],
-      deriverBEpochOneRetirement: [bRetired.status, bRetiredBody.kind],
+      deriverBEpochOneRetirement: [bPending.status, bPending.body.slice(0, 200)],
     },
     deliveryGate: {
       fault: 'deriver_b_unreachable_for_refresh_activation',
@@ -3491,7 +3442,7 @@ async function testWalletObjectAdmissionSettlement(topology, fixture, databases)
   // Root R: a held registration is fenced in both objects.
   const fenced = recoveryCreationGrant('do-admission-fence', 60_000);
   await create(fenced);
-  const hold = holdNextRecoveryRequest('deriver-b', deriverBYaoPreparePath, 'response');
+  const hold = holdNextRecoveryRequest('deriver-a', '/router-ab/deriver-a/ed25519-yao/execute-pair');
   const heldRegistration = register(fenced, races.held_preparation);
   await hold.held;
   const whileHeld = await admissions(fenced);
@@ -3619,7 +3570,7 @@ async function testRetirementTrigger(topology, fixture, databases) {
     );
 
   // 1. Work admitted on epoch 1 is held over the refresh.
-  const hold = holdNextRecoveryRequest('deriver-b', deriverBYaoPreparePath, 'response');
+  const hold = holdNextRecoveryRequest('deriver-a', '/router-ab/deriver-a/ed25519-yao/execute-pair');
   const registering = register(root, races.after_delivery);
   await hold.held;
   assert.deepEqual(await statuses(root), [[[1, 'admitted']], [[1, 'admitted']]]);
@@ -5560,9 +5511,6 @@ async function main() {
   const testWalletDoLostReply = process.argv.includes('--do-pair-lost-reply');
   const testHistoricalReplay = process.argv.includes('--do-historical-replay');
   const testDeriverBCompletionBurn = process.argv.includes('--do-pair-b-burn-before-complete');
-  const deriverA = deriverAWorker(fixture);
-  const preparationProxy = deriverBPreparationProxy(recoveryPeer('deriver-b', deriverInitialActivationPath));
-  deriverA.serviceBindings.DERIVER_B = preparationProxy.name;
   const topology = new Miniflare({
     workers: [
       routerWorker(
@@ -5571,8 +5519,7 @@ async function main() {
           testHistoricalReplay || testDeriverBCompletionBurn,
         testWalletDoLostReply,
       ),
-      deriverA,
-      preparationProxy,
+      deriverAWorker(fixture),
       ...(testWalletDoExecution ? [
         deriverRelocationDestination(deriverAWorker(fixture), deriverAWalletDoBinding),
         deriverRelocationDestination(deriverBWorker(fixture), 'DERIVER_B_WALLET_DO'),

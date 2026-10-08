@@ -22,29 +22,13 @@ const authHeader = 'x-router-ab-internal-service-auth';
 const executePath = '/router-ab/router/ed25519-yao/execute';
 const scenario = process.argv[2] ?? 'protocol-disconnect';
 assert.ok([
-  'protocol-disconnect', 'cancelled-root', 'missing-admission', 'forged-readiness', 'connection-refused', 'invalid-acceptance', 'forged-acceptance',
+  'protocol-disconnect', 'cancelled-root', 'missing-admission', 'connection-refused', 'invalid-acceptance', 'forged-acceptance',
 ].includes(scenario), `Unknown scenario: ${scenario}`);
 const proxySource = `
 const evidence = {
   connectionAttempts: 0, connections: 0, aMessages: 0, bMessages: 0,
-  disconnected: false, aClosed: false, bClosed: false, preparationFaultInjected: false,
-  preparationRequests: 0
+  disconnected: false, aClosed: false, bClosed: false
 };
-async function failPreparedAdmission(env) {
-  const sql = env.SCENARIO === 'missing-admission'
-    ? "DELETE FROM tenant_root_root_use_admissions WHERE attempt_kind = 'ed25519_yao_pair_session' AND status = 'admitted'"
-    : "UPDATE tenant_root_root_use_admissions SET status = 'cancelled' WHERE attempt_kind = 'ed25519_yao_pair_session' AND status = 'admitted'";
-  for (let attempt = 0; attempt < 200; attempt += 1) {
-    const result = await env.DERIVER_A_DB.prepare(sql).run();
-    if (result.meta.changes === 1) return;
-    if (result.meta.changes !== 0) throw new Error('Fault must change exactly one A admission');
-    await new Promise(waitForFault);
-  }
-  throw new Error('A did not prepare its root admission');
-}
-function waitForFault(resolve) {
-  setTimeout(resolve, 10);
-}
 class InterruptedExchange {
   constructor(a, b, scenario) {
     this.a = a;
@@ -86,22 +70,6 @@ export default {
   async fetch(request, env) {
     const path = new URL(request.url).pathname;
     if (path === '/evidence') return Response.json(evidence);
-    if (path.endsWith('/prepare-pair')) evidence.preparationRequests += 1;
-    if (path.endsWith('/prepare-pair') && !evidence.preparationFaultInjected) {
-      const response = await env.REAL_B.fetch(request);
-      if (!response.ok) return response;
-      if (env.SCENARIO === 'cancelled-root' || env.SCENARIO === 'missing-admission') {
-        await failPreparedAdmission(env);
-        evidence.preparationFaultInjected = true;
-      }
-      if (env.SCENARIO === 'forged-readiness') {
-        const receipt = await response.json();
-        receipt.signature.bytes[0] ^= 1;
-        evidence.preparationFaultInjected = true;
-        return Response.json(receipt);
-      }
-      return response;
-    }
     if (!path.endsWith('/ed25519-yao/duplex')) return env.REAL_B.fetch(request);
     evidence.connectionAttempts += 1;
     if (evidence.connectionAttempts > 1) return env.REAL_B.fetch(request);
@@ -134,9 +102,19 @@ export default {
 
 class CaptureExecution {
   request = null;
+  cancelled = false;
   async fetch(request, topology) {
     if (new URL(request.url).pathname.endsWith('/execute-pair')) {
       this.request = await request.clone().json();
+      if ((scenario === 'cancelled-root' || scenario === 'missing-admission') && !this.cancelled) {
+        const database = await topology.getD1Database('DERIVER_ROLE_PRIVATE_DB', 'deriver-a');
+        const sql = scenario === 'missing-admission'
+          ? "DELETE FROM tenant_root_root_use_admissions WHERE attempt_kind = 'ed25519_yao_pair_session' AND status = 'admitted'"
+          : "UPDATE tenant_root_root_use_admissions SET status = 'cancelled' WHERE attempt_kind = 'ed25519_yao_pair_session' AND status = 'admitted'";
+        const result = await database.prepare(sql).run();
+        assert.equal(result.meta.changes, 1, 'Change exactly the prepared A admission');
+        this.cancelled = true;
+      }
     }
     const worker = await topology.getWorker('deriver-a');
     return worker.fetch(request);
@@ -169,23 +147,10 @@ async function requirePairState(worker, role, scope, credential, expectedState) 
 async function closedConnectionEvidence(proxy) {
   for (let attempt = 0; attempt < 100; attempt += 1) {
     const evidence = await (await proxy.fetch('https://custody.test/evidence')).json();
-    if (scenario === 'connection-refused' || scenario === 'forged-readiness' || (evidence.aClosed && evidence.bClosed)) return evidence;
+    if (scenario === 'connection-refused' || (evidence.aClosed && evidence.bClosed)) return evidence;
     await setTimeout(20);
   }
   assert.fail('The failed pair left an open peer connection');
-}
-
-async function rejectChangedInputs(a, proxy, execution, credential) {
-  const before = await (await proxy.fetch('https://custody.test/evidence')).json();
-  for (const field of ['input_a', 'input_b']) {
-    const changed = structuredClone(execution);
-    changed[field].ciphertext[0] ^= 1;
-    const rejected = await post(a, '/router-ab/deriver-a/ed25519-yao/execute-pair', changed, credential);
-    assert.ok(rejected.status >= 400, `Changed ${field} must be rejected`);
-  }
-  const after = await (await proxy.fetch('https://custody.test/evidence')).json();
-  assert.equal(after.preparationRequests, before.preparationRequests, 'Changed inputs must not prepare B');
-  assert.equal(after.connectionAttempts, before.connectionAttempts, 'Changed inputs must not start the protocol');
 }
 
 const fixture = loadFixture();
@@ -208,7 +173,6 @@ const topology = new Miniflare({
       script: proxySource,
       compatibilityDate: '2026-06-12',
       bindings: { SCENARIO: scenario },
-      d1Databases: { DERIVER_A_DB: a.d1Databases.DERIVER_ROLE_PRIVATE_DB },
       serviceBindings: { REAL_B: 'deriver-b' },
     },
   ],
@@ -238,15 +202,13 @@ try {
   };
   const aBinding = await topology.getWorker('deriver-a');
   const bBinding = await topology.getWorker('deriver-b');
-  const expectedBState = scenario === 'connection-refused' || scenario === 'forged-readiness' ? 'prepared' : 'burned';
-  const expectedAState = scenario === 'forged-readiness' ? 'prepared' : 'burned';
-  await requirePairState(aBinding, 'deriver-a', scope, roleCredential, expectedAState);
+  const expectedBState = scenario === 'connection-refused' ? 'prepared' : 'burned';
+  await requirePairState(aBinding, 'deriver-a', scope, roleCredential, 'burned');
   await requirePairState(bBinding, 'deriver-b', scope, roleCredential, expectedBState);
   const proxy = await topology.getWorker('disconnect-proxy');
   const interrupted = await closedConnectionEvidence(proxy);
-  const readinessRejected = scenario === 'forged-readiness';
-  assert.equal(interrupted.connectionAttempts, readinessRejected ? 0 : 1, 'Readiness must pass before execution starts');
-  assert.equal(interrupted.connections, scenario === 'connection-refused' || readinessRejected ? 0 : 1);
+  assert.equal(interrupted.connectionAttempts, 1, 'Both setup operations start even if A root loading fails');
+  assert.equal(interrupted.connections, scenario === 'connection-refused' ? 0 : 1);
   if (scenario === 'protocol-disconnect') {
     assert.equal(interrupted.disconnected, true);
     assert.ok(interrupted.aMessages >= 1);
@@ -254,23 +216,12 @@ try {
   } else {
     assert.equal(interrupted.aMessages, 0, 'A must validate its root and B acceptance before sending protocol data');
   }
-  if (readinessRejected) {
-    await rejectChangedInputs(aBinding, proxy, execution, roleCredential);
-  }
   const retried = await post(aBinding, '/router-ab/deriver-a/ed25519-yao/execute-pair', execution, roleCredential);
+  assert.ok(retried.status >= 400, 'A burned pair cannot return successful custody');
   const afterRetry = await (await proxy.fetch('https://custody.test/evidence')).json();
-  if (readinessRejected) {
-    assert.equal(retried.status, 200, 'The valid readiness retry must complete the prepared pair');
-    assert.equal(afterRetry.connectionAttempts, 1);
-    await requirePairState(aBinding, 'deriver-a', scope, roleCredential, 'completed');
-    await requirePairState(bBinding, 'deriver-b', scope, roleCredential, 'completed');
-    await rejectChangedInputs(aBinding, proxy, execution, roleCredential);
-  } else {
-    assert.ok(retried.status >= 400, 'A burned pair cannot return successful custody');
-    assert.equal(afterRetry.connectionAttempts, interrupted.connectionAttempts, 'A burned pair must not restart the protocol');
-    await requirePairState(aBinding, 'deriver-a', scope, roleCredential, 'burned');
-    await requirePairState(bBinding, 'deriver-b', scope, roleCredential, expectedBState);
-  }
+  assert.equal(afterRetry.connectionAttempts, interrupted.connectionAttempts, 'A burned pair must not restart the protocol');
+  await requirePairState(aBinding, 'deriver-a', scope, roleCredential, 'burned');
+  await requirePairState(bBinding, 'deriver-b', scope, roleCredential, expectedBState);
   const fresh = buildEd25519ExecuteRequest(fixture, 'second_tenant_activation', roots.secondTenantRoot);
   const recovered = await post(routerBinding, executePath, fresh, gatewayCredential);
   assert.equal(recovered.status, 200);
@@ -279,10 +230,8 @@ try {
     kind: 'yao_peer_disconnect_e2e_v1',
     scenario,
     interrupted,
-    roleStatesAfterFailure: { deriverA: expectedAState, deriverB: expectedBState },
-    retry: readinessRejected
-      ? { outcome: 'completed_after_readiness_rejection', protocolConnections: 1, changedInputsRejectedBeforeAndAfterCompletion: true }
-      : { outcome: 'burned_pair_refused', additionalProtocolConnections: 0 },
+    roleStatesAfterFailure: { deriverA: 'burned', deriverB: expectedBState },
+    exactRetryDidNotRestartProtocol: true,
     independentWalletCompletedAfterDisconnect: true,
     reproduce: `ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/yao-peer-disconnect-evidence.mjs ${scenario}`,
   };
