@@ -871,9 +871,9 @@ A later pass reads the chain again. A failed read retains unexpired reservations
 Reload and concurrent-tab coordination must still prevent reuse of an unexpired
 signed nonce. Existing expiry and chain-consumption rules remain unchanged.
 
-NEAR reusable-session finalize reads the prepared operation once before execution.
-It checks the receipt against the stored identity, fingerprint, operation kind,
-and digests. Fresh transactional admission still checks authority, material,
+NEAR reusable-session finalize uses one standalone lookup of the prepared operation
+before transactional admission. It checks the receipt against the stored identity,
+fingerprint, operation kind, and digests. Fresh transactional admission still checks authority, material,
 replay, and quota. An exact retry can replay a completed operation after budget
 exhaustion. A retired session cannot replay it. Missing or changed receipts cannot
 create a new claim, consume quota, or invoke signing.

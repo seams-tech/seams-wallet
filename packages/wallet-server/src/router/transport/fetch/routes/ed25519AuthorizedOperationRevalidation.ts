@@ -147,4 +147,3 @@ function buildEd25519ReusableOperationEnvelope(
       return null;
   }
 }
-

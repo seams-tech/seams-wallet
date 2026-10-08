@@ -3779,20 +3779,94 @@ and serving-version audits. Implementation commit: `fa0648d8` on `dev`.
 
 ### Phase 6T — consolidate NEAR finalize authorization reads
 
-Finalize currently reads the same operation by ID during session authorization,
-then by fingerprint before execution. Consolidate these into one ID lookup at
-the execution boundary. Keep all receipt comparisons and the fresh transactional
-admission check. This removes a read without adding a cache or carrying duplicate
+Finalize previously read the same operation by ID during session authorization,
+then by fingerprint before execution. These are now one ID lookup at
+the execution boundary. All receipt comparisons and the fresh transactional
+admission check remain. This removes a read without adding a cache or carrying duplicate
 operation state through the session-authorization result.
 
 - [x] Remove the duplicate lookup and its obsolete helper and inputs.
 - [x] Keep receipt identity, fingerprint, operation-kind and digest comparisons.
-- [ ] Verify discarded replies, exact replay at exhausted quota, missing/changed
+- [x] Verify discarded replies, exact replay at exhausted quota, missing/changed
   receipts, and session retirement through the browser and real local Gateway.
-- [ ] Build frozen baseline/candidate Gateways. Compare on existing staging
+- [x] Build frozen baseline/candidate Gateways. Compare on existing staging
   resources with one SDK and fixed custody/runtime versions. Restore deployment
   versions after the comparison. Record latency and available D1 counts.
-- [ ] Review, record results, run the bloat check, and commit on `dev`.
+- [x] Review, record results, run the bloat check, and commit on `dev`.
 
 The next client candidate is sharing a fresh chain observation between nonce
 recovery and transaction-context acquisition. Measure that separately.
+
+#### Measured result — 2026-10-08
+
+The Gateway now uses one standalone lookup for a reusable session's prepared
+operation before transactional revalidation.
+The old path read it by ID, then read it again by fingerprint. The remaining ID
+lookup checks identity, fingerprint, operation kind and all digests. Fresh
+transactional admission still checks active authority, material, replay and quota.
+The obsolete lookup helper and its inputs were deleted. The unchanged transactional
+revalidation moved to a focused module; the main route is now below 2,000 lines.
+Implementation: `a3a2bd2c` on public `dev`.
+
+This removes **one D1 batch per normal reusable-session finalize**. In the hosted
+Gateway, that batch contains the deployment-writer check and the operation SELECT.
+This is a source-level count. Hosted D1 counters remain unavailable. Prepare and
+step-up behavior remain unchanged. Browser signing still uses **two Gateway POSTs**.
+
+The baseline/candidate comparison verified **42 signatures across six
+fresh NEAR-only wallets**. One frozen SDK, private Gateway source, and custody/runtime
+versions served all arms. Only the existing APAC Gateway deployment changed.
+All thirteen original Worker versions and tenant activation were restored afterward.
+No resource, migration, keepalive or package release was added.
+
+| Workload / stage | Baseline before: median (range) | Candidate: median (range) |
+| --- | --- | --- |
+| Warm, 6 per arm | 2.567 s (1.944–3.654) | 2.200 s (1.559–2.979) |
+| Three-signature sequences, 9 per arm | 1.585 s (1.284–2.095) | 1.700 s (1.208–2.088) |
+| Combined, 15 per arm | 1.603 s (1.284–3.654) | 1.974 s (1.208–2.979) |
+| Prepare stage, 15 per arm | 0.443 s (0.375–1.099) | 0.556 s (0.376–1.123) |
+| Finalize stage, 15 per arm | 0.514 s (0.409–1.326) | 0.477 s (0.398–0.904) |
+| Prepare + client share + finalize, 15 per arm | 0.966 s (0.849–2.244) | 1.045 s (0.836–2.030) |
+
+SDK signing includes automated confirmation and nonce/RPC work. It excludes
+blockchain submission and confirmation. Protocol stage timings use the existing
+SDK events; stage medians must not be added. The range includes each maximum.
+These sequential samples do not establish a percentile or a guaranteed latency gain.
+
+Candidate registration through independently verified signature measured
+**22.739 s (22.046–23.669)**. Unlock through verified signature measured **5.102 s (4.981–5.723)**.
+Those lifecycle timings include automation; registration also includes funding
+and account provisioning. This change does not optimize Yao setup. Its two-second
+setup target remains unmet.
+
+Four local browser scenarios passed. They cover transaction/message signing,
+reload, changed prepare authority, budget exhaustion, fresh unlock, missing and
+altered receipts, and session retirement. The lost-reply scenario discarded a
+successful finalize reply, then verified the exact retry at zero remaining uses.
+It retained one operation claim and one audit event. A later retry after retirement
+returned HTTP 401. Missing and altered receipts returned 409 and 400. The final
+scenario passed again after a test-adapter type correction. Server builds,
+intended-test type checking, and the exact implementation bloat check passed.
+
+The first candidate activation failed with `readiness_invalid`. One unfinished
+US registration, stored in two records, existed before the benchmark started.
+The admitted baseline was restored while those records expired normally.
+Activation then passed. The failed activation supplied no candidate samples.
+A later unfinished US registration blocked the next activation window. The return-baseline
+arm was omitted. These interruptions and the missing return baseline limit latency
+attribution. Finalize improved by 37.3 ms at the median (7.3%), while full SDK signing
+did not improve consistently. This establishes a smaller request path, with no
+guaranteed whole-flow latency improvement.
+Browser-to-Console calls were zero. Backend Console and D1 counters remain unknown.
+The separate ECDSA confirmation timeout recorded in Phase 6R remains outside this change.
+
+Next candidates:
+
+1. Share a fresh access-key observation between nonce recovery and transaction
+   preparation for the exact wallet/key lane. Keep chain freshness, reload and
+   nonce-reservation checks. Measure any removed RPC separately.
+2. Profile remaining session/material queries in prepare and finalize. Combine
+   queries only where one database batch preserves the existing deployment,
+   authorization and material checks. No further latency saving is assumed.
+
+[Sanitized samples, source hashes, replay evidence and deployment audits](evidence/near-finalize-read-20261008.json).
