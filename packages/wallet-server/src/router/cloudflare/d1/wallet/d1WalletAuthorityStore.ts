@@ -32,6 +32,7 @@ import {
   type WalletAuthMethodRecordV2,
 } from '@shared/utils/walletAuthMethodRecord';
 import { d1ChangedRows, parseD1JsonColumn } from '../../../../storage/d1Sql';
+import type { RegistrationAuthority } from '@shared/utils/registrationAuthMethodInput';
 import type {
   D1DatabaseLike,
   D1PreparedStatementLike,
@@ -133,6 +134,53 @@ type AuthMethodRow = {
   readonly record_json?: unknown;
 };
 
+function registrationMethodSelector(authority: RegistrationAuthority): {
+  readonly predicate: string;
+  readonly values: readonly string[];
+} {
+  switch (authority.kind) {
+    case 'passkey':
+      return {
+        predicate: "kind = 'passkey' AND rp_id = ? AND credential_id_b64u = ?",
+        values: [authority.rpId, authority.credentialIdB64u],
+      };
+    case 'email_otp':
+      return {
+        predicate: "kind = 'email_otp' AND wallet_id = ? AND email_hash_hex = ?",
+        values: [authority.walletId, authority.emailHashHex],
+      };
+    default:
+      return assertNeverRegistrationAuthority(authority);
+  }
+}
+
+function registrationMethodMatches(
+  expected: RegistrationAuthority,
+  method: ActiveWalletAuthMethodRecordV2,
+): boolean {
+  switch (expected.kind) {
+    case 'passkey':
+      return (
+        method.kind === 'passkey' &&
+        method.rpId === expected.rpId &&
+        method.credentialIdB64u === expected.credentialIdB64u &&
+        method.credentialPublicKeyB64u === expected.credentialPublicKeyB64u
+      );
+    case 'email_otp':
+      return (
+        method.kind === 'email_otp' &&
+        method.emailHashHex === expected.emailHashHex &&
+        method.registrationAuthorityId === expected.registrationAuthorityId
+      );
+    default:
+      return assertNeverRegistrationAuthority(expected);
+  }
+}
+
+function assertNeverRegistrationAuthority(value: never): never {
+  throw new Error(`Unsupported registration authority: ${String(value)}`);
+}
+
 function normalizeScope(input: D1WalletAuthorityStoreScope): NormalizedScope {
   return {
     namespace: requireScopeString(input.namespace, 'namespace'),
@@ -226,9 +274,7 @@ function parseAuthorityRow(row: AuthorityRow): WalletAuthorityV1 {
   return authority;
 }
 
-export async function parseD1WalletAuthorityRow(
-  row: AuthorityRow,
-): Promise<WalletAuthorityV1> {
+export async function parseD1WalletAuthorityRow(row: AuthorityRow): Promise<WalletAuthorityV1> {
   const authority = parseAuthorityRow(row);
   if (!(await walletAuthorityDigestsMatchV1(authority))) {
     throw new Error('stored wallet authority digest does not match its canonical record');
@@ -771,6 +817,68 @@ export class D1WalletAuthorityStore {
       .first<AuthorityRow>();
     if (!row) return null;
     return await parseD1WalletAuthorityRow(row);
+  }
+
+  /** Reads the method and its authority from one database snapshot. */
+  async readActiveRegistrationIdentity(expected: RegistrationAuthority): Promise<{
+    readonly walletAuthorityId: WalletAuthorityId;
+    readonly walletAuthMethodId: WalletAuthMethodId;
+    readonly authority: ActiveWalletAuthorityV1;
+    readonly authMethod: ActiveWalletAuthMethodRecordV2;
+  } | null> {
+    const selector = registrationMethodSelector(expected);
+    const row = await this.database
+      .prepare(
+        `SELECT authority.*, method.record_json AS auth_method_record_json,
+                method.wallet_auth_method_id, method.status AS auth_method_status
+           FROM (
+             SELECT * FROM wallet_auth_methods
+              WHERE namespace = ? AND org_id = ? AND project_id = ? AND env_id = ?
+                AND ${selector.predicate}
+              ORDER BY created_at_ms ASC LIMIT 1
+           ) AS method
+           JOIN wallet_authorities AS authority
+             ON authority.namespace = method.namespace
+            AND authority.org_id = method.org_id
+            AND authority.project_id = method.project_id
+            AND authority.env_id = method.env_id
+            AND authority.authority_id = method.wallet_authority_id
+            AND authority.wallet_id = method.wallet_id`,
+      )
+      .bind(...scopeValues(this.scope), ...selector.values)
+      .first<
+        AuthorityRow & {
+          readonly auth_method_record_json: unknown;
+          readonly wallet_auth_method_id: unknown;
+          readonly auth_method_status: unknown;
+        }
+      >();
+    if (!row) return null;
+    const method = parseWalletAuthMethodRecordV2(parseD1JsonColumn(row.auth_method_record_json));
+    if (
+      !method ||
+      method.status !== 'active' ||
+      method.status !== row.auth_method_status ||
+      method.walletAuthMethodId !== row.wallet_auth_method_id ||
+      method.walletId !== expected.walletId ||
+      !registrationMethodMatches(expected, method)
+    ) {
+      return null;
+    }
+    const authority = await parseD1WalletAuthorityRow(row);
+    if (
+      authority.state !== 'active' ||
+      authority.walletId !== method.walletId ||
+      authority.authorityId !== method.walletAuthorityId
+    ) {
+      return null;
+    }
+    return {
+      walletAuthorityId: authority.authorityId,
+      walletAuthMethodId: method.walletAuthMethodId,
+      authority,
+      authMethod: method,
+    };
   }
 
   async readByWalletAndDevice(input: {

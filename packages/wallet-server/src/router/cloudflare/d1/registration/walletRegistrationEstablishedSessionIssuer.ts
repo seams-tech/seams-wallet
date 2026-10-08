@@ -77,7 +77,7 @@ type RegistrationEstablishedSessionIssuerAuthorizationService = Pick<
 >;
 
 type RegistrationEstablishedSessionIssuerWalletAuthMethodReader = {
-  readonly readActiveRegistrationAuthority: (authority: StoredRegistrationAuthority) => Promise<{
+  readonly readActiveRegistrationIdentity: (authority: StoredRegistrationAuthority) => Promise<{
     readonly authority: ActiveWalletAuthorityV1;
     readonly walletAuthMethodId: WalletAuthMethodId;
   } | null>;
@@ -513,7 +513,7 @@ export async function issueDirectRegistrationEstablishedEcdsaSession(
     readonly proof: Extract<VerifiedOwnerProof, { readonly purpose: 'wallet_session' }>;
   },
 ): Promise<RegistrationEstablishedSessionIssuanceResultV2> {
-  const activeRegistration = await input.walletAuthMethods.readActiveRegistrationAuthority(
+  const activeRegistration = await input.walletAuthMethods.readActiveRegistrationIdentity(
     input.registrationAuthority,
   );
   if (
@@ -595,7 +595,7 @@ export async function issueDirectRegistrationEstablishedEd25519Session(
     readonly proof: Extract<VerifiedOwnerProof, { readonly purpose: 'wallet_session' }>;
   },
 ): Promise<RegistrationEstablishedSessionIssuanceResultV2> {
-  const activeRegistration = await input.walletAuthMethods.readActiveRegistrationAuthority(
+  const activeRegistration = await input.walletAuthMethods.readActiveRegistrationIdentity(
     input.registrationAuthority,
   );
   if (

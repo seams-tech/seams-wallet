@@ -87,9 +87,7 @@ import type { CloudflareD1EmailOtpRegistrationEnrollmentFinalizer } from '../ema
 import { CloudflareD1RegistrationCeremonyIntentStore } from '../registration/d1RegistrationCeremonyStore';
 import { parseWalletIdForIntent } from '../registration/d1RegistrationCeremonyRecords';
 import type { GoogleEmailOtpRegistrationAttemptStore } from '../emailOtp/d1GoogleEmailOtpRegistrationAttemptStore';
-import {
-  expiredGoogleEmailOtpRegistrationAttemptRecord,
-} from '../emailOtp/d1GoogleEmailOtpRegistrationRecords';
+import { expiredGoogleEmailOtpRegistrationAttemptRecord } from '../emailOtp/d1GoogleEmailOtpRegistrationRecords';
 import { runtimePolicyScopeKey } from '../../../../core/EmailOtpRecords';
 import { toRecordValue } from '../auth/d1RouterApiAuthBoundary';
 import {
@@ -109,10 +107,7 @@ import {
 import type { CloudflareD1WebAuthnStore } from '../webauthn/d1WebAuthnStore';
 import type { WebAuthnCredentialBindingRecord } from '../../../../core/WebAuthnCredentialBindingStore';
 import type { WalletEd25519SignerRecord } from '../../../../core/WalletStore';
-import {
-  parseSessionOrigin,
-  type SessionOrigin,
-} from '../../../../authorization/domain';
+import { parseSessionOrigin, type SessionOrigin } from '../../../../authorization/domain';
 
 /** The wallet's Ed25519 signers, the only server record of its NEAR identity. */
 type ListWalletEd25519SignersV1 = (
@@ -2387,83 +2382,8 @@ export class CloudflareD1WalletAuthMethodService {
    * persists the founding authority and auth method before the deferred
    * Ed25519 leg arrives, so that leg must address the same rows.
    */
-  async readActiveRegistrationIdentity(authority: RegistrationAuthority): Promise<{
-    readonly walletAuthorityId: WalletAuthMethodRecordV2['walletAuthorityId'];
-    readonly walletAuthMethodId: WalletAuthMethodRecordV2['walletAuthMethodId'];
-    readonly authority: ActiveWalletAuthorityV1;
-    readonly authMethod: ActiveWalletAuthMethodRecordV2;
-  } | null> {
-    let record: WalletAuthMethodRecordV2 | null;
-    switch (authority.kind) {
-      case 'passkey':
-        record = await this.getWalletAuthMethodStore().getPasskeyV2({
-          rpId: authority.rpId,
-          credentialIdB64u: authority.credentialIdB64u,
-        });
-        break;
-      case 'email_otp':
-        record = await this.getWalletAuthMethodStore().getEmailOtpV2({
-          walletId: String(authority.walletId),
-          emailHashHex: authority.emailHashHex,
-        });
-        break;
-      default:
-        return unreachableRegistrationStartAuthority(authority);
-    }
-    if (!record || record.status !== 'active' || record.walletId !== authority.walletId) {
-      return null;
-    }
-    if (authority.kind === 'passkey') {
-      if (
-        record.kind !== 'passkey' ||
-        record.rpId !== authority.rpId ||
-        record.credentialIdB64u !== authority.credentialIdB64u ||
-        record.credentialPublicKeyB64u !== authority.credentialPublicKeyB64u
-      ) {
-        return null;
-      }
-    } else if (
-      record.kind !== 'email_otp' ||
-      record.emailHashHex !== authority.emailHashHex ||
-      record.registrationAuthorityId !== authority.registrationAuthorityId
-    ) {
-      return null;
-    }
-    const walletAuthority = await this.walletAuthorityStore.readById(record.walletAuthorityId);
-    if (
-      !walletAuthority ||
-      walletAuthority.state !== 'active' ||
-      walletAuthority.walletId !== record.walletId
-    ) {
-      return null;
-    }
-    return {
-      walletAuthorityId: record.walletAuthorityId,
-      walletAuthMethodId: record.walletAuthMethodId,
-      authority: walletAuthority,
-      authMethod: record,
-    };
-  }
-
-  async readActiveRegistrationAuthority(authority: RegistrationAuthority): Promise<{
-    readonly authority: ActiveWalletAuthorityV1;
-    readonly walletAuthMethodId: WalletAuthMethodId;
-  } | null> {
-    const identity = await this.readActiveRegistrationIdentity(authority);
-    if (!identity) return null;
-    const walletAuthority = await this.walletAuthorityStore.readById(identity.walletAuthorityId);
-    if (
-      !walletAuthority ||
-      walletAuthority.state !== 'active' ||
-      walletAuthority.walletId !== authority.walletId ||
-      walletAuthority.authorityId !== identity.walletAuthorityId
-    ) {
-      return null;
-    }
-    return {
-      authority: walletAuthority,
-      walletAuthMethodId: identity.walletAuthMethodId,
-    };
+  async readActiveRegistrationIdentity(authority: RegistrationAuthority) {
+    return await this.walletAuthorityStore.readActiveRegistrationIdentity(authority);
   }
 
   /**

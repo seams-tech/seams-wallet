@@ -3561,7 +3561,7 @@ export class CloudflareD1WalletRegistrationService {
         nowMs,
       });
     if (!issued) return null;
-    const active = await this.walletAuthMethods.readActiveRegistrationAuthority(
+    const active = await this.walletAuthMethods.readActiveRegistrationIdentity(
       installation.projection.registrationAuthority,
     );
     if (
