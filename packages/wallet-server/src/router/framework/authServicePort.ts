@@ -1227,6 +1227,7 @@ export interface RouterApiWalletRegistrationService {
   completeWalletRegistrationNearProvisioning(
     input: WalletRegistrationNearProvisioningInput,
     serverTiming?: Array<readonly [string, number]>,
+    waitUntil?: (promise: Promise<unknown>) => void,
   ): Promise<WalletRegistrationNearProvisioningResponseV2>;
   refreshEd25519YaoWalletSession(
     input: RouterAbEd25519YaoBudgetRefreshRequestV1,

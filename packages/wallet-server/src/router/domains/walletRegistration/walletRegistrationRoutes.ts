@@ -177,6 +177,7 @@ type RouterApiWalletRegistrationInput = {
   services: RouterApiWalletRegistrationServices;
   sourceIp?: string;
   signingSessionSeal?: SigningSessionSealRoutesOptions | null;
+  waitUntil?: (promise: Promise<unknown>) => void;
 };
 
 type ParseResult<T> = { ok: true; value: T } | { ok: false; code: 'invalid_body'; message: string };
@@ -2513,6 +2514,7 @@ export async function handleRouterApiWalletRegistrationNearProvisioning(
       verifier: session,
     },
     serverTiming,
+    input.waitUntil,
   );
   if (!result.ok) return routeJson(400, result);
   if (result.registrationEstablishedSession.session.tokens.kind === 'near_ed25519') {

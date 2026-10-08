@@ -116,6 +116,7 @@ export async function handleWalletRegistration(
     },
     sourceIp: resolveSourceIpFromFetchHeaders(ctx.request.headers) || undefined,
     signingSessionSeal: ctx.opts.signingSessionSeal,
+    waitUntil: ctx.runtime.kind === 'background' ? ctx.runtime.waitUntil : undefined,
   };
   let response: RouteResponse<unknown>;
   switch (route.id) {

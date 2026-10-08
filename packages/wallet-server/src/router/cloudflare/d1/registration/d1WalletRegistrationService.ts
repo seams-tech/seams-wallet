@@ -4098,6 +4098,7 @@ export class CloudflareD1WalletRegistrationService {
   async completeWalletRegistrationNearProvisioning(
     input: WalletRegistrationNearProvisioningInput,
     timingSink?: Array<readonly [string, number]>,
+    waitUntil?: (promise: Promise<unknown>) => void,
   ): Promise<WalletRegistrationNearProvisioningResponseV2> {
     const serverTiming = timingSink ?? [];
     const totalStartedAtMs = Date.now();
@@ -4250,6 +4251,8 @@ export class CloudflareD1WalletRegistrationService {
           registrationCeremonyId: input.registrationCeremonyId,
         }),
       });
+      // The durable receipt and home completion make ceremony deletion optional for readiness.
+      if (waitUntil) waitUntil(cleanup);
       if (input.authorization.kind === 'wallet_session') {
         const projectionStartedAtMs = Date.now();
         const [current] = await Promise.all([
@@ -4264,7 +4267,7 @@ export class CloudflareD1WalletRegistrationService {
                 nowMs: Date.now(),
               }),
           }),
-          cleanup,
+          waitUntil ? undefined : cleanup,
         ]);
         const tokens = committed.registrationEstablishedSession.session.tokens;
         if (!current || tokens.kind !== 'near_ed25519_and_evm_family_ecdsa') {
@@ -4281,7 +4284,7 @@ export class CloudflareD1WalletRegistrationService {
           nearProvisioning: { status: 'near_ready' },
         };
       }
-      await cleanup;
+      if (!waitUntil) await cleanup;
       recordRegistrationServerTiming(serverTiming, 'near_finalize_total', totalStartedAtMs);
       return {
         ...committed,
