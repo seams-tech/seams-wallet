@@ -128,7 +128,8 @@ export type RouterAbEd25519SignatureOnlyIntentWire =
       message: string;
       recipient: string;
       nonce: string;
-      state?: string;
+      callbackUrl: string | null;
+      state?: never;
     }
   | {
       kind: 'near_delegate_action_v1';
@@ -828,7 +829,7 @@ async function buildRouterAbEd25519SignatureOnlyPrepareRequest(args: {
         message: args.intent.message,
         recipient: args.intent.recipient,
         nonce: args.intent.nonce,
-        ...(args.intent.state ? { callbackUrl: args.intent.state } : {}),
+        callbackUrl: args.intent.callbackUrl,
         expectedSigningDigestB64u: args.signingDigestB64u,
       })
     : await buildRouterAbEd25519DelegateActionPrepareRequestV2({

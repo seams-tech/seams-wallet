@@ -890,6 +890,16 @@ submission. Message inputs and results retain their message, recipient, state,
 nonce, account, public-key, and signature contracts. Sign-and-send delegate
 orchestration uses the same relay operation. React exposes `signMessage`.
 
+NEAR message signatures follow [NEP-413](https://github.com/near/NEPs/blob/master/neps/nep-0413.md).
+The signed Borsh payload contains `message`, the 32-byte `nonce`, `recipient`, and
+optional `callbackUrl`, in that order. The digest is SHA-256 of the little-endian
+`2^31 + 413` prefix and that payload. The SDK generates and returns the nonce.
+It signs a supplied `callbackUrl` and returns the result directly without a redirect.
+An omitted `callbackUrl` encodes as the Borsh `None` option.
+The SDK returns `state` unchanged, including an empty string. `state` is transport
+data and does not enter the signed payload. Changes to message, nonce, recipient,
+or callback URL invalidate the signature.
+
 
 NEAR transaction submission uses `near.signAndSendTransaction({ receiverId,
 actions, options })`, including React bindings. A single action is a one-element

@@ -990,8 +990,8 @@ pub fn router_ab_ed25519_nep413_canonical_message_b64u_v2(
     let mut payload = Vec::new();
     payload.extend_from_slice(&NEP413_PREFIX.to_le_bytes());
     push_borsh_string(&mut payload, message);
-    push_borsh_string(&mut payload, recipient);
     payload.extend_from_slice(&nonce);
+    push_borsh_string(&mut payload, recipient);
     match callback_url {
         Some(callback_url) => {
             payload.push(1);

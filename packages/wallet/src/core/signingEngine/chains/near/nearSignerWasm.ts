@@ -3,6 +3,7 @@ import {
   type DelegatePayload,
   type ThresholdEd25519BuildDelegateSigningPayloadResult,
   type ThresholdEd25519ComputeSigningDigestResult,
+  type ThresholdEd25519ComputeNep413SigningDigestRequest,
   type ThresholdEd25519FinalizeNearTxFromSignatureResult,
   type ThresholdEd25519NearTxUnsignedBorsh,
   type ThresholdEd25519DecodeSignedNearTxBorshResult,
@@ -17,13 +18,9 @@ import {
 
 const NEAR_SIGNER_WORKER_TIMEOUT_MS = 20_000;
 
-export async function computeThresholdEd25519Nep413SigningDigestWasm(args: {
-  message: string;
-  recipient: string;
-  nonce: string;
-  state?: string;
-  workerCtx: WorkerOperationContext;
-}): Promise<ThresholdEd25519ComputeSigningDigestResult> {
+export async function computeThresholdEd25519Nep413SigningDigestWasm(
+  args: ThresholdEd25519ComputeNep413SigningDigestRequest & { workerCtx: WorkerOperationContext },
+): Promise<ThresholdEd25519ComputeSigningDigestResult> {
   const response = await executeWorkerOperation({
     ctx: args.workerCtx,
     kind: 'nearSigner',
@@ -34,7 +31,7 @@ export async function computeThresholdEd25519Nep413SigningDigestWasm(args: {
         message: args.message,
         recipient: args.recipient,
         nonce: args.nonce,
-        ...(args.state ? { state: args.state } : {}),
+        callbackUrl: args.callbackUrl,
       },
     },
   });

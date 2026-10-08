@@ -284,6 +284,7 @@ export type NearNep413Payload = {
     message: string;
     recipient: string;
     nonce: string;
+    callbackUrl: string | null;
     state: string | null;
     accountId: string;
     signerSlot?: number;

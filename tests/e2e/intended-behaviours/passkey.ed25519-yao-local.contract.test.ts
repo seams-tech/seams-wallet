@@ -177,9 +177,12 @@ async function verifyNearMessageSigningAfterRefresh(
   testInfo: TestInfo,
 ): Promise<void> {
   await harness.registerPasskeyEd25519YaoWallet();
-  const first = await harness.signNearMessage('Approve checkout before refresh');
+  const first = await harness.signNearMessage('Approve checkout before refresh', { state: '' });
   await harness.refreshPagePreservingWalletStorage();
-  const second = await harness.signNearMessage('Approve checkout after refresh');
+  const second = await harness.signNearMessage('Approve checkout after refresh', {
+    callbackUrl: 'https://checkout.example/callback?request=170',
+    state: 'quote-170-after-refresh',
+  });
   await harness.signNearTransactionAfterRefresh();
   const artifactPath = testInfo.outputPath('near-message-signatures.json');
   await writeFile(artifactPath, JSON.stringify({ first, second }, null, 2), 'utf8');

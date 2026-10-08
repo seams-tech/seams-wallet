@@ -3438,6 +3438,7 @@ export class WalletIframeRouter {
     nearAccountId: string;
     message: string;
     recipient: string;
+    callbackUrl?: string;
     state?: string;
     options: {
       signerSlot?: number;
@@ -3463,6 +3464,7 @@ export class WalletIframeRouter {
         params: {
           message: payload.message,
           recipient: payload.recipient,
+          callbackUrl: payload.callbackUrl,
           state: payload.state,
         },
         options: safeOptions,

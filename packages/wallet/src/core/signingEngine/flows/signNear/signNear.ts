@@ -203,6 +203,7 @@ type SignNep413MessagePayload = {
   message: string;
   recipient: string;
   nonce: string;
+  callbackUrl: string | null;
   state: string | null;
   commandSubject: NearCommandSubject;
   onEvent?: (update: SigningFlowEvent) => void;
@@ -1878,6 +1879,7 @@ async function runPreparedNearNep413Signing(args: {
         message: args.input.message,
         recipient: args.input.recipient,
         nonce: args.input.nonce,
+        callbackUrl: args.input.callbackUrl,
         state: args.input.state,
         accountId: nearAccount.accountId,
         signerSlot: args.input.signerSlot,

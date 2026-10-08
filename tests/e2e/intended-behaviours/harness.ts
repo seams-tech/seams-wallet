@@ -7,6 +7,7 @@ import type {
   SignNEP413MessageParams,
   SignNEP413MessageResult,
 } from '../../../packages/wallet/src/core/types/sdkPublicResults';
+import { verifyNearMessageSignature } from './near-message-signatures';
 import { readPendingWalletRecoveryCommitIdentity } from './recovery-journal';
 import {
   concealFirstRecoveryFinalizationResponse,
@@ -3749,12 +3750,15 @@ export class IntendedBehaviourHarness {
     );
   }
 
-  async signNearMessage(message: string) {
+  async signNearMessage(
+    message: string,
+    options?: Pick<SignNEP413MessageParams, 'callbackUrl' | 'state'>,
+  ) {
     const registration = requireNearReadyRegisteredWallet(
       this.requireRegisteredWalletForSigning(),
       'NEAR message signing',
     );
-    return await signAndVerifyNearMessage(this.page, message, registration);
+    return await signAndVerifyNearMessage(this.page, message, registration, options);
   }
 
   async signNearTransaction(stage: IntendedNearSigningStage): Promise<SigningAuthEventSummary> {
@@ -8767,8 +8771,9 @@ export async function signAndVerifyNearMessage(
   page: Page,
   message: string,
   registration: { readonly nearAccountId: string; readonly operationalPublicKey: string },
+  options: Pick<SignNEP413MessageParams, 'callbackUrl' | 'state'> = { state: 'quote-170' },
 ) {
-  const params = { message, recipient: 'checkout.example', state: 'quote-170' };
+  const params = { message, recipient: 'checkout.example', ...options };
   const result = await autoConfirmWalletIframeUntil(
     page,
     page.evaluate(invokeIntendedSignMessage, { nearAccountId: registration.nearAccountId, params }),
@@ -8776,21 +8781,9 @@ export async function signAndVerifyNearMessage(
   if (!result.success) throw new Error(result.error);
   expect(result.accountId).toBe(registration.nearAccountId);
   expect(result.publicKey).toBe(registration.operationalPublicKey);
-  expect(result.state).toBe(params.state);
-  const nonce = Buffer.from(result.nonce, 'base64');
-  const signature = Buffer.from(result.signature, 'base64');
-  expect(nonce.length).toBe(32);
-  expect(signature.length).toBe(64);
-  const digest = nearMessageSigningDigest(params, nonce);
-  const publicKey = parseNearEd25519PublicKey(result.publicKey).keyData32;
-  expect(await ed25519.verifyAsync(signature, digest, publicKey)).toBe(true);
-  const changedMessage = nearMessageSigningDigest(
-    { ...params, message: message + ' altered' },
-    nonce,
-  );
-  expect(await ed25519.verifyAsync(signature, changedMessage, publicKey)).toBe(false);
+  const proof = await verifyNearMessageSignature(params, result);
   await waitForWalletIframeConfirmationSettlement(page);
-  return { ...params, ...result, digestHex: Buffer.from(digest).toString('hex') };
+  return proof;
 }
 
 async function invokeIntendedSignMessage(input: {
@@ -8800,30 +8793,4 @@ async function invokeIntendedSignMessage(input: {
   const sign = window.__seamsIntendedE2ESignMessage;
   if (!sign) throw new Error('Intended message-signing helper is unavailable');
   return await sign(input);
-}
-
-function encodeNearMessageString(value: string): Buffer {
-  const bytes = Buffer.from(value, 'utf8');
-  const length = Buffer.alloc(4);
-  length.writeUInt32LE(bytes.length);
-  return Buffer.concat([length, bytes]);
-}
-
-function nearMessageSigningDigest(
-  params: { message: string; recipient: string; state: string },
-  nonce: Uint8Array,
-): Uint8Array {
-  const tag = Buffer.alloc(4);
-  tag.writeUInt32LE(2 ** 31 + 413);
-  // Independently encode the wallet's message/recipient/nonce/state Borsh payload.
-  return sha256Bytes(
-    Buffer.concat([
-      tag,
-      encodeNearMessageString(params.message),
-      encodeNearMessageString(params.recipient),
-      nonce,
-      Buffer.from([1]),
-      encodeNearMessageString(params.state),
-    ]),
-  );
 }

@@ -36,7 +36,7 @@ import type { ExclusiveUnion } from '@shared/utils/variant';
 /**
  * Sign a NEP-413 message using the active threshold-controlled NEAR key.
  *
- * @param payload - NEP-413 signing parameters including message, recipient, nonce, and state
+ * @param payload - NEP-413 payload and response transport state
  * @returns Promise resolving to signing result with account ID, public key, and signature
  */
 type InternalSignNep413MessageResult = ExclusiveUnion<
@@ -102,7 +102,7 @@ export async function signNep413Message({
         message: payload.message,
         recipient: payload.recipient,
         nonce: payload.nonce,
-        state: payload.state || null,
+        callbackUrl: payload.callbackUrl,
       }),
     ),
     intent: SigningOperationIntent.TransactionSign,
@@ -123,7 +123,7 @@ export async function signNep413Message({
       message: payload.message,
       recipient: payload.recipient,
       nonce: payload.nonce,
-      ...(payload.state ? { state: payload.state } : {}),
+      callbackUrl: payload.callbackUrl,
     },
     computeSigningDigestB64u: async () =>
       (
@@ -131,7 +131,7 @@ export async function signNep413Message({
           message: payload.message,
           recipient: payload.recipient,
           nonce: payload.nonce,
-          ...(payload.state ? { state: payload.state } : {}),
+          callbackUrl: payload.callbackUrl,
           workerCtx: ctx,
         })
       ).signingDigestB64u,
@@ -171,7 +171,7 @@ export async function signNep413Message({
         accountId: nearAccountId,
         publicKey: signed.signerPublicKey,
         signature: base64Encode(base64UrlDecode(signed.signatureB64u)),
-        state: payload.state || undefined,
+        state: payload.state ?? undefined,
       },
     } as WorkerSuccessResponse<typeof WorkerRequestType.SignNep413Message>;
   });
@@ -181,7 +181,7 @@ export async function signNep413Message({
     accountId: okResponse.payload.accountId,
     publicKey: okResponse.payload.publicKey,
     signature: okResponse.payload.signature,
-    state: okResponse.payload.state || undefined,
+    state: okResponse.payload.state,
   };
 }
 

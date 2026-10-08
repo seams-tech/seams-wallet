@@ -439,7 +439,7 @@ struct Nep413SigningPayload {
     recipient: String,
     nonce: String,
     #[serde(default)]
-    state: Option<String>,
+    callback_url: Option<String>,
 }
 
 /// Compute the NEP-413 signing digest (sha256(prefix || borsh(payload))).
@@ -456,7 +456,7 @@ pub fn threshold_ed25519_compute_nep413_signing_digest(
             &payload.message,
             &payload.recipient,
             payload.nonce.trim(),
-            payload.state.as_deref(),
+            payload.callback_url.as_deref(),
         )
         .map_err(|e| JsValue::from_str(&e.to_string()))?;
     Ok(digest.to_vec())

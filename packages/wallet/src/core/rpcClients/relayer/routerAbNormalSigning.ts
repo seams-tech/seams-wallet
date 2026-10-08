@@ -432,8 +432,8 @@ function routerAbEd25519Nep413CanonicalMessageB64uV2(args: {
   const out: number[] = [];
   pushU32Le(out, NEP413_PREFIX);
   pushBorshString(out, message);
-  pushBorshString(out, recipient);
   pushBytes(out, nonce);
+  pushBorshString(out, recipient);
   if (callbackUrl) {
     out.push(1);
     pushBorshString(out, callbackUrl);

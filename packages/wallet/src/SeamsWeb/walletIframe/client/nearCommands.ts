@@ -159,6 +159,7 @@ class ApplicationNearCommands {
         nearAccountId,
         message: args.params.message,
         recipient: args.params.recipient,
+        callbackUrl: args.params.callbackUrl,
         state: args.params.state,
         options: {
           signerSlot: args.options.signerSlot,

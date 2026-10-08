@@ -1,5 +1,30 @@
 import type { NearCommands } from '../../packages/wallet/src/SeamsWeb/publicApi/nearCommands';
 import type { EvmFamilyCommands } from '../../packages/wallet/src/SeamsWeb/publicApi/evmFamilyCommands';
+import type { ThresholdEd25519ComputeNep413SigningDigestRequest } from '../../packages/wallet/src/core/types/signer-worker';
+
+declare const nep413Digest: ThresholdEd25519ComputeNep413SigningDigestRequest;
+const nep413WithState: ThresholdEd25519ComputeNep413SigningDigestRequest = {
+  message: 'hi',
+  recipient: 'myapp.com',
+  nonce: 'nonce',
+  callbackUrl: null,
+  // @ts-expect-error The signed payload excludes response transport state.
+  state: 'transport',
+};
+const nep413SpreadState: ThresholdEd25519ComputeNep413SigningDigestRequest = {
+  ...nep413Digest,
+  // @ts-expect-error A broad spread cannot add transport state to a signed payload.
+  state: 'transport',
+};
+// @ts-expect-error The internal request records an explicit callback choice.
+const nep413MissingCallback: ThresholdEd25519ComputeNep413SigningDigestRequest = {
+  message: 'hi',
+  recipient: 'myapp.com',
+  nonce: 'nonce',
+};
+void nep413WithState;
+void nep413SpreadState;
+void nep413MissingCallback;
 
 declare const near: NearCommands;
 declare const evm: EvmFamilyCommands;

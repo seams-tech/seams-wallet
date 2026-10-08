@@ -1201,7 +1201,7 @@ interface PMSignDelegateActionPayload {
 interface PMSignNep413Payload {
   walletId: string;
   nearAccountId: string;
-  params: { message: string; recipient: string; state?: string };
+  params: { message: string; recipient: string; callbackUrl?: string; state?: string };
   options: {
     signerSlot?: number;
     confirmationConfig?: Partial<ConfirmationConfig>;

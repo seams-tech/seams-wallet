@@ -84,7 +84,8 @@ type ThresholdEd25519Nep413FingerprintInput = ThresholdEd25519CanonicalScope & {
   message: string;
   recipient: string;
   nonce: string;
-  state?: string | null;
+  callbackUrl: string | null;
+  state?: never;
 };
 
 type ThresholdEd25519DelegateActionFingerprintInput = ThresholdEd25519CanonicalScope & {
@@ -140,7 +141,7 @@ export async function thresholdEd25519Nep413OperationFingerprint(
       message: coerceNonEmptyString(input.message, 'message'),
       recipient: coerceNonEmptyString(input.recipient, 'recipient'),
       nonce: coerceNonEmptyString(input.nonce, 'nonce'),
-      state: input.state ? String(input.state) : null,
+      callbackUrl: input.callbackUrl,
     },
   });
 }
