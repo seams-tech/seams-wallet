@@ -4000,13 +4000,72 @@ Implementation commits on `dev`: `e62c1513` and `3b1a169b`.
   recovery, signing and mixed registration with the browser contracts.
 - [x] Return Yao admission with the authenticated pure-NEAR response. Preserve
   exact admission identity, verified authority, home and replay checks.
-- [ ] Build matching SDK and Gateway candidates. Repeat the implicit-account
+- [x] Build matching SDK and Gateway candidates. Repeat the implicit-account
   measurements on existing staging resources and restore all prior versions.
-- [ ] Record request counts, stage medians, ranges, limits and verification evidence.
+- [x] Record request counts, stage medians, ranges, limits and verification evidence.
 
 Local verification passed nine browser scenarios: admitted response replay, exact
 finalization replay, lost finalization credential with reload and verified signing,
 NEAR signing and quota checks, deferred finalization recovery, public message
 verification, ECDSA/mixed activation recovery, and NEAR-only Email OTP unlock.
 The type fixtures reject the removed pure-NEAR activation path. SDK and Gateway
-builds and the exact-tree bloat check passed. Hosted timings remain pending.
+builds and the exact-tree bloat check passed. Hosted results follow below.
+
+### Phase 6V hosted result — 2026-10-08
+
+NEAR-only registration now makes **four registration requests instead of six**.
+It receives Yao admission with the authenticated response and commits the wallet,
+signer, custody and session through one finalization. The removed activation had
+created a signerless pending wallet before the same flow finalized it. Its request,
+receipt and checkpoint variants are deleted. ECDSA and mixed activation remain.
+Implementation: public `dev` commit `dadf80a2` (507 net production lines removed).
+
+Three fresh implicit wallets ran per arm on existing staging testnet resources.
+Both arms used the same custody Worker versions. The baseline used the preceding
+SDK/Gateway pair. The candidate used the matching new pair. Each wallet produced
+an independently verified NEP-413 message signature. Both arms loaded only the
+NEAR signer and excluded funding and named-account creation.
+
+| Metric | Matched baseline median (range) | Candidate median (range) |
+| --- | --- | --- |
+| SDK registration | **10.175s** (9.749–13.957s) | **9.788s** (9.123–11.918s) |
+| Registration → first verified message | **12.958s** (12.150–16.911s) | **12.882s** (12.021–14.474s) |
+| Yao execute HTTP request | **3.758s** (3.408–4.987s) | **4.237s** (3.866–4.491s) |
+| Authenticated response + Yao admission/execution HTTP | **5.188s** (4.787–7.047s) | **5.457s** (4.843–5.549s) |
+| Wallet activation + finalization HTTP | **3.552s** (3.523–4.615s) | **2.898s** (2.870–4.099s) |
+| Registration protocol requests | **6** | **4** |
+| All observed Gateway requests through first signature | **11** | **9** (9–10) |
+
+The combined wallet-commit median fell **18.4%**, or **654ms**. SDK registration
+fell **3.8%**, or **387ms**. Registration-to-first-signature changed by only **76ms**.
+These samples establish no material first-signature improvement and no Yao speedup.
+The **3–4s registration-to-signature** and **1–2s Yao** targets remain unmet.
+
+The largest changed protocol span was A's WebSocket connection to B:
+**345ms → 809ms** median. A's reported protocol span stayed similar at
+**419ms → 401ms**. A's complete execution invocation used **752ms → 529ms** median
+provider CPU. These clocks measure different boundaries. The changed connection
+span identifies a remaining delay, but three sequential samples cannot establish
+its cause or attribute it to the SDK/Gateway change. Actual colocation was not
+remeasured. Existing APAC home hints remained.
+
+The table combines related HTTP durations **within each sample** before computing
+medians. This prevents the admission move into `respond`, or the wallet projection
+move into finalization, from appearing as an artificial saving. Browser totals
+include automation and UI settlement. Fresh wallets do not establish cold Workers
+or Durable Objects. Gateway-wide D1 and backend Console call counts remain unknown.
+
+Nine local browser checks passed, including both authentication methods, admission
+replay, credential-free finalization replay, lost-reply recovery after reload,
+verified signing, quota enforcement, and ECDSA/mixed activation recovery. Type
+checks and the exact-tree bloat check passed. The lost-reply check validates the
+same persisted wallet commit across retries and verifies a fresh unlock before
+signing. Temporary session-seal data is deliberately absent from that recovery
+request. Both hosted serving-version audits passed. Six hosted signatures verified.
+
+All thirteen original Worker versions were restored. Normal tenant activation
+succeeded in run `37759708600`. No new resources, production deployment
+or package release occurred. Raw artifacts remain in `.artifacts/r155b-phase6v`
+(public) and `.artifacts/r155b-phase6v-hosted` (private).
+
+[Sanitized samples, signature proofs and deployment audits](evidence/near-registration-joined-commit-20261008.json).
