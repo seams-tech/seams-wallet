@@ -22,7 +22,40 @@ fn one_row<T: serde::de::DeserializeOwned, O: RoleSqlOutcomeV1>(
     Ok(first)
 }
 
+// Lives only for this admission request. Fresh database rows must match every
+// persisted field before the authenticated plaintext can be reused.
+struct VerifiedBoundRootSnapshot {
+    row: TenantRootRoleD1RowV1,
+    stored: CloudflareStoredTenantRootRoleShareV1,
+}
+
 impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
+    pub(super) async fn load_epoch_row_by_identity_digest(
+        &self,
+        identity_digest: TenantRootIdentityDigestV1,
+        custody_lineage: TenantRootCustodyLineageId,
+        epoch: TenantRootShareEpoch,
+    ) -> RoleStoreResult<Option<TenantRootRoleD1RowV1>> {
+        let identity_digest_hex = encode_hex(identity_digest.as_bytes());
+        let custody_lineage_b64u = custody_lineage.to_base64url();
+        let epoch = epoch_i64(epoch)?.to_string();
+        let row = self
+            .session
+            .prepare(LOAD_EPOCH_SQL)
+            .bind_refs(
+                [
+                    RoleSqlValue::Text(identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(epoch.as_str()),
+                    RoleSqlValue::Text(self.cipher.role.as_str()),
+                ]
+                .iter(),
+            )?
+            .first::<TenantRootRoleD1RowV1>(None)
+            .await?;
+        Ok(row)
+    }
+
     /// Admit and read one exact root-use attempt without extending its epoch.
     pub(crate) async fn admit_bound(
         &self,
@@ -77,28 +110,35 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         // below is a refusal, so the binding is not checked against it.
         #[cfg(feature = "workers-rs")]
         let initial_read_started_ms = worker::Date::now().as_millis();
-        let lifecycle_is_active = if access == RootUseAccess::Admit {
-            let stored = self
-                .load_epoch_by_identity_digest(
+        let initial_snapshot = if access == RootUseAccess::Admit {
+            let row = self
+                .load_epoch_row_by_identity_digest(
                     custody_binding.identity_digest(),
                     custody_binding.custody_lineage(),
                     custody_binding.epoch(),
                 )
                 .await?;
-            let active = match stored.as_ref().map(|stored| stored.record().lifecycle()) {
+            let stored = self.open_row(row.clone()).await?;
+            match stored.as_ref().map(|stored| stored.record().lifecycle()) {
                 Some(CloudflareTenantRootRoleShareLifecycleV1::Pending(_)) => {
                     return Ok(TenantRootBoundShareV1::NotYetActive);
                 }
-                Some(CloudflareTenantRootRoleShareLifecycleV1::Active(_)) => true,
-                Some(CloudflareTenantRootRoleShareLifecycleV1::Retired(_)) | None => false,
-            };
+                _ => {}
+            }
             if let Some(stored) = &stored {
                 self.verify_bound_row(stored, custody_binding)?;
             }
-            active
+            row.zip(stored)
+                .map(|(row, stored)| VerifiedBoundRootSnapshot { row, stored })
         } else {
-            false
+            None
         };
+        let lifecycle_is_active = initial_snapshot.as_ref().is_some_and(|snapshot| {
+            matches!(
+                snapshot.stored.record().lifecycle(),
+                CloudflareTenantRootRoleShareLifecycleV1::Active(_)
+            )
+        });
         #[cfg(feature = "workers-rs")]
         let initial_read_ms = worker::Date::now()
             .as_millis()
@@ -229,21 +269,13 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                 if admission.status == "cancelled" {
                     return Ok(TenantRootBoundShareV1::Cancelled);
                 }
-                // The active snapshot includes the epoch row from this same
-                // transaction. Resolve and decrypt it once, including uniqueness.
-                let stored = match row {
-                    Some(row) if row.lifecycle == "active" => Some(
-                        self.resolve_active_rows(custody_binding.identity_digest(), active_rows)
-                            .await?
-                            .require_active()?,
-                    ),
-                    row => self.open_row(row).await?,
-                };
+                let stored = self
+                    .resolve_bound_snapshot(row, active_rows, initial_snapshot, custody_binding)
+                    .await?;
                 match (admission.status.as_str(), stored) {
                     (_, Some(stored)) => match stored.record().lifecycle() {
                         CloudflareTenantRootRoleShareLifecycleV1::Active(_)
                         | CloudflareTenantRootRoleShareLifecycleV1::Retired(_) => {
-                            self.verify_bound_row(&stored, custody_binding)?;
                             Ok(TenantRootBoundShareV1::Readable(stored))
                         }
                         CloudflareTenantRootRoleShareLifecycleV1::Pending(_) => {
@@ -278,5 +310,39 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                 }
             }
         }
+    }
+
+    async fn resolve_bound_snapshot(
+        &self,
+        row: Option<TenantRootRoleD1RowV1>,
+        active_rows: Vec<TenantRootRoleD1RowV1>,
+        initial: Option<VerifiedBoundRootSnapshot>,
+        custody_binding: &TenantRootCustodyBindingV1,
+    ) -> RoleStoreResult<Option<CloudflareStoredTenantRootRoleShareV1>> {
+        if let Some(initial) = initial {
+            let unchanged = row.as_ref() == Some(&initial.row);
+            let unique = initial.row.lifecycle != "active"
+                || (active_rows.len() == 1 && active_rows[0] == initial.row);
+            if unchanged && unique {
+                return Ok(Some(initial.stored));
+            }
+        }
+        let stored = match row {
+            Some(row) if row.lifecycle == "active" => Some(
+                self.resolve_active_rows(custody_binding.identity_digest(), active_rows)
+                    .await?
+                    .require_active()?,
+            ),
+            row => self.open_row(row).await?,
+        };
+        if let Some(stored) = &stored {
+            if !matches!(
+                stored.record().lifecycle(),
+                CloudflareTenantRootRoleShareLifecycleV1::Pending(_)
+            ) {
+                self.verify_bound_row(stored, custody_binding)?;
+            }
+        }
+        Ok(stored)
     }
 }

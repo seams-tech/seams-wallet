@@ -574,14 +574,14 @@ impl RolePairD1StorageV1 {
         .transpose()
     }
 
-    pub(super) async fn transaction<F, Fut>(&self, closure: F) -> worker::Result<()>
+    pub(super) async fn transaction<F, Fut, T>(&self, closure: F) -> worker::Result<T>
     where
         F: FnOnce(RolePairD1TransactionV1) -> Fut,
-        Fut: Future<Output = worker::Result<()>>,
+        Fut: Future<Output = worker::Result<T>>,
     {
         let initial = self.load().await?;
         let pending = Rc::new(RefCell::new(None));
-        closure(RolePairD1TransactionV1 {
+        let result = closure(RolePairD1TransactionV1 {
             initial: initial.clone(),
             pending: Rc::clone(&pending),
         })
@@ -590,7 +590,7 @@ impl RolePairD1StorageV1 {
         if let Some(pending) = pending {
             self.persist_from(initial, pending).await?;
         }
-        Ok(())
+        Ok(result)
     }
 
     async fn load(&self) -> worker::Result<Option<CachedPairV1>> {

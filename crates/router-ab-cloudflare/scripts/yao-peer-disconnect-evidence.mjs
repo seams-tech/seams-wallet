@@ -22,7 +22,8 @@ const authHeader = 'x-router-ab-internal-service-auth';
 const executePath = '/router-ab/router/ed25519-yao/execute';
 const scenario = process.argv[2] ?? 'protocol-disconnect';
 assert.ok([
-  'protocol-disconnect', 'cancelled-root', 'missing-admission', 'connection-refused', 'invalid-acceptance', 'forged-acceptance',
+  'protocol-disconnect', 'cancelled-root', 'missing-admission', 'connection-refused',
+  'invalid-acceptance', 'forged-acceptance', 'forged-peer-readiness',
 ].includes(scenario), `Unknown scenario: ${scenario}`);
 const proxySource = `
 const evidence = {
@@ -74,6 +75,15 @@ export default {
     evidence.connectionAttempts += 1;
     if (evidence.connectionAttempts > 1) return env.REAL_B.fetch(request);
     if (env.SCENARIO === 'connection-refused') return new Response('E2E refused upgrade', { status: 503 });
+    if (env.SCENARIO === 'forged-peer-readiness') {
+      const headers = new Headers(request.headers);
+      const receipt = JSON.parse(headers.get('x-seams-yao-readiness-receipt'));
+      receipt.signature.bytes[0] ^= 1;
+      headers.set('x-seams-yao-readiness-receipt', JSON.stringify(receipt));
+      const rejected = await env.REAL_B.fetch(new Request(request, { headers }));
+      if (rejected.status < 400) throw new Error('B accepted a forged peer readiness receipt');
+      return rejected;
+    }
     const response = await env.REAL_B.fetch(request);
     const b = response.webSocket;
     if (!b) throw new Error('Expected B WebSocket');
@@ -147,7 +157,8 @@ async function requirePairState(worker, role, scope, credential, expectedState) 
 async function closedConnectionEvidence(proxy) {
   for (let attempt = 0; attempt < 100; attempt += 1) {
     const evidence = await (await proxy.fetch('https://custody.test/evidence')).json();
-    if (scenario === 'connection-refused' || (evidence.aClosed && evidence.bClosed)) return evidence;
+    if (scenario === 'connection-refused' || scenario === 'forged-peer-readiness'
+      || (evidence.aClosed && evidence.bClosed)) return evidence;
     await setTimeout(20);
   }
   assert.fail('The failed pair left an open peer connection');
@@ -202,13 +213,14 @@ try {
   };
   const aBinding = await topology.getWorker('deriver-a');
   const bBinding = await topology.getWorker('deriver-b');
-  const expectedBState = scenario === 'connection-refused' ? 'prepared' : 'burned';
+  const rejectedBeforeClaim = scenario === 'connection-refused' || scenario === 'forged-peer-readiness';
+  const expectedBState = rejectedBeforeClaim ? 'prepared' : 'burned';
   await requirePairState(aBinding, 'deriver-a', scope, roleCredential, 'burned');
   await requirePairState(bBinding, 'deriver-b', scope, roleCredential, expectedBState);
   const proxy = await topology.getWorker('disconnect-proxy');
   const interrupted = await closedConnectionEvidence(proxy);
   assert.equal(interrupted.connectionAttempts, 1, 'Both setup operations start even if A root loading fails');
-  assert.equal(interrupted.connections, scenario === 'connection-refused' ? 0 : 1);
+  assert.equal(interrupted.connections, rejectedBeforeClaim ? 0 : 1);
   if (scenario === 'protocol-disconnect') {
     assert.equal(interrupted.disconnected, true);
     assert.ok(interrupted.aMessages >= 1);

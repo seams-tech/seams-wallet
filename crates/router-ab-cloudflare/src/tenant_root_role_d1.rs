@@ -3838,7 +3838,7 @@ impl TenantRootRoleD1MetadataV1 {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 struct TenantRootRoleD1RowV1 {
     tenant_identity_digest_hex: String,
     custody_lineage_b64u: String,
@@ -11159,22 +11159,8 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         custody_lineage: TenantRootCustodyLineageId,
         epoch: TenantRootShareEpoch,
     ) -> RoleStoreResult<Option<CloudflareStoredTenantRootRoleShareV1>> {
-        let identity_digest_hex = encode_hex(identity_digest.as_bytes());
-        let custody_lineage_b64u = custody_lineage.to_base64url();
-        let epoch = epoch_i64(epoch)?.to_string();
         let row = self
-            .session
-            .prepare(LOAD_EPOCH_SQL)
-            .bind_refs(
-                [
-                    RoleSqlValue::Text(identity_digest_hex.as_str()),
-                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
-                    RoleSqlValue::Text(epoch.as_str()),
-                    RoleSqlValue::Text(self.cipher.role.as_str()),
-                ]
-                .iter(),
-            )?
-            .first::<TenantRootRoleD1RowV1>(None)
+            .load_epoch_row_by_identity_digest(identity_digest, custody_lineage, epoch)
             .await?;
         self.open_row(row).await
     }
