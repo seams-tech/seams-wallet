@@ -586,8 +586,18 @@ pub struct CloudflareEd25519YaoPairPrepareRequestV1 {
     pub input: Ed25519YaoEncryptedInputV1,
 }
 
-/// Exact pair, encrypted A input, and both readiness receipts sent to the A
-/// execute-pair route.
+/// Both sealed role inputs for preparation and execution in A's wallet object.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CloudflareEd25519YaoPairCeremonyRequestV1 {
+    pub pair_binding: Ed25519YaoInputPairBindingV1,
+    pub tenant_root: CloudflareEd25519YaoTenantRootContextV2,
+    pub work: CloudflareEd25519YaoPairWorkV1,
+    pub input_a: Ed25519YaoEncryptedInputV1,
+    pub input_b: Ed25519YaoEncryptedInputV1,
+}
+
+/// Prepared execution input after both roles admit the exact pair.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareEd25519YaoPairExecuteRequestV1 {

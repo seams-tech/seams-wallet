@@ -1,3 +1,5 @@
+#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
+mod ceremony;
 mod snapshot;
 use router_ab_core::{
     burn_ed25519_yao_pair_v1, claim_ed25519_yao_pair_v1, complete_ed25519_yao_pair_v1,
@@ -49,8 +51,6 @@ pub(crate) const SOURCE_FENCE_PATH: &str = "/router-ab/internal/deriver-a/wallet
 pub(crate) const PREPARATION_PATH: &str = "/router-ab/internal/deriver-a/wallet/prepare-relocation";
 
 const PAIR_DO_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair";
-#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
-const PREPARE_WORK_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair/prepare-work";
 #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 const EXECUTE_WORK_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair/execute-work";
 #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
@@ -288,11 +288,6 @@ pub(crate) async fn call_deriver_a_wallet_do_lookup_v1<T: Serialize>(
 }
 
 #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
-pub(crate) const fn deriver_a_wallet_do_prepare_work_path_v1() -> &'static str {
-    PREPARE_WORK_PATH
-}
-
-#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 pub(crate) const fn deriver_a_wallet_do_execute_work_path_v1() -> &'static str {
     EXECUTE_WORK_PATH
 }
@@ -383,7 +378,7 @@ impl DurableObject for RouterAbDeriverAWalletDurableObject {
         let result = self.fetch_wallet_request(request).await;
         #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
         let result = match result {
-            Err(error) if path == PREPARE_WORK_PATH || path == EXECUTE_WORK_PATH => {
+            Err(error) if path == EXECUTE_WORK_PATH => {
                 let message = error.to_string();
                 crate::strict_worker::cloudflare_role_failure_response_v1(
                     router_ab_core::RouterAbProtocolError::new(
@@ -447,16 +442,9 @@ impl RouterAbDeriverAWalletDurableObject {
                 Response::from_json(&response)
             }
             #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
-            PREPARE_WORK_PATH => {
-                let work: CloudflareEd25519YaoPairPrepareRequestV1 = request.json().await?;
-                let receipt = self.prepare_work(work).await?;
-                Response::from_json(&receipt)
-            }
-            #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
             EXECUTE_WORK_PATH => {
-                let work: CloudflareEd25519YaoPairExecuteRequestV1 = request.json().await?;
-                let outcome = self.execute_work(work).await?;
-                Response::from_json(&outcome)
+                let work: crate::CloudflareEd25519YaoPairCeremonyRequestV1 = request.json().await?;
+                self.execute_ceremony(work).await
             }
             #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
             STATUS_WORK_PATH => {

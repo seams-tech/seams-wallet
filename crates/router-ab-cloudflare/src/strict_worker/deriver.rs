@@ -721,30 +721,8 @@ async fn handle_strict_deriver_fetch_v1(
     }
 
     #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
-    if path == CLOUDFLARE_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH {
-        let work: crate::CloudflareEd25519YaoPairPrepareRequestV1 =
-            match parse_strict_deriver_json_v1(
-                &mut request,
-                "Deriver A wallet DO preparation".into(),
-            )
-            .await?
-            {
-                Ok(parsed) => parsed,
-                Err(response) => return Ok(response),
-            };
-        return crate::durable_object::call_deriver_a_wallet_do_work_v1(
-            &env,
-            crate::durable_object::deriver_a_wallet_do_prepare_work_path_v1(),
-            &work.pair_binding,
-            &work.tenant_root,
-            &work,
-        )
-        .await;
-    }
-
-    #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
     if path == CLOUDFLARE_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH {
-        let work: crate::CloudflareEd25519YaoPairExecuteRequestV1 =
+        let work: crate::CloudflareEd25519YaoPairCeremonyRequestV1 =
             match parse_strict_deriver_json_v1(&mut request, "Deriver A wallet DO execution".into())
                 .await?
             {
