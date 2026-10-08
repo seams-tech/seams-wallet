@@ -1,7 +1,7 @@
 # Regional execution without routine Console calls
 
-Status: regional OTP counters and wallet-counter relocation are implemented. Local regional, authorization-transfer, and browser OTP acceptance pass. The dedicated counter binding and allocation requirement are removed. No new database approval is required. Rebuilding the deployable candidate, coordinated staging rollout, and hosted measurements remain open.
-Date: October 6, 2026. Updated: October 7, 2026.
+Status: regional OTP counters and wallet-counter relocation are implemented. Local regional, authorization-transfer, and browser OTP acceptance pass. Hosted NEAR comparisons now cover Phase 6AE. The accepted delivery overlap is committed on `dev`, and the original staging versions are restored. The three-to-four-second registration-to-signature target remains unmet.
+Date: October 6, 2026. Updated: October 9, 2026.
 
 ## Objective
 
@@ -4702,3 +4702,95 @@ ceremony. It will send packages only after role execution succeeds and retain
 durable installation before success.
 
 [Sanitized comparison and verification evidence](evidence/near-early-yao-connection-20261009.json).
+
+### Phase 6AE — overlap Signing Worker delivery with Yao (2026-10-09)
+
+**Retain this optimization.** Router starts the authenticated delivery request
+before A/B preparation. Signing Worker forwards its headers to the exact wallet
+DO before the package body exists. Router sends the body only after both role
+outcomes pass validation. Success still requires durable installation and its
+receipt. The request carries the exact wallet scope, home and ownership generation.
+
+The implementation uses the existing HTTP endpoint with a streamed body. It adds
+no infrastructure, environment variables or compatibility path. It preserves root
+and revocation checks, admission, relocation fencing and exact replay. Source-
+preserving operations retain their existing distinct protocol. Wallet implementation
+commit: `e8a8d8fe31a73d0b738f7fa3ea25426c0d349d56` on `dev`.
+
+Three fresh implicit, unfunded NEAR wallets ran in each sequential arm. The same
+corrected NEP-413 SDK, Gateway, Runtime, Console, A/B versions and placement stayed
+fixed. Only Router and Signing Worker delivery changed. The final control restored
+the baseline versions. All captured invocation versions matched in all retained arms.
+
+| Workload | Baseline median (range) | Candidate median (range) | Final control median (range) |
+| --- | ---: | ---: | ---: |
+| Yao execute HTTP | 3.764 s (3.716–4.183) | **3.088 s (2.848–3.449)** | 3.787 s (3.662–9.956) |
+| Delivery wait after role execution | 476 ms (418–527) | **84 ms (66–91)** | 485 ms (428–710) |
+| SDK registration | 7.848 s (7.361–8.066) | **6.505 s (6.488–7.375)** | 7.813 s (7.291–13.706) |
+| Browser registration → verified signature | 10.738 s (9.934–11.590) | **9.194 s (9.164–10.826)** | 11.583 s (9.956–16.174) |
+| Finalization HTTP | 1.524 s (1.482–1.646) | 1.546 s (1.243–1.806) | 1.696 s (1.538–1.823) |
+
+The post-execution delivery median decreased by **392 ms (82.4%)**. The Yao HTTP
+median decreased by **675 ms (17.9%)** against baseline and **698 ms (18.4%)**
+against the final control. The candidate DO waited **1.631 s (1.571–1.713)** for
+the body. That confirms that the request reached the DO during the ceremony.
+The entire delivery exchange lasted 2.316 s, but most of it overlapped Yao work.
+Do not add these nested spans.
+
+The full-flow median improved by 1.544 s against baseline. Other stages varied,
+so the entire difference cannot be attributed to delivery overlap. The final
+control included a 6.894 s authorization outlier, which explains most of its
+9.956 s maximum Yao request. This experiment did not reduce cryptographic CPU work.
+The one-to-two-second Yao target and three-to-four-second full-flow target remain
+unmet. Three samples per arm cannot establish percentiles or a latency guarantee.
+Fresh wallets do not guarantee cold Workers.
+
+Request counts stayed unchanged. Each retained sample used 9–10 observed Gateway
+requests across registration and signing. Each arm recorded 33 Console HTTP calls
+for the three registrations. A scheduled Console event in the control is separate.
+Bound-root admission and execution still used **six D1 round trips and sixteen SQL
+statements per registration**, across A and B. These counters cover that subsystem,
+not every D1 call in the full flow. Per-path counts and raw timing samples are in
+the evidence file.
+
+Eight local Worker/DO E2E scenarios passed. They cover delivery failure, concurrent
+admission, lost replies, erasure replay, admission settlement, cancellation, forged
+acceptance and complete signing. A further in-flight test confirms that a pending
+upload cannot install packages after relocation closes its destination. Header/body
+mismatches for wallet, home and generation fail. Wrong service credentials fail.
+Exact replay preserves the receipt. An early delivery failure preserves completed
+role outcomes and reports a retryable service error; that test does not claim that
+the entire registration recovered. Independent Node verification accepted all nine
+retained NEP-413 proofs and rejected changes to signed fields. WASM checks, release
+builds and the repository bloat check passed.
+
+Review found a transport-error mapping that would have returned a client error.
+The implementation now preserves the existing retryable HTTP 500 classification.
+The failure scenario verifies that fix. The earlier rejected A/B connection code
+from Phase 6AD remains excluded.
+
+Rollout evidence is separate from the measured comparison. An early baseline
+reached the previous Console version and failed home completion. Two first-attempt
+candidate registrations reached the previous Router with the new Signing Worker.
+The new receiver rejected their missing delivery address. One matching invocation
+succeeded. These samples are excluded. The repeat checked Console serving traces,
+allowed two minutes after custody version changes, and audited all captured role
+versions. **Deploy matching Router and Signing Worker versions and verify actual
+serving versions before admitting registration traffic.** A fixed wait alone does
+not guarantee a correct rollout.
+
+Deployment preparation also found that the registration canary leaves active
+records until their ten-minute expiry. We preserved readiness checks and waited
+for expiry. This deployment delay is excluded from registration timings. No live
+records were deleted or rewritten to bypass readiness.
+
+All thirteen original Worker versions and their placement settings were restored
+and verified. Restoration activation `37825313247` succeeded. Tail processes
+stopped. No new Cloudflare resources were provisioned.
+
+The next measured bottlenecks are A/B execution (**1.434 s** median), pair
+preparation (**749 ms**) and Router authorization (**552 ms**). These spans include
+network waits. Further work should separate those waits from actual protocol CPU
+before changing the protocol or its authority checks.
+
+[Sanitized timings, version audit, proofs and restoration evidence](evidence/near-streamed-package-delivery-20261009.json).
