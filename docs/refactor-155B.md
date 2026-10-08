@@ -4491,3 +4491,78 @@ change requires a coordinated SDK and backend release. Repair artifacts remain i
 public `.artifacts/nep413-standard-20261008`.
 
 [Sanitized measurements, signature checks and restoration audit](evidence/near-registration-single-directory-completion-20261008.json).
+
+
+### Phase 6AB — locate Router-to-DO response delay (2026-10-08)
+
+The slow consume calls spend most of their elapsed time before the response
+headers arrive. Body reading is small. The measured DO stays alive across the
+registration. This run does not identify a safe transport change with a demonstrated
+speedup, so it retains the protocol and its first-consumer guard.
+
+- [x] Add separate request encoding, response-header, body-read and decode spans
+  to the real Router wallet call. Record byte counts without logging payloads.
+- [x] Pass the existing four-home E2E, including rejected credentials and homes,
+  lost startup replies, immediate execution and exact replay without repeated custody.
+- [x] Build all five strict release roles. Pass Rust formatting and exact-tree bloat checks.
+- [x] Run three fresh implicit NEAR registrations with matching SDK and backend builds.
+  Verify all three signatures independently with the standard NEP-413 payload.
+- [x] Check captured invocation versions against the frozen candidate versions.
+
+| Consume call boundary | Sample 1 | Sample 2 | Sample 3 |
+| --- | ---: | ---: | ---: |
+| Caller wait for response headers | 488 ms | 59 ms | 513 ms |
+| Caller response-body read | 0 ms | 0 ms | 4 ms |
+| DO provider wall time | 69 ms | 49 ms | 52 ms |
+| DO provider CPU time | 15 ms | 8 ms | 8 ms |
+
+Each consume was command four on its existing object instance. The previous
+command started 885, 366 and 865 ms earlier. Requests contained 472–474 bytes;
+responses contained 21,381–21,451 bytes. Claim response-header wait was
+**496 ms median (466–507 ms)**. Finish wait was **56 ms (51–104 ms)**.
+
+The difference points to dispatch or provider routing/scheduling outside the
+measured handler. It does not prove a specific Cloudflare mechanism. Response-header
+wait also includes receiver execution and storage completion. Separate clocks must
+not be subtracted to claim precise network time. Worker clocks do not advance during
+synchronous CPU work, so zero encoding/decode spans do not establish zero CPU cost.
+Actual physical execution locations were not remeasured.
+
+| Full workload | Median | Observed range |
+| --- | ---: | ---: |
+| Yao execute HTTP request | 3.903 s | 3.805–4.365 s |
+| Finalization HTTP request | 2.272 s | 1.982–2.725 s |
+| SDK registration | 8.765 s | 8.660–10.310 s |
+| Browser registration → verified NEP-413 signature | 11.482 s | 11.449–14.732 s |
+
+Only the NEAR signer loaded. Accounts were implicit and unfunded. The browser
+observed 9–10 Gateway requests per sample; the evidence records each sample's
+actual count. Gateway-wide D1 and backend Console counts remain unavailable.
+This is a diagnostic arm, not a controlled latency improvement. Keep the Phase 6AA
+comparison unchanged. The registration and Yao setup targets remain unmet.
+
+The corrected NEP-413 SDK and backend were deployed together for this experiment.
+Independent Node verification passed for all three saved signatures. Altered message,
+recipient, nonce and callback fields were rejected. Transport state remained outside
+the signed payload. These hosted messages had no callback URL; the earlier local
+verification covers a signed callback URL and empty/nonempty transport state.
+
+The next bounded optimization candidate is to combine Console home completion and
+wallet display projection in one authenticated command. The current finalization
+waits for both calls separately. Projection alone took 75–86 ms inside Console,
+excluding its network wait. Keep required writes awaited, preserve exact retries,
+and remove the separate projection request only after the combined command is verified.
+This candidate addresses a separate avoidable round trip; it does not explain the
+Router-to-DO delay. Its end-to-end saving is unmeasured. Avoid another handle cache,
+keepalive loop, payload rewrite or protocol rewrite without supporting evidence.
+
+Two setup failures produced no registration samples: an empty saved placement block
+failed Wrangler validation, and the first browser launcher loaded two Playwright
+installations. The placement block was removed, and the frozen SDK's launcher passed.
+The artifacts retain both failures. No new resources or package release were required.
+
+[Sanitized traces, standard signature proofs and deployment audit](evidence/near-router-transport-20261008.json).
+
+All thirteen original Worker versions and the five regional placement settings were
+restored and checked. Restoration activation run `37795353494` succeeded.
+The timing instrumentation is committed on public `dev` as `fbc8be904fdeebb096a6ed055bb23d2ffdec6c30`.
