@@ -3870,3 +3870,124 @@ Next candidates:
    authorization and material checks. No further latency saving is assumed.
 
 [Sanitized samples, source hashes, replay evidence and deployment audits](evidence/near-finalize-read-20261008.json).
+
+
+## Phase 6U — prioritize implicit NEAR registration and the first signature
+
+The required target is **registration through an independently verified signature
+below 3–4 seconds**, ideally 1–2 seconds. **Yao setup must be below 1–2 seconds**.
+The earlier 22.739-second transaction result does not meet either objective.
+
+These NEAR-only benchmarks already select `implicit_account`, with account IDs
+derived from the Ed25519 public key. They do not create sponsored named accounts.
+The `/wallets/register/near-provisioning` operation installs signer records,
+recovery material, wallet authority and the first session. Its 2.898-second median
+in Phase 6T was server finalization, not a named-account creation transaction.
+The later funding request is a separate effect in the first transaction flow.
+
+The most recent SDK/Gateway experiments restored the original custody Workers
+between runs. Their 6.679-second Yao result therefore does not represent the
+combined accepted custody implementation. This phase measures all accepted
+custody changes together with the current SDK and Gateway.
+
+- [x] Remove three duplicate ceremony reads from a fresh NEAR finalization.
+  Load one record inside the claimed operation, then pass it to identity
+  resolution, owner proof creation and finalization. Keep fresh identity reads,
+  expiry checks, operation receipts and database commit checks. No cross-request
+  cache is added. ECDSA finalization also reuses its post-activation record.
+- [x] Correct the local lost-reply fixture to preserve the wallet-home binding.
+  The unchanged baseline failed before finalization because the fixture called
+  the raw Router binding. The corrected fixture verifies an exact transport retry.
+- [x] Verify first signing, refresh, a lost finalization write, and ECDSA/mixed
+  activation response loss through the browser contracts.
+- [x] Add a separate implicit-registration benchmark whose first operation signs
+  a NEP-413 message. Verify the signature independently and reject an altered
+  message. Assert that no funding request occurs. Record background chain reads.
+- [x] Measure the combined candidate on existing staging resources. Preserve the
+  original funded transaction workload as a separate measurement.
+- [x] Record sample medians, ranges, maxima, stage timings and serving versions.
+  Restore the previous deployment and complete its normal tenant activation.
+
+The new message workload excludes a funding prerequisite by exercising a real
+operation that requires no funding. It must not be presented as a speedup over
+the earlier funded transaction workload. Browser elapsed times include automation.
+Missing D1 or backend Console telemetry remains unknown, not zero.
+
+### Measured result — 2026-10-08
+
+**The targets remain unmet.** Across all six fresh candidate wallets, SDK
+registration measured **10.409 s median**, range **8.873–11.017 s**. Yao execute
+measured **4.530 s**, range **3.038–4.836 s**. Server finalization measured
+**2.510 s**, range **1.936–3.593 s**. Both candidate workloads use the same
+registration flow before their different first-signing operations.
+
+The message comparison used three fresh wallets per arm. The candidate combined
+the accepted custody changes through Phase 6P with the current Gateway and SDK.
+The control used the restored original deployments. This comparison does not
+isolate the three-read reduction.
+
+| Measurement | Restored control: median (range) | Combined candidate: median (range) |
+| --- | --- | --- |
+| SDK registration | 12.769 s (12.679–15.895) | 10.422 s (8.873–11.017) |
+| Yao execute HTTP | 5.852 s (5.663–6.339) | 3.304 s (3.038–4.836) |
+| Server finalization HTTP | 2.932 s (2.569–3.140) | 2.684 s (2.277–3.593) |
+| Registration through first verified message | 16.041 s (15.271–19.185) | 13.181 s (12.079–14.497) |
+
+The separate funded transaction workload used three more fresh candidate wallets.
+Registration through the first verified transaction measured **18.619 s median**,
+range **18.363–18.972 s**. Funding alone measured **3.772 s**, range **2.800–3.847 s**.
+Yao execute measured **4.539 s**, range **4.522–4.744 s** in this cohort.
+Prepare, client share creation and finalize together measured **1.355 s**,
+range **1.336–1.831 s**, for its first signatures.
+
+Every registration response confirmed `implicit_account`, derived from the
+Ed25519 public key. No named account was created. Message signing made no funding
+request. Background access-key reads can still occur. The transaction workload
+includes funding and transaction-context acquisition. These workload totals must
+remain separate. Browser lifecycle timings also include automation and UI settlement.
+
+The traces still show substantial orchestration work around Yao. Median parallel
+A/B preparation measured **573 ms** in the message cohort and **1,075 ms** in the
+transaction cohort. B connection measured **804 / 984 ms**. A protocol spans measured
+**512 / 503 ms** and B protocol spans measured **571 / 801 ms**. The final package
+delivery measured **112 / 531 ms**. Application clocks can freeze during CPU work.
+Provider CPU covers whole invocations. Stage medians must not be added.
+
+Fresh NEAR finalization now reads its ceremony **twice instead of five times**.
+This is a static count for that record within operation preparation and execution.
+It excludes other registration queries and deployment checks. No Gateway-wide
+D1 count was available. Backend Console call counts also remain unknown.
+
+Six relevant local browser scenarios passed. They cover NEAR signing and refresh,
+quota exhaustion, deferred finalization recovery, ECDSA/mixed activation response
+loss, and exact Router retry after a discarded response. The unchanged baseline
+also failed the original retry fixture because its wrapper dropped the wallet-home
+binding. The one-line fixture correction retained that binding. An additional
+terminal-burn scenario could not validate its fault condition with the release
+build, which deliberately omits that local injection hook. Its classification is
+`environment_or_infrastructure_failure`. Server builds and exact-tree bloat checks passed.
+
+The hosted run verified **27 signatures across nine fresh wallets**. Serving-version
+audits passed for all three arms. All thirteen original staging Worker versions
+were restored. Normal tenant activation then succeeded in run `37749204515`.
+No additional resources, production deployment or package release occurred.
+APAC home hints were retained. Physical colocation and cold-start state were not
+remeasured. These small sequential samples establish neither percentiles nor
+a maximum latency guarantee.
+
+Implementation commits on `dev`: `e62c1513` and `3b1a169b`.
+[Sanitized samples, protocol spans, source hashes and deployment audits](evidence/near-registration-critical-path-20261008.json).
+
+### Remaining critical registration changes
+
+1. Consolidate pure-NEAR pending activation and finalization into one idempotent
+   operation. Remove the separate activation request and duplicate client checkpoint.
+   Retain recovery acknowledgement, identity reservations, lost-reply recovery,
+   cleanup and session issuance. ECDSA and mixed registration still require their
+   real activation behavior. This change is not implemented.
+2. Combine passkey response verification with Yao admission. Return the existing
+   bound admission receipt after proof verification. Preserve home, authority and
+   replay checks. This change is not implemented.
+3. Reduce role preparation and B connection delays while preserving role isolation
+   and durable replay checks. Prior rejected single-connection experiments remain
+   rejected. Measure transport changes before claiming a setup saving.
