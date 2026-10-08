@@ -4794,3 +4794,80 @@ network waits. Further work should separate those waits from actual protocol CPU
 before changing the protocol or its authority checks.
 
 [Sanitized timings, version audit, proofs and restoration evidence](evidence/near-streamed-package-delivery-20261009.json).
+
+### Phase 6AF — early Deriver A execution request (2026-10-09)
+
+**Reject this candidate.** Opening A's execution request during preparation did
+not produce a consistent latency gain. The accepted Phase 6AE implementation stays
+on `dev`. Candidate source, builds and the patch remain in the local experiment
+artifacts. None of the candidate production code or test helpers is retained.
+
+The candidate sent authenticated wallet routing metadata before the execution
+body. Router released the body only after validating both readiness receipts.
+A forwarded the request to its wallet DO before reading the body. The DO checked
+the exact address, bounded the body wait, and checked relocation again after the
+wait. Root admission, revocation checks, protocol execution and durable replay
+kept their existing behavior. The replaced internal execution route was removed
+from the candidate.
+
+Three fresh implicit, unfunded NEAR wallets ran in each sequential arm. Baseline
+included accepted streamed Signing Worker delivery. The candidate changed only
+Router and Deriver A. The final control restored their baseline versions. The SDK,
+Gateway, Runtime, Console, B, Signing Worker and requested APAC placement stayed
+fixed. All captured invocation versions matched. All nine registrations and
+independent NEP-413 signature verifications succeeded. No sample was excluded.
+
+| Workload | Baseline median (range) | Candidate median (range) | Final control median (range) |
+| --- | ---: | ---: | ---: |
+| Yao execute HTTP | 3.338 s (2.624–3.576) | 3.104 s (2.720–3.610) | 2.976 s (2.901–3.673) |
+| A execution after readiness | 1.654 s (1.084–1.734) | 1.468 s (1.322–1.582) | 1.451 s (1.417–1.463) |
+| A connection to B | 697 ms (257–717) | 764 ms (723–855) | 732 ms (639–739) |
+| SDK registration | 7.263 s (6.515–7.753) | 6.952 s (6.317–8.293) | 7.322 s (6.332–7.326) |
+| Browser registration → verified signature | 9.909 s (9.190–10.847) | 9.912 s (9.171–10.830) | 9.958 s (9.174–10.066) |
+| Finalization HTTP | 1.624 s (1.620–2.012) | 1.694 s (1.436–1.760) | 1.494 s (1.364–1.920) |
+
+A's DO waited **193 ms (72–220)** for the candidate body. The request therefore
+arrived before preparation completed. However, remaining execution latency did
+not beat the final control. Candidate Yao median improved by 234 ms against the
+first baseline and worsened by 127 ms against the control. The full-flow median
+stayed near 9.9 seconds. This evidence does not justify the added request contract
+and deployment coupling. It does not establish that overlap can never help.
+
+The candidate's A/B protocol spans had medians of **280/291 ms**. The final
+control recorded **284/349 ms**. These spans include transport. Worker clocks also
+do not advance during synchronous CPU work. These figures cannot establish pure
+cryptographic CPU time. A's connection to B still took about **0.7–0.8 seconds**.
+The one-to-two-second Yao target and three-to-four-second full-flow target remain
+unmet. Three samples per arm do not establish percentiles or guarantees.
+
+Each sample used 9–10 observed Gateway requests. Each arm recorded 33 Console
+HTTP calls for registration. A separate scheduled event appeared in the control.
+Bound-root admission and execution retained **six D1 round trips and sixteen SQL
+statements per registration**, across A and B. These counts cover that subsystem,
+not all backend D1 work. The candidate removed no request or D1 round trip.
+
+All five role release builds and eight local Worker/DO E2E scenarios passed.
+The tests covered concurrency, lost replies, erasure replay, admission settlement,
+cancelled root use, forged acceptance, early delivery failure and complete signing.
+The new test first expected a raw internal error, while production returns a
+structured refusal. Its assertion was corrected without changing production.
+
+Review also found that Miniflare's Node fetch proxy buffers request bodies.
+A pending Node request therefore did not prove an in-flight DO race. The final
+test constructed the stream inside workerd. DO command ordinals show execution
+entered first, then relocation reserved the destination. The body wait lasted
+254 ms, and execution failed after the reservation. Address mismatches also
+failed, and exact replay preserved the prior outcome. The bloat check passed.
+
+All thirteen original Worker versions and placement settings were restored and
+read back. Restoration activation `37831446437` succeeded. Tail processes stopped.
+No new Cloudflare resources were provisioned.
+
+The next candidate should remove a setup round trip between A and B. Evaluate
+carrying B preparation on the authenticated peer connection, with independent
+B admission and signed readiness checks before protocol execution. Keep fresh
+root checks and durable replay. The earlier eager-connection experiment remains
+rejected. Compare the combined exchange against both baseline arms before keeping
+its code. Registration-to-verified-signature time remains the acceptance metric.
+
+[Sanitized timings, version audit, proofs and restoration evidence](evidence/near-early-deriver-execution-20261009.json).
