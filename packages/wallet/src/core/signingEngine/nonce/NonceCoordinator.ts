@@ -145,6 +145,23 @@ const NEAR_NONCE_FRESHNESS_THRESHOLD_MS = 5_000;
 const NEAR_BLOCK_FRESHNESS_THRESHOLD_MS = 20_000;
 const NEAR_PREFETCH_DEBOUNCE_MS = 400;
 
+type NearRecoveryNonce =
+  | { readonly kind: 'observed'; readonly nonce: bigint }
+  | { readonly kind: 'unavailable'; readonly nonce?: never };
+
+async function readNearRecoveryNonce(
+  nearClient: NearClient,
+  subject: Pick<NearNonceLane, 'nearAccountId' | 'publicKey'>,
+): Promise<NearRecoveryNonce> {
+  try {
+    const accessKey = await nearClient.viewAccessKey(subject.nearAccountId, subject.publicKey);
+    if (isAccessKeyViewLike(accessKey)) {
+      return { kind: 'observed', nonce: BigInt(accessKey.nonce) };
+    }
+  } catch {}
+  return { kind: 'unavailable' };
+}
+
 export function createNonceCoordinator(deps: NonceCoordinatorDeps): NonceCoordinator {
   const leases = new Map<string, NonceLease>();
   const evmStates = new Map<string, EvmNonceLaneState>();
@@ -858,6 +875,9 @@ export function createNonceCoordinator(deps: NonceCoordinatorDeps): NonceCoordin
       return;
     }
 
+    // One chain observation covers every saved reservation for the same wallet key.
+    // Keep observations within this recovery pass so later passes read fresh chain state.
+    const nearRecoveryNonces = new Map<string, NearRecoveryNonce>();
     for (const readResult of readResults) {
       if (!readResult.ok) {
         if (readResult.leaseId) {
@@ -971,11 +991,12 @@ export function createNonceCoordinator(deps: NonceCoordinatorDeps): NonceCoordin
 
         if (record.family === 'near' && deps.nearClient) {
           try {
-            const accessKey = await deps.nearClient.viewAccessKey(
-              record.nearAccountId,
-              record.publicKey,
-            );
-            if (isAccessKeyViewLike(accessKey) && BigInt(accessKey.nonce) >= recordNonce) {
+            let observed = nearRecoveryNonces.get(canonicalLaneKey);
+            if (!observed) {
+              observed = await readNearRecoveryNonce(deps.nearClient, record);
+              nearRecoveryNonces.set(canonicalLaneKey, observed);
+            }
+            if (observed.kind === 'observed' && observed.nonce >= recordNonce) {
               await nonceLaneCoordinationStore.remove({
                 laneKey: record.laneKey,
                 leaseId: record.leaseId,

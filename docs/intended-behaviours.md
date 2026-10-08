@@ -865,6 +865,12 @@ Failure behaviour:
 
 ## Transaction Signing
 
+NEAR nonce recovery reads current chain state once per exact wallet/key lane in
+each recovery pass. It shares that observation across saved nonce reservations.
+A later pass reads the chain again. A failed read retains unexpired reservations.
+Reload and concurrent-tab coordination must still prevent reuse of an unexpired
+signed nonce. Existing expiry and chain-consumption rules remain unchanged.
+
 NEAR uses `signTransaction` for signing without broadcast, `signMessage` for the
 existing NEP-413 message operation, and `sendDelegateAction` for delegate relay
 submission. Message inputs and results retain their message, recipient, state,

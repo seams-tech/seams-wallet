@@ -1,5 +1,5 @@
 import { writeFile } from 'node:fs/promises';
-import { expect, type BrowserContext, type Request, type Route, type TestInfo } from '@playwright/test';
+import { expect, type BrowserContext, type Page, type Request, type Route, type TestInfo } from '@playwright/test';
 import { requireNonEmptyString, requireRecord } from '@shared/utils/validation';
 import { loadNodeDatabaseSync } from '@server/router/node/nodeSqlite';
 import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
@@ -364,4 +364,139 @@ async function verifyRetiredSessionRequiresUnlock(
 test(
   'NEAR prepare rejects a retired session without an owner-lane preflight and permits fresh unlock',
   verifyRetiredSessionRequiresUnlock,
+);
+
+function isAccessKeyRequest(request: Request): boolean {
+  if (request.method() !== 'POST') return false;
+  try {
+    const body = requireRecord(request.postDataJSON(), 'RPC request');
+    if (body.method !== 'query') return false;
+    const params = requireRecord(body.params, 'RPC query params');
+    return params.request_type === 'view_access_key';
+  } catch {
+    return false;
+  }
+}
+
+class NonceRecoveryEvidence {
+  accessKeyRequests = 0;
+  failNextAccessKeyRequest = false;
+  failedAccessKeyRequests = 0;
+  readonly signatures: { nonce: string; atMs: number; accessKeyRequests: number }[] = [];
+
+  record(request: Request): void {
+    if (isAccessKeyRequest(request)) this.accessKeyRequests += 1;
+  }
+
+  async interruptOnce(route: Route): Promise<void> {
+    if (!this.failNextAccessKeyRequest || !isAccessKeyRequest(route.request())) {
+      await route.fallback();
+      return;
+    }
+    this.failNextAccessKeyRequest = false;
+    this.failedAccessKeyRequests += 1;
+    await route.fulfill({ status: 503, body: 'Temporary NEAR RPC outage' });
+  }
+
+  async captureVerifiedNonce(page: Page, previousRequests: number): Promise<void> {
+    const text = await page.getByTestId('intended-result-json').textContent();
+    const snapshot = requireRecord(
+      JSON.parse(requireNonEmptyString(text, 'page snapshot')),
+      'snapshot',
+    );
+    const action = requireRecord(snapshot.action, 'page action');
+    const result = requireRecord(action.result, 'signing result');
+    expect(result.kind).toBe('near_sign_success');
+    const encoded = requireNonEmptyString(result.signedTransactionB64, 'signed transaction');
+    const bytes = Buffer.from(encoded, 'base64');
+    const signerLength = bytes.readUInt32LE(0);
+    const publicKeyOffset = 4 + signerLength;
+    expect(bytes[publicKeyOffset], 'Ed25519 key type').toBe(0);
+    const nonceOffset = publicKeyOffset + 1 + 32;
+    const nonce = bytes.readBigUInt64LE(nonceOffset);
+    this.signatures.push({
+      nonce: nonce.toString(),
+      atMs: Date.now(),
+      accessKeyRequests: this.accessKeyRequests - previousRequests,
+    });
+  }
+
+  async finish(testInfo: TestInfo): Promise<void> {
+    const artifact = testInfo.outputPath('near-nonce-recovery.json');
+    await writeFile(
+      artifact,
+      JSON.stringify(
+        {
+          signatures: this.signatures,
+          failedAccessKeyRequests: this.failedAccessKeyRequests,
+        },
+        null,
+        2,
+      ),
+    );
+    await testInfo.attach('near-nonce-recovery', {
+      path: artifact,
+      contentType: 'application/json',
+    });
+  }
+}
+
+async function verifyNonceRecovery(
+  {
+    harness,
+    context,
+    page,
+  }: { harness: IntendedBehaviourHarness; context: BrowserContext; page: Page },
+  testInfo: TestInfo,
+): Promise<void> {
+  const evidence = new NonceRecoveryEvidence();
+  const record = evidence.record.bind(evidence);
+  const interrupt = evidence.interruptOnce.bind(evidence);
+  await harness.registerPasskeyEd25519YaoWallet();
+  context.on('request', record);
+  await context.route('**/*', interrupt);
+  try {
+    let previousRequests = evidence.accessKeyRequests;
+    await harness.signNearTransaction('post_registration');
+    await evidence.captureVerifiedNonce(page, previousRequests);
+
+    // A failed chain read must retain the first unconsumed reservation.
+    evidence.failNextAccessKeyRequest = true;
+    previousRequests = evidence.accessKeyRequests;
+    await harness.signNearTransaction('post_registration');
+    await evidence.captureVerifiedNonce(page, previousRequests);
+    expect(evidence.failedAccessKeyRequests).toBe(1);
+
+    await harness.refreshPagePreservingWalletStorage();
+    previousRequests = evidence.accessKeyRequests;
+    await harness.signNearTransactionAfterRefresh();
+    await evidence.captureVerifiedNonce(page, previousRequests);
+    expect(evidence.accessKeyRequests).toBeGreaterThan(previousRequests);
+
+    const first = evidence.signatures[0];
+    const last = evidence.signatures[evidence.signatures.length - 1];
+    expect(
+      last.atMs - first.atMs,
+      'exercise reservations before their 30-second signed expiry',
+    ).toBeLessThan(30_000);
+    for (let index = 1; index < evidence.signatures.length; index += 1) {
+      const current = evidence.signatures[index];
+      const previous = evidence.signatures[index - 1];
+      expect(BigInt(current.nonce), 'do not reuse an unexpired signed nonce').toBeGreaterThan(
+        BigInt(previous.nonce),
+      );
+    }
+    // Recovery needs one query; fresh transaction context can need one more.
+    expect(last.accessKeyRequests).toBeGreaterThanOrEqual(1);
+    expect(last.accessKeyRequests).toBeLessThanOrEqual(2);
+  } finally {
+    context.off('request', record);
+    await context.unroute('**/*', interrupt);
+    await evidence.finish(testInfo);
+  }
+}
+
+test(
+  'NEAR nonce recovery preserves distinct signatures across reload, RPC failure and fresh recovery',
+  verifyNonceRecovery,
 );
