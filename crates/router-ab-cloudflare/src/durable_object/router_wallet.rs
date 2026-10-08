@@ -13,8 +13,9 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use worker::{durable_object, DurableObject, Env, Method, Request, Response, State};
 
 use crate::router_wallet::{
-    router_wallet_serve_v1, RouterWalletCommandV1, RouterWalletOwnerV1, RouterWalletRegistrationRecordV1,
-    RouterWalletRequestV1, RouterWalletResponseV1, RouterWalletStoreV1, REGISTRATION_KEY_PREFIX,
+    router_wallet_serve_v1, RouterWalletCommandV1, RouterWalletOwnerV1,
+    RouterWalletRegistrationRecordV1, RouterWalletRequestV1, RouterWalletResponseV1,
+    RouterWalletStoreV1, REGISTRATION_KEY_PREFIX,
 };
 use crate::{
     freeze_router_wallet_v1, transfer_router_wallet_v1, RouterWalletFreezeRequestV1,
@@ -103,10 +104,13 @@ impl RouterAbRouterWalletDurableObject {
             WalletCall::Freeze(_) => "freeze",
             WalletCall::Transfer(_) => "transfer",
         };
-        worker::console_log!("{}", serde_json::json!({
-            "event": "router_wallet_operation",
-            "operation": operation,
-        }));
+        worker::console_log!(
+            "{}",
+            serde_json::json!({
+                "event": "router_wallet_operation",
+                "operation": operation,
+            })
+        );
         let outcome = Rc::new(RefCell::new(None));
         let captured = Rc::clone(&outcome);
         self.state
@@ -146,7 +150,6 @@ impl RouterAbRouterWalletDurableObject {
     }
 }
 
-
 fn refusal_response(error: &RouterAbProtocolError) -> worker::Result<Response> {
     Response::from_json(&RouterWalletRefusalV1 {
         code: error.code(),
@@ -168,16 +171,20 @@ pub(crate) async fn call_router_wallet_v1(
         &request.owner,
         request.ownership_generation,
         COMMAND_PATH,
+        command_label(&request.command),
         request,
     )
     .await;
-    worker::console_log!("{}", serde_json::json!({
-        "event": "router_wallet_dispatch_timing",
-        "operation": command_label(&request.command),
-        "wallet_home": wallet_home,
-        "duration_ms": worker::Date::now().as_millis().saturating_sub(started_ms),
-        "outcome": if result.is_ok() { "success" } else { "failure" },
-    }));
+    worker::console_log!(
+        "{}",
+        serde_json::json!({
+            "event": "router_wallet_dispatch_timing",
+            "operation": command_label(&request.command),
+            "wallet_home": wallet_home,
+            "duration_ms": worker::Date::now().as_millis().saturating_sub(started_ms),
+            "outcome": if result.is_ok() { "success" } else { "failure" },
+        })
+    );
     result
 }
 
@@ -202,6 +209,7 @@ pub(crate) async fn call_router_wallet_freeze_v1(
         &request.owner,
         request.source_generation,
         ROUTER_WALLET_FREEZE_PATH_V1,
+        "freeze",
         request,
     )
     .await
@@ -218,6 +226,7 @@ pub(crate) async fn call_router_wallet_transfer_v1(
         request.owner(),
         request.ownership_generation(),
         ROUTER_WALLET_TRANSFER_PATH_V1,
+        "transfer",
         request,
     )
     .await
@@ -229,13 +238,16 @@ async fn call_wallet<Input: Serialize, Output: DeserializeOwned>(
     owner: &RouterWalletOwnerV1,
     ownership_generation: u64,
     path: &str,
+    operation: &'static str,
     request: &Input,
 ) -> RouterAbProtocolResult<Output> {
+    let lookup_started_ms = worker::Date::now().as_millis();
     let object_name = owner.object_name(ownership_generation)?;
     let stub = env
         .durable_object(BINDING)
         .and_then(|namespace| wallet_home.wallet_stub(&namespace, &object_name, "router"))
         .map_err(|error| unavailable(format!("Router wallet object binding failed: {error}")))?;
+    let encoding_started_ms = worker::Date::now().as_millis();
     let body = serde_json::to_string(request).map_err(|error| {
         RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::MalformedWirePayload,
@@ -247,25 +259,46 @@ async fn call_wallet<Input: Serialize, Output: DeserializeOwned>(
         .with_body(Some(worker::wasm_bindgen::JsValue::from_str(&body)));
     let outbound = Request::new_with_init(&format!("https://router-wallet.internal{path}"), &init)
         .map_err(|error| unavailable(format!("Router wallet object request failed: {error}")))?;
+    let fetch_started_ms = worker::Date::now().as_millis();
     let mut response = stub
         .fetch_with_request(outbound)
         .await
         .map_err(|error| unavailable(format!("Router wallet object call failed: {error}")))?;
+    let body_started_ms = worker::Date::now().as_millis();
     let status = response.status_code();
     let text = response.text().await.map_err(|error| {
         unavailable(format!(
             "Router wallet object answer is unreadable: {error}"
         ))
     })?;
-    if status == 200 {
-        return decode(&text, "answer");
-    }
-    match serde_json::from_str::<RouterWalletRefusalV1>(&text) {
-        Ok(refusal) => Err(RouterAbProtocolError::new(refusal.code, refusal.message)),
-        Err(_) => Err(unavailable(format!(
-            "Router wallet object answered HTTP {status}: {text}"
-        ))),
-    }
+    let decode_started_ms = worker::Date::now().as_millis();
+    let result = if status == 200 {
+        decode(&text, "answer")
+    } else {
+        match serde_json::from_str::<RouterWalletRefusalV1>(&text) {
+            Ok(refusal) => Err(RouterAbProtocolError::new(refusal.code, refusal.message)),
+            Err(_) => Err(unavailable(format!(
+                "Router wallet object answered HTTP {status}: {text}"
+            ))),
+        }
+    };
+    worker::console_log!(
+        "{}",
+        serde_json::json!({
+            "event": "router_wallet_transport_timing",
+            "operation": operation,
+            "wallet_home": wallet_home,
+            "lookup_ms": encoding_started_ms.saturating_sub(lookup_started_ms),
+            "encoding_ms": fetch_started_ms.saturating_sub(encoding_started_ms),
+            "response_headers_ms": body_started_ms.saturating_sub(fetch_started_ms),
+            "response_body_ms": decode_started_ms.saturating_sub(body_started_ms),
+            "decode_ms": worker::Date::now().as_millis().saturating_sub(decode_started_ms),
+            "request_body_bytes": body.len(),
+            "response_body_bytes": text.len(),
+            "status": status,
+        })
+    );
+    result
 }
 
 fn decode<T: DeserializeOwned>(text: &str, what: &str) -> RouterAbProtocolResult<T> {

@@ -30,6 +30,7 @@ class PlacementLog extends Log {
   placements = [];
   commands = [];
   routerDispatches = [];
+  routerTransport = [];
   storageReadiness = [];
 
   constructor() {
@@ -51,6 +52,7 @@ class PlacementLog extends Log {
       if (value.event === 'wallet_do_placement_requested') this.placements.push(value);
       if (value.event === 'wallet_do_command_timing') this.commands.push(value);
       if (value.event === 'router_wallet_dispatch_timing') this.routerDispatches.push(value);
+      if (value.event === 'router_wallet_transport_timing') this.routerTransport.push(value);
       if (value.event === 'wallet_startup_storage_observation') {
         this.storageReadiness.push(value);
         if (!value.initialized) console.error(JSON.stringify(value));
@@ -371,6 +373,7 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
     }
     return {
       home, generation, admissions, roleObjects, routerDispatches: log.routerDispatches,
+      routerTransport: log.routerTransport,
       routerCommands,
       routerExecuteHttpMs: lost.firstExecutionMs,
       lostStartupReplyAndImmediateExecution: true,
