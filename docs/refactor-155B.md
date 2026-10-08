@@ -3421,27 +3421,89 @@ in [run 37724107697](https://github.com/seams-tech/seams-monorepo/actions/runs/3
 and build hashes, all samples, request counts, E2E results, placement correlations,
 serving-version audits, limitations, and restoration evidence.
 
-### Phase 6P — initialize role storage during wallet startup
+### Phase 6P — initialize role storage during wallet startup (2026-10-08)
 
-The existing startup request wakes each wallet object. A, B, and the Signing
-Worker return before creating their SQLite tables. Their first normal request
-creates those tables before starting its required work. Move that existing
-initialization into the early startup path as well. Startup must create no owner,
-admission, activation, or protocol records.
+**Implemented and verified. The hosted results do not establish a repeatable
+setup gain.** The candidate median was **3.679 s**. The **1–2 second hosted Yao
+setup target remains unmet**.
 
-This is a measured candidate, with no promised latency saving. Cloudflare holds
-outbound messages until preceding storage writes complete. Earlier table creation
-may move this first-write wait away from Yao preparation and package delivery.
-Keep normal-request initialization for wallets that receive no startup request.
+Implementation: `b517d64d35716b8c1153648528ab88b42128b06b` on `dev`.
 
-- [x] Initialize A and B schemas before the startup response.
+Previously, A, B, and the Signing Worker returned from startup before creating
+their SQLite tables. The first required operation created them. Startup now
+initializes those existing schemas. Normal commands retain their initialization
+path for wallets that receive no startup request. No cached flag or new state is
+required.
+
+Cloudflare holds outbound messages until preceding storage writes complete.
+Earlier table creation can move this initial write away from required Yao work.
+This mechanism does not guarantee a lower complete setup time.
+[Cloudflare output gates](https://developers.cloudflare.com/durable-objects/best-practices/rules-of-durable-objects/).
+
+- [x] Initialize A and B schemas before returning the startup response.
 - [x] Share Signing Worker schema initialization between startup and valid commands.
-- [x] Extend the four-region E2E to inspect initialized, empty role stores after
-  startup. Preserve concurrent execution, lost replies, and forged-receipt checks.
-- [ ] Build the five strict roles and run the relevant E2Es.
-- [ ] Compare complete setup, startup, and delivery with controls before and after.
-  Keep the SDK, Gateway, runtime, role keys, and APAC hints fixed.
-- [ ] Record results and restore all original staging versions.
+- [x] Verify initialized, empty role stores in the four-home E2E.
+- [x] Preserve concurrent execution, lost replies, and forged-receipt checks.
+- [x] Pass five strict release builds, the other Workers host check, thirteen
+  local E2Es, and the exact-tree bloat check.
+- [x] Run the hosted comparison with fixed SDK, Gateway, runtime, role keys,
+  and APAC hints. Preserve the failed control attempt and its diagnosis.
+- [x] Record all results, audit serving versions, and restore staging after
+  the comparison. Verify that the cancelled optional retry made no live change.
 
-Other candidates remain session-status read consolidation and fewer D1 waits
-under the existing admission rules. This phase changes only storage startup.
+The old binaries fail the new storage-readiness check: all three startup handlers
+return with zero application tables. The candidate initializes **5 A tables,
+5 B tables, and 24 Signing Worker tables**. All tables contain zero rows after
+startup. The test verifies this in US, WEUR, APAC, and OC. It then discards startup
+and execution replies, repeats the requests, and verifies exact replay.
+Local inspection wrappers are absent from the hosted production binaries.
+
+Each successful fresh wallet produces seven verified NEAR signatures. These
+setup timings cover the browser's Yao execute HTTP request. They exclude funding,
+NEAR account provisioning, and the first signature.
+
+| Arm | Successful wallets / attempts | Median Yao setup | Observed range |
+| --- | ---: | ---: | ---: |
+| Control before | 3 / 3 | **3.908 s** | 3.871–4.881 s |
+| Candidate | 3 / 3 | **3.679 s** | 3.065–4.161 s |
+| Control after | 2 / 3 | **4.428 s** | 4.324–4.532 s |
+
+The failed control encountered `D1Error: Network connection lost` while A loaded
+its bound role share during preparation. The Gateway returned a retryable HTTP
+503, and the browser surfaced the error. This is an infrastructure failure on
+the baseline version. It remains in the evidence. The final control timings include
+its two successful wallets. Its server-stage statistics also include work from
+the failed attempt.
+
+The candidate median was 229 ms below the first control. The small sequential
+samples and variable controls do not establish a repeatable saving. In the first
+control and candidate, startup medians were **850 / 1,117 ms**. Signing Worker
+delivery medians were **519 / 444 ms**. Startup does more work earlier, but these
+stage timings do not prove which part caused the observed complete-request change.
+Application clocks freeze during CPU work. Provider CPU covers whole invocations.
+Do not add stage medians from different requests.
+
+Successful setups retain **six bound-root D1 calls and sixteen SQL statements**.
+These counts exclude other D1 work and local DO SQL. HTTP and logical protocol
+exchanges are unchanged. Warm and consecutive signatures use four Gateway
+requests each. Unlock through the first signature uses nine. Registration through
+the first signature uses fourteen or fifteen, depending on session-status polling.
+Authority, cancellation, execution claims, and relocation checks remain unchanged.
+
+Eight of nine attempted wallets completed, and **56 signatures verified**.
+All three candidate wallets passed. All captured serving versions matched.
+All thirteen original staging versions were restored. Activation passed in
+[run 37727820202](https://github.com/seams-tech/seams-monorepo/actions/runs/37727820202).
+The final version audit passed after refreshing the local Cloudflare login.
+An optional replacement control was cancelled before any live change because new
+unfinished registration records remained after restoration. Those records were
+preserved. No extra resources, production deployment, or npm release was required.
+
+Retain the small startup correction without claiming a proven hosted speedup.
+The next candidates are duplicate session-status reads and sequential D1 waits
+that can be removed while preserving admission. No further connection-reuse
+rewrite is justified by these results.
+
+[Sanitized evidence](evidence/near-storage-startup-20261008.json) contains all nine
+attempts, the failed-control diagnosis, the cancelled retry, raw sample hashes,
+request counts, local checks, build hashes, serving-version audits, and restoration.
