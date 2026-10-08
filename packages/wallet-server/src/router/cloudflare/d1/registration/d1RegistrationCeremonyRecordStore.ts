@@ -122,7 +122,15 @@ export class D1RegistrationCeremonyRecordStore {
   ): Promise<D1RegistrationCeremonyStoredRecord> {
     const key = this.normalizeKey(mutation.scope, mutation.id);
     const prepared = prepareValue(mutation.value, mutation.expiresAtMs);
-    await this.insert(key, prepared);
+    if (await this.insert(key, prepared) && prepared.expiresAtMs > Date.now()) {
+      // The acknowledged insert fixes this exact value at version one. A
+      // competing insert still reads the stored winner below.
+      return parseStoredRow({
+        version: 1,
+        record_json: prepared.recordJson,
+        expires_at_ms: prepared.expiresAtMs,
+      });
+    }
     const stored = await this.get(mutation.scope, mutation.id);
     if (!stored) throw conflict('Registration setup expired during persistence');
     return stored;
