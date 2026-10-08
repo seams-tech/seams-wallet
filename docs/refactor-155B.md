@@ -4023,7 +4023,7 @@ Implementation: public `dev` commit `dadf80a2` (507 net production lines removed
 Three fresh implicit wallets ran per arm on existing staging testnet resources.
 Both arms used the same custody Worker versions. The baseline used the preceding
 SDK/Gateway pair. The candidate used the matching new pair. Each wallet produced
-an independently verified NEP-413 message signature. Both arms loaded only the
+an independently verified SDK Ed25519 message signature. Both arms loaded only the
 NEAR signer and excluded funding and named-account creation.
 
 | Metric | Matched baseline median (range) | Candidate median (range) |
@@ -4113,7 +4113,7 @@ Do not claim that it produced the observed decrease in total registration time.
 Three fresh implicit wallets ran per arm. The SDK, browser harness, private
 Gateway source, and custody Worker versions stayed fixed. Only the Gateway's
 registration identity query changed. Each wallet produced one independently
-verified NEP-413 message. Funding and named-account provisioning were absent.
+verified SDK Ed25519 message. Funding and named-account provisioning were absent.
 
 | Measurement | Baseline median (range) | Candidate median (range) |
 | --- | ---: | ---: |
@@ -4187,7 +4187,7 @@ readback, without claiming a latency gain from this change.
 Three fresh implicit wallets ran per arm. One SDK and browser harness served both
 arms. Private Gateway source and all four custody Worker versions stayed fixed.
 Only the Gateway session-commit implementation changed. All six wallets produced
-independently verified NEP-413 messages. Funding and named-account provisioning
+independently verified SDK Ed25519 messages. Funding and named-account provisioning
 were absent.
 
 | Measurement | Baseline median (range) | Candidate median (range) |
@@ -4259,7 +4259,7 @@ needs its own matched baseline. This result does not establish a stable maximum.
 Both arms used one SDK, browser harness, private Gateway source and custody cohort.
 Only Gateway finalization scheduling, its founding-record read batch and diagnostics
 changed. The browser loaded only the NEAR signer. All six fresh implicit wallets
-produced independently verified NEP-413 messages, without funding or named-account
+produced independently verified SDK Ed25519 messages, without funding or named-account
 provisioning.
 
 | Measurement | Baseline median (range) | Candidate median (range) |
@@ -4324,3 +4324,170 @@ measurement candidate was frozen. **Its hosted latency saving is unmeasured.**
 Phase 6Y measured cleanup at 77ms median; that figure is a prior task duration,
 not an established end-to-end saving. Verification artifacts remain in
 `.artifacts/r155b-phase6z` and are included in the linked evidence.
+
+## Phase 6AA — complete the wallet home in one Console command
+
+Implementation: private `seams-monorepo` commit `eb8ff48` on `dev`.
+
+The Gateway previously looked up the ceremony in Console before it sent the
+completion command. Console then updated the directory and read the row again.
+The Gateway now sends its authenticated tenant scope, local home, wallet and exact
+ceremony in one command. Console validates the writer and returns the updated
+row with `UPDATE ... RETURNING`.
+
+Fresh directory completion uses **one Gateway-to-Console request and one directory
+D1 request**, down from two and three respectively. These counts cover this
+directory operation only. Regional execution-state writes and surrounding Console
+admission are additional work. An unchanged update still reads the row to distinguish
+an exact retry from a conflict.
+
+The change preserves tenant scope, writer home, ceremony ownership, active placement,
+timestamp ordering, terminal outcomes and the passkey cancellation guard. A lost
+response can be retried without changing the completed record. Recovery and custody
+data remain durable before successful registration. There is no old request format,
+new database, migration, cache or environment variable.
+
+- [x] Remove the Gateway directory preflight and completion readback.
+- [x] Pass directory and relocation E2E scenarios against real local D1.
+- [x] Exercise a lost completion response, exact replay, wrong ceremony and opposite outcome.
+- [x] Pass regional session routing, passkey claim/cancellation races and Google login scenarios.
+- [x] Build matching Gateway and Console bundles for both comparison arms.
+- [x] Compare three fresh implicit wallets per arm on staging.
+- [x] Independently verify SDK message signatures and serving versions.
+- [x] Restore all 13 original Worker versions and all five changed placement settings.
+- [x] Save sanitized final evidence.
+
+The broad matching-SDK type check reports six existing integration errors. The
+unchanged baseline reports the same errors. The ordinary installed-package check
+also lacks the newer custody-binding export. This change adds no type diagnostics.
+
+The comparison holds the SDK and custody versions constant. Both arms contain
+Phase 6Z background cleanup. The comparison therefore isolates Phase 6AA, without
+claiming a separate latency saving for Phase 6Z.
+
+### Hosted comparison, 2026-10-08
+
+Finalization fell from **2.543s to 2.405s median**, an observed reduction of
+**137ms (5.4%)**. The changed home-completion stage fell from **375ms to 275ms
+median**, a reduction of **100ms (26.7%)**. This improves one part of registration.
+The total registration target remains unmet.
+
+Each arm registered three fresh implicit NEAR wallets and signed one message per
+wallet. Only the NEAR signer loaded. The test did not fund accounts or provision
+named accounts. Both arms used the same SDK, public server source and custody
+Worker versions. Gateway and Console bundles differed only in Phase 6AA code.
+
+| Measurement | Matched baseline median (range) | Candidate median (range) |
+| --- | --- | --- |
+| Finalization HTTP | 2.543s (2.489–3.388s) | **2.405s (2.346–2.512s)** |
+| Home completion | 375ms (356–400ms) | **275ms (250–279ms)** |
+| SDK registration | 10.264s (9.038–10.693s) | 8.854s (7.691–9.070s) |
+| Browser registration → verified SDK message | 13.778s (12.769–14.015s) | 11.447s (11.373–12.202s) |
+| Yao execute HTTP, unchanged implementation | 4.629s (3.156–5.037s) | 3.256s (2.714–4.270s) |
+| Registration protocol HTTP requests per wallet | 4 | 4 |
+
+The unchanged Yao implementation also ran faster in the candidate arm. Thus the
+full registration difference cannot be attributed to Phase 6AA. Three sequential
+samples per arm establish neither percentiles nor a guaranteed maximum. Fresh
+wallets do not establish cold Workers or Durable Objects.
+
+Console tails recorded nine `find-by-ceremony` calls in the baseline and six in
+the candidate. This confirms one removed lookup per wallet. Each arm still made
+three completion calls and three wallet-projection calls. These are observations
+within the test windows, rather than a complete D1 or Console call census.
+Gateway-wide D1 counts remain unknown.
+
+The candidate's remaining finalization spans are:
+
+| Span | Median | Range | Relationship |
+| --- | --- | --- | --- |
+| Router activation consumption | 476ms | 116–606ms | Authenticated first-consumer claim and exact retry |
+| Capability installation | 159ms | 145–179ms | Runs alongside custody commit |
+| Custody commit | 285ms | 265–292ms | Must be durable before successful registration |
+| Session issuance | 323ms | 309–565ms | Follows durable wallet and custody installation |
+| Home completion | 275ms | 250–279ms | Phase 6AA operation |
+| Registration service total | 1.901s | 1.647–1.916s | Includes nested spans above |
+| Terminal cleanup | 71ms | 57–75ms | Background work from Phase 6Z |
+
+These spans overlap or nest. Do not add their medians. The HTTP response also
+awaits the Console wallet projection outside the service timer. Console-local
+projection work measured 115ms median, excluding the Gateway-to-Console journey.
+The remaining HTTP gap cannot be assigned wholly to that projection from this data.
+
+The Router consumption boundary remains a concrete optimization target. Its
+Worker-to-object dispatch measured **407ms median (76–523ms)** in the candidate.
+The object's provider wall time was **53ms median (47–61ms)**; CPU was **10ms**.
+The calling Router Worker used **4ms median CPU** and **419ms median wall time**.
+All six consume calls across both arms were the fourth command on an already
+running object instance. Candidate calls began 460–909ms after the previous command.
+Thus object construction does not explain this repeated wait. The clocks do not
+separate network, dispatch, response reading and other provider overhead precisely.
+
+Phase 6L already ruled out a simple fresh-handle penalty in no-op probes. Do not
+repeat that experiment or introduce a handle cache. The next measurement should
+split the real consumption call into request serialization, response-header arrival,
+response-body read and decode. Preserve the same wallet object and first-consumer
+claim. The session issuer also rereads active authority and publishes the credential
+route before its durable session commit. Measure these boundaries before removing
+reads. Preserve revocation and exact replay. Console projection needs durable
+delivery before it can leave the critical path.
+
+All six SDK message signatures verified with an independent Node crypto check.
+All six changed-message checks failed as expected. Serving-version audits matched
+all six participating roles in both arms. Worker placement settings matched the
+saved settings after each accepted deployment. Actual physical colocation was not
+remeasured.
+
+After the comparison, all **13 original Worker versions** and the original
+placement settings of the four Gateways and Console were restored and verified.
+Normal tenant activation and readiness passed in GitHub run `37786339927`.
+No new infrastructure, production deployment or package release was performed.
+
+Two earlier setup attempts are excluded. The first found a bundle output-path
+error before Gateway upload. The second used the Cloudflare API placement format
+in a Wrangler config, which removed placement. This was an experiment setup error.
+Explicit Wrangler region settings and post-deploy readback checks fixed it. Both
+accepted arms were then rerun. The excluded baseline is retained in local artifacts.
+
+Raw artifacts: private `.artifacts/r155b-phase6aa-hosted` and
+`.artifacts/r155b-phase6aa`. Committed evidence contains aggregate spans, request
+counts, public signature proofs, bundle hashes and deployment audits. It excludes
+raw request credentials, deployment secrets and tail logs.
+
+### Separate finding: NEP-413 encoding does not match the standard
+
+Classification: **pre-existing production regression**, found by an independent
+standards check. This is separate from Phase 6AA directory completion.
+
+The frozen SDK signs `message, recipient, nonce, state`. The
+[NEP-413 specification](https://github.com/near/NEPs/blob/master/neps/nep-0413.md)
+requires `message, nonce, recipient, callbackUrl`. The Rust encoder in
+`crates/signer-core/src/near_threshold_ed25519.rs` and the browser harness both
+use the SDK layout. Thus the existing E2E verification can pass while an external
+standards verifier rejects the signature.
+
+Node crypto verifies the captured signatures against the SDK payload and rejects
+altered messages. It rejects the same signatures against an independently encoded
+standard payload with no callback URL. The benchmark passes cryptographic
+verification, but it does **not** prove NEP-413 interoperability. Earlier message
+benchmark labels must be read with this correction. Transaction-signing measurements
+are a separate workload.
+
+The signing implementation is frozen in this latency comparison. The separate
+repair is committed on public `dev` as `127dd7eca7ebb4346b14316832a462cd91dba31b`.
+It updates the Rust, WASM, SDK and Router encoders to the standard field order.
+It preserves `state` as transport data and removes the incorrect wire layout.
+
+The repaired implementation passes the published NEP example, the existing browser
+signing flow across refresh, and independent verification of both saved signatures.
+The checks bind the callback URL, preserve empty/nonempty state and reject altered
+signed fields. Six anti-drift checks, three Router vector checks, 33 Verus proofs,
+type checks and the exact-tree bloat check pass. Generated bindings are unchanged.
+
+This repair used local Workers, virtual WebAuthn and stubbed NEAR RPC. Its native
+VM launcher was blocked by an unrelated schema checker, which remains unchanged.
+No repaired SDK or Router was deployed during the latency comparison. The encoding
+change requires a coordinated SDK and backend release. Repair artifacts remain in
+public `.artifacts/nep413-standard-20261008`.
+
+[Sanitized measurements, signature checks and restoration audit](evidence/near-registration-single-directory-completion-20261008.json).
