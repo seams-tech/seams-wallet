@@ -4871,3 +4871,84 @@ rejected. Compare the combined exchange against both baseline arms before keepin
 its code. Registration-to-verified-signature time remains the acceptance metric.
 
 [Sanitized timings, version audit, proofs and restoration evidence](evidence/near-early-deriver-execution-20261009.json).
+
+
+### Phase 6AG — run coordination inside the Router wallet object (2026-10-09)
+
+**Reject this candidate.** It removed one Router-to-object request per registration,
+but Yao setup was slower than both controls. The accepted Phase 6AE implementation
+stays on `dev`. Candidate production code and its test changes remain only in the
+local experiment archive. The one-to-two-second Yao target and three-to-four-second
+registration-through-first-signature target remain unmet.
+
+The candidate forwarded the authenticated ceremony into its existing Router wallet
+DO. Claim and completion used the existing storage transactions inside that object.
+Finalization still consumed the stored result through its separate authorized call.
+The object checked the exact wallet and ownership generation before any transition.
+A and B preparation stayed parallel. Root admission, fresh cancellation checks,
+claim generations, replay, and relocation fences retained their behavior.
+
+Three fresh implicit, unfunded NEAR wallets ran in each sequential arm. The baseline
+included accepted streamed Signing Worker delivery. Only Router changed for the
+candidate. SDK, Gateway, Runtime, Console, A, B, Signing Worker, bindings, and requested
+APAC placement stayed fixed. Builds and local checks finished before timed runs.
+Every captured invocation version matched its expected version. All nine registrations
+and independent Node NEP-413 verifications passed. No timing sample was excluded.
+
+| Workload | Baseline median (range) | Candidate median (range) | Final control median (range) |
+| --- | ---: | ---: | ---: |
+| Yao execute HTTP | 2.870 s (2.736–3.437) | 3.517 s (3.355–3.634) | 3.109 s (2.683–3.153) |
+| SDK registration | 7.191 s (6.611–7.265) | 7.030 s (6.695–7.538) | 6.895 s (5.958–7.110) |
+| Browser registration → verified NEP-413 signature | 9.960 s (9.147–10.093) | 9.949 s (9.173–10.829) | 9.306 s (8.378–9.930) |
+| Finalization HTTP | 1.749 s (1.598–1.829) | 1.286 s (1.267–1.593) | 1.592 s (1.167–1.693) |
+
+Yao median increased by **647 ms** against the first baseline and **408 ms** against
+the final control. Parallel preparation measured **677 / 1,114 / 748 ms** across the
+three arms. A execution measured **1,326 / 1,488 / 1,561 ms**. A's connection to B
+measured **610 / 290 / 673 ms**. The faster candidate connection did not produce a
+faster whole setup. These spans overlap and include transport. Worker clocks freeze
+during synchronous CPU work. They do not identify the provider mechanism behind
+the variation or isolate cryptographic CPU time.
+
+The request reduction was real: claim, completion, and consumption previously used
+three Router wallet requests per registration. The candidate used one execution
+request plus one consumption request. The storage transitions remained unchanged.
+Bound-root work retained **six D1 round trips and sixteen SQL statements** per
+registration. This count excludes other D1 work and local object SQL. Gateway
+requests were **9–10 / 10 / 9–10** per sample. Each arm recorded **33 Console HTTP
+calls**. The final control also recorded one scheduled Console invocation.
+
+All five role release builds, the generic Workers host check, and nine local E2E
+scenarios passed. Checks covered concurrent claims, lost replies, erasure replay,
+admission settlement, cancelled root use, forged acceptance, early delivery failure,
+and all four homes. The four-home test rejected a valid request sent to another
+wallet object before any claim. The exact-tree bloat check passed.
+
+Two harness defects were corrected for this candidate. Miniflare's object binding
+needed a URL and request fields instead of a Node Request instance. Recovery fault
+bindings also needed to belong to the Worker hosting the executing wallet object.
+Production authority rules were unchanged by those test repairs. The candidate's
+source tree, patch, binary hashes, E2E artifacts, and file hashes remain reproducible.
+
+An earlier setup attempt produced no timing samples. Its empty request failed body
+validation before reaching Console, so an empty Console trace did not prove rollout
+failure. That attempt restored staging and passed activation `37835795083`. The final
+run audited actual benchmark invocation versions. Pending registration expiry guards
+remained enforced throughout both attempts.
+
+Combining B preparation with the peer connection was considered first. B preparation
+already runs in parallel with A. Moving it after A preparation would serialize work.
+That change was not implemented or measured. A future candidate needs a demonstrated
+removable dependency while preserving admission, fresh cancellation checks, and replay.
+These results do not support another coordinator-location or connection-reuse change.
+
+Three samples per arm do not establish percentiles, statistical significance, or a
+latency guarantee. Fresh wallets do not establish cold Worker starts. Requested APAC
+placement does not establish physical colocation.
+
+
+All thirteen original Worker versions and placement settings were restored and
+checked. Restoration activation `37838708308` passed. All tail processes stopped.
+No new Cloudflare resources were created.
+
+[Sanitized timings, source hashes, proofs and restoration evidence](evidence/near-wallet-coordinator-20261009.json).
