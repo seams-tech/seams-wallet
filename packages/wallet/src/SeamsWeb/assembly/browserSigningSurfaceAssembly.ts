@@ -428,6 +428,7 @@ function nearEd25519ReadResultFromRemoteStatus(
  * before the client creates a signature share. Never use this reader for export. */
 export async function readBrowserNearEd25519SigningCandidate(
   relayerUrl: string,
+  statusReads: WalletSessionStatusReadScope,
   walletId: ReturnType<typeof toWalletId>,
 ): Promise<NearEd25519WalletSessionAuthorizationReadResult> {
   const exact = await readExactWalletSessionAuthorization(walletId);
@@ -450,7 +451,7 @@ export async function readBrowserNearEd25519SigningCandidate(
   ) {
     return readBrowserExactNearEd25519WalletSessionAuthorization(
       relayerUrl,
-      new WalletSessionStatusReadScope(),
+      statusReads,
       walletId,
     );
   }
@@ -1558,7 +1559,7 @@ export function createBrowserSigningSurfaceEnginePorts(
             }
           },
           readActiveWalletSessionAuthorization:
-            readBrowserExactNearEd25519WalletSessionAuthorization.bind(
+            readBrowserNearEd25519SigningCandidate.bind(
               null,
               args.seamsWebConfigs.network.relayer.url,
             ),

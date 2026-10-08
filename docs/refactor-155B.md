@@ -3507,3 +3507,88 @@ rewrite is justified by these results.
 [Sanitized evidence](evidence/near-storage-startup-20261008.json) contains all nine
 attempts, the failed-control diagnosis, the cancelled retry, raw sample hashes,
 request counts, local checks, build hashes, serving-version audits, and restoration.
+
+### Phase 6Q — remove redundant NEAR lane-selection status reads
+
+The hosted warm path uses four Gateway calls: session status, owner lane,
+prepare, and finalize. Prepare already returns fresh session authority. NEAR
+signing has a local-observation reader, but lane discovery still uses the exact
+remote reader. Use the existing candidate reader for signing discovery.
+
+- [x] Reuse identity-matched session observations in NEAR lane discovery.
+- [x] Keep fresh reads when observations are missing or no longer match.
+- [x] Verify consecutive signing, exhausted-budget step-up, page refresh, and
+  rejection of changed prepare authority with the real browser lifecycle.
+- [x] Compare the frozen SDKs against the same hosted backend. Record request
+  counts and measured timings without attributing unrelated Yao setup variation.
+- [x] Record evidence, review the change, and commit on `dev`.
+
+#### Result — 2026-10-08
+
+The SDK now uses the existing signing-candidate reader for NEAR lane discovery.
+That reader matches the credential, session, quota, and selected authority.
+It uses a fresh status read when an observation is missing or no longer matches.
+Prepare still returns fresh authority and quota. The SDK checks both before it
+creates a client signature share. Export retains its exact authorization reader.
+This change adds no cache, backend path, configuration flag, or protocol message.
+
+All **63 hosted signatures verified across nine fresh wallets**. The experiment
+used baseline/candidate/baseline SDK assets with three wallets per arm. All
+thirteen staging Worker versions stayed unchanged. Captured serving versions
+matched the expected versions. No deployment, activation, or new resource was
+required. Only the test browser received the candidate SDK assets.
+
+| SDK signing, per signature | Control before: median (range) | Candidate: median (range) | Control after: median (range) |
+| --- | --- | --- | --- |
+| Warm, 6 signatures per arm | 3.165 s (2.473–4.022) | **2.423 s (1.963–2.901)** | 3.132 s (2.338–3.595) |
+| Three-signature sequences, 9 signatures per arm | 2.189 s (1.487–2.457) | **2.130 s (1.399–2.693)** | 2.168 s (1.604–2.815) |
+| Both repeated workloads, 15 signatures per arm | 2.355 s (1.487–4.022) | **2.195 s (1.399–2.901)** | 2.384 s (1.604–3.595) |
+
+These SDK timings include automated confirmation and required nonce/RPC work.
+They end at signed output and exclude blockchain submission and confirmation.
+They also exclude the browser harness's later verification overhead. Each
+three-signature value measures one signature, rather than the sum of the sequence.
+
+Every repeated signature used **three Gateway calls**, compared with four in both
+controls: owner lane, prepare, and finalize. The session authorization probe fell
+from **199.8 / 198.1 ms** in the controls to **3.5 ms** in the candidate. The removed
+status request had a median of **195.1 / 192.2 ms**. This isolates the eliminated
+wait. Whole-signing medians also include network and automated confirmation
+variation, so this sample does not establish a guaranteed saving or percentile.
+
+| Lifecycle through verified signature | Control before: median (range) | Candidate: median (range) | Control after: median (range) |
+| --- | --- | --- | --- |
+| Registration, 3 wallets per arm | 19.122 s (18.489–23.124) | 20.685 s (20.659–22.230) | 20.523 s (19.298–20.687) |
+| Unlock, 3 wallets per arm | 5.710 s (5.668–6.487) | 5.006 s (5.000–5.704) | 5.717 s (4.968–5.747) |
+
+Lifecycle timings include browser automation and verification. Registration also
+includes funding, provisioning, and Yao setup. This SDK change does not optimize
+those stages. Registration used thirteen Gateway calls in the candidate, compared
+with fourteen or fifteen in the controls. Unlock used eight, compared with nine.
+These counts include background requests that overlap each workload window.
+D1 and Gateway-to-Console counts remain unavailable. Browser-to-Console calls
+were zero. The **1–2 second Yao setup target remains unmet**.
+
+Wallet and intended-test type checks, both SDK builds, and two local browser
+E2Es passed. The E2Es verify repeated signing, exhausted-quota step-up, fresh
+status after reload, rejection of changed prepare authority, and valid signing
+after rejection. They save request and authority evidence. The exact-tree bloat
+check passed. Review found no additional issue in the changed path.
+
+[Sanitized evidence](evidence/near-signing-observation-20261008.json) retains all
+63 timings, request counts, raw hashes, local artifacts, and version checks.
+
+#### Next optimization ideas
+
+1. Evaluate reuse of the exact owner-lane projection during repeated signing.
+   Its candidate request median was **167 ms**, with a **147–358 ms** range.
+   Bind reuse to the credential and material activation. Keep fresh prepare
+   enforcement for relocation, revocation, admission, and expiry.
+2. Investigate durable nonce-lease recovery on consecutive signatures. The
+   candidate waited **0 ms median**, but up to **345 ms** after confirmation.
+   Avoid repeated reconciliation only when the coordinator already has a resolved
+   lease. Preserve concurrent-tab safety and crash recovery.
+3. Trace the remaining prepare/finalize waits before changing their D1 work.
+   Candidate medians were **427 / 519 ms**, with maxima of **952 / 1,245 ms**.
+   These spans include server execution, storage, and transport. Complete D1
+   accounting is needed before attributing their delay to the database.

@@ -186,6 +186,14 @@ The SDK owns transient read retry and RPC handling. The browser contract is
   An unavailable prepare or mismatched projection stops signing before finalization.
   Finalization retains its independent live authorization checks.
 
+- NEAR signing uses an existing, identity-matched session observation to select
+  its lane. Repeated signing needs no separate session-status request while that
+  observation is available. Prepare returns fresh authority and quota facts, which
+  the SDK checks before creating a client signature share. Server admission still
+  enforces revocation, expiry, policy, and quota. An exhausted session requires
+  operation step-up. Missing observations after page refresh require a fresh
+  status read. Export continues to use its exact authorization reader.
+
 - Reusable-session ECDSA prepare, finalize, and completed replay evaluate live
   signing policy. Project denial takes precedence over abuse denial; abuse
   rejection and rate limiting return their respective errors. Policy denial

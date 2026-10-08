@@ -2459,6 +2459,7 @@ export class BrowserSigningSurface {
   private readNearEd25519SigningCandidate(walletId: WalletId) {
     return readBrowserNearEd25519SigningCandidate(
       String(this.seamsWebConfigs.network.relayer?.url || '').trim(),
+      new WalletSessionStatusReadScope(),
       walletId,
     );
   }

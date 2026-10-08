@@ -3,20 +3,78 @@ import { expect, type BrowserContext, type Request, type Route, type TestInfo } 
 import { requireRecord } from '@shared/utils/validation';
 import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
 
-async function verifyLocalEd25519YaoRegistration({
-  harness,
-}: {
-  harness: IntendedBehaviourHarness;
-}): Promise<void> {
+type NearSigningReadStage = 'warm_sequence' | 'exhausted_session' | 'unlock' | 'after_refresh';
+
+class NearSigningRequestEvidence {
+  stage: NearSigningReadStage = 'warm_sequence';
+  readonly requests: { stage: NearSigningReadStage; path: string }[] = [];
+
+  record(request: Request): void {
+    if (request.method() !== 'POST') return;
+    const path = new URL(request.url()).pathname;
+    if (
+      path === '/wallet/session/status' ||
+      path === '/wallet/execution-lane/owner' ||
+      path === '/router-ab/ed25519/sign/prepare' ||
+      path === '/router-ab/ed25519/sign'
+    ) {
+      this.requests.push({ stage: this.stage, path });
+    }
+  }
+
+  count(stage: NearSigningReadStage, path: string): number {
+    let count = 0;
+    for (const request of this.requests) {
+      if (request.stage === stage && request.path === path) count += 1;
+    }
+    return count;
+  }
+
+  async finish(testInfo: TestInfo): Promise<void> {
+    const artifact = testInfo.outputPath('near-signing-session-reads.json');
+    await writeFile(artifact, JSON.stringify({ requests: this.requests }, null, 2));
+    await testInfo.attach('near-signing-session-reads', {
+      path: artifact,
+      contentType: 'application/json',
+    });
+  }
+}
+
+async function verifyLocalEd25519YaoRegistration(
+  { harness, context }: { harness: IntendedBehaviourHarness; context: BrowserContext },
+  testInfo: TestInfo,
+): Promise<void> {
   await harness.registerPasskeyEd25519YaoWallet();
   await harness.signNearTransaction('post_registration');
-  await harness.signNearTransaction('post_registration');
-  await harness.refreshPagePreservingWalletStorage();
-  await harness.signNearTransactionAfterRefresh();
+  const evidence = new NearSigningRequestEvidence();
+  const record = evidence.record.bind(evidence);
+  context.on('request', record);
+  try {
+    await harness.signNearTransaction('post_registration');
+    await harness.signNearTransaction('post_registration');
+    expect(evidence.count('warm_sequence', '/wallet/session/status')).toBe(0);
+    expect(evidence.count('warm_sequence', '/wallet/execution-lane/owner')).toBe(2);
+    expect(evidence.count('warm_sequence', '/router-ab/ed25519/sign/prepare')).toBe(2);
+    expect(evidence.count('warm_sequence', '/router-ab/ed25519/sign')).toBe(2);
+
+    evidence.stage = 'exhausted_session';
+    await harness.signNearTransaction('step_up_required');
+    evidence.stage = 'unlock';
+    await harness.lockWallet();
+    await harness.unlockPasskeyWallet();
+    evidence.stage = 'after_refresh';
+    await harness.refreshPagePreservingWalletStorage();
+    await harness.signNearTransactionAfterRefresh();
+    await harness.signNearMessage('Approve checkout after the session observation was discarded');
+    expect(evidence.count('after_refresh', '/wallet/session/status')).toBeGreaterThan(0);
+  } finally {
+    context.off('request', record);
+    await evidence.finish(testInfo);
+  }
 }
 
 test(
-  'public Ed25519 Yao registration signs immediately and after refresh',
+  'NEAR reuses signing observations, enforces exhausted quota, and reloads authority after refresh',
   verifyLocalEd25519YaoRegistration,
 );
 
