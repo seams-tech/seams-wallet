@@ -3171,3 +3171,83 @@ removable cost. The **1–2 s setup target remains unmet**.
 every probe duration, instance-counter checks, source hashes, serving versions,
 local E2E results, reproduction commands, and restoration evidence. No new
 infrastructure, production deployment, or npm release was required.
+
+### Phase 6M — reuse verified roots and simplify B startup (2026-10-08)
+
+**Implemented and verified. Observed preparation CPU fell. The hosted setup
+samples do not establish a repeatable end-to-end latency improvement.**
+Implementation commit: `c80586cdbe7e7bd8dc40658ee9fe045531b4f3ac` on `dev`.
+
+- [x] Reuse the verified root plaintext within its admission request when the
+  fresh database row matches every field, including ciphertext and revision.
+  An active root also requires exactly one identical active row. Changed rows
+  follow the full decryption and verification path. Cancellation remains fresh.
+- [x] Verify A and B readiness signatures once at B's start-command boundary.
+  Return the start result only after the revision-checked state write succeeds.
+  Remove repeated parsing of the stored preparation and running records.
+  Preserve expiry, ownership, relocation fences, and exact execution identity.
+- [x] Keep A and B preparation parallel. Preserve A's overlap between its fresh
+  root read and B's connection. These existing overlaps remain unchanged.
+- [x] Measure service-request bytes, time to response headers, response bytes,
+  body-read time, and decode spans. Add separate B start and upgrade spans.
+- [x] Pass five release Worker builds, twelve local E2E scenarios, and the
+  exact-tree bloat check. The new forged-peer-receipt scenario proves B stays
+  prepared, sends no protocol data, and rejects the forged handoff.
+- [x] Complete three hosted arms: nine fresh NEAR-only wallets and 63 verified
+  signatures. All captured serving versions match. Restore all thirteen original
+  staging versions and pass the final activation workflow.
+
+| Complete Yao setup request | Median | Observed range |
+| --- | ---: | ---: |
+| Control before | 3.194 s | 2.295–4.238 s |
+| Candidate | 3.584 s | 2.817–4.165 s |
+| Control after | 4.171 s | 3.456–4.262 s |
+
+Each arm contains three fresh wallets. These figures cover the Gateway's complete
+Yao setup HTTP request. Funding, NEAR account provisioning, and the first signature
+are separate work. Registration-to-first-signature medians were 18.092, 18.322,
+and 16.975 seconds respectively. The evidence retains all signing workloads.
+
+| Provider CPU measurement | Control before | Candidate | Control after |
+| --- | ---: | ---: | ---: |
+| A preparation DO invocation | 144 ms | 84 ms | 172 ms |
+| B preparation DO invocation | 146 ms | 110 ms | 202 ms |
+| B duplex DO invocation, including protocol continuation | 273 ms | 251 ms | 397 ms |
+
+All first required DO commands reused instances observed during startup. Provider
+CPU measurements describe whole invocations. They cannot isolate individual
+cryptographic operations. Conditions varied across the sequential arms. The first
+control also ran while the local release build finished. Candidate and final
+control measurements ran after all builds and local tests completed.
+
+The candidate's Signing Worker delivery request contained 5,535–5,588 bytes.
+Its response contained 866–883 bytes. Median time to response headers was 537 ms,
+and median body-read time was 4 ms. A's execution response contained 8,438–8,516
+bytes and took a median 2 ms to read. These observations do not justify a new
+payload format or streaming implementation. Time to headers includes receiver
+processing, storage completion, and transport. It is not a pure network timer.
+
+B's local start and upgrade spans report zero milliseconds because the application
+clock does not advance during CPU work. They do not prove that admission is free.
+A's measured B-connection median remained 796 ms. Actual execution locations were
+not measured. Keep the existing authenticated placement hints.
+
+**Round trips remain unchanged: six D1 calls and sixteen SQL statements per
+setup for bound-root loading alone.** Each role uses two preparation calls and
+one execution call. The first preparation call verifies the encrypted row before
+admission. The second call atomically reads admission and root state. Execution
+reads fresh cancellation state. Root creation, other D1 work, local DO SQL, and
+Worker dispatches are outside this count. The proposed six-to-four reduction did
+not have a safe implementation under these admission rules, so it was not applied.
+
+The next call-reduction candidate is one open A connection for preparation and
+execution, with B preparation still running independently. It must preserve signed
+readiness, the single execution claim, cancellation, lost-reply handling, and
+completion before success. The rejected Phase 6K design serialized preparation.
+Do not repeat that dependency. This connection change is not implemented here.
+
+Retain the simpler start path and request-local root reuse for their lower observed
+CPU cost. Do not advertise a setup speedup from this comparison. The **1–2 second
+hosted setup target remains unmet**. [Sanitized evidence](evidence/near-bound-root-start-20261008.json)
+contains samples, request counts, payload sizes, source and build hashes, local
+checks, serving-version audits, limitations, and restoration evidence.
