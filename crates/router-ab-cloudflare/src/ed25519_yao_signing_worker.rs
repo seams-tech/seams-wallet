@@ -1,3 +1,6 @@
+#[cfg(feature = "workers-rs")]
+pub(crate) mod package_delivery;
+
 use router_ab_core::{
     ActiveSigningWorkerStateV1, Ed25519YaoCeremonyBindingV1, Ed25519YaoDeriverRoleV1,
     Ed25519YaoEncryptedPackageV1, Ed25519YaoOperationV1, Ed25519YaoPackageKindV1,
@@ -672,18 +675,19 @@ impl SigningWorkerYaoReservationStateV1 {
 
 #[cfg(feature = "workers-rs")]
 pub async fn handle_cloudflare_signing_worker_ed25519_yao_packages_v1(
-    mut request: Request,
+    request: Request,
     env: &Env,
 ) -> RouterAbProtocolResult<Response> {
+    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
+    return crate::durable_object::signing_worker_wallet::package_delivery::forward(request, env)
+        .await;
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
+    let mut request = request;
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     let scoped =
         parse_request::<CloudflareScopedEd25519YaoPackagePairDeliveryV1>(&mut request).await?;
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     scoped.validate()?;
-    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
-    return crate::durable_object::call_signing_worker_wallet_do_v1(
-        env,
-        crate::durable_object::SigningWorkerWalletDoRequestV1::DeliverPackages(scoped),
-    )
-    .await;
     #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     let response = execute_signing_worker_yao_command(
         env,

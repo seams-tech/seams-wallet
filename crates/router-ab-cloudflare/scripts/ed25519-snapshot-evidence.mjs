@@ -1,3 +1,4 @@
+import { deliveryHeaders } from './streamed-delivery-evidence.mjs';
 import { runtimeRelocationSource, runtimeRelocationDestination, verifyRuntimeRouterExport } from './runtime-relocation-evidence.mjs';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -10,10 +11,12 @@ const workerName = 'fixture-signing-worker';
 async function post(worker, path, body, credential) {
   return worker.fetch(`https://signing-worker.test${path}`, {
     method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-router-ab-internal-service-auth': credential,
-    },
+    headers: path.endsWith('/activation/packages')
+      ? deliveryHeaders(body, credential)
+      : {
+        'content-type': 'application/json',
+        'x-router-ab-internal-service-auth': credential,
+      },
     body: JSON.stringify(body),
   });
 }
@@ -66,7 +69,24 @@ export async function verifyEd25519Snapshot(topology, activation, fixture, crede
   assert.equal(sourceNamespace.idFromName(nextObject).toString(), destinationNamespace.idFromName(nextObject).toString(),
     'Regional Worker bindings must share the namespace in this scenario');
   const preparation = { command: 'prepare', source: preparationIdentity(source) };
+  const waitingDelivery = { ...delivery, ownership_generation: source.request.source_generation + 1 };
+  const waitingBody = new TransformStream();
+  const waitingResponse = destination.fetch(
+    'https://signing-worker.test/router-ab/signing-worker/ed25519-yao/activation/packages',
+    {
+      method: 'POST',
+      headers: deliveryHeaders(waitingDelivery, registrationCredential),
+      body: waitingBody.readable,
+      duplex: 'half',
+    },
+  );
   const prepared = await accepted(destination, snapshotPath, preparation, credential);
+  const writer = waitingBody.writable.getWriter();
+  await writer.write(new TextEncoder().encode(JSON.stringify(waitingDelivery)));
+  await writer.close();
+  const refusedDelivery = await waitingResponse;
+  assert.notEqual(refusedDelivery.status, 200);
+  assert.match(await refusedDelivery.text(), /closed new Ed25519 work/);
   assert.deepEqual(prepared, { state: 'prepared', source: preparation.source, destination_object: prepared.destination_object });
   assert.equal(typeof prepared.destination_object, 'string');
   assert.equal(prepared.destination_object, preparedObjectName(source.scope, source.request.source_generation + 1));
@@ -188,6 +208,7 @@ export async function verifyEd25519Snapshot(topology, activation, fixture, crede
     bothCurvesPreparedInSameDestinationBeforeSourceSettlement: true,
     sharedNamespaceGenerationRouting: true,
     bothPreparationReceiptsSurviveEviction: true,
+    waitingDeliveryRejectedAfterDestinationFence: true,
     scope: 'Worker registration transfer and fresh Ed25519 signing; excludes linked-device transfer and assembled relocation',
   };
 }

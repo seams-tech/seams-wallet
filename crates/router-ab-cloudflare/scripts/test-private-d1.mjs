@@ -1,3 +1,4 @@
+import { deliveryHeaders, readDeliveryBody, verifyDeliveryAddress } from './streamed-delivery-evidence.mjs';
 import { runtimeRelocationSource, runtimeRelocationDestination } from './runtime-relocation-evidence.mjs';
 import { verifyDeriverPreparation, verifyDeriverSourceFences } from './deriver-preparation-evidence.mjs';
 import { verifyEd25519DestinationSigning } from './ed25519-signing-evidence.mjs';
@@ -145,6 +146,8 @@ const ecdsaClientWasmPath = resolve(
   'wasm/router_ab_ecdsa_client/pkg/router_ab_ecdsa_client_bg.wasm',
 );
 let capturedSigningWorkerDelivery;
+let earlyDeliveryStarted;
+let rejectNextSigningWorkerDelivery = false;
 let capturedEcdsaSigningWorkerPrepare;
 let loseNextEcdsaSigningWorkerFinalizeReply = false;
 let capturedDeriverAPreparation;
@@ -428,6 +431,7 @@ const retirementTriggerRun = process.argv.includes('--retirement-trigger');
 const shortRegistrationLeaseRun = [
   '--do-historical-replay',
   '--do-pair-lost-reply',
+  '--do-package-delivery-failure',
 ].some((flag) => process.argv.includes(flag));
 const registrationLeaseMs = 1_000;
 const admissionRecoveryWindowBinding =
@@ -770,14 +774,25 @@ async function captureSigningWorkerDelivery(request, miniflare) {
     capturedEcdsaSigningWorkerPrepare = await request.clone().json();
   }
   if (path === ed25519ActivationPackagesPath) {
-    signingWorkerActivationCalls += 1;
-    capturedSigningWorkerDelivery = await request.clone().text();
+    earlyDeliveryStarted?.resolve();
+    if (rejectNextSigningWorkerDelivery) {
+      rejectNextSigningWorkerDelivery = false;
+      throw new Error('Simulated early SigningWorker delivery failure');
+    }
   }
   if (path === ed25519FinalizationLookupPath) {
     signingWorkerFinalizationLookups += 1;
   }
+  const deliveryBody = path === ed25519ActivationPackagesPath
+    ? readDeliveryBody(request.clone())
+    : Promise.resolve(undefined);
   const worker = await miniflare.getWorker(signingWorkerDeliveryTarget);
   const response = await worker.fetch(request);
+  const receivedDelivery = await deliveryBody;
+  if (receivedDelivery !== undefined) {
+    signingWorkerActivationCalls += 1;
+    capturedSigningWorkerDelivery = receivedDelivery;
+  }
   if (path === ecdsaSigningWorkerFinalizePath && loseNextEcdsaSigningWorkerFinalizeReply) {
     loseNextEcdsaSigningWorkerFinalizeReply = false;
     assert.equal(response.ok, true, 'Simulated lost reply requires a committed signature');
@@ -794,10 +809,21 @@ async function captureSigningWorkerForHistoricalReplay(request, miniflare) {
   return captureSigningWorkerDelivery(request, miniflare);
 }
 
+function rejectEarlyDeliveryTimeout(resolve, reject) {
+  const timer = setTimeout(reject, 10_000, new Error('Delivery must start before A preparation completes'));
+  timer.unref();
+}
+
 async function captureDeriverAPreparation(request, miniflare) {
   const path = new URL(request.url).pathname;
   const isPreparation = path.endsWith('/ed25519-yao/prepare-pair');
   const isExecution = path.endsWith('/ed25519-yao/execute-pair');
+  if (isPreparation && earlyDeliveryStarted) {
+    await Promise.race([
+      earlyDeliveryStarted.promise,
+      new Promise(rejectEarlyDeliveryTimeout),
+    ]);
+  }
   const preparation = isPreparation ? await request.clone().json() : null;
   const execution = isExecution ? await request.clone().json() : null;
   if (execution) {
@@ -4351,8 +4377,11 @@ async function testDeriverAWalletDoExecution(
   databases,
 ) {
   competeDeriverAExecution = true;
+  earlyDeliveryStarted = Promise.withResolvers();
   const activation = await captureValidActivationDelivery(topology, fixture, tenantRoot);
+  earlyDeliveryStarted = undefined;
   competeDeriverAExecution = false;
+  const streamedDelivery = await verifyDeliveryAddress(topology, activation, internalAuthSecret);
   assert.ok(capturedDeriverAExecution, 'Deriver A execute request must be captured');
   const aRows = await databases.deriverA
     .prepare('SELECT COUNT(*) AS count FROM yao_pair_sessions')
@@ -4492,6 +4521,7 @@ async function testDeriverAWalletDoExecution(
   );
   const artifact = {
     kind: 'deriver_a_wallet_do_execution_e2e_v1',
+    streamedDelivery: { ...streamedDelivery, startedBeforePreparationCompleted: true },
     deriverSourceFences,
     deriverPreparation,
     ed25519Snapshot,
@@ -4735,12 +4765,17 @@ async function assertGatewayOnlyRouterAuth(topology, fixture, tenantRoot, databa
 }
 
 async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, databases) {
-  dropDeriverAExecutionResponse = true;
+  const deliveryFailure = process.argv.includes('--do-package-delivery-failure');
+  rejectNextSigningWorkerDelivery = deliveryFailure;
+  dropDeriverAExecutionResponse = !deliveryFailure;
   capturedDeriverAExecution = undefined;
   const router = await topology.getWorker('router');
   const envelope = buildEd25519ExecuteRequest(fixture, 'activation', tenantRoot);
   const routerResponse = await postWorkerJson(router, ed25519ExecutePath, envelope);
   const routerBody = (await responseBytes(routerResponse)).toString('utf8');
+  if (deliveryFailure) {
+    assert.equal(routerResponse.status, 500, 'Early delivery failure must remain a retryable service error');
+  }
   if (routerResponse.status === 200) {
     assert.notEqual(
       JSON.parse(routerBody).status,
@@ -4865,7 +4900,9 @@ async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, data
   assert.equal(afterReplay.body.revision, stored.body.revision);
   const artifact = {
     kind: 'deriver_a_wallet_do_lost_reply_e2e_v1',
-    reproduce: 'ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --do-pair-lost-reply',
+    earlyDeliveryFailureIsRetryable: deliveryFailure,
+    initialHttpStatus: routerResponse.status,
+    reproduce: `ROUTER_AB_WORKER_BUILD_PROFILE=release node ./scripts/test-private-d1.mjs ${deliveryFailure ? '--do-package-delivery-failure' : '--do-pair-lost-reply'}`,
     outcomeSha256Hex: createHash('sha256')
       .update(JSON.stringify(capturedDeriverAExecution.response))
       .digest('hex'),
@@ -4877,7 +4914,9 @@ async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, data
     wrongTenantRootAndExecutionCancellationLeftStateUnchanged: true,
     exactReplayAfterLostReplyAndEviction: true,
   };
-  const artifactPath = join(repoRoot, '.artifacts/r150/deriver-a-wallet-do-lost-reply.json');
+  const artifactPath = join(repoRoot, deliveryFailure
+    ? '.artifacts/r150/early-package-delivery-failure.json'
+    : '.artifacts/r150/deriver-a-wallet-do-lost-reply.json');
   await mkdir(dirname(artifactPath), { recursive: true });
   await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
   console.log(JSON.stringify({ ...artifact, artifactPath }));
@@ -5338,10 +5377,7 @@ async function postSigningWorkerDelivery(worker, delivery) {
     'https://private.test/router-ab/signing-worker/ed25519-yao/activation/packages',
     {
       method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        [internalAuthHeader]: internalAuthSecret,
-      },
+      headers: deliveryHeaders(JSON.parse(delivery), internalAuthSecret),
       body: delivery,
     },
   );
@@ -5508,7 +5544,8 @@ async function main() {
   const jwtSigner = configureRouterJwt(fixture);
   const testWalletDo = process.argv.includes('--do-pair-store');
   const testWalletDoExecution = process.argv.includes('--do-pair-execution');
-  const testWalletDoLostReply = process.argv.includes('--do-pair-lost-reply');
+  const testWalletDoLostReply = process.argv.includes('--do-pair-lost-reply')
+    || process.argv.includes('--do-package-delivery-failure');
   const testHistoricalReplay = process.argv.includes('--do-historical-replay');
   const testDeriverBCompletionBurn = process.argv.includes('--do-pair-b-burn-before-complete');
   const topology = new Miniflare({

@@ -24,6 +24,14 @@ where
         trace_id,
     )
     .await?;
+    read_role_json_response(&mut response, label, trace_id).await
+}
+
+pub(super) async fn read_role_json_response<TResponse: DeserializeOwned>(
+    response: &mut Response,
+    label: &str,
+    trace_id: Option<crate::CloudflareTraceIdV1>,
+) -> RouterAbProtocolResult<TResponse> {
     if !(200..=299).contains(&response.status_code()) {
         let status = response.status_code();
         let body = response.text().await.unwrap_or_default();
@@ -42,7 +50,7 @@ where
             format!("{label} service returned HTTP {status}"),
         ));
     }
-    read_role_response(&mut response, label, trace_id)
+    read_role_response(response, label, trace_id)
         .await
         .map_err(|error| {
             RouterAbProtocolError::new(
