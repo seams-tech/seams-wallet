@@ -1,4 +1,3 @@
-import type { RouterApiWalletProjectionAdapter } from '../../framework/routerApi';
 import type {
   RouterApiKeyAuthAdapter,
   RouterApiKeyAuthFailureCode,
@@ -30,7 +29,6 @@ export interface WalletConsoleOpsClient {
   readonly apiKeyAuth: RouterApiKeyAuthAdapter;
   readonly publishableKeyAuth: RouterApiPublishableKeyAuthAdapter;
   readonly usageMeter: RouterApiUsageMeterAdapter;
-  readonly walletProjection: RouterApiWalletProjectionAdapter;
   readonly projectEnvironments: RouterApiProjectEnvironmentResolver;
   readonly tenantRootActiveLineage: WalletConsoleTenantRootActiveLineageResolverV1;
 }
@@ -317,9 +315,6 @@ export function createWalletConsoleOpsClient(
         return lineage;
       },
     },
-    walletProjection: {
-      recordCreatedWallet: recordCreatedWallet.bind(undefined, service),
-    },
     usageMeter: {
       async recordEvent(input) {
         const { status, body } = await postJson(
@@ -335,18 +330,4 @@ export function createWalletConsoleOpsClient(
       },
     },
   };
-}
-
-async function recordCreatedWallet(
-  service: WalletConsoleServiceBinding,
-  input: Parameters<RouterApiWalletProjectionAdapter['recordCreatedWallet']>[0],
-): Promise<void> {
-  const { status, body } = await postJson(
-    service,
-    WALLET_CONSOLE_OP_PATHS_V1.walletProjection,
-    input,
-  );
-  if (status !== 200 || !isUsageEventsSuccessResponse(body)) {
-    throw new Error(`Wallet Console projection failed (HTTP ${status})`);
-  }
 }

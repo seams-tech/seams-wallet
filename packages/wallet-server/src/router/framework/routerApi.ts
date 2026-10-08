@@ -35,17 +35,6 @@ export type {
   RouterApiUsageMeterEvent,
 } from './apiCredentialPorts';
 
-export interface RouterApiWalletProjectionEvent {
-  readonly orgId: string;
-  readonly runtimePolicyScope: RuntimePolicyScope;
-  readonly walletId: string;
-  readonly occurredAt: string;
-}
-
-export interface RouterApiWalletProjectionAdapter {
-  recordCreatedWallet(input: RouterApiWalletProjectionEvent): Promise<void>;
-}
-
 // Minimal session adapter interface expected by the routers.
 export type SessionClaims = Record<string, unknown>;
 
@@ -305,8 +294,6 @@ export interface RouterApiOptions {
    * Optional org/project/environment service used to resolve environment -> project scope.
    */
   orgProjectEnv?: RouterApiProjectEnvironmentResolver | null;
-  /** Projects successfully created wallets into the customer Console index. */
-  walletProjection?: RouterApiWalletProjectionAdapter | null;
   // Optional logger; defaults to silent.
   logger?: RouterLogger | null;
 }

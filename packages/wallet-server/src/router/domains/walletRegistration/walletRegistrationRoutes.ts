@@ -66,7 +66,6 @@ import type {
   RouterApiKeyAuthAdapter,
   RouterApiProjectEnvironmentResolver,
   SessionAdapter,
-  RouterApiWalletProjectionAdapter,
 } from '../../framework/routerApi';
 import type {
   HeaderRecord,
@@ -96,7 +95,6 @@ import type {
   WalletRegistrationActivateInput,
   WalletRegistrationSetupRequest,
 } from './walletRegistrationInputs';
-import { verifyWalletRegistrationSetupClaims } from './walletRegistrationSetupPayload';
 import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import { ecdsaClientRootPublicKey33B64uFromString } from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
 import { normalizeCorsOrigin } from '../../../core/SessionService';
@@ -158,7 +156,6 @@ type RouterApiWalletRegistrationServices = {
   routerAbPublicKeyset?: RouterAbPublicKeysetV2 | null;
   session?: SessionAdapter | null;
   publishableKeyAuth?: RouterApiPublishableKeyAuthAdapter | null;
-  walletProjection?: RouterApiWalletProjectionAdapter | null;
 };
 
 type ParsedRegistrationSignerSet = {
@@ -2320,39 +2317,6 @@ function parseRegistrationRequestDigestB64u(raw: unknown): string | null {
   }
 }
 
-async function projectRegisteredWallet(input: {
-  readonly registrationCeremonyId: string;
-  readonly services: RouterApiWalletRegistrationServices;
-  readonly signedSetup: unknown;
-}): Promise<string | null> {
-  const walletProjection = input.services.walletProjection || null;
-  if (!walletProjection) return null;
-  const verifier = input.services.session;
-  if (!verifier) return 'wallet projection requires setup verification';
-  const verified = await verifyWalletRegistrationSetupClaims(verifier, input.signedSetup, {
-    registrationCeremonyId: input.registrationCeremonyId,
-    nowMs: Date.now(),
-  });
-  if (!verified.ok) return verified.message;
-  if (verified.claims.policy.kind !== 'runtime_policy_scope') {
-    return 'wallet projection requires an exact runtime policy scope';
-  }
-  if (verified.claims.policy.scope.orgId !== verified.claims.orgId) {
-    return 'wallet projection scope does not match its organization';
-  }
-  try {
-    await walletProjection.recordCreatedWallet({
-      orgId: verified.claims.orgId,
-      runtimePolicyScope: verified.claims.policy.scope,
-      walletId: verified.claims.walletId,
-      occurredAt: new Date().toISOString(),
-    });
-    return null;
-  } catch (error: unknown) {
-    return error instanceof Error ? error.message : String(error);
-  }
-}
-
 /**
  * `POST /wallets/register/activate` — activation and finalization behind
  * one Gateway operation row.
@@ -2454,18 +2418,6 @@ export async function handleRouterApiWalletRegistrationActivate(
       'Wallet registration activation returned an invalid authority',
     );
   }
-  const projectionError = await projectRegisteredWallet({
-    registrationCeremonyId,
-    services: input.services,
-    signedSetup,
-  });
-  if (projectionError) {
-    return routeError(
-      500,
-      'internal',
-      `Wallet was created but its Console projection failed: ${projectionError}`,
-    );
-  }
   return routeJson(200, result, {
     headers: ecdsaGatewayServerTimingHeaders(serverTiming),
   });
@@ -2517,20 +2469,6 @@ export async function handleRouterApiWalletRegistrationNearProvisioning(
     input.waitUntil,
   );
   if (!result.ok) return routeJson(400, result);
-  if (result.registrationEstablishedSession.session.tokens.kind === 'near_ed25519') {
-    const projectionError = await projectRegisteredWallet({
-      registrationCeremonyId,
-      services: input.services,
-      signedSetup,
-    });
-    if (projectionError) {
-      return routeError(
-        500,
-        'internal',
-        `Wallet was created but its Console projection failed: ${projectionError}`,
-      );
-    }
-  }
   if (sessionSeal.value) {
     if (!isPasskeyWalletRegistrationNearProvisioningSuccessV2(result)) {
       return routeError(

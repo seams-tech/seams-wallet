@@ -112,7 +112,6 @@ export async function handleWalletRegistration(
       routerAbPublicKeyset: ctx.opts.routerAbPublicKeyset,
       session: ctx.opts.session,
       publishableKeyAuth: ctx.opts.publishableKeyAuth,
-      walletProjection: ctx.opts.walletProjection,
     },
     sourceIp: resolveSourceIpFromFetchHeaders(ctx.request.headers) || undefined,
     signingSessionSeal: ctx.opts.signingSessionSeal,
