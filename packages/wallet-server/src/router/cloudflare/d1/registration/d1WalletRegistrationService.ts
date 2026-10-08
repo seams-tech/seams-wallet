@@ -290,6 +290,8 @@ import {
   D1RegistrationRouteTimingRecorder,
   errorMessage,
   finishD1RegistrationRouteTiming,
+  recordRegistrationPromiseTiming,
+  recordRegistrationServerTiming,
   registrationSignerBranchesFromPlan,
   startD1RegistrationRouteTiming,
 } from './d1RegistrationSetupSupport';
@@ -1936,27 +1938,6 @@ function mergeRouterServerTiming(target: Array<readonly [string, number]>, heade
       merged += 1;
       break;
     }
-  }
-}
-
-function recordRegistrationServerTiming(
-  sink: Array<readonly [string, number]>,
-  name: string,
-  startedAtMs: number,
-): void {
-  sink.push([name, Math.max(0, Date.now() - startedAtMs)]);
-}
-
-async function recordRegistrationPromiseTiming<T>(args: {
-  readonly sink: Array<readonly [string, number]>;
-  readonly name: string;
-  readonly startedAtMs: number;
-  readonly promise: Promise<T>;
-}): Promise<T> {
-  try {
-    return await args.promise;
-  } finally {
-    recordRegistrationServerTiming(args.sink, args.name, args.startedAtMs);
   }
 }
 
@@ -3771,6 +3752,7 @@ export class CloudflareD1WalletRegistrationService {
   private async commitDeferredEd25519Signer(
     args: {
       readonly input: WalletRegistrationNearProvisioningInput;
+      readonly serverTiming: Array<readonly [string, number]>;
       readonly setupClaims: WalletRegistrationSetupClaimsV1;
       readonly authoritySource: Extract<
         VerifiedNearProvisioningAuthority,
@@ -3779,9 +3761,7 @@ export class CloudflareD1WalletRegistrationService {
     },
     prepared: D1WalletRegistrationOperationPreparedV1,
   ): Promise<RegistrationCommitExecution<WalletRegistrationNearProvisioningFinalizeResponse>> {
-    /* The ceremony is still present for a fresh side-effect execution. Keep
-       this read inside the operation callback so an exact replay can return
-       its stored response after finalize has tombstoned the ceremony. */
+    // Read inside execution so an exact replay works after ceremony cleanup.
     const committedInstallation =
       args.authoritySource.kind === 'committed_mixed' ? args.authoritySource.installation : null;
     if (committedInstallation && !isRegistrationEcdsaReadyReceipt(committedInstallation.receipt)) {
@@ -3875,6 +3855,7 @@ export class CloudflareD1WalletRegistrationService {
       },
       effectivePrepared,
       source,
+      args.serverTiming,
     );
     const finalized = committed.ok
       ? committed
@@ -3893,6 +3874,7 @@ export class CloudflareD1WalletRegistrationService {
           ? args.setupClaims.expiresAtMs
           : ownerProofContext.expiresAtMs,
     });
+    const sessionStartedAtMs = Date.now();
     const issuedRegistrationSession = await issueDirectRegistrationEstablishedEd25519Session({
       authorizationService: this.authorizationService,
       authorizationTenantId: this.authorizationTenantId,
@@ -3908,6 +3890,11 @@ export class CloudflareD1WalletRegistrationService {
       keyManifestDigestB64u: finalized.custodyKeyManifestDigestB64u,
       proof,
     });
+    recordRegistrationServerTiming(
+      args.serverTiming,
+      'near_finalize_session_issue',
+      sessionStartedAtMs,
+    );
     switch (issuedRegistrationSession.kind) {
       case 'issued':
         return {
@@ -4046,15 +4033,7 @@ export class CloudflareD1WalletRegistrationService {
     });
   }
 
-  /**
-   * Deferred NEAR provisioning. Verifies the signed setup, then reuses the
-   * existing deferred Ed25519 commit — the same path lazy-Yao 4+5 built — so
-   * signer installation and the implicit-account projection keep one
-   * implementation across both plans.
-   *
-   * A retryable failure leaves the pending wallet intact: the wallet must not
-   * be destroyed because its signer ceremony needs another attempt.
-   */
+  /** Verifies registration or continuation authority without destroying retryable state. */
   private async verifyNearProvisioningAuthority(
     input: WalletRegistrationNearProvisioningInput,
   ): Promise<VerifiedNearProvisioningAuthority> {
@@ -4129,15 +4108,18 @@ export class CloudflareD1WalletRegistrationService {
       if (!verified.ok) {
         return { ok: false, code: verified.code, message: verified.message };
       }
+      const admissionStartedAtMs = Date.now();
       const homeAdmission = await admitRegistrationReservationHome(this.registrationAuthority, {
         ceremonyId: verified.claims.registrationCeremonyId,
         walletId: walletIdFromString(verified.claims.walletId),
       });
+      recordRegistrationServerTiming(
+        serverTiming,
+        'near_finalize_home_admission',
+        admissionStartedAtMs,
+      );
       if (!homeAdmission.ok) return homeAdmission;
-      /* Its own operation row. This is a separate effect from activate with
-         its own idempotency key, so it claims, records uncertainty, and
-         replays through one record of its own rather than borrowing the
-         legacy finalize journal and replay cache. */
+      // NEAR finalization owns its claim, uncertainty state and replay receipt.
       const fingerprintStartedAtMs = Date.now();
       const requestFingerprint = base64UrlEncode(
         await sha256BytesUtf8(
@@ -4178,6 +4160,7 @@ export class CloudflareD1WalletRegistrationService {
           base64UrlEncode(await sha256BytesUtf8(alphabetizeStringify(prepared))),
         execute: this.commitDeferredEd25519Signer.bind(this, {
           input,
+          serverTiming,
           setupClaims: verified.claims,
           authoritySource: verified.source,
         }),
@@ -4245,11 +4228,17 @@ export class CloudflareD1WalletRegistrationService {
           nearProvisioning: { status: 'near_failed_retryable' },
         };
       }
+      const completionStartedAtMs = Date.now();
       const completedHome = await completeRegistrationReservation(this.registrationAuthority, {
         ceremonyId: input.registrationCeremonyId,
         walletId: walletIdFromString(committed.walletId),
         outcome: 'established',
       });
+      recordRegistrationServerTiming(
+        serverTiming,
+        'near_finalize_home_completion',
+        completionStartedAtMs,
+      );
       if (!completedHome.ok) return completedHome;
       const cleanupStartedAtMs = Date.now();
       const cleanup = recordRegistrationPromiseTiming({
@@ -4779,6 +4768,7 @@ export class CloudflareD1WalletRegistrationService {
       },
       prepared,
       { kind: 'stored_ceremony', ceremony: activatedCeremony },
+      [],
     );
     if (!commit.ok) {
       return unissuedRegistrationCommit(
@@ -5206,6 +5196,7 @@ export class CloudflareD1WalletRegistrationService {
     request: FinalizeWalletRegistrationInput,
     prepared: D1WalletRegistrationOperationPreparedV1,
     source: D1WalletRegistrationFinalizeSource,
+    serverTiming: Array<readonly [string, number]>,
   ): Promise<WalletRegistrationFinalizeResponse> {
     const finalizeTiming = createD1RegistrationRouteTimingRecorder('wallets_register_finalize');
     const totalTiming = startD1RegistrationRouteTiming('registerFinalizeTotalMs');
@@ -5281,11 +5272,7 @@ export class CloudflareD1WalletRegistrationService {
       if (sequenceFailure) {
         return { ok: false, ...sequenceFailure };
       }
-      /* Which half this call commits comes from the request, not from the
-         plan: a mixed plan finalizes ECDSA first and Ed25519 later, so the
-         plan alone no longer says what is being committed now. The sequence
-         check above has already confirmed the requested half is admitted and
-         legal at this point. */
+      // The checked request selects this leg of a mixed plan: ECDSA first, then Ed25519.
       const finalizeEvmFamilyEcdsa =
         request.kind === 'evm_family_ecdsa' ? requestedEvmFamilyEcdsa : null;
       const finalizeNearEd25519 = request.kind === 'near_ed25519' ? requestedNearEd25519 : null;
@@ -5485,12 +5472,17 @@ export class CloudflareD1WalletRegistrationService {
             message: 'Ed25519 activation reference does not belong to this registration ceremony',
           };
         }
-        const consumed = await yaoRuntime.consumeActivated({
-          reference: {
-            lifecycleId: activationReference.lifecycle_id,
-            sessionId: activationReference.session_id,
-          },
-          consumerBinding: requestFingerprint,
+        const consumed = await recordRegistrationPromiseTiming({
+          sink: serverTiming,
+          name: 'near_finalize_router_consume',
+          startedAtMs: Date.now(),
+          promise: yaoRuntime.consumeActivated({
+            reference: {
+              lifecycleId: activationReference.lifecycle_id,
+              sessionId: activationReference.session_id,
+            },
+            consumerBinding: requestFingerprint,
+          }),
         });
         if (!consumed.ok) {
           return { ok: false, code: consumed.code, message: consumed.message };
@@ -5915,49 +5907,64 @@ export class CloudflareD1WalletRegistrationService {
       }
       const foundingAuthority = persistedFoundingRecords.authority;
       const foundingAuthMethod = persistedFoundingRecords.authMethod;
-      if (ed25519CapabilityInstallation) {
-        const yaoRuntime = this.getEd25519YaoProductRegistration();
-        if (!yaoRuntime) {
-          return {
-            ok: false,
-            code: 'not_configured',
-            message: 'Ed25519 Yao product registration is not configured',
-          };
-        }
-        const installed = await yaoRuntime.installRegistrationFinalizeCapability(
-          ed25519CapabilityInstallation,
-        );
-        if (!installed.ok) {
-          return {
-            ok: false,
-            code: installed.code,
-            message: installed.message,
-          };
-        }
+      const yaoRuntime = ed25519CapabilityInstallation
+        ? this.getEd25519YaoProductRegistration()
+        : null;
+      if (ed25519CapabilityInstallation && !yaoRuntime) {
+        return {
+          ok: false,
+          code: 'not_configured',
+          message: 'Ed25519 Yao product registration is not configured',
+        };
       }
-      // Wallet and signer records must exist before their custody envelope is committed.
-      const walletCustody = await commitRegistrationCustody({
-        payload: walletCustodyCommitPayload,
-        verifiedWalletId: ceremony.intent.walletId,
-        /* The verified authority, never the payload: the factor is what the
-           envelope's AAD binds the seed to, so a payload-supplied one could
-           address this wallet's custody to a credential its owner does not
-           control. */
-        verifiedAuthority: walletAuthAuthority,
-        /* Email OTP names the enrollment, which is not on the authority — it
-           is on the material this same leg just finalized. */
-        ...(emailOtpEnrollment.persistence
-          ? {
-              verifiedEmailOtpEnrollment: {
-                enrollmentId: emailOtpEnrollment.persistence.enrollment.enrollmentId,
-                enrollmentSealKeyVersion:
-                  emailOtpEnrollment.persistence.enrollment.enrollmentSealKeyVersion,
-              },
-            }
-          : {}),
-        nowMs: now,
-        store: this.walletCustodyCommitStore,
-      });
+      // Both writes require the committed wallet. Settle both before returning or retrying.
+      const [capabilityInstallation, custodyCommit] = await Promise.allSettled([
+        ed25519CapabilityInstallation && yaoRuntime
+          ? recordRegistrationPromiseTiming({
+              sink: serverTiming,
+              name: 'near_finalize_capability_install',
+              startedAtMs: Date.now(),
+              promise: yaoRuntime.installRegistrationFinalizeCapability(ed25519CapabilityInstallation),
+            })
+          : Promise.resolve(null),
+        recordRegistrationPromiseTiming({
+          sink: serverTiming,
+          name: 'near_finalize_custody_commit',
+          startedAtMs: Date.now(),
+          promise: commitRegistrationCustody({
+            payload: walletCustodyCommitPayload,
+            verifiedWalletId: ceremony.intent.walletId,
+            /* The verified authority, never the payload: the factor is what the
+               envelope's AAD binds the seed to, so a payload-supplied one could
+               address this wallet's custody to a credential its owner does not
+               control. */
+            verifiedAuthority: walletAuthAuthority,
+            /* Email OTP names the enrollment, which is not on the authority — it
+               is on the material this same leg just finalized. */
+            ...(emailOtpEnrollment.persistence
+              ? {
+                  verifiedEmailOtpEnrollment: {
+                    enrollmentId: emailOtpEnrollment.persistence.enrollment.enrollmentId,
+                    enrollmentSealKeyVersion:
+                      emailOtpEnrollment.persistence.enrollment.enrollmentSealKeyVersion,
+                  },
+                }
+              : {}),
+            nowMs: now,
+            store: this.walletCustodyCommitStore,
+          }),
+        }),
+      ]);
+      if (capabilityInstallation.status === 'rejected') throw capabilityInstallation.reason;
+      if (capabilityInstallation.value && !capabilityInstallation.value.ok) {
+        return {
+          ok: false,
+          code: capabilityInstallation.value.code,
+          message: capabilityInstallation.value.message,
+        };
+      }
+      if (custodyCommit.status === 'rejected') throw custodyCommit.reason;
+      const walletCustody = custodyCommit.value;
       if (walletCustody.status === 'rejected') {
         /* Reported, not thrown — the registration is already committed. Logged
            because a rejection is a wallet whose seed is not yet recoverable,

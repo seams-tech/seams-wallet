@@ -345,7 +345,7 @@ async function prepareFoundingStatements(input: {
 }): Promise<readonly D1PreparedStatementLike[]> {
   if (!input.foundingAuthority) return [];
   const foundingAuthMethod = requireFoundingAuthMethod(input.foundingAuthMethod);
-  const authorityRow = await input.database
+  const authorityRead = input.database
     .prepare(
       `SELECT record_json
          FROM wallet_authorities
@@ -362,9 +362,8 @@ async function prepareFoundingStatements(input: {
       input.scope.projectId,
       input.scope.envId,
       String(input.foundingAuthority.authorityId),
-    )
-    .first<D1RegistrationRecordJsonRow>();
-  const authMethodRow = await input.database
+    );
+  const authMethodRead = input.database
     .prepare(
       `SELECT record_json
          FROM wallet_auth_methods
@@ -381,8 +380,14 @@ async function prepareFoundingStatements(input: {
       input.scope.projectId,
       input.scope.envId,
       String(foundingAuthMethod.walletAuthMethodId),
-    )
-    .first<D1RegistrationRecordJsonRow>();
+    );
+  const results = await input.database.batch<D1ResultLike<D1RegistrationRecordJsonRow>>([
+    authorityRead,
+    authMethodRead,
+  ]);
+  assertBatchSucceeded({ expectedStatementCount: 2, results });
+  const authorityRow = results[0]?.results?.[0] ?? null;
+  const authMethodRow = results[1]?.results?.[0] ?? null;
   let persistedAuthority: ActiveWalletAuthorityV1 | null = null;
   if (authorityRow) {
     const parsedAuthority = parseWalletAuthorityV1(
@@ -505,20 +510,26 @@ export class CloudflareD1WalletRegistrationCommitStore
 
   async commit(input: D1WalletRegistrationCommitInput): Promise<void> {
     assertCommitWalletIdentity(input);
-    if (input.authority.kind === 'passkey') {
-      await reservePasskeyCredential(this.credentialClaims, {
-        walletId: input.authority.walletId,
-        rpId: input.authority.rpId,
-        credentialIdB64u: input.authority.credentialIdB64u,
-      });
-    }
-    const foundingStatements = await prepareFoundingStatements({
-      database: this.database,
-      scope: this.scope,
-      foundingAuthority: input.foundingAuthority,
-      foundingAuthMethod: input.foundingAuthMethod,
-      now: input.now,
-    });
+    // Finish both prerequisites before writing, including when one rejects.
+    const [credentialClaim, foundingPreparation] = await Promise.allSettled([
+      input.authority.kind === 'passkey'
+        ? reservePasskeyCredential(this.credentialClaims, {
+            walletId: input.authority.walletId,
+            rpId: input.authority.rpId,
+            credentialIdB64u: input.authority.credentialIdB64u,
+          })
+        : Promise.resolve(),
+      prepareFoundingStatements({
+        database: this.database,
+        scope: this.scope,
+        foundingAuthority: input.foundingAuthority,
+        foundingAuthMethod: input.foundingAuthMethod,
+        now: input.now,
+      }),
+    ]);
+    if (credentialClaim.status === 'rejected') throw credentialClaim.reason;
+    if (foundingPreparation.status === 'rejected') throw foundingPreparation.reason;
+    const foundingStatements = foundingPreparation.value;
     const statements: D1PreparedStatementLike[] = [
       prepareD1WalletPutSubjectStatement({
         database: this.database,
