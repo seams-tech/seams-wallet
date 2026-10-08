@@ -1,0 +1,2162 @@
+{
+  "schema": "near_registration_joined_identity_v1",
+  "date": "2026-10-08",
+  "source": {
+    "base": "17ba5e8080d8ae78241da6d935e10db8a26b2d30",
+    "paths": [
+      "packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorityStore.ts",
+      "packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthMethodService.ts",
+      "packages/wallet-server/src/router/cloudflare/d1/registration/walletRegistrationEstablishedSessionIssuer.ts",
+      "packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationService.ts"
+    ],
+    "tree": "a86bbb2b595f24878a1da49801b06fd67626d290",
+    "implementationCommit": "8c4a7d546f3a52d7b0de4796614bdea3ec73f6a7"
+  },
+  "privateProductionBase": "ca001d36e7b7e523f1c6ab32b677374b41467d03",
+  "gatewayBundleSha256": "d8270cc084fe79842b80a17c52b81404d04e1dfbb9b9a99e6ee4a8cbb430d5f4",
+  "benchmarkDriverSha256": "4895981059347dc4b0dee5d2470a6db348ecdbec8dd310393b677889f0ee6f63",
+  "method": "Sequential matched baseline and candidate. Three fresh implicit wallets per arm. Same custody versions. One SDK and harness serve both arms. Only the Gateway identity query differs. Only the NEAR signer is loaded. First signature is an independently verified NEP-413 message without account funding.",
+  "scope": "Existing staging testnet resources. No new infrastructure or package release.",
+  "changes": [
+    "Read the registration authentication method and its authority in one tenant-scoped SQL query.",
+    "Remove the subsequent duplicate authority read from session issuance and mixed registration continuation.",
+    "Keep active-state, credential, wallet, canonical digest, replay and session checks."
+  ],
+  "localVerification": {
+    "browserScenariosPassed": 9,
+    "typeChecksPassed": true,
+    "exactTreeBloatCheckPassed": true,
+    "artifacts": [
+      {
+        "artifact": ".artifacts/r155b-phase6w/local-commit/e2e-intended-behaviours-pa-f17e5-ion-credential-after-reload-chromium/near-registration-lost-finalization.json",
+        "sha256": "025287d400fd2b3facf9e36af313789862d1125a68c05f019f4bc7809cb96a5d",
+        "evidence": {
+          "kind": "near_registration_lost_finalization_e2e_v1",
+          "walletId": "noble-ember-u5sszu",
+          "finalizationRequestDigest": "cefd3d19bef6ad867b76fa98ce55ea5ff17dfb30275a22967e79c0ddd3c5d262",
+          "finalizationReplays": 3,
+          "requests": [
+            "/wallets/register/setup",
+            "/wallets/register/respond",
+            "/router-ab/ed25519/yao/registration/execute",
+            "/wallets/register/near-provisioning",
+            "/wallets/register/near-provisioning",
+            "/wallets/register/near-provisioning",
+            "/wallet/unlock/challenge",
+            "/wallet/unlock/verify",
+            "/wallet/session/status",
+            "/wallet-session/seal/apply-server-seal",
+            "/wallet/session/status",
+            "/wallet/session/status",
+            "/",
+            "/",
+            "/",
+            "/router-ab/ed25519/sign/prepare",
+            "/router-ab/ed25519/sign",
+            "/",
+            "/"
+          ],
+          "signature": {
+            "message": "Verified after a lost finalization reply",
+            "recipient": "checkout.example",
+            "state": "quote-170",
+            "success": true,
+            "accountId": "45c34524456df26deaa159a8cf20161897372b5818dd68981a779ea01c95ccdf",
+            "publicKey": "ed25519:5hKq5kXNJKXABJhoSZGXMqHCmAaHzHuoB1TnMoaAT2TQ",
+            "signature": "t31h6e3e8/pH34mrf/8NJhiuJIhIp4rme1Fq7JSvjFGoBue4ilIH/m7v76uqvNddDP+EW9URDMwHrU3MJtiuCA==",
+            "nonce": "aGHjFfEE95iF/9z2qAfKyz4NvYbCoP6sm74P0AHN+Ps=",
+            "digestHex": "4f284ec54aa44a7c10e9fefc29e30d061ddd405549a3110c3481c690b6f08240"
+          },
+          "reproduce": "pnpm exec playwright test -c playwright.wallet-intended.ci.config.ts passkey.near-registration-commit.contract.test.ts"
+        }
+      },
+      {
+        "artifact": ".artifacts/r155b-phase6w/local-commit/e2e-intended-behaviours-pa-f17e5-ion-credential-after-reload-chromium/attachments/near-registration-lost-finalization-f10733dc594c291624856964196fd8854af10c99.json",
+        "sha256": "025287d400fd2b3facf9e36af313789862d1125a68c05f019f4bc7809cb96a5d",
+        "evidence": {
+          "kind": "near_registration_lost_finalization_e2e_v1",
+          "walletId": "noble-ember-u5sszu",
+          "finalizationRequestDigest": "cefd3d19bef6ad867b76fa98ce55ea5ff17dfb30275a22967e79c0ddd3c5d262",
+          "finalizationReplays": 3,
+          "requests": [
+            "/wallets/register/setup",
+            "/wallets/register/respond",
+            "/router-ab/ed25519/yao/registration/execute",
+            "/wallets/register/near-provisioning",
+            "/wallets/register/near-provisioning",
+            "/wallets/register/near-provisioning",
+            "/wallet/unlock/challenge",
+            "/wallet/unlock/verify",
+            "/wallet/session/status",
+            "/wallet-session/seal/apply-server-seal",
+            "/wallet/session/status",
+            "/wallet/session/status",
+            "/",
+            "/",
+            "/",
+            "/router-ab/ed25519/sign/prepare",
+            "/router-ab/ed25519/sign",
+            "/",
+            "/"
+          ],
+          "signature": {
+            "message": "Verified after a lost finalization reply",
+            "recipient": "checkout.example",
+            "state": "quote-170",
+            "success": true,
+            "accountId": "45c34524456df26deaa159a8cf20161897372b5818dd68981a779ea01c95ccdf",
+            "publicKey": "ed25519:5hKq5kXNJKXABJhoSZGXMqHCmAaHzHuoB1TnMoaAT2TQ",
+            "signature": "t31h6e3e8/pH34mrf/8NJhiuJIhIp4rme1Fq7JSvjFGoBue4ilIH/m7v76uqvNddDP+EW9URDMwHrU3MJtiuCA==",
+            "nonce": "aGHjFfEE95iF/9z2qAfKyz4NvYbCoP6sm74P0AHN+Ps=",
+            "digestHex": "4f284ec54aa44a7c10e9fefc29e30d061ddd405549a3110c3481c690b6f08240"
+          },
+          "reproduce": "pnpm exec playwright test -c playwright.wallet-intended.ci.config.ts passkey.near-registration-commit.contract.test.ts"
+        }
+      },
+      {
+        "artifact": ".artifacts/r155b-phase6w/local-commit/e2e-intended-behaviours-pa-4d93b-nce-and-signs-across-reload-chromium/near-registration-commit.json",
+        "sha256": "80c945bbd3bcd1ffe3d2f8219c82dccb04a4500947b1f819a31196b24ab3ad17",
+        "evidence": {
+          "kind": "near_registration_commit_e2e_v1",
+          "reproduce": "pnpm exec playwright test -c playwright.wallet-intended.ci.config.ts passkey.near-registration-commit.contract.test.ts",
+          "walletId": "fair-orchid-y2uzxh",
+          "admissionReceiptDigest": "a4324dacd6673faef4fec635e8ed970b7eee1503ff52253a4573faac83802b41",
+          "finalizationReplays": 1,
+          "requests": [
+            "/wallets/register/setup",
+            "/wallets/register/respond",
+            "/router-ab/ed25519/yao/registration/execute",
+            "/wallets/register/near-provisioning",
+            "/wallet/session/status",
+            "/wallet/session/status",
+            "/wallet/session/status",
+            "/wallet/session/status",
+            "/",
+            "/",
+            "/",
+            "/",
+            "/",
+            "/router-ab/ed25519/sign/prepare",
+            "/router-ab/ed25519/sign",
+            "/",
+            "/",
+            "/",
+            "/",
+            "/",
+            "/wallet/unlock/challenge",
+            "/wallet/unlock/verify",
+            "/wallet/session/status",
+            "/wallet/session/status",
+            "/wallet/session/status",
+            "/",
+            "/wallet/session/status",
+            "/wallet/session/status",
+            "/wallet/session/status",
+            "/wallet/session/status",
+            "/wallet/session/status",
+            "/",
+            "/",
+            "/",
+            "/",
+            "/wallet/session/status",
+            "/",
+            "/wallet/session/status",
+            "/wallet/session/status",
+            "/wallet-session/seal/remove-server-seal",
+            "/wallet/session/status",
+            "/router-ab/ed25519/sign/prepare",
+            "/router-ab/ed25519/sign"
+          ],
+          "firstSignature": {
+            "message": "First signature after registration replay",
+            "recipient": "checkout.example",
+            "state": "quote-170",
+            "success": true,
+            "accountId": "37c43e6f2830ab0ed96d0331bc9191103059fc1105daf6fe05486313e11ff7f5",
+            "publicKey": "ed25519:4kgyz1Ca5G4q3db8dnFYhG3kJ7BffCBL2bKWntS3y3TA",
+            "signature": "ZlzoxkDrQvDYhhYyt82sl1N6PWvhg0fa49rLfL6PNUR8yby0BfQ00jIZjc/cALaAmAfn19taf8ZuWjyR+xhbAQ==",
+            "nonce": "98toWlm4qmsbKA1xwuu9WNPYqNpfAmW/lX1oxlnDemc=",
+            "digestHex": "659ba29a5b7d061057045852b98f1bc08414d4be5d4f7e206d5e1041b4c65dce"
+          },
+          "reloadedSignature": {
+            "message": "Verified after reload and a fresh unlock",
+            "recipient": "checkout.example",
+            "state": "quote-170",
+            "success": true,
+            "accountId": "37c43e6f2830ab0ed96d0331bc9191103059fc1105daf6fe05486313e11ff7f5",
+            "publicKey": "ed25519:4kgyz1Ca5G4q3db8dnFYhG3kJ7BffCBL2bKWntS3y3TA",
+            "signature": "AqJTcfKMfNpdFpnz226M5ubhGFLlakEAr/VVS6o9vtyStWk4Gf9COzaxgrqdKttMhxgSl4qyMvwEnt5MsjBiDw==",
+            "nonce": "Fm2xgLp8lhOUTbHj9c4pgEAuFqeRNTRf7ZYOLHXjA4c=",
+            "digestHex": "728f1b4e539114c41248696397dbd252479a7db7321db214330cdd8e00d39805"
+          }
+        }
+      },
+      {
+        "artifact": ".artifacts/r155b-phase6w/local-commit/e2e-intended-behaviours-pa-4d93b-nce-and-signs-across-reload-chromium/attachments/near-registration-commit-6e38cce7aeac5519d9d73b784fcc21707bad46ba.json",
+        "sha256": "80c945bbd3bcd1ffe3d2f8219c82dccb04a4500947b1f819a31196b24ab3ad17",
+        "evidence": {
+          "kind": "near_registration_commit_e2e_v1",
+          "reproduce": "pnpm exec playwright test -c playwright.wallet-intended.ci.config.ts passkey.near-registration-commit.contract.test.ts",
+          "walletId": "fair-orchid-y2uzxh",
+          "admissionReceiptDigest": "a4324dacd6673faef4fec635e8ed970b7eee1503ff52253a4573faac83802b41",
+          "finalizationReplays": 1,
+          "requests": [
+            "/wallets/register/setup",
+            "/wallets/register/respond",
+            "/router-ab/ed25519/yao/registration/execute",
+            "/wallets/register/near-provisioning",
+            "/wallet/session/status",
+            "/wallet/session/status",
+            "/wallet/session/status",
+            "/wallet/session/status",
+            "/",
+            "/",
+            "/",
+            "/",
+            "/",
+            "/router-ab/ed25519/sign/prepare",
+            "/router-ab/ed25519/sign",
+            "/",
+            "/",
+            "/",
+            "/",
+            "/",
+            "/wallet/unlock/challenge",
+            "/wallet/unlock/verify",
+            "/wallet/session/status",
+            "/wallet/session/status",
+            "/wallet/session/status",
+            "/",
+            "/wallet/session/status",
+            "/wallet/session/status",
+            "/wallet/session/status",
+            "/wallet/session/status",
+            "/wallet/session/status",
+            "/",
+            "/",
+            "/",
+            "/",
+            "/wallet/session/status",
+            "/",
+            "/wallet/session/status",
+            "/wallet/session/status",
+            "/wallet-session/seal/remove-server-seal",
+            "/wallet/session/status",
+            "/router-ab/ed25519/sign/prepare",
+            "/router-ab/ed25519/sign"
+          ],
+          "firstSignature": {
+            "message": "First signature after registration replay",
+            "recipient": "checkout.example",
+            "state": "quote-170",
+            "success": true,
+            "accountId": "37c43e6f2830ab0ed96d0331bc9191103059fc1105daf6fe05486313e11ff7f5",
+            "publicKey": "ed25519:4kgyz1Ca5G4q3db8dnFYhG3kJ7BffCBL2bKWntS3y3TA",
+            "signature": "ZlzoxkDrQvDYhhYyt82sl1N6PWvhg0fa49rLfL6PNUR8yby0BfQ00jIZjc/cALaAmAfn19taf8ZuWjyR+xhbAQ==",
+            "nonce": "98toWlm4qmsbKA1xwuu9WNPYqNpfAmW/lX1oxlnDemc=",
+            "digestHex": "659ba29a5b7d061057045852b98f1bc08414d4be5d4f7e206d5e1041b4c65dce"
+          },
+          "reloadedSignature": {
+            "message": "Verified after reload and a fresh unlock",
+            "recipient": "checkout.example",
+            "state": "quote-170",
+            "success": true,
+            "accountId": "37c43e6f2830ab0ed96d0331bc9191103059fc1105daf6fe05486313e11ff7f5",
+            "publicKey": "ed25519:4kgyz1Ca5G4q3db8dnFYhG3kJ7BffCBL2bKWntS3y3TA",
+            "signature": "AqJTcfKMfNpdFpnz226M5ubhGFLlakEAr/VVS6o9vtyStWk4Gf9COzaxgrqdKttMhxgSl4qyMvwEnt5MsjBiDw==",
+            "nonce": "Fm2xgLp8lhOUTbHj9c4pgEAuFqeRNTRf7ZYOLHXjA4c=",
+            "digestHex": "728f1b4e539114c41248696397dbd252479a7db7321db214330cdd8e00d39805"
+          }
+        }
+      }
+    ],
+    "environmentFailures": [
+      "The frozen copy lacked unchanged generated WASM/client packages. Copying matching build artifacts resolved the type-check failures. No production change was required."
+    ]
+  },
+  "arms": [
+    {
+      "name": "matched-baseline",
+      "sdk": "baseline-site",
+      "startedAtMs": 1791454983442,
+      "endedAtMs": 1791455023917,
+      "versions": {
+        "seams-sdk-d1-console-staging": [
+          {
+            "version_id": "29d08e63-3d81-4fa0-adf2-123ecbbe5641",
+            "percentage": 100
+          }
+        ],
+        "router-ab-deriver-a-staging": [
+          {
+            "version_id": "c2bd14af-1ff9-4506-9c86-8e4d8edb7ab6",
+            "percentage": 100
+          }
+        ],
+        "router-ab-deriver-b-staging": [
+          {
+            "version_id": "90f3511f-1a5a-4183-986c-85ba1fb6ebe1",
+            "percentage": 100
+          }
+        ],
+        "router-ab-mpc-router-staging": [
+          {
+            "version_id": "64374bb2-7351-4f28-89b6-1009a03d51b5",
+            "percentage": 100
+          }
+        ],
+        "router-ab-signing-worker-staging": [
+          {
+            "version_id": "c7064538-6b51-4b72-b02a-272537a6ac05",
+            "percentage": 100
+          }
+        ],
+        "seams-sdk-d1-gateway-staging": [
+          {
+            "version_id": "c3f248bf-1d16-42a0-818d-e1c219e01dab",
+            "percentage": 100
+          }
+        ],
+        "seams-sdk-d1-gateway-staging-oc": [
+          {
+            "version_id": "d997446e-77de-4b55-90fb-20e7549c5a39",
+            "percentage": 100
+          }
+        ],
+        "seams-sdk-d1-gateway-staging-us": [
+          {
+            "version_id": "991403ec-65e5-4885-a1a0-847e662e3871",
+            "percentage": 100
+          }
+        ],
+        "seams-sdk-d1-gateway-staging-weur": [
+          {
+            "version_id": "b4614e86-1ae0-4f1e-bf78-bdf620b63731",
+            "percentage": 100
+          }
+        ],
+        "seams-sdk-d1-wallet-runtime-staging": [
+          {
+            "version_id": "b068efef-5043-4072-b1fe-0c6dbce1c902",
+            "percentage": 100
+          }
+        ],
+        "seams-sdk-d1-wallet-runtime-staging-oc": [
+          {
+            "version_id": "3f48c537-0d1e-4b3e-9595-f1c586fc3ab6",
+            "percentage": 100
+          }
+        ],
+        "seams-sdk-d1-wallet-runtime-staging-us": [
+          {
+            "version_id": "273942f8-a9d8-45d0-a616-cf467043073d",
+            "percentage": 100
+          }
+        ],
+        "seams-sdk-d1-wallet-runtime-staging-weur": [
+          {
+            "version_id": "3431e054-ca39-4032-a830-96b2a615b406",
+            "percentage": 100
+          }
+        ]
+      },
+      "metrics": {
+        "registrationBrowserMs": {
+          "samples": 3,
+          "median": 9949.369,
+          "minimum": 8401.923,
+          "maximum": 11619.404
+        },
+        "registrationToVerifiedMessageMs": {
+          "samples": 3,
+          "median": 12945.624,
+          "minimum": 9851.834,
+          "maximum": 14648.448
+        },
+        "yaoExecuteHttpMs": {
+          "samples": 3,
+          "median": 4168.754,
+          "minimum": 3783.755,
+          "maximum": 4540.371
+        },
+        "authenticatedYaoHttpMs": {
+          "samples": 3,
+          "median": 5220.602,
+          "minimum": 4588.527,
+          "maximum": 5604.745
+        },
+        "walletCommitHttpMs": {
+          "samples": 3,
+          "median": 2363.934,
+          "minimum": 2122.82,
+          "maximum": 3263.55
+        },
+        "finalizationHttpMs": {
+          "samples": 3,
+          "median": 2363.934,
+          "minimum": 2122.82,
+          "maximum": 3263.55
+        },
+        "registrationProtocolRequests": {
+          "samples": 3,
+          "median": 4,
+          "minimum": 4,
+          "maximum": 4
+        },
+        "allObservedGatewayRequests": {
+          "samples": 3,
+          "median": 9,
+          "minimum": 9,
+          "maximum": 9
+        },
+        "registrationSdkMs": {
+          "samples": 3,
+          "median": 9384.99,
+          "minimum": 8151.105,
+          "maximum": 10808.32
+        }
+      },
+      "registrationStagesMs": {
+        "near_only.setup": {
+          "samples": 3,
+          "median": 851.7,
+          "minimum": 706.5,
+          "maximum": 1064
+        },
+        "near_only.authentication": {
+          "samples": 3,
+          "median": 280.8,
+          "minimum": 161.5,
+          "maximum": 763.9
+        },
+        "near_only.respond": {
+          "samples": 3,
+          "median": 1054.4,
+          "minimum": 808.2,
+          "maximum": 1065.6
+        },
+        "session_seal_preparation": {
+          "samples": 3,
+          "median": 66.4,
+          "minimum": 51.7,
+          "maximum": 71.4
+        },
+        "near_only.custody": {
+          "samples": 3,
+          "median": 4209.7,
+          "minimum": 3826.9,
+          "maximum": 4575.6
+        },
+        "near_only.provision_checkpoint": {
+          "samples": 3,
+          "median": 3.6,
+          "minimum": 3.3,
+          "maximum": 3.6
+        },
+        "near_only.finalize": {
+          "samples": 3,
+          "median": 2366.8,
+          "minimum": 2128.6,
+          "maximum": 3270.1
+        },
+        "near_only.publication": {
+          "samples": 3,
+          "median": 15.5,
+          "minimum": 11.2,
+          "maximum": 17.7
+        },
+        "session_hydration.worker_ready": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "session_hydration.worker_put": {
+          "samples": 3,
+          "median": 1,
+          "minimum": 0,
+          "maximum": 1
+        },
+        "session_hydration.sealed_record_existing_read": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 1
+        },
+        "session_hydration.sealed_record_apply_server_seal": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "session_hydration.sealed_record_apply_runtime_setup": {
+          "samples": 3,
+          "median": 15,
+          "minimum": 10,
+          "maximum": 18
+        },
+        "session_hydration.sealed_record_apply_client_seal": {
+          "samples": 3,
+          "median": 48,
+          "minimum": 39,
+          "maximum": 50
+        },
+        "session_hydration.sealed_record_apply_server_route": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "session_hydration.sealed_record_apply_client_unseal": {
+          "samples": 3,
+          "median": 47,
+          "minimum": 44,
+          "maximum": 48
+        },
+        "session_hydration.sealed_record_apply_policy_update": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "session_hydration.sealed_record_register": {
+          "samples": 3,
+          "median": 1,
+          "minimum": 1,
+          "maximum": 1
+        },
+        "session_hydration.sealed_record_verify_read": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 1
+        },
+        "session_hydration.sealed_record_persist": {
+          "samples": 3,
+          "median": 2,
+          "minimum": 2,
+          "maximum": 2
+        },
+        "session_hydration": {
+          "samples": 3,
+          "median": 50.7,
+          "minimum": 48,
+          "maximum": 52.1
+        },
+        "near_only.session_hydration": {
+          "samples": 3,
+          "median": 51.1,
+          "minimum": 48.1,
+          "maximum": 52.4
+        },
+        "near_only.material_activation": {
+          "samples": 3,
+          "median": 14.6,
+          "minimum": 14.6,
+          "maximum": 15.2
+        },
+        "near_only.export_capability": {
+          "samples": 3,
+          "median": 8.8,
+          "minimum": 8.1,
+          "maximum": 9.5
+        },
+        "near_only.wallet_ready": {
+          "samples": 3,
+          "median": 1.1,
+          "minimum": 1.1,
+          "maximum": 1.2
+        }
+      },
+      "roleSpansMs": {
+        "router.parse_and_authorize": {
+          "samples": 3,
+          "median": 613,
+          "minimum": 515,
+          "maximum": 644
+        },
+        "router.prepare_pair.deriver_b": {
+          "samples": 3,
+          "median": 998,
+          "minimum": 471,
+          "maximum": 1077
+        },
+        "router.prepare_pair.deriver_a": {
+          "samples": 3,
+          "median": 938,
+          "minimum": 762,
+          "maximum": 1026
+        },
+        "router.prepare_pair": {
+          "samples": 3,
+          "median": 998,
+          "minimum": 938,
+          "maximum": 1077
+        },
+        "router.verify_readiness_receipts": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "router.deriver_a_execute.http": {
+          "samples": 3,
+          "median": 1687,
+          "minimum": 1459,
+          "maximum": 2134
+        },
+        "router.deriver_a_execute": {
+          "samples": 3,
+          "median": 1687,
+          "minimum": 1459,
+          "maximum": 2134
+        },
+        "router.signing_worker_delivery": {
+          "samples": 3,
+          "median": 513,
+          "minimum": 135,
+          "maximum": 768
+        },
+        "router.yao_execute": {
+          "samples": 3,
+          "median": 3368,
+          "minimum": 2984,
+          "maximum": 3552
+        },
+        "deriver_a.target_prepared": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "deriver_a.websocket_connect": {
+          "samples": 3,
+          "median": 757,
+          "minimum": 323,
+          "maximum": 977
+        },
+        "deriver_a.yao_protocol": {
+          "samples": 3,
+          "median": 430,
+          "minimum": 334,
+          "maximum": 566
+        },
+        "deriver_b.session_do": {
+          "samples": 3,
+          "median": 775,
+          "minimum": 374,
+          "maximum": 946
+        },
+        "deriver_b.begin_pair": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "deriver_b.upgrade_response": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "deriver_b.input_private_key": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "deriver_b.transport": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "deriver_b.yao_protocol": {
+          "samples": 3,
+          "median": 510,
+          "minimum": 489,
+          "maximum": 690
+        },
+        "deriver_b.output_serialization": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "deriver_b.role_execution": {
+          "samples": 3,
+          "median": 616,
+          "minimum": 591,
+          "maximum": 877
+        }
+      },
+      "finalizationSpansMs": {
+        "near_finalize_authority": {
+          "samples": 3,
+          "median": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "near_finalize_fingerprint": {
+          "samples": 3,
+          "median": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "near_finalize_side_effect": {
+          "samples": 3,
+          "median": 1261.0,
+          "minimum": 1223.0,
+          "maximum": 2329.0
+        },
+        "near_finalize_cleanup": {
+          "samples": 3,
+          "median": 68.0,
+          "minimum": 65.0,
+          "maximum": 75.0
+        },
+        "near_finalize_total": {
+          "samples": 3,
+          "median": 1912.0,
+          "minimum": 1728.0,
+          "maximum": 2763.0
+        },
+        "near_finalize_session_seal": {
+          "samples": 3,
+          "median": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        }
+      }
+    },
+    {
+      "name": "joined-identity",
+      "sdk": "candidate-site",
+      "startedAtMs": 1791455645738,
+      "endedAtMs": 1791455683987,
+      "versions": {
+        "seams-sdk-d1-console-staging": [
+          {
+            "version_id": "29d08e63-3d81-4fa0-adf2-123ecbbe5641",
+            "percentage": 100
+          }
+        ],
+        "router-ab-deriver-a-staging": [
+          {
+            "version_id": "c2bd14af-1ff9-4506-9c86-8e4d8edb7ab6",
+            "percentage": 100
+          }
+        ],
+        "router-ab-deriver-b-staging": [
+          {
+            "version_id": "90f3511f-1a5a-4183-986c-85ba1fb6ebe1",
+            "percentage": 100
+          }
+        ],
+        "router-ab-mpc-router-staging": [
+          {
+            "version_id": "64374bb2-7351-4f28-89b6-1009a03d51b5",
+            "percentage": 100
+          }
+        ],
+        "router-ab-signing-worker-staging": [
+          {
+            "version_id": "c7064538-6b51-4b72-b02a-272537a6ac05",
+            "percentage": 100
+          }
+        ],
+        "seams-sdk-d1-gateway-staging": [
+          {
+            "version_id": "9cc2d062-0ec4-444a-800b-ab7233a81e08",
+            "percentage": 100
+          }
+        ],
+        "seams-sdk-d1-gateway-staging-oc": [
+          {
+            "version_id": "d997446e-77de-4b55-90fb-20e7549c5a39",
+            "percentage": 100
+          }
+        ],
+        "seams-sdk-d1-gateway-staging-us": [
+          {
+            "version_id": "991403ec-65e5-4885-a1a0-847e662e3871",
+            "percentage": 100
+          }
+        ],
+        "seams-sdk-d1-gateway-staging-weur": [
+          {
+            "version_id": "b4614e86-1ae0-4f1e-bf78-bdf620b63731",
+            "percentage": 100
+          }
+        ],
+        "seams-sdk-d1-wallet-runtime-staging": [
+          {
+            "version_id": "b068efef-5043-4072-b1fe-0c6dbce1c902",
+            "percentage": 100
+          }
+        ],
+        "seams-sdk-d1-wallet-runtime-staging-oc": [
+          {
+            "version_id": "3f48c537-0d1e-4b3e-9595-f1c586fc3ab6",
+            "percentage": 100
+          }
+        ],
+        "seams-sdk-d1-wallet-runtime-staging-us": [
+          {
+            "version_id": "273942f8-a9d8-45d0-a616-cf467043073d",
+            "percentage": 100
+          }
+        ],
+        "seams-sdk-d1-wallet-runtime-staging-weur": [
+          {
+            "version_id": "3431e054-ca39-4032-a830-96b2a615b406",
+            "percentage": 100
+          }
+        ]
+      },
+      "metrics": {
+        "registrationBrowserMs": {
+          "samples": 3,
+          "median": 9339.189,
+          "minimum": 8475.374,
+          "maximum": 9985.188
+        },
+        "registrationToVerifiedMessageMs": {
+          "samples": 3,
+          "median": 11545.421,
+          "minimum": 11451.385,
+          "maximum": 12208.048
+        },
+        "yaoExecuteHttpMs": {
+          "samples": 3,
+          "median": 3176.282,
+          "minimum": 2824.688,
+          "maximum": 4127.103
+        },
+        "authenticatedYaoHttpMs": {
+          "samples": 3,
+          "median": 4281.233,
+          "minimum": 3766.722,
+          "maximum": 5042.565
+        },
+        "walletCommitHttpMs": {
+          "samples": 3,
+          "median": 2656.813,
+          "minimum": 2569.5,
+          "maximum": 3192.58
+        },
+        "finalizationHttpMs": {
+          "samples": 3,
+          "median": 2656.813,
+          "minimum": 2569.5,
+          "maximum": 3192.58
+        },
+        "registrationProtocolRequests": {
+          "samples": 3,
+          "median": 4,
+          "minimum": 4,
+          "maximum": 4
+        },
+        "allObservedGatewayRequests": {
+          "samples": 3,
+          "median": 9,
+          "minimum": 9,
+          "maximum": 10
+        },
+        "registrationSdkMs": {
+          "samples": 3,
+          "median": 8972.045,
+          "minimum": 7823.9,
+          "maximum": 9129.5
+        }
+      },
+      "registrationStagesMs": {
+        "near_only.setup": {
+          "samples": 3,
+          "median": 734.5,
+          "minimum": 682.1,
+          "maximum": 790.1
+        },
+        "near_only.authentication": {
+          "samples": 3,
+          "median": 317.8,
+          "minimum": 222.3,
+          "maximum": 345.3
+        },
+        "near_only.respond": {
+          "samples": 3,
+          "median": 945.4,
+          "minimum": 919.9,
+          "maximum": 1108.5
+        },
+        "session_seal_preparation": {
+          "samples": 3,
+          "median": 73.8,
+          "minimum": 73.7,
+          "maximum": 74
+        },
+        "near_only.custody": {
+          "samples": 3,
+          "median": 3224.6,
+          "minimum": 2870.2,
+          "maximum": 4175.6
+        },
+        "near_only.provision_checkpoint": {
+          "samples": 3,
+          "median": 3.4,
+          "minimum": 3.4,
+          "maximum": 5.3
+        },
+        "near_only.finalize": {
+          "samples": 3,
+          "median": 2664.1,
+          "minimum": 2576.5,
+          "maximum": 3197
+        },
+        "near_only.publication": {
+          "samples": 3,
+          "median": 15.5,
+          "minimum": 14.4,
+          "maximum": 19.2
+        },
+        "session_hydration.worker_ready": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "session_hydration.worker_put": {
+          "samples": 3,
+          "median": 1,
+          "minimum": 1,
+          "maximum": 1
+        },
+        "session_hydration.sealed_record_existing_read": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "session_hydration.sealed_record_apply_server_seal": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "session_hydration.sealed_record_apply_runtime_setup": {
+          "samples": 3,
+          "median": 20,
+          "minimum": 19,
+          "maximum": 21
+        },
+        "session_hydration.sealed_record_apply_client_seal": {
+          "samples": 3,
+          "median": 50,
+          "minimum": 49,
+          "maximum": 51
+        },
+        "session_hydration.sealed_record_apply_server_route": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "session_hydration.sealed_record_apply_client_unseal": {
+          "samples": 3,
+          "median": 48,
+          "minimum": 46,
+          "maximum": 49
+        },
+        "session_hydration.sealed_record_apply_policy_update": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "session_hydration.sealed_record_register": {
+          "samples": 3,
+          "median": 1,
+          "minimum": 1,
+          "maximum": 1
+        },
+        "session_hydration.sealed_record_verify_read": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 1
+        },
+        "session_hydration.sealed_record_persist": {
+          "samples": 3,
+          "median": 2,
+          "minimum": 2,
+          "maximum": 3
+        },
+        "session_hydration": {
+          "samples": 3,
+          "median": 51.1,
+          "minimum": 50.6,
+          "maximum": 52.6
+        },
+        "near_only.session_hydration": {
+          "samples": 3,
+          "median": 51.3,
+          "minimum": 50.8,
+          "maximum": 53
+        },
+        "near_only.material_activation": {
+          "samples": 3,
+          "median": 17.8,
+          "minimum": 14.9,
+          "maximum": 19.5
+        },
+        "near_only.export_capability": {
+          "samples": 3,
+          "median": 8.2,
+          "minimum": 7.7,
+          "maximum": 8.7
+        },
+        "near_only.wallet_ready": {
+          "samples": 3,
+          "median": 1.1,
+          "minimum": 1,
+          "maximum": 1.2
+        }
+      },
+      "roleSpansMs": {
+        "router.parse_and_authorize": {
+          "samples": 3,
+          "median": 522,
+          "minimum": 317,
+          "maximum": 559
+        },
+        "router.prepare_pair.deriver_b": {
+          "samples": 3,
+          "median": 456,
+          "minimum": 426,
+          "maximum": 1047
+        },
+        "router.prepare_pair.deriver_a": {
+          "samples": 3,
+          "median": 490,
+          "minimum": 393,
+          "maximum": 907
+        },
+        "router.prepare_pair": {
+          "samples": 3,
+          "median": 490,
+          "minimum": 426,
+          "maximum": 1047
+        },
+        "router.verify_readiness_receipts": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "router.deriver_a_execute.http": {
+          "samples": 3,
+          "median": 1718,
+          "minimum": 1708,
+          "maximum": 1765
+        },
+        "router.deriver_a_execute": {
+          "samples": 3,
+          "median": 1718,
+          "minimum": 1708,
+          "maximum": 1765
+        },
+        "router.signing_worker_delivery": {
+          "samples": 3,
+          "median": 124,
+          "minimum": 97,
+          "maximum": 560
+        },
+        "router.yao_execute": {
+          "samples": 3,
+          "median": 2399,
+          "minimum": 2246,
+          "maximum": 3342
+        },
+        "deriver_a.target_prepared": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "deriver_a.websocket_connect": {
+          "samples": 3,
+          "median": 735,
+          "minimum": 724,
+          "maximum": 774
+        },
+        "deriver_a.yao_protocol": {
+          "samples": 3,
+          "median": 408,
+          "minimum": 358,
+          "maximum": 493
+        },
+        "deriver_b.session_do": {
+          "samples": 3,
+          "median": 398,
+          "minimum": 367,
+          "maximum": 805
+        },
+        "deriver_b.begin_pair": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "deriver_b.upgrade_response": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "deriver_b.input_private_key": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "deriver_b.transport": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "deriver_b.yao_protocol": {
+          "samples": 3,
+          "median": 470,
+          "minimum": 461,
+          "maximum": 501
+        },
+        "deriver_b.output_serialization": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "deriver_b.role_execution": {
+          "samples": 3,
+          "median": 606,
+          "minimum": 572,
+          "maximum": 614
+        }
+      },
+      "finalizationSpansMs": {
+        "near_finalize_authority": {
+          "samples": 3,
+          "median": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "near_finalize_fingerprint": {
+          "samples": 3,
+          "median": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "near_finalize_side_effect": {
+          "samples": 3,
+          "median": 1738.0,
+          "minimum": 1661.0,
+          "maximum": 2131.0
+        },
+        "near_finalize_cleanup": {
+          "samples": 3,
+          "median": 74.0,
+          "minimum": 66.0,
+          "maximum": 75.0
+        },
+        "near_finalize_total": {
+          "samples": 3,
+          "median": 2175.0,
+          "minimum": 2123.0,
+          "maximum": 2604.0
+        },
+        "near_finalize_session_seal": {
+          "samples": 3,
+          "median": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        }
+      }
+    }
+  ],
+  "samples": [
+    {
+      "arm": "matched-baseline",
+      "artifact": "registration-1.json",
+      "sha256": "4789f62775d85981b716e98050c3c60a4935fc06cbf195f6f2905d5106b6670a",
+      "metrics": {
+        "registrationBrowserMs": 11619.404208,
+        "registrationToVerifiedMessageMs": 14648.448333,
+        "yaoExecuteHttpMs": 4168.754,
+        "authenticatedYaoHttpMs": 5220.602,
+        "walletCommitHttpMs": 3263.55,
+        "finalizationHttpMs": 3263.55,
+        "registrationProtocolRequests": 4,
+        "allObservedGatewayRequests": 9,
+        "registrationSdkMs": 10808.320000052452
+      },
+      "stagesMs": {
+        "near_only.setup": 1064,
+        "near_only.authentication": 763.9000000953674,
+        "near_only.respond": 1054.3999999761581,
+        "session_seal_preparation": 66.40000009536743,
+        "near_only.custody": 4209.699999928474,
+        "near_only.provision_checkpoint": 3.600000023841858,
+        "near_only.finalize": 3270.100000023842,
+        "near_only.publication": 15.5,
+        "session_hydration.worker_ready": 0,
+        "session_hydration.worker_put": 1,
+        "session_hydration.sealed_record_existing_read": 0,
+        "session_hydration.sealed_record_apply_server_seal": 0,
+        "session_hydration.sealed_record_apply_runtime_setup": 15,
+        "session_hydration.sealed_record_apply_client_seal": 48,
+        "session_hydration.sealed_record_apply_server_route": 0,
+        "session_hydration.sealed_record_apply_client_unseal": 48,
+        "session_hydration.sealed_record_apply_policy_update": 0,
+        "session_hydration.sealed_record_register": 1,
+        "session_hydration.sealed_record_verify_read": 1,
+        "session_hydration.sealed_record_persist": 2,
+        "session_hydration": 52.09999990463257,
+        "near_only.session_hydration": 52.39999997615814,
+        "near_only.material_activation": 15.200000047683716,
+        "near_only.export_capability": 8.799999952316284,
+        "near_only.wallet_ready": 1.2000000476837158
+      },
+      "requestsByPath": {
+        "/wallets/register/setup": 1,
+        "/wallets/register/respond": 1,
+        "/router-ab/ed25519/yao/registration/execute": 1,
+        "/wallets/register/near-provisioning": 1,
+        "/wallet/session/status": 3,
+        "/router-ab/ed25519/sign/prepare": 1,
+        "/router-ab/ed25519/sign": 1
+      },
+      "nearAccessKeyCalls": 1,
+      "messageProof": {
+        "message": "Verify this new implicit NEAR wallet before funding",
+        "recipient": "checkout.example",
+        "state": "quote-170",
+        "success": true,
+        "accountId": "1c0a55d52489b4558ab6b029dcbad5736343a75660f886b2577453801f219e8e",
+        "publicKey": "ed25519:2tTZFmcHhrzM8spdZk57nAbjo3JxToJARuJLXjUet28m",
+        "signature": "hZMGqZUCoEdMpAKYBB7tIC1iEe9jN8Q8rW+76KfFwaT9Tho5wbj59lLb57XTcDPWLVPQYm6cJ8XgaciVL6bxAg==",
+        "nonce": "3eViq2FRj+7Px799qAf6bOhaMC58CDIH453yYKygmhw=",
+        "digestHex": "83a791ee983af5798cf452dec8606e0cc0efabfce34c1ceb60cd8031945c08d0"
+      },
+      "accountProvisioning": {
+        "kind": "implicit_account",
+        "accountIdSource": "ed25519_public_key"
+      },
+      "noFunding": true,
+      "noOtherSignerAssetsLoaded": true
+    },
+    {
+      "arm": "matched-baseline",
+      "artifact": "registration-2.json",
+      "sha256": "7e75a984aee3b536444728f3a6a2a86f5ce5a4c1349d2fd7524f24868fcefe76",
+      "metrics": {
+        "registrationBrowserMs": 9949.368958,
+        "registrationToVerifiedMessageMs": 12945.623832999998,
+        "yaoExecuteHttpMs": 4540.371,
+        "authenticatedYaoHttpMs": 5604.745,
+        "walletCommitHttpMs": 2363.934,
+        "finalizationHttpMs": 2363.934,
+        "registrationProtocolRequests": 4,
+        "allObservedGatewayRequests": 9,
+        "registrationSdkMs": 9384.990000009537
+      },
+      "stagesMs": {
+        "near_only.setup": 851.7000000476837,
+        "near_only.authentication": 161.5,
+        "near_only.respond": 1065.6000000238419,
+        "session_seal_preparation": 51.700000047683716,
+        "near_only.custody": 4575.600000023842,
+        "near_only.provision_checkpoint": 3.5999999046325684,
+        "near_only.finalize": 2366.8000000715256,
+        "near_only.publication": 11.199999928474426,
+        "session_hydration.worker_ready": 0,
+        "session_hydration.worker_put": 0,
+        "session_hydration.sealed_record_existing_read": 1,
+        "session_hydration.sealed_record_apply_server_seal": 0,
+        "session_hydration.sealed_record_apply_runtime_setup": 10,
+        "session_hydration.sealed_record_apply_client_seal": 39,
+        "session_hydration.sealed_record_apply_server_route": 0,
+        "session_hydration.sealed_record_apply_client_unseal": 44,
+        "session_hydration.sealed_record_apply_policy_update": 0,
+        "session_hydration.sealed_record_register": 1,
+        "session_hydration.sealed_record_verify_read": 0,
+        "session_hydration.sealed_record_persist": 2,
+        "session_hydration": 48,
+        "near_only.session_hydration": 48.10000002384186,
+        "near_only.material_activation": 14.600000023841858,
+        "near_only.export_capability": 9.5,
+        "near_only.wallet_ready": 1.100000023841858
+      },
+      "requestsByPath": {
+        "/wallets/register/setup": 1,
+        "/wallets/register/respond": 1,
+        "/router-ab/ed25519/yao/registration/execute": 1,
+        "/wallets/register/near-provisioning": 1,
+        "/wallet/session/status": 3,
+        "/router-ab/ed25519/sign/prepare": 1,
+        "/router-ab/ed25519/sign": 1
+      },
+      "nearAccessKeyCalls": 1,
+      "messageProof": {
+        "message": "Verify this new implicit NEAR wallet before funding",
+        "recipient": "checkout.example",
+        "state": "quote-170",
+        "success": true,
+        "accountId": "d341c43875e8a6de3d180e7f0a903e9b65083c73a6047bf843cbd6fc7be95c8b",
+        "publicKey": "ed25519:FDfBvvEiEiLp8cepUg53V57RbS4sADPBHrT1QWLxSfFG",
+        "signature": "vEYdX3uRh7beiJ76qw5Rdi7wWT2ZPSPFbAauAGle7cbhMQA+i3ykYofrBJcm4+AtDyi4wlJFHKGOPFSZhS4IAw==",
+        "nonce": "NiPHEGr5iKVnB+PF4nwEOl1kH2G3RFDZJZZD7RsFGJI=",
+        "digestHex": "109695b741dd3350b2778ffc889b68c1ee5b9150d5cd4838a9abd7c16bde368c"
+      },
+      "accountProvisioning": {
+        "kind": "implicit_account",
+        "accountIdSource": "ed25519_public_key"
+      },
+      "noFunding": true,
+      "noOtherSignerAssetsLoaded": true
+    },
+    {
+      "arm": "matched-baseline",
+      "artifact": "registration-3.json",
+      "sha256": "4986ecdeab81db343364fe7d5746a325b18ec96a856987f822d86f94457b61a2",
+      "metrics": {
+        "registrationBrowserMs": 8401.923125000001,
+        "registrationToVerifiedMessageMs": 9851.833833000004,
+        "yaoExecuteHttpMs": 3783.755,
+        "authenticatedYaoHttpMs": 4588.527,
+        "walletCommitHttpMs": 2122.82,
+        "finalizationHttpMs": 2122.82,
+        "registrationProtocolRequests": 4,
+        "allObservedGatewayRequests": 9,
+        "registrationSdkMs": 8151.1050000190735
+      },
+      "stagesMs": {
+        "near_only.setup": 706.5,
+        "near_only.authentication": 280.7999999523163,
+        "near_only.respond": 808.2000000476837,
+        "session_seal_preparation": 71.39999997615814,
+        "near_only.custody": 3826.899999976158,
+        "near_only.provision_checkpoint": 3.3000000715255737,
+        "near_only.finalize": 2128.5999999046326,
+        "near_only.publication": 17.700000047683716,
+        "session_hydration.worker_ready": 0,
+        "session_hydration.worker_put": 1,
+        "session_hydration.sealed_record_existing_read": 0,
+        "session_hydration.sealed_record_apply_server_seal": 0,
+        "session_hydration.sealed_record_apply_runtime_setup": 18,
+        "session_hydration.sealed_record_apply_client_seal": 50,
+        "session_hydration.sealed_record_apply_server_route": 0,
+        "session_hydration.sealed_record_apply_client_unseal": 47,
+        "session_hydration.sealed_record_apply_policy_update": 0,
+        "session_hydration.sealed_record_register": 1,
+        "session_hydration.sealed_record_verify_read": 0,
+        "session_hydration.sealed_record_persist": 2,
+        "session_hydration": 50.700000047683716,
+        "near_only.session_hydration": 51.10000002384186,
+        "near_only.material_activation": 14.600000023841858,
+        "near_only.export_capability": 8.099999904632568,
+        "near_only.wallet_ready": 1.100000023841858
+      },
+      "requestsByPath": {
+        "/wallets/register/setup": 1,
+        "/wallets/register/respond": 1,
+        "/router-ab/ed25519/yao/registration/execute": 1,
+        "/wallets/register/near-provisioning": 1,
+        "/wallet/session/status": 3,
+        "/router-ab/ed25519/sign/prepare": 1,
+        "/router-ab/ed25519/sign": 1
+      },
+      "nearAccessKeyCalls": 1,
+      "messageProof": {
+        "message": "Verify this new implicit NEAR wallet before funding",
+        "recipient": "checkout.example",
+        "state": "quote-170",
+        "success": true,
+        "accountId": "e4ceb5945ad194bcab96fbc1900c686d544b1f1cc500c1c96827d3a63d7add82",
+        "publicKey": "ed25519:GQAmejcjCXt4fBRHrQ5yiiem3f8p15qajuuda9qK23Zs",
+        "signature": "8VLDlGau/zP4VaY5PiQTy2jjZN6h0Gp9DOrC94fpb5GJwmtFgBMDgfraOuPAY0U8ndAVj5RybO4cLm2w4NNRBA==",
+        "nonce": "fXSnLybUY+CET4Ae+u4kmM5zhrMy7g9TjRRZnELHpwE=",
+        "digestHex": "c0011c6d2dab29059163d90321af8c6c5537eb16a76356181728605c19db00f2"
+      },
+      "accountProvisioning": {
+        "kind": "implicit_account",
+        "accountIdSource": "ed25519_public_key"
+      },
+      "noFunding": true,
+      "noOtherSignerAssetsLoaded": true
+    },
+    {
+      "arm": "joined-identity",
+      "artifact": "registration-1.json",
+      "sha256": "80c938a252e9e66a19fc34efdf7d264ba0da89424a243a1b46f952a194986e29",
+      "metrics": {
+        "registrationBrowserMs": 9339.189250000001,
+        "registrationToVerifiedMessageMs": 11545.420708,
+        "yaoExecuteHttpMs": 3176.282,
+        "authenticatedYaoHttpMs": 4281.233,
+        "walletCommitHttpMs": 3192.58,
+        "finalizationHttpMs": 3192.58,
+        "registrationProtocolRequests": 4,
+        "allObservedGatewayRequests": 9,
+        "registrationSdkMs": 8972.045000076294
+      },
+      "stagesMs": {
+        "near_only.setup": 734.5,
+        "near_only.authentication": 317.8000000715256,
+        "near_only.respond": 1108.5,
+        "session_seal_preparation": 73.79999995231628,
+        "near_only.custody": 3224.5999999046326,
+        "near_only.provision_checkpoint": 5.300000071525574,
+        "near_only.finalize": 3197,
+        "near_only.publication": 14.399999976158142,
+        "session_hydration.worker_ready": 0,
+        "session_hydration.worker_put": 1,
+        "session_hydration.sealed_record_existing_read": 0,
+        "session_hydration.sealed_record_apply_server_seal": 0,
+        "session_hydration.sealed_record_apply_runtime_setup": 21,
+        "session_hydration.sealed_record_apply_client_seal": 49,
+        "session_hydration.sealed_record_apply_server_route": 0,
+        "session_hydration.sealed_record_apply_client_unseal": 46,
+        "session_hydration.sealed_record_apply_policy_update": 0,
+        "session_hydration.sealed_record_register": 1,
+        "session_hydration.sealed_record_verify_read": 1,
+        "session_hydration.sealed_record_persist": 3,
+        "session_hydration": 50.60000002384186,
+        "near_only.session_hydration": 50.799999952316284,
+        "near_only.material_activation": 19.5,
+        "near_only.export_capability": 8.700000047683716,
+        "near_only.wallet_ready": 1
+      },
+      "requestsByPath": {
+        "/wallets/register/setup": 1,
+        "/wallets/register/respond": 1,
+        "/router-ab/ed25519/yao/registration/execute": 1,
+        "/wallets/register/near-provisioning": 1,
+        "/wallet/session/status": 3,
+        "/router-ab/ed25519/sign/prepare": 1,
+        "/router-ab/ed25519/sign": 1
+      },
+      "nearAccessKeyCalls": 1,
+      "messageProof": {
+        "message": "Verify this new implicit NEAR wallet before funding",
+        "recipient": "checkout.example",
+        "state": "quote-170",
+        "success": true,
+        "accountId": "2c6b2a5317068711325120102368b9f0b8fe08b62f4c45b96c5f02768d792f2e",
+        "publicKey": "ed25519:3zPiYWVUARSVZbhUoCzLVWb3xMwCozggfGMD6ZMCHNv9",
+        "signature": "lsustSu9sjui36ZXGkdShHotFpaSVmK2BKk8KUmoBGo1zi/PNI57XKC4xNGeQ7m2292hExzbbiJPiKbA2SPvAg==",
+        "nonce": "GBMEBqmShrajqjkVgqZUm0MSqc2lLy8WeV8u7y5v8pc=",
+        "digestHex": "1e0eeef4b03f915b876831dc5da92e0cf0dc4a04b0d84d74c60f373b71f21586"
+      },
+      "accountProvisioning": {
+        "kind": "implicit_account",
+        "accountIdSource": "ed25519_public_key"
+      },
+      "noFunding": true,
+      "noOtherSignerAssetsLoaded": true
+    },
+    {
+      "arm": "joined-identity",
+      "artifact": "registration-2.json",
+      "sha256": "1285eeecd4c2c009bf1992a685f5fd4971a4bef62908c3b3450e22afafd31b97",
+      "metrics": {
+        "registrationBrowserMs": 8475.373709000001,
+        "registrationToVerifiedMessageMs": 11451.384791999999,
+        "yaoExecuteHttpMs": 2824.688,
+        "authenticatedYaoHttpMs": 3766.722,
+        "walletCommitHttpMs": 2569.5,
+        "finalizationHttpMs": 2569.5,
+        "registrationProtocolRequests": 4,
+        "allObservedGatewayRequests": 10,
+        "registrationSdkMs": 7823.899999976158
+      },
+      "stagesMs": {
+        "near_only.setup": 682.1000000238419,
+        "near_only.authentication": 345.2999999523163,
+        "near_only.respond": 945.3999999761581,
+        "session_seal_preparation": 73.70000004768372,
+        "near_only.custody": 2870.2000000476837,
+        "near_only.provision_checkpoint": 3.399999976158142,
+        "near_only.finalize": 2576.5,
+        "near_only.publication": 15.5,
+        "session_hydration.worker_ready": 0,
+        "session_hydration.worker_put": 1,
+        "session_hydration.sealed_record_existing_read": 0,
+        "session_hydration.sealed_record_apply_server_seal": 0,
+        "session_hydration.sealed_record_apply_runtime_setup": 20,
+        "session_hydration.sealed_record_apply_client_seal": 50,
+        "session_hydration.sealed_record_apply_server_route": 0,
+        "session_hydration.sealed_record_apply_client_unseal": 49,
+        "session_hydration.sealed_record_apply_policy_update": 0,
+        "session_hydration.sealed_record_register": 1,
+        "session_hydration.sealed_record_verify_read": 0,
+        "session_hydration.sealed_record_persist": 2,
+        "session_hydration": 52.60000002384186,
+        "near_only.session_hydration": 53,
+        "near_only.material_activation": 17.799999952316284,
+        "near_only.export_capability": 8.200000047683716,
+        "near_only.wallet_ready": 1.100000023841858
+      },
+      "requestsByPath": {
+        "/wallets/register/setup": 1,
+        "/wallets/register/respond": 1,
+        "/router-ab/ed25519/yao/registration/execute": 1,
+        "/wallets/register/near-provisioning": 1,
+        "/wallet/session/status": 4,
+        "/router-ab/ed25519/sign/prepare": 1,
+        "/router-ab/ed25519/sign": 1
+      },
+      "nearAccessKeyCalls": 1,
+      "messageProof": {
+        "message": "Verify this new implicit NEAR wallet before funding",
+        "recipient": "checkout.example",
+        "state": "quote-170",
+        "success": true,
+        "accountId": "a8490663f7a0a48a2ea8f313147fb50947aa6b70d936efbadf7b0f2428242ea6",
+        "publicKey": "ed25519:CKv5TbWDUP7NMx16NUXPVCN349XXfxcaqsykMgdRh5YH",
+        "signature": "qNEdboiolVbvAJJXAUU+/0f3cabmRAtm5UFR45nSt1kkdt+rpIPsbl/PvlH859j/XX6fV6WhDZnrQBuRRHgmCQ==",
+        "nonce": "PEs2PCy/DgHqJ2vnjWC/zZRwXwtt/yNFf2CCQeG54UA=",
+        "digestHex": "8cc8178706fc87abcb06f6ce8abf69bb41752103cc699b206f4f5ca5b0b9f06c"
+      },
+      "accountProvisioning": {
+        "kind": "implicit_account",
+        "accountIdSource": "ed25519_public_key"
+      },
+      "noFunding": true,
+      "noOtherSignerAssetsLoaded": true
+    },
+    {
+      "arm": "joined-identity",
+      "artifact": "registration-3.json",
+      "sha256": "9fffd5091b176ce2871f602307ae1c97f6b3a67d153898ee8ff22b183961687c",
+      "metrics": {
+        "registrationBrowserMs": 9985.187583000003,
+        "registrationToVerifiedMessageMs": 12208.047833,
+        "yaoExecuteHttpMs": 4127.103,
+        "authenticatedYaoHttpMs": 5042.5650000000005,
+        "walletCommitHttpMs": 2656.813,
+        "finalizationHttpMs": 2656.813,
+        "registrationProtocolRequests": 4,
+        "allObservedGatewayRequests": 9,
+        "registrationSdkMs": 9129.5
+      },
+      "stagesMs": {
+        "near_only.setup": 790.1000000238419,
+        "near_only.authentication": 222.29999995231628,
+        "near_only.respond": 919.9000000953674,
+        "session_seal_preparation": 74,
+        "near_only.custody": 4175.599999904633,
+        "near_only.provision_checkpoint": 3.4000000953674316,
+        "near_only.finalize": 2664.0999999046326,
+        "near_only.publication": 19.200000047683716,
+        "session_hydration.worker_ready": 0,
+        "session_hydration.worker_put": 1,
+        "session_hydration.sealed_record_existing_read": 0,
+        "session_hydration.sealed_record_apply_server_seal": 0,
+        "session_hydration.sealed_record_apply_runtime_setup": 19,
+        "session_hydration.sealed_record_apply_client_seal": 51,
+        "session_hydration.sealed_record_apply_server_route": 0,
+        "session_hydration.sealed_record_apply_client_unseal": 48,
+        "session_hydration.sealed_record_apply_policy_update": 0,
+        "session_hydration.sealed_record_register": 1,
+        "session_hydration.sealed_record_verify_read": 0,
+        "session_hydration.sealed_record_persist": 2,
+        "session_hydration": 51.09999990463257,
+        "near_only.session_hydration": 51.299999952316284,
+        "near_only.material_activation": 14.900000095367432,
+        "near_only.export_capability": 7.699999928474426,
+        "near_only.wallet_ready": 1.2000000476837158
+      },
+      "requestsByPath": {
+        "/wallets/register/setup": 1,
+        "/wallets/register/respond": 1,
+        "/router-ab/ed25519/yao/registration/execute": 1,
+        "/wallets/register/near-provisioning": 1,
+        "/wallet/session/status": 3,
+        "/router-ab/ed25519/sign/prepare": 1,
+        "/router-ab/ed25519/sign": 1
+      },
+      "nearAccessKeyCalls": 1,
+      "messageProof": {
+        "message": "Verify this new implicit NEAR wallet before funding",
+        "recipient": "checkout.example",
+        "state": "quote-170",
+        "success": true,
+        "accountId": "d1f78cc252153ad2988d389b5a9445bad9a4800c625f20fcb3530ffe4a52fb95",
+        "publicKey": "ed25519:F8d9JcL2M8pJvqyVat1KF4wyADQB2HXYcCiNJtypjgs6",
+        "signature": "vM/5Klv7Jum401PNo0cAVdpVXcckLI8I6Kci1SdZXq/Dq6RVZHEHkPY/OJzBKnD4nx0QtKqGUTLEoypcaZ6VBA==",
+        "nonce": "AT+932R8y1m5AsNrOsn+WioIPIG/1o3pbjDL6XdvpB8=",
+        "digestHex": "2e892518613fdeeb30a70415f4f23967d0fef33a1e691efbbdc86419a60c2b42"
+      },
+      "accountProvisioning": {
+        "kind": "implicit_account",
+        "accountIdSource": "ed25519_public_key"
+      },
+      "noFunding": true,
+      "noOtherSignerAssetsLoaded": true
+    }
+  ],
+  "queryPlans": {
+    "passkey": [
+      "CO-ROUTINE method",
+      "SEARCH wallet_auth_methods USING INDEX wallet_auth_methods_v2_passkey_uidx (namespace=? AND org_id=? AND project_id=? AND env_id=? AND rp_id=? AND credential_id_b64u=?)",
+      "SCAN method",
+      "SEARCH authority USING INDEX wallet_authorities_wallet_identity_uidx (namespace=? AND org_id=? AND project_id=? AND env_id=? AND authority_id=? AND wallet_id=?)"
+    ],
+    "email_otp": [
+      "CO-ROUTINE method",
+      "SEARCH wallet_auth_methods USING INDEX wallet_auth_methods_wallet_authority_status_idx (namespace=? AND org_id=? AND project_id=? AND env_id=? AND wallet_id=?)",
+      "USE TEMP B-TREE FOR ORDER BY",
+      "SCAN method",
+      "SEARCH authority USING INDEX wallet_authorities_wallet_identity_uidx (namespace=? AND org_id=? AND project_id=? AND env_id=? AND authority_id=? AND wallet_id=?)"
+    ]
+  },
+  "boundedSourceD1ReadCounts": {
+    "scope": "Registration session issuance and mixed continuation identity lookup only",
+    "baseline": 3,
+    "candidate": 1
+  },
+  "outcome": "No finalization speedup established. Candidate finalization median increased by 293ms. Overall registration-to-verified-message median decreased while unchanged Yao code also ran faster. Retain the coherent identity query without attributing the overall decrease to it.",
+  "targets": {
+    "registrationToVerifiedSignatureMaximumMs": 4000,
+    "yaoSetupMaximumMs": 2000,
+    "metObserved": false
+  },
+  "servingVersionAudit": [
+    {
+      "arm": "matched-baseline",
+      "roles": [
+        {
+          "role": "router",
+          "expectedVersionIds": [
+            "64374bb2-7351-4f28-89b6-1009a03d51b5"
+          ],
+          "actualInvocationCounts": {
+            "64374bb2-7351-4f28-89b6-1009a03d51b5": 36
+          },
+          "allMatched": true
+        },
+        {
+          "role": "deriver-a",
+          "expectedVersionIds": [
+            "c2bd14af-1ff9-4506-9c86-8e4d8edb7ab6"
+          ],
+          "actualInvocationCounts": {
+            "c2bd14af-1ff9-4506-9c86-8e4d8edb7ab6": 23
+          },
+          "allMatched": true
+        },
+        {
+          "role": "deriver-b",
+          "expectedVersionIds": [
+            "90f3511f-1a5a-4183-986c-85ba1fb6ebe1"
+          ],
+          "actualInvocationCounts": {
+            "90f3511f-1a5a-4183-986c-85ba1fb6ebe1": 23
+          },
+          "allMatched": true
+        },
+        {
+          "role": "signing-worker",
+          "expectedVersionIds": [
+            "c7064538-6b51-4b72-b02a-272537a6ac05"
+          ],
+          "actualInvocationCounts": {
+            "c7064538-6b51-4b72-b02a-272537a6ac05": 28
+          },
+          "allMatched": true
+        },
+        {
+          "role": "gateway",
+          "expectedVersionIds": [
+            "c3f248bf-1d16-42a0-818d-e1c219e01dab"
+          ],
+          "actualInvocationCounts": {
+            "c3f248bf-1d16-42a0-818d-e1c219e01dab": 40
+          },
+          "allMatched": true
+        }
+      ],
+      "allMatched": true,
+      "invocationTimings": {
+        "router./router-ab/internal/wallet/start": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 11,
+            "minimumMs": 9,
+            "maximumMs": 17
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 13,
+            "minimumMs": 11,
+            "maximumMs": 160
+          }
+        },
+        "router./router-wallet/v1/command": {
+          "cpu": {
+            "samples": 9,
+            "medianMs": 12,
+            "minimumMs": 2,
+            "maximumMs": 18
+          },
+          "wall": {
+            "samples": 9,
+            "medianMs": 56,
+            "minimumMs": 45,
+            "maximumMs": 66
+          }
+        },
+        "deriver-a./router-ab/internal/wallet/start": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 42,
+            "minimumMs": 23,
+            "maximumMs": 42
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 86,
+            "minimumMs": 64,
+            "maximumMs": 207
+          }
+        },
+        "deriver-a./router-ab/internal/deriver-a/wallet-pair/prepare-work": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 98,
+            "minimumMs": 90,
+            "maximumMs": 160
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 287,
+            "minimumMs": 269,
+            "maximumMs": 362
+          }
+        },
+        "deriver-a./router-ab/internal/deriver-a/wallet-pair/execute-work": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 526,
+            "minimumMs": 506,
+            "maximumMs": 739
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 1696,
+            "minimumMs": 1495,
+            "maximumMs": 2115
+          }
+        },
+        "deriver-b./router-ab/internal/wallet/start": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 15,
+            "minimumMs": 13,
+            "maximumMs": 26
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 65,
+            "minimumMs": 61,
+            "maximumMs": 71
+          }
+        },
+        "deriver-b./router-ab/internal/deriver-b/wallet-pair": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 123,
+            "minimumMs": 92,
+            "maximumMs": 195
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 328,
+            "minimumMs": 293,
+            "maximumMs": 465
+          }
+        },
+        "deriver-b./router-ab/deriver-b/ed25519-yao/duplex": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 323,
+            "minimumMs": 282,
+            "maximumMs": 461
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 1048,
+            "minimumMs": 901,
+            "maximumMs": 1197
+          }
+        },
+        "signing-worker./router-ab/internal/wallet/start": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 35,
+            "minimumMs": 28,
+            "maximumMs": 38
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 236,
+            "minimumMs": 158,
+            "maximumMs": 719
+          }
+        },
+        "signing-worker./router-ab/internal/signing-worker/wallet": {
+          "cpu": {
+            "samples": 9,
+            "medianMs": 42,
+            "minimumMs": 31,
+            "maximumMs": 59
+          },
+          "wall": {
+            "samples": 9,
+            "medianMs": 80,
+            "minimumMs": 70,
+            "maximumMs": 99
+          }
+        },
+        "signing_worker.package_worker": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 16,
+            "minimumMs": 8,
+            "maximumMs": 96
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 502,
+            "minimumMs": 117,
+            "maximumMs": 625
+          }
+        }
+      }
+    },
+    {
+      "arm": "joined-identity",
+      "roles": [
+        {
+          "role": "router",
+          "expectedVersionIds": [
+            "64374bb2-7351-4f28-89b6-1009a03d51b5"
+          ],
+          "actualInvocationCounts": {
+            "64374bb2-7351-4f28-89b6-1009a03d51b5": 36
+          },
+          "allMatched": true
+        },
+        {
+          "role": "deriver-a",
+          "expectedVersionIds": [
+            "c2bd14af-1ff9-4506-9c86-8e4d8edb7ab6"
+          ],
+          "actualInvocationCounts": {
+            "c2bd14af-1ff9-4506-9c86-8e4d8edb7ab6": 23
+          },
+          "allMatched": true
+        },
+        {
+          "role": "deriver-b",
+          "expectedVersionIds": [
+            "90f3511f-1a5a-4183-986c-85ba1fb6ebe1"
+          ],
+          "actualInvocationCounts": {
+            "90f3511f-1a5a-4183-986c-85ba1fb6ebe1": 23
+          },
+          "allMatched": true
+        },
+        {
+          "role": "signing-worker",
+          "expectedVersionIds": [
+            "c7064538-6b51-4b72-b02a-272537a6ac05"
+          ],
+          "actualInvocationCounts": {
+            "c7064538-6b51-4b72-b02a-272537a6ac05": 28
+          },
+          "allMatched": true
+        },
+        {
+          "role": "gateway",
+          "expectedVersionIds": [
+            "9cc2d062-0ec4-444a-800b-ab7233a81e08"
+          ],
+          "actualInvocationCounts": {
+            "9cc2d062-0ec4-444a-800b-ab7233a81e08": 41
+          },
+          "allMatched": true
+        }
+      ],
+      "allMatched": true,
+      "invocationTimings": {
+        "router./router-wallet/v1/command": {
+          "cpu": {
+            "samples": 9,
+            "medianMs": 9,
+            "minimumMs": 2,
+            "maximumMs": 32
+          },
+          "wall": {
+            "samples": 9,
+            "medianMs": 55,
+            "minimumMs": 46,
+            "maximumMs": 284
+          }
+        },
+        "router./router-ab/internal/wallet/start": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 19,
+            "minimumMs": 9,
+            "maximumMs": 31
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 133,
+            "minimumMs": 10,
+            "maximumMs": 284
+          }
+        },
+        "deriver-a./router-ab/internal/wallet/start": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 37,
+            "minimumMs": 28,
+            "maximumMs": 144
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 90,
+            "minimumMs": 77,
+            "maximumMs": 345
+          }
+        },
+        "deriver-a./router-ab/internal/deriver-a/wallet-pair/prepare-work": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 99,
+            "minimumMs": 82,
+            "maximumMs": 144
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 300,
+            "minimumMs": 276,
+            "maximumMs": 345
+          }
+        },
+        "deriver-a./router-ab/internal/deriver-a/wallet-pair/execute-work": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 501,
+            "minimumMs": 473,
+            "maximumMs": 508
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 1749,
+            "minimumMs": 1706,
+            "maximumMs": 1760
+          }
+        },
+        "deriver-b./router-ab/internal/wallet/start": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 17,
+            "minimumMs": 16,
+            "maximumMs": 21
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 68,
+            "minimumMs": 61,
+            "maximumMs": 85
+          }
+        },
+        "deriver-b./router-ab/internal/deriver-b/wallet-pair": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 134,
+            "minimumMs": 101,
+            "maximumMs": 166
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 333,
+            "minimumMs": 286,
+            "maximumMs": 378
+          }
+        },
+        "deriver-b./router-ab/deriver-b/ed25519-yao/duplex": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 346,
+            "minimumMs": 327,
+            "maximumMs": 415
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 971,
+            "minimumMs": 914,
+            "maximumMs": 1012
+          }
+        },
+        "signing-worker./router-ab/internal/wallet/start": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 24,
+            "minimumMs": 20,
+            "maximumMs": 42
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 141,
+            "minimumMs": 137,
+            "maximumMs": 249
+          }
+        },
+        "signing-worker./router-ab/internal/signing-worker/wallet": {
+          "cpu": {
+            "samples": 9,
+            "medianMs": 30,
+            "minimumMs": 24,
+            "maximumMs": 47
+          },
+          "wall": {
+            "samples": 9,
+            "medianMs": 68,
+            "minimumMs": 62,
+            "maximumMs": 89
+          }
+        },
+        "signing_worker.package_worker": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 8,
+            "minimumMs": 6,
+            "maximumMs": 13
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 114,
+            "minimumMs": 88,
+            "maximumMs": 550
+          }
+        }
+      }
+    }
+  ],
+  "restoration": {
+    "at": "2026-10-08T10:45:49.399623+00:00",
+    "versions": {
+      "seams-sdk-d1-console-staging": [
+        {
+          "version_id": "29d08e63-3d81-4fa0-adf2-123ecbbe5641",
+          "percentage": 100
+        }
+      ],
+      "router-ab-deriver-a-staging": [
+        {
+          "version_id": "eaa0b80f-47bf-44a9-b9b5-4f73a70abcd0",
+          "percentage": 100
+        }
+      ],
+      "router-ab-deriver-b-staging": [
+        {
+          "version_id": "c700bbc1-b87f-4182-9f64-ff2bf33eead8",
+          "percentage": 100
+        }
+      ],
+      "router-ab-mpc-router-staging": [
+        {
+          "version_id": "cff2b41d-1fa2-4311-a8ce-56364c7ddf1a",
+          "percentage": 100
+        }
+      ],
+      "router-ab-signing-worker-staging": [
+        {
+          "version_id": "c18b2202-8063-4c96-9772-fb1a268494fc",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-gateway-staging": [
+        {
+          "version_id": "12f48c20-df36-4d15-8355-33c2ac72338f",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-gateway-staging-oc": [
+        {
+          "version_id": "d997446e-77de-4b55-90fb-20e7549c5a39",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-gateway-staging-us": [
+        {
+          "version_id": "991403ec-65e5-4885-a1a0-847e662e3871",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-gateway-staging-weur": [
+        {
+          "version_id": "b4614e86-1ae0-4f1e-bf78-bdf620b63731",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-wallet-runtime-staging": [
+        {
+          "version_id": "b068efef-5043-4072-b1fe-0c6dbce1c902",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-wallet-runtime-staging-oc": [
+        {
+          "version_id": "3f48c537-0d1e-4b3e-9595-f1c586fc3ab6",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-wallet-runtime-staging-us": [
+        {
+          "version_id": "273942f8-a9d8-45d0-a616-cf467043073d",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-wallet-runtime-staging-weur": [
+        {
+          "version_id": "3431e054-ca39-4032-a830-96b2a615b406",
+          "percentage": 100
+        }
+      ]
+    },
+    "activation": {
+      "runId": 37765469066,
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/seams-tech/seams-monorepo/actions/runs/37765469066"
+    },
+    "allOriginalVersionsMatched": true
+  },
+  "limitations": [
+    "Three sequential samples per arm establish neither percentiles nor a maximum guarantee.",
+    "Authenticated Yao and wallet-commit metrics sum corresponding HTTP durations per sample, never stage medians.",
+    "Browser registration-to-signature time includes automation and UI settlement. Fresh wallets do not prove cold Workers or DOs.",
+    "Gateway-wide D1 and backend Console call counts remain unknown. Application timers omit some CPU work.",
+    "Existing APAC home hints remain. Actual physical colocation was not remeasured."
+  ],
+  "rawArtifacts": {
+    "public": ".artifacts/r155b-phase6w",
+    "private": ".artifacts/r155b-phase6w-hosted"
+  }
+}

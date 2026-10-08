@@ -4069,3 +4069,84 @@ or package release occurred. Raw artifacts remain in `.artifacts/r155b-phase6v`
 (public) and `.artifacts/r155b-phase6v-hosted` (private).
 
 [Sanitized samples, signature proofs and deployment audits](evidence/near-registration-joined-commit-20261008.json).
+
+## Phase 6W — read registration identity in one database snapshot
+
+Implementation: `8c4a7d546f3a52d7b0de4796614bdea3ec73f6a7` on `dev`.
+
+Registration session issuance previously read the authentication method, read its
+authority, then read the same authority again. The new query joins the exact method
+and authority within their namespace, organization, project, environment and wallet.
+It preserves credential checks, active-state checks and canonical authority-digest
+verification. The session insertion still checks active method and authority state
+in its transaction. The obsolete authority-only wrapper is removed.
+
+- [x] Replace the sequential identity reads with one coherent SQL query.
+- [x] Keep the earliest matching method selection. A revoked method cannot fall
+  through to a later matching method or another wallet.
+- [x] Retain fresh reads at each registration stage. Add no authorization cache.
+- [x] Pass nine local browser scenarios: both authentication methods, NEAR signing,
+  admission and finalization replay, lost-response recovery, quota enforcement,
+  and ECDSA/mixed activation recovery.
+- [x] Pass the server build, TypeScript checks and exact-tree bloat check.
+- [x] Compare three fresh implicit wallets per hosted arm with one SDK, harness,
+  private Gateway source, and custody cohort. Change only the Gateway identity read.
+- [x] Audit serving versions, verify signatures, restore staging and record results.
+
+The bounded source-level reduction is **three D1 reads to one** during registration
+session issuance and mixed continuation identity lookup. Other callers of the
+identity reader use one joined read instead of up to two sequential reads. This
+does not describe total registration D1 calls or promise an end-to-end saving.
+
+The A-to-B connection still includes B's durable execution claim and signed
+acceptance. Earlier connection-reuse experiments did not establish a repeatable
+setup improvement. This change preserves that protocol and its trust boundaries.
+The registration and Yao targets remain unmet until hosted evidence establishes them.
+
+### Phase 6W hosted result — 2026-10-08
+
+The joined query removes database work, but this comparison establishes **no
+finalization speedup**. Its median increased by **293ms (12.4%)**. Keep the single
+coherent identity read for its smaller database workload and consistent snapshot.
+Do not claim that it produced the observed decrease in total registration time.
+
+Three fresh implicit wallets ran per arm. The SDK, browser harness, private
+Gateway source, and custody Worker versions stayed fixed. Only the Gateway's
+registration identity query changed. Each wallet produced one independently
+verified NEP-413 message. Funding and named-account provisioning were absent.
+
+| Measurement | Baseline median (range) | Candidate median (range) |
+| --- | ---: | ---: |
+| SDK registration | 9.385s (8.151–10.808s) | 8.972s (7.824–9.130s) |
+| Browser registration | 9.949s (8.402–11.619s) | 9.339s (8.475–9.985s) |
+| Registration → verified message | 12.946s (9.852–14.648s) | 11.545s (11.451–12.208s) |
+| Yao execute HTTP, unchanged custody code | 4.169s (3.784–4.540s) | 3.176s (2.825–4.127s) |
+| Finalization HTTP | 2.364s (2.123–3.264s) | 2.657s (2.570–3.193s) |
+| Registration protocol requests | 4 | 4 |
+| All Gateway requests through first message | 9 | 9 (9–10) |
+
+The measured finalization side-effect span increased from **1.261s to 1.738s**.
+That span includes persistence and session issuance. It does not isolate the joined
+query. A's connection to B measured **757ms → 735ms** median. No custody code
+changed, so the faster complete Yao sample is not an effect established by this
+query optimization. No protocol exchange or Worker dispatch was removed.
+
+The source-level reduction applies specifically to the registration identity
+lookup. Gateway-wide D1 and backend Console counts remain unavailable. Local query
+plans confirm existing indexes serve both joins. No migration or index was added.
+Application clocks omit some CPU work. These three sequential samples per arm
+establish neither a percentile nor a guaranteed maximum. Browser totals include
+automation and UI settlement. Physical colocation was not remeasured.
+
+All nine local browser scenarios passed, along with TypeScript, server build and
+bloat checks. The frozen copy initially lacked unchanged generated WASM packages.
+Those environment failures were resolved by copying the matching build artifacts.
+No production repair was needed. Both hosted serving-version audits passed.
+The **3–4 second registration target and 1–2 second Yao target remain unmet**.
+
+All thirteen original Worker versions were restored and verified. Tenant activation
+passed in run `37765469066`. No new resources, production deployment or package
+release occurred. Raw artifacts remain in `.artifacts/r155b-phase6w` (public) and
+`.artifacts/r155b-phase6w-hosted` (private).
+
+[Sanitized samples, query plans and deployment audits](evidence/near-registration-joined-identity-20261008.json).
