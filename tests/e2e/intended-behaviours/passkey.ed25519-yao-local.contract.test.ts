@@ -500,3 +500,157 @@ test(
   'NEAR nonce recovery preserves distinct signatures across reload, RPC failure and fresh recovery',
   verifyNonceRecovery,
 );
+
+async function readNearOperationPersistence(walletId: string, operationId: string) {
+  const DatabaseSync = await loadNodeDatabaseSync();
+  const database = new DatabaseSync(await isolatedGatewayDatabasePath(), { readOnly: true });
+  try {
+    const rows = database
+      .prepare(
+        `
+      SELECT
+        (SELECT SUM(quota.remaining_uses) FROM authorization_wallet_session_quotas AS quota
+          WHERE EXISTS (SELECT 1 FROM wallet_session_authorizations_v2 AS session
+            WHERE session.namespace = quota.namespace AND session.tenant_id = quota.tenant_id
+              AND session.quota_id = quota.quota_id AND session.wallet_id = ?)) AS remaining,
+        (SELECT COUNT(*) FROM authorized_operations WHERE operation_id = ?) AS claims,
+        (SELECT COUNT(*) FROM authorized_operation_audit_events WHERE audit_event_id = ?) AS audit_events
+    `,
+      )
+      .all(walletId, operationId, `ed25519-operation-audit:${operationId}`);
+    const row = requireRecord(rows[0], 'NEAR operation persistence');
+    if (
+      !row ||
+      typeof row.remaining !== 'number' ||
+      typeof row.claims !== 'number' ||
+      typeof row.audit_events !== 'number'
+    ) {
+      throw new Error('Expected NEAR operation quota, claim and audit counts');
+    }
+    return { remainingUses: row.remaining, claims: row.claims, auditEvents: row.audit_events };
+  } finally {
+    database.close();
+  }
+}
+
+class NearFinalizeReplayEvidence {
+  request: Request | null = null;
+  readonly statuses: { scenario: string; status: number }[] = [];
+  persistence: Awaited<ReturnType<typeof readNearOperationPersistence>> | null = null;
+
+  async discardFirstReplyAndRetry(route: Route): Promise<void> {
+    if (route.request().method() !== 'POST') {
+      await route.continue();
+      return;
+    }
+    const request = route.request();
+    const body = requireRecord(request.postDataJSON(), 'finalize request');
+    const receipt = requireRecord(body.authorized_operation, 'operation receipt');
+    const scope = requireRecord(body.scope, 'finalize scope');
+    const authority = requireRecord(scope.authorization, 'finalize authority');
+    expect(authority.kind).toBe('reusable_wallet_session');
+    const walletId = requireNonEmptyString(scope.account_id, 'wallet ID');
+    const operationId = requireNonEmptyString(receipt.operation_id, 'operation ID');
+
+    const missing = structuredClone(body);
+    const missingReceipt = requireRecord(missing.authorized_operation, 'missing receipt');
+    missingReceipt.authorized_operation_id = `missing-operation:${crypto.randomUUID()}`;
+    const absent = await route.fetch({ postData: JSON.stringify(missing) });
+    this.statuses.push({ scenario: 'missing_operation', status: absent.status() });
+    expect(absent.status()).toBe(409);
+    expect(await absent.json()).toMatchObject({ code: 'authorized_operation_missing' });
+
+    const changed = structuredClone(body);
+    const changedReceipt = requireRecord(changed.authorized_operation, 'changed receipt');
+    changedReceipt.display_digest_b64u = 'A'.repeat(43);
+    const invalid = await route.fetch({ postData: JSON.stringify(changed) });
+    this.statuses.push({ scenario: 'changed_receipt', status: invalid.status() });
+    expect(invalid.status()).toBe(400);
+    expect(await invalid.json()).toMatchObject({ code: 'invalid_authorized_operation' });
+
+    const completed = await route.fetch();
+    this.statuses.push({ scenario: 'first_finalize_reply_discarded', status: completed.status() });
+    expect(completed.status()).toBe(200);
+    const replayed = await route.fetch();
+    this.statuses.push({
+      scenario: 'exact_retry_after_quota_exhaustion',
+      status: replayed.status(),
+    });
+    expect(replayed.status()).toBe(200);
+    expect(await replayed.json()).toEqual(await completed.json());
+    this.persistence = await readNearOperationPersistence(walletId, operationId);
+    expect(this.persistence).toEqual({ remainingUses: 0, claims: 1, auditEvents: 1 });
+    this.request = request;
+    // Only the exact retry's reply reaches the SDK, which verifies the resulting signature.
+    await route.fulfill({ response: replayed });
+  }
+
+  async retireAndRejectReplay(context: BrowserContext): Promise<void> {
+    if (!this.request || !this.persistence) throw new Error('Expected a completed NEAR finalize');
+    const body = requireRecord(this.request.postDataJSON(), 'finalize request');
+    const scope = requireRecord(body.scope, 'finalize scope');
+    const authority = requireRecord(scope.authorization, 'finalize authority');
+    const receipt = requireRecord(body.authorized_operation, 'operation receipt');
+    const walletId = requireNonEmptyString(scope.account_id, 'wallet ID');
+    const sessionId = requireNonEmptyString(authority.wallet_session_id, 'session ID');
+    const operationId = requireNonEmptyString(receipt.operation_id, 'operation ID');
+    const DatabaseSync = await loadNodeDatabaseSync();
+    const database = new DatabaseSync(await isolatedGatewayDatabasePath(), { readOnly: false });
+    try {
+      const retired = database
+        .prepare(
+          `
+        UPDATE wallet_session_authorizations_v2 SET retired_at_ms = ?
+        WHERE wallet_id = ? AND wallet_session_id = ? AND retired_at_ms IS NULL
+        RETURNING wallet_session_id
+      `,
+        )
+        .all(Date.now(), walletId, sessionId);
+      expect(retired).toHaveLength(1);
+    } finally {
+      database.close();
+    }
+    const denied = await context.request.fetch(this.request);
+    this.statuses.push({ scenario: 'retired_session_retry', status: denied.status() });
+    expect(denied.status()).toBeGreaterThanOrEqual(400);
+    expect(denied.status()).toBeLessThan(500);
+    expect(await readNearOperationPersistence(walletId, operationId)).toEqual(this.persistence);
+  }
+
+  async finish(testInfo: TestInfo): Promise<void> {
+    const artifact = testInfo.outputPath('near-finalize-replay.json');
+    await writeFile(
+      artifact,
+      JSON.stringify({ statuses: this.statuses, persistence: this.persistence }, null, 2),
+    );
+    await testInfo.attach('near-finalize-replay', {
+      path: artifact,
+      contentType: 'application/json',
+    });
+  }
+}
+
+async function verifyNearFinalizeReplay(
+  { harness, context }: { harness: IntendedBehaviourHarness; context: BrowserContext },
+  testInfo: TestInfo,
+): Promise<void> {
+  await harness.registerPasskeyEd25519YaoWallet();
+  await harness.signNearTransaction('post_registration');
+  await harness.signNearTransaction('post_registration');
+  const evidence = new NearFinalizeReplayEvidence();
+  const intercept = evidence.discardFirstReplyAndRetry.bind(evidence);
+  const path = '**/router-ab/ed25519/sign';
+  await context.route(path, intercept);
+  try {
+    await harness.signNearTransaction('post_registration');
+    await evidence.retireAndRejectReplay(context);
+  } finally {
+    await context.unroute(path, intercept);
+    await evidence.finish(testInfo);
+  }
+}
+
+test(
+  'NEAR finalize validates one stored operation, replays a discarded reply at exhausted quota, and rejects retirement',
+  verifyNearFinalizeReplay,
+);

@@ -1,3 +1,4 @@
+import { revalidateEd25519AuthorizedOperation } from './ed25519AuthorizedOperationRevalidation';
 import { signingPrepareSessionResponse } from '../../../domains/signingOperations/signingPrepareSession';
 import type { PinnedOwnerWalletScope } from '../../../../authorization/ecdsaWalletSessionAdmission';
 import {
@@ -49,7 +50,6 @@ import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import {
   parseAuthorizationAuditEventId,
   buildAuthorizationGrantRef,
-  buildNearEd25519MpcOperationRef,
   parseAuthFactorId,
   parseAuthorizedOperationId,
   parseCapabilityId,
@@ -64,12 +64,9 @@ import {
   parseCapabilityOperationFingerprintDigest,
   parseSigningOperationFingerprintDigest,
 } from '@shared/authorization/operationFingerprint';
-import type { CapabilityOperationEnvelope } from '@shared/authorization/operationFingerprint';
-import type { CapabilityOperationRef } from '@shared/authorization/capabilityKinds';
 import {
   authorizedOperationReplayBodyInit,
   type AuthorizedOperation,
-  type AuthorizedOperationInput,
   type AuthorizedOperationReplayResponse,
 } from '../../../../authorization/domain';
 import {
@@ -650,143 +647,6 @@ async function authorizeEd25519ReusableWalletSessionOperation(input: {
   }
 }
 
-async function revalidateEd25519AuthorizedOperation(input: {
-  readonly ctx: FetchRouterApiContext;
-  readonly operation: AuthorizedOperation;
-}): Promise<
-  | { readonly ok: true; readonly operation: AuthorizedOperation }
-  | { readonly ok: false; readonly response: Response }
-> {
-  let admission: AuthorizedOperationInput;
-  if (input.operation.authorization.kind === 'verified_step_up') {
-    if (input.operation.quota.kind !== 'quota_neutral') {
-      return {
-        ok: false,
-        response: json(
-          {
-            ok: false,
-            code: 'verified_step_up_rejected',
-            message: 'Ed25519 operation step-up authorization has an invalid quota',
-          },
-          { status: 403 },
-        ),
-      };
-    }
-    admission = {
-      tenantId: input.operation.tenantId,
-      authorizedOperationId: input.operation.authorizedOperationId,
-      auditEventId: input.operation.auditEventId,
-      operation: input.operation.operation,
-      authorization: input.operation.authorization,
-      quota: input.operation.quota,
-      claimedAtMs: Date.now(),
-    };
-  } else {
-    if (input.operation.quota.kind !== 'consume_reusable_wallet_session') {
-      return {
-        ok: false,
-        response: json(
-          {
-            ok: false,
-            code: 'authorization_grant_rejected',
-            message: 'Ed25519 reusable operation authorization has an invalid quota',
-          },
-          { status: 403 },
-        ),
-      };
-    }
-    const operation = buildEd25519ReusableOperationEnvelope(input.operation);
-    if (!operation) {
-      return {
-        ok: false,
-        response: json(
-          {
-            ok: false,
-            code: 'authorization_grant_rejected',
-            message: 'Ed25519 reusable operation kind is invalid',
-          },
-          { status: 403 },
-        ),
-      };
-    }
-    admission = {
-      tenantId: input.operation.tenantId,
-      authorizedOperationId: input.operation.authorizedOperationId,
-      auditEventId: input.operation.auditEventId,
-      operation,
-      authorization: input.operation.authorization,
-      quota: input.operation.quota,
-      claimedAtMs: Date.now(),
-    };
-  }
-  const result = await input.ctx.service.authorizedOperations.admitAuthorizedOperation({
-    operation: admission,
-  });
-  switch (result.kind) {
-    case 'claimed':
-    case 'operation_in_progress':
-    case 'replayed':
-      if (result.operation.authorizedOperationId !== input.operation.authorizedOperationId) {
-        throw new Error('Ed25519 authorized operation changed during revalidation');
-      }
-      return { ok: true, operation: result.operation };
-    case 'authorization_grant_rejected':
-    case 'verified_step_up_rejected':
-      return {
-        ok: false,
-        response: json(
-          {
-            ok: false,
-            code: result.kind,
-            message: 'Ed25519 operation authorization is no longer active',
-          },
-          { status: 403 },
-        ),
-      };
-    case 'wallet_session_quota_exhausted':
-    case 'material_mismatch':
-      return {
-        ok: false,
-        response: json(
-          { ok: false, code: result.kind, message: 'Ed25519 operation admission failed' },
-          { status: 409 },
-        ),
-      };
-  }
-}
-
-type Ed25519ReusableOperationRef = Extract<
-  CapabilityOperationRef,
-  { readonly capabilityKind: 'near_ed25519_mpc_signing' }
-> & {
-  readonly operationKind:
-    | 'near.sign_transaction'
-    | 'near.sign_delegate_action'
-    | 'near.sign_nep413_message';
-};
-
-function buildEd25519ReusableOperationEnvelope(
-  operation: AuthorizedOperation,
-): CapabilityOperationEnvelope<Ed25519ReusableOperationRef> | null {
-  const operationRef = operation.operation.operation;
-  if (operationRef.capabilityKind !== 'near_ed25519_mpc_signing') return null;
-  switch (operationRef.operationKind) {
-    case 'near.sign_transaction':
-    case 'near.sign_delegate_action':
-    case 'near.sign_nep413_message':
-      return buildCapabilityOperationEnvelope({
-        tenantId: operation.operation.tenantId,
-        principalId: operation.operation.principalId,
-        capabilityId: operation.operation.capabilityId,
-        operationId: operation.operation.operationId,
-        operation: buildNearEd25519MpcOperationRef(operationRef.operationKind),
-        digests: operation.operation.digests,
-      });
-    case 'near.export_key':
-      return null;
-  }
-}
-
 async function validateEd25519ReusableAuthorizedOperation(input: {
   ctx: FetchRouterApiContext;
   body: Record<string, unknown>;
@@ -841,10 +701,24 @@ async function validateEd25519ReusableAuthorizedOperation(input: {
     ) {
       throw new Error('Ed25519 authorized operation intent changed after prepare');
     }
-    const operationResult = await input.ctx.service.authorizedOperations.readAuthorizedOperation({
-      tenantId: identity.tenantId,
-      operationFingerprintDigest: fingerprint,
-    });
+    const authorizedOperationId = requireAuthorizationValue(
+      parseAuthorizedOperationId(receipt.authorized_operation_id),
+    );
+    let operationResult: AuthorizedOperation | null;
+    try {
+      operationResult = await input.ctx.service.authorizedOperations.readAuthorizedOperationById({
+        tenantId: identity.tenantId,
+        authorizedOperationId,
+      });
+    } catch {
+      return {
+        ok: false,
+        response: json(
+          { ok: false, code: 'internal', message: 'Authorized operation lookup failed' },
+          { status: 500 },
+        ),
+      };
+    }
     if (!operationResult) {
       return {
         ok: false,
@@ -859,9 +733,16 @@ async function validateEd25519ReusableAuthorizedOperation(input: {
       };
     }
     if (
-      operationResult.authorizedOperationId !==
-        requireAuthorizationValue(parseAuthorizedOperationId(receipt.authorized_operation_id)) ||
-      operationResult.operationFingerprintDigest !== fingerprint
+      operationResult.tenantId !== identity.tenantId ||
+      operationResult.tenantId !== input.ctx.service.authorizedOperations.tenantId ||
+      operationResult.authorizedOperationId !== authorizedOperationId ||
+      operationResult.operationFingerprintDigest !== fingerprint ||
+      operationResult.operation.operationId !== operationId ||
+      operationResult.operation.digests.laneDigest !== envelope.digests.laneDigest ||
+      operationResult.operation.digests.intentDigest !== envelope.digests.intentDigest ||
+      operationResult.operation.digests.displayDigest !== envelope.digests.displayDigest ||
+      operationResult.operation.operation.capabilityKind !== 'near_ed25519_mpc_signing' ||
+      operationResult.operation.operation.operationKind !== receipt.operation_kind
     ) {
       throw new Error('Ed25519 authorized operation identity changed after prepare');
     }

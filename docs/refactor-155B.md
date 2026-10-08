@@ -3776,3 +3776,23 @@ Both proposals need their own measurements. No saving is assumed.
 [Sanitized evidence](evidence/near-nonce-recovery-20261008.json) preserves all
 samples, RPC counts, waits, maxima, build hashes, the local failure/reload artifact,
 and serving-version audits. Implementation commit: `fa0648d8` on `dev`.
+
+### Phase 6T — consolidate NEAR finalize authorization reads
+
+Finalize currently reads the same operation by ID during session authorization,
+then by fingerprint before execution. Consolidate these into one ID lookup at
+the execution boundary. Keep all receipt comparisons and the fresh transactional
+admission check. This removes a read without adding a cache or carrying duplicate
+operation state through the session-authorization result.
+
+- [x] Remove the duplicate lookup and its obsolete helper and inputs.
+- [x] Keep receipt identity, fingerprint, operation-kind and digest comparisons.
+- [ ] Verify discarded replies, exact replay at exhausted quota, missing/changed
+  receipts, and session retirement through the browser and real local Gateway.
+- [ ] Build frozen baseline/candidate Gateways. Compare on existing staging
+  resources with one SDK and fixed custody/runtime versions. Restore deployment
+  versions after the comparison. Record latency and available D1 counts.
+- [ ] Review, record results, run the bloat check, and commit on `dev`.
+
+The next client candidate is sharing a fresh chain observation between nonce
+recovery and transaction-context acquisition. Measure that separately.
