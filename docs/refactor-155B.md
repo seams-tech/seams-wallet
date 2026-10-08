@@ -3113,3 +3113,61 @@ The rejected candidate is reproducible at commit
 remain available locally. [Sanitized evidence](evidence/near-continuous-ceremony-20261008.json)
 records all workloads, request counts, stage timings, serving versions, build
 hashes, local E2E commands, limitations, and restoration checks.
+
+### Phase 6L — Isolate the repeated object-dispatch delay
+
+Warm object calls can remain fast across separate incoming requests. Creating a
+fresh handle, supplying an APAC hint, and looking up the object by name did not
+produce the repeated half-second delay seen in real setup. These results do not
+justify a global handle cache or a coordinator rewrite. The retained Yao baseline
+remains **3.354–3.548 s across the two Phase 6K control medians**.
+
+- [x] Probe six existing staging wallet objects through the existing Router and
+  Signing Worker. Preserve their original compiled modules and bindings.
+- [x] Compare one reused handle with a fresh handle for each call. Repeat across
+  separate incoming requests to the same object.
+- [x] Repeat with APAC hints and then the named lookup used by production.
+- [x] Verify three local E2E runs, hosted access checks, object instance counters,
+  and captured serving versions. Record repeatable artifacts.
+- [x] Restore all thirteen original deployments after each comparison. Keep
+  experimental wrappers outside production source.
+
+Measured on 2026-10-08. Each arm sent 36 authenticated probe requests and 108
+sequential object calls. Each request made three calls. The complete experiment
+made **324 read-only object calls** across the same six objects. Signing Worker
+requests used the existing Router service binding. Each object retained one
+instance and answered consecutive calls 1–18 within each arm.
+
+The table shows the median first call in an incoming request, after the object's
+first probe in that arm. Reused handles have six samples per cell. Fresh handles
+have nine. A handle is the local reference used to call a remote object.
+
+| Lookup | Router: reused / fresh handle | Signing Worker: reused / fresh handle |
+| --- | ---: | ---: |
+| Object ID | **56 / 56 ms** | **55.5 / 57 ms** |
+| Object ID with APAC hint | **55.5 / 55 ms** | **53.5 / 56 ms** |
+| Object name with APAC hint | **56.5 / 54 ms** | **56 / 55 ms** |
+
+All these warm first calls ranged from **51–67 ms**. Later calls in each request
+had medians of **51–56.5 ms**. In the first arm, each object's first probe cost
+**471–655 ms**. First probes in the later arms cost **140–196 ms**. The arms reused
+existing objects and may retain provider routing caches. They cannot separate
+object reconstruction, routing lookup, and other provider startup costs.
+
+The no-op handlers performed no protocol, storage, or cryptographic work. Their
+captured object CPU median was zero milliseconds at the provider's resolution.
+Application spans include fetch and response-body reading. They do not isolate
+network time. Captured invocation versions matched, but object tails were
+incomplete. Returned counters verify all successful calls.
+
+The next measurement must use actual startup, claim, and package-delivery requests
+for the same wallet. Correlate execution-location observations separately from
+latency samples. Measure encoded payload sizes and response-header/body-read
+boundaries. This will distinguish real protocol work and call placement from the
+low overhead shown here. Apply a change only when that measurement identifies a
+removable cost. The **1–2 s setup target remains unmet**.
+
+[Sanitized evidence](evidence/near-object-dispatch-probe-20261008.json) includes
+every probe duration, instance-counter checks, source hashes, serving versions,
+local E2E results, reproduction commands, and restoration evidence. No new
+infrastructure, production deployment, or npm release was required.
