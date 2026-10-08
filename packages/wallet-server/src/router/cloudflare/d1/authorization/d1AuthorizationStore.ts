@@ -1252,21 +1252,6 @@ export class CloudflareD1AuthorizationStore
   }): Promise<DirectV2CommitResult> {
     const { persisted, mode } = input;
     requireExactPersistedActiveWalletSessionAuthorizationV2(persisted);
-    const statements = this.prepareDirectWalletSessionAuthorizationV2Statements(persisted);
-    const results = await this.database.batch<D1ResultLike>(statements);
-    if (results.length !== 6) {
-      throw new Error('Direct V2 Wallet Session transaction returned incomplete results');
-    }
-    const quotaResult = results[4];
-    const sessionResult = results[5];
-    if (!quotaResult || !sessionResult) {
-      throw new Error('Direct V2 Wallet Session transaction returned incomplete results');
-    }
-    const quotaChanges = d1ChangedRows(quotaResult);
-    const sessionChanges = d1ChangedRows(sessionResult);
-    if (quotaChanges !== sessionChanges) {
-      throw new Error('Direct V2 Wallet Session transaction persisted an incomplete identity');
-    }
     const lookup: WalletSessionAuthorizationV2MintLookup = {
       tenantId: persisted.session.tenantId,
       principalId: persisted.session.principalId,
@@ -1275,7 +1260,29 @@ export class CloudflareD1AuthorizationStore
       walletAuthMethodId: persisted.session.walletAuthMethodId,
       mintId: persisted.session.mintId,
     };
-    const committed = await this.readWalletSessionAuthorizationV2ByMint(lookup);
+    const results = await this.database.batch<D1ResultLike<D1Row>>([
+      ...this.prepareDirectWalletSessionAuthorizationV2Statements(persisted),
+      this.prepareWalletSessionAuthorizationV2ByMintRead(lookup),
+    ]);
+    if (results.length !== 7) {
+      throw new Error('Direct V2 Wallet Session transaction returned incomplete results');
+    }
+    const quotaResult = results[4];
+    const sessionResult = results[5];
+    const committedResult = results[6];
+    if (!quotaResult || !sessionResult || !committedResult?.success) {
+      throw new Error('Direct V2 Wallet Session transaction returned incomplete results');
+    }
+    const quotaChanges = d1ChangedRows(quotaResult);
+    const sessionChanges = d1ChangedRows(sessionResult);
+    if (quotaChanges !== sessionChanges) {
+      throw new Error('Direct V2 Wallet Session transaction persisted an incomplete identity');
+    }
+    // Read the committed winner in the same transaction, including a concurrent mint replay.
+    const committed = parseWalletSessionAuthorizationV2MintRow(
+      committedResult.results?.[0] ?? null,
+      lookup,
+    );
     if (!committed) {
       throw new Error('Direct V2 Wallet Session authorization commit was not readable');
     }
@@ -1582,7 +1589,14 @@ export class CloudflareD1AuthorizationStore
   async readWalletSessionAuthorizationV2ByMint(
     input: WalletSessionAuthorizationV2MintLookup,
   ): Promise<WalletSessionAuthorizationV2MintRead | null> {
-    const row = await this.database
+    const row = await this.prepareWalletSessionAuthorizationV2ByMintRead(input).first<D1Row>();
+    return parseWalletSessionAuthorizationV2MintRow(row, input);
+  }
+
+  private prepareWalletSessionAuthorizationV2ByMintRead(
+    input: WalletSessionAuthorizationV2MintLookup,
+  ): D1PreparedStatementLike {
+    return this.database
       .prepare(
         `SELECT
            record_json,
@@ -1626,76 +1640,7 @@ export class CloudflareD1AuthorizationStore
         String(input.authorityId),
         String(input.walletAuthMethodId),
         String(input.mintId),
-      )
-      .first<D1Row>();
-    if (!row) return null;
-    const session = parsePersistedWalletSessionAuthorizationV2(
-      parseD1JsonColumn(row.record_json),
-    );
-    if (
-      !walletSessionAuthorizationV2RowMatches(
-        {
-          session_tenant_id: row.tenant_id,
-          session_authorization_id: row.authorization_id,
-          session_mint_id: row.mint_id,
-          session_wallet_session_id: row.wallet_session_id,
-          session_quota_id: row.quota_id,
-          session_principal_id: row.principal_id,
-          session_wallet_id: row.wallet_id,
-          session_authority_id: row.authority_id,
-          session_wallet_auth_method_id: row.wallet_auth_method_id,
-          session_authority_digest_b64u: row.authority_digest_b64u,
-          session_authority_revocation_epoch: row.authority_revocation_epoch,
-          session_issued_at_ms: row.issued_at_ms,
-          session_expires_at_ms: row.expires_at_ms,
-        },
-        session,
-      )
-    ) {
-      throw new Error('Stored V2 Wallet Session mint columns disagree with record');
-    }
-    const subjectsRecord = parseWalletSessionAuthorizationV2WithSubjects(
-      {
-        session_tenant_id: row.tenant_id,
-        session_authorization_id: row.authorization_id,
-        session_mint_id: row.mint_id,
-        session_wallet_session_id: row.wallet_session_id,
-        session_quota_id: row.quota_id,
-        session_principal_id: row.principal_id,
-        session_wallet_id: row.wallet_id,
-        session_authority_id: row.authority_id,
-        session_wallet_auth_method_id: row.wallet_auth_method_id,
-        session_authority_digest_b64u: row.authority_digest_b64u,
-        session_authority_revocation_epoch: row.authority_revocation_epoch,
-        session_issued_at_ms: row.issued_at_ms,
-        session_expires_at_ms: row.expires_at_ms,
-      },
-      parseD1JsonColumn(row.capability_subjects_json),
-    );
-    if (!walletSessionAuthorizationV2RecordsEqual(subjectsRecord, session)) {
-      throw new Error('Stored V2 Wallet Session mint subjects disagree with record');
-    }
-    if (
-      session.tenantId !== input.tenantId ||
-      session.principalId !== input.principalId ||
-      session.walletId !== input.walletId ||
-      session.authorityId !== input.authorityId ||
-      session.walletAuthMethodId !== input.walletAuthMethodId ||
-      session.mintId !== input.mintId
-    ) {
-      throw new Error('Stored V2 Wallet Session mint identity does not match the request');
-    }
-    const primaryOperationCredentialDigestB64u = parseDigestB64u(row.operation_credential_hash);
-    const retiredAtMs =
-      row.retired_at_ms === null || row.retired_at_ms === undefined
-        ? null
-        : requirePositiveInteger(row.retired_at_ms, 'V2 session.retiredAtMs');
-    return {
-      kind: 'committed',
-      session,
-      primaryOperationCredentialDigestB64u,
-      retiredAtMs,
-    };
+      );
   }
 
   async readLiveWalletSessionAuthorizationProjectionV2(input: {
@@ -3246,6 +3191,60 @@ function directV2SessionIdentityAvailabilityBindings(
     String(session.walletSessionId),
     String(session.quotaId),
   ];
+}
+
+function parseWalletSessionAuthorizationV2MintRow(
+  row: D1Row | null,
+  input: WalletSessionAuthorizationV2MintLookup,
+): WalletSessionAuthorizationV2MintRead | null {
+  if (!row) return null;
+  const session = parsePersistedWalletSessionAuthorizationV2(parseD1JsonColumn(row.record_json));
+  const sessionColumns: D1Row = {
+    session_tenant_id: row.tenant_id,
+    session_authorization_id: row.authorization_id,
+    session_mint_id: row.mint_id,
+    session_wallet_session_id: row.wallet_session_id,
+    session_quota_id: row.quota_id,
+    session_principal_id: row.principal_id,
+    session_wallet_id: row.wallet_id,
+    session_authority_id: row.authority_id,
+    session_wallet_auth_method_id: row.wallet_auth_method_id,
+    session_authority_digest_b64u: row.authority_digest_b64u,
+    session_authority_revocation_epoch: row.authority_revocation_epoch,
+    session_issued_at_ms: row.issued_at_ms,
+    session_expires_at_ms: row.expires_at_ms,
+  };
+  if (!walletSessionAuthorizationV2RowMatches(sessionColumns, session)) {
+    throw new Error('Stored V2 Wallet Session mint columns disagree with record');
+  }
+  const subjectsRecord = parseWalletSessionAuthorizationV2WithSubjects(
+    sessionColumns,
+    parseD1JsonColumn(row.capability_subjects_json),
+  );
+  if (!walletSessionAuthorizationV2RecordsEqual(subjectsRecord, session)) {
+    throw new Error('Stored V2 Wallet Session mint subjects disagree with record');
+  }
+  if (
+    session.tenantId !== input.tenantId ||
+    session.principalId !== input.principalId ||
+    session.walletId !== input.walletId ||
+    session.authorityId !== input.authorityId ||
+    session.walletAuthMethodId !== input.walletAuthMethodId ||
+    session.mintId !== input.mintId
+  ) {
+    throw new Error('Stored V2 Wallet Session mint identity does not match the request');
+  }
+  const primaryOperationCredentialDigestB64u = parseDigestB64u(row.operation_credential_hash);
+  const retiredAtMs =
+    row.retired_at_ms === null || row.retired_at_ms === undefined
+      ? null
+      : requirePositiveInteger(row.retired_at_ms, 'V2 session.retiredAtMs');
+  return {
+    kind: 'committed',
+    session,
+    primaryOperationCredentialDigestB64u,
+    retiredAtMs,
+  };
 }
 
 function walletSessionAuthorizationV2RowMatches(
