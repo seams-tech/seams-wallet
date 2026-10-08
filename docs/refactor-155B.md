@@ -4231,3 +4231,96 @@ Raw artifacts remain in `.artifacts/r155b-phase6x` (public) and
 `.artifacts/r155b-phase6x-hosted` (private).
 
 [Sanitized samples, signature proofs and deployment audits](evidence/near-registration-batched-session-20261008.json).
+
+## Phase 6Y — overlap independent registration finalization work
+
+Implementation: `2924ad8099bea46b1b033ca6754aa630f3d9559e` on `dev`.
+
+Finalization awaited several database and service operations in sequence. The
+candidate reads founding authority and authentication-method records in one D1
+batch, while the global passkey credential claim runs. Once the wallet and signer
+records commit, capability installation runs alongside custody-envelope storage.
+Both operations settle before the result is returned or retried. Custody and
+recovery data still have to be durable before the SDK reports successful setup.
+
+The founding-record preflight uses **one D1 request instead of two**, with two SQL
+statements in both versions. Credential uniqueness, active authority checks,
+fixed-home fencing, commit receipts and exact replay checks remain. Detailed
+measurements use `Server-Timing`; persisted receipt and SDK formats are unchanged.
+
+### Hosted comparison — 2026-10-08
+
+Finalization HTTP decreased from **3.581s to 3.047s median**, an observed reduction
+of **534ms (14.9%)**. Its measured persistence/session span decreased from
+**2.469s to 1.775s**. These are three sequential samples per arm. The earlier
+Phase 6X candidate measured 2.661s in a different run, which shows why each change
+needs its own matched baseline. This result does not establish a stable maximum.
+
+Both arms used one SDK, browser harness, private Gateway source and custody cohort.
+Only Gateway finalization scheduling, its founding-record read batch and diagnostics
+changed. The browser loaded only the NEAR signer. All six fresh implicit wallets
+produced independently verified NEP-413 messages, without funding or named-account
+provisioning.
+
+| Measurement | Baseline median (range) | Candidate median (range) |
+| --- | ---: | ---: |
+| SDK registration | 10.690s (9.904–11.943s) | 10.371s (8.373–10.916s) |
+| Browser registration | 11.511s (10.614–12.254s) | 10.746s (9.206–11.614s) |
+| Registration → verified message | 14.469s (13.598–14.528s) | 12.970s (12.964–15.396s) |
+| Yao execute HTTP, unchanged custody code | 4.524s (3.935–4.701s) | 4.444s (3.912–4.880s) |
+| Finalization HTTP | 3.581s (2.750–3.626s) | 3.047s (2.002–3.048s) |
+| Registration protocol requests | 4 | 4 |
+| All Gateway requests through first message | 10 (9–10) | 10 (9–10) |
+
+The new candidate timings identify the remaining waits:
+
+| Finalization operation | Median | Range |
+| --- | ---: | ---: |
+| Admit the reserved wallet home | 15ms | 11–17ms |
+| Consume the Router activation | 123ms | 111–573ms |
+| Install capability | 188ms | 154–229ms |
+| Store custody and recovery data | 400ms | 241–537ms |
+| Issue Wallet Session | 337ms | 232–737ms |
+| Complete the wallet-home reservation | 403ms | 401–433ms |
+| Delete the completed ceremony | 77ms | 61–138ms |
+
+Capability installation and custody storage overlap. These nested timings and
+stage medians must not be added together. They exclude parts of the request,
+including surrounding Gateway work and Console wallet projection. Application
+clocks also omit some CPU work. Total D1 and backend Console call counts remain
+unknown. The browser total includes automation and UI settlement. Fresh wallets
+do not establish cold Workers or DOs. Physical colocation was not remeasured.
+The **3–4 second registration target and 1–2 second Yao target remain unmet**.
+
+Nine local browser scenarios passed, including lost replies, reload recovery,
+exact finalization replay, quota exhaustion, Email OTP and ECDSA/mixed registration.
+Server build, intended TypeScript and exact-tree bloat checks passed. Both hosted
+serving-version audits matched all five participating roles. A Cloudflare API
+authentication failure interrupted the pause between arms. Refreshing the existing
+credentials restored access. The runner verified all thirteen saved versions and
+resumed without repeating or replacing the baseline samples.
+
+All thirteen original Worker versions were restored and verified. Tenant activation
+passed in run `37777018751`. No new resources, production deployment or
+package release occurred. Raw artifacts remain in `.artifacts/r155b-phase6y`
+(public) and `.artifacts/r155b-phase6y-hosted` (private).
+
+[Sanitized measurements, signature proofs and deployment audits](evidence/near-registration-parallel-finalization-20261008.json).
+
+## Phase 6Z — finish terminal ceremony cleanup in the background
+
+Implementation: `18065d564d48902d2346a96b9de096340930f6c4` on `dev`.
+
+After the completion receipt and wallet-home completion are durable, NEAR
+finalization schedules ceremony deletion with the existing Worker `waitUntil`
+callback. The cleanup retains its request-bound store and fixed home. The durable
+receipt continues to handle retries and lost replies. Hosts without background
+execution still await cleanup. Wallet, capability, custody, recovery and session
+writes remain awaited before readiness.
+
+This follow-up passed the same nine browser scenarios, server build, intended
+TypeScript and exact-tree bloat check. It was committed after the Phase 6Y
+measurement candidate was frozen. **Its hosted latency saving is unmeasured.**
+Phase 6Y measured cleanup at 77ms median; that figure is a prior task duration,
+not an established end-to-end saving. Verification artifacts remain in
+`.artifacts/r155b-phase6z` and are included in the linked evidence.
