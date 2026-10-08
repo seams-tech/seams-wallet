@@ -30,6 +30,8 @@ mod ed25519_yao_router_checks;
 pub use ed25519_yao_router_checks::*;
 #[cfg(feature = "workers-rs")]
 mod ed25519_yao_websocket;
+#[cfg(all(feature = "workers-rs", any(feature = "strict-worker-router-entrypoint", feature = "strict-worker-deriver-a-entrypoint")))]
+mod ed25519_yao_ceremony_connection;
 #[cfg(feature = "workers-rs")]
 pub use ed25519_yao_websocket::*;
 #[cfg(feature = "workers-rs")]
