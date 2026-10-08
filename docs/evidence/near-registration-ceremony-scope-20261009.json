@@ -1,0 +1,2668 @@
+{
+  "schema": "near_registration_ceremony_scope_comparison_v1",
+  "date": "2026-10-09",
+  "baselineImplementationCommit": "15b59d0c9997ead7846f997c54630acd87b0a9b6",
+  "candidateSource": {
+    "base": "9f0181d27402db2f595ab776cffa7f092dded330",
+    "tree": "25157fde1f13d77f2ad1075d62e655821769ad96",
+    "commit": "8aa7531edcf2be075c387700253f421a378aa8e2",
+    "paths": [
+      "packages/wallet-server/src/router/domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistrationPartitionedStateStore.ts",
+      "packages/wallet-server/src/router/domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistrationRequestScopedRuntime.ts",
+      "packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationRequestScopedCloudflare.ts",
+      "tests/typecheck/yao-registration-ceremony.typecheck.ts",
+      "tests/tsconfig.wallet-typecheck.json"
+    ]
+  },
+  "method": "Three fresh implicit, unfunded NEAR wallets in each sequential baseline and candidate arm. Only Gateway code changes. Corrected NEP-413 SDK, Console, Runtime, Router, A/B, Signing Worker, configuration and requested APAC placement stay fixed. No restored-baseline measurement arm.",
+  "sharedRecordRead": {
+    "measuredAt": "2026-10-08T22:02:12.398530+00:00",
+    "region": "APAC",
+    "query": "SELECT COUNT(*) AS records, max(length(CAST(record_json AS BLOB))) AS max_bytes, min(length(CAST(record_json AS BLOB))) AS min_bytes FROM router_ab_yao_versioned_json_records WHERE record_key LIKE '%router-ab-ed25519-yao:shared'",
+    "records": 1,
+    "recordJsonBytes": 580085,
+    "measurement": "Read-only D1 SQL length(CAST(record_json AS BLOB)); no record contents exported."
+  },
+  "arms": {
+    "baseline": {
+      "metrics": {
+        "registrationBrowserMs": {
+          "samples": 3,
+          "median": 6935.404,
+          "minimum": 6923.649,
+          "maximum": 7794.649
+        },
+        "registrationToVerifiedMessageMs": {
+          "samples": 3,
+          "median": 9218.98,
+          "minimum": 9162.391,
+          "maximum": 10075.472
+        },
+        "allObservedGatewayRequests": {
+          "samples": 3,
+          "median": 10,
+          "minimum": 9,
+          "maximum": 10
+        },
+        "yaoExecuteHttpMs": {
+          "samples": 3,
+          "median": 2823.786,
+          "minimum": 2793.753,
+          "maximum": 2846.438
+        },
+        "finalizationHttpMs": {
+          "samples": 3,
+          "median": 1749.594,
+          "minimum": 1542.368,
+          "maximum": 1928.038
+        },
+        "setupHttpMs": {
+          "samples": 3,
+          "median": 506.961,
+          "minimum": 475.821,
+          "maximum": 731.854
+        },
+        "respondHttpMs": {
+          "samples": 3,
+          "median": 664.851,
+          "minimum": 578.943,
+          "maximum": 738.937
+        },
+        "registrationSdkMs": {
+          "samples": 3,
+          "median": 6599.155,
+          "minimum": 6389.76,
+          "maximum": 7110.165
+        }
+      },
+      "finalizationSpansMs": {
+        "near_finalize_authority": {
+          "samples": 3,
+          "median": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "near_finalize_home_admission": {
+          "samples": 3,
+          "median": 8.0,
+          "minimum": 6.0,
+          "maximum": 8.0
+        },
+        "near_finalize_fingerprint": {
+          "samples": 3,
+          "median": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "near_finalize_router_consume": {
+          "samples": 3,
+          "median": 450.0,
+          "minimum": 442.0,
+          "maximum": 588.0
+        },
+        "near_finalize_capability_install": {
+          "samples": 3,
+          "median": 116.0,
+          "minimum": 113.0,
+          "maximum": 130.0
+        },
+        "near_finalize_custody_commit": {
+          "samples": 3,
+          "median": 170.0,
+          "minimum": 169.0,
+          "maximum": 176.0
+        },
+        "near_finalize_session_issue": {
+          "samples": 3,
+          "median": 176.0,
+          "minimum": 174.0,
+          "maximum": 310.0
+        },
+        "near_finalize_side_effect": {
+          "samples": 3,
+          "median": 1218.0,
+          "minimum": 1081.0,
+          "maximum": 1394.0
+        },
+        "near_finalize_home_completion": {
+          "samples": 3,
+          "median": 200.0,
+          "minimum": 196.0,
+          "maximum": 201.0
+        },
+        "near_finalize_total": {
+          "samples": 3,
+          "median": 1424.0,
+          "minimum": 1285.0,
+          "maximum": 1603.0
+        },
+        "near_finalize_session_seal": {
+          "samples": 3,
+          "median": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        }
+      },
+      "samples": [
+        {
+          "artifact": "baseline/registration-1.json",
+          "sha256": "b956ed3a8391d9e8a10a4f502895090d661e90e4f9d9ba8d69e4c2b18fa1aaf7",
+          "metrics": {
+            "registrationBrowserMs": 7794.648792,
+            "registrationToVerifiedMessageMs": 10075.472417,
+            "allObservedGatewayRequests": 10,
+            "yaoExecuteHttpMs": 2846.438,
+            "finalizationHttpMs": 1928.038,
+            "setupHttpMs": 731.854,
+            "respondHttpMs": 738.937,
+            "registrationSdkMs": 7110.164999961853
+          },
+          "requestsByPath": {
+            "/wallets/register/setup": 1,
+            "/wallets/register/respond": 1,
+            "/router-ab/ed25519/yao/registration/execute": 1,
+            "/wallets/register/near-provisioning": 1,
+            "/wallet/session/status": 4,
+            "/router-ab/ed25519/sign/prepare": 1,
+            "/router-ab/ed25519/sign": 1
+          },
+          "nearAccessKeyCalls": 1,
+          "messageProof": {
+            "message": "Verify this new implicit NEAR wallet before funding",
+            "recipient": "checkout.example",
+            "state": "quote-170",
+            "success": true,
+            "accountId": "1fb08f5deedc94bd464539fdee2423d49f8b949d33fa63e32423e9e3c984c274",
+            "publicKey": "ed25519:38hnmv3GnptpVsAUKsVDECsXbgrqDHZ1R3xiDVsv8p1q",
+            "signature": "AZnKcWqjR5huJyd7GsmXHvUwVkYSNiOChOIUtVv+Ipa01zGOiTQ+MfroOXa0ZgkMrGmNX36XTQPGADyKmN7SAA==",
+            "nonce": "APcVnQchFwns0uDoHk3TNxzDHB9874AuRJtSNIhhTbQ=",
+            "digestHex": "61b0131134805cbcd0875960f6bcfe11bc5737db7e2c07a10cb7f56f378904dc",
+            "verification": {
+              "standardPayload": true,
+              "changedMessageRejected": true,
+              "changedRecipientRejected": true,
+              "changedNonceRejected": true,
+              "changedCallbackUrlRejected": true,
+              "stateExcludedFromPayload": true,
+              "stateReturnedUnchanged": true
+            }
+          },
+          "finalizationServerTiming": "near_finalize_authority;dur=0.0, near_finalize_home_admission;dur=8.0, near_finalize_fingerprint;dur=0.0, near_finalize_router_consume;dur=442.0, near_finalize_capability_install;dur=130.0, near_finalize_custody_commit;dur=170.0, near_finalize_session_issue;dur=310.0, near_finalize_side_effect;dur=1394.0, near_finalize_home_completion;dur=201.0, near_finalize_total;dur=1603.0, near_finalize_session_seal;dur=0.0, cfExtPri",
+          "commitDiagnostics": {
+            "kind": "wallet_registration_route_diagnostics_v1",
+            "route": "wallets_register_finalize",
+            "entries": [
+              {
+                "name": "registrationEmailOtpEnrollmentPlanMs",
+                "durationMs": 0
+              },
+              {
+                "name": "relayPersistenceMs",
+                "durationMs": 330
+              },
+              {
+                "name": "registerFinalizeTotalMs",
+                "durationMs": 950
+              }
+            ]
+          },
+          "noFunding": true,
+          "noOtherSignerAssetsLoaded": true
+        },
+        {
+          "artifact": "baseline/registration-2.json",
+          "sha256": "a6aac1771f2568b59b552bf580eed23bd83604d4a9d6cc09cfcffa18df4c5164",
+          "metrics": {
+            "registrationBrowserMs": 6935.404499999999,
+            "registrationToVerifiedMessageMs": 9218.980000000001,
+            "allObservedGatewayRequests": 10,
+            "yaoExecuteHttpMs": 2793.753,
+            "finalizationHttpMs": 1749.594,
+            "setupHttpMs": 506.961,
+            "respondHttpMs": 664.851,
+            "registrationSdkMs": 6599.15499997139
+          },
+          "requestsByPath": {
+            "/wallets/register/setup": 1,
+            "/wallets/register/respond": 1,
+            "/router-ab/ed25519/yao/registration/execute": 1,
+            "/wallets/register/near-provisioning": 1,
+            "/wallet/session/status": 4,
+            "/router-ab/ed25519/sign/prepare": 1,
+            "/router-ab/ed25519/sign": 1
+          },
+          "nearAccessKeyCalls": 1,
+          "messageProof": {
+            "message": "Verify this new implicit NEAR wallet before funding",
+            "recipient": "checkout.example",
+            "state": "quote-170",
+            "success": true,
+            "accountId": "82f79c08cc1187dfd194742545a784a8ecb862272c9ef3a09ae1421094e735fb",
+            "publicKey": "ed25519:9pEzJ1PwL1Efn76x7HLZT1BxiJjA38Kg3Ly9Z1VW1wJz",
+            "signature": "FeCSvktDWYCCNn6bsiLjsnYCzqEy23GtEqrf6gn9px/nImGwSRIOsGOKSDby38wnX4H3myTyyHM92AmohK1xBw==",
+            "nonce": "nYNgE0X1Mv9fBVEbRsII5oXSr6HiZKwozR1dXPXcU78=",
+            "digestHex": "8f045af5cbf52aa776f70d46543702981289acdb7a2b9606af79932392af3519",
+            "verification": {
+              "standardPayload": true,
+              "changedMessageRejected": true,
+              "changedRecipientRejected": true,
+              "changedNonceRejected": true,
+              "changedCallbackUrlRejected": true,
+              "stateExcludedFromPayload": true,
+              "stateReturnedUnchanged": true
+            }
+          },
+          "finalizationServerTiming": "near_finalize_authority;dur=0.0, near_finalize_home_admission;dur=6.0, near_finalize_fingerprint;dur=0.0, near_finalize_router_consume;dur=588.0, near_finalize_capability_install;dur=113.0, near_finalize_custody_commit;dur=176.0, near_finalize_session_issue;dur=176.0, near_finalize_side_effect;dur=1218.0, near_finalize_home_completion;dur=200.0, near_finalize_total;dur=1424.0, near_finalize_session_seal;dur=0.0, cfExtPri",
+          "commitDiagnostics": {
+            "kind": "wallet_registration_route_diagnostics_v1",
+            "route": "wallets_register_finalize",
+            "entries": [
+              {
+                "name": "registrationEmailOtpEnrollmentPlanMs",
+                "durationMs": 0
+              },
+              {
+                "name": "relayPersistenceMs",
+                "durationMs": 146
+              },
+              {
+                "name": "registerFinalizeTotalMs",
+                "durationMs": 917
+              }
+            ]
+          },
+          "noFunding": true,
+          "noOtherSignerAssetsLoaded": true
+        },
+        {
+          "artifact": "baseline/registration-3.json",
+          "sha256": "5987534a067753eced07b31cda47c4b8648ea15284561c0ceb2263c3d7ced287",
+          "metrics": {
+            "registrationBrowserMs": 6923.649209000003,
+            "registrationToVerifiedMessageMs": 9162.390500000001,
+            "allObservedGatewayRequests": 9,
+            "yaoExecuteHttpMs": 2823.786,
+            "finalizationHttpMs": 1542.368,
+            "setupHttpMs": 475.821,
+            "respondHttpMs": 578.943,
+            "registrationSdkMs": 6389.759999990463
+          },
+          "requestsByPath": {
+            "/wallets/register/setup": 1,
+            "/wallets/register/respond": 1,
+            "/router-ab/ed25519/yao/registration/execute": 1,
+            "/wallets/register/near-provisioning": 1,
+            "/wallet/session/status": 3,
+            "/router-ab/ed25519/sign/prepare": 1,
+            "/router-ab/ed25519/sign": 1
+          },
+          "nearAccessKeyCalls": 1,
+          "messageProof": {
+            "message": "Verify this new implicit NEAR wallet before funding",
+            "recipient": "checkout.example",
+            "state": "quote-170",
+            "success": true,
+            "accountId": "7329ad0e6bc38f204ab75651cdd1bfe6f6089411eaa477687261e461a299b4a2",
+            "publicKey": "ed25519:8kYk8qd1pMHCaCYvmMWmitpN33pAK1HByQuGQas4Fezd",
+            "signature": "QIpciDaKJAl2Va8DaeGFOLYe5qOtCVrHsLj34tVlgrrzj9GmqyfoVVbb4//bSDmPmyLSGGMLY4dzfP3H+O6sDg==",
+            "nonce": "5QvlTU4Ds0PqPHbRbOBfg2RPMrbBSt3kQheU826n4Lg=",
+            "digestHex": "afa5d797c40453471e396a1cef5545bb5bca89f1422cc256bd453045ec846288",
+            "verification": {
+              "standardPayload": true,
+              "changedMessageRejected": true,
+              "changedRecipientRejected": true,
+              "changedNonceRejected": true,
+              "changedCallbackUrlRejected": true,
+              "stateExcludedFromPayload": true,
+              "stateReturnedUnchanged": true
+            }
+          },
+          "finalizationServerTiming": "near_finalize_authority;dur=0.0, near_finalize_home_admission;dur=8.0, near_finalize_fingerprint;dur=0.0, near_finalize_router_consume;dur=450.0, near_finalize_capability_install;dur=116.0, near_finalize_custody_commit;dur=169.0, near_finalize_session_issue;dur=174.0, near_finalize_side_effect;dur=1081.0, near_finalize_home_completion;dur=196.0, near_finalize_total;dur=1285.0, near_finalize_session_seal;dur=0.0, cfExtPri",
+          "commitDiagnostics": {
+            "kind": "wallet_registration_route_diagnostics_v1",
+            "route": "wallets_register_finalize",
+            "entries": [
+              {
+                "name": "registrationEmailOtpEnrollmentPlanMs",
+                "durationMs": 0
+              },
+              {
+                "name": "relayPersistenceMs",
+                "durationMs": 148
+              },
+              {
+                "name": "registerFinalizeTotalMs",
+                "durationMs": 777
+              }
+            ]
+          },
+          "noFunding": true,
+          "noOtherSignerAssetsLoaded": true
+        }
+      ],
+      "servingVersionAudit": [
+        {
+          "role": "router",
+          "expectedVersionIds": [
+            "e5c14023-16da-4d86-a694-4310a40356df"
+          ],
+          "actualInvocationCounts": {
+            "e5c14023-16da-4d86-a694-4310a40356df": 30
+          },
+          "allMatched": true,
+          "unchangedPriorVersionActiveStateReads": {},
+          "changedExecutionPathsMatched": true,
+          "unexpectedInvocations": {}
+        },
+        {
+          "role": "deriver-a",
+          "expectedVersionIds": [
+            "882911ae-1f78-45cf-9110-958fcc2f1a1e"
+          ],
+          "actualInvocationCounts": {
+            "882911ae-1f78-45cf-9110-958fcc2f1a1e": 18
+          },
+          "allMatched": true,
+          "unchangedPriorVersionActiveStateReads": {},
+          "changedExecutionPathsMatched": true,
+          "unexpectedInvocations": {}
+        },
+        {
+          "role": "deriver-b",
+          "expectedVersionIds": [
+            "9f71a0b9-0987-4026-88fb-c31d24109bb2"
+          ],
+          "actualInvocationCounts": {
+            "9f71a0b9-0987-4026-88fb-c31d24109bb2": 18
+          },
+          "allMatched": true,
+          "unchangedPriorVersionActiveStateReads": {},
+          "changedExecutionPathsMatched": true,
+          "unexpectedInvocations": {}
+        },
+        {
+          "role": "signing-worker",
+          "expectedVersionIds": [
+            "59936650-55e3-4fd0-881c-960602ab4ee0"
+          ],
+          "actualInvocationCounts": {
+            "59936650-55e3-4fd0-881c-960602ab4ee0": 24
+          },
+          "allMatched": true,
+          "unchangedPriorVersionActiveStateReads": {},
+          "changedExecutionPathsMatched": true,
+          "unexpectedInvocations": {}
+        },
+        {
+          "role": "gateway",
+          "expectedVersionIds": [
+            "dd36170e-65d4-40e1-988e-a4e488e4c38f"
+          ],
+          "actualInvocationCounts": {
+            "dd36170e-65d4-40e1-988e-a4e488e4c38f": 41
+          },
+          "allMatched": true,
+          "unchangedPriorVersionActiveStateReads": {},
+          "changedExecutionPathsMatched": true,
+          "unexpectedInvocations": {}
+        },
+        {
+          "role": "console",
+          "expectedVersionIds": [
+            "42aa4646-3b33-4527-b6de-18494cd2a01e"
+          ],
+          "actualInvocationCounts": {
+            "42aa4646-3b33-4527-b6de-18494cd2a01e": 30
+          },
+          "allMatched": true,
+          "unchangedPriorVersionActiveStateReads": {},
+          "changedExecutionPathsMatched": true,
+          "unexpectedInvocations": {}
+        }
+      ],
+      "capturedConsolePaths": {
+        "/internal/wallet-console/v1/project-environments": 3,
+        "/internal/wallet-console/v1/publishable-key-auth": 3,
+        "/internal/wallet-placement/v1/reserve": 3,
+        "/internal/wallet-placement/v1/find-by-ceremony": 3,
+        "/internal/wallet-placement/v1/registration-execution-authority": 3,
+        "/internal/wallet-console/v1/tenant-root/active-lineage": 3,
+        "/internal/wallet-placement/v1/claim-passkey": 3,
+        "/internal/wallet-placement/v1/publish-routes": 3,
+        "/internal/wallet-placement/v1/publish-session": 3,
+        "/internal/wallet-placement/v1/complete": 3
+      },
+      "spansMs": {
+        "router.parse_and_authorize": {
+          "samples": 3,
+          "median": 416,
+          "minimum": 407,
+          "maximum": 571
+        },
+        "router.prepare_pair.deriver_b": {
+          "samples": 3,
+          "median": 679,
+          "minimum": 645,
+          "maximum": 687
+        },
+        "router.prepare_pair.deriver_a": {
+          "samples": 3,
+          "median": 716,
+          "minimum": 544,
+          "maximum": 759
+        },
+        "router.prepare_pair": {
+          "samples": 3,
+          "median": 716,
+          "minimum": 687,
+          "maximum": 759
+        },
+        "router.verify_readiness_receipts": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "router.deriver_a_execute.http": {
+          "samples": 3,
+          "median": 1367,
+          "minimum": 1128,
+          "maximum": 1428
+        },
+        "router.deriver_a_execute": {
+          "samples": 3,
+          "median": 1367,
+          "minimum": 1128,
+          "maximum": 1428
+        },
+        "router.signing_worker_delivery_exchange": {
+          "samples": 3,
+          "median": 2150,
+          "minimum": 1960,
+          "maximum": 2197
+        },
+        "router.signing_worker_delivery": {
+          "samples": 3,
+          "median": 75,
+          "minimum": 69,
+          "maximum": 87
+        },
+        "router.yao_execute": {
+          "samples": 3,
+          "median": 2161,
+          "minimum": 1971,
+          "maximum": 2212
+        },
+        "deriver_a.target_prepared": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "deriver_a.websocket_connect": {
+          "samples": 3,
+          "median": 689,
+          "minimum": 259,
+          "maximum": 729
+        },
+        "deriver_a.yao_protocol": {
+          "samples": 3,
+          "median": 255,
+          "minimum": 251,
+          "maximum": 387
+        },
+        "deriver_b.session_do": {
+          "samples": 3,
+          "median": 664,
+          "minimum": 619,
+          "maximum": 668
+        },
+        "deriver_b.begin_pair": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "deriver_b.upgrade_response": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "deriver_b.input_private_key": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "deriver_b.transport": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "deriver_b.yao_protocol": {
+          "samples": 3,
+          "median": 353,
+          "minimum": 323,
+          "maximum": 396
+        },
+        "deriver_b.output_serialization": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "deriver_b.role_execution": {
+          "samples": 3,
+          "median": 444,
+          "minimum": 411,
+          "maximum": 498
+        },
+        "signing_worker.delivery_body_wait": {
+          "samples": 3,
+          "median": 1653,
+          "minimum": 1180,
+          "maximum": 1765
+        }
+      },
+      "boundRootD1Calls": {
+        "deriver-a:admit": [
+          {
+            "round_trips": 2,
+            "statements": 5,
+            "batch_ms": 81,
+            "initial_read_and_open_ms": 65
+          },
+          {
+            "round_trips": 2,
+            "statements": 5,
+            "batch_ms": 75,
+            "initial_read_and_open_ms": 60
+          },
+          {
+            "round_trips": 2,
+            "statements": 5,
+            "batch_ms": 77,
+            "initial_read_and_open_ms": 65
+          }
+        ],
+        "deriver-a:read_admitted": [
+          {
+            "round_trips": 1,
+            "statements": 3,
+            "batch_ms": 112,
+            "initial_read_and_open_ms": 0
+          },
+          {
+            "round_trips": 1,
+            "statements": 3,
+            "batch_ms": 113,
+            "initial_read_and_open_ms": 0
+          },
+          {
+            "round_trips": 1,
+            "statements": 3,
+            "batch_ms": 111,
+            "initial_read_and_open_ms": 0
+          }
+        ],
+        "deriver-b:admit": [
+          {
+            "round_trips": 2,
+            "statements": 5,
+            "batch_ms": 58,
+            "initial_read_and_open_ms": 82
+          },
+          {
+            "round_trips": 2,
+            "statements": 5,
+            "batch_ms": 53,
+            "initial_read_and_open_ms": 88
+          },
+          {
+            "round_trips": 2,
+            "statements": 5,
+            "batch_ms": 48,
+            "initial_read_and_open_ms": 84
+          }
+        ],
+        "deriver-b:read_admitted": [
+          {
+            "round_trips": 1,
+            "statements": 3,
+            "batch_ms": 87,
+            "initial_read_and_open_ms": 0
+          },
+          {
+            "round_trips": 1,
+            "statements": 3,
+            "batch_ms": 101,
+            "initial_read_and_open_ms": 0
+          },
+          {
+            "round_trips": 1,
+            "statements": 3,
+            "batch_ms": 91,
+            "initial_read_and_open_ms": 0
+          }
+        ]
+      },
+      "walletObjectCommands": {
+        "router:/router-ab/internal/wallet/start": 3,
+        "router:/router-wallet/v1/command": 9,
+        "deriver-a:/router-ab/internal/wallet/start": 3,
+        "deriver-a:/router-ab/internal/deriver-a/wallet-pair/prepare-work": 3,
+        "deriver-a:/router-ab/internal/deriver-a/wallet-pair/execute-work": 3,
+        "deriver-b:/router-ab/internal/wallet/start": 3,
+        "deriver-b:/router-ab/internal/deriver-b/wallet-pair": 3,
+        "deriver-b:/router-ab/deriver-b/ed25519-yao/duplex": 3,
+        "signing-worker:/router-ab/internal/wallet/start": 3,
+        "signing-worker:/router-ab/signing-worker/ed25519-yao/activation/packages": 3,
+        "signing-worker:/router-ab/internal/signing-worker/wallet": 6
+      },
+      "requestedPlacement": {
+        "router:APAC:apac": 12,
+        "deriver-a:APAC:apac": 9,
+        "deriver-b:APAC:apac": 9,
+        "signing-worker:APAC:apac": 6
+      },
+      "routerWalletOperations": {
+        "claim_registration": 3,
+        "finish_registration": 3,
+        "consume_registration": 3
+      },
+      "routerWalletDispatches": {
+        "claim_registration": 3,
+        "finish_registration": 3,
+        "consume_registration": 3
+      },
+      "routerInvocations": [
+        {
+          "cpuTime": 8,
+          "wallTime": 10,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 15,
+          "wallTime": 56,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 3,
+          "wallTime": 4,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 5,
+          "wallTime": 826,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 3,
+          "wallTime": 44,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 24,
+          "wallTime": 2616,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 12,
+          "wallTime": 53,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 2,
+          "wallTime": 388,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 2,
+          "wallTime": 114,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 2,
+          "wallTime": 496,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 6,
+          "wallTime": 7,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 4,
+          "wallTime": 769,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 12,
+          "wallTime": 56,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 3,
+          "wallTime": 4,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 2,
+          "wallTime": 45,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 24,
+          "wallTime": 2588,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 7,
+          "wallTime": 50,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 2,
+          "wallTime": 541,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 3,
+          "wallTime": 525,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 2,
+          "wallTime": 78,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 11,
+          "wallTime": 12,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 15,
+          "wallTime": 53,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 4,
+          "wallTime": 4,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 7,
+          "wallTime": 823,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 3,
+          "wallTime": 42,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 21,
+          "wallTime": 2672,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 9,
+          "wallTime": 48,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 2,
+          "wallTime": 402,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 5,
+          "wallTime": 88,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 64,
+          "wallTime": 634,
+          "outcome": "ok"
+        }
+      ],
+      "rootInvocations": [
+        {
+          "role": "deriver-a",
+          "access": "admit",
+          "cpuMs": 58,
+          "wallMs": 241,
+          "executionModel": "durableObject",
+          "path": "/router-ab/internal/deriver-a/wallet-pair/prepare-work"
+        },
+        {
+          "role": "deriver-a",
+          "access": "read_admitted",
+          "cpuMs": 366,
+          "wallMs": 1414,
+          "executionModel": "durableObject",
+          "path": "/router-ab/internal/deriver-a/wallet-pair/execute-work"
+        },
+        {
+          "role": "deriver-a",
+          "access": "admit",
+          "cpuMs": 66,
+          "wallMs": 245,
+          "executionModel": "durableObject",
+          "path": "/router-ab/internal/deriver-a/wallet-pair/prepare-work"
+        },
+        {
+          "role": "deriver-a",
+          "access": "read_admitted",
+          "cpuMs": 415,
+          "wallMs": 1174,
+          "executionModel": "durableObject",
+          "path": "/router-ab/internal/deriver-a/wallet-pair/execute-work"
+        },
+        {
+          "role": "deriver-a",
+          "access": "admit",
+          "cpuMs": 63,
+          "wallMs": 241,
+          "executionModel": "durableObject",
+          "path": "/router-ab/internal/deriver-a/wallet-pair/prepare-work"
+        },
+        {
+          "role": "deriver-a",
+          "access": "read_admitted",
+          "cpuMs": 383,
+          "wallMs": 1471,
+          "executionModel": "durableObject",
+          "path": "/router-ab/internal/deriver-a/wallet-pair/execute-work"
+        },
+        {
+          "role": "deriver-b",
+          "access": "admit",
+          "cpuMs": 84,
+          "wallMs": 260,
+          "executionModel": "durableObject",
+          "path": "/router-ab/internal/deriver-b/wallet-pair"
+        },
+        {
+          "role": "deriver-b",
+          "access": "read_admitted",
+          "cpuMs": 219,
+          "wallMs": 677,
+          "executionModel": "durableObject",
+          "path": "/router-ab/deriver-b/ed25519-yao/duplex"
+        },
+        {
+          "role": "deriver-b",
+          "access": "admit",
+          "cpuMs": 119,
+          "wallMs": 300,
+          "executionModel": "durableObject",
+          "path": "/router-ab/internal/deriver-b/wallet-pair"
+        },
+        {
+          "role": "deriver-b",
+          "access": "read_admitted",
+          "cpuMs": 311,
+          "wallMs": 833,
+          "executionModel": "durableObject",
+          "path": "/router-ab/deriver-b/ed25519-yao/duplex"
+        },
+        {
+          "role": "deriver-b",
+          "access": "admit",
+          "cpuMs": 76,
+          "wallMs": 245,
+          "executionModel": "durableObject",
+          "path": "/router-ab/internal/deriver-b/wallet-pair"
+        },
+        {
+          "role": "deriver-b",
+          "access": "read_admitted",
+          "cpuMs": 222,
+          "wallMs": 705,
+          "executionModel": "durableObject",
+          "path": "/router-ab/deriver-b/ed25519-yao/duplex"
+        }
+      ],
+      "boundaryEvidence": {
+        "metrics": {
+          "claim_registration:responseHeadersMs": {
+            "samples": 3,
+            "median": 405,
+            "minimum": 396,
+            "maximum": 562
+          },
+          "finish_registration:responseHeadersMs": {
+            "samples": 3,
+            "median": 50,
+            "minimum": 49,
+            "maximum": 52
+          },
+          "consumeDoCpuMs": {
+            "samples": 3,
+            "median": 9,
+            "minimum": 7,
+            "maximum": 12
+          },
+          "consumeDoWallMs": {
+            "samples": 3,
+            "median": 50,
+            "minimum": 48,
+            "maximum": 53
+          },
+          "consume_registration:responseHeadersMs": {
+            "samples": 3,
+            "median": 400,
+            "minimum": 386,
+            "maximum": 540
+          },
+          "consumeWorkerCpuMs": {
+            "samples": 3,
+            "median": 2,
+            "minimum": 2,
+            "maximum": 2
+          },
+          "consumeWorkerWallMs": {
+            "samples": 3,
+            "median": 402,
+            "minimum": 388,
+            "maximum": 541
+          },
+          "consumeDoResponseHeadersMs": {
+            "samples": 3,
+            "median": 400,
+            "minimum": 386,
+            "maximum": 540
+          },
+          "consumeDoResponseBytes": {
+            "samples": 3,
+            "median": 21438,
+            "minimum": 21191,
+            "maximum": 21455
+          },
+          "/wallets/register/respond:gatewayCpuMs": {
+            "samples": 3,
+            "median": 58,
+            "minimum": 57,
+            "maximum": 63
+          },
+          "/router-ab/ed25519/yao/registration/execute:gatewayCpuMs": {
+            "samples": 3,
+            "median": 21,
+            "minimum": 20,
+            "maximum": 24
+          },
+          "/wallets/register/near-provisioning:gatewayCpuMs": {
+            "samples": 3,
+            "median": 251,
+            "minimum": 184,
+            "maximum": 296
+          }
+        },
+        "routerSamples": [
+          {
+            "kind": "consumeDo",
+            "cpuMs": 12,
+            "wallMs": 53,
+            "events": [
+              {
+                "event": "router_wallet_operation",
+                "operation": "consume_registration"
+              },
+              {
+                "event": "wallet_do_command_timing",
+                "first_command_after_constructor": false,
+                "handler_ms": 0,
+                "instance_command": 4,
+                "object_id": "7127df82d2fa5b148d6436eaba7b7b709083f77178e7ade3e58701619de1d6a7",
+                "path": "/router-wallet/v1/command",
+                "role": "router",
+                "since_previous_start_ms": 765,
+                "status": 200
+              }
+            ]
+          },
+          {
+            "kind": "consumeWorker",
+            "cpuMs": 2,
+            "wallMs": 388,
+            "events": [
+              {
+                "event": "wallet_do_placement_requested",
+                "location_hint": "apac",
+                "object_id": "7127df82d2fa5b148d6436eaba7b7b709083f77178e7ade3e58701619de1d6a7",
+                "role": "router",
+                "wallet_home": "APAC"
+              },
+              {
+                "decode_ms": 0,
+                "encoding_ms": 0,
+                "event": "router_wallet_transport_timing",
+                "lookup_ms": 0,
+                "operation": "consume_registration",
+                "request_body_bytes": 472,
+                "response_body_bytes": 21438,
+                "response_body_ms": 0,
+                "response_headers_ms": 386,
+                "status": 200,
+                "wallet_home": "APAC"
+              },
+              {
+                "duration_ms": 386,
+                "event": "router_wallet_dispatch_timing",
+                "operation": "consume_registration",
+                "outcome": "success",
+                "wallet_home": "APAC"
+              }
+            ]
+          },
+          {
+            "kind": "consumeDo",
+            "cpuMs": 7,
+            "wallMs": 50,
+            "events": [
+              {
+                "event": "router_wallet_operation",
+                "operation": "consume_registration"
+              },
+              {
+                "event": "wallet_do_command_timing",
+                "first_command_after_constructor": false,
+                "handler_ms": 0,
+                "instance_command": 4,
+                "object_id": "22427008b3c79f8f2ad0db22b3062beb2b0f68e2575050bbfe01b4749d942369",
+                "path": "/router-wallet/v1/command",
+                "role": "router",
+                "since_previous_start_ms": 874,
+                "status": 200
+              }
+            ]
+          },
+          {
+            "kind": "consumeWorker",
+            "cpuMs": 2,
+            "wallMs": 541,
+            "events": [
+              {
+                "event": "wallet_do_placement_requested",
+                "location_hint": "apac",
+                "object_id": "22427008b3c79f8f2ad0db22b3062beb2b0f68e2575050bbfe01b4749d942369",
+                "role": "router",
+                "wallet_home": "APAC"
+              },
+              {
+                "decode_ms": 0,
+                "encoding_ms": 0,
+                "event": "router_wallet_transport_timing",
+                "lookup_ms": 0,
+                "operation": "consume_registration",
+                "request_body_bytes": 474,
+                "response_body_bytes": 21455,
+                "response_body_ms": 0,
+                "response_headers_ms": 540,
+                "status": 200,
+                "wallet_home": "APAC"
+              },
+              {
+                "duration_ms": 540,
+                "event": "router_wallet_dispatch_timing",
+                "operation": "consume_registration",
+                "outcome": "success",
+                "wallet_home": "APAC"
+              }
+            ]
+          },
+          {
+            "kind": "consumeDo",
+            "cpuMs": 9,
+            "wallMs": 48,
+            "events": [
+              {
+                "event": "router_wallet_operation",
+                "operation": "consume_registration"
+              },
+              {
+                "event": "wallet_do_command_timing",
+                "first_command_after_constructor": false,
+                "handler_ms": 0,
+                "instance_command": 4,
+                "object_id": "2755b7a9a3a2d8f0aeaa0d91a2889dcf2a0e329ae6c938b005bc6dedfa44ac22",
+                "path": "/router-wallet/v1/command",
+                "role": "router",
+                "since_previous_start_ms": 683,
+                "status": 200
+              }
+            ]
+          },
+          {
+            "kind": "consumeWorker",
+            "cpuMs": 2,
+            "wallMs": 402,
+            "events": [
+              {
+                "event": "wallet_do_placement_requested",
+                "location_hint": "apac",
+                "object_id": "2755b7a9a3a2d8f0aeaa0d91a2889dcf2a0e329ae6c938b005bc6dedfa44ac22",
+                "role": "router",
+                "wallet_home": "APAC"
+              },
+              {
+                "decode_ms": 0,
+                "encoding_ms": 0,
+                "event": "router_wallet_transport_timing",
+                "lookup_ms": 0,
+                "operation": "consume_registration",
+                "request_body_bytes": 470,
+                "response_body_bytes": 21191,
+                "response_body_ms": 1,
+                "response_headers_ms": 400,
+                "status": 200,
+                "wallet_home": "APAC"
+              },
+              {
+                "duration_ms": 401,
+                "event": "router_wallet_dispatch_timing",
+                "operation": "consume_registration",
+                "outcome": "success",
+                "wallet_home": "APAC"
+              }
+            ]
+          }
+        ],
+        "gatewayInvocations": [
+          {
+            "path": "/wallets/register/respond",
+            "cpuMs": 63,
+            "invocationWallMs": 1135
+          },
+          {
+            "path": "/router-ab/ed25519/yao/registration/execute",
+            "cpuMs": 24,
+            "invocationWallMs": 2686
+          },
+          {
+            "path": "/wallets/register/near-provisioning",
+            "cpuMs": 296,
+            "invocationWallMs": 1907
+          },
+          {
+            "path": "/wallets/register/respond",
+            "cpuMs": 57,
+            "invocationWallMs": 1136
+          },
+          {
+            "path": "/router-ab/ed25519/yao/registration/execute",
+            "cpuMs": 21,
+            "invocationWallMs": 2649
+          },
+          {
+            "path": "/wallets/register/near-provisioning",
+            "cpuMs": 251,
+            "invocationWallMs": 1721
+          },
+          {
+            "path": "/wallets/register/respond",
+            "cpuMs": 58,
+            "invocationWallMs": 1121
+          },
+          {
+            "path": "/router-ab/ed25519/yao/registration/execute",
+            "cpuMs": 20,
+            "invocationWallMs": 2744
+          },
+          {
+            "path": "/wallets/register/near-provisioning",
+            "cpuMs": 184,
+            "invocationWallMs": 1521
+          }
+        ]
+      }
+    },
+    "candidate": {
+      "metrics": {
+        "registrationBrowserMs": {
+          "samples": 3,
+          "median": 7799.243,
+          "minimum": 6933.088,
+          "maximum": 8481.941
+        },
+        "registrationToVerifiedMessageMs": {
+          "samples": 3,
+          "median": 10733.145,
+          "minimum": 9195.014,
+          "maximum": 10814.889
+        },
+        "allObservedGatewayRequests": {
+          "samples": 3,
+          "median": 9,
+          "minimum": 9,
+          "maximum": 10
+        },
+        "yaoExecuteHttpMs": {
+          "samples": 3,
+          "median": 3118.185,
+          "minimum": 2572.607,
+          "maximum": 3166.686
+        },
+        "finalizationHttpMs": {
+          "samples": 3,
+          "median": 1918.348,
+          "minimum": 1638.981,
+          "maximum": 2502.058
+        },
+        "setupHttpMs": {
+          "samples": 3,
+          "median": 520.821,
+          "minimum": 507.013,
+          "maximum": 748.869
+        },
+        "respondHttpMs": {
+          "samples": 3,
+          "median": 587.113,
+          "minimum": 580.911,
+          "maximum": 600.305
+        },
+        "registrationSdkMs": {
+          "samples": 3,
+          "median": 7219.52,
+          "minimum": 6474.745,
+          "maximum": 7736.46
+        }
+      },
+      "finalizationSpansMs": {
+        "near_finalize_authority": {
+          "samples": 3,
+          "median": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "near_finalize_home_admission": {
+          "samples": 3,
+          "median": 7.0,
+          "minimum": 6.0,
+          "maximum": 8.0
+        },
+        "near_finalize_fingerprint": {
+          "samples": 3,
+          "median": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "near_finalize_router_consume": {
+          "samples": 3,
+          "median": 539.0,
+          "minimum": 504.0,
+          "maximum": 560.0
+        },
+        "near_finalize_capability_install": {
+          "samples": 3,
+          "median": 119.0,
+          "minimum": 117.0,
+          "maximum": 131.0
+        },
+        "near_finalize_custody_commit": {
+          "samples": 3,
+          "median": 203.0,
+          "minimum": 170.0,
+          "maximum": 995.0
+        },
+        "near_finalize_session_issue": {
+          "samples": 3,
+          "median": 182.0,
+          "minimum": 178.0,
+          "maximum": 198.0
+        },
+        "near_finalize_side_effect": {
+          "samples": 3,
+          "median": 1475.0,
+          "minimum": 1165.0,
+          "maximum": 2020.0
+        },
+        "near_finalize_home_completion": {
+          "samples": 3,
+          "median": 196.0,
+          "minimum": 188.0,
+          "maximum": 206.0
+        },
+        "near_finalize_total": {
+          "samples": 3,
+          "median": 1669.0,
+          "minimum": 1369.0,
+          "maximum": 2233.0
+        },
+        "near_finalize_session_seal": {
+          "samples": 3,
+          "median": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        }
+      },
+      "samples": [
+        {
+          "artifact": "candidate/registration-1.json",
+          "sha256": "faa0e3a3a45ec6aca42980fa275c012b63edaaf192bd93f371c7646bf2318c2c",
+          "metrics": {
+            "registrationBrowserMs": 7799.243125000001,
+            "registrationToVerifiedMessageMs": 10814.888625,
+            "allObservedGatewayRequests": 9,
+            "yaoExecuteHttpMs": 3118.185,
+            "finalizationHttpMs": 1638.981,
+            "setupHttpMs": 748.869,
+            "respondHttpMs": 600.305,
+            "registrationSdkMs": 7219.5199999809265
+          },
+          "requestsByPath": {
+            "/wallets/register/setup": 1,
+            "/wallets/register/respond": 1,
+            "/router-ab/ed25519/yao/registration/execute": 1,
+            "/wallets/register/near-provisioning": 1,
+            "/wallet/session/status": 3,
+            "/router-ab/ed25519/sign/prepare": 1,
+            "/router-ab/ed25519/sign": 1
+          },
+          "nearAccessKeyCalls": 1,
+          "messageProof": {
+            "message": "Verify this new implicit NEAR wallet before funding",
+            "recipient": "checkout.example",
+            "state": "quote-170",
+            "success": true,
+            "accountId": "e7e879efb5ec0081949a449fc568270af7fab13a3ca4cfe6381eb9f6f27c9224",
+            "publicKey": "ed25519:GcGnKg8k1VMHgpduPgL3JsUE7WnuTXCUGuguDioLEm4F",
+            "signature": "rFLTxlMaRBWYf5cX/eE6PVbISXiaRZ7SelgIw/NWsNQ7qGY82c62up/6Hm+lroXA1sVkV+jIyKHqfu14PEV5Ag==",
+            "nonce": "VC4g2IgYkWch6S9iHLSsBTBtsUXHd8y6g4Opa2Ty7YU=",
+            "digestHex": "f230b6c99c1a6e329981a842631fdf35052ef474ef8a01fa026da2752e480de6",
+            "verification": {
+              "standardPayload": true,
+              "changedMessageRejected": true,
+              "changedRecipientRejected": true,
+              "changedNonceRejected": true,
+              "changedCallbackUrlRejected": true,
+              "stateExcludedFromPayload": true,
+              "stateReturnedUnchanged": true
+            }
+          },
+          "finalizationServerTiming": "near_finalize_authority;dur=0.0, near_finalize_home_admission;dur=8.0, near_finalize_fingerprint;dur=0.0, near_finalize_router_consume;dur=504.0, near_finalize_capability_install;dur=131.0, near_finalize_custody_commit;dur=170.0, near_finalize_session_issue;dur=198.0, near_finalize_side_effect;dur=1165.0, near_finalize_home_completion;dur=196.0, near_finalize_total;dur=1369.0, near_finalize_session_seal;dur=0.0, cfExtPri",
+          "commitDiagnostics": {
+            "kind": "wallet_registration_route_diagnostics_v1",
+            "route": "wallets_register_finalize",
+            "entries": [
+              {
+                "name": "registrationEmailOtpEnrollmentPlanMs",
+                "durationMs": 0
+              },
+              {
+                "name": "relayPersistenceMs",
+                "durationMs": 157
+              },
+              {
+                "name": "registerFinalizeTotalMs",
+                "durationMs": 839
+              }
+            ]
+          },
+          "noFunding": true,
+          "noOtherSignerAssetsLoaded": true
+        },
+        {
+          "artifact": "candidate/registration-2.json",
+          "sha256": "95ac4fb917dd719ac9a764bd2b7cb99ff70e1a16d1557912151bd4adb24d2bf6",
+          "metrics": {
+            "registrationBrowserMs": 8481.94125,
+            "registrationToVerifiedMessageMs": 10733.144832999998,
+            "allObservedGatewayRequests": 10,
+            "yaoExecuteHttpMs": 3166.686,
+            "finalizationHttpMs": 2502.058,
+            "setupHttpMs": 507.013,
+            "respondHttpMs": 587.113,
+            "registrationSdkMs": 7736.460000038147
+          },
+          "requestsByPath": {
+            "/wallets/register/setup": 1,
+            "/wallets/register/respond": 1,
+            "/router-ab/ed25519/yao/registration/execute": 1,
+            "/wallets/register/near-provisioning": 1,
+            "/wallet/session/status": 4,
+            "/router-ab/ed25519/sign/prepare": 1,
+            "/router-ab/ed25519/sign": 1
+          },
+          "nearAccessKeyCalls": 1,
+          "messageProof": {
+            "message": "Verify this new implicit NEAR wallet before funding",
+            "recipient": "checkout.example",
+            "state": "quote-170",
+            "success": true,
+            "accountId": "488e12465b2b3cb72e1ab1de7300cfe8ee68c3022b05c632f05c2e96f25b1c32",
+            "publicKey": "ed25519:5tE1AjRssJfkCy6WqshbxUmYSJKNy99DYRjsQrk4YEth",
+            "signature": "QD3WqrYCUOeMawpFOMJlO/evl60YrMZNYeHud/CkdWl/JQ6KHBZOeqrw8mhzFBV5cmWANBveCRpO8PjqFnRjCQ==",
+            "nonce": "nYnIXGpdLK8mGnyXhOMBchXOdRdW0tdInis8fRLvPxM=",
+            "digestHex": "2f9cbd008c5b75027056f11e8b6e2f71cb5aa939c5fa1555e9ab1cb49fed94d8",
+            "verification": {
+              "standardPayload": true,
+              "changedMessageRejected": true,
+              "changedRecipientRejected": true,
+              "changedNonceRejected": true,
+              "changedCallbackUrlRejected": true,
+              "stateExcludedFromPayload": true,
+              "stateReturnedUnchanged": true
+            }
+          },
+          "finalizationServerTiming": "near_finalize_authority;dur=0.0, near_finalize_home_admission;dur=7.0, near_finalize_fingerprint;dur=0.0, near_finalize_router_consume;dur=539.0, near_finalize_capability_install;dur=119.0, near_finalize_custody_commit;dur=995.0, near_finalize_session_issue;dur=178.0, near_finalize_side_effect;dur=2020.0, near_finalize_home_completion;dur=206.0, near_finalize_total;dur=2233.0, near_finalize_session_seal;dur=0.0, cfExtPri",
+          "commitDiagnostics": {
+            "kind": "wallet_registration_route_diagnostics_v1",
+            "route": "wallets_register_finalize",
+            "entries": [
+              {
+                "name": "registrationEmailOtpEnrollmentPlanMs",
+                "durationMs": 0
+              },
+              {
+                "name": "relayPersistenceMs",
+                "durationMs": 165
+              },
+              {
+                "name": "registerFinalizeTotalMs",
+                "durationMs": 1712
+              }
+            ]
+          },
+          "noFunding": true,
+          "noOtherSignerAssetsLoaded": true
+        },
+        {
+          "artifact": "candidate/registration-3.json",
+          "sha256": "d69cfd5b6d293a251166000a41e1089dbeabcc10a5055a4e7ee9b96446b99631",
+          "metrics": {
+            "registrationBrowserMs": 6933.088167000002,
+            "registrationToVerifiedMessageMs": 9195.014292,
+            "allObservedGatewayRequests": 9,
+            "yaoExecuteHttpMs": 2572.607,
+            "finalizationHttpMs": 1918.348,
+            "setupHttpMs": 520.821,
+            "respondHttpMs": 580.911,
+            "registrationSdkMs": 6474.745000004768
+          },
+          "requestsByPath": {
+            "/wallets/register/setup": 1,
+            "/wallets/register/respond": 1,
+            "/router-ab/ed25519/yao/registration/execute": 1,
+            "/wallets/register/near-provisioning": 1,
+            "/wallet/session/status": 3,
+            "/router-ab/ed25519/sign/prepare": 1,
+            "/router-ab/ed25519/sign": 1
+          },
+          "nearAccessKeyCalls": 1,
+          "messageProof": {
+            "message": "Verify this new implicit NEAR wallet before funding",
+            "recipient": "checkout.example",
+            "state": "quote-170",
+            "success": true,
+            "accountId": "72a3807a14c4a62ce2c0a309e2438c35c6eb42d6db64d4e8f44cf178a6d103a5",
+            "publicKey": "ed25519:8iW5cB1cZB79FPU1MzFSBY9NnxnQmFSCQm6Gj3ZahR32",
+            "signature": "VUN5mQnPZG/OXh8fKrwyJMdNLqgoSvcQK+7QwA0Rgn/maQZgTsjem1YGGBjI4XHBGA50EWSJnpis9XF1mZZJBA==",
+            "nonce": "S/+y3XDsqWSNwBm4tfy0vqg5L5wlqmJ9N6bYLEge3U4=",
+            "digestHex": "978853638208caff1948b14141fcb1475481e0354c96c9b38edc7beac162de4a",
+            "verification": {
+              "standardPayload": true,
+              "changedMessageRejected": true,
+              "changedRecipientRejected": true,
+              "changedNonceRejected": true,
+              "changedCallbackUrlRejected": true,
+              "stateExcludedFromPayload": true,
+              "stateReturnedUnchanged": true
+            }
+          },
+          "finalizationServerTiming": "near_finalize_authority;dur=0.0, near_finalize_home_admission;dur=6.0, near_finalize_fingerprint;dur=0.0, near_finalize_router_consume;dur=560.0, near_finalize_capability_install;dur=117.0, near_finalize_custody_commit;dur=203.0, near_finalize_session_issue;dur=182.0, near_finalize_side_effect;dur=1475.0, near_finalize_home_completion;dur=188.0, near_finalize_total;dur=1669.0, near_finalize_session_seal;dur=0.0, cfExtPri",
+          "commitDiagnostics": {
+            "kind": "wallet_registration_route_diagnostics_v1",
+            "route": "wallets_register_finalize",
+            "entries": [
+              {
+                "name": "registrationEmailOtpEnrollmentPlanMs",
+                "durationMs": 0
+              },
+              {
+                "name": "relayPersistenceMs",
+                "durationMs": 390
+              },
+              {
+                "name": "registerFinalizeTotalMs",
+                "durationMs": 1162
+              }
+            ]
+          },
+          "noFunding": true,
+          "noOtherSignerAssetsLoaded": true
+        }
+      ],
+      "servingVersionAudit": [
+        {
+          "role": "router",
+          "expectedVersionIds": [
+            "e5c14023-16da-4d86-a694-4310a40356df"
+          ],
+          "actualInvocationCounts": {
+            "e5c14023-16da-4d86-a694-4310a40356df": 30
+          },
+          "allMatched": true,
+          "unchangedPriorVersionActiveStateReads": {},
+          "changedExecutionPathsMatched": true,
+          "unexpectedInvocations": {}
+        },
+        {
+          "role": "deriver-a",
+          "expectedVersionIds": [
+            "882911ae-1f78-45cf-9110-958fcc2f1a1e"
+          ],
+          "actualInvocationCounts": {
+            "882911ae-1f78-45cf-9110-958fcc2f1a1e": 18
+          },
+          "allMatched": true,
+          "unchangedPriorVersionActiveStateReads": {},
+          "changedExecutionPathsMatched": true,
+          "unexpectedInvocations": {}
+        },
+        {
+          "role": "deriver-b",
+          "expectedVersionIds": [
+            "9f71a0b9-0987-4026-88fb-c31d24109bb2"
+          ],
+          "actualInvocationCounts": {
+            "9f71a0b9-0987-4026-88fb-c31d24109bb2": 18
+          },
+          "allMatched": true,
+          "unchangedPriorVersionActiveStateReads": {},
+          "changedExecutionPathsMatched": true,
+          "unexpectedInvocations": {}
+        },
+        {
+          "role": "signing-worker",
+          "expectedVersionIds": [
+            "59936650-55e3-4fd0-881c-960602ab4ee0"
+          ],
+          "actualInvocationCounts": {
+            "59936650-55e3-4fd0-881c-960602ab4ee0": 24
+          },
+          "allMatched": true,
+          "unchangedPriorVersionActiveStateReads": {},
+          "changedExecutionPathsMatched": true,
+          "unexpectedInvocations": {}
+        },
+        {
+          "role": "gateway",
+          "expectedVersionIds": [
+            "145a2020-5f26-4157-8ac2-7145ce2c4685"
+          ],
+          "actualInvocationCounts": {
+            "145a2020-5f26-4157-8ac2-7145ce2c4685": 40
+          },
+          "allMatched": true,
+          "unchangedPriorVersionActiveStateReads": {},
+          "changedExecutionPathsMatched": true,
+          "unexpectedInvocations": {}
+        },
+        {
+          "role": "console",
+          "expectedVersionIds": [
+            "42aa4646-3b33-4527-b6de-18494cd2a01e"
+          ],
+          "actualInvocationCounts": {
+            "42aa4646-3b33-4527-b6de-18494cd2a01e": 30
+          },
+          "allMatched": true,
+          "unchangedPriorVersionActiveStateReads": {},
+          "changedExecutionPathsMatched": true,
+          "unexpectedInvocations": {}
+        }
+      ],
+      "capturedConsolePaths": {
+        "/internal/wallet-console/v1/publishable-key-auth": 3,
+        "/internal/wallet-console/v1/project-environments": 3,
+        "/internal/wallet-placement/v1/reserve": 3,
+        "/internal/wallet-placement/v1/find-by-ceremony": 3,
+        "/internal/wallet-placement/v1/registration-execution-authority": 3,
+        "/internal/wallet-console/v1/tenant-root/active-lineage": 3,
+        "/internal/wallet-placement/v1/claim-passkey": 3,
+        "/internal/wallet-placement/v1/publish-routes": 3,
+        "/internal/wallet-placement/v1/publish-session": 3,
+        "/internal/wallet-placement/v1/complete": 3
+      },
+      "spansMs": {
+        "router.parse_and_authorize": {
+          "samples": 3,
+          "median": 541,
+          "minimum": 477,
+          "maximum": 544
+        },
+        "router.prepare_pair.deriver_b": {
+          "samples": 3,
+          "median": 724,
+          "minimum": 662,
+          "maximum": 785
+        },
+        "router.prepare_pair.deriver_a": {
+          "samples": 3,
+          "median": 708,
+          "minimum": 562,
+          "maximum": 743
+        },
+        "router.prepare_pair": {
+          "samples": 3,
+          "median": 743,
+          "minimum": 724,
+          "maximum": 785
+        },
+        "router.verify_readiness_receipts": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "router.deriver_a_execute.http": {
+          "samples": 3,
+          "median": 1594,
+          "minimum": 1041,
+          "maximum": 1634
+        },
+        "router.deriver_a_execute": {
+          "samples": 3,
+          "median": 1594,
+          "minimum": 1041,
+          "maximum": 1634
+        },
+        "router.signing_worker_delivery_exchange": {
+          "samples": 3,
+          "median": 2446,
+          "minimum": 1835,
+          "maximum": 2451
+        },
+        "router.signing_worker_delivery": {
+          "samples": 3,
+          "median": 73,
+          "minimum": 68,
+          "maximum": 75
+        },
+        "router.yao_execute": {
+          "samples": 3,
+          "median": 2458,
+          "minimum": 1849,
+          "maximum": 2461
+        },
+        "deriver_a.target_prepared": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "deriver_a.websocket_connect": {
+          "samples": 3,
+          "median": 727,
+          "minimum": 254,
+          "maximum": 773
+        },
+        "deriver_a.yao_protocol": {
+          "samples": 3,
+          "median": 305,
+          "minimum": 297,
+          "maximum": 384
+        },
+        "deriver_b.session_do": {
+          "samples": 3,
+          "median": 710,
+          "minimum": 633,
+          "maximum": 757
+        },
+        "deriver_b.begin_pair": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "deriver_b.upgrade_response": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "deriver_b.input_private_key": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "deriver_b.transport": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "deriver_b.yao_protocol": {
+          "samples": 3,
+          "median": 373,
+          "minimum": 373,
+          "maximum": 510
+        },
+        "deriver_b.output_serialization": {
+          "samples": 3,
+          "median": 0,
+          "minimum": 0,
+          "maximum": 0
+        },
+        "deriver_b.role_execution": {
+          "samples": 3,
+          "median": 469,
+          "minimum": 460,
+          "maximum": 601
+        },
+        "signing_worker.delivery_body_wait": {
+          "samples": 3,
+          "median": 1898,
+          "minimum": 1426,
+          "maximum": 1904
+        }
+      },
+      "boundRootD1Calls": {
+        "deriver-a:admit": [
+          {
+            "round_trips": 2,
+            "statements": 5,
+            "batch_ms": 87,
+            "initial_read_and_open_ms": 73
+          },
+          {
+            "round_trips": 2,
+            "statements": 5,
+            "batch_ms": 86,
+            "initial_read_and_open_ms": 67
+          },
+          {
+            "round_trips": 2,
+            "statements": 5,
+            "batch_ms": 81,
+            "initial_read_and_open_ms": 68
+          }
+        ],
+        "deriver-a:read_admitted": [
+          {
+            "round_trips": 1,
+            "statements": 3,
+            "batch_ms": 124,
+            "initial_read_and_open_ms": 0
+          },
+          {
+            "round_trips": 1,
+            "statements": 3,
+            "batch_ms": 120,
+            "initial_read_and_open_ms": 0
+          },
+          {
+            "round_trips": 1,
+            "statements": 3,
+            "batch_ms": 119,
+            "initial_read_and_open_ms": 0
+          }
+        ],
+        "deriver-b:admit": [
+          {
+            "round_trips": 2,
+            "statements": 5,
+            "batch_ms": 63,
+            "initial_read_and_open_ms": 86
+          },
+          {
+            "round_trips": 2,
+            "statements": 5,
+            "batch_ms": 55,
+            "initial_read_and_open_ms": 82
+          },
+          {
+            "round_trips": 2,
+            "statements": 5,
+            "batch_ms": 47,
+            "initial_read_and_open_ms": 85
+          }
+        ],
+        "deriver-b:read_admitted": [
+          {
+            "round_trips": 1,
+            "statements": 3,
+            "batch_ms": 90,
+            "initial_read_and_open_ms": 0
+          },
+          {
+            "round_trips": 1,
+            "statements": 3,
+            "batch_ms": 96,
+            "initial_read_and_open_ms": 0
+          },
+          {
+            "round_trips": 1,
+            "statements": 3,
+            "batch_ms": 86,
+            "initial_read_and_open_ms": 0
+          }
+        ]
+      },
+      "walletObjectCommands": {
+        "router:/router-ab/internal/wallet/start": 3,
+        "router:/router-wallet/v1/command": 9,
+        "deriver-a:/router-ab/internal/wallet/start": 3,
+        "deriver-a:/router-ab/internal/deriver-a/wallet-pair/prepare-work": 3,
+        "deriver-a:/router-ab/internal/deriver-a/wallet-pair/execute-work": 3,
+        "deriver-b:/router-ab/internal/wallet/start": 3,
+        "deriver-b:/router-ab/internal/deriver-b/wallet-pair": 3,
+        "deriver-b:/router-ab/deriver-b/ed25519-yao/duplex": 3,
+        "signing-worker:/router-ab/internal/wallet/start": 3,
+        "signing-worker:/router-ab/signing-worker/ed25519-yao/activation/packages": 3,
+        "signing-worker:/router-ab/internal/signing-worker/wallet": 6
+      },
+      "requestedPlacement": {
+        "router:APAC:apac": 12,
+        "deriver-a:APAC:apac": 9,
+        "deriver-b:APAC:apac": 9,
+        "signing-worker:APAC:apac": 6
+      },
+      "routerWalletOperations": {
+        "claim_registration": 3,
+        "finish_registration": 3,
+        "consume_registration": 3
+      },
+      "routerWalletDispatches": {
+        "claim_registration": 3,
+        "finish_registration": 3,
+        "consume_registration": 3
+      },
+      "routerInvocations": [
+        {
+          "cpuTime": 7,
+          "wallTime": 775,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 10,
+          "wallTime": 12,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 16,
+          "wallTime": 59,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 3,
+          "wallTime": 4,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 2,
+          "wallTime": 45,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 47,
+          "wallTime": 2994,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 9,
+          "wallTime": 52,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 2,
+          "wallTime": 478,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 3,
+          "wallTime": 530,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 1,
+          "wallTime": 72,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 9,
+          "wallTime": 11,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 3,
+          "wallTime": 754,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 17,
+          "wallTime": 56,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 4,
+          "wallTime": 5,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 3,
+          "wallTime": 43,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 44,
+          "wallTime": 3050,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 12,
+          "wallTime": 50,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 2,
+          "wallTime": 516,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 2,
+          "wallTime": 395,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 10,
+          "wallTime": 88,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 12,
+          "wallTime": 13,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 7,
+          "wallTime": 712,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 17,
+          "wallTime": 56,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 3,
+          "wallTime": 4,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 3,
+          "wallTime": 44,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 26,
+          "wallTime": 2440,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 3,
+          "wallTime": 536,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 12,
+          "wallTime": 52,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 2,
+          "wallTime": 395,
+          "outcome": "ok"
+        },
+        {
+          "cpuTime": 2,
+          "wallTime": 73,
+          "outcome": "ok"
+        }
+      ],
+      "rootInvocations": [
+        {
+          "role": "deriver-a",
+          "access": "admit",
+          "cpuMs": 91,
+          "wallMs": 288,
+          "executionModel": "durableObject",
+          "path": "/router-ab/internal/deriver-a/wallet-pair/prepare-work"
+        },
+        {
+          "role": "deriver-a",
+          "access": "read_admitted",
+          "cpuMs": 580,
+          "wallMs": 1677,
+          "executionModel": "durableObject",
+          "path": "/router-ab/internal/deriver-a/wallet-pair/execute-work"
+        },
+        {
+          "role": "deriver-a",
+          "access": "admit",
+          "cpuMs": 69,
+          "wallMs": 261,
+          "executionModel": "durableObject",
+          "path": "/router-ab/internal/deriver-a/wallet-pair/prepare-work"
+        },
+        {
+          "role": "deriver-a",
+          "access": "read_admitted",
+          "cpuMs": 390,
+          "wallMs": 1640,
+          "executionModel": "durableObject",
+          "path": "/router-ab/internal/deriver-a/wallet-pair/execute-work"
+        },
+        {
+          "role": "deriver-a",
+          "access": "admit",
+          "cpuMs": 63,
+          "wallMs": 251,
+          "executionModel": "durableObject",
+          "path": "/router-ab/internal/deriver-a/wallet-pair/prepare-work"
+        },
+        {
+          "role": "deriver-a",
+          "access": "read_admitted",
+          "cpuMs": 401,
+          "wallMs": 1088,
+          "executionModel": "durableObject",
+          "path": "/router-ab/internal/deriver-a/wallet-pair/execute-work"
+        },
+        {
+          "role": "deriver-b",
+          "access": "admit",
+          "cpuMs": 79,
+          "wallMs": 268,
+          "executionModel": "durableObject",
+          "path": "/router-ab/internal/deriver-b/wallet-pair"
+        },
+        {
+          "role": "deriver-b",
+          "access": "read_admitted",
+          "cpuMs": 228,
+          "wallMs": 858,
+          "executionModel": "durableObject",
+          "path": "/router-ab/deriver-b/ed25519-yao/duplex"
+        },
+        {
+          "role": "deriver-b",
+          "access": "admit",
+          "cpuMs": 108,
+          "wallMs": 281,
+          "executionModel": "durableObject",
+          "path": "/router-ab/internal/deriver-b/wallet-pair"
+        },
+        {
+          "role": "deriver-b",
+          "access": "read_admitted",
+          "cpuMs": 356,
+          "wallMs": 847,
+          "executionModel": "durableObject",
+          "path": "/router-ab/deriver-b/ed25519-yao/duplex"
+        },
+        {
+          "role": "deriver-b",
+          "access": "admit",
+          "cpuMs": 86,
+          "wallMs": 255,
+          "executionModel": "durableObject",
+          "path": "/router-ab/internal/deriver-b/wallet-pair"
+        },
+        {
+          "role": "deriver-b",
+          "access": "read_admitted",
+          "cpuMs": 239,
+          "wallMs": 729,
+          "executionModel": "durableObject",
+          "path": "/router-ab/deriver-b/ed25519-yao/duplex"
+        }
+      ],
+      "boundaryEvidence": {
+        "metrics": {
+          "claim_registration:responseHeadersMs": {
+            "samples": 3,
+            "median": 529,
+            "minimum": 468,
+            "maximum": 529
+          },
+          "finish_registration:responseHeadersMs": {
+            "samples": 3,
+            "median": 52,
+            "minimum": 50,
+            "maximum": 54
+          },
+          "consumeDoCpuMs": {
+            "samples": 3,
+            "median": 12,
+            "minimum": 9,
+            "maximum": 12
+          },
+          "consumeDoWallMs": {
+            "samples": 3,
+            "median": 52,
+            "minimum": 50,
+            "maximum": 52
+          },
+          "consume_registration:responseHeadersMs": {
+            "samples": 3,
+            "median": 515,
+            "minimum": 472,
+            "maximum": 533
+          },
+          "consumeWorkerCpuMs": {
+            "samples": 3,
+            "median": 2,
+            "minimum": 2,
+            "maximum": 3
+          },
+          "consumeWorkerWallMs": {
+            "samples": 3,
+            "median": 516,
+            "minimum": 478,
+            "maximum": 536
+          },
+          "consumeDoResponseHeadersMs": {
+            "samples": 3,
+            "median": 515,
+            "minimum": 472,
+            "maximum": 533
+          },
+          "consumeDoResponseBytes": {
+            "samples": 3,
+            "median": 21299,
+            "minimum": 21290,
+            "maximum": 21380
+          },
+          "/wallets/register/respond:gatewayCpuMs": {
+            "samples": 3,
+            "median": 22,
+            "minimum": 20,
+            "maximum": 36
+          },
+          "/router-ab/ed25519/yao/registration/execute:gatewayCpuMs": {
+            "samples": 3,
+            "median": 11,
+            "minimum": 11,
+            "maximum": 15
+          },
+          "/wallets/register/near-provisioning:gatewayCpuMs": {
+            "samples": 3,
+            "median": 198,
+            "minimum": 173,
+            "maximum": 202
+          }
+        },
+        "routerSamples": [
+          {
+            "kind": "consumeDo",
+            "cpuMs": 9,
+            "wallMs": 52,
+            "events": [
+              {
+                "event": "router_wallet_operation",
+                "operation": "consume_registration"
+              },
+              {
+                "event": "wallet_do_command_timing",
+                "first_command_after_constructor": false,
+                "handler_ms": 0,
+                "instance_command": 4,
+                "object_id": "09b297ccc7fdc1dc5f174d980e00cc9a1da0d21523dd28be570d495c43a09a49",
+                "path": "/router-wallet/v1/command",
+                "role": "router",
+                "since_previous_start_ms": 707,
+                "status": 200
+              }
+            ]
+          },
+          {
+            "kind": "consumeWorker",
+            "cpuMs": 2,
+            "wallMs": 478,
+            "events": [
+              {
+                "event": "wallet_do_placement_requested",
+                "location_hint": "apac",
+                "object_id": "09b297ccc7fdc1dc5f174d980e00cc9a1da0d21523dd28be570d495c43a09a49",
+                "role": "router",
+                "wallet_home": "APAC"
+              },
+              {
+                "decode_ms": 0,
+                "encoding_ms": 0,
+                "event": "router_wallet_transport_timing",
+                "lookup_ms": 0,
+                "operation": "consume_registration",
+                "request_body_bytes": 474,
+                "response_body_bytes": 21290,
+                "response_body_ms": 4,
+                "response_headers_ms": 472,
+                "status": 200,
+                "wallet_home": "APAC"
+              },
+              {
+                "duration_ms": 476,
+                "event": "router_wallet_dispatch_timing",
+                "operation": "consume_registration",
+                "outcome": "success",
+                "wallet_home": "APAC"
+              }
+            ]
+          },
+          {
+            "kind": "consumeDo",
+            "cpuMs": 12,
+            "wallMs": 50,
+            "events": [
+              {
+                "event": "router_wallet_operation",
+                "operation": "consume_registration"
+              },
+              {
+                "event": "wallet_do_command_timing",
+                "first_command_after_constructor": false,
+                "handler_ms": 0,
+                "instance_command": 4,
+                "object_id": "d6b7924101f52f3beb9b399b119520296f9186b8d5aa6b81454521e93c54a50d",
+                "path": "/router-wallet/v1/command",
+                "role": "router",
+                "since_previous_start_ms": 751,
+                "status": 200
+              }
+            ]
+          },
+          {
+            "kind": "consumeWorker",
+            "cpuMs": 2,
+            "wallMs": 516,
+            "events": [
+              {
+                "event": "wallet_do_placement_requested",
+                "location_hint": "apac",
+                "object_id": "d6b7924101f52f3beb9b399b119520296f9186b8d5aa6b81454521e93c54a50d",
+                "role": "router",
+                "wallet_home": "APAC"
+              },
+              {
+                "decode_ms": 0,
+                "encoding_ms": 0,
+                "event": "router_wallet_transport_timing",
+                "lookup_ms": 0,
+                "operation": "consume_registration",
+                "request_body_bytes": 474,
+                "response_body_bytes": 21380,
+                "response_body_ms": 0,
+                "response_headers_ms": 515,
+                "status": 200,
+                "wallet_home": "APAC"
+              },
+              {
+                "duration_ms": 515,
+                "event": "router_wallet_dispatch_timing",
+                "operation": "consume_registration",
+                "outcome": "success",
+                "wallet_home": "APAC"
+              }
+            ]
+          },
+          {
+            "kind": "consumeWorker",
+            "cpuMs": 3,
+            "wallMs": 536,
+            "events": [
+              {
+                "event": "wallet_do_placement_requested",
+                "location_hint": "apac",
+                "object_id": "8501935f7f9d657c0e9b34211ee654591ab5e0fede926a9799b956f68f7811a1",
+                "role": "router",
+                "wallet_home": "APAC"
+              },
+              {
+                "decode_ms": 0,
+                "encoding_ms": 0,
+                "event": "router_wallet_transport_timing",
+                "lookup_ms": 0,
+                "operation": "consume_registration",
+                "request_body_bytes": 471,
+                "response_body_bytes": 21299,
+                "response_body_ms": 1,
+                "response_headers_ms": 533,
+                "status": 200,
+                "wallet_home": "APAC"
+              },
+              {
+                "duration_ms": 534,
+                "event": "router_wallet_dispatch_timing",
+                "operation": "consume_registration",
+                "outcome": "success",
+                "wallet_home": "APAC"
+              }
+            ]
+          },
+          {
+            "kind": "consumeDo",
+            "cpuMs": 12,
+            "wallMs": 52,
+            "events": [
+              {
+                "event": "router_wallet_operation",
+                "operation": "consume_registration"
+              },
+              {
+                "event": "wallet_do_command_timing",
+                "first_command_after_constructor": false,
+                "handler_ms": 0,
+                "instance_command": 4,
+                "object_id": "8501935f7f9d657c0e9b34211ee654591ab5e0fede926a9799b956f68f7811a1",
+                "path": "/router-wallet/v1/command",
+                "role": "router",
+                "since_previous_start_ms": 771,
+                "status": 200
+              }
+            ]
+          }
+        ],
+        "gatewayInvocations": [
+          {
+            "path": "/wallets/register/respond",
+            "cpuMs": 36,
+            "invocationWallMs": 1093
+          },
+          {
+            "path": "/router-ab/ed25519/yao/registration/execute",
+            "cpuMs": 15,
+            "invocationWallMs": 3039
+          },
+          {
+            "path": "/wallets/register/near-provisioning",
+            "cpuMs": 202,
+            "invocationWallMs": 1616
+          },
+          {
+            "path": "/wallets/register/respond",
+            "cpuMs": 22,
+            "invocationWallMs": 1068
+          },
+          {
+            "path": "/router-ab/ed25519/yao/registration/execute",
+            "cpuMs": 11,
+            "invocationWallMs": 3086
+          },
+          {
+            "path": "/wallets/register/near-provisioning",
+            "cpuMs": 198,
+            "invocationWallMs": 2451
+          },
+          {
+            "path": "/wallets/register/respond",
+            "cpuMs": 20,
+            "invocationWallMs": 986
+          },
+          {
+            "path": "/router-ab/ed25519/yao/registration/execute",
+            "cpuMs": 11,
+            "invocationWallMs": 2488
+          },
+          {
+            "path": "/wallets/register/near-provisioning",
+            "cpuMs": 173,
+            "invocationWallMs": 1894
+          }
+        ]
+      }
+    }
+  },
+  "localVerification": {
+    "eligible": true,
+    "sourceHashes": {
+      "/Users/pta/Dev/rust/seams-wallet/.artifacts/r155b-phase6aj/source/packages/wallet-server/src/router/domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistrationPartitionedStateStore.ts": "c6d0a7863e5cc33b4aeefb588f65afe300c3a6ddf44130657a8f904df87d2a75",
+      "/Users/pta/Dev/rust/seams-wallet/.artifacts/r155b-phase6aj/source/packages/wallet-server/src/router/domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistrationRequestScopedRuntime.ts": "fc47dafbc6b6eac3b6abedc454eaa800059380424ba90589389e24b164a4b69d",
+      "/Users/pta/Dev/rust/seams-wallet/.artifacts/r155b-phase6aj/source/packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationRequestScopedCloudflare.ts": "f3919c895c4966baf022a3b5b4ba689aeb3f64d465796649f1e4b15f67e9534f",
+      "/Users/pta/Dev/rust/seams-wallet/.artifacts/r155b-phase6aj/source/tests/typecheck/yao-registration-ceremony.typecheck.ts": "766a9038ba09da5355f1f7d81d81a68b26137fa91fb58444f3c67613e5d55499",
+      "/Users/pta/Dev/rust/seams-wallet/.artifacts/r155b-phase6aj/source/tests/tsconfig.wallet-typecheck.json": "b7686738c734e19c905874835b1994d7a923059ab8e466076937f3c396eed81e",
+      "/Users/pta/Dev/rust/seams-monorepo/.artifacts/r155b-phase6aj-hosted/gateway-build/d1GatewayWorker.js": "f1c72930d8b0dc0cb6aaa1f07086555bbd387c77dbd816eb7add8eacf0a82cac"
+    },
+    "publicServerBuild": "passed",
+    "publicServerTypecheck": "passed",
+    "staticTypeFixtures": "passed",
+    "browserE2E": "4 passed: NEAR admission replay, lost finalization credential, protocol rejection/reload, immediate owner session",
+    "bloat": "passed",
+    "privateGatewayBundle": "passed",
+    "privateTypecheck": {
+      "baselineErrors": 6,
+      "candidateErrors": 6,
+      "identicalDiagnostics": true,
+      "classification": "pre_existing_integration_errors"
+    },
+    "publicImplementationCommit": "8aa7531edcf2be075c387700253f421a378aa8e2",
+    "privateImplementationCommit": "475d5d6",
+    "reusedRuntime": "Unchanged accepted phase 6AH Rust roles and phase 6AC corrected NEP-413 SDK/site; private Gateway source unchanged from phase 6AI.",
+    "commands": {
+      "server": "pnpm -C packages/wallet-server build && pnpm -C packages/wallet-server type-check",
+      "types": "pnpm exec tsc -p .artifacts/r155b-phase6aj/typecheck.json",
+      "browser": "SEAMS_INTENDED_SKIP_BUILD=1 SEAMS_LOCAL_PORT_OFFSET=15000 SEAMS_INTENDED_APP_URL=http://localhost:19201 SEAMS_INTENDED_WALLET_ORIGIN=http://localhost:19202 SEAMS_INTENDED_ROUTER_URL=http://127.0.0.1:19100 SEAMS_INTENDED_ROUTER_AB_ROOT=<fresh artifact directory> pnpm -C tests exec playwright test -c playwright.wallet-intended.ci.config.ts e2e/intended-behaviours/passkey.registration.contract.test.ts e2e/intended-behaviours/passkey.near-registration-commit.contract.test.ts --grep \"wallet protocol rejection|passkey registration establishes an immediately usable owner session|NEAR-only registration replays admitted work|NEAR-only registration recovers a lost finalization credential\"",
+      "hosted": "python3 -u .artifacts/r155b-phase6aj-hosted/experiment.py; node .artifacts/r155b-phase6aj-hosted/verify-proofs.mjs; python3 .artifacts/r155b-phase6aj-hosted/analyze.py"
+    }
+  },
+  "independentSignatureVerification": {
+    "verifier": "Node.js crypto Ed25519 with independent NEP-413 Borsh encoding",
+    "results": [
+      {
+        "name": "baseline/registration-1.json",
+        "publicKey": "ed25519:38hnmv3GnptpVsAUKsVDECsXbgrqDHZ1R3xiDVsv8p1q",
+        "digestHex": "61b0131134805cbcd0875960f6bcfe11bc5737db7e2c07a10cb7f56f378904dc",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      },
+      {
+        "name": "baseline/registration-2.json",
+        "publicKey": "ed25519:9pEzJ1PwL1Efn76x7HLZT1BxiJjA38Kg3Ly9Z1VW1wJz",
+        "digestHex": "8f045af5cbf52aa776f70d46543702981289acdb7a2b9606af79932392af3519",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      },
+      {
+        "name": "baseline/registration-3.json",
+        "publicKey": "ed25519:8kYk8qd1pMHCaCYvmMWmitpN33pAK1HByQuGQas4Fezd",
+        "digestHex": "afa5d797c40453471e396a1cef5545bb5bca89f1422cc256bd453045ec846288",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      },
+      {
+        "name": "candidate/registration-1.json",
+        "publicKey": "ed25519:GcGnKg8k1VMHgpduPgL3JsUE7WnuTXCUGuguDioLEm4F",
+        "digestHex": "f230b6c99c1a6e329981a842631fdf35052ef474ef8a01fa026da2752e480de6",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      },
+      {
+        "name": "candidate/registration-2.json",
+        "publicKey": "ed25519:5tE1AjRssJfkCy6WqshbxUmYSJKNy99DYRjsQrk4YEth",
+        "digestHex": "2f9cbd008c5b75027056f11e8b6e2f71cb5aa939c5fa1555e9ab1cb49fed94d8",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      },
+      {
+        "name": "candidate/registration-3.json",
+        "publicKey": "ed25519:8iW5cB1cZB79FPU1MzFSBY9NnxnQmFSCQm6Gj3ZahR32",
+        "digestHex": "978853638208caff1948b14141fcb1475481e0354c96c9b38edc7beac162de4a",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      }
+    ]
+  },
+  "limitations": [
+    "Three samples per arm establish neither tail percentiles nor a latency guarantee.",
+    "Sequential arms include provider scheduling and network variation; small differences cannot establish causality.",
+    "Fresh wallets do not guarantee cold Workers. Worker cold starts were not controlled.",
+    "Invocation wall time can include background work and is not browser response time.",
+    "Nested spans overlap. Protocol spans include transport; zero Worker clock spans do not prove zero CPU.",
+    "Existing bound-root counters cover six D1 calls, not all database work in registration.",
+    "The removed shared-record reads are three SQL statements in existing batches; they do not remove three HTTP calls.",
+    "Requested APAC placement does not prove physical colocation."
+  ],
+  "rawArtifacts": {
+    "public": ".artifacts/r155b-phase6aj",
+    "private": ".artifacts/r155b-phase6aj-hosted"
+  },
+  "completionAudit": {
+    "benchmarkPassed": true,
+    "allVersionsRestored": true,
+    "placementRestored": true
+  },
+  "restoration": {
+    "at": "2026-10-08T22:26:11.389370+00:00",
+    "versions": {
+      "seams-sdk-d1-console-staging": [
+        {
+          "version_id": "29d08e63-3d81-4fa0-adf2-123ecbbe5641",
+          "percentage": 100
+        }
+      ],
+      "router-ab-deriver-a-staging": [
+        {
+          "version_id": "eaa0b80f-47bf-44a9-b9b5-4f73a70abcd0",
+          "percentage": 100
+        }
+      ],
+      "router-ab-deriver-b-staging": [
+        {
+          "version_id": "c700bbc1-b87f-4182-9f64-ff2bf33eead8",
+          "percentage": 100
+        }
+      ],
+      "router-ab-mpc-router-staging": [
+        {
+          "version_id": "cff2b41d-1fa2-4311-a8ce-56364c7ddf1a",
+          "percentage": 100
+        }
+      ],
+      "router-ab-signing-worker-staging": [
+        {
+          "version_id": "c18b2202-8063-4c96-9772-fb1a268494fc",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-gateway-staging": [
+        {
+          "version_id": "12f48c20-df36-4d15-8355-33c2ac72338f",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-gateway-staging-oc": [
+        {
+          "version_id": "d997446e-77de-4b55-90fb-20e7549c5a39",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-gateway-staging-us": [
+        {
+          "version_id": "991403ec-65e5-4885-a1a0-847e662e3871",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-gateway-staging-weur": [
+        {
+          "version_id": "b4614e86-1ae0-4f1e-bf78-bdf620b63731",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-wallet-runtime-staging": [
+        {
+          "version_id": "b068efef-5043-4072-b1fe-0c6dbce1c902",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-wallet-runtime-staging-oc": [
+        {
+          "version_id": "3f48c537-0d1e-4b3e-9595-f1c586fc3ab6",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-wallet-runtime-staging-us": [
+        {
+          "version_id": "273942f8-a9d8-45d0-a616-cf467043073d",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-wallet-runtime-staging-weur": [
+        {
+          "version_id": "3431e054-ca39-4032-a830-96b2a615b406",
+          "percentage": 100
+        }
+      ]
+    }
+  },
+  "configurationCheck": {
+    "allFourGatewaysMatch": true
+  },
+  "cleanup": {
+    "at": "2026-10-08T22:26:36.539318+00:00",
+    "allObservationTailsStopped": true,
+    "remainingObservationProcesses": 0,
+    "registrationReadinessGuardPreserved": true,
+    "newInfrastructureCreated": false,
+    "productionChanged": false,
+    "originalWorkerVersionsAndPlacementRestored": true
+  },
+  "decision": {
+    "keepImplementation": true,
+    "reason": "Ceremony-only reads remove unrelated shared capability access and reduce CPU in all three changed Gateway paths. This is retained as a bounded data-access and CPU reduction, without claiming a full registration speedup.",
+    "fullFlowSpeedupDemonstrated": false,
+    "observedFullFlowMedianMs": {
+      "baseline": 9218.98,
+      "candidate": 10733.145
+    },
+    "targetSatisfied": false,
+    "nextExperiment": "Compare native Durable Object RPC against the existing HTTP dispatch for real Router claim and consume commands. Preserve ownership generation, claim leases, relocation fences and exact retries. Reuse existing staging resources, remove an unsuccessful candidate, and do not repeat the already-rejected global handle-cache experiment."
+  },
+  "restorationActivation": {
+    "runId": 37853345386,
+    "status": "completed",
+    "conclusion": "success",
+    "url": "https://github.com/seams-tech/seams-monorepo/actions/runs/37853345386"
+  }
+}

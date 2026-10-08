@@ -5118,3 +5118,82 @@ guard was bypassed. All observation tails stopped. No new infrastructure was cre
 run, source and bundle hashes, invocation evidence, verification, and restoration.
 Raw artifacts remain in the public `.artifacts/r155b-phase6ai` directory and the
 private `.artifacts/r155b-phase6ai-hosted` directory.
+
+
+### Phase 6AJ — read only the registration's ceremony (2026-10-09)
+
+**Keep the data-access and CPU reduction. The complete flow did not become faster.**
+Implementation `8aa7531edcf2be075c387700253f421a378aa8e2` is on public `dev`.
+No SDK, private application, schema, or Rust protocol change was required.
+
+The APAC shared capability record contained **580,085 bytes** of JSON. Registration
+admission, execution, and activation consumption each loaded it, although each
+operation needed only its own ceremony. The new registration snapshot exposes only
+registration and authorization state. Commits retain that ceremony's recovery and
+export records. They preserve record-version checks, wallet ownership fences,
+root binding, expiry, and replay behavior. Shared capability operations retain their
+existing coherent snapshot and transaction.
+
+This removes three shared-row reads from existing database batches. At the measured
+record size, it avoids handling **1.74 MB of unrelated JSON per fresh registration**.
+These are implementation-derived row counts. Database API round trips and Console
+HTTP counts do not change. The type fixture rejects shared state in direct literals
+and broad spreads, and rejects commits without the original snapshot version.
+
+Three fresh implicit, unfunded NEAR wallets ran per arm. Only Gateway code changed.
+All six observed Worker streams matched their expected versions. The same NEAR-only
+SDK, Console, Runtime, custody roles, and requested APAC placement served both arms.
+
+| Workload | Baseline median (range) | Candidate median (range) |
+| --- | ---: | ---: |
+| Credential submission HTTP | 0.665 s (0.579–0.739) | 0.587 s (0.581–0.600) |
+| Yao execute HTTP | 2.824 s (2.794–2.846) | 3.118 s (2.573–3.167) |
+| Server finalization HTTP | 1.750 s (1.542–1.928) | 1.918 s (1.639–2.502) |
+| SDK registration | 6.599 s (6.390–7.110) | 7.220 s (6.475–7.736) |
+| Browser registration → verified signature | 9.219 s (9.162–10.075) | 10.733 s (9.195–10.815) |
+
+Gateway CPU medians fell from **58 → 22 ms** for credential submission,
+**21 → 11 ms** for execution, and **251 → 198 ms** for finalization.
+Console calls remained **10 per registration**. Existing bound-root counters still
+reported six database round trips and sixteen statements per registration. Those
+counters do not cover every database operation in the complete flow.
+
+The larger full-flow median is recorded as observed. Three sequential samples per
+arm cannot isolate scheduling and network variation from a small code effect. There
+is no restored-baseline measurement arm. The candidate's unchanged custody commit
+included a **995 ms** wait, versus 169–176 ms in the baseline. Router consumption
+rose from 450 to 539 ms median. Lower CPU does not establish faster registration.
+The **3–4 second complete-flow target remains unmet**.
+
+The Router boundary is now quantified for actual registration commands. Median
+response-header waits were **405 → 529 ms** for the initial claim,
+**50 → 52 ms** for completion in the same incoming request, and
+**400 → 515 ms** for consumption in a later request. Consumption's DO invocation
+itself took **50 → 52 ms** median and was the fourth command on the same live
+instance. This places the large wait outside its short handler. It does not prove
+which provider routing, scheduling, or connection step causes the wait. Worker
+clock spans, invocation wall time, and HTTP boundaries remain distinct measures.
+
+The next bounded experiment is native DO RPC for the real claim and consume
+commands. Cloudflare [recommends direct RPC methods for DO calls](https://developers.cloudflare.com/durable-objects/best-practices/create-durable-object-stubs-and-send-requests/).
+Whether it reduces this delay is unmeasured. Preserve ownership generation, claim
+leases, relocation checks, and exact retries. Use the existing staging objects.
+Phase 6L already tested handle reuse, object names, IDs, and placement hints. Its
+results do not justify another global handle cache or keepalive loop.
+
+The server build, server type-check, targeted type fixture, exact-tree bloat check,
+Gateway bundle, and four browser E2E scenarios passed. Scenarios covered replayed
+NEAR admission, lost finalization credentials, protocol rejection with reload, and
+immediately usable owner sessions. Six private integration type errors were
+identical to the baseline. All six hosted NEP-413 signatures passed independent
+Node.js verification and signed-field tamper checks.
+
+All thirteen original Worker version assignments and placement settings were
+restored. Restoration activation [37853345386](https://github.com/seams-tech/seams-monorepo/actions/runs/37853345386) passed.
+The existing registration leases expired normally. All observation tails stopped.
+No new infrastructure was created.
+
+[Sanitized evidence](evidence/near-registration-ceremony-scope-20261009.json) contains all samples, source and bundle hashes,
+serving versions, request counts, independent proofs, reproduction commands, and
+restoration checks. Raw files remain in public `.artifacts/r155b-phase6aj` and
+private `.artifacts/r155b-phase6aj-hosted`.
