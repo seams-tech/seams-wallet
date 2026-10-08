@@ -213,17 +213,8 @@ import {
   nearEd25519YaoMaterialActivationFromMetadata,
   nearEd25519YaoRuntimeRef,
   resolveNearEd25519YaoCapabilityHydrationV1,
-  type NearEd25519YaoCapabilityHydrationInputV1,
   type NearEd25519YaoRuntimeObservationV1,
 } from '@/core/signingEngine/session/material/nearEd25519YaoMaterialActivation';
-import {
-  readOwnerWalletExecutionLaneProjectionV1,
-  type OwnerWalletExecutionLaneProjectionV1,
-} from '@/core/rpcClients/relayer/ownerWalletExecutionLanePreflight';
-import {
-  hydrateWalletExecutionLane,
-  type ActiveWalletExecutionLaneHydration,
-} from '@/core/signingEngine/session/lanes/walletExecutionLaneHydration';
 import { IndexedDBManager, walletSessionAuthorizations } from '@/core/indexedDB';
 import type { WalletAuthoritySignerMaterialRecordV1 } from '@/core/indexedDB/passkeyClientDB.types';
 import type { ResolveSelectedWalletAuthorityResultV1 } from '@/core/indexedDB/seamsWalletDB/repositories';
@@ -2235,12 +2226,12 @@ function validateExactNearEd25519YaoOperationMaterial(args: {
   return args.material;
 }
 
-async function hydrateOwnerNearEd25519ExecutionLane(args: {
+async function validateOwnerNearEd25519SigningMaterial(args: {
   input: PrepareNearEd25519YaoMaterialBoundaryInput;
   authorization: ExactNearEd25519WalletSessionAuthorization;
   sealedRuntime: ExactEd25519SealedSessionRuntime;
   material: NearEd25519YaoOperationMaterial;
-}): Promise<ActiveWalletExecutionLaneHydration> {
+}): Promise<void> {
   const metadata = args.material.activeClient.metadata();
   const materialActivation = nearEd25519YaoMaterialActivationFromMetadata(metadata);
   if (
@@ -2251,7 +2242,7 @@ async function hydrateOwnerNearEd25519ExecutionLane(args: {
   ) {
     throw new Error('Owner Ed25519 execution-lane material changed');
   }
-  const exactMaterial = validateExactNearEd25519YaoOperationMaterial({
+  validateExactNearEd25519YaoOperationMaterial({
     material: args.material,
     input: args.input,
     expectedActivation: materialActivation,
@@ -2270,65 +2261,10 @@ async function hydrateOwnerNearEd25519ExecutionLane(args: {
   ) {
     throw new Error('Owner Ed25519 execution-lane authority does not match sealed material');
   }
-  const runtime = nearEd25519YaoRuntimeObservation(exactMaterial);
+  const runtime = nearEd25519YaoRuntimeObservation(args.material);
   if (runtime.kind !== 'live') {
-    throw new Error('Owner Ed25519 execution-lane preflight requires active Yao material');
+    throw new Error('Owner Ed25519 signing requires active Yao material');
   }
-  const hydration: NearEd25519YaoCapabilityHydrationInputV1 = {
-    publicLocator: {
-      kind: 'available',
-      walletId: String(exactMaterial.facts.signer.account.wallet.walletId),
-      nearAccountId: String(exactMaterial.facts.signer.account.nearAccountId),
-      signerSlot: exactMaterial.facts.signer.signerSlot,
-      materialActivation,
-      authority,
-    },
-    sealed: { kind: 'missing' },
-    runtime,
-    unlockSource: { kind: 'unavailable' },
-  };
-  const projection = await readOwnerWalletExecutionLaneProjectionV1({
-    relayerUrl: exactMaterial.facts.relayerUrl,
-    operationCredential: args.authorization.operationCredential,
-    curve: 'ed25519',
-    expectedMaterialActivation: materialActivation,
-  });
-  return assertOwnerNearEd25519ExecutionLaneProjection({
-    projection,
-    material: exactMaterial,
-    hydration,
-  });
-}
-
-function assertOwnerNearEd25519ExecutionLaneProjection(args: {
-  projection: OwnerWalletExecutionLaneProjectionV1;
-  material: NearEd25519YaoOperationMaterial;
-  hydration: NearEd25519YaoCapabilityHydrationInputV1;
-}): ActiveWalletExecutionLaneHydration {
-  const hydrated = hydrateWalletExecutionLane({
-    walletKey: args.projection.walletKey,
-    lane: args.projection.lane,
-    material: {
-      keyFamily: 'ed25519',
-      laneShareEpoch: args.projection.lane.laneShareEpoch,
-      metadata: args.material.activeClient.metadata(),
-      hydration: args.hydration,
-    },
-  });
-  if (hydrated.kind !== 'active_wallet_execution_lane_v1') {
-    throw new Error(`Owner Ed25519 execution lane is ${hydrated.reason}`);
-  }
-  if (
-    !mpcMaterialActivationRefsEqual(
-      hydrated.materialActivation,
-      args.projection.materialActivation,
-    ) ||
-    hydrated.activationReceiptDigestB64u !==
-      String(args.projection.verifiedActivationReceiptDigestB64u)
-  ) {
-    throw new Error('Owner Ed25519 execution-lane projection activation changed');
-  }
-  return hydrated;
 }
 
 function requireNearEd25519YaoPreparationActivation(
@@ -4241,7 +4177,7 @@ export class BrowserSigningSurface {
           if (!activeMaterial) {
             throw new Error('[SigningEngine][near] live Ed25519 material is unavailable');
           }
-          await hydrateOwnerNearEd25519ExecutionLane({
+          await validateOwnerNearEd25519SigningMaterial({
             input: args,
             authorization,
             sealedRuntime,
@@ -4596,7 +4532,7 @@ export class BrowserSigningSurface {
                 walletId: args.walletId,
                 laneIdentity: args.laneIdentity,
               });
-              await hydrateOwnerNearEd25519ExecutionLane({
+              await validateOwnerNearEd25519SigningMaterial({
                 input: args,
                 authorization: authorizationRead.authorization,
                 sealedRuntime,

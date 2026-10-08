@@ -3592,3 +3592,89 @@ check passed. Review found no additional issue in the changed path.
    Candidate medians were **427 / 519 ms**, with maxima of **952 / 1,245 ms**.
    These spans include server execution, storage, and transport. Complete D1
    accounting is needed before attributing their delay to the database.
+
+### Phase 6R — remove NEAR owner-lane preflight
+
+The separate owner-lane request costs **167 ms median** in the preceding candidate.
+Prepare and finalize already resolve current session authority and active signer
+material. Step-up also performs owner-lane admission. The SDK checks the admitted
+prepare response before creating a signature share. Remove the duplicate browser
+request. Keep the local identity, sealed-authority, and material checks.
+
+- [x] Remove the NEAR preflight call and unused projection hydration.
+- [x] Remove the unused NEAR endpoint branch. Retain the ECDSA path and its checks.
+- [x] Verify signing, quota step-up, reload, changed prepare authority, and a
+  session retired before prepare. Verify fresh unlock after retirement.
+- [x] Keep the composed regional budget/step-up test, and remove its retired
+  preflight assertion. Verify the retained ECDSA path with the browser lifecycle.
+- [x] Compare baseline/candidate/baseline SDKs against fixed staging versions.
+  Record request counts, medians, ranges, maximums, and relevant waits.
+- [x] Review, record evidence, run the bloat check, and commit on `dev`.
+
+This approach adds no cache or invalidation policy. Next candidates remain
+nonce-lease recovery and measured prepare/finalize work. Yao setup is unchanged.
+
+#### Measured result — 2026-10-08
+
+Repeated NEAR signing now makes **two Gateway POST requests: prepare and finalize**.
+Both controls made three. All **63 signatures verified across nine fresh wallets**.
+Each arm used three wallets and loaded only the NEAR signer. All thirteen staging
+Worker versions stayed unchanged. Every captured serving version matched.
+
+| SDK signing, per signature | Control before: median (range) | Candidate: median (range) | Control after: median (range) |
+| --- | --- | --- | --- |
+| Warm, 6 signatures per arm | 2.698 s (2.396–3.270) | **2.626 s (1.960–3.102)** | 2.824 s (1.796–3.500) |
+| Three-signature sequences, 9 signatures per arm | 2.145 s (1.613–2.448) | **1.829 s (1.328–2.367)** | 2.321 s (1.700–3.010) |
+| Both repeated workloads, 15 signatures per arm | 2.357 s (1.613–3.270) | **2.063 s (1.328–3.102)** | 2.417 s (1.700–3.500) |
+
+SDK timing includes automated confirmation and required nonce/RPC work. It ends
+at signed output, before blockchain submission or confirmation. The table excludes
+the harness's later verification overhead. Each range ends at the observed maximum.
+
+The lane-preparation stage fell from **214.4 / 206.0 ms** in the controls to
+**3.5 ms**, with a candidate maximum of **7.6 ms**. The removed HTTP request
+accounts for most of that stage. Combined signing medians fell by **12.5–14.6%**.
+These sequential samples establish the request reduction and observed timings.
+They do not establish a percentile or guaranteed whole-flow saving.
+
+Candidate prepare and finalize measured **507.0 / 530.1 ms median**, with maxima
+of **1,128.7 / 1,032.2 ms**. Prepare, client share creation, and finalize together
+measured **1.178 s median**, range **0.929–1.955 s**. Approval through signed output
+measured **1.305 s median**, range **0.931–1.957 s**. Durable nonce-lease recovery
+wait remained **0 ms median**, with a **339.1 ms maximum**. Material-resolution
+wait was at most **0.1 ms**. Stage medians must not be added.
+
+Candidate registration through verified signature measured **19.289 s median**,
+range **19.155–21.418 s**. Unlock through verified signature measured **5.728 s**,
+range **5.028–5.752 s**. These lifecycle values include browser automation.
+Registration also includes funding, provisioning, and Yao setup. Registration used
+thirteen Gateway calls. Unlock used seven, compared with eight in both controls.
+Lifecycle counts include overlapping background requests. D1 and Gateway-to-Console
+counts were unavailable. Browser-to-Console requests were zero.
+
+Four local browser scenarios passed with the matching candidate SDK and Gateway.
+They verify quota step-up, reload, changed prepare authority, session retirement,
+fresh unlock, transaction/message signing, and the retained ECDSA path across a
+lost add-signer finalize reply. Retirement returned HTTP 401 and caused zero
+finalize requests. Step-up using the retired credential also failed. Fresh unlock
+then produced a verified signature. Wallet, server, and intended-test type checks
+passed. Review found no additional issue in the changed production path.
+
+The composed regional budget test completed NEAR step-up, then timed out during
+ECDSA confirmation. Two candidate runs and the unchanged baseline reproduce that
+failure. It remains an independent verification limitation. The retired NEAR
+preflight assertion was removed from that test. No production behavior was changed
+to accommodate the timeout.
+
+The hosted comparison changed only browser SDK assets. The Gateway endpoint
+removal was verified locally. No deployment, activation, new resource, or package
+publication occurred. Yao setup and its unmet **1–2 second target** are unchanged.
+
+Next, trace the remaining prepare/finalize storage and transport waits. Then
+investigate nonce-lease recovery outliers while retaining concurrent-tab and
+reload safety. Recovery already overlaps confirmation, so additional overlap
+alone would not address that wait.
+
+[Sanitized evidence](evidence/near-direct-prepare-20261008.json) preserves the
+samples, request counts, build hashes, retirement result, version audits, and
+baseline-reproduced regional failure.

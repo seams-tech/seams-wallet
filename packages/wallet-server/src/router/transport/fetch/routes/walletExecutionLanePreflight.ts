@@ -1,9 +1,6 @@
 import { routerAbMpcMaterialActivationRefToWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import { validateRouterAbEcdsaDerivationWalletSessionInputs } from '../../../auth/commonRouterUtils';
 import type { ActiveOwnerWalletExecutionLaneProjection } from '../../../../core/signingLanes/WalletExecutionLaneProjection';
-import type { RouterApiWalletRegistrationService } from '../../../framework/authServicePort';
-import { extractBearerCredential } from '../../../auth/routerApiKeyAuth';
-import { resolveWalletSessionAuthorizationV2Admission } from '../../../domains/signingOperations/walletExecutionAdmission';
 import {
   walletSessionFailure,
   walletSessionFailureStatus,
@@ -11,11 +8,7 @@ import {
 } from '../../../auth/walletSessionFailure';
 import type { FetchRouterApiContext } from '../createFetchRouter';
 import { json, readJson } from '../../../framework/http';
-import {
-  mpcMaterialActivationRefsEqual,
-  parseMpcMaterialActivationRef,
-} from '@shared/utils/domainIds';
-import type { MpcMaterialActivationRef, WalletId } from '@shared/utils/domainIds';
+import { parseMpcMaterialActivationRef, type MpcMaterialActivationRef } from '@shared/utils/domainIds';
 import type {
   OwnerLaneParticipantContinuityV1,
   SigningLaneLifecycle,
@@ -23,17 +16,12 @@ import type {
   WalletKeyRecord,
 } from '@shared/signing-lanes';
 import { isPlainObject } from '@shared/utils/validation';
-import {
-  EVM_ECDSA_MPC_OPERATION_KINDS,
-  NEAR_ED25519_MPC_OPERATION_KINDS,
-} from '@shared/authorization/capabilityKinds';
+import { EVM_ECDSA_MPC_OPERATION_KINDS } from '@shared/authorization/capabilityKinds';
 
 export const OWNER_WALLET_EXECUTION_LANE_PREFLIGHT_PATH = '/wallet/execution-lane/owner';
 
-type OwnerWalletExecutionLanePreflightCurve = 'ed25519' | 'ecdsa_secp256k1';
-
 type OwnerWalletExecutionLanePreflightRequest = {
-  readonly curve: OwnerWalletExecutionLanePreflightCurve;
+  readonly curve: 'ecdsa_secp256k1';
   readonly expectedMaterialActivation: MpcMaterialActivationRef;
 };
 
@@ -43,7 +31,7 @@ function parsePreflightRequest(raw: unknown): OwnerWalletExecutionLanePreflightR
   if (fields.length !== 2 || fields[0] !== 'curve' || fields[1] !== 'expectedMaterialActivation') {
     throw new Error('owner execution-lane preflight body fields are invalid');
   }
-  if (raw.curve !== 'ed25519' && raw.curve !== 'ecdsa_secp256k1') {
+  if (raw.curve !== 'ecdsa_secp256k1') {
     throw new Error('owner execution-lane preflight curve is invalid');
   }
   const materialActivation = parseMpcMaterialActivationRef(raw.expectedMaterialActivation);
@@ -221,82 +209,27 @@ export async function handleOwnerWalletExecutionLanePreflight(
   }
 
   const headers = Object.fromEntries(ctx.request.headers.entries());
-  type OwnerLaneAuthorization = Parameters<
-    RouterApiWalletRegistrationService['resolveActiveOwnerWalletExecutionLane']
-  >[0]['authorization'];
-  let walletId: WalletId;
-  let authorization: OwnerLaneAuthorization;
-  if (request.curve === 'ed25519') {
-    const service = ctx.service.authorizationSessions;
-    if (!service) {
-      return validationFailure({ code: 'sessions_disabled', message: 'Sessions are not configured' });
-    }
-    const token = extractBearerCredential(headers);
-    if (!token) return validationFailure(walletSessionFailure('wallet_session_missing'));
-    const nowMs = Date.now();
-    let context;
-    try {
-      // Lane metadata remains readable after exhaustion. Signing still requires admission.
-      context = await service.readWalletSessionExactOperationContextByCredential({
-        tenantId: service.tenantId,
-        token,
-        nowMs,
-      });
-    } catch {
-      return validationFailure(walletSessionFailure('wallet_session_unavailable'));
-    }
-    if (!context) return validationFailure(walletSessionFailure('wallet_session_invalid'));
-    const session = context.session;
-    const admission = resolveWalletSessionAuthorizationV2Admission({
-      authorization: session,
-      authority: context.authority,
-      authMethod: context.authMethod,
-      retiredAtMs: context.retiredAtMs,
-      nowMs,
-      operation: {
-        tenantId: service.tenantId,
-        principalId: session.principalId,
-        walletId: session.walletId,
-        keyFamily: 'ed25519',
-        operationKind: NEAR_ED25519_MPC_OPERATION_KINDS.signTransaction,
-      },
-    });
-    if (
-      !admission.ok ||
-      admission.keyFamily !== 'ed25519' ||
-      !mpcMaterialActivationRefsEqual(admission.materialActivation, request.expectedMaterialActivation)
-    ) {
-      return validationFailure(walletSessionFailure('wallet_session_scope_mismatch'));
-    }
-    walletId = session.walletId;
-    authorization = {
-      kind: 'wallet_auth_method',
-      walletAuthMethodId: session.walletAuthMethodId,
-    };
-  } else {
-    const validated = await validateRouterAbEcdsaDerivationWalletSessionInputs({
-      materialActivation: routerAbMpcMaterialActivationRefToWire(request.expectedMaterialActivation),
-      headers,
-      authorizationSessions: ctx.service.authorizationSessions,
-      operationKind: EVM_ECDSA_MPC_OPERATION_KINDS.signTransaction,
-    });
-    if (!validated.ok) return validationFailure(validated);
-    if (validated.kind === 'wallet_session_operation_credential_exhausted_candidate_v1') {
-      return validationFailure(walletSessionFailure('wallet_session_unavailable'));
-    }
-    walletId = validated.admission.context.authorization.session.walletId;
-    authorization = {
-      kind: 'wallet_auth_method',
-      walletAuthMethodId: validated.admission.context.authorization.session.walletAuthMethodId,
-    };
+  const validated = await validateRouterAbEcdsaDerivationWalletSessionInputs({
+    materialActivation: routerAbMpcMaterialActivationRefToWire(request.expectedMaterialActivation),
+    headers,
+    authorizationSessions: ctx.service.authorizationSessions,
+    operationKind: EVM_ECDSA_MPC_OPERATION_KINDS.signTransaction,
+  });
+  if (!validated.ok) return validationFailure(validated);
+  if (validated.kind === 'wallet_session_operation_credential_exhausted_candidate_v1') {
+    return validationFailure(walletSessionFailure('wallet_session_unavailable'));
   }
+  const session = validated.admission.context.authorization.session;
 
   let resolved;
   try {
     resolved = await ctx.service.walletRegistration.resolveActiveOwnerWalletExecutionLane({
-      walletId,
+      walletId: session.walletId,
       expectedMaterialActivation: request.expectedMaterialActivation,
-      authorization,
+      authorization: {
+        kind: 'wallet_auth_method',
+        walletAuthMethodId: session.walletAuthMethodId,
+      },
     });
   } catch {
     return json(

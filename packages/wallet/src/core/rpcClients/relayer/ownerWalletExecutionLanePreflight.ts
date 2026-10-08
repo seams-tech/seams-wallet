@@ -15,12 +15,10 @@ import {
 
 export const OWNER_WALLET_EXECUTION_LANE_PREFLIGHT_PATH = '/wallet/execution-lane/owner';
 
-export type { OwnerWalletExecutionLaneProjectionV1 };
-
 export async function readOwnerWalletExecutionLaneProjectionV1(input: {
   readonly relayerUrl: string;
   readonly operationCredential: WalletSessionOperationCredentialV1;
-  readonly curve: 'ed25519' | 'ecdsa_secp256k1';
+  readonly curve: 'ecdsa_secp256k1';
   readonly expectedMaterialActivation: MpcMaterialActivationRef;
 }): Promise<OwnerWalletExecutionLaneProjectionV1> {
   const response = await fetchWithWalletHomeDiscovery(
@@ -45,7 +43,7 @@ export async function readOwnerWalletExecutionLaneProjectionV1(input: {
 
 function parseOwnerWalletExecutionLaneProjectionResponseV1(
   value: unknown,
-  curve: 'ed25519' | 'ecdsa_secp256k1',
+  curve: 'ecdsa_secp256k1',
 ): OwnerWalletExecutionLaneProjectionV1 {
   const response = decodeOwnerExecutionLaneFields(
     value,

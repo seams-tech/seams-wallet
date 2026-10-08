@@ -1,7 +1,9 @@
 import { writeFile } from 'node:fs/promises';
 import { expect, type BrowserContext, type Request, type Route, type TestInfo } from '@playwright/test';
-import { requireRecord } from '@shared/utils/validation';
+import { requireNonEmptyString, requireRecord } from '@shared/utils/validation';
+import { loadNodeDatabaseSync } from '@server/router/node/nodeSqlite';
 import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
+import { isolatedGatewayDatabasePath } from './local-gateway-database';
 
 type NearSigningReadStage = 'warm_sequence' | 'exhausted_session' | 'unlock' | 'after_refresh';
 
@@ -53,7 +55,7 @@ async function verifyLocalEd25519YaoRegistration(
     await harness.signNearTransaction('post_registration');
     await harness.signNearTransaction('post_registration');
     expect(evidence.count('warm_sequence', '/wallet/session/status')).toBe(0);
-    expect(evidence.count('warm_sequence', '/wallet/execution-lane/owner')).toBe(2);
+    expect(evidence.count('warm_sequence', '/wallet/execution-lane/owner')).toBe(0);
     expect(evidence.count('warm_sequence', '/router-ab/ed25519/sign/prepare')).toBe(2);
     expect(evidence.count('warm_sequence', '/router-ab/ed25519/sign')).toBe(2);
 
@@ -67,6 +69,7 @@ async function verifyLocalEd25519YaoRegistration(
     await harness.signNearTransactionAfterRefresh();
     await harness.signNearMessage('Approve checkout after the session observation was discarded');
     expect(evidence.count('after_refresh', '/wallet/session/status')).toBeGreaterThan(0);
+    expect(evidence.count('after_refresh', '/wallet/execution-lane/owner')).toBe(0);
   } finally {
     context.off('request', record);
     await evidence.finish(testInfo);
@@ -265,4 +268,100 @@ async function verifyPrepareAuthorityReconciliation(
 test(
   'NEAR rejects changed prepare authority before finalize and permits the next valid operation',
   verifyPrepareAuthorityReconciliation,
+);
+
+class RetireSessionBeforePrepare {
+  prepareRequests = 0;
+  reusableFinalizeRequests = 0;
+  stepUpFinalizeRequests = 0;
+  ownerLaneRequests = 0;
+  retiredSessionHttpStatus: number | null = null;
+
+  async retire(route: Route): Promise<void> {
+    if (route.request().method() !== 'POST' || this.prepareRequests > 0) {
+      await route.continue();
+      return;
+    }
+    const body = requireRecord(route.request().postDataJSON(), 'prepare request');
+    const scope = requireRecord(body.scope, 'prepare scope');
+    const authorization = requireRecord(scope.authorization, 'prepare authorization');
+    expect(authorization.kind).toBe('reusable_wallet_session');
+    const sessionId = requireNonEmptyString(authorization.wallet_session_id, 'session ID');
+    const walletId = requireNonEmptyString(scope.account_id, 'wallet ID');
+    const DatabaseSync = await loadNodeDatabaseSync();
+    const database = new DatabaseSync(await isolatedGatewayDatabasePath(), { readOnly: false });
+    try {
+      const result = database.prepare(`
+        UPDATE wallet_session_authorizations_v2 SET retired_at_ms = ?
+         WHERE wallet_session_id = ? AND wallet_id = ? AND retired_at_ms IS NULL
+         RETURNING wallet_session_id
+      `).all(Date.now(), sessionId, walletId);
+      expect(result).toHaveLength(1);
+    } finally {
+      database.close();
+    }
+    this.prepareRequests += 1;
+    const response = await route.fetch();
+    this.retiredSessionHttpStatus = response.status();
+    expect(response.ok()).toBe(false);
+    await route.fulfill({ response });
+  }
+
+  record(request: Request): void {
+    const path = new URL(request.url()).pathname;
+    if (request.method() !== 'POST') return;
+    if (path === '/router-ab/ed25519/sign') {
+      const body = requireRecord(request.postDataJSON(), 'finalize request');
+      const scope = requireRecord(body.scope, 'finalize scope');
+      const authorization = requireRecord(scope.authorization, 'finalize authorization');
+      if (authorization.kind === 'reusable_wallet_session') this.reusableFinalizeRequests += 1;
+      if (authorization.kind === 'operation_step_up') this.stepUpFinalizeRequests += 1;
+    }
+    if (path === '/wallet/execution-lane/owner') this.ownerLaneRequests += 1;
+  }
+}
+
+async function verifyRetiredSessionRequiresUnlock(
+  { harness, context }: { harness: IntendedBehaviourHarness; context: BrowserContext },
+  testInfo: TestInfo,
+): Promise<void> {
+  await harness.registerPasskeyEd25519YaoWallet();
+  await harness.signNearTransaction('post_registration');
+  const retired = new RetireSessionBeforePrepare();
+  const retire = retired.retire.bind(retired);
+  const record = retired.record.bind(retired);
+  const preparePath = '**/router-ab/ed25519/sign/prepare';
+  context.on('request', record);
+  await context.route(preparePath, retire);
+  try {
+    await expect(harness.signNearTransaction('post_registration')).rejects.toThrow(
+      'Wallet Session is invalid',
+    );
+    expect(retired.prepareRequests).toBe(1);
+    expect(retired.ownerLaneRequests).toBe(0);
+    expect(retired.reusableFinalizeRequests).toBe(0);
+    expect(retired.stepUpFinalizeRequests).toBe(0);
+    expect(retired.retiredSessionHttpStatus).toBeGreaterThanOrEqual(400);
+  } finally {
+    await context.unroute(preparePath, retire);
+    context.off('request', record);
+  }
+  await harness.lockWallet();
+  await harness.unlockPasskeyWallet();
+  await harness.signNearTransaction('post_unlock');
+  const artifact = testInfo.outputPath('near-retired-session.json');
+  await writeFile(artifact, JSON.stringify({
+    retiredBeforePrepare: retired.prepareRequests,
+    retiredSessionHttpStatus: retired.retiredSessionHttpStatus,
+    ownerLaneRequests: retired.ownerLaneRequests,
+    reusableFinalizeRequestsAfterRetirement: retired.reusableFinalizeRequests,
+    stepUpFinalizeRequests: retired.stepUpFinalizeRequests,
+    freshUnlockSignatureVerified: true,
+  }, null, 2));
+  await testInfo.attach('near-retired-session', { path: artifact, contentType: 'application/json' });
+}
+
+test(
+  'NEAR prepare rejects a retired session without an owner-lane preflight and permits fresh unlock',
+  verifyRetiredSessionRequiresUnlock,
 );

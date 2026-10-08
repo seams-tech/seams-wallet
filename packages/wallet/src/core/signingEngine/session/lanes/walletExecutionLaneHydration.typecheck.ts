@@ -9,6 +9,13 @@ declare const result: WalletExecutionLaneHydrationResult;
 const parsedInput: WalletExecutionLaneHydrationInput = input;
 const parsedResult: WalletExecutionLaneHydrationResult = result;
 
+const unsupportedMaterial: WalletExecutionLaneHydrationInput['material'] = {
+  ...input.material,
+  // @ts-expect-error NEAR signing does not use owner-lane preflight hydration.
+  keyFamily: 'ed25519',
+};
+void unsupportedMaterial;
+
 function consumeHydrationResult(value: WalletExecutionLaneHydrationResult): void {
   switch (value.kind) {
     case 'active_wallet_execution_lane_v1':

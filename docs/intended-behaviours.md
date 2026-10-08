@@ -194,6 +194,13 @@ The SDK owns transient read retry and RPC handling. The browser contract is
   operation step-up. Missing observations after page refresh require a fresh
   status read. Export continues to use its exact authorization reader.
 
+- NEAR signing validates the exact local material and proceeds directly to
+  prepare. It makes no separate owner-lane preflight request. Prepare and finalize
+  check live session authority, active signer material, policy, and operation
+  admission. The SDK checks the prepare response before creating a client share.
+  A retired reusable session cannot authorize signing or operation step-up.
+  An authenticated unlock can establish a new session after retirement.
+
 - Reusable-session ECDSA prepare, finalize, and completed replay evaluate live
   signing policy. Project denial takes precedence over abuse denial; abuse
   rejection and rate limiting return their respective errors. Policy denial
@@ -970,10 +977,9 @@ operation after its shared signing budget is exhausted. Fresh factor verificatio
 is required. Exhaustion does not invalidate the identity used for step-up, and
 step-up does not renew that session or replenish its reusable budget.
 
-NEAR owner execution-lane preflight can read metadata for an exhausted session with
-live credentials and matching signer material. This read neither consumes nor
-restores signing allowance. Prepare and finalize must still enforce the budget
-or require fresh step-up authorization.
+NEAR signing uses its exact local material to reach prepare after exhaustion.
+Prepare and finalize enforce the budget or require fresh step-up authorization.
+There is no separate NEAR owner-lane metadata request.
 
 With the regional home and custody services available, this flow must succeed
 while Console is unavailable. Requests retain the admitted home and authenticate
