@@ -1331,9 +1331,19 @@ async fn reserve_inactive_ed25519_yao_parts_v1(
         let candidate = match source_binding {
             Some(source_binding) => {
                 let source = load_source_active_material_v1(env, source_binding).await?;
-                combine_signing_worker_yao_packages_v1(env, delivery, Some(&source))?
+                combine_signing_worker_yao_packages_v1(
+                    env,
+                    &CloudflareSigningWorkerRuntimeV1::from_worker_env(env)?,
+                    delivery,
+                    Some(&source),
+                )?
             }
-            None => combine_signing_worker_yao_packages_v1(env, delivery, None)?,
+            None => combine_signing_worker_yao_packages_v1(
+                env,
+                &CloudflareSigningWorkerRuntimeV1::from_worker_env(env)?,
+                delivery,
+                None,
+            )?,
         };
         let (candidate, receipt) = candidate.into_parts();
         let state = SigningWorkerYaoReservationStateV1::Inactive {
@@ -2344,7 +2354,8 @@ async fn execute_signing_worker_yao_delivery_d1_transition_v1(
 ) -> RouterAbProtocolResult<SigningWorkerYaoCommandResponseV1> {
     match (delivery.deriver_a.binding.operation, current) {
         (Ed25519YaoOperationV1::Registration, None) => {
-            let candidate = combine_signing_worker_yao_packages_v1(env, delivery, None)?;
+            let runtime = CloudflareSigningWorkerRuntimeV1::from_worker_env(env)?;
+            let candidate = combine_signing_worker_yao_packages_v1(env, &runtime, delivery, None)?;
             let (candidate, receipt) = candidate.into_parts();
             let staged = SigningWorkerYaoDurableStateV1::RegistrationStaged {
                 deriver_a: delivery.deriver_a.clone(),
@@ -2411,7 +2422,14 @@ async fn execute_signing_worker_yao_delivery_d1_transition_v1(
                 current,
                 delivery,
                 attempt,
-                |active| combine_signing_worker_yao_packages_v1(env, delivery, Some(active)),
+                |active| {
+                    combine_signing_worker_yao_packages_v1(
+                        env,
+                        &CloudflareSigningWorkerRuntimeV1::from_worker_env(env)?,
+                        delivery,
+                        Some(active),
+                    )
+                },
             )?;
             let receipt = settled.receipt().clone();
             if let SigningWorkerYaoRecoveryDeliveryV1::Stage { state, .. } = settled {
@@ -2468,10 +2486,10 @@ async fn execute_signing_worker_yao_promotion_d1_transition_v1(
 #[cfg(feature = "workers-rs")]
 pub(crate) fn combine_signing_worker_yao_packages_v1(
     env: &Env,
+    runtime: &CloudflareSigningWorkerRuntimeV1,
     delivery: &CloudflareEd25519YaoPackagePairDeliveryV1,
     active: Option<&Ed25519YaoActiveSigningMaterialV1>,
 ) -> RouterAbProtocolResult<Ed25519YaoSigningWorkerActivationCandidateV1> {
-    let runtime = CloudflareSigningWorkerRuntimeV1::from_worker_env(env)?;
     let private_key = load_cloudflare_server_output_hpke_private_key_bytes_v1(
         env,
         runtime.server_output_decrypt_key(),

@@ -2,8 +2,9 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createInterface } from 'node:readline';
 import { setTimeout } from 'node:timers/promises';
-import { Miniflare } from 'miniflare';
+import { Log, LogLevel, Miniflare } from 'miniflare';
 import {
   loadFixture,
   configureRouterJwt,
@@ -23,8 +24,35 @@ const executePath = '/router-ab/router/ed25519-yao/execute';
 const scenario = process.argv[2] ?? 'protocol-disconnect';
 assert.ok([
   'protocol-disconnect', 'cancelled-root', 'missing-admission', 'connection-refused',
-  'invalid-acceptance', 'forged-acceptance', 'forged-peer-readiness',
+  'invalid-acceptance', 'forged-acceptance', 'forged-peer-readiness', 'delayed-forged-acceptance',
 ].includes(scenario), `Unknown scenario: ${scenario}`);
+
+class PreparationLog extends Log {
+  stages = [];
+
+  constructor() {
+    super(LogLevel.INFO);
+  }
+
+  connect(stdout, stderr) {
+    for (const stream of [stdout, stderr]) {
+      createInterface({ input: stream }).on('line', this.log.bind(this));
+    }
+  }
+
+  log(message) {
+    const start = message.indexOf('{');
+    if (start < 0) return;
+    try {
+      const event = JSON.parse(message.slice(start));
+      if (event.span === 'deriver_a.target_prepared' || event.span === 'deriver_a.websocket_connect') {
+        this.stages.push(event.span);
+      }
+    } catch {
+      // Unrelated Worker output is not a ceremony stage.
+    }
+  }
+}
 const proxySource = `
 const evidence = {
   connectionAttempts: 0, connections: 0, aMessages: 0, bMessages: 0,
@@ -74,6 +102,7 @@ export default {
     if (!path.endsWith('/ed25519-yao/duplex')) return env.REAL_B.fetch(request);
     evidence.connectionAttempts += 1;
     if (evidence.connectionAttempts > 1) return env.REAL_B.fetch(request);
+    if (env.SCENARIO === 'delayed-forged-acceptance') await scheduler.wait(1000);
     if (env.SCENARIO === 'connection-refused') return new Response('E2E refused upgrade', { status: 503 });
     if (env.SCENARIO === 'forged-peer-readiness') {
       const headers = new Headers(request.headers);
@@ -101,7 +130,7 @@ export default {
     b.addEventListener('close', exchange.closedByB.bind(exchange));
     const headers = new Headers(response.headers);
     if (env.SCENARIO === 'invalid-acceptance') headers.delete('x-seams-yao-start-acceptance');
-    if (env.SCENARIO === 'forged-acceptance') {
+    if (env.SCENARIO === 'forged-acceptance' || env.SCENARIO === 'delayed-forged-acceptance') {
       const acceptance = JSON.parse(headers.get('x-seams-yao-start-acceptance'));
       acceptance.signature.bytes[0] ^= 1;
       headers.set('x-seams-yao-start-acceptance', JSON.stringify(acceptance));
@@ -166,12 +195,15 @@ async function closedConnectionEvidence(proxy) {
 
 const fixture = loadFixture();
 configureRouterJwt(fixture);
+const log = new PreparationLog();
 const capture = new CaptureExecution();
 const router = routerWorker(fixture);
 router.serviceBindings.DERIVER_A = capture.fetch.bind(capture);
 const a = deriverAWorker(fixture);
 a.serviceBindings.DERIVER_B = 'disconnect-proxy';
 const topology = new Miniflare({
+  log,
+  handleRuntimeStdio: log.connect.bind(log),
   workers: [
     router,
     a,
@@ -219,6 +251,11 @@ try {
   await requirePairState(bBinding, 'deriver-b', scope, roleCredential, expectedBState);
   const proxy = await topology.getWorker('disconnect-proxy');
   const interrupted = await closedConnectionEvidence(proxy);
+  if (scenario === 'delayed-forged-acceptance') {
+    assert.deepEqual(log.stages.slice(0, 2), [
+      'deriver_a.target_prepared', 'deriver_a.websocket_connect',
+    ], 'A prepares its proof before the delayed connection answers');
+  }
   assert.equal(interrupted.connectionAttempts, 1, 'Both setup operations start even if A root loading fails');
   assert.equal(interrupted.connections, rejectedBeforeClaim ? 0 : 1);
   if (scenario === 'protocol-disconnect') {
@@ -242,6 +279,7 @@ try {
     kind: 'yao_peer_disconnect_e2e_v1',
     scenario,
     interrupted,
+    preparationStages: log.stages.slice(0, 2),
     roleStatesAfterFailure: { deriverA: 'burned', deriverB: expectedBState },
     exactRetryDidNotRestartProtocol: true,
     independentWalletCompletedAfterDisconnect: true,

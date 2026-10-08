@@ -28,9 +28,13 @@ impl RouterAbSigningWorkerWalletDurableObject {
         self.require_ed25519_unfenced(&request.scope)?;
         let source =
             self.linked_ed25519_source_material(&request.scope, &request.source_binding)?;
-        let (candidate, receipt) =
-            combine_signing_worker_yao_packages_v1(&self.env, delivery, Some(&source))?
-                .into_parts();
+        let (candidate, receipt) = combine_signing_worker_yao_packages_v1(
+            &self.env,
+            &CloudflareSigningWorkerRuntimeV1::from_worker_env(&self.env)?,
+            delivery,
+            Some(&source),
+        )?
+        .into_parts();
         let state = SigningWorkerYaoReservationStateV1::Inactive {
             delivery: delivery.clone(),
             participant_ids: request.participant_ids,

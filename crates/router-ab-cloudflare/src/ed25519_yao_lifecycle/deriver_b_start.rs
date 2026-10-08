@@ -4,13 +4,12 @@ use super::*;
 impl DeriverBYaoSessionD1V1 {
     pub(super) async fn handle_begin_pair(
         &self,
+        runtime: &CloudflareDeriverBWorkerRuntimeV1,
         session: [u8; 32],
         pair_digest: [u8; 32],
         execution_id: Ed25519YaoExecutionIdV1,
         peer_receipt: Ed25519YaoRoleReadinessReceiptV1,
     ) -> worker::Result<Response> {
-        let runtime = CloudflareDeriverBWorkerRuntimeV1::from_worker_env(&self.env)
-            .map_err(|error| worker::Error::RustError(error.message().to_owned()))?;
         let now_unix_ms = cloudflare_yao_now_unix_ms()?;
         validate_cloudflare_role_readiness_receipt_v1(&peer_receipt, now_unix_ms)
             .map_err(|error| worker::Error::RustError(error.message().to_owned()))?;
@@ -154,6 +153,7 @@ pub(super) async fn handle_pair_bound_deriver_b_websocket(
     let running = execution_host
         .command(
             &env,
+            &runtime,
             &scope,
             DeriverBYaoSessionCommandV1::BeginPair {
                 session: binding.session,
@@ -290,6 +290,7 @@ pub(super) async fn handle_pair_bound_deriver_b_websocket(
             let _ignored = execution_host
                 .command(
                     &env,
+                    &runtime,
                     &running_scope,
                     DeriverBYaoSessionCommandV1::FailPair {
                         session,

@@ -102,7 +102,9 @@ pub(crate) enum SigningWorkerWalletDoRequestV1 {
     DeliverPackages(CloudflareScopedEd25519YaoPackagePairDeliveryV1),
     FenceEd25519(crate::SigningWorkerEd25519FenceCommandV1),
     SettleEd25519(crate::SigningWorkerEd25519FenceCommandV1),
-    Ed25519Snapshot { request: crate::SigningWorkerEd25519SnapshotCommandV1 },
+    Ed25519Snapshot {
+        request: crate::SigningWorkerEd25519SnapshotCommandV1,
+    },
     PromoteRecovery(CloudflareScopedEd25519YaoRecoveryPromotionRequestV1),
     LookupRegistration(CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1),
     ReserveLinkedEd25519(CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1),
@@ -124,7 +126,9 @@ pub(crate) enum SigningWorkerWalletDoRequestV1 {
         lookup: CloudflareActiveSigningWorkerStateLookupV1,
     },
     ClaimEcdsaPresignAuthority(crate::CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1),
-    RegisterLinkedPresignSession(crate::CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1),
+    RegisterLinkedPresignSession(
+        crate::CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1,
+    ),
     AuthorizeLinkedPresignFence {
         scope: CloudflareSigningWorkerWalletScopeV1,
         presign_session_id: String,
@@ -166,7 +170,9 @@ pub(crate) enum SigningWorkerWalletDoRequestV1 {
     FreezeEcdsaPool(crate::SigningWorkerPoolFreezeCommandV1),
     ExportEcdsaSnapshot(crate::SigningWorkerEcdsaExportRequestV1),
     ListLinkedPresignSessions(crate::SigningWorkerLinkedPresignInventoryRequestV1),
-    ListPreparingLinkedPresignSessions(crate::SigningWorkerLinkedPresignPreparationInventoryRequestV1),
+    ListPreparingLinkedPresignSessions(
+        crate::SigningWorkerLinkedPresignPreparationInventoryRequestV1,
+    ),
     RecordLinkedPresignFreeze {
         receipt: crate::SigningWorkerLinkedPresignFreezeReceiptV1,
     },
@@ -296,13 +302,17 @@ impl SigningWorkerWalletDoRequestV1 {
             Self::AdmitEcdsaPresignStep(request) => request.authority.ownership_generation(),
             Self::RegisterLinkedPresignSession(request) => request.ownership_generation,
             Self::AuthorizeLinkedPresignFence { request, .. } => request.source_generation,
-            Self::FenceEd25519(command) | Self::SettleEd25519(command) => command.request.source_generation,
+            Self::FenceEd25519(command) | Self::SettleEd25519(command) => {
+                command.request.source_generation
+            }
             Self::Ed25519Snapshot { request } => request.ownership_generation()?,
             Self::FreezeEcdsaPool(command) => command.request.source_generation,
             Self::ExportEcdsaSnapshot(command) => command.receipt.request.source_generation,
             Self::ListLinkedPresignSessions(command) => command.request.source_generation,
             Self::ListPreparingLinkedPresignSessions(command) => command.source_generation,
-            Self::RecordLinkedPresignFreeze { receipt } => receipt.command.request.source_generation,
+            Self::RecordLinkedPresignFreeze { receipt } => {
+                receipt.command.request.source_generation
+            }
             Self::TransferEcdsaSnapshot(command) => command.ownership_generation()?,
         };
         crate::router_wallet::validate_wallet_ownership_generation(generation)?;
@@ -363,7 +373,9 @@ impl SigningWorkerWalletDoRequestV1 {
                 crate::require_non_empty("Linked presign session", presign_session_id)?;
                 crate::require_non_empty("Linked server presignature", server_presignature_id)
             }
-            Self::RegisterLinkedPresignSession(request) => request.validate_at(crate::cloudflare_now_unix_ms_v1()?),
+            Self::RegisterLinkedPresignSession(request) => {
+                request.validate_at(crate::cloudflare_now_unix_ms_v1()?)
+            }
             Self::ClaimEcdsaPresignAuthority(request) => {
                 request.validate_at(crate::cloudflare_now_unix_ms_v1()?)
             }
@@ -635,17 +647,15 @@ pub(crate) async fn call_signing_worker_wallet_do_v1(
         wallet_error(format!("SigningWorker wallet binding is missing: {error}"))
     })?;
     let stub = match &command {
-        SigningWorkerWalletDoRequestV1::DeliverPackages(request) => {
-            request.wallet_home.wallet_stub(&namespace, &name, "signing_worker")
-        }
-        SigningWorkerWalletDoRequestV1::LookupRegistration(request) => {
-            request.wallet_home.wallet_stub(&namespace, &name, "signing_worker")
-        }
+        SigningWorkerWalletDoRequestV1::DeliverPackages(request) => request
+            .wallet_home
+            .wallet_stub(&namespace, &name, "signing_worker"),
+        SigningWorkerWalletDoRequestV1::LookupRegistration(request) => request
+            .wallet_home
+            .wallet_stub(&namespace, &name, "signing_worker"),
         _ => namespace.get_by_name(&name),
     }
-    .map_err(|error| {
-        wallet_error(format!("SigningWorker wallet identity is invalid: {error}"))
-    })?;
+    .map_err(|error| wallet_error(format!("SigningWorker wallet identity is invalid: {error}")))?;
     let body = serde_json::to_string(&command).map_err(|error| {
         wallet_error(format!("SigningWorker wallet command is invalid: {error}"))
     })?;
@@ -873,7 +883,10 @@ impl RouterAbSigningWorkerWalletDurableObject {
             }
             SigningWorkerWalletDoRequestV1::RegisterLinkedPresignSession(request) => {
                 let now_unix_ms = crate::cloudflare_now_unix_ms_v1()?;
-                self.with_ecdsa_transaction(move |store| store.register_linked_presign_session(&request, now_unix_ms)).await
+                self.with_ecdsa_transaction(move |store| {
+                    store.register_linked_presign_session(&request, now_unix_ms)
+                })
+                .await
             }
             SigningWorkerWalletDoRequestV1::AuthorizeLinkedPresignFence {
                 scope,
@@ -910,10 +923,8 @@ impl RouterAbSigningWorkerWalletDurableObject {
             }
             SigningWorkerWalletDoRequestV1::AdmitEcdsaPresignStep(request) => {
                 let sql = DurableObjectWalletSqlV1(&self.sql);
-                self.open_ecdsa_store(&sql)?.admit_presign_step(
-                    &request,
-                    crate::cloudflare_now_unix_ms_v1()?,
-                )?;
+                self.open_ecdsa_store(&sql)?
+                    .admit_presign_step(&request, crate::cloudflare_now_unix_ms_v1()?)?;
                 Response::from_json(&()).map_err(sql_error)
             }
             SigningWorkerWalletDoRequestV1::TransferEcdsaSnapshot(command) => {
@@ -1032,9 +1043,10 @@ impl RouterAbSigningWorkerWalletDurableObject {
         if let Some(stored) = self.read_registration(&request.scope, &registration_key)? {
             return self.replay_registration(&request, stored);
         }
-        let candidate = combine_signing_worker_yao_packages_v1(&self.env, &request.delivery, None)?;
-        let (material, receipt) = candidate.into_parts();
         let runtime = CloudflareSigningWorkerRuntimeV1::from_worker_env(&self.env)?;
+        let candidate =
+            combine_signing_worker_yao_packages_v1(&self.env, &runtime, &request.delivery, None)?;
+        let (material, receipt) = candidate.into_parts();
         let activation = build_output_activation_record(&runtime, &material, &receipt)?;
         let lifecycle = SigningWorkerYaoDurableStateV1::Active {
             deriver_a: request.delivery.deriver_a.clone(),
@@ -1091,12 +1103,18 @@ impl RouterAbSigningWorkerWalletDurableObject {
             .recovery_attempt
             .ok_or_else(|| wallet_error("SigningWorker recovery names no attempt"))?;
         let stored = self.read_registration(&request.scope, &registration_key)?;
+        let runtime = CloudflareSigningWorkerRuntimeV1::from_worker_env(&self.env)?;
         let settled = settle_signing_worker_yao_recovery_delivery_v1(
             stored.as_ref().map(|stored| stored.lifecycle.clone()),
             &request.delivery,
             attempt,
             |active| {
-                combine_signing_worker_yao_packages_v1(&self.env, &request.delivery, Some(active))
+                combine_signing_worker_yao_packages_v1(
+                    &self.env,
+                    &runtime,
+                    &request.delivery,
+                    Some(active),
+                )
             },
         )?;
         let receipt = settled.receipt().clone();

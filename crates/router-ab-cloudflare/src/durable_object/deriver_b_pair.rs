@@ -189,11 +189,12 @@ impl RouterAbDeriverBWalletDurableObject {
 
     pub(crate) async fn execute_protocol_command(
         &self,
+        runtime: &crate::CloudflareDeriverBWorkerRuntimeV1,
         scope: CloudflareDeriverBWalletPairScopeV1,
         command: DeriverBYaoSessionCommandV1,
     ) -> worker::Result<Response> {
         relocation::require_open::<DeriverBWalletOwnerV1>(&self.sql)?;
-        self.execute(DeriverBWalletDoRequestV1 { scope, command })
+        self.execute(runtime, DeriverBWalletDoRequestV1 { scope, command })
             .await
     }
 
@@ -239,7 +240,13 @@ impl RouterAbDeriverBWalletDurableObject {
                 return Response::error("Deriver encryption context differs from source", 409);
             }
             self.check_owner(&command.source().owner, false)?;
-            return relocation::snapshot::execute(&self.storage, self.sql.clone(), self.env.clone(), command).await;
+            return relocation::snapshot::execute(
+                &self.storage,
+                self.sql.clone(),
+                self.env.clone(),
+                command,
+            )
+            .await;
         }
         if path == PREPARATION_PATH || path == SOURCE_FENCE_PATH {
             let command: relocation::Preparation<DeriverBWalletOwnerV1> = request.json().await?;
@@ -263,7 +270,9 @@ impl RouterAbDeriverBWalletDurableObject {
         if !matches!(request.command, DeriverBYaoSessionCommandV1::ReadPairStatus { .. }) {
             relocation::require_open::<DeriverBWalletOwnerV1>(&self.sql)?;
         }
-        self.execute(request).await
+        let runtime = crate::CloudflareDeriverBWorkerRuntimeV1::from_worker_env(&self.env)
+            .map_err(pair_error)?;
+        self.execute(&runtime, request).await
     }
 
     /// Answers the role store that owns a pair session's admission. When
@@ -280,7 +289,9 @@ impl RouterAbDeriverBWalletDurableObject {
                 .bytes()
                 .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
         {
-            return Err(pair_error("Deriver B pair session must be 64 lowercase hex characters"));
+            return Err(pair_error(
+                "Deriver B pair session must be 64 lowercase hex characters",
+            ));
         }
         if request.fence {
             self.sql.exec(
@@ -319,7 +330,11 @@ impl RouterAbDeriverBWalletDurableObject {
         })
     }
 
-    async fn execute(&self, request: DeriverBWalletDoRequestV1) -> worker::Result<Response> {
+    async fn execute(
+        &self,
+        runtime: &crate::CloudflareDeriverBWorkerRuntimeV1,
+        request: DeriverBWalletDoRequestV1,
+    ) -> worker::Result<Response> {
         request.scope.validate().map_err(pair_error)?;
         request.command.validate().map_err(pair_error)?;
         if let DeriverBYaoSessionCommandV1::PreparePair {
@@ -360,7 +375,7 @@ impl RouterAbDeriverBWalletDurableObject {
             owner.object_name()?,
             encode_hex_slice(root_digest.as_bytes()),
         );
-        engine.execute(request.command).await
+        engine.execute(runtime, request.command).await
     }
 
     fn check_owner(
@@ -476,15 +491,24 @@ fn pair_error(error: impl ToString) -> worker::Error {
 
 impl relocation::WalletOwner for DeriverBWalletOwnerV1 {
     type Pair = snapshot::PairRow;
-    fn cipher(env: &Env) -> worker::Result<crate::ed25519_yao_lifecycle::role_d1::RolePairCipherV1> {
-        crate::ed25519_yao_lifecycle::role_d1::RolePairCipherV1::from_env_for_deriver_b_wallet_do(env)
+    fn cipher(
+        env: &Env,
+    ) -> worker::Result<crate::ed25519_yao_lifecycle::role_d1::RolePairCipherV1> {
+        crate::ed25519_yao_lifecycle::role_d1::RolePairCipherV1::from_env_for_deriver_b_wallet_do(
+            env,
+        )
     }
 
     const LABEL: &'static str = "Deriver B";
     const PAIR_SNAPSHOT_JSON: &'static str = "json_object('kind', 'pair', 'session_hex', session_hex, 'pair_digest_hex', pair_digest_hex, 'lifecycle', lifecycle, 'ciphertext_json', ciphertext_json, 'revision', CAST(revision AS TEXT), 'expires_at_ms', expires_at_ms, 'updated_at_ms', updated_at_ms, 'root_identity_digest_hex', root_identity_digest_hex)";
 
     fn parts(&self) -> [&str; 4] {
-        [&self.org_id, &self.project_id, &self.env_id, &self.wallet_id]
+        [
+            &self.org_id,
+            &self.project_id,
+            &self.env_id,
+            &self.wallet_id,
+        ]
     }
 
     fn object_name(&self) -> worker::Result<String> {
@@ -493,15 +517,32 @@ impl relocation::WalletOwner for DeriverBWalletOwnerV1 {
 }
 
 pub(crate) async fn call_preparation(request: Request, env: &Env) -> worker::Result<Response> {
-    relocation::call_preparation::<DeriverBWalletOwnerV1>(request, env, BINDING, PREPARATION_PATH, relocation::PreparationTarget::Destination).await
+    relocation::call_preparation::<DeriverBWalletOwnerV1>(
+        request,
+        env,
+        BINDING,
+        PREPARATION_PATH,
+        relocation::PreparationTarget::Destination,
+    )
+    .await
 }
 
-pub(crate) async fn read_relocation_context(request: Request, env: &Env) -> worker::Result<Response> {
+pub(crate) async fn read_relocation_context(
+    request: Request,
+    env: &Env,
+) -> worker::Result<Response> {
     relocation::read_context::<DeriverBWalletOwnerV1>(request, env, BINDING).await
 }
 
 pub(crate) async fn call_source_fence(request: Request, env: &Env) -> worker::Result<Response> {
-    relocation::call_preparation::<DeriverBWalletOwnerV1>(request, env, BINDING, SOURCE_FENCE_PATH, relocation::PreparationTarget::Source).await
+    relocation::call_preparation::<DeriverBWalletOwnerV1>(
+        request,
+        env,
+        BINDING,
+        SOURCE_FENCE_PATH,
+        relocation::PreparationTarget::Source,
+    )
+    .await
 }
 
 pub(crate) async fn call_snapshot(request: Request, env: &Env) -> worker::Result<Response> {

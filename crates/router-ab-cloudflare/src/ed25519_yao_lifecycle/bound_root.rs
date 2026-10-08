@@ -1,5 +1,59 @@
 use super::*;
 
+pub(super) struct PreparedDeriverATarget {
+    pub(super) preface: Ed25519YaoDeriverAPrefaceInFlightV2,
+    pub(super) outbound: Ed25519YaoDeriverAToBTargetProofPayloadV2,
+    pub(super) stable_context: Ed25519YaoStableKeyDerivationContextV1,
+}
+
+/// Prepares A's proof while B opens its connection. The caller sends it only
+/// after verifying B's acceptance and durably claiming this execution.
+pub(super) async fn prepare_deriver_a_target(
+    env: &Env,
+    execution: &DeriverAPairExecutionContextV1<'_>,
+    trace_id: RoleTraceContextV1,
+) -> RouterAbProtocolResult<PreparedDeriverATarget> {
+    let (custody_binding, role_share, stable_context, root_metadata_digest) =
+        load_ed25519_yao_tenant_root_role_share_v2(
+            env,
+            CloudflareWorkerRoleV1::DeriverA,
+            execution.tenant_root,
+            execution.pair_binding,
+            execution.pair_object.clone(),
+            RootUseAccess::ReadAdmitted,
+        )
+        .await?;
+    validate_expected_root_metadata_digest(
+        execution.expected_root_metadata_digest,
+        root_metadata_digest,
+    )?;
+    let started_at_ms = role_span_started_at_ms();
+    let preface = prepare_cloudflare_ed25519_yao_deriver_a_target_v2(
+        role_share,
+        &custody_binding,
+        execution.tenant_root.outer_binding.clone(),
+        &stable_context,
+    )?;
+    let outbound = seal_deriver_a_target_proof_v2(
+        env,
+        &execution.tenant_root.outer_binding,
+        preface.outbound_plaintext(),
+    )?;
+    emit_role_span_v1(
+        trace_id,
+        "deriver_a.target_prepared",
+        "deriver_a",
+        "yao",
+        started_at_ms,
+        "success",
+    );
+    Ok(PreparedDeriverATarget {
+        preface,
+        outbound,
+        stable_context,
+    })
+}
+
 /// Loads the pair's role share with a new or previously prepared admission.
 /// The admission also binds the wallet object that holds the pair record.
 pub(super) async fn load_ed25519_yao_tenant_root_role_share_v2(
