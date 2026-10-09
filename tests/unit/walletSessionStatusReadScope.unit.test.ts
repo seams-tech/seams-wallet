@@ -175,3 +175,28 @@ test('a wallet-host observation of another session asks the server', async () =>
   ).toBe('active');
   expect(server.calls).toBe(2);
 });
+
+test('a prepare answers with the status it admitted and leaves the balance after its claim for planning', async () => {
+  const server = new StatusServer();
+  const { session, options, identity } = await registrationIssuedSession('prepare-claim', server);
+  const admitted = {
+    status: 'active' as const,
+    ...identity,
+    remainingUses: 2,
+    expiresAtMs: session.expiresAtMs,
+    quotaLifecycle: 'active' as const,
+    authorization: session.walletSession,
+  };
+  const scope = WalletSessionStatusReadScope.fromPrepare(options, admitted);
+  expect(await scope.read(options, identity)).toBe(admitted);
+  expect(
+    WalletSessionStatusReadScope.observationForConfirmation(options, identity)?.status,
+  ).toEqual({ ...admitted, remainingUses: 1 });
+
+  const lastUse = { ...admitted, remainingUses: 1 };
+  await WalletSessionStatusReadScope.fromPrepare(options, lastUse).read(options, identity);
+  expect(
+    WalletSessionStatusReadScope.observationForConfirmation(options, identity)?.status,
+  ).toEqual({ ...lastUse, status: 'exhausted', remainingUses: 0, quotaLifecycle: 'exhausted' });
+  expect(server.calls).toBe(0);
+});

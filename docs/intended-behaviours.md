@@ -185,6 +185,15 @@ The SDK owns transient read retry and RPC handling. The browser contract is
   checks live revocation, expiry, policy, material identity, and atomic quota admission.
   An unavailable prepare or mismatched projection stops signing before finalization.
   Finalization retains its independent live authorization checks.
+  A projection that prepare read before a NEAR-only authority extension names the
+  same session on the authority that was extended. It reconciles with the rebound
+  local session, and that signature completes.
+
+- An admitted ECDSA or NEAR prepare claims one use of the balance it reports. The
+  SDK records the balance that claim leaves as its local session observation, and
+  the next confirmation plans against it. When the claim takes the last use, the
+  next signature plans same-method step-up before the user confirms. That plan
+  shows one confirmation and needs no session-status request.
 
 - NEAR signing uses an existing, identity-matched session observation to select
   its lane. Repeated signing needs no separate session-status request while that

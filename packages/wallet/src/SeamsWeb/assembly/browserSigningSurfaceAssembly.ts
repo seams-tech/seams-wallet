@@ -1,4 +1,7 @@
-import { activeWalletSessionV1RecordsEqual } from '@shared/device-linking/activeWalletSession';
+import {
+  activeWalletSessionV1RecordsEqual,
+  walletSessionPreservesCapabilities,
+} from '@shared/device-linking/activeWalletSession';
 import type { RuntimePorts } from '@/core/platform';
 import { IndexedDBManager, walletSessionAuthorizations } from '@/core/indexedDB';
 import type { OwnerLaneScope } from '@/core/signingEngine/session/identity/signingLaneAuthBinding';
@@ -280,6 +283,43 @@ function exactSelectedWalletAuthority(
     signerMaterials: result.signerMaterials,
     exportRoot: result.exportRoot,
   };
+}
+
+type BrowserStoredWalletSession = {
+  readonly selected: BrowserSelectedWalletAuthority;
+  readonly session: BrowserWalletSession;
+};
+
+/**
+ * NEAR completion extends the wallet authority and rebinds the stored session
+ * to it in one transaction. The session keeps its identity, expiry, quota,
+ * revocation epoch and capabilities, and gains the NEAR ones. A status the
+ * server read before that commit names the same session on the authority it
+ * extended. The stored session stands, and the status still reports its quota.
+ */
+async function readStoredSessionExtendedPastStatus(
+  walletId: ReturnType<typeof toWalletId>,
+  status: BrowserWalletSession,
+  operationCredential: BrowserWalletSessionOperationCredential,
+): Promise<BrowserStoredWalletSession | null> {
+  const selected = exactSelectedWalletAuthority(
+    await IndexedDBManager.resolveSelectedWalletAuthority(String(walletId)),
+    walletId,
+  );
+  const stored = await readExactWalletSessionAuthorization(walletId);
+  if (
+    !selected ||
+    stored.kind !== 'found' ||
+    stored.operationCredential.token !== operationCredential.token ||
+    !walletSessionMatchesSelectedAuthority(stored.record, selected) ||
+    !walletSessionImmutableIdentityMatches(status, stored.record) ||
+    status.authorityRevocationEpoch !== stored.record.authorityRevocationEpoch ||
+    status.capabilitySubjects.length >= stored.record.capabilitySubjects.length ||
+    !walletSessionPreservesCapabilities(status, stored.record)
+  ) {
+    return null;
+  }
+  return { selected, session: stored.record };
 }
 
 async function resolveBrowserSelectedFactorAuthority(
@@ -830,8 +870,7 @@ async function resolveBrowserEcdsaPreprocessingCapability(
     status.walletSessionId !== exactAuthorization.operationCredential.walletSessionId ||
     status.quotaId !== exactAuthorization.record.quotaId ||
     status.expiresAtMs !== status.authorization.expiresAtMs ||
-    !walletSessionImmutableIdentityMatches(status.authorization, exactAuthorization.record) ||
-    !walletSessionMatchesSelectedAuthority(status.authorization, currentSelected)
+    !walletSessionImmutableIdentityMatches(status.authorization, exactAuthorization.record)
   ) {
     return { kind: 'inactive', reason: 'Exact Wallet Session status identity is inconsistent' };
   }
@@ -839,37 +878,55 @@ async function resolveBrowserEcdsaPreprocessingCapability(
   if (status.authorization.expiresAtMs <= authorizationNowMs) {
     return { kind: 'inactive', reason: 'Exact Wallet Session authorization is expired' };
   }
-  let replaced: Awaited<
-    ReturnType<typeof IndexedDBManager.replaceExactActiveWalletSessionFromStatus>
-  >;
-  try {
-    replaced = await IndexedDBManager.replaceExactActiveWalletSessionFromStatus({
-      active: status.authorization,
-      operationCredential: exactAuthorization.operationCredential,
-    });
-  } catch {
-    return {
-      kind: 'inactive',
-      reason: 'Exact Wallet Session promotion reconciliation could not be persisted',
-    };
+  const statusBindsSelection = walletSessionMatchesSelectedAuthority(
+    status.authorization,
+    currentSelected,
+  );
+  let current: BrowserStoredWalletSession | null = null;
+  if (statusBindsSelection) {
+    let replaced: Awaited<
+      ReturnType<typeof IndexedDBManager.replaceExactActiveWalletSessionFromStatus>
+    >;
+    try {
+      replaced = await IndexedDBManager.replaceExactActiveWalletSessionFromStatus({
+        active: status.authorization,
+        operationCredential: exactAuthorization.operationCredential,
+      });
+    } catch {
+      return {
+        kind: 'inactive',
+        reason: 'Exact Wallet Session promotion reconciliation could not be persisted',
+      };
+    }
+    if (replaced.kind === 'replaced') {
+      current = { selected: currentSelected, session: status.authorization };
+    } else {
+      emitSigningSessionFlowTrace('evm-family', {
+        event: 'wallet_session_status_superseded',
+        walletSessionId: exactAuthorization.operationCredential.walletSessionId,
+      });
+    }
   }
   /* The authority or selection changed after the status was read, and the
      session written with that change stands. */
-  if (replaced.kind === 'superseded') {
-    emitSigningSessionFlowTrace('evm-family', {
-      event: 'wallet_session_status_superseded',
-      walletSessionId: exactAuthorization.operationCredential.walletSessionId,
-    });
+  current ??= await readStoredSessionExtendedPastStatus(
+    walletId,
+    status.authorization,
+    exactAuthorization.operationCredential,
+  );
+  if (!current) {
     return {
       kind: 'inactive',
-      reason: 'Exact Wallet Session status was superseded by a newer wallet authority',
+      reason: statusBindsSelection
+        ? 'Exact Wallet Session status was superseded by a newer wallet authority'
+        : 'Exact Wallet Session status identity is inconsistent',
     };
   }
   const authorizationResolution = await buildBrowserEcdsaPreprocessingCapability({
     context: args,
     walletId,
-    selected: currentSelected,
-    session: status.authorization,
+    selected: current.selected,
+    session: current.session,
     operationCredential: exactAuthorization.operationCredential,
     status,
     chainTarget: input.chainTarget,

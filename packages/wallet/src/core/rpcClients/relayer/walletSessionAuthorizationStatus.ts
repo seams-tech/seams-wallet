@@ -158,6 +158,14 @@ function recordStatusObservation(
   return status;
 }
 
+/** Prepare reports the quota it admitted against, then claims one use of it.
+ * The next operation plans against what that claim left. */
+function statusAfterPrepareClaim(status: PreparedWalletSessionStatus): ExactWalletSessionStatus {
+  const remainingUses = status.remainingUses - 1;
+  if (remainingUses > 0) return { ...status, remainingUses };
+  return { ...status, status: 'exhausted', remainingUses: 0, quotaLifecycle: 'exhausted' };
+}
+
 /** One operation owns this snapshot; subsequent operations create a new scope. */
 export class WalletSessionStatusReadScope {
   private readonly readsByFetch = new Map<
@@ -172,6 +180,7 @@ export class WalletSessionStatusReadScope {
         readonly kind: 'server_response';
         readonly key: string;
         readonly status: PreparedWalletSessionStatus;
+        readonly observation: ExactWalletSessionStatus;
       } = { kind: 'remote' };
 
   static fromPrepare(
@@ -179,7 +188,12 @@ export class WalletSessionStatusReadScope {
     status: PreparedWalletSessionStatus,
   ): WalletSessionStatusReadScope {
     const scope = new WalletSessionStatusReadScope();
-    scope.suppliedStatus = { kind: 'server_response', key: statusIdentityKey(options, status), status };
+    scope.suppliedStatus = {
+      kind: 'server_response',
+      key: statusIdentityKey(options, status),
+      status,
+      observation: statusAfterPrepareClaim(status),
+    };
     return scope;
   }
 
@@ -195,6 +209,7 @@ export class WalletSessionStatusReadScope {
       kind: 'server_response',
       key: statusIdentityKey({ relayerUrl, operationCredential: session.operationCredential }, status),
       status,
+      observation: status,
     };
     return scope;
   }
@@ -245,14 +260,13 @@ export class WalletSessionStatusReadScope {
       if (this.suppliedStatus.key !== statusIdentityKey(options, identity)) {
         throw new Error('Wallet Session response identity changed before reconciliation');
       }
-      return Promise.resolve(
-        recordStatusObservation(
-          options.fetchImpl ?? defaultStatusFetch,
-          this.suppliedStatus.key,
-          ++observationSequence,
-          this.suppliedStatus.status,
-        ),
+      recordStatusObservation(
+        options.fetchImpl ?? defaultStatusFetch,
+        this.suppliedStatus.key,
+        ++observationSequence,
+        this.suppliedStatus.observation,
       );
+      return Promise.resolve(this.suppliedStatus.status);
     }
     const fetchImpl = options.fetchImpl ?? defaultStatusFetch;
     let reads = this.readsByFetch.get(fetchImpl);
