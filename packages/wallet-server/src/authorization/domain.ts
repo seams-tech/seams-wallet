@@ -536,9 +536,14 @@ export type WalletSessionAuthorizationV2MintRead = {
 };
 
 export type DirectV2CommitResult =
-  | { readonly kind: 'inserted' }
+  | {
+      readonly kind: 'inserted';
+      readonly ownershipGeneration: number;
+      readonly committed?: never;
+    }
   | {
       readonly kind: 'already_committed';
+      readonly ownershipGeneration?: never;
       readonly committed: WalletSessionAuthorizationV2MintRead;
     };
 

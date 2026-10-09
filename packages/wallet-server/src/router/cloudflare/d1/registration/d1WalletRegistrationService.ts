@@ -3762,6 +3762,7 @@ export class CloudflareD1WalletRegistrationService {
     prepared: D1WalletRegistrationOperationPreparedV1,
   ): Promise<RegistrationCommitExecution<WalletRegistrationNearProvisioningFinalizeResponse>> {
     // Read inside execution so an exact replay works after ceremony cleanup.
+    const sourceStartedAtMs = Date.now();
     const committedInstallation =
       args.authoritySource.kind === 'committed_mixed' ? args.authoritySource.installation : null;
     if (committedInstallation && !isRegistrationEcdsaReadyReceipt(committedInstallation.receipt)) {
@@ -3775,7 +3776,6 @@ export class CloudflareD1WalletRegistrationService {
     let source: D1WalletRegistrationFinalizeSource;
     let ownerProofContext: RegistrationOwnerProofContext;
     let effectivePrepared: D1WalletRegistrationOperationPreparedV1;
-    let registrationAuthority: StoredRegistrationAuthority;
     let sessionPredecessor: Ed25519RegistrationSessionPredecessor;
     if (ceremony) {
       source = { kind: 'stored_ceremony', ceremony };
@@ -3784,7 +3784,6 @@ export class CloudflareD1WalletRegistrationService {
       if (!authority) {
         throw new Error('Registration authority is unavailable before finalize');
       }
-      registrationAuthority = authority;
       sessionPredecessor = { kind: 'ed25519_only' };
       effectivePrepared = await this.resolvePreparedRegistrationIdentity(ceremony, prepared);
     } else {
@@ -3802,7 +3801,6 @@ export class CloudflareD1WalletRegistrationService {
       if (!authority) {
         throw new Error('Committed registration installation has no verified authority');
       }
-      registrationAuthority = authority;
       const activationReceipt = committed.receipt;
       if (!isRegistrationEcdsaReadyReceipt(activationReceipt)) {
         throw new Error('Committed mixed registration receipt is not ECDSA-ready');
@@ -3844,6 +3842,7 @@ export class CloudflareD1WalletRegistrationService {
         };
       }
     }
+    recordRegistrationServerTiming(args.serverTiming, 'near_finalize_source', sourceStartedAtMs);
     const committed = await this.executeWalletRegistrationFinalize(
       {
         kind: 'near_ed25519',
@@ -3880,10 +3879,9 @@ export class CloudflareD1WalletRegistrationService {
       homeCompletion: this.registrationAuthority,
       authorizationService: this.authorizationService,
       authorizationTenantId: this.authorizationTenantId,
-      walletAuthMethods: this.walletAuthMethods,
+      foundingAuthority: finalized.foundingAuthority,
       registrationCeremonyId: args.input.registrationCeremonyId,
       authority: finalized.authority,
-      registrationAuthority,
       walletAuthMethodId: effectivePrepared.walletAuthMethodId,
       expiresAtMs: Date.now() + DEFAULT_WALLET_SESSION_TTL_MS,
       remainingUses: DEFAULT_WALLET_SESSION_REMAINING_USES,
@@ -4792,10 +4790,9 @@ export class CloudflareD1WalletRegistrationService {
       homeCompletion: this.registrationAuthority,
       authorizationService: this.authorizationService,
       authorizationTenantId: this.authorizationTenantId,
-      walletAuthMethods: this.walletAuthMethods,
+      foundingAuthority: commit.foundingAuthority,
       registrationCeremonyId: context.registrationCeremonyId,
       authority: commit.authority,
-      registrationAuthority: ceremonyAuthority,
       walletAuthMethodId: prepared.walletAuthMethodId,
       expiresAtMs: activated.ecdsa.bootstrap.expiresAtMs,
       remainingUses: activated.ecdsa.bootstrap.remainingUses,
@@ -5799,6 +5796,7 @@ export class CloudflareD1WalletRegistrationService {
           ? this.yaoLifecycleDecisions.prepareDecideStatements(yaoDecision, now)
           : [];
         const persistenceTiming = startD1RegistrationRouteTiming('relayPersistenceMs');
+        const walletCommitStartedAtMs = Date.now();
         try {
           switch (ceremonyAuthority.kind) {
             case 'passkey':
@@ -5871,6 +5869,7 @@ export class CloudflareD1WalletRegistrationService {
           }
         } finally {
           finishD1RegistrationRouteTiming(finalizeTiming, persistenceTiming);
+          recordRegistrationServerTiming(serverTiming, 'near_finalize_wallet_commit', walletCommitStartedAtMs);
         }
       }
       const completedRegistrationIdentity =

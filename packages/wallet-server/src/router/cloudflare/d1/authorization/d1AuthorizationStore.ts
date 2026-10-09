@@ -1218,7 +1218,13 @@ export class CloudflareD1AuthorizationStore
   }
 
   async readWalletSessionIssuanceGeneration(walletId: WalletId): Promise<number> {
-    const row = await this.database
+    const row = await this.prepareWalletSessionIssuanceGenerationRead(walletId).first<D1Row>();
+    if (!row) throw new Error('Wallet session issuance requires an open execution generation');
+    return requirePositiveInteger(row.generation, 'Wallet Session ownership generation');
+  }
+
+  private prepareWalletSessionIssuanceGenerationRead(walletId: WalletId): D1PreparedStatementLike {
+    return this.database
       .prepare(
         `SELECT generation FROM wallet_execution_generations
        WHERE namespace = ? AND org_id = ? AND project_id = ? AND env_id = ?
@@ -1230,10 +1236,7 @@ export class CloudflareD1AuthorizationStore
         this.walletSignerScope.projectId,
         this.walletSignerScope.envId,
         walletId,
-      )
-      .first<D1Row>();
-    if (!row) throw new Error('Wallet session issuance requires an open execution generation');
-    return requirePositiveInteger(row.generation, 'Wallet Session ownership generation');
+      );
   }
 
   /** The service validates the committed winner against its caller-specific replay contract. */
@@ -1263,8 +1266,9 @@ export class CloudflareD1AuthorizationStore
     const results = await this.database.batch<D1ResultLike<D1Row>>([
       ...this.prepareDirectWalletSessionAuthorizationV2Statements(persisted),
       this.prepareWalletSessionAuthorizationV2ByMintRead(lookup),
+      this.prepareWalletSessionIssuanceGenerationRead(persisted.session.walletId),
     ]);
-    if (results.length !== 7) {
+    if (results.length !== 8) {
       throw new Error('Direct V2 Wallet Session transaction returned incomplete results');
     }
     const quotaResult = results[4];
@@ -1283,7 +1287,12 @@ export class CloudflareD1AuthorizationStore
       committedResult.results?.[0] ?? null,
       lookup,
     );
+    const generationResult = results[7];
+    const generation = generationResult?.results?.[0];
     if (!committed) {
+      if (!generationResult?.success || !generation) {
+        throw new Error('Wallet session issuance requires an open execution generation');
+      }
       throw new Error('Direct V2 Wallet Session authorization commit was not readable');
     }
     if (sessionChanges === 0) {
@@ -1311,7 +1320,16 @@ export class CloudflareD1AuthorizationStore
     if (sessionChanges !== 1) {
       throw new Error('Direct V2 Wallet Session transaction changed more than one session');
     }
-    return { kind: 'inserted' };
+    if (!generationResult?.success || !generation) {
+      throw new Error('Wallet session issuance requires an open execution generation');
+    }
+    return {
+      kind: 'inserted',
+      ownershipGeneration: requirePositiveInteger(
+        generation.generation,
+        'Wallet Session ownership generation',
+      ),
+    };
   }
 
   /**
@@ -1427,8 +1445,7 @@ export class CloudflareD1AuthorizationStore
           expires_at_ms
         )
         SELECT ?, ?, ?, ?, ?, ?, 'active', ?
-         WHERE ${availabilitySql}
-           AND ${ACTIVE_V2_AUTHORITY_METHOD_EXISTS_SQL}`,
+         WHERE ${availabilitySql}`,
       )
       .bind(
         this.namespace,
@@ -1439,7 +1456,6 @@ export class CloudflareD1AuthorizationStore
         requirePositiveInteger(quota.remainingUses, 'Direct V2 quota.remainingUses'),
         requirePositiveInteger(quota.expiresAtMs, 'Direct V2 quota.expiresAtMs'),
         ...availabilityBindings,
-        ...activeV2AuthorityMethodBindings(this.walletSignerScope, session),
       );
     const sessionStatement = this.database
       .prepare(
@@ -1468,7 +1484,6 @@ export class CloudflareD1AuthorizationStore
         )
         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?
          WHERE ${sessionIdentityAvailabilitySql}
-           AND ${ACTIVE_V2_AUTHORITY_METHOD_EXISTS_SQL}
            AND EXISTS (
              SELECT 1
                FROM authorization_wallet_session_quotas AS quota
@@ -1504,7 +1519,6 @@ export class CloudflareD1AuthorizationStore
         recordJson,
         String(primaryOperationCredentialDigestB64u),
         ...sessionIdentityAvailabilityBindings,
-        ...activeV2AuthorityMethodBindings(this.walletSignerScope, session),
         this.namespace,
         quota.tenantId,
         String(quota.quotaId),
@@ -1522,12 +1536,14 @@ export class CloudflareD1AuthorizationStore
           AND predecessor.authority_id = ?
           AND predecessor.wallet_auth_method_id = ?
           AND predecessor.mint_id != ?
-          AND predecessor.retired_at_ms IS NULL`,
+          AND predecessor.retired_at_ms IS NULL
+          AND ${availabilitySql}`,
         parentSelectionBindings: [
           session.walletId,
           session.authorityId,
           session.walletAuthMethodId,
           session.mintId,
+          ...availabilityBindings,
         ],
       });
     return [
@@ -3147,7 +3163,7 @@ function directV2IdentityAvailabilityBindings(
   namespace: string,
   scope: D1WalletStoreScope,
   session: WalletSessionAuthorizationV2,
-): readonly string[] {
+): readonly unknown[] {
   return [
     ...directV2SessionIdentityAvailabilityBindings(namespace, scope, session),
     namespace,
@@ -3158,7 +3174,13 @@ function directV2IdentityAvailabilityBindings(
 
 function directV2SessionIdentityAvailabilitySql(): string {
   return `
-      NOT EXISTS (
+      ${ACTIVE_V2_AUTHORITY_METHOD_EXISTS_SQL}
+      AND EXISTS (
+        SELECT 1 FROM wallet_execution_generations
+         WHERE namespace = ? AND org_id = ? AND project_id = ? AND env_id = ?
+           AND wallet_id = ? AND state IN ('registering', 'active')
+      )
+      AND NOT EXISTS (
         SELECT 1
           FROM wallet_session_authorizations_v2 AS existing
          WHERE existing.namespace = ?
@@ -3179,8 +3201,14 @@ function directV2SessionIdentityAvailabilityBindings(
   namespace: string,
   scope: D1WalletStoreScope,
   session: WalletSessionAuthorizationV2,
-): readonly string[] {
+): readonly unknown[] {
   return [
+    ...activeV2AuthorityMethodBindings(scope, session),
+    namespace,
+    scope.orgId,
+    scope.projectId,
+    scope.envId,
+    String(session.walletId),
     namespace,
     scope.orgId,
     scope.projectId,

@@ -488,25 +488,8 @@ export class AuthorizationService {
     if (input.authority.walletId !== input.walletId) {
       throw new Error('Wallet Session authorization authority does not identify the wallet');
     }
-    const lookup: WalletSessionAuthorizationV2MintLookup = {
-      tenantId: input.tenantId,
-      principalId: input.principalId,
-      walletId: input.walletId,
-      authorityId: input.authority.authorityId,
-      walletAuthMethodId: input.walletAuthMethodId,
-      mintId: input.mintId,
-    };
     const prepared = await this.prepareWalletSessionAuthorizationV2(input);
-    const alreadyCommitted = await this.ports.grants.readWalletSessionAuthorizationV2ByMint(lookup);
-    if (alreadyCommitted) {
-      return {
-        result: directV2AlreadyCommitted(prepared.session, alreadyCommitted.session, replayMode),
-        publication: committedSessionPublication(alreadyCommitted),
-      };
-    }
-
-    const { persisted, operationCredential } =
-      await this.createDirectWalletSessionCredential(prepared);
+    const { persisted, token } = await this.prepareDirectWalletSessionIssuance(prepared);
     const commit = await this.ports.grants.commitDirectReplayableWalletSessionAuthorizationV2({
       persisted,
     });
@@ -521,25 +504,23 @@ export class AuthorizationService {
         kind: 'issued',
         session: prepared.session,
         quota: prepared.quota,
-        operationCredential,
+        operationCredential: parseWalletSessionOperationCredentialV1({
+          kind: 'opaque_wallet_session_operation_credential_v1',
+          ownershipGeneration: commit.ownershipGeneration,
+          home: this.ports.sessionRouting?.home() ?? { kind: 'direct' },
+          token,
+          walletSessionId: prepared.session.walletSessionId,
+        }),
       },
       publication: committedSessionPublication(persisted),
     };
   }
 
   async prepareDirectWalletSessionCredential(prepared: PreparedWalletSessionAuthorizationV2) {
-    const credential = await this.createDirectWalletSessionCredential(prepared);
-    await this.ports.sessionRouting?.publish(committedSessionPublication(credential.persisted));
-    return credential;
-  }
-
-  private async createDirectWalletSessionCredential(
-    prepared: PreparedWalletSessionAuthorizationV2,
-  ) {
     const ownershipGeneration = await this.ports.grants.readWalletSessionIssuanceGeneration(
       prepared.session.walletId,
     );
-    const token = `wst_${secureRandomBase64Url(32, 'direct V2 Wallet Session operation credentials')}`;
+    const { persisted, token } = await this.prepareDirectWalletSessionIssuance(prepared);
     const operationCredential = parseWalletSessionOperationCredentialV1({
       kind: 'opaque_wallet_session_operation_credential_v1',
       ownershipGeneration,
@@ -547,12 +528,20 @@ export class AuthorizationService {
       token,
       walletSessionId: prepared.session.walletSessionId,
     });
+    await this.ports.sessionRouting?.publish(committedSessionPublication(persisted));
+    return { persisted, operationCredential };
+  }
+
+  private async prepareDirectWalletSessionIssuance(
+    prepared: PreparedWalletSessionAuthorizationV2,
+  ) {
+    const token = `wst_${secureRandomBase64Url(32, 'direct V2 Wallet Session operation credentials')}`;
     const persisted = buildPersistedActiveWalletSessionAuthorizationV2({
       session: prepared.session,
       quota: prepared.quota,
       primaryOperationCredentialDigestB64u: await digestOpaqueValue(token),
     });
-    return { persisted, operationCredential };
+    return { persisted, token };
   }
 
   async refreshWalletSessionAuthorizationV2AuthorityProjection(input: {
