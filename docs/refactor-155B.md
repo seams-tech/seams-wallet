@@ -5549,3 +5549,110 @@ activation [37884119441](https://github.com/seams-tech/seams-monorepo/actions/ru
 passed. All six observation process groups stopped. Existing staging resources were
 reused. The activation's temporary US probes retain their normal ten-minute expiry.
 No new resources, production deployment, or package release were part of this work.
+
+### Phase 6AO — reuse A's admission result within one execution
+
+A now consumes the root result it just authenticated and admitted. It creates its
+existing target proof from that result and uses it once in the same wallet-DO
+request. The target is neither cloneable nor serializable. No secret or target is
+added to persisted pair state.
+
+A resumed `Prepared` operation still reloads the admitted root and checks its
+metadata digest. Production cleanup fences the wallet DO before recording a
+wallet-owned admission cancellation. A checks that fence before sending its proof
+and before committing completion. Relocation, exact completed replay, independent
+A/B signatures, and burn-on-failure behavior remain enforced.
+
+The change removes one bound-root D1 round trip and three SQL statements from fresh
+A execution. These counters cover a subset of registration database work.
+Target-proof preparation now precedes B connection. Previously, the repeated root
+read and proof preparation ran alongside that connection. The removed database
+duration is therefore not an estimate of the full-flow latency saving.
+
+Implementation: public dev commit `155b36ea7123d15e0396b7ada15cebb981d7c500`. Five release Worker builds and
+15 real Worker/DO scenarios passed. They cover all four wallet homes, concurrent
+execution, lost replies, root retirement, erased-root replay, admission settlement,
+cancellation, missing admissions, connection loss, and forged peer messages.
+The exact-tree bloat check passed. No SDK, cryptographic primitive, configuration,
+or infrastructure resource was added or changed by this implementation.
+
+Three fresh implicit, unfunded wallets ran in each sequential baseline, candidate,
+and restored control arm. All arms use the same NEAR-only SDK assets and client
+machine. Only Deriver A changes. Medians and observed ranges follow; the upper
+endpoint is the maximum. Funding, transaction broadcast, and blockchain confirmation
+are excluded. Worker cold state was not controlled.
+
+| Metric | Baseline | Reused admission target | Restored control |
+| --- | --- | --- | --- |
+| SDK registration | 8.938s (8.523–11.051s) | 8.137s (7.023–9.225s) | 8.073s (7.951–8.171s) |
+| Registration → independently verified signature | 12.159s (11.401–14.524s) | 10.650s (10.597–12.411s) | 10.720s (9.830–11.337s) |
+| Setup HTTP | 0.768s (0.520–1.136s) | 0.729s (0.477–0.927s) | 0.720s (0.587–0.726s) |
+| Respond HTTP | 0.909s (0.652–1.164s) | 1.073s (0.682–1.219s) | 0.694s (0.691–0.730s) |
+| Yao execute HTTP | 4.971s (4.805–5.127s) | 3.478s (3.472–4.109s) | 3.842s (3.791–4.342s) |
+| Finalize HTTP | 1.755s (1.498–2.493s) | 2.190s (1.498–2.308s) | 1.956s (1.758–2.101s) |
+
+Bound-root D1 work falls **6 → 5 → 6 round trips** and **16 → 13 → 16 SQL
+statements per wallet**. A's separate `ReadAdmitted` call occurs once per wallet
+in baseline and control and zero times in the candidate. This establishes the
+structural saving. These counters exclude other registration database work.
+The previous combined A preparation/execution request remains in all three arms.
+
+Gateway HTTP requests remain **8 per wallet**, including **2 session-status
+requests**. Console receives **9 HTTP requests per wallet**. Scheduled observations
+with an empty request path are excluded.
+
+A's preparation medians are **158 → 151 → 163 ms**. Its A-to-B connection span
+medians are **803 → 392 → 861 ms**. A's nested Yao protocol medians are
+**551 → 489 → 371 ms**; B's are **323 → 267 → 392 ms**. These spans include
+transport and scheduling. They do not isolate CPU time or removable network delay.
+
+Full registration-to-signature medians are **12.159s → 10.650s → 10.720s**.
+Read the candidate's timing alongside the restored control. This sample establishes
+fewer D1 calls. It does not isolate a repeatable latency gain from this change.
+
+Keep the change for the demonstrated D1 reduction. Three sequential samples per
+arm cannot isolate its latency effect from network and scheduling variation.
+Preserve this result for a cumulative comparison of accepted optimizations.
+The below-four-second registration-to-signature target remains unmet.
+
+All nine NEP-413 signatures pass an independent Node.js Ed25519 verifier with a
+separate Borsh encoder. Altered message, recipient, nonce, and callback URL fail.
+All six observed role streams match their expected versions in every arm.
+Nested protocol spans include transport and overlap other spans. Requested APAC
+placement does not prove physical colocation.
+
+#### Follow-up: one authenticated B preparation/execution connection
+
+A larger transport change could remove the separate B preparation exchange.
+Router would pass B's encrypted input with the authorized ceremony to A. A would
+forward it to B on the same authenticated connection used for protocol execution.
+B would validate its own scope and root, persist its claim, and return signed
+readiness and acceptance. A would verify both before claiming locally and sending
+its proof. Router would still verify both completed role results.
+
+A must have no ability to decrypt B's input or access B's root share. Wallet home,
+ownership generation, session, input digest, and authorization must remain bound
+to the same ceremony. Lost replies, disconnects, cancellation, and completed retries
+must preserve one durable execution outcome. Remove the old preparation endpoint
+when this replacement passes the real Worker/DO fault scenarios.
+
+The expected structural benefit is one fewer complete preparation exchange and
+fewer separate persisted-state reads. Latency savings remain unmeasured. A Worker
+boundary alone does not establish a network hop: Cloudflare says service-bound
+Workers run on the same thread and server by default, subject to placement behavior.
+See [Cloudflare service bindings](https://developers.cloudflare.com/workers/runtime-apis/bindings/service-bindings/).
+Keep the narrow authenticated Worker boundary unless measurement justifies a
+direct DO namespace binding and its broader access capability.
+
+This transport proposal is a follow-up. Phase 6AO changes only A's fresh root use.
+
+All 13 original Worker assignments and placement settings were restored.
+Restoration activation [37888714394](https://github.com/seams-tech/seams-monorepo/actions/runs/37888714394) passed.
+All six observation process groups stopped. Existing staging resources were reused.
+Temporary activation probes retain their normal ten-minute expiry. No new resource,
+production deployment, or package release was part of this work.
+
+[Sanitized evidence](evidence/near-registration-reused-admitted-target-20261009.json) retains all samples, request counts, partial D1 counts, public
+signature proofs, version audits, source/build hashes, fault-scenario results, and
+the retention decision. Repeatable raw artifacts remain in public
+`.artifacts/r155b-phase6ao` and private `.artifacts/r155b-phase6ao-hosted`.
