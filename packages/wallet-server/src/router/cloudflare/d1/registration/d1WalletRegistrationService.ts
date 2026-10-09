@@ -3704,11 +3704,15 @@ export class CloudflareD1WalletRegistrationService {
     return { receipt, projection, prepared: record.prepared };
   }
 
+  /** Returns the ceremony it read, so the same request's execution need not read it again. */
   private async prepareNearProvisioningOperation(
     registrationCeremonyId: string,
     allocated?: D1WalletRegistrationOperationPreparedV1,
     installed?: CommittedRegistrationInstallation,
-  ): Promise<D1WalletRegistrationOperationPreparedV1> {
+  ): Promise<{
+    readonly prepared: D1WalletRegistrationOperationPreparedV1;
+    readonly ceremony: StoredWalletRegistrationCeremony | null;
+  }> {
     const ceremony = installed
       ? null
       : await this.getRegistrationCeremonyIntentStore().getCeremony(registrationCeremonyId);
@@ -3729,12 +3733,15 @@ export class CloudflareD1WalletRegistrationService {
           'registration operation identity does not match its committed installation',
         );
       }
-      return committed.prepared;
+      return { prepared: committed.prepared, ceremony: null };
     }
-    return this.resolvePreparedRegistrationIdentity(
+    return {
+      prepared: await this.resolvePreparedRegistrationIdentity(
+        ceremony,
+        allocated ?? walletRegistrationOperationPreparedFromCeremony(ceremony),
+      ),
       ceremony,
-      allocated ?? walletRegistrationOperationPreparedFromCeremony(ceremony),
-    );
+    };
   }
 
   private async resolvePreparedRegistrationIdentity(
@@ -3763,21 +3770,26 @@ export class CloudflareD1WalletRegistrationService {
         VerifiedNearProvisioningAuthority,
         { readonly ok: true }
       >['source'];
+      /** The ceremony this request's own preparation read, with the identity it resolved. */
+      readonly preparedCeremony: () => StoredWalletRegistrationCeremony | null;
     },
     prepared: D1WalletRegistrationOperationPreparedV1,
   ): Promise<RegistrationCommitExecution<WalletRegistrationNearProvisioningFinalizeResponse>> {
-    // Read inside execution so an exact replay works after ceremony cleanup.
+    // A resumed execution has no preparation of its own. It reads here, so an
+    // exact replay works after ceremony cleanup.
     const sourceStartedAtMs = Date.now();
     const committedInstallation =
       args.authoritySource.kind === 'committed_mixed' ? args.authoritySource.installation : null;
     if (committedInstallation && !isRegistrationEcdsaReadyReceipt(committedInstallation.receipt)) {
       throw new Error('Committed mixed registration receipt is not ECDSA-ready');
     }
-    const ceremony = committedInstallation
-      ? null
-      : await this.getRegistrationCeremonyIntentStore().getCeremony(
-          args.input.registrationCeremonyId,
-        );
+    const preparedCeremony = committedInstallation ? null : args.preparedCeremony();
+    const ceremony =
+      committedInstallation || preparedCeremony
+        ? preparedCeremony
+        : await this.getRegistrationCeremonyIntentStore().getCeremony(
+            args.input.registrationCeremonyId,
+          );
     let source: D1WalletRegistrationFinalizeSource;
     let ownerProofContext: RegistrationOwnerProofContext;
     let effectivePrepared: D1WalletRegistrationOperationPreparedV1;
@@ -3790,7 +3802,9 @@ export class CloudflareD1WalletRegistrationService {
         throw new Error('Registration authority is unavailable before finalize');
       }
       sessionPredecessor = { kind: 'ed25519_only' };
-      effectivePrepared = await this.resolvePreparedRegistrationIdentity(ceremony, prepared);
+      effectivePrepared = preparedCeremony
+        ? prepared
+        : await this.resolvePreparedRegistrationIdentity(ceremony, prepared);
     } else {
       const committed =
         committedInstallation ??
@@ -3821,11 +3835,13 @@ export class CloudflareD1WalletRegistrationService {
         runtimePolicyScope,
         expiresAtMs: activationReceipt.expiresAtMs,
       };
-      effectivePrepared = await this.prepareNearProvisioningOperation(
-        args.input.registrationCeremonyId,
-        prepared,
-        committed,
-      );
+      effectivePrepared = (
+        await this.prepareNearProvisioningOperation(
+          args.input.registrationCeremonyId,
+          prepared,
+          committed,
+        )
+      ).prepared;
       if (activationReceipt.committed.session.tokens.kind !== 'evm_family_ecdsa') {
         throw new Error('Committed mixed registration is missing its ECDSA session projection');
       }
@@ -4145,6 +4161,8 @@ export class CloudflareD1WalletRegistrationService {
         fingerprintStartedAtMs,
       );
       const sideEffectStartedAtMs = Date.now();
+      // Set only when this request prepares the operation. A resumed execution reads for itself.
+      let preparedCeremony: StoredWalletRegistrationCeremony | null = null;
       const run = await runRouterAbEd25519YaoRegistrationSideEffectV2<
         RegistrationCommitExecution<WalletRegistrationNearProvisioningFinalizeResponse>,
         WalletRegistrationSessionCommitReceiptV2,
@@ -4156,12 +4174,15 @@ export class CloudflareD1WalletRegistrationService {
         requestFingerprint,
         resumeAfterMs: D1_WALLET_REGISTRATION_OPERATION_RESUME_AFTER_MS,
         nowMs: Date.now,
-        prepare: async () =>
-          await this.prepareNearProvisioningOperation(
+        prepare: async () => {
+          const preparation = await this.prepareNearProvisioningOperation(
             input.registrationCeremonyId,
             undefined,
             verified.source.kind === 'committed_mixed' ? verified.source.installation : undefined,
-          ),
+          );
+          preparedCeremony = preparation.ceremony;
+          return preparation.prepared;
+        },
         derivePreparedArtifactFingerprint: async (prepared) =>
           base64UrlEncode(await sha256BytesUtf8(alphabetizeStringify(prepared))),
         execute: this.commitDeferredEd25519Signer.bind(this, {
@@ -4169,6 +4190,7 @@ export class CloudflareD1WalletRegistrationService {
           serverTiming,
           setupClaims: verified.claims,
           authoritySource: verified.source,
+          preparedCeremony: () => preparedCeremony,
         }),
         projectReceipt: (execution) =>
           projectWalletRegistrationSessionCommitReceiptV2({
@@ -4587,7 +4609,7 @@ export class CloudflareD1WalletRegistrationService {
         resumeAfterMs: D1_WALLET_REGISTRATION_OPERATION_RESUME_AFTER_MS,
         nowMs: Date.now,
         prepare: async () =>
-          await this.prepareNearProvisioningOperation(claims.registrationCeremonyId),
+          (await this.prepareNearProvisioningOperation(claims.registrationCeremonyId)).prepared,
         derivePreparedArtifactFingerprint: async (prepared) =>
           base64UrlEncode(await sha256BytesUtf8(alphabetizeStringify(prepared))),
         execute: this.executeWalletRegistrationActivation.bind(this, {
