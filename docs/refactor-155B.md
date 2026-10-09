@@ -5197,3 +5197,79 @@ No new infrastructure was created.
 serving versions, request counts, independent proofs, reproduction commands, and
 restoration checks. Raw files remain in public `.artifacts/r155b-phase6aj` and
 private `.artifacts/r155b-phase6aj-hosted`.
+
+
+### Phase 6AK — native Router wallet DO RPC comparison (2026-10-09)
+
+**Reject the RPC candidate. Keep the existing HTTP command transport.**
+The initial claim was faster in the small RPC sample. Complete registration did
+not improve, and the later consumption call remained variable. The additional
+adapter and build step were not added to `dev`.
+
+The candidate used native Durable Object RPC for the existing claim, finish,
+consume, freeze, and transfer commands. RPC carried the same Request and Response
+and called the unchanged Rust transaction handler. Wallet identity, home,
+ownership generation, claim leases, root authority, replay, and relocation checks
+remained intact. Private startup and observation calls retained HTTP.
+
+Three fresh implicit, unfunded NEAR wallets ran in each arm: HTTP baseline, RPC
+candidate, then restored HTTP baseline. Only the Router changed between arms.
+Gateway code included the accepted Phase 6AJ scoped reads. SDK, Console, Runtime,
+Deriver A/B, Signing Worker, configuration, and requested APAC placement stayed
+fixed. All six observed Worker streams matched their expected serving versions.
+
+| Workload | HTTP baseline median (range) | RPC median (range) | Restored HTTP median (range) |
+| --- | ---: | ---: | ---: |
+| Yao execute HTTP | 3.123 s (2.936–3.262) | 3.267 s (2.653–4.149) | 3.425 s (3.116–3.507) |
+| Server finalization HTTP | 1.424 s (1.383–1.685) | 1.738 s (1.569–1.993) | 1.852 s (1.831–1.903) |
+| SDK registration | 6.614 s (6.544–7.193) | 7.336 s (6.229–8.010) | 7.474 s (6.981–7.575) |
+| Registration → independently verified signature | 9.241 s (9.010–10.582) | 10.651 s (9.820–10.729) | 10.052 s (9.205–10.708) |
+
+Router command response waits provide the narrower result:
+
+| Command | HTTP baseline median (range) | RPC median (range) | Restored HTTP median (range) |
+| --- | ---: | ---: | ---: |
+| Initial claim | 493 ms (487–550) | 376 ms (374–395) | 599 ms (532–857) |
+| Finish in the same request | 50 ms (49–52) | 53 ms (51–55) | 55 ms (48–55) |
+| Consume in a later request | 58 ms (58–59) | 363 ms (63–383) | 516 ms (470–576) |
+
+Consumption's DO invocation medians remained short: 51 ms for the baseline and
+58 ms for RPC. These were later commands on already-running objects. Native RPC
+did not remove the large wait outside the handler. The three sequential samples
+per arm do not identify its provider routing, scheduling, or connection cause.
+The restored HTTP results also show substantial variation without a code change.
+
+Every arm used three Router wallet commands and ten Console HTTP requests per
+registration. Existing bound-root counters reported six D1 round trips and
+sixteen statements per registration. These counters cover part of the complete
+database flow. Browser-observed Gateway requests ranged from nine to ten, with
+session-status requests accounting for the variation. A's protocol span
+medians were 321 ms for the baseline and 323 ms for RPC. Protocol spans include
+transport and cannot be treated as isolated CPU measurements.
+
+All five release builds, the deployment bundle, and the exact-tree bloat check
+passed. Four browser E2E scenarios and four Worker/DO scenarios passed. They cover
+four regional homes, owner signing, replay, lost replies, admission settlement,
+and relocation. An additional historical replay scenario failed because it calls
+a debug-only fault endpoint absent from release builds. This was classified as
+`environment_or_infrastructure_failure`; no production behavior was changed for
+that test. Existing replay scenarios passed. All nine NEP-413 signatures passed
+independent Node.js verification and signed-field tamper checks.
+
+All thirteen original Worker version assignments and placement settings were
+restored. Restoration activation [37870318951](https://github.com/seams-tech/seams-monorepo/actions/runs/37870318951)
+passed. Registration leases expired normally, and all observation tails stopped.
+The experiment used existing staging resources. No infrastructure was added.
+
+The **3–4 second registration target remains unmet**. The next bounded change is
+to combine fresh publishable-key authentication and active environment resolution
+during registration setup. They currently require two sequential Console requests.
+Preserve origin, revocation, environment, and tenant-root checks. Remove one
+request, then repeat the same controlled comparison. The latency saving remains
+unmeasured. Avoid another transport wrapper or keepalive experiment without new
+evidence.
+
+[Sanitized evidence](evidence/near-router-wallet-rpc-20261009.json) retains all samples, exact source and
+bundle hashes, serving versions, request counts, independent proofs, and cleanup.
+The rejected source and repeatable scripts remain in public
+`.artifacts/r155b-phase6ak` and private `.artifacts/r155b-phase6ak-hosted`.
