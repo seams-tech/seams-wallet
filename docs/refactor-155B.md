@@ -1,6 +1,6 @@
 # Regional execution without routine Console calls
 
-Status: regional OTP counters and wallet-counter relocation are implemented. Local regional, authorization-transfer, and browser OTP acceptance pass. Hosted NEAR comparisons now cover Phase 6AE. The accepted delivery overlap is committed on `dev`, and the original staging versions are restored. The three-to-four-second registration-to-signature target remains unmet.
+Status: regional OTP counters and wallet-counter relocation are implemented. Local regional, authorization-transfer, and browser OTP acceptance pass. Hosted NEAR comparisons now cover Phase 6AO. Accepted changes are committed on `dev`, and the original staging versions are restored. The three-to-four-second registration-to-signature target remains unmet. The proposed combined B connection has its own [R155C plan](refactor-155C-yao-peer-connection.md).
 Date: October 6, 2026. Updated: October 9, 2026.
 
 ## Objective
@@ -5621,30 +5621,16 @@ All six observed role streams match their expected versions in every arm.
 Nested protocol spans include transport and overlap other spans. Requested APAC
 placement does not prove physical colocation.
 
-#### Follow-up: one authenticated B preparation/execution connection
+#### Follow-up: R155C combined B preparation/execution connection
 
-A larger transport change could remove the separate B preparation exchange.
-Router would pass B's encrypted input with the authorized ceremony to A. A would
-forward it to B on the same authenticated connection used for protocol execution.
-B would validate its own scope and root, persist its claim, and return signed
-readiness and acceptance. A would verify both before claiming locally and sending
-its proof. Router would still verify both completed role results.
+This proposal now has a separate [R155C implementation plan](refactor-155C-yao-peer-connection.md).
+It moves B preparation onto the authenticated peer connection and removes the
+separate preparation exchange. A and B retain independent keys, authority checks,
+durable claims, and retry handling.
 
-A must have no ability to decrypt B's input or access B's root share. Wallet home,
-ownership generation, session, input digest, and authorization must remain bound
-to the same ceremony. Lost replies, disconnects, cancellation, and completed retries
-must preserve one durable execution outcome. Remove the old preparation endpoint
-when this replacement passes the real Worker/DO fault scenarios.
-
-The expected structural benefit is one fewer complete preparation exchange and
-fewer separate persisted-state reads. Latency savings remain unmeasured. A Worker
-boundary alone does not establish a network hop: Cloudflare says service-bound
-Workers run on the same thread and server by default, subject to placement behavior.
-See [Cloudflare service bindings](https://developers.cloudflare.com/workers/runtime-apis/bindings/service-bindings/).
-Keep the narrow authenticated Worker boundary unless measurement justifies a
-direct DO namespace binding and its broader access capability.
-
-This transport proposal is a follow-up. Phase 6AO changes only A's fresh root use.
+R155C inventories the shared lifecycle changes, native HTTP consumers, endpoint
+removal, fault scenarios, and hosted comparison. Its transport code is not implemented.
+Phase 6AO changes only A's fresh root use. Its evidence remains below.
 
 All 13 original Worker assignments and placement settings were restored.
 Restoration activation [37888714394](https://github.com/seams-tech/seams-monorepo/actions/runs/37888714394) passed.
