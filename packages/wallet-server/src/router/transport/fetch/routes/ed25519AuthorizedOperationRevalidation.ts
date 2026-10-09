@@ -1,4 +1,4 @@
-import type { TenantId } from '@shared/authorization/capabilityKinds';
+import type { AuthorizedOperationId, TenantId } from '@shared/authorization/capabilityKinds';
 import type { CapabilityOperationFingerprintDigest } from '@shared/authorization/operationFingerprint';
 import type { WalletId } from '@shared/utils/domainIds';
 import type { AuthorizedOperation } from '../../../../authorization/domain';
@@ -57,11 +57,13 @@ export async function revalidateEd25519StepUpOperation(input: {
  * Finds the operation a reusable Wallet Session prepared and checks that its
  * grant is still active. A live operation returns the owner scope its
  * admission row pinned. A completed operation returns none: it replays its
- * stored response.
+ * stored response. The operation is read by its fingerprint, so a receipt
+ * that names another operation ID has no stored operation.
  */
 export async function resolveEd25519WalletSessionOperation(input: {
   readonly ctx: FetchRouterApiContext;
   readonly tenantId: TenantId;
+  readonly authorizedOperationId: AuthorizedOperationId;
   readonly operationFingerprintDigest: CapabilityOperationFingerprintDigest;
   readonly walletId: WalletId;
 }): Promise<
@@ -82,6 +84,9 @@ export async function resolveEd25519WalletSessionOperation(input: {
   }
   if (!result.operation) return rejectedAdmission(result.kind);
   const stored = result.operation;
+  if (stored.authorizedOperationId !== input.authorizedOperationId) {
+    return rejected('authorized_operation_missing', 'Authorized operation is unavailable', 409);
+  }
   if (stored.quota.kind !== 'consume_reusable_wallet_session') {
     return rejected(
       'authorization_grant_rejected',

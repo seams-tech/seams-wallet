@@ -714,6 +714,7 @@ async function validateEd25519ReusableAuthorizedOperation(input: {
       resolved = await resolveEd25519WalletSessionOperation({
         ctx: input.ctx,
         tenantId: identity.tenantId,
+        authorizedOperationId,
         operationFingerprintDigest: fingerprint,
         walletId: ed25519ReusableWalletSession(input.authorization).walletId,
       });
@@ -731,7 +732,6 @@ async function validateEd25519ReusableAuthorizedOperation(input: {
     if (
       operationResult.tenantId !== identity.tenantId ||
       operationResult.tenantId !== input.ctx.service.authorizedOperations.tenantId ||
-      operationResult.authorizedOperationId !== authorizedOperationId ||
       operationResult.operationFingerprintDigest !== fingerprint ||
       operationResult.operation.operationId !== operationId ||
       operationResult.operation.digests.laneDigest !== envelope.digests.laneDigest ||
