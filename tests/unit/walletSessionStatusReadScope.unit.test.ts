@@ -31,6 +31,8 @@ class StatusServer {
 function operationCredential(tokenCharacter: string) {
   return parseWalletSessionOperationCredentialV1({
     kind: 'opaque_wallet_session_operation_credential_v1',
+    ownershipGeneration: 1,
+    home: { kind: 'direct' },
     token: `wst_${tokenCharacter.repeat(43)}`,
     walletSessionId: 'session-scope-test',
   });
