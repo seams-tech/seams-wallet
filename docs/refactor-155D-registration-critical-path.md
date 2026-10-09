@@ -559,16 +559,17 @@ Migrations written for this change:
   locator to `pair_object_id`. Old admissions and wallets must be discarded
   together before activating this incompatible candidate.
 
-Scope: code and migration files only. No live migration or deployment is included.
-Staging is the first candidate environment. Production testnet and mainnet are
+Initial scope covered code and migration files. The subsequent authorized hosted
+comparison uses existing staging resources. Production testnet and mainnet remain
 excluded from wallet discard and deployment. There is no name-based fallback.
 Gateway, Runtime, Router, Deriver A, Deriver B and SigningWorker must use the
 matching candidate. Their internal route messages changed together.
 
 The current binding performs one regional D1 lookup per wallet custody dispatch.
-This cost must be included in the hosted comparison. The earlier 13 ms unique-ID
-probe and 448 ms named-ID probe are evidence for the change, not a measured saving
-for this implementation. The estimated 2.5 s full-flow saving remains unmeasured.
+The hosted full-flow timings below include this cost. Its separate duration remains
+unmeasured. The earlier 13 ms unique-ID probe and 448 ms named-ID probe motivated
+the change. The actual comparison shows a 1.63–2.25 s browser-median reduction
+against the two named-ID arms. It does not establish a fixed 2.5 s saving.
 
 - [x] Allocate, persist and reuse one address set before custody work.
 - [x] Route the four wallet objects by stored ID. Preserve logical record identities.
@@ -582,9 +583,11 @@ for this implementation. The estimated 2.5 s full-flow saving remains unmeasured
 - [x] Run a complete composed NEAR relocation with copy, activation and source
   cleanup against the matching stored-address candidate. Verify destination signing
   and replay after eviction by its persisted object ID.
-- [ ] Run the controlled hosted comparison after separate deployment approval.
-  Report full-flow timings and the added D1 lookup cost. A 50 ms dispatch remains
-  a measurement target, not a Cloudflare guarantee.
+- [x] Run the authorized controlled hosted comparison. Verify stored-address use,
+  matching versions and independent signatures. Record the baseline, candidate
+  and repeated baseline below. Full-flow timings include the added D1 lookup.
+- [ ] Isolate the added address lookup's duration in the remaining D1 trace work.
+  A 50 ms dispatch remains a measurement target, not a Cloudflare guarantee.
 
 ### Stored-address local verification — October 10
 
@@ -623,8 +626,8 @@ SDK TypeScript checks, address type fixtures and the repository bloat check pass
 The private candidate typecheck now passes. The local host supplies established-home
 admission to recovery, export and linked-device routes. The directory client supplies
 its regional session home, and OTP delivery accepts wallet relocation.
-These checks do not establish hosted latency. No live databases or Workers were
-changed, and no existing wallets were deleted.
+These local checks do not establish hosted latency. They changed no live databases
+or Workers and deleted no existing wallets.
 
 ### Complete stored-address relocation — October 10
 
@@ -658,7 +661,87 @@ Evidence: `.artifacts/r155d-addresses/composed-relocation/`, with a compact copy
 in [the committed evidence](evidence/refactor-155d-stored-unique-ids-local.json).
 The run covers NEAR relocation. It does not claim mixed-curve relocation, browser
 registration, fresh unlock after cutover, hosted placement, or latency savings.
-No live migrations or deployments ran. The controlled hosted comparison remains.
+This local relocation run changed no live resources. Hosted comparison results are
+recorded separately below.
+
+### Stored-address hosted comparison — October 10
+
+Stored unique IDs reduced registration and first-signature latency in this sample.
+Three fresh implicit NEAR wallets ran in each arm: named IDs, stored IDs, then
+the same named-ID versions again. The final arm is the control. It checks timing
+variation after reverting the change. All nine NEP-413 signatures verified with
+an independent Node.js Ed25519 verifier. Altered signed fields failed verification.
+
+The browser used the APAC staging Gateway. The SDK payload and placement
+configuration stayed fixed. Only NEAR signing was enabled. The NEAR signer worker
+loaded, and no ECDSA signer worker loaded. Shared JavaScript and custody code can
+still contain both protocols. The flow excludes funding and blockchain confirmation.
+Worker and Durable Object cold state was not established.
+
+| Measurement | Named-ID baseline | Stored-ID candidate | Named-ID control |
+| --- | ---: | ---: | ---: |
+| Browser registration → verified signature | 9.108 s (8.314–10.748) | **6.855 s (6.809–8.517)** | 8.484 s (7.573–9.076) |
+| SDK registration | 6.287 s (5.370–6.992) | **5.074 s (4.496–5.337)** | 5.746 s (4.662–6.268) |
+| SDK first signature | 2.061 s (1.507–2.390) | **1.089 s (1.061–1.903)** | 1.892 s (1.011–2.287) |
+| SDK registration + first signature | 8.348 s (6.877–9.382) | **6.163 s (5.557–7.240)** | 7.279 s (6.554–8.033) |
+| SDK flow excluding measured interactions | 7.770 s (6.094–8.885) | **5.488 s (5.022–6.716)** | 6.680 s (5.792–7.397) |
+
+Each cell gives the median and observed range in seconds. The range's upper value
+is the maximum. Browser timings include automation. SDK timings exclude automation
+but include the measured WebAuthn and confirmation interactions. The last row
+subtracts those interactions per sample. Medians from separate rows cannot be added.
+
+The browser median improved by 25% against the baseline and 19% against the control.
+The SDK first-signature median improved by 47% and 42%, respectively. Three samples
+per arm establish an observed improvement, with substantial variation. They do not
+establish a latency guarantee. The 3–4 s full-registration target remains unmet.
+
+Selected server spans explain where the gain appeared:
+
+| Server span, median | Named-ID baseline | Stored-ID candidate | Named-ID control |
+| --- | ---: | ---: | ---: |
+| Router Yao execution | 1.792 s | **1.259 s** | 1.647 s |
+| Router parse and authorize | 0.501 s | **0.073 s** | 0.496 s |
+| Deriver B preparation | 0.640 s | **0.352 s** | 0.633 s |
+| Finalize total | 1.489 s | 1.063 s | **0.897 s** |
+| Finalize Router consume | 0.559 s | 0.089 s | **0.072 s** |
+
+Spans can overlap. Do not sum them. Router Yao execution meets the 1–2 s target
+in this sample. The candidate's finalization improvement over the baseline did not
+repeat against the control. This comparison therefore supports no finalization-gain
+claim. The finalization path still needs separate measurement.
+
+Every wallet sent six Gateway requests and zero session-status requests. Each
+wallet sent one background startup request before respond. The comparison captured
+no full D1 trace, so it establishes neither total D1 calls nor individual lookup
+costs. Those costs are included in elapsed flow time.
+
+The candidate's invocation logs match all four persisted object IDs for each of
+its three completed wallets. All observed invocations on the six tailed components
+match their arm's expected versions. The baseline and control use identical versions
+for all 13 components. All 17 comparison checks pass.
+
+Frozen sources:
+
+- Public baseline `f16a32e2a364c6ed662e8131d06034018748c788` and candidate
+  `28c58d85bab8dc0f67c8d21bf26dd460a50ff2c1`.
+- Private baseline `dd5e16d1535eed3e28885111ed5c99ba847881e9` and candidate
+  `13a5529e95e138a00ca4f8ab5b485b829d58285d`.
+
+Evidence includes per-sample timings, public signature proofs, version audits and
+cleanup checks in
+[the hosted evidence](evidence/refactor-155d-stored-unique-ids-hosted.json).
+The complete private artifact directory is `.artifacts/r155d-stored-ids-hosted/`.
+Its frozen source exports, configurations, hashes, driver and raw logs support a
+repeat run. Inspect current staging state before reusing its deployment driver.
+
+Cleanup completed. Live read-back confirms all 13 original Worker versions and
+both original Deriver admission-column schemas. The original tenant activation
+passed. The four additive Gateway address tables and their migration records remain.
+One expired, unclaimed Deriver B admission was cancelled before migration. Its
+terminal history remains. No existing wallet was deleted, no new Cloudflare resource
+was created, and production was unchanged. The candidate is not permanently active.
+No SDK package was published. A coordinated rollout remains for the release.
 
 ### Startup and role databases
 
@@ -1007,17 +1090,19 @@ Decided on October 10:
 
 - The wallet-object address change in Phase 1 proceeds. Staging wallets are
   disposable. Production testnet and mainnet are outside the discard scope
-  until a separate reset-or-migrate decision. No migration is applied, nothing
-  is deployed, and no wallet is deleted before the owner's go-ahead. Version
-  0.9.0 follows the change.
+  until a separate reset-or-migrate decision. The owner's subsequent instruction
+  to proceed authorized the temporary staging comparison recorded in Phase 1.
+  Permanent activation remains part of the coordinated release. Version 0.9.0
+  follows the change.
 
 Still needed:
 
-1. Run the comparison again for its control and trace arms, or wait and
-   measure after the address change. The trace arm is the only source of
-   staging durations for Phase 2. Private
+1. Capture the request-level D1 and service trace on the stored-address candidate.
+   The baseline, candidate and control timing comparison is complete. The trace
+   arm still supplies the missing staging durations for Phase 2. Private
    `.artifacts/r155d-hosted/compare/launch-trace.sh` runs the trace arm alone
-   in about 20 minutes; it changes staging the same way and restores it.
+   in about 20 minutes. Its frozen candidate predates stored addresses, so rebuild
+   and freeze it against the matching schema before measuring this implementation.
 2. Move the staging role databases. That creates three databases and moves
    custody data.
 
