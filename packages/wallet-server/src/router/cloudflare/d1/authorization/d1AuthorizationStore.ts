@@ -1,13 +1,20 @@
 import {
   D1EcdsaAdmissionPolicyRead,
+  D1Ed25519AdmissionPolicyRead,
   ECDSA_CREDENTIAL_POLICY_PROJECTION,
+  ED25519_CREDENTIAL_POLICY_PROJECTION,
 } from '../signingAdmission/d1RouterAbNormalSigningAdmissionStore';
 import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import { parseInstalledEcdsaCustodySnapshotV1 } from '../deviceLinking/d1LinkedDeviceAuthorityInstallService';
 import { ECDSA_INSTALLATION_SNAPSHOT_COLUMNS } from '../../../../core/ecdsaMaterialReadSnapshot';
-import type { EcdsaWalletSessionAdmissionRead } from '../../../../authorization/service';
+import type {
+  EcdsaWalletSessionAdmissionRead,
+  Ed25519WalletSessionAdmissionRead,
+} from '../../../../authorization/service';
 import type { RouterAbMpcMaterialActivationRefWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import { EcdsaMaterialRead } from '../../../../core/d1EcdsaSignerRead';
+import { Ed25519SignerRead } from '../../../../core/d1Ed25519SignerRead';
+import { ED25519_SIGNER_ACTIVATION_ID_PATH } from '../../../../core/d1WalletStore';
 import type { EcdsaMaterialReadSnapshot } from '../../../../core/ecdsaMaterialReadSnapshot';
 import type {
   EcdsaWalletSessionAdmissionInput,
@@ -1830,6 +1837,43 @@ export class CloudflareD1AuthorizationStore
     };
   }
 
+  /**
+   * The session with the Ed25519 signer and the policy rows its admission
+   * needs, in one statement. The signer and the policy are those of the
+   * session's own wallet, whatever wallet the request names.
+   */
+  async readEd25519WalletSessionAdmissionSnapshotByOperationCredential(input: {
+    readonly tenantId: WalletSessionAuthorizationV2['tenantId'];
+    readonly tokenHash: import('@shared/utils/canonicalPrimitives').DigestB64u;
+    readonly nowMs: number;
+    readonly materialActivation: RouterAbMpcMaterialActivationRefWire;
+  }): Promise<Ed25519WalletSessionAdmissionRead | null> {
+    const row = await this.readJoinedWalletSessionAuthorizationV2Row({
+      projection: { kind: 'ed25519_material', materialActivation: input.materialActivation },
+      lookupColumn: 'operation_credential_hash',
+      tenantId: input.tenantId,
+      lookupValue: input.tokenHash,
+    });
+    if (!row || row.session_retired_at_ms !== null) return null;
+    const snapshot = await parseWalletSessionAdmissionRow(row, input);
+    const session = snapshot.kind === 'active' ? snapshot.authorization.session : snapshot.session;
+    return {
+      snapshot,
+      signerRead: Ed25519SignerRead.fromRows(
+        session.walletId,
+        input.materialActivation,
+        parseD1JsonColumn(row.ed25519_material_records_json),
+      ),
+      policyRead: D1Ed25519AdmissionPolicyRead.fromRows(
+        this.database,
+        this.namespace,
+        session.walletId,
+        session.authorityId,
+        parseD1JsonColumn(row.ed25519_policy_records_json),
+      ),
+    };
+  }
+
   async readWalletSessionExactOperationContextByCredential(input: {
     readonly tenantId: WalletSessionAuthorizationV2['tenantId'];
     readonly tokenHash: import('@shared/utils/canonicalPrimitives').DigestB64u;
@@ -2131,7 +2175,10 @@ export class CloudflareD1AuthorizationStore
   private async readJoinedWalletSessionAuthorizationV2Row(input: {
     readonly projection:
       | { readonly kind: 'session' | 'session_status'; readonly materialActivation?: never }
-      | { readonly kind: 'ecdsa_material'; readonly materialActivation: RouterAbMpcMaterialActivationRefWire };
+      | {
+          readonly kind: 'ecdsa_material' | 'ed25519_material';
+          readonly materialActivation: RouterAbMpcMaterialActivationRefWire;
+        };
     readonly lookupColumn: 'mint_id' | 'authorization_id' | 'operation_credential_hash';
     readonly tenantId: unknown;
     readonly lookupValue: unknown;
@@ -2179,6 +2226,28 @@ export class CloudflareD1AuthorizationStore
         input.projection.materialActivation.activation_id,
         input.projection.materialActivation.activation_id,
       ];
+    } else if (input.projection.kind === 'ed25519_material') {
+      // The wallet store reads Ed25519 signers under the configured signer scope.
+      const signerScope = [
+        this.walletSignerScope.namespace,
+        this.walletSignerScope.orgId,
+        this.walletSignerScope.projectId,
+        this.walletSignerScope.envId,
+        input.projection.materialActivation.activation_id,
+      ];
+      materialProjection = `
+           (SELECT json_group_array(json_object('record_json', signer.record_json))
+              FROM wallet_signers AS signer
+             WHERE signer.namespace = ? AND signer.org_id = ?
+               AND signer.project_id = ? AND signer.env_id = ?
+               AND signer.wallet_id = session.wallet_id
+               AND signer.signer_family = 'ed25519'
+               AND CASE WHEN json_valid(signer.record_json) THEN
+                 json_extract(signer.record_json, '${ED25519_SIGNER_ACTIVATION_ID_PATH}') = ?
+                 ELSE 0 END
+           ) AS ed25519_material_records_json,
+           ${ED25519_CREDENTIAL_POLICY_PROJECTION}`;
+      materialBindings = [...signerScope, ...signerScope];
     } else if (input.projection.kind === 'session_status') {
       // Canonical ECDSA material shares the status snapshot. The configured
       // signer scope may use a different namespace from session storage.

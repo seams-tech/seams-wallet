@@ -1,9 +1,13 @@
 import type { RouteResponse } from './routeExecutionContext';
-import type { D1EcdsaAdmissionPolicyRead } from '../cloudflare/d1/signingAdmission/d1RouterAbNormalSigningAdmissionStore';
+import type {
+  D1EcdsaAdmissionPolicyRead,
+  D1Ed25519AdmissionPolicyRead,
+} from '../cloudflare/d1/signingAdmission/d1RouterAbNormalSigningAdmissionStore';
 import type {
   EcdsaMaterialRead,
   EcdsaMaterialActivationReadInput,
 } from '../../core/d1EcdsaSignerRead';
+import type { Ed25519SignerRead } from '../../core/d1Ed25519SignerRead';
 import type { EcdsaMaterialReadSnapshot } from '../../core/ecdsaMaterialReadSnapshot';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { TenantRootIdentityV1 } from '@shared/tenant-root/tenantRootIdentity';
@@ -226,6 +230,13 @@ export type RouterApiWalletSessionSigningCandidate =
       readonly candidate: RouterApiWalletSessionAuthorizationV2ExhaustedCandidateContext;
       readonly context?: never;
     };
+
+/** An active session with the Ed25519 signer and policy rows its statement also read. */
+export type RouterApiEd25519WalletSessionSigningRead = {
+  readonly context: RouterApiWalletSessionAuthorizationV2AdmissionContext;
+  readonly signerRead: Ed25519SignerRead;
+  readonly policyRead: D1Ed25519AdmissionPolicyRead;
+};
 
 type RouterApiHostedWalletSessionAuthorizationV2AdmissionContext =
   RouterApiWalletSessionAuthorizationV2AdmissionContext & {
@@ -1145,6 +1156,8 @@ export interface RouterApiWalletRegistrationService {
   resolveEd25519MaterialActivation(input: {
     readonly walletId: string;
     readonly materialActivation: RouterAbMpcMaterialActivationRefWire;
+    /** Signer rows the caller's session statement already read for this wallet and activation. */
+    readonly signerRead?: Ed25519SignerRead;
   }): Promise<
     | {
         readonly ok: true;
@@ -1677,6 +1690,12 @@ export interface RouterApiAuthorizationSessionService {
     readonly nowMs: number;
     readonly materialActivation: RouterAbMpcMaterialActivationRefWire;
   }) => Promise<RouterApiWalletSessionSigningCandidate | null>;
+  readonly readEd25519WalletSessionSigningReadByOperationCredential: (input: {
+    readonly tenantId: TenantId;
+    readonly token: string;
+    readonly nowMs: number;
+    readonly materialActivation: RouterAbMpcMaterialActivationRefWire;
+  }) => Promise<RouterApiEd25519WalletSessionSigningRead | null>;
   readonly readWalletSessionExactOperationContextByCredential: (input: {
     readonly tenantId: TenantId;
     readonly token: string;

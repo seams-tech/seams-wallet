@@ -357,6 +357,35 @@ function parseWalletEd25519YaoActiveCapabilityRecord(
   }
 }
 
+/** Where an Ed25519 signer row names the material activation it serves. */
+export const ED25519_SIGNER_ACTIVATION_ID_PATH =
+  '$.activeYaoCapability.admissionRequest.scope.material_activation.activation_id';
+
+/** The wallet's signer for one material activation, among the rows that name its id. */
+export function selectWalletEd25519Signer(
+  rows: readonly { readonly record_json?: unknown }[],
+  walletId: string,
+  materialActivation: RouterAbMpcMaterialActivationRefWire,
+): WalletEd25519SignerRecord | null {
+  const matches = rows
+    .map((row) => parseWalletEd25519SignerRecord(parseD1JsonColumn(row.record_json)))
+    .filter(
+      (record): record is WalletEd25519SignerRecord =>
+        record !== null &&
+        record.walletId === walletId &&
+        sameRouterAbMpcMaterialActivationRef(
+          record.activeYaoCapability.admissionRequest.scope.material_activation,
+          materialActivation,
+        ),
+    );
+  if (matches.length === 0) return null;
+  const signerId = matches[0]?.signerId;
+  if (!signerId || matches.some((record) => record.signerId !== signerId)) {
+    throw new Error('Wallet has conflicting Ed25519 material activations');
+  }
+  return matches[0] ?? null;
+}
+
 export function parseWalletEd25519SignerRecord(raw: unknown): WalletEd25519SignerRecord | null {
   if (!isPlainObject(raw) || raw.version !== 'wallet_signer_ed25519_v1') return null;
   const walletId = parseWalletId(raw.walletId);
@@ -1016,10 +1045,7 @@ export class D1WalletStore implements WalletStore {
             AND env_id = ?
             AND wallet_id = ?
             AND signer_family = 'ed25519'
-            AND json_extract(
-              record_json,
-              '$.activeYaoCapability.admissionRequest.scope.material_activation.activation_id'
-            ) = ?
+            AND json_extract(record_json, '${ED25519_SIGNER_ACTIVATION_ID_PATH}') = ?
           LIMIT 4`,
       )
       .bind(
@@ -1031,23 +1057,7 @@ export class D1WalletStore implements WalletStore {
         input.materialActivation.activation_id,
       )
       .all<D1WalletRow>();
-    const matches = (result.results || [])
-      .map((row) => parseWalletEd25519SignerRecord(parseD1JsonColumn(row.record_json)))
-      .filter(
-        (record): record is WalletEd25519SignerRecord =>
-          record !== null &&
-          record.walletId === walletId &&
-          sameRouterAbMpcMaterialActivationRef(
-            record.activeYaoCapability.admissionRequest.scope.material_activation,
-            input.materialActivation,
-          ),
-      );
-    if (matches.length === 0) return null;
-    const signerId = matches[0]?.signerId;
-    if (!signerId || matches.some((record) => record.signerId !== signerId)) {
-      throw new Error('Wallet has conflicting Ed25519 material activations');
-    }
-    return matches[0] ?? null;
+    return selectWalletEd25519Signer(result.results || [], walletId, input.materialActivation);
   }
 
   async getEd25519SignerBySlot(input: {

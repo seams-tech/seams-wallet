@@ -18,6 +18,7 @@ function admissionInput(url: URL): RouterAbNormalSigningAdmissionInput {
   const expiresAtMs = url.searchParams.has('expired') ? 1 : Date.now() + 60_000;
   if (url.searchParams.has('ed25519')) {
     return {
+      policyReadSource: { kind: 'database' },
       curve: 'ed25519', phase: 'prepare', walletId,
       authorityKind: 'wallet_authority_v1', authorityId: 'policy-authority',
       thresholdSessionId: 'policy-threshold', walletSessionId: 'policy-session',

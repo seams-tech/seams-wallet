@@ -147,6 +147,7 @@ import {
 import type { EcdsaMaterialActivationReadInput } from '../../../../core/d1EcdsaSignerRead';
 import type { D1WalletStore } from '../../../../core/d1WalletStore';
 import type { EcdsaMaterialReadSnapshot } from '../../../../core/ecdsaMaterialReadSnapshot';
+import type { Ed25519SignerRead } from '../../../../core/d1Ed25519SignerRead';
 import {
   buildStoredWalletRegistrationEvmFamilyEcdsaFinalizedBranch,
   buildStoredWalletRegistrationNearEd25519YaoAuthorizedBranch,
@@ -2015,6 +2016,7 @@ export class CloudflareD1WalletRegistrationService {
   async resolveEd25519MaterialActivation(input: {
     readonly walletId: string;
     readonly materialActivation: RouterAbMpcMaterialActivationRefWire;
+    readonly signerRead?: Ed25519SignerRead;
   }): Promise<
     | {
         readonly ok: true;
@@ -2030,10 +2032,12 @@ export class CloudflareD1WalletRegistrationService {
   > {
     try {
       const walletId = walletIdFromString(input.walletId);
-      const signer = await this.getWalletStore().getEd25519SignerByMaterialActivation({
-        walletId,
-        materialActivation: input.materialActivation,
-      });
+      const signer = input.signerRead
+        ? input.signerRead.resolve(walletId, input.materialActivation)
+        : await this.getWalletStore().getEd25519SignerByMaterialActivation({
+            walletId,
+            materialActivation: input.materialActivation,
+          });
       const yaoRuntime = this.getEd25519YaoProductRegistration();
       if (!yaoRuntime) {
         return {

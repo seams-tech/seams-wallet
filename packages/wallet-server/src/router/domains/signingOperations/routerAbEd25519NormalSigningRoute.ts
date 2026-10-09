@@ -49,11 +49,13 @@ import {
   type Ed25519OperationKind,
 } from './ed25519AuthorizedOperationReceipt';
 import { mpcMaterialActivationRefsEqual } from '@shared/utils/domainIds';
+import type { Ed25519SignerRead } from '../../../core/d1Ed25519SignerRead';
 import { isPlainObject } from '@shared/utils/validation';
 import {
   evaluateRouterAbNormalSigningAdmission,
   requireAuthorizationValue,
   type RouterAbEcdsaOperationAdmissionKind,
+  type RouterAbEd25519PolicyReadSource,
   routerAbErrorMessage,
   type RouterAbJsonRouteResult,
   type RouterAbNormalSigningAdmissionAdapter,
@@ -720,6 +722,9 @@ async function authorizeRouterAbEd25519WalletSessionRequest(input: {
   readonly admission: RouterAbEd25519WalletSessionAdmission;
   readonly admissionAdapter: RouterAbNormalSigningAdmissionAdapter | null | undefined;
   readonly resolveEd25519MaterialActivation: RouterApiWalletRegistrationService['resolveEd25519MaterialActivation'];
+  /** Rows the session's own statement read. An exhausted candidate has none. */
+  readonly signerRead: Ed25519SignerRead | null;
+  readonly policyReadSource: RouterAbEd25519PolicyReadSource;
 }): Promise<RouterAbEd25519WalletSessionAuthorization> {
   const expectedMaterialActivation = routerAbMpcMaterialActivationRefFromWire(
     input.scope.material_activation,
@@ -775,6 +780,7 @@ async function authorizeRouterAbEd25519WalletSessionRequest(input: {
   const activeMaterial = await input.resolveEd25519MaterialActivation({
     walletId: String(input.session.walletId),
     materialActivation: admittedMaterialActivation,
+    ...(input.signerRead ? { signerRead: input.signerRead } : {}),
   });
   if (
     !activeMaterial.ok ||
@@ -811,6 +817,7 @@ async function authorizeRouterAbEd25519WalletSessionRequest(input: {
   const admissionDecision = await evaluateRouterAbNormalSigningAdmission({
     adapter: input.admissionAdapter,
     curve: 'ed25519',
+    policyReadSource: input.policyReadSource,
     authorizationKind: 'wallet_session_operation_credential_v1',
     phase: input.phase,
     walletId: String(input.session.walletId),
@@ -888,6 +895,8 @@ async function resolveRouterAbEd25519ExhaustedCandidateAuthorization(input: {
     admission,
     admissionAdapter: input.admissionAdapter,
     resolveEd25519MaterialActivation: input.resolveEd25519MaterialActivation,
+    signerRead: null,
+    policyReadSource: { kind: 'database' },
   });
   if (!authorized.ok) return authorized;
   return {
@@ -960,6 +969,7 @@ export async function authorizeRouterAbEd25519NormalSigningRoute(input: {
     headers: input.headers,
     authorizationSessions: input.authorizationSessions,
     operationKind: operationForAdmission.operation.operationKind,
+    materialActivation: scope.material_activation,
   });
   if (!validated.ok) {
     const operation = operationForAdmission.operation;
@@ -1019,6 +1029,8 @@ export async function authorizeRouterAbEd25519NormalSigningRoute(input: {
     admission: validated.admission.admission,
     admissionAdapter: input.admissionAdapter,
     resolveEd25519MaterialActivation: input.resolveEd25519MaterialActivation,
+    signerRead: validated.signerRead,
+    policyReadSource: { kind: 'credential_snapshot', policyRead: validated.policyRead },
   });
   if (!authorized.ok) return authorized;
   return {

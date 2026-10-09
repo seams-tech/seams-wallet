@@ -2,8 +2,12 @@ import type {
   WalletSessionLocatorPublication,
   WalletSessionRoutingPublisher,
 } from './sessionRouting';
-import type { D1EcdsaAdmissionPolicyRead } from '../router/cloudflare/d1/signingAdmission/d1RouterAbNormalSigningAdmissionStore';
+import type {
+  D1EcdsaAdmissionPolicyRead,
+  D1Ed25519AdmissionPolicyRead,
+} from '../router/cloudflare/d1/signingAdmission/d1RouterAbNormalSigningAdmissionStore';
 import type { EcdsaMaterialRead } from '../core/d1EcdsaSignerRead';
+import type { Ed25519SignerRead } from '../core/d1Ed25519SignerRead';
 import type { D1PreparedStatementLike } from '../storage/tenantRoute';
 import type { WalletAuthMethodId, WalletId } from '@shared/utils/domainIds';
 import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
@@ -90,6 +94,12 @@ export type EcdsaWalletSessionAdmissionRead = {
   readonly policyRead: D1EcdsaAdmissionPolicyRead;
 };
 
+export type Ed25519WalletSessionAdmissionRead = {
+  readonly snapshot: WalletSessionAdmissionSnapshotV2;
+  readonly signerRead: Ed25519SignerRead;
+  readonly policyRead: D1Ed25519AdmissionPolicyRead;
+};
+
 export interface AuthorizationSessionPort {
   putIssuedHostedWalletSeamsSessionExchange(
     exchange: IssuedHostedWalletSeamsSessionExchangeV2,
@@ -168,6 +178,12 @@ export interface AuthorizationGrantPort {
     readonly nowMs: number;
     readonly materialActivation: RouterAbMpcMaterialActivationRefWire;
   }): Promise<EcdsaWalletSessionAdmissionRead | null>;
+  readEd25519WalletSessionAdmissionSnapshotByOperationCredential(input: {
+    readonly tenantId: TenantId;
+    readonly tokenHash: DigestB64u;
+    readonly nowMs: number;
+    readonly materialActivation: RouterAbMpcMaterialActivationRefWire;
+  }): Promise<Ed25519WalletSessionAdmissionRead | null>;
   readWalletSessionExactOperationContextByCredential(input: {
     readonly tenantId: TenantId;
     readonly tokenHash: DigestB64u;
@@ -705,6 +721,20 @@ export class AuthorizationService {
     readonly materialActivation: RouterAbMpcMaterialActivationRefWire;
   }): Promise<EcdsaWalletSessionAdmissionRead | null> {
     return this.ports.grants.readEcdsaWalletSessionAdmissionSnapshotByOperationCredential({
+      tenantId: input.tenantId,
+      tokenHash: await digestOpaqueValue(input.token),
+      nowMs: input.nowMs,
+      materialActivation: input.materialActivation,
+    });
+  }
+
+  async readEd25519WalletSessionAdmissionSnapshotByOperationCredential(input: {
+    readonly tenantId: TenantId;
+    readonly token: string;
+    readonly nowMs: number;
+    readonly materialActivation: RouterAbMpcMaterialActivationRefWire;
+  }): Promise<Ed25519WalletSessionAdmissionRead | null> {
+    return this.ports.grants.readEd25519WalletSessionAdmissionSnapshotByOperationCredential({
       tenantId: input.tenantId,
       tokenHash: await digestOpaqueValue(input.token),
       nowMs: input.nowMs,

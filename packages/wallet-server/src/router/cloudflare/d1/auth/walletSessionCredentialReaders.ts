@@ -1,6 +1,7 @@
 import type { AuthorizationService } from '../../../../authorization/service';
 import type { WalletSessionAdmissionSnapshotV2Variant } from '../../../../authorization/domain';
 import type {
+  RouterApiEd25519WalletSessionSigningRead,
   RouterApiWalletSessionAuthorizationV2AdmissionContext,
   RouterApiWalletSessionAuthorizationV2ExhaustedCandidateContext,
   RouterApiWalletSessionSigningCandidate,
@@ -60,6 +61,29 @@ export async function readActiveWalletSessionCredential(
     throw new Error('Stored V2 Wallet Session quota is no longer active');
   }
   return activeContext(snapshot);
+}
+
+/**
+ * The active session with its wallet's Ed25519 signer and policy rows. An
+ * exhausted session throws, as the plain credential read does: its caller
+ * resolves the exhausted candidate separately.
+ */
+export async function readEd25519WalletSessionSigningRead(
+  service: Pick<
+    AuthorizationService,
+    'readEd25519WalletSessionAdmissionSnapshotByOperationCredential'
+  >,
+  input: Parameters<
+    AuthorizationService['readEd25519WalletSessionAdmissionSnapshotByOperationCredential']
+  >[0],
+): Promise<RouterApiEd25519WalletSessionSigningRead | null> {
+  const read = await service.readEd25519WalletSessionAdmissionSnapshotByOperationCredential(input);
+  if (!read) return null;
+  if (read.snapshot.kind === 'exhausted') {
+    throw new Error('Stored V2 Wallet Session quota is no longer active');
+  }
+  const context = activeContext(read.snapshot);
+  return context ? { context, signerRead: read.signerRead, policyRead: read.policyRead } : null;
 }
 
 export async function readWalletSessionSigningCandidate(

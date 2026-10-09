@@ -10,6 +10,7 @@ import {
 import { dispatchWalletRegistrationSetup } from '../../../framework/registrationSetupDispatch';
 import {
   readActiveWalletSessionCredential,
+  readEd25519WalletSessionSigningRead,
   readExhaustedWalletSessionCredential,
   readWalletSessionSigningCandidate,
 } from './walletSessionCredentialReaders';
@@ -2064,6 +2065,8 @@ function createD1AuthorizationSessionRouteService(
       null,
       assembly.authorizationService,
     ),
+    readEd25519WalletSessionSigningReadByOperationCredential:
+      readEd25519WalletSessionSigningRead.bind(null, assembly.authorizationService),
     readWalletSessionExactOperationContextByCredential:
       assembly.authorizationService.readWalletSessionExactOperationContextByCredential.bind(
         assembly.authorizationService,

@@ -1,4 +1,7 @@
-import type { D1EcdsaAdmissionPolicyRead } from '../../cloudflare/d1/signingAdmission/d1RouterAbNormalSigningAdmissionStore';
+import type {
+  D1EcdsaAdmissionPolicyRead,
+  D1Ed25519AdmissionPolicyRead,
+} from '../../cloudflare/d1/signingAdmission/d1RouterAbNormalSigningAdmissionStore';
 // What both normal-signing routes share: JSON results and refusals, the owner step-up decision
 // a failed Wallet Session leads to, route admissions and the policy admission adapter, and the
 // authorized-operation record an admitted request carries.
@@ -153,14 +156,18 @@ export type RouterAbNormalSigningAdmissionResult =
   | { ok: true }
   | RouterAbNormalSigningAdmissionFailure;
 
-type RouterAbNormalSigningPolicyReadSource =
+/** Where a policy decision comes from: the store, or rows the credential read already holds. */
+type RouterAbNormalSigningPolicyReadSource<PolicyRead> =
   | { readonly kind: 'database'; readonly policyRead?: never }
-  | { readonly kind: 'credential_snapshot'; readonly policyRead: D1EcdsaAdmissionPolicyRead };
+  | { readonly kind: 'credential_snapshot'; readonly policyRead: PolicyRead };
+
+export type RouterAbEd25519PolicyReadSource =
+  RouterAbNormalSigningPolicyReadSource<D1Ed25519AdmissionPolicyRead>;
 
 export type RouterAbNormalSigningAdmissionInput =
   | {
       curve: 'ed25519';
-      readonly policyReadSource?: never;
+      readonly policyReadSource: RouterAbEd25519PolicyReadSource;
       authorityKind: 'wallet_authority_v1';
       authorityId: string;
       authorityScope?: never;
@@ -192,7 +199,7 @@ export type RouterAbNormalSigningAdmissionInput =
     }
   | {
       curve: 'ecdsa';
-      readonly policyReadSource: RouterAbNormalSigningPolicyReadSource;
+      readonly policyReadSource: RouterAbNormalSigningPolicyReadSource<D1EcdsaAdmissionPolicyRead>;
       phase: 'prepare' | 'finalize';
       walletId: string;
       materialActivationId: MpcMaterialActivationId;
@@ -214,7 +221,7 @@ export type RouterAbNormalSigningAdmissionEvaluationInput =
   | {
       adapter: RouterAbNormalSigningAdmissionAdapter | null | undefined;
       curve: 'ed25519';
-      readonly policyReadSource?: never;
+      readonly policyReadSource: RouterAbEd25519PolicyReadSource;
       authorizationKind: 'wallet_session_operation_credential_v1';
       phase: 'prepare' | 'finalize';
       walletId: string;
@@ -230,7 +237,7 @@ export type RouterAbNormalSigningAdmissionEvaluationInput =
   | {
       adapter: RouterAbNormalSigningAdmissionAdapter | null | undefined;
       curve: 'ecdsa';
-      readonly policyReadSource: RouterAbNormalSigningPolicyReadSource;
+      readonly policyReadSource: RouterAbNormalSigningPolicyReadSource<D1EcdsaAdmissionPolicyRead>;
       authorizationKind: 'wallet_session_operation_credential_v1';
       phase: 'prepare' | 'finalize';
       walletId: string;
@@ -259,6 +266,7 @@ export async function evaluateRouterAbNormalSigningAdmission(
   if (input.curve === 'ed25519') {
     return await input.adapter.evaluatePolicy({
       curve: 'ed25519',
+      policyReadSource: input.policyReadSource,
       authorityKind: 'wallet_authority_v1',
       authorityId: input.authorityId,
       phase: input.phase,
