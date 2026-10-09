@@ -113,6 +113,10 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
         },
       });
       if (deps.respondIfCancelled(req.requestId)) return;
+      // The parent receives the registered session before the result, so it
+      // does not ask for it again.
+      if (result.success) await deps.publishCurrentSession();
+      if (deps.respondIfCancelled(req.requestId)) return;
       respondOkResult(deps, req.requestId, result);
     },
 

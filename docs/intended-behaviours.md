@@ -1618,7 +1618,11 @@ One host observation supplies the exact session state and the complete public
 server-status reads. A lock, wallet-selection change, or authority change during
 that observation makes the host discard it and observe again. Each later explicit
 `getSession` or `refreshSession` request obtains fresh server status.
-Registration publishes that observation before returning. React uses its session
+Registration publishes that observation before returning. A NEAR-only
+registration's response states the session the server issued as its last step,
+so this one observation takes the session's status from the response and sends
+no status request. A registration that includes ECDSA observes the server,
+because its session changes after the response. React uses its session
 subscription to display the registered wallet without another status request.
 Signing prepare continues to enforce current revocation, expiry, and quota state.
 The iframe protocol requires matching client and wallet-host assets at version 15.0.0.

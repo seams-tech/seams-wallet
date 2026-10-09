@@ -80,7 +80,11 @@ function isEvmFamilyEcdsaSigner(signer: IntendedRegistrationSignerKind): boolean
 }
 
 function recordNearBenchmarkDuration(
-  event: 'near_sdk_registration_timing' | 'near_sdk_signing_started' | 'near_sdk_signing_timing',
+  event:
+    | 'near_sdk_registration_timing'
+    | 'near_sdk_signing_started'
+    | 'near_sdk_signing_timing'
+    | 'near_sdk_message_signing_timing',
   startedAt: number,
 ): void {
   console.info(
@@ -1210,12 +1214,15 @@ class IntendedPageController {
     nearAccountId: string;
     params: SignNEP413MessageParams;
   }): Promise<SignNEP413MessageResult> {
-    return await this.seams.near.signMessage({
+    const signingStartedAt = performance.now();
+    const result = await this.seams.near.signMessage({
       walletSession: this.walletId,
       nearAccount: requireNearAccountId(input.nearAccountId),
       params: input.params,
       options: { signerSlot: this.nearSignerSlot, onEvent: this.recordLifecycleEvent },
     });
+    recordNearBenchmarkDuration('near_sdk_message_signing_timing', signingStartedAt);
+    return result;
   }
 
   moveWalletForIntendedTest = async (

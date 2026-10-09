@@ -17,7 +17,7 @@ import {
 } from './harness';
 
 test(
-  'NEAR registration shares overlapping observations, keeps queries fresh, and respects lock',
+  'NEAR registration publishes its session without a status request, keeps queries fresh, and respects lock',
   verifyNearSessionObservation,
 );
 

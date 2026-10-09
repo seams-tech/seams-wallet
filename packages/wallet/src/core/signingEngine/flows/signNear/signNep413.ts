@@ -19,6 +19,7 @@ import {
   SigningOperationCommandKind,
   runSigningOperationCommand,
 } from '../shared/signingStateMachine';
+import { emitEd25519SigningTiming } from '../../session/operationState/trace';
 import type { NearNep413Payload } from '../../interfaces/near';
 import { base64Encode, base64UrlDecode } from '@shared/utils/base64';
 import {
@@ -65,6 +66,7 @@ export async function signNep413Message({
       ? selection.selectedLane.identity.signer.signerSlot
       : selection.candidate.signerSlot;
   const operationId = payload.operationId;
+  const preConfirmationStartedAt = performance.now();
   const relayerUrl = ctx.relayerUrl;
   const nearAccountId = nearAccount.accountId;
   const touchConfirm = ctx.touchConfirm;
@@ -141,6 +143,8 @@ export async function signNep413Message({
     passkeyEd25519OperationStepUp,
     emailOtpEd25519StepUp,
   });
+  emitEd25519SigningTiming(String(operationId), 'pre_confirmation', preConfirmationStartedAt);
+  const confirmationStartedAt = performance.now();
   const confirmation = await confirmNearSignatureOnlyOperation(operation, {
     touchConfirm,
     signingAuthPlan: stepUp.preparedStepUp.confirmationAuthPayload.signingAuthPlan,
@@ -151,6 +155,8 @@ export async function signNep413Message({
     confirmationConfigOverride: payload.confirmationConfigOverride,
     request: { kind: 'nep413', message: payload.message, recipient: payload.recipient },
   });
+  emitEd25519SigningTiming(String(operationId), 'confirmation', confirmationStartedAt);
+  const confirmedAt = performance.now();
   const authorization = authorizeNearSignatureOnlyOperation(operation, stepUp, confirmation);
   const signingMaterial = await runSigningOperationCommand({
     signingSessionPlan,
@@ -175,6 +181,7 @@ export async function signNep413Message({
       },
     } as WorkerSuccessResponse<typeof WorkerRequestType.SignNep413Message>;
   });
+  emitEd25519SigningTiming(String(operationId), 'confirmed_to_signed', confirmedAt);
 
   return {
     success: true,

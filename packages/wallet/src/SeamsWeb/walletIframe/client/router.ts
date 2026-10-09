@@ -3012,10 +3012,6 @@ export class WalletIframeRouter {
       },
       { timeoutMs: WALLET_IFRAME_REGISTRATION_TIMEOUT_MS },
     );
-    const walletId = res.result?.success ? String(res.result.walletId || '') : '';
-    if (walletId) {
-      await this.refreshExactSessionAndEmitChange('current', { kind: 'exact', walletId });
-    }
     return res.result;
   }
 

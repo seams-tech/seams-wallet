@@ -6,6 +6,10 @@ class SessionReadEvidence {
   readonly requests: { stage: string; path: string }[] = [];
   stage = 'registration';
 
+  count(stage: string): number {
+    return this.requests.filter((request) => request.stage === stage).length;
+  }
+
   record(request: Request): void {
     const path = new URL(request.url()).pathname;
     if (request.method() === 'POST' && path === '/wallet/session/status') {
@@ -31,21 +35,13 @@ export async function verifyNearSessionObservation(
   const evidence = new SessionReadEvidence();
   const record = evidence.record.bind(evidence);
   context.on('request', record);
-  const held = await harness.holdWalletSessionStatusAnswers();
-  const registration = harness.registerPasskeyEd25519YaoWallet();
-  let sharedRegistrationStatusRequests = 0;
   try {
-    await expect.poll(held.heldCount).toBeGreaterThan(0);
-    // Keep the real reply pending while the explicit registration query arrives.
-    await page.waitForTimeout(250);
-    sharedRegistrationStatusRequests = held.heldCount();
-    expect(sharedRegistrationStatusRequests).toBe(1);
-  } finally {
-    await held.dispose();
-  }
-  await registration;
-  const signature = await harness.signNearMessage('Verify the shared registration observation');
-  try {
+    // The registration response states the issued session, and signing prepare
+    // returns the status it admitted, so neither asks the Gateway for status.
+    await harness.registerPasskeyEd25519YaoWallet();
+    evidence.stage = 'first_signature';
+    const signature = await harness.signNearMessage('Verify the registered session observation');
+    expect(evidence.requests).toEqual([]);
     evidence.stage = 'first_explicit_query';
     const beforeFirst = evidence.requests.length;
     expect(await page.evaluate(readWalletAuthentication)).toBe('authenticated');
@@ -73,7 +69,8 @@ export async function verifyNearSessionObservation(
     await harness.assertWalletLocked();
     const artifact = testInfo.outputPath('near-session-observation.json');
     await writeFile(artifact, JSON.stringify({
-      sharedRegistrationStatusRequests,
+      registrationStatusRequests: evidence.count('registration'),
+      firstSignatureStatusRequests: evidence.count('first_signature'),
       laterQueriesReadFreshStatus: true,
       lockWinsOverDelayedStatus: true,
       signature,

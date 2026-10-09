@@ -85,6 +85,17 @@ export type ExactWalletSessionStatus =
 
 export type PreparedWalletSessionStatus = Variant<ExactWalletSessionStatus, 'status', 'active'>;
 
+/** What a registration response states about the session it issued. */
+type RegistrationIssuedSession = Pick<
+  RegistrationEstablishedSessionV2,
+  | 'walletSessionId'
+  | 'quotaId'
+  | 'remainingUses'
+  | 'expiresAtMs'
+  | 'walletSession'
+  | 'operationCredential'
+>;
+
 interface ExactWalletSessionStatusPort {
   read(input: ExactWalletSessionStatusIdentity): Promise<ExactWalletSessionStatus>;
 }
@@ -107,6 +118,9 @@ type LocalWalletSessionObservation = {
 // Bound the retained credentials and keep fetch mocks isolated.
 const observationsByFetch = new WeakMap<typeof fetch, Map<string, LocalWalletSessionObservation>>();
 let observationSequence = 0;
+
+// Sessions a registration response issued that no host observation has read yet.
+const registrationSessions = new Map<string, PreparedWalletSessionStatus>();
 
 function statusIdentityKey(
   options: RelayerExactWalletSessionStatusPortOptions,
@@ -133,6 +147,8 @@ function recordStatusObservation(
   }
   const previous = observations.get(key);
   if (previous && previous.sequence > sequence) return status;
+  // Any recorded status is at least as new as the registration response.
+  registrationSessions.delete(key);
   observations.delete(key);
   observations.set(key, { kind: 'local_wallet_session_observation', sequence, status });
   if (observations.size > 32) {
@@ -151,15 +167,16 @@ export class WalletSessionStatusReadScope {
 
   private suppliedStatus:
     | { readonly kind: 'remote' }
+    | { readonly kind: 'host_observation' }
     | {
         readonly kind: 'server_response';
         readonly key: string;
-        readonly status: Variant<ExactWalletSessionStatus, 'status', 'active'>;
+        readonly status: PreparedWalletSessionStatus;
       } = { kind: 'remote' };
 
   static fromPrepare(
     options: RelayerExactWalletSessionStatusPortOptions,
-    status: Variant<ExactWalletSessionStatus, 'status', 'active'>,
+    status: PreparedWalletSessionStatus,
   ): WalletSessionStatusReadScope {
     const scope = new WalletSessionStatusReadScope();
     scope.suppliedStatus = { kind: 'server_response', key: statusIdentityKey(options, status), status };
@@ -170,23 +187,42 @@ export class WalletSessionStatusReadScope {
    * current server authorization before it generates or admits material. */
   static fromRegistration(
     relayerUrl: string,
-    session: RegistrationEstablishedSessionV2,
+    session: RegistrationIssuedSession,
   ): WalletSessionStatusReadScope {
-    const status: Variant<ExactWalletSessionStatus, 'status', 'active'> = {
-      status: 'active',
-      walletSessionId: session.walletSessionId,
-      quotaId: session.quotaId,
-      remainingUses: session.remainingUses,
-      expiresAtMs: session.expiresAtMs,
-      quotaLifecycle: 'active',
-      authorization: session.walletSession,
-    };
+    const status = registrationSessionStatus(session);
     const scope = new WalletSessionStatusReadScope();
     scope.suppliedStatus = {
       kind: 'server_response',
       key: statusIdentityKey({ relayerUrl, operationCredential: session.operationCredential }, status),
       status,
     };
+    return scope;
+  }
+
+  /**
+   * A NEAR-only registration's finalize response states the session the server
+   * issued as its last step. The wallet host's next observation of this exact
+   * session reads it from the response; asking the server would repeat it.
+   * An ECDSA registration keeps changing its session after it is issued, so
+   * that path observes the server.
+   */
+  static acceptRegistrationSession(relayerUrl: string, session: RegistrationIssuedSession): void {
+    const status = registrationSessionStatus(session);
+    registrationSessions.set(
+      statusIdentityKey({ relayerUrl, operationCredential: session.operationCredential }, status),
+      status,
+    );
+    if (registrationSessions.size > 8) {
+      const oldest = registrationSessions.keys().next();
+      if (!oldest.done) registrationSessions.delete(oldest.value);
+    }
+  }
+
+  /** One wallet-host observation. It reads a session that a registration response
+   * issued once; every other read, and every explicit session query, asks the server. */
+  static forHostObservation(): WalletSessionStatusReadScope {
+    const scope = new WalletSessionStatusReadScope();
+    scope.suppliedStatus = { kind: 'host_observation' };
     return scope;
   }
 
@@ -228,12 +264,28 @@ export class WalletSessionStatusReadScope {
     const existing = reads.get(key);
     if (existing) return existing;
     const sequence = ++observationSequence;
-    const pending = createRelayerExactWalletSessionStatusPort(options)
-      .read(identity)
-      .then(recordStatusObservation.bind(null, fetchImpl, key, sequence));
+    const issued =
+      this.suppliedStatus.kind === 'host_observation' ? registrationSessions.get(key) : undefined;
+    const pending = issued
+      ? Promise.resolve(recordStatusObservation(fetchImpl, key, sequence, issued))
+      : createRelayerExactWalletSessionStatusPort(options)
+          .read(identity)
+          .then(recordStatusObservation.bind(null, fetchImpl, key, sequence));
     reads.set(key, pending);
     return pending;
   }
+}
+
+function registrationSessionStatus(session: RegistrationIssuedSession): PreparedWalletSessionStatus {
+  return {
+    status: 'active',
+    walletSessionId: session.walletSessionId,
+    quotaId: session.quotaId,
+    remainingUses: session.remainingUses,
+    expiresAtMs: session.expiresAtMs,
+    quotaLifecycle: 'active',
+    authorization: session.walletSession,
+  };
 }
 
 const OBSERVED_FIELDS = [

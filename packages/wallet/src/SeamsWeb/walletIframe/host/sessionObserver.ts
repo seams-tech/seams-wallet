@@ -273,7 +273,7 @@ export class WalletHostSessionObserver {
     payload: PMGetExactWalletSessionStatePayload,
   ): Promise<SessionObservation> {
     const revision = ++sessionObservationRevision;
-    const statusReads = new WalletSessionStatusReadScope();
+    const statusReads = WalletSessionStatusReadScope.forHostObservation();
     const state = await resolveExactWalletSessionState(this.runtime, payload, statusReads);
     const session =
       state.kind === 'wallet_locked'

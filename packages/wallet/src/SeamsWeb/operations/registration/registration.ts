@@ -4668,6 +4668,7 @@ async function registerEmailOtpEd25519YaoWalletOnly(
       },
       registration,
     });
+    WalletSessionStatusReadScope.acceptRegistrationSession(relayerUrl, registrationSession);
     const storedNearActivation = stored.signerActivations[1];
     if (!storedNearActivation || storedNearActivation.signerSlot !== finalized.ed25519.signerSlot) {
       throw new Error('Ed25519 Yao registration persisted a different signer slot');
@@ -5079,6 +5080,7 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
       },
       registration,
     });
+    WalletSessionStatusReadScope.acceptRegistrationSession(relayerUrl, registrationSession);
     const storedNearActivation = stored.signerActivations[1];
     if (!storedNearActivation || storedNearActivation.signerSlot !== finalized.ed25519.signerSlot) {
       throw new Error('Ed25519 Yao registration persisted a different signer slot');
