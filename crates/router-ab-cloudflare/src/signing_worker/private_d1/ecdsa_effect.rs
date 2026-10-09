@@ -31,6 +31,7 @@ struct EcdsaEffectSnapshotRow {
 /// Only the transaction that writes both records can release one-use material.
 pub(crate) async fn prepare_cloudflare_signing_worker_ecdsa_finalize_v1(
     env: &Env,
+    wallet_objects: crate::WalletObjectRoute,
     runtime: &CloudflareSigningWorkerRuntimeV1,
     request: &CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1,
     now_unix_ms: u64,
@@ -130,7 +131,7 @@ pub(crate) async fn prepare_cloudflare_signing_worker_ecdsa_finalize_v1(
                     runtime,
                     scope,
                     &request.material_source,
-                    Some(crate::SigningWorkerWalletRoute { scope: &request.wallet_scope, ownership_generation: request.ownership_generation }),
+                    Some(crate::SigningWorkerWalletRoute { objects: wallet_objects, scope: &request.wallet_scope, ownership_generation: request.ownership_generation }),
                     now_unix_ms,
                 )
                 .await?

@@ -6,7 +6,7 @@ pub(crate) const ADDRESS_HEADER: &str = "x-seams-yao-delivery-address";
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct DeliveryAddress {
-    pub wallet_home: crate::WalletHomeRegion,
+    pub wallet_route: crate::WalletObjectRoute,
     pub ownership_generation: u64,
     pub scope: crate::CloudflareSigningWorkerWalletScopeV1,
 }
@@ -16,7 +16,7 @@ impl DeliveryAddress {
         delivery: &CloudflareScopedEd25519YaoPackagePairDeliveryV1,
     ) -> Self {
         Self {
-            wallet_home: delivery.wallet_home,
+            wallet_route: delivery.wallet_route,
             ownership_generation: delivery.ownership_generation,
             scope: delivery.scope.clone(),
         }

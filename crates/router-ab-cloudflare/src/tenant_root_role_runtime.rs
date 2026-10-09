@@ -1396,10 +1396,10 @@ pub trait TenantRootDeriverHostV1:
     /// wallet objects, and its admissions never name one.
     async fn reconcile_wallet_object_pair(
         &self,
-        pair_object_name: &str,
+        pair_object_id: &str,
         request: &crate::tenant_root_role_d1::TenantRootWalletPairReconcileRequestV1,
     ) -> RouterAbProtocolResult<crate::tenant_root_role_d1::TenantRootWalletPairReconciliationV1> {
-        let _ = (pair_object_name, request);
+        let _ = (pair_object_id, request);
         Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
             "this Deriver host keeps no wallet objects",
@@ -1660,7 +1660,7 @@ pub async fn tenant_root_deriver_fence_peer_pair_v1<Host: TenantRootDeriverHostV
             )),
         };
     };
-    match (admission.status.as_str(), admission.pair_object_name) {
+    match (admission.status.as_str(), admission.pair_object_id) {
         ("settled", _) => Ok(CloudflareDeriverTenantRootPeerPairFenceResponseV1::Completed),
         ("cancelled", _) => Ok(CloudflareDeriverTenantRootPeerPairFenceResponseV1::Fenced),
         ("admitted", None) => {
@@ -1683,10 +1683,10 @@ pub async fn tenant_root_deriver_fence_peer_pair_v1<Host: TenantRootDeriverHostV
                 )),
             }
         }
-        ("admitted", Some(pair_object_name)) => {
+        ("admitted", Some(pair_object_id)) => {
             let reconciliation = host
                 .reconcile_wallet_object_pair(
-                    &pair_object_name,
+                    &pair_object_id,
                     &crate::tenant_root_role_d1::TenantRootWalletPairReconcileRequestV1 {
                         session_hex: request.session_hex.clone(),
                         fence: true,
@@ -1698,7 +1698,7 @@ pub async fn tenant_root_deriver_fence_peer_pair_v1<Host: TenantRootDeriverHostV
             store
                 .record_wallet_object_reconciliation(
                     &request.session_hex,
-                    &pair_object_name,
+                    &pair_object_id,
                     reconciliation,
                 )
                 .await
@@ -1903,14 +1903,14 @@ impl<'a> TenantRootDeriverHostV1 for CloudflareTenantRootDeriverHostV1<'a> {
 
     async fn reconcile_wallet_object_pair(
         &self,
-        pair_object_name: &str,
+        pair_object_id: &str,
         request: &crate::tenant_root_role_d1::TenantRootWalletPairReconcileRequestV1,
     ) -> RouterAbProtocolResult<crate::tenant_root_role_d1::TenantRootWalletPairReconciliationV1> {
         #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
         if matches!(self.worker_role, crate::CloudflareWorkerRoleV1::DeriverA) {
             return crate::durable_object::reconcile_deriver_a_wallet_pair_v1(
                 self.env,
-                pair_object_name,
+                pair_object_id,
                 request,
             )
             .await
@@ -1920,13 +1920,13 @@ impl<'a> TenantRootDeriverHostV1 for CloudflareTenantRootDeriverHostV1<'a> {
         if matches!(self.worker_role, crate::CloudflareWorkerRoleV1::DeriverB) {
             return crate::durable_object::reconcile_deriver_b_wallet_pair_v1(
                 self.env,
-                pair_object_name,
+                pair_object_id,
                 request,
             )
             .await
             .map_err(wallet_object_unreachable_error_v1);
         }
-        let _ = (pair_object_name, request);
+        let _ = (pair_object_id, request);
         Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
             "this Deriver build keeps no wallet objects",
@@ -6879,7 +6879,7 @@ pub async fn tenant_root_deriver_cleanup_v1<Host: TenantRootDeriverHostV1>(
                 .is_ok_and(|admitted_at_ms| admitted_at_ms <= admitted_at_or_before_ms);
             let reconciliation = host
                 .reconcile_wallet_object_pair(
-                    &admission.pair_object_name,
+                    &admission.pair_object_id,
                     &crate::tenant_root_role_d1::TenantRootWalletPairReconcileRequestV1 {
                         session_hex: admission.attempt_key_hex.clone(),
                         fence,
@@ -6904,7 +6904,7 @@ pub async fn tenant_root_deriver_cleanup_v1<Host: TenantRootDeriverHostV1>(
                 )
                 .await?;
                 host.reconcile_wallet_object_pair(
-                    &admission.pair_object_name,
+                    &admission.pair_object_id,
                     &crate::tenant_root_role_d1::TenantRootWalletPairReconcileRequestV1 {
                         session_hex: admission.attempt_key_hex.clone(),
                         fence: true,
@@ -6919,7 +6919,7 @@ pub async fn tenant_root_deriver_cleanup_v1<Host: TenantRootDeriverHostV1>(
             store
                 .record_wallet_object_reconciliation(
                     &admission.attempt_key_hex,
-                    &admission.pair_object_name,
+                    &admission.pair_object_id,
                     reconciliation,
                 )
                 .await

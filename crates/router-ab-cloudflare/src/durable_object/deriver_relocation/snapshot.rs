@@ -140,6 +140,8 @@ pub(crate) async fn forward<Owner: WalletOwner>(
     binding: &str,
     path: &str,
 ) -> worker::Result<Response> {
+    let wallet_objects = crate::WalletObjectRoute::from_gateway_request(&request)
+        .map_err(|error| worker::Error::RustError(error.to_string()))?;
     if request.method() != Method::Post {
         return Response::error("Deriver snapshot requires POST", 405);
     }
@@ -158,15 +160,7 @@ pub(crate) async fn forward<Owner: WalletOwner>(
         return Response::error("Deriver encryption context differs from source", 409);
     }
     let namespace = env.durable_object(binding)?;
-    let generation = match &command {
-        Command::Capture { .. } | Command::Export { .. } | Command::Cleanup { .. } => {
-            command.source().source_generation
-        }
-        Command::Import { .. } | Command::Status { .. } | Command::Verify { .. } | Command::Activate { .. } => {
-            command.source().destination_generation
-        }
-    };
-    let stub = namespace.get_by_name(&command.source().owner.physical_object_name(generation)?)?;
+    let stub = Owner::object_id(wallet_objects).stub(&namespace, wallet_objects.home)?;
     let body = encode(&command)?;
     let forwarded = Request::new_with_init(
         &format!("https://router-ab-do.internal{path}"),

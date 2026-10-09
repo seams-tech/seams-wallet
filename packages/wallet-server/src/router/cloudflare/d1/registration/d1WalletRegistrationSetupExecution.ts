@@ -118,6 +118,10 @@ export async function executeD1WalletRegistrationSetup(
           'Registration setup conflicts with its reservation',
         );
       if (admitted.lifecycle === 'reserved') await dependencies.store.ensureSetupCeremony(existing);
+      await dependencies.startRegistrationWallets?.({
+        walletId: wallet.walletId,
+        ownershipGeneration: admitted.ownershipGeneration,
+      });
       return await setupResponseFromCeremony(input, dependencies.home, existing);
     }
     if (admitted.lifecycle === 'established')
@@ -216,14 +220,11 @@ export async function executeD1WalletRegistrationSetup(
       signerState: { kind: 'signer_set_registration', branches: storedBranches },
     };
     const stored = await dependencies.store.reserveSetupCeremony(ceremony);
-    /* The proof and the Yao admission follow within seconds. Starting the
-       wallet's custody objects now lets that time cover their construction.
-       A replayed setup takes the branch above and starts nothing again. */
-    if (nearEd25519Branch)
-      dependencies.startRegistrationWallets?.({
-        walletId: wallet.walletId,
-        ownershipGeneration: admitted.ownershipGeneration,
-      });
+    // A retry after lost allocation must recover the same persisted addresses.
+    await dependencies.startRegistrationWallets?.({
+      walletId: wallet.walletId,
+      ownershipGeneration: admitted.ownershipGeneration,
+    });
     return await setupResponseFromCeremony(input, dependencies.home, stored);
   } catch (error: unknown) {
     return walletRegistrationSetupError(

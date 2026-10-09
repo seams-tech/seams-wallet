@@ -1,3 +1,4 @@
+import { walletObjectIdentityFromWireScope, walletObjectIdentity, walletRelocationObjectIdentity, walletObjectIdentityHeaders, type WalletObjectIdentity } from './walletObjectAddresses';
 import { presignSourceOperation, forwardPresignSource } from './walletRelocationPresign';
 import { ecdsaRuntimeOperation, forwardEcdsaRelocation } from './walletRelocationEcdsa';
 import { ed25519RuntimeOperation, forwardEd25519Snapshot } from './walletRelocationEd25519';
@@ -125,6 +126,7 @@ export async function handleWalletRelocationRequest(
   const presignAction = presignSourceOperation(operation);
   if (presignAction) return forwardPresignSource(input, presignAction, env.MPC_ROUTER, credential, env);
   let body: BodyInit = bytes;
+  let identity: WalletObjectIdentity | null = null;
   if (
     operation === 'router-cleanup' ||
     operation === 'router-activate' ||
@@ -143,6 +145,7 @@ export async function handleWalletRelocationRequest(
       return failure(authorized.code, status);
     }
     body = authorized.body;
+    identity = authorized.identity;
   } else if (
     operation === 'router-transfer' &&
     isPlainObject(input) &&
@@ -165,6 +168,38 @@ export async function handleWalletRelocationRequest(
   ) {
     return failure('source_command_required', 400);
   }
+  if ((operation === 'deriver-a-prepare' || operation === 'deriver-b-prepare' ||
+       operation === 'deriver-a-context' || operation === 'deriver-b-context') &&
+      isPlainObject(input) && isPlainObject(input.owner)) {
+    identity = walletObjectIdentity(input.owner.wallet_id,
+      operation.endsWith('-prepare') ? input.destination_generation : input.ownership_generation, {
+        orgId: input.owner.org_id, projectId: input.owner.project_id, envId: input.owner.env_id,
+      });
+  }
+  if (isPlainObject(input)) {
+    if (operation === 'router-transfer' && input.kind === 'prepare' && isPlainObject(input.request) && isPlainObject(input.request.owner)) {
+      const owner = input.request.owner;
+      identity = walletObjectIdentity(owner.wallet_id, input.request.destination_generation, {
+        orgId: owner.org_id, projectId: owner.project_id, envId: owner.env_id,
+      });
+    } else if (operation === 'ecdsa-transfer' && input.kind === 'prepare' && isPlainObject(input.request)) {
+      const source = walletObjectIdentityFromWireScope(input.scope, input.request.source_generation);
+      identity = walletObjectIdentity(source.walletId, source.ownershipGeneration + 1, source);
+    } else if (operation === 'ed25519-snapshot' && input.command === 'prepare' && isPlainObject(input.source) && isPlainObject(input.source.request)) {
+      const source = walletObjectIdentityFromWireScope(input.source.scope, input.source.request.source_generation);
+      identity = walletObjectIdentity(source.walletId, source.ownershipGeneration + 1, source);
+    } else if (operation === 'presign-transfer' && input.kind === 'prepare' && isPlainObject(input.command) && isPlainObject(input.command.request)) {
+      const source = walletObjectIdentityFromWireScope(input.command.wallet_scope, input.command.request.source_generation);
+      identity = walletObjectIdentity(source.walletId, source.ownershipGeneration + 1, source);
+    } else if (operation === 'presign-preparation-inventory') {
+      identity = walletObjectIdentityFromWireScope(input.scope, input.source_generation);
+    }
+  }
+  if (operation === 'custody-target' && isPlainObject(input) && input.role !== 'presignSessions') {
+    if (!isPlainObject(input.wallet)) return failure('invalid_input', 400);
+    identity = walletRelocationObjectIdentity(input.wallet, input.ownership_generation);
+    body = JSON.stringify({ role: input.role, object_name: input.object_name, placement: input.placement });
+  }
   let transport = env.MPC_ROUTER;
   let origin = 'https://mpc-router.router-ab.internal';
   if (operation === 'deriver-a-prepare' || operation === 'deriver-a-context') {
@@ -180,6 +215,7 @@ export async function handleWalletRelocationRequest(
       redirect: 'manual',
       headers: {
         'content-type': 'application/json',
+        ...(identity === null ? {} : walletObjectIdentityHeaders(identity)),
         [ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1]: credential,
       },
       body,

@@ -3340,13 +3340,13 @@ async function rootLifecycleHelpers(topology, fixture, databases) {
         (
           await database
             .prepare(
-              `SELECT tenant_root_share_epoch AS epoch, status, pair_object_name
+              `SELECT tenant_root_share_epoch AS epoch, status, pair_object_id
                FROM tenant_root_root_use_admissions
                WHERE custody_lineage_b64u = ?1 ORDER BY tenant_root_share_epoch, admitted_at_ms`,
             )
             .bind(ceremony.custody_lineage_b64u)
             .all()
-        ).results.map((row) => [row.epoch, row.status, row.pair_object_name !== null]),
+        ).results.map((row) => [row.epoch, row.status, row.pair_object_id !== null]),
       ),
     );
   const revision = async (database, ceremony, epoch) =>
@@ -3386,7 +3386,7 @@ async function rootLifecycleHelpers(topology, fixture, databases) {
     const database = role === 'deriver_a' ? databases.deriverA : databases.deriverB;
     const row = await database
       .prepare(
-        `SELECT attempt_key_hex, pair_object_name FROM tenant_root_root_use_admissions
+        `SELECT attempt_key_hex, pair_object_id FROM tenant_root_root_use_admissions
          WHERE custody_lineage_b64u = ?1 AND tenant_root_share_epoch = ?2`,
       )
       .bind(ceremony.custody_lineage_b64u, epoch)
@@ -3394,7 +3394,7 @@ async function rootLifecycleHelpers(topology, fixture, databases) {
     const binding = role === 'deriver_a' ? deriverAWalletDoBinding : 'DERIVER_B_WALLET_DO';
     const worker = role === 'deriver_a' ? 'deriver-a' : 'deriver-b';
     const namespace = await topology.getDurableObjectNamespace(binding, worker);
-    const object = namespace.get(namespace.idFromName(row.pair_object_name));
+    const object = namespace.get(namespace.idFromString(row.pair_object_id));
     const response = await object.fetch(
       `https://router-ab-do.internal/router-ab/internal/${worker}/wallet-pair/reconcile`,
       {

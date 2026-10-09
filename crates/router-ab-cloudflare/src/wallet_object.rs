@@ -15,6 +15,7 @@ pub(crate) fn physical_wallet_object_name(
 
 #[derive(Clone, Copy)]
 pub(crate) struct SigningWorkerWalletRoute<'a> {
+    pub objects: crate::WalletObjectRoute,
     pub scope: &'a crate::CloudflareSigningWorkerWalletScopeV1,
     pub ownership_generation: u64,
 }

@@ -4426,7 +4426,15 @@ fn direct_deriver_b_preparation_for_v1(
         router_ab_cloudflare::parse_cloudflare_tenant_root_creation_role_verifying_keys_v1(&env)?
             .deriver_identities()?;
     let tenant_root = router_ab_cloudflare::cloudflare_ed25519_yao_tenant_root_context_v2(
-        router_ab_cloudflare::WalletHomeRegion::US,
+        serde_json::from_value(serde_json::json!({
+            "home": "US",
+            "addresses": {
+                "router": "11".repeat(32),
+                "deriver_a": "22".repeat(32),
+                "deriver_b": "33".repeat(32),
+                "signing_worker": "44".repeat(32),
+            },
+        })).expect("native harness route"),
         registration.target.ownership_generation(),
         identity.clone(),
         &receipt,

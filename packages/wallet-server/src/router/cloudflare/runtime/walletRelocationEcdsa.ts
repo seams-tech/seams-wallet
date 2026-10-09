@@ -1,3 +1,4 @@
+import { walletRelocationObjectIdentity, walletObjectIdentityHeaders, type WalletObjectIdentity } from './walletObjectAddresses';
 import { isPlainObject } from '@shared/utils/validation';
 import { ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1 } from '../../../core/ThresholdService/routerAb/internalServiceHttp';
 import type { CloudflareServiceBindingFetcher } from './routerAbServiceBindings';
@@ -36,14 +37,14 @@ export async function forwardEcdsaRelocation(
       if (!authorization.ok) return failure(authorization.code, authorization.code === 'source_command_denied' ? 409 : 503);
       const source: unknown = JSON.parse(authorization.body);
       if (!isPlainObject(source)) return failure('source_command_unavailable', 503);
-      let response = await postRole(router, 'pool/freeze', source, credential);
+      let response = await postRole(router, 'pool/freeze', source, credential, authorization.identity);
       let raw: unknown = await response.clone().json();
       // Continue durable local progress without another Console authorization trip.
       // Draining means existing work must settle, so return it immediately.
       for (let step = 1; step < TRANSFER_BATCH_SEGMENTS && response.ok &&
           isPlainObject(raw) && Object.keys(raw).length === 1 &&
           (raw.state === 'invalidating' || raw.state === 'sealing'); step += 1) {
-        response = await postRole(router, 'pool/freeze', source, credential);
+        response = await postRole(router, 'pool/freeze', source, credential, authorization.identity);
         raw = await response.clone().json();
       }
       if (!response.ok) return response;
@@ -72,6 +73,7 @@ export async function forwardEcdsaRelocation(
     const command = result.command;
     const receipt = parseReceipt(operation === 'cleanup' ? command.activation : command.receipt, envelope);
     if (!receipt) return failure('source_command_unavailable', 503);
+    const identity = walletRelocationObjectIdentity(envelope.wallet, receipt.request.source_generation + (operation === 'export' || operation === 'cleanup' ? 0 : 1));
     if ((operation === 'export' || operation === 'status' || operation === 'import') && command.chunk_bytes !== 4096)
       return failure('source_command_unavailable', 503);
     if (operation === 'export') {
@@ -82,7 +84,7 @@ export async function forwardEcdsaRelocation(
       for (let step = 0; step < TRANSFER_BATCH_SEGMENTS; step += 1) {
         const response = await postRole(router, 'ecdsa/export', {
           receipt, segment_index: segmentIndex, chunk_bytes: 4096,
-        }, credential);
+        }, credential, identity);
         if (!response.ok) return response;
         const chunk = parseChunk(await response.json(), receipt);
         if (!chunk || chunk.segment_index !== segmentIndex ||
@@ -107,7 +109,7 @@ export async function forwardEcdsaRelocation(
       }
       let response: Response = failure('invalid_input', 400);
       for (const chunk of chunks) {
-        response = await postRole(router, 'ecdsa/transfer', { kind: 'import', chunk }, credential);
+        response = await postRole(router, 'ecdsa/transfer', { kind: 'import', chunk }, credential, identity);
         if (!response.ok) return response;
         const accepted: unknown = await response.clone().json();
         if (!isPlainObject(accepted) || accepted.kind !== 'imported' ||
@@ -116,9 +118,9 @@ export async function forwardEcdsaRelocation(
       }
       return response;
     }
-    if (operation === 'cleanup') return await postRole(router, 'ecdsa/transfer', { kind: 'cleanup', activation: receipt }, credential);
-    if (operation === 'status') return await postRole(router, 'ecdsa/transfer', { kind: 'status', receipt, chunk_bytes: 4096 }, credential);
-    const response = await postRole(router, 'ecdsa/transfer', { kind: operation, receipt }, credential);
+    if (operation === 'cleanup') return await postRole(router, 'ecdsa/transfer', { kind: 'cleanup', activation: receipt }, credential, identity);
+    if (operation === 'status') return await postRole(router, 'ecdsa/transfer', { kind: 'status', receipt, chunk_bytes: 4096 }, credential, identity);
+    const response = await postRole(router, 'ecdsa/transfer', { kind: operation, receipt }, credential, identity);
     if (operation !== 'activate' || !response.ok) return response;
     const activated: unknown = await response.clone().json();
     if (!isPlainObject(activated) || Object.keys(activated).length !== 2 || activated.kind !== 'activated' ||
@@ -189,10 +191,10 @@ function postDirectory(directory: RuntimeSourceDirectory, endpoint: string, body
   }));
 }
 
-function postRole(router: CloudflareServiceBindingFetcher, path: 'pool/freeze' | 'ecdsa/export' | 'ecdsa/transfer', command: unknown, credential: string): Promise<Response> {
+function postRole(router: CloudflareServiceBindingFetcher, path: 'pool/freeze' | 'ecdsa/export' | 'ecdsa/transfer', command: unknown, credential: string, identity: WalletObjectIdentity): Promise<Response> {
   return router.fetch(new Request(`https://mpc-router.router-ab.internal/router-ab/signing-worker/wallet/${path}`, {
     method: 'POST', redirect: 'manual',
-    headers: { 'content-type': 'application/json', [ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1]: credential },
+    headers: { 'content-type': 'application/json', [ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1]: credential, ...walletObjectIdentityHeaders(identity) },
     body: JSON.stringify(command),
   }));
 }

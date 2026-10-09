@@ -325,7 +325,7 @@ pub(super) async fn handle_pair_bound_deriver_b_websocket(
     continuation_host.wait_until(async move {
         let role_started_at_ms = role_span_started_at_ms();
         let running_scope = CloudflareDeriverBWalletPairScopeV1 {
-            wallet_home: tenant_root.wallet_home,
+            wallet_route: tenant_root.wallet_route,
             ownership_generation: tenant_root.ownership_generation,
             root_identity: tenant_root.identity.clone(),
             pair_binding: (*pair_binding).clone(),

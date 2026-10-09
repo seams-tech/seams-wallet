@@ -1,3 +1,4 @@
+import { walletRelocationObjectIdentity, type WalletObjectIdentity } from './walletObjectAddresses';
 import { isPlainObject } from '@shared/utils/validation';
 import type { WalletConsoleServiceBinding } from './walletConsoleOpsClient';
 
@@ -20,11 +21,12 @@ export type RuntimeSourceDirectory = {
 };
 
 type SourceAuthorization =
-  | { readonly ok: true; readonly body: string; readonly code?: never }
+  | { readonly ok: true; readonly body: string; readonly identity: WalletObjectIdentity; readonly code?: never }
   | {
       readonly ok: false;
       readonly code: 'invalid_input' | 'source_command_unavailable' | 'source_command_denied';
       readonly body?: never;
+      readonly identity?: never;
     };
 
 export async function authorizeRuntimeSource(
@@ -187,8 +189,11 @@ export async function authorizeRuntimeSource(
       request.destination_generation !== request.source_generation + 1
     )
       return { ok: false, code: 'source_command_unavailable' };
-    if (operation === 'router-import') return authorizeImportChunk(input.chunk, payload.receipt);
-    return { ok: true, body: JSON.stringify(payload) };
+    const generation = operation === 'router-freeze' || operation === 'router-export' || operation === 'router-cleanup'
+      ? request.source_generation : request.destination_generation;
+    const identity = walletRelocationObjectIdentity(input.wallet, generation);
+    if (operation === 'router-import') return authorizeImportChunk(input.chunk, payload.receipt, identity);
+    return { ok: true, body: JSON.stringify(payload), identity };
   }
   const source = operation === 'ed25519-capture' ? payload.source : payload;
   if (
@@ -213,7 +218,7 @@ export async function authorizeRuntimeSource(
     source.request.invalidated_at_ms < 1
   )
     return { ok: false, code: 'source_command_unavailable' };
-  return { ok: true, body: JSON.stringify(payload) };
+  return { ok: true, body: JSON.stringify(payload), identity: walletRelocationObjectIdentity(input.wallet, source.request.source_generation) };
 }
 
 // Participant effects are durable even when Console is unavailable. Return a
@@ -299,7 +304,7 @@ function receiptUnavailable(): Response {
   );
 }
 
-function authorizeImportChunk(chunk: unknown, receipt: unknown): SourceAuthorization {
+function authorizeImportChunk(chunk: unknown, receipt: unknown, identity: WalletObjectIdentity): SourceAuthorization {
   if (
     !isPlainObject(receipt) ||
     !isPlainObject(chunk) ||
@@ -325,5 +330,5 @@ function authorizeImportChunk(chunk: unknown, receipt: unknown): SourceAuthoriza
     !/^[A-Za-z0-9_-]+$/u.test(chunk.data_b64u)
   )
     return { ok: false, code: 'invalid_input' };
-  return { ok: true, body: JSON.stringify({ kind: 'import', chunk }) };
+  return { ok: true, body: JSON.stringify({ kind: 'import', chunk }), identity };
 }

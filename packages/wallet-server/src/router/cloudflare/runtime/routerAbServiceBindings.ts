@@ -1,3 +1,11 @@
+import { D1WalletObjectAddresses } from '../d1/walletObjectAddresses';
+import type { D1DatabaseLike } from '../../../storage/tenantRoute';
+import {
+  readWalletObjectIdentityHeader,
+  WALLET_OBJECT_IDENTITY_HEADER,
+  WALLET_OBJECT_ADDRESSES_HEADER,
+} from './walletObjectAddresses';
+
 export interface CloudflareServiceBindingFetcher {
   fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
 }
@@ -14,11 +22,27 @@ export class WalletHomeCustodyBinding implements CloudflareServiceBindingFetcher
   constructor(
     private readonly binding: CloudflareServiceBindingFetcher,
     private readonly home: WalletHomeRegion,
+    private readonly database: D1DatabaseLike,
+    private readonly namespace: string,
   ) {}
 
   async fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     const request = new Request(input, init);
     request.headers.set('x-seams-wallet-home-region', this.home);
+    request.headers.delete(WALLET_OBJECT_ADDRESSES_HEADER);
+    const identity = readWalletObjectIdentityHeader(request.headers);
+    request.headers.delete(WALLET_OBJECT_IDENTITY_HEADER);
+    if (identity !== null) {
+      const store = new D1WalletObjectAddresses(this.database, {
+        namespace: this.namespace,
+        orgId: identity.orgId,
+        projectId: identity.projectId,
+        envId: identity.envId,
+      });
+      const addresses = await store.read(identity);
+      if (addresses === null) throw new Error('Wallet object addresses are not initialized');
+      request.headers.set(WALLET_OBJECT_ADDRESSES_HEADER, JSON.stringify(addresses));
+    }
     return this.binding.fetch(request);
   }
 }

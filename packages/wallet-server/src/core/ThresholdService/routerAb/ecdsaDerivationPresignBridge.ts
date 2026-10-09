@@ -1,3 +1,4 @@
+import { walletObjectIdentityFromWireScope, walletObjectIdentityHeaders, type WalletObjectIdentity } from '../../../router/cloudflare/runtime/walletObjectAddresses';
 import {
   parseRouterAbEcdsaSigningWorkerProtocolExportShareEnvelopeV1,
   parseRouterAbEcdsaDerivationNormalSigningScopeV1,
@@ -201,6 +202,7 @@ function parseStrictPresignProgress(input: unknown): RouterAbEcdsaPresignSession
 }
 
 async function postStrictPresignSession(input: {
+  walletIdentity: WalletObjectIdentity;
   signingWorkerBaseUrl: string;
   path: string;
   body: unknown;
@@ -214,6 +216,7 @@ async function postStrictPresignSession(input: {
   const response = await postRouterAbInternalServiceJson({
     url: `${base}${input.path}`,
     body: input.body,
+    headers: walletObjectIdentityHeaders(input.walletIdentity),
     authSecret: input.auth.secret,
     fetchImpl: input.fetchImpl,
     onServerTiming: input.onServerTiming,
@@ -248,6 +251,7 @@ export async function startRouterAbEcdsaPresignSession(input: {
   onServerTiming?: (header: string | null) => void;
 }): Promise<RouterAbEcdsaPresignSessionHttpResult> {
   return postStrictPresignSession({
+    walletIdentity: walletObjectIdentityFromWireScope(input.authority.wallet_scope, input.authority.ownership_generation),
     signingWorkerBaseUrl: input.signingWorkerBaseUrl,
     path: CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_INIT_PATH,
     body: {
@@ -278,6 +282,7 @@ export async function stepRouterAbEcdsaPresignSession(input: {
   onServerTiming?: (header: string | null) => void;
 }): Promise<RouterAbEcdsaPresignSessionHttpResult> {
   return postStrictPresignSession({
+    walletIdentity: walletObjectIdentityFromWireScope(input.authority.wallet_scope, input.authority.ownership_generation),
     signingWorkerBaseUrl: input.signingWorkerBaseUrl,
     path: CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_STEP_PATH,
     body: {
@@ -312,6 +317,7 @@ export async function startRouterAbLinkedDeviceEcdsaPresignSession(input: {
   fetchImpl: typeof fetch;
 }): Promise<RouterAbEcdsaPresignSessionHttpResult> {
   return postStrictPresignSession({
+    walletIdentity: walletObjectIdentityFromWireScope(input.walletScope, input.ownershipGeneration),
     signingWorkerBaseUrl: input.signingWorkerBaseUrl,
     path: CLOUDFLARE_SIGNING_WORKER_ECDSA_LINKED_PRESIGN_SESSION_INIT_PATH,
     body: {
@@ -341,6 +347,7 @@ export async function stepRouterAbLinkedDeviceEcdsaPresignSession(input: {
   fetchImpl: typeof fetch;
 }): Promise<RouterAbEcdsaPresignSessionHttpResult> {
   return postStrictPresignSession({
+    walletIdentity: walletObjectIdentityFromWireScope(input.walletScope, input.ownershipGeneration),
     signingWorkerBaseUrl: input.signingWorkerBaseUrl,
     path: CLOUDFLARE_SIGNING_WORKER_ECDSA_LINKED_PRESIGN_SESSION_STEP_PATH,
     body: {

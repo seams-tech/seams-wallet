@@ -129,6 +129,8 @@ pub(crate) async fn forward(
     env: &worker::Env,
     runtime: &CloudflareSigningWorkerRuntimeV1,
 ) -> worker::Result<worker::Response> {
+    let wallet_objects = crate::WalletObjectRoute::from_gateway_request(&request)
+        .map_err(|error| worker::Error::RustError(error.to_string()))?;
     if request.method() != worker::Method::Post {
         return worker::Response::error("Linked presign transfer requires POST", 405);
     }
@@ -144,6 +146,7 @@ pub(crate) async fn forward(
     let result: RouterAbProtocolResult<Receipt> =
         super::super::execute_cloudflare_durable_object_custom_json_call_v1(
             env,
+            wallet_objects,
             &runtime.bindings().presign_session,
             INTERNAL_PATH,
             super::super::PresignHost::LinkedSession {

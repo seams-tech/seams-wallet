@@ -43,11 +43,11 @@ export type WalletRegistrationSetupReservationResult =
       readonly lifecycle?: never;
     };
 
-/** Starts a reserved wallet's custody objects. It grants no authority and may fail. */
+/** Persist custody addresses before setup completes, then start the reserved wallet objects. */
 export type RegistrationWalletStarter = (registration: {
   readonly walletId: WalletId;
   readonly ownershipGeneration: number;
-}) => void;
+}) => Promise<void>;
 
 type ReservationOutcome =
   | { readonly ok: true }

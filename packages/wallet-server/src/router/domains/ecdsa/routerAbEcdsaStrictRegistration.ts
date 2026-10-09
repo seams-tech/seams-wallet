@@ -1,3 +1,4 @@
+import { walletObjectIdentity, walletObjectIdentityHeaders } from '../../cloudflare/runtime/walletObjectAddresses';
 import {
   parseRouterAbEcdsaDerivationExplicitExportRequestV1,
   projectRouterAbEcdsaDerivationExplicitExportRequestToProtocolV1,
@@ -402,18 +403,19 @@ class StrictRegistrationForwarder implements RouterAbEcdsaStrictRegistrationPort
         retryable: false,
       };
     }
-    const token = await this.config.tokenIssuer.issueRequest(
-      ceremonyTokenClaimsForAuthority(
-        input.authority,
-        this.config.tokenScope,
-        input.projectEnvironmentId,
-        input.kind === 'activation' ? pendingOwnershipGeneration(input.pendingActivation) : input.tenantRoot.ownershipGeneration,
-      ),
-      requestPolicy,
+    const claims = ceremonyTokenClaimsForAuthority(
+      input.authority,
+      this.config.tokenScope,
+      input.projectEnvironmentId,
+      input.kind === 'activation' ? pendingOwnershipGeneration(input.pendingActivation) : input.tenantRoot.ownershipGeneration,
     );
+    const token = await this.config.tokenIssuer.issueRequest(claims, requestPolicy);
     const headers: Record<string, string> = {
       authorization: `Bearer ${token}`,
       'content-type': JSON_CONTENT_TYPE,
+      ...walletObjectIdentityHeaders(walletObjectIdentity(claims.accountId, claims.ownershipGeneration, {
+        orgId: claims.orgId, projectId: claims.projectId, envId: claims.projectEnvironmentId,
+      })),
     };
     if (input.traceContext) {
       headers[ROUTER_AB_TRACE_ID_HEADER_V1] = input.traceContext.value;
@@ -557,13 +559,12 @@ class StrictPostRegistrationForwarder implements RouterAbEcdsaStrictPostRegistra
     /* Every post-registration call is request-bound: Router recomputes the
        digest from the forwarded request and rejects a policy that does not
        match it, so refresh carries its own policy exactly as export does. */
+    const claims = ceremonyTokenClaimsForAuthority(
+      input.authority, this.config.tokenScope, input.tenantRoot.projectEnvironmentId,
+      input.tenantRoot.ownershipGeneration,
+    );
     const token = await this.config.tokenIssuer.issueRequest(
-      ceremonyTokenClaimsForAuthority(
-        input.authority,
-        this.config.tokenScope,
-        input.tenantRoot.projectEnvironmentId,
-        input.tenantRoot.ownershipGeneration,
-      ),
+      claims,
       postRegistrationRequestPolicy(
         input.kind === 'explicit_export'
           ? { workKind: 'key_export', requestDigestB64u: input.requestDigestB64u }
@@ -576,6 +577,7 @@ class StrictPostRegistrationForwarder implements RouterAbEcdsaStrictPostRegistra
         headers: {
           authorization: `Bearer ${token}`,
           'content-type': JSON_CONTENT_TYPE,
+          ...walletObjectIdentityHeaders(walletObjectIdentity(claims.accountId, claims.ownershipGeneration, { orgId: claims.orgId, projectId: claims.projectId, envId: claims.projectEnvironmentId })),
         },
         body: strictPostRegistrationForwardBodyJson(input),
       }),

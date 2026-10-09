@@ -3165,7 +3165,15 @@ mod tests {
         )
         .expect("outer binding");
         router_ab_cloudflare::CloudflareEd25519YaoTenantRootContextV2 {
-            wallet_home: router_ab_cloudflare::WalletHomeRegion::US,
+            wallet_route: serde_json::from_value(serde_json::json!({
+                "home": "US",
+                "addresses": {
+                    "router": "11".repeat(32),
+                    "deriver_a": "22".repeat(32),
+                    "deriver_b": "33".repeat(32),
+                    "signing_worker": "44".repeat(32),
+                },
+            })).expect("wallet route"),
             ownership_generation: 1,
             identity: router_ab_core::TenantRootIdentityV1::new(
                 "org",

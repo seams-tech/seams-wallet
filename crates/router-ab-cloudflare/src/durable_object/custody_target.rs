@@ -78,6 +78,12 @@ pub(crate) async fn inspect(mut request: Request, env: &Env) -> worker::Result<R
     {
         return Response::error("Custody object name is invalid", 400);
     }
+    let wallet_route = if target.role == Role::PresignSessions {
+        None
+    } else {
+        Some(crate::WalletObjectRoute::from_gateway_request(&request)
+            .map_err(|error| worker::Error::RustError(error.to_string()))?)
+    };
     if cfg!(feature = "strict-worker-router-entrypoint") && target.role != Role::Router {
         let service = match target.role {
             Role::DeriverA => "DERIVER_A",
@@ -87,6 +93,7 @@ pub(crate) async fn inspect(mut request: Request, env: &Env) -> worker::Result<R
         };
         let mut forwarded = json_request(PATH, &target)?;
         let headers = forwarded.headers_mut()?;
+        if let Some(route) = wallet_route { route.set_headers(headers).map_err(|error| worker::Error::RustError(error.to_string()))?; }
         let authorization = if matches!(target.role, Role::SigningWorker | Role::PresignSessions) {
             crate::set_cloudflare_router_to_signing_worker_ecdsa_auth_header_v1(
                 env,
@@ -118,7 +125,19 @@ pub(crate) async fn inspect(mut request: Request, env: &Env) -> worker::Result<R
         _ => return Response::error("Custody target role differs from worker", 400),
     };
     let namespace = env.durable_object(binding)?;
-    let id = namespace.id_from_name(&target.object_name)?;
+    let id = match wallet_route {
+        Some(route) => {
+            let address = match target.role {
+                Role::Router => route.addresses.router,
+                Role::DeriverA => route.addresses.deriver_a,
+                Role::DeriverB => route.addresses.deriver_b,
+                Role::SigningWorker => route.addresses.signing_worker,
+                Role::PresignSessions => unreachable!(),
+            };
+            namespace.id_from_string(address.as_str())?
+        }
+        None => namespace.id_from_name(&target.object_name)?,
+    };
     let stub = match &target.placement {
         Placement::Existing => id.get_stub()?,
         Placement::Destination { location_hint } => {

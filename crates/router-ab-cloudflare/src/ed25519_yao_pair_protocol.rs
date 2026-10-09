@@ -213,7 +213,7 @@ pub fn cloudflare_ed25519_yao_tenant_root_bindings_v2(
 /// Builds the exact V2 context after the local or Worker boundary has
 /// authenticated the active receipt and selected server-owned application facts.
 pub fn cloudflare_ed25519_yao_tenant_root_context_v2(
-    wallet_home: crate::WalletHomeRegion,
+    wallet_route: crate::WalletObjectRoute,
     ownership_generation: u64,
     identity: TenantRootIdentityV1,
     activation_receipt: &VerifiedTenantRootSignedActivationReceiptV1,
@@ -244,7 +244,7 @@ pub fn cloudflare_ed25519_yao_tenant_root_context_v2(
         expires_at_ms,
     )?;
     let context = CloudflareEd25519YaoTenantRootContextV2 {
-        wallet_home,
+        wallet_route,
         ownership_generation,
         identity,
         custody_binding,
@@ -511,7 +511,7 @@ fn invalid_target_preface(message: impl Into<String>) -> RouterAbProtocolError {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareEd25519YaoTenantRootContextV2 {
-    pub wallet_home: crate::WalletHomeRegion,
+    pub wallet_route: crate::WalletObjectRoute,
     pub ownership_generation: u64,
     pub identity: TenantRootIdentityV1,
     pub custody_binding: CloudflareTenantRootCustodyBindingWireV1,
@@ -668,7 +668,7 @@ pub struct CloudflareEd25519YaoPairLookupRequestV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareDeriverBWalletPairScopeV1 {
-    pub wallet_home: crate::WalletHomeRegion,
+    pub wallet_route: crate::WalletObjectRoute,
     pub ownership_generation: u64,
     pub root_identity: TenantRootIdentityV1,
     pub pair_binding: Ed25519YaoInputPairBindingV1,
@@ -692,7 +692,7 @@ impl CloudflareDeriverBWalletPairScopeV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareDeriverAWalletPairStatusRequestV1 {
-    pub wallet_home: crate::WalletHomeRegion,
+    pub wallet_route: crate::WalletObjectRoute,
     pub ownership_generation: u64,
     pub root_identity: TenantRootIdentityV1,
     pub pair_binding: Ed25519YaoInputPairBindingV1,
@@ -701,7 +701,7 @@ pub struct CloudflareDeriverAWalletPairStatusRequestV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareDeriverAWalletPairBurnRequestV1 {
-    pub wallet_home: crate::WalletHomeRegion,
+    pub wallet_route: crate::WalletObjectRoute,
     pub ownership_generation: u64,
     pub root_identity: TenantRootIdentityV1,
     pub pair_binding: Ed25519YaoInputPairBindingV1,

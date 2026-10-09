@@ -1,3 +1,4 @@
+import { walletRelocationObjectIdentity, walletObjectIdentityHeaders, type WalletObjectIdentity } from './walletObjectAddresses';
 import { isPlainObject } from '@shared/utils/validation';
 import { ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1 } from '../../../core/ThresholdService/routerAb/internalServiceHttp';
 import type { CloudflareServiceBindingFetcher } from './routerAbServiceBindings';
@@ -37,7 +38,7 @@ export async function forwardDeriverRelocation(
   const envelope: Envelope = { wallet: input.wallet, attempt: input.attempt };
   const journalRole = role === 'deriver-a' ? 'deriverA' : 'deriverB';
   try {
-    const contextResponse = await postRole(binding, role, 'relocation-context', { kind: 'cipher' }, credential);
+    const contextResponse = await postRole(binding, role, 'relocation-context', { kind: 'cipher' }, credential, null);
     if (!contextResponse.ok) return failure('source_command_unavailable', 503);
     const context: unknown = await contextResponse.json();
     if (!isPlainObject(context) || Object.keys(context).length !== 2 ||
@@ -64,7 +65,7 @@ export async function forwardDeriverRelocation(
       const activation = parseActivation(authorized.activation, role, envelope, context.digest_hex);
       if (!activation || Object.keys(authorized).length !== 2 || authorized.operation !== 'cleanup')
         return failure('source_command_unavailable', 503);
-      return await postRole(binding, role, 'snapshot', { operation: 'cleanup', activation }, credential);
+      return await postRole(binding, role, 'snapshot', { operation: 'cleanup', activation }, credential, walletRelocationObjectIdentity(envelope.wallet, activation.source.source.source_generation));
     } else if (operation === 'export') {
       source = parseSource(authorized.source, envelope, context.digest_hex);
       if (!source || Object.keys(authorized).length !== 3 || authorized.operation !== 'export' ||
@@ -76,7 +77,7 @@ export async function forwardDeriverRelocation(
         return failure('source_command_unavailable', 503);
       source = receipt.source;
       if (operation === 'activate') {
-        const response = await postRole(binding, role, 'snapshot', { operation: 'activate', receipt }, credential);
+        const response = await postRole(binding, role, 'snapshot', { operation: 'activate', receipt }, credential, walletRelocationObjectIdentity(envelope.wallet, receipt.source.destination_generation));
         return await confirmActivation(response, receipt, role, envelope, context.digest_hex, directory);
       }
       if (operation === 'import') {
@@ -85,14 +86,14 @@ export async function forwardDeriverRelocation(
         body = { operation: 'import', receipt, segment };
       } else body = { operation, receipt };
     }
-    let response = await postRole(binding, role, operation === 'fence' ? 'fence-relocation' : 'snapshot', body, credential);
+    let response = await postRole(binding, role, operation === 'fence' ? 'fence-relocation' : 'snapshot', body, credential, walletRelocationObjectIdentity(envelope.wallet, source.source_generation + (operation === 'fence' || operation === 'capture' || operation === 'export' ? 0 : 1)));
     if (operation !== 'capture' || !response.ok) return response;
     let captured: unknown = await response.clone().json();
     // The source is fenced. Advance its durable capture locally under this authorization.
     for (let step = 1; step < 8 && isPlainObject(captured) &&
         Object.keys(captured).length === 2 && captured.kind === 'capturing' &&
         count(captured.segment_count); step += 1) {
-      response = await postRole(binding, role, 'snapshot', body, credential);
+      response = await postRole(binding, role, 'snapshot', body, credential, walletRelocationObjectIdentity(envelope.wallet, source.source_generation));
       if (!response.ok) return response;
       captured = await response.clone().json();
     }
@@ -168,10 +169,10 @@ function postDirectory(directory: RuntimeSourceDirectory, endpoint: string, body
 }
 
 function postRole(binding: CloudflareServiceBindingFetcher, role: Role,
-  operation: 'relocation-context' | 'fence-relocation' | 'snapshot', body: unknown, credential: string): Promise<Response> {
+  operation: 'relocation-context' | 'fence-relocation' | 'snapshot', body: unknown, credential: string, identity: WalletObjectIdentity | null): Promise<Response> {
   return binding.fetch(new Request(`https://${role}.router-ab.internal/router-ab/internal/${role}/wallet/${operation}`, {
     method: 'POST', redirect: 'manual',
-    headers: { 'content-type': 'application/json', [ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1]: credential },
+    headers: { 'content-type': 'application/json', [ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1]: credential, ...(identity === null ? {} : walletObjectIdentityHeaders(identity)) },
     body: JSON.stringify(body),
   }));
 }

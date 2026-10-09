@@ -252,20 +252,21 @@ export async function handleLocalHostedWalletGatewayRequestV1(
   const config = parseStaticWalletConsoleBindingConfigV1(
     JSON.parse(env.WALLET_LOCAL_DEPLOYMENT_JSON),
   );
+  const tenantScope = {
+    namespace: requireCanonicalString(env.SEAMS_TENANT_STORAGE_NAMESPACE, 'Local namespace'),
+    orgId: config.deployment.orgId,
+    projectId: config.deployment.projectId,
+    envId: config.deployment.environmentKey,
+  };
   dependencies = {
     emailOtpDeliveryProvider: dependencies?.emailOtpDeliveryProvider,
     signerWasm: dependencies?.signerWasm,
-    registrationAuthority: new LocalRegistrationSetupAuthority(env.SIGNER_DB, {
-      namespace: requireCanonicalString(env.SEAMS_TENANT_STORAGE_NAMESPACE, 'Local namespace'),
-      orgId: config.deployment.orgId,
-      projectId: config.deployment.projectId,
-      envId: config.deployment.environmentKey,
-    }),
+    registrationAuthority: new LocalRegistrationSetupAuthority(env.SIGNER_DB, tenantScope),
   };
   const gatewayEnv: CloudflareD1GatewayEnv = {
     ...env,
-    MPC_ROUTER: new WalletHomeCustodyBinding(env.MPC_ROUTER, 'US'),
-    SIGNING_WORKER: new WalletHomeCustodyBinding(env.SIGNING_WORKER, 'US'),
+    MPC_ROUTER: new WalletHomeCustodyBinding(env.MPC_ROUTER, 'US', env.SIGNER_DB, tenantScope.namespace),
+    SIGNING_WORKER: new WalletHomeCustodyBinding(env.SIGNING_WORKER, 'US', env.SIGNER_DB, tenantScope.namespace),
     WALLET_CONSOLE: createStaticWalletConsoleBindingV1(config),
   };
   const canceledPresign = await localPresignCancellationProbe(

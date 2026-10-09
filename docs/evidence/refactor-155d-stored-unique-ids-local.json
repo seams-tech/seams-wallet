@@ -1,0 +1,255 @@
+{
+  "kind": "stored_unique_wallet_object_ids_local_acceptance_v1",
+  "date": "2026-10-10",
+  "environment": "Local Miniflare with matching release Rust Workers",
+  "reproduce": "ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/wallet-home-placement-evidence.mjs",
+  "limitation": "Local Workers verify the requested hints and real custody lifecycle. They do not prove physical Cloudflare locations or hosted latency gains. Relocation coverage ends at destination preparation; full copy, activation and source cleanup require a composed move run.",
+  "regions": [
+    {
+      "home": "US",
+      "generation": 1,
+      "addresses": {
+        "router": "56744316de9106ae7ab232c57a8bef090e752780340efbd9e06e9261bfce6e80",
+        "deriver_a": "5c8ca37e373715fcf4c9d0fd1db13962b0878ba04f75c5c8688696ea8a1364b5",
+        "deriver_b": "4853ab42fdebad56375d3263661abd7ce7f564b9a91d6998c5c1f2ef9a345b55",
+        "signing_worker": "c461030d7f7c0bcd8d739c23a61c17d863bd29de4210287d38979838baa9565b"
+      },
+      "signing": {
+        "signatureSha256Hex": "12b4dc2b20e54ff143678c61abdb3ceac24614117059cb2570251721258cdb08",
+        "signatureB64u": "-lq54xKqBPkvMPjAbdQyddgCX4f5DDKFZr8XoU1fKtfdeE3RAnpqNcoOcKE4I0N0jdm6cZ2MML5hn5Qv8OVKBA",
+        "digestB64u": "49lkSrve-HW_ckpZbfRoKzl47W44xlLVF5p4Yobu3Eo",
+        "publicKeyB64u": "5F1AsDKn7j3uLL3lJEtjFM3TgcLX0n5aCk8WPmUUZAk",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      },
+      "ecdsaSigning": {
+        "independentlyVerified": true,
+        "signatureB64u": "5_1iv05dnV6Fwrs9b20nyTHCrRUzWjVrDyAqb18qjjYMLP1HeSCWHBA0El9Kdokw9sN3tYuaIpTi-VNG8BvhZwA",
+        "digestB64u": "nw2ijRdgO3J2NGIOQLx7xY190EdnX6BI1KOkCJcBjyc",
+        "publicKeyB64u": "AoRdQ55P9weACFtWjc6LlJUi5LIwKqS9649Yvlalu9qt",
+        "signatureSha256Hex": "6fd2f475018f83abfe73738331d3743b6cef3b50a176de1a4f9d35def0fe5c89"
+      },
+      "relocation": {
+        "routerPrepared": true,
+        "derivers": {
+          "deriver-a": {
+            "sourceId": "5c8ca37e373715fcf4c9d0fd1db13962b0878ba04f75c5c8688696ea8a1364b5",
+            "destinationId": "5533d85d5ae3e5fd597cc75b0da2f2d73726a9053e834fa5bca964d179d389c2",
+            "replay": true
+          },
+          "deriver-b": {
+            "sourceId": "4853ab42fdebad56375d3263661abd7ce7f564b9a91d6998c5c1f2ef9a345b55",
+            "destinationId": "28c85f23159f6f8b6661e4b227d1fb9fbe49c3121c893552e80b9dfc8fe061fe",
+            "replay": true
+          }
+        },
+        "bothSigningCurvesPrepared": true,
+        "sourceAddressesRetained": true,
+        "pendingPresignInventoryRouted": true
+      },
+      "admissions": {
+        "deriverA": {
+          "status": "settled",
+          "pair_object_id": "5c8ca37e373715fcf4c9d0fd1db13962b0878ba04f75c5c8688696ea8a1364b5"
+        },
+        "deriverB": {
+          "status": "settled",
+          "pair_object_id": "4853ab42fdebad56375d3263661abd7ce7f564b9a91d6998c5c1f2ef9a345b55"
+        }
+      },
+      "completedReplyLossReplayedExactly": true,
+      "replayRanNoAdditionalCustody": true,
+      "callerHomeOverwritten": true
+    },
+    {
+      "home": "WEUR",
+      "generation": 1,
+      "addresses": {
+        "router": "3dc651675f2f8f7e91611af9bd43c387f6fa270ad3804a7bdf3c31ccff98474f",
+        "deriver_a": "0d8db4e83a88fb15e55f85ff41f295969914a9ab4613b8e8f37df923c7bd85aa",
+        "deriver_b": "1ec351267f10a3806bb7ddfd9127ee298efa9e1cd4d11096bf3b71c7aef69ed4",
+        "signing_worker": "fa6c7f73f1711a24a70513ff4060a46d9dbc1b9e219db8fb02707c3040c2296f"
+      },
+      "signing": {
+        "signatureSha256Hex": "2bdbd81924bcbaeb695acc96c9ab9f6c2388f961e25349c76f8dce1f5b273eb5",
+        "signatureB64u": "-Qux0Ll9_XPe0VasoRNK_O80S82uLxreLZhXTVCuetCLUxh7HzY3nVR4eXWb_WlGhHFzqwRo_Att5M5t2c_wBg",
+        "digestB64u": "5sxCe7M-0cTv5ti1ApqYNipy4AlRk-ei46MmfdTvCRQ",
+        "publicKeyB64u": "7pAxxbhxOPINVD2mqobNGkJsLXk2GtpFljrWvgynTrg",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      },
+      "ecdsaSigning": {
+        "independentlyVerified": true,
+        "signatureB64u": "IAtvhMRJuRDGdNHKTQmSJexr68lBZgSpVFqq2Etx50Z8-oh3D3uqE88aDd6_O8h0PLOeCYWGt4zor0cym5M75wA",
+        "digestB64u": "nw2ijRdgO3J2NGIOQLx7xY190EdnX6BI1KOkCJcBjyc",
+        "publicKeyB64u": "A-Nj8RQLOD85E9BCJijONP4na4TVr3jovTDuCXzAgB8o",
+        "signatureSha256Hex": "8d09f5371742baec1566f853f2bf1712e6ef07fbe9c141bead2aa355545017e1"
+      },
+      "relocation": {
+        "routerPrepared": true,
+        "derivers": {
+          "deriver-a": {
+            "sourceId": "0d8db4e83a88fb15e55f85ff41f295969914a9ab4613b8e8f37df923c7bd85aa",
+            "destinationId": "a9e372599396126a277a22acb29fb7d7d2ed2f9f37a4699d6331b23becd45a82",
+            "replay": true
+          },
+          "deriver-b": {
+            "sourceId": "1ec351267f10a3806bb7ddfd9127ee298efa9e1cd4d11096bf3b71c7aef69ed4",
+            "destinationId": "f91a99e09f80953e87b559560cca171d49f31690d0d42137c3e29edd80ff435e",
+            "replay": true
+          }
+        },
+        "bothSigningCurvesPrepared": true,
+        "sourceAddressesRetained": true,
+        "pendingPresignInventoryRouted": true
+      },
+      "admissions": {
+        "deriverA": {
+          "status": "settled",
+          "pair_object_id": "0d8db4e83a88fb15e55f85ff41f295969914a9ab4613b8e8f37df923c7bd85aa"
+        },
+        "deriverB": {
+          "status": "settled",
+          "pair_object_id": "1ec351267f10a3806bb7ddfd9127ee298efa9e1cd4d11096bf3b71c7aef69ed4"
+        }
+      },
+      "completedReplyLossReplayedExactly": true,
+      "replayRanNoAdditionalCustody": true,
+      "callerHomeOverwritten": true
+    },
+    {
+      "home": "APAC",
+      "generation": 1,
+      "addresses": {
+        "router": "88c8b1cbaa2387d371b550b4f6d0c3c47612af822bec4f466593487cd933e37e",
+        "deriver_a": "df6ec4363b910d5be711789c9ca537dd4c46e697c2118be7881e3c002aa16f0a",
+        "deriver_b": "77e359e123b6029dc55d2a7b57d1783ef6623abccd5e878da1240ceb214e8e41",
+        "signing_worker": "5b4e5947604d050eb9aaac5ae7a05ed9bdae384befe85574dbc6af4a2b908f41"
+      },
+      "signing": {
+        "signatureSha256Hex": "aa0f9d351bd967122a6093685c7e72010b4892c10602fcaffa13a6e2b61e916c",
+        "signatureB64u": "5e7ALQnFQMsOs_ZBcHv4bDTEh3VXi4Za0CUM2yi1I0yK5_d7TLUdDYQgytJCvG75Q2MMke_B0iSOPZHnGlpEBQ",
+        "digestB64u": "Pbg3YefNN9JBMxBfvpKUfKTeHDcYKLe4nif7yh9QKfU",
+        "publicKeyB64u": "aa-buo1KgJ4DZ3Fd4BBwCB52F4HssXjrWQoRs1o2SW4",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      },
+      "ecdsaSigning": {
+        "independentlyVerified": true,
+        "signatureB64u": "nwZSHow2WYmlcbjXIfr-WtzzPS3q0xuZYYp7SCinm4wo0SCywz88e76ksreXeR6mc437CRoHHChep1EIf1nS8wE",
+        "digestB64u": "nw2ijRdgO3J2NGIOQLx7xY190EdnX6BI1KOkCJcBjyc",
+        "publicKeyB64u": "AgRu4mdzex7PtbXzdzzKb3WklMEeOCReNdJNC6ztzqbI",
+        "signatureSha256Hex": "0a68dd51a79d5a3088d525a97784a992199473b7d7f678988f62d3f977252055"
+      },
+      "relocation": {
+        "routerPrepared": true,
+        "derivers": {
+          "deriver-a": {
+            "sourceId": "df6ec4363b910d5be711789c9ca537dd4c46e697c2118be7881e3c002aa16f0a",
+            "destinationId": "514db82d784014c449bd5e79067b467401146d0f8501220948b9c7784c4ff922",
+            "replay": true
+          },
+          "deriver-b": {
+            "sourceId": "77e359e123b6029dc55d2a7b57d1783ef6623abccd5e878da1240ceb214e8e41",
+            "destinationId": "ba73d9ad02191d13dc136135dfbfc1508a91aa75e4988b7d963a81e623e8c669",
+            "replay": true
+          }
+        },
+        "bothSigningCurvesPrepared": true,
+        "sourceAddressesRetained": true,
+        "pendingPresignInventoryRouted": true
+      },
+      "admissions": {
+        "deriverA": {
+          "status": "settled",
+          "pair_object_id": "df6ec4363b910d5be711789c9ca537dd4c46e697c2118be7881e3c002aa16f0a"
+        },
+        "deriverB": {
+          "status": "settled",
+          "pair_object_id": "77e359e123b6029dc55d2a7b57d1783ef6623abccd5e878da1240ceb214e8e41"
+        }
+      },
+      "completedReplyLossReplayedExactly": true,
+      "replayRanNoAdditionalCustody": true,
+      "callerHomeOverwritten": true
+    },
+    {
+      "home": "OC",
+      "generation": 1,
+      "addresses": {
+        "router": "63d514faf6d8f9074bf70e79edfe996955058c312c2f0b8562ea09de1d8a7ebe",
+        "deriver_a": "0dd54b30f198a51c69b2ed3e577d769e848f6738c7968a43158d6384c549e64a",
+        "deriver_b": "545b452c9de91d287e3c90f5a2482668234830c077522f5bf04d5d0bd3df9627",
+        "signing_worker": "e32ce62a318843f4cb02d6395a7cbe72622a8cf8ea611c621e40f4a3ca81fbd0"
+      },
+      "signing": {
+        "signatureSha256Hex": "2a770e0227d774e4c3010d0905566fc46b54ec5aaba60b1808b84e60cf831bd8",
+        "signatureB64u": "1X0CphlknSKlU_HjBi0mQBhAccqSEgJPIAW0ia0Bfza8O3oxBu9PqOVXYRNoXph5YZxWBb_pA8vOn7ioyFOTAg",
+        "digestB64u": "B5U_nkHshADsMRGBM_Bn80fSF8gUMYd9zVmzAyE6Vfc",
+        "publicKeyB64u": "78wsdNoRILHEGBkswrDl2gxzXQW3LdbjaZykO0sqFvI",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      },
+      "ecdsaSigning": {
+        "independentlyVerified": true,
+        "signatureB64u": "qPKsJyHrghHK-vBnaES-BtkTb3mBpEANFRbd_CL9oV1g6VLlxNlJNDT0m4Z6cDVcrw3XncWk46cMSI7O_o3Q-wA",
+        "digestB64u": "nw2ijRdgO3J2NGIOQLx7xY190EdnX6BI1KOkCJcBjyc",
+        "publicKeyB64u": "AtGdQ4f_3XKJ5w2JpIDAbvcBmnYyMUdyW19v-1CrLiX1",
+        "signatureSha256Hex": "b6b54f1520afaf8496e849fd0c9f9e5de6bc645f78117c34dae417d32c33947e"
+      },
+      "relocation": {
+        "routerPrepared": true,
+        "derivers": {
+          "deriver-a": {
+            "sourceId": "0dd54b30f198a51c69b2ed3e577d769e848f6738c7968a43158d6384c549e64a",
+            "destinationId": "f6639b1a20aa625c4270e9ca8bb8845b3e297f13f6937715a84755560e3188ce",
+            "replay": true
+          },
+          "deriver-b": {
+            "sourceId": "545b452c9de91d287e3c90f5a2482668234830c077522f5bf04d5d0bd3df9627",
+            "destinationId": "ade40564df60eb4123e5c37dffc55ede2fb23051cb04198cc38f0bce3a489ad3",
+            "replay": true
+          }
+        },
+        "bothSigningCurvesPrepared": true,
+        "sourceAddressesRetained": true,
+        "pendingPresignInventoryRouted": true
+      },
+      "admissions": {
+        "deriverA": {
+          "status": "settled",
+          "pair_object_id": "0dd54b30f198a51c69b2ed3e577d769e848f6738c7968a43158d6384c549e64a"
+        },
+        "deriverB": {
+          "status": "settled",
+          "pair_object_id": "545b452c9de91d287e3c90f5a2482668234830c077522f5bf04d5d0bd3df9627"
+        }
+      },
+      "completedReplyLossReplayedExactly": true,
+      "replayRanNoAdditionalCustody": true,
+      "callerHomeOverwritten": true
+    }
+  ],
+  "registrationSetup": {
+    "replayUsesStoredAddresses": true,
+    "independentWallets": true,
+    "lostAllocationReplyRecovered": true,
+    "concurrentAllocations": 8,
+    "persistedWinners": 1,
+    "distinctDestinationGeneration": true,
+    "forwardedStoredAddresses": true,
+    "forgedAddressesReplaced": true,
+    "missingGenerationRefused": true,
+    "wrongTenantRefused": true,
+    "immutableAddresses": true,
+    "hostWithoutStarterCompletes": true
+  },
+  "runtimePreparation": {
+    "exactReservationRequired": true,
+    "destinationAddressesPersistedOnce": true,
+    "exactReplay": true,
+    "publicOriginExcluded": true,
+    "wrongScopeOrDigestRejected": true,
+    "activatedDestinationRejected": true
+  }
+}

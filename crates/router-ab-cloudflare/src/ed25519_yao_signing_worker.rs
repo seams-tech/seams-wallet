@@ -100,6 +100,7 @@ impl CloudflareEd25519YaoRecoveryPromotionRequestV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareScopedEd25519YaoRecoveryPromotionRequestV1 {
+    pub wallet_route: crate::WalletObjectRoute,
     pub ownership_generation: u64,
     pub scope: CloudflareSigningWorkerWalletScopeV1,
     pub promotion: CloudflareEd25519YaoRecoveryPromotionRequestV1,
@@ -129,7 +130,7 @@ pub struct CloudflareEd25519YaoPackagePairDeliveryV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareScopedEd25519YaoPackagePairDeliveryV1 {
-    pub wallet_home: crate::WalletHomeRegion,
+    pub wallet_route: crate::WalletObjectRoute,
     pub ownership_generation: u64,
     pub scope: CloudflareSigningWorkerWalletScopeV1,
     pub delivery: CloudflareEd25519YaoPackagePairDeliveryV1,
@@ -184,7 +185,7 @@ impl CloudflareEd25519YaoPackagePairDeliveryV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1 {
-    pub wallet_home: crate::WalletHomeRegion,
+    pub wallet_route: crate::WalletObjectRoute,
     pub ownership_generation: u64,
     pub scope: CloudflareSigningWorkerWalletScopeV1,
     pub delivery: CloudflareEd25519YaoPackagePairDeliveryV1,
@@ -715,6 +716,7 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_initial_registration_f
     #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     return crate::durable_object::call_signing_worker_wallet_do_v1(
         env,
+        lookup.wallet_route,
         crate::durable_object::SigningWorkerWalletDoRequestV1::LookupRegistration(lookup),
     )
     .await;
@@ -824,6 +826,7 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_recovery_promote_v1(
     #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     return crate::durable_object::call_signing_worker_wallet_do_v1(
         env,
+        scoped.wallet_route,
         crate::durable_object::SigningWorkerWalletDoRequestV1::PromoteRecovery(scoped),
     )
     .await;
@@ -879,6 +882,7 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_reserve_inactive_sourc
     #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     return crate::durable_object::call_signing_worker_wallet_do_v1(
         env,
+        crate::WalletObjectRoute::from_gateway_request(&request)?,
         crate::durable_object::SigningWorkerWalletDoRequestV1::ReserveLinkedEd25519(reservation),
     )
     .await;
@@ -912,6 +916,7 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_activate_reservation_v
     #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     return crate::durable_object::call_signing_worker_wallet_do_v1(
         env,
+        crate::WalletObjectRoute::from_gateway_request(&request)?,
         crate::durable_object::SigningWorkerWalletDoRequestV1::ActivateLinkedEd25519(activation),
     )
     .await;
@@ -932,6 +937,7 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_deactivate_reservation
     #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     return crate::durable_object::call_signing_worker_wallet_do_v1(
         env,
+        crate::WalletObjectRoute::from_gateway_request(&request)?,
         crate::durable_object::SigningWorkerWalletDoRequestV1::DeactivateLinkedEd25519(
             deactivation,
         ),

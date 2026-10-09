@@ -556,6 +556,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_reserve_inactive_source_pres
     #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     return crate::durable_object::call_signing_worker_wallet_do_v1(
         env,
+        crate::WalletObjectRoute::from_gateway_request(&request)?,
         crate::durable_object::SigningWorkerWalletDoRequestV1::ReserveLinkedEcdsa(reservation),
     )
     .await;
@@ -587,6 +588,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_activate_reservation_v1(
         let _ = runtime;
         return crate::durable_object::call_signing_worker_wallet_do_v1(
             env,
+            crate::WalletObjectRoute::from_gateway_request(&request)?,
             crate::durable_object::SigningWorkerWalletDoRequestV1::ActivateLinkedEcdsa(activation),
         )
         .await;
@@ -616,6 +618,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_deactivate_reservation_v1(
     #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     return crate::durable_object::call_signing_worker_wallet_do_v1(
         env,
+        crate::WalletObjectRoute::from_gateway_request(&request)?,
         crate::durable_object::SigningWorkerWalletDoRequestV1::DeactivateLinkedEcdsa(deactivation),
     )
     .await;

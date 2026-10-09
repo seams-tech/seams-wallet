@@ -487,7 +487,7 @@ mod tests {
              (tenant_identity_digest_hex, custody_lineage_b64u, role, attempt_kind, \
              attempt_key_hex, tenant_root_share_epoch, activation_receipt_digest_hex, \
              attempt_digest_hex, first_binding_digest_hex, issued_at_ms, expires_at_ms, \
-             status, admitted_at_ms, pair_object_name) \
+             status, admitted_at_ms, pair_object_id) \
              VALUES (?1, ?2, 'deriver_a', ?3, ?4, 1, ?5, ?6, ?7, 100, 200, 'admitted', 100, NULL)",
             params![
                 "1".repeat(64),

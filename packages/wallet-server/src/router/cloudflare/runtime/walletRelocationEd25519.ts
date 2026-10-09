@@ -1,3 +1,4 @@
+import { walletRelocationObjectIdentity, walletObjectIdentityHeaders, type WalletObjectIdentity } from './walletObjectAddresses';
 import { isPlainObject } from '@shared/utils/validation';
 import { ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1 } from '../../../core/ThresholdService/routerAb/internalServiceHttp';
 import type { CloudflareServiceBindingFetcher } from './routerAbServiceBindings';
@@ -33,7 +34,7 @@ export async function forwardEd25519Snapshot(
       if (!authorization.ok) return failure(authorization.code, authorization.code === 'source_command_denied' ? 409 : 503);
       const command: unknown = JSON.parse(authorization.body);
       if (!isPlainObject(command)) return failure('source_command_unavailable', 503);
-      const response = await postSnapshot(router, command, credential);
+      const response = await postSnapshot(router, command, credential, authorization.identity);
       if (!response.ok) return response;
       const raw: unknown = await response.clone().json();
       if (isPlainObject(raw) && Object.keys(raw).length === 1 && raw.state === 'capturing') return response;
@@ -58,9 +59,10 @@ export async function forwardEd25519Snapshot(
       return failure('source_command_unavailable', 503);
     const receipt = parseReceipt(operation === 'cleanup' ? result.command.activation : result.command.receipt, envelope);
     if (!receipt) return failure('source_command_unavailable', 503);
-    if (operation === 'cleanup') return await postSnapshot(router, { command: 'cleanup', activation: receipt }, credential);
+    const identity = walletRelocationObjectIdentity(envelope.wallet, receipt.source.request.source_generation + (operation === 'export' || operation === 'cleanup' ? 0 : 1));
+    if (operation === 'cleanup') return await postSnapshot(router, { command: 'cleanup', activation: receipt }, credential, identity);
     if (operation === 'activate') {
-      const response = await postSnapshot(router, { command: 'activate', receipt }, credential);
+      const response = await postSnapshot(router, { command: 'activate', receipt }, credential, identity);
       if (!response.ok) return response;
       const activated: unknown = await response.clone().json();
       if (!isPlainObject(activated) || Object.keys(activated).length !== 2 || activated.state !== 'activated' ||
@@ -75,13 +77,13 @@ export async function forwardEd25519Snapshot(
     if (operation === 'export') {
       if (!count(input.segmentIndex) || input.segmentIndex >= receipt.segment_count || result.command.segment_index !== input.segmentIndex)
         return failure('source_command_unavailable', 503);
-      return await postSnapshot(router, { command: 'export', receipt, segment_index: input.segmentIndex }, credential);
+      return await postSnapshot(router, { command: 'export', receipt, segment_index: input.segmentIndex }, credential, identity);
     }
     if (operation === 'import') {
       // The participant parses the segment and commits it with its acknowledgement.
-      return await postSnapshot(router, { command: 'import', receipt, segment: input.segment }, credential);
+      return await postSnapshot(router, { command: 'import', receipt, segment: input.segment }, credential, identity);
     }
-    return await postSnapshot(router, { command: operation, receipt }, credential);
+    return await postSnapshot(router, { command: operation, receipt }, credential, identity);
   } catch {
     return failure('source_command_unavailable', 503);
   }
@@ -134,10 +136,10 @@ function postDirectory(directory: RuntimeSourceDirectory, endpoint: string, body
   }));
 }
 
-function postSnapshot(router: CloudflareServiceBindingFetcher, command: unknown, credential: string): Promise<Response> {
+function postSnapshot(router: CloudflareServiceBindingFetcher, command: unknown, credential: string, identity: WalletObjectIdentity): Promise<Response> {
   return router.fetch(new Request('https://mpc-router.router-ab.internal/router-ab/signing-worker/wallet/ed25519/snapshot', {
     method: 'POST', redirect: 'manual',
-    headers: { 'content-type': 'application/json', [ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1]: credential },
+    headers: { 'content-type': 'application/json', [ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1]: credential, ...walletObjectIdentityHeaders(identity) },
     body: JSON.stringify(command),
   }));
 }

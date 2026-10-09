@@ -711,7 +711,7 @@ pub(crate) async fn handle_transfer(
     if let Err(error) = crate::require_cloudflare_gateway_to_router_auth_request_v1(&request, env) {
         return crate::cloudflare_private_service_auth_error_response_v1(error);
     }
-    let wallet_home = match crate::WalletHomeRegion::from_gateway_request(&request) {
+    let wallet_route = match crate::WalletObjectRoute::from_gateway_request(&request) {
         Ok(home) => home,
         Err(error) => return crate::router_coordinator::protocol_error_response(error),
     };
@@ -726,7 +726,7 @@ pub(crate) async fn handle_transfer(
             )
         }
     };
-    match crate::durable_object::call_router_wallet_transfer_v1(env, wallet_home, &transfer).await {
+    match crate::durable_object::call_router_wallet_transfer_v1(env, wallet_route, &transfer).await {
         Ok(response) => worker::Response::from_json(&response),
         Err(error) => crate::router_coordinator::protocol_error_response(error),
     }

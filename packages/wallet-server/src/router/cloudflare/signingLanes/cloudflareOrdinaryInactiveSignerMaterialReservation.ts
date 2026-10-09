@@ -1,3 +1,4 @@
+import { walletObjectIdentity, walletObjectIdentityFromWireScope, walletObjectIdentityHeaders, type WalletObjectIdentity } from '../runtime/walletObjectAddresses';
 import type { WalletExecutionAuthority } from '../../domains/walletRegistration/walletRegistrationReservation';
 import {
   createOrdinaryInactiveSignerMaterialReservationServiceV1,
@@ -143,6 +144,7 @@ export function createCloudflareLinkedDeviceEd25519SourcePreservingRouterEndpoin
           },
         },
         'Ed25519 source-preserving Router execution',
+        walletObjectIdentity(request.applicationBinding.wallet_id, admitted.ownershipGeneration, tenantRootWire.identity),
         /* A transport failure can lose the answer to an execution the Router
            already ran. The retry is marked as the Router's replay, so it
            answers that run from the roles' completed pair instead of
@@ -524,6 +526,7 @@ async function postSigningWorkerJsonRequestV1(
       method: 'POST',
       headers: {
         'content-type': 'application/json',
+        ...walletObjectIdentityHeaders(walletObjectIdentityFromWireScope(body.scope, body.ownership_generation)),
         'x-router-ab-internal-service-auth': input.internalServiceAuthSecret,
       },
       body: JSON.stringify(body),
@@ -547,6 +550,7 @@ async function postRouterJsonRequestV1(
   path: string,
   body: Record<string, unknown>,
   operation: string,
+  identity: WalletObjectIdentity,
   retryAfterTransportFailure: 'none' | 'replay' = 'none',
 ): Promise<unknown> {
   const send = async (replay: boolean): Promise<Response> =>
@@ -555,6 +559,7 @@ async function postRouterJsonRequestV1(
         method: 'POST',
         headers: {
           'content-type': 'application/json',
+          ...walletObjectIdentityHeaders(identity),
           'x-router-ab-internal-service-auth': input.internalServiceAuthSecret,
           ...(replay ? { [ROUTER_AB_YAO_REPLAY_HEADER_V1]: '1' } : {}),
         },
@@ -625,6 +630,7 @@ async function postDeactivationRequestV1(
       method: 'POST',
       headers: {
         'content-type': 'application/json',
+        ...walletObjectIdentityHeaders(walletObjectIdentityFromWireScope(scope, ownershipGeneration)),
         'x-router-ab-internal-service-auth': input.internalServiceAuthSecret,
       },
       body: JSON.stringify({

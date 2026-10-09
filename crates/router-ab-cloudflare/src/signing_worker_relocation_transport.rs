@@ -149,6 +149,12 @@ where
     T: serde::de::DeserializeOwned + serde::Serialize,
     R: serde::de::DeserializeOwned + serde::Serialize,
 {
+    let wallet_objects = if request.path() == crate::SIGNING_WORKER_RELOCATION_CONTEXT_PATH_V1 {
+        None
+    } else {
+        Some(crate::WalletObjectRoute::from_gateway_request(&request)
+            .map_err(|error| worker::Error::RustError(error.to_string()))?)
+    };
     let path = request.path();
     let command: T = match crate::durable_object::tenant_root_creation::decode_bounded_json_request(
         &mut request,
@@ -159,16 +165,19 @@ where
         Ok(command) => command,
         Err(error) => return crate::router_coordinator::protocol_error_response(error),
     };
-    match crate::post_service_json_with_router_to_signing_worker_ecdsa_auth::<T, R>(
+    match crate::post_service_json_with_server_timing::<T, R>(
         env,
+        wallet_objects,
         "SIGNING_WORKER",
         &format!("https://signing-worker.router-ab.internal{path}"),
         "SigningWorker relocation",
         &command,
+        None,
+        crate::CloudflareServiceAuthModeV1::RouterToSigningWorkerEcdsa,
     )
     .await
     {
-        Ok(response) => Response::from_json(&response),
+        Ok((response, _timing)) => Response::from_json(&response),
         Err(error) => crate::router_coordinator::protocol_error_response(error),
     }
 }

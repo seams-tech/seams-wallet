@@ -20,17 +20,16 @@ impl WalletHomeRegion {
     }
 
     #[cfg(feature = "workers-rs")]
-    pub(crate) fn wallet_stub(
+    pub(crate) fn presign_stub(
         self,
         namespace: &worker::ObjectNamespace,
         name: &str,
-        role: &'static str,
     ) -> worker::Result<worker::Stub> {
         let hint = self.location_hint();
         let stub = namespace.get_by_name_with_location_hint(name, hint)?;
         let event = serde_json::json!({
             "event": "wallet_do_placement_requested",
-            "role": role,
+            "role": "presign",
             "wallet_home": self,
             "location_hint": hint,
             "object_id": namespace.id_from_name(name)?.to_string(),

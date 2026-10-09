@@ -252,7 +252,7 @@ pub(crate) async fn call_deriver_a_wallet_do_work_v1<T: Serialize>(
         tenant_root.ownership_generation,
     )?;
     let stub = tenant_root
-        .wallet_home
+        .wallet_route
         .wallet_stub(&namespace, &physical_name, "deriver_a")?;
     let body = serde_json::to_string(body).map_err(|error| pair_error(error.to_string()))?;
     let mut init = worker::RequestInit::new();
@@ -267,7 +267,7 @@ pub(crate) async fn call_deriver_a_wallet_do_lookup_v1<T: Serialize>(
     env: &Env,
     path: &str,
     ownership_generation: u64,
-    wallet_home: crate::WalletHomeRegion,
+    wallet_route: crate::WalletObjectRoute,
     root_identity: &TenantRootIdentityV1,
     pair: &Ed25519YaoInputPairBindingV1,
     body: &T,
@@ -278,7 +278,7 @@ pub(crate) async fn call_deriver_a_wallet_do_lookup_v1<T: Serialize>(
     )?;
     let namespace = env.durable_object(PAIR_DO_BINDING)?;
     let physical_name = relocation::WalletOwner::physical_object_name(&owner, ownership_generation)?;
-    let stub = wallet_home.wallet_stub(&namespace, &physical_name, "deriver_a")?;
+    let stub = wallet_route.wallet_stub(&namespace, &physical_name, "deriver_a")?;
     let body = serde_json::to_string(body).map_err(|error| pair_error(error.to_string()))?;
     let mut init = worker::RequestInit::new();
     init.with_method(worker::Method::Post)
@@ -644,7 +644,7 @@ impl RouterAbDeriverAWalletDurableObject {
             }
         }
         let (preparation, target) =
-            prepare_deriver_a_pair_for_wallet_do_v1(&self.env, &request, owner.object_name()?)
+            prepare_deriver_a_pair_for_wallet_do_v1(&self.env, &request, self.state.id().to_string())
                 .await
                 .map_err(|error| pair_error(error.to_string()))?;
         let DeriverAPairPreparationV1 {
@@ -742,10 +742,7 @@ impl RouterAbDeriverAWalletDurableObject {
             return Err(pair_error("Deriver A pair reservation did not win"));
         }
         let pair_execution = DeriverAPairExecutionContextV1 {
-            pair_object: relocation::WalletOwner::physical_object_name(
-                &owner,
-                request.tenant_root.ownership_generation,
-            )?,
+            pair_object: self.state.id().to_string(),
             expected_root_metadata_digest: root_metadata_digest,
             pair_binding: pair,
             tenant_root: &request.tenant_root,
@@ -810,7 +807,7 @@ impl RouterAbDeriverAWalletDurableObject {
         fail_deriver_b_pair_after_a_error_v1(
             &self.env,
             &crate::CloudflareDeriverBWalletPairScopeV1 {
-                wallet_home: request.tenant_root.wallet_home,
+                wallet_route: request.tenant_root.wallet_route,
                 ownership_generation: request.tenant_root.ownership_generation,
                 root_identity: request.tenant_root.identity.clone(),
                 pair_binding: pair.clone(),
@@ -832,8 +829,7 @@ impl RouterAbDeriverAWalletDurableObject {
         execution_id: Ed25519YaoExecutionIdV1,
         outcome: CloudflareEd25519YaoPairExecuteResponseV1,
     ) -> worker::Result<CloudflareEd25519YaoPairExecuteResponseV1> {
-        let object_name =
-            relocation::WalletOwner::physical_object_name(&owner, ownership_generation)?;
+        let object_id = self.state.id().to_string();
         let completed = self.execute(DeriverAPairDoCommandV1::Complete {
             owner,
             pair_binding: pair.clone(),
@@ -860,7 +856,7 @@ impl RouterAbDeriverAWalletDurableObject {
                         &env,
                         "deriver_a",
                         &session_hex,
-                        &object_name,
+                        &object_id,
                     )
                     .await
                     {
@@ -1261,11 +1257,11 @@ fn pair_error_of(error: impl ToString) -> worker::Error {
 #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 pub(crate) async fn reconcile_deriver_a_wallet_pair_v1(
     env: &Env,
-    object_name: &str,
+    object_id: &str,
     request: &TenantRootWalletPairReconcileRequestV1,
 ) -> worker::Result<TenantRootWalletPairReconciliationV1> {
     let namespace = env.durable_object(PAIR_DO_BINDING)?;
-    let stub = namespace.get_by_name(object_name)?;
+    let stub = namespace.id_from_string(object_id)?.get_stub()?;
     let body = serde_json::to_string(request).map_err(pair_error_of)?;
     let mut init = worker::RequestInit::new();
     init.with_method(worker::Method::Post)
@@ -1441,6 +1437,8 @@ mod tests {
 }
 
 impl relocation::WalletOwner for DeriverAWalletOwnerV1 {
+    fn object_id(route: crate::WalletObjectRoute) -> crate::WalletObjectId { route.addresses.deriver_a }
+
     type Pair = snapshot::PairRow;
     fn cipher(env: &Env) -> worker::Result<crate::ed25519_yao_lifecycle::role_d1::RolePairCipherV1> {
         crate::ed25519_yao_lifecycle::role_d1::RolePairCipherV1::from_env_for_wallet_do(env)
@@ -1459,15 +1457,15 @@ impl relocation::WalletOwner for DeriverAWalletOwnerV1 {
 }
 
 pub(crate) async fn call_preparation(request: Request, env: &Env) -> worker::Result<Response> {
-    relocation::call_preparation::<DeriverAWalletOwnerV1>(request, env, PAIR_DO_BINDING, PREPARATION_PATH, relocation::PreparationTarget::Destination).await
+    relocation::call_preparation::<DeriverAWalletOwnerV1>(request, env, PAIR_DO_BINDING, PREPARATION_PATH).await
 }
 
 pub(crate) async fn read_relocation_context(request: Request, env: &Env) -> worker::Result<Response> {
-    relocation::read_context::<DeriverAWalletOwnerV1>(request, env, PAIR_DO_BINDING).await
+    relocation::read_context::<DeriverAWalletOwnerV1>(request, env).await
 }
 
 pub(crate) async fn call_source_fence(request: Request, env: &Env) -> worker::Result<Response> {
-    relocation::call_preparation::<DeriverAWalletOwnerV1>(request, env, PAIR_DO_BINDING, SOURCE_FENCE_PATH, relocation::PreparationTarget::Source).await
+    relocation::call_preparation::<DeriverAWalletOwnerV1>(request, env, PAIR_DO_BINDING, SOURCE_FENCE_PATH).await
 }
 
 pub(crate) async fn call_snapshot(request: Request, env: &Env) -> worker::Result<Response> {

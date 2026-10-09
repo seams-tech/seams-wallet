@@ -279,3 +279,6 @@ export type {
 export { parseLinkedDeviceSessionRecordV1 } from './core/deviceLinking/linkedDeviceSessionRecord';
 export type { LinkedDeviceSessionRecordV1 } from './core/deviceLinking/linkedDeviceSessionRecord';
 export { computeLinkedDeviceSessionClaimDigestV1 } from '@shared/device-linking/digests';
+
+export { D1WalletObjectAddresses } from './router/cloudflare/d1/walletObjectAddresses';
+export { walletObjectIdentity, type WalletObjectIdentity } from './router/cloudflare/runtime/walletObjectAddresses';

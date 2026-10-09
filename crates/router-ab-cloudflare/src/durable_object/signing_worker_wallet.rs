@@ -660,26 +660,14 @@ impl crate::SigningWorkerWalletSqlV1 for DurableObjectWalletSqlV1<'_> {
 
 pub(crate) async fn call_signing_worker_wallet_do_v1(
     env: &Env,
+    wallet_objects: crate::WalletObjectRoute,
     command: SigningWorkerWalletDoRequestV1,
 ) -> Result<Response, RouterAbProtocolError> {
     command.validate()?;
-    let scope = command.scope();
-    let name = crate::wallet_object::physical_wallet_object_name(
-        &object_name(scope)?,
-        command.ownership_generation()?,
-    )?;
     let namespace = env.durable_object(BINDING).map_err(|error| {
         wallet_error(format!("SigningWorker wallet binding is missing: {error}"))
     })?;
-    let stub = match &command {
-        SigningWorkerWalletDoRequestV1::DeliverPackages(request) => request
-            .wallet_home
-            .wallet_stub(&namespace, &name, "signing_worker"),
-        SigningWorkerWalletDoRequestV1::LookupRegistration(request) => request
-            .wallet_home
-            .wallet_stub(&namespace, &name, "signing_worker"),
-        _ => namespace.get_by_name(&name),
-    }
+    let stub = wallet_objects.addresses.signing_worker.stub(&namespace, wallet_objects.home)
     .map_err(|error| wallet_error(format!("SigningWorker wallet identity is invalid: {error}")))?;
     let body = serde_json::to_string(&command).map_err(|error| {
         wallet_error(format!("SigningWorker wallet command is invalid: {error}"))

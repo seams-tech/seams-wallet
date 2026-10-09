@@ -26,6 +26,7 @@ export async function postRouterAbInternalServiceJson(input: {
   body: unknown;
   authSecret: string;
   fetchImpl: typeof fetch;
+  headers?: Readonly<Record<string, string>>;
   onServerTiming?: (header: string | null) => void;
 }): Promise<RouterAbInternalServiceJsonResult> {
   let response: Response;
@@ -33,6 +34,7 @@ export async function postRouterAbInternalServiceJson(input: {
     response = await input.fetchImpl(input.url, {
       method: 'POST',
       headers: {
+        ...input.headers,
         'content-type': 'application/json',
         [ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1]: normalizeRouterAbInternalServiceAuthSecret(
           input.authSecret,

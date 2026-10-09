@@ -182,7 +182,7 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                         RoleSqlValue::Text(expires_at_ms.as_str()),
                         RoleSqlValue::Text(admitted_at_ms.as_str()),
                         attempt
-                            .pair_object_name()
+                            .pair_object_id()
                             .map_or(RoleSqlValue::Null, RoleSqlValue::Text),
                     ]
                     .iter(),
@@ -262,7 +262,7 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                 if admission.tenant_root_share_epoch.to_string() != epoch
                     || admission.activation_receipt_digest_hex != receipt_digest_hex
                     || admission.attempt_digest_hex != attempt_digest_hex
-                    || admission.pair_object_name.as_deref() != attempt.pair_object_name()
+                    || admission.pair_object_id.as_deref() != attempt.pair_object_id()
                 {
                     return Ok(TenantRootBoundShareV1::AttemptConflict);
                 }

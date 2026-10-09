@@ -1,6 +1,6 @@
 # R152 state ownership baseline for R153
 
-Revision 13 — October 4, 2026.
+Revision 14 — October 10, 2026.
 
 This freezes the **schema inventory and ownership obligations**, not a copy-ready
 relocation implementation. R153 must fail closed for unresolved ownership below.
@@ -20,6 +20,24 @@ All baseline migrations applied to fresh SQLite: 56 signer tables and 84 Console
 tables, integrity checks `ok`, no foreign-key violations. The artifact includes
 migration hashes and every effective table's columns and primary-key order.
 This is schema evidence, not a running-wallet relocation test.
+
+## Stored wallet object addresses
+
+Gateway migration `0077_wallet_object_addresses.sql` adds resource-local routing
+metadata. Select by namespace, organization, project, environment, wallet and
+ownership generation. The row stores the Router, Deriver A, Deriver B and
+SigningWorker Durable Object IDs. It is immutable and retained for retries.
+
+Do not include these rows in wallet snapshots. Relocation allocates a new row
+in the destination region for the next generation before custody preparation.
+Source rows remain available for cleanup and exact replay. A return move also
+allocates fresh addresses. No wallet command falls back to a name-derived ID.
+
+Deriver A and B migration `0019_wallet_object_addresses.sql` changes their
+root-use admission locator from `pair_object_name` to `pair_object_id`. It stores
+the physical ID for retirement reconciliation. Logical names used by encryption
+and relocation receipts remain unchanged. These migrations are written only.
+Existing wallets require discard before activation of this candidate.
 
 ## Selection and transaction rules
 

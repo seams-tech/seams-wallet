@@ -2,9 +2,10 @@ use router_ab_core::{RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbP
 use serde::{Deserialize, Serialize};
 use worker::{Env, Method, Request, Response};
 
-use crate::{router_wallet::RouterWalletOwnerV1, WalletHomeRegion};
+use crate::router_wallet::RouterWalletOwnerV1;
 
 pub(crate) const PATH: &str = "/router-ab/internal/wallet/start";
+pub(crate) const ALLOCATE_PATH: &str = "/router-ab/internal/wallet/allocate";
 
 /// The Gateway's admitted owner addresses each role's independent wallet object.
 #[derive(Clone, Deserialize, Serialize)]
@@ -33,7 +34,7 @@ impl WalletStartup {
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct HomeWalletStartup {
-    wallet_home: WalletHomeRegion,
+    wallet_route: crate::WalletObjectRoute,
     wallet: WalletStartup,
 }
 
@@ -43,13 +44,13 @@ fn invalid_startup(message: &str) -> RouterAbProtocolError {
 
 async fn start_object(
     env: &Env,
-    home: WalletHomeRegion,
+    route: crate::WalletObjectRoute,
     binding: &str,
     name: &str,
     role: &'static str,
 ) -> worker::Result<Response> {
     let namespace = env.durable_object(binding)?;
-    let stub = home.wallet_stub(&namespace, name, role)?;
+    let stub = route.wallet_stub(&namespace, name, role)?;
     let request = Request::new_with_init(
         &format!("https://router-ab-do.internal{PATH}"),
         worker::RequestInit::new().with_method(Method::Post),
@@ -60,7 +61,7 @@ async fn start_object(
 #[cfg(feature = "strict-worker-router-entrypoint")]
 pub(crate) async fn start_registration_wallets(
     env: &Env,
-    home: WalletHomeRegion,
+    route: crate::WalletObjectRoute,
     wallet: WalletStartup,
 ) -> worker::Result<Response> {
     if let Err(error) = wallet.validate() {
@@ -73,12 +74,12 @@ pub(crate) async fn start_registration_wallets(
     let runtime = crate::CloudflareRouterWorkerRuntimeV1::from_worker_env(env)
         .map_err(|error| worker::Error::RustError(error.to_string()))?;
     let request = HomeWalletStartup {
-        wallet_home: home,
+        wallet_route: route,
         wallet,
     };
     // Await every startup even when one role fails. No startup grants authority.
     let results = futures::join!(
-        start_object(env, home, "ROUTER_WALLET_DO", &name, "router"),
+        start_object(env, route, "ROUTER_WALLET_DO", &name, "router"),
         start_peer(env, &runtime.deriver_a_peer().binding_name, &request),
         start_peer(env, &runtime.deriver_b_peer().binding_name, &request),
         start_peer(env, &runtime.signing_worker_peer().binding_name, &request),
@@ -172,5 +173,61 @@ pub(crate) async fn handle_role_request(
         }
         _ => return Response::error("Wallet startup role is unavailable", 400),
     };
-    start_object(env, request.wallet_home, binding, &name, label).await
+    start_object(env, request.wallet_route, binding, &name, label).await
+}
+
+
+/// Allocation creates addresses only. The Gateway persists the winning set
+/// before starting objects or dispatching custody work.
+#[cfg(feature = "strict-worker-router-entrypoint")]
+pub(crate) async fn allocate_wallet_addresses(env: &Env) -> worker::Result<Response> {
+    let router = allocate_address(env, "ROUTER_WALLET_DO")?;
+    let (a, b, signing) = futures::join!(
+        allocate_peer(env, "DERIVER_A"),
+        allocate_peer(env, "DERIVER_B"),
+        allocate_peer(env, "SIGNING_WORKER"),
+    );
+    Response::from_json(&crate::WalletObjectAddresses {
+        router,
+        deriver_a: a?,
+        deriver_b: b?,
+        signing_worker: signing?,
+    })
+}
+
+fn allocate_address(env: &Env, binding: &str) -> worker::Result<crate::WalletObjectId> {
+    let raw = env.durable_object(binding)?.unique_id()?.to_string();
+    crate::WalletObjectId::parse(&raw).map_err(|error| worker::Error::RustError(error.into()))
+}
+
+#[cfg(feature = "strict-worker-router-entrypoint")]
+async fn allocate_peer(env: &Env, binding: &str) -> worker::Result<crate::WalletObjectId> {
+    let mut response = crate::router_coordinator::post_role_request(
+        env, binding, "https://router-ab-startup.internal", ALLOCATE_PATH,
+        "Wallet address allocation", &(), None,
+    ).await.map_err(|error| worker::Error::RustError(error.to_string()))?;
+    if response.status_code() != 200 {
+        return Err(worker::Error::RustError("Wallet address allocation failed".into()));
+    }
+    response.json().await
+}
+
+#[cfg(any(
+    feature = "strict-worker-deriver-a-entrypoint",
+    feature = "strict-worker-deriver-b-entrypoint",
+    feature = "strict-worker-signing-worker-entrypoint"
+))]
+pub(crate) fn allocate_role_address(
+    request: &Request, env: &Env, role: crate::CloudflareWorkerRoleV1,
+) -> worker::Result<Response> {
+    if request.method() != Method::Post {
+        return Response::error("Wallet address allocation requires POST", 405);
+    }
+    let binding = match role {
+        crate::CloudflareWorkerRoleV1::DeriverA => "DERIVER_A_WALLET_DO",
+        crate::CloudflareWorkerRoleV1::DeriverB => "DERIVER_B_WALLET_DO",
+        crate::CloudflareWorkerRoleV1::SigningWorker => "SIGNING_WORKER_WALLET_DO",
+        _ => return Response::error("Wallet address role is unavailable", 400),
+    };
+    Response::from_json(&allocate_address(env, binding)?)
 }

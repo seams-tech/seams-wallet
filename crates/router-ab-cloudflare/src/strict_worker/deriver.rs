@@ -220,6 +220,9 @@ async fn handle_strict_deriver_fetch_v1(
     _context: Context,
 ) -> worker::Result<Response> {
     let path = request.path();
+    if path == crate::durable_object::wallet_startup::ALLOCATE_PATH {
+        return crate::durable_object::wallet_startup::allocate_role_address(&request, &env, runtime.worker_role());
+    }
     if path == crate::durable_object::wallet_startup::PATH {
         return crate::durable_object::wallet_startup::handle_role_request(request, &env, runtime.worker_role()).await;
     }
@@ -733,7 +736,7 @@ async fn handle_strict_deriver_fetch_v1(
             &env,
             crate::durable_object::deriver_a_wallet_do_status_work_path_v1(),
             lookup.ownership_generation,
-            lookup.wallet_home,
+            lookup.wallet_route,
             &lookup.root_identity,
             &lookup.pair_binding,
             &lookup,
@@ -754,7 +757,7 @@ async fn handle_strict_deriver_fetch_v1(
             &env,
             crate::durable_object::deriver_a_wallet_do_burn_work_path_v1(),
             lookup.ownership_generation,
-            lookup.wallet_home,
+            lookup.wallet_route,
             &lookup.root_identity,
             &lookup.pair_binding,
             &lookup,

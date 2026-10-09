@@ -132,7 +132,7 @@ pub(crate) async fn call_deriver_b_wallet_do_v1(
     request: DeriverBWalletDoRequestV1,
 ) -> worker::Result<Response> {
     let namespace = env.durable_object(BINDING)?;
-    let stub = request.scope.wallet_home.wallet_stub(
+    let stub = request.scope.wallet_route.wallet_stub(
         &namespace,
         &deriver_b_wallet_object_name_v1(&request.scope)?,
         "deriver_b",
@@ -192,7 +192,7 @@ impl RouterAbDeriverBWalletDurableObject {
             .map_err(pair_error)?
             .scope;
         let namespace = env.durable_object(BINDING)?;
-        let stub = scope.wallet_home.wallet_stub(
+        let stub = scope.wallet_route.wallet_stub(
             &namespace,
             &deriver_b_wallet_object_name_v1(&scope)?,
             "deriver_b",
@@ -436,6 +436,7 @@ impl RouterAbDeriverBWalletDurableObject {
             self.env.clone(),
             self.sql.clone(),
             owner.object_name()?,
+            self.state.id().to_string(),
             encode_hex_slice(root_digest.as_bytes()),
         );
         engine.execute(request.command).await
@@ -528,11 +529,11 @@ struct SessionRowV1 {
 /// ([`RouterAbDeriverBWalletDurableObject::reconcile`]).
 pub(crate) async fn reconcile_deriver_b_wallet_pair_v1(
     env: &Env,
-    object_name: &str,
+    object_id: &str,
     request: &TenantRootWalletPairReconcileRequestV1,
 ) -> worker::Result<TenantRootWalletPairReconciliationV1> {
     let namespace = env.durable_object(BINDING)?;
-    let stub = namespace.get_by_name(object_name)?;
+    let stub = namespace.id_from_string(object_id)?.get_stub()?;
     let body = serde_json::to_string(request).map_err(pair_error)?;
     let mut init = worker::RequestInit::new();
     init.with_method(worker::Method::Post)
@@ -556,6 +557,8 @@ fn pair_error(error: impl ToString) -> worker::Error {
 }
 
 impl relocation::WalletOwner for DeriverBWalletOwnerV1 {
+    fn object_id(route: crate::WalletObjectRoute) -> crate::WalletObjectId { route.addresses.deriver_b }
+
     type Pair = snapshot::PairRow;
     fn cipher(
         env: &Env,
@@ -588,7 +591,6 @@ pub(crate) async fn call_preparation(request: Request, env: &Env) -> worker::Res
         env,
         BINDING,
         PREPARATION_PATH,
-        relocation::PreparationTarget::Destination,
     )
     .await
 }
@@ -597,7 +599,7 @@ pub(crate) async fn read_relocation_context(
     request: Request,
     env: &Env,
 ) -> worker::Result<Response> {
-    relocation::read_context::<DeriverBWalletOwnerV1>(request, env, BINDING).await
+    relocation::read_context::<DeriverBWalletOwnerV1>(request, env).await
 }
 
 pub(crate) async fn call_source_fence(request: Request, env: &Env) -> worker::Result<Response> {
@@ -606,7 +608,6 @@ pub(crate) async fn call_source_fence(request: Request, env: &Env) -> worker::Re
         env,
         BINDING,
         SOURCE_FENCE_PATH,
-        relocation::PreparationTarget::Source,
     )
     .await
 }

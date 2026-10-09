@@ -1,3 +1,4 @@
+import { walletRelocationObjectIdentity, walletObjectIdentityHeaders } from './walletObjectAddresses';
 import { isPlainObject } from '@shared/utils/validation';
 import { ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1 } from '../../../core/ThresholdService/routerAb/internalServiceHttp';
 import type { CloudflareServiceBindingFetcher } from './routerAbServiceBindings';
@@ -66,7 +67,7 @@ export async function forwardPresignSource(
     }
     const response = await router.fetch(new Request(`https://mpc-router.router-ab.internal${path}`, {
       method: 'POST', redirect: 'manual',
-      headers: { 'content-type': 'application/json', [ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1]: credential },
+      headers: { 'content-type': 'application/json', [ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1]: credential, ...walletObjectIdentityHeaders(walletRelocationObjectIdentity(input.wallet, payload.request.source_generation)) },
       body: JSON.stringify(payload),
     }));
     if (operation !== 'freeze' || !response.ok) return response;
@@ -175,7 +176,7 @@ async function forwardPresignTransfer(
     const path = operation === 'export' ? 'export' : 'transfer';
     return await router.fetch(new Request(`https://mpc-router.router-ab.internal/router-ab/signing-worker/linked-presign-session/${path}`, {
       method: 'POST', redirect: 'manual',
-      headers: { 'content-type': 'application/json', [ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1]: credential },
+      headers: { 'content-type': 'application/json', [ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1]: credential, ...walletObjectIdentityHeaders(walletRelocationObjectIdentity(input.wallet, move.source_generation + (operation === 'export' || operation === 'cleanup' ? 0 : 1))) },
       body: JSON.stringify(payload),
     }));
   } catch {

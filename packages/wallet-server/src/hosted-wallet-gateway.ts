@@ -1,3 +1,5 @@
+import { D1WalletObjectAddresses } from './router/cloudflare/d1/walletObjectAddresses';
+import { walletObjectIdentity, walletObjectIdentityHeaders, type WalletObjectIdentity } from './router/cloudflare/runtime/walletObjectAddresses';
 import { admitD1EstablishedWalletHome } from './router/cloudflare/d1/registration/d1WalletExecutionAuthority';
 import { WalletAuthorizationRelocationRoutes } from './router/cloudflare/runtime/walletAuthorizationRelocationRoutes';
 import { parseTenantId } from '@shared/authorization/capabilityKinds';
@@ -1319,17 +1321,21 @@ function createStagingYaoRequestScopedRuntime(
   });
 }
 
-function scheduleRegistrationRouterStartup(
+async function scheduleRegistrationRouterStartup(
   env: CloudflareD1GatewayBaseEnv,
   background: CfExecutionContext,
   registration: { readonly walletId: WalletId; readonly ownershipGeneration: number },
-): void {
-  background.waitUntil(startRegistrationRouter(env, registration));
+): Promise<void> {
+  const tenant = stagingTenantScope(env);
+  const identity = walletObjectIdentity(registration.walletId, registration.ownershipGeneration, tenant);
+  const addresses = new D1WalletObjectAddresses(env.SIGNER_DB, tenant);
+  await addresses.initialize(identity, env.MPC_ROUTER, requireEnvString(env, 'ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET'));
+  background.waitUntil(startRegistrationRouter(env, identity));
 }
 
 async function startRegistrationRouter(
   env: CloudflareD1GatewayBaseEnv,
-  registration: { readonly walletId: WalletId; readonly ownershipGeneration: number },
+  registration: WalletObjectIdentity,
 ): Promise<void> {
   const started = Date.now();
   let outcome: 'success' | 'failure' = 'failure';
@@ -1341,6 +1347,7 @@ async function startRegistrationRouter(
         method: 'POST',
         headers: {
           'content-type': 'application/json',
+          ...walletObjectIdentityHeaders(registration),
           'x-router-ab-internal-service-auth': requireEnvString(
             env,
             'ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET',

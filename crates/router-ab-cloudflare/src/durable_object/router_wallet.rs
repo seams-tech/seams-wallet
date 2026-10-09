@@ -161,13 +161,13 @@ fn refusal_response(error: &RouterAbProtocolError) -> worker::Result<Response> {
 /// Runs one command in the wallet object the request's owner names.
 pub(crate) async fn call_router_wallet_v1(
     env: &Env,
-    wallet_home: crate::WalletHomeRegion,
+    wallet_route: crate::WalletObjectRoute,
     request: &RouterWalletRequestV1,
 ) -> RouterAbProtocolResult<RouterWalletResponseV1> {
     let started_ms = worker::Date::now().as_millis();
     let result = call_wallet(
         env,
-        wallet_home,
+        wallet_route,
         &request.owner,
         request.ownership_generation,
         COMMAND_PATH,
@@ -180,7 +180,7 @@ pub(crate) async fn call_router_wallet_v1(
         serde_json::json!({
             "event": "router_wallet_dispatch_timing",
             "operation": command_label(&request.command),
-            "wallet_home": wallet_home,
+            "wallet_home": wallet_route.home,
             "duration_ms": worker::Date::now().as_millis().saturating_sub(started_ms),
             "outcome": if result.is_ok() { "success" } else { "failure" },
         })
@@ -200,12 +200,12 @@ fn command_label(command: &RouterWalletCommandV1) -> &'static str {
 
 pub(crate) async fn call_router_wallet_freeze_v1(
     env: &Env,
-    wallet_home: crate::WalletHomeRegion,
+    wallet_route: crate::WalletObjectRoute,
     request: &RouterWalletFreezeRequestV1,
 ) -> RouterAbProtocolResult<RouterWalletFreezeResponseV1> {
     call_wallet(
         env,
-        wallet_home,
+        wallet_route,
         &request.owner,
         request.source_generation,
         ROUTER_WALLET_FREEZE_PATH_V1,
@@ -217,12 +217,12 @@ pub(crate) async fn call_router_wallet_freeze_v1(
 
 pub(crate) async fn call_router_wallet_transfer_v1(
     env: &Env,
-    wallet_home: crate::WalletHomeRegion,
+    wallet_route: crate::WalletObjectRoute,
     request: &RouterWalletTransferRequestV1,
 ) -> RouterAbProtocolResult<RouterWalletTransferResponseV1> {
     call_wallet(
         env,
-        wallet_home,
+        wallet_route,
         request.owner(),
         request.ownership_generation(),
         ROUTER_WALLET_TRANSFER_PATH_V1,
@@ -234,7 +234,7 @@ pub(crate) async fn call_router_wallet_transfer_v1(
 
 async fn call_wallet<Input: Serialize, Output: DeserializeOwned>(
     env: &Env,
-    wallet_home: crate::WalletHomeRegion,
+    wallet_route: crate::WalletObjectRoute,
     owner: &RouterWalletOwnerV1,
     ownership_generation: u64,
     path: &str,
@@ -245,7 +245,7 @@ async fn call_wallet<Input: Serialize, Output: DeserializeOwned>(
     let object_name = owner.object_name(ownership_generation)?;
     let stub = env
         .durable_object(BINDING)
-        .and_then(|namespace| wallet_home.wallet_stub(&namespace, &object_name, "router"))
+        .and_then(|namespace| wallet_route.wallet_stub(&namespace, &object_name, "router"))
         .map_err(|error| unavailable(format!("Router wallet object binding failed: {error}")))?;
     let encoding_started_ms = worker::Date::now().as_millis();
     let body = serde_json::to_string(request).map_err(|error| {
@@ -287,7 +287,7 @@ async fn call_wallet<Input: Serialize, Output: DeserializeOwned>(
         serde_json::json!({
             "event": "router_wallet_transport_timing",
             "operation": operation,
-            "wallet_home": wallet_home,
+            "wallet_home": wallet_route.home,
             "lookup_ms": encoding_started_ms.saturating_sub(lookup_started_ms),
             "encoding_ms": fetch_started_ms.saturating_sub(encoding_started_ms),
             "response_headers_ms": body_started_ms.saturating_sub(fetch_started_ms),

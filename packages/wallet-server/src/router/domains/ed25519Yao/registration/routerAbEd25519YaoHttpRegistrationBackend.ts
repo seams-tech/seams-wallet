@@ -1,3 +1,4 @@
+import { walletObjectIdentity, walletObjectIdentityHeaders, type WalletObjectIdentity } from '../../../cloudflare/runtime/walletObjectAddresses';
 import type { RouterAbEd25519YaoRegistrationExecutionAuthorityV1 } from './routerAbEd25519YaoRegistrationExecutionRecord';
 import {
   parseRouterAbEd25519YaoActivationKeysetV1,
@@ -994,6 +995,7 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
     try {
       response = await this.post(
         ROUTER_REGISTRATION_CONSUME_PATH,
+        walletObjectIdentity(input.authority.admissionReceipt.binding.lifecycle.account_id, input.authority.ownershipGeneration, input.authority.dispatchRoot.identity),
         {
           tenant_root: input.authority.dispatchRoot,
           ownership_generation: input.authority.ownershipGeneration,
@@ -1088,6 +1090,7 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
     try {
       const response = await this.post(
         ROUTER_EXECUTE_PATH,
+        walletObjectIdentity(request.admissionRequest.application_binding.wallet_id, request.ownershipGeneration, routerRequest.tenant_root.identity),
         routerRequest,
         traceId,
         retryAfterTransportFailure,
@@ -1128,6 +1131,7 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
     // The root names the wallet's SigningWorker, as it did for the delivery.
     const promoted = await this.post(
       ROUTER_RECOVERY_PROMOTE_PATH,
+      walletObjectIdentity(request.binding.lifecycle.account_id, ownershipGeneration, dispatchRoot.identity),
       { ...request, tenant_root: dispatchRoot, ownership_generation: ownershipGeneration },
       (traceContext ?? createRouterAbTraceContextV1()).value,
     );
@@ -1151,6 +1155,7 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
   /// the Router's replay.
   private async post(
     path: string,
+    identity: WalletObjectIdentity,
     body: unknown,
     traceId: string,
     retryAfterTransportFailure: 'none' | 'exact' | 'replay' = 'none',
@@ -1158,7 +1163,7 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
   ): Promise<HttpResult> {
     const init: RequestInit = {
       method: 'POST',
-      headers: this.headers(traceId),
+      headers: { ...this.headers(traceId), ...walletObjectIdentityHeaders(identity) },
       body: JSON.stringify(body),
     };
     return await this.request(

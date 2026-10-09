@@ -17,14 +17,10 @@ pub(crate) enum PresignHost<'a> {
     LinkedSession { session_id: &'a str, ownership_generation: u64 },
 }
 
-pub(crate) enum PresignPlacement {
-    Existing,
-    Home(crate::WalletHomeRegion),
-}
-
 /// Activation has committed before this task starts. Warming creates no session or authority.
 pub(crate) async fn warm_owner_presign_host(
     env: worker::Env,
+    wallet_objects: crate::WalletObjectRoute,
     binding: CloudflareSigningWorkerPresignSessionBindingV1,
     wallet: CloudflareSigningWorkerWalletScopeV1,
     ownership_generation: u64,
@@ -34,6 +30,7 @@ pub(crate) async fn warm_owner_presign_host(
     let result: RouterAbProtocolResult<bool> =
         execute_cloudflare_durable_object_custom_json_call_v1(
             &env,
+            wallet_objects,
             &binding,
             crate::CLOUDFLARE_INTERNAL_PREWARM_PATH,
             PresignHost::Owner {
@@ -58,6 +55,7 @@ pub(crate) struct CloudflareDurableObjectJsonResponseV1<TResponse> {
 
 pub(crate) async fn execute_cloudflare_durable_object_custom_json_call_v1<TRequest, TResponse>(
     env: &worker::Env,
+    wallet_objects: crate::WalletObjectRoute,
     binding: &CloudflareSigningWorkerPresignSessionBindingV1,
     path: &str,
     host: PresignHost<'_>,
@@ -69,7 +67,7 @@ where
 {
     Ok(
         execute_cloudflare_durable_object_custom_json_call_with_timing_v1(
-            env, binding, path, host, PresignPlacement::Existing, request,
+            env, wallet_objects, binding, path, host, request,
         )
         .await?
         .value,
@@ -81,10 +79,10 @@ pub(crate) async fn execute_cloudflare_durable_object_custom_json_call_with_timi
     TResponse,
 >(
     env: &worker::Env,
+    wallet_objects: crate::WalletObjectRoute,
     binding: &CloudflareSigningWorkerPresignSessionBindingV1,
     path: &str,
     host: PresignHost<'_>,
-    placement: PresignPlacement,
     request: &TRequest,
 ) -> RouterAbProtocolResult<CloudflareDurableObjectJsonResponseV1<TResponse>>
 where
@@ -100,10 +98,7 @@ where
             format!("Durable Object namespace lookup failed: {error}"),
         )
     })?;
-    let stub = match placement {
-        PresignPlacement::Existing => namespace.get_by_name(&object_name),
-        PresignPlacement::Home(home) => home.wallet_stub(&namespace, &object_name, "ownerPresign"),
-    }.map_err(|error| {
+    let stub = wallet_objects.home.presign_stub(&namespace, &object_name).map_err(|error| {
         RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
             format!("Durable Object stub lookup failed: {error}"),
@@ -115,8 +110,10 @@ where
             format!("Durable Object custom request encoding failed: {error}"),
         )
     })?;
+    let headers = worker::Headers::new();
+    wallet_objects.set_headers(&headers)?;
     let mut init = worker::RequestInit::new();
-    init.with_method(worker::Method::Post)
+    init.with_headers(headers).with_method(worker::Method::Post)
         .with_body(Some(worker::wasm_bindgen::JsValue::from_str(&request_body)));
     let url = format!("https://router-ab-do.internal{path}");
     let request = worker::Request::new_with_init(&url, &init).map_err(|error| {

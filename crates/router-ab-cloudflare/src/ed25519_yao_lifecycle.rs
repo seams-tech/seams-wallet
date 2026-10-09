@@ -716,6 +716,7 @@ pub(crate) struct DeriverBYaoSessionD1V1 {
 struct DeriverBWalletDoStorageV1 {
     sql: worker::SqlStorage,
     object_name: String,
+    object_id: String,
     root_identity_digest_hex: String,
 }
 
@@ -734,6 +735,7 @@ impl DeriverBYaoSessionD1V1 {
         env: Env,
         sql: worker::SqlStorage,
         object_name: String,
+        object_id: String,
         root_identity_digest_hex: String,
     ) -> Self {
         Self {
@@ -741,16 +743,17 @@ impl DeriverBYaoSessionD1V1 {
             wallet_do: Some(DeriverBWalletDoStorageV1 {
                 sql,
                 object_name,
+                object_id,
                 root_identity_digest_hex,
             }),
         }
     }
 
     /// The wallet object that holds this role's pair records, if any.
-    fn pair_object_name(&self) -> Option<String> {
+    fn pair_object_id(&self) -> Option<String> {
         #[cfg(feature = "strict-worker-deriver-b-entrypoint")]
         if let Some(wallet_do) = &self.wallet_do {
-            return Some(wallet_do.object_name.clone());
+            return Some(wallet_do.object_id.clone());
         }
         None
     }
@@ -847,7 +850,7 @@ impl DeriverBYaoSessionD1V1 {
             CloudflareWorkerRoleV1::DeriverB,
             &request.tenant_root,
             &request.pair_binding,
-            self.pair_object_name(),
+            self.pair_object_id(),
             RootUseAccess::Admit,
         )
         .await
@@ -1423,7 +1426,7 @@ where
     .map_err(map_websocket_error)?;
     let start = CloudflareDeriverBPairStartScopeV1 {
         scope: CloudflareDeriverBWalletPairScopeV1 {
-            wallet_home: pair_execution.tenant_root.wallet_home,
+            wallet_route: pair_execution.tenant_root.wallet_route,
             ownership_generation: pair_execution.tenant_root.ownership_generation,
             root_identity: pair_execution.tenant_root.identity.clone(),
             pair_binding: pair_execution.pair_binding.clone(),
@@ -1657,7 +1660,7 @@ pub async fn handle_cloudflare_ed25519_yao_deriver_b_prepare_pair_v1(
     let expected_kind = input_kind_for_circuit(request.pair_binding.binding().circuit_family());
     request.validate_for_role(Ed25519YaoDeriverRoleV1::DeriverB, expected_kind)?;
     let scope = CloudflareDeriverBWalletPairScopeV1 {
-        wallet_home: request.tenant_root.wallet_home,
+        wallet_route: request.tenant_root.wallet_route,
         ownership_generation: request.tenant_root.ownership_generation,
         root_identity: request.tenant_root.identity.clone(),
         pair_binding: request.pair_binding.clone(),
@@ -2066,7 +2069,7 @@ async fn execute_deriver_b_role(
     work: crate::CloudflareEd25519YaoPairWorkV1,
 ) -> RouterAbProtocolResult<()> {
     let scope = CloudflareDeriverBWalletPairScopeV1 {
-        wallet_home: tenant_root.wallet_home,
+        wallet_route: tenant_root.wallet_route,
         ownership_generation: tenant_root.ownership_generation,
         root_identity: tenant_root.identity.clone(),
         pair_binding: pair_binding.clone(),
@@ -2095,10 +2098,7 @@ async fn execute_deriver_b_role(
     );
     let mut transport = transport_result?;
     #[cfg(feature = "strict-worker-deriver-b-entrypoint")]
-    let pair_object = Some(
-        crate::durable_object::deriver_b_wallet_object_name_v1(&scope)
-            .map_err(|error| invalid_lifecycle(error.to_string()))?,
-    );
+    let pair_object = Some(scope.wallet_route.addresses.deriver_b.as_str().to_owned());
     #[cfg(not(feature = "strict-worker-deriver-b-entrypoint"))]
     let pair_object = None;
     let (custody_binding, role_share, stable_context, root_metadata_digest) =
@@ -2492,18 +2492,12 @@ async fn execute_deriver_b_role_session_command(
 #[cfg(feature = "strict-worker-deriver-b-entrypoint")]
 async fn settle_deriver_b_wallet_admission(env: &Env, scope: &CloudflareDeriverBWalletPairScopeV1) {
     // A failed acknowledgement leaves admission unsettled for retirement reconciliation.
-    let settled = match crate::durable_object::deriver_b_wallet_object_name_v1(scope) {
-        Ok(object_name) => {
-            role_d1::settle_wallet_object_admission_v1(
-                env,
-                "deriver_b",
-                &role_d1::encode_hex_slice(&scope.pair_binding.session()),
-                &object_name,
-            )
-            .await
-        }
-        Err(error) => Err(error),
-    };
+    let settled = role_d1::settle_wallet_object_admission_v1(
+        env,
+        "deriver_b",
+        &role_d1::encode_hex_slice(&scope.pair_binding.session()),
+        scope.wallet_route.addresses.deriver_b.as_str(),
+    ).await;
     if let Err(error) = settled {
         worker::console_error!(
             "Deriver B pair completed, but its admission settlement was not acknowledged: {error}"
@@ -3085,7 +3079,15 @@ mod tests {
         pair: &Ed25519YaoInputPairBindingV1,
     ) -> crate::CloudflareEd25519YaoTenantRootContextV2 {
         crate::CloudflareEd25519YaoTenantRootContextV2 {
-            wallet_home: crate::WalletHomeRegion::US,
+            wallet_route: serde_json::from_value(serde_json::json!({
+                "home": "US",
+                "addresses": {
+                    "router": "11".repeat(32),
+                    "deriver_a": "22".repeat(32),
+                    "deriver_b": "33".repeat(32),
+                    "signing_worker": "44".repeat(32),
+                },
+            })).expect("wallet route"),
             ownership_generation: 1,
             identity: router_ab_core::TenantRootIdentityV1::new(
                 "org", "project", "env", "root", "v1",

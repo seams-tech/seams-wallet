@@ -130,6 +130,8 @@ pub(crate) async fn forward_export(
     env: &worker::Env,
     runtime: &CloudflareSigningWorkerRuntimeV1,
 ) -> worker::Result<worker::Response> {
+    let wallet_objects = crate::WalletObjectRoute::from_gateway_request(&request)
+        .map_err(|error| worker::Error::RustError(error.to_string()))?;
     if request.method() != worker::Method::Post {
         return worker::Response::error("Linked presign export requires POST", 405);
     }
@@ -145,6 +147,7 @@ pub(crate) async fn forward_export(
     let result: RouterAbProtocolResult<SnapshotChunk> =
         super::execute_cloudflare_durable_object_custom_json_call_v1(
             env,
+            wallet_objects,
             &runtime.bindings().presign_session,
             INTERNAL_EXPORT_PATH,
             super::PresignHost::LinkedSession { session_id: &command.receipt.command.server_presignature_id, ownership_generation: command.receipt.command.request.source_generation },
@@ -221,6 +224,7 @@ pub(crate) async fn handle_freeze(
     storage: &worker::Storage,
     env: &worker::Env,
 ) -> RouterAbProtocolResult<LinkedPresignFreezeReceipt> {
+    let wallet_objects = crate::WalletObjectRoute::from_gateway_request(&request)?;
     if request.method() != worker::Method::Post {
         return Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::MalformedWirePayload,
@@ -243,17 +247,19 @@ pub(crate) async fn handle_freeze(
         .borrow_mut()
         .take()
         .ok_or_else(|| storage_error("Missing freeze outcome"))??;
-    record_wallet_freeze(env, &receipt).await?;
+    record_wallet_freeze(env, wallet_objects, &receipt).await?;
     Ok(receipt)
 }
 
 #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
 async fn record_wallet_freeze(
     env: &worker::Env,
+    wallet_objects: crate::WalletObjectRoute,
     receipt: &LinkedPresignFreezeReceipt,
 ) -> RouterAbProtocolResult<()> {
     let response = super::call_signing_worker_wallet_do_v1(
         env,
+            wallet_objects,
         super::SigningWorkerWalletDoRequestV1::RecordLinkedPresignFreeze {
             receipt: receipt.clone(),
         },
@@ -269,6 +275,7 @@ async fn record_wallet_freeze(
 #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
 async fn record_wallet_freeze(
     _env: &worker::Env,
+    _wallet_objects: crate::WalletObjectRoute,
     _receipt: &LinkedPresignFreezeReceipt,
 ) -> RouterAbProtocolResult<()> {
     Err(storage_error(
@@ -461,6 +468,8 @@ async fn forward_command<Receipt: DeserializeOwned + Serialize>(
     runtime: &CloudflareSigningWorkerRuntimeV1,
     internal_path: &str,
 ) -> worker::Result<worker::Response> {
+    let wallet_objects = crate::WalletObjectRoute::from_gateway_request(&request)
+        .map_err(|error| worker::Error::RustError(error.to_string()))?;
     if request.method() != worker::Method::Post {
         return worker::Response::error("Linked presign relocation requires POST", 405);
     }
@@ -476,6 +485,7 @@ async fn forward_command<Receipt: DeserializeOwned + Serialize>(
     let result: RouterAbProtocolResult<Receipt> =
         super::execute_cloudflare_durable_object_custom_json_call_v1(
             env,
+            wallet_objects,
             &runtime.bindings().presign_session,
             internal_path,
             super::PresignHost::LinkedSession { session_id: &command.server_presignature_id, ownership_generation: command.request.source_generation },
@@ -493,6 +503,7 @@ pub(crate) async fn handle_fence(
     storage: &worker::Storage,
     env: &worker::Env,
 ) -> RouterAbProtocolResult<LinkedPresignFenceReceipt> {
+    let wallet_objects = crate::WalletObjectRoute::from_gateway_request(&request)?;
     if request.method() != worker::Method::Post {
         return Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::MalformedWirePayload,
@@ -501,7 +512,7 @@ pub(crate) async fn handle_fence(
     }
     let command: LinkedPresignRelocationRequest = request.json().await.map_err(storage_error)?;
     command.validate()?;
-    let initialization = fence_initialization(storage, env, &command).await?;
+    let initialization = fence_initialization(storage, env, wallet_objects, &command).await?;
     let outcome = Rc::new(RefCell::new(None));
     let transaction_outcome = Rc::clone(&outcome);
     storage
@@ -588,6 +599,7 @@ async fn fence_transaction(
 async fn fence_initialization(
     storage: &worker::Storage,
     env: &worker::Env,
+    wallet_objects: crate::WalletObjectRoute,
     command: &LinkedPresignRelocationRequest,
 ) -> RouterAbProtocolResult<Initialization> {
     if let Some(receipt) = storage
@@ -603,16 +615,18 @@ async fn fence_initialization(
         }
         return Ok(receipt.initialization);
     }
-    registered_initialization(env, command).await
+    registered_initialization(env, wallet_objects, command).await
 }
 
 #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
 async fn registered_initialization(
     env: &worker::Env,
+    wallet_objects: crate::WalletObjectRoute,
     command: &LinkedPresignRelocationRequest,
 ) -> RouterAbProtocolResult<Initialization> {
     let response = super::call_signing_worker_wallet_do_v1(
         env,
+            wallet_objects,
         super::SigningWorkerWalletDoRequestV1::AuthorizeLinkedPresignFence {
             scope: command.wallet_scope.clone(),
             presign_session_id: command.presign_session_id.clone(),
@@ -632,6 +646,7 @@ async fn registered_initialization(
 #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
 async fn registered_initialization(
     _env: &worker::Env,
+    _wallet_objects: crate::WalletObjectRoute,
     _command: &LinkedPresignRelocationRequest,
 ) -> RouterAbProtocolResult<Initialization> {
     Err(storage_error(

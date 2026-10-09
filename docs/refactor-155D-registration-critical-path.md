@@ -518,80 +518,117 @@ latency per location, and the dispatch-cost matrix.
 
 ### Address wallet objects by stored unique IDs
 
-Today each role derives its wallet object's name from the owner and ownership
-generation and asks its namespace for that name. The name is the address, so
-nothing stores it, and every server that has not called the object pays the
-lookup. Replace the derived name with a stored address:
+The implementation separates a wallet's logical identity from its four physical
+Durable Object addresses. Router, Deriver A, Deriver B and SigningWorker open
+wallet objects with `idFromString`. Logical names remain in encryption context,
+relocation receipts and diagnostic records. They no longer select these objects.
 
-- Wallet startup mints the addresses. The Router creates its own object with
-  `newUniqueId`, and each role does the same in its own namespace and returns
-  the ID. Startup returns the four IDs to the Gateway.
-- The Gateway stores them with the wallet's ownership generation, in the row
-  it already reads on every custody request, before any custody state exists.
-  One generation has one set of addresses, written once.
-- Every Gateway-to-Router custody request carries the wallet's addresses beside
-  its home and generation. The Router passes each role its own address the same
-  way it passes the home today. A role opens the object by `idFromString`.
-- Authority does not move, and one check is added. An object checks the
-  requested generation against the one it stored. On ordinary commands the
-  derived name alone binds it to its owner. An object opened by address must
-  record its owner at first use and check it on every command, so an address
-  for another wallet's object is refused there. An address selects an object;
-  it grants nothing.
-- Relocation mints the destination generation's addresses when it prepares the
-  destination, and stores them with that generation.
-- There is one address mechanism. A wallet created before this change has
-  name-derived objects and no stored addresses. It is not carried over: design
-  rule 10 allows no compatibility path for disposable test wallets. An earlier
-  version of this plan kept such wallets on their names; that was a second
-  path and is withdrawn.
+Allocation happens during registration setup, before custody execution:
 
-This reaches every custody request type, the Gateway's generation row in all
-four regional databases, relocation, and the scenario harnesses. It needs its
-own change set, coordinated with R153's relocation work, and its own hosted
-comparison. It is the largest saving in this plan. Work has started and
-nothing is committed.
+1. The authenticated Router allocates its address. Each role allocates an address
+   from its own namespace. Allocation does not start the objects.
+2. The Gateway inserts the four addresses in `wallet_object_addresses`. The key
+   includes namespace, organization, project, environment, wallet and ownership
+   generation. Concurrent insertions return the same persisted winner.
+3. Setup waits for persistence. A failed allocation can retry through the saved
+   setup reservation. An exact replay reads the existing addresses.
+4. Background startup warms the persisted objects. Its failure affects latency
+   only. Every custody request must find the persisted addresses.
 
-Constraints found while reading the code on October 10:
+The home binding replaces incoming address and region headers. It reads addresses
+for the admitted wallet and generation. Each role retains its existing owner,
+generation, authority, replay and relocation checks. An address grants no authority.
+Deferred work carries the selected route through protocol messages and continuations.
 
-- Names stay. A derived name is also a stored identity: relocation receipts
-  name source and destination objects, the role databases store a pair's
-  object name with its admission, and session identities embed it. The address
-  travels beside the name; it does not replace it.
-- The owner check above was confirmed missing for the Router wallet object.
-  Confirm or add it for the Deriver and Signing Worker objects.
-- Startup becomes authoritative. Today it is best-effort, and a lost startup
-  costs only time. Once startup mints the addresses, the first custody command
-  of a generation must not run before they are stored, or it creates named
-  objects beside the minted ones. Store the addresses insert-once. A custody
-  request for a new generation with none stored mints them first and uses the
-  row that won the insert.
-- The Gateway writes the generation row when respond admits the home. Startup
-  now fires at setup, before that row exists. The addresses need their own
-  insert-once row keyed by wallet and generation, read in the statement that
-  reads the generation row.
-- A generation with no stored addresses is refused. No row records a kind of
-  address, because there is one kind.
-- The seams are narrow. Roles open wallet objects at fewer than twenty call
-  sites. The Gateway attaches the home region in one binding wrapper, and the
-  addresses can ride the same way. The Router parses that header in one place.
+Relocation prepares the destination address row after its authorization-import
+reservation. This runs before custody preparation and placement inspection. Source
+addresses remain available for cleanup and exact retries. Destination addresses
+are allocated in the destination namespaces. Address rows are never copied as
+wallet content and cannot be updated or deleted independently.
 
-- [ ] Confirm with the owner which environments hold wallets that this change
-  discards, and agree the change with the relocation owner.
-- [ ] Mint, return, and store addresses at wallet startup. Refuse a custody
-  request whose generation has no stored addresses.
-- [ ] Carry addresses on every Gateway-to-Router and Router-to-role request.
-  Open objects by stored ID in every role. Delete name derivation.
-- [ ] Mint destination addresses in relocation.
-- [ ] Verify with the Worker and wallet-object scenarios, the four-home E2E,
-  relocation, and the intended-behaviour contracts. Measure against the Phase 0
-  probe: no dispatch above 50 ms from a server that never called the object.
+Deriver admission reconciliation stores the physical object ID. Retirement checks
+open that ID after a lost completion acknowledgement. Encryption context retains
+the logical name. The separate presignature-session objects retain their existing
+addresses and carry the parent wallet's stored route for callbacks.
+
+Migrations written for this change:
+
+- Gateway `0077_wallet_object_addresses.sql`, for each of the four regional
+  Gateway databases. Each Runtime shares its region's Gateway database.
+- Deriver A and B `0019_wallet_object_addresses.sql`, renaming their admission
+  locator to `pair_object_id`. Old admissions and wallets must be discarded
+  together before activating this incompatible candidate.
+
+Scope: code and migration files only. No live migration or deployment is included.
+Staging is the first candidate environment. Production testnet and mainnet are
+excluded from wallet discard and deployment. There is no name-based fallback.
+Gateway, Runtime, Router, Deriver A, Deriver B and SigningWorker must use the
+matching candidate. Their internal route messages changed together.
+
+The current binding performs one regional D1 lookup per wallet custody dispatch.
+This cost must be included in the hosted comparison. The earlier 13 ms unique-ID
+probe and 448 ms named-ID probe are evidence for the change, not a measured saving
+for this implementation. The estimated 2.5 s full-flow saving remains unmeasured.
+
+- [x] Allocate, persist and reuse one address set before custody work.
+- [x] Route the four wallet objects by stored ID. Preserve logical record identities.
+- [x] Carry the route through signing, export, linked-device work and continuations.
+- [x] Allocate destination addresses during relocation preparation.
+- [x] Preserve physical admission locators for retirement reconciliation.
+- [x] Verify setup retry, lost allocation reply, concurrent allocation, tenant
+  isolation, generation isolation and immutable address rows against local D1.
+- [x] Complete local four-home Worker registration, signing, destination
+  preparation and source/destination address-selection checks.
+- [ ] Run a complete composed relocation with copy, activation and source cleanup
+  against the matching stored-address candidate before deployment.
+- [ ] Run the controlled hosted comparison after separate deployment approval.
+  Report full-flow timings and the added D1 lookup cost. A 50 ms dispatch remains
+  a measurement target, not a Cloudflare guarantee.
+
+### Stored-address local verification — October 10
+
+The setup scenario uses the assembled registration service and local D1. It
+verifies exact setup replay, a lost allocation reply, eight competing allocations
+with one persisted winner, distinct ownership generations, tenant isolation, and
+replacement of caller-supplied addresses. It also checks that address rows cannot
+be changed. Run `node tests/e2e/registration-setup-startup.e2e.mjs` from the public
+repository. Evidence: `.artifacts/registration-setup-startup/result.json`.
+
+The private Runtime scenario verifies destination allocation after its import
+reservation and rejects the wrong writer, request and reservation. Run
+`SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server node tests/e2e/runtime-preparation-addresses.e2e.mjs`
+from the private repository. Evidence:
+`.artifacts/r155d-addresses/runtime-preparation.json`.
+
+All four local homes (US, WEUR, APAC, OC) completed real Rust Worker registration,
+NEAR signing and ECDSA signing. Eight signatures were independently verified.
+The checks also cover exact completed-result replay, warm-object reuse, physical
+admission locators, destination preparation and distinct source/destination IDs.
+Run `ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/wallet-home-placement-evidence.mjs`.
+Full evidence is in `.artifacts/wallet-home-placement/evidence.json`. The
+[committed evidence](evidence/refactor-155d-stored-unique-ids-local.json) includes
+public keys, digests and signatures for independent verification. It contains no
+secret shares. This run does not verify a complete relocation or hosted placement.
+
+The first Worker run caught a stale logical-name argument in B's admitted-root
+read. It conflicted with B's newly stored physical ID. The call now supplies the
+stored ID, and the four-home run passes.
+
+The native HTTP suite passed 34 scenarios and exposed one stale cleanup assertion.
+The scenario now advances the existing `Cleaning` response until `Cleaned`; its
+focused rerun passes. Two long-outage scenarios remain ignored by default.
+
+SDK TypeScript checks, address type fixtures and the repository bloat check pass.
+The private full typecheck still reports six interface errors in unchanged
+`emailOtpDeliveryAdapter.ts`, `d1LocalDevWorker.ts` and `serviceClient.ts`.
+These checks do not establish hosted latency. No live databases or Workers were
+changed, and no existing wallets were deleted.
 
 ### Startup and role databases
 
 - [x] Start all four wallet objects at setup. The reservation already carries
-  the ownership generation. Keep startup grant-free. A replayed setup starts
-  nothing again. Done in `e29277df`, `e0a8efec`, and private `ab478bc`. On
+  the ownership generation. Keep startup grant-free. The stored-address change also permits replay to retry
+  allocation and warm the same objects. The original startup change landed in `e29277df`, `e0a8efec`, and private `ab478bc`. On
   staging the startup now reaches the Router before respond, and no later
   request became faster: see the
   [hosted comparison](#hosted-comparison-october-10).

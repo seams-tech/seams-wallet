@@ -11,6 +11,7 @@ pub(crate) const SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_relocation_pr
 
 pub(crate) trait WalletOwner: Serialize + DeserializeOwned + Clone + 'static {
     type Pair: snapshot::import::Pair<Self>;
+    fn object_id(route: crate::WalletObjectRoute) -> crate::WalletObjectId;
     const LABEL: &'static str;
     const PAIR_SNAPSHOT_JSON: &'static str;
     fn parts(&self) -> [&str; 4];
@@ -22,10 +23,6 @@ pub(crate) trait WalletOwner: Serialize + DeserializeOwned + Clone + 'static {
     }
 }
 
-pub(crate) enum PreparationTarget {
-    Source,
-    Destination,
-}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -90,8 +87,9 @@ pub(crate) async fn call_preparation<Owner: WalletOwner>(
     env: &Env,
     binding: &str,
     path: &str,
-    target: PreparationTarget,
 ) -> worker::Result<Response> {
+    let wallet_objects = crate::WalletObjectRoute::from_gateway_request(&request)
+        .map_err(|error| worker::Error::RustError(error.to_string()))?;
     if request.method() != Method::Post {
         return Response::error("Deriver relocation preparation requires POST", 405);
     }
@@ -110,11 +108,7 @@ pub(crate) async fn call_preparation<Owner: WalletOwner>(
         return Response::error("Deriver encryption context differs from source", 409);
     }
     let namespace = env.durable_object(binding)?;
-    let generation = match target {
-        PreparationTarget::Source => command.source_generation,
-        PreparationTarget::Destination => command.destination_generation,
-    };
-    let stub = namespace.get_by_name(&command.owner.physical_object_name(generation)?)?;
+    let stub = Owner::object_id(wallet_objects).stub(&namespace, wallet_objects.home)?;
     let body = serde_json::to_string(&command).map_err(|error| pair_error(error.to_string()))?;
     let forwarded = Request::new_with_init(
         &format!("https://router-ab-do.internal{path}"),
@@ -233,7 +227,6 @@ enum CipherContext {
 pub(crate) async fn read_context<Owner: WalletOwner>(
     mut request: Request,
     env: &Env,
-    binding: &str,
 ) -> worker::Result<Response> {
     if request.method() != Method::Post {
         return Response::error("Deriver encryption context requires POST", 405);
@@ -252,8 +245,10 @@ pub(crate) async fn read_context<Owner: WalletOwner>(
     let response = match context {
         ContextRequest::Cipher => CipherContext::DeriverCipherContext { digest_hex },
         ContextRequest::Wallet { owner, ownership_generation } => {
-            let object_id = env.durable_object(binding)?
-                .id_from_name(&owner.physical_object_name(ownership_generation)?)?.to_string();
+            owner.physical_object_name(ownership_generation)?;
+            let route = crate::WalletObjectRoute::from_gateway_request(&request)
+                .map_err(|error| pair_error(error.to_string()))?;
+            let object_id = Owner::object_id(route).as_str().to_owned();
             CipherContext::DeriverWalletContext { digest_hex, object_id }
         }
     };

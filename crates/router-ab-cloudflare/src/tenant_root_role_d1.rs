@@ -167,14 +167,14 @@ const ADMIT_ROOT_USE_SQL: &str = "INSERT INTO tenant_root_root_use_admissions \
     (tenant_identity_digest_hex, custody_lineage_b64u, role, attempt_kind, attempt_key_hex, \
     tenant_root_share_epoch, activation_receipt_digest_hex, attempt_digest_hex, \
     first_binding_digest_hex, issued_at_ms, expires_at_ms, status, admitted_at_ms, \
-    pair_object_name) \
+    pair_object_id) \
     SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 'admitted', ?12, ?13 \
     WHERE EXISTS (SELECT 1 FROM tenant_root_role_shares \
     WHERE tenant_identity_digest_hex = ?1 AND custody_lineage_b64u = ?2 \
     AND tenant_root_share_epoch = ?6 AND role = ?3 AND lifecycle = 'active') \
     ON CONFLICT DO NOTHING";
 const LOAD_ROOT_USE_ADMISSION_SQL: &str = "SELECT tenant_root_share_epoch, \
-    activation_receipt_digest_hex, attempt_digest_hex, status, pair_object_name \
+    activation_receipt_digest_hex, attempt_digest_hex, status, pair_object_id \
     FROM tenant_root_root_use_admissions \
     WHERE tenant_identity_digest_hex = ?1 AND custody_lineage_b64u = ?2 AND role = ?3 \
     AND attempt_kind = ?4 AND attempt_key_hex = ?5";
@@ -201,36 +201,36 @@ pub const TENANT_ROOT_SETTLE_ROOT_USE_ADMISSION_SQL_V1: &str =
 pub const TENANT_ROOT_SETTLE_WALLET_OBJECT_ADMISSION_SQL_V1: &str =
     "UPDATE tenant_root_root_use_admissions \
     SET status = 'settled' WHERE role = ?1 AND attempt_kind = ?2 AND attempt_key_hex = ?3 \
-    AND pair_object_name = ?4 AND status IN ('admitted', 'claimed')";
+    AND pair_object_id = ?4 AND status IN ('admitted', 'claimed')";
 /// Cancels the admission of one pair session held in a wallet object, once
 /// that object has fenced the pair. Parameters as for the settlement.
 const CANCEL_WALLET_OBJECT_ADMISSION_SQL: &str = "UPDATE tenant_root_root_use_admissions \
     SET status = 'cancelled' WHERE role = ?1 AND attempt_kind = ?2 AND attempt_key_hex = ?3 \
-    AND pair_object_name = ?4 AND status = 'admitted'";
+    AND pair_object_id = ?4 AND status = 'admitted'";
 /// Deriver A's claimed admissions on one epoch whose pairs are in this role
 /// store and that are still unsettled at or before a cutoff.
 const LIST_CLAIMED_ROOT_USE_ADMISSIONS_SQL: &str = "SELECT attempt_key_hex \
     FROM tenant_root_root_use_admissions WHERE tenant_identity_digest_hex = ?1 \
     AND custody_lineage_b64u = ?2 AND role = ?3 AND tenant_root_share_epoch = ?4 \
-    AND attempt_kind = ?5 AND status = 'claimed' AND pair_object_name IS NULL \
+    AND attempt_kind = ?5 AND status = 'claimed' AND pair_object_id IS NULL \
     AND admitted_at_ms <= ?6 ORDER BY admitted_at_ms, attempt_key_hex";
 /// Ends one claimed attempt whose peer can no longer complete it. Its
 /// completion here, which needs the admission live, is refused from then on.
 const CANCEL_CLAIMED_ROOT_USE_ADMISSION_SQL: &str = "UPDATE tenant_root_root_use_admissions \
     SET status = 'cancelled' WHERE tenant_identity_digest_hex = ?1 \
     AND custody_lineage_b64u = ?2 AND role = ?3 AND attempt_kind = ?4 \
-    AND attempt_key_hex = ?5 AND status = 'claimed' AND pair_object_name IS NULL";
+    AND attempt_key_hex = ?5 AND status = 'claimed' AND pair_object_id IS NULL";
 /// Cancels one attempt that was only admitted here and whose pair, if any,
 /// is in this role store. Its start and completion here are then refused.
 const CANCEL_ADMITTED_ROOT_USE_ADMISSION_SQL: &str = "UPDATE tenant_root_root_use_admissions \
     SET status = 'cancelled' WHERE tenant_identity_digest_hex = ?1 \
     AND custody_lineage_b64u = ?2 AND role = ?3 AND attempt_kind = ?4 \
-    AND attempt_key_hex = ?5 AND status = 'admitted' AND pair_object_name IS NULL";
+    AND attempt_key_hex = ?5 AND status = 'admitted' AND pair_object_id IS NULL";
 /// The unsettled admissions on one epoch here whose pairs wallet objects hold.
-const LIST_WALLET_OBJECT_ADMISSIONS_SQL: &str = "SELECT attempt_key_hex, pair_object_name, \
+const LIST_WALLET_OBJECT_ADMISSIONS_SQL: &str = "SELECT attempt_key_hex, pair_object_id, \
     admitted_at_ms FROM tenant_root_root_use_admissions WHERE tenant_identity_digest_hex = ?1 \
     AND custody_lineage_b64u = ?2 AND role = ?3 AND tenant_root_share_epoch = ?4 \
-    AND status IN ('admitted', 'claimed') AND pair_object_name IS NOT NULL \
+    AND status IN ('admitted', 'claimed') AND pair_object_id IS NOT NULL \
     ORDER BY admitted_at_ms, attempt_key_hex";
 /// The status of one attempt's admission, for a pair store's own checks.
 /// Parameters as for the claim.
@@ -322,7 +322,7 @@ const COUNT_CANCELLED_ROOT_USE_ADMISSIONS_SQL: &str = "SELECT COUNT(*) AS admiss
 const CANCEL_UNCLAIMED_ROOT_USE_ADMISSIONS_SQL: &str = "UPDATE tenant_root_root_use_admissions \
     SET status = 'cancelled' WHERE tenant_identity_digest_hex = ?1 \
     AND custody_lineage_b64u = ?2 AND role = ?3 AND tenant_root_share_epoch = ?4 \
-    AND status = 'admitted' AND pair_object_name IS NULL AND admitted_at_ms <= ?5";
+    AND status = 'admitted' AND pair_object_id IS NULL AND admitted_at_ms <= ?5";
 const LOAD_COMMAND_REPLAY_SQL: &str = "SELECT replay_key_digest_hex, \
     tenant_identity_digest_hex, custody_lineage_b64u, session_id_hex, nonce_hex, role, \
     command_digest_hex, admission_digest_hex, status, receipt_b64u, \
@@ -1721,7 +1721,7 @@ impl TenantRootRootUseAttemptV1 {
         }
     }
 
-    fn pair_object_name(&self) -> Option<&str> {
+    fn pair_object_id(&self) -> Option<&str> {
         match self {
             Self::Ed25519YaoPairSession { pair_object, .. } => pair_object.as_deref(),
             Self::EcdsaOperation => None,
@@ -1795,14 +1795,14 @@ pub struct TenantRootWalletPairReconcileRequestV1 {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct TenantRootYaoAdmissionStateV1 {
     pub(crate) status: String,
-    pub(crate) pair_object_name: Option<String>,
+    pub(crate) pair_object_id: Option<String>,
 }
 
 /// One unsettled admission whose pair a wallet object holds.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
 pub(crate) struct TenantRootWalletObjectAdmissionV1 {
     pub(crate) attempt_key_hex: String,
-    pub(crate) pair_object_name: String,
+    pub(crate) pair_object_id: String,
     pub(crate) admitted_at_ms: i64,
 }
 
@@ -12960,7 +12960,7 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
     pub(crate) async fn record_wallet_object_reconciliation(
         &self,
         attempt_key_hex: &str,
-        pair_object_name: &str,
+        pair_object_id: &str,
         reconciliation: TenantRootWalletPairReconciliationV1,
     ) -> RoleStoreResult<()> {
         let sql = match reconciliation {
@@ -12978,7 +12978,7 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                     RoleSqlValue::Text(self.cipher.role.as_str()),
                     RoleSqlValue::Text(TENANT_ROOT_YAO_PAIR_SESSION_ATTEMPT_KIND_V1),
                     RoleSqlValue::Text(attempt_key_hex),
-                    RoleSqlValue::Text(pair_object_name),
+                    RoleSqlValue::Text(pair_object_id),
                 ]
                 .iter(),
             )?
@@ -13013,7 +13013,7 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
             .await?;
         Ok(row.map(|row| TenantRootYaoAdmissionStateV1 {
             status: row.status,
-            pair_object_name: row.pair_object_name,
+            pair_object_id: row.pair_object_id,
         }))
     }
 
@@ -17049,7 +17049,7 @@ struct TenantRootRootUseAdmissionRowV1 {
     activation_receipt_digest_hex: String,
     attempt_digest_hex: String,
     status: String,
-    pair_object_name: Option<String>,
+    pair_object_id: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize)]

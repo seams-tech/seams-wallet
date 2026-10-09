@@ -22,7 +22,7 @@ pub(super) async fn prepare_execute_and_finalize(
     let pair_binding = request.pair_binding().clone();
     let work = pair_work(&request);
     let ownership_generation = tenant_root.ownership_generation;
-    let wallet_home = tenant_root.wallet_home;
+    let wallet_route = tenant_root.wallet_route;
     let root_identity = tenant_root.identity.clone();
 
     let started_at_ms = cloudflare_now_unix_ms_v1()?;
@@ -139,7 +139,7 @@ pub(super) async fn prepare_execute_and_finalize(
 
     finalize_router_result_v1(
         env,
-        wallet_home,
+        wallet_route,
         ownership_generation,
         runtime,
         &request,

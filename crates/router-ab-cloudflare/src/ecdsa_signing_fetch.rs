@@ -8,6 +8,8 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
     runtime: &CloudflareSigningWorkerRuntimeV1,
     now_unix_ms: u64,
 ) -> worker::Result<worker::Response> {
+    let wallet_objects = crate::WalletObjectRoute::from_gateway_request(&request)
+        .map_err(|error| worker::Error::RustError(error.to_string()))?;
     let mut timing = CloudflareEcdsaBoundaryTimingV1::new();
     let started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     if request.method() != worker::Method::Post {
@@ -48,6 +50,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
     {
         let response = durable_object::call_signing_worker_wallet_do_v1(
             env,
+            wallet_objects,
             durable_object::SigningWorkerWalletDoRequestV1::PrepareEcdsa {
                 request: parsed,
                 now_unix_ms,
@@ -71,7 +74,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
                 runtime,
                 &parsed.request.scope,
                 &parsed.material_source,
-                Some(SigningWorkerWalletRoute { scope: &parsed.wallet_scope, ownership_generation: parsed.ownership_generation }),
+                Some(SigningWorkerWalletRoute { objects: wallet_objects, scope: &parsed.wallet_scope, ownership_generation: parsed.ownership_generation }),
                 now_unix_ms,
             )
             .await
@@ -150,6 +153,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
                     let progress =
                         match durable_object::execute_cloudflare_durable_object_custom_json_call_v1(
                             env,
+                            wallet_objects,
                             &runtime.bindings().presign_session,
                             CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_DO_STEP_PATH,
                             durable_object::PresignHost::Owner {
@@ -220,7 +224,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
             match execute_cloudflare_signing_worker_ecdsa_pool_mutation_for_wallet_v1(
                 env,
                 runtime,
-                Some(SigningWorkerWalletRoute { scope: &materialized.request.wallet_scope, ownership_generation: materialized.request.ownership_generation }),
+                Some(SigningWorkerWalletRoute { objects: wallet_objects, scope: &materialized.request.wallet_scope, ownership_generation: materialized.request.ownership_generation }),
                 reserve_command,
             )
             .await
@@ -250,7 +254,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
                 return burn_cloudflare_signing_worker_ecdsa_reservation_after_prepare_failure_v1(
                     env,
                     runtime,
-                    Some(SigningWorkerWalletRoute { scope: &materialized.request.wallet_scope, ownership_generation: materialized.request.ownership_generation }),
+                    Some(SigningWorkerWalletRoute { objects: wallet_objects, scope: &materialized.request.wallet_scope, ownership_generation: materialized.request.ownership_generation }),
                     materialized.request.request.scope.clone(),
                     client_presignature_id.clone(),
                     prepare_request_digest,
@@ -275,7 +279,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
                     return burn_cloudflare_signing_worker_ecdsa_reservation_after_prepare_failure_v1(
                 env,
                 runtime,
-                Some(SigningWorkerWalletRoute { scope: &materialized.request.wallet_scope, ownership_generation: materialized.request.ownership_generation }),
+                Some(SigningWorkerWalletRoute { objects: wallet_objects, scope: &materialized.request.wallet_scope, ownership_generation: materialized.request.ownership_generation }),
                 materialized.request.request.scope.clone(),
                 client_presignature_id.clone(),
                 prepare_request_digest,
@@ -295,7 +299,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
                 return burn_cloudflare_signing_worker_ecdsa_reservation_after_prepare_failure_v1(
                     env,
                     runtime,
-                    Some(SigningWorkerWalletRoute { scope: &materialized.request.wallet_scope, ownership_generation: materialized.request.ownership_generation }),
+                    Some(SigningWorkerWalletRoute { objects: wallet_objects, scope: &materialized.request.wallet_scope, ownership_generation: materialized.request.ownership_generation }),
                     materialized.request.request.scope.clone(),
                     client_presignature_id.clone(),
                     prepare_request_digest,
@@ -320,7 +324,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
                 burn_cloudflare_signing_worker_ecdsa_reservation_after_prepare_failure_v1(
                     env,
                     runtime,
-                    Some(SigningWorkerWalletRoute { scope: &materialized.request.wallet_scope, ownership_generation: materialized.request.ownership_generation }),
+                    Some(SigningWorkerWalletRoute { objects: wallet_objects, scope: &materialized.request.wallet_scope, ownership_generation: materialized.request.ownership_generation }),
                     materialized.request.request.scope,
                     client_presignature_id,
                     prepare_request_digest,
@@ -351,10 +355,12 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
 where
     Handler: CloudflareSigningWorkerRouterAbEcdsaDerivationEvmDigestFinalizeHandlerV1,
 {
+    let wallet_objects = crate::WalletObjectRoute::from_gateway_request(&request)
+        .map_err(|error| worker::Error::RustError(error.to_string()))?;
     let mut timing = CloudflareEcdsaBoundaryTimingV1::new();
     let started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     let result =
-        finalize_ecdsa_signing(request, env, runtime, handler, now_unix_ms, &mut timing).await;
+        finalize_ecdsa_signing(request, env, wallet_objects, runtime, handler, now_unix_ms, &mut timing).await;
     timing.mark("worker_finalize_total", started_at_ms);
     timing.emit_io_diagnostic();
     result
@@ -363,6 +369,7 @@ where
 async fn finalize_ecdsa_signing<Handler>(
     mut request: worker::Request,
     env: &worker::Env,
+    wallet_objects: crate::WalletObjectRoute,
     runtime: &CloudflareSigningWorkerRuntimeV1,
     handler: &Handler,
     now_unix_ms: u64,
@@ -407,7 +414,7 @@ where
         );
     }
     let claim_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
-    let claimed = prepare_ecdsa_finalize(env, runtime, &parsed, now_unix_ms).await;
+    let claimed = prepare_ecdsa_finalize(env, wallet_objects, runtime, &parsed, now_unix_ms).await;
     timing.mark("worker_finalize_snapshot_claim", claim_started_at_ms);
     let (active_signing_worker, material, server_presignature) = match claimed {
         Ok(EcdsaFinalizePreparation::Claimed {
@@ -489,6 +496,7 @@ where
             let terminal_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
             let committed = commit_cloudflare_signing_worker_ecdsa_terminal_for_wallet_v1(
                 env,
+                wallet_objects,
                 &admitted_for_terminal,
                 &response,
                 now_unix_ms,
@@ -531,6 +539,7 @@ where
 
 async fn prepare_ecdsa_finalize(
     env: &worker::Env,
+    wallet_objects: crate::WalletObjectRoute,
     runtime: &CloudflareSigningWorkerRuntimeV1,
     request: &CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1,
     now_unix_ms: u64,
@@ -542,13 +551,14 @@ async fn prepare_ecdsa_finalize(
             runtime,
             &request.request.scope,
             &request.material_source,
-            Some(crate::SigningWorkerWalletRoute { scope: &request.wallet_scope, ownership_generation: request.ownership_generation }),
+            Some(crate::SigningWorkerWalletRoute { objects: wallet_objects, scope: &request.wallet_scope, ownership_generation: request.ownership_generation }),
             now_unix_ms,
         )
         .await?;
         let scope = &request.wallet_scope;
         let response = durable_object::call_signing_worker_wallet_do_v1(
             env,
+            wallet_objects,
             durable_object::SigningWorkerWalletDoRequestV1::ClaimAndConsumeEcdsaEffect {
                 scope: scope.clone(),
                 request: request.clone(),
@@ -581,5 +591,5 @@ async fn prepare_ecdsa_finalize(
         });
     }
     #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
-    prepare_cloudflare_signing_worker_ecdsa_finalize_v1(env, runtime, request, now_unix_ms).await
+    prepare_cloudflare_signing_worker_ecdsa_finalize_v1(env, wallet_objects, runtime, request, now_unix_ms).await
 }

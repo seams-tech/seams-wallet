@@ -162,7 +162,7 @@ class Exchange {
 }
 async function cancelPreparedAdmission(env) {
   const rows = await env.ADMISSION_DB.prepare(
-    "SELECT attempt_key_hex, pair_object_name FROM ${admissionTable} WHERE attempt_kind = 'ed25519_yao_pair_session' AND status = 'admitted'",
+    "SELECT attempt_key_hex, pair_object_id FROM ${admissionTable} WHERE attempt_kind = 'ed25519_yao_pair_session' AND status = 'admitted'",
   ).all();
   if (rows.results.length !== 1) throw new Error('Expected one admitted A execution');
   const admission = rows.results[0];
@@ -171,7 +171,7 @@ async function cancelPreparedAdmission(env) {
     : "UPDATE ${admissionTable} SET status = 'cancelled' WHERE attempt_key_hex = ?1";
   const changed = await env.ADMISSION_DB.prepare(sql).bind(admission.attempt_key_hex).run();
   if (changed.meta.changes !== 1) throw new Error('Expected exactly one changed admission');
-  const object = env.A_WALLET.get(env.A_WALLET.idFromName(admission.pair_object_name));
+  const object = env.A_WALLET.get(env.A_WALLET.idFromString(admission.pair_object_id));
   const response = await object.fetch('https://custody.test/router-ab/internal/deriver-a/wallet-pair/reconcile', {
     method: 'POST',
     body: JSON.stringify({

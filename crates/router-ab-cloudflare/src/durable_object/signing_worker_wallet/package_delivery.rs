@@ -21,7 +21,7 @@ pub(crate) async fn forward(
         .durable_object(BINDING)
         .map_err(|_| wallet_error("SigningWorker wallet binding is missing"))?;
     let stub = address
-        .wallet_home
+        .wallet_route
         .wallet_stub(&namespace, &name, "signing_worker")
         .map_err(|_| wallet_error("SigningWorker delivery wallet identity is invalid"))?;
     stub.fetch_with_request(request)

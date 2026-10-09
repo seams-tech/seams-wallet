@@ -161,7 +161,7 @@ pub(crate) use tenant_root_creation::{
 pub(crate) use worker_storage::{
     execute_cloudflare_durable_object_custom_json_call_v1,
     execute_cloudflare_durable_object_custom_json_call_with_timing_v1, warm_owner_presign_host,
-    PresignHost, PresignPlacement,
+    PresignHost,
 };
 
 /// SigningWorker ECDSA presign rendezvous with durable terminal records.
