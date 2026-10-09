@@ -10,6 +10,9 @@ checks while removing the extra signed readiness and start-acceptance handshake.
 It is implemented on `dev` and measured on staging. Router Yao execution fell
 from 3.199 seconds on the restored control to 2.009 seconds. That plan records
 the comparison.
+[R155D](refactor-155D-registration-critical-path.md) plans the remaining
+critical path: placement, object startup, Gateway round trips, the
+post-registration status read, and the measurement contract.
 
 ## Objective
 
