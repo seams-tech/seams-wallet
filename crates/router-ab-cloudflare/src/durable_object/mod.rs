@@ -67,7 +67,7 @@ pub use deriver_a_pair::RouterAbDeriverAWalletDurableObject;
 pub(crate) use deriver_a_pair::{
     call_deriver_a_wallet_do_lookup_v1, call_deriver_a_wallet_do_work_v1,
     deriver_a_wallet_do_burn_work_path_v1, deriver_a_wallet_do_execute_work_path_v1,
-    deriver_a_wallet_do_prepare_work_path_v1, deriver_a_wallet_do_status_work_path_v1,
+    deriver_a_wallet_do_status_work_path_v1,
     reconcile_deriver_a_wallet_pair_v1,
 };
 #[cfg(all(

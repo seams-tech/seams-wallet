@@ -14,7 +14,7 @@ use crate::{
     require_cloudflare_gateway_to_router_auth_request_v1,
     set_cloudflare_internal_service_auth_header_v1, set_cloudflare_trace_id_header_v1,
     CloudflareDeriverBWalletPairScopeV1, CloudflareEd25519YaoInactiveReservationResponseV1,
-    CloudflareEd25519YaoPackagePairDeliveryV1, CloudflareEd25519YaoPairExecuteRequestV1,
+    CloudflareEd25519YaoPackagePairDeliveryV1, CloudflareDeriverAWalletPairExecuteRequestV1,
     CloudflareEd25519YaoPairExecuteResponseV1, CloudflareEd25519YaoPairLookupRequestV1,
     CloudflareEd25519YaoPairPrepareRequestV1, CloudflareEd25519YaoPairStatusResponseV1,
     CloudflareEd25519YaoRoleFailureResponseV1,
@@ -24,7 +24,6 @@ use crate::{
     CloudflareRouterWorkerRuntimeV1, CloudflareScopedEd25519YaoPackagePairDeliveryV1,
     CloudflareScopedEd25519YaoRecoveryPromotionRequestV1, CloudflareSigningWorkerWalletScopeV1,
     CloudflareWorkerEnvReaderV1, CLOUDFLARE_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
-    CLOUDFLARE_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH,
     CLOUDFLARE_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH,
     CLOUDFLARE_DERIVER_B_ED25519_YAO_PREPARE_PAIR_PATH,
     CLOUDFLARE_DERIVER_B_ED25519_YAO_READ_PAIR_STATUS_PATH,
@@ -2282,7 +2281,7 @@ fn parse_router_replay_header(request: &Request) -> RouterAbProtocolResult<bool>
     crate::parse_router_ed25519_yao_replay_header_v1(value.as_deref())
 }
 
-fn operation_label(operation: Ed25519YaoOperationV1) -> &'static str {
+pub(crate) fn operation_label(operation: Ed25519YaoOperationV1) -> &'static str {
     match operation {
         Ed25519YaoOperationV1::Registration => "registration",
         Ed25519YaoOperationV1::Recovery => "recovery",

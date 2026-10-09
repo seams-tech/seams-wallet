@@ -95,6 +95,31 @@ class InterruptedExchange {
     this.b.close(1011, 'E2E peer disconnect');
   }
 }
+async function cancelPreparedAdmission(env) {
+  const rows = await env.ADMISSION_DB.prepare(
+    "SELECT attempt_key_hex, pair_object_name FROM tenant_root_root_use_admissions WHERE attempt_kind = 'ed25519_yao_pair_session' AND status = 'admitted'",
+  ).all();
+  if (rows.results.length !== 1) throw new Error('Expected one admitted A execution');
+  const admission = rows.results[0];
+  const sql = env.SCENARIO === 'missing-admission'
+    ? "DELETE FROM tenant_root_root_use_admissions WHERE attempt_key_hex = ?1"
+    : "UPDATE tenant_root_root_use_admissions SET status = 'cancelled' WHERE attempt_key_hex = ?1";
+  const changed = await env.ADMISSION_DB.prepare(sql).bind(admission.attempt_key_hex).run();
+  if (changed.meta.changes !== 1) throw new Error('Expected exactly one changed admission');
+  const object = env.A_WALLET.get(env.A_WALLET.idFromName(admission.pair_object_name));
+  const response = await object.fetch('https://custody.test/router-ab/internal/deriver-a/wallet-pair/reconcile', {
+    method: 'POST',
+    body: JSON.stringify({
+      session_hex: admission.attempt_key_hex,
+      fence: true,
+      peer_settled: false,
+      now_ms: Date.now(),
+    }),
+  });
+  const state = await response.json();
+  if (response.status !== 200 || state !== 'fenced') throw new Error('A admission was not fenced before B accepted');
+  evidence.admissionCancelledAfterPreparation = true;
+}
 export default {
   async fetch(request, env) {
     const path = new URL(request.url).pathname;
@@ -102,6 +127,9 @@ export default {
     if (!path.endsWith('/ed25519-yao/duplex')) return env.REAL_B.fetch(request);
     evidence.connectionAttempts += 1;
     if (evidence.connectionAttempts > 1) return env.REAL_B.fetch(request);
+    if (env.SCENARIO === 'cancelled-root' || env.SCENARIO === 'missing-admission') {
+      await cancelPreparedAdmission(env);
+    }
     if (env.SCENARIO === 'delayed-forged-acceptance') await scheduler.wait(1000);
     if (env.SCENARIO === 'connection-refused') return new Response('E2E refused upgrade', { status: 503 });
     if (env.SCENARIO === 'forged-peer-readiness') {
@@ -141,19 +169,10 @@ export default {
 
 class CaptureExecution {
   request = null;
-  cancelled = false;
   async fetch(request, topology) {
     if (new URL(request.url).pathname.endsWith('/execute-pair')) {
       this.request = await request.clone().json();
-      if ((scenario === 'cancelled-root' || scenario === 'missing-admission') && !this.cancelled) {
-        const database = await topology.getD1Database('DERIVER_ROLE_PRIVATE_DB', 'deriver-a');
-        const sql = scenario === 'missing-admission'
-          ? "DELETE FROM tenant_root_root_use_admissions WHERE attempt_kind = 'ed25519_yao_pair_session' AND status = 'admitted'"
-          : "UPDATE tenant_root_root_use_admissions SET status = 'cancelled' WHERE attempt_kind = 'ed25519_yao_pair_session' AND status = 'admitted'";
-        const result = await database.prepare(sql).run();
-        assert.equal(result.meta.changes, 1, 'Change exactly the prepared A admission');
-        this.cancelled = true;
-      }
+
     }
     const worker = await topology.getWorker('deriver-a');
     return worker.fetch(request);
@@ -216,6 +235,10 @@ const topology = new Miniflare({
       script: proxySource,
       compatibilityDate: '2026-06-12',
       bindings: { SCENARIO: scenario },
+      d1Databases: { ADMISSION_DB: 'deriver-a-private-d1' },
+      durableObjects: {
+        A_WALLET: { className: 'RouterAbDeriverAWalletDurableObject', scriptName: 'deriver-a', useSQLite: true },
+      },
       serviceBindings: { REAL_B: 'deriver-b' },
     },
   ],
@@ -251,6 +274,9 @@ try {
   await requirePairState(bBinding, 'deriver-b', scope, roleCredential, expectedBState);
   const proxy = await topology.getWorker('disconnect-proxy');
   const interrupted = await closedConnectionEvidence(proxy);
+  if (scenario === 'cancelled-root' || scenario === 'missing-admission') {
+    assert.equal(interrupted.admissionCancelledAfterPreparation, true);
+  }
   if (scenario === 'delayed-forged-acceptance') {
     assert.deepEqual(log.stages.slice(0, 2), [
       'deriver_a.target_prepared', 'deriver_a.websocket_connect',

@@ -127,7 +127,10 @@ class StatusBeforePreparation {
   async fetch(request, topology) {
     const worker = await topology.getWorker(this.worker);
     const path = new URL(request.url).pathname;
-    if (path.endsWith('/prepare-pair')) {
+    const preparesHere = this.role === 'deriver_a'
+      ? path.endsWith('/execute-pair')
+      : path.endsWith('/prepare-pair');
+    if (preparesHere) {
       const preparation = await request.clone().json();
       assert.equal(preparation.tenant_root.wallet_home, this.home);
       const lookup = {

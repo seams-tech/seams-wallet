@@ -21,29 +21,12 @@ pub(super) async fn prepare_execute_and_finalize(
     let root_identity = tenant_root.identity.clone();
 
     let prepare_started_at_ms = cloudflare_now_unix_ms_v1()?;
-    let prepare_request_a = CloudflareEd25519YaoPairPrepareRequestV1 {
-        pair_binding: pair_binding.clone(),
-        tenant_root: tenant_root.clone(),
-        work: work.clone(),
-        input: input_a.clone(),
-    };
     let prepare_request_b = CloudflareEd25519YaoPairPrepareRequestV1 {
         pair_binding: pair_binding.clone(),
         tenant_root: tenant_root.clone(),
         work: work.clone(),
         input: input_b,
     };
-    let prepare_a = post_role_json_for_ceremony_with_span::<_, Ed25519YaoRoleReadinessReceiptV1>(
-        env,
-        runtime.deriver_a_peer().binding_name.as_str(),
-        DERIVER_A_SERVICE_URL,
-        CLOUDFLARE_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH,
-        "Deriver A pair preparation",
-        &prepare_request_a,
-        trace_id,
-        "router.prepare_pair.deriver_a",
-        operation_label(operation),
-    );
     let prepare_b = post_role_json_for_ceremony_with_span::<_, Ed25519YaoRoleReadinessReceiptV1>(
         env,
         runtime.deriver_b_peer().binding_name.as_str(),
@@ -55,8 +38,8 @@ pub(super) async fn prepare_execute_and_finalize(
         "router.prepare_pair.deriver_b",
         operation_label(operation),
     );
-    let (receipt_a, receipt_b) = match futures::try_join!(prepare_a, prepare_b) {
-        Ok(receipts) => receipts,
+    let receipt_b = match prepare_b.await {
+        Ok(receipt) => receipt,
         Err(error) => {
             emit_span(
                 trace_id,
@@ -80,21 +63,12 @@ pub(super) async fn prepare_execute_and_finalize(
     let readiness_now_ms = cloudflare_now_unix_ms_v1()?;
     let readiness_started_at_ms = cloudflare_now_unix_ms_v1()?;
     let readiness_result = crate::validate_router_ed25519_yao_readiness_v1(
-        &receipt_a,
+        &receipt_b,
         &pair_binding,
         readiness_now_ms,
-        Ed25519YaoDeriverRoleV1::DeriverA,
+        Ed25519YaoDeriverRoleV1::DeriverB,
         &verifying_keys,
-    )
-    .and_then(|()| {
-        crate::validate_router_ed25519_yao_readiness_v1(
-            &receipt_b,
-            &pair_binding,
-            readiness_now_ms,
-            Ed25519YaoDeriverRoleV1::DeriverB,
-            &verifying_keys,
-        )
-    });
+    );
     emit_span(
         trace_id,
         "router.verify_readiness_receipts",
@@ -119,12 +93,10 @@ pub(super) async fn prepare_execute_and_finalize(
         DERIVER_A_SERVICE_URL,
         CLOUDFLARE_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
         "Deriver A pair execution",
-        &CloudflareEd25519YaoPairExecuteRequestV1 {
+        &CloudflareDeriverAWalletPairExecuteRequestV1 {
             pair_binding: pair_binding.clone(),
             tenant_root,
-            work,
             input: input_a,
-            local_receipt: receipt_a,
             peer_receipt: receipt_b,
         },
         trace_id,

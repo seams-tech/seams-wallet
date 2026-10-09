@@ -33,7 +33,7 @@ use crate::{
         VerifiedDeriverAReadinessV1,
     },
     CloudflareDeriverAWalletPairBurnRequestV1, CloudflareDeriverAWalletPairOutcomeResponseV1,
-    CloudflareDeriverAWalletPairStatusRequestV1, CloudflareEd25519YaoPairExecuteRequestV1,
+    CloudflareDeriverAWalletPairStatusRequestV1, CloudflareDeriverAWalletPairExecuteRequestV1,
     CloudflareEd25519YaoPairPrepareRequestV1, CloudflareEd25519YaoPairStatusResponseV1,
 };
 
@@ -49,8 +49,6 @@ pub(crate) const SOURCE_FENCE_PATH: &str = "/router-ab/internal/deriver-a/wallet
 pub(crate) const PREPARATION_PATH: &str = "/router-ab/internal/deriver-a/wallet/prepare-relocation";
 
 const PAIR_DO_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair";
-#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
-const PREPARE_WORK_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair/prepare-work";
 #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 const EXECUTE_WORK_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair/execute-work";
 #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
@@ -288,11 +286,6 @@ pub(crate) async fn call_deriver_a_wallet_do_lookup_v1<T: Serialize>(
 }
 
 #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
-pub(crate) const fn deriver_a_wallet_do_prepare_work_path_v1() -> &'static str {
-    PREPARE_WORK_PATH
-}
-
-#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 pub(crate) const fn deriver_a_wallet_do_execute_work_path_v1() -> &'static str {
     EXECUTE_WORK_PATH
 }
@@ -383,7 +376,7 @@ impl DurableObject for RouterAbDeriverAWalletDurableObject {
         let result = self.fetch_wallet_request(request).await;
         #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
         let result = match result {
-            Err(error) if path == PREPARE_WORK_PATH || path == EXECUTE_WORK_PATH => {
+            Err(error) if path == EXECUTE_WORK_PATH => {
                 let message = error.to_string();
                 crate::strict_worker::cloudflare_role_failure_response_v1(
                     router_ab_core::RouterAbProtocolError::new(
@@ -447,14 +440,8 @@ impl RouterAbDeriverAWalletDurableObject {
                 Response::from_json(&response)
             }
             #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
-            PREPARE_WORK_PATH => {
-                let work: CloudflareEd25519YaoPairPrepareRequestV1 = request.json().await?;
-                let receipt = self.prepare_work(work).await?;
-                Response::from_json(&receipt)
-            }
-            #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
             EXECUTE_WORK_PATH => {
-                let work: CloudflareEd25519YaoPairExecuteRequestV1 = request.json().await?;
+                let work: CloudflareDeriverAWalletPairExecuteRequestV1 = request.json().await?;
                 let outcome = self.execute_work(work).await?;
                 Response::from_json(&outcome)
             }
@@ -649,6 +636,9 @@ impl RouterAbDeriverAWalletDurableObject {
             prepare_deriver_a_pair_readiness_for_wallet_do_v1(&self.env, &request, owner.object_name()?)
             .await
             .map_err(|error| pair_error(error.to_string()))?;
+        // Admission can yield while relocation closes this object.
+        // Check before persisting preparation or starting an executor.
+        relocation::require_open::<DeriverAWalletOwnerV1>(&self.sql)?;
         self.check_owner(&owner, true)?;
         let record = PairRecord::Prepared {
             pair_binding: pair.clone(),
@@ -673,57 +663,70 @@ impl RouterAbDeriverAWalletDurableObject {
     #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
     async fn execute_work(
         &self,
-        request: CloudflareEd25519YaoPairExecuteRequestV1,
+        request: CloudflareDeriverAWalletPairExecuteRequestV1,
     ) -> worker::Result<CloudflareEd25519YaoPairExecuteResponseV1> {
-        if !matches!(request.work, CloudflareEd25519YaoPairWorkV1::Ceremony) {
-            return Err(pair_error(
-                "Deriver A wallet DO lane execution is unavailable",
-            ));
-        }
         request
-            .validate()
+            .peer_receipt
+            .validate_for_pair(&request.pair_binding)
             .map_err(|error| pair_error(error.to_string()))?;
         let pair = &request.pair_binding;
         let owner = DeriverAWalletOwnerV1::from_context(&self.env, &request.tenant_root, pair)?;
-        self.check_owner(&owner, false)?;
         let cipher = RolePairCipherV1::from_env_for_wallet_do(&self.env)?;
-        let selected = self
-            .read_scoped(&owner, &cipher, pair, &request.tenant_root.identity)?
-            .ok_or_else(|| pair_error("Deriver A pair is not prepared"))?;
-        match selected.record {
-            PairRecord::Completed {
+        if let Some(selected) =
+            self.read_scoped(&owner, &cipher, pair, &request.tenant_root.identity)?
+        {
+            if let PairRecord::Completed {
                 claim_identity,
                 payload,
                 outcome,
                 ..
-            } if payload.tenant_root == request.tenant_root
-                && payload.work == request.work
-                && payload.input == request.input
-                && claim_identity.local_receipt == request.local_receipt
-                && claim_identity.peer_receipt == request.peer_receipt =>
+            } = selected.record
             {
-                return Ok(outcome)
+                if payload.tenant_root == request.tenant_root
+                    && payload.work == CloudflareEd25519YaoPairWorkV1::Ceremony
+                    && payload.input == request.input
+                    && claim_identity.peer_receipt == request.peer_receipt
+                {
+                    return Ok(outcome);
+                }
+                return Err(pair_error("Deriver A pair is conflicting or unavailable"));
             }
-            PairRecord::Prepared {
-                payload,
-                receipt,
-                root_metadata_digest,
-                ..
-            } if payload.tenant_root == request.tenant_root
-                && payload.work == request.work
-                && payload.input == request.input
-                && receipt == request.local_receipt
-                && root_metadata_digest == request.local_receipt.root_metadata_digest().bytes => {}
-            _ => return Err(pair_error("Deriver A pair is conflicting or unavailable")),
         }
         let runtime = CloudflareDeriverAWorkerRuntimeV1::from_worker_env(&self.env)
             .map_err(|error| pair_error(error.to_string()))?;
-        let readiness = VerifiedDeriverAReadinessV1::verify(
-            &runtime,
-            &request.local_receipt,
+        crate::validate_router_ed25519_yao_readiness_v1(
             &request.peer_receipt,
+            pair,
+            crate::cloudflare_now_unix_ms_v1().map_err(|error| pair_error(error.to_string()))?,
+            router_ab_core::Ed25519YaoDeriverRoleV1::DeriverB,
+            runtime.peer_verifying_keys(),
         )
-        .map_err(pair_error)?;
+        .map_err(|error| pair_error(error.to_string()))?;
+        let preparation = CloudflareEd25519YaoPairPrepareRequestV1 {
+            pair_binding: request.pair_binding.clone(),
+            tenant_root: request.tenant_root.clone(),
+            work: CloudflareEd25519YaoPairWorkV1::Ceremony,
+            input: request.input.clone(),
+        };
+        let prepare_started_at_ms =
+            crate::cloudflare_now_unix_ms_v1().map_err(|error| pair_error(error.to_string()))?;
+        let prepared = self.prepare_work(preparation).await;
+        crate::ed25519_yao_lifecycle::emit_role_span_v1(
+            None,
+            "deriver_a.prepare_in_execute",
+            "deriver_a",
+            crate::router_coordinator::operation_label(pair.binding().operation),
+            prepare_started_at_ms,
+            if prepared.is_ok() {
+                "success"
+            } else {
+                "failure"
+            },
+        );
+        let local_receipt = prepared?;
+        let readiness =
+            VerifiedDeriverAReadinessV1::verify(&runtime, &local_receipt, &request.peer_receipt)
+                .map_err(pair_error)?;
         let execution_id = Ed25519YaoExecutionIdV1::new(pair.pair_digest().bytes)
             .map_err(|error| pair_error(error.to_string()))?;
         let now_ms =
@@ -738,10 +741,10 @@ impl RouterAbDeriverAWalletDurableObject {
                 &owner,
                 request.tenant_root.ownership_generation,
             )?),
-            expected_root_metadata_digest: request.local_receipt.root_metadata_digest().bytes,
+            expected_root_metadata_digest: local_receipt.root_metadata_digest().bytes,
             pair_binding: pair,
             tenant_root: &request.tenant_root,
-            work: request.work.clone(),
+            work: CloudflareEd25519YaoPairWorkV1::Ceremony,
             pair_digest: pair.pair_digest().bytes,
             execution_id,
             readiness,
@@ -836,7 +839,6 @@ impl RouterAbDeriverAWalletDurableObject {
             _ => Err(pair_error("Deriver A pair completion did not commit")),
         }
     }
-
     #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
     fn reserve_work(
         &self,

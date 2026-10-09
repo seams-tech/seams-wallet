@@ -599,6 +599,16 @@ pub struct CloudflareEd25519YaoPairExecuteRequestV1 {
     pub peer_receipt: Ed25519YaoRoleReadinessReceiptV1,
 }
 
+/// Router-authenticated ceremony whose A preparation stays inside its wallet object.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CloudflareDeriverAWalletPairExecuteRequestV1 {
+    pub pair_binding: Ed25519YaoInputPairBindingV1,
+    pub tenant_root: CloudflareEd25519YaoTenantRootContextV2,
+    pub input: Ed25519YaoEncryptedInputV1,
+    pub peer_receipt: Ed25519YaoRoleReadinessReceiptV1,
+}
+
 /// A's sealed execution plus B's opaque, already-persisted sealed execution.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

@@ -82,7 +82,7 @@ const tenantRootRefreshPath = '/router-ab/internal/tenant-root/refresh/v1/execut
 const controlPlaneRefreshActivationPath = '/tenant-root-control-plane/refresh/v1/activate';
 const creationStateRefreshActivationPath = '/router-ab/internal/tenant-root/refresh/v1/activation';
 const deriverRefreshActivationPath = '/router-ab/internal/deriver/tenant-root/refresh/v1/activate';
-const deriverAYaoPreparePath = '/router-ab/deriver-a/ed25519-yao/prepare-pair';
+const deriverAYaoExecutePath = '/router-ab/deriver-a/ed25519-yao/execute-pair';
 const deriverCleanupPath = '/router-ab/internal/deriver/tenant-root/cleanup/v1/execute';
 const controlPlaneCleanupCommandPath = '/tenant-root-control-plane/creation/v1/cleanup-command';
 const deriverBEcdsaRegistrationPath = '/router-ab/deriver-b/ecdsa-derivation/register';
@@ -150,12 +150,10 @@ let earlyDeliveryStarted;
 let rejectNextSigningWorkerDelivery = false;
 let capturedEcdsaSigningWorkerPrepare;
 let loseNextEcdsaSigningWorkerFinalizeReply = false;
-let capturedDeriverAPreparation;
 let capturedDeriverAExecution;
 let capturedDeriverAExecutionRequest;
 let competeDeriverAExecution = false;
 let dropDeriverAExecutionResponse = false;
-let holdDeriverAExecutionBeforeDispatch = false;
 let deriverBOffline = false;
 let blockedDeriverBCalls = 0;
 let signingWorkerDeliveryTarget = 'fixture-signing-worker';
@@ -542,7 +540,7 @@ export function signingWorker(name, databaseId, fixture, namespaceOwner = name) 
   };
 }
 
-export function routerWorker(fixture, capturePairPreparation = false, gateDeriverB = false) {
+export function routerWorker(fixture, capturePairExecution = false, gateDeriverB = false) {
   return {
     ...strictWorker('router', 'router', {
       ...fixture.router_env,
@@ -575,7 +573,7 @@ export function routerWorker(fixture, capturePairPreparation = false, gateDerive
       },
     },
     serviceBindings: {
-      DERIVER_A: capturePairPreparation ? captureDeriverAPreparation : 'deriver-a',
+      DERIVER_A: capturePairExecution ? captureDeriverAExecution : 'deriver-a',
       DERIVER_B: gateDeriverB ? routeDeriverBWithOfflineGate : 'deriver-b',
       SIGNING_WORKER: captureSigningWorkerDelivery,
       TENANT_ROOT_CONTROL_PLANE: 'tenant-root-control-plane',
@@ -814,23 +812,18 @@ function rejectEarlyDeliveryTimeout(resolve, reject) {
   timer.unref();
 }
 
-async function captureDeriverAPreparation(request, miniflare) {
+async function captureDeriverAExecution(request, miniflare) {
   const path = new URL(request.url).pathname;
-  const isPreparation = path.endsWith('/ed25519-yao/prepare-pair');
   const isExecution = path.endsWith('/ed25519-yao/execute-pair');
-  if (isPreparation && earlyDeliveryStarted) {
+  if (isExecution && earlyDeliveryStarted) {
     await Promise.race([
       earlyDeliveryStarted.promise,
       new Promise(rejectEarlyDeliveryTimeout),
     ]);
   }
-  const preparation = isPreparation ? await request.clone().json() : null;
   const execution = isExecution ? await request.clone().json() : null;
   if (execution) {
     capturedDeriverAExecutionRequest = execution;
-    if (holdDeriverAExecutionBeforeDispatch) {
-      return new Response('simulated held Deriver A execution', { status: 503 });
-    }
   }
   const worker = await miniflare.getWorker('deriver-a');
   let response;
@@ -849,12 +842,6 @@ async function captureDeriverAPreparation(request, miniflare) {
     response = attempts[0];
   } else {
     response = await worker.fetch(request);
-  }
-  if (preparation && response.ok) {
-    capturedDeriverAPreparation = {
-      request: preparation,
-      receipt: await response.clone().json(),
-    };
   }
   if (execution && response.ok) {
     capturedDeriverAExecution = {
@@ -3183,7 +3170,7 @@ async function testTenantRootAdmissionRaces(topology, fixture, databases) {
   let result = await create(unused);
   assert.equal(result.status, 200, result.body);
   const epochOneReceipt = (await activeState(unused)).activation_receipt_b64u;
-  const hold = holdNextRecoveryRequest('deriver-a', deriverAYaoPreparePath);
+  const hold = holdNextRecoveryRequest('deriver-a', deriverAYaoExecutePath);
   const heldRegistration = register(unused, races.held_preparation);
   const heldPreparation = await hold.held;
   assert.equal(
@@ -3271,7 +3258,7 @@ async function testTenantRootAdmissionRaces(topology, fixture, databases) {
 
   return {
     unusedBinding: {
-      heldBefore: 'deriver_a_prepare_pair',
+      heldBefore: 'deriver_a_execute_pair',
       refreshStatus: unusedRefresh.status,
       deriverAPreparationStatus: preparationAnswer.status,
       deriverAPreparationBody: preparationAnswer.body.slice(0, 200),
@@ -3465,14 +3452,15 @@ async function testWalletObjectAdmissionSettlement(topology, fixture, databases)
     await rootLifecycleHelpers(topology, fixture, databases);
   const races = fixture.admission_race;
 
-  // Root R: a held registration is fenced in both objects.
+  // Root R: B is admitted before the held A execution. Retirement fences B.
+  // A must refuse its old root when the combined request resumes.
   const fenced = recoveryCreationGrant('do-admission-fence', 60_000);
   await create(fenced);
   const hold = holdNextRecoveryRequest('deriver-a', '/router-ab/deriver-a/ed25519-yao/execute-pair');
   const heldRegistration = register(fenced, races.held_preparation);
   await hold.held;
   const whileHeld = await admissions(fenced);
-  assert.deepEqual(whileHeld, [[[1, 'admitted', true]], [[1, 'admitted', true]]]);
+  assert.deepEqual(whileHeld, [[], [[1, 'admitted', true]]]);
   await refresh(fenced, 'harness-do-admission-fence');
   await sleep(1_100);
   const bFenced = await retire(fenced, 'deriver_b');
@@ -3482,14 +3470,13 @@ async function testWalletObjectAdmissionSettlement(topology, fixture, databases)
   const refused = await heldRegistration;
   assert.ok(!succeeded(refused), refused.body);
   const aFenced = await retire(fenced, 'deriver_a');
-  assert.equal(aFenced.cancelled_admissions, 1, JSON.stringify(aFenced));
-  assert.equal(await objectReport(fenced, 'deriver_a', 1), 'fenced');
-  assert.deepEqual(await admissions(fenced), [[[1, 'cancelled', true]], [[1, 'cancelled', true]]]);
+  assert.equal(aFenced.cancelled_admissions, 0, JSON.stringify(aFenced));
+  assert.deepEqual(await admissions(fenced), [[], [[1, 'cancelled', true]]]);
   const fresh = await register(fenced, races.after_refresh);
   assert.ok(succeeded(fresh), fresh.body);
   const afterFresh = await admissions(fenced);
   assert.deepEqual(afterFresh, [
-    [[1, 'cancelled', true], [2, 'settled', true]],
+    [[2, 'settled', true]],
     [[1, 'cancelled', true], [2, 'settled', true]],
   ]);
 
@@ -3546,18 +3533,10 @@ async function testWalletObjectAdmissionSettlement(topology, fixture, databases)
   };
 }
 
-/// Opt-in (`--retirement-trigger`, either build). The Router erases a
-/// refresh's retired epoch on a later pass, once the grace after the swap has
-/// passed and each role's work on it has settled. The grace is one second
-/// here, and `W` thirty.
-/// 1. A registration is admitted at both Derivers and its execute is held. A
-///    refresh moves the root to epoch 2, and reports both roles keeping
-///    epoch 1: the grace.
-/// 2. After the grace, an exact retry of the refresh is a pass. Both roles
-///    keep epoch 1, since the held work on it has not settled.
-/// 3. Released, the work completes on epoch 1 and settles.
-/// 4. The next pass erases epoch 1 at both roles. A retry replays the
-///    recorded erasures exactly.
+/// B admits a registration while its combined A request is held. Retirement
+/// can erase A's unused epoch after the grace. B retains its admitted epoch
+/// until the recovery window permits cancellation. The held A request must
+/// refuse the retired epoch, and a fresh registration must use the new epoch.
 async function testRetirementTrigger(topology, fixture, databases) {
   const { activeState, create, register, succeeded, admissions, races } =
     await rootLifecycleHelpers(topology, fixture, databases);
@@ -3595,37 +3574,38 @@ async function testRetirementTrigger(topology, fixture, databases) {
       ),
     );
 
-  // 1. Work admitted on epoch 1 is held over the refresh.
+  // 1. B admits epoch 1 before the held combined A request.
   const hold = holdNextRecoveryRequest('deriver-a', '/router-ab/deriver-a/ed25519-yao/execute-pair');
   const registering = register(root, races.after_delivery);
   await hold.held;
-  assert.deepEqual(await statuses(root), [[[1, 'admitted']], [[1, 'admitted']]]);
+  assert.deepEqual(await statuses(root), [[], [[1, 'admitted']]]);
   const first = await refresh();
   const refreshedAt = Date.now();
   assert.deepEqual(retirementKinds(first.retirement), ['pending', 'pending'], JSON.stringify(first));
   assert.match(first.retirement.deriver_a.reason, /the grace after the swap/);
 
-  // 2. After the grace, the unsettled work keeps epoch 1 at both roles.
+  // 2. A has no admission. B must retain its unsettled epoch after the grace.
   await sleep(Math.max(0, refreshedAt + 1_100 - Date.now()));
   const whileHeld = await refresh();
-  assert.deepEqual(retirementKinds(whileHeld.retirement), ['pending', 'pending']);
-  for (const role of ['deriver_a', 'deriver_b']) {
-    assert.match(whileHeld.retirement[role].reason, /1 admitted operation\(s\) are not settled/);
-  }
-  assert.deepEqual(await epochOneShares(), [1, 1]);
+  assert.deepEqual(retirementKinds(whileHeld.retirement), ['erased', 'pending']);
+  assert.match(whileHeld.retirement.deriver_b.reason, /1 admitted operation\(s\) are not settled/);
+  assert.deepEqual(await epochOneShares(), [0, 1]);
 
-  // 3. The work completes on its epoch.
+  // 3. A cannot start new work on its erased epoch. A fresh registration succeeds.
   hold.release();
   const registered = await registering;
-  assert.ok(succeeded(registered), registered.body);
-  assert.deepEqual(await statuses(root), [[[1, 'settled']], [[1, 'settled']]]);
+  assert.equal(succeeded(registered), false, registered.body);
+  assert.deepEqual(await statuses(root), [[], [[1, 'admitted']]]);
+  const fresh = await register(root, races.after_refresh);
+  assert.ok(succeeded(fresh), fresh.body);
+  assert.deepEqual(await statuses(root), [[[2, 'settled']], [[1, 'admitted'], [2, 'settled']]]);
 
-  // 4. The next pass erases epoch 1; a retry replays the recorded erasures.
+  // 4. B can cancel its unclaimed preparation after the recovery window.
+  await sleep(Math.max(0, refreshedAt + 31_000 - Date.now()));
   const erased = await refresh();
   assert.deepEqual(retirementKinds(erased.retirement), ['erased', 'erased'], JSON.stringify(erased));
-  for (const role of ['deriver_a', 'deriver_b']) {
-    assert.equal(erased.retirement[role].cancelled_admissions, 0);
-  }
+  assert.equal(erased.retirement.deriver_a.cancelled_admissions, 0);
+  assert.equal(erased.retirement.deriver_b.cancelled_admissions, 1);
   assert.deepEqual(await epochOneShares(), [0, 0]);
   const replayed = await refresh();
   assert.deepEqual(replayed.retirement, erased.retirement);
@@ -3635,7 +3615,7 @@ async function testRetirementTrigger(topology, fixture, databases) {
     graceMs: 1000,
     firstRefresh: retirementKinds(first.retirement),
     afterGraceWhileWorkHeld: [retirementKinds(whileHeld.retirement), whileHeld.retirement.deriver_b.reason],
-    heldWork: 'succeeded on epoch 1',
+    heldWork: 'refused erased A epoch; fresh registration succeeded on epoch 2',
     afterSettlement: retirementKinds(erased.retirement),
     epochOneSharesAfter: [0, 0],
     recordedErasuresReplayExactly: true,
@@ -4211,88 +4191,6 @@ async function testTenantRootRefreshAbandonmentAfterExpiry(topology, databases) 
   };
 }
 
-async function testDeriverAWalletDoPreparation(topology, rootIdentity) {
-  assert.ok(capturedDeriverAPreparation, 'Deriver A preparation fixture is required');
-  const { request, receipt } = capturedDeriverAPreparation;
-  const walletId = request.pair_binding.ceremony.binding.lifecycle.account_id;
-  const owner = {
-    org_id: rootIdentity.orgId,
-    project_id: rootIdentity.projectId,
-    env_id: rootIdentity.envId,
-    wallet_id: walletId,
-  };
-  const objectName = deriverAWalletDoObjectName(owner);
-  const namespace = await topology.getDurableObjectNamespace(deriverAWalletDoBinding, 'deriver-a');
-  const objectId = namespace.idFromName(objectName);
-  const object = namespace.get(objectId);
-  const record = {
-    status: 'prepared',
-    pair_binding: request.pair_binding,
-    root_metadata_digest: receipt.root_metadata_digest.bytes,
-    expires_at_ms: receipt.expires_at_ms,
-    receipt,
-    payload: {
-      tenant_root: request.tenant_root,
-      work: request.work,
-      input: request.input,
-    },
-  };
-  const prepare = {
-    operation: 'prepare',
-    owner,
-    root_identity: rootIdentity,
-    record,
-    now_ms: receipt.prepared_at_ms,
-  };
-  const first = await callDeriverAWalletDo(object, prepare);
-  assert.equal(first.status, 200, `Deriver A wallet DO prepare: ${JSON.stringify(first.body)}`);
-  assert.equal(first.body.result.kind, 'applied');
-  assert.equal(first.body.result.revision, 1);
-  const duplicate = await callDeriverAWalletDo(object, prepare);
-  assert.equal(duplicate.body.result.kind, 'duplicate');
-  assert.equal(duplicate.body.result.revision, 1);
-  const changedExpiry = await callDeriverAWalletDo(object, {
-    ...prepare,
-    record: { ...record, expires_at_ms: receipt.expires_at_ms + 1 },
-  });
-  assert.equal(changedExpiry.body.result.kind, 'rejected');
-
-  await topology.unsafeEvictDurableObject('deriver-a', deriverAWalletDoClass, {
-    id: objectId.toString(),
-  });
-  const lookup = { operation: 'read', owner, pair_binding: request.pair_binding };
-  const recovered = await callDeriverAWalletDo(object, lookup);
-  assert.equal(recovered.body.kind, 'read');
-  assert.equal(recovered.body.revision, 1);
-  assert.deepEqual(recovered.body.record, record);
-
-  const expired = await callDeriverAWalletDo(object, {
-    operation: 'expire',
-    owner,
-    pair_binding: request.pair_binding,
-    now_ms: receipt.expires_at_ms + 1,
-  });
-  assert.equal(expired.body.result.kind, 'applied');
-  assert.equal(expired.body.result.record.status, 'expired');
-  const late = await callDeriverAWalletDo(object, { ...prepare, now_ms: receipt.expires_at_ms + 1 });
-  assert.equal(late.body.result.kind, 'rejected');
-  const wrongOwner = await callDeriverAWalletDo(object, {
-    ...lookup,
-    owner: { ...owner, org_id: `${owner.org_id}-other` },
-  });
-  assert.notEqual(wrongOwner.status, 200);
-  const wrongWallet = await callDeriverAWalletDo(object, {
-    ...lookup,
-    owner: { ...owner, wallet_id: `${owner.wallet_id}-other` },
-  });
-  assert.notEqual(wrongWallet.status, 200);
-  const wrongRole = await callDeriverAWalletDo(object, {
-    ...lookup,
-    owner: { ...owner, role: 'deriver_b' },
-  });
-  assert.notEqual(wrongRole.status, 200);
-}
-
 function deriverAWalletDoObjectName(owner) {
   return `deriver-a-wallet-${createHash('sha256')
     .update('seams/deriver-a/wallet-do/v1')
@@ -4510,14 +4408,23 @@ async function testDeriverAWalletDoExecution(
     .first();
   assert.equal(aRowsAfterSecondTenant.count, 0);
   assert.ok(activation.publicReceipt, 'Router registration must complete through A wallet DO');
+  const prepared = {
+    request: {
+      pair_binding: secondRecord.body.record.pair_binding,
+      tenant_root: secondRecord.body.record.payload.tenant_root,
+      work: secondRecord.body.record.payload.work,
+      input: secondRecord.body.record.payload.input,
+    },
+    receipt: secondRecord.body.record.claim_identity.local_receipt,
+  };
   const deriverPreparation = await verifyDeriverPreparation(
-    topology, secondOwner, secondIdentity, capturedDeriverAPreparation, internalAuthSecret,
+    topology, secondOwner, secondIdentity, prepared, internalAuthSecret,
   );
   const ed25519Snapshot = await verifyEd25519Snapshot(
     topology, activation, fixture, routerToSigningWorkerEcdsaAuthSecret, gatewayToRouterAuthSecret, internalAuthSecret, signRelocatedEd25519,
   );
   const deriverSourceFences = await verifyDeriverSourceFences(
-    topology, secondOwner, secondIdentity, capturedDeriverAPreparation, internalAuthSecret,
+    topology, secondOwner, secondIdentity, prepared, internalAuthSecret,
   );
   const artifact = {
     kind: 'deriver_a_wallet_do_execution_e2e_v1',
@@ -4740,7 +4647,7 @@ async function assertGatewayOnlyRouterAuth(topology, fixture, tenantRoot, databa
     });
     assert.equal(missingBearer.status, 403, `${path} must reject a missing bearer`);
   }
-  assert.equal(capturedDeriverAPreparation, undefined);
+  assert.equal(capturedDeriverAExecutionRequest, undefined);
   const bRows = await databases.deriverB
     .prepare('SELECT COUNT(*) AS count FROM yao_pair_sessions')
     .first();
@@ -4924,7 +4831,7 @@ async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, data
 
 async function testDeriverBBurnBeforeCompletion(topology, fixture, tenantRoot, databases) {
   capturedSigningWorkerDelivery = undefined;
-  capturedDeriverAPreparation = undefined;
+  capturedDeriverAExecutionRequest = undefined;
   const router = await topology.getWorker('router');
   const envelope = buildEd25519ExecuteRequest(fixture, 'activation', tenantRoot);
   const response = await postWorkerJson(router, ed25519ExecutePath, envelope);
@@ -4932,20 +4839,20 @@ async function testDeriverBBurnBeforeCompletion(topology, fixture, tenantRoot, d
   if (response.status === 200) {
     assert.notEqual(JSON.parse(responseBody).status, 'succeeded');
   }
-  assert.ok(capturedDeriverAPreparation, 'A pair preparation must reach the wallet DO');
+  assert.ok(capturedDeriverAExecutionRequest, 'A pair preparation must reach the wallet DO');
   assert.equal(capturedSigningWorkerDelivery, undefined);
 
   const bTerminal = await deriverBPairStatus(
     topology,
     fixture.tenant_root_creation.identity,
-    capturedDeriverAPreparation.request.pair_binding,
+    capturedDeriverAExecutionRequest.pair_binding,
   );
   assert.equal(bTerminal.status, 'burned', 'B must persist the injected burn');
   const aRows = await databases.deriverA
     .prepare('SELECT COUNT(*) AS count FROM yao_pair_sessions')
     .first();
   assert.equal(aRows.count, 0);
-  const pair = capturedDeriverAPreparation.request.pair_binding;
+  const pair = capturedDeriverAExecutionRequest.pair_binding;
   const rootIdentity = fixture.tenant_root_creation.identity;
   const owner = {
     org_id: rootIdentity.orgId,
@@ -5542,7 +5449,6 @@ function deriverRelocationDestination(worker, binding) {
 async function main() {
   const fixture = loadFixture();
   const jwtSigner = configureRouterJwt(fixture);
-  const testWalletDo = process.argv.includes('--do-pair-store');
   const testWalletDoExecution = process.argv.includes('--do-pair-execution');
   const testWalletDoLostReply = process.argv.includes('--do-pair-lost-reply')
     || process.argv.includes('--do-package-delivery-failure');
@@ -5552,7 +5458,7 @@ async function main() {
     workers: [
       routerWorker(
         fixture,
-        testWalletDo || testWalletDoExecution || testWalletDoLostReply ||
+        testWalletDoExecution || testWalletDoLostReply ||
           testHistoricalReplay || testDeriverBCompletionBurn,
         testWalletDoLostReply,
       ),
@@ -5617,15 +5523,6 @@ async function main() {
       'fixture-signing-worker-after-refresh',
       signingWorkerMigrationsPath,
     );
-    if (testWalletDo) {
-      await captureValidActivationDelivery(topology, fixture, tenantRoot);
-      await testDeriverAWalletDoPreparation(
-        topology,
-        fixture.tenant_root_creation.identity,
-      );
-      console.log('Deriver A wallet DO preparation, exact retry, restart, and expiry passed');
-      return;
-    }
     if (testWalletDoExecution) {
       await testDeriverAWalletDoExecution(
         topology,

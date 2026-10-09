@@ -86,8 +86,6 @@ use crate::hpke::{
 
 pub const CLOUDFLARE_DERIVER_B_ED25519_YAO_DUPLEX_PATH: &str =
     "/router-ab/deriver-b/ed25519-yao/duplex";
-pub const CLOUDFLARE_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH: &str =
-    "/router-ab/deriver-a/ed25519-yao/prepare-pair";
 pub const CLOUDFLARE_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH: &str =
     "/router-ab/deriver-a/ed25519-yao/execute-pair";
 pub const CLOUDFLARE_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH: &str =
@@ -130,7 +128,7 @@ struct RoleSpanEventV1 {
     trace_id: Option<String>,
 }
 
-fn emit_role_span_v1(
+pub(crate) fn emit_role_span_v1(
     trace_id: RoleTraceContextV1,
     span: &'static str,
     role: &'static str,
@@ -2564,18 +2562,6 @@ impl DeriverBYaoSessionD1V1 {
     }
 }
 
-pub async fn handle_cloudflare_ed25519_yao_deriver_a_prepare_pair_v1(
-    mut request: Request,
-    env: &Env,
-) -> RouterAbProtocolResult<Response> {
-    let trace_id = parse_cloudflare_trace_id_from_request_v1(&request)?;
-    let request = parse_request::<CloudflareEd25519YaoPairPrepareRequestV1>(&mut request).await?;
-    let expected_kind = input_kind_for_circuit(request.pair_binding.binding().circuit_family());
-    request.validate_for_role(Ed25519YaoDeriverRoleV1::DeriverA, expected_kind)?;
-    let receipt = execute_deriver_a_pair_prepare(env, request, trace_id).await?;
-    json_response(&receipt)
-}
-
 #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 pub(crate) async fn prepare_deriver_a_pair_readiness_for_wallet_do_v1(
     env: &Env,
@@ -3864,24 +3850,6 @@ async fn settle_deriver_b_wallet_admission(env: &Env, scope: &CloudflareDeriverB
             "Deriver B pair completed, but its admission settlement was not acknowledged: {error}"
         );
     }
-}
-
-async fn execute_deriver_a_pair_prepare(
-    env: &Env,
-    request: CloudflareEd25519YaoPairPrepareRequestV1,
-    trace_id: RoleTraceContextV1,
-) -> RouterAbProtocolResult<Ed25519YaoRoleReadinessReceiptV1> {
-    let command = DeriverAYaoSessionCommandV1::PreparePair {
-        pair_binding: request.pair_binding,
-        tenant_root: request.tenant_root,
-        work: request.work,
-        input: request.input,
-    };
-    let mut response = execute_deriver_a_pair_command(env, command, trace_id).await?;
-    response
-        .json::<Ed25519YaoRoleReadinessReceiptV1>()
-        .await
-        .map_err(|_| invalid_lifecycle("Deriver A readiness receipt is malformed"))
 }
 
 async fn complete_deriver_a_pair(
