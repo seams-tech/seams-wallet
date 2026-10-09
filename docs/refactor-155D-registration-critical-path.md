@@ -1,8 +1,11 @@
 # R155D — the registration-to-first-signature critical path
 
-Status: plan. Nothing is implemented. Date: October 9, 2026. Written after
-R155C's hosted measurement, from the same staging traces, three code traces,
-and the Cloudflare placement and database settings read on this date.
+Status: Phase 0's location and dispatch probes ran on staging. They changed
+the plan: the largest remaining cost is how wallet objects are addressed, and
+placement is not the cause. No latency change is measured yet. Date: October 9,
+2026. Written after R155C's hosted measurement, from the same staging traces,
+three code traces, and two probe runs recorded under
+[Phase 0 findings](#phase-0-findings).
 
 ## Objective and relationship to R155B and R155C
 
@@ -92,26 +95,87 @@ invocations at 46–75 ms wall and 3–22 ms CPU. The 0.35–0.45 s that precede
 the claim and consume handlers, and the sign handler's 0.5 s before its object,
 sit between the stateless Worker's `stub.fetch` and the object invocation. Phase
 6L showed warm calls at 51–67 ms, and first probes at 471–655 ms. The mechanism
-is not visible in code.
+is not visible in code. [Phase 0 findings](#phase-0-findings) measures it.
 
 ### Where the components run
 
-| Component | Placement | Source |
-| --- | --- | --- |
-| Browser and ingress | Tokyo (NRT) | Tail `cf.colo` |
-| Gateway Workers | Targeted `aws:ap-east-1` | Deployment settings |
-| Console Worker | Targeted `aws:ap-northeast-1` | Deployment settings |
-| Router, Deriver A, Deriver B, Signing Worker | No placement; they run with their caller | Deployment settings; inferred |
-| Custody wallet objects | `apac` hint; observed in HKG | Phase 6 location probe, 2026-10-07 |
-| Every D1 database, Gateway and roles | `running_in_region: APAC`, named `nrt` | Cloudflare API |
+Measured on staging on October 9. Database primaries come from the D1 query
+metadata, and execution locations from the location probe.
 
-If the Gateway and roles execute in Hong Kong while every database sits in
-Tokyo, each D1 round trip crosses between them. Finalize makes fifteen to
-twenty, sign prepare five to six, respond eight to ten, and each Deriver's
-admission two.
-The observed 70–90 ms per bound-root round trip is consistent with that
-geometry and is not consistent with a database in the same location. Phase 0
-measures it directly before anything is moved.
+| Component | Runs in | Its database primary |
+| --- | --- | --- |
+| Browser and ingress | Tokyo (NRT) | — |
+| Gateway, APAC home | Hong Kong, targeted `aws:ap-east-1` | HKG |
+| Console | Tokyo, targeted `aws:ap-northeast-1` | NRT |
+| Router Worker and wallet objects | HKG, every invocation | none |
+| Deriver A Worker and wallet objects | HKG, every invocation | KIX |
+| Deriver B Worker and wallet objects | HKG, every invocation | SIN |
+| Signing Worker and wallet objects | HKG, every invocation | ICN |
+
+The Gateway is with its database: its single-read spans measure 11–22 ms. An
+earlier draft of this plan guessed the Gateway's database was remote; it is
+not, so the Gateway's serial D1 chains cost tens of milliseconds per read. The
+three role databases sit in three other cities. Each bound-root round trip from
+Hong Kong costs 70–109 ms. The production-testnet lane fixed this for the
+Derivers on September 23 by moving both databases to one verified location;
+staging was never moved.
+
+## Phase 0 findings
+
+Two single-arm probe runs on October 9, three fresh wallets each, on the
+accepted backend with R155C's concurrent dispatch. Staging was restored after
+each. [Sanitized evidence](evidence/near-custody-dispatch-probe-20261009.json).
+
+**Location is not the cause.** Wrappers around the unchanged Worker builds made
+every Worker and wallet-object invocation report its Cloudflare location. All
+84 observed custody invocations ran in HKG: 45 Worker invocations and 39 object
+invocations across the four roles reported nothing else.
+
+**A Worker reaches a wallet object quickly only from a server that already
+called it.** Of 23 Worker-to-object dispatches, 3 took 14–23 ms and 20 took
+308–872 ms, median 515 ms. The three fast ones ran on the server that had
+already called that object: Deriver A's and B's work landed on the server that
+performed their startup, and one Signing Worker prepare landed on the server
+that delivered that wallet's packages. Every other dispatch came from a server
+with no completed call to that object. No Worker ever shared a server with its
+object. The cost is a route lookup per server and object.
+
+**Name-derived object IDs cause the lookup. Unique IDs do not pay it.** The
+second run created two storage-free objects in the Router wallet namespace per
+registration, one with `newUniqueId` and one by name. Later Router invocations
+for the same wallet, on other servers, timed their first call to each:
+
+| First call from another server | Samples | Median | Range |
+| --- | ---: | ---: | ---: |
+| Object addressed by unique ID | 8 | 13 ms | 9–18 ms |
+| Object addressed by name | 7 | 448 ms | 419–513 ms |
+| Object addressed by name, from a server that called it before | 1 | 16 ms | — |
+| Second call in the same invocation, either kind | 18 | 7 ms | 5–9 ms |
+
+The objects were 2–8 seconds old. An older named object showed the same
+split: 505–587 ms from a server that had not called it, 10–19 ms otherwise.
+Cloudflare documents the difference: a name-derived ID does not say where its
+object lives, so a caller must find it, and `newUniqueId` "can skip this
+check". Creating an object cost 599–979 ms by unique ID and 667–674 ms by name,
+so creation stays off the critical path either way.
+
+Every custody wallet object is addressed by a name derived from the owner and
+ownership generation. The flow makes these first calls on its critical path:
+the Router's claim, Deriver A's execution, Deriver B's socket, the Router's
+consume, and the Signing Worker's prepare and sign. At 0.31–0.87 s each that is
+about 2.5 s of the 9 s flow. Every later signature pays it again on
+prepare and sign unless the request lands on a server that served the wallet
+before.
+
+**Cold isolates add 0.1–0.3 s to some invocations.** 19 of 45 Worker
+invocations started 99–303 ms after their event, with matching CPU time. The
+modules are 9–16 MB of WebAssembly, and staging traffic is sparse, so many
+requests meet a server that has not loaded the module. Object invocations
+started within 4 ms.
+
+Not yet measured: the combined baseline with the Phase 6AR SDK, D1 round trips
+per Gateway request, and whether a name-derived ID passed as a string still
+pays the lookup.
 
 ## Trust model and invariants that constrain this plan
 
@@ -171,7 +235,10 @@ Causes:
   for the next call in the same invocation (Phase 6E, 6L, and this run).
 - B's stateless socket handler and the Signing Worker's sign handler show the
   same first-call shape.
-- Two D1 round trips per Deriver admission at 70–90 ms each.
+- Phase 0 found the cause of both: a server that has not called a name-derived
+  object must look it up, at about 0.45 s. Unique IDs avoid the lookup.
+- Two D1 round trips per Deriver admission at 70–90 ms each, to a database in
+  another city.
 - A's post-protocol work: HPKE seal, three SQLite statements, one deferred D1
   statement, and an output gate before the reply.
 
@@ -182,17 +249,16 @@ Changes:
   each object. Make the generation available at setup for a fresh wallet, or
   derive the object name from the reservation, so the startup request can go
   out 0.9–1.5 s earlier. Keep the startup grant-free and storage-free.
-- Resolve or circumvent the first-call dispatch cost: see Phase 1. If it cannot
-  be removed, restructure so the Yao execute makes one object call on its
-  critical path instead of three: claim at the Router, execute at A, and B's
-  socket.
-- Co-locate the roles' D1 with the roles: Phase 1.
+- Address wallet objects by stored unique IDs: Phase 1. This removes the
+  lookup from the claim, A's execution, and B's socket.
+- Co-locate the roles' D1 with the roles on staging: Phase 1.
 - Keep the R155C dispatch shape. Do not move B's preparation onto A's
   connection; Phase 6AD and the first R155C draft showed why.
 
-Expected: 0.3–0.6 s from earlier startup; up to 0.4 s from the Router claim
-dispatch; 0.1–0.3 s from D1 placement. The 1,900 ms A execution has a floor
-near 1.0–1.2 s of CPU, protocol, and one connect with the present circuit.
+Expected: 0.1–0.4 s from earlier startup; about 1.3 s from the three
+lookups on this request; 0.1–0.2 s from D1 placement. The 1,900 ms A execution
+has a floor near 0.6–0.8 s of CPU, protocol, and one connect with the present
+circuit once its lookups are gone.
 
 Must not regress: one durable execution per pair, exact replay after lost
 replies, refusal before claim, ownership fences, and the output-gate ordering
@@ -213,9 +279,10 @@ completion write. Home completion adds two D1 batches around the Console
 completion. The Phase 6AR Gateway folds session publication into completion
 and drops one identity read; it still measures 2.2 s.
 
-Causes: fifteen to twenty D1 round trips in series at remote-database latency,
-three Console calls in series, one Router dispatch with the 0.45 s first-call
-cost, and reads whose inputs were known before the previous step finished.
+Causes: one Router dispatch with the 0.45 s object lookup, three Console
+calls in series from Hong Kong to Tokyo, fifteen to twenty D1 round trips in
+series at 11–22 ms each, and reads whose inputs were known before the previous
+step finished. Phase 6AS has since cut three of those reads.
 
 Changes:
 
@@ -365,17 +432,18 @@ inter-request work stays below 0.1 s.
 | D1 round trips in finalize | 15–20 in series | 4–6, most concurrent |
 | D1 round trips in sign prepare before the Router | 5–6 | 1–2 |
 | Wallet objects constructed on the Yao execute's critical path | 1 (Router), plus 0–445 ms waiting for A | 0 |
-| First-call object dispatches on the critical path | 4: claim, consume, B socket, Signing Worker sign | 0 if Phase 1 resolves the cost; otherwise 1 per request |
-| Components in one location with their databases | No | Yes, measured |
+| Object lookups on the critical path | 6: claim, A execution, B socket, consume, Signing Worker prepare and sign | 0 |
+| Role databases in the roles' location, staging | No: KIX, SIN, ICN against HKG | Yes, measured |
 
 Estimated savings if every item lands, against the 9 s SDK-measured flow:
-placement 0.6–1.0 s, object startup at setup 0.3–0.6 s, finalize restructure
-0.8–1.2 s, dispatch cost 0.8–1.2 s if resolved, signing path 0.3–0.5 s, setup
-and respond 0.6–0.8 s, status read 0.15–0.4 s, prepare during confirmation up
-to 0.3 s. That is 3.8–6.0 s, leaving 3–5 s. The 3–4 s target needs the
-dispatch cost resolved and finalize restructured. The 1–2 s preference needs
-the two follow-up designs: finalize folded into the Yao execute response and a
-one-round signature. Neither is in this plan's scope.
+object addresses about 2.5 s, object startup at setup 0.1–0.4 s, finalize
+restructure 0.4–0.8 s beyond its lookup, role databases 0.2–0.3 s, signing
+path 0.1–0.2 s, setup and respond 0.3–0.5 s, status read 0.15–0.4 s, prepare
+during confirmation up to 0.3 s. That is 3.8–5.5 s, leaving 3.5–5 s. Object
+addresses are more than half of it. The 3–4 s target needs them and the
+finalize restructure. The 1–2 s preference needs the two follow-up designs:
+finalize folded into the Yao execute response and a one-round signature.
+Neither is in this plan's scope.
 
 ## Required code inventory
 
@@ -411,36 +479,74 @@ Delete replaced code in the same change. Add no flag, cache, or second path.
   automation drains, fixed sleeps, and Node verification outside the measured
   window. Verify that the harness still clicks the modal and verifies every
   signature.
-- [ ] Observe execution location for every context in one registration:
-  Gateway, Router, each Deriver Worker, each wallet object, Signing Worker, and
-  Console, using the existing outbound trace probe. Measure D1 round-trip time
-  from the Gateway and from each role with a trivial statement. Record the
-  databases' physical regions from the API. Do not infer colocation from hints.
-- [ ] Reproduce the first-call object dispatch cost with real commands on one
-  wallet: claim, consume, B socket, and Signing Worker sign, within one
-  invocation and across invocations, with the caller's location recorded.
-  Compare a Worker placed with the object. Keep Phase 6L's probe harness.
+- [x] Observe execution location for every custody context in one
+  registration: Router, each Deriver Worker, each wallet object, and Signing
+  Worker, using the outbound trace probe. Record each database's primary
+  location from the D1 query metadata. Gateway and role D1 round-trip times
+  come from existing spans: 11–22 ms and 70–109 ms.
+- [x] Reproduce the first-call object dispatch cost with real commands: claim,
+  consume, A execution, B preparation and socket, and Signing Worker prepare,
+  sign, and delivery, with each caller's location and server recorded. Compare
+  unique and name-derived IDs from other servers.
 - [ ] Count D1 round trips and statements per request in the Gateway with the
   existing timing wrappers, so later phases can show reductions.
 
 Exit: one evidence file with the combined baseline, the location map, D1
 latency per location, and the dispatch-cost matrix.
 
-## Phase 1 — placement and startup
+## Phase 1 — object addresses, startup, and role databases
 
-- [ ] Put the Gateway, the roles, the wallet objects, and the databases in one
-  location, chosen from Phase 0. If the databases cannot move, move the Workers
-  and the object hint to the databases. Preserve the four regional homes'
-  semantics; this changes where APAC executes, not what a home means.
-- [ ] Start all four wallet objects at setup. Fix the ownership generation for
-  a fresh wallet at setup, or name the startup by reservation. Keep startup
-  grant-free and storage-free. Verify immediate execution, lost startup replies,
-  exact retries, and wrong-home refusal through the four-home E2E.
-- [ ] Act on the dispatch matrix. If placement removes the first-call cost,
-  record it and stop. If not, restructure the Router's execute so the claim is
-  the only object call before dispatch and the consume rides on the finalize's
-  first call; and give B's socket forwarding and the Signing Worker's sign
-  handler the same treatment.
+### Address wallet objects by stored unique IDs
+
+Today each role derives its wallet object's name from the owner and ownership
+generation and asks its namespace for that name. The name is the address, so
+nothing stores it, and every server that has not called the object pays the
+lookup. Replace the derived name with a stored address:
+
+- Wallet startup mints the addresses. The Router creates its own object with
+  `newUniqueId`, and each role does the same in its own namespace and returns
+  the ID. Startup returns the four IDs to the Gateway.
+- The Gateway stores them with the wallet's ownership generation, in the row
+  it already reads on every custody request, before any custody state exists.
+  One generation has one set of addresses, written once.
+- Every Gateway-to-Router custody request carries the wallet's addresses beside
+  its home and generation. The Router passes each role its own address the same
+  way it passes the home today. A role opens the object by `idFromString`.
+- Authority does not move. Each object still records and checks its owner and
+  generation, so an address for another wallet's object is refused there. An
+  address selects an object; it grants nothing.
+- Relocation mints the destination generation's addresses when it prepares the
+  destination, and stores them with that generation.
+- An existing wallet has name-derived objects. Its addresses are those objects'
+  IDs, computed once and stored the same way. Such a wallet keeps paying the
+  lookup until it relocates. Whether a name-derived ID passed as a string still
+  pays it is unmeasured; measure it before choosing the migration.
+
+This reaches every custody request type, the Gateway's generation row in all
+four regional databases, relocation, and the scenario harnesses. It needs its
+own change set, coordinated with R153's relocation work, and its own hosted
+comparison. It is the largest saving in this plan and is not started.
+
+- [ ] Decide the migration for existing wallets and agree the change with the
+  relocation owner.
+- [ ] Mint, return, and store addresses at wallet startup. Refuse a custody
+  request whose generation has no stored addresses.
+- [ ] Carry addresses on every Gateway-to-Router and Router-to-role request.
+  Open objects by stored ID in every role. Delete name derivation.
+- [ ] Mint destination addresses in relocation.
+- [ ] Verify with the Worker and wallet-object scenarios, the four-home E2E,
+  relocation, and the intended-behaviour contracts. Measure against the Phase 0
+  probe: no dispatch above 50 ms from a server that never called the object.
+
+### Startup and role databases
+
+- [ ] Start all four wallet objects at setup. The reservation already carries
+  the ownership generation. Keep startup grant-free. A replayed setup starts
+  nothing again.
+- [ ] Move the staging role databases to the roles' location, following the
+  production-testnet procedure: create and verify replacements, export and
+  import, redeploy with the new database IDs, compare snapshots. This creates
+  three databases and moves custody data, so it needs the deployment owner.
 - [ ] Measure Yao execute, finalize, and sign against the Phase 0 baseline
   with everything else fixed.
 

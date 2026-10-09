@@ -1,0 +1,593 @@
+{
+  "schema": "near_custody_dispatch_probe_v1",
+  "date": "2026-10-09",
+  "method": "Two single-arm runs on existing staging, three fresh implicit NEAR wallets each, on the accepted backend with the concurrent Deriver dispatch. Run one wrapped the unchanged Router, Deriver A, Deriver B and Signing Worker builds so that every Worker and wallet-object invocation reported its Cloudflare location and server from an outbound trace request. Run two wrapped only the Router: each registration execution created two storage-free objects in the Router wallet namespace, one by unique ID and one by name, and later Router invocations for the same wallet timed their first and second call to each. Database primaries come from the D1 query metadata. Staging was restored after each run.",
+  "placementAndDatabases": [
+    {
+      "component": "Gateway, APAC home",
+      "workerPlacement": "aws:ap-east-1",
+      "databasePrimaryLocation": "HKG"
+    },
+    {
+      "component": "Console",
+      "workerPlacement": "aws:ap-northeast-1",
+      "databasePrimaryLocation": "NRT"
+    },
+    {
+      "component": "Deriver A",
+      "workerPlacement": "none",
+      "databasePrimaryLocation": "KIX"
+    },
+    {
+      "component": "Deriver B",
+      "workerPlacement": "none",
+      "databasePrimaryLocation": "SIN"
+    },
+    {
+      "component": "Signing Worker",
+      "workerPlacement": "none",
+      "databasePrimaryLocation": "ICN"
+    },
+    {
+      "component": "Router",
+      "workerPlacement": "none",
+      "databasePrimaryLocation": null
+    }
+  ],
+  "locationProbe": {
+    "observedLocationByRoleAndContext": {
+      "router:stateless": {
+        "HKG": 16
+      },
+      "deriver-b:stateless": {
+        "HKG": 10
+      },
+      "signing-worker:stateless": {
+        "HKG": 12
+      },
+      "deriver-a:stateless": {
+        "HKG": 7
+      },
+      "router:durableObject": {
+        "HKG": 12
+      },
+      "signing-worker:durableObject": {
+        "HKG": 12
+      },
+      "deriver-b:durableObject": {
+        "HKG": 9
+      },
+      "deriver-a:durableObject": {
+        "HKG": 6
+      }
+    },
+    "workerToObjectDispatch": [
+      {
+        "role": "router",
+        "path": "/router-ab/router/ed25519-yao/execute",
+        "gapMs": 535,
+        "sameLocation": true,
+        "sameServer": false
+      },
+      {
+        "role": "router",
+        "path": "/router-ab/router/ed25519-yao/execute",
+        "gapMs": 455,
+        "sameLocation": true,
+        "sameServer": false
+      },
+      {
+        "role": "router",
+        "path": "/router-ab/router/ed25519-yao/execute",
+        "gapMs": 507,
+        "sameLocation": true,
+        "sameServer": false
+      },
+      {
+        "role": "router",
+        "path": "/router-ab/router/ed25519-yao/registration/consume",
+        "gapMs": 484,
+        "sameLocation": true,
+        "sameServer": false
+      },
+      {
+        "role": "router",
+        "path": "/router-ab/router/ed25519-yao/registration/consume",
+        "gapMs": 453,
+        "sameLocation": true,
+        "sameServer": false
+      },
+      {
+        "role": "router",
+        "path": "/router-ab/router/ed25519-yao/registration/consume",
+        "gapMs": 481,
+        "sameLocation": true,
+        "sameServer": false
+      },
+      {
+        "role": "deriver-a",
+        "path": "/router-ab/deriver-a/ed25519-yao/execute-pair",
+        "gapMs": 523,
+        "sameLocation": true,
+        "sameServer": false
+      },
+      {
+        "role": "deriver-a",
+        "path": "/router-ab/deriver-a/ed25519-yao/execute-pair",
+        "gapMs": 462,
+        "sameLocation": true,
+        "sameServer": false
+      },
+      {
+        "role": "deriver-a",
+        "path": "/router-ab/deriver-a/ed25519-yao/execute-pair",
+        "gapMs": 23,
+        "sameLocation": true,
+        "sameServer": false
+      },
+      {
+        "role": "deriver-b",
+        "path": "/router-ab/deriver-b/ed25519-yao/prepare-pair",
+        "gapMs": 497,
+        "sameLocation": true,
+        "sameServer": false
+      },
+      {
+        "role": "deriver-b",
+        "path": "/router-ab/deriver-b/ed25519-yao/prepare-pair",
+        "gapMs": 308,
+        "sameLocation": true,
+        "sameServer": false
+      },
+      {
+        "role": "deriver-b",
+        "path": "/router-ab/deriver-b/ed25519-yao/prepare-pair",
+        "gapMs": 14,
+        "sameLocation": true,
+        "sameServer": false
+      },
+      {
+        "role": "deriver-b",
+        "path": "/router-ab/deriver-b/ed25519-yao/duplex",
+        "gapMs": 763,
+        "sameLocation": true,
+        "sameServer": false
+      },
+      {
+        "role": "deriver-b",
+        "path": "/router-ab/deriver-b/ed25519-yao/duplex",
+        "gapMs": 775,
+        "sameLocation": true,
+        "sameServer": false
+      },
+      {
+        "role": "deriver-b",
+        "path": "/router-ab/deriver-b/ed25519-yao/duplex",
+        "gapMs": 728,
+        "sameLocation": true,
+        "sameServer": false
+      },
+      {
+        "role": "signing-worker",
+        "path": "/router-ab/signing-worker/sign/prepare",
+        "gapMs": 681,
+        "sameLocation": true,
+        "sameServer": false
+      },
+      {
+        "role": "signing-worker",
+        "path": "/router-ab/signing-worker/sign/prepare",
+        "gapMs": 22,
+        "sameLocation": true,
+        "sameServer": false
+      },
+      {
+        "role": "signing-worker",
+        "path": "/router-ab/signing-worker/sign/prepare",
+        "gapMs": 588,
+        "sameLocation": true,
+        "sameServer": false
+      },
+      {
+        "role": "signing-worker",
+        "path": "/router-ab/signing-worker/sign",
+        "gapMs": 821,
+        "sameLocation": true,
+        "sameServer": false
+      },
+      {
+        "role": "signing-worker",
+        "path": "/router-ab/signing-worker/sign",
+        "gapMs": 872,
+        "sameLocation": true,
+        "sameServer": false
+      },
+      {
+        "role": "signing-worker",
+        "path": "/router-ab/signing-worker/sign",
+        "gapMs": 375,
+        "sameLocation": true,
+        "sameServer": false
+      },
+      {
+        "role": "signing-worker",
+        "path": "/router-ab/signing-worker/ed25519-yao/activation/packages",
+        "gapMs": 664,
+        "sameLocation": true,
+        "sameServer": false
+      },
+      {
+        "role": "signing-worker",
+        "path": "/router-ab/signing-worker/ed25519-yao/activation/packages",
+        "gapMs": 466,
+        "sameLocation": true,
+        "sameServer": false
+      }
+    ],
+    "dispatchSummary": {
+      "slow": {
+        "samples": 20,
+        "median": 515.0,
+        "minimum": 308,
+        "maximum": 872
+      },
+      "fast": {
+        "samples": 3,
+        "median": 22,
+        "minimum": 14,
+        "maximum": 23
+      },
+      "everyPairInOneLocation": true,
+      "pairsOnOneServer": 0
+    },
+    "handlerStartDelayMs": {
+      "deriver-a:durableObject": {
+        "values": [
+          0,
+          0,
+          0,
+          1,
+          2,
+          4
+        ],
+        "delayedOver50Ms": 0
+      },
+      "deriver-a:stateless": {
+        "values": [
+          0,
+          0,
+          0,
+          3,
+          170,
+          289,
+          303
+        ],
+        "delayedOver50Ms": 3
+      },
+      "deriver-b:durableObject": {
+        "values": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          1,
+          1
+        ],
+        "delayedOver50Ms": 0
+      },
+      "deriver-b:stateless": {
+        "values": [
+          0,
+          0,
+          0,
+          1,
+          2,
+          5,
+          141,
+          158,
+          269,
+          287
+        ],
+        "delayedOver50Ms": 4
+      },
+      "router:durableObject": {
+        "values": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          3
+        ],
+        "delayedOver50Ms": 0
+      },
+      "router:stateless": {
+        "values": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          2,
+          4,
+          11,
+          99,
+          108,
+          161,
+          168,
+          174
+        ],
+        "delayedOver50Ms": 5
+      },
+      "signing-worker:durableObject": {
+        "values": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          2,
+          3
+        ],
+        "delayedOver50Ms": 0
+      },
+      "signing-worker:stateless": {
+        "values": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          115,
+          126,
+          126,
+          152,
+          187,
+          204,
+          222
+        ],
+        "delayedOver50Ms": 7
+      }
+    }
+  },
+  "dispatchProbe": {
+    "creation": [
+      {
+        "order": [
+          "unique",
+          "named"
+        ],
+        "uniqueFirstMs": 599,
+        "uniqueSecondMs": 11,
+        "namedFirstMs": 674,
+        "namedSecondMs": 10
+      },
+      {
+        "order": [
+          "unique",
+          "named"
+        ],
+        "uniqueFirstMs": 639,
+        "uniqueSecondMs": 6,
+        "namedFirstMs": 673,
+        "namedSecondMs": 8
+      },
+      {
+        "order": [
+          "named",
+          "unique"
+        ],
+        "uniqueFirstMs": 979,
+        "uniqueSecondMs": 8,
+        "namedFirstMs": 667,
+        "namedSecondMs": 5
+      }
+    ],
+    "laterInvocations": [
+      {
+        "request": "consume",
+        "order": [
+          "unique",
+          "named"
+        ],
+        "objectAgeMs": 3697,
+        "sameServerAsCreator": false,
+        "uniqueFirstMs": 18,
+        "uniqueSecondMs": 8,
+        "namedFirstMs": 419,
+        "namedSecondMs": 8,
+        "olderNamedObjectFirstMs": 536
+      },
+      {
+        "request": "prepare",
+        "order": [
+          "named",
+          "unique"
+        ],
+        "objectAgeMs": 7234,
+        "sameServerAsCreator": false,
+        "uniqueFirstMs": 16,
+        "uniqueSecondMs": 7,
+        "namedFirstMs": 489,
+        "namedSecondMs": 8,
+        "olderNamedObjectFirstMs": 513
+      },
+      {
+        "request": "sign",
+        "order": [
+          "unique",
+          "named"
+        ],
+        "objectAgeMs": 8439,
+        "sameServerAsCreator": false,
+        "uniqueFirstMs": 13,
+        "uniqueSecondMs": 8,
+        "namedFirstMs": 438,
+        "namedSecondMs": 6,
+        "olderNamedObjectFirstMs": 519
+      },
+      {
+        "request": "consume",
+        "order": [
+          "unique",
+          "named"
+        ],
+        "objectAgeMs": 2378,
+        "sameServerAsCreator": false,
+        "uniqueFirstMs": 14,
+        "uniqueSecondMs": 5,
+        "namedFirstMs": 441,
+        "namedSecondMs": 8,
+        "olderNamedObjectFirstMs": 14
+      },
+      {
+        "request": "prepare",
+        "order": [
+          "unique",
+          "named"
+        ],
+        "objectAgeMs": 5435,
+        "sameServerAsCreator": false,
+        "uniqueFirstMs": 9,
+        "uniqueSecondMs": 5,
+        "namedFirstMs": 16,
+        "namedSecondMs": 7,
+        "olderNamedObjectFirstMs": 10
+      },
+      {
+        "request": "sign",
+        "order": [
+          "unique",
+          "named"
+        ],
+        "objectAgeMs": 7615,
+        "sameServerAsCreator": false,
+        "uniqueFirstMs": 11,
+        "uniqueSecondMs": 5,
+        "namedFirstMs": 448,
+        "namedSecondMs": 8,
+        "olderNamedObjectFirstMs": 587
+      },
+      {
+        "request": "consume",
+        "order": [
+          "named",
+          "unique"
+        ],
+        "objectAgeMs": 3087,
+        "sameServerAsCreator": false,
+        "uniqueFirstMs": 13,
+        "uniqueSecondMs": 6,
+        "namedFirstMs": 476,
+        "namedSecondMs": 6,
+        "olderNamedObjectFirstMs": 505
+      },
+      {
+        "request": "prepare",
+        "order": [
+          "unique",
+          "named"
+        ],
+        "objectAgeMs": 5568,
+        "sameServerAsCreator": false,
+        "uniqueFirstMs": 12,
+        "uniqueSecondMs": 7,
+        "namedFirstMs": 513,
+        "namedSecondMs": 5,
+        "olderNamedObjectFirstMs": 15
+      },
+      {
+        "request": "sign",
+        "order": [
+          "unique",
+          "named"
+        ],
+        "objectAgeMs": 5605,
+        "sameServerAsCreator": true,
+        "uniqueFirstMs": 13,
+        "uniqueSecondMs": 9,
+        "namedFirstMs": 14,
+        "namedSecondMs": 6,
+        "olderNamedObjectFirstMs": 15
+      }
+    ],
+    "firstCallFromAnotherServerMs": {
+      "uniqueId": {
+        "samples": 8,
+        "median": 13.0,
+        "minimum": 9,
+        "maximum": 18
+      },
+      "namedId": {
+        "samples": 8,
+        "median": 444.5,
+        "minimum": 16,
+        "maximum": 513
+      },
+      "namedIdExcludingServersThatCalledItBefore": {
+        "samples": 7,
+        "median": 448,
+        "minimum": 419,
+        "maximum": 513
+      }
+    },
+    "secondCallMs": {
+      "uniqueId": {
+        "samples": 9,
+        "median": 7,
+        "minimum": 5,
+        "maximum": 9
+      },
+      "namedId": {
+        "samples": 9,
+        "median": 7,
+        "minimum": 5,
+        "maximum": 8
+      }
+    }
+  },
+  "gatewayDatabaseRoundTripMs": {
+    "singleReadSpans": "near_finalize_home_admission 11-19; ecdsa_respond_d1_load 15-22, one sample 70",
+    "source": "R155C hosted comparison server timing"
+  },
+  "conclusions": [
+    "Every custody Worker invocation and every wallet object ran in one location, HKG. Distance does not explain the dispatch cost.",
+    "A Worker reaches a wallet object in 14-23 ms when its server already called that object, and in 308-872 ms otherwise.",
+    "From another server, the first call to an object addressed by unique ID took 9-18 ms. The first call to an object addressed by name took 419-513 ms unless that server had called it before.",
+    "Creating an object took 599-979 ms by unique ID and 667-674 ms by name.",
+    "Some Worker invocations started 99-303 ms after their event, with matching CPU. That is isolate start for 9-16 MB modules.",
+    "The Gateway is co-located with its database. Deriver A, Deriver B and Signing Worker databases sit in three other locations."
+  ],
+  "limitations": [
+    "Three wallets per run. The counts show the pattern; they do not establish rates.",
+    "The trace request reports the Cloudflare location and server that served it, taken as the location of the caller.",
+    "Probe objects held no storage. A wallet object with storage may add work to a first call.",
+    "The dispatch probe ran in the Router wallet namespace only.",
+    "Application clocks advance only at I/O."
+  ],
+  "restoration": {
+    "allThirteenOriginalVersionsRestoredAfterEachRun": true,
+    "observersStopped": true,
+    "newResources": 0
+  },
+  "rawArtifacts": {
+    "private": ".artifacts/r155d-hosted"
+  }
+}
