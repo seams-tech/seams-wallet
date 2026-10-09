@@ -26,6 +26,42 @@ not require another Worker, database, signing secret, environment-variable famil
 or configuration framework. It does not guarantee physical colocation of custody
 Workers, DOs, Containers, and D1. Their remaining network hops are separate work.
 
+## Current work split with R155C
+
+R155B owns Gateway, Console, and SDK improvements outside the A/B setup flow.
+R155C owns concurrent A/B preparation, the peer connection, and removal of the
+signed readiness/start-acceptance handshake. Its scope includes the affected
+claims, failure handling, tests, timing labels, peer keys, and deployment documents.
+Prepared-root reuse inside that flow also belongs to R155C.
+
+The custody experiments below preserve the implementation and measurements at
+each date. Their completed checklists do not impose handshake requirements on
+R155C. Open A/B tasks and the withdrawn proposal to relay B preparation through
+A are removed from R155B. Continue those changes only under the revised R155C plan.
+
+Independent R155B optimization candidates, in priority order:
+
+1. **Combine registration completion calls to Console.** Session issuance currently
+   publishes its locator before the local session commit. Home completion follows
+   the durable registration result. Evaluate one retryable directory operation
+   after local commit. Preserve discovery, expiry, ownership, and lost-reply recovery.
+   Phase 6AO measured 251 ms for session issuance and 255 ms for home completion.
+   These whole-stage costs are not estimates of removable time.
+2. **Remove avoidable status requests after registration.** Trace the two observed
+   status requests and reuse the returned established session where it supplies
+   the required SDK state. Preserve fresh authorization and budget checks in prepare.
+   Earlier observation reuse already exists. Remove only a demonstrated duplicate.
+3. **Consolidate registration directory reads.** Trace the remaining setup/respond
+   calls before combining reservation, home lookup, and execution-authority work.
+   Reuse exact ceremony results within their valid scope. Keep cross-region retry
+   and identity uniqueness guarantees.
+
+Phase 6AO recorded eight Gateway requests and nine Console requests per wallet.
+Finalization HTTP took 2.190 seconds median across three candidate wallets.
+Capability installation and custody storage already run concurrently. These
+candidates have no measured saving yet. Keep the custody version fixed during
+each R155B comparison. Coordinate use of shared staging with R155C.
+
 ## Approved OTP design — October 7, 2026
 
 Regional Gateways own OTP spam limits. Use each home's existing signer D1 database.
@@ -352,10 +388,10 @@ required result; a particular millisecond saving is not promised in advance.
 ## Phase 6A — Reduce NEAR setup and first-sign latency
 
 Status: root-store consolidation, SDK request reduction, and authenticated initial
-placement are implemented. The latest staging setup median is 6.173 seconds on a
-newer candidate. The earlier controlled result was 5.414 seconds. These runs do not
-establish a controlled regression. Phase 6B below owns the remaining setup work and
-the unmet two-second target. SDK planning uses one status read and one owner-lane read.
+placement are implemented. The 6.173-second and earlier 5.414-second setup results
+below are historical measurements from different candidates. They do not establish
+a controlled regression. Later experiments continue through Phase 6AO. R155C now
+owns remaining A/B setup optimization and the unmet two-second setup target.
 
 ### Baseline and scope
 
@@ -408,7 +444,7 @@ Preparation decrypts the share and drops it; execution repeats the work.
 - [x] Keep secrets out of diagnostics. Do not add a global plaintext-share cache
   or extend authority lifetime to avoid fresh execution checks.
 
-### 6A.2 — Reduce Worker-to-DO delay
+### 6A.2 — Worker-to-DO investigation record
 
 Cause partly established: handlers perform D1 work, while substantial additional
 latency occurs outside them. Deriver B preparation took 1,370 ms with a 622 ms
@@ -416,34 +452,27 @@ handler. Its later begin call took 542 ms with a 52 ms handler. Routing,
 scheduling, startup and transport remain unresolved contributors. These gaps
 alone do not prove cold starts or a Cloudflare fault.
 
-- [ ] Extend existing spans with attempt correlation, constructor occurrence,
-  handler duration, D1 calls/duration, and correctly scoped placement evidence.
 - [x] Compare first, subsequent and post-idle commands on exact wallet objects.
   Separate new-object and warm-object samples; avoid absolute clock subtraction
   across machines.
 - [x] Audit first-touch routing against the authenticated wallet home. Coordinate
   with R153 physical custody ownership; preserve its resource/generation identity.
-- [ ] Compare supported initial location hints using fresh test objects where
-  placement evidence warrants it. Hints do not move existing objects or guarantee
-  an exact city. Regional D1 labels alone do not prove physical colocation.
-- [ ] Eliminate repeated admission/status hops within one operation when verified
-  results already supply the required authority. Keep durable claims before
-  protocol messages and durable completion before returning success.
-- [ ] If constructor evidence shows a material cost, start the exact wallet
-  objects at the earliest authorized registration point. Use bounded preparation;
-  add no permanent warm pool, keepalive or new infrastructure.
 
-### 6A.3 — Reduce signing-worker delivery and signing preflight
+Later phases record placement, startup, admission, and transport experiments.
+R155C owns further A/B boundary changes and their measurements. No separate
+R155B placement, prewarming, or peer-connection task remains open here.
 
-- [ ] Split the observed 627–1,130 ms delivery span into transport, verification,
-  combination, D1 and wallet-DO persistence. Batch dependent writes and remove
-  repeated same-attempt reads. Preserve durable, idempotent delivery.
+### 6A.3 — Reduce signing preflight
+
 - [x] Trace and remove repeated same-operation session/lane resolution. Ordinary
   NEAR signing now uses one status read, one owner-lane read, prepare and finalize.
   Planning reuses authenticated preparation; fresh prepare enforcement remains.
   Hosted request counts and revocation/budget E2E evidence are recorded below.
 - [x] Verify whether current SDK changes already remove any measured duplicates
   before adding another implementation. Freeze a matching candidate for comparison.
+
+Phase 6AE records the later streamed Signing Worker delivery change. Further
+delivery changes that depend on A/B completion must follow R155C's result contract.
 
 ### 6A.4 — Verify correctness and hosted gains
 
@@ -458,10 +487,12 @@ alone do not prove cold starts or a Cloudflare fault.
   and three consecutive signatures. Separate user funding, provisioning, test
   overhead and cold/warm cohorts. Record medians, ranges, maxima, errors, D1
   trips/statements, HTTP counts, preparation waits and Console calls.
-- [ ] First target hosted Yao setup below two seconds median. Then pursue
-  0.5–1 second. These are engineering targets; no saving is claimed until measured.
-- [ ] Keep changes that improve the measured workload without weakening ownership
-  or authorization. Record rejected candidates and unresolved bottlenecks.
+- [ ] Keep correct changes that remove demonstrated work, even when hosted timing
+  varies. Report structural savings and measured latency separately. Record
+  rejected candidates and unresolved bottlenecks.
+
+R155C owns the unmet Yao setup target. R155B comparisons keep custody fixed and
+measure their Gateway, Console, or SDK change against matching controls.
 
 Exit: repeatable hosted evidence shows the achieved latency and call-count changes,
 correctness checks pass, and replaced code is removed. Mark any unmet target
@@ -472,6 +503,7 @@ explicitly. A faster local run alone does not complete this phase.
 - [ ] Delete replaced session lookup adapters, remote admission wrappers, unused
   DTOs, dead exports, and redundant publications. Keep directory locators still
   needed by discovery, recovery, registration, or relocation.
+  R155C owns removal of peer receipts, acceptance types, and their signing keys.
 - [ ] Remove old request shapes and disposable-test-state assumptions. Keep any
   unavoidable storage conversion at the persistence boundary, then retire it.
 - [ ] Update public contracts, deployment documentation, examples, and R153
@@ -2317,11 +2349,10 @@ remains open until a fresh-wallet hosted comparison measures the deployed change
 
 ## Phase 6B — Remove NEAR custody setup overhead
 
-Status: A validation consolidation and B execution in the wallet DO are implemented.
-Release builds and custody E2E pass. Hosted acceptance remains open while R153
-uses the shared staging deployment. The two-second setup target remains unmet.
-This phase owns the unresolved setup work from Phase 6A. Do not duplicate its
-placement or warm-object experiments without new evidence.
+Status: implemented and measured. The acceptance record below contains the
+controlled results. The two-second setup target remained unmet. This section
+records the historical receipt-based protocol. R155C replaces that handshake
+and owns further A/B work. Its implementation does not depend on another 6B task.
 
 ### Objective and baseline
 
@@ -2359,7 +2390,7 @@ Private empirical records are in `seams-monorepo/docs/`:
 The 6.173-second result is a newer candidate measurement. It is not a controlled
 regression comparison against the historical 5.414-second result.
 
-### Changes and expected effects
+### Historical proposals and expected effects
 
 | Order | Proposal | Structural target | Expected benefit and uncertainty |
 | --- | --- | --- | --- |
@@ -2368,9 +2399,10 @@ regression comparison against the historical 5.414-second result.
 | 3 | Execute B's protocol in its existing wallet DO | Local begin/complete transitions replace two remote command exchanges | Less dispatch, serialization, and payload copying. durable writes remain |
 | 4, conditional | Reuse exact-pair prepared material | Avoid repeated root decryption and reconstruction | Requires cancellation and retirement correctness. no saving assumed |
 
-A/B preparation already runs in parallel. Keep that behavior. These proposals add
-no infrastructure, environment variables, permanent warm pools, or keepalive traffic.
-Keep the existing A/B trust separation and WebSocket transport over private service bindings.
+A/B preparation ran in parallel at this stage. Phase 6AN later serialized B
+preparation before A. R155C restores concurrent dispatch under the documented
+single-organisation trust model. These experiments added no infrastructure,
+environment variables, permanent warm pools, or keepalive traffic.
 
 ### 6B.1 — Validate once and reduce repeated CPU work
 
@@ -2425,7 +2457,7 @@ Implementation sites: `durable_object/deriver_b_pair.rs`,
 - [x] Run B's protocol in that object. Perform begin and complete through the existing
   local state engine. Remove Worker-to-DO serialization of the prepared execution payload.
 - [x] Persist the winning execution claim before protocol output. Persist completion
-  before sending the existing sealed completion response. Keep the readiness exchange.
+  before sending the existing sealed completion response.
 - [x] Preserve per-pair serialization without locking the whole object across peer network waits.
   Competing execution, cancellation, and relocation must observe the same state machine.
 - [x] Keep deferred work bound to the exact wallet, home, ownership generation, pair,
@@ -2442,9 +2474,9 @@ whether the architectural change improves the measured request.
 
 ### 6B.4 — Conditional reuse of prepared material
 
-**Deferred.** Cross-step reuse requires an invalidation contract for cancellation,
-fencing, root retirement, ownership changes, and eviction. No broad cache or extra
-persisted secret copy was added. This optional proposal does not block acceptance.
+**Closed as a separate R155B task.** Phase 6AO reuses A's admitted target within
+one request. R155C owns possible B reuse across preparation and connection requests.
+Its plan defines cancellation, fencing, retirement, ownership, and eviction checks.
 
 ### 6B.5 — Controlled acceptance and cleanup
 
@@ -4869,12 +4901,9 @@ All thirteen original Worker versions and placement settings were restored and
 read back. Restoration activation `37831446437` succeeded. Tail processes stopped.
 No new Cloudflare resources were provisioned.
 
-The next candidate should remove a setup round trip between A and B. Evaluate
-carrying B preparation on the authenticated peer connection, with independent
-B admission and signed readiness checks before protocol execution. Keep fresh
-root checks and durable replay. The earlier eager-connection experiment remains
-rejected. Compare the combined exchange against both baseline arms before keeping
-its code. Registration-to-verified-signature time remains the acceptance metric.
+The proposed follow-up that relayed B preparation through A is withdrawn.
+[R155C](refactor-155C-yao-peer-connection.md) instead dispatches B preparation
+and A execution concurrently. Its implementation and measurements belong there.
 
 [Sanitized timings, version audit, proofs and restoration evidence](evidence/near-early-deriver-execution-20261009.json).
 
@@ -5441,13 +5470,10 @@ physical-colocation guarantees.
 Across this comparison, pair-preparation medians are 0.781–0.845 seconds.
 A-execution medians are 1.495–1.883 seconds. The nested A/B Yao protocol
 medians range from 0.358 to 0.701 seconds. Do not add these nested spans or treat them as isolated CPU time.
-The next structural candidate is to combine A's preparation and execution in its
-existing wallet DO. That would remove the return to Router between these stages.
-A and B must keep independent authenticated root checks, readiness proofs,
-ownership fences, replay handling, and burn-on-failure rules. Compare the exact
-round-trip count and full registration time before retaining a transport change.
-Phase 6AN below implements and measures this candidate. Its structural saving and
-latency result are reported separately.
+Phase 6AN below implemented combined A preparation and execution in its existing
+wallet DO. It removed the return to Router between those stages. Its structural
+saving and latency result are reported separately. R155C owns the next change
+to preparation ordering and the peer handshake.
 
 [Sanitized evidence](evidence/near-registration-shared-observation-20261009.json) retains all samples, asset and source
 hashes, version audits, HTTP counts, partial D1 counts, public signature proofs,
@@ -5540,10 +5566,9 @@ An earlier baseline-only attempt stopped at an obsolete local test capture befor
 candidate deployment. The test now reads A's genuine persisted receipt. That earlier
 attempt restored staging and is excluded from this complete three-arm comparison.
 
-Next, target the remaining A-to-B connection and forwarding boundaries. Preserve
-independent role authentication, admission, and readiness proofs. Compare accumulated
-accepted changes against a frozen earlier baseline. Reconsider the serial admission
-tradeoff if repeated measurements establish a material regression.
+R155C replaces this serial ordering with concurrent A/B dispatch and removes
+peer readiness proofs. Service authentication, local admission, ownership, and
+durable execution guarantees remain. No parallel R155B transport task remains.
 
 [Sanitized evidence](evidence/near-registration-combined-deriver-preparation-20261009.json) retains all samples, request counts, partial D1 counts, local validation,
 public signature proofs, exact versions, hashes, and the retention decision. Repeatable
