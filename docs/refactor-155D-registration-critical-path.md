@@ -496,10 +496,12 @@ Delete replaced code in the same change. Add no flag, cache, or second path.
   consume, A execution, B preparation and socket, and Signing Worker prepare,
   sign, and delivery, with each caller's location and server recorded. Compare
   unique and name-derived IDs from other servers.
-- [ ] Count D1 round trips and statements per request in the Gateway with the
-  existing timing wrappers, so later phases can show reductions. Staged as the
-  comparison's fourth arm: a measurement-only Gateway entry returns each
-  request's D1 and service round trips.
+- [x] Count D1 round trips and statements per request in the Gateway with the
+  existing timing wrappers, so later phases can show reductions. Counted
+  locally on October 10; the table is in the
+  [implementation record](#implementation-record). Their staging durations
+  still need the comparison's fourth arm, where a measurement-only Gateway
+  entry returns each request's D1 and service round trips.
 
 Exit: one evidence file with the combined baseline, the location map, D1
 latency per location, and the dispatch-cost matrix.
@@ -580,8 +582,8 @@ Constraints found while reading the code on October 10:
 
 - [x] Start all four wallet objects at setup. The reservation already carries
   the ownership generation. Keep startup grant-free. A replayed setup starts
-  nothing again. Done in `e29277df` and private `ab478bc`. The hosted effect is
-  not measured yet.
+  nothing again. Done in `e29277df`, `e0a8efec`, and private `ab478bc`. The
+  hosted effect is not measured yet.
 - [ ] Move the staging role databases to the roles' location, following the
   production-testnet procedure: create and verify replacements, export and
   import, redeploy with the new database IDs, compare snapshots. This creates
@@ -653,9 +655,18 @@ Constraints found while reading the code on October 10:
 | Change | Public commit | Private commit |
 | --- | --- | --- |
 | The registration response supplies the session status. The wallet host publishes the session before it returns the registration result, and the client's follow-up read is deleted. Message-signing timer and NEP-413 stages. | `defb230c` | — |
-| Wallet startup fires at setup. The reservation result carries the ownership generation. The respond-time and activation-time triggers are deleted. | `e29277df` | `ab478bc` |
+| Wallet startup fires at setup. The reservation result carries the ownership generation. The respond-time and activation-time triggers are deleted. | `e29277df`, fixed by `e0a8efec` | `ab478bc` |
 | A stale credential literal in the status-scope unit test, repaired before the change above extended that test. | `e748147c` | — |
 | The hosted sample splits SDK, interaction, and harness time. | — | `244b8eb` |
+
+The first version of the startup change did not work. The service options
+are normalised by copying fields one by one, and the new starter was not
+copied, so the assembled Gateway never started a wallet's objects. The
+normalised type is derived with `Omit`, so the dropped optional field still
+type-checked, and the first end-to-end test called the setup function directly.
+The private composed registration scenario caught it: the Router received no
+startup request. `e0a8efec` copies the field and routes the end-to-end test
+through the assembled service.
 
 Verified locally:
 
@@ -663,25 +674,73 @@ Verified locally:
   signature send no session-status request, that explicit queries still read
   the server, and that a lock is respected. Browser requests to the first
   signature fall from seven to six.
+- The private composed registration scenario runs the hosted Gateway
+  composition, the real Console service, and local role Workers. It asserts no
+  status request during registration and exactly one wallet startup, sent
+  before the browser's respond request: 0.84 and 0.87 s before it in two runs.
 - Five unit cases cover the issued session: one wallet-host observation reads
   it once, every other read asks the server, and a server answer replaces it.
-- `tests/e2e/registration-setup-startup.e2e.mjs` runs setup against a local D1:
-  one startup per reserved wallet, none for a replayed setup, and a completed
-  setup on a host with no starter. It fails on the parent commit.
+- `tests/e2e/registration-setup-startup.e2e.mjs` runs setup through the
+  assembled service against a local D1: one startup per reserved wallet, none
+  for a replayed setup, and a completed setup on a host with no starter. It
+  fails without `e0a8efec`.
 - 61 intended-behaviour cases across the NEAR registration, registration,
-  resume, Email OTP resume, add Email OTP, unlock, and Ed25519 Yao files: 55
-  pass. One of them, the burned-execution case, needs fault-injection Worker
-  builds and passes on them. Six fail, and fail the same way on the parent
-  commit: custom review before a live Arc signature, a signing prepare that
-  read its session before NEAR provisioning committed, sustained Tempo and Arc
-  signing, a status answered before deferred NEAR provisioning, a terminal
-  NEAR execution under fresh unlock authority, and page-refresh hydration.
-  Recovery, export, and relocation files were not run.
+  resume, Email OTP resume, add Email OTP, unlock, and Ed25519 Yao files, run
+  on `e0a8efec` with fault-injection Worker builds: 56 pass. Five fail, and
+  fail the same way on the parent commit: custom review before a live Arc
+  signature, a signing prepare that read its session before NEAR provisioning
+  committed, sustained Tempo and Arc signing, a status answered before
+  deferred NEAR provisioning, and page-refresh hydration. Two more cases, the
+  burned execution and the terminal NEAR execution, fail on release builds
+  only because those builds carry no fault injection. Recovery, export, and
+  relocation files were not run.
+- Three more private composed scenarios pass on `e0a8efec`: regional routing
+  rejections, concurrent NEAR-only setup through three regions, and a lost
+  combined completion reply. A fourth, the NEAR-only fixed-home scenario,
+  fails the same way on the parent commit: it still expects a separate Yao
+  admission request from the browser.
+- On `947a8843`, where another session's signing-plan fixes build on the
+  status seed: the status-scope unit cases, the NEAR registration contract
+  file, and the composed registration scenario all pass.
 - Type checks for the SDK, the server package, and the test projects, and the
   bloat check on each committed tree.
 
 Not verified: any hosted latency effect, and the order in which staging's
 Router receives startup relative to respond.
+
+Database and Console work per request, counted in the composed scenario and
+recorded with each round trip's statements in the
+[evidence file](evidence/near-registration-gateway-round-trips-20261010.json).
+The counts cover the service and exclude the two or three reads each request
+makes before it runs. They are structural: a local D1 says nothing about
+staging's round-trip time.
+
+| Request | D1 round trips | Statements |
+| --- | ---: | ---: |
+| Setup | 3 | 3 |
+| Respond | 8 | 13 |
+| Yao execute | 1 | 1 |
+| Finalize | 21 | 66 |
+| Sign prepare | 6 | 8 |
+| Sign | 8 | 10 |
+| Explicit session status | 2 | 2 |
+
+One registration makes seven Console requests: registration context, reserve,
+registration home, active lineage, passkey claim, route publication, and
+completion. At staging's 11–22 ms per round trip, finalize's 21 round trips are
+0.23–0.46 s if none overlap, and sign prepare and sign together are 0.15–0.31 s.
+
+What the sequences show:
+
+- Finalize reads the ceremony and the founding identity for its journal's
+  prepare step, then reads both again when execution starts: four round trips
+  before the Router consume, two of them repeats.
+- Respond loads the Yao registration records, and the store reads them again
+  before its commit. The commit and the ceremony update are two round trips.
+- Setup writes two ceremony records in two round trips.
+- Sign prepare and sign each start with the same four reads in series: session
+  admission, signer, capability records, and admission policy. Sign then makes
+  four more round trips for the operation it admits and completes.
 
 One behaviour to note: startup now precedes the registration proof. An
 abandoned setup leaves four started, empty objects, where before only an
@@ -696,7 +755,7 @@ go-ahead.
 | Arm | Gateways and SDK | Purpose |
 | --- | --- | --- |
 | Baseline | Parent commit `af934879`, plus the two files that only add timing output | The combined baseline this plan still lacks |
-| Candidate | `e29277df` with private `ab478bc` | Status seed and setup-time startup |
+| Candidate | `947a8843` with private `ab478bc` | Status seed and setup-time startup, plus the signing-plan fixes that landed on `dev` after `e0a8efec` |
 | Control | Baseline again | Drift between arms |
 | Trace | Candidate behind a measurement-only entry | D1 and service round trips per request; latency not compared |
 
@@ -728,11 +787,14 @@ Two facts surfaced while staging it:
 
 Not started, with the reason:
 
-- Phase 2. Finalize's steps are ordered by its journal and replay rules, and
-  the round-trip counts that would rank the changes come from the trace arm.
-- Sign prepare during confirmation. It sends the operation to the server
-  before the user approves it, and an abandoned prepare's effect on the next
-  one has not been traced.
+- Phase 2. The round trips are now counted. Finalize's steps are ordered by
+  its journal and replay rules, each removable round trip is worth 11–22 ms on
+  staging, and the durations of the Console and Router calls between them
+  still come from the trace arm.
+- Sign prepare during confirmation. An admitted prepare claims one use of the
+  session's quota, so a declined confirmation would spend a use unless prepare
+  gains a release. It also sends the operation to the server before the user
+  approves it.
 - Phase 4.
 
 ## Structural acceptance targets
