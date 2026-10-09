@@ -7,7 +7,8 @@ The next transport change is [R155C: concurrent A/B preparation](refactor-155C-y
 One trusted organisation operates both Derivers, with optional Cloudflare account
 separation. That plan preserves authenticated communication and local execution
 checks while removing the extra signed readiness and start-acceptance handshake.
-Implementation and measurements for that change remain pending.
+It is implemented and verified locally on `dev`. Its hosted measurement remains
+pending.
 
 ## Objective
 
@@ -31,7 +32,9 @@ Workers, DOs, Containers, and D1. Their remaining network hops are separate work
 R155B owns Gateway, Console, and SDK improvements outside the A/B setup flow.
 R155C owns concurrent A/B preparation, the peer connection, and removal of the
 signed readiness/start-acceptance handshake. Its scope includes the affected
-claims, failure handling, tests, timing labels, peer keys, and deployment documents.
+claims, failure handling, tests, timing labels, and deployment documents. The
+peer-signing keys stay configured after it: Worker startup and the ECDSA signer
+host still read them, and their removal is a follow-up recorded in that plan.
 Prepared-root reuse inside that flow also belongs to R155C.
 
 The custody experiments below preserve the implementation and measurements at
@@ -502,7 +505,8 @@ explicitly. A faster local run alone does not complete this phase.
 - [ ] Delete replaced session lookup adapters, remote admission wrappers, unused
   DTOs, dead exports, and redundant publications. Keep directory locators still
   needed by discovery, recovery, registration, or relocation.
-  R155C owns removal of peer receipts, acceptance types, and their signing keys.
+  R155C removed the peer receipts and acceptance types. Their signing keys are
+  removed in its follow-up, with the ECDSA code that still loads them.
 - [ ] Remove old request shapes and disposable-test-state assumptions. Keep any
   unavoidable storage conversion at the persistence boundary, then retire it.
 - [ ] Update public contracts, deployment documentation, examples, and R153
