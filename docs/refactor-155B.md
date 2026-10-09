@@ -5273,3 +5273,89 @@ evidence.
 bundle hashes, serving versions, request counts, independent proofs, and cleanup.
 The rejected source and repeatable scripts remain in public
 `.artifacts/r155b-phase6ak` and private `.artifacts/r155b-phase6ak-hosted`.
+
+### Phase 6AL — fresh registration context in one Console request (2026-10-09)
+
+**Registration setup now resolves the current publishable key and active environment
+in one Console request.** The deployed candidate used nine Console HTTP requests
+per wallet. The restored baseline used ten. The experiment does not establish a
+reliable improvement in complete registration latency. The **3–4 second target
+remains unmet**.
+
+The new operation keeps fresh key revocation, origin, and environment checks.
+Console resolves the environment from the authenticated principal. Missing,
+inactive, or mismatched environments fail before registration setup. The Gateway
+parses the response into a required principal and active environment. No
+credential or environment cache was added. The public SDK registration contract
+records these fresh checks. Both underlying reads remain.
+The prior two-call setup path was removed. Other consumers still use the separate
+authentication and environment operations.
+
+Public implementation: `6f7647e009865b8e67806f216c9886d38c1b80d7`.
+Private Console integration and E2E: `a3862e7`.
+
+Three fresh implicit, unfunded NEAR wallets ran in each arm. Only Console and
+Gateway code changed for the candidate. SDK, Runtime, Router, Deriver A/B,
+Signing Worker, configuration, and requested APAC placement stayed fixed. Only
+the NEAR signer loaded. Each observed signature passed independent Node.js
+Ed25519 verification, independent NEP-413 payload encoding, and tamper checks.
+
+| Workload | Baseline median (range) | Combined request median (range) | Restored baseline median (range) |
+| --- | ---: | ---: | ---: |
+| Registration setup HTTP | 0.757 s (0.717–1.144) | 0.719 s (0.567–1.149) | 0.651 s (0.582–0.921) |
+| Yao execute HTTP | 3.653 s (3.515–3.715) | 3.406 s (2.907–4.033) | 3.027 s (3.023–3.399) |
+| Finalization HTTP | 1.862 s (1.675–1.927) | 1.916 s (1.570–2.408) | 1.958 s (1.442–2.167) |
+| SDK registration | 7.714 s (7.519–8.427) | 7.986 s (7.541–8.154) | 7.533 s (6.546–7.699) |
+| Registration → independently verified signature | 10.736 s (10.682–10.860) | 10.609 s (10.017–10.638) | 10.663 s (9.908–11.560) |
+
+Ranges include the maximum. These sequential samples are too small to establish
+tail percentiles or a latency guarantee. Fresh wallets do not prove cold Workers.
+Provider and network variation remain uncontrolled.
+
+The baseline Console observer emitted no records. Its HTTP counts and invocation
+versions are unavailable. Assigned versions were guarded before and after that
+arm. The other five baseline streams matched their expected versions. All six
+candidate and restored-control streams matched. The candidate had three
+`/registration-context` calls for three wallets, with no separate publishable-key
+or environment-list calls. The restored control reintroduced those two calls.
+The structural request reduction is verified separately from latency.
+
+Existing bound-root counters still report six D1 round trips and sixteen
+statements per wallet. They cover part of registration, not all database work.
+The browser still observes nine or ten Gateway requests, including three or four
+session-status reads. SQL reads were not combined by this change.
+
+Verification passed: server build, targeted type fixtures, exact-tree bloat check,
+Console and Gateway bundles, four browser contracts, and one real Console Worker
+and D1 E2E. The Console E2E verifies credential rotation and revocation, origin and
+environment rejection, fresh environment versions, and rejection after archival.
+The private full type check still reports the same six pre-existing errors found
+with the previous exact public candidate. No unrelated repair was included.
+
+The first local browser attempt overlapped a bundle rebuild. Its rerun passed.
+The first hosted candidate upload stopped because a relative build-output path
+placed bundles in a nested directory. No candidate code was uploaded. Existing
+versions and placement were restored and activation passed before resumption.
+The corrected run used absolute build paths and verified both entry files. The
+completed baseline samples were preserved, which increased the time between
+baseline and candidate measurements.
+
+All thirteen original Worker version assignments and placement settings were
+restored. Restoration activation [37876171770](https://github.com/seams-tech/seams-monorepo/actions/runs/37876171770)
+passed. The deployment guard waited for earlier temporary registration leases
+to expire. Final activation can create new temporary probes, which retain their
+normal expiry. All observation tails stopped. The comparison used existing staging
+resources and added no infrastructure.
+
+The next bounded SDK investigation is the duplicate status read in
+`BrowserSigningSurface.getWarmThresholdEd25519SessionStatus`. It first reads exact
+server authorization, then calls the warm-capability status path, which requests
+server status again. Verify the callers in a real browser. Reuse a single
+operation-scoped observation only when wallet, authority, credential, session,
+and quota match. Keep fresh checks for separate operations and signing prepare.
+No saving from this proposal is included above.
+
+[Sanitized evidence](evidence/near-registration-context-20261009.json) retains samples, source and bundle hashes,
+serving-version audits, request counts, independent proofs, and cleanup.
+Repeatable scripts and raw artifacts remain in public `.artifacts/r155b-phase6al`
+and private `.artifacts/r155b-phase6al-hosted`.

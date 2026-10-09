@@ -438,6 +438,12 @@ throughout the resize. Reduced-motion behavior remains immediate.
 
 ### Registration setup delivery
 
+- Setup requires fresh publishable-key validation and the exact active application
+  environment. Revoked keys, forbidden origins, and mismatched environments fail.
+  Missing or inactive environments also fail before setup issues a signed response.
+  Hosts must preserve these checks when combining authentication and environment
+  resolution into one request. The Console service-binding E2E verifies durable
+  key rotation, revocation, environment changes, and archival.
 - After a lost NEAR-only completion reply, credential-free replay may restore
   the committed wallet identity and sealed local material for exact-method unlock.
   When no local session exists, restoration creates a locked selection and installs
