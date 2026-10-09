@@ -1,6 +1,6 @@
 # Regional execution without routine Console calls
 
-Status: regional OTP counters and wallet-counter relocation are implemented. Local regional, authorization-transfer, and browser OTP acceptance pass. Hosted NEAR comparisons now cover Phase 6AO. Accepted changes are committed on `dev`, and the original staging versions are restored. The three-to-four-second registration-to-signature target remains unmet.
+Status: regional OTP counters and wallet-counter relocation are implemented. Local regional, authorization-transfer, and browser OTP acceptance pass. Hosted NEAR comparisons cover Phase 6AR, with the separate R155C comparison recorded in its plan. Phase 6AS reduces finalization D1 calls locally; its hosted measurement remains pending. Accepted changes are committed on `dev`, and the original staging versions are restored. The three-to-four-second registration-to-signature target remains unmet.
 Date: October 6, 2026. Updated: October 9, 2026.
 
 The next transport change is [R155C: concurrent A/B preparation](refactor-155C-yao-peer-connection.md).
@@ -5864,3 +5864,99 @@ Temporary activation probes retain their normal ten-minute expiry.
 [Sanitized evidence](evidence/near-registration-combined-hosted-20261009.json) contains all samples, signature proofs,
 request counts, partial D1 counts, version audits, and source/build hashes.
 Repeatable raw artifacts remain in private `.artifacts/r155b-phase6ar-hosted`.
+
+## Phase 6AS — one D1 transaction for registration session issuance (October 9, 2026)
+
+Implemented on public `dev` at `276c8cea`. This phase preserves R155C's concurrent
+A/B implementation and peer-key removal. It changes session issuance and adds
+finalization timing spans. No staging resource changed.
+
+### Changes and checks
+
+- [x] Remove the preliminary mint lookup. The commit transaction already returns
+  the winning session, including a concurrent issuance.
+- [x] Read the open ownership generation in that transaction. Only a new issuance
+  returns it with a new credential. A replay remains credential-free.
+- [x] Reuse the founding authority returned by finalization for both NEAR and ECDSA.
+  The session transaction checks the current authority, method, and ownership state.
+- [x] Gate all predecessor cleanup writes inside the transaction. A retry of an old
+  mint must preserve a newer session and its hosted credentials and exchanges.
+- [x] Add `near_finalize_source` and `near_finalize_wallet_commit` timing spans.
+  The existing regional browser scenario now saves the finalization D1 trace.
+- [x] Verify fresh registration and foreign-region signing, lost completion replies,
+  concurrent issuance, active and retired mint retries, method revocation, and
+  closed ownership generations.
+- [x] Verify NEAR quota exhaustion and refresh, ECDSA reply-loss recovery, and mixed
+  registration. Server build, type fixtures, and the exact-tree bloat check pass.
+- [ ] Measure this candidate on existing staging. No hosted latency saving is claimed.
+
+### Local evidence
+
+One fresh NEAR registration ran with the candidate. One ran with unchanged code
+from `81439f53` afterward. Both used the same SDK and matching custody Workers.
+These are local functional samples, with uncontrolled Worker cold state.
+
+| Measurement | Unchanged code | Candidate |
+| --- | ---: | ---: |
+| Direct session issuance D1 calls | 3 | 1 |
+| Finalization D1 calls completed at response | 24 | 21 |
+| SQL statements completed at response | 68 | 66 |
+| Cleanup D1 calls pending at response | 1 | 1 |
+| Registration Console requests | 7 | 7 |
+| Session issuance including home completion | 150 ms | 103 ms |
+| Finalization service span | 564 ms | 493 ms |
+
+These elapsed times are single local observations, not medians or hosted
+benchmarks. The count reduction removes three sequential reads: founding
+identity, mint lookup, and a separate ownership-generation lookup. The generation
+read moves into the commit batch, so the SQL count falls by two statements.
+The direct issuance race independently records one batch per caller.
+
+Counts cover the Gateway's finalization database wrapper at response construction.
+They exclude Console D1, custody role D1, and setup/respond/execute. One cleanup
+call remains pending in both arms. Do not interpret 21 as the whole registration's
+D1-call count.
+
+The candidate's new source span measured 22 ms. Its wallet commit span measured
+68 ms. Both are within the existing side-effect span. They must not be added to
+that parent span. The wallet commit includes the passkey claim and founding-record
+preparation. Further bookkeeping consolidation needs hosted measurements of these
+stages before another persistence change.
+
+The two regional browser scenarios pass. Fresh registration signs through OC with
+Console unavailable. A lost Console completion reply retries with the original
+session publication, then unlocks and signs through APAC. The transaction scenario
+proves that duplicate and retired mint retries preserve successor session rows,
+hosted credentials, and outstanding exchanges. Revoked methods and closed ownership
+generations cannot mint or retire sessions. Three additional lifecycle contracts pass.
+All three saved NEP-413 signatures pass an independent Node.js Ed25519 verifier.
+Changed message, recipient, nonce, and callback URL fail verification.
+
+### Router handoff evaluation
+
+A Gateway binding to the existing Router wallet DO could remove the intermediary
+Router Worker. It would retain the same wallet object, ownership generation,
+consumption record, and replay behavior. It needs no new Worker or namespace.
+
+This is still an unmeasured transport change. In Phase 6AR, Router consumption had
+581 ms median elapsed time. The Router's Worker-to-DO response-header span had
+514 ms median, while the DO invocation had 58 ms median. The observed objects were
+already warm. These nested medians are separate measurements, not additive costs.
+A direct binding retains the Worker-to-DO call. Therefore, the full 581 ms cannot
+be claimed as its potential saving.
+
+The current TypeScript Gateway has no binding or shared implementation of the
+Rust Router's ownership-generation object address. A direct path must preserve
+that exact address and private command contract. Evaluate it as a separate hosted
+comparison before replacing the current handoff. This phase adds no alternative
+transport, compatibility flag, or routing fallback.
+
+[Sanitized evidence](evidence/near-registration-session-transaction-20261009.json)
+contains call counts, spans, public signature proofs, race checks, and source hashes.
+Raw logs and frozen sources are in public `.artifacts/r155b-phase6as`.
+The repeatable transaction scenario is
+`node tests/e2e/session-issuance-transaction.e2e.mjs` in `seams-wallet`.
+The private regional scenarios are
+`registration-completion.scenario.ts`, selected by
+`passkey.registration.contract.test.ts`. All test processes stopped and temporary
+runtime directories were removed. No package release or Cloudflare deployment ran.
