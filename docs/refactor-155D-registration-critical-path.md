@@ -178,9 +178,11 @@ modules are 9–16 MB of WebAssembly, and staging traffic is sparse, so many
 requests meet a server that has not loaded the module. Object invocations
 started within 4 ms.
 
-Not yet measured: the combined baseline with the Phase 6AR SDK, D1 round trips
-per Gateway request, and whether a name-derived ID passed as a string still
-pays the lookup.
+Not yet measured: the combined baseline with the Phase 6AR SDK. D1 round trips
+per Gateway request were counted later; see the
+[implementation record](#implementation-record). Whether a name-derived ID
+passed as a string still pays the lookup no longer matters, because no wallet
+keeps a name-derived address.
 
 ## Trust model and invariants that constrain this plan
 
@@ -206,8 +208,9 @@ authority. R155B's design rules stand, in particular:
   exactly once. Removing a protocol round from the Ed25519 signing lane requires
   separate cryptographic design and verification
   ([optimization 11](optimization-11-NEAR.md)).
-- No compatibility switch, second authority path, or disposable-test
-  assumption. One final implementation per change.
+- One final implementation per change. No compatibility switch, no second
+  authority path, and no compatibility path for disposable test wallets
+  ([R155B](refactor-155B.md) design rule 10).
 
 ## Analysis of each stage
 
@@ -532,10 +535,11 @@ lookup. Replace the derived name with a stored address:
   it grants nothing.
 - Relocation mints the destination generation's addresses when it prepares the
   destination, and stores them with that generation.
-- An existing wallet has name-derived objects. Its addresses are those objects'
-  IDs, computed once and stored the same way. Such a wallet keeps paying the
-  lookup until it relocates. Whether a name-derived ID passed as a string still
-  pays it is unmeasured; measure it before choosing the migration.
+- There is one address mechanism. A wallet created before this change has
+  name-derived objects and no stored addresses. It is not carried over: design
+  rule 10 allows no compatibility path for disposable test wallets. An earlier
+  version of this plan kept such wallets on their names; that was a second
+  path and is withdrawn.
 
 This reaches every custody request type, the Gateway's generation row in all
 four regional databases, relocation, and the scenario harnesses. It needs its
@@ -560,15 +564,14 @@ Constraints found while reading the code on October 10:
   now fires at setup, before that row exists. The addresses need their own
   insert-once row keyed by wallet and generation, read in the statement that
   reads the generation row.
-- A generation created before this change has no addresses and keeps its
-  names. The row must say which kind it is, so a missing address on a new
-  generation is never mistaken for an old wallet.
+- A generation with no stored addresses is refused. No row records a kind of
+  address, because there is one kind.
 - The seams are narrow. Roles open wallet objects at fewer than twenty call
   sites. The Gateway attaches the home region in one binding wrapper, and the
   addresses can ride the same way. The Router parses that header in one place.
 
-- [ ] Decide the migration for existing wallets and agree the change with the
-  relocation owner.
+- [ ] Confirm with the owner which environments hold wallets that this change
+  discards, and agree the change with the relocation owner.
 - [ ] Mint, return, and store addresses at wallet startup. Refuse a custody
   request whose generation has no stored addresses.
 - [ ] Carry addresses on every Gateway-to-Router and Router-to-role request.
