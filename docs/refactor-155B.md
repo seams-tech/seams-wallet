@@ -7,8 +7,9 @@ The next transport change is [R155C: concurrent A/B preparation](refactor-155C-y
 One trusted organisation operates both Derivers, with optional Cloudflare account
 separation. That plan preserves authenticated communication and local execution
 checks while removing the extra signed readiness and start-acceptance handshake.
-It is implemented and verified locally on `dev`. Its hosted measurement remains
-pending.
+It is implemented on `dev` and measured on staging. Router Yao execution fell
+from 3.199 seconds on the restored control to 2.009 seconds. That plan records
+the comparison.
 
 ## Objective
 
