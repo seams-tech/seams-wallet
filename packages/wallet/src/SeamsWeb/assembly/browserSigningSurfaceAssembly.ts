@@ -1212,18 +1212,27 @@ async function resolveBrowserEcdsaCapabilityAvailability(
     },
     statusReads,
   );
-  if (resolution.kind === 'active') {
-    try {
-      return authorizeEvmFamilyEcdsaSigningCapability({
-        capability,
-        authorization: resolution.authorization,
-        nowMs: Date.now(),
-      });
-    } catch {
-      // The selected session may belong to a sibling capability.
-    }
+  return resolution.kind === 'active'
+    ? browserEcdsaCapabilityAvailabilityForSession(capability, resolution.authorization)
+    : { kind: 'authorization_required', capability };
+}
+
+/** A Wallet Session names the exact method that opened it, so it authorizes
+ * that method's capability alone. A sibling method's capability over the same
+ * key stays a candidate that needs its own session. */
+function browserEcdsaCapabilityAvailabilityForSession(
+  capability: CanonicalEvmFamilyEcdsaSigningCapability,
+  authorization: ExactEvmFamilyWalletSessionAuthorization,
+): EvmFamilyEcdsaSigningCapabilityAvailability {
+  try {
+    return authorizeEvmFamilyEcdsaSigningCapability({
+      capability,
+      authorization,
+      nowMs: Date.now(),
+    });
+  } catch {
+    return { kind: 'authorization_required', capability };
   }
-  return { kind: 'authorization_required', capability };
 }
 
 /** Local facts plan confirmation. Prepare returns fresh session authority,
@@ -1277,7 +1286,7 @@ async function resolveBrowserEcdsaConfirmationCandidate(
   if (resolution.kind !== 'resolved') return { kind: 'authorization_required', capability };
   const authorization = signingAuthorizationFromPreprocessing(resolution.capability, Date.now());
   return authorization
-    ? authorizeEvmFamilyEcdsaSigningCapability({ capability, authorization, nowMs: Date.now() })
+    ? browserEcdsaCapabilityAvailabilityForSession(capability, authorization)
     : { kind: 'authorization_required', capability };
 }
 
