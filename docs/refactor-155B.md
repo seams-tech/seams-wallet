@@ -56,13 +56,14 @@ Independent R155B work (Phases 6AP–6AQ):
    uses that row. This removes the separate admission request and its directory
    reread. Local execution fences still serialize terminal decisions.
 
-The local candidate observes **7 Console requests**, versus the 9 paths in Phase
-6AO. Gateway requests fall **8 → 7**, including **2 → 1 status requests**. These
-counts cover registration through the first verified NEAR message signature.
-They are verified request-count changes. Hosted latency savings remain unmeasured. The
-previous finalization HTTP median of **2.190 seconds** remains the hosted baseline.
-Capability installation and custody storage already run concurrently. Keep custody
-fixed during the next hosted comparison and coordinate staging use with R155C.
+The hosted comparison in Phase 6AR confirms **9 → 7 Console requests**,
+**8 → 7 Gateway requests**, and **2 → 1 status requests** through the first
+verified NEAR message signature. These three independent items are complete.
+Finalization medians were **2.345s → 2.234s → 2.504s** across baseline, candidate,
+and restored control. The small sample does not isolate a repeatable latency
+saving. The earlier **2.190s** observation remains preserved in Phase 6AO.
+Capability installation and custody storage already run concurrently. R155C's
+separate transport comparison remains pending.
 
 ## Approved OTP design — October 7, 2026
 
@@ -5794,3 +5795,71 @@ failure exposed the locked-selection case described above and was fixed.
 record the public signature proofs, request counts, source hashes, and validation.
 Raw artifacts are public `.artifacts/r155b-phase6aq` and private
 `.artifacts/r155b-session-observation`.
+
+### Phase 6AR — hosted combined registration comparison (2026-10-09)
+
+The hosted candidate confirms the Phase 6AP and 6AQ request reductions:
+
+| Requests per fresh NEAR wallet through first verified signature | Baseline | Candidate | Restored control |
+| --- | --- | --- | --- |
+| Gateway HTTP | 8 | 7 | 8 |
+| Registration session status | 2 | 1 | 2 |
+| Console HTTP | 9 | 7 | 9 |
+| Bound-root D1 round trips only | 5 | 5 | 5 |
+| Bound-root SQL statements only | 13 | 13 | 13 |
+
+Three fresh implicit, unfunded wallets ran in each sequential arm. Each arm used
+the same client machine and custody versions. Public candidate `9faf702c` and
+private candidate `d840864` combine completion publication, directory admission,
+and one shared session observation. R155C transport is excluded.
+
+Values below are medians, with observed minimum–maximum in parentheses.
+
+| Measurement | Baseline | Combined candidate | Restored control |
+| --- | --- | --- | --- |
+| SDK registration | 10.355s (8.553–10.495) | 8.773s (8.141–10.105) | 8.887s (8.028–10.794) |
+| Registration → independently verified signature | 14.467s (11.398–14.674) | 11.532s (11.521–13.928) | 12.160s (10.637–13.842) |
+| Setup HTTP | 0.953s (0.648–1.295) | 0.906s (0.646–1.037) | 0.672s (0.602–1.272) |
+| Respond HTTP | 0.950s (0.948–1.249) | 0.720s (0.595–1.012) | 0.718s (0.704–1.505) |
+| Yao execution HTTP | 4.533s (3.719–5.069) | 3.993s (3.852–4.954) | 4.296s (3.332–4.463) |
+| Finalization HTTP | 2.345s (1.980–2.470) | 2.234s (1.839–2.595) | 2.504s (2.455–2.595) |
+
+The new session-issue span includes home completion. Compare whole finalization
+spans across these versions. The removed standalone span cannot be compared with
+the new session-issue span alone.
+
+All nine NEP-413 signatures pass an independent Node.js Ed25519 verifier with a
+separate Borsh encoder. Changes to the message, recipient, nonce, or callback URL
+fail verification. All six observed service streams match their expected versions.
+
+The harness loads matching application and wallet-host assets at the staging
+origins. API calls use deployed staging Workers. Asset download latency is excluded.
+The baseline harness uses raw SDK registration; the candidate uses the React
+wrapper verified in Phase 6AQ. Browser elapsed times include automation. Fresh
+wallets do not establish cold Worker state. Three samples per arm cannot establish
+tail percentiles or a latency guarantee. Complete D1 counts remain unmeasured.
+
+Keep both changes. The request reductions are demonstrated in every sample.
+Candidate finalization has the lowest arm median: **2.234s**, compared with
+**2.345s** before and **2.504s** after. The observed differences are **111ms**
+and **270ms**. Three sequential samples per arm do not isolate a repeatable
+causal saving from network and scheduling variation.
+
+Registration to verified signature measures **14.467s → 11.532s → 12.160s**.
+The restored control also improves over the initial baseline. Therefore, the
+entire baseline-to-candidate difference cannot be assigned to these changes.
+SDK registration measures **10.355s → 8.773s → 8.887s**. These results support
+retaining fewer calls, with modest observed finalization gains. The **3–4s**
+registration-to-signature target remains unmet. This comparison completes the
+three independent Gateway, Console, and SDK items in Phases 6AP–6AQ. R155C's
+separate A/B transport measurement remains the next major comparison.
+
+All 13 original Worker assignments and placement settings were restored.
+Restoration activation [37913703147](https://github.com/seams-tech/seams-monorepo/actions/runs/37913703147) passed.
+All observation processes stopped. The experiment reused existing staging resources.
+It created no infrastructure and made no production deployment or package release.
+Temporary activation probes retain their normal ten-minute expiry.
+
+[Sanitized evidence](evidence/near-registration-combined-hosted-20261009.json) contains all samples, signature proofs,
+request counts, partial D1 counts, version audits, and source/build hashes.
+Repeatable raw artifacts remain in private `.artifacts/r155b-phase6ar-hosted`.
