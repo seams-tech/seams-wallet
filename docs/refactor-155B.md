@@ -1,6 +1,6 @@
 # Regional execution without routine Console calls
 
-Status: regional OTP counters and wallet-counter relocation are implemented. Local regional, authorization-transfer, and browser OTP acceptance pass. Hosted NEAR comparisons now cover Phase 6AO. Accepted changes are committed on `dev`, and the original staging versions are restored. The three-to-four-second registration-to-signature target remains unmet. The proposed combined B connection has its own [R155C plan](refactor-155C-yao-peer-connection.md).
+Status: regional OTP counters and wallet-counter relocation are implemented. Local regional, authorization-transfer, and browser OTP acceptance pass. Hosted NEAR comparisons now cover Phase 6AO. Accepted changes are committed on `dev`, and the original staging versions are restored. The three-to-four-second registration-to-signature target remains unmet.
 Date: October 6, 2026. Updated: October 9, 2026.
 
 ## Objective
@@ -5620,17 +5620,6 @@ separate Borsh encoder. Altered message, recipient, nonce, and callback URL fail
 All six observed role streams match their expected versions in every arm.
 Nested protocol spans include transport and overlap other spans. Requested APAC
 placement does not prove physical colocation.
-
-#### Follow-up: R155C combined B preparation/execution connection
-
-This proposal now has a separate [R155C implementation plan](refactor-155C-yao-peer-connection.md).
-It moves B preparation onto the authenticated peer connection and removes the
-separate preparation exchange. A and B retain independent keys, authority checks,
-durable claims, and retry handling.
-
-R155C inventories the shared lifecycle changes, native HTTP consumers, endpoint
-removal, fault scenarios, and hosted comparison. Its transport code is not implemented.
-Phase 6AO changes only A's fresh root use. Its evidence remains below.
 
 All 13 original Worker assignments and placement settings were restored.
 Restoration activation [37888714394](https://github.com/seams-tech/seams-monorepo/actions/runs/37888714394) passed.
