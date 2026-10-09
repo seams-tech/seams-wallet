@@ -153,12 +153,6 @@ const GOOGLE_ID_TOKEN_ACTIONS: ReadonlySet<IntendedHarnessAction> = new Set([
   'revokeLinkedDeviceWithEmailOtp',
 ]);
 
-/** Test hooks into one signing action's lifecycle. */
-type IntendedSigningActionHooks = {
-  /** Runs as soon as the page reports the action started. */
-  readonly onActionStarted?: () => void;
-};
-
 type TraceEntry = {
   atMs: number;
   kind: 'stage' | 'console' | 'pageerror' | 'request' | 'requestfailed' | 'response' | 'service';
@@ -3858,13 +3852,18 @@ export class IntendedBehaviourHarness {
     });
   }
 
-  async assertWalletLocked(): Promise<void> {
+  /** The application reads its session, so the wallet reads fresh server status. */
+  async readWalletAuthenticationKind(): Promise<string> {
     const state = await this.page.evaluate(async () => {
       const read = window.__seamsIntendedE2EReadWalletLockState;
       if (!read) throw new Error('Wallet lock-state helper is unavailable');
       return await read();
     });
-    expect(state.authenticationKind).not.toBe('authenticated');
+    return state.authenticationKind;
+  }
+
+  async assertWalletLocked(): Promise<void> {
+    expect(await this.readWalletAuthenticationKind()).not.toBe('authenticated');
   }
 
   async assertLockedPageReloadStaysLocked(): Promise<void> {
@@ -3951,16 +3950,12 @@ export class IntendedBehaviourHarness {
     };
   }
 
-  async signTempoTransaction(
-    stage: IntendedSigningStage,
-    options: IntendedSigningActionHooks = {},
-  ): Promise<SigningAuthEventSummary> {
+  async signTempoTransaction(stage: IntendedSigningStage): Promise<SigningAuthEventSummary> {
     this.recordStage(`${stage}:tempo.sign`);
     const registration = this.requireRegisteredWalletForSigning();
     const snapshot = await this.runIntendedPageAction(
       'signTempoTransaction',
       'intended-sign-tempo',
-      options,
     );
     const result = requireTempoSigningResult(snapshot, {
       walletId: this.walletId,
@@ -3978,16 +3973,12 @@ export class IntendedBehaviourHarness {
     return summary;
   }
 
-  async signArcEvmTransaction(
-    stage: IntendedSigningStage,
-    options: IntendedSigningActionHooks = {},
-  ): Promise<SigningAuthEventSummary> {
+  async signArcEvmTransaction(stage: IntendedSigningStage): Promise<SigningAuthEventSummary> {
     this.recordStage(`${stage}:arc_evm.sign`);
     const registration = this.requireRegisteredWalletForSigning();
     const snapshot = await this.runIntendedPageAction(
       'signArcEvmTransaction',
       'intended-sign-arc-evm',
-      options,
     );
     const result = requireArcEvmSigningResult(snapshot, {
       walletId: this.walletId,
@@ -4512,8 +4503,6 @@ export class IntendedBehaviourHarness {
       nearAccountId?: string;
       expectedOutcome?: 'success' | 'error';
       onRecoveryCodes?: (codes: readonly string[]) => void;
-      /** Runs as soon as the page reports the action started. */
-      onActionStarted?: () => void;
     },
   ): Promise<IntendedPageSnapshot> {
     if (opts?.nearAccountId && !this.registeredWallet) {
@@ -4528,7 +4517,6 @@ export class IntendedBehaviourHarness {
     await this.page.getByTestId(buttonTestId).click();
     await this.waitForIntendedPageActionStarted(action);
     timing.actionObservedAt = performance.now();
-    opts?.onActionStarted?.();
     const diagnostics: WalletIframeAutoConfirmDiagnostics = { attempts: 0, clicked: false };
     let diagnosticsRecorded = false;
     try {
@@ -5056,6 +5044,7 @@ export class IntendedBehaviourHarness {
       throw new Error('An intended Yao transport fault is already armed');
     }
     requireLocalIntendedYaoFaultRouterOrigin(this.config.routerUrl);
+    if (mode === 'return_terminal_burned_once') requireLocalIntendedRouterBurnBuild();
     const token = randomUUID();
     this.intendedYaoFaultInjection = { kind: 'armed', mode, token };
     return token;
@@ -5421,6 +5410,21 @@ export function requireLocalIntendedYaoFaultRouterOrigin(routerUrl: string): voi
       : LOCAL_INTENDED_YAO_ROUTER_ORIGIN_V1;
   if (origin === expected) return;
   throw new Error(`Intended Yao fault injection requires ${expected}; received ${origin}`);
+}
+
+/** A Workers Router ends an execution burned on request only when built with
+ * `local-intended-router-burn`, which the dev profile selects. The VM script
+ * builds its Router with that feature. A release Router runs the execution. */
+function requireLocalIntendedRouterBurnBuild(): void {
+  if (
+    process.env.SEAMS_INTENDED_WALLET_HOST === 'vm' ||
+    process.env.ROUTER_AB_WORKER_BUILD_PROFILE === 'dev'
+  ) {
+    return;
+  }
+  throw new Error(
+    'The terminal-failure fault needs a dev-profile Router: build and run the Workers with ROUTER_AB_WORKER_BUILD_PROFILE=dev',
+  );
 }
 
 function emailOtpEcdsaTargetProfileFromEnv(raw: string | undefined): EcdsaTargetProfileName {
