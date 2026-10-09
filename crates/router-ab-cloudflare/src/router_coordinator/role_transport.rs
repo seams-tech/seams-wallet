@@ -27,6 +27,37 @@ where
     read_role_json_response(&mut response, label, trace_id).await
 }
 
+/// As `post_role_json`, for a role handler that opens a wallet object from
+/// the request's route headers.
+#[allow(clippy::too_many_arguments)]
+pub(super) async fn post_wallet_routed_role_json<TRequest, TResponse>(
+    env: &Env,
+    wallet_route: crate::WalletObjectRoute,
+    binding_name: &str,
+    service_origin: &str,
+    path: &str,
+    label: &str,
+    body: &TRequest,
+    trace_id: Option<crate::CloudflareTraceIdV1>,
+) -> RouterAbProtocolResult<TResponse>
+where
+    TRequest: Serialize,
+    TResponse: DeserializeOwned,
+{
+    let mut response = send_role_request(
+        env,
+        Some(wallet_route),
+        binding_name,
+        service_origin,
+        path,
+        label,
+        body,
+        trace_id,
+    )
+    .await?;
+    read_role_json_response(&mut response, label, trace_id).await
+}
+
 pub(super) async fn read_role_json_response<TResponse: DeserializeOwned>(
     response: &mut Response,
     label: &str,
@@ -124,6 +155,33 @@ pub(crate) async fn post_role_request<TRequest>(
 where
     TRequest: Serialize,
 {
+    send_role_request(
+        env,
+        None,
+        binding_name,
+        service_origin,
+        path,
+        label,
+        body,
+        trace_id,
+    )
+    .await
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn send_role_request<TRequest>(
+    env: &Env,
+    wallet_route: Option<crate::WalletObjectRoute>,
+    binding_name: &str,
+    service_origin: &str,
+    path: &str,
+    label: &str,
+    body: &TRequest,
+    trace_id: Option<crate::CloudflareTraceIdV1>,
+) -> RouterAbProtocolResult<Response>
+where
+    TRequest: Serialize,
+{
     let fetcher = env.service(binding_name).map_err(|error| {
         RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
@@ -141,6 +199,9 @@ where
             )
         })?;
     set_cloudflare_internal_service_auth_header_v1(env, &headers, label)?;
+    if let Some(wallet_route) = wallet_route {
+        wallet_route.set_headers(&headers)?;
+    }
     if let Some(trace_id) = trace_id {
         set_cloudflare_trace_id_header_v1(&headers, trace_id)?;
     }

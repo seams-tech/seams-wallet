@@ -316,11 +316,16 @@ pub(crate) async fn handle_freeze(
                 let mut init = worker::RequestInit::new();
                 init.with_method(worker::Method::Post);
                 let headers = worker::Headers::new();
-                if let Some(auth) = request.headers().get("x-router-ab-internal-service-auth")? {
-                    headers.set("x-router-ab-internal-service-auth", &auth)?;
-                }
-                if let Some(home) = request.headers().get("x-seams-wallet-home-region")? {
-                    headers.set("x-seams-wallet-home-region", &home)?;
+                // The replayed execution runs as the Gateway's request would:
+                // its secret, and the home and objects of the frozen source.
+                for name in [
+                    "x-router-ab-internal-service-auth",
+                    "x-seams-wallet-home-region",
+                    "x-seams-wallet-object-addresses",
+                ] {
+                    if let Some(value) = request.headers().get(name)? {
+                        headers.set(name, &value)?;
+                    }
                 }
                 init.with_headers(headers);
                 init.with_body(Some(request_json.into()));

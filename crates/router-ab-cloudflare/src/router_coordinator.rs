@@ -4,7 +4,9 @@ mod ceremony_execution;
 mod package_delivery;
 mod role_transport;
 pub(crate) use role_transport::post_role_request;
-use role_transport::{post_role_json, post_role_json_for_ceremony_with_span};
+use role_transport::{
+    post_role_json, post_role_json_for_ceremony_with_span, post_wallet_routed_role_json,
+};
 
 use crate::{
     build_cloudflare_router_public_keyset_v2, cloudflare_now_unix_ms_v1,
@@ -1796,11 +1798,12 @@ async fn finalize_router_result_v1(
                     }
                     validate_source_target_identity_v1(source_binding, binding)?;
                     let delivery_started_at_ms = cloudflare_now_unix_ms_v1()?;
-                    let reservation = post_role_json::<
+                    let reservation = post_wallet_routed_role_json::<
                         _,
                         CloudflareEd25519YaoInactiveReservationResponseV1,
                     >(
                         env,
+                        wallet_route,
                         runtime.signing_worker_peer().binding_name.as_str(),
                         SIGNING_WORKER_SERVICE_URL,
                         CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_RESERVE_INACTIVE_SOURCE_PRESERVING_PATH,
