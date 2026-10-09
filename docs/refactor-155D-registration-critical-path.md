@@ -834,7 +834,9 @@ remain. No new resources were created, and production was unchanged.
 - [ ] Fold the deployment-admission read and the routing reads into each
   handler's first batch. Immediate retirement semantics stay: the predicate is
   evaluated in the same transaction as the work it guards.
-- [ ] Setup: combined Console context-and-reserve, one insert batch.
+- [ ] Setup: combined Console context-and-reserve, one insert batch. Started
+  in `42cde7b7`: the snapshot and the ceremony are one write batch, and the
+  address initialization runs beside it. The Console merge is open.
 - [ ] Respond: overlap home admission and the lineage read with WebAuthn
   verification; one commit batch; no re-read after load.
 - [ ] Finalize: concurrent consume, claim, and reads; one or two write batches
@@ -1109,6 +1111,7 @@ Phase 2 started with the removals that change no ordering.
 | `e4ae2f91` | The session statement of an Ed25519 signing request also reads the session wallet's signer and its policy rows, as the ECDSA statement does. |
 | `22ead209` | A contract for the NEAR signing policy, which had none: project rejection, abuse rejection, and rate limit on prepare and finalize, with the quota unchanged. |
 | `c77bdf47` | A finalize receipt that names an unknown operation ID is answered `authorized_operation_missing` again. `12dca984` had changed that answer. |
+| `42cde7b7` | Setup stores its snapshot and opens its ceremony in one write batch, and initializes the wallet-object addresses beside that write. |
 
 Gateway database round trips in the composed scenario. "Own work" excludes
 the stored-address reads that `cb331a8d` added; "On `dev`" includes them.
@@ -1120,10 +1123,11 @@ the stored-address reads that `cb331a8d` added; "On `dev`" includes them.
 | Finalize | 21 | 19 | 20 | 4–6 |
 | Yao execute | 1 | 1 | 2 | not set |
 | Respond | 8 | 8 | 8 | not set |
-| Setup | 3 | 3 | 5 | 2 |
+| Setup | 3 | 2 | 4 | 2 |
 
-Private `1f02f18` caps the "On `dev`" counts in the composed scenario. A
-change that adds a round trip must raise a ceiling there and give the reason.
+Private `1f02f18` and `9b65427` cap the "On `dev`" counts in the composed
+scenario. A change that adds a round trip must raise a ceiling there and give
+the reason.
 
 Two behaviours changed, and both are stricter:
 
@@ -1295,12 +1299,14 @@ Cuts in the order of their measured value. Each one keeps the replay and
 journal rules of its request, or it is not made.
 
 1. Setup, address allocation. The Router asks three role Workers for an ID.
-   The call took 12, 215 and 415 ms, and setup waits for it after its two
-   ceremony writes. Start it when the reservation returns, beside the ceremony
-   read and writes: about 110 ms. Started beside the Console reservation it
-   saves about 120 ms more, but a refused reservation then costs four Worker
-   calls. That is a choice for the owner.
-2. Setup, one ceremony write batch in place of two: about 49 ms.
+   The call took 12, 215 and 415 ms, and setup waited for it after its two
+   ceremony writes. Done in `42cde7b7`: the address initialization starts when
+   the request is valid and runs beside the ceremony write. Started beside the
+   Console reservation it saves about 120 ms more, but a refused reservation
+   then costs four Worker calls. That is a choice for the owner.
+2. Setup, one ceremony write batch in place of two. Done in `42cde7b7`. With
+   item 1 the two remove about 100 ms of serial waits from the traced setup.
+   The staging number is not measured yet.
 3. Finalize, the last four writes: session issue, completion decision,
    activation, and journal completion. The completion decision can commit
    with the session, and the activation with the journal completion: about
@@ -1315,6 +1321,17 @@ journal rules of its request, or it is not made.
    are private code.
 
 The Yao execute's Router call is the largest single item and is Phase 4.
+
+`42cde7b7` was verified with the public setup scenario, which holds the
+ceremony write until the allocation is requested and counts one ceremony
+write, with all 131 contract cases, and with the private composed suite,
+which keeps its two stale-harness failures and no other.
+
+These cuts do not reach the target alone. The traced flow was 5.5 s without
+interaction. Items 1 to 6 remove about 0.5 s, and the Console merges about
+0.25 s. The browser saw about 1.3 s beyond the Gateway time over six
+requests, and the Router's Yao execution took 1.5 s. The 3–4 s target needs
+fewer browser requests or a shorter Yao execution as well.
 
 ### Decisions
 
