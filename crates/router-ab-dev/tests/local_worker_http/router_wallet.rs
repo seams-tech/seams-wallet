@@ -1623,9 +1623,23 @@ fn verify_ecdsa_destination_transport(
     let (wrong_home, _) =
         transfer_ecdsa_http(&destination.signing_worker_url, credential, &cleanup)?;
     assert_ne!(wrong_home, 200);
-    let (status, cleaned) =
+    let (status, mut cleaned) =
         transfer_ecdsa_http(&source.signing_worker_url, source_credential, &cleanup)?;
     assert_eq!(status, 200, "{cleaned}");
+    // Cleanup advances through bounded table batches before its final receipt.
+    for _ in 0..32 {
+        match serde_json::from_str::<Response>(&cleaned)? {
+            Response::Cleaning { receipt: pending } => {
+                assert_eq!(&pending, receipt);
+                let (status, progress) =
+                    transfer_ecdsa_http(&source.signing_worker_url, source_credential, &cleanup)?;
+                assert_eq!(status, 200, "{progress}");
+                cleaned = progress;
+            }
+            Response::Cleaned { .. } => break,
+            _ => return Err("ECDSA source returned an unexpected cleanup response".into()),
+        }
+    }
     assert_eq!(
         serde_json::from_str::<Response>(&cleaned)?,
         Response::Cleaned {
