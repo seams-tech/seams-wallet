@@ -1,5 +1,3 @@
-use base64::Engine as _;
-use ed25519_dalek::SigningKey;
 use router_ab_core::{
     CanonicalWireBytesV1, Ed25519YaoDeriverRoleV1, Ed25519YaoPackageKindV1, LocalHttpPathV1,
     LocalServiceRoleV1, RouterAbProtocolErrorCode,
@@ -14,10 +12,8 @@ use router_ab_dev::{
     seal_local_ed25519_yao_package_v1, LocalEd25519YaoRecipientPrivateKeyV1,
     LocalHttpServiceBindingClientV1, LocalWorkerRoleConfigV1,
     LOCAL_DERIVER_A_ENVELOPE_HPKE_PRIVATE_KEY_ENV_V1, LOCAL_DERIVER_A_ENV_FILE_V1,
-    LOCAL_DERIVER_A_PEER_PATH, LOCAL_DERIVER_A_PEER_SIGNING_KEY_ENV_V1,
     LOCAL_DERIVER_A_PRIVATE_PATH, LOCAL_DERIVER_A_STATE_DIR_V1,
     LOCAL_DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY_ENV_V1, LOCAL_DERIVER_B_ENV_FILE_V1,
-    LOCAL_DERIVER_B_PEER_PATH, LOCAL_DERIVER_B_PEER_SIGNING_KEY_ENV_V1,
     LOCAL_DERIVER_B_PRIVATE_PATH, LOCAL_DERIVER_B_STATE_DIR_V1, LOCAL_GATEWAY_PUBLIC_URL_ENV_V1,
     LOCAL_HTTP_CANONICAL_WIRE_CONTENT_TYPE_V1, LOCAL_HTTP_JSON_CONTENT_TYPE_V1,
     LOCAL_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH,
@@ -118,16 +114,16 @@ fn local_router_env_rejects_deriver_and_signing_worker_secret_keys() {
 fn local_deriver_env_rejects_peer_private_material_and_signing_worker_storage() {
     let mut env = parse_template(include_str!("../env/deriver-a.local.example"));
     env.push((
-        LOCAL_DERIVER_B_PEER_SIGNING_KEY_ENV_V1.to_owned(),
-        "leaked-b-peer-signing-key".to_owned(),
+        LOCAL_DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY_ENV_V1.to_owned(),
+        "leaked-b-envelope-private-key".to_owned(),
     ));
     let err = parse_local_worker_role_config_v1(env).expect_err("Deriver A rejects B key");
     assert_eq!(err.code(), RouterAbProtocolErrorCode::ForbiddenLocalBinding);
 
     let mut env = parse_template(include_str!("../env/deriver-b.local.example"));
     env.push((
-        LOCAL_DERIVER_A_PEER_SIGNING_KEY_ENV_V1.to_owned(),
-        "leaked-a-peer-signing-key".to_owned(),
+        LOCAL_DERIVER_A_ENVELOPE_HPKE_PRIVATE_KEY_ENV_V1.to_owned(),
+        "leaked-a-envelope-private-key".to_owned(),
     ));
     let err = parse_local_worker_role_config_v1(env).expect_err("Deriver B rejects A key");
     assert_eq!(err.code(), RouterAbProtocolErrorCode::ForbiddenLocalBinding);
@@ -255,10 +251,6 @@ fn local_worker_route_ownership_uses_production_style_paths() {
         LocalServiceRoleV1::DeriverA,
         LOCAL_DERIVER_A_PRIVATE_PATH
     ));
-    assert!(local_worker_owns_path_v1(
-        LocalServiceRoleV1::DeriverA,
-        LOCAL_DERIVER_A_PEER_PATH
-    ));
     assert!(!local_worker_owns_path_v1(
         LocalServiceRoleV1::DeriverB,
         LOCAL_DERIVER_A_PRIVATE_PATH
@@ -274,14 +266,6 @@ fn local_http_service_binding_maps_checked_paths_to_production_routes() {
     assert_eq!(
         local_http_service_binding_path_v1(LocalHttpPathV1::RouterToSignerB),
         LOCAL_DERIVER_B_PRIVATE_PATH
-    );
-    assert_eq!(
-        local_http_service_binding_path_v1(LocalHttpPathV1::SignerAToSignerB),
-        LOCAL_DERIVER_B_PEER_PATH
-    );
-    assert_eq!(
-        local_http_service_binding_path_v1(LocalHttpPathV1::SignerBToSignerA),
-        LOCAL_DERIVER_A_PEER_PATH
     );
 
     let endpoint = local_http_service_binding_endpoint_v1(
@@ -355,11 +339,11 @@ fn local_http_service_binding_client_posts_worker_shaped_json() {
             .expect("request header terminator");
         let headers =
             std::str::from_utf8(&request[..header_end]).expect("request headers are UTF-8");
-        assert!(headers.starts_with("POST /router-ab/deriver-b/peer HTTP/1.1"));
+        assert!(headers.starts_with("POST /router-ab/deriver-b HTTP/1.1"));
         assert!(headers.contains(&format!("content-type: {LOCAL_HTTP_JSON_CONTENT_TYPE_V1}")));
         let body: serde_json::Value =
             serde_json::from_slice(&request[header_end + 4..]).expect("request JSON parses");
-        assert_eq!(body["kind"], "peer");
+        assert_eq!(body["kind"], "probe");
         stream
             .write_all(
                 b"HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: 15\r\nconnection: close\r\n\r\n{\"ok\":true}",
@@ -371,8 +355,8 @@ fn local_http_service_binding_client_posts_worker_shaped_json() {
     let response: serde_json::Value = client
         .post_json_v1(
             &format!("http://{addr}"),
-            LocalHttpPathV1::SignerAToSignerB,
-            &serde_json::json!({ "kind": "peer" }),
+            LocalHttpPathV1::RouterToSignerB,
+            &serde_json::json!({ "kind": "probe" }),
         )
         .expect("local HTTP JSON service-binding response");
     assert_eq!(response["ok"], true);
@@ -411,18 +395,6 @@ fn local_env_materialization_plan_generates_parseable_role_env_files() {
         match file.role {
             LocalServiceRoleV1::DeriverA | LocalServiceRoleV1::DeriverB => {
                 assert!(!file.contents.contains("dev-only-generated-"));
-                assert!(!file
-                    .contents
-                    .contains("dev-only-generated-deriver-a-peer-signing-key"));
-                assert!(!file
-                    .contents
-                    .contains("dev-only-generated-deriver-b-peer-signing-key"));
-                assert!(!file
-                    .contents
-                    .contains("dev-only-deriver-a-peer-verifying-key"));
-                assert!(!file
-                    .contents
-                    .contains("dev-only-deriver-b-peer-verifying-key"));
             }
             LocalServiceRoleV1::SigningWorker => {
                 assert!(!file
@@ -515,27 +487,6 @@ fn local_env_materialization_exposes_only_public_keys_matching_role_private_keys
         &signing_worker.server_output_hpke_private_key,
         Ed25519YaoDeriverRoleV1::DeriverA,
     );
-
-    let deriver_a_seed = decode_peer_seed(&deriver_a.peer_signing_key);
-    let deriver_b_seed = decode_peer_seed(&deriver_b.peer_signing_key);
-    let deriver_a_public = deriver_a_seed.verifying_key().to_bytes();
-    let deriver_b_public = deriver_b_seed.verifying_key().to_bytes();
-    assert_eq!(
-        hex::decode(&deriver_a.deriver_a_peer_verifying_key).expect("A public key"),
-        deriver_a_public,
-    );
-    assert_eq!(
-        hex::decode(&deriver_a.deriver_b_peer_verifying_key).expect("B public key"),
-        deriver_b_public,
-    );
-    assert_eq!(
-        hex::decode(&deriver_b.deriver_a_peer_verifying_key).expect("A public key"),
-        deriver_a_public,
-    );
-    assert_eq!(
-        hex::decode(&deriver_b.deriver_b_peer_verifying_key).expect("B public key"),
-        deriver_b_public,
-    );
 }
 
 #[test]
@@ -555,15 +506,6 @@ fn parse_template(contents: &str) -> Vec<(String, String)> {
             (key.to_owned(), value.to_owned())
         })
         .collect()
-}
-
-fn decode_peer_seed(value: &str) -> SigningKey {
-    let seed: [u8; 32] = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .decode(value)
-        .expect("peer signing key base64url")
-        .try_into()
-        .expect("peer signing key seed length");
-    SigningKey::from_bytes(&seed)
 }
 
 fn assert_hpke_key_pair(public_key: &str, private_key: &str, deriver: Ed25519YaoDeriverRoleV1) {

@@ -33,9 +33,9 @@ R155B owns Gateway, Console, and SDK improvements outside the A/B setup flow.
 R155C owns concurrent A/B preparation, the peer connection, and removal of the
 signed readiness/start-acceptance handshake. Its scope includes the affected
 claims, failure handling, tests, timing labels, and deployment documents. The
-peer-signing keys stay configured after it: Worker startup and the ECDSA signer
-host still read them, and their removal is a follow-up recorded in that plan.
-Prepared-root reuse inside that flow also belongs to R155C.
+peer-signing keys, their configuration, and the code that read them were removed
+after it. That plan records the remaining deployment follow-up. Prepared-root
+reuse inside that flow also belongs to R155C.
 
 The custody experiments below preserve the implementation and measurements at
 each date. Their completed checklists do not impose handshake requirements on

@@ -7,10 +7,6 @@ import { fileURLToPath } from 'node:url';
 const require = createRequire(import.meta.url);
 const runtimeRoot = fileURLToPath(new URL('../', import.meta.url));
 const walletServerRoot = path.dirname(require.resolve('@seams/wallet-server/package.json'));
-export { localPeerVerifyingKeyHex } from './local-key-material.mjs';
-
-import { localPeerSigningKeyBase64Url, localPeerVerifyingKeyHex } from './local-key-material.mjs';
-
 const localPortOffset = Number(process.env.SEAMS_LOCAL_PORT_OFFSET || 0);
 const STRICT_WORKER_ROLES = Object.freeze([
   { role: 'router', port: 4102 + localPortOffset },
@@ -63,8 +59,6 @@ export function prepareLocalHostedWalletGatewayConfig(input) {
   const outputConfigPath = path.join(outputRoot, 'wrangler.local-hosted-wallet-gateway.toml');
   const secretPath = path.join(outputRoot, '.dev.vars.wallet-gateway');
   const routerEnv = readEnvMap(path.join(localEnvRoot, '.env.router-ab.router.local'));
-  const deriverAEnv = readEnvMap(path.join(localEnvRoot, '.env.router-ab.deriver-a.local'));
-  const deriverBEnv = readEnvMap(path.join(localEnvRoot, '.env.router-ab.deriver-b.local'));
   const signingWorkerEnv = readEnvMap(
     path.join(localEnvRoot, '.env.router-ab.signing-worker.local'),
   );
@@ -122,12 +116,7 @@ export function prepareLocalHostedWalletGatewayConfig(input) {
     ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET: gatewayToRouterAuthSecret,
     ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET:
       gatewayToSigningWorkerPresignAuthSecret,
-    ROUTER_AB_PUBLIC_KEYSET_JSON: localPublicKeysetJson({
-      routerEnv,
-      deriverAEnv,
-      deriverBEnv,
-      signingWorkerEnv,
-    }),
+    ROUTER_AB_PUBLIC_KEYSET_JSON: localPublicKeysetJson({ routerEnv, signingWorkerEnv }),
     SEAMS_STAGING_ENV_ID: deployment.deployment.environmentId,
     SEAMS_STAGING_ORG_ID: deployment.deployment.orgId,
     SEAMS_STAGING_PROJECT_ID: deployment.deployment.projectId,
@@ -204,20 +193,6 @@ function localPublicKeysetJson(input) {
           key_epoch: LOCAL_KEY_EPOCH,
           public_key: requiredEnv(input.routerEnv, 'DERIVER_B_ED25519_YAO_INPUT_PUBLIC_KEY'),
         },
-      },
-    },
-    signer_peer_verifying_keys: {
-      deriver_a: {
-        role: 'signer_a',
-        verifying_key_hex: localPeerVerifyingKeyHex(
-          requiredEnv(input.deriverAEnv, 'DERIVER_A_PEER_SIGNING_KEY'),
-        ),
-      },
-      deriver_b: {
-        role: 'signer_b',
-        verifying_key_hex: localPeerVerifyingKeyHex(
-          requiredEnv(input.deriverBEnv, 'DERIVER_B_PEER_SIGNING_KEY'),
-        ),
       },
     },
     signing_worker_server_output_hpke: {
@@ -519,18 +494,6 @@ function applyRoleVars(source, role, env) {
         'DERIVER_B_ENVELOPE_HPKE_PUBLIC_KEY',
         requiredEnv(env.routerEnv, 'DERIVER_B_ED25519_YAO_INPUT_PUBLIC_KEY'),
       );
-      config = setTomlSectionAssignment(
-        config,
-        'vars',
-        'DERIVER_A_PEER_VERIFYING_KEY_HEX',
-        localPeerVerifyingKeyHex(requiredEnv(env.deriverAEnv, 'DERIVER_A_PEER_SIGNING_KEY')),
-      );
-      config = setTomlSectionAssignment(
-        config,
-        'vars',
-        'DERIVER_B_PEER_VERIFYING_KEY_HEX',
-        localPeerVerifyingKeyHex(requiredEnv(env.deriverBEnv, 'DERIVER_B_PEER_SIGNING_KEY')),
-      );
       return setTenantRootDeriverVars(
         setPrivateD1Vars(config, 'DERIVER_ROLE_PRIVATE_D1', env.privateD1Keys.deriverA),
         'A',
@@ -548,18 +511,6 @@ function applyRoleVars(source, role, env) {
         'vars',
         'DERIVER_A_ENVELOPE_HPKE_PUBLIC_KEY',
         requiredEnv(env.routerEnv, 'DERIVER_A_ED25519_YAO_INPUT_PUBLIC_KEY'),
-      );
-      config = setTomlSectionAssignment(
-        config,
-        'vars',
-        'DERIVER_A_PEER_VERIFYING_KEY_HEX',
-        localPeerVerifyingKeyHex(requiredEnv(env.deriverAEnv, 'DERIVER_A_PEER_SIGNING_KEY')),
-      );
-      config = setTomlSectionAssignment(
-        config,
-        'vars',
-        'DERIVER_B_PEER_VERIFYING_KEY_HEX',
-        localPeerVerifyingKeyHex(requiredEnv(env.deriverBEnv, 'DERIVER_B_PEER_SIGNING_KEY')),
       );
       return setTenantRootDeriverVars(
         setPrivateD1Vars(config, 'DERIVER_ROLE_PRIVATE_D1', env.privateD1Keys.deriverB),
@@ -610,18 +561,6 @@ function applyRoleVars(source, role, env) {
         'vars',
         'DERIVER_B_CUSTODY_AUTHORITY_VERIFYING_KEY_HEX',
         env.tenantRootKeys.deriverBCustodyAuthorityVerifyingKeyHex,
-      );
-      config = setTomlSectionAssignment(
-        config,
-        'vars',
-        'DERIVER_A_PEER_VERIFYING_KEY_HEX',
-        localPeerVerifyingKeyHex(requiredEnv(env.deriverAEnv, 'DERIVER_A_PEER_SIGNING_KEY')),
-      );
-      config = setTomlSectionAssignment(
-        config,
-        'vars',
-        'DERIVER_B_PEER_VERIFYING_KEY_HEX',
-        localPeerVerifyingKeyHex(requiredEnv(env.deriverBEnv, 'DERIVER_B_PEER_SIGNING_KEY')),
       );
       return setTenantRootPublicKeys(config, env);
     default:
@@ -733,18 +672,6 @@ function replaceTopologyPublicVars(source, env) {
     'DERIVER_B_ENVELOPE_HPKE_PUBLIC_KEY',
     requiredEnv(env.routerEnv, 'DERIVER_B_ED25519_YAO_INPUT_PUBLIC_KEY'),
   );
-  config = setTomlSectionAssignment(
-    config,
-    'vars',
-    'DERIVER_A_PEER_VERIFYING_KEY_HEX',
-    localPeerVerifyingKeyHex(requiredEnv(env.deriverAEnv, 'DERIVER_A_PEER_SIGNING_KEY')),
-  );
-  config = setTomlSectionAssignment(
-    config,
-    'vars',
-    'DERIVER_B_PEER_VERIFYING_KEY_HEX',
-    localPeerVerifyingKeyHex(requiredEnv(env.deriverBEnv, 'DERIVER_B_PEER_SIGNING_KEY')),
-  );
   return setTomlSectionAssignment(
     config,
     'vars',
@@ -774,9 +701,6 @@ function strictRoleSecretFile(role, env) {
           'hpke-x25519-private-v1:',
           'Deriver A envelope HPKE private key',
         )}`,
-        `DERIVER_A_PEER_SIGNING_KEY=${localPeerSigningKeyBase64Url(
-          requiredEnv(env.deriverAEnv, 'DERIVER_A_PEER_SIGNING_KEY'),
-        )}`,
         `DERIVER_A_ROLE_PRIVATE_D1_KEK=hpke-x25519-role-private-d1-private-v1:${env.privateD1Keys.deriverA.privateKeyHex}`,
         `DERIVER_A_TENANT_ROOT_CREATION_SIGNING_KEY=${env.tenantRootKeys.deriverA.creationSigningSeedB64u}`,
         `DERIVER_A_TENANT_ROOT_ONLINE_HPKE_PRIVATE_KEY=hpke-x25519-private-v1:${env.tenantRootKeys.deriverA.onlineKey.privateKeyHex}`,
@@ -795,9 +719,6 @@ function strictRoleSecretFile(role, env) {
           requiredEnv(env.deriverBEnv, 'DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY'),
           'hpke-x25519-private-v1:',
           'Deriver B envelope HPKE private key',
-        )}`,
-        `DERIVER_B_PEER_SIGNING_KEY=${localPeerSigningKeyBase64Url(
-          requiredEnv(env.deriverBEnv, 'DERIVER_B_PEER_SIGNING_KEY'),
         )}`,
         `DERIVER_B_ROLE_PRIVATE_D1_KEK=hpke-x25519-role-private-d1-private-v1:${env.privateD1Keys.deriverB.privateKeyHex}`,
         `DERIVER_B_TENANT_ROOT_CREATION_SIGNING_KEY=${env.tenantRootKeys.deriverB.creationSigningSeedB64u}`,
@@ -933,12 +854,10 @@ export function resolveLocalTenantRootKeyMaterial(input) {
   );
   const deriverA = localTenantRootDeriverKeyMaterial(
     'A',
-    requiredEnv(deriverAEnv, 'DERIVER_A_PEER_SIGNING_KEY'),
     requiredEnv(deriverAEnv, 'DERIVER_A_ENVELOPE_HPKE_PRIVATE_KEY'),
   );
   const deriverB = localTenantRootDeriverKeyMaterial(
     'B',
-    requiredEnv(deriverBEnv, 'DERIVER_B_PEER_SIGNING_KEY'),
     requiredEnv(deriverBEnv, 'DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY'),
   );
   return Object.freeze({
@@ -980,9 +899,9 @@ export function resolveLocalTenantRootKeyMaterial(input) {
   });
 }
 
-function localTenantRootDeriverKeyMaterial(suffix, signingSeed, hpkeSeedHex) {
+function localTenantRootDeriverKeyMaterial(suffix, hpkeSeedHex) {
   const lower = suffix.toLowerCase();
-  const creation = deriveLocalEd25519KeyPair(signingSeed, `tenant-root/${lower}/creation-signing`);
+  const creation = deriveLocalEd25519KeyPair(hpkeSeedHex, `tenant-root/${lower}/creation-signing`);
   return Object.freeze({
     creationSigningKeyId: `local-deriver-${lower}-tenant-root-creation-v1`,
     creationSigningSeedB64u: creation.signingSeedB64u,

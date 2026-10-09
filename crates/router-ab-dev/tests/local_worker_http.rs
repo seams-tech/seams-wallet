@@ -10,7 +10,7 @@ use router_ab_cloudflare::{
     CloudflareRouterEd25519YaoExecuteRequestV2, CloudflareRouterEd25519YaoTenantRootV1,
 };
 use router_ab_core::{
-    LocalHttpPathV1, LocalServiceRoleV1, MpcMaterialActivationRefV1, NormalSigningResponseV1,
+    LocalServiceRoleV1, MpcMaterialActivationRefV1, NormalSigningResponseV1,
     NormalSigningRound1PrepareResponseV1, PublicDigest32, RootShareEpoch,
     RouterAbEd25519YaoActivationResultV1, RouterEd25519YaoExecuteResultV1,
     RouterEd25519YaoExecuteSuccessV1, RouterEd25519YaoGatewayExecuteTargetV2,
@@ -20,13 +20,12 @@ use router_ab_core::{
 use router_ab_dev::{
     admit_local_ed25519_yao_registration_v1, generate_local_ed25519_yao_recipient_key_pair_v1,
     local_env_materialization_plan_v1, parse_local_env_file_contents_v1,
-    parse_local_worker_role_config_for_role_v1, run_example_local_router_ab_dev_http_ceremony_v1,
+    parse_local_worker_role_config_for_role_v1,
     seal_local_ed25519_yao_activation_deriver_a_input_v1,
     seal_local_ed25519_yao_activation_deriver_b_input_v1, LocalDeriverAPairRecordV1,
-    LocalDeriverPeerMessageReceiptV1, LocalEd25519YaoActivationDeriverARequestV1,
-    LocalEd25519YaoActivationDeriverBRequestV1, LocalEd25519YaoActivationRecipientsV1,
-    LocalEd25519YaoClientContributionV1, LocalEd25519YaoRecipientPrivateKeyV1,
-    LocalHttpServiceBindingClientV1, LocalWorkerRoleConfigV1,
+    LocalEd25519YaoActivationDeriverARequestV1, LocalEd25519YaoActivationDeriverBRequestV1,
+    LocalEd25519YaoActivationRecipientsV1, LocalEd25519YaoClientContributionV1,
+    LocalEd25519YaoRecipientPrivateKeyV1, LocalWorkerRoleConfigV1,
     RouterAbEd25519YaoApplicationBindingFactsV1, RouterAbEd25519YaoLifecycleScopeV1,
     RouterAbEd25519YaoRegistrationAdmissionRequestV1,
     LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
@@ -61,63 +60,6 @@ use std::{
     thread,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
-
-#[test]
-fn local_workers_accept_direct_deriver_peer_messages_over_http(
-) -> Result<(), Box<dyn std::error::Error>> {
-    let _process_guard = local_worker_process_test_guard();
-    let binary = env!("CARGO_BIN_EXE_router_ab_local_worker");
-    let temp = temp_dir("peer-http")?;
-    let deriver_a_url = format!("http://127.0.0.1:{}", free_port()?);
-    let deriver_b_url = format!("http://127.0.0.1:{}", free_port()?);
-    write_deriver_envs(&temp, &deriver_a_url, &deriver_b_url)?;
-
-    let mut deriver_a = ChildGuard::spawn(
-        binary,
-        "deriver-a",
-        temp.join(".env.router-ab.deriver-a.local"),
-    )?;
-    let mut deriver_b = ChildGuard::spawn(
-        binary,
-        "deriver-b",
-        temp.join(".env.router-ab.deriver-b.local"),
-    )?;
-    wait_for_health(&deriver_a_url, deriver_a.child_mut())?;
-    wait_for_health(&deriver_b_url, deriver_b.child_mut())?;
-
-    let ceremony = run_example_local_router_ab_dev_http_ceremony_v1()?;
-    let client = LocalHttpServiceBindingClientV1::default();
-
-    let b_receipt: LocalDeriverPeerMessageReceiptV1 = client.post_json_v1(
-        &deriver_b_url,
-        LocalHttpPathV1::SignerAToSignerB,
-        &ceremony
-            .core_http_ceremony
-            .deriver_a_peer_request
-            .envelope
-            .message,
-    )?;
-    let a_receipt: LocalDeriverPeerMessageReceiptV1 = client.post_json_v1(
-        &deriver_a_url,
-        LocalHttpPathV1::SignerBToSignerA,
-        &ceremony
-            .core_http_ceremony
-            .deriver_b_peer_request
-            .envelope
-            .message,
-    )?;
-
-    assert_eq!(b_receipt.receiver_role, LocalServiceRoleV1::DeriverB);
-    assert_eq!(b_receipt.status, "accepted");
-    assert_eq!(b_receipt.proof_bundle_count, 2);
-    assert_eq!(a_receipt.receiver_role, LocalServiceRoleV1::DeriverA);
-    assert_eq!(a_receipt.status, "accepted");
-    assert_eq!(a_receipt.proof_bundle_count, 2);
-    drop(deriver_a);
-    drop(deriver_b);
-    let _ = fs::remove_dir_all(temp);
-    Ok(())
-}
 
 #[test]
 fn local_router_worker_exposes_health_and_rejects_malformed_pair_routes(

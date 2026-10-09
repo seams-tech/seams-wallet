@@ -203,7 +203,7 @@ use router_ab_core::RouterEd25519YaoExecuteFailureCodeV1;
     feature = "strict-worker-deriver-a-entrypoint",
     feature = "strict-worker-deriver-b-entrypoint"
 ))]
-use router_ab_core::{AbPeerMessageVerifyingKeyV1, Role, RouterAbProtocolResult, SignerSetV1};
+use router_ab_core::{Role, RouterAbProtocolResult};
 use worker::Method;
 use worker::{Context, Env, Request, Response};
 

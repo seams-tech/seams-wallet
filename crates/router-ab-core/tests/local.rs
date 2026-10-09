@@ -1,19 +1,16 @@
 use base64ct::{Base64UrlUnpadded, Encoding};
 use router_ab_core::{
-    decode_ab_peer_message_payload_v1,
-    decode_and_validate_ecdsa_threshold_prf_proof_batch_peer_payload_v1,
     decode_recipient_proof_bundle_ciphertext_v1, decode_router_to_signer_payload_v1,
     encode_recipient_proof_bundle_ciphertext_v1, execute_local_persistence_sql_seed_plan_v1,
     local_persistence_seed_sql_plan_v1, router_transcript_digest_v1, validate_local_env_keys_v1,
-    CanonicalWireBytesV1, EcdsaThresholdPrfProofBatchPayloadV1, EncryptedPayloadV1,
-    ExpensiveWorkKindV1, LifecycleScopeV1, LocalDeriverAEndpointV1, LocalDeriverAServiceV1,
-    LocalDeriverBEndpointV1, LocalDeriverBServiceV1, LocalDeterministicSignerEnvelopeDecryptorV1,
-    LocalEnvSnapshotV1, LocalHttpMethodV1, LocalHttpPathV1, LocalHttpRequestV1,
-    LocalPersistenceSeedV1, LocalPersistenceSqlSeedExecutorV1, LocalPersistenceSqlStatementV1,
-    LocalPersistenceSqlValueV1, LocalRouterEndpointV1, LocalRouterServiceV1,
-    LocalSealedRootShareRecordV1, LocalServiceRoleV1, LocalServiceStackV1, LocalServiceStartupV1,
-    LocalSignerEnvelopeDecryptorV1, LocalSignerHandlerContextV1, LocalSignerHandlerOutputV1,
-    LocalSigningRootMetadataV1, LocalSigningWorkerEndpointV1,
+    CanonicalWireBytesV1, EncryptedPayloadV1, ExpensiveWorkKindV1, LifecycleScopeV1,
+    LocalDeriverAEndpointV1, LocalDeriverAServiceV1, LocalDeriverBEndpointV1,
+    LocalDeriverBServiceV1, LocalDeterministicSignerEnvelopeDecryptorV1, LocalEnvSnapshotV1,
+    LocalHttpMethodV1, LocalHttpPathV1, LocalHttpRequestV1, LocalPersistenceSeedV1,
+    LocalPersistenceSqlSeedExecutorV1, LocalPersistenceSqlStatementV1, LocalPersistenceSqlValueV1,
+    LocalRouterEndpointV1, LocalRouterServiceV1, LocalSealedRootShareRecordV1, LocalServiceRoleV1,
+    LocalServiceStackV1, LocalServiceStartupV1, LocalSignerEnvelopeDecryptorV1,
+    LocalSignerHandlerContextV1, LocalSigningRootMetadataV1, LocalSigningWorkerEndpointV1,
     LocalSigningWorkerRecipientProofBundleActivationV1, LocalTransportEnvelopeV1,
     LocalTransportRouteV1, MpcMaterialActivationRefV1, NormalSigningAuthorizationV1,
     NormalSigningScopeV1, RecipientProofBundleCiphertextV1, RoleEncryptedEnvelopeV1,
@@ -88,19 +85,6 @@ fn malformed_router_to_signer_wire(
             .expect("opaque payload"),
     )
     .expect("wire message")
-}
-
-fn decode_local_peer_proof_batch(
-    envelope: &LocalTransportEnvelopeV1,
-) -> EcdsaThresholdPrfProofBatchPayloadV1 {
-    let peer_payload = decode_ab_peer_message_payload_v1(envelope.message.payload.as_bytes())
-        .expect("peer payload decodes");
-    assert_eq!(
-        peer_payload.transcript_digest,
-        envelope.message.transcript_digest
-    );
-    decode_and_validate_ecdsa_threshold_prf_proof_batch_peer_payload_v1(&peer_payload)
-        .expect("proof batch validates")
 }
 
 fn decode_local_recipient_bundle(
@@ -848,14 +832,6 @@ fn local_service_stack_runs_in_process_ceremony_from_startup_configs() {
         .expect("in-process ceremony");
 
     assert_eq!(
-        result.deriver_a_peer_message.route,
-        LocalTransportRouteV1::SignerAToSignerB
-    );
-    assert_eq!(
-        result.deriver_b_peer_message.route,
-        LocalTransportRouteV1::SignerBToSignerA
-    );
-    assert_eq!(
         result.signing_worker_activation_receipt.signing_worker,
         server_identity()
     );
@@ -1091,14 +1067,6 @@ fn local_service_stack_runs_http_ceremony_from_router_requests() {
         .router_response
         .validate()
         .expect("router proof-bundle response validates");
-    assert_eq!(
-        result.deriver_a_peer_request.path,
-        LocalHttpPathV1::SignerAToSignerB
-    );
-    assert_eq!(
-        result.deriver_b_peer_request.path,
-        LocalHttpPathV1::SignerBToSignerA
-    );
     result
         .signing_worker_activation
         .validate()
@@ -1231,7 +1199,7 @@ fn local_router_service_rejects_transcript_mismatch() {
 }
 
 #[test]
-fn local_signer_handlers_return_peer_proof_batch_envelopes() {
+fn local_signer_handlers_return_recipient_proof_bundles() {
     let router = LocalRouterServiceV1::new(router_endpoint()).expect("router service");
     let signer_a = LocalDeriverAServiceV1::new(deriver_a_endpoint(), signer_a_identity())
         .expect("deriver a service");
@@ -1243,52 +1211,26 @@ fn local_signer_handlers_return_peer_proof_batch_envelopes() {
             wire(WireMessageKindV1::RouterToSignerB),
         )
         .expect("dispatch");
+    let transcript_digest = dispatch.to_deriver_a.message.transcript_digest;
 
-    let signer_a_context = signer_a_context();
-    let signer_b_context = signer_b_context();
-    let signer_a_output = signer_a
-        .handle_router_request(signer_a_context, dispatch.to_deriver_a)
-        .expect("signer a output");
-    let signer_b_output = signer_b
-        .handle_router_request(signer_b_context, dispatch.to_deriver_b)
-        .expect("signer b output");
+    let signer_a_response = signer_a
+        .handle_router_request(signer_a_context(), dispatch.to_deriver_a)
+        .expect("signer a response");
+    let signer_b_response = signer_b
+        .handle_router_request(signer_b_context(), dispatch.to_deriver_b)
+        .expect("signer b response");
 
-    let signer_a_proof_batch = match &signer_a_output {
-        LocalSignerHandlerOutputV1::SignerA { peer_message } => {
-            assert_eq!(peer_message.route, LocalTransportRouteV1::SignerAToSignerB);
-            let proof_batch = decode_local_peer_proof_batch(peer_message);
-            assert_eq!(proof_batch.from, signer_a_identity());
-            assert_eq!(proof_batch.to, signer_b_identity());
-            assert_eq!(proof_batch.root_share_epoch, root_epoch());
-            assert_eq!(proof_batch.proof_bundles.len(), 2);
-            assert!(proof_batch.proof_bundles.iter().any(|bundle| {
-                bundle.signer_partial.binding.opened_share_kind == OpenedShareKind::XClientBase
-            }));
-            assert!(proof_batch.proof_bundles.iter().any(|bundle| {
-                bundle.signer_partial.binding.opened_share_kind == OpenedShareKind::XServerBase
-            }));
-            proof_batch
-        }
-        other => panic!("unexpected signer a output: {other:?}"),
-    };
-
-    let signer_b_proof_batch = match &signer_b_output {
-        LocalSignerHandlerOutputV1::SignerB { peer_message } => {
-            assert_eq!(peer_message.route, LocalTransportRouteV1::SignerBToSignerA);
-            let proof_batch = decode_local_peer_proof_batch(peer_message);
-            assert_eq!(proof_batch.from, signer_b_identity());
-            assert_eq!(proof_batch.to, signer_a_identity());
-            assert_eq!(proof_batch.root_share_epoch, root_epoch());
-            assert_eq!(proof_batch.proof_bundles.len(), 2);
-            proof_batch
-        }
-        other => panic!("unexpected signer b output: {other:?}"),
-    };
-
-    assert_eq!(
-        signer_a_proof_batch.transcript_digest,
-        signer_b_proof_batch.transcript_digest
-    );
+    for (response, signer_role) in [
+        (&signer_a_response, Role::SignerA),
+        (&signer_b_response, Role::SignerB),
+    ] {
+        response.validate().expect("signer response validates");
+        assert_eq!(response.signer_role, signer_role);
+        assert_local_client_bundle(&response.client_bundle, signer_role);
+        assert_local_server_bundle(&response.server_bundle, signer_role);
+        assert_eq!(response.client_bundle.transcript_digest, transcript_digest);
+        assert_eq!(response.server_bundle.transcript_digest, transcript_digest);
+    }
 }
 
 #[test]

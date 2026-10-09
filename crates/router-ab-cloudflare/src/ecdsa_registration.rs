@@ -243,11 +243,6 @@ pub trait CloudflareDeriverSignerRuntimeV1 {
     fn worker_role(&self) -> CloudflareWorkerRoleV1;
     /// The role's signer-envelope HPKE decrypt-key descriptors.
     fn envelope_decrypt_key(&self) -> &CloudflareSignerEnvelopeHpkeDecryptKeyBindingSetV1;
-    /// Trusted A/B peer verifying keys bound to a request signer set.
-    fn peer_verifying_keys_for_signer_set(
-        &self,
-        signer_set: &SignerSetV1,
-    ) -> RouterAbProtocolResult<Vec<AbPeerMessageVerifyingKeyV1>>;
 }
 
 impl CloudflareDeriverSignerRuntimeV1 for CloudflareDeriverAWorkerRuntimeV1 {
@@ -258,13 +253,6 @@ impl CloudflareDeriverSignerRuntimeV1 for CloudflareDeriverAWorkerRuntimeV1 {
     fn envelope_decrypt_key(&self) -> &CloudflareSignerEnvelopeHpkeDecryptKeyBindingSetV1 {
         CloudflareDeriverAWorkerRuntimeV1::envelope_decrypt_key(self)
     }
-
-    fn peer_verifying_keys_for_signer_set(
-        &self,
-        signer_set: &SignerSetV1,
-    ) -> RouterAbProtocolResult<Vec<AbPeerMessageVerifyingKeyV1>> {
-        CloudflareDeriverAWorkerRuntimeV1::peer_verifying_keys_for_signer_set(self, signer_set)
-    }
 }
 
 impl CloudflareDeriverSignerRuntimeV1 for CloudflareDeriverBWorkerRuntimeV1 {
@@ -274,13 +262,6 @@ impl CloudflareDeriverSignerRuntimeV1 for CloudflareDeriverBWorkerRuntimeV1 {
 
     fn envelope_decrypt_key(&self) -> &CloudflareSignerEnvelopeHpkeDecryptKeyBindingSetV1 {
         CloudflareDeriverBWorkerRuntimeV1::envelope_decrypt_key(self)
-    }
-
-    fn peer_verifying_keys_for_signer_set(
-        &self,
-        signer_set: &SignerSetV1,
-    ) -> RouterAbProtocolResult<Vec<AbPeerMessageVerifyingKeyV1>> {
-        CloudflareDeriverBWorkerRuntimeV1::peer_verifying_keys_for_signer_set(self, signer_set)
     }
 }
 
@@ -299,8 +280,7 @@ pub(crate) fn preload_cloudflare_deriver_signer_host_v1(
     let bootstrap = &authenticated_request.bootstrap;
     let preload_plan =
         CloudflareSignerHostPreloadPlanV1::from_private_bootstrap(worker_role, bootstrap)?;
-    let verifying_keys = runtime.peer_verifying_keys_for_signer_set(&preload_plan.signer_set)?;
-    let preload_input = preload_plan.to_host_preload_input(Vec::new(), verifying_keys, 0)?;
+    let preload_input = preload_plan.to_host_preload_input(0)?;
     let root_share_metadata = CloudflareRootShareStartupMetadataV1::new(
         preload_plan.signer_set_id.clone(),
         protocol_role,

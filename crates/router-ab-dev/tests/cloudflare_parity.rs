@@ -1,6 +1,5 @@
 use router_ab_cloudflare::{
-    CLOUDFLARE_DERIVER_A_PEER_REQUEST_PATH, CLOUDFLARE_DERIVER_A_PRIVATE_REQUEST_PATH,
-    CLOUDFLARE_DERIVER_B_PEER_REQUEST_PATH, CLOUDFLARE_DERIVER_B_PRIVATE_REQUEST_PATH,
+    CLOUDFLARE_DERIVER_A_PRIVATE_REQUEST_PATH, CLOUDFLARE_DERIVER_B_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_ROUTER_NORMAL_SIGNING_PUBLIC_REQUEST_PATH,
     CLOUDFLARE_SIGNING_WORKER_NORMAL_SIGNING_PATH,
 };
@@ -9,11 +8,9 @@ use router_ab_dev::{
     local_worker_owned_paths_v1, parse_local_env_file_contents_v1,
     parse_local_worker_role_config_for_role_v1, LocalDevHttpRequestPartsV1, LocalDevHttpTopologyV1,
     LOCAL_DERIVER_A_ED25519_YAO_BURN_PAIR_PATH, LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
-    LOCAL_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH, LOCAL_DERIVER_A_PEER_PATH,
-    LOCAL_DERIVER_A_PRIVATE_PATH, LOCAL_DERIVER_B_ED25519_YAO_BURN_PAIR_PATH,
-    LOCAL_DERIVER_B_ED25519_YAO_PREPARE_PAIR_PATH,
-    LOCAL_DERIVER_B_ED25519_YAO_READ_PAIR_STATUS_PATH, LOCAL_DERIVER_B_PEER_PATH,
-    LOCAL_DERIVER_B_PRIVATE_PATH,
+    LOCAL_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH, LOCAL_DERIVER_A_PRIVATE_PATH,
+    LOCAL_DERIVER_B_ED25519_YAO_BURN_PAIR_PATH, LOCAL_DERIVER_B_ED25519_YAO_PREPARE_PAIR_PATH,
+    LOCAL_DERIVER_B_ED25519_YAO_READ_PAIR_STATUS_PATH, LOCAL_DERIVER_B_PRIVATE_PATH,
     LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH, LOCAL_ROUTER_ED25519_YAO_RECOVERY_PROMOTE_PATH,
     LOCAL_ROUTER_NORMAL_SIGNING_PATH, LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PATH,
 };
@@ -31,14 +28,6 @@ fn local_worker_routes_match_cloudflare_worker_routes() {
     assert_eq!(
         LOCAL_DERIVER_B_PRIVATE_PATH,
         CLOUDFLARE_DERIVER_B_PRIVATE_REQUEST_PATH
-    );
-    assert_eq!(
-        LOCAL_DERIVER_A_PEER_PATH,
-        CLOUDFLARE_DERIVER_A_PEER_REQUEST_PATH
-    );
-    assert_eq!(
-        LOCAL_DERIVER_B_PEER_PATH,
-        CLOUDFLARE_DERIVER_B_PEER_REQUEST_PATH
     );
     assert_eq!(
         LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PATH,
@@ -224,11 +213,8 @@ fn local_env_templates_match_wrangler_startup_manifests() {
     deriver_a.assert_wrangler(
         "DERIVER_A_ENVELOPE_HPKE_PRIVATE_KEY_BINDING = \"DERIVER_A_ENVELOPE_HPKE_PRIVATE_KEY\"",
     );
-    deriver_a
-        .assert_wrangler("DERIVER_A_PEER_SIGNING_KEY_BINDING = \"DERIVER_A_PEER_SIGNING_KEY\"");
     deriver_a.assert_local("DERIVER_B_URL=http://127.0.0.1:4104");
     deriver_a.assert_local("DERIVER_A_ENVELOPE_HPKE_PRIVATE_KEY=");
-    deriver_a.assert_local("DERIVER_A_PEER_SIGNING_KEY=");
     deriver_a.assert_local(
         "DERIVER_A_ROLE_PRIVATE_STORAGE_PATH=.router-ab-local/deriver-a/role-private.sqlite",
     );
@@ -249,11 +235,8 @@ fn local_env_templates_match_wrangler_startup_manifests() {
     deriver_b.assert_wrangler(
         "DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY_BINDING = \"DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY\"",
     );
-    deriver_b
-        .assert_wrangler("DERIVER_B_PEER_SIGNING_KEY_BINDING = \"DERIVER_B_PEER_SIGNING_KEY\"");
     deriver_b.assert_local("DERIVER_A_URL=http://127.0.0.1:4103");
     deriver_b.assert_local("DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY=");
-    deriver_b.assert_local("DERIVER_B_PEER_SIGNING_KEY=");
     deriver_b.assert_local(
         "DERIVER_B_ROLE_PRIVATE_STORAGE_PATH=.router-ab-local/deriver-b/role-private.sqlite",
     );

@@ -141,18 +141,6 @@ impl StrictDeriverRuntimeV1 {
         }
     }
 
-    fn peer_verifying_keys_for_signer_set(
-        &self,
-        signer_set: &SignerSetV1,
-    ) -> RouterAbProtocolResult<Vec<AbPeerMessageVerifyingKeyV1>> {
-        match self {
-            #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
-            Self::DeriverA(runtime) => runtime.peer_verifying_keys_for_signer_set(signer_set),
-            #[cfg(feature = "strict-worker-deriver-b-entrypoint")]
-            Self::DeriverB(runtime) => runtime.peer_verifying_keys_for_signer_set(signer_set),
-        }
-    }
-
     fn envelope_decrypt_key(&self) -> &CloudflareSignerEnvelopeHpkeDecryptKeyBindingSetV1 {
         match self {
             #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
@@ -208,13 +196,6 @@ impl crate::CloudflareDeriverSignerRuntimeV1 for StrictDeriverRuntimeV1 {
 
     fn envelope_decrypt_key(&self) -> &CloudflareSignerEnvelopeHpkeDecryptKeyBindingSetV1 {
         StrictDeriverRuntimeV1::envelope_decrypt_key(self)
-    }
-
-    fn peer_verifying_keys_for_signer_set(
-        &self,
-        signer_set: &SignerSetV1,
-    ) -> RouterAbProtocolResult<Vec<AbPeerMessageVerifyingKeyV1>> {
-        StrictDeriverRuntimeV1::peer_verifying_keys_for_signer_set(self, signer_set)
     }
 }
 

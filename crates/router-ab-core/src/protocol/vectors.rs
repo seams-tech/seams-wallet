@@ -44,9 +44,7 @@ use crate::protocol::output::{
     RecipientProofBundleCiphertextV1,
 };
 use crate::protocol::payload::{
-    ab_peer_message_authentication_input_digest_v1, encode_ab_peer_message_payload_v1,
-    encode_router_to_signer_payload_v1, AbPeerMessageAuthenticationV1, AbPeerMessagePayloadV1,
-    AbPeerMessageSignatureSchemeV1, EcdsaThresholdPrfProofBatchPayloadV1,
+    encode_router_to_signer_payload_v1, EcdsaThresholdPrfProofBatchPayloadV1,
     RecipientProofBundlePayloadV1, RouterEnvelopeDigestSetV1, RouterToSignerPayloadV1,
     RouterTranscriptMetadataV1,
 };
@@ -178,16 +176,6 @@ pub fn generated_wire_vector_fixture_v1() -> WireVectorFixtureV1 {
             b"router-b-envelope-v1".as_slice(),
         ),
         (
-            WireMessageKindV1::SignerAToSignerB,
-            0x33,
-            b"signer-a-to-b-message-v1".as_slice(),
-        ),
-        (
-            WireMessageKindV1::SignerBToSignerA,
-            0x44,
-            b"signer-b-to-a-message-v1".as_slice(),
-        ),
-        (
             WireMessageKindV1::RecipientProofBundle,
             0x77,
             b"recipient-proof-bundle-v1".as_slice(),
@@ -220,16 +208,6 @@ pub fn generated_payload_vector_fixture_v1() -> PayloadVectorFixtureV1 {
             "router_to_signer_b_payload",
             WireMessageKindV1::RouterToSignerB,
             sample_router_to_signer_b_payload(),
-        ),
-        payload_vector_case(
-            "signer_a_to_signer_b_payload",
-            WireMessageKindV1::SignerAToSignerB,
-            sample_ab_peer_message_payload(Role::SignerA),
-        ),
-        payload_vector_case(
-            "signer_b_to_signer_a_payload",
-            WireMessageKindV1::SignerBToSignerA,
-            sample_ab_peer_message_payload(Role::SignerB),
         ),
         recipient_proof_bundle_payload_vector_case(),
     ];
@@ -901,12 +879,6 @@ fn encode_payload_case(
             let digest = payload.digest();
             Ok((canonical_bytes, digest))
         }
-        WireMessageKindV1::SignerAToSignerB | WireMessageKindV1::SignerBToSignerA => {
-            let payload: AbPeerMessagePayloadV1 = payload_from_json(payload_json)?;
-            let canonical_bytes = encode_ab_peer_message_payload_v1(&payload);
-            let digest = payload.digest();
-            Ok((canonical_bytes, digest))
-        }
         WireMessageKindV1::RecipientProofBundle => {
             let payload: RecipientProofBundleCiphertextV1 = payload_from_json(payload_json)?;
             let canonical_bytes = encode_recipient_proof_bundle_ciphertext_v1(&payload)?;
@@ -950,32 +922,6 @@ fn sample_router_to_signer_b_payload() -> RouterToSignerPayloadV1 {
         sample_assignment(Role::SignerB, 0xb1),
     )
     .expect("router-to-signer-b payload")
-}
-
-fn sample_ab_peer_message_payload(from_role: Role) -> AbPeerMessagePayloadV1 {
-    let (from, to, seed) = match from_role {
-        Role::SignerA => (sample_signer_a(), sample_signer_b(), 0xd1),
-        Role::SignerB => (sample_signer_b(), sample_signer_a(), 0xd2),
-        _ => unreachable!("sample peer role"),
-    };
-    let transcript_digest = digest_seed(seed);
-    let payload =
-        CanonicalWireBytesV1::new(vec![seed, seed.wrapping_add(1)]).expect("peer payload");
-    let auth_digest =
-        ab_peer_message_authentication_input_digest_v1(&from, &to, transcript_digest, &payload);
-    AbPeerMessagePayloadV1::new(
-        from,
-        to,
-        transcript_digest,
-        payload,
-        AbPeerMessageAuthenticationV1::new(
-            AbPeerMessageSignatureSchemeV1::Ed25519V1,
-            auth_digest,
-            CanonicalWireBytesV1::new(vec![seed, 0xed, 0x19]).expect("peer signature"),
-        )
-        .expect("peer authentication"),
-    )
-    .expect("ab peer payload")
 }
 
 fn sample_recipient_proof_bundle_payload() -> RecipientProofBundlePayloadV1 {

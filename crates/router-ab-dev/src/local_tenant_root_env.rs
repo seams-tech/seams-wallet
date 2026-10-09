@@ -56,10 +56,6 @@ pub(crate) fn local_tenant_root_env_lines_v1(
     let custody_b = secret("tenant-root-deriver-b-custody-authority-signing-key")?;
     let role_a = secret("tenant-root-deriver-a-role-signing-key")?;
     let role_b = secret("tenant-root-deriver-b-role-signing-key")?;
-    // The same derivation the env templates use for the A/B peer keys; the
-    // shared parsers refuse a tenant-root role key that reuses one of them.
-    let peer_a = verifying_hex(secret("deriver-a-peer-signing-key")?);
-    let peer_b = verifying_hex(secret("deriver-b-peer-signing-key")?);
     let deployment = format!(
         "local-{}",
         &hex::encode(secret("tenant-root-deployment-authority")?)[..24]
@@ -79,9 +75,7 @@ pub(crate) fn local_tenant_root_env_lines_v1(
     let published = format!(
         "TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON={issuer_keys_json}\n\
          TENANT_ROOT_CONTROL_PLANE_GRANT_AUTHORITY_VERIFYING_KEYS_JSON={{\"keys\":[{{\"issuer_key_id\":\"{GRANT_KEY_ID}\",\"verifying_key_hex\":\"{grant_public}\"}}]}}\n\
-         ROUTER_TENANT_ROOT_CREATION_ROLE_VERIFYING_KEYS_JSON={role_keys_json}\n\
-         DERIVER_A_PEER_VERIFYING_KEY_HEX={peer_a}\n\
-         DERIVER_B_PEER_VERIFYING_KEY_HEX={peer_b}\n",
+         ROUTER_TENANT_ROOT_CREATION_ROLE_VERIFYING_KEYS_JSON={role_keys_json}\n",
         grant_public = verifying_hex(grant),
     );
 

@@ -220,10 +220,6 @@ pub const CLOUDFLARE_DERIVER_A_ROUTER_AB_ECDSA_DERIVATION_REFRESH_PRIVATE_REQUES
 /// Private Deriver B service-binding endpoint for Router A/B ECDSA derivation activation refresh.
 pub const CLOUDFLARE_DERIVER_B_ROUTER_AB_ECDSA_DERIVATION_REFRESH_PRIVATE_REQUEST_PATH: &str =
     "/router-ab/deriver-b/ecdsa-derivation/refresh";
-/// Private Deriver A endpoint for direct B-to-A coordination.
-pub const CLOUDFLARE_DERIVER_A_PEER_REQUEST_PATH: &str = "/router-ab/deriver-a/peer";
-/// Private Deriver B endpoint for direct A-to-B coordination.
-pub const CLOUDFLARE_DERIVER_B_PEER_REQUEST_PATH: &str = "/router-ab/deriver-b/peer";
 /// Private SigningWorker endpoint for strict SigningWorker proof-bundle activation.
 pub const CLOUDFLARE_SIGNING_WORKER_PROOF_BUNDLE_ACTIVATION_PATH: &str =
     "/router-ab/signing-worker/proof-bundle-activation";
@@ -335,16 +331,6 @@ const CLOUDFLARE_DERIVER_A_ROUTER_AB_ECDSA_DERIVATION_REFRESH_PRIVATE_REQUEST_UR
 const CLOUDFLARE_DERIVER_B_ROUTER_AB_ECDSA_DERIVATION_REFRESH_PRIVATE_REQUEST_URL: &str = concat!(
     "https://router-ab-deriver-b.internal",
     "/router-ab/deriver-b/ecdsa-derivation/refresh"
-);
-#[cfg(feature = "workers-rs")]
-const CLOUDFLARE_DERIVER_A_PEER_REQUEST_URL: &str = concat!(
-    "https://router-ab-deriver-a.internal",
-    "/router-ab/deriver-a/peer"
-);
-#[cfg(feature = "workers-rs")]
-const CLOUDFLARE_DERIVER_B_PEER_REQUEST_URL: &str = concat!(
-    "https://router-ab-deriver-b.internal",
-    "/router-ab/deriver-b/peer"
 );
 #[cfg(feature = "workers-rs")]
 const CLOUDFLARE_DERIVER_A_TENANT_ROOT_STATUS_PRIVATE_REQUEST_URL: &str = concat!(
@@ -502,18 +488,6 @@ pub(crate) fn cloudflare_router_ab_ecdsa_derivation_deriver_refresh_service_url(
         CLOUDFLARE_DERIVER_A_ROUTER_AB_ECDSA_DERIVATION_REFRESH_PRIVATE_REQUEST_URL,
         CLOUDFLARE_DERIVER_B_ROUTER_AB_ECDSA_DERIVATION_REFRESH_PRIVATE_REQUEST_URL,
         "Router A/B ECDSA derivation activation refresh can forward Deriver work only to signer peers",
-    )
-}
-
-#[cfg(feature = "workers-rs")]
-pub(crate) fn cloudflare_deriver_peer_service_url(
-    peer: &CloudflarePeerBindingV1,
-) -> RouterAbProtocolResult<&'static str> {
-    cloudflare_deriver_peer_url(
-        peer,
-        CLOUDFLARE_DERIVER_A_PEER_REQUEST_URL,
-        CLOUDFLARE_DERIVER_B_PEER_REQUEST_URL,
-        "direct A/B peer handler can send peer work only to signer peers",
     )
 }
 

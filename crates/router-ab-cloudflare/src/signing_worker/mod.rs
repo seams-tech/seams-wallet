@@ -134,15 +134,6 @@ pub fn signing_worker_activation_retired_at_commit_error_v1() -> RouterAbProtoco
     )
 }
 
-/// Platform-neutral signer logic behind the Cloudflare transport wrapper.
-pub trait CloudflareSignerWireHandlerV1 {
-    /// Handles one validated Router-to-signer wire message.
-    fn handle_signer_wire_message(
-        &self,
-        message: WireMessageV1,
-    ) -> RouterAbProtocolResult<WireMessageV1>;
-}
-
 /// Strict proof-bundle signer logic behind the Cloudflare transport wrapper.
 pub trait CloudflareSignerRecipientProofBundleWireHandlerV1 {
     /// Handles one validated Router-to-signer message and returns strict proof-bundle delivery.

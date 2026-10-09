@@ -80,8 +80,10 @@ Each boundary authenticates the narrowest caller it accepts:
 - The Tenant Root Control Plane signs role-specific tenant-root commands. A
   Deriver verifies the issuer, role, tenant identity, custody lineage, revision,
   epoch, nonce, and validity window before acting.
-- Deriver peer messages are role- and transcript-bound. Same-role traffic and
-  swapped A/B identities are rejected.
+- The two Derivers exchange messages only for the Ed25519 Yao pair, over the
+  authenticated service transport and bound to one wallet object, pair, and
+  execution. ECDSA derivation sends no message from one Deriver to the other:
+  each Deriver answers the Router. Neither role signs a peer message.
 - Recipient output packages use recipient-specific HPKE keys. Client material
   can be opened only by the client recipient; SigningWorker material can be
   opened only by SigningWorker.
@@ -252,9 +254,8 @@ preface checks each peer's share against the commitment in the Router-supplied
 activation receipt. [R155C](../refactor-155C-yao-peer-connection.md) records the
 design and its evidence.
 
-The Deriver peer-signing and peer-verifying keys remain required
-configuration. Worker startup validates them and the ECDSA signer host loads
-them. No Ed25519 Yao step uses them.
+No step uses a Deriver peer-signing or peer-verifying key, and no Worker is
+configured with one.
 
 ## Source map
 

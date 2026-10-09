@@ -405,10 +405,7 @@ pub use hpke::{
 pub use hpke::cloudflare_server_output_material_record_from_ecdsa_activation_request_v2;
 #[cfg(feature = "workers-rs")]
 pub use hpke::cloudflare_server_output_material_record_from_ecdsa_refresh_request_v2;
-use hpke::{
-    parse_cloudflare_hpke_x25519_public_key_v1, push_lower_hex_v1,
-    CloudflareSignerProofGetrandomRngV1,
-};
+use hpke::{parse_cloudflare_hpke_x25519_public_key_v1, CloudflareSignerProofGetrandomRngV1};
 pub use router_ab_ecdsa_client_protocol::{
     seal_ecdsa_signing_worker_export_share_v1, EcdsaClientProofBundleDeliveryKindV1,
     EcdsaClientProofBundleDeliveryV1, EcdsaClientProofBundlePairDeliveryV1,
@@ -443,7 +440,6 @@ pub use paths::*;
 mod trace_context;
 #[cfg(feature = "workers-rs")]
 use paths::{
-    cloudflare_deriver_peer_service_url,
     cloudflare_router_ab_ecdsa_derivation_deriver_export_service_url,
     cloudflare_router_ab_ecdsa_derivation_deriver_refresh_service_url,
     cloudflare_router_ab_ecdsa_derivation_deriver_registration_service_url,
@@ -541,26 +537,23 @@ pub use durable_object::{
     CloudflareSigningWorkerRound1RecordV1,
 };
 #[cfg(feature = "workers-rs")]
-use router_ab_core::sign_ab_peer_message_ed25519_authentication_v1;
-#[cfg(feature = "workers-rs")]
 use router_ab_core::RouterAbEcdsaDerivationLinkedDeviceEvmDigestSigningResponseV1;
 use router_ab_core::{
     combine_mpc_prf_signing_worker_output_from_activation_context_v1,
-    decode_ab_peer_message_payload_v1, decode_and_validate_signer_envelope_hpke_payload_v1,
+    decode_and_validate_signer_envelope_hpke_payload_v1,
     decode_recipient_proof_bundle_ciphertext_v1, decode_recipient_proof_bundle_payload_v1,
     decode_router_to_signer_payload_v1, decode_signer_envelope_hpke_payload_v1,
     encode_recipient_output_ciphertext_aad_v1, encode_recipient_proof_bundle_ciphertext_aad_v1,
-    validate_signer_input_plaintext_binding_v1, verify_ab_peer_message_ed25519_signature_v1,
-    verify_recipient_proof_bundle_ciphertext_payload_v1, AbPeerMessagePayloadV1,
-    AbPeerMessageVerifyingKeyV1, ActiveSigningWorkerStateV1, AuditEventV1, AuditSink,
-    CanonicalWireBytesV1, Clock, Csprng, EcdsaThresholdPrfOuterRequestV2,
+    validate_signer_input_plaintext_binding_v1,
+    verify_recipient_proof_bundle_ciphertext_payload_v1, ActiveSigningWorkerStateV1, AuditEventV1,
+    AuditSink, CanonicalWireBytesV1, Clock, Csprng, EcdsaThresholdPrfOuterRequestV2,
     EcdsaThresholdPrfPrivateRequestV2, EcdsaThresholdPrfPurposeV2, EcdsaThresholdPrfRequestV1,
     EncryptedPayloadV1, ExpensiveWorkGateContextV1, ExpensiveWorkGateDecisionV1,
     ExpensiveWorkKindV1, GateDeferReasonV1, GatePrincipalV1, GateRejectReasonV1,
     MpcMaterialActivationRefV1, NormalSigningAuthorizationV1,
     NormalSigningEd25519TwoPartyFrostCommitmentsV1, NormalSigningResponseV1,
     NormalSigningRound1PrepareResponseV1, NormalSigningScopeV1, NormalSigningSignatureSchemeV1,
-    OpenedShareKind, PeerTransport, PublicDigest32, RecipientOutputCiphertextV1,
+    OpenedShareKind, PublicDigest32, RecipientOutputCiphertextV1,
     RecipientOutputEncryptionAlgorithmV1, RecipientOutputEncryptionRequestV1,
     RecipientOutputEncryptorV1, RecipientProofBundleCiphertextV1,
     RecipientProofBundleEncryptionRequestV1, RecipientProofBundleEncryptorV1,
@@ -1318,252 +1311,6 @@ impl CloudflareServerOutputHpkeDecryptKeyBindingV1 {
     }
 }
 
-/// Role-local A/B peer-message Ed25519 signing secret binding descriptor.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CloudflareSignerPeerSigningKeyBindingV1 {
-    /// Signer role that owns this peer signing key.
-    pub role: Role,
-    /// Cloudflare Secret binding name that contains the Ed25519 signing seed.
-    pub binding_name: String,
-    /// Public signing-key epoch used for signer identity and rotation binding.
-    pub key_epoch: String,
-}
-
-impl CloudflareSignerPeerSigningKeyBindingV1 {
-    /// Creates a validated A/B peer signing-key descriptor.
-    pub fn new(
-        role: Role,
-        binding_name: impl Into<String>,
-        key_epoch: impl Into<String>,
-    ) -> RouterAbProtocolResult<Self> {
-        let binding = Self {
-            role,
-            binding_name: binding_name.into(),
-            key_epoch: key_epoch.into(),
-        };
-        binding.validate()?;
-        Ok(binding)
-    }
-
-    /// Validates key ownership and public descriptor fields.
-    pub fn validate(&self) -> RouterAbProtocolResult<()> {
-        require_signer_role(self.role)?;
-        require_non_empty("binding_name", &self.binding_name)?;
-        require_non_empty("key_epoch", &self.key_epoch)
-    }
-
-    /// Validates this key descriptor is visible to the given Worker role.
-    pub fn validate_visible_to(
-        &self,
-        worker_role: CloudflareWorkerRoleV1,
-    ) -> RouterAbProtocolResult<()> {
-        self.validate()?;
-        let visible = matches!(
-            (worker_role, self.role),
-            (CloudflareWorkerRoleV1::DeriverA, Role::SignerA)
-                | (CloudflareWorkerRoleV1::DeriverB, Role::SignerB)
-        );
-        if visible {
-            return Ok(());
-        }
-        Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-            format!(
-                "{} Worker cannot access {:?} A/B peer signing key",
-                worker_role.as_str(),
-                self.role
-            ),
-        ))
-    }
-}
-
-/// Public A/B peer-message Ed25519 verifying key bytes for one signer role.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CloudflareSignerPeerVerifyingKeyBytesV1 {
-    /// Signer role that owns this verifying key.
-    pub role: Role,
-    /// Raw Ed25519 verifying key bytes.
-    pub verifying_key_bytes: [u8; 32],
-}
-
-impl CloudflareSignerPeerVerifyingKeyBytesV1 {
-    /// Creates validated role-bound peer verifying key bytes.
-    pub fn new(role: Role, verifying_key_bytes: [u8; 32]) -> RouterAbProtocolResult<Self> {
-        let key = Self {
-            role,
-            verifying_key_bytes,
-        };
-        key.validate()?;
-        Ok(key)
-    }
-
-    /// Validates role ownership and Ed25519 key shape.
-    pub fn validate(&self) -> RouterAbProtocolResult<()> {
-        require_signer_role(self.role)?;
-        let probe_identity = SignerIdentityV1::new(
-            self.role,
-            "cloudflare-peer-verifying-key-probe",
-            "cloudflare-peer-verifying-key-probe",
-        )?;
-        AbPeerMessageVerifyingKeyV1::new(probe_identity, self.verifying_key_bytes)?;
-        Ok(())
-    }
-
-    /// Binds these key bytes to a request signer identity.
-    pub fn bind_to_signer(
-        &self,
-        signer: SignerIdentityV1,
-    ) -> RouterAbProtocolResult<AbPeerMessageVerifyingKeyV1> {
-        self.validate()?;
-        signer.validate()?;
-        if signer.role != self.role {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidSignerIdentity,
-                "Cloudflare peer verifying key role differs from signer identity",
-            ));
-        }
-        AbPeerMessageVerifyingKeyV1::new(signer, self.verifying_key_bytes)
-    }
-
-    /// Returns this public verifying key as lowercase hex.
-    pub fn to_hex_descriptor(
-        &self,
-    ) -> RouterAbProtocolResult<CloudflareSignerPeerVerifyingKeyHexV1> {
-        self.validate()?;
-        let mut verifying_key_hex = String::new();
-        push_lower_hex_v1(&mut verifying_key_hex, &self.verifying_key_bytes);
-        CloudflareSignerPeerVerifyingKeyHexV1::new(self.role, verifying_key_hex)
-    }
-}
-
-/// Public A/B peer-message Ed25519 verifying key descriptor.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CloudflareSignerPeerVerifyingKeyHexV1 {
-    /// Signer role that owns this verifying key.
-    pub role: Role,
-    /// Raw Ed25519 verifying key bytes encoded as lowercase hex.
-    pub verifying_key_hex: String,
-}
-
-impl CloudflareSignerPeerVerifyingKeyHexV1 {
-    /// Creates a validated public peer verifying-key descriptor.
-    pub fn new(role: Role, verifying_key_hex: impl Into<String>) -> RouterAbProtocolResult<Self> {
-        let descriptor = Self {
-            role,
-            verifying_key_hex: verifying_key_hex.into(),
-        };
-        descriptor.validate()?;
-        Ok(descriptor)
-    }
-
-    /// Validates role ownership and Ed25519 key shape.
-    pub fn validate(&self) -> RouterAbProtocolResult<()> {
-        CloudflareSignerPeerVerifyingKeyBytesV1::new(
-            self.role,
-            decode_cloudflare_peer_verifying_key_hex_v1(&self.verifying_key_hex)?,
-        )?;
-        Ok(())
-    }
-}
-
-/// Public A/B peer-message Ed25519 verifying-key set for discovery responses.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CloudflareSignerPeerVerifyingKeyHexSetV1 {
-    /// Deriver A peer-message verifying key descriptor.
-    pub deriver_a: CloudflareSignerPeerVerifyingKeyHexV1,
-    /// Deriver B peer-message verifying key descriptor.
-    pub deriver_b: CloudflareSignerPeerVerifyingKeyHexV1,
-}
-
-impl CloudflareSignerPeerVerifyingKeyHexSetV1 {
-    /// Creates a validated public A/B verifying-key set descriptor.
-    pub fn new(
-        deriver_a: CloudflareSignerPeerVerifyingKeyHexV1,
-        deriver_b: CloudflareSignerPeerVerifyingKeyHexV1,
-    ) -> RouterAbProtocolResult<Self> {
-        let set = Self {
-            deriver_a,
-            deriver_b,
-        };
-        set.validate()?;
-        Ok(set)
-    }
-
-    /// Validates role ordering and key descriptors.
-    pub fn validate(&self) -> RouterAbProtocolResult<()> {
-        self.deriver_a.validate()?;
-        self.deriver_b.validate()?;
-        if self.deriver_a.role != Role::SignerA || self.deriver_b.role != Role::SignerB {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidSignerIdentity,
-                "Cloudflare peer verifying-key descriptor roles must be Deriver A and Deriver B",
-            ));
-        }
-        Ok(())
-    }
-}
-
-/// Trusted public A/B peer verifying-key set loaded by signer Workers.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CloudflareSignerPeerVerifyingKeySetV1 {
-    /// Deriver A peer-message verifying key bytes.
-    pub deriver_a: CloudflareSignerPeerVerifyingKeyBytesV1,
-    /// Deriver B peer-message verifying key bytes.
-    pub deriver_b: CloudflareSignerPeerVerifyingKeyBytesV1,
-}
-
-impl CloudflareSignerPeerVerifyingKeySetV1 {
-    /// Creates a validated public A/B verifying-key set.
-    pub fn new(
-        deriver_a: CloudflareSignerPeerVerifyingKeyBytesV1,
-        deriver_b: CloudflareSignerPeerVerifyingKeyBytesV1,
-    ) -> RouterAbProtocolResult<Self> {
-        let set = Self {
-            deriver_a,
-            deriver_b,
-        };
-        set.validate()?;
-        Ok(set)
-    }
-
-    /// Validates role ordering and key bytes.
-    pub fn validate(&self) -> RouterAbProtocolResult<()> {
-        self.deriver_a.validate()?;
-        self.deriver_b.validate()?;
-        if self.deriver_a.role != Role::SignerA || self.deriver_b.role != Role::SignerB {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidSignerIdentity,
-                "Cloudflare peer verifying-key set roles must be Deriver A and Deriver B",
-            ));
-        }
-        Ok(())
-    }
-
-    /// Binds configured key bytes to a request signer set.
-    pub fn to_protocol_keys(
-        &self,
-        signer_set: &SignerSetV1,
-    ) -> RouterAbProtocolResult<Vec<AbPeerMessageVerifyingKeyV1>> {
-        self.validate()?;
-        signer_set.validate()?;
-        Ok(vec![
-            self.deriver_a.bind_to_signer(signer_set.signer_a.clone())?,
-            self.deriver_b.bind_to_signer(signer_set.signer_b.clone())?,
-        ])
-    }
-
-    /// Returns lowercase-hex public descriptors for discovery responses.
-    pub fn to_hex_descriptor_set(
-        &self,
-    ) -> RouterAbProtocolResult<CloudflareSignerPeerVerifyingKeyHexSetV1> {
-        self.validate()?;
-        CloudflareSignerPeerVerifyingKeyHexSetV1::new(
-            self.deriver_a.to_hex_descriptor()?,
-            self.deriver_b.to_hex_descriptor()?,
-        )
-    }
-}
-
 /// Public HPKE key descriptor for Router A/B discovery responses.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CloudflarePublicHpkeKeyDescriptorV1 {
@@ -1602,8 +1349,6 @@ pub struct CloudflareRouterPublicKeysetV2 {
     pub keyset_version: String,
     /// Current and optional previous signer-envelope HPKE keys for A/B envelopes.
     pub signer_envelope_hpke: CloudflareSignerEnvelopeHpkeRotationPublicKeySetV1,
-    /// Public A/B peer-message verifying keys.
-    pub signer_peer_verifying_keys: CloudflareSignerPeerVerifyingKeyHexSetV1,
     /// Public SigningWorker server-output HPKE key.
     pub signing_worker_server_output_hpke: CloudflarePublicHpkeKeyDescriptorV1,
 }
@@ -1613,13 +1358,11 @@ impl CloudflareRouterPublicKeysetV2 {
     pub fn new(
         keyset_version: impl Into<String>,
         signer_envelope_hpke: CloudflareSignerEnvelopeHpkeRotationPublicKeySetV1,
-        signer_peer_verifying_keys: CloudflareSignerPeerVerifyingKeyHexSetV1,
         signing_worker_server_output_hpke: CloudflarePublicHpkeKeyDescriptorV1,
     ) -> RouterAbProtocolResult<Self> {
         let keyset = Self {
             keyset_version: keyset_version.into(),
             signer_envelope_hpke,
-            signer_peer_verifying_keys,
             signing_worker_server_output_hpke,
         };
         keyset.validate()?;
@@ -1630,7 +1373,6 @@ impl CloudflareRouterPublicKeysetV2 {
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
         require_non_empty("keyset_version", &self.keyset_version)?;
         self.signer_envelope_hpke.validate()?;
-        self.signer_peer_verifying_keys.validate()?;
         self.signing_worker_server_output_hpke.validate()?;
         Ok(())
     }
@@ -2005,10 +1747,6 @@ impl CloudflareRouterBindingsV1 {
 pub struct CloudflareDeriverABindingsV1 {
     /// Deriver A signer-envelope HPKE decrypt keys.
     pub envelope_decrypt_key: CloudflareSignerEnvelopeHpkeDecryptKeyBindingSetV1,
-    /// Deriver A A/B peer-message Ed25519 signing key.
-    pub peer_signing_key: CloudflareSignerPeerSigningKeyBindingV1,
-    /// Trusted A/B peer-message Ed25519 verifying keys.
-    pub peer_verifying_keys: CloudflareSignerPeerVerifyingKeySetV1,
     /// Deriver B peer binding.
     pub deriver_b: CloudflarePeerBindingV1,
     /// Published control-plane issuer verifying keys.
@@ -2022,15 +1760,11 @@ impl CloudflareDeriverABindingsV1 {
     /// Creates validated Deriver A Worker bindings.
     pub fn new(
         envelope_decrypt_key: impl Into<CloudflareSignerEnvelopeHpkeDecryptKeyBindingSetV1>,
-        peer_signing_key: CloudflareSignerPeerSigningKeyBindingV1,
-        peer_verifying_keys: CloudflareSignerPeerVerifyingKeySetV1,
         deriver_b: CloudflarePeerBindingV1,
         issuer_verifying_keys: CloudflareTenantRootControlPlaneIssuerVerifyingKeysV1,
     ) -> RouterAbProtocolResult<Self> {
         let bindings = Self {
             envelope_decrypt_key: envelope_decrypt_key.into(),
-            peer_signing_key,
-            peer_verifying_keys,
             deriver_b,
             issuer_verifying_keys,
         };
@@ -2042,9 +1776,6 @@ impl CloudflareDeriverABindingsV1 {
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
         self.envelope_decrypt_key
             .validate_visible_to(CloudflareWorkerRoleV1::DeriverA)?;
-        self.peer_signing_key
-            .validate_visible_to(CloudflareWorkerRoleV1::DeriverA)?;
-        self.peer_verifying_keys.validate()?;
         require_peer_role(&self.deriver_b, CloudflareWorkerRoleV1::DeriverB)?;
         self.issuer_verifying_keys.validate()
     }
@@ -2086,10 +1817,6 @@ impl CloudflareSigningWorkerBindingsV1 {
 pub struct CloudflareDeriverBBindingsV1 {
     /// Deriver B signer-envelope HPKE decrypt keys.
     pub envelope_decrypt_key: CloudflareSignerEnvelopeHpkeDecryptKeyBindingSetV1,
-    /// Deriver B A/B peer-message Ed25519 signing key.
-    pub peer_signing_key: CloudflareSignerPeerSigningKeyBindingV1,
-    /// Trusted A/B peer-message Ed25519 verifying keys.
-    pub peer_verifying_keys: CloudflareSignerPeerVerifyingKeySetV1,
     /// Deriver A peer binding.
     pub deriver_a: CloudflarePeerBindingV1,
     /// Published control-plane issuer verifying keys.
@@ -2103,15 +1830,11 @@ impl CloudflareDeriverBBindingsV1 {
     /// Creates validated Deriver B Worker bindings.
     pub fn new(
         envelope_decrypt_key: impl Into<CloudflareSignerEnvelopeHpkeDecryptKeyBindingSetV1>,
-        peer_signing_key: CloudflareSignerPeerSigningKeyBindingV1,
-        peer_verifying_keys: CloudflareSignerPeerVerifyingKeySetV1,
         deriver_a: CloudflarePeerBindingV1,
         issuer_verifying_keys: CloudflareTenantRootControlPlaneIssuerVerifyingKeysV1,
     ) -> RouterAbProtocolResult<Self> {
         let bindings = Self {
             envelope_decrypt_key: envelope_decrypt_key.into(),
-            peer_signing_key,
-            peer_verifying_keys,
             deriver_a,
             issuer_verifying_keys,
         };
@@ -2123,9 +1846,6 @@ impl CloudflareDeriverBBindingsV1 {
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
         self.envelope_decrypt_key
             .validate_visible_to(CloudflareWorkerRoleV1::DeriverB)?;
-        self.peer_signing_key
-            .validate_visible_to(CloudflareWorkerRoleV1::DeriverB)?;
-        self.peer_verifying_keys.validate()?;
         require_peer_role(&self.deriver_a, CloudflareWorkerRoleV1::DeriverA)?;
         self.issuer_verifying_keys.validate()
     }
@@ -2458,10 +2178,6 @@ pub struct CloudflareSignerHostPreloadInputV1 {
     pub signer_set_id: String,
     /// Root-share epoch to load for the local signer role.
     pub root_share_epoch: RootShareEpoch,
-    /// Peer responses already fetched by an adapter-specific A/B coordinator.
-    pub peer_responses: Vec<WireMessageV1>,
-    /// Trusted signer verifying keys used for A/B peer authentication.
-    pub signer_verifying_keys: Vec<AbPeerMessageVerifyingKeyV1>,
     /// Number of random bytes to preload before entering synchronous core code.
     pub random_bytes_len: usize,
 }
@@ -2471,22 +2187,18 @@ impl CloudflareSignerHostPreloadInputV1 {
     pub fn new(
         signer_set_id: impl Into<String>,
         root_share_epoch: RootShareEpoch,
-        peer_responses: Vec<WireMessageV1>,
-        signer_verifying_keys: Vec<AbPeerMessageVerifyingKeyV1>,
         random_bytes_len: usize,
     ) -> RouterAbProtocolResult<Self> {
         let input = Self {
             signer_set_id: signer_set_id.into(),
             root_share_epoch,
-            peer_responses,
-            signer_verifying_keys,
             random_bytes_len,
         };
         input.validate()?;
         Ok(input)
     }
 
-    /// Validates preload identity, peer response shape, and random-buffer budget.
+    /// Validates preload identity and random-buffer budget.
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
         require_non_empty("signer_set_id", &self.signer_set_id)?;
         require_non_empty("root_share_epoch", self.root_share_epoch.as_str())?;
@@ -2496,43 +2208,7 @@ impl CloudflareSignerHostPreloadInputV1 {
                 "signer host random preload length exceeds maximum",
             ));
         }
-        validate_signer_verifying_keys_v1(&self.signer_verifying_keys)?;
-        for response in &self.peer_responses {
-            require_preloaded_peer_response_v1(response)?;
-            verify_peer_message_authentication_with_keys_v1(&self.signer_verifying_keys, response)?;
-        }
         Ok(())
-    }
-}
-
-/// Decodes a lowercase-hex Ed25519 peer verifying key.
-pub fn decode_cloudflare_peer_verifying_key_hex_v1(
-    hex_value: &str,
-) -> RouterAbProtocolResult<[u8; 32]> {
-    let hex_value = hex_value.trim();
-    let expected_len = 64;
-    if hex_value.len() != expected_len {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            "Cloudflare peer verifying key hex must be 64 characters",
-        ));
-    }
-    let mut out = [0u8; 32];
-    for (index, chunk) in hex_value.as_bytes().chunks_exact(2).enumerate() {
-        out[index] = (decode_cloudflare_peer_verifying_key_hex_nibble_v1(chunk[0])? << 4)
-            | decode_cloudflare_peer_verifying_key_hex_nibble_v1(chunk[1])?;
-    }
-    Ok(out)
-}
-
-fn decode_cloudflare_peer_verifying_key_hex_nibble_v1(byte: u8) -> RouterAbProtocolResult<u8> {
-    match byte {
-        b'0'..=b'9' => Ok(byte - b'0'),
-        b'a'..=b'f' => Ok(byte - b'a' + 10),
-        _ => Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            "Cloudflare peer verifying key hex must use lowercase hex",
-        )),
     }
 }
 
@@ -2543,10 +2219,6 @@ pub struct CloudflarePreloadedSignerHostV1 {
     pub now_unix_ms: u64,
     /// Role-local root-share startup metadata loaded before engine execution.
     pub root_share_metadata: Vec<CloudflareRootShareStartupMetadataV1>,
-    /// Preloaded peer responses available to synchronous engine code.
-    pub peer_responses: Vec<WireMessageV1>,
-    /// Trusted signer verifying keys available to synchronous engine code.
-    pub signer_verifying_keys: Vec<AbPeerMessageVerifyingKeyV1>,
     /// Random bytes supplied by the adapter before engine execution.
     pub random_bytes: Vec<u8>,
 }
@@ -2556,15 +2228,11 @@ impl CloudflarePreloadedSignerHostV1 {
     pub fn new(
         now_unix_ms: u64,
         root_share_metadata: Vec<CloudflareRootShareStartupMetadataV1>,
-        peer_responses: Vec<WireMessageV1>,
-        signer_verifying_keys: Vec<AbPeerMessageVerifyingKeyV1>,
         random_bytes: Vec<u8>,
     ) -> RouterAbProtocolResult<Self> {
         let host = Self {
             now_unix_ms,
             root_share_metadata,
-            peer_responses,
-            signer_verifying_keys,
             random_bytes,
         };
         host.validate()?;
@@ -2582,11 +2250,6 @@ impl CloudflarePreloadedSignerHostV1 {
         for metadata in &self.root_share_metadata {
             metadata.validate()?;
             require_signer_role(metadata.signer_role)?;
-        }
-        validate_signer_verifying_keys_v1(&self.signer_verifying_keys)?;
-        for response in &self.peer_responses {
-            require_preloaded_peer_response_v1(response)?;
-            verify_peer_message_authentication_with_keys_v1(&self.signer_verifying_keys, response)?;
         }
         Ok(())
     }
@@ -2645,13 +2308,7 @@ pub fn build_cloudflare_preloaded_signer_host_v1(
             "preloaded random byte length does not match signer host preload input",
         ));
     }
-    CloudflarePreloadedSignerHostV1::new(
-        now_unix_ms,
-        vec![root_share_metadata],
-        input.peer_responses,
-        input.signer_verifying_keys,
-        random_bytes,
-    )
+    CloudflarePreloadedSignerHostV1::new(now_unix_ms, vec![root_share_metadata], random_bytes)
 }
 
 impl Clock for CloudflarePreloadedSignerHostV1 {
@@ -2691,26 +2348,6 @@ impl SignerKeyStore for CloudflarePreloadedSignerHostV1 {
                 )
             })
     }
-
-    fn signer_verifying_key(
-        &self,
-        signer: &SignerIdentityV1,
-    ) -> RouterAbProtocolResult<AbPeerMessageVerifyingKeyV1> {
-        require_signer_role(signer.role)?;
-        self.signer_verifying_keys
-            .iter()
-            .find(|key| &key.signer == signer)
-            .cloned()
-            .ok_or_else(|| {
-                RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::MissingLocalBinding,
-                    format!(
-                        "preloaded signer host is missing {} verifying key",
-                        signer.role.as_str()
-                    ),
-                )
-            })
-    }
 }
 
 impl SigningRootShareStore for CloudflarePreloadedSignerHostV1 {
@@ -2721,21 +2358,6 @@ impl SigningRootShareStore for CloudflarePreloadedSignerHostV1 {
             .root_share_metadata
             .iter()
             .any(|metadata| metadata.signer_role == role && &metadata.root_share_epoch == epoch))
-    }
-}
-
-impl PeerTransport for CloudflarePreloadedSignerHostV1 {
-    fn send_peer_message(&self, message: WireMessageV1) -> RouterAbProtocolResult<WireMessageV1> {
-        self.peer_responses
-            .iter()
-            .find(|response| response.transcript_digest == message.transcript_digest)
-            .cloned()
-            .ok_or_else(|| {
-                RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::MissingLocalBinding,
-                    "preloaded signer host is missing a peer response for the transcript",
-                )
-            })
     }
 }
 
@@ -4884,21 +4506,6 @@ impl CloudflareDeriverAWorkerRuntimeV1 {
     pub fn envelope_decrypt_key(&self) -> &CloudflareSignerEnvelopeHpkeDecryptKeyBindingSetV1 {
         &self.bindings.envelope_decrypt_key
     }
-
-    /// Returns Deriver A's role-local A/B peer signing-key descriptor.
-    pub fn peer_signing_key(&self) -> &CloudflareSignerPeerSigningKeyBindingV1 {
-        &self.bindings.peer_signing_key
-    }
-
-    /// Returns trusted A/B peer verifying keys bound to a request signer set.
-    pub fn peer_verifying_keys_for_signer_set(
-        &self,
-        signer_set: &SignerSetV1,
-    ) -> RouterAbProtocolResult<Vec<AbPeerMessageVerifyingKeyV1>> {
-        self.bindings
-            .peer_verifying_keys
-            .to_protocol_keys(signer_set)
-    }
 }
 
 impl CloudflareSigningWorkerRuntimeV1 {
@@ -5039,21 +4646,6 @@ impl CloudflareDeriverBWorkerRuntimeV1 {
     /// Returns Deriver B's role-local signer-envelope HPKE decrypt-key descriptors.
     pub fn envelope_decrypt_key(&self) -> &CloudflareSignerEnvelopeHpkeDecryptKeyBindingSetV1 {
         &self.bindings.envelope_decrypt_key
-    }
-
-    /// Returns Deriver B's role-local A/B peer signing-key descriptor.
-    pub fn peer_signing_key(&self) -> &CloudflareSignerPeerSigningKeyBindingV1 {
-        &self.bindings.peer_signing_key
-    }
-
-    /// Returns trusted A/B peer verifying keys bound to a request signer set.
-    pub fn peer_verifying_keys_for_signer_set(
-        &self,
-        signer_set: &SignerSetV1,
-    ) -> RouterAbProtocolResult<Vec<AbPeerMessageVerifyingKeyV1>> {
-        self.bindings
-            .peer_verifying_keys
-            .to_protocol_keys(signer_set)
     }
 }
 
@@ -10186,34 +9778,15 @@ impl CloudflareSignerHostPreloadPlanV1 {
         Ok(())
     }
 
-    /// Builds Deriver-host preload input after the adapter supplies peer material.
+    /// Builds Deriver-host preload input for these coordinates.
     pub fn to_host_preload_input(
         &self,
-        peer_responses: Vec<WireMessageV1>,
-        signer_verifying_keys: Vec<AbPeerMessageVerifyingKeyV1>,
         random_bytes_len: usize,
     ) -> RouterAbProtocolResult<CloudflareSignerHostPreloadInputV1> {
         self.validate()?;
         CloudflareSignerHostPreloadInputV1::new(
             self.signer_set_id.clone(),
             self.root_share_epoch.clone(),
-            peer_responses,
-            signer_verifying_keys,
-            random_bytes_len,
-        )
-    }
-
-    /// Builds Deriver-host preload input from a trusted public verifying-key set.
-    pub fn to_host_preload_input_with_key_set(
-        &self,
-        peer_responses: Vec<WireMessageV1>,
-        peer_verifying_keys: &CloudflareSignerPeerVerifyingKeySetV1,
-        random_bytes_len: usize,
-    ) -> RouterAbProtocolResult<CloudflareSignerHostPreloadInputV1> {
-        self.validate()?;
-        self.to_host_preload_input(
-            peer_responses,
-            peer_verifying_keys.to_protocol_keys(&self.signer_set)?,
             random_bytes_len,
         )
     }
@@ -11059,165 +10632,6 @@ pub fn handle_cloudflare_deriver_a_recipient_proof_bundle_activation_request_v1(
         request.activation_context.transcript_digest(),
         active_signing_worker_state,
         true,
-    )
-}
-
-/// Validates a direct A/B peer message for the target Worker role.
-pub fn validate_cloudflare_deriver_peer_request_v1(
-    worker_role: CloudflareWorkerRoleV1,
-    message: &WireMessageV1,
-) -> RouterAbProtocolResult<()> {
-    let expected = expected_signer_peer_request_kind_v1(worker_role)?;
-    if message.kind != expected {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalRoute,
-            format!(
-                "{} peer endpoint expected {} message, received {}",
-                worker_role.as_str(),
-                expected.as_str(),
-                message.kind.as_str()
-            ),
-        ));
-    }
-    if message.payload.as_bytes().is_empty() {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::MalformedWirePayload,
-            "direct A/B peer request payload must be non-empty",
-        ));
-    }
-    decode_and_validate_cloudflare_deriver_peer_message_payload_v1(message)?;
-    Ok(())
-}
-
-/// Validates a direct A/B peer response against the request and target Worker role.
-pub fn validate_cloudflare_deriver_peer_response_v1(
-    worker_role: CloudflareWorkerRoleV1,
-    request: &WireMessageV1,
-    response: &WireMessageV1,
-) -> RouterAbProtocolResult<()> {
-    validate_cloudflare_deriver_peer_request_v1(worker_role, request)?;
-    let expected = expected_signer_peer_response_kind_v1(worker_role)?;
-    if response.kind != expected {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            format!(
-                "{} peer endpoint expected {} response, received {}",
-                worker_role.as_str(),
-                expected.as_str(),
-                response.kind.as_str()
-            ),
-        ));
-    }
-    if response.transcript_digest != request.transcript_digest {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            "direct A/B peer response transcript digest does not match request",
-        ));
-    }
-    if response.payload.as_bytes().is_empty() {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::MalformedWirePayload,
-            "direct A/B peer response payload must be non-empty",
-        ));
-    }
-    decode_and_validate_cloudflare_deriver_peer_message_payload_v1(response)?;
-    Ok(())
-}
-
-/// Decodes and validates the canonical A/B peer payload inside a wire message.
-pub fn decode_and_validate_cloudflare_deriver_peer_message_payload_v1(
-    message: &WireMessageV1,
-) -> RouterAbProtocolResult<AbPeerMessagePayloadV1> {
-    let payload = decode_ab_peer_message_payload_v1(message.payload.as_bytes())?;
-    if payload.transcript_digest != message.transcript_digest {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::MalformedWirePayload,
-            "direct A/B peer payload transcript digest does not match wire message",
-        ));
-    }
-    let (expected_from, expected_to) = match message.kind {
-        WireMessageKindV1::SignerAToSignerB => (Role::SignerA, Role::SignerB),
-        WireMessageKindV1::SignerBToSignerA => (Role::SignerB, Role::SignerA),
-        _ => {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalRoute,
-                "wire message kind is not a direct A/B peer message",
-            ));
-        }
-    };
-    if payload.from.role != expected_from || payload.to.role != expected_to {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidSignerIdentity,
-            "direct A/B peer payload signer identities do not match wire direction",
-        ));
-    }
-    Ok(payload)
-}
-
-/// Verifies an authenticated direct A/B peer message with trusted signer keys.
-pub fn verify_cloudflare_deriver_peer_message_authentication_v1(
-    key_store: &impl SignerKeyStore,
-    message: &WireMessageV1,
-) -> RouterAbProtocolResult<AbPeerMessagePayloadV1> {
-    let payload = decode_and_validate_cloudflare_deriver_peer_message_payload_v1(message)?;
-    let verifying_key = key_store.signer_verifying_key(&payload.from)?;
-    verify_ab_peer_message_ed25519_signature_v1(&payload, &verifying_key)?;
-    Ok(payload)
-}
-
-/// Builds and signs one direct A/B peer wire message with the Worker-local Ed25519 key.
-#[cfg(feature = "workers-rs")]
-pub fn sign_cloudflare_deriver_peer_wire_message_v1(
-    env: &worker::Env,
-    worker_role: CloudflareWorkerRoleV1,
-    signing_key: &CloudflareSignerPeerSigningKeyBindingV1,
-    from: SignerIdentityV1,
-    to: SignerIdentityV1,
-    transcript_digest: PublicDigest32,
-    peer_body: CanonicalWireBytesV1,
-) -> RouterAbProtocolResult<WireMessageV1> {
-    signing_key.validate_visible_to(worker_role)?;
-    from.validate()?;
-    to.validate()?;
-    let local_role = cloudflare_worker_signer_role_v1(worker_role)?;
-    if from.role != local_role || signing_key.role != from.role {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidSignerIdentity,
-            "Cloudflare peer signing key must match the local sender role",
-        ));
-    }
-    if signing_key.key_epoch != from.key_epoch {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidSignerIdentity,
-            "Cloudflare peer signing key epoch must match the sender identity epoch",
-        ));
-    }
-    let kind = match (from.role, to.role) {
-        (Role::SignerA, Role::SignerB) => WireMessageKindV1::SignerAToSignerB,
-        (Role::SignerB, Role::SignerA) => WireMessageKindV1::SignerBToSignerA,
-        _ => {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidRole,
-                "Cloudflare peer signing requires a cross-signer A/B direction",
-            ));
-        }
-    };
-    let mut signing_key_bytes =
-        load_cloudflare_deriver_peer_signing_key_bytes_v1(env, signing_key)?;
-    let authentication = sign_ab_peer_message_ed25519_authentication_v1(
-        &signing_key_bytes,
-        &from,
-        &to,
-        transcript_digest,
-        &peer_body,
-    );
-    signing_key_bytes.zeroize();
-    let payload =
-        AbPeerMessagePayloadV1::new(from, to, transcript_digest, peer_body, authentication?)?;
-    WireMessageV1::new(
-        kind,
-        transcript_digest,
-        CanonicalWireBytesV1::new(payload.canonical_bytes())?,
     )
 }
 
@@ -13086,40 +12500,6 @@ where
     }
 }
 
-/// Handles the direct Deriver A peer coordination route.
-#[cfg(feature = "workers-rs")]
-pub async fn handle_cloudflare_deriver_a_peer_fetch_v1(
-    key_store: &impl SignerKeyStore,
-    handler: &impl CloudflareSignerWireHandlerV1,
-    request: worker::Request,
-) -> worker::Result<worker::Response> {
-    handle_cloudflare_deriver_peer_fetch_v1(
-        CloudflareWorkerRoleV1::DeriverA,
-        CLOUDFLARE_DERIVER_A_PEER_REQUEST_PATH,
-        key_store,
-        handler,
-        request,
-    )
-    .await
-}
-
-/// Handles the direct Deriver B peer coordination route.
-#[cfg(feature = "workers-rs")]
-pub async fn handle_cloudflare_deriver_b_peer_fetch_v1(
-    key_store: &impl SignerKeyStore,
-    handler: &impl CloudflareSignerWireHandlerV1,
-    request: worker::Request,
-) -> worker::Result<worker::Response> {
-    handle_cloudflare_deriver_peer_fetch_v1(
-        CloudflareWorkerRoleV1::DeriverB,
-        CLOUDFLARE_DERIVER_B_PEER_REQUEST_PATH,
-        key_store,
-        handler,
-        request,
-    )
-    .await
-}
-
 #[cfg(feature = "workers-rs")]
 async fn handle_cloudflare_signer_recipient_proof_bundle_private_fetch_v1(
     worker_role: CloudflareWorkerRoleV1,
@@ -13163,60 +12543,6 @@ async fn handle_cloudflare_signer_recipient_proof_bundle_private_fetch_v1(
             cloudflare_router_error_status(err.code()),
         ),
     }
-}
-
-#[cfg(feature = "workers-rs")]
-async fn handle_cloudflare_deriver_peer_fetch_v1(
-    worker_role: CloudflareWorkerRoleV1,
-    expected_path: &str,
-    key_store: &impl SignerKeyStore,
-    handler: &impl CloudflareSignerWireHandlerV1,
-    mut request: worker::Request,
-) -> worker::Result<worker::Response> {
-    if request.method() != worker::Method::Post {
-        return worker::Response::error("Router A/B signer peer route requires POST", 405);
-    }
-    if request.path() != expected_path {
-        return worker::Response::error(
-            format!(
-                "{} peer request must be served at {}",
-                worker_role.as_str(),
-                expected_path
-            ),
-            404,
-        );
-    }
-    let parsed = match request.json::<WireMessageV1>().await {
-        Ok(parsed) => parsed,
-        Err(err) => {
-            return worker::Response::error(
-                format!("Router A/B signer peer request JSON parse failed: {err}"),
-                400,
-            );
-        }
-    };
-    match handle_cloudflare_deriver_peer_request_v1(worker_role, key_store, handler, parsed) {
-        Ok(response) => worker::Response::from_json(&response),
-        Err(err) => worker::Response::error(
-            format!("{:?}: {}", err.code(), err.message()),
-            cloudflare_router_error_status(err.code()),
-        ),
-    }
-}
-
-/// Handles one parsed direct A/B peer request through a platform-neutral handler.
-pub fn handle_cloudflare_deriver_peer_request_v1(
-    worker_role: CloudflareWorkerRoleV1,
-    key_store: &impl SignerKeyStore,
-    handler: &impl CloudflareSignerWireHandlerV1,
-    message: WireMessageV1,
-) -> RouterAbProtocolResult<WireMessageV1> {
-    validate_cloudflare_deriver_peer_request_v1(worker_role, &message)?;
-    verify_cloudflare_deriver_peer_message_authentication_v1(key_store, &message)?;
-    let response = handler.handle_signer_wire_message(message.clone())?;
-    validate_cloudflare_deriver_peer_response_v1(worker_role, &message, &response)?;
-    verify_cloudflare_deriver_peer_message_authentication_v1(key_store, &response)?;
-    Ok(response)
 }
 
 #[cfg(feature = "workers-rs")]
@@ -14045,28 +13371,6 @@ pub async fn execute_cloudflare_signing_worker_linked_device_ecdsa_finalize_serv
     Ok(response)
 }
 
-/// Sends one direct A/B peer message over a Cloudflare Service Binding.
-#[cfg(feature = "workers-rs")]
-pub async fn execute_cloudflare_deriver_peer_service_call_v1(
-    env: &worker::Env,
-    peer: &CloudflarePeerBindingV1,
-    message: &WireMessageV1,
-) -> RouterAbProtocolResult<WireMessageV1> {
-    peer.validate()?;
-    validate_cloudflare_deriver_peer_request_v1(peer.peer_role, message)?;
-    let label = format!("{} peer request", peer.peer_role.as_str());
-    let response: WireMessageV1 = post_service_json(
-        env,
-        &peer.binding_name,
-        cloudflare_deriver_peer_service_url(peer)?,
-        &label,
-        message,
-    )
-    .await?;
-    validate_cloudflare_deriver_peer_response_v1(peer.peer_role, message, &response)?;
-    Ok(response)
-}
-
 #[cfg(feature = "workers-rs")]
 pub(crate) const TENANT_ROOT_CONTROL_PLANE_SERVICE_BINDING_V1: &str = "TENANT_ROOT_CONTROL_PLANE";
 
@@ -14328,13 +13632,6 @@ pub fn parse_cloudflare_signer_envelope_hpke_rotation_public_key_set_v1(
     )
 }
 
-/// Parses public A/B peer-message verifying keys from an Env reader.
-pub fn parse_cloudflare_deriver_peer_verifying_key_set_v1(
-    env: &impl CloudflareEnvReaderV1,
-) -> RouterAbProtocolResult<CloudflareSignerPeerVerifyingKeySetV1> {
-    read_signer_peer_verifying_key_set(env)
-}
-
 /// Builds the public Router A/B keyset discovery response from Env.
 pub fn build_cloudflare_router_public_keyset_v2(
     env: &impl CloudflareEnvReaderV1,
@@ -14342,7 +13639,6 @@ pub fn build_cloudflare_router_public_keyset_v2(
     CloudflareRouterPublicKeysetV2::new(
         "router_ab_keyset_v2",
         parse_cloudflare_signer_envelope_hpke_rotation_public_key_set_v1(env)?,
-        parse_cloudflare_deriver_peer_verifying_key_set_v1(env)?.to_hex_descriptor_set()?,
         CloudflarePublicHpkeKeyDescriptorV1::new(
             read_required_env_text(env, SIGNING_WORKER_SERVER_OUTPUT_HPKE_KEY_EPOCH_ENV)?,
             read_required_env_text(env, SIGNING_WORKER_SERVER_OUTPUT_HPKE_PUBLIC_KEY_ENV)?,
@@ -14425,13 +13721,6 @@ pub fn parse_cloudflare_deriver_a_bindings_v1(
             CloudflareWorkerRoleV1::DeriverA,
             env,
         )?,
-        read_signer_peer_signing_key_binding(
-            env,
-            Role::SignerA,
-            DERIVER_A_PEER_SIGNING_KEY_BINDING_ENV,
-            DERIVER_A_PEER_SIGNING_KEY_EPOCH_ENV,
-        )?,
-        read_signer_peer_verifying_key_set(env)?,
         read_peer_binding(
             env,
             CloudflareWorkerRoleV1::DeriverB,
@@ -14480,13 +13769,6 @@ pub fn parse_cloudflare_deriver_b_bindings_v1(
             CloudflareWorkerRoleV1::DeriverB,
             env,
         )?,
-        read_signer_peer_signing_key_binding(
-            env,
-            Role::SignerB,
-            DERIVER_B_PEER_SIGNING_KEY_BINDING_ENV,
-            DERIVER_B_PEER_SIGNING_KEY_EPOCH_ENV,
-        )?,
-        read_signer_peer_verifying_key_set(env)?,
         read_peer_binding(
             env,
             CloudflareWorkerRoleV1::DeriverA,
@@ -14568,12 +13850,10 @@ pub fn validate_cloudflare_worker_env_bindings_v1(
         }
         CloudflareWorkerBindingsV1::DeriverA { bindings } => {
             require_worker_hpke_secret_set(env, &bindings.envelope_decrypt_key)?;
-            require_worker_peer_signing_secret(env, &bindings.peer_signing_key)?;
             require_worker_service(env, &bindings.deriver_b)
         }
         CloudflareWorkerBindingsV1::DeriverB { bindings } => {
             require_worker_hpke_secret_set(env, &bindings.envelope_decrypt_key)?;
-            require_worker_peer_signing_secret(env, &bindings.peer_signing_key)?;
             require_worker_service(env, &bindings.deriver_a)
         }
         CloudflareWorkerBindingsV1::SigningWorker { bindings } => {
@@ -14761,64 +14041,6 @@ fn validate_cloudflare_recipient_proof_bundle_envelope_for_activation_context_v1
     Ok(())
 }
 
-fn require_preloaded_peer_response_v1(message: &WireMessageV1) -> RouterAbProtocolResult<()> {
-    match message.kind {
-        WireMessageKindV1::SignerAToSignerB | WireMessageKindV1::SignerBToSignerA
-            if !message.payload.as_bytes().is_empty() =>
-        {
-            decode_and_validate_cloudflare_deriver_peer_message_payload_v1(message)?;
-            Ok(())
-        }
-        WireMessageKindV1::SignerAToSignerB | WireMessageKindV1::SignerBToSignerA => {
-            Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MalformedWirePayload,
-                "preloaded A/B peer response payload must be non-empty",
-            ))
-        }
-        _ => Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalRoute,
-            format!(
-                "preloaded signer host peer response must be an A/B peer message, received {}",
-                message.kind.as_str()
-            ),
-        )),
-    }
-}
-
-fn validate_signer_verifying_keys_v1(
-    keys: &[AbPeerMessageVerifyingKeyV1],
-) -> RouterAbProtocolResult<()> {
-    for (index, key) in keys.iter().enumerate() {
-        key.validate()?;
-        for prior in &keys[..index] {
-            if prior.signer == key.signer {
-                return Err(RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::InvalidSignerIdentity,
-                    "duplicate A/B peer signer verifying key",
-                ));
-            }
-        }
-    }
-    Ok(())
-}
-
-fn verify_peer_message_authentication_with_keys_v1(
-    keys: &[AbPeerMessageVerifyingKeyV1],
-    message: &WireMessageV1,
-) -> RouterAbProtocolResult<()> {
-    let payload = decode_and_validate_cloudflare_deriver_peer_message_payload_v1(message)?;
-    let verifying_key = keys
-        .iter()
-        .find(|key| key.signer == payload.from)
-        .ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MissingLocalBinding,
-                "preloaded A/B peer message sender has no trusted verifying key",
-            )
-        })?;
-    verify_ab_peer_message_ed25519_signature_v1(&payload, verifying_key)
-}
-
 fn expected_signer_private_request_kind_v1(
     worker_role: CloudflareWorkerRoleV1,
 ) -> RouterAbProtocolResult<WireMessageKindV1> {
@@ -14878,36 +14100,6 @@ fn cloudflare_signer_identities_for_request_v1(
         ));
     }
     Ok((assignment.signer.clone(), peer_signer, peer_worker_role))
-}
-
-fn expected_signer_peer_request_kind_v1(
-    worker_role: CloudflareWorkerRoleV1,
-) -> RouterAbProtocolResult<WireMessageKindV1> {
-    match worker_role {
-        CloudflareWorkerRoleV1::DeriverA => Ok(WireMessageKindV1::SignerBToSignerA),
-        CloudflareWorkerRoleV1::DeriverB => Ok(WireMessageKindV1::SignerAToSignerB),
-        CloudflareWorkerRoleV1::Router
-        | CloudflareWorkerRoleV1::SigningWorker
-        | CloudflareWorkerRoleV1::TenantRootControlPlane => Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidRole,
-            "this Worker has no direct A/B peer request kind",
-        )),
-    }
-}
-
-fn expected_signer_peer_response_kind_v1(
-    worker_role: CloudflareWorkerRoleV1,
-) -> RouterAbProtocolResult<WireMessageKindV1> {
-    match worker_role {
-        CloudflareWorkerRoleV1::DeriverA => Ok(WireMessageKindV1::SignerAToSignerB),
-        CloudflareWorkerRoleV1::DeriverB => Ok(WireMessageKindV1::SignerBToSignerA),
-        CloudflareWorkerRoleV1::Router
-        | CloudflareWorkerRoleV1::SigningWorker
-        | CloudflareWorkerRoleV1::TenantRootControlPlane => Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidRole,
-            "this Worker has no direct A/B peer response kind",
-        )),
-    }
 }
 
 fn read_signing_worker_presign_session_binding(
@@ -15008,47 +14200,6 @@ fn read_server_output_hpke_decrypt_key_binding(
         read_required_env_text(env, binding_name_key)?,
         read_required_env_text(env, key_epoch_key)?,
         read_required_env_text(env, public_key_key)?,
-    )
-}
-
-fn read_signer_peer_signing_key_binding(
-    env: &impl CloudflareEnvReaderV1,
-    role: Role,
-    binding_name_key: &str,
-    key_epoch_key: &str,
-) -> RouterAbProtocolResult<CloudflareSignerPeerSigningKeyBindingV1> {
-    CloudflareSignerPeerSigningKeyBindingV1::new(
-        role,
-        read_required_env_text(env, binding_name_key)?,
-        read_required_env_text(env, key_epoch_key)?,
-    )
-}
-
-fn read_signer_peer_verifying_key_set(
-    env: &impl CloudflareEnvReaderV1,
-) -> RouterAbProtocolResult<CloudflareSignerPeerVerifyingKeySetV1> {
-    CloudflareSignerPeerVerifyingKeySetV1::new(
-        read_signer_peer_verifying_key_bytes(
-            env,
-            Role::SignerA,
-            DERIVER_A_PEER_VERIFYING_KEY_HEX_ENV,
-        )?,
-        read_signer_peer_verifying_key_bytes(
-            env,
-            Role::SignerB,
-            DERIVER_B_PEER_VERIFYING_KEY_HEX_ENV,
-        )?,
-    )
-}
-
-fn read_signer_peer_verifying_key_bytes(
-    env: &impl CloudflareEnvReaderV1,
-    role: Role,
-    key: &str,
-) -> RouterAbProtocolResult<CloudflareSignerPeerVerifyingKeyBytesV1> {
-    CloudflareSignerPeerVerifyingKeyBytesV1::new(
-        role,
-        decode_cloudflare_peer_verifying_key_hex_v1(&read_required_env_text(env, key)?)?,
     )
 }
 
@@ -15176,14 +14327,6 @@ fn require_worker_server_output_hpke_secret(
 }
 
 #[cfg(feature = "workers-rs")]
-fn require_worker_peer_signing_secret(
-    env: &worker::Env,
-    binding: &CloudflareSignerPeerSigningKeyBindingV1,
-) -> RouterAbProtocolResult<()> {
-    require_worker_secret_binding_name(env, &binding.binding_name)
-}
-
-#[cfg(feature = "workers-rs")]
 fn require_worker_secret_binding_name(
     env: &worker::Env,
     binding_name: &str,
@@ -15197,54 +14340,6 @@ fn require_worker_secret_binding_name(
             err,
         )),
     }
-}
-
-#[cfg(feature = "workers-rs")]
-fn load_cloudflare_deriver_peer_signing_key_bytes_v1(
-    env: &worker::Env,
-    binding: &CloudflareSignerPeerSigningKeyBindingV1,
-) -> RouterAbProtocolResult<[u8; 32]> {
-    binding.validate()?;
-    let secret = env.secret(&binding.binding_name).map_err(|err| {
-        worker_binding_error(
-            worker_binding_error_code(&err, &binding.binding_name),
-            &binding.binding_name,
-            "secret",
-            err,
-        )
-    })?;
-    let mut secret_value = secret.to_string();
-    let key = decode_cloudflare_deriver_peer_signing_key_v1(&secret_value);
-    secret_value.zeroize();
-    key
-}
-
-#[cfg(feature = "workers-rs")]
-fn decode_cloudflare_deriver_peer_signing_key_v1(
-    secret_value: &str,
-) -> RouterAbProtocolResult<[u8; 32]> {
-    let mut key_bytes = match base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .decode(secret_value.trim().as_bytes())
-    {
-        Ok(bytes) => bytes,
-        Err(_) => {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "Cloudflare A/B peer signing key secret must be unpadded base64url",
-            ));
-        }
-    };
-    if key_bytes.len() != 32 {
-        key_bytes.zeroize();
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            "Cloudflare A/B peer signing key secret must decode to 32 bytes",
-        ));
-    }
-    let mut key = [0u8; 32];
-    key.copy_from_slice(&key_bytes);
-    key_bytes.zeroize();
-    Ok(key)
 }
 
 #[cfg(feature = "workers-rs")]

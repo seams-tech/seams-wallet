@@ -171,8 +171,6 @@ function identityEvidenceAt(armRoot) {
     issuerEnvPath: path.join(armRoot, 'tenant-root-issuer.env'),
   });
   const routerEnv = readEnv(path.join(armRoot, '.env.router-ab.router.local'));
-  const deriverAEnv = readEnv(path.join(armRoot, '.env.router-ab.deriver-a.local'));
-  const deriverBEnv = readEnv(path.join(armRoot, '.env.router-ab.deriver-b.local'));
   const signingWorkerEnv = readEnv(path.join(armRoot, '.env.router-ab.signing-worker.local'));
   const internalAuth = routerEnv.get('ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET');
   if (!internalAuth) throw new Error(`Missing internal service authentication at ${armRoot}`);
@@ -184,8 +182,6 @@ function identityEvidenceAt(armRoot) {
     issuer: keys.issuer.verifyingKeysJson,
     deriverA: requiredEnvValue(routerEnv, 'DERIVER_A_ED25519_YAO_INPUT_PUBLIC_KEY'),
     deriverB: requiredEnvValue(routerEnv, 'DERIVER_B_ED25519_YAO_INPUT_PUBLIC_KEY'),
-    deriverAPeer: requiredEnvValue(deriverAEnv, 'DERIVER_A_PEER_VERIFYING_KEY'),
-    deriverBPeer: requiredEnvValue(deriverBEnv, 'DERIVER_B_PEER_VERIFYING_KEY'),
     signingWorker: requiredEnvValue(signingWorkerEnv, 'SIGNING_WORKER_SERVER_OUTPUT_HPKE_PUBLIC_KEY'),
     ceremony: ceremonyJwk.x,
     internalAuthDigest: createHash('sha256').update(internalAuth).digest('hex'),

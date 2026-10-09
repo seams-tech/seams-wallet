@@ -11,11 +11,8 @@ use router_ab_cloudflare::{
     encode_cloudflare_signer_envelope_hpke_private_key_secret_v1, CloudflareEnvMapV1,
     CloudflareWorkerRoleV1, DERIVER_A_ENVELOPE_HPKE_KEY_EPOCH_ENV,
     DERIVER_A_ENVELOPE_HPKE_PRIVATE_KEY_BINDING_ENV, DERIVER_A_PEER_BINDING_ENV,
-    DERIVER_A_PEER_SIGNING_KEY_BINDING_ENV, DERIVER_A_PEER_SIGNING_KEY_EPOCH_ENV,
-    DERIVER_A_PEER_VERIFYING_KEY_HEX_ENV, DERIVER_B_ENVELOPE_HPKE_KEY_EPOCH_ENV,
-    DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY_BINDING_ENV, DERIVER_B_PEER_BINDING_ENV,
-    DERIVER_B_PEER_SIGNING_KEY_BINDING_ENV, DERIVER_B_PEER_SIGNING_KEY_EPOCH_ENV,
-    DERIVER_B_PEER_VERIFYING_KEY_HEX_ENV, SIGNING_WORKER_PRESIGN_SESSION_DO_BINDING_ENV,
+    DERIVER_B_ENVELOPE_HPKE_KEY_EPOCH_ENV, DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY_BINDING_ENV,
+    DERIVER_B_PEER_BINDING_ENV, SIGNING_WORKER_PRESIGN_SESSION_DO_BINDING_ENV,
     SIGNING_WORKER_PRESIGN_SESSION_DO_KEY_PREFIX_ENV, SIGNING_WORKER_PRESIGN_SESSION_DO_OBJECT_ENV,
     SIGNING_WORKER_SERVER_OUTPUT_HPKE_KEY_EPOCH_ENV,
     SIGNING_WORKER_SERVER_OUTPUT_HPKE_PRIVATE_KEY_BINDING_ENV,
@@ -25,8 +22,7 @@ use std::collections::BTreeMap;
 
 use super::{
     required_env_v1, LOCAL_DERIVER_A_ENVELOPE_HPKE_PRIVATE_KEY_ENV_V1,
-    LOCAL_DERIVER_A_PEER_VERIFYING_KEY_ENV_V1, LOCAL_DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY_ENV_V1,
-    LOCAL_DERIVER_B_PEER_VERIFYING_KEY_ENV_V1, LOCAL_SIGNING_WORKER_KEY_EPOCH_ENV_V1,
+    LOCAL_DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY_ENV_V1, LOCAL_SIGNING_WORKER_KEY_EPOCH_ENV_V1,
     LOCAL_SIGNING_WORKER_SERVER_OUTPUT_HPKE_PRIVATE_KEY_ENV_V1,
 };
 
@@ -40,40 +36,29 @@ pub(crate) fn local_deriver_cloudflare_env_v1(
     worker_role: CloudflareWorkerRoleV1,
     env: &BTreeMap<String, String>,
 ) -> RouterAbProtocolResult<CloudflareEnvMapV1> {
-    let (
-        private_key_env,
-        private_key_binding_env,
-        key_epoch_env,
-        peer_signing_key_binding_env,
-        peer_signing_key_epoch_env,
-        peer_binding_env,
-        peer_binding,
-    ) = match worker_role {
-        CloudflareWorkerRoleV1::DeriverA => (
-            LOCAL_DERIVER_A_ENVELOPE_HPKE_PRIVATE_KEY_ENV_V1,
-            DERIVER_A_ENVELOPE_HPKE_PRIVATE_KEY_BINDING_ENV,
-            DERIVER_A_ENVELOPE_HPKE_KEY_EPOCH_ENV,
-            DERIVER_A_PEER_SIGNING_KEY_BINDING_ENV,
-            DERIVER_A_PEER_SIGNING_KEY_EPOCH_ENV,
-            DERIVER_B_PEER_BINDING_ENV,
-            "DERIVER_B",
-        ),
-        CloudflareWorkerRoleV1::DeriverB => (
-            LOCAL_DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY_ENV_V1,
-            DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY_BINDING_ENV,
-            DERIVER_B_ENVELOPE_HPKE_KEY_EPOCH_ENV,
-            DERIVER_B_PEER_SIGNING_KEY_BINDING_ENV,
-            DERIVER_B_PEER_SIGNING_KEY_EPOCH_ENV,
-            DERIVER_A_PEER_BINDING_ENV,
-            "DERIVER_A",
-        ),
-        _ => {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidRole,
-                "a Deriver binding view needs Deriver A or Deriver B",
-            ))
-        }
-    };
+    let (private_key_env, private_key_binding_env, key_epoch_env, peer_binding_env, peer_binding) =
+        match worker_role {
+            CloudflareWorkerRoleV1::DeriverA => (
+                LOCAL_DERIVER_A_ENVELOPE_HPKE_PRIVATE_KEY_ENV_V1,
+                DERIVER_A_ENVELOPE_HPKE_PRIVATE_KEY_BINDING_ENV,
+                DERIVER_A_ENVELOPE_HPKE_KEY_EPOCH_ENV,
+                DERIVER_B_PEER_BINDING_ENV,
+                "DERIVER_B",
+            ),
+            CloudflareWorkerRoleV1::DeriverB => (
+                LOCAL_DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY_ENV_V1,
+                DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY_BINDING_ENV,
+                DERIVER_B_ENVELOPE_HPKE_KEY_EPOCH_ENV,
+                DERIVER_A_PEER_BINDING_ENV,
+                "DERIVER_A",
+            ),
+            _ => {
+                return Err(RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::InvalidRole,
+                    "a Deriver binding view needs Deriver A or Deriver B",
+                ))
+            }
+        };
     // The VM keeps the raw key; the Worker Secret carries its versioned form.
     let private_key = decode_hex_32(&required_env_v1(env, private_key_env)?, private_key_env)?;
     let private_key_secret =
@@ -82,19 +67,6 @@ pub(crate) fn local_deriver_cloudflare_env_v1(
         (private_key_binding_env, private_key_env.to_owned()),
         (private_key_env, private_key_secret),
         (key_epoch_env, LOCAL_KEY_EPOCH_V1.to_owned()),
-        (
-            peer_signing_key_binding_env,
-            peer_signing_key_env(worker_role).to_owned(),
-        ),
-        (peer_signing_key_epoch_env, LOCAL_KEY_EPOCH_V1.to_owned()),
-        (
-            DERIVER_A_PEER_VERIFYING_KEY_HEX_ENV,
-            required_env_v1(env, LOCAL_DERIVER_A_PEER_VERIFYING_KEY_ENV_V1)?,
-        ),
-        (
-            DERIVER_B_PEER_VERIFYING_KEY_HEX_ENV,
-            required_env_v1(env, LOCAL_DERIVER_B_PEER_VERIFYING_KEY_ENV_V1)?,
-        ),
         (peer_binding_env, peer_binding.to_owned()),
     ]))
 }
@@ -132,13 +104,6 @@ pub(crate) fn local_signing_worker_cloudflare_env_v1(
             required_env_v1(env, LOCAL_SIGNING_WORKER_KEY_EPOCH_ENV_V1)?,
         ),
     ]))
-}
-
-fn peer_signing_key_env(worker_role: CloudflareWorkerRoleV1) -> &'static str {
-    match worker_role {
-        CloudflareWorkerRoleV1::DeriverA => super::LOCAL_DERIVER_A_PEER_SIGNING_KEY_ENV_V1,
-        _ => super::LOCAL_DERIVER_B_PEER_SIGNING_KEY_ENV_V1,
-    }
 }
 
 fn entries(env: &BTreeMap<String, String>) -> CloudflareEnvMapV1 {

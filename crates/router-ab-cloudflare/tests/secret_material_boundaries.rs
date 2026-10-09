@@ -32,9 +32,6 @@ fn cloudflare_route_boundaries_do_not_decode_signer_plaintext() {
         "decode_and_validate_cloudflare_signer_envelope_hpke_payload_v1",
         "handle_cloudflare_signer_recipient_proof_bundle_private_fetch_v1",
         "handle_cloudflare_signer_recipient_proof_bundle_private_request_v1",
-        "validate_cloudflare_deriver_peer_request_v1",
-        "handle_cloudflare_deriver_peer_fetch_v1",
-        "handle_cloudflare_deriver_peer_request_v1",
     ] {
         let body = extract_function_body(&lib_rs, function_name);
         for forbidden in ["SignerInputPlaintextV1", "decode_signer_input_plaintext_v1"] {

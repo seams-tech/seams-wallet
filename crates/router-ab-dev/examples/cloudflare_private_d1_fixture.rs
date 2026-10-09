@@ -208,11 +208,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let fixture = PrivateD1Fixture {
         linked_presign_init: linked_presign_init_fixture()?,
-        router_env: cloudflare_router_env(router_local, deriver_a_local)?,
+        router_env: cloudflare_router_env(router_local)?,
         deriver_a_env: cloudflare_deriver_a_env(deriver_a_local, router_local)?,
         deriver_b_env: cloudflare_deriver_b_env(deriver_b_local, router_local)?,
         signing_worker_env: cloudflare_signing_worker_env(signing_worker_local)?,
-        tenant_root_control_plane_env: cloudflare_tenant_root_control_plane_env(deriver_a_local)?,
+        tenant_root_control_plane_env: cloudflare_tenant_root_control_plane_env()?,
         managed_restore: managed_restore_authorization_fixture(),
         tenant_root_creation: tenant_root_creation_fixture()?,
         role_retry: request_fixture(
@@ -529,7 +529,6 @@ fn request_fixture(
 
 fn cloudflare_router_env(
     local: &BTreeMap<String, String>,
-    deriver_local: &BTreeMap<String, String>,
 ) -> Result<BTreeMap<String, String>, Box<dyn std::error::Error>> {
     let mut env = BTreeMap::from([
         ("ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_BINDING".into(), "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET".into()),
@@ -542,8 +541,6 @@ fn cloudflare_router_env(
         ("DERIVER_A_ENVELOPE_HPKE_PUBLIC_KEY".into(), required(local, "DERIVER_A_ED25519_YAO_INPUT_PUBLIC_KEY")),
         ("DERIVER_B_ENVELOPE_HPKE_KEY_EPOCH".into(), "epoch-1".into()),
         ("DERIVER_B_ENVELOPE_HPKE_PUBLIC_KEY".into(), required(local, "DERIVER_B_ED25519_YAO_INPUT_PUBLIC_KEY")),
-        ("DERIVER_A_PEER_VERIFYING_KEY_HEX".into(), required(deriver_local, "DERIVER_A_PEER_VERIFYING_KEY")),
-        ("DERIVER_B_PEER_VERIFYING_KEY_HEX".into(), required(deriver_local, "DERIVER_B_PEER_VERIFYING_KEY")),
         ("SIGNING_WORKER_SERVER_OUTPUT_HPKE_KEY_EPOCH".into(), "epoch-1".into()),
         ("SIGNING_WORKER_SERVER_OUTPUT_HPKE_PUBLIC_KEY".into(), required(local, "SIGNING_WORKER_SERVER_OUTPUT_HPKE_PUBLIC_KEY")),
         ("DERIVER_A_PEER_BINDING".into(), "DERIVER_A".into()),
@@ -651,26 +648,6 @@ fn cloudflare_deriver_env(
                 router_local,
                 &format!("{peer_binding}_ED25519_YAO_INPUT_PUBLIC_KEY"),
             ),
-        ),
-        (
-            format!("DERIVER_{suffix}_PEER_SIGNING_KEY_BINDING"),
-            format!("DERIVER_{suffix}_PEER_SIGNING_KEY"),
-        ),
-        (
-            format!("DERIVER_{suffix}_PEER_SIGNING_KEY"),
-            required(local, &format!("DERIVER_{suffix}_PEER_SIGNING_KEY")),
-        ),
-        (
-            format!("DERIVER_{suffix}_PEER_SIGNING_KEY_EPOCH"),
-            "epoch-1".into(),
-        ),
-        (
-            "DERIVER_A_PEER_VERIFYING_KEY_HEX".into(),
-            required(local, "DERIVER_A_PEER_VERIFYING_KEY"),
-        ),
-        (
-            "DERIVER_B_PEER_VERIFYING_KEY_HEX".into(),
-            required(local, "DERIVER_B_PEER_VERIFYING_KEY"),
         ),
     ]);
     env.insert(format!("{peer_binding}_PEER_BINDING"), peer_binding.into());
@@ -792,7 +769,6 @@ fn cloudflare_tenant_root_role_verifying_keys_json() -> String {
 }
 
 fn cloudflare_tenant_root_control_plane_env(
-    deriver_local: &BTreeMap<String, String>,
 ) -> Result<BTreeMap<String, String>, Box<dyn std::error::Error>> {
     let grant_key = ed25519_dalek::SigningKey::from_bytes(&TENANT_ROOT_GRANT_SEED).verifying_key();
     let operations_key =
@@ -848,14 +824,6 @@ fn cloudflare_tenant_root_control_plane_env(
         (
             "ROUTER_TENANT_ROOT_CREATION_ROLE_VERIFYING_KEYS_JSON".into(),
             cloudflare_tenant_root_role_verifying_keys_json(),
-        ),
-        (
-            "DERIVER_A_PEER_VERIFYING_KEY_HEX".into(),
-            required(deriver_local, "DERIVER_A_PEER_VERIFYING_KEY"),
-        ),
-        (
-            "DERIVER_B_PEER_VERIFYING_KEY_HEX".into(),
-            required(deriver_local, "DERIVER_B_PEER_VERIFYING_KEY"),
         ),
     ]))
 }

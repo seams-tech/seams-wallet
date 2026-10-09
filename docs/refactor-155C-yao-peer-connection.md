@@ -352,10 +352,27 @@ the target-proof preface, and the existing encryption are unchanged.
   behaviour is verified. Lane work is refused at A's wallet object as before.
   Protocol vectors and encoding contracts are unchanged.
 - [x] Build the affected release Workers and run the exact-tree bloat check.
-- [ ] Follow-up: remove the peer-signing keys, their configuration, and the
-  unused ECDSA peer-message plumbing that still reads them, in one change. Then,
-  in the private deployment repository, remove the peer-signing Secrets and
-  verifying-key vars after an activation of code that no longer reads them.
+- [x] Follow-up: remove the peer-signing keys, their configuration, and the
+  unused ECDSA peer-message plumbing that read them, in one change. No Worker
+  or native role parses a peer-signing Secret, epoch, or verifying key. The
+  direct Deriver-to-Deriver ECDSA message, its signature, both of its wire
+  kinds, and its route are gone from the protocol crate, the Workers, and the
+  native roles. The Router keyset no longer carries
+  `signer_peer_verifying_keys`.
+- [ ] Deployment follow-up in the private deployment repository, in this order:
+  1. With the release that consumes this version, stop generating, requiring,
+     and writing the peer-signing Secrets and verifying-key vars. In the same
+     activation, drop `signer_peer_verifying_keys` from the Gateway's
+     `ROUTER_AB_PUBLIC_KEYSET_JSON`: the Gateway rejects a keyset that still
+     names it. Local tooling stops importing `localPeerVerifyingKeyHex`, which
+     `@seams/wallet-server/local-runtime` no longer exports.
+  2. Activate that release on Router, Deriver A, Deriver B, the Tenant Root
+     Control Plane, and the Gateway. The new Workers ignore leftover Secrets
+     and vars.
+  3. Delete the `DERIVER_*_PEER_SIGNING_KEY` Secrets and the
+     `DERIVER_*_PEER_SIGNING_KEY_BINDING`, `DERIVER_*_PEER_SIGNING_KEY_EPOCH`,
+     and `DERIVER_*_PEER_VERIFYING_KEY_HEX` vars once no older version can be
+     restored. An older version fails startup without them.
 
 Use behavioral evidence with repeatable commands, source and build hashes, final
 pair states, and independently verified signatures. Do not add tests that assert
@@ -563,4 +580,6 @@ wallet's registration completed after every scenario.
 - **Intended-behaviour suite.** Not run against this change. Recovery and
   export use the same pair path and are unverified end to end.
 - **Mismatched role-local digest.** No scenario stages it.
-- **Peer-signing keys.** Still required configuration, for the follow-up.
+- **Peer-signing keys.** Removed from the code and its configuration after this
+  refactor. The private deployment keeps the Secrets and vars until the
+  deployment follow-up in Phase 3 completes.

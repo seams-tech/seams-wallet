@@ -156,8 +156,6 @@ function verifyRenderedKeys(arm, armRoot, available, routerVars) {
   if (
     keyset.signer_envelope_hpke?.current?.deriver_a?.public_key !== routerVars.DERIVER_A_ENVELOPE_HPKE_PUBLIC_KEY ||
     keyset.signer_envelope_hpke?.current?.deriver_b?.public_key !== routerVars.DERIVER_B_ENVELOPE_HPKE_PUBLIC_KEY ||
-    keyset.signer_peer_verifying_keys?.deriver_a?.verifying_key_hex !== routerVars.DERIVER_A_PEER_VERIFYING_KEY_HEX ||
-    keyset.signer_peer_verifying_keys?.deriver_b?.verifying_key_hex !== routerVars.DERIVER_B_PEER_VERIFYING_KEY_HEX ||
     keyset.signing_worker_server_output_hpke?.public_key !== routerVars.SIGNING_WORKER_SERVER_OUTPUT_HPKE_PUBLIC_KEY
   ) {
     throw new Error(`${arm} Router and Gateway public keysets differ`);

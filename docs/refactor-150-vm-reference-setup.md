@@ -15,7 +15,7 @@ backups, and an explicit operator review.
 | Process | Binary | Holds | SQLite |
 | --- | --- | --- | --- |
 | Router | `router_ab_local_worker --role router` | Gateway-to-Router, Router-to-SigningWorker ECDSA and role-shared credentials, Wallet Session JWT verifier, published tenant-root verifying keys | tenant-root creation state |
-| Deriver A | `router_ab_local_worker --role deriver-a` | its role signing key, role-store record key, online and managed-backup provider keys, peer signing key | role-private store; managed backups |
+| Deriver A | `router_ab_local_worker --role deriver-a` | its role signing key, role-store record key, online and managed-backup provider keys | role-private store; managed backups |
 | Deriver B | `router_ab_local_worker --role deriver-b` | the same, for B | role-private store; managed backups |
 | SigningWorker | `router_ab_local_worker --role signing-worker` | server-output key, wallet key-encryption key, Router ECDSA and Gateway presign credentials | role-private store, including the wallet store (ECDSA activations, presignature pool, signing effects) |
 | Tenant-root control plane | `router_ab_local_tenant_root_control_plane` | the issuer signing key, and nothing else secret | none |

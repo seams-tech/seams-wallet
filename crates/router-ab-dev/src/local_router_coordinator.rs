@@ -1318,23 +1318,6 @@ mod tests {
         .expect("fixture admission bindings")
     }
 
-    /// Deterministic peer verifying keys for in-module Router fixtures.
-    fn fixture_peer_verifying_keys() -> router_ab_cloudflare::CloudflareSignerPeerVerifyingKeySetV1 {
-        let key = |seed: u8, role: router_ab_core::Role| {
-            router_ab_cloudflare::CloudflareSignerPeerVerifyingKeyBytesV1::new(
-                role,
-                ed25519_dalek::SigningKey::from_bytes(&[seed; 32])
-                    .verifying_key()
-                    .to_bytes(),
-            )
-            .expect("fixture verifying key")
-        };
-        router_ab_cloudflare::CloudflareSignerPeerVerifyingKeySetV1::new(
-            key(1, router_ab_core::Role::SignerA),
-            key(2, router_ab_core::Role::SignerB),
-        )
-        .expect("fixture verifying key set")
-    }
     use crate::LocalEd25519YaoSigningWorkerRecoveryPromotionRequestV1;
     use router_ab_core::{
         Ed25519YaoSessionIdV1, Ed25519YaoStableKeyContextBindingV1, ExpensiveWorkKindV1,
@@ -1538,7 +1521,6 @@ mod tests {
             internal_service_auth: "local-test-auth".to_owned(),
             gateway_to_router_auth: "local-test-gateway-auth".to_owned(),
             router_to_signing_worker_ecdsa_auth: "local-test-router-ecdsa-auth".to_owned(),
-            peer_verifying_keys: fixture_peer_verifying_keys(),
             admission_bindings: fixture_admission_bindings(),
             tenant_root: LocalRouterTenantRootConfigV1::default(),
         };
