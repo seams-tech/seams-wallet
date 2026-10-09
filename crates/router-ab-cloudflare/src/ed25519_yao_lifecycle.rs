@@ -1,5 +1,8 @@
 mod bound_root;
 mod deriver_b_start;
+#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
+pub(crate) use bound_root::prepare_deriver_a_pair_readiness_for_wallet_do_v1;
+pub(crate) use bound_root::DeriverATargetSource;
 use crate::tenant_root_role_d1::RootUseAccess;
 use bound_root::{
     load_ed25519_yao_tenant_root_role_share_v2, prepare_deriver_a_target, PreparedDeriverATarget,
@@ -2563,45 +2566,6 @@ impl DeriverBYaoSessionD1V1 {
 }
 
 #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
-pub(crate) async fn prepare_deriver_a_pair_readiness_for_wallet_do_v1(
-    env: &Env,
-    request: &CloudflareEd25519YaoPairPrepareRequestV1,
-    pair_object: String,
-) -> RouterAbProtocolResult<Ed25519YaoRoleReadinessReceiptV1> {
-    let expected_kind = input_kind_for_circuit(request.pair_binding.binding().circuit_family());
-    let (pair_digest, input_digest) =
-        request.validate_for_role(Ed25519YaoDeriverRoleV1::DeriverA, expected_kind)?;
-    let runtime = CloudflareDeriverAWorkerRuntimeV1::from_worker_env(env)?;
-    let (_, role_share, _, root_metadata_digest) = load_ed25519_yao_tenant_root_role_share_v2(
-        env,
-        CloudflareWorkerRoleV1::DeriverA,
-        &request.tenant_root,
-        &request.pair_binding,
-        Some(pair_object),
-        RootUseAccess::Admit,
-    )
-    .await?;
-    drop(role_share);
-    let prepared_at_ms =
-        cloudflare_yao_now_unix_ms().map_err(|error| invalid_lifecycle(error.to_string()))?;
-    let expires_at_ms = prepared_at_ms
-        .checked_add(YAO_PREPARED_INPUT_LIFETIME_MS)
-        .ok_or_else(|| invalid_lifecycle("Yao pair expiry overflowed"))?;
-    sign_role_readiness_receipt_v1(
-        env,
-        CloudflareWorkerRoleV1::DeriverA,
-        runtime.peer_signing_key(),
-        Ed25519YaoDeriverRoleV1::DeriverA,
-        request.pair_binding.session(),
-        pair_digest,
-        input_digest,
-        root_metadata_digest,
-        prepared_at_ms,
-        expires_at_ms,
-    )
-}
-
-#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 pub(crate) async fn fail_deriver_b_pair_after_a_error_v1(
     env: &Env,
     scope: &CloudflareDeriverBWalletPairScopeV1,
@@ -2671,6 +2635,7 @@ async fn handle_cloudflare_ed25519_yao_deriver_a_execute_pair_body_v1(
         request.input,
         trace_id,
         pair_execution,
+        DeriverATargetSource::StoredAdmission,
         |acceptance| {
             confirm_deriver_a_pair_start(
                 env,
@@ -2834,6 +2799,7 @@ pub(crate) async fn execute_deriver_a_role<ConfirmStart, Confirmation>(
     input: Ed25519YaoEncryptedInputV1,
     trace_id: RoleTraceContextV1,
     pair_execution: DeriverAPairExecutionContextV1<'_>,
+    target_source: DeriverATargetSource,
     confirm_start: ConfirmStart,
 ) -> RouterAbProtocolResult<DeriverAPairRoleExecutionV1>
 where
@@ -2859,7 +2825,7 @@ where
     // Both operations must finish, including when the root read fails. The
     // connection owns socket cleanup until protocol execution ends.
     let (target_result, connection_result) = futures::join!(
-        prepare_deriver_a_target(env, &pair_execution, trace_id),
+        prepare_deriver_a_target(env, &pair_execution, target_source, trace_id),
         connect_deriver_b(
             env,
             websocket_binding,

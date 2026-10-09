@@ -1,9 +1,64 @@
 use super::*;
 
-pub(super) struct PreparedDeriverATarget {
+pub(crate) struct PreparedDeriverATarget {
     pub(super) preface: Ed25519YaoDeriverAPrefaceInFlightV2,
     pub(super) outbound: Ed25519YaoDeriverAToBTargetProofPayloadV2,
     pub(super) stable_context: Ed25519YaoStableKeyDerivationContextV1,
+}
+
+/// A fresh admission can supply its target once in the same request. A
+/// persisted preparation must reload its admitted root before it can execute.
+pub(crate) enum DeriverATargetSource {
+    AdmittedNow(PreparedDeriverATarget),
+    StoredAdmission,
+}
+
+#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
+pub(crate) async fn prepare_deriver_a_pair_readiness_for_wallet_do_v1(
+    env: &Env,
+    request: &CloudflareEd25519YaoPairPrepareRequestV1,
+    pair_object: String,
+) -> RouterAbProtocolResult<(Ed25519YaoRoleReadinessReceiptV1, DeriverATargetSource)> {
+    let expected_kind = input_kind_for_circuit(request.pair_binding.binding().circuit_family());
+    let (pair_digest, input_digest) =
+        request.validate_for_role(Ed25519YaoDeriverRoleV1::DeriverA, expected_kind)?;
+    let runtime = CloudflareDeriverAWorkerRuntimeV1::from_worker_env(env)?;
+    let (custody_binding, role_share, stable_context, root_metadata_digest) =
+        load_ed25519_yao_tenant_root_role_share_v2(
+            env,
+            CloudflareWorkerRoleV1::DeriverA,
+            &request.tenant_root,
+            &request.pair_binding,
+            Some(pair_object),
+            RootUseAccess::Admit,
+        )
+        .await?;
+    let prepared_at_ms =
+        cloudflare_yao_now_unix_ms().map_err(|error| invalid_lifecycle(error.to_string()))?;
+    let expires_at_ms = prepared_at_ms
+        .checked_add(YAO_PREPARED_INPUT_LIFETIME_MS)
+        .ok_or_else(|| invalid_lifecycle("Yao pair expiry overflowed"))?;
+    let receipt = sign_role_readiness_receipt_v1(
+        env,
+        CloudflareWorkerRoleV1::DeriverA,
+        runtime.peer_signing_key(),
+        Ed25519YaoDeriverRoleV1::DeriverA,
+        request.pair_binding.session(),
+        pair_digest,
+        input_digest,
+        root_metadata_digest,
+        prepared_at_ms,
+        expires_at_ms,
+    )?;
+    let target = prepare_target_from_bound_share(
+        env,
+        &request.tenant_root,
+        custody_binding,
+        role_share,
+        stable_context,
+        None,
+    )?;
+    Ok((receipt, DeriverATargetSource::AdmittedNow(target)))
 }
 
 /// Prepares A's proof while B opens its connection. The caller sends it only
@@ -11,8 +66,13 @@ pub(super) struct PreparedDeriverATarget {
 pub(super) async fn prepare_deriver_a_target(
     env: &Env,
     execution: &DeriverAPairExecutionContextV1<'_>,
+    source: DeriverATargetSource,
     trace_id: RoleTraceContextV1,
 ) -> RouterAbProtocolResult<PreparedDeriverATarget> {
+    match source {
+        DeriverATargetSource::AdmittedNow(target) => return Ok(target),
+        DeriverATargetSource::StoredAdmission => {}
+    }
     let (custody_binding, role_share, stable_context, root_metadata_digest) =
         load_ed25519_yao_tenant_root_role_share_v2(
             env,
@@ -27,16 +87,34 @@ pub(super) async fn prepare_deriver_a_target(
         execution.expected_root_metadata_digest,
         root_metadata_digest,
     )?;
+    prepare_target_from_bound_share(
+        env,
+        execution.tenant_root,
+        custody_binding,
+        role_share,
+        stable_context,
+        trace_id,
+    )
+}
+
+fn prepare_target_from_bound_share(
+    env: &Env,
+    tenant_root: &crate::CloudflareEd25519YaoTenantRootContextV2,
+    custody_binding: TenantRootCustodyBindingV1,
+    role_share: VerifiedTenantRootOnlineRoleShareV1,
+    stable_context: Ed25519YaoStableKeyDerivationContextV1,
+    trace_id: RoleTraceContextV1,
+) -> RouterAbProtocolResult<PreparedDeriverATarget> {
     let started_at_ms = role_span_started_at_ms();
     let preface = prepare_cloudflare_ed25519_yao_deriver_a_target_v2(
         role_share,
         &custody_binding,
-        execution.tenant_root.outer_binding.clone(),
+        tenant_root.outer_binding.clone(),
         &stable_context,
     )?;
     let outbound = seal_deriver_a_target_proof_v2(
         env,
-        &execution.tenant_root.outer_binding,
+        &tenant_root.outer_binding,
         preface.outbound_plaintext(),
     )?;
     emit_role_span_v1(

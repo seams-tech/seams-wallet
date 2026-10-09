@@ -30,7 +30,7 @@ use crate::{
     ed25519_yao_lifecycle::{
         execute_deriver_a_role, fail_deriver_b_pair_after_a_error_v1,
         prepare_deriver_a_pair_readiness_for_wallet_do_v1, DeriverAPairExecutionContextV1,
-        VerifiedDeriverAReadinessV1,
+        DeriverATargetSource, VerifiedDeriverAReadinessV1,
     },
     CloudflareDeriverAWalletPairBurnRequestV1, CloudflareDeriverAWalletPairOutcomeResponseV1,
     CloudflareDeriverAWalletPairStatusRequestV1, CloudflareDeriverAWalletPairExecuteRequestV1,
@@ -601,7 +601,7 @@ impl RouterAbDeriverAWalletDurableObject {
     async fn prepare_work(
         &self,
         request: CloudflareEd25519YaoPairPrepareRequestV1,
-    ) -> worker::Result<Ed25519YaoRoleReadinessReceiptV1> {
+    ) -> worker::Result<(Ed25519YaoRoleReadinessReceiptV1, DeriverATargetSource)> {
         if !matches!(request.work, CloudflareEd25519YaoPairWorkV1::Ceremony) {
             return Err(pair_error(
                 "Deriver A wallet DO lane execution is unavailable",
@@ -627,12 +627,12 @@ impl RouterAbDeriverAWalletDurableObject {
                         .map_err(|error| pair_error(error.to_string()))?
                         < expires_at_ms =>
                 {
-                    Ok(receipt)
+                    Ok((receipt, DeriverATargetSource::StoredAdmission))
                 }
                 _ => Err(pair_error("Deriver A pair is conflicting or terminal")),
             };
         }
-        let receipt =
+        let (receipt, target) =
             prepare_deriver_a_pair_readiness_for_wallet_do_v1(&self.env, &request, owner.object_name()?)
             .await
             .map_err(|error| pair_error(error.to_string()))?;
@@ -655,7 +655,7 @@ impl RouterAbDeriverAWalletDurableObject {
             prepare_ed25519_yao_pair_v1(current, record, receipt.prepared_at_ms())
         })?;
         match result {
-            PairResult::Applied { .. } | PairResult::Duplicate { .. } => Ok(receipt),
+            PairResult::Applied { .. } | PairResult::Duplicate { .. } => Ok((receipt, target)),
             _ => Err(pair_error("Deriver A pair preparation was not committed")),
         }
     }
@@ -723,7 +723,7 @@ impl RouterAbDeriverAWalletDurableObject {
                 "failure"
             },
         );
-        let local_receipt = prepared?;
+        let (local_receipt, target_source) = prepared?;
         let readiness =
             VerifiedDeriverAReadinessV1::verify(&runtime, &local_receipt, &request.peer_receipt)
                 .map_err(pair_error)?;
@@ -755,6 +755,7 @@ impl RouterAbDeriverAWalletDurableObject {
             request.input.clone(),
             None,
             pair_execution,
+            target_source,
             |acceptance| {
                 self.claim_work(
                     &owner,
