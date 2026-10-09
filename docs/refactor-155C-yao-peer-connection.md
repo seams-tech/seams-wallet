@@ -352,13 +352,16 @@ the target-proof preface, and the existing encryption are unchanged.
   socket, and no retained unaccounted admission after each failure settles.
 - [x] Verify affected recovery and export paths end to end. The
   intended-behaviour contracts for Yao and recovery ran against this change on
-  offset local ports: 19 of 22 cases pass. They cover registration replay, a
-  burned execution, recovery of Passkey-founded and Email-only wallets,
-  interrupted and superseded recoveries, and the interrupted export retry.
-  Three Email OTP recovery cases fail at a later Tempo signature with
-  `Exact Wallet Session authorization does not bind the ECDSA signing capability`.
-  They fail the same way on Worker builds of the parent commit, so this change
-  does not cause them. Lane work is refused at A's wallet object as before.
+  offset local ports. All 22 cases pass: 19 at this commit, and three once an
+  SDK fix is applied. The 19 cover registration replay, a burned execution,
+  recovery of Passkey-founded and Email-only wallets, interrupted and superseded
+  recoveries, and the interrupted export retry. The other three are Email OTP
+  recovery cases. They failed at a later Tempo signature with
+  `Exact Wallet Session authorization does not bind the ECDSA signing capability`,
+  and failed the same way on Worker builds of the parent commit. That was an SDK
+  regression, fixed on `dev` in `837bd2f3`. With that one file applied, the
+  three pass against this change's Workers, including export and step-up
+  through Email OTP. Lane work is refused at A's wallet object as before.
   Protocol vectors and encoding contracts are unchanged.
 - [x] Build the affected release Workers and run the exact-tree bloat check.
 - [x] Follow-up: remove the peer-signing keys, their configuration, and the
@@ -563,7 +566,7 @@ one whose admission was cancelled is still refused.
 | Worker and wallet-object scenarios, release builds | 24 pass |
 | Fault-injection scenarios, dev builds | 3 pass: historical replay, claimed recovery, B burn before completion |
 | `wallet` and `wallet-server` type-check | Pass |
-| Intended-behaviour contracts, Yao and recovery files | 19 of 22 pass. Three Email OTP recovery cases fail at an ECDSA session check, as they do on the parent commit |
+| Intended-behaviour contracts, Yao and recovery files | 22 pass: 19 at this commit, and three Email OTP recovery cases once the SDK fix `837bd2f3` is applied |
 | Exact-tree bloat check | Pass |
 
 The sixteen pair-connection scenarios run through
@@ -708,8 +711,6 @@ Repeatable raw artifacts remain in public `.artifacts/r155c` and private
 - **Release.** The measured versions are not served. Activating this change
   means Router, Deriver A, and Deriver B together, after ceremonies settle.
 - **Peer frame counts and controlled cold runs.** Not recorded on staging.
-- **Three Email OTP recovery contracts.** They fail at an ECDSA session check
-  with and without this change. Their cause is not identified here.
 - **Mismatched role-local digest.** No scenario stages it.
 - **Peer-signing keys.** Removed from the code and its configuration after this
   refactor. The private deployment keeps the Secrets and vars until the
