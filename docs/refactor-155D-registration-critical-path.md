@@ -1,10 +1,15 @@
 # R155D — the registration-to-first-signature critical path
 
-Status: Phase 0's location and dispatch probes ran on staging. They changed
+Status: two changes are committed and verified locally. The registration
+response now supplies the post-registration session status, and wallet startup
+moved to setup. Their hosted comparison is built and frozen but has not run, so
+no latency change is measured yet. Phase 0's probes ran on staging and changed
 the plan: the largest remaining cost is how wallet objects are addressed, and
-placement is not the cause. No latency change is measured yet. Date: October 9,
-2026. Written after R155C's hosted measurement, from the same staging traces,
-three code traces, and two probe runs recorded under
+placement is not the cause. That change, the staging database move, and the
+hosted run wait on the decisions listed in the
+[implementation record](#implementation-record). Plan dated October 9, 2026;
+record dated October 10. Written after R155C's hosted measurement, from the same
+staging traces, three code traces, and two probe runs recorded under
 [Phase 0 findings](#phase-0-findings).
 
 ## Objective and relationship to R155B and R155C
@@ -474,11 +479,14 @@ Delete replaced code in the same change. Add no flag, cache, or second path.
 - [ ] Freeze a combined candidate: R155C backend `580cb508` with the Phase 6AR
   SDK and Gateway. Measure it as the baseline of this plan with the existing
   three-arm protocol. Record the SDK-measured number and the harness rows
-  separately from the first run on.
-- [ ] Add the in-page timer and the message-path signing stages. Move
-  automation drains, fixed sleeps, and Node verification outside the measured
-  window. Verify that the harness still clicks the modal and verifies every
-  signature.
+  separately from the first run on. Built and frozen on October 10 as the
+  baseline arm of the staged comparison; not run.
+- [x] Add the in-page timer and the message-path signing stages. The test app
+  times the message-signing call. NEP-413 signing emits its pre-confirmation,
+  confirmation, and signing stages. The hosted sample reports SDK time, the
+  WebAuthn and confirmation interactions, and harness time as separate fields.
+  The harness keeps its drains and sleeps; they fall outside the SDK-measured
+  number, and it still clicks the modal and verifies every signature.
 - [x] Observe execution location for every custody context in one
   registration: Router, each Deriver Worker, each wallet object, and Signing
   Worker, using the outbound trace probe. Record each database's primary
@@ -489,7 +497,9 @@ Delete replaced code in the same change. Add no flag, cache, or second path.
   sign, and delivery, with each caller's location and server recorded. Compare
   unique and name-derived IDs from other servers.
 - [ ] Count D1 round trips and statements per request in the Gateway with the
-  existing timing wrappers, so later phases can show reductions.
+  existing timing wrappers, so later phases can show reductions. Staged as the
+  comparison's fourth arm: a measurement-only Gateway entry returns each
+  request's D1 and service round trips.
 
 Exit: one evidence file with the combined baseline, the location map, D1
 latency per location, and the dispatch-cost matrix.
@@ -512,9 +522,12 @@ lookup. Replace the derived name with a stored address:
 - Every Gateway-to-Router custody request carries the wallet's addresses beside
   its home and generation. The Router passes each role its own address the same
   way it passes the home today. A role opens the object by `idFromString`.
-- Authority does not move. Each object still records and checks its owner and
-  generation, so an address for another wallet's object is refused there. An
-  address selects an object; it grants nothing.
+- Authority does not move, and one check is added. An object checks the
+  requested generation against the one it stored. On ordinary commands the
+  derived name alone binds it to its owner. An object opened by address must
+  record its owner at first use and check it on every command, so an address
+  for another wallet's object is refused there. An address selects an object;
+  it grants nothing.
 - Relocation mints the destination generation's addresses when it prepares the
   destination, and stores them with that generation.
 - An existing wallet has name-derived objects. Its addresses are those objects'
@@ -526,6 +539,31 @@ This reaches every custody request type, the Gateway's generation row in all
 four regional databases, relocation, and the scenario harnesses. It needs its
 own change set, coordinated with R153's relocation work, and its own hosted
 comparison. It is the largest saving in this plan and is not started.
+
+Constraints found while reading the code on October 10:
+
+- Names stay. A derived name is also a stored identity: relocation receipts
+  name source and destination objects, the role databases store a pair's
+  object name with its admission, and session identities embed it. The address
+  travels beside the name; it does not replace it.
+- The owner check above was confirmed missing for the Router wallet object.
+  Confirm or add it for the Deriver and Signing Worker objects.
+- Startup becomes authoritative. Today it is best-effort, and a lost startup
+  costs only time. Once startup mints the addresses, the first custody command
+  of a generation must not run before they are stored, or it creates named
+  objects beside the minted ones. Store the addresses insert-once. A custody
+  request for a new generation with none stored mints them first and uses the
+  row that won the insert.
+- The Gateway writes the generation row when respond admits the home. Startup
+  now fires at setup, before that row exists. The addresses need their own
+  insert-once row keyed by wallet and generation, read in the statement that
+  reads the generation row.
+- A generation created before this change has no addresses and keeps its
+  names. The row must say which kind it is, so a missing address on a new
+  generation is never mistaken for an old wallet.
+- The seams are narrow. Roles open wallet objects at fewer than twenty call
+  sites. The Gateway attaches the home region in one binding wrapper, and the
+  addresses can ride the same way. The Router parses that header in one place.
 
 - [ ] Decide the migration for existing wallets and agree the change with the
   relocation owner.
@@ -540,9 +578,10 @@ comparison. It is the largest saving in this plan and is not started.
 
 ### Startup and role databases
 
-- [ ] Start all four wallet objects at setup. The reservation already carries
+- [x] Start all four wallet objects at setup. The reservation already carries
   the ownership generation. Keep startup grant-free. A replayed setup starts
-  nothing again.
+  nothing again. Done in `e29277df` and private `ab478bc`. The hosted effect is
+  not measured yet.
 - [ ] Move the staging role databases to the roles' location, following the
   production-testnet procedure: create and verify replacements, export and
   import, redeploy with the new database IDs, compare snapshots. This creates
@@ -573,9 +612,10 @@ comparison. It is the largest saving in this plan and is not started.
 
 ## Phase 3 — browser round trips
 
-- [ ] Seed the post-registration session observation from the finalize
+- [x] Seed the post-registration session observation from the finalize
   response on the NEAR-only path. Remove the status read it replaces. Keep
-  explicit reads fresh.
+  explicit reads fresh. Done in `defb230c`. A registration that includes ECDSA
+  still observes the server, because its session changes after the response.
 - [ ] Send sign prepare during confirmation, bound to the displayed digest,
   with release on decline. Keep the warm-session path free of WebAuthn.
 - [ ] Record the two follow-up designs with their constraints: finalize folded
@@ -605,6 +645,95 @@ comparison. It is the largest saving in this plan and is not started.
   verified independently; originals restored. Report the SDK-measured number,
   the harness rows, request and round-trip counts, and the location map.
 - [ ] Record the decision here and commit on `dev` in both repositories.
+
+## Implementation record
+
+### October 10 — status seed and setup-time startup
+
+| Change | Public commit | Private commit |
+| --- | --- | --- |
+| The registration response supplies the session status. The wallet host publishes the session before it returns the registration result, and the client's follow-up read is deleted. Message-signing timer and NEP-413 stages. | `defb230c` | — |
+| Wallet startup fires at setup. The reservation result carries the ownership generation. The respond-time and activation-time triggers are deleted. | `e29277df` | `ab478bc` |
+| A stale credential literal in the status-scope unit test, repaired before the change above extended that test. | `e748147c` | — |
+| The hosted sample splits SDK, interaction, and harness time. | — | `244b8eb` |
+
+Verified locally:
+
+- The NEAR registration contract asserts that registration and the first
+  signature send no session-status request, that explicit queries still read
+  the server, and that a lock is respected. Browser requests to the first
+  signature fall from seven to six.
+- Five unit cases cover the issued session: one wallet-host observation reads
+  it once, every other read asks the server, and a server answer replaces it.
+- `tests/e2e/registration-setup-startup.e2e.mjs` runs setup against a local D1:
+  one startup per reserved wallet, none for a replayed setup, and a completed
+  setup on a host with no starter. It fails on the parent commit.
+- 61 intended-behaviour cases across the NEAR registration, registration,
+  resume, Email OTP resume, add Email OTP, unlock, and Ed25519 Yao files: 55
+  pass. One of them, the burned-execution case, needs fault-injection Worker
+  builds and passes on them. Six fail, and fail the same way on the parent
+  commit: custom review before a live Arc signature, a signing prepare that
+  read its session before NEAR provisioning committed, sustained Tempo and Arc
+  signing, a status answered before deferred NEAR provisioning, a terminal
+  NEAR execution under fresh unlock authority, and page-refresh hydration.
+  Recovery, export, and relocation files were not run.
+- Type checks for the SDK, the server package, and the test projects, and the
+  bloat check on each committed tree.
+
+Not verified: any hosted latency effect, and the order in which staging's
+Router receives startup relative to respond.
+
+One behaviour to note: startup now precedes the registration proof. An
+abandoned setup leaves four started, empty objects, where before only an
+abandoned respond did. Startup still grants nothing.
+
+### Staged hosted comparison
+
+Private `.artifacts/r155d-hosted/compare` holds a built and frozen comparison.
+It was not run: starting it changes shared staging and needs the owner's
+go-ahead.
+
+| Arm | Gateways and SDK | Purpose |
+| --- | --- | --- |
+| Baseline | Parent commit `af934879`, plus the two files that only add timing output | The combined baseline this plan still lacks |
+| Candidate | `e29277df` with private `ab478bc` | Status seed and setup-time startup |
+| Control | Baseline again | Drift between arms |
+| Trace | Candidate behind a measurement-only entry | D1 and service round trips per request; latency not compared |
+
+Every arm runs the R155C custody set and one Console built from the current
+tips. The analysis checks that only the four Gateways change, that every traced
+invocation ran its arm's version, that the candidate sends no status request,
+and that startup reaches the Router before respond in the candidate and after
+it elsewhere. The rebuilt candidate site is byte-identical to the frozen one.
+
+Two facts surfaced while staging it:
+
+- The R155C custody versions only work together: Router `7da081d5`, Deriver A
+  `69ba207a`, Deriver B `398dc7d5`, Signing Worker `59936650`.
+- A Gateway built after `0d2d859f` refuses a public keyset that still lists
+  the retired peer-signing keys, as the staging configuration frozen on
+  October 9 does. The comparison's temporary versions carry the keyset without
+  them and change nothing else.
+
+### Decisions needed
+
+1. Run the staged comparison. It deploys temporary Gateway and Console
+   versions, switches custody to the R155C set, and restores the originals.
+2. Start the wallet-object address change in Phase 1. It is more than half of
+   the remaining saving and the 3–4 s target depends on it. It needs a D1
+   migration in the four regional Gateway databases and coordination with
+   relocation.
+3. Move the staging role databases. That creates three databases and moves
+   custody data.
+
+Not started, with the reason:
+
+- Phase 2. Finalize's steps are ordered by its journal and replay rules, and
+  the round-trip counts that would rank the changes come from the trace arm.
+- Sign prepare during confirmation. It sends the operation to the server
+  before the user approves it, and an abandoned prepare's effect on the next
+  one has not been traced.
+- Phase 4.
 
 ## Structural acceptance targets
 
