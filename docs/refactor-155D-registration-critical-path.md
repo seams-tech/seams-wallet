@@ -1,12 +1,14 @@
 # R155D — the registration-to-first-signature critical path
 
-Status: two changes are committed and verified locally. The registration
-response now supplies the post-registration session status, and wallet startup
-moved to setup. Their hosted comparison is built and frozen but has not run, so
-no latency change is measured yet. Phase 0's probes ran on staging and changed
-the plan: the largest remaining cost is how wallet objects are addressed, and
-placement is not the cause. That change, the staging database move, and the
-hosted run wait on the decisions listed in the
+Status: two changes are committed, verified locally, and confirmed on staging.
+The registration response now supplies the post-registration session status,
+and wallet startup moved to setup. Their hosted comparison ran on October 10
+and measured no end-to-end gain: the time a Worker waits to reach its wallet
+object is larger than both savings and varies from request to request. Phase
+0's probes had already changed the plan: the largest remaining cost is how
+wallet objects are addressed, and placement is not the cause. The address
+change is approved for staging and nothing of it is committed yet. The staging
+database move still waits on its owner. See the
 [implementation record](#implementation-record). Plan dated October 9, 2026;
 record dated October 10. Written after R155C's hosted measurement, from the same
 staging traces, three code traces, and two probe runs recorded under
@@ -482,8 +484,10 @@ Delete replaced code in the same change. Add no flag, cache, or second path.
 - [ ] Freeze a combined candidate: R155C backend `580cb508` with the Phase 6AR
   SDK and Gateway. Measure it as the baseline of this plan with the existing
   three-arm protocol. Record the SDK-measured number and the harness rows
-  separately from the first run on. Built and frozen on October 10 as the
-  baseline arm of the staged comparison; not run.
+  separately from the first run on. Measured on October 10 as the baseline arm
+  of the [hosted comparison](#hosted-comparison-october-10): the SDK flow
+  without interaction takes 7,955 ms, median of three wallets. Its control arm
+  did not run, so the item stays open.
 - [x] Add the in-page timer and the message-path signing stages. The test app
   times the message-signing call. NEP-413 signing emits its pre-confirmation,
   confirmation, and signing stages. The hosted sample reports SDK time, the
@@ -544,7 +548,8 @@ lookup. Replace the derived name with a stored address:
 This reaches every custody request type, the Gateway's generation row in all
 four regional databases, relocation, and the scenario harnesses. It needs its
 own change set, coordinated with R153's relocation work, and its own hosted
-comparison. It is the largest saving in this plan and is not started.
+comparison. It is the largest saving in this plan. Work has started and
+nothing is committed.
 
 Constraints found while reading the code on October 10:
 
@@ -585,8 +590,10 @@ Constraints found while reading the code on October 10:
 
 - [x] Start all four wallet objects at setup. The reservation already carries
   the ownership generation. Keep startup grant-free. A replayed setup starts
-  nothing again. Done in `e29277df`, `e0a8efec`, and private `ab478bc`. The
-  hosted effect is not measured yet.
+  nothing again. Done in `e29277df`, `e0a8efec`, and private `ab478bc`. On
+  staging the startup now reaches the Router before respond, and no later
+  request became faster: see the
+  [hosted comparison](#hosted-comparison-october-10).
 - [ ] Move the staging role databases to the roles' location, following the
   production-testnet procedure: create and verify replacements, export and
   import, redeploy with the new database IDs, compare snapshots. This creates
@@ -710,8 +717,9 @@ Verified locally:
 - Type checks for the SDK, the server package, and the test projects, and the
   bloat check on each committed tree.
 
-Not verified: any hosted latency effect, and the order in which staging's
-Router receives startup relative to respond.
+Confirmed on staging on October 10: the candidate sends no status request,
+and startup reaches the Router before respond. Not verified: any hosted
+latency gain.
 
 Database and Console work per request, counted in the composed scenario and
 recorded with each round trip's statements in the
@@ -751,26 +759,80 @@ One behaviour to note: startup now precedes the registration proof. An
 abandoned setup leaves four started, empty objects, where before only an
 abandoned respond did. Startup still grants nothing.
 
-### Staged hosted comparison
+### Hosted comparison, October 10
 
-Private `.artifacts/r155d-hosted/compare` holds a built and frozen comparison.
-It was not run: starting it changes shared staging and needs the owner's
-go-ahead.
+The comparison ran from private `.artifacts/r155d-hosted/compare`. The baseline
+and candidate arms passed. The control and trace arms did not run: a read of
+the live Worker versions timed out against the Cloudflare API while the control
+arm settled, and the driver stopped and restored staging. All thirteen Workers
+serve their original versions again. This run therefore has no drift
+measurement and no per-request round-trip trace. Record:
+[evidence file](evidence/near-registration-status-seed-setup-startup-20261010.json).
 
-| Arm | Gateways and SDK | Purpose |
+| Arm | Gateways and SDK | Result |
 | --- | --- | --- |
-| Baseline | Parent commit `af934879`, plus the two files that only add timing output | The combined baseline this plan still lacks |
-| Candidate | `947a8843` with private `ab478bc` | Status seed and setup-time startup, plus the signing-plan fixes that landed on `dev` after `e0a8efec` |
-| Control | Baseline again | Drift between arms |
-| Trace | Candidate behind a measurement-only entry | D1 and service round trips per request; latency not compared |
+| Baseline | Parent commit `af934879`, plus the two files that only add timing output | Passed, three wallets |
+| Candidate | `947a8843` with private `ab478bc` | Passed, three wallets |
+| Control | Baseline again | Not run |
+| Trace | Candidate behind a measurement-only entry | Not run |
 
-Every arm runs the R155C custody set and one Console built from the current
-tips. The analysis checks that only the four Gateways change, that every traced
-invocation ran its arm's version, that the candidate sends no status request,
-and that startup reaches the Router before respond in the candidate and after
-it elsewhere. The rebuilt candidate site is byte-identical to the frozen one.
+Both arms ran the R155C custody set and one Console built from the current
+tips. Ten structural checks pass. Every traced invocation ran its arm's
+version. The candidate sends no status request and the baseline sends one per
+wallet. Each wallet gets one startup request. Startup reaches the Router
+before respond in the candidate and after it in the baseline. An independent
+verifier accepts all six signatures.
 
-Two facts surfaced while staging it:
+Medians of three wallets, in milliseconds:
+
+| Measure | Baseline | Candidate |
+| --- | ---: | ---: |
+| Registration to verified signature, with harness | 9,784 | 10,078 |
+| SDK flow without interaction | 7,955 | 8,314 |
+| SDK registration | 6,996 | 6,749 |
+| SDK message signing | 1,743 | 2,180 |
+| Setup request | 655 | 542 |
+| Respond request | 677 | 574 |
+| Yao execute request | 3,408 | 3,247 |
+| Finalize request | 1,906 | 1,763 |
+| Session status request | 160 | none |
+| Sign prepare request | 509 | 914 |
+| Sign request | 418 | 839 |
+| Startup at the Router, before respond arrives | 285 after | 593 before |
+
+No end-to-end gain is measured. The ranges overlap: 9,019 to 12,121 ms for
+the baseline and 9,123 to 10,688 ms for the candidate.
+
+The Worker tails show why. For a custody Worker request that calls its wallet
+object once, the Worker's wall time minus the object's wall time is the time
+the request spent outside the object: the Worker's own work, plus reaching the
+object. A request "waited" when that time is 200 ms or more.
+
+| Stage | Requests per arm | Baseline waited | Baseline median | Candidate waited | Candidate median |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Startup, four roles | 12 | 12 | 734 ms | 12 | 797 ms |
+| Yao execute: Deriver A, Deriver B, Signing Worker | 9 | 9 | 440 ms | 9 | 434 ms |
+| Registration consume, Router | 3 | 0 | 16 ms | 2 | 405 ms |
+| Sign prepare, Signing Worker | 3 | 1 | 32 ms | 3 | 393 ms |
+| Sign, Signing Worker | 3 | 1 | 21 ms | 2 | 453 ms |
+
+- Starting the objects earlier shortened no later request. The candidate
+  started them about 1.2 s before the Yao request, the baseline about 0.35 s
+  before. In both arms every role request in the Yao stage still spent 245 to
+  540 ms outside its object. The wait belongs to the call. An object that
+  already runs is no cheaper to reach, which is what the Phase 0 probe found.
+- After the Yao stage a request spends either 9 to 32 ms outside its object
+  or 378 to 536 ms. These requests run in series, so each wait adds to the
+  flow: 525, 0, and 492 ms for the three baseline wallets, and 1,251, 1,441,
+  and 378 ms for the three candidate wallets.
+- That difference is larger than the difference between the arms and larger
+  than the saved status request. Three wallets and no control arm cannot tell
+  chance from an effect of the candidate.
+- Neither change can show a gain while calls reach wallet objects by name.
+  The address change comes first; these two changes need a new measurement
+  after it.
+
+Two facts surfaced while staging the comparison:
 
 - The R155C custody versions only work together: Router `7da081d5`, Deriver A
   `69ba207a`, Deriver B `398dc7d5`, Signing Worker `59936650`.
@@ -779,15 +841,22 @@ Two facts surfaced while staging it:
   October 9 does. The comparison's temporary versions carry the keyset without
   them and change nothing else.
 
-### Decisions needed
+### Decisions
 
-1. Run the staged comparison. It deploys temporary Gateway and Console
-   versions, switches custody to the R155C set, and restores the originals.
-2. Start the wallet-object address change in Phase 1. It is more than half of
-   the remaining saving and the 3–4 s target depends on it. It needs a D1
-   migration in the four regional Gateway databases and coordination with
-   relocation.
-3. Move the staging role databases. That creates three databases and moves
+Decided on October 10:
+
+- The wallet-object address change in Phase 1 proceeds. Staging wallets are
+  disposable. Production testnet and mainnet are outside the discard scope
+  until a separate reset-or-migrate decision. No migration is applied, nothing
+  is deployed, and no wallet is deleted before the owner's go-ahead. Version
+  0.9.0 follows the change.
+
+Still needed:
+
+1. Run the comparison again for its control and trace arms, or wait and
+   measure after the address change. The trace arm is the only source of
+   staging durations for Phase 2.
+2. Move the staging role databases. That creates three databases and moves
    custody data.
 
 Not started, with the reason:
