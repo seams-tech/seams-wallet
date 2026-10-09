@@ -378,8 +378,17 @@ function isForegroundRefill(stage: { stage: string }): boolean {
 class FailedBackgroundRefill {
   failures = 0;
 
+  constructor(private readonly timing: SigningTimingEvidence) {}
+
   async intercept(route: Route): Promise<void> {
-    if (presignRefillTag(route.request()) === 'background') {
+    // A signature schedules a refill when it starts. The signer that waits for it
+    // promotes its requests to the foreground tag, so the tag does not identify
+    // that refill. Fail every refill until a signer has stopped waiting; the first
+    // refill to pass is then the signer's own.
+    if (
+      presignRefillTag(route.request()) === 'background' ||
+      !this.timing.reported('refill_wait')
+    ) {
       this.failures += 1;
       await route.abort('connectionclosed');
       return;
@@ -397,7 +406,7 @@ test('failed background refill falls back to timed foreground refill and preserv
   await page.evaluate(enableSigningSessionDebugInFrame);
   const timing = new SigningTimingEvidence();
   page.on('console', timing.record.bind(timing));
-  const fault = new FailedBackgroundRefill();
+  const fault = new FailedBackgroundRefill(timing);
   const intercept = fault.intercept.bind(fault);
   const initPath = '**/router-ab/ecdsa-derivation/presignature-pool/fill/init';
   await context.route(initPath, intercept);

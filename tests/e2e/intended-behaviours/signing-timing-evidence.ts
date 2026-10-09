@@ -90,6 +90,14 @@ export class SigningTimingEvidence {
     this.events.push({ receivedAtMs: performance.now(), stage, durationMs: event.durationMs });
   }
 
+  /** Whether the SDK has reported this signing stage. */
+  reported(stage: string): boolean {
+    for (const event of this.events) {
+      if (event.stage === stage) return true;
+    }
+    return false;
+  }
+
   private observedWindow(startedAt: number, endedAt: number) {
     const events = [];
     for (const event of this.events) {
