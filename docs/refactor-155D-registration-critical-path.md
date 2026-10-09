@@ -1106,16 +1106,24 @@ Phase 2 started with the removals that change no ordering.
 | --- | --- |
 | `12dca984` | Sign prepare takes the pinned owner scope from its own admission. Sign finds the prepared operation in one read that checks its grant and pins its scope. |
 | `6ee17c33` | Finalize hands the ceremony and the identity that its preparation read to its own execution. A resumed execution still reads them. |
+| `e4ae2f91` | The session statement of an Ed25519 signing request also reads the session wallet's signer and its policy rows, as the ECDSA statement does. |
+| `22ead209` | A contract for the NEAR signing policy, which had none: project rejection, abuse rejection, and rate limit on prepare and finalize, with the quota unchanged. |
+| `c77bdf47` | A finalize receipt that names an unknown operation ID is answered `authorized_operation_missing` again. `12dca984` had changed that answer. |
 
-Gateway database round trips in the composed scenario:
+Gateway database round trips in the composed scenario. "Own work" excludes
+the stored-address reads that `cb331a8d` added; "On `dev`" includes them.
 
-| Request | Before | Now | Target |
-| --- | ---: | ---: | ---: |
-| Sign prepare | 6 | 5 | 1–2 |
-| Sign | 8 | 6 | not set |
-| Finalize | 21 | 19 | 4–6 |
-| Respond | 8 | 8 | not set |
-| Setup | 3 | 3 | 2 |
+| Request | Before | Own work | On `dev` | Target |
+| --- | ---: | ---: | ---: | ---: |
+| Sign prepare | 6 | 3 | 4 | 1–2 |
+| Sign | 8 | 4 | 5 | not set |
+| Finalize | 21 | 19 | 20 | 4–6 |
+| Yao execute | 1 | 1 | 2 | not set |
+| Respond | 8 | 8 | 8 | not set |
+| Setup | 3 | 3 | 5 | 2 |
+
+Private `1f02f18` caps the "On `dev`" counts in the composed scenario. A
+change that adds a round trip must raise a ceiling there and give the reason.
 
 Two behaviours changed, and both are stricter:
 
@@ -1130,10 +1138,13 @@ The completion write stays before the response. The response is the
 completion row read back, so a retry replays exactly what the first reply
 carried.
 
-Sign prepare still makes four reads in series before its admission: session,
-Ed25519 signer, Yao capability records, and admission policy. The ECDSA path
-reads session, material, and policy in one statement. The Ed25519 path needs
-the same fold and a way to read the capability records beside it.
+After `e4ae2f91` sign prepare makes two reads before its admission: the
+session statement, then the Yao capability records. The capability read needs
+the signer, so it cannot join the first statement. It can run beside it only
+if the Gateway reads capability state for the wallet that the request names
+before the session admits that wallet. That is a choice for the owner.
+A policy scope that the session statement did not select, as for
+linked-device material, is still read from the database.
 
 Verified on the committed code:
 
@@ -1143,17 +1154,167 @@ Verified on the committed code:
   and the one-read resolution return the scope that a separate read reports,
   another wallet is refused, an unknown fingerprint is missing, and a
   completed operation replays without a scope.
-- 41 intended-behaviour cases: 14 for NEAR signing, 21 for finalize resume and
-  replay, and 6 for ECDSA signing. 40 pass with debug Worker builds.
 - The private composed scenarios for registration completion, a lost
   completion reply, and NEAR provisioning reply loss, and
   `tests/e2e/step-up-expiry.e2e.mjs`.
 
-One case needs release Worker builds: "Passkey mixed_near activation response
-loss resumes the same wallet after reload and signs". With debug builds the
-Router refuses the resumed execution as `execution_in_progress`, on the parent
-commit too. With release builds it passes on the baseline and on the changed
-tree. It is a timing effect of the slower debug build, not of these changes.
+The contract runs first recorded here did not test these changes. The runner
+skipped the server package build, and the local Gateway loads that build
+output. The output in use was built before the changes. The valid contract
+evidence is the full suite in the next section. Rebuild the server package
+before a contract run that sets `SEAMS_INTENDED_SKIP_BUILD=1`.
+
+### Full suite on the combined tips, October 10
+
+The suite ran on public `22ead209` with private `1f02f18`, after a rebuild of
+the server package and the Workers. It is the first contract run of the
+Phase 2 commits, and the first of the whole suite with stored addresses.
+
+| Run | Cases | Pass | Fail |
+| --- | ---: | ---: | ---: |
+| Combined tips, debug Worker builds | 131 | 124 | 7 |
+| With `29812919`, `350231dc` and `c77bdf47` | 131 | 131 | 0 |
+
+The second run used release Worker builds, and 124 cases passed in it. Five
+Email OTP cases met a Google test token near its expiry and passed with a new
+token. Two cases inject a terminal failure, which only the debug Router has,
+and passed with debug builds.
+
+The seven failures have three causes:
+
+| Cases | Cause | Classification | Fix |
+| ---: | --- | --- | --- |
+| 4 | Device linking. The Router sent the linked-device Ed25519 reservation to the Signing Worker without the wallet's object route. The Signing Worker requires the route. | `production_regression` in `cb331a8d` | The Router sends the route on that call. |
+| 1 | NEAR finalize. `12dca984` reads the prepared operation by its fingerprint. A receipt that named an unknown operation ID got `invalid_authorized_operation`. The contract requires `authorized_operation_missing`. | `production_regression` in `12dca984` | The resolution answers `authorized_operation_missing` when the stored operation has another ID. No read was added. |
+| 2 | Activation response loss, `mixed` and `mixed_near`. The first Yao execution still runs when the reload retries it, and the Router answers `execution_in_progress`. | `environment_or_infrastructure_failure`: the debug Worker build is slower | None. The three cases of that file pass with release builds. |
+
+Other suites on the fixed tree:
+
+- The composed NEAR relocation scenario, private
+  `tests/e2e/relocation-custody.e2e.mjs`, passes.
+- The private composed suite `tests/e2e/regional-real` passes 20 of 22 cases.
+  The two "signs through WEUR, APAC and OC" cases fail in their browser
+  relocation harness. The harness does not pass `onAdmitted`, which private
+  `2d69e1d` made required on October 7, and it does not wrap the custody
+  roles as the Runtime Worker does. Without `29812919` the Ed25519 case
+  already fails earlier, at device linking.
+- The native target `crates/router-ab-cloudflare/tests/bindings.rs`: 186 pass
+  and 4 fail. The same 4 fail on `f16a32e2`, before stored addresses. They are
+  not classified yet.
+
+### Review of the stored-address change, October 10
+
+`cb331a8d` and private `86b9899` address wallet objects by stored IDs. This
+review read the committed code and ran the suites on the combined tips.
+`29812919` fixes findings 1 and 7. `350231dc` fixes finding 2 and the write
+order in finding 3.
+
+What the change costs in the Gateway database: one read of
+`wallet_object_addresses` for each custody dispatch, and one read and one
+write at setup. One registration and first signature make six more round trips
+than before. Setup also waits for the Router to allocate the four IDs. These
+reads can move into statements that already run: the session statement for
+signing, and the home admission for registration. Then no request pays a
+round trip for its addresses. The hosted trace measured 7 ms for each read,
+so the write batches and the service calls listed below come first.
+
+Findings in the role Workers, each confirmed in the source:
+
+1. Relocation freeze cannot drain a pending registration.
+   `router_wallet_relocation.rs`, `handle_freeze`: the replayed execute request
+   copies the service secret and the home region, and not the object addresses.
+   The execute handler then refuses it. A wallet with a claimed registration
+   and an expired lease stays `Draining`. Fixed: the replay copies the
+   addresses. No test drives this path yet.
+2. The Signing Worker wallet object does not pin its owner or its generation.
+   `signing_worker_wallet.rs`, `deliver_registration`, and the ECDSA activation
+   store accept material for any owner. The derived name gave this binding
+   before. Reads stay keyed by owner, so no secret crosses wallets, but a
+   misrouted delivery lands in another wallet's object, and that object's
+   cleanup deletes it. The plan requires the owner check in every object
+   opened by address. Fixed for the owner: the object records the wallet of
+   its first command and refuses a command for another wallet. The object
+   does not pin the generation. A first version did, and the composed
+   relocation scenario failed: a destination object must replay a signature
+   that its source generation prepared.
+3. The Deriver objects check the owner and not the generation. Deriver A
+   writes its role-database admission before it checks the owner
+   (`deriver_a_pair.rs`), so a misrouted request leaves an admission that
+   names the wrong object, and the correct retry then conflicts. Fixed: the
+   owner check runs before the admission write. The generation is still not
+   checked in the Deriver objects.
+4. The Router's ECDSA activation and export routes read the addresses with a
+   bearer token only (`strict_worker/router.rs`). The Gateway mints that token
+   for each call, so the practical risk is low. The token does not bind the
+   addresses, and the other routes require the Gateway secret first.
+5. `lib.rs`: the Router's linked ECDSA finalize call to the Signing Worker
+   sends no route, and the Signing Worker requires one. No caller was found.
+6. Role migration `0019` renames the column and keeps old names as values.
+   An old admission cannot be opened by ID. The plan already requires that
+   old admissions and wallets are discarded together.
+7. The Router's linked-device Ed25519 reservation carried no object route
+   (`router_coordinator.rs`). Device linking on a wallet with a NEAR key
+   failed with HTTP 500. Fixed. The hosted comparison candidate `28c58d85`
+   has this fault. That run registered and signed with NEAR only, which the
+   fault does not touch.
+
+Findings 2 and 3 need a Gateway routing error to matter, because the roles
+trust the Gateway. They are the checks this plan asked for when an address
+replaces a name. Findings 1 and 7 are functional regressions. Findings 4 and
+5 are open.
+
+The Gateway side holds: a request forwarded from a client always has its
+wallet identity overwritten from server-admitted data before the binding reads
+it. One hardening remains: strip both address headers from every public
+request at the Gateway entry, so that this does not depend on each forwarding
+path.
+
+### What the stored-address trace leaves for Phase 2
+
+The trace under "Stored-address D1 trace" times every Gateway database call
+and service call of three wallets. Its candidate has `12dca984` and `6ee17c33`
+and not `e4ae2f91`.
+
+A database read took 6–13 ms. A write batch took 44–63 ms, and the large ones
+86–153 ms. Each request runs its calls in series. The write batches and the
+service calls set the time; the reads do not.
+
+| Request | Gateway, median | Write batches | Their time | Reads | Service calls, median |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Setup | 636 ms | 3 | 144 ms | 26 ms | Console context 151, Console reserve 122, Router allocate 215 |
+| Respond | 509 ms | 3 | 146 ms | 85 ms | Console home 101, Console lineage 105 |
+| Yao execute | 1,572 ms | 0 | 0 ms | 31 ms | Router execute 1,543 |
+| Finalize | 1,109 ms | 8 | 467 ms | 127 ms | Router consume 106, Console claim 125, Console routes 148, Console complete 146 |
+| Sign prepare | 242 ms | 1 | 62 ms | 108 ms | Router 96 |
+| Sign | 253 ms | 1 | 46 ms | 77 ms | Router 130 |
+
+The browser saw each request 140–375 ms longer than the Gateway did. An SDK
+stage lasts as long as its browser request, so no preflight hides there.
+
+Cuts in the order of their measured value. Each one keeps the replay and
+journal rules of its request, or it is not made.
+
+1. Setup, address allocation. The Router asks three role Workers for an ID.
+   The call took 12, 215 and 415 ms, and setup waits for it after its two
+   ceremony writes. Start it when the reservation returns, beside the ceremony
+   read and writes: about 110 ms. Started beside the Console reservation it
+   saves about 120 ms more, but a refused reservation then costs four Worker
+   calls. That is a choice for the owner.
+2. Setup, one ceremony write batch in place of two: about 49 ms.
+3. Finalize, the last four writes: session issue, completion decision,
+   activation, and journal completion. The completion decision can commit
+   with the session, and the activation with the journal completion: about
+   90 ms.
+4. Finalize, the Router consume beside the Console claim: about 100 ms. It
+   needs the scenario for a claim that fails after the consume.
+5. Respond, the Console lineage read beside the home admission and the
+   authority reads, and one commit batch for the last two writes: about
+   100 ms and 44 ms.
+6. Sign prepare and sign. `e4ae2f91` already removes two reads from each. The
+   two reads at the Gateway entry, deployment admission and session locator,
+   are private code.
+
+The Yao execute's Router call is the largest single item and is Phase 4.
 
 ### Decisions
 
