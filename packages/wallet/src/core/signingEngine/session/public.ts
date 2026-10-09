@@ -81,11 +81,13 @@ export async function discoverPersistedSessionsForWallet(
 export async function readPersistedAvailableSigningLanes(
   deps: SessionPublicDeps,
   args: Omit<ReadAvailableSigningLanesInput, 'ecdsaChainTargets'>,
+  statusReads: WalletSessionStatusReadScope,
 ): Promise<AvailableSigningLanes> {
   return await readPersistedAvailableSigningLanesValue(
     deps.availableLanes,
     args,
     deps.getConfiguredEcdsaChainTargets(),
+    statusReads,
   );
 }
 

@@ -3116,8 +3116,13 @@ export class BrowserSigningSurface {
 
   async readPersistedAvailableSigningLanes(
     args: Omit<ReadAvailableSigningLanesInput, 'ecdsaChainTargets'>,
+    statusReads: WalletSessionStatusReadScope,
   ): Promise<AvailableSigningLanes> {
-    return await sessionPublic.readPersistedAvailableSigningLanes(this.sessionPublicDeps, args);
+    return await sessionPublic.readPersistedAvailableSigningLanes(
+      this.sessionPublicDeps,
+      args,
+      statusReads,
+    );
   }
 
   async readOwnerScopedSigningLanes(
@@ -5544,10 +5549,10 @@ export class BrowserSigningSurface {
   ): Promise<ConcreteAvailableEd25519SigningLane | null> {
     const identity = nearEd25519CapabilityRehydrationMaterialIdentity(subject);
     const walletId = identity.signer.account.wallet.walletId;
-    const availableLanes = await this.readPersistedAvailableSigningLanes({
-      walletId,
-      ownerScope: await this.resolveSelectedOwnerLaneScope(walletId),
-    });
+    const availableLanes = await this.readPersistedAvailableSigningLanes(
+      { walletId, ownerScope: await this.resolveSelectedOwnerLaneScope(walletId) },
+      new WalletSessionStatusReadScope(),
+    );
     const matches: ConcreteAvailableEd25519SigningLane[] = [];
     for (const lane of availableLanes.candidates.ed25519.near) {
       if (!nearEd25519LaneMatchesCapabilityRehydrationSubject(lane, subject)) continue;

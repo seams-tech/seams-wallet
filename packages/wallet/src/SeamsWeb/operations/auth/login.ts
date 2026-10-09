@@ -6319,7 +6319,8 @@ async function primeThresholdLoginWarmSigners(args: {
 
 export async function getWalletSession(
   context: WalletSessionWebContext,
-  walletId?: WalletId | string,
+  walletId: WalletId | string | undefined,
+  statusReads: WalletSessionStatusReadScope,
 ): Promise<WalletSession> {
   let currentAuthentication = context.signingEngine.readWalletAuthenticationState();
   const requestedWalletId =
@@ -6434,7 +6435,7 @@ export async function getWalletSession(
   });
   const [appIdentity, availableLanes] = await Promise.all([
     resolveWalletSessionAppIdentity(context, readResolution),
-    readExactWalletSessionAvailableLanes(context, readResolution.walletId),
+    readExactWalletSessionAvailableLanes(context, readResolution.walletId, statusReads),
   ]);
   const restoredAuthenticationRead =
     requestedAuthenticationRead &&
@@ -6573,12 +6574,13 @@ async function buildCapabilityUnresolvableWalletSession(args: {
 function readExactWalletSessionAvailableLanes(
   context: WalletSessionWebContext,
   walletId: WalletId,
+  statusReads: WalletSessionStatusReadScope,
 ): Promise<
   | { readonly kind: 'available'; readonly lanes: AvailableSigningLanes }
   | { readonly kind: 'unavailable' }
 > {
   return context.signingEngine
-    .readPersistedAvailableSigningLanes({ walletId })
+    .readPersistedAvailableSigningLanes({ walletId }, statusReads)
     .then((lanes) => ({ kind: 'available' as const, lanes }))
     .catch(() => ({ kind: 'unavailable' as const }));
 }

@@ -85,7 +85,7 @@ const PREFERENCES_PUSH_STUB = `
         );
 
         if (type === 'PM_GET_EXACT_WALLET_SESSION_STATE') {
-          respond(requestId, { revision: ++sessionObservationRevision, walletId, state: exactSessionState });
+          respond(requestId, { revision: ++sessionObservationRevision, walletId, state: exactSessionState, session: publicSessionForState(exactSessionState) });
           return;
         }
 

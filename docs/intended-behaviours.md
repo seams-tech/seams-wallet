@@ -1613,6 +1613,16 @@ pending delivery. A listener failure does not stop other listeners. Connection
 failures belong to `connection.onChange`; they do not invent a signed-out session.
 React consumes this subscription without an additional session read per event.
 
+One host observation supplies the exact session state and the complete public
+`WalletSession`. Reconciliation and capability projection share the same scoped
+server-status reads. A lock, wallet-selection change, or authority change during
+that observation makes the host discard it and observe again. Each later explicit
+`getSession` or `refreshSession` request obtains fresh server status.
+Registration publishes that observation before returning. React uses its session
+subscription to display the registered wallet without another status request.
+Signing prepare continues to enforce current revocation, expiry, and quota state.
+The iframe protocol requires matching client and wallet-host assets at version 15.0.0.
+
 
 ### Connection and operation preparation
 

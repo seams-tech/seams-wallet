@@ -20,6 +20,7 @@ import type {
   WalletIframeExactSessionIdentity,
   WalletIframeExactSessionLockResult,
   WalletIframeExactSessionState,
+  WalletIframeSessionPublication,
 } from './shared/exactSessionState';
 
 type Connecting = {
@@ -168,12 +169,25 @@ export class WalletIframeCoordinator {
   }
 
   private refreshSession(): void {
+    const router = this.iframeRouter;
+    if (router) {
+      this.publishSessionChange(router.getMirroredExactSessionState(), { kind: 'refresh' });
+    }
+  }
+
+  private publishSessionChange(
+    state: WalletIframeExactSessionState,
+    publication: WalletIframeSessionPublication,
+  ): void {
     const revision = ++this.sessionDeliveryRevision;
     const router = this.iframeRouter;
     if (!router || this.sessionListeners.size === 0) return;
-    const state = router.getMirroredExactSessionState();
     if (state.kind === 'wallet_locked') {
       this.deliverSession(router, revision, buildAnonymousWalletSession());
+      return;
+    }
+    if (publication.kind === 'observed') {
+      this.deliverSession(router, revision, publication.session);
       return;
     }
     void this.publishSession(router, revision, state.walletId).catch(this.reportSessionFailure.bind(this, revision));
@@ -258,7 +272,7 @@ export class WalletIframeCoordinator {
       this.ensureWalletIframePreferencesMirror(router);
       this.ensureWalletIframeLifecycleMirror(router);
       this.walletIframeSessionUnsubscribe = router.onSessionChange(
-        this.refreshSession.bind(this),
+        this.publishSessionChange.bind(this),
       );
       this.ensureWalletIframeAuthMenuMirror(router);
       await router.init();

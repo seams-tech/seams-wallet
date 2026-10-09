@@ -1,4 +1,6 @@
 import type { WalletHostRuntime } from './WalletHostRuntime';
+import { buildAnonymousWalletSession } from '@/SeamsWeb/publicApi/session';
+import type { WalletSession } from '@/core/types/seams';
 import type {
   ChildToParentEnvelope,
   PMGetExactWalletSessionStatePayload,
@@ -43,8 +45,8 @@ async function readWalletIframeExactSessionStatus(
 
 function exactSessionReadDependenciesForRelay(
   relayUrl: string,
+  reads: WalletSessionStatusReadScope,
 ): WalletIframeExactSessionReadDependencies & WalletIframeExactSessionReconciliationDependencies {
-  const reads = new WalletSessionStatusReadScope();
   return {
     resolveSelectedWalletAuthority:
       IndexedDBManager.resolveSelectedWalletAuthority.bind(IndexedDBManager),
@@ -93,6 +95,7 @@ async function resolvePersistedCurrentWalletId(pm: WalletHostRuntime): Promise<s
 export async function resolveExactWalletSessionState(
   pm: WalletHostRuntime,
   payload: PMGetExactWalletSessionStatePayload,
+  statusReads: WalletSessionStatusReadScope,
 ): Promise<WalletIframeExactSessionState> {
   let walletId: string | undefined;
   switch (payload.wallet.kind) {
@@ -109,7 +112,10 @@ export async function resolveExactWalletSessionState(
       break;
   }
   if (!walletId) return { kind: 'wallet_locked' };
-  const dependencies = exactSessionReadDependenciesForRelay(pm.configs.network.relayer.url);
+  const dependencies = exactSessionReadDependenciesForRelay(
+    pm.configs.network.relayer.url,
+    statusReads,
+  );
   const reconciliation = await reconcileWalletIframeExactSessions(
     { walletId: toWalletId(walletId) },
     dependencies,
@@ -134,6 +140,7 @@ type RefreshState = { kind: 'idle' } | { kind: 'pending' } | { kind: 'running'; 
 type SessionObservation = {
   readonly revision: number;
   readonly state: WalletIframeExactSessionState;
+  readonly session: WalletSession;
 };
 
 export class WalletHostSessionObserver {
@@ -149,6 +156,10 @@ export class WalletHostSessionObserver {
     private readonly runtime: WalletHostRuntime,
     private readonly post: (message: ChildToParentEnvelope) => void,
     private readonly expiredSessions: ReadonlyMap<WalletId, ReadonlySet<WalletSessionId>>,
+    private readonly readSession: (
+      walletId: WalletId,
+      statusReads: WalletSessionStatusReadScope,
+    ) => Promise<WalletSession>,
   ) {
     this.unsubscribeAuthority = seamsWalletDB.onWalletAuthorityChange(this.invalidate.bind(this));
     this.unsubscribeSelection = runtime.preferences.onCurrentWalletChange(
@@ -206,13 +217,14 @@ export class WalletHostSessionObserver {
         markWalletSelectionChanged.bind(null, selection),
       );
       try {
-        const { revision, state } = await this.readObservation(payload, authorityRevision);
+        const { revision, state, session } = await this.readObservation(payload, authorityRevision);
         this.assertActive();
         if (selection.changed && this.runtime.preferences.getCurrentWalletId() === null) {
           publish({
             revision: ++sessionObservationRevision,
             walletId: null,
             state: { kind: 'wallet_locked' },
+            session: buildAnonymousWalletSession(),
           });
           return;
         }
@@ -226,7 +238,7 @@ export class WalletHostSessionObserver {
           payload.wallet.kind === 'exact'
             ? toWalletId(payload.wallet.walletId)
             : this.runtime.preferences.getCurrentWalletId();
-        publish({ revision, walletId, state: this.projectExpiry(state) });
+        publish({ revision, walletId, state: this.projectExpiry(state), session });
         return;
       } finally {
         unsubscribe();
@@ -261,8 +273,13 @@ export class WalletHostSessionObserver {
     payload: PMGetExactWalletSessionStatePayload,
   ): Promise<SessionObservation> {
     const revision = ++sessionObservationRevision;
-    const state = await resolveExactWalletSessionState(this.runtime, payload);
-    return { revision, state };
+    const statusReads = new WalletSessionStatusReadScope();
+    const state = await resolveExactWalletSessionState(this.runtime, payload, statusReads);
+    const session =
+      state.kind === 'wallet_locked'
+        ? buildAnonymousWalletSession()
+        : await this.readSession(state.walletId, statusReads);
+    return { revision, state, session };
   }
 
   private finishObservation(key: string): void {

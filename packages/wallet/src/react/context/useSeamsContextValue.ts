@@ -79,7 +79,7 @@ export function useSeamsContextValue(args: {
 
   const registerWallet: SeamsContextType['registerWallet'] = useCallback(
     async (args) => {
-      const result = await seamsWithSdkFlow.registration.registerWallet({
+      return await seamsWithSdkFlow.registration.registerWallet({
         ...args,
         options: {
           ...args.options,
@@ -89,13 +89,8 @@ export function useSeamsContextValue(args: {
           },
         },
       });
-      const walletId = result?.success ? String(result.walletId || '') : '';
-      if (result?.success && walletId) {
-        await refreshSession(walletId);
-      }
-      return result;
     },
-    [lock, refreshSession, seamsWithSdkFlow],
+    [lock, seamsWithSdkFlow],
   );
 
   const addSigner = seamsWithSdkFlow.registration.addSigner;

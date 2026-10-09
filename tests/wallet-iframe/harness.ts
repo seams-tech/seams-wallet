@@ -67,6 +67,32 @@ export const buildWalletServiceHtml = (options: WalletServiceHtmlOptions = {}): 
     let basePreferenceSnapshot = { walletId: exactSessionState.walletId ?? null, revision: 0, confirmationConfig: { uiMode: 'modal', behavior: 'requireClick', autoProceedDelay: 0 } };
     const pendingRequests = new Map();
 
+    function publicSessionForState(state) {
+      if (state.kind === 'wallet_locked') {
+        return {
+          appIdentity: { kind: 'anonymous' }, authentication: { kind: 'signed_out' },
+          capabilityProjection: { kind: 'not_requested' }, nonceDiagnostics: null,
+        };
+      }
+      if (state.kind === 'wallet_authenticated_identity_unresolvable') {
+        return {
+          appIdentity: { kind: 'unresolvable', walletId: state.walletId, reason: state.reason },
+          authentication: { kind: 'signed_out' },
+          capabilityProjection: { kind: 'unresolvable', reason: state.reason },
+          nonceDiagnostics: null,
+        };
+      }
+      return {
+        appIdentity: {
+          kind: 'resolved', walletId: state.walletId, nearAccountId: null,
+          nearOperationalPublicKey: null, userData: null, authMethods: [],
+          thresholdEcdsaEthereumAddress: null, thresholdEcdsaPublicKeyB64u: null,
+        },
+        authentication: { kind: 'authenticated', walletId: state.walletId, authMethod: state.authMethod ?? 'passkey' },
+        capabilityProjection: { kind: 'not_requested' }, nonceDiagnostics: null,
+      };
+    }
+
     function postResult(requestId, result) {
       adoptedPort.postMessage({
         type: 'PM_RESULT',
@@ -129,7 +155,7 @@ export const buildWalletServiceHtml = (options: WalletServiceHtmlOptions = {}): 
 
           if (type === 'PM_GET_EXACT_WALLET_SESSION_STATE') {
             try {
-              postResult(requestId, { revision: ++sessionObservationRevision, walletId: basePreferenceSnapshot.walletId, state: exactSessionState });
+              postResult(requestId, { revision: ++sessionObservationRevision, walletId: basePreferenceSnapshot.walletId, state: exactSessionState, session: publicSessionForState(exactSessionState) });
             } catch (err) {
               console.error('Failed to respond to PM_GET_EXACT_WALLET_SESSION_STATE', err);
             }

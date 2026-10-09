@@ -1,0 +1,247 @@
+{
+  "kind": "near_registration_shared_session_observation_local_evidence_v1",
+  "date": "2026-10-09",
+  "scope": "Local Chromium with production Wallet SDK, custody Workers, Console and regional Gateways backed by D1. Request-count comparison only.",
+  "publicBaseCommit": "e1fffcf9e9c80633d25f816317ba53e4908e06aa",
+  "privateBaseCommit": "d840864cbeeb980e48a8f699987e581ac976b2da",
+  "protocolVersion": "15.0.0",
+  "publicSourceSha256": {
+    "packages/wallet/src/SeamsWeb/operations/auth/login.ts": "5b067a9f59917670b59494270a603f8f96fc25d79019e1ff46c489e32557c951",
+    "packages/wallet/src/SeamsWeb/operations/auth/unlockPendingRegistration.ts": "54e8be53848c6405674ff3dd54ca3fe401de94368de4c20d09f86ac61bc64c17",
+    "packages/wallet/src/SeamsWeb/signingSurface/BrowserSigningSurface.ts": "63f04609e14e2c0cec934b6eb8f2dda92213266616d611d4167559390051c1fb",
+    "packages/wallet/src/SeamsWeb/signingSurface/ports.ts": "99f4f3a7d5147a9e606cd480ecf8854adba39113913b5370c9f9e4a5daa9824c",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/router.ts": "260fe81379f0af828a59288b496e904e20d54a6a520cd84ff717cdd4cea1fd86",
+    "packages/wallet/src/SeamsWeb/walletIframe/coordinator.ts": "8df77148c7975e0d22e22f48bfa49168bbeb0b80e5bdbb775f473bbb550e0ac8",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/createSessionCommands.ts": "da454d1f9c4e544f990b107548239f848fed17583a3760261c35986e880eada3",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/handlers/auth.ts": "11ddb550d35f2a0a77250de1ff31320739d8197a758f573901deecc0863dff8b",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/runtimeContext.ts": "f1dea45ad7348842bd5064121968c6102e92354be0123f1ca149307a2582cd3c",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/sessionObserver.ts": "104027ec79e643599c102c7ee3ca9cb138b94df0bd2630df01309f921ad9251a",
+    "packages/wallet/src/SeamsWeb/walletIframe/shared/exactSessionState.ts": "9c0f96c1f82a07541a1aa1cc5d8b71c2ccda6209bee20239d11672f2c4936abb",
+    "packages/wallet/src/SeamsWeb/walletIframe/shared/messages.ts": "7adf0f388d70c3ba2c5e7a0dbd86b0998def6e4416887258a03ecfccc358e3bb",
+    "packages/wallet/src/core/signingEngine/session/availability/persistedAvailableSigningLanes.ts": "1cdff28b7c0528afbdba1a7e4a84c1558d98c21e2f428ad4d3d898438eb8ff39",
+    "packages/wallet/src/core/signingEngine/session/public.ts": "c0a9d50ee5444ea2fbaf61ef37f9dd075c22236f174ee63db7afaee22a2890f9",
+    "packages/wallet/src/react/context/useSeamsContextValue.ts": "447be9c851dce2e1cfde41becee9a36f9cea350f83612d9676e00c5c1c0b1487"
+  },
+  "privateScenarioSha256": "1e8cf04414aaec84849f21dc9e0b0ff754e0fe5a9edc202f2eecfab1c5efff88",
+  "comparison": {
+    "previousPhase": "6AP",
+    "previousEvidence": "near-registration-combined-completion-20261009.json",
+    "registrationStatusRequests": {
+      "before": 2,
+      "after": 1
+    },
+    "firstSignatureStatusRequests": {
+      "before": 0,
+      "after": 0
+    },
+    "gatewayRequestsThroughFirstSignature": {
+      "before": 8,
+      "after": 7
+    },
+    "consoleRequestsThroughFirstSignature": {
+      "before": 7,
+      "after": 7
+    },
+    "fullD1Counts": "not measured",
+    "hostedLatencySaving": "not measured",
+    "preservedHostedFinalizationMedianMs": 2190,
+    "attributionCorrection": "The earlier NEAR harness bypassed the React registration wrapper. Its second status read came from the full WalletSession projection in the application subscriber. The new harness uses the React wrapper and verifies subscription-driven UI state."
+  },
+  "normal": {
+    "consoleRequests": [
+      "/internal/wallet-console/v1/registration-context",
+      "/internal/wallet-placement/v1/reserve",
+      "/internal/wallet-placement/v1/registration-home",
+      "/internal/wallet-console/v1/tenant-root/active-lineage",
+      "/internal/wallet-placement/v1/claim-passkey",
+      "/internal/wallet-placement/v1/publish-routes",
+      "/internal/wallet-placement/v1/complete"
+    ],
+    "signature": {
+      "message": "Combined registration completion through OC",
+      "recipient": "checkout.example",
+      "state": "quote-170",
+      "success": true,
+      "accountId": "fabd9538319ee9076d886f181f958378e95861341a1aff17a9286fed42843e92",
+      "publicKey": "ed25519:HsnbNCT4dNHG2TicdCWLLc2QNxUKauzozpegfUNG4kw3",
+      "signature": "VmCDEGevRw4UFAB/EDfjlKWiBztNu2XnFUvxZYfL2YEaLIeuXQ3IKvDaB4n6UXs73oNHAxrO6upRAIEMMfF5Dg==",
+      "nonce": "Y9UkS/ZPXyot9DqHwoq2qjAJ6L+7C+6a4nu7xgvR7/U=",
+      "digestHex": "92b3de28e733a0794fa679515efb1f28eb2736220128f7857583da5c9d78da6c",
+      "verification": {
+        "standardPayload": true,
+        "changedMessageRejected": true,
+        "changedRecipientRejected": true,
+        "changedNonceRejected": true,
+        "changedCallbackUrlRejected": true,
+        "stateExcludedFromPayload": true,
+        "stateReturnedUnchanged": true
+      }
+    },
+    "signingIngress": "OC",
+    "signingConsoleCalls": 0,
+    "sessionObservation": {
+      "registrationStatusRequests": 1,
+      "firstSignatureStatusRequests": 0,
+      "explicitRefreshStatusRequests": 1,
+      "reactLoginPublished": true,
+      "nearIdentityPublished": true,
+      "lockClearsAuthentication": true
+    },
+    "gatewayRequests": [
+      {
+        "stage": "registration",
+        "path": "/wallets/register/setup"
+      },
+      {
+        "stage": "registration",
+        "path": "/wallets/register/respond"
+      },
+      {
+        "stage": "registration",
+        "path": "/router-ab/ed25519/yao/registration/execute"
+      },
+      {
+        "stage": "registration",
+        "path": "/wallets/register/near-provisioning"
+      },
+      {
+        "stage": "registration",
+        "path": "/wallet/session/status"
+      },
+      {
+        "stage": "first_signature",
+        "path": "/router-ab/ed25519/sign/prepare"
+      },
+      {
+        "stage": "first_signature",
+        "path": "/router-ab/ed25519/sign"
+      },
+      {
+        "stage": "explicit_refresh",
+        "path": "/wallet/session/status"
+      }
+    ]
+  },
+  "lostCompletionReply": {
+    "registrationConsoleRequests": [
+      "/internal/wallet-console/v1/registration-context",
+      "/internal/wallet-placement/v1/reserve",
+      "/internal/wallet-placement/v1/registration-home",
+      "/internal/wallet-console/v1/tenant-root/active-lineage",
+      "/internal/wallet-placement/v1/claim-passkey",
+      "/internal/wallet-placement/v1/publish-routes",
+      "/internal/wallet-placement/v1/complete",
+      "/internal/wallet-placement/v1/publish-routes",
+      "/internal/wallet-placement/v1/complete"
+    ],
+    "statuses": [
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      200
+    ],
+    "identicalCompletionRetries": 2,
+    "signingFencedUntilCompletionAcknowledged": true,
+    "exactMethodUnlockRequired": true,
+    "signature": {
+      "message": "Recovered combined completion",
+      "recipient": "checkout.example",
+      "state": "quote-170",
+      "success": true,
+      "accountId": "ac39d4636edc58b259404223f6e1e15fd60af4485d2125789a8d615a999d0d65",
+      "publicKey": "ed25519:CbJGbPdStYof69HQryTf4hCipkoBTLK4tQhbQ9KseVkG",
+      "signature": "dvBB9APCYC5LvFE3Hb9WKgrb6IjH+zWNHcLORTJ+NgDXON9GgFdkAxwHdgaqV0wUqCvoP+/8Jtamt7b7xDDSDA==",
+      "nonce": "93cLx8BeVZj2teTtEkRtSggxyVni/hRM1qs0d6dFBk4=",
+      "digestHex": "c0aefb40726eaf0b0f0bff3ad76d08096fc6785f8f5b693ff093ef662dd57c33",
+      "verification": {
+        "standardPayload": true,
+        "changedMessageRejected": true,
+        "changedRecipientRejected": true,
+        "changedNonceRejected": true,
+        "changedCallbackUrlRejected": true,
+        "stateExcludedFromPayload": true,
+        "stateReturnedUnchanged": true
+      }
+    },
+    "signingConsoleCalls": 0
+  },
+  "validation": {
+    "sdkBuild": "passed",
+    "sdkTypecheck": "passed",
+    "domainTypeFixtures": "passed",
+    "realRegionalBrowserScenarios": {
+      "distinctCasesPassed": 2,
+      "log": ".artifacts/r155b-session-observation-browser-verified.log"
+    },
+    "browserLifecycleScenarios": {
+      "distinctCasesPassed": 24,
+      "coverage": [
+        "connection retry and disposal",
+        "delayed session responses",
+        "wallet selection changes",
+        "same-wallet authority changes",
+        "expiry across delayed status",
+        "cross-tab lock and unlock",
+        "preferences",
+        "protocol mismatch",
+        "full subscription publication"
+      ],
+      "logs": [
+        ".artifacts/r155b-phase6aq/browser-validation-final.log",
+        ".artifacts/r155b-phase6aq/selection-validation-final.log"
+      ],
+      "note": "23 cases passed in the complete run. The selected-wallet fixture then changed to the required full session shape. Its four-case selection file passed on repeat, closing the one remaining case."
+    },
+    "bloatCheck": "passed",
+    "initialFindings": [
+      "Fixed locked-snapshot parsing: selected wallet identity can remain while the public session is anonymous.",
+      "Updated fixtures for required full session snapshots and the new protocol version."
+    ],
+    "privateFullTypecheck": "not rerun; no private production source changed"
+  },
+  "reproduction": [
+    "In seams-wallet: pnpm -C packages/wallet build:sdk",
+    "In seams-wallet: pnpm -C packages/wallet type-check && pnpm -C tests type-check:wallet-state",
+    "In seams-wallet/tests: pnpm exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/client.connection.test.ts wallet-iframe/router.sessionOrdering.test.ts wallet-iframe/session.events.test.ts wallet-iframe/session.selection.test.ts wallet-iframe/preferences.sync.test.ts wallet-iframe/handshake.test.ts --project chromium",
+    "In seams-monorepo: SEAMS_WALLET_SERVER_CANDIDATE=<matching-wallet-root>/packages/wallet-server node tests/scripts/run-regional-real.mjs passkey.registration.contract.test.ts --grep \"NEAR registration (combines|recovers)\""
+  ],
+  "rawArtifacts": {
+    "public": ".artifacts/r155b-phase6aq",
+    "private": ".artifacts/r155b-session-observation"
+  },
+  "limitations": [
+    "The local request-count comparison is NEAR-only.",
+    "No hosted cold/warm latency comparison or complete D1 count.",
+    "Explicit refresh is a separate test stage excluded from the registration-through-first-signature counts.",
+    "The existing lost-completion recovery window remains 30 seconds."
+  ],
+  "liveChanges": false,
+  "r155cTransportChanged": false,
+  "newInfrastructure": false
+}

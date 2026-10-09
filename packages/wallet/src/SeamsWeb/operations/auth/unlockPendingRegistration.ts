@@ -10,6 +10,7 @@ import {
   type PendingRegistrationRecoverySigningSurface,
 } from '../registration/pendingRegistrationRecovery';
 import { getWalletSession } from './login';
+import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import { resolveUnlockSessionPolicy } from './unlockSessionPolicy';
 import { emitUnlockEvent, finalizeLoginError, finalizeLoginSuccess } from './unlockCompletion';
 
@@ -111,7 +112,11 @@ async function recoveredUnlockResult(args: {
         : 'Pending NEAR registration did not establish the requested account',
     );
   }
-  const session = await getWalletSession(args.context, args.walletId);
+  const session = await getWalletSession(
+    args.context,
+    args.walletId,
+    new WalletSessionStatusReadScope(),
+  );
   if (
     session.appIdentity.kind !== 'resolved' ||
     !session.appIdentity.nearAccountId ||

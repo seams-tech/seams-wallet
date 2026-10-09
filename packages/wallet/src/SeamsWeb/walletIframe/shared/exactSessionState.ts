@@ -312,7 +312,12 @@ export type WalletIframeExactSessionSnapshot = {
   readonly walletId: WalletId | null;
   readonly revision: number;
   readonly state: WalletIframeExactSessionState;
+  readonly session: WalletSession;
 };
+
+export type WalletIframeSessionPublication =
+  | { readonly kind: 'observed'; readonly session: WalletSession }
+  | { readonly kind: 'refresh'; readonly session?: never };
 
 export function parseWalletIframeSessionRevision(value: unknown): number {
   return requireNonNegativeSafeInteger(value, 'Wallet session revision');
@@ -327,7 +332,17 @@ export function parseWalletIframeExactSessionSnapshot(
   if (state.kind !== 'wallet_locked' && state.walletId !== walletId) {
     throw new Error('Wallet session snapshot identity differs from its projection');
   }
-  return { revision: parseWalletIframeSessionRevision(record.revision), walletId, state };
+  const session = parseWalletSessionFromBoundary(
+    record.session,
+    state.kind === 'wallet_locked' ? undefined : state.walletId,
+  );
+  if (
+    state.kind === 'wallet_locked' &&
+    (session.authentication.kind !== 'signed_out' || session.appIdentity.kind !== 'anonymous')
+  ) {
+    throw new Error('Locked wallet snapshot must publish an anonymous session');
+  }
+  return { revision: parseWalletIframeSessionRevision(record.revision), walletId, state, session };
 }
 
 export function parseWalletIframeExactSessionState(value: unknown): WalletIframeExactSessionState {

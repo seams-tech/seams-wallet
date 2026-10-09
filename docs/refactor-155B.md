@@ -39,25 +39,24 @@ each date. Their completed checklists do not impose handshake requirements on
 R155C. Open A/B tasks and the withdrawn proposal to relay B preparation through
 A are removed from R155B. Continue those changes only under the revised R155C plan.
 
-Independent R155B work (Phase 6AP):
+Independent R155B work (Phases 6AP–6AQ):
 
 1. **Combined registration completion.** Registration commits its session locally,
    then publishes the original credential locator and completes its home in one
    Console request. Retries reuse the mint record. No new queue or schema is needed.
-2. **Traced both remaining status requests.** Both occur after finalization and
-   before registration returns. The iframe registration command and host observer
-   share the first observation. React's subsequent `refreshSession` calls
-   `getSession` and starts the second. First NEAR message signing uses prepare and
-   sign only. Reusing registration state for UI publication is a separate SDK
-   change; fresh queries and prepare enforcement remain intact.
+2. **Combined session observations.** The host supplies exact status and the full
+   public session from one scoped server read. The session subscriber consumes
+   that publication. React registration no longer requests another refresh.
+   Explicit queries and signing prepare still enforce fresh server state.
 3. **Combined registration lookup and admission.** One Console response supplies
    the ceremony assignment and execution admission. Reserved-wallet admission
    uses that row. This removes the separate admission request and its directory
    reread. Local execution fences still serialize terminal decisions.
 
 The local candidate observes **7 Console requests**, versus the 9 paths in Phase
-6AO. Gateway requests remain **8**, including **2 status requests**. This is a
-verified request-count change. Hosted latency savings remain unmeasured. The
+6AO. Gateway requests fall **8 → 7**, including **2 → 1 status requests**. These
+counts cover registration through the first verified NEAR message signature.
+They are verified request-count changes. Hosted latency savings remain unmeasured. The
 previous finalization HTTP median of **2.190 seconds** remains the hosted baseline.
 Capability installation and custody storage already run concurrently. Keep custody
 fixed during the next hosted comparison and coordinate staging use with R155C.
@@ -5688,12 +5687,15 @@ wallets retain current relocation admission checks. Local terminal fences protec
 writes after a routing observation; a later request reads Console again when it
 needs a new registration observation. No long-lived authorization cache was added.
 
-The browser trace identifies both remaining status requests:
+The browser trace records two remaining status requests. The Phase 6AQ source
+audit corrected the initial attribution:
 
 - `WalletIframeRouter.registerWallet` refreshes the exact session after registration.
   The host's pending authority-change observation shares that request.
-- React's `useSeamsContextValue.registerWallet` then calls `refreshSession`.
-  `useLoginStateRefresher` calls `auth.getSession`, which reads fresh server status.
+- The session subscriber requests the complete `WalletSession` after the exact
+  observation. Its capability projection reads status again. The NEAR harness
+  called `seams.registration.registerWallet`, bypassing React's registration wrapper.
+  That wrapper also requested a refresh when applications used it.
 
 Both requests precede the return from registration. They are not Yao rounds.
 The following NEP-413 signature uses only `/prepare` and `/sign`. There is no new
@@ -5733,3 +5735,58 @@ Raw artifacts are public `.artifacts/r155b-phase6ap` and private
 archive dependencies, runner selection, and a hard-coded test Router port. The
 helper now respects the existing port-offset setting. The accepted browser run uses
 isolated local state and ports; these setup failures are excluded from results.
+
+### Phase 6AQ — publish one reconciled registration session (2026-10-09)
+
+The wallet host now publishes exact session state and the complete public
+`WalletSession` together. Reconciliation and capability projection share the same
+request-scoped status reader. Readers still match the credential, session, quota,
+relay, and fetch implementation. A changed local authority or selected wallet
+discards the observation and starts a fresh read. No timed status cache was added.
+
+The application subscriber consumes that publication directly. React registration
+uses the subscription and removes its extra `refreshSession` call. An explicit
+`getSession`, `refreshSession`, or later subscription still makes a fresh read.
+Signing prepare retains its server-side revocation, expiry, and budget checks.
+
+This corrects Phase 6AP's original caller attribution. The earlier NEAR harness
+used the application API directly. Its second status request came from the session
+subscriber's full projection. React's wrapper was a separate source of repeated
+work. The acceptance harness now uses that wrapper and verifies its visible state.
+
+| Local NEAR registration through first verified message signature | Phase 6AP | Phase 6AQ |
+| --- | --- | --- |
+| Registration status requests | 2 | 1 |
+| First-signature status requests | 0 | 0 |
+| Total Gateway HTTP requests | 8 | 7 |
+| Total Console HTTP requests | 7 | 7 |
+
+The resulting seven Gateway calls are setup, respond, Yao execute, finalization,
+one status read, prepare, and sign. An additional explicit refresh in the test
+makes its own status request. That test-only refresh is excluded from this table.
+
+The new snapshot requires a complete public session. Iframe protocol **15.0.0**
+requires matching application SDK and wallet-host assets. Older protocol peers
+fail during connection. No compatibility branch was added. A locked snapshot can
+retain the selected wallet ID, while its public session remains anonymous.
+
+Hosted timing savings and full D1 counts remain unmeasured. The **2.190s**
+finalization median and Phase 6AO hosted results remain the comparison baseline.
+R155C's A/B preparation and transport are unchanged. No deployment, new Cloudflare
+resource, or package release occurred.
+
+Local browser acceptance verifies one registration status read, correct React
+wallet and NEAR identity, an independently verified signature through OC during a
+Console outage, a fresh explicit status read, and lock cleanup. The lost-completion
+case preserves its original session and verifies signing after unlock through APAC.
+
+Validation passes: SDK build, SDK type check, domain type fixtures, exact-tree
+bloat check, 24 browser lifecycle cases, and both real regional browser scenarios.
+The browser cases cover delayed reads, expiry, wallet switching, reconnect,
+unsubscribe, disposal, preferences, and protocol mismatch. An initial parser
+failure exposed the locked-selection case described above and was fixed.
+
+[Evidence and repeat commands](evidence/near-registration-session-observation-20261009.json)
+record the public signature proofs, request counts, source hashes, and validation.
+Raw artifacts are public `.artifacts/r155b-phase6aq` and private
+`.artifacts/r155b-session-observation`.

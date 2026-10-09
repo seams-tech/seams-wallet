@@ -9,6 +9,7 @@ import { IndexedDBManager, configureIndexedDB } from './packages/wallet/src/core
 import { walletSessionAuthorizations } from './packages/wallet/src/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
 import { UserPreferencesManager } from './packages/wallet/src/core/signingEngine/session/userPreferences';
 import { WalletHostSessionObserver } from './packages/wallet/src/SeamsWeb/walletIframe/host/sessionObserver';
+import { buildAnonymousWalletSession } from './packages/wallet/src/SeamsWeb/publicApi/session';
 import { buildEmailOtpEcdsaWalletSessionFixture } from './tests/unit/helpers/linkedDeviceManagement.fixtures';
 let fixture;
 let observer;
@@ -35,6 +36,7 @@ async function statusFetch(input, init) {
 }
 function post(message) { messages.push(message); }
 function publishQuery(snapshot) { messages.push({ type: 'QUERY', payload: snapshot }); }
+async function readSession() { return buildAnonymousWalletSession(); }
 function readFailed(error) { return { kind: 'rejected', message: error.message }; }
 function readSucceeded() { return { kind: 'resolved' }; }
 function beginRead() {
@@ -65,7 +67,7 @@ function createObserver() {
   globalThis.fetch = statusFetch;
   observer = new WalletHostSessionObserver({
     preferences, configs: { network: { relayer: { url: 'https://relay.example.test' } } },
-  }, post, expired);
+  }, post, expired, readSession);
 }
 export function state() { return { held: held !== null, messages }; }
 export function expire() {

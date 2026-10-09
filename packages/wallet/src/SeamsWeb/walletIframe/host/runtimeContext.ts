@@ -1,5 +1,6 @@
 import { assertWalletHostMutationAllowed } from './walletMutationGuard';
 import { WalletHostSessionObserver } from './sessionObserver';
+import { getWalletSession } from '@/SeamsWeb/operations/auth/login';
 import type { WalletIframeExactSessionSnapshot } from '../shared/exactSessionState';
 import type { PMGetExactWalletSessionStatePayload } from '../shared/messages';
 import type { TransactionReviewAdmission } from '@/core/signingEngine/uiConfirm/transactionReviewAdmission';
@@ -250,6 +251,7 @@ function ensureSessionObserver(
     runtime,
     postSessionMessage.bind(null, ctx, runtime, ctx.port),
     ctx.expiredSessionsByWallet,
+    getWalletSession.bind(null, runtime.getContext()),
   );
   return ctx.sessionObserver;
 }

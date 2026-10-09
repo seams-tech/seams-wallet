@@ -1380,7 +1380,7 @@ class IntendedPageController {
     this.dispatch({ kind: 'action_started', action });
     try {
       const registrationStartedAt = performance.now();
-      const result = await this.seams.registration.registerWallet({
+      const result = await this.registerWallet({
         authMethod: {
           kind: 'passkey',
           rpId: intendedRegistrationRpId(),

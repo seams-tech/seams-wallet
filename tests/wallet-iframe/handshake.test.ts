@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { buildWalletServiceHtml as buildWalletHostServiceHtml } from '@/plugins/plugin-utils';
 import { injectImportMap } from '../setup/bootstrap';
 import { buildWalletServiceHtml, initRouter, registerWalletServiceRoute } from './harness';
+import { WALLET_PROTOCOL_VERSION } from '../../packages/wallet/src/SeamsWeb/walletIframe/shared/messages';
 
 const WALLET_ORIGIN = 'https://wallet.example.localhost';
 const WALLET_SERVICE_ROUTE = '**://wallet.example.localhost/wallet-service';
@@ -130,7 +131,7 @@ test.describe('Wallet iframe handshake', () => {
     expect(result.ok).toBe(false);
     expect(result.code).toBe('WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH');
     expect(result.name).toBe('WalletIframeProtocolVersionMismatchError');
-    expect(result.message).toContain('expected 14.0.0, received 13.0.0');
+    expect(result.message).toContain(`expected ${WALLET_PROTOCOL_VERSION}, received 13.0.0`);
 
     const readyState = await page.evaluate(() => {
       const router = (window as any).__walletRouter;
@@ -143,7 +144,7 @@ test.describe('Wallet iframe handshake', () => {
   test('rejects when CONNECT advertises an older host SDK protocol version', async ({ page }) => {
     await registerWalletServiceRoute(
       page,
-      buildWalletServiceHtml({ expectedConnectProtocolVersion: '15.0.0' }),
+      buildWalletServiceHtml({ expectedConnectProtocolVersion: '99.0.0' }),
       WALLET_SERVICE_ROUTE,
     );
     await initRouter(page, { walletOrigin: WALLET_ORIGIN, connectTimeoutMs: 1000 });
@@ -168,9 +169,9 @@ test.describe('Wallet iframe handshake', () => {
     expect(result.ok).toBe(false);
     expect(result.code).toBe('WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH');
     expect(result.name).toBe('WalletIframeProtocolVersionMismatchError');
-    expect(result.message).toContain('expected 15.0.0, received 14.0.0');
-    expect(result.expectedProtocolVersion).toBe('15.0.0');
-    expect(result.receivedProtocolVersion).toBe('14.0.0');
+    expect(result.message).toContain(`expected 99.0.0, received ${WALLET_PROTOCOL_VERSION}`);
+    expect(result.expectedProtocolVersion).toBe('99.0.0');
+    expect(result.receivedProtocolVersion).toBe(WALLET_PROTOCOL_VERSION);
 
     const readyState = await page.evaluate(() => {
       const router = (window as any).__walletRouter;

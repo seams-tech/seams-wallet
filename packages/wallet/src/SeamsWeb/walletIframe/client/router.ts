@@ -234,6 +234,7 @@ import {
   type WalletIframeExactSessionIdentity,
   type WalletIframeExactSessionLockResult,
   type WalletIframeExactSessionState,
+  type WalletIframeSessionPublication,
   type WalletIframePendingSessionBinding,
 } from '../shared/exactSessionState';
 import { stripFunctionsShallow } from '@shared/utils/validation';
@@ -1270,7 +1271,9 @@ export class WalletIframeRouter {
   };
   private readonly listeners = {
     connectionClosed: new Set<() => void>(),
-    sessionChanged: new Set<(state: WalletIframeExactSessionState) => void>(),
+    sessionChanged: new Set<
+      (state: WalletIframeExactSessionState, publication: WalletIframeSessionPublication) => void
+    >(),
     preferencesChanged: new Set<(payload: PreferencesChangedPayload) => void>(),
     hostedAuthMenuExternalAuthRequest: new Set<
       (payload: HostedAuthMenuExternalAuthRequest) => void
@@ -2664,7 +2667,10 @@ export class WalletIframeRouter {
 
   // Subscribe to reconciled wallet-host session observations.
   onSessionChange(
-    listener: (state: WalletIframeExactSessionState) => void,
+    listener: (
+      state: WalletIframeExactSessionState,
+      publication: WalletIframeSessionPublication,
+    ) => void,
   ): () => void {
     this.listeners.sessionChanged.add(listener);
     return () => {
@@ -2736,7 +2742,7 @@ export class WalletIframeRouter {
       const changed = this.acceptSessionSnapshot(snapshot);
       const state = this.getMirroredExactSessionState();
       if (emitChange && changed) {
-        this.emitSessionChanged(state);
+        this.emitSessionChanged(state, { kind: 'observed', session: snapshot.session });
       }
       return state;
     }
@@ -2753,10 +2759,13 @@ export class WalletIframeRouter {
     return changed;
   }
 
-  private emitSessionChanged(state: WalletIframeExactSessionState): void {
+  private emitSessionChanged(
+    state: WalletIframeExactSessionState,
+    publication: WalletIframeSessionPublication,
+  ): void {
     for (const cb of Array.from(this.listeners.sessionChanged)) {
       try {
-        cb(state);
+        cb(state, publication);
       } catch {}
     }
   }
@@ -2803,7 +2812,7 @@ export class WalletIframeRouter {
         const state: WalletIframeExactSessionState = { kind: 'wallet_locked' };
         this.updateReviewSession(state);
         this.exactSessionState = state;
-        this.emitSessionChanged(state);
+        this.emitSessionChanged(state, { kind: 'refresh' });
       }
       return;
     }
@@ -2852,7 +2861,7 @@ export class WalletIframeRouter {
     };
     this.updateReviewSession(expiredState);
     this.exactSessionState = expiredState;
-    this.emitSessionChanged(expiredState);
+    this.emitSessionChanged(expiredState, { kind: 'refresh' });
   }
 
   private failPendingRequestsForExpiredSession(event: SigningSessionExpiredEvent): void {
@@ -3410,7 +3419,7 @@ export class WalletIframeRouter {
     this.invalidateReviews();
     await this.post<void>({ type: 'PM_LOCK' });
     this.exactSessionState = { kind: 'wallet_locked' };
-    this.emitSessionChanged({ kind: 'wallet_locked' });
+    this.emitSessionChanged({ kind: 'wallet_locked' }, { kind: 'refresh' });
     return { ok: true, result: undefined };
   }
 
@@ -3425,10 +3434,10 @@ export class WalletIframeRouter {
     const result = parseWalletIframeExactSessionLockResult(response.result);
     if (result.kind === 'locked') {
       this.exactSessionState = { kind: 'wallet_locked' };
-      this.emitSessionChanged({ kind: 'wallet_locked' });
+      this.emitSessionChanged({ kind: 'wallet_locked' }, { kind: 'refresh' });
     } else {
       this.exactSessionState = result.current;
-      this.emitSessionChanged(result.current);
+      this.emitSessionChanged(result.current, { kind: 'refresh' });
     }
     return result;
   }
@@ -4172,7 +4181,10 @@ export class WalletIframeRouter {
     // Some wallet-host messages are push-style and are not correlated to a requestId.
     if (msg.type === 'SESSION_CHANGED') {
       if (this.acceptSessionSnapshot(msg.payload)) {
-        this.emitSessionChanged(msg.payload.state);
+        this.emitSessionChanged(msg.payload.state, {
+          kind: 'observed',
+          session: msg.payload.session,
+        });
       }
       return;
     }
@@ -4310,7 +4322,7 @@ export class WalletIframeRouter {
       err.details = msg.payload?.details;
       if (isTerminalWalletStateErrorCode(msg.payload?.code)) {
         this.exactSessionState = { kind: 'wallet_locked' };
-        this.emitSessionChanged({ kind: 'wallet_locked' });
+        this.emitSessionChanged({ kind: 'wallet_locked' }, { kind: 'refresh' });
       }
       // Deliver to pending promise if present
       pending.reject(err);

@@ -617,6 +617,7 @@ export interface SigningSessionSurface {
   ): Promise<DiscoverPersistedSessionsForWalletResult>;
   readPersistedAvailableSigningLanes(
     args: Omit<ReadAvailableSigningLanesInput, 'ecdsaChainTargets'>,
+    statusReads: WalletSessionStatusReadScope,
   ): Promise<AvailableSigningLanes>;
   readOwnerScopedSigningLanes(
     args: {

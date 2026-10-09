@@ -168,6 +168,7 @@ void unversionedRuntimeState;
 import type {
   WalletIframeExactSessionSnapshot,
   WalletIframeExactSessionState,
+  WalletIframeSessionPublication,
 } from '../../packages/wallet/src/SeamsWeb/walletIframe/shared/exactSessionState';
 declare const observedSession: WalletIframeExactSessionState;
 // @ts-expect-error Session snapshots require a host-issued revision.
@@ -175,6 +176,16 @@ const unversionedSession: WalletIframeExactSessionSnapshot = { walletId: null, s
 // @ts-expect-error A revision cannot replace the required session projection.
 const missingSessionProjection: WalletIframeExactSessionSnapshot = { walletId: null, revision: 1 };
 declare const sessionSnapshot: WalletIframeExactSessionSnapshot;
+// @ts-expect-error An exact-state observation must carry its complete public session.
+const missingPublicSession: WalletIframeExactSessionSnapshot = { walletId: null, revision: 1, state: observedSession };
+// @ts-expect-error Broad spreads cannot remove the public session.
+const optionalPublicSession: WalletIframeExactSessionSnapshot = { ...sessionSnapshot, session: undefined };
+void missingPublicSession;
+void optionalPublicSession;
+declare const observedPublication: WalletIframeSessionPublication & { kind: 'observed' };
+// @ts-expect-error A refresh cannot carry a previously observed session.
+const refreshWithObservedSession: WalletIframeSessionPublication = { ...observedPublication, kind: 'refresh' };
+void refreshWithObservedSession;
 // @ts-expect-error An observation cannot adopt another revision after capture.
 sessionSnapshot.revision = 2;
 // @ts-expect-error Broad spreads cannot remove the required revision.

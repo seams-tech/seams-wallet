@@ -36,6 +36,13 @@ function recordSelection(walletId) { selectionEvents.push(walletId); adoptedPort
 function selectionPost(message) { adoptedPort.postMessage(message); }
 function noCancellation() { return false; }
 async function noPrefill() {}
+async function readSession(walletId) {
+  return publicSessionForState({
+    kind: 'wallet_authenticated_identity_unresolvable',
+    walletId,
+    reason: 'missing_wallet_profile',
+  });
+}
 let selectionRuntime;
 let sessionObserver;
 function getSelectionRuntime() { return selectionRuntime; }
@@ -60,7 +67,7 @@ async function initializeSelection() {
     configs: { network: { relayer: { url: 'https://relay.example.localhost' } } },
     prefillRestoredWalletSession: noPrefill,
   };
-  sessionObserver = new sdk.WalletHostSessionObserver(selectionRuntime, selectionPost, new Map());
+  sessionObserver = new sdk.WalletHostSessionObserver(selectionRuntime, selectionPost, new Map(), readSession);
   selectionHandlers = sdk.createAuthWalletIframeHandlers({
     observeSession: sessionObserver.observe.bind(sessionObserver),
     publishCurrentSession: sessionObserver.publishCurrentSession.bind(sessionObserver),

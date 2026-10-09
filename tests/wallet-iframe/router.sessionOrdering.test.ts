@@ -26,7 +26,8 @@ function sessionMessage(event) {
   if (message.type === 'PM_GET_EXACT_WALLET_SESSION_STATE') {
     sessionRequests.push(message.payload);
     const walletId = message.payload.wallet.kind === 'exact' ? message.payload.wallet.walletId : currentWallet;
-    const result = { revision: ++observationRevision, walletId, state: currentSession(walletId) };
+    const state = currentSession(walletId);
+    const result = { revision: ++observationRevision, walletId, state, session: publicSessionForState(state) };
     if (holdNextSession) {
       holdNextSession = false;
       heldSession = { requestId: message.requestId, result };
@@ -55,7 +56,7 @@ window.selectWallet = function(walletId) {
   publishSessionProjection(currentSession(currentWallet), currentWallet);
 };
 function publishSessionProjection(state, walletId) {
-  adoptedPort.postMessage({ type: 'SESSION_CHANGED', payload: { revision: ++observationRevision, walletId, state } });
+  adoptedPort.postMessage({ type: 'SESSION_CHANGED', payload: { revision: ++observationRevision, walletId, state, session: publicSessionForState(state) } });
 }
 window.publishCurrentSession = function() { publishSessionProjection(currentSession(currentWallet), currentWallet); };
 window.setSessionProjection = function(state) { currentProjection = state; publishSessionProjection(state, state.walletId); };

@@ -20,6 +20,7 @@ import {
 } from '../hostedWalletSeamsSession';
 import { createHostedAuthMenuHandlers } from './authMenu';
 import { resolveExactWalletSessionState } from '../sessionObserver';
+import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 
 function assertUnlockPayloadHasNoParentBearer(payload: unknown): void {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return;
@@ -133,10 +134,11 @@ export function createAuthWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
     PM_LOCK_EXACT_WALLET_SESSION: async (req: Req<'PM_LOCK_EXACT_WALLET_SESSION'>) => {
       const pm = deps.getWalletRuntime();
       const expected = parseWalletIframeExactSessionIdentity(req.payload);
-      const current = await resolveExactWalletSessionState(pm, {
-        authenticationRead: 'current',
-        wallet: { kind: 'current' },
-      });
+      const current = await resolveExactWalletSessionState(
+        pm,
+        { authenticationRead: 'current', wallet: { kind: 'current' } },
+        new WalletSessionStatusReadScope(),
+      );
       if (
         (current.kind !== 'active_session' && current.kind !== 'expired_session') ||
         !exactSessionIdentitiesMatch(current, expected)

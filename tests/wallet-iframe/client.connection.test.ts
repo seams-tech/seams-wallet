@@ -45,7 +45,7 @@ const SESSION_READ = `
     exactSessionState = walletId === null ? { kind: 'wallet_locked' } : { kind: 'wallet_unlocked_without_signing_session', walletId, reason: 'absent' };
     basePreferenceSnapshot = { ...basePreferenceSnapshot, walletId, revision: basePreferenceSnapshot.revision + 1 };
     adoptedPort.postMessage({ type: 'PREFERENCES_CHANGED', payload: basePreferenceSnapshot });
-    adoptedPort.postMessage({ type: 'SESSION_CHANGED', payload: { revision: ++sessionObservationRevision, walletId, state: exactSessionState } });
+    adoptedPort.postMessage({ type: 'SESSION_CHANGED', payload: { revision: ++sessionObservationRevision, walletId, state: exactSessionState, session: publicSession() } });
   };
 `;
 const HELD_PREFERENCES = `
@@ -348,10 +348,12 @@ test('public session subscriptions deliver full state and fence delayed reads, u
   expect(afterUnsubscribe.sessions).toHaveLength(3);
   await host.evaluate(() => (window as any).holdSessionRead());
   await host.evaluate(() => (window as any).publishSession('carol.testnet'));
+  await page.evaluate(subscribeLate);
   await host.waitForFunction(() => (window as any).sessionReadState().held);
+  const beforeDisposal = await page.evaluate(publicSessions);
   await page.evaluate(() => window.connectionProbe.seams.connection.dispose());
   const disposed = await page.evaluate(publicSessions);
-  expect(disposed).toEqual(afterUnsubscribe);
+  expect(disposed).toEqual(beforeDisposal);
   await writeFile(
     testInfo.outputPath('public-session-subscription.json'),
     JSON.stringify({ afterUnsubscribe, disposed }, null, 2),

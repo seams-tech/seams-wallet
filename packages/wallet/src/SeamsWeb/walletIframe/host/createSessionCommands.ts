@@ -4,7 +4,7 @@ import {
   resumePendingNearRegistrations,
   type PendingRegistrationRecoverySigningSurface,
 } from '@/SeamsWeb/operations/registration/pendingRegistrationRecovery';
-import type { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
+import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import type { Variant } from '@shared/utils/variant';
 import type { RouterAbEcdsaDerivationLoginPresignaturePrefillResult } from '@/core/signingEngine/session/warmCapabilities/ecdsaLoginPrefill';
 import type {
@@ -159,7 +159,7 @@ async function getSession(
   getContext: () => WalletHostAuthContext,
   walletId?: string,
 ): Promise<WalletSession> {
-  return await getSessionCore(getContext(), walletId);
+  return await getSessionCore(getContext(), walletId, new WalletSessionStatusReadScope());
 }
 
 async function hasPasskey(walletId: string): Promise<boolean> {
