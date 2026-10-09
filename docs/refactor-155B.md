@@ -5359,3 +5359,97 @@ No saving from this proposal is included above.
 serving-version audits, request counts, independent proofs, and cleanup.
 Repeatable scripts and raw artifacts remain in public `.artifacts/r155b-phase6al`
 and private `.artifacts/r155b-phase6al-hosted`.
+
+
+### Phase 6AM — share overlapping host session observations
+
+The browser trace found overlapping reads after NEAR-only registration:
+
+1. The wallet host publishes its changed session.
+2. Registration requests an exact session before returning to the application.
+3. The application reads the full session. Separate observation revisions can make it repeat that read.
+
+The initial suspected warm-status method has no callers in this flow. It was not changed.
+The host now shares one pending observation for the same wallet, read mode, current
+selection, authority revision, and invalidation revision. Both consumers receive the
+same observation revision. Completion or failure removes the pending entry.
+Each consumer still checks selection and authority before publication. Later queries
+read fresh status. Signing prepare still checks current server authorization.
+
+Implementation: public dev commit `27238baa0702bfd788954c47c31e46dcb9ad9a15`.
+The main Wallet checkout remains on another task's `ml-dsa` branch. A frozen archive
+and a separate Git index kept that task's source and index unchanged.
+
+Validation: SDK build, intended-test type-check, and the exact-tree bloat check passed.
+Five browser scenarios passed. They cover shared registration observation, fresh later
+queries, quota exhaustion, revoked-session rejection, cross-tab lock, and delayed
+restoration after a fresh unlock. Each accepted run uses real local Workers and D1.
+The registration test independently verifies a NEP-413 signature and saves evidence.
+
+The initial hosted preflight encountered an older deployed registration response.
+Those attempts failed before Yao execution and are excluded from performance results.
+The comparison uses one matching backend cohort for all three SDK arms. Temporary
+registration leases must expire before switching role versions or activating them.
+No new resources or package release are part of this experiment.
+
+
+Three fresh implicit wallets per arm. Only the NEAR signer loads. No account funding,
+transaction broadcast, or blockchain confirmation is included. Values are medians
+with observed ranges. Workers' cold state was not controlled.
+
+| Metric | Original SDK | Shared-observation SDK | Original SDK control |
+| --- | --- | --- | --- |
+| SDK registration | 7.543s (7.529–7.780s) | 7.405s (6.871–8.346s) | 7.052s (7.017–7.509s) |
+| Registration → independently verified signature | 10.725s (10.712–10.909s) | 9.983s (9.283–10.770s) | 9.944s (9.922–10.032s) |
+| Setup HTTP | 0.540s (0.465–0.565s) | 0.514s (0.510–0.906s) | 0.573s (0.513–0.602s) |
+| Respond HTTP | 0.824s (0.626–1.050s) | 0.678s (0.667–0.684s) | 0.692s (0.651–0.692s) |
+| Yao execute HTTP | 3.368s (2.972–3.426s) | 3.519s (2.984–3.981s) | 3.368s (3.352–3.397s) |
+| Finalize HTTP | 1.948s (1.909–2.341s) | 1.797s (1.743–2.266s) | 1.590s (1.537–2.024s) |
+
+Status requests: **3–4 → 2 → 3–4** per wallet.
+Total observed Gateway HTTP requests: **9–10 → 8 → 9–10** per wallet.
+Console HTTP requests remain **9 per wallet** in all arms. Empty-path scheduled
+observations are excluded. Bound-root telemetry remains **6 D1 round trips and
+16 statements per wallet**. Those counters cover a subset of D1 work. Total D1
+calls across registration are not established by this measurement.
+
+The candidate median for the full flow is **9.983s**. Its maximum is **10.770s**.
+The restored SDK control median is **9.944s**. The SDK registration medians are
+**7.543s → 7.405s → 7.052s**. These results establish fewer requests, with no
+reliable full-flow latency improvement. The below-four-second target remains unmet.
+
+All nine NEP-413 signatures pass an independent Node.js Ed25519 verifier with a
+separate Borsh encoder. Altered message, recipient, nonce, and callback URL fail.
+All six observed role streams match their expected version in each arm. The 13
+backend role assignments remain fixed across the three arms. The SDK sources differ
+only in `walletIframe/host/sessionObserver.ts`. Completed reads are not reused.
+
+Keep the change for its demonstrated request reduction. Do not attribute the
+baseline-to-candidate timing difference entirely to this SDK change. The restored
+control shows material scheduling or network variation. Do not add concurrent or
+nested spans. Neither the sample size nor placement hints establish latency or
+physical-colocation guarantees.
+
+### Next measured bottleneck
+
+Across this comparison, pair-preparation medians are 0.781–0.845 seconds.
+A-execution medians are 1.495–1.883 seconds. The nested A/B Yao protocol
+medians range from 0.358 to 0.701 seconds. Do not add these nested spans or treat them as isolated CPU time.
+The next structural candidate is to combine A's preparation and execution in its
+existing wallet DO. That would remove the return to Router between these stages.
+A and B must keep independent authenticated root checks, readiness proofs,
+ownership fences, replay handling, and burn-on-failure rules. Compare the exact
+round-trip count and full registration time before retaining a transport change.
+This candidate is unimplemented and has no claimed latency saving.
+
+[Sanitized evidence](evidence/near-registration-shared-observation-20261009.json) retains all samples, asset and source
+hashes, version audits, HTTP counts, partial D1 counts, public signature proofs,
+and local browser artifacts. Raw repeatable scripts remain in public
+`.artifacts/r155b-phase6am` and private `.artifacts/r155b-phase6am-hosted/measurement`.
+
+All 13 original Worker assignments and placement settings were restored.
+Restoration activation [37879464385](https://github.com/seams-tech/seams-monorepo/actions/runs/37879464385)
+passed. All six observation process groups stopped. Earlier unfinished registration
+leases expired before version changes. The final activation may create new temporary
+US probes with their normal ten-minute expiry. No probes were force-deleted.
+Existing staging resources were reused. No production deployment or package release occurred.
