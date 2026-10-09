@@ -697,8 +697,10 @@ Verified locally:
 - Three more private composed scenarios pass on `e0a8efec`: regional routing
   rejections, concurrent NEAR-only setup through three regions, and a lost
   combined completion reply. A fourth, the NEAR-only fixed-home scenario,
-  fails the same way on the parent commit: it still expects a separate Yao
-  admission request from the browser.
+  failed the same way on the parent commit: it expected a separate Yao
+  admission request, which NEAR-only registration stopped sending in
+  `dadf80a2`. Private `b0402d4` repairs it: the scenario now observes the
+  admission on respond through a foreign region, and passes on `947a8843`.
 - On `947a8843`, where another session's signing-plan fixes build on the
   status seed: the status-scope unit cases, the NEAR registration contract
   file, and the composed registration scenario all pass.
