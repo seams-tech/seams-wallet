@@ -722,7 +722,7 @@ async fn handle_strict_deriver_fetch_v1(
 
     #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
     if path == CLOUDFLARE_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH {
-        let work: crate::CloudflareDeriverAWalletPairExecuteRequestV1 =
+        let work: crate::CloudflareEd25519YaoPairExecuteRequestV1 =
             match parse_strict_deriver_json_v1(&mut request, "Deriver A wallet DO execution".into())
                 .await?
             {

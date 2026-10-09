@@ -7,20 +7,26 @@ use router_ab_dev::{
     local_worker_bind_addr_v1, local_worker_deployment_check_v1,
     local_worker_role_sqlite_stores_v1, parse_local_env_file_contents_v1,
     parse_local_service_role_label_v1, parse_local_worker_role_config_for_role_v1,
-    read_local_dev_http_request_v1, run_local_tenant_root_refresh_scheduler_v1,
-    write_local_dev_http_response_v1, write_local_dev_http_response_with_server_timing_v1,
-    LocalDevHttpTopologyV1, LocalEd25519YaoConnectionDispatchV1, LocalEd25519YaoSqliteHostV1,
-    LocalEd25519YaoWorkerStateV1, LocalRouterEd25519YaoCoordinatorV1,
-    LocalRouterRequestDispatcherV1, LocalWorkerRoleConfigV1,
+    read_local_dev_http_request_v1, resume_local_ed25519_yao_parked_peer_v1,
+    run_local_tenant_root_refresh_scheduler_v1, write_local_dev_http_response_v1,
+    write_local_dev_http_response_with_server_timing_v1, LocalDevHttpTopologyV1,
+    LocalEd25519YaoConnectionDispatchV1, LocalEd25519YaoParkedPeerV1,
+    LocalEd25519YaoSqliteHostV1, LocalEd25519YaoWorkerStateV1,
+    LocalRouterEd25519YaoCoordinatorV1, LocalRouterRequestDispatcherV1, LocalWorkerRoleConfigV1,
 };
 use serde::Serialize;
 use std::{
-    env, fs,
+    env, fs, io,
     net::{TcpListener, TcpStream},
     path::PathBuf,
     sync::Arc,
     thread,
+    time::Duration,
 };
+
+/// How often a worker that holds a parked pair connection looks for a new
+/// connection and takes the parked ones up again.
+const PARKED_PEER_POLL: Duration = Duration::from_millis(2);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct WorkerOptions {
@@ -147,9 +153,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .as_ref()
         .map(|store| store.load_state(config.role()))
         .transpose()?;
-    for stream in listener.incoming() {
-        match stream {
-            Ok(stream) => {
+    // Pair connections from Deriver A that wait for Deriver B's own
+    // preparation. This worker serves one connection at a time, so the
+    // preparation they wait for arrives as a later connection: while any is
+    // parked, the listener is polled and each is taken up again.
+    let mut parked: Vec<LocalEd25519YaoParkedPeerV1> = Vec::new();
+    loop {
+        listener.set_nonblocking(!parked.is_empty())?;
+        match listener.accept() {
+            Ok((stream, _)) => {
+                stream.set_nonblocking(false)?;
                 match handle_connection(
                     stream,
                     &config,
@@ -164,20 +177,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             store.persist_state(config.role(), state)?;
                         }
                     }
+                    Ok(LocalWorkerConnectionResultV1::YaoParked(peer)) => parked.push(peer),
                     Ok(LocalWorkerConnectionResultV1::YaoNoSnapshotWrite) => {}
                     Ok(LocalWorkerConnectionResultV1::OtherHandled) => {}
                     Err(error) => log_worker_request_error(&config, error.as_ref()),
                 }
             }
+            Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+                thread::sleep(PARKED_PEER_POLL);
+            }
             Err(error) => log_worker_request_error(&config, &error),
         }
+        if let (Some(store), Some(state)) = (state_store.as_ref(), yao_state.as_mut()) {
+            for peer in std::mem::take(&mut parked) {
+                match resume_local_ed25519_yao_parked_peer_v1(peer, &config, state, store) {
+                    Ok(Some(peer)) => parked.push(peer),
+                    Ok(None) => {}
+                    Err(error) => log_worker_request_error(&config, error.as_ref()),
+                }
+            }
+        }
     }
-    Ok(())
 }
 
 enum LocalWorkerConnectionResultV1 {
     YaoHandled,
     YaoNoSnapshotWrite,
+    YaoParked(LocalEd25519YaoParkedPeerV1),
     OtherHandled,
 }
 
@@ -207,6 +233,9 @@ fn handle_connection(
             }
             LocalEd25519YaoConnectionDispatchV1::NoSnapshotWrite => {
                 return Ok(LocalWorkerConnectionResultV1::YaoNoSnapshotWrite);
+            }
+            LocalEd25519YaoConnectionDispatchV1::Parked(peer) => {
+                return Ok(LocalWorkerConnectionResultV1::YaoParked(peer));
             }
             LocalEd25519YaoConnectionDispatchV1::Unhandled(stream) => stream,
         }

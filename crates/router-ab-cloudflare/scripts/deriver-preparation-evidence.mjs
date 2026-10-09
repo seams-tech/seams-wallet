@@ -128,7 +128,7 @@ async function reserveDestination(topology, role, owner, credential, runtime) {
 export async function verifyDeriverPreparation(topology, owner, rootIdentity, preparation, credential) {
   const runtime = await loadRuntime();
   const a = await reserveDestination(topology, 'a', owner, credential, runtime);
-  const { request, receipt: readiness } = preparation;
+  const { request } = preparation;
   const ordinary = preparedCommand(owner, rootIdentity, preparation);
   await assert.rejects(
     post(a.object, '/router-ab/internal/deriver-a/wallet-pair', ordinary, credential),
@@ -144,7 +144,7 @@ export async function verifyDeriverPreparation(topology, owner, rootIdentity, pr
   await assert.rejects(
     post(b.object, '/router-ab/internal/deriver-b/wallet-pair', {
       scope,
-      command: { command: 'fail_pair', session, pair_digest: pairDigest },
+      command: { command: 'fail_pair', pair_binding: request.pair_binding },
     }, credential),
     /Deriver B destination is reserved/u,
   );
@@ -225,7 +225,7 @@ export async function verifyDeriverSourceFences(topology, owner, rootIdentity, p
   assert.equal((await post(liveWorker, '/router-ab/internal/deriver-a/wallet/snapshot',
     { operation: 'capture', source: liveCommand }, credential)).status, 409);
   const expired = await post(liveObject, pairPath, { operation: 'expire', owner,
-    pair_binding: preparation.request.pair_binding, now_ms: preparation.receipt.expires_at_ms + 1 }, credential);
+    pair_binding: preparation.request.pair_binding, now_ms: preparation.expiresAtMs + 1 }, credential);
   assert.equal(expired.status, 200, await expired.clone().text());
   assert.equal((await (await post(liveObject, pairPath, read, credential)).json()).record.status, 'expired');
   assert.equal((await (await post(liveWorker, livePath, liveCommand, credential)).json()).kind, 'settled_fence');
@@ -283,9 +283,9 @@ export async function verifyDeriverSourceFences(topology, owner, rootIdentity, p
     const object = namespace.get(id);
     const pair = preparation.request.pair_binding;
     const mutation = role === 'a'
-      ? { operation: 'expire', owner, pair_binding: pair, now_ms: preparation.receipt.expires_at_ms + 1 }
+      ? { operation: 'expire', owner, pair_binding: pair, now_ms: preparation.expiresAtMs + 1 }
       : { scope: { wallet_home: preparation.request.tenant_root.wallet_home, ownership_generation: command.source_generation, root_identity: rootIdentity, pair_binding: pair }, command: {
-        command: 'fail_pair', session: pair.ceremony.binding.session_id, pair_digest: pair.pair_digest.bytes,
+        command: 'fail_pair', pair_binding: pair,
       } };
     await assert.rejects(post(object, `/router-ab/internal/deriver-${role}/wallet-pair`, mutation, credential),
       new RegExp(`${roles[role].label} source is frozen`, 'u'));
@@ -308,7 +308,7 @@ export async function verifyDeriverSourceFences(topology, owner, rootIdentity, p
 }
 
 function preparedCommand(owner, rootIdentity, preparation) {
-  const { request, receipt: readiness } = preparation;
+  const { request } = preparation;
   return {
     operation: 'prepare',
     owner,
@@ -316,12 +316,11 @@ function preparedCommand(owner, rootIdentity, preparation) {
     record: {
       status: 'prepared',
       pair_binding: request.pair_binding,
-      root_metadata_digest: readiness.root_metadata_digest.bytes,
-      expires_at_ms: readiness.expires_at_ms,
-      receipt: readiness,
+      root_metadata_digest: preparation.rootMetadataDigest,
+      expires_at_ms: preparation.expiresAtMs,
       payload: { tenant_root: request.tenant_root, work: request.work, input: request.input },
     },
-    now_ms: readiness.prepared_at_ms,
+    now_ms: preparation.preparedAtMs,
   };
 }
 

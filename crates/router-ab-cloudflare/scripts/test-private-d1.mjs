@@ -316,25 +316,6 @@ if (workerBuildProfile !== 'dev' && workerBuildProfile !== 'release') {
     "set ROUTER_AB_WORKER_BUILD_PROFILE to 'dev' or 'release': the run loads that profile's Worker builds",
   );
 }
-// `--yao-acceptance-skew <ms>`: a dev Deriver B signs its start acceptances
-// that far ahead of the other roles' clocks.
-const yaoAcceptanceSkewMs = yaoAcceptanceSkewArgument();
-// ED25519_YAO_PEER_MAX_FUTURE_SKEW_MS_V1: how far ahead B's timestamps may be.
-const yaoPeerMaxFutureSkewMs = 1_000;
-
-function yaoAcceptanceSkewArgument() {
-  const index = process.argv.indexOf('--yao-acceptance-skew');
-  if (index === -1) return null;
-  const value = Number(process.argv[index + 1]);
-  if (!Number.isSafeInteger(value) || value < 0) {
-    throw new Error('--yao-acceptance-skew needs a non-negative number of milliseconds');
-  }
-  if (workerBuildProfile !== 'dev') {
-    throw new Error('--yao-acceptance-skew needs dev Worker builds');
-  }
-  return value;
-}
-
 function workerBuildRoot(role) {
   return join(packageRoot, workerBuildProfile === 'dev' ? 'build/dev' : 'build', role);
 }
@@ -487,9 +468,6 @@ export function deriverBWorker(fixture) {
     walletObjectClaimedRecoveryRun
   ) {
     bindings.R150_TEST_B_BURN_BEFORE_COMPLETE = 'enabled';
-  }
-  if (yaoAcceptanceSkewMs !== null) {
-    bindings.R150_TEST_YAO_ACCEPTANCE_SKEW_MS = String(yaoAcceptanceSkewMs);
   }
   return {
     ...strictWorker('deriver-b', 'deriver-b', bindings),
@@ -3459,6 +3437,11 @@ async function testWalletObjectAdmissionSettlement(topology, fixture, databases)
   const hold = holdNextRecoveryRequest('deriver-a', '/router-ab/deriver-a/ed25519-yao/execute-pair');
   const heldRegistration = register(fenced, races.held_preparation);
   await hold.held;
+  // The Router sends B its preparation while A's execution is held.
+  for (let attempt = 0; (await admissions(fenced))[1].length === 0; attempt += 1) {
+    assert.ok(attempt < 500, 'Deriver B must admit the registration');
+    await sleep(10);
+  }
   const whileHeld = await admissions(fenced);
   assert.deepEqual(whileHeld, [[], [[1, 'admitted', true]]]);
   await refresh(fenced, 'harness-do-admission-fence');
@@ -3578,6 +3561,11 @@ async function testRetirementTrigger(topology, fixture, databases) {
   const hold = holdNextRecoveryRequest('deriver-a', '/router-ab/deriver-a/ed25519-yao/execute-pair');
   const registering = register(root, races.after_delivery);
   await hold.held;
+  // The Router sends B its preparation while A's execution is held.
+  for (let attempt = 0; (await statuses(root))[1].length === 0; attempt += 1) {
+    assert.ok(attempt < 500, 'Deriver B must admit the registration');
+    await sleep(10);
+  }
   assert.deepEqual(await statuses(root), [[], [[1, 'admitted']]]);
   const first = await refresh();
   const refreshedAt = Date.now();
@@ -4373,7 +4361,7 @@ async function testDeriverAWalletDoExecution(
     '/router-ab/deriver-a/ed25519-yao/execute-pair',
     mismatchedRoot,
   );
-  assert.notEqual(mismatched.status, 200, 'root identity must match its signed receipt');
+  assert.notEqual(mismatched.status, 200, 'root identity must match its activation receipt');
   const afterMismatch = await callDeriverAWalletDo(object, {
     operation: 'read',
     owner,
@@ -4408,6 +4396,9 @@ async function testDeriverAWalletDoExecution(
     .first();
   assert.equal(aRowsAfterSecondTenant.count, 0);
   assert.ok(activation.publicReceipt, 'Router registration must complete through A wallet DO');
+  // A preparation of the completed pair for another wallet object. Nothing
+  // executes it, so its root metadata digest only has to be present.
+  const preparedAtMs = Date.now();
   const prepared = {
     request: {
       pair_binding: secondRecord.body.record.pair_binding,
@@ -4415,7 +4406,9 @@ async function testDeriverAWalletDoExecution(
       work: secondRecord.body.record.payload.work,
       input: secondRecord.body.record.payload.input,
     },
-    receipt: secondRecord.body.record.claim_identity.local_receipt,
+    rootMetadataDigest: [...createHash('sha256').update('deriver-a-relocation-fixture-root').digest()],
+    preparedAtMs,
+    expiresAtMs: preparedAtMs + 60_000,
   };
   const deriverPreparation = await verifyDeriverPreparation(
     topology, secondOwner, secondIdentity, prepared, internalAuthSecret,
@@ -4444,7 +4437,7 @@ async function testDeriverAWalletDoExecution(
     stableOwnerDerivationAcrossRootVersions: true,
     crossTenantAndWalletReadsRejected: true,
     secondTenantRegistrationUsedSeparateWalletObject: true,
-    mismatchedRootReceiptRejectedWithoutWrite: true,
+    mismatchedRootIdentityRejectedWithoutWrite: true,
   };
   const artifactPath = join(repoRoot, '.artifacts/r150/deriver-a-wallet-do-execution.json');
   await mkdir(dirname(artifactPath), { recursive: true });
@@ -4889,50 +4882,6 @@ async function testDeriverBBurnBeforeCompletion(topology, fixture, tenantRoot, d
     noFreshBExecutionOnReplay: true,
   };
   const artifactPath = join(repoRoot, '.artifacts/r150/deriver-b-completion-burn-race.json');
-  await mkdir(dirname(artifactPath), { recursive: true });
-  await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
-  console.log(JSON.stringify({ ...artifact, artifactPath }));
-}
-
-// Deriver B's start acceptance arrives `skewMs` ahead of Deriver A's clock.
-// Within the bound the pair starts and the activation completes; beyond it
-// Deriver A refuses the start, and nothing reaches the SigningWorker.
-async function testYaoAcceptanceSkew(topology, fixture, tenantRoot, skewMs) {
-  const withinBound = skewMs <= yaoPeerMaxFutureSkewMs;
-  let outcome;
-  let responseStatus;
-  if (withinBound) {
-    const activation = await captureValidActivationDelivery(topology, fixture, tenantRoot);
-    assert.ok(activation.delivery);
-    outcome = 'succeeded';
-    responseStatus = 200;
-  } else {
-    capturedSigningWorkerDelivery = undefined;
-    const router = await topology.getWorker('router');
-    const envelope = buildEd25519ExecuteRequest(fixture, 'activation', tenantRoot);
-    const response = await postWorkerJson(router, ed25519ExecutePath, envelope);
-    const body = (await responseBytes(response)).toString('utf8');
-    responseStatus = response.status;
-    if (response.status === 200) {
-      assert.notEqual(JSON.parse(body).status, 'succeeded', body);
-    }
-    assert.equal(capturedSigningWorkerDelivery, undefined);
-    outcome = 'refused';
-  }
-  const build = 'wallet_objects';
-  const artifact = {
-    kind: 'yao_acceptance_clock_skew_e2e_v1',
-    reproduce: `ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --yao-acceptance-skew ${skewMs}`,
-    build,
-    skewMs,
-    boundMs: yaoPeerMaxFutureSkewMs,
-    outcome,
-    responseStatus,
-  };
-  const artifactPath = join(
-    repoRoot,
-    `.artifacts/r150/yao-acceptance-skew-${build}-${skewMs}.json`,
-  );
   await mkdir(dirname(artifactPath), { recursive: true });
   await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
   console.log(JSON.stringify({ ...artifact, artifactPath }));
@@ -5543,10 +5492,6 @@ async function main() {
     }
     if (testDeriverBCompletionBurn) {
       await testDeriverBBurnBeforeCompletion(topology, fixture, tenantRoot, databases);
-      return;
-    }
-    if (yaoAcceptanceSkewMs !== null) {
-      await testYaoAcceptanceSkew(topology, fixture, tenantRoot, yaoAcceptanceSkewMs);
       return;
     }
     if (process.argv.includes('--admission-races')) {

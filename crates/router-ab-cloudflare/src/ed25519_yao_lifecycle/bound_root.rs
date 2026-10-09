@@ -13,16 +13,25 @@ pub(crate) enum DeriverATargetSource {
     StoredAdmission,
 }
 
+/// Deriver A's admitted root for one pair: its own root metadata digest and
+/// how long the preparation lasts.
 #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
-pub(crate) async fn prepare_deriver_a_pair_readiness_for_wallet_do_v1(
+pub(crate) struct DeriverAPairPreparationV1 {
+    pub(crate) root_metadata_digest: [u8; 32],
+    pub(crate) prepared_at_ms: u64,
+    pub(crate) expires_at_ms: u64,
+}
+
+/// Validates Deriver A's input for the pair and admits its root use. The
+/// target built from that root is used once, in the same request.
+#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
+pub(crate) async fn prepare_deriver_a_pair_for_wallet_do_v1(
     env: &Env,
     request: &CloudflareEd25519YaoPairPrepareRequestV1,
     pair_object: String,
-) -> RouterAbProtocolResult<(Ed25519YaoRoleReadinessReceiptV1, DeriverATargetSource)> {
+) -> RouterAbProtocolResult<(DeriverAPairPreparationV1, DeriverATargetSource)> {
     let expected_kind = input_kind_for_circuit(request.pair_binding.binding().circuit_family());
-    let (pair_digest, input_digest) =
-        request.validate_for_role(Ed25519YaoDeriverRoleV1::DeriverA, expected_kind)?;
-    let runtime = CloudflareDeriverAWorkerRuntimeV1::from_worker_env(env)?;
+    request.validate_for_role(Ed25519YaoDeriverRoleV1::DeriverA, expected_kind)?;
     let (custody_binding, role_share, stable_context, root_metadata_digest) =
         load_ed25519_yao_tenant_root_role_share_v2(
             env,
@@ -38,18 +47,6 @@ pub(crate) async fn prepare_deriver_a_pair_readiness_for_wallet_do_v1(
     let expires_at_ms = prepared_at_ms
         .checked_add(YAO_PREPARED_INPUT_LIFETIME_MS)
         .ok_or_else(|| invalid_lifecycle("Yao pair expiry overflowed"))?;
-    let receipt = sign_role_readiness_receipt_v1(
-        env,
-        CloudflareWorkerRoleV1::DeriverA,
-        runtime.peer_signing_key(),
-        Ed25519YaoDeriverRoleV1::DeriverA,
-        request.pair_binding.session(),
-        pair_digest,
-        input_digest,
-        root_metadata_digest,
-        prepared_at_ms,
-        expires_at_ms,
-    )?;
     let target = prepare_target_from_bound_share(
         env,
         &request.tenant_root,
@@ -58,11 +55,18 @@ pub(crate) async fn prepare_deriver_a_pair_readiness_for_wallet_do_v1(
         stable_context,
         None,
     )?;
-    Ok((receipt, DeriverATargetSource::AdmittedNow(target)))
+    Ok((
+        DeriverAPairPreparationV1 {
+            root_metadata_digest,
+            prepared_at_ms,
+            expires_at_ms,
+        },
+        DeriverATargetSource::AdmittedNow(target),
+    ))
 }
 
 /// Prepares A's proof while B opens its connection. The caller sends it only
-/// after verifying B's acceptance and durably claiming this execution.
+/// after B claimed this execution and A durably claimed it too.
 pub(super) async fn prepare_deriver_a_target(
     env: &Env,
     execution: &DeriverAPairExecutionContextV1<'_>,
@@ -79,7 +83,7 @@ pub(super) async fn prepare_deriver_a_target(
             CloudflareWorkerRoleV1::DeriverA,
             execution.tenant_root,
             execution.pair_binding,
-            execution.pair_object.clone(),
+            Some(execution.pair_object.clone()),
             RootUseAccess::ReadAdmitted,
         )
         .await?;

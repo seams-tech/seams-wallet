@@ -129,7 +129,7 @@ fn vm_router_owns_each_registration_execution_and_its_consumption(
     // 1. A retry while the first run holds the claim.
     stack
         .proxy_a
-        .hold_next_request_on(router_ab_dev::LOCAL_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH);
+        .hold_next_request_on(router_ab_dev::LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH);
     let running = {
         let router_url = stack.router_url.clone();
         let registration = registration.clone();

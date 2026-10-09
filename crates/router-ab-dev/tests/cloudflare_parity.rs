@@ -9,7 +9,6 @@ use router_ab_dev::{
     local_worker_owned_paths_v1, parse_local_env_file_contents_v1,
     parse_local_worker_role_config_for_role_v1, LocalDevHttpRequestPartsV1, LocalDevHttpTopologyV1,
     LOCAL_DERIVER_A_ED25519_YAO_BURN_PAIR_PATH, LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
-    LOCAL_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH,
     LOCAL_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH, LOCAL_DERIVER_A_PEER_PATH,
     LOCAL_DERIVER_A_PRIVATE_PATH, LOCAL_DERIVER_B_ED25519_YAO_BURN_PAIR_PATH,
     LOCAL_DERIVER_B_ED25519_YAO_PREPARE_PAIR_PATH,
@@ -53,10 +52,6 @@ fn local_pair_lifecycle_routes_match_strict_worker_paths_and_are_owned_by_role_w
         (
             router_ab_core::LocalServiceRoleV1::DeriverA,
             &[
-                (
-                    LOCAL_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH,
-                    "/router-ab/deriver-a/ed25519-yao/prepare-pair",
-                ),
                 (
                     LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
                     "/router-ab/deriver-a/ed25519-yao/execute-pair",

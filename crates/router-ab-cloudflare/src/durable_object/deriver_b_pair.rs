@@ -1,13 +1,14 @@
 mod snapshot;
 use super::deriver_relocation as relocation;
+use router_ab_core::Ed25519YaoOuterBindingV2;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::{future::Future, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, future::Future, rc::Rc};
 use worker::{DurableObject, Env, Request, Response, SqlStorage, SqlStorageValue, State};
 
 use crate::{
     ed25519_yao_lifecycle::{
-        deriver_b_websocket_scope, execute_deriver_b_websocket, role_d1::encode_hex_slice,
+        deriver_b_pair_start_scope, execute_deriver_b_websocket, role_d1::encode_hex_slice,
         DeriverBExecutionHostV1, DeriverBYaoSessionCommandV1, DeriverBYaoSessionD1V1,
         CLOUDFLARE_DERIVER_B_ED25519_YAO_DUPLEX_PATH,
     },
@@ -118,6 +119,14 @@ struct PairScopeRowV1 {
     root_identity_digest_hex: String,
 }
 
+#[derive(Deserialize)]
+struct PairRevisionRowV1 {
+    revision: u64,
+}
+
+/// How many failed preparations one object instance remembers at most.
+const FAILED_PREPARATION_LIMIT: usize = 64;
+
 pub(crate) async fn call_deriver_b_wallet_do_v1(
     env: &Env,
     request: DeriverBWalletDoRequestV1,
@@ -147,6 +156,11 @@ pub struct RouterAbDeriverBWalletDurableObject {
     storage: Rc<worker::Storage>,
     env: Env,
     timing: super::command_timing::WalletCommandTiming,
+    /// The Router run whose preparation last failed in this instance, by pair
+    /// session. A connection from Deriver A waiting here for that run's
+    /// preparation reads it and stops waiting. It is never persisted: without
+    /// it the connection waits until the run ends.
+    failed_preparations: Rc<RefCell<HashMap<[u8; 32], Ed25519YaoOuterBindingV2>>>,
 }
 
 impl DurableObject for RouterAbDeriverBWalletDurableObject {
@@ -157,6 +171,7 @@ impl DurableObject for RouterAbDeriverBWalletDurableObject {
             storage: Rc::new(state.storage()),
             state: Rc::new(state),
             env,
+            failed_preparations: Rc::default(),
         }
     }
 
@@ -173,7 +188,9 @@ impl DurableObject for RouterAbDeriverBWalletDurableObject {
 
 impl RouterAbDeriverBWalletDurableObject {
     pub(crate) async fn forward_websocket(request: Request, env: &Env) -> worker::Result<Response> {
-        let scope = deriver_b_websocket_scope(&request).map_err(pair_error)?;
+        let scope = deriver_b_pair_start_scope(&request)
+            .map_err(pair_error)?
+            .scope;
         let namespace = env.durable_object(BINDING)?;
         let stub = scope.wallet_home.wallet_stub(
             &namespace,
@@ -189,13 +206,37 @@ impl RouterAbDeriverBWalletDurableObject {
 
     pub(crate) async fn execute_protocol_command(
         &self,
-        runtime: &crate::CloudflareDeriverBWorkerRuntimeV1,
         scope: CloudflareDeriverBWalletPairScopeV1,
         command: DeriverBYaoSessionCommandV1,
     ) -> worker::Result<Response> {
         relocation::require_open::<DeriverBWalletOwnerV1>(&self.sql)?;
-        self.execute(runtime, DeriverBWalletDoRequestV1 { scope, command })
+        self.execute(DeriverBWalletDoRequestV1 { scope, command })
             .await
+    }
+
+    /// The revision of the pair record this object holds for a session, or
+    /// `None` without one.
+    pub(crate) fn pair_revision(&self, session: &[u8; 32]) -> worker::Result<Option<u64>> {
+        Ok(self
+            .sql
+            .exec(
+                "SELECT revision FROM yao_pair_sessions WHERE session_hex = ?",
+                vec![SqlStorageValue::String(encode_hex_slice(session))],
+            )?
+            .to_array::<PairRevisionRowV1>()?
+            .into_iter()
+            .next()
+            .map(|row| row.revision))
+    }
+
+    /// Whether the preparation of the Router run named by `outer_binding`
+    /// failed in this instance.
+    pub(crate) fn preparation_failed(
+        &self,
+        session: [u8; 32],
+        outer_binding: &Ed25519YaoOuterBindingV2,
+    ) -> bool {
+        self.failed_preparations.borrow().get(&session) == Some(outer_binding)
     }
 
     async fn fetch_wallet_request(&self, mut request: Request) -> worker::Result<Response> {
@@ -271,9 +312,7 @@ impl RouterAbDeriverBWalletDurableObject {
         if !matches!(request.command, DeriverBYaoSessionCommandV1::ReadPairStatus { .. }) {
             relocation::require_open::<DeriverBWalletOwnerV1>(&self.sql)?;
         }
-        let runtime = crate::CloudflareDeriverBWorkerRuntimeV1::from_worker_env(&self.env)
-            .map_err(pair_error)?;
-        self.execute(&runtime, request).await
+        self.execute(request).await
     }
 
     /// Answers the role store that owns a pair session's admission. When
@@ -331,11 +370,34 @@ impl RouterAbDeriverBWalletDurableObject {
         })
     }
 
-    async fn execute(
-        &self,
-        runtime: &crate::CloudflareDeriverBWorkerRuntimeV1,
-        request: DeriverBWalletDoRequestV1,
-    ) -> worker::Result<Response> {
+    async fn execute(&self, request: DeriverBWalletDoRequestV1) -> worker::Result<Response> {
+        let preparing = match &request.command {
+            DeriverBYaoSessionCommandV1::PreparePair {
+                pair_binding,
+                tenant_root,
+                ..
+            } => Some((pair_binding.session(), tenant_root.outer_binding.clone())),
+            _ => None,
+        };
+        let result = self.execute_command(request).await;
+        if let Some((session, outer_binding)) = preparing {
+            let mut failed = self.failed_preparations.borrow_mut();
+            match &result {
+                Ok(response) if (200..=299).contains(&response.status_code()) => {
+                    failed.remove(&session);
+                }
+                _ => {
+                    if failed.len() >= FAILED_PREPARATION_LIMIT {
+                        failed.clear();
+                    }
+                    failed.insert(session, outer_binding);
+                }
+            }
+        }
+        result
+    }
+
+    async fn execute_command(&self, request: DeriverBWalletDoRequestV1) -> worker::Result<Response> {
         request.scope.validate().map_err(pair_error)?;
         request.command.validate().map_err(pair_error)?;
         if let DeriverBYaoSessionCommandV1::PreparePair {
@@ -376,7 +438,7 @@ impl RouterAbDeriverBWalletDurableObject {
             owner.object_name()?,
             encode_hex_slice(root_digest.as_bytes()),
         );
-        engine.execute(runtime, request.command).await
+        engine.execute(request.command).await
     }
 
     fn check_owner(
@@ -438,10 +500,13 @@ impl RouterAbDeriverBWalletDurableObject {
             {
                 Ok(())
             }
+            // A status read, a burn and a connection's claim each answer for a
+            // session this object has not prepared.
             [] if matches!(
                 command,
                 DeriverBYaoSessionCommandV1::ReadPairStatus { .. }
                     | DeriverBYaoSessionCommandV1::FailPair { .. }
+                    | DeriverBYaoSessionCommandV1::BeginPair { .. }
             ) =>
             {
                 Ok(())

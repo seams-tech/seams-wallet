@@ -1,121 +1,104 @@
 use super::*;
 
+/// Runs one pair: dispatches Deriver B's preparation and Deriver A's execution
+/// together, awaits both answers, and finalizes Deriver A's result.
+///
+/// Neither request waits for the other. Deriver A connects to Deriver B's
+/// wallet object, which admits the connection once its own preparation has
+/// landed, or refuses it at `deadline_ms`.
 pub(super) async fn prepare_execute_and_finalize(
     env: &Env,
     runtime: &CloudflareRouterWorkerRuntimeV1,
     request: RouterEd25519YaoExecuteRequestV1,
     tenant_root: CloudflareEd25519YaoTenantRootContextV2,
+    deadline_ms: u64,
     trace_id: Option<crate::CloudflareTraceIdV1>,
     finalization: &RouterCeremonyFinalizationV1,
     timing: &mut RouterExecutionTimingV1,
     package_delivery: package_delivery::Delivery,
 ) -> RouterAbProtocolResult<RouterCeremonyOutcomeV1> {
     let (binding, input_a, input_b) = request_parts(&request);
-    let verifying_keys =
-        parse_cloudflare_deriver_peer_verifying_key_set_v1(&CloudflareWorkerEnvReaderV1::new(env))?;
-    let operation = request.operation();
+    let operation = operation_label(request.operation());
     let pair_binding = request.pair_binding().clone();
     let work = pair_work(&request);
     let ownership_generation = tenant_root.ownership_generation;
     let wallet_home = tenant_root.wallet_home;
     let root_identity = tenant_root.identity.clone();
 
-    let prepare_started_at_ms = cloudflare_now_unix_ms_v1()?;
+    let started_at_ms = cloudflare_now_unix_ms_v1()?;
     let prepare_request_b = CloudflareEd25519YaoPairPrepareRequestV1 {
         pair_binding: pair_binding.clone(),
         tenant_root: tenant_root.clone(),
         work: work.clone(),
         input: input_b,
     };
-    let prepare_b = post_role_json_for_ceremony_with_span::<_, Ed25519YaoRoleReadinessReceiptV1>(
-        env,
-        runtime.deriver_b_peer().binding_name.as_str(),
-        DERIVER_B_SERVICE_URL,
-        CLOUDFLARE_DERIVER_B_ED25519_YAO_PREPARE_PAIR_PATH,
-        "Deriver B pair preparation",
-        &prepare_request_b,
-        trace_id,
-        "router.prepare_pair.deriver_b",
-        operation_label(operation),
-    );
-    let receipt_b = match prepare_b.await {
-        Ok(receipt) => receipt,
-        Err(error) => {
-            emit_span(
-                trace_id,
-                "router.prepare_pair",
-                operation_label(operation),
-                prepare_started_at_ms,
-                "failure",
-            );
-            return resolve_role_call_error(error, &pair_binding)
-                .map(RouterCeremonyOutcomeV1::Standard);
-        }
+    let execute_request_a = CloudflareEd25519YaoPairExecuteRequestV1 {
+        pair_binding: pair_binding.clone(),
+        tenant_root,
+        work,
+        input: input_a,
+        deadline_ms,
     };
-    emit_span(
-        trace_id,
-        "router.prepare_pair",
-        operation_label(operation),
-        prepare_started_at_ms,
-        "success",
-    );
-    timing.prepare_pair_ms = cloudflare_now_unix_ms_v1()?.saturating_sub(prepare_started_at_ms);
-    let readiness_now_ms = cloudflare_now_unix_ms_v1()?;
-    let readiness_started_at_ms = cloudflare_now_unix_ms_v1()?;
-    let readiness_result = crate::validate_router_ed25519_yao_readiness_v1(
-        &receipt_b,
-        &pair_binding,
-        readiness_now_ms,
-        Ed25519YaoDeriverRoleV1::DeriverB,
-        &verifying_keys,
-    );
-    emit_span(
-        trace_id,
-        "router.verify_readiness_receipts",
-        operation_label(operation),
-        readiness_started_at_ms,
-        if readiness_result.is_ok() {
-            "success"
-        } else {
-            "failure"
-        },
-    );
-    timing.verify_readiness_ms =
-        cloudflare_now_unix_ms_v1()?.saturating_sub(readiness_started_at_ms);
-    readiness_result?;
-    let execute_started_at_ms = cloudflare_now_unix_ms_v1()?;
-    let execution = match post_role_json_for_ceremony_with_span::<
-        _,
-        CloudflareEd25519YaoPairExecuteResponseV1,
-    >(
-        env,
-        runtime.deriver_a_peer().binding_name.as_str(),
-        DERIVER_A_SERVICE_URL,
-        CLOUDFLARE_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
-        "Deriver A pair execution",
-        &CloudflareDeriverAWalletPairExecuteRequestV1 {
-            pair_binding: pair_binding.clone(),
-            tenant_root,
-            input: input_a,
-            peer_receipt: receipt_b,
-        },
-        trace_id,
-        "router.deriver_a_execute.http",
-        operation_label(operation),
-    )
-    .await
-    {
+    let prepare_b = async {
+        let prepared =
+            post_role_json_for_ceremony_with_span::<_, CloudflareEd25519YaoPairPreparationV1>(
+                env,
+                runtime.deriver_b_peer().binding_name.as_str(),
+                DERIVER_B_SERVICE_URL,
+                CLOUDFLARE_DERIVER_B_ED25519_YAO_PREPARE_PAIR_PATH,
+                "Deriver B pair preparation",
+                &prepare_request_b,
+                trace_id,
+                "router.prepare_pair.deriver_b",
+                operation,
+            )
+            .await;
+        emit_span(
+            trace_id,
+            "router.prepare_pair",
+            operation,
+            started_at_ms,
+            if prepared.is_ok() {
+                "success"
+            } else {
+                "failure"
+            },
+        );
+        let finished_at_ms = cloudflare_now_unix_ms_v1().unwrap_or(started_at_ms);
+        (prepared, finished_at_ms.saturating_sub(started_at_ms))
+    };
+    let execute_a =
+        post_role_json_for_ceremony_with_span::<_, CloudflareEd25519YaoPairExecuteResponseV1>(
+            env,
+            runtime.deriver_a_peer().binding_name.as_str(),
+            DERIVER_A_SERVICE_URL,
+            CLOUDFLARE_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
+            "Deriver A pair execution",
+            &execute_request_a,
+            trace_id,
+            "router.deriver_a_execute.http",
+            operation,
+        );
+    let ((prepared_b, prepare_pair_ms), execution) = futures::join!(prepare_b, execute_a);
+    timing.prepare_pair_ms = prepare_pair_ms;
+    // Deriver A's answer decides the run. A completed execution carries
+    // Deriver B's sealed completion, so it stands whatever became of the
+    // preparation's reply.
+    let execution = match execution {
         Ok(execution) => execution,
         Err(error) => {
             emit_span(
                 trace_id,
                 "router.deriver_a_execute",
-                operation_label(operation),
-                execute_started_at_ms,
+                operation,
+                started_at_ms,
                 "failure",
             );
-            return resolve_role_call_error(error, &pair_binding)
-                .map(RouterCeremonyOutcomeV1::Standard);
+            return resolve_role_call_error(
+                execution_failure(error, prepared_b.err()),
+                &pair_binding,
+            )
+            .map(RouterCeremonyOutcomeV1::Standard);
         }
     };
     let execution_validation = match execution.deriver_a_execution.validate() {
@@ -130,15 +113,15 @@ pub(super) async fn prepare_execute_and_finalize(
     emit_span(
         trace_id,
         "router.deriver_a_execute",
-        operation_label(operation),
-        execute_started_at_ms,
+        operation,
+        started_at_ms,
         if execution_validation.is_ok() {
             "success"
         } else {
             "failure"
         },
     );
-    timing.role_execution_ms = cloudflare_now_unix_ms_v1()?.saturating_sub(execute_started_at_ms);
+    timing.role_execution_ms = cloudflare_now_unix_ms_v1()?.saturating_sub(started_at_ms);
     execution_validation?;
 
     let transcript =

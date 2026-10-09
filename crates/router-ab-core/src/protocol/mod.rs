@@ -71,19 +71,16 @@ pub use self::ed25519_yao_outer::{
     ED25519_YAO_OUTER_NONCE_LEN_V2, ED25519_YAO_OUTER_TARGET_PROOF_MAX_BYTES_V2,
 };
 pub use self::ed25519_yao_pair_lifecycle::{
-    admit_ed25519_yao_pair_start_v1, burn_ed25519_yao_pair_v1, claim_ed25519_yao_pair_v1,
-    complete_ed25519_yao_pair_v1, expire_ed25519_yao_pair_v1, prepare_ed25519_yao_pair_v1,
-    reserve_ed25519_yao_pair_v1, Ed25519YaoPairClaimIdentityV1, Ed25519YaoPairRecordV1,
-    Ed25519YaoPairRejectionV1, Ed25519YaoPairReservationV1, Ed25519YaoPairStartClaimV1,
-    Ed25519YaoPairStartDecisionV1, Ed25519YaoPairStoreResultV1, Ed25519YaoPairTransitionV1,
-    Ed25519YaoPreparedPairStartV1, ED25519_YAO_PEER_MAX_FUTURE_SKEW_MS_V1,
+    burn_ed25519_yao_pair_v1, claim_ed25519_yao_pair_v1, complete_ed25519_yao_pair_v1,
+    expire_ed25519_yao_pair_v1, prepare_ed25519_yao_pair_v1, release_ed25519_yao_pair_v1,
+    reserve_ed25519_yao_pair_v1, Ed25519YaoPairExecutorV1, Ed25519YaoPairRecordV1,
+    Ed25519YaoPairRejectionV1, Ed25519YaoPairStoreResultV1, Ed25519YaoPairTransitionV1,
 };
 pub use self::ed25519_yao_router::{
     ed25519_yao_encrypted_input_digest_v1, ed25519_yao_input_pair_digest_v1,
     ed25519_yao_recipient_set_digest_v1, Ed25519YaoCeremonyIdentityV1, Ed25519YaoCircuitIdV1,
     Ed25519YaoExecutionIdV1, Ed25519YaoInputPairBindingV1, Ed25519YaoProtocolIdV1,
-    Ed25519YaoRecoveryAttemptV1, Ed25519YaoRoleReadinessReceiptV1, Ed25519YaoRoleSignatureSchemeV1,
-    Ed25519YaoRoleSignatureV1, Ed25519YaoRoleStartAcceptanceV1, RouterAdmittedExecutionAuthorityV1,
+    Ed25519YaoRecoveryAttemptV1, RouterAdmittedExecutionAuthorityV1,
     RouterEd25519YaoBurnReasonV1, RouterEd25519YaoExecuteFailureCodeV1,
     RouterEd25519YaoExecuteRequestV1, RouterEd25519YaoExecuteResultV1,
     RouterEd25519YaoExecuteSuccessV1, RouterEd25519YaoGatewayExecuteTargetV2,

@@ -47,11 +47,10 @@ worker_features="strict-worker-$role-entrypoint"
 if [[ "$worker_build_profile" == "dev" && "$role" == "router" ]]; then
   worker_features+=",local-intended-router-burn"
 fi
-# Local only: a dev Deriver B can run its start-acceptance clock ahead, so the
-# skew E2E can check Deriver A's bound for B's timestamps. It can also
-# burn a pair before completion to exercise the completion fence.
+# Local only: a dev Deriver B can burn a pair before completion to exercise
+# the completion fence.
 if [[ "$worker_build_profile" == "dev" && "$role" == "deriver-b" ]]; then
-  worker_features+=",local-intended-yao-clock-skew,wallet-do-b-completion-harness"
+  worker_features+=",wallet-do-b-completion-harness"
 fi
 
 wallet_objects=false

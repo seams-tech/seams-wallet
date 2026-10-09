@@ -43,7 +43,6 @@ const YAO_SERVER_TIMING_BUCKET_BY_METRIC = new Map<string, RegistrationTimingBuc
     yao_router_execution: 'yaoServerRouterExecutionMs',
     yao_result_reconstruction: 'yaoServerResultReconstructionMs',
     yao_router_prepare_pair: 'yaoServerRouterPreparePairMs',
-    yao_router_verify_readiness: 'yaoServerRouterVerifyReadinessMs',
     yao_router_role_execution: 'yaoServerRouterRoleExecutionMs',
     yao_router_signing_worker_delivery: 'yaoServerRouterSigningWorkerDeliveryMs',
     ecdsa_respond_d1_claim: 'ecdsaRespondD1ClaimMs',
@@ -347,7 +346,6 @@ const REGISTRATION_TIMING_BUCKETS = [
   'yaoServerRouterExecutionMs',
   'yaoServerResultReconstructionMs',
   'yaoServerRouterPreparePairMs',
-  'yaoServerRouterVerifyReadinessMs',
   'yaoServerRouterRoleExecutionMs',
   'yaoServerRouterSigningWorkerDeliveryMs',
   // Gateway-reported ECDSA boundaries, parsed from the respond/activate

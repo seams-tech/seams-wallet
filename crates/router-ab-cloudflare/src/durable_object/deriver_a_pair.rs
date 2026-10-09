@@ -1,12 +1,15 @@
 mod snapshot;
 use router_ab_core::{
-    burn_ed25519_yao_pair_v1, claim_ed25519_yao_pair_v1, complete_ed25519_yao_pair_v1,
-    expire_ed25519_yao_pair_v1, prepare_ed25519_yao_pair_v1, reserve_ed25519_yao_pair_v1,
-    Ed25519YaoEncryptedInputV1, Ed25519YaoExecutionIdV1, Ed25519YaoInputPairBindingV1,
-    Ed25519YaoPairRecordV1, Ed25519YaoPairRejectionV1, Ed25519YaoPairReservationV1,
-    Ed25519YaoPairStartClaimV1, Ed25519YaoPairStoreResultV1, Ed25519YaoPairTransitionV1,
-    Ed25519YaoRoleReadinessReceiptV1, Ed25519YaoRoleStartAcceptanceV1, TenantRootIdentityV1,
+    burn_ed25519_yao_pair_v1, complete_ed25519_yao_pair_v1, expire_ed25519_yao_pair_v1,
+    prepare_ed25519_yao_pair_v1, Ed25519YaoEncryptedInputV1, Ed25519YaoExecutionIdV1,
+    Ed25519YaoInputPairBindingV1, Ed25519YaoPairRecordV1, Ed25519YaoPairRejectionV1,
+    Ed25519YaoPairStoreResultV1, Ed25519YaoPairTransitionV1, TenantRootIdentityV1,
     TenantRootSignedActivationReceiptV1,
+};
+#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
+use router_ab_core::{
+    claim_ed25519_yao_pair_v1, release_ed25519_yao_pair_v1, reserve_ed25519_yao_pair_v1,
+    Ed25519YaoPairExecutorV1,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -16,10 +19,8 @@ use crate::{
     ed25519_yao_lifecycle::role_d1::{
         encode_hex, encode_hex_slice, RolePairCipherV1, RolePairRecordScopeV1,
     },
-    ed25519_yao_lifecycle::verify_role_start_acceptance_v1,
-    ed25519_yao_router_checks::verify_role_readiness_receipt_v1,
-    CloudflareDeriverAWorkerRuntimeV1, CloudflareEd25519YaoPairExecuteResponseV1,
-    CloudflareEd25519YaoPairWorkV1, CloudflareEd25519YaoTenantRootContextV2,
+    CloudflareEd25519YaoPairExecuteResponseV1, CloudflareEd25519YaoPairWorkV1,
+    CloudflareEd25519YaoTenantRootContextV2,
 };
 #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 use crate::tenant_root_role_d1::{
@@ -29,12 +30,13 @@ use crate::tenant_root_role_d1::{
 use crate::{
     ed25519_yao_lifecycle::{
         execute_deriver_a_role, fail_deriver_b_pair_after_a_error_v1,
-        prepare_deriver_a_pair_readiness_for_wallet_do_v1, DeriverAPairExecutionContextV1,
-        DeriverATargetSource, VerifiedDeriverAReadinessV1,
+        prepare_deriver_a_pair_for_wallet_do_v1, DeriverAPairExecutionContextV1,
+        DeriverAPairPreparationV1, DeriverAPairRoleFailureV1, DeriverATargetSource,
     },
     CloudflareDeriverAWalletPairBurnRequestV1, CloudflareDeriverAWalletPairOutcomeResponseV1,
-    CloudflareDeriverAWalletPairStatusRequestV1, CloudflareDeriverAWalletPairExecuteRequestV1,
-    CloudflareEd25519YaoPairPrepareRequestV1, CloudflareEd25519YaoPairStatusResponseV1,
+    CloudflareDeriverAWalletPairStatusRequestV1, CloudflareDeriverAWorkerRuntimeV1,
+    CloudflareEd25519YaoPairExecuteRequestV1, CloudflareEd25519YaoPairPrepareRequestV1,
+    CloudflareEd25519YaoPairStatusResponseV1,
 };
 
 use super::deriver_relocation as relocation;
@@ -441,7 +443,7 @@ impl RouterAbDeriverAWalletDurableObject {
             }
             #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
             EXECUTE_WORK_PATH => {
-                let work: CloudflareDeriverAWalletPairExecuteRequestV1 = request.json().await?;
+                let work: CloudflareEd25519YaoPairExecuteRequestV1 = request.json().await?;
                 let outcome = self.execute_work(work).await?;
                 Response::from_json(&outcome)
             }
@@ -597,11 +599,18 @@ impl RouterAbDeriverAWalletDurableObject {
         }
     }
 
+    /// Prepares this role's side of the pair: admits its root use and stores
+    /// the preparation. Answers the root metadata digest the preparation is
+    /// bound to, and where the executor gets its target proof.
+    ///
+    /// A Router run stamps a new window into the tenant-root context. A
+    /// preparation an earlier run stored cannot serve this one, and nothing
+    /// has reserved it, so this run's replaces it.
     #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
     async fn prepare_work(
         &self,
         request: CloudflareEd25519YaoPairPrepareRequestV1,
-    ) -> worker::Result<(Ed25519YaoRoleReadinessReceiptV1, DeriverATargetSource)> {
+    ) -> worker::Result<([u8; 32], DeriverATargetSource)> {
         if !matches!(request.work, CloudflareEd25519YaoPairWorkV1::Ceremony) {
             return Err(pair_error(
                 "Deriver A wallet DO lane execution is unavailable",
@@ -614,37 +623,43 @@ impl RouterAbDeriverAWalletDurableObject {
             self.read_scoped(&owner, &cipher, pair, &request.tenant_root.identity)?
         {
             self.check_owner(&owner, false)?;
-            return match existing.record {
+            match existing.record {
                 PairRecord::Prepared {
-                    receipt,
+                    root_metadata_digest,
                     payload,
                     expires_at_ms,
                     ..
-                } if payload.tenant_root == request.tenant_root
-                    && payload.work == request.work
-                    && payload.input == request.input
-                    && crate::cloudflare_now_unix_ms_v1()
-                        .map_err(|error| pair_error(error.to_string()))?
-                        < expires_at_ms =>
-                {
-                    Ok((receipt, DeriverATargetSource::StoredAdmission))
+                } if payload.work == request.work && payload.input == request.input => {
+                    if payload.tenant_root == request.tenant_root {
+                        if crate::cloudflare_now_unix_ms_v1()
+                            .map_err(|error| pair_error(error.to_string()))?
+                            < expires_at_ms
+                        {
+                            return Ok((root_metadata_digest, DeriverATargetSource::StoredAdmission));
+                        }
+                        return Err(pair_error("Deriver A pair preparation expired"));
+                    }
                 }
-                _ => Err(pair_error("Deriver A pair is conflicting or terminal")),
-            };
+                _ => return Err(pair_error("Deriver A pair is conflicting or terminal")),
+            }
         }
-        let (receipt, target) =
-            prepare_deriver_a_pair_readiness_for_wallet_do_v1(&self.env, &request, owner.object_name()?)
-            .await
-            .map_err(|error| pair_error(error.to_string()))?;
+        let (preparation, target) =
+            prepare_deriver_a_pair_for_wallet_do_v1(&self.env, &request, owner.object_name()?)
+                .await
+                .map_err(|error| pair_error(error.to_string()))?;
+        let DeriverAPairPreparationV1 {
+            root_metadata_digest,
+            prepared_at_ms,
+            expires_at_ms,
+        } = preparation;
         // Admission can yield while relocation closes this object.
         // Check before persisting preparation or starting an executor.
         relocation::require_open::<DeriverAWalletOwnerV1>(&self.sql)?;
         self.check_owner(&owner, true)?;
         let record = PairRecord::Prepared {
             pair_binding: pair.clone(),
-            root_metadata_digest: receipt.root_metadata_digest().bytes,
-            expires_at_ms: receipt.expires_at_ms(),
-            receipt: receipt.clone(),
+            root_metadata_digest,
+            expires_at_ms,
             payload: DeriverAPairPayloadV1 {
                 tenant_root: request.tenant_root,
                 work: request.work,
@@ -652,10 +667,12 @@ impl RouterAbDeriverAWalletDurableObject {
             },
         };
         let result = self.mutate(&owner, &cipher, pair, |current| {
-            prepare_ed25519_yao_pair_v1(current, record, receipt.prepared_at_ms())
+            prepare_ed25519_yao_pair_v1(current, record, prepared_at_ms)
         })?;
         match result {
-            PairResult::Applied { .. } | PairResult::Duplicate { .. } => Ok((receipt, target)),
+            PairResult::Applied { .. } | PairResult::Duplicate { .. } => {
+                Ok((root_metadata_digest, target))
+            }
             _ => Err(pair_error("Deriver A pair preparation was not committed")),
         }
     }
@@ -663,12 +680,8 @@ impl RouterAbDeriverAWalletDurableObject {
     #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
     async fn execute_work(
         &self,
-        request: CloudflareDeriverAWalletPairExecuteRequestV1,
+        request: CloudflareEd25519YaoPairExecuteRequestV1,
     ) -> worker::Result<CloudflareEd25519YaoPairExecuteResponseV1> {
-        request
-            .peer_receipt
-            .validate_for_pair(&request.pair_binding)
-            .map_err(|error| pair_error(error.to_string()))?;
         let pair = &request.pair_binding;
         let owner = DeriverAWalletOwnerV1::from_context(&self.env, &request.tenant_root, pair)?;
         let cipher = RolePairCipherV1::from_env_for_wallet_do(&self.env)?;
@@ -676,16 +689,12 @@ impl RouterAbDeriverAWalletDurableObject {
             self.read_scoped(&owner, &cipher, pair, &request.tenant_root.identity)?
         {
             if let PairRecord::Completed {
-                claim_identity,
-                payload,
-                outcome,
-                ..
+                payload, outcome, ..
             } = selected.record
             {
                 if payload.tenant_root == request.tenant_root
-                    && payload.work == CloudflareEd25519YaoPairWorkV1::Ceremony
+                    && payload.work == request.work
                     && payload.input == request.input
-                    && claim_identity.peer_receipt == request.peer_receipt
                 {
                     return Ok(outcome);
                 }
@@ -694,18 +703,10 @@ impl RouterAbDeriverAWalletDurableObject {
         }
         let runtime = CloudflareDeriverAWorkerRuntimeV1::from_worker_env(&self.env)
             .map_err(|error| pair_error(error.to_string()))?;
-        crate::validate_router_ed25519_yao_readiness_v1(
-            &request.peer_receipt,
-            pair,
-            crate::cloudflare_now_unix_ms_v1().map_err(|error| pair_error(error.to_string()))?,
-            router_ab_core::Ed25519YaoDeriverRoleV1::DeriverB,
-            runtime.peer_verifying_keys(),
-        )
-        .map_err(|error| pair_error(error.to_string()))?;
         let preparation = CloudflareEd25519YaoPairPrepareRequestV1 {
             pair_binding: request.pair_binding.clone(),
             tenant_root: request.tenant_root.clone(),
-            work: CloudflareEd25519YaoPairWorkV1::Ceremony,
+            work: request.work.clone(),
             input: request.input.clone(),
         };
         let prepare_started_at_ms =
@@ -723,31 +724,35 @@ impl RouterAbDeriverAWalletDurableObject {
                 "failure"
             },
         );
-        let (local_receipt, target_source) = prepared?;
-        let readiness =
-            VerifiedDeriverAReadinessV1::verify(&runtime, &local_receipt, &request.peer_receipt)
-                .map_err(pair_error)?;
+        let (root_metadata_digest, target_source) = prepared?;
         let execution_id = Ed25519YaoExecutionIdV1::new(pair.pair_digest().bytes)
             .map_err(|error| pair_error(error.to_string()))?;
-        let now_ms =
-            crate::cloudflare_now_unix_ms_v1().map_err(|error| pair_error(error.to_string()))?;
-        let reserved =
-            self.reserve_work(&owner, &cipher, pair, &readiness, execution_id, now_ms)?;
+        let executor = Ed25519YaoPairExecutorV1 {
+            pair_binding: pair,
+            execution_id,
+            now_ms: crate::cloudflare_now_unix_ms_v1()
+                .map_err(|error| pair_error(error.to_string()))?,
+        };
+        // Only the request whose reservation is applied connects to Deriver B.
+        let reserved = self.mutate(&owner, &cipher, pair, |current| match current {
+            Some(record) => reserve_ed25519_yao_pair_v1(record, executor),
+            None => Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::IdentityMismatch),
+        })?;
         if !matches!(reserved, PairResult::Applied { .. }) {
             return Err(pair_error("Deriver A pair reservation did not win"));
         }
         let pair_execution = DeriverAPairExecutionContextV1 {
-            pair_object: Some(relocation::WalletOwner::physical_object_name(
+            pair_object: relocation::WalletOwner::physical_object_name(
                 &owner,
                 request.tenant_root.ownership_generation,
-            )?),
-            expected_root_metadata_digest: local_receipt.root_metadata_digest().bytes,
+            )?,
+            expected_root_metadata_digest: root_metadata_digest,
             pair_binding: pair,
             tenant_root: &request.tenant_root,
             work: CloudflareEd25519YaoPairWorkV1::Ceremony,
             pair_digest: pair.pair_digest().bytes,
             execution_id,
-            readiness,
+            deadline_ms: request.deadline_ms,
         };
         let role_result = execute_deriver_a_role(
             &self.env,
@@ -756,48 +761,79 @@ impl RouterAbDeriverAWalletDurableObject {
             None,
             pair_execution,
             target_source,
-            |acceptance| {
-                self.claim_work(
-                    &owner,
-                    &cipher,
+            || self.claim_work(&owner, &cipher, pair, execution_id),
+        )
+        .await;
+        let failure = match role_result {
+            Ok(role_result) => {
+                return self.complete_work(
+                    owner,
                     pair,
-                    &readiness,
-                    acceptance,
-                    &runtime,
+                    request.tenant_root.ownership_generation,
                     execution_id,
-                )
+                    CloudflareEd25519YaoPairExecuteResponseV1 {
+                        deriver_a_execution: role_result.deriver_a_execution,
+                        deriver_b_sealed_execution_json: role_result
+                            .deriver_b_sealed_execution_json,
+                    },
+                );
+            }
+            Err(DeriverAPairRoleFailureV1::PeerHoldsNoClaim(reason)) => {
+                // Deriver B holds no claim and nothing was exchanged. The
+                // reservation returns to a preparation, so a later Router run
+                // can execute this pair: nothing burns.
+                let released = self.mutate(&owner, &cipher, pair, |current| match current {
+                    Some(record) => release_ed25519_yao_pair_v1(record, executor),
+                    None => Ed25519YaoPairTransitionV1::Reject(
+                        Ed25519YaoPairRejectionV1::IdentityMismatch,
+                    ),
+                })?;
+                if matches!(
+                    released,
+                    PairResult::Applied { .. } | PairResult::Duplicate { .. }
+                ) {
+                    return Err(pair_error(format!(
+                        "Deriver B holds no claim for this pair ({reason:?}); Deriver A released its reservation"
+                    )));
+                }
+                "Deriver A pair reservation could not be released".to_owned()
+            }
+            Err(DeriverAPairRoleFailureV1::Failed(error)) => error.to_string(),
+        };
+        // Deriver B may have claimed the execution, or it ran and failed: the
+        // execution identity is spent at both roles.
+        let _ = self.execute(DeriverAPairDoCommandV1::Burn {
+            owner,
+            pair_binding: pair.clone(),
+            execution_id,
+        });
+        fail_deriver_b_pair_after_a_error_v1(
+            &self.env,
+            &crate::CloudflareDeriverBWalletPairScopeV1 {
+                wallet_home: request.tenant_root.wallet_home,
+                ownership_generation: request.tenant_root.ownership_generation,
+                root_identity: request.tenant_root.identity.clone(),
+                pair_binding: pair.clone(),
             },
         )
         .await;
-        let role_result = match role_result {
-            Ok(result) => result,
-            Err(error) => {
-                let _ = self.execute(DeriverAPairDoCommandV1::Burn {
-                    owner,
-                    pair_binding: pair.clone(),
-                    execution_id,
-                });
-                fail_deriver_b_pair_after_a_error_v1(
-                    &self.env,
-                    &crate::CloudflareDeriverBWalletPairScopeV1 {
-                        wallet_home: request.tenant_root.wallet_home,
-                        ownership_generation: request.tenant_root.ownership_generation,
-                        root_identity: request.tenant_root.identity.clone(),
-                        pair_binding: pair.clone(),
-                    },
-                )
-                .await;
-                return Err(pair_error(error.to_string()));
-            }
-        };
-        let outcome = CloudflareEd25519YaoPairExecuteResponseV1 {
-            deriver_a_execution: role_result.deriver_a_execution,
-            deriver_b_sealed_execution_json: role_result.deriver_b_sealed_execution_json,
-        };
-        let object_name = relocation::WalletOwner::physical_object_name(
-            &owner,
-            request.tenant_root.ownership_generation,
-        )?;
+        Err(pair_error(failure))
+    }
+
+    /// Commits the pair's outcome. Only a committed completion releases it:
+    /// one that came after the running lifetime is recorded as burned, a
+    /// failure.
+    #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
+    fn complete_work(
+        &self,
+        owner: DeriverAWalletOwnerV1,
+        pair: &Ed25519YaoInputPairBindingV1,
+        ownership_generation: u64,
+        execution_id: Ed25519YaoExecutionIdV1,
+        outcome: CloudflareEd25519YaoPairExecuteResponseV1,
+    ) -> worker::Result<CloudflareEd25519YaoPairExecuteResponseV1> {
+        let object_name =
+            relocation::WalletOwner::physical_object_name(&owner, ownership_generation)?;
         let completed = self.execute(DeriverAPairDoCommandV1::Complete {
             owner,
             pair_binding: pair.clone(),
@@ -807,8 +843,6 @@ impl RouterAbDeriverAWalletDurableObject {
                 .map_err(|error| pair_error(error.to_string()))?,
             running_lifetime_ms: 60_000,
         })?;
-        // Only a committed completion releases the outcome: one that came
-        // after the running lifetime is recorded as burned, a failure.
         match completed {
             DeriverAPairDoResponseV1::Mutation {
                 result:
@@ -840,57 +874,25 @@ impl RouterAbDeriverAWalletDurableObject {
             _ => Err(pair_error("Deriver A pair completion did not commit")),
         }
     }
-    #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
-    fn reserve_work(
-        &self,
-        owner: &DeriverAWalletOwnerV1,
-        cipher: &RolePairCipherV1,
-        pair: &Ed25519YaoInputPairBindingV1,
-        readiness: &VerifiedDeriverAReadinessV1<'_>,
-        execution_id: Ed25519YaoExecutionIdV1,
-        now_ms: u64,
-    ) -> worker::Result<PairResult> {
-        self.mutate(owner, cipher, pair, |current| match current {
-            Some(record) => reserve_ed25519_yao_pair_v1(
-                record,
-                Ed25519YaoPairReservationV1 {
-                    pair_binding: pair,
-                    local_receipt: readiness.local(),
-                    peer_receipt: readiness.peer(),
-                    execution_id,
-                    now_ms,
-                },
-            ),
-            None => Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::IdentityMismatch),
-        })
-    }
 
+    /// Records this role's claim once Deriver B claimed the execution: the
+    /// last durable step before this role sends protocol material.
     #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
     async fn claim_work(
         &self,
         owner: &DeriverAWalletOwnerV1,
         cipher: &RolePairCipherV1,
         pair: &Ed25519YaoInputPairBindingV1,
-        readiness: &VerifiedDeriverAReadinessV1<'_>,
-        acceptance: Ed25519YaoRoleStartAcceptanceV1,
-        runtime: &CloudflareDeriverAWorkerRuntimeV1,
         execution_id: Ed25519YaoExecutionIdV1,
     ) -> router_ab_core::RouterAbProtocolResult<()> {
-        verify_role_start_acceptance_v1(&acceptance, runtime.peer_verifying_keys())?;
-        let now_ms = crate::cloudflare_now_unix_ms_v1()?;
+        let executor = Ed25519YaoPairExecutorV1 {
+            pair_binding: pair,
+            execution_id,
+            now_ms: crate::cloudflare_now_unix_ms_v1()?,
+        };
         let result = self
             .mutate(owner, cipher, pair, |current| match current {
-                Some(record) => claim_ed25519_yao_pair_v1(
-                    record,
-                    Ed25519YaoPairStartClaimV1 {
-                        pair_binding: pair,
-                        local_receipt: readiness.local(),
-                        peer_receipt: readiness.peer(),
-                        acceptance: &acceptance,
-                        execution_id,
-                        now_ms,
-                    },
-                ),
+                Some(record) => claim_ed25519_yao_pair_v1(record, executor),
                 None => {
                     Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::IdentityMismatch)
                 }
@@ -917,12 +919,6 @@ impl RouterAbDeriverAWalletDurableObject {
         } = &command
         {
             self.validate_preparation(&owner, root_identity, record)?;
-            if let PairRecord::Prepared { receipt, .. } = record {
-                let runtime = CloudflareDeriverAWorkerRuntimeV1::from_worker_env(&self.env)
-                    .map_err(|error| pair_error(error.to_string()))?;
-                verify_role_readiness_receipt_v1(receipt, runtime.peer_verifying_keys())
-                    .map_err(|error| pair_error(error.to_string()))?;
-            }
         }
         let may_initialize = matches!(command, DeriverAPairDoCommandV1::Prepare { .. });
         self.check_owner(&owner, may_initialize)?;
@@ -1398,10 +1394,9 @@ fn record_root_digest(record: &PairRecord) -> Option<[u8; 32]> {
             root_metadata_digest,
             ..
         } => Some(*root_metadata_digest),
-        PairRecord::Completed { claim_identity, .. } => {
-            Some(claim_identity.local_receipt.root_metadata_digest().bytes)
+        PairRecord::Completed { .. } | PairRecord::Burned { .. } | PairRecord::Expired { .. } => {
+            None
         }
-        PairRecord::Burned { .. } | PairRecord::Expired { .. } => None,
     }
 }
 

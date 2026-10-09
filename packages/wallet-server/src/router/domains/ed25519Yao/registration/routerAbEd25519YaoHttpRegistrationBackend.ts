@@ -1220,7 +1220,6 @@ function parseRouterServerTiming(value: string | null): string | null {
   const metrics = value.split(',').map((metric) => metric.trim());
   const allowedNames = new Set([
     'yao_router_prepare_pair',
-    'yao_router_verify_readiness',
     'yao_router_role_execution',
     'yao_router_signing_worker_delivery',
   ]);

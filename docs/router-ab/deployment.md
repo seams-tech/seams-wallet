@@ -121,12 +121,20 @@ account administrator. Separate accounts can also separate credentials and
 deployment permissions. Neither arrangement claims protection from an operator
 or deployment authority that controls both roles.
 
-The table above describes keys required by the current runtime. Peer-signing
-keys support its readiness and start-acceptance handshake.
-[R155C](../refactor-155C-yao-peer-connection.md) removes that extra handshake.
-Remove those keys and configuration entries with their consumers, after matching
-role versions are activated. Role encryption keys, tenant-root lifecycle signing
-keys, and authenticated transport remain required.
+The table above describes keys required by the current runtime. The Ed25519
+Yao pair no longer signs or verifies anything with the peer-signing keys:
+[R155C](../refactor-155C-yao-peer-connection.md) removed its readiness and
+start-acceptance handshake. The keys remain required. Worker startup validates
+them and the ECDSA signer host loads them, so removing only the Secrets or
+verifying-key variables stops the Workers from starting. Remove the keys, their
+configuration entries, and the code that reads them in one later change. Role
+encryption keys, tenant-root lifecycle signing keys, and authenticated transport
+remain required.
+
+Router, Deriver A, and Deriver B change together for R155C. A Router of that
+version sends no receipt, a Deriver A accepts none, and a Deriver B expects no
+receipt header. Settle running ceremonies and activate the three roles
+together.
 
 ## Deployment lanes
 

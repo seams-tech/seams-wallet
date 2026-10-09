@@ -115,8 +115,8 @@ export async function verifyDeriverImport(topology, role, receipt, segments, rec
   };
   assert.deepEqual(await accepted(object, pairPath, read, credential), await accepted(sourceObject, pairPath, sourceRead, credential));
   const mutation = role === 'a'
-    ? { operation: 'expire', owner: receipt.source.owner, pair_binding: pair, now_ms: preparation.receipt.expires_at_ms + 1 }
-    : { scope: read.scope, command: { command: 'fail_pair', session: read.command.session, pair_digest: read.command.pair_digest } };
+    ? { operation: 'expire', owner: receipt.source.owner, pair_binding: pair, now_ms: preparation.expiresAtMs + 1 }
+    : { scope: read.scope, command: { command: 'fail_pair', pair_binding: pair } };
   await assert.rejects(post(object, pairPath, mutation, credential), /destination is reserved/u);
   const prepare = await accepted(destination, `/router-ab/internal/deriver-${role}/wallet/prepare-relocation`, receipt.source, credential);
   assert.equal(prepare.kind, 'prepared');

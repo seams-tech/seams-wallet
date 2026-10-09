@@ -116,7 +116,6 @@ function hasRequiredTable(table) {
 
 class StatusBeforePreparation {
   observations = [];
-  forgedReadinessRejected = false;
 
   constructor(worker, role, home) {
     this.worker = worker;
@@ -151,18 +150,6 @@ class StatusBeforePreparation {
       const result = await status.json();
       assert.equal(result.status, 'missing');
       this.observations.push({ role: this.role, generation: lookup.ownership_generation, firstStatus: result.status });
-    }
-    if (this.role === 'deriver_a' && path.endsWith('/execute-pair')) {
-      const forged = await request.clone().json();
-      forged.peer_receipt.signature.bytes[0] ^= 1;
-      const rejected = await worker.fetch(request.url, {
-        method: 'POST',
-        headers: request.headers,
-        body: JSON.stringify(forged),
-      });
-      assert.equal(rejected.ok, false, 'Forged readiness must fail before reservation');
-      await rejected.text();
-      this.forgedReadinessRejected = true;
     }
     return worker.fetch(request);
   }
@@ -335,7 +322,6 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
       'Completed Router replay must not rerun custody');
     assert.equal(a.observations.length, 1);
     assert.equal(b.observations.length, 1);
-    assert.equal(a.forgedReadinessRejected, true);
     const bCommands = firstCommands.filter(command => command.role === 'deriver_b');
     const routerCommands = firstCommands.filter(command => command.role === 'router');
     assert.equal(routerCommands[0].path, '/router-ab/internal/wallet/start');
@@ -386,7 +372,6 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
       callerHomeOverwritten: true,
       completedReplyLossReplayedExactly: true,
       replayRanNoAdditionalCustody: true,
-      forgedReadinessRejectedBeforeValidExecution: a.forgedReadinessRejected,
       bProtocolRunsInWalletObject: true,
       bRemoteBeginAndCompleteCalls: 0,
       startupStorageReadiness: log.storageReadiness,

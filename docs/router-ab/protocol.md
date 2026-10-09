@@ -231,11 +231,30 @@ checks. Account separation alone does not protect against an operator or
 deployment authority that can control both roles. Combining both roles' secrets
 is outside the separation guarantee.
 
-Readiness and start-acceptance signatures currently authenticate role statements
-in addition to service authentication. [R155C](../refactor-155C-yao-peer-connection.md)
-removes that extra handshake under the chosen trust model. It preserves role
-encryption, protocol validation, and local lifecycle enforcement. This planned
-removal does not change the current runtime's required keys.
+An Ed25519 Yao pair starts without signed statements between the Derivers.
+The Router sends Deriver B its preparation and Deriver A its execution at the
+same time, and awaits both. Deriver A prepares, reserves the pair, and connects
+to Deriver B's wallet object over the authenticated transport. Deriver B admits
+the connection once its own preparation of the same Router run has landed. It
+waits for that preparation until the run's deadline, which the Router derives
+from its registration claim and the ceremony bound.
+
+Deriver B's upgrade response is its durable claim on the execution. Deriver A
+claims after it and only then sends protocol material. Before it claims,
+Deriver B can answer that it holds no claim for the exact execution: its
+preparation did not arrive, failed, or expired. Deriver A then releases its
+reservation, nothing burns, and an exact retry runs the pair. Any other failure
+of the connection leaves the execution uncertain and burns it.
+
+Each role validates its own prepared root-metadata digest against its own
+root. The two roles' digests differ and are never compared. The target-proof
+preface checks each peer's share against the commitment in the Router-supplied
+activation receipt. [R155C](../refactor-155C-yao-peer-connection.md) records the
+design and its evidence.
+
+The Deriver peer-signing and peer-verifying keys remain required
+configuration. Worker startup validates them and the ECDSA signer host loads
+them. No Ed25519 Yao step uses them.
 
 ## Source map
 

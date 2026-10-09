@@ -1,26 +1,11 @@
-use super::{
-    Ed25519YaoDeriverRoleV1, Ed25519YaoExecutionIdV1, Ed25519YaoInputPairBindingV1,
-    Ed25519YaoRoleReadinessReceiptV1, Ed25519YaoRoleStartAcceptanceV1,
-};
+use super::{Ed25519YaoExecutionIdV1, Ed25519YaoInputPairBindingV1};
 use serde::{Deserialize, Serialize};
-
-/// How far ahead of Deriver A's clock a timestamp Deriver B issued may be.
-/// The Derivers run on separate hosts, and a Worker's clock reads the time of
-/// its last I/O, so B's readiness receipt or start acceptance can arrive
-/// slightly "future". Deriver A's own timestamps, and every expiry, are
-/// judged exactly.
-pub const ED25519_YAO_PEER_MAX_FUTURE_SKEW_MS_V1: u64 = 1_000;
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct Ed25519YaoPairClaimIdentityV1 {
-    pub local_receipt: Ed25519YaoRoleReadinessReceiptV1,
-    pub peer_receipt: Ed25519YaoRoleReadinessReceiptV1,
-    pub acceptance: Ed25519YaoRoleStartAcceptanceV1,
-}
 
 /// The complete role-owned pair record. `P` contains the role's encrypted input
 /// and private execution context; `O` contains the durable terminal response.
+///
+/// `root_metadata_digest` names the role's own root share. Each role checks it
+/// against its own root; the two roles' digests differ and are never compared.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum Ed25519YaoPairRecordV1<P, O> {
@@ -28,31 +13,30 @@ pub enum Ed25519YaoPairRecordV1<P, O> {
         pair_binding: Ed25519YaoInputPairBindingV1,
         root_metadata_digest: [u8; 32],
         expires_at_ms: u64,
-        receipt: Ed25519YaoRoleReadinessReceiptV1,
         payload: P,
     },
+    /// One executor reserved the pair and is connecting to its peer. Until
+    /// the peer claims the execution, the reservation can be released.
     Starting {
         pair_binding: Ed25519YaoInputPairBindingV1,
         root_metadata_digest: [u8; 32],
         expires_at_ms: u64,
         execution_id: Ed25519YaoExecutionIdV1,
         started_at_ms: u64,
-        local_receipt: Ed25519YaoRoleReadinessReceiptV1,
-        peer_receipt: Ed25519YaoRoleReadinessReceiptV1,
         payload: P,
     },
+    /// The peer claimed the execution and this role claimed it after: the
+    /// last durable step before this role's first protocol message.
     Running {
         pair_binding: Ed25519YaoInputPairBindingV1,
         root_metadata_digest: [u8; 32],
         execution_id: Ed25519YaoExecutionIdV1,
         started_at_ms: u64,
-        claim_identity: Ed25519YaoPairClaimIdentityV1,
         payload: P,
     },
     Completed {
         pair_binding: Ed25519YaoInputPairBindingV1,
         execution_id: Ed25519YaoExecutionIdV1,
-        claim_identity: Ed25519YaoPairClaimIdentityV1,
         payload: P,
         outcome: O,
     },
@@ -89,14 +73,13 @@ impl<P, O> Ed25519YaoPairRecordV1<P, O> {
 #[serde(rename_all = "snake_case")]
 pub enum Ed25519YaoPairRejectionV1 {
     IdentityMismatch,
-    ReadinessMismatch,
     Expired,
     ConflictingExecution,
     Terminal,
 }
 
 /// A duplicate never creates a new revision. `Persist` must be committed before
-/// the caller emits a readiness receipt, peer effect, or terminal response.
+/// the caller emits a peer effect or terminal response.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Ed25519YaoPairTransitionV1<P, O> {
     Persist(Ed25519YaoPairRecordV1<P, O>),
@@ -121,6 +104,18 @@ pub enum Ed25519YaoPairStoreResultV1<P, O> {
     UncertainWrite,
 }
 
+/// The one executor of a pair: the exact binding it runs, the execution
+/// identity it allocated, and its clock.
+#[derive(Clone, Copy)]
+pub struct Ed25519YaoPairExecutorV1<'a> {
+    pub pair_binding: &'a Ed25519YaoInputPairBindingV1,
+    pub execution_id: Ed25519YaoExecutionIdV1,
+    pub now_ms: u64,
+}
+
+/// Stores a preparation. A later preparation of the same pair replaces one
+/// that no executor reserved: each Router run prepares the pair again, with
+/// that run's context in the payload.
 pub fn prepare_ed25519_yao_pair_v1<P: PartialEq, O>(
     current: Option<&Ed25519YaoPairRecordV1<P, O>>,
     proposed: Ed25519YaoPairRecordV1<P, O>,
@@ -130,47 +125,45 @@ pub fn prepare_ed25519_yao_pair_v1<P: PartialEq, O>(
         pair_binding,
         root_metadata_digest,
         expires_at_ms,
-        receipt,
         payload,
     } = proposed
     else {
         return Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::Terminal);
     };
+    if root_metadata_digest.iter().all(|byte| *byte == 0) {
+        return Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::IdentityMismatch);
+    }
     if now_ms >= expires_at_ms {
         return Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::Expired);
-    }
-    if receipt.role() != Ed25519YaoDeriverRoleV1::DeriverA
-        || receipt.root_metadata_digest().bytes != root_metadata_digest
-        || receipt.expires_at_ms() != expires_at_ms
-        || receipt.validate_for_pair(&pair_binding).is_err()
-        || receipt.validate_at(now_ms).is_err()
-    {
-        return Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::ReadinessMismatch);
     }
     match current {
         None => Ed25519YaoPairTransitionV1::Persist(Ed25519YaoPairRecordV1::Prepared {
             pair_binding,
             root_metadata_digest,
             expires_at_ms,
-            receipt,
             payload,
         }),
         Some(Ed25519YaoPairRecordV1::Prepared {
             pair_binding: stored_binding,
             root_metadata_digest: stored_root,
             expires_at_ms: stored_expiry,
-            receipt: stored_receipt,
             payload: stored_payload,
-        }) if stored_binding == &pair_binding
-            && stored_root == &root_metadata_digest
-            && stored_expiry == &expires_at_ms
-            && stored_receipt == &receipt
-            && stored_payload == &payload =>
-        {
-            Ed25519YaoPairTransitionV1::Duplicate
-        }
-        Some(Ed25519YaoPairRecordV1::Prepared { .. }) => {
-            Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::IdentityMismatch)
+        }) => {
+            if stored_binding != &pair_binding {
+                Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::IdentityMismatch)
+            } else if stored_root == &root_metadata_digest
+                && stored_expiry == &expires_at_ms
+                && stored_payload == &payload
+            {
+                Ed25519YaoPairTransitionV1::Duplicate
+            } else {
+                Ed25519YaoPairTransitionV1::Persist(Ed25519YaoPairRecordV1::Prepared {
+                    pair_binding,
+                    root_metadata_digest,
+                    expires_at_ms,
+                    payload,
+                })
+            }
         }
         Some(Ed25519YaoPairRecordV1::Starting { .. })
         | Some(Ed25519YaoPairRecordV1::Running { .. }) => {
@@ -180,66 +173,41 @@ pub fn prepare_ed25519_yao_pair_v1<P: PartialEq, O>(
     }
 }
 
+/// Reserves a prepared pair for one executor. Only the caller whose
+/// reservation is applied may connect to the peer.
 pub fn reserve_ed25519_yao_pair_v1<P: Clone, O>(
     current: &Ed25519YaoPairRecordV1<P, O>,
-    reservation: Ed25519YaoPairReservationV1<'_>,
+    executor: Ed25519YaoPairExecutorV1<'_>,
 ) -> Ed25519YaoPairTransitionV1<P, O> {
     match current {
         Ed25519YaoPairRecordV1::Prepared {
             pair_binding,
             root_metadata_digest,
             expires_at_ms,
-            receipt,
             payload,
         } => {
-            if pair_binding != reservation.pair_binding {
+            if pair_binding != executor.pair_binding {
                 return Ed25519YaoPairTransitionV1::Reject(
                     Ed25519YaoPairRejectionV1::IdentityMismatch,
                 );
             }
-            if reservation.now_ms >= *expires_at_ms {
+            if executor.now_ms >= *expires_at_ms {
                 return Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::Expired);
-            }
-            if receipt != reservation.local_receipt
-                || reservation.peer_receipt.role() != Ed25519YaoDeriverRoleV1::DeriverB
-                || reservation
-                    .peer_receipt
-                    .validate_for_pair(reservation.pair_binding)
-                    .is_err()
-                || reservation
-                    .peer_receipt
-                    .validate_at_with_max_future_skew(
-                        reservation.now_ms,
-                        ED25519_YAO_PEER_MAX_FUTURE_SKEW_MS_V1,
-                    )
-                    .is_err()
-            {
-                return Ed25519YaoPairTransitionV1::Reject(
-                    Ed25519YaoPairRejectionV1::ReadinessMismatch,
-                );
             }
             Ed25519YaoPairTransitionV1::Persist(Ed25519YaoPairRecordV1::Starting {
                 pair_binding: pair_binding.clone(),
                 root_metadata_digest: *root_metadata_digest,
                 expires_at_ms: *expires_at_ms,
-                execution_id: reservation.execution_id,
-                started_at_ms: reservation.now_ms,
-                local_receipt: receipt.clone(),
-                peer_receipt: reservation.peer_receipt.clone(),
+                execution_id: executor.execution_id,
+                started_at_ms: executor.now_ms,
                 payload: payload.clone(),
             })
         }
         Ed25519YaoPairRecordV1::Starting {
             pair_binding,
             execution_id,
-            local_receipt,
-            peer_receipt,
             ..
-        } if pair_binding == reservation.pair_binding
-            && *execution_id == reservation.execution_id
-            && local_receipt == reservation.local_receipt
-            && peer_receipt == reservation.peer_receipt =>
-        {
+        } if pair_binding == executor.pair_binding && *execution_id == executor.execution_id => {
             Ed25519YaoPairTransitionV1::Duplicate
         }
         Ed25519YaoPairRecordV1::Starting { .. }
@@ -253,9 +221,12 @@ pub fn reserve_ed25519_yao_pair_v1<P: Clone, O>(
     }
 }
 
-pub fn claim_ed25519_yao_pair_v1<P: Clone, O>(
+/// Returns a reservation to `Prepared` after the peer answered that it holds
+/// no claim for this execution. No protocol message has been sent, so the
+/// execution identity is unused and another executor may reserve the pair.
+pub fn release_ed25519_yao_pair_v1<P: Clone, O>(
     current: &Ed25519YaoPairRecordV1<P, O>,
-    claim: Ed25519YaoPairStartClaimV1<'_>,
+    executor: Ed25519YaoPairExecutorV1<'_>,
 ) -> Ed25519YaoPairTransitionV1<P, O> {
     match current {
         Ed25519YaoPairRecordV1::Starting {
@@ -263,75 +234,80 @@ pub fn claim_ed25519_yao_pair_v1<P: Clone, O>(
             root_metadata_digest,
             expires_at_ms,
             execution_id,
-            local_receipt,
-            peer_receipt,
+            payload,
+            ..
+        } if pair_binding == executor.pair_binding && *execution_id == executor.execution_id => {
+            Ed25519YaoPairTransitionV1::Persist(Ed25519YaoPairRecordV1::Prepared {
+                pair_binding: pair_binding.clone(),
+                root_metadata_digest: *root_metadata_digest,
+                expires_at_ms: *expires_at_ms,
+                payload: payload.clone(),
+            })
+        }
+        Ed25519YaoPairRecordV1::Prepared { pair_binding, .. }
+            if pair_binding == executor.pair_binding =>
+        {
+            Ed25519YaoPairTransitionV1::Duplicate
+        }
+        Ed25519YaoPairRecordV1::Prepared { .. } => {
+            Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::IdentityMismatch)
+        }
+        Ed25519YaoPairRecordV1::Starting { .. }
+        | Ed25519YaoPairRecordV1::Running { .. }
+        | Ed25519YaoPairRecordV1::Completed { .. } => {
+            Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::ConflictingExecution)
+        }
+        Ed25519YaoPairRecordV1::Burned { .. } | Ed25519YaoPairRecordV1::Expired { .. } => {
+            Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::Terminal)
+        }
+    }
+}
+
+/// Claims a reserved pair after the peer claimed the same execution.
+pub fn claim_ed25519_yao_pair_v1<P: Clone, O>(
+    current: &Ed25519YaoPairRecordV1<P, O>,
+    executor: Ed25519YaoPairExecutorV1<'_>,
+) -> Ed25519YaoPairTransitionV1<P, O> {
+    match current {
+        Ed25519YaoPairRecordV1::Starting {
+            pair_binding,
+            root_metadata_digest,
+            expires_at_ms,
+            execution_id,
             payload,
             ..
         } => {
-            if *execution_id != claim.execution_id
-                || local_receipt != claim.local_receipt
-                || peer_receipt != claim.peer_receipt
-            {
+            if *execution_id != executor.execution_id {
                 return Ed25519YaoPairTransitionV1::Reject(
                     Ed25519YaoPairRejectionV1::ConflictingExecution,
                 );
             }
-            let decision = admit_ed25519_yao_pair_start_v1(
-                Ed25519YaoPreparedPairStartV1 {
-                    pair_digest: pair_binding.pair_digest().bytes,
-                    input_digest: pair_binding.deriver_a_input_digest().bytes,
-                    root_metadata_digest: *root_metadata_digest,
-                    expires_at_ms: *expires_at_ms,
-                    pair_binding,
-                    readiness_receipt: local_receipt,
-                },
-                claim,
-            );
-            match decision {
-                Ed25519YaoPairStartDecisionV1::Start {
-                    execution_id,
-                    started_at_ms,
-                    ..
-                } => Ed25519YaoPairTransitionV1::Persist(Ed25519YaoPairRecordV1::Running {
-                    pair_binding: pair_binding.clone(),
-                    root_metadata_digest: *root_metadata_digest,
-                    execution_id,
-                    started_at_ms,
-                    claim_identity: Ed25519YaoPairClaimIdentityV1 {
-                        local_receipt: claim.local_receipt.clone(),
-                        peer_receipt: claim.peer_receipt.clone(),
-                        acceptance: claim.acceptance.clone(),
-                    },
-                    payload: payload.clone(),
-                }),
-                Ed25519YaoPairStartDecisionV1::IdentityMismatch => {
-                    Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::IdentityMismatch)
-                }
-                Ed25519YaoPairStartDecisionV1::Expired => {
-                    Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::Expired)
-                }
-                Ed25519YaoPairStartDecisionV1::ReadinessMismatch => {
-                    Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::ReadinessMismatch)
-                }
+            if pair_binding != executor.pair_binding {
+                return Ed25519YaoPairTransitionV1::Reject(
+                    Ed25519YaoPairRejectionV1::IdentityMismatch,
+                );
             }
+            if executor.now_ms >= *expires_at_ms {
+                return Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::Expired);
+            }
+            Ed25519YaoPairTransitionV1::Persist(Ed25519YaoPairRecordV1::Running {
+                pair_binding: pair_binding.clone(),
+                root_metadata_digest: *root_metadata_digest,
+                execution_id: executor.execution_id,
+                started_at_ms: executor.now_ms,
+                payload: payload.clone(),
+            })
         }
         Ed25519YaoPairRecordV1::Running {
             pair_binding,
             execution_id,
-            claim_identity,
             ..
         }
         | Ed25519YaoPairRecordV1::Completed {
             pair_binding,
             execution_id,
-            claim_identity,
             ..
-        } if pair_binding == claim.pair_binding
-            && *execution_id == claim.execution_id
-            && claim_identity.local_receipt == *claim.local_receipt
-            && claim_identity.peer_receipt == *claim.peer_receipt
-            && claim_identity.acceptance == *claim.acceptance =>
-        {
+        } if pair_binding == executor.pair_binding && *execution_id == executor.execution_id => {
             Ed25519YaoPairTransitionV1::Duplicate
         }
         Ed25519YaoPairRecordV1::Running { .. } | Ed25519YaoPairRecordV1::Completed { .. } => {
@@ -358,7 +334,6 @@ pub fn complete_ed25519_yao_pair_v1<P: Clone, O: PartialEq>(
             pair_binding,
             execution_id: stored_execution,
             started_at_ms,
-            claim_identity,
             payload,
             ..
         } if *stored_execution == execution_id => {
@@ -371,7 +346,6 @@ pub fn complete_ed25519_yao_pair_v1<P: Clone, O: PartialEq>(
             Ed25519YaoPairTransitionV1::Persist(Ed25519YaoPairRecordV1::Completed {
                 pair_binding: pair_binding.clone(),
                 execution_id,
-                claim_identity: claim_identity.clone(),
                 payload: payload.clone(),
                 outcome,
             })
@@ -440,116 +414,17 @@ pub fn burn_ed25519_yao_pair_v1<P, O>(
     }
 }
 
-#[derive(Clone, Copy)]
-pub struct Ed25519YaoPairReservationV1<'a> {
-    pub pair_binding: &'a Ed25519YaoInputPairBindingV1,
-    pub local_receipt: &'a Ed25519YaoRoleReadinessReceiptV1,
-    pub peer_receipt: &'a Ed25519YaoRoleReadinessReceiptV1,
-    pub execution_id: Ed25519YaoExecutionIdV1,
-    pub now_ms: u64,
-}
-
-pub struct Ed25519YaoPreparedPairStartV1<'a> {
-    pub pair_digest: [u8; 32],
-    pub input_digest: [u8; 32],
-    pub root_metadata_digest: [u8; 32],
-    pub expires_at_ms: u64,
-    pub pair_binding: &'a Ed25519YaoInputPairBindingV1,
-    pub readiness_receipt: &'a Ed25519YaoRoleReadinessReceiptV1,
-}
-
-#[derive(Clone, Copy)]
-pub struct Ed25519YaoPairStartClaimV1<'a> {
-    pub pair_binding: &'a Ed25519YaoInputPairBindingV1,
-    pub local_receipt: &'a Ed25519YaoRoleReadinessReceiptV1,
-    pub peer_receipt: &'a Ed25519YaoRoleReadinessReceiptV1,
-    pub acceptance: &'a Ed25519YaoRoleStartAcceptanceV1,
-    pub execution_id: Ed25519YaoExecutionIdV1,
-    pub now_ms: u64,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Ed25519YaoPairStartDecisionV1 {
-    Start {
-        pair_digest: [u8; 32],
-        input_digest: [u8; 32],
-        root_metadata_digest: [u8; 32],
-        execution_id: Ed25519YaoExecutionIdV1,
-        started_at_ms: u64,
-    },
-    IdentityMismatch,
-    Expired,
-    ReadinessMismatch,
-}
-
-/// Admits the exact prepared pair after the adapter verifies signed receipts.
-/// Call this again against the record selected by the storage CAS.
-pub fn admit_ed25519_yao_pair_start_v1(
-    prepared: Ed25519YaoPreparedPairStartV1<'_>,
-    claim: Ed25519YaoPairStartClaimV1<'_>,
-) -> Ed25519YaoPairStartDecisionV1 {
-    let pair_digest = claim.pair_binding.pair_digest().bytes;
-    let input_digest = claim.pair_binding.deriver_a_input_digest().bytes;
-    if prepared.pair_digest != pair_digest
-        || prepared.input_digest != input_digest
-        || prepared.pair_binding != claim.pair_binding
-    {
-        return Ed25519YaoPairStartDecisionV1::IdentityMismatch;
-    }
-    if claim.now_ms >= prepared.expires_at_ms {
-        return Ed25519YaoPairStartDecisionV1::Expired;
-    }
-    if prepared.readiness_receipt != claim.local_receipt
-        || claim.local_receipt.root_metadata_digest().bytes != prepared.root_metadata_digest
-        || claim.peer_receipt.root_metadata_digest().bytes
-            != claim.acceptance.root_metadata_digest().bytes
-        || claim.local_receipt.role() != Ed25519YaoDeriverRoleV1::DeriverA
-        || claim.peer_receipt.role() != Ed25519YaoDeriverRoleV1::DeriverB
-        || claim.acceptance.role() != Ed25519YaoDeriverRoleV1::DeriverB
-        || claim.acceptance.execution_id() != claim.execution_id
-        || claim
-            .local_receipt
-            .validate_for_pair(claim.pair_binding)
-            .is_err()
-        || claim
-            .peer_receipt
-            .validate_for_pair(claim.pair_binding)
-            .is_err()
-        || claim
-            .acceptance
-            .validate_for_pair(claim.pair_binding)
-            .is_err()
-        || claim.local_receipt.validate_at(claim.now_ms).is_err()
-        || claim
-            .peer_receipt
-            .validate_at_with_max_future_skew(claim.now_ms, ED25519_YAO_PEER_MAX_FUTURE_SKEW_MS_V1)
-            .is_err()
-        || claim
-            .acceptance
-            .validate_at_with_max_future_skew(claim.now_ms, ED25519_YAO_PEER_MAX_FUTURE_SKEW_MS_V1)
-            .is_err()
-    {
-        return Ed25519YaoPairStartDecisionV1::ReadinessMismatch;
-    }
-    Ed25519YaoPairStartDecisionV1::Start {
-        pair_digest,
-        input_digest,
-        root_metadata_digest: prepared.root_metadata_digest,
-        execution_id: claim.execution_id,
-        started_at_ms: claim.now_ms,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::derivation::{PublicDigest32, RootShareEpoch};
     use crate::protocol::{
         Ed25519YaoCeremonyBindingV1, Ed25519YaoCeremonyIdentityV1, Ed25519YaoOperationV1,
-        Ed25519YaoRoleSignatureSchemeV1, Ed25519YaoRoleSignatureV1, Ed25519YaoSessionIdV1,
-        Ed25519YaoStableKeyContextBindingV1, ExpensiveWorkKindV1, LifecycleScopeV1,
-        MpcMaterialActivationRefV1,
+        Ed25519YaoSessionIdV1, Ed25519YaoStableKeyContextBindingV1, ExpensiveWorkKindV1,
+        LifecycleScopeV1, MpcMaterialActivationRefV1,
     };
+
+    type Record = Ed25519YaoPairRecordV1<u8, String>;
 
     fn pair_binding() -> Ed25519YaoInputPairBindingV1 {
         let lifecycle = LifecycleScopeV1::new(
@@ -588,62 +463,28 @@ mod tests {
         .expect("pair")
     }
 
-    fn receipt(
-        pair: &Ed25519YaoInputPairBindingV1,
-        role: Ed25519YaoDeriverRoleV1,
-    ) -> Ed25519YaoRoleReadinessReceiptV1 {
-        let (input_digest, root_digest) = match role {
-            Ed25519YaoDeriverRoleV1::DeriverA => (pair.deriver_a_input_digest(), [7; 32]),
-            Ed25519YaoDeriverRoleV1::DeriverB => (pair.deriver_b_input_digest(), [8; 32]),
-        };
-        Ed25519YaoRoleReadinessReceiptV1::new(
-            role,
-            pair.ceremony().binding().session_id,
-            pair.pair_digest(),
-            input_digest,
-            PublicDigest32::new(root_digest),
-            100,
-            150,
-            Ed25519YaoRoleSignatureV1::new(Ed25519YaoRoleSignatureSchemeV1::Ed25519V1, [9; 64])
-                .expect("signature"),
-        )
-        .expect("receipt")
+    fn prepared(pair: &Ed25519YaoInputPairBindingV1) -> Record {
+        Ed25519YaoPairRecordV1::Prepared {
+            pair_binding: pair.clone(),
+            root_metadata_digest: [7; 32],
+            expires_at_ms: 150,
+            payload: 42,
+        }
     }
 
-    fn acceptance(
-        pair: &Ed25519YaoInputPairBindingV1,
-        execution_id: Ed25519YaoExecutionIdV1,
-    ) -> Ed25519YaoRoleStartAcceptanceV1 {
-        Ed25519YaoRoleStartAcceptanceV1::new(
-            Ed25519YaoDeriverRoleV1::DeriverB,
-            pair.ceremony().binding().session_id,
-            pair.pair_digest(),
-            execution_id,
-            PublicDigest32::new([8; 32]),
-            100,
-            200,
-            Ed25519YaoRoleSignatureV1::new(Ed25519YaoRoleSignatureSchemeV1::Ed25519V1, [9; 64])
-                .expect("signature"),
-        )
-        .expect("acceptance")
+    fn persisted(transition: Ed25519YaoPairTransitionV1<u8, String>) -> Record {
+        match transition {
+            Ed25519YaoPairTransitionV1::Persist(record) => record,
+            other => panic!("expected a persisted record: {other:?}"),
+        }
     }
 
     #[test]
     fn pair_claim_completion_and_replay_keep_one_execution() {
         let pair = pair_binding();
-        let local = receipt(&pair, Ed25519YaoDeriverRoleV1::DeriverA);
-        let peer = receipt(&pair, Ed25519YaoDeriverRoleV1::DeriverB);
         let first_id = Ed25519YaoExecutionIdV1::new([10; 32]).expect("first id");
         let second_id = Ed25519YaoExecutionIdV1::new([11; 32]).expect("second id");
-        let first_acceptance = acceptance(&pair, first_id);
-        let second_acceptance = acceptance(&pair, second_id);
-        let prepared = Ed25519YaoPairRecordV1::<u8, String>::Prepared {
-            pair_binding: pair.clone(),
-            root_metadata_digest: [7; 32],
-            expires_at_ms: 150,
-            receipt: local.clone(),
-            payload: 42,
-        };
+        let prepared = prepared(&pair);
         assert_eq!(
             prepare_ed25519_yao_pair_v1(None, prepared.clone(), 110),
             Ed25519YaoPairTransitionV1::Persist(prepared.clone())
@@ -652,80 +493,44 @@ mod tests {
             prepare_ed25519_yao_pair_v1(Some(&prepared), prepared.clone(), 110),
             Ed25519YaoPairTransitionV1::Duplicate
         );
-        let first_claim = Ed25519YaoPairStartClaimV1 {
+        let first = Ed25519YaoPairExecutorV1 {
             pair_binding: &pair,
-            local_receipt: &local,
-            peer_receipt: &peer,
-            acceptance: &first_acceptance,
-            execution_id: first_id,
-            now_ms: 120,
-        };
-        let reservation = Ed25519YaoPairReservationV1 {
-            pair_binding: &pair,
-            local_receipt: &local,
-            peer_receipt: &peer,
             execution_id: first_id,
             now_ms: 119,
         };
-        let starting = match reserve_ed25519_yao_pair_v1(&prepared, reservation) {
-            Ed25519YaoPairTransitionV1::Persist(record) => record,
-            other => panic!("expected starting record: {other:?}"),
+        let second = Ed25519YaoPairExecutorV1 {
+            execution_id: second_id,
+            ..first
         };
+        let starting = persisted(reserve_ed25519_yao_pair_v1(&prepared, first));
         assert_eq!(
-            reserve_ed25519_yao_pair_v1(&starting, reservation),
+            reserve_ed25519_yao_pair_v1(&starting, first),
             Ed25519YaoPairTransitionV1::Duplicate
         );
-        let running = match claim_ed25519_yao_pair_v1(&starting, first_claim) {
-            Ed25519YaoPairTransitionV1::Persist(record) => record,
-            other => panic!("expected running record: {other:?}"),
-        };
         assert_eq!(
-            claim_ed25519_yao_pair_v1(&running, first_claim),
-            Ed25519YaoPairTransitionV1::Duplicate
-        );
-        let changed_acceptance = Ed25519YaoRoleStartAcceptanceV1::new(
-            Ed25519YaoDeriverRoleV1::DeriverB,
-            pair.ceremony().binding().session_id,
-            pair.pair_digest(),
-            first_id,
-            PublicDigest32::new([8; 32]),
-            101,
-            200,
-            Ed25519YaoRoleSignatureV1::new(Ed25519YaoRoleSignatureSchemeV1::Ed25519V1, [9; 64])
-                .expect("signature"),
-        )
-        .expect("changed acceptance");
-        assert_eq!(
-            claim_ed25519_yao_pair_v1(
-                &running,
-                Ed25519YaoPairStartClaimV1 {
-                    acceptance: &changed_acceptance,
-                    ..first_claim
-                }
-            ),
+            reserve_ed25519_yao_pair_v1(&starting, second),
             Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::ConflictingExecution)
         );
         assert_eq!(
-            claim_ed25519_yao_pair_v1(
-                &running,
-                Ed25519YaoPairStartClaimV1 {
-                    execution_id: second_id,
-                    acceptance: &second_acceptance,
-                    ..first_claim
-                }
-            ),
+            claim_ed25519_yao_pair_v1(&prepared, first),
             Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::ConflictingExecution)
         );
-        let completed = match complete_ed25519_yao_pair_v1(
+        let running = persisted(claim_ed25519_yao_pair_v1(&starting, first));
+        assert_eq!(
+            claim_ed25519_yao_pair_v1(&running, first),
+            Ed25519YaoPairTransitionV1::Duplicate
+        );
+        assert_eq!(
+            claim_ed25519_yao_pair_v1(&running, second),
+            Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::ConflictingExecution)
+        );
+        let completed = persisted(complete_ed25519_yao_pair_v1(
             &running,
             first_id,
             "sealed outcome".to_owned(),
             125,
             60_000,
-        ) {
-            Ed25519YaoPairTransitionV1::Persist(record) => record,
-            other => panic!("expected completion: {other:?}"),
-        };
+        ));
         assert_eq!(
             completed.outcome().map(String::as_str),
             Some("sealed outcome")
@@ -741,7 +546,7 @@ mod tests {
             Ed25519YaoPairTransitionV1::Duplicate
         );
         assert_eq!(
-            claim_ed25519_yao_pair_v1(&completed, first_claim),
+            claim_ed25519_yao_pair_v1(&completed, first),
             Ed25519YaoPairTransitionV1::Duplicate
         );
         assert_eq!(
@@ -751,58 +556,67 @@ mod tests {
     }
 
     #[test]
+    fn released_reservation_returns_to_prepared_for_another_executor() {
+        let pair = pair_binding();
+        let execution_id = Ed25519YaoExecutionIdV1::new([10; 32]).expect("id");
+        let other_id = Ed25519YaoExecutionIdV1::new([11; 32]).expect("other id");
+        let prepared = prepared(&pair);
+        let executor = Ed25519YaoPairExecutorV1 {
+            pair_binding: &pair,
+            execution_id,
+            now_ms: 119,
+        };
+        let starting = persisted(reserve_ed25519_yao_pair_v1(&prepared, executor));
+        assert_eq!(
+            release_ed25519_yao_pair_v1(
+                &starting,
+                Ed25519YaoPairExecutorV1 {
+                    execution_id: other_id,
+                    ..executor
+                }
+            ),
+            Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::ConflictingExecution)
+        );
+        let released = persisted(release_ed25519_yao_pair_v1(&starting, executor));
+        assert_eq!(released, prepared);
+        assert_eq!(
+            release_ed25519_yao_pair_v1(&released, executor),
+            Ed25519YaoPairTransitionV1::Duplicate
+        );
+        let again = persisted(reserve_ed25519_yao_pair_v1(&released, executor));
+        let running = persisted(claim_ed25519_yao_pair_v1(&again, executor));
+        // A claimed execution may have sent protocol material: it is never released.
+        assert_eq!(
+            release_ed25519_yao_pair_v1(&running, executor),
+            Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::ConflictingExecution)
+        );
+        let burned = persisted(burn_ed25519_yao_pair_v1(&running, execution_id));
+        assert_eq!(
+            release_ed25519_yao_pair_v1(&burned, executor),
+            Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::Terminal)
+        );
+    }
+
+    #[test]
     fn expired_and_burned_pairs_never_return_to_prepared() {
         let pair = pair_binding();
-        let local = receipt(&pair, Ed25519YaoDeriverRoleV1::DeriverA);
-        let peer = receipt(&pair, Ed25519YaoDeriverRoleV1::DeriverB);
         let execution_id = Ed25519YaoExecutionIdV1::new([10; 32]).expect("id");
-        let acceptance = acceptance(&pair, execution_id);
-        let prepared = Ed25519YaoPairRecordV1::<u8, String>::Prepared {
-            pair_binding: pair.clone(),
-            root_metadata_digest: [7; 32],
-            expires_at_ms: 150,
-            receipt: local.clone(),
-            payload: 42,
-        };
-        let expired = match expire_ed25519_yao_pair_v1(&prepared, 150) {
-            Ed25519YaoPairTransitionV1::Persist(record) => record,
-            other => panic!("expected expiry: {other:?}"),
-        };
+        let prepared = prepared(&pair);
+        let expired = persisted(expire_ed25519_yao_pair_v1(&prepared, 150));
         assert_eq!(
             prepare_ed25519_yao_pair_v1(Some(&expired), prepared.clone(), 120),
             Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::Terminal)
         );
-        let claim = Ed25519YaoPairStartClaimV1 {
+        let executor = Ed25519YaoPairExecutorV1 {
             pair_binding: &pair,
-            local_receipt: &local,
-            peer_receipt: &peer,
-            acceptance: &acceptance,
             execution_id,
-            now_ms: 120,
+            now_ms: 119,
         };
-        let starting = match reserve_ed25519_yao_pair_v1(
-            &prepared,
-            Ed25519YaoPairReservationV1 {
-                pair_binding: &pair,
-                local_receipt: &local,
-                peer_receipt: &peer,
-                execution_id,
-                now_ms: 119,
-            },
-        ) {
-            Ed25519YaoPairTransitionV1::Persist(record) => record,
-            other => panic!("expected reservation: {other:?}"),
-        };
-        let running = match claim_ed25519_yao_pair_v1(&starting, claim) {
-            Ed25519YaoPairTransitionV1::Persist(record) => record,
-            other => panic!("expected claim: {other:?}"),
-        };
-        let burned = match burn_ed25519_yao_pair_v1(&running, execution_id) {
-            Ed25519YaoPairTransitionV1::Persist(record) => record,
-            other => panic!("expected burn: {other:?}"),
-        };
+        let starting = persisted(reserve_ed25519_yao_pair_v1(&prepared, executor));
+        let running = persisted(claim_ed25519_yao_pair_v1(&starting, executor));
+        let burned = persisted(burn_ed25519_yao_pair_v1(&running, execution_id));
         assert_eq!(
-            claim_ed25519_yao_pair_v1(&burned, claim),
+            claim_ed25519_yao_pair_v1(&burned, executor),
             Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::Terminal)
         );
         assert_eq!(
@@ -812,18 +626,96 @@ mod tests {
     }
 
     #[test]
-    fn prepared_expiry_must_match_signed_receipt() {
+    fn expired_preparation_cannot_be_stored_reserved_or_claimed() {
         let pair = pair_binding();
-        let proposed = Ed25519YaoPairRecordV1::<u8, String>::Prepared {
+        let execution_id = Ed25519YaoExecutionIdV1::new([10; 32]).expect("id");
+        let prepared = prepared(&pair);
+        assert_eq!(
+            prepare_ed25519_yao_pair_v1(None, prepared.clone(), 150),
+            Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::Expired)
+        );
+        let late = Ed25519YaoPairExecutorV1 {
+            pair_binding: &pair,
+            execution_id,
+            now_ms: 150,
+        };
+        assert_eq!(
+            reserve_ed25519_yao_pair_v1(&prepared, late),
+            Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::Expired)
+        );
+        let starting = persisted(reserve_ed25519_yao_pair_v1(
+            &prepared,
+            Ed25519YaoPairExecutorV1 {
+                now_ms: 119,
+                ..late
+            },
+        ));
+        assert_eq!(
+            claim_ed25519_yao_pair_v1(&starting, late),
+            Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::Expired)
+        );
+    }
+
+    #[test]
+    fn later_preparation_replaces_one_nothing_reserved() {
+        let pair = pair_binding();
+        let execution_id = Ed25519YaoExecutionIdV1::new([10; 32]).expect("id");
+        let first = prepared(&pair);
+        let later = Record::Prepared {
             pair_binding: pair.clone(),
             root_metadata_digest: [7; 32],
-            expires_at_ms: 151,
-            receipt: receipt(&pair, Ed25519YaoDeriverRoleV1::DeriverA),
+            expires_at_ms: 180,
+            payload: 43,
+        };
+        assert_eq!(
+            prepare_ed25519_yao_pair_v1(Some(&first), later.clone(), 130),
+            Ed25519YaoPairTransitionV1::Persist(later.clone())
+        );
+        let starting = persisted(reserve_ed25519_yao_pair_v1(
+            &first,
+            Ed25519YaoPairExecutorV1 {
+                pair_binding: &pair,
+                execution_id,
+                now_ms: 119,
+            },
+        ));
+        assert_eq!(
+            prepare_ed25519_yao_pair_v1(Some(&starting), later.clone(), 130),
+            Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::ConflictingExecution)
+        );
+        let mut other_pair = pair.clone();
+        other_pair = Ed25519YaoInputPairBindingV1::new(
+            other_pair.ceremony().clone(),
+            PublicDigest32::new([13; 32]),
+            PublicDigest32::new([4; 32]),
+            PublicDigest32::new([5; 32]),
+            PublicDigest32::new([6; 32]),
+        )
+        .expect("other pair");
+        let other = Record::Prepared {
+            pair_binding: other_pair,
+            root_metadata_digest: [7; 32],
+            expires_at_ms: 180,
+            payload: 43,
+        };
+        assert_eq!(
+            prepare_ed25519_yao_pair_v1(Some(&first), other, 130),
+            Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::IdentityMismatch)
+        );
+    }
+
+    #[test]
+    fn preparation_requires_a_root_metadata_digest() {
+        let pair = pair_binding();
+        let proposed = Record::Prepared {
+            pair_binding: pair,
+            root_metadata_digest: [0; 32],
+            expires_at_ms: 150,
             payload: 42,
         };
         assert_eq!(
             prepare_ed25519_yao_pair_v1(None, proposed, 110),
-            Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::ReadinessMismatch)
+            Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::IdentityMismatch)
         );
     }
 }

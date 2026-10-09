@@ -6,10 +6,12 @@ use std::time::Duration;
 use base64::Engine as _;
 use hpke_ng::{Aes256Gcm, DhKemX25519HkdfSha256, HkdfSha256, Hpke, Kem};
 use rand_core_09::{OsRng, TryRngCore};
+use router_ab_cloudflare::{
+    CloudflareEd25519YaoPairStartRefusalReasonV1, CloudflareEd25519YaoPairStartRefusalV1,
+};
 use router_ab_core::{
     Ed25519YaoDeriverAToBTargetProofPayloadV2, Ed25519YaoDeriverBToATargetProofPayloadV2,
-    Ed25519YaoExecutionIdV1, Ed25519YaoOuterBindingV2, Ed25519YaoRoleReadinessReceiptV1,
-    Ed25519YaoRoleStartAcceptanceV1,
+    Ed25519YaoExecutionIdV1, Ed25519YaoOuterBindingV2,
 };
 use router_ab_ed25519_yao::relay::{
     ActivationDeriverACompletion, ActivationDeriverBCompletion, DirectionalWireDecoder,
@@ -32,12 +34,15 @@ const STREAM_CONTENT_TYPE: &str = "application/vnd.seams.ed25519-yao-stream-v1";
 const SESSION_HEADER: &str = "x-seams-ed25519-yao-session";
 const PAIR_DIGEST_HEADER: &str = "x-seams-ed25519-yao-pair-digest";
 const EXECUTION_ID_HEADER: &str = "x-seams-ed25519-yao-execution-id";
-const READINESS_RECEIPT_HEADER: &str = "x-seams-yao-readiness-receipt";
-const START_ACCEPTANCE_HEADER: &str = "x-seams-yao-start-acceptance";
+const DEADLINE_HEADER: &str = "x-seams-ed25519-yao-deadline-ms";
 const TARGET_PROOF_A_TO_B_HEADER: &str = "x-seams-yao-target-proof-a-to-b";
 const TARGET_PROOF_B_TO_A_HEADER: &str = "x-seams-yao-target-proof-b-to-a";
 const TARGET_PROOF_HPKE_INFO_V2: &[u8] = b"seams/ed25519-yao/target-proof/hpke/v2";
 const IO_TIMEOUT: Duration = Duration::from_secs(30);
+/// Deriver B's answer to a pair connection it refuses while holding no claim.
+const PAIR_START_REFUSAL_STATUS_LINE: &str = "HTTP/1.1 409 Conflict";
+const PAIR_START_REFUSAL_CONTENT_TYPE: &str = "application/json";
+const MAXIMUM_PAIR_START_REFUSAL_BYTES: usize = 1024;
 
 type TargetProofHpkeV2 = Hpke<DhKemX25519HkdfSha256, HkdfSha256, Aes256Gcm>;
 
@@ -75,6 +80,28 @@ impl From<io::Error> for LocalEd25519YaoStreamErrorV1 {
 
 type StreamResult<T> = Result<T, LocalEd25519YaoStreamErrorV1>;
 
+/// Why Deriver A's pair connection did not start.
+#[derive(Debug)]
+pub(crate) enum LocalEd25519YaoPairConnectErrorV1 {
+    /// Deriver B answered that it holds no claim for the execution. Deriver A
+    /// may release its reservation.
+    Refused(CloudflareEd25519YaoPairStartRefusalReasonV1),
+    /// The connection failed, and Deriver B may have claimed the execution.
+    Failed,
+}
+
+impl From<LocalEd25519YaoStreamErrorV1> for LocalEd25519YaoPairConnectErrorV1 {
+    fn from(_: LocalEd25519YaoStreamErrorV1) -> Self {
+        Self::Failed
+    }
+}
+
+impl From<io::Error> for LocalEd25519YaoPairConnectErrorV1 {
+    fn from(_: io::Error) -> Self {
+        Self::Failed
+    }
+}
+
 pub(crate) enum LocalEd25519YaoPairCompletionDeliveryV1 {
     Received(Vec<u8>),
     MissingAfterCleanEof,
@@ -105,7 +132,6 @@ pub struct LocalEd25519YaoAuthenticatedDeriverBPeerV1 {
     reader: BufReader<TcpStream>,
     session: [u8; 32],
     kind: LocalEd25519YaoPeerKindV1,
-    start_acceptance: Option<Ed25519YaoRoleStartAcceptanceV1>,
 }
 
 enum LocalEd25519YaoPeerKindV1 {
@@ -116,13 +142,14 @@ enum LocalEd25519YaoPeerKindV1 {
     },
 }
 
-/// Pair identity and the peer's signed readiness proof carried by the
-/// authenticated A→B stream before B enters Running.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// What the authenticated A→B stream carries before B enters Running: the
+/// pair, the execution Deriver A reserved, and when the Router run ends. The
+/// run itself is named by the outer binding of the stream's target proof.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LocalEd25519YaoPairPeerContextV1 {
     pub pair_digest: [u8; 32],
     pub execution_id: Ed25519YaoExecutionIdV1,
-    pub peer_receipt: Ed25519YaoRoleReadinessReceiptV1,
+    pub deadline_ms: u64,
 }
 
 impl LocalEd25519YaoAuthenticatedDeriverBPeerV1 {
@@ -140,16 +167,33 @@ impl LocalEd25519YaoAuthenticatedDeriverBPeerV1 {
         }
     }
 
-    pub(crate) fn set_start_acceptance(
-        &mut self,
-        acceptance: Ed25519YaoRoleStartAcceptanceV1,
+    pub(crate) fn session(&self) -> [u8; 32] {
+        self.session
+    }
+
+    /// Answers a pair connection that Deriver B holds no claim for, and
+    /// closes it. Nothing of the protocol has been sent.
+    pub(crate) fn refuse_pair_start(
+        mut self,
+        reason: CloudflareEd25519YaoPairStartRefusalReasonV1,
     ) -> StreamResult<()> {
-        if self.pair_context().is_none() {
-            return Err(protocol(
-                "pair start acceptance requires a pair-bound stream",
-            ));
-        }
-        self.start_acceptance = Some(acceptance);
+        let Some(pair) = self.pair_context().copied() else {
+            return Err(protocol("pair start refusal requires a pair-bound stream"));
+        };
+        let body = serde_json::to_string(&CloudflareEd25519YaoPairStartRefusalV1 {
+            session: self.session,
+            pair_digest: pair.pair_digest,
+            execution_id: pair.execution_id,
+            reason,
+        })
+        .map_err(|_| protocol("pair start refusal could not be encoded"))?;
+        write!(
+            self.stream,
+            "{PAIR_START_REFUSAL_STATUS_LINE}\r\ncontent-type: {PAIR_START_REFUSAL_CONTENT_TYPE}\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+            body.len(),
+        )?;
+        self.stream.flush()?;
+        let _ = self.stream.shutdown(Shutdown::Both);
         Ok(())
     }
 }
@@ -186,13 +230,6 @@ pub(crate) struct LocalEd25519YaoDeriverAPairConnectionV2 {
     stream: TcpStream,
     reader: BufReader<TcpStream>,
     session: [u8; 32],
-    acceptance: Ed25519YaoRoleStartAcceptanceV1,
-}
-
-impl LocalEd25519YaoDeriverAPairConnectionV2 {
-    pub(crate) fn acceptance(&self) -> &Ed25519YaoRoleStartAcceptanceV1 {
-        &self.acceptance
-    }
 }
 
 pub fn run_local_activation_deriver_a_http_v1(
@@ -204,7 +241,9 @@ pub fn run_local_activation_deriver_a_http_v1(
     run_local_deriver_a_http_v1(address, session, internal_service_auth, role)
 }
 
-/// Connects A to B and completes the V2 target-proof transport preface.
+/// Connects A to B and completes the V2 target-proof transport preface. B's
+/// success head says it claimed the execution. B may hold the connection
+/// until the Router run's deadline while its own preparation arrives.
 pub(crate) fn connect_local_deriver_a_pair_http_v2(
     address: impl ToSocketAddrs,
     session: [u8; 32],
@@ -212,24 +251,26 @@ pub(crate) fn connect_local_deriver_a_pair_http_v2(
     pair: &LocalEd25519YaoPairPeerContextV1,
     outbound: &Ed25519YaoDeriverAToBTargetProofPayloadV2,
     private_key: &[u8; 32],
-) -> StreamResult<(
-    LocalEd25519YaoDeriverAPairConnectionV2,
-    Ed25519YaoDeriverBToATargetProofPayloadV2,
-    Zeroizing<Vec<u8>>,
-)> {
+) -> Result<
+    (
+        LocalEd25519YaoDeriverAPairConnectionV2,
+        Ed25519YaoDeriverBToATargetProofPayloadV2,
+        Zeroizing<Vec<u8>>,
+    ),
+    LocalEd25519YaoPairConnectErrorV1,
+> {
     let mut stream = TcpStream::connect(address)?;
     configure_stream(&stream)?;
     let reader_stream = stream.try_clone()?;
     let mut reader = BufReader::new(reader_stream);
     write_request_head_with_pair_v2(&mut stream, session, internal_service_auth, pair, outbound)?;
-    let (acceptance, inbound) = read_response_head_with_pair_v2(&mut reader)?;
+    let inbound = read_response_head_with_pair_v2(&mut reader, session, pair)?;
     let plaintext = open_local_deriver_a_target_proof_v2(&inbound, private_key)?;
     Ok((
         LocalEd25519YaoDeriverAPairConnectionV2 {
             stream,
             reader,
             session,
-            acceptance,
         },
         inbound,
         plaintext,
@@ -241,21 +282,18 @@ pub(crate) fn run_local_activation_deriver_a_pair_connected_v2(
     role: ActivationDeriverA,
 ) -> StreamResult<(
     ActivationDeriverACompletion,
-    Ed25519YaoRoleStartAcceptanceV1,
     LocalEd25519YaoPairCompletionDeliveryV1,
 )> {
-    let acceptance = connection.acceptance.clone();
-    let (completion, _, sealed_completion) = run_local_deriver_a_stream_v1(
+    let (completion, sealed_completion) = run_local_deriver_a_stream_v1(
         connection.stream,
         connection.reader,
         connection.session,
-        Some(acceptance.clone()),
         true,
         role,
     )?;
     let sealed_completion =
         sealed_completion.ok_or_else(|| protocol("pair sealed completion is missing"))?;
-    Ok((completion, acceptance, sealed_completion))
+    Ok((completion, sealed_completion))
 }
 
 pub fn run_local_export_deriver_a_http_v1(
@@ -272,21 +310,18 @@ pub(crate) fn run_local_export_deriver_a_pair_connected_v2(
     role: ExportDeriverA,
 ) -> StreamResult<(
     ExportDeriverACompletion,
-    Ed25519YaoRoleStartAcceptanceV1,
     LocalEd25519YaoPairCompletionDeliveryV1,
 )> {
-    let acceptance = connection.acceptance.clone();
-    let (completion, _, sealed_completion) = run_local_deriver_a_stream_v1(
+    let (completion, sealed_completion) = run_local_deriver_a_stream_v1(
         connection.stream,
         connection.reader,
         connection.session,
-        Some(acceptance.clone()),
         true,
         role,
     )?;
     let sealed_completion =
         sealed_completion.ok_or_else(|| protocol("pair sealed completion is missing"))?;
-    Ok((completion, acceptance, sealed_completion))
+    Ok((completion, sealed_completion))
 }
 
 fn run_local_deriver_a_http_v1<R>(
@@ -303,9 +338,8 @@ where
     let reader_stream = stream.try_clone()?;
     let mut reader = BufReader::new(reader_stream);
     write_request_head(&mut stream, session, internal_service_auth)?;
-    let acceptance = read_response_head(&mut reader)?;
-    let (completion, _, _) =
-        run_local_deriver_a_stream_v1(stream, reader, session, acceptance, false, role)?;
+    read_response_head(&mut reader)?;
+    let (completion, _) = run_local_deriver_a_stream_v1(stream, reader, session, false, role)?;
     Ok(completion)
 }
 
@@ -313,12 +347,10 @@ fn run_local_deriver_a_stream_v1<R>(
     mut stream: TcpStream,
     mut reader: BufReader<TcpStream>,
     session: [u8; 32],
-    acceptance: Option<Ed25519YaoRoleStartAcceptanceV1>,
     pair: bool,
     mut role: R,
 ) -> StreamResult<(
     R::Completion,
-    Option<Ed25519YaoRoleStartAcceptanceV1>,
     Option<LocalEd25519YaoPairCompletionDeliveryV1>,
 )>
 where
@@ -396,7 +428,7 @@ where
         .finish_at_transport_eof()
         .map_err(|_| protocol("A response EOF evidence"))?;
     let completion = expect_complete(role.handle(RelayEvent::InboundDirectionalEof(peer_eof))?)?;
-    Ok((completion, acceptance, sealed_completion))
+    Ok((completion, sealed_completion))
 }
 
 pub fn run_local_activation_deriver_b_http_v1(
@@ -445,7 +477,6 @@ pub fn authenticate_local_ed25519_yao_deriver_b_peer_http_v1(
         reader,
         session: expected_session,
         kind: LocalEd25519YaoPeerKindV1::Refresh,
-        start_acceptance: None,
     })
 }
 
@@ -470,7 +501,6 @@ pub(crate) fn authenticate_local_ed25519_yao_deriver_b_peer_http_with_pair_v2(
             context,
             target_proof,
         },
-        start_acceptance: None,
     })
 }
 
@@ -553,18 +583,11 @@ where
         mut stream,
         mut reader,
         session,
-        start_acceptance,
         ..
     } = peer;
     if let Some(target_proof) = outbound_target_proof.as_ref() {
-        let acceptance = start_acceptance
-            .as_ref()
-            .ok_or_else(|| protocol("pair start acceptance is missing"))?;
-        write_response_head_with_pair_v2(&mut stream, acceptance, target_proof)?;
+        write_response_head_with_pair_v2(&mut stream, target_proof)?;
     } else {
-        if start_acceptance.is_some() {
-            return Err(protocol("generic stream cannot carry pair acceptance"));
-        }
         write_response_head(&mut stream)?;
     }
 
@@ -652,15 +675,13 @@ fn write_request_head_with_pair_v2(
     target_proof: &Ed25519YaoDeriverAToBTargetProofPayloadV2,
 ) -> io::Result<()> {
     write_request_head_base(stream, session, internal_service_auth)?;
-    let serialized_receipt = serde_json::to_string(&pair.peer_receipt)
-        .map_err(|error| io::Error::other(format!("pair receipt encoding failed: {error}")))?;
     let target_proof = encode_a_target_proof_header(target_proof)?;
     write!(
         stream,
-        "{PAIR_DIGEST_HEADER}: {}\r\n{EXECUTION_ID_HEADER}: {}\r\n{READINESS_RECEIPT_HEADER}: {}\r\n{TARGET_PROOF_A_TO_B_HEADER}: {target_proof}\r\n",
+        "{PAIR_DIGEST_HEADER}: {}\r\n{EXECUTION_ID_HEADER}: {}\r\n{DEADLINE_HEADER}: {}\r\n{TARGET_PROOF_A_TO_B_HEADER}: {target_proof}\r\n",
         hex::encode(pair.pair_digest),
         hex::encode(pair.execution_id.into_bytes()),
-        serialized_receipt,
+        pair.deadline_ms,
     )?;
     write!(stream, "connection: close\r\n\r\n")?;
     stream.flush()
@@ -699,10 +720,9 @@ fn read_request_head<R: BufRead>(
     require_header(&lines, SESSION_HEADER, &hex::encode(expected_session))?;
     forbid_header(&lines, PAIR_DIGEST_HEADER)?;
     forbid_header(&lines, EXECUTION_ID_HEADER)?;
-    forbid_header(&lines, READINESS_RECEIPT_HEADER)?;
+    forbid_header(&lines, DEADLINE_HEADER)?;
     forbid_header(&lines, TARGET_PROOF_A_TO_B_HEADER)?;
     forbid_header(&lines, TARGET_PROOF_B_TO_A_HEADER)?;
-    forbid_header(&lines, START_ACCEPTANCE_HEADER)?;
     Ok(())
 }
 
@@ -731,7 +751,7 @@ fn read_request_head_with_pair_v2<R: BufRead>(
     let required_pair_headers = [
         PAIR_DIGEST_HEADER,
         EXECUTION_ID_HEADER,
-        READINESS_RECEIPT_HEADER,
+        DEADLINE_HEADER,
         TARGET_PROOF_A_TO_B_HEADER,
     ];
     for header in required_pair_headers {
@@ -743,26 +763,18 @@ fn read_request_head_with_pair_v2<R: BufRead>(
     let execution_id =
         Ed25519YaoExecutionIdV1::new(decode_hex_32(single_header(&lines, EXECUTION_ID_HEADER)?)?)
             .map_err(|_| invalid_http("pair stream execution id is malformed"))?;
-    let peer_receipt = serde_json::from_str::<Ed25519YaoRoleReadinessReceiptV1>(single_header(
-        &lines,
-        READINESS_RECEIPT_HEADER,
-    )?)
-    .map_err(|_| invalid_http("pair stream readiness receipt is malformed"))?;
-    if peer_receipt.role() != router_ab_core::Ed25519YaoDeriverRoleV1::DeriverA
-        || peer_receipt.session_bytes() != expected_session
-        || peer_receipt.pair_digest().bytes != pair_digest
-    {
-        return Err(invalid_http(
-            "pair stream readiness receipt identity mismatch",
-        ));
-    }
+    let deadline_ms = single_header(&lines, DEADLINE_HEADER)?
+        .parse::<u64>()
+        .ok()
+        .filter(|deadline_ms| *deadline_ms > 0)
+        .ok_or_else(|| invalid_http("pair stream deadline is malformed"))?;
     let target_proof =
         decode_a_target_proof_header(single_header(&lines, TARGET_PROOF_A_TO_B_HEADER)?)?;
     Ok((
         LocalEd25519YaoPairPeerContextV1 {
             pair_digest,
             execution_id,
-            peer_receipt,
+            deadline_ms,
         },
         target_proof,
     ))
@@ -778,22 +790,17 @@ fn write_response_head(stream: &mut TcpStream) -> io::Result<()> {
 
 fn write_response_head_with_pair_v2(
     stream: &mut TcpStream,
-    acceptance: &Ed25519YaoRoleStartAcceptanceV1,
     target_proof: &Ed25519YaoDeriverBToATargetProofPayloadV2,
 ) -> io::Result<()> {
-    let serialized_acceptance = serde_json::to_string(acceptance)
-        .map_err(|error| io::Error::other(format!("start acceptance encoding failed: {error}")))?;
     let target_proof = encode_b_target_proof_header(target_proof)?;
     write!(
         stream,
-        "HTTP/1.1 200 OK\r\ncontent-type: {STREAM_CONTENT_TYPE}\r\ntransfer-encoding: chunked\r\n{START_ACCEPTANCE_HEADER}: {serialized_acceptance}\r\n{TARGET_PROOF_B_TO_A_HEADER}: {target_proof}\r\nconnection: close\r\n\r\n",
+        "HTTP/1.1 200 OK\r\ncontent-type: {STREAM_CONTENT_TYPE}\r\ntransfer-encoding: chunked\r\n{TARGET_PROOF_B_TO_A_HEADER}: {target_proof}\r\nconnection: close\r\n\r\n",
     )?;
     stream.flush()
 }
 
-fn read_response_head<R: BufRead>(
-    reader: &mut R,
-) -> StreamResult<Option<Ed25519YaoRoleStartAcceptanceV1>> {
+fn read_response_head<R: BufRead>(reader: &mut R) -> StreamResult<()> {
     let lines = read_http_head(reader)?;
     if lines.first().map(String::as_str) != Some("HTTP/1.1 200 OK") {
         return Err(invalid_http("non-success response"));
@@ -801,38 +808,59 @@ fn read_response_head<R: BufRead>(
     require_header(&lines, "content-type", STREAM_CONTENT_TYPE)?;
     require_header(&lines, "transfer-encoding", "chunked")?;
     forbid_header(&lines, "content-length")?;
-    forbid_header(&lines, START_ACCEPTANCE_HEADER)?;
     forbid_header(&lines, TARGET_PROOF_A_TO_B_HEADER)?;
     forbid_header(&lines, TARGET_PROOF_B_TO_A_HEADER)?;
-    Ok(None)
+    Ok(())
 }
 
+/// Reads B's answer to a pair connection: its target proof once it claimed
+/// the execution, or its refusal while it holds no claim. A refusal counts
+/// only when it names this exact execution.
 fn read_response_head_with_pair_v2<R: BufRead>(
     reader: &mut R,
-) -> StreamResult<(
-    Ed25519YaoRoleStartAcceptanceV1,
-    Ed25519YaoDeriverBToATargetProofPayloadV2,
-)> {
+    session: [u8; 32],
+    pair: &LocalEd25519YaoPairPeerContextV1,
+) -> Result<Ed25519YaoDeriverBToATargetProofPayloadV2, LocalEd25519YaoPairConnectErrorV1> {
     let lines = read_http_head(reader)?;
-    if lines.first().map(String::as_str) != Some("HTTP/1.1 200 OK") {
-        return Err(invalid_http("non-success response"));
+    match lines.first().map(String::as_str) {
+        Some("HTTP/1.1 200 OK") => {}
+        Some(PAIR_START_REFUSAL_STATUS_LINE) => {
+            let refusal = read_pair_start_refusal(reader, &lines)?;
+            if refusal.session != session
+                || refusal.pair_digest != pair.pair_digest
+                || refusal.execution_id != pair.execution_id
+            {
+                return Err(invalid_http("pair start refusal answers another execution").into());
+            }
+            return Err(LocalEd25519YaoPairConnectErrorV1::Refused(refusal.reason));
+        }
+        _ => return Err(invalid_http("non-success response").into()),
     }
     require_header(&lines, "content-type", STREAM_CONTENT_TYPE)?;
     require_header(&lines, "transfer-encoding", "chunked")?;
     forbid_header(&lines, "content-length")?;
-    let acceptance = serde_json::from_str::<Ed25519YaoRoleStartAcceptanceV1>(single_header(
-        &lines,
-        START_ACCEPTANCE_HEADER,
-    )?)
-    .map_err(|_| invalid_http("start acceptance header is malformed"))?;
     let target_proof =
         decode_b_target_proof_header(single_header(&lines, TARGET_PROOF_B_TO_A_HEADER)?)?;
     if !header_values(&lines, TARGET_PROOF_A_TO_B_HEADER).is_empty() {
-        return Err(invalid_http(
-            "response carries the wrong target-proof direction",
-        ));
+        return Err(invalid_http("response carries the wrong target-proof direction").into());
     }
-    Ok((acceptance, target_proof))
+    Ok(target_proof)
+}
+
+fn read_pair_start_refusal<R: BufRead>(
+    reader: &mut R,
+    lines: &[String],
+) -> StreamResult<CloudflareEd25519YaoPairStartRefusalV1> {
+    require_header(lines, "content-type", PAIR_START_REFUSAL_CONTENT_TYPE)?;
+    forbid_header(lines, "transfer-encoding")?;
+    let length = single_header(lines, "content-length")?
+        .parse::<usize>()
+        .ok()
+        .filter(|length| (1..=MAXIMUM_PAIR_START_REFUSAL_BYTES).contains(length))
+        .ok_or_else(|| invalid_http("pair start refusal length is invalid"))?;
+    let mut body = vec![0_u8; length];
+    reader.read_exact(&mut body)?;
+    serde_json::from_slice(&body).map_err(|_| invalid_http("pair start refusal is malformed"))
 }
 
 pub(crate) fn seal_local_deriver_a_target_proof_v2(

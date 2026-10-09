@@ -40,7 +40,6 @@ mod local_ed25519_yao_api;
 mod local_ed25519_yao_delivery;
 
 mod local_ed25519_yao_input;
-mod local_ed25519_yao_pair;
 mod local_ed25519_yao_pair_sqlite;
 mod local_ed25519_yao_refresh;
 mod local_ed25519_yao_router;
@@ -139,10 +138,6 @@ pub use local_ed25519_yao_input::{
     seal_local_ed25519_yao_activation_deriver_b_input_v1,
     seal_local_ed25519_yao_refresh_deriver_a_input_v1, LocalEd25519YaoEncryptedRefreshInputV1,
 };
-pub use local_ed25519_yao_pair::{
-    LocalEd25519YaoPairLifecycleStateV1, LocalEd25519YaoPairLifecycleV1,
-    LocalEd25519YaoPairSigningKeysV1, LocalEd25519YaoRoleReadinessReceiptV1,
-};
 pub use local_ed25519_yao_pair_sqlite::LocalDeriverAPairSqliteV1;
 pub use local_ed25519_yao_refresh::{
     derive_local_ed25519_yao_joint_refresh_delta_v1,
@@ -177,10 +172,11 @@ pub use local_ed25519_yao_stream::{
     LocalEd25519YaoStreamErrorV1,
 };
 pub use local_ed25519_yao_worker::{
-    dispatch_local_ed25519_yao_connection_with_persistence_v1, LocalEd25519YaoConnectionDispatchV1,
-    LocalEd25519YaoPairRoleRecordV1, LocalEd25519YaoRefreshPromotionReceiptV1,
-    LocalEd25519YaoRefreshPromotionRequestV1, LocalEd25519YaoRoleCompletionV1,
-    LocalEd25519YaoWorkerStateV1,
+    dispatch_local_ed25519_yao_connection_with_persistence_v1,
+    resume_local_ed25519_yao_parked_peer_v1, LocalEd25519YaoConnectionDispatchV1,
+    LocalEd25519YaoPairRoleRecordV1, LocalEd25519YaoParkedPeerV1,
+    LocalEd25519YaoRefreshPromotionReceiptV1, LocalEd25519YaoRefreshPromotionRequestV1,
+    LocalEd25519YaoRoleCompletionV1, LocalEd25519YaoWorkerStateV1,
 };
 pub use local_router_ab_ecdsa::{local_router_ab_ecdsa_route_v1, LocalRouterAbEcdsaResponseV1};
 pub use local_router_coordinator::LocalRouterEd25519YaoCoordinatorV1;
@@ -301,9 +297,6 @@ pub const LOCAL_WORKER_HEALTH_PATH: &str = "/healthz";
 pub const LOCAL_WORKER_READY_PATH: &str = "/readyz";
 /// Deriver B full-duplex Ed25519 Yao peer-stream path.
 pub const LOCAL_DERIVER_B_ED25519_YAO_PEER_PATH: &str = "/router-ab/deriver-b/ed25519-yao/peer";
-/// Deriver A pair-bound preparation path mirrored from the strict Cloudflare worker.
-pub const LOCAL_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH: &str =
-    "/router-ab/deriver-a/ed25519-yao/prepare-pair";
 /// Deriver A pair-bound claim path mirrored from the strict Cloudflare worker.
 pub const LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH: &str =
     "/router-ab/deriver-a/ed25519-yao/execute-pair";
