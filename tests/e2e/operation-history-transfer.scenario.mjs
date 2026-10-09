@@ -174,27 +174,39 @@ export async function verifyDestinationOperationGeneration({
     label: 'destination-generation-operation',
     nowMs,
   });
-  const claimed = await store.admitAuthorizedOperation({ operation: input });
+  const walletId = issued.session.walletId;
+  // The admission pins the scope from its own read-back. A separate read agrees.
+  const claimed = await store.admitEd25519WalletSessionOperation({ operation: input, walletId });
   assert.equal(claimed.kind, 'claimed');
-  assert.equal(
-    (
-      await store.readPinnedOwnerWalletScope({
-        operation: claimed.operation,
-        walletId: issued.session.walletId,
-      })
-    ).ownershipGeneration,
-    2,
+  assert.equal(claimed.ownerScope.ownershipGeneration, 2);
+  assert.deepEqual(
+    claimed.ownerScope,
+    await store.readPinnedOwnerWalletScope({ operation: claimed.operation, walletId }),
   );
-  const retry = await store.admitAuthorizedOperation({ operation: input });
+  const retry = await store.admitEd25519WalletSessionOperation({ operation: input, walletId });
   assert.equal(retry.kind, 'operation_in_progress');
-  assert.equal(
-    (
-      await store.readPinnedOwnerWalletScope({
-        operation: retry.operation,
-        walletId: issued.session.walletId,
-      })
-    ).ownershipGeneration,
-    2,
+  assert.deepEqual(retry.ownerScope, claimed.ownerScope);
+  // A finalize request finds the prepared operation and its scope in one read.
+  const resolution = {
+    tenantId: input.tenantId,
+    operationFingerprintDigest: claimed.operation.operationFingerprintDigest,
+    walletId,
+    nowMs,
+  };
+  const resolved = await store.resolveEd25519WalletSessionOperation(resolution);
+  assert.equal(resolved.kind, 'operation_in_progress');
+  assert.deepEqual(resolved.operation, claimed.operation);
+  assert.deepEqual(resolved.ownerScope, claimed.ownerScope);
+  await assert.rejects(
+    store.resolveEd25519WalletSessionOperation({ ...resolution, walletId: `${walletId}-other` }),
+    /Pinned owner Wallet Session scope is unavailable/,
+  );
+  assert.deepEqual(
+    await store.resolveEd25519WalletSessionOperation({
+      ...resolution,
+      operationFingerprintDigest: 'never-claimed-fingerprint',
+    }),
+    { kind: 'authorized_operation_missing' },
   );
   const remaining = await database
     .prepare(
@@ -214,5 +226,10 @@ export async function verifyDestinationOperationGeneration({
     },
     completedAtMs: nowMs + 1,
   });
+  // A completed operation replays its stored response and pins no scope.
+  const replayed = await store.resolveEd25519WalletSessionOperation(resolution);
+  assert.equal(replayed.kind, 'replayed');
+  assert.equal(replayed.operation.lifecycle, 'completed');
+  assert.equal(replayed.ownerScope, undefined);
   return { newClaimGeneration: 2, exactRetryGeneration: 2, quotaChargedOnce: true };
 }

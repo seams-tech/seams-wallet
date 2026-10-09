@@ -1,4 +1,7 @@
-import { revalidateEd25519AuthorizedOperation } from './ed25519AuthorizedOperationRevalidation';
+import {
+  resolveEd25519WalletSessionOperation,
+  revalidateEd25519StepUpOperation,
+} from './ed25519AuthorizedOperationRevalidation';
 import { signingPrepareSessionResponse } from '../../../domains/signingOperations/signingPrepareSession';
 import type { PinnedOwnerWalletScope } from '../../../../authorization/ecdsaWalletSessionAdmission';
 import {
@@ -121,6 +124,7 @@ type Ed25519AuthorizedOperationAdmission =
   | {
       readonly kind: 'claimed';
       readonly operation: AuthorizedOperation;
+      readonly ownerScope: PinnedOwnerWalletScope;
       readonly receipt: Ed25519ReusableAuthorizedOperationReceipt;
     }
   | {
@@ -212,17 +216,12 @@ function buildEd25519GatewayOwnerWalletSessionBinding(
   };
 }
 
-async function readPinnedEd25519WalletScope(
-  ctx: FetchRouterApiContext,
+/** The scope the operation's own admission pinned, checked against the active material. */
+function pinnedEd25519WalletScope(
   authorization: AcceptedEd25519WalletSessionAuthorization,
-  operation: AuthorizedOperation,
-): Promise<PinnedOwnerWalletScope> {
-  const session = ed25519ReusableWalletSession(authorization);
+  pinned: PinnedOwnerWalletScope,
+): PinnedOwnerWalletScope {
   const scope = authorization.activeMaterial.runtimePolicyScope;
-  const pinned = await ctx.service.authorizedOperations.readPinnedOwnerWalletScope({
-    operation,
-    walletId: session.walletId,
-  });
   if (pinned.orgId !== scope.orgId || pinned.projectId !== scope.projectId) {
     throw new Error('Pinned owner Wallet Session scope differs from active material');
   }
@@ -557,22 +556,24 @@ async function authorizeEd25519ReusableWalletSessionOperation(input: {
     const authorizedOperationId = requireAuthorizationValue(
       parseAuthorizedOperationId(`ed25519-operation:${operation.operationId}:${scope.request_id}`),
     );
-    const outcome = await input.ctx.service.authorizedOperations.admitAuthorizedOperation({
-      operation: {
-        tenantId: identity.tenantId,
-        authorizedOperationId,
-        auditEventId: requireAuthorizationValue(
-          parseAuthorizationAuditEventId(`ed25519-operation-audit:${operation.operationId}`),
-        ),
-        operation: envelope,
-        authorization: {
-          kind: 'authorization_grant',
-          authorizationGrantRef: buildAuthorizationGrantRef(identity.authorizationId),
+    const outcome =
+      await input.ctx.service.authorizedOperations.admitEd25519WalletSessionOperation({
+        operation: {
+          tenantId: identity.tenantId,
+          authorizedOperationId,
+          auditEventId: requireAuthorizationValue(
+            parseAuthorizationAuditEventId(`ed25519-operation-audit:${operation.operationId}`),
+          ),
+          operation: envelope,
+          authorization: {
+            kind: 'authorization_grant',
+            authorizationGrantRef: buildAuthorizationGrantRef(identity.authorizationId),
+          },
+          quota: { kind: 'consume_reusable_wallet_session', quotaId: identity.quotaId },
+          claimedAtMs: nowMs,
         },
-        quota: { kind: 'consume_reusable_wallet_session', quotaId: identity.quotaId },
-        claimedAtMs: nowMs,
-      },
-    });
+        walletId: session.walletId,
+      });
     if (
       outcome.kind !== 'claimed' &&
       outcome.kind !== 'operation_in_progress' &&
@@ -616,6 +617,7 @@ async function authorizeEd25519ReusableWalletSessionOperation(input: {
       admission: {
         kind: 'claimed',
         operation: outcome.operation,
+        ownerScope: outcome.ownerScope,
         receipt: {
           kind: 'reusable_wallet_session_authorized_operation_v1',
           authorized_operation_id: outcome.operation.authorizedOperationId,
@@ -656,6 +658,8 @@ async function validateEd25519ReusableAuthorizedOperation(input: {
       readonly ok: true;
       readonly receipt: Ed25519ReusableAuthorizedOperationReceipt;
       readonly operation: AuthorizedOperation;
+      /** Absent for a completed operation, which replays its stored response. */
+      readonly ownerScope: PinnedOwnerWalletScope | null;
     }
   | { readonly ok: false; readonly response: Response }
 > {
@@ -704,11 +708,14 @@ async function validateEd25519ReusableAuthorizedOperation(input: {
     const authorizedOperationId = requireAuthorizationValue(
       parseAuthorizedOperationId(receipt.authorized_operation_id),
     );
-    let operationResult: AuthorizedOperation | null;
+    // One read finds the prepared operation, checks its grant and pins its scope.
+    let resolved: Awaited<ReturnType<typeof resolveEd25519WalletSessionOperation>>;
     try {
-      operationResult = await input.ctx.service.authorizedOperations.readAuthorizedOperationById({
+      resolved = await resolveEd25519WalletSessionOperation({
+        ctx: input.ctx,
         tenantId: identity.tenantId,
-        authorizedOperationId,
+        operationFingerprintDigest: fingerprint,
+        walletId: ed25519ReusableWalletSession(input.authorization).walletId,
       });
     } catch {
       return {
@@ -719,19 +726,8 @@ async function validateEd25519ReusableAuthorizedOperation(input: {
         ),
       };
     }
-    if (!operationResult) {
-      return {
-        ok: false,
-        response: json(
-          {
-            ok: false,
-            code: 'authorized_operation_missing',
-            message: 'Authorized operation is unavailable',
-          },
-          { status: 409 },
-        ),
-      };
-    }
+    if (!resolved.ok) return resolved;
+    const operationResult = resolved.operation;
     if (
       operationResult.tenantId !== identity.tenantId ||
       operationResult.tenantId !== input.ctx.service.authorizedOperations.tenantId ||
@@ -746,11 +742,7 @@ async function validateEd25519ReusableAuthorizedOperation(input: {
     ) {
       throw new Error('Ed25519 authorized operation identity changed after prepare');
     }
-    const revalidated = await revalidateEd25519AuthorizedOperation({
-      ctx: input.ctx,
-      operation: operationResult,
-    });
-    return revalidated.ok ? { ok: true, receipt, operation: revalidated.operation } : revalidated;
+    return { ok: true, receipt, operation: operationResult, ownerScope: resolved.ownerScope };
   } catch (error: unknown) {
     return {
       ok: false,
@@ -889,7 +881,7 @@ async function validateEd25519VerifiedStepUpAuthorizedOperation(input: {
     ) {
       throw new Error('Operation step-up evidence changed after prepare');
     }
-    const revalidated = await revalidateEd25519AuthorizedOperation({
+    const revalidated = await revalidateEd25519StepUpOperation({
       ctx: input.ctx,
       operation: operationResult,
     });
@@ -1657,7 +1649,7 @@ async function handleRouterAbEd25519NormalSigningRoute(input: {
           operation: execution.operation,
           binding: buildEd25519GatewayOwnerWalletSessionBinding(
             authorization,
-            await readPinnedEd25519WalletScope(input.ctx, authorization, execution.operation),
+            pinnedEd25519WalletScope(authorization, authorized.admission.ownerScope),
           ),
         }),
       },
@@ -1713,6 +1705,9 @@ async function handleRouterAbEd25519NormalSigningRoute(input: {
   if (!validatedAuthorization.ok) return validatedAuthorization.response;
   const replay = replayCompletedEd25519Operation(validatedAuthorization.operation);
   if (replay) return replay;
+  if (!validatedAuthorization.ownerScope) {
+    throw new Error('Pinned owner Wallet Session scope is unavailable');
+  }
   const upstream = await proxyEd25519OwnerLaneExecution({
     ctx: input.ctx,
     authorization,
@@ -1723,11 +1718,7 @@ async function handleRouterAbEd25519NormalSigningRoute(input: {
         operation: validatedAuthorization.operation,
         binding: buildEd25519GatewayOwnerWalletSessionBinding(
           authorization,
-          await readPinnedEd25519WalletScope(
-            input.ctx,
-            authorization,
-            validatedAuthorization.operation,
-          ),
+          pinnedEd25519WalletScope(authorization, validatedAuthorization.ownerScope),
         ),
       }),
     },

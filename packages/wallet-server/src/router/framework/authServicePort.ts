@@ -1602,6 +1602,16 @@ export interface RouterApiAuthorizedOperationService {
   ): Promise<
     import('../../authorization/ecdsaWalletSessionAdmission').EcdsaWalletSessionAdmissionResult
   >;
+  admitEd25519WalletSessionOperation(
+    input: import('../../authorization/ed25519WalletSessionAdmission').Ed25519WalletSessionAdmissionInput,
+  ): Promise<
+    import('../../authorization/ed25519WalletSessionAdmission').Ed25519WalletSessionAdmissionResult
+  >;
+  resolveEd25519WalletSessionOperation(
+    input: import('../../authorization/ed25519WalletSessionAdmission').Ed25519WalletSessionResolutionInput,
+  ): Promise<
+    import('../../authorization/ed25519WalletSessionAdmission').Ed25519WalletSessionResolutionResult
+  >;
   readonly tenantId: TenantId;
   readPinnedOwnerWalletScope(input: {
     readonly operation: AuthorizedOperation;

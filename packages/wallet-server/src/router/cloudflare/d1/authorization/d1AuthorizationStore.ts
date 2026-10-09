@@ -15,6 +15,12 @@ import type {
   EcdsaWalletSessionResolutionResult,
   PinnedOwnerWalletScope,
 } from '../../../../authorization/ecdsaWalletSessionAdmission';
+import type {
+  Ed25519WalletSessionAdmissionInput,
+  Ed25519WalletSessionAdmissionResult,
+  Ed25519WalletSessionResolutionInput,
+  Ed25519WalletSessionResolutionResult,
+} from '../../../../authorization/ed25519WalletSessionAdmission';
 import {
   mpcMaterialActivationRefsEqual,
   type MpcMaterialActivationRef,
@@ -2427,13 +2433,7 @@ export class CloudflareD1AuthorizationStore
     existing: AuthorizedOperationAdmissionRecord,
     operation: AuthorizedOperation,
     material: AuthorizedOperationMaterialScope | undefined,
-  ):
-    | {
-        readonly kind: 'replayed' | 'operation_in_progress';
-        readonly operation: AuthorizedOperation;
-        readonly row: D1Row;
-      }
-    | AuthorizedOperationAdmissionRejection {
+  ): ExistingAuthorizedOperationAnswer {
     if (!existing.materialActive) return { kind: 'material_mismatch' };
     const replayMismatch = authorizedOperationReplayMismatch({
       existing: existing.row,
@@ -2537,44 +2537,51 @@ export class CloudflareD1AuthorizationStore
       materialSnapshot: input.material.readSnapshot,
     });
     if (!existing) return { kind: 'authorized_operation_missing' };
-    const result = this.answerExistingAuthorizedOperation(existing, operation, input.material);
-    if (result.kind === 'operation_in_progress') {
-      return {
-        kind: result.kind,
-        operation: result.operation,
-        ownerScope: this.pinnedWalletSessionOwnerScope(result.row, input.material.walletId),
-      };
-    }
-    if (result.kind === 'replayed') return { kind: result.kind, operation: result.operation };
-    switch (result.kind) {
-      case 'authorization_grant_rejected':
-      case 'verified_step_up_rejected':
-      case 'wallet_session_quota_exhausted':
-      case 'material_mismatch':
-        return result;
-      default:
-        throw new Error('Unexpected ECDSA operation resolution');
-    }
+    return this.pinExistingWalletSessionOperation(
+      this.answerExistingAuthorizedOperation(existing, operation, input.material),
+      input.material.walletId,
+    );
   }
 
-  async admitEcdsaWalletSessionOperation(
-    input: EcdsaWalletSessionAdmissionInput,
-  ): Promise<EcdsaWalletSessionAdmissionResult> {
-    const result = await this.admitAuthorizedOperationRecord({
-      operation: input.operation,
-      material: input.material,
-      materialSnapshot: input.material.readSnapshot,
+  /**
+   * The stored operation answers for itself: its own grant must still be
+   * active, as when a finalize request admitted it again.
+   */
+  async resolveEd25519WalletSessionOperation(
+    input: Ed25519WalletSessionResolutionInput,
+  ): Promise<Ed25519WalletSessionResolutionResult> {
+    const existing = await this.readAuthorizedOperationForAdmission({
+      tenantId: input.tenantId,
+      operationFingerprintDigest: input.operationFingerprintDigest,
+      nowMs: input.nowMs,
+      materialSnapshot: null,
     });
+    if (!existing) return { kind: 'authorized_operation_missing' };
+    if (existing.operation.authorization.kind !== 'authorization_grant') {
+      return { kind: 'authorization_grant_rejected' };
+    }
+    return this.pinExistingWalletSessionOperation(
+      this.answerExistingAuthorizedOperation(existing, existing.operation, undefined),
+      input.walletId,
+    );
+  }
+
+  private pinExistingWalletSessionOperation(
+    result: ExistingAuthorizedOperationAnswer,
+    walletId: WalletId,
+  ): Exclude<
+    EcdsaWalletSessionResolutionResult,
+    { readonly kind: 'authorized_operation_missing' }
+  > {
     switch (result.kind) {
-      case 'claimed':
       case 'operation_in_progress':
         return {
           kind: result.kind,
           operation: result.operation,
-          ownerScope: this.pinnedWalletSessionOwnerScope(result.row, input.material.walletId),
+          ownerScope: this.pinnedWalletSessionOwnerScope(result.row, walletId),
         };
       case 'replayed':
-        return { kind: 'replayed', operation: result.operation };
+        return { kind: result.kind, operation: result.operation };
       case 'authorization_grant_rejected':
       case 'verified_step_up_rejected':
       case 'wallet_session_quota_exhausted':
@@ -2582,9 +2589,48 @@ export class CloudflareD1AuthorizationStore
         return result;
       default: {
         const unexpected: never = result;
-        throw new Error(`Unexpected ECDSA admission: ${unexpected}`);
+        throw new Error(`Unexpected Wallet Session resolution: ${unexpected}`);
       }
     }
+  }
+
+  async admitEcdsaWalletSessionOperation(
+    input: EcdsaWalletSessionAdmissionInput,
+  ): Promise<EcdsaWalletSessionAdmissionResult> {
+    return this.pinWalletSessionAdmission(
+      await this.admitAuthorizedOperationRecord({
+        operation: input.operation,
+        material: input.material,
+        materialSnapshot: input.material.readSnapshot,
+      }),
+      input.material.walletId,
+    );
+  }
+
+  async admitEd25519WalletSessionOperation(
+    input: Ed25519WalletSessionAdmissionInput,
+  ): Promise<Ed25519WalletSessionAdmissionResult> {
+    return this.pinWalletSessionAdmission(
+      await this.admitAuthorizedOperationRecord({
+        operation: input.operation,
+        material: undefined,
+        materialSnapshot: null,
+      }),
+      input.walletId,
+    );
+  }
+
+  /** A live operation's owner scope comes from the row its own admission read back. */
+  private pinWalletSessionAdmission(
+    result: AuthorizedOperationAdmissionOutcome,
+    walletId: WalletId,
+  ): EcdsaWalletSessionAdmissionResult {
+    if (result.kind !== 'claimed') return this.pinExistingWalletSessionOperation(result, walletId);
+    return {
+      kind: 'claimed',
+      operation: result.operation,
+      ownerScope: this.pinnedWalletSessionOwnerScope(result.row, walletId),
+    };
   }
 
   private async admitAuthorizedOperationRecord(input: {
@@ -2598,14 +2644,7 @@ export class CloudflareD1AuthorizationStore
         readonly material: EcdsaWalletSessionAdmissionInput['material'];
         readonly materialSnapshot: EcdsaMaterialReadSnapshot;
       }
-  )): Promise<
-    | {
-        readonly kind: 'claimed' | 'replayed' | 'operation_in_progress';
-        readonly operation: AuthorizedOperation;
-        readonly row: D1Row;
-      }
-    | AuthorizedOperationAdmissionRejection
-  > {
+  )): Promise<AuthorizedOperationAdmissionOutcome> {
     const operation = await buildAuthorizedOperation(input.operation);
     if (!authorizedOperationMaterialScopeMatches(operation, input.material, input.materialSnapshot)) {
       return { kind: 'material_mismatch' };
@@ -2766,6 +2805,20 @@ type AuthorizedOperationAdmissionRecord = {
   readonly sourceActive: boolean;
   readonly materialActive: boolean;
 };
+
+/** How a stored operation answers an admission or a resolution, with its row. */
+type ExistingAuthorizedOperationAnswer =
+  | {
+      readonly kind: 'replayed' | 'operation_in_progress';
+      readonly operation: AuthorizedOperation;
+      readonly row: D1Row;
+    }
+  | AuthorizedOperationAdmissionRejection;
+
+/** What one admission did, with the row it read back in the same batch. */
+type AuthorizedOperationAdmissionOutcome =
+  | { readonly kind: 'claimed'; readonly operation: AuthorizedOperation; readonly row: D1Row }
+  | ExistingAuthorizedOperationAnswer;
 
 async function parseAuthorizedOperationAdmissionRecord(row: D1Row): Promise<AuthorizedOperationAdmissionRecord> {
   if (row.authorization_source_active !== 0 && row.authorization_source_active !== 1) {
