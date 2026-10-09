@@ -579,8 +579,9 @@ for this implementation. The estimated 2.5 s full-flow saving remains unmeasured
   isolation, generation isolation and immutable address rows against local D1.
 - [x] Complete local four-home Worker registration, signing, destination
   preparation and source/destination address-selection checks.
-- [ ] Run a complete composed relocation with copy, activation and source cleanup
-  against the matching stored-address candidate before deployment.
+- [x] Run a complete composed NEAR relocation with copy, activation and source
+  cleanup against the matching stored-address candidate. Verify destination signing
+  and replay after eviction by its persisted object ID.
 - [ ] Run the controlled hosted comparison after separate deployment approval.
   Report full-flow timings and the added D1 lookup cost. A 50 ms dispatch remains
   a measurement target, not a Cloudflare guarantee.
@@ -619,10 +620,45 @@ The scenario now advances the existing `Cleaning` response until `Cleaned`; its
 focused rerun passes. Two long-outage scenarios remain ignored by default.
 
 SDK TypeScript checks, address type fixtures and the repository bloat check pass.
-The private full typecheck still reports six interface errors in unchanged
-`emailOtpDeliveryAdapter.ts`, `d1LocalDevWorker.ts` and `serviceClient.ts`.
+The private candidate typecheck now passes. The local host supplies established-home
+admission to recovery, export and linked-device routes. The directory client supplies
+its regional session home, and OTP delivery accepts wallet relocation.
 These checks do not establish hosted latency. No live databases or Workers were
 changed, and no existing wallets were deleted.
+
+### Complete stored-address relocation — October 10
+
+The composed NEAR scenario now completes WEUR generation 1 → APAC generation 2.
+It runs the release Rust Workers, separate wallet-object namespaces, local D1,
+production directory and Runtime handlers, and Chromium session reconciliation.
+The Gateway databases contain the IDs used by both test traffic and Runtime calls.
+
+The scenario verifies these outcomes:
+
+- A pending signature holds source settlement. A lost finalization reply recovers
+  the same signature before cutover.
+- Copy, verification, destination activation and source cleanup complete.
+- All four destination addresses differ from their source addresses. Source rows
+  remain unchanged after cleanup.
+- The retired source rejects signing. The destination replays the completed source
+  signature and rejects changed request material and a stale generation.
+- A new destination NEAR signature verifies independently. Prepare and finalize
+  replay exactly after eviction of the persisted SigningWorker object.
+- The browser locks the old session once. Reload retains its generation fence.
+
+Run from the private repository:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+ROUTER_AB_WORKER_BUILD_PROFILE=release \
+node tests/e2e/relocation-custody.e2e.mjs
+```
+
+Evidence: `.artifacts/r155d-addresses/composed-relocation/`, with a compact copy
+in [the committed evidence](evidence/refactor-155d-stored-unique-ids-local.json).
+The run covers NEAR relocation. It does not claim mixed-curve relocation, browser
+registration, fresh unlock after cutover, hosted placement, or latency savings.
+No live migrations or deployments ran. The controlled hosted comparison remains.
 
 ### Startup and role databases
 

@@ -4244,11 +4244,12 @@ async function signRelocatedEd25519(topology, activation, fixture, destinationNa
       activation: activation.result.result.result,
       identity: fixture.tenant_root_creation.identity,
       clientRecipientSeed: fixture.activation.client_recipient_seed,
-      destinationName,
       ownershipGeneration,
       credential: gatewayToRouterAuthSecret,
       repoRoot,
-      scope: JSON.parse(activation.delivery).scope,
+      evictWallet: evictTransferredWallet.bind(
+        undefined, topology, destinationName, JSON.parse(activation.delivery).scope, ownershipGeneration,
+      ),
     });
   } finally {
     signingWorkerDeliveryTarget = priorTarget;

@@ -3,7 +3,6 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { ed25519 } from '@noble/curves/ed25519.js';
-import { evictTransferredWallet } from './linked-presign-transfer-evidence.mjs';
 
 const preparePath = '/router-ab/ed25519/sign/prepare';
 const finalizePath = '/router-ab/ed25519/sign';
@@ -35,7 +34,7 @@ async function accepted(router, path, body, credential) {
 }
 
 export async function verifyEd25519DestinationSigning({
-  topology, routerName, activation, identity, clientRecipientSeed, credential, repoRoot, scope, destinationName, ownershipGeneration,
+  topology, routerName, activation, identity, clientRecipientSeed, credential, repoRoot, evictWallet, ownershipGeneration,
 }) {
   const router = await topology.getWorker(routerName);
   const fixture = signingFixture(repoRoot, {
@@ -51,9 +50,9 @@ export async function verifyEd25519DestinationSigning({
   const staleResponse = await post(router, preparePath, stale, credential);
   const staleText = await staleResponse.text();
   assert.notEqual(staleResponse.status, 200, staleText);
-  assert.match(staleText, /Wallet relocation has closed new Ed25519 work/);
+  assert.match(staleText, /Ed25519 execution ownership generation differs/);
   const prepared = await accepted(router, preparePath, prepareBody, credential);
-  await evictTransferredWallet(topology, destinationName, scope, ownershipGeneration);
+  await evictWallet();
   assert.deepEqual(await accepted(router, preparePath, prepareBody, credential), prepared);
   const finalizeBody = signingFixture(repoRoot, {
     command: 'finalize', activation, client_recipient_seed: clientRecipientSeed,
@@ -61,7 +60,7 @@ export async function verifyEd25519DestinationSigning({
   });
   const response = await accepted(router, finalizePath, finalizeBody, credential);
   const signatureSha256Hex = verifySigningResponse(response, fixture, activation);
-  await evictTransferredWallet(topology, destinationName, scope, ownershipGeneration);
+  await evictWallet();
   assert.deepEqual(await accepted(router, finalizePath, finalizeBody, credential), response);
   return {
     response,
