@@ -47,8 +47,19 @@ struct NearRowV1 {
     terminal_json: Option<String>,
 }
 
+/// Round-1 state, and the wallet's Ed25519 execution, fence and settlement
+/// records that prepare and finalize read. The deployment check expects
+/// exactly what this creates.
 pub(crate) fn ensure_schema(connection: &Connection) -> RouterAbProtocolResult<()> {
-    connection.execute_batch(SCHEMA).map_err(store_error)
+    for schema in [
+        SCHEMA,
+        router_ab_cloudflare::SIGNING_WORKER_ED25519_EXECUTION_SCHEMA_V1,
+        router_ab_cloudflare::SIGNING_WORKER_ED25519_FENCE_SCHEMA_V1,
+        router_ab_cloudflare::SIGNING_WORKER_ED25519_SETTLEMENT_SCHEMA_V1,
+    ] {
+        connection.execute_batch(schema).map_err(store_error)?;
+    }
+    Ok(())
 }
 
 pub(crate) fn prepare(

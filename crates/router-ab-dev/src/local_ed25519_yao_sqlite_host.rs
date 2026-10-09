@@ -125,12 +125,6 @@ impl LocalEd25519YaoSqliteHostV1 {
             ensure_local_deriver_b_pair_schema_v1(&connection)?;
         } else if config.role() == LocalServiceRoleV1::SigningWorker {
             local_signing_worker_near_sqlite::ensure_schema(&connection)?;
-            connection
-                .execute_batch(router_ab_cloudflare::SIGNING_WORKER_ED25519_EXECUTION_SCHEMA_V1)?;
-            connection
-                .execute_batch(router_ab_cloudflare::SIGNING_WORKER_ED25519_FENCE_SCHEMA_V1)?;
-            connection
-                .execute_batch(router_ab_cloudflare::SIGNING_WORKER_ED25519_SETTLEMENT_SCHEMA_V1)?;
         }
         Ok(Self {
             connection: RefCell::new(connection),
