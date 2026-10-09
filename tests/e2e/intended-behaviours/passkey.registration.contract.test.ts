@@ -22,6 +22,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { isHex, parseTransaction, recoverTransactionAddress } from 'viem';
 import { GatewayRequestEvidence } from './gateway-request-evidence';
+import { exhaustWalletSessionQuota } from './local-gateway-database';
 
 const ECDSA_RESPOND_FAULT_HEADER = 'x-seams-intended-ecdsa-respond-fault-v1';
 const ECDSA_RESPOND_FAULT_PROOF_HEADER = 'x-seams-intended-ecdsa-respond-proof-v1';
@@ -890,6 +891,49 @@ test('sustained Tempo and Arc signing uses fresh presignatures beyond pool capac
   } finally {
     context.off('request', collect);
     context.off('response', collectResponses);
+  }
+});
+
+function collectRefusedSessionPrepares(refused: Response[], response: Response): void {
+  const pathname = new URL(response.url()).pathname;
+  if (
+    response.status() === 409 &&
+    (pathname === '/router-ab/ed25519/sign/prepare' ||
+      pathname === '/router-ab/ecdsa-derivation/sign/prepare')
+  ) {
+    refused.push(response);
+  }
+}
+
+// Another tab or device shares the Wallet Session and uses the rest of its
+// quota. This page still observes an active session, so its next signature
+// prepares under the session, and the Gateway asks for step-up. That answer
+// ends what the page observed. Each later signature plans step-up before the
+// user confirms, and no other prepare runs under the session.
+test('a prepare that reports the session exhausted makes later signatures plan step-up', async ({
+  harness,
+  context,
+}) => {
+  const refused: Response[] = [];
+  const collect = collectRefusedSessionPrepares.bind(undefined, refused);
+  context.on('response', collect);
+  try {
+    await harness.registerPasskeyWallet();
+    await harness.awaitNearReady();
+    await harness.signTempoTransaction('post_registration');
+    await exhaustWalletSessionQuota(harness.walletId);
+    await harness.signNearTransaction('step_up_required');
+    expect(refused).toHaveLength(1);
+    expect(await refused[0].json()).toMatchObject({
+      code: 'wallet_session_quota_exhausted',
+      authorization_decision: { kind: 'step_up_required', reason: 'wallet_session_exhausted' },
+    });
+    await harness.signTempoTransaction('step_up_required');
+    await harness.signArcEvmTransaction('step_up_required');
+    await harness.signNearTransaction('step_up_required');
+    expect(refused).toHaveLength(1);
+  } finally {
+    context.off('response', collect);
   }
 });
 

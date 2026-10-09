@@ -122,16 +122,23 @@ let observationSequence = 0;
 // Sessions a registration response issued that no host observation has read yet.
 const registrationSessions = new Map<string, PreparedWalletSessionStatus>();
 
+/** Every key of one credential starts with this, so a credential's entries can be found. */
+function statusCredentialKey(token: string): string {
+  return JSON.stringify([token]);
+}
+
 function statusIdentityKey(
   options: RelayerExactWalletSessionStatusPortOptions,
   identity: ExactWalletSessionStatusIdentity,
 ): string {
-  return JSON.stringify([
-    normalizeRelayerBaseUrl(options.relayerUrl),
-    options.operationCredential.token,
-    identity.walletSessionId,
-    identity.quotaId,
-  ]);
+  return (
+    statusCredentialKey(options.operationCredential.token) +
+    JSON.stringify([
+      normalizeRelayerBaseUrl(options.relayerUrl),
+      identity.walletSessionId,
+      identity.quotaId,
+    ])
+  );
 }
 
 function recordStatusObservation(
@@ -239,6 +246,22 @@ export class WalletSessionStatusReadScope {
     const scope = new WalletSessionStatusReadScope();
     scope.suppliedStatus = { kind: 'host_observation' };
     return scope;
+  }
+
+  /**
+   * The server refused an operation under this credential's session and asked
+   * for step-up. What the wallet holds about that session no longer plans a
+   * confirmation, so the next plan reads the server. Signing requests use the
+   * default fetch, and so do the observations they contradict.
+   */
+  static forgetCredential(token: string): void {
+    const credentialKey = statusCredentialKey(token);
+    for (const sessions of [observationsByFetch.get(defaultStatusFetch), registrationSessions]) {
+      if (!sessions) continue;
+      for (const key of [...sessions.keys()]) {
+        if (key.startsWith(credentialKey)) sessions.delete(key);
+      }
+    }
   }
 
   static observationForConfirmation(

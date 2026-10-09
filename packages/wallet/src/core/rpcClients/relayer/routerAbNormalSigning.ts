@@ -1,6 +1,9 @@
 import { parseWalletSessionId, parseMpcWalletSigningQuotaId } from '@shared/authorization/capabilityKinds';
 import { requireRecord } from '@shared/utils/validation';
-import { parseExactWalletSessionStatusResponse } from './walletSessionAuthorizationStatus';
+import {
+  parseExactWalletSessionStatusResponse,
+  WalletSessionStatusReadScope,
+} from './walletSessionAuthorizationStatus';
 import type { PreparedWalletSessionStatus } from './walletSessionAuthorizationStatus';
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import { parseEcdsaPrepareSessionResponse, type EcdsaPrepareSessionResult } from './ecdsaPrepareSession';
@@ -1348,11 +1351,19 @@ async function postRouterAbNormalSigningJson<T>(args: {
   }
   if (!response.ok) {
     const errorText = await response.text().catch(() => '');
-    throw routerAbSigningHttpError({
+    const error = routerAbSigningHttpError({
       path: args.path,
       status: response.status,
       bodyText: errorText,
     });
+    if (
+      args.credential.kind === 'wallet_session_opaque' &&
+      error instanceof WalletSessionQuotaAdmissionError &&
+      error.failure.kind === 'exhausted'
+    ) {
+      WalletSessionStatusReadScope.forgetCredential(args.credential.walletSessionToken);
+    }
+    throw error;
   }
   return args.parse(await response.json());
 }

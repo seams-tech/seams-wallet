@@ -45,3 +45,30 @@ export async function isolatedGatewayDatabasePath(): Promise<string> {
   return databasePath;
 }
 
+/**
+ * Leaves the wallet's active Wallet Session quota as its last claim would:
+ * no uses and an exhausted lifecycle. This is what another tab or device that
+ * shares the session does to it, unseen by the page under test.
+ */
+export async function exhaustWalletSessionQuota(walletId: string): Promise<void> {
+  const sqliteModule: string = 'node:sqlite';
+  const { DatabaseSync } = (await import(sqliteModule)) as NodeSqliteModule;
+  const database = new DatabaseSync(await isolatedGatewayDatabasePath(), { readOnly: false });
+  try {
+    const exhausted = database
+      .prepare(
+        `UPDATE authorization_wallet_session_quotas AS quota
+            SET remaining_uses = 0, lifecycle_kind = 'exhausted'
+          WHERE quota.lifecycle_kind = 'active'
+            AND EXISTS (SELECT 1 FROM wallet_session_authorizations_v2 AS session
+              WHERE session.namespace = quota.namespace AND session.tenant_id = quota.tenant_id
+                AND session.quota_id = quota.quota_id AND session.wallet_id = ?
+                AND session.retired_at_ms IS NULL)
+          RETURNING quota_id`,
+      )
+      .all(walletId);
+    if (exhausted.length !== 1) throw new Error('Expected one active Wallet Session quota');
+  } finally {
+    database.close();
+  }
+}

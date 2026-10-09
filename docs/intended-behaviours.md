@@ -195,6 +195,12 @@ The SDK owns transient read retry and RPC handling. The browser contract is
   next signature plans same-method step-up before the user confirms. That plan
   shows one confirmation and needs no session-status request.
 
+- Another tab or device can use a shared session's quota. When prepare then
+  refuses the session and asks for step-up, the SDK drops its local observation
+  of that session, and that signature continues with step-up. The next plan
+  reads the server status once. Later signatures plan step-up before the user
+  confirms and send no prepare under the refused session.
+
 - NEAR signing uses an existing, identity-matched session observation to select
   its lane. Repeated signing needs no separate session-status request while that
   observation is available. Prepare returns fresh authority and quota facts, which
