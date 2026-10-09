@@ -2,6 +2,8 @@
 
 #[path = "bindings/pool_relocation_sqlite.rs"]
 mod pool_relocation_sqlite;
+#[path = "bindings/wallet_owner_sqlite.rs"]
+mod wallet_owner_sqlite;
 
 use base64::Engine;
 use ed25519_dalek::{Signature as Ed25519Signature, Signer, SigningKey, Verifier, VerifyingKey};

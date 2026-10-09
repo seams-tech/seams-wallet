@@ -745,6 +745,8 @@ impl RouterAbSigningWorkerWalletDurableObject {
     }
 
     fn initialize_schema(&self) -> worker::Result<()> {
+        self.sql
+            .exec(crate::SIGNING_WORKER_WALLET_OWNER_SCHEMA_V1, None)?;
         self.sql.exec(REGISTRATION_SCHEMA, None)?;
         self.sql.exec(RETIRED_ACTIVATION_SCHEMA, None)?;
         self.sql.exec(LINKED_ED25519_SCHEMA, None)?;
@@ -770,6 +772,10 @@ impl RouterAbSigningWorkerWalletDurableObject {
         &self,
         command: SigningWorkerWalletDoRequestV1,
     ) -> Result<Response, RouterAbProtocolError> {
+        // Cleanup and capture treat every row here as one wallet's. The
+        // address that reached this object does not say whose.
+        crate::SigningWorkerWalletOwnerStoreV1::new(&DurableObjectWalletSqlV1(&self.sql))
+            .require(&object_name(command.scope())?)?;
         match command {
             SigningWorkerWalletDoRequestV1::Ed25519Snapshot { request } => {
                 self.with_wallet_transaction(move |wallet| wallet.ed25519_snapshot(request))

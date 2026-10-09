@@ -11,7 +11,7 @@ use serde::de::DeserializeOwned;
 const HISTORICAL_SQL_VERSION: i64 = 9_007_199_254_740_993;
 const EXTRA_POOL_RECORDS: usize = 33;
 
-struct Sqlite<'a>(&'a Connection);
+pub(super) struct Sqlite<'a>(pub(super) &'a Connection);
 
 impl SigningWorkerWalletSqlV1 for Sqlite<'_> {
     fn query<T: DeserializeOwned>(

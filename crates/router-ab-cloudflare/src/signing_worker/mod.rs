@@ -37,6 +37,8 @@ mod ed25519_admission;
 pub use ed25519_admission::*;
 mod ecdsa_admission;
 pub use ecdsa_admission::*;
+mod wallet_owner;
+pub use wallet_owner::*;
 mod wallet_cipher;
 pub use wallet_cipher::*;
 mod wallet_ecdsa_store;

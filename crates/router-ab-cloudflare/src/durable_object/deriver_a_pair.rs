@@ -643,6 +643,9 @@ impl RouterAbDeriverAWalletDurableObject {
                 _ => return Err(pair_error("Deriver A pair is conflicting or terminal")),
             }
         }
+        // The admission names this object. Refuse another wallet's request
+        // before it is written.
+        self.check_owner(&owner, true)?;
         let (preparation, target) =
             prepare_deriver_a_pair_for_wallet_do_v1(&self.env, &request, self.state.id().to_string())
                 .await
