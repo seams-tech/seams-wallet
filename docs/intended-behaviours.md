@@ -331,6 +331,11 @@ Unlock and successful hosted authentication publish the session before completio
 Unchanged projections do not produce repeated login-state notifications. Concurrent
 wallet-session queries share pending work within the same connection, selection,
 and session observation revision. A completed query does not cache later queries.
+The host also shares an in-flight exact observation between a session notification
+and an explicit query for the same wallet, read mode, selection, and authority
+revision. Both consumers receive the same observation revision. Each consumer
+checks authority and selection again before publication. Subsequent observations
+read fresh server status. Signing prepare still verifies current authorization.
 Replacing an identical exact-session record preserves the stored row without a write.
 A known expiry remains expired when a delayed status response reports that same
 session as active. A replacement session has its own identity and can become active.

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { writeFile } from 'node:fs/promises';
+import { verifyNearSessionObservation } from './near-session-observation';
 import {
   expect,
   type BrowserContext,
@@ -14,6 +15,11 @@ import {
   signAndVerifyNearMessage,
   type IntendedBehaviourHarness,
 } from './harness';
+
+test(
+  'NEAR registration shares overlapping observations, keeps queries fresh, and respects lock',
+  verifyNearSessionObservation,
+);
 
 class NearRegistrationReplay {
   readonly requests: string[] = [];

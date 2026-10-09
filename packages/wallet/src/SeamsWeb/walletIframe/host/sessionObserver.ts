@@ -131,11 +131,17 @@ let sessionObservationRevision = 0;
 
 type RefreshState = { kind: 'idle' } | { kind: 'pending' } | { kind: 'running'; pending: boolean };
 
+type SessionObservation = {
+  readonly revision: number;
+  readonly state: WalletIframeExactSessionState;
+};
+
 export class WalletHostSessionObserver {
   private lifecycle: 'active' | 'disposed' = 'active';
   private refresh: RefreshState = { kind: 'idle' };
   private invalidationRevision = 0;
   private activeOperations = 0;
+  private readonly pendingObservations = new Map<string, Promise<SessionObservation>>();
   private readonly unsubscribeAuthority: () => void;
   private readonly unsubscribeSelection: () => void;
 
@@ -193,7 +199,6 @@ export class WalletHostSessionObserver {
   ): Promise<void> {
     for (let attempt = 0; attempt < 3; attempt += 1) {
       this.assertActive();
-      const revision = ++sessionObservationRevision;
       const invalidationRevision = this.invalidationRevision;
       const authorityRevision = seamsWalletDB.getWalletAuthorityRevision();
       const selection = { changed: false };
@@ -201,7 +206,7 @@ export class WalletHostSessionObserver {
         markWalletSelectionChanged.bind(null, selection),
       );
       try {
-        const state = await resolveExactWalletSessionState(this.runtime, payload);
+        const { revision, state } = await this.readObservation(payload, authorityRevision);
         this.assertActive();
         if (selection.changed && this.runtime.preferences.getCurrentWalletId() === null) {
           publish({
@@ -228,6 +233,40 @@ export class WalletHostSessionObserver {
       }
     }
     throw new Error('Wallet authority changed repeatedly during session observation');
+  }
+
+  private readObservation(
+    payload: PMGetExactWalletSessionStatePayload,
+    authorityRevision: number,
+  ): Promise<SessionObservation> {
+    const selectedWalletId = this.runtime.preferences.getCurrentWalletId();
+    const walletId = payload.wallet.kind === 'exact' ? payload.wallet.walletId : selectedWalletId;
+    const key = JSON.stringify([
+      payload.authenticationRead,
+      walletId,
+      selectedWalletId,
+      authorityRevision,
+      this.invalidationRevision,
+    ]);
+    const existing = this.pendingObservations.get(key);
+    if (existing) return existing;
+    const pending = this.resolveObservation(payload).finally(
+      this.finishObservation.bind(this, key),
+    );
+    this.pendingObservations.set(key, pending);
+    return pending;
+  }
+
+  private async resolveObservation(
+    payload: PMGetExactWalletSessionStatePayload,
+  ): Promise<SessionObservation> {
+    const revision = ++sessionObservationRevision;
+    const state = await resolveExactWalletSessionState(this.runtime, payload);
+    return { revision, state };
+  }
+
+  private finishObservation(key: string): void {
+    this.pendingObservations.delete(key);
   }
 
   private projectExpiry(state: WalletIframeExactSessionState): WalletIframeExactSessionState {
