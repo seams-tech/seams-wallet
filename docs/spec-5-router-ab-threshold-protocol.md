@@ -129,9 +129,25 @@ existing operation rather than sign a different message with that material.
 
 ## Keeping secrets separated
 
-Production Derivers run in independent administrative environments with separate
-credentials, stores, and encryption keys. Private commands authenticate the
-sender and check the intended operation and recipient before opening material.
+One trusted organisation operates Deriver A and Deriver B. Separate Cloudflare
+Workers provide logical role separation. Each role has its own credentials,
+stores, encryption keys, plaintext inputs, and tenant-root share.
+
+The organisation may place the Workers in separate Cloudflare accounts for
+additional administrative isolation. Both accounts remain under that
+organisation's control. Independent organisations are not a protocol requirement.
+
+Each deployment must authenticate inter-role communication. Private commands
+check the intended wallet, operation, and recipient before opening material.
+Neither Deriver receives the other role's plaintext inputs, private keys, or
+tenant-root share. Required encrypted protocol messages can cross the boundary.
+Durable execution claims, replay rules, cancellation, and ownership fences apply
+in both account arrangements.
+
+The current implementation also signs readiness and start-acceptance messages.
+[R155C](refactor-155C-yao-peer-connection.md) removes those extra attestations
+under this trust model while retaining authenticated transport and lifecycle
+checks. Its implementation is pending.
 
 Normal signing keeps the complete key unassembled. Explicit owner export is a
 separate, freshly authorized flow that delivers the supported key material to

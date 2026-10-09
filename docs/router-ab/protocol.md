@@ -218,12 +218,24 @@ root or a complete recipient lane. Recipient encryption keeps client and
 SigningWorker output material separate. Normal signing does not expose
 tenant-root shares and does not call either Deriver.
 
-The current Cloudflare deployment places the five Router A/B Workers in one
-account and connects them with service bindings. Separate Workers, Secrets,
-databases, buckets, and typed protocol boundaries limit accidental authority
-and single-role compromise. This topology does not claim protection from a
-Cloudflare account administrator, a deployment principal able to replace
-multiple Workers, or A+B collusion.
+One trusted organisation operates both Derivers. Separate Workers, Secrets,
+databases, and buckets restrict each role to its own plaintext inputs, private
+keys, and tenant-root share. The role split does not require independent
+organisations or mutually distrusting operators.
+
+The current Cloudflare deployment uses one account and service bindings. The
+organisation may use separate accounts for additional administrative isolation.
+Both arrangements require authenticated transport, exact wallet and operation
+binding, durable one-use execution claims, and current ownership and cancellation
+checks. Account separation alone does not protect against an operator or
+deployment authority that can control both roles. Combining both roles' secrets
+is outside the separation guarantee.
+
+Readiness and start-acceptance signatures currently authenticate role statements
+in addition to service authentication. [R155C](../refactor-155C-yao-peer-connection.md)
+removes that extra handshake under the chosen trust model. It preserves role
+encryption, protocol validation, and local lifecycle enforcement. This planned
+removal does not change the current runtime's required keys.
 
 ## Source map
 

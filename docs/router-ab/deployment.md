@@ -2,10 +2,21 @@
 
 Status: current deployment topology and release procedure.
 
-The supported hosted topology places the Router A/B role Workers in one
-Cloudflare account per deployment lane. Service bindings connect the roles.
-Each role keeps separate entrypoints, Secrets, persistence bindings, and
-protocol authority.
+One trusted organisation operates Deriver A and Deriver B. Separate Workers
+provide logical role separation, with separate entrypoints, Secrets, stores,
+and encryption keys. Each role receives only its own plaintext inputs and
+tenant-root share.
+
+The current hosted configuration places the role Workers in one Cloudflare
+account per deployment lane. Service bindings connect the roles. The
+organisation may place A and B in separate Cloudflare accounts for additional
+administrative isolation. Both accounts remain under the same organisation.
+Independent operators are not required.
+
+Each account arrangement requires authenticated inter-role communication and
+the same wallet, operation, replay, and ownership checks. A separate-account
+deployment must validate its authenticated transport before activation. The
+current manifests and hosted measurements cover the same-account configuration.
 
 The deployable Worker artifacts are built and packaged by `seams-wallet`. The
 private `seams-monorepo` consumes an exact `@seams/wallet-server` release and
@@ -105,9 +116,17 @@ Deriver A and Deriver B must use distinct private databases, R2 buckets, KEKs,
 envelope keys, and peer-signing keys. A Worker must fail startup if a required
 binding is absent or if forbidden cross-role material is present.
 
-The same-account topology creates an operational separation boundary between
-Workers and resources. It does not provide an independent Cloudflare account or
-administrator boundary.
+The same-account topology isolates Worker roles and resources under a trusted
+account administrator. Separate accounts can also separate credentials and
+deployment permissions. Neither arrangement claims protection from an operator
+or deployment authority that controls both roles.
+
+The table above describes keys required by the current runtime. Peer-signing
+keys support its readiness and start-acceptance handshake.
+[R155C](../refactor-155C-yao-peer-connection.md) removes that extra handshake.
+Remove those keys and configuration entries with their consumers, after matching
+role versions are activated. Role encryption keys, tenant-root lifecycle signing
+keys, and authenticated transport remain required.
 
 ## Deployment lanes
 

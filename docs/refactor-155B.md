@@ -3,6 +3,12 @@
 Status: regional OTP counters and wallet-counter relocation are implemented. Local regional, authorization-transfer, and browser OTP acceptance pass. Hosted NEAR comparisons now cover Phase 6AO. Accepted changes are committed on `dev`, and the original staging versions are restored. The three-to-four-second registration-to-signature target remains unmet.
 Date: October 6, 2026. Updated: October 9, 2026.
 
+The next transport change is [R155C: concurrent A/B preparation](refactor-155C-yao-peer-connection.md).
+One trusted organisation operates both Derivers, with optional Cloudflare account
+separation. That plan preserves authenticated communication and local execution
+checks while removing the extra signed readiness and start-acceptance handshake.
+Implementation and measurements for that change remain pending.
+
 ## Objective
 
 Remove synchronous Console calls from established-session signing and presignature
