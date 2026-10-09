@@ -566,8 +566,9 @@ Gateway, Runtime, Router, Deriver A, Deriver B and SigningWorker must use the
 matching candidate. Their internal route messages changed together.
 
 The current binding performs one regional D1 lookup per wallet custody dispatch.
-The hosted full-flow timings below include this cost. Its separate duration remains
-unmeasured. The earlier 13 ms unique-ID probe and 448 ms named-ID probe motivated
+The hosted full-flow timings below include this cost. The separate trace measured
+7 ms median per address-read batch, including the regional deployment check.
+The earlier 13 ms unique-ID probe and 448 ms named-ID probe motivated
 the change. The actual comparison shows a 1.63–2.25 s browser-median reduction
 against the two named-ID arms. It does not establish a fixed 2.5 s saving.
 
@@ -586,7 +587,7 @@ against the two named-ID arms. It does not establish a fixed 2.5 s saving.
 - [x] Run the authorized controlled hosted comparison. Verify stored-address use,
   matching versions and independent signatures. Record the baseline, candidate
   and repeated baseline below. Full-flow timings include the added D1 lookup.
-- [ ] Isolate the added address lookup's duration in the remaining D1 trace work.
+- [x] Isolate the added address lookup's duration in the hosted D1 trace below.
   A 50 ms dispatch remains a measurement target, not a Cloudflare guarantee.
 
 ### Stored-address local verification — October 10
@@ -742,6 +743,76 @@ One expired, unclaimed Deriver B admission was cancelled before migration. Its
 terminal history remains. No existing wallet was deleted, no new Cloudflare resource
 was created, and production was unchanged. The candidate is not permanently active.
 No SDK package was published. A coordinated rollout remains for the release.
+
+### Stored-address D1 trace — October 10
+
+Stored-ID implementation and verification are complete. Permanent activation remains
+part of the coordinated release. Further registration optimizations belong to the
+remaining phases below.
+
+Three fresh implicit NEAR wallets completed registration and independently verified
+NEP-413 signing on the same frozen stored-ID candidate. This separate run observed
+D1 and service calls. It supplies diagnostic timings rather than another controlled
+full-flow comparison. Later session-policy changes are excluded.
+
+| Stored-address operation | Samples | Median | Range / maximum |
+| --- | ---: | ---: | ---: |
+| Address-read batch, including regional deployment check | 15 | **7 ms** | 6–12 ms |
+| Initial insert and winning-address read, including deployment check | 3 | **44 ms** | 41–47 ms |
+| Sum of completed address-read batches per wallet | 3 | **41 ms** | 33–48 ms |
+
+All observed address operations were served by D1 in APAC. The 15 reads include
+the initial missing-row check for each wallet. Each read shares a batch with
+the existing regional deployment check. The reported duration includes network,
+that check and the address query. It does not isolate SQL execution alone.
+The sum excludes background reads unfinished when the response leaves.
+
+The Gateway trace records these completed calls through the first signature:
+
+| Request | D1 round trips per wallet | SQL statements per wallet | Median summed D1 duration |
+| --- | ---: | ---: | ---: |
+| Registration setup | 6 | 12 | 170 ms |
+| Registration respond | 10 | 24 | 226 ms |
+| Yao execute | 4 | 7 | 31 ms |
+| NEAR finalization (`near-provisioning`) | 21 | 86 | 594 ms |
+| Sign prepare | 8 | 17 | 170 ms |
+| Sign execute | 9 | 18 | 123 ms |
+
+Each sample records 58 completed Gateway D1 round trips and 164 SQL statements.
+Batch calls contain multiple statements, including deployment checks. These counts
+exclude Console and custody-role databases. Setup and finalization each had one
+D1 call pending when their response left. Later background calls are also excluded.
+Summed durations can overlap and must not be treated as critical-path durations.
+Every captured statement with region metadata was served in APAC.
+
+Finalization's Gateway span was 1.109 s median, with an observed 0.875–1.330 s range.
+Its service calls measured:
+
+| Finalization service call | Median | Range / maximum |
+| --- | ---: | ---: |
+| Router consume | 106 ms | 92–110 ms |
+| Console passkey claim | 125 ms | 96–259 ms |
+| Console route publication | 148 ms | 137–383 ms |
+| Console completion | 146 ms | 127–148 ms |
+
+These service spans can overlap with D1 work. The trace supports targeting
+finalization's remaining D1 and Console work next. Saving a 7 ms address read
+has less impact than those waits. No additional stored-ID abstraction or cache
+is required to close this change.
+
+All six observed components ran their expected versions. Three signatures passed
+independent Ed25519 verification, including rejection of altered signed fields.
+The observer executes the same SQL once through `all()` instead of `first()`
+to retain D1 metadata. It records query identities and table names without SQL
+parameters, row contents or secret values.
+
+Evidence: [committed trace](evidence/refactor-155d-stored-unique-ids-trace.json).
+Full private artifacts: `.artifacts/r155d-stored-ids-trace/`.
+An initial launch failed because the dry-run bundle used the wrong output path.
+It ran no benchmark and restored staging. The corrected retry produced these results.
+Final restoration activation passed. Live read-back confirms all 13 original Worker
+versions and both original Deriver schemas. The four additive Gateway address tables
+remain. No new resources were created, and production was unchanged.
 
 ### Startup and role databases
 
@@ -1097,21 +1168,18 @@ Decided on October 10:
 
 Still needed:
 
-1. Capture the request-level D1 and service trace on the stored-address candidate.
-   The baseline, candidate and control timing comparison is complete. The trace
-   arm still supplies the missing staging durations for Phase 2. Private
-   `.artifacts/r155d-hosted/compare/launch-trace.sh` runs the trace arm alone
-   in about 20 minutes. Its frozen candidate predates stored addresses, so rebuild
-   and freeze it against the matching schema before measuring this implementation.
+1. Use the completed stored-address D1 and service trace for the remaining Phase 2
+   work. The baseline, candidate and control comparison and the diagnostic trace
+   are complete. The older `.artifacts/r155d-hosted/compare/launch-trace.sh`
+   predates stored addresses and must not be used to measure this implementation.
 2. Move the staging role databases. That creates three databases and moves
    custody data.
 
 Not started, with the reason:
 
 - The rest of Phase 2. Finalize's steps are ordered by its journal and replay
-  rules, each removable round trip is worth 11–22 ms on staging, and the
-  durations of the Console and Router calls between them still come from the
-  trace arm. Finalize makes three Console requests. The passkey claim runs
+  rules. The completed trace now supplies D1, Console and Router durations for
+  this work. Finalize makes three Console requests. The passkey claim runs
   inside the wallet commit. The recovery-code routes run inside the custody
   commit, which already overlaps the capability installation. The completion
   runs with session issuance. Carrying the routes in the completion can save
