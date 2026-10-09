@@ -7,8 +7,9 @@ and measured no end-to-end gain: the time a Worker waits to reach its wallet
 object is larger than both savings and varies from request to request. Phase
 0's probes had already changed the plan: the largest remaining cost is how
 wallet objects are addressed, and placement is not the cause. The address
-change is approved for staging and nothing of it is committed yet. The staging
-database move still waits on its owner. See the
+change is approved for staging and nothing of it is committed yet. Phase 2
+started: sign prepare, sign, and finalize each make fewer Gateway database
+round trips. The staging database move still waits on its owner. See the
 [implementation record](#implementation-record). Plan dated October 9, 2026;
 record dated October 10. Written after R155C's hosted measurement, from the same
 staging traces, three code traces, and two probe runs recorded under
@@ -612,10 +613,15 @@ Constraints found while reading the code on October 10:
 - [ ] Finalize: concurrent consume, claim, and reads; one or two write batches
   including the journal; routes carried by completion; duplicate reads removed.
   Decide the passkey claim's placement with the Console owner and record the
-  reason.
+  reason. Started in `6ee17c33`: the repeated ceremony and identity reads are
+  gone, 21 round trips became 19.
 - [ ] Sign prepare and sign: one authorization batch; pinned scope from the
   read-back; completion write ordered after the response where the
-  specification allows, or kept before it with the reason recorded.
+  specification allows, or kept before it with the reason recorded. Started
+  in `12dca984`: the scope comes from the read-back and sign resolves its
+  operation in one read. The completion write stays before the response, and
+  the [record](#october-10--gateway-round-trips-first-cuts) gives the reason.
+  The single authorization batch is open.
 - [ ] Verify through the existing registration, lost-reply, cancellation,
   quota, retirement, and relocation contracts. Add scenarios only for new
   orderings: finalize with the Console claim failing after the consume,
@@ -832,6 +838,30 @@ object. A request "waited" when that time is 200 ms or more.
   The address change comes first; these two changes need a new measurement
   after it.
 
+The same tails split the Yao execute request. Medians of the six wallets:
+
+| Part of the Yao execute request | Time |
+| --- | ---: |
+| Router request, whole | 3,120 ms |
+| Deriver A's request starts after the Router's request starts | 570 ms |
+| Deriver A object: wall time, CPU time | 1,998 ms, 444 ms |
+| Deriver B preparation object: wall time | 330 ms |
+| Deriver B's protocol object starts after the socket request reaches B's Worker | 710 ms |
+| Deriver B protocol object: wall time, CPU time | 812 ms, 286 ms |
+| Signing Worker object: wall time, CPU time | 1,838 ms, 36 ms |
+
+- The protocol takes about 0.8 s of wall time and less than 0.5 s of CPU time
+  in each role. The Signing Worker object waits for Deriver A's output for
+  almost all of its life.
+- About 1.2 s of the request is time before an object starts: the Router's
+  own object before dispatch, Deriver A's object, and Deriver B's protocol
+  object.
+- Estimate, not a measurement: after the address change the Yao request takes
+  about 1.9 s, and the SDK flow without interaction about 6 s. The target then
+  still needs Phases 2 and 4. In the Yao stage the next costs are Deriver B's
+  preparation, Deriver A's work before it connects, and the work after the
+  protocol.
+
 Two facts surfaced while staging the comparison:
 
 - The R155C custody versions only work together: Router `7da081d5`, Deriver A
@@ -840,6 +870,63 @@ Two facts surfaced while staging the comparison:
   the retired peer-signing keys, as the staging configuration frozen on
   October 9 does. The comparison's temporary versions carry the keyset without
   them and change nothing else.
+
+### October 10 — Gateway round trips, first cuts
+
+Phase 2 started with the removals that change no ordering.
+
+| Commit | Change |
+| --- | --- |
+| `12dca984` | Sign prepare takes the pinned owner scope from its own admission. Sign finds the prepared operation in one read that checks its grant and pins its scope. |
+| `6ee17c33` | Finalize hands the ceremony and the identity that its preparation read to its own execution. A resumed execution still reads them. |
+
+Gateway database round trips in the composed scenario:
+
+| Request | Before | Now | Target |
+| --- | ---: | ---: | ---: |
+| Sign prepare | 6 | 5 | 1–2 |
+| Sign | 8 | 6 | not set |
+| Finalize | 21 | 19 | 4–6 |
+| Respond | 8 | 8 | not set |
+| Setup | 3 | 3 | 2 |
+
+Two behaviours changed, and both are stricter:
+
+- A finalize request cannot claim an operation. Before, it admitted the stored
+  operation again to check its grant, and that admission would have claimed a
+  row that had disappeared.
+- A reusable-session finalize refuses an operation that a step-up claimed.
+  Before, it checked that operation as a step-up and then dispatched it with a
+  session binding.
+
+The completion write stays before the response. The response is the
+completion row read back, so a retry replays exactly what the first reply
+carried.
+
+Sign prepare still makes four reads in series before its admission: session,
+Ed25519 signer, Yao capability records, and admission policy. The ECDSA path
+reads session, material, and policy in one statement. The Ed25519 path needs
+the same fold and a way to read the capability records beside it.
+
+Verified on the committed code:
+
+- Type checks for the server package and both test projects, and a type
+  fixture for the new admission input and results.
+- `tests/e2e/authorization-storage-transfer.e2e.mjs`, extended: the admission
+  and the one-read resolution return the scope that a separate read reports,
+  another wallet is refused, an unknown fingerprint is missing, and a
+  completed operation replays without a scope.
+- 41 intended-behaviour cases: 14 for NEAR signing, 21 for finalize resume and
+  replay, and 6 for ECDSA signing. 40 pass with debug Worker builds.
+- The private composed scenarios for registration completion, a lost
+  completion reply, and NEAR provisioning reply loss, and
+  `tests/e2e/step-up-expiry.e2e.mjs`.
+
+One case needs release Worker builds: "Passkey mixed_near activation response
+loss resumes the same wallet after reload and signs". With debug builds the
+Router refuses the resumed execution as `execution_in_progress`, on the parent
+commit too. With release builds it passes on the baseline and on the changed
+tree. It is a timing effect of the slower debug build, not of these changes.
 
 ### Decisions
 
@@ -855,16 +942,23 @@ Still needed:
 
 1. Run the comparison again for its control and trace arms, or wait and
    measure after the address change. The trace arm is the only source of
-   staging durations for Phase 2.
+   staging durations for Phase 2. Private
+   `.artifacts/r155d-hosted/compare/launch-trace.sh` runs the trace arm alone
+   in about 20 minutes; it changes staging the same way and restores it.
 2. Move the staging role databases. That creates three databases and moves
    custody data.
 
 Not started, with the reason:
 
-- Phase 2. The round trips are now counted. Finalize's steps are ordered by
-  its journal and replay rules, each removable round trip is worth 11–22 ms on
-  staging, and the durations of the Console and Router calls between them
-  still come from the trace arm.
+- The rest of Phase 2. Finalize's steps are ordered by its journal and replay
+  rules, each removable round trip is worth 11–22 ms on staging, and the
+  durations of the Console and Router calls between them still come from the
+  trace arm. Finalize makes three Console requests. The passkey claim runs
+  inside the wallet commit. The recovery-code routes run inside the custody
+  commit, which already overlaps the capability installation. The completion
+  runs with session issuance. Carrying the routes in the completion can save
+  at most the difference between those two overlapping branches. Moving the
+  claim needs the Console owner's decision.
 - Sign prepare during confirmation. An admitted prepare claims one use of the
   session's quota, so a declined confirmation would spend a use unless prepare
   gains a release. It also sends the operation to the server before the user
