@@ -5440,7 +5440,8 @@ existing wallet DO. That would remove the return to Router between these stages.
 A and B must keep independent authenticated root checks, readiness proofs,
 ownership fences, replay handling, and burn-on-failure rules. Compare the exact
 round-trip count and full registration time before retaining a transport change.
-This candidate is unimplemented and has no claimed latency saving.
+Phase 6AN below implements and measures this candidate. Its structural saving and
+latency result are reported separately.
 
 [Sanitized evidence](evidence/near-registration-shared-observation-20261009.json) retains all samples, asset and source
 hashes, version audits, HTTP counts, partial D1 counts, public signature proofs,
@@ -5453,3 +5454,98 @@ passed. All six observation process groups stopped. Earlier unfinished registrat
 leases expired before version changes. The final activation may create new temporary
 US probes with their normal ten-minute expiry. No probes were force-deleted.
 Existing staging resources were reused. No production deployment or package release occurred.
+
+### Phase 6AN — prepare and execute Deriver A in one request
+
+Registration now sends B preparation first. Router checks B's signed readiness
+receipt, then sends one combined request to A's existing wallet Durable Object.
+A checks B's receipt, admits its own root, stores its own readiness receipt, and
+starts execution. Router still checks both execution results before finalization.
+
+The change removes one Router-to-A HTTP request and one A Worker-to-DO request
+per ceremony. It removes the separate A preparation endpoint. It does not remove
+fresh root checks or change cryptographic computation. A admission now follows
+B preparation, which previously ran alongside A preparation. Hosted evidence must
+show this tradeoff separately from the reduced request count.
+
+Review moved the relocation check before A stores preparation after its database
+read. A delayed database reply cannot add prepared state to a closed wallet object.
+Exact completed retries still replay their stored result after root erasure.
+Requests with changed input, peer receipt, owner, or root remain invalid.
+
+Optimization acceptance follows the user's 2026-10-09 direction: keep a correct,
+simple change that removes work or network requests even when a small timing sample
+shows no clear gain. Record the structural saving and measured latency separately.
+A plausible saving is not a measured saving. Compare sequential baseline, candidate,
+and restored control arms, and revisit a change if repeated evidence shows a
+material regression. Preserve accepted changes for a later cumulative comparison.
+
+Implementation: public dev commit `4c1365ee7989e04103ffd30e5b498777d1e82a10`.
+Five release Worker builds and nine real Worker/DO scenarios passed. The scenarios
+cover four wallet homes, concurrent execution, lost replies, replay after root erasure,
+admission races, settlement, root rotation, cancellation, and forged peer acceptance.
+The exact-tree bloat check passed. The change removes 147 net lines across source
+and its E2E harness. No SDK or cryptographic primitive changed.
+
+Three fresh implicit wallets ran in each sequential baseline, candidate, and restored
+control arm. All arms use the same NEAR-only SDK assets and client machine. Only
+Router and A versions change for the candidate. Values below are medians with ranges;
+the upper endpoint is the observed maximum. Funding, transaction broadcast, and
+blockchain confirmation are excluded.
+
+| Metric | Baseline | Combined A preparation/execution | Restored control |
+| --- | --- | --- | --- |
+| SDK registration | 8.196s (6.208–9.684s) | 8.734s (8.173–9.065s) | 7.650s (7.629–7.898s) |
+| Registration → independently verified signature | 10.561s (9.884–14.699s) | 11.486s (11.463–12.376s) | 10.664s (10.610–10.709s) |
+| Setup HTTP | 0.571s (0.541–1.067s) | 0.757s (0.514–1.301s) | 0.561s (0.531–0.595s) |
+| Respond HTTP | 0.684s (0.657–0.912s) | 0.991s (0.596–1.175s) | 0.756s (0.755–0.791s) |
+| Yao execute HTTP | 3.502s (2.122–4.199s) | 4.329s (2.782–4.500s) | 3.513s (3.439–3.692s) |
+| Finalize HTTP | 2.031s (1.946–2.841s) | 2.016s (1.620–2.646s) | 1.861s (1.685–1.972s) |
+
+Each wallet made **2 → 1 → 2 Router-to-A preparation/execution requests** and
+**2 → 1 → 2 A Worker-to-DO preparation/execution requests**. The candidate has no
+separate A preparation request in either trace. Bound-root work remains **6 D1
+round trips / 16 SQL statements per wallet**. These counters cover a subset of
+registration D1 work. Gateway requests remain **8 per wallet**, including **2 session
+status requests**. Console receives **9 HTTP requests per wallet**. Empty-path
+scheduled observations are excluded.
+
+A's preparation inside execution takes **155 ms median, 147–204 ms range**.
+This work now follows B preparation. The connection to B takes **280 → 844 → 772 ms**
+median across the three arms. A's nested Yao protocol span is **356 → 293 → 373 ms**;
+B's is **456 → 343 → 659 ms**. These spans include transport and overlap other spans.
+Do not add them or treat them as isolated CPU measurements. A's execution is not
+its first command after construction in any of the nine runs. Other Worker cold
+starts were not controlled. Requested APAC placement does not prove colocation.
+
+**Keep the request reduction; no latency gain is established.** The candidate's
+full-flow median is **11.486s**, compared with **10.561s** baseline and **10.664s**
+restored control. Its SDK registration median is **8.734s**, compared with **8.196s**
+and **7.650s**. This run is slower for the candidate. Three sequential samples per
+arm cannot isolate provider variation from the change's effect. Do not label the
+slower result as provider-only noise. The below-four-second goal remains unmet.
+
+All nine NEP-413 signatures pass an independent Node.js Ed25519 verifier with a
+separate Borsh encoder. Altered message, recipient, nonce, and callback URL fail.
+All six observed role streams match the expected versions in every arm. Source,
+build output, and SDK asset hashes are retained in the evidence.
+
+An earlier baseline-only attempt stopped at an obsolete local test capture before
+candidate deployment. The test now reads A's genuine persisted receipt. That earlier
+attempt restored staging and is excluded from this complete three-arm comparison.
+
+Next, target the remaining A-to-B connection and forwarding boundaries. Preserve
+independent role authentication, admission, and readiness proofs. Compare accumulated
+accepted changes against a frozen earlier baseline. Reconsider the serial admission
+tradeoff if repeated measurements establish a material regression.
+
+[Sanitized evidence](evidence/near-registration-combined-deriver-preparation-20261009.json) retains all samples, request counts, partial D1 counts, local validation,
+public signature proofs, exact versions, hashes, and the retention decision. Repeatable
+raw artifacts remain in public `.artifacts/r155b-phase6an` and private
+`.artifacts/r155b-phase6an-hosted/measurement`.
+
+All 13 original Worker assignments and placement settings were restored. Restoration
+activation [37884119441](https://github.com/seams-tech/seams-monorepo/actions/runs/37884119441)
+passed. All six observation process groups stopped. Existing staging resources were
+reused. The activation's temporary US probes retain their normal ten-minute expiry.
+No new resources, production deployment, or package release were part of this work.
