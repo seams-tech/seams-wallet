@@ -216,6 +216,12 @@ The SDK owns transient read retry and RPC handling. The browser contract is
   A retired reusable session cannot authorize signing or operation step-up.
   An authenticated unlock can establish a new session after retirement.
 
+- Reusable-session NEAR prepare and finalize evaluate live signing policy for
+  the wallet's authority. Project denial takes precedence over abuse denial;
+  abuse rejection and rate limiting return their respective errors. Policy
+  denial leaves quota unchanged. Policy records of another scope, wallet, or
+  authority do not apply.
+
 - Reusable-session ECDSA prepare, finalize, and completed replay evaluate live
   signing policy. Project denial takes precedence over abuse denial; abuse
   rejection and rate limiting return their respective errors. Policy denial

@@ -657,3 +657,194 @@ test(
   'NEAR finalize validates one stored operation, replays a discarded reply at exhausted quota, and rejects retirement',
   verifyNearFinalizeReplay,
 );
+
+type NearSigningPolicy = 'project_and_abuse' | 'abuse' | 'rate_limited' | 'unrelated';
+
+/** Namespace, org, project, environment and signing root version of a policy record. */
+type NearSigningPolicyTenant = [string, string, string, string, string];
+
+/**
+ * Replaces the signing policy rows of this scenario's own Gateway database.
+ * `unrelated` writes rejections for every neighbouring scope, wallet and
+ * authority, which must not reach this wallet.
+ */
+async function setIsolatedNearSigningPolicy(
+  walletId: string,
+  policy: NearSigningPolicy,
+): Promise<number> {
+  const DatabaseSync = await loadNodeDatabaseSync();
+  const database = new DatabaseSync(await isolatedGatewayDatabasePath(), { readOnly: false });
+  try {
+    const signers = database
+      .prepare(
+        `SELECT DISTINCT namespace,
+                json_extract(record_json, '$.activeYaoCapability.runtimePolicyScope') AS scope_json
+           FROM wallet_signers WHERE wallet_id = ? AND signer_family = 'ed25519'`,
+      )
+      .all(walletId);
+    const authorities = database
+      .prepare(
+        `SELECT authority_id FROM wallet_authorities
+          WHERE wallet_id = ? AND lifecycle_state = 'active'`,
+      )
+      .all(walletId);
+    expect(signers).toHaveLength(1);
+    expect(authorities).toHaveLength(1);
+    const signer = requireRecord(signers[0], 'signer row');
+    const scope = requireRecord(
+      JSON.parse(requireNonEmptyString(signer.scope_json, 'policy scope')),
+      'policy scope',
+    );
+    const authorityId = requireNonEmptyString(
+      requireRecord(authorities[0], 'authority row').authority_id,
+      'authority ID',
+    );
+    const tenant: NearSigningPolicyTenant = [
+      requireNonEmptyString(signer.namespace, 'namespace'),
+      requireNonEmptyString(scope.orgId, 'orgId'),
+      requireNonEmptyString(scope.projectId, 'projectId'),
+      requireNonEmptyString(scope.envId, 'envId'),
+      requireNonEmptyString(scope.signingRootVersion, 'signingRootVersion'),
+    ];
+    // This database belongs to this single-wallet scenario; policy rows are test-owned.
+    database.prepare('DELETE FROM router_ab_normal_signing_admission_records').all();
+    const insert = database.prepare(
+      `INSERT INTO router_ab_normal_signing_admission_records
+       (namespace, org_id, project_id, env_id, signing_root_version,
+        record_kind, record_key, wallet_id, decision, retry_after_ms, updated_at_ms)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    // A record key starts with the record's own scope. An abuse key also names its wallet.
+    const rejectProject = (scopeOf: NearSigningPolicyTenant) =>
+      insert.all(
+        ...scopeOf,
+        'project_policy',
+        scopeOf.slice(1).join('\x1f'),
+        null,
+        'rejected',
+        1000,
+        Date.now(),
+      );
+    const decideAbuse = (
+      scopeOf: NearSigningPolicyTenant,
+      wallet: string,
+      authority: string,
+      decision: 'rejected' | 'rate_limited',
+    ) =>
+      insert.all(
+        ...scopeOf,
+        'abuse',
+        [...scopeOf.slice(1), wallet, `wallet_authority:${authority}`, 'ed25519'].join('\x1f'),
+        wallet,
+        decision,
+        1000,
+        Date.now(),
+      );
+    if (policy === 'unrelated') {
+      for (let field = 0; field < tenant.length; field += 1) {
+        const other: NearSigningPolicyTenant = [...tenant];
+        other[field] += ':other';
+        rejectProject(other);
+        decideAbuse(other, walletId, authorityId, 'rejected');
+      }
+      decideAbuse(tenant, `${walletId}:other`, authorityId, 'rejected');
+      decideAbuse(tenant, walletId, `${authorityId}:other`, 'rejected');
+    } else {
+      const decision = policy === 'rate_limited' ? 'rate_limited' : 'rejected';
+      decideAbuse(tenant, walletId, authorityId, decision);
+      if (policy === 'project_and_abuse') rejectProject(tenant);
+    }
+    const quotas = database
+      .prepare(
+        `SELECT quota.remaining_uses FROM authorization_wallet_session_quotas AS quota
+           JOIN wallet_session_authorizations_v2 AS session
+             ON session.namespace = quota.namespace AND session.tenant_id = quota.tenant_id
+            AND session.quota_id = quota.quota_id
+          WHERE session.wallet_id = ? AND session.retired_at_ms IS NULL`,
+      )
+      .all(walletId);
+    expect(quotas).toHaveLength(1);
+    return Number(requireRecord(quotas[0], 'quota row').remaining_uses);
+  } finally {
+    database.close();
+  }
+}
+
+class NearSigningPolicyProbe {
+  readonly denials: { phase: string; code: string; status: number; remainingUses: number }[] = [];
+
+  constructor(
+    private readonly context: BrowserContext,
+    private readonly walletId: string,
+  ) {}
+
+  /** Replays the request under each denying policy, then lets the original through. */
+  async intercept(route: Route): Promise<void> {
+    const request = route.request();
+    const phase = request.url().endsWith('/prepare') ? 'prepare' : 'finalize';
+    const cases: readonly { policy: NearSigningPolicy; code: string; status: number }[] = [
+      { policy: 'project_and_abuse', code: 'project_policy_rejected', status: 403 },
+      { policy: 'abuse', code: 'abuse_rejected', status: 403 },
+      { policy: 'rate_limited', code: 'rate_limited', status: 429 },
+    ];
+    try {
+      for (const scenario of cases) {
+        await setIsolatedNearSigningPolicy(this.walletId, scenario.policy);
+        const response = await this.context.request.fetch(request);
+        expect(response.status()).toBe(scenario.status);
+        expect(await response.json()).toMatchObject({ code: scenario.code });
+        this.denials.push({
+          phase,
+          code: scenario.code,
+          status: response.status(),
+          remainingUses: await setIsolatedNearSigningPolicy(this.walletId, scenario.policy),
+        });
+      }
+    } finally {
+      await setIsolatedNearSigningPolicy(this.walletId, 'unrelated');
+    }
+    const response = await route.fetch();
+    expect(response.status()).toBe(200);
+    await route.fulfill({ response });
+  }
+}
+
+async function verifyLiveNearSigningPolicy(
+  { harness, context }: { harness: IntendedBehaviourHarness; context: BrowserContext },
+  testInfo: TestInfo,
+): Promise<void> {
+  await harness.registerPasskeyEd25519YaoWallet();
+  const walletId = harness.walletId;
+  const before = await setIsolatedNearSigningPolicy(walletId, 'unrelated');
+  const probe = new NearSigningPolicyProbe(context, walletId);
+  const intercept = probe.intercept.bind(probe);
+  const signingPath = /\/router-ab\/ed25519\/sign(?:\/prepare)?$/;
+  await context.route(signingPath, intercept);
+  try {
+    await harness.signNearTransaction('post_registration');
+  } finally {
+    await context.unroute(signingPath, intercept);
+  }
+  // A denied request claims nothing: only the admitted prepare spent one use.
+  expect(probe.denials.map((denial) => [denial.phase, denial.code, denial.remainingUses])).toEqual([
+    ['prepare', 'project_policy_rejected', before],
+    ['prepare', 'abuse_rejected', before],
+    ['prepare', 'rate_limited', before],
+    ['finalize', 'project_policy_rejected', before - 1],
+    ['finalize', 'abuse_rejected', before - 1],
+    ['finalize', 'rate_limited', before - 1],
+  ]);
+  // Rejections for neighbouring scopes, wallets and authorities stay in place and do not apply.
+  await harness.signNearMessage('Sign beside unrelated policy rows');
+  const artifact = testInfo.outputPath('near-live-signing-policy.json');
+  await writeFile(artifact, JSON.stringify({ denials: probe.denials }, null, 2));
+  await testInfo.attach('near-live-signing-policy', {
+    path: artifact,
+    contentType: 'application/json',
+  });
+}
+
+test(
+  'live signing policy denies NEAR prepare and finalize without consuming quota and ignores unrelated scopes',
+  verifyLiveNearSigningPolicy,
+);
