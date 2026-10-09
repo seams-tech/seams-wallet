@@ -11,8 +11,14 @@ import { buildWorkerdCompatiblePhase1Bridge } from '../../packages/wallet-server
 class AddressAllocator {
   calls = 0;
   loseNextReply = false;
+  onRequest = null;
   constructor(router, a, b, signer) {
     this.namespaces = { router, deriver_a: a, deriver_b: b, signing_worker: signer };
+  }
+  nextRequest() {
+    return new Promise((resolve) => {
+      this.onRequest = resolve;
+    });
   }
   async allocate() {
     const entries = [];
@@ -22,6 +28,8 @@ class AddressAllocator {
   }
   async fetch() {
     this.calls += 1;
+    this.onRequest?.();
+    this.onRequest = null;
     const addresses = await this.allocate();
     if (this.loseNextReply) {
       this.loseNextReply = false;
@@ -45,6 +53,59 @@ class RegistrationAddresses {
     );
     await this.store.initialize(identity, this.allocator, 'local-test-credential');
   }
+}
+
+// Counts the ceremony writes that reach the database and can hold one until a signal.
+class ObservedDatabase {
+  ceremonyWrites = 0;
+  holdCeremonyWrite = null;
+  constructor(database) {
+    this.database = database;
+  }
+  prepare(sql) {
+    return new ObservedStatement(this, this.database.prepare(sql), sql);
+  }
+  async batch(statements) {
+    await this.observe(statements.map(statementSql).join('\n'));
+    return this.database.batch(statements.map(originalStatement));
+  }
+  exec(sql) {
+    return this.database.exec(sql);
+  }
+  async observe(sql) {
+    if (!sql.includes('INSERT OR IGNORE INTO registration_ceremony_records')) return;
+    this.ceremonyWrites += 1;
+    await this.holdCeremonyWrite;
+  }
+}
+
+class ObservedStatement {
+  constructor(owner, original, sql) {
+    Object.assign(this, { owner, original, sql });
+  }
+  bind(...values) {
+    return new ObservedStatement(this.owner, this.original.bind(...values), this.sql);
+  }
+  async first(...column) {
+    await this.owner.observe(this.sql);
+    return this.original.first(...column);
+  }
+  async all() {
+    await this.owner.observe(this.sql);
+    return this.original.all();
+  }
+  async run() {
+    await this.owner.observe(this.sql);
+    return this.original.run();
+  }
+}
+
+function statementSql(statement) {
+  return statement.sql;
+}
+
+function originalStatement(statement) {
+  return statement.original;
 }
 
 class CapturedCustodyCall {
@@ -196,6 +257,30 @@ try {
   );
   assert.equal(unstarted.ok, true, JSON.stringify(unstarted));
   assert.equal(allocator.calls, 2);
+  // A new setup stores its snapshot and opens its ceremony in one write. It
+  // asks for addresses beside that write: the write here waits for the request.
+  const observed = new ObservedDatabase(database);
+  const observedRegistration = api.createCloudflareD1RouterApiAuthService({
+    ...options,
+    database: observed,
+    startRegistrationWallets: starter.initialize.bind(starter),
+  }).walletRegistration;
+  observed.holdCeremonyWrite = allocator.nextRequest();
+  const beside = await within(
+    setup(observedRegistration, {
+      ...input,
+      request: {
+        ...input.request,
+        registrationOperationId: api.createRegistrationSetupOperationId(),
+      },
+    }),
+    10_000,
+    'Setup must request addresses beside its ceremony write',
+  );
+  assert.equal(beside.ok, true, JSON.stringify(beside));
+  assert.equal(observed.ceremonyWrites, 1, 'Setup must store its snapshot and ceremony together');
+  assert.ok(await addresses.read(api.walletObjectIdentity(beside.walletId, 1, scope)));
+
   const lostInput = {
     ...input,
     request: {
@@ -276,6 +361,8 @@ try {
         wrongTenantRefused: true,
         immutableAddresses: true,
         hostWithoutStarterCompletes: true,
+        ceremonyWritesPerSetup: observed.ceremonyWrites,
+        allocationBesideCeremonyWrite: true,
       },
       null,
       2,
@@ -290,6 +377,18 @@ async function setup(registration, input) {
   const response = await registration.setupWalletRegistration(input);
   assert.equal(response.status, 200, JSON.stringify(response.body));
   return response.body;
+}
+
+async function within(work, limitMs, message) {
+  let timer;
+  const expired = new Promise((_, reject) => {
+    timer = setTimeout(reject, limitMs, new Error(message));
+  });
+  try {
+    return await Promise.race([work, expired]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function signJwt(sub, extra) {

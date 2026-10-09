@@ -82,19 +82,7 @@ export class D1RegistrationCeremonyRecordStore {
 
   async get(scope: string, id: string): Promise<D1RegistrationCeremonyStoredRecord | null> {
     const key = this.normalizeKey(scope, id);
-    const row = await this.database
-      .prepare(
-        `SELECT version, record_json, expires_at_ms
-           FROM ${TABLE_NAME}
-          WHERE namespace = ?1
-            AND org_id = ?2
-            AND project_id = ?3
-            AND env_id = ?4
-            AND record_scope = ?5
-            AND record_id = ?6`,
-      )
-      .bind(...this.bindKey(key))
-      .first<StoredRow>();
+    const row = await this.prepareRead(key).first<StoredRow>();
     if (!row) return null;
     const parsed = parseStoredRow(row);
     if (parsed.expiresAtMs > Date.now()) return parsed;
@@ -133,6 +121,53 @@ export class D1RegistrationCeremonyRecordStore {
     }
     const stored = await this.get(mutation.scope, mutation.id);
     if (!stored) throw conflict('Registration setup expired during persistence');
+    return stored;
+  }
+
+  /**
+   * Stores `mutation` and opens `copyScope` with the value that `mutation`'s
+   * key then holds, in one batch. A competing insert leaves its winner in both
+   * records, as two `insertOrRead` calls in series would.
+   */
+  async insertOrReadWithCopy(
+    mutation: D1RegistrationCeremonyRecordMutation,
+    copyScope: string,
+  ): Promise<{
+    readonly record: D1RegistrationCeremonyStoredRecord;
+    readonly copy: D1RegistrationCeremonyStoredRecord;
+  }> {
+    const key = this.normalizeKey(mutation.scope, mutation.id);
+    const copyKey = this.normalizeKey(copyScope, mutation.id);
+    const nowMs = Date.now();
+    const results = await this.database.batch<D1ResultLike<StoredRow>>([
+      this.prepareInsert(key, prepareValue(mutation.value, mutation.expiresAtMs)),
+      this.database
+        .prepare(
+          `INSERT OR IGNORE INTO ${TABLE_NAME}
+            (namespace, org_id, project_id, env_id, record_scope, record_id,
+             version, record_json, expires_at_ms, updated_at_ms)
+           SELECT namespace, org_id, project_id, env_id, ?7, record_id,
+                  1, record_json, expires_at_ms, ?8
+             FROM ${TABLE_NAME}
+            WHERE namespace = ?1
+              AND org_id = ?2
+              AND project_id = ?3
+              AND env_id = ?4
+              AND record_scope = ?5
+              AND record_id = ?6
+              AND expires_at_ms > ?8`,
+        )
+        .bind(...this.bindKey(key), copyKey.scope, nowMs),
+      this.prepareRead(key),
+      this.prepareRead(copyKey),
+    ]);
+    const record = results[2]?.results?.[0];
+    const copy = results[3]?.results?.[0];
+    if (!record || !copy) throw conflict('Registration setup expired during persistence');
+    const stored = { record: parseStoredRow(record), copy: parseStoredRow(copy) };
+    if (stored.record.expiresAtMs <= nowMs || stored.copy.expiresAtMs <= nowMs) {
+      throw conflict('Registration setup expired during persistence');
+    }
     return stored;
   }
 
@@ -348,6 +383,21 @@ export class D1RegistrationCeremonyRecordStore {
       }
     }
     return true;
+  }
+
+  private prepareRead(key: StorageKey): D1PreparedStatementLike {
+    return this.database
+      .prepare(
+        `SELECT version, record_json, expires_at_ms
+           FROM ${TABLE_NAME}
+          WHERE namespace = ?1
+            AND org_id = ?2
+            AND project_id = ?3
+            AND env_id = ?4
+            AND record_scope = ?5
+            AND record_id = ?6`,
+      )
+      .bind(...this.bindKey(key));
   }
 
   private async insert(key: StorageKey, value: PreparedValue): Promise<boolean> {

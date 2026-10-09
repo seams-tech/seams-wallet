@@ -74,30 +74,27 @@ export class CloudflareD1RegistrationCeremonyIntentStore {
     return ceremony;
   }
 
+  /** One batch stores the setup snapshot and opens the ceremony from the stored snapshot. */
   async reserveSetupCeremony(
     proposed: StoredWalletRegistrationCeremony,
   ): Promise<StoredWalletRegistrationCeremony> {
-    const stored = await this.storage.insertOrRead({
-      scope: 'setup-ceremony',
-      id: proposed.registrationCeremonyId,
-      value: encodeRecord(proposed),
-      expiresAtMs: proposed.expiresAtMs,
-    });
-    const ceremony = parseD1StoredWalletRegistrationCeremony(stored.value);
-    if (
-      !ceremony ||
-      ceremony.registrationCeremonyId !== proposed.registrationCeremonyId ||
-      ceremony.expiresAtMs !== proposed.expiresAtMs ||
-      ceremony.orgId !== proposed.orgId ||
-      ceremony.digestB64u !== proposed.digestB64u ||
-      ceremony.foundingWalletAuthorityId !== proposed.foundingWalletAuthorityId ||
-      ceremony.foundingDeviceId !== proposed.foundingDeviceId ||
-      ceremony.foundingWalletAuthMethodId !== proposed.foundingWalletAuthMethodId ||
-      ceremony.expectedOrigin !== proposed.expectedOrigin
-    ) {
+    const stored = await this.storage.insertOrReadWithCopy(
+      {
+        scope: 'setup-ceremony',
+        id: proposed.registrationCeremonyId,
+        value: encodeRecord(proposed),
+        expiresAtMs: proposed.expiresAtMs,
+      },
+      'ceremony',
+    );
+    const ceremony = parseD1StoredWalletRegistrationCeremony(stored.record.value);
+    if (!ceremony || !sameSetupReservation(ceremony, proposed)) {
       throw new Error('Registration setup snapshot conflicts with its reservation');
     }
-    await this.ensureSetupCeremony(ceremony);
+    const current = parseD1StoredWalletRegistrationCeremony(stored.copy.value);
+    if (!current || !sameSetupReservation(current, ceremony)) {
+      throw new Error('Registration ceremony conflicts with its setup snapshot');
+    }
     return ceremony;
   }
 
@@ -109,17 +106,7 @@ export class CloudflareD1RegistrationCeremonyIntentStore {
       expiresAtMs: setup.expiresAtMs,
     });
     const current = parseD1StoredWalletRegistrationCeremony(stored.value);
-    if (
-      !current ||
-      current.registrationCeremonyId !== setup.registrationCeremonyId ||
-      current.expiresAtMs !== setup.expiresAtMs ||
-      current.orgId !== setup.orgId ||
-      current.digestB64u !== setup.digestB64u ||
-      current.foundingWalletAuthorityId !== setup.foundingWalletAuthorityId ||
-      current.foundingDeviceId !== setup.foundingDeviceId ||
-      current.foundingWalletAuthMethodId !== setup.foundingWalletAuthMethodId ||
-      current.expectedOrigin !== setup.expectedOrigin
-    ) {
+    if (!current || !sameSetupReservation(current, setup)) {
       throw new Error('Registration ceremony conflicts with its setup snapshot');
     }
   }
@@ -529,4 +516,21 @@ function addSignerFinalizeReplayKey(input: {
 function encodeRecord(value: unknown): Record<string, unknown> {
   if (!isPlainObject(value)) throw new Error('Registration ceremony record must be an object');
   return value;
+}
+
+/** The facts a reservation fixes for its setup snapshot and its ceremony. */
+function sameSetupReservation(
+  stored: StoredWalletRegistrationCeremony,
+  expected: StoredWalletRegistrationCeremony,
+): boolean {
+  return (
+    stored.registrationCeremonyId === expected.registrationCeremonyId &&
+    stored.expiresAtMs === expected.expiresAtMs &&
+    stored.orgId === expected.orgId &&
+    stored.digestB64u === expected.digestB64u &&
+    stored.foundingWalletAuthorityId === expected.foundingWalletAuthorityId &&
+    stored.foundingDeviceId === expected.foundingDeviceId &&
+    stored.foundingWalletAuthMethodId === expected.foundingWalletAuthMethodId &&
+    stored.expectedOrigin === expected.expectedOrigin
+  );
 }

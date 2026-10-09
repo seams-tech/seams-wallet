@@ -117,11 +117,14 @@ export async function executeD1WalletRegistrationSetup(
           'reservation_conflict',
           'Registration setup conflicts with its reservation',
         );
-      if (admitted.lifecycle === 'reserved') await dependencies.store.ensureSetupCeremony(existing);
-      await dependencies.startRegistrationWallets?.({
-        walletId: wallet.walletId,
-        ownershipGeneration: admitted.ownershipGeneration,
-      });
+      // A retry after lost allocation must recover the same persisted addresses.
+      await Promise.all([
+        admitted.lifecycle === 'reserved' ? dependencies.store.ensureSetupCeremony(existing) : null,
+        dependencies.startRegistrationWallets?.({
+          walletId: wallet.walletId,
+          ownershipGeneration: admitted.ownershipGeneration,
+        }),
+      ]);
       return await setupResponseFromCeremony(input, dependencies.home, existing);
     }
     if (admitted.lifecycle === 'established')
@@ -219,12 +222,15 @@ export async function executeD1WalletRegistrationSetup(
       authorityState: { kind: 'awaiting_proof', authMethod: normalized.authMethod },
       signerState: { kind: 'signer_set_registration', branches: storedBranches },
     };
-    const stored = await dependencies.store.reserveSetupCeremony(ceremony);
-    // A retry after lost allocation must recover the same persisted addresses.
-    await dependencies.startRegistrationWallets?.({
-      walletId: wallet.walletId,
-      ownershipGeneration: admitted.ownershipGeneration,
-    });
+    // The addresses need only the reserved wallet, so they are allocated and
+    // stored beside the ceremony write. Setup answers after both.
+    const [stored] = await Promise.all([
+      dependencies.store.reserveSetupCeremony(ceremony),
+      dependencies.startRegistrationWallets?.({
+        walletId: wallet.walletId,
+        ownershipGeneration: admitted.ownershipGeneration,
+      }),
+    ]);
     return await setupResponseFromCeremony(input, dependencies.home, stored);
   } catch (error: unknown) {
     return walletRegistrationSetupError(
