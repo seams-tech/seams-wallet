@@ -1,5 +1,7 @@
 // Registration setup starts the reserved wallet's custody objects once, and a
-// replayed setup starts nothing again.
+// replayed setup starts nothing again. The setup runs through the assembled
+// Gateway service, so the starter must survive every layer between the
+// composition and the setup itself.
 import assert from 'node:assert/strict';
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -17,13 +19,13 @@ const bundle = await build({
   format: 'esm',
   platform: 'node',
   write: false,
+  external: ['*.wasm', 'bs58'],
   tsconfig: 'packages/wallet-server/tsconfig.json',
   stdin: {
     resolveDir: process.cwd(),
     loader: 'ts',
     contents: `
-      export { executeD1WalletRegistrationSetup } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationSetupExecution';
-      export { CloudflareD1RegistrationCeremonyIntentStore } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1RegistrationCeremonyStore';
+      export { createCloudflareD1RouterApiAuthService } from './packages/wallet-server/src/router/cloudflare/d1/auth/d1RouterApiAuthService';
       export { LocalRegistrationSetupAuthority } from './packages/wallet-server/src/localRegistrationSetupAuthority';
       export { createRegistrationSetupOperationId } from './packages/shared-ts/src/utils/registrationSetupOperation';
       export { implicitNearAccountProvisioning, REGISTRATION_NEAR_ED25519_YAO_DERIVATION_VERSION } from './packages/shared-ts/src/utils/registrationSignerPlan';
@@ -45,19 +47,15 @@ try {
   const database = await runtime.getD1Database('SIGNER_DB');
   await migrate(database);
   const started = [];
-  const dependencies = {
-    home: { kind: 'direct' },
-    reservation: new api.LocalRegistrationSetupAuthority(database, scope),
-    store: new api.CloudflareD1RegistrationCeremonyIntentStore({
-      kind: 'partitioned_d1',
-      database,
-      scope,
-      keyPrefix: 'gateway-registration:',
-    }),
-    // A NEAR-only plan prepares nothing before the proof, so this port is never called.
-    ecdsaStrictRegistration: null,
-    startRegistrationWallets: started.push.bind(started),
+  const options = {
+    database,
+    ...scope,
+    registrationAuthority: new api.LocalRegistrationSetupAuthority(database, scope),
   };
+  const registration = api.createCloudflareD1RouterApiAuthService({
+    ...options,
+    startRegistrationWallets: started.push.bind(started),
+  }).walletRegistration;
   const runtimePolicyScope = {
     orgId: scope.orgId,
     projectId: scope.projectId,
@@ -89,31 +87,31 @@ try {
     signingRootVersion: runtimePolicyScope.signingRootVersion,
   };
 
-  const first = await api.executeD1WalletRegistrationSetup(input, dependencies);
+  const first = await setup(registration, input);
   assert.equal(first.ok, true, JSON.stringify(first));
   assert.equal(first.kind, 'near_ed25519');
   // The local authority never relocates a wallet, so the reserved generation is the first.
   assert.deepEqual(started, [{ walletId: first.walletId, ownershipGeneration: 1 }]);
 
-  const replay = await api.executeD1WalletRegistrationSetup(input, dependencies);
+  const replay = await setup(registration, input);
   assert.equal(replay.ok, true, JSON.stringify(replay));
   assert.equal(replay.registrationCeremonyId, first.registrationCeremonyId);
   assert.equal(started.length, 1, 'A replayed setup must not start the wallet again');
 
-  const other = await api.executeD1WalletRegistrationSetup(
-    { ...input, request: { ...input.request, registrationOperationId: api.createRegistrationSetupOperationId() } },
-    dependencies,
-  );
+  const other = await setup(registration, {
+    ...input,
+    request: { ...input.request, registrationOperationId: api.createRegistrationSetupOperationId() },
+  });
   assert.equal(other.ok, true, JSON.stringify(other));
   assert.notEqual(other.walletId, first.walletId);
   assert.deepEqual(started[1], { walletId: other.walletId, ownershipGeneration: 1 });
   assert.equal(started.length, 2);
 
   // Startup is optional: a host with no starter still completes setup.
-  const unstarted = await api.executeD1WalletRegistrationSetup(
-    { ...input, request: { ...input.request, registrationOperationId: api.createRegistrationSetupOperationId() } },
-    { ...dependencies, startRegistrationWallets: null },
-  );
+  const unstarted = await setup(api.createCloudflareD1RouterApiAuthService(options).walletRegistration, {
+    ...input,
+    request: { ...input.request, registrationOperationId: api.createRegistrationSetupOperationId() },
+  });
   assert.equal(unstarted.ok, true, JSON.stringify(unstarted));
   assert.equal(started.length, 2);
   await writeFile(
@@ -123,6 +121,12 @@ try {
   console.log('registration setup startup: passed');
 } finally {
   await runtime.dispose();
+}
+
+async function setup(registration, input) {
+  const response = await registration.setupWalletRegistration(input);
+  assert.equal(response.status, 200, JSON.stringify(response.body));
+  return response.body;
 }
 
 async function signJwt(sub, extra) {

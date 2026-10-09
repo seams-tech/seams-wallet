@@ -376,6 +376,7 @@ export function normalizeD1RouterApiAuthOptions(
       ? new D1WalletExecutionAuthority(input.database, scope, input.registrationAuthority)
       : undefined,
     registrationSetupDispatcher: input.registrationSetupDispatcher,
+    startRegistrationWallets: input.startRegistrationWallets,
     namespace: scope.namespace,
     orgId: scope.orgId,
     projectId: scope.projectId,
