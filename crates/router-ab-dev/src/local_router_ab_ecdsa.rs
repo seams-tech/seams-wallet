@@ -361,8 +361,10 @@ pub fn local_router_ab_ecdsa_route_v1(
 
 /// `Server-Timing` spans for one presignature step, named as the Workers
 /// SigningWorker names them. The in-process session map stands where the
-/// Workers presignature-session Durable Object does, so its time also
-/// reports as that Durable Object's total.
+/// Workers presignature-session Durable Object does. A Worker waits for that
+/// object's response headers while the object works, then reads its body.
+/// Here the session work reports as the header span, and the body span is
+/// zero because no response crosses a boundary.
 struct LocalPresignTimingV1 {
     started: Instant,
     entries: Vec<(&'static str, u128)>,
@@ -382,7 +384,8 @@ impl LocalPresignTimingV1 {
 
     fn mark_session(&mut self, since: Instant) {
         self.mark("ecdsa_presign_sw_session", since);
-        self.mark("ecdsa_presign_sw_do_total", since);
+        self.mark("ecdsa_presign_sw_do_response_headers", since);
+        self.entries.push(("ecdsa_presign_sw_do_response_body", 0));
     }
 
     fn finish(mut self, into: &RefCell<Option<String>>) {
