@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 
 class ApprovedRegistrationAuthority {
   established = false;
@@ -43,7 +44,7 @@ export async function seedExecutionGeneration({ api, database, scope, walletId }
   );
   const identity = { walletId, ceremonyId: 'fixture-execution-registration' };
   assert.equal((await authority.admitHome(identity)).ok, true);
-  assert.equal((await authority.complete({ ...identity, outcome: 'established' })).ok, true);
+  assert.equal((await authority.complete(establishedCompletion(identity))).ok, true);
 }
 
 export async function prepareExecutionGeneration({ api, database, scope, walletId }) {
@@ -64,7 +65,7 @@ export async function prepareExecutionGeneration({ api, database, scope, walletI
     )
     .run();
   await assert.rejects(
-    authority.complete({ ...identity, outcome: 'established' }),
+    authority.complete(establishedCompletion(identity)),
     /injected_execution_completion/u,
   );
   assert.equal(registration.established, true);
@@ -72,12 +73,15 @@ export async function prepareExecutionGeneration({ api, database, scope, walletI
   await database.prepare('DROP TRIGGER injected_execution_completion').run();
   assert.deepEqual(await authority.admitHome(identity), {
     ok: true,
-    purpose: 'ordinary',
+    purpose: 'registration',
     ownershipGeneration: 1,
   });
-  assert.equal((await authority.complete({ ...identity, outcome: 'established' })).ok, true);
+  assert.equal((await authority.admitEstablishedHome({ walletId })).ok, false);
+  assert.equal((await authority.complete(establishedCompletion(identity))).ok, true);
   assert.deepEqual(await api.admitD1EstablishedWalletHome(database, scope, { walletId }), {
-    ok: true, purpose: 'ordinary', ownershipGeneration: 1,
+    ok: true,
+    purpose: 'ordinary',
+    ownershipGeneration: 1,
   });
   assert.equal(registration.ordinaryReads, 0);
   return { authority, registration, identity };
@@ -129,7 +133,7 @@ export async function verifyExecutionDestination({
   );
   assert.equal((await foreign.admitEstablishedHome({ walletId })).ok, false);
   assert.equal((await setup.authority.admitHome(setup.identity)).ok, false);
-  await assert.rejects(setup.authority.complete({ ...setup.identity, outcome: 'established' }));
+  await assert.rejects(setup.authority.complete(establishedCompletion(setup.identity)));
   assert.equal(setup.registration.ordinaryReads, 0);
   return {
     destinationGeneration: 2,
@@ -138,5 +142,18 @@ export async function verifyExecutionDestination({
     generationImmutable: true,
     environmentIsolated: true,
     centralOrdinaryReads: setup.registration.ordinaryReads,
+  };
+}
+
+function establishedCompletion(identity) {
+  return {
+    ...identity,
+    outcome: 'established',
+    session: {
+      kind: 'credential',
+      walletId: identity.walletId,
+      digest: createHash('sha256').update(identity.walletId).digest('base64url'),
+      expiresAtMs: Date.now() + 60_000,
+    },
   };
 }

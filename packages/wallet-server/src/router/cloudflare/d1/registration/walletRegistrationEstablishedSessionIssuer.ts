@@ -1,3 +1,4 @@
+import type { WalletRegistrationReservationAuthority } from '../../../domains/walletRegistration/walletRegistrationReservation';
 import type { WalletRegistrationEd25519YaoPublicResult } from '../../../../core/registrationContracts';
 import type { WalletRegistrationFinalizeAuthMethod } from '@shared/utils/registrationContracts';
 import { parseSessionOrigin, parseVerifiedOwnerProofId } from '../../../../authorization/domain';
@@ -69,8 +70,7 @@ import { registrationEstablishedMintId } from './walletRegistrationSessionCommit
 
 type RegistrationEstablishedSessionIssuerAuthorizationService = Pick<
   AuthorizationService,
-  | 'issueDirectWalletSessionAuthorizationV2'
-  | 'issueDirectRegistrationPromotedWalletSessionAuthorizationV2'
+  | 'commitDirectWalletSessionAuthorizationV2'
   | 'readWalletSessionAuthorizationV2ByMint'
   | 'readWalletSessionAuthorizationV2ByAuthorizationId'
   | 'refreshWalletSessionAuthorizationV2AuthorityProjection'
@@ -87,6 +87,7 @@ type RegistrationEstablishedSessionIssuanceDependencies = {
   readonly authorizationService: RegistrationEstablishedSessionIssuerAuthorizationService;
   readonly authorizationTenantId: TenantId;
   readonly walletAuthMethods: RegistrationEstablishedSessionIssuerWalletAuthMethodReader;
+  readonly homeCompletion: WalletRegistrationReservationAuthority;
 };
 
 function requireWalletSessionPrincipalId(value: string): PrincipalId {
@@ -537,17 +538,21 @@ export async function issueDirectRegistrationEstablishedEcdsaSession(
     expiresAtMs: input.expiresAtMs,
     remainingUses: input.remainingUses,
   });
-  const directIssue = await input.authorizationService.issueDirectWalletSessionAuthorizationV2({
-    tenantId: input.authorizationTenantId,
-    principalId: walletSessionPrincipalId(input.authority),
-    walletId: walletIdFromString(String(input.authority.walletId)),
-    authority: activeRegistration.authority,
-    walletAuthMethodId: activeRegistration.walletAuthMethodId,
-    mintId: registrationEstablishedMintId(input.registrationCeremonyId),
-    remainingUses: policy.remainingUses,
-    issuedAtMs,
-    expiresAtMs: policy.expiresAtMs,
-  });
+  const committed = await input.authorizationService.commitDirectWalletSessionAuthorizationV2(
+    {
+      tenantId: input.authorizationTenantId,
+      principalId: walletSessionPrincipalId(input.authority),
+      walletId: walletIdFromString(String(input.authority.walletId)),
+      authority: activeRegistration.authority,
+      walletAuthMethodId: activeRegistration.walletAuthMethodId,
+      mintId: registrationEstablishedMintId(input.registrationCeremonyId),
+      remainingUses: policy.remainingUses,
+      issuedAtMs,
+      expiresAtMs: policy.expiresAtMs,
+    },
+    { kind: 'strict' },
+  );
+  const directIssue = committed.result;
   let authorization: IssuedWalletSessionAuthorizationV2;
   switch (directIssue.kind) {
     case 'issued':
@@ -578,6 +583,13 @@ export async function issueDirectRegistrationEstablishedEcdsaSession(
     runtimePolicyScope: input.runtimePolicyScope,
     keyHandle,
   });
+  const completed = await input.homeCompletion.complete({
+    ceremonyId: input.registrationCeremonyId,
+    walletId: committed.publication.walletId,
+    outcome: 'established',
+    session: committed.publication,
+  });
+  if (!completed.ok) throw new Error(completed.message);
   return directRegistrationResultFromIssue({ directIssue, authorization, tokens });
 }
 
@@ -640,8 +652,8 @@ export async function issueDirectRegistrationEstablishedEd25519Session(
     expiresAtMs: input.expiresAtMs,
     remainingUses: input.remainingUses,
   });
-  const directIssue =
-    await input.authorizationService.issueDirectRegistrationPromotedWalletSessionAuthorizationV2({
+  const committed = await input.authorizationService.commitDirectWalletSessionAuthorizationV2(
+    {
       tenantId: input.authorizationTenantId,
       principalId: walletSessionPrincipalId(input.authority),
       walletId: walletIdFromString(String(input.authority.walletId)),
@@ -651,7 +663,10 @@ export async function issueDirectRegistrationEstablishedEd25519Session(
       remainingUses: policy.remainingUses,
       issuedAtMs,
       expiresAtMs: policy.expiresAtMs,
-    });
+    },
+    { kind: 'validated_registration_authority_projection' },
+  );
+  const directIssue = committed.result;
   let authorization: IssuedWalletSessionAuthorizationV2;
   switch (directIssue.kind) {
     case 'issued':
@@ -683,6 +698,13 @@ export async function issueDirectRegistrationEstablishedEd25519Session(
     ed25519: ed25519Tokens.ed25519,
     predecessor: input.predecessor,
   });
+  const completed = await input.homeCompletion.complete({
+    ceremonyId: input.registrationCeremonyId,
+    walletId: committed.publication.walletId,
+    outcome: 'established',
+    session: committed.publication,
+  });
+  if (!completed.ok) throw new Error(completed.message);
   return directRegistrationResultFromIssue({ directIssue, authorization, tokens });
 }
 

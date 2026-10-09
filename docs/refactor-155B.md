@@ -39,28 +39,28 @@ each date. Their completed checklists do not impose handshake requirements on
 R155C. Open A/B tasks and the withdrawn proposal to relay B preparation through
 A are removed from R155B. Continue those changes only under the revised R155C plan.
 
-Independent R155B optimization candidates, in priority order:
+Independent R155B work (Phase 6AP):
 
-1. **Combine registration completion calls to Console.** Session issuance currently
-   publishes its locator before the local session commit. Home completion follows
-   the durable registration result. Evaluate one retryable directory operation
-   after local commit. Preserve discovery, expiry, ownership, and lost-reply recovery.
-   Phase 6AO measured 251 ms for session issuance and 255 ms for home completion.
-   These whole-stage costs are not estimates of removable time.
-2. **Remove avoidable status requests after registration.** Trace the two observed
-   status requests and reuse the returned established session where it supplies
-   the required SDK state. Preserve fresh authorization and budget checks in prepare.
-   Earlier observation reuse already exists. Remove only a demonstrated duplicate.
-3. **Consolidate registration directory reads.** Trace the remaining setup/respond
-   calls before combining reservation, home lookup, and execution-authority work.
-   Reuse exact ceremony results within their valid scope. Keep cross-region retry
-   and identity uniqueness guarantees.
+1. **Combined registration completion.** Registration commits its session locally,
+   then publishes the original credential locator and completes its home in one
+   Console request. Retries reuse the mint record. No new queue or schema is needed.
+2. **Traced both remaining status requests.** Both occur after finalization and
+   before registration returns. The iframe registration command and host observer
+   share the first observation. React's subsequent `refreshSession` calls
+   `getSession` and starts the second. First NEAR message signing uses prepare and
+   sign only. Reusing registration state for UI publication is a separate SDK
+   change; fresh queries and prepare enforcement remain intact.
+3. **Combined registration lookup and admission.** One Console response supplies
+   the ceremony assignment and execution admission. Reserved-wallet admission
+   uses that row. This removes the separate admission request and its directory
+   reread. Local execution fences still serialize terminal decisions.
 
-Phase 6AO recorded eight Gateway requests and nine Console requests per wallet.
-Finalization HTTP took 2.190 seconds median across three candidate wallets.
-Capability installation and custody storage already run concurrently. These
-candidates have no measured saving yet. Keep the custody version fixed during
-each R155B comparison. Coordinate use of shared staging with R155C.
+The local candidate observes **7 Console requests**, versus the 9 paths in Phase
+6AO. Gateway requests remain **8**, including **2 status requests**. This is a
+verified request-count change. Hosted latency savings remain unmeasured. The
+previous finalization HTTP median of **2.190 seconds** remains the hosted baseline.
+Capability installation and custody storage already run concurrently. Keep custody
+fixed during the next hosted comparison and coordinate staging use with R155C.
 
 ## Approved OTP design — October 7, 2026
 
@@ -5662,3 +5662,74 @@ production deployment, or package release was part of this work.
 signature proofs, version audits, source/build hashes, fault-scenario results, and
 the retention decision. Repeatable raw artifacts remain in public
 `.artifacts/r155b-phase6ao` and private `.artifacts/r155b-phase6ao-hosted`.
+
+
+### Phase 6AP — combine registration completion and directory admission (2026-10-09)
+
+Registration now commits its primary Wallet Session locally, then sends its
+credential digest, wallet identity, and original expiry with home completion.
+Console publishes the locator and commits the established home and display row.
+The home/display write retains its existing transaction. Locator publication and
+home completion are idempotent operations within one HTTP request; they are not
+one cross-database transaction. Ordinary signing remains fenced until the reply
+is acknowledged. The completed registration receipt follows that acknowledgement.
+
+A retry reads the existing mint record and republishes its original digest and
+expiry. It does not mint a replacement credential or add a persistence format.
+An acknowledged completion remains locally replayable during a Console outage.
+NEAR-only and ECDSA registration use the same completion contract. Mixed NEAR
+continuation retains its existing primary mint. Cancellation cannot carry a
+session publication; type fixtures reject missing or conflicting fields.
+
+The new `registration-home` operation returns the ceremony assignment and admission.
+Reserved-wallet admission uses the same row. The prior `find-by-ceremony` and
+`registration-execution-authority` service operations are removed. Established
+wallets retain current relocation admission checks. Local terminal fences protect
+writes after a routing observation; a later request reads Console again when it
+needs a new registration observation. No long-lived authorization cache was added.
+
+The browser trace identifies both remaining status requests:
+
+- `WalletIframeRouter.registerWallet` refreshes the exact session after registration.
+  The host's pending authority-change observation shares that request.
+- React's `useSeamsContextValue.registerWallet` then calls `refreshSession`.
+  `useLoginStateRefresher` calls `auth.getSession`, which reads fresh server status.
+
+Both requests precede the return from registration. They are not Yao rounds.
+The following NEP-413 signature uses only `/prepare` and `/sign`. There is no new
+status cache or SDK behavior change in this phase. A later optimization can carry
+one registration observation into the React UI, with lock, expiry, and revocation
+behavior checked through the existing browser contracts.
+
+The normal local browser run records these seven Console paths:
+`registration-context`, `reserve`, `registration-home`, `tenant-root/active-lineage`,
+`claim-passkey`, `publish-routes`, and `complete`. The eight Gateway calls remain
+setup, respond, Yao execute, finalization, two status reads, prepare, and sign.
+The directory change removes one reserved-wallet SQL reread by construction.
+No complete D1 count or hosted latency saving is claimed.
+
+Timing interpretation: `near_finalize_session_issue` now includes combined home
+completion. The separate `near_finalize_home_completion` span was removed with
+its old call. Compare complete finalization HTTP/server spans across versions,
+not the changed nested session-issue span alone. The Phase 6AO **2.190s** hosted
+finalization median is preserved. The registration-to-signature target remains unmet.
+
+No staging resources, Worker assignments, or package releases changed in this phase.
+R155C's A/B transport code and plan remain outside this change.
+
+Validation passes: server build and type check, required-field type fixtures, two
+Console/D1 directory contracts, two browser contracts, and authorization-storage
+transfer acceptance. The browser contracts independently verify NEP-413 signatures
+through OC and APAC with Console unavailable. The lost-reply case retries through
+WEUR, preserves the original locator, and confirms local signing remains fenced
+until acknowledgement. It uses the existing 30-second recovery window. The lost
+credential is recovered through exact-method unlock. The private full type check
+still reports the same six pre-existing errors from the earlier candidate checks.
+
+[Local evidence](evidence/near-registration-combined-completion-20261009.json) contains
+request paths, public signature proofs, source hashes, checks, and repeat commands.
+Raw artifacts are public `.artifacts/r155b-phase6ap` and private
+`.artifacts/r155b-registration-completion`. Initial harness failures involved missing
+archive dependencies, runner selection, and a hard-coded test Router port. The
+helper now respects the existing port-offset setting. The accepted browser run uses
+isolated local state and ports; these setup failures are excluded from results.

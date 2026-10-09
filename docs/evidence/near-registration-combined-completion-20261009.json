@@ -1,0 +1,198 @@
+{
+  "kind": "near_registration_combined_completion_local_evidence_v1",
+  "date": "2026-10-09",
+  "scope": "Local Chromium, real Wallet SDK and custody Workers, Console and four regional Gateway compositions backed by D1. No deployment or latency comparison.",
+  "publicBaseCommit": "f1293f2b4a1b92efdecd3ba9c797ce2e2b338a87",
+  "privateBaseCommit": "b4bc265a4d3fd570e8c26a62b233b3a56b286804",
+  "publicSourceSha256": {
+    "packages/wallet-server/src/authorization/service.ts": "2c52fec3ed1033a7b59afc05a330a190bb0dc405760d64c95d92e86821dfc041",
+    "packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletExecutionAuthority.ts": "aca94bc08722a26b98577dab0835c296f47c7a52cf8e7ee564e2d6c651e08438",
+    "packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationService.ts": "d49b016b27f1b5c85921200c89e49c05e7c1809e19a27e9a78e874cb46450e6b",
+    "packages/wallet-server/src/router/cloudflare/d1/registration/walletRegistrationEstablishedSessionIssuer.ts": "13df03819281b0e239648869624f69c46d691608ec7f7bcf1ec3f5a96b2cfd8a",
+    "packages/wallet-server/src/router/domains/walletRegistration/walletRegistrationReservation.ts": "dd3cf8197b1960c967951cef58b5e2930b50a551210f9ff095eb22d142ad341b"
+  },
+  "privateSourceSha256": {
+    "packages/wallet-console-server-ts/src/walletPlacement/registrationAdmission.ts": "5f15005e76a653d3abc34d85390c918d2a50335487f3651df8bbd0bf56ac39ff",
+    "packages/wallet-console-server-ts/src/walletPlacement/service.ts": "7d6e364175bdc121a5396434f20f0ffc25f9b6f5367d2c0badee4c4e1b711c14",
+    "packages/wallet-console-server-ts/src/walletPlacement/serviceClient.ts": "a92e744815eb331460817c84d8a71b9a399628dd9c8bc9b36e1ea5c1936a9bea",
+    "tests/e2e/regional-real/registration-completion.scenario.ts": "8f598d6e8e45543e0458032973988e61d196fac1c18beb8418f9fc992ef714dc"
+  },
+  "counts": {
+    "normalConsoleRequests": 7,
+    "previousPhase6AOConsoleRequests": 9,
+    "normalGatewayRequests": 8,
+    "registrationStatusRequests": 2,
+    "firstSignatureStatusRequests": 0,
+    "firstSignatureRequests": 2,
+    "completeD1Counts": "not measured",
+    "reservedDirectoryRereadsRemoved": 1
+  },
+  "normal": {
+    "consoleRequests": [
+      "/internal/wallet-console/v1/registration-context",
+      "/internal/wallet-placement/v1/reserve",
+      "/internal/wallet-placement/v1/registration-home",
+      "/internal/wallet-console/v1/tenant-root/active-lineage",
+      "/internal/wallet-placement/v1/claim-passkey",
+      "/internal/wallet-placement/v1/publish-routes",
+      "/internal/wallet-placement/v1/complete"
+    ],
+    "signature": {
+      "message": "Combined registration completion through OC",
+      "recipient": "checkout.example",
+      "state": "quote-170",
+      "success": true,
+      "accountId": "63aaca3399a343e1b71144a84c138d10af87407dc7061866c4d129cff5b9daf3",
+      "publicKey": "ed25519:7i4QkWuEkutr55fEDw5XaAGWQKB5hgy49HyipENha1G6",
+      "signature": "Fx0zL/19Bvf/a5dC6drviUYvrt4K/hwIucrahCLvY18tSHQdJksLF77rDZqiAOK+xpJYvOQn6mR1LpnODrC+Bw==",
+      "nonce": "p4W/3OOPbzD19xTikUwm/s7qGzWJU8pOG5gJJHGWQv4=",
+      "digestHex": "bf6e936cb08806e9868486225ffffd8ba8d57c7476429414e9c6d85f429b5458",
+      "verification": {
+        "standardPayload": true,
+        "changedMessageRejected": true,
+        "changedRecipientRejected": true,
+        "changedNonceRejected": true,
+        "changedCallbackUrlRejected": true,
+        "stateExcludedFromPayload": true,
+        "stateReturnedUnchanged": true
+      }
+    },
+    "signingIngress": "OC",
+    "signingConsoleCalls": 0,
+    "gatewayRequests": [
+      {
+        "stage": "registration",
+        "path": "/wallets/register/setup"
+      },
+      {
+        "stage": "registration",
+        "path": "/wallets/register/respond"
+      },
+      {
+        "stage": "registration",
+        "path": "/router-ab/ed25519/yao/registration/execute"
+      },
+      {
+        "stage": "registration",
+        "path": "/wallets/register/near-provisioning"
+      },
+      {
+        "stage": "registration",
+        "path": "/wallet/session/status"
+      },
+      {
+        "stage": "registration",
+        "path": "/wallet/session/status"
+      },
+      {
+        "stage": "first_signature",
+        "path": "/router-ab/ed25519/sign/prepare"
+      },
+      {
+        "stage": "first_signature",
+        "path": "/router-ab/ed25519/sign"
+      }
+    ]
+  },
+  "lostCompletionReply": {
+    "registrationConsoleRequests": [
+      "/internal/wallet-console/v1/registration-context",
+      "/internal/wallet-placement/v1/reserve",
+      "/internal/wallet-placement/v1/registration-home",
+      "/internal/wallet-console/v1/tenant-root/active-lineage",
+      "/internal/wallet-placement/v1/claim-passkey",
+      "/internal/wallet-placement/v1/publish-routes",
+      "/internal/wallet-placement/v1/complete",
+      "/internal/wallet-placement/v1/publish-routes",
+      "/internal/wallet-placement/v1/complete"
+    ],
+    "statuses": [
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      200
+    ],
+    "identicalCompletionRetries": 2,
+    "signingFencedUntilCompletionAcknowledged": true,
+    "exactMethodUnlockRequired": true,
+    "signature": {
+      "message": "Recovered combined completion",
+      "recipient": "checkout.example",
+      "state": "quote-170",
+      "success": true,
+      "accountId": "c3cf86336b8f4efcc438b5dbd46586a87e2a17622f1fedc2ad5ff5f7d21629b7",
+      "publicKey": "ed25519:EBN37uuRnCxAmB6zJi1rbVPJnEbW1Dmsm8eD1fuYKJCN",
+      "signature": "HkYRiEljMdZLYpMd2H8IUDlUPes6v/yVr5NYLeNc1OtGMYPeqxnpD2uBwG0X3PVLfe3sa+bu19HJ3Fz+MaouCg==",
+      "nonce": "8Ca28P8u/txFnAjy6qDiSRNnCNhjFw3ehSM8TykRJuA=",
+      "digestHex": "29b6b6abb2c1f2b4e059448e8c9396d51774b0045b4bd7e1049b70cd3a3780a4",
+      "verification": {
+        "standardPayload": true,
+        "changedMessageRejected": true,
+        "changedRecipientRejected": true,
+        "changedNonceRejected": true,
+        "changedCallbackUrlRejected": true,
+        "stateExcludedFromPayload": true,
+        "stateReturnedUnchanged": true
+      }
+    },
+    "signingConsoleCalls": 0
+  },
+  "latency": {
+    "previousHostedFinalizationMedianMs": 2190,
+    "candidateHostedLatency": "not measured",
+    "saving": "not measured",
+    "note": "Do not compare the old nested session-issue timer with the new timer, which includes home completion."
+  },
+  "validation": {
+    "serverBuild": "passed",
+    "serverTypecheck": "passed",
+    "domainTypeFixtures": "passed",
+    "directoryAndRelocationE2E": "2 passed",
+    "browserContracts": "2 passed",
+    "authorizationStorageTransferE2E": "passed",
+    "privateFullTypecheck": "same six pre-existing errors; none in changed behavior"
+  },
+  "reproduction": [
+    "SEAMS_WALLET_SERVER_CANDIDATE=<matching-wallet-root>/packages/wallet-server pnpm -C tests exec playwright test -c playwright.relayer.config.ts relayer/wallet-home-directory.e2e.test.ts relayer/wallet-relocation-directory.e2e.test.ts --reporter=line",
+    "SEAMS_WALLET_SERVER_CANDIDATE=<matching-wallet-root>/packages/wallet-server node tests/scripts/run-regional-real.mjs passkey.registration.contract.test.ts --grep \"NEAR registration (combines|recovers)\"",
+    "In seams-wallet: node tests/e2e/authorization-storage-transfer.e2e.mjs"
+  ],
+  "rawArtifacts": {
+    "public": ".artifacts/r155b-phase6ap",
+    "private": ".artifacts/r155b-registration-completion"
+  },
+  "limitations": [
+    "No hosted timing, tail latency, or total D1 count.",
+    "The lost reply exercises the existing 30-second operation-claim recovery window.",
+    "The original token cannot be reconstructed after a lost response; exact-method unlock obtains a usable credential.",
+    "ECDSA uses the same completion contract; this browser comparison uses NEAR only."
+  ],
+  "liveChanges": false,
+  "r155cTransportChanged": false
+}

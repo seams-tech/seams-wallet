@@ -3875,7 +3875,9 @@ export class CloudflareD1WalletRegistrationService {
           : ownerProofContext.expiresAtMs,
     });
     const sessionStartedAtMs = Date.now();
+    if (!this.registrationAuthority) throw new Error('Registration home completion is unavailable');
     const issuedRegistrationSession = await issueDirectRegistrationEstablishedEd25519Session({
+      homeCompletion: this.registrationAuthority,
       authorizationService: this.authorizationService,
       authorizationTenantId: this.authorizationTenantId,
       walletAuthMethods: this.walletAuthMethods,
@@ -4229,18 +4231,6 @@ export class CloudflareD1WalletRegistrationService {
           nearProvisioning: { status: 'near_failed_retryable' },
         };
       }
-      const completionStartedAtMs = Date.now();
-      const completedHome = await completeRegistrationReservation(this.registrationAuthority, {
-        ceremonyId: input.registrationCeremonyId,
-        walletId: walletIdFromString(committed.walletId),
-        outcome: 'established',
-      });
-      recordRegistrationServerTiming(
-        serverTiming,
-        'near_finalize_home_completion',
-        completionStartedAtMs,
-      );
-      if (!completedHome.ok) return completedHome;
       const cleanupStartedAtMs = Date.now();
       const cleanup = recordRegistrationPromiseTiming({
         sink: serverTiming,
@@ -4616,17 +4606,6 @@ export class CloudflareD1WalletRegistrationService {
       switch (run.kind) {
         case 'executed':
         case 'exact_replay': {
-          if (run.value.response.ok) {
-            const completedHome = await completeRegistrationReservation(
-              this.registrationAuthority,
-              {
-                ceremonyId: claims.registrationCeremonyId,
-                walletId: walletIdFromString(run.value.response.walletId),
-                outcome: 'established',
-              },
-            );
-            if (!completedHome.ok) return completedHome;
-          }
           if (run.value.response.ok && run.value.response.kind === 'evm_family_ecdsa') {
             await cleanupFinalizedRegistrationCeremony({
               store: this.getRegistrationCeremonyIntentStore(),
@@ -4808,7 +4787,9 @@ export class CloudflareD1WalletRegistrationService {
     if (!runtimePolicyScope) {
       throw new Error('ECDSA registration is missing runtime policy scope');
     }
+    if (!this.registrationAuthority) throw new Error('Registration home completion is unavailable');
     const registrationEstablishedSession = await issueDirectRegistrationEstablishedEcdsaSession({
+      homeCompletion: this.registrationAuthority,
       authorizationService: this.authorizationService,
       authorizationTenantId: this.authorizationTenantId,
       walletAuthMethods: this.walletAuthMethods,

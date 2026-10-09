@@ -30,5 +30,22 @@ import type { PublishPendingWalletRegistrationCommitInputV1 } from '../../packag
 type SessionPublication = PublishPendingWalletRegistrationCommitInputV1['walletSessionPublication'];
 declare const issued: Extract<SessionPublication, { kind: 'issued' }>;
 // @ts-expect-error A broad spread must not carry an operation credential into credential-free recovery.
-const credentialInProjection: SessionPublication = { ...issued, kind: 'credential_free_projection' };
+const credentialInProjection: SessionPublication = {
+  ...issued,
+  kind: 'credential_free_projection',
+};
 void credentialInProjection;
+
+import type { WalletRegistrationReservationAuthority } from '../../packages/wallet-server/src/router/domains/walletRegistration/walletRegistrationReservation';
+type RegistrationCompletion = Parameters<WalletRegistrationReservationAuthority['complete']>[0];
+declare const established: Extract<RegistrationCompletion, { outcome: 'established' }>;
+declare const completionIdentity: Pick<RegistrationCompletion, 'ceremonyId' | 'walletId'>;
+// @ts-expect-error Establishing a home requires the committed session locator.
+const completionWithoutSession: RegistrationCompletion = {
+  ...completionIdentity,
+  outcome: 'established',
+};
+// @ts-expect-error Cancellation cannot publish a session, including through a broad spread.
+const cancellationWithSession: RegistrationCompletion = { ...established, outcome: 'cancelled' };
+void completionWithoutSession;
+void cancellationWithSession;

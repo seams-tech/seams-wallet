@@ -482,9 +482,11 @@ throughout the resize. Reduced-motion behavior remains immediate.
 - Hosted setup fails closed without its reservation authority or at a different
   physical D1 resource. The local standalone host provides a persistent local
   authority for development.
-- After a committed registration receipt, Console must atomically commit the
-  wallet's established home and its display row before ceremony cleanup. A lost
-  completion reply is reconciled idempotently. Exact retries preserve later display
+- Registration commits its session locally, then publishes the session locator and
+  completes the home in one Console request. Console atomically commits the
+  established home and its display row. The Gateway acknowledges completion before
+  it enables ordinary signing or saves the completed registration receipt. A lost
+  reply is reconciled with the original session digest and expiry. Exact retries preserve later display
   updates. Definitive registration cancellation records the terminal outcome
   before local deletion; cancelled operations cannot resume. Established setup
   replay returns the saved response without recreating a mutable ceremony.

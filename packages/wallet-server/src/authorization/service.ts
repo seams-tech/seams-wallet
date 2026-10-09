@@ -1,4 +1,7 @@
-import type { WalletSessionRoutingPublisher } from './sessionRouting';
+import type {
+  WalletSessionLocatorPublication,
+  WalletSessionRoutingPublisher,
+} from './sessionRouting';
 import type { D1EcdsaAdmissionPolicyRead } from '../router/cloudflare/d1/signingAdmission/d1RouterAbNormalSigningAdmissionStore';
 import type { EcdsaMaterialRead } from '../core/d1EcdsaSignerRead';
 import type { D1PreparedStatementLike } from '../storage/tenantRoute';
@@ -467,24 +470,21 @@ export class AuthorizationService {
   async issueDirectWalletSessionAuthorizationV2(
     input: IssueWalletSessionAuthorizationV2Input,
   ): Promise<DirectV2IssueResult> {
-    return await this.issueDirectWalletSessionAuthorizationV2WithReplayMode(input, {
+    const committed = await this.commitDirectWalletSessionAuthorizationV2(input, {
       kind: 'strict',
     });
+    await this.ports.sessionRouting?.publish(committed.publication);
+    return committed.result;
   }
 
-  /** The Ed25519 registration caller validates current authority and owner proof first. */
-  async issueDirectRegistrationPromotedWalletSessionAuthorizationV2(
-    input: IssueWalletSessionAuthorizationV2Input,
-  ): Promise<DirectV2IssueResult> {
-    return await this.issueDirectWalletSessionAuthorizationV2WithReplayMode(input, {
-      kind: 'validated_registration_authority_projection',
-    });
-  }
-
-  private async issueDirectWalletSessionAuthorizationV2WithReplayMode(
+  /** Commits locally. Registration publishes the locator with home completion. */
+  async commitDirectWalletSessionAuthorizationV2(
     input: IssueWalletSessionAuthorizationV2Input,
     replayMode: DirectWalletSessionReplayMode,
-  ): Promise<DirectV2IssueResult> {
+  ): Promise<{
+    readonly result: DirectV2IssueResult;
+    readonly publication: WalletSessionLocatorPublication & { readonly kind: 'credential' };
+  }> {
     if (input.authority.walletId !== input.walletId) {
       throw new Error('Wallet Session authorization authority does not identify the wallet');
     }
@@ -499,26 +499,43 @@ export class AuthorizationService {
     const prepared = await this.prepareWalletSessionAuthorizationV2(input);
     const alreadyCommitted = await this.ports.grants.readWalletSessionAuthorizationV2ByMint(lookup);
     if (alreadyCommitted) {
-      return directV2AlreadyCommitted(prepared.session, alreadyCommitted.session, replayMode);
+      return {
+        result: directV2AlreadyCommitted(prepared.session, alreadyCommitted.session, replayMode),
+        publication: committedSessionPublication(alreadyCommitted),
+      };
     }
 
     const { persisted, operationCredential } =
-      await this.prepareDirectWalletSessionCredential(prepared);
+      await this.createDirectWalletSessionCredential(prepared);
     const commit = await this.ports.grants.commitDirectReplayableWalletSessionAuthorizationV2({
       persisted,
     });
     if (commit.kind === 'already_committed') {
-      return directV2AlreadyCommitted(prepared.session, commit.committed.session, replayMode);
+      return {
+        result: directV2AlreadyCommitted(prepared.session, commit.committed.session, replayMode),
+        publication: committedSessionPublication(commit.committed),
+      };
     }
     return {
-      kind: 'issued',
-      session: prepared.session,
-      quota: prepared.quota,
-      operationCredential,
+      result: {
+        kind: 'issued',
+        session: prepared.session,
+        quota: prepared.quota,
+        operationCredential,
+      },
+      publication: committedSessionPublication(persisted),
     };
   }
 
   async prepareDirectWalletSessionCredential(prepared: PreparedWalletSessionAuthorizationV2) {
+    const credential = await this.createDirectWalletSessionCredential(prepared);
+    await this.ports.sessionRouting?.publish(committedSessionPublication(credential.persisted));
+    return credential;
+  }
+
+  private async createDirectWalletSessionCredential(
+    prepared: PreparedWalletSessionAuthorizationV2,
+  ) {
     const ownershipGeneration = await this.ports.grants.readWalletSessionIssuanceGeneration(
       prepared.session.walletId,
     );
@@ -534,12 +551,6 @@ export class AuthorizationService {
       session: prepared.session,
       quota: prepared.quota,
       primaryOperationCredentialDigestB64u: await digestOpaqueValue(token),
-    });
-    await this.ports.sessionRouting?.publish({
-      kind: 'credential',
-      digest: persisted.primaryOperationCredentialDigestB64u,
-      walletId: prepared.session.walletId,
-      expiresAtMs: prepared.session.expiresAtMs,
     });
     return { persisted, operationCredential };
   }
@@ -923,4 +934,18 @@ function parseRequired<T>(
   const parsed = parser(value);
   if (!parsed.ok) throw new Error('generated authorization identifier was invalid');
   return parsed.value;
+}
+
+function committedSessionPublication(
+  committed: Pick<
+    WalletSessionAuthorizationV2MintRead,
+    'session' | 'primaryOperationCredentialDigestB64u'
+  >,
+): WalletSessionLocatorPublication & { readonly kind: 'credential' } {
+  return {
+    kind: 'credential',
+    digest: committed.primaryOperationCredentialDigestB64u,
+    walletId: committed.session.walletId,
+    expiresAtMs: committed.session.expiresAtMs,
+  };
 }

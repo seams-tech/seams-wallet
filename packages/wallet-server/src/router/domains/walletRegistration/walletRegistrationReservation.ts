@@ -1,3 +1,4 @@
+import type { WalletSessionLocatorPublication } from '../../../authorization/sessionRouting';
 import { parseDeviceId, type DeviceId } from '@shared/authorization/capabilityKinds';
 import { alphabetizeStringify, sha256HexUtf8 } from '@shared/utils/digests';
 import {
@@ -73,11 +74,18 @@ export interface WalletRegistrationReservationAuthority {
     readonly ceremonyId: string;
     readonly walletId: WalletId;
   }): Promise<RegistrationHomeAdmission>;
-  complete(input: {
-    readonly ceremonyId: string;
-    readonly walletId: WalletId;
-    readonly outcome: 'established' | 'cancelled';
-  }): Promise<ReservationOutcome>;
+  complete(
+    input: {
+      readonly ceremonyId: string;
+      readonly walletId: WalletId;
+    } & (
+      | {
+          readonly outcome: 'established';
+          readonly session: WalletSessionLocatorPublication & { readonly kind: 'credential' };
+        }
+      | { readonly outcome: 'cancelled'; readonly session?: never }
+    ),
+  ): Promise<ReservationOutcome>;
 }
 
 function requireId<T>(

@@ -1,7 +1,10 @@
 import { prepareD1TenantStatement, type D1TenantScope } from '../../../../core/d1TenantStore';
 import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
 import type { D1DatabaseLike } from '../../../../storage/tenantRoute';
-import type { WalletExecutionAuthority, WalletRegistrationReservationAuthority } from '../../../domains/walletRegistration/walletRegistrationReservation';
+import type {
+  WalletExecutionAuthority,
+  WalletRegistrationReservationAuthority,
+} from '../../../domains/walletRegistration/walletRegistrationReservation';
 
 type Authority = WalletRegistrationReservationAuthority;
 type HomeAdmission = Awaited<ReturnType<Authority['admitHome']>>;
@@ -44,10 +47,9 @@ export class D1WalletExecutionAuthority implements Authority, WalletExecutionAut
           if (local.registration_completion !== 'established') {
             throw new Error('Registration completion state is invalid');
           }
-          // Republish the fixed decision after a lost reply before enabling signing.
-          const completed = await this.complete({ ...input, outcome: 'established' });
-          if (!completed.ok) return completed;
-          return this.admitEstablishedHome({ walletId: input.walletId });
+          // Issuance retry republishes the committed session and home together.
+          // Keep signing fenced until that publication is acknowledged.
+          return { ok: true, purpose: 'registration', ownershipGeneration: local.generation };
         case 'retired':
           if (local.registration_completion === 'cancelled') {
             const published = await this.complete({ ...input, outcome: 'cancelled' });
