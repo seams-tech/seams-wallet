@@ -11,6 +11,9 @@ import {
 import type { WalletRegistrationSetupInput } from './router/domains/walletRegistration/walletRegistrationInputs';
 
 // The standalone local host simulates Console with one persistent local authority.
+/** The standalone host never relocates a wallet, so every wallet keeps its first generation. */
+const LOCAL_OWNERSHIP_GENERATION = 1;
+
 export class LocalRegistrationSetupAuthority implements WalletRegistrationReservationAuthority {
   private readonly storage: D1RegistrationCeremonyRecordStore;
 
@@ -70,6 +73,7 @@ export class LocalRegistrationSetupAuthority implements WalletRegistrationReserv
     return {
       ok: true,
       reservation,
+      ownershipGeneration: LOCAL_OWNERSHIP_GENERATION,
       lifecycle: terminal?.value.outcome === 'established' ? 'established' : 'reserved',
     };
   }
@@ -91,7 +95,7 @@ export class LocalRegistrationSetupAuthority implements WalletRegistrationReserv
     }
     return {
       ok: true,
-      ownershipGeneration: 1,
+      ownershipGeneration: LOCAL_OWNERSHIP_GENERATION,
       purpose: terminal?.value.outcome === 'established' ? 'ordinary' : 'registration',
     };
   }

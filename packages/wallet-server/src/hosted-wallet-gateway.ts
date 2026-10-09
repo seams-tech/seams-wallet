@@ -477,6 +477,7 @@ async function createStagingRouterApiAuthComposition(
   yaoRuntime: RouterAbEd25519YaoProductRegistrationRuntimeV1,
   tenantRootCustodyLineage: CloudflareD1RouterApiAuthServiceOptions['tenantRootCustodyLineage'],
   dependencies: HostedWalletGatewayDependenciesV1,
+  startRegistrationWallets?: CloudflareD1RouterApiAuthServiceOptions['startRegistrationWallets'],
 ) {
   const ecdsaCeremonyTokenIssuer = createStagingEcdsaCeremonyTokenIssuer(env);
   const topology = requireStagingEcdsaRegistrationTopology(env);
@@ -505,6 +506,7 @@ async function createStagingRouterApiAuthComposition(
     recoveryRouting: dependencies.recoveryRouting,
     lifecycleRouting: dependencies.lifecycleRouting,
     registrationAuthority: dependencies.registrationAuthority,
+    startRegistrationWallets,
     credentialClaims: dependencies.credentialClaims,
     syncChallenges: dependencies.syncChallenges,
     linkedDeviceProofNonces: dependencies.linkedDeviceProofNonces,
@@ -735,7 +737,6 @@ export async function createHostedWalletGatewayCompositionV1(
   const yaoRuntime = createStagingYaoRequestScopedRuntime(
     env,
     createStagingRegistrationTenantRootResolver(scope, tenantRootCustodyLineage),
-    background ? scheduleRegistrationRouterStartup.bind(undefined, env, background) : undefined,
   );
   const { service, ecdsaStrictPostRegistration } = await createStagingRouterApiAuthComposition(
     env,
@@ -743,6 +744,7 @@ export async function createHostedWalletGatewayCompositionV1(
     yaoRuntime,
     tenantRootCustodyLineage,
     dependencies,
+    background ? scheduleRegistrationRouterStartup.bind(undefined, env, background) : undefined,
   );
   const tenantId = parseTenantId(scope.orgId);
   if (!tenantId.ok) throw new Error('Wallet placement authorization tenant is invalid');
@@ -1308,15 +1310,11 @@ async function loadStagingPersistedActiveCapability(
 function createStagingYaoRequestScopedRuntime(
   env: CloudflareD1GatewayBaseEnv,
   resolveTenantRoot: RouterAbEd25519YaoTenantRootResolverV1,
-  onRegistrationIntentBound?: Parameters<
-    typeof createRouterAbEd25519YaoProductRegistrationRequestScopedRuntimeV1
-  >[0]['onRegistrationIntentBound'],
 ): RouterAbEd25519YaoProductRegistrationRuntimeV1 {
   return createRouterAbEd25519YaoProductRegistrationRequestScopedRuntimeV1({
     signingWorkerId: requireEnvString(env, 'SIGNING_WORKER_ID'),
     store: createStagingYaoPartitionedStateStore(env),
     registrationBackend: createStagingEd25519YaoBackend(env, resolveTenantRoot),
-    onRegistrationIntentBound,
     loadPersistedActiveCapability: loadStagingPersistedActiveCapability.bind(undefined, env),
   });
 }

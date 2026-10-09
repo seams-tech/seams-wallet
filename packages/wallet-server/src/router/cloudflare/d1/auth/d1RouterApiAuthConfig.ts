@@ -8,7 +8,11 @@ import type { WalletLifecycleRoutingPublisher } from '../../../../authorization/
 import type { WalletRecoveryRoutingPublisher } from '../../../../authorization/recoveryRouting';
 import type { WalletSessionRoutingPublisher } from '../../../../authorization/sessionRouting';
 import type { WalletRegistrationSetupDispatcher } from '../../../framework/registrationSetupDispatch';
-import type { WalletExecutionAuthority, WalletRegistrationReservationAuthority } from '../../../domains/walletRegistration/walletRegistrationReservation';
+import type {
+  RegistrationWalletStarter,
+  WalletExecutionAuthority,
+  WalletRegistrationReservationAuthority,
+} from '../../../domains/walletRegistration/walletRegistrationReservation';
 import { admitD1EstablishedWalletHome, D1WalletExecutionAuthority } from '../registration/d1WalletExecutionAuthority';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import { parseWebAuthnRpId } from '@shared/utils/domainIds';
@@ -167,6 +171,7 @@ export interface CloudflareD1RouterApiAuthServiceOptions {
   readonly recoveryRouting?: WalletRecoveryRoutingPublisher;
   readonly registrationSetupDispatcher?: WalletRegistrationSetupDispatcher;
   readonly registrationAuthority?: WalletRegistrationReservationAuthority;
+  readonly startRegistrationWallets?: RegistrationWalletStarter;
   readonly database: D1DatabaseLike;
   readonly namespace: string;
   readonly orgId: string;

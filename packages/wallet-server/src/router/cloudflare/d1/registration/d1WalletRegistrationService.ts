@@ -249,6 +249,7 @@ import type {
 } from '../../../domains/walletRegistration/walletRegistrationInputs';
 import type {
   WalletExecutionAuthority,
+  RegistrationWalletStarter,
   WalletRegistrationReservationAuthority,
 } from '../../../domains/walletRegistration/walletRegistrationReservation';
 import type { WalletRegistrationSetupClaimsV1 } from '../../../domains/walletRegistration/walletRegistrationSetupPayload';
@@ -1965,11 +1966,13 @@ export class CloudflareD1WalletRegistrationService {
   private readonly yaoLifecycleDecisions: CloudflareD1Ed25519YaoLifecycleDecisionStoreV1;
 
   private readonly home: WalletSessionHome;
+  private readonly startRegistrationWallets: RegistrationWalletStarter | null;
 
   constructor(input: {
     readonly home: WalletSessionHome;
     readonly executionAuthority: WalletExecutionAuthority;
     readonly registrationAuthority: WalletRegistrationReservationAuthority | null;
+    readonly startRegistrationWallets: RegistrationWalletStarter | null;
     readonly authorizationService: AuthorizationService;
     readonly authorizationTenantId: TenantId;
     readonly createSponsoredNamedNearAccount: SponsoredNamedNearAccountCreator;
@@ -1990,6 +1993,7 @@ export class CloudflareD1WalletRegistrationService {
     this.home = input.home;
     this.executionAuthority = input.executionAuthority;
     this.registrationAuthority = input.registrationAuthority;
+    this.startRegistrationWallets = input.startRegistrationWallets;
     this.authorizationService = input.authorizationService;
     this.authorizationTenantId = input.authorizationTenantId;
     this.createSponsoredNamedNearAccount = input.createSponsoredNamedNearAccount;
@@ -3046,6 +3050,7 @@ export class CloudflareD1WalletRegistrationService {
       reservation: this.registrationAuthority,
       store: this.getRegistrationCeremonyIntentStore(),
       ecdsaStrictRegistration: this.ecdsaStrictRegistration,
+      startRegistrationWallets: this.startRegistrationWallets,
     });
   }
 

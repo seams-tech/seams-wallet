@@ -28,6 +28,8 @@ export type WalletRegistrationSetupReservationResult =
   | {
       readonly ok: true;
       readonly reservation: WalletRegistrationSetupReservation;
+      /** The ownership generation the reserved wallet's custody objects are named by. */
+      readonly ownershipGeneration: number;
       readonly lifecycle: 'reserved' | 'established';
       readonly code?: never;
       readonly message?: never;
@@ -37,8 +39,15 @@ export type WalletRegistrationSetupReservationResult =
       readonly code: string;
       readonly message: string;
       readonly reservation?: never;
+      readonly ownershipGeneration?: never;
       readonly lifecycle?: never;
     };
+
+/** Starts a reserved wallet's custody objects. It grants no authority and may fail. */
+export type RegistrationWalletStarter = (registration: {
+  readonly walletId: WalletId;
+  readonly ownershipGeneration: number;
+}) => void;
 
 type ReservationOutcome =
   | { readonly ok: true }

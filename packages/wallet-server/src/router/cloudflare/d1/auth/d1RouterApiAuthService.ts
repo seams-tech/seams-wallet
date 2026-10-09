@@ -1376,6 +1376,7 @@ function createCloudflareD1RouterApiAuthAssembly(
     executionAuthority: options.walletExecution,
     home: options.sessionRouting?.home() ?? { kind: 'direct' },
     registrationAuthority: options.registrationAuthority ?? null,
+    startRegistrationWallets: options.startRegistrationWallets ?? null,
     authorizationService,
     authorizationTenantId: authorizationTenantId.value,
     createSponsoredNamedNearAccount,

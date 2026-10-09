@@ -14,7 +14,10 @@ import {
   type RouterAbEcdsaStrictRegistrationPort,
 } from '../../../domains/ecdsa/routerAbEcdsaStrictRegistration';
 import type { WalletRegistrationSetupInput } from '../../../domains/walletRegistration/walletRegistrationInputs';
-import type { WalletRegistrationReservationAuthority } from '../../../domains/walletRegistration/walletRegistrationReservation';
+import type {
+  RegistrationWalletStarter,
+  WalletRegistrationReservationAuthority,
+} from '../../../domains/walletRegistration/walletRegistrationReservation';
 import { buildD1EvmFamilyEcdsaRegistrationPrepare } from './d1EvmFamilyEcdsaRegistrationBranch';
 import {
   buildRegistrationIntent,
@@ -42,6 +45,7 @@ export async function executeD1WalletRegistrationSetup(
     readonly reservation: WalletRegistrationReservationAuthority | null;
     readonly store: CloudflareD1RegistrationCeremonyIntentStore;
     readonly ecdsaStrictRegistration: RouterAbEcdsaStrictRegistrationPort;
+    readonly startRegistrationWallets: RegistrationWalletStarter | null;
   },
 ): Promise<WalletRegistrationSetupResponseV2> {
   try {
@@ -212,6 +216,14 @@ export async function executeD1WalletRegistrationSetup(
       signerState: { kind: 'signer_set_registration', branches: storedBranches },
     };
     const stored = await dependencies.store.reserveSetupCeremony(ceremony);
+    /* The proof and the Yao admission follow within seconds. Starting the
+       wallet's custody objects now lets that time cover their construction.
+       A replayed setup takes the branch above and starts nothing again. */
+    if (nearEd25519Branch)
+      dependencies.startRegistrationWallets?.({
+        walletId: wallet.walletId,
+        ownershipGeneration: admitted.ownershipGeneration,
+      });
     return await setupResponseFromCeremony(input, dependencies.home, stored);
   } catch (error: unknown) {
     return walletRegistrationSetupError(

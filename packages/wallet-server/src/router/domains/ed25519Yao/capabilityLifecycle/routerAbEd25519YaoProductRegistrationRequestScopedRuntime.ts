@@ -40,18 +40,12 @@ import {
   routerAbEd25519YaoRegistrationResultFromRouterAnswerV1,
 } from '../registration/routerAbEd25519YaoRegistrationExecutionRecord';
 import type { RouterAbEd25519YaoTenantRootWireV1 } from '../routerAbEd25519YaoGatewayEnvelope';
-import type { WalletId } from '@shared/utils/registrationIntent';
 
 export type RouterAbEd25519YaoProductRegistrationRequestScopedRuntimeInputV1 = {
   readonly signingWorkerId: string;
   readonly store: RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1;
   /** The Router, which owns each registration's execution and its consumption. */
   readonly registrationBackend: RouterAbEd25519YaoPinnedRegistrationBackend;
-  /** Best-effort startup after the registration proof and wallet binding are verified. */
-  readonly onRegistrationIntentBound?: (input: {
-    readonly walletId: WalletId;
-    readonly ownershipGeneration: number;
-  }) => void;
   /** Loads one canonical signer record for an existing-wallet capability miss. */
   readonly loadPersistedActiveCapability?: (
     input: RouterAbEd25519YaoActiveCapabilityLookupV1,
@@ -104,20 +98,12 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
       const loaded = await this.input.store.loadRegistration(
         input.admissionRequest.scope.lifecycle_id,
       );
-      const authorityCount = loaded.state.authorization.authorities.length;
       const result = await new InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter(
         loaded.state.authorization,
       ).bindVerifiedIntent(input);
       if (!result.ok) return result;
-      const created = loaded.state.authorization.authorities.length > authorityCount;
       const committed = await this.input.store.commitRegistration(loaded);
       if (committed.kind !== 'stored') continue;
-      if (created && input.kind === 'verified_registration_intent') {
-        this.input.onRegistrationIntentBound?.({
-          walletId: input.intent.walletId,
-          ownershipGeneration: input.ownershipGeneration,
-        });
-      }
       return result;
     }
     throw new Error('Registration intent remained contended after one reconciliation');
@@ -130,7 +116,6 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
       input,
       store: this.input.store,
       backend: this.input.registrationBackend,
-      onRegistrationIntentBound: this.input.onRegistrationIntentBound,
     });
   }
 
@@ -262,7 +247,6 @@ async function bindAndAdmitVerifiedRegistration(input: {
   readonly input: RouterAbEd25519YaoVerifiedActivationIntentV1;
   readonly store: RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1;
   readonly backend: RouterAbEd25519YaoPinnedRegistrationBackend;
-  readonly onRegistrationIntentBound: RouterAbEd25519YaoProductRegistrationRequestScopedRuntimeInputV1['onRegistrationIntentBound'];
 }): Promise<RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1> {
   const lifecycleId = input.input.admissionRequest.scope.lifecycle_id;
   let backendResult: RouterAbEd25519YaoRegistrationBackendResult | null = null;
@@ -288,13 +272,6 @@ async function bindAndAdmitVerifiedRegistration(input: {
       };
     }
     if (preparation.kind === 'failed') return preparation.failure;
-
-    if (attempt === 0 && input.input.kind === 'verified_registration_intent') {
-      input.onRegistrationIntentBound?.({
-        walletId: input.input.intent.walletId,
-        ownershipGeneration: input.input.ownershipGeneration,
-      });
-    }
 
     if (dispatchRoot === null) {
       try {
