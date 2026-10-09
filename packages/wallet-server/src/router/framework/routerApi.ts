@@ -14,6 +14,7 @@ import type {
   RouterApiProjectEnvironmentResolver,
   RouterApiPublishableKeyAuthAdapter,
   RouterApiUsageMeterAdapter,
+  WalletRegistrationContextResolver,
 } from './apiCredentialPorts';
 import type { SessionParseResult } from '../../core/sessionValidation';
 
@@ -244,6 +245,8 @@ export interface RouterApiOptions {
    * API credential routes like signed delegate execution.
    */
   publishableKeyAuth?: RouterApiPublishableKeyAuthAdapter | null;
+  /** Fresh credential and active-environment resolution for registration setup. */
+  registrationContext?: WalletRegistrationContextResolver | null;
   /**
    * Optional Router API usage-meter adapter used to emit host runtime events.
    */

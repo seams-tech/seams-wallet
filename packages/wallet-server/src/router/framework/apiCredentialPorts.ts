@@ -1,4 +1,5 @@
 import type { RouterApiKeyAuthFailureCode } from '@shared/utils/routerApiKeyAuth';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 export const ROUTER_API_CREDENTIAL_SCOPES = [
   'accounts.create',
@@ -64,7 +65,33 @@ export type RouterApiPublishableKeyAuthResult =
     };
 
 export interface RouterApiPublishableKeyAuthAdapter {
-  authenticate(input: RouterApiPublishableKeyAuthRequest): Promise<RouterApiPublishableKeyAuthResult>;
+  authenticate(
+    input: RouterApiPublishableKeyAuthRequest,
+  ): Promise<RouterApiPublishableKeyAuthResult>;
+}
+
+export type WalletRegistrationContextResult = ReadonlyExclusiveUnion<
+  | {
+      ok: true;
+      principal: RouterApiKeyPrincipal;
+      environment: RouterApiProjectEnvironment & { readonly status: 'ACTIVE' };
+    }
+  | {
+      ok: false;
+      status: 401 | 403;
+      code: RouterApiPublishableKeyAuthFailureCode;
+      message: string;
+    }
+  | {
+      ok: false;
+      status: 500;
+      code: 'registration_environment_unavailable';
+      message: string;
+    }
+>;
+
+export interface WalletRegistrationContextResolver {
+  resolve(input: RouterApiPublishableKeyAuthRequest): Promise<WalletRegistrationContextResult>;
 }
 
 export type RouterApiUsageMeterAction = 'wallet_created';

@@ -151,6 +151,7 @@ export function createWalletConsoleRelayProxyExtensionV1(
 type WalletGatewayManagedRouterOption =
   | 'apiKeyAuth'
   | 'publishableKeyAuth'
+  | 'registrationContext'
   | 'apiKeyUsageMeter'
   | 'orgProjectEnv'
   | 'routerAbNormalSigningAdmission'
@@ -177,6 +178,7 @@ export function createCloudflareWalletGatewayRouterV1(
     ...input.router,
     apiKeyAuth: consoleOps.apiKeyAuth,
     publishableKeyAuth: consoleOps.publishableKeyAuth,
+    registrationContext: consoleOps.registrationContext,
     apiKeyUsageMeter: consoleOps.usageMeter,
     orgProjectEnv: consoleOps.projectEnvironments,
     routerAbNormalSigningAdmission: createRouterAbNormalSigningAdmissionAdapter(admissionStore),

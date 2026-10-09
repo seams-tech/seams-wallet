@@ -9,6 +9,7 @@ export * from './core/routerAbSigning/RouterAbEcdsaPresignRuntime';
 export * from './core/types';
 export * from './delegateAction';
 export * from './router/framework/apiCredentialPorts';
+export { createWalletRegistrationContextResolver } from './router/auth/walletRegistrationContext';
 export * from './router/framework/applyRouteMetering';
 export * from './router/cloudflare-adaptor';
 export type {
@@ -255,7 +256,6 @@ export {
   requireRuntimePolicyScope,
 } from './router/cloudflare/d1/emailOtp/d1GoogleEmailOtpRegistrationRecords';
 export { prepareD1TenantStatement } from './core/d1TenantStore';
-
 
 export type { PasskeyCredentialClaims } from './core/passkeyCredentialClaims';
 

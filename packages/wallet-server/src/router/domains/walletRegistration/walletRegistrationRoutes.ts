@@ -1,3 +1,4 @@
+import type { WalletRegistrationContextResolver } from '../../framework/apiCredentialPorts';
 import { parseRegistrationSetupOperationId } from '@shared/utils/registrationSetupOperation';
 import type {
   WalletRegistrationNearProvisioningResponseV2,
@@ -8,7 +9,11 @@ import type {
 } from '../../../core/threeRouteRegistrationContracts';
 import type { RouterAbEcdsaRegistrationRequestV1 } from '@shared/utils/routerAbEcdsaDerivation';
 import type { WalletRegistrationAuthorityInput } from '../../../core/registrationContracts';
-import { resolvePublishableKeyApiCredentialAuth } from '../../auth/routerApiCredentialAuth';
+import {
+  resolvePublishableKeyApiCredentialAuth,
+  resolveWalletRegistrationContext,
+  publishableKeyRoutePrincipal,
+} from '../../auth/routerApiCredentialAuth';
 import { extractRouterApiEnvironmentId } from '../../auth/routerApiKeyAuth';
 import type { RouterApiPublishableKeyAuthAdapter } from '../../framework/routerApi';
 import type {
@@ -156,6 +161,7 @@ type RouterApiWalletRegistrationServices = {
   routerAbPublicKeyset?: RouterAbPublicKeysetV2 | null;
   session?: SessionAdapter | null;
   publishableKeyAuth?: RouterApiPublishableKeyAuthAdapter | null;
+  registrationContext?: WalletRegistrationContextResolver | null;
 };
 
 type ParsedRegistrationSignerSet = {
@@ -2047,18 +2053,32 @@ export async function handleRouterApiWalletRegistrationSetup(
       'Origin header is required and must be a valid exact origin',
     );
   }
-  const publishableKeyAuth = input.services.publishableKeyAuth;
-  if (!publishableKeyAuth) {
+  const registrationContext = input.services.registrationContext;
+  if (!registrationContext) {
     return routeError(
       500,
       'route_auth_not_configured',
-      'wallet registration setup requires publishable key auth on this server',
+      'Wallet registration context is not configured',
     );
   }
-  /* Publishable key only. The client authenticates directly, so there is no
-     bootstrap token to mint, store, and read back — and deliberately no
-     secret-key or bootstrap-token fallback, which would reintroduce the
-     credential the grant existed to carry. */
+  const context = await resolveWalletRegistrationContext({
+    environmentId: extractRouterApiEnvironmentId(input.headers) || undefined,
+    headers: input.headers,
+    missingEnvironmentMessage: 'Environment header is required for wallet registration setup',
+    missingOriginMessage: 'Origin header is required and must be a valid exact origin',
+    missingPublishableKeyMessage: 'Missing publishable key',
+    origin,
+    registrationContext,
+    route: input.route,
+    routeAuthNotConfiguredMessage: 'Wallet registration setup requires API credential auth policy',
+  });
+  if (!context.ok) {
+    if (context.status === 401)
+      return routeError(401, 'unauthorized', `${context.code}: ${context.message}`);
+    if (context.status === 403)
+      return routeError(403, 'forbidden', `${context.code}: ${context.message}`);
+    return routeError(context.status, 'internal', `${context.code}: ${context.message}`);
+  }
   const resolved = await enforceRoutePolicy({
     headers: input.headers,
     logger: input.logger,
@@ -2066,34 +2086,16 @@ export async function handleRouterApiWalletRegistrationSetup(
     route: input.route,
     services: walletRegistrationRoutePolicyServices(input),
     sourceIp: input.sourceIp,
-    resolvers: {
-      apiCredentials: async () =>
-        await resolvePublishableKeyApiCredentialAuth({
-          environmentId: extractRouterApiEnvironmentId(input.headers) || undefined,
-          headers: input.headers,
-          missingEnvironmentMessage: 'Environment header is required for wallet registration setup',
-          missingOriginMessage: 'Origin header is required and must be a valid exact origin',
-          missingPublishableKeyMessage: 'Missing publishable key',
-          origin,
-          publishableKeyAuth,
-          route: input.route,
-          routeAuthNotConfiguredMessage:
-            'Wallet registration setup requires API credential auth policy',
-        }),
-    },
+    resolvers: { apiCredentials: publishableKeyRoutePrincipal.bind(undefined, context.principal) },
   });
   if (!resolved.ok) return routeJson(resolved.status, resolved.body);
-  if (resolved.context.principal.kind !== 'api_credentials') {
-    return routeError(500, 'internal', 'wallet registration setup requires API credentials');
-  }
-  const principal = resolved.context.principal.principal;
-  const runtimePolicyScope = await resolveActiveRuntimePolicyScopeForEnvironment({
-    orgProjectEnv: input.services.orgProjectEnv || null,
+  const principal = context.principal;
+  const runtimePolicyScope = {
     orgId: principal.orgId,
-    environmentId: principal.environmentId,
-    projectId: principal.projectId,
-    envId: principal.envId,
-  });
+    projectId: context.environment.projectId,
+    envId: context.environment.key,
+    signingRootVersion: context.environment.signingRootVersion,
+  };
   const session = input.services.session;
   if (!session) {
     return routeError(500, 'internal', 'wallet registration setup requires session signing');
@@ -2105,13 +2107,9 @@ export async function handleRouterApiWalletRegistrationSetup(
     orgId: principal.orgId,
     expectedOrigin: origin,
     signer: session,
-    ...(runtimePolicyScope ? { runtimePolicyScope } : {}),
-    ...(runtimePolicyScope
-      ? {
-          signingRootId: `${runtimePolicyScope.projectId}:${runtimePolicyScope.envId}`,
-          signingRootVersion: runtimePolicyScope.signingRootVersion,
-        }
-      : {}),
+    runtimePolicyScope,
+    signingRootId: `${runtimePolicyScope.projectId}:${runtimePolicyScope.envId}`,
+    signingRootVersion: runtimePolicyScope.signingRootVersion,
   });
 }
 

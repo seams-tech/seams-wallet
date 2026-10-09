@@ -23,6 +23,7 @@ export const WALLET_CONSOLE_SERVICE_ORIGIN_V1 = 'https://wallet-console.internal
 export const WALLET_CONSOLE_OP_PATHS_V1 = {
   secretKeyAuth: `${WALLET_CONSOLE_OPS_BASE_PATH_V1}/secret-key-auth`,
   publishableKeyAuth: `${WALLET_CONSOLE_OPS_BASE_PATH_V1}/publishable-key-auth`,
+  registrationContext: `${WALLET_CONSOLE_OPS_BASE_PATH_V1}/registration-context`,
   usageEvents: `${WALLET_CONSOLE_OPS_BASE_PATH_V1}/usage-events`,
   projectEnvironments: `${WALLET_CONSOLE_OPS_BASE_PATH_V1}/project-environments`,
   tenantRootActiveLineage: `${WALLET_CONSOLE_OPS_BASE_PATH_V1}/tenant-root/active-lineage`,
@@ -48,8 +49,7 @@ export type WalletConsoleSecretKeyAuthResponseV1 =
       readonly message: string;
     };
 
-export interface WalletConsolePublishableKeyAuthRequestV1
-  extends Readonly<RouterApiPublishableKeyAuthRequest> {}
+export interface WalletConsolePublishableKeyAuthRequestV1 extends Readonly<RouterApiPublishableKeyAuthRequest> {}
 
 export type WalletConsolePublishableKeyAuthResponseV1 = WalletConsoleSecretKeyAuthResponseV1;
 

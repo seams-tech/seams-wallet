@@ -52,7 +52,10 @@ const failedAdmission: WalletRegistrationSetupReservationResult = {
 };
 void [missingLifecycle, cancelledAdmission, failedAdmission];
 
-import type { WalletExecutionAuthority, WalletRegistrationReservationAuthority } from '../../packages/wallet-server/src/router/domains/walletRegistration/walletRegistrationReservation';
+import type {
+  WalletExecutionAuthority,
+  WalletRegistrationReservationAuthority,
+} from '../../packages/wallet-server/src/router/domains/walletRegistration/walletRegistrationReservation';
 type HomeAdmission = Awaited<ReturnType<WalletRegistrationReservationAuthority['admitHome']>>;
 // @ts-expect-error Successful admission must retain its ownership generation and purpose.
 const admissionWithoutGeneration: HomeAdmission = { ok: true };
@@ -182,3 +185,26 @@ const executionFromRegistration: WalletExecutionAuthority = registrationAuthorit
 const executionFromRegistrationSpread: WalletExecutionAuthority = { ...registrationAuthority };
 void executionFromRegistration;
 void executionFromRegistrationSpread;
+
+import type { WalletRegistrationContextResult } from '../../packages/wallet-server/src/router/framework/apiCredentialPorts';
+
+declare const registrationContext: Variant<WalletRegistrationContextResult, 'ok', true>;
+// @ts-expect-error A credential alone cannot authorize setup without an active environment.
+const incompleteRegistrationContext: WalletRegistrationContextResult = {
+  ok: true,
+  principal: registrationContext.principal,
+};
+// @ts-expect-error Failed context resolution cannot retain authority through a spread.
+const failedRegistrationContext: WalletRegistrationContextResult = {
+  ...registrationContext,
+  ok: false,
+  status: 500,
+  code: 'registration_environment_unavailable',
+  message: 'Unavailable',
+};
+const inactiveRegistrationContext: WalletRegistrationContextResult = {
+  ...registrationContext,
+  // @ts-expect-error An inactive environment cannot authorize setup.
+  environment: { ...registrationContext.environment, status: 'DISABLED' },
+};
+void [incompleteRegistrationContext, failedRegistrationContext, inactiveRegistrationContext];
