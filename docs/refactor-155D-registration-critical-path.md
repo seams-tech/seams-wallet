@@ -827,6 +827,17 @@ remain. No new resources were created, and production was unchanged.
   production-testnet procedure: create and verify replacements, export and
   import, redeploy with the new database IDs, compare snapshots. This creates
   three databases and moves custody data, so it needs the deployment owner.
+  The owner approved the move on October 10. Started at 19:18 JST in the
+  session that made `b6d9f2a7`: three empty replacements exist with verified
+  `HKG` primaries, `router-ab-deriver-a-staging-private-hkg`,
+  `router-ab-deriver-b-staging-private-hkg` and
+  `router-ab-signing-worker-staging-private-hkg`. No data is copied and no
+  Worker is rebound yet. The cutover waits for an idle staging and for the
+  owner's choice of deploy path: the staging workflow would also deploy the
+  162 commits that `origin/dev` holds since the last full deploy of October 6.
+  A Worker version keeps its own database binding. The custody version IDs
+  that the hosted drivers store will still use the old databases after the
+  cutover, so later comparisons need new baseline versions.
 - [x] Measure Yao execute, finalize, and sign against the Phase 0 baseline
   with everything else fixed. The stored-address, entry/finalization, and
   completion comparisons record each source and deployment version.
