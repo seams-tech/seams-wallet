@@ -35,13 +35,25 @@ export function createRouterAbEd25519YaoProductRegistrationPartitionedStateStore
 }
 
 class D1LifecycleRecords implements RouterAbEd25519YaoProductRegistrationPartitionRecordStoreV1 {
+  private observed = new Map<string, { version: string; value: VersionedJsonObject }>();
+
   constructor(
     private readonly options: RouterAbEd25519YaoProductRegistrationPartitionedStateD1OptionsV1,
     private readonly records: CloudflareD1VersionedJsonRecordStore<VersionedJsonObject>,
   ) {}
 
-  readMany(keys: readonly string[]) {
-    return this.records.readMany(keys);
+  async readMany(keys: readonly string[]) {
+    const entries = await this.records.readMany(keys);
+    this.observed.clear();
+    for (const entry of entries) {
+      if (entry.result.kind === 'present') {
+        this.observed.set(entry.key, {
+          version: entry.result.version,
+          value: structuredClone(entry.result.value),
+        });
+      }
+    }
+    return entries;
   }
 
   async putMany(
@@ -54,13 +66,21 @@ class D1LifecycleRecords implements RouterAbEd25519YaoProductRegistrationPartiti
   ): ReturnType<RouterAbEd25519YaoProductRegistrationPartitionRecordStoreV1['putMany']> {
     const keys: string[] = [];
     const wallets = new Set<WalletId>();
-    for (const mutation of mutations) {
-      if (mutation.expectedVersion !== null) keys.push(mutation.key);
-    }
-    // An insert has no prior state. Its CAS rejects any concurrent creation
-    // before the accompanying ownership and ceremony effects can commit.
-    const previous = keys.length === 0 ? [] : await this.records.readMany(keys);
     const previousValues = new Map<string, VersionedJsonObject>();
+    for (const mutation of mutations) {
+      if (mutation.expectedVersion === null) continue;
+      const observed = this.observed.get(mutation.key);
+      if (observed?.version === mutation.expectedVersion) {
+        previousValues.set(mutation.key, observed.value);
+      } else {
+        keys.push(mutation.key);
+      }
+    }
+    this.observed.clear();
+    // An insert has no prior state. Its CAS rejects any concurrent creation
+    // before the accompanying ownership and ceremony effects can commit. An
+    // update can use its exact-version snapshot; the same CAS detects a race.
+    const previous = keys.length === 0 ? [] : await this.records.readMany(keys);
     for (const entry of previous) {
       if (entry.result.kind === 'present') previousValues.set(entry.key, entry.result.value);
     }
