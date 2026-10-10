@@ -848,8 +848,10 @@ remain. No new resources were created, and production was unchanged.
   reason. Started in `6ee17c33`: the repeated ceremony and identity reads are
   gone, 21 round trips became 19. Session issuance now also commits the
   matching ceremony's completion decision in the same D1 transaction.
-  This removes one later write batch. Local activation and journal completion
-  remain separate. See [the verification record](#registration-session-and-completion-decision).
+  This removes one later write batch. `fbebaf9a` commits the local activation
+  in the batch that completes the registration journal, which removes one
+  more. See [the verification record](#registration-session-and-completion-decision)
+  and [the activation record](#activation-in-the-journal-completion-batch).
 - [ ] Sign prepare and sign: one authorization batch; pinned scope from the
   read-back; completion write ordered after the response where the
   specification allows, or kept before it with the reason recorded. Started
@@ -1126,22 +1128,29 @@ Phase 2 started with the removals that change no ordering.
 | `42cde7b7` | Setup stores its snapshot and opens its ceremony in one write batch, and initializes the wallet-object addresses beside that write. |
 | `b338a7e1` | An Ed25519-only respond commits its ceremony update in the batch of its Yao admission. |
 | `33df3f59` | That respond starts its tenant-root read before the home admission and the proof, and the admission awaits it. Private `0ad32c2` adapts the local dev Worker's resolver. |
+| `fbebaf9a` | Finalize commits the activation of the wallet's home in the batch that completes its registration journal. |
 
 Gateway database round trips in the composed scenario. "Own work" excludes
 the stored-address reads that `cb331a8d` added; "On `dev`" includes them.
 
 | Request | Before | Own work | On `dev` | Target |
 | --- | ---: | ---: | ---: | ---: |
-| Sign prepare | 6 | 3 | 4 | 1–2 |
-| Sign | 8 | 4 | 5 | not set |
-| Finalize | 21 | 18 | 19 | 4–6 |
-| Yao execute | 1 | 1 | 2 | not set |
-| Respond | 8 | 7 | 7 | not set |
+| Sign prepare | 6 | 2 | 2 | 1–2 |
+| Sign | 8 | 3 | 3 | not set |
+| Finalize | 21 | 16 | 16 | 4–6 |
+| Yao execute | 1 | 1 | 1 | not set |
+| Respond | 8 | 6 | 6 | not set |
 | Setup | 3 | 2 | 4 | 2 |
 
-Private `1f02f18`, `9b65427` and `0a73bef` cap the "On `dev`" counts in the
-composed scenario. The finalize ceiling is still 21, above the measured 19. A change that adds a round trip must raise a ceiling there and give
-the reason.
+The counts are from public `fbebaf9a` and private `e38194d`. Since
+`81e5f690` and private `be6fb57` the Gateway's admission query carries the
+stored addresses, so only setup still reads and stores them. Finalize's 16
+follows `07e4da8a`, `73d8b5bb` and `fbebaf9a`. Respond's 6 follows `1a783da1`,
+and `bed2e264` took one read from sign prepare and from sign.
+
+Private `1f02f18`, `9b65427`, `0a73bef` and `e38194d` cap the "On `dev`"
+counts in the composed scenario. A change that adds a round trip must raise
+a ceiling there and give the reason.
 
 Two behaviours changed, and both are stricter:
 
@@ -1331,15 +1340,15 @@ journal rules of its request, or it is not made.
 3. Finalize, the last four writes: session issue, completion decision,
    activation, and journal completion. The completion decision can commit
    with the session, and the activation with the journal completion: about
-   90 ms. The session and completion decision now share one transaction.
-   The activation and journal merge is in work since October 10, 13:05 JST,
-   in the session that made `b338a7e1`. The first change removes one write
-   round trip; its hosted latency saving is unmeasured.
+   90 ms. Done. The session and completion decision share one transaction
+   since `07e4da8a`, and `fbebaf9a` commits the activation with the journal
+   completion. Each change removes one write round trip; the hosted latency
+   saving is unmeasured.
 4. Finalize, the Router consume beside the Console claim: about 100 ms. It
    now runs after ceremony-proof and activation-identity verification. The
    production commit store returns a wallet-bound commit function only after
    the credential claim succeeds. Both remote effects settle before local
-   persistence. The activation/journal work above remains with its current owner.
+   persistence.
 5. Respond, the Console lineage read beside the home admission and the
    authority reads, and one commit batch for the last two writes: about
    100 ms and 44 ms. Done for the Ed25519-only respond. `b338a7e1` commits
@@ -1466,6 +1475,62 @@ The failure test must return the original failure to the SDK. Hiding it while
 waiting for the 30-second journal lease exceeds the temporary client-seal
 preparation's 30-second lifetime. Recovery uses a fresh exact-method unlock.
 This fault-path delay is excluded from the successful registration benchmark.
+
+### Activation in the journal completion batch
+
+Finalize ended with two local write batches: one set the wallet's home to
+`active`, and the next recorded the completed operation in the registration
+journal. `fbebaf9a` commits both in one D1 transaction, for the
+`near_provisioning` journal and for the `registration_activate` journal.
+
+The order before that batch is unchanged. The session commit fixes the
+completion decision. The Gateway then publishes the session and the home to
+Console and waits for the acknowledgement. Only an acknowledged publication
+returns the activation statements, and only the journal's completion commits
+them. The activation's guard directly follows its update, so a home that may
+no longer become active fails the whole batch.
+
+| Failure | State it leaves | Retry |
+| --- | --- | --- |
+| Console refuses, or its reply is lost | Home `registering`, journal still a claim | Publishes again with the original session |
+| The batch does not commit | Home `registering`, journal still a claim | Publishes again, then commits both |
+| The batch commits and its reply is lost | Home `active`, journal complete | Returns the stored response and publishes nothing |
+| The activation's guard refuses | Home unchanged, journal still a claim | Refused again while the home may not become active |
+
+Before this change a failure between the two batches left an active home
+beside an incomplete journal. That state no longer exists: ordinary signing is
+enabled exactly when the journal holds the completed registration.
+
+`D1WalletExecutionAuthority.complete` still accepts an established outcome. It
+publishes and then commits the same activation statements in a batch of their
+own. The storage scenarios use that form; the registration service does not.
+
+The production D1 scenario runs the registration journal against the real
+authority and stores. It verifies the write sequence, a home that stays fenced
+between publication and completion, an exact replay that publishes nothing, a
+lost completion, and a refused activation that leaves the operation
+incomplete. Reproduce it with:
+
+```sh
+node tests/e2e/authorization-storage-transfer.e2e.mjs
+```
+
+Its evidence is the `activationCompletion` observation in
+`.artifacts/r153/authorization-storage-transfer/evidence.json`.
+
+Server type checking, the wallet-state type fixtures, the contract type
+check and the bloat check pass. The private server package type-checks
+against this tree. Hosted latency is unmeasured.
+
+The full suites ran with this change on public `1a783da1` and private
+`2a0520b`. The contract suite passed 132 of 132: 128 in three parallel shards
+on release Workers, two load-sensitive cases alone, and the two
+terminal-fault cases on dev Workers. The composed private suite passed 23 of
+23, its two restart cases alone. After the merge onto public `7546d3ed` and
+private `1f931b2` the type checks, five storage scenarios, the composed
+registration and lost-reply cases, and the 46 registration contract cases
+passed again. On the committed tip the server type check, that scenario and
+the two composed cases passed.
 
 ### Decisions
 
