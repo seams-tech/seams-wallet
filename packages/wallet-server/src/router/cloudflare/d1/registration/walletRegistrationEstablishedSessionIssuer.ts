@@ -1,4 +1,7 @@
-import type { WalletRegistrationReservationAuthority } from '../../../domains/walletRegistration/walletRegistrationReservation';
+import type {
+  RegistrationActivationWrite,
+  WalletRegistrationHomeAuthority,
+} from '../../../domains/walletRegistration/walletRegistrationReservation';
 import type { WalletRegistrationEd25519YaoPublicResult } from '../../../../core/registrationContracts';
 import type { WalletRegistrationFinalizeAuthMethod } from '@shared/utils/registrationContracts';
 import { parseSessionOrigin, parseVerifiedOwnerProofId } from '../../../../authorization/domain';
@@ -79,7 +82,7 @@ type RegistrationEstablishedSessionIssuanceDependencies = {
   readonly authorizationService: RegistrationEstablishedSessionIssuerAuthorizationService;
   readonly authorizationTenantId: TenantId;
   readonly foundingAuthority: ActiveWalletAuthorityV1;
-  readonly homeCompletion: WalletRegistrationReservationAuthority;
+  readonly homeCompletion: Pick<WalletRegistrationHomeAuthority, 'publishEstablished'>;
 };
 
 function requireWalletSessionPrincipalId(value: string): PrincipalId {
@@ -165,7 +168,7 @@ function requireEmailOtpChallengeId(value: string) {
   return parsed.value;
 }
 
-export type RegistrationEstablishedSessionIssuanceResultV2 =
+export type RegistrationEstablishedSessionIssuanceResultV2 = (
   | {
       readonly kind: 'issued';
       readonly session: RegistrationEstablishedSessionV2;
@@ -176,7 +179,14 @@ export type RegistrationEstablishedSessionIssuanceResultV2 =
       readonly session: RegistrationEstablishedSessionProjectionV2;
       readonly next: 'unlock_exact_method';
       readonly issuedAtMs: number;
-    };
+    }
+) & {
+  /**
+   * The home's activation, which the caller commits with the record that
+   * completes its operation. None when the home is already active.
+   */
+  readonly activation: RegistrationActivationWrite | null;
+};
 
 async function readDirectRegistrationAuthorization(input: {
   readonly authorizationService: RegistrationEstablishedSessionIssuerAuthorizationService;
@@ -438,6 +448,7 @@ function directRegistrationResultFromIssue(input: {
   readonly directIssue: DirectV2IssueResult;
   readonly authorization: IssuedWalletSessionAuthorizationV2;
   readonly tokens: RegistrationEstablishedSessionProjectionTokensV2;
+  readonly activation: RegistrationActivationWrite | null;
 }): RegistrationEstablishedSessionIssuanceResultV2 {
   switch (input.directIssue.kind) {
     case 'issued':
@@ -449,6 +460,7 @@ function directRegistrationResultFromIssue(input: {
           input.directIssue.operationCredential,
         ),
         issuedAtMs: input.authorization.session.createdAtMs,
+        activation: input.activation,
       };
     case 'already_committed':
       return {
@@ -456,6 +468,7 @@ function directRegistrationResultFromIssue(input: {
         session: projectDirectRegistrationSession(input.authorization, input.tokens),
         next: input.directIssue.next,
         issuedAtMs: input.authorization.session.createdAtMs,
+        activation: input.activation,
       };
     default:
       return assertNeverDirectRegistrationIssue(input.directIssue);
@@ -565,14 +578,18 @@ export async function issueDirectRegistrationEstablishedEcdsaSession(
     runtimePolicyScope: input.runtimePolicyScope,
     keyHandle,
   });
-  const completed = await input.homeCompletion.complete({
+  const published = await input.homeCompletion.publishEstablished({
     ceremonyId: input.registrationCeremonyId,
     walletId: committed.publication.walletId,
-    outcome: 'established',
     session: committed.publication,
   });
-  if (!completed.ok) throw new Error(completed.message);
-  return directRegistrationResultFromIssue({ directIssue, authorization, tokens });
+  if (!published.ok) throw new Error(published.message);
+  return directRegistrationResultFromIssue({
+    directIssue,
+    authorization,
+    tokens,
+    activation: published.activation,
+  });
 }
 
 export async function issueDirectRegistrationEstablishedEd25519Session(
@@ -616,6 +633,8 @@ export async function issueDirectRegistrationEstablishedEd25519Session(
       session: projectDirectRegistrationSession(authorization, tokens),
       next: 'unlock_exact_method',
       issuedAtMs: authorization.session.createdAtMs,
+      // The ECDSA activation of this registration already activated its home.
+      activation: null,
     };
   }
   const policy = registrationSessionPolicy({
@@ -670,14 +689,18 @@ export async function issueDirectRegistrationEstablishedEd25519Session(
     ed25519: ed25519Tokens.ed25519,
     predecessor: input.predecessor,
   });
-  const completed = await input.homeCompletion.complete({
+  const published = await input.homeCompletion.publishEstablished({
     ceremonyId: input.registrationCeremonyId,
     walletId: committed.publication.walletId,
-    outcome: 'established',
     session: committed.publication,
   });
-  if (!completed.ok) throw new Error(completed.message);
-  return directRegistrationResultFromIssue({ directIssue, authorization, tokens });
+  if (!published.ok) throw new Error(published.message);
+  return directRegistrationResultFromIssue({
+    directIssue,
+    authorization,
+    tokens,
+    activation: published.activation,
+  });
 }
 
 export function projectCurrentNearRegistrationSession(

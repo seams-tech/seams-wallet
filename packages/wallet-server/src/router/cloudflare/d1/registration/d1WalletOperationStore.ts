@@ -1,5 +1,6 @@
 import type { WalletId } from '@shared/utils/domainIds';
 import type { VersionedJsonRecordPutResult } from '../../../framework/versionedJsonRecordStore';
+import type { D1PreparedStatementLike } from '../../../../storage/tenantRoute';
 import {
   createCloudflareD1VersionedJsonRecordStore,
   type CloudflareD1VersionedJsonRecordStore,
@@ -36,10 +37,29 @@ export class D1WalletOperationStore<T extends WalletOperation> {
     return this.records.listByKeyPrefix(key, options);
   }
 
-  async put(
+  put(
     key: string,
     value: T,
     expectedVersion: string | null,
+  ): Promise<VersionedJsonRecordPutResult> {
+    return this.commit(key, value, expectedVersion, []);
+  }
+
+  /** As `put`, with another store's write on this database in the same batch. */
+  putWithCompanion(
+    key: string,
+    value: T,
+    expectedVersion: string | null,
+    companionWrite: { readonly statements: readonly D1PreparedStatementLike[] },
+  ): Promise<VersionedJsonRecordPutResult> {
+    return this.commit(key, value, expectedVersion, companionWrite.statements);
+  }
+
+  private async commit(
+    key: string,
+    value: T,
+    expectedVersion: string | null,
+    companionStatements: readonly D1PreparedStatementLike[],
   ): Promise<VersionedJsonRecordPutResult> {
     const walletId = this.walletId(value);
     const result = await this.records.putManyWithAdditionalStatements(
@@ -51,6 +71,7 @@ export class D1WalletOperationStore<T extends WalletOperation> {
           walletId,
           value.kind !== 'router_ab_ed25519_yao_registration_side_effect_claim_v1',
         ),
+        ...companionStatements,
       ],
     );
     if (result.kind === 'version_mismatch') return { kind: 'version_mismatch' };

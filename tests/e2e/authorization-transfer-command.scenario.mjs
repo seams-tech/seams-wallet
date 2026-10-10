@@ -798,9 +798,15 @@ class SettlementOperationProbe {
       derivePreparedArtifactFingerprint: this.fingerprint,
       execute: this.execute.bind(this),
       projectReceipt: this.projectReceipt,
+      completionWrite: noCompletionWrite,
       replay: this.replay,
     });
   }
+}
+
+// This operation leaves no write for its completion record.
+function noCompletionWrite() {
+  return null;
 }
 
 // Admit a real operation immediately before the retirement transaction starts.

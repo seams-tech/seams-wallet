@@ -252,7 +252,7 @@ import type {
 import type {
   WalletExecutionAuthority,
   RegistrationWalletStarter,
-  WalletRegistrationReservationAuthority,
+  WalletRegistrationHomeAuthority,
 } from '../../../domains/walletRegistration/walletRegistrationReservation';
 import type { WalletRegistrationSetupClaimsV1 } from '../../../domains/walletRegistration/walletRegistrationSetupPayload';
 import {
@@ -320,6 +320,7 @@ import {
 } from './walletRegistrationEstablishedSessionIssuer';
 import {
   projectWalletRegistrationSessionCommitReceiptV2,
+  registrationCommitActivation,
   registrationReplayAuthMethodFields,
   replayedRegistrationCommit,
   unissuedRegistrationCommit,
@@ -1946,7 +1947,7 @@ function mergeRouterServerTiming(target: Array<readonly [string, number]>, heade
 
 export class CloudflareD1WalletRegistrationService {
   private readonly executionAuthority: WalletExecutionAuthority;
-  private readonly registrationAuthority: WalletRegistrationReservationAuthority | null;
+  private readonly registrationAuthority: WalletRegistrationHomeAuthority | null;
   private readonly authorizationService: AuthorizationService;
   private readonly authorizationTenantId: TenantId;
   private readonly createSponsoredNamedNearAccount: SponsoredNamedNearAccountCreator;
@@ -1973,7 +1974,7 @@ export class CloudflareD1WalletRegistrationService {
   constructor(input: {
     readonly home: WalletSessionHome;
     readonly executionAuthority: WalletExecutionAuthority;
-    readonly registrationAuthority: WalletRegistrationReservationAuthority | null;
+    readonly registrationAuthority: WalletRegistrationHomeAuthority | null;
     readonly startRegistrationWallets: RegistrationWalletStarter | null;
     readonly authorizationService: AuthorizationService;
     readonly authorizationTenantId: TenantId;
@@ -3951,6 +3952,7 @@ export class CloudflareD1WalletRegistrationService {
           },
           issuedAtMs: issuedRegistrationSession.issuedAtMs,
           expectedOrigin: ownerProofContext.expectedOrigin,
+          activation: issuedRegistrationSession.activation,
         };
       case 'already_committed':
         return {
@@ -3965,6 +3967,7 @@ export class CloudflareD1WalletRegistrationService {
           },
           issuedAtMs: issuedRegistrationSession.issuedAtMs,
           expectedOrigin: ownerProofContext.expectedOrigin,
+          activation: issuedRegistrationSession.activation,
         };
       default:
         return assertNeverD1RegistrationSessionIssuance(issuedRegistrationSession);
@@ -4221,6 +4224,8 @@ export class CloudflareD1WalletRegistrationService {
             registrationCeremonyId: input.registrationCeremonyId,
             execution,
           }),
+        // The home becomes active in the batch that completes this operation.
+        completionWrite: registrationCommitActivation,
         replay: this.replayWalletRegistrationNearProvisioningCommit.bind(this),
       });
       recordRegistrationServerTiming(
@@ -4667,6 +4672,8 @@ export class CloudflareD1WalletRegistrationService {
             registrationCeremonyId: claims.registrationCeremonyId,
             execution,
           }),
+        // The home becomes active in the batch that completes this operation.
+        completionWrite: registrationCommitActivation,
         replay: this.replayWalletRegistrationActivateCommit.bind(this),
       });
       switch (run.kind) {
@@ -4903,6 +4910,7 @@ export class CloudflareD1WalletRegistrationService {
     const issuedContext = {
       issuedAtMs: registrationEstablishedSession.issuedAtMs,
       expectedOrigin: ownerProofContext.expectedOrigin,
+      activation: registrationEstablishedSession.activation,
     };
     if (commit.authMethod.kind === 'passkey') {
       if (!commit.rpId) throw new Error('Passkey registration activation is missing its RP ID');

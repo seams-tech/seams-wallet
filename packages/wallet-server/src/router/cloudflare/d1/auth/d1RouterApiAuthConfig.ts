@@ -11,6 +11,7 @@ import type { WalletRegistrationSetupDispatcher } from '../../../framework/regis
 import type {
   RegistrationWalletStarter,
   WalletExecutionAuthority,
+  WalletRegistrationHomeAuthority,
   WalletRegistrationReservationAuthority,
 } from '../../../domains/walletRegistration/walletRegistrationReservation';
 import { admitD1EstablishedWalletHome, D1WalletExecutionAuthority } from '../registration/d1WalletExecutionAuthority';
@@ -265,6 +266,7 @@ export type EmailOtpServerSealRuntimeConfig =
 
 export type NormalizedCloudflareD1RouterApiAuthServiceOptions = Omit<
   CloudflareD1RouterApiAuthServiceOptions,
+  | 'registrationAuthority'
   | 'relayerAccount'
   | 'relayerPublicKey'
   | 'relayerPrivateKey'
@@ -295,6 +297,8 @@ export type NormalizedCloudflareD1RouterApiAuthServiceOptions = Omit<
   | 'emailOtpGoogleRegistrationAttemptRateLimitWindowMs'
   | 'routerAbEcdsaPresignRuntime'
 > & {
+  /** The host's registration authority, with this home's execution state around it. */
+  readonly registrationAuthority?: WalletRegistrationHomeAuthority;
   readonly walletExecution: WalletExecutionAuthority;
   readonly relayerAccount?: string;
   readonly relayerPublicKey?: string;

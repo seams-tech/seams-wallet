@@ -1,4 +1,5 @@
 import type { WalletSessionLocatorPublication } from '../../../authorization/sessionRouting';
+import type { D1PreparedStatementLike } from '../../../storage/tenantRoute';
 import { parseDeviceId, type DeviceId } from '@shared/authorization/capabilityKinds';
 import { alphabetizeStringify, sha256HexUtf8 } from '@shared/utils/digests';
 import {
@@ -95,6 +96,43 @@ export interface WalletRegistrationReservationAuthority {
       | { readonly outcome: 'cancelled'; readonly session?: never }
     ),
   ): Promise<ReservationOutcome>;
+}
+
+/**
+ * The local write that makes an established registration active. It follows
+ * the acknowledged directory write. It commits in the batch of the record
+ * that completes the registration operation, or it does not commit.
+ */
+export type RegistrationActivationWrite = {
+  readonly statements: readonly D1PreparedStatementLike[];
+};
+
+export type RegistrationEstablishedPublication =
+  | {
+      readonly ok: true;
+      /** None when an earlier completion already activated the registration. */
+      readonly activation: RegistrationActivationWrite | null;
+      readonly code?: never;
+      readonly message?: never;
+    }
+  | {
+      readonly ok: false;
+      readonly code: string;
+      readonly message: string;
+      readonly activation?: never;
+    };
+
+/** The registration authority at the wallet's home, which owns the local activation. */
+export interface WalletRegistrationHomeAuthority extends WalletRegistrationReservationAuthority {
+  /**
+   * Publishes an established registration to its directory and prepares the
+   * activation. The caller commits the activation with its completion record.
+   */
+  publishEstablished(input: {
+    readonly ceremonyId: string;
+    readonly walletId: WalletId;
+    readonly session: WalletSessionLocatorPublication & { readonly kind: 'credential' };
+  }): Promise<RegistrationEstablishedPublication>;
 }
 
 function requireId<T>(

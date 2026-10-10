@@ -6,6 +6,7 @@ import type {
 } from '../../../../core/registrationContracts';
 import type { WalletRegistrationFinalizeAuthMethod } from '@shared/utils/registrationContracts';
 import { parseSessionOrigin } from '../../../../authorization/domain';
+import type { RegistrationActivationWrite } from '../../../domains/walletRegistration/walletRegistrationReservation';
 import type {
   WalletRegistrationActivateResponseV2,
   WalletRegistrationRouteErrorV2,
@@ -46,6 +47,7 @@ export type RegistrationCommitExecution<T> =
       readonly response: T;
       readonly issuedAtMs: number;
       readonly expectedOrigin: string;
+      readonly activation: RegistrationActivationWrite | null;
       readonly installationProjection?: never;
     }
   | {
@@ -53,8 +55,23 @@ export type RegistrationCommitExecution<T> =
       readonly response: T;
       readonly issuedAtMs: number;
       readonly expectedOrigin: string;
+      readonly activation: RegistrationActivationWrite | null;
       readonly installationProjection: WalletRegistrationCommittedInstallationProjectionV1;
     };
+
+/** The home activation that a commit left for the record that completes its operation. */
+export function registrationCommitActivation<T>(
+  execution: RegistrationCommitExecution<T>,
+): RegistrationActivationWrite | null {
+  switch (execution.kind) {
+    case 'session_issued':
+    case 'session_issued_with_installation_projection':
+      return execution.activation;
+    case 'unissued':
+    case 'replayed':
+      return null;
+  }
+}
 
 export function unissuedRegistrationCommit<T>(response: T): RegistrationCommitExecution<T> {
   return { kind: 'unissued', response };

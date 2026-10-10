@@ -25,6 +25,7 @@ import {
 } from './authorization-transfer-command.scenario.mjs';
 import { verifyCeremonyWriteFence } from './ceremony-write-fence.scenario.mjs';
 import { verifyRegistrationAdmissionCompanion } from './registration-admission-companion.scenario.mjs';
+import { verifyRegistrationActivationCompletion } from './registration-activation-completion.scenario.mjs';
 import assert from 'node:assert/strict';
 import { verifyAuthorizationHistoryCopy } from './authorization-transfer-restore.scenario.mjs';
 import {
@@ -106,6 +107,7 @@ const bundle = await build({
     contents: `
       export { buildSessionSigningOperationInputFixture, buildStepUpSigningOperationFixture, buildAdditionalStepUpOperationInputFixture } from './tests/unit/helpers/authorizedOperation.fixtures';
       export { D1WalletOperationStore } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletOperationStore';
+      export { TracedD1Database } from './tests/r150-hosted/gateway/d1Trace';
       export { runRouterAbEd25519YaoRegistrationSideEffectV2, parseRouterAbEd25519YaoRegistrationSideEffectRecordV2 } from './packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationSideEffectBoundary';
       export { parseRouterAbEd25519YaoRegistrationAdmissionRequestV1 } from './packages/shared-ts/src/utils/routerAbEd25519Yao';
       export { RouterAbEd25519YaoHttpRegistrationBackend } from './packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoHttpRegistrationBackend';
@@ -354,6 +356,11 @@ try {
     database: source,
     scope,
   });
+  const activationCompletion = await verifyRegistrationActivationCompletion({
+    api,
+    database: source,
+    scope,
+  });
   const ceremonyWriteFence = await verifyCeremonyWriteFence({
     api,
     source,
@@ -571,6 +578,7 @@ try {
       authorizationCleanup,
       ceremonyWriteFence,
       admissionCompanion,
+      activationCompletion,
       ceremonySettlement,
       sessionOperationSettlement,
       authorizationSnapshot: snapshot.evidence,

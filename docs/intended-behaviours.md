@@ -514,7 +514,9 @@ throughout the resize. Reduced-motion behavior remains immediate.
   acknowledges completion. Registration publishes the session locator and
   completes the home in one Console request. Console atomically commits the
   established home and its display row. The Gateway acknowledges completion before
-  it enables ordinary signing or saves the completed registration receipt. A lost
+  it enables ordinary signing or saves the completed registration receipt. It
+  enables ordinary signing and saves that receipt in one local transaction, so
+  neither exists without the other. A lost
   reply is reconciled with the original session digest and expiry. Exact retries preserve later display
   updates. Definitive registration cancellation records the terminal outcome
   before local deletion; cancelled operations cannot resume. Established setup
