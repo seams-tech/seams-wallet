@@ -1,6 +1,7 @@
 # R155F — Reduce NEAR registration round trips
 
-Status: **planned. Implementation has not started under this plan.**
+Status: **in progress.** The R155D implementer took over every phase of this
+plan on October 10 at the owner's instruction. No phase has a code change yet.
 Date: October 10, 2026.
 
 ## Objective and ownership
@@ -163,6 +164,10 @@ durable decisions for retries. Do not introduce a distributed transaction servic
   Run the pending registration proof through the new role databases.
   Capture fresh baseline Worker versions and actual database bindings afterward.
   Do not repeat the cutover or restore versions that bind the old databases.
+  The old databases are deleted. The comparison custody set with the new
+  bindings is Router `aa1cf297`, Deriver A `fd1c1f00`, Deriver B `4c70417b` and
+  Signing Worker `c39367f9`. These are exact, undeployed copies of the set that
+  the earlier drivers stored. The registration proof is still open.
 - [ ] Separate A preparation, peer connection, B admission, protocol execution,
   output sealing, durable completion, and background D1 settlement in the trace.
 - [ ] Optimize the largest remaining serial admission or persistence step.

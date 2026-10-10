@@ -849,8 +849,15 @@ remain. No new resources were created, and production was unchanged.
   role-share reads arrive at the new databases and none at the old ones.
   Still open: no registration has run through the roles since the cutover,
   because the activation canary does not write to the role databases. The
-  first hosted registration is that proof. The old databases remain, and a
-  deployment of the previous version IDs reverses the cutover.
+  first hosted registration is that proof. The owner deleted the three old
+  databases on October 10 at about 22:55 JST, so no rollback exists. The
+  previous versions `c18b2202`, `eaa0b80f` and `c700bbc1`, and the custody
+  versions `906e53ab`, `740a736c` and `aca61008` that the hosted drivers
+  stored, bind deleted databases. Do not deploy them, and do not restore a
+  snapshot from before 22:18 JST. Exact copies of those three custody
+  versions with the new bindings exist and are not deployed: Signing Worker
+  `c39367f9`, Deriver A `fd1c1f00`, Deriver B `4c70417b`. Router `aa1cf297`
+  has no database and stays valid.
   A Worker version keeps its own database binding. Version IDs and snapshots
   that a hosted driver stored before the cutover use the old databases, so
   later comparisons need new snapshots and new baseline custody versions.
