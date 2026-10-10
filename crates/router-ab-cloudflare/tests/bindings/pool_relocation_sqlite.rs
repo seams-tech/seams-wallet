@@ -1274,6 +1274,19 @@ fn verify_snapshot_export(
     let mut fresh_presign = presign_request.clone();
     fresh_presign.presign_session_id = format!("ecdsa-presign-v2:2000:{}", b64u(&[0x44; 32]));
     fresh_presign.ceremony_expires_at_ms = 2_000;
+    let stale_claim = with_store(&destination, env, |store| {
+        store.claim_presign_authority(&fresh_presign, 1_700)
+    })
+    .unwrap_err();
+    assert!(
+        stale_claim.to_string().contains("ownership generation differs"),
+        "{stale_claim}"
+    );
+    fresh_presign.authority =
+        router_ab_cloudflare::CloudflareSigningWorkerEcdsaPresignAuthorityV1::OwnerWalletSession {
+            ownership_generation: receipt.request.source_generation + 1,
+            wallet_scope: receipt.scope.clone(),
+        };
     with_store(&destination, env, |store| {
         store.claim_presign_authority(&fresh_presign, 1_700)
     })?;

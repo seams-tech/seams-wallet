@@ -6327,7 +6327,20 @@ fn signing_worker_ecdsa_pool_atomic_reducer_rejects_stale_reservation() {
         CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1::Reserved { record } => record,
         _ => panic!("reserve command must return reserved material"),
     };
-    let stale = apply_cloudflare_signing_worker_ecdsa_pool_command_v1(Some(reserved), reserve)
+    let replayed = apply_cloudflare_signing_worker_ecdsa_pool_command_v1(
+        Some(reserved.clone()),
+        reserve.clone(),
+    )
+    .expect("an exact retry returns the durable reservation");
+    assert_eq!(replayed.record(), &reserved);
+
+    let mut substituted = reserve;
+    if let CloudflareSigningWorkerEcdsaPoolCommandV1::Reserve { request_digest, .. } =
+        &mut substituted
+    {
+        *request_digest = digest(0xA7);
+    }
+    let stale = apply_cloudflare_signing_worker_ecdsa_pool_command_v1(Some(reserved), substituted)
         .expect_err("stale revision cannot reserve twice");
     assert_eq!(
         stale.code(),
@@ -7460,6 +7473,7 @@ fn normal_signing_finalize_boundary_extracts_verified_step_up_authorized_operati
         serde_json::json!({
             "binding": {
                 "kind": "operation_step_up",
+                "ownership_generation": 1,
                 "authorization_session_id": "authorization-session-1",
                 "org_id": "org-1",
                 "project_id": "project-1",
@@ -7593,7 +7607,8 @@ fn normal_signing_effect_digest_binds_policy_principal_capability_and_terminal_f
     .expect("changed trusted admission");
     let changed = CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2::new(
         1,
-        signing_wallet_scope("account.near"),
+        CloudflareSigningWorkerWalletScopeV1::new("org-2", "project-1", "dev", "account.near")
+            .expect("changed signing wallet scope"),
         request,
         changed_admission,
         changed_trusted,
