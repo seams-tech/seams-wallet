@@ -1129,6 +1129,7 @@ Phase 2 started with the removals that change no ordering.
 | `b338a7e1` | An Ed25519-only respond commits its ceremony update in the batch of its Yao admission. |
 | `33df3f59` | That respond starts its tenant-root read before the home admission and the proof, and the admission awaits it. Private `0ad32c2` adapts the local dev Worker's resolver. |
 | `fbebaf9a` | Finalize commits the activation of the wallet's home in the batch that completes its registration journal. |
+| `8cfc587a` | The home authority has `publishEstablished` and `cancel` in place of `complete`. |
 
 Gateway database round trips in the composed scenario. "Own work" excludes
 the stored-address reads that `cb331a8d` added; "On `dev`" includes them.
@@ -1501,9 +1502,11 @@ Before this change a failure between the two batches left an active home
 beside an incomplete journal. That state no longer exists: ordinary signing is
 enabled exactly when the journal holds the completed registration.
 
-`D1WalletExecutionAuthority.complete` still accepts an established outcome. It
-publishes and then commits the same activation statements in a batch of their
-own. The storage scenarios use that form; the registration service does not.
+The home authority no longer takes the directory's completion call. `8cfc587a`
+gives it `publishEstablished` and `cancel`, and removes the form that published
+and then activated in a batch of its own. Only storage scenarios called that
+form. They now publish and commit the activation through one test helper, and
+private `6009bd4` follows in the session-routing scenario.
 
 The production D1 scenario runs the registration journal against the real
 authority and stores. It verifies the write sequence, a home that stays fenced
@@ -1531,6 +1534,10 @@ private `1f931b2` the type checks, five storage scenarios, the composed
 registration and lost-reply cases, and the 46 registration contract cases
 passed again. On the committed tip the server type check, that scenario and
 the two composed cases passed.
+
+For `8cfc587a` the type checks, three storage scenarios, the private
+session-routing scenario, four composed registration cases and 17
+registration contract cases passed.
 
 ### Decisions
 
