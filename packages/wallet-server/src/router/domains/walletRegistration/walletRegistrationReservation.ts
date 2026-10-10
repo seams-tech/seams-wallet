@@ -123,7 +123,10 @@ export type RegistrationEstablishedPublication =
     };
 
 /** The registration authority at the wallet's home, which owns the local activation. */
-export interface WalletRegistrationHomeAuthority extends WalletRegistrationReservationAuthority {
+export interface WalletRegistrationHomeAuthority extends Pick<
+  WalletRegistrationReservationAuthority,
+  'reserve' | 'admitHome'
+> {
   /**
    * Publishes an established registration to its directory and prepares the
    * activation. The caller commits the activation with its completion record.
@@ -133,6 +136,11 @@ export interface WalletRegistrationHomeAuthority extends WalletRegistrationReser
     readonly walletId: WalletId;
     readonly session: WalletSessionLocatorPublication & { readonly kind: 'credential' };
   }): Promise<RegistrationEstablishedPublication>;
+  /** Fixes a definitive cancellation, publishes it, and retires the local home. */
+  cancel(input: {
+    readonly ceremonyId: string;
+    readonly walletId: WalletId;
+  }): Promise<ReservationOutcome>;
 }
 
 function requireId<T>(
@@ -214,9 +222,9 @@ export async function walletRegistrationSetupRequestDigest(
   );
 }
 
-export async function completeRegistrationReservation(
-  authority: WalletRegistrationReservationAuthority | null,
-  input: Parameters<WalletRegistrationReservationAuthority['complete']>[0],
+export async function cancelRegistrationHome(
+  authority: Pick<WalletRegistrationHomeAuthority, 'cancel'> | null,
+  input: Parameters<WalletRegistrationHomeAuthority['cancel']>[0],
 ): Promise<ReservationOutcome> {
   if (!authority)
     return {
@@ -224,11 +232,11 @@ export async function completeRegistrationReservation(
       code: 'registration_authority_unavailable',
       message: 'Registration reservation authority is required',
     };
-  return authority.complete(input);
+  return authority.cancel(input);
 }
 
 export async function admitRegistrationReservationHome(
-  authority: WalletRegistrationReservationAuthority | null,
+  authority: Pick<WalletRegistrationReservationAuthority, 'admitHome'> | null,
   input: Parameters<WalletRegistrationReservationAuthority['admitHome']>[0],
 ): Promise<RegistrationHomeAdmission> {
   if (!authority)

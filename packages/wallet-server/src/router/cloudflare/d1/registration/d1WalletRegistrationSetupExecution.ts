@@ -42,7 +42,7 @@ export async function executeD1WalletRegistrationSetup(
   input: WalletRegistrationSetupInput,
   dependencies: {
     readonly home: WalletSessionHome;
-    readonly reservation: WalletRegistrationReservationAuthority | null;
+    readonly reservation: Pick<WalletRegistrationReservationAuthority, 'reserve'> | null;
     readonly store: CloudflareD1RegistrationCeremonyIntentStore;
     readonly ecdsaStrictRegistration: RouterAbEcdsaStrictRegistrationPort;
     readonly startRegistrationWallets: RegistrationWalletStarter | null;

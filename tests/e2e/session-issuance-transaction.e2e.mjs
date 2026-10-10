@@ -6,7 +6,10 @@ import { build } from 'esbuild';
 import { Miniflare } from 'miniflare';
 import { unstable_splitSqlQuery } from 'wrangler';
 import { buildWorkerdCompatiblePhase1Bridge } from '../../packages/wallet-server/scripts/d1-local-migrate-signer.mjs';
-import { seedExecutionGeneration } from './execution-generation.scenario.mjs';
+import {
+  establishRegistrationHome,
+  seedExecutionGeneration,
+} from './execution-generation.scenario.mjs';
 
 class RegistrationDirectoryWithLostReply {
   calls = 0;
@@ -392,9 +395,12 @@ async function verifyRegistrationCompletion(database, now) {
   const winner = race.find(registrationIssued);
   assert.ok(winner);
   const completion = { ...identity, outcome: 'established', session: winner.publication };
-  await assert.rejects(authority.complete(completion), /lost completion reply/);
+  await assert.rejects(
+    establishRegistrationHome(authority, database, completion),
+    /lost completion reply/,
+  );
   assert.equal((await authority.admitEstablishedHome({ walletId: identity.walletId })).ok, false);
-  await assert.rejects(authority.complete({ ...identity, outcome: 'cancelled' }));
+  await assert.rejects(authority.cancel(identity));
   assert.equal(directory.calls, 1);
   const beforeRetry = await snapshot(database);
   const retry = await service.commitDirectWalletSessionAuthorizationV2(
@@ -406,16 +412,17 @@ async function verifyRegistrationCompletion(database, now) {
   assert.deepEqual(await snapshot(database), beforeRetry);
   const completionTrace = new api.TracedD1Database(database);
   const retryAuthority = new api.D1WalletExecutionAuthority(completionTrace, scope, directory);
-  assert.equal(
-    (await retryAuthority.complete({ ...completion, session: retry.publication })).ok,
-    true,
-  );
+  const retried = await establishRegistrationHome(retryAuthority, completionTrace, {
+    ...completion,
+    session: retry.publication,
+  });
+  assert.equal(retried.ok, true);
   const completionCalls = JSON.parse(
     completionTrace.response(new Response()).headers.get('x-benchmark-d1'),
   ).calls;
   assert.deepEqual(completionCalls.map(callMethod), ['first', 'batch']);
   assert.equal((await authority.admitEstablishedHome({ walletId: identity.walletId })).ok, true);
-  assert.equal((await authority.complete(completion)).ok, true);
+  assert.equal((await establishRegistrationHome(authority, database, completion)).ok, true);
   assert.equal(directory.calls, 2);
   return {
     wrongCeremonyRollsBackSession: true,

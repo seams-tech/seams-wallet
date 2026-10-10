@@ -56,7 +56,7 @@ export class D1WalletExecutionAuthority
           return { ok: true, purpose: 'registration', ownershipGeneration: local.generation };
         case 'retired':
           if (local.registration_completion === 'cancelled') {
-            const published = await this.complete({ ...input, outcome: 'cancelled' });
+            const published = await this.cancel(input);
             if (!published.ok) return published;
           }
           return {
@@ -104,15 +104,10 @@ export class D1WalletExecutionAuthority
     return admitted;
   }
 
-  async complete(input: Parameters<Authority['complete']>[0]) {
-    if (input.outcome === 'established') {
-      const published = await this.publishEstablished(input);
-      if (!published.ok) return published;
-      if (published.activation) await this.database.batch([...published.activation.statements]);
-      return { ok: true as const };
-    }
-    await this.fixDecision(input);
-    const completed = await this.registration.complete(input);
+  async cancel(input: Parameters<WalletRegistrationHomeAuthority['cancel']>[0]) {
+    const completion = { ...input, outcome: 'cancelled' as const };
+    await this.fixDecision(completion);
+    const completed = await this.registration.complete(completion);
     if (!completed.ok) return completed;
     await this.database.batch(this.prepareState(input, 'retired'));
     return completed;

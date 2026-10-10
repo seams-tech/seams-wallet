@@ -1,7 +1,7 @@
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import type { SponsoredNamedNearAccountInput } from '../near/d1SponsoredNearAccount';
 import {
-  completeRegistrationReservation,
+  cancelRegistrationHome,
   admitRegistrationReservationHome,
 } from '../../../domains/walletRegistration/walletRegistrationReservation';
 import {
@@ -3432,10 +3432,9 @@ export class CloudflareD1WalletRegistrationService {
       mark('ecdsa_respond_router', routerStartedAtMs);
       if (!strictResult.ok) {
         if (!strictResult.retryable) {
-          const completedHome = await completeRegistrationReservation(this.registrationAuthority, {
+          const completedHome = await cancelRegistrationHome(this.registrationAuthority, {
             ceremonyId: ceremony.registrationCeremonyId,
             walletId: ceremony.intent.walletId,
-            outcome: 'cancelled',
           });
           if (!completedHome.ok) return completedHome;
           await store.cancelTerminalCeremony({
