@@ -89,11 +89,14 @@ function parsePublishableKeyRequest(
 }
 
 export async function resolveWalletRegistrationContext(
-  input: PublishableKeyRequestInput & { registrationContext: WalletRegistrationContextResolver },
+  input: PublishableKeyRequestInput & {
+    registrationContext: WalletRegistrationContextResolver;
+    registration: Parameters<WalletRegistrationContextResolver['resolve']>[0]['registration'];
+  },
 ): Promise<WalletRegistrationContextResult | RoutePolicyResolutionFailure> {
   const parsed = parsePublishableKeyRequest(input);
   if (!parsed.ok) return parsed;
-  return input.registrationContext.resolve(parsed.request);
+  return input.registrationContext.resolve({ ...parsed.request, registration: input.registration });
 }
 
 export async function resolvePublishableKeyApiCredentialAuth(

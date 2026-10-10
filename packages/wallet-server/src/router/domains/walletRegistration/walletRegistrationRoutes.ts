@@ -531,7 +531,7 @@ function parseWalletRegistrationSetupWallet(
   return { ok: true, value: { kind: 'provided', walletId: walletId.value } };
 }
 
-function parseWalletRegistrationSetupRequest(
+export function parseWalletRegistrationSetupRequest(
   body: Record<string, unknown>,
 ): ParseResult<WalletRegistrationSetupRequest> {
   const registrationOperationId = parseRegistrationSetupOperationId(body.registrationOperationId);
@@ -2061,7 +2061,10 @@ export async function handleRouterApiWalletRegistrationSetup(
       'Wallet registration context is not configured',
     );
   }
+  const request = parseWalletRegistrationSetupRequest(input.body);
+  if (!request.ok) return routeError(400, request.code, request.message);
   const context = await resolveWalletRegistrationContext({
+    registration: request.value,
     environmentId: extractRouterApiEnvironmentId(input.headers) || undefined,
     headers: input.headers,
     missingEnvironmentMessage: 'Environment header is required for wallet registration setup',
@@ -2100,8 +2103,6 @@ export async function handleRouterApiWalletRegistrationSetup(
   if (!session) {
     return routeError(500, 'internal', 'wallet registration setup requires session signing');
   }
-  const request = parseWalletRegistrationSetupRequest(input.body);
-  if (!request.ok) return routeError(400, request.code, request.message);
   return input.services.walletRegistration.setupWalletRegistration({
     request: request.value,
     orgId: principal.orgId,

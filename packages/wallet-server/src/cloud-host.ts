@@ -9,7 +9,11 @@ export * from './core/routerAbSigning/RouterAbEcdsaPresignRuntime';
 export * from './core/types';
 export * from './delegateAction';
 export * from './router/framework/apiCredentialPorts';
-export { createWalletRegistrationContextResolver } from './router/auth/walletRegistrationContext';
+export {
+  createWalletRegistrationContextResolver,
+  unavailableRegistrationContext,
+} from './router/auth/walletRegistrationContext';
+export { parseWalletRegistrationSetupRequest } from './router/domains/walletRegistration/walletRegistrationRoutes';
 export * from './router/framework/applyRouteMetering';
 export * from './router/cloudflare-adaptor';
 export type {

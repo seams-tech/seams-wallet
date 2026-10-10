@@ -1,3 +1,4 @@
+import type { WalletRegistrationContextResolver } from './router/framework/apiCredentialPorts';
 import { D1WalletObjectAddresses } from './router/cloudflare/d1/walletObjectAddresses';
 import { walletObjectIdentity, walletObjectIdentityHeaders, WALLET_OBJECT_IDENTITY_HEADER, WALLET_OBJECT_ADDRESSES_HEADER, type WalletObjectIdentity } from './router/cloudflare/runtime/walletObjectAddresses';
 import { admitD1EstablishedWalletHome } from './router/cloudflare/d1/registration/d1WalletExecutionAuthority';
@@ -170,6 +171,7 @@ export interface CloudflareD1GatewayEnv extends CloudflareD1GatewayBaseEnv {
 }
 
 export interface HostedWalletGatewayDependenciesV1 {
+  readonly registrationContext?: WalletRegistrationContextResolver;
   readonly identityStore?: CloudflareD1RouterApiAuthServiceOptions['identityStore'];
   readonly googleRegistrationAttempts?: CloudflareD1RouterApiAuthServiceOptions['googleRegistrationAttempts'];
   readonly sessionRouting?: CloudflareD1RouterApiAuthServiceOptions['sessionRouting'];
@@ -755,6 +757,7 @@ export async function createHostedWalletGatewayCompositionV1(
   const handler = createCloudflareWalletGatewayRouterV1({
     service,
     walletConsole: env.WALLET_CONSOLE,
+    registrationContext: dependencies.registrationContext,
     signerDatabase: env.SIGNER_DB,
     signerStorageNamespace: scope.namespace,
     routeExtensions: [

@@ -468,7 +468,7 @@ throughout the resize. Reduced-motion behavior remains immediate.
   environment. Revoked keys, forbidden origins, and mismatched environments fail.
   Missing or inactive environments also fail before setup issues a signed response.
   Hosts must preserve these checks when combining authentication and environment
-  resolution into one request. The Console service-binding E2E verifies durable
+  resolution with home reservation. Rejected credentials create no reservation. The Console service-binding E2E verifies durable
   key rotation, revocation, environment changes, and archival.
 - After a lost NEAR-only completion reply, credential-free replay may restore
   the committed wallet identity and sealed local material for exact-method unlock.

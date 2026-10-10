@@ -4,7 +4,6 @@ import type {
   RouterApiProjectEnvironmentResolver,
   RouterApiPublishableKeyAuthAdapter,
   RouterApiPublishableKeyAuthRequest,
-  WalletRegistrationContextResolver,
   WalletRegistrationContextResult,
 } from '../framework/apiCredentialPorts';
 
@@ -81,6 +80,6 @@ async function resolveRegistrationContext(
 export function createWalletRegistrationContextResolver(
   auth: RouterApiPublishableKeyAuthAdapter,
   environments: RouterApiProjectEnvironmentResolver,
-): WalletRegistrationContextResolver {
+) {
   return { resolve: resolveRegistrationContext.bind(undefined, auth, environments) };
 }

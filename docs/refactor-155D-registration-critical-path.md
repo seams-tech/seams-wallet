@@ -832,9 +832,10 @@ remain. No new resources were created, and production was unchanged.
   session routing and registration-continuation routing now share one SELECT.
   Each handler retains its deployment-fenced reads and writes. This removes the
   separate local session or ceremony lookup before the handler.
-- [ ] Setup: combined Console context-and-reserve, one insert batch. Started
-  in `42cde7b7`: the snapshot and the ceremony are one write batch, and the
-  address initialization runs beside it. The Console merge is open.
+- [x] Setup: combined Console context-and-reserve, one insert batch.
+  `42cde7b7` combines the snapshot and ceremony write, beside address initialization.
+  The combined Console operation now authenticates and reserves in one invocation.
+  The two-curve browser retry verification is recorded below.
 - [ ] Respond: overlap home admission and the lineage read with WebAuthn
   verification; one commit batch; no re-read after load. Started in `b338a7e1`
   and `33df3f59` for the Ed25519-only respond: the ceremony update commits in
@@ -1623,3 +1624,31 @@ established completion requires session publication, home conflicts have a
 structured code, and unrelated publications must not change an expected total
 row count. The directory assertion now checks each issued session's wallet.
 Candidate TypeScript checks pass. Hosted latency remains unmeasured.
+
+### Gateway address snapshots and combined setup — October 10
+
+Public `81e5f690` and private `be6fb57` include stored custody addresses in the
+Gateway admission query. Forwarding reuses that request's exact tenant, wallet,
+and ownership-generation snapshot. A changed generation reads the current
+address. Caller headers cannot supply the snapshot. Four regional browser
+scenarios passed: owner signing after relocation, retirement during a write,
+relocation during admitted signing, and retry after a failed credential claim.
+
+Setup now combines publishable-key authentication, environment resolution, and
+home reservation in one Console invocation. Console checks origin, tenant,
+environment, and `accounts.create` before it reserves anything. Gateway reuses
+the returned assignment only for the same operation and request digest. Each
+forwarded request still authenticates independently at its destination.
+
+Both real browser scenarios passed: NEAR-only and mixed-signer setup reply loss,
+reload, foreign-region retry, and three signatures with Console unavailable.
+An invalid credential created no directory row. Each attempt or forwarded
+request made one combined Console call. Neither the separate context call nor
+the separate reserve call ran. Server builds, public and private type checks,
+and the public bloat check passed. This setup merge is newer than the frozen
+`81e5f690` / `be6fb57` hosted comparison and has no hosted latency result yet.
+
+Local evidence: private `.artifacts/r155d-setup-local/browser.log` and
+`.artifacts/r155b/console-outage/setup-retry-{near-only,mixed}/setup-retry.json`.
+The browser scenarios are repeatable with `tests/scripts/run-regional-real.mjs
+--grep 'setup reply loss survives reload'` against matching public build output.

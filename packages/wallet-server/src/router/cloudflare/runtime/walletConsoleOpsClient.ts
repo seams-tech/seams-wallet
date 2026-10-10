@@ -232,25 +232,33 @@ async function resolveRegistrationContext(
       WALLET_CONSOLE_OP_PATHS_V1.registrationContext,
       input,
     );
-    if (status === 401 || status === 403) {
-      const failure = parsePublishableKeyAuthResponse(body, status);
-      return failure && !failure.ok ? failure : unavailableRegistrationContext();
-    }
-    if (status !== 200 || typeof body !== 'object' || body === null || Array.isArray(body)) {
-      return unavailableRegistrationContext();
-    }
-    const record = body as Readonly<Record<string, unknown>>;
-    if (record.ok !== true || Object.keys(record).some(unexpectedRegistrationContextField)) {
-      return unavailableRegistrationContext();
-    }
-    const principal = parseRouterApiKeyPrincipal(record.principal);
-    const environment = parseProjectEnvironment(record.environment);
-    return principal && environment
-      ? walletRegistrationContext(input, principal, environment)
-      : unavailableRegistrationContext();
+    return parseWalletRegistrationContextResponse(input, status, body);
   } catch {
     return unavailableRegistrationContext();
   }
+}
+
+export function parseWalletRegistrationContextResponse(
+  input: RouterApiPublishableKeyAuthRequest,
+  status: number,
+  body: unknown,
+): WalletRegistrationContextResult {
+  if (status === 401 || status === 403) {
+    const failure = parsePublishableKeyAuthResponse(body, status);
+    return failure && !failure.ok ? failure : unavailableRegistrationContext();
+  }
+  if (status !== 200 || typeof body !== 'object' || body === null || Array.isArray(body)) {
+    return unavailableRegistrationContext();
+  }
+  const record = body as Readonly<Record<string, unknown>>;
+  if (record.ok !== true || Object.keys(record).some(unexpectedRegistrationContextField)) {
+    return unavailableRegistrationContext();
+  }
+  const principal = parseRouterApiKeyPrincipal(record.principal);
+  const environment = parseProjectEnvironment(record.environment);
+  return principal && environment
+    ? walletRegistrationContext(input, principal, environment)
+    : unavailableRegistrationContext();
 }
 
 function unexpectedRegistrationContextField(field: string): boolean {

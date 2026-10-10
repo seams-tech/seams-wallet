@@ -138,7 +138,7 @@ export function parseWalletRegistrationSetupReservation(
 }
 
 export function proposeWalletRegistrationSetup(
-  input: WalletRegistrationSetupInput,
+  input: Pick<WalletRegistrationSetupInput, 'request'>,
 ): WalletRegistrationSetupReservation {
   return parseWalletRegistrationSetupReservation({
     walletId:
@@ -156,7 +156,10 @@ export function proposeWalletRegistrationSetup(
 
 export async function walletRegistrationSetupRequestDigest(
   namespace: string,
-  input: WalletRegistrationSetupInput,
+  input: Pick<
+    WalletRegistrationSetupInput,
+    'request' | 'orgId' | 'expectedOrigin' | 'runtimePolicyScope'
+  >,
 ): Promise<string> {
   if (!input.runtimePolicyScope || input.runtimePolicyScope.orgId !== input.orgId) {
     throw new Error('Registration reservation requires an exact authenticated tenant scope');

@@ -1,4 +1,5 @@
 import type { RouterApiKeyAuthFailureCode } from '@shared/utils/routerApiKeyAuth';
+import type { WalletRegistrationSetupRequest } from '../domains/walletRegistration/walletRegistrationInputs';
 import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 export const ROUTER_API_CREDENTIAL_SCOPES = [
@@ -91,7 +92,9 @@ export type WalletRegistrationContextResult = ReadonlyExclusiveUnion<
 >;
 
 export interface WalletRegistrationContextResolver {
-  resolve(input: RouterApiPublishableKeyAuthRequest): Promise<WalletRegistrationContextResult>;
+  resolve(input: RouterApiPublishableKeyAuthRequest & {
+    readonly registration: WalletRegistrationSetupRequest;
+  }): Promise<WalletRegistrationContextResult>;
 }
 
 export type RouterApiUsageMeterAction = 'wallet_created';
