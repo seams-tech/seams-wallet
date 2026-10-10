@@ -1,13 +1,14 @@
 # R155D — the registration-to-first-signature critical path
 
-Status: stored unique IDs, setup-time startup, and the registration status seed
-are implemented and measured on staging. The stored-ID comparison reduced the
-SDK flow without user interaction to **5.488 s**. The 3–4 s target remains unmet.
-Further Gateway reductions are implemented locally. The latest change overlaps
-Router activation consumption with the Console credential claim. The activation
-and journal merge remains with its recorded owner. The combined hosted comparison
-and the remaining Phase 2–4 work are open. The staging role-database move remains
-an explicit deployment decision. See the [implementation record](#implementation-record).
+Status: **in progress; the 3–4 s target remains unmet.** Stored unique IDs,
+setup-time startup, and the registration status seed are implemented and measured.
+The stored-ID comparison measured **5.488 s** without user interaction. A later
+Gateway comparison measured **6.001 s**, with baseline and repeated baseline
+medians of **6.132 s** and **6.616 s**. These are separate experiments.
+The latest candidate combines Console setup, further authorization reads, and
+activation with journal completion. Its hosted comparison and combined lifecycle
+checks are running. Preparation during confirmation, the remaining batch targets,
+and the role-database decision remain open. See the [implementation record](#implementation-record).
 Plan dated October 9, 2026; record updated October 10.
 
 ## Objective and relationship to R155B and R155C
@@ -852,13 +853,15 @@ remain. No new resources were created, and production was unchanged.
   in the batch that completes the registration journal, which removes one
   more. See [the verification record](#registration-session-and-completion-decision)
   and [the activation record](#activation-in-the-journal-completion-batch).
-- [ ] Sign prepare and sign: one authorization batch; pinned scope from the
+- [x] Sign prepare and sign: one authorization batch; pinned scope from the
   read-back; completion write ordered after the response where the
   specification allows, or kept before it with the reason recorded. Started
   in `12dca984`: the scope comes from the read-back and sign resolves its
   operation in one read. The completion write stays before the response, and
   the [record](#october-10--gateway-round-trips-first-cuts) gives the reason.
-  The single authorization batch is open.
+  `bed2e264` includes the active Yao capability in the authorization read.
+  Missing capability observations retain persisted reconciliation. The composed
+  quota, step-up, linked-device, retirement and relocation cases pass.
 - [ ] Verify through the existing registration, lost-reply, cancellation,
   quota, retirement, and relocation contracts. Add scenarios only for new
   orderings: finalize with the Console claim failing after the consume,
@@ -882,10 +885,14 @@ remain. No new resources were created, and production was unchanged.
   Both dispatch directly to the stored wallet object after parsing and validation.
   The D1 replay and material reads below that branch serve other material sources.
   They do not run for this NEAR registration workload. See the custody audit below.
-- [ ] Measure Deriver A's post-protocol work: output seal, record write,
+- [x] Measure Deriver A's post-protocol work: output seal, record write,
   deferred D1 settle, output gate. Return the reply before non-essential
   durable work only where one durable execution outcome is preserved; record
-  which writes must precede the reply.
+  which writes must precede the reply. The entry/finalization comparison records
+  these spans. Output sealing and outcome recording read 0 ms on the Worker
+  clock, which cannot isolate synchronous CPU or the implicit storage flush.
+  Background D1 settlement measured 148 ms median. The encrypted completed
+  outcome remains durable before the reply so a lost response can replay it.
 - [x] Apply stored addresses to B's socket forwarding. The stored-ID candidate
   measures A's complete WebSocket connection at 261 ms median, 260–269 ms.
   B's stateless duplex invocation measures 129 ms median, 118–136 ms.
@@ -1550,30 +1557,34 @@ Decided on October 10:
   Permanent activation remains part of the coordinated release. Version 0.9.0
   follows the change.
 
-Still needed:
+Open decisions and work:
 
-1. Use the completed stored-address D1 and service trace for the remaining Phase 2
-   work. The baseline, candidate and control comparison and the diagnostic trace
-   are complete. The older `.artifacts/r155d-hosted/compare/launch-trace.sh`
-   predates stored addresses and must not be used to measure this implementation.
+1. Finish the combined Phase 2 comparison in private
+   `.artifacts/r155d-completion-hosted`. It keeps the SDK and custody versions
+   fixed, adds the same Console D1 instrumentation to every arm, and compares
+   three new wallets per arm. The older
+   `.artifacts/r155d-hosted/compare/launch-trace.sh` predates stored addresses
+   and must not measure this implementation.
 2. Move the staging role databases. That creates three databases and moves
    custody data.
 
-Not started, with the reason:
+Remaining scope, with the reason:
 
-- The rest of Phase 2. Finalize's steps are ordered by its journal and replay
-  rules. The completed trace now supplies D1, Console and Router durations for
-  this work. Finalize makes three Console requests. The passkey claim runs
-  inside the wallet commit. The recovery-code routes run inside the custody
-  commit, which already overlaps the capability installation. The completion
-  runs with session issuance. Carrying the routes in the completion can save
-  at most the difference between those two overlapping branches. Moving the
-  claim needs the Console owner's decision.
+- The four-to-six-round-trip finalize target remains open. Credential claim
+  now overlaps Router consumption. Session issuance commits its completion
+  decision atomically, and activation commits with journal completion.
+  Finalize still makes three Console requests. Recovery-code route publication
+  overlaps capability installation. Combining it with completion could remove
+  a request, but the elapsed saving depends on that overlap. Further batch
+  changes must retain exact replay, ownership fences, and publication order.
 - Sign prepare during confirmation. An admitted prepare claims one use of the
   session's quota, so a declined confirmation would spend a use unless prepare
   gains a release. It also sends the operation to the server before the user
   approves it.
-- Phase 4.
+- The five-browser-request target conflicts with the explicit exclusion of
+  combined execute/finalize. The current flow has six requests and no status
+  request. Moving prepare into confirmation changes timing, not request count.
+  Reaching five requires a scope decision about the combined endpoint.
 
 ## Structural acceptance targets
 
