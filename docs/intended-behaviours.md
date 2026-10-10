@@ -507,6 +507,13 @@ throughout the resize. Reduced-motion behavior remains immediate.
   local transaction. Continuations use that local execution identity. A missing
   identity fails locally and cannot create one through a directory lookup.
   Setup retries preserve the current ceremony and cannot reopen a retired home.
+- When registration starts, the SDK sends one `OPTIONS` request to each Gateway
+  route that the registration calls after setup. A registration with a NEAR
+  signer also sends one to each of the two NEAR signing routes. The requests
+  carry no body and no credential. They let the browser finish its CORS
+  preflight for those routes before their first request. A failed early request
+  changes nothing, because the later request runs its own preflight. A relayer
+  on the wallet's own origin receives no early request.
 - After verifying the ceremony proof and activation identity, NEAR finalization
   can consume Router activation and reserve the passkey credential concurrently.
   Both requests settle before local wallet persistence. A refused or unavailable

@@ -42,11 +42,38 @@ class NearSigningRequestEvidence {
   }
 }
 
+/** Records each request as "METHOD path", in the order the browser sends them. */
+class RequestOrder {
+  readonly sent: string[] = [];
+
+  record(request: Request): void {
+    this.sent.push(`${request.method()} ${new URL(request.url()).pathname}`);
+  }
+}
+
 async function verifyLocalEd25519YaoRegistration(
   { harness, context }: { harness: IntendedBehaviourHarness; context: BrowserContext },
   testInfo: TestInfo,
 ): Promise<void> {
+  const order = new RequestOrder();
+  const recordOrder = order.record.bind(order);
+  context.on('request', recordOrder);
   await harness.registerPasskeyEd25519YaoWallet();
+  context.off('request', recordOrder);
+  // Registration preflights its later routes and both signing routes while setup runs.
+  const respond = order.sent.indexOf('POST /wallets/register/respond');
+  expect(respond).toBeGreaterThan(-1);
+  for (const path of [
+    '/wallets/register/respond',
+    '/router-ab/ed25519/yao/registration/execute',
+    '/wallets/register/near-provisioning',
+    '/router-ab/ed25519/sign/prepare',
+    '/router-ab/ed25519/sign',
+  ]) {
+    const early = order.sent.indexOf(`OPTIONS ${path}`);
+    expect(early, path).toBeGreaterThan(-1);
+    expect(early, path).toBeLessThan(respond);
+  }
   await harness.signNearTransaction('post_registration');
   const evidence = new NearSigningRequestEvidence();
   const record = evidence.record.bind(evidence);

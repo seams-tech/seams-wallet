@@ -159,6 +159,7 @@ import { computeAddSignerIntentDigest } from '@/utils/intentDigest';
 import type { EmailOtpRegistrationProof } from '@shared/utils/registrationAuthMethodInput';
 import {
   setupWalletRegistration,
+  prewarmWalletRegistrationRoutes,
   createWalletAddSignerIntent,
   finalizeWalletAddSigner,
   isEmailOtpWalletRegistrationFinalizeResponse,
@@ -864,9 +865,15 @@ function failedRegistrationWarmup(error: unknown): RegistrationWarmupOutcome {
 function startRegistrationWarmup(input: {
   recorder: RegistrationTimingRecorder;
   context: RegistrationWebContext;
+  relayerUrl: string;
   authMethod: RegistrationAuthMethodInput;
   signerSelection: RegistrationSignerSetSelection;
 }): Promise<RegistrationWarmupOutcome> {
+  prewarmWalletRegistrationRoutes({
+    relayerUrl: input.relayerUrl,
+    nearEd25519: input.signerSelection.signers.some((signer) => signer.kind === 'near_ed25519'),
+    evmFamilyEcdsa: registrationSelectionIncludesEcdsa(input.signerSelection),
+  });
   const genericWarmup = input.recorder.measure(
     'registrationWarmupMs',
     registrationWarmupWork(input.context),
@@ -1697,6 +1704,7 @@ async function setupThreeRouteRegistration(args: {
   const registrationWarmup = startRegistrationWarmup({
     recorder: args.recorder,
     context: args.context,
+    relayerUrl,
     authMethod: args.authMethod,
     signerSelection: args.signerSelection,
   });

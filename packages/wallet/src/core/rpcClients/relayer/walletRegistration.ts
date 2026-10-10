@@ -74,6 +74,7 @@ import {
 } from '@shared/utils/webauthnDeviceInfo';
 import type { EcdsaKeyFactsInventoryWalletSessionCredential } from '@/core/types/sdkSentEvents';
 import {
+  ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1,
   parseRouterAbEd25519YaoRegistrationAdmissionRequestV1,
   parseRouterAbEd25519YaoRegistrationActivationAdmissionReceiptV1,
   type RouterAbEd25519YaoActivationAdmissionReceiptV1,
@@ -90,7 +91,11 @@ import {
   parseWalletAuthAuthority,
   type WalletAuthAuthority,
 } from '@shared/utils/walletAuthAuthority';
-import { type RouterAbEd25519NormalSigningState } from '@shared/utils/signingSessionSeal';
+import {
+  ROUTER_AB_ED25519_NORMAL_SIGNING_PATH,
+  ROUTER_AB_ED25519_NORMAL_SIGNING_PREPARE_PATH,
+  type RouterAbEd25519NormalSigningState,
+} from '@shared/utils/signingSessionSeal';
 import {
   parseRouterAbEcdsaRegistrationPublicActivationReceiptV1,
   parseRouterAbEcdsaRegistrationRequestFactsV1,
@@ -133,6 +138,7 @@ import {
   buildWalletSessionAuthorizationHeaders,
   buildRelayerJsonPostRequestInit,
   normalizeRelayerBaseUrl,
+  prewarmRelayerPreflights,
 } from './relayerHttp';
 import {
   parseWalletAddSignerChainTarget,
@@ -157,6 +163,30 @@ const WALLET_REGISTRATION_ACTIVATE_PATH = '/wallets/register/activate';
 const WALLET_REGISTRATION_NEAR_PROVISIONING_PATH = '/wallets/register/near-provisioning';
 /** Managed environment id header for Router API `api_credentials` auth. */
 const ROUTER_API_ENVIRONMENT_ID_HEADER = 'X-Seams-Environment-Id';
+
+/**
+ * Preflights the routes that a registration calls after setup, and the routes
+ * of a NEAR wallet's first signature. Setup and the authenticator prompt run
+ * meanwhile, so each later request starts without that exchange.
+ */
+export function prewarmWalletRegistrationRoutes(input: {
+  relayerUrl: string;
+  nearEd25519: boolean;
+  evmFamilyEcdsa: boolean;
+}): void {
+  const paths: string[] = [WALLET_REGISTRATION_RESPOND_PATH];
+  if (input.evmFamilyEcdsa) paths.push(WALLET_REGISTRATION_ACTIVATE_PATH);
+  if (input.nearEd25519) {
+    if (input.evmFamilyEcdsa) paths.push(WALLET_REGISTRATION_NEAR_ADMISSION_PATH);
+    paths.push(
+      ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1,
+      WALLET_REGISTRATION_NEAR_PROVISIONING_PATH,
+      ROUTER_AB_ED25519_NORMAL_SIGNING_PREPARE_PATH,
+      ROUTER_AB_ED25519_NORMAL_SIGNING_PATH,
+    );
+  }
+  prewarmRelayerPreflights(input.relayerUrl, paths);
+}
 
 function utf8Bytes(value: string): number {
   try {

@@ -38,6 +38,32 @@ export function buildRelayerJsonPostRequestInit(args: {
   };
 }
 
+/**
+ * Runs the CORS preflight of relayer routes ahead of their first request.
+ *
+ * A cross-origin JSON request costs one preflight exchange for each new URL.
+ * The browser caches the answer for that URL, so an early preflight takes the
+ * exchange out of the later request's path. An `OPTIONS` fetch is the smallest
+ * request that makes the browser run one.
+ *
+ * Best effort: a failed preflight changes nothing, because the later request
+ * runs its own. A same-origin relayer needs no preflight and gets no request.
+ */
+export function prewarmRelayerPreflights(relayerUrl: string, paths: readonly string[]): void {
+  const base = normalizeRelayerBaseUrl(relayerUrl);
+  const pageOrigin = globalThis.location?.origin;
+  let relayerOrigin: string;
+  try {
+    relayerOrigin = new URL(base).origin;
+  } catch {
+    return;
+  }
+  if (!pageOrigin || relayerOrigin === pageOrigin) return;
+  for (const path of paths) {
+    void fetch(`${base}${path}`, { method: 'OPTIONS', credentials: 'omit' }).catch(() => {});
+  }
+}
+
 export function buildWalletSessionAuthorizationHeaders(
   credential: Pick<WalletSessionOperationCredentialV1, 'token' | 'home'>,
 ): Record<string, string> {
