@@ -820,7 +820,7 @@ remain. No new resources were created, and production was unchanged.
   staging the startup now reaches the Router before respond, and no later
   request became faster: see the
   [hosted comparison](#hosted-comparison-october-10).
-- [ ] Move the staging role databases to the roles' location, following the
+- [x] Move the staging role databases to the roles' location, following the
   production-testnet procedure: create and verify replacements, export and
   import, redeploy with the new database IDs, compare snapshots. This creates
   three databases and moves custody data, so it needs the deployment owner.
@@ -836,10 +836,16 @@ remain. No new resources were created, and production was unchanged.
   Each copy has the script etag, module bytes, other bindings and migration
   tag of its source. The settings API was not usable: it builds on the latest
   upload, which was a comparison build and not the serving version.
-  Still open: the tenant activation with its registration canary has not run
-  since the cutover, the three GitHub variables still name the old databases,
-  and `d1PrimaryColo: HKG` is not in `targets.json`. The old databases remain.
-  A deployment of the previous version IDs reverses the cutover.
+  The owner then ran the tenant activation, and run `38055890237` passed. The
+  owner also set the three GitHub variables to the new database IDs. Private
+  `c488eb9` adds `d1PrimaryColo: HKG` for the two staging Derivers. The
+  Signing Worker has no such check: the preflight unit tests run that
+  component with placeholder credentials. After the cutover the Deriver
+  role-share reads arrive at the new databases and none at the old ones.
+  Still open: no registration has run through the roles since the cutover,
+  because the activation canary does not write to the role databases. The
+  first hosted registration is that proof. The old databases remain, and a
+  deployment of the previous version IDs reverses the cutover.
   A Worker version keeps its own database binding. Version IDs and snapshots
   that a hosted driver stored before the cutover use the old databases, so
   later comparisons need new snapshots and new baseline custody versions.
