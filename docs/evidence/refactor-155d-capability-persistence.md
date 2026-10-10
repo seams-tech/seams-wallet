@@ -37,6 +37,18 @@ record work does not establish a reduction in round trips or hosted duration.
 
 ## Verification
 
+Implementation commit: `3ed898cc` on `dev`.
+
+| Check | Result |
+| --- | --- |
+| Production server build | Pass |
+| Real D1 storage and concurrency scenarios | Pass |
+| Wallet state type fixtures | Pass |
+| NEAR registration replay and signing across reload | Pass |
+| Lost finalization credential recovery | Pass |
+| Passkey recovery after lost reply and runtime reset | Pass |
+| Bloat check | Pass |
+
 The storage scenario uses the production runtime and D1 stores under Miniflare.
 It checks installation, a retry after an ignored reply, and capability lookup.
 It also forces concurrent writes between the read and commit. Another wallet's
@@ -54,6 +66,11 @@ node tests/scripts/run-wallet-intended-isolated.mjs -- \
   e2e/intended-behaviours/passkey.recovery.contract.test.ts \
   --grep 'NEAR-only registration|a committed Passkey recovery survives'
 ```
+
+The first browser launch found occupied custody ports 4103–4106. After the full
+runtime build passed, the three cases passed with `SEAMS_LOCAL_PORT_OFFSET=1600`
+and `SEAMS_INTENDED_SKIP_BUILD=1`. This reused the completed build and left the
+other local stack running. No hosted resources changed.
 
 The storage artifact is
 `.artifacts/r153/authorization-storage-transfer/evidence.json`, under
