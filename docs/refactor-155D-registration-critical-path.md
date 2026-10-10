@@ -824,17 +824,25 @@ remain. No new resources were created, and production was unchanged.
   production-testnet procedure: create and verify replacements, export and
   import, redeploy with the new database IDs, compare snapshots. This creates
   three databases and moves custody data, so it needs the deployment owner.
-  The owner approved the move on October 10. Started at 19:18 JST in the
-  session that made `b6d9f2a7`: three empty replacements exist with verified
-  `HKG` primaries, `router-ab-deriver-a-staging-private-hkg`,
+  The owner approved the move on October 10. The cutover happened at 22:18
+  JST in the session that made `b6d9f2a7`. The replacements have verified
+  `HKG` primaries: `router-ab-deriver-a-staging-private-hkg`,
   `router-ab-deriver-b-staging-private-hkg` and
-  `router-ab-signing-worker-staging-private-hkg`. No data is copied and no
-  Worker is rebound yet. The cutover waits for an idle staging and for the
-  owner's choice of deploy path: the staging workflow would also deploy the
-  162 commits that `origin/dev` holds since the last full deploy of October 6.
-  A Worker version keeps its own database binding. The custody version IDs
-  that the hosted drivers store will still use the old databases after the
-  cutover, so later comparisons need new baseline versions.
+  `router-ab-signing-worker-staging-private-hkg`. A dump of each replacement
+  equals the dump of its source, and the sources did not change between the
+  copy and the cutover. Each role serves an exact copy of its original
+  version with the new D1 binding: Signing Worker `63058fab` from `c18b2202`,
+  Deriver A `d5113e2a` from `eaa0b80f`, Deriver B `92fb170f` from `c700bbc1`.
+  Each copy has the script etag, module bytes, other bindings and migration
+  tag of its source. The settings API was not usable: it builds on the latest
+  upload, which was a comparison build and not the serving version.
+  Still open: the tenant activation with its registration canary has not run
+  since the cutover, the three GitHub variables still name the old databases,
+  and `d1PrimaryColo: HKG` is not in `targets.json`. The old databases remain.
+  A deployment of the previous version IDs reverses the cutover.
+  A Worker version keeps its own database binding. Version IDs and snapshots
+  that a hosted driver stored before the cutover use the old databases, so
+  later comparisons need new snapshots and new baseline custody versions.
 - [x] Measure Yao execute, finalize, and sign against the Phase 0 baseline
   with everything else fixed. The stored-address, entry/finalization, and
   completion comparisons record each source and deployment version.
