@@ -5,11 +5,14 @@ setup-time startup, and the registration status seed are implemented and measure
 The stored-ID comparison measured **5.488 s** without user interaction. A later
 Gateway comparison measured **6.001 s**, with baseline and repeated baseline
 medians of **6.132 s** and **6.616 s**. These are separate experiments.
-The latest candidate combines Console setup, authorization reads, and activation
+The latest hosted candidate combines Console setup, authorization reads, and activation
 with journal completion. It measures **5.574 s** without interaction, with
 baseline and repeated baseline medians of **9.679 s** and **5.845 s**. All 132
 public lifecycle cases pass. Hosted checks and all nine signature proofs pass.
-Staging restoration is independently verified. Preparation during confirmation, the remaining
+Registration alone measured **4.847 s** excluding WebAuthn interaction, or
+**5.587 s** including it, in the same three candidate samples. Ceremony identity
+reuse and setup-time home persistence are newer local changes. Their hosted
+latency is unmeasured. Staging restoration is independently verified. Preparation during confirmation, the remaining
 batch targets, and the role-database decision remain open. See the [implementation record](#implementation-record).
 Plan dated October 9, 2026; record updated October 10.
 
@@ -844,8 +847,9 @@ remain. No new resources were created, and production was unchanged.
   verification; one commit batch; no re-read after load. Started in `b338a7e1`
   and `33df3f59` for the Ed25519-only respond: the ceremony update commits in
   the batch of the Yao admission, and the lineage read runs beside the home
-  admission and the proof. The home admission keeps its own write, and the
-  admission commit still reads its record again.
+  admission and the proof. Setup now saves the home in its ceremony batch,
+  which removes the continuation's directory lookup and separate home write.
+  The admission commit still reads its record again.
 - [ ] Finalize: concurrent consume, claim, and reads; one or two write batches
   including the journal; routes carried by completion; duplicate reads removed.
   Decide the passkey claim's placement with the Console owner and record the
@@ -1970,3 +1974,24 @@ Email OTP lost-finalization checks all pass: four existing browser scenarios.
 results and log hashes. The first isolated launch lacked a workspace package
 link and stopped before any scenario ran. Fixing that export required no
 production change.
+
+### Persist registration ownership during setup
+
+Setup now saves the authenticated wallet, ceremony, and ownership generation
+with both ceremony records in one D1 batch. Address initialization still runs
+beside it. This adds no setup round trip and removes the continuation's Console
+lookup and separate D1 insertion batch. Missing identities fail locally.
+Retries preserve an advanced ceremony and cannot reopen a retired home.
+No schema migration is required. Staging remains unchanged.
+
+The assembled setup check covers atomic rollback, lost allocation replies,
+local admission, and cancellation while Console is unavailable. Session issuance,
+activation completion, relocation storage, regional routing, and three browser
+registration scenarios pass. The server build and bloat check pass.
+[Local evidence](evidence/refactor-155d-setup-home.json) records the artifacts,
+derived registration-only timings, and the remaining measured costs.
+
+Next: combine recovery-route publication with completion, then investigate
+allocation variability. The removed home call cost 92–286 ms. Route publication
+cost 163–168 ms, and allocation ranged from 19–538 ms. These overlapping costs
+are not additive savings. Hosted savings remain unmeasured for this change.

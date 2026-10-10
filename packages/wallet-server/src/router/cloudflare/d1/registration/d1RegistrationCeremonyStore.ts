@@ -27,6 +27,7 @@ import {
   D1RegistrationCeremonyRecordStore,
   type D1RegistrationCeremonyRecordScope,
 } from './d1RegistrationCeremonyRecordStore';
+import { prepareD1RegistrationHomeReservation } from './d1WalletExecutionAuthority';
 
 type RegistrationCeremonyIntentScope =
   | 'ceremony'
@@ -67,7 +68,7 @@ type D1WalletRegistrationCeremonyCommitV1 = {
 export class CloudflareD1RegistrationCeremonyIntentStore {
   private readonly storage: D1RegistrationCeremonyRecordStore;
 
-  constructor(input: RegistrationCeremonyIntentStoreConfig) {
+  constructor(private readonly input: RegistrationCeremonyIntentStoreConfig) {
     this.storage = new D1RegistrationCeremonyRecordStore(input);
   }
 
@@ -79,9 +80,10 @@ export class CloudflareD1RegistrationCeremonyIntentStore {
     return ceremony;
   }
 
-  /** One batch stores the setup snapshot and opens the ceremony from the stored snapshot. */
+  /** One batch stores the setup snapshot, ceremony, and authenticated execution identity. */
   async reserveSetupCeremony(
     proposed: StoredWalletRegistrationCeremony,
+    ownershipGeneration: number,
   ): Promise<StoredWalletRegistrationCeremony> {
     const stored = await this.storage.insertOrReadWithCopy(
       {
@@ -91,6 +93,11 @@ export class CloudflareD1RegistrationCeremonyIntentStore {
         expiresAtMs: proposed.expiresAtMs,
       },
       'ceremony',
+      prepareD1RegistrationHomeReservation(this.input.database, this.input.scope, {
+        walletId: proposed.intent.walletId,
+        ceremonyId: proposed.registrationCeremonyId,
+        ownershipGeneration,
+      }),
     );
     const ceremony = parseD1StoredWalletRegistrationCeremony(stored.record.value);
     if (!ceremony || !sameSetupReservation(ceremony, proposed)) {
@@ -101,19 +108,6 @@ export class CloudflareD1RegistrationCeremonyIntentStore {
       throw new Error('Registration ceremony conflicts with its setup snapshot');
     }
     return ceremony;
-  }
-
-  async ensureSetupCeremony(setup: StoredWalletRegistrationCeremony): Promise<void> {
-    const stored = await this.storage.insertOrRead({
-      scope: 'ceremony',
-      id: setup.registrationCeremonyId,
-      value: encodeRecord(setup),
-      expiresAtMs: setup.expiresAtMs,
-    });
-    const current = parseD1StoredWalletRegistrationCeremony(stored.value);
-    if (!current || !sameSetupReservation(current, setup)) {
-      throw new Error('Registration ceremony conflicts with its setup snapshot');
-    }
   }
 
   async getCeremony(

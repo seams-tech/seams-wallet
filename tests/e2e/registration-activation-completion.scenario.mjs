@@ -1,15 +1,12 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { seedRegistrationHome } from './execution-generation.scenario.mjs';
 
 class ApprovedDirectory {
   publications = 0;
 
   async reserve() {
     throw new Error('This scenario starts with an approved registration');
-  }
-
-  async admitHome() {
-    return { ok: true, ownershipGeneration: 1, purpose: 'registration' };
   }
 
   async complete() {
@@ -27,6 +24,8 @@ class RegistrationOperation {
 
   constructor(api, database, scope, label) {
     this.api = api;
+    this.database = database;
+    this.scope = scope;
     this.directory = new ApprovedDirectory();
     this.authority = new api.D1WalletExecutionAuthority(database, scope, this.directory);
     this.store = new api.D1WalletOperationStore(
@@ -47,6 +46,7 @@ class RegistrationOperation {
       walletId: this.admission.application_binding.wallet_id,
       ceremonyId: `activation-completion-${label}`,
     };
+    await seedRegistrationHome({ database: this.database, scope: this.scope, ...this.identity });
     assert.equal((await this.authority.admitHome(this.identity)).ok, true);
   }
 
@@ -154,10 +154,9 @@ export async function verifyRegistrationActivationCompletion({ api, database, sc
   assert.equal(await committed.active(), true);
   const calls = JSON.parse(traced.response(new Response()).headers.get('x-benchmark-d1')).calls;
   const writes = calls.map(writtenTables).filter(hasTables);
-  // The home admission and the completion decision each update the generation
-  // before the publication. The last write completes the record and activates.
+  // The completion decision updates the generation before publication. The
+  // last write completes the record and activates it together.
   assert.deepEqual(writes, [
-    ['wallet_execution_generations'],
     ['wallet_execution_generations'],
     ['router_ab_yao_versioned_json_records', 'wallet_execution_generations'],
   ]);

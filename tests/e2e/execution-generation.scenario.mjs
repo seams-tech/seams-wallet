@@ -9,14 +9,6 @@ class ApprovedRegistrationAuthority {
     throw new Error('This scenario starts with an approved registration');
   }
 
-  async admitHome() {
-    return {
-      ok: true,
-      ownershipGeneration: 1,
-      purpose: this.established ? 'ordinary' : 'registration',
-    };
-  }
-
   async complete() {
     this.established = true;
     return { ok: true };
@@ -39,6 +31,16 @@ export async function establishRegistrationHome(authority, database, completion)
   return { ok: true };
 }
 
+/** Seeds the execution identity that authenticated setup commits with its ceremony. */
+export async function seedRegistrationHome({ database, scope, walletId, ceremonyId }) {
+  await database
+    .prepare(`INSERT INTO wallet_execution_generations
+    (namespace, org_id, project_id, env_id, wallet_id, generation, origin, origin_id, state)
+    VALUES (?, ?, ?, ?, ?, 1, 'registration', ?, 'registering')`)
+    .bind(scope.namespace, scope.orgId, scope.projectId, scope.envId, walletId, ceremonyId)
+    .run();
+}
+
 export async function seedExecutionGeneration({ api, database, scope, walletId }) {
   const existing = await database
     .prepare(
@@ -54,6 +56,7 @@ export async function seedExecutionGeneration({ api, database, scope, walletId }
     new ApprovedRegistrationAuthority(),
   );
   const identity = { walletId, ceremonyId: 'fixture-execution-registration' };
+  await seedRegistrationHome({ database, scope, ...identity });
   assert.equal((await authority.admitHome(identity)).ok, true);
   assert.equal(
     (await establishRegistrationHome(authority, database, establishedCompletion(identity))).ok,
@@ -66,10 +69,13 @@ export async function prepareExecutionGeneration({ api, database, scope, walletI
   const authority = new api.D1WalletExecutionAuthority(database, scope, registration);
   const identity = { walletId, ceremonyId: 'execution-generation-registration' };
   assert.equal((await authority.admitEstablishedHome({ walletId })).ok, false);
+  assert.equal((await authority.admitHome(identity)).ok, false);
+  await seedRegistrationHome({ database, scope, ...identity });
   assert.equal((await authority.admitHome(identity)).ownershipGeneration, 1);
   assert.equal((await authority.admitHome(identity)).ownershipGeneration, 1);
   assert.equal((await authority.admitEstablishedHome({ walletId })).ok, false);
-  await assert.rejects(authority.admitHome({ walletId, ceremonyId: 'conflicting-registration' }));
+  const conflict = await authority.admitHome({ walletId, ceremonyId: 'conflicting-registration' });
+  assert.equal(conflict.ok, false);
   await database
     .prepare(
       `CREATE TRIGGER injected_execution_completion

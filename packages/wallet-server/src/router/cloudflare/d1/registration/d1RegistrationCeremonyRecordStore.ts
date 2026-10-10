@@ -140,6 +140,7 @@ export class D1RegistrationCeremonyRecordStore {
   async insertOrReadWithCopy(
     mutation: D1RegistrationCeremonyRecordMutation,
     copyScope: string,
+    companion: readonly D1PreparedStatementLike[],
   ): Promise<{
     readonly record: D1RegistrationCeremonyStoredRecord;
     readonly copy: D1RegistrationCeremonyStoredRecord;
@@ -168,6 +169,7 @@ export class D1RegistrationCeremonyRecordStore {
         .bind(...this.bindKey(key), copyKey.scope, nowMs),
       this.prepareRead(key),
       this.prepareRead(copyKey),
+      ...companion,
     ]);
     const record = results[2]?.results?.[0];
     const copy = results[3]?.results?.[0];

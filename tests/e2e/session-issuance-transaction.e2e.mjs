@@ -8,15 +8,12 @@ import { unstable_splitSqlQuery } from 'wrangler';
 import { buildWorkerdCompatiblePhase1Bridge } from '../../packages/wallet-server/scripts/d1-local-migrate-signer.mjs';
 import {
   establishRegistrationHome,
+  seedRegistrationHome,
   seedExecutionGeneration,
 } from './execution-generation.scenario.mjs';
 
 class RegistrationDirectoryWithLostReply {
   calls = 0;
-
-  async admitHome() {
-    return { ok: true, ownershipGeneration: 1, purpose: 'registration' };
-  }
 
   async complete() {
     this.calls += 1;
@@ -339,6 +336,7 @@ async function verifyRegistrationCompletion(database, now) {
   };
   const directory = new RegistrationDirectoryWithLostReply();
   const authority = new api.D1WalletExecutionAuthority(database, scope, directory);
+  await seedRegistrationHome({ database, scope, ...identity });
   assert.equal((await authority.admitHome(identity)).ok, true);
   await database.batch([
     api.prepareD1WalletAuthorityPutStatement({ database, scope, authority: fixture.authority }),

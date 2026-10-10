@@ -119,7 +119,9 @@ export async function executeD1WalletRegistrationSetup(
         );
       // A retry after lost allocation must recover the same persisted addresses.
       await Promise.all([
-        admitted.lifecycle === 'reserved' ? dependencies.store.ensureSetupCeremony(existing) : null,
+        admitted.lifecycle === 'reserved'
+          ? dependencies.store.reserveSetupCeremony(existing, admitted.ownershipGeneration)
+          : null,
         dependencies.startRegistrationWallets?.({
           walletId: wallet.walletId,
           ownershipGeneration: admitted.ownershipGeneration,
@@ -225,7 +227,7 @@ export async function executeD1WalletRegistrationSetup(
     // The addresses need only the reserved wallet, so they are allocated and
     // stored beside the ceremony write. Setup answers after both.
     const [stored] = await Promise.all([
-      dependencies.store.reserveSetupCeremony(ceremony),
+      dependencies.store.reserveSetupCeremony(ceremony, admitted.ownershipGeneration),
       dependencies.startRegistrationWallets?.({
         walletId: wallet.walletId,
         ownershipGeneration: admitted.ownershipGeneration,

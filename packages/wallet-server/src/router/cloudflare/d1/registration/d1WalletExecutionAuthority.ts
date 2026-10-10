@@ -68,40 +68,11 @@ export class D1WalletExecutionAuthority
           throw new Error('Registration execution state is invalid');
       }
     }
-    const admitted = await this.registration.admitHome(input);
-    if (!admitted.ok) return admitted;
-    if (admitted.purpose === 'ordinary') {
-      return {
-        ok: false,
-        code: 'wallet_home_unavailable',
-        message: 'Completed registration has no local execution identity',
-      };
-    }
-    const generation = admitted.ownershipGeneration;
-    if (!Number.isSafeInteger(generation) || generation < 1)
-      throw new Error('Registration execution generation is invalid');
-    await this.database.batch([
-      prepareD1TenantStatement(
-        this.database,
-        this.scope,
-        `INSERT INTO wallet_execution_generations
-          (namespace, org_id, project_id, env_id, wallet_id, generation, origin, origin_id, state)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'registration', ?7, 'registering')
-         ON CONFLICT DO NOTHING`,
-        [input.walletId, generation, input.ceremonyId],
-      ),
-      prepareD1TenantStatement(
-        this.database,
-        this.scope,
-        `UPDATE wallet_execution_generations SET state = state
-         WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
-           AND wallet_id = ?5 AND generation = ?6 AND origin = 'registration'
-           AND origin_id = ?7 AND state = 'registering'`,
-        [input.walletId, generation, input.ceremonyId],
-      ),
-      this.database.prepare(D1_BATCH_CAS_GUARD_SQL),
-    ]);
-    return admitted;
+    return {
+      ok: false,
+      code: 'wallet_home_unavailable',
+      message: 'Registration setup has no local execution identity',
+    };
   }
 
   async cancel(input: Parameters<WalletRegistrationHomeAuthority['cancel']>[0]) {
@@ -180,6 +151,38 @@ export class D1WalletExecutionAuthority
   ): Promise<OrdinaryAdmission> {
     return admitD1EstablishedWalletHome(this.database, this.scope, input);
   }
+}
+
+/** Records the authenticated reservation beside setup without reopening a retired home. */
+export function prepareD1RegistrationHomeReservation(
+  database: D1DatabaseLike,
+  scope: D1TenantScope,
+  input: Parameters<Authority['admitHome']>[0] & { readonly ownershipGeneration: number },
+) {
+  if (!Number.isSafeInteger(input.ownershipGeneration) || input.ownershipGeneration < 1)
+    throw new Error('Registration execution generation is invalid');
+  const identity = [input.walletId, input.ownershipGeneration, input.ceremonyId];
+  return [
+    prepareD1TenantStatement(
+      database,
+      scope,
+      `INSERT INTO wallet_execution_generations
+        (namespace, org_id, project_id, env_id, wallet_id, generation, origin, origin_id, state)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'registration', ?7, 'registering')
+       ON CONFLICT DO NOTHING`,
+      identity,
+    ),
+    prepareD1TenantStatement(
+      database,
+      scope,
+      `UPDATE wallet_execution_generations SET state = state
+       WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
+         AND wallet_id = ?5 AND generation = ?6 AND origin = 'registration'
+         AND origin_id = ?7 AND state IN ('registering', 'active')`,
+      identity,
+    ),
+    database.prepare(D1_BATCH_CAS_GUARD_SQL),
+  ];
 }
 
 export async function admitD1EstablishedWalletHome(

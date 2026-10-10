@@ -503,6 +503,10 @@ throughout the resize. Reduced-motion behavior remains immediate.
 - Hosted setup fails closed without its reservation authority or at a different
   physical D1 resource. The local standalone host provides a persistent local
   authority for development.
+- Setup saves the authenticated wallet home generation with its ceremony in one
+  local transaction. Continuations use that local execution identity. A missing
+  identity fails locally and cannot create one through a directory lookup.
+  Setup retries preserve the current ceremony and cannot reopen a retired home.
 - After verifying the ceremony proof and activation identity, NEAR finalization
   can consume Router activation and reserve the passkey credential concurrently.
   Both requests settle before local wallet persistence. A refused or unavailable

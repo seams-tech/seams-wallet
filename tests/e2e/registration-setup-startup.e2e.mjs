@@ -142,6 +142,7 @@ const bundle = await build({
       export { WalletObjectAddresses, WalletObjectAddressSnapshot, walletObjectIdentity, walletObjectIdentityHeaders } from './packages/wallet-server/src/router/cloudflare/runtime/walletObjectAddresses';
       export { createCloudflareD1RouterApiAuthService } from './packages/wallet-server/src/router/cloudflare/d1/auth/d1RouterApiAuthService';
       export { LocalRegistrationSetupAuthority } from './packages/wallet-server/src/localRegistrationSetupAuthority';
+      export { D1WalletExecutionAuthority } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletExecutionAuthority';
       export { createRegistrationSetupOperationId } from './packages/shared-ts/src/utils/registrationSetupOperation';
       export { implicitNearAccountProvisioning, REGISTRATION_NEAR_ED25519_YAO_DERIVATION_VERSION } from './packages/shared-ts/src/utils/registrationSignerPlan';
       export { THRESHOLD_ED25519_2P_PARTICIPANT_IDS } from './packages/shared-ts/src/threshold/participants';
@@ -151,6 +152,29 @@ const bundle = await build({
 const bundlePath = resolve(output, 'production-api.mjs');
 await writeFile(bundlePath, bundle.outputFiles[0].text);
 const api = await import(pathToFileURL(bundlePath));
+
+class ObservedRegistrationAuthority extends api.LocalRegistrationSetupAuthority {
+  continuationReads = 0;
+  reservation = null;
+  completionUnavailable = false;
+
+  async reserve(input) {
+    const result = await super.reserve(input);
+    if (result.ok) this.reservation = result.reservation;
+    return result;
+  }
+
+  async admitHome() {
+    this.continuationReads += 1;
+    throw new Error('Registration continuation must use the home saved by setup');
+  }
+
+  async complete(input) {
+    if (this.completionUnavailable) throw new Error('Registration directory unavailable');
+    return super.complete(input);
+  }
+}
+
 const runtime = new Miniflare({
   modules: true,
   script: `export class WalletObject { fetch() { return new Response('unused'); } }
@@ -179,7 +203,7 @@ try {
   const options = {
     database,
     ...scope,
-    registrationAuthority: new api.LocalRegistrationSetupAuthority(database, scope),
+    registrationAuthority: new ObservedRegistrationAuthority(database, scope),
   };
   const registration = api.createCloudflareD1RouterApiAuthService({
     ...options,
@@ -219,6 +243,20 @@ try {
   const first = await setup(registration, input);
   assert.equal(first.ok, true, JSON.stringify(first));
   assert.equal(first.kind, 'near_ed25519');
+  const execution = new api.D1WalletExecutionAuthority(database, scope, options.registrationAuthority);
+  const registrationIdentity = { walletId: first.walletId, ceremonyId: first.registrationCeremonyId };
+  assert.deepEqual(await execution.admitHome(registrationIdentity), {
+    ok: true,
+    purpose: 'registration',
+    ownershipGeneration: 1,
+  });
+  assert.equal((await execution.admitEstablishedHome({ walletId: first.walletId })).ok, false);
+  const unknown = await execution.admitHome({
+    walletId: first.walletId,
+    ceremonyId: 'unknown-ceremony',
+  });
+  assert.equal(unknown.ok, false);
+  assert.equal(options.registrationAuthority.continuationReads, 0);
   // The local authority never relocates a wallet, so the reserved generation is the first.
   assert.equal(allocator.calls, 1);
   const identity = api.walletObjectIdentity(first.walletId, 1, scope);
@@ -296,6 +334,58 @@ try {
   const recovered = await setup(registration, lostInput);
   assert.equal(recovered.ok, true, JSON.stringify(recovered));
   assert.ok(await addresses.read(api.walletObjectIdentity(recovered.walletId, 1, scope)));
+
+  // A home write failure must roll back both ceremony records. An exact retry
+  // can then commit all three records without changing its reserved identity.
+  const interruptedInput = {
+    ...input,
+    request: {
+      ...input.request,
+      registrationOperationId: api.createRegistrationSetupOperationId(),
+    },
+  };
+  await database
+    .prepare(`CREATE TRIGGER refuse_registration_home
+    BEFORE INSERT ON wallet_execution_generations
+    BEGIN SELECT RAISE(ABORT, 'injected_home_write_failure'); END`)
+    .run();
+  const interrupted = await registration.setupWalletRegistration(interruptedInput);
+  assert.equal(interrupted.body.ok, false);
+  const interruptedReservation = options.registrationAuthority.reservation;
+  assert.ok(interruptedReservation);
+  const snapshots = await database
+    .prepare(`SELECT count(*) AS count
+    FROM registration_ceremony_records
+    WHERE record_scope IN ('setup-ceremony', 'ceremony')
+      AND json_extract(record_json, '$.registrationCeremonyId') = ?`)
+    .bind(interruptedReservation.ceremonyId)
+    .first();
+  assert.equal(snapshots.count, 0, 'A refused home write must roll back both ceremony records');
+  await database.prepare('DROP TRIGGER refuse_registration_home').run();
+  const retried = await setup(registration, interruptedInput);
+  assert.equal(retried.ok, true, JSON.stringify(retried));
+  assert.equal(retried.walletId, interruptedReservation.walletId);
+  assert.equal(retried.registrationCeremonyId, interruptedReservation.ceremonyId);
+  const retryIdentity = { walletId: retried.walletId, ceremonyId: retried.registrationCeremonyId };
+  assert.equal((await execution.admitHome(retryIdentity)).ok, true);
+  options.registrationAuthority.completionUnavailable = true;
+  await assert.rejects(execution.cancel(retryIdentity), /Registration directory unavailable/);
+  assert.equal(
+    (await registration.setupWalletRegistration(interruptedInput)).body.ok,
+    false,
+    'Setup must refuse a local cancellation even while the directory still reports reserved',
+  );
+  options.registrationAuthority.completionUnavailable = false;
+  assert.equal((await execution.cancel(retryIdentity)).ok, true);
+  assert.equal((await execution.admitHome(retryIdentity)).ok, false);
+  assert.equal((await registration.setupWalletRegistration(interruptedInput)).body.ok, false);
+  const retired = await database
+    .prepare(`SELECT state, registration_completion
+    FROM wallet_execution_generations WHERE wallet_id = ?`)
+    .bind(retried.walletId)
+    .first();
+  assert.deepEqual(retired, { state: 'retired', registration_completion: 'cancelled' });
+  assert.equal(options.registrationAuthority.continuationReads, 0);
 
   // Eight arrivals at an unallocated destination generation retain one winner.
   const destination = api.walletObjectIdentity(first.walletId, 2, scope);
@@ -380,6 +470,12 @@ try {
         hostWithoutStarterCompletes: true,
         ceremonyWritesPerSetup: observed.ceremonyWrites,
         allocationBesideCeremonyWrite: true,
+        setupCommitsRegistrationHome: true,
+        continuationDirectoryReads: options.registrationAuthority.continuationReads,
+        unknownCeremonyRefusedLocally: true,
+        homeFailureRollsBackCeremony: true,
+        cancelledSetupCannotReopen: true,
+        cancellationSurvivesUnavailableDirectory: true,
       },
       null,
       2,
