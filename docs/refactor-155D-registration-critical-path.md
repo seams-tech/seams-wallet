@@ -5,20 +5,22 @@ setup-time startup, and the registration status seed are implemented and measure
 The stored-ID comparison measured **5.488 s** without user interaction. A later
 Gateway comparison measured **6.001 s**, with baseline and repeated baseline
 medians of **6.132 s** and **6.616 s**. These are separate experiments.
-The latest candidate combines Console setup, further authorization reads, and
-activation with journal completion. Its hosted comparison and combined lifecycle
-checks are running. Preparation during confirmation, the remaining batch targets,
-and the role-database decision remain open. See the [implementation record](#implementation-record).
+The latest candidate combines Console setup, authorization reads, and activation
+with journal completion. It measures **5.574 s** without interaction, with
+baseline and repeated baseline medians of **9.679 s** and **5.845 s**. All 132
+public lifecycle cases pass. Hosted checks and all nine signature proofs pass.
+Staging restoration is independently verified. Preparation during confirmation, the remaining
+batch targets, and the role-database decision remain open. See the [implementation record](#implementation-record).
 Plan dated October 9, 2026; record updated October 10.
 
 ## Objective and relationship to R155B and R155C
 
 Bring NEAR-only registration followed by the first independently verified
 NEP-413 signature below 3–4 seconds as measured inside the SDK, with 1–2
-seconds preferred. Today the hosted flow measures **10.6 s** with the R155C
-backend and the accepted Phase 6AM SDK, and **11.5 s** with the Phase 6AR SDK
-and Gateway on the older backend. No run has combined both. The combination is
-estimated near **10 s**; Phase 0 measures it.
+seconds preferred. At the start of this plan, the hosted flow measured **10.6 s**
+with the R155C backend and the accepted Phase 6AM SDK. It measured **11.5 s**
+with the Phase 6AR SDK and Gateway on the older backend. The combined versions
+and subsequent changes are now measured in the implementation record.
 
 [R155B](refactor-155B.md) owns Gateway, Console, and SDK request reductions
 through Phase 6AR and the regional-execution design rules. [R155C](refactor-155C-yao-peer-connection.md)
@@ -27,8 +29,8 @@ execution. This plan takes the measured remainder across every component. It
 keeps R155B's design rules and R155C's trust model. It records its own
 implementation and evidence here.
 
-The flow is eight browser requests in series, six of them before the first
-signature can start. No single stage dominates any more: Yao execute and
+The starting flow made eight browser requests in series, six before the first
+signature could start. No single stage dominated: Yao execute and
 finalization each hold about a quarter, the first signature and the setup pair
 about a sixth each. The fastest observed sample of every request still adds up
 to 7.5 s. Tuning stages alone cannot reach the target; round trips must merge
@@ -822,8 +824,9 @@ remain. No new resources were created, and production was unchanged.
   production-testnet procedure: create and verify replacements, export and
   import, redeploy with the new database IDs, compare snapshots. This creates
   three databases and moves custody data, so it needs the deployment owner.
-- [ ] Measure Yao execute, finalize, and sign against the Phase 0 baseline
-  with everything else fixed.
+- [x] Measure Yao execute, finalize, and sign against the Phase 0 baseline
+  with everything else fixed. The stored-address, entry/finalization, and
+  completion comparisons record each source and deployment version.
 
 ## Phase 2 — Gateway round trips
 
@@ -910,7 +913,7 @@ remain. No new resources were created, and production was unchanged.
   are recorded in the combined lifecycle verification below.
 - [ ] Run the Worker and wallet-object scenarios from R155C and the four-home
   placement E2E.
-- [ ] Measure on staging with the R155C protocol: baseline, candidate,
+- [x] Measure on staging with the R155C protocol: baseline, candidate,
   restored control; three fresh wallets each; versions audited; signatures
   verified independently; originals restored. Report the SDK-measured number,
   the harness rows, request and round-trip counts, and the location map.
@@ -1940,5 +1943,11 @@ The four stored object IDs match the candidate's invocation logs for all three
 wallets.
 
 All **18 comparison checks** pass. All **nine signatures** pass independent
-verification and signed-field tampering is rejected. Final staging restoration
-and the public evidence export are pending. No new resources were created.
+verification and signed-field tampering is rejected. Independent readback confirms
+all **13 original Worker versions**, both Deriver schemas, and the four retained
+additive Gateway tables. No new resources were created.
+
+[The hosted evidence](evidence/refactor-155d-completion-console-hosted.json) includes
+exact versions, public signature proofs, request counts, D1 traces, timing ranges,
+and restoration checks. Private `.artifacts/r155d-completion-hosted` retains the
+frozen sources and reproduction scripts.
