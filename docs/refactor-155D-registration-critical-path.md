@@ -1146,6 +1146,7 @@ Phase 2 started with the removals that change no ordering.
 | `33df3f59` | That respond starts its tenant-root read before the home admission and the proof, and the admission awaits it. Private `0ad32c2` adapts the local dev Worker's resolver. |
 | `fbebaf9a` | Finalize commits the activation of the wallet's home in the batch that completes its registration journal. |
 | `8cfc587a` | The home authority has `publishEstablished` and `cancel` in place of `complete`. |
+| `b6d9f2a7` | Finalize claims the recovery-code routes of its custody commit beside Router consumption and the credential claim. |
 
 Gateway database round trips in the composed scenario. "Own work" excludes
 the stored-address reads that `cb331a8d` added; "On `dev`" includes them.
@@ -1154,20 +1155,24 @@ the stored-address reads that `cb331a8d` added; "On `dev`" includes them.
 | --- | ---: | ---: | ---: | ---: |
 | Sign prepare | 6 | 2 | 2 | 1–2 |
 | Sign | 8 | 3 | 3 | not set |
-| Finalize | 21 | 16 | 16 | 4–6 |
+| Finalize | 21 | 15 | 15 | 4–6 |
 | Yao execute | 1 | 1 | 1 | not set |
 | Respond | 8 | 6 | 6 | not set |
 | Setup | 3 | 2 | 4 | 2 |
 
-The counts are from public `fbebaf9a` and private `e38194d`. Since
+The counts are from public `b6d9f2a7` and private `d804d64`. Since
 `81e5f690` and private `be6fb57` the Gateway's admission query carries the
-stored addresses, so only setup still reads and stores them. Finalize's 16
-follows `07e4da8a`, `73d8b5bb` and `fbebaf9a`. Respond's 6 follows `1a783da1`,
-and `bed2e264` took one read from sign prepare and from sign.
+stored addresses, so only setup still reads and stores them. Finalize's 15
+follows `07e4da8a`, `73d8b5bb`, `fbebaf9a` and `e7f12f23`. Respond's 6 follows
+`1a783da1`, and `bed2e264` took one read from sign prepare and from sign.
 
 Private `1f02f18`, `9b65427`, `0a73bef` and `e38194d` cap the "On `dev`"
 counts in the composed scenario. A change that adds a round trip must raise
-a ceiling there and give the reason.
+a ceiling there and give the reason. The finalize ceiling is 16, one above
+its count. Finalize's cleanup runs after the response as one read and one
+delete, and the trace holds the delete only when it finishes before the
+trace is read. Under load it did, and the first ceiling of 16 failed at 17
+before `e7f12f23`. Private `d804d64` records that allowance.
 
 Two behaviours changed, and both are stricter:
 
@@ -1365,7 +1370,9 @@ journal rules of its request, or it is not made.
    now runs after ceremony-proof and activation-identity verification. The
    production commit store returns a wallet-bound commit function only after
    the credential claim succeeds. Both remote effects settle before local
-   persistence.
+   persistence. `b6d9f2a7` claims the recovery-code routes of the custody
+   commit in the same interval: about 148 ms in the trace. See
+   [the record](#recovery-code-route-claim-beside-router-consumption).
 5. Respond, the Console lineage read beside the home admission and the
    authority reads, and one commit batch for the last two writes: about
    100 ms and 44 ms. Done for the Ed25519-only respond. `b338a7e1` commits
@@ -1555,6 +1562,60 @@ For `8cfc587a` the type checks, three storage scenarios, the private
 session-routing scenario, four composed registration cases and 17
 registration contract cases passed.
 
+### Recovery-code route claim beside Router consumption
+
+The custody commit of a registration first claims its recovery-code routes at
+Console and then writes its records. Both steps ran after the wallet commit,
+beside the capability installation. The stored-address trace measured the
+claim at 148 ms, and it was the longer branch of that pair.
+
+`b6d9f2a7` splits the custody commit. The claim now runs beside Router
+consumption and the credential claim, for the NEAR leg, and beside the
+credential claim for the ECDSA leg. The write still follows the wallet commit.
+The custody store has one entry, `reserveRegistration`, which claims the
+routes and returns the function that writes the records.
+
+What stays as it was:
+
+- The three remote effects are exact-retryable, and all settle before local
+  wallet persistence or a failure reply.
+- Custody never fails a registration. A refused or failed claim reports the
+  custody commit as `rejected`, the registration continues, and the client
+  retries. The claim cannot reject its caller.
+- Console accepts routes for a reserved home, as it did before. An exact retry
+  repeats the same claim and is accepted.
+
+What is new: a finalize that fails after the claim leaves its routes in the
+directory. Before, that state existed only when the custody write failed
+after its claim. A retry with new recovery codes adds routes beside the old
+ones. Console has no route cleanup: the routes of a cancelled registration
+are not found by lookup, but they still refuse another wallet that names the
+same locators. Recovery codes are random per custody ceremony.
+
+The composed claim-failure scenario covers the new order with the real
+Console: the first finalize claims the routes once before any wallet record
+exists, the credential claim then fails, and the exact retry repeats the same
+route claim and completes. Run it with
+`tests/scripts/run-regional-real.mjs --grep 'NEAR registration retries a credential claim'`.
+The four-region service scenario covers the store: an unavailable Console
+refuses the reservation and stores nothing, a reservation alone stores
+nothing, its commit stores the records, and a repeat is answered
+`already_exists`.
+
+Server type checking, the wallet-state type fixtures, the contract type
+check and the bloat check pass. The private server package type-checks
+against this tree. Hosted latency is unmeasured.
+
+The full suites ran with this change on public `dfea8246` and private
+`6009bd4`. The contract suite passed 132 of 132: 128 in three parallel shards
+on release Workers, two load-sensitive cases alone, and the two
+terminal-fault cases on dev Workers. The composed private suite passed 23 of
+23: 19 in the parallel run, three load-sensitive cases alone, and the
+registration case after its ceiling was corrected as recorded above. After
+the merge onto public `e7f12f23` and private `17f83da` the server type check,
+the composed registration and claim-failure cases, and every rerun case
+passed. Private `d89cc0e` holds the two scenario changes.
+
 ### Decisions
 
 Decided on October 10:
@@ -1582,10 +1643,12 @@ Remaining scope, with the reason:
 - The four-to-six-round-trip finalize target remains open. Credential claim
   now overlaps Router consumption. Session issuance commits its completion
   decision atomically, and activation commits with journal completion.
-  Finalize still makes three Console requests. Recovery-code route publication
-  overlaps capability installation. Combining it with completion could remove
-  a request, but the elapsed saving depends on that overlap. Further batch
-  changes must retain exact replay, ownership fences, and publication order.
+  Finalize still makes three Console requests. Since `b6d9f2a7` the
+  recovery-code route claim runs beside Router consumption and the credential
+  claim, and only the custody write still overlaps capability installation.
+  Combining the claim with completion could remove a request but no elapsed
+  time. Further batch changes must retain exact replay, ownership fences, and
+  publication order.
 - Sign prepare during confirmation. An admitted prepare claims one use of the
   session's quota, so a declined confirmation would spend a use unless prepare
   gains a release. It also sends the operation to the server before the user
