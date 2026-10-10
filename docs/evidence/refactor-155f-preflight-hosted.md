@@ -7,8 +7,9 @@ count them.
 An SDK payload that sends its preflights early registered in **3.530 s** at the
 median. The unchanged payload took 5.129 s on the same Worker versions.
 Registration plus the first signature took **4.204 s** against 6.102 s.
-The early-preflight payload is an uncommitted patch. Its saving is larger than
-the preflight exchanges alone explain, and that part is not yet understood.
+At the time of the runs the early-preflight payload was an uncommitted patch.
+Commit `99a34b73` contains it now. Its saving is larger than the preflight
+exchanges alone explain, and that part is not yet understood.
 
 ## Setup
 

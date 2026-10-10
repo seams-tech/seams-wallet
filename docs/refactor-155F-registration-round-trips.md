@@ -308,18 +308,20 @@ Two staging runs of October 11 measured with real preflights. The
 | Registration plus first signature | 6.102 s (5.174–6.903) | 4.204 s (3.948–4.794) |
 
 The early-preflight SDK sends one `OPTIONS` fetch to each later registration
-route and to both signing routes when registration starts. It is a patch of
-about 40 lines and is **not committed**. Its saving is larger than the removed
-preflights explain, and a staging Worker with little traffic may profit from
-the early requests more than a production Worker does.
+route and to both signing routes when registration starts. Commit `99a34b73`
+contains it, with the specification text and a contract assertion of the early
+requests and their order. Its saving is larger than the removed preflights
+explain, and a staging Worker with little traffic may profit from the early
+requests more than a production Worker does. Setup keeps its own preflight.
 
-The patch cannot land alone. Contract tests intercept and record requests by
-URL only, and they take an early `OPTIONS` request for the operation's first
-request. Eleven of the first 48 contract cases failed with the patch, beside
-one case that needs a debug Worker build. The private
-composed tests have six such interceptors. Each needs a method check. The patch,
-the first interceptor changes and the list of failing cases are kept in
-`.artifacts/r155f-preflight-prewarm/` of this repository's main checkout.
+Browser tests that matched a route by URL alone took an early request for the
+operation's first request. Commit `2e70218e` and private `97cf88f` make those
+interceptors handle the POST only. All 132 contract cases and all 23 private
+composed registration cases pass with the change. One device-linking case
+failed twice in eight runs that night, with and without load. Its failing step
+is an Email OTP unlock that the menu automation ran as a passkey unlock. That
+step sends no early request, and the case passed five times in a row afterwards
+with the change and once without it.
 
 Two other ways remove or shorten the preflights without an SDK request:
 
