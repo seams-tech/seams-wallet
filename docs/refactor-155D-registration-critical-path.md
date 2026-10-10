@@ -838,7 +838,11 @@ remain. No new resources were created, and production was unchanged.
   in `42cde7b7`: the snapshot and the ceremony are one write batch, and the
   address initialization runs beside it. The Console merge is open.
 - [ ] Respond: overlap home admission and the lineage read with WebAuthn
-  verification; one commit batch; no re-read after load.
+  verification; one commit batch; no re-read after load. Started in `b338a7e1`
+  and `33df3f59` for the Ed25519-only respond: the ceremony update commits in
+  the batch of the Yao admission, and the lineage read runs beside the home
+  admission and the proof. The home admission keeps its own write, and the
+  admission commit still reads its record again.
 - [ ] Finalize: concurrent consume, claim, and reads; one or two write batches
   including the journal; routes carried by completion; duplicate reads removed.
   Decide the passkey claim's placement with the Console owner and record the
@@ -1115,6 +1119,8 @@ Phase 2 started with the removals that change no ordering.
 | `22ead209` | A contract for the NEAR signing policy, which had none: project rejection, abuse rejection, and rate limit on prepare and finalize, with the quota unchanged. |
 | `c77bdf47` | A finalize receipt that names an unknown operation ID is answered `authorized_operation_missing` again. `12dca984` had changed that answer. |
 | `42cde7b7` | Setup stores its snapshot and opens its ceremony in one write batch, and initializes the wallet-object addresses beside that write. |
+| `b338a7e1` | An Ed25519-only respond commits its ceremony update in the batch of its Yao admission. |
+| `33df3f59` | That respond starts its tenant-root read before the home admission and the proof, and the admission awaits it. Private `0ad32c2` adapts the local dev Worker's resolver. |
 
 Gateway database round trips in the composed scenario. "Own work" excludes
 the stored-address reads that `cb331a8d` added; "On `dev`" includes them.
@@ -1123,13 +1129,13 @@ the stored-address reads that `cb331a8d` added; "On `dev`" includes them.
 | --- | ---: | ---: | ---: | ---: |
 | Sign prepare | 6 | 3 | 4 | 1–2 |
 | Sign | 8 | 4 | 5 | not set |
-| Finalize | 21 | 19 | 20 | 4–6 |
+| Finalize | 21 | 18 | 19 | 4–6 |
 | Yao execute | 1 | 1 | 2 | not set |
-| Respond | 8 | 8 | 8 | not set |
+| Respond | 8 | 7 | 7 | not set |
 | Setup | 3 | 2 | 4 | 2 |
 
-Private `1f02f18` and `9b65427` cap the "On `dev`" counts in the composed
-scenario. A change that adds a round trip must raise a ceiling there and give
+Private `1f02f18`, `9b65427` and `0a73bef` cap the "On `dev`" counts in the
+composed scenario. The finalize ceiling is still 21, above the measured 19. A change that adds a round trip must raise a ceiling there and give
 the reason.
 
 Two behaviours changed, and both are stricter:
@@ -1320,7 +1326,14 @@ journal rules of its request, or it is not made.
    needs the scenario for a claim that fails after the consume.
 5. Respond, the Console lineage read beside the home admission and the
    authority reads, and one commit batch for the last two writes: about
-   100 ms and 44 ms.
+   100 ms and 44 ms. Done for the Ed25519-only respond. `b338a7e1` commits
+   the ceremony update as a companion write of the Yao admission, and respond
+   makes 7 round trips. `33df3f59` starts the lineage read once the signed
+   setup is verified. That read then runs for a request that can still fail
+   its home admission or its proof, at the cost of one Console read. Its
+   result is used only after both pass, and the admission refuses a read
+   that was started for another signing root ID. The staging numbers are not
+   measured yet.
 6. Sign prepare and sign. `e4ae2f91` already removes two reads from each. The
    two reads at the Gateway entry, deployment admission and session locator,
    are private code.
@@ -1331,6 +1344,19 @@ The Yao execute's Router call is the largest single item and is Phase 4.
 ceremony write until the allocation is requested and counts one ceremony
 write, with all 131 contract cases, and with the private composed suite,
 which keeps its two stale-harness failures and no other.
+
+`b338a7e1` and `33df3f59` were verified with
+`tests/e2e/registration-admission-companion.scenario.mjs`. It checks the
+batch in both directions on a local database: a ceremony that moved rolls the
+admission back, and an admission that moved rolls the ceremony update back.
+It also drives the request-scoped runtime with a tenant-root read that it
+holds open: the admission waits for that read, does not read again, an exact
+repeat reads nothing, and a failed read fails only its admission. Each commit
+passed the whole contract suite, 131 and then 132 cases, and the private
+composed suite with its two stale-harness failures. `33df3f59` ran on the tip
+that has `07e4da8a`. Under four parallel stacks a few cases timed out; each
+passed when it ran alone. The private package type-checks against the public
+build output of `33df3f59`.
 
 These cuts do not reach the target alone. The traced flow was 5.5 s without
 interaction. Items 1 to 6 remove about 0.5 s, and the Console merges about
