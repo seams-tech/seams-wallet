@@ -150,6 +150,11 @@ const bundle = await build({
       export { createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1 } from './packages/wallet-server/src/router/cloudflare/d1/ed25519Yao/d1Ed25519YaoProductRegistrationPartitionedStateStore';
       export { buildNearRegistrationAuthorityFixture, buildNearRecoveryAdmissionFixture } from './tests/unit/helpers/nearRegistration.fixtures';
       export { D1RegistrationCeremonyRecordStore } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1RegistrationCeremonyRecordStore';
+      export { createRouterAbEd25519YaoProductRegistrationRequestScopedRuntimeV1 } from './packages/wallet-server/src/router/domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistrationRequestScopedRuntime';
+      export { routerAbEd25519YaoRegistrationSigningRootIdV1 } from './packages/wallet-server/src/router/domains/ed25519Yao/routerAbEd25519YaoGatewayEnvelope';
+      export { registrationIntentGrantFromString } from './packages/shared-ts/src/utils/registrationIntent';
+      export { buildTenantRootIdentityFromAuthenticatedDeploymentV1 } from './packages/shared-ts/src/tenant-root/tenantRootIdentity';
+      export { tenantRootIdentityDigestB64uV1 } from './packages/wallet-server/src/router/cloudflare/runtime/tenantRootCreationGrant';
     `,
   },
 });

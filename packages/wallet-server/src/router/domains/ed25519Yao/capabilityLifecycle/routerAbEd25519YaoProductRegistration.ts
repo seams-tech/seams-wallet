@@ -73,7 +73,11 @@ import {
   type RouterAbEd25519YaoExportService,
 } from '../export/routerAbEd25519YaoExport';
 import { isPlainObject } from '@shared/utils/validation';
-import { parseRouterAbEd25519YaoTenantRootWireV1 } from '../routerAbEd25519YaoGatewayEnvelope';
+import {
+  parseRouterAbEd25519YaoTenantRootWireV1,
+  type RouterAbEd25519YaoRegistrationSigningRootIdV1,
+  type RouterAbEd25519YaoTenantRootWireV1,
+} from '../routerAbEd25519YaoGatewayEnvelope';
 import type { RouterAbEd25519YaoPreparedWriteV1 } from './routerAbEd25519YaoProductRegistrationPartitionedStateStore';
 import { DEFAULT_WALLET_SESSION_REMAINING_USES } from '@shared/threshold/sessionPolicy';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
@@ -128,9 +132,19 @@ export type RouterAbEd25519YaoProductRegistrationRuntimeV1 =
     RouterAbEd25519YaoActiveCapabilityResolverV1 & {
       readonly kind: 'router_ab_ed25519_yao_product_registration_runtime_v1';
       readonly signingWorkerId: string;
+      /**
+       * Starts the tenant-root read of a registration admission. The read
+       * needs the signing root ID and epoch alone, so it can run before the
+       * proof is verified. A runtime that pins no tenant root at admission
+       * starts nothing.
+       */
+      startRegistrationDispatchRoot(
+        signingRootId: RouterAbEd25519YaoRegistrationSigningRootIdV1,
+      ): RouterAbEd25519YaoStartedDispatchRootV1 | null;
       bindAndAdmitVerifiedRegistration(
         input: RouterAbEd25519YaoVerifiedActivationIntentV1,
         companionWrite: RouterAbEd25519YaoAdmissionCompanionWriteV1 | null,
+        startedDispatchRoot: RouterAbEd25519YaoStartedDispatchRootV1 | null,
       ): Promise<RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1>;
       bindVerifiedIntent(
         input: RouterAbEd25519YaoVerifiedActivationIntentV1,
@@ -139,6 +153,12 @@ export type RouterAbEd25519YaoProductRegistrationRuntimeV1 =
         request: RouterAbEd25519YaoActivationConsumptionRequestV1,
       ): Promise<RouterAbEd25519YaoActivationConsumptionResultV1>;
     };
+
+/** A tenant-root read in flight, with the signing root ID that it was started for. */
+export type RouterAbEd25519YaoStartedDispatchRootV1 = {
+  readonly signingRootId: RouterAbEd25519YaoRegistrationSigningRootIdV1;
+  readonly dispatchRoot: Promise<RouterAbEd25519YaoTenantRootWireV1>;
+};
 
 /**
  * Prepares another store's write for the admission request that was bound.
@@ -538,6 +558,11 @@ class RouterAbEd25519YaoProductRegistrationRuntime implements RouterAbEd25519Yao
     input: RouterAbEd25519YaoVerifiedActivationIntentV1,
   ): Promise<RouterAbEd25519YaoRegistrationIntentBindingResult> {
     return await this.input.authorization.bindVerifiedIntent(input);
+  }
+
+  /** The registration service of this runtime resolves the tenant root when it executes. */
+  startRegistrationDispatchRoot(): null {
+    return null;
   }
 
   async bindAndAdmitVerifiedRegistration(

@@ -27,7 +27,9 @@ import type {
   RouterAbEd25519YaoRecoveryExecuteClaimV1,
 } from '../recovery/routerAbEd25519YaoRecovery';
 import {
+  routerAbEd25519YaoRegistrationSigningRootIdV1,
   routerAbEd25519YaoTenantRootWireV1,
+  type RouterAbEd25519YaoRegistrationSigningRootIdV1,
   type RouterAbEd25519YaoTenantRootResolverV1,
   type RouterAbEd25519YaoTenantRootWireV1,
 } from '../routerAbEd25519YaoGatewayEnvelope';
@@ -482,7 +484,7 @@ type RouterExecuteInput =
 export interface RouterAbEd25519YaoPinnedRegistrationBackend
   extends RouterAbEd25519YaoRegistrationBackend {
   resolveRegistrationDispatchRoot(
-    admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
+    signingRootId: RouterAbEd25519YaoRegistrationSigningRootIdV1,
   ): Promise<RouterAbEd25519YaoTenantRootWireV1>;
   /// Executes one registration at the Router, which claims it and records
   /// its terminal answer: an exact retry gets that answer.
@@ -567,7 +569,7 @@ async function routerExecuteRequest(
       const tenantRoot = await routerAbEd25519YaoTenantRootWireV1(
         await resolveTenantRoot({
           operation: 'registration',
-          admissionRequest: input.admissionRequest,
+          ...routerAbEd25519YaoRegistrationSigningRootIdV1(input.admissionRequest),
         }),
       );
       return registrationRouterExecuteRequest(input, tenantRoot);
@@ -959,10 +961,10 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
   }
 
   async resolveRegistrationDispatchRoot(
-    admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
+    signingRootId: RouterAbEd25519YaoRegistrationSigningRootIdV1,
   ): Promise<RouterAbEd25519YaoTenantRootWireV1> {
     return await routerAbEd25519YaoTenantRootWireV1(
-      await this.config.resolveTenantRoot({ operation: 'registration', admissionRequest }),
+      await this.config.resolveTenantRoot({ operation: 'registration', ...signingRootId }),
     );
   }
 

@@ -33,7 +33,10 @@ import {
   routerAbEd25519YaoRegistrationResultFromRouterAnswerV1,
 } from './routerAbEd25519YaoRegistrationExecutionRecord';
 import type { RouterAbEd25519YaoPinnedRegistrationBackend } from './routerAbEd25519YaoHttpRegistrationBackend';
-import type { RouterAbEd25519YaoTenantRootWireV1 } from '../routerAbEd25519YaoGatewayEnvelope';
+import {
+  routerAbEd25519YaoRegistrationSigningRootIdV1,
+  type RouterAbEd25519YaoTenantRootWireV1,
+} from '../routerAbEd25519YaoGatewayEnvelope';
 import {
   runRouterAbEd25519YaoRegistrationTwoPhaseV1,
   type RouterAbEd25519YaoRegistrationTwoPhaseRunResultV1,
@@ -227,7 +230,9 @@ async function runAdmissionRequest(
           return { kind: 'rejected', value: preparation.failure };
         case 'claimed':
           try {
-            dispatchRoot = await input.backend.resolveRegistrationDispatchRoot(request);
+            dispatchRoot = await input.backend.resolveRegistrationDispatchRoot(
+              routerAbEd25519YaoRegistrationSigningRootIdV1(request),
+            );
           } catch (error: unknown) {
             return {
               kind: 'rejected',

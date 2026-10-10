@@ -212,6 +212,7 @@ import {
   createRouterAbEd25519YaoMaterialActivationRefV1,
   projectRouterAbEd25519YaoExactWalletSession,
   type RouterAbEd25519YaoProductRegistrationRuntimeV1,
+  type RouterAbEd25519YaoStartedDispatchRootV1,
   type RouterAbEd25519YaoWalletSessionCredentialV1,
   type RouterAbEd25519YaoWalletSessionMintInputV1,
 } from '../../../domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistration';
@@ -3208,6 +3209,21 @@ export class CloudflareD1WalletRegistrationService {
       if (!verifiedSetup.ok) {
         return { ok: false, code: verifiedSetup.code, message: verifiedSetup.message };
       }
+      const ecdsaBranch = findStoredWalletRegistrationEvmFamilyEcdsaBranch(ceremony.signerState);
+      const planNearEd25519 = registrationSignerBranchesFromPlan(ceremony.signerPlan).nearEd25519;
+      // A new Ed25519-only respond pins its tenant root at the Yao admission.
+      // That read needs the ceremony alone, so it starts for a caller that
+      // holds the signed setup, and it runs beside the home admission and
+      // the proof. Its result is used only after both pass.
+      const startedDispatchRoot =
+        !ecdsaBranch &&
+        planNearEd25519 &&
+        !storedRespondEd25519DeferredWork(ceremony.signerState)
+          ? (this.getEd25519YaoProductRegistration()?.startRegistrationDispatchRoot({
+              signing_root_id: toOptionalTrimmedString(ceremony.signingRootId) || '',
+              root_share_epoch: toOptionalTrimmedString(ceremony.signingRootVersion) || '',
+            }) ?? null)
+          : null;
       const homeAdmission = await admitRegistrationReservationHome(this.registrationAuthority, {
         ceremonyId: ceremony.registrationCeremonyId,
         walletId: ceremony.intent.walletId,
@@ -3218,8 +3234,6 @@ export class CloudflareD1WalletRegistrationService {
         return { ok: false, code: 'invalid_body', message: 'signedSetup is required' };
       }
 
-      const ecdsaBranch = findStoredWalletRegistrationEvmFamilyEcdsaBranch(ceremony.signerState);
-      const planNearEd25519 = registrationSignerBranchesFromPlan(ceremony.signerPlan).nearEd25519;
       if (!ecdsaBranch && !planNearEd25519) {
         return { ok: false, code: 'invalid_state', message: 'a signer branch is required' };
       }
@@ -3243,6 +3257,7 @@ export class CloudflareD1WalletRegistrationService {
           authorityInput: input.authority,
           registrationBearerToken,
           ownershipGeneration: homeAdmission.ownershipGeneration,
+          startedDispatchRoot,
           expectedOrigin,
           ...(input.userAgent ? { userAgent: input.userAgent } : {}),
         });
@@ -4377,6 +4392,7 @@ export class CloudflareD1WalletRegistrationService {
     readonly authorityInput: WalletRegistrationAuthorityInput;
     readonly registrationBearerToken: string;
     readonly ownershipGeneration: number;
+    readonly startedDispatchRoot: RouterAbEd25519YaoStartedDispatchRootV1 | null;
     readonly expectedOrigin: string;
     readonly userAgent?: string;
   }): Promise<WalletRegistrationRespondResponseV2> {
@@ -4472,6 +4488,7 @@ export class CloudflareD1WalletRegistrationService {
               expected: input.snapshot,
               next: authorizedCeremony(bound),
             }),
+      input.startedDispatchRoot,
     );
     if (!admitted.ok) return { ok: false, code: admitted.code, message: admitted.message };
     // An admission that already existed carried no write of this request.

@@ -385,8 +385,8 @@ async function resolveStagingRegistrationTenantRoot(
       return await resolveStagingDeploymentTenantRoot(
         context.scope,
         context.tenantRootCustodyLineage,
-        input.admissionRequest.application_binding,
-        input.admissionRequest.scope.root_share_epoch,
+        input,
+        input.root_share_epoch,
       );
     case 'recovery':
     case 'export':
@@ -405,8 +405,8 @@ async function resolveStagingTenantRoot(
       return await resolveStagingDeploymentTenantRoot(
         context.scope,
         context.tenantRootCustodyLineage,
-        input.admissionRequest.application_binding,
-        input.admissionRequest.scope.root_share_epoch,
+        input,
+        input.root_share_epoch,
       );
     case 'recovery':
       return await context.resolveActiveTenantRoot({

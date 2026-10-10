@@ -22,6 +22,7 @@ import {
 import {
   routerAbEd25519YaoPersistedCapabilityMatchesLookupV1,
   type RouterAbEd25519YaoAdmissionCompanionWriteV1,
+  type RouterAbEd25519YaoStartedDispatchRootV1,
   type RouterAbEd25519YaoProductRegistrationRuntimeV1,
   type RouterAbEd25519YaoProductRegistrationStateV1,
   type RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1,
@@ -40,7 +41,11 @@ import {
   routerAbEd25519YaoRegistrationExecuteRequestFromRouterRequestJsonV1,
   routerAbEd25519YaoRegistrationResultFromRouterAnswerV1,
 } from '../registration/routerAbEd25519YaoRegistrationExecutionRecord';
-import type { RouterAbEd25519YaoTenantRootWireV1 } from '../routerAbEd25519YaoGatewayEnvelope';
+import {
+  routerAbEd25519YaoRegistrationSigningRootIdV1,
+  type RouterAbEd25519YaoRegistrationSigningRootIdV1,
+  type RouterAbEd25519YaoTenantRootWireV1,
+} from '../routerAbEd25519YaoGatewayEnvelope';
 
 export type RouterAbEd25519YaoProductRegistrationRequestScopedRuntimeInputV1 = {
   readonly signingWorkerId: string;
@@ -110,13 +115,26 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
     throw new Error('Registration intent remained contended after one reconciliation');
   }
 
+  startRegistrationDispatchRoot(
+    signingRootId: RouterAbEd25519YaoRegistrationSigningRootIdV1,
+  ): RouterAbEd25519YaoStartedDispatchRootV1 {
+    const dispatchRoot =
+      this.input.registrationBackend.resolveRegistrationDispatchRoot(signingRootId);
+    // The admission awaits this read and reports its failure. A request that
+    // ends before its admission leaves the read unobserved.
+    dispatchRoot.catch(ignoreUnobservedDispatchRoot);
+    return { signingRootId, dispatchRoot };
+  }
+
   async bindAndAdmitVerifiedRegistration(
     input: RouterAbEd25519YaoVerifiedActivationIntentV1,
     companionWrite: RouterAbEd25519YaoAdmissionCompanionWriteV1 | null,
+    startedDispatchRoot: RouterAbEd25519YaoStartedDispatchRootV1 | null,
   ): Promise<RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1> {
     return await bindAndAdmitVerifiedRegistration({
       input,
       companionWrite,
+      startedDispatchRoot,
       store: this.input.store,
       backend: this.input.registrationBackend,
     });
@@ -250,6 +268,7 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
 async function bindAndAdmitVerifiedRegistration(input: {
   readonly input: RouterAbEd25519YaoVerifiedActivationIntentV1;
   readonly companionWrite: RouterAbEd25519YaoAdmissionCompanionWriteV1 | null;
+  readonly startedDispatchRoot: RouterAbEd25519YaoStartedDispatchRootV1 | null;
   readonly store: RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1;
   readonly backend: RouterAbEd25519YaoPinnedRegistrationBackend;
 }): Promise<RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1> {
@@ -280,8 +299,24 @@ async function bindAndAdmitVerifiedRegistration(input: {
     if (preparation.kind === 'failed') return preparation.failure;
 
     if (dispatchRoot === null) {
+      const signingRootId = routerAbEd25519YaoRegistrationSigningRootIdV1(bound.admissionRequest);
+      const started = input.startedDispatchRoot;
+      if (
+        started !== null &&
+        (started.signingRootId.signing_root_id !== signingRootId.signing_root_id ||
+          started.signingRootId.root_share_epoch !== signingRootId.root_share_epoch)
+      ) {
+        return {
+          ok: false,
+          status: 503,
+          code: 'admission_failed',
+          message: 'registration tenant root was read for another signing root ID',
+        };
+      }
       try {
-        dispatchRoot = await input.backend.resolveRegistrationDispatchRoot(bound.admissionRequest);
+        dispatchRoot = await (started
+          ? started.dispatchRoot
+          : input.backend.resolveRegistrationDispatchRoot(signingRootId));
       } catch (error: unknown) {
         return {
           ok: false,
@@ -338,6 +373,8 @@ async function bindAndAdmitVerifiedRegistration(input: {
     message: 'Yao verified registration admission remained contended after one reconciliation',
   };
 }
+
+function ignoreUnobservedDispatchRoot(): void {}
 
 async function installRegistrationFinalizeCapabilityMutation(
   input: RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallationV1,
