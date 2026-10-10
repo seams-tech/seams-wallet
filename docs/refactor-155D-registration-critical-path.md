@@ -1442,6 +1442,21 @@ passkey lost-finalization recovery, mixed registration, and immediate session
 use before presignatures are ready. Their log is
 `.artifacts/registration-claim-browser.log`.
 
+The private composed scenario also passes: the real Router consumes activation,
+then the Console credential claim returns 503. The Gateway publishes no wallet.
+The SDK receives the failure. An exact retry through WEUR waits for the journal
+lease, repeats the same consumer and credential identity, and completes. The
+original browser then unlocks with its passkey and signs through OC while Console
+is unavailable. The signature is independently verified. Run
+`tests/scripts/run-regional-real.mjs --grep 'NEAR registration retries a credential claim'`
+with the candidate package and isolated local ports. The evidence is
+`.artifacts/r155d-claim-after-consume/proof.json` in the private repository.
+
+The failure test must return the original failure to the SDK. Hiding it while
+waiting for the 30-second journal lease exceeds the temporary client-seal
+preparation's 30-second lifetime. Recovery uses a fresh exact-method unlock.
+This fault-path delay is excluded from the successful registration benchmark.
+
 ### Decisions
 
 Decided on October 10:
