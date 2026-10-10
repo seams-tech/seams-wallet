@@ -2119,14 +2119,17 @@ export class CloudflareD1WalletRegistrationService {
           ),
         };
       }
-      const active = await yaoRuntime.resolveActiveCapability({
-        kind: 'router_ab_ed25519_yao_active_capability_lookup_v1',
+      const lookup = {
+        kind: 'router_ab_ed25519_yao_active_capability_lookup_v1' as const,
         walletId: input.walletId,
         nearEd25519SigningKeyId: signer.nearEd25519SigningKeyId,
         signerSlot: signer.signerSlot,
         signingWorkerId: signer.signingWorkerId,
         participantIds: signer.participantIds,
-      });
+      };
+      const active =
+        input.signerRead?.resolveActiveCapability(lookup) ??
+        await yaoRuntime.resolveActiveCapability(lookup);
       if (!active.ok) {
         if (active.code === 'unknown_capability') {
           if (

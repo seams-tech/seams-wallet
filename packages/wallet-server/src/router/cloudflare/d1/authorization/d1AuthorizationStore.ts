@@ -16,6 +16,7 @@ import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
 import type { RouterAbMpcMaterialActivationRefWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import { EcdsaMaterialRead } from '../../../../core/d1EcdsaSignerRead';
 import { Ed25519SignerRead } from '../../../../core/d1Ed25519SignerRead';
+import { ROUTER_AB_ED25519_YAO_SHARED_STATE_RECORD_KEY_V1 } from '../../../domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistrationPartitionedStateStore';
 import { ED25519_SIGNER_ACTIVATION_ID_PATH } from '../../../../core/d1WalletStore';
 import type { EcdsaMaterialReadSnapshot } from '../../../../core/ecdsaMaterialReadSnapshot';
 import type {
@@ -1914,6 +1915,7 @@ export class CloudflareD1AuthorizationStore
         session.walletId,
         input.materialActivation,
         parseD1JsonColumn(row.ed25519_material_records_json),
+        parseD1JsonColumn(row.ed25519_capability_partition_json),
       ),
       policyRead: D1Ed25519AdmissionPolicyRead.fromRows(
         this.database,
@@ -2284,7 +2286,6 @@ export class CloudflareD1AuthorizationStore
         this.walletSignerScope.orgId,
         this.walletSignerScope.projectId,
         this.walletSignerScope.envId,
-        input.projection.materialActivation.activation_id,
       ];
       materialProjection = `
            (SELECT json_group_array(json_object('record_json', signer.record_json))
@@ -2297,8 +2298,19 @@ export class CloudflareD1AuthorizationStore
                  json_extract(signer.record_json, '${ED25519_SIGNER_ACTIVATION_ID_PATH}') = ?
                  ELSE 0 END
            ) AS ed25519_material_records_json,
+           (SELECT record_json FROM router_ab_yao_versioned_json_records
+             WHERE namespace = ? AND org_id = ? AND project_id = ? AND env_id = ?
+               AND record_key = ?
+           ) AS ed25519_capability_partition_json,
            ${ED25519_CREDENTIAL_POLICY_PROJECTION}`;
-      materialBindings = [...signerScope, ...signerScope];
+      materialBindings = [
+        ...signerScope,
+        input.projection.materialActivation.activation_id,
+        ...signerScope,
+        `router-ab-yao:${ROUTER_AB_ED25519_YAO_SHARED_STATE_RECORD_KEY_V1}`,
+        ...signerScope,
+        input.projection.materialActivation.activation_id,
+      ];
     } else if (input.projection.kind === 'session_status') {
       // Canonical ECDSA material shares the status snapshot. The configured
       // signer scope may use a different namespace from session storage.

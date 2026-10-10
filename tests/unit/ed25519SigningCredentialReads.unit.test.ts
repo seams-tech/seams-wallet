@@ -115,11 +115,11 @@ test('an Ed25519 signer read answers only for the wallet and activation it selec
     buildMpcMaterialActivationRefFixture('credential-reads-other', WALLET),
   );
 
-  const empty = Ed25519SignerRead.fromRows(walletId, activation, []);
+  const empty = Ed25519SignerRead.fromRows(walletId, activation, [], null);
   expect(empty.resolve(walletId, activation)).toBeNull();
   // Rows that do not parse as this wallet's signer select nothing.
   expect(
-    Ed25519SignerRead.fromRows(walletId, activation, [{ record_json: '{}' }]).resolve(
+    Ed25519SignerRead.fromRows(walletId, activation, [{ record_json: '{}' }], null).resolve(
       walletId,
       activation,
     ),
@@ -131,7 +131,7 @@ test('an Ed25519 signer read answers only for the wallet and activation it selec
     'Ed25519 material read does not match the requested activation',
   );
   // A malformed projection surfaces when the read is used, after session validation.
-  const malformed = Ed25519SignerRead.fromRows(walletId, activation, null);
+  const malformed = Ed25519SignerRead.fromRows(walletId, activation, null, null);
   expect(() => malformed.resolve(walletId, activation)).toThrow(
     'Ed25519 material rows are invalid',
   );

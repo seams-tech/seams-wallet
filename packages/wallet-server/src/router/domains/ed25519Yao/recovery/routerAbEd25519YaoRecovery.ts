@@ -1867,6 +1867,120 @@ type CapabilityPromotionResult =
     }
   | { readonly ok: false; readonly failure: RouterAbEd25519YaoRecoveryFailure };
 
+export function resolveRouterAbEd25519YaoActiveCapability(
+  capabilities: ReadonlyMap<string, CapabilityState>,
+  input: RouterAbEd25519YaoActiveCapabilityLookupV1,
+): RouterAbEd25519YaoActiveCapabilityLookupResultV1 {
+  const walletId = String(input.walletId || '').trim();
+  const nearEd25519SigningKeyId = String(input.nearEd25519SigningKeyId || '').trim();
+  const signingWorkerId = String(input.signingWorkerId || '').trim();
+  const firstParticipantId = input.participantIds?.[0];
+  const secondParticipantId = input.participantIds?.[1];
+  if (
+    input.kind !== 'router_ab_ed25519_yao_active_capability_lookup_v1' ||
+    !walletId ||
+    !nearEd25519SigningKeyId ||
+    !signingWorkerId ||
+    !Number.isSafeInteger(input.signerSlot) ||
+    input.signerSlot < 1 ||
+    !Array.isArray(input.participantIds) ||
+    input.participantIds.length !== 2 ||
+    !Number.isSafeInteger(firstParticipantId) ||
+    !Number.isSafeInteger(secondParticipantId) ||
+    Number(firstParticipantId) < 1 ||
+    Number(secondParticipantId) < 1 ||
+    firstParticipantId === secondParticipantId
+  ) {
+    return {
+      ok: false,
+      code: 'invalid_lookup',
+      message: 'active Ed25519 Yao capability lookup is invalid',
+    };
+  }
+  let matched: CapabilityIdentity | null = null;
+  for (const state of capabilities.values()) {
+    if (state.kind !== 'active') continue;
+    const identity = state.identity;
+    if (
+      identity.applicationBinding.wallet_id !== walletId ||
+      identity.applicationBinding.near_ed25519_signing_key_id !== nearEd25519SigningKeyId ||
+      identity.applicationBinding.key_creation_signer_slot !== input.signerSlot ||
+      identity.activationBinding.lifecycle.selected_server_id !== signingWorkerId ||
+      identity.participantIds[0] !== firstParticipantId ||
+      identity.participantIds[1] !== secondParticipantId
+    ) {
+      continue;
+    }
+    if (matched) {
+      return {
+        ok: false,
+        code: 'capability_conflict',
+        message: 'multiple active Ed25519 Yao capabilities match the wallet identity',
+      };
+    }
+    matched = identity;
+  }
+  if (!matched) {
+    return {
+      ok: false,
+      code: 'unknown_capability',
+      message: 'active Ed25519 Yao capability was not found',
+    };
+  }
+  const lifecycle = matched.activationBinding.lifecycle;
+  return {
+    ok: true,
+    capability: {
+      kind: 'router_ab_ed25519_yao_active_capability_v1',
+      materialActivation: matched.activationBinding.material_activation,
+      activeCapabilityBinding: [...matched.capabilityBinding],
+      registeredPublicKey: [...matched.registeredPublicKey],
+      nearAccountId: matched.nearAccountId,
+      applicationBinding: {
+        wallet_id: matched.applicationBinding.wallet_id,
+        near_ed25519_signing_key_id: matched.applicationBinding.near_ed25519_signing_key_id,
+        signing_root_id: matched.applicationBinding.signing_root_id,
+        key_creation_signer_slot: matched.applicationBinding.key_creation_signer_slot,
+      },
+      runtimePolicyScope: {
+        orgId: matched.runtimePolicyScope.orgId,
+        projectId: matched.runtimePolicyScope.projectId,
+        envId: matched.runtimePolicyScope.envId,
+        signingRootVersion: matched.runtimePolicyScope.signingRootVersion,
+      },
+      participantIds: [matched.participantIds[0], matched.participantIds[1]],
+      lifecycle: {
+        lifecycleId: lifecycle.lifecycle_id,
+        rootShareEpoch: lifecycle.root_share_epoch,
+        accountId: lifecycle.account_id,
+        thresholdSessionId: requireThresholdEd25519SessionId(
+          lifecycle.session_id,
+          'active capability threshold session identity',
+        ),
+        signerSetId: lifecycle.signer_set_id,
+        signingWorkerId: lifecycle.selected_server_id,
+      },
+      stateEpoch: matched.stateEpoch,
+      registrationContinuity:
+        matched.persisted.version === 'wallet_ed25519_yao_registration_capability_v1'
+          ? {
+              kind: 'registration',
+              admissionRequest: matched.persisted.admissionRequest,
+              admissionReceipt: matched.persisted.admissionReceipt,
+              activationTranscript: [
+                ...matched.persisted.activationResult.public_receipt.transcript,
+              ],
+            }
+          : {
+              kind: 'recovery',
+              activationTranscript: [
+                ...matched.persisted.activationResult.public_receipt.transcript,
+              ],
+            },
+    },
+  };
+}
+
 export class InMemoryRouterAbEd25519YaoRecoveryService
   implements
     RouterAbEd25519YaoRecoveryService,
@@ -1974,114 +2088,7 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
   resolveActiveCapability(
     input: RouterAbEd25519YaoActiveCapabilityLookupV1,
   ): RouterAbEd25519YaoActiveCapabilityLookupResultV1 {
-    const walletId = String(input.walletId || '').trim();
-    const nearEd25519SigningKeyId = String(input.nearEd25519SigningKeyId || '').trim();
-    const signingWorkerId = String(input.signingWorkerId || '').trim();
-    const firstParticipantId = input.participantIds?.[0];
-    const secondParticipantId = input.participantIds?.[1];
-    if (
-      input.kind !== 'router_ab_ed25519_yao_active_capability_lookup_v1' ||
-      !walletId ||
-      !nearEd25519SigningKeyId ||
-      !signingWorkerId ||
-      !Number.isSafeInteger(input.signerSlot) ||
-      input.signerSlot < 1 ||
-      !Array.isArray(input.participantIds) ||
-      input.participantIds.length !== 2 ||
-      !Number.isSafeInteger(firstParticipantId) ||
-      !Number.isSafeInteger(secondParticipantId) ||
-      Number(firstParticipantId) < 1 ||
-      Number(secondParticipantId) < 1 ||
-      firstParticipantId === secondParticipantId
-    ) {
-      return {
-        ok: false,
-        code: 'invalid_lookup',
-        message: 'active Ed25519 Yao capability lookup is invalid',
-      };
-    }
-    let matched: CapabilityIdentity | null = null;
-    for (const state of this.capabilities.values()) {
-      if (state.kind !== 'active') continue;
-      const identity = state.identity;
-      if (
-        identity.applicationBinding.wallet_id !== walletId ||
-        identity.applicationBinding.near_ed25519_signing_key_id !== nearEd25519SigningKeyId ||
-        identity.applicationBinding.key_creation_signer_slot !== input.signerSlot ||
-        identity.activationBinding.lifecycle.selected_server_id !== signingWorkerId ||
-        identity.participantIds[0] !== firstParticipantId ||
-        identity.participantIds[1] !== secondParticipantId
-      ) {
-        continue;
-      }
-      if (matched) {
-        return {
-          ok: false,
-          code: 'capability_conflict',
-          message: 'multiple active Ed25519 Yao capabilities match the wallet identity',
-        };
-      }
-      matched = identity;
-    }
-    if (!matched) {
-      return {
-        ok: false,
-        code: 'unknown_capability',
-        message: 'active Ed25519 Yao capability was not found',
-      };
-    }
-    const lifecycle = matched.activationBinding.lifecycle;
-    return {
-      ok: true,
-      capability: {
-        kind: 'router_ab_ed25519_yao_active_capability_v1',
-        materialActivation: matched.activationBinding.material_activation,
-        activeCapabilityBinding: [...matched.capabilityBinding],
-        registeredPublicKey: [...matched.registeredPublicKey],
-        nearAccountId: matched.nearAccountId,
-        applicationBinding: {
-          wallet_id: matched.applicationBinding.wallet_id,
-          near_ed25519_signing_key_id: matched.applicationBinding.near_ed25519_signing_key_id,
-          signing_root_id: matched.applicationBinding.signing_root_id,
-          key_creation_signer_slot: matched.applicationBinding.key_creation_signer_slot,
-        },
-        runtimePolicyScope: {
-          orgId: matched.runtimePolicyScope.orgId,
-          projectId: matched.runtimePolicyScope.projectId,
-          envId: matched.runtimePolicyScope.envId,
-          signingRootVersion: matched.runtimePolicyScope.signingRootVersion,
-        },
-        participantIds: [matched.participantIds[0], matched.participantIds[1]],
-        lifecycle: {
-          lifecycleId: lifecycle.lifecycle_id,
-          rootShareEpoch: lifecycle.root_share_epoch,
-          accountId: lifecycle.account_id,
-          thresholdSessionId: requireThresholdEd25519SessionId(
-            lifecycle.session_id,
-            'active capability threshold session identity',
-          ),
-          signerSetId: lifecycle.signer_set_id,
-          signingWorkerId: lifecycle.selected_server_id,
-        },
-        stateEpoch: matched.stateEpoch,
-        registrationContinuity:
-          matched.persisted.version === 'wallet_ed25519_yao_registration_capability_v1'
-            ? {
-                kind: 'registration',
-                admissionRequest: matched.persisted.admissionRequest,
-                admissionReceipt: matched.persisted.admissionReceipt,
-                activationTranscript: [
-                  ...matched.persisted.activationResult.public_receipt.transcript,
-                ],
-              }
-            : {
-                kind: 'recovery',
-                activationTranscript: [
-                  ...matched.persisted.activationResult.public_receipt.transcript,
-                ],
-              },
-      },
-    };
+    return resolveRouterAbEd25519YaoActiveCapability(this.capabilities, input);
   }
 
   async admitRecovery(
