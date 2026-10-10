@@ -154,6 +154,7 @@ export interface RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1 {
   commitCapabilities(
     snapshot: RouterAbEd25519YaoCapabilitySnapshotV1,
     mutation: RouterAbEd25519YaoCapabilityMutationV1,
+    companionWrite: RouterAbEd25519YaoPreparedWriteV1 | null,
   ): Promise<RouterAbEd25519YaoProductRegistrationPartitionBatchResultV1>;
   loadRegistration(lifecycleId: string): Promise<RouterAbEd25519YaoRegistrationCeremonySnapshotV1>;
   commitRegistration(
@@ -411,6 +412,7 @@ class RouterAbEd25519YaoProductRegistrationPartitionedStateStore implements Rout
   async commitCapabilities(
     snapshot: RouterAbEd25519YaoCapabilitySnapshotV1,
     mutation: RouterAbEd25519YaoCapabilityMutationV1,
+    companionWrite: RouterAbEd25519YaoPreparedWriteV1 | null,
   ): Promise<RouterAbEd25519YaoProductRegistrationPartitionBatchResultV1> {
     const shared = boundedRouterAbEd25519YaoProductRegistrationSharedStateV1({
       kind: 'router_ab_ed25519_yao_product_registration_shared_state_v1',
@@ -428,7 +430,7 @@ class RouterAbEd25519YaoProductRegistrationPartitionedStateStore implements Rout
           value: { kind: SHARED_RECORD_KIND, value: shared },
         },
       ],
-      null,
+      companionWrite,
     );
   }
 

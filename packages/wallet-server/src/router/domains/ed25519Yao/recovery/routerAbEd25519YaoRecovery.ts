@@ -549,14 +549,6 @@ export type RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallResultV1 =
       readonly message: string;
     };
 
-export interface RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallerV1 {
-  installRegistrationFinalizeCapability(
-    input: RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallationV1,
-  ):
-    | Promise<RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallResultV1>
-    | RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallResultV1;
-}
-
 export interface RouterAbEd25519YaoPersistedActiveCapabilityInstallerV1 {
   installPersistedActiveCapability(
     input: WalletEd25519YaoActiveCapabilityRecord,
@@ -1987,7 +1979,6 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
     RouterAbEd25519YaoRecoveryAdmissionBoundaryV1,
     RouterAbEd25519YaoRecoveryExecuteBoundaryV1,
     RouterAbEd25519YaoRecoveryActivationBoundaryV1,
-    RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallerV1,
     RouterAbEd25519YaoPersistedActiveCapabilityInstallerV1,
     RouterAbEd25519YaoActiveCapabilityResolverV1
 {

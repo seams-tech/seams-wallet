@@ -3,7 +3,6 @@ import {
   InMemoryRouterAbEd25519YaoRegistrationService,
   type RouterAbEd25519YaoActivationConsumptionRequestV1,
   type RouterAbEd25519YaoActivationConsumptionResultV1,
-  type RouterAbEd25519YaoRegistrationBackend,
   type RouterAbEd25519YaoRegistrationBackendResult,
 } from '../registration/routerAbEd25519YaoRegistration';
 import { InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter } from '../registration/routerAbEd25519YaoRegistrationIntentAuthorization';
@@ -12,13 +11,9 @@ import type {
   RouterAbEd25519YaoVerifiedActivationIntentV1,
 } from '../registration/routerAbEd25519YaoRegistrationIntentAuthorization';
 import {
-  InMemoryRouterAbEd25519YaoRecoveryService,
-  InMemoryRouterAbEd25519YaoRecoveryStateV1,
   resolveRouterAbEd25519YaoActiveCapability,
   type RouterAbEd25519YaoActiveCapabilityLookupResultV1,
   type RouterAbEd25519YaoActiveCapabilityLookupV1,
-  type RouterAbEd25519YaoRecoveryBackend,
-  type RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallationV1,
   type RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallResultV1,
 } from '../recovery/routerAbEd25519YaoRecovery';
 import {
@@ -31,8 +26,8 @@ import {
 import {
   routerAbEd25519YaoAdmittedRegistrationAuthorityV1,
   type RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1,
-  type RouterAbEd25519YaoCapabilitySnapshotV1,
 } from './routerAbEd25519YaoProductRegistrationPartitionedStateStore';
+import { rehydrateRouterAbEd25519YaoCapability } from './routerAbEd25519YaoCapabilityCommit';
 import {
   parseRouterAbEd25519YaoRegistrationRouterAnswerV1,
   type RouterAbEd25519YaoPinnedRegistrationBackend,
@@ -59,20 +54,7 @@ export type RouterAbEd25519YaoProductRegistrationRequestScopedRuntimeInputV1 = {
   ) => Promise<WalletEd25519YaoActiveCapabilityRecord | null>;
 };
 
-type RequestScopedMutationResult<T> =
-  | { readonly kind: 'commit'; readonly value: T }
-  | { readonly kind: 'reject'; readonly value: T };
-
 const MAX_DETERMINISTIC_COMMIT_ATTEMPTS = 2;
-
-const UNUSED_BACKEND: RouterAbEd25519YaoRegistrationBackend & RouterAbEd25519YaoRecoveryBackend = {
-  admit: rejectUnusedBackend,
-  execute: rejectUnusedBackend,
-  admitRecovery: rejectUnusedBackend,
-  resolveRecoveryDispatchRoot: rejectUnusedBackend,
-  executeRecovery: rejectUnusedBackend,
-  activateRecovery: rejectUnusedBackend,
-};
 
 /**
  * Product-state runtime for wallet start/finalize routes. Each mutation loads
@@ -196,20 +178,10 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
     };
   }
 
-  async installRegistrationFinalizeCapability(
-    input: RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallationV1,
-  ): Promise<RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallResultV1> {
-    return await this.commitUntilReconciled(
-      installRegistrationFinalizeCapabilityMutation.bind(undefined, input),
-    );
-  }
-
   async installPersistedActiveCapability(
     input: WalletEd25519YaoActiveCapabilityRecord,
   ): Promise<RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallResultV1> {
-    return await this.commitUntilReconciled(
-      installPersistedActiveCapabilityMutation.bind(undefined, input),
-    );
+    return await rehydrateRouterAbEd25519YaoCapability(this.input.store, input);
   }
 
   async resolveActiveCapability(
@@ -241,25 +213,6 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
     }
     const refreshed = await this.input.store.loadCapabilities();
     return resolveRouterAbEd25519YaoActiveCapability(refreshed.value.recoveryCapabilities, input);
-  }
-
-  private async commitUntilReconciled<T>(
-    mutate: (
-      state: InMemoryRouterAbEd25519YaoRecoveryStateV1,
-    ) => Promise<RequestScopedMutationResult<T>>,
-  ): Promise<T> {
-    for (let attempt = 0; attempt < MAX_DETERMINISTIC_COMMIT_ATTEMPTS; attempt += 1) {
-      const loaded = await this.input.store.loadCapabilities();
-      const state = capabilityState(loaded);
-      const mutation = await mutate(state);
-      if (mutation.kind === 'reject') return mutation.value;
-      const committed = await this.input.store.commitCapabilities(loaded, {
-        capabilities: state.capabilities,
-        identityCapabilities: state.identityCapabilities,
-      });
-      if (committed.kind === 'stored') return mutation.value;
-    }
-    throw new Error('Request-scoped product state remained contended after one reconciliation');
   }
 }
 
@@ -379,46 +332,3 @@ async function bindAndAdmitVerifiedRegistration(input: {
 }
 
 function ignoreUnobservedDispatchRoot(): void {}
-
-async function installRegistrationFinalizeCapabilityMutation(
-  input: RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallationV1,
-  state: InMemoryRouterAbEd25519YaoRecoveryStateV1,
-): Promise<
-  RequestScopedMutationResult<RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallResultV1>
-> {
-  const result = recoveryService(state).installRegistrationFinalizeCapability(input);
-  return result.ok ? { kind: 'commit', value: result } : { kind: 'reject', value: result };
-}
-
-async function installPersistedActiveCapabilityMutation(
-  input: WalletEd25519YaoActiveCapabilityRecord,
-  state: InMemoryRouterAbEd25519YaoRecoveryStateV1,
-): Promise<
-  RequestScopedMutationResult<RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallResultV1>
-> {
-  const result = recoveryService(state).installPersistedActiveCapability(input);
-  return result.ok ? { kind: 'commit', value: result } : { kind: 'reject', value: result };
-}
-
-function recoveryService(
-  state: InMemoryRouterAbEd25519YaoRecoveryStateV1,
-): InMemoryRouterAbEd25519YaoRecoveryService {
-  return new InMemoryRouterAbEd25519YaoRecoveryService(UNUSED_BACKEND, state);
-}
-
-function capabilityState(
-  snapshot: RouterAbEd25519YaoCapabilitySnapshotV1,
-): InMemoryRouterAbEd25519YaoRecoveryStateV1 {
-  const state = new InMemoryRouterAbEd25519YaoRecoveryStateV1();
-  for (const [key, capability] of snapshot.value.recoveryCapabilities) {
-    state.capabilities.set(key, capability);
-  }
-  for (const [key, capabilityKey] of snapshot.value.recoveryIdentityCapabilities) {
-    state.identityCapabilities.set(key, capabilityKey);
-  }
-  return state;
-}
-
-async function rejectUnusedBackend(): Promise<never> {
-  throw new Error('Request-scoped product runtime invoked an unavailable protocol backend');
-}

@@ -60,9 +60,7 @@ import {
   type RouterAbEd25519YaoPersistedActiveCapabilityInstallerV1,
   type RouterAbEd25519YaoRecoveryAuthorizationAdapter,
   type RouterAbEd25519YaoRecoveryService,
-  type RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallationV1,
   type RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallResultV1,
-  type RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallerV1,
   type WarmBootstrapLinkedEd25519AuthorityReaderV1,
 } from '../recovery/routerAbEd25519YaoRecovery';
 import type { WalletEd25519YaoActiveCapabilityRecord } from '../../../../core/WalletStore';
@@ -127,8 +125,7 @@ export type RouterAbEd25519YaoWalletSessionMintInputV1 =
     });
 
 export type RouterAbEd25519YaoProductRegistrationRuntimeV1 =
-  RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallerV1 &
-    RouterAbEd25519YaoPersistedActiveCapabilityInstallerV1 &
+  RouterAbEd25519YaoPersistedActiveCapabilityInstallerV1 &
     RouterAbEd25519YaoActiveCapabilityResolverV1 & {
       readonly kind: 'router_ab_ed25519_yao_product_registration_runtime_v1';
       readonly signingWorkerId: string;
@@ -214,7 +211,6 @@ export interface RouterAbEd25519YaoProductRegistrationAuthorizationPortV1 extend
 export interface RouterAbEd25519YaoProductRecoveryServicePortV1
   extends
     RouterAbEd25519YaoRecoveryService,
-    RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallerV1,
     RouterAbEd25519YaoPersistedActiveCapabilityInstallerV1,
     RouterAbEd25519YaoActiveCapabilityResolverV1 {}
 
@@ -545,8 +541,7 @@ class RouterAbEd25519YaoProductRegistrationRuntime implements RouterAbEd25519Yao
       readonly signingWorkerId: string;
       readonly registrationService: RouterAbEd25519YaoProductRegistrationServicePortV1;
       readonly authorization: RouterAbEd25519YaoProductRegistrationAuthorizationPortV1;
-      readonly capabilityInstaller: RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallerV1 &
-        RouterAbEd25519YaoPersistedActiveCapabilityInstallerV1;
+      readonly capabilityInstaller: RouterAbEd25519YaoPersistedActiveCapabilityInstallerV1;
       readonly capabilityResolver: RouterAbEd25519YaoActiveCapabilityResolverV1;
     },
   ) {
@@ -588,12 +583,6 @@ class RouterAbEd25519YaoProductRegistrationRuntime implements RouterAbEd25519Yao
     const activationConsumer: RouterAbEd25519YaoActivationConsumerV1 =
       this.input.registrationService;
     return await activationConsumer.consumeActivated(request);
-  }
-
-  async installRegistrationFinalizeCapability(
-    input: RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallationV1,
-  ): Promise<RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallResultV1> {
-    return await this.input.capabilityInstaller.installRegistrationFinalizeCapability(input);
   }
 
   async installPersistedActiveCapability(
@@ -663,8 +652,7 @@ export function createRouterAbEd25519YaoProductRegistrationRuntimeV1(input: {
   readonly signingWorkerId: string;
   readonly registrationService: RouterAbEd25519YaoProductRegistrationServicePortV1;
   readonly authorization: RouterAbEd25519YaoProductRegistrationAuthorizationPortV1;
-  readonly capabilityInstaller: RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallerV1 &
-    RouterAbEd25519YaoPersistedActiveCapabilityInstallerV1;
+  readonly capabilityInstaller: RouterAbEd25519YaoPersistedActiveCapabilityInstallerV1;
   readonly capabilityResolver: RouterAbEd25519YaoActiveCapabilityResolverV1;
 }): RouterAbEd25519YaoProductRegistrationRuntimeV1 {
   return new RouterAbEd25519YaoProductRegistrationRuntime(input);

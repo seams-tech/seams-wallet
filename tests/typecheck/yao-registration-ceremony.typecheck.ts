@@ -35,16 +35,20 @@ const capabilityMutation: RouterAbEd25519YaoCapabilityMutationV1 = {
   capabilities: shared.recovery.capabilities,
   identityCapabilities: shared.recovery.identityCapabilities,
 };
-store.commitCapabilities(capabilitySnapshot, capabilityMutation);
+store.commitCapabilities(capabilitySnapshot, capabilityMutation, null);
 
 // @ts-expect-error A capability commit cannot carry recovery lifecycle state through a spread.
-store.commitCapabilities(capabilitySnapshot, { ...shared.recovery });
+store.commitCapabilities(capabilitySnapshot, { ...shared.recovery }, null);
 
-store.commitCapabilities(capabilitySnapshot, {
-  ...capabilityMutation,
-  // @ts-expect-error Capability installation must preserve existing recovery sessions.
-  recoverySessions: shared.recovery.recoverySessions,
-});
+store.commitCapabilities(
+  capabilitySnapshot,
+  {
+    ...capabilityMutation,
+    // @ts-expect-error Capability installation must preserve existing recovery sessions.
+    recoverySessions: shared.recovery.recoverySessions,
+  },
+  null,
+);
 
 // @ts-expect-error A capability commit must retain the version it read.
-store.commitCapabilities({ value: capabilitySnapshot.value }, capabilityMutation);
+store.commitCapabilities({ value: capabilitySnapshot.value }, capabilityMutation, null);

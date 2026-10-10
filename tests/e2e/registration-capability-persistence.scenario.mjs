@@ -13,10 +13,10 @@ class ConcurrentCapabilityStore {
     return this.store.loadCapabilities();
   }
 
-  async commitCapabilities(snapshot, mutation) {
+  async commitCapabilities(snapshot, mutation, companionWrite) {
     this.commits += 1;
     if (this.commits === 1) await this.beforeCommit();
-    return this.store.commitCapabilities(snapshot, mutation);
+    return this.store.commitCapabilities(snapshot, mutation, companionWrite);
   }
 }
 
@@ -60,10 +60,14 @@ async function suspendCapability(store, cache) {
   const snapshot = await store.loadCapabilities();
   const capabilities = new Map(snapshot.value.recoveryCapabilities);
   for (const [key, capability] of cache.capabilities) capabilities.set(key, capability);
-  const result = await store.commitCapabilities(snapshot, {
-    capabilities,
-    identityCapabilities: new Map(snapshot.value.recoveryIdentityCapabilities),
-  });
+  const result = await store.commitCapabilities(
+    snapshot,
+    {
+      capabilities,
+      identityCapabilities: new Map(snapshot.value.recoveryIdentityCapabilities),
+    },
+    null,
+  );
   assert.equal(result.kind, 'stored');
 }
 
@@ -182,10 +186,14 @@ export async function verifyCapabilityPersistence({ api, database, scope }) {
   const reactivated = new Map(frozen.value.recoveryCapabilities);
   for (const [key, capability] of active.capabilities) reactivated.set(key, capability);
   await assert.rejects(
-    store.commitCapabilities(frozen, {
-      capabilities: reactivated,
-      identityCapabilities: new Map(frozen.value.recoveryIdentityCapabilities),
-    }),
+    store.commitCapabilities(
+      frozen,
+      {
+        capabilities: reactivated,
+        identityCapabilities: new Map(frozen.value.recoveryIdentityCapabilities),
+      },
+      null,
+    ),
     /router_ab_yao_versioned_json_cas_guard/u,
   );
   assert.deepEqual(await store.loadCapabilities(), frozen);

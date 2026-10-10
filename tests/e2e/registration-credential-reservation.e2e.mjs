@@ -36,6 +36,7 @@ const bundle = await build({
   bundle: true,
   format: 'esm',
   platform: 'node',
+  external: ['bs58'],
   write: false,
   tsconfig: 'packages/wallet-server/tsconfig.json',
   stdin: {
@@ -45,12 +46,28 @@ const bundle = await build({
       export { CloudflareD1WalletRegistrationCommitStore } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationCommitStore';
       export { buildD1WalletRecord } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1RegistrationCeremonyRecords';
       export { buildPasskeyRegistrationAuthorityFixture } from './tests/unit/helpers/nearRegistration.fixtures';
+      export { buildNearRegistrationSignerFixture } from './tests/unit/helpers/nearRegistrationSigner.fixtures';
+      export { TracedD1Database } from './tests/r150-hosted/gateway/d1Trace';
     `,
   },
 });
 const bundlePath = resolve(output, 'production-api.mjs');
 await writeFile(bundlePath, bundle.outputFiles[0].text);
 const api = await import(pathToFileURL(bundlePath));
+
+class ConcurrentWalletDatabase extends api.TracedD1Database {
+  pendingCommit = null;
+
+  async batch(statements) {
+    if (this.pendingCommit && statements.some(writesWallet)) {
+      const competingCommit = this.pendingCommit;
+      this.pendingCommit = null;
+      await competingCommit();
+    }
+    return super.batch(statements);
+  }
+}
+
 const runtime = new Miniflare({
   modules: true,
   script: 'export default { fetch() { return new Response("credential reservation"); } };',
@@ -62,8 +79,9 @@ try {
   const database = await runtime.getD1Database('SIGNER_DB');
   await migrate(database);
   const directory = new CredentialDirectory();
+  const traced = new ConcurrentWalletDatabase(database);
   const store = new api.CloudflareD1WalletRegistrationCommitStore({
-    database,
+    database: traced,
     credentialClaims: directory,
     namespace: 'claim-overlap',
     orgId: 'org',
@@ -75,7 +93,7 @@ try {
   const input = {
     kind: 'passkey_wallet_registration_commit_v1',
     wallet: api.buildD1WalletRecord({ walletId: authority.walletId, now }),
-    walletSigners: [],
+    walletSigners: [await api.buildNearRegistrationSignerFixture('claim-overlap', now)],
     now,
     decisionStatements: [],
   };
@@ -98,30 +116,83 @@ try {
   directory.answer(true);
   const commit = await retry;
   const other = api.buildPasskeyRegistrationAuthorityFixture('other-wallet');
-  await assert.rejects(commit({
-    ...input,
-    wallet: api.buildD1WalletRecord({ walletId: other.walletId, now }),
-  }), /walletId does not match/);
+  await assert.rejects(
+    commit({
+      ...input,
+      wallet: api.buildD1WalletRecord({ walletId: other.walletId, now }),
+    }),
+    /walletId does not match/,
+  );
   assert.deepEqual(await snapshot(database), before);
 
   // A failed local write remains atomic, and its successful claim can retry.
-  await assert.rejects(commit({
-    ...input,
-    decisionStatements: [database.prepare('INSERT INTO missing_registration_table VALUES (1)')],
-  }));
+  await assert.rejects(
+    commit({
+      ...input,
+      decisionStatements: [traced.prepare('INSERT INTO missing_registration_table VALUES (1)')],
+    }),
+  );
   assert.deepEqual(await snapshot(database), before);
+  const callsBeforeCommit = trace(traced).length;
   await commit(input);
+  const commitCalls = trace(traced).slice(callsBeforeCommit);
+  assert.equal(
+    commitCalls.length,
+    2,
+    'Fresh wallet and capability commit uses one read and one batch',
+  );
+  const tables = new Set(commitCalls[1].statements.flatMap(statementTables));
+  for (const table of ['wallets', 'wallet_signers', 'router_ab_yao_versioned_json_records']) {
+    assert.ok(tables.has(table), `${table} must commit in the same batch`);
+  }
   const committed = await snapshot(database);
   assert.equal(committed.wallets.length, 1);
+  assert.equal(committed.wallet_signers.length, 1);
+  assert.equal(committed.capabilities.length, 1);
   assert.equal(committed.webauthn_authenticators.length, 1);
   assert.equal(committed.webauthn_credential_bindings.length, 1);
   await commit(input);
   assert.deepEqual(await snapshot(database), committed);
-  assert.deepEqual(directory.requests, Array(3).fill({
-    walletId: authority.walletId,
-    rpId: authority.rpId,
-    credentialIdB64u: authority.credentialIdB64u,
-  }));
+  assert.deepEqual(
+    directory.requests,
+    Array(3).fill({
+      walletId: authority.walletId,
+      rpId: authority.rpId,
+      credentialIdB64u: authority.credentialIdB64u,
+    }),
+  );
+
+  // Another wallet wins the cache version after our read, before our write.
+  const otherStore = new api.CloudflareD1WalletRegistrationCommitStore({
+    database,
+    credentialClaims: { claim: acceptCredential },
+    namespace: 'claim-overlap',
+    orgId: 'org',
+    projectId: 'project',
+    envId: 'test',
+  });
+  const commitOther = await otherStore.reserveAuthority(other);
+  traced.pendingCommit = commitOther.bind(undefined, {
+    kind: 'passkey_wallet_registration_commit_v1',
+    wallet: api.buildD1WalletRecord({ walletId: other.walletId, now }),
+    walletSigners: [await api.buildNearRegistrationSignerFixture('other-wallet', now)],
+    now,
+    decisionStatements: [],
+  });
+  const beforeRace = trace(traced).length;
+  await commit(input);
+  const raceCalls = trace(traced).slice(beforeRace);
+  const walletWrites = raceCalls.filter(writesWalletBatch);
+  assert.equal(walletWrites.length, 2);
+  assert.equal(walletWrites[0].outcome, 'error');
+  assert.equal(walletWrites[1].outcome, 'ok');
+  const afterRace = await snapshot(database);
+  assert.equal(afterRace.wallets.length, 2);
+  assert.equal(afterRace.wallet_signers.length, 2);
+  const cached = JSON.stringify(afterRace.capabilities);
+  assert.ok(cached.includes(authority.walletId));
+  assert.ok(cached.includes(other.walletId));
+
   const evidence = {
     refusedClaimLeavesNoWallet: true,
     lostClaimReplyLeavesNoWallet: true,
@@ -130,6 +201,11 @@ try {
     exactCommitReplayPreservesRows: true,
     commitDoesNotRepeatDirectoryClaim: true,
     directoryCalls: directory.requests.length,
+    walletAndCapabilityCommitD1Calls: commitCalls.length,
+    walletAndCapabilityCommitTrace: commitCalls,
+    concurrentWalletPreserved: true,
+    concurrentWalletWriteAttempts: walletWrites.length,
+    concurrentCommitTrace: raceCalls,
   };
   await writeFile(resolve(output, 'proof.json'), `${JSON.stringify(evidence, null, 2)}\n`);
   console.log(`Credential reservation evidence: ${resolve(output, 'proof.json')}`);
@@ -154,8 +230,43 @@ function isSql(name) {
 
 async function snapshot(database) {
   const rows = {};
-  for (const table of ['wallets', 'webauthn_authenticators', 'webauthn_credential_bindings']) {
+  for (const table of [
+    'wallets',
+    'wallet_signers',
+    'webauthn_authenticators',
+    'webauthn_credential_bindings',
+  ]) {
     rows[table] = (await database.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all()).results;
   }
+  rows.capabilities = (
+    await database
+      .prepare(
+        'SELECT record_key, record_json FROM router_ab_yao_versioned_json_records ORDER BY record_key',
+      )
+      .all()
+  ).results;
   return rows;
+}
+
+function trace(database) {
+  const recorded = JSON.parse(database.response(new Response()).headers.get('X-Benchmark-D1'));
+  assert.equal(recorded.pending, 0);
+  assert.equal(recorded.dropped, 0);
+  return recorded.calls;
+}
+
+function statementTables(statement) {
+  return statement.query.tables;
+}
+
+function writesWallet(statement) {
+  return statement.query.kind !== 'SELECT' && statement.query.tables.includes('wallets');
+}
+
+function writesWalletBatch(call) {
+  return call.statements.some(writesWallet);
+}
+
+async function acceptCredential() {
+  return true;
 }

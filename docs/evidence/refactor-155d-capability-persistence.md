@@ -4,9 +4,9 @@ Recorded October 10, 2026. This is a local storage change after the
 [hosted allocation comparison](refactor-155d-allocation-hosted.md).
 Hosted latency savings have not been measured for this change.
 
-## Change
+## First change: narrow capability persistence
 
-Finalization installs the wallet's active Ed25519 capability after the canonical
+The first change installed the wallet's active Ed25519 capability after the canonical
 wallet commit. The installation previously loaded the shared capability record
 and the registration ceremony. Its commit rewrote the ceremony even though the
 operation only changes capabilities.
@@ -79,11 +79,78 @@ counts and checks. Type fixtures reject lifecycle maps in capability mutations
 and commits without their observed version. The browser cases exercise NEAR
 registration replay, lost finalization replies, and recovery across a runtime reset.
 
+## Second change: commit the wallet and capability together
+
+The canonical wallet commit already has the validated registration capability.
+It now includes the capability-cache update in the same D1 transaction. That
+transaction also includes signer, credential, founding-authority, and lifecycle
+decision statements when present. A failure rolls back every statement.
+
+This uses the existing wallet transaction and shared-record version check.
+It avoids adding capability-specific state to session issuance. The independent
+post-commit installer and its runtime interface are removed. Existing-wallet
+capability rehydration uses the same bounded reconciliation code.
+
+| Wallet write plus capability installation | Previous path | Combined path |
+| --- | ---: | ---: |
+| D1 reads | 1 | 1 |
+| D1 write batches | 2 | 1 |
+| D1 round trips | 3 | 2 |
+
+The real D1 scenario verifies the combined path. Counts exclude founding-record
+reads, directory claims, custody persistence, and session issuance. The previous
+path count follows its separate wallet batch, capability read, and capability batch.
+An exact finalization replay still uses its immutable lifecycle decision. It does
+not reinstall registration material over a later recovery.
+
+Session issuance remains separate. Custody persistence follows the combined
+wallet transaction. The previous capability write overlapped custody persistence,
+so one fewer round trip does not establish a fixed latency saving. The hosted
+baseline remains **4.354 s** for registration and **5.253 s** through the first
+signature. The previous **15 finalization D1 calls** need a new hosted measurement.
+
+The production D1 scenario now includes an Ed25519 signer and its capability.
+It verifies rollback after a failed decision statement and replay after a lost
+reply. It also forces another wallet to commit between the read and write.
+The first batch fails its version check, the second succeeds, and both wallets
+retain their records and capabilities. The existing storage suite also verifies
+suspension, relocation fences, and preservation of recovery and export state.
+
+Reproduce the transaction check with:
+
+```sh
+node tests/e2e/registration-credential-reservation.e2e.mjs
+```
+
+The artifact is `.artifacts/registration-credential-reservation/proof.json`.
+It records the two fresh D1 calls, their table identities, and both concurrent
+write attempts. No hosted resources changed.
+
+Build, wallet-state type fixtures, the registration fixture's type check, both
+real D1 scenarios, and the bloat check pass. The browser checks for registration
+replay, lost finalization credentials, and committed recovery after a lost reply
+and runtime reset also pass. The final recovery trace is retained under
+`.artifacts/registration-capability-candidate-recovery-traces/`.
+
+The extended recovery scenario found a separate failure after its injected lost
+Router reply. The second recovery admission returns `409 admission_failed` with
+`Yao recovery claim conflicted on shared`. The same scenario reproduces this on
+parent `06696b276b5e8774bcf1fdf7421ce610e9523d14`, with its Gateway rebuilt from frozen
+sources and the same SDK and custody binaries. This is an existing production
+recovery failure under fault injection. It remains unresolved by this storage change.
+Evidence is in `.artifacts/registration-capability-recovery-traces/` and
+`.artifacts/registration-capability-parent-recovery-traces/`.
+
+The first extended run used mismatched local ports and failed the harness's origin
+check. The corrected runs used Gateway port 5700 and role ports 5702–5706. Their
+failure occurred after actual recovery execution. No production checks were
+changed to accommodate the test.
+
 ## Next steps
 
-1. Assess a single commit for capability installation and session issuance.
-   Preserve canonical wallet commit ordering, ownership checks, and lost-reply recovery.
-2. Freeze a new staging baseline after the separate role-database cutover.
+1. Freeze a new staging baseline after the separate role-database cutover.
    Run a controlled registration comparison with these storage changes.
-3. Use the new traces to choose between remaining finalization work and peer
+2. Use the new traces to choose between remaining finalization work and peer
    admission delays. Keep setup, Yao execution, and finalization timings separate.
+3. Resolve the existing shared-state conflict on interrupted recovery before
+   release. Preserve the admitted recovery code and the replaced-activation fence.

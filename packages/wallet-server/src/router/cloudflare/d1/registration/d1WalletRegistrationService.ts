@@ -5476,8 +5476,6 @@ export class CloudflareD1WalletRegistrationService {
       let ed25519SignerRecord: WalletEd25519SignerRecord | null = null;
       let ed25519MaterialActivation: MpcMaterialActivationRef | null = null;
       let ed25519RegisteredPublicKeyB64u: string | null = null;
-      let ed25519CapabilityInstallation: RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallationV1 | null =
-        null;
       let yaoDecision: RouterAbEd25519YaoLifecycleDecisionV1 | null = null;
       let commitWallet: Awaited<ReturnType<D1WalletRegistrationCommitStore['reserveAuthority']>>;
       /* The custody commit claims its recovery-code routes here, beside this
@@ -5663,15 +5661,16 @@ export class CloudflareD1WalletRegistrationService {
         });
         if (!resolved.ok) return resolved;
         resolvedNearAccount = resolved.value;
-        ed25519CapabilityInstallation = {
-          kind: 'router_ab_ed25519_yao_registration_finalize_capability_v1',
-          activeCapabilityBinding: consumed.activation.result.binding.session_id,
-          nearAccountId,
-          registrationAdmissionRequest: consumed.activation.admissionRequest,
-          registrationAdmissionReceipt: consumed.activation.admissionReceipt,
-          registrationResult: consumed.activation.result,
-          runtimePolicyScope,
-        };
+        const ed25519CapabilityInstallation: RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallationV1 =
+          {
+            kind: 'router_ab_ed25519_yao_registration_finalize_capability_v1',
+            activeCapabilityBinding: consumed.activation.result.binding.session_id,
+            nearAccountId,
+            registrationAdmissionRequest: consumed.activation.admissionRequest,
+            registrationAdmissionReceipt: consumed.activation.admissionReceipt,
+            registrationResult: consumed.activation.result,
+            runtimePolicyScope,
+          };
         const activeYaoCapability = buildRouterAbEd25519YaoRegistrationCapabilityRecordV1(
           ed25519CapabilityInstallation,
         );
@@ -6006,43 +6005,12 @@ export class CloudflareD1WalletRegistrationService {
       }
       const foundingAuthority = persistedFoundingRecords.authority;
       const foundingAuthMethod = persistedFoundingRecords.authMethod;
-      const yaoRuntime = ed25519CapabilityInstallation
-        ? this.getEd25519YaoProductRegistration()
-        : null;
-      if (ed25519CapabilityInstallation && !yaoRuntime) {
-        return {
-          ok: false,
-          code: 'not_configured',
-          message: 'Ed25519 Yao product registration is not configured',
-        };
-      }
-      // Both writes require the committed wallet. Settle both before returning or retrying.
-      const [capabilityInstallation, custodyCommit] = await Promise.allSettled([
-        ed25519CapabilityInstallation && yaoRuntime
-          ? recordRegistrationPromiseTiming({
-              sink: serverTiming,
-              name: 'near_finalize_capability_install',
-              startedAtMs: Date.now(),
-              promise: yaoRuntime.installRegistrationFinalizeCapability(ed25519CapabilityInstallation),
-            })
-          : Promise.resolve(null),
-        recordRegistrationPromiseTiming({
-          sink: serverTiming,
-          name: 'near_finalize_custody_commit',
-          startedAtMs: Date.now(),
-          promise: commitCustody(),
-        }),
-      ]);
-      if (capabilityInstallation.status === 'rejected') throw capabilityInstallation.reason;
-      if (capabilityInstallation.value && !capabilityInstallation.value.ok) {
-        return {
-          ok: false,
-          code: capabilityInstallation.value.code,
-          message: capabilityInstallation.value.message,
-        };
-      }
-      if (custodyCommit.status === 'rejected') throw custodyCommit.reason;
-      const walletCustody = custodyCommit.value;
+      const walletCustody = await recordRegistrationPromiseTiming({
+        sink: serverTiming,
+        name: 'near_finalize_custody_commit',
+        startedAtMs: Date.now(),
+        promise: commitCustody(),
+      });
       if (walletCustody.status === 'rejected') {
         /* Reported, not thrown — the registration is already committed. Logged
            because a rejection is a wallet whose seed is not yet recoverable,

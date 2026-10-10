@@ -26,6 +26,8 @@ import {
   type D1WalletStoreScope,
 } from '../../../../core/d1WalletStore';
 import type { WalletRecord, WalletSignerRecord } from '../../../../core/WalletStore';
+import { createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1 } from '../ed25519Yao/d1Ed25519YaoProductRegistrationPartitionedStateStore';
+import { commitRouterAbEd25519YaoRegistrationCapability } from '../../../domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoCapabilityCommit';
 import {
   prepareD1WebAuthnCredentialBindingPutStatement,
   type WebAuthnCredentialBindingRecord,
@@ -573,10 +575,40 @@ export class CloudflareD1WalletRegistrationCommitStore
     );
     statements.push(...emailOtpCommitStatements(input));
     statements.push(...input.decisionStatements);
+    const ed25519Signer = input.walletSigners.find(isEd25519Signer);
+    if (ed25519Signer) {
+      const capability = ed25519Signer.activeYaoCapability;
+      if (capability.version !== 'wallet_ed25519_yao_registration_capability_v1') {
+        throw new Error('A registration commit requires its registration capability');
+      }
+      const store = createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1({
+        database: this.database,
+        scope: this.scope,
+      });
+      const installed = await commitRouterAbEd25519YaoRegistrationCapability(
+        store,
+        {
+          kind: 'router_ab_ed25519_yao_registration_finalize_capability_v1',
+          activeCapabilityBinding: capability.activeCapabilityBinding,
+          nearAccountId: capability.nearAccountId,
+          registrationAdmissionRequest: capability.admissionRequest,
+          registrationAdmissionReceipt: capability.admissionReceipt,
+          registrationResult: capability.activationResult,
+          runtimePolicyScope: capability.runtimePolicyScope,
+        },
+        { statements },
+      );
+      if (!installed.ok) throw new Error(installed.message);
+      return;
+    }
     const results = await this.database.batch<D1ResultLike>(statements);
     assertBatchSucceeded({
       expectedStatementCount: statements.length,
       results,
     });
   }
+}
+
+function isEd25519Signer(signer: WalletSignerRecord) {
+  return signer.version === 'wallet_signer_ed25519_v1';
 }
