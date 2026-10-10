@@ -1,19 +1,14 @@
 # R155D — the registration-to-first-signature critical path
 
-Status: two changes are committed, verified locally, and confirmed on staging.
-The registration response now supplies the post-registration session status,
-and wallet startup moved to setup. Their hosted comparison ran on October 10
-and measured no end-to-end gain: the time a Worker waits to reach its wallet
-object is larger than both savings and varies from request to request. Phase
-0's probes had already changed the plan: the largest remaining cost is how
-wallet objects are addressed, and placement is not the cause. The address
-change is approved for staging and nothing of it is committed yet. Phase 2
-started: sign prepare, sign, and finalize each make fewer Gateway database
-round trips. The staging database move still waits on its owner. See the
-[implementation record](#implementation-record). Plan dated October 9, 2026;
-record dated October 10. Written after R155C's hosted measurement, from the same
-staging traces, three code traces, and two probe runs recorded under
-[Phase 0 findings](#phase-0-findings).
+Status: stored unique IDs, setup-time startup, and the registration status seed
+are implemented and measured on staging. The stored-ID comparison reduced the
+SDK flow without user interaction to **5.488 s**. The 3–4 s target remains unmet.
+Further Gateway reductions are implemented locally. The latest change overlaps
+Router activation consumption with the Console credential claim. The activation
+and journal merge remains with its recorded owner. The combined hosted comparison
+and the remaining Phase 2–4 work are open. The staging role-database move remains
+an explicit deployment decision. See the [implementation record](#implementation-record).
+Plan dated October 9, 2026; record updated October 10.
 
 ## Objective and relationship to R155B and R155C
 
@@ -1324,7 +1319,10 @@ journal rules of its request, or it is not made.
    in the session that made `b338a7e1`. The first change removes one write
    round trip; its hosted latency saving is unmeasured.
 4. Finalize, the Router consume beside the Console claim: about 100 ms. It
-   needs the scenario for a claim that fails after the consume.
+   now runs after ceremony-proof and activation-identity verification. The
+   production commit store returns a wallet-bound commit function only after
+   the credential claim succeeds. Both remote effects settle before local
+   persistence. The activation/journal work above remains with its current owner.
 5. Respond, the Console lineage read beside the home admission and the
    authority reads, and one commit batch for the last two writes: about
    100 ms and 44 ms. Done for the Ed25519-only respond. `b338a7e1` commits
@@ -1408,6 +1406,34 @@ The successful run reused the completed builds with `SEAMS_LOCAL_PORT_OFFSET=200
 and `SEAMS_INTENDED_SKIP_BUILD=1`. Its log is
 `.artifacts/registration-session-completion-targeted.log`. No production change
 was needed for the port conflict. The runner stopped all its services afterward.
+
+### Credential claim beside Router consumption
+
+NEAR finalization now starts the credential claim and Router consumption together.
+The claim must succeed before the commit function becomes available. The function
+retains the claimed authority and rejects a commit for another wallet or method.
+Both effects settle before the request returns, including failure paths. Exact
+retries retain the activation consumer and credential owner.
+
+The earlier hosted trace measured Router consumption at 106 ms and credential
+claim at 125 ms. Their overlap removes a serial dependency. Its hosted saving
+is unmeasured. ECDSA still claims the credential before persistence. Email OTP
+has no passkey claim.
+
+The local production D1 scenario verifies a refused claim, a lost claim reply,
+a wrong-wallet commit, transaction rollback, and exact replay. Reproduce it with:
+
+```sh
+node tests/e2e/registration-credential-reservation.e2e.mjs
+```
+
+Evidence is in `.artifacts/registration-credential-reservation/proof.json`.
+Type fixtures reject direct persistence before reservation and replacement of
+its bound authority. Wallet-server types and wallet-state type fixtures pass.
+The bloat check passes. Four isolated browser contracts pass: Email OTP and
+passkey lost-finalization recovery, mixed registration, and immediate session
+use before presignatures are ready. Their log is
+`.artifacts/registration-claim-browser.log`.
 
 ### Decisions
 

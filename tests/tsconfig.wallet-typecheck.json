@@ -9,6 +9,8 @@
     "typecheck/wallet-relocation-challenges.typecheck.ts",
     "typecheck/registration-setup.typecheck.ts",
     "typecheck/registration-checkpoint.typecheck.ts",
+    "typecheck/registration-commit.typecheck.ts",
+    "typecheck/registration-home.typecheck.ts",
     "typecheck/ecdsa-preprocessing.typecheck.ts",
     "typecheck/exact-operation-session.typecheck.ts",
     "typecheck/email-otp-near-restore.typecheck.ts",

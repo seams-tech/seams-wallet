@@ -74,17 +74,17 @@ type D1WalletRegistrationFoundingFields =
 type D1WalletRegistrationCommitInput =
   | (D1WalletRegistrationCommitBase & D1WalletRegistrationFoundingFields & {
       readonly kind: 'passkey_wallet_registration_commit_v1';
-      readonly authority: Extract<RegistrationAuthority, { readonly kind: 'passkey' }>;
       readonly emailOtp?: never;
     })
   | (D1WalletRegistrationCommitBase & D1WalletRegistrationFoundingFields & {
       readonly kind: 'email_otp_wallet_registration_commit_v1';
-      readonly authority: Extract<RegistrationAuthority, { readonly kind: 'email_otp' }>;
       readonly emailOtp: D1EmailOtpRegistrationCommitPlan;
     });
 
 export interface D1WalletRegistrationCommitStore {
-  commit(input: D1WalletRegistrationCommitInput): Promise<void>;
+  reserveAuthority(
+    authority: RegistrationAuthority,
+  ): Promise<(input: D1WalletRegistrationCommitInput) => Promise<void>>;
 }
 
 type D1WalletRegistrationCommitScope = D1WalletStoreScope &
@@ -106,8 +106,18 @@ function normalizeScope(input: D1WalletRegistrationCommitScope): D1WalletRegistr
   };
 }
 
-function assertCommitWalletIdentity(input: D1WalletRegistrationCommitInput): void {
-  if (input.authority.walletId !== input.wallet.walletId) {
+function assertCommitWalletIdentity(
+  input: D1WalletRegistrationCommitInput,
+  authority: RegistrationAuthority,
+): void {
+  const expectedKind =
+    authority.kind === 'passkey'
+      ? 'passkey_wallet_registration_commit_v1'
+      : 'email_otp_wallet_registration_commit_v1';
+  if (input.kind !== expectedKind) {
+    throw new Error('Registration commit does not match its reserved authority');
+  }
+  if (authority.walletId !== input.wallet.walletId) {
     throw new Error('Registration authority walletId does not match wallet record');
   }
   if (input.foundingAuthority) {
@@ -508,28 +518,31 @@ export class CloudflareD1WalletRegistrationCommitStore
     this.scope = normalizeScope(input);
   }
 
-  async commit(input: D1WalletRegistrationCommitInput): Promise<void> {
-    assertCommitWalletIdentity(input);
-    // Finish both prerequisites before writing, including when one rejects.
-    const [credentialClaim, foundingPreparation] = await Promise.allSettled([
-      input.authority.kind === 'passkey'
-        ? reservePasskeyCredential(this.credentialClaims, {
-            walletId: input.authority.walletId,
-            rpId: input.authority.rpId,
-            credentialIdB64u: input.authority.credentialIdB64u,
-          })
-        : Promise.resolve(),
-      prepareFoundingStatements({
-        database: this.database,
-        scope: this.scope,
-        foundingAuthority: input.foundingAuthority,
-        foundingAuthMethod: input.foundingAuthMethod,
-        now: input.now,
-      }),
-    ]);
-    if (credentialClaim.status === 'rejected') throw credentialClaim.reason;
-    if (foundingPreparation.status === 'rejected') throw foundingPreparation.reason;
-    const foundingStatements = foundingPreparation.value;
+  async reserveAuthority(
+    authority: RegistrationAuthority,
+  ): Promise<(input: D1WalletRegistrationCommitInput) => Promise<void>> {
+    if (authority.kind === 'passkey') {
+      await reservePasskeyCredential(this.credentialClaims, {
+        walletId: authority.walletId,
+        rpId: authority.rpId,
+        credentialIdB64u: authority.credentialIdB64u,
+      });
+    }
+    return this.commit.bind(this, authority);
+  }
+
+  private async commit(
+    authority: RegistrationAuthority,
+    input: D1WalletRegistrationCommitInput,
+  ): Promise<void> {
+    assertCommitWalletIdentity(input, authority);
+    const foundingStatements = await prepareFoundingStatements({
+      database: this.database,
+      scope: this.scope,
+      foundingAuthority: input.foundingAuthority,
+      foundingAuthMethod: input.foundingAuthMethod,
+      now: input.now,
+    });
     const statements: D1PreparedStatementLike[] = [
       prepareD1WalletPutSubjectStatement({
         database: this.database,
@@ -550,7 +563,7 @@ export class CloudflareD1WalletRegistrationCommitStore
       ...prepareAuthorityStatements({
         database: this.database,
         scope: this.scope,
-        authority: input.authority,
+        authority,
         walletSigners: input.walletSigners,
         foundingAuthority: input.foundingAuthority,
         foundingAuthMethod: input.foundingAuthMethod,

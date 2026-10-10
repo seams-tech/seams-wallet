@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import type { RegistrationAuthority } from '@shared/utils/registrationAuthMethodInput';
+import { deriveWebAuthnAuthenticatorDeviceInfo } from '@shared/utils/webauthnDeviceInfo';
 import {
   parseWalletAuthMethodId,
   parseWalletId,
@@ -24,6 +26,19 @@ import {
 function required<T>(parsed: DomainIdParseResult<T>): T {
   if (!parsed.ok) throw new Error(parsed.error.message);
   return parsed.value;
+}
+
+export function buildPasskeyRegistrationAuthorityFixture(label: string): RegistrationAuthority {
+  return {
+    kind: 'passkey',
+    walletId: required(parseWalletId(`wallet-${label}`)),
+    rpId: required(parseWebAuthnRpId('localhost')),
+    credentialIdB64u: createHash('sha256').update(label).digest('base64url'),
+    credentialPublicKeyB64u: 'AQID',
+    counter: 0,
+    device: deriveWebAuthnAuthenticatorDeviceInfo({}),
+    registrationIntentDigestB64u: createHash('sha256').update(`intent-${label}`).digest('base64url'),
+  };
 }
 
 export async function buildNearRegistrationAuthorityFixture(label: string) {

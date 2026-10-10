@@ -5478,6 +5478,7 @@ export class CloudflareD1WalletRegistrationService {
       let ed25519CapabilityInstallation: RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallationV1 | null =
         null;
       let yaoDecision: RouterAbEd25519YaoLifecycleDecisionV1 | null = null;
+      let commitWallet: Awaited<ReturnType<D1WalletRegistrationCommitStore['reserveAuthority']>>;
       if (finalizeNearEd25519) {
         const yaoRuntime = this.getEd25519YaoProductRegistration();
         if (!yaoRuntime) {
@@ -5518,18 +5519,27 @@ export class CloudflareD1WalletRegistrationService {
             message: 'Ed25519 activation reference does not belong to this registration ceremony',
           };
         }
-        const consumed = await recordRegistrationPromiseTiming({
-          sink: serverTiming,
-          name: 'near_finalize_router_consume',
-          startedAtMs: Date.now(),
-          promise: yaoRuntime.consumeActivated({
-            reference: {
-              lifecycleId: activationReference.lifecycle_id,
-              sessionId: activationReference.session_id,
-            },
-            consumerBinding: requestFingerprint,
+        // Both effects are exact-retryable. Settle both before returning or
+        // publishing local state, including when the directory claim fails.
+        const [activationConsumption, authorityReservation] = await Promise.allSettled([
+          recordRegistrationPromiseTiming({
+            sink: serverTiming,
+            name: 'near_finalize_router_consume',
+            startedAtMs: Date.now(),
+            promise: yaoRuntime.consumeActivated({
+              reference: {
+                lifecycleId: activationReference.lifecycle_id,
+                sessionId: activationReference.session_id,
+              },
+              consumerBinding: requestFingerprint,
+            }),
           }),
-        });
+          this.walletRegistrationCommitStore.reserveAuthority(ceremonyAuthority),
+        ]);
+        if (activationConsumption.status === 'rejected') throw activationConsumption.reason;
+        if (authorityReservation.status === 'rejected') throw authorityReservation.reason;
+        const consumed = activationConsumption.value;
+        commitWallet = authorityReservation.value;
         if (!consumed.ok) {
           return { ok: false, code: consumed.code, message: consumed.message };
         }
@@ -5681,6 +5691,8 @@ export class CloudflareD1WalletRegistrationService {
           custodyKeyManifestDigestB64u,
           now,
         });
+      } else {
+        commitWallet = await this.walletRegistrationCommitStore.reserveAuthority(ceremonyAuthority);
       }
 
       /* The registration becomes visible with its lifecycle's decision, in
@@ -5873,22 +5885,20 @@ export class CloudflareD1WalletRegistrationService {
                 };
               }
               if (foundingAuthorityRecords) {
-                await this.walletRegistrationCommitStore.commit({
+                await commitWallet({
                   kind: 'passkey_wallet_registration_commit_v1',
                   wallet,
                   walletSigners,
-                  authority: ceremonyAuthority,
                   foundingAuthority: foundingAuthorityRecords.authority,
                   foundingAuthMethod: foundingAuthorityRecords.authMethod,
                   now,
                   decisionStatements,
                 });
               } else {
-                await this.walletRegistrationCommitStore.commit({
+                await commitWallet({
                   kind: 'passkey_wallet_registration_commit_v1',
                   wallet,
                   walletSigners,
-                  authority: ceremonyAuthority,
                   now,
                   decisionStatements,
                 });
@@ -5907,11 +5917,10 @@ export class CloudflareD1WalletRegistrationService {
                   emailOtpEnrollment.persistence,
                 );
               if (foundingAuthorityRecords) {
-                await this.walletRegistrationCommitStore.commit({
+                await commitWallet({
                   kind: 'email_otp_wallet_registration_commit_v1',
                   wallet,
                   walletSigners,
-                  authority: ceremonyAuthority,
                   emailOtp,
                   foundingAuthority: foundingAuthorityRecords.authority,
                   foundingAuthMethod: foundingAuthorityRecords.authMethod,
@@ -5919,11 +5928,10 @@ export class CloudflareD1WalletRegistrationService {
                   decisionStatements,
                 });
               } else {
-                await this.walletRegistrationCommitStore.commit({
+                await commitWallet({
                   kind: 'email_otp_wallet_registration_commit_v1',
                   wallet,
                   walletSigners,
-                  authority: ceremonyAuthority,
                   emailOtp,
                   now,
                   decisionStatements,

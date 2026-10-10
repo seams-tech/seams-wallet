@@ -503,6 +503,11 @@ throughout the resize. Reduced-motion behavior remains immediate.
 - Hosted setup fails closed without its reservation authority or at a different
   physical D1 resource. The local standalone host provides a persistent local
   authority for development.
+- After verifying the ceremony proof and activation identity, NEAR finalization
+  can consume Router activation and reserve the passkey credential concurrently.
+  Both requests settle before local wallet persistence. A refused or unavailable
+  credential claim prevents local persistence. Exact retries retain the original
+  activation consumer and credential owner.
 - Registration commits its session and the matching ceremony's established decision
   in one local transaction. A conflicting ceremony or cancelled registration prevents
   this commit. The wallet remains unavailable for ordinary signing until Console
