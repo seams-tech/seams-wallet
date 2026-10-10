@@ -422,6 +422,18 @@ class RouterAbEd25519YaoProductRegistrationPartitionedStateStore implements Rout
       exportAuthorizationNonceOwners: snapshot.value.exportAuthorizationNonceOwners,
       exportAuthorizationUncertainOwners: snapshot.value.exportAuthorizationUncertainOwners,
     });
+    /* An unchanged capability set writes nothing. A write would raise the
+       shared version under a lifecycle commit that loaded it before this
+       capability was resolved, and that commit would then conflict. */
+    if (
+      companionWrite === null &&
+      sameRouterAbEd25519YaoSharedStateCanonicalEncodingV1(
+        encodeSharedStateCanonicalEncoding(shared),
+        encodeSharedStateCanonicalEncoding(snapshot.value),
+      )
+    ) {
+      return { kind: 'stored', versions: [] };
+    }
     return await this.putMany(
       [
         {
