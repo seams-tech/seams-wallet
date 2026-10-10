@@ -1,8 +1,10 @@
 # R155F — Reduce NEAR registration round trips
 
 Status: **in progress.** The R155D implementer took over every phase of this
-plan on October 10 at the owner's instruction. No phase has a code change yet.
-Date: October 10, 2026.
+plan on October 10 at the owner's instruction. Phase 1 has its first code change.
+The registration proof for the relocated role databases exists. Each phase
+below ends with its record.
+Date: October 11, 2026.
 
 ## Objective and ownership
 
@@ -86,8 +88,8 @@ records query identities, timings, request counts, and component versions.
   unmeasured. The **42-call measurement predates this change**.
 - The three staging custody databases now use replacements with HKG primaries.
   R155D records successful tenant activation and updated deployment variables.
-  Registration through the new role databases remains unverified. The activation
-  canary does not write to them. Earlier saved Worker versions bind the old databases.
+  Nine wallets registered and signed through the new role databases on October 11.
+  Earlier saved Worker versions bind the old, deleted databases.
 
 Use these changes in the new baseline. Do not report their savings again as R155F
 improvements. See the [capability evidence](evidence/refactor-155d-capability-persistence.md)
@@ -133,6 +135,56 @@ Acceptance: remove the demonstrated duplicate reads or commits, preserve exact
 replay, and record the remaining dependency graph. Remove the replaced helpers.
 Do not add another registration state machine or transaction abstraction.
 
+### Phase 1 record
+
+The hosted finalization of October 11 made 14 completed D1 calls. Every call
+also carries the Gateway's deployment write check as one more statement.
+
+| # | Call | Owner | Needs |
+| ---: | --- | --- | --- |
+| 1 | Admission and routing read | Gateway regional admission | The request |
+| 2 | Home generation read | Registration home authority | Verified setup claims |
+| 3 | Journal read | Operation journal | Request fingerprint |
+| 4 | Ceremony read | Ceremony store | A journal miss |
+| 5 | Journal prepared write | Operation journal | Ceremony identity |
+| 6 | Yao lifecycle read | Yao registration runtime | Activation reference |
+| — | Router consume, credential claim, route claim | Router and Console | Call 5 |
+| 7 | Lifecycle decision read | Decision store | Lifecycle id |
+| 8 | Authority and method read | Wallet auth methods | Ceremony authority |
+| 9 | Yao record read | Yao state store | Lifecycle id |
+| 10 | Wallet commit | Wallet commit store | Consume result and credential claim |
+| 11 | Custody records write | Custody commit store | Call 10 and the route claim |
+| 12 | Session authorization write | Authorization service | Call 10 |
+| 13 | Home generation read | Registration home authority | Call 12 |
+| — | Console completion | Console | Call 12 |
+| 14 | Journal completion and home activation | Operation journal | Console acknowledgement |
+
+Commit `edc7d5f9` removes two waits from this chain. The wallet commit no longer
+waits for the route claim, because the claim cannot fail a registration. The
+custody records are stored beside the session issuance, because neither needs
+the other. A finalization that fails still settles its started route claim
+before it responds. The call count stays at 14. Hosted saving is unmeasured.
+In the three candidate samples of October 11 the route claim outlasted the other
+two concurrent calls by 0–403 ms, and the custody write took 68–73 ms.
+
+Remaining serial dependencies, with the hosted durations of October 11:
+
+- Calls 1–5 run in sequence: 120–142 ms in two samples, and 411 ms in one with
+  a slow read. Calls 2–4 are independent reads of three owners and can overlap.
+- Calls 7–9 run in sequence after the concurrent calls: 57–77 ms. Each needs
+  only an identifier that exists before the consume. Call 9 reads the record
+  that call 6 loaded.
+- The credential claim must precede call 10. Gateway observed 132–480 ms.
+- Console completion must precede call 14. Gateway observed 131–413 ms.
+- The Gateway used 265 ms of CPU time per finalization. Other registration
+  requests used 19–36 ms. A Worker clock cannot place that time. A local CPU
+  profile is the next step.
+
+Budget: one serial D1 step for admission, one for the initial loads, the
+prepared write, the wallet commit, the session write and the completion write.
+That is six serial steps against today's thirteen. The custody write and the
+pre-commit reads can overlap other work. The two Console exchanges stay serial.
+
 ## Phase 2 — Reduce Console calls and exchanges
 
 - [ ] Combine each Console operation's deployment check with its required data
@@ -158,16 +210,37 @@ Acceptance: record before/after D1 and HTTP counts per operation. Verify ownersh
 conflicts and partial failures with real Console composition. Reuse existing
 durable decisions for retries. Do not introduce a distributed transaction service.
 
+### Phase 2 record
+
+Gateway-observed duration of each Console call, against Console's own execution
+time for the same call. Values are the group medians of the six hosted groups of
+October 10 and 11.
+
+| Console call | Request | Gateway observed | Console executed |
+| --- | --- | ---: | ---: |
+| Registration setup | Setup | 190–401 ms | 150–179 ms |
+| Active root lineage | Respond | 83–405 ms | 70–79 ms |
+| Passkey claim | Finalization | 133–307 ms | 99–200 ms |
+| Route publication | Finalization | 160–338 ms | 194–206 ms |
+| Registration completion | Finalization | 124–276 ms | 54–59 ms |
+
+Console's D1 calls take 10–24 ms each. The staging Console Worker and its
+database run in Tokyo. The APAC Gateway runs in Hong Kong, so each exchange adds
+a Hong Kong–Tokyo round trip to Console's execution time. Four of these calls
+are serial on the registration path. A Gateway in another region pays a longer
+round trip for the same four calls.
+
 ## Phase 3 — Reduce measured custody preparation and connection delays
 
-- [ ] Reuse R155D's completed role-database cutover and activation results.
+- [x] Reuse R155D's completed role-database cutover and activation results.
   Run the pending registration proof through the new role databases.
   Capture fresh baseline Worker versions and actual database bindings afterward.
   Do not repeat the cutover or restore versions that bind the old databases.
   The old databases are deleted. The comparison custody set with the new
   bindings is Router `aa1cf297`, Deriver A `fd1c1f00`, Deriver B `4c70417b` and
-  Signing Worker `c39367f9`. These are exact, undeployed copies of the set that
-  the earlier drivers stored. The registration proof is still open.
+  Signing Worker `c39367f9`. Nine wallets registered and signed through this set
+  on October 11. The [hosted record](evidence/refactor-155f-relocated-hosted.md)
+  holds the versions, the bindings and the restoration check.
 - [ ] Separate A preparation, peer connection, B admission, protocol execution,
   output sealing, durable completion, and background D1 settlement in the trace.
 - [ ] Optimize the largest remaining serial admission or persistence step.
@@ -184,6 +257,13 @@ Worker clocks also cannot isolate synchronous CPU or implicit storage flushes.
 Acceptance: attribute the selected delay to measured work, then verify replay
 after a lost response. Keep crypto changes and new peer protocols outside this plan.
 
+### Phase 3 record
+
+Deriver A's preparation inside the execution had group medians of 193–199 ms
+before the role-database move and 120–130 ms after it. No other custody span
+changed beyond the spread between groups. SDK custody execution measured
+1,956–2,295 ms on October 11.
+
 ## Phase 4 — Remove a browser exchange where inputs permit it
 
 - [ ] Trace when the client creates each input for setup, respond, execute,
@@ -197,6 +277,34 @@ after a lost response. Keep crypto changes and new peer protocols outside this p
 - [ ] Return the established session and custody outcome through the existing SDK
   completion path. Preserve mixed NEAR/ECDSA and recovery behavior through explicit
   domain states. Remove obsolete requests and branches for the replaced flow.
+
+### Phase 4 record
+
+The finalization request needs the activation reference and the custody commit.
+The client builds both from the Yao execution's result: the custody commit
+contains the registered public key. A direct merge of execute and finalization
+is therefore not possible. Server-only work that needs no Yao result can still
+overlap the client's custody work: the credential claim, the route claim and
+the initial loads need only the ceremony.
+
+Each browser request also costs a CORS preflight exchange, because every
+request is a cross-origin JSON POST to a new URL. A registration and its first
+signature send six. A probe from Tokyo measured 125–191 ms for one preflight
+against the staging Gateway, which answers it from its pinned region. The
+hosted harness never measured these exchanges: Playwright request interception
+answers every preflight locally. A private harness change serves the latency
+test's assets from a local HTTPS server without interception. It loads the site
+and sends real preflights. Its first full hosted run is still open.
+
+Three ways remove or shorten the preflights. None is implemented.
+
+- Serve the Gateway API under the wallet origin. Requests become same-origin
+  and need no preflight. This changes routing and the SDK's relayer address.
+- Answer `OPTIONS` at the edge, before the pinned Gateway Worker. This needs
+  one more Worker, which this plan's scope excludes.
+- Let the SDK send an early `OPTIONS` request to each later route while setup
+  runs. This needs no deployment change. It adds visible requests on the
+  operation routes, and about a dozen test interceptors match them by URL.
 
 The current path uses **four registration browser requests**, followed by prepare
 and sign. A combined execute/finalize would reduce registration to **three** and
@@ -217,6 +325,15 @@ One-request signing and early signing commitments remain separate protocol work.
 - [ ] Keep the known interrupted-recovery conflict tracked under R155D.
   It reproduced on parent `06696b27`. Preserve that evidence and its release blocker.
   Do not attribute it to R155F without a new comparison.
+  On October 11 three public recovery contract cases reproduced it on `f23050fc`
+  and on `edc7d5f9`: the interrupted attempt, the replaced activation and the
+  late superseded attempt. After the injected lost Router reply, the second
+  admission returns `409 admission_failed` with `Yao recovery claim conflicted
+  on shared`. The same cases passed in the full run of October 10 at 17:12.
+  The whole tree of `f2410f0a` still passes the first case. Server sources from
+  `013db600` to `f23050fc` all fail it inside the current tree, so the server
+  source alone does not locate the cause. The other 129 contract cases pass on
+  `edc7d5f9`.
 - [ ] Freeze matching SDK, Gateway, Runtime, Console, and custody sources.
   Compare baseline, candidate, and repeated baseline on existing staging resources.
   Hold the client, signer, wallet home, custody versions, and database bindings fixed
