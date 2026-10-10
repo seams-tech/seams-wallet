@@ -1182,24 +1182,27 @@ the stored-address reads that `cb331a8d` added; "On `dev`" includes them.
 | --- | ---: | ---: | ---: | ---: |
 | Sign prepare | 6 | 2 | 2 | 1–2 |
 | Sign | 8 | 3 | 3 | not set |
-| Finalize | 21 | 15 | 15 | 4–6 |
+| Finalize | 21 | 14 | 14 | 4–6 |
 | Yao execute | 1 | 1 | 1 | not set |
-| Respond | 8 | 6 | 6 | not set |
+| Respond | 8 | 5 | 5 | not set |
 | Setup | 3 | 2 | 4 | 2 |
 
-The counts are from public `b6d9f2a7` and private `d804d64`. Since
+The counts are from public `67f31336` and private `d64e623`. Since
 `81e5f690` and private `be6fb57` the Gateway's admission query carries the
-stored addresses, so only setup still reads and stores them. Finalize's 15
-follows `07e4da8a`, `73d8b5bb`, `fbebaf9a` and `e7f12f23`. Respond's 6 follows
-`1a783da1`, and `bed2e264` took one read from sign prepare and from sign.
+stored addresses, so only setup still reads and stores them. Finalize's 14
+follows `07e4da8a`, `73d8b5bb`, `fbebaf9a`, `e7f12f23`, `3ed898cc` and
+`67f31336`. Respond's 5 follows `1a783da1` and `9cd809d2`, and `bed2e264` took
+one read from sign prepare and from sign. A registration now makes five
+Console requests.
 
 Private `1f02f18`, `9b65427`, `0a73bef` and `e38194d` cap the "On `dev`"
 counts in the composed scenario. A change that adds a round trip must raise
-a ceiling there and give the reason. The finalize ceiling is 16, one above
+a ceiling there and give the reason. The finalize ceiling is 15, one above
 its count. Finalize's cleanup runs after the response as one read and one
 delete, and the trace holds the delete only when it finishes before the
 trace is read. Under load it did, and the first ceiling of 16 failed at 17
-before `e7f12f23`. Private `d804d64` records that allowance.
+before `e7f12f23`. Private `d804d64` records that allowance, and private
+`d64e623` holds the current ceilings.
 
 Two behaviours changed, and both are stricter:
 
