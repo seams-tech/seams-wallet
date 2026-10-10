@@ -13,6 +13,11 @@ The [capability storage changes](evidence/refactor-155d-capability-persistence.m
 Hosted validation, preparation during confirmation, the staging role-database cutover, and the documented interrupted-recovery failure remain open. See the [implementation record](#implementation-record).
 Plan dated October 9, 2026; record updated October 10.
 
+[R155F](refactor-155F-registration-round-trips.md) plans the next finalization,
+Console, custody, and browser round-trip reductions. Use its checklist for new
+optimization work. This document retains the earlier implementation evidence,
+database-cutover follow-up, and interrupted-recovery defect.
+
 ## Objective and relationship to R155B and R155C
 
 Bring NEAR-only registration followed by the first independently verified

@@ -13,6 +13,8 @@ the comparison.
 [R155D](refactor-155D-registration-critical-path.md) plans the remaining
 critical path: placement, object startup, Gateway round trips, the
 post-registration status read, and the measurement contract.
+[R155F](refactor-155F-registration-round-trips.md) plans further registration
+batching and fewer Console and browser exchanges, using R155D's measured results.
 
 ## Objective
 
