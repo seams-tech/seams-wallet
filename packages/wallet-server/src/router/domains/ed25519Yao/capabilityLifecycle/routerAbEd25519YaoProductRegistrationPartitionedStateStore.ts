@@ -4,6 +4,7 @@ import type {
   VersionedJsonValue,
 } from '../../../framework/versionedJsonRecordStore';
 import type { D1PreparedStatementLike } from '../../../../storage/tenantRoute';
+import type { InMemoryRouterAbEd25519YaoRecoveryStateV1 } from '../recovery/routerAbEd25519YaoRecovery';
 import {
   buildRouterAbEd25519YaoRegistrationExecutionAuthorityV1,
   type RouterAbEd25519YaoRegistrationExecutionAuthorityV1,
@@ -136,7 +137,24 @@ export type RouterAbEd25519YaoRegistrationCeremonySnapshotV1 = {
   };
 };
 
+export type RouterAbEd25519YaoCapabilitySnapshotV1 = {
+  readonly value: RouterAbEd25519YaoProductRegistrationSharedStateV1;
+  readonly version: string | null;
+};
+
+export type RouterAbEd25519YaoCapabilityMutationV1 = {
+  readonly capabilities: InMemoryRouterAbEd25519YaoRecoveryStateV1['capabilities'];
+  readonly identityCapabilities: InMemoryRouterAbEd25519YaoRecoveryStateV1['identityCapabilities'];
+  readonly recoveries?: never;
+  readonly recoverySessions?: never;
+};
+
 export interface RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1 {
+  loadCapabilities(): Promise<RouterAbEd25519YaoCapabilitySnapshotV1>;
+  commitCapabilities(
+    snapshot: RouterAbEd25519YaoCapabilitySnapshotV1,
+    mutation: RouterAbEd25519YaoCapabilityMutationV1,
+  ): Promise<RouterAbEd25519YaoProductRegistrationPartitionBatchResultV1>;
   loadRegistration(lifecycleId: string): Promise<RouterAbEd25519YaoRegistrationCeremonySnapshotV1>;
   commitRegistration(
     snapshot: RouterAbEd25519YaoRegistrationCeremonySnapshotV1,
@@ -381,6 +399,37 @@ class RouterAbEd25519YaoProductRegistrationPartitionedStateStore implements Rout
       });
     }
     return await this.store.putMany(encodedMutations, companion);
+  }
+
+  async loadCapabilities(): Promise<RouterAbEd25519YaoCapabilitySnapshotV1> {
+    const entries = await this.readMany([ROUTER_AB_ED25519_YAO_SHARED_STATE_RECORD_KEY_V1]);
+    return readSharedRecord(
+      readManyEntry(entries, ROUTER_AB_ED25519_YAO_SHARED_STATE_RECORD_KEY_V1),
+    );
+  }
+
+  async commitCapabilities(
+    snapshot: RouterAbEd25519YaoCapabilitySnapshotV1,
+    mutation: RouterAbEd25519YaoCapabilityMutationV1,
+  ): Promise<RouterAbEd25519YaoProductRegistrationPartitionBatchResultV1> {
+    const shared = boundedRouterAbEd25519YaoProductRegistrationSharedStateV1({
+      kind: 'router_ab_ed25519_yao_product_registration_shared_state_v1',
+      recoveryCapabilities: mutation.capabilities,
+      recoveryIdentityCapabilities: mutation.identityCapabilities,
+      recoverySessions: snapshot.value.recoverySessions,
+      exportAuthorizationNonceOwners: snapshot.value.exportAuthorizationNonceOwners,
+      exportAuthorizationUncertainOwners: snapshot.value.exportAuthorizationUncertainOwners,
+    });
+    return await this.putMany(
+      [
+        {
+          key: ROUTER_AB_ED25519_YAO_SHARED_STATE_RECORD_KEY_V1,
+          expectedVersion: snapshot.version,
+          value: { kind: SHARED_RECORD_KIND, value: shared },
+        },
+      ],
+      null,
+    );
   }
 
   async loadRegistration(

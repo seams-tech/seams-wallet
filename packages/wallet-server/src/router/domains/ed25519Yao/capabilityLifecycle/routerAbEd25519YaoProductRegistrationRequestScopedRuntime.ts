@@ -13,6 +13,8 @@ import type {
 } from '../registration/routerAbEd25519YaoRegistrationIntentAuthorization';
 import {
   InMemoryRouterAbEd25519YaoRecoveryService,
+  InMemoryRouterAbEd25519YaoRecoveryStateV1,
+  resolveRouterAbEd25519YaoActiveCapability,
   type RouterAbEd25519YaoActiveCapabilityLookupResultV1,
   type RouterAbEd25519YaoActiveCapabilityLookupV1,
   type RouterAbEd25519YaoRecoveryBackend,
@@ -24,13 +26,12 @@ import {
   type RouterAbEd25519YaoAdmissionCompanionWriteV1,
   type RouterAbEd25519YaoStartedDispatchRootV1,
   type RouterAbEd25519YaoProductRegistrationRuntimeV1,
-  type RouterAbEd25519YaoProductRegistrationStateV1,
   type RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1,
 } from './routerAbEd25519YaoProductRegistration';
 import {
   routerAbEd25519YaoAdmittedRegistrationAuthorityV1,
   type RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1,
-  type RouterAbEd25519YaoProductRegistrationPartitionedStateV1,
+  type RouterAbEd25519YaoCapabilitySnapshotV1,
 } from './routerAbEd25519YaoProductRegistrationPartitionedStateStore';
 import {
   parseRouterAbEd25519YaoRegistrationRouterAnswerV1,
@@ -62,7 +63,6 @@ type RequestScopedMutationResult<T> =
   | { readonly kind: 'commit'; readonly value: T }
   | { readonly kind: 'reject'; readonly value: T };
 
-const SHARED_CAPABILITY_READ_LIFECYCLE_ID = 'shared-capability-read';
 const MAX_DETERMINISTIC_COMMIT_ATTEMPTS = 2;
 
 const UNUSED_BACKEND: RouterAbEd25519YaoRegistrationBackend & RouterAbEd25519YaoRecoveryBackend = {
@@ -200,7 +200,6 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
     input: RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallationV1,
   ): Promise<RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallResultV1> {
     return await this.commitUntilReconciled(
-      input.registrationAdmissionRequest.scope.lifecycle_id,
       installRegistrationFinalizeCapabilityMutation.bind(undefined, input),
     );
   }
@@ -209,7 +208,6 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
     input: WalletEd25519YaoActiveCapabilityRecord,
   ): Promise<RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallResultV1> {
     return await this.commitUntilReconciled(
-      input.admissionRequest.scope.lifecycle_id,
       installPersistedActiveCapabilityMutation.bind(undefined, input),
     );
   }
@@ -217,8 +215,11 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
   async resolveActiveCapability(
     input: RouterAbEd25519YaoActiveCapabilityLookupV1,
   ): Promise<RouterAbEd25519YaoActiveCapabilityLookupResultV1> {
-    const loaded = await this.input.store.load(SHARED_CAPABILITY_READ_LIFECYCLE_ID);
-    const result = recoveryService(loaded.state).resolveActiveCapability(input);
+    const loaded = await this.input.store.loadCapabilities();
+    const result = resolveRouterAbEd25519YaoActiveCapability(
+      loaded.value.recoveryCapabilities,
+      input,
+    );
     if (
       result.ok ||
       result.code !== 'unknown_capability' ||
@@ -238,21 +239,24 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
         message: installed.message,
       };
     }
-    const refreshed = await this.input.store.load(SHARED_CAPABILITY_READ_LIFECYCLE_ID);
-    return recoveryService(refreshed.state).resolveActiveCapability(input);
+    const refreshed = await this.input.store.loadCapabilities();
+    return resolveRouterAbEd25519YaoActiveCapability(refreshed.value.recoveryCapabilities, input);
   }
 
   private async commitUntilReconciled<T>(
-    lifecycleId: string,
     mutate: (
-      state: RouterAbEd25519YaoProductRegistrationStateV1,
+      state: InMemoryRouterAbEd25519YaoRecoveryStateV1,
     ) => Promise<RequestScopedMutationResult<T>>,
   ): Promise<T> {
     for (let attempt = 0; attempt < MAX_DETERMINISTIC_COMMIT_ATTEMPTS; attempt += 1) {
-      const loaded = await this.input.store.load(lifecycleId);
-      const mutation = await mutate(loaded.state);
+      const loaded = await this.input.store.loadCapabilities();
+      const state = capabilityState(loaded);
+      const mutation = await mutate(state);
       if (mutation.kind === 'reject') return mutation.value;
-      const committed = await this.input.store.commit(commitInput(lifecycleId, loaded));
+      const committed = await this.input.store.commitCapabilities(loaded, {
+        capabilities: state.capabilities,
+        identityCapabilities: state.identityCapabilities,
+      });
       if (committed.kind === 'stored') return mutation.value;
     }
     throw new Error('Request-scoped product state remained contended after one reconciliation');
@@ -378,7 +382,7 @@ function ignoreUnobservedDispatchRoot(): void {}
 
 async function installRegistrationFinalizeCapabilityMutation(
   input: RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallationV1,
-  state: RouterAbEd25519YaoProductRegistrationStateV1,
+  state: InMemoryRouterAbEd25519YaoRecoveryStateV1,
 ): Promise<
   RequestScopedMutationResult<RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallResultV1>
 > {
@@ -388,7 +392,7 @@ async function installRegistrationFinalizeCapabilityMutation(
 
 async function installPersistedActiveCapabilityMutation(
   input: WalletEd25519YaoActiveCapabilityRecord,
-  state: RouterAbEd25519YaoProductRegistrationStateV1,
+  state: InMemoryRouterAbEd25519YaoRecoveryStateV1,
 ): Promise<
   RequestScopedMutationResult<RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallResultV1>
 > {
@@ -397,21 +401,22 @@ async function installPersistedActiveCapabilityMutation(
 }
 
 function recoveryService(
-  state: RouterAbEd25519YaoProductRegistrationStateV1,
+  state: InMemoryRouterAbEd25519YaoRecoveryStateV1,
 ): InMemoryRouterAbEd25519YaoRecoveryService {
-  return new InMemoryRouterAbEd25519YaoRecoveryService(UNUSED_BACKEND, state.recovery);
+  return new InMemoryRouterAbEd25519YaoRecoveryService(UNUSED_BACKEND, state);
 }
 
-function commitInput(
-  lifecycleId: string,
-  loaded: RouterAbEd25519YaoProductRegistrationPartitionedStateV1,
-) {
-  return {
-    lifecycleId,
-    state: loaded.state,
-    baseline: loaded.baseline,
-    companionWrite: null,
-  };
+function capabilityState(
+  snapshot: RouterAbEd25519YaoCapabilitySnapshotV1,
+): InMemoryRouterAbEd25519YaoRecoveryStateV1 {
+  const state = new InMemoryRouterAbEd25519YaoRecoveryStateV1();
+  for (const [key, capability] of snapshot.value.recoveryCapabilities) {
+    state.capabilities.set(key, capability);
+  }
+  for (const [key, capabilityKey] of snapshot.value.recoveryIdentityCapabilities) {
+    state.identityCapabilities.set(key, capabilityKey);
+  }
+  return state;
 }
 
 async function rejectUnusedBackend(): Promise<never> {

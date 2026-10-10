@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { verifyCapabilityPersistence } from './registration-capability-persistence.scenario.mjs';
 
 // Registration respond commits its ceremony update in the batch of its Yao admission.
 export async function verifyRegistrationAdmissionCompanion({ api, database, scope }) {
@@ -65,6 +66,7 @@ export async function verifyRegistrationAdmissionCompanion({ api, database, scop
     ceremonyCommitsWithAdmission: true,
     movedCeremonyRollsAdmissionBack: true,
     movedAdmissionRollsCeremonyBack: true,
+    capabilityPersistence: await verifyCapabilityPersistence({ api, database, scope }),
     ...(await verifyStartedDispatchRoot({ api, database, scope })),
   };
 }

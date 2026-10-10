@@ -9,8 +9,8 @@ This run does not establish an overall latency improvement. It verifies one fewe
 Console request and six fewer completed D1 calls per registration. All nine
 signature proofs and 18 comparison checks pass. The [hosted evidence](evidence/refactor-155d-allocation-hosted.md)
 records ranges, counts, frozen versions, limitations, and restoration status.
-The remaining batch targets, preparation during confirmation, and the staging
-role-database cutover remain open. See the [implementation record](#implementation-record).
+The [capability storage cleanup](evidence/refactor-155d-capability-persistence.md) removes redundant ceremony reads and writes; hosted savings remain unmeasured.
+Capability/session batching, preparation during confirmation, and the staging role-database cutover remain open. See the [implementation record](#implementation-record).
 Plan dated October 9, 2026; record updated October 10.
 
 ## Objective and relationship to R155B and R155C
