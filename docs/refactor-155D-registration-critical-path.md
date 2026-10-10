@@ -2056,5 +2056,5 @@ derived registration-only timings, and the remaining measured costs.
 
 Console now batches route publication and registration completion internally,
 preserving the early route claim. [Evidence](evidence/refactor-155d-console-batches.md) records the changes and checks.
-Next: investigate allocation variability (19–538 ms), then repeat the controlled
-comparison. New hosted savings remain unmeasured.
+Address initialization now overlaps the ceremony read. [Evidence](evidence/refactor-155d-allocation-overlap.md) records the diagnosis and verification.
+Next: repeat the controlled comparison. New hosted savings remain unmeasured.

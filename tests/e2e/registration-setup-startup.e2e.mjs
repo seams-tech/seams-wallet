@@ -59,6 +59,7 @@ class RegistrationAddresses {
 class ObservedDatabase {
   ceremonyWrites = 0;
   addressReads = 0;
+  holdCeremonyRead = null;
   holdCeremonyWrite = null;
   constructor(database) {
     this.database = database;
@@ -75,6 +76,9 @@ class ObservedDatabase {
   }
   async observe(sql) {
     if (sql.includes('SELECT router, deriver_a, deriver_b, signing_worker')) this.addressReads += 1;
+    if (sql.trimStart().startsWith('SELECT version, record_json, expires_at_ms')) {
+      await this.holdCeremonyRead;
+    }
     if (!sql.includes('INSERT OR IGNORE INTO registration_ceremony_records')) return;
     this.ceremonyWrites += 1;
     await this.holdCeremonyWrite;
@@ -297,15 +301,16 @@ try {
   );
   assert.equal(unstarted.ok, true, JSON.stringify(unstarted));
   assert.equal(allocator.calls, 2);
-  // A new setup stores its snapshot and opens its ceremony in one write. It
-  // asks for addresses beside that write: the write here waits for the request.
+  // Address allocation must proceed even while the ceremony read is blocked.
+  // The same setup still stores its snapshot, ceremony, and home in one write.
   const observed = new ObservedDatabase(database);
   const observedRegistration = api.createCloudflareD1RouterApiAuthService({
     ...options,
     database: observed,
     startRegistrationWallets: starter.initialize.bind(starter),
   }).walletRegistration;
-  observed.holdCeremonyWrite = allocator.nextRequest();
+  observed.holdCeremonyRead = allocator.nextRequest();
+  observed.holdCeremonyWrite = observed.holdCeremonyRead;
   const beside = await within(
     setup(observedRegistration, {
       ...input,
@@ -315,7 +320,7 @@ try {
       },
     }),
     10_000,
-    'Setup must request addresses beside its ceremony write',
+    'Setup must request addresses while its ceremony read is still pending',
   );
   assert.equal(beside.ok, true, JSON.stringify(beside));
   assert.equal(observed.ceremonyWrites, 1, 'Setup must store its snapshot and ceremony together');
@@ -331,6 +336,20 @@ try {
   allocator.loseNextReply = true;
   const lost = await registration.setupWalletRegistration(lostInput);
   assert.equal(lost.body.ok, false, 'Setup must fail when no address set was persisted');
+  const lostReservation = options.registrationAuthority.reservation;
+  const savedBeforeReply = await database
+    .prepare(
+      `SELECT count(*) AS count FROM registration_ceremony_records
+      WHERE record_scope IN ('setup-ceremony', 'ceremony')
+        AND json_extract(record_json, '$.registrationCeremonyId') = ?`,
+    )
+    .bind(lostReservation.ceremonyId)
+    .first();
+  assert.equal(
+    savedBeforeReply.count,
+    2,
+    'Setup must settle its writes before reporting allocation failure',
+  );
   const recovered = await setup(registration, lostInput);
   assert.equal(recovered.ok, true, JSON.stringify(recovered));
   assert.ok(await addresses.read(api.walletObjectIdentity(recovered.walletId, 1, scope)));
@@ -469,7 +488,9 @@ try {
         immutableAddresses: true,
         hostWithoutStarterCompletes: true,
         ceremonyWritesPerSetup: observed.ceremonyWrites,
+        allocationOverlapsCeremonyRead: true,
         allocationBesideCeremonyWrite: true,
+        ceremonySettledBeforeAllocationFailureReply: true,
         setupCommitsRegistrationHome: true,
         continuationDirectoryReads: options.registrationAuthority.continuationReads,
         unknownCeremonyRefusedLocally: true,
