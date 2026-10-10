@@ -1590,3 +1590,17 @@ companion scenario checks atomic admission, stale ceremony refusal and stale
 admission refusal. The broader scenario verifies authorization transfer and
 ownership fences. Evidence: `.artifacts/r153/authorization-storage-transfer/evidence.json`.
 Wallet-server type checking and the bloat check pass. Hosted latency is unmeasured.
+
+### Deriver A completion spans
+
+The candidate emits `deriver_a.output_seal` for activation,
+`deriver_a.outcome_record` for the durable completed result, and
+`deriver_a.admission_settle_background` for the D1 acknowledgement.
+The acknowledgement remains in `wait_until`. It does not gate the successful reply.
+The encrypted completed result remains durable before the response leaves the object.
+Cloudflare's output gate enforces that ordering. No extra flush or network request
+was added for measurement.
+
+These spans use the existing Worker wall clock. A zero-duration synchronous span
+does not establish zero CPU cost. Hosted timing remains pending. The Deriver A
+WASM target check and the bloat check pass.

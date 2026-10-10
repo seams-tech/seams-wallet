@@ -1508,15 +1508,22 @@ where
                 },
             );
             let completion = completion_result?;
-            (
-                seal_ed25519_yao_activation_deriver_a_execution_v1(
-                    &mut CloudflareHpkeGetrandomRngV1,
-                    binding,
-                    recipients,
-                    &completion.role,
-                )?,
-                completion.transport.peer_sealed_completion,
-            )
+            let seal_started_at_ms = role_span_started_at_ms();
+            let sealed = seal_ed25519_yao_activation_deriver_a_execution_v1(
+                &mut CloudflareHpkeGetrandomRngV1,
+                binding,
+                recipients,
+                &completion.role,
+            );
+            emit_role_span_v1(
+                trace_id,
+                "deriver_a.output_seal",
+                "deriver_a",
+                "activation",
+                seal_started_at_ms,
+                if sealed.is_ok() { "success" } else { "failure" },
+            );
+            (sealed?, completion.transport.peer_sealed_completion)
         }
         Ed25519YaoInputKindV1::Export => {
             let role_request = open_ed25519_yao_export_deriver_a_input_v1(&input, &private_key)?;

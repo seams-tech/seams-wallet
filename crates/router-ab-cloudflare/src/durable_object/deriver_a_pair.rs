@@ -833,6 +833,8 @@ impl RouterAbDeriverAWalletDurableObject {
         outcome: CloudflareEd25519YaoPairExecuteResponseV1,
     ) -> worker::Result<CloudflareEd25519YaoPairExecuteResponseV1> {
         let object_id = self.state.id().to_string();
+        let operation = crate::router_coordinator::operation_label(pair.binding().operation);
+        let commit_started_at_ms = worker::Date::now().as_millis();
         let completed = self.execute(DeriverAPairDoCommandV1::Complete {
             owner,
             pair_binding: pair.clone(),
@@ -841,8 +843,16 @@ impl RouterAbDeriverAWalletDurableObject {
             now_ms: crate::cloudflare_now_unix_ms_v1()
                 .map_err(|error| pair_error(error.to_string()))?,
             running_lifetime_ms: 60_000,
-        })?;
-        match completed {
+        });
+        crate::ed25519_yao_lifecycle::emit_role_span_v1(
+            None,
+            "deriver_a.outcome_record",
+            "deriver_a",
+            operation,
+            commit_started_at_ms,
+            if completed.is_ok() { "success" } else { "failure" },
+        );
+        match completed? {
             DeriverAPairDoResponseV1::Mutation {
                 result:
                     PairResult::Applied {
@@ -855,14 +865,23 @@ impl RouterAbDeriverAWalletDurableObject {
                 let env = self.env.clone();
                 let session_hex = encode_hex(pair.session());
                 self.state.wait_until(async move {
-                    if let Err(error) = crate::ed25519_yao_lifecycle::role_d1::settle_wallet_object_admission_v1(
+                    let settle_started_at_ms = worker::Date::now().as_millis();
+                    let settled = crate::ed25519_yao_lifecycle::role_d1::settle_wallet_object_admission_v1(
                         &env,
                         "deriver_a",
                         &session_hex,
                         &object_id,
                     )
-                    .await
-                    {
+                    .await;
+                    crate::ed25519_yao_lifecycle::emit_role_span_v1(
+                        None,
+                        "deriver_a.admission_settle_background",
+                        "deriver_a",
+                        operation,
+                        settle_started_at_ms,
+                        if settled.is_ok() { "success" } else { "failure" },
+                    );
+                    if let Err(error) = settled {
                         worker::console_error!(
                             "Deriver A pair completed, but its admission settlement was not acknowledged: {error}"
                         );
