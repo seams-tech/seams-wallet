@@ -828,7 +828,10 @@ remain. No new resources were created, and production was unchanged.
 
 - [ ] Fold the deployment-admission read and the routing reads into each
   handler's first batch. Immediate retirement semantics stay: the predicate is
-  evaluated in the same transaction as the work it guards.
+  evaluated in the same transaction as the work it guards. Deployment admission,
+  session routing and registration-continuation routing now share one SELECT.
+  Each handler retains its deployment-fenced reads and writes. This removes the
+  separate local session or ceremony lookup before the handler.
 - [ ] Setup: combined Console context-and-reserve, one insert batch. Started
   in `42cde7b7`: the snapshot and the ceremony are one write batch, and the
   address initialization runs beside it. The Console merge is open.
@@ -1604,3 +1607,19 @@ was added for measurement.
 These spans use the existing Worker wall clock. A zero-duration synchronous span
 does not establish zero CPU cost. Hosted timing remains pending. The Deriver A
 WASM target check and the bloat check pass.
+
+### Gateway registration-continuation routing
+
+The entry query selects the active deployment, the session wallet and the
+registration wallet together. The ceremony selector remains scoped to the exact
+tenant and registration origin. The handler checks a supplied session against
+that wallet and performs its existing authorization and write fences.
+The old separate continuation query is removed.
+
+The local session-routing E2E and the four-region service-routing E2E pass.
+The latter covers credential retirement, linked devices, recovery, registration
+completion and directory failures. Three old fixture expectations needed updates:
+established completion requires session publication, home conflicts have a
+structured code, and unrelated publications must not change an expected total
+row count. The directory assertion now checks each issued session's wallet.
+Candidate TypeScript checks pass. Hosted latency remains unmeasured.
