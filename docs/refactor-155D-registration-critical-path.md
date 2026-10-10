@@ -1320,8 +1320,9 @@ journal rules of its request, or it is not made.
    activation, and journal completion. The completion decision can commit
    with the session, and the activation with the journal completion: about
    90 ms. The session and completion decision now share one transaction.
-   The activation and journal merge remains open. The first change removes
-   one write round trip; its hosted latency saving is unmeasured.
+   The activation and journal merge is in work since October 10, 13:05 JST,
+   in the session that made `b338a7e1`. The first change removes one write
+   round trip; its hosted latency saving is unmeasured.
 4. Finalize, the Router consume beside the Console claim: about 100 ms. It
    needs the scenario for a claim that fails after the consume.
 5. Respond, the Console lineage read beside the home admission and the
