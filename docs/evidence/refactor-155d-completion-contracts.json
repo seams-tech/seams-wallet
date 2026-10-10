@@ -1,0 +1,2063 @@
+{
+  "date": "2026-10-10",
+  "source": {
+    "commit": "63acba09f5c3620a51077bf58704805c10615353",
+    "sdkAndRust": "Reused unchanged build output from main checkout; no SDK or Rust source change in this candidate."
+  },
+  "cases": 132,
+  "passed": 132,
+  "scope": "All public intended-behaviour cases on the frozen combined candidate. Each case starts a fresh local stack. This does not replace private Console composition or hosted measurements.",
+  "environmentFailures": [
+    {
+      "cases": 2,
+      "reason": "Initial recovery runs used a Google test identity near expiry. Both passed with a fresh identity."
+    },
+    {
+      "cases": 2,
+      "reason": "Initial terminal-failure scenarios could not start the local custody stack with the main checkout debug output. Both passed with the matching R155D local build.",
+      "buildNote": {
+        "initialFailure": "Main checkout debug Worker outputs did not reach the Router keyset readiness endpoint. Release cases passed.",
+        "replacement": "Copied debug Worker outputs used by the earlier successful R155D terminal contracts. Public TypeScript and SDK candidate unchanged."
+      }
+    }
+  ],
+  "results": [
+    {
+      "file": "e2e/intended-behaviours/auth-method-addition.matrix.contract.test.ts",
+      "line": 13,
+      "title": "an Ed25519-only wallet gains an Email OTP method",
+      "log": "auth-method-addition-matrix-contract-test-13-an-ed25519-only-wallet-gains-an-email-otp-method.log",
+      "exitCode": 0,
+      "seconds": 44,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/auth-method-addition-matrix-contract-test-13-an-ed25519-only-wallet-gains-an-email-otp-method.log",
+          "sha256": "bc87c5d00a2d6dea113d5f729fdee735fbc1ad01f5f1d03193f7a700de83b0de"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/auth-method-addition.matrix.contract.test.ts",
+      "line": 24,
+      "title": "an ECDSA-only wallet gains an Email OTP method",
+      "log": "auth-method-addition-matrix-contract-test-24-an-ecdsa-only-wallet-gains-an-email-otp-method.log",
+      "exitCode": 0,
+      "seconds": 38,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/auth-method-addition-matrix-contract-test-24-an-ecdsa-only-wallet-gains-an-email-otp-method.log",
+          "sha256": "536668241bfdf5ec4bdf4a7dcfbf10781fbf543cf1be10f16cdd310c8a44446d"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/auth-method-addition.matrix.contract.test.ts",
+      "line": 34,
+      "title": "an Ed25519-only Email OTP wallet gains a passkey",
+      "log": "auth-method-addition-matrix-contract-test-34-an-ed25519-only-email-otp-wallet-gains-a-passkey.log",
+      "exitCode": 0,
+      "seconds": 39,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/auth-method-addition-matrix-contract-test-34-an-ed25519-only-email-otp-wallet-gains-a-passkey.log",
+          "sha256": "1cab7ec672843942c111c098fafc5d88375c88b5437ddf73191c2e2d66eb405b"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/auth-method-addition.matrix.contract.test.ts",
+      "line": 45,
+      "title": "an ECDSA-only Email OTP wallet gains a passkey",
+      "log": "auth-method-addition-matrix-contract-test-45-an-ecdsa-only-email-otp-wallet-gains-a-passkey.log",
+      "exitCode": 0,
+      "seconds": 39,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/auth-method-addition-matrix-contract-test-45-an-ecdsa-only-email-otp-wallet-gains-a-passkey.log",
+          "sha256": "431c8b564da9e6e49ac2e476cf06cabb513efc2193088e44d66acb0408b108ba"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.registration.resume.contract.test.ts",
+      "line": 6,
+      "title": "Email OTP unlock resumes planned NEAR admission after reload",
+      "log": "email-otp-registration-resume-contract-test-6-email-otp-unlock-resumes-planned-near-admission.log",
+      "exitCode": 0,
+      "seconds": 41,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/email-otp-registration-resume-contract-test-6-email-otp-unlock-resumes-planned-near-admission.log",
+          "sha256": "f64d690b5845e1124978d54bd87bb9720b2760b93b71a9849ac2d4a64d9572af"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.registration.resume.contract.test.ts",
+      "line": 18,
+      "title": "Email OTP unlock resumes the exact encrypted NEAR execution after reload",
+      "log": "email-otp-registration-resume-contract-test-18-email-otp-unlock-resumes-the-exact-encrypted-nea.log",
+      "exitCode": 0,
+      "seconds": 43,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/email-otp-registration-resume-contract-test-18-email-otp-unlock-resumes-the-exact-encrypted-nea.log",
+          "sha256": "7923748f099e3e4e10d88ea0669219a57a088fed9a2238ddd432475d2c875e6e"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.registration.resume.contract.test.ts",
+      "line": 30,
+      "title": "Email OTP unlock resumes a lost NEAR execution response after reload",
+      "log": "email-otp-registration-resume-contract-test-30-email-otp-unlock-resumes-a-lost-near-execution-r.log",
+      "exitCode": 0,
+      "seconds": 42,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/email-otp-registration-resume-contract-test-30-email-otp-unlock-resumes-a-lost-near-execution-r.log",
+          "sha256": "28457afb82f5393f8f3180ea2798d6feac10cd6b19e97e55bdfdb11d13842eac"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.registration.resume.contract.test.ts",
+      "line": 42,
+      "title": "Email OTP unlock resumes a lost NEAR finalization response after reload",
+      "log": "email-otp-registration-resume-contract-test-42-email-otp-unlock-resumes-a-lost-near-finalizatio.log",
+      "exitCode": 0,
+      "seconds": 39,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/email-otp-registration-resume-contract-test-42-email-otp-unlock-resumes-a-lost-near-finalizatio.log",
+          "sha256": "72dab2ded1671a48372a490f3237151340a8f6800199e8d66e83921c038601fe"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.registration.resume.contract.test.ts",
+      "line": 54,
+      "title": "Email OTP unlock resumes persisted joined NEAR material without an execution checkpoint",
+      "log": "email-otp-registration-resume-contract-test-54-email-otp-unlock-resumes-persisted-joined-near-m.log",
+      "exitCode": 0,
+      "seconds": 43,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/email-otp-registration-resume-contract-test-54-email-otp-unlock-resumes-persisted-joined-near-m.log",
+          "sha256": "56f3cc8f5b0b6bfc6d3bfe94be76b773e69a81d64fa495ce4064018ccf839e1d"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.registration.resume.contract.test.ts",
+      "line": 67,
+      "title": "Email OTP late NEAR finalization preserves wallet lock and resumes on unlock",
+      "log": "email-otp-registration-resume-contract-test-67-email-otp-late-near-finalization-preserves-walle.log",
+      "exitCode": 0,
+      "seconds": 39,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/email-otp-registration-resume-contract-test-67-email-otp-late-near-finalization-preserves-walle.log",
+          "sha256": "676cfd57b5f022bdca202db8567c2dc1ff792bbb8a2aa47e710aa6bab39998aa"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.registration.resume.contract.test.ts",
+      "line": 78,
+      "title": "email-otp NEAR readiness transaction rollback retains its repair journal",
+      "log": "email-otp-registration-resume-contract-test-78-email-otp-near-readiness-transaction-rollback-re.log",
+      "exitCode": 0,
+      "seconds": 38,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/email-otp-registration-resume-contract-test-78-email-otp-near-readiness-transaction-rollback-re.log",
+          "sha256": "fd748c1a29a880e724d11592bd66a3e8c272d8a002ab1421c45411d952316f49"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.registration.resume.contract.test.ts",
+      "line": 88,
+      "title": "email-otp late NEAR completion respects a lock from another tab",
+      "log": "email-otp-registration-resume-contract-test-88-email-otp-late-near-completion-respects-a-lock-f.log",
+      "exitCode": 0,
+      "seconds": 39,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/email-otp-registration-resume-contract-test-88-email-otp-late-near-completion-respects-a-lock-f.log",
+          "sha256": "f7d39ca97762f8759740c480315da640bdbdd5ee47856041b231fe172f452452"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.registration.resume.contract.test.ts",
+      "line": 99,
+      "title": "email-otp NEAR completion preserves an exhausted EVM signing budget",
+      "log": "email-otp-registration-resume-contract-test-99-email-otp-near-completion-preserves-an-exhausted.log",
+      "exitCode": 0,
+      "seconds": 38,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/email-otp-registration-resume-contract-test-99-email-otp-near-completion-preserves-an-exhausted.log",
+          "sha256": "823b117a1bb39bb199e177c01d5262a73cb9645c40a83b58ef5ead109d5c66ac"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts",
+      "line": 72,
+      "title": "NEAR reuses signing observations, enforces exhausted quota, and reloads authority after refresh",
+      "log": "passkey-ed25519-yao-local-contract-test-72-near-reuses-signing-observations-enforces-exhau.log",
+      "exitCode": 0,
+      "seconds": 41,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-ed25519-yao-local-contract-test-72-near-reuses-signing-observations-enforces-exhau.log",
+          "sha256": "840534f15b617cacdf6118a01e2f0d501bcabb4f3c1137c201d8cab18c13d413"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts",
+      "line": 79,
+      "title": "public Ed25519 Yao add-signer persists a distinct signer",
+      "log": "passkey-ed25519-yao-local-contract-test-79-public-ed25519-yao-add-signer-persists-a-distinc.log",
+      "exitCode": 0,
+      "seconds": 35,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-ed25519-yao-local-contract-test-79-public-ed25519-yao-add-signer-persists-a-distinc.log",
+          "sha256": "55d7d0cc794306f35b4cc5d1d93bb7d4a58606aa2303846426342eaba5e8573f"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts",
+      "line": 97,
+      "title": "public ECDSA add-signer lets an Ed25519 wallet sign NEAR, Tempo and Arc at once and after unlock, across a lost finalize response",
+      "log": "passkey-ed25519-yao-local-contract-test-97-public-ecdsa-add-signer-lets-an-ed25519-wallet-s.log",
+      "exitCode": 0,
+      "seconds": 40,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-ed25519-yao-local-contract-test-97-public-ecdsa-add-signer-lets-an-ed25519-wallet-s.log",
+          "sha256": "647de8cccdd778dadd440a8037e813178b77691f9c7af6091f94172e7e9cdc15"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts",
+      "line": 104,
+      "title": "uncertain Router transport replays the registration and signs with the ready wallet",
+      "log": "passkey-ed25519-yao-local-contract-test-104-uncertain-router-transport-replays-the-registrat.log",
+      "exitCode": 0,
+      "seconds": 35,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-ed25519-yao-local-contract-test-104-uncertain-router-transport-replays-the-registrat.log",
+          "sha256": "89186c700123844bf393fac20579ed0bbc0c5ead71020c1bd7697b14976db231"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts",
+      "line": 117,
+      "title": "deferred NEAR finalize that loses storage after its decision resumes from the decision and signs",
+      "log": "passkey-ed25519-yao-local-contract-test-117-deferred-near-finalize-that-loses-storage-after.log",
+      "exitCode": 0,
+      "seconds": 66,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-ed25519-yao-local-contract-test-117-deferred-near-finalize-that-loses-storage-after.log",
+          "sha256": "0f827d0f7865ed3cb1e963fd0b295e5bd05bde2fc24cc6e62ccb1c6030618a1d"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts",
+      "line": 126,
+      "title": "an Ed25519 export interrupted after its authorization committed is admitted by the exact retry",
+      "log": "passkey-ed25519-yao-local-contract-test-126-an-ed25519-export-interrupted-after-its-authoriz.log",
+      "exitCode": 0,
+      "seconds": 37,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-ed25519-yao-local-contract-test-126-an-ed25519-export-interrupted-after-its-authoriz.log",
+          "sha256": "16d43247c34488b84b250b4cd31df4d36060c75ef4adb3a8387a2670342ea574"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts",
+      "line": 150,
+      "title": "public NEAR message signatures verify against the registered key across refresh",
+      "log": "passkey-ed25519-yao-local-contract-test-150-public-near-message-signatures-verify-against-th.log",
+      "exitCode": 0,
+      "seconds": 37,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-ed25519-yao-local-contract-test-150-public-near-message-signatures-verify-against-th.log",
+          "sha256": "fb7ef7635652f69fabf266b139401b4a240559469b4394d185e6603c5da63b12"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts",
+      "line": 216,
+      "title": "NEAR rejects changed prepare authority before finalize and permits the next valid operation",
+      "log": "passkey-ed25519-yao-local-contract-test-216-near-rejects-changed-prepare-authority-before-fi.log",
+      "exitCode": 0,
+      "seconds": 37,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-ed25519-yao-local-contract-test-216-near-rejects-changed-prepare-authority-before-fi.log",
+          "sha256": "aecf3d7110cf00b56ee2355b72bc8daa3f3498ff55ee25c7008925068e2a0b81"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts",
+      "line": 311,
+      "title": "NEAR prepare rejects a retired session without an owner-lane preflight and permits fresh unlock",
+      "log": "passkey-ed25519-yao-local-contract-test-311-near-prepare-rejects-a-retired-session-without-a.log",
+      "exitCode": 0,
+      "seconds": 37,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-ed25519-yao-local-contract-test-311-near-prepare-rejects-a-retired-session-without-a.log",
+          "sha256": "effc0dc7897675a14667605c1a91a7fb9d8d6c919b6ca284aa02461c05f876e6"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts",
+      "line": 420,
+      "title": "NEAR nonce recovery preserves distinct signatures across reload, RPC failure and fresh recovery",
+      "log": "passkey-ed25519-yao-local-contract-test-420-near-nonce-recovery-preserves-distinct-signature.log",
+      "exitCode": 0,
+      "seconds": 40,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-ed25519-yao-local-contract-test-420-near-nonce-recovery-preserves-distinct-signature.log",
+          "sha256": "294616ed7534f8000915093f9880c99b0e6a147cf4f0347b8b3ba357a8a4224b"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts",
+      "line": 584,
+      "title": "NEAR finalize validates one stored operation, replays a discarded reply at exhausted quota, and rejects retirement",
+      "log": "passkey-ed25519-yao-local-contract-test-584-near-finalize-validates-one-stored-operation-re.log",
+      "exitCode": 0,
+      "seconds": 43,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-ed25519-yao-local-contract-test-584-near-finalize-validates-one-stored-operation-re.log",
+          "sha256": "65c385c41255e2913d67117271bba4c78f745726f8ddc0892d9c4e25e1d56649"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts",
+      "line": 722,
+      "title": "live signing policy denies NEAR prepare and finalize without consuming quota and ignores unrelated scopes",
+      "log": "passkey-ed25519-yao-local-contract-test-722-live-signing-policy-denies-near-prepare-and-fina.log",
+      "exitCode": 0,
+      "seconds": 39,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-ed25519-yao-local-contract-test-722-live-signing-policy-denies-near-prepare-and-fina.log",
+          "sha256": "a8865d4f9c4a9a42b04e37e763b8d7c146e39898f7ab810d75c5a814a3c2ea83"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.near-registration-commit.contract.test.ts",
+      "line": 7,
+      "title": "NEAR registration publishes its session without a status request, keeps queries fresh, and respects lock",
+      "log": "passkey-near-registration-commit-contract-test-7-near-registration-publishes-its-session-without.log",
+      "exitCode": 0,
+      "seconds": 37,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-near-registration-commit-contract-test-7-near-registration-publishes-its-session-without.log",
+          "sha256": "b3c2b6002da0b42d14cfe7efd65a265a331619f6ee2e49bb0f614167ce3bec4a"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.near-registration-commit.contract.test.ts",
+      "line": 140,
+      "title": "NEAR-only registration replays admitted work, commits once and signs across reload",
+      "log": "passkey-near-registration-commit-contract-test-140-near-only-registration-replays-admitted-work-co.log",
+      "exitCode": 0,
+      "seconds": 37,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-near-registration-commit-contract-test-140-near-only-registration-replays-admitted-work-co.log",
+          "sha256": "11b95ad98fd240c103993f958007bf028ed694655a845d186749e26f305167b5"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.near-registration-commit.contract.test.ts",
+      "line": 193,
+      "title": "NEAR-only registration recovers a lost finalization credential after reload",
+      "log": "passkey-near-registration-commit-contract-test-193-near-only-registration-recovers-a-lost-finalizat.log",
+      "exitCode": 0,
+      "seconds": 43,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-near-registration-commit-contract-test-193-near-only-registration-recovers-a-lost-finalizat.log",
+          "sha256": "d1b8c20ae07738167c9ee8120cf843b0ef6e03dc0f668a2a7a351d76c6542c9f"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.presign-pool.contract.test.ts",
+      "line": 277,
+      "title": "canceling an admitted Gateway refill leaves subsequent background material usable",
+      "log": "passkey-presign-pool-contract-test-277-canceling-an-admitted-gateway-refill-leaves-subs.log",
+      "exitCode": 0,
+      "seconds": 36,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-presign-pool-contract-test-277-canceling-an-admitted-gateway-refill-leaves-subs.log",
+          "sha256": "e0c640df4a4bd822dc38ab849f85d98c82abbec3b40f886edde86381b8aa5801"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.presign-pool.contract.test.ts",
+      "line": 356,
+      "title": "failed background refill falls back to timed foreground refill and preserves signing quota",
+      "log": "passkey-presign-pool-contract-test-356-failed-background-refill-falls-back-to-timed-for.log",
+      "exitCode": 0,
+      "seconds": 39,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-presign-pool-contract-test-356-failed-background-refill-falls-back-to-timed-for.log",
+          "sha256": "fb3de9ff51f20d5728a1bcc30aeca2e4fef19e3d433b767bf9fc87c3b8fedcb5"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.presign-pool.contract.test.ts",
+      "line": 407,
+      "title": "first ECDSA signing completes Gateway pool fill before available-pool prepare",
+      "log": "passkey-presign-pool-contract-test-407-first-ecdsa-signing-completes-gateway-pool-fill.log",
+      "exitCode": 0,
+      "seconds": 40,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-presign-pool-contract-test-407-first-ecdsa-signing-completes-gateway-pool-fill.log",
+          "sha256": "dbf8cb3f676272e48492bc728a582a8ed39c76902d8553936ff0d3880df4ff17"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.presign-pool.contract.test.ts",
+      "line": 472,
+      "title": "unforced ECDSA registration and repeated signing capture Gateway timing",
+      "log": "passkey-presign-pool-contract-test-472-unforced-ecdsa-registration-and-repeated-signing.log",
+      "exitCode": 0,
+      "seconds": 42,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-presign-pool-contract-test-472-unforced-ecdsa-registration-and-repeated-signing.log",
+          "sha256": "b0f377e305753485deef6ca70a9e347485feb6b3670bb9965f82b29337315881"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.presign-pool.contract.test.ts",
+      "line": 685,
+      "title": "first, warm, and concurrent burst ECDSA signing preserve verified results and shared quota",
+      "log": "passkey-presign-pool-contract-test-685-first-warm-and-concurrent-burst-ecdsa-signing.log",
+      "exitCode": 0,
+      "seconds": 39,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-presign-pool-contract-test-685-first-warm-and-concurrent-burst-ecdsa-signing.log",
+          "sha256": "987ba0a2bbc5f4299b2572dde3c59ebf856ee9a59c29ed51c9be9e9aa03877c3"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.presign-pool.contract.test.ts",
+      "line": 779,
+      "title": "same wallet warm signing across controlled Gateway placements",
+      "log": "passkey-presign-pool-contract-test-779-same-wallet-warm-signing-across-controlled-gatew.log",
+      "exitCode": 0,
+      "seconds": 32,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-presign-pool-contract-test-779-same-wallet-warm-signing-across-controlled-gatew.log",
+          "sha256": "1d57242350240625fab974a363d8e786eef02d280ba87a45dfd62594bbfd38a0"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.presign-pool.contract.test.ts",
+      "line": 788,
+      "title": "admitted available-pool prepare lost_response does not restart signing",
+      "log": "passkey-presign-pool-contract-test-788-admitted-available-pool-prepare-lost-response-do.log",
+      "exitCode": 0,
+      "seconds": 36,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-presign-pool-contract-test-788-admitted-available-pool-prepare-lost-response-do.log",
+          "sha256": "a5c1c57b0fab9143cc658c9175a016e212f8887329a79c82328c01678a6f4ccb"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.presign-pool.contract.test.ts",
+      "line": 788,
+      "title": "admitted available-pool prepare cancelled does not restart signing",
+      "log": "passkey-presign-pool-contract-test-788-admitted-available-pool-prepare-cancelled-does-n.log",
+      "exitCode": 0,
+      "seconds": 34,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-presign-pool-contract-test-788-admitted-available-pool-prepare-cancelled-does-n.log",
+          "sha256": "e558763a3c38571e1db688287e3775eb92a46b4d52829cd3ca5f3a10d8fb6b90"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.presign-pool.contract.test.ts",
+      "line": 958,
+      "title": "missing ECDSA prepare rejects finalize without quota or audit effects and preserves signing",
+      "log": "passkey-presign-pool-contract-test-958-missing-ecdsa-prepare-rejects-finalize-without-q.log",
+      "exitCode": 0,
+      "seconds": 33,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-presign-pool-contract-test-958-missing-ecdsa-prepare-rejects-finalize-without-q.log",
+          "sha256": "e66dbebb022fef4a0db29ceb3a8adf85a2b1b541ea7195c3927ff5f612abd10e"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.presign-pool.contract.test.ts",
+      "line": 1200,
+      "title": "live signing policy denies prepare finalize and completed replay without consuming quota",
+      "log": "passkey-presign-pool-contract-test-1200-live-signing-policy-denies-prepare-finalize-and.log",
+      "exitCode": 0,
+      "seconds": 35,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-presign-pool-contract-test-1200-live-signing-policy-denies-prepare-finalize-and.log",
+          "sha256": "1df4551be790ccf72803312f0fc11a50b7a22e2d18dcda1c9c221fa16c59e354"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.presign-pool.contract.test.ts",
+      "line": 1207,
+      "title": "third-generation linked signing enforces live policy and isolates unrelated scopes",
+      "log": "passkey-presign-pool-contract-test-1207-third-generation-linked-signing-enforces-live-po.log",
+      "exitCode": 0,
+      "seconds": 43,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-presign-pool-contract-test-1207-third-generation-linked-signing-enforces-live-po.log",
+          "sha256": "7b9034778f9d4c905ccf11383ce069e6fb5cbea5b9021a5c1ee467700387fffa"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.presign-pool.contract.test.ts",
+      "line": 1282,
+      "title": "concurrent prepare and admitted ECDSA finalize lost_response retry preserve one signing effect",
+      "log": "passkey-presign-pool-contract-test-1282-concurrent-prepare-and-admitted-ecdsa-finalize-l.log",
+      "exitCode": 0,
+      "seconds": 43,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-presign-pool-contract-test-1282-concurrent-prepare-and-admitted-ecdsa-finalize-l.log",
+          "sha256": "12cb0d2d1b0006f0a85ea3f99776f76bc829f1fdfde03d8e6eac3f6e886fee37"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.presign-pool.contract.test.ts",
+      "line": 1382,
+      "title": "distinct concurrent prepares consume the last quota use once and preserve the winning claim",
+      "log": "passkey-presign-pool-contract-test-1382-distinct-concurrent-prepares-consume-the-last-qu.log",
+      "exitCode": 0,
+      "seconds": 38,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-presign-pool-contract-test-1382-distinct-concurrent-prepares-consume-the-last-qu.log",
+          "sha256": "43ff9c2429ec90bd8c00fd6748718276b4ffd5032fe3ec92e9511edee7a4cf1a"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.presign-pool.contract.test.ts",
+      "line": 1461,
+      "title": "exact finalize retry at the Router returns the SigningWorker stored signature",
+      "log": "passkey-presign-pool-contract-test-1461-exact-finalize-retry-at-the-router-returns-the-s.log",
+      "exitCode": 0,
+      "seconds": 36,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-presign-pool-contract-test-1461-exact-finalize-retry-at-the-router-returns-the-s.log",
+          "sha256": "49479317ae891ebe1d2904bb1d1cc2a01265b9f95b875809c0eb5ce95a66356a"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.recovery.contract.test.ts",
+      "line": 39,
+      "title": "a fresh browser recovers a Passkey-founded wallet with one code, signs, and refuses reuse",
+      "log": "passkey-recovery-contract-test-39-a-fresh-browser-recovers-a-passkey-founded-walle.log",
+      "exitCode": 0,
+      "seconds": 42,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-recovery-contract-test-39-a-fresh-browser-recovers-a-passkey-founded-walle.log",
+          "sha256": "82d9e082b257b3c6a93223f6e1f743d419daecf5e2842f17070d8b044dbde3ba"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.recovery.contract.test.ts",
+      "line": 39,
+      "title": "a fresh browser recovers a Email-only wallet with one code, signs, and refuses reuse",
+      "log": "passkey-recovery-contract-test-39-a-fresh-browser-recovers-a-email-only-wallet-wit.log",
+      "exitCode": 0,
+      "seconds": 39,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-recovery-contract-test-39-a-fresh-browser-recovers-a-email-only-wallet-wit.log",
+          "sha256": "dcdc25f020b3050f968674702bd9331c78fa386bd870346d4ae7fcdcc91bef61"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.recovery.contract.test.ts",
+      "line": 39,
+      "title": "a fresh browser recovers a Combined wallet with one code, signs, and refuses reuse",
+      "log": "passkey-recovery-contract-test-39-a-fresh-browser-recovers-a-combined-wallet-with.log",
+      "exitCode": 0,
+      "seconds": 40,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-recovery-contract-test-39-a-fresh-browser-recovers-a-combined-wallet-with.log",
+          "sha256": "ebfa8d446dfb78be0c5909edf1b30a6c1b1a218bcb19700ed8cd932c514e7d54"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.recovery.contract.test.ts",
+      "line": 54,
+      "title": "a failed finalization leaves its admitted recovery code reusable",
+      "log": "passkey-recovery-contract-test-54-a-failed-finalization-leaves-its-admitted-recove.log",
+      "exitCode": 0,
+      "seconds": 33,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-recovery-contract-test-54-a-failed-finalization-leaves-its-admitted-recove.log",
+          "sha256": "8ff455a3da2febb616689127d3f488c7db6b54378d7ed471d6a35990b282b6f8"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.recovery.contract.test.ts",
+      "line": 64,
+      "title": "an interrupted recovery attempt is superseded by a retry with the same code, which recovers and signs",
+      "log": "passkey-recovery-contract-test-64-an-interrupted-recovery-attempt-is-superseded-by.log",
+      "exitCode": 0,
+      "seconds": 34,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-recovery-contract-test-64-an-interrupted-recovery-attempt-is-superseded-by.log",
+          "sha256": "3ba14525b8e2c854efe391de29439c64e6082d0d0fcfe4ebf845ee2d2ec04ee1"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.recovery.contract.test.ts",
+      "line": 74,
+      "title": "a recovery retires the replaced activation: a delayed finalize is refused, a made signature answers, and the recovered wallet signs",
+      "log": "passkey-recovery-contract-test-74-a-recovery-retires-the-replaced-activation-a-de.log",
+      "exitCode": 0,
+      "seconds": 36,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-recovery-contract-test-74-a-recovery-retires-the-replaced-activation-a-de.log",
+          "sha256": "ce16b746cc5a4ae5f53dc3e8d9e24f40079c0eaafb76e15e151bfdc0ad5b5166"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.recovery.contract.test.ts",
+      "line": 82,
+      "title": "a superseded recovery attempt that reaches the SigningWorker late is refused, and the current attempt signs",
+      "log": "passkey-recovery-contract-test-82-a-superseded-recovery-attempt-that-reaches-the-s.log",
+      "exitCode": 0,
+      "seconds": 34,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-recovery-contract-test-82-a-superseded-recovery-attempt-that-reaches-the-s.log",
+          "sha256": "1b49b49757b018637003cd4ac25f011d20cabf9fa3d6e0b5851344fd1c39a172"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.recovery.contract.test.ts",
+      "line": 90,
+      "title": "a committed Passkey recovery survives a lost finalization response and runtime reset",
+      "log": "passkey-recovery-contract-test-90-a-committed-passkey-recovery-survives-a-lost-fin.log",
+      "exitCode": 0,
+      "seconds": 38,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/shard-1/passkey-recovery-contract-test-90-a-committed-passkey-recovery-survives-a-lost-fin.log",
+          "sha256": "ef8bb332a8e9759a26f62543952a642ef4e0c15fa09d83a5486cc78b23957aa2"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.recovery.contract.test.ts",
+      "line": 99,
+      "title": "a Passkey-founded wallet recovers with Passkey, adds Email OTP, then signs, exports, and steps up through it",
+      "log": "passkey-recovery-contract-test-99-a-passkey-founded-wallet-recovers-with-passkey.log",
+      "exitCode": 0,
+      "seconds": 74,
+      "resultFile": "fresh-identity.json",
+      "logs": [
+        {
+          "path": "logs/fresh-identity/passkey-recovery-contract-test-99-a-passkey-founded-wallet-recovers-with-passkey.log",
+          "sha256": "2bd36b8ec1f1e30511bdccc0ee69e1e5a527353ab327b0bf176db94ab9eb5680"
+        },
+        {
+          "path": "logs/shard-1/passkey-recovery-contract-test-99-a-passkey-founded-wallet-recovers-with-passkey.log",
+          "sha256": "de9ed8381df308268b9854d4e7bee5918bb8b8ebafce18a9b1c802f532442868"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.recovery.contract.test.ts",
+      "line": 104,
+      "title": "an Email-founded wallet recovers with Passkey, adds Email OTP to the recovery authority, then signs, exports, and steps up through it",
+      "log": "passkey-recovery-contract-test-104-an-email-founded-wallet-recovers-with-passkey-a.log",
+      "exitCode": 0,
+      "seconds": 83,
+      "resultFile": "fresh-identity.json",
+      "logs": [
+        {
+          "path": "logs/fresh-identity/passkey-recovery-contract-test-104-an-email-founded-wallet-recovers-with-passkey-a.log",
+          "sha256": "5718c173789d64f9346b090bec5a069a229f672fe9e281e2c4d56cb13c77f1ee"
+        },
+        {
+          "path": "logs/shard-1/passkey-recovery-contract-test-104-an-email-founded-wallet-recovers-with-passkey-a.log",
+          "sha256": "a551659e98bbf9636e4d014e4563523b388a9dd2f3fadbf6d33ed1e99a852641"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.add-passkey.contract.test.ts",
+      "line": 18,
+      "title": "an Email OTP wallet can add a passkey as a second way in",
+      "log": "email-otp-add-passkey-contract-test-18-an-email-otp-wallet-can-add-a-passkey-as-a-secon.log",
+      "exitCode": 0,
+      "seconds": 58,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/email-otp-add-passkey-contract-test-18-an-email-otp-wallet-can-add-a-passkey-as-a-secon.log",
+          "sha256": "1a46b15a21814a033e95934706e367c195e6e72112e9f718acd1617065bb6038"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.add-passkey.contract.test.ts",
+      "line": 73,
+      "title": "account menu removes an added passkey through the wallet email prompt and preserves signing",
+      "log": "email-otp-add-passkey-contract-test-73-account-menu-removes-an-added-passkey-through-th.log",
+      "exitCode": 0,
+      "seconds": 41,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/email-otp-add-passkey-contract-test-73-account-menu-removes-an-added-passkey-through-th.log",
+          "sha256": "64fe8ec9f7335b2a379a93c7fae3d03a6d43e0e4842bdf1da5088df67f826ec3"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.activation-resume.contract.test.ts",
+      "line": 107,
+      "title": "Passkey ecdsa_only activation response loss resumes the same wallet after reload and signs",
+      "log": "passkey-registration-activation-resume-contract-test-107-passkey-ecdsa-only-activation-response-loss-resu.log",
+      "exitCode": 0,
+      "seconds": 43,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-activation-resume-contract-test-107-passkey-ecdsa-only-activation-response-loss-resu.log",
+          "sha256": "7f2ec72c9a3c32030738a127c8f6e787677bd731382c24625fdea128ab05d911"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.activation-resume.contract.test.ts",
+      "line": 107,
+      "title": "Passkey mixed activation response loss resumes the same wallet after reload and signs",
+      "log": "passkey-registration-activation-resume-contract-test-107-passkey-mixed-activation-response-loss-resumes-t.log",
+      "exitCode": 0,
+      "seconds": 44,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-activation-resume-contract-test-107-passkey-mixed-activation-response-loss-resumes-t.log",
+          "sha256": "38c80cfc3e284a5a3808fc63f08638b2a2d64265b555f7a4e8d58b4c546b8860"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.activation-resume.contract.test.ts",
+      "line": 107,
+      "title": "Passkey mixed_near activation response loss resumes the same wallet after reload and signs",
+      "log": "passkey-registration-activation-resume-contract-test-107-passkey-mixed-near-activation-response-loss-resu.log",
+      "exitCode": 0,
+      "seconds": 42,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-activation-resume-contract-test-107-passkey-mixed-near-activation-response-loss-resu.log",
+          "sha256": "e9719335ddb651e604fb96691c6f911026cc2695b23728617741b7f62a2a5ff6"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.checkpoint.contract.test.ts",
+      "line": 159,
+      "title": "a fresh custody worker completes the original Yao exchange from ciphertext",
+      "log": "passkey-registration-checkpoint-contract-test-159-a-fresh-custody-worker-completes-the-original-ya.log",
+      "exitCode": 0,
+      "seconds": 39,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-checkpoint-contract-test-159-a-fresh-custody-worker-completes-the-original-ya.log",
+          "sha256": "8ab6d9fef2eaeb034c42a41df1f7f28ffea03cbd285c1504b01a4ad9414c456e"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "line": 18,
+      "title": "wallet protocol rejection shows an upgrade message and reload restores registration and signing",
+      "log": "passkey-registration-contract-test-18-wallet-protocol-rejection-shows-an-upgrade-messa.log",
+      "exitCode": 0,
+      "seconds": 40,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-contract-test-18-wallet-protocol-rejection-shows-an-upgrade-messa.log",
+          "sha256": "5c7ea535fb9528f2975009fd11afba01e78a6616ae2f25270869b213247c2d6b"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "line": 68,
+      "title": "Gateway ECDSA respond retries its pinned root after Router reply loss",
+      "log": "passkey-registration-contract-test-68-gateway-ecdsa-respond-retries-its-pinned-root-af.log",
+      "exitCode": 0,
+      "seconds": 37,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-contract-test-68-gateway-ecdsa-respond-retries-its-pinned-root-af.log",
+          "sha256": "454b09bf5ed49fa8a6df3cc4edd8ac1a38a579413c18e351f65092a16ed7091d"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "line": 97,
+      "title": "mixed registration exposes gateway and finalization timings",
+      "log": "passkey-registration-contract-test-97-mixed-registration-exposes-gateway-and-finalizat.log",
+      "exitCode": 0,
+      "seconds": 36,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-contract-test-97-mixed-registration-exposes-gateway-and-finalizat.log",
+          "sha256": "053fd11a968a96aae944cd91a6e31ce50a2c37da6de262c05d686d564ac61f29"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "line": 137,
+      "title": "mixed registration starts one NEAR admission while ECDSA activate is in flight",
+      "log": "passkey-registration-contract-test-137-mixed-registration-starts-one-near-admission-whi.log",
+      "exitCode": 0,
+      "seconds": 35,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-contract-test-137-mixed-registration-starts-one-near-admission-whi.log",
+          "sha256": "b9ebbfc7fbb2cb094ec475e0121f0a0c371a86fc81771b024f2a99e41513cc6e"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "line": 177,
+      "title": "custom review requires wallet approval before a live Arc signature",
+      "log": "passkey-registration-contract-test-177-custom-review-requires-wallet-approval-before-a.log",
+      "exitCode": 0,
+      "seconds": 35,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-contract-test-177-custom-review-requires-wallet-approval-before-a.log",
+          "sha256": "44268256e3402adc3db0a22b320d82bbf90c5e514190c9331b4fc49547d31d44"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "line": 452,
+      "title": "passkey registration establishes an immediately usable owner session without waiting for presignatures",
+      "log": "passkey-registration-contract-test-452-passkey-registration-establishes-an-immediately.log",
+      "exitCode": 0,
+      "seconds": 39,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-contract-test-452-passkey-registration-establishes-an-immediately.log",
+          "sha256": "4ee6e5ccc5febc47646125eb13caed53255440e00b58d48ca7d38d73cd5862b3"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "line": 519,
+      "title": "mixed registration reconciles rejected ECDSA refill after deferred authority publication",
+      "log": "passkey-registration-contract-test-519-mixed-registration-reconciles-rejected-ecdsa-ref.log",
+      "exitCode": 0,
+      "seconds": 35,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-contract-test-519-mixed-registration-reconciles-rejected-ecdsa-ref.log",
+          "sha256": "13fe6a7c8a82d876e243922ab2d6d9f06978565cd1d9f67d2bede128ce22c743"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "line": 602,
+      "title": "a signing prepare that read its session before NEAR provisioning committed is admitted",
+      "log": "passkey-registration-contract-test-602-a-signing-prepare-that-read-its-session-before-n.log",
+      "exitCode": 0,
+      "seconds": 38,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-contract-test-602-a-signing-prepare-that-read-its-session-before-n.log",
+          "sha256": "22615a8b3b186dbb9c9ee853b84a590292ebfe01a8f662d65ed4b2c22253a6b9"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "line": 702,
+      "title": "immediate signing aborts a stalled refill and recovers without competing background generation",
+      "log": "passkey-registration-contract-test-702-immediate-signing-aborts-a-stalled-refill-and-re.log",
+      "exitCode": 0,
+      "seconds": 40,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-contract-test-702-immediate-signing-aborts-a-stalled-refill-and-re.log",
+          "sha256": "58c6ec9d8bb0a9dbc9bb40f713195ba2e9d80cb2a815e7de1c7047ae1a28a22b"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "line": 731,
+      "title": "sustained Tempo and Arc signing uses fresh presignatures beyond pool capacity",
+      "log": "passkey-registration-contract-test-731-sustained-tempo-and-arc-signing-uses-fresh-presi.log",
+      "exitCode": 0,
+      "seconds": 74,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-contract-test-731-sustained-tempo-and-arc-signing-uses-fresh-presi.log",
+          "sha256": "fa230597402c6566653f94523dce4d0cdb8928aa59a4740c41c6e8295a5dc198"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "line": 795,
+      "title": "a prepare that reports the session exhausted makes later signatures plan step-up",
+      "log": "passkey-registration-contract-test-795-a-prepare-that-reports-the-session-exhausted-mak.log",
+      "exitCode": 0,
+      "seconds": 39,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-contract-test-795-a-prepare-that-reports-the-session-exhausted-mak.log",
+          "sha256": "68339dccffef5b9df367fcd0b137034915c1211249b153b04702264533c798b7"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "line": 840,
+      "title": "a Wallet Session status answered before deferred NEAR provisioning keeps the session it rebound",
+      "log": "passkey-registration-contract-test-840-a-wallet-session-status-answered-before-deferred.log",
+      "exitCode": 0,
+      "seconds": 38,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-contract-test-840-a-wallet-session-status-answered-before-deferred.log",
+          "sha256": "85617fbaa4b330dcd7114e1e1317b7d7bff77366fbd23a39a7414caaaa158004"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "line": 889,
+      "title": "EVM registration and signatures complete while NEAR admission is held",
+      "log": "passkey-registration-contract-test-889-evm-registration-and-signatures-complete-while-n.log",
+      "exitCode": 0,
+      "seconds": 38,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-contract-test-889-evm-registration-and-signatures-complete-while-n.log",
+          "sha256": "b553595acca48176d3a0e148e6a55ea69207a165181b210bef61cc3d04f358eb"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "line": 900,
+      "title": "EVM registration and signatures complete while NEAR execution is held",
+      "log": "passkey-registration-contract-test-900-evm-registration-and-signatures-complete-while-n.log",
+      "exitCode": 0,
+      "seconds": 39,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-contract-test-900-evm-registration-and-signatures-complete-while-n.log",
+          "sha256": "102e54d38c573d76521e863427c29016913a922790961b07006e222e2003fa81"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.resume.contract.test.ts",
+      "line": 6,
+      "title": "Passkey unlock resumes planned NEAR admission after reload",
+      "log": "passkey-registration-resume-contract-test-6-passkey-unlock-resumes-planned-near-admission-af.log",
+      "exitCode": 0,
+      "seconds": 37,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-resume-contract-test-6-passkey-unlock-resumes-planned-near-admission-af.log",
+          "sha256": "bfa2561f73b6a510dbcd5d1477a89d50da274985fb8e5d638222ac7d29d52f4f"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.resume.contract.test.ts",
+      "line": 18,
+      "title": "Passkey unlock resumes the exact encrypted NEAR execution after reload",
+      "log": "passkey-registration-resume-contract-test-18-passkey-unlock-resumes-the-exact-encrypted-near.log",
+      "exitCode": 0,
+      "seconds": 37,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-resume-contract-test-18-passkey-unlock-resumes-the-exact-encrypted-near.log",
+          "sha256": "f54f88a6d74b64c7f12acb44322a9bdeffe61604508eb75e3a546f0f7b5b9321"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.resume.contract.test.ts",
+      "line": 30,
+      "title": "Passkey unlock resumes a lost NEAR execution response after reload",
+      "log": "passkey-registration-resume-contract-test-30-passkey-unlock-resumes-a-lost-near-execution-res.log",
+      "exitCode": 0,
+      "seconds": 38,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-resume-contract-test-30-passkey-unlock-resumes-a-lost-near-execution-res.log",
+          "sha256": "0ba8cc31598cb1e76f2fe30308a7bbb00c3156988c19869074f8ccf1251ab0f0"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.resume.contract.test.ts",
+      "line": 42,
+      "title": "Passkey unlock resumes a NEAR execution that is still in progress",
+      "log": "passkey-registration-resume-contract-test-42-passkey-unlock-resumes-a-near-execution-that-is.log",
+      "exitCode": 0,
+      "seconds": 46,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-resume-contract-test-42-passkey-unlock-resumes-a-near-execution-that-is.log",
+          "sha256": "2875e474f64438b53a7bf2decbd5a6400605a3f5183ea842840fb7300ba772ab"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.resume.contract.test.ts",
+      "line": 54,
+      "title": "Passkey unlock resumes a lost NEAR finalization response after reload",
+      "log": "passkey-registration-resume-contract-test-54-passkey-unlock-resumes-a-lost-near-finalization.log",
+      "exitCode": 0,
+      "seconds": 43,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-resume-contract-test-54-passkey-unlock-resumes-a-lost-near-finalization.log",
+          "sha256": "8ae5e564083b0daec1af9cf784693e03797433e8d3a0706cbcda4af81adae72f"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.resume.contract.test.ts",
+      "line": 66,
+      "title": "Passkey unlock resumes persisted joined NEAR material without an execution checkpoint",
+      "log": "passkey-registration-resume-contract-test-66-passkey-unlock-resumes-persisted-joined-near-mat.log",
+      "exitCode": 0,
+      "seconds": 40,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-resume-contract-test-66-passkey-unlock-resumes-persisted-joined-near-mat.log",
+          "sha256": "f775bb905cbc5ae8e7b0a8b1f6b0227417ccb18a56995bdab3e29b7136276b74"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.resume.contract.test.ts",
+      "line": 79,
+      "title": "Passkey late NEAR finalization preserves wallet lock and resumes on unlock",
+      "log": "passkey-registration-resume-contract-test-79-passkey-late-near-finalization-preserves-wallet.log",
+      "exitCode": 0,
+      "seconds": 42,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-resume-contract-test-79-passkey-late-near-finalization-preserves-wallet.log",
+          "sha256": "52e1fa0f5950e2eb3509a77404bdd3c78ead171991c0b14beb9ffad9415e1e8e"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.resume.contract.test.ts",
+      "line": 90,
+      "title": "passkey NEAR readiness transaction rollback retains its repair journal",
+      "log": "passkey-registration-resume-contract-test-90-passkey-near-readiness-transaction-rollback-reta.log",
+      "exitCode": 0,
+      "seconds": 38,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-resume-contract-test-90-passkey-near-readiness-transaction-rollback-reta.log",
+          "sha256": "25933e6162cdc5776a15b7acded760fde001c8b9a90eeb91ae77af6e4b353bf8"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.resume.contract.test.ts",
+      "line": 100,
+      "title": "passkey late NEAR completion respects a lock from another tab",
+      "log": "passkey-registration-resume-contract-test-100-passkey-late-near-completion-respects-a-lock-fro.log",
+      "exitCode": 0,
+      "seconds": 39,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-resume-contract-test-100-passkey-late-near-completion-respects-a-lock-fro.log",
+          "sha256": "d4be8672087e8d4cc6ddf902e2cd0f9c2f1812f76af3bd8470b558b6270e3a25"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.resume.contract.test.ts",
+      "line": 111,
+      "title": "a passkey PRF with leading zeroes restores NEAR signing after refresh",
+      "log": "passkey-registration-resume-contract-test-111-a-passkey-prf-with-leading-zeroes-restores-near.log",
+      "exitCode": 0,
+      "seconds": 41,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-resume-contract-test-111-a-passkey-prf-with-leading-zeroes-restores-near.log",
+          "sha256": "8e8ab340c71131334d19a3e293f939ecf49f47b46de007c9af9ccad8e01b7b89"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.resume.contract.test.ts",
+      "line": 139,
+      "title": "passkey NEAR completion preserves an exhausted EVM signing budget",
+      "log": "passkey-registration-resume-contract-test-139-passkey-near-completion-preserves-an-exhausted-e.log",
+      "exitCode": 0,
+      "seconds": 46,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-resume-contract-test-139-passkey-near-completion-preserves-an-exhausted-e.log",
+          "sha256": "e23c554b7ee1f57ade4fecb762e80ab6ddd0901c11e3dfc196e987145a3bd3e2"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.resume.contract.test.ts",
+      "line": 151,
+      "title": "passkey hydration overlaps signer installation and gates durable readiness",
+      "log": "passkey-registration-resume-contract-test-151-passkey-hydration-overlaps-signer-installation-a.log",
+      "exitCode": 0,
+      "seconds": 37,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-resume-contract-test-151-passkey-hydration-overlaps-signer-installation-a.log",
+          "sha256": "96c3381981af5e72120960edbe4996d5b928267dd17a70c3f5ab34fdac02c89b"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.resume.contract.test.ts",
+      "line": 161,
+      "title": "passkey overlapping hydration failure retains a repairable registration",
+      "log": "passkey-registration-resume-contract-test-161-passkey-overlapping-hydration-failure-retains-a.log",
+      "exitCode": 0,
+      "seconds": 38,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-resume-contract-test-161-passkey-overlapping-hydration-failure-retains-a.log",
+          "sha256": "6c5321410582bb6992e1ab70f99a43aa82196eb7871dcca8bebfab5e337d4b19"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.resume.contract.test.ts",
+      "line": 171,
+      "title": "passkey lock during overlapping hydration prevents late readiness",
+      "log": "passkey-registration-resume-contract-test-171-passkey-lock-during-overlapping-hydration-preven.log",
+      "exitCode": 0,
+      "seconds": 38,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-resume-contract-test-171-passkey-lock-during-overlapping-hydration-preven.log",
+          "sha256": "0e416481c4e0cff3744231dab577864933acaa01016bfc9b81831bb5616c5406"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.resume.contract.test.ts",
+      "line": 181,
+      "title": "passkey client seal completes before the NEAR finalization response",
+      "log": "passkey-registration-resume-contract-test-181-passkey-client-seal-completes-before-the-near-fi.log",
+      "exitCode": 0,
+      "seconds": 39,
+      "resultFile": "shard-2.json",
+      "logs": [
+        {
+          "path": "logs/shard-2/passkey-registration-resume-contract-test-181-passkey-client-seal-completes-before-the-near-fi.log",
+          "sha256": "f4ca328ca2026628de481b0517f9d5a885f7b6e582dab7183a0555262e519eb1"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.challenge-expiry.contract.test.ts",
+      "line": 48,
+      "title": "expired email code stays local, resend refreshes the challenge and signs",
+      "log": "email-otp-challenge-expiry-contract-test-48-expired-email-code-stays-local-resend-refreshes.log",
+      "exitCode": 0,
+      "seconds": 49,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/email-otp-challenge-expiry-contract-test-48-expired-email-code-stays-local-resend-refreshes.log",
+          "sha256": "1f541f2654613e43d6bb2268330196ab355432d8a06bcf866d24f309b25402b1"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.challenge-expiry.contract.test.ts",
+      "line": 151,
+      "title": "custom mixed email unlock rejects expired and cancelled challenges, resends, and signs",
+      "log": "email-otp-challenge-expiry-contract-test-151-custom-mixed-email-unlock-rejects-expired-and-ca.log",
+      "exitCode": 0,
+      "seconds": 42,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/email-otp-challenge-expiry-contract-test-151-custom-mixed-email-unlock-rejects-expired-and-ca.log",
+          "sha256": "0a2139b45a43bcae4f30ff3187bbf865442cd295d93a93f21d2ea14c7da4d5c4"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.challenge-expiry.contract.test.ts",
+      "line": 151,
+      "title": "custom near_only email unlock rejects expired and cancelled challenges, resends, and signs",
+      "log": "email-otp-challenge-expiry-contract-test-151-custom-near-only-email-unlock-rejects-expired-an.log",
+      "exitCode": 0,
+      "seconds": 44,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/email-otp-challenge-expiry-contract-test-151-custom-near-only-email-unlock-rejects-expired-an.log",
+          "sha256": "042ddfcf5ff98cde5cd73fe79b841743e0aee094f348fd76f80f2d9abc634248"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.challenge-expiry.contract.test.ts",
+      "line": 151,
+      "title": "custom added_email email unlock rejects expired and cancelled challenges, resends, and signs",
+      "log": "email-otp-challenge-expiry-contract-test-151-custom-added-email-email-unlock-rejects-expired.log",
+      "exitCode": 0,
+      "seconds": 46,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/email-otp-challenge-expiry-contract-test-151-custom-added-email-email-unlock-rejects-expired.log",
+          "sha256": "b6875b15d40234557828d3f9fbfb539da68caa04c2fee83ca10aea5b031537d4"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.challenge-expiry.contract.test.ts",
+      "line": 302,
+      "title": "custom email unlock completes pending activation after reload and signs with the same wallet",
+      "log": "email-otp-challenge-expiry-contract-test-302-custom-email-unlock-completes-pending-activation.log",
+      "exitCode": 0,
+      "seconds": 39,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/email-otp-challenge-expiry-contract-test-302-custom-email-unlock-completes-pending-activation.log",
+          "sha256": "a154e6f4fd155122b64ce2688ddbdc44436b7aefdb29d618efa34a6b2927768d"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.registration.assets.contract.test.ts",
+      "line": 46,
+      "title": "production Email OTP ECDSA-only registration loads selected signer assets",
+      "log": "email-otp-registration-assets-contract-test-46-production-email-otp-ecdsa-only-registration-loa.log",
+      "exitCode": 0,
+      "seconds": 34,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/email-otp-registration-assets-contract-test-46-production-email-otp-ecdsa-only-registration-loa.log",
+          "sha256": "396e7be21be12f79ee36dd72de48696592ff6c6d4501ce1cecd3985f54513010"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.registration.assets.contract.test.ts",
+      "line": 47,
+      "title": "production Email OTP NEAR-only registration loads selected signer assets",
+      "log": "email-otp-registration-assets-contract-test-47-production-email-otp-near-only-registration-load.log",
+      "exitCode": 0,
+      "seconds": 35,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/email-otp-registration-assets-contract-test-47-production-email-otp-near-only-registration-load.log",
+          "sha256": "851dc1dca0b170e2b8458de7a7c049f9077027c2e5ae5ede40f33aa78f93101a"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.registration.assets.contract.test.ts",
+      "line": 138,
+      "title": "production Google registration tolerates failed preparation and signing retries",
+      "log": "email-otp-registration-assets-contract-test-138-production-google-registration-tolerates-failed.log",
+      "exitCode": 0,
+      "seconds": 33,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/email-otp-registration-assets-contract-test-138-production-google-registration-tolerates-failed.log",
+          "sha256": "7a87e6fc10e76df5eca5cd06806451d013ef73e31f799abdee7eca062277adaf"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.unlock.contract.test.ts",
+      "line": 9,
+      "title": "Email OTP registration and unlock lifecycle",
+      "log": "email-otp-unlock-contract-test-9-email-otp-registration-and-unlock-lifecycle.log",
+      "exitCode": 0,
+      "seconds": 59,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/email-otp-unlock-contract-test-9-email-otp-registration-and-unlock-lifecycle.log",
+          "sha256": "aa5a59c42fb07fa4bb22aba056bc8bc410dd56161a843aa8a25d370485e1124c"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.unlock.contract.test.ts",
+      "line": 32,
+      "title": "an Email OTP export interrupted after its authorization committed is admitted by the exact retry, factor release included",
+      "log": "email-otp-unlock-contract-test-32-an-email-otp-export-interrupted-after-its-author.log",
+      "exitCode": 0,
+      "seconds": 38,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/email-otp-unlock-contract-test-32-an-email-otp-export-interrupted-after-its-author.log",
+          "sha256": "29034bb47a319b2dd613a69c47f4af3c44cb5c70f0a6f26e8563eb4ba42f79bf"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.unlock.contract.test.ts",
+      "line": 40,
+      "title": "EVM registration and signatures complete while NEAR admission is held",
+      "log": "email-otp-unlock-contract-test-40-evm-registration-and-signatures-complete-while-n.log",
+      "exitCode": 0,
+      "seconds": 37,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/email-otp-unlock-contract-test-40-evm-registration-and-signatures-complete-while-n.log",
+          "sha256": "8c5cb5fb8dbb17f57dd3556fa1a9aa499490e2cf7d26826329cf7453ea97d1b3"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.unlock.contract.test.ts",
+      "line": 51,
+      "title": "EVM registration and signatures complete while NEAR execution is held",
+      "log": "email-otp-unlock-contract-test-51-evm-registration-and-signatures-complete-while-n.log",
+      "exitCode": 0,
+      "seconds": 38,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/email-otp-unlock-contract-test-51-evm-registration-and-signatures-complete-while-n.log",
+          "sha256": "2e6ebdd760c7574694ed4ae754b099ec72d5bcd5768f3ba8696ce4f68362b714"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/google-email-otp.recovery.contract.test.ts",
+      "line": 44,
+      "title": "a code held by an active Google recovery reports that it was already used",
+      "log": "google-email-otp-recovery-contract-test-44-a-code-held-by-an-active-google-recovery-reports.log",
+      "exitCode": 0,
+      "seconds": 34,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/google-email-otp-recovery-contract-test-44-a-code-held-by-an-active-google-recovery-reports.log",
+          "sha256": "9f910539b2133fd704cf42a5cf3c7a2ce42958d061c5818c941443a97071f625"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/google-email-otp.recovery.contract.test.ts",
+      "line": 51,
+      "title": "a fresh browser recovers a Passkey-founded wallet with Google and Email OTP, signs, and refuses reuse",
+      "log": "google-email-otp-recovery-contract-test-51-a-fresh-browser-recovers-a-passkey-founded-walle.log",
+      "exitCode": 0,
+      "seconds": 42,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/google-email-otp-recovery-contract-test-51-a-fresh-browser-recovers-a-passkey-founded-walle.log",
+          "sha256": "63f853c489e99b0d4081c59c826295f8ab699918a7a743fa9c665bc44ad5363d"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/google-email-otp.recovery.contract.test.ts",
+      "line": 51,
+      "title": "a fresh browser recovers a Email-only wallet with Google and Email OTP, signs, and refuses reuse",
+      "log": "google-email-otp-recovery-contract-test-51-a-fresh-browser-recovers-a-email-only-wallet-wit.log",
+      "exitCode": 0,
+      "seconds": 41,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/google-email-otp-recovery-contract-test-51-a-fresh-browser-recovers-a-email-only-wallet-wit.log",
+          "sha256": "d78460c07da20da27c7ed19a600b5bf2c6886704dc3eb1ae4bd8b15fdb27d1fb"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/google-email-otp.recovery.contract.test.ts",
+      "line": 51,
+      "title": "a fresh browser recovers a Combined wallet with Google and Email OTP, signs, and refuses reuse",
+      "log": "google-email-otp-recovery-contract-test-51-a-fresh-browser-recovers-a-combined-wallet-with.log",
+      "exitCode": 0,
+      "seconds": 43,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/google-email-otp-recovery-contract-test-51-a-fresh-browser-recovers-a-combined-wallet-with.log",
+          "sha256": "cca4ee9b6b11d01e4f0c66f8035bcf88f7d3780c4ea81122e03e99c8d8d78967"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/google-email-otp.recovery.contract.test.ts",
+      "line": 66,
+      "title": "a committed Google recovery survives a lost finalization response and runtime reset",
+      "log": "google-email-otp-recovery-contract-test-66-a-committed-google-recovery-survives-a-lost-fina.log",
+      "exitCode": 0,
+      "seconds": 39,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/google-email-otp-recovery-contract-test-66-a-committed-google-recovery-survives-a-lost-fina.log",
+          "sha256": "073c0b94311cd9764b644f75adaca229f173f9d757e84c5b9be4f35e2de8d977"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/google-email-otp.recovery.contract.test.ts",
+      "line": 75,
+      "title": "an Email-founded wallet recovers with Google, adds Passkey, then signs, exports, and steps up through it",
+      "log": "google-email-otp-recovery-contract-test-75-an-email-founded-wallet-recovers-with-google-ad.log",
+      "exitCode": 0,
+      "seconds": 45,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/google-email-otp-recovery-contract-test-75-an-email-founded-wallet-recovers-with-google-ad.log",
+          "sha256": "a91546f0727e6328318027036974eeace31a201601e94b468ad67fa3da6a4b86"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/google-email-otp.recovery.contract.test.ts",
+      "line": 80,
+      "title": "a Passkey-founded wallet recovers with Google, adds Passkey despite the older passkey, then signs, exports, and steps up through it",
+      "log": "google-email-otp-recovery-contract-test-80-a-passkey-founded-wallet-recovers-with-google-a.log",
+      "exitCode": 0,
+      "seconds": 48,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/google-email-otp-recovery-contract-test-80-a-passkey-founded-wallet-recovers-with-google-a.log",
+          "sha256": "2a86dcad09d95f500ca63709d675c616a487e3e43e4294325621189b3477a612"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.add-email-otp.contract.test.ts",
+      "line": 14,
+      "title": "a passkey wallet can add an email code as a second way in",
+      "log": "passkey-add-email-otp-contract-test-14-a-passkey-wallet-can-add-an-email-code-as-a-seco.log",
+      "exitCode": 0,
+      "seconds": 48,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/passkey-add-email-otp-contract-test-14-a-passkey-wallet-can-add-an-email-code-as-a-seco.log",
+          "sha256": "294894ee27530ae6a8625a26f17ad2fce7cb287d48b53d7f8f3ca6d8b2bc0815"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.device-linking.contract.test.ts",
+      "line": 115,
+      "title": "a second device links with a passkey, signs NEAR and Tempo, and is revoked",
+      "log": "passkey-device-linking-contract-test-115-a-second-device-links-with-a-passkey-signs-near.log",
+      "exitCode": 0,
+      "seconds": 44,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/passkey-device-linking-contract-test-115-a-second-device-links-with-a-passkey-signs-near.log",
+          "sha256": "33e977659ec918958023f40d81429b81a39737197624fa7c43abede41afe0ddc"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.device-linking.contract.test.ts",
+      "line": 115,
+      "title": "a second device completes linking after two lost cleanup acknowledgement replies",
+      "log": "passkey-device-linking-contract-test-115-a-second-device-completes-linking-after-two-lost.log",
+      "exitCode": 0,
+      "seconds": 44,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/passkey-device-linking-contract-test-115-a-second-device-completes-linking-after-two-lost.log",
+          "sha256": "c430af7b2fd5a9b0d539198ebd53e40c293d7d1bc3780ba52c94da4ddc36b584"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.device-linking.contract.test.ts",
+      "line": 168,
+      "title": "a linked device links a third device on an ECDSA-only wallet, which signs Tempo",
+      "log": "passkey-device-linking-contract-test-168-a-linked-device-links-a-third-device-on-an-ecdsa.log",
+      "exitCode": 0,
+      "seconds": 51,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/passkey-device-linking-contract-test-168-a-linked-device-links-a-third-device-on-an-ecdsa.log",
+          "sha256": "673c10efcfb350c14d173a05f8fc8f0a1ec3b1f3ab0af5ee5178f32aa3bb8181"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.device-linking.contract.test.ts",
+      "line": 271,
+      "title": "a linked device links a third device, which signs NEAR and Tempo and exports both keys",
+      "log": "passkey-device-linking-contract-test-271-a-linked-device-links-a-third-device-which-sign.log",
+      "exitCode": 0,
+      "seconds": 54,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/passkey-device-linking-contract-test-271-a-linked-device-links-a-third-device-which-sign.log",
+          "sha256": "3a3e1d8ed4f43d8213e50ae6acd47bf32a09f5b71b0ca5d477baee52ac1f45ff"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.device-linking.contract.test.ts",
+      "line": 306,
+      "title": "a linked device revoked with an email code across a refused commit is answered from what committed",
+      "log": "passkey-device-linking-contract-test-306-a-linked-device-revoked-with-an-email-code-acros.log",
+      "exitCode": 0,
+      "seconds": 47,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/passkey-device-linking-contract-test-306-a-linked-device-revoked-with-an-email-code-acros.log",
+          "sha256": "ad20a6442803e55c3325382e81d33368c0f04719078ad8732f11325b9dbd0b38"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.device-linking.contract.test.ts",
+      "line": 401,
+      "title": "material retirement between resolution and admission rejects canonical and linked claims, finalize, and replay",
+      "log": "passkey-device-linking-contract-test-401-material-retirement-between-resolution-and-admis.log",
+      "exitCode": 0,
+      "seconds": 49,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/passkey-device-linking-contract-test-401-material-retirement-between-resolution-and-admis.log",
+          "sha256": "d44a1b471475a8cb53b288b7c3f0fb48bb5dd75a961cca04be0443f1fb5eb724"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.assets.contract.test.ts",
+      "line": 34,
+      "title": "production wallet records asset traffic across registration, signing, and unlock",
+      "log": "passkey-registration-assets-contract-test-34-production-wallet-records-asset-traffic-across-r.log",
+      "exitCode": 0,
+      "seconds": 34,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/passkey-registration-assets-contract-test-34-production-wallet-records-asset-traffic-across-r.log",
+          "sha256": "ca5f42ca96c408e1a9544ffa6ad33ab097c98b74bd9b166ae13955ac69b66a13"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.assets.contract.test.ts",
+      "line": 92,
+      "title": "production signed-out mount and menu record cold and warm cache traffic",
+      "log": "passkey-registration-assets-contract-test-92-production-signed-out-mount-and-menu-record-cold.log",
+      "exitCode": 0,
+      "seconds": 33,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/passkey-registration-assets-contract-test-92-production-signed-out-mount-and-menu-record-cold.log",
+          "sha256": "e6abe519b003edf0d54726ed1e666130b684dd177d70525b483de46b502403c6"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.assets.contract.test.ts",
+      "line": 128,
+      "title": "production registration menu awaits input with cold and warm caches",
+      "log": "passkey-registration-assets-contract-test-128-production-registration-menu-awaits-input-with-c.log",
+      "exitCode": 0,
+      "seconds": 37,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/passkey-registration-assets-contract-test-128-production-registration-menu-awaits-input-with-c.log",
+          "sha256": "73b3e018cd1b3f9275aa818a7213f76919d53dc8b2ed2ebea6d21d10197d77d3"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.assets.contract.test.ts",
+      "line": 161,
+      "title": "production NEAR-only wallet records unlock and restored signing assets",
+      "log": "passkey-registration-assets-contract-test-161-production-near-only-wallet-records-unlock-and-r.log",
+      "exitCode": 0,
+      "seconds": 38,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/passkey-registration-assets-contract-test-161-production-near-only-wallet-records-unlock-and-r.log",
+          "sha256": "f53739779964f441a6c3ac5bc8266512f8e9cffd2236e8f620228cffbb23f643"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.assets.contract.test.ts",
+      "line": 194,
+      "title": "production ECDSA-only wallet records unlock and restored signing assets",
+      "log": "passkey-registration-assets-contract-test-194-production-ecdsa-only-wallet-records-unlock-and.log",
+      "exitCode": 0,
+      "seconds": 33,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/passkey-registration-assets-contract-test-194-production-ecdsa-only-wallet-records-unlock-and.log",
+          "sha256": "495edf7de0ae3f789074e2ada32769226538927cb17bae7c82dc372241f427de"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.unlock.contract.test.ts",
+      "line": 16,
+      "title": "lock retains durable presignatures across a fresh unlock",
+      "log": "passkey-unlock-contract-test-16-lock-retains-durable-presignatures-across-a-fres.log",
+      "exitCode": 0,
+      "seconds": 35,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/passkey-unlock-contract-test-16-lock-retains-durable-presignatures-across-a-fres.log",
+          "sha256": "db7c3aea730c30b2efd741bb8d1e287e3e9c1b36134ea3dc981b62c13bb1a998"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.unlock.contract.test.ts",
+      "line": 17,
+      "title": "locking a wallet updates an idle tab without a session query",
+      "log": "passkey-unlock-contract-test-17-locking-a-wallet-updates-an-idle-tab-without-a-s.log",
+      "exitCode": 0,
+      "seconds": 37,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/passkey-unlock-contract-test-17-locking-a-wallet-updates-an-idle-tab-without-a-s.log",
+          "sha256": "83de7b6d8b7838c4ec43a969b81b248a8c407d4d44e98ef445c33ff06cc686f3"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.unlock.contract.test.ts",
+      "line": 18,
+      "title": "a cross-tab lock prevents delayed restoration from recreating its credential",
+      "log": "passkey-unlock-contract-test-18-a-cross-tab-lock-prevents-delayed-restoration-fr.log",
+      "exitCode": 0,
+      "seconds": 37,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/passkey-unlock-contract-test-18-a-cross-tab-lock-prevents-delayed-restoration-fr.log",
+          "sha256": "1fe1c26b1a71cd07c7f6be1a25ea7e5a9a2e3afc1f05e980dc3654b3b5d67deb"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.unlock.contract.test.ts",
+      "line": 19,
+      "title": "a fresh unlock survives a delayed restoration response from another tab",
+      "log": "passkey-unlock-contract-test-19-a-fresh-unlock-survives-a-delayed-restoration-re.log",
+      "exitCode": 0,
+      "seconds": 36,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/passkey-unlock-contract-test-19-a-fresh-unlock-survives-a-delayed-restoration-re.log",
+          "sha256": "6bd364fb394648111d120046b48bb68f2c867096f118599c6f5ce35263bc7a60"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.unlock.contract.test.ts",
+      "line": 43,
+      "title": "passkey unlock restores immediate export and shared-budget signing",
+      "log": "passkey-unlock-contract-test-43-passkey-unlock-restores-immediate-export-and-sha.log",
+      "exitCode": 0,
+      "seconds": 40,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/passkey-unlock-contract-test-43-passkey-unlock-restores-immediate-export-and-sha.log",
+          "sha256": "40afbe7b7322130b1658ad01c15f0e2a96133c7fff6f3fccad7e22cce50a2e00"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.unlock.contract.test.ts",
+      "line": 65,
+      "title": "page refresh hydrates warm signing, one-use step-up, and key export",
+      "log": "passkey-unlock-contract-test-65-page-refresh-hydrates-warm-signing-one-use-step.log",
+      "exitCode": 0,
+      "seconds": 42,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/passkey-unlock-contract-test-65-page-refresh-hydrates-warm-signing-one-use-step.log",
+          "sha256": "85ece379a36d3c3c164f8dd089d6fa6255e3772d27909ac2ea73fa964fa6dcec"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.unlock.contract.test.ts",
+      "line": 75,
+      "title": "synced passkey cold unlock restores mixed-wallet signing from empty browser storage",
+      "log": "passkey-unlock-contract-test-75-synced-passkey-cold-unlock-restores-mixed-wallet.log",
+      "exitCode": 0,
+      "seconds": 43,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/passkey-unlock-contract-test-75-synced-passkey-cold-unlock-restores-mixed-wallet.log",
+          "sha256": "1918a6c32a4c979589f9ea1dc9dee60661171fe627af1758496de877577fe54f"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.unlock.contract.test.ts",
+      "line": 144,
+      "title": "an interrupted unlock shows an error and permits a user retry",
+      "log": "passkey-unlock-contract-test-144-an-interrupted-unlock-shows-an-error-and-permits.log",
+      "exitCode": 0,
+      "seconds": 38,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/passkey-unlock-contract-test-144-an-interrupted-unlock-shows-an-error-and-permits.log",
+          "sha256": "48ef63d86a0676b9b34ca0605b8d19e10fc2c710ed2b9db64ab4c39ed8c6570d"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/presign-generation-storage.contract.test.ts",
+      "line": 33,
+      "title": "ownership advancement deletes durable presignatures and rejects delayed old admission",
+      "log": "presign-generation-storage-contract-test-33-ownership-advancement-deletes-durable-presignatu.log",
+      "exitCode": 0,
+      "seconds": 33,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/presign-generation-storage-contract-test-33-ownership-advancement-deletes-durable-presignatu.log",
+          "sha256": "9e57457356774110defe2f05cb38c5acebc8dc8b50ea138cdc7c8827345ad400"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/presign-generation-storage.contract.test.ts",
+      "line": 109,
+      "title": "a delayed completed refill cannot publish after ownership advancement",
+      "log": "presign-generation-storage-contract-test-109-a-delayed-completed-refill-cannot-publish-after.log",
+      "exitCode": 0,
+      "seconds": 36,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/presign-generation-storage-contract-test-109-a-delayed-completed-refill-cannot-publish-after.log",
+          "sha256": "4abf91ac0ee624af06a3ab8b3ef4f0a5e27fe5f3bda72befcb1e2c2876b79711"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/presign-generation-storage.contract.test.ts",
+      "line": 161,
+      "title": "observed relocation blocks both signing curves and export before remote dispatch",
+      "log": "presign-generation-storage-contract-test-161-observed-relocation-blocks-both-signing-curves-a.log",
+      "exitCode": 0,
+      "seconds": 38,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/presign-generation-storage-contract-test-161-observed-relocation-blocks-both-signing-curves-a.log",
+          "sha256": "a6f71852c68fd20ebe205406d326d4ed57caa167fec2255b99ac4659ea2ab7da"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/presign-generation-storage.contract.test.ts",
+      "line": 236,
+      "title": "destination activation retires the old local session and reload stays locked",
+      "log": "presign-generation-storage-contract-test-236-destination-activation-retires-the-old-local-ses.log",
+      "exitCode": 0,
+      "seconds": 34,
+      "resultFile": "shard-3.json",
+      "logs": [
+        {
+          "path": "logs/shard-3/presign-generation-storage-contract-test-236-destination-activation-retires-the-old-local-ses.log",
+          "sha256": "6dc3b2a955ea8100d450ccb922212c9c45c7aa30c2b27bbd878fcdc97be36234"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts",
+      "line": 110,
+      "title": "terminal burned execution fails without retry",
+      "log": "passkey-ed25519-yao-local-contract-test-110-terminal-burned-execution-fails-without-retry.log",
+      "exitCode": 0,
+      "seconds": 63,
+      "resultFile": "terminal-matched.json",
+      "logs": [
+        {
+          "path": "logs/terminal/passkey-ed25519-yao-local-contract-test-110-terminal-burned-execution-fails-without-retry.log",
+          "sha256": "63f8f1350d4569b396cbe7e512e362cf557eef8af52cfe9c0511a56a90c114ff"
+        },
+        {
+          "path": "logs/terminal-matched/passkey-ed25519-yao-local-contract-test-110-terminal-burned-execution-fails-without-retry.log",
+          "sha256": "6727432195d30f004e401d3b09a6bd66e82e1abae2ea7983e43dca56b564e744"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.resume.contract.test.ts",
+      "line": 134,
+      "title": "a terminal NEAR execution remains failed under fresh unlock authority while EVM signs",
+      "log": "passkey-registration-resume-contract-test-134-a-terminal-near-execution-remains-failed-under-f.log",
+      "exitCode": 0,
+      "seconds": 89,
+      "resultFile": "terminal-matched.json",
+      "logs": [
+        {
+          "path": "logs/terminal/passkey-registration-resume-contract-test-134-a-terminal-near-execution-remains-failed-under-f.log",
+          "sha256": "2255b9dc87515601878155dab6db27a920aefdce72c0ef92e6bc18cf14d0619a"
+        },
+        {
+          "path": "logs/terminal-matched/passkey-registration-resume-contract-test-134-a-terminal-near-execution-remains-failed-under-f.log",
+          "sha256": "4f21c59015988b7ff2b1f806ceaf2b79f8787a2172fe768a75a7bfc8c89e64c3"
+        }
+      ]
+    }
+  ],
+  "privateArtifactDirectory": ".artifacts/r155d-final-contracts",
+  "initialFailures": [
+    {
+      "file": "e2e/intended-behaviours/passkey.recovery.contract.test.ts",
+      "line": 99,
+      "title": "a Passkey-founded wallet recovers with Passkey, adds Email OTP, then signs, exports, and steps up through it",
+      "log": "passkey-recovery-contract-test-99-a-passkey-founded-wallet-recovers-with-passkey.log",
+      "exitCode": 1,
+      "seconds": 455,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/fresh-identity/passkey-recovery-contract-test-99-a-passkey-founded-wallet-recovers-with-passkey.log",
+          "sha256": "2bd36b8ec1f1e30511bdccc0ee69e1e5a527353ab327b0bf176db94ab9eb5680"
+        },
+        {
+          "path": "logs/shard-1/passkey-recovery-contract-test-99-a-passkey-founded-wallet-recovers-with-passkey.log",
+          "sha256": "de9ed8381df308268b9854d4e7bee5918bb8b8ebafce18a9b1c802f532442868"
+        }
+      ]
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.recovery.contract.test.ts",
+      "line": 104,
+      "title": "an Email-founded wallet recovers with Passkey, adds Email OTP to the recovery authority, then signs, exports, and steps up through it",
+      "log": "passkey-recovery-contract-test-104-an-email-founded-wallet-recovers-with-passkey-a.log",
+      "exitCode": 1,
+      "seconds": 43,
+      "resultFile": "shard-1.json",
+      "logs": [
+        {
+          "path": "logs/fresh-identity/passkey-recovery-contract-test-104-an-email-founded-wallet-recovers-with-passkey-a.log",
+          "sha256": "5718c173789d64f9346b090bec5a069a229f672fe9e281e2c4d56cb13c77f1ee"
+        },
+        {
+          "path": "logs/shard-1/passkey-recovery-contract-test-104-an-email-founded-wallet-recovers-with-passkey-a.log",
+          "sha256": "a551659e98bbf9636e4d014e4563523b388a9dd2f3fadbf6d33ed1e99a852641"
+        }
+      ]
+    }
+  ]
+}

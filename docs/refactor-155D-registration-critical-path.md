@@ -478,13 +478,14 @@ Delete replaced code in the same change. Add no flag, cache, or second path.
 
 ## Phase 0 — measurement contract and geography
 
-- [ ] Freeze a combined candidate: R155C backend `580cb508` with the Phase 6AR
+- [x] Freeze a combined candidate: R155C backend `580cb508` with the Phase 6AR
   SDK and Gateway. Measure it as the baseline of this plan with the existing
   three-arm protocol. Record the SDK-measured number and the harness rows
   separately from the first run on. Measured on October 10 as the baseline arm
   of the [hosted comparison](#hosted-comparison-october-10): the SDK flow
   without interaction takes 7,955 ms, median of three wallets. Its control arm
-  did not run, so the item stays open.
+  did not run. The later stored-address, entry/finalization, and completion
+  comparisons include repeated baseline controls with exact versions recorded.
 - [x] Add the in-page timer and the message-path signing stages. The test app
   times the message-signing call. NEP-413 signing emits its pre-confirmation,
   confirmation, and signing stages. The hosted sample reports SDK time, the
@@ -502,10 +503,9 @@ Delete replaced code in the same change. Add no flag, cache, or second path.
   unique and name-derived IDs from other servers.
 - [x] Count D1 round trips and statements per request in the Gateway with the
   existing timing wrappers, so later phases can show reductions. Counted
-  locally on October 10; the table is in the
-  [implementation record](#implementation-record). Their staging durations
-  still need the comparison's fourth arm, where a measurement-only Gateway
-  entry returns each request's D1 and service round trips.
+  locally and on staging on October 10. Later comparisons use identical
+  Gateway D1 and service instrumentation in all three arms. The completion
+  comparison also measures Console D1 in every arm.
 
 Exit: one evidence file with the combined baseline, the location map, D1
 latency per location, and the dispatch-cost matrix.
@@ -904,8 +904,10 @@ remain. No new resources were created, and production was unchanged.
 
 ## Phase 5 — verify and measure
 
-- [ ] Run the intended-behaviour contracts for registration, recovery, export,
-  signing, Email OTP, and relocation against the combined change.
+- [x] Run the intended-behaviour contracts for registration, recovery, export,
+  signing, Email OTP, and relocation against the combined change. All 132 public
+  cases pass on `63acba09`. Private regional cases and restart recovery checks
+  are recorded in the combined lifecycle verification below.
 - [ ] Run the Worker and wallet-object scenarios from R155C and the four-home
   placement E2E.
 - [ ] Measure on staging with the R155C protocol: baseline, candidate,
@@ -1718,8 +1720,8 @@ scenarios passed: owner signing after relocation, retirement during a write,
 relocation during admitted signing, and retry after a failed credential claim.
 
 Setup now combines publishable-key authentication, environment resolution, and
-home reservation in one Console invocation. Console checks origin, tenant,
-environment, and `accounts.create` before it reserves anything. Gateway reuses
+home reservation in one Console invocation. Console checks the publishable key,
+origin, tenant, and active environment before it reserves anything. Gateway reuses
 the returned assignment only for the same operation and request digest. Each
 forwarded request still authenticates independently at its destination.
 
@@ -1832,3 +1834,111 @@ The combined public tree also passes the authorization-storage-transfer E2E,
 wallet-state type fixtures, intended-contract type checking, and the bloat check.
 Logs are `.artifacts/r155d-combined-*` in the public repository and
 `.artifacts/r155d-console-roundtrips-*` / `.artifacts/r155d-setup-local/` privately.
+
+### Production Console activation fixes — October 10
+
+The combined candidate failed its staging registration canary before measurement.
+The canary returned `registration_environment_unavailable`. Cleanup restored all
+13 original Worker versions and both Deriver schemas. Independent readback passed.
+The baseline arm completed, but this attempt produced no candidate latency result.
+
+The canary exposed two production regressions in the combined Console setup:
+
+- The internal fetch adapter accepted a `Request` only. The client passed a URL
+  and request options, so the adapter discarded the POST body. It now constructs
+  the request from both arguments before calling the handler.
+- The combined route required `accounts.create` in a publishable key's scope list.
+  Publishable keys have no secret-key scopes. Successful publishable-key
+  authentication and the exact organization, project, environment and origin checks
+  authorize registration. The incorrect scope requirement is removed.
+
+Private `680bb10` fixes both. The existing production Console Worker E2E now calls
+the combined route, reserves in APAC, retries through WEUR, and rejects an invalid
+origin. It uses real persisted credentials and the production Worker/service binding.
+That scenario and the wallet-home directory E2E pass. Type-checking passes against
+the frozen public candidate. A shared test fixture used signer slot zero, which
+the current request parser rejects. Its slot is corrected to one.
+
+The resumed comparison preserves the completed baseline, rebuilds the fixed
+Console candidate, then measures candidate and repeated baseline. The interruption
+and source versions remain in private `.artifacts/r155d-completion-hosted`.
+The candidate and control measurements both passed. The final results follow below.
+
+
+### Combined lifecycle verification — October 10
+
+The frozen public candidate `63acba09` passes all **132 intended-behaviour
+contracts**. [The evidence file](evidence/refactor-155d-completion-contracts.json)
+records each case and log hash. Two recovery cases initially used a Google test
+identity near expiry. Both passed with a fresh identity. Two terminal-failure
+cases initially failed local custody startup. Both passed with the matching
+local custody build. These were environment failures. Production code did not
+change to satisfy them.
+
+The private production Console Worker and home-directory E2E pass. The combined
+registration browser case passes. ECDSA and Ed25519 signing both pass after the
+Gateway and all five custody Workers restart while Console remains unavailable.
+The Google Email OTP recovery case also passes after a lost finalization reply
+and restart through another region. It continues through unlock, signing on both
+curves, and both key exports.
+
+Private `3a3a971` extends only the test process startup timeout. Four persistent
+regional migrations could exceed the old 30-second timeout. Private `17f83da`
+fixes an obsolete fixture: restart regenerated the Console deployment revision
+while regional databases retained the original revision. The fixture now reloads
+the persisted binding and checks that all four regions agree. Production routing
+correctly refused the mismatched revision and remains unchanged.
+
+Private `.artifacts/r155d-completion-local/verification.json` records the composed
+checks and repeatable restart evidence. The private Console package type-checks
+against the frozen public candidate.
+
+
+### Completion and Console comparison — October 10
+
+This comparison keeps custody Workers and the SDK fixed. Nine host Worker versions
+change together: Console, four Gateways, and four Runtime Workers. Public
+`63acba09` and private `680bb10` form the candidate. Public `81e5f690` and private
+`be6fb57` form the baseline and repeated baseline control. Each arm uses three
+fresh NEAR-only wallets and independently verified NEP-413 signatures.
+
+| Metric, median | Baseline | Candidate | Repeated baseline |
+| --- | ---: | ---: | ---: |
+| SDK registration → first signature, excluding interaction | 9.679 s | **5.574 s** | 5.845 s |
+| Observed range for that metric | 6.170–9.770 s | **4.945–7.607 s** | 5.177–6.958 s |
+| SDK registration call, including interaction | 6.089 s | 5.587 s | 5.163 s |
+| SDK first signing call, including confirmation | 2.164 s | 1.208 s | 1.193 s |
+| Router Yao execution | 1.636 s | 1.458 s | 1.397 s |
+| Finalize service | 1.149 s | **1.038 s** | 1.381 s |
+| Browser registration → independent verification, including harness | 10.714 s | 7.630 s | 6.857 s |
+
+The 3–4-second target remains unmet. The candidate is 271 ms faster than the
+repeated baseline by median, but these samples do not isolate that difference.
+The initial baseline contains a 4.265-second sign HTTP request. Local lifecycle
+checks also ran on the client during parts of the comparison. Browser and SDK
+elapsed times can include client scheduling variation. Do not claim the 4.104-second
+baseline-to-candidate difference as the change's isolated saving.
+
+The call reductions are consistent across every sample:
+
+| Gateway request | Baseline D1 calls | Candidate D1 calls | Repeated baseline |
+| --- | ---: | ---: | ---: |
+| Setup | 5 | 5 | 5 |
+| Respond | 7 | 7 | 7 |
+| Yao execute | 2 | 2 | 2 |
+| Finalize | 18 | **16** | 18 |
+| Prepare | 4 | **3** | 4 |
+| Sign | 5 | **4** | 5 |
+| Total | 41 | **37** | 41 |
+
+Fresh setup's Console calls change from context plus reserve to one combined
+request. Those operations require **8 → 5 D1 calls**. Across the complete flow,
+Console requests change **7 → 6**, and Console D1 calls change **21 → 18**.
+Six browser requests remain. All wallets send zero status requests and one
+startup request. Startup reaches the Router before respond in all nine samples.
+The four stored object IDs match the candidate's invocation logs for all three
+wallets.
+
+All **18 comparison checks** pass. All **nine signatures** pass independent
+verification and signed-field tampering is rejected. Final staging restoration
+and the public evidence export are pending. No new resources were created.
