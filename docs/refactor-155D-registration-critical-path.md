@@ -1784,3 +1784,33 @@ The authorization-storage-transfer E2E passed. It covers admission/ceremony roll
 stale retries, frozen-wallet writes, and unrelated-wallet progress. Type-checking and
 the bloat check passed. Evidence remains in
 `.artifacts/r153/authorization-storage-transfer/evidence.json`. Hosted timing is pending.
+
+### Signing authorization and Console reads — October 10
+
+`bed2e264` includes the active Yao capability in the existing session/signer/policy
+statement. It uses the same capability resolver as the lifecycle runtime. A missing
+cache entry retains persisted-capability reconciliation. The observation belongs to
+the authenticated wallet. Each request still reads its session and enforces admission.
+
+Six composed browser cases passed: Console-independent Email OTP quota exhaustion
+and both step-ups, owner and linked-device regional signing, retirement during an
+in-flight request, pending-operation relocation fencing, registration completion,
+and lost completion replay. The server build and bloat check passed.
+
+Private `3e3c0b7` returns a new home reservation from its atomic insert. A repeat
+still reads and validates the existing reservation. Private `19aebf9` updates credential
+usage metadata with one `UPDATE ... RETURNING` statement. Previously, it read the key,
+wrote usage, then read the key again. Endpoint counters now increment atomically.
+These changes remove three Console D1 calls from successful fresh setup.
+
+The production Console service E2E passed, including eight concurrent authenticated
+uses, environment changes, origin refusal, rotation, and revocation. The wallet-home
+E2E passed, including competing reservations, deployment pauses, travel, and restart.
+Three composed browser setup cases also passed, including lost replies for both
+signer sets and concurrent NEAR setup through three regions. The private type check
+passed. These latest changes still require hosted measurement.
+
+The combined public tree also passes the authorization-storage-transfer E2E,
+wallet-state type fixtures, intended-contract type checking, and the bloat check.
+Logs are `.artifacts/r155d-combined-*` in the public repository and
+`.artifacts/r155d-console-roundtrips-*` / `.artifacts/r155d-setup-local/` privately.
