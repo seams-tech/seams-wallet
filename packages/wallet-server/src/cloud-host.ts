@@ -282,4 +282,4 @@ export { computeLinkedDeviceSessionClaimDigestV1 } from '@shared/device-linking/
 
 export { admitD1EstablishedWalletHome } from './router/cloudflare/d1/registration/d1WalletExecutionAuthority';
 export { D1WalletObjectAddresses } from './router/cloudflare/d1/walletObjectAddresses';
-export { walletObjectIdentity, type WalletObjectIdentity } from './router/cloudflare/runtime/walletObjectAddresses';
+export { walletObjectIdentity, WalletObjectAddressSnapshot, type WalletObjectIdentity } from './router/cloudflare/runtime/walletObjectAddresses';

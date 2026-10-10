@@ -1,4 +1,4 @@
-import { WalletObjectAddresses } from '../../packages/wallet-server/src/router/cloudflare/runtime/walletObjectAddresses';
+import { WalletObjectAddresses, WalletObjectAddressSnapshot } from '../../packages/wallet-server/src/router/cloudflare/runtime/walletObjectAddresses';
 
 const raw = {
   router: 'untrusted',
@@ -18,3 +18,10 @@ const fromSpread: WalletObjectAddresses = { ...parsed };
 // @ts-expect-error One role cannot be omitted.
 const incomplete: WalletObjectAddresses = { router: parsed.router };
 void [fromLiteral, fromConstructor, fromSpread, incomplete];
+
+// @ts-expect-error A snapshot cannot be supplied as a raw record.
+const rawSnapshot: WalletObjectAddressSnapshot = { ...raw, wallet_id: 'wallet:a', ownership_generation: 1 };
+const snapshot = WalletObjectAddressSnapshot.parse(raw, 'namespace', { orgId: 'org', projectId: 'project', envId: 'env' });
+// @ts-expect-error A spread loses the snapshot's private identity binding.
+const copiedSnapshot: WalletObjectAddressSnapshot = { ...snapshot };
+void [rawSnapshot, copiedSnapshot];

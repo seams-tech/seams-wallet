@@ -265,8 +265,8 @@ export async function handleLocalHostedWalletGatewayRequestV1(
   };
   const gatewayEnv: CloudflareD1GatewayEnv = {
     ...env,
-    MPC_ROUTER: new WalletHomeCustodyBinding(env.MPC_ROUTER, 'US', env.SIGNER_DB, tenantScope.namespace),
-    SIGNING_WORKER: new WalletHomeCustodyBinding(env.SIGNING_WORKER, 'US', env.SIGNER_DB, tenantScope.namespace),
+    MPC_ROUTER: new WalletHomeCustodyBinding(env.MPC_ROUTER, 'US', env.SIGNER_DB, tenantScope.namespace, null),
+    SIGNING_WORKER: new WalletHomeCustodyBinding(env.SIGNING_WORKER, 'US', env.SIGNER_DB, tenantScope.namespace, null),
     WALLET_CONSOLE: createStaticWalletConsoleBindingV1(config),
   };
   const canceledPresign = await localPresignCancellationProbe(

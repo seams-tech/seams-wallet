@@ -2,6 +2,7 @@ import { D1WalletObjectAddresses } from '../d1/walletObjectAddresses';
 import type { D1DatabaseLike } from '../../../storage/tenantRoute';
 import {
   readWalletObjectIdentityHeader,
+  type WalletObjectAddressSnapshot,
   WALLET_OBJECT_IDENTITY_HEADER,
   WALLET_OBJECT_ADDRESSES_HEADER,
 } from './walletObjectAddresses';
@@ -24,6 +25,7 @@ export class WalletHomeCustodyBinding implements CloudflareServiceBindingFetcher
     private readonly home: WalletHomeRegion,
     private readonly database: D1DatabaseLike,
     private readonly namespace: string,
+    private readonly initialAddresses: WalletObjectAddressSnapshot | null,
   ) {}
 
   async fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
@@ -39,7 +41,8 @@ export class WalletHomeCustodyBinding implements CloudflareServiceBindingFetcher
         projectId: identity.projectId,
         envId: identity.envId,
       });
-      const addresses = await store.read(identity);
+      const addresses = this.initialAddresses?.resolve(this.namespace, identity)
+        ?? await store.read(identity);
       if (addresses === null) throw new Error('Wallet object addresses are not initialized');
       request.headers.set(WALLET_OBJECT_ADDRESSES_HEADER, JSON.stringify(addresses));
     }

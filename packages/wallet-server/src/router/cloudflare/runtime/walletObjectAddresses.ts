@@ -54,6 +54,43 @@ export type WalletObjectIdentity = WalletObjectTenant & {
   readonly ownershipGeneration: number;
 };
 
+/** A request-local read of immutable addresses for one wallet generation. */
+export class WalletObjectAddressSnapshot {
+  private constructor(
+    private readonly namespace: string,
+    private readonly identity: WalletObjectIdentity,
+    private readonly addresses: WalletObjectAddresses,
+  ) {}
+
+  static parse(
+    raw: unknown,
+    namespace: string,
+    tenant: WalletObjectTenant,
+  ): WalletObjectAddressSnapshot {
+    if (!isPlainObject(raw)) throw new Error('Wallet object address snapshot is missing');
+    return new WalletObjectAddressSnapshot(
+      tenantPart(namespace),
+      walletObjectIdentity(raw.wallet_id, raw.ownership_generation, tenant),
+      WalletObjectAddresses.parse(raw),
+    );
+  }
+
+  resolve(namespace: string, identity: WalletObjectIdentity): WalletObjectAddresses | null {
+    const observed = this.identity;
+    if (
+      namespace !== this.namespace ||
+      identity.walletId !== observed.walletId ||
+      identity.ownershipGeneration !== observed.ownershipGeneration ||
+      identity.orgId !== observed.orgId ||
+      identity.projectId !== observed.projectId ||
+      identity.envId !== observed.envId
+    ) {
+      return null;
+    }
+    return this.addresses;
+  }
+}
+
 export function walletObjectIdentity(
   wallet: unknown,
   generation: unknown,

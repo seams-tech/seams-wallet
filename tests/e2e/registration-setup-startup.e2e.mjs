@@ -58,6 +58,7 @@ class RegistrationAddresses {
 // Counts the ceremony writes that reach the database and can hold one until a signal.
 class ObservedDatabase {
   ceremonyWrites = 0;
+  addressReads = 0;
   holdCeremonyWrite = null;
   constructor(database) {
     this.database = database;
@@ -73,6 +74,7 @@ class ObservedDatabase {
     return this.database.exec(sql);
   }
   async observe(sql) {
+    if (sql.includes('SELECT router, deriver_a, deriver_b, signing_worker')) this.addressReads += 1;
     if (!sql.includes('INSERT OR IGNORE INTO registration_ceremony_records')) return;
     this.ceremonyWrites += 1;
     await this.holdCeremonyWrite;
@@ -137,7 +139,7 @@ const bundle = await build({
     contents: `
       export { D1WalletObjectAddresses } from './packages/wallet-server/src/router/cloudflare/d1/walletObjectAddresses';
       export { WalletHomeCustodyBinding } from './packages/wallet-server/src/router/cloudflare/runtime/routerAbServiceBindings';
-      export { WalletObjectAddresses, walletObjectIdentity, walletObjectIdentityHeaders } from './packages/wallet-server/src/router/cloudflare/runtime/walletObjectAddresses';
+      export { WalletObjectAddresses, WalletObjectAddressSnapshot, walletObjectIdentity, walletObjectIdentityHeaders } from './packages/wallet-server/src/router/cloudflare/runtime/walletObjectAddresses';
       export { createCloudflareD1RouterApiAuthService } from './packages/wallet-server/src/router/cloudflare/d1/auth/d1RouterApiAuthService';
       export { LocalRegistrationSetupAuthority } from './packages/wallet-server/src/localRegistrationSetupAuthority';
       export { createRegistrationSetupOperationId } from './packages/shared-ts/src/utils/registrationSetupOperation';
@@ -312,7 +314,11 @@ try {
   );
 
   const capture = new CapturedCustodyCall();
-  const binding = new api.WalletHomeCustodyBinding(capture, 'APAC', database, scope.namespace);
+  const snapshot = api.WalletObjectAddressSnapshot.parse({
+    ...saved.toJSON(), wallet_id: identity.walletId, ownership_generation: identity.ownershipGeneration,
+  }, scope.namespace, scope);
+  const forwardedDatabase = new ObservedDatabase(database);
+  const binding = new api.WalletHomeCustodyBinding(capture, 'APAC', forwardedDatabase, scope.namespace, snapshot);
   const headers = api.walletObjectIdentityHeaders(identity);
   headers['x-seams-wallet-object-addresses'] = 'untrusted';
   headers['x-seams-wallet-home-region'] = 'US';
@@ -323,6 +329,15 @@ try {
     saved.toJSON(),
   );
   assert.equal(capture.request.headers.get('x-seams-wallet-object-identity'), null);
+  assert.equal(forwardedDatabase.addressReads, 0, 'An exact snapshot must avoid an address read');
+  await binding.fetch('https://custody.test/sign', {
+    headers: api.walletObjectIdentityHeaders(destination),
+  });
+  assert.deepEqual(
+    JSON.parse(capture.request.headers.get('x-seams-wallet-object-addresses')),
+    winners[0].toJSON(),
+  );
+  assert.equal(forwardedDatabase.addressReads, 1, 'A different generation needs its own read');
   await assert.rejects(
     binding.fetch('https://custody.test/sign', {
       headers: api.walletObjectIdentityHeaders(api.walletObjectIdentity(first.walletId, 3, scope)),
@@ -356,6 +371,8 @@ try {
         persistedWinners: 1,
         distinctDestinationGeneration: true,
         forwardedStoredAddresses: true,
+        exactSnapshotAvoidsRead: true,
+        changedGenerationReadsDestination: true,
         forgedAddressesReplaced: true,
         missingGenerationRefused: true,
         wrongTenantRefused: true,
