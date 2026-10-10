@@ -193,6 +193,17 @@ export type WalletRecoveryCodeLocatorRecord = {
   readonly recoveryKeyId: DerivedWalletRecoveryKeyId;
 };
 
+/**
+ * A registration commit whose recovery-code routes are claimed. `commit`
+ * writes the records, and it needs the wallet that the registration commits.
+ */
+export type WalletCustodyRegistrationReservation =
+  | Extract<WalletCustodyRegistrationCommitResult, { kind: 'inconsistent' }>
+  | {
+      readonly kind: 'reserved';
+      readonly commit: () => Promise<WalletCustodyRegistrationCommitResult>;
+    };
+
 export type WalletCustodyRegistrationCommitResult =
   | {
       readonly kind: 'committed';
@@ -810,23 +821,36 @@ export class CloudflareD1WalletCustodyCommitStore {
   }
 
   /**
+   * Checks the commit and claims its recovery-code routes. The claim is an
+   * exact-retryable directory write that needs no local record, so a caller
+   * may run it beside its other remote effects and write afterwards.
+   */
+  async reserveRegistration(
+    commit: WalletCustodyRegistrationCommit,
+  ): Promise<WalletCustodyRegistrationReservation> {
+    const inconsistency = commitInconsistency(commit);
+    if (inconsistency !== null) return { kind: 'inconsistent', reason: inconsistency };
+    if (
+      !(await this.claimRecoveryCodeRoutes(
+        commit.recoverySet.walletId,
+        commit.recoveryCodeLocators,
+      ))
+    ) {
+      return { kind: 'inconsistent', reason: 'recovery code locator already exists' };
+    }
+    return { kind: 'reserved', commit: () => this.commitReservedRegistration(commit) };
+  }
+
+  /**
    * Writes the envelope and the recovery set in one transaction.
    *
    * Both are inserts, never updates: `expectedVersion: null` fails if either
    * key already holds a row, so a repeated registration cannot silently replace
    * an established wallet's custody.
    */
-  async commitRegistration(
+  private async commitReservedRegistration(
     commit: WalletCustodyRegistrationCommit,
   ): Promise<WalletCustodyRegistrationCommitResult> {
-    const inconsistency = commitInconsistency(commit);
-    if (inconsistency !== null) return { kind: 'inconsistent', reason: inconsistency };
-    if (
-      !(await this.claimRecoveryCodeRoutes(commit.recoverySet.walletId, commit.recoveryCodeLocators))
-    ) {
-      return { kind: 'inconsistent', reason: 'recovery code locator already exists' };
-    }
-
     const envelopeKey = passkeyCustodyEnvelopeRecordKey(
       passkeyCustodyEnvelopeLocatorOf(commit.envelope),
     );

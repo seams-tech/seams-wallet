@@ -1,9 +1,10 @@
 import type { WalletId } from '@shared/utils/domainIds';
 import type { WalletCustodyEnvelopeFactor } from '@shared/passkey-custody';
 import {
-  commitWalletCustodyRegistration,
+  reserveWalletCustodyRegistration,
   type WalletCustodyCeremonyCommitPayload,
   type WalletCustodyRegistrationCommitOutcome,
+  type WalletCustodyRegistrationReserved,
 } from './walletCustodyRegistrationCommit';
 import type { CloudflareD1WalletCustodyCommitStore } from '../../cloudflare/d1/passkeyCustody/d1WalletCustodyCommitStore';
 
@@ -17,7 +18,7 @@ import type { CloudflareD1WalletCustodyCommitStore } from '../../cloudflare/d1/p
  * leg's own auth proof. A separate endpoint would be a second, weaker way in.
  *
  * This module is where that decision is enforced, and it is deliberately the
- * only path to `commitWalletCustodyRegistration` from a route. Two checks, both
+ * only path to `reserveWalletCustodyRegistration` from a route. Two checks, both
  * cheap and both load-bearing:
  *
  * 1. **The payload names the wallet the registration named.** A ceremony
@@ -58,9 +59,17 @@ type WalletCustodyRegistrationAdmissionInput = {
   readonly store: CloudflareD1WalletCustodyCommitStore;
 };
 
+/**
+ * An admitted commit with its recovery-code routes claimed, or the outcome
+ * that ends the admission with nothing claimed or written.
+ */
+export type WalletCustodyRegistrationAdmission =
+  | WalletCustodyRegistrationReserved
+  | Extract<WalletCustodyRegistrationAdmissionOutcome, { kind: 'rejected' | 'no_custody_records' }>;
+
 export async function admitWalletCustodyRegistrationCommit(
   input: WalletCustodyRegistrationAdmissionInput,
-): Promise<WalletCustodyRegistrationAdmissionOutcome> {
+): Promise<WalletCustodyRegistrationAdmission> {
   const payloadWalletId = String(input.payload.walletId ?? '').trim();
   if (!payloadWalletId) {
     return { kind: 'rejected', reason: 'wallet custody commit payload names no wallet' };
@@ -86,7 +95,7 @@ export async function admitWalletCustodyRegistrationCommit(
     return { kind: 'no_custody_records', keyManifestDigestB64u: digest };
   }
 
-  return await commitWalletCustodyRegistration({
+  return await reserveWalletCustodyRegistration({
     payload: input.payload,
     factor: input.verifiedFactor,
     nowMs: input.nowMs,

@@ -235,7 +235,10 @@ import type {
   RouterAbEd25519YaoVerifiedWalletUnlockRequestV1,
   RouterAbEd25519YaoVerifiedWalletUnlockResponseV1,
 } from '../../../domains/ed25519Yao/session/routerAbEd25519YaoWalletSession';
-import { commitRegistrationCustody } from '../../../domains/passkeyCustody/registrationCustodyOutcome';
+import {
+  reserveRegistrationCustody,
+  type RegistrationCustodyCommit,
+} from '../../../domains/passkeyCustody/registrationCustodyOutcome';
 import type { TenantRootCustodyLineageResolverV1 } from '../../../domains/tenantRoot/tenantRootCustodyLineage';
 import {
   resolveTenantRootIdentityV1,
@@ -5477,6 +5480,38 @@ export class CloudflareD1WalletRegistrationService {
         null;
       let yaoDecision: RouterAbEd25519YaoLifecycleDecisionV1 | null = null;
       let commitWallet: Awaited<ReturnType<D1WalletRegistrationCommitStore['reserveAuthority']>>;
+      /* The custody commit claims its recovery-code routes here, beside this
+         leg's other remote effects. The claim needs no local record. It never
+         rejects, because custody cannot fail a registration. */
+      const reserveCustody = () =>
+        recordRegistrationPromiseTiming({
+          sink: serverTiming,
+          name: 'near_finalize_custody_reserve',
+          startedAtMs: Date.now(),
+          promise: reserveRegistrationCustody({
+            payload: walletCustodyCommitPayload,
+            verifiedWalletId: ceremony.intent.walletId,
+            /* The verified authority, never the payload: the factor is what the
+               envelope's AAD binds the seed to, so a payload-supplied one could
+               address this wallet's custody to a credential its owner does not
+               control. */
+            verifiedAuthority: walletAuthAuthority,
+            /* Email OTP names the enrollment, which is not on the authority — it
+               is on the material this same leg just finalized. */
+            ...(emailOtpEnrollment.persistence
+              ? {
+                  verifiedEmailOtpEnrollment: {
+                    enrollmentId: emailOtpEnrollment.persistence.enrollment.enrollmentId,
+                    enrollmentSealKeyVersion:
+                      emailOtpEnrollment.persistence.enrollment.enrollmentSealKeyVersion,
+                  },
+                }
+              : {}),
+            nowMs: now,
+            store: this.walletCustodyCommitStore,
+          }),
+        });
+      let commitCustody: RegistrationCustodyCommit;
       if (finalizeNearEd25519) {
         const yaoRuntime = this.getEd25519YaoProductRegistration();
         if (!yaoRuntime) {
@@ -5517,9 +5552,9 @@ export class CloudflareD1WalletRegistrationService {
             message: 'Ed25519 activation reference does not belong to this registration ceremony',
           };
         }
-        // Both effects are exact-retryable. Settle both before returning or
-        // publishing local state, including when the directory claim fails.
-        const [activationConsumption, authorityReservation] = await Promise.allSettled([
+        // These effects are exact-retryable. Settle all before returning or
+        // publishing local state, including when a directory claim fails.
+        const [activationConsumption, authorityReservation, custody] = await Promise.allSettled([
           recordRegistrationPromiseTiming({
             sink: serverTiming,
             name: 'near_finalize_router_consume',
@@ -5533,11 +5568,14 @@ export class CloudflareD1WalletRegistrationService {
             }),
           }),
           this.walletRegistrationCommitStore.reserveAuthority(ceremonyAuthority),
+          reserveCustody(),
         ]);
         if (activationConsumption.status === 'rejected') throw activationConsumption.reason;
         if (authorityReservation.status === 'rejected') throw authorityReservation.reason;
+        if (custody.status === 'rejected') throw custody.reason;
         const consumed = activationConsumption.value;
         commitWallet = authorityReservation.value;
+        commitCustody = custody.value;
         if (!consumed.ok) {
           return { ok: false, code: consumed.code, message: consumed.message };
         }
@@ -5690,7 +5728,14 @@ export class CloudflareD1WalletRegistrationService {
           now,
         });
       } else {
-        commitWallet = await this.walletRegistrationCommitStore.reserveAuthority(ceremonyAuthority);
+        const [authorityReservation, custody] = await Promise.allSettled([
+          this.walletRegistrationCommitStore.reserveAuthority(ceremonyAuthority),
+          reserveCustody(),
+        ]);
+        if (authorityReservation.status === 'rejected') throw authorityReservation.reason;
+        if (custody.status === 'rejected') throw custody.reason;
+        commitWallet = authorityReservation.value;
+        commitCustody = custody.value;
       }
 
       /* The registration becomes visible with its lifecycle's decision, in
@@ -5985,28 +6030,7 @@ export class CloudflareD1WalletRegistrationService {
           sink: serverTiming,
           name: 'near_finalize_custody_commit',
           startedAtMs: Date.now(),
-          promise: commitRegistrationCustody({
-            payload: walletCustodyCommitPayload,
-            verifiedWalletId: ceremony.intent.walletId,
-            /* The verified authority, never the payload: the factor is what the
-               envelope's AAD binds the seed to, so a payload-supplied one could
-               address this wallet's custody to a credential its owner does not
-               control. */
-            verifiedAuthority: walletAuthAuthority,
-            /* Email OTP names the enrollment, which is not on the authority — it
-               is on the material this same leg just finalized. */
-            ...(emailOtpEnrollment.persistence
-              ? {
-                  verifiedEmailOtpEnrollment: {
-                    enrollmentId: emailOtpEnrollment.persistence.enrollment.enrollmentId,
-                    enrollmentSealKeyVersion:
-                      emailOtpEnrollment.persistence.enrollment.enrollmentSealKeyVersion,
-                  },
-                }
-              : {}),
-            nowMs: now,
-            store: this.walletCustodyCommitStore,
-          }),
+          promise: commitCustody(),
         }),
       ]);
       if (capabilityInstallation.status === 'rejected') throw capabilityInstallation.reason;

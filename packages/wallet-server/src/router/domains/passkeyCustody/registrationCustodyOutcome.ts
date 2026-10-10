@@ -13,12 +13,13 @@ import {
 import type { CloudflareD1WalletCustodyCommitStore } from '../../cloudflare/d1/passkeyCustody/d1WalletCustodyCommitStore';
 
 /**
- * The whole custody side-effect of one registration leg, in one call: resolve
- * the factor from the authority the leg verified, then admit the payload
- * against the wallet the leg registered.
+ * The whole custody side-effect of one registration leg, in two steps: resolve
+ * the factor from the authority the leg verified and admit the payload against
+ * the wallet the leg registers, which claims the recovery-code routes; then
+ * store the records once that wallet is committed.
  *
  * **Activation never fails because of custody.** The wallet's registration is
- * already committed by the time this runs, and the seed exists only in the
+ * already committed by the time the records are stored, and the seed exists only in the
  * client's worker — so the client is the one party that can retry, re-enter as
  * a join, or abandon the run. Failing activation here would leave the server
  * registered, the response an error, and the client with no instruction; the
@@ -34,7 +35,11 @@ import type { CloudflareD1WalletCustodyCommitStore } from '../../cloudflare/d1/p
  */
 type RegistrationCustodyOutcome = WalletCustodyRegistrationOutcome;
 
-export async function commitRegistrationCustody(input: {
+/** Stores the admitted custody records. It reports every failure and never throws. */
+export type RegistrationCustodyCommit = () => Promise<RegistrationCustodyOutcome>;
+
+/** Admits the custody payload and claims its routes. It never throws either. */
+export async function reserveRegistrationCustody(input: {
   /** Absent when the client did not run a custody ceremony for this leg. */
   readonly payload?: WalletCustodyCeremonyCommitPayload;
   readonly verifiedWalletId: WalletId;
@@ -43,39 +48,54 @@ export async function commitRegistrationCustody(input: {
   readonly verifiedEmailOtpEnrollment?: VerifiedEmailOtpEnrollmentFacts;
   readonly nowMs: number;
   readonly store: CloudflareD1WalletCustodyCommitStore;
-}): Promise<RegistrationCustodyOutcome> {
-  if (!input.payload) return { status: 'not_requested' };
-
-  const factor = verifiedCustodyFactorFromAuthority({
-    authority: input.verifiedAuthority,
-    ...(input.verifiedEmailOtpEnrollment
-      ? { emailOtpEnrollment: input.verifiedEmailOtpEnrollment }
-      : {}),
-  });
-  if (!factor.ok) return { status: 'rejected', reason: factor.reason };
+}): Promise<RegistrationCustodyCommit> {
+  const payload = input.payload;
+  if (!payload) return settled({ status: 'not_requested' });
 
   try {
-    return toOutcome(
-      await admitWalletCustodyRegistrationCommit({
-        payload: input.payload,
-        verifiedWalletId: input.verifiedWalletId,
-        verifiedFactor: factor.factor,
-        nowMs: input.nowMs,
-        store: input.store,
-      }),
-    );
-  } catch (error: unknown) {
-    /* The store itself failed — D1 refused the write, or the batch threw. The
-       payload parser already turns malformed input into `rejected`, so
-       reaching here means infrastructure, and the policy above is exactly what
-       must hold when infrastructure fails: the registration this leg already
-       committed must not be reported as an error because custody could not be
-       stored. The client is told, and retries. */
-    return {
-      status: 'rejected',
-      reason: error instanceof Error ? error.message : 'wallet custody commit failed',
+    const factor = verifiedCustodyFactorFromAuthority({
+      authority: input.verifiedAuthority,
+      ...(input.verifiedEmailOtpEnrollment
+        ? { emailOtpEnrollment: input.verifiedEmailOtpEnrollment }
+        : {}),
+    });
+    if (!factor.ok) return settled({ status: 'rejected', reason: factor.reason });
+
+    const admitted = await admitWalletCustodyRegistrationCommit({
+      payload,
+      verifiedWalletId: input.verifiedWalletId,
+      verifiedFactor: factor.factor,
+      nowMs: input.nowMs,
+      store: input.store,
+    });
+    if (admitted.kind !== 'reserved') return settled(toOutcome(admitted));
+    return async () => {
+      try {
+        return toOutcome(await admitted.commit());
+      } catch (error: unknown) {
+        return storeFailure(error);
+      }
     };
+  } catch (error: unknown) {
+    return settled(storeFailure(error));
   }
+}
+
+function settled(outcome: RegistrationCustodyOutcome): RegistrationCustodyCommit {
+  return () => Promise.resolve(outcome);
+}
+
+/* The store itself failed — the directory refused the claim, D1 refused the
+   write, or the batch threw. The payload parser already turns malformed input
+   into `rejected`, so reaching here means infrastructure, and the policy above
+   is exactly what must hold when infrastructure fails: the registration this
+   leg commits must not be reported as an error because custody could not be
+   stored. The client is told, and retries. */
+function storeFailure(error: unknown): RegistrationCustodyOutcome {
+  return {
+    status: 'rejected',
+    reason: error instanceof Error ? error.message : 'wallet custody commit failed',
+  };
 }
 
 function toOutcome(
