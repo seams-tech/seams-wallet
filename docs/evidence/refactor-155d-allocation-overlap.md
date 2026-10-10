@@ -2,7 +2,8 @@
 
 Setup now starts address initialization beside the ceremony read. Both operations
 start after the authenticated reservation fixes the wallet and ownership generation.
-Hosted latency for this change is unmeasured.
+The [later hosted comparison](refactor-155d-allocation-hosted.md) measures this
+change with the other registration batches. Its separate latency saving remains unknown.
 
 ## Finding
 
@@ -69,9 +70,9 @@ The server build and bloat check pass.
 hashes, commands, and verification artifacts. Functional checks do not establish
 a new registration latency benchmark.
 
-## Next measurement
+## Hosted follow-up
 
-Freeze matching SDK, Gateway, Console, Runtime, and custody versions. Compare the
-combined registration improvements against the previous hosted candidate, then
-repeat that baseline. Record registration-only and first-signature times separately.
-Keep WebAuthn interaction, D1 counts, and allocation spans separate in the results.
+The controlled comparison used frozen matching versions and repeated its baseline.
+It verified fewer calls and all nine signature proofs. The overall latency gain
+remains unproven. The evidence separates registration, first signing, user
+interaction, D1 counts, and service spans.

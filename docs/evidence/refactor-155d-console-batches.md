@@ -1,7 +1,7 @@
 # Console registration batches — 10 October 2026
 
-Registration now uses fewer Console D1 round trips. Hosted latency for this
-change is unmeasured.
+Registration now uses fewer Console D1 round trips. The [later hosted comparison](refactor-155d-allocation-hosted.md)
+measures these batches with the other registration changes.
 
 ## Implementation
 
@@ -57,7 +57,7 @@ samples. The controlled 6 October local run measured **834.6 ms median** across
 [Local benchmark](../optimization-12-NEAR-only-20261006.md) defines that scope.
 Neither number measures this change.
 
-Next, inspect the Gateway-to-Router allocation span, previously **19–538 ms**.
-Then freeze matching versions and repeat registration-only and first-signature
-measurements. Report WebAuthn interaction separately. Do not add overlapping
-stage savings or use these functional tests as a latency benchmark.
+The subsequent hosted comparison verifies two fewer Console D1 calls from
+these batches. It combines them with home persistence, identity reuse, and
+allocation overlap. It does not isolate their latency saving or establish an
+overall latency improvement. Its evidence preserves both baseline groups.

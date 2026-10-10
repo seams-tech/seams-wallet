@@ -2,18 +2,15 @@
 
 Status: **in progress; the 3–4 s target remains unmet.** Stored unique IDs,
 setup-time startup, and the registration status seed are implemented and measured.
-The stored-ID comparison measured **5.488 s** without user interaction. A later
-Gateway comparison measured **6.001 s**, with baseline and repeated baseline
-medians of **6.132 s** and **6.616 s**. These are separate experiments.
-The latest hosted candidate combines Console setup, authorization reads, and activation
-with journal completion. It measures **5.574 s** without interaction, with
-baseline and repeated baseline medians of **9.679 s** and **5.845 s**. All 132
-public lifecycle cases pass. Hosted checks and all nine signature proofs pass.
-Registration alone measured **4.847 s** excluding WebAuthn interaction, or
-**5.587 s** including it, in the same three candidate samples. Ceremony identity
-reuse and setup-time home persistence are newer local changes. Their hosted
-latency is unmeasured. Staging restoration is independently verified. Preparation during confirmation, the remaining
-batch targets, and the role-database decision remain open. See the [implementation record](#implementation-record).
+The latest hosted comparison measures **4.354 s** for registration alone and
+**5.253 s** with the first signature, excluding user interaction. Registration
+baseline medians were **5.184 s** before and **4.227 s** after the candidate.
+This run does not establish an overall latency improvement. It verifies one fewer
+Console request and six fewer completed D1 calls per registration. All nine
+signature proofs and 18 comparison checks pass. The [hosted evidence](evidence/refactor-155d-allocation-hosted.md)
+records ranges, counts, frozen versions, limitations, and restoration status.
+The remaining batch targets, preparation during confirmation, and the staging
+role-database cutover remain open. See the [implementation record](#implementation-record).
 Plan dated October 9, 2026; record updated October 10.
 
 ## Objective and relationship to R155B and R155C
@@ -1640,14 +1637,10 @@ Decided on October 10:
 
 Open decisions and work:
 
-1. Finish the combined Phase 2 comparison in private
-   `.artifacts/r155d-completion-hosted`. It keeps the SDK and custody versions
-   fixed, adds the same Console D1 instrumentation to every arm, and compares
-   three new wallets per arm. The older
-   `.artifacts/r155d-hosted/compare/launch-trace.sh` predates stored addresses
-   and must not measure this implementation.
-2. Move the staging role databases. That creates three databases and moves
-   custody data.
+1. Complete the separately tracked staging role-database cutover. The Phase 4
+   record names the replacements and outstanding deployment-path decision.
+2. Freeze new baseline versions after that cutover. The completion and allocation
+   comparisons are finished; their saved custody versions retain the old database bindings.
 
 Remaining scope, with the reason:
 
@@ -2040,8 +2033,8 @@ that exact persisted identity and rejects a conflicting operation identity. This
 removes the preliminary identity SELECT without changing the later transactional
 checks for existing authorities, auth methods, or mixed-signer extension.
 
-This change is newer than the hosted candidate above. Its hosted latency and D1
-count have not been measured. The server build and bloat check pass. Targeted
+The [later comparison](evidence/refactor-155d-allocation-hosted.md) measures this
+change with the subsequent batches. The server build and bloat check pass. Targeted
 NEAR replay, retirement, mixed registration, concurrent signer admission, and
 Email OTP lost-finalization checks all pass: four existing browser scenarios.
 [The local evidence](evidence/refactor-155d-ceremony-identity.json) records the
@@ -2056,7 +2049,7 @@ with both ceremony records in one D1 batch. Address initialization still runs
 beside it. This adds no setup round trip and removes the continuation's Console
 lookup and separate D1 insertion batch. Missing identities fail locally.
 Retries preserve an advanced ceremony and cannot reopen a retired home.
-No schema migration is required. Staging remains unchanged.
+No schema migration is required. The later comparison measures this change.
 
 The assembled setup check covers atomic rollback, lost allocation replies,
 local admission, and cancellation while Console is unavailable. Session issuance,
@@ -2068,4 +2061,4 @@ derived registration-only timings, and the remaining measured costs.
 Console now batches route publication and registration completion internally,
 preserving the early route claim. [Evidence](evidence/refactor-155d-console-batches.md) records the changes and checks.
 Address initialization now overlaps the ceremony read. [Evidence](evidence/refactor-155d-allocation-overlap.md) records the diagnosis and verification.
-Next: repeat the controlled comparison. New hosted savings remain unmeasured.
+The [controlled comparison](evidence/refactor-155d-allocation-hosted.md) verifies fewer calls; overall latency improvement remains unproven.
