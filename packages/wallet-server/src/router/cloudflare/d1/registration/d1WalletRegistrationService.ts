@@ -4437,31 +4437,48 @@ export class CloudflareD1WalletRegistrationService {
           authority,
           signingWorkerId: runtime.signingWorkerId,
         });
-    const admitted = await runtime.bindAndAdmitVerifiedRegistration({
-      kind: 'verified_registration_intent',
-      ownershipGeneration: input.ownershipGeneration,
-      registrationIntentGrant: registrationIntentGrantFromString(input.registrationBearerToken),
-      intent: ceremony.intent,
-      admissionRequest,
-      expiresAtMs: ceremony.expiresAtMs,
+    const verifiedAuthority = authority;
+    const branchKey = input.branch.branchKey;
+    const ceremonyStore = this.getRegistrationCeremonyIntentStore();
+    const authorizedCeremony = (
+      bound: typeof admissionRequest,
+    ): StoredWalletRegistrationCeremony => ({
+      ...ceremony,
+      authorityState: { kind: 'verified', authority: verifiedAuthority },
+      signerState: {
+        kind: 'signer_set_registration',
+        branches: [
+          buildStoredWalletRegistrationNearEd25519YaoAuthorizedBranch({
+            branchKey,
+            admissionRequest: bound,
+          }),
+        ],
+      },
     });
+    const admitted = await runtime.bindAndAdmitVerifiedRegistration(
+      {
+        kind: 'verified_registration_intent',
+        ownershipGeneration: input.ownershipGeneration,
+        registrationIntentGrant: registrationIntentGrantFromString(input.registrationBearerToken),
+        intent: ceremony.intent,
+        admissionRequest,
+        expiresAtMs: ceremony.expiresAtMs,
+      },
+      // The verified authority and its branch commit with a new admission.
+      stored
+        ? null
+        : (bound) =>
+            ceremonyStore.prepareEcdsaClaimCommit({
+              expected: input.snapshot,
+              next: authorizedCeremony(bound),
+            }),
+    );
     if (!admitted.ok) return { ok: false, code: admitted.code, message: admitted.message };
-    if (!stored) {
-      await this.getRegistrationCeremonyIntentStore().commitEcdsaClaim({
+    // An admission that already existed carried no write of this request.
+    if (!stored && admitted.companionWrite === 'not_committed') {
+      await ceremonyStore.commitEcdsaClaim({
         expected: input.snapshot,
-        next: {
-          ...ceremony,
-          authorityState: { kind: 'verified', authority },
-          signerState: {
-            kind: 'signer_set_registration',
-            branches: [
-              buildStoredWalletRegistrationNearEd25519YaoAuthorizedBranch({
-                branchKey: input.branch.branchKey,
-                admissionRequest: admitted.admissionRequest,
-              }),
-            ],
-          },
-        },
+        next: authorizedCeremony(admitted.admissionRequest),
       });
     }
     return {

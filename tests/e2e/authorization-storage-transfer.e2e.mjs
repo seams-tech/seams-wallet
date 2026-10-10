@@ -24,6 +24,7 @@ import {
   verifyPendingSessionOperationFreeze,
 } from './authorization-transfer-command.scenario.mjs';
 import { verifyCeremonyWriteFence } from './ceremony-write-fence.scenario.mjs';
+import { verifyRegistrationAdmissionCompanion } from './registration-admission-companion.scenario.mjs';
 import assert from 'node:assert/strict';
 import { verifyAuthorizationHistoryCopy } from './authorization-transfer-restore.scenario.mjs';
 import {
@@ -148,6 +149,7 @@ const bundle = await build({
       export { parseTenantId } from './packages/shared-ts/src/authorization/capabilityKinds';
       export { createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1 } from './packages/wallet-server/src/router/cloudflare/d1/ed25519Yao/d1Ed25519YaoProductRegistrationPartitionedStateStore';
       export { buildNearRegistrationAuthorityFixture, buildNearRecoveryAdmissionFixture } from './tests/unit/helpers/nearRegistration.fixtures';
+      export { D1RegistrationCeremonyRecordStore } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1RegistrationCeremonyRecordStore';
     `,
   },
 });
@@ -342,6 +344,11 @@ try {
     issueDeviceSession,
   });
   const ceremonySettlement = await verifyPendingCeremonyFreeze({ api, database: source, scope });
+  const admissionCompanion = await verifyRegistrationAdmissionCompanion({
+    api,
+    database: source,
+    scope,
+  });
   const ceremonyWriteFence = await verifyCeremonyWriteFence({
     api,
     source,
@@ -558,6 +565,7 @@ try {
       operationHistoryAfterCleanup,
       authorizationCleanup,
       ceremonyWriteFence,
+      admissionCompanion,
       ceremonySettlement,
       sessionOperationSettlement,
       authorizationSnapshot: snapshot.evidence,

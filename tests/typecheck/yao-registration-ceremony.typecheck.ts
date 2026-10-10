@@ -20,10 +20,10 @@ const literal: RouterAbEd25519YaoRegistrationCeremonySnapshotV1['state'] = {
 
 const broadened = { ...snapshot, state: { ...snapshot.state, ...shared } };
 // @ts-expect-error Broad spreads cannot make shared state writable through registration.
-store.commitRegistration(broadened);
+store.commitRegistration(broadened, null);
 
 const incomplete = { lifecycleId: snapshot.lifecycleId, state: snapshot.state };
 // @ts-expect-error A registration commit needs its original version and retained ceremony fields.
-store.commitRegistration(incomplete);
+store.commitRegistration(incomplete, null);
 
 void literal;

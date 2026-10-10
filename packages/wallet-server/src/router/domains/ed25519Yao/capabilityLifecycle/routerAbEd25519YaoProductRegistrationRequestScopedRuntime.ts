@@ -21,6 +21,7 @@ import {
 } from '../recovery/routerAbEd25519YaoRecovery';
 import {
   routerAbEd25519YaoPersistedCapabilityMatchesLookupV1,
+  type RouterAbEd25519YaoAdmissionCompanionWriteV1,
   type RouterAbEd25519YaoProductRegistrationRuntimeV1,
   type RouterAbEd25519YaoProductRegistrationStateV1,
   type RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1,
@@ -102,7 +103,7 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
         loaded.state.authorization,
       ).bindVerifiedIntent(input);
       if (!result.ok) return result;
-      const committed = await this.input.store.commitRegistration(loaded);
+      const committed = await this.input.store.commitRegistration(loaded, null);
       if (committed.kind !== 'stored') continue;
       return result;
     }
@@ -111,9 +112,11 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
 
   async bindAndAdmitVerifiedRegistration(
     input: RouterAbEd25519YaoVerifiedActivationIntentV1,
+    companionWrite: RouterAbEd25519YaoAdmissionCompanionWriteV1 | null,
   ): Promise<RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1> {
     return await bindAndAdmitVerifiedRegistration({
       input,
+      companionWrite,
       store: this.input.store,
       backend: this.input.registrationBackend,
     });
@@ -241,10 +244,12 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
 /**
  * Binds a verified intent and admits its registration. The tenant root the
  * registration dispatches to is resolved once, for a fresh admission, and
- * pinned with the admission in the ceremony record.
+ * pinned with the admission in the ceremony record. A companion write commits
+ * in that record's batch.
  */
 async function bindAndAdmitVerifiedRegistration(input: {
   readonly input: RouterAbEd25519YaoVerifiedActivationIntentV1;
+  readonly companionWrite: RouterAbEd25519YaoAdmissionCompanionWriteV1 | null;
   readonly store: RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1;
   readonly backend: RouterAbEd25519YaoPinnedRegistrationBackend;
 }): Promise<RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1> {
@@ -269,6 +274,7 @@ async function bindAndAdmitVerifiedRegistration(input: {
         status: 200,
         admissionRequest: bound.admissionRequest,
         value: preparation.value,
+        companionWrite: 'not_committed',
       };
     }
     if (preparation.kind === 'failed') return preparation.failure;
@@ -311,13 +317,17 @@ async function bindAndAdmitVerifiedRegistration(input: {
       dispatchRoot,
     );
 
-    const committed = await input.store.commitRegistration(loaded);
+    const committed = await input.store.commitRegistration(
+      loaded,
+      input.companionWrite?.(bound.admissionRequest) ?? null,
+    );
     if (committed.kind === 'stored') {
       return {
         ok: true,
         status: 200,
         admissionRequest: bound.admissionRequest,
         value: admitted.value,
+        companionWrite: input.companionWrite ? 'committed' : 'not_committed',
       };
     }
   }

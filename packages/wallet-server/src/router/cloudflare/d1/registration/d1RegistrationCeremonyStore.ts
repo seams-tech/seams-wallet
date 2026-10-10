@@ -59,6 +59,11 @@ type D1WalletRegistrationEcdsaCeremonyClaimV1 = {
   readonly version: number;
 };
 
+type D1WalletRegistrationCeremonyCommitV1 = {
+  readonly expected: D1WalletRegistrationEcdsaCeremonyClaimV1;
+  readonly next: StoredWalletRegistrationCeremony;
+};
+
 export class CloudflareD1RegistrationCeremonyIntentStore {
   private readonly storage: D1RegistrationCeremonyRecordStore;
 
@@ -189,20 +194,15 @@ export class CloudflareD1RegistrationCeremonyIntentStore {
     });
   }
 
-  async commitEcdsaClaim(input: {
-    readonly expected: D1WalletRegistrationEcdsaCeremonyClaimV1;
-    readonly next: StoredWalletRegistrationCeremony;
-  }): Promise<void> {
-    if (input.expected.ceremony.registrationCeremonyId !== input.next.registrationCeremonyId) {
-      throw new Error('ECDSA registration claim commit cannot change its ceremony identity');
-    }
-    await this.storage.updateExpectedVersion({
-      scope: 'ceremony',
-      id: input.next.registrationCeremonyId,
-      expectedVersion: input.expected.version,
-      next: encodeRecord(input.next),
-      expiresAtMs: input.next.expiresAtMs,
-    });
+  async commitEcdsaClaim(input: D1WalletRegistrationCeremonyCommitV1): Promise<void> {
+    await this.storage.updateExpectedVersion(ceremonyCommitUpdate(input));
+  }
+
+  /** `commitEcdsaClaim` as statements for a batch that another store owns on this database. */
+  prepareEcdsaClaimCommit(input: D1WalletRegistrationCeremonyCommitV1): {
+    readonly statements: readonly D1PreparedStatementLike[];
+  } {
+    return { statements: this.storage.prepareExpectedVersionUpdate(ceremonyCommitUpdate(input)) };
   }
 
   async deleteCeremony(registrationCeremonyId: string): Promise<boolean> {
@@ -516,6 +516,19 @@ function addSignerFinalizeReplayKey(input: {
 function encodeRecord(value: unknown): Record<string, unknown> {
   if (!isPlainObject(value)) throw new Error('Registration ceremony record must be an object');
   return value;
+}
+
+function ceremonyCommitUpdate(input: D1WalletRegistrationCeremonyCommitV1) {
+  if (input.expected.ceremony.registrationCeremonyId !== input.next.registrationCeremonyId) {
+    throw new Error('ECDSA registration claim commit cannot change its ceremony identity');
+  }
+  return {
+    scope: 'ceremony',
+    id: input.next.registrationCeremonyId,
+    expectedVersion: input.expected.version,
+    next: encodeRecord(input.next),
+    expiresAtMs: input.next.expiresAtMs,
+  };
 }
 
 /** The facts a reservation fixes for its setup snapshot and its ceremony. */

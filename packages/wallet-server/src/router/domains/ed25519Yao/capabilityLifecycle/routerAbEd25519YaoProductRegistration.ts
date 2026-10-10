@@ -74,6 +74,7 @@ import {
 } from '../export/routerAbEd25519YaoExport';
 import { isPlainObject } from '@shared/utils/validation';
 import { parseRouterAbEd25519YaoTenantRootWireV1 } from '../routerAbEd25519YaoGatewayEnvelope';
+import type { RouterAbEd25519YaoPreparedWriteV1 } from './routerAbEd25519YaoProductRegistrationPartitionedStateStore';
 import { DEFAULT_WALLET_SESSION_REMAINING_USES } from '@shared/threshold/sessionPolicy';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 
@@ -129,6 +130,7 @@ export type RouterAbEd25519YaoProductRegistrationRuntimeV1 =
       readonly signingWorkerId: string;
       bindAndAdmitVerifiedRegistration(
         input: RouterAbEd25519YaoVerifiedActivationIntentV1,
+        companionWrite: RouterAbEd25519YaoAdmissionCompanionWriteV1 | null,
       ): Promise<RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1>;
       bindVerifiedIntent(
         input: RouterAbEd25519YaoVerifiedActivationIntentV1,
@@ -137,6 +139,14 @@ export type RouterAbEd25519YaoProductRegistrationRuntimeV1 =
         request: RouterAbEd25519YaoActivationConsumptionRequestV1,
       ): Promise<RouterAbEd25519YaoActivationConsumptionResultV1>;
     };
+
+/**
+ * Prepares another store's write for the admission request that was bound.
+ * It commits in the batch of a new admission, or it does not run.
+ */
+export type RouterAbEd25519YaoAdmissionCompanionWriteV1 = (
+  admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
+) => RouterAbEd25519YaoPreparedWriteV1;
 
 export type RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1 =
   | Extract<RouterAbEd25519YaoRegistrationIntentBindingResult, { readonly ok: false }>
@@ -147,6 +157,11 @@ export type RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1 =
       readonly status: 200;
       readonly admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1;
       readonly value: RouterAbEd25519YaoActivationAdmissionReceiptV1<'registration'>;
+      /**
+       * `not_committed` when the admission already existed, or when this
+       * runtime has no batch to share: the caller then writes for itself.
+       */
+      readonly companionWrite: 'committed' | 'not_committed';
     };
 
 export type RouterAbEd25519YaoProductRegistrationCompositionV1 = {
@@ -537,6 +552,8 @@ class RouterAbEd25519YaoProductRegistrationRuntime implements RouterAbEd25519Yao
       status: 200,
       admissionRequest: bound.admissionRequest,
       value: admitted.value,
+      // This runtime keeps its state in memory and shares no batch.
+      companionWrite: 'not_committed',
     };
   }
 

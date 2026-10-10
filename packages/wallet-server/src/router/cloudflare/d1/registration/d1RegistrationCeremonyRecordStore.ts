@@ -48,6 +48,14 @@ type D1RegistrationCeremonyRecordMutation = {
   readonly expiresAtMs: number;
 };
 
+type D1RegistrationCeremonyVersionedUpdate = {
+  readonly scope: string;
+  readonly id: string;
+  readonly expectedVersion: number;
+  readonly next: Record<string, unknown>;
+  readonly expiresAtMs: number;
+};
+
 type D1RegistrationCeremonyAtomicBranchClaim = {
   readonly value: Record<string, unknown>;
   readonly version: number;
@@ -276,19 +284,34 @@ export class D1RegistrationCeremonyRecordStore {
     };
   }
 
-  async updateExpectedVersion(input: {
-    readonly scope: string;
-    readonly id: string;
-    readonly expectedVersion: number;
-    readonly next: Record<string, unknown>;
-    readonly expiresAtMs: number;
-  }): Promise<number> {
+  async updateExpectedVersion(input: D1RegistrationCeremonyVersionedUpdate): Promise<number> {
+    const result = await this.prepareVersionedUpdate(input).run();
+    if (changes(result) !== 1) {
+      throw conflict('Registration ceremony record changed during versioned update');
+    }
+    return input.expectedVersion + 1;
+  }
+
+  /**
+   * The update of `updateExpectedVersion` with its guard, for a batch that
+   * another store owns on this database. The guard fails that batch when the
+   * record is no longer at the expected version.
+   */
+  prepareExpectedVersionUpdate(
+    input: D1RegistrationCeremonyVersionedUpdate,
+  ): readonly D1PreparedStatementLike[] {
+    return [this.prepareVersionedUpdate(input), this.database.prepare(CAS_GUARD_SQL)];
+  }
+
+  private prepareVersionedUpdate(
+    input: D1RegistrationCeremonyVersionedUpdate,
+  ): D1PreparedStatementLike {
     const key = this.normalizeKey(input.scope, input.id);
     if (!Number.isSafeInteger(input.expectedVersion) || input.expectedVersion < 1) {
       throw new Error('Registration ceremony expected version is invalid');
     }
     const next = prepareValue(input.next, input.expiresAtMs);
-    const result = await this.database
+    return this.database
       .prepare(UPDATE_EXPECTED_VERSION_SQL)
       .bind(
         ...this.bindKey(key),
@@ -296,12 +319,7 @@ export class D1RegistrationCeremonyRecordStore {
         next.expiresAtMs,
         Date.now(),
         input.expectedVersion,
-      )
-      .run();
-    if (changes(result) !== 1) {
-      throw conflict('Registration ceremony record changed during versioned update');
-    }
-    return input.expectedVersion + 1;
+      );
   }
 
   async take(scope: string, id: string): Promise<Record<string, unknown> | null> {

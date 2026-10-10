@@ -140,6 +140,7 @@ export interface RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1 {
   loadRegistration(lifecycleId: string): Promise<RouterAbEd25519YaoRegistrationCeremonySnapshotV1>;
   commitRegistration(
     snapshot: RouterAbEd25519YaoRegistrationCeremonySnapshotV1,
+    companionWrite: RouterAbEd25519YaoPreparedWriteV1 | null,
   ): Promise<RouterAbEd25519YaoProductRegistrationPartitionBatchResultV1>;
   load(lifecycleId: string): Promise<RouterAbEd25519YaoProductRegistrationPartitionedStateV1>;
   commit(
@@ -406,6 +407,7 @@ class RouterAbEd25519YaoProductRegistrationPartitionedStateStore implements Rout
 
   async commitRegistration(
     snapshot: RouterAbEd25519YaoRegistrationCeremonySnapshotV1,
+    companionWrite: RouterAbEd25519YaoPreparedWriteV1 | null,
   ): Promise<RouterAbEd25519YaoProductRegistrationPartitionBatchResultV1> {
     return await this.putMany(
       [
@@ -426,7 +428,7 @@ class RouterAbEd25519YaoProductRegistrationPartitionedStateStore implements Rout
           },
         },
       ],
-      null,
+      companionWrite,
     );
   }
 
