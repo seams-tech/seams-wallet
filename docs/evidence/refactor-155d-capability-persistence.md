@@ -138,6 +138,14 @@ Router reply. The second recovery admission returns `409 admission_failed` with
 parent `06696b276b5e8774bcf1fdf7421ce610e9523d14`, with its Gateway rebuilt from frozen
 sources and the same SDK and custody binaries. This is an existing production
 recovery failure under fault injection. It remains unresolved by this storage change.
+
+Correction of October 11: the failure was not an existing one. The parent
+`06696b27` already contains `3ed898cc`, the first commit of this change.
+`3ed898cc` gave capability installation its own commit of the shared record,
+and that commit wrote the record even when nothing changed. A recovery admission
+that rehydrated a suspended capability then conflicted with its own baseline.
+Server source `941e01b3` passes the recovery contract cases. Commit `d51cfcd8`
+skips the unchanged write, and the cases pass again.
 Evidence is in `.artifacts/registration-capability-recovery-traces/` and
 `.artifacts/registration-capability-parent-recovery-traces/`.
 
@@ -152,5 +160,5 @@ changed to accommodate the test.
    Run a controlled registration comparison with these storage changes.
 2. Use the new traces to choose between remaining finalization work and peer
    admission delays. Keep setup, Yao execution, and finalization timings separate.
-3. Resolve the existing shared-state conflict on interrupted recovery before
-   release. Preserve the admitted recovery code and the replaced-activation fence.
+3. Done in `d51cfcd8`: the shared-state conflict on interrupted recovery is
+   resolved. The admitted recovery code and the replaced-activation fence are unchanged.

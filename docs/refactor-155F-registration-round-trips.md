@@ -322,18 +322,22 @@ One-request signing and early signing commitments remain separate protocol work.
   Produce a repeatable artifact. Do not add unit or source-text tests.
 - [ ] Run the relevant type fixtures and package checks. Use branch-specific
   domain states and boundary parsers. Remove obsolete APIs and compatibility paths.
-- [ ] Keep the known interrupted-recovery conflict tracked under R155D.
-  It reproduced on parent `06696b27`. Preserve that evidence and its release blocker.
-  Do not attribute it to R155F without a new comparison.
-  On October 11 three public recovery contract cases reproduced it on `f23050fc`
-  and on `edc7d5f9`: the interrupted attempt, the replaced activation and the
-  late superseded attempt. After the injected lost Router reply, the second
-  admission returns `409 admission_failed` with `Yao recovery claim conflicted
-  on shared`. The same cases passed in the full run of October 10 at 17:12.
-  The whole tree of `f2410f0a` still passes the first case. Server sources from
-  `013db600` to `f23050fc` all fail it inside the current tree, so the server
-  source alone does not locate the cause. The other 129 contract cases pass on
-  `edc7d5f9`.
+- [x] Resolve the interrupted-recovery conflict that R155D tracked. Commit
+  `3ed898cc` introduced it. Capability installation got its own commit of the
+  shared Yao record, and that commit wrote the record even when nothing changed.
+  A recovery admission resolves the capability after it loads the shared version.
+  An interrupted attempt leaves the capability suspended, so the lookup rehydrates
+  the stored capability. The rehydration changes nothing, but its write raised
+  the shared version, and the admission's claim conflicted with
+  `409 admission_failed`. Commit `d51cfcd8` skips the write for an unchanged
+  capability set that carries no companion write.
+  Three recovery contract cases fail from `3ed898cc` to `490c3d50` and pass with
+  the fix: the interrupted attempt, the replaced activation and the late
+  superseded attempt. Server source `941e01b3` passes them. All 132 contract
+  cases pass on `d51cfcd8`. The earlier parent comparison used `06696b27`, which
+  already contains `3ed898cc`. An earlier revision of this record said that the
+  server source did not locate the cause. That statement came from a cloned
+  tree that still ran the original tree's server build.
 - [ ] Freeze matching SDK, Gateway, Runtime, Console, and custody sources.
   Compare baseline, candidate, and repeated baseline on existing staging resources.
   Hold the client, signer, wallet home, custody versions, and database bindings fixed
