@@ -2054,7 +2054,7 @@ registration scenarios pass. The server build and bloat check pass.
 [Local evidence](evidence/refactor-155d-setup-home.json) records the artifacts,
 derived registration-only timings, and the remaining measured costs.
 
-Next: combine recovery-route publication with completion, then investigate
-allocation variability. The removed home call cost 92–286 ms. Route publication
-cost 163–168 ms, and allocation ranged from 19–538 ms. These overlapping costs
-are not additive savings. Hosted savings remain unmeasured for this change.
+Console now batches route publication and registration completion internally,
+preserving the early route claim. [Evidence](evidence/refactor-155d-console-batches.md) records the changes and checks.
+Next: investigate allocation variability (19–538 ms), then repeat the controlled
+comparison. New hosted savings remain unmeasured.

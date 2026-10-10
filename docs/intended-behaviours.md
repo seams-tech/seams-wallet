@@ -522,8 +522,8 @@ throughout the resize. Reduced-motion behavior remains immediate.
   in one local transaction. A conflicting ceremony or cancelled registration prevents
   this commit. The wallet remains unavailable for ordinary signing until Console
   acknowledges completion. Registration publishes the session locator and
-  completes the home in one Console request. Console atomically commits the
-  established home and its display row. The Gateway acknowledges completion before
+  completes the home in one Console request. Console atomically commits the session
+  locator, established home, and display row. The Gateway acknowledges completion before
   it enables ordinary signing or saves the completed registration receipt. It
   enables ordinary signing and saves that receipt in one local transaction, so
   neither exists without the other. A lost
