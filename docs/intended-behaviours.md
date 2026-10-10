@@ -512,12 +512,15 @@ throughout the resize. Reduced-motion behavior remains immediate.
   Both requests settle before local wallet persistence. A refused or unavailable
   credential claim prevents local persistence. Exact retries retain the original
   activation consumer and credential owner.
-- Registration finalization claims the recovery-code routes of its custody commit
-  in that interval, for either signer leg. The claim settles before local wallet
-  persistence and stores no custody record. A refused or unavailable route claim
-  does not prevent local persistence: the response reports the custody commit as
-  rejected, and the client retries it. The custody records are stored after the
-  wallet commit. An exact retry repeats the same route claim.
+- Registration finalization starts the recovery-code route claim of its custody
+  commit in that interval, for either signer leg. The claim stores no custody
+  record, and local wallet persistence does not wait for it. A refused or
+  unavailable route claim does not prevent local persistence: the response
+  reports the custody commit as rejected, and the client retries it. The custody
+  records are stored after the wallet commit and after the route claim, beside
+  the session issuance. Both settle before finalization responds. A finalization
+  that fails settles its started route claim before it responds. An exact retry
+  repeats the same route claim.
 - Registration commits its session and the matching ceremony's established decision
   in one local transaction. A conflicting ceremony or cancelled registration prevents
   this commit. The wallet remains unavailable for ordinary signing until Console
