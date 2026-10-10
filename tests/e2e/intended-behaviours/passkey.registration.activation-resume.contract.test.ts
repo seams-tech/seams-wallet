@@ -45,6 +45,8 @@ class LostActivationResponse {
   }
 
   async handle(route: Route): Promise<void> {
+    // Only the operation's POST is handled. An SDK preflight warm-up passes.
+    if (route.request().method() !== 'POST') return await route.fallback();
     try {
       await this.deliverReplay(route);
     } catch (error) {

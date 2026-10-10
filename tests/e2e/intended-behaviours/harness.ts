@@ -4660,7 +4660,7 @@ export class IntendedBehaviourHarness {
 
   private async handleIntendedYaoFaultRoute(route: Route): Promise<void> {
     const current = this.intendedYaoFaultInjection;
-    if (current.kind === 'idle') {
+    if (current.kind === 'idle' || route.request().method() !== 'POST') {
       await route.continue();
       return;
     }
@@ -8761,7 +8761,10 @@ async function releaseHeldWalletStore(): Promise<void> {
 }
 
 function isNearRegistrationExecutionResponse(response: Response): boolean {
-  return new URL(response.url()).pathname === ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1;
+  return (
+    response.request().method() === 'POST' &&
+    new URL(response.url()).pathname === ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1
+  );
 }
 
 function isNearProvisioningFinalizeResponse(response: Response): boolean {

@@ -19,6 +19,8 @@ export class NearRegistrationGate {
   }
 
   async hold(route: Route): Promise<void> {
+    // Only the operation's POST is handled. An SDK preflight warm-up passes.
+    if (route.request().method() !== 'POST') return await route.fallback();
     this.requests += 1;
     await this.released;
     await route.continue();
@@ -147,6 +149,8 @@ class NearFinalizationResponseGate {
   }
 
   async hold(route: Route): Promise<void> {
+    // Only the operation's POST is handled. An SDK preflight warm-up passes.
+    if (route.request().method() !== 'POST') return await route.fallback();
     const response = await route.fetch();
     expect(response.ok()).toBe(true);
     this.committed = true;

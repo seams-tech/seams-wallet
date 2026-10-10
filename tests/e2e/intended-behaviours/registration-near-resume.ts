@@ -18,7 +18,10 @@ class InterruptedNearRequest {
   ) {}
 
   record(request: Request): void {
-    if (new URL(request.url()).pathname === ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1) {
+    if (
+      request.method() === 'POST' &&
+      new URL(request.url()).pathname === ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1
+    ) {
       this.executeBodies.push(request.postData() ?? '');
     }
   }
@@ -28,6 +31,8 @@ class InterruptedNearRequest {
   }
 
   async reject(route: Route): Promise<void> {
+    // Only the operation's POST is interrupted. An SDK preflight warm-up passes.
+    if (route.request().method() !== 'POST') return await route.fallback();
     if (this.interruption === 'lost_response') {
       const response = await route.fetch();
       expect(response.ok()).toBe(true);
@@ -46,7 +51,7 @@ class InterruptedNearRequest {
    * gets that answer, so it must send the exact request again.
    */
   async refuseWhileExecuting(route: Route): Promise<void> {
-    if (this.refused > 0) return await route.fallback();
+    if (this.refused > 0 || route.request().method() !== 'POST') return await route.fallback();
     this.refused += 1;
     const answers = await Promise.all([route.fetch(), route.fetch()]);
     expect(answers.map(responseStatus).sort()).toEqual([200, 409]);

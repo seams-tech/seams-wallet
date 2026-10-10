@@ -44,6 +44,8 @@ class GatewayEcdsaRespondPinProbe {
   } | null = null;
 
   async handle(route: Route): Promise<void> {
+    // Only the operation's POST is handled. An SDK preflight warm-up passes.
+    if (route.request().method() !== 'POST') return await route.fallback();
     try {
       const headers = route.request().headers();
       const first = await route.fetch({
@@ -124,14 +126,10 @@ test('Gateway ECDSA respond retries its pinned root after Router reply loss', as
 });
 
 test('mixed registration exposes gateway and finalization timings', async ({ harness, page }) => {
-  const respond = page.waitForResponse((response) =>
-    new URL(response.url()).pathname.endsWith('/wallets/register/respond'),
-  );
-  const activate = page.waitForResponse((response) =>
-    new URL(response.url()).pathname.endsWith('/wallets/register/activate'),
-  );
-  const nearProvisioning = page.waitForResponse((response) =>
-    new URL(response.url()).pathname.endsWith('/wallets/register/near-provisioning'),
+  const respond = page.waitForResponse(isRegistrationPost.bind(undefined, '/wallets/register/respond'));
+  const activate = page.waitForResponse(isRegistrationPost.bind(undefined, '/wallets/register/activate'));
+  const nearProvisioning = page.waitForResponse(
+    isRegistrationPost.bind(undefined, '/wallets/register/near-provisioning'),
   );
 
   await harness.registerPasskeyWallet();
@@ -198,10 +196,10 @@ test('mixed registration starts one NEAR admission while ECDSA activate is in fl
     undefined,
     nearRequests,
   );
-  const nearAdmission = page.waitForRequest((request) =>
-    new URL(request.url()).pathname.endsWith(
-      ROUTER_AB_ED25519_YAO_REGISTRATION_ADMISSION_PATH_V1,
-    ),
+  const nearAdmission = page.waitForRequest(
+    (request) =>
+      request.method() === 'POST' &&
+      new URL(request.url()).pathname.endsWith(ROUTER_AB_ED25519_YAO_REGISTRATION_ADMISSION_PATH_V1),
   );
   context.on('request', collectNearRequests);
   await context.route(activatePath, holdActivate);
@@ -226,7 +224,13 @@ type NearRegistrationRequests = {
   admission: Request[];
 };
 
+/** The operation's POST response of a registration route, not an SDK preflight warm-up. */
+function isRegistrationPost(path: string, response: Response): boolean {
+  return response.request().method() === 'POST' && new URL(response.url()).pathname.endsWith(path);
+}
+
 function collectNearRegistrationRequests(requests: NearRegistrationRequests, request: Request): void {
+  if (request.method() !== 'POST') return;
   const path = new URL(request.url()).pathname;
   if (path.endsWith('/wallets/register/near-admission')) {
     requests.authorization.push(request);
@@ -536,6 +540,8 @@ class RegistrationPresignGate {
   }
 
   async hold(route: Route): Promise<void> {
+    // Only the operation's POST is handled. An SDK preflight warm-up passes.
+    if (route.request().method() !== 'POST') return await route.fallback();
     this.requests += 1;
     await this.released;
     await route.continue();
