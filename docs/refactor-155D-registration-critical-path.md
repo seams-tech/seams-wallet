@@ -1575,3 +1575,18 @@ consume the commitments. Cancellation, expiry, relocation, revocation and compet
 signatures must never permit nonce reuse. This requires protocol design, Rust
 vectors and formal verification before implementation. It is separate from moving
 the existing prepare request into the confirmation interval.
+
+### Fresh admission skips the absent-record read
+
+A fresh Yao admission expects its ceremony record to be absent. The D1 adapter
+now reads prior state only for mutations that expect an existing version. The
+conditional insert still rejects a competing creation. Its ownership fence,
+ceremony activity projection and companion registration write remain in the same
+transaction. This removes one D1 read from a fresh respond request. Updates still
+read prior state to identify changed wallet ownership.
+
+`node tests/e2e/authorization-storage-transfer.e2e.mjs` passes. Its registration
+companion scenario checks atomic admission, stale ceremony refusal and stale
+admission refusal. The broader scenario verifies authorization transfer and
+ownership fences. Evidence: `.artifacts/r153/authorization-storage-transfer/evidence.json`.
+Wallet-server type checking and the bloat check pass. Hosted latency is unmeasured.

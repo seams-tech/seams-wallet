@@ -55,9 +55,11 @@ class D1LifecycleRecords implements RouterAbEd25519YaoProductRegistrationPartiti
     const keys: string[] = [];
     const wallets = new Set<WalletId>();
     for (const mutation of mutations) {
-      keys.push(mutation.key);
+      if (mutation.expectedVersion !== null) keys.push(mutation.key);
     }
-    const previous = await this.records.readMany(keys);
+    // An insert has no prior state. Its CAS rejects any concurrent creation
+    // before the accompanying ownership and ceremony effects can commit.
+    const previous = keys.length === 0 ? [] : await this.records.readMany(keys);
     const previousValues = new Map<string, VersionedJsonObject>();
     for (const entry of previous) {
       if (entry.result.kind === 'present') previousValues.set(entry.key, entry.result.value);
