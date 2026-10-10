@@ -843,7 +843,10 @@ remain. No new resources were created, and production was unchanged.
   including the journal; routes carried by completion; duplicate reads removed.
   Decide the passkey claim's placement with the Console owner and record the
   reason. Started in `6ee17c33`: the repeated ceremony and identity reads are
-  gone, 21 round trips became 19.
+  gone, 21 round trips became 19. Session issuance now also commits the
+  matching ceremony's completion decision in the same D1 transaction.
+  This removes one later write batch. Local activation and journal completion
+  remain separate. See [the verification record](#registration-session-and-completion-decision).
 - [ ] Sign prepare and sign: one authorization batch; pinned scope from the
   read-back; completion write ordered after the response where the
   specification allows, or kept before it with the reason recorded. Started
@@ -1310,7 +1313,9 @@ journal rules of its request, or it is not made.
 3. Finalize, the last four writes: session issue, completion decision,
    activation, and journal completion. The completion decision can commit
    with the session, and the activation with the journal completion: about
-   90 ms.
+   90 ms. The session and completion decision now share one transaction.
+   The activation and journal merge remains open. The first change removes
+   one write round trip; its hosted latency saving is unmeasured.
 4. Finalize, the Router consume beside the Console claim: about 100 ms. It
    needs the scenario for a claim that fails after the consume.
 5. Respond, the Console lineage read beside the home admission and the
@@ -1332,6 +1337,50 @@ interaction. Items 1 to 6 remove about 0.5 s, and the Console merges about
 0.25 s. The browser saw about 1.3 s beyond the Gateway time over six
 requests, and the Router's Yao execution took 1.5 s. The 3–4 s target needs
 fewer browser requests or a shorter Yao execution as well.
+
+### Registration session and completion decision
+
+The direct registration session commit now records `registration_completion =
+'established'` in the same D1 transaction. It requires the exact wallet,
+ceremony, authority, authentication method, and session mint. A conflicting
+ceremony or cancelled registration aborts the transaction.
+
+The later completion call reads that decision and omits its separate write
+batch. It still publishes the session and home to Console before activating
+the local generation. A lost Console reply therefore keeps ordinary signing
+blocked. An exact retry preserves the issued session and repeats publication.
+An acknowledged, active completion returns locally.
+
+This removes one serial D1 round trip from direct NEAR and ECDSA registration.
+The prior trace measured small write batches at 44–63 ms. That range is context,
+not a measured saving for this change. No live deployment changed.
+
+The production D1 scenario covers concurrent issuance, a wrong ceremony,
+a lost completion reply, conflicting cancellation, exact retry, and activation.
+It verifies one session transaction per attempt. Completion after issuance uses
+one read and one activation batch. Reproduce it with:
+
+```sh
+node tests/e2e/session-issuance-transaction.e2e.mjs
+```
+
+The generated result is `.artifacts/session-issuance-transaction/proof.json`.
+A retained copy is [the local transaction evidence](evidence/refactor-155d-registration-session-completion.json).
+Server type checking and the wallet state type fixtures pass.
+The bloat check passes. Seven isolated browser contracts also pass:
+
+- Email OTP and passkey recovery after a lost NEAR finalization response.
+- NEAR session publication without a status request, including lock behavior.
+- NEAR exact replay, one commit, and signing after reload.
+- Recovery after a lost NEAR finalization credential.
+- Mixed NEAR/ECDSA registration and its timing fields.
+- An immediately usable owner session before presignatures are ready.
+
+The initial browser launch encountered occupied local ports before any test ran.
+The successful run reused the completed builds with `SEAMS_LOCAL_PORT_OFFSET=2000`
+and `SEAMS_INTENDED_SKIP_BUILD=1`. Its log is
+`.artifacts/registration-session-completion-targeted.log`. No production change
+was needed for the port conflict. The runner stopped all its services afterward.
 
 ### Decisions
 

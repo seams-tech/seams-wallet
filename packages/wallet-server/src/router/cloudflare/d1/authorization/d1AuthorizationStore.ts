@@ -10,7 +10,9 @@ import { ECDSA_INSTALLATION_SNAPSHOT_COLUMNS } from '../../../../core/ecdsaMater
 import type {
   EcdsaWalletSessionAdmissionRead,
   Ed25519WalletSessionAdmissionRead,
+  DirectWalletSessionCommitPurpose,
 } from '../../../../authorization/service';
+import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
 import type { RouterAbMpcMaterialActivationRefWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import { EcdsaMaterialRead } from '../../../../core/d1EcdsaSignerRead';
 import { Ed25519SignerRead } from '../../../../core/d1Ed25519SignerRead';
@@ -1227,6 +1229,7 @@ export class CloudflareD1AuthorizationStore
     return await this.commitDirectWalletSessionAuthorizationV2WithMode({
       persisted: input.persisted,
       mode: { kind: 'strict' },
+      purpose: { kind: 'ordinary' },
     });
   }
 
@@ -1255,16 +1258,19 @@ export class CloudflareD1AuthorizationStore
   /** The service validates the committed winner against its caller-specific replay contract. */
   async commitDirectReplayableWalletSessionAuthorizationV2(input: {
     readonly persisted: PersistedActiveWalletSessionAuthorizationV2;
+    readonly purpose: DirectWalletSessionCommitPurpose;
   }): Promise<DirectV2CommitResult> {
     return await this.commitDirectWalletSessionAuthorizationV2WithMode({
       persisted: input.persisted,
       mode: { kind: 'replayable' },
+      purpose: input.purpose,
     });
   }
 
   private async commitDirectWalletSessionAuthorizationV2WithMode(input: {
     readonly persisted: PersistedActiveWalletSessionAuthorizationV2;
     readonly mode: DirectV2CommitMode;
+    readonly purpose: DirectWalletSessionCommitPurpose;
   }): Promise<DirectV2CommitResult> {
     const { persisted, mode } = input;
     requireExactPersistedActiveWalletSessionAuthorizationV2(persisted);
@@ -1276,12 +1282,14 @@ export class CloudflareD1AuthorizationStore
       walletAuthMethodId: persisted.session.walletAuthMethodId,
       mintId: persisted.session.mintId,
     };
+    const completionStatements = this.prepareRegistrationSessionCompletion(input.purpose, lookup);
     const results = await this.database.batch<D1ResultLike<D1Row>>([
       ...this.prepareDirectWalletSessionAuthorizationV2Statements(persisted),
       this.prepareWalletSessionAuthorizationV2ByMintRead(lookup),
       this.prepareWalletSessionIssuanceGenerationRead(persisted.session.walletId),
+      ...completionStatements,
     ]);
-    if (results.length !== 8) {
+    if (results.length !== 8 + completionStatements.length) {
       throw new Error('Direct V2 Wallet Session transaction returned incomplete results');
     }
     const quotaResult = results[4];
@@ -1343,6 +1351,49 @@ export class CloudflareD1AuthorizationStore
         'Wallet Session ownership generation',
       ),
     };
+  }
+
+  private prepareRegistrationSessionCompletion(
+    purpose: DirectWalletSessionCommitPurpose,
+    session: WalletSessionAuthorizationV2MintLookup,
+  ): readonly D1PreparedStatementLike[] {
+    switch (purpose.kind) {
+      case 'ordinary':
+        return [];
+      case 'registration':
+        return [
+          this.database
+            .prepare(
+              `UPDATE wallet_execution_generations SET registration_completion = 'established'
+             WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
+               AND wallet_id = ?5 AND origin = 'registration' AND origin_id = ?6
+               AND state IN ('registering', 'active')
+               AND registration_completion IN ('pending', 'established')
+               AND EXISTS (
+                 SELECT 1 FROM wallet_session_authorizations_v2
+                 WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
+                   AND wallet_id = ?5 AND tenant_id = ?7 AND principal_id = ?8
+                   AND authority_id = ?9 AND wallet_auth_method_id = ?10 AND mint_id = ?11
+               )`,
+            )
+            .bind(
+              this.namespace,
+              this.walletSignerScope.orgId,
+              this.walletSignerScope.projectId,
+              this.walletSignerScope.envId,
+              session.walletId,
+              purpose.ceremonyId,
+              session.tenantId,
+              String(session.principalId),
+              session.authorityId,
+              session.walletAuthMethodId,
+              session.mintId,
+            ),
+          this.database.prepare(D1_BATCH_CAS_GUARD_SQL),
+        ];
+      default:
+        return assertNeverDirectWalletSessionCommitPurpose(purpose);
+    }
   }
 
   /**
@@ -3601,6 +3652,10 @@ function parseExactWalletSessionQuotaProjectionRow(
 
 function assertNeverDirectV2CommitMode(value: never): never {
   throw new Error(`Unsupported direct V2 Wallet Session commit mode: ${String(value)}`);
+}
+
+function assertNeverDirectWalletSessionCommitPurpose(value: never): never {
+  throw new Error(`Unsupported Wallet Session commit purpose: ${String(value)}`);
 }
 
 async function parseWalletSessionAdmissionRow(

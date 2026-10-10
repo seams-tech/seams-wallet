@@ -8,6 +8,20 @@ import { unstable_splitSqlQuery } from 'wrangler';
 import { buildWorkerdCompatiblePhase1Bridge } from '../../packages/wallet-server/scripts/d1-local-migrate-signer.mjs';
 import { seedExecutionGeneration } from './execution-generation.scenario.mjs';
 
+class RegistrationDirectoryWithLostReply {
+  calls = 0;
+
+  async admitHome() {
+    return { ok: true, ownershipGeneration: 1, purpose: 'registration' };
+  }
+
+  async complete() {
+    this.calls += 1;
+    if (this.calls === 1) throw new Error('Injected lost completion reply');
+    return { ok: true };
+  }
+}
+
 const output = resolve('.artifacts/session-issuance-transaction');
 const scope = { namespace: 'issuance', orgId: 'org', projectId: 'project', envId: 'test' };
 const sessionTables = [
@@ -229,10 +243,12 @@ try {
     'already_committed',
   );
   assert.deepEqual(await snapshot(database), beforeClosedGeneration);
+  const registrationCompletion = await verifyRegistrationCompletion(database, now);
   await writeFile(
     resolve(output, 'proof.json'),
     JSON.stringify(
       {
+        registrationCompletion,
         concurrentIssuance: race.map(resultKind).sort(),
         ownershipGeneration: winner.operationCredential.ownershipGeneration,
         d1CallsPerIssuance: 1,
@@ -297,4 +313,130 @@ function isIssued(result) {
 }
 function isCommitBatch(call) {
   return call.method === 'batch';
+}
+
+async function verifyRegistrationCompletion(database, now) {
+  const fixture = await api.buildLinkedDeviceManagementAuthorityFixture({
+    label: 'registration-session-completion',
+    keyFamily: 'ed25519',
+    identity: {
+      walletId: 'wallet:registration-session-completion',
+      authorityId: 'authority:registration-session-completion',
+      walletAuthMethodId: 'method:registration-session-completion',
+      rpId: 'registration-session.example.test',
+      credentialIdB64u: Buffer.alloc(32, 95).toString('base64url'),
+    },
+    permissions: api.buildFullOwnerPermissionsV1(),
+    provenance: 'wallet_registration',
+    expiresAtMs: now + 3_600_000,
+  });
+  const identity = {
+    walletId: fixture.authority.walletId,
+    ceremonyId: 'session-completion-ceremony',
+  };
+  const directory = new RegistrationDirectoryWithLostReply();
+  const authority = new api.D1WalletExecutionAuthority(database, scope, directory);
+  assert.equal((await authority.admitHome(identity)).ok, true);
+  await database.batch([
+    api.prepareD1WalletAuthorityPutStatement({ database, scope, authority: fixture.authority }),
+    api.prepareD1WalletAuthMethodV2PutStatement({ database, scope, record: fixture.authMethod }),
+  ]);
+  const input = {
+    tenantId: fixture.issuedSession.session.tenantId,
+    principalId: fixture.issuedSession.session.principalId,
+    walletId: fixture.authority.walletId,
+    authority: fixture.authority,
+    walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
+    mintId: fixture.issuedSession.session.mintId,
+    remainingUses: 7,
+    issuedAtMs: now,
+    expiresAtMs: now + 3_600_000,
+  };
+  const service = authorizationService(database);
+  const beforeWrongCeremony = await snapshot(database);
+  await assert.rejects(
+    service.commitDirectWalletSessionAuthorizationV2(
+      input,
+      { kind: 'validated_registration_authority_projection' },
+      { kind: 'registration', ceremonyId: 'another-ceremony' },
+    ),
+  );
+  assert.deepEqual(await snapshot(database), beforeWrongCeremony);
+  const traced = new api.TracedD1Database(database);
+  const registrationService = authorizationService(traced);
+  const purpose = { kind: 'registration', ceremonyId: identity.ceremonyId };
+  const race = await Promise.all([
+    registrationService.commitDirectWalletSessionAuthorizationV2(
+      input,
+      { kind: 'validated_registration_authority_projection' },
+      purpose,
+    ),
+    registrationService.commitDirectWalletSessionAuthorizationV2(
+      input,
+      { kind: 'validated_registration_authority_projection' },
+      purpose,
+    ),
+  ]);
+  assert.deepEqual(race.map(registrationResultKind).sort(), ['already_committed', 'issued']);
+  const trace = JSON.parse(traced.response(new Response()).headers.get('x-benchmark-d1'));
+  assert.equal(trace.calls.length, 2);
+  assert.ok(trace.calls.every(isCommitBatch));
+  const generation = await database
+    .prepare(
+      'SELECT state, registration_completion FROM wallet_execution_generations WHERE wallet_id = ?',
+    )
+    .bind(identity.walletId)
+    .first();
+  assert.deepEqual(generation, { state: 'registering', registration_completion: 'established' });
+  assert.equal((await authority.admitEstablishedHome({ walletId: identity.walletId })).ok, false);
+  const winner = race.find(registrationIssued);
+  assert.ok(winner);
+  const completion = { ...identity, outcome: 'established', session: winner.publication };
+  await assert.rejects(authority.complete(completion), /lost completion reply/);
+  assert.equal((await authority.admitEstablishedHome({ walletId: identity.walletId })).ok, false);
+  await assert.rejects(authority.complete({ ...identity, outcome: 'cancelled' }));
+  assert.equal(directory.calls, 1);
+  const beforeRetry = await snapshot(database);
+  const retry = await service.commitDirectWalletSessionAuthorizationV2(
+    input,
+    { kind: 'validated_registration_authority_projection' },
+    purpose,
+  );
+  assert.equal(retry.result.kind, 'already_committed');
+  assert.deepEqual(await snapshot(database), beforeRetry);
+  const completionTrace = new api.TracedD1Database(database);
+  const retryAuthority = new api.D1WalletExecutionAuthority(completionTrace, scope, directory);
+  assert.equal(
+    (await retryAuthority.complete({ ...completion, session: retry.publication })).ok,
+    true,
+  );
+  const completionCalls = JSON.parse(
+    completionTrace.response(new Response()).headers.get('x-benchmark-d1'),
+  ).calls;
+  assert.deepEqual(completionCalls.map(callMethod), ['first', 'batch']);
+  assert.equal((await authority.admitEstablishedHome({ walletId: identity.walletId })).ok, true);
+  assert.equal((await authority.complete(completion)).ok, true);
+  assert.equal(directory.calls, 2);
+  return {
+    wrongCeremonyRollsBackSession: true,
+    concurrentIssuance: race.map(registrationResultKind).sort(),
+    sessionAndDecisionShareOneBatch: true,
+    lostReplyKeepsSigningFenced: true,
+    conflictingCancellationCannotReachDirectory: true,
+    exactRetryPreservesSession: true,
+    acknowledgedCompletionCalls: completionCalls,
+    activeReplayDoesNotRepublish: true,
+  };
+}
+
+function registrationResultKind(value) {
+  return value.result.kind;
+}
+
+function registrationIssued(value) {
+  return value.result.kind === 'issued';
+}
+
+function callMethod(value) {
+  return value.method;
 }

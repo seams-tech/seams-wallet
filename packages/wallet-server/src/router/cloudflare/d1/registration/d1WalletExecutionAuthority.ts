@@ -101,26 +101,29 @@ export class D1WalletExecutionAuthority implements Authority, WalletExecutionAut
   }
 
   async complete(input: Parameters<Authority['complete']>[0]) {
+    let establishedDecision = false;
     if (input.outcome === 'established') {
       const published = await prepareD1TenantStatement(
         this.database,
         this.scope,
-        `SELECT 1 AS published FROM wallet_execution_generations
+        `SELECT state FROM wallet_execution_generations
          WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
            AND wallet_id = ?5 AND origin = 'registration' AND origin_id = ?6
-           AND state = 'active' AND registration_completion = 'established'`,
+           AND state IN ('registering', 'active') AND registration_completion = 'established'`,
         [input.walletId, input.ceremonyId],
-      ).first<{ readonly published: number }>();
+      ).first<{ readonly state: string }>();
       // Activation follows the acknowledged directory write. Its exact retry is local.
-      if (published) return { ok: true as const };
+      if (published?.state === 'active') return { ok: true as const };
+      establishedDecision = published?.state === 'registering';
     }
     // Fix the terminal decision before crossing the database boundary. Exact
     // retries may publish it again; a conflicting outcome never reaches Console.
-    await this.database.batch([
-      prepareD1TenantStatement(
-        this.database,
-        this.scope,
-        `UPDATE wallet_execution_generations
+    if (!establishedDecision) {
+      await this.database.batch([
+        prepareD1TenantStatement(
+          this.database,
+          this.scope,
+          `UPDATE wallet_execution_generations
          SET registration_completion = ?7,
              state = CASE WHEN ?7 = 'cancelled' THEN 'retired' ELSE state END
          WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
@@ -129,10 +132,11 @@ export class D1WalletExecutionAuthority implements Authority, WalletExecutionAut
            AND (state = 'registering'
              OR (?7 = 'established' AND state = 'active')
              OR (?7 = 'cancelled' AND state = 'retired'))`,
-        [input.walletId, input.ceremonyId, input.outcome],
-      ),
-      this.database.prepare(D1_BATCH_CAS_GUARD_SQL),
-    ]);
+          [input.walletId, input.ceremonyId, input.outcome],
+        ),
+        this.database.prepare(D1_BATCH_CAS_GUARD_SQL),
+      ]);
+    }
     const completed = await this.registration.complete(input);
     if (!completed.ok) return completed;
     const state = input.outcome === 'established' ? 'active' : 'retired';

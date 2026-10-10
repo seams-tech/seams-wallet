@@ -150,6 +150,7 @@ export interface AuthorizationGrantPort {
   /** Inserted confirms readback of the exact session identity and primary credential digest. */
   commitDirectReplayableWalletSessionAuthorizationV2(input: {
     readonly persisted: PersistedActiveWalletSessionAuthorizationV2;
+    readonly purpose: DirectWalletSessionCommitPurpose;
   }): Promise<DirectV2CommitResult>;
   readWalletSessionAuthorizationV2ByAuthorizationId(input: {
     readonly expected: WalletSessionAuthorizationV2;
@@ -289,6 +290,10 @@ type IssueWalletSessionAuthorizationV2InputBase = {
 };
 
 export type IssueWalletSessionAuthorizationV2Input = IssueWalletSessionAuthorizationV2InputBase;
+
+export type DirectWalletSessionCommitPurpose =
+  | { readonly kind: 'ordinary'; readonly ceremonyId?: never }
+  | { readonly kind: 'registration'; readonly ceremonyId: string };
 
 type DirectWalletSessionReplayMode =
   | { readonly kind: 'strict' }
@@ -486,9 +491,11 @@ export class AuthorizationService {
   async issueDirectWalletSessionAuthorizationV2(
     input: IssueWalletSessionAuthorizationV2Input,
   ): Promise<DirectV2IssueResult> {
-    const committed = await this.commitDirectWalletSessionAuthorizationV2(input, {
-      kind: 'strict',
-    });
+    const committed = await this.commitDirectWalletSessionAuthorizationV2(
+      input,
+      { kind: 'strict' },
+      { kind: 'ordinary' },
+    );
     await this.ports.sessionRouting?.publish(committed.publication);
     return committed.result;
   }
@@ -497,6 +504,7 @@ export class AuthorizationService {
   async commitDirectWalletSessionAuthorizationV2(
     input: IssueWalletSessionAuthorizationV2Input,
     replayMode: DirectWalletSessionReplayMode,
+    purpose: DirectWalletSessionCommitPurpose,
   ): Promise<{
     readonly result: DirectV2IssueResult;
     readonly publication: WalletSessionLocatorPublication & { readonly kind: 'credential' };
@@ -508,6 +516,7 @@ export class AuthorizationService {
     const { persisted, token } = await this.prepareDirectWalletSessionIssuance(prepared);
     const commit = await this.ports.grants.commitDirectReplayableWalletSessionAuthorizationV2({
       persisted,
+      purpose,
     });
     if (commit.kind === 'already_committed') {
       return {

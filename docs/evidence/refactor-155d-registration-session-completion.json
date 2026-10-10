@@ -1,0 +1,426 @@
+{
+  "registrationCompletion": {
+    "wrongCeremonyRollsBackSession": true,
+    "concurrentIssuance": [
+      "already_committed",
+      "issued"
+    ],
+    "sessionAndDecisionShareOneBatch": true,
+    "lostReplyKeepsSigningFenced": true,
+    "conflictingCancellationCannotReachDirectory": true,
+    "exactRetryPreservesSession": true,
+    "acknowledgedCompletionCalls": [
+      {
+        "sequence": 1,
+        "method": "first",
+        "startedMs": 6.668750000000273,
+        "elapsedMs": 2.7057079999999587,
+        "outcome": "ok",
+        "statements": [
+          {
+            "query": {
+              "id": "ca6a5db5474d36b48743cc05",
+              "kind": "SELECT",
+              "tables": [
+                "wallet_execution_generations"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 1,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          }
+        ]
+      },
+      {
+        "sequence": 2,
+        "method": "batch",
+        "startedMs": 16.35095799999999,
+        "elapsedMs": 2.3618750000000546,
+        "outcome": "ok",
+        "statements": [
+          {
+            "query": {
+              "id": "40488211533cfd76970b78db",
+              "kind": "UPDATE",
+              "tables": [
+                "wallet_execution_generations"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 1,
+            "rowsRead": 3,
+            "rowsWritten": 1,
+            "changes": 1,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "14376843a3856a9ad918f741",
+              "kind": "INSERT",
+              "tables": [
+                "router_ab_yao_versioned_json_cas_guard"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          }
+        ]
+      }
+    ],
+    "activeReplayDoesNotRepublish": true
+  },
+  "concurrentIssuance": [
+    "already_committed",
+    "issued"
+  ],
+  "ownershipGeneration": 1,
+  "d1CallsPerIssuance": 1,
+  "raceTrace": {
+    "version": 1,
+    "calls": [
+      {
+        "sequence": 1,
+        "method": "batch",
+        "startedMs": 45.524459000000206,
+        "elapsedMs": 50.901374999999916,
+        "outcome": "ok",
+        "statements": [
+          {
+            "query": {
+              "id": "a95c4fff4b4ce8804191dd7e",
+              "kind": "UPDATE",
+              "tables": [
+                "authorization_wallet_session_quotas",
+                "wallet_auth_methods",
+                "wallet_authorities",
+                "wallet_execution_generations",
+                "wallet_session_authorizations_v2"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 1,
+            "rowsRead": 2,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "ceea1542c794b567fe170e20",
+              "kind": "DELETE",
+              "tables": [
+                "authorization_wallet_session_quotas",
+                "wallet_auth_methods",
+                "wallet_authorities",
+                "wallet_execution_generations",
+                "wallet_session_authorizations_v2",
+                "wallet_session_hosted_exchange_codes_v2"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "e8743d0928427200d8416680",
+              "kind": "UPDATE",
+              "tables": [
+                "authorization_wallet_session_quotas",
+                "wallet_auth_methods",
+                "wallet_authorities",
+                "wallet_execution_generations",
+                "wallet_session_authorizations_v2",
+                "wallet_session_hosted_credentials_v2"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 1,
+            "rowsRead": 1,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "a12a508ef570a8312edcff23",
+              "kind": "UPDATE",
+              "tables": [
+                "authorization_wallet_session_quotas",
+                "wallet_auth_methods",
+                "wallet_authorities",
+                "wallet_execution_generations",
+                "wallet_session_authorizations_v2"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 1,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "e7830aa7dfe0329078122633",
+              "kind": "INSERT",
+              "tables": [
+                "authorization_wallet_session_quotas",
+                "wallet_auth_methods",
+                "wallet_authorities",
+                "wallet_execution_generations",
+                "wallet_session_authorizations_v2"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 4,
+            "rowsWritten": 4,
+            "changes": 1,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "5cb38f8a74721416f6e23ec4",
+              "kind": "INSERT",
+              "tables": [
+                "authorization_wallet_session_quotas",
+                "wallet_auth_methods",
+                "wallet_authorities",
+                "wallet_execution_generations",
+                "wallet_session_authorizations_v2"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 2,
+            "rowsRead": 6,
+            "rowsWritten": 13,
+            "changes": 1,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "86061681a975fdd3f4a39a60",
+              "kind": "SELECT",
+              "tables": [
+                "wallet_session_authorizations_v2"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 1,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "15a6b138a06d7f3139ea5e88",
+              "kind": "SELECT",
+              "tables": [
+                "wallet_execution_generations"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 1,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          }
+        ]
+      },
+      {
+        "sequence": 2,
+        "method": "batch",
+        "startedMs": 88.15145900000016,
+        "elapsedMs": 11.148415999999997,
+        "outcome": "ok",
+        "statements": [
+          {
+            "query": {
+              "id": "a95c4fff4b4ce8804191dd7e",
+              "kind": "UPDATE",
+              "tables": [
+                "authorization_wallet_session_quotas",
+                "wallet_auth_methods",
+                "wallet_authorities",
+                "wallet_execution_generations",
+                "wallet_session_authorizations_v2"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 3,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "ceea1542c794b567fe170e20",
+              "kind": "DELETE",
+              "tables": [
+                "authorization_wallet_session_quotas",
+                "wallet_auth_methods",
+                "wallet_authorities",
+                "wallet_execution_generations",
+                "wallet_session_authorizations_v2",
+                "wallet_session_hosted_exchange_codes_v2"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "e8743d0928427200d8416680",
+              "kind": "UPDATE",
+              "tables": [
+                "authorization_wallet_session_quotas",
+                "wallet_auth_methods",
+                "wallet_authorities",
+                "wallet_execution_generations",
+                "wallet_session_authorizations_v2",
+                "wallet_session_hosted_credentials_v2"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 1,
+            "rowsRead": 1,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "a12a508ef570a8312edcff23",
+              "kind": "UPDATE",
+              "tables": [
+                "authorization_wallet_session_quotas",
+                "wallet_auth_methods",
+                "wallet_authorities",
+                "wallet_execution_generations",
+                "wallet_session_authorizations_v2"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 6,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "e7830aa7dfe0329078122633",
+              "kind": "INSERT",
+              "tables": [
+                "authorization_wallet_session_quotas",
+                "wallet_auth_methods",
+                "wallet_authorities",
+                "wallet_execution_generations",
+                "wallet_session_authorizations_v2"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 5,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "5cb38f8a74721416f6e23ec4",
+              "kind": "INSERT",
+              "tables": [
+                "authorization_wallet_session_quotas",
+                "wallet_auth_methods",
+                "wallet_authorities",
+                "wallet_execution_generations",
+                "wallet_session_authorizations_v2"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 5,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "86061681a975fdd3f4a39a60",
+              "kind": "SELECT",
+              "tables": [
+                "wallet_session_authorizations_v2"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 1,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "15a6b138a06d7f3139ea5e88",
+              "kind": "SELECT",
+              "tables": [
+                "wallet_execution_generations"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 1,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          }
+        ]
+      }
+    ],
+    "pending": 0,
+    "dropped": 0
+  },
+  "activeMintReplayPreservesAllSessionRows": true,
+  "retiredMintReplayPreservesSuccessorAndHostedChildren": true,
+  "revokedMethodCannotMintOrRetireExistingSessions": true,
+  "closedGenerationCannotMintOrRetireExistingSessions": true,
+  "closedGenerationReplayRemainsCredentialFree": true
+}

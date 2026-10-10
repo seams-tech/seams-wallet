@@ -503,7 +503,10 @@ throughout the resize. Reduced-motion behavior remains immediate.
 - Hosted setup fails closed without its reservation authority or at a different
   physical D1 resource. The local standalone host provides a persistent local
   authority for development.
-- Registration commits its session locally, then publishes the session locator and
+- Registration commits its session and the matching ceremony's established decision
+  in one local transaction. A conflicting ceremony or cancelled registration prevents
+  this commit. The wallet remains unavailable for ordinary signing until Console
+  acknowledges completion. Registration publishes the session locator and
   completes the home in one Console request. Console atomically commits the
   established home and its display row. The Gateway acknowledges completion before
   it enables ordinary signing or saves the completed registration receipt. A lost

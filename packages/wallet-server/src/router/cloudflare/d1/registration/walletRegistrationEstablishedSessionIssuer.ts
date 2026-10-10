@@ -532,6 +532,7 @@ export async function issueDirectRegistrationEstablishedEcdsaSession(
       expiresAtMs: policy.expiresAtMs,
     },
     { kind: 'strict' },
+    { kind: 'registration', ceremonyId: input.registrationCeremonyId },
   );
   const directIssue = committed.result;
   let authorization: IssuedWalletSessionAuthorizationV2;
@@ -635,6 +636,7 @@ export async function issueDirectRegistrationEstablishedEd25519Session(
       expiresAtMs: policy.expiresAtMs,
     },
     { kind: 'validated_registration_authority_projection' },
+    { kind: 'registration', ceremonyId: input.registrationCeremonyId },
   );
   const directIssue = committed.result;
   let authorization: IssuedWalletSessionAuthorizationV2;

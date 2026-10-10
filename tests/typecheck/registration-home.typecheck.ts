@@ -1,5 +1,6 @@
 import type { WalletRegistrationSetupSuccessV2 } from '../../packages/wallet/src/core/rpcClients/relayer/walletRegistration';
 import type { WalletRegistrationSetupResponseV2 } from '../../packages/wallet-server/src/core/threeRouteRegistrationContracts';
+import type { DirectWalletSessionCommitPurpose } from '../../packages/wallet-server/src/authorization/service';
 
 declare const setup: WalletRegistrationSetupSuccessV2;
 declare const withoutHome: Omit<WalletRegistrationSetupSuccessV2, 'home'>;
@@ -49,3 +50,14 @@ const completionWithoutSession: RegistrationCompletion = {
 const cancellationWithSession: RegistrationCompletion = { ...established, outcome: 'cancelled' };
 void completionWithoutSession;
 void cancellationWithSession;
+
+// @ts-expect-error Registration session commits require their exact ceremony.
+const missingCommitCeremony: DirectWalletSessionCommitPurpose = { kind: 'registration' };
+const registrationCommitPurpose = { kind: 'registration', ceremonyId: 'ceremony' } as const;
+// @ts-expect-error A broad spread cannot carry a ceremony into an ordinary commit.
+const ordinaryCommitWithCeremony: DirectWalletSessionCommitPurpose = {
+  ...registrationCommitPurpose,
+  kind: 'ordinary',
+};
+void missingCommitCeremony;
+void ordinaryCommitWithCeremony;
