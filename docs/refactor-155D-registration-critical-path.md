@@ -867,21 +867,27 @@ remain. No new resources were created, and production was unchanged.
   still observes the server, because its session changes after the response.
 - [ ] Send sign prepare during confirmation, bound to the displayed digest,
   with release on decline. Keep the warm-session path free of WebAuthn.
-- [ ] Record the two follow-up designs with their constraints: finalize folded
-  into the Yao execute response, and a one-round signature. Neither starts here.
+- [x] Record the two follow-up designs and their constraints below. Neither
+  starts here.
 
 ## Phase 4 — custody path remainder
 
-- [ ] Trace the Signing Worker's sign handler before its object command and
-  remove or batch the role-private D1 work that the object already enforces.
+- [x] Audit the Signing Worker's registration-based prepare and sign paths.
+  Both dispatch directly to the stored wallet object after parsing and validation.
+  The D1 replay and material reads below that branch serve other material sources.
+  They do not run for this NEAR registration workload. See the custody audit below.
 - [ ] Measure Deriver A's post-protocol work: output seal, record write,
   deferred D1 settle, output gate. Return the reply before non-essential
   durable work only where one durable execution outcome is preserved; record
   which writes must precede the reply.
-- [ ] Measure B's socket forwarding from the stateless handler to the object
-  and apply the Phase 1 dispatch result.
-- [ ] Record the CPU floor of the Ed25519 Yao circuit per role. A smaller
-  circuit is outside this plan.
+- [x] Apply stored addresses to B's socket forwarding. The stored-ID candidate
+  measures A's complete WebSocket connection at 261 ms median, 260–269 ms.
+  B's stateless duplex invocation measures 129 ms median, 118–136 ms.
+  Neither number isolates network time from execution and upgrade work.
+- [x] Record observed per-role CPU and its measurement limit. A's complete
+  execute invocation uses 262 ms median; B's duplex invocation uses 323 ms.
+  These include protocol and lifecycle work, so they are not isolated circuit
+  lower bounds. A smaller circuit remains outside this plan.
 
 ## Phase 5 — verify and measure
 
@@ -1523,3 +1529,49 @@ status read is gone. The dispatch cost is either removed or confined to one
 call per request with its cause recorded. All contracts pass. Staging serves
 its original versions. The plan records the measured result against 3–4
 seconds and names the follow-up designs that remain.
+
+### Custody path audit after stored addresses
+
+The [custody audit evidence](evidence/refactor-155d-custody-path-audit.json)
+extracts three-wallet measurements from the existing stored-ID candidate
+`28c58d85`. It adds no new deployment or latency claim.
+
+| Work | Median | Range |
+| --- | ---: | ---: |
+| A preparation within execution | 148 ms | 143–149 ms |
+| A WebSocket connection | 261 ms | 260–269 ms |
+| A Yao protocol span | 336 ms | 259–394 ms |
+| B Yao protocol span | 211 ms | 201–222 ms |
+| A whole execute invocation CPU | 262 ms | 251–272 ms |
+| B whole duplex invocation CPU | 323 ms | 233–352 ms |
+| Signing wallet object CPU, prepare and sign | 21 ms | 19–26 ms |
+
+A already settles its D1 admission through `wait_until` after it records the
+completed outcome in its wallet object. That settlement stays in the background.
+The encrypted outcome and completion state must commit before the reply. A lost
+reply then recovers the same outcome instead of executing Yao again. Moving that
+write after the reply would break this guarantee.
+
+Cloudflare's invocation wall time can include background settlement after the
+response. Subtracting it from a parent request would give a false dispatch cost.
+The existing application clock also advances at I/O, so a zero-millisecond output
+span does not prove that output encryption has no cost. Separate output-seal and
+storage-flush measurements remain open.
+
+### Follow-up designs beyond this plan
+
+**Return registration finalization with Yao execution.** The execute route would
+carry the exact registration authority and client custody commitment that finalize
+currently receives. It would return only after the same durable journal, custody,
+session, discovery and home-completion steps succeed. A lost response must replay
+the exact committed outcome. This removes a browser exchange; it does not remove
+those completion requirements. Mixed-signature registration and recovery must retain
+their separate lifecycle identities.
+
+**Issue signing commitments before the message.** A one-request signature would
+need one-use server commitments bound to the exact wallet, material activation,
+session and ownership generation. The server must atomically admit the message and
+consume the commitments. Cancellation, expiry, relocation, revocation and competing
+signatures must never permit nonce reuse. This requires protocol design, Rust
+vectors and formal verification before implementation. It is separate from moving
+the existing prepare request into the confirmation interval.
