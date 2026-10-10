@@ -163,7 +163,9 @@ Commit `edc7d5f9` removes two waits from this chain. The wallet commit no longer
 waits for the route claim, because the claim cannot fail a registration. The
 custody records are stored beside the session issuance, because neither needs
 the other. A finalization that fails still settles its started route claim
-before it responds. The call count stays at 14. Hosted saving is unmeasured.
+before it responds. The call count stays at 14. On staging the Gateway
+finalization service measured 908 ms (814–1,170) before and 780 ms (741–843)
+after, with three wallets each and no repeated baseline.
 In the three candidate samples of October 11 the route claim outlasted the other
 two concurrent calls by 0–403 ms, and the custody write took 68–73 ms.
 
@@ -292,19 +294,44 @@ request is a cross-origin JSON POST to a new URL. A registration and its first
 signature send six. A probe from Tokyo measured 125–191 ms for one preflight
 against the staging Gateway, which answers it from its pinned region. The
 hosted harness never measured these exchanges: Playwright request interception
-answers every preflight locally. A private harness change serves the latency
-test's assets from a local HTTPS server without interception. It loads the site
-and sends real preflights. Its first full hosted run is still open.
+answers every preflight locally. Since private `5f5f919` the latency test serves
+its assets from a local HTTPS server without interception, and the browser
+sends real preflights.
 
-Three ways remove or shorten the preflights. None is implemented.
+Two staging runs of October 11 measured with real preflights. The
+[record](evidence/refactor-155f-preflight-hosted.md) holds both.
+
+| Six wallets each, identical Worker versions | Unchanged SDK | SDK with early preflights |
+| --- | ---: | ---: |
+| Registration, excluding WebAuthn | 5.129 s (4.080–5.658) | 3.530 s (3.306–4.147) |
+| First signature, excluding confirmation | 1.076 s (0.924–1.417) | 0.649 s (0.562–0.778) |
+| Registration plus first signature | 6.102 s (5.174–6.903) | 4.204 s (3.948–4.794) |
+
+The early-preflight SDK sends one `OPTIONS` fetch to each later registration
+route and to both signing routes when registration starts. It is a patch of
+about 40 lines and is **not committed**. Its saving is larger than the removed
+preflights explain, and a staging Worker with little traffic may profit from
+the early requests more than a production Worker does.
+
+The patch cannot land alone. Contract tests intercept and record requests by
+URL only, and they take an early `OPTIONS` request for the operation's first
+request. Eleven of the first 48 contract cases failed with the patch, beside
+one case that needs a debug Worker build. The private
+composed tests have six such interceptors. Each needs a method check. The patch,
+the first interceptor changes and the list of failing cases are kept in
+`.artifacts/r155f-preflight-prewarm/` of this repository's main checkout.
+
+Two other ways remove or shorten the preflights without an SDK request:
 
 - Serve the Gateway API under the wallet origin. Requests become same-origin
   and need no preflight. This changes routing and the SDK's relayer address.
 - Answer `OPTIONS` at the edge, before the pinned Gateway Worker. This needs
   one more Worker, which this plan's scope excludes.
-- Let the SDK send an early `OPTIONS` request to each later route while setup
-  runs. This needs no deployment change. It adds visible requests on the
-  operation routes, and about a dozen test interceptors match them by URL.
+
+The client's distance to the Gateway region is a separate cost. Each exchange
+between Tokyo and the Hong Kong Gateway took about 100 ms for a request that
+does no work. A registration and its first signature make 12 exchanges with
+preflights and 6 without.
 
 The current path uses **four registration browser requests**, followed by prepare
 and sign. A combined execute/finalize would reduce registration to **three** and

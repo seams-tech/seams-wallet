@@ -10,7 +10,7 @@ Console request and six fewer completed D1 calls per registration. All nine
 signature proofs and 18 comparison checks pass. The [hosted evidence](evidence/refactor-155d-allocation-hosted.md)
 records ranges, counts, frozen versions, limitations, and restoration status.
 The [capability storage changes](evidence/refactor-155d-capability-persistence.md) remove redundant ceremony work and combine wallet/capability writes, reducing that persistence step from three D1 calls to two locally; hosted savings remain unmeasured.
-Hosted validation, preparation during confirmation, the staging role-database cutover, and the documented interrupted-recovery failure remain open. See the [implementation record](#implementation-record).
+Hosted validation and preparation during confirmation remain open. The staging role-database cutover has its registration proof, and `d51cfcd8` fixed the interrupted-recovery failure; [R155F](refactor-155F-registration-round-trips.md) records both. See the [implementation record](#implementation-record).
 Plan dated October 9, 2026; record updated October 10.
 
 [R155F](refactor-155F-registration-round-trips.md) plans the next finalization,
