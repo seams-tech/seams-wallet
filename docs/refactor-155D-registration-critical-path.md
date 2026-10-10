@@ -1652,3 +1652,70 @@ Local evidence: private `.artifacts/r155d-setup-local/browser.log` and
 `.artifacts/r155b/console-outage/setup-retry-{near-only,mixed}/setup-retry.json`.
 The browser scenarios are repeatable with `tests/scripts/run-regional-real.mjs
 --grep 'setup reply loss survives reload'` against matching public build output.
+
+### Entry and finalization comparison — October 10
+
+The [controlled hosted evidence](evidence/refactor-155d-entry-finalization-hosted.json)
+compares public `28c58d85` / private `13a5529` with public `81e5f690` /
+private `be6fb57`, then repeats the baseline. All arms already use stored unique IDs.
+The SDK, placement configuration, and measurement wrappers stayed fixed.
+Each arm registered three fresh NEAR-only wallets and verified one NEP-413 signature per wallet.
+
+| Measurement | Baseline median | Candidate median | Repeated baseline median |
+| --- | ---: | ---: | ---: |
+| SDK registration through first signature, excluding interaction | 6.132 s | 6.001 s | 6.616 s |
+| SDK registration, including WebAuthn | 5.487 s | 5.457 s | 5.859 s |
+| SDK first signing call, including confirmation | 1.349 s | 1.674 s | 1.658 s |
+| Router Yao execution | 1.584 s | 1.423 s | 1.741 s |
+| Finalization service | 1.098 s | 1.047 s | 1.230 s |
+
+Candidate SDK flow excluding interaction ranged from **5.792 to 8.077 s**.
+The maximum was **8.077 s**. These three-sample medians do not establish an isolated
+latency saving. The first signature was slower than the first baseline.
+The 3–4 s goal remains unmet.
+
+| Gateway request | Baseline D1 calls | Candidate D1 calls |
+| --- | ---: | ---: |
+| Setup | 6 | 5 |
+| Respond | 10 | 7 |
+| Yao execute | 4 | 2 |
+| Finalize | 21 | 18 |
+| Sign prepare | 8 | 4 |
+| Sign | 9 | 5 |
+| **Total** | **58** | **41** |
+
+These counts include Gateway entry admission. All three samples in each arm had
+these counts. Every flow made six browser requests, with zero session-status requests
+and one setup-time wallet startup. Keep the changes: the removed calls are measured,
+even though platform variation obscures their elapsed-time effect.
+
+All **17 comparison checks** passed. All **nine signatures** passed independent
+verification, including rejection after signed-field changes. Candidate invocations
+matched all four stored role IDs for each of the three wallets. Readback verified
+restoration of **13 Worker versions** and **two Deriver schemas**. The four additive
+Gateway address tables remain. The comparison created no resources.
+
+A's output sealing and outcome recording each measured 0 ms on the Worker clock.
+That clock advances at I/O, so these readings do not establish zero cost.
+Background admission settlement measured 148 ms median, 138–176 ms. It remains
+off the response path. The durable encrypted outcome must precede the response
+so a lost reply can recover the same result. The evidence retains raw invocation
+CPU and wall times without subtracting child invocation times from their parents.
+
+The combined Console setup (`7546d3ed`, private `1f931b2`) landed after this
+candidate froze. Its hosted saving remains unmeasured. Its local six-case regional
+matrix passed, covering concurrent setup, completion replay, Email OTP step-up,
+foreign ingress, and relocation during signing.
+
+### Exact-version lifecycle snapshots — October 10
+
+`73d8b5bb` removes the prior-record read from a normal lifecycle update when the
+store just loaded that exact version. The store preserves an immutable copy of
+its latest read batch. The write consumes that observation. Missing observations
+still require a read. The existing atomic version check rejects concurrent changes.
+Ownership fences and companion writes stay in the same transaction.
+
+The authorization-storage-transfer E2E passed. It covers admission/ceremony rollback,
+stale retries, frozen-wallet writes, and unrelated-wallet progress. Type-checking and
+the bloat check passed. Evidence remains in
+`.artifacts/r153/authorization-storage-transfer/evidence.json`. Hosted timing is pending.
