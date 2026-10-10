@@ -13429,6 +13429,7 @@ pub async fn execute_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_di
 #[cfg(feature = "workers-rs")]
 pub async fn execute_cloudflare_signing_worker_linked_device_ecdsa_finalize_service_call_v1(
     env: &worker::Env,
+    wallet_objects: crate::WalletObjectRoute,
     peer: &CloudflarePeerBindingV1,
     request: CloudflareSigningWorkerAdmittedLinkedDeviceEcdsaFinalizeRequestV1,
 ) -> RouterAbProtocolResult<RouterAbEcdsaDerivationLinkedDeviceEvmDigestSigningResponseV1> {
@@ -13440,13 +13441,16 @@ pub async fn execute_cloudflare_signing_worker_linked_device_ecdsa_finalize_serv
         ));
     }
     request.validate()?;
-    let response: RouterAbEcdsaDerivationLinkedDeviceEvmDigestSigningResponseV1 =
-        post_service_json(
+    let (response, _): (RouterAbEcdsaDerivationLinkedDeviceEvmDigestSigningResponseV1, _) =
+        post_service_json_with_server_timing(
             env,
+            Some(wallet_objects),
             &peer.binding_name,
             cloudflare_signing_worker_linked_device_ecdsa_finalize_service_url(peer)?,
             "linked ECDSA finalize",
             &request,
+            None,
+            CloudflareServiceAuthModeV1::Shared,
         )
         .await?;
     response.validate_for_request(&request.request)?;

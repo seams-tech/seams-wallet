@@ -1254,9 +1254,12 @@ Findings in the role Workers, each confirmed in the source:
 4. The Router's ECDSA activation and export routes read the addresses with a
    bearer token only (`strict_worker/router.rs`). The Gateway mints that token
    for each call, so the practical risk is low. The token does not bind the
-   addresses, and the other routes require the Gateway secret first.
+   addresses, and the other routes require the Gateway secret first. Fixed:
+   activation and export require the existing Gateway service secret. Both
+   forwarders send that secret. No new secret or configuration is introduced.
 5. `lib.rs`: the Router's linked ECDSA finalize call to the Signing Worker
-   sends no route, and the Signing Worker requires one. No caller was found.
+   sends no route, and the Signing Worker requires one. Fixed: the admitted
+   Router route carries its stored wallet addresses into the Signing Worker call.
 6. Role migration `0019` renames the column and keeps old names as values.
    An old admission cannot be opened by ID. The plan already requires that
    old admissions and wallets are discarded together.
@@ -1268,14 +1271,18 @@ Findings in the role Workers, each confirmed in the source:
 
 Findings 2 and 3 need a Gateway routing error to matter, because the roles
 trust the Gateway. They are the checks this plan asked for when an address
-replaces a name. Findings 1 and 7 are functional regressions. Findings 4 and
-5 are open.
+replaces a name. Findings 1 and 7 are functional regressions. Findings 4 and 5 are now fixed.
 
-The Gateway side holds: a request forwarded from a client always has its
-wallet identity overwritten from server-admitted data before the binding reads
-it. One hardening remains: strip both address headers from every public
-request at the Gateway entry, so that this does not depend on each forwarding
-path.
+The Gateway removes both client-supplied object identity and address headers at
+its public entry point. Custody forwarding sets the identity from server-admitted
+data, then reads the stored addresses. This no longer depends on every forwarding
+path removing client headers separately.
+
+The Router Wasm check and Wallet-server type check pass. The built Router and
+Gateway pass two browser contracts: immediate export after passkey unlock, and
+three-device linking followed by NEAR/ECDSA signing and both key exports.
+The isolated test log is `.artifacts/r155d-route-browser-stable.log`.
+An earlier parallel launch failed on occupied ports before a test ran.
 
 ### What the stored-address trace leaves for Phase 2
 

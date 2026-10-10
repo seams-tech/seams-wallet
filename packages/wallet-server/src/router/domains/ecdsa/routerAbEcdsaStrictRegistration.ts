@@ -1,4 +1,5 @@
 import { walletObjectIdentity, walletObjectIdentityHeaders } from '../../cloudflare/runtime/walletObjectAddresses';
+import { normalizeRouterAbInternalServiceAuthSecret, ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1 } from '../../../core/ThresholdService/routerAb/internalServiceHttp';
 import {
   parseRouterAbEcdsaDerivationExplicitExportRequestV1,
   projectRouterAbEcdsaDerivationExplicitExportRequestToProtocolV1,
@@ -246,6 +247,7 @@ export interface RouterAbEcdsaCeremonyTokenIssuer {
 }
 
 type StrictRegistrationForwarderConfig = {
+  readonly internalServiceAuthSecret: string;
   readonly router: {
     fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
   };
@@ -411,6 +413,7 @@ class StrictRegistrationForwarder implements RouterAbEcdsaStrictRegistrationPort
     );
     const token = await this.config.tokenIssuer.issueRequest(claims, requestPolicy);
     const headers: Record<string, string> = {
+      [ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1]: normalizeRouterAbInternalServiceAuthSecret(this.config.internalServiceAuthSecret),
       authorization: `Bearer ${token}`,
       'content-type': JSON_CONTENT_TYPE,
       ...walletObjectIdentityHeaders(walletObjectIdentity(claims.accountId, claims.ownershipGeneration, {
@@ -575,6 +578,7 @@ class StrictPostRegistrationForwarder implements RouterAbEcdsaStrictPostRegistra
       new Request(`https://router.router-ab.internal${input.path}`, {
         method: 'POST',
         headers: {
+          [ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1]: normalizeRouterAbInternalServiceAuthSecret(this.config.internalServiceAuthSecret),
           authorization: `Bearer ${token}`,
           'content-type': JSON_CONTENT_TYPE,
           ...walletObjectIdentityHeaders(walletObjectIdentity(claims.accountId, claims.ownershipGeneration, { orgId: claims.orgId, projectId: claims.projectId, envId: claims.projectEnvironmentId })),

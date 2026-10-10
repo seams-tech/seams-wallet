@@ -1,5 +1,5 @@
 import { D1WalletObjectAddresses } from './router/cloudflare/d1/walletObjectAddresses';
-import { walletObjectIdentity, walletObjectIdentityHeaders, type WalletObjectIdentity } from './router/cloudflare/runtime/walletObjectAddresses';
+import { walletObjectIdentity, walletObjectIdentityHeaders, WALLET_OBJECT_IDENTITY_HEADER, WALLET_OBJECT_ADDRESSES_HEADER, type WalletObjectIdentity } from './router/cloudflare/runtime/walletObjectAddresses';
 import { admitD1EstablishedWalletHome } from './router/cloudflare/d1/registration/d1WalletExecutionAuthority';
 import { WalletAuthorizationRelocationRoutes } from './router/cloudflare/runtime/walletAuthorizationRelocationRoutes';
 import { parseTenantId } from '@shared/authorization/capabilityKinds';
@@ -489,12 +489,14 @@ async function createStagingRouterApiAuthComposition(
     environment: scope.envId,
   };
   const ecdsaStrictRegistration = createRouterAbEcdsaStrictRegistrationPort({
+    internalServiceAuthSecret: requireEnvString(env, 'ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET'),
     router: env.MPC_ROUTER,
     tokenIssuer: ecdsaCeremonyTokenIssuer,
     tokenScope,
     topology,
   });
   const ecdsaStrictPostRegistration = createRouterAbEcdsaStrictPostRegistrationPort({
+    internalServiceAuthSecret: requireEnvString(env, 'ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET'),
     router: env.MPC_ROUTER,
     tokenIssuer: ecdsaCeremonyTokenIssuer,
     tokenScope,
@@ -912,6 +914,10 @@ export async function handleSplitGatewayRequest(
   ctx: CfExecutionContext,
   dependencies: HostedWalletGatewayDependenciesV1 = {},
 ): Promise<Response> {
+  const headers = new Headers(request.headers);
+  headers.delete(WALLET_OBJECT_IDENTITY_HEADER);
+  headers.delete(WALLET_OBJECT_ADDRESSES_HEADER);
+  request = new Request(request, { headers });
   if (request.method === 'GET' && new URL(request.url).pathname === ROUTER_AB_CEREMONY_JWKS_PATH) {
     return routerAbCeremonyJwksResponse(env);
   }
