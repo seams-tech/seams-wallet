@@ -783,6 +783,7 @@ function requirePreparedRegistrationId<T>(
 
 function walletRegistrationOperationPreparedFromCeremony(
   ceremony: StoredWalletRegistrationCeremony,
+  allocated: D1WalletRegistrationOperationPreparedV1 | null,
 ): D1WalletRegistrationOperationPreparedV1 {
   /* The method the wallet commits must be the one its custody envelope was
      sealed under, and the intent is what the client sealed against. They are
@@ -794,6 +795,15 @@ function walletRegistrationOperationPreparedFromCeremony(
     String(ceremony.intent.foundingWalletAuthMethodId)
   ) {
     throw new Error('registration ceremony and intent name different founding auth methods');
+  }
+  if (
+    allocated &&
+    (allocated.walletId !== ceremony.intent.walletId ||
+      allocated.walletAuthorityId !== ceremony.foundingWalletAuthorityId ||
+      allocated.deviceId !== ceremony.foundingDeviceId ||
+      allocated.walletAuthMethodId !== ceremony.foundingWalletAuthMethodId)
+  ) {
+    throw new Error('registration operation identity does not match its ceremony');
   }
   return {
     kind: 'd1_wallet_registration_operation_prepared_v1',
@@ -3758,28 +3768,8 @@ export class CloudflareD1WalletRegistrationService {
       return { prepared: committed.prepared, ceremony: null };
     }
     return {
-      prepared: await this.resolvePreparedRegistrationIdentity(
-        ceremony,
-        allocated ?? walletRegistrationOperationPreparedFromCeremony(ceremony),
-      ),
+      prepared: walletRegistrationOperationPreparedFromCeremony(ceremony, allocated ?? null),
       ceremony,
-    };
-  }
-
-  private async resolvePreparedRegistrationIdentity(
-    ceremony: StoredWalletRegistrationCeremony,
-    prepared: D1WalletRegistrationOperationPreparedV1,
-  ): Promise<D1WalletRegistrationOperationPreparedV1> {
-    const authority = verifiedRegistrationCeremonyAuthority(ceremony);
-    if (!authority) return prepared;
-    const persisted = await this.walletAuthMethods.readActiveRegistrationIdentity(authority);
-    if (!persisted) return prepared;
-    return {
-      kind: prepared.kind,
-      walletId: prepared.walletId,
-      walletAuthorityId: persisted.walletAuthorityId,
-      deviceId: prepared.deviceId,
-      walletAuthMethodId: persisted.walletAuthMethodId,
     };
   }
 
@@ -3824,9 +3814,7 @@ export class CloudflareD1WalletRegistrationService {
         throw new Error('Registration authority is unavailable before finalize');
       }
       sessionPredecessor = { kind: 'ed25519_only' };
-      effectivePrepared = preparedCeremony
-        ? prepared
-        : await this.resolvePreparedRegistrationIdentity(ceremony, prepared);
+      effectivePrepared = walletRegistrationOperationPreparedFromCeremony(ceremony, prepared);
     } else {
       const committed =
         committedInstallation ??

@@ -1,0 +1,50 @@
+{
+  "date": "2026-10-10",
+  "parentCommit": "d3ed196310db12fa711a5243e981cf56136e01e4",
+  "patchSha256": "139bb5a26779ec339e92883355e13ee433e538ad002ac6844d0a0ec31b56f179",
+  "scope": "Canonical registration identity reuse. Existing NEAR replay, retirement, mixed registration, concurrent signer admission, and Email OTP lost-finalization scenarios.",
+  "results": [
+    {
+      "file": "e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts",
+      "line": 584,
+      "title": "NEAR finalize validates one stored operation, replays a discarded reply at exhausted quota, and rejects retirement",
+      "log": ".artifacts/r155d-finalization-identity/logs/intended/passkey-ed25519-yao-local-contract-test-584-near-finalize-validates-one-stored-operation-re.log",
+      "exitCode": 0,
+      "seconds": 62,
+      "logSha256": "2aee93241beaf0436edc8576b63fc36bb805fb036bd6394c4b50ec7f37271461"
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "line": 97,
+      "title": "mixed registration exposes gateway and finalization timings",
+      "log": ".artifacts/r155d-finalization-identity/logs/intended/passkey-registration-contract-test-97-mixed-registration-exposes-gateway-and-finalizat.log",
+      "exitCode": 0,
+      "seconds": 57,
+      "logSha256": "3f1a415b92e9c5867ceb74bf2e1a945963c78ccc0274ba3551dffcf50a50f66f"
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "line": 137,
+      "title": "mixed registration starts one NEAR admission while ECDSA activate is in flight",
+      "log": ".artifacts/r155d-finalization-identity/logs/intended/passkey-registration-contract-test-137-mixed-registration-starts-one-near-admission-whi.log",
+      "exitCode": 0,
+      "seconds": 68,
+      "logSha256": "29cb970683bc3bccea2433fa810b49792253ea164dbe2219f493cc27f28b1894"
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.registration.resume.contract.test.ts",
+      "line": 42,
+      "title": "Email OTP unlock resumes a lost NEAR finalization response after reload",
+      "log": ".artifacts/r155d-finalization-identity/logs/email/email-otp-registration-resume-contract-test-42-email-otp-unlock-resumes-a-lost-near-finalizatio.log",
+      "exitCode": 0,
+      "seconds": 77,
+      "logSha256": "60e2d8f219434067773834118956b76a9e428eb4822932491db320fb575afe03"
+    }
+  ],
+  "buildPassed": true,
+  "hostedMeasurement": "Not measured. This change follows the completion/Console comparison.",
+  "initialEnvironmentFailure": {
+    "classification": "environment_or_infrastructure_failure",
+    "reason": "Isolated export omitted the custody script workspace package link. No scenario started."
+  }
+}

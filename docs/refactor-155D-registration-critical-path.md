@@ -1951,3 +1951,22 @@ additive Gateway tables. No new resources were created.
 exact versions, public signature proofs, request counts, D1 traces, timing ranges,
 and restoration checks. Private `.artifacts/r155d-completion-hosted` retains the
 frozen sources and reproduction scripts.
+
+
+### Ceremony identity reuse — after the completion comparison
+
+Finalization previously queried the active founding identity and substituted its
+IDs into the prepared registration. Setup already persists those IDs in the
+ceremony and checks them against its reservation on retry. Finalization now uses
+that exact persisted identity and rejects a conflicting operation identity. This
+removes the preliminary identity SELECT without changing the later transactional
+checks for existing authorities, auth methods, or mixed-signer extension.
+
+This change is newer than the hosted candidate above. Its hosted latency and D1
+count have not been measured. The server build and bloat check pass. Targeted
+NEAR replay, retirement, mixed registration, concurrent signer admission, and
+Email OTP lost-finalization checks all pass: four existing browser scenarios.
+[The local evidence](evidence/refactor-155d-ceremony-identity.json) records the
+results and log hashes. The first isolated launch lacked a workspace package
+link and stopped before any scenario ran. Fixing that export required no
+production change.
