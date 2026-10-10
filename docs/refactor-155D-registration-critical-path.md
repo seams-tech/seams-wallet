@@ -1193,7 +1193,7 @@ The seven failures have three causes:
 | ---: | --- | --- | --- |
 | 4 | Device linking. The Router sent the linked-device Ed25519 reservation to the Signing Worker without the wallet's object route. The Signing Worker requires the route. | `production_regression` in `cb331a8d` | The Router sends the route on that call. |
 | 1 | NEAR finalize. `12dca984` reads the prepared operation by its fingerprint. A receipt that named an unknown operation ID got `invalid_authorized_operation`. The contract requires `authorized_operation_missing`. | `production_regression` in `12dca984` | The resolution answers `authorized_operation_missing` when the stored operation has another ID. No read was added. |
-| 2 | Activation response loss, `mixed` and `mixed_near`. The first Yao execution still runs when the reload retries it, and the Router answers `execution_in_progress`. | `environment_or_infrastructure_failure`: the debug Worker build is slower | None. The three cases of that file pass with release builds. |
+| 2 | Activation response loss, `mixed` and `mixed_near`. The first Yao execution still runs when the reload retries it, and the Router answers `execution_in_progress`. | `production_regression`: the SDK treated the Router's recoverable answer as a failure. The slower debug Worker build only makes the two requests overlap. This row first said `environment_or_infrastructure_failure`. | The SDK sends the exact execute request again with bounded backoff. The cases pass with both build profiles. |
 
 Other suites on the fixed tree:
 

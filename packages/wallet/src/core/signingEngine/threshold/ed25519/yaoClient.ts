@@ -42,6 +42,7 @@ import {
   ROUTER_AB_TRACE_ID_HEADER_V1,
   type RouterAbTraceContextV1,
 } from '@shared/utils/routerAbTraceContext';
+import { asRecord } from '@shared/utils/validation';
 
 type RecoveryExecuteRequestV1 = RouterAbEd25519YaoActivationExecuteRequestV1<'recovery'>;
 
@@ -51,6 +52,8 @@ export const ROUTER_AB_ED25519_YAO_ACTIVE_CLIENT_KIND_V1 =
 type RouterAbEd25519YaoRegistrationTransportFailureV1 = {
   ok: false;
   message: string;
+  /** The failure code of the answer, when the answering service gave one. */
+  code?: string;
 };
 
 type RouterAbEd25519YaoRegistrationTransportResultV1 =
@@ -707,9 +710,11 @@ async function parseHttpResponse(
     const serverTiming = rawServerTiming || resourceServerTiming(response.url);
     return { ok: true, value, ...(serverTiming ? { serverTiming } : {}) };
   }
+  const code = asRecord(value)?.code;
   return {
     ok: false,
     message: JSON.stringify(value),
+    ...(typeof code === 'string' ? { code } : {}),
   };
 }
 

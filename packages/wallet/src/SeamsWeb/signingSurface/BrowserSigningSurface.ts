@@ -77,6 +77,7 @@ import {
   executeWalletRecoveryEd25519RoundV1,
   type WalletSessionEd25519RecoveryBasisV1,
 } from '@/core/signingEngine/walletCustody/walletRecoveryEd25519';
+import { executeWalletRegistrationEd25519RoundV1 } from '@/core/signingEngine/walletCustody/walletRegistrationEd25519';
 import { recoverWalletCustodyManifestV1 } from '@/core/signingEngine/walletCustody/walletRecoveryManifest';
 import {
   deleteWalletCustodyEd25519MaterialV1,
@@ -2871,16 +2872,11 @@ export class BrowserSigningSurface {
       yaoAdmission: args.admissionReceipt,
       yaoApplication: args.admissionRequest.application_binding,
       participantIds: args.participantIds,
-      runRouterRound: async (yaoExecuteRequestJson: string) => {
-        const response = await transport.send({
-          kind: 'execute',
-          path: ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1,
-          body: JSON.parse(yaoExecuteRequestJson),
+      runRouterRound: async (executeRequestJson: string) => {
+        activationResultJson = await executeWalletRegistrationEd25519RoundV1({
+          executeRequestJson,
+          transport,
         });
-        if (!response.ok) {
-          throw new Error(`Router Ed25519 Yao execute failed: ${response.message}`);
-        }
-        activationResultJson = JSON.stringify(response.value);
         return activationResultJson;
       },
     });

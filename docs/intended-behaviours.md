@@ -621,6 +621,11 @@ Expected behaviour:
 - Reload and uncertain responses retain the exact NEAR attempt. Normal unlock
   with the founding method resumes its saved phase, using fresh session authority
   when the registration grant has expired. No replacement key is generated.
+- A resumed Yao execution can reach the Router while an earlier send of the same
+  request still executes. The Router answers that the execution is in progress.
+  The SDK sends the exact request again with bounded backoff and completes with
+  the recorded result. The total delay is at most 15 seconds; a longer execution
+  leaves a retryable failure.
 - NEAR completion extends the current Wallet Session while preserving its identity,
   expiry, remaining quota, revocation epoch, and existing ECDSA capabilities.
   Concurrent ECDSA signing continues through this NEAR-only authority extension.

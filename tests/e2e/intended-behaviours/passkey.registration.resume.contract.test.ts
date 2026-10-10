@@ -48,6 +48,19 @@ test('Passkey unlock resumes a lost NEAR execution response after reload', async
   });
 });
 
+test('Passkey unlock resumes a NEAR execution that is still in progress', async ({
+  harness,
+  context,
+}) => {
+  await assertResumedNearRegistration({
+    harness,
+    context,
+    factor: 'passkey',
+    path: ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1,
+    interruption: 'in_progress',
+  });
+});
+
 test('Passkey unlock resumes a lost NEAR finalization response after reload', async ({
   harness,
   context,
